@@ -422,7 +422,7 @@ namespace {
         editor.setProcessChannelMode(QProcess::SeparateChannels);
         editor.start(editorPath,
                      {QStringLiteral("--mcp"), QStringLiteral("--control-port"),
-                      QStringLiteral("0"), QStringLiteral("--automation-profile"),
+                      QStringLiteral("random"), QStringLiteral("--automation-profile"),
                       QStringLiteral("l2")});
         if (!editor.waitForStarted(10000)) {
             return fail(QStringLiteral("Editor failed to start: %1").arg(editor.errorString()));

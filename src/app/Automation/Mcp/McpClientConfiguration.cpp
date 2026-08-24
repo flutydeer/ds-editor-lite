@@ -9,12 +9,8 @@
 
 namespace Automation::McpClientConfiguration {
     namespace {
-        constexpr auto ServerName = "ds-editor-lite";
-
         QString configurationJson(const QJsonObject &server) {
-            const QJsonObject servers{{QLatin1String(ServerName), server}};
-            const QJsonObject root{{QStringLiteral("mcpServers"), servers}};
-            return QString::fromUtf8(QJsonDocument(root).toJson(QJsonDocument::Indented)).trimmed();
+            return QString::fromUtf8(QJsonDocument(server).toJson(QJsonDocument::Indented)).trimmed();
         }
     } // namespace
 

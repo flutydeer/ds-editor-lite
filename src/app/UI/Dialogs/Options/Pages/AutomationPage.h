@@ -39,9 +39,12 @@ private:
     [[nodiscard]] QString runtimeStateDescription(const QString &state) const;
     void refreshCategoryPermissionSwitches();
     void refreshConnectionConfigurations();
+    void refreshControlPortControls();
     void refreshRuntimeStatus();
 
     SwitchButton *m_mcpEnabled = nullptr;
+    ComboBox *m_controlPortMode = nullptr;
+    Button *m_refreshControlPort = nullptr;
     SVS::ExpressionSpinBox *m_controlPort = nullptr;
     ComboBox *m_profile = nullptr;
     PathEditor *m_readRoots = nullptr;
@@ -57,7 +60,6 @@ private:
     OptionsCardItem *m_writeRootsItem = nullptr;
     QPlainTextEdit *m_stdioConfiguration = nullptr;
     QPlainTextEdit *m_streamableHttpConfiguration = nullptr;
-    Button *m_streamableHttpCopyButton = nullptr;
     StartupArguments::EffectiveAutomationConfig m_effectiveConfig;
 };
 

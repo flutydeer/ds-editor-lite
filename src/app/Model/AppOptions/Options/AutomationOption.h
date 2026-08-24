@@ -17,9 +17,16 @@ public:
         Custom,
     };
 
-    static constexpr quint16 kDefaultControlPort = 0;
+    enum class ControlPortMode {
+        Fixed,
+        Random,
+    };
 
-    explicit AutomationOption() : IOption("automation") {
+    static constexpr quint16 kRandomControlPortMinimum = 49152;
+    static constexpr quint16 kRandomControlPortMaximum = 65535;
+
+    explicit AutomationOption()
+        : IOption("automation"), controlPort(generateRandomControlPort()) {
     }
 
     void load(const QJsonObject &object) override;
@@ -30,9 +37,14 @@ public:
 
     [[nodiscard]] static QString profileToString(Profile profile);
     [[nodiscard]] static std::optional<Profile> profileFromString(const QString &value);
+    [[nodiscard]] static QString controlPortModeToString(ControlPortMode mode);
+    [[nodiscard]] static std::optional<ControlPortMode>
+        controlPortModeFromString(const QString &value);
+    [[nodiscard]] static quint16 generateRandomControlPort(quint16 previousPort = 0);
 
     bool mcpEnabled = false;
-    quint16 controlPort = kDefaultControlPort;
+    ControlPortMode controlPortMode = ControlPortMode::Random;
+    quint16 controlPort;
     Profile selectedProfile = Profile::L1;
     QMap<QString, bool> customPermissions;
     QStringList readRoots;

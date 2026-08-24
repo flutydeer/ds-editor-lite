@@ -174,10 +174,13 @@ Manifest、`tools/list` 或 connector 泛化入口。
 
 ### 5.4 Automation 设置与 CLI
 
-- `AutomationOption` 独立保存 MCP enabled、控制端口、profile、Custom 权限和 canonical 读写根；
-  安全默认值为 MCP 关闭、L1、动态端口和空的额外文件根。
-- Automation 设置页提供 MCP 开关、端口、L1/L2/L3/Custom、分类/单项 Custom、读写根、运行时
-  状态、当前 endpoint、错误以及本机进程访问风险说明。
+- `AutomationOption` 独立保存 MCP enabled、固定/随机控制端口模式、具体非零端口、profile、
+  Custom 权限和 canonical 读写根；安全默认值为 MCP 关闭、L1、随机端口和空的额外文件根。
+- Automation 设置页提供 MCP 开关、单行端口模式/刷新/端口控件、L1/L2/L3/Custom、分类/单项
+  Custom、读写根、运行时状态、当前 endpoint 与错误。固定模式允许编辑端口，随机模式允许刷新
+  具体端口；CLI 覆盖时整组控件不可编辑。
+- 设置页始终展示并允许复制 stdio 与 Streamable HTTP 配置；复制内容是单个服务对象，不包含
+  `mcpServers` 外层容器。
 - Editor 支持 `--mcp`、`--no-mcp`、`--control-port` 和 `--automation-profile`；CLI override
   优先于持久设置且不回写，设置页显示来源并禁用被覆盖项。
 - 设置变化由 `EditorMcpController` 执行有序 stop/start；端口或根目录无效时进入可解释 error，

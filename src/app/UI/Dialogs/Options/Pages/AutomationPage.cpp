@@ -21,6 +21,7 @@
 #include <QFileInfo>
 #include <QFontDatabase>
 #include <QGuiApplication>
+#include <QHBoxLayout>
 #include <QPlainTextEdit>
 #include <QSignalBlocker>
 #include <QSpinBox>
@@ -164,22 +165,24 @@ void AutomationPage::refreshConnectionConfigurations() {
 
     if (!m_streamableHttpConfiguration)
         return;
-    const auto *application = QCoreApplication::instance();
-    auto endpoint = application
-                        ? application->property(Automation::McpRuntimeStatus::EndpointProperty)
-                              .toString()
-                        : QString{};
-    if (endpoint.isEmpty() && m_controlPort && m_controlPort->value() > 0) {
-        endpoint = QStringLiteral("http://127.0.0.1:%1/mcp").arg(m_controlPort->value());
-    }
-
-    const auto available = !endpoint.isEmpty();
+    const auto endpoint = m_controlPort
+                              ? QStringLiteral("http://127.0.0.1:%1/mcp")
+                                    .arg(m_controlPort->value())
+                              : QString{};
     m_streamableHttpConfiguration->setPlainText(
-        available ? Automation::McpClientConfiguration::streamableHttpJson(endpoint)
-                  : tr("Enable the MCP server to generate a configuration with its assigned "
-                       "endpoint."));
-    if (m_streamableHttpCopyButton)
-        m_streamableHttpCopyButton->setEnabled(available);
+        Automation::McpClientConfiguration::streamableHttpJson(endpoint));
+}
+
+void AutomationPage::refreshControlPortControls() {
+    if (!m_controlPortMode || !m_refreshControlPort || !m_controlPort)
+        return;
+    const auto mode = static_cast<AutomationOption::ControlPortMode>(
+        m_controlPortMode->currentData().toInt());
+    const auto editable =
+        m_effectiveConfig.controlPortSource == StartupArguments::ConfigSource::Persisted;
+    m_controlPortMode->setEnabled(editable);
+    m_refreshControlPort->setEnabled(editable && mode == AutomationOption::ControlPortMode::Random);
+    m_controlPort->setEnabled(editable && mode == AutomationOption::ControlPortMode::Fixed);
 }
 
 void AutomationPage::refreshRuntimeStatus() {
@@ -205,8 +208,11 @@ void AutomationPage::modifyOption() {
     auto *option = appOptions->automation();
     if (m_effectiveConfig.mcpEnabledSource == StartupArguments::ConfigSource::Persisted)
         option->mcpEnabled = m_mcpEnabled->value();
-    if (m_effectiveConfig.controlPortSource == StartupArguments::ConfigSource::Persisted)
+    if (m_effectiveConfig.controlPortSource == StartupArguments::ConfigSource::Persisted) {
+        option->controlPortMode = static_cast<AutomationOption::ControlPortMode>(
+            m_controlPortMode->currentData().toInt());
         option->controlPort = static_cast<quint16>(m_controlPort->value());
+    }
     if (m_effectiveConfig.profileSource == StartupArguments::ConfigSource::Persisted) {
         option->selectedProfile =
             static_cast<AutomationOption::Profile>(m_profile->currentData().toInt());
@@ -269,7 +275,6 @@ QWidget *AutomationPage::createContentWidget() {
     const auto widget = new QWidget;
     m_stdioConfiguration = nullptr;
     m_streamableHttpConfiguration = nullptr;
-    m_streamableHttpCopyButton = nullptr;
     auto *option = appOptions->automation();
     const auto parsedArguments = StartupArguments::parseApplicationArguments();
     m_effectiveConfig = StartupArguments::effectiveAutomationConfig(
@@ -281,13 +286,38 @@ QWidget *AutomationPage::createContentWidget() {
                              StartupArguments::ConfigSource::Persisted);
     connect(m_mcpEnabled, &SwitchButton::toggled, this, &AutomationPage::modifyOption);
 
+    m_controlPortMode = new ComboBox;
+    m_controlPortMode->addItem(tr("Fixed"),
+                               static_cast<int>(AutomationOption::ControlPortMode::Fixed));
+    m_controlPortMode->addItem(tr("Random"),
+                               static_cast<int>(AutomationOption::ControlPortMode::Random));
+    m_controlPortMode->setCurrentIndex(
+        m_controlPortMode->findData(static_cast<int>(m_effectiveConfig.controlPortMode)));
+
+    m_refreshControlPort = new Button(tr("Refresh"));
     m_controlPort = new SVS::ExpressionSpinBox;
-    m_controlPort->setRange(0, 65535);
+    m_controlPort->setRange(1, 65535);
     m_controlPort->setValue(m_effectiveConfig.controlPort);
-    m_controlPort->setEnabled(m_effectiveConfig.controlPortSource ==
-                              StartupArguments::ConfigSource::Persisted);
+    connect(m_controlPortMode, &ComboBox::currentIndexChanged, this, [this] {
+        const auto mode = static_cast<AutomationOption::ControlPortMode>(
+            m_controlPortMode->currentData().toInt());
+        if (mode == AutomationOption::ControlPortMode::Random) {
+            const QSignalBlocker blocker(m_controlPort);
+            m_controlPort->setValue(
+                AutomationOption::generateRandomControlPort(m_controlPort->value()));
+        }
+        refreshControlPortControls();
+        modifyOption();
+    });
+    connect(m_refreshControlPort, &Button::clicked, this, [this] {
+        const QSignalBlocker blocker(m_controlPort);
+        m_controlPort->setValue(
+            AutomationOption::generateRandomControlPort(m_controlPort->value()));
+        modifyOption();
+    });
     connect(m_controlPort, QOverload<int>::of(&QSpinBox::valueChanged), this,
             &AutomationPage::modifyOption);
+    refreshControlPortControls();
 
     m_profile = new ComboBox;
     m_profile->addItem(tr("L1 - Basic Editing"), static_cast<int>(AutomationOption::Profile::L1));
@@ -306,10 +336,17 @@ QWidget *AutomationPage::createContentWidget() {
                                               ? QStringLiteral("--mcp")
                                               : QStringLiteral("--no-mcp")),
                         m_mcpEnabled);
+    auto *controlPortControl = new QWidget;
+    auto *controlPortLayout = new QHBoxLayout(controlPortControl);
+    controlPortLayout->setContentsMargins({});
+    controlPortLayout->setSpacing(6);
+    controlPortLayout->addWidget(m_controlPortMode);
+    controlPortLayout->addWidget(m_refreshControlPort);
+    controlPortLayout->addWidget(m_controlPort);
     serverCard->addItem(
         tr("Control Port"),
         sourceDescription(m_effectiveConfig.controlPortSource, QStringLiteral("--control-port")),
-        m_controlPort);
+        controlPortControl);
     m_runtimeStateItem = serverCard->addItem(tr("Runtime Status"), QString{});
     m_runtimeEndpointItem = serverCard->addItem(tr("Current Endpoint"), QString{});
     m_runtimeErrorItem = serverCard->addItem(tr("Last Error"), QString{});
@@ -353,15 +390,15 @@ QWidget *AutomationPage::createContentWidget() {
            "uses the current access profile."),
         stdioControl);
 
+    Button *streamableHttpCopyButton = nullptr;
     const auto streamableHttpControl = createConfigurationControl(
-        m_streamableHttpConfiguration, m_streamableHttpCopyButton,
+        m_streamableHttpConfiguration, streamableHttpCopyButton,
         tr("Streamable HTTP configuration copied"),
         QStringLiteral("automationStreamableHttpConfiguration"));
     connectionCard->addItem(
         tr("Streamable HTTP"),
-        tr("Connects directly to the editor's current MCP endpoint. A fixed configured port can "
-           "be copied before the server starts; an automatically assigned port appears after it "
-           "starts listening."),
+        tr("Connects directly to the editor's configured MCP endpoint. Random mode keeps a "
+           "concrete port that can be replaced with Refresh."),
         streamableHttpControl);
     refreshConnectionConfigurations();
 

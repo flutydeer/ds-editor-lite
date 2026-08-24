@@ -295,15 +295,16 @@ editorInstanceId 改变时清空 Manifest、Schema、document/window/task 句柄
 
 ## 10. Automation 设置页、CLI 与运行时启停
 
-Automation 设置独立保存：MCP enabled、控制端口、selected profile、Custom 权限、canonical
-读/写根目录和必要的安全上限。安全默认值为 MCP 关闭、L1、空的额外文件根目录。端口 0
-表示系统分配；显式端口冲突不得连接或复用其他实例。
+Automation 设置独立保存：MCP enabled、控制端口模式与具体端口、selected profile、Custom
+权限、canonical 读/写根目录和必要的安全上限。安全默认值为 MCP 关闭、L1、随机端口模式和
+空的额外文件根目录。随机模式仍保存并展示一个非零具体端口，可显式刷新；端口冲突不得连接
+或复用其他实例。
 
 Editor CLI：
 
 ```text
 --mcp | --no-mcp
---control-port <0..65535>
+--control-port <random|1..65535>
 --automation-profile l1|l2|l3|custom
 ```
 
@@ -316,7 +317,8 @@ mcp_disabled`，已进入 TaskManager 的后台任务默认继续。启用中修
 流程，失败时保留可解释状态。所有状态变化向 watcher 广播。
 
 设置页提供 L1/L2/L3/Custom 说明、Custom 分类/单项选择、读写根目录管理、当前 endpoint
-与错误状态。InternalOnly、延期和 host 不可用 operation 不出现在 Custom 列表。
+与错误状态，并始终提供可复制的 stdio 和 Streamable HTTP 服务对象配置。InternalOnly、延期
+和 host 不可用 operation 不出现在 Custom 列表。
 
 ## 11. 安全、文件与并发
 

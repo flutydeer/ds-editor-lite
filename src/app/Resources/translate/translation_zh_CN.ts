@@ -244,11 +244,6 @@
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="168"/>
-        <source>Enable the MCP server to generate a configuration with its assigned endpoint.</source>
-        <translation>启用 MCP 服务器后，将使用其分配的端点生成配置。</translation>
-    </message>
-    <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="147"/>
         <source>Not initialized</source>
         <translation>尚未初始化</translation>
@@ -317,6 +312,21 @@
         <translation>控制端口</translation>
     </message>
     <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="290"/>
+        <source>Fixed</source>
+        <translation>固定</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="292"/>
+        <source>Random</source>
+        <translation>随机</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="297"/>
+        <source>Refresh</source>
+        <translation>刷新</translation>
+    </message>
+    <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="265"/>
         <source>Runtime Status</source>
         <translation>运行状态</translation>
@@ -368,8 +378,8 @@
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="359"/>
-        <source>Connects directly to the editor&apos;s current MCP endpoint. A fixed configured port can be copied before the server starts; an automatically assigned port appears after it starts listening.</source>
-        <translation>直接连接编辑器当前的 MCP 端点。固定配置的端口可在服务器启动前复制；自动分配的端口会在开始监听后显示。</translation>
+        <source>Connects directly to the editor&apos;s configured MCP endpoint. Random mode keeps a concrete port that can be replaced with Refresh.</source>
+        <translation>直接连接编辑器配置的 MCP 端点。随机模式也会保留一个具体端口，可通过“刷新”更换。</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="270"/>

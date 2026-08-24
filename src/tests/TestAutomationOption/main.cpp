@@ -20,7 +20,11 @@ namespace {
     bool testDefaults() {
         AutomationOption option;
         bool success = expect(!option.mcpEnabled, QStringLiteral("MCP should default to disabled"));
-        success &= expect(option.controlPort == 0, QStringLiteral("control port should default to 0"));
+        success &= expect(option.controlPortMode == AutomationOption::ControlPortMode::Random,
+                          QStringLiteral("control port mode should default to Random"));
+        success &= expect(option.controlPort >= AutomationOption::kRandomControlPortMinimum &&
+                              option.controlPort <= AutomationOption::kRandomControlPortMaximum,
+                          QStringLiteral("Random mode should have a concrete private port"));
         success &= expect(option.selectedProfile == AutomationOption::Profile::L1,
                           QStringLiteral("profile should default to L1"));
         success &= expect(!option.customPermissionEnabled(QStringLiteral("notes.get")),
@@ -33,6 +37,7 @@ namespace {
     bool testRoundTrip() {
         AutomationOption option;
         option.mcpEnabled = true;
+        option.controlPortMode = AutomationOption::ControlPortMode::Fixed;
         option.controlPort = 65535;
         option.selectedProfile = AutomationOption::Profile::Custom;
         option.setCustomPermissionEnabled(QStringLiteral("notes.get"), true);
@@ -43,6 +48,8 @@ namespace {
         AutomationOption reloaded;
         reloaded.load(option.value());
         bool success = expect(reloaded.mcpEnabled, QStringLiteral("MCP setting should round-trip"));
+        success &= expect(reloaded.controlPortMode == AutomationOption::ControlPortMode::Fixed,
+                          QStringLiteral("control port mode should round-trip"));
         success &= expect(reloaded.controlPort == 65535,
                           QStringLiteral("maximum control port should round-trip"));
         success &= expect(reloaded.selectedProfile == AutomationOption::Profile::Custom,
@@ -70,6 +77,7 @@ namespace {
 
         option.load(QJsonObject{
             {QStringLiteral("mcpEnabled"),       QStringLiteral("true")                 },
+            {QStringLiteral("controlPortMode"),  QStringLiteral("invalid")              },
             {QStringLiteral("controlPort"),      65536                                  },
             {QStringLiteral("selectedProfile"),  QStringLiteral("L2")                  },
             {QStringLiteral("customPermissions"),
@@ -82,8 +90,10 @@ namespace {
 
         bool success = expect(!option.mcpEnabled,
                               QStringLiteral("invalid MCP value should use disabled default"));
-        success &= expect(option.controlPort == 0,
-                          QStringLiteral("out-of-range port should use default 0"));
+        success &= expect(option.controlPortMode == AutomationOption::ControlPortMode::Random &&
+                              option.controlPort >= AutomationOption::kRandomControlPortMinimum &&
+                              option.controlPort <= AutomationOption::kRandomControlPortMaximum,
+                          QStringLiteral("invalid port settings should use a concrete Random port"));
         success &= expect(option.selectedProfile == AutomationOption::Profile::L1,
                           QStringLiteral("invalid profile should use L1"));
         success &= expect(option.customPermissions.size() == 1 &&
@@ -111,6 +121,28 @@ namespace {
         }
         success &= expect(!AutomationOption::profileFromString(QStringLiteral("l0")),
                           QStringLiteral("L0 is not an editor profile"));
+        return success;
+    }
+
+    bool testLegacyControlPortMigration() {
+        AutomationOption random;
+        random.load(QJsonObject{{QStringLiteral("controlPort"), 0}});
+        bool success = expect(
+            random.controlPortMode == AutomationOption::ControlPortMode::Random &&
+                random.controlPort >= AutomationOption::kRandomControlPortMinimum,
+            QStringLiteral("legacy port 0 should migrate to an explicit Random selection"));
+
+        AutomationOption fixed;
+        fixed.load(QJsonObject{{QStringLiteral("controlPort"), 18231}});
+        success &= expect(fixed.controlPortMode == AutomationOption::ControlPortMode::Fixed &&
+                              fixed.controlPort == 18231,
+                          QStringLiteral("legacy non-zero ports should migrate to Fixed"));
+
+        const auto refreshed = AutomationOption::generateRandomControlPort(random.controlPort);
+        success &= expect(refreshed != random.controlPort &&
+                              refreshed >= AutomationOption::kRandomControlPortMinimum &&
+                              refreshed <= AutomationOption::kRandomControlPortMaximum,
+                          QStringLiteral("refresh should produce a different concrete Random port"));
         return success;
     }
 
@@ -142,11 +174,7 @@ namespace {
 
         const auto stdio = QJsonDocument::fromJson(
             stdioJson(command, connectorArguments(AutomationOption::Profile::L1)).toUtf8());
-        const auto stdioServer = stdio.object()
-                                     .value(QStringLiteral("mcpServers"))
-                                     .toObject()
-                                     .value(QStringLiteral("ds-editor-lite"))
-                                     .toObject();
+        const auto stdioServer = stdio.object();
         success &= expect(stdioServer.value(QStringLiteral("type")).toString() ==
                                   QStringLiteral("stdio") &&
                               stdioServer.value(QStringLiteral("command")).toString() == command &&
@@ -155,11 +183,7 @@ namespace {
 
         const auto endpoint = QStringLiteral("http://127.0.0.1:18231/mcp");
         const auto http = QJsonDocument::fromJson(streamableHttpJson(endpoint).toUtf8());
-        const auto httpServer = http.object()
-                                    .value(QStringLiteral("mcpServers"))
-                                    .toObject()
-                                    .value(QStringLiteral("ds-editor-lite"))
-                                    .toObject();
+        const auto httpServer = http.object();
         success &= expect(httpServer.value(QStringLiteral("type")).toString() ==
                                   QStringLiteral("streamable-http") &&
                               httpServer.value(QStringLiteral("url")).toString() == endpoint,
@@ -175,6 +199,7 @@ int main(int argc, char *argv[]) {
     success &= testDefaults();
     success &= testRoundTrip();
     success &= testInvalidValuesUseSafeDefaults();
+    success &= testLegacyControlPortMigration();
     success &= testProfileConversion();
     success &= testMcpClientConfigurations();
     return success ? 0 : 1;
