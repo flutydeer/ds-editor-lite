@@ -355,9 +355,8 @@ namespace {
         bool ok = true;
         const auto &tools = publicToolContracts();
         const auto expectedIds = PublicAutomationToolsetExpectations::editorToolIds();
-        ok &=
-            expect(tools.size() == 127,
-                   QStringLiteral("public declaration must contain 127 editor tools"));
+        ok &= expect(tools.size() == 127,
+                     QStringLiteral("public declaration must contain 127 editor tools"));
         ok &=
             expect(publicToolIds() == expectedIds,
                    QStringLiteral("public declaration must exactly match the frozen tool matrix"));
@@ -675,21 +674,19 @@ namespace {
                 {QStringLiteral("validated_only"), false          },
             };
             const QJsonObject missingDocument{
-                {QStringLiteral("task_id"),
-                 QStringLiteral("00000000-0000-4000-8000-000000000002")},
-                {QStringLiteral("validated_only"), false},
+                {QStringLiteral("task_id"),        QStringLiteral("00000000-0000-4000-8000-000000000002")},
+                {QStringLiteral("validated_only"), false                                                 },
             };
-            ok &=
-                expect(validateJsonValue(accepted, tool.outputSchema).valid() &&
-                           !validateJsonValue(missingTask, tool.outputSchema).valid() &&
-                           !validateJsonValue(missingDocument, tool.outputSchema).valid(),
-                       QStringLiteral("TaskAccepted must require task_id and document for %1")
-                           .arg(tool.operationId));
+            ok &= expect(validateJsonValue(accepted, tool.outputSchema).valid() &&
+                             !validateJsonValue(missingTask, tool.outputSchema).valid() &&
+                             !validateJsonValue(missingDocument, tool.outputSchema).valid(),
+                         QStringLiteral("TaskAccepted must require task_id and document for %1")
+                             .arg(tool.operationId));
         }
-        ok &=
-            expect(asynchronousCount == 12,
-                   QStringLiteral("all twelve asynchronous public tools must share the discriminated "
-                                  "TaskAccepted schema"));
+        ok &= expect(
+            asynchronousCount == 12,
+            QStringLiteral("all twelve asynchronous public tools must share the discriminated "
+                           "TaskAccepted schema"));
 
         const auto parameterSourcePaths = [](const QString &id) {
             QSet<QString> paths;
@@ -755,11 +752,10 @@ namespace {
         auto targets = publicExposureTargets();
         targets.append(
             {QStringLiteral("future.gui_tool"), QStringLiteral("future"), AutomationProfile::L3});
-        ok &= expect(
-            selectExposure({ExposureProfile::L2}, targets).exposedIds.size() == 127 &&
-                selectExposure({ExposureProfile::L3}, targets)
-                    .exposedIds.contains(QStringLiteral("future.gui_tool")),
-            QStringLiteral("higher exposure presets must include higher-profile targets"));
+        ok &= expect(selectExposure({ExposureProfile::L2}, targets).exposedIds.size() == 127 &&
+                         selectExposure({ExposureProfile::L3}, targets)
+                             .exposedIds.contains(QStringLiteral("future.gui_tool")),
+                     QStringLiteral("higher exposure presets must include higher-profile targets"));
         return ok;
     }
 
@@ -914,6 +910,8 @@ namespace {
             {QStringLiteral("ok"), true}
         });
         ok &= expect(discover.value(QStringLiteral("resultType")) == QStringLiteral("complete") &&
+                         discover.value(QStringLiteral("supportedVersions")).toArray() ==
+                             QJsonArray{QString::fromLatin1(ProtocolVersion)} &&
                          discover.value(QStringLiteral("capabilities"))
                              .toObject()
                              .value(QStringLiteral("tools"))
@@ -922,7 +920,8 @@ namespace {
                          call.value(QStringLiteral("resultType")) == QStringLiteral("complete") &&
                          call.value(QStringLiteral("content")).isArray() &&
                          call.contains(QStringLiteral("structuredContent")),
-                     QStringLiteral("discover/list/call results must use complete envelopes"));
+                     QStringLiteral("modern discovery must advertise only the stateless 2026 "
+                                    "version and complete envelopes"));
 
         const auto response = makeResultResponse(QStringLiteral("request-1"), call, serverInfo);
         ok &= expect(validateResponse(response, QStringLiteral("request-1")).valid(),
