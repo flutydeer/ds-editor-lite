@@ -611,6 +611,40 @@ namespace {
                         sameClipTiming(copiedSnapshot->data.properties, copiedDraft.properties),
                     QStringLiteral(
                         "a pasted legacy audio snapshot must preserve its exact timing geometry"));
+
+                auto conflictingDraft = copiedDraft;
+                conflictingDraft.clientRef = QStringLiteral("conflicting-audio-anchor");
+                conflictingDraft.properties.start = 960;
+                conflictingDraft.properties.length = 480;
+                conflictingDraft.properties.clipStart = 0;
+                conflictingDraft.properties.clipLen = 480;
+                conflictingDraft.properties.trimStartMs = 0.0;
+                conflictingDraft.properties.playLengthMs = 1000.0;
+                conflictingDraft.properties.materialLengthMs = 1000.0;
+                const auto conflicting = runtime.project().insertClips(
+                    commandContext(runtime), {
+                                                 {.trackId = second, .clip = conflictingDraft}
+                });
+                const auto conflictingSnapshot =
+                    conflicting && !conflicting.get().affectedObjects.isEmpty()
+                        ? clipSnapshot(runtime,
+                                       ClipId(conflicting.get().affectedObjects.first().value))
+                        : std::nullopt;
+                suite.expect(
+                    conflicting && conflictingSnapshot &&
+                        conflictingSnapshot->data.properties.start +
+                                conflictingSnapshot->data.properties.clipStart ==
+                            conflictingDraft.properties.start +
+                                conflictingDraft.properties.clipStart &&
+                        conflictingSnapshot->data.properties.clipLen !=
+                            conflictingDraft.properties.clipLen &&
+                        conflictingSnapshot->data.properties.length >=
+                            conflictingSnapshot->data.properties.clipStart +
+                                conflictingSnapshot->data.properties.clipLen &&
+                        conflictingSnapshot->data.properties.playLengthMs ==
+                            conflictingDraft.properties.playLengthMs,
+                    QStringLiteral(
+                        "an inconsistent anchored draft must reconcile ticks to realtime truth"));
             });
 
         suite.run(

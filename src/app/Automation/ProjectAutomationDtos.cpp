@@ -544,8 +544,16 @@ namespace Automation {
         result->workspace() = draft.workspace;
         if (result->clipType() == Clip::Audio) {
             auto *audio = static_cast<AudioClip *>(result.get());
-            if (!audio->hasRealTimeAnchor())
+            if (audio->hasRealTimeAnchor()) {
+                audio->updateTicksFromTruth(timeline);
+                if (audio->start() == draft.properties.start &&
+                    audio->clipStart() == draft.properties.clipStart &&
+                    audio->clipLen() == draft.properties.clipLen) {
+                    audio->setLength(draft.properties.length);
+                }
+            } else {
                 audio->syncTruthFromTicks(timeline);
+            }
         }
         return result;
     }
