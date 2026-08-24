@@ -161,6 +161,14 @@ void AudioClip::preserveUnchangedTruth(ClipCommonProperties &newArgs,
     newArgs.materialLengthMs = qMax(newArgs.playLengthMs, oldArgs.materialLengthMs);
 }
 
+bool AudioClip::timingPropertiesEqual(const ClipCommonProperties &left,
+                                      const ClipCommonProperties &right) {
+    return left.start == right.start && left.length == right.length &&
+           left.clipStart == right.clipStart && left.clipLen == right.clipLen &&
+           left.trimStartMs == right.trimStartMs && left.playLengthMs == right.playLengthMs &&
+           left.materialLengthMs == right.materialLengthMs;
+}
+
 void AudioClip::applyRealTimeAnchorFromProperties(const ClipCommonProperties &args,
                                                   const Timeline &timeline) {
     if (args.playLengthMs >= 0)

@@ -6,7 +6,8 @@
 #include <lite/ProjectModel/AppModel/Track.h>
 
 namespace {
-    void applyArgs(Clip *clip, const Clip::ClipCommonProperties &args) {
+    void applyArgs(Clip *clip, const Clip::ClipCommonProperties &args,
+                   const bool updateAudioTiming) {
         clip->setName(args.name);
         clip->setStart(args.start);
         clip->setClipStart(args.clipStart);
@@ -14,7 +15,7 @@ namespace {
         clip->setClipLen(args.clipLen);
         clip->setGain(args.gain);
         clip->setMute(args.mute);
-        if (clip->clipType() == IClip::Audio) {
+        if (clip->clipType() == IClip::Audio && updateAudioTiming) {
             static_cast<AudioClip *>(clip)->applyRealTimeAnchorFromProperties(args,
                                                                               appModel->timeline());
         }
@@ -46,6 +47,7 @@ MoveClipToTrackAction *MoveClipToTrackAction::build(const Clip::ClipCommonProper
             AudioClip::deriveTruthForProperties(a->m_newArgs, timeline);
             AudioClip::preserveUnchangedTruth(a->m_newArgs, a->m_oldArgs);
         }
+        a->m_audioTimingChanged = !AudioClip::timingPropertiesEqual(a->m_oldArgs, a->m_newArgs);
     }
     return a;
 }
@@ -56,7 +58,7 @@ void MoveClipToTrackAction::execute() {
         previousWordStates =
             SingingClipPhonemeNormalizer::captureWordStates(*static_cast<SingingClip *>(m_clip));
     m_oldTrack->removeClip(m_clip);
-    applyArgs(m_clip, m_newArgs);
+    applyArgs(m_clip, m_newArgs, m_audioTimingChanged);
     m_newTrack->insertClip(m_clip);
     if (m_clip->clipType() == IClip::Singing) {
         const auto singingClip = static_cast<SingingClip *>(m_clip);
@@ -82,7 +84,7 @@ void MoveClipToTrackAction::execute() {
 
 void MoveClipToTrackAction::undo() {
     m_newTrack->removeClip(m_clip);
-    applyArgs(m_clip, m_oldArgs);
+    applyArgs(m_clip, m_oldArgs, m_audioTimingChanged);
     m_oldTrack->insertClip(m_clip);
     if (m_clip->clipType() == IClip::Singing) {
         const auto singingClip = static_cast<SingingClip *>(m_clip);

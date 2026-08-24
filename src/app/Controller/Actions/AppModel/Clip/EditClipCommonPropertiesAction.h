@@ -19,6 +19,7 @@ private:
     Clip::ClipCommonProperties m_newArgs;
     Clip *m_clip = nullptr;
     Track *m_track = nullptr;
+    bool m_audioTimingChanged = false;
 };
 
 
