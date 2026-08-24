@@ -125,8 +125,6 @@ namespace Automation {
         bool validClipProperties(const ClipPropertiesDto &properties) {
             return static_cast<qint64>(properties.start) + properties.clipStart >= 0 &&
                    properties.length >= 0 && properties.clipStart >= 0 && properties.clipLen >= 0 &&
-                   static_cast<qint64>(properties.clipStart) + properties.clipLen <=
-                       properties.length &&
                    std::isfinite(properties.gain) && std::isfinite(properties.trimStartMs) &&
                    std::isfinite(properties.playLengthMs) &&
                    std::isfinite(properties.materialLengthMs);

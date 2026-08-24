@@ -420,7 +420,7 @@ namespace {
                 suite.expect(empty && !empty.get().changed && runtime.documentVersion() == base,
                              QStringLiteral("empty insert must be a no-op"));
                 auto invalidDraft = singingClipDraft(QStringLiteral("Invalid"));
-                invalidDraft.properties.clipLen = invalidDraft.properties.length + 1;
+                invalidDraft.properties.length = -1;
                 const auto invalid = runtime.project().insertClips(
                     commandContext(runtime), {
                                                  {.trackId = second, .clip = invalidDraft}
@@ -452,7 +452,7 @@ namespace {
 
         suite.run(
             Automation::OperationIds::clips::set_properties,
-            QStringLiteral("move-and-edit-atomically"), [&] {
+            QStringLiteral("legacy-range-move-and-edit-atomically"), [&] {
                 testRuntime.history()->reset();
                 const auto before = clipSnapshot(runtime, clip);
                 suite.expect(before.has_value(), QStringLiteral("fixture clip must exist"));
@@ -460,9 +460,9 @@ namespace {
                 edit.id = clip;
                 edit.name = QStringLiteral("Moved Clip");
                 edit.start = 960;
-                edit.length = 2880;
-                edit.clipStart = 120;
-                edit.clipLen = 2400;
+                edit.length = 100;
+                edit.clipStart = 50;
+                edit.clipLen = 100;
                 edit.gain = 0.8;
                 edit.mute = true;
                 auto invalid = edit;
@@ -472,15 +472,6 @@ namespace {
                 suite.expect(isError(rejected, AutomationErrorCode::InvalidArgument,
                                      QStringLiteral("properties")),
                              QStringLiteral("invalid clip properties must not partially move"));
-                auto outsideMaterial = edit;
-                outsideMaterial.length = 100;
-                outsideMaterial.clipStart = 50;
-                outsideMaterial.clipLen = 100;
-                const auto rejectedRange = runtime.project().setClipProperties(
-                    commandContext(runtime, true), outsideMaterial, third);
-                suite.expect(isError(rejectedRange, AutomationErrorCode::InvalidArgument,
-                                     QStringLiteral("properties")),
-                             QStringLiteral("clip range must stay inside material length"));
                 const auto base = runtime.documentVersion();
                 const auto preview =
                     runtime.project().setClipProperties(commandContext(runtime, true), edit, third);
@@ -493,8 +484,13 @@ namespace {
                 suite.expect(
                     changed && changed.get().current.revision == base.revision + 1 && after &&
                         after->trackId == third && after->data.properties.name == edit.name &&
-                        after->data.properties.start == edit.start && after->data.properties.mute,
-                    QStringLiteral("clip move and properties must commit once"));
+                        after->data.properties.start == edit.start &&
+                        after->data.properties.length == edit.length &&
+                        after->data.properties.clipStart == edit.clipStart &&
+                        after->data.properties.clipLen == edit.clipLen &&
+                        after->data.properties.mute,
+                    QStringLiteral(
+                        "legacy clip range and move must commit once without normalization"));
                 const auto noOp =
                     runtime.project().setClipProperties(commandContext(runtime), edit, third);
                 suite.expect(noOp && !noOp.get().changed &&

@@ -697,9 +697,8 @@ namespace Automation {
 
     AutomationResult<AutomationUnit> validate(const ClipDraftDto &draft) {
         const auto &properties = draft.properties;
-        if (properties.start + properties.clipStart < 0 || properties.length < 0 ||
-            properties.clipStart < 0 || properties.clipLen < 0 ||
-            properties.clipStart + properties.clipLen > properties.length ||
+        if (static_cast<qint64>(properties.start) + properties.clipStart < 0 ||
+            properties.length < 0 || properties.clipStart < 0 || properties.clipLen < 0 ||
             !std::isfinite(properties.gain) || !std::isfinite(properties.trimStartMs) ||
             !std::isfinite(properties.playLengthMs) ||
             !std::isfinite(properties.materialLengthMs)) {
