@@ -143,8 +143,12 @@ namespace Automation::OperationIds {
 
     inline const QStringList &all() {
 #define AUTOMATION_REFERENCE_OPERATION_ID(scope, name, value) scope::name,
-        static const QStringList ids = {
-            AUTOMATION_OPERATION_ID_LIST(AUTOMATION_REFERENCE_OPERATION_ID)};
+        static const QStringList ids = [] {
+            QStringList result = {
+                AUTOMATION_OPERATION_ID_LIST(AUTOMATION_REFERENCE_OPERATION_ID)};
+            result.sort();
+            return result;
+        }();
 #undef AUTOMATION_REFERENCE_OPERATION_ID
         return ids;
     }
