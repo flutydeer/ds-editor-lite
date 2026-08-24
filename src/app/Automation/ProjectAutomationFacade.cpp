@@ -369,7 +369,6 @@ namespace Automation {
                 if (trackDrafts.isEmpty())
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
 
-                std::vector<std::unique_ptr<Track>> ownedTracks;
                 QList<CreatedObjectRef> createdObjects;
                 QList<ObjectRef> affected;
                 auto actions = std::make_unique<TrackActions>();
@@ -377,16 +376,10 @@ namespace Automation {
                     auto track =
                         buildTrack(trackDrafts.at(offset), model->timeline(), &createdObjects);
                     affected.append({ObjectKind::Track, track->id()});
-                    actions->insertTrack(track.get(), index + offset, model);
-                    ownedTracks.push_back(std::move(track));
+                    actions->insertTrack(track.release(), index + offset, model);
                 }
-                auto result = m_committer.commit(session, std::move(actions), affected,
-                                                 std::move(createdObjects));
-                if (result) {
-                    for (auto &track : ownedTracks)
-                        track.release();
-                }
-                return result;
+                return m_committer.commit(session, std::move(actions), affected,
+                                          std::move(createdObjects));
             });
     }
 

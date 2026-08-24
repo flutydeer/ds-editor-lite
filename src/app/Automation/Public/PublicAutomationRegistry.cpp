@@ -767,12 +767,20 @@ namespace Automation {
                         continue;
                     SpeakerMixModel::SpeakerMixData mix;
                     QVector<double> fullWeights;
+                    QSet<QString> sourceIds;
+                    const auto &capability = singer.info.capability();
                     for (const auto &value : object.value(QStringLiteral("sources")).toArray()) {
                         const auto source = value.toObject();
                         const auto speakerId = source.value(QStringLiteral("speaker"))
                                                    .toObject()
                                                    .value(QStringLiteral("speaker_id"))
                                                    .toString();
+                        if (sourceIds.contains(speakerId)) {
+                            return AutomationError::invalidArgument(
+                                fieldPath + QStringLiteral(".sources"),
+                                QStringLiteral("Speaker mix sources must be unique"));
+                        }
+                        sourceIds.insert(speakerId);
                         const auto speakers = singer.info.speakers();
                         const auto found = std::find_if(
                             speakers.cbegin(), speakers.cend(),
@@ -781,6 +789,12 @@ namespace Automation {
                             return AutomationError::invalidArgument(
                                 fieldPath + QStringLiteral(".sources"),
                                 QStringLiteral("A speaker does not belong to the singer"));
+                        }
+                        if (capability && !capability->mixableSpeakers.isEmpty() &&
+                            !capability->mixableSpeakers.contains(speakerId)) {
+                            return AutomationError::invalidArgument(
+                                fieldPath + QStringLiteral(".sources"),
+                                QStringLiteral("A speaker is not available for mixing"));
                         }
                         mix.sources.append({*found});
                         fullWeights.append(source.value(QStringLiteral("weight")).toDouble());
@@ -4106,7 +4120,7 @@ namespace Automation {
                     name.name = value.toString();
                     phonemes.nameSeq.edited.append(std::move(name));
                 }
-                phonemes.offsetSeq.clear();
+                phonemes.offsetSeq.edited.clear();
                 return mutationResult(m_runtime.notes().setPhonemes(
                     commandContext(arguments, invocation), clipId, noteId, phonemes));
             });

@@ -985,7 +985,7 @@ namespace Automation {
                                              QStringLiteral("Note was not found"));
         auto phonemes = found->data.phonemes;
         phonemes.nameSeq.edited.clear();
-        phonemes.offsetSeq.clear();
+        phonemes.offsetSeq.edited.clear();
         return patchWordProperties(OperationIds::notes::reset_phonemes, context, clipId,
                                    {
                                        {.noteId = noteId, .phonemes = phonemes}

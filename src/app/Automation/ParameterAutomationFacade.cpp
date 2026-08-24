@@ -447,6 +447,9 @@ namespace Automation {
             clipId, name, type,
             [localStart, step, values = std::move(values),
              overlay](QList<CurveDraftDto> &curves) -> AutomationResult<bool> {
+                QCryptographicHash beforeHash(QCryptographicHash::Sha256);
+                hashCurveShapes(beforeHash, curves);
+                const auto beforeDigest = beforeHash.result();
                 if (localStart < 0 || step <= 0 || values.size() < 2) {
                     return AutomationError::invalidArgument(
                         QStringLiteral("values"),
@@ -487,7 +490,9 @@ namespace Automation {
                 qDeleteAll(existing);
                 qDeleteAll(replacement);
                 curves = std::move(result);
-                return true;
+                QCryptographicHash afterHash(QCryptographicHash::Sha256);
+                hashCurveShapes(afterHash, curves);
+                return beforeDigest != afterHash.result();
             });
     }
 
