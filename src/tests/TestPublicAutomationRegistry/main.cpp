@@ -3338,6 +3338,12 @@ int main(int argc, char *argv[]) {
                reducedListResult.value(QStringLiteral("tools")).toArray().size() == 89 &&
                reducedListResult.value(QStringLiteral("nextCursor")).toString().isEmpty(),
            QStringLiteral("tools/list cache must invalidate when the access profile changes"));
+    const auto staleListResponse = dispatcher.dispatch(nextList, QStringLiteral("adapter"));
+    expect(staleListResponse.value(QStringLiteral("error"))
+                   .toObject()
+                   .value(QStringLiteral("code"))
+                   .toInt() == Mcp::InvalidParams,
+           QStringLiteral("tools/list cursors must be bound to the enabled tool snapshot"));
     access.update(AutomationWire::AutomationProfile::L2);
     auto forgedList = list;
     forgedList.params.insert(QStringLiteral("cursor"), QStringLiteral("1"));

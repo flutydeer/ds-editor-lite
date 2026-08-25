@@ -455,6 +455,18 @@ namespace {
                     descriptor.value(QStringLiteral("introduced_version")).toInteger() == 1 &&
                     descriptor.value(QStringLiteral("minimum_compatible_version")).toInteger() == 1,
                 QStringLiteral("all three per-tool version fields must start at one"));
+            const auto mcpMetadata = tool.toMcpToolJson()
+                                         .value(QStringLiteral("_meta"))
+                                         .toObject()
+                                         .value(QStringLiteral("io.openvpi.ds-editor-lite/tool"))
+                                         .toObject();
+            ok &= expect(
+                mcpMetadata.value(QStringLiteral("kind")) ==
+                        descriptor.value(QStringLiteral("kind")) &&
+                    mcpMetadata.value(QStringLiteral("host_availability")) ==
+                        descriptor.value(QStringLiteral("host_availability")),
+                QStringLiteral("MCP tool metadata must preserve Manifest execution semantics: %1")
+                    .arg(tool.operationId));
             for (const auto &entry : tool.valueSources) {
                 ++dynamicSourceCount;
                 const auto sourceDescriptor = entry.toObject();

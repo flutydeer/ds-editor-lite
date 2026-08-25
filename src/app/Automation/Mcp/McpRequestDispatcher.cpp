@@ -5,6 +5,7 @@
 #include "../Public/PublicAutomationRegistry.h"
 
 #include <lite/AutomationWire/CanonicalJson.h>
+#include <lite/AutomationWire/PublicToolContract.h>
 
 #include <QJsonArray>
 #include <QSet>
@@ -17,6 +18,19 @@ namespace Automation {
         namespace Mcp = AutomationWire::Mcp;
 
         constexpr qsizetype ToolsPageSize = 100;
+
+        QString toolsSnapshotDigest(const QStringList &toolIds, QString *error) {
+            QJsonArray encodedIds;
+            for (const auto &toolId : toolIds)
+                encodedIds.append(toolId);
+            return AutomationWire::sha256Digest(
+                QJsonObject{
+                    {QStringLiteral("toolset_version"),
+                     static_cast<qint64>(AutomationWire::PublicToolsetVersion)},
+                    {QStringLiteral("tool_ids"),        encodedIds            },
+            },
+                error);
+        }
 
         Mcp::ProtocolError
             invalidParams(const QString &message,
@@ -155,16 +169,16 @@ namespace Automation {
         for (const auto &tool : tools)
             toolIds.append(tool.operationId);
         if (toolIds != m_toolsSnapshotIds || m_toolsSnapshotDigest.isEmpty()) {
+            QString digestError;
+            const auto snapshotDigest = toolsSnapshotDigest(toolIds, &digestError);
+            if (!digestError.isEmpty()) {
+                return Mcp::makeErrorResponse(
+                    request.id, {Mcp::InternalError,
+                                 QStringLiteral("tools/list snapshot could not be encoded")});
+            }
             QJsonArray snapshot;
             for (const auto &tool : tools)
                 snapshot.append(tool.toMcpToolJson());
-            QString digestError;
-            const auto snapshotDigest = AutomationWire::sha256Digest(snapshot, &digestError);
-            if (!digestError.isEmpty()) {
-                return Mcp::makeErrorResponse(
-                    request.id,
-                    {Mcp::InternalError, QStringLiteral("tools/list snapshot could not be encoded")});
-            }
             m_toolsSnapshotIds = std::move(toolIds);
             m_toolsSnapshot = std::move(snapshot);
             m_toolsSnapshotDigest = snapshotDigest;

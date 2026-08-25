@@ -68,17 +68,14 @@ namespace DsConnector {
         void completeHandshakeCycle(quint64 epoch, bool succeeded);
         void requestToolsPage(quint64 epoch, const QString &cursor, QJsonArray accumulated,
                               QSet<QString> seenCursors, int pageCount);
-        void finishHandshake(quint64 epoch, const UpstreamResult &manifestResult = {});
-        void requestManifest(quint64 epoch);
-        void requestManifestPage(quint64 epoch, const QString &cursor, QJsonObject accumulated,
-                                 QSet<QString> seenCursors, int pageCount);
+        void requestStatus(quint64 epoch);
+        void finishHandshake(quint64 epoch, const UpstreamResult &statusResult = {});
         QString editorUnavailableCode() const;
         QString actualAvailabilityCode(const QJsonObject &tool) const;
         void rebuildToolCaches();
         void clearToolCaches();
         const QJsonArray &filteredActualTools() const;
         QJsonObject actualTool(const QString &name) const;
-        QJsonObject manifestOperation(const QString &name) const;
         QString compatibilityFor(const AutomationWire::ToolContract &tool) const;
         bool targetAllowed(const QJsonObject &tool, const QString &name) const;
         ToolCallOutcome connectorError(const QString &code, const QString &message = {}) const;
@@ -98,10 +95,10 @@ namespace DsConnector {
         QJsonArray m_actualTools;
         QJsonObject m_manifest;
         QHash<QString, QJsonObject> m_actualToolIndex;
-        QHash<QString, QJsonObject> m_manifestOperationIndex;
         QJsonArray m_filteredActualToolsCache;
         QStringList m_pendingSelectorsCache;
         QString m_filteredActualToolsDigest;
+        QString m_connectorManifestDigest;
         QHash<QByteArray, bool> m_schemaValidationCache;
         QString m_manifestCompatibility = QStringLiteral("not_loaded");
         int m_compatibleCount = 0;

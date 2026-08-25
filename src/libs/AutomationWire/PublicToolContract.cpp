@@ -3018,7 +3018,7 @@ namespace AutomationWire {
             };
         }
 
-        QJsonObject manifestContent(const PublicManifest &manifest, const bool includeDigest) {
+        QJsonObject manifestContent(const PublicManifest &manifest) {
             QJsonArray operations;
             for (const auto &tool : manifest.operations)
                 operations.append(tool.toManifestJson());
@@ -3029,11 +3029,33 @@ namespace AutomationWire {
                 {QStringLiteral("operations"),      operations                                  },
                 {QStringLiteral("extensions"),      manifest.extensions                         },
             };
-            if (includeDigest)
-                result.insert(QStringLiteral("digest"), manifest.digest);
+            result.insert(QStringLiteral("digest"), manifest.digest);
             if (!manifest.nextCursor.isEmpty())
                 result.insert(QStringLiteral("next_cursor"), manifest.nextCursor);
             return result;
+        }
+
+        QJsonObject manifestDigestContent(const PublicManifest &manifest) {
+            static const QHash<QString, QJsonObject> operationCache = [] {
+                QHash<QString, QJsonObject> result;
+                for (const auto &tool : publicToolContracts()) {
+                    auto operation = tool.toManifestJson();
+                    operation.remove(QStringLiteral("input_schema"));
+                    operation.remove(QStringLiteral("output_schema"));
+                    result.insert(tool.operationId, operation);
+                }
+                return result;
+            }();
+            QJsonArray operations;
+            for (const auto &tool : manifest.operations)
+                operations.append(operationCache.value(tool.operationId));
+            return {
+                {QStringLiteral("toolset_version"), static_cast<qint64>(manifest.toolsetVersion)},
+                {QStringLiteral("profile"),         automationProfileName(manifest.profile)     },
+                {QStringLiteral("host_mode"),       manifest.hostMode                           },
+                {QStringLiteral("operations"),      operations                                  },
+                {QStringLiteral("extensions"),      manifest.extensions                         },
+            };
         }
     }
 
@@ -3066,7 +3088,9 @@ namespace AutomationWire {
                        static_cast<qint64>(minimumCompatibleVersion)},
                       {QStringLiteral("category"), category},
                       {QStringLiteral("minimum_profile"), automationProfileName(minimumProfile)},
+                      {QStringLiteral("kind"), operationKindName(kind)},
                       {QStringLiteral("sync_mode"), syncModeName(syncMode)},
+                      {QStringLiteral("host_availability"), QStringLiteral("gui")},
                       {QStringLiteral("value_sources"), valueSources},
                   }},
              }                                           },
@@ -3187,7 +3211,7 @@ namespace AutomationWire {
     }
 
     QJsonObject PublicManifest::toJson() const {
-        return manifestContent(*this, true);
+        return manifestContent(*this);
     }
 
     PublicManifest buildPublicManifest(const AutomationProfile profile,
@@ -3209,7 +3233,7 @@ namespace AutomationWire {
         auto digestManifest = manifest;
         digestManifest.operations = allOperations;
         digestManifest.nextCursor.clear();
-        manifest.digest = sha256Digest(manifestContent(digestManifest, false));
+        manifest.digest = sha256Digest(manifestDigestContent(digestManifest));
         return manifest;
     }
 

@@ -300,6 +300,7 @@ namespace {
         bool applicationTransportExtraField = false;
         int extraToolCount = 0;
         int pageSize = 0;
+        AutomationWire::AutomationProfile manifestProfile = AutomationWire::AutomationProfile::L1;
         int manifestToolsetVersion = static_cast<int>(AutomationWire::PublicToolsetVersion);
         int applicationVersion = static_cast<int>(AutomationWire::PublicToolsetVersion);
         int applicationMinimumCompatibleVersion = 1;
@@ -310,6 +311,7 @@ namespace {
         int initializedNotificationCount = 0;
         int cancelledNotificationCount = 0;
         int toolsListCount = 0;
+        int statusCallCount = 0;
         int manifestCallCount = 0;
         QList<QJsonValue> requestIds;
         QList<QJsonObject> cancelledNotificationParams;
@@ -385,7 +387,7 @@ namespace {
         }
 
         QJsonArray allTools() const {
-            const auto cacheKey = QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8|%9")
+            const auto cacheKey = QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8|%9|%10|%11")
                                       .arg(exposeNotes)
                                       .arg(exposeFilteredTool)
                                       .arg(incompatibleApplicationSchema)
@@ -394,13 +396,26 @@ namespace {
                                       .arg(exposeCommandTool)
                                       .arg(applicationAvailability)
                                       .arg(extraToolCount)
-                                      .arg(exposeForwardCompatibleTools);
+                                      .arg(exposeForwardCompatibleTools)
+                                      .arg(applicationVersion)
+                                      .arg(applicationMinimumCompatibleVersion);
             if (cacheKey == m_toolsCacheKey)
                 return m_cachedTools;
             QJsonArray tools;
             auto applicationTool =
                 AutomationWire::findPublicTool(QStringLiteral("application.get_info"))
                     ->toMcpToolJson();
+            auto applicationMetadata = applicationTool.value(QStringLiteral("_meta"))
+                                           .toObject()
+                                           .value(QStringLiteral("io.openvpi.ds-editor-lite/tool"))
+                                           .toObject();
+            applicationMetadata.insert(QStringLiteral("version"), applicationVersion);
+            applicationMetadata.insert(QStringLiteral("minimum_compatible_version"),
+                                       applicationMinimumCompatibleVersion);
+            auto applicationMeta = applicationTool.value(QStringLiteral("_meta")).toObject();
+            applicationMeta.insert(QStringLiteral("io.openvpi.ds-editor-lite/tool"),
+                                   applicationMetadata);
+            applicationTool.insert(QStringLiteral("_meta"), applicationMeta);
             if (!applicationAvailability.isEmpty())
                 applicationTool.insert(QStringLiteral("availability"), applicationAvailability);
             if (annotatedApplicationHeaders)
@@ -419,6 +434,8 @@ namespace {
                 });
             }
             tools.append(applicationTool);
+            tools.append(AutomationWire::findPublicTool(QStringLiteral("automation.get_status"))
+                             ->toMcpToolJson());
             tools.append(AutomationWire::findPublicTool(QStringLiteral("automation.get_manifest"))
                              ->toMcpToolJson());
             if (exposeNotes) {
@@ -440,21 +457,43 @@ namespace {
                 auto command = applicationTool;
                 command.insert(QStringLiteral("name"), QStringLiteral("fake.command"));
                 command.insert(QStringLiteral("title"), QStringLiteral("Fake command"));
+                auto metadata = command.value(QStringLiteral("_meta"))
+                                    .toObject()
+                                    .value(QStringLiteral("io.openvpi.ds-editor-lite/tool"))
+                                    .toObject();
+                metadata.insert(QStringLiteral("kind"), QStringLiteral("command"));
+                auto meta = command.value(QStringLiteral("_meta")).toObject();
+                meta.insert(QStringLiteral("io.openvpi.ds-editor-lite/tool"), metadata);
+                command.insert(QStringLiteral("_meta"), meta);
                 tools.append(command);
             }
             if (exposeForwardCompatibleTools) {
                 tools.append(QJsonObject{
-                    {QStringLiteral("name"),         QStringLiteral("fake.flexible_output")   },
-                    {QStringLiteral("inputSchema"),  flexibleInputSchema()                    },
-                    {QStringLiteral("outputSchema"), flexibleOutputSchema()                   },
+                    {QStringLiteral("name"),         QStringLiteral("fake.flexible_output")},
+                    {QStringLiteral("inputSchema"),  flexibleInputSchema()                 },
+                    {QStringLiteral("outputSchema"), flexibleOutputSchema()                },
                     {QStringLiteral("icons"),
                      QJsonArray{QJsonObject{
                          {QStringLiteral("src"),
                           QStringLiteral("https://example.invalid/tool.svg")},
                          {QStringLiteral("mimeType"), QStringLiteral("image/svg+xml")},
-                     }}                                                                       },
+                     }}                                                                    },
                     {QStringLiteral("_meta"),
-                     QJsonObject{{QStringLiteral("com.openvpi.ds-editor-lite/fixture"), true}}},
+                     QJsonObject{
+                         {QStringLiteral("com.openvpi.ds-editor-lite/fixture"), true},
+                         {QStringLiteral("io.openvpi.ds-editor-lite/tool"),
+                          QJsonObject{
+                              {QStringLiteral("version"), 1},
+                              {QStringLiteral("introduced_version"), 1},
+                              {QStringLiteral("minimum_compatible_version"), 1},
+                              {QStringLiteral("category"), QStringLiteral("fake")},
+                              {QStringLiteral("minimum_profile"), QStringLiteral("meta")},
+                              {QStringLiteral("sync_mode"), QStringLiteral("synchronous")},
+                              {QStringLiteral("value_sources"), QJsonArray{}},
+                              {QStringLiteral("kind"), QStringLiteral("query")},
+                              {QStringLiteral("host_availability"), QStringLiteral("gui")},
+                          }},
+                     }                                                                     },
                 });
                 tools.append(QJsonObject{
                     {QStringLiteral("name"),        QStringLiteral("fake.minimal")},
@@ -476,9 +515,15 @@ namespace {
                 const auto id = QStringLiteral("fake.tool.%1").arg(index, 3, 10, QLatin1Char('0'));
                 tool.insert(QStringLiteral("name"), id);
                 tool.insert(QStringLiteral("title"), id);
-                auto annotations = tool.value(QStringLiteral("annotations")).toObject();
-                annotations.insert(QStringLiteral("category"), QStringLiteral("fake"));
-                tool.insert(QStringLiteral("annotations"), annotations);
+                auto metadata = tool.value(QStringLiteral("_meta"))
+                                    .toObject()
+                                    .value(QStringLiteral("io.openvpi.ds-editor-lite/tool"))
+                                    .toObject();
+                metadata.insert(QStringLiteral("category"), QStringLiteral("fake"));
+                metadata.insert(QStringLiteral("minimum_profile"), QStringLiteral("meta"));
+                auto meta = tool.value(QStringLiteral("_meta")).toObject();
+                meta.insert(QStringLiteral("io.openvpi.ds-editor-lite/tool"), metadata);
+                tool.insert(QStringLiteral("_meta"), meta);
                 tools.append(tool);
             }
             m_toolsCacheKey = cacheKey;
@@ -487,7 +532,7 @@ namespace {
         }
 
         QJsonObject fullManifest() const {
-            const auto cacheKey = QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8|%9")
+            const auto cacheKey = QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8|%9|%10")
                                       .arg(incompatibleApplicationSchema)
                                       .arg(annotatedApplicationHeaders)
                                       .arg(exposeInvalidAnnotatedTool)
@@ -496,11 +541,11 @@ namespace {
                                       .arg(manifestToolsetVersion)
                                       .arg(applicationVersion)
                                       .arg(applicationMinimumCompatibleVersion)
-                                      .arg(exposeForwardCompatibleTools);
+                                      .arg(exposeForwardCompatibleTools)
+                                      .arg(AutomationWire::automationProfileName(manifestProfile));
             if (cacheKey == m_manifestCacheKey)
                 return m_cachedManifest;
-            auto manifest =
-                AutomationWire::buildPublicManifest(AutomationWire::AutomationProfile::L1).toJson();
+            auto manifest = AutomationWire::buildPublicManifest(manifestProfile).toJson();
             manifest.insert(QStringLiteral("toolset_version"), manifestToolsetVersion);
             auto operations = manifest.value(QStringLiteral("operations")).toArray();
             QJsonObject applicationOperation;
@@ -734,6 +779,25 @@ namespace {
                 const auto tools = page(allTools(), cursorValid ? offset : 0, nextCursor);
                 result = AutomationWire::Mcp::makeToolsListResult(
                     tools, nextCursor, 0, QStringLiteral("private"), info, request.protocolVersion);
+            } else if (request.name == QStringLiteral("automation.get_status")) {
+                ++statusCallCount;
+                const auto manifest = fullManifest();
+                result = AutomationWire::Mcp::makeToolCallResult(
+                    QJsonObject{
+                        {QStringLiteral("editor_instance_id"),
+                         QStringLiteral("11111111-1111-4111-8111-111111111111")                           },
+                        {QStringLiteral("host_mode"),          manifest.value(QStringLiteral("host_mode"))},
+                        {QStringLiteral("profile"),            manifest.value(QStringLiteral("profile"))  },
+                        {QStringLiteral("manifest"),
+                         QJsonObject{
+                             {QStringLiteral("toolset_version"),
+                              manifest.value(QStringLiteral("toolset_version"))},
+                             {QStringLiteral("digest"), manifest.value(QStringLiteral("digest"))},
+                         }                                                                                },
+                        {QStringLiteral("documents"),          QJsonArray{}                               },
+                        {QStringLiteral("windows"),            QJsonArray{}                               },
+                },
+                    false, {}, {}, request.protocolVersion);
             } else if (request.name == QStringLiteral("automation.get_manifest")) {
                 ++manifestCallCount;
                 auto manifest = fullManifest();
@@ -1587,14 +1651,16 @@ namespace {
         const auto readyRuntime = [](const DsConnector::ConnectorRuntime &runtime,
                                      const int targetCount) {
             const auto status = runtime.status();
+            const auto compatibility = status.value(QStringLiteral("manifest"))
+                                           .toObject()
+                                           .value(QStringLiteral("compatibility"))
+                                           .toString();
             return status.value(QStringLiteral("mcp"))
                        .toObject()
                        .value(QStringLiteral("connected"))
                        .toBool() &&
-                   status.value(QStringLiteral("manifest"))
-                           .toObject()
-                           .value(QStringLiteral("compatibility"))
-                           .toString() == QStringLiteral("compatible_subset") &&
+                   (compatibility == QStringLiteral("compatible") ||
+                    compatibility == QStringLiteral("compatible_subset")) &&
                    status.value(QStringLiteral("exposure"))
                            .toObject()
                            .value(QStringLiteral("generic_target_count"))
@@ -1631,8 +1697,8 @@ namespace {
                 waitUntil([&] { return http.discoverCount > 2; }, 700);
             ok &= expect(
                 !unexpectedExtraHandshake && http.discoverCount == 2 && http.toolsListCount == 2 &&
-                    http.manifestCallCount == 2 && http.requestIds.size() == 6 &&
-                    http.requestIds.size() < 20,
+                    http.statusCallCount == 2 && http.manifestCallCount == 0 &&
+                    http.requestIds.size() == 6 && http.requestIds.size() < 20,
                 "a same-target ready burst must stay below the default client request budget");
 
             http.discoverResponseDelayMs = 0;
@@ -1732,7 +1798,8 @@ namespace {
                          "a 2025-06-18 editor must connect after the preferred 2026 probe fails");
             ok &= expect(http.discoverCount == 1 && http.initializeCount == 1 &&
                              http.initializedNotificationCount == 1 && http.toolsListCount == 1 &&
-                             http.manifestCallCount == 1 && http.headersValid,
+                             http.statusCallCount == 1 && http.manifestCallCount == 0 &&
+                             http.headersValid,
                          "legacy fallback must preserve the session while adopting negotiated "
                          "2025-06-18 transport metadata");
 
@@ -2601,7 +2668,7 @@ namespace {
                                  .value(QStringLiteral("com.openvpi.ds-editor-lite/fixture"))
                                  .toBool(),
                          "generic list must preserve standard optional metadata without inventing "
-                         "omitted fields and must merge manifest metadata into namespaced _meta");
+                         "omitted fields and must retain namespaced tools/list metadata");
         } else {
             ok &= expect(false, "forward-compatible generic list must return a result");
         }
@@ -2833,10 +2900,26 @@ namespace {
         ok &= expect(waitUntil(
                          [&] {
                              return http.toolsListCount > refreshCount &&
-                                    compatibility() == QStringLiteral("compatible_subset");
+                                    compatibility() == QStringLiteral("compatible");
                          },
                          10000),
-                     "the oldest supported editor contract must remain a compatible subset");
+                     "a matching L1 editor contract must be fully compatible");
+
+        refreshCount = http.toolsListCount;
+        http.manifestProfile = AutomationWire::AutomationProfile::L3;
+        bootstrap.publish(ready);
+        ok &= expect(
+            waitUntil(
+                [&] {
+                    const auto manifest =
+                        runtime.status().value(QStringLiteral("manifest")).toObject();
+                    return http.toolsListCount > refreshCount &&
+                           compatibility() == QStringLiteral("compatible") &&
+                           manifest.value(QStringLiteral("connector_digest")) ==
+                               manifest.value(QStringLiteral("editor_digest"));
+                },
+                10000),
+            "the connector Manifest baseline must follow the editor profile instead of fixed L2");
         runtime.stop();
         return ok;
     }
@@ -3137,18 +3220,21 @@ namespace {
                                .toObject()
                                .value(QStringLiteral("compatibility"))
                                .toString() != QStringLiteral("refreshing") &&
-                       http.toolsListCount >= 8 && http.manifestCallCount >= 10;
+                       http.toolsListCount >= 8 && http.statusCallCount == 1 &&
+                       http.manifestCallCount == 0;
             },
             15000);
         if (!paginationReady) {
             QTextStream(stderr) << "Pagination status: "
                                 << QJsonDocument(runtime.status()).toJson(QJsonDocument::Compact)
                                 << " tools_pages=" << http.toolsListCount
-                                << " manifest_pages=" << http.manifestCallCount
+                                << " status_calls=" << http.statusCallCount
+                                << " manifest_calls=" << http.manifestCallCount
                                 << " raw_tail=" << http.rawLog().right(4000) << Qt::endl;
         }
-        ok &= expect(paginationReady,
-                     "handshake must collect every tools/list and manifest cursor page");
+        ok &= expect(
+            paginationReady,
+            "handshake must collect every tools/list cursor page and read one status summary");
         ok &= expect(runtime.downstreamTools().size() == 6,
                      "paginated unknown tools must not change the frozen typed tool set");
         if (paginationReady) {
