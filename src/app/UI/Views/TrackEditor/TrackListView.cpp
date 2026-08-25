@@ -4,7 +4,6 @@
 #include "TrackControlView.h"
 #include "Global/TracksEditorGlobal.h"
 #include "TrackAppendSlotView.h"
-#include <lite/GUI/Controls/DividerLine.h>
 
 #include <QDrag>
 #include <QDragMoveEvent>
@@ -23,12 +22,6 @@ TrackListView::TrackListView(QWidget *parent) : QListWidget(parent) {
     setVerticalScrollMode(ScrollPerPixel);
     setSelectionMode(SingleSelection);
     QScroller::grabGesture(this, QScroller::TouchGesture);
-
-    m_topDivider = new DividerLine(Qt::Horizontal, this);
-    m_topDivider->setObjectName("trackListDivider");
-    m_topDivider->setAttribute(Qt::WA_TransparentForMouseEvents);
-    m_topDivider->setLineMargin(0);
-    m_topDivider->setFixedHeight(1);
 
     // Enable drag and drop for track reordering
     setDragEnabled(true);
@@ -77,12 +70,6 @@ void TrackListView::setAppendSlotHeight(const int height) {
         return;
     m_appendSlotItem->setSizeHint(QSize(0, height));
     doItemsLayout();
-}
-
-void TrackListView::resizeEvent(QResizeEvent *event) {
-    QListWidget::resizeEvent(event);
-    m_topDivider->setGeometry(0, 0, width(), 1);
-    m_topDivider->raise();
 }
 
 void TrackListView::mousePressEvent(QMouseEvent *event) {
