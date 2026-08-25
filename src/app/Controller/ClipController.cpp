@@ -17,6 +17,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/History/HistoryFocus.h>
 #include <lite/GUI/Controls/Toast.h>
+#include "UI/Dialogs/Base/MessageDialog.h"
 #include "UI/Dialogs/FillLyric/LyricDialog.h"
 #include "UI/Dialogs/Search/SearchDialog.h"
 #include <lite/MusicBase/TimelineSnapUtils.h>
@@ -24,7 +25,6 @@
 #include <QClipboard>
 #include <QGuiApplication>
 #include <QJsonDocument>
-#include <QMessageBox>
 #include <QMimeData>
 #include <QPair>
 #include <QSet>
@@ -346,19 +346,21 @@ void ClipController::onResetPhonemeOffsets(QWidget *parent) const {
         if (!root || selectedSet.contains(root))
             continue;
         spilloverCount++;
-        spilloverNames.append(tr("%1 (tick %2)")
-                                  .arg(root->lyric().trimmed().isEmpty() ? QStringLiteral("?")
-                                                                         : root->lyric().trimmed(),
-                                       QString::number(root->globalStart())));
+        spilloverNames.append(tr("%1 (%2)").arg(
+            root->lyric().trimmed().isEmpty() ? QStringLiteral("?") : root->lyric().trimmed(),
+            appModel->getBarBeatTickTime(root->globalStart())));
     }
     if (spilloverCount > 0) {
-        const auto answer = QMessageBox::question(
-            parent, tr("Reset phoneme durations"),
-            tr("Resetting the selected phoneme durations also resets %1 adjacent "
-               "word(s) to avoid phoneme overlap:\n%2\n\nContinue?")
-                .arg(QString::number(spilloverCount), spilloverNames.join('\n')),
-            QMessageBox::Yes | QMessageBox::Cancel, QMessageBox::Yes);
-        if (answer != QMessageBox::Yes)
+        constexpr int cancelButtonId = 0;
+        constexpr int resetButtonId = 1;
+        MessageDialog dialog(tr("Reset phoneme durations"),
+                             tr("To avoid phoneme overlap, %1 adjacent word(s) will also be "
+                                "reset:\n%2\n\nReset them?")
+                                 .arg(QString::number(spilloverCount), spilloverNames.join('\n')),
+                             parent);
+        dialog.addAccentButton(tr("Reset"), resetButtonId);
+        dialog.addButton(tr("Cancel"), cancelButtonId);
+        if (dialog.exec() != resetButtonId)
             return;
     }
 

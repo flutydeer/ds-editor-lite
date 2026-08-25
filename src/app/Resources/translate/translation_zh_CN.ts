@@ -1041,8 +1041,8 @@
     <name>ClipController</name>
     <message>
         <location filename="../../Controller/ClipController.cpp" line="349"/>
-        <source>%1 (tick %2)</source>
-        <translation>%1（tick %2）</translation>
+        <source>%1 (%2)</source>
+        <translation>%1（%2）</translation>
     </message>
     <message>
         <location filename="../../Controller/ClipController.cpp" line="356"/>
@@ -1051,14 +1051,24 @@
     </message>
     <message>
         <location filename="../../Controller/ClipController.cpp" line="357"/>
-        <source>Resetting the selected phoneme durations also resets %1 adjacent word(s) to avoid phoneme overlap:
+        <source>To avoid phoneme overlap, %1 adjacent word(s) will also be reset:
 %2
 
-Continue?</source>
-        <translation>重置所选音素时长时，为避免音素重叠，将一并重置 %1 个相邻词：
+Reset them?</source>
+        <translation>为避免音素重叠，将一并还原 %1 个相邻词：
 %2
 
-是否继续？</translation>
+是否还原？</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/ClipController.cpp" line="362"/>
+        <source>Cancel</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location filename="../../Controller/ClipController.cpp" line="361"/>
+        <source>Reset</source>
+        <translation>还原</translation>
     </message>
 </context>
 <context>
