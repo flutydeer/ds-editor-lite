@@ -220,7 +220,7 @@ void AppOptionsDialog::retranslateUi() {
         ":/svg/icons/midi_20_regular.svg",       // MIDI
         ":/svg/icons/color_20_regular.svg",      // Appearance
         ":/svg/icons/sparkle_20_regular.svg",    // Inference
-        ":/svg/icons/arrow_swap_20_regular.svg", // Automation
+        ":/svg/icons/flow_20_regular.svg",       // Automation
         ":/svg/icons/code_20_regular.svg",       // Developer Options
     };
 
