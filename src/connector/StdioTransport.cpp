@@ -25,6 +25,7 @@ namespace DsConnector {
         constexpr qsizetype MaxQueuedInputBytes = 32 * 1024 * 1024;
         constexpr qsizetype MaxQueuedOutputFrames = 64;
         constexpr qsizetype MaxQueuedOutputBytes = 32 * 1024 * 1024;
+        constexpr qsizetype OutputWriteChunkBytes = 4 * 1024;
         constexpr auto InputDrainBatchSize = 16;
         constexpr auto OutputWriteStallTimeoutMs = 5000;
         constexpr auto WriterStartTimeoutMs = 5000;
@@ -282,7 +283,9 @@ namespace DsConnector {
 #ifdef Q_OS_WIN
                 DWORD bytesWritten = 0;
                 const auto remaining = static_cast<DWORD>(std::min<qsizetype>(
-                    frame.size() - offset, std::numeric_limits<DWORD>::max()));
+                    frame.size() - offset,
+                    std::min<qsizetype>(OutputWriteChunkBytes,
+                                        std::numeric_limits<DWORD>::max())));
                 const auto succeeded = WriteFile(m_output, frame.constData() + offset, remaining,
                                                  &bytesWritten, nullptr);
                 if (succeeded) {
@@ -298,8 +301,9 @@ namespace DsConnector {
                     }
                 }
 #else
-                const auto result =
-                    ::write(STDOUT_FILENO, frame.constData() + offset, frame.size() - offset);
+                const auto remaining =
+                    std::min<qsizetype>(frame.size() - offset, OutputWriteChunkBytes);
+                const auto result = ::write(STDOUT_FILENO, frame.constData() + offset, remaining);
                 if (result > 0) {
                     written = result;
                 } else if (result < 0 && errno == EINTR) {

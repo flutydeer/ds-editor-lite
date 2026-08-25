@@ -8,6 +8,7 @@
 #include <lite/AutomationWire/JsonSchema.h>
 
 #include <QCoreApplication>
+#include <QDir>
 #include <QElapsedTimer>
 #include <QHash>
 #include <QJsonDocument>
@@ -108,6 +109,30 @@ namespace {
         if (!waitUntil([&] { return findIndex() >= 0; }, timeoutMs))
             return std::nullopt;
         return QJsonDocument::fromJson(responses.takeAt(findIndex())).object();
+    }
+
+    int runSlowStdioSink(const QString &outputPath) {
+        QFile input;
+        if (!input.open(stdin, QIODevice::ReadOnly))
+            return 2;
+        QThread::msleep(250);
+        QByteArray received;
+        while (true) {
+            const auto chunk = input.read(4 * 1024);
+            if (chunk.isEmpty()) {
+                if (input.atEnd())
+                    break;
+                return 2;
+            }
+            received.append(chunk);
+            QThread::msleep(10);
+        }
+        QFile output(outputPath);
+        if (!output.open(QIODevice::WriteOnly | QIODevice::Truncate) ||
+            output.write(received) != received.size()) {
+            return 2;
+        }
+        return 0;
     }
 
     AutomationWire::Mcp::RequestContext clientContext() {
@@ -3341,6 +3366,63 @@ namespace {
                          rapidInput.readAllStandardError().isEmpty(),
                      "bounded stdin delivery must drain a rapid notification flood without output");
 
+        const auto validCompleteToolList = [](const QByteArray &output) {
+            QJsonParseError error;
+            const auto response = QJsonDocument::fromJson(output.trimmed(), &error).object();
+            return error.error == QJsonParseError::NoError &&
+                   response.value(QStringLiteral("result"))
+                           .toObject()
+                           .value(QStringLiteral("tools"))
+                           .toArray()
+                           .size() == 133;
+        };
+        QProcess largeOutput;
+        largeOutput.setProgram(executable);
+        largeOutput.setArguments({QStringLiteral("--exposure-profile"), QStringLiteral("l2")});
+        largeOutput.start();
+        ok &= expect(largeOutput.waitForStarted(5000), "large-output connector must start");
+        largeOutput.write(list + '\n');
+        largeOutput.closeWriteChannel();
+        const auto largeFinished = largeOutput.waitForFinished(20000);
+        const auto largeResponse = largeOutput.readAllStandardOutput();
+        ok &= expect(largeFinished && largeOutput.exitStatus() == QProcess::NormalExit &&
+                         largeOutput.exitCode() == 0 && largeResponse.size() > 64 * 1024 &&
+                         validCompleteToolList(largeResponse) &&
+                         largeOutput.readAllStandardError().isEmpty(),
+                     "the complete 133-tool response must drain as one valid large JSON frame");
+
+        const auto slowSinkPath =
+            QDir::temp().filePath(QStringLiteral("DsConnectorLite-slow-stdout-%1.json")
+                                      .arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
+        QProcess slowOutput;
+        QProcess slowSink;
+        slowOutput.setProgram(executable);
+        slowOutput.setArguments({QStringLiteral("--exposure-profile"), QStringLiteral("l2")});
+        slowSink.setProgram(QCoreApplication::applicationFilePath());
+        slowSink.setArguments({QStringLiteral("--slow-stdio-sink"), slowSinkPath});
+        slowOutput.setStandardOutputProcess(&slowSink);
+        slowOutput.start();
+        slowSink.start();
+        ok &= expect(slowOutput.waitForStarted(5000) && slowSink.waitForStarted(5000),
+                     "large-output connector and slow stdout reader must start");
+        slowOutput.write(list + '\n');
+        slowOutput.closeWriteChannel();
+        const auto slowOutputFinished = slowOutput.waitForFinished(30000);
+        const auto slowSinkFinished = slowSink.waitForFinished(30000);
+        QFile slowSinkResult(slowSinkPath);
+        QByteArray slowResponse;
+        if (slowSinkResult.open(QIODevice::ReadOnly))
+            slowResponse = slowSinkResult.readAll();
+        slowSinkResult.close();
+        QFile::remove(slowSinkPath);
+        ok &= expect(slowOutputFinished && slowSinkFinished &&
+                         slowOutput.exitStatus() == QProcess::NormalExit && slowOutput.exitCode() == 0 &&
+                         slowSink.exitStatus() == QProcess::NormalExit && slowSink.exitCode() == 0 &&
+                         slowResponse.size() > 64 * 1024 && validCompleteToolList(slowResponse) &&
+                         slowOutput.readAllStandardError().isEmpty() &&
+                         slowSink.readAllStandardError().isEmpty(),
+                     "a slow reader must drain the complete large frame through sustained progress");
+
         QProcess blockedOutput;
         QProcess blockingSink;
         blockedOutput.setProgram(executable);
@@ -3435,8 +3517,12 @@ namespace {
 
 int main(int argc, char *argv[]) {
     QCoreApplication application(argc, argv);
-    bool ok = true;
     const auto arguments = application.arguments();
+    const auto slowSinkIndex = arguments.indexOf(QStringLiteral("--slow-stdio-sink"));
+    if (slowSinkIndex >= 0)
+        return slowSinkIndex + 1 < arguments.size() ? runSlowStdioSink(arguments.at(slowSinkIndex + 1))
+                                                   : 2;
+    bool ok = true;
     const auto only = [&](const QString &name) {
         return arguments.size() == 1 || arguments.contains(QStringLiteral("--") + name);
     };
