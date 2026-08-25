@@ -168,7 +168,7 @@ Wire 和 Editor MCP 同时实现两套主协议：
 
 Editor 在既有单实例协议上增加 `automation.discover` 和 `automation.watch`。长度前缀 JSON framing 承载完整快照；watch 建立时立即返回当前状态，Editor 启用/禁用 MCP、监听器 ready、换端口、报错或退出时广播新快照。Watcher 数量、帧尺寸、待写帧和累计字节均有界，慢读或异常断开只清理对应连接。
 
-Connector 可先于 Editor 启动。`BootstrapWatcher` 只作为 QLocal 客户端观察当前实例，使用实例身份与 handshake epoch 丢弃旧结果，并以有界退避重连。上游优先使用 2026-07-28 `server/discover`，失败时进入 2025-11-25 initialize 流程，并接受服务端协商到 2025-06-18。
+Connector 可先于 Editor 启动。`BootstrapWatcher` 只作为 QLocal 客户端观察当前实例，使用实例身份与 handshake epoch 丢弃旧结果，并以有界退避重连。上游优先使用 2026-07-28 `server/discover`，失败时进入 2025-11-25 initialize 流程，并接受服务端协商到 2025-06-18。协议建立后，Connector 完整分页读取 `tools/list`，再用一次 `automation.get_status` 取得 toolset version、Manifest digest、Profile 和 host；完整 `automation.get_manifest` 不再进入常规握手，只保留为按需诊断与审计能力。
 
 Connector 固定提供六个桥接工具：
 
@@ -183,7 +183,7 @@ Connector 固定提供六个桥接工具：
 
 六项桥接工具的版本三元组均为 1。Connector 还携带构建时已知的 127 项 Editor 类型化描述；downstream 工具面由六项桥接工具与 exposure 选择的类型化工具组成，并在单个 Connector 生命周期内保持描述稳定。
 
-Exposure 默认 L1，支持 `l0/l1/l2/l3`、`id:`、`category:`、`prefix:`、include 和 exclude；同一选择同时约束类型化 wrapper 和泛化 list/search/describe/invoke。兼容计算先检查双方逐工具版本门槛；完全相同的 input/output Schema 直接判定兼容，存在差异时再执行方向性包含检查。Editor 的 `tools/list` 快照与摘要按工具 ID 集合缓存，完整 Manifest 按访问策略和 host mode 缓存，Profile 或 Custom 集合变化时自动失效。`connector.get_status` 只读取已经计算的兼容缓存和当前观察状态，不在每次查询时重建整套结果。
+Exposure 默认 L1，支持 `l0/l1/l2/l3`、`id:`、`category:`、`prefix:`、include 和 exclude；同一选择同时约束类型化 wrapper 和泛化 list/search/describe/invoke。兼容计算先检查双方逐工具版本门槛；完全相同的 input/output Schema 直接判定兼容，存在差异时再执行方向性包含检查。`tools/list` 的 namespaced `_meta` 同时携带 `kind` 与 host availability，确保未知泛化工具仍保留 Command outcome 和 host 过滤语义。Editor 的分页 cursor 摘要只规范化工具集版本与有序工具 ID，页面内容仍缓存完整 descriptor；Connector 的 cursor 摘要使用 Manifest digest、状态、exposure 与有序工具名，未知或 Schema 有差异的 descriptor 仍完整纳入。正常握手只重建一次 Connector 缓存；完整 Manifest 按访问策略和 host mode 缓存，Profile 或 Custom 集合变化时自动失效。Manifest digest 使用完整非 Schema 元数据和逐项 Schema digest，避免再次规范化所有 Schema 原文；Connector 的预期摘要按 Editor 实际 Profile、host mode 以及 Custom 已知 ID 集合动态构造，不再固定使用 L2 摘要。`connector.get_status` 只读取已经计算的兼容缓存和当前观察状态，不在每次查询时重建整套结果。
 
 Downstream stdio 支持两套主协议及 2025-06-18 兼容握手，具有有界 reader/writer 队列、并发请求 ID 映射、取消、超时、EOF、broken pipe 和 backpressure 处理。Windows 非阻塞管道按 4 KiB 分块写出大响应，停滞计时只在连续无进度时触发；stdout 只输出 MCP 帧，诊断写入 stderr。
 

@@ -275,7 +275,7 @@
 | 追踪号 | 工具 | 类型 | 固定职责 |
 |---|---|---|---|
 | P2-CONN-001 | `connector.get_status` | Q/S | 返回 Connector、Bootstrap、Editor、MCP、Manifest、兼容和 exposure 事实 |
-| P2-CONN-002 | `connector.reconnect` | C/S | 主动刷新 QLocal 观察、上游握手与 Manifest，并返回当前状态 |
+| P2-CONN-002 | `connector.reconnect` | C/S | 主动刷新 QLocal 观察、上游握手、工具目录与 Manifest 摘要，并返回当前状态 |
 | P2-CONN-003 | `editor.tools.list` | Q/S | 分页列出通过 exposure 的 Editor 实际工具 |
 | P2-CONN-004 | `editor.tools.search` | Q/S | 按 ID、标题、说明和域搜索实际工具 |
 | P2-CONN-005 | `editor.tools.describe` | Q/S | 返回目标 Schema、版本、权限、兼容与可用性 |

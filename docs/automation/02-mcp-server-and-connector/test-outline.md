@@ -228,9 +228,9 @@ Editor 的 127 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 
 - Downstream 分别执行 2025-11-25 initialize 生命周期、2026-07-28 discover 生命周期，以及请求 2025-06-18 的兼容 initialize 生命周期。
 - Upstream 优先执行 2026-07-28 discover，并覆盖回退到 2025-11-25 初始化及服务端协商到 2025-06-18。
-- 握手成功后协议版本固定，工具分页与 Manifest 分页均完整读取。
+- 握手成功后协议版本固定，`tools/list` 分页完整读取，随后只调用一次 `automation.get_status` 取得全局 Manifest 摘要；常规握手不得调用完整 Manifest。
 - 重复 ready 合并、尾随刷新、有界指数退避、手动 reconnect 和目标变化覆盖。
-- instance/endpoint 改变后旧 request、Manifest、cursor 和兼容缓存失效。
+- instance/endpoint 改变后旧 request、工具目录/Manifest 摘要、cursor 和兼容缓存失效。
 
 ### 10.3 六个桥接工具与兼容
 
@@ -239,6 +239,7 @@ Editor 的 127 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 - `editor.tools.list/search/describe/invoke` 对分页、搜索、Schema、可用性、过滤和调用授权一致。
 - 127 个类型化 Editor wrapper 与六个桥接工具形成 133 项 L2 downstream 集合。
 - 双向 minimum-compatible 门槛、Schema 对象精确相等快速路径、差异 Schema 的 input/output 子集证明、Manifest digest 和未知关键字覆盖。
+- Connector 预期 Manifest digest 随 Editor Profile、host mode 和 Custom 已知 ID 集合变化；完整 L3 契约不得因固定 L2 基准误报 `compatible_subset`。
 - compatible、compatible subset、contract incompatible、tool unavailable、profile blocked、host unavailable 分开报告。
 - upstream transport error、MCP error、invalid response、timeout、cancel 与 outcome unknown 分开报告。
 
@@ -260,7 +261,7 @@ Editor 的 127 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 ### 12.1 进程联调
 
 - Connector 先启动，再经历 Editor 启动、MCP enable 和 ready。
-- Editor 先 ready，Connector 首次 watch 后完成协议、tools 和 Manifest 握手。
+- Editor 先 ready，Connector 首次 watch 后完成协议、tools 目录和 Manifest 摘要握手。
 - Editor direct HTTP 与 Connector stdio 复用同一 Meta/L1/L2 业务语料并比对结果。
 - open/save/import/export、音频素材、推理、Task、播放与历史记录使用隔离工作区。
 - 两至八个 Connector 并发查询、编辑、任务与重连；覆盖 revision conflict、公平性和状态隔离。

@@ -204,12 +204,13 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 2. 验证 stdout 仅含 MCP 帧、stderr 承载诊断；完整 133 工具大响应在正常读端和延迟慢读端均无截断、无零进度误超时。
 3. 分别执行 2025-11-25 与 2026-07-28 两套主协议的 downstream 生命周期，并执行请求 2025-06-18 的兼容握手和结果塑形；2026-07-28 不执行 `initialize`。
 4. 验证 upstream 优先执行 2026-07-28 发现，回退到 2025-11-25 初始化，并接受协商到 2025-06-18。
-5. 验证 ID 重映射、并发乱序、notification、取消、timeout、EOF、broken pipe 与 backpressure。
-6. 验证 `l0/l1/l2/l3`、include/exclude、三类 selector、pending 与 exclude 优先级。
-7. 验证同一 exposure 约束类型化工具与 list/search/describe/invoke。
-8. 验证版本门槛、Schema 对象精确相等快速路径、差异 Schema 的输入/输出方向性兼容、Manifest digest 与状态分类。
-9. 验证 L2 downstream 集合为 127 个 Editor 工具加 6 个桥接工具，共 133 项。
-10. 验证 ready burst 合并、尾随刷新、退避、manual reconnect、instance/endpoint 变化。
+5. 验证每轮握手完整读取所有 `tools/list` 页后只调用一次 `automation.get_status`，且不调用 `automation.get_manifest`；完整 Manifest 的独立分页、digest 和游标测试继续保留。
+6. 验证 ID 重映射、并发乱序、notification、取消、timeout、EOF、broken pipe 与 backpressure。
+7. 验证 `l0/l1/l2/l3`、include/exclude、三类 selector、pending 与 exclude 优先级。
+8. 验证同一 exposure 约束类型化工具与 list/search/describe/invoke。
+9. 验证版本门槛、Schema 对象精确相等快速路径、差异 Schema 的输入/输出方向性兼容、按 Editor Profile/host/Custom 集合动态生成的 Manifest 基准 digest 与状态分类。
+10. 验证 L2 downstream 集合为 127 个 Editor 工具加 6 个桥接工具，共 133 项。
+11. 验证 ready burst 合并、尾随刷新、退避、manual reconnect、instance/endpoint 变化。
 
 ### 门禁
 

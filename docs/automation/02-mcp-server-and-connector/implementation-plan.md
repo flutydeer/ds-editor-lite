@@ -108,7 +108,7 @@ Registry 从同一工具声明建立 127 个类型化 binding，并派生：
 Public Automation Manifest 根级包含：
 
 - `toolset_version`；
-- 规范化内容的 SHA-256 digest；
+- 规范化元数据与逐项 Schema digest 形成的 SHA-256 digest；
 - 当前 Profile 与 host mode；
 - 分页的 operation descriptor；
 - 不透明 `next_cursor`；
@@ -125,7 +125,7 @@ AND connector input ⊆ editor accepted input
 AND editor output ⊆ connector accepted output
 ```
 
-双方 Schema 对象完全相同走精确快速路径；存在差异时进入受支持关键字集合上的确定性包含证明。Manifest digest 用于工具集快照缓存和整体漂移检测。兼容状态与 Editor 当前可用状态分别记录，便于 Agent 判断契约漂移、Profile 限制和运行时能力。
+双方 Schema 对象完全相同走精确快速路径；存在差异时进入受支持关键字集合上的确定性包含证明。Manifest digest 直接覆盖所有非 Schema descriptor 字段，并通过各 input/output Schema 的 SHA-256 覆盖 Schema 内容，避免在摘要阶段再次规范化同一批大型 Schema 原文。Connector 的预期 digest 按 Editor 实际 Profile、host mode 构造；Custom 还使用当前 `tools/list` 中出现的已知 operation ID，不能固定套用某个 preset 的摘要。digest 用于工具集快照缓存和整体漂移检测；兼容状态与 Editor 当前可用状态分别记录，便于 Agent 判断契约漂移、Profile 限制和运行时能力。
 
 ## 7. Profile、Custom 与执行期授权
 
@@ -192,7 +192,7 @@ Watcher 具备最大连接数、最大帧、待写帧数、累计待写字节、
 
 Connector 是独立多实例进程：下游为 MCP stdio Server，上游为 Editor Streamable HTTP Client。两侧分别维护 MCP 生命周期、request ID、取消、超时和结果验证。
 
-上游优先按 2026-07-28 发起 `server/discover`，失败后使用 2025-11-25 `initialize/initialized`，并接受服务端协商到 2025-06-18 的 legacy 会话。握手成功后分页读取 `tools/list` 和 Manifest，计算兼容/可用缓存。Editor instance 或 endpoint 变化会切换 handshake epoch、取消旧请求、清除旧缓存并建立新连接。
+上游优先按 2026-07-28 发起 `server/discover`，失败后使用 2025-11-25 `initialize/initialized`，并接受服务端协商到 2025-06-18 的 legacy 会话。协议握手成功后完整分页读取 `tools/list`，再调用一次 `automation.get_status` 取得 toolset version、Manifest digest、Profile 与 host 摘要；逐工具 descriptor、Schema、版本和可用性均以 `tools/list` 为事实来源。完整 `automation.get_manifest` 保留为按需诊断/审计工具，不进入 Connector 常规握手。Editor instance 或 endpoint 变化会切换 handshake epoch、取消旧请求、清除旧缓存并建立新连接。
 
 stdout 只写 MCP stdio 帧；诊断写 stderr。Reader 和 writer 都使用有界队列，覆盖部分读写、合并唤醒、EOF、broken pipe、backpressure 和停滞 deadline。
 
@@ -217,13 +217,13 @@ Connector 同时携带构建时已知的 127 个 Editor 类型化工具描述。
 --exclude-tool <selector>
 ```
 
-Selector 支持 `id:`、`category:`、`prefix:`；最终集合为 preset 与 include 的并集，再应用 exclude。相同 exposure 结果同时过滤类型化 wrapper 和泛化 `list/search/describe/invoke`。Editor 上下线、Profile、Manifest 和兼容变化更新状态缓存，downstream descriptor 在该 Connector 生命周期内保持稳定。
+Selector 支持 `id:`、`category:`、`prefix:`；最终集合为 preset 与 include 的并集，再应用 exclude。相同 exposure 结果同时过滤类型化 wrapper 和泛化 `list/search/describe/invoke`。Editor 上下线、Profile、工具目录、Manifest 摘要和兼容变化更新状态缓存，downstream descriptor 在该 Connector 生命周期内保持稳定。
 
 ### 10.3 状态、错误与多 Connector
 
 `connector.get_status` 返回 Connector identity、Bootstrap、Editor、上游协议、Manifest、兼容计数、exposure 与 pending selector 事实。稳定错误区分 Editor 状态、上游连接、工具过滤、工具可用性、契约兼容、timeout、取消和结果未知。
 
-每个 Connector 拥有独立 QLocal watch、HTTP client、握手 epoch、Manifest 缓存和 downstream 请求表。多个 Connector 共享 Editor 时由 Editor Admission 维护公平性；任一 Connector 的退出、慢读、限流或重连不会修改其他 Connector 的状态。
+每个 Connector 拥有独立 QLocal watch、HTTP client、握手 epoch、工具目录/Manifest 摘要缓存和 downstream 请求表。多个 Connector 共享 Editor 时由 Editor Admission 维护公平性；任一 Connector 的退出、慢读、限流或重连不会修改其他 Connector 的状态。
 
 ## 11. File Guard 与 Admission Control
 

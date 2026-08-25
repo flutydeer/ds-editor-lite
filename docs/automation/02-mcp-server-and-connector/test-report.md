@@ -4,13 +4,14 @@
 
 二期最终源码通过 Debug 配置与全目标构建、127 项 Editor 公共工具和 6 项 Connector
 桥接工具的确定性契约/行为验证、两套 MCP 主协议及兼容握手的真实进程联调、真实 Agent
-Host 驱动的 GUI 可见编辑，以及修复后的连续三轮完整 CTest。
+Host 驱动的 GUI 可见编辑、修复后的连续三轮完整 CTest，以及握手性能优化后的追加完整
+CTest。
 
 当前结论为：**二期 MCP Server、DS Connector Lite、设置与连接器配置、公共工具集及其回归门禁
 全部通过，可以交付测试。**
 
-最终测试的生产代码与测试代码截至提交 `2fbe6c3c`；其中大 stdout 修复位于 `35884a9c`。
-本报告整理只修改文档，不改变上述已测试代码。
+最终测试的生产代码与测试代码截至提交 `55d5a8dc`；其中大 stdout 修复位于 `35884a9c`，
+握手与摘要性能优化位于 `55d5a8dc`。本报告整理只修改文档，不改变上述已测试代码。
 
 ## 2. 候选身份与最终门禁
 
@@ -26,9 +27,12 @@ Host 驱动的 GUI 可见编辑，以及修复后的连续三轮完整 CTest。
 | 完整 CTest 第 2 轮 | 66/66 通过，0 失败，0 超时，113.62 秒 | `R68` |
 | 完整 CTest 第 3 轮 | 66/66 通过，0 失败，0 超时，113.93 秒 | `R69` |
 | 三轮合计 | **198/198 通过**，0 失败，0 超时，341.33 秒，无 flaky | `R67`～`R69` |
+| 性能优化后定向回归 | 4/4 通过，0 失败，62.03 秒 | `E-P2-PERF-TARGETED` |
+| 性能优化后完整 CTest | 66/66 通过，0 失败，0 超时，78.44 秒 | `R70` |
 
-三轮完整 CTest 均在相同候选和构建产物上串行执行。Qt 组件测试显式使用有效的 offscreen
-平台插件环境；未出现 platform plugin 错误、崩溃、断言、超时或弹窗阻塞。
+三轮完整 CTest 均在相同候选和构建产物上串行执行；握手性能优化完成后又执行了一轮完整
+CTest 重新取得候选资格。Qt 组件测试显式使用有效的 offscreen 平台插件环境；未出现 platform
+plugin 错误、崩溃、断言、超时或弹窗阻塞。
 
 配置阶段报告 Vulkan headers 未安装，这是既有可选能力提示，不影响本期产品目标、链接或测试。
 
@@ -84,9 +88,11 @@ Bootstrap 验证 discover/watch、完整状态快照、部分帧、慢读背压�
 Connector 六项桥接工具均通过：`connector.get_status`、`connector.reconnect`、
 `editor.tools.list`、`editor.tools.search`、`editor.tools.describe` 和 `editor.tools.invoke`。
 L0/L1/L2/L3、include/exclude、三类 selector、执行期二次授权、逐工具版本门槛、Schema 完全相同
-快速路径、输入/输出 Schema 方向性兼容及 Manifest 摘要缓存均由确定性测试覆盖。
+快速路径、输入/输出 Schema 方向性兼容及 Manifest 摘要缓存均由确定性测试覆盖。Connector 的
+预期摘要按 Editor 实际 Profile、host mode 和 Custom 已知工具集合构造；L3 不再因固定 L2 基准
+误报 `compatible_subset`。
 
-## 5. 大 stdout 缺陷、修复与性能复测
+## 5. 大 stdout 缺陷、握手优化与性能复测
 
 真实进程复测发现过一个阻断缺陷：兼容计算已得到 127/127 后，约 524 KiB 的 133 工具
 `tools/list` 响应触发 `stdout_write_timeout`，客户端收不到完整结果。失败原始证据保留为
@@ -99,14 +105,33 @@ L0/L1/L2/L3、include/exclude、三类 selector、执行期二次授权、逐工
 修复后的定向测试覆盖完整大帧和故意慢读端；真实 R4/R5 复测均返回全部 133 项。R5 中最大
 JSON-RPC 行长为 523,791 字节，完整 `tools/list` 用时 536.12 ms，无 stderr、无遗留请求，进程正常退出。
 
-同轮还验证了公共 Manifest 与 MCP 工具目录缓存。2026 路径首次从 `refreshing` 收敛到
-compatible 实测 **4.831 秒**；这是一次异步目录/Manifest 协商时间，不是失败，也不表示瞬时完成。
-进入稳定态后连续 40 次真实、缓存命中的 `connector.get_status` 最小值 5.17 ms、中位数 5.62 ms、
-p95 5.88 ms、最大值 6.50 ms、均值 5.61 ms。证据为 `E-P2-CONNECTOR-PERF-R5`。
+随后对约五秒的兼容收敛时间做了 CPU/墙钟与非侵入式栈采样。样本热点位于 Editor 对完整
+`automation.get_manifest` 结果执行递归资源限制和输出 Schema 校验；Connector 主线程大部分时间
+处于 Qt 事件等待，并不存在持续数秒的 127 项逐工具 Schema 兼容计算。
+
+常规握手因此改为：完整分页读取 `tools/list`，再调用一次轻量 `automation.get_status` 取得
+toolset version、Manifest digest、Profile 和 host；完整 Manifest 保留为按需诊断与审计工具。
+已知且 Schema 完全相同的工具走精确快速路径，差异 Schema 才进入结构校验和方向性包含证明；
+Editor/Connector cursor 使用紧凑摘要，正常握手只重建一次缓存。Manifest 总摘要复用逐工具
+Schema digest，不再把全部 Schema 原文重复规范化。
+
+同一稳定 Editor 上的真实复测结果如下：
+
+| 路径 | 优化前 refreshing → compatible | 优化后 | 缩短 |
+|---|---:|---:|---:|
+| `2026-07-28` | 4,881.07 ms | 455.82 ms | 90.7% |
+| `2025-11-25` | 5,041.10 ms | 509.84 ms | 89.9% |
+| `2025-06-18` | 5,052.75 ms | 509.13 ms | 89.9% |
+
+三种路径从 Connector 进程启动到 compatible 均约 1.07～1.08 秒，比优化前缩短约 82%。稳定态
+连续 40 次 `connector.get_status` 中位数 5.46 ms、p95 5.89 ms；133 项 `tools/list` 为
+535.74 ms。未通过提高工具调用超时掩盖耗时。冷 Debug Editor 首次建立工具目录与摘要仍存在一次性
+初始化波动，本轮为 8.16～13.39 秒；完成一次初始化后连续两轮均回到上述稳定结果，因此冷路径与
+常规重连结果分开报告，不把它归因于逐工具兼容计算。优化证据为 `E-P2-CONNECTOR-PERF-R71`。
 
 缺陷账本保留本轮所有构建、契约、行为和测试夹具发现；全部产品缺陷均完成最小复现、定向回归
-和最终全量回归。R59～R61 发生在上述 stdout/缓存修复之前，只作为历史诊断证据；最终放行只使用
-修复后的 R67～R69。
+和最终全量回归。R59～R61 发生在 stdout/缓存修复之前，只作为历史诊断证据；最终放行使用
+修复后的 R67～R69 以及性能优化后的 R70。
 
 ## 6. GUI 与真实 Agent Host 结果
 
@@ -150,8 +175,8 @@ Speaker Mix 在真实进程中完成目录与 Schema 发现；所选片段没有
 - 本报告未记录用户名、本机绝对路径、素材名称、进程号、实例标识或控制端口。
 
 关键匿名证据为：`E-P2-CONTRACT-BASELINE`、`E-P2-CONFIGURE-R63`、`E-P2-BUILD-R64`、
-`E-P2-TARGETED-R65`、`E-P2-CTEST-CATALOG-R66`、`R67`～`R69`、
-`E-P2-CONNECTOR-PERF-R5`、`E-P2-REAL-HOST-R62`、`E-P2-GUI-SETTINGS`、
+`E-P2-TARGETED-R65`、`E-P2-CTEST-CATALOG-R66`、`R67`～`R70`、
+`E-P2-CONNECTOR-PERF-R5`、`E-P2-CONNECTOR-PERF-R71`、`E-P2-REAL-HOST-R62`、`E-P2-GUI-SETTINGS`、
 `E-P2-GUI-HOST-ROUNDTRIP`、`E-P2-GUI-CLEAN-CLOSE` 和 `E-P2-SOURCE-INTEGRITY`。
 
 ## 8. 最终通过清单
@@ -162,8 +187,11 @@ Speaker Mix 在真实进程中完成目录与 Schema 发现；所选片段没有
 - [x] 2026-07-28 无 initialize 生命周期，真实 Connector 未发送 initialize。
 - [x] Profile/Custom、File Guard、Admission、Manifest、兼容、QLocal、HTTP 和 stdio 通过。
 - [x] 大 stdout 修复经慢读定向测试、真实 133 工具大帧和三轮完整回归验证。
+- [x] 常规握手不再拉取完整 Manifest，三协议稳定刷新耗时约 0.46～0.51 秒。
+- [x] L3/Custom/host 动态摘要基准通过，不再固定使用 L2 导致兼容状态误报。
 - [x] 设置页、配置复制、真实 Agent Host、GUI 即时呈现、历史记录及保存重开通过。
 - [x] 修复后三轮完整 CTest 198/198 通过，无失败、超时或 flaky。
+- [x] 性能优化后的追加完整 CTest 66/66 通过，无失败或超时。
 - [x] 源 fixture 完整性、正式文档脱敏和测试进程清理通过。
 
 综上，二期候选满足当前公共工具集、协议、Connector、Editor、GUI 与安全门禁，最终判定为
