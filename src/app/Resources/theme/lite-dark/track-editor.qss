@@ -29,12 +29,8 @@ InfoLaneHeaderView>QLabel {
     color: ${text.secondary};
 }
 
-/* Last lane (time signature) keeps a bottom border */
+/* Last canvas lane (time signature) keeps a bottom border */
 InfoLaneView#timeSignatureLaneView {
-    border-bottom: 1px solid ${border.subtle};
-}
-
-InfoLaneHeaderView#timeSignatureLaneHeaderView {
     border-bottom: 1px solid ${border.subtle};
 }
 
@@ -170,6 +166,7 @@ TrackListView {
     background: transparent;
     border: none;
     outline: 0px;
+    border-top: 1px solid ${border.subtle};
 }
 
 TrackListView::item {
