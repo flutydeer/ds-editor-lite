@@ -5,7 +5,6 @@
 #include <QWidget>
 
 class QAbstractButton;
-class DividerLine;
 
 class TrackListHeaderView final : public QWidget {
     Q_OBJECT
@@ -24,8 +23,6 @@ signals:
 private:
     void changeEvent(QEvent *event) override;
     void paintEvent(QPaintEvent *event) override;
-    void resizeEvent(QResizeEvent *event) override;
-    void updateBottomDividerVisibility();
 
     // Theme color accessor (QSS-overridable via qproperty-*); the setter
     // re-tints the checked state of the lane toggle icon
@@ -37,7 +34,6 @@ private:
     QAbstractButton *m_btnNewTrack = nullptr;
     QAbstractButton *m_btnToggleTempoLane = nullptr;
     QAbstractButton *m_btnToggleTimeSignatureLane = nullptr;
-    DividerLine *m_bottomDivider = nullptr;
 };
 
 
