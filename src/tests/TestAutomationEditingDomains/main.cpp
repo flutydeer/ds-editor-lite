@@ -1171,6 +1171,76 @@ namespace {
             });
 
         suite.run(
+            Automation::OperationIds::notes::reset_phoneme_offsets,
+            QStringLiteral("cascade-preview-commit-undo"), [&] {
+                PhonemeName onset;
+                onset.language = QStringLiteral("en");
+                onset.name = QStringLiteral("l");
+                onset.isOnset = true;
+                PhonemeName vowel;
+                vowel.language = QStringLiteral("en");
+                vowel.name = QStringLiteral("a");
+
+                Phonemes firstPhonemes;
+                firstPhonemes.nameSeq.original = {onset, vowel};
+                firstPhonemes.offsetSeq.original = {-40, 700};
+                firstPhonemes.offsetSeq.edited = {-20, 350};
+                Phonemes secondPhonemes;
+                secondPhonemes.nameSeq.original = {onset, vowel};
+                secondPhonemes.offsetSeq.original = {0, 200};
+                secondPhonemes.offsetSeq.edited = {-50, 200};
+                const auto firstSeed = runtime.notes().setPhonemes(
+                    commandContext(runtime), fixture.clipId, fixture.firstNoteId, firstPhonemes);
+                const auto secondSeed = runtime.notes().setPhonemes(
+                    commandContext(runtime), fixture.clipId, fixture.secondNoteId, secondPhonemes);
+                suite.expect(firstSeed && secondSeed,
+                             QStringLiteral("cascade fixture must seed both edited words"));
+                fixture.testRuntime.history()->reset();
+
+                const auto base = runtime.documentVersion();
+                const auto preview = runtime.notes().resetPhonemeOffsets(
+                    commandContext(runtime, true), fixture.clipId, {fixture.firstNoteId});
+                const auto previewFirst =
+                    noteSnapshot(runtime, fixture.clipId, fixture.firstNoteId);
+                const auto previewSecond =
+                    noteSnapshot(runtime, fixture.clipId, fixture.secondNoteId);
+                suite.expect(
+                    preview && preview.get().changed && preview.get().validatedOnly &&
+                        preview.get().affectedObjects.size() == 2 && previewFirst &&
+                        previewSecond &&
+                        previewFirst->data.phonemes.offsetSeq.edited ==
+                            firstPhonemes.offsetSeq.edited &&
+                        previewSecond->data.phonemes.offsetSeq.edited ==
+                            secondPhonemes.offsetSeq.edited &&
+                        runtime.documentVersion() == base,
+                    QStringLiteral("cascade preview must report both roots without mutation"));
+
+                const auto changed = runtime.notes().resetPhonemeOffsets(
+                    commandContext(runtime), fixture.clipId, {fixture.firstNoteId});
+                const auto resetFirst = noteSnapshot(runtime, fixture.clipId, fixture.firstNoteId);
+                const auto resetSecond =
+                    noteSnapshot(runtime, fixture.clipId, fixture.secondNoteId);
+                suite.expect(changed && changed.get().current.revision == base.revision + 1 &&
+                                 changed.get().affectedObjects.size() == 2 && resetFirst &&
+                                 resetSecond &&
+                                 resetFirst->data.phonemes.offsetSeq.edited.isEmpty() &&
+                                 resetSecond->data.phonemes.offsetSeq.edited.isEmpty(),
+                             QStringLiteral("cascade reset must commit both words atomically"));
+
+                const auto undo = runtime.history().undo(commandContext(runtime));
+                const auto restoredFirst =
+                    noteSnapshot(runtime, fixture.clipId, fixture.firstNoteId);
+                const auto restoredSecond =
+                    noteSnapshot(runtime, fixture.clipId, fixture.secondNoteId);
+                suite.expect(undo && restoredFirst && restoredSecond &&
+                                 restoredFirst->data.phonemes.offsetSeq.edited ==
+                                     firstPhonemes.offsetSeq.edited &&
+                                 restoredSecond->data.phonemes.offsetSeq.edited ==
+                                     secondPhonemes.offsetSeq.edited,
+                             QStringLiteral("cascade reset must restore every word in one undo"));
+            });
+
+        suite.run(
             Automation::OperationIds::notes::set_word_properties,
             QStringLiteral("unicode-cascade-atomic-noop"), [&] {
                 fixture.testRuntime.history()->reset();
@@ -1882,6 +1952,10 @@ namespace {
              [&](const auto &context) {
                  return runtime.notes().removeNotes(context, ClipId(999999), {});
              }},
+            {Automation::OperationIds::notes::reset_phoneme_offsets,
+             [&](const auto &context) {
+                 return runtime.notes().resetPhonemeOffsets(context, ClipId(999999), {});
+             }                                                                                                               },
             {Automation::OperationIds::notes::resize_left,
              [&](const auto &context) {
                  return runtime.notes().resizeNotesLeft(context, ClipId(999999), {}, 0, 0);
@@ -2056,6 +2130,7 @@ namespace {
             Automation::OperationIds::notes::move,
             Automation::OperationIds::notes::quantize,
             Automation::OperationIds::notes::remove,
+            Automation::OperationIds::notes::reset_phoneme_offsets,
             Automation::OperationIds::notes::resize_left,
             Automation::OperationIds::notes::resize_right,
             Automation::OperationIds::notes::set_phoneme_offsets,

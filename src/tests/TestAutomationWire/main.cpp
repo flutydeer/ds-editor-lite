@@ -355,8 +355,8 @@ namespace {
         bool ok = true;
         const auto &tools = publicToolContracts();
         const auto expectedIds = PublicAutomationToolsetExpectations::editorToolIds();
-        ok &= expect(tools.size() == 127,
-                     QStringLiteral("public declaration must contain 127 editor tools"));
+        ok &= expect(tools.size() == 128,
+                     QStringLiteral("public declaration must contain 128 editor tools"));
         ok &=
             expect(publicToolIds() == expectedIds,
                    QStringLiteral("public declaration must exactly match the frozen tool matrix"));
@@ -506,10 +506,10 @@ namespace {
                 !findPublicTool(QStringLiteral("inference.start"))->valueSources.isEmpty(),
             QStringLiteral("controlled dynamic fields must publish discoverable value sources"));
         ok &= expect(toolsForProfile(AutomationProfile::Meta).size() == 4 &&
-                         toolsForProfile(AutomationProfile::L1).size() == 89 &&
-                         toolsForProfile(AutomationProfile::L2).size() == 127 &&
-                         toolsForProfile(AutomationProfile::L3).size() == 127,
-                     QStringLiteral("public preset counts must be 4/89/127/127"));
+                         toolsForProfile(AutomationProfile::L1).size() == 90 &&
+                         toolsForProfile(AutomationProfile::L2).size() == 128 &&
+                         toolsForProfile(AutomationProfile::L3).size() == 128,
+                     QStringLiteral("public preset counts must be 4/90/128/128"));
         ok &= expect(
             toolsForProfile(AutomationProfile::Custom, {QStringLiteral("notes.insert")}).size() ==
                 5,
@@ -518,7 +518,7 @@ namespace {
         const auto manifest = buildPublicManifest(AutomationProfile::L1);
         const auto page =
             buildPublicManifest(AutomationProfile::L1, {}, QStringLiteral("gui"), 0, 7);
-        ok &= expect(manifest.toolsetVersion == 1 && manifest.operations.size() == 89 &&
+        ok &= expect(manifest.toolsetVersion == 1 && manifest.operations.size() == 90 &&
                          !manifest.digest.isEmpty() && page.operations.size() == 7 &&
                          page.digest == manifest.digest && !page.nextCursor.isEmpty(),
                      QStringLiteral("public Manifest must be versioned, digested and pageable"));
@@ -856,10 +856,10 @@ namespace {
     bool testExposurePolicy() {
         bool ok = true;
         ok &= expect(selectExposure({ExposureProfile::L0}).exposedIds.size() == 0 &&
-                         selectExposure({ExposureProfile::L1}).exposedIds.size() == 89 &&
-                         selectExposure({ExposureProfile::L2}).exposedIds.size() == 127 &&
-                         selectExposure({ExposureProfile::L3}).exposedIds.size() == 127,
-                     QStringLiteral("connector exposure preset counts must be 0/89/127/127"));
+                         selectExposure({ExposureProfile::L1}).exposedIds.size() == 90 &&
+                         selectExposure({ExposureProfile::L2}).exposedIds.size() == 128 &&
+                         selectExposure({ExposureProfile::L3}).exposedIds.size() == 128,
+                     QStringLiteral("connector exposure preset counts must be 0/90/128/128"));
 
         const ExposureConfig filtered{
             .profile = ExposureProfile::L0,
@@ -883,7 +883,7 @@ namespace {
         auto targets = publicExposureTargets();
         targets.append(
             {QStringLiteral("future.gui_tool"), QStringLiteral("future"), AutomationProfile::L3});
-        ok &= expect(selectExposure({ExposureProfile::L2}, targets).exposedIds.size() == 127 &&
+        ok &= expect(selectExposure({ExposureProfile::L2}, targets).exposedIds.size() == 128 &&
                          selectExposure({ExposureProfile::L3}, targets)
                              .exposedIds.contains(QStringLiteral("future.gui_tool")),
                      QStringLiteral("higher exposure presets must include higher-profile targets"));

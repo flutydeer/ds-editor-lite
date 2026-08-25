@@ -1600,6 +1600,70 @@ namespace {
                    resetSnapshot->data.phonemes.nameSeq.result() == originalNames &&
                    resetSnapshot->data.phonemes.offsetSeq.result() == originalOffsets,
                QStringLiteral("notes.reset_phonemes must clear edits and fall back to originals"));
+
+        Phonemes firstCascade;
+        firstCascade.nameSeq.original = originalNames;
+        firstCascade.offsetSeq.original = {-40, 850};
+        firstCascade.offsetSeq.edited = {0, 700};
+        Phonemes secondCascade;
+        secondCascade.nameSeq.original = originalNames;
+        secondCascade.offsetSeq.original = {0, 200};
+        secondCascade.offsetSeq.edited = {-100, 200};
+        setup.expected = runtime.documentVersion();
+        setup.clientId = QStringLiteral("phoneme-cascade-first-setup");
+        const auto firstCascadeSeed = runtime.notes().setPhonemes(
+            setup, fixture.noteClipId, fixture.noteIds.first(), firstCascade);
+        setup.expected = runtime.documentVersion();
+        setup.clientId = QStringLiteral("phoneme-cascade-second-setup");
+        const auto secondCascadeSeed = runtime.notes().setPhonemes(
+            setup, fixture.noteClipId, fixture.noteIds.last(), secondCascade);
+        expect(firstCascadeSeed && secondCascadeSeed,
+               QStringLiteral("public phoneme reset cascade fixture must be created"));
+        const auto seededCascade =
+            runtime.notes().getNotes(runtime.documentVersion().documentId, fixture.noteClipId);
+        expect(seededCascade && seededCascade.get().size() == 2 &&
+                   seededCascade.get().first().data.phonemes.offsetSeq.edited ==
+                       firstCascade.offsetSeq.edited,
+               QStringLiteral("public phoneme reset first cascade fixture must remain valid"));
+        expect(seededCascade && seededCascade.get().size() == 2 &&
+                   seededCascade.get().last().data.phonemes.offsetSeq.edited ==
+                       secondCascade.offsetSeq.edited,
+               QStringLiteral("public phoneme reset second cascade fixture must remain valid"));
+
+        const auto resetBase = runtime.documentVersion();
+        const auto resetCascade = registry.invoke(
+            QStringLiteral("notes.reset_phoneme_offsets"),
+            mergeCommandArguments(
+                resetBase,
+                QJsonObject{
+                    {QStringLiteral("clip_id"),  fixture.noteClipId.value()                 },
+                    {QStringLiteral("note_ids"), QJsonArray{fixture.noteIds.first().value()}},
+        }),
+            {.clientId = QStringLiteral("reset-phoneme-offset-cascade")});
+        const auto afterCascade =
+            runtime.notes().getNotes(runtime.documentVersion().documentId, fixture.noteClipId);
+        const auto undoCascade = registry.invoke(
+            QStringLiteral("history.undo"), commandArguments(runtime.documentVersion()),
+            {.clientId = QStringLiteral("reset-phoneme-offset-cascade-undo")});
+        const auto afterCascadeUndo =
+            runtime.notes().getNotes(runtime.documentVersion().documentId, fixture.noteClipId);
+        expect(resetCascade && resetCascade.get().value(QStringLiteral("changed")).toBool(),
+               QStringLiteral("notes.reset_phoneme_offsets must run without GUI confirmation"));
+        expect(resetCascade &&
+                   resetCascade.get().value(QStringLiteral("affected_objects")).toArray().size() ==
+                       2,
+               QStringLiteral("notes.reset_phoneme_offsets must report the complete cascade"));
+        expect(afterCascade && afterCascade.get().size() == 2 &&
+                   afterCascade.get().first().data.phonemes.offsetSeq.edited.isEmpty() &&
+                   afterCascade.get().last().data.phonemes.offsetSeq.edited.isEmpty(),
+               QStringLiteral("notes.reset_phoneme_offsets must reset the complete cascade"));
+        expect(undoCascade && afterCascadeUndo &&
+                   afterCascadeUndo.get().first().data.phonemes.offsetSeq.edited ==
+                       firstCascade.offsetSeq.edited &&
+                   afterCascadeUndo.get().last().data.phonemes.offsetSeq.edited ==
+                       secondCascade.offsetSeq.edited &&
+                   runtime.documentVersion().revision == resetBase.revision + 2,
+               QStringLiteral("notes.reset_phoneme_offsets must undo the complete cascade once"));
     }
 
     void verifyPublicVoiceAndSpeakerMix(Automation::PublicAutomationRegistry &registry,
@@ -2255,8 +2319,8 @@ int main(int argc, char *argv[]) {
     auto expectedIds = PublicAutomationToolsetExpectations::editorToolIds();
     auto bindingIds = registry.bindingIds();
     std::sort(expectedIds.begin(), expectedIds.end());
-    expect(expectedIds.size() == 127 && bindingIds == expectedIds && registry.isComplete(),
-           QStringLiteral("all 127 editor contracts must have exact bindings"));
+    expect(expectedIds.size() == 128 && bindingIds == expectedIds && registry.isComplete(),
+           QStringLiteral("all 128 editor contracts must have exact bindings"));
 
     const auto lifecycleSchemaBase = runtime.documentVersion();
     for (const auto &operationId : {QStringLiteral("documents.new"),
@@ -3380,14 +3444,14 @@ int main(int argc, char *argv[]) {
         listedIds.insert(tool.toObject().value(QStringLiteral("name")).toString());
     expect(!listCursor.isEmpty() && !nextListResponse.contains(QStringLiteral("error")) &&
                cachedToolsPageElapsedMs < 250 &&
-               listedTools.size() == 127 &&
+               listedTools.size() == 128 &&
                listedIds == PublicAutomationToolsetExpectations::editorToolIdSet(),
-           QStringLiteral("tools/list must expose the exact 127-tool editor surface"));
+           QStringLiteral("tools/list must expose the exact 128-tool editor surface"));
     access.update(AutomationWire::AutomationProfile::L1);
     const auto reducedListResponse = dispatcher.dispatch(list, QStringLiteral("adapter"));
     const auto reducedListResult = reducedListResponse.value(QStringLiteral("result")).toObject();
     expect(!reducedListResponse.contains(QStringLiteral("error")) &&
-               reducedListResult.value(QStringLiteral("tools")).toArray().size() == 89 &&
+               reducedListResult.value(QStringLiteral("tools")).toArray().size() == 90 &&
                reducedListResult.value(QStringLiteral("nextCursor")).toString().isEmpty(),
            QStringLiteral("tools/list cache must invalidate when the access profile changes"));
     const auto staleListResponse = dispatcher.dispatch(nextList, QStringLiteral("adapter"));

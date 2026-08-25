@@ -827,6 +827,7 @@ namespace AutomationWire {
                 QStringLiteral("notes.reset_pronunciation"),
                 QStringLiteral("notes.set_phonemes"),
                 QStringLiteral("notes.set_phoneme_offsets"),
+                QStringLiteral("notes.reset_phoneme_offsets"),
                 QStringLiteral("notes.reset_phonemes"),
                 QStringLiteral("notes.fill_lyrics"),
                 QStringLiteral("parameters.replace"),
@@ -984,6 +985,8 @@ namespace AutomationWire {
                  {QStringLiteral("clip_id"), QStringLiteral("note_id"), QStringLiteral("names")}                         },
                 {QStringLiteral("notes.set_phoneme_offsets"),
                  {QStringLiteral("clip_id"), QStringLiteral("note_id"), QStringLiteral("offsets")}                       },
+                {QStringLiteral("notes.reset_phoneme_offsets"),
+                 {QStringLiteral("clip_id"), QStringLiteral("note_ids")}                                                 },
                 {QStringLiteral("notes.reset_phonemes"),
                  {QStringLiteral("clip_id"), QStringLiteral("note_id")}                                                  },
                 {QStringLiteral("notes.fill_lyrics"),
@@ -2721,6 +2724,12 @@ namespace AutomationWire {
                     "Request cancellation of an explicit editor task and return its "
                     "current or final snapshot without creating a History entry.");
             }
+            if (operationId == QStringLiteral("notes.reset_phoneme_offsets")) {
+                return QStringLiteral(
+                    "Reset the selected word roots to their inferred phoneme positions and "
+                    "atomically reset any edited right neighbors required to avoid overlap. "
+                    "The command is non-interactive and never opens a confirmation dialog.");
+            }
             if (operationId == QStringLiteral("documents.new") ||
                 operationId == QStringLiteral("documents.open")) {
                 return QStringLiteral(
@@ -3179,7 +3188,7 @@ namespace AutomationWire {
     const QList<ToolContract> &publicToolContracts() {
         static const QList<ToolContract> tools = [] {
             QList<ToolContract> result;
-            result.reserve(127);
+            result.reserve(128);
 #define AUTOMATION_WIRE_PUBLIC_TOOL(tracking, id, categoryValue, profile, kindValue, syncValue,    \
                                     versionValue, introducedValue, minimumValue)                   \
     do {                                                                                           \

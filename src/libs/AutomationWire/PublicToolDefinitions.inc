@@ -92,6 +92,7 @@ AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-080", "notes.set_pronunciation", "notes", L
 AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-081", "notes.reset_pronunciation", "notes", L1, Command, Synchronous, 1, 1, 1)
 AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-082", "notes.set_phonemes", "notes", L1, Command, Synchronous, 1, 1, 1)
 AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-083", "notes.set_phoneme_offsets", "notes", L1, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-128", "notes.reset_phoneme_offsets", "notes", L1, Command, Synchronous, 1, 1, 1)
 AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-084", "notes.reset_phonemes", "notes", L1, Command, Synchronous, 1, 1, 1)
 AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-085", "notes.fill_lyrics", "notes", L1, Command, Synchronous, 1, 1, 1)
 

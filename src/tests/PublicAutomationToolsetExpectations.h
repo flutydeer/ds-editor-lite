@@ -143,6 +143,8 @@ namespace PublicAutomationToolsetExpectations {
             {QStringLiteral("notes.set_phonemes"), QStringLiteral("notes"), AutomationProfile::L1},
             {QStringLiteral("notes.set_phoneme_offsets"), QStringLiteral("notes"),
              AutomationProfile::L1},
+            {QStringLiteral("notes.reset_phoneme_offsets"), QStringLiteral("notes"),
+             AutomationProfile::L1},
             {QStringLiteral("notes.reset_phonemes"), QStringLiteral("notes"),
              AutomationProfile::L1},
             {QStringLiteral("notes.fill_lyrics"), QStringLiteral("notes"), AutomationProfile::L1},

@@ -1067,10 +1067,10 @@ namespace {
             .exposure = {.profile = AutomationWire::ExposureProfile::L3},
         });
         ok &= expect(l0.typedContracts().isEmpty(), "l0 must expose no typed editor tools");
-        ok &= expect(l1.typedContracts().size() == 89, "l1 must expose the exact 89 tools");
-        ok &= expect(l2.typedContracts().size() == 127, "l2 must expose all 127 editor tools");
-        ok &= expect(l3.typedContracts().size() == 127,
-                     "the highest preset must include the 127 editor tools");
+        ok &= expect(l1.typedContracts().size() == 90, "l1 must expose the exact 90 tools");
+        ok &= expect(l2.typedContracts().size() == 128, "l2 must expose all 128 editor tools");
+        ok &= expect(l3.typedContracts().size() == 128,
+                     "the highest preset must include the 128 editor tools");
         return ok;
     }
 
@@ -1467,11 +1467,11 @@ namespace {
                                     .value(QStringLiteral("result"))
                                     .toObject();
             const auto tools = result.value(QStringLiteral("tools")).toArray();
-            ok &= expect(tools.size() == 133 &&
+            ok &= expect(tools.size() == 134 &&
                              toolNames(tools) ==
                                  PublicAutomationToolsetExpectations::completeToolIdSet() &&
                              !result.contains(QStringLiteral("nextCursor")),
-                         "the exact 133-tool surface must fit one downstream tools/list page");
+                         "the exact 134-tool surface must fit one downstream tools/list page");
         } else {
             ok &= expect(false, "the frozen L2 downstream list must respond");
         }
@@ -1511,12 +1511,12 @@ namespace {
                                     .value(QStringLiteral("result"))
                                     .toObject();
             const auto tools = result.value(QStringLiteral("tools")).toArray();
-            ok &= expect(tools.size() == 133 &&
+            ok &= expect(tools.size() == 134 &&
                              toolNames(tools) ==
                                  PublicAutomationToolsetExpectations::completeToolIdSet() &&
                              !result.contains(QStringLiteral("nextCursor")) &&
                              !result.contains(QStringLiteral("resultType")),
-                         "the first legacy L2 tools/list must expose all 133 tools without a "
+                         "the first legacy L2 tools/list must expose all 134 tools without a "
                          "cursor");
         } else {
             ok &= expect(false, "the first legacy L2 tools/list must respond");
@@ -3252,7 +3252,7 @@ namespace {
             ok &=
                 expect(statusStable && statusElapsedMs < 400,
                        "cached get_status must remain content-stable and complete 256 reads within "
-                       "400 ms after a 127-tool handshake");
+                       "400 ms after a 128-tool handshake");
         }
         QJsonObject described;
         runtime.callTool(
@@ -3460,7 +3460,7 @@ namespace {
                            .toObject()
                            .value(QStringLiteral("tools"))
                            .toArray()
-                           .size() == 133;
+                           .size() == 134;
         };
         QProcess largeOutput;
         largeOutput.setProgram(executable);
@@ -3475,7 +3475,7 @@ namespace {
                          largeOutput.exitCode() == 0 && largeResponse.size() > 64 * 1024 &&
                          validCompleteToolList(largeResponse) &&
                          largeOutput.readAllStandardError().isEmpty(),
-                     "the complete 133-tool response must drain as one valid large JSON frame");
+                     "the complete 134-tool response must drain as one valid large JSON frame");
 
         const auto slowSinkPath =
             QDir::temp().filePath(QStringLiteral("DsConnectorLite-slow-stdout-%1.json")

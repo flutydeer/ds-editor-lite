@@ -88,10 +88,10 @@ namespace {
     void verifyAuthoritativeToolset() {
         const auto &contracts = publicToolContracts();
         const auto expectedIds = editorToolIds();
-        expect(editorTools().size() == 127 && editorToolIdSet().size() == 127,
-               QStringLiteral("test fixture must contain exactly 127 unique editor tools"));
-        expect(contracts.size() == 127,
-               QStringLiteral("public contract surface must contain exactly 127 editor tools"));
+        expect(editorTools().size() == 128 && editorToolIdSet().size() == 128,
+               QStringLiteral("test fixture must contain exactly 128 unique editor tools"));
+        expect(contracts.size() == 128,
+               QStringLiteral("public contract surface must contain exactly 128 editor tools"));
         expect(publicToolIds() == expectedIds,
                QStringLiteral("public contract order and operation set must equal section 10.3"));
 
@@ -133,10 +133,10 @@ namespace {
         expect(PublicToolsetVersion == 1,
                QStringLiteral("the first public toolset version must remain one"));
         expect(toolsForProfile(AutomationProfile::Meta).size() == 4 &&
-                   toolsForProfile(AutomationProfile::L1).size() == 89 &&
-                   toolsForProfile(AutomationProfile::L2).size() == 127 &&
-                   toolsForProfile(AutomationProfile::L3).size() == 127,
-               QStringLiteral("editor profile counts must be 4/89/127/127"));
+                   toolsForProfile(AutomationProfile::L1).size() == 90 &&
+                   toolsForProfile(AutomationProfile::L2).size() == 128 &&
+                   toolsForProfile(AutomationProfile::L3).size() == 128,
+               QStringLiteral("editor profile counts must be 4/90/128/128"));
     }
 
     void verifyShallowCreationAndNoteDefaults() {

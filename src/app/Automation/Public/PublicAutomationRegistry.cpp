@@ -3214,6 +3214,14 @@ namespace Automation {
                            ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                            NoteId(arguments.value(QStringLiteral("note_id")).toInt()), offsets));
                    });
+        addBinding(
+            QStringLiteral("P2-TOOL-128"),
+            [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
+                return mutationResult(m_runtime.notes().resetPhonemeOffsets(
+                    commandContext(arguments, invocation),
+                    ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
+                    objectIds<NoteId>(arguments.value(QStringLiteral("note_ids")).toArray())));
+            });
         addBinding(QStringLiteral("P2-TOOL-088"),
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        QList<CurveDraftDto> curves;

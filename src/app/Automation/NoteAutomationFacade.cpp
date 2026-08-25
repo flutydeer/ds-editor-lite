@@ -4,6 +4,7 @@
 #include "Controller/Actions/AppModel/Note/NoteActions.h"
 #include "Controller/Actions/AppModel/Note/EditNoteWordPropertiesAction.h"
 #include "Controller/Actions/AppModel/Param/ReplaceParamAction.h"
+#include "Model/AppModel/SingingClipPhonemeNormalizer.h"
 
 #include <lite/MusicBase/TimelineSnapUtils.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -913,22 +914,28 @@ namespace Automation {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
                         QStringLiteral("note_ids"), QStringLiteral("Note IDs must be unique")));
                 }
+                auto *clip = static_cast<SingingClip *>(clipResult.get().clip);
+                const auto resetRoots = SingingClipPhonemeNormalizer::collectCascadeResetRoots(
+                    *clip, notes, session.model()->timeline());
+                QList<NoteId> resetIds;
+                resetIds.reserve(resetRoots.size());
+                for (const auto *note : resetRoots)
+                    resetIds.append(NoteId(note->id()));
                 bool changed = false;
-                for (const auto *note : notes) {
+                for (const auto *note : resetRoots) {
                     if (note->phonemeOffsetSeq().isEdited()) {
                         changed = true;
                         break;
                     }
                 }
-                const auto affected = noteRefs(noteIds);
+                const auto affected = noteRefs(resetIds);
                 if (validateOnly)
                     return AutomationResult<MutationResult>(
                         m_committer.preview(session, changed, affected));
                 if (!changed)
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
                 auto actions = std::make_unique<NoteActions>();
-                actions->resetPhonemeOffsets(notes,
-                                             static_cast<SingingClip *>(clipResult.get().clip));
+                actions->resetPhonemeOffsets(resetRoots, clip);
                 return m_committer.commit(session, std::move(actions), affected);
             });
     }
