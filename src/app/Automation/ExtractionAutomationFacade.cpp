@@ -644,6 +644,21 @@ namespace Automation {
     }
 
     void ExtractionAutomationFacade::registerOperations() {
+        auto result = m_catalog.add({
+            .id = OperationIds::extract::get_capabilities,
+            .category = QStringLiteral("extract"),
+            .kind = OperationKind::Query,
+            .syncMode = SyncMode::Synchronous,
+            .documentPolicy = DocumentPolicy::Read,
+            .revisionPolicy = RevisionPolicy::None,
+            .historyPolicy = HistoryPolicy::None,
+            .fileAccess = FileAccessPolicy::Read,
+            .hostAvailability = HostAvailability::Core,
+            .safety = SafetyClass::ReadOnly,
+            .exposure = ExposurePolicy::InternalOnly,
+            .idempotency = IdempotencyPolicy::Unsupported,
+        });
+        Q_ASSERT(result);
         const auto add = [this](const OperationId &id) {
             const auto result = m_catalog.add({
                 .id = id,

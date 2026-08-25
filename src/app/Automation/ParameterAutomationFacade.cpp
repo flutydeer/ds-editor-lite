@@ -135,6 +135,22 @@ namespace Automation {
             return hash.result();
         }
 
+        SpeakerMixModel::SpeakerMixData
+            canonicalVoiceSpeakerMixPayload(const SpeakerMixModel::SpeakerMixData &data) {
+            auto result = SpeakerMixModel::normalizeSpeakerMixData(data);
+            for (auto &keyframe : result.dynamicKeyframes)
+                keyframe.id = 0;
+            return result;
+        }
+
+        bool sameVoiceContextPayload(const EffectiveVoiceContext &left,
+                                     const EffectiveVoiceContext &right) {
+            return left.singer == right.singer && left.speaker == right.speaker &&
+                   left.followsTrack == right.followsTrack &&
+                   canonicalVoiceSpeakerMixPayload(left.speakerMix) ==
+                       canonicalVoiceSpeakerMixPayload(right.speakerMix);
+        }
+
         QByteArray voiceFingerprint(const int objectId, const SingerInfo &singerInfo,
                                     const SpeakerInfo &speakerInfo,
                                     const SpeakerMixModel::SpeakerMixData &data) {
@@ -142,7 +158,7 @@ namespace Automation {
             hashInteger(hash, objectId);
             hash.addData(fingerprint(singerInfo));
             hash.addData(fingerprint(speakerInfo));
-            hash.addData(fingerprint(data));
+            hash.addData(fingerprint(canonicalVoiceSpeakerMixPayload(data)));
             return hash.result();
         }
 
@@ -910,7 +926,7 @@ namespace Automation {
                 const EffectiveVoiceContext next{
                     previous.singer, previous.speaker,
                     SpeakerMixModel::preservePresetSourceAsDirty(previous.speakerMix, data), false};
-                const bool changed = previous != next;
+                const bool changed = !sameVoiceContextPayload(previous, next);
                 const auto affected = QList<ObjectRef>{
                     {ObjectKind::Clip, clipId.value()}
                 };
@@ -1016,7 +1032,7 @@ namespace Automation {
                 auto *clip = static_cast<SingingClip *>(resolved.get().clip);
                 const EffectiveVoiceContext next{
                     singerInfo, speakerInfo, SpeakerMixModel::normalizeSpeakerMixData(data), false};
-                const bool changed = clip->effectiveVoiceContext() != next;
+                const bool changed = !sameVoiceContextPayload(clip->effectiveVoiceContext(), next);
                 const auto affected = QList<ObjectRef>{
                     {ObjectKind::Clip, clipId.value()}
                 };
@@ -1054,7 +1070,7 @@ namespace Automation {
                     return AutomationResult<MutationResult>(resolved.getError());
                 auto *track = resolved.get();
                 const EffectiveVoiceContext next{singerInfo, speakerInfo, {}, false};
-                const bool changed = track->voiceContext() != next;
+                const bool changed = !sameVoiceContextPayload(track->voiceContext(), next);
                 const auto affected = QList<ObjectRef>{
                     {ObjectKind::Track, trackId.value()}
                 };
@@ -1083,7 +1099,7 @@ namespace Automation {
                 auto *track = resolved.get();
                 const EffectiveVoiceContext next{
                     singerInfo, speakerInfo, SpeakerMixModel::normalizeSpeakerMixData(data), false};
-                const bool changed = track->voiceContext() != next;
+                const bool changed = !sameVoiceContextPayload(track->voiceContext(), next);
                 const auto affected = QList<ObjectRef>{
                     {ObjectKind::Track, trackId.value()}
                 };
@@ -1113,7 +1129,7 @@ namespace Automation {
                 const EffectiveVoiceContext next{
                     previous.singer, previous.speaker,
                     SpeakerMixModel::preservePresetSourceAsDirty(previous.speakerMix, data), false};
-                const bool changed = previous != next;
+                const bool changed = !sameVoiceContextPayload(previous, next);
                 const auto affected = QList<ObjectRef>{
                     {ObjectKind::Track, trackId.value()}
                 };

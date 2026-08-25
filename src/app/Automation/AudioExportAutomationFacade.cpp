@@ -83,9 +83,11 @@ namespace Automation {
                     QStringLiteral("Audio export source option is invalid"));
             }
             if (config.sourceOption == selectedSourceOption) {
-                return AutomationError::invalidArgument(
-                    QStringLiteral("config.source_option"),
-                    QStringLiteral("Selected-track audio export is unavailable"));
+                AutomationError error;
+                error.code = AutomationErrorCode::Unsupported;
+                error.fieldPath = QStringLiteral("config.source_option");
+                error.message = QStringLiteral("Selected-track audio export is unavailable");
+                return error;
             }
             if (config.timeRange < 0 || config.timeRange > 1) {
                 return AutomationError::invalidArgument(
@@ -93,9 +95,11 @@ namespace Automation {
                     QStringLiteral("Audio export time range is invalid"));
             }
             if (config.timeRange == loopSectionRange) {
-                return AutomationError::invalidArgument(
-                    QStringLiteral("config.time_range"),
-                    QStringLiteral("Loop-section audio export is unavailable"));
+                AutomationError error;
+                error.code = AutomationErrorCode::Unsupported;
+                error.fieldPath = QStringLiteral("config.time_range");
+                error.message = QStringLiteral("Loop-section audio export is unavailable");
+                return error;
             }
             QSet<int> uniqueSources;
             for (const auto source : config.sources) {
@@ -599,6 +603,20 @@ namespace Automation {
             const auto result = m_catalog.add(std::move(descriptor));
             Q_ASSERT(result);
         };
+        add({
+            .id = OperationIds::exports::audio::get_capabilities,
+            .category = QStringLiteral("exports"),
+            .kind = OperationKind::Query,
+            .syncMode = SyncMode::Synchronous,
+            .documentPolicy = DocumentPolicy::Read,
+            .revisionPolicy = RevisionPolicy::None,
+            .historyPolicy = HistoryPolicy::None,
+            .fileAccess = FileAccessPolicy::None,
+            .hostAvailability = HostAvailability::Core,
+            .safety = SafetyClass::ReadOnly,
+            .exposure = ExposurePolicy::InternalOnly,
+            .idempotency = IdempotencyPolicy::Unsupported,
+        });
         add({
             .id = OperationIds::exports::audio::preview,
             .category = QStringLiteral("exports"),

@@ -3,6 +3,7 @@
 
 #include "Controller/Actions/AppModel/Note/NoteActions.h"
 #include "Controller/Actions/AppModel/Note/EditNoteWordPropertiesAction.h"
+#include "Controller/Actions/AppModel/Param/ReplaceParamAction.h"
 
 #include <lite/MusicBase/TimelineSnapUtils.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -76,6 +77,42 @@ namespace Automation {
             hashInteger(hash, notes.size());
             for (const auto &note : notes)
                 hashNoteDraft(hash, note);
+            return hash.result();
+        }
+
+        void hashCurveDraft(QCryptographicHash &hash, const CurveDraftDto &curve) {
+            hashInteger(hash, static_cast<int>(curve.type));
+            hashInteger(hash, curve.localStart);
+            hashInteger(hash, curve.step);
+            hashInteger(hash, curve.values.size());
+            for (const auto value : curve.values)
+                hashInteger(hash, value);
+            hashInteger(hash, curve.nodes.size());
+            for (const auto &node : curve.nodes) {
+                hashInteger(hash, node.position);
+                hashInteger(hash, node.value);
+                hashInteger(hash, static_cast<int>(node.interpolation));
+            }
+        }
+
+        QByteArray transferFingerprint(const ClipId targetClipId, const int targetStart,
+                                       const NoteTransferPayload &payload) {
+            QCryptographicHash hash(QCryptographicHash::Sha256);
+            hashInteger(hash, targetClipId.value());
+            hashInteger(hash, targetStart);
+            hashInteger(hash, payload.sourceStart);
+            hashInteger(hash, payload.sourceEnd);
+            hashInteger(hash, payload.notes.size());
+            for (const auto &note : payload.notes)
+                hashNoteDraft(hash, note);
+            hashInteger(hash, payload.parameters.size());
+            for (const auto &parameter : payload.parameters) {
+                hashInteger(hash, parameter.name);
+                hashInteger(hash, parameter.type);
+                hashInteger(hash, parameter.curves.size());
+                for (const auto &curve : parameter.curves)
+                    hashCurveDraft(hash, curve);
+            }
             return hash.result();
         }
 
@@ -242,6 +279,74 @@ namespace Automation {
             }
             return false;
         }
+
+        bool validCurveDraft(const ParamInfo::Name name, const CurveDraftDto &curve,
+                             const int sourceStart, const int sourceEnd) {
+            const auto spec = ParamInfo::valueSpec(name);
+            const auto validValue = [&spec](const int value) {
+                return value >= spec.minimum && value <= spec.maximum &&
+                       (value - spec.minimum) % spec.step == 0;
+            };
+            if (curve.type == CurveDraftDto::Type::Draw) {
+                const auto end = static_cast<qint64>(curve.localStart) +
+                                 static_cast<qint64>(curve.step) * curve.values.size();
+                return curve.step > 0 && !curve.values.isEmpty() &&
+                       curve.localStart >= sourceStart && end <= sourceEnd &&
+                       std::all_of(curve.values.cbegin(), curve.values.cend(), validValue);
+            }
+            if (curve.nodes.size() < 2)
+                return false;
+            auto previous = std::numeric_limits<int>::min();
+            for (const auto &node : curve.nodes) {
+                if (node.position < sourceStart || node.position > sourceEnd ||
+                    node.position <= previous || !validValue(node.value)) {
+                    return false;
+                }
+                previous = node.position;
+            }
+            return true;
+        }
+
+        bool validTransferPayload(const NoteTransferPayload &payload) {
+            if (payload.notes.isEmpty() || payload.sourceStart < 0 ||
+                payload.sourceEnd <= payload.sourceStart) {
+                return false;
+            }
+            for (const auto &note : payload.notes) {
+                const auto end = static_cast<qint64>(note.localStart) + note.length;
+                if (!validNoteDraft(note) || note.localStart < payload.sourceStart ||
+                    end > payload.sourceEnd) {
+                    return false;
+                }
+            }
+            QSet<QPair<int, int>> seenParameters;
+            for (const auto &parameter : payload.parameters) {
+                if (parameter.name < ParamInfo::Pitch || parameter.name > ParamInfo::ToneShift ||
+                    (parameter.type != Param::Edited && parameter.type != Param::Envelope)) {
+                    return false;
+                }
+                const auto key = qMakePair(static_cast<int>(parameter.name),
+                                           static_cast<int>(parameter.type));
+                if (seenParameters.contains(key) || parameter.curves.isEmpty())
+                    return false;
+                seenParameters.insert(key);
+                for (const auto &curve : parameter.curves) {
+                    if (!validCurveDraft(parameter.name, curve, payload.sourceStart,
+                                         payload.sourceEnd)) {
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        class NoteTransferActions final : public NoteActions {
+        public:
+            void replaceParameter(const ParamInfo::Name name, const Param::Type type,
+                                  const QList<Curve *> &curves, SingingClip *clip) {
+                addAction(new ReplaceParamAction(name, type, curves, clip));
+            }
+        };
     }
 
     NoteAutomationFacade::NoteAutomationFacade(OperationCatalog &catalog,
@@ -399,48 +504,108 @@ namespace Automation {
                         QStringLiteral("Duplicate note input is invalid")));
                 }
                 QList<Note *> sourceNotes;
-                int minimumStart = std::numeric_limits<int>::max();
                 for (const auto id : noteIds) {
                     auto note = m_objects.note(session, sourceClipId, id);
                     if (!note)
                         return AutomationResult<MutationResult>(note.getError());
                     sourceNotes.append(note.get().note);
-                    minimumStart = std::min(minimumStart, note.get().note->localStart());
                 }
-                std::sort(sourceNotes.begin(), sourceNotes.end(),
-                          [](const Note *left, const Note *right) {
-                              return left->localStart() < right->localStart();
-                          });
-                if (validateOnly)
-                    return AutomationResult<MutationResult>(
-                        m_committer.preview(session, !sourceNotes.isEmpty()));
                 if (sourceNotes.isEmpty())
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
-
-                auto *targetClip = static_cast<SingingClip *>(target.get().clip);
-                const auto delta = targetStart - minimumStart;
-                std::vector<std::unique_ptr<Note>> owned;
-                QList<Note *> rawNotes;
-                QList<ObjectRef> affected;
-                QList<CreatedObjectRef> createdObjects;
-                for (const auto *sourceNote : sourceNotes) {
-                    auto draft = noteDraftDto(*sourceNote);
-                    draft.localStart += delta;
-                    auto note = buildNote(draft, targetClip, &createdObjects);
-                    rawNotes.append(note.get());
-                    affected.append({ObjectKind::Note, note->id()});
-                    owned.push_back(std::move(note));
-                }
-                auto actions = std::make_unique<NoteActions>();
-                actions->insertNotes(rawNotes, targetClip, target.get().track);
-                auto result = m_committer.commit(session, std::move(actions), affected,
-                                                 std::move(createdObjects));
-                if (result) {
-                    for (auto &note : owned)
-                        note.release();
-                }
-                return result;
+                const auto payload = captureNoteTransfer(
+                    *static_cast<const SingingClip *>(source.get().clip), sourceNotes);
+                return commitTransfer(session, targetClipId, targetStart, payload, validateOnly);
             });
+    }
+
+    AutomationResult<MutationResult>
+        NoteAutomationFacade::pasteNotes(const CommandContext &context, const ClipId targetClipId,
+                                         const int targetStart,
+                                         const NoteTransferPayload &payload) {
+        return m_dispatcher.dispatchDocumentCommand(
+            OperationIds::notes::duplicate, context,
+            transferFingerprint(targetClipId, targetStart, payload),
+            [this, targetClipId, targetStart, payload](DocumentSession &session,
+                                                       const bool validateOnly) {
+                return commitTransfer(session, targetClipId, targetStart, payload, validateOnly);
+            });
+    }
+
+    AutomationResult<MutationResult>
+        NoteAutomationFacade::commitTransfer(DocumentSession &session, const ClipId targetClipId,
+                                             const int targetStart,
+                                             const NoteTransferPayload &payload,
+                                             const bool validateOnly) {
+        auto target = m_objects.singingClip(session, targetClipId);
+        if (!target)
+            return target.getError();
+        if (targetStart < 0 || !validTransferPayload(payload)) {
+            return AutomationError::invalidArgument(
+                QStringLiteral("payload"), QStringLiteral("Note transfer payload is invalid"));
+        }
+        const auto translatedPayloadEnd = static_cast<qint64>(targetStart) +
+                                          static_cast<qint64>(payload.sourceEnd) -
+                                          payload.sourceStart;
+        if (translatedPayloadEnd > std::numeric_limits<int>::max()) {
+            return AutomationError::invalidArgument(
+                QStringLiteral("target_start"),
+                QStringLiteral("Translated note range is outside the valid range"));
+        }
+        const auto delta = static_cast<qint64>(targetStart) - payload.sourceStart;
+        for (const auto &draft : payload.notes) {
+            const auto translatedStart = static_cast<qint64>(draft.localStart) + delta;
+            const auto translatedEnd = translatedStart + draft.length;
+            if (translatedStart < 0 || translatedEnd > std::numeric_limits<int>::max()) {
+                return AutomationError::invalidArgument(
+                    QStringLiteral("target_start"),
+                    QStringLiteral("Translated note position is outside the valid range"));
+            }
+        }
+        if (validateOnly)
+            return m_committer.preview(session, true, {{ObjectKind::Clip, targetClipId.value()}});
+
+        auto *targetClip = static_cast<SingingClip *>(target.get().clip);
+        const auto parameterReplacements =
+            mergeNoteTransferParameters(*targetClip, payload, targetStart);
+        std::vector<std::unique_ptr<Note>> ownedNotes;
+        QList<Note *> rawNotes;
+        QList<ObjectRef> affected;
+        QList<CreatedObjectRef> createdObjects;
+        ownedNotes.reserve(static_cast<size_t>(payload.notes.size()));
+        for (qsizetype index = 0; index < payload.notes.size(); ++index) {
+            auto draft = payload.notes.at(index);
+            draft.clientRef = QStringLiteral("duplicate_note_%1").arg(index);
+            draft.localStart = static_cast<int>(static_cast<qint64>(draft.localStart) + delta);
+            auto note = buildNote(draft, targetClip, &createdObjects);
+            rawNotes.append(note.get());
+            affected.append({ObjectKind::Note, note->id()});
+            ownedNotes.push_back(std::move(note));
+        }
+
+        auto actions = std::make_unique<NoteTransferActions>();
+        actions->insertNotes(rawNotes, targetClip, target.get().track);
+        std::vector<std::unique_ptr<Curve>> ownedCurves;
+        for (const auto &parameter : parameterReplacements) {
+            QList<Curve *> rawCurves;
+            rawCurves.reserve(parameter.curves.size());
+            for (const auto &draft : parameter.curves) {
+                auto curve = buildCurve(draft);
+                curve->Curve::setLocalStart(draft.localStart);
+                rawCurves.append(curve.get());
+                ownedCurves.push_back(std::move(curve));
+            }
+            actions->replaceParameter(parameter.name, parameter.type, rawCurves, targetClip);
+        }
+        if (!parameterReplacements.isEmpty())
+            affected.append({ObjectKind::Clip, targetClipId.value()});
+
+        auto result = m_committer.commit(session, std::move(actions), affected,
+                                         std::move(createdObjects));
+        if (result) {
+            for (auto &note : ownedNotes)
+                note.release();
+        }
+        return result;
     }
 
     AutomationResult<MutationResult>
@@ -694,6 +859,7 @@ namespace Automation {
                 if (validateOnly)
                     return AutomationResult<MutationResult>(m_committer.preview(session, true));
                 NoteDraftDto draft;
+                draft.clientRef = QStringLiteral("split_note");
                 draft.localStart = localPosition;
                 draft.length = originalEnd - localPosition;
                 draft.keyIndex = resolved.get().note->keyIndex();
@@ -1130,6 +1296,7 @@ namespace Automation {
         };
         addMutation(OperationIds::notes::insert);
         addMutation(OperationIds::notes::duplicate);
+        addMutation(OperationIds::notes::fill_lyrics);
         addMutation(OperationIds::notes::move);
         addMutation(OperationIds::notes::quantize);
         addMutation(OperationIds::notes::remove);

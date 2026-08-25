@@ -2,10 +2,12 @@
 #include "OperationIds.h"
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/ProjectModel/AppModel/Track.h>
 
 #include <QDataStream>
 #include <QDir>
 #include <QFileInfo>
+#include <QSet>
 
 namespace Automation {
     namespace {
@@ -64,18 +66,44 @@ namespace Automation {
             QByteArray result;
             QDataStream stream(&result, QIODevice::WriteOnly);
             stream << path << allowOverwrite << options.includeTempo
-                   << options.includeTimeSignatures;
+                   << options.includeTimeSignatures << options.includeLyrics;
+            stream << static_cast<qint32>(options.trackIds.size());
+            for (const auto trackId : options.trackIds)
+                stream << trackId.value();
+            stream << static_cast<qint32>(options.clipIds.size());
+            for (const auto clipId : options.clipIds)
+                stream << clipId.value();
             return result;
         }
 
-        DocumentDraftDto snapshotDocument(const AppModel &model) {
+        DocumentDraftDto snapshotDocument(const AppModel &model,
+                                          const MidiExportOptionsDto &options) {
             DocumentDraftDto result;
             result.timeline = model.timeline();
             result.masterControl = model.masterControl();
             result.tracks.reserve(model.tracks().size());
+            QSet<int> selectedTracks;
+            for (const auto id : options.trackIds)
+                selectedTracks.insert(id.value());
+            QSet<int> selectedClips;
+            for (const auto id : options.clipIds)
+                selectedClips.insert(id.value());
+            const auto selectAll = selectedTracks.isEmpty() && selectedClips.isEmpty();
             for (const auto *track : model.tracks()) {
-                if (track)
+                if (!track)
+                    continue;
+                if (selectAll || selectedTracks.contains(track->id())) {
                     result.tracks.append(trackDraftDto(*track));
+                    continue;
+                }
+                TrackDraftDto draft = trackDraftDto(*track);
+                draft.clips.clear();
+                for (const auto *clip : track->clips()) {
+                    if (clip && selectedClips.contains(clip->id()))
+                        draft.clips.append(clipDraftDto(*clip));
+                }
+                if (!draft.clips.isEmpty())
+                    result.tracks.append(std::move(draft));
             }
             return result;
         }
@@ -95,6 +123,12 @@ namespace Automation {
                     return AutomationResult<QList<ProjectFormatDto>>(unavailable());
                 return AutomationResult<QList<ProjectFormatDto>>(m_services.listProjectFormats());
             });
+    }
+
+    AutomationResult<QByteArray> FileAutomationFacade::convertLibreSvipToDspx(const QString &path) {
+        if (!m_services.convertLibreSvipToDspx)
+            return unavailable();
+        return m_services.convertLibreSvipToDspx(path);
     }
 
     AutomationResult<FileWriteResultDto>
@@ -159,8 +193,28 @@ namespace Automation {
                     .allowOverwrite = allowOverwrite,
                     .options = options,
                     .modelSnapshot = validateOnly ? DocumentDraftDto{}
-                                                   : snapshotDocument(*session.model()),
+                                                   : snapshotDocument(*session.model(), options),
                     .validatedOnly = validateOnly,
+                });
+            });
+    }
+
+    AutomationResult<PreparedMidiExportDto> FileAutomationFacade::previewMidiExport(
+        const DocumentId &documentId, const QString &path, MidiExportOptionsDto options) {
+        return m_dispatcher.dispatchDocumentQuery<PreparedMidiExportDto>(
+            OperationIds::exports::midi::preview, documentId,
+            [this, path, options = std::move(options)](DocumentSession &session) {
+                const auto validatedPath = validateMidiPath(path, true);
+                if (!validatedPath)
+                    return AutomationResult<PreparedMidiExportDto>(validatedPath.getError());
+                if (!m_services.exportMidi)
+                    return AutomationResult<PreparedMidiExportDto>(unavailable());
+                return AutomationResult<PreparedMidiExportDto>({
+                    .document = session.version(),
+                    .path = validatedPath.get(),
+                    .allowOverwrite = true,
+                    .options = options,
+                    .validatedOnly = true,
                 });
             });
     }
@@ -196,7 +250,11 @@ namespace Automation {
     }
 
     void FileAutomationFacade::registerOperations() {
-        auto result = m_catalog.add({
+        const auto add = [this](OperationDescriptor descriptor) {
+            const auto result = m_catalog.add(std::move(descriptor));
+            Q_ASSERT(result);
+        };
+        add({
             .id = OperationIds::formats::list,
             .category = QStringLiteral("files"),
             .kind = OperationKind::Query,
@@ -210,8 +268,40 @@ namespace Automation {
             .exposure = ExposurePolicy::InternalOnly,
             .idempotency = IdempotencyPolicy::Unsupported,
         });
-        Q_ASSERT(result);
-        result = m_catalog.add({
+        add({
+            .id = OperationIds::formats::inspect,
+            .category = QStringLiteral("files"),
+            .kind = OperationKind::Query,
+            .syncMode = SyncMode::Synchronous,
+            .documentPolicy = DocumentPolicy::None,
+            .revisionPolicy = RevisionPolicy::None,
+            .historyPolicy = HistoryPolicy::None,
+            .fileAccess = FileAccessPolicy::Read,
+            .hostAvailability = HostAvailability::Core,
+            .safety = SafetyClass::ReadOnly,
+            .exposure = ExposurePolicy::InternalOnly,
+            .idempotency = IdempotencyPolicy::Unsupported,
+        });
+        const auto addMidiQuery = [&add](const OperationId &id,
+                                        const FileAccessPolicy fileAccess) {
+            add({
+                .id = id,
+                .category = QStringLiteral("exports"),
+                .kind = OperationKind::Query,
+                .syncMode = SyncMode::Synchronous,
+                .documentPolicy = DocumentPolicy::Read,
+                .revisionPolicy = RevisionPolicy::None,
+                .historyPolicy = HistoryPolicy::None,
+                .fileAccess = fileAccess,
+                .hostAvailability = HostAvailability::Core,
+                .safety = SafetyClass::ReadOnly,
+                .exposure = ExposurePolicy::InternalOnly,
+                .idempotency = IdempotencyPolicy::Unsupported,
+            });
+        };
+        addMidiQuery(OperationIds::exports::midi::get_capabilities, FileAccessPolicy::None);
+        addMidiQuery(OperationIds::exports::midi::preview, FileAccessPolicy::Write);
+        add({
             .id = OperationIds::exports::midi::start,
             .category = QStringLiteral("exports"),
             .kind = OperationKind::Command,
@@ -225,7 +315,6 @@ namespace Automation {
             .exposure = ExposurePolicy::InternalOnly,
             .idempotency = IdempotencyPolicy::DocumentGeneration,
         });
-        Q_ASSERT(result);
     }
 
 } // namespace Automation

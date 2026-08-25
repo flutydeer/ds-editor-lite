@@ -149,6 +149,10 @@
         <translation>轨道</translation>
     </message>
     <message>
+        <source>Bus</source>
+        <translation>总线</translation>
+    </message>
+    <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="72"/>
         <source>Clips</source>
         <translation>片段</translation>

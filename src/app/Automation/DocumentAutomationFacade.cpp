@@ -133,6 +133,7 @@ namespace Automation {
                                                   taskId);
                 result.changed = true;
                 result.createdObjects = std::move(createdObjects);
+                result.presentationEffects.append(QStringLiteral("active_document_changed"));
                 return AutomationResult<MutationResult>(std::move(result));
             });
     }
@@ -180,10 +181,24 @@ namespace Automation {
     AutomationResult<MutationResult>
         DocumentAutomationFacade::saveDocument(const CommandContext &context, const QString &path,
                                                const bool allowOverwrite) {
+        return saveDocumentWithOperation(OperationIds::documents::save, context, path,
+                                         allowOverwrite);
+    }
+
+    AutomationResult<MutationResult>
+        DocumentAutomationFacade::saveDocumentAs(const CommandContext &context, const QString &path,
+                                                 const bool allowOverwrite) {
+        return saveDocumentWithOperation(OperationIds::documents::save_as, context, path,
+                                         allowOverwrite);
+    }
+
+    AutomationResult<MutationResult> DocumentAutomationFacade::saveDocumentWithOperation(
+        const OperationId &operationId, const CommandContext &context, const QString &path,
+        const bool allowOverwrite) {
         auto requestFingerprint = path.toUtf8();
         requestFingerprint.append(allowOverwrite ? "\1" : "\0", 1);
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::documents::save, context, requestFingerprint,
+            operationId, context, requestFingerprint,
             [this, path, allowOverwrite](DocumentSession &session, const bool validateOnly) {
                 if (path.trimmed().isEmpty()) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
@@ -261,6 +276,34 @@ namespace Automation {
         addReplace(OperationIds::documents::commit_new);
         addReplace(OperationIds::documents::commit_open);
         add({
+            .id = OperationIds::documents::new_document,
+            .category = QStringLiteral("documents"),
+            .kind = OperationKind::Command,
+            .syncMode = SyncMode::Synchronous,
+            .documentPolicy = DocumentPolicy::Replace,
+            .revisionPolicy = RevisionPolicy::Reset,
+            .historyPolicy = HistoryPolicy::None,
+            .fileAccess = FileAccessPolicy::None,
+            .hostAvailability = HostAvailability::Core,
+            .safety = SafetyClass::Destructive,
+            .exposure = ExposurePolicy::InternalOnly,
+            .idempotency = IdempotencyPolicy::Unsupported,
+        });
+        add({
+            .id = OperationIds::documents::open,
+            .category = QStringLiteral("documents"),
+            .kind = OperationKind::Command,
+            .syncMode = SyncMode::Asynchronous,
+            .documentPolicy = DocumentPolicy::Replace,
+            .revisionPolicy = RevisionPolicy::Reset,
+            .historyPolicy = HistoryPolicy::None,
+            .fileAccess = FileAccessPolicy::Read,
+            .hostAvailability = HostAvailability::Core,
+            .safety = SafetyClass::Destructive,
+            .exposure = ExposurePolicy::InternalOnly,
+            .idempotency = IdempotencyPolicy::DocumentGeneration,
+        });
+        add({
             .id = OperationIds::documents::commit_import,
             .category = QStringLiteral("documents"),
             .kind = OperationKind::Command,
@@ -274,8 +317,40 @@ namespace Automation {
             .exposure = ExposurePolicy::InternalOnly,
             .idempotency = IdempotencyPolicy::DocumentGeneration,
         });
+        const auto addImport = [&add](const OperationId &id) {
+            add({
+                .id = id,
+                .category = QStringLiteral("documents"),
+                .kind = OperationKind::Command,
+                .syncMode = SyncMode::Asynchronous,
+                .documentPolicy = DocumentPolicy::Write,
+                .revisionPolicy = RevisionPolicy::Increment,
+                .historyPolicy = HistoryPolicy::Record,
+                .fileAccess = FileAccessPolicy::Read,
+                .hostAvailability = HostAvailability::Core,
+                .safety = SafetyClass::Reversible,
+                .exposure = ExposurePolicy::InternalOnly,
+                .idempotency = IdempotencyPolicy::DocumentGeneration,
+            });
+        };
+        addImport(OperationIds::documents::import_document);
+        addImport(OperationIds::documents::import_batch);
         add({
             .id = OperationIds::documents::save,
+            .category = QStringLiteral("documents"),
+            .kind = OperationKind::Command,
+            .syncMode = SyncMode::Synchronous,
+            .documentPolicy = DocumentPolicy::Write,
+            .revisionPolicy = RevisionPolicy::Check,
+            .historyPolicy = HistoryPolicy::None,
+            .fileAccess = FileAccessPolicy::Write,
+            .hostAvailability = HostAvailability::Core,
+            .safety = SafetyClass::FileSystem,
+            .exposure = ExposurePolicy::InternalOnly,
+            .idempotency = IdempotencyPolicy::DocumentGeneration,
+        });
+        add({
+            .id = OperationIds::documents::save_as,
             .category = QStringLiteral("documents"),
             .kind = OperationKind::Command,
             .syncMode = SyncMode::Synchronous,

@@ -9,6 +9,7 @@
 #include "Automation/PackageAutomationAdapter.h"
 
 #include <lite/Core/SingletonRegistry.h>
+#include <lite/BuildInfo.h>
 
 // Business singletons — all headers included here
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -236,6 +237,7 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
             .name = QCoreApplication::applicationName(),
             .version = QCoreApplication::applicationVersion(),
             .platform = QSysInfo::prettyProductName(),
+            .buildId = QString::fromLatin1(LITE_GIT_LAST_COMMIT_HASH),
         };
     };
     applicationServices.requestTermination =

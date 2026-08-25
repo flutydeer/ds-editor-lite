@@ -7,6 +7,7 @@
 
 #include <lite/AutomationWire/JsonSchema.h>
 #include <lite/AutomationWire/PublicToolContract.h>
+#include <lite/ProjectConverters/LibreSVIPConverter.h>
 #include <lite/ProjectConverters/MidiConverter.h>
 
 #include <utility>
@@ -19,7 +20,12 @@ namespace Automation {
             const auto *contract = AutomationWire::findPublicTool(operationId);
             if (!contract)
                 return AutomationWire::JsonSchema::object();
-            const auto source = contract->inputSchema.value(QStringLiteral("properties")).toObject();
+            const auto source = contract->inputSchema.value(QStringLiteral("properties"))
+                                    .toObject()
+                                    .value(QStringLiteral("options"))
+                                    .toObject()
+                                    .value(QStringLiteral("properties"))
+                                    .toObject();
             for (const auto &name : propertyNames) {
                 if (source.contains(name))
                     properties.insert(name, source.value(name));
@@ -50,17 +56,21 @@ namespace Automation {
         QJsonObject formatOptionSchema(const ProjectFormatDescriptor &descriptor) {
             QJsonArray branches;
             if (descriptor.canOpen) {
-                branches.append(optionBranch(QStringLiteral("documents.open"),
-                                             AutomationWire::JsonSchema::object()));
+                const auto fields = descriptor.id == QStringLiteral("midi")
+                                        ? QStringList{QStringLiteral("encoding")}
+                                        : QStringList{};
+                branches.append(optionBranch(
+                    OperationIds::documents::open,
+                    publicOptionProperties(OperationIds::documents::open, fields)));
             }
             if (descriptor.canImport) {
+                QStringList fields{QStringLiteral("import_tempo"),
+                                   QStringLiteral("import_time_signatures")};
+                if (descriptor.id == QStringLiteral("midi"))
+                    fields.prepend(QStringLiteral("encoding"));
                 branches.append(optionBranch(
-                    QStringLiteral("documents.import"),
-                    publicOptionProperties(
-                        QStringLiteral("documents.import"),
-                        {QStringLiteral("import_tempo"),
-                         QStringLiteral("import_time_signature"),
-                         QStringLiteral("merge_mode")})));
+                    OperationIds::documents::import_document,
+                    publicOptionProperties(OperationIds::documents::import_document, fields)));
             }
             if (descriptor.canExport && descriptor.id == QStringLiteral("midi")) {
                 branches.append(optionBranch(
@@ -101,6 +111,17 @@ namespace Automation {
             }
             return result;
         };
+        services.convertLibreSvipToDspx = [](const QString &path) {
+            const auto converted =
+                LibreSVIPConverter::convertToDspx(LibreSVIPFormatHandler::executablePath(), path);
+            if (converted.success())
+                return AutomationResult<QByteArray>(converted.dspxData);
+            AutomationError failure;
+            failure.code = AutomationErrorCode::FormatUnsupported;
+            failure.fieldPath = QStringLiteral("path");
+            failure.message = converted.errorMessage;
+            return AutomationResult<QByteArray>(std::move(failure));
+        };
         services.exportMidi = [](AppModel *model, const QString &path,
                                  const MidiExportOptionsDto &options, QString &errorMessage) {
             if (!model) {
@@ -110,7 +131,8 @@ namespace Automation {
             MidiConverter converter;
             return converter.save(path, model, errorMessage,
                                   {.includeTempo = options.includeTempo,
-                                   .includeTimeSignatures = options.includeTimeSignatures});
+                                   .includeTimeSignatures = options.includeTimeSignatures,
+                                   .includeLyrics = options.includeLyrics});
         };
         return services;
     }

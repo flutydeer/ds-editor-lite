@@ -20,15 +20,15 @@ namespace Automation::OperationIds {
     X(audio_clips, relocate, "audio_clips.relocate")                                               \
     X(audio_clips, set_hash, "audio_clips.set_hash")                                               \
     X(audio_clips, set_path_status, "audio_clips.set_path_status")                                 \
-    X(clips, insert, "clips.insert")                                                               \
     X(clips, clear_voice, "clips.clear_voice")                                                     \
     X(clips, duplicate, "clips.duplicate")                                                         \
     X(clips, get, "clips.get")                                                                     \
     X(clips, get_voice_context, "clips.get_voice_context")                                         \
+    X(clips, insert, "clips.insert")                                                               \
     X(clips, list, "clips.list")                                                                   \
     X(clips, move, "clips.move")                                                                   \
-    X(clips, rename, "clips.rename")                                                               \
     X(clips, remove, "clips.remove")                                                               \
+    X(clips, rename, "clips.rename")                                                               \
     X(clips, resize_left, "clips.resize_left")                                                     \
     X(clips, resize_right, "clips.resize_right")                                                   \
     X(clips, set_default_language, "clips.set_default_language")                                   \
@@ -72,8 +72,8 @@ namespace Automation::OperationIds {
     X(extract, get_capabilities, "extract.get_capabilities")                                       \
     X(extract::midi, start, "extract.midi.start")                                                  \
     X(extract::pitch, start, "extract.pitch.start")                                                \
-    X(formats, list, "formats.list")                                                               \
     X(formats, inspect, "formats.inspect")                                                         \
+    X(formats, list, "formats.list")                                                               \
     X(history, get_state, "history.get_state")                                                     \
     X(history, redo, "history.redo")                                                               \
     X(history, undo, "history.undo")                                                               \
@@ -84,37 +84,37 @@ namespace Automation::OperationIds {
     X(inference, apply_pitch, "inference.apply_pitch")                                             \
     X(inference, apply_pronunciations, "inference.apply_pronunciations")                           \
     X(inference, apply_variance, "inference.apply_variance")                                       \
-    X(inference, invalidate_clip, "inference.invalidate_clip")                                     \
     X(inference, get_capabilities, "inference.get_capabilities")                                   \
     X(inference, get_status, "inference.get_status")                                               \
+    X(inference, invalidate_clip, "inference.invalidate_clip")                                     \
     X(inference, rebuild_original_params, "inference.rebuild_original_params")                     \
     X(inference, refresh_param_input, "inference.refresh_param_input")                             \
     X(inference, refresh_speaker_mix, "inference.refresh_speaker_mix")                             \
     X(inference, resegment_clip, "inference.resegment_clip")                                       \
     X(inference, reset_stage, "inference.reset_stage")                                             \
     X(inference, start, "inference.start")                                                         \
-    X(master, set_control, "master.set_control")                                                   \
     X(master, get, "master.get")                                                                   \
+    X(master, set_control, "master.set_control")                                                   \
     X(master, set_gain, "master.set_gain")                                                         \
     X(master, set_mute, "master.set_mute")                                                         \
     X(master, set_pan, "master.set_pan")                                                           \
     X(master, set_solo, "master.set_solo")                                                         \
-    X(notes, get, "notes.get")                                                                     \
     X(notes, duplicate, "notes.duplicate")                                                         \
     X(notes, fill_lyrics, "notes.fill_lyrics")                                                     \
+    X(notes, get, "notes.get")                                                                     \
     X(notes, insert, "notes.insert")                                                               \
     X(notes, move, "notes.move")                                                                   \
     X(notes, quantize, "notes.quantize")                                                           \
     X(notes, remove, "notes.remove")                                                               \
-    X(notes, resize_left, "notes.resize_left")                                                     \
-    X(notes, resize_right, "notes.resize_right")                                                   \
     X(notes, reset_phonemes, "notes.reset_phonemes")                                               \
     X(notes, reset_pronunciation, "notes.reset_pronunciation")                                     \
+    X(notes, resize_left, "notes.resize_left")                                                     \
+    X(notes, resize_right, "notes.resize_right")                                                   \
     X(notes, search, "notes.search")                                                               \
     X(notes, set_language, "notes.set_language")                                                   \
     X(notes, set_lyric, "notes.set_lyric")                                                         \
-    X(notes, set_phonemes, "notes.set_phonemes")                                                   \
     X(notes, set_phoneme_offsets, "notes.set_phoneme_offsets")                                     \
+    X(notes, set_phonemes, "notes.set_phonemes")                                                   \
     X(notes, set_pronunciation, "notes.set_pronunciation")                                         \
     X(notes, set_word_properties, "notes.set_word_properties")                                     \
     X(notes, split, "notes.split")                                                                 \
@@ -124,10 +124,10 @@ namespace Automation::OperationIds {
     X(packages, resolve_document_voices, "packages.resolve_document_voices")                       \
     X(packages, set_search_paths, "packages.set_search_paths")                                     \
     X(packages, validate, "packages.validate")                                                     \
-    X(parameters, get, "parameters.get")                                                           \
     X(parameters, bake, "parameters.bake")                                                         \
     X(parameters, draw, "parameters.draw")                                                         \
     X(parameters, erase, "parameters.erase")                                                       \
+    X(parameters, get, "parameters.get")                                                           \
     X(parameters, get_capabilities, "parameters.get_capabilities")                                 \
     X(parameters, insert_anchors, "parameters.insert_anchors")                                     \
     X(parameters, move_anchors, "parameters.move_anchors")                                         \
@@ -138,11 +138,11 @@ namespace Automation::OperationIds {
     X(playback, get, "playback.get")                                                               \
     X(playback, pause, "playback.pause")                                                           \
     X(playback, play, "playback.play")                                                             \
+    X(playback, seek, "playback.seek")                                                             \
     X(playback, set_last_position, "playback.set_last_position")                                   \
     X(playback, set_loop, "playback.set_loop")                                                     \
     X(playback, set_loop_enabled, "playback.set_loop_enabled")                                     \
     X(playback, set_position, "playback.set_position")                                             \
-    X(playback, seek, "playback.seek")                                                             \
     X(playback, stop, "playback.stop")                                                             \
     X(project, get, "project.get")                                                                 \
     X(recent_files, add, "recent_files.add")                                                       \
@@ -163,18 +163,18 @@ namespace Automation::OperationIds {
     X(speaker_mix::clip, replace, "speaker_mix.clip.replace")                                      \
     X(speaker_mix::clip, select_single, "speaker_mix.clip.select_single")                          \
     X(speaker_mix::clip, use_track, "speaker_mix.clip.use_track")                                  \
-    X(speaker_mix::track, apply, "speaker_mix.track.apply")                                        \
-    X(speaker_mix::track, replace, "speaker_mix.track.replace")                                    \
-    X(speaker_mix::track, select_single, "speaker_mix.track.select_single")                        \
     X(speaker_mix, disable_dynamic, "speaker_mix.disable_dynamic")                                 \
     X(speaker_mix, enable_dynamic, "speaker_mix.enable_dynamic")                                   \
     X(speaker_mix, get, "speaker_mix.get")                                                         \
-    X(speaker_mix, set_dynamic_bypass, "speaker_mix.set_dynamic_bypass")                           \
-    X(speaker_mix, set_fixed, "speaker_mix.set_fixed")                                             \
     X(speaker_mix::keyframes, insert, "speaker_mix.keyframes.insert")                              \
     X(speaker_mix::keyframes, move, "speaker_mix.keyframes.move")                                  \
     X(speaker_mix::keyframes, remove, "speaker_mix.keyframes.remove")                              \
     X(speaker_mix::keyframes, set_weights, "speaker_mix.keyframes.set_weights")                    \
+    X(speaker_mix, set_dynamic_bypass, "speaker_mix.set_dynamic_bypass")                           \
+    X(speaker_mix, set_fixed, "speaker_mix.set_fixed")                                             \
+    X(speaker_mix::track, apply, "speaker_mix.track.apply")                                        \
+    X(speaker_mix::track, replace, "speaker_mix.track.replace")                                    \
+    X(speaker_mix::track, select_single, "speaker_mix.track.select_single")                        \
     X(speaker_mix_presets, delete_preset, "speaker_mix_presets.delete")                            \
     X(speaker_mix_presets, list, "speaker_mix_presets.list")                                       \
     X(speaker_mix_presets, save, "speaker_mix_presets.save")                                       \
@@ -186,14 +186,14 @@ namespace Automation::OperationIds {
     X(time_signatures, delete_signature, "time_signatures.delete")                                 \
     X(time_signatures, set, "time_signatures.set")                                                 \
     X(timeline, get, "timeline.get")                                                               \
-    X(tracks, insert, "tracks.insert")                                                             \
     X(tracks, clear_voice, "tracks.clear_voice")                                                   \
     X(tracks, get, "tracks.get")                                                                   \
     X(tracks, get_voice_context, "tracks.get_voice_context")                                       \
+    X(tracks, insert, "tracks.insert")                                                             \
     X(tracks, list, "tracks.list")                                                                 \
     X(tracks, move, "tracks.move")                                                                 \
-    X(tracks, rename, "tracks.rename")                                                             \
     X(tracks, remove, "tracks.remove")                                                             \
+    X(tracks, rename, "tracks.rename")                                                             \
     X(tracks, set_color, "tracks.set_color")                                                       \
     X(tracks, set_default_language, "tracks.set_default_language")                                 \
     X(tracks, set_gain, "tracks.set_gain")                                                         \

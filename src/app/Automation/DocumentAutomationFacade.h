@@ -53,6 +53,9 @@ namespace Automation {
         AutomationResult<MutationResult> saveDocument(const CommandContext &context,
                                                       const QString &path,
                                                       bool allowOverwrite = true);
+        AutomationResult<MutationResult> saveDocumentAs(const CommandContext &context,
+                                                        const QString &path,
+                                                        bool allowOverwrite = true);
 
     private:
         AutomationResult<MutationResult> replaceDocument(
@@ -62,6 +65,11 @@ namespace Automation {
             const QString &path,
             const QString &projectName,
             bool savedBaseline);
+        AutomationResult<MutationResult> saveDocumentWithOperation(
+            const OperationId &operationId,
+            const CommandContext &context,
+            const QString &path,
+            bool allowOverwrite);
         void registerOperations();
 
         OperationCatalog &m_catalog;

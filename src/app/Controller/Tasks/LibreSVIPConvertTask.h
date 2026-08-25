@@ -14,7 +14,6 @@ public:
 
     [[nodiscard]] const QString &executablePath() const;
     [[nodiscard]] const QString &inputPath() const;
-    [[nodiscard]] const QString &outputPath() const;
     DspxParseResult takeResult();
 
 private:
@@ -22,7 +21,6 @@ private:
 
     QString m_executablePath;
     QString m_inputPath;
-    QString m_outputPath;
     DspxParseResult m_result;
 };
 

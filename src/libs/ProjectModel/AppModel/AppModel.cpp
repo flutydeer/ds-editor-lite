@@ -96,12 +96,12 @@ const QList<Track *> &AppModel::tracks() const {
     return d->m_tracks;
 }
 
-bool AppModel::insertTrack(Track *track, const qsizetype index) {
+bool AppModel::insertTrack(Track *track, const qsizetype index, const bool resolveColorIndex) {
     Q_D(AppModel);
     if (!track || index < 0 || index > d->m_tracks.size() || d->m_tracks.contains(track))
         return false;
 
-    if (track->colorIndex() == 0) {
+    if (resolveColorIndex && track->colorIndex() == 0) {
         int prev = -1;
         if (index > 0 && index - 1 < d->m_tracks.size())
             prev = d->m_tracks[index - 1]->colorIndex();

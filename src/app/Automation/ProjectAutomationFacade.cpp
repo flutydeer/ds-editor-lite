@@ -376,7 +376,8 @@ namespace Automation {
                     auto track =
                         buildTrack(trackDrafts.at(offset), model->timeline(), &createdObjects);
                     affected.append({ObjectKind::Track, track->id()});
-                    actions->insertTrack(track.release(), index + offset, model);
+                    actions->insertTrack(track.release(), index + offset, model,
+                                         trackDrafts.at(offset).resolveColorIndex);
                 }
                 return m_committer.commit(session, std::move(actions), affected,
                                           std::move(createdObjects));
@@ -961,8 +962,11 @@ namespace Automation {
                 QList<ObjectRef> affected;
                 QList<CreatedObjectRef> createdObjects;
                 std::vector<std::unique_ptr<Clip>> owned;
+                qsizetype duplicateIndex = 0;
                 for (const auto &source : sources) {
                     auto draft = clipDraftDto(*source.clip);
+                    draft.clientRef =
+                        QStringLiteral("duplicate_clip_%1").arg(duplicateIndex++);
                     draft.properties.start += delta;
                     for (auto &keyframe : draft.ownSpeakerMixData.dynamicKeyframes)
                         keyframe.id = IdGenerator::instance()->next();
@@ -1633,6 +1637,29 @@ namespace Automation {
             .exposure = ExposurePolicy::InternalOnly,
             .idempotency = IdempotencyPolicy::Unsupported,
         });
+        const auto addQuery = [&add](const OperationId &id) {
+            add({
+                .id = id,
+                .category = id.section('.', 0, 0),
+                .kind = OperationKind::Query,
+                .syncMode = SyncMode::Synchronous,
+                .documentPolicy = DocumentPolicy::Read,
+                .revisionPolicy = RevisionPolicy::None,
+                .historyPolicy = HistoryPolicy::None,
+                .fileAccess = FileAccessPolicy::None,
+                .hostAvailability = HostAvailability::Core,
+                .safety = SafetyClass::ReadOnly,
+                .exposure = ExposurePolicy::InternalOnly,
+                .idempotency = IdempotencyPolicy::Unsupported,
+            });
+        };
+        addQuery(OperationIds::tracks::list);
+        addQuery(OperationIds::tracks::get);
+        addQuery(OperationIds::tracks::get_voice_context);
+        addQuery(OperationIds::clips::list);
+        addQuery(OperationIds::clips::get);
+        addQuery(OperationIds::clips::get_voice_context);
+        addQuery(OperationIds::audio_clips::get);
 
         const auto addMutation =
             [&add](const OperationId &id, const HistoryPolicy historyPolicy = HistoryPolicy::Record,
@@ -1653,6 +1680,24 @@ namespace Automation {
                     .idempotency = IdempotencyPolicy::DocumentGeneration,
                 });
             };
+        const auto addAsyncFileMutation = [&add](const OperationId &id) {
+            add({
+                .id = id,
+                .category = id.section('.', 0, 0),
+                .kind = OperationKind::Command,
+                .syncMode = SyncMode::Asynchronous,
+                .documentPolicy = DocumentPolicy::Write,
+                .revisionPolicy = RevisionPolicy::Increment,
+                .historyPolicy = HistoryPolicy::Record,
+                .fileAccess = FileAccessPolicy::Read,
+                .hostAvailability = HostAvailability::Core,
+                .safety = SafetyClass::Reversible,
+                .exposure = ExposurePolicy::InternalOnly,
+                .idempotency = IdempotencyPolicy::DocumentGeneration,
+            });
+        };
+        addAsyncFileMutation(OperationIds::audio_clips::import_audio);
+        addAsyncFileMutation(OperationIds::audio_clips::import_batch);
         addMutation(OperationIds::audio_clips::confirm_path, HistoryPolicy::None);
         addMutation(OperationIds::audio_clips::apply_decode_cache, HistoryPolicy::None,
                     FileAccessPolicy::None, RevisionPolicy::None);

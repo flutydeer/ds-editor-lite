@@ -4,6 +4,7 @@
 #include "AutomationDispatcher.h"
 #include "CommandCommitter.h"
 #include "DocumentObjectResolver.h"
+#include "NoteTransfer.h"
 #include "ProjectAutomationDtos.h"
 
 namespace Automation {
@@ -56,6 +57,9 @@ namespace Automation {
         AutomationResult<MutationResult> duplicateNotes(const CommandContext &context,
                                                         ClipId sourceClipId, QList<NoteId> noteIds,
                                                         ClipId targetClipId, int targetStart);
+        AutomationResult<MutationResult> pasteNotes(const CommandContext &context,
+                                                    ClipId targetClipId, int targetStart,
+                                                    const NoteTransferPayload &payload);
         AutomationResult<MutationResult> removeNotes(const CommandContext &context, ClipId clipId,
                                                      QList<NoteId> noteIds);
         AutomationResult<MutationResult> moveNotes(const CommandContext &context, ClipId clipId,
@@ -101,6 +105,10 @@ namespace Automation {
                                                        NoteId noteId);
 
     private:
+        AutomationResult<MutationResult> commitTransfer(DocumentSession &session,
+                                                        ClipId targetClipId, int targetStart,
+                                                        const NoteTransferPayload &payload,
+                                                        bool validateOnly);
         AutomationResult<MutationResult> patchWordProperties(const OperationId &operationId,
                                                              const CommandContext &context,
                                                              ClipId clipId,

@@ -82,27 +82,29 @@ static Track *convertTrack(const opendspx::Track &track, const QString &language
     return dsTrack;
 }
 
-static std::vector<opendspx::Note> encodeNotes(const OverlappableSerialList<Note> &notes) {
+static std::vector<opendspx::Note> encodeNotes(const OverlappableSerialList<Note> &notes,
+                                              const bool includeLyrics) {
     std::vector<opendspx::Note> arrNotes;
     for (const auto &note : notes) {
         opendspx::Note dsNote;
         dsNote.pos = note->globalStart();
         dsNote.length = note->length();
         dsNote.keyNum = note->keyIndex();
-        dsNote.lyric = note->lyric().toStdString();
+        if (includeLyrics)
+            dsNote.lyric = note->lyric().toStdString();
         arrNotes.push_back(dsNote);
     }
     return arrNotes;
 }
 
-static void encodeClips(const Track *dsTrack, opendspx::Track *track) {
+static void encodeClips(const Track *dsTrack, opendspx::Track *track, const bool includeLyrics) {
     for (const auto &clip : dsTrack->clips()) {
         if (clip->clipType() == Clip::Singing) {
             const auto singingClip = dynamic_cast<SingingClip *>(clip);
             auto singClip = std::make_shared<opendspx::SingingClip>();
             singClip->name = clip->name().toStdString();
             singClip->time = {clip->start(), clip->clipLen(), clip->clipStart(), clip->clipLen()};
-            singClip->notes = encodeNotes(singingClip->notes());
+            singClip->notes = encodeNotes(singingClip->notes(), includeLyrics);
             track->clips.push_back(singClip);
         } else if (clip->clipType() == Clip::Audio) {
             const auto audioClip = dynamic_cast<AudioClip *>(clip);
@@ -116,11 +118,12 @@ static void encodeClips(const Track *dsTrack, opendspx::Track *track) {
     }
 }
 
-static void encodeTracks(const AppModel *model, opendspx::Model &dspx) {
+static void encodeTracks(const AppModel *model, opendspx::Model &dspx,
+                         const bool includeLyrics) {
     for (const auto &dsTrack : model->tracks()) {
         opendspx::Track track;
         track.name = dsTrack->name().toStdString();
-        encodeClips(dsTrack, &track);
+        encodeClips(dsTrack, &track, includeLyrics);
         dspx.content.tracks.push_back(track);
     }
 }
@@ -393,7 +396,7 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg,
         }
     }
 
-    encodeTracks(model, dspx);
+    encodeTracks(model, dspx, options.includeLyrics);
 
     auto midiMediate = midiConverter.convertDspxToIntermediate(dspx);
     std::stringstream ss(std::ios::out);

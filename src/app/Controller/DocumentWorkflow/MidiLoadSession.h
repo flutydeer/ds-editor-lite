@@ -21,7 +21,8 @@ class MidiLoadSession final : public ProjectLoadSessionBase {
 public:
     MidiLoadSession(IProjectFormatHandler *formatHandler, QString filePath,
                     ProjectLoadPurpose purpose, quint64 requestId, bool interactive = true,
-                    bool importTempo = true, bool importTimeSignature = true,
+                    QByteArray encoding = {}, bool importTempo = true,
+                    bool importTimeSignature = true,
                     QObject *parent = nullptr);
 
 private:
@@ -42,6 +43,7 @@ private:
     MidiConverterUi m_converterUi;
     MidiParseData m_parseData;
     bool m_interactive = true;
+    QByteArray m_encoding;
     bool m_importTempo = true;
     bool m_importTimeSignature = true;
 };

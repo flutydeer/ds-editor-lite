@@ -16,6 +16,7 @@ namespace Automation {
         QString name;
         QString version;
         QString platform;
+        QString buildId;
 
         friend bool operator==(const ApplicationInfoDto &, const ApplicationInfoDto &) = default;
     };

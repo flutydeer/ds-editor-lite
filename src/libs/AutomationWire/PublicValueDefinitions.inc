@@ -50,6 +50,8 @@ AUTOMATION_WIRE_PUBLIC_STRING_VALUE(ConflictPolicy, StateVersion, "state_version
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(ConflictPolicy, Revision, "revision")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(ConflictPolicy, RevisionAndGeneration,
                                     "revision_and_generation")
+AUTOMATION_WIRE_PUBLIC_STRING_VALUE(ConflictPolicy, RevisionAndStateVersion,
+                                    "revision_and_state_version")
 
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(PronunciationSource, Original, "original")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(PronunciationSource, Edited, "edited")
@@ -108,6 +110,7 @@ AUTOMATION_WIRE_PUBLIC_STRING_VALUE(TaskState, Failed, "failed")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(TaskState, Canceled, "canceled")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(TaskKind, DocumentsOpen, "documents.open")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(TaskKind, DocumentsImport, "documents.import")
+AUTOMATION_WIRE_PUBLIC_STRING_VALUE(TaskKind, DocumentsImportBatch, "documents.import_batch")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(TaskKind, AudioClipsImport, "audio_clips.import")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(TaskKind, AudioClipsImportBatch, "audio_clips.import_batch")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(TaskKind, ExportsMidiStart, "exports.midi.start")

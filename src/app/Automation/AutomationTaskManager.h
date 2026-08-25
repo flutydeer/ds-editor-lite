@@ -4,6 +4,7 @@
 #include "AutomationTypes.h"
 
 #include <QHash>
+#include <QJsonObject>
 #include <QMutex>
 
 #include <functional>
@@ -42,6 +43,7 @@ namespace Automation {
         std::optional<MutationResult> mutation;
         std::optional<AutomationError> error;
         QString createdByClientId;
+        QJsonObject metadata;
         bool cancelable = true;
         bool validatedOnly = false;
 
@@ -67,6 +69,9 @@ namespace Automation {
                                           std::optional<ObjectRef> target = std::nullopt,
                                           CancelCallback cancel = {},
                                           QString createdByClientId = {});
+        AutomationTaskSnapshot createTask(OperationId operationId, DocumentVersion baseDocument,
+                                          std::optional<ObjectRef> target, CancelCallback cancel,
+                                          QString createdByClientId, QJsonObject metadata);
 
         AutomationResult<AutomationTaskSnapshot> get(const DocumentId &documentId,
                                                      const TaskId &taskId) const;

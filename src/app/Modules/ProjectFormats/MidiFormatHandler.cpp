@@ -22,7 +22,7 @@ IProjectLoadSession *MidiFormatHandler::createSession(const ProjectLoadRequest &
                                                       IDocumentWorkflowUi * /*ui*/,
                                                       QObject *parent) {
     return new MidiLoadSession(this, request.filePath, request.purpose, request.requestId,
-                               request.interactive, request.importTempo,
+                               request.interactive, request.encoding, request.importTempo,
                                request.importTimeSignature, parent);
 }
 

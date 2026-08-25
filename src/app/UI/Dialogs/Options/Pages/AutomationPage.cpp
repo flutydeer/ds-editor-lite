@@ -76,6 +76,8 @@ QString AutomationPage::categoryDisplayName(const QString &category) const {
         return tr("Voices");
     if (category == QStringLiteral("tracks"))
         return tr("Tracks");
+    if (category == QStringLiteral("bus"))
+        return tr("Bus");
     if (category == QStringLiteral("clips"))
         return tr("Clips");
     if (category == QStringLiteral("speaker_mix"))

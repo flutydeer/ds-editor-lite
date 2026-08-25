@@ -298,30 +298,41 @@ namespace AutomationWire {
         }
 
         QJsonObject audioExportOptionsSchema() {
-            return JsonSchema::object(
-                {
-                    {QStringLiteral("format"), nonEmptyStringSchema()},
-                    {QStringLiteral("sample_rate"),
-                     JsonSchema::integer(MinimumAudioSampleRate, MaximumAudioSampleRate)},
-                    {QStringLiteral("channel_mode"),
-                     stringDomainSchema(PublicValueDomain::ChannelMode)},
-                    {QStringLiteral("mixing_mode"),
-                     stringDomainSchema(PublicValueDomain::AudioMixingMode)},
-                    {QStringLiteral("source"),
-                     stringDomainSchema(PublicValueDomain::AudioSourceMode)},
-                    {QStringLiteral("source_ids"),
-                     JsonSchema::array(identifierSchema(), {}, MaximumCommandCollectionItems)},
-                    {QStringLiteral("range"),
-                     JsonSchema::object(
-                         {
-                             {QStringLiteral("start"), JsonSchema::number(0.0)},
-                             {QStringLiteral("end"), JsonSchema::number(0.0)},
-                         }, {QStringLiteral("start"), QStringLiteral("end")})},
-                    {QStringLiteral("mute_solo_enabled"), JsonSchema::boolean()},
-            },
-                {QStringLiteral("format"), QStringLiteral("sample_rate"),
-                 QStringLiteral("channel_mode"), QStringLiteral("mixing_mode"),
-                 QStringLiteral("source")});
+            const auto commonProperties = QJsonObject{
+                {QStringLiteral("format"), nonEmptyStringSchema()},
+                {QStringLiteral("sample_rate"),
+                 JsonSchema::integer(MinimumAudioSampleRate, MaximumAudioSampleRate)},
+                {QStringLiteral("channel_mode"),
+                 stringDomainSchema(PublicValueDomain::ChannelMode)},
+                {QStringLiteral("mixing_mode"),
+                 stringDomainSchema(PublicValueDomain::AudioMixingMode)},
+                {QStringLiteral("mute_solo_enabled"), JsonSchema::boolean()},
+            };
+            const auto commonRequired = QStringList{
+                QStringLiteral("format"), QStringLiteral("sample_rate"),
+                QStringLiteral("channel_mode"), QStringLiteral("mixing_mode"),
+                QStringLiteral("source"),
+            };
+
+            auto allProperties = commonProperties;
+            allProperties.insert(
+                QStringLiteral("source"),
+                domainConstant(PublicValueDomain::AudioSourceMode, QStringLiteral("all")));
+
+            auto customProperties = commonProperties;
+            customProperties.insert(
+                QStringLiteral("source"),
+                domainConstant(PublicValueDomain::AudioSourceMode, QStringLiteral("custom")));
+            customProperties.insert(
+                QStringLiteral("source_ids"),
+                JsonSchema::array(identifierSchema(), 1, MaximumCommandCollectionItems));
+            auto customRequired = commonRequired;
+            customRequired.append(QStringLiteral("source_ids"));
+
+            return JsonSchema::oneOf(QJsonArray{
+                JsonSchema::object(allProperties, commonRequired),
+                JsonSchema::object(customProperties, customRequired),
+            });
         }
 
         QJsonObject inferenceScopeSchema() {
@@ -380,7 +391,6 @@ namespace AutomationWire {
         QJsonObject formatOptionsSchema() {
             return JsonSchema::object({
                 {QStringLiteral("encoding"),               nonEmptyStringSchema()},
-                {QStringLiteral("import_lyrics"),          JsonSchema::boolean() },
                 {QStringLiteral("import_tempo"),           JsonSchema::boolean() },
                 {QStringLiteral("import_time_signatures"), JsonSchema::boolean() },
             });
@@ -400,25 +410,48 @@ namespace AutomationWire {
 
         QJsonObject fillLyricsOptionsSchema() {
             return JsonSchema::object({
-                {QStringLiteral("splitter_id"), nonEmptyStringSchema()   },
-                {QStringLiteral("tagger_id"),   nonEmptyStringSchema()   },
+                {QStringLiteral("splitter_id"),
+                 JsonSchema::string({QStringLiteral("auto"), QStringLiteral("character")})},
+                {QStringLiteral("tagger_id"),   JsonSchema::string({QStringLiteral("auto")})},
                 {QStringLiteral("skip_slur"),   JsonSchema::boolean()    },
                 {QStringLiteral("language"),    languageSelectionSchema()},
             });
         }
 
         QJsonObject extractionDestinationSchema() {
-            return JsonSchema::object(
+            const auto createClip = JsonSchema::object(
                 {
                     {QStringLiteral("target_track_id"), identifierSchema()                  },
                     {QStringLiteral("start"),           JsonSchema::integer(0.0)            },
-                    {QStringLiteral("mode"),
-                     JsonSchema::string(
-                         {QStringLiteral("create_clip"), QStringLiteral("merge_into_clip")})},
-                    {QStringLiteral("target_clip_id"),  identifierSchema()                  },
+                    {QStringLiteral("mode"),            JsonSchema::constant(
+                                                    QStringLiteral("create_clip"))},
             },
                 {QStringLiteral("target_track_id"), QStringLiteral("start"),
                  QStringLiteral("mode")});
+            const auto mergeIntoClip = JsonSchema::object(
+                {
+                    {QStringLiteral("target_track_id"), identifierSchema()                  },
+                    {QStringLiteral("start"),           JsonSchema::integer(0.0)            },
+                    {QStringLiteral("mode"),            JsonSchema::constant(
+                                                    QStringLiteral("merge_into_clip"))},
+                    {QStringLiteral("target_clip_id"),  identifierSchema()                  },
+            },
+                {QStringLiteral("target_track_id"), QStringLiteral("start"),
+                 QStringLiteral("mode"), QStringLiteral("target_clip_id")});
+            return JsonSchema::oneOf(QJsonArray{createClip, mergeIntoClip});
+        }
+
+        const QSet<QString> &persistentPlaybackOperations() {
+            static const QSet<QString> ids{
+                QStringLiteral("playback.set_loop"),
+                QStringLiteral("playback.set_loop_enabled"),
+                QStringLiteral("playback.clear_loop"),
+            };
+            return ids;
+        }
+
+        bool isPersistentPlaybackOperation(const QString &id) {
+            return persistentPlaybackOperations().contains(id);
         }
 
         QJsonObject inputFieldSchema(const QString &id, const QString &name) {
@@ -460,6 +493,10 @@ namespace AutomationWire {
             }
             if (name == QStringLiteral("start") || name == QStringLiteral("end") ||
                 name == QStringLiteral("position") || name == QStringLiteral("target_start")) {
+                if (id == QStringLiteral("playback.set_loop") &&
+                    (name == QStringLiteral("start") || name == QStringLiteral("end"))) {
+                    return JsonSchema::integer(0.0, std::numeric_limits<int>::max());
+                }
                 return id.startsWith(QStringLiteral("playback."))
                            ? JsonSchema::number(0.0)
                            : JsonSchema::integer(0.0, std::numeric_limits<int>::max());
@@ -513,8 +550,12 @@ namespace AutomationWire {
                                            QStringLiteral("replace")});
             }
             if (name == QStringLiteral("purpose")) {
-                return JsonSchema::string(
-                    {QStringLiteral("open"), QStringLiteral("import"), QStringLiteral("export")});
+                return id == QStringLiteral("formats.inspect")
+                           ? JsonSchema::string(
+                                 {QStringLiteral("open"), QStringLiteral("import")})
+                           : JsonSchema::string({QStringLiteral("open"),
+                                                 QStringLiteral("import"),
+                                                 QStringLiteral("export")});
             }
             if (name == QStringLiteral("mode") && id == QStringLiteral("notes.search")) {
                 return JsonSchema::string({QStringLiteral("starts_with"), QStringLiteral("exact"),
@@ -800,6 +841,9 @@ namespace AutomationWire {
                 QStringLiteral("time_signatures.delete"),
                 QStringLiteral("history.undo"),
                 QStringLiteral("history.redo"),
+                QStringLiteral("playback.set_loop"),
+                QStringLiteral("playback.set_loop_enabled"),
+                QStringLiteral("playback.clear_loop"),
                 QStringLiteral("extract.pitch.start"),
                 QStringLiteral("extract.midi.start"),
                 QStringLiteral("inference.start"),
@@ -1067,7 +1111,6 @@ namespace AutomationWire {
                 add(QStringLiteral("current_document_id"), false);
                 add(QStringLiteral("expected_revision"), false);
                 add(QStringLiteral("validate_only"), false);
-                add(QStringLiteral("idempotency_key"), false);
             } else if (documentQueryOperations().contains(id) ||
                        documentWriteOperations().contains(id) || playbackWrite) {
                 add(QStringLiteral("document_id"), true);
@@ -1567,6 +1610,8 @@ namespace AutomationWire {
                 JsonSchema::boolean(),
                 JsonSchema::number(),
                 JsonSchema::string(),
+                singerRefSchema(),
+                speakerRefSchema(),
                 voiceRefSchema(),
             });
             const auto metadata = JsonSchema::object({
@@ -2123,9 +2168,11 @@ namespace AutomationWire {
         QJsonObject playbackSnapshotSchema() {
             const auto loop = JsonSchema::object(
                 {
-                    {QStringLiteral("enabled"), JsonSchema::boolean()  },
-                    {QStringLiteral("start"),   JsonSchema::number(0.0)},
-                    {QStringLiteral("end"),     JsonSchema::number(0.0)},
+                    {QStringLiteral("enabled"), JsonSchema::boolean()                               },
+                    {QStringLiteral("start"),
+                     JsonSchema::integer(0.0, std::numeric_limits<int>::max())                        },
+                    {QStringLiteral("end"),
+                     JsonSchema::integer(0.0, std::numeric_limits<int>::max())                        },
             },
                 {QStringLiteral("enabled"), QStringLiteral("start"), QStringLiteral("end")});
             return JsonSchema::object(
@@ -2152,6 +2199,19 @@ namespace AutomationWire {
             },
                 {QStringLiteral("state_version"), QStringLiteral("changed"),
                  QStringLiteral("playback"), QStringLiteral("warnings")}));
+        }
+
+        QJsonObject persistentPlaybackMutationSchema() {
+            auto root = mutationObjectSchema();
+            auto properties = root.value(QStringLiteral("properties")).toObject();
+            properties.insert(QStringLiteral("state_version"), revisionSchema());
+            properties.insert(QStringLiteral("playback"), playbackSnapshotSchema());
+            root.insert(QStringLiteral("properties"), properties);
+            auto required = root.value(QStringLiteral("required")).toArray();
+            required.append(QStringLiteral("state_version"));
+            required.append(QStringLiteral("playback"));
+            root.insert(QStringLiteral("required"), required);
+            return JsonSchema::document(root);
         }
 
         QJsonObject trackSnapshotSchema() {
@@ -2236,9 +2296,12 @@ namespace AutomationWire {
                                          QStringLiteral("candidate")})                            },
                     {QStringLiteral("candidate_paths"),  JsonSchema::array(nonEmptyStringSchema())},
                     {QStringLiteral("hash_exists"),      JsonSchema::boolean()                    },
-                    {QStringLiteral("duration_seconds"), JsonSchema::number(0.0)                  },
-                    {QStringLiteral("sample_rate"),      JsonSchema::integer(1.0)                 },
-                    {QStringLiteral("channels"),         JsonSchema::integer(1.0)                 },
+                    {QStringLiteral("duration_seconds"),
+                     JsonSchema::oneOf(QJsonArray{JsonSchema::number(0.0), JsonSchema::null()})},
+                    {QStringLiteral("sample_rate"),
+                     JsonSchema::oneOf(QJsonArray{JsonSchema::integer(1.0), JsonSchema::null()})},
+                    {QStringLiteral("channels"),
+                     JsonSchema::oneOf(QJsonArray{JsonSchema::integer(1.0), JsonSchema::null()})},
             },
                 {QStringLiteral("clip_id"), QStringLiteral("path"), QStringLiteral("path_status"),
                  QStringLiteral("candidate_paths"), QStringLiteral("hash_exists"),
@@ -2282,8 +2345,8 @@ namespace AutomationWire {
                 {
                     {QStringLiteral("path"),               nonEmptyStringSchema()                 },
                     {QStringLiteral("purpose"),
-                     JsonSchema::string({QStringLiteral("open"), QStringLiteral("import"),
-                                         QStringLiteral("export")})                               },
+                     JsonSchema::string(
+                         {QStringLiteral("open"), QStringLiteral("import")})                       },
                     {QStringLiteral("format_id"),          nonEmptyStringSchema()                 },
                     {QStringLiteral("sources"),            JsonSchema::array(source)              },
                     {QStringLiteral("encoding"),           JsonSchema::string()                   },
@@ -2329,10 +2392,25 @@ namespace AutomationWire {
                     {QStringLiteral("clip_ids"), JsonSchema::array(identifierSchema())},
                     {QStringLiteral("formats"), JsonSchema::array(nonEmptyStringSchema(), 1)},
                     {QStringLiteral("lyrics_supported"), JsonSchema::boolean()},
-                    {QStringLiteral("option_schema"), formatOptionsSchema()},
+                    {QStringLiteral("option_schema"),
+                     JsonSchema::reference(QStringLiteral("#/$defs/schema"))},
             },
                 {QStringLiteral("track_ids"), QStringLiteral("clip_ids"), QStringLiteral("formats"),
                  QStringLiteral("lyrics_supported"), QStringLiteral("option_schema")});
+        }
+
+        QJsonObject midiExportCapabilitiesOutputSchema() {
+            const auto root = JsonSchema::object(
+                {
+                    {QStringLiteral("document"),     documentVersionSchema()       },
+                    {QStringLiteral("capabilities"), midiExportCapabilitiesSchema()},
+            },
+                {QStringLiteral("document"), QStringLiteral("capabilities")});
+            return JsonSchema::document(root,
+                                        {
+                                            {QStringLiteral("json_value"), jsonValueMetaSchema() },
+                                            {QStringLiteral("schema"),     jsonSchemaMetaSchema()},
+            });
         }
 
         QJsonObject exportPlanSchema() {
@@ -2351,6 +2429,31 @@ namespace AutomationWire {
             },
                 {QStringLiteral("targets"), QStringLiteral("diagnostics"),
                  QStringLiteral("plan_digest")});
+        }
+
+        QJsonObject midiExportPlanSchema() {
+            const auto diagnostic = JsonSchema::object(
+                {
+                    {QStringLiteral("code"),     nonEmptyStringSchema()},
+                    {QStringLiteral("message"),  JsonSchema::string()  },
+                    {QStringLiteral("blocking"), JsonSchema::boolean() },
+            },
+                {QStringLiteral("code"), QStringLiteral("message"), QStringLiteral("blocking")});
+            return JsonSchema::object(
+                {
+                    {QStringLiteral("targets"),     JsonSchema::array(nonEmptyStringSchema())},
+                    {QStringLiteral("diagnostics"), JsonSchema::array(diagnostic)            },
+                    {QStringLiteral("track_ids"),   JsonSchema::array(identifierSchema())    },
+                    {QStringLiteral("clip_ids"),    JsonSchema::array(identifierSchema())    },
+                    {QStringLiteral("include_tempo"), JsonSchema::boolean()                  },
+                    {QStringLiteral("include_time_signatures"), JsonSchema::boolean()        },
+                    {QStringLiteral("include_lyrics"), JsonSchema::boolean()                 },
+                    {QStringLiteral("plan_digest"), digestSchema()                           },
+            },
+                {QStringLiteral("targets"), QStringLiteral("diagnostics"),
+                 QStringLiteral("track_ids"), QStringLiteral("clip_ids"),
+                 QStringLiteral("include_tempo"), QStringLiteral("include_time_signatures"),
+                 QStringLiteral("include_lyrics"), QStringLiteral("plan_digest")});
         }
 
         QJsonObject inferenceStatusSchema() {
@@ -2461,11 +2564,10 @@ namespace AutomationWire {
                     {QStringLiteral("snapshot")}));
             }
             if (id == QStringLiteral("exports.midi.get_capabilities")) {
-                return queryEnvelopeSchema(QStringLiteral("capabilities"),
-                                           midiExportCapabilitiesSchema());
+                return midiExportCapabilitiesOutputSchema();
             }
             if (id == QStringLiteral("exports.midi.preview")) {
-                return queryEnvelopeSchema(QStringLiteral("plan"), exportPlanSchema());
+                return queryEnvelopeSchema(QStringLiteral("plan"), midiExportPlanSchema());
             }
             if (id == QStringLiteral("exports.audio.get_capabilities")) {
                 return queryEnvelopeSchema(QStringLiteral("capabilities"),
@@ -2503,6 +2605,8 @@ namespace AutomationWire {
             if (kind == OperationKind::Command) {
                 if (id == QStringLiteral("documents.new"))
                     return documentLifecycleResultSchema();
+                if (isPersistentPlaybackOperation(id))
+                    return persistentPlaybackMutationSchema();
                 if (id.startsWith(QStringLiteral("playback.")))
                     return playbackMutationSchema();
                 return id == QStringLiteral("tasks.cancel") ? taskSnapshotSchema()
@@ -2554,6 +2658,13 @@ namespace AutomationWire {
                            "identifiers. This is read-only, never infers targets from GUI focus, "
                            "and does not modify History.")
                     .arg(action, category);
+            }
+            if (isPersistentPlaybackOperation(operationId)) {
+                return QStringLiteral(
+                           "Apply the GUI-equivalent %1 loop edit, commit it as one atomic History "
+                           "entry, and return both the resulting document revision and playback "
+                           "state version.")
+                    .arg(action);
             }
             if (operationId.startsWith(QStringLiteral("playback."))) {
                 return QStringLiteral(
@@ -2656,13 +2767,13 @@ namespace AutomationWire {
                 add(QStringLiteral("/voice/speaker"), QStringLiteral("voices.describe"),
                     {QStringLiteral("/voice/singer")});
             }
-            if (id == QStringLiteral("notes.insert")) {
-                add(QStringLiteral("/notes/*/language/language_id"),
-                    QStringLiteral("voices.describe"),
-                    {QStringLiteral("/document_id"), QStringLiteral("/clip_id")});
-            }
             if (id == QStringLiteral("notes.set_language")) {
                 add(QStringLiteral("/language/language_id"), QStringLiteral("voices.describe"),
+                    {QStringLiteral("/document_id"), QStringLiteral("/clip_id")});
+            }
+            if (id == QStringLiteral("notes.fill_lyrics")) {
+                add(QStringLiteral("/options/language/language_id"),
+                    QStringLiteral("voices.describe"),
                     {QStringLiteral("/document_id"), QStringLiteral("/clip_id")});
             }
             if (id.startsWith(QStringLiteral("parameters.")) &&
@@ -2771,11 +2882,13 @@ namespace AutomationWire {
                 tool.operationId == QStringLiteral("documents.open")) {
                 return QStringLiteral("replace");
             }
-            if (documentQueryOperations().contains(tool.operationId) ||
-                tool.operationId.startsWith(QStringLiteral("playback.")))
-                return QStringLiteral("read");
             if (documentWriteOperations().contains(tool.operationId))
                 return QStringLiteral("write");
+            if (documentQueryOperations().contains(tool.operationId) ||
+                (tool.operationId.startsWith(QStringLiteral("playback.")) &&
+                 !isPersistentPlaybackOperation(tool.operationId))) {
+                return QStringLiteral("read");
+            }
             return QStringLiteral("none");
         }
 
@@ -2804,7 +2917,7 @@ namespace AutomationWire {
                 tool.operationId == QStringLiteral("playback.play") ||
                 tool.operationId == QStringLiteral("playback.pause") ||
                 tool.operationId == QStringLiteral("playback.stop") ||
-                tool.operationId.startsWith(QStringLiteral("playback."))) {
+                tool.operationId == QStringLiteral("playback.seek")) {
                 return QStringLiteral("none");
             }
             if (tool.operationId == QStringLiteral("documents.save") ||
@@ -2843,8 +2956,10 @@ namespace AutomationWire {
         }
 
         QString concurrencyScope(const ToolContract &tool) {
-            if (tool.operationId.startsWith(QStringLiteral("playback.")))
+            if (tool.operationId.startsWith(QStringLiteral("playback.")) &&
+                !isPersistentPlaybackOperation(tool.operationId)) {
                 return QStringLiteral("playback");
+            }
             if (tool.operationId.startsWith(QStringLiteral("tasks.")))
                 return QStringLiteral("task");
             if (tool.operationId.startsWith(QStringLiteral("exports.")))
@@ -2871,6 +2986,8 @@ namespace AutomationWire {
                 tool.operationId == QStringLiteral("documents.open")) {
                 return QStringLiteral("replacement");
             }
+            if (isPersistentPlaybackOperation(tool.operationId))
+                return QStringLiteral("revision_and_state_version");
             if (tool.operationId.startsWith(QStringLiteral("playback."))) {
                 return QStringLiteral("state_version");
             }

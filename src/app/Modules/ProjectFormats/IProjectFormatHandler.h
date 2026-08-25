@@ -26,6 +26,7 @@ struct ProjectLoadRequest {
     ProjectLoadPurpose purpose = ProjectLoadPurpose::Open;
     quint64 requestId = 0;
     bool interactive = true;
+    QByteArray encoding;
     bool importTempo = true;
     bool importTimeSignature = true;
 };

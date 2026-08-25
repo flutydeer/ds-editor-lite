@@ -60,8 +60,8 @@ AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-051", "clips.clear_voice", "clips", L1, Com
 AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-052", "audio_clips.get", "audio_clips", L2, Query, Synchronous, 1, 1, 1)
 AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-053", "audio_clips.import", "audio_clips", L2, Command, Asynchronous, 1, 1, 1)
 AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-054", "audio_clips.import_batch", "audio_clips", L2, Command, Asynchronous, 1, 1, 1)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-055", "audio_clips.relocate", "audio_clips", L2, Command, Asynchronous, 1, 1, 1)
-AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-056", "audio_clips.confirm_path", "audio_clips", L2, Command, Asynchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-055", "audio_clips.relocate", "audio_clips", L2, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-056", "audio_clips.confirm_path", "audio_clips", L2, Command, Synchronous, 1, 1, 1)
 
 AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-057", "voices.list", "voices", L1, Query, Synchronous, 1, 1, 1)
 AUTOMATION_WIRE_PUBLIC_TOOL("P2-TOOL-058", "voices.describe", "voices", L1, Query, Synchronous, 1, 1, 1)

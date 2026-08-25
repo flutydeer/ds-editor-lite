@@ -631,6 +631,7 @@ namespace Automation {
         addString(hash, draft.clientRef);
         addString(hash, draft.name);
         addInteger(hash, draft.colorIndex);
+        addInteger(hash, draft.resolveColorIndex);
         addDouble(hash, draft.gain);
         addDouble(hash, draft.pan);
         addInteger(hash, draft.mute);

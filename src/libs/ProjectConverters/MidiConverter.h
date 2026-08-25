@@ -55,6 +55,7 @@ public:
     struct SaveOptions {
         bool includeTempo = true;
         bool includeTimeSignatures = true;
+        bool includeLyrics = true;
     };
 
     explicit MidiConverter();

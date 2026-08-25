@@ -122,6 +122,40 @@ namespace Automation {
     }
 
     void InferenceAutomationFacade::registerOperations() {
+        const auto addQuery = [this](const OperationId &id) {
+            const auto result = m_catalog.add({
+                .id = id,
+                .category = QStringLiteral("inference"),
+                .kind = OperationKind::Query,
+                .syncMode = SyncMode::Synchronous,
+                .documentPolicy = DocumentPolicy::Read,
+                .revisionPolicy = RevisionPolicy::None,
+                .historyPolicy = HistoryPolicy::None,
+                .fileAccess = FileAccessPolicy::None,
+                .hostAvailability = HostAvailability::Core,
+                .safety = SafetyClass::ReadOnly,
+                .exposure = ExposurePolicy::InternalOnly,
+                .idempotency = IdempotencyPolicy::Unsupported,
+            });
+            Q_ASSERT(result);
+        };
+        addQuery(OperationIds::inference::get_capabilities);
+        addQuery(OperationIds::inference::get_status);
+        auto startResult = m_catalog.add({
+            .id = OperationIds::inference::start,
+            .category = QStringLiteral("inference"),
+            .kind = OperationKind::Command,
+            .syncMode = SyncMode::Asynchronous,
+            .documentPolicy = DocumentPolicy::Write,
+            .revisionPolicy = RevisionPolicy::Increment,
+            .historyPolicy = HistoryPolicy::Record,
+            .fileAccess = FileAccessPolicy::None,
+            .hostAvailability = HostAvailability::Core,
+            .safety = SafetyClass::Reversible,
+            .exposure = ExposurePolicy::InternalOnly,
+            .idempotency = IdempotencyPolicy::DocumentGeneration,
+        });
+        Q_ASSERT(startResult);
         const auto add = [this](const InferenceMutationKind kind) {
             const auto result = m_catalog.add({
                 .id = operationId(kind),

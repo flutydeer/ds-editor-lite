@@ -39,14 +39,22 @@ namespace Automation {
     struct PublicDocumentOpenRequest {
         CommandContext command;
         QString canonicalPath;
+        QString formatId;
+        QString encoding;
+        bool importTempo = true;
+        bool importTimeSignature = true;
+        QString planDigest;
         PublicUnsavedPolicy unsavedPolicy = PublicUnsavedPolicy::Reject;
     };
 
     struct PublicDocumentImportRequest {
         CommandContext command;
         QString canonicalPath;
+        QString formatId;
+        QString encoding;
         bool importTempo = true;
         bool importTimeSignature = true;
+        QString planDigest;
         QString mergeMode;
     };
 
@@ -87,6 +95,7 @@ namespace Automation {
         QString canonicalPath;
         std::optional<PublicAudioClipProperties> properties;
         QString clientRef;
+        std::optional<AutomationError> validationError;
     };
 
     struct PublicAudioClipBatchImportRequest {
@@ -138,6 +147,8 @@ namespace Automation {
             extractionCapabilities;
         std::function<AutomationResult<QJsonValue>(const DocumentId &, const QJsonObject &)>
             inferenceCapabilities;
+        std::function<AutomationResult<QJsonValue>(const DocumentId &, const QJsonObject &)>
+            inferenceStatus;
         std::function<AutomationResult<TaskAcceptedResult>(const PublicInferenceStartRequest &)>
             startInference;
         std::function<AutomationResult<MutationResult>(const PublicInferenceResetRequest &)>

@@ -139,6 +139,7 @@ namespace Automation {
         QString clientRef;
         QString name;
         int colorIndex = 0;
+        bool resolveColorIndex = true;
         double gain = 0.0;
         double pan = 0.0;
         bool mute = false;
