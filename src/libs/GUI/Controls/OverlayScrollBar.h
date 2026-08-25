@@ -6,6 +6,7 @@
 #include <QScrollBar>
 
 class QAbstractScrollArea;
+class QContextMenuEvent;
 class QTimer;
 class QVariantAnimation;
 
@@ -40,6 +41,7 @@ protected:
     void paintEvent(QPaintEvent *event) override;
     void enterEvent(QEnterEvent *event) override;
     void leaveEvent(QEvent *event) override;
+    void contextMenuEvent(QContextMenuEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;
     void afterSetAnimationEnabled(bool enabled) override;
     void afterSetTimeScale(double scale) override;
@@ -56,6 +58,7 @@ private:
     void pollCursor();
     void updateAnimationSettings();
     void setViewport(QWidget *viewport);
+    int pixelPosToRangeValue(int pos) const;
     [[nodiscard]] QColor handleColor() const;
     void setHandleColor(const QColor &color);
 
