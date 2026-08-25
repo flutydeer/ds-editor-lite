@@ -5,6 +5,11 @@ SystemWindowButton#CloseButton {
     background: transparent; /* fill is painted by the control (animated) */
 }
 
+SystemWindowButton#CloseButton:hover,
+SystemWindowButton#CloseButton:pressed {
+    color: ${window.closeButton.foreground}; /* white glyph over the red fill */
+}
+
 SystemWindowButton#MaximizeButton:checked {
     color: ${control.foreground.default};
 }
