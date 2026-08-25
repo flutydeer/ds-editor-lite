@@ -4715,6 +4715,11 @@ type: %L1</source>
         <translation>填入歌词...</translation>
     </message>
     <message>
+        <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="206"/>
+        <source>Move Lyrics Backward</source>
+        <translation>向后移动歌词</translation>
+    </message>
+    <message>
         <location filename="../../UI/Views/ClipEditor/PianoRoll/PianoRollContextMenuController.cpp" line="179"/>
         <source>Edit Phonemes...</source>
         <translation>编辑音素...</translation>

@@ -176,6 +176,14 @@ void PianoRollContextMenuController::showMenu(const PianoRollMenuContext &contex
         connect(fillLyrics, &QAction::triggered, clipController,
                 [this] { clipController->onFillLyric(m_owner); });
 
+        auto *shiftLyricsBackward = menu.addAction(tr("Move Lyrics Backward"));
+        shiftLyricsBackward->setEnabled(
+            clipController->canShiftWordProperties(context.selectedNoteIds));
+        connect(shiftLyricsBackward, &QAction::triggered, clipController,
+                [ids = context.selectedNoteIds] {
+                    clipController->onShiftWordPropertiesBackward(ids);
+                });
+
         auto *editPhonemes = menu.addAction(tr("Edit Phonemes..."));
         editPhonemes->setEnabled(context.phonemeEditorEnabled);
         connect(editPhonemes, &QAction::triggered, this,

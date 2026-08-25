@@ -38,6 +38,7 @@ public:
 
     [[nodiscard]] bool canSelectAll() const;
     [[nodiscard]] bool hasSelectedNotes() const;
+    [[nodiscard]] bool canShiftWordProperties(const QList<int> &selectedNoteIds) const;
     [[nodiscard]] std::optional<Automation::NoteId> onInsertNote(Automation::NoteDraftDto note);
     [[nodiscard]] std::optional<Automation::NoteId> onSplitNote(Automation::NoteId noteId,
                                                                 Automation::NoteDraftDto newNote,
@@ -63,6 +64,7 @@ public slots:
     void onNoteLanguagesEdited(const QList<int> &noteIds, const QString &language);
     void onNoteLyricEdited(int noteId, const QString &lyric);
     void onNotePronunciationEdited(int noteId, const QString &pronunciation);
+    void onShiftWordPropertiesBackward(const QList<int> &selectedNoteIds);
     void onNotePhonemesEdited(int noteId, const QList<PhonemeName> &phonemeNames);
     void onDeleteSelectedNotes();
     void onSelectAllNotes();

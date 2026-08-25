@@ -42,6 +42,34 @@ namespace {
                 .source = Automation::InvocationSource::TrustedGui};
     }
 
+    // Returns the canonical (time-ordered) indices of the selected notes when
+    // the selection forms a single contiguous run, otherwise empty. An empty
+    // result also covers a selection with gaps, duplicates, or notes that no
+    // longer exist in the clip.
+    QList<int> contiguousSelectionIndices(const SingingClip *clip,
+                                          const QList<int> &selectedNoteIds) {
+        if (!clip || selectedNoteIds.isEmpty())
+            return {};
+
+        const auto ordered = clip->notes().toList();
+        QList<int> indices;
+        indices.reserve(selectedNoteIds.size());
+        for (const auto id : selectedNoteIds) {
+            const auto it = std::find_if(ordered.cbegin(), ordered.cend(),
+                                         [id](const Note *note) { return note->id() == id; });
+            if (it == ordered.cend())
+                return {};
+            indices.append(static_cast<int>(std::distance(ordered.cbegin(), it)));
+        }
+
+        std::sort(indices.begin(), indices.end());
+        for (int i = 1; i < indices.size(); ++i) {
+            if (indices.at(i) != indices.at(i - 1) + 1)
+                return {};
+        }
+        return indices;
+    }
+
     Automation::GuiDocumentCommandContext
         guiDocumentContext(const Automation::CoreRuntime &runtime) {
         return {.expected = runtime.documentVersion(),
@@ -456,6 +484,58 @@ void ClipController::onNoteLyricEdited(const int noteId, const QString &lyric) {
         edit.phonemes = {};
     runtime->notes().setWordProperties(commandContext(*runtime),
                                        Automation::ClipId(singingClip->id()), {edit});
+}
+
+bool ClipController::canShiftWordProperties(const QList<int> &selectedNoteIds) const {
+    Q_D(const ClipController);
+    if (!d->m_clip || d->m_clip->clipType() != Clip::Singing)
+        return false;
+    return !contiguousSelectionIndices(static_cast<const SingingClip *>(d->m_clip), selectedNoteIds)
+                .isEmpty();
+}
+
+// "Move Lyrics Backward": carry the whole word bundle (lyric, language,
+// pronunciation, pronunciation candidates) from each source note to the note
+// `count` positions later, and collapse the selection into "-" slurs. Because
+// every affected note's word input changes, the facade resets its manual
+// phoneme edits (name sequence and duration offsets) back to the model
+// baseline; lyrics that fall past the last note are dropped.
+void ClipController::onShiftWordPropertiesBackward(const QList<int> &selectedNoteIds) {
+    Q_D(ClipController);
+    auto *runtime = automationRuntime();
+    if (!runtime || !d->m_clip || d->m_clip->clipType() != Clip::Singing)
+        return;
+
+    auto *singingClip = static_cast<SingingClip *>(d->m_clip);
+    const auto indices = contiguousSelectionIndices(singingClip, selectedNoteIds);
+    if (indices.isEmpty())
+        return;
+
+    const auto ordered = singingClip->notes().toList();
+    const int start = indices.first();
+    const int count = indices.size();
+
+    QList<Automation::NoteWordEditDto> edits;
+    edits.reserve(ordered.size() - start);
+    for (int p = start; p < ordered.size(); ++p) {
+        auto *note = ordered.at(p);
+        Automation::NoteWordEditDto edit;
+        if (p < start + count) {
+            // Selection notes collapse into "-" (slur) lyrics.
+            edit = wordEditDto(*note);
+            edit.lyric = QStringLiteral("-");
+        } else {
+            // Carry the whole word bundle from `count` positions back.
+            const auto *source = ordered.at(p - count);
+            edit = wordEditDto(*source);
+            edit.noteId = Automation::NoteId(note->id());
+            edit.replacePronunciation = true;
+            edit.replacePronunciationCandidates = true;
+        }
+        edits.append(std::move(edit));
+    }
+    runtime->notes().setWordProperties(commandContext(*runtime),
+                                       Automation::ClipId(singingClip->id()), edits);
 }
 
 void ClipController::onNotePronunciationEdited(const int noteId, const QString &pronunciation) {
