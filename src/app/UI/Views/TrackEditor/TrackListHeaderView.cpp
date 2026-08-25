@@ -2,6 +2,7 @@
 
 #include "Controller/TrackController.h"
 #include "Global/TracksEditorGlobal.h"
+#include <lite/GUI/Controls/DividerLine.h>
 #include <lite/GUI/Controls/ToolButton.h>
 #include <lite/GUI/Controls/ToolTipFilter.h>
 
@@ -45,6 +46,17 @@ TrackListHeaderView::TrackListHeaderView(QWidget *parent) : QWidget(parent) {
     btnToggleTimeSignatureLane->installEventFilter(new ToolTipFilter(btnToggleTimeSignatureLane));
     connect(btnToggleTimeSignatureLane, &QPushButton::toggled, this,
             &TrackListHeaderView::timeSignatureLaneToggled);
+
+    m_bottomDivider = new DividerLine(Qt::Horizontal, this);
+    m_bottomDivider->setObjectName("trackListHeaderDivider");
+    m_bottomDivider->setAttribute(Qt::WA_TransparentForMouseEvents);
+    m_bottomDivider->setLineMargin(0);
+    m_bottomDivider->setFixedHeight(1);
+    connect(btnToggleTempoLane, &QPushButton::toggled, this,
+            [this](const bool) { updateBottomDividerVisibility(); });
+    connect(btnToggleTimeSignatureLane, &QPushButton::toggled, this,
+            [this](const bool) { updateBottomDividerVisibility(); });
+    updateBottomDividerVisibility();
     rebuildToggleIcons();
 
     const auto mainLayout = new QHBoxLayout;
@@ -67,6 +79,16 @@ bool TrackListHeaderView::timeSignatureLaneVisible() const {
 
 void TrackListHeaderView::paintEvent(QPaintEvent *event) {
     QWidget::paintEvent(event);
+}
+
+void TrackListHeaderView::resizeEvent(QResizeEvent *event) {
+    QWidget::resizeEvent(event);
+    m_bottomDivider->setGeometry(0, height() - 1, width(), 1);
+    m_bottomDivider->raise();
+}
+
+void TrackListHeaderView::updateBottomDividerVisibility() {
+    m_bottomDivider->setVisible(!tempoLaneVisible() && !timeSignatureLaneVisible());
 }
 
 void TrackListHeaderView::changeEvent(QEvent *event) {

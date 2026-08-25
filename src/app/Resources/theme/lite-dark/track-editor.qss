@@ -29,8 +29,12 @@ InfoLaneHeaderView>QLabel {
     color: ${text.secondary};
 }
 
-/* Last canvas lane (time signature) keeps a bottom border */
+/* Last lane (time signature) keeps a bottom border */
 InfoLaneView#timeSignatureLaneView {
+    border-bottom: 1px solid ${border.subtle};
+}
+
+InfoLaneHeaderView#timeSignatureLaneHeaderView {
     border-bottom: 1px solid ${border.subtle};
 }
 
@@ -39,6 +43,10 @@ TrackListHeaderView {
     background: ${editor.trackListHeader};
     border-top-left-radius: 6px;
     qproperty-iconCheckedColor: ${accent.default};
+}
+
+TrackListHeaderView>DividerLine#trackListHeaderDivider {
+    qproperty-lineMargin: 0px;
 }
 
 
@@ -166,7 +174,6 @@ TrackListView {
     background: transparent;
     border: none;
     outline: 0px;
-    border-top: 1px solid ${border.subtle};
 }
 
 TrackListView::item {
