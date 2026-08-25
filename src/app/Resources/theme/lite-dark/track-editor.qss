@@ -29,15 +29,6 @@ InfoLaneHeaderView>QLabel {
     color: ${text.secondary};
 }
 
-/* Last lane (time signature) keeps a bottom border */
-InfoLaneView#timeSignatureLaneView {
-    border-bottom: 1px solid ${border.subtle};
-}
-
-InfoLaneHeaderView#timeSignatureLaneHeaderView {
-    border-bottom: 1px solid ${border.subtle};
-}
-
 /* TrackListHeaderView */
 TrackListHeaderView {
     background: ${editor.trackListHeader};
@@ -163,6 +154,11 @@ TrackControlView>LevelMeter {
     qproperty-warnColor: ${meter.warning};
     qproperty-criticalColor: ${meter.critical};
     qproperty-currentValueColor: ${meter.value};
+}
+
+/* TrackAreaView */
+TrackAreaView>DividerLine#trackAreaDivider {
+    qproperty-lineMargin: 0px;
 }
 
 /* TrackListView */
