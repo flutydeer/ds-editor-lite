@@ -186,6 +186,11 @@ namespace {
 int main(int argc, char *argv[]) {
     QCoreApplication application(argc, argv);
 
+    const Automation::McpHttpLimits defaultHttpLimits;
+    expect(defaultHttpLimits.maximumClientInFlight == 32 &&
+               defaultHttpLimits.clientTokenCapacity >= 64.0,
+           QStringLiteral("default HTTP admission must reserve tokens for a 32-request burst"));
+
     QMutex observationMutex;
     QString observedClientId;
     QString observedMethod;

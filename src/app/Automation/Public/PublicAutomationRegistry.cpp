@@ -1110,7 +1110,9 @@ namespace Automation {
             return {
                 {QStringLiteral("singer"),  encodeSingerRef(singer)       },
                 {QStringLiteral("speaker"),
-                 QJsonObject{{QStringLiteral("speaker_id"), speaker.id()}}},
+                 speaker.isEmpty()
+                     ? QJsonValue(QJsonValue::Null)
+                     : QJsonValue(QJsonObject{{QStringLiteral("speaker_id"), speaker.id()}})},
             };
         }
 
@@ -1129,7 +1131,19 @@ namespace Automation {
                 for (const auto &singer : package.singers) {
                     if (singer.packageId != packageId || singer.singerId != singerId)
                         continue;
-                    for (const auto &speaker : singer.info.speakers()) {
+                    const auto speakers = singer.info.speakers();
+                    if (speakerId.isEmpty()) {
+                        if (speakers.isEmpty())
+                            return QPair<SingerInfo, SpeakerInfo>{singer.info, {}};
+                        if (speakers.size() == 1)
+                            return QPair<SingerInfo, SpeakerInfo>{singer.info,
+                                                                  speakers.constFirst()};
+                        return AutomationError::invalidArgument(
+                            fieldPath + QStringLiteral(".speaker"),
+                            QStringLiteral("A speaker must be selected when the singer has "
+                                           "multiple speakers"));
+                    }
+                    for (const auto &speaker : speakers) {
                         if (speaker.id() == speakerId)
                             return QPair<SingerInfo, SpeakerInfo>{singer.info, speaker};
                     }
@@ -1557,9 +1571,8 @@ namespace Automation {
                                        const SingerInfo &effectiveSinger,
                                        const SpeakerInfo &effectiveSpeaker,
                                        const bool inheritsTrack, const QString &defaultLanguage) {
-            const bool ownAvailable = !ownSinger.isEmpty() && !ownSpeaker.isEmpty();
-            const bool effectiveAvailable =
-                !effectiveSinger.isEmpty() && !effectiveSpeaker.isEmpty();
+            const bool ownAvailable = !ownSinger.isEmpty();
+            const bool effectiveAvailable = !effectiveSinger.isEmpty();
             return {
                 {QStringLiteral("own_voice"),
                  ownAvailable ? QJsonValue(encodeVoiceSelection(ownSinger, ownSpeaker))

@@ -13,10 +13,10 @@ namespace Automation {
 
     struct AdmissionLimits {
         int maximumGlobalInFlight = 32;
-        int maximumClientInFlight = 4;
+        int maximumClientInFlight = 32;
         int maximumBackgroundTasks = 8;
         int maximumPerDomain = 1;
-        double tokenCapacity = 20.0;
+        double tokenCapacity = 64.0;
         double tokensPerSecond = 10.0;
     };
 

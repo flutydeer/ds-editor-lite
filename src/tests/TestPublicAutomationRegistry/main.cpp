@@ -1606,7 +1606,8 @@ namespace {
                                         Automation::CoreRuntime &runtime,
                                         const PublicEditingFixture &fixture,
                                         const SingerInfo &singer, const SpeakerInfo &speakerA,
-                                        const SpeakerInfo &speakerB) {
+                                        const SpeakerInfo &speakerB,
+                                        const SingerInfo &speakerlessSinger) {
         const auto selectedA = voiceSelection(singer, speakerA);
         const auto selectedB = voiceSelection(singer, speakerB);
         const auto speakerId = [](const QJsonValue &voice) {
@@ -2006,6 +2007,44 @@ namespace {
                    runtime.documentVersion().revision == undoTrackClearBase.revision + 1 &&
                    restoredTrack.value(QStringLiteral("available")).toBool(),
                QStringLiteral("tracks.clear_voice must restore the complete context in one undo"));
+
+        const QJsonObject speakerlessSelection{
+            {QStringLiteral("singer"),
+             QJsonObject{
+                 {QStringLiteral("package_id"), speakerlessSinger.packageId()},
+                 {QStringLiteral("singer_id"), speakerlessSinger.singerId()},
+             }},
+        };
+        const auto speakerlessOptions = registry.invoke(
+            QStringLiteral("automation.get_options"),
+            QJsonObject{
+                {QStringLiteral("operation_id"), QStringLiteral("tracks.set_voice")},
+                {QStringLiteral("field_path"),   QStringLiteral("/voice/speaker")  },
+                {QStringLiteral("partial_arguments"),
+                 QJsonObject{{QStringLiteral("voice"), speakerlessSelection}}},
+            },
+            {.clientId = QStringLiteral("speakerless-options")});
+        invokeChangedOnce(registry, runtime, QStringLiteral("tracks.set_voice"),
+                          QJsonObject{
+                              {QStringLiteral("track_id"), fixture.trackId.value()},
+                              {QStringLiteral("voice"),    speakerlessSelection    },
+                          },
+                          QStringLiteral("track-set-speakerless-voice"),
+                          QStringLiteral("tracks.set_voice without speaker"));
+        const auto speakerlessContext =
+            voiceContextSnapshot(registry, runtime, QStringLiteral("tracks.get_voice_context"),
+                                 QStringLiteral("track_id"), fixture.trackId.value());
+        const auto effectiveVoice =
+            speakerlessContext.value(QStringLiteral("effective_voice")).toObject();
+        expect(speakerlessOptions &&
+                   speakerlessOptions.get().value(QStringLiteral("options")).toArray().isEmpty() &&
+                   speakerlessContext.value(QStringLiteral("available")).toBool() &&
+                   effectiveVoice.value(QStringLiteral("speaker")).isNull() &&
+                   effectiveVoice.value(QStringLiteral("singer"))
+                           .toObject()
+                           .value(QStringLiteral("singer_id")) == speakerlessSinger.singerId(),
+               QStringLiteral(
+                   "speakerless voices must be discoverable, assignable, and queryable"));
     }
 }
 
@@ -2079,6 +2118,13 @@ int main(int argc, char *argv[]) {
                                      LanguageInfo(QStringLiteral("zh"), QStringLiteral("Chinese"),
                                                   QStringLiteral("registry-g2p"))},
                                     QStringLiteral("en"));
+    const SingerInfo registrySpeakerlessSinger(
+        {QStringLiteral("registry-speakerless"), QStringLiteral("registry-package"),
+         QVersionNumber(1, 0)},
+        QStringLiteral("Registry Speakerless Singer"), {},
+        {LanguageInfo(QStringLiteral("zh"), QStringLiteral("Chinese"),
+                      QStringLiteral("registry-g2p"))},
+        QStringLiteral("zh"));
     Automation::PackageDto registryPackage;
     registryPackage.id = QStringLiteral("registry-package");
     registryPackage.version = QVersionNumber(1, 0);
@@ -2088,6 +2134,13 @@ int main(int argc, char *argv[]) {
         .packageVersion = registryPackage.version,
         .name = QStringLiteral("Registry Singer"),
         .info = registrySinger,
+    });
+    registryPackage.singers.append({
+        .singerId = QStringLiteral("registry-speakerless"),
+        .packageId = registryPackage.id,
+        .packageVersion = registryPackage.version,
+        .name = QStringLiteral("Registry Speakerless Singer"),
+        .info = registrySpeakerlessSinger,
     });
     Automation::PackageRuntimeServices packageServices;
     packageServices.installedPackages = [registryPackage] {
@@ -2523,8 +2576,6 @@ int main(int argc, char *argv[]) {
                  {QStringLiteral("voice"),
                   QJsonObject{
                       {QStringLiteral("singer"), registrySingerRef},
-                      {QStringLiteral("speaker"),
-                       QJsonObject{{QStringLiteral("speaker_id"), registrySpeakerA.id()}}},
                   }},
              }                                                                     },
     },
@@ -2534,7 +2585,7 @@ int main(int argc, char *argv[]) {
     const auto speakerOptionValues =
         speakerOptions ? speakerOptions.get().value(QStringLiteral("options")).toArray()
                        : QJsonArray{};
-    expect(singerOptions && singerOptionValues.size() == 1 &&
+    expect(singerOptions && singerOptionValues.size() == 2 &&
                singerOptionValues.first().toObject().value(QStringLiteral("value")).toObject() ==
                    registrySingerRef &&
                speakerOptions && speakerOptionValues.size() == 2 &&
@@ -3102,7 +3153,8 @@ int main(int argc, char *argv[]) {
                                              *publicEditingFixture, directory.path());
         verifyPhonemeOriginalPreservation(registry, runtime, *publicEditingFixture);
         verifyPublicVoiceAndSpeakerMix(registry, runtime, *publicEditingFixture, registrySinger,
-                                       registrySpeakerA, registrySpeakerB);
+                                       registrySpeakerA, registrySpeakerB,
+                                       registrySpeakerlessSinger);
     }
 
     runtime.automationTasks().discardDocumentGeneration(runtime.documentVersion().documentId);

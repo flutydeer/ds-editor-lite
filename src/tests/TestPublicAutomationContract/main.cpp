@@ -333,18 +333,31 @@ namespace {
             const auto speaker = resolveSchema(
                 propertySchema(voice, QStringLiteral("speaker"), contract->inputSchema),
                 contract->inputSchema);
+            auto singerOnly = commandContext();
+            singerOnly.insert(operation.startsWith(QStringLiteral("tracks."))
+                                  ? QStringLiteral("track_id")
+                                  : QStringLiteral("clip_id"),
+                              1);
+            singerOnly.insert(
+                QStringLiteral("voice"),
+                QJsonObject{
+                    {QStringLiteral("singer"),
+                     QJsonObject{
+                         {QStringLiteral("package_id"), QStringLiteral("package")},
+                         {QStringLiteral("singer_id"), QStringLiteral("singer")},
+                     }},
+                });
             return requiredFields(voice, contract->inputSchema) ==
-                       QSet<QString>{QStringLiteral("singer"), QStringLiteral("speaker")} &&
+                       QSet<QString>{QStringLiteral("singer")} &&
                    requiredFields(singer, contract->inputSchema) ==
                        QSet<QString>{QStringLiteral("package_id"), QStringLiteral("singer_id")} &&
-                   requiredFields(speaker, contract->inputSchema) ==
-                       QSet<QString>{QStringLiteral("speaker_id")} &&
-                   keys(speaker.value(QStringLiteral("properties")).toObject()) ==
-                       QSet<QString>{QStringLiteral("speaker_id")};
+                   speaker.value(QStringLiteral("oneOf")).toArray().size() == 2 &&
+                   validateJsonValue(singerOnly, contract->inputSchema).valid();
         };
         expect(checkVoice(QStringLiteral("tracks.set_voice")) &&
                    checkVoice(QStringLiteral("clips.set_voice")),
-               QStringLiteral("voice selection must separate SingerRef and SpeakerRef"));
+               QStringLiteral(
+                   "voice selection must accept a SingerRef when the voice has no speakers"));
     }
 
     void verifySpeakerMixContracts() {

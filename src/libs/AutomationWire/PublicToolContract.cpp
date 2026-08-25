@@ -10,6 +10,7 @@
 #include <QRegularExpression>
 
 #include <algorithm>
+#include <functional>
 #include <limits>
 #include <utility>
 
@@ -70,9 +71,10 @@ namespace AutomationWire {
             return JsonSchema::object(
                 {
                     {QStringLiteral("singer"),  singerRefSchema() },
-                    {QStringLiteral("speaker"), speakerRefSchema()},
+                    {QStringLiteral("speaker"),
+                     JsonSchema::oneOf(QJsonArray{speakerRefSchema(), JsonSchema::null()})},
             },
-                {QStringLiteral("singer"), QStringLiteral("speaker")});
+                {QStringLiteral("singer")});
         }
 
         QJsonObject languageSelectionSchema() {
@@ -1138,6 +1140,43 @@ namespace AutomationWire {
         }
 
         QJsonObject partialRootSchema(QJsonObject schema) {
+            std::function<QJsonValue(const QJsonValue &)> relax;
+            relax = [&relax](const QJsonValue &value) -> QJsonValue {
+                if (!value.isObject())
+                    return value;
+                auto result = value.toObject();
+                result.remove(QStringLiteral("required"));
+                result.remove(QStringLiteral("minProperties"));
+
+                for (const auto &keyword :
+                     {QStringLiteral("items"), QStringLiteral("additionalProperties"),
+                      QStringLiteral("contains"), QStringLiteral("not"), QStringLiteral("if"),
+                      QStringLiteral("then"), QStringLiteral("else")}) {
+                    if (result.value(keyword).isObject())
+                        result.insert(keyword, relax(result.value(keyword)));
+                }
+                for (const auto &keyword :
+                     {QStringLiteral("oneOf"), QStringLiteral("anyOf"), QStringLiteral("allOf"),
+                      QStringLiteral("prefixItems")}) {
+                    if (!result.value(keyword).isArray())
+                        continue;
+                    QJsonArray relaxed;
+                    for (const auto &entry : result.value(keyword).toArray())
+                        relaxed.append(relax(entry));
+                    result.insert(keyword, relaxed);
+                }
+                for (const auto &keyword :
+                     {QStringLiteral("properties"), QStringLiteral("$defs")}) {
+                    if (!result.value(keyword).isObject())
+                        continue;
+                    auto entries = result.value(keyword).toObject();
+                    for (auto it = entries.begin(); it != entries.end(); ++it)
+                        it.value() = relax(it.value());
+                    result.insert(keyword, entries);
+                }
+                return result;
+            };
+
             schema.remove(QStringLiteral("$schema"));
             if (schema.contains(QStringLiteral("oneOf"))) {
                 QJsonObject mergedProperties;
@@ -1146,13 +1185,12 @@ namespace AutomationWire {
                         value.toObject().value(QStringLiteral("properties")).toObject();
                     for (auto it = branchProperties.constBegin(); it != branchProperties.constEnd();
                          ++it) {
-                        mergedProperties.insert(it.key(), it.value());
+                        mergedProperties.insert(it.key(), relax(it.value()));
                     }
                 }
                 return JsonSchema::object(mergedProperties);
             }
-            schema.remove(QStringLiteral("required"));
-            return schema;
+            return relax(schema).toObject();
         }
 
         QJsonObject fieldPathSchema(const QString &path) {
