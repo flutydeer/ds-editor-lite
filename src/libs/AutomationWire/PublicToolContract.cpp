@@ -4,6 +4,7 @@
 #include "JsonSchema.h"
 #include "PublicConstants.h"
 #include "PublicEnums.h"
+#include "PublicToolNames.h"
 #include "PublicValueDomains.h"
 
 #include <QHash>
@@ -70,7 +71,7 @@ namespace AutomationWire {
         QJsonObject voiceSelectionSchema() {
             return JsonSchema::object(
                 {
-                    {QStringLiteral("singer"),  singerRefSchema() },
+                    {QStringLiteral("singer"),  singerRefSchema()                         },
                     {QStringLiteral("speaker"),
                      JsonSchema::oneOf(QJsonArray{speakerRefSchema(), JsonSchema::null()})},
             },
@@ -311,7 +312,7 @@ namespace AutomationWire {
                 {QStringLiteral("mute_solo_enabled"), JsonSchema::boolean()},
             };
             const auto commonRequired = QStringList{
-                QStringLiteral("format"), QStringLiteral("sample_rate"),
+                QStringLiteral("format"),       QStringLiteral("sample_rate"),
                 QStringLiteral("channel_mode"), QStringLiteral("mixing_mode"),
                 QStringLiteral("source"),
             };
@@ -364,7 +365,7 @@ namespace AutomationWire {
         }
 
         QJsonObject extractionOptionsSchema(const QString &id) {
-            if (id == QStringLiteral("extract.pitch.start")) {
+            if (id == PublicToolNames::extract_pitch_start) {
                 return JsonSchema::object({
                     {QStringLiteral("model_id"), nonEmptyStringSchema()},
                 });
@@ -413,41 +414,40 @@ namespace AutomationWire {
         QJsonObject fillLyricsOptionsSchema() {
             return JsonSchema::object({
                 {QStringLiteral("splitter_id"),
-                 JsonSchema::string({QStringLiteral("auto"), QStringLiteral("character")})},
+                 JsonSchema::string({QStringLiteral("auto"), QStringLiteral("character")})  },
                 {QStringLiteral("tagger_id"),   JsonSchema::string({QStringLiteral("auto")})},
-                {QStringLiteral("skip_slur"),   JsonSchema::boolean()    },
-                {QStringLiteral("language"),    languageSelectionSchema()},
+                {QStringLiteral("skip_slur"),   JsonSchema::boolean()                       },
+                {QStringLiteral("language"),    languageSelectionSchema()                   },
             });
         }
 
         QJsonObject extractionDestinationSchema() {
             const auto createClip = JsonSchema::object(
                 {
-                    {QStringLiteral("target_track_id"), identifierSchema()                  },
-                    {QStringLiteral("start"),           JsonSchema::integer(0.0)            },
-                    {QStringLiteral("mode"),            JsonSchema::constant(
-                                                    QStringLiteral("create_clip"))},
+                    {QStringLiteral("target_track_id"), identifierSchema()                                 },
+                    {QStringLiteral("start"),           JsonSchema::integer(0.0)                           },
+                    {QStringLiteral("mode"),            JsonSchema::constant(QStringLiteral("create_clip"))},
             },
                 {QStringLiteral("target_track_id"), QStringLiteral("start"),
                  QStringLiteral("mode")});
             const auto mergeIntoClip = JsonSchema::object(
                 {
-                    {QStringLiteral("target_track_id"), identifierSchema()                  },
-                    {QStringLiteral("start"),           JsonSchema::integer(0.0)            },
-                    {QStringLiteral("mode"),            JsonSchema::constant(
-                                                    QStringLiteral("merge_into_clip"))},
-                    {QStringLiteral("target_clip_id"),  identifierSchema()                  },
+                    {QStringLiteral("target_track_id"), identifierSchema()      },
+                    {QStringLiteral("start"),           JsonSchema::integer(0.0)},
+                    {QStringLiteral("mode"),
+                     JsonSchema::constant(QStringLiteral("merge_into_clip"))    },
+                    {QStringLiteral("target_clip_id"),  identifierSchema()      },
             },
-                {QStringLiteral("target_track_id"), QStringLiteral("start"),
-                 QStringLiteral("mode"), QStringLiteral("target_clip_id")});
+                {QStringLiteral("target_track_id"), QStringLiteral("start"), QStringLiteral("mode"),
+                 QStringLiteral("target_clip_id")});
             return JsonSchema::oneOf(QJsonArray{createClip, mergeIntoClip});
         }
 
         const QSet<QString> &persistentPlaybackOperations() {
             static const QSet<QString> ids{
-                QStringLiteral("playback.set_loop"),
-                QStringLiteral("playback.set_loop_enabled"),
-                QStringLiteral("playback.clear_loop"),
+                PublicToolNames::playback_set_loop,
+                PublicToolNames::playback_set_loop_enabled,
+                PublicToolNames::playback_clear_loop,
             };
             return ids;
         }
@@ -495,7 +495,7 @@ namespace AutomationWire {
             }
             if (name == QStringLiteral("start") || name == QStringLiteral("end") ||
                 name == QStringLiteral("position") || name == QStringLiteral("target_start")) {
-                if (id == QStringLiteral("playback.set_loop") &&
+                if (id == PublicToolNames::playback_set_loop &&
                     (name == QStringLiteral("start") || name == QStringLiteral("end"))) {
                     return JsonSchema::integer(0.0, std::numeric_limits<int>::max());
                 }
@@ -552,14 +552,12 @@ namespace AutomationWire {
                                            QStringLiteral("replace")});
             }
             if (name == QStringLiteral("purpose")) {
-                return id == QStringLiteral("formats.inspect")
-                           ? JsonSchema::string(
-                                 {QStringLiteral("open"), QStringLiteral("import")})
-                           : JsonSchema::string({QStringLiteral("open"),
-                                                 QStringLiteral("import"),
+                return id == PublicToolNames::formats_inspect
+                           ? JsonSchema::string({QStringLiteral("open"), QStringLiteral("import")})
+                           : JsonSchema::string({QStringLiteral("open"), QStringLiteral("import"),
                                                  QStringLiteral("export")});
             }
-            if (name == QStringLiteral("mode") && id == QStringLiteral("notes.search")) {
+            if (name == QStringLiteral("mode") && id == PublicToolNames::notes_search) {
                 return JsonSchema::string({QStringLiteral("starts_with"), QStringLiteral("exact"),
                                            QStringLiteral("contains")});
             }
@@ -629,7 +627,7 @@ namespace AutomationWire {
                     {QStringLiteral("start"), QStringLiteral("end")});
             }
             if (name == QStringLiteral("destination")) {
-                if (id == QStringLiteral("extract.midi.start"))
+                if (id == PublicToolNames::extract_midi_start)
                     return extractionDestinationSchema();
                 return JsonSchema::object(
                     {
@@ -641,7 +639,7 @@ namespace AutomationWire {
             if (name == QStringLiteral("moves")) {
                 QJsonObject item;
                 QStringList required;
-                if (id == QStringLiteral("clips.move")) {
+                if (id == PublicToolNames::clips_move) {
                     item = JsonSchema::object(
                         {
                             {QStringLiteral("clip_id"),         identifierSchema()      },
@@ -650,7 +648,7 @@ namespace AutomationWire {
                     },
                         {QStringLiteral("clip_id"), QStringLiteral("target_track_id"),
                          QStringLiteral("start")});
-                } else if (id == QStringLiteral("speaker_mix.keyframes.move")) {
+                } else if (id == PublicToolNames::speaker_mix_keyframes_move) {
                     item = JsonSchema::object(
                         {
                             {QStringLiteral("keyframe_id"), identifierSchema()      },
@@ -680,7 +678,7 @@ namespace AutomationWire {
                 return JsonSchema::array(anchor, 1, MaximumCommandCollectionItems);
             }
             if (name == QStringLiteral("items")) {
-                if (id == QStringLiteral("audio_clips.import_batch")) {
+                if (id == PublicToolNames::audio_clips_import_batch) {
                     const auto item = JsonSchema::object(
                         {
                             {QStringLiteral("track_id"), identifierSchema()      },
@@ -705,8 +703,8 @@ namespace AutomationWire {
                 return JsonSchema::array(item, 1, MaximumAudioImportBatchItems);
             }
             if (name == QStringLiteral("options")) {
-                if (id == QStringLiteral("documents.open") ||
-                    id == QStringLiteral("documents.import")) {
+                if (id == PublicToolNames::documents_open ||
+                    id == PublicToolNames::documents_import) {
                     return formatOptionsSchema();
                 }
                 if (id.startsWith(QStringLiteral("exports.audio.")))
@@ -715,14 +713,14 @@ namespace AutomationWire {
                     return midiExportOptionsSchema();
                 if (id.startsWith(QStringLiteral("extract.")))
                     return extractionOptionsSchema(id);
-                if (id == QStringLiteral("inference.start")) {
+                if (id == PublicToolNames::inference_start) {
                     return JsonSchema::object({
                         {QStringLiteral("provider_id"), nonEmptyStringSchema()},
                         {QStringLiteral("device_id"),   nonEmptyStringSchema()},
                         {QStringLiteral("model_id"),    nonEmptyStringSchema()},
                     });
                 }
-                if (id == QStringLiteral("notes.fill_lyrics"))
+                if (id == PublicToolNames::notes_fill_lyrics)
                     return fillLyricsOptionsSchema();
             }
             qFatal("No authoritative public field schema for operation '%s', field '%s'",
@@ -732,368 +730,367 @@ namespace AutomationWire {
 
         const QSet<QString> &documentQueryOperations() {
             static const QSet<QString> ids{
-                QStringLiteral("documents.get"),
-                QStringLiteral("project.get"),
-                QStringLiteral("tracks.list"),
-                QStringLiteral("tracks.get"),
-                QStringLiteral("tracks.get_voice_context"),
-                QStringLiteral("master.get"),
-                QStringLiteral("clips.list"),
-                QStringLiteral("clips.get"),
-                QStringLiteral("clips.get_voice_context"),
-                QStringLiteral("audio_clips.get"),
-                QStringLiteral("speaker_mix.get"),
-                QStringLiteral("notes.get"),
-                QStringLiteral("notes.search"),
-                QStringLiteral("parameters.get"),
-                QStringLiteral("parameters.get_capabilities"),
-                QStringLiteral("timeline.get"),
-                QStringLiteral("history.get_state"),
-                QStringLiteral("playback.get"),
-                QStringLiteral("exports.midi.get_capabilities"),
-                QStringLiteral("exports.midi.preview"),
-                QStringLiteral("exports.midi.start"),
-                QStringLiteral("exports.audio.get_capabilities"),
-                QStringLiteral("exports.audio.preview"),
-                QStringLiteral("exports.audio.start"),
-                QStringLiteral("extract.get_capabilities"),
-                QStringLiteral("inference.get_capabilities"),
-                QStringLiteral("inference.get_status"),
-                QStringLiteral("tasks.list"),
-                QStringLiteral("tasks.get"),
-                QStringLiteral("tasks.cancel"),
+                PublicToolNames::documents_get,
+                PublicToolNames::project_get,
+                PublicToolNames::tracks_list,
+                PublicToolNames::tracks_get,
+                PublicToolNames::tracks_get_voice_context,
+                PublicToolNames::master_get,
+                PublicToolNames::clips_list,
+                PublicToolNames::clips_get,
+                PublicToolNames::clips_get_voice_context,
+                PublicToolNames::audio_clips_get,
+                PublicToolNames::speaker_mix_get,
+                PublicToolNames::notes_get,
+                PublicToolNames::notes_search,
+                PublicToolNames::parameters_get,
+                PublicToolNames::parameters_get_capabilities,
+                PublicToolNames::timeline_get,
+                PublicToolNames::history_get_state,
+                PublicToolNames::playback_get,
+                PublicToolNames::exports_midi_get_capabilities,
+                PublicToolNames::exports_midi_preview,
+                PublicToolNames::exports_midi_start,
+                PublicToolNames::exports_audio_get_capabilities,
+                PublicToolNames::exports_audio_preview,
+                PublicToolNames::exports_audio_start,
+                PublicToolNames::extract_get_capabilities,
+                PublicToolNames::inference_get_capabilities,
+                PublicToolNames::inference_get_status,
+                PublicToolNames::tasks_list,
+                PublicToolNames::tasks_get,
+                PublicToolNames::tasks_cancel,
             };
             return ids;
         }
 
         const QSet<QString> &documentWriteOperations() {
             static const QSet<QString> ids{
-                QStringLiteral("documents.save"),
-                QStringLiteral("documents.save_as"),
-                QStringLiteral("documents.import"),
-                QStringLiteral("documents.import_batch"),
-                QStringLiteral("tracks.insert"),
-                QStringLiteral("tracks.remove"),
-                QStringLiteral("tracks.move"),
-                QStringLiteral("tracks.rename"),
-                QStringLiteral("tracks.set_color"),
-                QStringLiteral("tracks.set_gain"),
-                QStringLiteral("tracks.set_pan"),
-                QStringLiteral("tracks.set_mute"),
-                QStringLiteral("tracks.set_solo"),
-                QStringLiteral("tracks.set_default_language"),
-                QStringLiteral("tracks.set_voice"),
-                QStringLiteral("tracks.clear_voice"),
-                QStringLiteral("master.set_gain"),
-                QStringLiteral("master.set_pan"),
-                QStringLiteral("master.set_mute"),
-                QStringLiteral("master.set_solo"),
-                QStringLiteral("clips.insert"),
-                QStringLiteral("clips.duplicate"),
-                QStringLiteral("clips.remove"),
-                QStringLiteral("clips.move"),
-                QStringLiteral("clips.resize_left"),
-                QStringLiteral("clips.resize_right"),
-                QStringLiteral("clips.rename"),
-                QStringLiteral("clips.set_gain"),
-                QStringLiteral("clips.set_mute"),
-                QStringLiteral("clips.set_default_language"),
-                QStringLiteral("clips.use_track_voice"),
-                QStringLiteral("clips.set_voice"),
-                QStringLiteral("clips.clear_voice"),
-                QStringLiteral("audio_clips.import"),
-                QStringLiteral("audio_clips.import_batch"),
-                QStringLiteral("audio_clips.relocate"),
-                QStringLiteral("audio_clips.confirm_path"),
-                QStringLiteral("speaker_mix.set_fixed"),
-                QStringLiteral("speaker_mix.enable_dynamic"),
-                QStringLiteral("speaker_mix.disable_dynamic"),
-                QStringLiteral("speaker_mix.set_dynamic_bypass"),
-                QStringLiteral("speaker_mix.keyframes.insert"),
-                QStringLiteral("speaker_mix.keyframes.move"),
-                QStringLiteral("speaker_mix.keyframes.set_weights"),
-                QStringLiteral("speaker_mix.keyframes.remove"),
-                QStringLiteral("notes.insert"),
-                QStringLiteral("notes.duplicate"),
-                QStringLiteral("notes.remove"),
-                QStringLiteral("notes.move"),
-                QStringLiteral("notes.resize_left"),
-                QStringLiteral("notes.resize_right"),
-                QStringLiteral("notes.split_at"),
-                QStringLiteral("notes.quantize"),
-                QStringLiteral("notes.set_lyric"),
-                QStringLiteral("notes.set_language"),
-                QStringLiteral("notes.set_pronunciation"),
-                QStringLiteral("notes.reset_pronunciation"),
-                QStringLiteral("notes.set_phonemes"),
-                QStringLiteral("notes.set_phoneme_offsets"),
-                QStringLiteral("notes.reset_phoneme_offsets"),
-                QStringLiteral("notes.reset_phonemes"),
-                QStringLiteral("notes.fill_lyrics"),
-                QStringLiteral("parameters.replace"),
-                QStringLiteral("parameters.draw"),
-                QStringLiteral("parameters.erase"),
-                QStringLiteral("parameters.bake"),
-                QStringLiteral("parameters.insert_anchors"),
-                QStringLiteral("parameters.move_anchors"),
-                QStringLiteral("parameters.remove_anchors"),
-                QStringLiteral("parameters.set_anchor_interpolation"),
-                QStringLiteral("tempos.set"),
-                QStringLiteral("tempos.delete"),
-                QStringLiteral("time_signatures.set"),
-                QStringLiteral("time_signatures.delete"),
-                QStringLiteral("history.undo"),
-                QStringLiteral("history.redo"),
-                QStringLiteral("playback.set_loop"),
-                QStringLiteral("playback.set_loop_enabled"),
-                QStringLiteral("playback.clear_loop"),
-                QStringLiteral("extract.pitch.start"),
-                QStringLiteral("extract.midi.start"),
-                QStringLiteral("inference.start"),
-                QStringLiteral("inference.reset_stage"),
+                PublicToolNames::documents_save,
+                PublicToolNames::documents_save_as,
+                PublicToolNames::documents_import,
+                PublicToolNames::documents_import_batch,
+                PublicToolNames::tracks_insert,
+                PublicToolNames::tracks_remove,
+                PublicToolNames::tracks_move,
+                PublicToolNames::tracks_rename,
+                PublicToolNames::tracks_set_color,
+                PublicToolNames::tracks_set_gain,
+                PublicToolNames::tracks_set_pan,
+                PublicToolNames::tracks_set_mute,
+                PublicToolNames::tracks_set_solo,
+                PublicToolNames::tracks_set_default_language,
+                PublicToolNames::tracks_set_voice,
+                PublicToolNames::tracks_clear_voice,
+                PublicToolNames::master_set_gain,
+                PublicToolNames::master_set_pan,
+                PublicToolNames::master_set_mute,
+                PublicToolNames::master_set_solo,
+                PublicToolNames::clips_insert,
+                PublicToolNames::clips_duplicate,
+                PublicToolNames::clips_remove,
+                PublicToolNames::clips_move,
+                PublicToolNames::clips_resize_left,
+                PublicToolNames::clips_resize_right,
+                PublicToolNames::clips_rename,
+                PublicToolNames::clips_set_gain,
+                PublicToolNames::clips_set_mute,
+                PublicToolNames::clips_set_default_language,
+                PublicToolNames::clips_use_track_voice,
+                PublicToolNames::clips_set_voice,
+                PublicToolNames::clips_clear_voice,
+                PublicToolNames::audio_clips_import,
+                PublicToolNames::audio_clips_import_batch,
+                PublicToolNames::audio_clips_relocate,
+                PublicToolNames::audio_clips_confirm_path,
+                PublicToolNames::speaker_mix_set_fixed,
+                PublicToolNames::speaker_mix_enable_dynamic,
+                PublicToolNames::speaker_mix_disable_dynamic,
+                PublicToolNames::speaker_mix_set_dynamic_bypass,
+                PublicToolNames::speaker_mix_keyframes_insert,
+                PublicToolNames::speaker_mix_keyframes_move,
+                PublicToolNames::speaker_mix_keyframes_set_weights,
+                PublicToolNames::speaker_mix_keyframes_remove,
+                PublicToolNames::notes_insert,
+                PublicToolNames::notes_duplicate,
+                PublicToolNames::notes_remove,
+                PublicToolNames::notes_move,
+                PublicToolNames::notes_resize_left,
+                PublicToolNames::notes_resize_right,
+                PublicToolNames::notes_split_at,
+                PublicToolNames::notes_quantize,
+                PublicToolNames::notes_set_lyric,
+                PublicToolNames::notes_set_language,
+                PublicToolNames::notes_set_pronunciation,
+                PublicToolNames::notes_reset_pronunciation,
+                PublicToolNames::notes_set_phonemes,
+                PublicToolNames::notes_set_phoneme_offsets,
+                PublicToolNames::notes_reset_phoneme_offsets,
+                PublicToolNames::notes_reset_phonemes,
+                PublicToolNames::notes_fill_lyrics,
+                PublicToolNames::parameters_replace,
+                PublicToolNames::parameters_draw,
+                PublicToolNames::parameters_erase,
+                PublicToolNames::parameters_bake,
+                PublicToolNames::parameters_insert_anchors,
+                PublicToolNames::parameters_move_anchors,
+                PublicToolNames::parameters_remove_anchors,
+                PublicToolNames::parameters_set_anchor_interpolation,
+                PublicToolNames::tempos_set,
+                PublicToolNames::tempos_delete,
+                PublicToolNames::time_signatures_set,
+                PublicToolNames::time_signatures_delete,
+                PublicToolNames::history_undo,
+                PublicToolNames::history_redo,
+                PublicToolNames::playback_set_loop,
+                PublicToolNames::playback_set_loop_enabled,
+                PublicToolNames::playback_clear_loop,
+                PublicToolNames::extract_pitch_start,
+                PublicToolNames::extract_midi_start,
+                PublicToolNames::inference_start,
+                PublicToolNames::inference_reset_stage,
             };
             return ids;
         }
 
         QHash<QString, QStringList> requiredInputFields() {
             return {
-                {QStringLiteral("automation.get_options"),
-                 {QStringLiteral("operation_id"), QStringLiteral("field_path")}                                          },
-                {QStringLiteral("documents.new"),                       {QStringLiteral("unsaved_policy")}               },
-                {QStringLiteral("documents.open"),
-                 {QStringLiteral("unsaved_policy"), QStringLiteral("path")}                                              },
-                {QStringLiteral("documents.save_as"),
-                 {QStringLiteral("path"), QStringLiteral("overwrite_policy")}                                            },
-                {QStringLiteral("documents.import"),
-                 {QStringLiteral("path"), QStringLiteral("options")}                                                     },
-                {QStringLiteral("documents.import_batch"),
-                 {QStringLiteral("items"), QStringLiteral("failure_policy")}                                             },
-                {QStringLiteral("formats.inspect"),
-                 {QStringLiteral("path"), QStringLiteral("purpose")}                                                     },
-                {QStringLiteral("tracks.get"),                          {QStringLiteral("track_id")}                     },
-                {QStringLiteral("tracks.insert"),
-                 {QStringLiteral("index"), QStringLiteral("tracks")}                                                     },
-                {QStringLiteral("tracks.remove"),                       {QStringLiteral("track_ids")}                    },
-                {QStringLiteral("tracks.move"),
-                 {QStringLiteral("track_ids"), QStringLiteral("target_index")}                                           },
-                {QStringLiteral("tracks.rename"),
-                 {QStringLiteral("track_id"), QStringLiteral("name")}                                                    },
-                {QStringLiteral("tracks.set_color"),
-                 {QStringLiteral("track_id"), QStringLiteral("color_index")}                                             },
-                {QStringLiteral("tracks.set_gain"),
-                 {QStringLiteral("track_id"), QStringLiteral("gain")}                                                    },
-                {QStringLiteral("tracks.set_pan"),
-                 {QStringLiteral("track_id"), QStringLiteral("pan")}                                                     },
-                {QStringLiteral("tracks.set_mute"),
-                 {QStringLiteral("track_id"), QStringLiteral("mute")}                                                    },
-                {QStringLiteral("tracks.set_solo"),
-                 {QStringLiteral("track_id"), QStringLiteral("solo")}                                                    },
-                {QStringLiteral("tracks.set_default_language"),
-                 {QStringLiteral("track_id"), QStringLiteral("language_id")}                                             },
-                {QStringLiteral("tracks.get_voice_context"),            {QStringLiteral("track_id")}                     },
-                {QStringLiteral("tracks.set_voice"),
-                 {QStringLiteral("track_id"), QStringLiteral("voice")}                                                   },
-                {QStringLiteral("tracks.clear_voice"),                  {QStringLiteral("track_id")}                     },
-                {QStringLiteral("master.set_gain"),                     {QStringLiteral("gain")}                         },
-                {QStringLiteral("master.set_pan"),                      {QStringLiteral("pan")}                          },
-                {QStringLiteral("master.set_mute"),                     {QStringLiteral("mute")}                         },
-                {QStringLiteral("master.set_solo"),                     {QStringLiteral("solo")}                         },
-                {QStringLiteral("clips.get"),                           {QStringLiteral("clip_id")}                      },
-                {QStringLiteral("clips.insert"),                        {QStringLiteral("clips")}                        },
-                {QStringLiteral("clips.duplicate"),
-                 {QStringLiteral("clip_ids"), QStringLiteral("destination")}                                             },
-                {QStringLiteral("clips.remove"),                        {QStringLiteral("clip_ids")}                     },
-                {QStringLiteral("clips.move"),                          {QStringLiteral("moves")}                        },
-                {QStringLiteral("clips.resize_left"),
-                 {QStringLiteral("clip_id"), QStringLiteral("start")}                                                    },
-                {QStringLiteral("clips.resize_right"),
-                 {QStringLiteral("clip_id"), QStringLiteral("end")}                                                      },
-                {QStringLiteral("clips.rename"),
-                 {QStringLiteral("clip_id"), QStringLiteral("name")}                                                     },
-                {QStringLiteral("clips.set_gain"),
-                 {QStringLiteral("clip_id"), QStringLiteral("gain")}                                                     },
-                {QStringLiteral("clips.set_mute"),
-                 {QStringLiteral("clip_id"), QStringLiteral("mute")}                                                     },
-                {QStringLiteral("clips.set_default_language"),
-                 {QStringLiteral("clip_id"), QStringLiteral("language_id")}                                              },
-                {QStringLiteral("clips.get_voice_context"),             {QStringLiteral("clip_id")}                      },
-                {QStringLiteral("clips.use_track_voice"),               {QStringLiteral("clip_id")}                      },
-                {QStringLiteral("clips.set_voice"),
-                 {QStringLiteral("clip_id"), QStringLiteral("voice")}                                                    },
-                {QStringLiteral("clips.clear_voice"),                   {QStringLiteral("clip_id")}                      },
-                {QStringLiteral("audio_clips.get"),                     {QStringLiteral("clip_id")}                      },
-                {QStringLiteral("audio_clips.import"),
-                 {QStringLiteral("track_id"), QStringLiteral("start"), QStringLiteral("path")}                           },
-                {QStringLiteral("audio_clips.import_batch"),
-                 {QStringLiteral("items"), QStringLiteral("failure_policy")}                                             },
-                {QStringLiteral("audio_clips.relocate"),
-                 {QStringLiteral("clip_id"), QStringLiteral("path")}                                                     },
-                {QStringLiteral("audio_clips.confirm_path"),            {QStringLiteral("clip_id")}                      },
-                {QStringLiteral("voices.describe"),                     {QStringLiteral("singer")}                       },
-                {QStringLiteral("speaker_mix.get"),                     {QStringLiteral("target")}                       },
-                {QStringLiteral("speaker_mix.set_fixed"),
-                 {QStringLiteral("target"), QStringLiteral("mix")}                                                       },
-                {QStringLiteral("speaker_mix.enable_dynamic"),          {QStringLiteral("clip_id")}                      },
-                {QStringLiteral("speaker_mix.disable_dynamic"),         {QStringLiteral("clip_id")}                      },
-                {QStringLiteral("speaker_mix.set_dynamic_bypass"),
-                 {QStringLiteral("clip_id"), QStringLiteral("bypassed")}                                                 },
-                {QStringLiteral("speaker_mix.keyframes.insert"),
-                 {QStringLiteral("clip_id"), QStringLiteral("position")}                                                 },
-                {QStringLiteral("speaker_mix.keyframes.move"),
-                 {QStringLiteral("clip_id"), QStringLiteral("moves")}                                                    },
-                {QStringLiteral("speaker_mix.keyframes.set_weights"),
+                {PublicToolNames::automation_get_options,
+                 {QStringLiteral("operation_id"), QStringLiteral("field_path")}                                         },
+                {PublicToolNames::documents_new,                       {QStringLiteral("unsaved_policy")}               },
+                {PublicToolNames::documents_open,
+                 {QStringLiteral("unsaved_policy"), QStringLiteral("path")}                                             },
+                {PublicToolNames::documents_save_as,
+                 {QStringLiteral("path"), QStringLiteral("overwrite_policy")}                                           },
+                {PublicToolNames::documents_import,
+                 {QStringLiteral("path"), QStringLiteral("options")}                                                    },
+                {PublicToolNames::documents_import_batch,
+                 {QStringLiteral("items"), QStringLiteral("failure_policy")}                                            },
+                {PublicToolNames::formats_inspect,
+                 {QStringLiteral("path"), QStringLiteral("purpose")}                                                    },
+                {PublicToolNames::tracks_get,                          {QStringLiteral("track_id")}                     },
+                {PublicToolNames::tracks_insert,
+                 {QStringLiteral("index"), QStringLiteral("tracks")}                                                    },
+                {PublicToolNames::tracks_remove,                       {QStringLiteral("track_ids")}                    },
+                {PublicToolNames::tracks_move,
+                 {QStringLiteral("track_ids"), QStringLiteral("target_index")}                                          },
+                {PublicToolNames::tracks_rename,
+                 {QStringLiteral("track_id"), QStringLiteral("name")}                                                   },
+                {PublicToolNames::tracks_set_color,
+                 {QStringLiteral("track_id"), QStringLiteral("color_index")}                                            },
+                {PublicToolNames::tracks_set_gain,
+                 {QStringLiteral("track_id"), QStringLiteral("gain")}                                                   },
+                {PublicToolNames::tracks_set_pan,
+                 {QStringLiteral("track_id"), QStringLiteral("pan")}                                                    },
+                {PublicToolNames::tracks_set_mute,
+                 {QStringLiteral("track_id"), QStringLiteral("mute")}                                                   },
+                {PublicToolNames::tracks_set_solo,
+                 {QStringLiteral("track_id"), QStringLiteral("solo")}                                                   },
+                {PublicToolNames::tracks_set_default_language,
+                 {QStringLiteral("track_id"), QStringLiteral("language_id")}                                            },
+                {PublicToolNames::tracks_get_voice_context,            {QStringLiteral("track_id")}                     },
+                {PublicToolNames::tracks_set_voice,
+                 {QStringLiteral("track_id"), QStringLiteral("voice")}                                                  },
+                {PublicToolNames::tracks_clear_voice,                  {QStringLiteral("track_id")}                     },
+                {PublicToolNames::master_set_gain,                     {QStringLiteral("gain")}                         },
+                {PublicToolNames::master_set_pan,                      {QStringLiteral("pan")}                          },
+                {PublicToolNames::master_set_mute,                     {QStringLiteral("mute")}                         },
+                {PublicToolNames::master_set_solo,                     {QStringLiteral("solo")}                         },
+                {PublicToolNames::clips_get,                           {QStringLiteral("clip_id")}                      },
+                {PublicToolNames::clips_insert,                        {QStringLiteral("clips")}                        },
+                {PublicToolNames::clips_duplicate,
+                 {QStringLiteral("clip_ids"), QStringLiteral("destination")}                                            },
+                {PublicToolNames::clips_remove,                        {QStringLiteral("clip_ids")}                     },
+                {PublicToolNames::clips_move,                          {QStringLiteral("moves")}                        },
+                {PublicToolNames::clips_resize_left,
+                 {QStringLiteral("clip_id"), QStringLiteral("start")}                                                   },
+                {PublicToolNames::clips_resize_right,
+                 {QStringLiteral("clip_id"), QStringLiteral("end")}                                                     },
+                {PublicToolNames::clips_rename,
+                 {QStringLiteral("clip_id"), QStringLiteral("name")}                                                    },
+                {PublicToolNames::clips_set_gain,
+                 {QStringLiteral("clip_id"), QStringLiteral("gain")}                                                    },
+                {PublicToolNames::clips_set_mute,
+                 {QStringLiteral("clip_id"), QStringLiteral("mute")}                                                    },
+                {PublicToolNames::clips_set_default_language,
+                 {QStringLiteral("clip_id"), QStringLiteral("language_id")}                                             },
+                {PublicToolNames::clips_get_voice_context,             {QStringLiteral("clip_id")}                      },
+                {PublicToolNames::clips_use_track_voice,               {QStringLiteral("clip_id")}                      },
+                {PublicToolNames::clips_set_voice,
+                 {QStringLiteral("clip_id"), QStringLiteral("voice")}                                                   },
+                {PublicToolNames::clips_clear_voice,                   {QStringLiteral("clip_id")}                      },
+                {PublicToolNames::audio_clips_get,                     {QStringLiteral("clip_id")}                      },
+                {PublicToolNames::audio_clips_import,
+                 {QStringLiteral("track_id"), QStringLiteral("start"), QStringLiteral("path")}                          },
+                {PublicToolNames::audio_clips_import_batch,
+                 {QStringLiteral("items"), QStringLiteral("failure_policy")}                                            },
+                {PublicToolNames::audio_clips_relocate,
+                 {QStringLiteral("clip_id"), QStringLiteral("path")}                                                    },
+                {PublicToolNames::audio_clips_confirm_path,            {QStringLiteral("clip_id")}                      },
+                {PublicToolNames::voices_describe,                     {QStringLiteral("singer")}                       },
+                {PublicToolNames::speaker_mix_get,                     {QStringLiteral("target")}                       },
+                {PublicToolNames::speaker_mix_set_fixed,
+                 {QStringLiteral("target"), QStringLiteral("mix")}                                                      },
+                {PublicToolNames::speaker_mix_enable_dynamic,          {QStringLiteral("clip_id")}                      },
+                {PublicToolNames::speaker_mix_disable_dynamic,         {QStringLiteral("clip_id")}                      },
+                {PublicToolNames::speaker_mix_set_dynamic_bypass,
+                 {QStringLiteral("clip_id"), QStringLiteral("bypassed")}                                                },
+                {PublicToolNames::speaker_mix_keyframes_insert,
+                 {QStringLiteral("clip_id"), QStringLiteral("position")}                                                },
+                {PublicToolNames::speaker_mix_keyframes_move,
+                 {QStringLiteral("clip_id"), QStringLiteral("moves")}                                                   },
+                {PublicToolNames::speaker_mix_keyframes_set_weights,
                  {QStringLiteral("clip_id"), QStringLiteral("keyframe_id"),
-                  QStringLiteral("weights")}                                                                             },
-                {QStringLiteral("speaker_mix.keyframes.remove"),
-                 {QStringLiteral("clip_id"), QStringLiteral("keyframe_ids")}                                             },
-                {QStringLiteral("notes.get"),                           {QStringLiteral("clip_id")}                      },
-                {QStringLiteral("notes.search"),
-                 {QStringLiteral("clip_id"), QStringLiteral("query"), QStringLiteral("mode")}                            },
-                {QStringLiteral("notes.insert"),
-                 {QStringLiteral("clip_id"), QStringLiteral("notes")}                                                    },
-                {QStringLiteral("notes.duplicate"),
+                  QStringLiteral("weights")}                                                                            },
+                {PublicToolNames::speaker_mix_keyframes_remove,
+                 {QStringLiteral("clip_id"), QStringLiteral("keyframe_ids")}                                            },
+                {PublicToolNames::notes_get,                           {QStringLiteral("clip_id")}                      },
+                {PublicToolNames::notes_search,
+                 {QStringLiteral("clip_id"), QStringLiteral("query"), QStringLiteral("mode")}                           },
+                {PublicToolNames::notes_insert,
+                 {QStringLiteral("clip_id"), QStringLiteral("notes")}                                                   },
+                {PublicToolNames::notes_duplicate,
                  {QStringLiteral("source_clip_id"), QStringLiteral("note_ids"),
-                  QStringLiteral("target_clip_id"), QStringLiteral("target_start")}                                      },
-                {QStringLiteral("notes.remove"),
-                 {QStringLiteral("clip_id"), QStringLiteral("note_ids")}                                                 },
-                {QStringLiteral("notes.move"),
+                  QStringLiteral("target_clip_id"), QStringLiteral("target_start")}                                     },
+                {PublicToolNames::notes_remove,
+                 {QStringLiteral("clip_id"), QStringLiteral("note_ids")}                                                },
+                {PublicToolNames::notes_move,
                  {QStringLiteral("clip_id"), QStringLiteral("note_ids"),
-                  QStringLiteral("delta_tick"), QStringLiteral("delta_key")}                                             },
-                {QStringLiteral("notes.resize_left"),
+                  QStringLiteral("delta_tick"), QStringLiteral("delta_key")}                                            },
+                {PublicToolNames::notes_resize_left,
                  {QStringLiteral("clip_id"), QStringLiteral("note_ids"),
-                  QStringLiteral("delta_tick")}                                                                          },
-                {QStringLiteral("notes.resize_right"),
+                  QStringLiteral("delta_tick")}                                                                         },
+                {PublicToolNames::notes_resize_right,
                  {QStringLiteral("clip_id"), QStringLiteral("note_ids"),
-                  QStringLiteral("delta_tick")}                                                                          },
-                {QStringLiteral("notes.split_at"),
+                  QStringLiteral("delta_tick")}                                                                         },
+                {PublicToolNames::notes_split_at,
                  {QStringLiteral("clip_id"), QStringLiteral("note_id"),
-                  QStringLiteral("local_position")}                                                                      },
-                {QStringLiteral("notes.quantize"),
+                  QStringLiteral("local_position")}                                                                     },
+                {PublicToolNames::notes_quantize,
                  {QStringLiteral("clip_id"), QStringLiteral("note_ids"), QStringLiteral("quantize"),
-                  QStringLiteral("quantize_start"), QStringLiteral("quantize_length")}                                   },
-                {QStringLiteral("notes.set_lyric"),
-                 {QStringLiteral("clip_id"), QStringLiteral("note_id"), QStringLiteral("lyric")}                         },
-                {QStringLiteral("notes.set_language"),
+                  QStringLiteral("quantize_start"), QStringLiteral("quantize_length")}                                  },
+                {PublicToolNames::notes_set_lyric,
+                 {QStringLiteral("clip_id"), QStringLiteral("note_id"), QStringLiteral("lyric")}                        },
+                {PublicToolNames::notes_set_language,
                  {QStringLiteral("clip_id"), QStringLiteral("note_ids"),
-                  QStringLiteral("language")}                                                                            },
-                {QStringLiteral("notes.set_pronunciation"),
+                  QStringLiteral("language")}                                                                           },
+                {PublicToolNames::notes_set_pronunciation,
                  {QStringLiteral("clip_id"), QStringLiteral("note_id"),
-                  QStringLiteral("pronunciation"), QStringLiteral("source")}                                             },
-                {QStringLiteral("notes.reset_pronunciation"),
-                 {QStringLiteral("clip_id"), QStringLiteral("note_id")}                                                  },
-                {QStringLiteral("notes.set_phonemes"),
-                 {QStringLiteral("clip_id"), QStringLiteral("note_id"), QStringLiteral("names")}                         },
-                {QStringLiteral("notes.set_phoneme_offsets"),
-                 {QStringLiteral("clip_id"), QStringLiteral("note_id"), QStringLiteral("offsets")}                       },
-                {QStringLiteral("notes.reset_phoneme_offsets"),
-                 {QStringLiteral("clip_id"), QStringLiteral("note_ids")}                                                 },
-                {QStringLiteral("notes.reset_phonemes"),
-                 {QStringLiteral("clip_id"), QStringLiteral("note_id")}                                                  },
-                {QStringLiteral("notes.fill_lyrics"),
-                 {QStringLiteral("clip_id"), QStringLiteral("note_ids"), QStringLiteral("text")}                         },
-                {QStringLiteral("parameters.get_capabilities"),         {QStringLiteral("clip_id")}                      },
-                {QStringLiteral("parameters.get"),
-                 {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("layer")}                            },
-                {QStringLiteral("parameters.replace"),
+                  QStringLiteral("pronunciation"), QStringLiteral("source")}                                            },
+                {PublicToolNames::notes_reset_pronunciation,
+                 {QStringLiteral("clip_id"), QStringLiteral("note_id")}                                                 },
+                {PublicToolNames::notes_set_phonemes,
+                 {QStringLiteral("clip_id"), QStringLiteral("note_id"), QStringLiteral("names")}                        },
+                {PublicToolNames::notes_set_phoneme_offsets,
+                 {QStringLiteral("clip_id"), QStringLiteral("note_id"), QStringLiteral("offsets")}                      },
+                {PublicToolNames::notes_reset_phoneme_offsets,
+                 {QStringLiteral("clip_id"), QStringLiteral("note_ids")}                                                },
+                {PublicToolNames::notes_reset_phonemes,
+                 {QStringLiteral("clip_id"), QStringLiteral("note_id")}                                                 },
+                {PublicToolNames::notes_fill_lyrics,
+                 {QStringLiteral("clip_id"), QStringLiteral("note_ids"), QStringLiteral("text")}                        },
+                {PublicToolNames::parameters_get_capabilities,         {QStringLiteral("clip_id")}                      },
+                {PublicToolNames::parameters_get,
+                 {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("layer")}                           },
+                {PublicToolNames::parameters_replace,
                  {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("layer"),
-                  QStringLiteral("curves")}                                                                              },
-                {QStringLiteral("parameters.draw"),
+                  QStringLiteral("curves")}                                                                             },
+                {PublicToolNames::parameters_draw,
                  {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("layer"),
-                  QStringLiteral("local_start"), QStringLiteral("step"), QStringLiteral("values")}                       },
-                {QStringLiteral("parameters.erase"),
+                  QStringLiteral("local_start"), QStringLiteral("step"), QStringLiteral("values")}                      },
+                {PublicToolNames::parameters_erase,
                  {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("layer"),
-                  QStringLiteral("local_start"), QStringLiteral("local_end")}                                            },
-                {QStringLiteral("parameters.bake"),
-                 {QStringLiteral("clip_id"), QStringLiteral("name")}                                                     },
-                {QStringLiteral("parameters.insert_anchors"),
+                  QStringLiteral("local_start"), QStringLiteral("local_end")}                                           },
+                {PublicToolNames::parameters_bake,
+                 {QStringLiteral("clip_id"), QStringLiteral("name")}                                                    },
+                {PublicToolNames::parameters_insert_anchors,
                  {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("layer"),
-                  QStringLiteral("anchors")}                                                                             },
-                {QStringLiteral("parameters.move_anchors"),
+                  QStringLiteral("anchors")}                                                                            },
+                {PublicToolNames::parameters_move_anchors,
                  {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("layer"),
-                  QStringLiteral("moves")}                                                                               },
-                {QStringLiteral("parameters.remove_anchors"),
+                  QStringLiteral("moves")}                                                                              },
+                {PublicToolNames::parameters_remove_anchors,
                  {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("layer"),
-                  QStringLiteral("anchor_ids")}                                                                          },
-                {QStringLiteral("parameters.set_anchor_interpolation"),
+                  QStringLiteral("anchor_ids")}                                                                         },
+                {PublicToolNames::parameters_set_anchor_interpolation,
                  {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("layer"),
-                  QStringLiteral("anchor_ids"), QStringLiteral("interpolation")}                                         },
-                {QStringLiteral("tempos.set"),                          {QStringLiteral("tick"), QStringLiteral("tempo")}},
-                {QStringLiteral("tempos.delete"),                       {QStringLiteral("tick")}                         },
-                {QStringLiteral("time_signatures.set"),
+                  QStringLiteral("anchor_ids"), QStringLiteral("interpolation")}                                        },
+                {PublicToolNames::tempos_set,                          {QStringLiteral("tick"), QStringLiteral("tempo")}},
+                {PublicToolNames::tempos_delete,                       {QStringLiteral("tick")}                         },
+                {PublicToolNames::time_signatures_set,
                  {QStringLiteral("bar_index"), QStringLiteral("numerator"),
-                  QStringLiteral("denominator")}                                                                         },
-                {QStringLiteral("time_signatures.delete"),              {QStringLiteral("bar_index")}                    },
-                {QStringLiteral("playback.seek"),                       {QStringLiteral("position")}                     },
-                {QStringLiteral("playback.set_loop"),
-                 {QStringLiteral("start"), QStringLiteral("end")}                                                        },
-                {QStringLiteral("playback.set_loop_enabled"),           {QStringLiteral("enabled")}                      },
-                {QStringLiteral("exports.midi.preview"),
-                 {QStringLiteral("path"), QStringLiteral("options")}                                                     },
-                {QStringLiteral("exports.midi.start"),
+                  QStringLiteral("denominator")}                                                                        },
+                {PublicToolNames::time_signatures_delete,              {QStringLiteral("bar_index")}                    },
+                {PublicToolNames::playback_seek,                       {QStringLiteral("position")}                     },
+                {PublicToolNames::playback_set_loop,
+                 {QStringLiteral("start"), QStringLiteral("end")}                                                       },
+                {PublicToolNames::playback_set_loop_enabled,           {QStringLiteral("enabled")}                      },
+                {PublicToolNames::exports_midi_preview,
+                 {QStringLiteral("path"), QStringLiteral("options")}                                                    },
+                {PublicToolNames::exports_midi_start,
                  {QStringLiteral("path"), QStringLiteral("options"),
-                  QStringLiteral("overwrite_policy")}                                                                    },
-                {QStringLiteral("exports.audio.preview"),
-                 {QStringLiteral("path"), QStringLiteral("options")}                                                     },
-                {QStringLiteral("exports.audio.start"),
+                  QStringLiteral("overwrite_policy")}                                                                   },
+                {PublicToolNames::exports_audio_preview,
+                 {QStringLiteral("path"), QStringLiteral("options")}                                                    },
+                {PublicToolNames::exports_audio_start,
                  {QStringLiteral("path"), QStringLiteral("options"),
-                  QStringLiteral("overwrite_policy")}                                                                    },
-                {QStringLiteral("extract.get_capabilities"),
-                 {QStringLiteral("source_audio_clip_id")}                                                                },
-                {QStringLiteral("extract.pitch.start"),
+                  QStringLiteral("overwrite_policy")}                                                                   },
+                {PublicToolNames::extract_get_capabilities,
+                 {QStringLiteral("source_audio_clip_id")}                                                               },
+                {PublicToolNames::extract_pitch_start,
                  {QStringLiteral("source_audio_clip_id"), QStringLiteral("target_singing_clip_id"),
-                  QStringLiteral("options")}                                                                             },
-                {QStringLiteral("extract.midi.start"),
+                  QStringLiteral("options")}                                                                            },
+                {PublicToolNames::extract_midi_start,
                  {QStringLiteral("source_audio_clip_id"), QStringLiteral("destination"),
-                  QStringLiteral("options")}                                                                             },
-                {QStringLiteral("inference.get_capabilities"),          {QStringLiteral("scope")}                        },
-                {QStringLiteral("inference.get_status"),                {QStringLiteral("scope")}                        },
-                {QStringLiteral("inference.start"),
-                 {QStringLiteral("scope"), QStringLiteral("options")}                                                    },
-                {QStringLiteral("inference.reset_stage"),
-                 {QStringLiteral("scope"), QStringLiteral("stage")}                                                      },
-                {QStringLiteral("tasks.get"),                           {QStringLiteral("task_id")}                      },
-                {QStringLiteral("tasks.cancel"),                        {QStringLiteral("task_id")}                      },
+                  QStringLiteral("options")}                                                                            },
+                {PublicToolNames::inference_get_capabilities,          {QStringLiteral("scope")}                        },
+                {PublicToolNames::inference_get_status,                {QStringLiteral("scope")}                        },
+                {PublicToolNames::inference_start,
+                 {QStringLiteral("scope"), QStringLiteral("options")}                                                   },
+                {PublicToolNames::inference_reset_stage,
+                 {QStringLiteral("scope"), QStringLiteral("stage")}                                                     },
+                {PublicToolNames::tasks_get,                           {QStringLiteral("task_id")}                      },
+                {PublicToolNames::tasks_cancel,                        {QStringLiteral("task_id")}                      },
             };
         }
 
         QHash<QString, QStringList> optionalInputFields() {
             return {
-                {QStringLiteral("automation.get_manifest"),
-                 {QStringLiteral("cursor"), QStringLiteral("limit")}                                                },
-                {QStringLiteral("automation.get_options"),       {QStringLiteral("partial_arguments")}              },
-                {QStringLiteral("documents.new"),                {QStringLiteral("template")}                       },
-                {QStringLiteral("documents.open"),
+                {PublicToolNames::automation_get_manifest,
+                 {QStringLiteral("cursor"), QStringLiteral("limit")}                                               },
+                {PublicToolNames::automation_get_options,       {QStringLiteral("partial_arguments")}              },
+                {PublicToolNames::documents_new,                {QStringLiteral("template")}                       },
+                {PublicToolNames::documents_open,
                  {QStringLiteral("format_id"), QStringLiteral("options"),
-                  QStringLiteral("plan_digest")}                                                                    },
-                {QStringLiteral("documents.save"),               {QStringLiteral("overwrite_policy")}               },
-                {QStringLiteral("documents.save_as"),            {QStringLiteral("extension_policy")}               },
-                {QStringLiteral("documents.import"),
-                 {QStringLiteral("format_id"), QStringLiteral("plan_digest")}                                       },
-                {QStringLiteral("formats.list"),                 {QStringLiteral("purpose")}                        },
-                {QStringLiteral("tracks.list"),
-                 {QStringLiteral("cursor"), QStringLiteral("limit")}                                                },
-                {QStringLiteral("clips.list"),
+                  QStringLiteral("plan_digest")}                                                                   },
+                {PublicToolNames::documents_save,               {QStringLiteral("overwrite_policy")}               },
+                {PublicToolNames::documents_save_as,            {QStringLiteral("extension_policy")}               },
+                {PublicToolNames::documents_import,
+                 {QStringLiteral("format_id"), QStringLiteral("plan_digest")}                                      },
+                {PublicToolNames::formats_list,                 {QStringLiteral("purpose")}                        },
+                {PublicToolNames::tracks_list,                  {QStringLiteral("cursor"), QStringLiteral("limit")}},
+                {PublicToolNames::clips_list,
                  {QStringLiteral("track_id"), QStringLiteral("type"), QStringLiteral("range"),
-                  QStringLiteral("cursor"), QStringLiteral("limit")}                                                },
-                {QStringLiteral("audio_clips.import"),
-                 {QStringLiteral("name"), QStringLiteral("gain"), QStringLiteral("mute")}                           },
-                {QStringLiteral("audio_clips.confirm_path"),     {QStringLiteral("path")}                           },
-                {QStringLiteral("voices.list"),
+                  QStringLiteral("cursor"), QStringLiteral("limit")}                                               },
+                {PublicToolNames::audio_clips_import,
+                 {QStringLiteral("name"), QStringLiteral("gain"), QStringLiteral("mute")}                          },
+                {PublicToolNames::audio_clips_confirm_path,     {QStringLiteral("path")}                           },
+                {PublicToolNames::voices_list,
                  {QStringLiteral("query"), QStringLiteral("package_id"), QStringLiteral("cursor"),
-                  QStringLiteral("limit")}                                                                          },
-                {QStringLiteral("speaker_mix.keyframes.insert"), {QStringLiteral("weights")}                        },
-                {QStringLiteral("notes.get"),                    {QStringLiteral("cursor"), QStringLiteral("limit")}},
-                {QStringLiteral("notes.search"),
-                 {QStringLiteral("case_sensitive"), QStringLiteral("regex")}                                        },
-                {QStringLiteral("notes.fill_lyrics"),            {QStringLiteral("options")}                        },
-                {QStringLiteral("parameters.draw"),              {QStringLiteral("merge_mode")}                     },
-                {QStringLiteral("parameters.bake"),
-                 {QStringLiteral("local_start"), QStringLiteral("local_end")}                                       },
-                {QStringLiteral("parameters.insert_anchors"),    {QStringLiteral("curve_id")}                       },
-                {QStringLiteral("inference.start"),              {QStringLiteral("stages")}                         },
-                {QStringLiteral("tasks.list"),
+                  QStringLiteral("limit")}                                                                         },
+                {PublicToolNames::speaker_mix_keyframes_insert, {QStringLiteral("weights")}                        },
+                {PublicToolNames::notes_get,                    {QStringLiteral("cursor"), QStringLiteral("limit")}},
+                {PublicToolNames::notes_search,
+                 {QStringLiteral("case_sensitive"), QStringLiteral("regex")}                                       },
+                {PublicToolNames::notes_fill_lyrics,            {QStringLiteral("options")}                        },
+                {PublicToolNames::parameters_draw,              {QStringLiteral("merge_mode")}                     },
+                {PublicToolNames::parameters_bake,
+                 {QStringLiteral("local_start"), QStringLiteral("local_end")}                                      },
+                {PublicToolNames::parameters_insert_anchors,    {QStringLiteral("curve_id")}                       },
+                {PublicToolNames::inference_start,              {QStringLiteral("stages")}                         },
+                {PublicToolNames::tasks_list,
                  {QStringLiteral("state"), QStringLiteral("kind"), QStringLiteral("cursor"),
-                  QStringLiteral("limit")}                                                                          },
+                  QStringLiteral("limit")}                                                                         },
             };
         }
 
@@ -1109,7 +1106,7 @@ namespace AutomationWire {
             };
 
             const bool lifecycle =
-                id == QStringLiteral("documents.new") || id == QStringLiteral("documents.open");
+                id == PublicToolNames::documents_new || id == PublicToolNames::documents_open;
             const bool playbackWrite =
                 id.startsWith(QStringLiteral("playback.")) && kind == OperationKind::Command;
             if (lifecycle) {
@@ -1210,7 +1207,7 @@ namespace AutomationWire {
             QJsonArray branches;
             QJsonObject definitions;
             for (const auto &target : tools) {
-                if (target.operationId == QStringLiteral("automation.get_options")) {
+                if (target.operationId == PublicToolNames::automation_get_options) {
                     continue;
                 }
                 QSet<QString> paths;
@@ -1366,7 +1363,7 @@ namespace AutomationWire {
                 {QStringLiteral("code"), QStringLiteral("message")});
             QJsonArray branches;
             for (const auto &operation : publicValueDomainValues(PublicValueDomain::TaskKind)) {
-                const bool opensDocument = operation == QStringLiteral("documents.open");
+                const bool opensDocument = operation == PublicToolNames::documents_open;
                 const auto document =
                     opensDocument
                         ? JsonSchema::oneOf(QJsonArray{documentVersionSchema(), JsonSchema::null()})
@@ -2209,11 +2206,11 @@ namespace AutomationWire {
         QJsonObject playbackSnapshotSchema() {
             const auto loop = JsonSchema::object(
                 {
-                    {QStringLiteral("enabled"), JsonSchema::boolean()                               },
+                    {QStringLiteral("enabled"), JsonSchema::boolean()},
                     {QStringLiteral("start"),
-                     JsonSchema::integer(0.0, std::numeric_limits<int>::max())                        },
+                     JsonSchema::integer(0.0, std::numeric_limits<int>::max())},
                     {QStringLiteral("end"),
-                     JsonSchema::integer(0.0, std::numeric_limits<int>::max())                        },
+                     JsonSchema::integer(0.0, std::numeric_limits<int>::max())},
             },
                 {QStringLiteral("enabled"), QStringLiteral("start"), QStringLiteral("end")});
             return JsonSchema::object(
@@ -2338,11 +2335,11 @@ namespace AutomationWire {
                     {QStringLiteral("candidate_paths"),  JsonSchema::array(nonEmptyStringSchema())},
                     {QStringLiteral("hash_exists"),      JsonSchema::boolean()                    },
                     {QStringLiteral("duration_seconds"),
-                     JsonSchema::oneOf(QJsonArray{JsonSchema::number(0.0), JsonSchema::null()})},
+                     JsonSchema::oneOf(QJsonArray{JsonSchema::number(0.0), JsonSchema::null()})   },
                     {QStringLiteral("sample_rate"),
-                     JsonSchema::oneOf(QJsonArray{JsonSchema::integer(1.0), JsonSchema::null()})},
+                     JsonSchema::oneOf(QJsonArray{JsonSchema::integer(1.0), JsonSchema::null()})  },
                     {QStringLiteral("channels"),
-                     JsonSchema::oneOf(QJsonArray{JsonSchema::integer(1.0), JsonSchema::null()})},
+                     JsonSchema::oneOf(QJsonArray{JsonSchema::integer(1.0), JsonSchema::null()})  },
             },
                 {QStringLiteral("clip_id"), QStringLiteral("path"), QStringLiteral("path_status"),
                  QStringLiteral("candidate_paths"), QStringLiteral("hash_exists"),
@@ -2386,8 +2383,7 @@ namespace AutomationWire {
                 {
                     {QStringLiteral("path"),               nonEmptyStringSchema()                 },
                     {QStringLiteral("purpose"),
-                     JsonSchema::string(
-                         {QStringLiteral("open"), QStringLiteral("import")})                       },
+                     JsonSchema::string({QStringLiteral("open"), QStringLiteral("import")})       },
                     {QStringLiteral("format_id"),          nonEmptyStringSchema()                 },
                     {QStringLiteral("sources"),            JsonSchema::array(source)              },
                     {QStringLiteral("encoding"),           JsonSchema::string()                   },
@@ -2482,14 +2478,14 @@ namespace AutomationWire {
                 {QStringLiteral("code"), QStringLiteral("message"), QStringLiteral("blocking")});
             return JsonSchema::object(
                 {
-                    {QStringLiteral("targets"),     JsonSchema::array(nonEmptyStringSchema())},
-                    {QStringLiteral("diagnostics"), JsonSchema::array(diagnostic)            },
-                    {QStringLiteral("track_ids"),   JsonSchema::array(identifierSchema())    },
-                    {QStringLiteral("clip_ids"),    JsonSchema::array(identifierSchema())    },
-                    {QStringLiteral("include_tempo"), JsonSchema::boolean()                  },
-                    {QStringLiteral("include_time_signatures"), JsonSchema::boolean()        },
-                    {QStringLiteral("include_lyrics"), JsonSchema::boolean()                 },
-                    {QStringLiteral("plan_digest"), digestSchema()                           },
+                    {QStringLiteral("targets"),                 JsonSchema::array(nonEmptyStringSchema())},
+                    {QStringLiteral("diagnostics"),             JsonSchema::array(diagnostic)            },
+                    {QStringLiteral("track_ids"),               JsonSchema::array(identifierSchema())    },
+                    {QStringLiteral("clip_ids"),                JsonSchema::array(identifierSchema())    },
+                    {QStringLiteral("include_tempo"),           JsonSchema::boolean()                    },
+                    {QStringLiteral("include_time_signatures"), JsonSchema::boolean()                    },
+                    {QStringLiteral("include_lyrics"),          JsonSchema::boolean()                    },
+                    {QStringLiteral("plan_digest"),             digestSchema()                           },
             },
                 {QStringLiteral("targets"), QStringLiteral("diagnostics"),
                  QStringLiteral("track_ids"), QStringLiteral("clip_ids"),
@@ -2521,7 +2517,7 @@ namespace AutomationWire {
         }
 
         QJsonObject queryOutputSchema(const QString &id) {
-            if (id == QStringLiteral("application.get_info")) {
+            if (id == PublicToolNames::application_get_info) {
                 return JsonSchema::document(JsonSchema::object(
                     {
                         {QStringLiteral("name"),     nonEmptyStringSchema()},
@@ -2532,64 +2528,64 @@ namespace AutomationWire {
                     {QStringLiteral("name"), QStringLiteral("version"), QStringLiteral("platform"),
                      QStringLiteral("build_id")}));
             }
-            if (id == QStringLiteral("automation.get_status"))
+            if (id == PublicToolNames::automation_get_status)
                 return statusOutputSchema();
-            if (id == QStringLiteral("automation.get_manifest"))
+            if (id == PublicToolNames::automation_get_manifest)
                 return manifestOutputSchema();
-            if (id == QStringLiteral("automation.get_options"))
+            if (id == PublicToolNames::automation_get_options)
                 return optionsOutputSchema();
-            if (id == QStringLiteral("automation.get_file_access"))
+            if (id == PublicToolNames::automation_get_file_access)
                 return fileAccessOutputSchema();
-            if (id == QStringLiteral("documents.get"))
+            if (id == PublicToolNames::documents_get)
                 return queryEnvelopeSchema(QStringLiteral("snapshot"), documentSnapshotSchema());
-            if (id == QStringLiteral("project.get"))
+            if (id == PublicToolNames::project_get)
                 return queryEnvelopeSchema(QStringLiteral("snapshot"), projectSnapshotSchema());
-            if (id == QStringLiteral("formats.list"))
+            if (id == PublicToolNames::formats_list)
                 return formatsOutputSchema();
-            if (id == QStringLiteral("formats.inspect"))
+            if (id == PublicToolNames::formats_inspect)
                 return formatInspectionOutputSchema();
-            if (id == QStringLiteral("tracks.list")) {
+            if (id == PublicToolNames::tracks_list) {
                 return queryEnvelopeSchema(QStringLiteral("tracks"),
                                            JsonSchema::array(trackSnapshotSchema()), true);
             }
-            if (id == QStringLiteral("tracks.get"))
+            if (id == PublicToolNames::tracks_get)
                 return queryEnvelopeSchema(QStringLiteral("snapshot"), trackSnapshotSchema());
-            if (id == QStringLiteral("tracks.get_voice_context") ||
-                id == QStringLiteral("clips.get_voice_context")) {
+            if (id == PublicToolNames::tracks_get_voice_context ||
+                id == PublicToolNames::clips_get_voice_context) {
                 return queryEnvelopeSchema(QStringLiteral("snapshot"),
                                            voiceContextSnapshotSchema());
             }
-            if (id == QStringLiteral("master.get"))
+            if (id == PublicToolNames::master_get)
                 return queryEnvelopeSchema(QStringLiteral("snapshot"), masterSnapshotSchema());
-            if (id == QStringLiteral("clips.list")) {
+            if (id == PublicToolNames::clips_list) {
                 return queryEnvelopeSchema(QStringLiteral("clips"),
                                            JsonSchema::array(clipSnapshotSchema()), true);
             }
-            if (id == QStringLiteral("clips.get"))
+            if (id == PublicToolNames::clips_get)
                 return queryEnvelopeSchema(QStringLiteral("snapshot"), clipSnapshotSchema());
-            if (id == QStringLiteral("audio_clips.get")) {
+            if (id == PublicToolNames::audio_clips_get) {
                 return queryEnvelopeSchema(QStringLiteral("snapshot"), audioClipSnapshotSchema());
             }
-            if (id == QStringLiteral("speaker_mix.get")) {
+            if (id == PublicToolNames::speaker_mix_get) {
                 return queryEnvelopeSchema(QStringLiteral("snapshot"), speakerMixSnapshotSchema());
             }
-            if (id == QStringLiteral("notes.get")) {
+            if (id == PublicToolNames::notes_get) {
                 return queryEnvelopeSchema(QStringLiteral("notes"),
                                            JsonSchema::array(noteSnapshotSchema()), true);
             }
-            if (id == QStringLiteral("notes.search"))
+            if (id == PublicToolNames::notes_search)
                 return noteSearchOutputSchema();
-            if (id == QStringLiteral("parameters.get"))
+            if (id == PublicToolNames::parameters_get)
                 return queryEnvelopeSchema(QStringLiteral("snapshot"), parameterSnapshotSchema());
-            if (id == QStringLiteral("parameters.get_capabilities")) {
+            if (id == PublicToolNames::parameters_get_capabilities) {
                 return queryEnvelopeSchema(QStringLiteral("capabilities"),
                                            parameterCapabilitiesSchema());
             }
-            if (id == QStringLiteral("timeline.get"))
+            if (id == PublicToolNames::timeline_get)
                 return queryEnvelopeSchema(QStringLiteral("snapshot"), timelineSnapshotSchema());
-            if (id == QStringLiteral("history.get_state"))
+            if (id == PublicToolNames::history_get_state)
                 return queryEnvelopeSchema(QStringLiteral("snapshot"), historySnapshotSchema());
-            if (id == QStringLiteral("voices.list")) {
+            if (id == PublicToolNames::voices_list) {
                 return JsonSchema::document(JsonSchema::object(
                     {
                         {QStringLiteral("singers"),     JsonSchema::array(voiceSummarySchema())},
@@ -2597,43 +2593,43 @@ namespace AutomationWire {
                 },
                     {QStringLiteral("singers")}));
             }
-            if (id == QStringLiteral("voices.describe")) {
+            if (id == PublicToolNames::voices_describe) {
                 return JsonSchema::document(JsonSchema::object(
                     {
                         {QStringLiteral("snapshot"), voiceSnapshotSchema()}
                 },
                     {QStringLiteral("snapshot")}));
             }
-            if (id == QStringLiteral("exports.midi.get_capabilities")) {
+            if (id == PublicToolNames::exports_midi_get_capabilities) {
                 return midiExportCapabilitiesOutputSchema();
             }
-            if (id == QStringLiteral("exports.midi.preview")) {
+            if (id == PublicToolNames::exports_midi_preview) {
                 return queryEnvelopeSchema(QStringLiteral("plan"), midiExportPlanSchema());
             }
-            if (id == QStringLiteral("exports.audio.get_capabilities")) {
+            if (id == PublicToolNames::exports_audio_get_capabilities) {
                 return queryEnvelopeSchema(QStringLiteral("capabilities"),
                                            audioExportCapabilitiesSchema());
             }
-            if (id == QStringLiteral("exports.audio.preview")) {
+            if (id == PublicToolNames::exports_audio_preview) {
                 return queryEnvelopeSchema(QStringLiteral("plan"), exportPlanSchema());
             }
-            if (id == QStringLiteral("extract.get_capabilities")) {
+            if (id == PublicToolNames::extract_get_capabilities) {
                 return extractionCapabilitiesOutputSchema();
             }
-            if (id == QStringLiteral("inference.get_capabilities")) {
+            if (id == PublicToolNames::inference_get_capabilities) {
                 return queryEnvelopeSchema(QStringLiteral("capabilities"),
                                            inferenceCapabilitiesSchema());
             }
-            if (id == QStringLiteral("inference.get_status")) {
+            if (id == PublicToolNames::inference_get_status) {
                 return queryEnvelopeSchema(QStringLiteral("status"), inferenceStatusSchema());
             }
-            if (id == QStringLiteral("tasks.list")) {
+            if (id == PublicToolNames::tasks_list) {
                 return queryEnvelopeSchema(QStringLiteral("tasks"),
                                            JsonSchema::array(taskSnapshotObjectSchema()), true);
             }
-            if (id == QStringLiteral("tasks.get") || id == QStringLiteral("tasks.cancel"))
+            if (id == PublicToolNames::tasks_get || id == PublicToolNames::tasks_cancel)
                 return taskSnapshotSchema();
-            if (id == QStringLiteral("playback.get"))
+            if (id == PublicToolNames::playback_get)
                 return queryEnvelopeSchema(QStringLiteral("snapshot"), playbackSnapshotSchema());
             qFatal("No explicit public query output schema for operation '%s'", qPrintable(id));
             return {};
@@ -2642,16 +2638,16 @@ namespace AutomationWire {
         QJsonObject outputSchema(const QString &id, const OperationKind kind,
                                  const SyncMode syncMode) {
             if (syncMode == SyncMode::Asynchronous)
-                return taskAcceptedSchema(id == QStringLiteral("documents.open"));
+                return taskAcceptedSchema(id == PublicToolNames::documents_open);
             if (kind == OperationKind::Command) {
-                if (id == QStringLiteral("documents.new"))
+                if (id == PublicToolNames::documents_new)
                     return documentLifecycleResultSchema();
                 if (isPersistentPlaybackOperation(id))
                     return persistentPlaybackMutationSchema();
                 if (id.startsWith(QStringLiteral("playback.")))
                     return playbackMutationSchema();
-                return id == QStringLiteral("tasks.cancel") ? taskSnapshotSchema()
-                                                            : mutationSchema();
+                return id == PublicToolNames::tasks_cancel ? taskSnapshotSchema()
+                                                           : mutationSchema();
             }
             return queryOutputSchema(id);
         }
@@ -2667,26 +2663,26 @@ namespace AutomationWire {
 
         QString toolDescription(const QString &operationId, const QString &category,
                                 const OperationKind kind, const SyncMode syncMode) {
-            if (operationId == QStringLiteral("application.get_info")) {
+            if (operationId == PublicToolNames::application_get_info) {
                 return QStringLiteral("Read the editor product name, version, platform, and build "
                                       "identifier without changing editor state.");
             }
-            if (operationId == QStringLiteral("automation.get_status")) {
+            if (operationId == PublicToolNames::automation_get_status) {
                 return QStringLiteral(
                     "Read the active editor instance, host, access profile, Manifest "
                     "summary, and stable document/window identities.");
             }
-            if (operationId == QStringLiteral("automation.get_manifest")) {
+            if (operationId == PublicToolNames::automation_get_manifest) {
                 return QStringLiteral(
                     "Page through the effective public automation contracts, including "
                     "per-tool versions, schemas, policies, availability, and digests.");
             }
-            if (operationId == QStringLiteral("automation.get_options")) {
+            if (operationId == PublicToolNames::automation_get_options) {
                 return QStringLiteral(
                     "Resolve legal values for one dynamic field of an exposed target "
                     "operation using the supplied partial arguments and editor context.");
             }
-            if (operationId == QStringLiteral("automation.get_file_access")) {
+            if (operationId == PublicToolNames::automation_get_file_access) {
                 return QStringLiteral(
                     "Read the canonical automation read/write roots and temporary file "
                     "grants enforced by the editor File Guard.");
@@ -2719,34 +2715,34 @@ namespace AutomationWire {
                            "return the resulting document revision and affected objects.")
                     .arg(action);
             }
-            if (operationId == QStringLiteral("tasks.cancel")) {
+            if (operationId == PublicToolNames::tasks_cancel) {
                 return QStringLiteral(
                     "Request cancellation of an explicit editor task and return its "
                     "current or final snapshot without creating a History entry.");
             }
-            if (operationId == QStringLiteral("notes.reset_phoneme_offsets")) {
+            if (operationId == PublicToolNames::notes_reset_phoneme_offsets) {
                 return QStringLiteral(
                     "Reset the selected word roots to their inferred phoneme positions and "
                     "atomically reset any edited right neighbors required to avoid overlap. "
                     "The command is non-interactive and never opens a confirmation dialog.");
             }
-            if (operationId == QStringLiteral("documents.new") ||
-                operationId == QStringLiteral("documents.open")) {
+            if (operationId == PublicToolNames::documents_new ||
+                operationId == PublicToolNames::documents_open) {
                 return QStringLiteral(
                            "Run the GUI-equivalent %1 lifecycle flow without modal prompts. "
                            "The unsaved-document policy and defaults are explicit, and the "
                            "result reports the replacement document identity.")
                     .arg(action);
             }
-            if (operationId == QStringLiteral("documents.save") ||
-                operationId == QStringLiteral("documents.save_as")) {
+            if (operationId == PublicToolNames::documents_save ||
+                operationId == PublicToolNames::documents_save_as) {
                 return QStringLiteral(
                            "Run the GUI-equivalent %1 flow with explicit overwrite and path "
                            "policy, update the save point, and return the resulting revision.")
                     .arg(action);
             }
-            if (operationId == QStringLiteral("exports.midi.start") ||
-                operationId == QStringLiteral("exports.audio.start")) {
+            if (operationId == PublicToolNames::exports_midi_start ||
+                operationId == PublicToolNames::exports_audio_start) {
                 return QStringLiteral(
                            "Start the GUI-equivalent %1 export with explicit target and "
                            "overwrite policy. The asynchronous task writes reported artifacts "
@@ -2773,9 +2769,9 @@ namespace AutomationWire {
             for (const auto &field : contextFields)
                 context.append(field);
             const auto sourceProfile =
-                sourceOperation == QStringLiteral("voices.list") ||
-                        sourceOperation == QStringLiteral("voices.describe") ||
-                        sourceOperation == QStringLiteral("parameters.get_capabilities")
+                sourceOperation == PublicToolNames::voices_list ||
+                        sourceOperation == PublicToolNames::voices_describe ||
+                        sourceOperation == PublicToolNames::parameters_get_capabilities
                     ? AutomationProfile::L1
                     : AutomationProfile::L2;
             return {
@@ -2794,129 +2790,129 @@ namespace AutomationWire {
                 result.append(valueSource(fieldPath, sourceOperation, contextFields));
             };
 
-            if (id == QStringLiteral("voices.describe"))
-                add(QStringLiteral("/singer"), QStringLiteral("voices.list"));
-            if (id == QStringLiteral("tracks.set_default_language")) {
-                add(QStringLiteral("/language_id"), QStringLiteral("voices.describe"),
+            if (id == PublicToolNames::voices_describe)
+                add(QStringLiteral("/singer"), PublicToolNames::voices_list);
+            if (id == PublicToolNames::tracks_set_default_language) {
+                add(QStringLiteral("/language_id"), PublicToolNames::voices_describe,
                     {QStringLiteral("/document_id"), QStringLiteral("/track_id")});
             }
-            if (id == QStringLiteral("tracks.set_voice")) {
-                add(QStringLiteral("/voice/singer"), QStringLiteral("voices.list"));
-                add(QStringLiteral("/voice/speaker"), QStringLiteral("voices.describe"),
+            if (id == PublicToolNames::tracks_set_voice) {
+                add(QStringLiteral("/voice/singer"), PublicToolNames::voices_list);
+                add(QStringLiteral("/voice/speaker"), PublicToolNames::voices_describe,
                     {QStringLiteral("/voice/singer")});
             }
-            if (id == QStringLiteral("clips.set_default_language")) {
-                add(QStringLiteral("/language_id"), QStringLiteral("voices.describe"),
+            if (id == PublicToolNames::clips_set_default_language) {
+                add(QStringLiteral("/language_id"), PublicToolNames::voices_describe,
                     {QStringLiteral("/document_id"), QStringLiteral("/clip_id")});
             }
-            if (id == QStringLiteral("clips.set_voice")) {
-                add(QStringLiteral("/voice/singer"), QStringLiteral("voices.list"));
-                add(QStringLiteral("/voice/speaker"), QStringLiteral("voices.describe"),
+            if (id == PublicToolNames::clips_set_voice) {
+                add(QStringLiteral("/voice/singer"), PublicToolNames::voices_list);
+                add(QStringLiteral("/voice/speaker"), PublicToolNames::voices_describe,
                     {QStringLiteral("/voice/singer")});
             }
-            if (id == QStringLiteral("notes.set_language")) {
-                add(QStringLiteral("/language/language_id"), QStringLiteral("voices.describe"),
+            if (id == PublicToolNames::notes_set_language) {
+                add(QStringLiteral("/language/language_id"), PublicToolNames::voices_describe,
                     {QStringLiteral("/document_id"), QStringLiteral("/clip_id")});
             }
-            if (id == QStringLiteral("notes.fill_lyrics")) {
+            if (id == PublicToolNames::notes_fill_lyrics) {
                 add(QStringLiteral("/options/language/language_id"),
-                    QStringLiteral("voices.describe"),
+                    PublicToolNames::voices_describe,
                     {QStringLiteral("/document_id"), QStringLiteral("/clip_id")});
             }
             if (id.startsWith(QStringLiteral("parameters.")) &&
-                id != QStringLiteral("parameters.get") &&
-                id != QStringLiteral("parameters.get_capabilities")) {
-                add(QStringLiteral("/name"), QStringLiteral("parameters.get_capabilities"),
+                id != PublicToolNames::parameters_get &&
+                id != PublicToolNames::parameters_get_capabilities) {
+                add(QStringLiteral("/name"), PublicToolNames::parameters_get_capabilities,
                     {QStringLiteral("/document_id"), QStringLiteral("/clip_id")});
-                if (id != QStringLiteral("parameters.bake")) {
-                    add(QStringLiteral("/layer"), QStringLiteral("parameters.get_capabilities"),
+                if (id != PublicToolNames::parameters_bake) {
+                    add(QStringLiteral("/layer"), PublicToolNames::parameters_get_capabilities,
                         {QStringLiteral("/document_id"), QStringLiteral("/clip_id"),
                          QStringLiteral("/name")});
                 }
-                if (id == QStringLiteral("parameters.replace")) {
+                if (id == PublicToolNames::parameters_replace) {
                     add(QStringLiteral("/curves/*/type"),
-                        QStringLiteral("parameters.get_capabilities"),
+                        PublicToolNames::parameters_get_capabilities,
                         {QStringLiteral("/document_id"), QStringLiteral("/clip_id"),
                          QStringLiteral("/name"), QStringLiteral("/layer")});
                     add(QStringLiteral("/curves/*/nodes/*/interpolation"),
-                        QStringLiteral("parameters.get_capabilities"),
+                        PublicToolNames::parameters_get_capabilities,
                         {QStringLiteral("/document_id"), QStringLiteral("/clip_id"),
                          QStringLiteral("/name"), QStringLiteral("/layer")});
                     add(QStringLiteral("/curves/*/values/*"),
-                        QStringLiteral("parameters.get_capabilities"),
+                        PublicToolNames::parameters_get_capabilities,
                         {QStringLiteral("/document_id"), QStringLiteral("/clip_id"),
                          QStringLiteral("/name"), QStringLiteral("/layer")});
                     add(QStringLiteral("/curves/*/nodes/*/value"),
-                        QStringLiteral("parameters.get_capabilities"),
+                        PublicToolNames::parameters_get_capabilities,
                         {QStringLiteral("/document_id"), QStringLiteral("/clip_id"),
                          QStringLiteral("/name"), QStringLiteral("/layer")});
                 }
-                if (id == QStringLiteral("parameters.draw")) {
-                    add(QStringLiteral("/values/*"), QStringLiteral("parameters.get_capabilities"),
+                if (id == PublicToolNames::parameters_draw) {
+                    add(QStringLiteral("/values/*"), PublicToolNames::parameters_get_capabilities,
                         {QStringLiteral("/document_id"), QStringLiteral("/clip_id"),
                          QStringLiteral("/name"), QStringLiteral("/layer")});
                 }
-                if (id == QStringLiteral("parameters.insert_anchors")) {
+                if (id == PublicToolNames::parameters_insert_anchors) {
                     add(QStringLiteral("/anchors/*/value"),
-                        QStringLiteral("parameters.get_capabilities"),
+                        PublicToolNames::parameters_get_capabilities,
                         {QStringLiteral("/document_id"), QStringLiteral("/clip_id"),
                          QStringLiteral("/name"), QStringLiteral("/layer")});
                     add(QStringLiteral("/anchors/*/interpolation"),
-                        QStringLiteral("parameters.get_capabilities"),
+                        PublicToolNames::parameters_get_capabilities,
                         {QStringLiteral("/document_id"), QStringLiteral("/clip_id"),
                          QStringLiteral("/name"), QStringLiteral("/layer")});
                 }
-                if (id == QStringLiteral("parameters.move_anchors")) {
+                if (id == PublicToolNames::parameters_move_anchors) {
                     add(QStringLiteral("/moves/*/value"),
-                        QStringLiteral("parameters.get_capabilities"),
+                        PublicToolNames::parameters_get_capabilities,
                         {QStringLiteral("/document_id"), QStringLiteral("/clip_id"),
                          QStringLiteral("/name"), QStringLiteral("/layer")});
                 }
-                if (id == QStringLiteral("parameters.set_anchor_interpolation")) {
+                if (id == PublicToolNames::parameters_set_anchor_interpolation) {
                     add(QStringLiteral("/interpolation"),
-                        QStringLiteral("parameters.get_capabilities"),
+                        PublicToolNames::parameters_get_capabilities,
                         {QStringLiteral("/document_id"), QStringLiteral("/clip_id"),
                          QStringLiteral("/name"), QStringLiteral("/layer")});
                 }
             }
-            if (id == QStringLiteral("speaker_mix.set_fixed")) {
-                add(QStringLiteral("/mix/singer"), QStringLiteral("voices.list"));
-                add(QStringLiteral("/mix/sources/*/speaker"), QStringLiteral("voices.describe"),
+            if (id == PublicToolNames::speaker_mix_set_fixed) {
+                add(QStringLiteral("/mix/singer"), PublicToolNames::voices_list);
+                add(QStringLiteral("/mix/sources/*/speaker"), PublicToolNames::voices_describe,
                     {QStringLiteral("/mix/singer")});
             }
-            if (id == QStringLiteral("exports.audio.preview") ||
-                id == QStringLiteral("exports.audio.start")) {
+            if (id == PublicToolNames::exports_audio_preview ||
+                id == PublicToolNames::exports_audio_start) {
                 for (const auto &field :
                      {QStringLiteral("format"), QStringLiteral("sample_rate"),
                       QStringLiteral("channel_mode"), QStringLiteral("mixing_mode"),
                       QStringLiteral("source"), QStringLiteral("source_ids")}) {
                     add(QStringLiteral("/options/%1").arg(field),
-                        QStringLiteral("exports.audio.get_capabilities"),
+                        PublicToolNames::exports_audio_get_capabilities,
                         {QStringLiteral("/document_id")});
                 }
             }
-            if (id == QStringLiteral("extract.pitch.start") ||
-                id == QStringLiteral("extract.midi.start")) {
-                add(QStringLiteral("/options/model_id"), QStringLiteral("extract.get_capabilities"),
+            if (id == PublicToolNames::extract_pitch_start ||
+                id == PublicToolNames::extract_midi_start) {
+                add(QStringLiteral("/options/model_id"), PublicToolNames::extract_get_capabilities,
                     {QStringLiteral("/document_id"), QStringLiteral("/source_audio_clip_id")});
-                if (id == QStringLiteral("extract.midi.start")) {
+                if (id == PublicToolNames::extract_midi_start) {
                     add(QStringLiteral("/options/default_language"),
-                        QStringLiteral("extract.get_capabilities"),
+                        PublicToolNames::extract_get_capabilities,
                         {QStringLiteral("/document_id"), QStringLiteral("/source_audio_clip_id")});
                 }
             }
-            if (id == QStringLiteral("inference.start") ||
-                id == QStringLiteral("inference.reset_stage")) {
-                add(id == QStringLiteral("inference.start") ? QStringLiteral("/stages/*")
-                                                            : QStringLiteral("/stage"),
-                    QStringLiteral("inference.get_capabilities"),
+            if (id == PublicToolNames::inference_start ||
+                id == PublicToolNames::inference_reset_stage) {
+                add(id == PublicToolNames::inference_start ? QStringLiteral("/stages/*")
+                                                           : QStringLiteral("/stage"),
+                    PublicToolNames::inference_get_capabilities,
                     {QStringLiteral("/document_id"), QStringLiteral("/scope")});
-                if (id == QStringLiteral("inference.start")) {
+                if (id == PublicToolNames::inference_start) {
                     for (const auto &field :
                          {QStringLiteral("provider_id"), QStringLiteral("device_id"),
                           QStringLiteral("model_id")}) {
                         add(QStringLiteral("/options/%1").arg(field),
-                            QStringLiteral("inference.get_capabilities"),
+                            PublicToolNames::inference_get_capabilities,
                             {QStringLiteral("/document_id"), QStringLiteral("/scope")});
                     }
                 }
@@ -2925,8 +2921,8 @@ namespace AutomationWire {
         }
 
         QString documentPolicy(const ToolContract &tool) {
-            if (tool.operationId == QStringLiteral("documents.new") ||
-                tool.operationId == QStringLiteral("documents.open")) {
+            if (tool.operationId == PublicToolNames::documents_new ||
+                tool.operationId == PublicToolNames::documents_open) {
                 return QStringLiteral("replace");
             }
             if (documentWriteOperations().contains(tool.operationId))
@@ -2940,12 +2936,12 @@ namespace AutomationWire {
         }
 
         QString revisionPolicy(const ToolContract &tool) {
-            if (tool.operationId == QStringLiteral("documents.open") ||
-                tool.operationId == QStringLiteral("exports.midi.start") ||
-                tool.operationId == QStringLiteral("exports.audio.start")) {
+            if (tool.operationId == PublicToolNames::documents_open ||
+                tool.operationId == PublicToolNames::exports_midi_start ||
+                tool.operationId == PublicToolNames::exports_audio_start) {
                 return QStringLiteral("check_and_revalidate");
             }
-            if (tool.operationId == QStringLiteral("documents.new"))
+            if (tool.operationId == PublicToolNames::documents_new)
                 return QStringLiteral("check");
             if (documentWriteOperations().contains(tool.operationId))
                 return tool.syncMode == SyncMode::Asynchronous
@@ -2956,23 +2952,23 @@ namespace AutomationWire {
 
         QString historyPolicy(const ToolContract &tool) {
             if (tool.kind == OperationKind::Query ||
-                tool.operationId == QStringLiteral("tasks.cancel") ||
-                tool.operationId == QStringLiteral("documents.new") ||
-                tool.operationId == QStringLiteral("documents.open") ||
-                tool.operationId == QStringLiteral("exports.midi.start") ||
-                tool.operationId == QStringLiteral("exports.audio.start") ||
-                tool.operationId == QStringLiteral("playback.play") ||
-                tool.operationId == QStringLiteral("playback.pause") ||
-                tool.operationId == QStringLiteral("playback.stop") ||
-                tool.operationId == QStringLiteral("playback.seek")) {
+                tool.operationId == PublicToolNames::tasks_cancel ||
+                tool.operationId == PublicToolNames::documents_new ||
+                tool.operationId == PublicToolNames::documents_open ||
+                tool.operationId == PublicToolNames::exports_midi_start ||
+                tool.operationId == PublicToolNames::exports_audio_start ||
+                tool.operationId == PublicToolNames::playback_play ||
+                tool.operationId == PublicToolNames::playback_pause ||
+                tool.operationId == PublicToolNames::playback_stop ||
+                tool.operationId == PublicToolNames::playback_seek) {
                 return QStringLiteral("none");
             }
-            if (tool.operationId == QStringLiteral("documents.save") ||
-                tool.operationId == QStringLiteral("documents.save_as")) {
+            if (tool.operationId == PublicToolNames::documents_save ||
+                tool.operationId == PublicToolNames::documents_save_as) {
                 return QStringLiteral("savepoint");
             }
-            if (tool.operationId == QStringLiteral("history.undo") ||
-                tool.operationId == QStringLiteral("history.redo")) {
+            if (tool.operationId == PublicToolNames::history_undo ||
+                tool.operationId == PublicToolNames::history_redo) {
                 return QStringLiteral("navigate");
             }
             return tool.syncMode == SyncMode::Asynchronous ? QStringLiteral("commit_once")
@@ -2980,23 +2976,21 @@ namespace AutomationWire {
         }
 
         QString fileAccess(const QString &id) {
-            if (id == QStringLiteral("documents.open") ||
-                id == QStringLiteral("documents.import") ||
-                id == QStringLiteral("documents.import_batch") ||
-                id == QStringLiteral("formats.inspect") ||
-                id == QStringLiteral("audio_clips.import") ||
-                id == QStringLiteral("audio_clips.import_batch") ||
-                id == QStringLiteral("audio_clips.relocate") ||
-                id == QStringLiteral("audio_clips.confirm_path") ||
+            if (id == PublicToolNames::documents_open || id == PublicToolNames::documents_import ||
+                id == PublicToolNames::documents_import_batch ||
+                id == PublicToolNames::formats_inspect ||
+                id == PublicToolNames::audio_clips_import ||
+                id == PublicToolNames::audio_clips_import_batch ||
+                id == PublicToolNames::audio_clips_relocate ||
+                id == PublicToolNames::audio_clips_confirm_path ||
                 id.startsWith(QStringLiteral("extract."))) {
                 return QStringLiteral("read");
             }
-            if (id == QStringLiteral("documents.save") ||
-                id == QStringLiteral("documents.save_as") ||
-                id == QStringLiteral("exports.midi.preview") ||
-                id == QStringLiteral("exports.midi.start") ||
-                id == QStringLiteral("exports.audio.preview") ||
-                id == QStringLiteral("exports.audio.start")) {
+            if (id == PublicToolNames::documents_save || id == PublicToolNames::documents_save_as ||
+                id == PublicToolNames::exports_midi_preview ||
+                id == PublicToolNames::exports_midi_start ||
+                id == PublicToolNames::exports_audio_preview ||
+                id == PublicToolNames::exports_audio_start) {
                 return QStringLiteral("write");
             }
             return QStringLiteral("none");
@@ -3023,14 +3017,14 @@ namespace AutomationWire {
         QString conflictPolicy(const ToolContract &tool) {
             if (tool.kind == OperationKind::Query)
                 return QStringLiteral("none");
-            if (tool.operationId == QStringLiteral("tasks.cancel"))
+            if (tool.operationId == PublicToolNames::tasks_cancel)
                 return QStringLiteral("task_state");
-            if (tool.operationId == QStringLiteral("exports.midi.start") ||
-                tool.operationId == QStringLiteral("exports.audio.start")) {
+            if (tool.operationId == PublicToolNames::exports_midi_start ||
+                tool.operationId == PublicToolNames::exports_audio_start) {
                 return QStringLiteral("snapshot");
             }
-            if (tool.operationId == QStringLiteral("documents.new") ||
-                tool.operationId == QStringLiteral("documents.open")) {
+            if (tool.operationId == PublicToolNames::documents_new ||
+                tool.operationId == PublicToolNames::documents_open) {
                 return QStringLiteral("replacement");
             }
             if (isPersistentPlaybackOperation(tool.operationId))
@@ -3045,16 +3039,16 @@ namespace AutomationWire {
 
         QJsonObject toolAnnotations(const QString &id, const OperationKind kind) {
             static const QSet<QString> destructive{
-                QStringLiteral("tracks.remove"),
-                QStringLiteral("clips.remove"),
-                QStringLiteral("notes.remove"),
-                QStringLiteral("parameters.erase"),
-                QStringLiteral("parameters.remove_anchors"),
-                QStringLiteral("tempos.delete"),
-                QStringLiteral("time_signatures.delete"),
-                QStringLiteral("documents.new"),
-                QStringLiteral("documents.open"),
-                QStringLiteral("inference.reset_stage"),
+                PublicToolNames::tracks_remove,
+                PublicToolNames::clips_remove,
+                PublicToolNames::notes_remove,
+                PublicToolNames::parameters_erase,
+                PublicToolNames::parameters_remove_anchors,
+                PublicToolNames::tempos_delete,
+                PublicToolNames::time_signatures_delete,
+                PublicToolNames::documents_new,
+                PublicToolNames::documents_open,
+                PublicToolNames::inference_reset_stage,
             };
             return {
                 {QStringLiteral("title"),           humanTitle(id)              },
@@ -3189,10 +3183,10 @@ namespace AutomationWire {
         static const QList<ToolContract> tools = [] {
             QList<ToolContract> result;
             result.reserve(128);
-#define AUTOMATION_WIRE_PUBLIC_TOOL(tracking, id, categoryValue, profile, kindValue, syncValue,    \
-                                    versionValue, introducedValue, minimumValue)                   \
+#define AUTOMATION_WIRE_PUBLIC_TOOL(symbol, tracking, name, categoryValue, profile, kindValue,     \
+                                    syncValue, versionValue, introducedValue, minimumValue)        \
     do {                                                                                           \
-        const auto operationId = QStringLiteral(id);                                               \
+        const QString operationId(PublicToolNames::symbol);                                        \
         const auto operationKind = OperationKind::kindValue;                                       \
         const auto operationSync = SyncMode::syncValue;                                            \
         const auto title = humanTitle(operationId);                                                \
@@ -3218,7 +3212,7 @@ namespace AutomationWire {
 #include "PublicToolDefinitions.inc"
 #undef AUTOMATION_WIRE_PUBLIC_TOOL
             const auto options = std::find_if(result.begin(), result.end(), [](const auto &tool) {
-                return tool.operationId == QStringLiteral("automation.get_options");
+                return tool.operationId == PublicToolNames::automation_get_options;
             });
             Q_ASSERT(options != result.end());
             options->inputSchema = getOptionsInputSchema(result);
