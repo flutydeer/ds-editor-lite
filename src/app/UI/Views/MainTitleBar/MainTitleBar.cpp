@@ -7,7 +7,7 @@
 #include "TitleBarComboBox.h"
 #include "Controller/AppController.h"
 #include <lite/History/HistoryManager.h>
-#include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/SystemWindowButton.h>
 #include <lite/GUI/Controls/ToolTipFilter.h>
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/GUI/Utils/IconUtils.h>
@@ -47,16 +47,17 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
     if (!useNativeFrame) {
         int systemButtonWidth = 48;
 
-        m_btnMin = new Button;
+        m_btnMin = new SystemWindowButton;
         m_btnMin->setObjectName("MinimizeButton");
         m_btnMin->setFixedSize(systemButtonWidth, 40);
 
-        m_btnMax = new Button;
+        m_btnMax = new SystemWindowButton;
         m_btnMax->setCheckable(true);
         m_btnMax->setObjectName("MaximizeButton");
         m_btnMax->setFixedSize(systemButtonWidth, 40);
 
-        m_btnClose = new Button;
+        m_btnClose = new SystemWindowButton;
+        m_btnClose->setCloseStyle(true);
         m_btnClose->setObjectName("CloseButton");
         m_btnClose->setFixedSize(systemButtonWidth, 40);
 
@@ -77,9 +78,9 @@ MainTitleBar::MainTitleBar(MainMenuView *menuView, QWidget *parent, bool useNati
         }
 
 
-        connect(m_btnMin, &Button::clicked, this, &MainTitleBar::minimizeTriggered);
-        connect(m_btnMax, &Button::clicked, this, &MainTitleBar::maximizeTriggered);
-        connect(m_btnClose, &Button::clicked, this, &MainTitleBar::closeTriggered);
+        connect(m_btnMin, &SystemWindowButton::clicked, this, &MainTitleBar::minimizeTriggered);
+        connect(m_btnMax, &SystemWindowButton::clicked, this, &MainTitleBar::maximizeTriggered);
+        connect(m_btnClose, &SystemWindowButton::clicked, this, &MainTitleBar::closeTriggered);
     }
 
     auto mainLayout = new QHBoxLayout;
@@ -165,15 +166,15 @@ PlaybackView *MainTitleBar::playbackView() const {
     return m_playbackView;
 }
 
-Button *MainTitleBar::minimizeButton() const {
+SystemWindowButton *MainTitleBar::minimizeButton() const {
     return m_btnMin;
 }
 
-Button *MainTitleBar::maximizeButton() const {
+SystemWindowButton *MainTitleBar::maximizeButton() const {
     return m_btnMax;
 }
 
-Button *MainTitleBar::closeButton() const {
+SystemWindowButton *MainTitleBar::closeButton() const {
     return m_btnClose;
 }
 

@@ -7,7 +7,9 @@
 
 #include "DialogTitleBar.h"
 #include "Model/AppOptions/AppOptions.h"
+
 #include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/SystemWindowButton.h>
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/GUI/Utils/WindowFrameUtils.h>
 

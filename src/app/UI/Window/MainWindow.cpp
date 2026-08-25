@@ -21,6 +21,7 @@
 #include <lite/Tasking/TaskManager.h>
 #include <lite/GUI/Controls/AccentButton.h>
 #include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/SystemWindowButton.h>
 #include <lite/GUI/Controls/SilentSplitter.h>
 #include <lite/GUI/Controls/Toast.h>
 #include <lite/GUI/Theme/ThemeManager.h>

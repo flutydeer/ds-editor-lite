@@ -10,7 +10,7 @@ class QGraphicsOpacityEffect;
 class TitleBarComboBox;
 class ActionButtonsView;
 class PlaybackView;
-class Button;
+class SystemWindowButton;
 class MainMenuView;
 
 class MainTitleBar : public QWidget, public IAnimatable {
@@ -22,9 +22,9 @@ public:
     [[nodiscard]] MainMenuView *menuView() const;
     [[nodiscard]] ActionButtonsView *actionButtonsView() const;
     [[nodiscard]] PlaybackView *playbackView() const;
-    [[nodiscard]] Button *minimizeButton() const;
-    [[nodiscard]] Button *maximizeButton() const;
-    [[nodiscard]] Button *closeButton() const;
+    [[nodiscard]] SystemWindowButton *minimizeButton() const;
+    [[nodiscard]] SystemWindowButton *maximizeButton() const;
+    [[nodiscard]] SystemWindowButton *closeButton() const;
 
     [[nodiscard]] TitleBarComboBox *titleComboBox() const;
     void setTitle(const QString &title) const;
@@ -49,9 +49,9 @@ private:
     MainMenuView *m_menuView;
     ActionButtonsView *m_actionButtonsView;
     PlaybackView *m_playbackView;
-    Button *m_btnMin = nullptr;
-    Button *m_btnMax = nullptr;
-    Button *m_btnClose = nullptr;
+    SystemWindowButton *m_btnMin = nullptr;
+    SystemWindowButton *m_btnMax = nullptr;
+    SystemWindowButton *m_btnClose = nullptr;
     TitleBarComboBox *m_titleComboBox = nullptr;
     QGraphicsOpacityEffect *m_opacityEffect;
     QVariantAnimation *m_animation;
