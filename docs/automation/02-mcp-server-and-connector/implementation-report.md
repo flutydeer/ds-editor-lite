@@ -101,6 +101,7 @@ Manifest 包含工具集版本、规范化 digest、当前 Profile、host mode�
 - 轨道域提供 `tracks.get_voice_context/set_voice/clear_voice`；
 - 片段域提供 `clips.get_voice_context/use_track_voice/set_voice/clear_voice`；
 - `use_track_voice` 恢复片段对轨道 voice 的继承，`set_voice` 设置片段自己的 voice；
+- `set_voice` 必须指定 singer，speaker 可省略或为 `null`；零 speaker 声库保持空 speaker，单 speaker 声库解析唯一项，多 speaker 声库要求显式选择，查询统一以 `speaker: null` 表达空 speaker；
 - 声库域只负责 `voices.list/describe`，Speaker Mix 的固定、动态、bypass 和关键帧操作保留在独立域。
 
 ### 5.2 创建深度、duplicate 与 NoteTransfer
@@ -151,7 +152,7 @@ LibreSVIP 转换抽取为共享 `LibreSVIPConverter`。GUI 转换 Task 与自动
 
 Allowed Read Folders 与 Allowed Write Folders 是自动化文件工具的规范路径 allowlist：前者约束打开、导入、检查和读取素材等操作，后者约束保存、导出等写操作。它们不表示本机进程权限，也不改变非文件工具的能力。`AutomationFileGuard` 还分离持久根与会话 grant，处理路径组件边界、相对路径、相邻前缀、链接/重解析点和未创建输出的最近现存父目录；授权后、实际 I/O 前会再次检查 canonical 目标。
 
-业务 Admission 同时限制全局、逻辑客户端、后台 Task、并发域和令牌桶。超限请求在 handler 前返回稳定错误，不进入业务层；RAII lease 在成功、失败或取消时释放，异步 lease 延续到 Task 终态。HTTP Transport 另有请求层 global、peer 和 logical-client 限制。
+业务 Admission 同时限制全局、逻辑客户端、后台 Task、并发域和令牌桶。业务层与 HTTP Transport 的每逻辑客户端在途上限均为 32，突发令牌容量均为 64，使正常握手和基线查询后仍可提交完整 32 路并发；Connector 直接并发转发，不增加串行排队。超限请求在 handler 前返回稳定错误，不进入业务层；RAII lease 在成功、失败或取消时释放，异步 lease 延续到 Task 终态。HTTP Transport 另有 global 与 peer 限制。
 
 ## 8. MCP 双协议与 Editor HTTP
 

@@ -58,6 +58,7 @@ Editor 的 127 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 - 127 个 Editor 工具的 input/output Schema 均可通过 meta-schema 检查。
 - 业务对象为封闭结构；未知字段、错误类型、非法枚举、NaN/Inf、整数溢出、非法 UUID 和超限集合在 handler 前失败。
 - 无参工具只接受空 object；必填字段、oneOf 分支、nullable 和分页字段严格执行。
+- 轨道/片段 voice Schema 要求 singer、允许 speaker 省略或为 `null`；零、单、多 speaker 三种解析分支分别覆盖。
 - 公共 enum/值域在 C++ codec、Schema、动态候选和测试语料中来自同一声明。
 - 轨道、片段、总线的细粒度标量命令，以及已有音符的歌词、语言和长度命令，各自具有单条历史记录与 revision-check descriptor。
 - 空轨道/空歌声片段的浅层创建 draft 与完整 note leaf draft 的合法/非法形状分别覆盖；轨道不得嵌套片段，片段不得嵌套音符、参数、voice 或 mix。
@@ -67,7 +68,7 @@ Editor 的 127 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 
 - `automation.get_status` 零参数返回 Editor、Manifest 和当前 document/window 摘要。
 - `value_sources` 指向可达查询，最低 Profile 与 host availability 合法。
-- `automation.get_options` 对目标字段、数组通配路径和依赖上下文正确解析。
+- `automation.get_options` 对目标字段、数组通配路径和依赖上下文正确解析；partial arguments 在嵌套对象中递归放宽必填约束，singer-only 上下文可查询 speaker 候选。
 - 目标隐藏、Custom 关闭、exposure 过滤和 host 能力变化时，动态候选遵守同一授权结果。
 - voices、parameters、formats、exports、extract、inference 与 file access 返回的值可直接用于对应命令。
 - 动态数值范围同时验证最小值、最大值、step 与 unavailable reason。
@@ -172,6 +173,7 @@ Editor 的 127 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 
 - 业务层 global、client、background-task、domain 和 token bucket 上限。
 - HTTP 层 global、peer、logical-client 并发与速率。
+- 正常握手和基线查询后，同一 logical client 的 32 路同时请求全部进入；第 33 个在途请求稳定拒绝。令牌桶突发容量不得把 32 路在途上限提前降级。
 - 成功、失败、取消、deadline、断线、disable 和 shutdown 都释放租约与计数。
 - fake clock 验证 token 恢复、容量边界和时间跳变。
 - 多 Connector 压力下单客户端无法长期占满 Dispatcher。

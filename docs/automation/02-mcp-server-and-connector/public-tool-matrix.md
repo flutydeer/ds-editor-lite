@@ -94,7 +94,7 @@
 | P2-TOOL-026 | `tracks.set_solo` | L1 | C/S | 独奏单字段命令 |
 | P2-TOOL-027 | `tracks.set_default_language` | L1 | C/S | 默认语言与实际声音能力校验 |
 | P2-TOOL-028 | `tracks.get_voice_context` | L1 | Q/S | 自有/有效声音、继承和语言上下文 |
-| P2-TOOL-029 | `tracks.set_voice` | L1 | C/S | 稳定 singer/speaker 引用 |
+| P2-TOOL-029 | `tracks.set_voice` | L1 | C/S | 稳定 singer 引用；speaker 可空，多个 speaker 时显式选择 |
 | P2-TOOL-030 | `tracks.clear_voice` | L1 | C/S | 清除轨道声音上下文 |
 
 ### 3.6 总线（5）
@@ -127,7 +127,7 @@
 | P2-TOOL-047 | `clips.set_default_language` | L1 | C/S | 片段语言与有效声音能力校验 |
 | P2-TOOL-048 | `clips.get_voice_context` | L1 | Q/S | 继承、自有与有效声音上下文 |
 | P2-TOOL-049 | `clips.use_track_voice` | L1 | C/S | 恢复轨道声音继承 |
-| P2-TOOL-050 | `clips.set_voice` | L1 | C/S | 设置片段自有声音 |
+| P2-TOOL-050 | `clips.set_voice` | L1 | C/S | 设置片段自有声音；speaker 可空，多个 speaker 时显式选择 |
 | P2-TOOL-051 | `clips.clear_voice` | L1 | C/S | 清除片段自有声音 |
 
 ### 3.8 音频素材（5）

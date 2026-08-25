@@ -31,6 +31,7 @@ Agent 会话可先于 Editor 启动。Connector 通过全局实例 Bootstrap 观
 - duplicate、move、resize、split 和参数锚点操作使用稳定对象 ID。
 - 工具调用依赖显式 document/object 参数，业务结果不依赖 UI selection 或 focus。
 - GUI Editor 的领域默认值由服务端按同源规则解析；`notes.insert` 不要求 voice context，description 说明对应 GUI 动作、默认值、历史记录、文件和任务语义。
+- voice selection 以 singer 为必填稳定引用；speaker 可省略或为 `null`。零 speaker 声库保持空 speaker，单 speaker 声库自动解析唯一 speaker，多 speaker 声库要求显式选择；查询结果以 `speaker: null` 表达空 speaker。
 - 同步 Command 在模型信号、历史记录与 revision 提交完成后返回；异步 Command 在最终写回与信号完成后进入成功终态。
 - 自动化路径使用显式策略与稳定错误，不触发模态对话框。
 
@@ -171,7 +172,7 @@ HTTP 层实施：
 - Host 与 Origin allowlist；
 - POST、Content-Type 与 Accept 校验；
 - 请求/响应字节、JSON 深度/节点和 deadline 上限；
-- global、peer、logical client 三层在途与令牌桶限制；
+- global、peer、logical client 三层在途与令牌桶限制；logical client 最多 32 个在途请求，并保留 64 个请求的突发令牌容量，避免正常握手先消耗配额后使 32 路并发失真；
 - 安全响应头与稳定 transport error；
 - 有序停止、在途请求完成或超时、配额可靠释放。
 
@@ -223,7 +224,7 @@ Selector 支持 `id:`、`category:`、`prefix:`；最终集合为 preset 与 inc
 
 `connector.get_status` 返回 Connector identity、Bootstrap、Editor、上游协议、Manifest、兼容计数、exposure 与 pending selector 事实。稳定错误区分 Editor 状态、上游连接、工具过滤、工具可用性、契约兼容、timeout、取消和结果未知。
 
-每个 Connector 拥有独立 QLocal watch、HTTP client、握手 epoch、工具目录/Manifest 摘要缓存和 downstream 请求表。多个 Connector 共享 Editor 时由 Editor Admission 维护公平性；任一 Connector 的退出、慢读、限流或重连不会修改其他 Connector 的状态。
+每个 Connector 拥有独立 QLocal watch、HTTP client、握手 epoch、工具目录/Manifest 摘要缓存和 downstream 请求表。Connector 并发转发下游请求，不为 Editor 的 32 路上限增加串行队列；多个 Connector 共享 Editor 时由 Editor Admission 维护公平性。任一 Connector 的退出、慢读、限流或重连不会修改其他 Connector 的状态。
 
 ## 11. File Guard 与 Admission Control
 
@@ -241,7 +242,7 @@ Editor 直连、Connector 类型化工具和泛化 invoke 进入同一个 Guard�
 
 ### 11.2 Admission
 
-业务 Admission 维护全局在途、每客户端在途、后台任务容量、每并发域占用和逻辑客户端令牌桶。HTTP Transport 另维护请求层 global/peer/client 并发与速率。超限请求立即得到稳定 `busy` 或 `too_many_requests`，不进入业务 handler。
+业务 Admission 维护全局在途、每客户端在途、后台任务容量、每并发域占用和逻辑客户端令牌桶。每客户端在途上限为 32，突发令牌容量为 64；HTTP Transport 使用相同的 32/64 客户端口径，并另维护 global/peer 并发与速率。超限请求立即得到稳定 `busy` 或 `too_many_requests`，不进入业务 handler。
 
 Command 使用显式 `document_id + expected_revision`；异步任务保留不可变执行快照，并在最终写回前复核 document generation、revision 和文件授权。断线时 Connector 不自动重放有副作用 Command，结果事实无法确认时返回 `outcome_unknown`，由调用方结合 revision、Task 和 idempotency 信息确认。
 

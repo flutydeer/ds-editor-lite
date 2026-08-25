@@ -155,6 +155,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 8. 验证 `audio_clips.relocate/confirm_path` 同步返回 Mutation、不创建 Task，并在 GUI 中立即反映。
 9. 验证 `playback.set_loop/set_loop_enabled/clear_loop` 形成工程持久历史记录，逐项 Undo/Redo；play/pause/stop/seek 保持瞬时状态。
 10. 验证动态值来源、output Schema 自检、异步任务和文件重新授权。
+11. 验证零 speaker 声库可用 singer-only 参数查询动态选项并设置到轨道/片段；单 speaker 自动解析，多 speaker 缺少选择时稳定拒绝。
 
 ### 证据
 
@@ -175,7 +176,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 5. 验证版本协商、支持列表、header/body 镜像、协商版本对应的结果形状。
 6. 验证 127 项 descriptor、分页、Schema、structured/text 内容和业务错误。
 7. 验证 Host、Origin、method、Content-Type、Accept、body/depth/node/response 上限和 deadline。
-8. 验证 global/peer/client 并发与速率、timeout、disable、换端口和 shutdown 配额释放。
+8. 验证 global/peer/client 并发与速率、timeout、disable、换端口和 shutdown 配额释放；正常握手和基线查询后，通过 Connector 同时发出 32 个请求应全部成功，第 33 个在途请求应被拒绝，令牌桶不得提前截断该批次。
 
 ### 门禁
 
