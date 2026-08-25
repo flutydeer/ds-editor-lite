@@ -180,6 +180,8 @@ namespace Automation {
         void addOperationBinding(const QString &operationId, Handler handler);
         [[nodiscard]] const AutomationWire::ToolContract *
             contractForTracking(const QString &trackingId) const;
+        [[nodiscard]] const AutomationWire::PublicManifest &
+            manifestForPolicy(const AutomationAccessPolicySnapshot &policy);
         AutomationResult<QJsonArray> resolveValueOptions(const AutomationWire::ToolContract &target,
                                                          const QString &fieldPath,
                                                          const QJsonObject &partialArguments);
@@ -193,6 +195,9 @@ namespace Automation {
         AdmissionController &m_admissionController;
         PublicAutomationHostServices m_hostServices;
         QHash<QString, Handler> m_handlers;
+        std::optional<AutomationAccessPolicySnapshot> m_manifestCachePolicy;
+        QString m_manifestCacheHostMode;
+        std::optional<AutomationWire::PublicManifest> m_manifestCache;
         AutomationWire::OpaqueCursorCodec m_manifestCursorCodec;
         AutomationWire::OpaqueCursorCodec m_taskCursorCodec;
         AutomationWire::OpaqueCursorCodec m_collectionCursorCodec;

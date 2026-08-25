@@ -4,7 +4,9 @@
 #include <lite/AutomationWire/McpProtocol.h>
 #include <lite/AutomationWire/OpaqueCursorCodec.h>
 
+#include <QJsonArray>
 #include <QJsonObject>
+#include <QStringList>
 
 namespace Automation {
 
@@ -29,6 +31,9 @@ namespace Automation {
 
         PublicAutomationRegistry &m_registry;
         AutomationWire::Mcp::ImplementationInfo m_serverInfo;
+        mutable QStringList m_toolsSnapshotIds;
+        mutable QJsonArray m_toolsSnapshot;
+        mutable QString m_toolsSnapshotDigest;
         AutomationWire::OpaqueCursorCodec m_toolsCursorCodec;
     };
 

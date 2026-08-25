@@ -1937,6 +1937,18 @@ namespace Automation {
         return it == all.cend() ? nullptr : &*it;
     }
 
+    const AutomationWire::PublicManifest &PublicAutomationRegistry::manifestForPolicy(
+        const AutomationAccessPolicySnapshot &policy) {
+        if (!m_manifestCache || !m_manifestCachePolicy || *m_manifestCachePolicy != policy ||
+            m_manifestCacheHostMode != m_hostServices.hostMode) {
+            m_manifestCache = AutomationWire::buildPublicManifest(
+                policy.profile, policy.customEnabled, m_hostServices.hostMode);
+            m_manifestCachePolicy = policy;
+            m_manifestCacheHostMode = m_hostServices.hostMode;
+        }
+        return *m_manifestCache;
+    }
+
     AutomationResult<QJsonArray>
         PublicAutomationRegistry::resolveValueOptions(const AutomationWire::ToolContract &target,
                                                       const QString &fieldPath,
@@ -2507,8 +2519,7 @@ namespace Automation {
         addBinding(QStringLiteral("P2-TOOL-002"), [this](const QJsonObject &,
                                                          const PublicInvocationContext &) {
             const auto policy = m_accessPolicy.snapshot();
-            const auto manifest = AutomationWire::buildPublicManifest(
-                policy.profile, policy.customEnabled, m_hostServices.hostMode);
+            const auto &manifest = manifestForPolicy(policy);
             QJsonArray documents;
             if (m_hostServices.documentStatus) {
                 documents = m_hostServices.documentStatus();
@@ -2552,8 +2563,7 @@ namespace Automation {
                                                          const PublicInvocationContext &) {
             const auto cursorText = arguments.value(QStringLiteral("cursor")).toString();
             const auto policy = m_accessPolicy.snapshot();
-            const auto fullManifest = AutomationWire::buildPublicManifest(
-                policy.profile, policy.customEnabled, m_hostServices.hostMode);
+            const auto &fullManifest = manifestForPolicy(policy);
             qint64 offset = 0;
             if (!cursorText.isEmpty()) {
                 const auto parsed = m_manifestCursorCodec.parse(
@@ -2569,23 +2579,28 @@ namespace Automation {
                     QStringLiteral("cursor"), QStringLiteral("Manifest cursor is invalid")));
             }
             const auto limit = arguments.value(QStringLiteral("limit")).toInt();
-            auto manifest = AutomationWire::buildPublicManifest(
-                policy.profile, policy.customEnabled, m_hostServices.hostMode,
-                static_cast<qsizetype>(offset), limit);
+            const auto count = limit <= 0
+                                   ? fullManifest.operations.size() - static_cast<qsizetype>(offset)
+                                   : std::min<qsizetype>(
+                                         limit, fullManifest.operations.size() -
+                                                    static_cast<qsizetype>(offset));
+            const auto manifestOperations =
+                fullManifest.operations.mid(static_cast<qsizetype>(offset), count);
             QJsonArray operations;
-            for (const auto &operation : manifest.operations)
+            for (const auto &operation : manifestOperations)
                 operations.append(operation.toManifestJson());
             QJsonObject result{
                 {QStringLiteral("toolset_version"),
                  static_cast<qint64>(AutomationWire::PublicToolsetVersion)                               },
-                {QStringLiteral("digest"),          manifest.digest                                      },
-                {QStringLiteral("profile"),         AutomationWire::automationProfileName(policy.profile)},
-                {QStringLiteral("host_mode"),       m_hostServices.hostMode                              },
+                {QStringLiteral("digest"),          fullManifest.digest                                  },
+                {QStringLiteral("profile"),
+                 AutomationWire::automationProfileName(fullManifest.profile)                            },
+                {QStringLiteral("host_mode"),       fullManifest.hostMode                                },
                 {QStringLiteral("operations"),      operations                                           },
-                {QStringLiteral("extensions"),      manifest.extensions                                  },
+                {QStringLiteral("extensions"),      fullManifest.extensions                              },
             };
-            if (!manifest.nextCursor.isEmpty()) {
-                const auto nextOffset = offset + manifest.operations.size();
+            if (offset + manifestOperations.size() < fullManifest.operations.size()) {
+                const auto nextOffset = offset + manifestOperations.size();
                 const auto nextCursor = m_manifestCursorCodec.issue(
                     QStringLiteral("editor-public-manifest/v1"), fullManifest.digest, nextOffset);
                 if (nextCursor.isEmpty()) {

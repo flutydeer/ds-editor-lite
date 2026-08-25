@@ -15,6 +15,7 @@
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 
 #include <QCoreApplication>
+#include <QElapsedTimer>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -3271,8 +3272,11 @@ int main(int argc, char *argv[]) {
                         : QString();
     auto manifestPageTwoInput = manifestPageInput;
     manifestPageTwoInput.insert(QStringLiteral("cursor"), manifestCursor);
+    QElapsedTimer cachedManifestPageTimer;
+    cachedManifestPageTimer.start();
     const auto manifestPageTwo =
         registry.invoke(QStringLiteral("automation.get_manifest"), manifestPageTwoInput);
+    const auto cachedManifestPageElapsedMs = cachedManifestPageTimer.elapsed();
     auto forgedManifestInput = manifestPageInput;
     forgedManifestInput.insert(QStringLiteral("cursor"), QStringLiteral("1"));
     const auto forgedManifest =
@@ -3281,6 +3285,7 @@ int main(int argc, char *argv[]) {
         manifestPageOne && !manifestCursor.isEmpty() && manifestCursor != QStringLiteral("1") &&
             manifestPageTwo &&
             manifestPageTwo.get().value(QStringLiteral("operations")).toArray().size() == 1 &&
+            cachedManifestPageElapsedMs < 250 &&
             !forgedManifest &&
             forgedManifest.getError().code == Automation::AutomationErrorCode::InvalidArgument,
         QStringLiteral(
@@ -3308,7 +3313,10 @@ int main(int argc, char *argv[]) {
     auto nextList = list;
     nextList.id = 3;
     nextList.params.insert(QStringLiteral("cursor"), listCursor);
+    QElapsedTimer cachedToolsPageTimer;
+    cachedToolsPageTimer.start();
     const auto nextListResponse = dispatcher.dispatch(nextList, QStringLiteral("adapter"));
+    const auto cachedToolsPageElapsedMs = cachedToolsPageTimer.elapsed();
     for (const auto &tool : nextListResponse.value(QStringLiteral("result"))
                                 .toObject()
                                 .value(QStringLiteral("tools"))
@@ -3319,9 +3327,18 @@ int main(int argc, char *argv[]) {
     for (const auto &tool : listedTools)
         listedIds.insert(tool.toObject().value(QStringLiteral("name")).toString());
     expect(!listCursor.isEmpty() && !nextListResponse.contains(QStringLiteral("error")) &&
+               cachedToolsPageElapsedMs < 250 &&
                listedTools.size() == 127 &&
                listedIds == PublicAutomationToolsetExpectations::editorToolIdSet(),
            QStringLiteral("tools/list must expose the exact 127-tool editor surface"));
+    access.update(AutomationWire::AutomationProfile::L1);
+    const auto reducedListResponse = dispatcher.dispatch(list, QStringLiteral("adapter"));
+    const auto reducedListResult = reducedListResponse.value(QStringLiteral("result")).toObject();
+    expect(!reducedListResponse.contains(QStringLiteral("error")) &&
+               reducedListResult.value(QStringLiteral("tools")).toArray().size() == 89 &&
+               reducedListResult.value(QStringLiteral("nextCursor")).toString().isEmpty(),
+           QStringLiteral("tools/list cache must invalidate when the access profile changes"));
+    access.update(AutomationWire::AutomationProfile::L2);
     auto forgedList = list;
     forgedList.params.insert(QStringLiteral("cursor"), QStringLiteral("1"));
     const auto forgedListResponse = dispatcher.dispatch(forgedList, QStringLiteral("client-a"));

@@ -150,42 +150,51 @@ namespace Automation {
 
         const auto cursorText = cursorValue.toString();
         const auto tools = m_registry.enabledContracts();
-        QJsonArray snapshot;
+        QStringList toolIds;
+        toolIds.reserve(tools.size());
         for (const auto &tool : tools)
-            snapshot.append(tool.toMcpToolJson());
-        QString digestError;
-        const auto snapshotDigest = AutomationWire::sha256Digest(snapshot, &digestError);
-        if (!digestError.isEmpty()) {
-            return Mcp::makeErrorResponse(
-                request.id,
-                {Mcp::InternalError, QStringLiteral("tools/list snapshot could not be encoded")});
+            toolIds.append(tool.operationId);
+        if (toolIds != m_toolsSnapshotIds || m_toolsSnapshotDigest.isEmpty()) {
+            QJsonArray snapshot;
+            for (const auto &tool : tools)
+                snapshot.append(tool.toMcpToolJson());
+            QString digestError;
+            const auto snapshotDigest = AutomationWire::sha256Digest(snapshot, &digestError);
+            if (!digestError.isEmpty()) {
+                return Mcp::makeErrorResponse(
+                    request.id,
+                    {Mcp::InternalError, QStringLiteral("tools/list snapshot could not be encoded")});
+            }
+            m_toolsSnapshotIds = std::move(toolIds);
+            m_toolsSnapshot = std::move(snapshot);
+            m_toolsSnapshotDigest = snapshotDigest;
         }
 
         qint64 offset = 0;
         if (!cursorText.isEmpty()) {
             const auto parsed = m_toolsCursorCodec.parse(
-                cursorText, QStringLiteral("editor-mcp-tools-list/v1"), snapshotDigest);
+                cursorText, QStringLiteral("editor-mcp-tools-list/v1"), m_toolsSnapshotDigest);
             if (!parsed.valid()) {
                 return Mcp::makeErrorResponse(
                     request.id, invalidParams(QStringLiteral("tools/list cursor is invalid")));
             }
             offset = *parsed.offset;
         }
-        if (offset < 0 || offset > tools.size()) {
+        if (offset < 0 || offset > m_toolsSnapshot.size()) {
             return Mcp::makeErrorResponse(
                 request.id, invalidParams(QStringLiteral("tools/list cursor is invalid")));
         }
 
         QJsonArray page;
-        const auto end = std::min<qsizetype>(tools.size(), offset + ToolsPageSize);
+        const auto end = std::min<qsizetype>(m_toolsSnapshot.size(), offset + ToolsPageSize);
         for (auto index = static_cast<qsizetype>(offset); index < end; ++index)
-            page.append(tools.at(index).toMcpToolJson());
+            page.append(m_toolsSnapshot.at(index));
         const auto nextCursor =
-            end < tools.size()
+            end < m_toolsSnapshot.size()
                 ? m_toolsCursorCodec.issue(QStringLiteral("editor-mcp-tools-list/v1"),
-                                           snapshotDigest, end)
+                                           m_toolsSnapshotDigest, end)
                 : QString{};
-        if (end < tools.size() && nextCursor.isEmpty()) {
+        if (end < m_toolsSnapshot.size() && nextCursor.isEmpty()) {
             return Mcp::makeErrorResponse(
                 request.id,
                 {Mcp::InternalError, QStringLiteral("tools/list cursor could not be issued")});
