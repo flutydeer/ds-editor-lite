@@ -2,9 +2,9 @@
 
 ## 1. 冻结口径
 
-二期工具面按业务域组织。Editor 提供 **127** 个公共工具，DS Connector Lite 提供 **6** 个桥接工具，合计 **133** 个。Editor 工具由 `P2-TOOL-001` 至 `P2-TOOL-127` 连续追踪；Connector 工具由 `P2-CONN-001` 至 `P2-CONN-006` 连续追踪。
+二期工具面按业务域组织。Editor 提供 **128** 个公共工具，DS Connector Lite 提供 **6** 个桥接工具，合计 **134** 个。Editor 工具由 `P2-TOOL-001` 至 `P2-TOOL-128` 连续追踪；Connector 工具由 `P2-CONN-001` 至 `P2-CONN-006` 连续追踪。
 
-公共工具集维持 v1：`toolsetVersion = 1`，133 个工具各自的 current version、introduced version、minimum compatible version 均为 1。版本是全表不变量，因此工具清单不设置横向版本列。
+公共工具集维持 v1：`toolsetVersion = 1`，134 个工具各自的 current version、introduced version、minimum compatible version 均为 1。版本是全表不变量，因此工具清单不设置横向版本列。
 
 标记说明：
 
@@ -29,7 +29,7 @@
 | 音频素材 | 5 | P2-TOOL-052～056 | 音频查询、导入和路径解析 |
 | 声库 | 2 | P2-TOOL-057～058 | 可用声库发现与描述 |
 | Speaker Mix | 9 | P2-TOOL-059～067 | 固定/动态混合与关键帧 |
-| 音符、歌词、语言、发音与音素 | 18 | P2-TOOL-068～085 | 叶节点创建、几何、歌词、语言、发音和音素 |
+| 音符、歌词、语言、发音与音素 | 19 | P2-TOOL-068～085、P2-TOOL-128 | 叶节点创建、几何、歌词、语言、发音和音素 |
 | 参数曲线与锚点 | 10 | P2-TOOL-086～095 | 曲线能力、采样和锚点编辑 |
 | 时间轴 | 5 | P2-TOOL-096～100 | Tempo 与拍号 |
 | 历史记录 | 3 | P2-TOOL-101～103 | 历史记录状态、Undo、Redo |
@@ -38,7 +38,7 @@
 | 提取 | 3 | P2-TOOL-118～120 | 音高/MIDI 提取能力与任务 |
 | 推理 | 4 | P2-TOOL-121～124 | 能力、状态、启动与阶段重置 |
 | 异步任务 | 3 | P2-TOOL-125～127 | 任务列表、详情与取消 |
-| **Editor 合计** | **127** | **P2-TOOL-001～127** | **36 Q/S + 81 C/S + 10 C/A** |
+| **Editor 合计** | **128** | **P2-TOOL-001～128** | **36 Q/S + 82 C/S + 10 C/A** |
 
 ## 3. Editor 公共工具
 
@@ -163,7 +163,7 @@
 | P2-TOOL-066 | `speaker_mix.keyframes.set_weights` | L1 | C/S | 单关键帧权重替换与归一化 |
 | P2-TOOL-067 | `speaker_mix.keyframes.remove` | L1 | C/S | 批量稳定 ID 删除 |
 
-### 3.11 音符、歌词、语言、发音与音素（18）
+### 3.11 音符、歌词、语言、发音与音素（19）
 
 | 追踪号 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|---|
@@ -183,6 +183,7 @@
 | P2-TOOL-081 | `notes.reset_pronunciation` | L1 | C/S | 恢复自动发音 |
 | P2-TOOL-082 | `notes.set_phonemes` | L1 | C/S | 音素名称序列替换 |
 | P2-TOOL-083 | `notes.set_phoneme_offsets` | L1 | C/S | 音素边界序列校验 |
+| P2-TOOL-128 | `notes.reset_phoneme_offsets` | L1 | C/S | 重置所选词根，并无弹窗地纳入恢复后会重叠的右邻级联闭包；整体形成一条历史记录 |
 | P2-TOOL-084 | `notes.reset_phonemes` | L1 | C/S | 恢复自动音素与边界 |
 | P2-TOOL-085 | `notes.fill_lyrics` | L1 | C/S | 批量歌词填充与分词/语言选项 |
 
@@ -293,13 +294,13 @@ Editor PublicToolDefinitions
 = Editor tools/list IDs
 = Public Automation Manifest operation IDs
 = Connector 构建时已知 Editor 类型化工具 IDs
-= P2-TOOL-001～127
+= P2-TOOL-001～128
 
 Connector bridge definitions
 = Connector downstream 固定桥接工具 IDs
 = P2-CONN-001～006
 
-127 + 6 = 133
+128 + 6 = 134
 ```
 
 每个 Editor 工具必须具备唯一 operation ID、域、最低 profile、Query/Command、同步模式、严格 input/output Schema、`value_sources`、历史记录/file/host/concurrency/conflict/safety descriptor 和执行 binding。每次调用在实际 dispatch 前重新执行 profile/Custom、Schema、动态值、File Guard 与 Admission 检查。

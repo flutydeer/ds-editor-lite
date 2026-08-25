@@ -16,11 +16,17 @@
 即时呈现均通过，可以交付测试。** 根据“先取得可用版本”的加速要求，本提交未重新执行三轮完整
 CTest；既往完整回归只作为基线历史，不冒充当前提交的全量结果。
 
+2026-08-26 将最新 `main` 合入 `mcp` 后，又把 GUI“重置音素位置”补为
+`notes.reset_phoneme_offsets` 公共工具。领域 Facade 计算与 GUI 相同的右向级联闭包并以一条历史记录
+提交；级联确认框只保留在 GUI Controller，公共 Registry 的 QCore 测试证明 MCP 路径无需
+`QApplication` 或对话框即可完成提交和单步撤销。本轮重新构建全部 66 个 CTest 目标，并完成
+**66/66 通过、0 失败、78.22 秒**的最终完整 CTest。
+
 ## 2. 候选身份与执行记录
 
 | 项目 | 最终结果 | 证据 |
 |---|---|---|
-| 分支 | `codex/automation-phase2-mcp-server-connector` | 候选基线记录 |
+| 分支 | `mcp` | 当前候选与历史基线汇总 |
 | 环境 | Windows x64、VS 2026 x64 DevShell、Qt 6 MSVC x64、Ninja、vcpkg `x64-windows` | 私有环境快照 |
 | Debug configure/generate | 通过 | `E-P2-CONFIGURE-R63` |
 | Debug 全目标构建 | 通过；受影响产品和测试目标完成编译、链接 | `E-P2-BUILD-R64` |
@@ -40,6 +46,9 @@ CTest；既往完整回归只作为基线历史，不冒充当前提交的全量
 | 32 路修复前探针 | 正确复现令牌桶提前拒绝；失败证据保留 | `E-P2-WORKFLOW-R4-FAIL` |
 | 32 路最终真实工作流 | 32/32 通过，348.28 ms；后续完整编辑/播放仍通过，stderr 为空 | `E-P2-WORKFLOW-R5` |
 | GUI 保存验证 | MCP 结果立即可见，合成波形出现；GUI 保存的 DSPX 为 22,099 字节，正常退出 | `E-P2-WORKFLOW-GUI-R3` |
+| 最新 `main` 合并 | 合入 `1a7df7cd`；合并提交 `fe639d7f`，保留自动化实现并统一执行 `src/app` clang-format | `E-P2-MAIN-MERGE` |
+| 当前全部 CTest 目标构建 | 66 个目标、334 个 Ninja 步骤，退出码 0 | `E-P2-MAIN-MERGE-BUILD` |
+| 当前完整 CTest | **66/66 通过**，0 失败，78.22 秒 | `E-P2-MAIN-MERGE-CTEST` |
 
 R67～R70 是提交 `55d5a8dc` 及其之前基线的完整回归记录。当前 `72cada91` 在 clean 构建后
 重新执行受影响的 Admission、HTTP、公共 Contract、公共 Registry 与 Connector 五项 CTest，
@@ -53,18 +62,18 @@ R67～R70 是提交 `55d5a8dc` 及其之前基线的完整回归记录。当前 
 
 最终静态和运行时发现结果一致：
 
-- Editor 公共工具 **127** 项，分属 **19** 个业务域；
-- Connector 桥接工具 **6** 项，下游完整工具面合计 **133** 项；
-- Editor 类型分布为 **36 Q/S + 81 C/S + 10 C/A**；
-- 公共工具集版本为 1，133 项工具各自的 current、introduced、minimum-compatible 均为 1；
-- Profile 累积发现数为 Meta 4、L1 89、L2 127、L3 127。
+- Editor 公共工具 **128** 项，分属 **19** 个业务域；
+- Connector 桥接工具 **6** 项，下游完整工具面合计 **134** 项；
+- Editor 类型分布为 **36 Q/S + 82 C/S + 10 C/A**；
+- 公共工具集版本为 1，134 项工具各自的 current、introduced、minimum-compatible 均为 1；
+- Profile 累积发现数为 Meta 4、L1 90、L2 128、L3 128。
 
 19 个 Editor 域及数量为：应用 1、自动化与安全边界 4、文档与工程 8、格式 2、轨道 15、
-总线 5、片段 16、音频素材 5、声库 2、Speaker Mix 9、音符/歌词/语言/发音/音素 18、
+总线 5、片段 16、音频素材 5、声库 2、Speaker Mix 9、音符/歌词/语言/发音/音素 19、
 参数曲线与锚点 10、时间轴 5、历史记录 3、播放 8、导出 6、提取 3、推理 4、异步任务 3。
 
 `TestAutomationCatalogContract`、`TestPublicAutomationContract` 和
-`TestPublicAutomationRegistry` 对全部 127 项 Editor 工具逐项验证唯一 ID、域、类型、Profile、
+`TestPublicAutomationRegistry` 对全部 128 项 Editor 工具逐项验证唯一 ID、域、类型、Profile、
 版本、严格输入/输出 Schema、Manifest、Registry binding、发现授权与可达 handler。六个 Connector
 桥接工具及其 exposure 后的类型化工具集合由 `TestDsConnectorLite` 完整验证。
 
@@ -77,13 +86,16 @@ R67～R70 是提交 `55d5a8dc` 及其之前基线的完整回归记录。当前 
 - Profile/Custom、File Guard、Admission、动态值、Manifest 游标、Schema 方向性兼容和缓存失效；
 - Editor HTTP、QLocal discover/watch、Connector stdio、进程启动/退出和既有应用回归。
 
-因此，127 + 6 的“全工具覆盖”结论来自可重复的确定性 CTest 与集合门禁；第 6 节的真实 GUI
+因此，128 + 6 的“全工具覆盖”结论来自可重复的确定性 CTest 与集合门禁；第 6 节的真实 GUI
 测试用于验证代表性业务变化是否立即可见，不以少量 GUI 操作替代全工具分母。
 
 ## 4. MCP、HTTP 与 Connector 真实进程结果
 
 协议口径固定为两套主协议：`2025-11-25` 与 `2026-07-28`；同一 legacy 入口另接受
 `2025-06-18` 兼容握手。
+
+下表记录扩充第 128 个 Editor 工具之前的 133 项真实进程基线；当前 134 项集合由本轮
+`TestDsConnectorLite`、MCP 进程集成测试和完整 CTest 验证，未重复伪造同口径性能数字。
 
 | 路径 | 生命周期与结果 | 工具发现 |
 |---|---|---:|
@@ -186,7 +198,7 @@ Automation 设置页及连接配置通过 Computer Use：
 
 Speaker Mix 在真实进程中完成目录与 Schema 发现；本轮零 speaker 声库明确报告不支持 mixing，
 因此未把不适用的 mutation 冒充为通过，其 mutation 仍由确定性 CTest 覆盖。时间轴真实路径完成
-读取，mutation 同样以确定性 CTest 结果为准。以上资格边界不改变 127 项工具的确定性测试结论。
+读取，mutation 同样以确定性 CTest 结果为准。以上资格边界不改变 128 项工具的确定性测试结论。
 
 ## 7. 数据安全、隐私与清理
 
@@ -202,11 +214,12 @@ Speaker Mix 在真实进程中完成目录与 Schema 发现；本轮零 speaker 
 `E-P2-CONNECTOR-PERF-R5`、`E-P2-CONNECTOR-PERF-R71`、`E-P2-REAL-HOST-R62`、`E-P2-GUI-SETTINGS`、
 `E-P2-GUI-HOST-ROUNDTRIP`、`E-P2-GUI-CLEAN-CLOSE`、`E-P2-SOURCE-INTEGRITY`、
 `E-P2-WORKFLOW-FIX-BUILD`、`E-P2-WORKFLOW-FIX-CTEST`、`E-P2-WORKFLOW-R1`、
-`E-P2-WORKFLOW-R2`、`E-P2-WORKFLOW-R3`、`E-P2-WORKFLOW-R4-FAIL` 和 `E-P2-WORKFLOW-R5`。
+`E-P2-WORKFLOW-R2`、`E-P2-WORKFLOW-R3`、`E-P2-WORKFLOW-R4-FAIL`、`E-P2-WORKFLOW-R5`、
+`E-P2-MAIN-MERGE`、`E-P2-MAIN-MERGE-BUILD` 和 `E-P2-MAIN-MERGE-CTEST`。
 
 ## 8. 最终通过清单
 
-- [x] 127 个 Editor 工具、6 个 Connector 工具和 19 个业务域的集合、类型与版本不变量成立。
+- [x] 128 个 Editor 工具、6 个 Connector 工具和 19 个业务域的集合、类型与版本不变量成立。
 - [x] 全部公共工具具有严格契约、Registry/Connector 可达性和确定性测试覆盖。
 - [x] 2025-11-25 与 2026-07-28 两套主协议及 2025-06-18 兼容握手通过。
 - [x] 2026-07-28 无 initialize 生命周期，真实 Connector 未发送 initialize。
@@ -215,11 +228,14 @@ Speaker Mix 在真实进程中完成目录与 Schema 发现；本轮零 speaker 
 - [x] 常规握手不再拉取完整 Manifest，三协议稳定刷新耗时约 0.46～0.51 秒。
 - [x] L3/Custom/host 动态摘要基准通过，不再固定使用 L2 导致兼容状态误报。
 - [x] 设置页、配置复制、真实 Agent Host、GUI 即时呈现、历史记录及保存重开通过。
-- [x] 基线候选曾完成三轮完整 CTest 198/198 与性能优化后的追加完整 CTest 66/66；这些结果没有冒充当前修复提交的全量回归。
-- [x] 当前修复提交完成 clean 产品构建、受影响 CTest 5/5、7 路与 32 路真实工作流，均无最终失败。
+- [x] 早期基线曾完成三轮完整 CTest 198/198 与性能优化后的追加完整 CTest 66/66；这些历史结果与后续候选分开记录。
+- [x] 工作流修复 `72cada91` 完成 clean 产品构建、受影响 CTest 5/5、7 路与 32 路真实工作流，均无最终失败。
 - [x] 零 speaker 声库的 Schema、动态选项、设置、回读与 GUI 呈现通过。
 - [x] 每客户端 32 路并发在正常握手之后实际通过，Connector 未增加排队。
+- [x] `notes.reset_phoneme_offsets` 复用 GUI 级联闭包，validate-only、提交、单步撤销及 QCore 无弹窗调用通过。
+- [x] 合并最新 `main` 后重新构建全部 66 个 CTest 目标，完整 CTest 66/66 通过。
 - [x] 源 fixture 完整性、正式文档脱敏和测试进程清理通过。
 
-综上，二期当前修复候选在本次授权的受影响 CTest 与真实工作流范围内判定为 **PASS**，可以交付
-用户测试；当前提交的三轮完整 CTest 尚未执行，不在本报告中虚报为已完成。
+综上，合并最新 `main` 并加入音素位置重置工具后的当前候选已完成一次完整 CTest，结果为
+**PASS**，可以交付用户测试。本轮没有重复三轮完整回归，也没有把历史 133 项真实进程性能数据
+改写成当前 134 项实测。
