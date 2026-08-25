@@ -52,28 +52,28 @@ contract / handler 查找
 
 `src/libs/AutomationWire/PublicToolDefinitions.inc` 是 Editor 工具身份、域、最低 Profile、类型、同步模式和逐工具版本的单一来源。
 
-| 业务域 | category | 数量 | 追踪范围 |
-|---|---|---:|---|
-| 应用 | `application` | 1 | P2-TOOL-001 |
-| 自动化与安全边界 | `automation` | 4 | P2-TOOL-002～005 |
-| 文档与工程 | `documents` | 8 | P2-TOOL-006～013 |
-| 格式 | `formats` | 2 | P2-TOOL-014～015 |
-| 轨道 | `tracks` | 15 | P2-TOOL-016～030 |
-| 总线 | `bus` | 5 | P2-TOOL-031～035 |
-| 片段 | `clips` | 16 | P2-TOOL-036～051 |
-| 音频素材 | `audio_clips` | 5 | P2-TOOL-052～056 |
-| 声库 | `voices` | 2 | P2-TOOL-057～058 |
-| Speaker Mix | `speaker_mix` | 9 | P2-TOOL-059～067 |
-| 音符、歌词、语言、发音与音素 | `notes` | 19 | P2-TOOL-068～085、P2-TOOL-128 |
-| 参数曲线与锚点 | `parameters` | 10 | P2-TOOL-086～095 |
-| 时间轴 | `timeline` | 5 | P2-TOOL-096～100 |
-| 历史记录 | `history` | 3 | P2-TOOL-101～103 |
-| 播放 | `playback` | 8 | P2-TOOL-104～111 |
-| 导出 | `exports` | 6 | P2-TOOL-112～117 |
-| 提取 | `extract` | 3 | P2-TOOL-118～120 |
-| 推理 | `inference` | 4 | P2-TOOL-121～124 |
-| 异步任务 | `tasks` | 3 | P2-TOOL-125～127 |
-| **合计** |  | **128** | **19 个业务域** |
+| 业务域 | category | 数量 |
+|---|---|---:|
+| 应用 | `application` | 1 |
+| 自动化与安全边界 | `automation` | 4 |
+| 文档与工程 | `documents` | 8 |
+| 格式 | `formats` | 2 |
+| 轨道 | `tracks` | 15 |
+| 总线 | `bus` | 5 |
+| 片段 | `clips` | 16 |
+| 音频素材 | `audio_clips` | 5 |
+| 声库 | `voices` | 2 |
+| Speaker Mix | `speaker_mix` | 9 |
+| 音符、歌词、语言、发音与音素 | `notes` | 19 |
+| 参数曲线与锚点 | `parameters` | 10 |
+| 时间轴 | `timeline` | 5 |
+| 历史记录 | `history` | 3 |
+| 播放 | `playback` | 8 |
+| 导出 | `exports` | 6 |
+| 提取 | `extract` | 3 |
+| 推理 | `inference` | 4 |
+| 异步任务 | `tasks` | 3 |
+| **合计** |  | **128** |
 
 `master.*` 的公开 operation ID 保持稳定，descriptor category 为 `bus`。历史记录域使用 `history.get_state/undo/redo`，异步执行实例统一使用 `tasks.list/get/cancel`；`operation_id` 表示能力定义，`task_id` 表示一次执行实例。
 
@@ -215,7 +215,7 @@ CLI override 只影响本次运行，并在设置页显示来源，不改写持�
 
 当前测试代码对以下实现不变量建立了自动保护：
 
-- 128 项 Editor ID、19 个域、追踪号、类型、Profile、Schema 和逐工具版本；
+- 128 项稳定 tool name、19 个域、类型、Profile、Schema 和逐工具版本；
 - 128 项 Contract、Registry、Manifest、Editor `tools/list` 与 Connector 已知描述的集合相等；
 - 六个 Connector 桥接工具和 exposure 后的 downstream 集合；
 - 历史记录原子边界、创建深度、音符叶节点、轨道/片段 voice 和持久循环；

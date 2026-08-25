@@ -28,8 +28,8 @@ Editor 的 128 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 
 ### 2.1 ID 与域
 
-- `P2-TOOL-001～128` 连续、唯一，operation ID 唯一。
-- `P2-CONN-001～006` 连续、唯一，六个桥接 ID 与固定定义一致。
+- 128 个 Editor tool name 唯一，并与公开 operation ID 一一对应。
+- 六个 Connector 桥接 tool name 唯一，并与固定定义一致。
 - Editor Contract、Registry binding、Manifest、Editor `tools/list`、Connector 已知类型化描述和矩阵的 128 个 ID 精确相等。
 - Connector bridge definitions、downstream 固定桥接面和矩阵的 6 个 ID 精确相等。
 - 19 个域的数量与矩阵一致；`master.*` 的 category 为 `bus`；历史记录域严格包含三项。
@@ -95,7 +95,7 @@ Editor 的 128 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 | 音频素材 | 5 | 元数据、导入/batch 任务，以及 relocate/confirm 同步 Mutation 与授权重检 |
 | 声库 | 2 | 可用 singer/speaker/language/G2P/mix 能力与稳定引用 |
 | Speaker Mix | 9 | fixed/dynamic/bypass、权重归一化、关键帧稳定 ID |
-| 音符、歌词、语言、发音与音素 | 18 | 查询/搜索/叶节点创建/duplicate/几何、歌词、语言、发音、音素与填充 |
+| 音符、歌词、语言、发音与音素 | 19 | 查询/搜索/叶节点创建/duplicate/几何、歌词、语言、发音、音素与填充 |
 | 参数曲线与锚点 | 10 | capability、draw/anchor、replace/draw/erase/bake 与批量锚点 |
 | 时间轴 | 5 | Tempo/拍号排序、零点锚、单条历史记录 |
 | 历史记录 | 3 | 状态、Undo/Redo、分支与 savepoint |
@@ -283,7 +283,7 @@ Editor 的 128 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 
 ## 13. 通过标准
 
-- 128 + 6 = 134 的工具集合、追踪号、域和版本不变量全部成立。
+- 128 + 6 = 134 的工具集合、稳定名称、域和版本不变量全部成立。
 - 128 个 Editor 工具均有 Contract、Registry、权限和适用调用证据；六个 Connector 工具逐项验证。
 - 两套 MCP 主协议、2025-06-18 兼容握手/会话、Editor HTTP、QLocal、Connector stdio、exposure、Profile/Custom、File Guard 和 Admission 全部完成。
 - Editor direct 与 Connector 路径的业务结果、错误、历史记录、revision 和 Task 语义一致。

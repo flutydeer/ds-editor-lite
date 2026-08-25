@@ -79,7 +79,7 @@ Streamable HTTP / stdio
 
 `AutomationWire` 集中维护：
 
-- stable operation ID、追踪号、域、标题与说明；
+- stable MCP tool name、operation ID、域、标题与说明；
 - Query/Command、同步模式和最低 Profile；
 - JSON Schema 2020-12 input/output Schema；
 - 公共 enum、值域、范围、集合上限与稳定 codec；
@@ -102,7 +102,7 @@ Registry 从同一工具声明建立 128 个类型化 binding，并派生：
 - Connector 构建时已知的类型化 Editor 工具描述；
 - 测试中的 ID、域、Profile、类型、Schema 和版本期望。
 
-注册门禁校验 tracking ID 与 operation ID 唯一、追踪号连续、Schema 有效、value source 可达、binding 集合完整、descriptor 字段完整，以及工具描述与执行入口一致。
+注册门禁校验 MCP tool name 与 operation ID 唯一且一一对应、Schema 有效、value source 可达、binding 集合完整、descriptor 字段完整，以及工具描述与执行入口一致。
 
 ## 6. Manifest、版本与兼容
 

@@ -115,7 +115,7 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 
 1. 记录 git/submodule/工具链和现有进程状态。
 2. 执行 `git diff --check` 与敏感信息扫描。
-3. 解析 `PublicToolDefinitions`、测试期望和公共矩阵，核对 `P2-TOOL-001～128`。
+3. 解析 `PublicToolDefinitions`、测试期望和公共矩阵，核对 128 个稳定 tool name。
 4. 核对六个 Connector 桥接工具及 128 + 6 = 134。
 5. 核对 19 个 Editor 域名称与数量、`bus` category 和三项历史记录域。
 6. 核对 toolset v1 与每工具 current/introduced/minimum-compatible 均为 1。
@@ -124,7 +124,7 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 
 ### 门禁
 
-ID、追踪号、域、Profile、类型、版本或集合出现缺口、重复或漂移时先修复契约源和期望，再进入构建。
+tool name、域、Profile、类型、版本或集合出现缺口、重复或漂移时先修复契约源和期望，再进入构建。
 
 ## 8. 阶段 B：配置、完整构建与纯单元测试
 
