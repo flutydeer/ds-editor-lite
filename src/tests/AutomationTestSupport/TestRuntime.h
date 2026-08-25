@@ -53,12 +53,14 @@ namespace AutomationTestSupport {
                              Automation::DocumentRuntimeServices documentServices = {},
                              Automation::FileRuntimeServices fileServices = {},
                              Automation::AudioExportRuntimeServices audioExportServices = {},
-                             Automation::PackageRuntimeServices packageServices = {})
+                             Automation::PackageRuntimeServices packageServices = {},
+                             Automation::PlaybackRuntimeServices playbackServices = {},
+                             Automation::ApplicationRuntimeServices applicationServices = {})
             : m_history(resetHistory()),
-              m_runtime(&m_model, m_history, std::move(documentServices), {},
-                        std::move(editorServices), {}, {}, std::move(packageServices), {},
-                        std::move(fileServices),
-                        std::move(audioExportServices)) {
+              m_runtime(&m_model, m_history, std::move(documentServices),
+                        std::move(playbackServices), std::move(editorServices), {}, {},
+                        std::move(packageServices), {}, std::move(fileServices),
+                        std::move(audioExportServices), {}, std::move(applicationServices)) {
         }
 
         ~TestRuntime() {

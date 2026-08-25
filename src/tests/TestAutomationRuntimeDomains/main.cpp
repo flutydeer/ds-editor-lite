@@ -194,6 +194,7 @@ namespace {
             .name = QStringLiteral("DS Editor Lite"),
             .version = QStringLiteral("test-version"),
             .platform = QStringLiteral("test-platform"),
+            .buildId = QStringLiteral("test-build"),
         };
         bool terminationSucceeds = true;
         int terminationCalls = 0;

@@ -506,7 +506,7 @@ namespace {
                     [](Fixture &fixture, const CommandContext &context, int) {
                         return fixture.runtime().project().setTrackDefaultLanguage(
                             context, fixture.trackA, QStringLiteral("en"));
-                    }, .recordsHistory = false,
+                    }, .recordsHistory = true,
              },
             {
              .operationId = Automation::OperationIds::tracks::set_properties,
@@ -630,7 +630,7 @@ namespace {
                     [](Fixture &fixture, const CommandContext &context, int) {
                         return fixture.runtime().project().setSingingClipDefaultLanguage(
                             context, fixture.clipA, QStringLiteral("en"));
-                    }, .recordsHistory = false,
+                    }, .recordsHistory = true,
              },
             {
              .operationId = Automation::OperationIds::clips::set_properties,
@@ -706,7 +706,7 @@ namespace {
                             context, fixture.clipA, ParamInfo::Pitch, Param::Edited, {});
                     }, },
             {
-             .operationId = Automation::OperationIds::speaker_mix::clip::select_single,
+             .operationId = Automation::OperationIds::clips::set_voice,
              .valid =
                     [](Fixture &fixture, const CommandContext &context, const int variant) {
                         return fixture.runtime().parameters().selectClipSingleSpeaker(
@@ -1018,7 +1018,7 @@ namespace {
                         fixture.history()->reset();
                     }, },
             {
-             .operationId = Automation::OperationIds::speaker_mix::clip::use_track,
+             .operationId = Automation::OperationIds::clips::use_track_voice,
              .valid =
                     [](Fixture &fixture, const CommandContext &context, int) {
                         return fixture.runtime().parameters().useTrackVoiceContext(context,
@@ -1096,7 +1096,7 @@ namespace {
                         fixture.history()->reset();
                     }, },
             {
-             .operationId = Automation::OperationIds::speaker_mix::track::select_single,
+             .operationId = Automation::OperationIds::tracks::set_voice,
              .valid =
                     [](Fixture &fixture, const CommandContext &context, const int variant) {
                         return fixture.runtime().parameters().selectTrackSingleSpeaker(

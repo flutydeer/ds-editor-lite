@@ -407,8 +407,13 @@ namespace {
                           commandContext(runtime), third, QStringLiteral("zh-汉字"));
                       const auto state =
                           runtime.history().getState(runtime.documentVersion().documentId);
-                      suite.expect(noOp && !noOp.get().changed && state && !state.get().canUndo,
-                                   QStringLiteral("language state change must not create History"));
+                      suite.expect(noOp && !noOp.get().changed && state && state.get().canUndo,
+                                   QStringLiteral("language state change must create one History entry"));
+                      const auto undo = runtime.history().undo(commandContext(runtime));
+                      const auto restored = trackSnapshot(runtime, third);
+                      suite.expect(undo && restored &&
+                                       restored->data.defaultLanguage == QStringLiteral("en"),
+                                   QStringLiteral("track language change must undo atomically"));
                   });
 
         ClipId clip;
@@ -508,7 +513,7 @@ namespace {
             });
 
         suite.run(Automation::OperationIds::clips::set_default_language,
-                  QStringLiteral("validation-revision-no-history"), [&] {
+                  QStringLiteral("validation-revision-history"), [&] {
                       testRuntime.history()->reset();
                       const auto blank = runtime.project().setSingingClipDefaultLanguage(
                           commandContext(runtime), clip, QStringLiteral(""));
@@ -524,12 +529,17 @@ namespace {
                       suite.expect(
                           changed && changed.get().current.revision == base.revision + 1 &&
                               snapshot && snapshot->data.defaultLanguage == QStringLiteral("ja") &&
-                              state && !state.get().canUndo,
-                          QStringLiteral("clip language must advance revision without History"));
+                              state && state.get().canUndo,
+                          QStringLiteral("clip language must advance revision with History"));
                       const auto noOp = runtime.project().setSingingClipDefaultLanguage(
                           commandContext(runtime), clip, QStringLiteral("ja"));
                       suite.expect(noOp && !noOp.get().changed,
                                    QStringLiteral("identical clip language must be a no-op"));
+                      const auto undo = runtime.history().undo(commandContext(runtime));
+                      const auto restored = clipSnapshot(runtime, clip);
+                      suite.expect(undo && restored &&
+                                       restored->data.defaultLanguage == QStringLiteral("en"),
+                                   QStringLiteral("clip language change must undo atomically"));
                   });
 
         suite.run(
@@ -1096,7 +1106,7 @@ namespace {
         const auto fixed = fixedMix(speakerA, speakerB);
         const auto dynamic = dynamicMix(speakerA, speakerB);
 
-        suite.run(Automation::OperationIds::speaker_mix::track::select_single,
+        suite.run(Automation::OperationIds::tracks::set_voice,
                   QStringLiteral("preview-commit-noop"), [&] {
                       testRuntime.history()->reset();
                       const auto base = runtime.documentVersion();
@@ -1152,7 +1162,7 @@ namespace {
                     QStringLiteral("track mix replacement must preserve voice and sort keys"));
             });
 
-        suite.run(Automation::OperationIds::speaker_mix::clip::select_single,
+        suite.run(Automation::OperationIds::clips::set_voice,
                   QStringLiteral("owned-context"), [&] {
                       const auto base = runtime.documentVersion();
                       const auto changed = runtime.parameters().selectClipSingleSpeaker(
@@ -1213,7 +1223,7 @@ namespace {
                           QStringLiteral("clip mix replacement must preserve owned voice"));
                   });
 
-        suite.run(Automation::OperationIds::speaker_mix::clip::use_track,
+        suite.run(Automation::OperationIds::clips::use_track_voice,
                   QStringLiteral("inherit-noop"), [&] {
                       const auto base = runtime.documentVersion();
                       const auto changed = runtime.parameters().useTrackVoiceContext(
@@ -1620,12 +1630,12 @@ namespace {
                  return runtime.parameters().replaceClipSpeakerMix(context, ClipId(999999),
                                                                    emptyMix);
              }                                                                                                               },
-            {Automation::OperationIds::speaker_mix::clip::select_single,
+            {Automation::OperationIds::clips::set_voice,
              [&](const auto &context) {
                  return runtime.parameters().selectClipSingleSpeaker(context, ClipId(999999),
                                                                      emptySinger, emptySpeaker);
              }},
-            {Automation::OperationIds::speaker_mix::clip::use_track,
+            {Automation::OperationIds::clips::use_track_voice,
              [&](const auto &context) {
                  return runtime.parameters().useTrackVoiceContext(context, ClipId(999999));
              }                                                                                                               },
@@ -1639,7 +1649,7 @@ namespace {
                  return runtime.parameters().replaceTrackSpeakerMix(context, TrackId(999999),
                                                                     emptyMix);
              }                                                                                                               },
-            {Automation::OperationIds::speaker_mix::track::select_single,
+            {Automation::OperationIds::tracks::set_voice,
              [&](const auto &context) {
                  return runtime.parameters().selectTrackSingleSpeaker(context, TrackId(999999),
                                                                       emptySinger, emptySpeaker);
@@ -1762,11 +1772,11 @@ namespace {
             Automation::OperationIds::speaker_mix::clip::apply,
             Automation::OperationIds::speaker_mix::clip::enable_dynamic,
             Automation::OperationIds::speaker_mix::clip::replace,
-            Automation::OperationIds::speaker_mix::clip::select_single,
-            Automation::OperationIds::speaker_mix::clip::use_track,
+            Automation::OperationIds::clips::set_voice,
+            Automation::OperationIds::clips::use_track_voice,
             Automation::OperationIds::speaker_mix::track::apply,
             Automation::OperationIds::speaker_mix::track::replace,
-            Automation::OperationIds::speaker_mix::track::select_single,
+            Automation::OperationIds::tracks::set_voice,
             Automation::OperationIds::timeline::get,
             Automation::OperationIds::tempos::set,
             Automation::OperationIds::tempos::delete_tempo,

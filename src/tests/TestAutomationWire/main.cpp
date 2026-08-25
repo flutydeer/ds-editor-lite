@@ -545,6 +545,44 @@ namespace {
         const auto propertiesFor = [](const QString &id) {
             return findPublicTool(id)->inputSchema.value(QStringLiteral("properties")).toObject();
         };
+        const auto *setLoop = findPublicTool(QStringLiteral("playback.set_loop"));
+        const auto *seek = findPublicTool(QStringLiteral("playback.seek"));
+        QSet<QString> setLoopRequired;
+        for (const auto &field : setLoop->inputSchema.value(QStringLiteral("required")).toArray())
+            setLoopRequired.insert(field.toString());
+        const auto setLoopProperties = propertiesFor(QStringLiteral("playback.set_loop"));
+        const auto setLoopDescriptor = setLoop->toManifestJson();
+        QJsonObject integerLoop{
+            {QStringLiteral("document_id"),
+             QStringLiteral("00000000-0000-4000-8000-000000000001")},
+            {QStringLiteral("expected_revision"), 0  },
+            {QStringLiteral("start"),             120},
+            {QStringLiteral("end"),               960},
+        };
+        auto fractionalLoop = integerLoop;
+        fractionalLoop.insert(QStringLiteral("end"), 960.5);
+        ok &= expect(
+            setLoop && seek &&
+                setLoopRequired.contains(QStringLiteral("document_id")) &&
+                setLoopRequired.contains(QStringLiteral("expected_revision")) &&
+                !setLoopRequired.contains(QStringLiteral("expected_state_version")) &&
+                setLoopProperties.contains(QStringLiteral("expected_state_version")) &&
+                setLoopProperties.contains(QStringLiteral("idempotency_key")) &&
+                validateJsonValue(integerLoop, setLoop->inputSchema).valid() &&
+                !validateJsonValue(fractionalLoop, setLoop->inputSchema).valid() &&
+                setLoop->outputSchema.value(QStringLiteral("properties"))
+                    .toObject()
+                    .contains(QStringLiteral("previous")) &&
+                setLoop->outputSchema.value(QStringLiteral("properties"))
+                    .toObject()
+                    .contains(QStringLiteral("playback")) &&
+                setLoopDescriptor.value(QStringLiteral("document_policy")) ==
+                    QStringLiteral("write") &&
+                setLoopDescriptor.value(QStringLiteral("history_policy")) ==
+                    QStringLiteral("single_entry") &&
+                !propertiesFor(QStringLiteral("playback.seek"))
+                     .contains(QStringLiteral("expected_revision")),
+            QStringLiteral("persistent loop edits and transient seek must publish distinct contracts"));
         const auto replaceProperties = propertiesFor(QStringLiteral("parameters.replace"));
         const auto drawProperties = propertiesFor(QStringLiteral("parameters.draw"));
         const auto insertAnchorProperties =
@@ -599,6 +637,83 @@ namespace {
                      .valid(),
             QStringLiteral("InferenceScope kind must determine the required exclusive ID "
                            "collection"));
+
+        const auto *audioPreview = findPublicTool(QStringLiteral("exports.audio.preview"));
+        const QJsonObject commonAudioOptions{
+            {QStringLiteral("format"),       QStringLiteral("wav")   },
+            {QStringLiteral("sample_rate"),  44100                   },
+            {QStringLiteral("channel_mode"), QStringLiteral("stereo")},
+            {QStringLiteral("mixing_mode"),  QStringLiteral("mixed") },
+        };
+        const auto audioArguments = [&](QJsonObject options) {
+            return QJsonObject{
+                {QStringLiteral("document_id"),
+                 QStringLiteral("00000000-0000-4000-8000-000000000001")},
+                {QStringLiteral("path"),    QStringLiteral("export.wav")},
+                {QStringLiteral("options"), options                       },
+            };
+        };
+        auto allAudioOptions = commonAudioOptions;
+        allAudioOptions.insert(QStringLiteral("source"), QStringLiteral("all"));
+        auto allWithIds = allAudioOptions;
+        allWithIds.insert(QStringLiteral("source_ids"), QJsonArray{1});
+        auto customAudioOptions = commonAudioOptions;
+        customAudioOptions.insert(QStringLiteral("source"), QStringLiteral("custom"));
+        auto customWithIds = customAudioOptions;
+        customWithIds.insert(QStringLiteral("source_ids"), QJsonArray{1});
+        auto audioWithRange = allAudioOptions;
+        audioWithRange.insert(QStringLiteral("range"),
+                              QJsonObject{{QStringLiteral("start"), 0},
+                                          {QStringLiteral("end"), 480}});
+        ok &= expect(
+            audioPreview &&
+                validateJsonValue(audioArguments(allAudioOptions), audioPreview->inputSchema).valid() &&
+                !validateJsonValue(audioArguments(allWithIds), audioPreview->inputSchema).valid() &&
+                !validateJsonValue(audioArguments(customAudioOptions), audioPreview->inputSchema)
+                     .valid() &&
+                validateJsonValue(audioArguments(customWithIds), audioPreview->inputSchema).valid() &&
+                !validateJsonValue(audioArguments(audioWithRange), audioPreview->inputSchema).valid(),
+            QStringLiteral("audio export source mode must conditionally require source_ids and "
+                           "reject unsupported ranges"));
+
+        const auto *midiExtraction = findPublicTool(QStringLiteral("extract.midi.start"));
+        const auto midiArguments = [](const QJsonObject &destination) {
+            return QJsonObject{
+                {QStringLiteral("document_id"),
+                 QStringLiteral("00000000-0000-4000-8000-000000000001")},
+                {QStringLiteral("expected_revision"),    0          },
+                {QStringLiteral("source_audio_clip_id"), 1          },
+                {QStringLiteral("destination"),          destination},
+                {QStringLiteral("options"),              QJsonObject{}},
+            };
+        };
+        const QJsonObject createDestination{
+            {QStringLiteral("target_track_id"), 1                            },
+            {QStringLiteral("start"),           0                            },
+            {QStringLiteral("mode"),            QStringLiteral("create_clip")},
+        };
+        auto createWithTarget = createDestination;
+        createWithTarget.insert(QStringLiteral("target_clip_id"), 2);
+        QJsonObject mergeDestination{
+            {QStringLiteral("target_track_id"), 1                                },
+            {QStringLiteral("start"),           0                                },
+            {QStringLiteral("mode"),            QStringLiteral("merge_into_clip")},
+            {QStringLiteral("target_clip_id"),  2                                },
+        };
+        auto mergeWithoutTarget = mergeDestination;
+        mergeWithoutTarget.remove(QStringLiteral("target_clip_id"));
+        ok &= expect(
+            midiExtraction &&
+                validateJsonValue(midiArguments(createDestination), midiExtraction->inputSchema)
+                    .valid() &&
+                !validateJsonValue(midiArguments(createWithTarget), midiExtraction->inputSchema)
+                     .valid() &&
+                validateJsonValue(midiArguments(mergeDestination), midiExtraction->inputSchema)
+                    .valid() &&
+                !validateJsonValue(midiArguments(mergeWithoutTarget), midiExtraction->inputSchema)
+                     .valid(),
+            QStringLiteral("MIDI extraction destination discriminator must forbid extra and "
+                           "missing target_clip_id values"));
 
         const auto midiOverwrite = propertiesFor(QStringLiteral("exports.midi.start"))
                                        .value(QStringLiteral("overwrite_policy"))
@@ -684,8 +799,8 @@ namespace {
                              .arg(tool.operationId));
         }
         ok &= expect(
-            asynchronousCount == 12,
-            QStringLiteral("all twelve asynchronous public tools must share the discriminated "
+            asynchronousCount == 10,
+            QStringLiteral("all ten asynchronous public tools must share the discriminated "
                            "TaskAccepted schema"));
 
         const auto parameterSourcePaths = [](const QString &id) {
@@ -711,6 +826,10 @@ namespace {
                     QSet<QString>{QStringLiteral("/name")},
             QStringLiteral("parameter value sources must map only capability-backed enum "
                            "fields"));
+        ok &= expect(
+            parameterSourcePaths(QStringLiteral("notes.fill_lyrics")).contains(
+                QStringLiteral("/options/language/language_id")),
+            QStringLiteral("fill-lyrics explicit language must publish a dynamic value source"));
 
         const auto mcpTool = tools.first().toMcpToolJson();
         ok &= expect(

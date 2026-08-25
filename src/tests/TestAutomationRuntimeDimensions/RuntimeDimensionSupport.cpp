@@ -214,6 +214,7 @@ namespace RuntimeDimensions {
               .name = QStringLiteral("DS Editor Lite 测试"),
               .version = QStringLiteral("1.0-test"),
               .platform = QStringLiteral("Windows 测试"),
+              .buildId = QStringLiteral("test-build"),
           },
           editorView(validViewState()), settings(validSettings()), m_options(std::move(options)),
           m_history(resetGlobalHistory()) {

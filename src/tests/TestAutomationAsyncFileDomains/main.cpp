@@ -711,7 +711,16 @@ namespace {
                 const Automation::MidiExportOptionsDto preparedOptions{
                     .includeTempo = true,
                     .includeTimeSignatures = false,
+                    .includeLyrics = false,
+                    .clipIds = {harness.singingClipId()},
                 };
+                const auto directPreview = runtime.files().previewMidiExport(
+                    runtime.documentVersion().documentId,
+                    harness.temporaryPath(QStringLiteral("preview.mid")), preparedOptions);
+                suite.expect(directPreview && directPreview.get().validatedOnly &&
+                                 directPreview.get().modelSnapshot.tracks.isEmpty() &&
+                                 harness.midiExportCount == 1,
+                             QStringLiteral("MIDI preview must validate without writing a file"));
                 const auto prepared = runtime.files().prepareMidiExport(
                     harness.context(), harness.temporaryPath(QStringLiteral("prepared.mid")),
                     false, preparedOptions);
@@ -719,12 +728,22 @@ namespace {
                     prepared ? runtime.files().writePreparedMidiExport(prepared.get())
                              : Automation::AutomationResult<Automation::FileWriteResultDto>(
                                    prepared.getError());
-                suite.expect(prepared && !prepared.get().modelSnapshot.tracks.isEmpty() &&
+                suite.expect(prepared && prepared.get().modelSnapshot.tracks.size() == 1 &&
+                                 prepared.get().modelSnapshot.tracks.first().clips.size() == 1 &&
+                                 prepared.get().modelSnapshot.tracks.first().clips.first().type ==
+                                     Automation::ClipDraftDto::Type::Singing &&
                                  preparedWrite && preparedWrite.get().wroteFile &&
                                  harness.midiExportCount == 2 &&
                                  harness.lastMidiExportOptions == preparedOptions,
                              QStringLiteral(
                                  "prepared MIDI export must freeze a restorable model and preserve options"));
+
+                const auto invalidPreview = runtime.files().previewMidiExport(
+                    runtime.documentVersion().documentId, QStringLiteral("relative.mid"));
+                suite.expect(isError(invalidPreview, Automation::AutomationErrorCode::InvalidArgument,
+                                     Automation::OperationIds::exports::midi::preview),
+                             QStringLiteral(
+                                 "MIDI preview validation must retain its own operation identity"));
 
                 harness.midiExportSucceeds = false;
                 const auto backendFailure = runtime.files().exportMidi(

@@ -22,6 +22,7 @@ find_package(re2 CONFIG REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE
     AutomationTestSupport
     lite::AutomationWire
+    lite::ProjectConverters
     Qt${QT_VERSION_MAJOR}::Core
     re2::re2
 )

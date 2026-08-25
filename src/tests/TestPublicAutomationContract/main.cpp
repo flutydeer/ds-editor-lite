@@ -216,6 +216,34 @@ namespace {
                QStringLiteral("notes.insert must accept server-resolved lyric/language defaults"));
     }
 
+    void verifyLifecycleIdempotencyContracts() {
+        for (const auto &operationId : {QStringLiteral("documents.new"),
+                                        QStringLiteral("documents.open")}) {
+            const auto *contract = findPublicTool(operationId);
+            expect(contract, operationId + QStringLiteral(" must exist"));
+            if (!contract)
+                continue;
+            const auto properties =
+                contract->inputSchema.value(QStringLiteral("properties")).toObject();
+            expect(!properties.contains(QStringLiteral("idempotency_key")),
+                   operationId +
+                       QStringLiteral(" must not advertise unsupported replacement idempotency"));
+
+            QJsonObject valid{
+                {QStringLiteral("unsaved_policy"), QStringLiteral("discard")},
+            };
+            if (operationId == QStringLiteral("documents.open"))
+                valid.insert(QStringLiteral("path"), QStringLiteral("C:/fixture.mid"));
+            auto withIdempotencyKey = valid;
+            withIdempotencyKey.insert(QStringLiteral("idempotency_key"),
+                                      QStringLiteral("unsupported-lifecycle-key"));
+            expect(validateJsonValue(valid, contract->inputSchema).valid() &&
+                       !validateJsonValue(withIdempotencyKey, contract->inputSchema).valid(),
+                   operationId +
+                       QStringLiteral(" schema must reject unsupported idempotency_key input"));
+        }
+    }
+
     void verifyScalarMutation(const QString &operationId, const QString &targetField,
                               const QString &valueField) {
         const auto *contract = findPublicTool(operationId);
@@ -363,15 +391,196 @@ namespace {
                        .contains(QStringLiteral("keyframe_ids")),
                QStringLiteral("dynamic keyframe edits must use stable IDs and atomic batches"));
     }
+
+    void verifyConditionalCapabilityContracts() {
+        const auto *audioPreview = findPublicTool(QStringLiteral("exports.audio.preview"));
+        const auto *midiExtraction = findPublicTool(QStringLiteral("extract.midi.start"));
+        const auto *fillLyrics = findPublicTool(QStringLiteral("notes.fill_lyrics"));
+        const auto *audioGet = findPublicTool(QStringLiteral("audio_clips.get"));
+        expect(audioPreview && midiExtraction && fillLyrics && audioGet,
+               QStringLiteral("conditional capability contracts must exist"));
+        if (!audioPreview || !midiExtraction || !fillLyrics || !audioGet)
+            return;
+
+        const auto audioOptions = propertySchema(audioPreview->inputSchema, QStringLiteral("options"));
+        const auto audioBranches = audioOptions.value(QStringLiteral("oneOf")).toArray();
+        const bool audioRangeAbsent =
+            std::all_of(audioBranches.begin(), audioBranches.end(), [](const QJsonValue &branch) {
+                return !branch.toObject()
+                            .value(QStringLiteral("properties"))
+                            .toObject()
+                            .contains(QStringLiteral("range"));
+            });
+        expect(audioBranches.size() == 2 && audioRangeAbsent,
+               QStringLiteral("audio export options must use two closed source-mode branches"));
+
+        const auto destination =
+            propertySchema(midiExtraction->inputSchema, QStringLiteral("destination"));
+        expect(destination.value(QStringLiteral("oneOf")).toArray().size() == 2,
+               QStringLiteral("MIDI extraction destination must be discriminated by mode"));
+
+        bool hasFillLanguageSource = false;
+        for (const auto &value : fillLyrics->valueSources) {
+            const auto source = value.toObject();
+            hasFillLanguageSource |=
+                source.value(QStringLiteral("field_path")).toString() ==
+                    QStringLiteral("/options/language/language_id") &&
+                source.value(QStringLiteral("operation_id")).toString() ==
+                    QStringLiteral("voices.describe");
+        }
+        expect(hasFillLanguageSource,
+               QStringLiteral("explicit fill-lyrics language must use the voice capability source"));
+
+        const QJsonObject unknownAudioSnapshot{
+            {QStringLiteral("document"),
+             QJsonObject{
+                 {QStringLiteral("document_id"),
+                  QStringLiteral("00000000-0000-4000-8000-000000000001")},
+                 {QStringLiteral("revision"), 0},
+             }},
+            {QStringLiteral("snapshot"),
+             QJsonObject{
+                 {QStringLiteral("clip_id"),          1                            },
+                 {QStringLiteral("path"),             QString()                    },
+                 {QStringLiteral("path_status"),      QStringLiteral("missing")   },
+                 {QStringLiteral("candidate_paths"),  QJsonArray{}                 },
+                 {QStringLiteral("hash_exists"),      false                        },
+                 {QStringLiteral("duration_seconds"), QJsonValue(QJsonValue::Null)},
+                 {QStringLiteral("sample_rate"),      QJsonValue(QJsonValue::Null)},
+                 {QStringLiteral("channels"),         QJsonValue(QJsonValue::Null)},
+             }},
+        };
+        expect(validateJsonValue(unknownAudioSnapshot, audioGet->outputSchema).valid(),
+               QStringLiteral("undecoded audio metadata must be representable as null"));
+    }
+
+    void verifyPlaybackPersistenceContracts() {
+        const QStringList persistentOperations{
+            QStringLiteral("playback.set_loop"),
+            QStringLiteral("playback.set_loop_enabled"),
+            QStringLiteral("playback.clear_loop"),
+        };
+        const QSet<QString> mutationOutputFields{
+            QStringLiteral("previous"),
+            QStringLiteral("current"),
+            QStringLiteral("changed"),
+            QStringLiteral("validated_only"),
+            QStringLiteral("affected_objects"),
+            QStringLiteral("created_objects"),
+            QStringLiteral("resolved_values"),
+            QStringLiteral("presentation_effects"),
+            QStringLiteral("warnings"),
+            QStringLiteral("state_version"),
+            QStringLiteral("playback"),
+        };
+        for (const auto &operation : persistentOperations) {
+            const auto *contract = findPublicTool(operation);
+            expect(contract, operation + QStringLiteral(" must exist"));
+            if (!contract)
+                continue;
+            const auto inputProperties =
+                contract->inputSchema.value(QStringLiteral("properties")).toObject();
+            const auto inputRequired = requiredFields(contract->inputSchema);
+            const auto descriptor = contract->toManifestJson();
+            expect(inputProperties.contains(QStringLiteral("document_id")) &&
+                       inputProperties.contains(QStringLiteral("expected_revision")) &&
+                       inputProperties.contains(QStringLiteral("expected_state_version")) &&
+                       inputProperties.contains(QStringLiteral("validate_only")) &&
+                       inputProperties.contains(QStringLiteral("idempotency_key")) &&
+                       inputRequired.contains(QStringLiteral("document_id")) &&
+                       inputRequired.contains(QStringLiteral("expected_revision")) &&
+                       !inputRequired.contains(QStringLiteral("expected_state_version")),
+                   operation + QStringLiteral(
+                                   " must require document revision and optionally check playback state"));
+            expect(descriptor.value(QStringLiteral("document_policy")) ==
+                           QStringLiteral("write") &&
+                       descriptor.value(QStringLiteral("revision_policy")) ==
+                           QStringLiteral("check") &&
+                       descriptor.value(QStringLiteral("history_policy")) ==
+                           QStringLiteral("single_entry") &&
+                       descriptor.value(QStringLiteral("concurrency_scope")) ==
+                           QStringLiteral("document") &&
+                       descriptor.value(QStringLiteral("conflict_policy")) ==
+                           QStringLiteral("revision_and_state_version"),
+                   operation + QStringLiteral(" must publish its persistent loop-edit policies"));
+            expect(keys(contract->outputSchema.value(QStringLiteral("properties")).toObject()) ==
+                           mutationOutputFields &&
+                       requiredFields(contract->outputSchema) == mutationOutputFields,
+                   operation + QStringLiteral(
+                                   " must return document Mutation and playback snapshot fields"));
+        }
+
+        const auto *setLoop = findPublicTool(QStringLiteral("playback.set_loop"));
+        if (setLoop) {
+            const auto properties =
+                setLoop->inputSchema.value(QStringLiteral("properties")).toObject();
+            expect(properties.value(QStringLiteral("start"))
+                           .toObject()
+                           .value(QStringLiteral("type")) == QStringLiteral("integer") &&
+                       properties.value(QStringLiteral("end"))
+                               .toObject()
+                               .value(QStringLiteral("type")) == QStringLiteral("integer"),
+                   QStringLiteral("playback loop boundaries must be integer ticks"));
+            auto valid = commandContext();
+            valid.insert(QStringLiteral("start"), 120);
+            valid.insert(QStringLiteral("end"), 960);
+            auto fractional = valid;
+            fractional.insert(QStringLiteral("start"), 120.5);
+            expect(validateJsonValue(valid, setLoop->inputSchema).valid() &&
+                       !validateJsonValue(fractional, setLoop->inputSchema).valid(),
+                   QStringLiteral("playback.set_loop must reject fractional ticks"));
+        }
+
+        const auto *seek = findPublicTool(QStringLiteral("playback.seek"));
+        if (seek) {
+            const auto properties = seek->inputSchema.value(QStringLiteral("properties")).toObject();
+            const auto descriptor = seek->toManifestJson();
+            expect(!properties.contains(QStringLiteral("expected_revision")) &&
+                       !properties.contains(QStringLiteral("idempotency_key")) &&
+                       properties.contains(QStringLiteral("expected_state_version")) &&
+                       !seek->outputSchema.value(QStringLiteral("properties"))
+                            .toObject()
+                            .contains(QStringLiteral("previous")) &&
+                       descriptor.value(QStringLiteral("document_policy")) ==
+                           QStringLiteral("read") &&
+                       descriptor.value(QStringLiteral("history_policy")) ==
+                           QStringLiteral("none") &&
+                       descriptor.value(QStringLiteral("concurrency_scope")) ==
+                           QStringLiteral("playback"),
+                   QStringLiteral("seek must remain a non-persistent playback state operation"));
+        }
+    }
+
+    void verifyDocumentPolicies() {
+        for (const auto &operation : {QStringLiteral("extract.pitch.start"),
+                                      QStringLiteral("extract.midi.start"),
+                                      QStringLiteral("inference.start")}) {
+            const auto *contract = findPublicTool(operation);
+            expect(contract &&
+                       contract->toManifestJson().value(QStringLiteral("document_policy")) ==
+                           QStringLiteral("write"),
+                   operation + QStringLiteral(" must publish a write document policy"));
+        }
+
+        const auto *preview = findPublicTool(QStringLiteral("exports.midi.preview"));
+        expect(preview &&
+                   preview->toManifestJson().value(QStringLiteral("document_policy")) ==
+                       QStringLiteral("read"),
+               QStringLiteral("exports.midi.preview must publish a read document policy"));
+    }
 }
 
 int main(int argc, char **argv) {
     QCoreApplication application(argc, argv);
     verifyAuthoritativeToolset();
     verifyShallowCreationAndNoteDefaults();
+    verifyLifecycleIdempotencyContracts();
     verifyIndependentScalarOperations();
     verifyVoiceContracts();
     verifySpeakerMixContracts();
+    verifyConditionalCapabilityContracts();
+    verifyPlaybackPersistenceContracts();
+    verifyDocumentPolicies();
 
     if (failures != 0)
         QTextStream(stderr) << failures << " public automation contract test(s) failed" << Qt::endl;

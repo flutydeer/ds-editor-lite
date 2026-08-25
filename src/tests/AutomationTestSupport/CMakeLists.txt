@@ -26,6 +26,7 @@ add_library(AutomationTestSupport STATIC
     ../../app/Automation/HistoryAutomationFacade.cpp
     ../../app/Automation/InferenceAutomationFacade.cpp
     ../../app/Automation/NoteAutomationFacade.cpp
+    ../../app/Automation/NoteTransfer.cpp
     ../../app/Automation/PackageAutomationFacade.cpp
     ../../app/Automation/ParameterAutomationFacade.cpp
     ../../app/Automation/PlaybackAutomationFacade.cpp
@@ -45,6 +46,7 @@ add_library(AutomationTestSupport STATIC
     ../../app/Controller/Actions/AppModel/TimeSignature/EditTimeSignaturesAction.cpp
     ../../app/Controller/Actions/AppModel/TimeSignature/TimeSignatureActions.cpp
     ../../app/Model/AppModel/SingingClipPhonemeNormalizer.cpp
+    ../../app/Model/ClipboardDataModel/NotesParamsInfo.cpp
     ../../app/UI/Views/TrackEditor/AudioClipDragState.cpp
     ${_automation_edit_action_sources}
 )
