@@ -1217,7 +1217,7 @@ namespace AutomationWire {
                 }
                 if (paths.isEmpty())
                     continue;
-                const auto definitionKey = target.trackingId;
+                const auto definitionKey = target.operationId;
                 definitions.insert(definitionKey, partialRootSchema(target.inputSchema));
                 auto orderedPaths = paths.values();
                 std::sort(orderedPaths.begin(), orderedPaths.end());
@@ -3183,15 +3183,14 @@ namespace AutomationWire {
         static const QList<ToolContract> tools = [] {
             QList<ToolContract> result;
             result.reserve(128);
-#define AUTOMATION_WIRE_PUBLIC_TOOL(symbol, tracking, name, categoryValue, profile, kindValue,     \
-                                    syncValue, versionValue, introducedValue, minimumValue)        \
+#define AUTOMATION_WIRE_PUBLIC_TOOL(symbol, name, categoryValue, profile, kindValue, syncValue,    \
+                                    versionValue, introducedValue, minimumValue)                   \
     do {                                                                                           \
         const QString operationId(PublicToolNames::symbol);                                        \
         const auto operationKind = OperationKind::kindValue;                                       \
         const auto operationSync = SyncMode::syncValue;                                            \
         const auto title = humanTitle(operationId);                                                \
         result.append({                                                                            \
-            .trackingId = QStringLiteral(tracking),                                                \
             .operationId = operationId,                                                            \
             .version = versionValue,                                                               \
             .introducedVersion = introducedValue,                                                  \

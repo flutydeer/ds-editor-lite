@@ -362,7 +362,6 @@ namespace {
                    QStringLiteral("public declaration must exactly match the frozen tool matrix"));
 
         QSet<QString> ids;
-        QSet<QString> trackingIds;
         qsizetype dynamicSourceCount = 0;
         qsizetype openSchemaCount = 0;
         const QStringList descriptorFields{
@@ -400,7 +399,6 @@ namespace {
         };
         for (const auto &tool : tools) {
             ids.insert(tool.operationId);
-            trackingIds.insert(tool.trackingId);
             ok &= expect(tool.minimumProfile != AutomationProfile::Custom,
                          QStringLiteral("public tools must use a preset minimum profile"));
             const auto inputCheck = checkJsonSchema(tool.inputSchema);
@@ -484,8 +482,8 @@ namespace {
                         .arg(tool.operationId, sourceId));
             }
         }
-        ok &= expect(ids.size() == tools.size() && trackingIds.size() == tools.size(),
-                     QStringLiteral("public operation and tracking IDs must be unique"));
+        ok &= expect(ids.size() == tools.size(),
+                     QStringLiteral("public operation IDs must be unique"));
         ok &= expect(openSchemaCount == 2,
                      QStringLiteral("only controlled partial arguments and Manifest extensions may "
                                     "use open nested schemas"));

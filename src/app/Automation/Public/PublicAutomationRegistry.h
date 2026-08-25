@@ -9,11 +9,13 @@
 #include "AdmissionController.h"
 
 #include <lite/AutomationWire/PublicToolContract.h>
+#include <lite/AutomationWire/PublicToolNames.h>
 #include <lite/AutomationWire/OpaqueCursorCodec.h>
 
 #include <QHash>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QLatin1StringView>
 
 #include <functional>
 #include <optional>
@@ -176,10 +178,7 @@ namespace Automation {
             const QJsonObject &, const PublicInvocationContext &)>;
 
         void registerBindings();
-        void addBinding(const QString &trackingId, Handler handler);
-        void addOperationBinding(const QString &operationId, Handler handler);
-        [[nodiscard]] const AutomationWire::ToolContract *
-            contractForTracking(const QString &trackingId) const;
+        void addBinding(QLatin1StringView toolName, Handler handler);
         [[nodiscard]] const AutomationWire::PublicManifest &
             manifestForPolicy(const AutomationAccessPolicySnapshot &policy);
         AutomationResult<QJsonArray> resolveValueOptions(const AutomationWire::ToolContract &target,

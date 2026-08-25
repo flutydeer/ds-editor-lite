@@ -6,7 +6,7 @@
 namespace AutomationWire::PublicToolNames {
 
     // MCP tool names are protocol identifiers, distinct from editor operation IDs.
-#define AUTOMATION_WIRE_PUBLIC_TOOL(symbol, tracking, name, category, profile, kind, sync, ...)    \
+#define AUTOMATION_WIRE_PUBLIC_TOOL(symbol, name, category, profile, kind, sync, ...)              \
     inline constexpr QLatin1StringView symbol(name);
 #include "PublicToolDefinitions.inc"
 #undef AUTOMATION_WIRE_PUBLIC_TOOL

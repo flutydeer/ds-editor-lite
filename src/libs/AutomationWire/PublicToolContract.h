@@ -30,7 +30,6 @@ namespace AutomationWire {
     QString syncModeName(SyncMode mode);
 
     struct ToolContract {
-        QString trackingId;
         QString operationId;
         quint64 version = 1;
         quint64 introducedVersion = 1;

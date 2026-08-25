@@ -38,6 +38,8 @@
 #include <vector>
 
 namespace Automation {
+    namespace ToolNames = AutomationWire::PublicToolNames;
+
     namespace {
         AutomationError error(const AutomationErrorCode code, QString message,
                               QString fieldPath = {}) {
@@ -1938,15 +1940,6 @@ namespace Automation {
         return actual == expected;
     }
 
-    const AutomationWire::ToolContract *
-        PublicAutomationRegistry::contractForTracking(const QString &trackingId) const {
-        const auto &all = contracts();
-        const auto it = std::find_if(all.cbegin(), all.cend(), [&](const auto &contract) {
-            return contract.trackingId == trackingId;
-        });
-        return it == all.cend() ? nullptr : &*it;
-    }
-
     const AutomationWire::PublicManifest &
         PublicAutomationRegistry::manifestForPolicy(const AutomationAccessPolicySnapshot &policy) {
         if (!m_manifestCache || !m_manifestCachePolicy || *m_manifestCachePolicy != policy ||
@@ -2366,15 +2359,9 @@ namespace Automation {
         return AutomationUnit{};
     }
 
-    void PublicAutomationRegistry::addBinding(const QString &trackingId, Handler handler) {
-        const auto *contract = contractForTracking(trackingId);
-        Q_ASSERT(contract);
-        Q_ASSERT(!m_handlers.contains(contract->operationId));
-        m_handlers.insert(contract->operationId, std::move(handler));
-    }
-
-    void PublicAutomationRegistry::addOperationBinding(const QString &operationId,
-                                                       Handler handler) {
+    void PublicAutomationRegistry::addBinding(const QLatin1StringView toolName,
+                                                  Handler handler) {
+        const QString operationId(toolName);
         const auto *contract = AutomationWire::findPublicTool(operationId);
         Q_ASSERT(contract);
         Q_ASSERT(!m_handlers.contains(operationId));
@@ -2513,7 +2500,7 @@ namespace Automation {
     }
 
     void PublicAutomationRegistry::registerBindings() {
-        addBinding(QStringLiteral("P2-TOOL-001"),
+        addBinding(ToolNames::application_get_info,
                    [this](const QJsonObject &, const PublicInvocationContext &) {
                        auto result = m_runtime.application().getInfo();
                        if (!result)
@@ -2525,7 +2512,7 @@ namespace Automation {
                            {QStringLiteral("build_id"), result.get().buildId },
                        });
                    });
-        addBinding(QStringLiteral("P2-TOOL-002"), [this](const QJsonObject &,
+        addBinding(ToolNames::automation_get_status, [this](const QJsonObject &,
                                                          const PublicInvocationContext &) {
             const auto policy = m_accessPolicy.snapshot();
             const auto &manifest = manifestForPolicy(policy);
@@ -2568,7 +2555,7 @@ namespace Automation {
                 {QStringLiteral("windows"),            windows                                              },
             });
         });
-        addBinding(QStringLiteral("P2-TOOL-003"), [this](const QJsonObject &arguments,
+        addBinding(ToolNames::automation_get_manifest, [this](const QJsonObject &arguments,
                                                          const PublicInvocationContext &) {
             const auto cursorText = arguments.value(QStringLiteral("cursor")).toString();
             const auto policy = m_accessPolicy.snapshot();
@@ -2621,7 +2608,7 @@ namespace Automation {
             }
             return AutomationResult<QJsonObject>(std::move(result));
         });
-        addBinding(QStringLiteral("P2-TOOL-004"), [this](const QJsonObject &arguments,
+        addBinding(ToolNames::automation_get_options, [this](const QJsonObject &arguments,
                                                          const PublicInvocationContext &) {
             const auto targetId = arguments.value(QStringLiteral("operation_id")).toString();
             const auto *target = AutomationWire::findPublicTool(targetId);
@@ -2657,7 +2644,7 @@ namespace Automation {
             result.insert(QStringLiteral("context_digest"), AutomationWire::sha256Digest(partial));
             return AutomationResult<QJsonObject>(std::move(result));
         });
-        addBinding(QStringLiteral("P2-TOOL-006"), [this](const QJsonObject &arguments,
+        addBinding(ToolNames::documents_get, [this](const QJsonObject &arguments,
                                                          const PublicInvocationContext &) {
             auto result = m_runtime.documents().getDocument(documentId(arguments));
             if (!result)
@@ -2665,7 +2652,7 @@ namespace Automation {
             return AutomationResult<QJsonObject>(queryResult(
                 result.get().document, QStringLiteral("snapshot"), encodeDocument(result.get())));
         });
-        addBinding(QStringLiteral("P2-TOOL-007"), [this](const QJsonObject &arguments,
+        addBinding(ToolNames::project_get, [this](const QJsonObject &arguments,
                                                          const PublicInvocationContext &) {
             auto result = m_runtime.project().getProject(documentId(arguments));
             if (!result)
@@ -2673,7 +2660,7 @@ namespace Automation {
             return AutomationResult<QJsonObject>(queryResult(
                 result.get().document, QStringLiteral("snapshot"), encodeProject(result.get())));
         });
-        addBinding(QStringLiteral("P2-TOOL-068"), [this](const QJsonObject &arguments,
+        addBinding(ToolNames::notes_get, [this](const QJsonObject &arguments,
                                                          const PublicInvocationContext &) {
             auto result = m_runtime.notes().getNotes(
                 documentId(arguments), ClipId(arguments.value(QStringLiteral("clip_id")).toInt()));
@@ -2702,7 +2689,7 @@ namespace Automation {
                 encoded.insert(QStringLiteral("next_cursor"), page.get().nextCursor);
             return AutomationResult<QJsonObject>(std::move(encoded));
         });
-        addBinding(QStringLiteral("P2-TOOL-087"), [this](const QJsonObject &arguments,
+        addBinding(ToolNames::parameters_get, [this](const QJsonObject &arguments,
                                                          const PublicInvocationContext &) {
             auto result = m_runtime.parameters().getParameter(
                 documentId(arguments), ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
@@ -2713,7 +2700,7 @@ namespace Automation {
             return AutomationResult<QJsonObject>(queryResult(
                 result.get().document, QStringLiteral("snapshot"), encodeParameter(result.get())));
         });
-        addBinding(QStringLiteral("P2-TOOL-086"), [this](const QJsonObject &arguments,
+        addBinding(ToolNames::parameters_get_capabilities, [this](const QJsonObject &arguments,
                                                          const PublicInvocationContext &) {
             const auto clipId = ClipId(arguments.value(QStringLiteral("clip_id")).toInt());
             auto result = m_runtime.parameters().getCapabilities(documentId(arguments), clipId);
@@ -2754,7 +2741,7 @@ namespace Automation {
                                 {QStringLiteral("parameters"), parameters    }
             }));
         });
-        addBinding(QStringLiteral("P2-TOOL-096"), [this](const QJsonObject &arguments,
+        addBinding(ToolNames::timeline_get, [this](const QJsonObject &arguments,
                                                          const PublicInvocationContext &) {
             auto result = m_runtime.timeline().getTimeline(documentId(arguments));
             if (!result)
@@ -2781,7 +2768,7 @@ namespace Automation {
                                 {QStringLiteral("time_signatures"), signatures}
             }));
         });
-        addBinding(QStringLiteral("P2-TOOL-101"),
+        addBinding(ToolNames::history_get_state,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &) {
                        auto result = m_runtime.history().getState(documentId(arguments));
                        if (!result)
@@ -2796,7 +2783,7 @@ namespace Automation {
                                {QStringLiteral("redo_name"),     result.get().redoName   },
                        }));
                    });
-        addBinding(QStringLiteral("P2-TOOL-057"), [this](const QJsonObject &arguments,
+        addBinding(ToolNames::voices_list, [this](const QJsonObject &arguments,
                                                          const PublicInvocationContext &) {
             auto result = m_runtime.packages().getInstalledPackages();
             if (!result)
@@ -2836,7 +2823,7 @@ namespace Automation {
                 encoded.insert(QStringLiteral("next_cursor"), page.get().nextCursor);
             return AutomationResult<QJsonObject>(std::move(encoded));
         });
-        addBinding(QStringLiteral("P2-TOOL-058"), [this](const QJsonObject &arguments,
+        addBinding(ToolNames::voices_describe, [this](const QJsonObject &arguments,
                                                          const PublicInvocationContext &) {
             const auto voice = arguments.value(QStringLiteral("singer")).toObject();
             const auto singerId = voice.value(QStringLiteral("singer_id")).toString();
@@ -2916,7 +2903,7 @@ namespace Automation {
                                                        QStringLiteral("Singer was not found"),
                                                        QStringLiteral("singer")));
         });
-        addBinding(QStringLiteral("P2-TOOL-018"), [this](
+        addBinding(ToolNames::tracks_insert, [this](
                                                       const QJsonObject &arguments,
                                                       const PublicInvocationContext &invocation) {
             QString defaultLanguage = QStringLiteral("unknown");
@@ -2975,44 +2962,41 @@ namespace Automation {
                 result.get().resolvedValues = std::move(resolvedValues);
             return mutationResult(std::move(result));
         });
-        addBinding(
-            QStringLiteral("P2-TOOL-019"),
+        addBinding(ToolNames::tracks_remove,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.project().removeTracks(
                     commandContext(arguments, invocation),
                     objectIds<TrackId>(arguments.value(QStringLiteral("track_ids")).toArray())));
             });
-        addBinding(
-            QStringLiteral("P2-TOOL-020"),
+        addBinding(ToolNames::tracks_move,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.project().moveTracks(
                     commandContext(arguments, invocation),
                     objectIds<TrackId>(arguments.value(QStringLiteral("track_ids")).toArray()),
                     arguments.value(QStringLiteral("target_index")).toInteger()));
             });
-        addBinding(QStringLiteral("P2-TOOL-021"),
+        addBinding(ToolNames::tracks_rename,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(m_runtime.project().renameTrack(
                            commandContext(arguments, invocation),
                            TrackId(arguments.value(QStringLiteral("track_id")).toInt()),
                            arguments.value(QStringLiteral("name")).toString()));
                    });
-        addBinding(QStringLiteral("P2-TOOL-022"),
+        addBinding(ToolNames::tracks_set_color,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(m_runtime.project().setTrackColor(
                            commandContext(arguments, invocation),
                            TrackId(arguments.value(QStringLiteral("track_id")).toInt()),
                            arguments.value(QStringLiteral("color_index")).toInt()));
                    });
-        addBinding(QStringLiteral("P2-TOOL-027"),
+        addBinding(ToolNames::tracks_set_default_language,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(m_runtime.project().setTrackDefaultLanguage(
                            commandContext(arguments, invocation),
                            TrackId(arguments.value(QStringLiteral("track_id")).toInt()),
                            arguments.value(QStringLiteral("language_id")).toString()));
                    });
-        addBinding(
-            QStringLiteral("P2-TOOL-038"),
+        addBinding(ToolNames::clips_insert,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 auto project = m_runtime.project().getProject(documentId(arguments));
                 if (!project)
@@ -3058,28 +3042,27 @@ namespace Automation {
                     result.get().resolvedValues = std::move(resolvedValues);
                 return mutationResult(std::move(result));
             });
-        addBinding(
-            QStringLiteral("P2-TOOL-040"),
+        addBinding(ToolNames::clips_remove,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.project().removeClips(
                     commandContext(arguments, invocation),
                     objectIds<ClipId>(arguments.value(QStringLiteral("clip_ids")).toArray())));
             });
-        addBinding(QStringLiteral("P2-TOOL-044"),
+        addBinding(ToolNames::clips_rename,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(m_runtime.project().renameClip(
                            commandContext(arguments, invocation),
                            ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                            arguments.value(QStringLiteral("name")).toString()));
                    });
-        addBinding(QStringLiteral("P2-TOOL-047"),
+        addBinding(ToolNames::clips_set_default_language,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(m_runtime.project().setSingingClipDefaultLanguage(
                            commandContext(arguments, invocation),
                            ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                            arguments.value(QStringLiteral("language_id")).toString()));
                    });
-        addBinding(QStringLiteral("P2-TOOL-070"), [this](
+        addBinding(ToolNames::notes_insert, [this](
                                                       const QJsonObject &arguments,
                                                       const PublicInvocationContext &invocation) {
             const auto clipId = ClipId(arguments.value(QStringLiteral("clip_id")).toInt());
@@ -3144,15 +3127,14 @@ namespace Automation {
                 result.get().resolvedValues = std::move(resolvedValues);
             return mutationResult(std::move(result));
         });
-        addBinding(
-            QStringLiteral("P2-TOOL-072"),
+        addBinding(ToolNames::notes_remove,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.notes().removeNotes(
                     commandContext(arguments, invocation),
                     ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                     objectIds<NoteId>(arguments.value(QStringLiteral("note_ids")).toArray())));
             });
-        addBinding(QStringLiteral("P2-TOOL-073"),
+        addBinding(ToolNames::notes_move,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(m_runtime.notes().moveNotes(
                            commandContext(arguments, invocation),
@@ -3161,7 +3143,7 @@ namespace Automation {
                            arguments.value(QStringLiteral("delta_tick")).toInt(),
                            arguments.value(QStringLiteral("delta_key")).toInt()));
                    });
-        addBinding(QStringLiteral("P2-TOOL-074"),
+        addBinding(ToolNames::notes_resize_left,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(m_runtime.notes().resizeNotesLeft(
                            commandContext(arguments, invocation),
@@ -3169,7 +3151,7 @@ namespace Automation {
                            objectIds<NoteId>(arguments.value(QStringLiteral("note_ids")).toArray()),
                            arguments.value(QStringLiteral("delta_tick")).toInt(), 1));
                    });
-        addBinding(QStringLiteral("P2-TOOL-075"),
+        addBinding(ToolNames::notes_resize_right,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(m_runtime.notes().resizeNotesRight(
                            commandContext(arguments, invocation),
@@ -3177,7 +3159,7 @@ namespace Automation {
                            objectIds<NoteId>(arguments.value(QStringLiteral("note_ids")).toArray()),
                            arguments.value(QStringLiteral("delta_tick")).toInt(), 1));
                    });
-        addBinding(QStringLiteral("P2-TOOL-076"),
+        addBinding(ToolNames::notes_split_at,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(m_runtime.notes().splitNoteAt(
                            commandContext(arguments, invocation),
@@ -3185,7 +3167,7 @@ namespace Automation {
                            NoteId(arguments.value(QStringLiteral("note_id")).toInt()),
                            arguments.value(QStringLiteral("local_position")).toInt()));
                    });
-        addBinding(QStringLiteral("P2-TOOL-077"),
+        addBinding(ToolNames::notes_quantize,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(m_runtime.notes().quantizeNotes(
                            commandContext(arguments, invocation),
@@ -3195,7 +3177,7 @@ namespace Automation {
                            arguments.value(QStringLiteral("quantize_start")).toBool(),
                            arguments.value(QStringLiteral("quantize_length")).toBool()));
                    });
-        addBinding(QStringLiteral("P2-TOOL-078"),
+        addBinding(ToolNames::notes_set_lyric,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(m_runtime.notes().setLyric(
                            commandContext(arguments, invocation),
@@ -3203,7 +3185,7 @@ namespace Automation {
                            NoteId(arguments.value(QStringLiteral("note_id")).toInt()),
                            arguments.value(QStringLiteral("lyric")).toString()));
                    });
-        addBinding(QStringLiteral("P2-TOOL-083"),
+        addBinding(ToolNames::notes_set_phoneme_offsets,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        QList<int> offsets;
                        for (const auto &value :
@@ -3214,15 +3196,14 @@ namespace Automation {
                            ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                            NoteId(arguments.value(QStringLiteral("note_id")).toInt()), offsets));
                    });
-        addBinding(
-            QStringLiteral("P2-TOOL-128"),
+        addBinding(ToolNames::notes_reset_phoneme_offsets,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.notes().resetPhonemeOffsets(
                     commandContext(arguments, invocation),
                     ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                     objectIds<NoteId>(arguments.value(QStringLiteral("note_ids")).toArray())));
             });
-        addBinding(QStringLiteral("P2-TOOL-088"),
+        addBinding(ToolNames::parameters_replace,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        QList<CurveDraftDto> curves;
                        for (const auto &value : arguments.value(QStringLiteral("curves")).toArray())
@@ -3234,7 +3215,7 @@ namespace Automation {
                            parameterType(arguments.value(QStringLiteral("layer")).toString()),
                            curves));
                    });
-        addBinding(QStringLiteral("P2-TOOL-089"),
+        addBinding(ToolNames::parameters_draw,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        QList<int> values;
                        for (const auto &value : arguments.value(QStringLiteral("values")).toArray())
@@ -3249,7 +3230,7 @@ namespace Automation {
                            arguments.value(QStringLiteral("merge_mode")).toString() ==
                                QStringLiteral("overlay")));
                    });
-        addBinding(QStringLiteral("P2-TOOL-090"),
+        addBinding(ToolNames::parameters_erase,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(m_runtime.parameters().eraseParameter(
                            commandContext(arguments, invocation),
@@ -3259,8 +3240,7 @@ namespace Automation {
                            arguments.value(QStringLiteral("local_start")).toInt(),
                            arguments.value(QStringLiteral("local_end")).toInt()));
                    });
-        addBinding(
-            QStringLiteral("P2-TOOL-092"),
+        addBinding(ToolNames::parameters_insert_anchors,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 const auto curveId = arguments.contains(QStringLiteral("curve_id"))
                                          ? std::optional<CurveId>(CurveId(
@@ -3281,8 +3261,7 @@ namespace Automation {
                     parameterType(arguments.value(QStringLiteral("layer")).toString()), curveId,
                     anchors));
             });
-        addBinding(
-            QStringLiteral("P2-TOOL-093"),
+        addBinding(ToolNames::parameters_move_anchors,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 QList<AnchorMoveDto> moves;
                 for (const auto &value : arguments.value(QStringLiteral("moves")).toArray()) {
@@ -3297,8 +3276,7 @@ namespace Automation {
                     parameterName(arguments.value(QStringLiteral("name")).toString()),
                     parameterType(arguments.value(QStringLiteral("layer")).toString()), moves));
             });
-        addBinding(
-            QStringLiteral("P2-TOOL-094"),
+        addBinding(ToolNames::parameters_remove_anchors,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.parameters().removeAnchors(
                     commandContext(arguments, invocation),
@@ -3307,8 +3285,7 @@ namespace Automation {
                     parameterType(arguments.value(QStringLiteral("layer")).toString()),
                     objectIds<AnchorId>(arguments.value(QStringLiteral("anchor_ids")).toArray())));
             });
-        addBinding(
-            QStringLiteral("P2-TOOL-095"),
+        addBinding(ToolNames::parameters_set_anchor_interpolation,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.parameters().setAnchorInterpolations(
                     commandContext(arguments, invocation),
@@ -3318,8 +3295,7 @@ namespace Automation {
                     objectIds<AnchorId>(arguments.value(QStringLiteral("anchor_ids")).toArray()),
                     interpolation(arguments.value(QStringLiteral("interpolation")).toString())));
             });
-        addBinding(
-            QStringLiteral("P2-TOOL-091"),
+        addBinding(ToolNames::parameters_bake,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.parameters().bakeParameter(
                     commandContext(arguments, invocation),
@@ -3332,7 +3308,7 @@ namespace Automation {
                         ? std::optional<int>(arguments.value(QStringLiteral("local_end")).toInt())
                         : std::nullopt));
             });
-        addBinding(QStringLiteral("P2-TOOL-029"),
+        addBinding(ToolNames::tracks_set_voice,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        auto voice = resolveVoiceSelection(
                            m_runtime, arguments.value(QStringLiteral("voice")).toObject(),
@@ -3344,7 +3320,7 @@ namespace Automation {
                            TrackId(arguments.value(QStringLiteral("track_id")).toInt()),
                            voice.get().first, voice.get().second));
                    });
-        addBinding(QStringLiteral("P2-TOOL-060"),
+        addBinding(ToolNames::speaker_mix_set_fixed,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        auto mix = resolveSpeakerMix(
                            m_runtime, arguments.value(QStringLiteral("mix")).toObject(),
@@ -3360,7 +3336,7 @@ namespace Automation {
                            commandContext(arguments, invocation), target, mix.get().first, speaker,
                            mix.get().second));
                    });
-        addBinding(QStringLiteral("P2-TOOL-059"), [this](const QJsonObject &arguments,
+        addBinding(ToolNames::speaker_mix_get, [this](const QJsonObject &arguments,
                                                          const PublicInvocationContext &) {
             auto result = m_runtime.parameters().getSpeakerMix(
                 documentId(arguments),
@@ -3376,13 +3352,13 @@ namespace Automation {
             return AutomationResult<QJsonObject>(queryResult(
                 result.get().document, QStringLiteral("snapshot"), encodeSpeakerMix(result.get())));
         });
-        addBinding(QStringLiteral("P2-TOOL-049"),
+        addBinding(ToolNames::clips_use_track_voice,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(m_runtime.parameters().useTrackVoiceContext(
                            commandContext(arguments, invocation),
                            ClipId(arguments.value(QStringLiteral("clip_id")).toInt())));
                    });
-        addBinding(QStringLiteral("P2-TOOL-050"),
+        addBinding(ToolNames::clips_set_voice,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        auto voice = resolveVoiceSelection(
                            m_runtime, arguments.value(QStringLiteral("voice")).toObject(),
@@ -3394,19 +3370,19 @@ namespace Automation {
                            ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                            voice.get().first, voice.get().second));
                    });
-        addBinding(QStringLiteral("P2-TOOL-061"),
+        addBinding(ToolNames::speaker_mix_enable_dynamic,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(m_runtime.parameters().enableClipDynamicSpeakerMix(
                            commandContext(arguments, invocation),
                            ClipId(arguments.value(QStringLiteral("clip_id")).toInt())));
                    });
-        addBinding(QStringLiteral("P2-TOOL-062"),
+        addBinding(ToolNames::speaker_mix_disable_dynamic,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(m_runtime.parameters().disableClipDynamicSpeakerMix(
                            commandContext(arguments, invocation),
                            ClipId(arguments.value(QStringLiteral("clip_id")).toInt())));
                    });
-        addBinding(QStringLiteral("P2-TOOL-063"),
+        addBinding(ToolNames::speaker_mix_set_dynamic_bypass,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(
                            m_runtime.parameters().setClipDynamicSpeakerMixBypassed(
@@ -3414,20 +3390,20 @@ namespace Automation {
                                ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                                arguments.value(QStringLiteral("bypassed")).toBool()));
                    });
-        addBinding(QStringLiteral("P2-TOOL-097"),
+        addBinding(ToolNames::tempos_set,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(m_runtime.timeline().setTempo(
                            commandContext(arguments, invocation),
                            arguments.value(QStringLiteral("tick")).toInt(),
                            arguments.value(QStringLiteral("tempo")).toDouble()));
                    });
-        addBinding(QStringLiteral("P2-TOOL-098"),
+        addBinding(ToolNames::tempos_delete,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(m_runtime.timeline().deleteTempo(
                            commandContext(arguments, invocation),
                            arguments.value(QStringLiteral("tick")).toInt()));
                    });
-        addBinding(QStringLiteral("P2-TOOL-099"),
+        addBinding(ToolNames::time_signatures_set,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(m_runtime.timeline().setTimeSignature(
                            commandContext(arguments, invocation),
@@ -3435,13 +3411,13 @@ namespace Automation {
                            arguments.value(QStringLiteral("numerator")).toInt(),
                            arguments.value(QStringLiteral("denominator")).toInt()));
                    });
-        addBinding(QStringLiteral("P2-TOOL-100"),
+        addBinding(ToolNames::time_signatures_delete,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(m_runtime.timeline().deleteTimeSignature(
                            commandContext(arguments, invocation),
                            arguments.value(QStringLiteral("bar_index")).toInt()));
                    });
-        addBinding(QStringLiteral("P2-TOOL-031"),
+        addBinding(ToolNames::master_get,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &) {
                        auto result = m_runtime.timeline().getMaster(documentId(arguments));
                        if (!result)
@@ -3456,17 +3432,17 @@ namespace Automation {
                                            {QStringLiteral("metering_available"), false              }
                        }));
                    });
-        addBinding(QStringLiteral("P2-TOOL-102"),
+        addBinding(ToolNames::history_undo,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(
                            m_runtime.history().undo(commandContext(arguments, invocation)));
                    });
-        addBinding(QStringLiteral("P2-TOOL-103"),
+        addBinding(ToolNames::history_redo,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(
                            m_runtime.history().redo(commandContext(arguments, invocation)));
                    });
-        addBinding(QStringLiteral("P2-TOOL-005"),
+        addBinding(ToolNames::automation_get_file_access,
                    [this](const QJsonObject &, const PublicInvocationContext &) {
                        const auto snapshot = m_fileGuard.snapshot();
                        QJsonArray readRoots;
@@ -3494,8 +3470,7 @@ namespace Automation {
                            {QStringLiteral("session_grants"), grants    },
                        });
                    });
-        addBinding(
-            QStringLiteral("P2-TOOL-008"),
+        addBinding(ToolNames::documents_new,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 const auto context = replacementCommandContext(m_runtime, arguments, invocation);
                 auto current = m_runtime.documents().getDocument(context.expected.documentId);
@@ -3528,7 +3503,7 @@ namespace Automation {
                 return AutomationResult<QJsonObject>(
                     encodeDocumentLifecycleResult(committed.get(), path, dirty));
             });
-        addBinding(QStringLiteral("P2-TOOL-009"), [this](
+        addBinding(ToolNames::documents_open, [this](
                                                       const QJsonObject &arguments,
                                                       const PublicInvocationContext &invocation) {
             if (!m_hostServices.openDocument)
@@ -3574,7 +3549,7 @@ namespace Automation {
             };
             return taskAcceptedResult(m_hostServices.openDocument(request));
         });
-        addBinding(QStringLiteral("P2-TOOL-012"), [this](
+        addBinding(ToolNames::documents_import, [this](
                                                       const QJsonObject &arguments,
                                                       const PublicInvocationContext &invocation) {
             if (!m_hostServices.importDocument)
@@ -3617,8 +3592,7 @@ namespace Automation {
             };
             return taskAcceptedResult(m_hostServices.importDocument(request));
         });
-        addBinding(
-            QStringLiteral("P2-TOOL-010"),
+        addBinding(ToolNames::documents_save,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 auto document = m_runtime.documents().getDocument(documentId(arguments));
                 if (!document)
@@ -3640,7 +3614,7 @@ namespace Automation {
                     commandContext(arguments, invocation), path,
                     overwritePolicy.isEmpty() || overwritePolicy == QStringLiteral("overwrite")));
             });
-        addBinding(QStringLiteral("P2-TOOL-014"), [this](const QJsonObject &arguments,
+        addBinding(ToolNames::formats_list, [this](const QJsonObject &arguments,
                                                          const PublicInvocationContext &) {
             auto result = m_runtime.files().listFormats();
             if (!result)
@@ -3678,7 +3652,7 @@ namespace Automation {
                 {QStringLiteral("formats"), formats}
             });
         });
-        addBinding(QStringLiteral("P2-TOOL-053"),
+        addBinding(ToolNames::audio_clips_import,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        if (!m_hostServices.importAudioClip)
                            return AutomationResult<QJsonObject>(
@@ -3698,7 +3672,7 @@ namespace Automation {
                             properties,
                             {}}));
                    });
-        addBinding(QStringLiteral("P2-TOOL-054"), [this](
+        addBinding(ToolNames::audio_clips_import_batch, [this](
                                                       const QJsonObject &arguments,
                                                       const PublicInvocationContext &invocation) {
             if (!m_hostServices.importAudioClips)
@@ -3736,7 +3710,7 @@ namespace Automation {
             }
             return taskAcceptedResult(m_hostServices.importAudioClips(request));
         });
-        addBinding(QStringLiteral("P2-TOOL-055"),
+        addBinding(ToolNames::audio_clips_relocate,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        const auto path = arguments.value(QStringLiteral("path")).toString();
                        auto prepared =
@@ -3748,7 +3722,7 @@ namespace Automation {
                            ClipId(arguments.value(QStringLiteral("clip_id")).toInt()), path,
                            AudioPathInfo{{}, prepared.get().sha512}, prepared.get().formatData));
                    });
-        addBinding(QStringLiteral("P2-TOOL-056"), [this](
+        addBinding(ToolNames::audio_clips_confirm_path, [this](
                                                       const QJsonObject &arguments,
                                                       const PublicInvocationContext &invocation) {
             auto path = arguments.value(QStringLiteral("path")).toString();
@@ -3783,7 +3757,7 @@ namespace Automation {
                 ClipId(arguments.value(QStringLiteral("clip_id")).toInt()), path,
                 AudioPathInfo{{}, prepared.get().sha512}, prepared.get().formatData));
         });
-        addBinding(QStringLiteral("P2-TOOL-114"), [this](
+        addBinding(ToolNames::exports_midi_start, [this](
                                                       const QJsonObject &arguments,
                                                       const PublicInvocationContext &invocation) {
             auto resolvedContext = documentQueryCommandContext(m_runtime, arguments, invocation);
@@ -3859,7 +3833,7 @@ namespace Automation {
             return AutomationResult<QJsonObject>(
                 encodeTaskAccepted({snapshot.taskId, context.expected, context.validateOnly}));
         });
-        addBinding(QStringLiteral("P2-TOOL-115"), [this](const QJsonObject &arguments,
+        addBinding(ToolNames::exports_audio_get_capabilities, [this](const QJsonObject &arguments,
                                                          const PublicInvocationContext &) {
             if (!m_hostServices.audioExportCapabilities)
                 return AutomationResult<QJsonObject>(
@@ -3874,7 +3848,7 @@ namespace Automation {
             return AutomationResult<QJsonObject>(queryResult(
                 project.get().document, QStringLiteral("capabilities"), capabilities.get()));
         });
-        addBinding(QStringLiteral("P2-TOOL-116"), [this](const QJsonObject &arguments,
+        addBinding(ToolNames::exports_audio_preview, [this](const QJsonObject &arguments,
                                                          const PublicInvocationContext &) {
             const auto options = arguments.value(QStringLiteral("options")).toObject();
             const auto document = documentId(arguments);
@@ -3914,8 +3888,7 @@ namespace Automation {
             return AutomationResult<QJsonObject>(
                 queryResult(m_runtime.documentVersion(), QStringLiteral("plan"), plan));
         });
-        addBinding(
-            QStringLiteral("P2-TOOL-117"),
+        addBinding(ToolNames::exports_audio_start,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 const auto options = arguments.value(QStringLiteral("options")).toObject();
                 AudioExportPolicyDto policy;
@@ -3961,7 +3934,7 @@ namespace Automation {
                         return AutomationResult<AutomationUnit>(AutomationUnit{});
                     }));
             });
-        addBinding(QStringLiteral("P2-TOOL-118"), [this](const QJsonObject &arguments,
+        addBinding(ToolNames::extract_get_capabilities, [this](const QJsonObject &arguments,
                                                          const PublicInvocationContext &) {
             const auto clipId =
                 ClipId(arguments.value(QStringLiteral("source_audio_clip_id")).toInt());
@@ -3999,8 +3972,7 @@ namespace Automation {
             return AutomationResult<QJsonObject>(queryResult(
                 project.get().document, QStringLiteral("capabilities"), capabilities.get()));
         });
-        addBinding(
-            QStringLiteral("P2-TOOL-119"),
+        addBinding(ToolNames::extract_pitch_start,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 const auto options = arguments.value(QStringLiteral("options")).toObject();
                 PitchExtractionOptionsDto extractionOptions;
@@ -4012,8 +3984,7 @@ namespace Automation {
                     ClipId(arguments.value(QStringLiteral("target_singing_clip_id")).toInt()),
                     std::move(extractionOptions)));
             });
-        addBinding(
-            QStringLiteral("P2-TOOL-120"),
+        addBinding(ToolNames::extract_midi_start,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 const auto options = arguments.value(QStringLiteral("options")).toObject();
                 MidiExtractionOptionsDto extractionOptions;
@@ -4056,7 +4027,7 @@ namespace Automation {
                     ClipId(arguments.value(QStringLiteral("source_audio_clip_id")).toInt()),
                     std::move(extractionOptions)));
             });
-        addBinding(QStringLiteral("P2-TOOL-121"), [this](const QJsonObject &arguments,
+        addBinding(ToolNames::inference_get_capabilities, [this](const QJsonObject &arguments,
                                                          const PublicInvocationContext &) {
             const auto scope = arguments.value(QStringLiteral("scope")).toObject();
             if (!m_hostServices.inferenceCapabilities)
@@ -4068,7 +4039,7 @@ namespace Automation {
             return AutomationResult<QJsonObject>(queryResult(
                 m_runtime.documentVersion(), QStringLiteral("capabilities"), capabilities.get()));
         });
-        addBinding(QStringLiteral("P2-TOOL-123"),
+        addBinding(ToolNames::inference_start,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        if (!m_hostServices.startInference)
                            return AutomationResult<QJsonObject>(unavailable(
@@ -4083,7 +4054,7 @@ namespace Automation {
                            request.stages = InferenceAutomationFacade::supportedStages();
                        return taskAcceptedResult(m_hostServices.startInference(request));
                    });
-        addBinding(QStringLiteral("P2-TOOL-124"),
+        addBinding(ToolNames::inference_reset_stage,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        if (!m_hostServices.resetInferenceStage)
                            return AutomationResult<QJsonObject>(unavailable(QStringLiteral(
@@ -4094,7 +4065,7 @@ namespace Automation {
                            arguments.value(QStringLiteral("stage")).toString(),
                        }));
                    });
-        addBinding(QStringLiteral("P2-TOOL-125"), [this](const QJsonObject &arguments,
+        addBinding(ToolNames::tasks_list, [this](const QJsonObject &arguments,
                                                          const PublicInvocationContext &) {
             auto tasks = m_runtime.tasks().listTasks(documentId(arguments));
             if (!tasks)
@@ -4160,7 +4131,7 @@ namespace Automation {
             }
             return AutomationResult<QJsonObject>(std::move(result));
         });
-        addBinding(QStringLiteral("P2-TOOL-126"), [this](const QJsonObject &arguments,
+        addBinding(ToolNames::tasks_get, [this](const QJsonObject &arguments,
                                                          const PublicInvocationContext &) {
             auto result = m_runtime.tasks().getTask(
                 documentId(arguments),
@@ -4173,8 +4144,7 @@ namespace Automation {
             }
             return AutomationResult<QJsonObject>(encodeTaskSnapshot(result.get()));
         });
-        addBinding(
-            QStringLiteral("P2-TOOL-127"),
+        addBinding(ToolNames::tasks_cancel,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 auto context = documentQueryCommandContext(m_runtime, arguments, invocation);
                 if (!context)
@@ -4192,7 +4162,7 @@ namespace Automation {
                     return AutomationResult<QJsonObject>(result.getError());
                 return AutomationResult<QJsonObject>(encodeTaskSnapshot(result.get()));
             });
-        addBinding(QStringLiteral("P2-TOOL-104"), [this](const QJsonObject &arguments,
+        addBinding(ToolNames::playback_get, [this](const QJsonObject &arguments,
                                                          const PublicInvocationContext &) {
             auto result = m_runtime.playback().getPlayback(documentId(arguments));
             if (!result)
@@ -4200,38 +4170,38 @@ namespace Automation {
             return AutomationResult<QJsonObject>(queryResult(
                 result.get().document, QStringLiteral("snapshot"), encodePlayback(result.get())));
         });
-        addBinding(QStringLiteral("P2-TOOL-105"),
+        addBinding(ToolNames::playback_play,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return playbackStateMutationResult(
                            m_runtime, m_runtime.playback().play(playbackCommandContext(
                                           m_runtime, arguments, invocation)));
                    });
-        addBinding(QStringLiteral("P2-TOOL-106"),
+        addBinding(ToolNames::playback_pause,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return playbackStateMutationResult(
                            m_runtime, m_runtime.playback().pause(playbackCommandContext(
                                           m_runtime, arguments, invocation)));
                    });
-        addBinding(QStringLiteral("P2-TOOL-107"),
+        addBinding(ToolNames::playback_stop,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return playbackStateMutationResult(
                            m_runtime, m_runtime.playback().stop(playbackCommandContext(
                                           m_runtime, arguments, invocation)));
                    });
-        addBinding(QStringLiteral("P2-TOOL-108"),
+        addBinding(ToolNames::playback_seek,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return playbackStateMutationResult(
                            m_runtime, m_runtime.playback().seek(
                                           playbackCommandContext(m_runtime, arguments, invocation),
                                           arguments.value(QStringLiteral("position")).toDouble()));
                    });
-        addBinding(QStringLiteral("P2-TOOL-032"),
+        addBinding(ToolNames::master_set_gain,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(m_runtime.timeline().setMasterGain(
                            commandContext(arguments, invocation),
                            arguments.value(QStringLiteral("gain")).toDouble()));
                    });
-        addBinding(QStringLiteral("P2-TOOL-109"),
+        addBinding(ToolNames::playback_set_loop,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        const auto start = playbackLoopTick(arguments, QStringLiteral("start"));
                        if (!start)
@@ -4245,22 +4215,21 @@ namespace Automation {
                                commandContext(arguments, invocation),
                                LoopSettings(true, start.get(), end.get() - start.get())));
                    });
-        addBinding(QStringLiteral("P2-TOOL-110"),
+        addBinding(ToolNames::playback_set_loop_enabled,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return playbackDocumentMutationResult(
                            m_runtime, m_runtime.playback().setLoopEnabled(
                                           commandContext(arguments, invocation),
                                           arguments.value(QStringLiteral("enabled")).toBool()));
                    });
-        addBinding(QStringLiteral("P2-TOOL-111"),
+        addBinding(ToolNames::playback_clear_loop,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return playbackDocumentMutationResult(
                            m_runtime,
                            m_runtime.playback().clearLoop(commandContext(arguments, invocation)));
                    });
 
-        addOperationBinding(
-            OperationIds::documents::save_as,
+        addBinding(ToolNames::documents_save_as,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 auto path = arguments.value(QStringLiteral("path")).toString();
                 const auto extensionPolicy =
@@ -4286,8 +4255,7 @@ namespace Automation {
                         QStringLiteral("overwrite")));
             });
 
-        addOperationBinding(
-            OperationIds::documents::import_batch,
+        addBinding(ToolNames::documents_import_batch,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 if (!m_hostServices.importDocuments) {
                     return AutomationResult<QJsonObject>(unavailable(
@@ -4364,7 +4332,7 @@ namespace Automation {
                 return taskAcceptedResult(m_hostServices.importDocuments(request));
             });
 
-        addOperationBinding(OperationIds::formats::inspect,
+        addBinding(ToolNames::formats_inspect,
                             [this](const QJsonObject &arguments, const PublicInvocationContext &) {
                                 auto formats = m_runtime.files().listFormats();
                                 if (!formats)
@@ -4375,7 +4343,7 @@ namespace Automation {
                                     arguments.value(QStringLiteral("purpose")).toString());
                             });
 
-        addOperationBinding(OperationIds::tracks::list, [this](const QJsonObject &arguments,
+        addBinding(ToolNames::tracks_list, [this](const QJsonObject &arguments,
                                                                const PublicInvocationContext &) {
             auto project = m_runtime.project().getProject(documentId(arguments));
             if (!project)
@@ -4399,7 +4367,7 @@ namespace Automation {
             return AutomationResult<QJsonObject>(std::move(result));
         });
 
-        addOperationBinding(OperationIds::tracks::get, [this](const QJsonObject &arguments,
+        addBinding(ToolNames::tracks_get, [this](const QJsonObject &arguments,
                                                               const PublicInvocationContext &) {
             auto project = m_runtime.project().getProject(documentId(arguments));
             if (!project)
@@ -4417,32 +4385,28 @@ namespace Automation {
                 {ObjectKind::Track, trackId.value()}, QStringLiteral("Track was not found")));
         });
 
-        addOperationBinding(
-            OperationIds::tracks::set_gain,
+        addBinding(ToolNames::tracks_set_gain,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.project().setTrackGain(
                     commandContext(arguments, invocation),
                     TrackId(arguments.value(QStringLiteral("track_id")).toInt()),
                     arguments.value(QStringLiteral("gain")).toDouble()));
             });
-        addOperationBinding(
-            OperationIds::tracks::set_pan,
+        addBinding(ToolNames::tracks_set_pan,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.project().setTrackPan(
                     commandContext(arguments, invocation),
                     TrackId(arguments.value(QStringLiteral("track_id")).toInt()),
                     arguments.value(QStringLiteral("pan")).toDouble()));
             });
-        addOperationBinding(
-            OperationIds::tracks::set_mute,
+        addBinding(ToolNames::tracks_set_mute,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.project().setTrackMute(
                     commandContext(arguments, invocation),
                     TrackId(arguments.value(QStringLiteral("track_id")).toInt()),
                     arguments.value(QStringLiteral("mute")).toBool()));
             });
-        addOperationBinding(
-            OperationIds::tracks::set_solo,
+        addBinding(ToolNames::tracks_set_solo,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.project().setTrackSolo(
                     commandContext(arguments, invocation),
@@ -4450,8 +4414,7 @@ namespace Automation {
                     arguments.value(QStringLiteral("solo")).toBool()));
             });
 
-        addOperationBinding(
-            OperationIds::tracks::get_voice_context,
+        addBinding(ToolNames::tracks_get_voice_context,
             [this](const QJsonObject &arguments, const PublicInvocationContext &) {
                 auto project = m_runtime.project().getProject(documentId(arguments));
                 if (!project)
@@ -4473,37 +4436,33 @@ namespace Automation {
                     {ObjectKind::Track, trackId.value()}, QStringLiteral("Track was not found")));
             });
 
-        addOperationBinding(
-            OperationIds::tracks::clear_voice,
+        addBinding(ToolNames::tracks_clear_voice,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.parameters().clearTrackVoice(
                     commandContext(arguments, invocation),
                     TrackId(arguments.value(QStringLiteral("track_id")).toInt())));
             });
 
-        addOperationBinding(
-            OperationIds::master::set_pan,
+        addBinding(ToolNames::master_set_pan,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.timeline().setMasterPan(
                     commandContext(arguments, invocation),
                     arguments.value(QStringLiteral("pan")).toDouble()));
             });
-        addOperationBinding(
-            OperationIds::master::set_mute,
+        addBinding(ToolNames::master_set_mute,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.timeline().setMasterMute(
                     commandContext(arguments, invocation),
                     arguments.value(QStringLiteral("mute")).toBool()));
             });
-        addOperationBinding(
-            OperationIds::master::set_solo,
+        addBinding(ToolNames::master_set_solo,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.timeline().setMasterSolo(
                     commandContext(arguments, invocation),
                     arguments.value(QStringLiteral("solo")).toBool()));
             });
 
-        addOperationBinding(OperationIds::clips::list, [this](const QJsonObject &arguments,
+        addBinding(ToolNames::clips_list, [this](const QJsonObject &arguments,
                                                               const PublicInvocationContext &) {
             auto project = m_runtime.project().getProject(documentId(arguments));
             if (!project)
@@ -4552,7 +4511,7 @@ namespace Automation {
             return AutomationResult<QJsonObject>(std::move(result));
         });
 
-        addOperationBinding(OperationIds::clips::get, [this](const QJsonObject &arguments,
+        addBinding(ToolNames::clips_get, [this](const QJsonObject &arguments,
                                                              const PublicInvocationContext &) {
             auto project = m_runtime.project().getProject(documentId(arguments));
             if (!project)
@@ -4571,8 +4530,7 @@ namespace Automation {
                 {ObjectKind::Clip, clipId.value()}, QStringLiteral("Clip was not found")));
         });
 
-        addOperationBinding(
-            OperationIds::clips::duplicate,
+        addBinding(ToolNames::clips_duplicate,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 const auto destination = arguments.value(QStringLiteral("destination")).toObject();
                 ClipDuplicateDestinationDto decoded;
@@ -4587,8 +4545,7 @@ namespace Automation {
                     decoded));
             });
 
-        addOperationBinding(
-            OperationIds::clips::move,
+        addBinding(ToolNames::clips_move,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 QList<ClipMoveDto> moves;
                 for (const auto &value : arguments.value(QStringLiteral("moves")).toArray()) {
@@ -4601,32 +4558,28 @@ namespace Automation {
                     m_runtime.project().moveClips(commandContext(arguments, invocation), moves));
             });
 
-        addOperationBinding(
-            OperationIds::clips::resize_left,
+        addBinding(ToolNames::clips_resize_left,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.project().resizeClipLeft(
                     commandContext(arguments, invocation),
                     ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                     arguments.value(QStringLiteral("start")).toInt()));
             });
-        addOperationBinding(
-            OperationIds::clips::resize_right,
+        addBinding(ToolNames::clips_resize_right,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.project().resizeClipRight(
                     commandContext(arguments, invocation),
                     ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                     arguments.value(QStringLiteral("end")).toInt()));
             });
-        addOperationBinding(
-            OperationIds::clips::set_gain,
+        addBinding(ToolNames::clips_set_gain,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.project().setClipGain(
                     commandContext(arguments, invocation),
                     ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                     arguments.value(QStringLiteral("gain")).toDouble()));
             });
-        addOperationBinding(
-            OperationIds::clips::set_mute,
+        addBinding(ToolNames::clips_set_mute,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.project().setClipMute(
                     commandContext(arguments, invocation),
@@ -4634,8 +4587,7 @@ namespace Automation {
                     arguments.value(QStringLiteral("mute")).toBool()));
             });
 
-        addOperationBinding(
-            OperationIds::clips::get_voice_context,
+        addBinding(ToolNames::clips_get_voice_context,
             [this](const QJsonObject &arguments, const PublicInvocationContext &) {
                 auto project = m_runtime.project().getProject(documentId(arguments));
                 if (!project)
@@ -4676,16 +4628,14 @@ namespace Automation {
                     {ObjectKind::Clip, clipId.value()}, QStringLiteral("Clip was not found")));
             });
 
-        addOperationBinding(
-            OperationIds::clips::clear_voice,
+        addBinding(ToolNames::clips_clear_voice,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.parameters().clearClipVoice(
                     commandContext(arguments, invocation),
                     ClipId(arguments.value(QStringLiteral("clip_id")).toInt())));
             });
 
-        addOperationBinding(
-            OperationIds::audio_clips::get,
+        addBinding(ToolNames::audio_clips_get,
             [this](const QJsonObject &arguments, const PublicInvocationContext &) {
                 auto project = m_runtime.project().getProject(documentId(arguments));
                 if (!project)
@@ -4712,8 +4662,7 @@ namespace Automation {
                     {ObjectKind::Clip, clipId.value()}, QStringLiteral("Clip was not found")));
             });
 
-        addOperationBinding(
-            OperationIds::speaker_mix::keyframes::insert,
+        addBinding(ToolNames::speaker_mix_keyframes_insert,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 std::optional<QVector<double>> weights;
                 if (arguments.contains(QStringLiteral("weights"))) {
@@ -4726,8 +4675,7 @@ namespace Automation {
                     ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                     arguments.value(QStringLiteral("position")).toInt(), weights));
             });
-        addOperationBinding(
-            OperationIds::speaker_mix::keyframes::move,
+        addBinding(ToolNames::speaker_mix_keyframes_move,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 QList<QPair<SpeakerMixKeyframeId, int>> moves;
                 for (const auto &value : arguments.value(QStringLiteral("moves")).toArray()) {
@@ -4740,8 +4688,7 @@ namespace Automation {
                     commandContext(arguments, invocation),
                     ClipId(arguments.value(QStringLiteral("clip_id")).toInt()), moves));
             });
-        addOperationBinding(
-            OperationIds::speaker_mix::keyframes::set_weights,
+        addBinding(ToolNames::speaker_mix_keyframes_set_weights,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 QVector<double> weights;
                 for (const auto &value : arguments.value(QStringLiteral("weights")).toArray())
@@ -4752,8 +4699,7 @@ namespace Automation {
                     SpeakerMixKeyframeId(arguments.value(QStringLiteral("keyframe_id")).toInt()),
                     std::move(weights)));
             });
-        addOperationBinding(
-            OperationIds::speaker_mix::keyframes::remove,
+        addBinding(ToolNames::speaker_mix_keyframes_remove,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.parameters().removeSpeakerMixKeyframes(
                     commandContext(arguments, invocation),
@@ -4762,7 +4708,7 @@ namespace Automation {
                         arguments.value(QStringLiteral("keyframe_ids")).toArray())));
             });
 
-        addOperationBinding(OperationIds::notes::search, [this](const QJsonObject &arguments,
+        addBinding(ToolNames::notes_search, [this](const QJsonObject &arguments,
                                                                 const PublicInvocationContext &) {
             auto matches = m_runtime.notes().searchNotes(
                 documentId(arguments), ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
@@ -4785,8 +4731,7 @@ namespace Automation {
                 queryResult(m_runtime.documentVersion(), QStringLiteral("matches"), encoded));
         });
 
-        addOperationBinding(
-            OperationIds::notes::duplicate,
+        addBinding(ToolNames::notes_duplicate,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.notes().duplicateNotes(
                     commandContext(arguments, invocation),
@@ -4796,8 +4741,7 @@ namespace Automation {
                     arguments.value(QStringLiteral("target_start")).toInt()));
             });
 
-        addOperationBinding(
-            OperationIds::notes::set_language,
+        addBinding(ToolNames::notes_set_language,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 const auto clipId = ClipId(arguments.value(QStringLiteral("clip_id")).toInt());
                 auto project = m_runtime.project().getProject(documentId(arguments));
@@ -4811,8 +4755,7 @@ namespace Automation {
                     language));
             });
 
-        addOperationBinding(
-            OperationIds::notes::set_pronunciation,
+        addBinding(ToolNames::notes_set_pronunciation,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.notes().setPronunciation(
                     commandContext(arguments, invocation),
@@ -4823,8 +4766,7 @@ namespace Automation {
                     arguments.value(QStringLiteral("pronunciation")).toString()));
             });
 
-        addOperationBinding(
-            OperationIds::notes::reset_pronunciation,
+        addBinding(ToolNames::notes_reset_pronunciation,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.notes().resetPronunciation(
                     commandContext(arguments, invocation),
@@ -4832,8 +4774,7 @@ namespace Automation {
                     NoteId(arguments.value(QStringLiteral("note_id")).toInt())));
             });
 
-        addOperationBinding(
-            OperationIds::notes::set_phonemes,
+        addBinding(ToolNames::notes_set_phonemes,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 const auto clipId = ClipId(arguments.value(QStringLiteral("clip_id")).toInt());
                 const auto noteId = NoteId(arguments.value(QStringLiteral("note_id")).toInt());
@@ -4871,8 +4812,7 @@ namespace Automation {
                     commandContext(arguments, invocation), clipId, noteId, phonemes));
             });
 
-        addOperationBinding(
-            OperationIds::notes::reset_phonemes,
+        addBinding(ToolNames::notes_reset_phonemes,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 return mutationResult(m_runtime.notes().resetPhonemes(
                     commandContext(arguments, invocation),
@@ -4880,8 +4820,7 @@ namespace Automation {
                     NoteId(arguments.value(QStringLiteral("note_id")).toInt())));
             });
 
-        addOperationBinding(
-            OperationIds::notes::fill_lyrics,
+        addBinding(ToolNames::notes_fill_lyrics,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                 const auto clipId = ClipId(arguments.value(QStringLiteral("clip_id")).toInt());
                 auto notes = m_runtime.notes().getNotes(documentId(arguments), clipId);
@@ -4986,8 +4925,7 @@ namespace Automation {
                     commandContext(arguments, invocation), clipId, edits));
             });
 
-        addOperationBinding(
-            OperationIds::exports::midi::get_capabilities,
+        addBinding(ToolNames::exports_midi_get_capabilities,
             [this](const QJsonObject &arguments, const PublicInvocationContext &) {
                 auto project = m_runtime.project().getProject(documentId(arguments));
                 if (!project)
@@ -5020,8 +4958,7 @@ namespace Automation {
                 }));
             });
 
-        addOperationBinding(
-            OperationIds::exports::midi::preview,
+        addBinding(ToolNames::exports_midi_preview,
             [this](const QJsonObject &arguments, const PublicInvocationContext &) {
                 auto project = m_runtime.project().getProject(documentId(arguments));
                 if (!project)
@@ -5064,8 +5001,7 @@ namespace Automation {
                     queryResult(project.get().document, QStringLiteral("plan"), plan));
             });
 
-        addOperationBinding(
-            OperationIds::inference::get_status,
+        addBinding(ToolNames::inference_get_status,
             [this](const QJsonObject &arguments, const PublicInvocationContext &) {
                 const auto document = documentId(arguments);
                 auto snapshot = m_runtime.documents().getDocument(document);
