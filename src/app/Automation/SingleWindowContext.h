@@ -11,7 +11,7 @@ namespace Automation {
 
         [[nodiscard]] const WindowId &windowId() const;
         [[nodiscard]] AutomationResult<AutomationUnit>
-        validateWindow(const WindowId &requested) const;
+            validateWindow(const WindowId &requested) const;
 
     private:
         WindowId m_windowId;

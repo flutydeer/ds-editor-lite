@@ -7,7 +7,7 @@ namespace Automation {
     }
 
     AutomationResult<std::reference_wrapper<DocumentSession>>
-    SingleDocumentSessionResolver::resolveDocument(const DocumentId &documentId) {
+        SingleDocumentSessionResolver::resolveDocument(const DocumentId &documentId) {
         if (documentId != m_session.documentId())
             return AutomationError::documentChanged(documentId, m_session.documentId());
         return std::ref(m_session);

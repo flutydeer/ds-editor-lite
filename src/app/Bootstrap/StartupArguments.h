@@ -56,7 +56,7 @@ namespace StartupArguments {
 
     // Parses arguments after the executable name.
     [[nodiscard]] ParsedArguments parseArguments(const QStringList &arguments,
-                                                  const QString &workingDirectory = {});
+                                                 const QString &workingDirectory = {});
     [[nodiscard]] ParsedArguments parseApplicationArguments();
     [[nodiscard]] EffectiveAutomationConfig
         effectiveAutomationConfig(const AutomationOption &persisted,

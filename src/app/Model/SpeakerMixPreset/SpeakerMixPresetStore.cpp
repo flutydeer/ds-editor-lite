@@ -163,8 +163,7 @@ std::optional<SpeakerMixPreset>
     return preset;
 }
 
-std::optional<SpeakerMixPreset>
-SpeakerMixPresetStore::savePreset(SpeakerMixPreset preset) {
+std::optional<SpeakerMixPreset> SpeakerMixPresetStore::savePreset(SpeakerMixPreset preset) {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
     if (!runtime)
         return std::nullopt;

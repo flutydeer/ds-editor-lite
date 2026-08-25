@@ -11,8 +11,7 @@ class QLineEdit;
 class QPlainTextEdit;
 class QStackedWidget;
 
-namespace FillLyric
-{
+namespace FillLyric {
     class SplitterDetailPanel final : public QWidget {
         Q_OBJECT
 

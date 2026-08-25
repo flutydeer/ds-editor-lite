@@ -37,8 +37,8 @@ namespace Automation {
                                                          FileAccessPurpose purpose);
         void clearSessionGrants();
 
-        [[nodiscard]] AutomationResult<AuthorizedPath>
-            authorize(const QString &path, FileAccessPurpose purpose) const;
+        [[nodiscard]] AutomationResult<AuthorizedPath> authorize(const QString &path,
+                                                                 FileAccessPurpose purpose) const;
         [[nodiscard]] AutomationResult<AuthorizedPath>
             reauthorize(const AuthorizedPath &authorizedPath) const;
         [[nodiscard]] FileAccessSnapshot snapshot() const;

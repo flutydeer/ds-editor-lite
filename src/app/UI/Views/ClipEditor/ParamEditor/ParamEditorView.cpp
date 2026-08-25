@@ -210,7 +210,9 @@ void ParamEditorView::onForegroundChanged(const ParamInfo::Name name) {
 
 void ParamEditorView::onBackgroundChanged(const ParamInfo::Name name) {
     m_backgroundParam = name;
-    qDebug() << "background changed" << paramUtils->nameFromType(name);
+    qDebug() << "background changed"
+             << (name == ParamInfo::Unknown ? QStringLiteral("(None)")
+                                            : paramUtils->nameFromType(name));
     m_graphicsView->setBackground(name, *paramUtils->getPropertiesByName(name));
     refreshParameterSupportState();
 }
@@ -250,8 +252,8 @@ void ParamEditorView::onSpeakerMixEdited(const SpeakerMixData &data) const {
         return;
 
     if (auto *runtime = AppContext::instance<Automation::CoreRuntime>())
-        runtime->parameters().replaceClipSpeakerMix(
-            commandContext(*runtime), Automation::ClipId(m_clip->id()), normalized);
+        runtime->parameters().replaceClipSpeakerMix(commandContext(*runtime),
+                                                    Automation::ClipId(m_clip->id()), normalized);
 }
 
 void ParamEditorView::onEmptyStateAction() {

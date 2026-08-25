@@ -21,7 +21,8 @@ void WindowOption::load(const QJsonObject &object) {
 void WindowOption::save(QJsonObject &object) {
     object = {};
     if (!m_mainWindowGeometry.isEmpty())
-        object.insert(m_mainWindowGeometryKey, QString::fromLatin1(m_mainWindowGeometry.toBase64()));
+        object.insert(m_mainWindowGeometryKey,
+                      QString::fromLatin1(m_mainWindowGeometry.toBase64()));
 }
 
 const QByteArray &WindowOption::mainWindowGeometry() const {

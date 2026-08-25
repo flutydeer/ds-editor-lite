@@ -16,8 +16,7 @@ public:
             m_acknowledgedParameters.insert(parameter);
     }
 
-    [[nodiscard]] bool shouldPrompt(const ParamInfo::Name parameter,
-                                    const bool supported) const {
+    [[nodiscard]] bool shouldPrompt(const ParamInfo::Name parameter, const bool supported) const {
         return !supported && !m_acknowledgedParameters.contains(parameter);
     }
 

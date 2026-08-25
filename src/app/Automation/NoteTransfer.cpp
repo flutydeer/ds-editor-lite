@@ -191,9 +191,9 @@ namespace Automation {
         return result;
     }
 
-    QList<ParamCurvesDraftDto>
-        mergeNoteTransferParameters(const SingingClip &target, const NoteTransferPayload &payload,
-                                    const int targetStart) {
+    QList<ParamCurvesDraftDto> mergeNoteTransferParameters(const SingingClip &target,
+                                                           const NoteTransferPayload &payload,
+                                                           const int targetStart) {
         QList<ParamCurvesDraftDto> result;
         if (payload.sourceEnd <= payload.sourceStart)
             return result;

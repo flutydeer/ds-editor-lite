@@ -26,8 +26,7 @@ namespace {
         }
 
         if (!phonemes.isEmpty())
-            syllables.append(
-                {syllableStart, static_cast<int>(phonemes.size()) - syllableStart});
+            syllables.append({syllableStart, static_cast<int>(phonemes.size()) - syllableStart});
         return syllables;
     }
 
@@ -50,8 +49,7 @@ namespace {
             const auto &continuationNote = notes.at(end);
             if (continuationNote.start > wordEndTick)
                 break;
-            wordEndTick =
-                std::max(wordEndTick, continuationNote.start + continuationNote.length);
+            wordEndTick = std::max(wordEndTick, continuationNote.start + continuationNote.length);
         }
         return end;
     }
@@ -84,8 +82,7 @@ namespace Syllabification {
             const bool isLastTarget = i == syllabificationTargets.size() - 1;
             const int quota = target == 0 ? 1 + Note::trailingSyllabificationCount(lyrics.first())
                                           : static_cast<int>(lyrics.at(target).trimmed().size());
-            const int remainingSyllables =
-                static_cast<int>(syllables.size()) - syllableIndex;
+            const int remainingSyllables = static_cast<int>(syllables.size()) - syllableIndex;
             const int takenSyllables =
                 isLastTarget ? remainingSyllables : std::min(quota, remainingSyllables);
             if (takenSyllables <= 0)

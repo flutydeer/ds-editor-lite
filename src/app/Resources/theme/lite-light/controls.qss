@@ -486,7 +486,7 @@ QMenu[dwmBorder="true"] {
 }
 
 FilePopupWidget {
-    background: ${surface.window};
+    background: ${surface.popup};
 }
 
 FilePopupWidget[dwmBorder="true"] QFrame#filePopupSurface {
@@ -494,7 +494,7 @@ FilePopupWidget[dwmBorder="true"] QFrame#filePopupSurface {
 }
 
 FilePopupWidget QFrame#filePopupSurface {
-    background-color: ${surface.window};
+    background-color: ${surface.popup};
     border: 1px solid ${control.border.default};
 }
 
@@ -536,7 +536,7 @@ QLabel#filePopupRecentName {
 }
 
 QFrame#filePopupRecentItem[current="true"] QLabel#filePopupRecentName {
-    color: ${text.emphasis};
+    color: ${text.accent};
     font-weight: bold;
 }
 
@@ -546,7 +546,7 @@ QLabel#filePopupRecentPath {
 }
 
 QFrame#filePopupRecentItem[current="true"] QLabel#filePopupRecentPath {
-    color: ${text.link};
+    color: ${text.accent};
 }
 
 Button#filePopupActionButton {
@@ -771,12 +771,12 @@ QTreeView::item:hover {
 
 QTreeView::item:selected {
     background-color: ${selection.fill};
-    color: ${text.link};
+    color: ${text.accent};
 }
 
 QTreeView::item:selected:active {
     background-color: ${selection.fill};
-    color: ${text.link};
+    color: ${text.accent};
 }
 
 QTreeView::item:selected:active:hover {
@@ -885,7 +885,7 @@ QListWidget#AppOptionsDialogTabListWidget::item:hover {
 
 QListWidget#AppOptionsDialogTabListWidget::item:selected {
     background-color: ${selection.fill};
-    color: ${text.link};
+    color: ${text.accent};
     font-weight: bold;
 }
 
@@ -1084,7 +1084,7 @@ QTabBar::tab:hover {
 
 QTabBar::tab:selected {
     background-color: ${selection.fill};
-    color: ${text.link};
+    color: ${text.accent};
 }
 
 /* TextEdit */

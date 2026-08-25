@@ -10,8 +10,8 @@ class Track;
 class MoveClipToTrackAction : public IAction {
 public:
     static MoveClipToTrackAction *build(const Clip::ClipCommonProperties &oldArgs,
-                                        const Clip::ClipCommonProperties &newArgs,
-                                        Clip *clip, Track *oldTrack, Track *newTrack);
+                                        const Clip::ClipCommonProperties &newArgs, Clip *clip,
+                                        Track *oldTrack, Track *newTrack);
     void execute() override;
     void undo() override;
 
@@ -22,6 +22,7 @@ private:
     Clip *m_clip = nullptr;
     Track *m_oldTrack = nullptr;
     Track *m_newTrack = nullptr;
+    bool m_audioTimingChanged = false;
 };
 
 #endif // MOVECLIPTOTRACKACTION_H

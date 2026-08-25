@@ -661,7 +661,7 @@ int main(int argc, char *argv[]) {
     ok &= expect(capabilities && capabilities.get().maxConcurrentDocuments == 1 &&
                      capabilities.get().maxConcurrentWindows == 1,
                  "capabilities must declare the single document/window boundary");
-    ok &= expect(Automation::OperationIds::all().size() == 194,
+    ok &= expect(Automation::OperationIds::all().size() == 195,
                  "centralized operation registry must retain the approved automation surface");
     if (capabilities && capabilities.get().operationIds != Automation::OperationIds::all()) {
         auto missing = Automation::OperationIds::all();

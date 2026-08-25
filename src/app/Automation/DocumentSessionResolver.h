@@ -12,7 +12,7 @@ namespace Automation {
         virtual ~IDocumentSessionResolver() = default;
 
         virtual AutomationResult<std::reference_wrapper<DocumentSession>>
-        resolveDocument(const DocumentId &documentId) = 0;
+            resolveDocument(const DocumentId &documentId) = 0;
     };
 
     class SingleDocumentSessionResolver final : public IDocumentSessionResolver {
@@ -20,7 +20,7 @@ namespace Automation {
         explicit SingleDocumentSessionResolver(DocumentSession &session);
 
         AutomationResult<std::reference_wrapper<DocumentSession>>
-        resolveDocument(const DocumentId &documentId) override;
+            resolveDocument(const DocumentId &documentId) override;
 
     private:
         DocumentSession &m_session;

@@ -28,7 +28,7 @@ namespace Automation {
     }
 
     AutomationResult<PackageValidationReportDto>
-    PackageAutomationFacade::validatePackage(const QString &path) {
+        PackageAutomationFacade::validatePackage(const QString &path) {
         return m_dispatcher.dispatchApplicationQuery<PackageValidationReportDto>(
             OperationIds::packages::validate, [this, path] {
                 if (path.trimmed().isEmpty()) {
@@ -43,7 +43,7 @@ namespace Automation {
     }
 
     AutomationResult<MutationResult>
-    PackageAutomationFacade::resolveDocumentVoices(const CommandContext &context) {
+        PackageAutomationFacade::resolveDocumentVoices(const CommandContext &context) {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::packages::resolve_document_voices, context, {},
             [this](DocumentSession &session, const bool validateOnly) {

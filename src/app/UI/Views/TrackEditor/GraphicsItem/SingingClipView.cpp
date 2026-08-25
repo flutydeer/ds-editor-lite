@@ -217,8 +217,8 @@ void SingingClipView::drawPianoRollOverlay(QPainter *painter, const double noteH
     QPen pen(borderColor, 1.2);
     painter->setPen(pen);
     painter->setBrush(Qt::NoBrush);
-    const auto radius = EditorItemGeometry::adaptiveCornerRadius(
-        overlayRect, EditorItemGeometry::clipCornerRadius);
+    const auto radius =
+        EditorItemGeometry::adaptiveCornerRadius(overlayRect, EditorItemGeometry::clipCornerRadius);
     painter->drawRoundedRect(overlayRect, radius, radius);
 }
 

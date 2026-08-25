@@ -14,7 +14,7 @@ void TimeOverlayView::setTransparentMouseEvents(bool on) {
 }
 
 void TimeOverlayView::setPixelsPerQuarterNote(int p) {
-    pixelsPerQuarterNote =p;
+    pixelsPerQuarterNote = p;
 }
 
 void TimeOverlayView::mousePressEvent(QGraphicsSceneMouseEvent *event) {

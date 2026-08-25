@@ -24,7 +24,8 @@ class PhonemeView final : public QWidget {
     Q_PROPERTY(QColor hintTextColor READ hintTextColor WRITE setHintTextColor)
     Q_PROPERTY(QColor textColor READ textColor WRITE setTextColor)
     Q_PROPERTY(QColor positionLineColor READ positionLineColor WRITE setPositionLineColor)
-    Q_PROPERTY(QColor lastPositionLineColor READ lastPositionLineColor WRITE setLastPositionLineColor)
+    Q_PROPERTY(
+        QColor lastPositionLineColor READ lastPositionLineColor WRITE setLastPositionLineColor)
     Q_PROPERTY(QColor noteBoundaryColor READ noteBoundaryColor WRITE setNoteBoundaryColor)
     Q_PROPERTY(QColor waveformColor READ waveformColor WRITE setWaveformColor)
 

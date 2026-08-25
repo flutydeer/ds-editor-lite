@@ -29,14 +29,11 @@ namespace AppEnvironment {
 
     void postInit() {
         QApplication::setEffectEnabled(Qt::UI_AnimateTooltip, false);
-        QApplication::setOrganizationName(
-            QString::fromLatin1(LiteProductMetadata::Publisher));
-        QApplication::setApplicationName(
-            QString::fromLatin1(LiteProductMetadata::ProductName));
+        QApplication::setOrganizationName(QString::fromLatin1(LiteProductMetadata::Publisher));
+        QApplication::setApplicationName(QString::fromLatin1(LiteProductMetadata::ProductName));
         QApplication::setApplicationDisplayName(
             QString::fromLatin1(LiteProductMetadata::ProductName));
-        QApplication::setApplicationVersion(
-            QString::fromLatin1(LiteProductMetadata::Version));
+        QApplication::setApplicationVersion(QString::fromLatin1(LiteProductMetadata::Version));
         QApplication::setEffectEnabled(Qt::UI_AnimateCombo, false);
         if (QSysInfo::productType() != "windows")
             QApplication::setStyle(QStyleFactory::create("windows"));

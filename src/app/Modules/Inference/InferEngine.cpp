@@ -107,6 +107,13 @@ void InferEngine::startInitialization() {
             if (languageReady) {
                 appStatus->languageModuleError = QString();
                 appStatus->languageModuleStatus = AppStatus::ModuleStatus::Ready;
+                // Warm up G2P models in the background so the first
+                // FillLyric / inference conversion does not stall. The engine
+                // was initialized with deferLanguageModels=true; this kicks
+                // off the deferred Stage 2 load on a worker thread, matching
+                // how PackageManager scans packages asynchronously.
+                QThreadPool::globalInstance()->start(
+                    [] { SynthrtEngine::instance().warmUpLanguageModels(); });
             } else {
                 appStatus->languageModuleError = initTask->errorMessage;
                 appStatus->languageModuleStatus = AppStatus::ModuleStatus::Error;
@@ -211,7 +218,12 @@ bool InferEngine::initialize(QString &error) {
     }
     const auto g2pPackageDir = pluginRootDir / "srt-g2p" / "G2pPackages";
     const QStringList g2pPackagePaths{StringUtils::path_to_qstr(g2pPackageDir)};
-    if (!SynthrtEngine::instance().initialize(packagePathsQt, g2pPackagePaths, ep, index)) {
+    // Defer G2P model loading to first use so startup stays fast: the G2P
+    // convert tasks call VoicebankSession::ensureLanguageReady() first, which
+    // triggers LanguageService::initializeModels() (idempotent + mutex-guarded
+    // in synthrt) on demand. Nothing in this method reads G2P outputs.
+    if (!SynthrtEngine::instance().initialize(packagePathsQt, g2pPackagePaths, ep, index,
+                                              /*deferLanguageModels=*/true)) {
         error = QStringLiteral("Failed to initialize SynthrtEngine");
         return false;
     }

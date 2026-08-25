@@ -48,8 +48,8 @@ namespace Automation {
                 {
                     {QStringLiteral("operation_id"),
                      AutomationWire::JsonSchema::constant(operationId)},
-                    {QStringLiteral("options"), options},
-                },
+                    {QStringLiteral("options"),      options          },
+            },
                 {QStringLiteral("operation_id"), QStringLiteral("options")});
         }
 
@@ -59,9 +59,9 @@ namespace Automation {
                 const auto fields = descriptor.id == QStringLiteral("midi")
                                         ? QStringList{QStringLiteral("encoding")}
                                         : QStringList{};
-                branches.append(optionBranch(
-                    OperationIds::documents::open,
-                    publicOptionProperties(OperationIds::documents::open, fields)));
+                branches.append(
+                    optionBranch(OperationIds::documents::open,
+                                 publicOptionProperties(OperationIds::documents::open, fields)));
             }
             if (descriptor.canImport) {
                 QStringList fields{QStringLiteral("import_tempo"),
@@ -73,9 +73,9 @@ namespace Automation {
                     publicOptionProperties(OperationIds::documents::import_document, fields)));
             }
             if (descriptor.canExport && descriptor.id == QStringLiteral("midi")) {
-                branches.append(optionBranch(
-                    OperationIds::exports::midi::start,
-                    publicNestedOptions(OperationIds::exports::midi::start)));
+                branches.append(
+                    optionBranch(OperationIds::exports::midi::start,
+                                 publicNestedOptions(OperationIds::exports::midi::start)));
             }
             if (branches.isEmpty())
                 return AutomationWire::JsonSchema::document(AutomationWire::JsonSchema::object());

@@ -5,7 +5,6 @@
 #include <lite/ProjectModel/AppModel/TrackControl.h>
 #include <lite/History/IAction.h>
 
-
 class EditMasterControlAction : public IAction {
 public:
     explicit EditMasterControlAction(const TrackControl &control, AppModel *model);
@@ -20,4 +19,4 @@ private:
 
 
 
-#endif //EDITMASTERCONTROLACTION_H
+#endif // EDITMASTERCONTROLACTION_H

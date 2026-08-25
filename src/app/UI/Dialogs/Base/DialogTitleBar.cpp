@@ -1,6 +1,6 @@
 #include "DialogTitleBar.h"
 
-#include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/SystemWindowButton.h>
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/GUI/Utils/IconUtils.h>
 #include <lite/Support/SystemUtils.h>
@@ -24,7 +24,8 @@ DialogTitleBar::DialogTitleBar(QWidget *parent)
 
     int systemButtonWidth = 48;
 
-    m_btnClose = new Button;
+    m_btnClose = new SystemWindowButton;
+    m_btnClose->setCloseStyle(true);
     m_btnClose->setObjectName("CloseButton");
     m_btnClose->setFixedSize(systemButtonWidth, 32);
 
@@ -39,7 +40,7 @@ DialogTitleBar::DialogTitleBar(QWidget *parent)
         rebuildCloseButtonIcon();
     }
 
-    connect(m_btnClose, &Button::clicked, this, &DialogTitleBar::closeTriggered);
+    connect(m_btnClose, &SystemWindowButton::clicked, this, &DialogTitleBar::closeTriggered);
 
     auto mainLayout = new QHBoxLayout;
     mainLayout->addSpacing(16);
@@ -60,11 +61,10 @@ DialogTitleBar::DialogTitleBar(QWidget *parent)
     initializeAnimation();
 
     // Re-tint the close icon when the theme changes (non-Windows only)
-    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this,
-            [this](const QString &) {
-                if (!SystemUtils::isWindows())
-                    rebuildCloseButtonIcon();
-            });
+    connect(ThemeManager::instance(), &ThemeManager::themeChanged, this, [this](const QString &) {
+        if (!SystemUtils::isWindows())
+            rebuildCloseButtonIcon();
+    });
 
     if (m_window)
         m_window->installEventFilter(this);
@@ -86,11 +86,11 @@ void DialogTitleBar::rebuildCloseButtonIcon() {
     palette.selected = palette.normal;
 
     m_btnClose->setIconSize(icoSize);
-    m_btnClose->setIcon(
-        IconUtils::createTintedSvgIcon(":svg/title-bar/close_16_filled_white.svg", icoSize, palette));
+    m_btnClose->setIcon(IconUtils::createTintedSvgIcon(":svg/title-bar/close_16_filled_white.svg",
+                                                       icoSize, palette));
 }
 
-Button *DialogTitleBar::closeButton() const {
+SystemWindowButton *DialogTitleBar::closeButton() const {
     return m_btnClose;
 }
 

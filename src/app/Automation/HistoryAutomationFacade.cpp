@@ -13,7 +13,7 @@ namespace Automation {
     }
 
     AutomationResult<HistoryStateDto>
-    HistoryAutomationFacade::getState(const DocumentId &documentId) {
+        HistoryAutomationFacade::getState(const DocumentId &documentId) {
         return m_dispatcher.dispatchDocumentQuery<HistoryStateDto>(
             OperationIds::history::get_state, documentId, [](DocumentSession &session) {
                 auto *history = session.history();
@@ -35,8 +35,7 @@ namespace Automation {
             });
     }
 
-    AutomationResult<MutationResult>
-    HistoryAutomationFacade::undo(const CommandContext &context) {
+    AutomationResult<MutationResult> HistoryAutomationFacade::undo(const CommandContext &context) {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::history::undo, context, QByteArrayLiteral("undo"),
             [this](DocumentSession &session, const bool validateOnly) {
@@ -47,8 +46,7 @@ namespace Automation {
             });
     }
 
-    AutomationResult<MutationResult>
-    HistoryAutomationFacade::redo(const CommandContext &context) {
+    AutomationResult<MutationResult> HistoryAutomationFacade::redo(const CommandContext &context) {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::history::redo, context, QByteArrayLiteral("redo"),
             [this](DocumentSession &session, const bool validateOnly) {

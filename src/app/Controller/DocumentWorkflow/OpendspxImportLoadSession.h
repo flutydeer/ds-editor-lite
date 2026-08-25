@@ -26,8 +26,7 @@ public:
     OpendspxImportLoadSession(IProjectFormatHandler *formatHandler, QString filePath,
                               ProjectLoadPurpose purpose, quint64 requestId,
                               bool interactive = true, bool importTempo = true,
-                              bool importTimeSignature = true,
-                              QObject *parent = nullptr);
+                              bool importTimeSignature = true, QObject *parent = nullptr);
     ~OpendspxImportLoadSession() override;
 
 protected:

@@ -8,7 +8,7 @@
 namespace Automation {
 
     AutomationResult<Track *> DocumentObjectResolver::track(DocumentSession &session,
-                                                             const TrackId trackId) const {
+                                                            const TrackId trackId) const {
         if (!trackId.isValid()) {
             return AutomationError::invalidArgument(QStringLiteral("track_id"),
                                                     QStringLiteral("Track ID is invalid"));
@@ -27,7 +27,7 @@ namespace Automation {
     }
 
     AutomationResult<ResolvedClip> DocumentObjectResolver::clip(DocumentSession &session,
-                                                                 const ClipId clipId) const {
+                                                                const ClipId clipId) const {
         if (!clipId.isValid()) {
             return AutomationError::invalidArgument(QStringLiteral("clip_id"),
                                                     QStringLiteral("Clip ID is invalid"));
@@ -48,8 +48,8 @@ namespace Automation {
         return ResolvedClip{result, model->tracks().value(trackIndex), trackIndex};
     }
 
-    AutomationResult<ResolvedClip>
-    DocumentObjectResolver::singingClip(DocumentSession &session, const ClipId clipId) const {
+    AutomationResult<ResolvedClip> DocumentObjectResolver::singingClip(DocumentSession &session,
+                                                                       const ClipId clipId) const {
         auto result = clip(session, clipId);
         if (!result)
             return result.getError();
@@ -60,8 +60,8 @@ namespace Automation {
         return result;
     }
 
-    AutomationResult<ResolvedClip>
-    DocumentObjectResolver::audioClip(DocumentSession &session, const ClipId clipId) const {
+    AutomationResult<ResolvedClip> DocumentObjectResolver::audioClip(DocumentSession &session,
+                                                                     const ClipId clipId) const {
         auto result = clip(session, clipId);
         if (!result)
             return result.getError();
@@ -73,8 +73,8 @@ namespace Automation {
     }
 
     AutomationResult<ResolvedNote> DocumentObjectResolver::note(DocumentSession &session,
-                                                                 const ClipId clipId,
-                                                                 const NoteId noteId) const {
+                                                                const ClipId clipId,
+                                                                const NoteId noteId) const {
         auto resolvedClip = singingClip(session, clipId);
         if (!resolvedClip)
             return resolvedClip.getError();

@@ -8,8 +8,7 @@ namespace Automation {
 
     class TaskAutomationFacade final {
     public:
-        TaskAutomationFacade(OperationCatalog &catalog,
-                             AutomationDispatcher &dispatcher,
+        TaskAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
                              AutomationTaskManager &tasks);
 
         AutomationResult<AutomationTaskSnapshot> getTask(const DocumentId &documentId,

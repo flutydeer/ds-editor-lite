@@ -106,6 +106,7 @@ namespace Automation::OperationIds {
     X(notes, move, "notes.move")                                                                   \
     X(notes, quantize, "notes.quantize")                                                           \
     X(notes, remove, "notes.remove")                                                               \
+    X(notes, reset_phoneme_offsets, "notes.reset_phoneme_offsets")                                 \
     X(notes, reset_phonemes, "notes.reset_phonemes")                                               \
     X(notes, reset_pronunciation, "notes.reset_pronunciation")                                     \
     X(notes, resize_left, "notes.resize_left")                                                     \
@@ -214,8 +215,12 @@ namespace Automation::OperationIds {
 
     inline const QStringList &all() {
 #define AUTOMATION_REFERENCE_OPERATION_ID(scope, name, value) scope::name,
-        static const QStringList ids = {
-            AUTOMATION_OPERATION_ID_LIST(AUTOMATION_REFERENCE_OPERATION_ID)};
+        static const QStringList ids = [] {
+            QStringList result = {
+                AUTOMATION_OPERATION_ID_LIST(AUTOMATION_REFERENCE_OPERATION_ID)};
+            result.sort();
+            return result;
+        }();
 #undef AUTOMATION_REFERENCE_OPERATION_ID
         return ids;
     }

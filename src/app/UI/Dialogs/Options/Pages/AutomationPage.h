@@ -14,6 +14,7 @@ class OptionsCardItem;
 class PathEditor;
 class QPlainTextEdit;
 class SwitchButton;
+
 namespace SVS {
     class ExpressionSpinBox;
 }

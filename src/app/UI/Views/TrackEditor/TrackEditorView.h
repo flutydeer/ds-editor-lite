@@ -12,6 +12,7 @@
 
 class AudioClip;
 class SingingClip;
+class TrackAreaView;
 class TrackListView;
 class TracksGraphicsView;
 class TracksGraphicsScene;
@@ -26,7 +27,6 @@ class TrackEditorContextMenuController;
 class AbstractClipView;
 class QSplitter;
 class ChannelView;
-class QVBoxLayout;
 
 class TrackEditorView final : public PanelView {
     Q_OBJECT
@@ -85,7 +85,7 @@ private:
     TrackEditorBackgroundView *m_gridItem = nullptr;
     TrackEditorContextMenuController *m_contextMenuController = nullptr;
     QSplitter *m_splitter = nullptr;
-    QVBoxLayout *m_trackTimelineAndViewLayout = nullptr;
+    TrackAreaView *m_trackCanvasArea = nullptr;
     bool m_syncingVerticalScroll = false;
 
     class ViewModel {

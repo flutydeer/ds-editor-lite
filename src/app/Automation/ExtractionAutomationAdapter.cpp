@@ -298,7 +298,8 @@ namespace Automation {
             if (input.defaultLanguage.isEmpty())
                 input.defaultLanguage = options->general()->defaultSingingLanguage;
             if (input.defaultLyric.isEmpty())
-                input.defaultLyric = options->general()->defaultLyricForLanguage(input.defaultLanguage);
+                input.defaultLyric =
+                    options->general()->defaultLyricForLanguage(input.defaultLanguage);
             auto job = std::make_shared<MidiExtractionJobAdapter>(input, taskRuntime);
             return PreparedMidiExtraction{std::move(input), std::move(job)};
         };

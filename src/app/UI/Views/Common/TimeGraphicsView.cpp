@@ -718,10 +718,9 @@ void TimeGraphicsView::setPlaybackPosition(double tick) {
     const auto oldTick = m_playbackPosition;
     m_playbackPosition = tick;
 
-    const bool canTurnPage =
-        m_autoTurnPage && m_autoPageTurnAvailable &&
-        appStatus->currentEditObject == AppStatus::EditObjectType::None &&
-        !isEdgeAutoScrollActive();
+    const bool canTurnPage = m_autoTurnPage && m_autoPageTurnAvailable &&
+                             appStatus->currentEditObject == AppStatus::EditObjectType::None &&
+                             !isEdgeAutoScrollActive();
     if (canTurnPage) {
         const auto viewWidth = viewport()->width();
         const auto hBarValue = horizontalBarValue();

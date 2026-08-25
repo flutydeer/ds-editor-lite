@@ -251,8 +251,7 @@ namespace Automation {
                              CommandContext command) {
             auto *state = new HeadlessProjectLoadTask(
                 runtime, path, mergeMode, purpose, std::move(encoding), importTempo,
-                importTimeSignature,
-                std::move(command), QCoreApplication::instance());
+                importTimeSignature, std::move(command), QCoreApplication::instance());
             auto result = state->prepare();
             if (!result || result.get().validatedOnly)
                 state->deleteLater();
@@ -803,10 +802,9 @@ namespace Automation {
                              QList<ClipInsertDto> clips, QStringList validationErrors,
                              const PublicBatchFailurePolicy failurePolicy,
                              const QString &operationId) {
-            auto *state = new HeadlessAudioImportTask(runtime, model, std::move(command),
-                                                      std::move(clips), std::move(validationErrors),
-                                                      failurePolicy, operationId,
-                                                      QCoreApplication::instance());
+            auto *state = new HeadlessAudioImportTask(
+                runtime, model, std::move(command), std::move(clips), std::move(validationErrors),
+                failurePolicy, operationId, QCoreApplication::instance());
             auto result = state->prepare();
             if (!result || result.get().validatedOnly)
                 state->deleteLater();
@@ -828,13 +826,12 @@ namespace Automation {
                 return project.getError();
             for (const auto &track : project.get().tracks) {
                 sources.append(QJsonObject{
-                    {QStringLiteral("id"),        track.id.value()       },
-                    {QStringLiteral("name"),
-                     track.data.name.isEmpty()
-                         ? QStringLiteral("Track %1").arg(track.id.value())
-                         : track.data.name                               },
-                    {QStringLiteral("kind"),      QStringLiteral("track")},
-                    {QStringLiteral("available"), true                   },
+                    {QStringLiteral("id"),        track.id.value()                                            },
+                    {QStringLiteral("name"),      track.data.name.isEmpty()
+                                                 ? QStringLiteral("Track %1").arg(track.id.value())
+                                                 : track.data.name},
+                    {QStringLiteral("kind"),      QStringLiteral("track")                                     },
+                    {QStringLiteral("available"), true                                                        },
                 });
             }
             return QJsonObject{
@@ -878,9 +875,8 @@ namespace Automation {
                     break;
             }
             if (!sourceFound) {
-                return AutomationError::notFound(
-                    {ObjectKind::Clip, clipId.value()},
-                    QStringLiteral("Source audio clip was not found"));
+                return AutomationError::notFound({ObjectKind::Clip, clipId.value()},
+                                                 QStringLiteral("Source audio clip was not found"));
             }
             auto settings = runtime.settings().getSettings();
             const bool pitchConfigured =
@@ -1043,10 +1039,9 @@ namespace Automation {
 
         QString inferenceScopeKey(const QJsonObject &scope) {
             const auto kind = scope.value(QStringLiteral("kind")).toString();
-            const auto idField = kind == QStringLiteral("track")
-                                     ? QStringLiteral("track_ids")
-                                     : kind == QStringLiteral("clip") ? QStringLiteral("clip_ids")
-                                                                      : QString();
+            const auto idField = kind == QStringLiteral("track")  ? QStringLiteral("track_ids")
+                                 : kind == QStringLiteral("clip") ? QStringLiteral("clip_ids")
+                                                                  : QString();
             if (idField.isEmpty())
                 return kind;
             QList<int> ids;
@@ -1335,7 +1330,7 @@ namespace Automation {
                 [weak] {
                     if (weak)
                         weak->requestCancel();
-                },
+            },
                 m_request.command.clientId,
                 QJsonObject{
                     {QStringLiteral("scope_key"), inferenceScopeKey(m_request.scope)},
@@ -1503,8 +1498,7 @@ namespace Automation {
                     {request.trackId,
                      audioClipDraft(request.canonicalPath, request.properties, request.clientRef)}
             },
-                {},
-                PublicBatchFailurePolicy::Atomic, OperationIds::audio_clips::import_audio);
+                {}, PublicBatchFailurePolicy::Atomic, OperationIds::audio_clips::import_audio);
         };
         services.importAudioClips = [&runtime,
                                      model](const PublicAudioClipBatchImportRequest &request) {
@@ -1515,11 +1509,11 @@ namespace Automation {
             for (const auto &item : request.items) {
                 clips.append({item.trackId,
                               audioClipDraft(item.canonicalPath, item.properties, item.clientRef)});
-                validationErrors.append(item.validationError ? item.validationError->message : QString());
+                validationErrors.append(item.validationError ? item.validationError->message
+                                                             : QString());
             }
             return startAudioImport(runtime, model, request.command, std::move(clips),
-                                    std::move(validationErrors),
-                                    request.failurePolicy,
+                                    std::move(validationErrors), request.failurePolicy,
                                     OperationIds::audio_clips::import_batch);
         };
         services.prepareAudioPath = [](const QString &canonicalPath) {

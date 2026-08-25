@@ -256,7 +256,6 @@ void TrackEditorContextMenuController::relocateAudioClip(const int clipId) const
         tr("Select an Audio File"), QStringLiteral("."));
     if (fileName.isNull())
         return;
-    trackController->onRelocateAudioClip(clipId, fileName, io,
-                                         AudioFilePreparer::makeWorkspace(userData,
-                                                                          entryClassName));
+    trackController->onRelocateAudioClip(
+        clipId, fileName, io, AudioFilePreparer::makeWorkspace(userData, entryClassName));
 }

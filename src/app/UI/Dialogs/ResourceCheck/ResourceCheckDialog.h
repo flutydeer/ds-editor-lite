@@ -7,9 +7,10 @@ class IResourceCheckPage;
 class QListWidget;
 class QStackedWidget;
 
-// Project resource check dialog: one place to handle resource issues that need user decisions after opening a project.
-// Multi-page skeleton (one page per resource type); currently audio only. Pages are assembled on demand,
-// and navigation is hidden for a single page. Non-blocking: the user can close anytime; unresolved items stay missing
+// Project resource check dialog: one place to handle resource issues that need user decisions after
+// opening a project. Multi-page skeleton (one page per resource type); currently audio only. Pages
+// are assembled on demand, and navigation is hidden for a single page. Non-blocking: the user can
+// close anytime; unresolved items stay missing
 class ResourceCheckDialog final : public Dialog {
     Q_OBJECT
 

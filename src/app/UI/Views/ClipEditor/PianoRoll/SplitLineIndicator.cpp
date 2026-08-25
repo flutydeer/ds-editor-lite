@@ -7,7 +7,7 @@
 #include <cmath>
 
 #ifndef M_PI
-#define M_PI 3.14159265358979323846
+#  define M_PI 3.14159265358979323846
 #endif
 
 SplitLineIndicator::SplitLineIndicator(QGraphicsItem *parent) : QGraphicsPathItem(parent) {
@@ -33,7 +33,7 @@ void SplitLineIndicator::setLineColor(const QColor &color) {
 }
 
 SplitLineIndicator::UpdateResult SplitLineIndicator::updateIndicator(NoteView *noteView,
-                                                                      int splitPos) {
+                                                                     int splitPos) {
     if (!noteView) {
         hide();
         m_lastNoteView.clear();

@@ -31,7 +31,7 @@ private:
     [[nodiscard]] QRect placementGeometry() const;
     [[nodiscard]] QScreen *screenForGeometry(const QRect &geometry) const;
     [[nodiscard]] static QRect constrainedGeometry(const QRect &geometry,
-                                                    const QRect &availableGeometry);
+                                                   const QRect &availableGeometry);
 
     QWidget &m_window;
     QSet<QScreen *> m_connectedScreens;

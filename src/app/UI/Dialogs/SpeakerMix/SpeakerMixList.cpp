@@ -3,16 +3,22 @@
 #include <lite/GUI/Controls/SmoothScroller.h>
 #include <lite/GUI/Controls/ColorDot.h>
 #include <lite/GUI/Controls/ComboBox.h>
+#include <lite/GUI/Controls/IconLabel.h>
 #include "UI/Utils/SpeakerMixColorResolver.h"
 #include <lite/GUI/Theme/ThemeManager.h>
 
 #include <QAbstractItemView>
+#include <QApplication>
 #include <QCoreApplication>
+#include <QDrag>
+#include <QDragMoveEvent>
+#include <QDropEvent>
 #include <QEvent>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLocale>
 #include <QMouseEvent>
+#include <QPainter>
 #include <QResizeEvent>
 #include <QSet>
 #include <QSignalBlocker>
@@ -38,11 +44,20 @@ SpeakerMixList::SpeakerMixList(const QString &packageName, const QStringList &sp
       m_sourceEditingEnabled(true) {
     m_speakerTypes = speakerTypes.empty() ? QStringList({"no singer"}) : speakerTypes;
 
-    setDragEnabled(true);
+    // Drag is started manually from the handle in eventFilter(); the viewport
+    // must NOT start drags on its own, so items/labels only select, never reorder.
+    setDragEnabled(false);
     setDragDropMode(QAbstractItemView::InternalMove);
     viewport()->setAcceptDrops(true);
-    setDropIndicatorShown(true);
+    setDropIndicatorShown(false);
     setDefaultDropAction(Qt::MoveAction);
+
+    m_dropIndicator = new QWidget(viewport());
+    m_dropIndicator->setObjectName("speakerMixDropIndicator");
+    m_dropIndicator->setAttribute(Qt::WA_TransparentForMouseEvents);
+    m_dropIndicator->setAttribute(Qt::WA_StyledBackground);
+    m_dropIndicator->setAutoFillBackground(true);
+    m_dropIndicator->hide();
     setSelectionMode(QAbstractItemView::SingleSelection);
     setFocusPolicy(Qt::NoFocus);
     setFrameShape(QFrame::NoFrame);
@@ -90,7 +105,6 @@ void SpeakerMixList::setSourceEditingEnabled(const bool enabled) {
         return;
 
     m_sourceEditingEnabled = enabled;
-    setDragEnabled(enabled);
     setDragDropMode(enabled ? QAbstractItemView::InternalMove : QAbstractItemView::NoDragDrop);
 
     for (auto &row : m_rows) {
@@ -202,10 +216,10 @@ QWidget *SpeakerMixList::createRowWidget(const QString &speakerType) {
     layout->setSpacing(8);
     layout->setContentsMargins(0, 0, 0, 0);
 
-    const auto dragHandle = new QLabel("=", widget);
-    dragHandle->setFixedSize(28, 28);
+    const auto dragHandle = new IconLabel(widget);
+    dragHandle->setIcon(QStringLiteral(":/svg/icons/re_order_dots_vertical_16_regular.svg"));
+    dragHandle->setSquareSize(28);
     dragHandle->setCursor(Qt::SizeAllCursor);
-    dragHandle->setAlignment(Qt::AlignCenter);
     dragHandle->installEventFilter(this);
 
     const auto colorDot = new ColorDot(
@@ -492,21 +506,169 @@ bool SpeakerMixList::eventFilter(QObject *watched, QEvent *event) {
     if (!m_sourceEditingEnabled)
         return QListWidget::eventFilter(watched, event);
 
+    // Only the handle starts a drag; other parts of the row never reorder
+    // because the viewport has drags disabled.
     if (auto *handle = qobject_cast<QLabel *>(watched);
         handle && handle->cursor().shape() == Qt::SizeAllCursor) {
-        if (event->type() == QEvent::MouseButtonPress ||
-            event->type() == QEvent::MouseButtonRelease || event->type() == QEvent::MouseMove) {
-            auto *me = static_cast<QMouseEvent *>(event);
-            auto *viewportEvent =
-                new QMouseEvent(event->type(), viewport()->mapFromGlobal(me->globalPosition()),
-                                me->globalPosition(), me->button(), me->buttons(), me->modifiers());
-            QCoreApplication::sendEvent(viewport(), viewportEvent);
-            delete viewportEvent;
-            return true;
+        switch (event->type()) {
+            case QEvent::MouseButtonPress: {
+                auto *me = static_cast<QMouseEvent *>(event);
+                if (me->button() != Qt::LeftButton)
+                    break;
+                m_dragStartPosition = viewport()->mapFromGlobal(me->globalPosition().toPoint());
+                m_dragRow = -1;
+                for (int i = 0; i < m_rows.size(); ++i) {
+                    if (m_rows[i].dragHandle == handle) {
+                        setCurrentRow(i);
+                        m_dragRow = i;
+                        break;
+                    }
+                }
+                return true;
+            }
+            case QEvent::MouseMove: {
+                auto *me = static_cast<QMouseEvent *>(event);
+                const auto pos = viewport()->mapFromGlobal(me->globalPosition().toPoint());
+                if (m_dragRow >= 0 && m_dragRow < count() &&
+                    (pos - m_dragStartPosition).manhattanLength() >=
+                        QApplication::startDragDistance())
+                    startDrag(Qt::MoveAction);
+                return true;
+            }
+            case QEvent::MouseButtonRelease:
+            case QEvent::MouseButtonDblClick:
+                return true;
+            default:
+                break;
         }
     }
 
     return QListWidget::eventFilter(watched, event);
+}
+
+void SpeakerMixList::mouseMoveEvent(QMouseEvent *) {
+    // Intentionally swallows move events: the base class would auto-start its
+    // own drag from anywhere on the viewport. Only the handle initiates a drag,
+    // through eventFilter(), so forwarding moves here would break "handle-only" ordering.
+}
+
+void SpeakerMixList::dragMoveEvent(QDragMoveEvent *event) {
+    QListWidget::dragMoveEvent(event);
+
+    if (!setDropInsertionIndex(dropInsertionIndex(event->position().toPoint()))) {
+        event->ignore();
+        return;
+    }
+
+    event->setDropAction(Qt::MoveAction);
+    event->accept();
+}
+
+void SpeakerMixList::dragLeaveEvent(QDragLeaveEvent *event) {
+    QListWidget::dragLeaveEvent(event);
+    clearDropIndicator();
+}
+
+void SpeakerMixList::dropEvent(QDropEvent *event) {
+    const auto dropRow = dropInsertionIndex(event->position().toPoint());
+    clearDropIndicator();
+
+    if (!isValidDropInsertionIndex(dropRow)) {
+        event->ignore();
+        return;
+    }
+
+    const auto dragRow = m_dragRow;
+    // Moving downward removes the source row first, so the destination index
+    // shifts up by one; model()->moveRow() handles the removal internally, so
+    // the destination is the insertion index as-is.
+    model()->moveRow({}, dragRow, {}, dropRow);
+    event->setDropAction(Qt::MoveAction);
+    event->accept();
+}
+
+void SpeakerMixList::startDrag(Qt::DropActions supportedActions) {
+    const auto indexes = selectedIndexes();
+    if (indexes.isEmpty())
+        return;
+
+    auto *mimeData = model()->mimeData(indexes);
+    if (!mimeData)
+        return;
+
+    auto *drag = new QDrag(this);
+    drag->setMimeData(mimeData);
+    m_dragRow = indexes.first().row();
+    if (const auto *dragItem = item(m_dragRow)) {
+        const auto rowRect = visualItemRect(dragItem);
+        const auto rowPixmap = viewport()->grab(rowRect);
+        QPixmap dragPixmap(rowPixmap.size());
+        dragPixmap.setDevicePixelRatio(rowPixmap.devicePixelRatio());
+        dragPixmap.fill(Qt::transparent);
+        {
+            QPainter painter(&dragPixmap);
+            painter.setOpacity(0.65);
+            painter.drawPixmap(QPoint{}, rowPixmap);
+        }
+        drag->setPixmap(dragPixmap);
+        drag->setHotSpot(m_dragStartPosition - rowRect.topLeft());
+    }
+    drag->exec(supportedActions & ~Qt::CopyAction, Qt::MoveAction);
+    m_dragRow = -1;
+    clearDropIndicator();
+}
+
+int SpeakerMixList::dropInsertionIndex(const QPoint &pos) const {
+    if (m_dragRow < 0 || count() == 0)
+        return -1;
+
+    const auto *targetItem = itemAt(pos);
+    if (!targetItem)
+        return -1;
+
+    const auto targetRow = row(targetItem);
+    if (targetRow < 0 || targetRow >= count())
+        return -1;
+
+    const auto targetRect = visualItemRect(targetItem);
+    return pos.y() < targetRect.center().y() ? targetRow : targetRow + 1;
+}
+
+bool SpeakerMixList::isValidDropInsertionIndex(const int insertionIndex) const {
+    return m_dragRow >= 0 && m_dragRow < count() && insertionIndex >= 0 &&
+           insertionIndex <= count() && insertionIndex != m_dragRow &&
+           insertionIndex != m_dragRow + 1;
+}
+
+bool SpeakerMixList::setDropInsertionIndex(const int insertionIndex) {
+    if (!isValidDropInsertionIndex(insertionIndex)) {
+        clearDropIndicator();
+        return false;
+    }
+
+    updateDropIndicator(insertionIndex);
+    return true;
+}
+
+void SpeakerMixList::updateDropIndicator(const int insertionIndex) {
+    if (!m_dropIndicator || insertionIndex < 0 || insertionIndex > count() || count() == 0) {
+        clearDropIndicator();
+        return;
+    }
+
+    const auto boundary = insertionIndex == count() ? visualItemRect(item(count() - 1)).bottom() + 1
+                                                    : visualItemRect(item(insertionIndex)).top();
+    constexpr auto indicatorHeight = 2;
+    const auto top =
+        qBound(0, boundary - indicatorHeight / 2, viewport()->height() - indicatorHeight);
+    m_dropIndicator->setGeometry(0, top, viewport()->width(), indicatorHeight);
+    m_dropIndicator->raise();
+    m_dropIndicator->show();
+}
+
+void SpeakerMixList::clearDropIndicator() {
+    if (m_dropIndicator)
+        m_dropIndicator->hide();
 }
 
 void SpeakerMixList::resizeEvent(QResizeEvent *event) {

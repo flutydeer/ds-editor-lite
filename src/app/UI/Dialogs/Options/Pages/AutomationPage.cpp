@@ -130,8 +130,8 @@ bool AutomationPage::eventFilter(QObject *watched, QEvent *event) {
 }
 
 void AutomationPage::refreshCategoryPermissionSwitches() {
-    for (auto it = m_customCategorySwitches.constBegin();
-         it != m_customCategorySwitches.constEnd(); ++it) {
+    for (auto it = m_customCategorySwitches.constBegin(); it != m_customCategorySwitches.constEnd();
+         ++it) {
         const auto operationIds = m_customCategoryOperationIds.value(it.key());
         const auto allEnabled = !operationIds.isEmpty() &&
                                 std::all_of(operationIds.cbegin(), operationIds.cend(),
@@ -169,14 +169,13 @@ void AutomationPage::refreshConnectionConfigurations() {
         return;
     QString endpoint;
     if (const auto *application = QCoreApplication::instance()) {
-        endpoint =
-            application->property(Automation::McpRuntimeStatus::EndpointProperty).toString();
+        endpoint = application->property(Automation::McpRuntimeStatus::EndpointProperty).toString();
     }
     if (endpoint.isEmpty() && m_controlPort) {
-        const auto port = m_effectiveConfig.controlPortSource ==
-                                  StartupArguments::ConfigSource::CommandLine
-                              ? m_effectiveConfig.controlPort
-                              : static_cast<quint16>(m_controlPort->value());
+        const auto port =
+            m_effectiveConfig.controlPortSource == StartupArguments::ConfigSource::CommandLine
+                ? m_effectiveConfig.controlPort
+                : static_cast<quint16>(m_controlPort->value());
         endpoint = QStringLiteral("http://127.0.0.1:%1/mcp").arg(port);
     }
     m_streamableHttpConfiguration->setPlainText(
@@ -187,10 +186,12 @@ void AutomationPage::refreshRuntimeStatus() {
     const auto *application = QCoreApplication::instance();
     if (!application)
         return;
-    const auto state = application->property(Automation::McpRuntimeStatus::StateProperty).toString();
+    const auto state =
+        application->property(Automation::McpRuntimeStatus::StateProperty).toString();
     const auto endpoint =
         application->property(Automation::McpRuntimeStatus::EndpointProperty).toString();
-    const auto error = application->property(Automation::McpRuntimeStatus::ErrorProperty).toString();
+    const auto error =
+        application->property(Automation::McpRuntimeStatus::ErrorProperty).toString();
     if (m_runtimeStateItem)
         m_runtimeStateItem->setDescription(state.isEmpty() ? tr("Not initialized")
                                                            : runtimeStateDescription(state));
@@ -295,7 +296,8 @@ QWidget *AutomationPage::createContentWidget() {
 
     m_profile = new ComboBox;
     m_profile->addItem(tr("L1 - Basic Editing"), static_cast<int>(AutomationOption::Profile::L1));
-    m_profile->addItem(tr("L2 - Complete Creation"), static_cast<int>(AutomationOption::Profile::L2));
+    m_profile->addItem(tr("L2 - Complete Creation"),
+                       static_cast<int>(AutomationOption::Profile::L2));
     m_profile->addItem(tr("L3 - Full Control"), static_cast<int>(AutomationOption::Profile::L3));
     m_profile->addItem(tr("Custom"), static_cast<int>(AutomationOption::Profile::Custom));
     m_profile->setCurrentIndex(m_profile->findData(static_cast<int>(m_effectiveConfig.profile)));
@@ -304,12 +306,12 @@ QWidget *AutomationPage::createContentWidget() {
     connect(m_profile, &ComboBox::currentIndexChanged, this, &AutomationPage::modifyOption);
 
     const auto serverCard = new OptionListCard(tr("MCP Server"));
-    serverCard->addItem(tr("Enable MCP Server"),
-                        sourceDescription(m_effectiveConfig.mcpEnabledSource,
-                                          m_effectiveConfig.mcpEnabled
-                                              ? QStringLiteral("--mcp")
-                                              : QStringLiteral("--no-mcp")),
-                        m_mcpEnabled);
+    serverCard->addItem(
+        tr("Enable MCP Server"),
+        sourceDescription(m_effectiveConfig.mcpEnabledSource, m_effectiveConfig.mcpEnabled
+                                                                  ? QStringLiteral("--mcp")
+                                                                  : QStringLiteral("--no-mcp")),
+        m_mcpEnabled);
     auto *controlPortControl = new QWidget;
     auto *controlPortLayout = new QHBoxLayout(controlPortControl);
     controlPortLayout->setContentsMargins({});
@@ -327,8 +329,8 @@ QWidget *AutomationPage::createContentWidget() {
 
     const auto connectionCard = new OptionListCard(tr("Connection Configurations"));
     const auto createConfigurationControl =
-        [this](QPlainTextEdit *&configuration, Button *&copyButton,
-               const QString &copiedMessage, const QString &objectName) {
+        [this](QPlainTextEdit *&configuration, Button *&copyButton, const QString &copiedMessage,
+               const QString &objectName) {
             auto *container = new QWidget;
             auto *layout = new QVBoxLayout(container);
             layout->setContentsMargins({});
@@ -344,11 +346,10 @@ QWidget *AutomationPage::createContentWidget() {
 
             copyButton = new Button(tr("Copy Configuration"), container);
             copyButton->setObjectName(objectName + QStringLiteral("CopyButton"));
-            connect(copyButton, &Button::clicked, this,
-                    [configuration, copiedMessage] {
-                        QGuiApplication::clipboard()->setText(configuration->toPlainText());
-                        Toast::show(copiedMessage);
-                    });
+            connect(copyButton, &Button::clicked, this, [configuration, copiedMessage] {
+                QGuiApplication::clipboard()->setText(configuration->toPlainText());
+                Toast::show(copiedMessage);
+            });
             layout->addWidget(copyButton, 0, Qt::AlignRight);
             return container;
         };
@@ -364,10 +365,10 @@ QWidget *AutomationPage::createContentWidget() {
         stdioControl);
 
     Button *streamableHttpCopyButton = nullptr;
-    const auto streamableHttpControl = createConfigurationControl(
-        m_streamableHttpConfiguration, streamableHttpCopyButton,
-        tr("Streamable HTTP configuration copied"),
-        QStringLiteral("automationStreamableHttpConfiguration"));
+    const auto streamableHttpControl =
+        createConfigurationControl(m_streamableHttpConfiguration, streamableHttpCopyButton,
+                                   tr("Streamable HTTP configuration copied"),
+                                   QStringLiteral("automationStreamableHttpConfiguration"));
     connectionCard->addItem(
         tr("Streamable HTTP"),
         tr("Connects directly to the editor's configured MCP endpoint. The generated port stays "
@@ -394,11 +395,10 @@ QWidget *AutomationPage::createContentWidget() {
     for (auto it = m_customCategoryOperationIds.constBegin();
          it != m_customCategoryOperationIds.constEnd(); ++it) {
         const auto operationIds = it.value();
-        const auto allEnabled = std::all_of(
-            operationIds.cbegin(), operationIds.cend(),
-            [option](const QString &operationId) {
-                return option->customPermissionEnabled(operationId);
-            });
+        const auto allEnabled = std::all_of(operationIds.cbegin(), operationIds.cend(),
+                                            [option](const QString &operationId) {
+                                                return option->customPermissionEnabled(operationId);
+                                            });
         auto *categorySwitch = new SwitchButton(allEnabled);
         m_customCategorySwitches.insert(it.key(), categorySwitch);
         connect(categorySwitch, &SwitchButton::toggled, this,
@@ -415,12 +415,12 @@ QWidget *AutomationPage::createContentWidget() {
     }
     const auto customCard = new OptionListCard(tr("Custom Permissions"));
     if (m_customPermissionOperationIds.isEmpty()) {
-        customCard->addItem(tr("No public operations available"),
-                            tr("Public operation permissions appear here when the automation manifest is ready"));
+        customCard->addItem(
+            tr("No public operations available"),
+            tr("Public operation permissions appear here when the automation manifest is ready"));
     } else {
         for (const auto &operationId : std::as_const(m_customPermissionOperationIds)) {
-            auto *permissionSwitch =
-                new SwitchButton(option->customPermissionEnabled(operationId));
+            auto *permissionSwitch = new SwitchButton(option->customPermissionEnabled(operationId));
             m_customPermissionSwitches.insert(operationId, permissionSwitch);
             connect(permissionSwitch, &SwitchButton::toggled, this, [this] {
                 refreshCategoryPermissionSwitches();

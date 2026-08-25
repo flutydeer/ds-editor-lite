@@ -255,6 +255,121 @@ namespace {
                    !root->phonemeOffsetSeq().isEdited(),
                "tempo changes inside a stationary word invalidate millisecond offsets");
     }
+
+    Note *makeWordRoot(const int start, const QString &lyric, const QList<int> &originalOffsets,
+                       const bool edited = false, const QList<int> &editedOffsets = {}) {
+        auto *note = new Note;
+        configureNote(*note, start, lyric);
+        Phonemes phonemes;
+        phonemes.offsetSeq.original = originalOffsets;
+        if (edited)
+            phonemes.offsetSeq.edited = editedOffsets;
+        note->setPhonemes(phonemes);
+        return note;
+    }
+
+    void testCascadeResetClosure() {
+        // A (tick 0, 500ms) owns phonemes ending at ~432 tick (450ms);
+        // B's first phoneme edited to -350ms takes it to ~144 tick, inside A.
+        auto *a = makeWordRoot(0, "A", {100, 300, 450});
+        auto *b = makeWordRoot(480, "B", {0, 200, 400});
+        Phonemes bPhonemes = b->phonemes();
+        bPhonemes.offsetSeq.edited = {-350, 200, 400};
+        b->setPhonemes(bPhonemes);
+        SingingClip clip({a, b});
+
+        Timeline timeline;
+        const auto closure =
+            SingingClipPhonemeNormalizer::collectCascadeResetRoots(clip, {a}, timeline);
+
+        expect(closure.contains(a) && closure.contains(b),
+               "cascade closure includes the selected root and the overlapping right neighbor");
+        expect(closure.size() == 2, "cascade closure has exactly two words");
+    }
+
+    void testCascadeResetStopsWithoutOverlap() {
+        // B's first phoneme stays after A's restored last phoneme (~432 tick)
+        auto *a = makeWordRoot(0, "A", {100, 300, 450});
+        auto *b = makeWordRoot(480, "B", {0, 200, 400});
+        Phonemes bPhonemes = b->phonemes();
+        bPhonemes.offsetSeq.edited = {80, 200, 400}; // inside B, not past A
+        b->setPhonemes(bPhonemes);
+        SingingClip clip({a, b});
+        const auto closure = SingingClipPhonemeNormalizer::collectCascadeResetRoots(clip, {a});
+        expect(closure.size() == 1 && closure.first() == a,
+               "right neighbor that does not overlap is not added to the closure");
+    }
+
+    void testCascadeResetOnlyEdited() {
+        // B has only a baseline, no edited offsets — resetting A must not touch it
+        auto *a = makeWordRoot(0, "A", {100, 300, 450});
+        auto *b = makeWordRoot(480, "B", {-350, 200, 400});
+        SingingClip clip({a, b});
+        const auto closure = SingingClipPhonemeNormalizer::collectCascadeResetRoots(clip, {a});
+        expect(closure.size() == 1 && closure.first() == a,
+               "unedited right neighbor with a negative baseline offset is left alone");
+    }
+
+    void testCascadeResetMultiStep() {
+        // A→B→C chain: B overlaps A's restored last, C overlaps B's restored last
+        auto *a = makeWordRoot(0, "A", {100, 450});
+        auto *b = makeWordRoot(480, "B", {0, 400});
+        Phonemes bPhonemes = b->phonemes();
+        bPhonemes.offsetSeq.edited = {-600, 400}; // dragged deep into A (~0 tick)
+        b->setPhonemes(bPhonemes);
+        auto *c = makeWordRoot(960, "C", {0, 300});
+        Phonemes cPhonemes = c->phonemes();
+        cPhonemes.offsetSeq.edited = {-650, 300}; // dragged into B (~336 tick)
+        c->setPhonemes(cPhonemes);
+        SingingClip clip({a, b, c});
+        const auto closure = SingingClipPhonemeNormalizer::collectCascadeResetRoots(clip, {a});
+        expect(closure.contains(a) && closure.contains(b) && closure.contains(c),
+               "multi-word cascade propagates rightward across three words");
+    }
+
+    void testCascadeResetStopsAtGap() {
+        auto *a = makeWordRoot(0, "A", {100, 450});
+        auto *b = makeWordRoot(960, "B", {0, 200, 400});
+        Phonemes bPhonemes = b->phonemes();
+        bPhonemes.offsetSeq.edited = {-500, 200, 400}; // even a deep drag cannot cross the gap
+        b->setPhonemes(bPhonemes);
+        SingingClip clip({a, b});
+        const auto closure = SingingClipPhonemeNormalizer::collectCascadeResetRoots(clip, {a});
+        expect(closure.size() == 1 && closure.first() == a,
+               "neighbor behind a gap never enters the closure");
+    }
+
+    void testCascadeResetWordEndThroughMembers() {
+        // Slur / syllabification members have no edit eligibility: they neither
+        // form a residual word nor break the word chain, so B (next editable root)
+        // is compared directly against A.
+        auto *a = makeWordRoot(0, "A", {100, 470});
+        auto *member = makeWordRoot(480, "-", {}, false, {}); // A + one slur
+        auto *syllab = makeWordRoot(960, "+", {}, false, {}); // then syllabification
+        auto *b = makeWordRoot(1440, "B", {0, 200, 400});
+        Phonemes bPhonemes = b->phonemes();
+        bPhonemes.offsetSeq.original = {0, 200, 400};
+        bPhonemes.offsetSeq.edited = {-1200, 200, 400}; // dragged deep into A (~288 tick)
+        b->setPhonemes(bPhonemes);
+        SingingClip clip({a, member, syllab, b});
+
+        const auto closure = SingingClipPhonemeNormalizer::collectCascadeResetRoots(clip, {a});
+        expect(closure.size() == 2 && closure.contains(b),
+               "members are skipped; B overlaps A via the last-phoneme criterion");
+    }
+
+    void testCascadeResetSkippedWithoutBaseline() {
+        auto *a = makeWordRoot(0, "A", {100, 400, 700});
+        auto *b = makeWordRoot(480, "B", {0, 200, 400});
+        Phonemes bPhonemes = b->phonemes();
+        bPhonemes.offsetSeq.original = {}; // no baseline (external dspx single-layer)
+        bPhonemes.offsetSeq.edited = {-350, 200, 400};
+        b->setPhonemes(bPhonemes);
+        SingingClip clip({a, b});
+        const auto closure = SingingClipPhonemeNormalizer::collectCascadeResetRoots(clip, {a});
+        expect(closure.size() == 1 && closure.first() == a,
+               "word without a baseline is never added to the closure");
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -265,6 +380,13 @@ int main(int argc, char *argv[]) {
     testEditingEligibility();
     testRelativeTimingChangeInvalidatesEditedOffsets();
     testTempoAwareWordState();
+    testCascadeResetClosure();
+    testCascadeResetStopsWithoutOverlap();
+    testCascadeResetOnlyEdited();
+    testCascadeResetMultiStep();
+    testCascadeResetStopsAtGap();
+    testCascadeResetWordEndThroughMembers();
+    testCascadeResetSkippedWithoutBaseline();
     if (failures == 0)
         QTextStream(stdout) << "All Syllabification tests passed" << Qt::endl;
     return failures == 0 ? 0 : 1;

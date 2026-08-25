@@ -124,6 +124,28 @@ namespace {
         return result;
     }
 
+    Automation::ClipDraftDto audioClipDraft(const QString &name, const QString &clientRef = {}) {
+        Automation::ClipDraftDto result;
+        result.clientRef = clientRef;
+        result.type = Automation::ClipDraftDto::Type::Audio;
+        result.properties.name = name;
+        result.properties.start = 0;
+        result.properties.length = 100;
+        result.properties.clipStart = 50;
+        result.properties.clipLen = 100;
+        result.properties.gain = 1.0;
+        result.audioPath = QStringLiteral("fixture-audio.wav");
+        return result;
+    }
+
+    bool sameClipTiming(const Automation::ClipPropertiesDto &left,
+                        const Automation::ClipPropertiesDto &right) {
+        return left.start == right.start && left.length == right.length &&
+               left.clipStart == right.clipStart && left.clipLen == right.clipLen &&
+               left.trimStartMs == right.trimStartMs && left.playLengthMs == right.playLengthMs &&
+               left.materialLengthMs == right.materialLengthMs;
+    }
+
     Automation::NoteDraftDto noteDraft(const int start, const int length, const int key,
                                        const QString &lyric, const QString &clientRef = {}) {
         Automation::NoteDraftDto result;
@@ -425,7 +447,7 @@ namespace {
                 suite.expect(empty && !empty.get().changed && runtime.documentVersion() == base,
                              QStringLiteral("empty insert must be a no-op"));
                 auto invalidDraft = singingClipDraft(QStringLiteral("Invalid"));
-                invalidDraft.properties.clipLen = invalidDraft.properties.length + 1;
+                invalidDraft.properties.length = -1;
                 const auto invalid = runtime.project().insertClips(
                     commandContext(runtime), {
                                                  {.trackId = second, .clip = invalidDraft}
@@ -433,6 +455,29 @@ namespace {
                 suite.expect(isError(invalid, AutomationErrorCode::InvalidArgument,
                                      QStringLiteral("clip.properties")),
                              QStringLiteral("invalid clip geometry must be rejected"));
+                auto visibleOverflowDraft = singingClipDraft(QStringLiteral("Visible Overflow"));
+                visibleOverflowDraft.properties.start = std::numeric_limits<int>::max();
+                visibleOverflowDraft.properties.clipStart = 0;
+                visibleOverflowDraft.properties.clipLen = 1;
+                const auto visibleOverflow = runtime.project().insertClips(
+                    commandContext(runtime),
+                    {
+                        {.trackId = second, .clip = visibleOverflowDraft}
+                });
+                suite.expect(isError(visibleOverflow, AutomationErrorCode::InvalidArgument,
+                                     QStringLiteral("clip.properties")),
+                             QStringLiteral("visible clip end must fit the model tick type"));
+                auto localOverflowDraft = singingClipDraft(QStringLiteral("Local Overflow"));
+                localOverflowDraft.properties.start = -std::numeric_limits<int>::max();
+                localOverflowDraft.properties.clipStart = std::numeric_limits<int>::max();
+                localOverflowDraft.properties.clipLen = 1;
+                const auto localOverflow = runtime.project().insertClips(
+                    commandContext(runtime), {
+                                                 {.trackId = second, .clip = localOverflowDraft}
+                });
+                suite.expect(isError(localOverflow, AutomationErrorCode::InvalidArgument,
+                                     QStringLiteral("clip.properties")),
+                             QStringLiteral("clip-local end must fit the model tick type"));
                 const auto draft =
                     singingClipDraft(QStringLiteral("歌声 Clip"), QStringLiteral("clip-main"));
                 const auto preview = runtime.project().insertClips(
@@ -457,7 +502,7 @@ namespace {
 
         suite.run(
             Automation::OperationIds::clips::set_properties,
-            QStringLiteral("move-and-edit-atomically"), [&] {
+            QStringLiteral("legacy-range-move-and-edit-atomically"), [&] {
                 testRuntime.history()->reset();
                 const auto before = clipSnapshot(runtime, clip);
                 suite.expect(before.has_value(), QStringLiteral("fixture clip must exist"));
@@ -465,9 +510,9 @@ namespace {
                 edit.id = clip;
                 edit.name = QStringLiteral("Moved Clip");
                 edit.start = 960;
-                edit.length = 2880;
-                edit.clipStart = 120;
-                edit.clipLen = 2400;
+                edit.length = 100;
+                edit.clipStart = 50;
+                edit.clipLen = 100;
                 edit.gain = 0.8;
                 edit.mute = true;
                 auto invalid = edit;
@@ -477,15 +522,26 @@ namespace {
                 suite.expect(isError(rejected, AutomationErrorCode::InvalidArgument,
                                      QStringLiteral("properties")),
                              QStringLiteral("invalid clip properties must not partially move"));
-                auto outsideMaterial = edit;
-                outsideMaterial.length = 100;
-                outsideMaterial.clipStart = 50;
-                outsideMaterial.clipLen = 100;
-                const auto rejectedRange = runtime.project().setClipProperties(
-                    commandContext(runtime, true), outsideMaterial, third);
-                suite.expect(isError(rejectedRange, AutomationErrorCode::InvalidArgument,
-                                     QStringLiteral("properties")),
-                             QStringLiteral("clip range must stay inside material length"));
+                auto visibleOverflow = edit;
+                visibleOverflow.start = std::numeric_limits<int>::max();
+                visibleOverflow.clipStart = 0;
+                visibleOverflow.clipLen = 1;
+                const auto rejectedVisibleOverflow = runtime.project().setClipProperties(
+                    commandContext(runtime, true), visibleOverflow, third);
+                suite.expect(
+                    isError(rejectedVisibleOverflow, AutomationErrorCode::InvalidArgument,
+                            QStringLiteral("properties")),
+                    QStringLiteral("clip edit must reject an unrepresentable visible end"));
+                auto localOverflow = edit;
+                localOverflow.start = -std::numeric_limits<int>::max();
+                localOverflow.clipStart = std::numeric_limits<int>::max();
+                localOverflow.clipLen = 1;
+                const auto rejectedLocalOverflow = runtime.project().setClipProperties(
+                    commandContext(runtime, true), localOverflow, third);
+                suite.expect(
+                    isError(rejectedLocalOverflow, AutomationErrorCode::InvalidArgument,
+                            QStringLiteral("properties")),
+                    QStringLiteral("clip edit must reject an unrepresentable clip-local end"));
                 const auto base = runtime.documentVersion();
                 const auto preview =
                     runtime.project().setClipProperties(commandContext(runtime, true), edit, third);
@@ -498,8 +554,13 @@ namespace {
                 suite.expect(
                     changed && changed.get().current.revision == base.revision + 1 && after &&
                         after->trackId == third && after->data.properties.name == edit.name &&
-                        after->data.properties.start == edit.start && after->data.properties.mute,
-                    QStringLiteral("clip move and properties must commit once"));
+                        after->data.properties.start == edit.start &&
+                        after->data.properties.length == edit.length &&
+                        after->data.properties.clipStart == edit.clipStart &&
+                        after->data.properties.clipLen == edit.clipLen &&
+                        after->data.properties.mute,
+                    QStringLiteral(
+                        "legacy clip range and move must commit once without normalization"));
                 const auto noOp =
                     runtime.project().setClipProperties(commandContext(runtime), edit, third);
                 suite.expect(noOp && !noOp.get().changed &&
@@ -510,6 +571,203 @@ namespace {
                 suite.expect(undo && restored && restored->trackId == second &&
                                  restored->data.properties.name == before->data.properties.name,
                              QStringLiteral("combined clip move/edit must undo atomically"));
+            });
+
+        ClipId legacyAudioClip;
+        suite.run(
+            Automation::OperationIds::clips::insert, QStringLiteral("legacy-audio-range-create"),
+            [&] {
+                const auto insert = runtime.project().insertClips(
+                    commandContext(runtime),
+                    {
+                        {.trackId = second,
+                         .clip = audioClipDraft(QStringLiteral("Legacy Audio"),
+                         QStringLiteral("legacy-audio"))}
+                });
+                if (insert && !insert.get().affectedObjects.isEmpty())
+                    legacyAudioClip = ClipId(insert.get().affectedObjects.first().value);
+                const auto snapshot = clipSnapshot(runtime, legacyAudioClip);
+                suite.expect(
+                    insert && snapshot &&
+                        snapshot->data.type == Automation::ClipDraftDto::Type::Audio &&
+                        snapshot->data.properties.length == 100 &&
+                        snapshot->data.properties.clipStart == 50 &&
+                        snapshot->data.properties.clipLen == 100,
+                    QStringLiteral("legacy audio geometry must be inserted without normalization"));
+                if (!snapshot)
+                    return;
+
+                const auto reusable = Automation::validate(snapshot->data);
+                suite.expect(static_cast<bool>(reusable),
+                             QStringLiteral("a legacy audio snapshot must validate for reuse"));
+                auto copiedDraft = snapshot->data;
+                copiedDraft.clientRef = QStringLiteral("legacy-audio-copy");
+                copiedDraft.properties.start = 480;
+                const auto copied = runtime.project().insertClips(
+                    commandContext(runtime), {
+                                                 {.trackId = second, .clip = copiedDraft}
+                });
+                const auto copiedSnapshot =
+                    copied && !copied.get().affectedObjects.isEmpty()
+                        ? clipSnapshot(runtime, ClipId(copied.get().affectedObjects.first().value))
+                        : std::nullopt;
+                suite.expect(
+                    copied && copied.get().createdObjects.size() == 1 && copiedSnapshot &&
+                        sameClipTiming(copiedSnapshot->data.properties, copiedDraft.properties),
+                    QStringLiteral(
+                        "a pasted legacy audio snapshot must preserve its exact timing geometry"));
+
+                auto conflictingDraft = copiedDraft;
+                conflictingDraft.clientRef = QStringLiteral("conflicting-audio-anchor");
+                conflictingDraft.properties.start = 960;
+                conflictingDraft.properties.length = 480;
+                conflictingDraft.properties.clipStart = 0;
+                conflictingDraft.properties.clipLen = 480;
+                conflictingDraft.properties.trimStartMs = 0.0;
+                conflictingDraft.properties.playLengthMs = 1000.0;
+                conflictingDraft.properties.materialLengthMs = 1000.0;
+                const auto conflicting = runtime.project().insertClips(
+                    commandContext(runtime), {
+                                                 {.trackId = second, .clip = conflictingDraft}
+                });
+                const auto conflictingSnapshot =
+                    conflicting && !conflicting.get().affectedObjects.isEmpty()
+                        ? clipSnapshot(runtime,
+                                       ClipId(conflicting.get().affectedObjects.first().value))
+                        : std::nullopt;
+                suite.expect(
+                    conflicting && conflictingSnapshot &&
+                        conflictingSnapshot->data.properties.start +
+                                conflictingSnapshot->data.properties.clipStart ==
+                            conflictingDraft.properties.start +
+                                conflictingDraft.properties.clipStart &&
+                        conflictingSnapshot->data.properties.clipLen !=
+                            conflictingDraft.properties.clipLen &&
+                        conflictingSnapshot->data.properties.length >=
+                            conflictingSnapshot->data.properties.clipStart +
+                                conflictingSnapshot->data.properties.clipLen &&
+                        conflictingSnapshot->data.properties.playLengthMs ==
+                            conflictingDraft.properties.playLengthMs,
+                    QStringLiteral(
+                        "an inconsistent anchored draft must reconcile ticks to realtime truth"));
+
+                auto oversizedDraft = conflictingDraft;
+                oversizedDraft.clientRef = QStringLiteral("oversized-audio-material");
+                oversizedDraft.properties.start = 1920;
+                oversizedDraft.properties.length = 9600;
+                oversizedDraft.properties.clipLen = 480;
+                oversizedDraft.properties.playLengthMs = 500.0;
+                oversizedDraft.properties.materialLengthMs = 500.0;
+                const auto oversized = runtime.project().insertClips(
+                    commandContext(runtime), {
+                                                 {.trackId = second, .clip = oversizedDraft}
+                });
+                const auto oversizedSnapshot =
+                    oversized && !oversized.get().affectedObjects.isEmpty()
+                        ? clipSnapshot(runtime,
+                                       ClipId(oversized.get().affectedObjects.first().value))
+                        : std::nullopt;
+                suite.expect(
+                    oversized && oversizedSnapshot &&
+                        oversizedSnapshot->data.properties.start ==
+                            oversizedDraft.properties.start &&
+                        oversizedSnapshot->data.properties.clipStart ==
+                            oversizedDraft.properties.clipStart &&
+                        oversizedSnapshot->data.properties.clipLen ==
+                            oversizedDraft.properties.clipLen &&
+                        oversizedSnapshot->data.properties.length !=
+                            oversizedDraft.properties.length &&
+                        oversizedSnapshot->data.properties.length ==
+                            oversizedSnapshot->data.properties.clipStart +
+                                oversizedSnapshot->data.properties.clipLen,
+                    QStringLiteral(
+                        "an oversized anchored length must reconcile to its material duration"));
+            });
+
+        suite.run(
+            Automation::OperationIds::clips::set_properties,
+            QStringLiteral("legacy-audio-metadata-edit-preserves-range"), [&] {
+                testRuntime.history()->reset();
+                const auto before = clipSnapshot(runtime, legacyAudioClip);
+                suite.expect(before.has_value(), QStringLiteral("legacy audio fixture must exist"));
+                if (!before)
+                    return;
+                auto edit = before->data.properties;
+                edit.id = legacyAudioClip;
+                edit.name = QStringLiteral("Renamed Legacy Audio");
+                edit.gain = 0.75;
+                const auto changed =
+                    runtime.project().setClipProperties(commandContext(runtime), edit, second);
+                const auto after = clipSnapshot(runtime, legacyAudioClip);
+                suite.expect(
+                    changed && after && after->trackId == second &&
+                        sameClipTiming(after->data.properties, before->data.properties),
+                    QStringLiteral(
+                        "audio metadata edit must preserve legacy ticks and realtime truth"));
+                const auto undoEdit = runtime.history().undo(commandContext(runtime));
+                const auto restored = clipSnapshot(runtime, legacyAudioClip);
+                suite.expect(undoEdit && restored && restored->trackId == second &&
+                                 sameClipTiming(restored->data.properties, before->data.properties),
+                             QStringLiteral("undo must restore legacy audio geometry exactly"));
+
+                testRuntime.history()->reset();
+                auto moveProperties = before->data.properties;
+                moveProperties.id = legacyAudioClip;
+                const auto moved = runtime.project().setClipProperties(commandContext(runtime),
+                                                                       moveProperties, third);
+                const auto movedSnapshot = clipSnapshot(runtime, legacyAudioClip);
+                suite.expect(
+                    moved && movedSnapshot && movedSnapshot->trackId == third &&
+                        sameClipTiming(movedSnapshot->data.properties, before->data.properties),
+                    QStringLiteral("cross-track move must preserve legacy audio geometry"));
+                const auto undoMove = runtime.history().undo(commandContext(runtime));
+                const auto movedBack = clipSnapshot(runtime, legacyAudioClip);
+                suite.expect(
+                    undoMove && movedBack && movedBack->trackId == second &&
+                        sameClipTiming(movedBack->data.properties, before->data.properties),
+                    QStringLiteral("undoing a cross-track move must preserve legacy geometry"));
+            });
+
+        suite.run(
+            Automation::OperationIds::clips::set_properties,
+            QStringLiteral("legacy-audio-timing-edit-undo-restores-raw-range"), [&] {
+                testRuntime.history()->reset();
+                const auto before = clipSnapshot(runtime, legacyAudioClip);
+                suite.expect(before.has_value(), QStringLiteral("legacy audio fixture must exist"));
+                if (!before)
+                    return;
+                auto edit = before->data.properties;
+                edit.id = legacyAudioClip;
+                edit.start += 240;
+                const auto changed =
+                    runtime.project().setClipProperties(commandContext(runtime), edit, second);
+                const auto undo = runtime.history().undo(commandContext(runtime));
+                const auto restored = clipSnapshot(runtime, legacyAudioClip);
+                suite.expect(
+                    changed && undo && restored && restored->trackId == second &&
+                        sameClipTiming(restored->data.properties, before->data.properties),
+                    QStringLiteral("undoing an audio timing edit must restore raw legacy ticks"));
+            });
+
+        suite.run(
+            Automation::OperationIds::clips::set_properties,
+            QStringLiteral("legacy-audio-timing-move-undo-restores-raw-range"), [&] {
+                testRuntime.history()->reset();
+                const auto before = clipSnapshot(runtime, legacyAudioClip);
+                suite.expect(before.has_value(), QStringLiteral("legacy audio fixture must exist"));
+                if (!before)
+                    return;
+                auto edit = before->data.properties;
+                edit.id = legacyAudioClip;
+                edit.start += 480;
+                const auto changed =
+                    runtime.project().setClipProperties(commandContext(runtime), edit, third);
+                const auto undo = runtime.history().undo(commandContext(runtime));
+                const auto restored = clipSnapshot(runtime, legacyAudioClip);
+                suite.expect(
+                    changed && undo && restored && restored->trackId == second &&
+                        sameClipTiming(restored->data.properties, before->data.properties),
+                    QStringLiteral("undoing an audio timing move must restore raw legacy ticks"));
             });
 
         suite.run(Automation::OperationIds::clips::set_default_language,
@@ -1343,6 +1601,42 @@ namespace {
                     runtime.timeline().getTimeline(runtime.documentVersion().documentId);
                 suite.expect(undo && restored && hasTempo(restored.get(), 960, 145.0),
                              QStringLiteral("tempo deletion must undo once"));
+            });
+
+        suite.run(
+            Automation::OperationIds::tempos::set,
+            QStringLiteral("legacy-audio-tempo-undo-restores-raw-range"), [&] {
+                const auto trackId = insertedTrack(runtime, QStringLiteral("Audio Tempo"));
+                const auto insert = runtime.project().insertClips(
+                    commandContext(runtime),
+                    {
+                        {.trackId = trackId,
+                         .clip = audioClipDraft(QStringLiteral("Legacy Tempo Audio"))}
+                });
+                const auto clipId = insert && !insert.get().affectedObjects.isEmpty()
+                                        ? ClipId(insert.get().affectedObjects.first().value)
+                                        : ClipId{};
+                testRuntime.history()->reset();
+                const auto before = clipSnapshot(runtime, clipId);
+                const auto changed = runtime.timeline().setTempo(commandContext(runtime), 0, 90.0);
+                const auto changedSnapshot = clipSnapshot(runtime, clipId);
+                const auto undo = runtime.history().undo(commandContext(runtime));
+                const auto restored = clipSnapshot(runtime, clipId);
+                const auto redo = runtime.history().redo(commandContext(runtime));
+                const auto redone = clipSnapshot(runtime, clipId);
+                const auto undoAgain = runtime.history().undo(commandContext(runtime));
+                const auto restoredAgain = clipSnapshot(runtime, clipId);
+                suite.expect(
+                    trackId.isValid() && insert && before && changed && changedSnapshot &&
+                        changedSnapshot->data.properties.length >=
+                            changedSnapshot->data.properties.clipStart +
+                                changedSnapshot->data.properties.clipLen &&
+                        undo && restored &&
+                        sameClipTiming(restored->data.properties, before->data.properties) &&
+                        redo && redone && undoAgain && restoredAgain &&
+                        sameClipTiming(restoredAgain->data.properties, before->data.properties),
+                    QStringLiteral(
+                        "tempo undo must restore raw legacy audio ticks across redo cycles"));
             });
 
         suite.run(

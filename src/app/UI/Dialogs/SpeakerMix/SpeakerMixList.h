@@ -10,7 +10,7 @@
 
 class QHBoxLayout;
 class ComboBox;
-class QLabel;
+class IconLabel;
 class SpeakerMixBar;
 
 class SpeakerMixList : public QListWidget {
@@ -39,7 +39,12 @@ signals:
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
+    void mouseMoveEvent(QMouseEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
+    void dragMoveEvent(QDragMoveEvent *event) override;
+    void dragLeaveEvent(QDragLeaveEvent *event) override;
+    void dropEvent(QDropEvent *event) override;
+    void startDrag(Qt::DropActions supportedActions) override;
 
 private slots:
     void onItemOrderChanged();
@@ -50,7 +55,7 @@ private:
     struct RowComponents {
         QWidget *container;
         QHBoxLayout *layout;
-        QLabel *dragHandle;
+        IconLabel *dragHandle;
         QWidget *colorDot;
         ComboBox *speakerComboBox;
         QLabel *positionLabel;
@@ -70,6 +75,11 @@ private:
     void updateBarLabelsAndColors();
     QString speakerDisplayName(const QString &speakerName) const;
     QVector<QColor> getColors() const;
+    int dropInsertionIndex(const QPoint &pos) const;
+    bool isValidDropInsertionIndex(int insertionIndex) const;
+    bool setDropInsertionIndex(int insertionIndex);
+    void updateDropIndicator(int insertionIndex);
+    void clearDropIndicator();
 
 private:
     QString m_packageName;
@@ -80,6 +90,9 @@ private:
     QVector<RowComponents> m_rows;
     SpeakerMixBar *m_mixBar;
     bool m_sourceEditingEnabled;
+    QPoint m_dragStartPosition;
+    int m_dragRow = -1;
+    QWidget *m_dropIndicator = nullptr;
 };
 
 #endif

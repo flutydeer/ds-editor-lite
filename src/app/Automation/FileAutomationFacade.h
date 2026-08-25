@@ -63,24 +63,22 @@ namespace Automation {
 
     class FileAutomationFacade final {
     public:
-        FileAutomationFacade(OperationCatalog &catalog,
-                             AutomationDispatcher &dispatcher,
+        FileAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
                              FileRuntimeServices services = {});
 
         AutomationResult<QList<ProjectFormatDto>> listFormats();
         AutomationResult<QByteArray> convertLibreSvipToDspx(const QString &path);
         AutomationResult<FileWriteResultDto> exportMidi(const CommandContext &context,
-                                                        const QString &path,
-                                                        bool allowOverwrite);
+                                                        const QString &path, bool allowOverwrite);
         AutomationResult<FileWriteResultDto> exportMidi(const CommandContext &context,
-                                                        const QString &path,
-                                                        bool allowOverwrite,
+                                                        const QString &path, bool allowOverwrite,
                                                         MidiExportOptionsDto options);
-        AutomationResult<PreparedMidiExportDto> previewMidiExport(
-            const DocumentId &documentId, const QString &path, MidiExportOptionsDto options = {});
-        AutomationResult<PreparedMidiExportDto> prepareMidiExport(
-            const CommandContext &context, const QString &path, bool allowOverwrite,
-            MidiExportOptionsDto options = {});
+        AutomationResult<PreparedMidiExportDto>
+            previewMidiExport(const DocumentId &documentId, const QString &path,
+                              MidiExportOptionsDto options = {});
+        AutomationResult<PreparedMidiExportDto>
+            prepareMidiExport(const CommandContext &context, const QString &path,
+                              bool allowOverwrite, MidiExportOptionsDto options = {});
         AutomationResult<FileWriteResultDto>
             writePreparedMidiExport(const PreparedMidiExportDto &prepared) const;
 

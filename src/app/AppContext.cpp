@@ -50,7 +50,7 @@
 #include <QThread>
 
 #if defined(WITH_DIRECT_MANIPULATION)
-#include <QWDMHCore/DirectManipulationSystem.h>
+#  include <QWDMHCore/DirectManipulationSystem.h>
 #endif
 
 // AudioSystemContext — moved verbatim from old main.cpp
@@ -193,11 +193,9 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
         return m_editorViewController &&
                m_editorViewController->applyPianoRollScale(horizontal, vertical);
     };
-    editorServices.setPianoRollEditMode =
-        [this](const EditorViewGlobal::PianoRollEditMode mode) {
-            return m_editorViewController &&
-                   m_editorViewController->applyPianoRollEditMode(mode);
-        };
+    editorServices.setPianoRollEditMode = [this](const EditorViewGlobal::PianoRollEditMode mode) {
+        return m_editorViewController && m_editorViewController->applyPianoRollEditMode(mode);
+    };
     editorServices.setActiveClip = [this](const int clipId) {
         if (m_appStatus->activeClipId == clipId)
             return;
@@ -280,7 +278,9 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
     // L5: Controllers with construction-time deps
     m_playbackController = SingletonRegistry::create<PlaybackController>();
     m_playbackController->setLoopPreviewHandler(
-        [status = m_appStatus](const LoopSettings &settings) { status->loopSettings.set(settings); });
+        [status = m_appStatus](const LoopSettings &settings) {
+            status->loopSettings.set(settings);
+        });
     m_projectStatusController = SingletonRegistry::create<ProjectStatusController>();
     // ProjectPackageResolver connects to AppModel + PackageManager + AppStatus
     m_projectPackageResolver = SingletonRegistry::create<ProjectPackageResolver>();
@@ -378,31 +378,132 @@ AppContext::~AppContext() {
 
 // instance<T>() specializations — one per business singleton
 // Returns nullptr when s_self is not set (e.g. in tests); callers fall back to Meyers static.
-template <> AppStatus *AppContext::instance() { return s_self ? s_self->m_appStatus : nullptr; }
-template <> AppOptions *AppContext::instance() { return s_self ? s_self->m_appOptions : nullptr; }
-template <> AppModel *AppContext::instance() { return s_self ? s_self->m_appModel : nullptr; }
-template <> ParamUtils *AppContext::instance() { return s_self ? s_self->m_paramUtils : nullptr; }
-template <> HistoryManager *AppContext::instance() { return s_self ? s_self->m_historyManager : nullptr; }
-template <> PackageManager *AppContext::instance() { return s_self ? s_self->m_packageManager : nullptr; }
-template <> LangSetting::ILangSetManager *AppContext::instance() { return s_self ? s_self->m_iLangSetManager : nullptr; }
-template <> SynthrtEngine *AppContext::instance() { return s_self ? s_self->m_synthrtEngine : nullptr; }
-template <> InferEngine *AppContext::instance() { return s_self ? s_self->m_inferEngine : nullptr; }
-template <> AudioDecodingController *AppContext::instance() { return s_self ? s_self->m_audioDecodingController : nullptr; }
-template <> ClipboardController *AppContext::instance() { return s_self ? s_self->m_clipboardController : nullptr; }
-template <> TrackController *AppContext::instance() { return s_self ? s_self->m_trackController : nullptr; }
-template <> ClipController *AppContext::instance() { return s_self ? s_self->m_clipController : nullptr; }
-template <> EditorViewController *AppContext::instance() { return s_self ? s_self->m_editorViewController : nullptr; }
-template <> UndoRedoController *AppContext::instance() { return s_self ? s_self->m_undoRedoController : nullptr; }
-template <> PitchExtractController *AppContext::instance() { return s_self ? s_self->m_pitchExtractController : nullptr; }
-template <> MidiExtractController *AppContext::instance() { return s_self ? s_self->m_midiExtractController : nullptr; }
-template <> EditSessionManager *AppContext::instance() { return s_self ? s_self->m_editSessionManager : nullptr; }
-template <> PlaybackController *AppContext::instance() { return s_self ? s_self->m_playbackController : nullptr; }
-template <> ProjectStatusController *AppContext::instance() { return s_self ? s_self->m_projectStatusController : nullptr; }
-template <> ProjectPackageResolver *AppContext::instance() { return s_self ? s_self->m_projectPackageResolver : nullptr; }
-template <> InferController *AppContext::instance() { return s_self ? s_self->m_inferController : nullptr; }
-template <> AppController *AppContext::instance() { return s_self ? s_self->m_appController : nullptr; }
-template <> DocumentWorkflowController *AppContext::instance() { return s_self ? s_self->m_documentWorkflowController : nullptr; }
-template <> LevelMeterManager *AppContext::instance() { return s_self ? s_self->m_levelMeterManager : nullptr; }
-template <> Automation::CoreRuntime *AppContext::instance() {
+template <>
+AppStatus *AppContext::instance() {
+    return s_self ? s_self->m_appStatus : nullptr;
+}
+
+template <>
+AppOptions *AppContext::instance() {
+    return s_self ? s_self->m_appOptions : nullptr;
+}
+
+template <>
+AppModel *AppContext::instance() {
+    return s_self ? s_self->m_appModel : nullptr;
+}
+
+template <>
+ParamUtils *AppContext::instance() {
+    return s_self ? s_self->m_paramUtils : nullptr;
+}
+
+template <>
+HistoryManager *AppContext::instance() {
+    return s_self ? s_self->m_historyManager : nullptr;
+}
+
+template <>
+PackageManager *AppContext::instance() {
+    return s_self ? s_self->m_packageManager : nullptr;
+}
+
+template <>
+LangSetting::ILangSetManager *AppContext::instance() {
+    return s_self ? s_self->m_iLangSetManager : nullptr;
+}
+
+template <>
+SynthrtEngine *AppContext::instance() {
+    return s_self ? s_self->m_synthrtEngine : nullptr;
+}
+
+template <>
+InferEngine *AppContext::instance() {
+    return s_self ? s_self->m_inferEngine : nullptr;
+}
+
+template <>
+AudioDecodingController *AppContext::instance() {
+    return s_self ? s_self->m_audioDecodingController : nullptr;
+}
+
+template <>
+ClipboardController *AppContext::instance() {
+    return s_self ? s_self->m_clipboardController : nullptr;
+}
+
+template <>
+TrackController *AppContext::instance() {
+    return s_self ? s_self->m_trackController : nullptr;
+}
+
+template <>
+ClipController *AppContext::instance() {
+    return s_self ? s_self->m_clipController : nullptr;
+}
+
+template <>
+EditorViewController *AppContext::instance() {
+    return s_self ? s_self->m_editorViewController : nullptr;
+}
+
+template <>
+UndoRedoController *AppContext::instance() {
+    return s_self ? s_self->m_undoRedoController : nullptr;
+}
+
+template <>
+PitchExtractController *AppContext::instance() {
+    return s_self ? s_self->m_pitchExtractController : nullptr;
+}
+
+template <>
+MidiExtractController *AppContext::instance() {
+    return s_self ? s_self->m_midiExtractController : nullptr;
+}
+
+template <>
+EditSessionManager *AppContext::instance() {
+    return s_self ? s_self->m_editSessionManager : nullptr;
+}
+
+template <>
+PlaybackController *AppContext::instance() {
+    return s_self ? s_self->m_playbackController : nullptr;
+}
+
+template <>
+ProjectStatusController *AppContext::instance() {
+    return s_self ? s_self->m_projectStatusController : nullptr;
+}
+
+template <>
+ProjectPackageResolver *AppContext::instance() {
+    return s_self ? s_self->m_projectPackageResolver : nullptr;
+}
+
+template <>
+InferController *AppContext::instance() {
+    return s_self ? s_self->m_inferController : nullptr;
+}
+
+template <>
+AppController *AppContext::instance() {
+    return s_self ? s_self->m_appController : nullptr;
+}
+
+template <>
+DocumentWorkflowController *AppContext::instance() {
+    return s_self ? s_self->m_documentWorkflowController : nullptr;
+}
+
+template <>
+LevelMeterManager *AppContext::instance() {
+    return s_self ? s_self->m_levelMeterManager : nullptr;
+}
+
+template <>
+Automation::CoreRuntime *AppContext::instance() {
     return s_self ? s_self->m_coreRuntime.get() : nullptr;
 }

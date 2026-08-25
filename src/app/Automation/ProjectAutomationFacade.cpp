@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <limits>
 #include <vector>
@@ -242,10 +243,12 @@ namespace Automation {
         }
 
         bool validClipProperties(const ClipPropertiesDto &properties) {
-            return static_cast<qint64>(properties.start) + properties.clipStart >= 0 &&
-                   properties.length >= 0 && properties.clipStart >= 0 && properties.clipLen >= 0 &&
-                   static_cast<qint64>(properties.clipStart) + properties.clipLen <=
-                       properties.length &&
+            const auto localEnd = static_cast<qint64>(properties.clipStart) + properties.clipLen;
+            const auto visibleStart = static_cast<qint64>(properties.start) + properties.clipStart;
+            const auto visibleEnd = visibleStart + properties.clipLen;
+            return localEnd <= std::numeric_limits<int>::max() && visibleStart >= 0 &&
+                   visibleEnd <= std::numeric_limits<int>::max() && properties.length >= 0 &&
+                   properties.clipStart >= 0 && properties.clipLen >= 0 &&
                    std::isfinite(properties.gain) && std::isfinite(properties.trimStartMs) &&
                    std::isfinite(properties.playLengthMs) &&
                    std::isfinite(properties.materialLengthMs);
@@ -965,8 +968,7 @@ namespace Automation {
                 qsizetype duplicateIndex = 0;
                 for (const auto &source : sources) {
                     auto draft = clipDraftDto(*source.clip);
-                    draft.clientRef =
-                        QStringLiteral("duplicate_clip_%1").arg(duplicateIndex++);
+                    draft.clientRef = QStringLiteral("duplicate_clip_%1").arg(duplicateIndex++);
                     draft.properties.start += delta;
                     for (auto &keyframe : draft.ownSpeakerMixData.dynamicKeyframes)
                         keyframe.id = IdGenerator::instance()->next();

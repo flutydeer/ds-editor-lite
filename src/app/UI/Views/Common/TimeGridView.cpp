@@ -9,15 +9,15 @@
 
 namespace {
 
-QColor blendColor(const QColor &from, const QColor &to, double ratio) {
-    if (ratio < 0)
-        ratio = 0;
-    else if (ratio > 1)
-        ratio = 1;
-    return QColor(static_cast<int>(from.red() + (to.red() - from.red()) * ratio),
-                  static_cast<int>(from.green() + (to.green() - from.green()) * ratio),
-                  static_cast<int>(from.blue() + (to.blue() - from.blue()) * ratio));
-}
+    QColor blendColor(const QColor &from, const QColor &to, double ratio) {
+        if (ratio < 0)
+            ratio = 0;
+        else if (ratio > 1)
+            ratio = 1;
+        return QColor(static_cast<int>(from.red() + (to.red() - from.red()) * ratio),
+                      static_cast<int>(from.green() + (to.green() - from.green()) * ratio),
+                      static_cast<int>(from.blue() + (to.blue() - from.blue()) * ratio));
+    }
 
 } // namespace
 

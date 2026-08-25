@@ -10,7 +10,9 @@
 #include "Modules/Audio/AudioContext.h"
 
 namespace talcs {
-    DspxSingingClipInferenceContext::DspxSingingClipInferenceContext(DspxTrackInferenceContext *trackInferenceContext) : QObject(trackInferenceContext), d_ptr(new DspxSingingClipInferenceContextPrivate) {
+    DspxSingingClipInferenceContext::DspxSingingClipInferenceContext(
+        DspxTrackInferenceContext *trackInferenceContext)
+        : QObject(trackInferenceContext), d_ptr(new DspxSingingClipInferenceContextPrivate) {
         Q_D(DspxSingingClipInferenceContext);
         d->q_ptr = this;
         d->trackInferenceContext = trackInferenceContext;
@@ -80,7 +82,8 @@ namespace talcs {
         clipSeries->setClipStartPos(d->clipView, startSample);
         const auto firstSample = convertTime(d->startTick + d->clipStartTick);
         const auto lastSample = convertTime(d->startTick + d->clipStartTick + d->clipLenTick);
-        clipSeries->setClipRange(d->clipView, firstSample, qMax(static_cast<qint64>(1), lastSample - firstSample));
+        clipSeries->setClipRange(d->clipView, firstSample,
+                                 qMax(static_cast<qint64>(1), lastSample - firstSample));
     }
 
     void DspxSingingClipInferenceContext::setData(const QVariant &data) {
@@ -96,7 +99,8 @@ namespace talcs {
     DspxInferencePieceContext *DspxSingingClipInferenceContext::addInferencePiece(const int id) {
         Q_D(DspxSingingClipInferenceContext);
         auto piece = new DspxInferencePieceContext(this);
-        auto clipView = d->pieceClipSeries->insertClip(piece->d_func()->futureSource.get(), 0, 0, 1);
+        auto clipView =
+            d->pieceClipSeries->insertClip(piece->d_func()->futureSource.get(), 0, 0, 1);
         d->inferencePieceContexts.insert(id, piece);
         piece->d_func()->clipView = clipView;
         return piece;

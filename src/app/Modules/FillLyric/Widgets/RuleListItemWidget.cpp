@@ -6,8 +6,7 @@
 
 #include <lite/GUI/Utils/IconUtils.h>
 
-namespace FillLyric
-{
+namespace FillLyric {
     RuleListItemWidget::RuleListItemWidget(const QString &name, bool builtin, bool enabled,
                                            QWidget *parent)
         : QWidget(parent), m_builtin(builtin) {
@@ -21,11 +20,11 @@ namespace FillLyric
 
         m_handleLabel = new QLabel;
         m_handleLabel->setObjectName("dragHandle");
-        m_handleLabel->setPixmap(IconUtils::createTintedSvgIcon(
-                                     QStringLiteral(
-                                         ":/svg/icons/re_order_dots_vertical_16_regular.svg"),
-                                     iconSize, iconPalette)
-                                     .pixmap(iconSize));
+        m_handleLabel->setPixmap(
+            IconUtils::createTintedSvgIcon(
+                QStringLiteral(":/svg/icons/re_order_dots_vertical_16_regular.svg"), iconSize,
+                iconPalette)
+                .pixmap(iconSize));
         m_handleLabel->setFixedSize(iconSize);
         m_handleLabel->setAlignment(Qt::AlignCenter);
         layout->addWidget(m_handleLabel);
@@ -42,10 +41,10 @@ namespace FillLyric
             m_builtinLabel = new QLabel;
             m_builtinLabel->setObjectName("builtinIcon");
             m_builtinLabel->setToolTip(tr("Built-in rule (read-only)"));
-            m_builtinLabel->setPixmap(IconUtils::createTintedSvgIcon(
-                                           QStringLiteral(":/svg/icons/lock_closed_16_regular.svg"),
-                                           iconSize, iconPalette)
-                                           .pixmap(iconSize));
+            m_builtinLabel->setPixmap(
+                IconUtils::createTintedSvgIcon(
+                    QStringLiteral(":/svg/icons/lock_closed_16_regular.svg"), iconSize, iconPalette)
+                    .pixmap(iconSize));
             m_builtinLabel->setFixedWidth(20);
             m_builtinLabel->setAlignment(Qt::AlignCenter);
             layout->addWidget(m_builtinLabel);

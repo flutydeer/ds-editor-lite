@@ -10,13 +10,13 @@
 namespace Automation::McpClientConfiguration {
     namespace {
         QString configurationJson(const QJsonObject &server) {
-            return QString::fromUtf8(QJsonDocument(server).toJson(QJsonDocument::Indented)).trimmed();
+            return QString::fromUtf8(QJsonDocument(server).toJson(QJsonDocument::Indented))
+                .trimmed();
         }
     } // namespace
 
     QString connectorExecutablePath(const QString &applicationDirectory) {
-        auto fileName =
-            QString::fromLatin1(LiteProductMetadata::ConnectorExecutableBasename);
+        auto fileName = QString::fromLatin1(LiteProductMetadata::ConnectorExecutableBasename);
 #ifdef Q_OS_WIN
         fileName += QStringLiteral(".exe");
 #endif
@@ -57,9 +57,9 @@ namespace Automation::McpClientConfiguration {
 
     QString stdioJson(const QString &command, const QStringList &arguments) {
         const QJsonObject server{
-            {QStringLiteral("type"),    QStringLiteral("stdio")                },
-            {QStringLiteral("command"), command                                },
-            {QStringLiteral("args"),    QJsonArray::fromStringList(arguments)   },
+            {QStringLiteral("type"),    QStringLiteral("stdio")              },
+            {QStringLiteral("command"), command                              },
+            {QStringLiteral("args"),    QJsonArray::fromStringList(arguments)},
         };
         return configurationJson(server);
     }

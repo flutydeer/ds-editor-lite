@@ -82,5 +82,6 @@ void TimeGraphicsScene::afterSetVisibleRect() {
 }
 
 void TimeGraphicsScene::setSceneLength(int tick) {
-    setSceneBaseSize(QSizeF(tick * m_pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote, sceneBaseSize().height()));
+    setSceneBaseSize(QSizeF(tick * m_pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote,
+                            sceneBaseSize().height()));
 }

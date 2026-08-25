@@ -216,8 +216,8 @@ void AbstractClipView::paint(QPainter *painter, const QStyleOptionGraphicsItem *
     constexpr auto penWidth = EditorItemGeometry::clipBorderWidth;
 
     const auto paddedRect = EditorItemGeometry::clipPaintRect(rect());
-    const auto radius = EditorItemGeometry::adaptiveCornerRadius(
-        paddedRect, EditorItemGeometry::clipCornerRadius);
+    const auto radius =
+        EditorItemGeometry::adaptiveCornerRadius(paddedRect, EditorItemGeometry::clipCornerRadius);
 
     double iconWidth = 4;
     double textPadding = 0;
@@ -331,8 +331,7 @@ void AbstractClipView::setCanResizeLength(const bool on) {
 }
 
 double AbstractClipView::tickToSceneX(const double tick) const {
-    return tick * scaleX() * pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote +
-           leftMarginPx();
+    return tick * scaleX() * pixelsPerQuarterNote / AppGlobal::ticksPerQuarterNote + leftMarginPx();
 }
 
 double AbstractClipView::leftMarginPx() const {

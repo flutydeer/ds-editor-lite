@@ -531,15 +531,15 @@ void ClipEditorToolBarViewPrivate::onSingerEdited() const {
 
     if (m_cbSinger->isInheritSelected()) {
         if (auto *runtime = AppContext::instance<Automation::CoreRuntime>())
-            runtime->parameters().useTrackVoiceContext(
-                commandContext(*runtime), Automation::ClipId(m_singingClip->id()));
+            runtime->parameters().useTrackVoiceContext(commandContext(*runtime),
+                                                       Automation::ClipId(m_singingClip->id()));
     } else {
         const auto singerInfo = m_cbSinger->currentSinger();
         const auto speakerInfo = m_cbSinger->currentSpeaker();
         if (auto *runtime = AppContext::instance<Automation::CoreRuntime>())
-            runtime->parameters().selectClipSingleSpeaker(
-                commandContext(*runtime), Automation::ClipId(m_singingClip->id()), singerInfo,
-                speakerInfo);
+            runtime->parameters().selectClipSingleSpeaker(commandContext(*runtime),
+                                                          Automation::ClipId(m_singingClip->id()),
+                                                          singerInfo, speakerInfo);
     }
     refreshSingerComboPresentation();
 }
@@ -637,9 +637,9 @@ void ClipEditorToolBarViewPrivate::onPresetApplied(const QString &presetId) cons
 
     const auto speakerInfo = data.sources.first().speaker;
     if (auto *runtime = AppContext::instance<Automation::CoreRuntime>())
-        runtime->parameters().applyClipSpeakerMix(
-            commandContext(*runtime), Automation::ClipId(m_singingClip->id()), singerInfo,
-            speakerInfo, data);
+        runtime->parameters().applyClipSpeakerMix(commandContext(*runtime),
+                                                  Automation::ClipId(m_singingClip->id()),
+                                                  singerInfo, speakerInfo, data);
 
     refreshSingerComboPresentation();
 }

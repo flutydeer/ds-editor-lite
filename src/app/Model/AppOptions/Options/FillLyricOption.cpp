@@ -49,8 +49,8 @@ CustomTaggerEntry CustomTaggerEntry::fromJson(const QJsonObject &obj) {
 
 QJsonObject CustomTaggerRule::toJson() const {
     return QJsonObject{
-        {"language", language},
-        {"enabled",  enabled },
+        {"language", language                               },
+        {"enabled",  enabled                                },
         {"tagger",   JsonUtils::serializeListToJson(entries)}
     };
 }

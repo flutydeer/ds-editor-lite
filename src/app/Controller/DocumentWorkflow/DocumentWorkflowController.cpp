@@ -73,8 +73,8 @@ void DocumentWorkflowController::initializeNewDocument() {
     newModel.newProject();
     const auto data = newModel.takeProjectData();
     const auto draft = Automation::documentDraftDto(data, LoopSettings());
-    const auto result = runtime->documents().commitNewDocument(
-        commandContext(runtime->documentVersion()), draft);
+    const auto result =
+        runtime->documents().commitNewDocument(commandContext(runtime->documentVersion()), draft);
     if (!result)
         return;
     emit documentIdentityChanged();
@@ -415,13 +415,13 @@ void DocumentWorkflowController::askSavePath() {
 
 void DocumentWorkflowController::performSave() {
     auto *runtime = automationRuntime();
-    const auto result = runtime ? runtime->documents().saveDocument(
-                                      commandContext(m_pending.baseDocument), m_savePath)
-                                : Automation::AutomationResult<Automation::MutationResult>(
-                                      Automation::AutomationError{
-                                          .code = Automation::AutomationErrorCode::InternalError,
-                                          .message = QStringLiteral("Automation runtime is unavailable"),
-                                      });
+    const auto result =
+        runtime
+            ? runtime->documents().saveDocument(commandContext(m_pending.baseDocument), m_savePath)
+            : Automation::AutomationResult<Automation::MutationResult>(Automation::AutomationError{
+                  .code = Automation::AutomationErrorCode::InternalError,
+                  .message = QStringLiteral("Automation runtime is unavailable"),
+              });
     if (result) {
         emit documentIdentityChanged();
         m_lastProjectFolder = QFileInfo(m_savePath).dir().path();
@@ -612,14 +612,15 @@ bool DocumentWorkflowController::commitReplace(ReplaceProjectPayload &&payload) 
     const bool saved = isNew || payload.sourceKind == ProjectSourceKind::Native;
     const auto draft = Automation::documentDraftDto(payload.model, payload.loopSettings);
     Automation::AutomationResult<Automation::MutationResult> result =
-        isNew ? runtime->documents().commitNewDocument(commandContext(m_pending.baseDocument), draft)
-              : runtime->documents().commitOpenedDocument(
-                    commandContext(m_pending.baseDocument), draft,
-                    payload.sourceKind == ProjectSourceKind::Native ? payload.sourcePath : QString(),
-                    payload.sourceKind == ProjectSourceKind::Native
-                        ? QFileInfo(payload.sourcePath).fileName()
-                        : payload.displayName,
-                    saved);
+        isNew
+            ? runtime->documents().commitNewDocument(commandContext(m_pending.baseDocument), draft)
+            : runtime->documents().commitOpenedDocument(
+                  commandContext(m_pending.baseDocument), draft,
+                  payload.sourceKind == ProjectSourceKind::Native ? payload.sourcePath : QString(),
+                  payload.sourceKind == ProjectSourceKind::Native
+                      ? QFileInfo(payload.sourcePath).fileName()
+                      : payload.displayName,
+                  saved);
     if (!result) {
         m_error = {tr("Failed to apply project"), result.getError().message};
         return false;

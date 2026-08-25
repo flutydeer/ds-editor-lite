@@ -4,20 +4,31 @@
 #include <QFile>
 #include <QTextStream>
 
-namespace LrcTools
-{
+namespace LrcTools {
 
-    static const QMap<QString, QString> MetaData = {{"ti", "title"},          {"al", "album"},   {"ar", "artist"},
-                                                    {"au", "author"},         {"by", "creator"}, {"re", "encoder"},
-                                                    {"ve", "encoder_version"}};
+    static const QMap<QString, QString> MetaData = {
+        {"ti", "title"          },
+        {"al", "album"          },
+        {"ar", "artist"         },
+        {"au", "author"         },
+        {"by", "creator"        },
+        {"re", "encoder"        },
+        {"ve", "encoder_version"}
+    };
 
-    static QString findMeta(const QString &tag) { return MetaData.value(tag); }
+    static QString findMeta(const QString &tag) {
+        return MetaData.value(tag);
+    }
 
-    LrcDecoder::LrcDecoder(QObject *parent) : LrcDecoder(*new LrcDecoderPrivate(), parent) { d_ptr->q_ptr = this; }
+    LrcDecoder::LrcDecoder(QObject *parent) : LrcDecoder(*new LrcDecoderPrivate(), parent) {
+        d_ptr->q_ptr = this;
+    }
 
     LrcDecoder::~LrcDecoder() = default;
 
-    LrcDecoder::LrcDecoder(LrcDecoderPrivate &d, QObject *parent) : QObject(parent), d_ptr(&d) { d.q_ptr = this; }
+    LrcDecoder::LrcDecoder(LrcDecoderPrivate &d, QObject *parent) : QObject(parent), d_ptr(&d) {
+        d.q_ptr = this;
+    }
 
     LrcDecoderPrivate::LrcDecoderPrivate() = default;
 
@@ -94,7 +105,8 @@ namespace LrcTools
             return false;
 
         if (flag == SeekForward) {
-            for (d->m_readIndex = d->m_lyrics.begin(); d->m_readIndex != d->m_lyrics.end(); ++d->m_readIndex) {
+            for (d->m_readIndex = d->m_lyrics.begin(); d->m_readIndex != d->m_lyrics.end();
+                 ++d->m_readIndex) {
                 if (d->m_readIndex.key() >= timestamp) {
                     return true;
                 }

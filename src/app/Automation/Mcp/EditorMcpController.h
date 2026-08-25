@@ -55,8 +55,8 @@ namespace Automation {
         void transitionAfterStop(PendingTransition transition, QString error = {});
         void completePendingTransition();
         void startServer();
-        void publishStatus(SingleInstanceAutomationState state, bool enabled,
-                           QString endpoint = {}, QString error = {});
+        void publishStatus(SingleInstanceAutomationState state, bool enabled, QString endpoint = {},
+                           QString error = {});
 
         AppOptions &m_options;
         SingleInstanceCoordinator &m_coordinator;

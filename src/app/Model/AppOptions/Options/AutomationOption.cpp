@@ -73,12 +73,12 @@ void AutomationOption::save(QJsonObject &object) {
         permissions.insert(it.key(), it.value());
 
     object = {
-        {QLatin1String(kMcpEnabledKey),        mcpEnabled                             },
-        {QLatin1String(kControlPortKey),       static_cast<int>(controlPort)           },
-        {QLatin1String(kSelectedProfileKey),   profileToString(selectedProfile)        },
-        {QLatin1String(kCustomPermissionsKey), permissions                            },
-        {QLatin1String(kReadRootsKey),         QJsonArray::fromStringList(readRoots)   },
-        {QLatin1String(kWriteRootsKey),        QJsonArray::fromStringList(writeRoots)  },
+        {QLatin1String(kMcpEnabledKey),        mcpEnabled                            },
+        {QLatin1String(kControlPortKey),       static_cast<int>(controlPort)         },
+        {QLatin1String(kSelectedProfileKey),   profileToString(selectedProfile)      },
+        {QLatin1String(kCustomPermissionsKey), permissions                           },
+        {QLatin1String(kReadRootsKey),         QJsonArray::fromStringList(readRoots) },
+        {QLatin1String(kWriteRootsKey),        QJsonArray::fromStringList(writeRoots)},
     };
 }
 

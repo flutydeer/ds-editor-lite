@@ -10,7 +10,7 @@ namespace Automation {
     }
 
     AutomationResult<AutomationUnit>
-    SingleWindowContext::validateWindow(const WindowId &requested) const {
+        SingleWindowContext::validateWindow(const WindowId &requested) const {
         if (requested == m_windowId)
             return AutomationUnit{};
 

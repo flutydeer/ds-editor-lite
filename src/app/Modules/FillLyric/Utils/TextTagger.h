@@ -12,21 +12,23 @@
 
 struct CustomTaggerRule;
 
-namespace FillLyric
-{
+namespace FillLyric {
     struct TaggerResult {
         std::string lyric;
         std::string language = "unknown";
         std::string tag = "unknown";
         bool discard = false;
 
-        explicit TaggerResult(std::string lyric) : lyric(std::move(lyric)) {}
-        TaggerResult(std::string lyric, std::string language, std::string tag) :
-            lyric(std::move(lyric)), language(std::move(language)), tag(std::move(tag)) {}
+        explicit TaggerResult(std::string lyric) : lyric(std::move(lyric)) {
+        }
+
+        TaggerResult(std::string lyric, std::string language, std::string tag)
+            : lyric(std::move(lyric)), language(std::move(language)), tag(std::move(tag)) {
+        }
     };
 
     struct TaggerEntryInfo {
-        QString type;   // "regex", "array", "dict"
+        QString type; // "regex", "array", "dict"
         QString tag;
         QStringList values;
         bool discard = false;
@@ -41,9 +43,11 @@ namespace FillLyric
 
     class TextTagger {
     public:
-        static bool init(const std::filesystem::path &configDir, const std::filesystem::path &dictRootDir);
-        static std::vector<TaggerResult> tag(const std::vector<std::string> &input, bool discard = false,
-                                             const std::vector<std::string> &priorityLanguages = {});
+        static bool init(const std::filesystem::path &configDir,
+                         const std::filesystem::path &dictRootDir);
+        static std::vector<TaggerResult>
+            tag(const std::vector<std::string> &input, bool discard = false,
+                const std::vector<std::string> &priorityLanguages = {});
 
         // Enable/disable built-in tagger configs by language name
         static void setBuiltinEnabled(const QMap<QString, bool> &enabledMap);

@@ -3,8 +3,7 @@
 
 #include <QListWidget>
 
-namespace FillLyric
-{
+namespace FillLyric {
     class RuleListWidget final : public QListWidget {
         Q_OBJECT
 

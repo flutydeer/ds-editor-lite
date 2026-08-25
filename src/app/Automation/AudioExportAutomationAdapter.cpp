@@ -66,9 +66,8 @@ namespace Automation {
 
         AudioExportPreviewDto preview() const override {
             return {
-                .baseDirectory =
-                    QDir(m_exporter->projectDirectoryInternal())
-                        .absoluteFilePath(m_config.fileDirectory),
+                .baseDirectory = QDir(m_exporter->projectDirectoryInternal())
+                                     .absoluteFilePath(m_config.fileDirectory),
                 .filePaths = m_exporter->dryRunInternal(),
                 .warningFlags = static_cast<quint32>(m_exporter->warningInternal()),
             };
@@ -81,12 +80,12 @@ namespace Automation {
                     if (callback)
                         callback(progress, sourceIndex);
                 });
-            const auto clippingConnection = QObject::connect(
-                m_exporter.get(), &Audio::AudioExporter::clippingDetected,
-                [callback = observer.clipping](const int sourceIndex) {
-                    if (callback)
-                        callback(sourceIndex);
-                });
+            const auto clippingConnection =
+                QObject::connect(m_exporter.get(), &Audio::AudioExporter::clippingDetected,
+                                 [callback = observer.clipping](const int sourceIndex) {
+                                     if (callback)
+                                         callback(sourceIndex);
+                                 });
             const auto warningConnection = QObject::connect(
                 m_exporter.get(), &Audio::AudioExporter::warningAdded,
                 [callback = observer.warning](const QString &message, const int sourceIndex) {

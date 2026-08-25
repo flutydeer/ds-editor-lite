@@ -15,8 +15,7 @@ class QPushButton;
 class QStackedWidget;
 class QVBoxLayout;
 
-namespace FillLyric
-{
+namespace FillLyric {
     class TaggerDetailPanel final : public QWidget {
         Q_OBJECT
 
@@ -57,6 +56,7 @@ namespace FillLyric
             QPlainTextEdit *valuesEdit = nullptr;
             QCheckBox *discardCheck = nullptr;
         };
+
         QList<EntryRowUI> m_entryRows;
     };
 } // namespace FillLyric

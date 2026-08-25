@@ -69,7 +69,7 @@ Toast、ToolTip 不使用 `surface.popup`，见后文组件 token。
 | `text.secondary` | 说明、提示、占位文字 |
 | `text.emphasis` | 透明控件悬停等需要更高对比度的文本 |
 | `text.onAccent` | 实色强调背景上的文本 |
-| `text.link` | 可点击文本链接 |
+| `text.accent` | 强调色文字（当前工程标题、选中项、拍速稳定态等） |
 | `icon.primary` | 默认图标 |
 | `icon.secondary` | 次级图标 |
 | `icon.disabled` | 禁用图标 |

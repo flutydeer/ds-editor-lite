@@ -2,8 +2,7 @@
 
 #include <QMenu>
 
-namespace FillLyric
-{
+namespace FillLyric {
 
     PhonicTextEdit::PhonicTextEdit(QWidget *parent) : QPlainTextEdit(parent) {
         QFont f = this->font();
@@ -31,7 +30,8 @@ namespace FillLyric
         QMenu *menu = createStandardContextMenu();
 
         menu->setAttribute(Qt::WA_TranslucentBackground);
-        menu->setWindowFlags(menu->windowFlags() | Qt::FramelessWindowHint | Qt::NoDropShadowWindowHint);
+        menu->setWindowFlags(menu->windowFlags() | Qt::FramelessWindowHint |
+                             Qt::NoDropShadowWindowHint);
 
         menu->exec(event->globalPos());
         delete menu;

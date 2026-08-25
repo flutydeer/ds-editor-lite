@@ -26,11 +26,9 @@ namespace {
     }
 }
 
-EditNoteWordPropertiesAction::EditNoteWordPropertiesAction(const QList<Note *> &notes,
-                                                           const QList<Note::WordProperties> &args,
-                                                           SingingClip *clip,
-                                                           const QList<WordPropertyEditOptions>
-                                                               &options) {
+EditNoteWordPropertiesAction::EditNoteWordPropertiesAction(
+    const QList<Note *> &notes, const QList<Note::WordProperties> &args, SingingClip *clip,
+    const QList<WordPropertyEditOptions> &options) {
     m_notes = notes;
     m_newArgs = args;
     m_clip = clip;
@@ -41,8 +39,7 @@ EditNoteWordPropertiesAction::EditNoteWordPropertiesAction(const QList<Note *> &
     for (int i = 0; i < notes.count(); i++) {
         const auto properties = Note::WordProperties::fromNote(*notes.at(i));
         m_oldArgs.append(properties);
-        const auto noteOptions =
-            i < options.count() ? options.at(i) : WordPropertyEditOptions{};
+        const auto noteOptions = i < options.count() ? options.at(i) : WordPropertyEditOptions{};
         applyCascadeResets(properties, m_newArgs[i], noteOptions);
         if (properties.lyric != m_newArgs.at(i).lyric ||
             properties.language != m_newArgs.at(i).language) {
@@ -52,8 +49,7 @@ EditNoteWordPropertiesAction::EditNoteWordPropertiesAction(const QList<Note *> &
 }
 
 void EditNoteWordPropertiesAction::execute() {
-    const auto previousWordStates =
-        SingingClipPhonemeNormalizer::captureWordStates(*m_clip);
+    const auto previousWordStates = SingingClipPhonemeNormalizer::captureWordStates(*m_clip);
     qsizetype i = 0;
     for (const auto note : m_notes) {
         auto [lyric, language, pronunciation, pronCandidates, phonemes] = m_newArgs.at(i);
@@ -66,10 +62,9 @@ void EditNoteWordPropertiesAction::execute() {
     }
     m_resetRecords =
         SingingClipPhonemeNormalizer::normalizeEditedOffsets(*m_clip, previousWordStates);
-    m_clip->notifyNoteChanged(
-        m_pronunciationOnly ? SingingClip::EditedPronunciationOnly
-                            : SingingClip::EditedWordPropertyChange,
-        m_notes);
+    m_clip->notifyNoteChanged(m_pronunciationOnly ? SingingClip::EditedPronunciationOnly
+                                                  : SingingClip::EditedWordPropertyChange,
+                              m_notes);
     if (!m_resetRecords.isEmpty())
         m_clip->notifyNoteChanged(
             SingingClip::EditedPhonemeOffsetChange,
@@ -87,10 +82,9 @@ void EditNoteWordPropertiesAction::undo() {
         note->setPronCandidates(pronCandidates);
     }
     SingingClipPhonemeNormalizer::restoreEditedOffsets(m_resetRecords);
-    m_clip->notifyNoteChanged(
-        m_pronunciationOnly ? SingingClip::EditedPronunciationOnly
-                            : SingingClip::EditedWordPropertyChange,
-        m_notes);
+    m_clip->notifyNoteChanged(m_pronunciationOnly ? SingingClip::EditedPronunciationOnly
+                                                  : SingingClip::EditedWordPropertyChange,
+                              m_notes);
     if (!m_resetRecords.isEmpty())
         m_clip->notifyNoteChanged(
             SingingClip::EditedPhonemeOffsetChange,

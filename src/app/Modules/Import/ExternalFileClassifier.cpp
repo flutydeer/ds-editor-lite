@@ -9,13 +9,15 @@
 
 ExternalFileClassifier::Result ExternalFileClassifier::classify(const QString &path) {
     const QUrl url = QUrl::fromUserInput(path);
-    if (url.isValid() && (url.scheme() == QLatin1String("http") || url.scheme() == QLatin1String("https")
-                          || url.scheme() == QLatin1String("ftp"))) {
+    if (url.isValid() &&
+        (url.scheme() == QLatin1String("http") || url.scheme() == QLatin1String("https") ||
+         url.scheme() == QLatin1String("ftp"))) {
         return {ExternalFileKind::Unsupported, QStringLiteral("Remote URLs are not supported")};
     }
     const QFileInfo info(path);
     if (!info.exists() || !info.isFile()) {
-        return {ExternalFileKind::Unsupported, QStringLiteral("File does not exist or is not a file")};
+        return {ExternalFileKind::Unsupported,
+                QStringLiteral("File does not exist or is not a file")};
     }
     const auto suffix = info.suffix().toLower();
     if (suffix == QLatin1String("dspx"))

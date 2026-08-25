@@ -10,10 +10,10 @@
 namespace {
     QJsonObject serializeCurve(const Automation::CurveDraftDto &curve) {
         QJsonObject result{
-            {QStringLiteral("type"),
-             curve.type == Automation::CurveDraftDto::Type::Anchor ? QStringLiteral("anchor")
-                                                                    : QStringLiteral("draw")},
-            {QStringLiteral("local_start"), curve.localStart},
+            {QStringLiteral("type"),        curve.type == Automation::CurveDraftDto::Type::Anchor
+                                         ? QStringLiteral("anchor")
+                                         : QStringLiteral("draw")},
+            {QStringLiteral("local_start"), curve.localStart                                         },
         };
         if (curve.type == Automation::CurveDraftDto::Type::Draw) {
             result.insert(QStringLiteral("step"), curve.step);
@@ -25,8 +25,8 @@ namespace {
             QJsonArray nodes;
             for (const auto &node : curve.nodes) {
                 nodes.append(QJsonObject{
-                    {QStringLiteral("position"), node.position},
-                    {QStringLiteral("value"), node.value},
+                    {QStringLiteral("position"),      node.position                       },
+                    {QStringLiteral("value"),         node.value                          },
                     {QStringLiteral("interpolation"), static_cast<int>(node.interpolation)},
                 });
             }
@@ -82,18 +82,18 @@ QJsonObject NotesParamsInfo::serializeToJson(const NotesParamsInfo &info) {
         for (const auto &curve : parameter.curves)
             curves.append(serializeCurve(curve));
         parameters.append(QJsonObject{
-            {QStringLiteral("name"), static_cast<int>(parameter.name)},
-            {QStringLiteral("layer"), static_cast<int>(parameter.type)},
-            {QStringLiteral("curves"), curves},
+            {QStringLiteral("name"),   static_cast<int>(parameter.name)},
+            {QStringLiteral("layer"),  static_cast<int>(parameter.type)},
+            {QStringLiteral("curves"), curves                          },
         });
     }
 
     return QJsonObject{
-        {QStringLiteral("schema_version"), 2},
-        {QStringLiteral("source_start"), info.payload.sourceStart},
-        {QStringLiteral("source_end"), info.payload.sourceEnd},
-        {QStringLiteral("notes"), noteList},
-        {QStringLiteral("parameters"), parameters},
+        {QStringLiteral("schema_version"), 2                       },
+        {QStringLiteral("source_start"),   info.payload.sourceStart},
+        {QStringLiteral("source_end"),     info.payload.sourceEnd  },
+        {QStringLiteral("notes"),          noteList                },
+        {QStringLiteral("parameters"),     parameters              },
     };
 }
 
@@ -107,8 +107,7 @@ NotesParamsInfo NotesParamsInfo::deserializeFromJson(const QJsonObject &obj) {
     }
     if (!info.payload.notes.isEmpty()) {
         info.payload.sourceStart = info.payload.notes.first().localStart;
-        info.payload.sourceEnd =
-            info.payload.sourceStart + info.payload.notes.first().length;
+        info.payload.sourceEnd = info.payload.sourceStart + info.payload.notes.first().length;
         for (const auto &note : info.payload.notes) {
             info.payload.sourceStart = std::min(info.payload.sourceStart, note.localStart);
             info.payload.sourceEnd =
@@ -134,8 +133,7 @@ NotesParamsInfo NotesParamsInfo::deserializeFromJson(const QJsonObject &obj) {
                 .name = static_cast<ParamInfo::Name>(name),
                 .type = static_cast<Param::Type>(layer),
             };
-            const auto serializedCurves =
-                parameterObject.value(QStringLiteral("curves")).toArray();
+            const auto serializedCurves = parameterObject.value(QStringLiteral("curves")).toArray();
             for (const auto curveValue : serializedCurves) {
                 auto curve = deserializeCurve(curveValue.toObject());
                 if (curve)

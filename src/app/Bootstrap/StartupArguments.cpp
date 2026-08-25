@@ -53,8 +53,9 @@ namespace StartupArguments {
 
             if (!positionalOnly && argument == QStringLiteral("--mcp")) {
                 if (result.automation.mcpEnabled && !*result.automation.mcpEnabled) {
-                    return fail(std::move(result), ParseErrorCode::ConflictingOptions, argument,
-                                QStringLiteral("Options --mcp and --no-mcp cannot be used together."));
+                    return fail(
+                        std::move(result), ParseErrorCode::ConflictingOptions, argument,
+                        QStringLiteral("Options --mcp and --no-mcp cannot be used together."));
                 }
                 result.automation.mcpEnabled = true;
                 continue;
@@ -62,8 +63,9 @@ namespace StartupArguments {
 
             if (!positionalOnly && argument == QStringLiteral("--no-mcp")) {
                 if (result.automation.mcpEnabled && *result.automation.mcpEnabled) {
-                    return fail(std::move(result), ParseErrorCode::ConflictingOptions, argument,
-                                QStringLiteral("Options --mcp and --no-mcp cannot be used together."));
+                    return fail(
+                        std::move(result), ParseErrorCode::ConflictingOptions, argument,
+                        QStringLiteral("Options --mcp and --no-mcp cannot be used together."));
                 }
                 result.automation.mcpEnabled = false;
                 continue;
@@ -80,9 +82,8 @@ namespace StartupArguments {
                 return arguments.at(++index);
             };
 
-            if (!positionalOnly &&
-                (argument == QStringLiteral("--control-port") ||
-                 argument.startsWith(QStringLiteral("--control-port=")))) {
+            if (!positionalOnly && (argument == QStringLiteral("--control-port") ||
+                                    argument.startsWith(QStringLiteral("--control-port=")))) {
                 const auto value = readValue(QStringLiteral("--control-port"));
                 if (!value || value->isEmpty()) {
                     return fail(std::move(result), ParseErrorCode::MissingValue,
@@ -102,8 +103,7 @@ namespace StartupArguments {
                             .arg(*value));
                 }
                 const auto parsedPort = static_cast<quint16>(port);
-                if (result.automation.controlPort &&
-                    *result.automation.controlPort != parsedPort) {
+                if (result.automation.controlPort && *result.automation.controlPort != parsedPort) {
                     return fail(
                         std::move(result), ParseErrorCode::ConflictingOptions,
                         QStringLiteral("--control-port"),
@@ -113,9 +113,8 @@ namespace StartupArguments {
                 continue;
             }
 
-            if (!positionalOnly &&
-                (argument == QStringLiteral("--automation-profile") ||
-                 argument.startsWith(QStringLiteral("--automation-profile=")))) {
+            if (!positionalOnly && (argument == QStringLiteral("--automation-profile") ||
+                                    argument.startsWith(QStringLiteral("--automation-profile=")))) {
                 const auto value = readValue(QStringLiteral("--automation-profile"));
                 if (!value || value->isEmpty()) {
                     return fail(std::move(result), ParseErrorCode::MissingValue,
@@ -124,17 +123,17 @@ namespace StartupArguments {
                 }
                 const auto profile = AutomationOption::profileFromString(*value);
                 if (!profile) {
-                    return fail(
-                        std::move(result), ParseErrorCode::InvalidValue,
-                        QStringLiteral("--automation-profile"),
-                        QStringLiteral("Invalid value for --automation-profile: \"%1\"; expected l1, l2, l3, or custom.")
-                            .arg(*value));
+                    return fail(std::move(result), ParseErrorCode::InvalidValue,
+                                QStringLiteral("--automation-profile"),
+                                QStringLiteral("Invalid value for --automation-profile: \"%1\"; "
+                                               "expected l1, l2, l3, or custom.")
+                                    .arg(*value));
                 }
                 if (result.automation.profile && *result.automation.profile != *profile) {
-                    return fail(
-                        std::move(result), ParseErrorCode::ConflictingOptions,
-                        QStringLiteral("--automation-profile"),
-                        QStringLiteral("Conflicting values were provided for --automation-profile."));
+                    return fail(std::move(result), ParseErrorCode::ConflictingOptions,
+                                QStringLiteral("--automation-profile"),
+                                QStringLiteral(
+                                    "Conflicting values were provided for --automation-profile."));
                 }
                 result.automation.profile = *profile;
                 continue;
@@ -157,7 +156,7 @@ namespace StartupArguments {
     }
 
     EffectiveAutomationConfig effectiveAutomationConfig(const AutomationOption &persisted,
-                                                         const AutomationOverrides &overrides) {
+                                                        const AutomationOverrides &overrides) {
         EffectiveAutomationConfig result;
         result.mcpEnabled = persisted.mcpEnabled;
         result.controlPort = persisted.controlPort;

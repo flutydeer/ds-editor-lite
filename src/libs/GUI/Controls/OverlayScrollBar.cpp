@@ -1,11 +1,15 @@
 #include <lite/GUI/Controls/OverlayScrollBar.h>
+#include <lite/GUI/Controls/Menu.h>
 
 #include <QAbstractScrollArea>
 #include <QCursor>
+#include <QContextMenuEvent>
 #include <QEvent>
 #include <QPainter>
 #include <QPoint>
 #include <QScrollBar>
+#include <QStyle>
+#include <QStyleOptionSlider>
 #include <QTimer>
 #include <QVariantAnimation>
 
@@ -173,6 +177,70 @@ void OverlayScrollBar::paintEvent(QPaintEvent *event) {
         const qreal w = 2.0 + 4.0 * t;
         p.drawRoundedRect(QRectF(x, handlePos, w, handleLength), radius, radius);
     }
+}
+
+void OverlayScrollBar::contextMenuEvent(QContextMenuEvent *event) {
+    if (!style()->styleHint(QStyle::SH_ScrollBar_ContextMenu, nullptr, this)) {
+        QScrollBar::contextMenuEvent(event);
+        return;
+    }
+
+    const bool horizontal = orientation() == Qt::Horizontal;
+    Menu menu(this);
+
+    auto *actScrollHere = menu.addAction(tr("Scroll here"));
+    menu.addSeparator();
+    auto *actTop = menu.addAction(horizontal ? tr("Left edge") : tr("Top"));
+    auto *actBottom = menu.addAction(horizontal ? tr("Right edge") : tr("Bottom"));
+    menu.addSeparator();
+    auto *actPageUp = menu.addAction(horizontal ? tr("Page left") : tr("Page up"));
+    auto *actPageDown = menu.addAction(horizontal ? tr("Page right") : tr("Page down"));
+    menu.addSeparator();
+    auto *actScrollUp = menu.addAction(horizontal ? tr("Scroll left") : tr("Scroll up"));
+    auto *actScrollDown = menu.addAction(horizontal ? tr("Scroll right") : tr("Scroll down"));
+
+    auto *selected = menu.exec(event->globalPos());
+    if (!selected) {
+        // dismissed
+    } else if (selected == actScrollHere) {
+        setValue(pixelPosToRangeValue(horizontal ? event->pos().x() : event->pos().y()));
+    } else if (selected == actTop) {
+        triggerAction(QAbstractSlider::SliderToMinimum);
+    } else if (selected == actBottom) {
+        triggerAction(QAbstractSlider::SliderToMaximum);
+    } else if (selected == actPageUp) {
+        triggerAction(QAbstractSlider::SliderPageStepSub);
+    } else if (selected == actPageDown) {
+        triggerAction(QAbstractSlider::SliderPageStepAdd);
+    } else if (selected == actScrollUp) {
+        triggerAction(QAbstractSlider::SliderSingleStepSub);
+    } else if (selected == actScrollDown) {
+        triggerAction(QAbstractSlider::SliderSingleStepAdd);
+    }
+    event->accept();
+}
+
+int OverlayScrollBar::pixelPosToRangeValue(int pos) const {
+    QStyleOptionSlider opt;
+    initStyleOption(&opt);
+    const QRect grooveRect =
+        style()->subControlRect(QStyle::CC_ScrollBar, &opt, QStyle::SC_ScrollBarGroove, this);
+    const QRect sliderRect =
+        style()->subControlRect(QStyle::CC_ScrollBar, &opt, QStyle::SC_ScrollBarSlider, this);
+    int sliderMin, sliderMax, sliderLength;
+    if (orientation() == Qt::Horizontal) {
+        sliderLength = sliderRect.width();
+        sliderMin = grooveRect.x();
+        sliderMax = grooveRect.right() - sliderLength + 1;
+        if (layoutDirection() == Qt::RightToLeft)
+            opt.upsideDown = !opt.upsideDown;
+    } else {
+        sliderLength = sliderRect.height();
+        sliderMin = grooveRect.y();
+        sliderMax = grooveRect.bottom() - sliderLength + 1;
+    }
+    return QStyle::sliderValueFromPosition(minimum(), maximum(), pos - sliderMin,
+                                           sliderMax - sliderMin, opt.upsideDown);
 }
 
 void OverlayScrollBar::enterEvent(QEnterEvent *event) {

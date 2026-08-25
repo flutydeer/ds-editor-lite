@@ -7,7 +7,8 @@
 
 class PackageListModel : public QAbstractListModel {
 public:
-    explicit PackageListModel(QObject *parent = nullptr) : QAbstractListModel(parent) {}
+    explicit PackageListModel(QObject *parent = nullptr) : QAbstractListModel(parent) {
+    }
 
     [[nodiscard]] const PackageInfo &getPackage(const QModelIndex &index) const;
     void setPackages(QList<PackageInfo> packages);
@@ -18,4 +19,4 @@ public:
 private:
     QList<PackageInfo> m_packages;
 };
-#endif //PACKAGELISTMODEL_H
+#endif // PACKAGELISTMODEL_H

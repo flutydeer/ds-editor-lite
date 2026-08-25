@@ -26,7 +26,7 @@
 namespace {
 
     // Re-tints the sidebar icon at paint time to match the item text color:
-    // text.primary normally, text.link while selected, mirroring the ::item QSS
+    // text.primary normally, text.accent while selected, mirroring the ::item QSS
     // color rules so icon and label always read as one element.
     class AppOptionsSidebarDelegate final : public QStyledItemDelegate {
     public:
@@ -40,7 +40,7 @@ namespace {
             const auto svgPath = index.data(Qt::UserRole).toString();
             if (!svgPath.isEmpty()) {
                 auto color = ThemeManager::instance()->semanticColor(
-                    selected ? QStringLiteral("text.link") : QStringLiteral("text.primary"));
+                    selected ? QStringLiteral("text.accent") : QStringLiteral("text.primary"));
                 if (!color.isValid())
                     color = QColor(240, 240, 240, 255);
                 opt.icon = IconUtils::createTintedSvgIcon(svgPath, QSize(20, 20), color);
@@ -215,17 +215,17 @@ void AppOptionsDialog::retranslateUi() {
     // pageNames). Larger than the 16px menu versions so they read better in
     // the 160px sidebar; colors still follow theme tokens.
     static const char *const pageIconPaths[] = {
-        ":/svg/icons/settings_20_regular.svg",  // General
-        ":/svg/icons/speaker_2_20_regular.svg", // Audio
-        ":/svg/icons/midi_20_regular.svg",      // MIDI
-        ":/svg/icons/color_20_regular.svg",     // Appearance
-        ":/svg/icons/sparkle_20_regular.svg",   // Inference
+        ":/svg/icons/settings_20_regular.svg",   // General
+        ":/svg/icons/speaker_2_20_regular.svg",  // Audio
+        ":/svg/icons/midi_20_regular.svg",       // MIDI
+        ":/svg/icons/color_20_regular.svg",      // Appearance
+        ":/svg/icons/sparkle_20_regular.svg",    // Inference
         ":/svg/icons/arrow_swap_20_regular.svg", // Automation
-        ":/svg/icons/code_20_regular.svg",      // Developer Options
+        ":/svg/icons/code_20_regular.svg",       // Developer Options
     };
 
-    const QStringList pageNames = {tr("General"),    tr("Audio"),      tr("MIDI"),
-                                   tr("Appearance"), tr("Inference"),  tr("Automation"),
+    const QStringList pageNames = {tr("General"),          tr("Audio"),     tr("MIDI"),
+                                   tr("Appearance"),       tr("Inference"), tr("Automation"),
                                    tr("Developer Options")};
     const QSignalBlocker blocker(m_tabList);
     const auto currentRow = m_tabList->currentRow();

@@ -29,8 +29,7 @@ public:
     // track is selected (empty tracks are skipped), separate MIDI channels are
     // always on, and the shared tempo/time-signature flags are applied.
     static MidiImportOptions makeBatchOptions(const QByteArray &codec, bool importTempo,
-                                              bool importTimeSignature,
-                                              const MidiParseData &data);
+                                              bool importTimeSignature, const MidiParseData &data);
 };
 
 #endif // DS_EDITOR_LITE_MIDIFILEPREPARER_H

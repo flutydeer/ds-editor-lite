@@ -25,8 +25,8 @@ int TrackColorSwatchWidget::indexAt(const QPoint &pos) const {
     for (int i = 0; i < rows * columns; i++) {
         auto rect = swatchRect(i);
         int half = spacing / 2;
-        auto hitArea = rect.adjusted(-half, -half, half, half)
-                           .intersected(QRect(0, 0, width(), height()));
+        auto hitArea =
+            rect.adjusted(-half, -half, half, half).intersected(QRect(0, 0, width(), height()));
         if (hitArea.contains(pos))
             return i;
     }

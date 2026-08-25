@@ -1,8 +1,7 @@
 #ifndef LYRIC_TAB_LYRIC_TAB_CONFIG_H
 #define LYRIC_TAB_LYRIC_TAB_CONFIG_H
 
-namespace FillLyric
-{
+namespace FillLyric {
     struct LyricTabConfig {
         bool lyricBaseVisible = true;
         bool lyricExtVisible = false;

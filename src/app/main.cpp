@@ -113,9 +113,8 @@ int main(int argc, char *argv[]) {
         Automation::EditorMcpController mcpController(
             *appContext.m_coreRuntime, *appContext.m_appOptions, coordinator,
             parsedArguments.automation,
-            Automation::createPublicAutomationHostServices(*appContext.m_coreRuntime,
-                                                           appContext.m_appModel,
-                                                           appContext.m_synthrtEngine));
+            Automation::createPublicAutomationHostServices(
+                *appContext.m_coreRuntime, appContext.m_appModel, appContext.m_synthrtEngine));
         WindowPlacement windowPlacement(w);
         windowPlacement.restoreOrPlace(appOptions->window()->mainWindowGeometry());
         ExternalOpenRequestQueue requestQueue(documentWorkflowController, &w);

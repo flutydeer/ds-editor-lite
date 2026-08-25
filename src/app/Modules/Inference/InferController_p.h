@@ -66,8 +66,7 @@ public:
     bool allRequiredModulesReady() const;
     bool canStartClipInference(const SingingClip &clip) const;
     void ensureClipInferenceStarted(
-        SingingClip &clip,
-        ClipInferenceStartStage stage = ClipInferenceStartStage::Pronunciation);
+        SingingClip &clip, ClipInferenceStartStage stage = ClipInferenceStartStage::Pronunciation);
     void scheduleRetryAllSingingClips();
     void retryAllSingingClips();
 

@@ -14,8 +14,7 @@ void SpeakerMixActions::replaceSpeakerMix(const SpeakerMixData &data, SingingCli
     setTranslatableName("SpeakerMixActions",
                         QT_TRANSLATE_NOOP("SpeakerMixActions", "Edit speaker mix"));
     const auto oldContext = clip ? clip->effectiveVoiceContext() : EffectiveVoiceContext();
-    const auto newData =
-        preservePresetSourceAsDirty(oldContext.speakerMix, data);
+    const auto newData = preservePresetSourceAsDirty(oldContext.speakerMix, data);
     addAction(
         new SetClipVoiceContextAction(false, oldContext.singer, oldContext.speaker, newData, clip));
 }
@@ -28,8 +27,7 @@ void SpeakerMixActions::useTrackVoiceContext(SingingClip *clip) {
 }
 
 void SpeakerMixActions::selectClipSingleSpeaker(const SingerInfo &singerInfo,
-                                                const SpeakerInfo &speakerInfo,
-                                                SingingClip *clip) {
+                                                const SpeakerInfo &speakerInfo, SingingClip *clip) {
     setTranslatableName("SpeakerMixActions",
                         QT_TRANSLATE_NOOP("SpeakerMixActions", "Select speaker"));
     addAction(new SetClipVoiceContextAction(false, singerInfo, speakerInfo, {}, clip));
@@ -73,8 +71,7 @@ void SpeakerMixActions::replaceTrackSpeakerMix(const SpeakerMixData &data, Track
     setTranslatableName("SpeakerMixActions",
                         QT_TRANSLATE_NOOP("SpeakerMixActions", "Edit track speaker mix"));
     const auto oldContext = track ? track->voiceContext() : EffectiveVoiceContext();
-    const auto newData =
-        preservePresetSourceAsDirty(oldContext.speakerMix, data);
+    const auto newData = preservePresetSourceAsDirty(oldContext.speakerMix, data);
     addAction(
         new SetTrackVoiceContextAction(oldContext.singer, oldContext.speaker, newData, track));
 }

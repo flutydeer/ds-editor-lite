@@ -7,8 +7,7 @@
 #include <QStackedWidget>
 #include <QVBoxLayout>
 
-namespace FillLyric
-{
+namespace FillLyric {
     SplitterDetailPanel::SplitterDetailPanel(QWidget *parent) : QWidget(parent) {
         setAttribute(Qt::WA_StyledBackground);
         setObjectName("SplitterDetailPanel");
@@ -42,9 +41,9 @@ namespace FillLyric
         m_builtinRegexView->setReadOnly(true);
         bLayout->addWidget(m_builtinRegexView, 1);
 
-        auto *builtinInfo = new QLabel(tr(
-            "Built-in rules cannot be edited.\n"
-            "Create a custom rule and reorder via drag-and-drop if needed."));
+        auto *builtinInfo =
+            new QLabel(tr("Built-in rules cannot be edited.\n"
+                          "Create a custom rule and reorder via drag-and-drop if needed."));
         builtinInfo->setObjectName("ruleInfoLabel");
         builtinInfo->setWordWrap(true);
         bLayout->addWidget(builtinInfo);
@@ -68,10 +67,9 @@ namespace FillLyric
         m_regexEdit->setMinimumHeight(100);
         cLayout->addWidget(m_regexEdit, 1);
 
-        m_infoLabel = new QLabel(tr(
-            "Each regex must contain one capture group ().\n"
-            "Matched and unmatched parts are kept as separate tokens.\n"
-            "Uses RE2 syntax (no backreferences or lookahead)."));
+        m_infoLabel = new QLabel(tr("Each regex must contain one capture group ().\n"
+                                    "Matched and unmatched parts are kept as separate tokens.\n"
+                                    "Uses RE2 syntax (no backreferences or lookahead)."));
         m_infoLabel->setObjectName("ruleInfoLabel");
         m_infoLabel->setWordWrap(true);
         cLayout->addWidget(m_infoLabel);

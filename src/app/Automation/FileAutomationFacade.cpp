@@ -132,19 +132,19 @@ namespace Automation {
     }
 
     AutomationResult<FileWriteResultDto>
-    FileAutomationFacade::exportMidi(const CommandContext &context, const QString &path,
-                                    const bool allowOverwrite) {
+        FileAutomationFacade::exportMidi(const CommandContext &context, const QString &path,
+                                         const bool allowOverwrite) {
         return exportMidi(context, path, allowOverwrite, {});
     }
 
     AutomationResult<FileWriteResultDto>
-    FileAutomationFacade::exportMidi(const CommandContext &context, const QString &path,
-                                    const bool allowOverwrite, MidiExportOptionsDto options) {
+        FileAutomationFacade::exportMidi(const CommandContext &context, const QString &path,
+                                         const bool allowOverwrite, MidiExportOptionsDto options) {
         return m_dispatcher.dispatchDocumentCommandResult<FileWriteResultDto>(
             OperationIds::exports::midi::start, context,
             exportFingerprint(path, allowOverwrite, options),
-            [this, path, allowOverwrite,
-             options = std::move(options)](DocumentSession &session, const bool validateOnly) {
+            [this, path, allowOverwrite, options = std::move(options)](DocumentSession &session,
+                                                                       const bool validateOnly) {
                 const auto validatedPath = validateMidiPath(path, allowOverwrite);
                 if (!validatedPath)
                     return AutomationResult<FileWriteResultDto>(validatedPath.getError());
@@ -162,9 +162,8 @@ namespace Automation {
                                            errorMessage)) {
                     AutomationError error;
                     error.code = AutomationErrorCode::IoError;
-                    error.message = errorMessage.isEmpty()
-                                        ? QStringLiteral("MIDI export failed")
-                                        : std::move(errorMessage);
+                    error.message = errorMessage.isEmpty() ? QStringLiteral("MIDI export failed")
+                                                           : std::move(errorMessage);
                     return AutomationResult<FileWriteResultDto>(std::move(error));
                 }
                 return AutomationResult<FileWriteResultDto>({
@@ -174,14 +173,15 @@ namespace Automation {
             });
     }
 
-    AutomationResult<PreparedMidiExportDto> FileAutomationFacade::prepareMidiExport(
-        const CommandContext &context, const QString &path, const bool allowOverwrite,
-        MidiExportOptionsDto options) {
+    AutomationResult<PreparedMidiExportDto>
+        FileAutomationFacade::prepareMidiExport(const CommandContext &context, const QString &path,
+                                                const bool allowOverwrite,
+                                                MidiExportOptionsDto options) {
         return m_dispatcher.dispatchDocumentCommandResult<PreparedMidiExportDto>(
             OperationIds::exports::midi::start, context,
             exportFingerprint(path, allowOverwrite, options),
-            [this, path, allowOverwrite,
-             options = std::move(options)](DocumentSession &session, const bool validateOnly) {
+            [this, path, allowOverwrite, options = std::move(options)](DocumentSession &session,
+                                                                       const bool validateOnly) {
                 const auto validatedPath = validateMidiPath(path, allowOverwrite);
                 if (!validatedPath)
                     return AutomationResult<PreparedMidiExportDto>(validatedPath.getError());
@@ -193,14 +193,15 @@ namespace Automation {
                     .allowOverwrite = allowOverwrite,
                     .options = options,
                     .modelSnapshot = validateOnly ? DocumentDraftDto{}
-                                                   : snapshotDocument(*session.model(), options),
+                                                  : snapshotDocument(*session.model(), options),
                     .validatedOnly = validateOnly,
                 });
             });
     }
 
-    AutomationResult<PreparedMidiExportDto> FileAutomationFacade::previewMidiExport(
-        const DocumentId &documentId, const QString &path, MidiExportOptionsDto options) {
+    AutomationResult<PreparedMidiExportDto>
+        FileAutomationFacade::previewMidiExport(const DocumentId &documentId, const QString &path,
+                                                MidiExportOptionsDto options) {
         return m_dispatcher.dispatchDocumentQuery<PreparedMidiExportDto>(
             OperationIds::exports::midi::preview, documentId,
             [this, path, options = std::move(options)](DocumentSession &session) {
@@ -219,8 +220,8 @@ namespace Automation {
             });
     }
 
-    AutomationResult<FileWriteResultDto> FileAutomationFacade::writePreparedMidiExport(
-        const PreparedMidiExportDto &prepared) const {
+    AutomationResult<FileWriteResultDto>
+        FileAutomationFacade::writePreparedMidiExport(const PreparedMidiExportDto &prepared) const {
         if (prepared.validatedOnly) {
             return FileWriteResultDto{
                 .path = prepared.path,
@@ -236,7 +237,8 @@ namespace Automation {
         AppModel snapshot;
         snapshot.replaceProject(buildProjectModelData(prepared.modelSnapshot));
         QString errorMessage;
-        if (!m_services.exportMidi(&snapshot, validatedPath.get(), prepared.options, errorMessage)) {
+        if (!m_services.exportMidi(&snapshot, validatedPath.get(), prepared.options,
+                                   errorMessage)) {
             AutomationError error;
             error.code = AutomationErrorCode::IoError;
             error.message = errorMessage.isEmpty() ? QStringLiteral("MIDI export failed")
@@ -282,8 +284,7 @@ namespace Automation {
             .exposure = ExposurePolicy::InternalOnly,
             .idempotency = IdempotencyPolicy::Unsupported,
         });
-        const auto addMidiQuery = [&add](const OperationId &id,
-                                        const FileAccessPolicy fileAccess) {
+        const auto addMidiQuery = [&add](const OperationId &id, const FileAccessPolicy fileAccess) {
             add({
                 .id = id,
                 .category = QStringLiteral("exports"),

@@ -29,11 +29,11 @@ void DeveloperPage::modifyOption() {
     settings.showClipDebugInfo = m_swShowClipDebugInfo->value();
     settings.enablePanelDetach = m_swEnablePanelDetach->value();
     settings.enableEmbeddedOptionsDialog = m_swEnableEmbeddedOptionsDialog->value();
-    settings.editorRenderBackend = m_cbxEditorRenderBackend->currentData().toInt() ==
-                                           static_cast<int>(
-                                               DeveloperOption::EditorRenderBackend::RhiExperimental)
-                                       ? Automation::EditorRenderBackend::RhiExperimental
-                                       : Automation::EditorRenderBackend::Legacy;
+    settings.editorRenderBackend =
+        m_cbxEditorRenderBackend->currentData().toInt() ==
+                static_cast<int>(DeveloperOption::EditorRenderBackend::RhiExperimental)
+            ? Automation::EditorRenderBackend::RhiExperimental
+            : Automation::EditorRenderBackend::Legacy;
     runtime->settings().updateDeveloper({}, settings);
 }
 
@@ -67,7 +67,8 @@ QWidget *DeveloperPage::createContentWidget() {
 
     m_cbxEditorRenderBackend = new ComboBox;
     m_cbxEditorRenderBackend->addItem(
-        tr("Legacy (QGraphicsView)"), static_cast<int>(DeveloperOption::EditorRenderBackend::Legacy));
+        tr("Legacy (QGraphicsView)"),
+        static_cast<int>(DeveloperOption::EditorRenderBackend::Legacy));
     m_cbxEditorRenderBackend->addItem(
         tr("Experimental (QRhiWidget)"),
         static_cast<int>(DeveloperOption::EditorRenderBackend::RhiExperimental));
@@ -75,9 +76,9 @@ QWidget *DeveloperPage::createContentWidget() {
         m_cbxEditorRenderBackend->findData(static_cast<int>(option->editorRenderBackend)));
     connect(m_cbxEditorRenderBackend, &ComboBox::currentIndexChanged, this, [this] {
         modifyOption();
-        const auto message = tr(
-            "The editor rendering backend will change after restarting the app. Do you want to "
-            "restart now?");
+        const auto message =
+            tr("The editor rendering backend will change after restarting the app. Do you want to "
+               "restart now?");
         const auto dialog = new RestartDialog(message, true, this);
         dialog->show();
     });
@@ -98,11 +99,13 @@ QWidget *DeveloperPage::createContentWidget() {
                              m_swShowClipDebugInfo);
 
     const auto experimentalCard = new OptionListCard(tr("Experimental"));
-    experimentalCard->addItem(tr("Enable panel detach"),
-                              tr("Show the detach button on panel title bars to separate panels into standalone windows"),
-                              m_swEnablePanelDetach);
+    experimentalCard->addItem(
+        tr("Enable panel detach"),
+        tr("Show the detach button on panel title bars to separate panels into standalone windows"),
+        m_swEnablePanelDetach);
     experimentalCard->addItem(tr("Embedded options dialog"),
-                              tr("Open the settings window inside the main window instead of a standalone dialog (experimental, applies after restart)"),
+                              tr("Open the settings window inside the main window instead of a "
+                                 "standalone dialog (experimental, applies after restart)"),
                               m_swEnableEmbeddedOptionsDialog);
     experimentalCard->addItem(tr("Editor rendering backend"),
                               tr("Applies to the track editor and piano roll after restart"),

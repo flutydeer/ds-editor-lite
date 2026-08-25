@@ -8,8 +8,7 @@
 #include <cmath>
 
 EditorViewportController::EditorViewportController(QObject *parent)
-    : QObject(parent),
-      m_offsetAnimation([this](const QPointF &offset) { applyOffset(offset); }) {
+    : QObject(parent), m_offsetAnimation([this](const QPointF &offset) { applyOffset(offset); }) {
 }
 
 void EditorViewportController::setPixelsPerQuarterNote(const double value) {
@@ -136,13 +135,13 @@ bool EditorViewportController::setScale(const double horizontal, const double ve
     return true;
 }
 
-bool EditorViewportController::centerAt(const double tick, const double unit,
-                                        const bool animated) {
+bool EditorViewportController::centerAt(const double tick, const double unit, const bool animated) {
     if (!std::isfinite(tick) || !std::isfinite(unit))
         return false;
     auto target = QPointF(tickToSceneX(tick) - m_viewportSize.width() * 0.5,
                           unitToSceneY(unit) - m_viewportSize.height() * 0.5);
-    target.setX(EditorScrollUtils::boundedOffset(target.x(), contentWidth(), m_viewportSize.width()));
+    target.setX(
+        EditorScrollUtils::boundedOffset(target.x(), contentWidth(), m_viewportSize.width()));
     target.setY(
         EditorScrollUtils::boundedOffset(target.y(), contentHeight(), m_viewportSize.height()));
     m_offsetAnimation.moveTo({m_offsetX, m_offsetY}, target, animated);
@@ -160,12 +159,13 @@ bool EditorViewportController::ensureVisible(const QRectF &rect, const double xM
 
     const auto currentOffset = QPointF(m_offsetX, m_offsetY);
     const auto logicalOffset = m_offsetAnimation.logicalOffset(currentOffset);
-    auto target = QPointF(
-        EditorScrollUtils::ensureVisibleOffset(logicalOffset.x(), m_viewportSize.width(),
-                                               bounds.left(), bounds.right(), xMargin),
-        EditorScrollUtils::ensureVisibleOffset(logicalOffset.y(), m_viewportSize.height(),
-                                               bounds.top(), bounds.bottom(), yMargin));
-    target.setX(EditorScrollUtils::boundedOffset(target.x(), contentWidth(), m_viewportSize.width()));
+    auto target =
+        QPointF(EditorScrollUtils::ensureVisibleOffset(logicalOffset.x(), m_viewportSize.width(),
+                                                       bounds.left(), bounds.right(), xMargin),
+                EditorScrollUtils::ensureVisibleOffset(logicalOffset.y(), m_viewportSize.height(),
+                                                       bounds.top(), bounds.bottom(), yMargin));
+    target.setX(
+        EditorScrollUtils::boundedOffset(target.x(), contentWidth(), m_viewportSize.width()));
     target.setY(
         EditorScrollUtils::boundedOffset(target.y(), contentHeight(), m_viewportSize.height()));
     m_offsetAnimation.moveTo(currentOffset, target, animated);

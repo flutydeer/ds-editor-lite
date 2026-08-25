@@ -91,34 +91,34 @@ namespace Automation {
         m_state->clock = clock ? std::move(clock) : MonotonicClock(defaultMonotonicMilliseconds);
     }
 
-    AutomationResult<AdmissionLease>
-        AdmissionController::tryAcquire(QString clientId, QString concurrencyDomain,
-                                        const bool backgroundTask) {
+    AutomationResult<AdmissionLease> AdmissionController::tryAcquire(QString clientId,
+                                                                     QString concurrencyDomain,
+                                                                     const bool backgroundTask) {
         clientId = normalizedClientId(std::move(clientId));
         concurrencyDomain = concurrencyDomain.trimmed();
 
         const QMutexLocker locker(&m_state->mutex);
         if (!m_state->accepting) {
-            return admissionError(AutomationErrorCode::OperationUnavailable,
-                                  QStringLiteral("Automation server is not accepting new requests"));
+            return admissionError(
+                AutomationErrorCode::OperationUnavailable,
+                QStringLiteral("Automation server is not accepting new requests"));
         }
         if (m_state->globalInFlight >= m_state->limits.maximumGlobalInFlight) {
-            return admissionError(AutomationErrorCode::Busy,
-                                  QStringLiteral("Global automation concurrency limit was reached"));
+            return admissionError(
+                AutomationErrorCode::Busy,
+                QStringLiteral("Global automation concurrency limit was reached"));
         }
-        if (m_state->clientInFlight.value(clientId) >=
-            m_state->limits.maximumClientInFlight) {
-            return admissionError(AutomationErrorCode::TooManyRequests,
-                                  QStringLiteral("Client automation concurrency limit was reached"));
+        if (m_state->clientInFlight.value(clientId) >= m_state->limits.maximumClientInFlight) {
+            return admissionError(
+                AutomationErrorCode::TooManyRequests,
+                QStringLiteral("Client automation concurrency limit was reached"));
         }
-        if (backgroundTask &&
-            m_state->backgroundTasks >= m_state->limits.maximumBackgroundTasks) {
+        if (backgroundTask && m_state->backgroundTasks >= m_state->limits.maximumBackgroundTasks) {
             return admissionError(AutomationErrorCode::Busy,
                                   QStringLiteral("Automation background task limit was reached"));
         }
         if (!concurrencyDomain.isEmpty() &&
-            m_state->domainInFlight.value(concurrencyDomain) >=
-                m_state->limits.maximumPerDomain) {
+            m_state->domainInFlight.value(concurrencyDomain) >= m_state->limits.maximumPerDomain) {
             return admissionError(AutomationErrorCode::Busy,
                                   QStringLiteral("Automation concurrency domain is busy"));
         }
@@ -131,9 +131,9 @@ namespace Automation {
             bucket.initialized = true;
         } else {
             const auto elapsed = std::max<qint64>(0, now - bucket.updatedAt);
-            bucket.tokens = std::min(
-                m_state->limits.tokenCapacity,
-                bucket.tokens + double(elapsed) * m_state->limits.tokensPerSecond / 1000.0);
+            bucket.tokens = std::min(m_state->limits.tokenCapacity,
+                                     bucket.tokens + double(elapsed) *
+                                                         m_state->limits.tokensPerSecond / 1000.0);
             bucket.updatedAt = now;
         }
         if (bucket.tokens < 1.0) {

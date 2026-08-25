@@ -41,8 +41,7 @@ namespace Automation {
 
         explicit McpHttpServer(RequestHandler handler, QObject *parent = nullptr);
         McpHttpServer(RequestHandler handler, McpHttpLimits limits, QObject *parent = nullptr);
-        McpHttpServer(QObject *handlerContext, RequestHandler handler,
-                      QObject *parent = nullptr);
+        McpHttpServer(QObject *handlerContext, RequestHandler handler, QObject *parent = nullptr);
         McpHttpServer(QObject *handlerContext, RequestHandler handler, McpHttpLimits limits,
                       QObject *parent = nullptr);
         ~McpHttpServer() override;

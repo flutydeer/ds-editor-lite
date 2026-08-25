@@ -19,7 +19,8 @@ struct CustomSplitterRule {
 };
 
 struct CustomTaggerEntry {
-    QString type;       // "regex", "array", or "dict" (dict: value 为字典文件名列表，从 configs/tagger/ 解析)
+    QString
+        type; // "regex", "array", or "dict" (dict: value 为字典文件名列表，从 configs/tagger/ 解析)
     QStringList value;
     QString tag;
     bool discard = false;

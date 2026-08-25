@@ -46,8 +46,7 @@ void InferDurationState::cancelTaskInController(int taskId) {
 }
 
 bool InferDurationState::finishTaskInController(IInferTask *task) {
-    return inferController->finishCurrentInferDurationTask(
-        static_cast<InferDurationTask *>(task));
+    return inferController->finishCurrentInferDurationTask(static_cast<InferDurationTask *>(task));
 }
 
 void InferDurationState::setTaskResultToPipeline(IInferTask *task) {

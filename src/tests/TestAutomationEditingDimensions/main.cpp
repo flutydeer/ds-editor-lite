@@ -580,14 +580,14 @@ namespace {
                     }, .missingObject =
                     [](Fixture &fixture, const CommandContext &context, int) {
                         auto draft = singingClipDraft(QStringLiteral("invalid"));
-                        draft.properties.clipLen = draft.properties.length + 1;
+                        draft.properties.length = -1;
                         return fixture.runtime().project().insertClips(
                             context, {
                                          {.trackId = TrackId(999999), .clip = draft}});
                     }, .invalidDomain =
                     [](Fixture &fixture, const CommandContext &context, int) {
                         auto draft = singingClipDraft(QStringLiteral("invalid"));
-                        draft.properties.clipLen = draft.properties.length + 1;
+                        draft.properties.length = -1;
                         return fixture.runtime().project().insertClips(
                             context, {
                                          {.trackId = fixture.trackA, .clip = draft}});

@@ -297,7 +297,7 @@ SynthrtEngine::RuntimeOperationLease SynthrtEngine::acquireMidiExtractionOperati
 // === initialize ===
 bool SynthrtEngine::initialize(const QStringList &voicebankPaths,
                                const QStringList &g2pPackagePaths, const QString &ep,
-                               int deviceIndex) {
+                               int deviceIndex, bool deferLanguageModels) {
     std::unique_lock lock(m_runtimeLifecycleMutex);
     if (isAboutToQuit()) {
         qWarning() << "SynthrtEngine: initialization rejected during shutdown";
@@ -440,11 +440,20 @@ bool SynthrtEngine::initialize(const QStringList &voicebankPaths,
     // --- 8. LanguageService: initialize models (Stage 2, loads ONNX DLLs) ---
     // VoicebankSession::refresh() only calls initializeMetadata() (Stage 1).
     // Stage 2 loads G2P plugin DLLs and creates ONNX sessions; must be called
-    // separately by the host.
-    if (auto exp = m_langSvc->initializeModels(); !exp) {
-        qCritical() << "SynthrtEngine: LanguageService initializeModels failed:"
-                    << QString::fromUtf8(exp.error().message());
-        return false;
+    // separately by the host. With deferLanguageModels set, Stage 2 is skipped
+    // during startup so the app opens fast; models are loaded lazily on the
+    // first G2P conversion via VoicebankSession::ensureLanguageReady() (the
+    // language tasks already call it before convertG2p/convertS2p).
+    if (!deferLanguageModels) {
+        if (auto exp = m_langSvc->initializeModels(); !exp) {
+            qCritical() << "SynthrtEngine: LanguageService initializeModels failed:"
+                        << QString::fromUtf8(exp.error().message());
+            return false;
+        }
+        qInfo() << "SynthrtEngine: Language models loaded during startup";
+    } else {
+        qInfo().noquote()
+            << "SynthrtEngine: language models deferred, will load lazily on first G2P use";
     }
 
     {
@@ -455,6 +464,24 @@ bool SynthrtEngine::initialize(const QStringList &voicebankPaths,
         m_initialized.store(true, std::memory_order_release);
     }
     qInfo().noquote() << "Successfully initialized SynthrtEngine. Execution provider:" << ep;
+    return true;
+}
+
+bool SynthrtEngine::warmUpLanguageModels() {
+    if (!initialized() || isAboutToQuit()) {
+        qWarning() << "SynthrtEngine: warmUpLanguageModels skipped (engine not initialized"
+                      " or shutting down)";
+        return false;
+    }
+    // LanguageService::initializeModels() is idempotent (G2pAlreadyInitialized
+    // is treated as success) and Manager::initialize() holds its own init lock,
+    // so concurrent warm-up calls are safe.
+    if (auto exp = m_langSvc->initializeModels(); !exp) {
+        qCritical() << "SynthrtEngine: warmUpLanguageModels failed:"
+                    << QString::fromUtf8(exp.error().message());
+        return false;
+    }
+    qInfo() << "SynthrtEngine: language models warmed up in background";
     return true;
 }
 

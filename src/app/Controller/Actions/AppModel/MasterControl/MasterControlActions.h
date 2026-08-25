@@ -11,4 +11,4 @@ public:
 
 
 
-#endif //MASTERCONTROLACTIONS_H
+#endif // MASTERCONTROLACTIONS_H

@@ -325,8 +325,8 @@ namespace Automation {
                     (parameter.type != Param::Edited && parameter.type != Param::Envelope)) {
                     return false;
                 }
-                const auto key = qMakePair(static_cast<int>(parameter.name),
-                                           static_cast<int>(parameter.type));
+                const auto key =
+                    qMakePair(static_cast<int>(parameter.name), static_cast<int>(parameter.type));
                 if (seenParameters.contains(key) || parameter.curves.isEmpty())
                     return false;
                 seenParameters.insert(key);
@@ -531,11 +531,9 @@ namespace Automation {
             });
     }
 
-    AutomationResult<MutationResult>
-        NoteAutomationFacade::commitTransfer(DocumentSession &session, const ClipId targetClipId,
-                                             const int targetStart,
-                                             const NoteTransferPayload &payload,
-                                             const bool validateOnly) {
+    AutomationResult<MutationResult> NoteAutomationFacade::commitTransfer(
+        DocumentSession &session, const ClipId targetClipId, const int targetStart,
+        const NoteTransferPayload &payload, const bool validateOnly) {
         auto target = m_objects.singingClip(session, targetClipId);
         if (!target)
             return target.getError();
@@ -562,7 +560,10 @@ namespace Automation {
             }
         }
         if (validateOnly)
-            return m_committer.preview(session, true, {{ObjectKind::Clip, targetClipId.value()}});
+            return m_committer.preview(session, true,
+                                       {
+                                           {ObjectKind::Clip, targetClipId.value()}
+            });
 
         auto *targetClip = static_cast<SingingClip *>(target.get().clip);
         const auto parameterReplacements =
@@ -599,8 +600,8 @@ namespace Automation {
         if (!parameterReplacements.isEmpty())
             affected.append({ObjectKind::Clip, targetClipId.value()});
 
-        auto result = m_committer.commit(session, std::move(actions), affected,
-                                         std::move(createdObjects));
+        auto result =
+            m_committer.commit(session, std::move(actions), affected, std::move(createdObjects));
         if (result) {
             for (auto &note : ownedNotes)
                 note.release();
@@ -883,6 +884,52 @@ namespace Automation {
                 if (result)
                     note.release();
                 return result;
+            });
+    }
+
+    AutomationResult<MutationResult>
+        NoteAutomationFacade::resetPhonemeOffsets(const CommandContext &context,
+                                                  const ClipId clipId, QList<NoteId> noteIds) {
+        std::sort(noteIds.begin(), noteIds.end(), [](const NoteId left, const NoteId right) {
+            return left.value() < right.value();
+        });
+        const bool duplicates = hasDuplicateIds(noteIds);
+        const auto requestFingerprint = noteIdsFingerprint(clipId, noteIds);
+        return m_dispatcher.dispatchDocumentCommand(
+            OperationIds::notes::reset_phoneme_offsets, context, requestFingerprint,
+            [this, clipId, noteIds = std::move(noteIds), duplicates](DocumentSession &session,
+                                                                     const bool validateOnly) {
+                auto clipResult = m_objects.singingClip(session, clipId);
+                if (!clipResult)
+                    return AutomationResult<MutationResult>(clipResult.getError());
+                QList<Note *> notes;
+                for (const auto id : noteIds) {
+                    auto resolved = m_objects.note(session, clipId, id);
+                    if (!resolved)
+                        return AutomationResult<MutationResult>(resolved.getError());
+                    notes.append(resolved.get().note);
+                }
+                if (duplicates) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("note_ids"), QStringLiteral("Note IDs must be unique")));
+                }
+                bool changed = false;
+                for (const auto *note : notes) {
+                    if (note->phonemeOffsetSeq().isEdited()) {
+                        changed = true;
+                        break;
+                    }
+                }
+                const auto affected = noteRefs(noteIds);
+                if (validateOnly)
+                    return AutomationResult<MutationResult>(
+                        m_committer.preview(session, changed, affected));
+                if (!changed)
+                    return AutomationResult<MutationResult>(m_committer.unchanged(session));
+                auto actions = std::make_unique<NoteActions>();
+                actions->resetPhonemeOffsets(notes,
+                                             static_cast<SingingClip *>(clipResult.get().clip));
+                return m_committer.commit(session, std::move(actions), affected);
             });
     }
 
@@ -1302,6 +1349,7 @@ namespace Automation {
         addMutation(OperationIds::notes::remove);
         addMutation(OperationIds::notes::resize_left);
         addMutation(OperationIds::notes::resize_right);
+        addMutation(OperationIds::notes::reset_phoneme_offsets);
         addMutation(OperationIds::notes::reset_phonemes);
         addMutation(OperationIds::notes::reset_pronunciation);
         addMutation(OperationIds::notes::set_language);

@@ -7,7 +7,8 @@ class QTreeWidget;
 class QTreeWidgetItem;
 
 // Audio page of the resource check dialog: lists missing/unconfirmed audio clips,
-// supports per-item relinking (with cascading resolution of remaining missing items) and confirming name-matched items
+// supports per-item relinking (with cascading resolution of remaining missing items) and confirming
+// name-matched items
 class AudioResourcePage final : public IResourceCheckPage {
     Q_OBJECT
 

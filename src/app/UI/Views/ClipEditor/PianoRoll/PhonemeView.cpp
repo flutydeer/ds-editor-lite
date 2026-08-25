@@ -884,8 +884,7 @@ void PhonemeView::drawWaveforms(QPainter *painter) {
         return;
 
     const auto devicePixelRatio = painter->device()->devicePixelRatioF();
-    const QSize pixelSize(qCeil(width() * devicePixelRatio),
-                          qCeil(height() * devicePixelRatio));
+    const QSize pixelSize(qCeil(width() * devicePixelRatio), qCeil(height() * devicePixelRatio));
     const bool cacheGeometryChanged =
         m_waveformCache.isNull() || m_waveformCache.size() != pixelSize ||
         !qFuzzyCompare(m_waveformCache.devicePixelRatioF(), devicePixelRatio);
@@ -911,9 +910,8 @@ void PhonemeView::renderWaveforms(QPainter *painter) {
     const auto viewTicksPerPixel = ticksPerPixel();
     if (viewTicksPerPixel <= 0.0)
         return;
-    const auto horizontalScale =
-        AppGlobal::ticksPerQuarterNote /
-        (viewTicksPerPixel * TracksEditorGlobal::pixelsPerQuarterNote);
+    const auto horizontalScale = AppGlobal::ticksPerQuarterNote /
+                                 (viewTicksPerPixel * TracksEditorGlobal::pixelsPerQuarterNote);
     const auto leftMarginPx = tickToX(0.0);
     const auto &timeline = appModel->timeline();
 
@@ -941,8 +939,8 @@ void PhonemeView::renderWaveforms(QPainter *painter) {
             .devicePixelRatio = painter->device()->devicePixelRatioF(),
             .amplitudeScale = AudioWaveformSampler::AmplitudeScale::Logarithmic,
         });
-        WaveformRenderUtils::renderWaveform(painter, waveformColor,
-                                            WaveformRenderUtils::FilledMode, waveform);
+        WaveformRenderUtils::renderWaveform(painter, waveformColor, WaveformRenderUtils::FilledMode,
+                                            waveform);
     }
 }
 

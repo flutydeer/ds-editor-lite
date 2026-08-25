@@ -75,8 +75,7 @@ namespace FillLyric {
     }
 
     void LyricExtWidget::onNotesCountChanged(const int &count) const {
-        m_noteCountLabel->setText(
-            QStringLiteral("%L1/%L2").arg(count).arg(*m_notesCount));
+        m_noteCountLabel->setText(QStringLiteral("%L1/%L2").arg(count).arg(*m_notesCount));
     }
 
 } // namespace FillLyric

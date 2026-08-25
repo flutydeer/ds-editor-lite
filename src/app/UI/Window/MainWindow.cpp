@@ -21,6 +21,7 @@
 #include <lite/Tasking/TaskManager.h>
 #include <lite/GUI/Controls/AccentButton.h>
 #include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/SystemWindowButton.h>
 #include <lite/GUI/Controls/SilentSplitter.h>
 #include <lite/GUI/Controls/Toast.h>
 #include <lite/GUI/Theme/ThemeManager.h>
@@ -287,9 +288,8 @@ void MainWindow::changeEvent(QEvent *event) {
         updateWindowTitle();
     else if (event->type() == QEvent::ActivationChange && isActiveWindow() &&
              m_bottomPanelDetached) {
-        editorViewController->activatePanelContext(m_trackEditorView->isVisible()
-                                                       ? AppGlobal::TracksEditor
-                                                       : AppGlobal::Generic);
+        editorViewController->activatePanelContext(
+            m_trackEditorView->isVisible() ? AppGlobal::TracksEditor : AppGlobal::Generic);
     }
 }
 

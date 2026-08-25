@@ -9,7 +9,9 @@
 #include <QList>
 
 class AppModel;
+class AudioClip;
 class SingingClip;
+class Track;
 
 // Replaces the whole tempo sequence of the project timeline. Used by project
 // import when the source contains more than a single tempo point.
@@ -27,9 +29,20 @@ private:
         QList<SingingClipPhonemeNormalizer::ResetRecord> records;
     };
 
+    class AudioClipTickSnapshot {
+    public:
+        Track *track = nullptr;
+        AudioClip *clip = nullptr;
+        int start = 0;
+        int length = 0;
+        int clipStart = 0;
+        int clipLen = 0;
+    };
+
     QList<Tempo> m_oldTempos;
     QList<Tempo> m_newTempos;
     QList<ClipResetRecords> m_resetRecords;
+    QList<AudioClipTickSnapshot> m_audioClipTicks;
     AppModel *m_model = nullptr;
 };
 

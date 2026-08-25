@@ -29,8 +29,7 @@ public:
 
     // Shows the options as a standalone modal dialog (Dialog base + title bar)
     // and enters its modal event loop. Returns the dialog's result.
-    static int showStandaloneDialog(AppOptionsGlobal::Option option,
-                                    QWidget *parent = nullptr);
+    static int showStandaloneDialog(AppOptionsGlobal::Option option, QWidget *parent = nullptr);
 
 protected:
     void changeEvent(QEvent *event) override;

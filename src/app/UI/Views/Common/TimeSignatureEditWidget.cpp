@@ -55,8 +55,7 @@ TimeSignatureEditWidget::TimeSignatureEditWidget(QWidget *parent) : QWidget(pare
     presetsRow->setSpacing(6);
 
     const auto createPresetButton = [this](int numerator, int denominator) {
-        auto *button =
-            new QPushButton(QStringLiteral("%L1/%L2").arg(numerator).arg(denominator));
+        auto *button = new QPushButton(QStringLiteral("%L1/%L2").arg(numerator).arg(denominator));
         button->setObjectName("btnPreset");
         button->setFixedHeight(28);
         connect(button, &QPushButton::clicked, this,

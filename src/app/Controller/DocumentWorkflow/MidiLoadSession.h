@@ -22,8 +22,7 @@ public:
     MidiLoadSession(IProjectFormatHandler *formatHandler, QString filePath,
                     ProjectLoadPurpose purpose, quint64 requestId, bool interactive = true,
                     QByteArray encoding = {}, bool importTempo = true,
-                    bool importTimeSignature = true,
-                    QObject *parent = nullptr);
+                    bool importTimeSignature = true, QObject *parent = nullptr);
 
 private:
     void onStart() override;

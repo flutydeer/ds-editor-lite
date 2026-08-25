@@ -78,10 +78,8 @@ void WindowPlacement::connectScreen(QScreen *screen) {
         return;
 
     m_connectedScreens.insert(screen);
-    connect(screen, &QScreen::geometryChanged, this,
-            [this] { scheduleCorrection(); });
-    connect(screen, &QScreen::availableGeometryChanged, this,
-            [this] { scheduleCorrection(); });
+    connect(screen, &QScreen::geometryChanged, this, [this] { scheduleCorrection(); });
+    connect(screen, &QScreen::availableGeometryChanged, this, [this] { scheduleCorrection(); });
     connect(screen, &QObject::destroyed, this, [this, screen] {
         m_connectedScreens.remove(screen);
         scheduleCorrection();
@@ -158,15 +156,13 @@ void WindowPlacement::placeDefault() {
         return;
     }
 
-    const auto preferred =
-        available.width() > largeDefaultSize.width() &&
-                available.height() > largeDefaultSize.height()
-            ? largeDefaultSize
-            : compactDefaultSize;
+    const auto preferred = available.width() > largeDefaultSize.width() &&
+                                   available.height() > largeDefaultSize.height()
+                               ? largeDefaultSize
+                               : compactDefaultSize;
     const auto size = preferred.boundedTo(available.size());
-    const auto topLeft =
-        available.topLeft() +
-        QPoint((available.width() - size.width()) / 2, (available.height() - size.height()) / 2);
+    const auto topLeft = available.topLeft() + QPoint((available.width() - size.width()) / 2,
+                                                      (available.height() - size.height()) / 2);
     m_window.setGeometry(QRect(topLeft, size));
 }
 
@@ -198,8 +194,7 @@ QScreen *WindowPlacement::screenForGeometry(const QRect &geometry) const {
     return QApplication::primaryScreen();
 }
 
-QRect WindowPlacement::constrainedGeometry(const QRect &geometry,
-                                           const QRect &availableGeometry) {
+QRect WindowPlacement::constrainedGeometry(const QRect &geometry, const QRect &availableGeometry) {
     const auto size = geometry.size().boundedTo(availableGeometry.size());
     const auto maxLeft = availableGeometry.right() - size.width() + 1;
     const auto maxTop = availableGeometry.bottom() - size.height() + 1;

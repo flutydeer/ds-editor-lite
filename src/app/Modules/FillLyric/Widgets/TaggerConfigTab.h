@@ -8,8 +8,7 @@
 
 class QPushButton;
 
-namespace FillLyric
-{
+namespace FillLyric {
     class RuleListPanel;
     class TaggerDetailPanel;
 
@@ -45,6 +44,7 @@ namespace FillLyric
             TaggerRuleInfo builtinInfo;
             CustomTaggerRule customRule;
         };
+
         QList<RuleItem> m_rules;
         int m_currentIndex = -1;
         QStringList m_knownLanguages;

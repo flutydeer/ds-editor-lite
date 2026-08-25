@@ -17,6 +17,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt${QT_VERSION_MAJOR}::Test
         Qt${QT_VERSION_MAJOR}::Widgets
         lite::MusicBase
+        lite::ProjectModel
 )
 
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})

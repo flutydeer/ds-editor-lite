@@ -52,8 +52,8 @@ namespace Automation {
         template <typename Rule>
         bool appendUniqueRule(QList<Rule> &rules, Rule rule) {
             const auto sensitivity = pathCaseSensitivity();
-            const auto duplicate = std::find_if(
-                rules.cbegin(), rules.cend(), [&](const auto &current) {
+            const auto duplicate =
+                std::find_if(rules.cbegin(), rules.cend(), [&](const auto &current) {
                     return current.directory == rule.directory &&
                            current.canonicalPath.compare(rule.canonicalPath, sensitivity) == 0;
                 });
@@ -89,15 +89,14 @@ namespace Automation {
     }
 
     AutomationResult<AuthorizedPath>
-        AutomationFileGuard::addSessionGrant(const QString &path,
-                                             const FileAccessPurpose purpose) {
+        AutomationFileGuard::addSessionGrant(const QString &path, const FileAccessPurpose purpose) {
         auto normalized = normalizeGrant(path, purpose);
         if (!normalized)
             return normalized.getError();
 
         const QWriteLocker locker(&m_lock);
-        auto &rules = purpose == FileAccessPurpose::Read ? m_sessionReadGrants
-                                                        : m_sessionWriteGrants;
+        auto &rules =
+            purpose == FileAccessPurpose::Read ? m_sessionReadGrants : m_sessionWriteGrants;
         appendUniqueRule(rules, normalized.get());
         return AuthorizedPath{normalized.get().canonicalPath, purpose};
     }
@@ -109,24 +108,24 @@ namespace Automation {
     }
 
     AutomationResult<AuthorizedPath>
-        AutomationFileGuard::authorize(const QString &path,
-                                       const FileAccessPurpose purpose) const {
+        AutomationFileGuard::authorize(const QString &path, const FileAccessPurpose purpose) const {
         auto normalized = normalizeTarget(path, purpose);
         if (!normalized)
             return normalized.getError();
 
         const QReadLocker locker(&m_lock);
         const auto &roots = purpose == FileAccessPurpose::Read ? m_readRoots : m_writeRoots;
-        const auto &grants = purpose == FileAccessPurpose::Read ? m_sessionReadGrants
-                                                               : m_sessionWriteGrants;
+        const auto &grants =
+            purpose == FileAccessPurpose::Read ? m_sessionReadGrants : m_sessionWriteGrants;
         const auto allowedBy = [&](const QList<PathRule> &rules) {
             return std::any_of(rules.cbegin(), rules.cend(), [&](const auto &rule) {
                 return matchesRule(normalized.get(), rule);
             });
         };
         if (!allowedBy(roots) && !allowedBy(grants)) {
-            return pathError(AutomationErrorCode::PermissionDenied,
-                             QStringLiteral("Path is outside the configured automation access roots"));
+            return pathError(
+                AutomationErrorCode::PermissionDenied,
+                QStringLiteral("Path is outside the configured automation access roots"));
         }
         return AuthorizedPath{normalized.get(), purpose};
     }
@@ -161,15 +160,15 @@ namespace Automation {
             return normalized.getError();
         const QFileInfo info(normalized.get());
         if (!info.isDir()) {
-            return pathError(AutomationErrorCode::InvalidArgument,
-                             QStringLiteral("Automation access root must be an existing directory"));
+            return pathError(
+                AutomationErrorCode::InvalidArgument,
+                QStringLiteral("Automation access root must be an existing directory"));
         }
         return PathRule{normalized.get(), true};
     }
 
     AutomationResult<AutomationFileGuard::PathRule>
-        AutomationFileGuard::normalizeGrant(const QString &path,
-                                            const FileAccessPurpose purpose) {
+        AutomationFileGuard::normalizeGrant(const QString &path, const FileAccessPurpose purpose) {
         auto normalized = normalizeTarget(path, purpose);
         if (!normalized)
             return normalized.getError();
@@ -178,8 +177,7 @@ namespace Automation {
     }
 
     AutomationResult<QString>
-        AutomationFileGuard::normalizeTarget(const QString &path,
-                                             const FileAccessPurpose purpose) {
+        AutomationFileGuard::normalizeTarget(const QString &path, const FileAccessPurpose purpose) {
         if (path.isEmpty() || path.contains(QChar::Null) || !QDir::isAbsolutePath(path) ||
             containsInvalidWindowsComponent(path)) {
             return pathError(AutomationErrorCode::InvalidArgument,
@@ -237,8 +235,8 @@ namespace Automation {
             return true;
         if (!rule.directory)
             return false;
-        const auto prefix = rule.canonicalPath.endsWith(u'/') ? rule.canonicalPath
-                                                              : rule.canonicalPath + u'/';
+        const auto prefix =
+            rule.canonicalPath.endsWith(u'/') ? rule.canonicalPath : rule.canonicalPath + u'/';
         return canonicalPath.startsWith(prefix, sensitivity);
     }
 

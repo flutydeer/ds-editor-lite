@@ -11,9 +11,9 @@
 
 namespace {
     constexpr int markerWidth = 2;
-    constexpr int textLeftPadding = 6;   // from the marker's left edge
+    constexpr int textLeftPadding = 6; // from the marker's left edge
     constexpr int textRightPadding = 6;
-    constexpr int chipMinGap = 2;        // keep neighbor chips visually apart
+    constexpr int chipMinGap = 2; // keep neighbor chips visually apart
 
     QColor blendColor(const QColor &from, const QColor &to, double ratio) {
         if (ratio < 0)
@@ -103,8 +103,8 @@ void InfoLaneView::blankContextMenuRequested(const QPoint &globalPos) {
 QRectF InfoLaneView::chipRect(const int index) const {
     const auto &chip = m_chips.at(index);
     const auto x = tickToX(chip.tick);
-    auto right = x + textLeftPadding + fontMetrics().horizontalAdvance(chip.text) +
-                 textRightPadding;
+    auto right =
+        x + textLeftPadding + fontMetrics().horizontalAdvance(chip.text) + textRightPadding;
     if (index + 1 < m_chips.size())
         right = qMin(right, tickToX(m_chips.at(index + 1).tick) - chipMinGap);
     return {x, 0.0, qMax(right - x, static_cast<double>(markerWidth)),
@@ -174,8 +174,8 @@ void InfoLaneView::paintEvent(QPaintEvent *event) {
                               chipArea.width() - textLeftPadding, height());
         if (textArea.width() < 4)
             continue;
-        const auto text = fontMetrics().elidedText(m_chips.at(i).text, Qt::ElideRight,
-                                                   qFloor(textArea.width()));
+        const auto text =
+            fontMetrics().elidedText(m_chips.at(i).text, Qt::ElideRight, qFloor(textArea.width()));
         painter.setPen(m_textColor);
         painter.drawText(textArea, Qt::AlignLeft | Qt::AlignVCenter, text);
     }

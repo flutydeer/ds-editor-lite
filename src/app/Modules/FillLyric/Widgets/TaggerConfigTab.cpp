@@ -20,8 +20,7 @@
 #include "RuleListWidget.h"
 #include "TaggerDetailPanel.h"
 
-namespace FillLyric
-{
+namespace FillLyric {
     static bool validateTaggerRegex(const QString &pattern, QString &errorMsg) {
         RE2::Options opts;
         opts.set_encoding(RE2::Options::EncodingUTF8);
@@ -57,9 +56,9 @@ namespace FillLyric
 
         // Info + Apply row
         auto *bottomLayout = new QHBoxLayout;
-        auto *infoLabel = new QLabel(tr(
-            "Tagger rules affect all split modes. "
-            "Rules only match tokens with language=\"unknown\"; first match wins."));
+        auto *infoLabel =
+            new QLabel(tr("Tagger rules affect all split modes. "
+                          "Rules only match tokens with language=\"unknown\"; first match wins."));
         infoLabel->setObjectName("ruleInfoLabel");
         infoLabel->setWordWrap(true);
         bottomLayout->addWidget(infoLabel, 1);
@@ -76,8 +75,10 @@ namespace FillLyric
         // Connections
         connect(m_listPanel, &RuleListPanel::addRequested, this, &TaggerConfigTab::onAddRule);
         connect(m_listPanel, &RuleListPanel::removeRequested, this, &TaggerConfigTab::onRemoveRule);
-        connect(m_listPanel->listWidget(), &RuleListWidget::orderChanged, this, &TaggerConfigTab::onOrderChanged);
-        connect(m_listPanel->listWidget(), &QListWidget::currentRowChanged, this, &TaggerConfigTab::onSelectionChanged);
+        connect(m_listPanel->listWidget(), &RuleListWidget::orderChanged, this,
+                &TaggerConfigTab::onOrderChanged);
+        connect(m_listPanel->listWidget(), &QListWidget::currentRowChanged, this,
+                &TaggerConfigTab::onSelectionChanged);
         connect(m_applyBtn, &QPushButton::clicked, this, &TaggerConfigTab::applyConfig);
         connect(testJumpBtn, &QPushButton::clicked, this, &TaggerConfigTab::jumpToTestRequested);
     }

@@ -66,8 +66,7 @@ void DspxLoadSession::handlePackageStatus() {
     if (appStatus->packageModuleStatus == AppStatus::ModuleStatus::Ready) {
         startParseTask();
     } else if (appStatus->packageModuleStatus == AppStatus::ModuleStatus::Error) {
-        if (m_allowWithoutPackageMetadata ||
-            (m_ui && m_ui->confirmOpenWithoutPackageMetadata()))
+        if (m_allowWithoutPackageMetadata || (m_ui && m_ui->confirmOpenWithoutPackageMetadata()))
             startParseTask();
         else {
             emitCanceled();

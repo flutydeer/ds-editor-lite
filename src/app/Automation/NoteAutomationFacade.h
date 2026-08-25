@@ -76,6 +76,8 @@ namespace Automation {
                                                    int newLength);
         AutomationResult<MutationResult> splitNoteAt(const CommandContext &context, ClipId clipId,
                                                      NoteId noteId, int localPosition);
+        AutomationResult<MutationResult> resetPhonemeOffsets(const CommandContext &context,
+                                                             ClipId clipId, QList<NoteId> noteIds);
         AutomationResult<MutationResult> setPhonemeOffsets(const CommandContext &context,
                                                            ClipId clipId, NoteId noteId,
                                                            const QList<int> &offsets);

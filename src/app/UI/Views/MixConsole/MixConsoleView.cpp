@@ -163,8 +163,7 @@ void MixConsoleView::onTrackMoved(const qsizetype from, const qsizetype to) {
     const auto lastChangedIndex = qMax(from, to);
     for (auto i = firstChangedIndex; i <= lastChangedIndex; ++i) {
         const auto item = m_channelListView->item(i);
-        const auto channelView =
-            qobject_cast<ChannelView *>(m_channelListView->itemWidget(item));
+        const auto channelView = qobject_cast<ChannelView *>(m_channelListView->itemWidget(item));
         channelView->setChannelIndex(i + 1);
     }
 }

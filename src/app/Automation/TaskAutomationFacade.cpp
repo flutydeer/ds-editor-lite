@@ -8,8 +8,7 @@ namespace Automation {
         }
 
         bool canRequestCancel(const AutomationTaskState state) {
-            return state == AutomationTaskState::Queued ||
-                   state == AutomationTaskState::Running ||
+            return state == AutomationTaskState::Queued || state == AutomationTaskState::Running ||
                    state == AutomationTaskState::CancelRequested;
         }
     }
@@ -22,7 +21,7 @@ namespace Automation {
     }
 
     AutomationResult<AutomationTaskSnapshot>
-    TaskAutomationFacade::getTask(const DocumentId &documentId, const TaskId &taskId) {
+        TaskAutomationFacade::getTask(const DocumentId &documentId, const TaskId &taskId) {
         return m_dispatcher.dispatchDocumentQuery<AutomationTaskSnapshot>(
             OperationIds::tasks::get, documentId, [this, taskId](DocumentSession &session) {
                 return m_tasks.get(session.documentId(), taskId);
@@ -30,7 +29,7 @@ namespace Automation {
     }
 
     AutomationResult<QList<AutomationTaskSnapshot>>
-    TaskAutomationFacade::listTasks(const DocumentId &documentId) {
+        TaskAutomationFacade::listTasks(const DocumentId &documentId) {
         return m_dispatcher.dispatchDocumentQuery<QList<AutomationTaskSnapshot>>(
             OperationIds::tasks::list, documentId, [this](DocumentSession &session) {
                 return AutomationResult<QList<AutomationTaskSnapshot>>(
@@ -39,7 +38,7 @@ namespace Automation {
     }
 
     AutomationResult<AutomationTaskSnapshot>
-    TaskAutomationFacade::cancelTask(const CommandContext &context, const TaskId &taskId) {
+        TaskAutomationFacade::cancelTask(const CommandContext &context, const TaskId &taskId) {
         return m_dispatcher.dispatchDocumentCommandResult<AutomationTaskSnapshot>(
             OperationIds::tasks::cancel, context, taskFingerprint(taskId),
             [this, taskId](DocumentSession &session, const bool validateOnly) {

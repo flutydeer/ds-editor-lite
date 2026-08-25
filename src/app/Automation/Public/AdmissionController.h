@@ -52,8 +52,9 @@ namespace Automation {
 
         explicit AdmissionController(AdmissionLimits limits = {}, MonotonicClock clock = {});
 
-        [[nodiscard]] AutomationResult<AdmissionLease>
-            tryAcquire(QString clientId, QString concurrencyDomain = {}, bool backgroundTask = false);
+        [[nodiscard]] AutomationResult<AdmissionLease> tryAcquire(QString clientId,
+                                                                  QString concurrencyDomain = {},
+                                                                  bool backgroundTask = false);
 
         void setAccepting(bool accepting);
         [[nodiscard]] AdmissionSnapshot snapshot() const;

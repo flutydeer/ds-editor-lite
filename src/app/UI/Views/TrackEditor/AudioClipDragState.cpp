@@ -5,8 +5,7 @@
 
 #include <QtGlobal>
 
-AudioClipDragState AudioClipDragState::begin(const double trimStartMs,
-                                             const double playLengthMs,
+AudioClipDragState AudioClipDragState::begin(const double trimStartMs, const double playLengthMs,
                                              const double materialLengthMs,
                                              const int visibleStartTick, const double grabTick,
                                              const Timeline &timeline) {
@@ -26,8 +25,7 @@ int AudioClipDragState::visibleStartForCursor(const double cursorTick,
     return qRound(timeline.msToTick(timeline.tickToMs(cursorTick) - m_grabOffsetMs));
 }
 
-void AudioClipDragState::moveTo(const int visibleStartTick,
-                                Clip::ClipCommonProperties &properties,
+void AudioClipDragState::moveTo(const int visibleStartTick, Clip::ClipCommonProperties &properties,
                                 const Timeline &timeline) const {
     project(visibleStartTick, properties, timeline);
 }
@@ -36,8 +34,7 @@ bool AudioClipDragState::resizeLeftTo(const int leftTick, const int originalRigh
                                       const int minimumVisibleLength,
                                       Clip::ClipCommonProperties &properties,
                                       const Timeline &timeline) {
-    int visibleStartTick =
-        qMin(leftTick, originalRightTick - qMax(1, minimumVisibleLength));
+    int visibleStartTick = qMin(leftTick, originalRightTick - qMax(1, minimumVisibleLength));
     double trimStartMs = timeline.tickToMs(visibleStartTick) - m_materialStartMs;
     if (trimStartMs < 0.0) {
         trimStartMs = 0.0;
@@ -76,11 +73,10 @@ void AudioClipDragState::writeTruth(Clip::ClipCommonProperties &properties) cons
     properties.materialLengthMs = m_materialLengthMs;
 }
 
-void AudioClipDragState::project(const int visibleStartTick,
-                                 Clip::ClipCommonProperties &properties,
+void AudioClipDragState::project(const int visibleStartTick, Clip::ClipCommonProperties &properties,
                                  const Timeline &timeline) const {
     const auto caches = AudioClip::deriveTickCaches(m_trimStartMs, m_playLengthMs,
-                                                   m_materialLengthMs, visibleStartTick, timeline);
+                                                    m_materialLengthMs, visibleStartTick, timeline);
     properties.start = caches.start;
     properties.clipStart = caches.clipStart;
     properties.clipLen = caches.clipLen;

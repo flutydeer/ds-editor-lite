@@ -5,8 +5,7 @@
 #include <QColor>
 #include <QGraphicsView>
 
-namespace FillLyric
-{
+namespace FillLyric {
     namespace {
         // Theme tokens are injected into the qproperty string as ${token.name};
         // resolve them against the current theme first, then parse the color.

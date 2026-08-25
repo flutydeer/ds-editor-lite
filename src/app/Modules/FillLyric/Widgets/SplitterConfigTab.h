@@ -8,8 +8,7 @@
 
 class QPushButton;
 
-namespace FillLyric
-{
+namespace FillLyric {
     class RuleListPanel;
     class SplitterDetailPanel;
 
@@ -45,6 +44,7 @@ namespace FillLyric
             SplitterRuleInfo builtinInfo;
             CustomSplitterRule customRule;
         };
+
         QList<RuleItem> m_rules;
         int m_currentIndex = -1;
     };

@@ -45,15 +45,15 @@ QString AppOptions::configPath() const {
 
 bool AppOptions::saveAndNotify(const AppOptionsGlobal::Option option) {
     const QJsonObject obj{
-        {m_generalOption.key(),    m_generalOption.value()   },
-        {m_audioOption.key(),      m_audioOption.value()     },
-        {m_appearanceOption.key(), m_appearanceOption.value()},
+        {m_generalOption.key(),     m_generalOption.value()    },
+        {m_audioOption.key(),       m_audioOption.value()      },
+        {m_appearanceOption.key(),  m_appearanceOption.value() },
         {m_g2pLanguageOption.key(), m_g2pLanguageOption.value()},
-        {m_fillLyricOption.key(),  m_fillLyricOption.value() },
-        {m_inferenceOption.key(),  m_inferenceOption.value() },
-        {m_automationOption.key(), m_automationOption.value()},
-        {m_developerOption.key(),  m_developerOption.value() },
-        {m_windowOption.key(),     m_windowOption.value()    }
+        {m_fillLyricOption.key(),   m_fillLyricOption.value()  },
+        {m_inferenceOption.key(),   m_inferenceOption.value()  },
+        {m_automationOption.key(),  m_automationOption.value() },
+        {m_developerOption.key(),   m_developerOption.value()  },
+        {m_windowOption.key(),      m_windowOption.value()     }
     };
 
     const auto success = JsonUtils::save(m_configPath, obj);

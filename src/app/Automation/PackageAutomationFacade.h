@@ -64,20 +64,19 @@ namespace Automation {
 
     struct PackageRuntimeServices {
         std::function<QList<PackageDto>()> installedPackages;
-        std::function<AutomationResult<PackageValidationReportDto>(const QString &)> validatePackage;
+        std::function<AutomationResult<PackageValidationReportDto>(const QString &)>
+            validatePackage;
         std::function<int(AppModel *, bool apply)> resolveDocumentVoices;
     };
 
     class PackageAutomationFacade final {
     public:
-        PackageAutomationFacade(OperationCatalog &catalog,
-                               AutomationDispatcher &dispatcher,
-                               PackageRuntimeServices services = {});
+        PackageAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
+                                PackageRuntimeServices services = {});
 
         AutomationResult<QList<PackageDto>> getInstalledPackages();
         AutomationResult<PackageValidationReportDto> validatePackage(const QString &path);
-        AutomationResult<MutationResult>
-        resolveDocumentVoices(const CommandContext &context);
+        AutomationResult<MutationResult> resolveDocumentVoices(const CommandContext &context);
 
     private:
         void registerOperations();

@@ -14,8 +14,7 @@ class GetPronunciationTask final : public Task {
 
 public:
     explicit GetPronunciationTask(Automation::DocumentVersion documentVersion, int clipId,
-                                  quint64 clipRevision,
-                                  const QList<NoteInferenceSnapshot> &notes,
+                                  quint64 clipRevision, const QList<NoteInferenceSnapshot> &notes,
                                   const SingerInfo &singerInfo);
     Automation::DocumentVersion documentVersion() const;
     int clipId() const;

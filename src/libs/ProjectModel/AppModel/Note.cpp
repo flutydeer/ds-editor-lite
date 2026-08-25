@@ -229,6 +229,15 @@ int Note::compareTo(const Note *obj) const {
         return -1;
     if (localStart() > otherStart)
         return 1;
+    const auto otherKeyIndex = obj->keyIndex();
+    if (keyIndex() > otherKeyIndex)
+        return -1;
+    if (keyIndex() < otherKeyIndex)
+        return 1;
+    if (id() < obj->id())
+        return -1;
+    if (id() > obj->id())
+        return 1;
     return 0;
 }
 

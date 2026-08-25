@@ -33,8 +33,7 @@ namespace Automation {
                                                                  ClipId clipId) const;
         [[nodiscard]] AutomationResult<ResolvedClip> audioClip(DocumentSession &session,
                                                                ClipId clipId) const;
-        [[nodiscard]] AutomationResult<ResolvedNote> note(DocumentSession &session,
-                                                          ClipId clipId,
+        [[nodiscard]] AutomationResult<ResolvedNote> note(DocumentSession &session, ClipId clipId,
                                                           NoteId noteId) const;
     };
 

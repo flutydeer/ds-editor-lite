@@ -75,10 +75,9 @@ namespace FillLyric {
         tagLayout->setContentsMargins(8, 8, 8, 8);
 
         auto *tagHeaderRow = new QHBoxLayout;
-        auto *tagDesc =
-            new QLabel(tr("Each token from step %L1 is tagged with language/tag by "
-                          "tagger rules (first match wins).")
-                           .arg(1));
+        auto *tagDesc = new QLabel(tr("Each token from step %L1 is tagged with language/tag by "
+                                      "tagger rules (first match wins).")
+                                       .arg(1));
         tagDesc->setObjectName("ruleInfoLabel");
         tagDesc->setWordWrap(true);
         tagHeaderRow->addWidget(tagDesc, 1);

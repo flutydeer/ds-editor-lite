@@ -16,7 +16,7 @@ namespace EditorItemGeometry {
     inline constexpr float clipMinimumVisualWidth = 1.0f;
 
     inline QRectF paintRect(const QRectF &modelRect, const double horizontalPadding,
-                           const double verticalPadding, const double minimumVisualWidth) {
+                            const double verticalPadding, const double minimumVisualWidth) {
         if (modelRect.isEmpty() || horizontalPadding < 0.0 || verticalPadding < 0.0 ||
             minimumVisualWidth <= 0.0) {
             return {};

@@ -56,8 +56,7 @@ namespace Automation {
             return piece;
         }
 
-        AutomationResult<QList<Note *>> resolveNotes(SingingClip *clip,
-                                                     const QList<NoteId> &ids) {
+        AutomationResult<QList<Note *>> resolveNotes(SingingClip *clip, const QList<NoteId> &ids) {
             QList<Note *> notes;
             notes.reserve(ids.count());
             for (const auto id : ids) {
@@ -98,7 +97,8 @@ namespace Automation {
         }
 
         bool paramNeedsReset(const InferPiece &piece, const ParamInfo::Name name) {
-            return !piece.getOriginalCurve(name)->isEmpty() || !piece.getInputCurve(name)->isEmpty();
+            return !piece.getOriginalCurve(name)->isEmpty() ||
+                   !piece.getInputCurve(name)->isEmpty();
         }
 
         bool pitchCascadeNeedsReset(const InferPiece &piece) {
@@ -153,8 +153,7 @@ namespace Automation {
         }
 
         bool pitchResetChangesDocument(const InferPiece &piece) {
-            return paramNeedsReset(piece, ParamInfo::Pitch) ||
-                   varianceResetChangesDocument(piece);
+            return paramNeedsReset(piece, ParamInfo::Pitch) || varianceResetChangesDocument(piece);
         }
 
         bool stageResetChangesDocument(const InferPiece &piece, const InferenceStage stage) {
@@ -215,8 +214,8 @@ namespace Automation {
 
         bool allOriginalParamsMatchPieces(const SingingClip &clip) {
             static constexpr ParamInfo::Name names[]{
-                ParamInfo::Pitch,       ParamInfo::Breathiness, ParamInfo::Tension,
-                ParamInfo::Voicing,     ParamInfo::Energy,      ParamInfo::MouthOpening,
+                ParamInfo::Pitch,   ParamInfo::Breathiness, ParamInfo::Tension,
+                ParamInfo::Voicing, ParamInfo::Energy,      ParamInfo::MouthOpening,
             };
             for (const auto name : names) {
                 if (!originalParamMatchesPieces(clip, name))
@@ -226,7 +225,7 @@ namespace Automation {
         }
 
         AutomationResult<PreparedInferenceMutation>
-        preparePronunciations(AppModel *model, const InferenceMutationRequest &request) {
+            preparePronunciations(AppModel *model, const InferenceMutationRequest &request) {
             auto clipResult = resolveClip(model, request.clipId);
             if (!clipResult)
                 return clipResult.getError();
@@ -259,14 +258,15 @@ namespace Automation {
                 .changed = changed,
                 .advancesRevision = persistedChanged,
                 .affectedObjects = affected(request.clipId, {}, noteIds),
-                .apply = [clip, notes, values](InferenceMutationSideEffects &) {
-                    InferControllerHelper::updatePronunciation(notes, values, *clip);
-                },
+                .apply =
+                    [clip, notes, values](InferenceMutationSideEffects &) {
+                        InferControllerHelper::updatePronunciation(notes, values, *clip);
+                    },
             };
         }
 
         AutomationResult<PreparedInferenceMutation>
-        preparePhonemeNames(AppModel *model, const InferenceMutationRequest &request) {
+            preparePhonemeNames(AppModel *model, const InferenceMutationRequest &request) {
             auto clipResult = resolveClip(model, request.clipId);
             if (!clipResult)
                 return clipResult.getError();
@@ -303,21 +303,22 @@ namespace Automation {
                 .changed = changed,
                 .advancesRevision = persistedChanged,
                 .affectedObjects = affected(request.clipId, {}, noteIds),
-                .apply = [model, clip, notes, values](InferenceMutationSideEffects &effects) {
-                    InferControllerHelper::updatePhoneName(notes, values, *clip);
-                    if (clip->singerInfo().isEmpty())
-                        return;
-                    const auto segmentation = clip->reSegment(model->timeline());
-                    for (const auto *piece : segmentation.addedPieces)
-                        effects.addedPieces.append(PieceId(piece->id()));
-                    for (const auto id : segmentation.removedPieceIds)
-                        effects.removedPieces.append(PieceId(id));
-                },
+                .apply =
+                    [model, clip, notes, values](InferenceMutationSideEffects &effects) {
+                        InferControllerHelper::updatePhoneName(notes, values, *clip);
+                        if (clip->singerInfo().isEmpty())
+                            return;
+                        const auto segmentation = clip->reSegment(model->timeline());
+                        for (const auto *piece : segmentation.addedPieces)
+                            effects.addedPieces.append(PieceId(piece->id()));
+                        for (const auto id : segmentation.removedPieceIds)
+                            effects.removedPieces.append(PieceId(id));
+                    },
             };
         }
 
         AutomationResult<PreparedInferenceMutation>
-        prepareDuration(AppModel *model, const InferenceMutationRequest &request) {
+            prepareDuration(AppModel *model, const InferenceMutationRequest &request) {
             auto clipResult = resolveClip(model, request.clipId);
             if (!clipResult)
                 return clipResult.getError();
@@ -350,8 +351,7 @@ namespace Automation {
             for (qsizetype i = 0; i < request.durationResult.count(); ++i) {
                 const auto &result = request.durationResult.at(i);
                 if (result.id != request.noteIds.at(i).value() ||
-                    !std::is_sorted(result.phonemeOffsets.cbegin(),
-                                    result.phonemeOffsets.cend())) {
+                    !std::is_sorted(result.phonemeOffsets.cbegin(), result.phonemeOffsets.cend())) {
                     return AutomationError::invalidArgument(
                         QStringLiteral("duration_result"),
                         QStringLiteral("Duration result note mapping or offsets are invalid"));
@@ -372,9 +372,9 @@ namespace Automation {
                               !note->phonemeOffsetSeq().edited.isEmpty();
                     continue;
                 }
-                const auto desired = offsets.at(i).count() == note->phonemeNameSeq().result().count()
-                                         ? offsets.at(i)
-                                         : QList<int>{};
+                const auto desired =
+                    offsets.at(i).count() == note->phonemeNameSeq().result().count() ? offsets.at(i)
+                                                                                     : QList<int>{};
                 changed = changed || note->phonemeOffsetSeq().original != desired;
             }
             auto *clip = clipResult.get();
@@ -382,23 +382,23 @@ namespace Automation {
                 .changed = changed,
                 .advancesRevision = changed,
                 .affectedObjects = affected(request.clipId, request.pieceId, request.noteIds),
-                .apply = [model, clip, notes, result = request.durationResult](
-                             InferenceMutationSideEffects &) {
-                    InferControllerHelper::updatePhoneOffset(notes, result, *clip, model->timeline());
-                    InferControllerHelper::getParamDirtyPiecesAndUpdateInput(
-                        ParamInfo::Expressiveness, *clip, model->timeline());
-                    InferControllerHelper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Gender,
-                                                                             *clip,
-                                                                             model->timeline());
-                    InferControllerHelper::getParamDirtyPiecesAndUpdateInput(ParamInfo::Velocity,
-                                                                             *clip,
-                                                                             model->timeline());
-                },
+                .apply =
+                    [model, clip, notes,
+                     result = request.durationResult](InferenceMutationSideEffects &) {
+                        InferControllerHelper::updatePhoneOffset(notes, result, *clip,
+                                                                 model->timeline());
+                        InferControllerHelper::getParamDirtyPiecesAndUpdateInput(
+                            ParamInfo::Expressiveness, *clip, model->timeline());
+                        InferControllerHelper::getParamDirtyPiecesAndUpdateInput(
+                            ParamInfo::Gender, *clip, model->timeline());
+                        InferControllerHelper::getParamDirtyPiecesAndUpdateInput(
+                            ParamInfo::Velocity, *clip, model->timeline());
+                    },
             };
         }
 
         AutomationResult<PreparedInferenceMutation>
-        preparePitch(AppModel *model, const InferenceMutationRequest &request) {
+            preparePitch(AppModel *model, const InferenceMutationRequest &request) {
             auto clipResult = resolveClip(model, request.clipId);
             if (!clipResult)
                 return clipResult.getError();
@@ -410,28 +410,28 @@ namespace Automation {
                     QStringLiteral("pitch_smooth_kernel_size"),
                     QStringLiteral("Pitch smoothing kernel size is invalid"));
             }
-            const auto curveValidation = validateCurve(request.pitchResult,
-                                                       QStringLiteral("pitch_result"));
+            const auto curveValidation =
+                validateCurve(request.pitchResult, QStringLiteral("pitch_result"));
             if (!curveValidation)
                 return curveValidation.getError();
             auto *piece = pieceResult.get();
             const auto update = InferControllerHelper::buildParamUpdate(
-                ParamInfo::Pitch, request.pitchResult, *piece, 100,
-                request.pitchSmoothKernelSize);
+                ParamInfo::Pitch, request.pitchResult, *piece, 100, request.pitchSmoothKernelSize);
             const bool changed = paramUpdateChanges(*piece, ParamInfo::Pitch, update);
             return PreparedInferenceMutation{
                 .changed = changed,
                 .advancesRevision = changed,
                 .affectedObjects = affected(request.clipId, request.pieceId),
-                .apply = [piece, result = request.pitchResult,
-                          smooth = request.pitchSmoothKernelSize](InferenceMutationSideEffects &) {
-                    InferControllerHelper::updatePitch(result, *piece, smooth);
-                },
+                .apply =
+                    [piece, result = request.pitchResult,
+                     smooth = request.pitchSmoothKernelSize](InferenceMutationSideEffects &) {
+                        InferControllerHelper::updatePitch(result, *piece, smooth);
+                    },
             };
         }
 
         AutomationResult<PreparedInferenceMutation>
-        prepareVariance(AppModel *model, const InferenceMutationRequest &request) {
+            prepareVariance(AppModel *model, const InferenceMutationRequest &request) {
             auto clipResult = resolveClip(model, request.clipId);
             if (!clipResult)
                 return clipResult.getError();
@@ -441,10 +441,10 @@ namespace Automation {
             auto *piece = pieceResult.get();
             const auto &value = request.varianceResult;
             const QList<std::pair<const InferParamCurve *, QString>> curves{
-                {&value.breathiness, QStringLiteral("variance_result.breathiness")},
-                {&value.tension, QStringLiteral("variance_result.tension")},
-                {&value.voicing, QStringLiteral("variance_result.voicing")},
-                {&value.energy, QStringLiteral("variance_result.energy")},
+                {&value.breathiness,  QStringLiteral("variance_result.breathiness")  },
+                {&value.tension,      QStringLiteral("variance_result.tension")      },
+                {&value.voicing,      QStringLiteral("variance_result.voicing")      },
+                {&value.energy,       QStringLiteral("variance_result.energy")       },
                 {&value.mouthOpening, QStringLiteral("variance_result.mouth_opening")},
             };
             for (const auto &[curve, fieldPath] : curves) {
@@ -477,14 +477,15 @@ namespace Automation {
                 .changed = changed,
                 .advancesRevision = changed,
                 .affectedObjects = affected(request.clipId, request.pieceId),
-                .apply = [piece, result](InferenceMutationSideEffects &) {
-                    InferControllerHelper::updateVariance(result, *piece);
-                },
+                .apply =
+                    [piece, result](InferenceMutationSideEffects &) {
+                        InferControllerHelper::updateVariance(result, *piece);
+                    },
             };
         }
 
         AutomationResult<PreparedInferenceMutation>
-        prepareAcoustic(AppModel *model, const InferenceMutationRequest &request) {
+            prepareAcoustic(AppModel *model, const InferenceMutationRequest &request) {
             auto clipResult = resolveClip(model, request.clipId);
             if (!clipResult)
                 return clipResult.getError();
@@ -496,19 +497,20 @@ namespace Automation {
                                                         QStringLiteral("Acoustic path is empty"));
             }
             auto *piece = pieceResult.get();
-            const bool changed = piece->audioPath != request.acousticPath ||
-                                 piece->acousticInferStatus != Success;
+            const bool changed =
+                piece->audioPath != request.acousticPath || piece->acousticInferStatus != Success;
             return PreparedInferenceMutation{
                 .changed = changed,
                 .affectedObjects = affected(request.clipId, request.pieceId),
-                .apply = [piece, path = request.acousticPath](InferenceMutationSideEffects &) {
-                    InferControllerHelper::updateAcoustic(path, *piece);
-                },
+                .apply =
+                    [piece, path = request.acousticPath](InferenceMutationSideEffects &) {
+                        InferControllerHelper::updateAcoustic(path, *piece);
+                    },
             };
         }
 
         AutomationResult<PreparedInferenceMutation>
-        prepareResetStage(AppModel *model, const InferenceMutationRequest &request) {
+            prepareResetStage(AppModel *model, const InferenceMutationRequest &request) {
             auto clipResult = resolveClip(model, request.clipId);
             if (!clipResult)
                 return clipResult.getError();
@@ -521,27 +523,28 @@ namespace Automation {
                 .changed = changed,
                 .advancesRevision = changed && stageResetChangesDocument(*piece, request.stage),
                 .affectedObjects = affected(request.clipId, request.pieceId),
-                .apply = [piece, stage = request.stage](InferenceMutationSideEffects &) {
-                    switch (stage) {
-                        case InferenceStage::Duration:
-                            InferControllerHelper::resetPhoneOffset(piece->notes, *piece);
-                            break;
-                        case InferenceStage::Pitch:
-                            InferControllerHelper::resetPitch(*piece);
-                            break;
-                        case InferenceStage::Variance:
-                            InferControllerHelper::resetVariance(*piece);
-                            break;
-                        case InferenceStage::Acoustic:
-                            InferControllerHelper::resetAcoustic(*piece);
-                            break;
-                    }
-                },
+                .apply =
+                    [piece, stage = request.stage](InferenceMutationSideEffects &) {
+                        switch (stage) {
+                            case InferenceStage::Duration:
+                                InferControllerHelper::resetPhoneOffset(piece->notes, *piece);
+                                break;
+                            case InferenceStage::Pitch:
+                                InferControllerHelper::resetPitch(*piece);
+                                break;
+                            case InferenceStage::Variance:
+                                InferControllerHelper::resetVariance(*piece);
+                                break;
+                            case InferenceStage::Acoustic:
+                                InferControllerHelper::resetAcoustic(*piece);
+                                break;
+                        }
+                    },
             };
         }
 
         AutomationResult<PreparedInferenceMutation>
-        prepareInvalidateClip(AppModel *model, const InferenceMutationRequest &request) {
+            prepareInvalidateClip(AppModel *model, const InferenceMutationRequest &request) {
             auto clipResult = resolveClip(model, request.clipId);
             if (!clipResult)
                 return clipResult.getError();
@@ -552,15 +555,16 @@ namespace Automation {
             return PreparedInferenceMutation{
                 .changed = !removed.isEmpty(),
                 .affectedObjects = affected(request.clipId, {}),
-                .apply = [clip, removed](InferenceMutationSideEffects &effects) {
-                    clip->removeAllPieces();
-                    effects.removedPieces = removed;
-                },
+                .apply =
+                    [clip, removed](InferenceMutationSideEffects &effects) {
+                        clip->removeAllPieces();
+                        effects.removedPieces = removed;
+                    },
             };
         }
 
         AutomationResult<PreparedInferenceMutation>
-        prepareResegmentClip(AppModel *model, const InferenceMutationRequest &request) {
+            prepareResegmentClip(AppModel *model, const InferenceMutationRequest &request) {
             auto clipResult = resolveClip(model, request.clipId);
             if (!clipResult)
                 return clipResult.getError();
@@ -569,19 +573,20 @@ namespace Automation {
             return PreparedInferenceMutation{
                 .changed = changed,
                 .affectedObjects = affected(request.clipId, {}),
-                .apply = [model, clip, bump = request.bumpClipInferenceRevision](
-                             InferenceMutationSideEffects &effects) {
-                    const auto segmentation = clip->reSegment(model->timeline(), bump);
-                    for (const auto *piece : segmentation.addedPieces)
-                        effects.addedPieces.append(PieceId(piece->id()));
-                    for (const auto id : segmentation.removedPieceIds)
-                        effects.removedPieces.append(PieceId(id));
-                },
+                .apply =
+                    [model, clip, bump = request.bumpClipInferenceRevision](
+                        InferenceMutationSideEffects &effects) {
+                        const auto segmentation = clip->reSegment(model->timeline(), bump);
+                        for (const auto *piece : segmentation.addedPieces)
+                            effects.addedPieces.append(PieceId(piece->id()));
+                        for (const auto id : segmentation.removedPieceIds)
+                            effects.removedPieces.append(PieceId(id));
+                    },
             };
         }
 
         AutomationResult<PreparedInferenceMutation>
-        prepareRefreshSpeakerMix(AppModel *model, const InferenceMutationRequest &request) {
+            prepareRefreshSpeakerMix(AppModel *model, const InferenceMutationRequest &request) {
             auto clipResult = resolveClip(model, request.clipId);
             if (!clipResult)
                 return clipResult.getError();
@@ -598,10 +603,12 @@ namespace Automation {
                 }
                 requestedPieceIds.append(id.value());
             }
+
             struct Refresh {
                 InferPiece *piece;
                 InferSpeakerMix mix;
             };
+
             QList<Refresh> refreshes;
             bool changed = false;
             bool advancesRevision = false;
@@ -627,19 +634,20 @@ namespace Automation {
                 .changed = changed,
                 .advancesRevision = changed && advancesRevision,
                 .affectedObjects = std::move(affectedObjects),
-                .apply = [refreshes](InferenceMutationSideEffects &) {
-                    for (const auto &refresh : refreshes) {
-                        refresh.piece->speakerMix = refresh.mix;
-                        refresh.piece->speaker = refresh.mix.fallbackSpeaker;
-                        InferControllerHelper::resetPitch(*refresh.piece);
-                        refresh.piece->acousticInferStatus = Pending;
-                    }
-                },
+                .apply =
+                    [refreshes](InferenceMutationSideEffects &) {
+                        for (const auto &refresh : refreshes) {
+                            refresh.piece->speakerMix = refresh.mix;
+                            refresh.piece->speaker = refresh.mix.fallbackSpeaker;
+                            InferControllerHelper::resetPitch(*refresh.piece);
+                            refresh.piece->acousticInferStatus = Pending;
+                        }
+                    },
             };
         }
 
         AutomationResult<PreparedInferenceMutation>
-        prepareRefreshParamInput(AppModel *model, const InferenceMutationRequest &request) {
+            prepareRefreshParamInput(AppModel *model, const InferenceMutationRequest &request) {
             auto clipResult = resolveClip(model, request.clipId);
             if (!clipResult)
                 return clipResult.getError();
@@ -658,18 +666,18 @@ namespace Automation {
             return PreparedInferenceMutation{
                 .changed = !updates.isEmpty(),
                 .affectedObjects = std::move(affectedObjects),
-                .apply = [updates, name = request.parameterName](
-                             InferenceMutationSideEffects &effects) {
-                    for (const auto &update : updates) {
-                        update.piece->setInputCurve(name, update.input);
-                        effects.changedPieces.append(PieceId(update.piece->id()));
-                    }
-                },
+                .apply =
+                    [updates, name = request.parameterName](InferenceMutationSideEffects &effects) {
+                        for (const auto &update : updates) {
+                            update.piece->setInputCurve(name, update.input);
+                            effects.changedPieces.append(PieceId(update.piece->id()));
+                        }
+                    },
             };
         }
 
         AutomationResult<PreparedInferenceMutation>
-        prepareRebuildOriginalParams(AppModel *model, const InferenceMutationRequest &request) {
+            prepareRebuildOriginalParams(AppModel *model, const InferenceMutationRequest &request) {
             auto clipResult = resolveClip(model, request.clipId);
             if (!clipResult)
                 return clipResult.getError();
@@ -679,14 +687,15 @@ namespace Automation {
                 .changed = changed,
                 .advancesRevision = changed,
                 .affectedObjects = affected(request.clipId, {}),
-                .apply = [clip](InferenceMutationSideEffects &) {
-                    InferControllerHelper::updateAllOriginalParam(*clip);
-                },
+                .apply =
+                    [clip](InferenceMutationSideEffects &) {
+                        InferControllerHelper::updateAllOriginalParam(*clip);
+                    },
             };
         }
 
         AutomationResult<PreparedInferenceMutation>
-        prepareMutation(AppModel *model, const InferenceMutationRequest &request) {
+            prepareMutation(AppModel *model, const InferenceMutationRequest &request) {
             switch (request.kind) {
                 case InferenceMutationKind::ApplyPronunciations:
                     return preparePronunciations(model, request);
@@ -713,8 +722,8 @@ namespace Automation {
                 case InferenceMutationKind::RebuildOriginalParams:
                     return prepareRebuildOriginalParams(model, request);
             }
-            return AutomationError::invalidArgument(QStringLiteral("kind"),
-                                                    QStringLiteral("Inference mutation is invalid"));
+            return AutomationError::invalidArgument(
+                QStringLiteral("kind"), QStringLiteral("Inference mutation is invalid"));
         }
     }
 

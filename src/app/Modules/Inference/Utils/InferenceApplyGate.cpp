@@ -278,8 +278,7 @@ namespace InferenceApplyGate {
             // Target-level revision and semantic signatures above have validated this result.
             // Sibling inference commits may advance the global revision without invalidating it.
             logDecision(context, options.phase, Decision::Apply,
-                        "document-revision-drift-target-snapshot-match",
-                        currentDocument.revision);
+                        "document-revision-drift-target-snapshot-match", currentDocument.revision);
         }
         return Decision::Apply;
     }

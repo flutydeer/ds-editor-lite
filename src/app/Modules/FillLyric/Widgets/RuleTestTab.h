@@ -7,8 +7,7 @@ class QLabel;
 class QPlainTextEdit;
 class QPushButton;
 
-namespace FillLyric
-{
+namespace FillLyric {
     class RuleTestTab final : public QWidget {
         Q_OBJECT
 

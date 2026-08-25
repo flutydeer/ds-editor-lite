@@ -19,8 +19,9 @@
 
 MidiLoadSession::MidiLoadSession(IProjectFormatHandler *formatHandler, QString filePath,
                                  const ProjectLoadPurpose purpose, const quint64 requestId,
-                                 const bool interactive, QByteArray encoding, const bool importTempo,
-                                 const bool importTimeSignature, QObject *parent)
+                                 const bool interactive, QByteArray encoding,
+                                 const bool importTempo, const bool importTimeSignature,
+                                 QObject *parent)
     : ProjectLoadSessionBase(std::move(filePath), requestId, parent),
       m_formatHandler(formatHandler), m_purpose(purpose), m_interactive(interactive),
       m_encoding(std::move(encoding)), m_importTempo(importTempo),
