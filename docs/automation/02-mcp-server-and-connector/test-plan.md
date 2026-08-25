@@ -2,12 +2,12 @@
 
 ## 1. 执行目标
 
-本计划用于二期候选的正式测试、缺陷修复回归和证据归档。执行顺序为：
+本计划用于二期候选的正式全量重测、缺陷修复回归和证据归档。全部结论必须来自同一候选重新产生的证据；既往记录只可用于定位线索，不替代本轮执行。执行顺序为：
 
 1. 冻结源码、工具清单、测试清单和环境摘要。
 2. 配置并完整构建 Editor、Connector 与全部测试目标。
 3. 验证 Wire、127 个 Editor 工具、6 个 Connector 工具、Profile/Custom、安全和兼容。
-4. 验证 Editor 三版本 MCP、QLocal Bootstrap 与 Connector stdio。
+4. 验证 Editor MCP 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手、QLocal Bootstrap 与 Connector stdio。
 5. 完成真实进程联调、多 Connector 与 GUI。
 6. 在同一候选上串行执行三轮完整 CTest。
 7. 完成失败修复闭环、实现报告和测试报告。
@@ -86,7 +86,8 @@ GUI、进程测试与开发构建共享一个全局 Editor Primary。所有启�
 - 测试 fixture 只管理自己创建的 PID/process handle、端口、socket 和临时根。
 - 一个场景结束后等待进程退出、pipe EOF、QLocal 服务消失和端口释放，再进入下一场景。
 - 多 Connector 场景由一个串行 fixture 统一管理所有子进程和 cleanup。
-- 自动组件轮可使用 offscreen platform；真实 GUI 轮单独运行，并持续监控模态窗口和进程心跳。
+- 自动组件轮显式设置 `QT_QPA_PLATFORM=offscreen`，并从当前 Qt 安装解析有效 platform plugin 路径；若插件加载失败，先修正环境再重跑，不把环境闪退记为业务结论。
+- 真实 GUI 轮单独运行，持续监控模态窗口、顶层窗口数量、进程心跳和无响应状态；出现弹窗或卡住时先固化证据，再由测试控制器处理测试拥有的窗口/进程。
 - crash/timeout 先保存 dump、日志和运行时快照，再精确结束测试拥有的进程。
 
 进入 GUI 阶段前结束全部自动测试进程；GUI 阶段结束后再次确认 Primary、QLocal 和端口释放。
@@ -116,9 +117,9 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 2. 执行 `git diff --check` 与敏感信息扫描。
 3. 解析 `PublicToolDefinitions`、测试期望和公共矩阵，核对 `P2-TOOL-001～127`。
 4. 核对六个 Connector 桥接工具及 127 + 6 = 133。
-5. 核对 19 个 Editor 域数量、`bus` category 和三项历史记录域。
+5. 核对 19 个 Editor 域名称与数量、`bus` category 和三项历史记录域。
 6. 核对 toolset v1 与每工具 current/introduced/minimum-compatible 均为 1。
-7. 核对 `tasks.list/get/cancel` 与一期受影响集合。
+7. 核对 `tasks.list/get/cancel` 与当前 Core Catalog/Facade 回归集合。
 8. 获取 `ctest -N` 与 JSON 清单，区分 target 数、CTest case 数和源码顶层场景数。
 
 ### 门禁
@@ -133,7 +134,7 @@ ID、追踪号、域、Profile、类型、版本或集合出现缺口、重复�
 2. 完整构建所有产品和测试目标。
 3. 运行 JSON Schema、codec、Manifest、digest、游标、Profile 与版本单元测试。
 4. 运行 Access Policy、Custom、File Guard、Admission、exposure 与 Schema compatibility 单元测试。
-5. 运行一期 Catalog、Core、History、revision、idempotency、Task、document 与 architecture 回归。
+5. 运行一期 Catalog、Core、历史记录、revision、idempotency、Task、document 与 architecture 回归。
 6. 使用固定 seed 运行路径、兼容和令牌桶边界语料。
 
 ### 门禁
@@ -149,8 +150,11 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 3. 对全部 127 项生成 schema-valid 输入并验证 Registry binding 可达。
 4. 对每项执行 schema-invalid、权限关闭或 host unavailable 的适用拒绝路径。
 5. 按 19 个域执行代表性真实成功、no-op、validate-only、revision conflict 和失败原子性。
-6. 对 15 个拆分标量写操作验证单 History entry 与单 revision。
-7. 验证动态值来源、output Schema 自检、异步任务和文件重新授权。
+6. 验证历史记录原子边界：同类批量操作整体撤销；轨道/总线/片段标量、已有音符歌词/语言/长度互不捆绑。
+7. 验证创建深度：轨道只能创建为空轨道，歌声片段只能创建为空片段，音符叶节点可携带完整初始数据且不要求 voice context。
+8. 验证 `audio_clips.relocate/confirm_path` 同步返回 Mutation、不创建 Task，并在 GUI 中立即反映。
+9. 验证 `playback.set_loop/set_loop_enabled/clear_loop` 形成工程持久历史记录，逐项 Undo/Redo；play/pause/stop/seek 保持瞬时状态。
+10. 验证动态值来源、output Schema 自检、异步任务和文件重新授权。
 
 ### 证据
 
@@ -158,24 +162,24 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 
 ### 门禁
 
-127 项无漏项；Registry 与 Contract 集合精确；业务失败不推进 History/revision；每个域至少完成一个真实成功与 Undo/Redo 闭环。
+127 项无漏项；Registry 与 Contract 集合精确；业务失败不推进历史记录或 revision；每个域至少完成一个真实成功与 Undo/Redo 闭环。
 
-## 10. 阶段 D：Editor MCP 三版本与 HTTP
+## 10. 阶段 D：Editor MCP 双协议、兼容握手与 HTTP
 
 ### 执行
 
-1. 在动态端口启动测试 Server，确认 listener 仅为 `127.0.0.1`。
-2. 执行 `2025-06-18` initialize/initialized、ping、tools/list、tools/call。
-3. 执行 `2025-11-25` initialize/initialized、ping、tools/list、tools/call。
-4. 执行 `2026-07-28` server/discover、逐请求 metadata、ping、tools/list、tools/call。
-5. 验证版本协商、支持列表、header/body 镜像、请求版本对应的结果形状。
+1. 在隔离端口启动测试 Server，确认 listener 仅为 `127.0.0.1`。
+2. 执行 `2025-11-25` initialize/initialized、ping、tools/list、tools/call。
+3. 执行 `2026-07-28` server/discover、逐请求 metadata、ping、tools/list、tools/call，并验证 `initialize` 被拒绝。
+4. 请求 `2025-06-18` initialize，确认服务端接受并回显兼容版本，再完成 initialized、ping、tools/list 与 tools/call。
+5. 验证版本协商、支持列表、header/body 镜像、协商版本对应的结果形状。
 6. 验证 127 项 descriptor、分页、Schema、structured/text 内容和业务错误。
 7. 验证 Host、Origin、method、Content-Type、Accept、body/depth/node/response 上限和 deadline。
 8. 验证 global/peer/client 并发与速率、timeout、disable、换端口和 shutdown 配额释放。
 
 ### 门禁
 
-三个协议生命周期和结果塑形都形成证据；HTTP 安全与限流在 handler 前生效；Server 停止后无残留 listener 或在途计数。
+两套主协议和 2025-06-18 兼容握手/会话都形成证据；HTTP 安全与限流在 handler 前生效；Server 停止后无残留 listener 或在途计数。
 
 ## 11. 阶段 E：QLocal Bootstrap
 
@@ -197,13 +201,13 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 ### 执行
 
 1. Editor 离线启动 Connector，验证 downstream 握手与六个固定桥接工具。
-2. 验证 stdout 仅含 MCP 帧，stderr 承载诊断。
-3. 分别执行三个协议版本的 downstream 生命周期和结果塑形。
-4. 验证 upstream 2026 发现、2025-11-25 初始化及协商到 2025-06-18。
+2. 验证 stdout 仅含 MCP 帧、stderr 承载诊断；完整 133 工具大响应在正常读端和延迟慢读端均无截断、无零进度误超时。
+3. 分别执行 2025-11-25 与 2026-07-28 两套主协议的 downstream 生命周期，并执行请求 2025-06-18 的兼容握手和结果塑形；2026-07-28 不执行 `initialize`。
+4. 验证 upstream 优先执行 2026-07-28 发现，回退到 2025-11-25 初始化，并接受协商到 2025-06-18。
 5. 验证 ID 重映射、并发乱序、notification、取消、timeout、EOF、broken pipe 与 backpressure。
 6. 验证 `l0/l1/l2/l3`、include/exclude、三类 selector、pending 与 exclude 优先级。
 7. 验证同一 exposure 约束类型化工具与 list/search/describe/invoke。
-8. 验证版本门槛、digest fast path、输入/输出方向性 Schema 兼容和状态分类。
+8. 验证版本门槛、Schema 对象精确相等快速路径、差异 Schema 的输入/输出方向性兼容、Manifest digest 与状态分类。
 9. 验证 L2 downstream 集合为 127 个 Editor 工具加 6 个桥接工具，共 133 项。
 10. 验证 ready burst 合并、尾随刷新、退避、manual reconnect、instance/endpoint 变化。
 
@@ -226,32 +230,33 @@ stdio 零污染；工具面、exposure 与兼容结果确定；旧握手结果�
 
 ### 门禁
 
-Editor direct 与 Connector 转接在结果、错误、History、revision 和 Task 上等价；多 Connector 无串线或饿死；所有测试拥有的资源清理完成。
+Editor direct 与 Connector 转接在结果、错误、历史记录、revision 和 Task 上等价；多 Connector 无串线或饿死；所有测试拥有的资源清理完成。
 
 ## 14. 阶段 H：GUI、Computer Use 与真实资格
 
 ### Computer Use
 
-1. 打开 Automation 设置页，核对 enabled、端口、Profile、Custom、roots、status 和 endpoint。
+1. 从带图标的选项菜单“自动化”项进入设置页，核对面板中文翻译、enabled、端口、Profile、Custom、roots、status 和 endpoint。
 2. Connector 先启动，在 GUI 启用 MCP，观察自动连接与状态更新。
 3. 切换 Profile/Custom，比较 GUI、Editor list、Connector status 和实际调用。
-4. 修改端口、制造冲突、恢复端口、disable/enable，核对完整状态序列。
-5. 使用隔离工作区验证 File Guard 允许与拒绝。
-6. 通过 Connector 编辑轨道、总线、片段、音符、参数、Speaker Mix 和时间线，观察 GUI。
-7. 使用 GUI Undo/Redo，验证每个细粒度 Command 的 History 粒度。
-8. 验证文档、保存、导入、导出、任务、播放和可用推理资格。
-9. 同时运行多个 Connector，结束其中一个后验证其余链路。
-10. 使用 CLI override 启动测试拥有的 Editor，核对来源显示与持久配置保持。
+4. 核对端口刷新按钮与输入框同一行且始终可用；首次配置生成非零端口后重启不变化，刷新、直接编辑、冲突恢复、disable/enable 的状态序列正确。
+5. 在 ready、disabled 和 error 状态分别复制 stdio 与 Streamable HTTP 配置；解析为单个 server entry，并确认不含外层 `mcpServers`。
+6. 核对读写根说明为自动化文件工具 allowlist，且页面不存在无动态内容的本机进程访问栏目；使用隔离工作区验证允许与拒绝。
+7. 通过 Connector 对轨道、总线、片段、音符、参数曲线、历史记录与播放执行代表性 mutation，观察 GUI 立即变化；Speaker Mix 与时间轴至少完成目录、Schema 和读取资格，mutation 全分母由确定性测试覆盖，具备适用上下文时补真实 GUI mutation。
+8. 对第 7 步实际执行的代表性 mutation 使用 GUI Undo/Redo；全部细粒度 Command、批量命令和三个持久循环命令的历史记录粒度由确定性测试覆盖。
+9. 探测音频素材 relocate/confirm、文档、保存、导入、导出、任务、瞬时播放与推理资格，并执行当前环境具备前置条件的代表性路径；完整行为分母由确定性测试覆盖。
+10. 同时运行多个 Connector，结束其中一个后验证其余链路。
+11. 使用 CLI override 启动测试拥有的 Editor，核对来源显示与持久配置保持。
 
 ### Agent Host 与环境资格
 
-使用临时测试配置启动一个真实 Agent Host，经 stdio 调用 status、list、describe、Query、Command 和 Task。配置只在隔离工作区存活，结束后进入 cleanup manifest。
+使用临时测试配置启动一个真实 Agent Host，经 stdio 调用 status、list、describe 及代表性 Query/Command。C/A Task 生命周期由确定性进程测试覆盖。配置只在隔离工作区存活，结束后进入 cleanup manifest。
 
 格式、声音、模型、codec 和音频设备资格逐项探测；环境条件与确定性测试分母分开记录。每项结论只依据本轮实际证据。
 
 ### 门禁
 
-无模态阻塞、UI 假死或用户文件写入；GUI 可见状态与 MCP 事实一致；所有测试新增产物进入清理清单。
+无模态阻塞、UI 假死、offscreen 插件错误或用户文件写入；GUI 可见状态与 MCP 事实一致；所有测试新增产物进入清理清单。
 
 ## 15. 阶段 I：完整 CTest 三轮
 
@@ -283,12 +288,12 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 3. 修改唯一实现路径，保持 Schema、安全与断言强度。
 4. 执行最小复现。
 5. 执行所属组件完整测试域。
-6. 执行一期受影响 Facade/History/GUI 回归。
+6. 执行一期受影响 Facade/历史记录/GUI 回归。
 7. 执行 Editor direct + Connector stdio 等价联调。
 8. 涉及 UI 或生命周期时重做对应 Computer Use 场景。
 9. 重新构建受影响目标并从头执行完整 CTest 三轮。
 
-协议、安全、越权文件访问、数据损坏、crash、stdout 污染、错误文档写回和 History/revision 破坏为阻断级。阶段性修复使用独立 `fix(scope): summary` 提交，私有证据保持在归档中。
+协议、安全、越权文件访问、数据损坏、crash、stdout 污染、错误文档写回和历史记录/revision 破坏为阻断级。阶段性修复使用独立 `fix(scope): summary` 提交，私有证据保持在归档中。
 
 ## 17. 报告与最终清理
 
@@ -298,7 +303,7 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 
 - 127 + 6 工具与 19 个域；
 - Wire/Registry/Manifest/Profile/Custom；
-- 三版本 Editor MCP 与 QLocal；
+- Editor MCP 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手与 QLocal；
 - Connector stdio/exposure/compatibility；
 - File Guard、Admission、设置、CLI 与生命周期；
 - 当前代码事实、实现差异与长期保护测试。
