@@ -70,8 +70,8 @@
         "text.primary": "{neutral.100}",
         "text.secondary": "{neutral.200}",
         "text.emphasis": "{neutral.0}",
+        "text.accent": "{accent.500}",
         "text.onAccent": "{accent.ink}",
-        "text.link": "{accent.500}",
 
         "icon.primary": "{neutral.100}",
         "icon.secondary": "{neutral.200}",

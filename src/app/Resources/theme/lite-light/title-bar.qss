@@ -226,7 +226,7 @@ TempoPopupWidget TapTempoButton#btnTapTempo:pressed {
 }
 
 TempoPopupWidget TapTempoButton#btnTapTempo[stable="true"] {
-    color: ${text.link};
+    color: ${text.accent};
     font-size: 18px;
     font-weight: bold;
 }
