@@ -166,6 +166,8 @@ namespace Automation {
     private:
         [[nodiscard]] bool resolveSourceTracks(QList<Track *> &result) const {
             result.clear();
+            if (!m_model)
+                return false;
             const auto tracks = m_model->tracks();
             if (m_config.sourceOption == Audio::AudioExporterConfig::SO_All &&
                 tracks.size() != m_sourceTracks.size()) {
@@ -183,7 +185,7 @@ namespace Automation {
             return true;
         }
 
-        AppModel *m_model;
+        QPointer<AppModel> m_model;
         QPointer<AudioContext> m_audioContext;
         std::unique_ptr<Audio::AudioExporter> m_exporter;
         AudioExportConfigDto m_config;

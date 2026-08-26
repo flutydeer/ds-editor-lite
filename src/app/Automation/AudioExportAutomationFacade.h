@@ -100,7 +100,7 @@ namespace Automation {
 
         void registerOperations();
         void executeTask(const TaskId &taskId, DocumentVersion baseDocument,
-                         AudioExportConfigDto config, AudioExportObserver observer,
+                         AudioExportObserver observer,
                          const std::shared_ptr<PendingJobState> &state);
         AutomationResult<std::reference_wrapper<DocumentSession>>
             resolveDocumentGeneration(const DocumentVersion &version) const;

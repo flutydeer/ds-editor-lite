@@ -859,9 +859,9 @@ namespace {
             EXPECT(matrix,
                    terminal && terminal.get().state == Automation::AutomationTaskState::Succeeded &&
                        terminalReplay && terminalReplay.get() == first.get() &&
-                       harness.audioExportState()->createCount == 2 &&
+                       harness.audioExportState()->createCount == 1 &&
                        harness.audioExportState()->executeCount == 1,
-                   QStringLiteral("terminal replay must keep the accepted TaskId"));
+                   QStringLiteral("terminal replay must execute the accepted preview job"));
         });
 
         matrix.run(operationId, "AFD-EXP-AUDIO-003-QUEUED-CANCEL", [&] {
