@@ -42,7 +42,6 @@
 | 计算设备 | `settings.compute_device.update` | C/S | 部分更新执行提供程序和 GPU；需重启时只返回 restart_required |
 | 渲染 | `settings.render.update` | C/S | 部分更新采样步数、深度、Vocoder CPU、自动推理、前瞻和音高平滑 |
 | 歌手会话保留 | `settings.singer_session_retention.update` | C/S | 部分更新歌手会话容量和空闲释放时间 |
-| G2P 优先级 | `settings.g2p_priority.update` | C/S | 替换有序语言引擎优先级；只接受 `settings.query` 返回的稳定引擎 ID |
 | 推理缓存 | `inference_cache.get` | Q/S | 扫描并返回缓存目录、文件数、总大小和可清理大小 |
 | 推理缓存 | `inference_cache.clear_unused` | C/A | 清理当前工程、撤销历史和播放未占用的缓存；不触发确认弹窗 |
 | 包搜索路径 | `settings.package_search_paths.update` | C/S | 替换有序包搜索路径；路径受读取根约束，仅标记重启生效，不立即加载 |
