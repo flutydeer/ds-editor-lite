@@ -30,15 +30,8 @@
 | UI 语言 | `settings.ui_language.update` | C/S | 部分更新界面语言并立即应用；合法值由 `settings.query` 返回 |
 | 歌唱 | `settings.singing.update` | C/S | 部分更新默认歌唱语言及按语言保存的默认歌词 |
 | 主题 | `settings.theme.update` | C/S | 部分更新颜色主题；失败返回结构化错误且不弹窗 |
-| 字体 | `settings.font.update` | C/S | 部分更新界面字体；支持恢复平台默认字体 |
-| 窗口 | `settings.window.update` | C/S | 部分更新已开放的窗口行为；需重启的字段只返回 restart_required，不弹窗 |
-| 动画 | `settings.animation.update` | C/S | 部分更新动画启用状态和持续时间倍率 |
-| 触控 | `settings.touch.update` | C/S | 在宿主支持时部分更新直接操控触控能力 |
 | 音频驱动和设备 | `settings.audio_device.update` | C/S | 部分更新驱动、设备、缓冲、采样率、热插拔、增益和声像；失败回滚且不弹窗 |
 | 播放行为 | `settings.playback_behavior.update` | C/S | 部分更新播放头停止行为 |
-| 文件缓存 | `settings.file_caching.update` | C/S | 部分更新文件读取预读样本数 |
-| MIDI 输入 | `settings.midi_input.update` | C/S | 部分更新 MIDI 输入设备；失败返回结构化错误且不弹窗 |
-| 合成器 | `settings.synthesizer.update` | C/S | 部分更新波形、振幅、ADSR、A4 频率和工程音分偏移联动 |
 | 计算设备 | `settings.compute_device.update` | C/S | 部分更新执行提供程序和 GPU；需重启时只返回 restart_required |
 | 渲染 | `settings.render.update` | C/S | 部分更新采样步数、深度、Vocoder CPU、自动推理、前瞻和音高平滑 |
 | 歌手会话保留 | `settings.singer_session_retention.update` | C/S | 部分更新歌手会话容量和空闲释放时间 |
