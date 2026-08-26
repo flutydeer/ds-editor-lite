@@ -13,6 +13,7 @@
 #include <lite/GUI/Controls/PathEditor.h>
 #include <lite/GUI/Controls/SvsExpressionSpinBox.h>
 #include <lite/GUI/Controls/SwitchButton.h>
+#include <lite/GUI/Controls/ToolButton.h>
 #include <lite/GUI/Controls/Toast.h>
 
 #include <QClipboard>
@@ -133,15 +134,19 @@ void AutomationPage::refreshCategoryPermissionSwitches() {
     for (auto it = m_customCategorySwitches.constBegin(); it != m_customCategorySwitches.constEnd();
          ++it) {
         const auto operationIds = m_customCategoryOperationIds.value(it.key());
-        const auto allEnabled = !operationIds.isEmpty() &&
-                                std::all_of(operationIds.cbegin(), operationIds.cend(),
-                                            [this](const QString &operationId) {
-                                                const auto operation =
-                                                    m_customPermissionSwitches.value(operationId);
-                                                return operation && operation->value();
-                                            });
+        const auto enabledCount = std::count_if(
+            operationIds.cbegin(), operationIds.cend(), [this](const QString &operationId) {
+                const auto operation = m_customPermissionSwitches.value(operationId);
+                return operation && operation->value();
+            });
         const QSignalBlocker blocker(it.value());
-        it.value()->setValue(allEnabled);
+        it.value()->setValue(enabledCount > 0);
+        if (auto *card = m_customCategoryCards.value(it.key())) {
+            card->setTitle(tr("%1 (%L2/%L3 enabled)")
+                               .arg(categoryDisplayName(it.key()))
+                               .arg(enabledCount)
+                               .arg(operationIds.size()));
+        }
     }
 }
 
@@ -385,6 +390,7 @@ QWidget *AutomationPage::createContentWidget() {
 
     m_customPermissionSwitches.clear();
     m_customCategorySwitches.clear();
+    m_customCategoryCards.clear();
     m_customCategoryOperationIds.clear();
     for (const auto &operationId : std::as_const(m_customPermissionOperationIds)) {
         if (const auto *contract = AutomationWire::findPublicTool(operationId);
@@ -392,43 +398,81 @@ QWidget *AutomationPage::createContentWidget() {
             m_customCategoryOperationIds[contract->category].append(operationId);
         }
     }
-    const auto categoryCard = new OptionListCard(tr("Custom Permission Categories"));
-    for (auto it = m_customCategoryOperationIds.constBegin();
-         it != m_customCategoryOperationIds.constEnd(); ++it) {
-        const auto operationIds = it.value();
-        const auto allEnabled = std::all_of(operationIds.cbegin(), operationIds.cend(),
-                                            [option](const QString &operationId) {
-                                                return option->customPermissionEnabled(operationId);
-                                            });
-        auto *categorySwitch = new SwitchButton(allEnabled);
-        m_customCategorySwitches.insert(it.key(), categorySwitch);
-        connect(categorySwitch, &SwitchButton::toggled, this,
-                [this, operationIds](const bool enabled) {
-                    for (const auto &operationId : operationIds) {
-                        if (auto *operation = m_customPermissionSwitches.value(operationId)) {
-                            const QSignalBlocker blocker(operation);
-                            operation->setValue(enabled);
-                        }
-                    }
+    QList<OptionListCard *> customCategoryCards;
+    if (m_customPermissionOperationIds.isEmpty()) {
+        const auto customCard = new OptionListCard(tr("Custom Tools"));
+        customCard->addItem(tr("No public tools available"),
+                            tr("Public tools appear here when the automation manifest is ready"));
+        customCategoryCards.append(customCard);
+    } else {
+        for (auto it = m_customCategoryOperationIds.constBegin();
+             it != m_customCategoryOperationIds.constEnd(); ++it) {
+            const auto category = it.key();
+            const auto operationIds = it.value();
+            auto *categoryCard = new OptionListCard;
+            categoryCard->setObjectName(
+                QStringLiteral("automationCustomToolGroup_%1").arg(category));
+            m_customCategoryCards.insert(category, categoryCard);
+
+            QList<OptionsCardItem *> operationItems;
+            for (const auto &operationId : operationIds) {
+                auto *permissionSwitch =
+                    new SwitchButton(option->customPermissionEnabled(operationId));
+                permissionSwitch->setObjectName(
+                    QStringLiteral("automationCustomTool_%1").arg(operationId));
+                m_customPermissionSwitches.insert(operationId, permissionSwitch);
+                connect(permissionSwitch, &SwitchButton::toggled, this, [this] {
+                    refreshCategoryPermissionSwitches();
                     modifyOption();
                 });
-        categoryCard->addItem(categoryDisplayName(it.key()), categorySwitch);
-    }
-    const auto customCard = new OptionListCard(tr("Custom Permissions"));
-    if (m_customPermissionOperationIds.isEmpty()) {
-        customCard->addItem(
-            tr("No public operations available"),
-            tr("Public operation permissions appear here when the automation manifest is ready"));
-    } else {
-        for (const auto &operationId : std::as_const(m_customPermissionOperationIds)) {
-            auto *permissionSwitch = new SwitchButton(option->customPermissionEnabled(operationId));
-            m_customPermissionSwitches.insert(operationId, permissionSwitch);
-            connect(permissionSwitch, &SwitchButton::toggled, this, [this] {
-                refreshCategoryPermissionSwitches();
-                modifyOption();
-            });
-            customCard->addItem(operationId, permissionSwitch);
+                auto *item = categoryCard->addItem(operationId, permissionSwitch);
+                categoryCard->setItemVisible(item, false);
+                operationItems.append(item);
+            }
+
+            auto *expandButton = new ToolButton(categoryCard);
+            expandButton->setObjectName(
+                QStringLiteral("automationCustomToolGroupExpand_%1").arg(category));
+            expandButton->setFixedSize(28, 28);
+            expandButton->setCheckable(true);
+            expandButton->setActionIcon(QStringLiteral(":/svg/icons/chevron_right_16_regular.svg"));
+            expandButton->setToolTip(tr("Expand tool group"));
+            connect(expandButton, &QPushButton::toggled, this,
+                    [this, categoryCard, expandButton, operationItems](const bool expanded) {
+                        for (auto *item : operationItems)
+                            categoryCard->setItemVisible(item, expanded);
+                        expandButton->setActionIcon(
+                            expanded ? QStringLiteral(":/svg/icons/chevron_down_16_regular.svg")
+                                     : QStringLiteral(":/svg/icons/chevron_right_16_regular.svg"));
+                        expandButton->setToolTip(expanded ? tr("Collapse tool group")
+                                                          : tr("Expand tool group"));
+                    });
+            categoryCard->addTitleWidget(expandButton);
+
+            const auto anyEnabled = std::any_of(
+                operationIds.cbegin(), operationIds.cend(), [option](const QString &operationId) {
+                    return option->customPermissionEnabled(operationId);
+                });
+            auto *categorySwitch = new SwitchButton(anyEnabled, categoryCard);
+            categorySwitch->setObjectName(
+                QStringLiteral("automationCustomToolGroupSwitch_%1").arg(category));
+            categorySwitch->setToolTip(tr("Enable or disable all tools in this group"));
+            m_customCategorySwitches.insert(category, categorySwitch);
+            connect(categorySwitch, &SwitchButton::toggled, this,
+                    [this, operationIds](const bool enabled) {
+                        for (const auto &operationId : operationIds) {
+                            if (auto *operation = m_customPermissionSwitches.value(operationId)) {
+                                const QSignalBlocker blocker(operation);
+                                operation->setValue(enabled);
+                            }
+                        }
+                        refreshCategoryPermissionSwitches();
+                        modifyOption();
+                    });
+            categoryCard->addTitleWidget(categorySwitch);
+            customCategoryCards.append(categoryCard);
         }
+        refreshCategoryPermissionSwitches();
     }
 
     m_readRoots = new PathEditor;
@@ -455,8 +499,8 @@ QWidget *AutomationPage::createContentWidget() {
     mainLayout->addWidget(serverCard, 0, Qt::AlignTop);
     mainLayout->addWidget(connectionCard, 0, Qt::AlignTop);
     mainLayout->addWidget(accessCard, 0, Qt::AlignTop);
-    mainLayout->addWidget(categoryCard, 0, Qt::AlignTop);
-    mainLayout->addWidget(customCard, 0, Qt::AlignTop);
+    for (auto *categoryCard : std::as_const(customCategoryCards))
+        mainLayout->addWidget(categoryCard, 0, Qt::AlignTop);
     mainLayout->addWidget(readRootsCard, 0, Qt::AlignTop);
     mainLayout->addWidget(writeRootsCard, 0, Qt::AlignTop);
     mainLayout->addStretch();

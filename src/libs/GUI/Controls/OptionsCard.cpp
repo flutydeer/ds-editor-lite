@@ -1,5 +1,6 @@
 #include <lite/GUI/Controls/OptionsCard.h>
 
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QVBoxLayout>
 
@@ -14,10 +15,16 @@ OptionsCard::OptionsCard(QWidget *parent) : QWidget(parent) {
 
     m_lbTitle->setObjectName("title");
 
+    m_titleLayout = new QHBoxLayout;
+    m_titleLayout->addWidget(m_lbTitle);
+    m_titleLayout->addStretch();
+    m_titleLayout->setContentsMargins(0, 0, 10, 0);
+    m_titleLayout->setSpacing(6);
+
     m_card = new CardView;
 
     const auto mainLayout = new QVBoxLayout;
-    mainLayout->addWidget(m_lbTitle);
+    mainLayout->addLayout(m_titleLayout);
     mainLayout->addWidget(m_card);
     // No bottom margin on the card itself: card-to-card spacing belongs to
     // the outer layout (otherwise the last card floats above the page
@@ -30,6 +37,11 @@ OptionsCard::OptionsCard(QWidget *parent) : QWidget(parent) {
 
 void OptionsCard::setTitle(const QString &title) const {
     m_lbTitle->setText(title);
+}
+
+void OptionsCard::addTitleWidget(QWidget *widget) const {
+    if (widget)
+        m_titleLayout->addWidget(widget);
 }
 
 CardView *OptionsCard::card() const {

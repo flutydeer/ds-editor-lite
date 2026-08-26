@@ -239,3 +239,16 @@ Speaker Mix 在真实进程中完成目录与 Schema 发现；本轮零 speaker 
 综上，合并最新 `main` 并加入音素位置重置工具后的当前候选已完成一次完整 CTest，结果为
 **PASS**，可以交付用户测试。本轮没有重复三轮完整回归，也没有把历史 133 项真实进程性能数据
 改写成当前 134 项实测。
+
+## 9. 2026-08-26 Custom 领域分组补充验证
+
+设置页的 Custom 工具平铺清单改为领域卡片后，当前源码重新完成 Debug 产品增量构建；Release
+产品构建也在本轮通过。相关测试目标重新构建后，`TestPublicAutomationContract`、
+`TestAutomationOption`、`TestUiLanguage` 与 `TestThemeIcons` 共 **4/4 通过、0 失败、1.06 秒**。
+
+Computer Use 在 Release GUI 中验证：领域卡片默认收起；展开“音频片段”后准确显示 5 个单工具；
+组级开关使标题计数和全部单项依次完成 `0/5 → 5/5 → 0/5`，折叠/展开不改变权限。测试结束前
+已恢复原始权限状态并正常关闭程序，未出现崩溃、无人值守弹窗或 Qt platform plugin 错误。
+
+这是一轮针对设置页后续改动的产品构建、定向 CTest 与 GUI 补充验证，不改写第 2 节记录的既往
+完整 CTest 口径，也不冒充再次执行了全量回归。

@@ -389,23 +389,38 @@
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="285"/>
-        <source>Custom Permission Categories</source>
-        <translation>自定义权限类别</translation>
+        <source>%1 (%L2/%L3 enabled)</source>
+        <translation>%1（已启用 %L2/%L3）</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="308"/>
-        <source>Custom Permissions</source>
-        <translation>自定义权限</translation>
+        <source>Custom Tools</source>
+        <translation>自定义工具</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="310"/>
-        <source>No public operations available</source>
-        <translation>没有可用的公共操作</translation>
+        <source>No public tools available</source>
+        <translation>没有可用的公共工具</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="311"/>
-        <source>Public operation permissions appear here when the automation manifest is ready</source>
-        <translation>自动化清单就绪后，公共操作权限将显示在此处</translation>
+        <source>Public tools appear here when the automation manifest is ready</source>
+        <translation>自动化清单就绪后，公共工具将显示在此处</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="438"/>
+        <source>Expand tool group</source>
+        <translation>展开工具组</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="446"/>
+        <source>Collapse tool group</source>
+        <translation>折叠工具组</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="463"/>
+        <source>Enable or disable all tools in this group</source>
+        <translation>开启或关闭此组中的全部工具</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="328"/>

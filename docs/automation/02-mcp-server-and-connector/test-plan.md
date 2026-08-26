@@ -240,7 +240,7 @@ Editor direct 与 Connector 转接在结果、错误、历史记录、revision �
 
 1. 从带图标的选项菜单“自动化”项进入设置页，核对面板中文翻译、enabled、端口、Profile、Custom、roots、status 和 endpoint。
 2. Connector 先启动，在 GUI 启用 MCP，观察自动连接与状态更新。
-3. 切换 Profile/Custom，比较 GUI、Editor list、Connector status 和实际调用。
+3. 切换 Profile/Custom，比较 GUI、Editor list、Connector status 和实际调用；在 Custom 下核对领域卡片默认收起，抽查展开/收起不改变权限，并验证整组关闭、整组开启、启用计数和单项状态回读。
 4. 核对端口刷新按钮与输入框同一行且始终可用；首次配置生成非零端口后重启不变化，刷新、直接编辑、冲突恢复、disable/enable 的状态序列正确。
 5. 在 ready、disabled 和 error 状态分别复制 stdio 与 Streamable HTTP 配置；解析为单个 server entry，并确认不含外层 `mcpServers`。
 6. 核对读写根说明为自动化文件工具 allowlist，且页面不存在无动态内容的本机进程访问栏目；使用隔离工作区验证允许与拒绝。

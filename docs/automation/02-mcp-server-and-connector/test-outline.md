@@ -149,7 +149,8 @@ Editor 的 128 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 
 - Meta 精确 4 项；L1 累积精确 90 项；L2 与 L3 累积均精确 128 项。
 - `selectedProfile` 与 `customPermissions` 独立持久化，preset 切换保持 Custom 内容。
-- Custom 的单项、分类、空集合、新 operation 安全默认和坏配置恢复覆盖。
+- Custom 的单项、领域分组、空集合、新 operation 安全默认和坏配置恢复覆盖。
+- 领域卡片默认收起；展开/收起不改变权限，标题启用数与单项状态一致，组级关闭/开启分别原子更新整组并持久化。
 - Editor `tools/list`、Manifest、options 和执行期 Registry 使用同一策略。
 - 列表后改变 Profile/Custom 时，实际调用按最新策略判定。
 - Connector exposure profile `l0/l1/l2/l3`、include、exclude 和 selector 规范化覆盖。
@@ -253,6 +254,7 @@ Editor 的 128 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 - Runtime enable、端口冲突、ready、disable、换端口、错误恢复和退出顺序。
 - Profile/Custom/roots 在运行中变化时，Editor list/dispatch 与 Connector 状态及时更新。
 - 选项菜单“自动化”项的图标与中文名称、面板完整中文翻译通过 Computer Use 验证。
+- Custom 工具按领域显示为可折叠卡片；逐组验证默认收起、展开/收起、启用计数、整组关闭/开启和单项状态回读。
 - 端口刷新按钮与 number box 同行且始终可用；不存在固定/随机下拉框，刷新或直接编辑后的值与持久化结果正确。
 - stdio 与 Streamable HTTP 配置在 ready/disabled/error 状态下始终可复制，复制对象不含外层 `mcpServers`。
 - 读写根帮助文本解释其为自动化文件路径 allowlist；设置页不出现无动态事实的本机进程访问栏目。
