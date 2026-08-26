@@ -50,6 +50,7 @@ public:
     QColor trackInactiveColor = {22, 22, 22};
     QColor trackActiveColor = {155, 186, 255};
     QColor thumbFillColor = {211, 214, 224};
+    QColor thumbBorderColor = {0, 0, 0, 0};
     QColor thumbGraduateColor{22, 22, 22};
     int animationDuration = 200;
 
@@ -233,6 +234,14 @@ void Fader::paintEvent(QPaintEvent *event) {
         painter.setPen(Qt::NoPen);
         painter.setBrush(d->thumbFillColor);
         painter.drawRoundedRect({d->thumbPos, d->thumbSize}, d->thumbRadius, d->thumbRadius);
+        if (d->thumbBorderColor.isValid() && d->thumbBorderColor.alpha() > 0) {
+            QPen borderPen;
+            borderPen.setColor(d->thumbBorderColor);
+            borderPen.setWidthF(1.0);
+            painter.setBrush(Qt::NoBrush);
+            painter.setPen(borderPen);
+            painter.drawRoundedRect({d->thumbPos, d->thumbSize}, d->thumbRadius, d->thumbRadius);
+        }
     };
 
     auto drawThumbGraduate = [&] {
@@ -355,6 +364,17 @@ QColor Fader::thumbFillColor() const {
 void Fader::setThumbFillColor(const QColor &color) {
     Q_D(Fader);
     d->thumbFillColor = color;
+    update();
+}
+
+QColor Fader::thumbBorderColor() const {
+    Q_D(const Fader);
+    return d->thumbBorderColor;
+}
+
+void Fader::setThumbBorderColor(const QColor &color) {
+    Q_D(Fader);
+    d->thumbBorderColor = color;
     update();
 }
 
