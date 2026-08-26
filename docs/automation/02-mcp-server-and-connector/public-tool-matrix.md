@@ -2,9 +2,9 @@
 
 ## 1. 冻结口径
 
-二期工具面按业务域组织。Editor 提供 **128** 个公共工具，DS Connector Lite 提供 **6** 个桥接工具，合计 **134** 个。MCP tool name 是跨 Contract、Registry、Manifest、Editor 与 Connector 的稳定身份，不使用依赖表内顺序的编号。
+二期工具面按业务域组织。Editor 提供 **134** 个公共工具，DS Connector Lite 提供 **6** 个桥接工具，合计 **140** 个。MCP tool name 是跨 Contract、Registry、Manifest、Editor 与 Connector 的稳定身份，不使用依赖表内顺序的编号。
 
-公共工具集维持 v1：`toolsetVersion = 1`，134 个工具各自的 current version、introduced version、minimum compatible version 均为 1。版本是全表不变量，因此工具清单不设置横向版本列。
+公共工具集维持 v1：`toolsetVersion = 1`，140 个工具各自的 current version、introduced version、minimum compatible version 均为 1。版本是全表不变量，因此工具清单不设置横向版本列。
 
 标记说明：
 
@@ -21,16 +21,16 @@
 |---|---:|---|
 | 应用 | 1 | 产品与构建身份 |
 | 自动化与安全边界 | 4 | 状态、Manifest、动态选项、文件授权事实 |
-| 文档与工程 | 8 | 文档生命周期、保存、导入与工程快照 |
+| 文档与工程 | 8 | 文档状态与统计、最近项目、生命周期、保存与导入 |
 | 格式 | 2 | 格式能力与导入前检查 |
 | 轨道 | 15 | 轨道查询、细粒度编辑、语言与声音 |
 | 总线 | 5 | Master 总线查询与细粒度控制 |
 | 片段 | 16 | 片段查询、几何、属性与声音继承 |
 | 音频素材 | 5 | 音频查询、导入和路径解析 |
 | 声库 | 2 | 可用声库发现与描述 |
-| Speaker Mix | 9 | 固定/动态混合与关键帧 |
+| Speaker Mix | 13 | 固定/动态混合、关键帧与预设 |
 | 音符、歌词、语言、发音与音素 | 19 | 叶节点创建、几何、歌词、语言、发音和音素 |
-| 参数曲线与锚点 | 10 | 曲线能力、采样和锚点编辑 |
+| 参数曲线与锚点 | 12 | 有界曲线查询、采样和显式锚点曲线编辑 |
 | 时间轴 | 5 | Tempo 与拍号 |
 | 历史记录 | 3 | 历史记录状态、Undo、Redo |
 | 播放 | 8 | 播放状态、定位与循环 |
@@ -38,7 +38,7 @@
 | 提取 | 3 | 音高/MIDI 提取能力与任务 |
 | 推理 | 4 | 能力、状态、启动与阶段重置 |
 | 异步任务 | 3 | 任务列表、详情与取消 |
-| **Editor 合计** | **128** | **36 Q/S + 82 C/S + 10 C/A** |
+| **Editor 合计** | **134** | **37 Q/S + 87 C/S + 10 C/A** |
 
 ## 3. Editor 公共工具
 
@@ -61,8 +61,8 @@
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
-| `documents.get` | L1 | Q/S | 文档状态、路径、dirty/savepoint 与 revision |
-| `project.get` | L1 | Q/S | 有序轨道/片段工程快照与稳定对象 ID |
+| `documents.get` | L1 | Q/S | 文档状态、路径、dirty/savepoint、revision、工程长度及轨道/片段分类统计 |
+| `documents.list_recent` | L2 | Q/S | 从应用设置列出最近项目的路径、文件名与当前存在状态 |
 | `documents.new` | L2 | C/S | 未保存策略、模板与原子文档换代 |
 | `documents.open` | L2 | C/A | 受控读路径、格式选项与异步换代 |
 | `documents.save` | L2 | C/S | 当前路径保存、覆盖策略与 savepoint |
@@ -149,11 +149,11 @@
 
 声库域只负责列出可用声库和描述特定声库；应用 voice 的命令分别保留在轨道域和片段域。
 
-### 3.10 Speaker Mix（9）
+### 3.10 Speaker Mix（13）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
-| `speaker_mix.get` | L1 | Q/S | 轨道/片段目标的混合与关键帧快照 |
+| `speaker_mix.get` | L1 | Q/S | 轨道/片段目标的混合、关键帧及来源预设/脏状态快照 |
 | `speaker_mix.set_fixed` | L1 | C/S | 固定权重混合与归一化 |
 | `speaker_mix.enable_dynamic` | L1 | C/S | 启用动态混合 |
 | `speaker_mix.disable_dynamic` | L1 | C/S | 关闭动态混合并保持确定状态 |
@@ -162,6 +162,10 @@
 | `speaker_mix.keyframes.move` | L1 | C/S | 批量稳定 ID 移动 |
 | `speaker_mix.keyframes.set_weights` | L1 | C/S | 单关键帧权重替换与归一化 |
 | `speaker_mix.keyframes.remove` | L1 | C/S | 批量稳定 ID 删除 |
+| `speaker_mix.presets.list` | L2 | Q/S | 列出应用级预设，可按 singer 过滤；不读取或修改文档历史记录 |
+| `speaker_mix.presets.save` | L2 | C/S | 新建或按稳定 ID 更新应用级预设，名称冲突时原子失败 |
+| `speaker_mix.presets.delete` | L2 | C/S | 删除应用级预设，不改变引用该预设的既有文档混合值 |
+| `speaker_mix.presets.apply` | L2 | C/S | 将预设值应用到轨道/片段，形成一条文档历史记录并保留来源元数据 |
 
 ### 3.11 音符、歌词、语言、发音与音素（19）
 
@@ -187,20 +191,22 @@
 | `notes.reset_phonemes` | L1 | C/S | 恢复自动音素与边界 |
 | `notes.fill_lyrics` | L1 | C/S | 批量歌词填充与分词/语言选项 |
 
-### 3.12 参数曲线与锚点（10）
+### 3.12 参数曲线与锚点（12）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
 | `parameters.get_capabilities` | L1 | Q/S | 参数层、范围、步长、曲线与插值能力 |
-| `parameters.get` | L1 | Q/S | draw/anchor 曲线与稳定 curve/anchor ID |
+| `parameters.get` | L1 | Q/S | 按可选半开时间范围和点数上限查询曲线；锚点完整保留，采样曲线确定性降采样并报告原始/返回点数 |
 | `parameters.replace` | L1 | C/S | 指定参数层的完整曲线替换 |
 | `parameters.draw` | L1 | C/S | 局部采样绘制与 merge mode |
 | `parameters.erase` | L1 | C/S | 局部区间擦除 |
 | `parameters.bake` | L1 | C/S | 原始曲线烘焙与可选区间 |
-| `parameters.insert_anchors` | L1 | C/S | 批量锚点插入与稳定 ID |
-| `parameters.move_anchors` | L1 | C/S | 批量稳定 ID 移动位置和值 |
+| `parameters.create_anchor_curve` | L1 | C/S | 以至少两个初始锚点显式创建一条不重叠曲线并返回稳定 ID |
+| `parameters.insert_anchors` | L1 | C/S | 向显式 `curve_id` 批量插入锚点，不隐式创建或合并曲线 |
+| `parameters.move_anchors` | L1 | C/S | 批量稳定 ID 移动位置和值；不得隐式跨曲线合并或制造重叠 |
 | `parameters.remove_anchors` | L1 | C/S | 批量稳定 ID 删除 |
 | `parameters.set_anchor_interpolation` | L1 | C/S | 批量锚点插值更新 |
+| `parameters.merge_anchor_curves` | L1 | C/S | 显式合并同一参数层内相邻且不重叠的完整锚点曲线 |
 
 ### 3.13 时间轴（5）
 
@@ -298,7 +304,7 @@ Editor PublicToolDefinitions
 Connector bridge definitions
 = Connector downstream 固定桥接工具 names
 
-128 + 6 = 134
+134 + 6 = 140
 ```
 
 每个 Editor 工具必须具备唯一 operation ID、域、最低 profile、Query/Command、同步模式、严格 input/output Schema、`value_sources`、历史记录/file/host/concurrency/conflict/safety descriptor 和执行 binding。每次调用在实际 dispatch 前重新执行 profile/Custom、Schema、动态值、File Guard 与 Admission 检查。

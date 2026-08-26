@@ -5,12 +5,12 @@
 本大纲验证二期从公共契约到真实 GUI Editor/Connector 联调的完整链路。本轮以同一候选重新生成全部测试记录；此前执行结果不计入本轮验收。冻结分母为：
 
 ```text
-Editor 公共工具：128
+Editor 公共工具：134
 Connector 桥接工具：6
-总工具面：134
+总工具面：140
 ```
 
-Editor 的 128 项按 19 个业务域追踪；Connector 的 6 项单独追踪。每个工具至少关联 descriptor/Schema、发现授权、Registry binding、Editor MCP、Connector 路径中适用的测试证据。Query、同步 Command、异步 Command、文件、动态值和历史记录维度按工具类型展开。
+Editor 的 134 项按 19 个业务域追踪；Connector 的 6 项单独追踪。每个工具至少关联 descriptor/Schema、发现授权、Registry binding、Editor MCP、Connector 路径中适用的测试证据。Query、同步 Command、异步 Command、文件、动态值和历史记录维度按工具类型展开。
 
 测试层次：
 
@@ -20,7 +20,7 @@ Editor 的 128 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 | 单元 | codec、validator、Manifest、Policy、Guard、Admission、exposure、兼容算法 |
 | 组件 | MCP parser/router、HTTP、QLocal、stdio framing、上下游 client/server |
 | 进程 | Editor、Connector、单实例、重连、运行时启停、多 Connector |
-| 业务域 | 128 项工具与类型化 Facade、历史记录、revision、Task、文件语义 |
+| 业务域 | 134 项工具与类型化 Facade、历史记录、revision、Task、文件语义 |
 | GUI | Automation 设置页、可见编辑结果、Undo/Redo、运行状态 |
 | 资格 | 真实格式、声音、推理、播放与 Agent Host 环境 |
 
@@ -28,9 +28,9 @@ Editor 的 128 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 
 ### 2.1 ID 与域
 
-- 128 个 Editor tool name 唯一，并与公开 operation ID 一一对应。
+- 134 个 Editor tool name 唯一，并与公开 operation ID 一一对应；`project.get` 不在公共集合，内部 Facade 名称不泄露为 MCP 工具。
 - 六个 Connector 桥接 tool name 唯一，并与固定定义一致。
-- Editor Contract、Registry binding、Manifest、Editor `tools/list`、Connector 已知类型化描述和矩阵的 128 个 ID 精确相等。
+- Editor Contract、Registry binding、Manifest、Editor `tools/list`、Connector 已知类型化描述和矩阵的 134 个 ID 精确相等。
 - Connector bridge definitions、downstream 固定桥接面和矩阵的 6 个 ID 精确相等。
 - 19 个域的数量与矩阵一致；`master.*` 的 category 为 `bus`；历史记录域严格包含三项。
 - Query/Command、同步模式与最低 Profile 逐项相等。
@@ -39,7 +39,7 @@ Editor 的 128 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 ### 2.2 版本
 
 - `toolsetVersion` 精确为 1。
-- 134 个工具的 current、introduced、minimum compatible version 均精确为 1。
+- 140 个工具的 current、introduced、minimum compatible version 均精确为 1。
 - Manifest 中每项 Editor operation 的版本 descriptor 与契约一致。
 - 规范化 Schema/descriptor 内容在键顺序、空白、locale 和构建机器变化时产生稳定 digest。
 - 修改公共契约 fixture 会改变相应 Schema digest 与 Manifest digest。
@@ -55,7 +55,7 @@ Editor 的 128 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 
 ### 3.1 Schema 与 codec
 
-- 128 个 Editor 工具的 input/output Schema 均可通过 meta-schema 检查。
+- 134 个 Editor 工具的 input/output Schema 均可通过 meta-schema 检查。
 - 业务对象为封闭结构；未知字段、错误类型、非法枚举、NaN/Inf、整数溢出、非法 UUID 和超限集合在 handler 前失败。
 - 无参工具只接受空 object；必填字段、oneOf 分支、nullable 和分页字段严格执行。
 - 轨道/片段 voice Schema 要求 singer、允许 speaker 省略或为 `null`；零、单、多 speaker 三种解析分支分别覆盖。
@@ -63,6 +63,10 @@ Editor 的 128 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 - 轨道、片段、总线的细粒度标量命令，以及已有音符的歌词、语言和长度命令，各自具有单条历史记录与 revision-check descriptor。
 - 空轨道/空歌声片段的浅层创建 draft 与完整 note leaf draft 的合法/非法形状分别覆盖；轨道不得嵌套片段，片段不得嵌套音符、参数、voice 或 mix。
 - duplicate、move、resize、split、keyframe 与 anchor 使用稳定 ID，并覆盖重复、失效和跨 owner ID。
+- `documents.get` 的统计字段为非负整数且与领域查询一致；`documents.list_recent` 为 L2 应用级只读查询。
+- `parameters.get` 的半开范围、默认/显式点数上限、采样降采样元数据和“锚点不得丢失”失败路径均满足严格 Schema。
+- `create_anchor_curve/insert_anchors/merge_anchor_curves` 分别承担创建、既有曲线插入和显式合并，不允许隐式创建、跨曲线移动或重叠。
+- Speaker Mix 预设的应用级 list/save/delete 与文档级 apply 具有不同 revision、History 和并发域契约；`speaker_mix.get` 返回来源预设及 dirty 状态。
 
 ### 3.2 动态值与首次调用
 
@@ -81,22 +85,22 @@ Editor 的 128 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 - Manifest operation 集合与当前 `tools/list` 相等。
 - Profile/Custom 更新后新 Manifest 与 digest 反映新可见集合；旧 cursor 不能跨快照使用。
 
-## 4. 128 项 Editor 工具的域覆盖
+## 4. 134 项 Editor 工具的域覆盖
 
 | 域 | 数量 | 重点验证 |
 |---|---:|---|
 | 应用 | 1 | 产品/版本/平台/build 字段、无副作用 |
 | 自动化与安全边界 | 4 | 状态、Manifest、options、文件授权与权限继承 |
-| 文档与工程 | 8 | new/open/save/save-as/import/batch、未保存策略、换代与 savepoint |
+| 文档与工程 | 8 | 文档统计、最近项目、new/open/save/save-as/import/batch、未保存策略、换代与 savepoint |
 | 格式 | 2 | 用途过滤、可用性、inspect 诊断与 plan digest |
 | 轨道 | 15 | 列表/详情、浅层创建、删除/移动、标量命令、语言与声音上下文 |
 | 总线 | 5 | `bus` 归属、四个标量命令、历史记录/revision |
 | 片段 | 16 | 筛选、浅层创建、duplicate、几何、标量命令和声音继承 |
 | 音频素材 | 5 | 元数据、导入/batch 任务，以及 relocate/confirm 同步 Mutation 与授权重检 |
 | 声库 | 2 | 可用 singer/speaker/language/G2P/mix 能力与稳定引用 |
-| Speaker Mix | 9 | fixed/dynamic/bypass、权重归一化、关键帧稳定 ID |
+| Speaker Mix | 13 | fixed/dynamic/bypass、权重归一化、关键帧稳定 ID、应用级预设与文档级应用 |
 | 音符、歌词、语言、发音与音素 | 19 | 查询/搜索/叶节点创建/duplicate/几何、歌词、语言、发音、音素与填充 |
-| 参数曲线与锚点 | 10 | capability、draw/anchor、replace/draw/erase/bake 与批量锚点 |
+| 参数曲线与锚点 | 12 | capability、有界查询、draw/anchor、replace/draw/erase/bake 与显式曲线拓扑操作 |
 | 时间轴 | 5 | Tempo/拍号排序、零点锚、单条历史记录 |
 | 历史记录 | 3 | 状态、Undo/Redo、分支与 savepoint |
 | 播放 | 8 | 瞬时 state version；持久 loop 的历史记录、revision、Undo/Redo 与并发检查 |
@@ -123,6 +127,8 @@ Editor 的 128 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 - 排序、分页、Unicode、空集合、长文本和边界数字确定。
 - Query 不推进 revision、历史记录、state version 或 Task 状态。
 - 能力查询同时表达 supported、available 和 unavailable reason。
+- `documents.get` 的工程长度和轨道/片段分类统计在空工程、空轨、有歌声/音频/混合轨状态下准确；`documents.list_recent` 不改变文档身份或 revision。
+- `parameters.get` 对采样数据执行确定性有界返回，对锚点数据完整返回或明确拒绝过小上限，不静默裁剪稳定对象。
 
 ### 5.2 同步 Command
 
@@ -134,6 +140,8 @@ Editor 的 128 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 - handler、I/O、Schema 编码和 host adapter 失败不产生半提交。
 - `audio_clips.relocate` 与 `audio_clips.confirm_path` 同步完成校验、解码/hash 和最终写回，返回 Mutation，不创建 Task。
 - `playback.set_loop`、`set_loop_enabled` 与 `clear_loop` 修改工程持久状态，各自产生一条可撤销、可重做的历史记录；瞬时播放命令不进入历史记录。
+- Speaker Mix 预设 save/delete 不改变文档 revision 或 History；apply 只形成一条文档历史记录，后续直接编辑将来源标记为 dirty。
+- 创建、插入和合并锚点曲线分别形成单条历史记录；非法重叠、非相邻合并和跨曲线移动在提交前失败。
 
 ### 5.3 异步 Command 与 Task
 
@@ -147,7 +155,7 @@ Editor 的 128 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 
 ## 6. Profile、Custom 与 exposure
 
-- Meta 精确 4 项；L1 累积精确 90 项；L2 与 L3 累积均精确 128 项。
+- Meta 精确 4 项；L1 累积精确 91 项；L2 与 L3 累积均精确 134 项。
 - `selectedProfile` 与 `customPermissions` 独立持久化，preset 切换保持 Custom 内容。
 - Custom 的单项、领域分组、空集合、新 operation 安全默认和坏配置恢复覆盖。
 - 领域卡片默认收起；展开/收起不改变权限，标题启用数与单项状态一致，组级关闭/开启分别原子更新整组并持久化。
@@ -202,9 +210,9 @@ Editor 的 128 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 
 ### 8.3 Tools
 
-- 2025-11-25 与 2026-07-28 两套主协议，以及协商到 2025-06-18 的兼容会话，对当前 128 集合、顺序、分页、Schema、annotations 和适用 server metadata 进行比对。
+- 2025-11-25 与 2026-07-28 两套主协议，以及协商到 2025-06-18 的兼容会话，对当前 134 集合、顺序、分页、Schema、annotations 和适用 server metadata 进行比对。
 - `tools/call` 覆盖缺 name/arguments、未知工具、权限变化、Schema 错误、业务错误与成功结果。
-- 128 项均有一次 schema-valid Registry 可达性测试；各域选择代表工具完成真实成功与回滚语料。
+- 134 项均有一次 schema-valid Registry 可达性测试；各域选择代表工具完成真实成功与回滚语料。
 - output Schema 自检失败转换为内部错误，且不产生第二次业务提交。
 
 ## 9. QLocal Bootstrap
@@ -224,7 +232,7 @@ Editor 的 128 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 - Editor 离线时 Connector 仍完成 downstream 握手并发布固定桥接面。
 - stdout 字节流仅含 MCP 帧，诊断只在 stderr。
 - CRLF、部分行、多帧、notification 洪泛、非法 JSON、最大帧、超限、EOF 与 broken pipe。
-- writer queue 的部分写、backpressure、停滞 deadline 和确定性关闭；134 工具大响应分别由正常读端与延迟慢读端完整接收。
+- writer queue 的部分写、backpressure、停滞 deadline 和确定性关闭；140 工具大响应分别由正常读端与延迟慢读端完整接收。
 - downstream request ID 到 upstream ID 的映射支持并发乱序、取消和 timeout。
 
 ### 10.2 双协议与兼容握手的上游/下游
@@ -240,7 +248,7 @@ Editor 的 128 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 - `connector.get_status` 各字段与 Bootstrap、HTTP、Manifest、compatibility 和 exposure 事实相等。
 - `connector.reconnect` 的并发与重复调用合并。
 - `editor.tools.list/search/describe/invoke` 对分页、搜索、Schema、可用性、过滤和调用授权一致。
-- 128 个类型化 Editor wrapper 与六个桥接工具形成 134 项 L2 downstream 集合。
+- 134 个类型化 Editor wrapper 与六个桥接工具形成 140 项 L2 downstream 集合。
 - 双向 minimum-compatible 门槛、Schema 对象精确相等快速路径、差异 Schema 的 input/output 子集证明、Manifest digest 和未知关键字覆盖。
 - Connector 预期 Manifest digest 随 Editor Profile、host mode 和 Custom 已知 ID 集合变化；完整 L3 契约不得因固定 L2 基准误报 `compatible_subset`。
 - compatible、compatible subset、contract incompatible、tool unavailable、profile blocked、host unavailable 分开报告。
@@ -285,8 +293,8 @@ Editor 的 128 项按 19 个业务域追踪；Connector 的 6 项单独追踪。
 
 ## 13. 通过标准
 
-- 128 + 6 = 134 的工具集合、稳定名称、域和版本不变量全部成立。
-- 128 个 Editor 工具均有 Contract、Registry、权限和适用调用证据；六个 Connector 工具逐项验证。
+- 134 + 6 = 140 的工具集合、稳定名称、域和版本不变量全部成立。
+- 134 个 Editor 工具均有 Contract、Registry、权限和适用调用证据；六个 Connector 工具逐项验证。
 - 两套 MCP 主协议、2025-06-18 兼容握手/会话、Editor HTTP、QLocal、Connector stdio、exposure、Profile/Custom、File Guard 和 Admission 全部完成。
 - Editor direct 与 Connector 路径的业务结果、错误、历史记录、revision 和 Task 语义一致。
 - 进程联调、GUI、真实资格与清理结果形成本轮证据。

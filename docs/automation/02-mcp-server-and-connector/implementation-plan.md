@@ -4,7 +4,7 @@
 
 二期在一期 Automation Facade 基线上交付运行中 GUI Editor 的公共 MCP Server、公共 Wire Contract、实例发现与状态观察、DS Connector Lite，以及设置、CLI、安全和运行时生命周期。
 
-设计语义以《DS Editor Lite MCP 与自动化体系设计》当前版为权威来源，并参考[自动化体系五期建设路线图 #96](https://github.com/flutydeer/ds-editor-lite/issues/96)。公共工具分母由[公共工具矩阵](public-tool-matrix.md)冻结：Editor 128 项，Connector 6 项，总计 134 项。
+设计语义以《DS Editor Lite MCP 与自动化体系设计》当前版为权威来源，并参考[自动化体系五期建设路线图 #96](https://github.com/flutydeer/ds-editor-lite/issues/96)。公共工具分母由[公共工具矩阵](public-tool-matrix.md)冻结：Editor 134 项，Connector 6 项，总计 140 项。
 
 本期产品形态为：
 
@@ -30,6 +30,7 @@ Agent 会话可先于 Editor 启动。Connector 通过全局实例 Bootstrap 观
 - 创建深度受限：轨道创建只接收空轨道的标题与颜色，歌声片段创建只接收空片段的位置、长度与名称；音符作为叶节点可在创建时携带完整初始歌词、语言、发音和音素。
 - duplicate、move、resize、split 和参数锚点操作使用稳定对象 ID。
 - 工具调用依赖显式 document/object 参数，业务结果不依赖 UI selection 或 focus。
+- 可能随工程规模增长的 L1 查询必须提供范围、分页或固定上限；参数采样允许确定性降采样并报告原始/返回规模，锚点身份和拓扑不得静默丢失。
 - GUI Editor 的领域默认值由服务端按同源规则解析；`notes.insert` 不要求 voice context，description 说明对应 GUI 动作、默认值、历史记录、文件和任务语义。
 - voice selection 以 singer 为必填稳定引用；speaker 可省略或为 `null`。零 speaker 声库保持空 speaker，单 speaker 声库自动解析唯一 speaker，多 speaker 声库要求显式选择；查询结果以 `speaker: null` 表达空 speaker。
 - 同步 Command 在模型信号、历史记录与 revision 提交完成后返回；异步 Command 在最终写回与信号完成后进入成功终态。
@@ -93,7 +94,7 @@ Wire 字段使用 `snake_case`。业务 object 使用封闭 Schema；未知字�
 
 ### 5.2 Binding Registry
 
-Registry 从同一工具声明建立 128 个类型化 binding，并派生：
+Registry 从同一工具声明建立 134 个类型化 binding，并派生：
 
 - Editor `tools/list` 的确定顺序和 descriptor；
 - Public Automation Manifest；
@@ -115,7 +116,7 @@ Public Automation Manifest 根级包含：
 - 不透明 `next_cursor`；
 - 根级版本化 `extensions`。
 
-本期工具集维持 v1：`toolsetVersion = 1`。134 个工具各自持有的 current version、introduced version、minimum compatible version 都是 1；digest 用于缓存和漂移检测。
+本期工具集维持 v1：`toolsetVersion = 1`。140 个工具各自持有的 current version、introduced version、minimum compatible version 都是 1；digest 用于缓存和漂移检测。
 
 Connector 对同名类型化工具同时检查双方版本门槛和 Schema 方向：
 
@@ -212,7 +213,7 @@ editor.tools.describe
 editor.tools.invoke
 ```
 
-Connector 同时携带构建时已知的 128 个 Editor 类型化工具描述。进程启动时根据 exposure 生成固定 downstream 类型化工具集合：
+Connector 同时携带构建时已知的 134 个 Editor 类型化工具描述。进程启动时根据 exposure 生成固定 downstream 类型化工具集合：
 
 ```text
 --exposure-profile l0|l1|l2|l3
@@ -269,9 +270,9 @@ CLI override 只影响本次运行，优先于持久设置。选项菜单中的 
 ## 13. 实施顺序与阶段提交
 
 1. 校正一期 Task 名称与受影响测试。
-2. 冻结 128 + 6 工具矩阵、公共 enum、Schema 与版本不变量。
+2. 冻结 134 + 6 工具矩阵、公共 enum、Schema 与版本不变量。
 3. 完成 Wire Contract、Manifest、游标与 Schema 兼容。
-4. 按 19 个域完成 128 个 Registry binding 和 host adapter。
+4. 按 19 个域完成 134 个 Registry binding 和 host adapter。
 5. 完成 Profile/Custom、File Guard 与 Admission。
 6. 完成 Editor 2025-11-25 与 2026-07-28 两套主协议，以及 2025-06-18 兼容握手生命周期。
 7. 完成 QLocal discover/watch 与状态机。
@@ -296,10 +297,10 @@ docs(automation): report phase two delivery
 
 ## 14. 验收门禁与正式产物
 
-- 128 个 Editor ID、6 个 Connector ID、134 个总 ID 唯一且集合相等。
+- 134 个 Editor ID、6 个 Connector ID、140 个总 ID 唯一且集合相等。
 - 19 个 Editor 域及总线、历史记录归属与权威矩阵一致。
 - toolset v1 和每工具版本三元组均为 1。
-- 128 个 Editor 工具均具备严格 Schema、descriptor、binding 与适用测试。
+- 134 个 Editor 工具均具备严格 Schema、descriptor、binding 与适用测试。
 - Editor MCP 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手、QLocal watch、Connector stdio/exposure/compatibility、Profile/Custom、File Guard、Admission、设置与 CLI 完成验证。
 - Editor 直连与 Connector 转接保持业务结果、稳定错误、历史记录、revision 和 Task 语义等价。
 - 多 Connector、运行时换端口/启停、限流、退出和资源清理满足有界生命周期。

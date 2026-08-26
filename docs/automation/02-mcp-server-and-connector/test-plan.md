@@ -6,13 +6,13 @@
 
 1. 冻结源码、工具清单、测试清单和环境摘要。
 2. 配置并完整构建 Editor、Connector 与全部测试目标。
-3. 验证 Wire、128 个 Editor 工具、6 个 Connector 工具、Profile/Custom、安全和兼容。
+3. 验证 Wire、134 个 Editor 工具、6 个 Connector 工具、Profile/Custom、安全和兼容。
 4. 验证 Editor MCP 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手、QLocal Bootstrap 与 Connector stdio。
 5. 完成真实进程联调、多 Connector 与 GUI。
 6. 在同一候选上串行执行三轮完整 CTest。
 7. 完成失败修复闭环、实现报告和测试报告。
 
-冻结分母为 Editor 128、Connector 6、总计 134。CTest 数量、顶层场景数和断言数由本轮配置与执行产物分别记录，彼此不替代。
+冻结分母为 Editor 134、Connector 6、总计 140。CTest 数量、顶层场景数和断言数由本轮配置与执行产物分别记录，彼此不替代。
 
 ## 2. 环境与记录项
 
@@ -115,8 +115,8 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 
 1. 记录 git/submodule/工具链和现有进程状态。
 2. 执行 `git diff --check` 与敏感信息扫描。
-3. 解析 `PublicToolDefinitions`、测试期望和公共矩阵，核对 128 个稳定 tool name。
-4. 核对六个 Connector 桥接工具及 128 + 6 = 134。
+3. 解析 `PublicToolDefinitions`、测试期望和公共矩阵，核对 134 个稳定 tool name，并确认公共集合不含 `project.get`。
+4. 核对六个 Connector 桥接工具及 134 + 6 = 140。
 5. 核对 19 个 Editor 域名称与数量、`bus` category 和三项历史记录域。
 6. 核对 toolset v1 与每工具 current/introduced/minimum-compatible 均为 1。
 7. 核对 `tasks.list/get/cancel` 与当前 Core Catalog/Facade 回归集合。
@@ -141,13 +141,13 @@ tool name、域、Profile、类型、版本或集合出现缺口、重复或漂�
 
 Configure/build 零错误；生成物可复现；受影响回归和二期纯单元测试完成。任一失败进入第 16 节流程。
 
-## 9. 阶段 C：128 项域契约与 Registry
+## 9. 阶段 C：134 项域契约与 Registry
 
 ### 执行
 
-1. 精确比较 128 项 ID、顺序、域、Profile、Query/Command、sync mode、Schema 和版本。
-2. 精确比较 Profile 累积数量 Meta 4、L1 90、L2 128、L3 128。
-3. 对全部 128 项生成 schema-valid 输入并验证 Registry binding 可达。
+1. 精确比较 134 项 ID、顺序、域、Profile、Query/Command、sync mode、Schema 和版本。
+2. 精确比较 Profile 累积数量 Meta 4、L1 91、L2 134、L3 134。
+3. 对全部 134 项生成 schema-valid 输入并验证 Registry binding 可达。
 4. 对每项执行 schema-invalid、权限关闭或 host unavailable 的适用拒绝路径。
 5. 按 19 个域执行代表性真实成功、no-op、validate-only、revision conflict 和失败原子性。
 6. 验证历史记录原子边界：同类批量操作整体撤销；轨道/总线/片段标量、已有音符歌词/语言/长度互不捆绑。
@@ -156,6 +156,10 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 9. 验证 `playback.set_loop/set_loop_enabled/clear_loop` 形成工程持久历史记录，逐项 Undo/Redo；play/pause/stop/seek 保持瞬时状态。
 10. 验证动态值来源、output Schema 自检、异步任务和文件重新授权。
 11. 验证零 speaker 声库可用 singer-only 参数查询动态选项并设置到轨道/片段；单 speaker 自动解析，多 speaker 缺少选择时稳定拒绝。
+12. 验证 `documents.get` 的工程长度、轨道/片段总数和分类统计；验证 `documents.list_recent` 只读取应用设置且不修改当前文档。
+13. 验证 `parameters.get` 的半开范围、默认/显式点数上限、采样曲线确定性降采样，以及锚点曲线在上限不足时明确失败而不丢失稳定 ID。
+14. 验证 `parameters.create_anchor_curve`、显式 `insert_anchors`、跨曲线移动拒绝和 `merge_anchor_curves` 的相邻/重叠规则及逐步 Undo/Redo。
+15. 验证 Speaker Mix 预设 list/save/delete 的应用级无文档副作用，apply 的单条 History，以及来源预设 dirty 状态。
 
 ### 证据
 
@@ -163,7 +167,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 
 ### 门禁
 
-128 项无漏项；Registry 与 Contract 集合精确；业务失败不推进历史记录或 revision；每个域至少完成一个真实成功与 Undo/Redo 闭环。
+134 项无漏项；Registry 与 Contract 集合精确；业务失败不推进历史记录或 revision；每个域至少完成一个真实成功与 Undo/Redo 闭环。
 
 ## 10. 阶段 D：Editor MCP 双协议、兼容握手与 HTTP
 
@@ -174,7 +178,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 3. 执行 `2026-07-28` server/discover、逐请求 metadata、ping、tools/list、tools/call，并验证 `initialize` 被拒绝。
 4. 请求 `2025-06-18` initialize，确认服务端接受并回显兼容版本，再完成 initialized、ping、tools/list 与 tools/call。
 5. 验证版本协商、支持列表、header/body 镜像、协商版本对应的结果形状。
-6. 验证 128 项 descriptor、分页、Schema、structured/text 内容和业务错误。
+6. 验证 134 项 descriptor、分页、Schema、structured/text 内容和业务错误。
 7. 验证 Host、Origin、method、Content-Type、Accept、body/depth/node/response 上限和 deadline。
 8. 验证 global/peer/client 并发与速率、timeout、disable、换端口和 shutdown 配额释放；正常握手和基线查询后，通过 Connector 同时发出 32 个请求应全部成功，第 33 个在途请求应被拒绝，令牌桶不得提前截断该批次。
 
@@ -202,7 +206,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 ### 执行
 
 1. Editor 离线启动 Connector，验证 downstream 握手与六个固定桥接工具。
-2. 验证 stdout 仅含 MCP 帧、stderr 承载诊断；完整 134 工具大响应在正常读端和延迟慢读端均无截断、无零进度误超时。
+2. 验证 stdout 仅含 MCP 帧、stderr 承载诊断；完整 140 工具大响应在正常读端和延迟慢读端均无截断、无零进度误超时。
 3. 分别执行 2025-11-25 与 2026-07-28 两套主协议的 downstream 生命周期，并执行请求 2025-06-18 的兼容握手和结果塑形；2026-07-28 不执行 `initialize`。
 4. 验证 upstream 优先执行 2026-07-28 发现，回退到 2025-11-25 初始化，并接受协商到 2025-06-18。
 5. 验证每轮握手完整读取所有 `tools/list` 页后只调用一次 `automation.get_status`，且不调用 `automation.get_manifest`；完整 Manifest 的独立分页、digest 和游标测试继续保留。
@@ -210,7 +214,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 7. 验证 `l0/l1/l2/l3`、include/exclude、三类 selector、pending 与 exclude 优先级。
 8. 验证同一 exposure 约束类型化工具与 list/search/describe/invoke。
 9. 验证版本门槛、Schema 对象精确相等快速路径、差异 Schema 的输入/输出方向性兼容、按 Editor Profile/host/Custom 集合动态生成的 Manifest 基准 digest 与状态分类。
-10. 验证 L2 downstream 集合为 128 个 Editor 工具加 6 个桥接工具，共 134 项。
+10. 验证 L2 downstream 集合为 134 个 Editor 工具加 6 个桥接工具，共 140 项。
 11. 验证 ready burst 合并、尾随刷新、退避、manual reconnect、instance/endpoint 变化。
 
 ### 门禁
@@ -278,7 +282,7 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 
 - `git diff --check` 与工作树审计；
 - Editor/Connector、Primary、QLocal、端口、pipe 和临时目录残留检查；
-- 128/6/134 工具与 CTest 清单最终快照；
+- 134/6/140 工具与 CTest 清单最终快照；
 - Evidence 索引、failure ledger 和 cleanup manifest 完整性检查。
 
 ## 16. 缺陷修复与回归门禁
@@ -303,7 +307,7 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 
 `implementation-report.md` 记录：
 
-- 128 + 6 工具与 19 个域；
+- 134 + 6 工具与 19 个域；
 - Wire/Registry/Manifest/Profile/Custom；
 - Editor MCP 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手与 QLocal；
 - Connector stdio/exposure/compatibility；

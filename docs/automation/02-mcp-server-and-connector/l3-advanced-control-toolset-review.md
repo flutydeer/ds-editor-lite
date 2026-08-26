@@ -36,12 +36,10 @@
 | 计算设备 | `settings.compute_device.update` | C/S | 部分更新执行提供程序和 GPU；需重启时只返回 restart_required |
 | 渲染 | `settings.render.update` | C/S | 部分更新采样步数、深度、Vocoder CPU、自动推理、前瞻和音高平滑 |
 | 歌手会话保留 | `settings.singer_session_retention.update` | C/S | 部分更新歌手会话容量和空闲释放时间 |
-| 推理缓存 | `inference_cache.get` | Q/S | 扫描并返回缓存目录、文件数、总大小和可清理大小 |
-| 推理缓存 | `inference_cache.clear_unused` | C/A | 清理当前工程、撤销历史和播放未占用的缓存；不触发确认弹窗 |
 | 包搜索路径 | `settings.package_search_paths.update` | C/S | 替换有序包搜索路径；路径受读取根约束，仅标记重启生效，不立即加载 |
 | 包信息 | `packages.list` | Q/S | 返回已索引包、版本、供应方、路径和所含声库摘要 |
 | 包信息 | `packages.describe` | Q/S | 返回指定包的元数据、许可、说明和声库明细 |
-| 包信息 | `packages.validate` | Q/S | 校验读取根内的包目录或包文件并返回结构化诊断 |
+| 包信息 | `packages.refresh` | C/A | 重新扫描当前包搜索路径并返回刷新任务；完成后原子切换索引并报告新增、更新、移除和失败项 |
 | 歌词规则 | `lyric_rules.list` | Q/S | 返回内置与自定义 splitter/tagger 规则的稳定 ID、类型、内容、启用状态和分类型顺序 |
 | 歌词规则 | `lyric_rules.create` | C/S | 新建一条自定义 splitter 或 tagger 规则并返回稳定 rule_id；不允许伪造内置规则 |
 | 歌词规则 | `lyric_rules.update` | C/S | 按稳定 rule_id 稀疏修改一条自定义规则；内置规则内容不可修改 |
@@ -49,6 +47,3 @@
 | 歌词规则 | `lyric_rules.set_enabled` | C/S | 单独启停一条内置或自定义规则 |
 | 歌词规则 | `lyric_rules.move` | C/S | 在 splitter 或 tagger 各自的有序规则集中移动一条规则 |
 | 歌词规则 | `lyric_rules.test` | Q/S | 用给定文本运行当前 splitter → tagger 流水线并返回逐阶段结果，不写配置 |
-| Speaker Mix 预设 | `speaker_mix_presets.list` | Q/S | 返回预设 ID、名称、适用声库、来源和权重 |
-| Speaker Mix 预设 | `speaker_mix_presets.save` | C/S | 新建或按 ID 更新一个预设，名称冲突时原子失败 |
-| Speaker Mix 预设 | `speaker_mix_presets.delete` | C/S | 按稳定 ID 删除一个预设；不存在时返回 not_found |
