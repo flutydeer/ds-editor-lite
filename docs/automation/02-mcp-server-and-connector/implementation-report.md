@@ -150,6 +150,8 @@ LibreSVIP 转换抽取为共享 `LibreSVIPConverter`。GUI 转换 Task 与自动
 
 `AutomationAccessPolicy` 分离 preset Profile 与 Custom operation 集合。Editor 的 `tools/list`、Manifest、`automation.get_options` 和 Registry 执行期 dispatch 都读取同一策略；工具列表缓存不能替代每次调用时的授权检查。Connector exposure 只决定下游可见面，Editor 仍执行最终授权。
 
+`L3` 在产品文案中称为“进阶控制”（Advanced Control），表示在 L2 之上按明确范围增加部分 GUI 自动化操作与设置项更改，而非不受限制的完全控制；自动化/MCP 自身的配置和运行生命周期明确排除在外。
+
 Allowed Read Folders 与 Allowed Write Folders 是自动化文件工具的规范路径 allowlist：前者约束打开、导入、检查和读取素材等操作，后者约束保存、导出等写操作。它们不表示本机进程权限，也不改变非文件工具的能力。`AutomationFileGuard` 还分离持久根与会话 grant，处理路径组件边界、相对路径、相邻前缀、链接/重解析点和未创建输出的最近现存父目录；授权后、实际 I/O 前会再次检查 canonical 目标。
 
 业务 Admission 同时限制全局、逻辑客户端、后台 Task、并发域和令牌桶。业务层与 HTTP Transport 的每逻辑客户端在途上限均为 32，突发令牌容量均为 64，使正常握手和基线查询后仍可提交完整 32 路并发；Connector 直接并发转发，不增加串行排队。超限请求在 handler 前返回稳定错误，不进入业务层；RAII lease 在成功、失败或取消时释放，异步 lease 延续到 Task 终态。HTTP Transport 另有 global 与 peer 限制。

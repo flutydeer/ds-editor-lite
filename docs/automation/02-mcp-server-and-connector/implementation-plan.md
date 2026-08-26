@@ -137,6 +137,8 @@ selectedProfile = l1 | l2 | l3 | custom
 customPermissions[stableOperationId] = enabled | disabled
 ```
 
+`L3` 的显示名称和能力含义统一为“进阶控制”（Advanced Control）：在 L2 之上仅增加经明确纳入的部分 GUI 自动化操作和设置项更改，不表示或承诺完全控制。自动化/MCP 自身的配置与运行生命周期不属于可由 MCP 修改的对象。
+
 Meta 工具构成握手、发现和诊断面。Preset 使用最低 Profile 的累积关系；Custom 使用稳定 operation ID 的显式集合。切换 preset 保留 Custom 配置，切回 Custom 恢复先前选择；新增 operation 在无持久记录时采用安全默认。
 
 同一 `AutomationAccessPolicy` 同时控制：

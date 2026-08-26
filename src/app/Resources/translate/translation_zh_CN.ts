@@ -294,8 +294,8 @@
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="243"/>
-        <source>L3 - Full Control</source>
-        <translation>L3 - 完整控制</translation>
+        <source>L3 - Advanced Control</source>
+        <translation>L3 - 进阶控制</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="244"/>

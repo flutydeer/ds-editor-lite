@@ -298,7 +298,8 @@ QWidget *AutomationPage::createContentWidget() {
     m_profile->addItem(tr("L1 - Basic Editing"), static_cast<int>(AutomationOption::Profile::L1));
     m_profile->addItem(tr("L2 - Complete Creation"),
                        static_cast<int>(AutomationOption::Profile::L2));
-    m_profile->addItem(tr("L3 - Full Control"), static_cast<int>(AutomationOption::Profile::L3));
+    m_profile->addItem(tr("L3 - Advanced Control"),
+                       static_cast<int>(AutomationOption::Profile::L3));
     m_profile->addItem(tr("Custom"), static_cast<int>(AutomationOption::Profile::Custom));
     m_profile->setCurrentIndex(m_profile->findData(static_cast<int>(m_effectiveConfig.profile)));
     m_profile->setEnabled(m_effectiveConfig.profileSource ==
