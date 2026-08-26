@@ -103,7 +103,7 @@ namespace Automation {
                          AudioExportConfigDto config, AudioExportObserver observer,
                          const std::shared_ptr<PendingJobState> &state);
         AutomationResult<std::reference_wrapper<DocumentSession>>
-            resolveVersion(const DocumentVersion &version) const;
+            resolveDocumentGeneration(const DocumentVersion &version) const;
 
         OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;

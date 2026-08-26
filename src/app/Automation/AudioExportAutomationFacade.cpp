@@ -395,7 +395,7 @@ namespace Automation {
             m_tasks.cancel(taskId);
             return;
         }
-        auto resolved = resolveVersion(baseDocument);
+        auto resolved = resolveDocumentGeneration(baseDocument);
         if (!resolved) {
             m_tasks.fail(taskId, taskError(resolved.getError(), taskId));
             return;
@@ -481,37 +481,38 @@ namespace Automation {
             return;
         }
 
-        resolved = resolveVersion(baseDocument);
+        resolved = resolveDocumentGeneration(baseDocument);
         if (!resolved) {
             cleanup();
             m_tasks.fail(taskId, taskError(resolved.getError(), taskId));
             return;
         }
+        const auto currentDocument = resolved.get().get().version();
         const auto committing = m_tasks.beginCommitting(taskId);
         if (!committing || !committing.get()) {
             cleanup();
             return;
         }
         MutationResult mutation;
-        mutation.previous = baseDocument;
-        mutation.current = baseDocument;
+        mutation.previous = currentDocument;
+        mutation.current = currentDocument;
         mutation.warnings = std::move(warnings);
         if (!m_tasks.succeed(taskId, std::move(mutation)))
             cleanupIfRequested();
     }
 
     AutomationResult<std::reference_wrapper<DocumentSession>>
-        AudioExportAutomationFacade::resolveVersion(const DocumentVersion &version) const {
+        AudioExportAutomationFacade::resolveDocumentGeneration(
+            const DocumentVersion &version) const {
         auto resolved = m_documentResolver.resolveDocument(version.documentId);
         if (!resolved)
             return resolved.getError();
         auto &session = resolved.get().get();
         if (session.lifecycleState() != DocumentLifecycleState::Active)
             return AutomationError::documentBusy(session.documentId());
-        if (session.revision() != version.revision) {
-            return AutomationError::revisionConflict(session.documentId(), version.revision,
-                                                     session.revision());
-        }
+        const auto rebased = rebaseTaskVersionWithinGeneration(version, session.version());
+        if (!rebased)
+            return rebased.getError();
         return std::ref(session);
     }
 
