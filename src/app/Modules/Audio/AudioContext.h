@@ -41,6 +41,7 @@ public:
     static AudioContext *instance();
 
     [[nodiscard]] ExportInferenceStatus exportInferenceStatus() const;
+    [[nodiscard]] ExportInferenceStatus exportInferenceStatus(const QList<Track *> &tracks) const;
 
     Track *getTrackFromContext(const talcs::DspxTrackContext *trackContext) const;
     AudioClip *getAudioClipFromContext(const talcs::DspxAudioClipContext *audioClipContext) const;

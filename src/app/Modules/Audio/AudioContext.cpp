@@ -232,8 +232,13 @@ AudioContext *AudioContext::instance() {
 }
 
 AudioContext::ExportInferenceStatus AudioContext::exportInferenceStatus() const {
+    return exportInferenceStatus(m_trackInferDict.keys());
+}
+
+AudioContext::ExportInferenceStatus
+    AudioContext::exportInferenceStatus(const QList<Track *> &tracks) const {
     auto result = ExportInferenceStatus::Ready;
-    for (const auto track : m_trackInferDict.keys()) {
+    for (const auto track : tracks) {
         for (const auto clip : track->clips()) {
             if (clip->clipType() != Clip::Singing)
                 continue;

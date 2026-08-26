@@ -5,6 +5,7 @@
 #include "Modules/Audio/AudioExporter_p.h"
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/ProjectModel/AppModel/Track.h>
 
 #include <QCoreApplication>
 #include <QDir>
@@ -55,7 +56,7 @@ namespace Automation {
     class AudioExportJobAdapter final : public IAudioExportJob {
     public:
         AudioExportJobAdapter(AppModel *model, QString projectPath, AudioExportConfigDto config)
-            : m_audioContext(AudioContext::instance()),
+            : m_model(model), m_audioContext(AudioContext::instance()),
               m_exporter(std::make_unique<Audio::AudioExporter>(nullptr)) {
             m_config = std::move(config);
             if (m_config.sourceOption == Audio::AudioExporterConfig::SO_All) {
@@ -64,6 +65,10 @@ namespace Automation {
                 for (int index = 0; index < model->tracks().size(); ++index)
                     m_config.sources.append(index);
             }
+            const auto tracks = model->tracks();
+            m_sourceTracks.reserve(m_config.sources.size());
+            for (const auto source : m_config.sources)
+                m_sourceTracks.append(tracks.at(source));
             m_exporter->configureAutomationBackend(model, std::move(projectPath),
                                                    m_audioContext.data());
             m_exporter->setConfigInternal(fromAutomationDto(m_config));
@@ -83,14 +88,26 @@ namespace Automation {
                 return {.state = AudioExportBackendState::Failed,
                         .errorMessage = QStringLiteral("Audio context is unavailable")};
             }
-            auto inferenceStatus = m_audioContext->exportInferenceStatus();
+            QList<Track *> sourceTracks;
+            if (!resolveSourceTracks(sourceTracks)) {
+                return {.state = AudioExportBackendState::Failed,
+                        .errorMessage = QStringLiteral("Audio export sources changed")};
+            }
+            auto inferenceStatus = m_audioContext->exportInferenceStatus(sourceTracks);
             while (inferenceStatus == AudioContext::ExportInferenceStatus::Pending &&
                    !m_cancellationRequested.load(std::memory_order_acquire)) {
                 QEventLoop loop;
                 QTimer::singleShot(25, &loop, &QEventLoop::quit);
                 loop.exec();
-                if (m_audioContext)
-                    inferenceStatus = m_audioContext->exportInferenceStatus();
+                if (!m_audioContext) {
+                    return {.state = AudioExportBackendState::Failed,
+                            .errorMessage = QStringLiteral("Audio context is unavailable")};
+                }
+                if (!resolveSourceTracks(sourceTracks)) {
+                    return {.state = AudioExportBackendState::Failed,
+                            .errorMessage = QStringLiteral("Audio export sources changed")};
+                }
+                inferenceStatus = m_audioContext->exportInferenceStatus(sourceTracks);
             }
             if (m_cancellationRequested.load(std::memory_order_acquire))
                 return {.state = AudioExportBackendState::Canceled};
@@ -147,9 +164,30 @@ namespace Automation {
         }
 
     private:
+        [[nodiscard]] bool resolveSourceTracks(QList<Track *> &result) const {
+            result.clear();
+            const auto tracks = m_model->tracks();
+            if (m_config.sourceOption == Audio::AudioExporterConfig::SO_All &&
+                tracks.size() != m_sourceTracks.size()) {
+                return false;
+            }
+            for (int i = 0; i < m_config.sources.size(); ++i) {
+                const auto source = m_config.sources.at(i);
+                const auto track = m_sourceTracks.at(i);
+                if (!track || source < 0 || source >= tracks.size() ||
+                    tracks.at(source) != track.data()) {
+                    return false;
+                }
+                result.append(track.data());
+            }
+            return true;
+        }
+
+        AppModel *m_model;
         QPointer<AudioContext> m_audioContext;
         std::unique_ptr<Audio::AudioExporter> m_exporter;
         AudioExportConfigDto m_config;
+        QList<QPointer<Track>> m_sourceTracks;
         std::atomic_bool m_cancellationRequested = false;
     };
 
@@ -165,7 +203,7 @@ namespace Automation {
                 return error;
             }
             for (const auto source : config.sources) {
-                if (source >= model->tracks().size()) {
+                if (source < 0 || source >= model->tracks().size()) {
                     return AutomationError::invalidArgument(
                         QStringLiteral("config.sources"),
                         QStringLiteral("Audio export source index is out of range"));
