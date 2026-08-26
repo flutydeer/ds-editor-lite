@@ -443,8 +443,8 @@ namespace {
                     AutomationWire::findPublicTool(QStringLiteral("notes.get"))->toMcpToolJson());
             }
             if (exposeFilteredTool) {
-                tools.append(
-                    AutomationWire::findPublicTool(QStringLiteral("project.get"))->toMcpToolJson());
+                tools.append(AutomationWire::findPublicTool(QStringLiteral("documents.get"))
+                                 ->toMcpToolJson());
             }
             if (exposeInvalidAnnotatedTool) {
                 auto invalid = applicationTool;
@@ -1067,10 +1067,10 @@ namespace {
             .exposure = {.profile = AutomationWire::ExposureProfile::L3},
         });
         ok &= expect(l0.typedContracts().isEmpty(), "l0 must expose no typed editor tools");
-        ok &= expect(l1.typedContracts().size() == 90, "l1 must expose the exact 90 tools");
-        ok &= expect(l2.typedContracts().size() == 128, "l2 must expose all 128 editor tools");
-        ok &= expect(l3.typedContracts().size() == 128,
-                     "the highest preset must include the 128 editor tools");
+        ok &= expect(l1.typedContracts().size() == 91, "l1 must expose the exact 91 tools");
+        ok &= expect(l2.typedContracts().size() == 134, "l2 must expose all 134 editor tools");
+        ok &= expect(l3.typedContracts().size() == 134,
+                     "the highest preset must include the 134 editor tools");
         return ok;
     }
 
@@ -1467,11 +1467,11 @@ namespace {
                                     .value(QStringLiteral("result"))
                                     .toObject();
             const auto tools = result.value(QStringLiteral("tools")).toArray();
-            ok &= expect(tools.size() == 134 &&
+            ok &= expect(tools.size() == 140 &&
                              toolNames(tools) ==
                                  PublicAutomationToolsetExpectations::completeToolIdSet() &&
                              !result.contains(QStringLiteral("nextCursor")),
-                         "the exact 134-tool surface must fit one downstream tools/list page");
+                         "the exact 140-tool surface must fit one downstream tools/list page");
         } else {
             ok &= expect(false, "the frozen L2 downstream list must respond");
         }
@@ -1511,12 +1511,12 @@ namespace {
                                     .value(QStringLiteral("result"))
                                     .toObject();
             const auto tools = result.value(QStringLiteral("tools")).toArray();
-            ok &= expect(tools.size() == 134 &&
+            ok &= expect(tools.size() == 140 &&
                              toolNames(tools) ==
                                  PublicAutomationToolsetExpectations::completeToolIdSet() &&
                              !result.contains(QStringLiteral("nextCursor")) &&
                              !result.contains(QStringLiteral("resultType")),
-                         "the first legacy L2 tools/list must expose all 134 tools without a "
+                         "the first legacy L2 tools/list must expose all 140 tools without a "
                          "cursor");
         } else {
             ok &= expect(false, "the first legacy L2 tools/list must respond");
@@ -2042,7 +2042,7 @@ namespace {
             for (const auto &entry : tools) {
                 const auto descriptor = entry.toObject();
                 containsFiltered |= descriptor.value(QStringLiteral("name")).toString() ==
-                                    QStringLiteral("project.get");
+                                    QStringLiteral("documents.get");
                 descriptorsVersioned &= hasVersionedToolMetadata(descriptor);
             }
             ok &=
@@ -2110,9 +2110,9 @@ namespace {
                 AutomationWire::Mcp::makeRequest(
                     QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
                     QJsonObject{
-                        {QStringLiteral("name"),      QStringLiteral("editor.tools.search")   },
+                        {QStringLiteral("name"),      QStringLiteral("editor.tools.search")     },
                         {QStringLiteral("arguments"),
-                         QJsonObject{{QStringLiteral("query"), QStringLiteral("project.get")}}},
+                         QJsonObject{{QStringLiteral("query"), QStringLiteral("documents.get")}}},
         },
                     context, QStringLiteral("filtered-search")))
                 .toJson(QJsonDocument::Compact));
@@ -2136,9 +2136,9 @@ namespace {
                 AutomationWire::Mcp::makeRequest(
                     QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
                     QJsonObject{
-                        {QStringLiteral("name"),      QStringLiteral("editor.tools.describe")},
+                        {QStringLiteral("name"),      QStringLiteral("editor.tools.describe")  },
                         {QStringLiteral("arguments"),
-                         QJsonObject{{QStringLiteral("name"), QStringLiteral("project.get")}}},
+                         QJsonObject{{QStringLiteral("name"), QStringLiteral("documents.get")}}},
         },
                     context, QStringLiteral("filtered-describe")))
                 .toJson(QJsonDocument::Compact));
@@ -2164,7 +2164,7 @@ namespace {
                                   {QStringLiteral("name"),      QStringLiteral("editor.tools.invoke")},
                                   {QStringLiteral("arguments"),
                                    QJsonObject{
-                                       {QStringLiteral("name"), QStringLiteral("project.get")},
+                                       {QStringLiteral("name"), QStringLiteral("documents.get")},
                                        {QStringLiteral("arguments"), QJsonObject{}},
                                    }                                                                 },
         },
@@ -2180,7 +2180,7 @@ namespace {
                                   .value(QStringLiteral("code"))
                                   .toString();
             ok &= expect(code == QStringLiteral("connector_tool_filtered") &&
-                             !http.calledTools.contains(QStringLiteral("project.get")),
+                             !http.calledTools.contains(QStringLiteral("documents.get")),
                          "generic invoke must not bypass connector exposure");
         } else {
             ok &= expect(false, "filtered generic invoke must return a result");
@@ -3252,7 +3252,7 @@ namespace {
             ok &=
                 expect(statusStable && statusElapsedMs < 400,
                        "cached get_status must remain content-stable and complete 256 reads within "
-                       "400 ms after a 128-tool handshake");
+                       "400 ms after a 134-tool handshake");
         }
         QJsonObject described;
         runtime.callTool(
@@ -3460,7 +3460,7 @@ namespace {
                            .toObject()
                            .value(QStringLiteral("tools"))
                            .toArray()
-                           .size() == 134;
+                           .size() == 140;
         };
         QProcess largeOutput;
         largeOutput.setProgram(executable);
@@ -3475,7 +3475,7 @@ namespace {
                          largeOutput.exitCode() == 0 && largeResponse.size() > 64 * 1024 &&
                          validCompleteToolList(largeResponse) &&
                          largeOutput.readAllStandardError().isEmpty(),
-                     "the complete 134-tool response must drain as one valid large JSON frame");
+                     "the complete 140-tool response must drain as one valid large JSON frame");
 
         const auto slowSinkPath =
             QDir::temp().filePath(QStringLiteral("DsConnectorLite-slow-stdout-%1.json")
@@ -3501,13 +3501,14 @@ namespace {
             slowResponse = slowSinkResult.readAll();
         slowSinkResult.close();
         QFile::remove(slowSinkPath);
-        ok &= expect(slowOutputFinished && slowSinkFinished &&
-                         slowOutput.exitStatus() == QProcess::NormalExit && slowOutput.exitCode() == 0 &&
-                         slowSink.exitStatus() == QProcess::NormalExit && slowSink.exitCode() == 0 &&
-                         slowResponse.size() > 64 * 1024 && validCompleteToolList(slowResponse) &&
-                         slowOutput.readAllStandardError().isEmpty() &&
-                         slowSink.readAllStandardError().isEmpty(),
-                     "a slow reader must drain the complete large frame through sustained progress");
+        ok &= expect(
+            slowOutputFinished && slowSinkFinished &&
+                slowOutput.exitStatus() == QProcess::NormalExit && slowOutput.exitCode() == 0 &&
+                slowSink.exitStatus() == QProcess::NormalExit && slowSink.exitCode() == 0 &&
+                slowResponse.size() > 64 * 1024 && validCompleteToolList(slowResponse) &&
+                slowOutput.readAllStandardError().isEmpty() &&
+                slowSink.readAllStandardError().isEmpty(),
+            "a slow reader must drain the complete large frame through sustained progress");
 
         QProcess blockedOutput;
         QProcess blockingSink;
@@ -3606,8 +3607,9 @@ int main(int argc, char *argv[]) {
     const auto arguments = application.arguments();
     const auto slowSinkIndex = arguments.indexOf(QStringLiteral("--slow-stdio-sink"));
     if (slowSinkIndex >= 0)
-        return slowSinkIndex + 1 < arguments.size() ? runSlowStdioSink(arguments.at(slowSinkIndex + 1))
-                                                   : 2;
+        return slowSinkIndex + 1 < arguments.size()
+                   ? runSlowStdioSink(arguments.at(slowSinkIndex + 1))
+                   : 2;
     bool ok = true;
     const auto only = [&](const QString &name) {
         return arguments.size() == 1 || arguments.contains(QStringLiteral("--") + name);

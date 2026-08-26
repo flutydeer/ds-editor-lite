@@ -355,8 +355,8 @@ namespace {
         bool ok = true;
         const auto &tools = publicToolContracts();
         const auto expectedIds = PublicAutomationToolsetExpectations::editorToolIds();
-        ok &= expect(tools.size() == 128,
-                     QStringLiteral("public declaration must contain 128 editor tools"));
+        ok &= expect(tools.size() == 134,
+                     QStringLiteral("public declaration must contain 134 editor tools"));
         ok &=
             expect(publicToolIds() == expectedIds,
                    QStringLiteral("public declaration must exactly match the frozen tool matrix"));
@@ -504,10 +504,10 @@ namespace {
                 !findPublicTool(QStringLiteral("inference.start"))->valueSources.isEmpty(),
             QStringLiteral("controlled dynamic fields must publish discoverable value sources"));
         ok &= expect(toolsForProfile(AutomationProfile::Meta).size() == 4 &&
-                         toolsForProfile(AutomationProfile::L1).size() == 90 &&
-                         toolsForProfile(AutomationProfile::L2).size() == 128 &&
-                         toolsForProfile(AutomationProfile::L3).size() == 128,
-                     QStringLiteral("public preset counts must be 4/90/128/128"));
+                         toolsForProfile(AutomationProfile::L1).size() == 91 &&
+                         toolsForProfile(AutomationProfile::L2).size() == 134 &&
+                         toolsForProfile(AutomationProfile::L3).size() == 134,
+                     QStringLiteral("public preset counts must be 4/91/134/134"));
         ok &= expect(
             toolsForProfile(AutomationProfile::Custom, {QStringLiteral("notes.insert")}).size() ==
                 5,
@@ -516,7 +516,7 @@ namespace {
         const auto manifest = buildPublicManifest(AutomationProfile::L1);
         const auto page =
             buildPublicManifest(AutomationProfile::L1, {}, QStringLiteral("gui"), 0, 7);
-        ok &= expect(manifest.toolsetVersion == 1 && manifest.operations.size() == 90 &&
+        ok &= expect(manifest.toolsetVersion == 1 && manifest.operations.size() == 91 &&
                          !manifest.digest.isEmpty() && page.operations.size() == 7 &&
                          page.digest == manifest.digest && !page.nextCursor.isEmpty(),
                      QStringLiteral("public Manifest must be versioned, digested and pageable"));
@@ -563,36 +563,35 @@ namespace {
         const auto setLoopProperties = propertiesFor(QStringLiteral("playback.set_loop"));
         const auto setLoopDescriptor = setLoop->toManifestJson();
         QJsonObject integerLoop{
-            {QStringLiteral("document_id"),
-             QStringLiteral("00000000-0000-4000-8000-000000000001")},
-            {QStringLiteral("expected_revision"), 0  },
-            {QStringLiteral("start"),             120},
-            {QStringLiteral("end"),               960},
+            {QStringLiteral("document_id"),       QStringLiteral("00000000-0000-4000-8000-000000000001")},
+            {QStringLiteral("expected_revision"), 0                                                     },
+            {QStringLiteral("start"),             120                                                   },
+            {QStringLiteral("end"),               960                                                   },
         };
         auto fractionalLoop = integerLoop;
         fractionalLoop.insert(QStringLiteral("end"), 960.5);
-        ok &= expect(
-            setLoop && seek &&
-                setLoopRequired.contains(QStringLiteral("document_id")) &&
-                setLoopRequired.contains(QStringLiteral("expected_revision")) &&
-                !setLoopRequired.contains(QStringLiteral("expected_state_version")) &&
-                setLoopProperties.contains(QStringLiteral("expected_state_version")) &&
-                setLoopProperties.contains(QStringLiteral("idempotency_key")) &&
-                validateJsonValue(integerLoop, setLoop->inputSchema).valid() &&
-                !validateJsonValue(fractionalLoop, setLoop->inputSchema).valid() &&
-                setLoop->outputSchema.value(QStringLiteral("properties"))
-                    .toObject()
-                    .contains(QStringLiteral("previous")) &&
-                setLoop->outputSchema.value(QStringLiteral("properties"))
-                    .toObject()
-                    .contains(QStringLiteral("playback")) &&
-                setLoopDescriptor.value(QStringLiteral("document_policy")) ==
-                    QStringLiteral("write") &&
-                setLoopDescriptor.value(QStringLiteral("history_policy")) ==
-                    QStringLiteral("single_entry") &&
-                !propertiesFor(QStringLiteral("playback.seek"))
-                     .contains(QStringLiteral("expected_revision")),
-            QStringLiteral("persistent loop edits and transient seek must publish distinct contracts"));
+        ok &=
+            expect(setLoop && seek && setLoopRequired.contains(QStringLiteral("document_id")) &&
+                       setLoopRequired.contains(QStringLiteral("expected_revision")) &&
+                       !setLoopRequired.contains(QStringLiteral("expected_state_version")) &&
+                       setLoopProperties.contains(QStringLiteral("expected_state_version")) &&
+                       setLoopProperties.contains(QStringLiteral("idempotency_key")) &&
+                       validateJsonValue(integerLoop, setLoop->inputSchema).valid() &&
+                       !validateJsonValue(fractionalLoop, setLoop->inputSchema).valid() &&
+                       setLoop->outputSchema.value(QStringLiteral("properties"))
+                           .toObject()
+                           .contains(QStringLiteral("previous")) &&
+                       setLoop->outputSchema.value(QStringLiteral("properties"))
+                           .toObject()
+                           .contains(QStringLiteral("playback")) &&
+                       setLoopDescriptor.value(QStringLiteral("document_policy")) ==
+                           QStringLiteral("write") &&
+                       setLoopDescriptor.value(QStringLiteral("history_policy")) ==
+                           QStringLiteral("single_entry") &&
+                       !propertiesFor(QStringLiteral("playback.seek"))
+                            .contains(QStringLiteral("expected_revision")),
+                   QStringLiteral(
+                       "persistent loop edits and transient seek must publish distinct contracts"));
         const auto replaceProperties = propertiesFor(QStringLiteral("parameters.replace"));
         const auto drawProperties = propertiesFor(QStringLiteral("parameters.draw"));
         const auto insertAnchorProperties =
@@ -658,9 +657,9 @@ namespace {
         const auto audioArguments = [&](QJsonObject options) {
             return QJsonObject{
                 {QStringLiteral("document_id"),
-                 QStringLiteral("00000000-0000-4000-8000-000000000001")},
-                {QStringLiteral("path"),    QStringLiteral("export.wav")},
-                {QStringLiteral("options"), options                       },
+                 QStringLiteral("00000000-0000-4000-8000-000000000001")     },
+                {QStringLiteral("path"),        QStringLiteral("export.wav")},
+                {QStringLiteral("options"),     options                     },
             };
         };
         auto allAudioOptions = commonAudioOptions;
@@ -673,16 +672,21 @@ namespace {
         customWithIds.insert(QStringLiteral("source_ids"), QJsonArray{1});
         auto audioWithRange = allAudioOptions;
         audioWithRange.insert(QStringLiteral("range"),
-                              QJsonObject{{QStringLiteral("start"), 0},
-                                          {QStringLiteral("end"), 480}});
+                              QJsonObject{
+                                  {QStringLiteral("start"), 0  },
+                                  {QStringLiteral("end"),   480}
+        });
         ok &= expect(
             audioPreview &&
-                validateJsonValue(audioArguments(allAudioOptions), audioPreview->inputSchema).valid() &&
+                validateJsonValue(audioArguments(allAudioOptions), audioPreview->inputSchema)
+                    .valid() &&
                 !validateJsonValue(audioArguments(allWithIds), audioPreview->inputSchema).valid() &&
                 !validateJsonValue(audioArguments(customAudioOptions), audioPreview->inputSchema)
                      .valid() &&
-                validateJsonValue(audioArguments(customWithIds), audioPreview->inputSchema).valid() &&
-                !validateJsonValue(audioArguments(audioWithRange), audioPreview->inputSchema).valid(),
+                validateJsonValue(audioArguments(customWithIds), audioPreview->inputSchema)
+                    .valid() &&
+                !validateJsonValue(audioArguments(audioWithRange), audioPreview->inputSchema)
+                     .valid(),
             QStringLiteral("audio export source mode must conditionally require source_ids and "
                            "reject unsupported ranges"));
 
@@ -691,10 +695,10 @@ namespace {
             return QJsonObject{
                 {QStringLiteral("document_id"),
                  QStringLiteral("00000000-0000-4000-8000-000000000001")},
-                {QStringLiteral("expected_revision"),    0          },
-                {QStringLiteral("source_audio_clip_id"), 1          },
-                {QStringLiteral("destination"),          destination},
-                {QStringLiteral("options"),              QJsonObject{}},
+                {QStringLiteral("expected_revision"),    0             },
+                {QStringLiteral("source_audio_clip_id"), 1             },
+                {QStringLiteral("destination"),          destination   },
+                {QStringLiteral("options"),              QJsonObject{} },
             };
         };
         const QJsonObject createDestination{
@@ -808,10 +812,10 @@ namespace {
                          QStringLiteral("TaskAccepted must require task_id and document for %1")
                              .arg(tool.operationId));
         }
-        ok &= expect(
-            asynchronousCount == 10,
-            QStringLiteral("all ten asynchronous public tools must share the discriminated "
-                           "TaskAccepted schema"));
+        ok &=
+            expect(asynchronousCount == 10,
+                   QStringLiteral("all ten asynchronous public tools must share the discriminated "
+                                  "TaskAccepted schema"));
 
         const auto parameterSourcePaths = [](const QString &id) {
             QSet<QString> paths;
@@ -837,8 +841,8 @@ namespace {
             QStringLiteral("parameter value sources must map only capability-backed enum "
                            "fields"));
         ok &= expect(
-            parameterSourcePaths(QStringLiteral("notes.fill_lyrics")).contains(
-                QStringLiteral("/options/language/language_id")),
+            parameterSourcePaths(QStringLiteral("notes.fill_lyrics"))
+                .contains(QStringLiteral("/options/language/language_id")),
             QStringLiteral("fill-lyrics explicit language must publish a dynamic value source"));
 
         const auto mcpTool = tools.first().toMcpToolJson();
@@ -854,10 +858,10 @@ namespace {
     bool testExposurePolicy() {
         bool ok = true;
         ok &= expect(selectExposure({ExposureProfile::L0}).exposedIds.size() == 0 &&
-                         selectExposure({ExposureProfile::L1}).exposedIds.size() == 90 &&
-                         selectExposure({ExposureProfile::L2}).exposedIds.size() == 128 &&
-                         selectExposure({ExposureProfile::L3}).exposedIds.size() == 128,
-                     QStringLiteral("connector exposure preset counts must be 0/90/128/128"));
+                         selectExposure({ExposureProfile::L1}).exposedIds.size() == 91 &&
+                         selectExposure({ExposureProfile::L2}).exposedIds.size() == 134 &&
+                         selectExposure({ExposureProfile::L3}).exposedIds.size() == 134,
+                     QStringLiteral("connector exposure preset counts must be 0/91/134/134"));
 
         const ExposureConfig filtered{
             .profile = ExposureProfile::L0,
@@ -881,7 +885,7 @@ namespace {
         auto targets = publicExposureTargets();
         targets.append(
             {QStringLiteral("future.gui_tool"), QStringLiteral("future"), AutomationProfile::L3});
-        ok &= expect(selectExposure({ExposureProfile::L2}, targets).exposedIds.size() == 128 &&
+        ok &= expect(selectExposure({ExposureProfile::L2}, targets).exposedIds.size() == 134 &&
                          selectExposure({ExposureProfile::L3}, targets)
                              .exposedIds.contains(QStringLiteral("future.gui_tool")),
                      QStringLiteral("higher exposure presets must include higher-profile targets"));

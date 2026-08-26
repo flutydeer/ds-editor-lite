@@ -241,6 +241,86 @@ namespace Automation {
                    (value - spec.minimum) % spec.step == 0;
         }
 
+        bool validInterpolation(const AnchorNode::InterpMode interpolation) {
+            return interpolation == AnchorNode::Linear || interpolation == AnchorNode::Hermite ||
+                   interpolation == AnchorNode::None;
+        }
+
+        AutomationResult<AutomationUnit> validateAnchorDrafts(const QList<AnchorInsertDto> &anchors,
+                                                              const QString &fieldPath,
+                                                              const int minimumCount = 1) {
+            if (anchors.size() < minimumCount) {
+                return AutomationError::invalidArgument(
+                    fieldPath, QStringLiteral("An anchor curve requires at least two anchors"));
+            }
+            QSet<int> positions;
+            for (const auto &anchor : anchors) {
+                if (anchor.position < 0) {
+                    return AutomationError::invalidArgument(
+                        fieldPath + QStringLiteral(".position"),
+                        QStringLiteral("Anchor position must be non-negative"));
+                }
+                if (!validInterpolation(anchor.interpolation)) {
+                    return AutomationError::invalidArgument(
+                        fieldPath + QStringLiteral(".interpolation"),
+                        QStringLiteral("Interpolation must be Hermite, linear, or step"));
+                }
+                if (positions.contains(anchor.position)) {
+                    return AutomationError::invalidArgument(
+                        fieldPath + QStringLiteral(".position"),
+                        QStringLiteral("Anchor positions must be unique"));
+                }
+                positions.insert(anchor.position);
+            }
+            return AutomationUnit{};
+        }
+
+        std::optional<QPair<int, int>> anchorCurveRange(const CurveDraftDto &curve) {
+            if (curve.type != CurveDraftDto::Type::Anchor || curve.nodes.isEmpty())
+                return std::nullopt;
+            auto minimum = curve.nodes.constFirst().position;
+            auto maximum = minimum;
+            for (const auto &node : curve.nodes) {
+                minimum = std::min(minimum, node.position);
+                maximum = std::max(maximum, node.position);
+            }
+            return QPair<int, int>{minimum, maximum};
+        }
+
+        bool rangesOverlap(const QPair<int, int> &left, const QPair<int, int> &right) {
+            return left.first <= right.second && right.first <= left.second;
+        }
+
+        AutomationResult<AutomationUnit>
+            validateTargetAnchorRange(const QList<CurveDraftDto> &curves, const CurveId targetId,
+                                      const QString &fieldPath) {
+            const CurveDraftDto *target = nullptr;
+            for (const auto &curve : curves) {
+                if (curve.id == targetId) {
+                    target = &curve;
+                    break;
+                }
+            }
+            if (!target)
+                return AutomationError::notFound({ObjectKind::Curve, targetId.value()},
+                                                 QStringLiteral("Anchor curve was not found"));
+            const auto targetRange = anchorCurveRange(*target);
+            if (!targetRange)
+                return AutomationError::invalidArgument(
+                    fieldPath, QStringLiteral("The target is not a complete anchor curve"));
+            for (const auto &curve : curves) {
+                if (curve.id == targetId)
+                    continue;
+                const auto range = anchorCurveRange(curve);
+                if (range && rangesOverlap(*targetRange, *range)) {
+                    return AutomationError::invalidArgument(
+                        fieldPath,
+                        QStringLiteral("The anchor curve would overlap another anchor curve"));
+                }
+            }
+            return AutomationUnit{};
+        }
+
         bool validCurveValues(const ParamInfo::Name name, const QList<CurveDraftDto> &curves) {
             for (const auto &curve : curves) {
                 for (const auto value : curve.values) {
@@ -396,7 +476,8 @@ namespace Automation {
     AutomationResult<MutationResult> ParameterAutomationFacade::mutateParameter(
         const OperationId &operationId, const CommandContext &context,
         const QByteArray &operationTag, const QByteArray &requestFingerprint, const ClipId clipId,
-        const ParamInfo::Name name, const Param::Type type, CurveMutation mutation) {
+        const ParamInfo::Name name, const Param::Type type, CurveMutation mutation,
+        QString createdCurveClientRef) {
         auto isolatedContext = context;
         if (!isolatedContext.idempotencyKey.isEmpty()) {
             isolatedContext.idempotencyKey = QString::fromLatin1(operationTag) + QLatin1Char(':') +
@@ -404,7 +485,8 @@ namespace Automation {
         }
         return m_dispatcher.dispatchDocumentCommand(
             operationId, isolatedContext, requestFingerprint,
-            [this, clipId, name, type, mutation = std::move(mutation)](DocumentSession &session,
+            [this, clipId, name, type, mutation = std::move(mutation),
+             createdCurveClientRef = std::move(createdCurveClientRef)](DocumentSession &session,
                                                                        const bool validateOnly) {
                 auto resolved = m_objects.singingClip(session, clipId);
                 if (!resolved)
@@ -438,15 +520,23 @@ namespace Automation {
 
                 std::vector<std::unique_ptr<Curve>> ownedCurves;
                 QList<Curve *> rawCurves;
+                QList<CreatedObjectRef> createdObjects;
                 ownedCurves.reserve(static_cast<size_t>(curves.size()));
                 for (const auto &draft : curves) {
                     auto curve = buildCurve(draft);
+                    if (!createdCurveClientRef.isEmpty() && !draft.id.isValid() &&
+                        curve->type() == Curve::Anchor) {
+                        createdObjects.append({
+                            createdCurveClientRef, {ObjectKind::Curve, curve->id()}
+                        });
+                    }
                     rawCurves.append(curve.get());
                     ownedCurves.push_back(std::move(curve));
                 }
                 auto actions = std::make_unique<ParamsActions>();
                 actions->replaceParam(name, type, rawCurves, clip);
-                return m_committer.commit(session, std::move(actions), affected);
+                return m_committer.commit(session, std::move(actions), affected,
+                                          std::move(createdObjects));
             });
     }
 
@@ -550,20 +640,18 @@ namespace Automation {
 
     AutomationResult<MutationResult> ParameterAutomationFacade::insertAnchor(
         const CommandContext &context, const ClipId clipId, const ParamInfo::Name name,
-        const Param::Type type, const std::optional<CurveId> curveId, const int position,
-        const int value, const AnchorNode::InterpMode interpolation) {
+        const Param::Type type, const CurveId curveId, const int position, const int value,
+        const AnchorNode::InterpMode interpolation) {
         return insertAnchors(context, clipId, name, type, curveId,
                              {
                                  {position, value, interpolation}
         });
     }
 
-    AutomationResult<MutationResult>
-        ParameterAutomationFacade::insertAnchors(const CommandContext &context, const ClipId clipId,
-                                                 const ParamInfo::Name name, const Param::Type type,
-                                                 const std::optional<CurveId> curveId,
-                                                 const QList<AnchorInsertDto> &anchors) {
-        QList<qint64> scalars{curveId ? curveId->value() : -1, anchors.size()};
+    AutomationResult<MutationResult> ParameterAutomationFacade::insertAnchors(
+        const CommandContext &context, const ClipId clipId, const ParamInfo::Name name,
+        const Param::Type type, const CurveId curveId, const QList<AnchorInsertDto> &anchors) {
+        QList<qint64> scalars{curveId.value(), anchors.size()};
         for (const auto &anchor : anchors) {
             scalars.append(anchor.position);
             scalars.append(anchor.value);
@@ -577,34 +665,28 @@ namespace Automation {
             [curveId, anchors](QList<CurveDraftDto> &curves) -> AutomationResult<bool> {
                 if (anchors.isEmpty())
                     return false;
+                if (!curveId.isValid()) {
+                    return AutomationError::invalidArgument(QStringLiteral("curve_id"),
+                                                            QStringLiteral("Curve ID is invalid"));
+                }
+                const auto validation = validateAnchorDrafts(anchors, QStringLiteral("anchors"));
+                if (!validation)
+                    return validation.getError();
                 CurveDraftDto *target = nullptr;
                 for (auto &curve : curves) {
-                    if (curve.type != CurveDraftDto::Type::Anchor)
-                        continue;
-                    if (!curveId || curve.id == *curveId) {
+                    if (curve.type == CurveDraftDto::Type::Anchor && curve.id == curveId) {
                         target = &curve;
                         break;
                     }
                 }
-                if (curveId && !target) {
-                    return AutomationError::notFound({ObjectKind::Curve, curveId->value()},
-                                                     QStringLiteral("Anchor curve was not found"));
-                }
                 if (!target) {
-                    CurveDraftDto created;
-                    created.type = CurveDraftDto::Type::Anchor;
-                    curves.append(std::move(created));
-                    target = &curves.last();
+                    return AutomationError::notFound({ObjectKind::Curve, curveId.value()},
+                                                     QStringLiteral("Anchor curve was not found"));
                 }
                 QSet<int> positions;
                 for (const auto &node : target->nodes)
                     positions.insert(node.position);
                 for (const auto &anchor : anchors) {
-                    if (anchor.position < 0) {
-                        return AutomationError::invalidArgument(
-                            QStringLiteral("anchors.position"),
-                            QStringLiteral("Anchor position must be non-negative"));
-                    }
                     if (positions.contains(anchor.position)) {
                         return AutomationError::invalidArgument(
                             QStringLiteral("anchors.position"),
@@ -617,6 +699,127 @@ namespace Automation {
                           [](const auto &left, const auto &right) {
                               return left.position < right.position;
                           });
+                const auto rangeValidation =
+                    validateTargetAnchorRange(curves, curveId, QStringLiteral("anchors.position"));
+                if (!rangeValidation)
+                    return rangeValidation.getError();
+                return true;
+            });
+    }
+
+    AutomationResult<MutationResult> ParameterAutomationFacade::createAnchorCurve(
+        const CommandContext &context, const ClipId clipId, const ParamInfo::Name name,
+        const Param::Type type, const QString &clientRef, const QList<AnchorInsertDto> &anchors) {
+        if (clientRef.trimmed().isEmpty()) {
+            return AutomationError::invalidArgument(QStringLiteral("client_ref"),
+                                                    QStringLiteral("Client reference is empty"));
+        }
+        QCryptographicHash fingerprintHash(QCryptographicHash::Sha256);
+        fingerprintHash.addData(clientRef.toUtf8());
+        hashInteger(fingerprintHash, anchors.size());
+        for (const auto &anchor : anchors) {
+            hashInteger(fingerprintHash, anchor.position);
+            hashInteger(fingerprintHash, anchor.value);
+            hashInteger(fingerprintHash, static_cast<qint64>(anchor.interpolation));
+        }
+        const auto requestFingerprint = parameterMutationFingerprint(
+            QByteArrayLiteral("create_anchor_curve"), clipId, name, type, {});
+        fingerprintHash.addData(requestFingerprint);
+        return mutateParameter(
+            OperationIds::parameters::create_anchor_curve, context,
+            QByteArrayLiteral("create_anchor_curve"), fingerprintHash.result(), clipId, name, type,
+            [anchors](QList<CurveDraftDto> &curves) -> AutomationResult<bool> {
+                const auto validation = validateAnchorDrafts(anchors, QStringLiteral("anchors"), 2);
+                if (!validation)
+                    return validation.getError();
+                CurveDraftDto created;
+                created.type = CurveDraftDto::Type::Anchor;
+                for (const auto &anchor : anchors) {
+                    created.nodes.append({anchor.position, anchor.value, anchor.interpolation, {}});
+                }
+                std::sort(created.nodes.begin(), created.nodes.end(),
+                          [](const auto &left, const auto &right) {
+                              return left.position < right.position;
+                          });
+                const auto createdRange = anchorCurveRange(created);
+                for (const auto &curve : curves) {
+                    const auto existingRange = anchorCurveRange(curve);
+                    if (existingRange && rangesOverlap(*createdRange, *existingRange)) {
+                        return AutomationError::invalidArgument(
+                            QStringLiteral("anchors.position"),
+                            QStringLiteral("The anchor curve would overlap another anchor curve"));
+                    }
+                }
+                curves.append(std::move(created));
+                return true;
+            },
+            clientRef);
+    }
+
+    AutomationResult<MutationResult> ParameterAutomationFacade::mergeAnchorCurves(
+        const CommandContext &context, const ClipId clipId, const ParamInfo::Name name,
+        const Param::Type type, const CurveId targetCurveId, const CurveId sourceCurveId) {
+        const auto requestFingerprint =
+            parameterMutationFingerprint(QByteArrayLiteral("merge_anchor_curves"), clipId, name,
+                                         type, {targetCurveId.value(), sourceCurveId.value()});
+        return mutateParameter(
+            OperationIds::parameters::merge_anchor_curves, context,
+            QByteArrayLiteral("merge_anchor_curves"), requestFingerprint, clipId, name, type,
+            [targetCurveId, sourceCurveId](QList<CurveDraftDto> &curves) -> AutomationResult<bool> {
+                if (!targetCurveId.isValid() || !sourceCurveId.isValid() ||
+                    targetCurveId == sourceCurveId) {
+                    return AutomationError::invalidArgument(
+                        QStringLiteral("source_curve_id"),
+                        QStringLiteral("Target and source curve IDs must be valid and distinct"));
+                }
+                auto targetIt = curves.end();
+                auto sourceIt = curves.end();
+                for (auto it = curves.begin(); it != curves.end(); ++it) {
+                    if (it->id == targetCurveId)
+                        targetIt = it;
+                    if (it->id == sourceCurveId)
+                        sourceIt = it;
+                }
+                if (targetIt == curves.end()) {
+                    return AutomationError::notFound(
+                        {ObjectKind::Curve, targetCurveId.value()},
+                        QStringLiteral("Target anchor curve was not found"));
+                }
+                if (sourceIt == curves.end()) {
+                    return AutomationError::notFound(
+                        {ObjectKind::Curve, sourceCurveId.value()},
+                        QStringLiteral("Source anchor curve was not found"));
+                }
+                const auto targetRange = anchorCurveRange(*targetIt);
+                const auto sourceRange = anchorCurveRange(*sourceIt);
+                if (!targetRange || !sourceRange) {
+                    return AutomationError::invalidArgument(
+                        QStringLiteral("source_curve_id"),
+                        QStringLiteral("Both curves must be complete anchor curves"));
+                }
+                if (rangesOverlap(*targetRange, *sourceRange)) {
+                    return AutomationError::invalidArgument(
+                        QStringLiteral("source_curve_id"),
+                        QStringLiteral("Overlapping anchor curves cannot be merged"));
+                }
+                const auto leftEnd = std::min(targetRange->second, sourceRange->second);
+                const auto rightStart = std::max(targetRange->first, sourceRange->first);
+                for (const auto &curve : curves) {
+                    if (curve.id == targetCurveId || curve.id == sourceCurveId)
+                        continue;
+                    const auto range = anchorCurveRange(curve);
+                    if (range && range->second > leftEnd && range->first < rightStart) {
+                        return AutomationError::invalidArgument(
+                            QStringLiteral("source_curve_id"),
+                            QStringLiteral("Only adjacent anchor curves can be merged"));
+                    }
+                }
+                targetIt->nodes.append(sourceIt->nodes);
+                std::sort(targetIt->nodes.begin(), targetIt->nodes.end(),
+                          [](const auto &left, const auto &right) {
+                              return left.position < right.position;
+                          });
+                curves.erase(sourceIt);
                 return true;
             });
     }
@@ -696,6 +899,14 @@ namespace Automation {
                             {ObjectKind::Anchor, move.anchorId.value()},
                             QStringLiteral("Anchor was not found"));
                     }
+                }
+                for (const auto &curve : curves) {
+                    if (curve.type != CurveDraftDto::Type::Anchor)
+                        continue;
+                    const auto validation = validateTargetAnchorRange(
+                        curves, curve.id, QStringLiteral("moves.position"));
+                    if (!validation)
+                        return validation.getError();
                 }
                 return changed;
             });
@@ -1594,7 +1805,9 @@ namespace Automation {
         addMutation(OperationIds::parameters::draw);
         addMutation(OperationIds::parameters::erase);
         addMutation(OperationIds::parameters::bake);
+        addMutation(OperationIds::parameters::create_anchor_curve);
         addMutation(OperationIds::parameters::insert_anchors);
+        addMutation(OperationIds::parameters::merge_anchor_curves);
         addMutation(OperationIds::parameters::move_anchors);
         addMutation(OperationIds::parameters::remove_anchors);
         addMutation(OperationIds::parameters::set_anchor_interpolation);

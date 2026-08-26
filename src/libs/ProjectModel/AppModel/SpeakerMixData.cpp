@@ -166,8 +166,11 @@ namespace SpeakerMixModel {
 
     SpeakerMixData preservePresetSourceAsDirty(const SpeakerMixData &oldData,
                                                SpeakerMixData newData) {
-        if (!newData.sourcePresetId.isEmpty() || oldData.sourcePresetId.isEmpty())
+        if (oldData.sourcePresetId.isEmpty() ||
+            (!newData.sourcePresetId.isEmpty() &&
+             newData.sourcePresetId != oldData.sourcePresetId)) {
             return normalizeSpeakerMixData(newData);
+        }
         newData.sourcePresetId = oldData.sourcePresetId;
         newData.sourcePresetName = oldData.sourcePresetName;
         newData.sourcePresetDirty = true;

@@ -11,6 +11,7 @@
 #include <QElapsedTimer>
 #include <QEventLoop>
 #include <QFileInfo>
+#include <QHostAddress>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -18,6 +19,7 @@
 #include <QProcessEnvironment>
 #include <QScopeGuard>
 #include <QSet>
+#include <QTcpServer>
 #include <QTemporaryDir>
 #include <QThread>
 #include <QTextStream>
@@ -448,8 +450,18 @@ namespace {
         editor.setProcessEnvironment(environment);
         editor.setWorkingDirectory(QFileInfo(editorPath).absolutePath());
         editor.setProcessChannelMode(QProcess::SeparateChannels);
+
+        QTcpServer portProbe;
+        if (!portProbe.listen(QHostAddress::LocalHost, 0)) {
+            return fail(QStringLiteral("Could not allocate an isolated editor control port: %1")
+                            .arg(portProbe.errorString()));
+        }
+        const auto controlPort = portProbe.serverPort();
+        portProbe.close();
+
         editor.start(editorPath, {QStringLiteral("--mcp"), QStringLiteral("--automation-profile"),
-                                  QStringLiteral("l2")});
+                                  QStringLiteral("l2"), QStringLiteral("--control-port"),
+                                  QString::number(controlPort)});
         if (!editor.waitForStarted(10000)) {
             return fail(QStringLiteral("Editor failed to start: %1").arg(editor.errorString()));
         }
@@ -471,11 +483,20 @@ namespace {
             watcher.observation().snapshot->result.state == SingleInstanceAutomationState::McpReady;
         if (!ready) {
             const auto &observation = watcher.observation();
+            const auto snapshotState = observation.snapshot
+                                           ? SingleInstanceProtocol::automationStateName(
+                                                 observation.snapshot->result.state)
+                                           : QStringLiteral("none");
+            const auto snapshotError =
+                observation.snapshot ? observation.snapshot->result.error : QString{};
             return fail(
                 QStringLiteral("Editor did not publish mcp_ready; appdata=%1; service=%2; "
-                               "bootstrap=%3; process_state=%4; exit_status=%5; exit_code=%6; "
-                               "stdout=%7; stderr=%8")
-                    .arg(appDataRoot, serviceName, observation.error)
+                               "bootstrap=%3; connected=%4; snapshot_state=%5; "
+                               "snapshot_error=%6; process_state=%7; exit_status=%8; "
+                               "exit_code=%9; stdout=%10; stderr=%11")
+                    .arg(appDataRoot, serviceName, observation.error,
+                         observation.connected ? QStringLiteral("true") : QStringLiteral("false"),
+                         snapshotState, snapshotError)
                     .arg(static_cast<int>(editor.state()))
                     .arg(static_cast<int>(editor.exitStatus()))
                     .arg(editor.exitCode())
@@ -657,6 +678,20 @@ namespace {
                     .arg(compactJson(lastEditorStatus)));
         }
 
+        const QJsonObject documentArguments{
+            {QStringLiteral("document_id"), documentId}
+        };
+        const auto initialDocument = connectorToolContent(
+            connector, 999, QStringLiteral("documents.get"), documentArguments, 10000, toolError);
+        if (!initialDocument) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("Initial connector documents.get failed: %1").arg(toolError));
+        }
+        const auto initialStatistics = initialDocument->value(QStringLiteral("snapshot"))
+                                           .toObject()
+                                           .value(QStringLiteral("statistics"))
+                                           .toObject();
+
         const auto trackClientRef = QStringLiteral("process-integration-track");
         const auto trackName = QStringLiteral("MCP Process Integration Track");
         const QJsonObject insertArguments{
@@ -700,43 +735,39 @@ namespace {
                     .arg(compactJson(*mutation)));
         }
 
-        const QJsonObject documentArguments{
-            {QStringLiteral("document_id"), documentId}
-        };
-        const auto connectorProject = connectorToolContent(
-            connector, 1001, QStringLiteral("project.get"), documentArguments, 10000, toolError);
-        if (!connectorProject) {
+        const auto connectorDocument = connectorToolContent(
+            connector, 1001, QStringLiteral("documents.get"), documentArguments, 10000, toolError);
+        if (!connectorDocument) {
             return failWithProcessDiagnostics(
-                QStringLiteral("Connector project.get failed: %1").arg(toolError));
+                QStringLiteral("Connector documents.get failed: %1").arg(toolError));
         }
-        bool insertedTrackVisible = false;
-        const auto projectSnapshot = connectorProject->value(QStringLiteral("snapshot")).toObject();
-        for (const auto &trackValue : projectSnapshot.value(QStringLiteral("tracks")).toArray()) {
-            const auto track = trackValue.toObject();
-            insertedTrackVisible |=
-                track.value(QStringLiteral("track_id")).toInteger(-1) == createdTrackId &&
-                track.value(QStringLiteral("properties"))
-                        .toObject()
-                        .value(QStringLiteral("name"))
-                        .toString() == trackName;
-        }
-        if (connectorProject->value(QStringLiteral("document"))
+        const auto statistics = connectorDocument->value(QStringLiteral("snapshot"))
+                                    .toObject()
+                                    .value(QStringLiteral("statistics"))
+                                    .toObject();
+        if (connectorDocument->value(QStringLiteral("document"))
                     .toObject()
                     .value(QStringLiteral("revision"))
                     .toInteger(-1) != currentRevision ||
-            !insertedTrackVisible) {
+            statistics.value(QStringLiteral("track_count")).toInteger(-1) !=
+                initialStatistics.value(QStringLiteral("track_count")).toInteger(-1) + 1 ||
+            statistics.value(QStringLiteral("empty_track_count")).toInteger(-1) !=
+                initialStatistics.value(QStringLiteral("empty_track_count")).toInteger(-1) + 1 ||
+            statistics.value(QStringLiteral("clip_count")).toInteger(-1) !=
+                initialStatistics.value(QStringLiteral("clip_count")).toInteger(-1)) {
             return failWithProcessDiagnostics(
                 QStringLiteral(
-                    "project.get did not expose the inserted track at the new revision: %1")
-                    .arg(compactJson(*connectorProject)));
+                    "documents.get did not expose the inserted empty track statistics at the new "
+                    "revision: %1")
+                    .arg(compactJson(*connectorDocument)));
         }
-        const auto directProject = directToolContent(directClient, QStringLiteral("project.get"),
-                                                     documentArguments, 10000, toolError);
-        if (!directProject ||
-            !equivalentContent(QStringLiteral("project.get"), *connectorProject,
-                               directProject.value_or(QJsonObject{}), toolError)) {
+        const auto directDocument = directToolContent(directClient, QStringLiteral("documents.get"),
+                                                      documentArguments, 10000, toolError);
+        if (!directDocument ||
+            !equivalentContent(QStringLiteral("documents.get"), *connectorDocument,
+                               directDocument.value_or(QJsonObject{}), toolError)) {
             return failWithProcessDiagnostics(
-                QStringLiteral("Direct/connector project.get equivalence failed: %1")
+                QStringLiteral("Direct/connector documents.get equivalence failed: %1")
                     .arg(toolError));
         }
 

@@ -12,27 +12,27 @@ namespace {
         QStringList scenarioIds;
     };
 
-#define EXPECTED_DESCRIPTOR(idValue, scenarioValue, categoryValue, kindValue, syncValue,         \
-                            documentValue, revisionValue, historyValue, fileValue, hostValue,    \
-                            safetyValue, exposureValue, idempotencyValue)                         \
-    {                                                                                             \
-        .descriptor =                                                                            \
-            {                                                                                     \
-                .id = Automation::OperationIds::idValue,                                          \
-                .category = QStringLiteral(categoryValue),                                        \
-                .kind = Automation::OperationKind::kindValue,                                     \
-                .syncMode = Automation::SyncMode::syncValue,                                      \
-                .documentPolicy = Automation::DocumentPolicy::documentValue,                      \
-                .revisionPolicy = Automation::RevisionPolicy::revisionValue,                      \
-                .historyPolicy = Automation::HistoryPolicy::historyValue,                         \
-                .fileAccess = Automation::FileAccessPolicy::fileValue,                            \
-                .hostAvailability = Automation::HostAvailability::hostValue,                      \
-                .safety = Automation::SafetyClass::safetyValue,                                   \
-                .exposure = Automation::ExposurePolicy::exposureValue,                            \
-                .idempotency = Automation::IdempotencyPolicy::idempotencyValue,                   \
-            },                                                                                    \
-        .scenarioIds = {QStringLiteral(scenarioValue)},                                           \
-    }
+#define EXPECTED_DESCRIPTOR(idValue, scenarioValue, categoryValue, kindValue, syncValue,           \
+                            documentValue, revisionValue, historyValue, fileValue, hostValue,      \
+                            safetyValue, exposureValue, idempotencyValue)                          \
+    {                                                                                              \
+        .descriptor =                                                                              \
+            {                                                                                      \
+                         .id = Automation::OperationIds::idValue,                                           \
+                         .category = QStringLiteral(categoryValue),                                         \
+                         .kind = Automation::OperationKind::kindValue,                                      \
+                         .syncMode = Automation::SyncMode::syncValue,                                       \
+                         .documentPolicy = Automation::DocumentPolicy::documentValue,                       \
+                         .revisionPolicy = Automation::RevisionPolicy::revisionValue,                       \
+                         .historyPolicy = Automation::HistoryPolicy::historyValue,                          \
+                         .fileAccess = Automation::FileAccessPolicy::fileValue,                             \
+                         .hostAvailability = Automation::HostAvailability::hostValue,                       \
+                         .safety = Automation::SafetyClass::safetyValue,                                    \
+                         .exposure = Automation::ExposurePolicy::exposureValue,                             \
+                         .idempotency = Automation::IdempotencyPolicy::idempotencyValue,                    \
+                         },                                                                                     \
+        .scenarioIds = {QStringLiteral(scenarioValue)},                                            \
+}
 
     const QList<ExpectedOperation> kExpectedOperations{
         EXPECTED_DESCRIPTOR(application::get_info, "AFC-CATALOG-001", "application", Query,
@@ -41,9 +41,9 @@ namespace {
         EXPECTED_DESCRIPTOR(application::request_exit, "AFC-CATALOG-002", "application", Command,
                             Synchronous, None, None, None, None, GuiOnly, Destructive, InternalOnly,
                             Unsupported),
-        EXPECTED_DESCRIPTOR(application::request_restart, "AFC-CATALOG-003", "application",
-                            Command, Synchronous, None, None, None, None, GuiOnly, Destructive,
-                            InternalOnly, Unsupported),
+        EXPECTED_DESCRIPTOR(application::request_restart, "AFC-CATALOG-003", "application", Command,
+                            Synchronous, None, None, None, None, GuiOnly, Destructive, InternalOnly,
+                            Unsupported),
         EXPECTED_DESCRIPTOR(audio_clips::apply_decode_cache, "AFC-CATALOG-004", "audio_clips",
                             Command, Synchronous, Write, None, None, None, Core, Reversible,
                             InternalOnly, DocumentGeneration),
@@ -78,8 +78,9 @@ namespace {
                             DocumentGeneration),
         EXPECTED_DESCRIPTOR(clips::get, "AFC-CATALOG-128", "clips", Query, Synchronous, Read, None,
                             None, None, Core, ReadOnly, InternalOnly, Unsupported),
-        EXPECTED_DESCRIPTOR(clips::get_voice_context, "AFC-CATALOG-129", "clips", Query, Synchronous,
-                            Read, None, None, None, Core, ReadOnly, InternalOnly, Unsupported),
+        EXPECTED_DESCRIPTOR(clips::get_voice_context, "AFC-CATALOG-129", "clips", Query,
+                            Synchronous, Read, None, None, None, Core, ReadOnly, InternalOnly,
+                            Unsupported),
         EXPECTED_DESCRIPTOR(clips::insert, "AFC-CATALOG-010", "clips", Command, Synchronous, Write,
                             Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
@@ -101,34 +102,34 @@ namespace {
                             Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
         EXPECTED_DESCRIPTOR(clips::set_default_language, "AFC-CATALOG-012", "clips", Command,
-                            Synchronous, Write, Increment, Record, None, Core, Reversible, InternalOnly,
+                            Synchronous, Write, Increment, Record, None, Core, Reversible,
+                            InternalOnly, DocumentGeneration),
+        EXPECTED_DESCRIPTOR(clips::set_gain, "AFC-CATALOG-135", "clips", Command, Synchronous,
+                            Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
-        EXPECTED_DESCRIPTOR(clips::set_gain, "AFC-CATALOG-135", "clips", Command, Synchronous, Write,
-                            Increment, Record, None, Core, Reversible, InternalOnly,
-                            DocumentGeneration),
-        EXPECTED_DESCRIPTOR(clips::set_mute, "AFC-CATALOG-136", "clips", Command, Synchronous, Write,
-                            Increment, Record, None, Core, Reversible, InternalOnly,
+        EXPECTED_DESCRIPTOR(clips::set_mute, "AFC-CATALOG-136", "clips", Command, Synchronous,
+                            Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
         EXPECTED_DESCRIPTOR(clips::set_properties, "AFC-CATALOG-013", "clips", Command, Synchronous,
                             Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
-        EXPECTED_DESCRIPTOR(clips::set_voice, "AFC-CATALOG-137", "clips", Command, Synchronous, Write,
-                            Increment, Record, None, Core, Reversible, InternalOnly,
-                            DocumentGeneration),
-        EXPECTED_DESCRIPTOR(clips::use_track_voice, "AFC-CATALOG-138", "clips", Command, Synchronous,
+        EXPECTED_DESCRIPTOR(clips::set_voice, "AFC-CATALOG-137", "clips", Command, Synchronous,
                             Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
+        EXPECTED_DESCRIPTOR(clips::use_track_voice, "AFC-CATALOG-138", "clips", Command,
+                            Synchronous, Write, Increment, Record, None, Core, Reversible,
+                            InternalOnly, DocumentGeneration),
         EXPECTED_DESCRIPTOR(documents::commit_import, "AFC-CATALOG-014", "documents", Command,
                             Synchronous, Write, Increment, Record, None, Core, Reversible,
                             InternalOnly, DocumentGeneration),
         EXPECTED_DESCRIPTOR(documents::commit_new, "AFC-CATALOG-015", "documents", Command,
-                            Synchronous, Replace, Reset, None, None, Core, Destructive, InternalOnly,
-                            Unsupported),
+                            Synchronous, Replace, Reset, None, None, Core, Destructive,
+                            InternalOnly, Unsupported),
         EXPECTED_DESCRIPTOR(documents::commit_open, "AFC-CATALOG-016", "documents", Command,
-                            Synchronous, Replace, Reset, None, None, Core, Destructive, InternalOnly,
-                            Unsupported),
-        EXPECTED_DESCRIPTOR(documents::get, "AFC-CATALOG-017", "documents", Query, Synchronous, Read,
-                            None, None, None, Core, ReadOnly, InternalOnly, Unsupported),
+                            Synchronous, Replace, Reset, None, None, Core, Destructive,
+                            InternalOnly, Unsupported),
+        EXPECTED_DESCRIPTOR(documents::get, "AFC-CATALOG-017", "documents", Query, Synchronous,
+                            Read, None, None, None, Core, ReadOnly, InternalOnly, Unsupported),
         EXPECTED_DESCRIPTOR(documents::import_document, "AFC-CATALOG-139", "documents", Command,
                             Asynchronous, Write, Increment, Record, Read, Core, Reversible,
                             InternalOnly, DocumentGeneration),
@@ -136,16 +137,16 @@ namespace {
                             Asynchronous, Write, Increment, Record, Read, Core, Reversible,
                             InternalOnly, DocumentGeneration),
         EXPECTED_DESCRIPTOR(documents::new_document, "AFC-CATALOG-141", "documents", Command,
-                            Synchronous, Replace, Reset, None, None, Core, Destructive, InternalOnly,
-                            Unsupported),
+                            Synchronous, Replace, Reset, None, None, Core, Destructive,
+                            InternalOnly, Unsupported),
         EXPECTED_DESCRIPTOR(documents::open, "AFC-CATALOG-142", "documents", Command, Asynchronous,
                             Replace, Reset, None, Read, Core, Destructive, InternalOnly,
                             DocumentGeneration),
         EXPECTED_DESCRIPTOR(documents::save, "AFC-CATALOG-018", "documents", Command, Synchronous,
                             Write, Check, None, Write, Core, FileSystem, InternalOnly,
                             DocumentGeneration),
-        EXPECTED_DESCRIPTOR(documents::save_as, "AFC-CATALOG-143", "documents", Command, Synchronous,
-                            Write, Check, None, Write, Core, FileSystem, InternalOnly,
+        EXPECTED_DESCRIPTOR(documents::save_as, "AFC-CATALOG-143", "documents", Command,
+                            Synchronous, Write, Check, None, Write, Core, FileSystem, InternalOnly,
                             DocumentGeneration),
         EXPECTED_DESCRIPTOR(editor::center_piano_roll, "AFC-CATALOG-019", "editor", Command,
                             Synchronous, None, None, None, None, GuiOnly, Reversible, InternalOnly,
@@ -156,8 +157,8 @@ namespace {
         EXPECTED_DESCRIPTOR(editor::get_capabilities, "AFC-CATALOG-021", "editor", Query,
                             Synchronous, None, None, None, None, Core, ReadOnly, InternalOnly,
                             Unsupported),
-        EXPECTED_DESCRIPTOR(editor::get_state, "AFC-CATALOG-022", "editor", Query, Synchronous, Read,
-                            None, None, None, GuiOnly, ReadOnly, InternalOnly, Unsupported),
+        EXPECTED_DESCRIPTOR(editor::get_state, "AFC-CATALOG-022", "editor", Query, Synchronous,
+                            Read, None, None, None, GuiOnly, ReadOnly, InternalOnly, Unsupported),
         EXPECTED_DESCRIPTOR(editor::restore_view, "AFC-CATALOG-023", "editor", Command, Synchronous,
                             None, None, None, None, GuiOnly, Reversible, InternalOnly, Unsupported),
         EXPECTED_DESCRIPTOR(editor::reveal, "AFC-CATALOG-024", "editor", Command, Synchronous, Read,
@@ -179,8 +180,9 @@ namespace {
                             Unsupported),
         EXPECTED_DESCRIPTOR(editor::set_quantize, "AFC-CATALOG-030", "editor", Command, Synchronous,
                             None, None, None, None, GuiOnly, Reversible, InternalOnly, Unsupported),
-        EXPECTED_DESCRIPTOR(editor::set_selection, "AFC-CATALOG-031", "editor", Command, Synchronous,
-                            Read, Check, None, None, GuiOnly, Reversible, InternalOnly, Unsupported),
+        EXPECTED_DESCRIPTOR(editor::set_selection, "AFC-CATALOG-031", "editor", Command,
+                            Synchronous, Read, Check, None, None, GuiOnly, Reversible, InternalOnly,
+                            Unsupported),
         EXPECTED_DESCRIPTOR(editor::set_track_panel_scale, "AFC-CATALOG-032", "editor", Command,
                             Synchronous, None, None, None, None, GuiOnly, Reversible, InternalOnly,
                             Unsupported),
@@ -202,10 +204,11 @@ namespace {
         EXPECTED_DESCRIPTOR(exports::midi::get_capabilities, "AFC-CATALOG-145", "exports", Query,
                             Synchronous, Read, None, None, None, Core, ReadOnly, InternalOnly,
                             Unsupported),
-        EXPECTED_DESCRIPTOR(exports::midi::preview, "AFC-CATALOG-146", "exports", Query, Synchronous,
-                            Read, None, None, Write, Core, ReadOnly, InternalOnly, Unsupported),
-        EXPECTED_DESCRIPTOR(exports::midi::start, "AFC-CATALOG-037", "exports", Command, Synchronous,
-                            Read, Check, None, Write, Core, FileSystem, InternalOnly,
+        EXPECTED_DESCRIPTOR(exports::midi::preview, "AFC-CATALOG-146", "exports", Query,
+                            Synchronous, Read, None, None, Write, Core, ReadOnly, InternalOnly,
+                            Unsupported),
+        EXPECTED_DESCRIPTOR(exports::midi::start, "AFC-CATALOG-037", "exports", Command,
+                            Synchronous, Read, Check, None, Write, Core, FileSystem, InternalOnly,
                             DocumentGeneration),
         EXPECTED_DESCRIPTOR(extract::get_capabilities, "AFC-CATALOG-147", "extract", Query,
                             Synchronous, Read, None, None, Read, Core, ReadOnly, InternalOnly,
@@ -218,15 +221,15 @@ namespace {
                             InternalOnly, DocumentGeneration),
         EXPECTED_DESCRIPTOR(formats::inspect, "AFC-CATALOG-148", "files", Query, Synchronous, None,
                             None, None, Read, Core, ReadOnly, InternalOnly, Unsupported),
-        EXPECTED_DESCRIPTOR(formats::list, "AFC-CATALOG-040", "files", Query, Synchronous, None, None,
-                            None, None, Core, ReadOnly, InternalOnly, Unsupported),
-        EXPECTED_DESCRIPTOR(history::get_state, "AFC-CATALOG-041", "history", Query, Synchronous, Read,
+        EXPECTED_DESCRIPTOR(formats::list, "AFC-CATALOG-040", "files", Query, Synchronous, None,
                             None, None, None, Core, ReadOnly, InternalOnly, Unsupported),
-        EXPECTED_DESCRIPTOR(history::redo, "AFC-CATALOG-042", "history", Command, Synchronous, Write,
-                            Increment, UndoRedo, None, Core, Reversible, InternalOnly,
+        EXPECTED_DESCRIPTOR(history::get_state, "AFC-CATALOG-041", "history", Query, Synchronous,
+                            Read, None, None, None, Core, ReadOnly, InternalOnly, Unsupported),
+        EXPECTED_DESCRIPTOR(history::redo, "AFC-CATALOG-042", "history", Command, Synchronous,
+                            Write, Increment, UndoRedo, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
-        EXPECTED_DESCRIPTOR(history::undo, "AFC-CATALOG-043", "history", Command, Synchronous, Write,
-                            Increment, UndoRedo, None, Core, Reversible, InternalOnly,
+        EXPECTED_DESCRIPTOR(history::undo, "AFC-CATALOG-043", "history", Command, Synchronous,
+                            Write, Increment, UndoRedo, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
         EXPECTED_DESCRIPTOR(imports::commit_batch, "AFC-CATALOG-044", "imports", Command,
                             Synchronous, Write, Increment, Record, None, Core, Reversible,
@@ -235,25 +238,26 @@ namespace {
                             Synchronous, Write, Check, None, None, Core, Reversible, InternalOnly,
                             Unsupported),
         EXPECTED_DESCRIPTOR(inference::apply_duration, "AFC-CATALOG-046", "inference", Command,
-                            Synchronous, Write, Increment, None, None, Core, Reversible, InternalOnly,
-                            Unsupported),
+                            Synchronous, Write, Increment, None, None, Core, Reversible,
+                            InternalOnly, Unsupported),
         EXPECTED_DESCRIPTOR(inference::apply_phoneme_names, "AFC-CATALOG-047", "inference", Command,
-                            Synchronous, Write, Increment, None, None, Core, Reversible, InternalOnly,
-                            Unsupported),
+                            Synchronous, Write, Increment, None, None, Core, Reversible,
+                            InternalOnly, Unsupported),
         EXPECTED_DESCRIPTOR(inference::apply_pitch, "AFC-CATALOG-048", "inference", Command,
-                            Synchronous, Write, Increment, None, None, Core, Reversible, InternalOnly,
-                            Unsupported),
-        EXPECTED_DESCRIPTOR(inference::apply_pronunciations, "AFC-CATALOG-049", "inference", Command,
-                            Synchronous, Write, Increment, None, None, Core, Reversible, InternalOnly,
-                            Unsupported),
+                            Synchronous, Write, Increment, None, None, Core, Reversible,
+                            InternalOnly, Unsupported),
+        EXPECTED_DESCRIPTOR(inference::apply_pronunciations, "AFC-CATALOG-049", "inference",
+                            Command, Synchronous, Write, Increment, None, None, Core, Reversible,
+                            InternalOnly, Unsupported),
         EXPECTED_DESCRIPTOR(inference::apply_variance, "AFC-CATALOG-050", "inference", Command,
-                            Synchronous, Write, Increment, None, None, Core, Reversible, InternalOnly,
-                            Unsupported),
+                            Synchronous, Write, Increment, None, None, Core, Reversible,
+                            InternalOnly, Unsupported),
         EXPECTED_DESCRIPTOR(inference::get_capabilities, "AFC-CATALOG-149", "inference", Query,
                             Synchronous, Read, None, None, None, Core, ReadOnly, InternalOnly,
                             Unsupported),
-        EXPECTED_DESCRIPTOR(inference::get_status, "AFC-CATALOG-150", "inference", Query, Synchronous,
-                            Read, None, None, None, Core, ReadOnly, InternalOnly, Unsupported),
+        EXPECTED_DESCRIPTOR(inference::get_status, "AFC-CATALOG-150", "inference", Query,
+                            Synchronous, Read, None, None, None, Core, ReadOnly, InternalOnly,
+                            Unsupported),
         EXPECTED_DESCRIPTOR(inference::invalidate_clip, "AFC-CATALOG-051", "inference", Command,
                             Synchronous, Write, Check, None, None, Core, Reversible, InternalOnly,
                             Unsupported),
@@ -264,19 +268,19 @@ namespace {
                             Synchronous, Write, Check, None, None, Core, Reversible, InternalOnly,
                             Unsupported),
         EXPECTED_DESCRIPTOR(inference::refresh_speaker_mix, "AFC-CATALOG-054", "inference", Command,
-                            Synchronous, Write, Increment, None, None, Core, Reversible, InternalOnly,
-                            Unsupported),
+                            Synchronous, Write, Increment, None, None, Core, Reversible,
+                            InternalOnly, Unsupported),
         EXPECTED_DESCRIPTOR(inference::resegment_clip, "AFC-CATALOG-055", "inference", Command,
                             Synchronous, Write, Check, None, None, Core, Reversible, InternalOnly,
                             Unsupported),
         EXPECTED_DESCRIPTOR(inference::reset_stage, "AFC-CATALOG-056", "inference", Command,
-                            Synchronous, Write, Increment, None, None, Core, Reversible, InternalOnly,
-                            Unsupported),
+                            Synchronous, Write, Increment, None, None, Core, Reversible,
+                            InternalOnly, Unsupported),
         EXPECTED_DESCRIPTOR(inference::start, "AFC-CATALOG-151", "inference", Command, Asynchronous,
                             Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
-        EXPECTED_DESCRIPTOR(master::get, "AFC-CATALOG-152", "master", Query, Synchronous, Read, None,
-                            None, None, Core, ReadOnly, InternalOnly, Unsupported),
+        EXPECTED_DESCRIPTOR(master::get, "AFC-CATALOG-152", "master", Query, Synchronous, Read,
+                            None, None, None, Core, ReadOnly, InternalOnly, Unsupported),
         EXPECTED_DESCRIPTOR(master::set_control, "AFC-CATALOG-057", "master", Command, Synchronous,
                             Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
@@ -286,8 +290,8 @@ namespace {
         EXPECTED_DESCRIPTOR(master::set_mute, "AFC-CATALOG-154", "master", Command, Synchronous,
                             Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
-        EXPECTED_DESCRIPTOR(master::set_pan, "AFC-CATALOG-155", "master", Command, Synchronous, Write,
-                            Increment, Record, None, Core, Reversible, InternalOnly,
+        EXPECTED_DESCRIPTOR(master::set_pan, "AFC-CATALOG-155", "master", Command, Synchronous,
+                            Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
         EXPECTED_DESCRIPTOR(master::set_solo, "AFC-CATALOG-156", "master", Command, Synchronous,
                             Write, Increment, Record, None, Core, Reversible, InternalOnly,
@@ -306,8 +310,8 @@ namespace {
         EXPECTED_DESCRIPTOR(notes::move, "AFC-CATALOG-060", "notes", Command, Synchronous, Write,
                             Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
-        EXPECTED_DESCRIPTOR(notes::quantize, "AFC-CATALOG-061", "notes", Command, Synchronous, Write,
-                            Increment, Record, None, Core, Reversible, InternalOnly,
+        EXPECTED_DESCRIPTOR(notes::quantize, "AFC-CATALOG-061", "notes", Command, Synchronous,
+                            Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
         EXPECTED_DESCRIPTOR(notes::remove, "AFC-CATALOG-062", "notes", Command, Synchronous, Write,
                             Increment, Record, None, Core, Reversible, InternalOnly,
@@ -327,13 +331,13 @@ namespace {
         EXPECTED_DESCRIPTOR(notes::resize_right, "AFC-CATALOG-064", "notes", Command, Synchronous,
                             Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
-        EXPECTED_DESCRIPTOR(notes::search, "AFC-CATALOG-161", "notes", Query, Synchronous, Read, None,
-                            None, None, Core, ReadOnly, InternalOnly, Unsupported),
+        EXPECTED_DESCRIPTOR(notes::search, "AFC-CATALOG-161", "notes", Query, Synchronous, Read,
+                            None, None, None, Core, ReadOnly, InternalOnly, Unsupported),
         EXPECTED_DESCRIPTOR(notes::set_language, "AFC-CATALOG-162", "notes", Command, Synchronous,
                             Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
-        EXPECTED_DESCRIPTOR(notes::set_lyric, "AFC-CATALOG-163", "notes", Command, Synchronous, Write,
-                            Increment, Record, None, Core, Reversible, InternalOnly,
+        EXPECTED_DESCRIPTOR(notes::set_lyric, "AFC-CATALOG-163", "notes", Command, Synchronous,
+                            Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
         EXPECTED_DESCRIPTOR(notes::set_phoneme_offsets, "AFC-CATALOG-065", "notes", Command,
                             Synchronous, Write, Increment, Record, None, Core, Reversible,
@@ -350,8 +354,8 @@ namespace {
         EXPECTED_DESCRIPTOR(notes::split, "AFC-CATALOG-067", "notes", Command, Synchronous, Write,
                             Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
-        EXPECTED_DESCRIPTOR(notes::split_at, "AFC-CATALOG-166", "notes", Command, Synchronous, Write,
-                            Increment, Record, None, Core, Reversible, InternalOnly,
+        EXPECTED_DESCRIPTOR(notes::split_at, "AFC-CATALOG-166", "notes", Command, Synchronous,
+                            Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
         EXPECTED_DESCRIPTOR(packages::get_search_paths, "AFC-CATALOG-071", "packages", Query,
                             Synchronous, None, None, None, None, Core, ReadOnly, InternalOnly,
@@ -369,12 +373,15 @@ namespace {
         EXPECTED_DESCRIPTOR(parameters::bake, "AFC-CATALOG-167", "parameters", Command, Synchronous,
                             Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
+        EXPECTED_DESCRIPTOR(parameters::create_anchor_curve, "AFC-CATALOG-196", "parameters",
+                            Command, Synchronous, Write, Increment, Record, None, Core, Reversible,
+                            InternalOnly, DocumentGeneration),
         EXPECTED_DESCRIPTOR(parameters::draw, "AFC-CATALOG-168", "parameters", Command, Synchronous,
                             Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
-        EXPECTED_DESCRIPTOR(parameters::erase, "AFC-CATALOG-169", "parameters", Command, Synchronous,
-                            Write, Increment, Record, None, Core, Reversible, InternalOnly,
-                            DocumentGeneration),
+        EXPECTED_DESCRIPTOR(parameters::erase, "AFC-CATALOG-169", "parameters", Command,
+                            Synchronous, Write, Increment, Record, None, Core, Reversible,
+                            InternalOnly, DocumentGeneration),
         EXPECTED_DESCRIPTOR(parameters::get, "AFC-CATALOG-076", "parameters", Query, Synchronous,
                             Read, None, None, None, Core, ReadOnly, InternalOnly, Unsupported),
         EXPECTED_DESCRIPTOR(parameters::get_capabilities, "AFC-CATALOG-170", "parameters", Query,
@@ -382,6 +389,9 @@ namespace {
                             Unsupported),
         EXPECTED_DESCRIPTOR(parameters::insert_anchors, "AFC-CATALOG-171", "parameters", Command,
                             Synchronous, Write, Increment, Record, None, Core, Reversible,
+                            InternalOnly, DocumentGeneration),
+        EXPECTED_DESCRIPTOR(parameters::merge_anchor_curves, "AFC-CATALOG-197", "parameters",
+                            Command, Synchronous, Write, Increment, Record, None, Core, Reversible,
                             InternalOnly, DocumentGeneration),
         EXPECTED_DESCRIPTOR(parameters::move_anchors, "AFC-CATALOG-172", "parameters", Command,
                             Synchronous, Write, Increment, Record, None, Core, Reversible,
@@ -402,10 +412,10 @@ namespace {
                             None, None, None, Core, ReadOnly, InternalOnly, Unsupported),
         EXPECTED_DESCRIPTOR(playback::pause, "AFC-CATALOG-080", "playback", Command, Synchronous,
                             Read, Check, None, None, Core, Reversible, InternalOnly, Unsupported),
-        EXPECTED_DESCRIPTOR(playback::play, "AFC-CATALOG-081", "playback", Command, Synchronous, Read,
-                            Check, None, None, Core, Reversible, InternalOnly, Unsupported),
-        EXPECTED_DESCRIPTOR(playback::seek, "AFC-CATALOG-175", "playback", Command, Synchronous, Read,
-                            Check, None, None, Core, Reversible, InternalOnly, Unsupported),
+        EXPECTED_DESCRIPTOR(playback::play, "AFC-CATALOG-081", "playback", Command, Synchronous,
+                            Read, Check, None, None, Core, Reversible, InternalOnly, Unsupported),
+        EXPECTED_DESCRIPTOR(playback::seek, "AFC-CATALOG-175", "playback", Command, Synchronous,
+                            Read, Check, None, None, Core, Reversible, InternalOnly, Unsupported),
         EXPECTED_DESCRIPTOR(playback::set_last_position, "AFC-CATALOG-082", "playback", Command,
                             Synchronous, Read, Check, None, None, Core, Reversible, InternalOnly,
                             Unsupported),
@@ -418,18 +428,19 @@ namespace {
         EXPECTED_DESCRIPTOR(playback::set_position, "AFC-CATALOG-085", "playback", Command,
                             Synchronous, Read, Check, None, None, Core, Reversible, InternalOnly,
                             Unsupported),
-        EXPECTED_DESCRIPTOR(playback::stop, "AFC-CATALOG-086", "playback", Command, Synchronous, Read,
-                            Check, None, None, Core, Reversible, InternalOnly, Unsupported),
-        EXPECTED_DESCRIPTOR(project::get, "AFC-CATALOG-087", "project", Query, Synchronous, Read, None,
-                            None, None, Core, ReadOnly, InternalOnly, Unsupported),
+        EXPECTED_DESCRIPTOR(playback::stop, "AFC-CATALOG-086", "playback", Command, Synchronous,
+                            Read, Check, None, None, Core, Reversible, InternalOnly, Unsupported),
+        EXPECTED_DESCRIPTOR(project::get, "AFC-CATALOG-087", "project", Query, Synchronous, Read,
+                            None, None, None, Core, ReadOnly, InternalOnly, Unsupported),
         EXPECTED_DESCRIPTOR(recent_files::add, "AFC-CATALOG-088", "recent_files", Command,
                             Synchronous, None, None, None, Write, Core, Reversible, InternalOnly,
                             Unsupported),
         EXPECTED_DESCRIPTOR(recent_files::clear, "AFC-CATALOG-089", "recent_files", Command,
                             Synchronous, None, None, None, Write, Core, Reversible, InternalOnly,
                             Unsupported),
-        EXPECTED_DESCRIPTOR(recent_files::list, "AFC-CATALOG-090", "recent_files", Query, Synchronous,
-                            None, None, None, None, Core, ReadOnly, InternalOnly, Unsupported),
+        EXPECTED_DESCRIPTOR(recent_files::list, "AFC-CATALOG-090", "recent_files", Query,
+                            Synchronous, None, None, None, None, Core, ReadOnly, InternalOnly,
+                            Unsupported),
         EXPECTED_DESCRIPTOR(recent_files::remove, "AFC-CATALOG-091", "recent_files", Command,
                             Synchronous, None, None, None, Write, Core, Reversible, InternalOnly,
                             Unsupported),
@@ -482,14 +493,14 @@ namespace {
                             InternalOnly, DocumentGeneration),
         EXPECTED_DESCRIPTOR(speaker_mix::get, "AFC-CATALOG-178", "speaker_mix", Query, Synchronous,
                             Read, None, None, None, Core, ReadOnly, InternalOnly, Unsupported),
-        EXPECTED_DESCRIPTOR(speaker_mix::keyframes::insert, "AFC-CATALOG-179", "speaker_mix", Command,
-                            Synchronous, Write, Increment, Record, None, Core, Reversible,
+        EXPECTED_DESCRIPTOR(speaker_mix::keyframes::insert, "AFC-CATALOG-179", "speaker_mix",
+                            Command, Synchronous, Write, Increment, Record, None, Core, Reversible,
                             InternalOnly, DocumentGeneration),
         EXPECTED_DESCRIPTOR(speaker_mix::keyframes::move, "AFC-CATALOG-180", "speaker_mix", Command,
                             Synchronous, Write, Increment, Record, None, Core, Reversible,
                             InternalOnly, DocumentGeneration),
-        EXPECTED_DESCRIPTOR(speaker_mix::keyframes::remove, "AFC-CATALOG-181", "speaker_mix", Command,
-                            Synchronous, Write, Increment, Record, None, Core, Reversible,
+        EXPECTED_DESCRIPTOR(speaker_mix::keyframes::remove, "AFC-CATALOG-181", "speaker_mix",
+                            Command, Synchronous, Write, Increment, Record, None, Core, Reversible,
                             InternalOnly, DocumentGeneration),
         EXPECTED_DESCRIPTOR(speaker_mix::keyframes::set_weights, "AFC-CATALOG-182", "speaker_mix",
                             Command, Synchronous, Write, Increment, Record, None, Core, Reversible,
@@ -510,21 +521,20 @@ namespace {
                             Command, Synchronous, Write, Increment, Record, None, Core, Reversible,
                             InternalOnly, DocumentGeneration),
         EXPECTED_DESCRIPTOR(speaker_mix_presets::delete_preset, "AFC-CATALOG-109",
-                            "speaker_mix_presets", Command, Synchronous, None, None, None, Write, Core,
-                            Reversible, InternalOnly, Unsupported),
+                            "speaker_mix_presets", Command, Synchronous, None, None, None, Write,
+                            Core, Reversible, InternalOnly, Unsupported),
         EXPECTED_DESCRIPTOR(speaker_mix_presets::list, "AFC-CATALOG-110", "speaker_mix_presets",
-                            Query, Synchronous, None, None, None, None, Core, ReadOnly, InternalOnly,
-                            Unsupported),
+                            Query, Synchronous, None, None, None, None, Core, ReadOnly,
+                            InternalOnly, Unsupported),
         EXPECTED_DESCRIPTOR(speaker_mix_presets::save, "AFC-CATALOG-111", "speaker_mix_presets",
                             Command, Synchronous, None, None, None, Write, Core, Reversible,
                             InternalOnly, Unsupported),
-        EXPECTED_DESCRIPTOR(tasks::cancel, "AFC-CATALOG-068", "tasks", Command,
-                            Synchronous, Read, None, None, None, Core, Reversible, InternalOnly,
-                            Unsupported),
-        EXPECTED_DESCRIPTOR(tasks::get, "AFC-CATALOG-069", "tasks", Query, Synchronous,
-                            Read, None, None, None, Core, ReadOnly, InternalOnly, Unsupported),
-        EXPECTED_DESCRIPTOR(tasks::list, "AFC-CATALOG-070", "tasks", Query, Synchronous,
-                            Read, None, None, None, Core, ReadOnly, InternalOnly, Unsupported),
+        EXPECTED_DESCRIPTOR(tasks::cancel, "AFC-CATALOG-068", "tasks", Command, Synchronous, Read,
+                            None, None, None, Core, Reversible, InternalOnly, Unsupported),
+        EXPECTED_DESCRIPTOR(tasks::get, "AFC-CATALOG-069", "tasks", Query, Synchronous, Read, None,
+                            None, None, Core, ReadOnly, InternalOnly, Unsupported),
+        EXPECTED_DESCRIPTOR(tasks::list, "AFC-CATALOG-070", "tasks", Query, Synchronous, Read, None,
+                            None, None, Core, ReadOnly, InternalOnly, Unsupported),
         EXPECTED_DESCRIPTOR(tempos::delete_tempo, "AFC-CATALOG-112", "tempos", Command, Synchronous,
                             Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
@@ -542,44 +552,45 @@ namespace {
         EXPECTED_DESCRIPTOR(tracks::clear_voice, "AFC-CATALOG-185", "tracks", Command, Synchronous,
                             Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
-        EXPECTED_DESCRIPTOR(tracks::get, "AFC-CATALOG-186", "tracks", Query, Synchronous, Read, None,
-                            None, None, Core, ReadOnly, InternalOnly, Unsupported),
-        EXPECTED_DESCRIPTOR(tracks::get_voice_context, "AFC-CATALOG-187", "tracks", Query, Synchronous,
-                            Read, None, None, None, Core, ReadOnly, InternalOnly, Unsupported),
-        EXPECTED_DESCRIPTOR(tracks::insert, "AFC-CATALOG-117", "tracks", Command, Synchronous, Write,
-                            Increment, Record, None, Core, Reversible, InternalOnly,
+        EXPECTED_DESCRIPTOR(tracks::get, "AFC-CATALOG-186", "tracks", Query, Synchronous, Read,
+                            None, None, None, Core, ReadOnly, InternalOnly, Unsupported),
+        EXPECTED_DESCRIPTOR(tracks::get_voice_context, "AFC-CATALOG-187", "tracks", Query,
+                            Synchronous, Read, None, None, None, Core, ReadOnly, InternalOnly,
+                            Unsupported),
+        EXPECTED_DESCRIPTOR(tracks::insert, "AFC-CATALOG-117", "tracks", Command, Synchronous,
+                            Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
-        EXPECTED_DESCRIPTOR(tracks::list, "AFC-CATALOG-188", "tracks", Query, Synchronous, Read, None,
-                            None, None, Core, ReadOnly, InternalOnly, Unsupported),
+        EXPECTED_DESCRIPTOR(tracks::list, "AFC-CATALOG-188", "tracks", Query, Synchronous, Read,
+                            None, None, None, Core, ReadOnly, InternalOnly, Unsupported),
         EXPECTED_DESCRIPTOR(tracks::move, "AFC-CATALOG-118", "tracks", Command, Synchronous, Write,
                             Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
-        EXPECTED_DESCRIPTOR(tracks::remove, "AFC-CATALOG-119", "tracks", Command, Synchronous, Write,
-                            Increment, Record, None, Core, Reversible, InternalOnly,
+        EXPECTED_DESCRIPTOR(tracks::remove, "AFC-CATALOG-119", "tracks", Command, Synchronous,
+                            Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
-        EXPECTED_DESCRIPTOR(tracks::rename, "AFC-CATALOG-189", "tracks", Command, Synchronous, Write,
-                            Increment, Record, None, Core, Reversible, InternalOnly,
+        EXPECTED_DESCRIPTOR(tracks::rename, "AFC-CATALOG-189", "tracks", Command, Synchronous,
+                            Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
         EXPECTED_DESCRIPTOR(tracks::set_color, "AFC-CATALOG-120", "tracks", Command, Synchronous,
                             Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
         EXPECTED_DESCRIPTOR(tracks::set_default_language, "AFC-CATALOG-121", "tracks", Command,
-                            Synchronous, Write, Increment, Record, None, Core, Reversible, InternalOnly,
+                            Synchronous, Write, Increment, Record, None, Core, Reversible,
+                            InternalOnly, DocumentGeneration),
+        EXPECTED_DESCRIPTOR(tracks::set_gain, "AFC-CATALOG-190", "tracks", Command, Synchronous,
+                            Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
-        EXPECTED_DESCRIPTOR(tracks::set_gain, "AFC-CATALOG-190", "tracks", Command, Synchronous, Write,
-                            Increment, Record, None, Core, Reversible, InternalOnly,
+        EXPECTED_DESCRIPTOR(tracks::set_mute, "AFC-CATALOG-191", "tracks", Command, Synchronous,
+                            Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
-        EXPECTED_DESCRIPTOR(tracks::set_mute, "AFC-CATALOG-191", "tracks", Command, Synchronous, Write,
-                            Increment, Record, None, Core, Reversible, InternalOnly,
-                            DocumentGeneration),
-        EXPECTED_DESCRIPTOR(tracks::set_pan, "AFC-CATALOG-192", "tracks", Command, Synchronous, Write,
-                            Increment, Record, None, Core, Reversible, InternalOnly,
+        EXPECTED_DESCRIPTOR(tracks::set_pan, "AFC-CATALOG-192", "tracks", Command, Synchronous,
+                            Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
         EXPECTED_DESCRIPTOR(tracks::set_properties, "AFC-CATALOG-122", "tracks", Command,
                             Synchronous, Write, Increment, Record, None, Core, Reversible,
                             InternalOnly, DocumentGeneration),
-        EXPECTED_DESCRIPTOR(tracks::set_solo, "AFC-CATALOG-193", "tracks", Command, Synchronous, Write,
-                            Increment, Record, None, Core, Reversible, InternalOnly,
+        EXPECTED_DESCRIPTOR(tracks::set_solo, "AFC-CATALOG-193", "tracks", Command, Synchronous,
+                            Write, Increment, Record, None, Core, Reversible, InternalOnly,
                             DocumentGeneration),
         EXPECTED_DESCRIPTOR(tracks::set_voice, "AFC-CATALOG-194", "tracks", Command, Synchronous,
                             Write, Increment, Record, None, Core, Reversible, InternalOnly,
@@ -596,8 +607,8 @@ namespace {
     }
 
     template <class Value>
-    bool expectField(const Value &actual, const Value &expected,
-                     const ExpectedOperation &operation, const char *field) {
+    bool expectField(const Value &actual, const Value &expected, const ExpectedOperation &operation,
+                     const char *field) {
         return expect(actual == expected,
                       QStringLiteral("[%1] %2 descriptor field '%3' differs")
                           .arg(operation.scenarioIds.constFirst(), operation.descriptor.id,
@@ -616,7 +627,8 @@ namespace {
                           "documentPolicy");
         ok &= expectField(actual.revisionPolicy, descriptor.revisionPolicy, expected,
                           "revisionPolicy");
-        ok &= expectField(actual.historyPolicy, descriptor.historyPolicy, expected, "historyPolicy");
+        ok &=
+            expectField(actual.historyPolicy, descriptor.historyPolicy, expected, "historyPolicy");
         ok &= expectField(actual.fileAccess, descriptor.fileAccess, expected, "fileAccess");
         ok &= expectField(actual.hostAvailability, descriptor.hostAvailability, expected,
                           "hostAvailability");
@@ -633,8 +645,8 @@ int main(int argc, char *argv[]) {
     const auto &catalog = testRuntime.runtime().catalog();
 
     bool ok = true;
-    ok &= expect(kExpectedOperations.size() == 195,
-                 QStringLiteral("the explicit descriptor table must contain 195 operations"));
+    ok &= expect(kExpectedOperations.size() == 197,
+                 QStringLiteral("the explicit descriptor table must contain 197 operations"));
     ok &= expect(catalog.entries().size() == kExpectedOperations.size(),
                  QStringLiteral("the real Catalog size differs from the explicit table"));
 
@@ -650,9 +662,9 @@ int main(int argc, char *argv[]) {
     for (const auto &expected : kExpectedOperations) {
         const auto &descriptor = expected.descriptor;
         expectedIds.append(descriptor.id);
-        ok &= expect(!expectedIdSet.contains(descriptor.id),
-                     QStringLiteral("duplicate operation ID in explicit table: %1")
-                         .arg(descriptor.id));
+        ok &= expect(
+            !expectedIdSet.contains(descriptor.id),
+            QStringLiteral("duplicate operation ID in explicit table: %1").arg(descriptor.id));
         expectedIdSet.insert(descriptor.id);
         ok &= expect(actualIdCounts.value(descriptor.id) == 1,
                      QStringLiteral("operation ID must occur exactly once in real Catalog: %1")
@@ -661,9 +673,9 @@ int main(int argc, char *argv[]) {
         ok &= expect(!expected.scenarioIds.isEmpty(),
                      QStringLiteral("operation has no stable scenario ID: %1").arg(descriptor.id));
         for (const auto &scenarioId : expected.scenarioIds) {
-            ok &= expect(!scenarioId.trimmed().isEmpty(),
-                         QStringLiteral("operation has an empty scenario ID: %1")
-                             .arg(descriptor.id));
+            ok &=
+                expect(!scenarioId.trimmed().isEmpty(),
+                       QStringLiteral("operation has an empty scenario ID: %1").arg(descriptor.id));
             ok &= expect(!scenarioIdSet.contains(scenarioId),
                          QStringLiteral("duplicate stable scenario ID: %1").arg(scenarioId));
             scenarioIdSet.insert(scenarioId);
@@ -683,8 +695,9 @@ int main(int argc, char *argv[]) {
                  QStringLiteral("real Catalog has an unexpected, missing, or reordered operation"));
     ok &= expect(expectedIdSet.size() == kExpectedOperations.size(),
                  QStringLiteral("explicit descriptor table operation IDs must be unique"));
-    ok &= expect(scenarioIdSet.size() >= kExpectedOperations.size(),
-                 QStringLiteral("every operation must have at least one unique stable scenario ID"));
+    ok &=
+        expect(scenarioIdSet.size() >= kExpectedOperations.size(),
+               QStringLiteral("every operation must have at least one unique stable scenario ID"));
 
     if (ok) {
         QTextStream(stdout) << "Validated " << kExpectedOperations.size()

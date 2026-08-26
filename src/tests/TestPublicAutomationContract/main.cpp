@@ -53,11 +53,10 @@ namespace {
     }
 
     QJsonObject arrayItemSchema(const QJsonObject &schema, const QString &name) {
-        return resolveSchema(
-            resolveSchema(propertySchema(schema, name), schema)
-                .value(QStringLiteral("items"))
-                .toObject(),
-            schema);
+        return resolveSchema(resolveSchema(propertySchema(schema, name), schema)
+                                 .value(QStringLiteral("items"))
+                                 .toObject(),
+                             schema);
     }
 
     QSet<QString> keys(const QJsonObject &object) {
@@ -79,19 +78,18 @@ namespace {
 
     QJsonObject commandContext() {
         return {
-            {QStringLiteral("document_id"),
-             QStringLiteral("00000000-0000-4000-8000-000000000001")},
-            {QStringLiteral("expected_revision"), 0},
+            {QStringLiteral("document_id"),       QStringLiteral("00000000-0000-4000-8000-000000000001")},
+            {QStringLiteral("expected_revision"), 0                                                     },
         };
     }
 
     void verifyAuthoritativeToolset() {
         const auto &contracts = publicToolContracts();
         const auto expectedIds = editorToolIds();
-        expect(editorTools().size() == 128 && editorToolIdSet().size() == 128,
-               QStringLiteral("test fixture must contain exactly 128 unique editor tools"));
-        expect(contracts.size() == 128,
-               QStringLiteral("public contract surface must contain exactly 128 editor tools"));
+        expect(editorTools().size() == 134 && editorToolIdSet().size() == 134,
+               QStringLiteral("test fixture must contain exactly 134 unique editor tools"));
+        expect(contracts.size() == 134,
+               QStringLiteral("public contract surface must contain exactly 134 editor tools"));
         expect(publicToolIds() == expectedIds,
                QStringLiteral("public contract order and operation set must equal section 10.3"));
 
@@ -120,7 +118,8 @@ namespace {
                        contract.operationId);
             expect(contract.inputSchema.value(QStringLiteral("type")) == QStringLiteral("object") &&
                        contract.inputSchema.value(QStringLiteral("additionalProperties")) == false,
-                   QStringLiteral("input root must be a closed object for ") + contract.operationId);
+                   QStringLiteral("input root must be a closed object for ") +
+                       contract.operationId);
             expect(checkJsonSchema(contract.inputSchema).valid(),
                    QStringLiteral("input schema must be supported for ") + contract.operationId);
             expect(checkJsonSchema(contract.outputSchema).valid(),
@@ -133,10 +132,10 @@ namespace {
         expect(PublicToolsetVersion == 1,
                QStringLiteral("the first public toolset version must remain one"));
         expect(toolsForProfile(AutomationProfile::Meta).size() == 4 &&
-                   toolsForProfile(AutomationProfile::L1).size() == 90 &&
-                   toolsForProfile(AutomationProfile::L2).size() == 128 &&
-                   toolsForProfile(AutomationProfile::L3).size() == 128,
-               QStringLiteral("editor profile counts must be 4/90/128/128"));
+                   toolsForProfile(AutomationProfile::L1).size() == 91 &&
+                   toolsForProfile(AutomationProfile::L2).size() == 134 &&
+                   toolsForProfile(AutomationProfile::L3).size() == 134,
+               QStringLiteral("editor profile counts must be 4/91/134/134"));
     }
 
     void verifyShallowCreationAndNoteDefaults() {
@@ -150,8 +149,8 @@ namespace {
 
         const auto track = arrayItemSchema(tracks->inputSchema, QStringLiteral("tracks"));
         expect(keys(track.value(QStringLiteral("properties")).toObject()) ==
-                   QSet<QString>{QStringLiteral("client_ref"), QStringLiteral("name"),
-                                 QStringLiteral("color_index")} &&
+                       QSet<QString>{QStringLiteral("client_ref"), QStringLiteral("name"),
+                                     QStringLiteral("color_index")} &&
                    requiredFields(track, tracks->inputSchema).isEmpty() &&
                    track.value(QStringLiteral("additionalProperties")) == false,
                QStringLiteral("TrackCreate must only expose optional client_ref/name/color_index"));
@@ -161,64 +160,67 @@ namespace {
         expect(validateJsonValue(minimalTrack, tracks->inputSchema).valid(),
                QStringLiteral("tracks.insert must accept a shallow default track"));
         auto nestedTrack = minimalTrack;
-        nestedTrack.insert(
-            QStringLiteral("tracks"),
-            QJsonArray{QJsonObject{{QStringLiteral("clips"), QJsonArray{}},
-                                   {QStringLiteral("voice"), QJsonObject{}}}});
+        nestedTrack.insert(QStringLiteral("tracks"),
+                           QJsonArray{
+                               QJsonObject{{QStringLiteral("clips"), QJsonArray{}},
+                                           {QStringLiteral("voice"), QJsonObject{}}}
+        });
         expect(!validateJsonValue(nestedTrack, tracks->inputSchema).valid(),
                QStringLiteral("tracks.insert must reject clips and voice object injection"));
 
         const auto clip = arrayItemSchema(clips->inputSchema, QStringLiteral("clips"));
         expect(keys(clip.value(QStringLiteral("properties")).toObject()) ==
-                   QSet<QString>{QStringLiteral("client_ref"), QStringLiteral("track_id"),
-                                 QStringLiteral("start"), QStringLiteral("length"),
-                                 QStringLiteral("name")} &&
+                       QSet<QString>{QStringLiteral("client_ref"), QStringLiteral("track_id"),
+                                     QStringLiteral("start"), QStringLiteral("length"),
+                                     QStringLiteral("name")} &&
                    requiredFields(clip, clips->inputSchema) ==
                        QSet<QString>{QStringLiteral("track_id"), QStringLiteral("start")} &&
                    clip.value(QStringLiteral("additionalProperties")) == false,
                QStringLiteral("SingingClipCreate must remain a shallow empty-clip draft"));
         auto minimalClip = commandContext();
-        minimalClip.insert(QStringLiteral("clips"),
-                           QJsonArray{QJsonObject{{QStringLiteral("track_id"), 1},
-                                                  {QStringLiteral("start"), 0}}});
+        minimalClip.insert(QStringLiteral("clips"), QJsonArray{
+                                                        QJsonObject{{QStringLiteral("track_id"), 1},
+                                                                    {QStringLiteral("start"), 0}}
+        });
         expect(validateJsonValue(minimalClip, clips->inputSchema).valid(),
                QStringLiteral("clips.insert must accept GUI-equivalent default length and name"));
         auto nestedClip = minimalClip;
-        nestedClip.insert(
-            QStringLiteral("clips"),
-            QJsonArray{QJsonObject{{QStringLiteral("track_id"), 1},
-                                   {QStringLiteral("start"), 0},
-                                   {QStringLiteral("notes"), QJsonArray{}},
-                                   {QStringLiteral("parameters"), QJsonArray{}},
-                                   {QStringLiteral("speaker_mix"), QJsonObject{}}}});
+        nestedClip.insert(QStringLiteral("clips"),
+                          QJsonArray{
+                              QJsonObject{{QStringLiteral("track_id"), 1},
+                                          {QStringLiteral("start"), 0},
+                                          {QStringLiteral("notes"), QJsonArray{}},
+                                          {QStringLiteral("parameters"), QJsonArray{}},
+                                          {QStringLiteral("speaker_mix"), QJsonObject{}}}
+        });
         expect(!validateJsonValue(nestedClip, clips->inputSchema).valid(),
                QStringLiteral("clips.insert must reject nested editing trees"));
 
         const auto note = arrayItemSchema(notes->inputSchema, QStringLiteral("notes"));
         const auto noteRequired = requiredFields(note, notes->inputSchema);
-        expect(noteRequired ==
-                   QSet<QString>{QStringLiteral("local_start"), QStringLiteral("length"),
-                                 QStringLiteral("key_index")} &&
-                   !note.value(QStringLiteral("properties"))
-                        .toObject()
-                        .contains(QStringLiteral("voice_context")) &&
-                   note.value(QStringLiteral("additionalProperties")) == false,
-               QStringLiteral(
-                   "NoteDraft must require only geometry and pitch without voice_context"));
+        expect(
+            noteRequired == QSet<QString>{QStringLiteral("local_start"), QStringLiteral("length"),
+                                          QStringLiteral("key_index")} &&
+                !note.value(QStringLiteral("properties"))
+                     .toObject()
+                     .contains(QStringLiteral("voice_context")) &&
+                note.value(QStringLiteral("additionalProperties")) == false,
+            QStringLiteral("NoteDraft must require only geometry and pitch without voice_context"));
         auto minimalNote = commandContext();
         minimalNote.insert(QStringLiteral("clip_id"), 1);
-        minimalNote.insert(
-            QStringLiteral("notes"),
-            QJsonArray{QJsonObject{{QStringLiteral("local_start"), 0},
-                                   {QStringLiteral("length"), 480},
-                                   {QStringLiteral("key_index"), 60}}});
+        minimalNote.insert(QStringLiteral("notes"),
+                           QJsonArray{
+                               QJsonObject{{QStringLiteral("local_start"), 0},
+                                           {QStringLiteral("length"), 480},
+                                           {QStringLiteral("key_index"), 60}}
+        });
         expect(validateJsonValue(minimalNote, notes->inputSchema).valid(),
                QStringLiteral("notes.insert must accept server-resolved lyric/language defaults"));
     }
 
     void verifyLifecycleIdempotencyContracts() {
-        for (const auto &operationId : {QStringLiteral("documents.new"),
-                                        QStringLiteral("documents.open")}) {
+        for (const auto &operationId :
+             {QStringLiteral("documents.new"), QStringLiteral("documents.open")}) {
             const auto *contract = findPublicTool(operationId);
             expect(contract, operationId + QStringLiteral(" must exist"));
             if (!contract)
@@ -250,10 +252,14 @@ namespace {
         expect(contract, operationId + QStringLiteral(" must exist"));
         if (!contract)
             return;
-        const auto properties = contract->inputSchema.value(QStringLiteral("properties")).toObject();
+        const auto properties =
+            contract->inputSchema.value(QStringLiteral("properties")).toObject();
         QSet<QString> expected{
-            QStringLiteral("document_id"), QStringLiteral("expected_revision"),
-            QStringLiteral("validate_only"), QStringLiteral("idempotency_key"), valueField,
+            QStringLiteral("document_id"),
+            QStringLiteral("expected_revision"),
+            QStringLiteral("validate_only"),
+            QStringLiteral("idempotency_key"),
+            valueField,
         };
         if (!targetField.isEmpty())
             expected.insert(targetField);
@@ -294,27 +300,25 @@ namespace {
         verifyScalarMutation(QStringLiteral("master.set_mute"), {}, QStringLiteral("mute"));
         verifyScalarMutation(QStringLiteral("master.set_solo"), {}, QStringLiteral("solo"));
 
-        for (const auto &removed : {QStringLiteral("tracks.set_properties"),
-                                    QStringLiteral("clips.set_properties"),
-                                    QStringLiteral("master.set_control"),
-                                    QStringLiteral("notes.set_word_properties")}) {
+        for (const auto &removed :
+             {QStringLiteral("tracks.set_properties"), QStringLiteral("clips.set_properties"),
+              QStringLiteral("master.set_control"), QStringLiteral("notes.set_word_properties")}) {
             expect(findPublicTool(removed) == nullptr,
                    removed + QStringLiteral(" must not collapse independent History edits"));
         }
     }
 
     void verifyVoiceContracts() {
-        for (const auto &operation : {QStringLiteral("tracks.get_voice_context"),
-                                      QStringLiteral("tracks.set_voice"),
-                                      QStringLiteral("tracks.clear_voice")}) {
+        for (const auto &operation :
+             {QStringLiteral("tracks.get_voice_context"), QStringLiteral("tracks.set_voice"),
+              QStringLiteral("tracks.clear_voice")}) {
             const auto *contract = findPublicTool(operation);
             expect(contract && contract->category == QStringLiteral("tracks"),
                    operation + QStringLiteral(" must belong to the track domain"));
         }
-        for (const auto &operation : {QStringLiteral("clips.get_voice_context"),
-                                      QStringLiteral("clips.use_track_voice"),
-                                      QStringLiteral("clips.set_voice"),
-                                      QStringLiteral("clips.clear_voice")}) {
+        for (const auto &operation :
+             {QStringLiteral("clips.get_voice_context"), QStringLiteral("clips.use_track_voice"),
+              QStringLiteral("clips.set_voice"), QStringLiteral("clips.clear_voice")}) {
             const auto *contract = findPublicTool(operation);
             expect(contract && contract->category == QStringLiteral("clips"),
                    operation + QStringLiteral(" must belong to the clip domain"));
@@ -324,9 +328,9 @@ namespace {
             const auto *contract = findPublicTool(operation);
             if (!contract)
                 return false;
-            const auto voice = resolveSchema(
-                propertySchema(contract->inputSchema, QStringLiteral("voice")),
-                contract->inputSchema);
+            const auto voice =
+                resolveSchema(propertySchema(contract->inputSchema, QStringLiteral("voice")),
+                              contract->inputSchema);
             const auto singer = resolveSchema(
                 propertySchema(voice, QStringLiteral("singer"), contract->inputSchema),
                 contract->inputSchema);
@@ -338,15 +342,14 @@ namespace {
                                   ? QStringLiteral("track_id")
                                   : QStringLiteral("clip_id"),
                               1);
-            singerOnly.insert(
-                QStringLiteral("voice"),
-                QJsonObject{
-                    {QStringLiteral("singer"),
-                     QJsonObject{
-                         {QStringLiteral("package_id"), QStringLiteral("package")},
-                         {QStringLiteral("singer_id"), QStringLiteral("singer")},
-                     }},
-                });
+            singerOnly.insert(QStringLiteral("voice"),
+                              QJsonObject{
+                                  {QStringLiteral("singer"),
+                                   QJsonObject{
+                                       {QStringLiteral("package_id"), QStringLiteral("package")},
+                                       {QStringLiteral("singer_id"), QStringLiteral("singer")},
+                                   }},
+            });
             return requiredFields(voice, contract->inputSchema) ==
                        QSet<QString>{QStringLiteral("singer")} &&
                    requiredFields(singer, contract->inputSchema) ==
@@ -371,6 +374,10 @@ namespace {
             QStringLiteral("speaker_mix.keyframes.move"),
             QStringLiteral("speaker_mix.keyframes.set_weights"),
             QStringLiteral("speaker_mix.keyframes.remove"),
+            QStringLiteral("speaker_mix.presets.list"),
+            QStringLiteral("speaker_mix.presets.save"),
+            QStringLiteral("speaker_mix.presets.delete"),
+            QStringLiteral("speaker_mix.presets.apply"),
         };
         for (const auto &operation : operations) {
             const auto *contract = findPublicTool(operation);
@@ -387,15 +394,16 @@ namespace {
         if (!enable || !insert || !move || !setWeights || !remove)
             return;
         expect(!enable->inputSchema.value(QStringLiteral("properties"))
-                    .toObject()
-                    .contains(QStringLiteral("mix")) &&
+                       .toObject()
+                       .contains(QStringLiteral("mix")) &&
                    requiredFields(enable->inputSchema).contains(QStringLiteral("clip_id")),
                QStringLiteral("enable_dynamic must derive its initial mix from current state"));
-        expect(!requiredFields(insert->inputSchema).contains(QStringLiteral("weights")),
-               QStringLiteral("keyframe insertion must support GUI-equivalent interpolated weights"));
+        expect(
+            !requiredFields(insert->inputSchema).contains(QStringLiteral("weights")),
+            QStringLiteral("keyframe insertion must support GUI-equivalent interpolated weights"));
         expect(move->inputSchema.value(QStringLiteral("properties"))
-                   .toObject()
-                   .contains(QStringLiteral("moves")) &&
+                       .toObject()
+                       .contains(QStringLiteral("moves")) &&
                    setWeights->inputSchema.value(QStringLiteral("properties"))
                        .toObject()
                        .contains(QStringLiteral("keyframe_id")) &&
@@ -403,6 +411,106 @@ namespace {
                        .toObject()
                        .contains(QStringLiteral("keyframe_ids")),
                QStringLiteral("dynamic keyframe edits must use stable IDs and atomic batches"));
+
+        const auto *get = findPublicTool(QStringLiteral("speaker_mix.get"));
+        const auto *presetList = findPublicTool(QStringLiteral("speaker_mix.presets.list"));
+        const auto *presetSave = findPublicTool(QStringLiteral("speaker_mix.presets.save"));
+        const auto *presetDelete = findPublicTool(QStringLiteral("speaker_mix.presets.delete"));
+        const auto *presetApply = findPublicTool(QStringLiteral("speaker_mix.presets.apply"));
+        expect(get && presetList && presetSave && presetDelete && presetApply,
+               QStringLiteral("Speaker Mix preset contracts must exist"));
+        if (!get || !presetList || !presetSave || !presetDelete || !presetApply)
+            return;
+        const auto speakerMixSnapshot = resolveSchema(
+            propertySchema(get->outputSchema, QStringLiteral("snapshot")), get->outputSchema);
+        expect(speakerMixSnapshot.value(QStringLiteral("properties"))
+                   .toObject()
+                   .contains(QStringLiteral("source_preset")),
+               QStringLiteral("speaker_mix.get must expose nullable preset-source metadata"));
+        for (const auto *presetContract : {presetList, presetSave, presetDelete, presetApply}) {
+            expect(presetContract->minimumProfile == AutomationProfile::L2,
+                   presetContract->operationId + QStringLiteral(" must start at L2"));
+        }
+        for (const auto *applicationContract : {presetList, presetSave, presetDelete}) {
+            const auto descriptor = applicationContract->toManifestJson();
+            expect(descriptor.value(QStringLiteral("concurrency_scope")) ==
+                           QStringLiteral("application") &&
+                       descriptor.value(QStringLiteral("document_policy")) ==
+                           QStringLiteral("none") &&
+                       descriptor.value(QStringLiteral("history_policy")) == QStringLiteral("none"),
+                   applicationContract->operationId +
+                       QStringLiteral(" must remain application-scoped"));
+        }
+        const auto applyDescriptor = presetApply->toManifestJson();
+        expect(applyDescriptor.value(QStringLiteral("concurrency_scope")) ==
+                       QStringLiteral("document") &&
+                   applyDescriptor.value(QStringLiteral("document_policy")) ==
+                       QStringLiteral("write") &&
+                   applyDescriptor.value(QStringLiteral("history_policy")) ==
+                       QStringLiteral("single_entry"),
+               QStringLiteral("speaker_mix.presets.apply must be one undoable document edit"));
+    }
+
+    void verifyDocumentAndParameterContracts() {
+        const auto *documentGet = findPublicTool(QStringLiteral("documents.get"));
+        const auto *recent = findPublicTool(QStringLiteral("documents.list_recent"));
+        expect(documentGet && recent && findPublicTool(QStringLiteral("project.get")) == nullptr,
+               QStringLiteral("document queries must replace the redundant project snapshot"));
+        if (documentGet && recent) {
+            const auto snapshot =
+                resolveSchema(propertySchema(documentGet->outputSchema, QStringLiteral("snapshot")),
+                              documentGet->outputSchema);
+            const auto statistics = resolveSchema(
+                propertySchema(snapshot, QStringLiteral("statistics"), documentGet->outputSchema),
+                documentGet->outputSchema);
+            const QSet<QString> statisticFields{
+                QStringLiteral("length_ticks"),
+                QStringLiteral("track_count"),
+                QStringLiteral("empty_track_count"),
+                QStringLiteral("singing_only_track_count"),
+                QStringLiteral("audio_only_track_count"),
+                QStringLiteral("mixed_track_count"),
+                QStringLiteral("clip_count"),
+                QStringLiteral("singing_clip_count"),
+                QStringLiteral("audio_clip_count"),
+            };
+            expect(requiredFields(statistics, documentGet->outputSchema) == statisticFields &&
+                       recent->minimumProfile == AutomationProfile::L2 &&
+                       !recent->inputSchema.value(QStringLiteral("properties"))
+                            .toObject()
+                            .contains(QStringLiteral("document_id")),
+                   QStringLiteral("documents.get must own statistics and recent projects must be "
+                                  "application-scoped"));
+        }
+
+        const auto *get = findPublicTool(QStringLiteral("parameters.get"));
+        const auto *create = findPublicTool(QStringLiteral("parameters.create_anchor_curve"));
+        const auto *insert = findPublicTool(QStringLiteral("parameters.insert_anchors"));
+        const auto *merge = findPublicTool(QStringLiteral("parameters.merge_anchor_curves"));
+        expect(get && create && insert && merge,
+               QStringLiteral("bounded parameter and explicit anchor-curve contracts must exist"));
+        if (!get || !create || !insert || !merge)
+            return;
+        const auto getProperties = get->inputSchema.value(QStringLiteral("properties")).toObject();
+        const auto getSnapshot = resolveSchema(
+            propertySchema(get->outputSchema, QStringLiteral("snapshot")), get->outputSchema);
+        const auto getSnapshotProperties =
+            getSnapshot.value(QStringLiteral("properties")).toObject();
+        const auto createProperties =
+            create->inputSchema.value(QStringLiteral("properties")).toObject();
+        const auto createAnchors = createProperties.value(QStringLiteral("anchors")).toObject();
+        expect(
+            getProperties.contains(QStringLiteral("range")) &&
+                getProperties.contains(QStringLiteral("max_points")) &&
+                getSnapshotProperties.contains(QStringLiteral("source_point_count")) &&
+                getSnapshotProperties.contains(QStringLiteral("returned_point_count")) &&
+                getSnapshotProperties.contains(QStringLiteral("downsampled")) &&
+                createAnchors.value(QStringLiteral("minItems")).toInteger() == 2 &&
+                requiredFields(create->inputSchema).contains(QStringLiteral("client_ref")) &&
+                requiredFields(insert->inputSchema).contains(QStringLiteral("curve_id")) &&
+                requiredFields(merge->inputSchema).contains(QStringLiteral("target_curve_id")) &&
+                requiredFields(merge->inputSchema).contains(QStringLiteral("source_curve_id")),
+            QStringLiteral("parameter reads must be bounded and anchor topology must be explicit"));
     }
 
     void verifyConditionalCapabilityContracts() {
@@ -415,7 +523,8 @@ namespace {
         if (!audioPreview || !midiExtraction || !fillLyrics || !audioGet)
             return;
 
-        const auto audioOptions = propertySchema(audioPreview->inputSchema, QStringLiteral("options"));
+        const auto audioOptions =
+            propertySchema(audioPreview->inputSchema, QStringLiteral("options"));
         const auto audioBranches = audioOptions.value(QStringLiteral("oneOf")).toArray();
         const bool audioRangeAbsent =
             std::all_of(audioBranches.begin(), audioBranches.end(), [](const QJsonValue &branch) {
@@ -435,14 +544,14 @@ namespace {
         bool hasFillLanguageSource = false;
         for (const auto &value : fillLyrics->valueSources) {
             const auto source = value.toObject();
-            hasFillLanguageSource |=
-                source.value(QStringLiteral("field_path")).toString() ==
-                    QStringLiteral("/options/language/language_id") &&
-                source.value(QStringLiteral("operation_id")).toString() ==
-                    QStringLiteral("voices.describe");
+            hasFillLanguageSource |= source.value(QStringLiteral("field_path")).toString() ==
+                                         QStringLiteral("/options/language/language_id") &&
+                                     source.value(QStringLiteral("operation_id")).toString() ==
+                                         QStringLiteral("voices.describe");
         }
-        expect(hasFillLanguageSource,
-               QStringLiteral("explicit fill-lyrics language must use the voice capability source"));
+        expect(
+            hasFillLanguageSource,
+            QStringLiteral("explicit fill-lyrics language must use the voice capability source"));
 
         const QJsonObject unknownAudioSnapshot{
             {QStringLiteral("document"),
@@ -453,14 +562,14 @@ namespace {
              }},
             {QStringLiteral("snapshot"),
              QJsonObject{
-                 {QStringLiteral("clip_id"),          1                            },
-                 {QStringLiteral("path"),             QString()                    },
-                 {QStringLiteral("path_status"),      QStringLiteral("missing")   },
-                 {QStringLiteral("candidate_paths"),  QJsonArray{}                 },
-                 {QStringLiteral("hash_exists"),      false                        },
+                 {QStringLiteral("clip_id"), 1},
+                 {QStringLiteral("path"), QString()},
+                 {QStringLiteral("path_status"), QStringLiteral("missing")},
+                 {QStringLiteral("candidate_paths"), QJsonArray{}},
+                 {QStringLiteral("hash_exists"), false},
                  {QStringLiteral("duration_seconds"), QJsonValue(QJsonValue::Null)},
-                 {QStringLiteral("sample_rate"),      QJsonValue(QJsonValue::Null)},
-                 {QStringLiteral("channels"),         QJsonValue(QJsonValue::Null)},
+                 {QStringLiteral("sample_rate"), QJsonValue(QJsonValue::Null)},
+                 {QStringLiteral("channels"), QJsonValue(QJsonValue::Null)},
              }},
         };
         expect(validateJsonValue(unknownAudioSnapshot, audioGet->outputSchema).valid(),
@@ -474,16 +583,11 @@ namespace {
             QStringLiteral("playback.clear_loop"),
         };
         const QSet<QString> mutationOutputFields{
-            QStringLiteral("previous"),
-            QStringLiteral("current"),
-            QStringLiteral("changed"),
-            QStringLiteral("validated_only"),
-            QStringLiteral("affected_objects"),
-            QStringLiteral("created_objects"),
-            QStringLiteral("resolved_values"),
-            QStringLiteral("presentation_effects"),
-            QStringLiteral("warnings"),
-            QStringLiteral("state_version"),
+            QStringLiteral("previous"),         QStringLiteral("current"),
+            QStringLiteral("changed"),          QStringLiteral("validated_only"),
+            QStringLiteral("affected_objects"), QStringLiteral("created_objects"),
+            QStringLiteral("resolved_values"),  QStringLiteral("presentation_effects"),
+            QStringLiteral("warnings"),         QStringLiteral("state_version"),
             QStringLiteral("playback"),
         };
         for (const auto &operation : persistentOperations) {
@@ -503,10 +607,10 @@ namespace {
                        inputRequired.contains(QStringLiteral("document_id")) &&
                        inputRequired.contains(QStringLiteral("expected_revision")) &&
                        !inputRequired.contains(QStringLiteral("expected_state_version")),
-                   operation + QStringLiteral(
-                                   " must require document revision and optionally check playback state"));
-            expect(descriptor.value(QStringLiteral("document_policy")) ==
-                           QStringLiteral("write") &&
+                   operation +
+                       QStringLiteral(
+                           " must require document revision and optionally check playback state"));
+            expect(descriptor.value(QStringLiteral("document_policy")) == QStringLiteral("write") &&
                        descriptor.value(QStringLiteral("revision_policy")) ==
                            QStringLiteral("check") &&
                        descriptor.value(QStringLiteral("history_policy")) ==
@@ -528,8 +632,8 @@ namespace {
             const auto properties =
                 setLoop->inputSchema.value(QStringLiteral("properties")).toObject();
             expect(properties.value(QStringLiteral("start"))
-                           .toObject()
-                           .value(QStringLiteral("type")) == QStringLiteral("integer") &&
+                               .toObject()
+                               .value(QStringLiteral("type")) == QStringLiteral("integer") &&
                        properties.value(QStringLiteral("end"))
                                .toObject()
                                .value(QStringLiteral("type")) == QStringLiteral("integer"),
@@ -546,39 +650,37 @@ namespace {
 
         const auto *seek = findPublicTool(QStringLiteral("playback.seek"));
         if (seek) {
-            const auto properties = seek->inputSchema.value(QStringLiteral("properties")).toObject();
+            const auto properties =
+                seek->inputSchema.value(QStringLiteral("properties")).toObject();
             const auto descriptor = seek->toManifestJson();
-            expect(!properties.contains(QStringLiteral("expected_revision")) &&
-                       !properties.contains(QStringLiteral("idempotency_key")) &&
-                       properties.contains(QStringLiteral("expected_state_version")) &&
-                       !seek->outputSchema.value(QStringLiteral("properties"))
-                            .toObject()
-                            .contains(QStringLiteral("previous")) &&
-                       descriptor.value(QStringLiteral("document_policy")) ==
-                           QStringLiteral("read") &&
-                       descriptor.value(QStringLiteral("history_policy")) ==
-                           QStringLiteral("none") &&
-                       descriptor.value(QStringLiteral("concurrency_scope")) ==
-                           QStringLiteral("playback"),
-                   QStringLiteral("seek must remain a non-persistent playback state operation"));
+            expect(
+                !properties.contains(QStringLiteral("expected_revision")) &&
+                    !properties.contains(QStringLiteral("idempotency_key")) &&
+                    properties.contains(QStringLiteral("expected_state_version")) &&
+                    !seek->outputSchema.value(QStringLiteral("properties"))
+                         .toObject()
+                         .contains(QStringLiteral("previous")) &&
+                    descriptor.value(QStringLiteral("document_policy")) == QStringLiteral("read") &&
+                    descriptor.value(QStringLiteral("history_policy")) == QStringLiteral("none") &&
+                    descriptor.value(QStringLiteral("concurrency_scope")) ==
+                        QStringLiteral("playback"),
+                QStringLiteral("seek must remain a non-persistent playback state operation"));
         }
     }
 
     void verifyDocumentPolicies() {
-        for (const auto &operation : {QStringLiteral("extract.pitch.start"),
-                                      QStringLiteral("extract.midi.start"),
-                                      QStringLiteral("inference.start")}) {
+        for (const auto &operation :
+             {QStringLiteral("extract.pitch.start"), QStringLiteral("extract.midi.start"),
+              QStringLiteral("inference.start")}) {
             const auto *contract = findPublicTool(operation);
-            expect(contract &&
-                       contract->toManifestJson().value(QStringLiteral("document_policy")) ==
-                           QStringLiteral("write"),
+            expect(contract && contract->toManifestJson().value(
+                                   QStringLiteral("document_policy")) == QStringLiteral("write"),
                    operation + QStringLiteral(" must publish a write document policy"));
         }
 
         const auto *preview = findPublicTool(QStringLiteral("exports.midi.preview"));
-        expect(preview &&
-                   preview->toManifestJson().value(QStringLiteral("document_policy")) ==
-                       QStringLiteral("read"),
+        expect(preview && preview->toManifestJson().value(QStringLiteral("document_policy")) ==
+                              QStringLiteral("read"),
                QStringLiteral("exports.midi.preview must publish a read document policy"));
     }
 }
@@ -591,6 +693,7 @@ int main(int argc, char **argv) {
     verifyIndependentScalarOperations();
     verifyVoiceContracts();
     verifySpeakerMixContracts();
+    verifyDocumentAndParameterContracts();
     verifyConditionalCapabilityContracts();
     verifyPlaybackPersistenceContracts();
     verifyDocumentPolicies();

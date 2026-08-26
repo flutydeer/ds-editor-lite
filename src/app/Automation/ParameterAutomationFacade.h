@@ -91,13 +91,21 @@ namespace Automation {
                                                         int localEnd);
         AutomationResult<MutationResult> insertAnchor(const CommandContext &context, ClipId clipId,
                                                       ParamInfo::Name name, Param::Type type,
-                                                      std::optional<CurveId> curveId, int position,
-                                                      int value,
+                                                      CurveId curveId, int position, int value,
                                                       AnchorNode::InterpMode interpolation);
         AutomationResult<MutationResult> insertAnchors(const CommandContext &context, ClipId clipId,
                                                        ParamInfo::Name name, Param::Type type,
-                                                       std::optional<CurveId> curveId,
+                                                       CurveId curveId,
                                                        const QList<AnchorInsertDto> &anchors);
+        AutomationResult<MutationResult> createAnchorCurve(const CommandContext &context,
+                                                           ClipId clipId, ParamInfo::Name name,
+                                                           Param::Type type,
+                                                           const QString &clientRef,
+                                                           const QList<AnchorInsertDto> &anchors);
+        AutomationResult<MutationResult> mergeAnchorCurves(const CommandContext &context,
+                                                           ClipId clipId, ParamInfo::Name name,
+                                                           Param::Type type, CurveId targetCurveId,
+                                                           CurveId sourceCurveId);
         AutomationResult<MutationResult> moveAnchor(const CommandContext &context, ClipId clipId,
                                                     ParamInfo::Name name, Param::Type type,
                                                     AnchorId anchorId, int position, int value);
@@ -192,12 +200,11 @@ namespace Automation {
                                 const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo,
                                 const SpeakerMixModel::SpeakerMixData &data);
         using CurveMutation = std::function<AutomationResult<bool>(QList<CurveDraftDto> &curves)>;
-        AutomationResult<MutationResult> mutateParameter(const OperationId &operationId,
-                                                         const CommandContext &context,
-                                                         const QByteArray &operationTag,
-                                                         const QByteArray &requestFingerprint,
-                                                         ClipId clipId, ParamInfo::Name name,
-                                                         Param::Type type, CurveMutation mutation);
+        AutomationResult<MutationResult>
+            mutateParameter(const OperationId &operationId, const CommandContext &context,
+                            const QByteArray &operationTag, const QByteArray &requestFingerprint,
+                            ClipId clipId, ParamInfo::Name name, Param::Type type,
+                            CurveMutation mutation, QString createdCurveClientRef = {});
         using SpeakerMixMutation =
             std::function<AutomationResult<bool>(SpeakerMixModel::SpeakerMixData &data)>;
         AutomationResult<MutationResult> mutateClipSpeakerMix(const OperationId &operationId,

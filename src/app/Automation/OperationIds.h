@@ -126,11 +126,13 @@ namespace Automation::OperationIds {
     X(packages, set_search_paths, "packages.set_search_paths")                                     \
     X(packages, validate, "packages.validate")                                                     \
     X(parameters, bake, "parameters.bake")                                                         \
+    X(parameters, create_anchor_curve, "parameters.create_anchor_curve")                           \
     X(parameters, draw, "parameters.draw")                                                         \
     X(parameters, erase, "parameters.erase")                                                       \
     X(parameters, get, "parameters.get")                                                           \
     X(parameters, get_capabilities, "parameters.get_capabilities")                                 \
     X(parameters, insert_anchors, "parameters.insert_anchors")                                     \
+    X(parameters, merge_anchor_curves, "parameters.merge_anchor_curves")                           \
     X(parameters, move_anchors, "parameters.move_anchors")                                         \
     X(parameters, remove_anchors, "parameters.remove_anchors")                                     \
     X(parameters, replace, "parameters.replace")                                                   \
@@ -216,8 +218,7 @@ namespace Automation::OperationIds {
     inline const QStringList &all() {
 #define AUTOMATION_REFERENCE_OPERATION_ID(scope, name, value) scope::name,
         static const QStringList ids = [] {
-            QStringList result = {
-                AUTOMATION_OPERATION_ID_LIST(AUTOMATION_REFERENCE_OPERATION_ID)};
+            QStringList result = {AUTOMATION_OPERATION_ID_LIST(AUTOMATION_REFERENCE_OPERATION_ID)};
             result.sort();
             return result;
         }();
