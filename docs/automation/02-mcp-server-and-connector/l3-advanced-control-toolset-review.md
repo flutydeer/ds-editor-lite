@@ -16,9 +16,10 @@
 | 钢琴窗 | `piano_roll.set_edit_mode` | C/S | 切换选择、绘制、音高编辑等当前可用编辑模式 |
 | 钢琴窗 | `piano_roll.set_quantize` | C/S | 部分更新量化分度与量化启用状态 |
 | 钢琴窗 | `piano_roll.set_auto_page_turn` | C/S | 开启或关闭钢琴窗播放自动翻页 |
-| 参数编辑器 | `parameter_editor.get` | Q/S | 返回当前参数、前景参数、编辑工具和视口状态 |
-| 参数编辑器 | `parameter_editor.set_active_parameter` | C/S | 切换当前编辑参数并显示参数编辑页面 |
-| 参数编辑器 | `parameter_editor.set_foreground_parameter` | C/S | 设置用于对照或交换的前景参数 |
+| 参数编辑器 | `parameter_editor.get` | Q/S | 返回前景参数、背景参数、编辑工具和视口状态 |
+| 参数编辑器 | `parameter_editor.set_foreground` | C/S | 切换当前编辑的前景参数并显示参数编辑页面 |
+| 参数编辑器 | `parameter_editor.set_background` | C/S | 设置用于对照的背景参数，允许设为 none |
+| 参数编辑器 | `parameter_editor.swap` | C/S | 交换前景与背景参数；当前布局不可交换时原子失败 |
 | 参数编辑器 | `parameter_editor.set_tool` | C/S | 切换绘制、擦除、锚点等当前可用参数工具 |
 | 参数编辑器 | `parameter_editor.set_viewport` | C/S | 部分更新参数视图的时间范围和值域范围 |
 | 选择与焦点 | `selection.get` | Q/S | 返回当前轨道、片段和音符选择及键盘焦点归属 |
