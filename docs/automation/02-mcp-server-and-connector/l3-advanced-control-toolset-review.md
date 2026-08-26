@@ -26,33 +26,36 @@
 | 选择与焦点 | `selection.set_clips` | C/S | 原子替换有序片段选择集合 |
 | 选择与焦点 | `selection.set_notes` | C/S | 在指定歌声片段内原子替换音符选择集合 |
 | 选择与焦点 | `selection.clear` | C/S | 按 track、clips、notes 或 all 范围清除选择 |
-| 通用设置 | `general_settings.get` | Q/S | 返回“应用”和“歌唱”组的已开放设置、有效值与可选值 |
-| 通用设置 | `general_settings.update_application` | C/S | 部分更新“应用”组；当前仅包含界面语言 |
-| 通用设置 | `general_settings.update_singing` | C/S | 部分更新默认歌唱语言及按语言保存的默认歌词 |
-| 外观设置 | `appearance_settings.get` | Q/S | 返回主题、字体、窗口、动画和触控组的已开放设置与候选值 |
-| 外观设置 | `appearance_settings.update_theme` | C/S | 部分更新“主题”组；失败返回结构化错误且不弹窗 |
-| 外观设置 | `appearance_settings.update_font` | C/S | 部分更新“字体”组；支持恢复平台默认字体 |
-| 外观设置 | `appearance_settings.update_window` | C/S | 部分更新“窗口”组；需重启的字段只返回 restart_required，不弹窗 |
-| 外观设置 | `appearance_settings.update_animation` | C/S | 部分更新动画启用状态和持续时间倍率 |
-| 外观设置 | `appearance_settings.update_touch` | C/S | 在宿主支持时部分更新直接操控触控能力 |
-| 音频设置 | `audio_settings.get` | Q/S | 返回音频驱动和设备、播放、文件缓存设置及依赖候选值 |
-| 音频设置 | `audio_settings.update_device` | C/S | 部分更新驱动、设备、缓冲、采样率、热插拔、增益和声像；失败回滚且不弹窗 |
-| 音频设置 | `audio_settings.update_playback` | C/S | 部分更新“播放”组的播放头停止行为 |
-| 音频设置 | `audio_settings.update_file_caching` | C/S | 部分更新“文件缓存”组的预读样本数 |
-| MIDI 设置 | `midi_settings.get` | Q/S | 返回 MIDI 输入和合成器设置、设备与波形候选值 |
-| MIDI 设置 | `midi_settings.update_input` | C/S | 部分更新“MIDI 输入”组的设备；失败返回结构化错误且不弹窗 |
-| MIDI 设置 | `midi_settings.update_synthesizer` | C/S | 部分更新波形、振幅、ADSR、A4 频率和工程音分偏移联动 |
-| 推理设置 | `inference_settings.get` | Q/S | 返回设备、渲染、歌手会话保留设置及有效候选值 |
-| 推理设置 | `inference_settings.update_device` | C/S | 部分更新执行提供程序和 GPU；需重启时只返回 restart_required |
-| 推理设置 | `inference_settings.update_render` | C/S | 部分更新采样步数、深度、Vocoder CPU、自动推理、前瞻和音高平滑 |
-| 推理设置 | `inference_settings.update_singer_session_retention` | C/S | 部分更新歌手会话容量和空闲释放时间 |
+| 设置查询 | `settings.get` | Q/S | 按可选 domains 过滤返回全部已开放设置的配置值、生效值、候选值或范围、重启要求及不可用原因；省略过滤时返回完整公开快照，不包含自动化安全配置、开发者设置或未开放路径 |
+| UI 语言 | `settings.ui_language.set` | C/S | 设置界面语言并立即应用；合法值由 `settings.get` 返回 |
+| 歌唱 | `settings.singing.update` | C/S | 部分更新默认歌唱语言及按语言保存的默认歌词 |
+| 主题 | `settings.theme.update` | C/S | 部分更新颜色主题；失败返回结构化错误且不弹窗 |
+| 字体 | `settings.font.update` | C/S | 部分更新界面字体；支持恢复平台默认字体 |
+| 窗口 | `settings.window.update` | C/S | 部分更新已开放的窗口行为；需重启的字段只返回 restart_required，不弹窗 |
+| 动画 | `settings.animation.update` | C/S | 部分更新动画启用状态和持续时间倍率 |
+| 触控 | `settings.touch.update` | C/S | 在宿主支持时部分更新直接操控触控能力 |
+| 音频驱动和设备 | `settings.audio_device.update` | C/S | 部分更新驱动、设备、缓冲、采样率、热插拔、增益和声像；失败回滚且不弹窗 |
+| 播放行为 | `settings.playback_behavior.update` | C/S | 部分更新播放头停止行为 |
+| 文件缓存 | `settings.file_caching.update` | C/S | 部分更新文件读取预读样本数 |
+| MIDI 输入 | `settings.midi_input.update` | C/S | 部分更新 MIDI 输入设备；失败返回结构化错误且不弹窗 |
+| 合成器 | `settings.synthesizer.update` | C/S | 部分更新波形、振幅、ADSR、A4 频率和工程音分偏移联动 |
+| 计算设备 | `settings.compute_device.update` | C/S | 部分更新执行提供程序和 GPU；需重启时只返回 restart_required |
+| 渲染 | `settings.render.update` | C/S | 部分更新采样步数、深度、Vocoder CPU、自动推理、前瞻和音高平滑 |
+| 歌手会话保留 | `settings.singer_session_retention.update` | C/S | 部分更新歌手会话容量和空闲释放时间 |
+| G2P 优先级 | `settings.g2p_priority.update` | C/S | 替换有序语言引擎优先级；只接受 `settings.get` 返回的稳定引擎 ID |
 | 推理缓存 | `inference_cache.get` | Q/S | 扫描并返回缓存目录、文件数、总大小和可清理大小 |
 | 推理缓存 | `inference_cache.clear_unused` | C/A | 清理当前工程、撤销历史和播放未占用的缓存；不触发确认弹窗 |
-| 包路径设置 | `package_settings.get` | Q/S | 返回有序包搜索路径及重启生效状态 |
-| 包路径设置 | `package_settings.update_search_paths` | C/S | 替换有序搜索路径；路径受读取根约束，仅标记重启生效，不立即加载 |
+| 包搜索路径 | `settings.package_search_paths.update` | C/S | 替换有序包搜索路径；路径受读取根约束，仅标记重启生效，不立即加载 |
 | 包信息 | `packages.list` | Q/S | 返回已索引包、版本、供应方、路径和所含声库摘要 |
 | 包信息 | `packages.describe` | Q/S | 返回指定包的元数据、许可、说明和声库明细 |
 | 包信息 | `packages.validate` | Q/S | 校验读取根内的包目录或包文件并返回结构化诊断 |
+| 歌词规则 | `lyric_rules.list` | Q/S | 返回内置与自定义 splitter/tagger 规则的稳定 ID、类型、内容、启用状态和分类型顺序 |
+| 歌词规则 | `lyric_rules.create` | C/S | 新建一条自定义 splitter 或 tagger 规则并返回稳定 rule_id；不允许伪造内置规则 |
+| 歌词规则 | `lyric_rules.update` | C/S | 按稳定 rule_id 稀疏修改一条自定义规则；内置规则内容不可修改 |
+| 歌词规则 | `lyric_rules.delete` | C/S | 删除一条自定义规则；内置规则不可删除 |
+| 歌词规则 | `lyric_rules.set_enabled` | C/S | 单独启停一条内置或自定义规则 |
+| 歌词规则 | `lyric_rules.move` | C/S | 在 splitter 或 tagger 各自的有序规则集中移动一条规则 |
+| 歌词规则 | `lyric_rules.test` | Q/S | 用给定文本运行当前 splitter → tagger 流水线并返回逐阶段结果，不写配置 |
 | Speaker Mix 预设 | `speaker_mix_presets.list` | Q/S | 返回预设 ID、名称、适用声库、来源和权重 |
 | Speaker Mix 预设 | `speaker_mix_presets.save` | C/S | 新建或按 ID 更新一个预设，名称冲突时原子失败 |
 | Speaker Mix 预设 | `speaker_mix_presets.delete` | C/S | 按稳定 ID 删除一个预设；不存在时返回 not_found |
