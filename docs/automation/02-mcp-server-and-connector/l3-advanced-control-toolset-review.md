@@ -26,8 +26,8 @@
 | 选择与焦点 | `selection.set_clips` | C/S | 原子替换有序片段选择集合 |
 | 选择与焦点 | `selection.set_notes` | C/S | 在指定歌声片段内原子替换音符选择集合 |
 | 选择与焦点 | `selection.clear` | C/S | 按 track、clips、notes 或 all 范围清除选择 |
-| 设置查询 | `settings.get` | Q/S | 按可选 domains 过滤返回全部已开放设置的配置值、生效值、候选值或范围、重启要求及不可用原因；省略过滤时返回完整公开快照，不包含自动化安全配置、开发者设置或未开放路径 |
-| UI 语言 | `settings.ui_language.set` | C/S | 设置界面语言并立即应用；合法值由 `settings.get` 返回 |
+| 设置查询 | `settings.query` | Q/S | 按可选 domains 过滤返回全部已开放设置的配置值、生效值、候选值或范围、重启要求及不可用原因；省略过滤时返回完整公开快照，不包含自动化安全配置、开发者设置或未开放路径 |
+| UI 语言 | `settings.ui_language.update` | C/S | 部分更新界面语言并立即应用；合法值由 `settings.query` 返回 |
 | 歌唱 | `settings.singing.update` | C/S | 部分更新默认歌唱语言及按语言保存的默认歌词 |
 | 主题 | `settings.theme.update` | C/S | 部分更新颜色主题；失败返回结构化错误且不弹窗 |
 | 字体 | `settings.font.update` | C/S | 部分更新界面字体；支持恢复平台默认字体 |
@@ -42,7 +42,7 @@
 | 计算设备 | `settings.compute_device.update` | C/S | 部分更新执行提供程序和 GPU；需重启时只返回 restart_required |
 | 渲染 | `settings.render.update` | C/S | 部分更新采样步数、深度、Vocoder CPU、自动推理、前瞻和音高平滑 |
 | 歌手会话保留 | `settings.singer_session_retention.update` | C/S | 部分更新歌手会话容量和空闲释放时间 |
-| G2P 优先级 | `settings.g2p_priority.update` | C/S | 替换有序语言引擎优先级；只接受 `settings.get` 返回的稳定引擎 ID |
+| G2P 优先级 | `settings.g2p_priority.update` | C/S | 替换有序语言引擎优先级；只接受 `settings.query` 返回的稳定引擎 ID |
 | 推理缓存 | `inference_cache.get` | Q/S | 扫描并返回缓存目录、文件数、总大小和可清理大小 |
 | 推理缓存 | `inference_cache.clear_unused` | C/A | 清理当前工程、撤销历史和播放未占用的缓存；不触发确认弹窗 |
 | 包搜索路径 | `settings.package_search_paths.update` | C/S | 替换有序包搜索路径；路径受读取根约束，仅标记重启生效，不立即加载 |
