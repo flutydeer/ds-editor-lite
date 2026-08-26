@@ -8,7 +8,11 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QEventLoop>
+#include <QPointer>
 #include <QTimer>
+
+#include <atomic>
 
 namespace Automation {
 
@@ -51,7 +55,8 @@ namespace Automation {
     class AudioExportJobAdapter final : public IAudioExportJob {
     public:
         AudioExportJobAdapter(AppModel *model, QString projectPath, AudioExportConfigDto config)
-            : m_exporter(std::make_unique<Audio::AudioExporter>(nullptr)) {
+            : m_audioContext(AudioContext::instance()),
+              m_exporter(std::make_unique<Audio::AudioExporter>(nullptr)) {
             m_config = std::move(config);
             if (m_config.sourceOption == Audio::AudioExporterConfig::SO_All) {
                 m_config.sources.clear();
@@ -60,7 +65,7 @@ namespace Automation {
                     m_config.sources.append(index);
             }
             m_exporter->configureAutomationBackend(model, std::move(projectPath),
-                                                   AudioContext::instance());
+                                                   m_audioContext.data());
             m_exporter->setConfigInternal(fromAutomationDto(m_config));
         }
 
@@ -74,6 +79,29 @@ namespace Automation {
         }
 
         AudioExportBackendResult execute(const AudioExportObserver &observer) override {
+            if (!m_audioContext) {
+                return {.state = AudioExportBackendState::Failed,
+                        .errorMessage = QStringLiteral("Audio context is unavailable")};
+            }
+            auto inferenceStatus = m_audioContext->exportInferenceStatus();
+            while (inferenceStatus == AudioContext::ExportInferenceStatus::Pending &&
+                   !m_cancellationRequested.load(std::memory_order_acquire)) {
+                QEventLoop loop;
+                QTimer::singleShot(25, &loop, &QEventLoop::quit);
+                loop.exec();
+                if (m_audioContext)
+                    inferenceStatus = m_audioContext->exportInferenceStatus();
+            }
+            if (m_cancellationRequested.load(std::memory_order_acquire))
+                return {.state = AudioExportBackendState::Canceled};
+            if (!m_audioContext) {
+                return {.state = AudioExportBackendState::Failed,
+                        .errorMessage = QStringLiteral("Audio context is unavailable")};
+            }
+            if (inferenceStatus == AudioContext::ExportInferenceStatus::Failed) {
+                return {.state = AudioExportBackendState::Failed,
+                        .errorMessage = QStringLiteral("Inference failed")};
+            }
             const auto progressConnection = QObject::connect(
                 m_exporter.get(), &Audio::AudioExporter::progressChanged,
                 [callback = observer.progress](const double progress, const int sourceIndex) {
@@ -110,6 +138,7 @@ namespace Automation {
         }
 
         void cancel() override {
+            m_cancellationRequested.store(true, std::memory_order_release);
             m_exporter->cancelInternal(false, {});
         }
 
@@ -118,8 +147,10 @@ namespace Automation {
         }
 
     private:
+        QPointer<AudioContext> m_audioContext;
         std::unique_ptr<Audio::AudioExporter> m_exporter;
         AudioExportConfigDto m_config;
+        std::atomic_bool m_cancellationRequested = false;
     };
 
     AudioExportRuntimeServices createAudioExportAutomationServices() {
