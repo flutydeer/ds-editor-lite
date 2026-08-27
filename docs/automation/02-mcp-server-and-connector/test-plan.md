@@ -161,7 +161,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 14. 验证 `parameters.create_anchor_curve`、显式 `insert_anchors`、跨曲线移动拒绝和 `merge_anchor_curves` 的相邻/重叠规则及逐步 Undo/Redo。
 15. 验证 Speaker Mix 预设 list/save/delete 的应用级无文档副作用，apply 的单条 History，以及来源预设 dirty 状态。
 16. 对 workspace、track_panel、clip_editor 三个 GUI 域的 25 项工具逐项验证真实 QWidget 状态、焦点、共享/独立视口、选择顺序与 primary；确认 revision/history 不变且不出现模态窗口。
-17. 对 settings.query 与九个 update 验证公开字段 allowlist、domain 过滤、候选/生效/重启信息、稀疏更新、validate-only、持久化和失败回滚。
+17. 对 settings.query 与九个 update 验证公开字段 allowlist、domain 过滤、候选/生效/重启信息、稀疏更新、持久化和失败回滚；validate-only 只覆盖音频设备、计算设备和包搜索路径更新，其他设置 update 必须拒绝该字段。
 18. 对 packages.list/describe/refresh 验证读取根内路径、有效搜索路径、application task 的成功/取消/部分失败，以及索引原子切换。
 19. 对 lyric_rules 七项工具验证稳定 ID 迁移、内置/自定义边界、CRUD、启停、分类内移动、非法规则回滚和 splitter→tagger 只读测试。
 

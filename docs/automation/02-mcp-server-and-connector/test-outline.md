@@ -68,7 +68,7 @@ Editor 的 179 项按 25 个业务域追踪；Connector 的 6 项单独追踪。
 - `create_anchor_curve/insert_anchors/merge_anchor_curves` 分别承担创建、既有曲线插入和显式合并，不允许隐式创建、跨曲线移动或重叠。
 - Speaker Mix 预设的应用级 list/save/delete 与文档级 apply 具有不同 revision、History 和并发域契约；`speaker_mix.get` 返回来源预设及 dirty 状态。
 - 25 个 L3 GUI 工具均显式定位 `window_id`，涉及工程对象的工具还显式定位 `document_id`；GUI command 不改变 revision/history。
-- 设置更新 Schema 只包含公开 allowlist，全部为稀疏 update，并覆盖 validate-only、候选值、生效值、重启要求和失败回滚。
+- 设置更新 Schema 只包含公开 allowlist，全部为稀疏 update；音频设备、计算设备和包搜索路径更新另覆盖 validate-only，所有域覆盖候选值、生效值、重启要求和失败回滚。
 - `packages.refresh` 使用 application-scoped Task；歌词规则使用稳定 rule ID，内置规则内容不可修改或删除。
 
 ### 3.2 动态值与首次调用
@@ -124,7 +124,7 @@ Editor 的 179 项按 25 个业务域追踪；Connector 的 6 项单独追踪。
 2. 有效输入、每类边界输入和 schema-invalid 输入；
 3. 旧 document/revision、未知对象、owner/type 不匹配和 host capability unavailable；
 4. Query 的零 Model/历史记录/revision/Task/文件副作用；
-5. Command 的成功、no-op、validate-only、失败原子性、单条历史记录和 revision；
+5. Command 的成功、no-op、适用白名单上的 validate-only、失败原子性、单条历史记录和 revision；
 6. Editor direct 与 Connector 路径的归一化结果和稳定错误等价；
 7. GUI 可见变更与 Undo/Redo 的领域一致性。
 
@@ -144,7 +144,7 @@ Editor 的 179 项按 25 个业务域追踪；Connector 的 6 项单独追踪。
 - 执行前校验 document、expected revision、对象 owner/type、动态值、File Guard 和 Admission。
 - 成功结果含 previous/current、changed、affected/created objects、resolved values、presentation effects 与 warnings。
 - 合法 no-op 返回 `changed=false`，历史记录与 revision 保持原值。
-- validate-only 执行完整校验，且不产生 ID、Task、文件写入、历史记录、revision 或业务通知。
+- `documents.save_as`、`documents.import_batch`、`audio_clips.import_batch`、三项复杂设置更新以及歌词规则 create/update 的 validate-only 执行完整校验，且不产生 ID、Task、文件写入、历史记录、revision 或业务通知；其他命令拒绝该额外字段。
 - 批量命令先完整预检，再以一条历史记录和一次 revision 提交。
 - handler、I/O、Schema 编码和 host adapter 失败不产生半提交。
 - `audio_clips.relocate` 与 `audio_clips.confirm_path` 同步完成校验、解码/hash 和最终写回，返回 Mutation，不创建 Task。

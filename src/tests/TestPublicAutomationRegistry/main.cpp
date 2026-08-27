@@ -842,28 +842,21 @@ namespace {
 
         const QList<SettingsUpdate> updates{
             {"settings.ui_language.update",
-             {{QStringLiteral("ui_language"), QStringLiteral("zh_CN")},
-              {QStringLiteral("validate_only"), true}}                                 },
+             {{QStringLiteral("ui_language"), QStringLiteral("zh_CN")}}                                        },
             {"settings.singing.update",
-             {{QStringLiteral("default_language"), QStringLiteral("zh")},
-              {QStringLiteral("validate_only"), true}}                                 },
-            {"settings.theme.update",
-             {{QStringLiteral("theme_id"), QStringLiteral("dark")},
-              {QStringLiteral("validate_only"), true}}                                 },
+             {{QStringLiteral("default_language"), QStringLiteral("zh")}}                                      },
+            {"settings.theme.update",                    {{QStringLiteral("theme_id"), QStringLiteral("dark")}}},
             {"settings.audio_device.update",
-             {{QStringLiteral("gain"), 0.5}, {QStringLiteral("validate_only"), true}}  },
-            {"settings.playback_behavior.update",
-             {{QStringLiteral("behavior"), 1}, {QStringLiteral("validate_only"), true}}},
+             {{QStringLiteral("gain"), 0.5}, {QStringLiteral("validate_only"), true}}                          },
+            {"settings.playback_behavior.update",        {{QStringLiteral("behavior"), 1}}                     },
             {"settings.compute_device.update",
              {{QStringLiteral("execution_provider"), QStringLiteral("CPU")},
-              {QStringLiteral("validate_only"), true}}                                 },
-            {"settings.render.update",
-             {{QStringLiteral("depth"), 0.5}, {QStringLiteral("validate_only"), true}} },
-            {"settings.singer_session_retention.update",
-             {{QStringLiteral("capacity"), 4}, {QStringLiteral("validate_only"), true}}},
+              {QStringLiteral("validate_only"), true}}                                                         },
+            {"settings.render.update",                   {{QStringLiteral("depth"), 0.5}}                      },
+            {"settings.singer_session_retention.update", {{QStringLiteral("capacity"), 4}}                     },
             {"settings.package_search_paths.update",
              {{QStringLiteral("paths"), QJsonArray{allowedPackagePath}},
-              {QStringLiteral("validate_only"), true}}                                 },
+              {QStringLiteral("validate_only"), true}}                                                         },
         };
         for (const auto &update : updates) {
             invokeSchemaValid(registry, QString::fromLatin1(update.operationId), update.arguments,
@@ -897,10 +890,8 @@ namespace {
                                        .value(QStringLiteral("sampling_steps")) ==
                                    renderBefore.toObject().value(QStringLiteral("sampling_steps")),
                QStringLiteral("sparse render updates must preserve omitted fields"));
-        const auto emptyUpdate = registry.invoke(QStringLiteral("settings.theme.update"),
-                                                 QJsonObject{
-                                                     {QStringLiteral("validate_only"), true}
-        });
+        const auto emptyUpdate =
+            registry.invoke(QStringLiteral("settings.theme.update"), QJsonObject{});
         expect(!emptyUpdate &&
                    emptyUpdate.getError().code == Automation::AutomationErrorCode::InvalidArgument,
                QStringLiteral("settings updates must reject an empty patch"));
@@ -975,19 +966,13 @@ namespace {
         expect(!unknownPackage && unknownPackage.getError().code ==
                                       Automation::AutomationErrorCode::InvalidArgument,
                QStringLiteral("packages.describe must reject IDs absent from packages.list"));
-        const auto validatedRefresh =
-            invokeSchemaValid(registry, QStringLiteral("packages.refresh"),
-                              QJsonObject{
-                                  {QStringLiteral("validate_only"), true}
-        },
-                              QStringLiteral("validated package refresh"));
-        expect(validatedRefresh &&
-                   validatedRefresh->value(QStringLiteral("scope")) ==
-                       QStringLiteral("application") &&
-                   validatedRefresh->value(QStringLiteral("document")).isNull() &&
-                   validatedRefresh->value(QStringLiteral("validated_only")).toBool() &&
-                   !validatedRefresh->contains(QStringLiteral("task_id")),
-               QStringLiteral("validate-only package refresh must not create a task"));
+        const auto validatedRefresh = registry.invoke(QStringLiteral("packages.refresh"),
+                                                      QJsonObject{
+                                                          {QStringLiteral("validate_only"), true}
+        });
+        expect(!validatedRefresh && validatedRefresh.getError().code ==
+                                        Automation::AutomationErrorCode::InvalidArgument,
+               QStringLiteral("package refresh must reject unsupported validate-only input"));
         const auto refresh = invokeSchemaValid(registry, QStringLiteral("packages.refresh"), {},
                                                QStringLiteral("package refresh"));
         const auto taskId =
@@ -1132,22 +1117,19 @@ namespace {
                           QStringLiteral("lyric rule update"));
         invokeSchemaValid(registry, QStringLiteral("lyric_rules.set_enabled"),
                           QJsonObject{
-                              {QStringLiteral("rule_id"),       builtinLyricRuleId},
-                              {QStringLiteral("enabled"),       false             },
-                              {QStringLiteral("validate_only"), true              }
+                              {QStringLiteral("rule_id"), builtinLyricRuleId},
+                              {QStringLiteral("enabled"), false             },
         },
                           QStringLiteral("lyric rule set enabled"));
         invokeSchemaValid(registry, QStringLiteral("lyric_rules.move"),
                           QJsonObject{
-                              {QStringLiteral("rule_id"),       customLyricRuleId},
-                              {QStringLiteral("position"),      0                },
-                              {QStringLiteral("validate_only"), true             }
+                              {QStringLiteral("rule_id"),  customLyricRuleId},
+                              {QStringLiteral("position"), 0                },
         },
                           QStringLiteral("lyric rule move"));
         invokeSchemaValid(registry, QStringLiteral("lyric_rules.delete"),
                           QJsonObject{
-                              {QStringLiteral("rule_id"),       customLyricRuleId},
-                              {QStringLiteral("validate_only"), true             }
+                              {QStringLiteral("rule_id"), customLyricRuleId},
         },
                           QStringLiteral("lyric rule delete"));
         invokeSchemaValid(registry, QStringLiteral("lyric_rules.test"),
@@ -4019,7 +4001,6 @@ int main(int argc, char *argv[]) {
                           "explicit empty options"));
 
     auto saveCurrent = commandArguments(runtime.documentVersion());
-    saveCurrent.insert(QStringLiteral("validate_only"), true);
     const auto saveWithoutCurrentPath =
         registry.invoke(QStringLiteral("documents.save"), saveCurrent,
                         {.clientId = QStringLiteral("save-current-no-path")});
@@ -4165,13 +4146,12 @@ int main(int argc, char *argv[]) {
     const auto relocatePreview =
         registry.invoke(QStringLiteral("audio_clips.relocate"), relocatePreviewInput,
                         {.clientId = QStringLiteral("audio-relocate-preview")});
-    expect(
-        relocatePreview && relocatePreview.get().value(QStringLiteral("validated_only")).toBool() &&
-            audioClip && audioClip->path() == pathBeforePreview &&
-            runtime.documentVersion() == revisionBeforePreview &&
-            lastPreparedAudioPath == QFileInfo(relocatedAudioPath).canonicalFilePath(),
-        QStringLiteral(
-            "audio relocation validation must prepare the canonical path without model mutation"));
+    expect(!relocatePreview &&
+               relocatePreview.getError().code ==
+                   Automation::AutomationErrorCode::InvalidArgument &&
+               audioClip && audioClip->path() == pathBeforePreview &&
+               runtime.documentVersion() == revisionBeforePreview,
+           QStringLiteral("audio relocation must reject unsupported validate-only input"));
 
     auto relocateInput = commandArguments(runtime.documentVersion());
     relocateInput.insert(QStringLiteral("clip_id"), audioClipId.value());
@@ -4982,14 +4962,16 @@ int main(int argc, char *argv[]) {
 
     for (const auto &contract : registry.contracts()) {
         auto input = validInputSample(contract, runtime.documentVersion());
-        if (contract.inputSchema.value(QStringLiteral("properties"))
-                .toObject()
-                .contains(QStringLiteral("validate_only"))) {
+        const auto validatesOnly = contract.inputSchema.value(QStringLiteral("properties"))
+                                       .toObject()
+                                       .contains(QStringLiteral("validate_only"));
+        if (validatesOnly)
             input.insert(QStringLiteral("validate_only"), true);
-        }
         expect(AutomationWire::validateJsonValue(input, contract.inputSchema).valid(),
                QStringLiteral("generated schema-valid smoke input failed for %1")
                    .arg(contract.operationId));
+        if (contract.kind == AutomationWire::OperationKind::Command && !validatesOnly)
+            continue;
         const auto smoke =
             registry.invoke(contract.operationId, input, {.clientId = QStringLiteral("smoke")});
         const auto stableFailure =
@@ -5080,7 +5062,6 @@ int main(int argc, char *argv[]) {
         outsideProject.fileName(), QStringLiteral("outside.dspx"), true);
     expect(bool(replaced), QStringLiteral("outside-root document setup must succeed"));
     saveCurrent = commandArguments(runtime.documentVersion());
-    saveCurrent.insert(QStringLiteral("validate_only"), true);
     const auto saveOutsideRoot =
         registry.invoke(QStringLiteral("documents.save"), saveCurrent,
                         {.clientId = QStringLiteral("save-current-outside-root")});

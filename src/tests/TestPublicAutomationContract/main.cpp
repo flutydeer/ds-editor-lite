@@ -269,7 +269,6 @@ namespace {
         QSet<QString> expected{
             QStringLiteral("document_id"),
             QStringLiteral("expected_revision"),
-            QStringLiteral("validate_only"),
             QStringLiteral("idempotency_key"),
             valueField,
         };
@@ -614,7 +613,7 @@ namespace {
             expect(inputProperties.contains(QStringLiteral("document_id")) &&
                        inputProperties.contains(QStringLiteral("expected_revision")) &&
                        inputProperties.contains(QStringLiteral("expected_state_version")) &&
-                       inputProperties.contains(QStringLiteral("validate_only")) &&
+                       !inputProperties.contains(QStringLiteral("validate_only")) &&
                        inputProperties.contains(QStringLiteral("idempotency_key")) &&
                        inputRequired.contains(QStringLiteral("document_id")) &&
                        inputRequired.contains(QStringLiteral("expected_revision")) &&

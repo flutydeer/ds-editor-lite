@@ -164,7 +164,7 @@ GUI 进阶控制按真实面板层级归入 `workspace`、`track_panel` 和 `cli
 
 ### 5.7 设置、包信息与歌词规则
 
-设置工具采用 `settings.<domain>.update` 三段式命名，并以 `settings.query` 集中返回公开域的配置值、生效值、候选/范围、重启要求和不可用原因。九个 update 都是严格 allowlist 上的稀疏更新：只验证和提交调用方明确提供的字段，支持 validate-only，失败时不留下部分持久化或运行时状态，也不触发交互式错误对话框。UI 语言使用独立 `ui_language` 域；自动化/MCP 自配置、开发者选项和其他未列入契约的设置不向 MCP 暴露。
+设置工具采用 `settings.<domain>.update` 三段式命名，并以 `settings.query` 集中返回公开域的配置值、生效值、候选/范围、重启要求和不可用原因。九个 update 都是严格 allowlist 上的稀疏更新，只验证和提交调用方明确提供的字段；其中音频设备、计算设备和包搜索路径更新开放 validate-only。所有设置更新失败时都不留下部分持久化或运行时状态，也不触发交互式错误对话框。UI 语言使用独立 `ui_language` 域；自动化/MCP 自配置、开发者选项和其他未列入契约的设置不向 MCP 暴露。
 
 `packages.list/describe` 从当前包索引提供受读取根约束的规范路径和公开元数据。`packages.refresh` 使用当前生效搜索路径创建 application-scoped Task，在后台完成扫描后原子切换索引；它不伪造文档身份，也不参与工程 revision 或历史记录。
 
@@ -173,6 +173,8 @@ GUI 进阶控制按真实面板层级归入 `workspace`、`track_panel` 和 `cli
 ## 6. 历史记录、revision 与 Task
 
 `CommandCommitter` 为一次编辑构造一个 `ActionSequence`，成功时记录一条历史记录并推进一次 revision；预检失败、handler 失败、文件失败和 no-op 都不会产生半提交。Undo/Redo 仅在真实导航时推进 revision，save/save-as 更新 savepoint，文档换代重置 generation 与历史基线。
+
+公开 `validate_only` 仅保留在 `documents.save_as`、`documents.import_batch`、`audio_clips.import_batch`、`settings.audio_device.update`、`settings.compute_device.update`、`settings.package_search_paths.update`、`lyric_rules.create` 和 `lyric_rules.update`。其他命令仍执行同样的提交前校验，但不向 Agent 暴露无实际收益的预演开关。
 
 异步工具由 `AutomationTaskManager` 管理 Queued、Running、CancelRequested、Committing 和终态。Task 记录 operation、基准文档、创建者、进度、结果或错误；最终写回前复核 generation、revision、对象和文件授权。Connector 在有副作用请求的结果事实不明确时返回 `outcome_unknown`，不自动重放 Command。
 

@@ -917,6 +917,15 @@ namespace AutomationWire {
             return ids;
         }
 
+        const QSet<QString> &documentValidateOnlyOperations() {
+            static const QSet<QString> ids{
+                PublicToolNames::documents_save_as,
+                PublicToolNames::documents_import_batch,
+                PublicToolNames::audio_clips_import_batch,
+            };
+            return ids;
+        }
+
         QHash<QString, QStringList> requiredInputFields() {
             return {
                 {PublicToolNames::automation_get_options,
@@ -1153,8 +1162,6 @@ namespace AutomationWire {
                  {QStringLiteral("query"), QStringLiteral("package_id"), QStringLiteral("cursor"),
                   QStringLiteral("limit")}                                                                         },
                 {PublicToolNames::speaker_mix_presets_list,     {QStringLiteral("singer")}                         },
-                {PublicToolNames::speaker_mix_presets_save,     {QStringLiteral("validate_only")}                  },
-                {PublicToolNames::speaker_mix_presets_delete,   {QStringLiteral("validate_only")}                  },
                 {PublicToolNames::speaker_mix_keyframes_insert, {QStringLiteral("weights")}                        },
                 {PublicToolNames::notes_get,                    {QStringLiteral("cursor"), QStringLiteral("limit")}},
                 {PublicToolNames::notes_search,
@@ -1237,20 +1244,18 @@ namespace AutomationWire {
             if (lifecycle) {
                 add(QStringLiteral("current_document_id"), false);
                 add(QStringLiteral("expected_revision"), false);
-                add(QStringLiteral("validate_only"), false);
             } else if (documentQueryOperations().contains(id) ||
                        documentWriteOperations().contains(id) || playbackWrite) {
                 add(QStringLiteral("document_id"), true);
             }
             if (documentWriteOperations().contains(id)) {
                 add(QStringLiteral("expected_revision"), true);
-                add(QStringLiteral("validate_only"), false);
                 add(QStringLiteral("idempotency_key"), false);
             }
-            if (playbackWrite) {
+            if (playbackWrite)
                 add(QStringLiteral("expected_state_version"), false);
+            if (documentValidateOnlyOperations().contains(id))
                 add(QStringLiteral("validate_only"), false);
-            }
             const auto requiredFields = requiredInputFields().value(id);
             for (const auto &name : requiredFields)
                 add(name, true);
@@ -2663,6 +2668,13 @@ namespace AutomationWire {
                                              const int minimumProperties = 1) {
             auto updateOnly = JsonSchema::object(properties);
             updateOnly.insert(QStringLiteral("minProperties"), minimumProperties);
+            return JsonSchema::document(updateOnly);
+        }
+
+        QJsonObject l3ApplicationValidatableUpdateInput(QJsonObject properties,
+                                                        const int minimumProperties = 1) {
+            auto updateOnly = JsonSchema::object(properties);
+            updateOnly.insert(QStringLiteral("minProperties"), minimumProperties);
             properties.insert(QStringLiteral("validate_only"), JsonSchema::boolean());
             auto root = JsonSchema::object(properties);
             root.insert(QStringLiteral("minProperties"), minimumProperties);
@@ -2967,7 +2979,7 @@ namespace AutomationWire {
                 });
             }
             if (id == PublicToolNames::settings_audio_device_update) {
-                return l3ApplicationUpdateInput({
+                return l3ApplicationValidatableUpdateInput({
                     {QStringLiteral("driver_name"), nonEmptyStringSchema()},
                     {QStringLiteral("device_name"), JsonSchema::string()},
                     {QStringLiteral("buffer_size"), JsonSchema::integer(0.0)},
@@ -2983,7 +2995,7 @@ namespace AutomationWire {
                 });
             }
             if (id == PublicToolNames::settings_compute_device_update) {
-                return l3ApplicationUpdateInput({
+                return l3ApplicationValidatableUpdateInput({
                     {QStringLiteral("execution_provider"),
                      JsonSchema::string({QStringLiteral("CPU"), QStringLiteral("DirectML"),
                                          QStringLiteral("CUDA")})                                },
@@ -3010,7 +3022,7 @@ namespace AutomationWire {
                 });
             }
             if (id == PublicToolNames::settings_package_search_paths_update) {
-                return l3ApplicationUpdateInput({
+                return l3ApplicationValidatableUpdateInput({
                     {QStringLiteral("paths"),
                      JsonSchema::array(nonEmptyStringSchema(), 0, MaximumCommandCollectionItems)}
                 });
@@ -3033,9 +3045,7 @@ namespace AutomationWire {
                     {QStringLiteral("package_id")}));
             }
             if (id == PublicToolNames::packages_refresh) {
-                return JsonSchema::document(JsonSchema::object({
-                    {QStringLiteral("validate_only"), JsonSchema::boolean()}
-                }));
+                return JsonSchema::document(JsonSchema::object({}));
             }
 
             if (id == PublicToolNames::lyric_rules_list) {
@@ -3073,26 +3083,23 @@ namespace AutomationWire {
             if (id == PublicToolNames::lyric_rules_delete) {
                 return JsonSchema::document(JsonSchema::object(
                     {
-                        {QStringLiteral("rule_id"),       nonEmptyStringSchema()},
-                        {QStringLiteral("validate_only"), JsonSchema::boolean() },
+                        {QStringLiteral("rule_id"), nonEmptyStringSchema()},
                 },
                     {QStringLiteral("rule_id")}));
             }
             if (id == PublicToolNames::lyric_rules_set_enabled) {
                 return JsonSchema::document(JsonSchema::object(
                     {
-                        {QStringLiteral("rule_id"),       nonEmptyStringSchema()},
-                        {QStringLiteral("enabled"),       JsonSchema::boolean() },
-                        {QStringLiteral("validate_only"), JsonSchema::boolean() },
+                        {QStringLiteral("rule_id"), nonEmptyStringSchema()},
+                        {QStringLiteral("enabled"), JsonSchema::boolean() },
                 },
                     {QStringLiteral("rule_id"), QStringLiteral("enabled")}));
             }
             if (id == PublicToolNames::lyric_rules_move) {
                 return JsonSchema::document(JsonSchema::object(
                     {
-                        {QStringLiteral("rule_id"),       nonEmptyStringSchema()  },
-                        {QStringLiteral("position"),      JsonSchema::integer(0.0)},
-                        {QStringLiteral("validate_only"), JsonSchema::boolean()   },
+                        {QStringLiteral("rule_id"),  nonEmptyStringSchema()  },
+                        {QStringLiteral("position"), JsonSchema::integer(0.0)},
                 },
                     {QStringLiteral("rule_id"), QStringLiteral("position")}));
             }
