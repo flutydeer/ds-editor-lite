@@ -94,7 +94,7 @@ Streamable HTTP / stdio
 - MCP 2025-11-25 与 2026-07-28 两套主协议，以及 2025-06-18 兼容握手的消息、结果塑形和 header codec；
 - exposure selector、Schema 方向性兼容与不透明分页游标。
 
-Wire 字段使用 `snake_case`。业务 object 使用封闭 Schema；未知字段、未知枚举、非有限数字、越界整数、非法 ID、超限集合和非法分页游标在进入 Facade 前失败。动态候选由 `value_sources` 指向同层级可达的查询，`automation.get_options` 继承目标工具的 Profile、Custom 和执行权限。
+Wire 字段使用 `snake_case`。业务 object 使用封闭 Schema；未知字段、未知枚举、非有限数字、越界整数、非法 ID、超限集合和非法分页游标在进入 Facade 前失败。表示默认值、自动选择、无过滤或分页首页的可选字段采用显式白名单：字符串空值与省略等义，具有“全部”语义的集合空值与省略等义；必填标识、路径、查询词和编辑值仍保持严格校验。动态候选由 `value_sources` 指向同层级可达的查询，`automation.get_options` 继承目标工具的 Profile、Custom 和执行权限。
 
 ### 5.2 Binding Registry
 

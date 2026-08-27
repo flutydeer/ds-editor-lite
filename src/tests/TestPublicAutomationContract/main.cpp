@@ -59,6 +59,22 @@ namespace {
                              schema);
     }
 
+    QJsonObject schemaAtPath(const QJsonObject &root, const QStringList &path) {
+        auto current = root;
+        for (const auto &segment : path) {
+            current = resolveSchema(current, root);
+            current = segment == QStringLiteral("*")
+                          ? current.value(QStringLiteral("items")).toObject()
+                          : current.value(QStringLiteral("properties"))
+                                .toObject()
+                                .value(segment)
+                                .toObject();
+            if (current.isEmpty())
+                return {};
+        }
+        return resolveSchema(current, root);
+    }
+
     QSet<QString> keys(const QJsonObject &object) {
         QSet<QString> result;
         for (auto it = object.constBegin(); it != object.constEnd(); ++it)
@@ -255,6 +271,136 @@ namespace {
                        !validateJsonValue(withIdempotencyKey, contract->inputSchema).valid(),
                    operationId +
                        QStringLiteral(" schema must reject unsupported idempotency_key input"));
+        }
+    }
+
+    void verifyOmissionEquivalentOptionalInputs() {
+        const QList<QPair<QString, QStringList>> emptyStringCases{
+            {QStringLiteral("automation.get_manifest"), {QStringLiteral("cursor")}},
+            {QStringLiteral("tracks.list"), {QStringLiteral("cursor")}},
+            {QStringLiteral("clips.list"), {QStringLiteral("type")}},
+            {QStringLiteral("clips.list"), {QStringLiteral("cursor")}},
+            {QStringLiteral("voices.list"), {QStringLiteral("query")}},
+            {QStringLiteral("voices.list"), {QStringLiteral("package_id")}},
+            {QStringLiteral("voices.list"), {QStringLiteral("cursor")}},
+            {QStringLiteral("notes.get"), {QStringLiteral("cursor")}},
+            {QStringLiteral("tasks.list"), {QStringLiteral("state")}},
+            {QStringLiteral("tasks.list"), {QStringLiteral("kind")}},
+            {QStringLiteral("tasks.list"), {QStringLiteral("cursor")}},
+            {QStringLiteral("packages.list"), {QStringLiteral("cursor")}},
+            {QStringLiteral("formats.list"), {QStringLiteral("purpose")}},
+            {QStringLiteral("lyric_rules.list"), {QStringLiteral("kind")}},
+            {QStringLiteral("documents.open"), {QStringLiteral("format_id")}},
+            {QStringLiteral("documents.open"), {QStringLiteral("plan_digest")}},
+            {QStringLiteral("documents.open"),
+             {QStringLiteral("options"), QStringLiteral("encoding")}},
+            {QStringLiteral("documents.import"), {QStringLiteral("format_id")}},
+            {QStringLiteral("documents.import"), {QStringLiteral("plan_digest")}},
+            {QStringLiteral("documents.import"),
+             {QStringLiteral("options"), QStringLiteral("encoding")}},
+            {QStringLiteral("documents.import_batch"),
+             {QStringLiteral("items"), QStringLiteral("*"), QStringLiteral("format_id")}},
+            {QStringLiteral("documents.import_batch"),
+             {QStringLiteral("items"), QStringLiteral("*"), QStringLiteral("plan_digest")}},
+            {QStringLiteral("documents.import_batch"),
+             {QStringLiteral("items"), QStringLiteral("*"), QStringLiteral("options"),
+              QStringLiteral("encoding")}},
+            {QStringLiteral("audio_clips.confirm_path"), {QStringLiteral("path")}},
+            {QStringLiteral("packages.describe"), {QStringLiteral("version")}},
+            {QStringLiteral("extract.pitch.start"),
+             {QStringLiteral("options"), QStringLiteral("model_id")}},
+            {QStringLiteral("extract.midi.start"),
+             {QStringLiteral("options"), QStringLiteral("model_id")}},
+            {QStringLiteral("extract.midi.start"),
+             {QStringLiteral("options"), QStringLiteral("default_language")}},
+            {QStringLiteral("inference.start"),
+             {QStringLiteral("options"), QStringLiteral("provider_id")}},
+            {QStringLiteral("inference.start"),
+             {QStringLiteral("options"), QStringLiteral("device_id")}},
+            {QStringLiteral("inference.start"),
+             {QStringLiteral("options"), QStringLiteral("model_id")}},
+        };
+        const QList<QPair<QString, QStringList>> emptyArrayCases{
+            {QStringLiteral("settings.query"), {QStringLiteral("domains")}},
+            {QStringLiteral("inference.start"), {QStringLiteral("stages")}},
+            {QStringLiteral("exports.midi.preview"),
+             {QStringLiteral("options"), QStringLiteral("track_ids")}},
+            {QStringLiteral("exports.midi.preview"),
+             {QStringLiteral("options"), QStringLiteral("clip_ids")}},
+            {QStringLiteral("exports.midi.start"),
+             {QStringLiteral("options"), QStringLiteral("track_ids")}},
+            {QStringLiteral("exports.midi.start"),
+             {QStringLiteral("options"), QStringLiteral("clip_ids")}},
+        };
+
+        const auto verifyCase = [](const QPair<QString, QStringList> &testCase,
+                                   const QJsonValue &emptyValue) {
+            const auto *contract = findPublicTool(testCase.first);
+            expect(contract, testCase.first + QStringLiteral(" must exist"));
+            if (!contract || testCase.second.isEmpty())
+                return;
+            auto parentPath = testCase.second;
+            const auto field = parentPath.takeLast();
+            const auto parentSchema = schemaAtPath(contract->inputSchema, parentPath);
+            const auto fieldSchema = schemaAtPath(contract->inputSchema, testCase.second);
+            expect(!parentSchema.isEmpty() && !fieldSchema.isEmpty() &&
+                       !requiredFields(parentSchema, contract->inputSchema).contains(field) &&
+                       validateJsonValue(emptyValue, fieldSchema).valid(),
+                   testCase.first + u'.' + testCase.second.join(u'.') +
+                       QStringLiteral(" must be optional and treat an empty value as omitted"));
+        };
+        for (const auto &testCase : emptyStringCases)
+            verifyCase(testCase, QString());
+        for (const auto &testCase : emptyArrayCases)
+            verifyCase(testCase, QJsonArray{});
+
+        int idempotencyKeys = 0;
+        for (const auto &contract : publicToolContracts()) {
+            const auto properties =
+                contract.inputSchema.value(QStringLiteral("properties")).toObject();
+            if (!properties.contains(QStringLiteral("idempotency_key")))
+                continue;
+            ++idempotencyKeys;
+            expect(!requiredFields(contract.inputSchema).contains(QStringLiteral("idempotency_key")) &&
+                       validateJsonValue(QString(),
+                                         properties.value(QStringLiteral("idempotency_key"))
+                                             .toObject())
+                           .valid(),
+                   contract.operationId +
+                       QStringLiteral(" must accept an empty optional idempotency_key"));
+        }
+        expect(idempotencyKeys == 86,
+               QStringLiteral("all 86 document-write idempotency keys must share the policy"));
+
+        for (const auto &testCase :
+             QList<QPair<QString, QStringList>>{
+                 {QStringLiteral("notes.search"), {QStringLiteral("query")}},
+                 {QStringLiteral("documents.open"), {QStringLiteral("path")}},
+                 {QStringLiteral("formats.inspect"), {QStringLiteral("purpose")}},
+                 {QStringLiteral("packages.describe"), {QStringLiteral("package_id")}},
+             }) {
+            const auto *contract = findPublicTool(testCase.first);
+            expect(contract &&
+                       !validateJsonValue(QString(),
+                                          schemaAtPath(contract->inputSchema, testCase.second))
+                            .valid(),
+                   testCase.first + u'.' + testCase.second.join(u'.') +
+                       QStringLiteral(" must remain non-empty"));
+        }
+        for (const auto &testCase :
+             QList<QPair<QString, QStringList>>{
+                 {QStringLiteral("clips.list"), {QStringLiteral("type")}},
+                 {QStringLiteral("tasks.list"), {QStringLiteral("state")}},
+                 {QStringLiteral("formats.list"), {QStringLiteral("purpose")}},
+                 {QStringLiteral("lyric_rules.list"), {QStringLiteral("kind")}},
+             }) {
+            const auto *contract = findPublicTool(testCase.first);
+            expect(contract &&
+                       !validateJsonValue(QStringLiteral("not-a-valid-option"),
+                                          schemaAtPath(contract->inputSchema, testCase.second))
+                            .valid(),
+                   testCase.first + u'.' + testCase.second.join(u'.') +
+                       QStringLiteral(" must still reject unknown non-empty filters"));
         }
     }
 
@@ -821,6 +967,7 @@ int main(int argc, char **argv) {
     verifyAuthoritativeToolset();
     verifyShallowCreationAndNoteDefaults();
     verifyLifecycleIdempotencyContracts();
+    verifyOmissionEquivalentOptionalInputs();
     verifyIndependentScalarOperations();
     verifyVoiceContracts();
     verifySpeakerMixContracts();
