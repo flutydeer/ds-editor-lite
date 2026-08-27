@@ -2,7 +2,7 @@
 
 ## 1. 目标与分母
 
-本大纲验证二期从公共契约到真实 GUI Editor/Connector 联调的完整链路。本轮以同一候选重新生成全部测试记录；此前执行结果不计入本轮验收。冻结分母为：
+本大纲验证二期从公共契约到真实 GUI Editor/Connector 联调的完整链路。正式验收以同一候选重新生成的 CTest 与 GUI 双轨证据为准，冻结分母为：
 
 ```text
 Editor 公共工具：179
@@ -10,7 +10,7 @@ Connector 桥接工具：6
 总工具面：185
 ```
 
-Editor 的 179 项按 25 个业务域追踪；Connector 的 6 项单独追踪。每个工具至少关联 descriptor/Schema、发现授权、Registry binding、Editor MCP、Connector 路径中适用的测试证据。Query、同步 Command、异步 Command、文件、动态值、GUI 状态、应用设置和历史记录维度按工具类型展开。
+Editor 的 179 项按 25 个业务域追踪；Connector 的 6 项单独追踪。每个工具至少关联 descriptor/Schema、发现授权、Registry binding、Editor MCP、Connector 路径中适用的测试证据。每个业务域同时具有确定性 CTest 与真实产品会话代表路径：可见状态由 GUI 观察闭环，不直接可见的查询、安全拒绝和后台任务由 Connector 回读、应用状态及进程事实闭环。
 
 测试层次：
 
@@ -24,7 +24,7 @@ Editor 的 179 项按 25 个业务域追踪；Connector 的 6 项单独追踪。
 | GUI | Automation 设置页、可见编辑结果、Undo/Redo、运行状态 |
 | 资格 | 真实格式、声音、推理、播放与 Agent Host 环境 |
 
-## 2. 集合、版本与一期校正
+## 2. 集合、版本与基础契约
 
 ### 2.1 ID 与域
 
@@ -221,7 +221,7 @@ Editor 的 179 项按 25 个业务域追踪；Connector 的 6 项单独追踪。
 
 - 2025-11-25 与 2026-07-28 两套主协议，以及协商到 2025-06-18 的兼容会话，对当前 179 集合、顺序、分页、Schema、annotations 和适用 server metadata 进行比对。
 - `tools/call` 覆盖缺 name/arguments、未知工具、权限变化、Schema 错误、业务错误与成功结果。
-- 179 项均有一次 schema-valid Registry 可达性测试；45 项 L3 还逐项覆盖 schema-invalid、真实成功或结构化不可用、无副作用/no-op 与失败回滚语料。
+- 179 项均有 schema-valid Registry 可达性测试，并按工具语义逐项覆盖 schema-invalid、真实成功或结构化不可用、无副作用/no-op、失败回滚和异步终态中的适用分支。
 - output Schema 自检失败转换为内部错误，且不产生第二次业务提交。
 
 ## 9. QLocal Bootstrap
@@ -291,22 +291,20 @@ Editor 的 179 项按 25 个业务域追踪；Connector 的 6 项单独追踪。
 
 ### 12.2 GUI 与真实资格
 
-- 设置页默认、修改、CLI 覆盖和状态展示。
-- MCP 工具编辑后 GUI 立即呈现；GUI 编辑后 MCP 查询与 revision 立即更新。
-- 轨道、总线、片段、音符、参数曲线、历史记录与播放选择代表性 mutation，验证模型信号驱动的 GUI 即时呈现。
-- Speaker Mix 与时间轴在真实工程中至少完成目录、Schema 和读取资格；mutation 的完整分母由确定性全工具测试承担，具备适用上下文时再补真实 GUI mutation。
-- Connector mutation 后使用 GUI Undo/Redo，验证单条历史记录粒度。
-- 逐项调用 25 个 GUI 进阶控制工具，保存调用前后 GUI、对应 get 回读与恢复证据；持续监控真实焦点、顶层窗口和活动模态窗口。
-- 九个设置更新、包刷新和歌词规则管理均从 GUI 或应用状态观察即时结果，并在场景后恢复隔离配置。
-- 播放、文档、导入、导出、可用声库与推理环境的可见行为。
-- 一个真实 Agent Host 通过 stdio 启动 Connector，执行 status、list、describe 及代表性 Query/Command；C/A Task 生命周期与 2025-06-18 兼容握手由确定性进程测试覆盖。
-- 环境资格按实际具备的 codec、声音、模型和音频设备逐项记录，结果与确定性测试分母分开。
+- 设置页默认、修改、CLI 覆盖、Custom 领域分组和运行状态展示。
+- 179 项 Editor 工具全部由 Contract、Registry、Editor MCP 与 Connector 确定性测试覆盖；真实 Connector 会话覆盖 25 个业务域，L3 的 45 项工具逐项通过泛化调用执行，六个 Connector 桥接工具逐项执行。
+- 25 个业务域均建立真实产品会话代表路径；具有可见 UI 的域同时保存 GUI 观察证据。MCP 编辑后 GUI 立即呈现；GUI 编辑后 MCP 查询与 revision 立即更新；不直接可见的查询、应用设置和 Task 通过对应 query、应用状态或进程事实闭环。
+- 轨道、总线、片段、音符、参数曲线、时间轴、Speaker Mix、历史记录与播放均执行至少一条真实 mutation，并使用 GUI 与 MCP Undo/Redo 验证代表路径的历史记录粒度及状态恢复；其余逐工具边界由确定性测试覆盖。
+- 工作区布局、轨道面板和片段编辑器的 25 项 GUI 工具逐项保存调用前后界面、对应 get 回读与恢复证据；持续监控真实焦点、顶层窗口和活动模态窗口。
+- 九个设置更新、包刷新和歌词规则管理逐项从 GUI 或应用状态观察即时结果，并在场景后恢复隔离配置。
+- 文档、格式、音频素材、声库、导出、提取、推理和异步任务均在隔离工作区执行真实资格路径；环境缺少 codec、声音、模型或音频设备时，保存结构化不可用事实，并由确定性 CTest 覆盖可用分支。
+- 一个真实 Agent Host 通过 stdio 启动 Connector，逐项执行六个桥接工具和 L3 45 项，并以各域代表性 Query/Command/Task 覆盖产品链路；179 项全体的协议、权限、Schema 与异常分支由确定性进程测试覆盖。
 
 ## 13. 通过标准
 
 - 179 + 6 = 185 的工具集合、稳定名称、域和版本不变量全部成立。
-- 179 个 Editor 工具均有 Contract、Registry、权限和适用调用证据；六个 Connector 工具逐项验证。
+- 179 个 Editor 工具均有 Contract、Registry、权限与 CTest 证据；25 个业务域均有真实代表路径，L3 45 项和 Connector 6 项逐项实测。
 - 两套 MCP 主协议、2025-06-18 兼容握手/会话、Editor HTTP、QLocal、Connector stdio、exposure、Profile/Custom、File Guard 和 Admission 全部完成。
 - Editor direct 与 Connector 路径的业务结果、错误、历史记录、revision 和 Task 语义一致。
-- 进程联调、GUI、真实资格与清理结果形成本轮证据。
+- 25 个 Editor 业务域均完成确定性覆盖和真实代表路径；可见 UI 域另有 GUI 证据，进程联调、真实资格与清理结果形成同一候选的证据。
 - 完整 Debug build 和全部 CTest 在同一候选、串行约束下连续三轮完成；Qt 组件轮显式配置可用的 offscreen 平台插件路径。任一修复后从受影响域回归并重新开始三轮计数。

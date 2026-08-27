@@ -134,7 +134,7 @@ tool name、域、Profile、类型、版本或集合出现缺口、重复或漂�
 2. 完整构建所有产品和测试目标。
 3. 运行 JSON Schema、codec、Manifest、digest、游标、Profile 与版本单元测试。
 4. 运行 Access Policy、Custom、File Guard、Admission、exposure 与 Schema compatibility 单元测试。
-5. 运行一期 Catalog、Core、历史记录、revision、idempotency、Task、document 与 architecture 回归。
+5. 运行 Automation Catalog、Core、历史记录、revision、idempotency、Task、document 与 architecture 回归。
 6. 使用固定 seed 运行路径、兼容和令牌桶边界语料。
 
 ### 门禁
@@ -149,7 +149,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 2. 精确比较 Profile 累积数量 Meta 4、L1 91、L2 134、L3 179。
 3. 对全部 179 项生成 schema-valid 输入并验证 Registry binding 可达。
 4. 对每项执行 schema-invalid、权限关闭或 host unavailable 的适用拒绝路径。
-5. 按 25 个域执行代表性真实成功、no-op、validate-only、revision conflict 或应用级失败原子性。
+5. 由确定性语料为 179 项逐工具覆盖适用的成功、no-op、validate-only、revision conflict、结构化不可用或失败原子性；另按 25 个域各执行至少一条真实产品代表路径。
 6. 验证历史记录原子边界：同类批量操作整体撤销；轨道/总线/片段标量、已有音符歌词/语言/长度互不捆绑。
 7. 验证创建深度：轨道只能创建为空轨道，歌声片段只能创建为空片段，音符叶节点可携带完整初始数据且不要求 voice context。
 8. 验证 `audio_clips.relocate/confirm_path` 同步返回 Mutation、不创建 Task，并在 GUI 中立即反映。
@@ -164,6 +164,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 17. 对 settings.query 与九个 update 验证公开字段 allowlist、domain 过滤、候选/生效/重启信息、稀疏更新、validate-only、持久化和失败回滚。
 18. 对 packages.list/describe/refresh 验证读取根内路径、有效搜索路径、application task 的成功/取消/部分失败，以及索引原子切换。
 19. 对 lyric_rules 七项工具验证稳定 ID 迁移、内置/自定义边界、CRUD、启停、分类内移动、非法规则回滚和 splitter→tagger 只读测试。
+20. 对 RMVPE 长音频路径验证有界分块、进度、取消、完整成功、参数点时间轴和 Editor 存活；真实长输入通过后再进入最终 CTest 门禁。
 
 ### 证据
 
@@ -231,8 +232,8 @@ stdio 零污染；工具面、exposure 与兼容结果确定；旧握手结果�
 
 1. Connector 先启动，再启动 Editor 并启用 MCP，观察自动接入。
 2. Editor 先 ready，再启动 Connector，验证首次 watch 到完整握手。
-3. 在 direct HTTP 与 Connector stdio 上复用 Meta/L1/L2/L3 代表语料，并让 45 项 L3 工具全部通过 Connector 泛化调用一次。
-4. 在隔离工作区完成 project、tracks、bus、clips、notes、parameters、history、文件、Task 与 playback 链路。
+3. 在 direct HTTP 与 Connector stdio 上复用 Meta/L1/L2/L3 全域语料；179 项 Editor 工具由确定性进程测试逐项覆盖，真实 Connector 会话覆盖 25 个业务域、逐项执行 L3 45 项和六个 Connector 桥接工具。
+4. 在隔离工作区完成文档、格式、轨道、总线、片段、音频素材、声库、Speaker Mix、音符、参数曲线、时间轴、历史记录、播放、导出、提取、推理与 Task 链路；GUI、设置、包信息和歌词规则域在同一真实进程候选中闭环。
 5. 运行两至八个 Connector，并发 Query、Command、Task 和 reconnect。
 6. 验证 revision conflict、公平配额、独立缓存与请求映射。
 7. 运行时切换 Profile/Custom/roots/port/enabled，验证两侧状态与调用结果。
@@ -248,27 +249,27 @@ Editor direct 与 Connector 转接在结果、错误、历史记录、revision �
 
 1. 从带图标的选项菜单“自动化”项进入设置页，核对面板中文翻译、enabled、端口、Profile、Custom、roots、status 和 endpoint。
 2. Connector 先启动，在 GUI 启用 MCP，观察自动连接与状态更新。
-3. 切换 Profile/Custom，比较 GUI、Editor list、Connector status 和实际调用；在 Custom 下核对领域卡片默认收起，抽查展开/收起不改变权限，并验证整组关闭、整组开启、启用计数和单项状态回读。
+3. 切换 Profile/Custom，比较 GUI、Editor list、Connector status 和实际调用；在 Custom 下逐组核对 25 个领域卡片默认收起、展开/收起不改变权限、整组关闭/开启、启用计数和单项状态回读。
 4. 核对端口刷新按钮与输入框同一行且始终可用；首次配置生成非零端口后重启不变化，刷新、直接编辑、冲突恢复、disable/enable 的状态序列正确。
 5. 在 ready、disabled 和 error 状态分别复制 stdio 与 Streamable HTTP 配置；解析为单个 server entry，并确认不含外层 `mcpServers`。
 6. 核对读写根说明为自动化文件工具 allowlist，且页面不存在无动态内容的本机进程访问栏目；使用隔离工作区验证允许与拒绝。
-7. 通过 Connector 对轨道、总线、片段、音符、参数曲线、历史记录与播放执行代表性 mutation，观察 GUI 立即变化；Speaker Mix 与时间轴至少完成目录、Schema 和读取资格，mutation 全分母由确定性测试覆盖，具备适用上下文时补真实 GUI mutation。
-8. 对第 7 步实际执行的代表性 mutation 使用 GUI Undo/Redo；全部细粒度 Command、批量命令和三个持久循环命令的历史记录粒度由确定性测试覆盖。
-9. 探测音频素材 relocate/confirm、文档、保存、导入、导出、任务、瞬时播放与推理资格，并执行当前环境具备前置条件的代表性路径；完整行为分母由确定性测试覆盖。
+7. 通过 Connector 对轨道、总线、片段、音符、参数曲线、时间轴、Speaker Mix、历史记录与播放逐域执行真实 mutation，观察 GUI 立即变化，并以对应 Query 核对同一状态。
+8. 对第 7 步各编辑域的 mutation 使用 GUI 与 MCP Undo/Redo；细粒度 Command、批量命令和三个持久循环命令的历史记录粒度均由确定性 CTest 覆盖。
+9. 对文档、格式、音频素材、声库、保存、导入、导出、提取、推理和异步任务逐域执行真实资格路径；环境缺少 codec、声音、模型或音频设备时保存结构化不可用事实，同时由确定性 CTest 覆盖可用分支。
 10. 同时运行多个 Connector，结束其中一个后验证其余链路。
 11. 使用 CLI override 启动测试拥有的 Editor，核对来源显示与持久配置保持。
 12. 对 workspace、track_panel、clip_editor（含 piano/parameters）25 项工具逐项建立 GUI 场景；每项保存调用前后截图、对应 query 回读和恢复证据，并确认焦点、选择与共享视口一致。
-13. 对九个设置 update、包刷新与歌词规则管理观察 GUI/应用即时状态、重启后持久状态和失败回滚；全过程监测顶层窗口与活动模态窗口。
+13. 对九个设置 update、包刷新与歌词规则管理逐项观察 GUI/应用即时状态、重启后持久状态和失败回滚；全过程监测顶层窗口与活动模态窗口。
 
 ### Agent Host 与环境资格
 
-使用临时测试配置启动一个真实 Agent Host，经 stdio 调用 status、list、describe 及代表性 Query/Command。C/A Task 生命周期由确定性进程测试覆盖。配置只在隔离工作区存活，结束后进入 cleanup manifest。
+使用临时测试配置启动一个真实 Agent Host，经 stdio 调用 status、list、describe；通过泛化调用逐项覆盖 L3 45 项，并以每个业务域的代表性真实路径覆盖其余工具面，同时逐项执行六个 Connector 桥接工具。179 项逐工具的协议、权限和错误分支由同一候选的确定性进程测试完成。异步工具同时保存 Task 创建、查询与终态证据。配置只在隔离工作区存活，结束后进入 cleanup manifest。
 
-格式、声音、模型、codec 和音频设备资格逐项探测；环境条件与确定性测试分母分开记录。每项结论只依据本轮实际证据。
+格式、声音、模型、codec 和音频设备资格逐项探测；环境条件与确定性测试分母分开记录。环境依赖不满足时必须同时具备真实结构化不可用证据与确定性可用分支证据，不能以“未执行”代替域覆盖。
 
 ### 门禁
 
-无模态阻塞、UI 假死、offscreen 插件错误或用户文件写入；GUI 可见状态与 MCP 事实一致；所有测试新增产物进入清理清单。
+25 个 Editor 业务域均具有确定性覆盖与真实代表路径，可见 UI 域另有 GUI 证据；无模态阻塞、UI 假死、offscreen 插件错误或用户文件写入；GUI 可见状态与 MCP 事实一致；所有测试新增产物进入清理清单。
 
 ## 15. 阶段 I：完整 CTest 三轮
 
@@ -280,7 +281,7 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 ctest --test-dir build/Debug --output-on-failure -j 1
 ```
 
-每轮保存：实际命令、CTest 清单、开始/结束时间、退出码、总数、逐 case 结果、耗时、失败/timeout、XML/JSON 与环境差异。轮间保持源码和构建候选不变。
+当前候选清单为 67 项。每轮保存：实际命令、CTest 清单、开始/结束时间、退出码、总数、逐 case 结果、耗时、失败/timeout、XML/JSON 与环境差异。轮间保持源码和构建候选不变，正式报告只采用三轮实际结果。
 
 任一轮失败、timeout、crash 或残留均使三轮门禁重新开始。修复后先执行第 16 节回归链，再从第一轮重新计数。
 
@@ -300,7 +301,7 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 3. 修改唯一实现路径，保持 Schema、安全与断言强度。
 4. 执行最小复现。
 5. 执行所属组件完整测试域。
-6. 执行一期受影响 Facade/历史记录/GUI 回归。
+6. 执行受影响的 Facade、历史记录与 GUI 回归。
 7. 执行 Editor direct + Connector stdio 等价联调。
 8. 涉及 UI 或生命周期时重做对应 Computer Use 场景。
 9. 重新构建受影响目标并从头执行完整 CTest 三轮。
@@ -318,7 +319,7 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 - Editor MCP 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手与 QLocal；
 - Connector stdio/exposure/compatibility；
 - File Guard、Admission、设置、CLI 与生命周期；
-- 当前代码事实、实现差异与长期保护测试。
+- 当前代码事实、实现边界与长期保护测试。
 
 ### 测试报告
 

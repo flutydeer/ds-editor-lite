@@ -2,9 +2,9 @@
 
 ## 1. 交付结论与口径
 
-二期已在一期 Automation Facade 基线上形成可由 Agent Host 使用的完整链路：GUI Editor 内置 Streamable HTTP MCP Server，DS Connector Lite 以 stdio 向下游提供 MCP，并通过本机实例观察和 HTTP 与运行中的 Editor 建立连接。公共工具面按业务域组织，Editor 134 项、Connector 6 项，共 140 项。
+二期形成了可由 Agent Host 使用的完整自动化链路：GUI Editor 内置 Streamable HTTP MCP Server，DS Connector Lite 以 stdio 向下游提供 MCP，并通过本机实例观察和 HTTP 与运行中的 Editor 建立连接。公共工具面按业务域组织，Editor 179 项、Connector 6 项，共 185 项。
 
-Editor 的 134 项工具分属 19 个业务域，类型统计为 **37 Q/S + 87 C/S + 10 C/A**。公共工具集与 140 项逐工具的 current、introduced、minimum-compatible 版本均保持为 **1**。
+Editor 的 179 项工具分属 25 个业务域，类型统计为 **45 Q/S + 123 C/S + 11 C/A**。最低 Profile 分布为 Meta 4 项、L1 87 项、L2 43 项、L3 45 项；累积可见数量分别为 4、91、134、179。公共工具集与 185 项逐工具的 current、introduced、minimum-compatible 版本均保持为 **1**。
 
 本报告记录当前源码的实现事实。权威工具分母和逐项语义见[公共工具矩阵](public-tool-matrix.md)，验证范围与执行方法见[全量测试大纲](test-outline.md)和[测试执行计划](test-plan.md)，实际运行结果由[测试报告](test-report.md)统一记录。
 
@@ -24,9 +24,9 @@ Editor 的 134 项工具分属 19 个业务域，类型统计为 **37 Q/S + 87 C
 
 | 层 | 主要代码 | 已实现职责 |
 |---|---|---|
-| Wire Contract | `src/libs/AutomationWire` | 134 项公共定义、值域、严格 JSON Schema、Manifest、digest、游标、MCP codec、exposure 与 Schema 兼容 |
+| Wire Contract | `src/libs/AutomationWire` | 179 项公共定义、值域、严格 JSON Schema、Manifest、digest、游标、MCP codec、exposure 与 Schema 兼容 |
 | Domain Facade | `src/app/Automation` | 类型化 Query/Command、Dispatcher、CommandCommitter、历史记录、revision、Task 与领域适配 |
-| Public Registry | `src/app/Automation/Public` | 134 项 binding、Profile/Custom、动态值、File Guard、Admission、输入/输出校验与 handler 路由 |
+| Public Registry | `src/app/Automation/Public` | 179 项 binding、Profile/Custom、动态值、File Guard、Admission、输入/输出校验与 handler 路由 |
 | Editor MCP | `src/app/Automation/Mcp` | 双协议请求处理、loopback HTTP、运行时配置、启停与状态发布 |
 | Instance Bootstrap | `src/app/Bootstrap` | 单实例身份、`automation.discover/watch`、完整状态快照与广播 |
 | Connector | `src/connector` | QLocal watcher、HTTP upstream、stdio downstream、六项桥接工具、exposure、兼容缓存与重连 |
@@ -48,7 +48,7 @@ contract / handler 查找
 
 异步工具的 Admission lease 会保留到 Task 终态。Registry 在启动时把实际 binding ID 与公共契约 ID 排序后做精确相等校验；完整性门禁失败时，Editor 发布错误状态，不启动缺少 binding 的 MCP listener。
 
-## 4. 134 项域优先公共契约
+## 4. 179 项域优先公共契约
 
 `src/libs/AutomationWire/PublicToolDefinitions.inc` 是 Editor 工具身份、域、最低 Profile、类型、同步模式和逐工具版本的单一来源。
 
@@ -73,7 +73,13 @@ contract / handler 查找
 | 提取 | `extract` | 3 |
 | 推理 | `inference` | 4 |
 | 异步任务 | `tasks` | 3 |
-| **合计** |  | **134** |
+| 工作区布局 | `workspace` | 2 |
+| 轨道面板 | `track_panel` | 7 |
+| 片段编辑器 | `clip_editor` | 16 |
+| 设置 | `settings` | 10 |
+| 包信息 | `packages` | 3 |
+| 歌词规则 | `lyric_rules` | 7 |
+| **合计** |  | **179** |
 
 `master.*` 的公开 operation ID 保持稳定，descriptor category 为 `bus`。历史记录域使用 `history.get_state/undo/redo`，异步执行实例统一使用 `tasks.list/get/cancel`；`operation_id` 表示能力定义，`task_id` 表示一次执行实例。
 
@@ -148,6 +154,28 @@ LibreSVIP 转换抽取为共享 `LibreSVIPConverter`。GUI 转换 Task 与自动
 
 Speaker Mix 预设并入 `speaker_mix` 域并开放在 L2。`presets.list/save/delete` 管理应用级预设，不改变文档 revision 或 History；`presets.apply` 把预设值作为一条文档历史记录应用到轨道或片段。查询快照携带可空来源预设和 dirty 标记，后续直接编辑混合会保留来源身份并标记已偏离预设。
 
+### 5.6 工作区、轨道面板与片段编辑器
+
+GUI 进阶控制按真实面板层级归入 `workspace`、`track_panel` 和 `clip_editor` 三个域。所有工具都显式定位 `window_id`；涉及工程对象的命令同时定位 `document_id`，对象选择继续使用稳定的 track、clip 和 note ID。它们只修改 QWidget 表示状态、选择、焦点或视口，不推进工程 revision，也不写入历史记录。
+
+`workspace` 管理轨道面板与片段编辑器的可见性，并保证至少保留一个主编辑面板。`track_panel` 管理自己的共享轨道视口、自动翻页、当前轨道、有序片段选择、primary item 与真实焦点；reveal 会根据目标轨道或片段调整可见范围，但不改变工程内容。选择和焦点没有平行的全局域，而是由其状态所属面板直接管理。
+
+`clip_editor` 把钢琴窗和参数面板建模为同一编辑面板的子区域：两者共享时间位置和横向缩放，钢琴另有音高纵向视口，参数另有值域纵向视口。活动片段、区域显示、自动翻页、钢琴编辑模式与量化、音符选择，以及参数前景、背景、交换和工具状态均走现有 Controller 与 ViewModel 路径，因此 MCP 结果会通过同一信号链立即反映在 GUI。
+
+### 5.7 设置、包信息与歌词规则
+
+设置工具采用 `settings.<domain>.update` 三段式命名，并以 `settings.query` 集中返回公开域的配置值、生效值、候选/范围、重启要求和不可用原因。九个 update 都是严格 allowlist 上的稀疏更新：只验证和提交调用方明确提供的字段，支持 validate-only，失败时不留下部分持久化或运行时状态，也不触发交互式错误对话框。UI 语言使用独立 `ui_language` 域；自动化/MCP 自配置、开发者选项和其他未列入契约的设置不向 MCP 暴露。
+
+`packages.list/describe` 从当前包索引提供受读取根约束的规范路径和公开元数据。`packages.refresh` 使用当前生效搜索路径创建 application-scoped Task，在后台完成扫描后原子切换索引；它不伪造文档身份，也不参与工程 revision 或历史记录。
+
+`lyric_rules` 使用稳定 rule ID 管理 splitter 与 tagger 两类规则。自定义规则支持创建、稀疏更新、删除、启停和分类内移动；内置规则内容不可修改或删除，但可以独立启停。`lyric_rules.test` 只读运行 splitter→tagger 流水线，返回逐阶段结果，不改变规则、文档或应用状态。
+
+### 5.8 长音频 Pitch 提取
+
+RMVPE 的连续音频推理通过项目的 synthrt vcpkg overlay 采用有界分块：单次模型输入最长 30 秒，核心区间前后各保留 1 秒上下文，并在 10 ms 网格上裁剪和拼接 `PitchFrame`。进度按非重叠核心样本计算，取消检查延续到每个分块之间。该路径避免 DirectML 为完整长音频一次分配超大张量，同时保持原有 Task、进度、取消和参数写回接口不变。
+
+overlay 的 port version 随补丁递增，确保本地依赖不会误复用未分块的旧包。后续升级 synthrt 或 ONNX Runtime 时应同步复核补丁；上下文分块不承诺与一次性超大张量逐位相同，但输出时间轴和点数语义保持一致。
+
 ## 6. 历史记录、revision 与 Task
 
 `CommandCommitter` 为一次编辑构造一个 `ActionSequence`，成功时记录一条历史记录并推进一次 revision；预检失败、handler 失败、文件失败和 no-op 都不会产生半提交。Undo/Redo 仅在真实导航时推进 revision，save/save-as 更新 savepoint，文档换代重置 generation 与历史基线。
@@ -192,7 +220,7 @@ Connector 固定提供六个桥接工具：
 | `editor.tools.describe` | 返回实际 Schema、版本、权限、兼容与可用性 |
 | `editor.tools.invoke` | 按 Editor 当前真实 Schema 调用获准目标 |
 
-六项桥接工具的版本三元组均为 1。Connector 还携带构建时已知的 134 项 Editor 类型化描述；downstream 工具面由六项桥接工具与 exposure 选择的类型化工具组成，并在单个 Connector 生命周期内保持描述稳定。
+六项桥接工具的版本三元组均为 1。Connector 还携带构建时已知的 179 项 Editor 类型化描述；downstream 工具面由六项桥接工具与 exposure 选择的类型化工具组成，并在单个 Connector 生命周期内保持描述稳定。
 
 Exposure 默认 L1，支持 `l0/l1/l2/l3`、`id:`、`category:`、`prefix:`、include 和 exclude；同一选择同时约束类型化 wrapper 和泛化 list/search/describe/invoke。兼容计算先检查双方逐工具版本门槛；完全相同的 input/output Schema 直接判定兼容，存在差异时再执行方向性包含检查。`tools/list` 的 namespaced `_meta` 同时携带 `kind` 与 host availability，确保未知泛化工具仍保留 Command outcome 和 host 过滤语义。Editor 的分页 cursor 摘要只规范化工具集版本与有序工具 ID，页面内容仍缓存完整 descriptor；Connector 的 cursor 摘要使用 Manifest digest、状态、exposure 与有序工具名，未知或 Schema 有差异的 descriptor 仍完整纳入。正常握手只重建一次 Connector 缓存；完整 Manifest 按访问策略和 host mode 缓存，Profile 或 Custom 集合变化时自动失效。Manifest digest 使用完整非 Schema 元数据和逐项 Schema digest，避免再次规范化所有 Schema 原文；Connector 的预期摘要按 Editor 实际 Profile、host mode 以及 Custom 已知 ID 集合动态构造，不再固定使用 L2 摘要。`connector.get_status` 只读取已经计算的兼容缓存和当前观察状态，不在每次查询时重建整套结果。
 
@@ -200,7 +228,7 @@ Downstream stdio 支持两套主协议及 2025-06-18 兼容握手，具有有界
 
 ## 10. 设置页、配置复制与 CLI
 
-Automation 设置已进入选项对话框导航，并使用与其他选项页一致的主题图标。页面、运行状态和 19 个域的显示文本已补齐中文翻译，其中 `history` 显示为“历史记录”。Custom 工具不再使用平铺清单，而是按公共契约的领域建立独立卡片；每组默认收起，支持独立展开/收起、启用计数和整组启停。单工具开关仍直接写入同一 `customPermissions` 集合，组级操作只批量更新这些既有权限，不引入第二套配置。
+Automation 设置已进入选项对话框导航，并使用与其他选项页一致的主题图标。页面、运行状态和 25 个域的显示文本已补齐中文翻译，其中 `history` 显示为“历史记录”。Custom 工具不再使用平铺清单，而是按公共契约的领域建立独立卡片；每组默认收起，支持独立展开/收起、启用计数和整组启停。单工具开关仍直接写入同一 `customPermissions` 集合，组级操作只批量更新这些既有权限，不引入第二套配置。
 
 持久设置的安全默认值为 MCP 关闭、L1、空的额外读写根和非零控制端口。配置中缺少有效端口时在动态私有范围生成一个端口，保存后后续启动继续使用该值；只有用户点击“刷新”或直接编辑才改变端口。页面不提供固定/随机下拉框，“刷新”按钮与端口输入框位于同一行并始终可操作。
 
@@ -225,14 +253,16 @@ CLI override 只影响本次运行，并在设置页显示来源，不改写持�
 
 当前测试代码对以下实现不变量建立了自动保护：
 
-- 134 项稳定 tool name、19 个域、类型、Profile、Schema 和逐工具版本；
-- 134 项 Contract、Registry、Manifest、Editor `tools/list` 与 Connector 已知描述的集合相等；
+- 179 项稳定 tool name、25 个域、类型、Profile、Schema 和逐工具版本；
+- 179 项 Contract、Registry、Manifest、Editor `tools/list` 与 Connector 已知描述的集合相等；
 - 六个 Connector 桥接工具和 exposure 后的 downstream 集合；
 - 历史记录原子边界、创建深度、音符叶节点、轨道/片段 voice 和持久循环；
 - NoteTransfer 的音符与参数曲线深复制、GUI 剪贴板 round-trip；
 - MIDI headless 解析/生成、LibreSVIP 共享转换、文件授权与异步写回；
 - Profile/Custom、File Guard、Admission、Manifest、游标和 Schema 兼容；
 - 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手、HTTP、QLocal、Connector stdio 和真实进程路径；
+- 工作区、轨道面板和片段编辑器的 GUI 状态、选择、焦点、共享视口及无历史记录副作用；
+- 设置稀疏更新、包索引后台刷新、歌词规则管理与失败回滚；
 - Automation 设置持久化、CLI override、端口、配置 JSON、Custom 领域分组与中文界面。
 
-实现阶段已完成 Debug clean 全目标构建。定向组件、真实进程、GUI 和连续三轮完整 CTest 的最终证据、修复轨迹及验收判断集中写入测试报告，避免实现事实与运行结论混为一处。
+最终候选已完成 Debug 配置与构建、179 项确定性契约覆盖、25 个业务域真实代表路径、L3 45/45 项与 Connector 6/6 项实际调用，以及 Computer Use GUI 验收。完整 CTest 在同一候选上串行三轮共 201/201 通过；长音频 DirectML 提取、配置恢复和只读素材完整性也已完成回归。具体运行数据、证据口径和验收判断集中写入测试报告。
