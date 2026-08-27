@@ -100,7 +100,7 @@ Editor 的 179 项按 25 个业务域追踪；Connector 的 6 项单独追踪。
 | 总线 | 5 | `bus` 归属、四个标量命令、历史记录/revision |
 | 片段 | 16 | 筛选、浅层创建、duplicate、几何、标量命令和声音继承 |
 | 音频素材 | 5 | 元数据、导入/batch 任务，以及 relocate/confirm 同步 Mutation 与授权重检 |
-| 声库 | 2 | 可用 singer/speaker/language/G2P/mix 能力与稳定引用 |
+| 声库 | 2 | 可用 singer/speaker/language/G2P/mix 能力，以及含 package version 的稳定引用和同 ID 并存版本精确解析；L1/L2 不依赖包信息域 |
 | Speaker Mix | 13 | fixed/dynamic/bypass、权重归一化、关键帧稳定 ID、应用级预设与文档级应用 |
 | 音符、歌词、语言、发音与音素 | 19 | 查询/搜索/叶节点创建/duplicate/几何、歌词、语言、发音、音素与填充 |
 | 参数曲线与锚点 | 12 | capability、有界查询、draw/anchor、replace/draw/erase/bake 与显式曲线拓扑操作 |

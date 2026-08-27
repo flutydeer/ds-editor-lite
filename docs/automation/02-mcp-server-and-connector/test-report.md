@@ -78,7 +78,7 @@
 | 总线 | 主总线增益变更、GUI 观察与 Undo 通过 |
 | 片段 | 重命名、片段 voice 设置、查询与 Undo 通过 |
 | 音频素材 | get、import、import_batch、confirm_path 完成真实调用；relocate 的契约与拒绝路径通过，非零播放位置重载场景不计入通过范围 |
-| 声库 | list/describe 及 singer/speaker 动态候选通过 |
+| 声库 | list/describe 及 singer/speaker 动态候选通过；同 package/singer ID 的并存版本由完整 SingerRef 精确区分，L2 在无 `packages.*` 权限时仍可设置并回读目标版本 |
 | Speaker Mix | fixed 混合和 preset save/list/apply/get/delete 通过，来源与 dirty 状态正确，结果恢复 |
 | 音符、歌词、语言、发音与音素 | 歌词编辑和向右级联音素位置重置通过；MCP 路径不触发 GUI 确认弹窗，整体 Undo 通过 |
 | 参数曲线与锚点 | capability、有界 query、真实 draw、GUI 观察和 Undo 通过；锚点拓扑由确定性测试覆盖 |

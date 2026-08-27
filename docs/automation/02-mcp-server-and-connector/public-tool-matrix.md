@@ -150,10 +150,10 @@
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
-| `voices.list` | L1 | Q/S | 可用 SingerRef、显示信息、筛选与分页 |
-| `voices.describe` | L1 | Q/S | 特定声库的说话人、语言、G2P、默认值与混合能力 |
+| `voices.list` | L1 | Q/S | 列出包含 package ID、package version 与 singer ID 的完整 SingerRef、显示信息、筛选与分页 |
+| `voices.describe` | L1 | Q/S | 按完整 SingerRef 精确描述特定并存版本的说话人、语言、G2P、默认值与混合能力 |
 
-声库域只负责列出可用声库和描述特定声库；应用 voice 的命令分别保留在轨道域和片段域。
+声库域只负责列出可用声库和描述特定声库；应用 voice 的命令分别保留在轨道域和片段域。L1/L2 的发现、动态候选、设置与回读均使用版本完整的 SingerRef，不依赖 L3 包信息域。
 
 ### 3.10 Speaker Mix（13）
 

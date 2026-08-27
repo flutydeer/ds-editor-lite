@@ -524,8 +524,9 @@ namespace Automation {
                 const auto actualRef = actual.toObject();
                 const auto expectedRef = expected.toObject();
                 bool comparedIdentity = false;
-                for (const auto &key : {QStringLiteral("package_id"), QStringLiteral("singer_id"),
-                                        QStringLiteral("speaker_id")}) {
+                for (const auto &key :
+                     {QStringLiteral("package_id"), QStringLiteral("package_version"),
+                      QStringLiteral("singer_id"), QStringLiteral("speaker_id")}) {
                     if (!actualRef.contains(key))
                         continue;
                     comparedIdentity = true;
@@ -1111,9 +1112,22 @@ namespace Automation {
             SingerIdentifier identifier{
                 object.value(QStringLiteral("singer_id")).toString(),
                 object.value(QStringLiteral("package_id")).toString(),
-                {},
+                QVersionNumber::fromString(
+                    object.value(QStringLiteral("package_version")).toString()),
             };
             return SingerInfo(identifier);
+        }
+
+        AutomationResult<QVersionNumber> parsePackageVersion(const QJsonObject &object,
+                                                             const QString &fieldPath) {
+            const auto text = object.value(QStringLiteral("package_version")).toString().trimmed();
+            qsizetype suffixIndex = 0;
+            const auto version = QVersionNumber::fromString(text, &suffixIndex);
+            if (version.isNull() || suffixIndex != text.size()) {
+                return AutomationError::invalidArgument(
+                    fieldPath, QStringLiteral("Package version is invalid"));
+            }
+            return version;
         }
 
         SpeakerInfo decodeSpeaker(const QJsonObject &object) {
@@ -1122,8 +1136,9 @@ namespace Automation {
 
         QJsonObject encodeSingerRef(const SingerInfo &singer) {
             return {
-                {QStringLiteral("package_id"), singer.packageId()},
-                {QStringLiteral("singer_id"),  singer.singerId() },
+                {QStringLiteral("package_id"),      singer.packageId()                },
+                {QStringLiteral("package_version"), singer.packageVersion().toString()},
+                {QStringLiteral("singer_id"),       singer.singerId()                 },
             };
         }
 
@@ -1145,13 +1160,20 @@ namespace Automation {
             const auto packageId = singerRef.value(QStringLiteral("package_id")).toString();
             const auto singerId = singerRef.value(QStringLiteral("singer_id")).toString();
             const auto speakerId = speakerRef.value(QStringLiteral("speaker_id")).toString();
+            auto packageVersion = parsePackageVersion(
+                singerRef, fieldPath + QStringLiteral(".singer.package_version"));
+            if (!packageVersion)
+                return packageVersion.getError();
             auto packages = runtime.packages().getInstalledPackages();
             if (!packages)
                 return packages.getError();
             for (const auto &package : packages.get()) {
                 for (const auto &singer : package.singers) {
-                    if (singer.packageId != packageId || singer.singerId != singerId)
+                    if (singer.packageId != packageId ||
+                        singer.packageVersion != packageVersion.get() ||
+                        singer.singerId != singerId) {
                         continue;
+                    }
                     const auto speakers = singer.info.speakers();
                     if (speakerId.isEmpty()) {
                         if (speakers.isEmpty())
@@ -1184,13 +1206,20 @@ namespace Automation {
             const auto singerRef = object.value(QStringLiteral("singer")).toObject();
             const auto packageId = singerRef.value(QStringLiteral("package_id")).toString();
             const auto singerId = singerRef.value(QStringLiteral("singer_id")).toString();
+            auto packageVersion = parsePackageVersion(
+                singerRef, fieldPath + QStringLiteral(".singer.package_version"));
+            if (!packageVersion)
+                return packageVersion.getError();
             auto packages = runtime.packages().getInstalledPackages();
             if (!packages)
                 return packages.getError();
             for (const auto &package : packages.get()) {
                 for (const auto &singer : package.singers) {
-                    if (singer.packageId != packageId || singer.singerId != singerId)
+                    if (singer.packageId != packageId ||
+                        singer.packageVersion != packageVersion.get() ||
+                        singer.singerId != singerId) {
                         continue;
+                    }
                     SpeakerMixModel::SpeakerMixData mix;
                     QVector<double> fullWeights;
                     QSet<QString> sourceIds;
@@ -1719,19 +1748,19 @@ namespace Automation {
                 });
             }
             return {
-                {QStringLiteral("preset_id"),       preset.id                       },
-                {QStringLiteral("name"),            preset.name                     },
+                {QStringLiteral("preset_id"),  preset.id                    },
+                {QStringLiteral("name"),       preset.name                  },
                 {QStringLiteral("singer"),
                  QJsonObject{{QStringLiteral("package_id"), preset.packageId},
-                             {QStringLiteral("singer_id"), preset.singerId}}        },
-                {QStringLiteral("package_version"), preset.packageVersion.toString()},
-                {QStringLiteral("sources"),         sources                         },
+                             {QStringLiteral("package_version"), preset.packageVersion.toString()},
+                             {QStringLiteral("singer_id"), preset.singerId}}},
+                {QStringLiteral("sources"),    sources                      },
                 {QStringLiteral("created_at"),
                  preset.createdAt.isValid() ? preset.createdAt.toUTC().toString(Qt::ISODateWithMs)
-                                            : QString()                             },
+                                            : QString()                     },
                 {QStringLiteral("updated_at"),
                  preset.updatedAt.isValid() ? preset.updatedAt.toUTC().toString(Qt::ISODateWithMs)
-                                            : QString()                             },
+                                            : QString()                     },
             };
         }
 
@@ -1784,6 +1813,8 @@ namespace Automation {
                                   QJsonObject{
                                       {QStringLiteral("singer"),
                                        QJsonObject{{QStringLiteral("package_id"), found->packageId},
+                                                   {QStringLiteral("package_version"),
+                                                    found->packageVersion.toString()},
                                                    {QStringLiteral("singer_id"), found->singerId}}},
                                       {QStringLiteral("sources"), sources                         },
             },
@@ -2441,11 +2472,13 @@ namespace Automation {
             for (const auto &package : packages.get()) {
                 for (const auto &singer : package.singers) {
                     QJsonObject reference{
-                        {QStringLiteral("singer_id"), singer.singerId},
+                        {QStringLiteral("package_id"),      singer.packageId                },
+                        {QStringLiteral("package_version"), singer.packageVersion.toString()},
+                        {QStringLiteral("singer_id"),       singer.singerId                 },
                     };
-                    if (!singer.packageId.isEmpty())
-                        reference.insert(QStringLiteral("package_id"), singer.packageId);
-                    result.append(optionEntry(reference, singer.name));
+                    result.append(
+                        optionEntry(reference, QStringLiteral("%1 (%2)").arg(
+                                                   singer.name, singer.packageVersion.toString())));
                 }
             }
             return result;
@@ -2474,8 +2507,10 @@ namespace Automation {
                 const bool trackMatches = requestedTrack.isValid() && track.id == requestedTrack;
                 if (trackMatches) {
                     return QJsonObject{
-                        {QStringLiteral("singer_id"),  track.data.singerInfo.singerId() },
-                        {QStringLiteral("package_id"), track.data.singerInfo.packageId()},
+                        {QStringLiteral("package_id"),      track.data.singerInfo.packageId()},
+                        {QStringLiteral("package_version"),
+                         track.data.singerInfo.packageVersion().toString()                   },
+                        {QStringLiteral("singer_id"),       track.data.singerInfo.singerId() },
                     };
                 }
                 for (const auto &clip : track.clips) {
@@ -2484,8 +2519,9 @@ namespace Automation {
                     const auto singer = clip.data.usesTrackVoiceContext ? track.data.singerInfo
                                                                         : clip.data.ownSingerInfo;
                     return QJsonObject{
-                        {QStringLiteral("singer_id"),  singer.singerId() },
-                        {QStringLiteral("package_id"), singer.packageId()},
+                        {QStringLiteral("package_id"),      singer.packageId()                },
+                        {QStringLiteral("package_version"), singer.packageVersion().toString()},
+                        {QStringLiteral("singer_id"),       singer.singerId()                 },
                     };
                 }
             }
@@ -2496,7 +2532,9 @@ namespace Automation {
             const auto reference = singerReference();
             const auto singerId = reference.value(QStringLiteral("singer_id")).toString();
             const auto packageId = reference.value(QStringLiteral("package_id")).toString();
-            if (singerId.isEmpty()) {
+            auto packageVersion =
+                parsePackageVersion(reference, QStringLiteral("partial_arguments.package_version"));
+            if (singerId.isEmpty() || packageId.isEmpty() || !packageVersion) {
                 return AutomationError::invalidArgument(
                     QStringLiteral("partial_arguments"),
                     QStringLiteral("A resolved voice context is required for this field"));
@@ -2506,8 +2544,8 @@ namespace Automation {
                 return packages.getError();
             for (const auto &package : packages.get()) {
                 for (const auto &singer : package.singers) {
-                    if (singer.singerId != singerId ||
-                        (!packageId.isEmpty() && singer.packageId != packageId)) {
+                    if (singer.singerId != singerId || singer.packageId != packageId ||
+                        singer.packageVersion != packageVersion.get()) {
                         continue;
                     }
                     QJsonArray result;
@@ -3273,10 +3311,10 @@ namespace Automation {
                         continue;
                     }
                     voices.append(QJsonObject{
-                        {QStringLiteral("package_id"), singer.packageId                },
-                        {QStringLiteral("singer_id"),  singer.singerId                 },
-                        {QStringLiteral("name"),       singer.name                     },
-                        {QStringLiteral("version"),    singer.packageVersion.toString()},
+                        {QStringLiteral("package_id"),      singer.packageId                },
+                        {QStringLiteral("package_version"), singer.packageVersion.toString()},
+                        {QStringLiteral("singer_id"),       singer.singerId                 },
+                        {QStringLiteral("name"),            singer.name                     },
                     });
                 }
             }
@@ -3301,13 +3339,17 @@ namespace Automation {
             const auto voice = arguments.value(QStringLiteral("singer")).toObject();
             const auto singerId = voice.value(QStringLiteral("singer_id")).toString();
             const auto packageId = voice.value(QStringLiteral("package_id")).toString();
+            auto packageVersion =
+                parsePackageVersion(voice, QStringLiteral("singer.package_version"));
+            if (!packageVersion)
+                return AutomationResult<QJsonObject>(packageVersion.getError());
             auto result = m_runtime.packages().getInstalledPackages();
             if (!result)
                 return AutomationResult<QJsonObject>(result.getError());
             for (const auto &package : result.get()) {
                 for (const auto &singer : package.singers) {
-                    if (singer.singerId == singerId &&
-                        (packageId.isEmpty() || singer.packageId == packageId)) {
+                    if (singer.singerId == singerId && singer.packageId == packageId &&
+                        singer.packageVersion == packageVersion.get()) {
                         const auto resolutionStates = AutomationWire::publicStringValueDomainValues(
                             AutomationWire::PublicValueDomain::VoiceResolutionState);
                         const auto resolutionState = singer.info.resolutionState();
@@ -3352,9 +3394,10 @@ namespace Automation {
                             {QStringLiteral("snapshot"),
                              QJsonObject{
                                  {QStringLiteral("package_id"), singer.packageId},
+                                 {QStringLiteral("package_version"),
+                                  singer.packageVersion.toString()},
                                  {QStringLiteral("singer_id"), singer.singerId},
                                  {QStringLiteral("name"), singer.name},
-                                 {QStringLiteral("version"), singer.packageVersion.toString()},
                                  {QStringLiteral("speakers"), speakers},
                                  {QStringLiteral("languages"), languages},
                                  {QStringLiteral("default_speaker_id"),
@@ -3852,26 +3895,34 @@ namespace Automation {
             return AutomationResult<QJsonObject>(queryResult(
                 result.get().document, QStringLiteral("snapshot"), encodeSpeakerMix(result.get())));
         });
-        addBinding(ToolNames::speaker_mix_presets_list,
-                   [this](const QJsonObject &arguments, const PublicInvocationContext &) {
-                       auto result = m_runtime.presets().getSpeakerMixPresets();
-                       if (!result)
-                           return AutomationResult<QJsonObject>(result.getError());
-                       const auto singer = arguments.value(QStringLiteral("singer")).toObject();
-                       const auto packageId = singer.value(QStringLiteral("package_id")).toString();
-                       const auto singerId = singer.value(QStringLiteral("singer_id")).toString();
-                       QJsonArray presets;
-                       for (const auto &preset : result.get()) {
-                           if ((!packageId.isEmpty() && preset.packageId != packageId) ||
-                               (!singerId.isEmpty() && preset.singerId != singerId)) {
-                               continue;
-                           }
-                           presets.append(encodeSpeakerMixPreset(preset));
-                       }
-                       return AutomationResult<QJsonObject>(QJsonObject{
-                           {QStringLiteral("presets"), presets}
-                       });
-                   });
+        addBinding(ToolNames::speaker_mix_presets_list, [this](const QJsonObject &arguments,
+                                                               const PublicInvocationContext &) {
+            auto result = m_runtime.presets().getSpeakerMixPresets();
+            if (!result)
+                return AutomationResult<QJsonObject>(result.getError());
+            const auto singer = arguments.value(QStringLiteral("singer")).toObject();
+            const auto packageId = singer.value(QStringLiteral("package_id")).toString();
+            const auto singerId = singer.value(QStringLiteral("singer_id")).toString();
+            std::optional<QVersionNumber> packageVersion;
+            if (!singer.isEmpty()) {
+                auto parsed = parsePackageVersion(singer, QStringLiteral("singer.package_version"));
+                if (!parsed)
+                    return AutomationResult<QJsonObject>(parsed.getError());
+                packageVersion = parsed.get();
+            }
+            QJsonArray presets;
+            for (const auto &preset : result.get()) {
+                if ((!packageId.isEmpty() && preset.packageId != packageId) ||
+                    (packageVersion && preset.packageVersion != *packageVersion) ||
+                    (!singerId.isEmpty() && preset.singerId != singerId)) {
+                    continue;
+                }
+                presets.append(encodeSpeakerMixPreset(preset));
+            }
+            return AutomationResult<QJsonObject>(QJsonObject{
+                {QStringLiteral("presets"), presets}
+            });
+        });
         addBinding(ToolNames::speaker_mix_presets_save,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        auto preset = decodeSpeakerMixPreset(

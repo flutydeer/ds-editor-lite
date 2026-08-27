@@ -916,8 +916,12 @@ namespace {
                                                 QStringLiteral("packages.list"));
         const auto packageItems =
             packages ? packages->value(QStringLiteral("packages")).toArray() : QJsonArray{};
-        expect(packageItems.size() == 1 &&
-                   packageItems.first().toObject().value(QStringLiteral("canonical_path")).isNull(),
+        bool packagePathsRedacted = packageItems.size() == 2;
+        for (const auto &item : packageItems) {
+            packagePathsRedacted &=
+                item.toObject().value(QStringLiteral("canonical_path")).isNull();
+        }
+        expect(packagePathsRedacted,
                QStringLiteral("packages.list must redact paths outside the allowed roots"));
         const auto package = invokeSchemaValid(
             registry, QStringLiteral("packages.describe"),
@@ -2164,6 +2168,7 @@ namespace {
             {QStringLiteral("singer"),
              QJsonObject{
                  {QStringLiteral("package_id"), singer.packageId()},
+                 {QStringLiteral("package_version"), singer.packageVersion().toString()},
                  {QStringLiteral("singer_id"), singer.singerId()},
              }                                                                                   },
             {QStringLiteral("speaker"), QJsonObject{{QStringLiteral("speaker_id"), speaker.id()}}},
@@ -2176,6 +2181,7 @@ namespace {
             {QStringLiteral("singer"),
              QJsonObject{
                  {QStringLiteral("package_id"), singer.packageId()},
+                 {QStringLiteral("package_version"), singer.packageVersion().toString()},
                  {QStringLiteral("singer_id"), singer.singerId()},
              }},
             {QStringLiteral("sources"),
@@ -2399,12 +2405,12 @@ namespace {
                QStringLiteral("notes.reset_phoneme_offsets must undo the complete cascade once"));
     }
 
-    void verifyPublicVoiceAndSpeakerMix(Automation::PublicAutomationRegistry &registry,
-                                        Automation::CoreRuntime &runtime,
-                                        const PublicEditingFixture &fixture,
-                                        const SingerInfo &singer, const SpeakerInfo &speakerA,
-                                        const SpeakerInfo &speakerB,
-                                        const SingerInfo &speakerlessSinger) {
+    void verifyPublicVoiceAndSpeakerMix(
+        Automation::PublicAutomationRegistry &registry, Automation::CoreRuntime &runtime,
+        const PublicEditingFixture &fixture, const SingerInfo &singer, const SpeakerInfo &speakerA,
+        const SpeakerInfo &speakerB, const SingerInfo &speakerlessSinger,
+        const SingerInfo &sameIdNewerSinger, const SpeakerInfo &sameIdNewerSpeaker,
+        const SpeakerInfo &sameIdNewerSpeakerB) {
         const auto selectedA = voiceSelection(singer, speakerA);
         const auto selectedB = voiceSelection(singer, speakerB);
         const auto speakerId = [](const QJsonValue &voice) {
@@ -2414,6 +2420,108 @@ namespace {
                 .value(QStringLiteral("speaker_id"))
                 .toString();
         };
+
+        const auto voices = invokeSchemaValid(registry, QStringLiteral("voices.list"), {},
+                                              QStringLiteral("versioned voices.list"));
+        QSet<QString> matchingVersions;
+        if (voices) {
+            for (const auto &value : voices->value(QStringLiteral("singers")).toArray()) {
+                const auto candidate = value.toObject();
+                if (candidate.value(QStringLiteral("package_id")) == singer.packageId() &&
+                    candidate.value(QStringLiteral("singer_id")) == singer.singerId()) {
+                    matchingVersions.insert(
+                        candidate.value(QStringLiteral("package_version")).toString());
+                }
+            }
+        }
+        expect(matchingVersions == QSet<QString>{singer.packageVersion().toString(),
+                                                 sameIdNewerSinger.packageVersion().toString()},
+               QStringLiteral("voices.list must expose complete references for same-ID versions"));
+        const auto newerVoiceDescription = invokeSchemaValid(
+            registry, QStringLiteral("voices.describe"),
+            QJsonObject{
+                {QStringLiteral("singer"), voiceSelection(sameIdNewerSinger, sameIdNewerSpeaker)
+                                               .value(QStringLiteral("singer"))
+                                               .toObject()}
+        },
+            QStringLiteral("versioned voices.describe"));
+        const auto newerVoiceSnapshot =
+            newerVoiceDescription
+                ? newerVoiceDescription->value(QStringLiteral("snapshot")).toObject()
+                : QJsonObject{};
+        expect(newerVoiceDescription &&
+                   newerVoiceSnapshot.value(QStringLiteral("package_version")).toString() ==
+                       sameIdNewerSinger.packageVersion().toString() &&
+                   newerVoiceSnapshot.value(QStringLiteral("speakers"))
+                           .toArray()
+                           .first()
+                           .toObject()
+                           .value(QStringLiteral("speaker_id")) == sameIdNewerSpeaker.id(),
+               QStringLiteral("voices.describe must resolve the requested package version"));
+
+        invokeChangedOnce(
+            registry, runtime, QStringLiteral("tracks.set_voice"),
+            QJsonObject{
+                {QStringLiteral("track_id"), fixture.trackId.value()},
+                {QStringLiteral("voice"), voiceSelection(sameIdNewerSinger, sameIdNewerSpeaker)},
+        },
+            QStringLiteral("track-set-newer-voice"),
+            QStringLiteral("tracks.set_voice with an exact package version"));
+        const auto newerTrackVoice =
+            voiceContextSnapshot(registry, runtime, QStringLiteral("tracks.get_voice_context"),
+                                 QStringLiteral("track_id"), fixture.trackId.value());
+        const auto newerSingerRef = newerTrackVoice.value(QStringLiteral("own_voice"))
+                                        .toObject()
+                                        .value(QStringLiteral("singer"))
+                                        .toObject();
+        expect(newerSingerRef.value(QStringLiteral("package_version")).toString() ==
+                       sameIdNewerSinger.packageVersion().toString() &&
+                   speakerId(newerTrackVoice.value(QStringLiteral("own_voice"))) ==
+                       sameIdNewerSpeaker.id(),
+               QStringLiteral("voice selection must distinguish packages with identical IDs by "
+                              "package version"));
+        const QJsonObject newerMix{
+            {QStringLiteral("singer"),  newerSingerRef},
+            {QStringLiteral("sources"),
+             QJsonArray{
+                 QJsonObject{
+                     {QStringLiteral("speaker"),
+                      QJsonObject{{QStringLiteral("speaker_id"), sameIdNewerSpeaker.id()}}},
+                     {QStringLiteral("weight"), 0.25},
+                 },
+                 QJsonObject{
+                     {QStringLiteral("speaker"),
+                      QJsonObject{{QStringLiteral("speaker_id"), sameIdNewerSpeakerB.id()}}},
+                     {QStringLiteral("weight"), 0.75},
+                 },
+             }                                        },
+        };
+        invokeChangedOnce(registry, runtime, QStringLiteral("speaker_mix.set_fixed"),
+                          QJsonObject{
+                              {QStringLiteral("target"),
+                               QJsonObject{
+                                   {QStringLiteral("type"), QStringLiteral("track")},
+                                   {QStringLiteral("id"), fixture.trackId.value()},
+                               }                                 },
+                              {QStringLiteral("mix"),    newerMix},
+        },
+                          QStringLiteral("track-set-newer-mix"),
+                          QStringLiteral("speaker_mix.set_fixed with an exact package version"));
+        const auto newerTrackMix =
+            speakerMixSnapshot(registry, runtime, QStringLiteral("track"), fixture.trackId.value());
+        const auto newerMixSnapshot = newerTrackMix.value(QStringLiteral("mix")).toObject();
+        expect(newerMixSnapshot.value(QStringLiteral("singer"))
+                           .toObject()
+                           .value(QStringLiteral("package_version")) ==
+                       sameIdNewerSinger.packageVersion().toString() &&
+                   newerMixSnapshot.value(QStringLiteral("sources"))
+                           .toArray()
+                           .first()
+                           .toObject()
+                           .value(QStringLiteral("speaker"))
+                           .toObject()
+                           .value(QStringLiteral("speaker_id")) == sameIdNewerSpeaker.id(),
+               QStringLiteral("Speaker Mix must resolve and return the requested package version"));
 
         invokeChangedOnce(registry, runtime, QStringLiteral("tracks.set_voice"),
                           QJsonObject{
@@ -2658,11 +2766,25 @@ namespace {
                                 {QStringLiteral("singer"), mix.value(QStringLiteral("singer"))}
         },
                             {.clientId = QStringLiteral("speaker-mix-preset-list")});
+        const auto newerVersionPresets =
+            registry.invoke(QStringLiteral("speaker_mix.presets.list"),
+                            QJsonObject{
+                                {QStringLiteral("singer"), newerSingerRef}
+        },
+                            {.clientId = QStringLiteral("speaker-mix-preset-list-newer-version")});
         expect(
             savedPreset && !presetId.isEmpty() && listedPresets &&
                 listedPresets.get().value(QStringLiteral("presets")).toArray().size() == 1 &&
+                savedPresetSnapshot.value(QStringLiteral("singer"))
+                        .toObject()
+                        .value(QStringLiteral("package_version")) ==
+                    singer.packageVersion().toString() &&
+                !savedPresetSnapshot.contains(QStringLiteral("package_version")) &&
+                newerVersionPresets &&
+                newerVersionPresets.get().value(QStringLiteral("presets")).toArray().isEmpty() &&
                 runtime.documentVersion() == beforePresetSave,
-            QStringLiteral("Speaker Mix presets must save and list without changing a document"));
+            QStringLiteral("Speaker Mix presets must preserve and filter the nested singer version "
+                           "without changing a document"));
 
         const auto appliedPreset =
             invokeChangedOnce(registry, runtime, QStringLiteral("speaker_mix.presets.apply"),
@@ -2898,6 +3020,7 @@ namespace {
             {QStringLiteral("singer"),
              QJsonObject{
                  {QStringLiteral("package_id"), speakerlessSinger.packageId()},
+                 {QStringLiteral("package_version"), speakerlessSinger.packageVersion().toString()},
                  {QStringLiteral("singer_id"), speakerlessSinger.singerId()},
              }},
         };
@@ -2992,8 +3115,14 @@ int main(int argc, char *argv[]) {
                                  QString &) { return true; };
     auto registrySpeakerA = SpeakerInfo(QStringLiteral("speaker-a"), QStringLiteral("Speaker A"));
     auto registrySpeakerB = SpeakerInfo(QStringLiteral("speaker-b"), QStringLiteral("Speaker B"));
+    auto registrySpeakerV2 =
+        SpeakerInfo(QStringLiteral("speaker-v2"), QStringLiteral("Speaker V2"));
+    auto registrySpeakerV2B =
+        SpeakerInfo(QStringLiteral("speaker-v2-b"), QStringLiteral("Speaker V2 B"));
     registrySpeakerA.setMixable(true);
     registrySpeakerB.setMixable(true);
+    registrySpeakerV2.setMixable(true);
+    registrySpeakerV2B.setMixable(true);
     const SingerInfo registrySinger({QStringLiteral("registry-singer"),
                                      QStringLiteral("registry-package"), QVersionNumber(1, 0)},
                                     QStringLiteral("Registry Singer"),
@@ -3010,6 +3139,13 @@ int main(int argc, char *argv[]) {
         {LanguageInfo(QStringLiteral("zh"), QStringLiteral("Chinese"),
                       QStringLiteral("registry-g2p"))},
         QStringLiteral("zh"));
+    const SingerInfo registrySingerV2(
+        {QStringLiteral("registry-singer"), QStringLiteral("registry-package"),
+         QVersionNumber(2, 0)},
+        QStringLiteral("Registry Singer V2"), {registrySpeakerV2, registrySpeakerV2B},
+        {LanguageInfo(QStringLiteral("ja"), QStringLiteral("Japanese"),
+                      QStringLiteral("registry-g2p"))},
+        QStringLiteral("ja"));
     QTemporaryDir privatePackageDirectory;
     expect(privatePackageDirectory.isValid(),
            QStringLiteral("private package fixture directory must be available"));
@@ -3032,9 +3168,21 @@ int main(int argc, char *argv[]) {
         .name = QStringLiteral("Registry Speakerless Singer"),
         .info = registrySpeakerlessSinger,
     });
+    Automation::PackageDto registryPackageV2;
+    registryPackageV2.id = QStringLiteral("registry-package");
+    registryPackageV2.version = QVersionNumber(2, 0);
+    registryPackageV2.vendor = QStringLiteral("Registry Vendor");
+    registryPackageV2.path = privatePackageDirectory.path();
+    registryPackageV2.singers.append({
+        .singerId = QStringLiteral("registry-singer"),
+        .packageId = registryPackageV2.id,
+        .packageVersion = registryPackageV2.version,
+        .name = QStringLiteral("Registry Singer V2"),
+        .info = registrySingerV2,
+    });
     Automation::PackageRuntimeServices packageServices;
-    packageServices.installedPackages = [registryPackage] {
-        return QList<Automation::PackageDto>{registryPackage};
+    packageServices.installedPackages = [registryPackage, registryPackageV2] {
+        return QList<Automation::PackageDto>{registryPackage, registryPackageV2};
     };
     auto packageRefreshControl = std::make_shared<PackageRefreshTestControl>();
     packageRefreshControl->privatePath = privatePackageDirectory.path();
@@ -3546,8 +3694,12 @@ int main(int argc, char *argv[]) {
     Automation::PublicAutomationRegistry registry(runtime, access, fileGuard, admission,
                                                   std::move(services));
 
+    const auto settingsBeforeAdvancedBindings = *settingsSnapshot;
+    const auto lyricRulesBeforeAdvancedBindings = *lyricRules;
     verifyAdvancedApplicationBindings(registry, runtime, directory.path(), builtinLyricRuleId,
                                       customLyricRuleId, *packageRefreshControl);
+    *settingsSnapshot = settingsBeforeAdvancedBindings;
+    *lyricRules = lyricRulesBeforeAdvancedBindings;
     verifyPackageRefreshLifetime(runtime, access, fileGuard, admission, *packageRefreshControl);
 
     const auto applicationInfo = registry.invoke(QStringLiteral("application.get_info"), {});
@@ -3897,8 +4049,14 @@ int main(int argc, char *argv[]) {
            QStringLiteral("get_options must reject fixed enums already declared by input schema"));
 
     const QJsonObject registrySingerRef{
-        {QStringLiteral("package_id"), QStringLiteral("registry-package")},
-        {QStringLiteral("singer_id"),  QStringLiteral("registry-singer") },
+        {QStringLiteral("package_id"),      QStringLiteral("registry-package")},
+        {QStringLiteral("package_version"), QStringLiteral("1.0")             },
+        {QStringLiteral("singer_id"),       QStringLiteral("registry-singer") },
+    };
+    const QJsonObject registrySingerV2Ref{
+        {QStringLiteral("package_id"),      QStringLiteral("registry-package")},
+        {QStringLiteral("package_version"), QStringLiteral("2.0")             },
+        {QStringLiteral("singer_id"),       QStringLiteral("registry-singer") },
     };
     const auto singerOptions =
         registry.invoke(QStringLiteral("automation.get_options"),
@@ -3922,22 +4080,51 @@ int main(int argc, char *argv[]) {
                              }                                                                      },
     },
                         {.clientId = QStringLiteral("speaker-reference-options")});
+    const auto speakerV2Options =
+        registry.invoke(QStringLiteral("automation.get_options"),
+                        QJsonObject{
+                            {QStringLiteral("operation_id"),      QStringLiteral("tracks.set_voice")},
+                            {QStringLiteral("field_path"),        QStringLiteral("/voice/speaker")  },
+                            {QStringLiteral("partial_arguments"),
+                             QJsonObject{
+                                 {QStringLiteral("voice"),
+                                  QJsonObject{
+                                      {QStringLiteral("singer"), registrySingerV2Ref},
+                                  }},
+                             }                                                                      },
+    },
+                        {.clientId = QStringLiteral("speaker-v2-reference-options")});
     const auto singerOptionValues =
         singerOptions ? singerOptions.get().value(QStringLiteral("options")).toArray()
                       : QJsonArray{};
     const auto speakerOptionValues =
         speakerOptions ? speakerOptions.get().value(QStringLiteral("options")).toArray()
                        : QJsonArray{};
-    expect(singerOptions && singerOptionValues.size() == 2 &&
-               singerOptionValues.first().toObject().value(QStringLiteral("value")).toObject() ==
-                   registrySingerRef &&
-               speakerOptions && speakerOptionValues.size() == 2 &&
+    const auto speakerV2OptionValues =
+        speakerV2Options ? speakerV2Options.get().value(QStringLiteral("options")).toArray()
+                         : QJsonArray{};
+    const auto hasOptionValue = [](const QJsonArray &options, const QJsonObject &expected) {
+        return std::any_of(options.cbegin(), options.cend(), [&](const QJsonValue &value) {
+            return value.toObject().value(QStringLiteral("value")).toObject() == expected;
+        });
+    };
+    expect(singerOptions && singerOptionValues.size() == 3 &&
+               hasOptionValue(singerOptionValues, registrySingerRef) &&
+               hasOptionValue(singerOptionValues, registrySingerV2Ref) && speakerOptions &&
+               speakerOptionValues.size() == 2 &&
                speakerOptionValues.first()
                    .toObject()
                    .value(QStringLiteral("value"))
                    .toObject()
-                   .contains(QStringLiteral("speaker_id")),
-           QStringLiteral("get_options must return schema-valid SingerRef and SpeakerRef values"));
+                   .contains(QStringLiteral("speaker_id")) &&
+               speakerV2Options && speakerV2OptionValues.size() == 2 &&
+               speakerV2OptionValues.first()
+                       .toObject()
+                       .value(QStringLiteral("value"))
+                       .toObject()
+                       .value(QStringLiteral("speaker_id")) == QStringLiteral("speaker-v2"),
+           QStringLiteral("get_options must distinguish same-ID singer versions and return their "
+                          "own speakers"));
 
     const auto metadataTask = runtime.automationTasks().createTask(QStringLiteral("documents.open"),
                                                                    runtime.documentVersion());
@@ -4137,6 +4324,8 @@ int main(int argc, char *argv[]) {
            QStringLiteral(
                "MIDI extraction language options must resolve from extraction capabilities"));
 
+    audioPathPreparationCount = 0;
+    lastPreparedAudioPath.clear();
     auto relocatePreviewInput = commandArguments(runtime.documentVersion());
     relocatePreviewInput.insert(QStringLiteral("clip_id"), audioClipId.value());
     relocatePreviewInput.insert(QStringLiteral("path"), relocatedAudioPath);
@@ -4165,10 +4354,10 @@ int main(int argc, char *argv[]) {
     expect(
         relocated && audioClip && runtime.documentVersion().revision == relocateBase.revision + 1 &&
             audioClip->path() == QFileInfo(relocatedAudioPath).canonicalFilePath() &&
-            audioClip->pathInfo().sha512 == QStringLiteral("prepared-sha512-2") &&
+            audioClip->pathInfo().sha512 == QStringLiteral("prepared-sha512-1") &&
             relocateFormat.value(QStringLiteral("entryClassName")) ==
                 QStringLiteral("PreparedFormatEntry") &&
-            relocateFormat.value(QStringLiteral("userData")) == QStringLiteral("2"),
+            relocateFormat.value(QStringLiteral("userData")) == QStringLiteral("1"),
         QStringLiteral(
             "audio relocation must atomically commit freshly prepared hash and format metadata"));
 
@@ -4191,8 +4380,8 @@ int main(int argc, char *argv[]) {
     expect(
         confirmed && audioClip && runtime.documentVersion().revision == confirmBase.revision + 1 &&
             audioClip->path() == QFileInfo(confirmedAudioPath).canonicalFilePath() &&
-            audioClip->pathInfo().sha512 == QStringLiteral("prepared-sha512-3") &&
-            confirmFormat.value(QStringLiteral("userData")) == QStringLiteral("3") &&
+            audioClip->pathInfo().sha512 == QStringLiteral("prepared-sha512-2") &&
+            confirmFormat.value(QStringLiteral("userData")) == QStringLiteral("2") &&
             audioClip->pathStatus() == AudioClip::PathStatus::Normal,
         QStringLiteral("audio path confirmation must perform one prepared atomic History commit"));
 
@@ -4211,15 +4400,15 @@ int main(int argc, char *argv[]) {
                         {.clientId = QStringLiteral("audio-confirm-current")});
     const auto confirmedCurrentApplied =
         audioClip && audioClip->pathStatus() == AudioClip::PathStatus::Normal &&
-        audioClip->pathInfo().sha512 == QStringLiteral("prepared-sha512-4");
+        audioClip->pathInfo().sha512 == QStringLiteral("prepared-sha512-3");
     const auto undoConfirmCurrent =
         registry.invoke(QStringLiteral("history.undo"), commandArguments(runtime.documentVersion()),
                         {.clientId = QStringLiteral("audio-confirm-current-undo")});
     expect(confirmedCurrent && confirmedCurrent.get().value(QStringLiteral("changed")).toBool() &&
                confirmedCurrentApplied && audioClip &&
                audioClip->path() == QFileInfo(confirmedAudioPath).canonicalFilePath() &&
-               audioClip->pathInfo().sha512 == QStringLiteral("prepared-sha512-3") &&
-               audioPathPreparationCount == 4 &&
+               audioClip->pathInfo().sha512 == QStringLiteral("prepared-sha512-2") &&
+               audioPathPreparationCount == 3 &&
                lastPreparedAudioPath == QFileInfo(confirmedAudioPath).canonicalFilePath() &&
                undoConfirmCurrent &&
                runtime.documentVersion().revision == confirmCurrentBase.revision + 2 &&
@@ -4625,9 +4814,16 @@ int main(int argc, char *argv[]) {
         verifyFormatInspectionAndMidiPreview(registry, runtime, fixture.model(),
                                              *publicEditingFixture, directory.path());
         verifyPhonemeOriginalPreservation(registry, runtime, *publicEditingFixture);
+        access.update(AutomationWire::AutomationProfile::L2);
+        const auto deniedPackageLookup = registry.invoke(QStringLiteral("packages.list"), {});
+        expect(!deniedPackageLookup && deniedPackageLookup.getError().code ==
+                                           Automation::AutomationErrorCode::PermissionDenied,
+               QStringLiteral("L2 voice workflows must not depend on the L3 packages domain"));
         verifyPublicVoiceAndSpeakerMix(registry, runtime, *publicEditingFixture, registrySinger,
                                        registrySpeakerA, registrySpeakerB,
-                                       registrySpeakerlessSinger);
+                                       registrySpeakerlessSinger, registrySingerV2,
+                                       registrySpeakerV2, registrySpeakerV2B);
+        access.update(AutomationWire::AutomationProfile::L3);
         verifyAdvancedGuiBindings(registry, runtime, *publicEditingFixture);
         const auto projectForStatistics =
             runtime.project().getProject(runtime.documentVersion().documentId);

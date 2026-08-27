@@ -107,7 +107,7 @@ Manifest 包含工具集版本、规范化 digest、当前 Profile、host mode�
 - 轨道域提供 `tracks.get_voice_context/set_voice/clear_voice`；
 - 片段域提供 `clips.get_voice_context/use_track_voice/set_voice/clear_voice`；
 - `use_track_voice` 恢复片段对轨道 voice 的继承，`set_voice` 设置片段自己的 voice；
-- `set_voice` 必须指定 singer，speaker 可省略或为 `null`；零 speaker 声库保持空 speaker，单 speaker 声库解析唯一项，多 speaker 声库要求显式选择，查询统一以 `speaker: null` 表达空 speaker；
+- `set_voice` 必须指定由 `package_id`、`package_version` 和 `singer_id` 共同组成的 singer 引用；同 ID 并存版本按完整引用精确解析。L1/L2 调用方通过 `voices.list/describe` 即可获得该引用及对应 speaker，不需要访问 L3 `packages.*`；speaker 可省略或为 `null`，零 speaker 声库保持空 speaker，单 speaker 声库解析唯一项，多 speaker 声库要求显式选择，查询统一以 `speaker: null` 表达空 speaker；
 - 声库域只负责 `voices.list/describe`，Speaker Mix 的固定、动态、bypass 和关键帧操作保留在独立域。
 
 ### 5.2 创建深度、duplicate 与 NoteTransfer

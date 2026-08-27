@@ -155,7 +155,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 8. 验证 `audio_clips.relocate/confirm_path` 同步返回 Mutation、不创建 Task，并在 GUI 中立即反映。
 9. 验证 `playback.set_loop/set_loop_enabled/clear_loop` 形成工程持久历史记录，逐项 Undo/Redo；play/pause/stop/seek 保持瞬时状态。
 10. 验证动态值来源、output Schema 自检、异步任务和文件重新授权。
-11. 验证零 speaker 声库可用 singer-only 参数查询动态选项并设置到轨道/片段；单 speaker 自动解析，多 speaker 缺少选择时稳定拒绝。
+11. 验证零 speaker 声库可用 singer-only 参数查询动态选项并设置到轨道/片段；单 speaker 自动解析，多 speaker 缺少选择时稳定拒绝；构造 package ID 与 singer ID 相同、package version 不同的两个并存版本，在 L2 明确拒绝 `packages.*` 的前提下验证 list、describe、动态 speaker 候选、轨道/片段设置、Speaker Mix/预设和回读均按版本精确闭环。
 12. 验证 `documents.get` 的工程长度、轨道/片段总数和分类统计；验证 `documents.list_recent` 只读取应用设置且不修改当前文档。
 13. 验证 `parameters.get` 的半开范围、默认/显式点数上限、采样曲线确定性降采样，以及锚点曲线在上限不足时明确失败而不丢失稳定 ID。
 14. 验证 `parameters.create_anchor_curve`、显式 `insert_anchors`、跨曲线移动拒绝和 `merge_anchor_curves` 的相邻/重叠规则及逐步 Undo/Redo。

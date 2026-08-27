@@ -70,10 +70,12 @@ namespace AutomationWire {
         QJsonObject singerRefSchema() {
             return JsonSchema::object(
                 {
-                    {QStringLiteral("package_id"), nonEmptyStringSchema()},
-                    {QStringLiteral("singer_id"),  nonEmptyStringSchema()},
+                    {QStringLiteral("package_id"),      nonEmptyStringSchema()},
+                    {QStringLiteral("package_version"), nonEmptyStringSchema()},
+                    {QStringLiteral("singer_id"),       nonEmptyStringSchema()},
             },
-                {QStringLiteral("package_id"), QStringLiteral("singer_id")});
+                {QStringLiteral("package_id"), QStringLiteral("package_version"),
+                 QStringLiteral("singer_id")});
         }
 
         QJsonObject speakerRefSchema() {
@@ -2145,13 +2147,13 @@ namespace AutomationWire {
         QJsonObject voiceSummarySchema() {
             return JsonSchema::object(
                 {
-                    {QStringLiteral("package_id"), nonEmptyStringSchema()},
-                    {QStringLiteral("singer_id"),  nonEmptyStringSchema()},
-                    {QStringLiteral("name"),       nonEmptyStringSchema()},
-                    {QStringLiteral("version"),    nonEmptyStringSchema()},
+                    {QStringLiteral("package_id"),      nonEmptyStringSchema()},
+                    {QStringLiteral("package_version"), nonEmptyStringSchema()},
+                    {QStringLiteral("singer_id"),       nonEmptyStringSchema()},
+                    {QStringLiteral("name"),            nonEmptyStringSchema()},
             },
-                {QStringLiteral("package_id"), QStringLiteral("singer_id"), QStringLiteral("name"),
-                 QStringLiteral("version")});
+                {QStringLiteral("package_id"), QStringLiteral("package_version"),
+                 QStringLiteral("singer_id"), QStringLiteral("name")});
         }
 
         QJsonObject voiceSnapshotSchema() {
@@ -2180,9 +2182,9 @@ namespace AutomationWire {
             return JsonSchema::object(
                 {
                     {QStringLiteral("package_id"),         nonEmptyStringSchema()     },
+                    {QStringLiteral("package_version"),    nonEmptyStringSchema()     },
                     {QStringLiteral("singer_id"),          nonEmptyStringSchema()     },
                     {QStringLiteral("name"),               nonEmptyStringSchema()     },
-                    {QStringLiteral("version"),            nonEmptyStringSchema()     },
                     {QStringLiteral("speakers"),           JsonSchema::array(speaker) },
                     {QStringLiteral("languages"),          JsonSchema::array(language)},
                     {QStringLiteral("default_speaker_id"), optionalIdentifier         },
@@ -2192,11 +2194,11 @@ namespace AutomationWire {
                      stringDomainSchema(PublicValueDomain::VoiceResolutionState)      },
                     {QStringLiteral("mixing_supported"),   JsonSchema::boolean()      },
             },
-                {QStringLiteral("package_id"), QStringLiteral("singer_id"), QStringLiteral("name"),
-                 QStringLiteral("version"), QStringLiteral("speakers"), QStringLiteral("languages"),
-                 QStringLiteral("default_speaker_id"), QStringLiteral("default_language"),
-                 QStringLiteral("g2p_ready"), QStringLiteral("resolution_state"),
-                 QStringLiteral("mixing_supported")});
+                {QStringLiteral("package_id"), QStringLiteral("package_version"),
+                 QStringLiteral("singer_id"), QStringLiteral("name"), QStringLiteral("speakers"),
+                 QStringLiteral("languages"), QStringLiteral("default_speaker_id"),
+                 QStringLiteral("default_language"), QStringLiteral("g2p_ready"),
+                 QStringLiteral("resolution_state"), QStringLiteral("mixing_supported")});
         }
 
         QJsonObject formatCapabilitySchema() {
@@ -2604,14 +2606,13 @@ namespace AutomationWire {
                     {QStringLiteral("preset_id"), JsonSchema::string()},
                     {QStringLiteral("name"), nonEmptyStringSchema()},
                     {QStringLiteral("singer"), singerRefSchema()},
-                    {QStringLiteral("package_version"), JsonSchema::string()},
                     {QStringLiteral("sources"), JsonSchema::array(source, 2)},
                     {QStringLiteral("created_at"), JsonSchema::string()},
                     {QStringLiteral("updated_at"), JsonSchema::string()},
             },
                 {QStringLiteral("preset_id"), QStringLiteral("name"), QStringLiteral("singer"),
-                 QStringLiteral("package_version"), QStringLiteral("sources"),
-                 QStringLiteral("created_at"), QStringLiteral("updated_at")});
+                 QStringLiteral("sources"), QStringLiteral("created_at"),
+                 QStringLiteral("updated_at")});
         }
 
         QJsonObject speakerMixPresetsOutputSchema() {

@@ -358,13 +358,16 @@ namespace {
                                   {QStringLiteral("singer"),
                                    QJsonObject{
                                        {QStringLiteral("package_id"), QStringLiteral("package")},
+                                       {QStringLiteral("package_version"), QStringLiteral("1.0")},
                                        {QStringLiteral("singer_id"), QStringLiteral("singer")},
                                    }},
             });
             return requiredFields(voice, contract->inputSchema) ==
                        QSet<QString>{QStringLiteral("singer")} &&
                    requiredFields(singer, contract->inputSchema) ==
-                       QSet<QString>{QStringLiteral("package_id"), QStringLiteral("singer_id")} &&
+                       QSet<QString>{QStringLiteral("package_id"),
+                                     QStringLiteral("package_version"),
+                                     QStringLiteral("singer_id")} &&
                    speaker.value(QStringLiteral("oneOf")).toArray().size() == 2 &&
                    validateJsonValue(singerOnly, contract->inputSchema).valid();
         };
