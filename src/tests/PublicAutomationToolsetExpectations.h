@@ -132,7 +132,7 @@ namespace PublicAutomationToolsetExpectations {
             {QStringLiteral("speaker_mix.presets.apply"),           QStringLiteral("speaker_mix"),
              AutomationProfile::L2                                                                                      },
 
-            {QStringLiteral("notes.get"),                           QStringLiteral("notes"),       AutomationProfile::L1},
+            {QStringLiteral("notes.list"),                           QStringLiteral("notes"),       AutomationProfile::L1},
             {QStringLiteral("notes.search"),                        QStringLiteral("notes"),       AutomationProfile::L1},
             {QStringLiteral("notes.insert"),                        QStringLiteral("notes"),       AutomationProfile::L1},
             {QStringLiteral("notes.duplicate"),                     QStringLiteral("notes"),       AutomationProfile::L1},
@@ -183,10 +183,10 @@ namespace PublicAutomationToolsetExpectations {
 
             {QStringLiteral("timeline.get"),                        QStringLiteral("timeline"),    AutomationProfile::L1},
             {QStringLiteral("tempos.set"),                          QStringLiteral("timeline"),    AutomationProfile::L1},
-            {QStringLiteral("tempos.delete"),                       QStringLiteral("timeline"),    AutomationProfile::L1},
+            {QStringLiteral("tempos.remove"),                       QStringLiteral("timeline"),    AutomationProfile::L1},
             {QStringLiteral("time_signatures.set"),                 QStringLiteral("timeline"),
              AutomationProfile::L1                                                                                      },
-            {QStringLiteral("time_signatures.delete"),              QStringLiteral("timeline"),
+            {QStringLiteral("time_signatures.remove"),              QStringLiteral("timeline"),
              AutomationProfile::L1                                                                                      },
 
             {QStringLiteral("history.get_state"),                   QStringLiteral("history"),     AutomationProfile::L1},

@@ -95,7 +95,7 @@ namespace RuntimeDimensions {
 
         void runSettingsQuery(ScenarioLog &log) {
             const auto operationId =
-                Automation::OperationId(Automation::OperationIds::settings::get);
+                Automation::OperationId(Automation::OperationIds::settings::query);
             log.run(operationId, QStringLiteral("ALL-CATEGORIES"), [&] {
                 RuntimeHarness harness;
                 const auto result = harness.core().settings().getSettings();

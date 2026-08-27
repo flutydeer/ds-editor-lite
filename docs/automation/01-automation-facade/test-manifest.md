@@ -125,7 +125,7 @@ Catalog 存在性代替 Facade 行为。
 
 | Operation | Profile / 重点 | 直接目标与场景 | 等级 |
 |---|---|---|:---:|
-| `notes.get` | `Q-D`；类型/归属、有序值快照 | `Edit: typed-ordered-snapshot`；`Core` client_ref 不持久化 | P |
+| `notes.list` | `Q-D`；类型/归属、有序值快照 | `Edit: typed-ordered-snapshot`；`Core` client_ref 不持久化 | P |
 | `notes.insert` | `C-D+REF`；空/非法、预检、重叠、绑定、undo | `Edit: empty-invalid-preview-overlap`；`Core` 重复 ref 原子失败；`NoteGUI` 真实 ID/失败无副作用 | P |
 | `notes.move` | `C-D`；边界、重复、no-op、重叠、undo | `Edit: bounds-duplicates-noop-undo`；`Core` 零位移/批移动 | P |
 | `notes.quantize` | `C-D`；网格、几何、no-op、错误优先级 | `Edit: commit-noop-process-isolation` 与 `dispatch/error-priority-matrix` | P |
@@ -156,9 +156,9 @@ Catalog 存在性代替 Facade 行为。
 | Operation | Profile / 重点 | 直接目标与场景 | 等级 |
 |---|---|---|:---:|
 | `timeline.get` | `Q-D`；tempo/拍号锚点、版本、旧 ID | `Edit: anchors-and-version` | P |
-| `tempos.delete` | `C-D`；tick 0、缺失 no-op、预检、undo | `Edit: anchor-missing-preview-undo` | P |
+| `tempos.remove` | `C-D`；tick 0、缺失 no-op、预检、undo | `Edit: anchor-missing-preview-undo` | P |
 | `tempos.set` | `C-D`；非法值、排序/替换、预检、no-op | `Edit: invalid-preview-sorted-replace-noop`；`Core` stale revision/undo/redo | P |
-| `time_signatures.delete` | `C-D`；bar 0、缺失 no-op、预检、undo | `Edit: anchor-missing-preview-undo` | P |
+| `time_signatures.remove` | `C-D`；bar 0、缺失 no-op、预检、undo | `Edit: anchor-missing-preview-undo` | P |
 | `time_signatures.set` | `C-D`；分子/分母、排序/替换、预检、no-op | `Edit: invalid-preview-sorted-replace-noop` | P |
 | `master.set_control` | `C-D`；非有限值、预检、no-op、undo/redo | `Edit: invalid-preview-noop-undo` | P |
 
@@ -255,7 +255,7 @@ generation 与服务不可用场景。
 
 | Operation | Profile / 重点 | 直接目标与场景 | 等级 |
 |---|---|---|:---:|
-| `settings.get` | `Q-A`；八个域、更新后快照、宿主 | `Runtime: SETTINGS-Q-SNAPSHOT`、`SETTINGS-Q-UPDATED-SNAPSHOT`、`HOST-SETTINGS-UNAVAILABLE` | P |
+| `settings.query` | `Q-A`；八个域、更新后快照、宿主 | `Runtime: SETTINGS-Q-SNAPSHOT`、`SETTINGS-Q-UPDATED-SNAPSHOT`、`HOST-SETTINGS-UNAVAILABLE` | P |
 | `settings.update_appearance` | `C-A`；no-op、预检、边界、持久化失败 | `Runtime: SETTINGS-C-APPEARANCE` | P |
 | `settings.update_audio` | `C-A`；no-op、预检、设备边界、持久化失败 | `Runtime: SETTINGS-C-AUDIO` | P |
 | `settings.update_developer` | `C-A`；枚举、no-op、预检、持久化失败 | `Runtime: SETTINGS-C-DEVELOPER` | P |

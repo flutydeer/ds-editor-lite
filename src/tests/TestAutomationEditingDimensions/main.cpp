@@ -1118,7 +1118,7 @@ namespace {
                         fixture.history()->reset();
                     }, },
             {
-             .operationId = Automation::OperationIds::tempos::delete_tempo,
+             .operationId = Automation::OperationIds::tempos::remove,
              .valid =
                     [](Fixture &fixture, const CommandContext &context, const int variant) {
                         return fixture.runtime().timeline().deleteTempo(context,
@@ -1143,7 +1143,7 @@ namespace {
                         return fixture.runtime().timeline().setTimeSignature(context, 4, 3, 4);
                     }, },
             {
-             .operationId = Automation::OperationIds::time_signatures::delete_signature,
+             .operationId = Automation::OperationIds::time_signatures::remove,
              .valid =
                     [](Fixture &fixture, const CommandContext &context, const int variant) {
                         return fixture.runtime().timeline().deleteTimeSignature(
@@ -1513,7 +1513,7 @@ namespace {
     }
 
     void runNotesQueryComplements(Suite &suite) {
-        suite.run(Automation::OperationIds::notes::get, QStringLiteral("Q1-MINIMUM-DTO"), [&] {
+        suite.run(Automation::OperationIds::notes::list, QStringLiteral("Q1-MINIMUM-DTO"), [&] {
             Fixture fixture;
             const auto result = fixture.runtime().notes().getNotes(
                 fixture.runtime().documentVersion().documentId, fixture.clipB);
@@ -1521,7 +1521,7 @@ namespace {
                 result && result.get().isEmpty(),
                 QStringLiteral("notes query must represent an empty clip as an empty list"));
         });
-        suite.run(Automation::OperationIds::notes::get, QStringLiteral("Q1-POPULATED-DTO"), [&] {
+        suite.run(Automation::OperationIds::notes::list, QStringLiteral("Q1-POPULATED-DTO"), [&] {
             Fixture fixture;
             const auto result = fixture.runtime().notes().getNotes(
                 fixture.runtime().documentVersion().documentId, fixture.clipA);
@@ -1533,7 +1533,7 @@ namespace {
                          QStringLiteral("notes snapshot must preserve typed ownership and order"));
         });
         suite.run(
-            Automation::OperationIds::notes::get, QStringLiteral("Q2-DETACHED-SNAPSHOT"), [&] {
+            Automation::OperationIds::notes::list, QStringLiteral("Q2-DETACHED-SNAPSHOT"), [&] {
                 Fixture fixture;
                 const auto snapshot = fixture.runtime().notes().getNotes(
                     fixture.runtime().documentVersion().documentId, fixture.clipA);
@@ -1548,7 +1548,7 @@ namespace {
                              QStringLiteral("note DTO must not alias a subsequently edited Note"));
             });
         suite.run(
-            Automation::OperationIds::notes::get, QStringLiteral("Q4-UNICODE-LONG-TEXT"), [&] {
+            Automation::OperationIds::notes::list, QStringLiteral("Q4-UNICODE-LONG-TEXT"), [&] {
                 Fixture fixture;
                 const auto text = QStringLiteral("多语言歌词 🎤 — ") + QString(512, QChar(u'界'));
                 Automation::NoteWordEditDto edit;
@@ -1564,7 +1564,7 @@ namespace {
                                      QStringLiteral("zh-Hant-x-測試"),
                              QStringLiteral("note query must round-trip Unicode and long text"));
             });
-        suite.run(Automation::OperationIds::notes::get, QStringLiteral("Q5-NO-SIDE-EFFECTS"), [&] {
+        suite.run(Automation::OperationIds::notes::list, QStringLiteral("Q5-NO-SIDE-EFFECTS"), [&] {
             Fixture fixture;
             const auto beforeVersion = fixture.runtime().documentVersion();
             const auto beforeState = fixture.stateFingerprint();
@@ -1820,14 +1820,14 @@ namespace {
             });
 
         suite.run(
-            Automation::OperationIds::notes::get, QStringLiteral("Q3-DOCUMENT-PRIORITY"), [&] {
+            Automation::OperationIds::notes::list, QStringLiteral("Q3-DOCUMENT-PRIORITY"), [&] {
                 Fixture fixture;
                 const auto before = fixture.runtime().documentVersion();
                 const auto result = fixture.runtime().notes().getNotes(
                     Automation::DocumentId::create(), ClipId(999999));
                 suite.expect(
                     !result && result.getError().code == AutomationErrorCode::DocumentChanged &&
-                        result.getError().operationId == Automation::OperationIds::notes::get &&
+                        result.getError().operationId == Automation::OperationIds::notes::list &&
                         fixture.runtime().documentVersion() == before,
                     QStringLiteral("notes query must validate document before clip"));
             });
@@ -1878,7 +1878,7 @@ namespace {
 
     QList<OperationId> coveredOperations(const QList<CommandSpec> &specs) {
         QList<OperationId> operations = {
-            Automation::OperationIds::project::get,       Automation::OperationIds::notes::get,
+            Automation::OperationIds::project::get,       Automation::OperationIds::notes::list,
             Automation::OperationIds::parameters::get,    Automation::OperationIds::timeline::get,
             Automation::OperationIds::history::get_state,
         };

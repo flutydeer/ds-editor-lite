@@ -92,7 +92,7 @@ namespace RuntimeDimensions {
             {Automation::OperationIds::recent_files::clear,                   storageCommand | IdempotencyOrRepeat                              },
             {Automation::OperationIds::recent_files::list,                    query                                                             },
             {Automation::OperationIds::recent_files::remove,                  storageCommand | IdempotencyOrRepeat                              },
-            {Automation::OperationIds::settings::get,                         query                                                             },
+            {Automation::OperationIds::settings::query,                         query                                                             },
             {Automation::OperationIds::settings::update_appearance,           settingCommand                                                    },
             {Automation::OperationIds::settings::update_audio,                settingCommand                                                    },
             {Automation::OperationIds::settings::update_developer,            settingCommand                                                    },

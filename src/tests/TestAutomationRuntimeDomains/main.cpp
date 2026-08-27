@@ -1700,7 +1700,7 @@ namespace {
         const auto recent = runtime.settings().getRecentProjectFiles();
         const auto paths = runtime.settings().getPackageSearchPaths();
         log.expectError(settings, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::settings::get,
+                        Automation::OperationIds::settings::query,
                         QStringLiteral("missing settings snapshot host must be explicit"));
         log.expectError(updateGeneral, Automation::AutomationErrorCode::HostCapabilityUnavailable,
                         Automation::OperationIds::settings::update_general,

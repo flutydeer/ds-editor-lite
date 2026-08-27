@@ -415,7 +415,7 @@ buffer/sample-rate 的安全恢复。若某控件按已装备条件本应出现�
 
 ### GUI-G16：General、界面语言、默认歌词与 Fill Lyric 基本设置持久化
 
-- **追踪**：`settings.get/update_general/update_fill_lyric`。
+- **追踪**：`settings.query/update_general/update_fill_lyric`。
 - **前置**：记录隔离配置中的初始 UI language、默认歌唱语言、默认歌词和模型工具路径；没有
   打开的系统文件夹窗口。`LIBRESVIP_CLI` 只在 `CAP-LIBRESVIP` 已装备时作为有效工具路径；
   未装备时只验证字段持久化，不宣称 LibreSVIP 可运行。

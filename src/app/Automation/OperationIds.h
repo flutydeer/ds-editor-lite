@@ -111,7 +111,7 @@ namespace Automation::OperationIds {
     X(master, set_solo, "master.set_solo")                                                         \
     X(notes, duplicate, "notes.duplicate")                                                         \
     X(notes, fill_lyrics, "notes.fill_lyrics")                                                     \
-    X(notes, get, "notes.get")                                                                     \
+    X(notes, list, "notes.list")                                                                   \
     X(notes, insert, "notes.insert")                                                               \
     X(notes, move, "notes.move")                                                                   \
     X(notes, quantize, "notes.quantize")                                                           \
@@ -163,7 +163,7 @@ namespace Automation::OperationIds {
     X(recent_files, clear, "recent_files.clear")                                                   \
     X(recent_files, list, "recent_files.list")                                                     \
     X(recent_files, remove, "recent_files.remove")                                                 \
-    X(settings, get, "settings.get")                                                               \
+    X(settings, query, "settings.query")                                                           \
     X(settings, update_appearance, "settings.update_appearance")                                   \
     X(settings, update_audio, "settings.update_audio")                                             \
     X(settings, update_developer, "settings.update_developer")                                     \
@@ -195,9 +195,9 @@ namespace Automation::OperationIds {
     X(tasks, cancel, "tasks.cancel")                                                               \
     X(tasks, get, "tasks.get")                                                                     \
     X(tasks, list, "tasks.list")                                                                   \
-    X(tempos, delete_tempo, "tempos.delete")                                                       \
+    X(tempos, remove, "tempos.remove")                                                             \
     X(tempos, set, "tempos.set")                                                                   \
-    X(time_signatures, delete_signature, "time_signatures.delete")                                 \
+    X(time_signatures, remove, "time_signatures.remove")                                           \
     X(time_signatures, set, "time_signatures.set")                                                 \
     X(timeline, get, "timeline.get")                                                               \
     X(tracks, clear_voice, "tracks.clear_voice")                                                   \

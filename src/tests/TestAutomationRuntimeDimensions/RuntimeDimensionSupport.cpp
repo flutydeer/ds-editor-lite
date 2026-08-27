@@ -649,7 +649,7 @@ namespace RuntimeDimensions {
 
     Automation::SettingsRuntimeServices RuntimeHarness::settingsServices() {
         Automation::SettingsRuntimeServices services;
-        const bool missingSnapshot = missing(Automation::OperationIds::settings::get) ||
+        const bool missingSnapshot = missing(Automation::OperationIds::settings::query) ||
                                      missing(Automation::OperationIds::recent_files::list) ||
                                      missing(Automation::OperationIds::packages::get_search_paths);
         if (!missingSnapshot) {

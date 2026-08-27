@@ -879,7 +879,7 @@ namespace {
         };
         const auto selection = selectExposure(filtered);
         ok &= expect(
-            selection.valid() && selection.exposedIds.contains(QStringLiteral("notes.get")) &&
+            selection.valid() && selection.exposedIds.contains(QStringLiteral("notes.list")) &&
                 !selection.exposedIds.contains(QStringLiteral("notes.set_lyric")) &&
                 selection.pendingSelectors.contains(QStringLiteral("id:missing.future")),
             QStringLiteral("include/exclude/pending selectors must compose deterministically"));

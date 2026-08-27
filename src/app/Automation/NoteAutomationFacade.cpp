@@ -361,7 +361,7 @@ namespace Automation {
     AutomationResult<QList<NoteSnapshotDto>>
         NoteAutomationFacade::getNotes(const DocumentId &documentId, const ClipId clipId) {
         return m_dispatcher.dispatchDocumentQuery<QList<NoteSnapshotDto>>(
-            OperationIds::notes::get, documentId, [this, clipId](DocumentSession &session) {
+            OperationIds::notes::list, documentId, [this, clipId](DocumentSession &session) {
                 auto resolved = m_objects.singingClip(session, clipId);
                 if (!resolved)
                     return AutomationResult<QList<NoteSnapshotDto>>(resolved.getError());
@@ -1305,7 +1305,7 @@ namespace Automation {
             Q_ASSERT(result);
         };
         add({
-            .id = OperationIds::notes::get,
+            .id = OperationIds::notes::list,
             .category = QStringLiteral("notes"),
             .kind = OperationKind::Query,
             .syncMode = SyncMode::Synchronous,

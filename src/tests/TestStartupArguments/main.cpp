@@ -142,7 +142,7 @@ namespace {
         persisted.mcpEnabled = false;
         persisted.controlPort = 1234;
         persisted.selectedProfile = AutomationOption::Profile::L1;
-        persisted.setCustomPermissionEnabled(QStringLiteral("notes.get"), true);
+        persisted.setCustomPermissionEnabled(QStringLiteral("notes.list"), true);
 
         StartupArguments::AutomationOverrides overrides;
         overrides.mcpEnabled = true;
@@ -162,7 +162,7 @@ namespace {
             QStringLiteral("effective config should expose command-line sources"));
         success &= expect(!persisted.mcpEnabled && persisted.controlPort == 1234 &&
                               persisted.selectedProfile == AutomationOption::Profile::L1 &&
-                              persisted.customPermissionEnabled(QStringLiteral("notes.get")),
+                              persisted.customPermissionEnabled(QStringLiteral("notes.list")),
                           QStringLiteral("resolving CLI overrides must not modify saved settings"));
         return success;
     }

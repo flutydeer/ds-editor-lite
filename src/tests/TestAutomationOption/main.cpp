@@ -25,7 +25,7 @@ namespace {
                           QStringLiteral("the initial configuration should have a concrete private port"));
         success &= expect(option.selectedProfile == AutomationOption::Profile::L1,
                           QStringLiteral("profile should default to L1"));
-        success &= expect(!option.customPermissionEnabled(QStringLiteral("notes.get")),
+        success &= expect(!option.customPermissionEnabled(QStringLiteral("notes.list")),
                           QStringLiteral("unknown Custom permissions should default to disabled"));
         success &= expect(option.readRoots.isEmpty() && option.writeRoots.isEmpty(),
                           QStringLiteral("file roots should default to empty"));
@@ -37,7 +37,7 @@ namespace {
         option.mcpEnabled = true;
         option.controlPort = 65535;
         option.selectedProfile = AutomationOption::Profile::Custom;
-        option.setCustomPermissionEnabled(QStringLiteral("notes.get"), true);
+        option.setCustomPermissionEnabled(QStringLiteral("notes.list"), true);
         option.setCustomPermissionEnabled(QStringLiteral("documents.save"), false);
         option.readRoots = {QStringLiteral("D:/inputs"), QStringLiteral("D:/shared")};
         option.writeRoots = {QStringLiteral("D:/outputs")};
@@ -49,7 +49,7 @@ namespace {
                           QStringLiteral("maximum control port should round-trip"));
         success &= expect(reloaded.selectedProfile == AutomationOption::Profile::Custom,
                           QStringLiteral("Custom profile should round-trip"));
-        success &= expect(reloaded.customPermissionEnabled(QStringLiteral("notes.get")),
+        success &= expect(reloaded.customPermissionEnabled(QStringLiteral("notes.list")),
                           QStringLiteral("enabled Custom permission should round-trip"));
         success &= expect(reloaded.customPermissions.contains(QStringLiteral("documents.save")) &&
                               !reloaded.customPermissionEnabled(QStringLiteral("documents.save")),
@@ -159,12 +159,12 @@ namespace {
                           QStringLiteral("L2 connector arguments should match the editor profile"));
         success &= expect(
             connectorArguments(AutomationOption::Profile::Custom,
-                               {QStringLiteral("notes.get"), QStringLiteral("documents.save"),
-                                QStringLiteral("notes.get")}) ==
+                               {QStringLiteral("notes.list"), QStringLiteral("documents.save"),
+                                QStringLiteral("notes.list")}) ==
                 QStringList{QStringLiteral("--exposure-profile"), QStringLiteral("l0"),
                             QStringLiteral("--include-tool"),
                             QStringLiteral("id:documents.save"),
-                            QStringLiteral("--include-tool"), QStringLiteral("id:notes.get")},
+                            QStringLiteral("--include-tool"), QStringLiteral("id:notes.list")},
             QStringLiteral("Custom connector arguments should be sorted and deduplicated"));
 
         const auto command = connectorExecutablePath(QStringLiteral("C:/Program Files/DS Editor Lite"));

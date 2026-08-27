@@ -440,7 +440,7 @@ namespace {
                              ->toMcpToolJson());
             if (exposeNotes) {
                 tools.append(
-                    AutomationWire::findPublicTool(QStringLiteral("notes.get"))->toMcpToolJson());
+                    AutomationWire::findPublicTool(QStringLiteral("notes.list"))->toMcpToolJson());
             }
             if (exposeFilteredTool) {
                 tools.append(AutomationWire::findPublicTool(QStringLiteral("documents.get"))
@@ -1631,7 +1631,7 @@ namespace {
                            .profile = AutomationWire::ExposureProfile::L0,
                            .includes = {QStringLiteral("id:application.get_info"),
                                  QStringLiteral("id:automation.get_manifest"),
-                                 QStringLiteral("id:notes.get")},
+                                 QStringLiteral("id:notes.list")},
                            },
             .upstreamTimeoutMs = 2000,
         };
@@ -1909,7 +1909,7 @@ namespace {
                         {
                             QStringLiteral("id:application.get_info"),
                             QStringLiteral("id:automation.get_manifest"),
-                            QStringLiteral("id:notes.get"),
+                            QStringLiteral("id:notes.list"),
                         }, },
             .upstreamTimeoutMs = 2000,
         };
@@ -2813,7 +2813,7 @@ namespace {
                     {
                                .profile = AutomationWire::ExposureProfile::L0,
                                .includes = {QStringLiteral("id:application.get_info"),
-                                     QStringLiteral("id:notes.get")},
+                                     QStringLiteral("id:notes.list")},
                                },
                 .upstreamTimeoutMs = 2000,
         },
@@ -2861,7 +2861,7 @@ namespace {
         runtime.callTool(
             QStringLiteral("editor.tools.describe"),
             QJsonObject{
-                {QStringLiteral("name"), QStringLiteral("notes.get")}
+                {QStringLiteral("name"), QStringLiteral("notes.list")}
         },
             [&notesDescription](const DsConnector::ToolCallOutcome &outcome) {
                 notesDescription =

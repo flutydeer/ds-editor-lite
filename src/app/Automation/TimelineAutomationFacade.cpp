@@ -99,7 +99,7 @@ namespace Automation {
     AutomationResult<MutationResult>
         TimelineAutomationFacade::deleteTempo(const CommandContext &context, const int tick) {
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::tempos::delete_tempo, context, tempoFingerprint(tick, 0.0),
+            OperationIds::tempos::remove, context, tempoFingerprint(tick, 0.0),
             [this, tick](DocumentSession &session, const bool validateOnly) {
                 if (tick <= 0) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
@@ -161,7 +161,7 @@ namespace Automation {
         TimelineAutomationFacade::deleteTimeSignature(const CommandContext &context,
                                                       const int barIndex) {
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::time_signatures::delete_signature, context,
+            OperationIds::time_signatures::remove, context,
             timeSignatureFingerprint(barIndex, 0, 0),
             [this, barIndex](DocumentSession &session, const bool validateOnly) {
                 if (barIndex <= 0) {
@@ -333,9 +333,9 @@ namespace Automation {
         addMutation(OperationIds::master::set_mute);
         addMutation(OperationIds::master::set_pan);
         addMutation(OperationIds::master::set_solo);
-        addMutation(OperationIds::tempos::delete_tempo);
+        addMutation(OperationIds::tempos::remove);
         addMutation(OperationIds::tempos::set);
-        addMutation(OperationIds::time_signatures::delete_signature);
+        addMutation(OperationIds::time_signatures::remove);
         addMutation(OperationIds::time_signatures::set);
     }
 

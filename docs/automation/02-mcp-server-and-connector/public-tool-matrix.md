@@ -177,7 +177,7 @@
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
-| `notes.get` | L1 | Q/S | 有序音符快照与分页 |
+| `notes.list` | L1 | Q/S | 有序音符快照与分页 |
 | `notes.search` | L1 | Q/S | 歌词查询、匹配模式与大小写/正则选项 |
 | `notes.insert` | L1 | C/S | 叶节点完整初始 draft，不要求 voice context；批量形成一条历史记录 |
 | `notes.duplicate` | L1 | C/S | 深复制音符及关联参数，保持相对布局并整体撤销 |
@@ -220,9 +220,9 @@
 |---|---|---|---|
 | `timeline.get` | L1 | Q/S | Tempo 与拍号的有序快照 |
 | `tempos.set` | L1 | C/S | 新增/替换 Tempo 与零点锚规则 |
-| `tempos.delete` | L1 | C/S | Tempo 删除与零点锚规则 |
+| `tempos.remove` | L1 | C/S | Tempo 删除与零点锚规则 |
 | `time_signatures.set` | L1 | C/S | 新增/替换拍号与 bar 0 规则 |
-| `time_signatures.delete` | L1 | C/S | 拍号删除与 bar 0 规则 |
+| `time_signatures.remove` | L1 | C/S | 拍号删除与 bar 0 规则 |
 
 ### 3.14 历史记录（3）
 

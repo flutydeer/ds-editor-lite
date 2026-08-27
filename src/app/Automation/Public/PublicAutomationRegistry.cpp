@@ -2332,7 +2332,7 @@ namespace Automation {
             return result;
         }
 
-        if (sourceOperation == ToolNames::notes_get) {
+        if (sourceOperation == ToolNames::notes_list) {
             auto clipId = activeClipId();
             if (!clipId)
                 return clipId.getError();
@@ -3168,7 +3168,7 @@ namespace Automation {
                            {QStringLiteral("projects"), projects}
                        });
                    });
-        addBinding(ToolNames::notes_get, [this](const QJsonObject &arguments,
+        addBinding(ToolNames::notes_list, [this](const QJsonObject &arguments,
                                                 const PublicInvocationContext &) {
             auto result = m_runtime.notes().getNotes(
                 documentId(arguments), ClipId(arguments.value(QStringLiteral("clip_id")).toInt()));
@@ -4018,7 +4018,7 @@ namespace Automation {
                            arguments.value(QStringLiteral("tick")).toInt(),
                            arguments.value(QStringLiteral("tempo")).toDouble()));
                    });
-        addBinding(ToolNames::tempos_delete,
+        addBinding(ToolNames::tempos_remove,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(m_runtime.timeline().deleteTempo(
                            commandContext(arguments, invocation),
@@ -4032,7 +4032,7 @@ namespace Automation {
                            arguments.value(QStringLiteral("numerator")).toInt(),
                            arguments.value(QStringLiteral("denominator")).toInt()));
                    });
-        addBinding(ToolNames::time_signatures_delete,
+        addBinding(ToolNames::time_signatures_remove,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return mutationResult(m_runtime.timeline().deleteTimeSignature(
                            commandContext(arguments, invocation),

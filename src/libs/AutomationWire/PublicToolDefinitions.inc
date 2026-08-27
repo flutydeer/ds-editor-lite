@@ -162,7 +162,7 @@ AUTOMATION_WIRE_PUBLIC_TOOL(speaker_mix_presets_apply, "speaker_mix.presets.appl
                             L2, Command, Synchronous, 1, 1, 1, NonDestructive, Idempotent,
                             ClosedWorld)
 
-AUTOMATION_WIRE_PUBLIC_TOOL(notes_get, "notes.get", "notes", L1, Query, Synchronous, 1, 1, 1,
+AUTOMATION_WIRE_PUBLIC_TOOL(notes_list, "notes.list", "notes", L1, Query, Synchronous, 1, 1, 1,
                             ReadOnly, Idempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(notes_search, "notes.search", "notes", L1, Query, Synchronous, 1, 1, 1,
                             ReadOnly, Idempotent, ClosedWorld)
@@ -236,11 +236,11 @@ AUTOMATION_WIRE_PUBLIC_TOOL(timeline_get, "timeline.get", "timeline", L1, Query,
                             1, ReadOnly, Idempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(tempos_set, "tempos.set", "timeline", L1, Command, Synchronous, 1, 1, 1,
                             NonDestructive, Idempotent, ClosedWorld)
-AUTOMATION_WIRE_PUBLIC_TOOL(tempos_delete, "tempos.delete", "timeline", L1, Command, Synchronous, 1,
+AUTOMATION_WIRE_PUBLIC_TOOL(tempos_remove, "tempos.remove", "timeline", L1, Command, Synchronous, 1,
                             1, 1, NonDestructive, Idempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(time_signatures_set, "time_signatures.set", "timeline", L1, Command,
                             Synchronous, 1, 1, 1, NonDestructive, Idempotent, ClosedWorld)
-AUTOMATION_WIRE_PUBLIC_TOOL(time_signatures_delete, "time_signatures.delete", "timeline", L1,
+AUTOMATION_WIRE_PUBLIC_TOOL(time_signatures_remove, "time_signatures.remove", "timeline", L1,
                             Command, Synchronous, 1, 1, 1, NonDestructive, Idempotent, ClosedWorld)
 
 AUTOMATION_WIRE_PUBLIC_TOOL(history_get_state, "history.get_state", "history", L1, Query,

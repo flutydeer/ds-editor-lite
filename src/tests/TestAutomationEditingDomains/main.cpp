@@ -899,7 +899,7 @@ namespace {
         auto &runtime = fixture.testRuntime.runtime();
 
         suite.run(
-            Automation::OperationIds::notes::get, QStringLiteral("typed-ordered-snapshot"), [&] {
+            Automation::OperationIds::notes::list, QStringLiteral("typed-ordered-snapshot"), [&] {
                 const auto notes =
                     runtime.notes().getNotes(runtime.documentVersion().documentId, fixture.clipId);
                 suite.expect(notes && notes.get().size() == 2 &&
@@ -912,7 +912,7 @@ namespace {
                                                             Automation::ClipId(999999));
                 suite.expect(
                     !wrong && wrong.getError().code == AutomationErrorCode::DocumentChanged &&
-                        wrong.getError().operationId == Automation::OperationIds::notes::get,
+                        wrong.getError().operationId == Automation::OperationIds::notes::list,
                     QStringLiteral("document validation must precede clip resolution"));
             });
 
@@ -1646,7 +1646,7 @@ namespace {
             });
 
         suite.run(
-            Automation::OperationIds::tempos::delete_tempo,
+            Automation::OperationIds::tempos::remove,
             QStringLiteral("anchor-missing-preview-undo"), [&] {
                 testRuntime.history()->reset();
                 const auto anchor = runtime.timeline().deleteTempo(commandContext(runtime), 0);
@@ -1754,7 +1754,7 @@ namespace {
                              QStringLiteral("identical signature must be a no-op"));
             });
 
-        suite.run(Automation::OperationIds::time_signatures::delete_signature,
+        suite.run(Automation::OperationIds::time_signatures::remove,
                   QStringLiteral("anchor-missing-preview-undo"), [&] {
                       testRuntime.history()->reset();
                       const auto anchor =
@@ -2024,13 +2024,13 @@ namespace {
              }},
             {Automation::OperationIds::tempos::set,
              [&](const auto &context) { return runtime.timeline().setTempo(context, -1, -1.0); }                                                                                                               },
-            {Automation::OperationIds::tempos::delete_tempo,
+            {Automation::OperationIds::tempos::remove,
              [&](const auto &context) { return runtime.timeline().deleteTempo(context, 0); }},
             {Automation::OperationIds::time_signatures::set,
              [&](const auto &context) {
                  return runtime.timeline().setTimeSignature(context, -1, 0, 3);
              }                                                                                                                   },
-            {Automation::OperationIds::time_signatures::delete_signature,
+            {Automation::OperationIds::time_signatures::remove,
              [&](const auto &context) {
                  return runtime.timeline().deleteTimeSignature(context, 0);
              }},
@@ -2125,7 +2125,7 @@ namespace {
             Automation::OperationIds::clips::remove,
             Automation::OperationIds::clips::set_default_language,
             Automation::OperationIds::clips::set_properties,
-            Automation::OperationIds::notes::get,
+            Automation::OperationIds::notes::list,
             Automation::OperationIds::notes::insert,
             Automation::OperationIds::notes::move,
             Automation::OperationIds::notes::quantize,
@@ -2148,9 +2148,9 @@ namespace {
             Automation::OperationIds::tracks::set_voice,
             Automation::OperationIds::timeline::get,
             Automation::OperationIds::tempos::set,
-            Automation::OperationIds::tempos::delete_tempo,
+            Automation::OperationIds::tempos::remove,
             Automation::OperationIds::time_signatures::set,
-            Automation::OperationIds::time_signatures::delete_signature,
+            Automation::OperationIds::time_signatures::remove,
             Automation::OperationIds::master::set_control,
             Automation::OperationIds::history::get_state,
             Automation::OperationIds::history::undo,

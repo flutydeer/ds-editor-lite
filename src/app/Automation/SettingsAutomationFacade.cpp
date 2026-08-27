@@ -681,7 +681,7 @@ namespace Automation {
 
     AutomationResult<SettingsSnapshotDto> SettingsAutomationFacade::getSettings() {
         return m_dispatcher.dispatchApplicationQuery<SettingsSnapshotDto>(
-            OperationIds::settings::get, [this] {
+            OperationIds::settings::query, [this] {
                 if (!m_services.snapshot)
                     return AutomationResult<SettingsSnapshotDto>(unavailable());
                 return AutomationResult<SettingsSnapshotDto>(m_services.snapshot());
@@ -706,7 +706,7 @@ namespace Automation {
         SettingsAutomationFacade::queryPublicSettings(QStringList domains,
                                                       SettingsPathProjection pathProjection) {
         return m_dispatcher.dispatchApplicationQuery<PublicSettingsSnapshotDto>(
-            OperationIds::settings::get,
+            OperationIds::settings::query,
             [this, domains = std::move(domains), pathProjection = std::move(pathProjection)] {
                 if (!m_services.snapshot)
                     return AutomationResult<PublicSettingsSnapshotDto>(unavailable());
@@ -1145,7 +1145,7 @@ namespace Automation {
 
     AutomationResult<QList<LyricRuleDto>> SettingsAutomationFacade::listLyricRules() {
         return m_dispatcher.dispatchApplicationQuery<QList<LyricRuleDto>>(
-            OperationIds::settings::get, [this] {
+            OperationIds::settings::query, [this] {
                 if (!m_services.lyricRules)
                     return AutomationResult<QList<LyricRuleDto>>(unavailable());
                 return AutomationResult<QList<LyricRuleDto>>(m_services.lyricRules());
@@ -1485,7 +1485,7 @@ namespace Automation {
     AutomationResult<LyricRuleTestResultDto>
         SettingsAutomationFacade::testLyricRules(const QString &text) {
         return m_dispatcher.dispatchApplicationQuery<LyricRuleTestResultDto>(
-            OperationIds::settings::get, [this, text] {
+            OperationIds::settings::query, [this, text] {
                 if (!m_services.testLyricRules)
                     return AutomationResult<LyricRuleTestResultDto>(unavailable());
                 return m_services.testLyricRules(text);
@@ -1723,7 +1723,7 @@ namespace Automation {
                 .idempotency = IdempotencyPolicy::Unsupported,
             });
         };
-        addQuery(OperationIds::settings::get, QStringLiteral("settings"));
+        addQuery(OperationIds::settings::query, QStringLiteral("settings"));
         addQuery(OperationIds::recent_files::list, QStringLiteral("recent_files"));
         addQuery(OperationIds::packages::get_search_paths, QStringLiteral("packages"));
         addCommand(OperationIds::settings::update_general, QStringLiteral("settings"));

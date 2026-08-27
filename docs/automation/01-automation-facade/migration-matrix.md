@@ -85,7 +85,7 @@ imports.commit_batch
 ### notes（10）
 
 ```text
-notes.get
+notes.list
 notes.insert
 notes.move
 notes.quantize
@@ -116,9 +116,9 @@ speaker_mix.track.select_single
 
 ```text
 timeline.get
-tempos.delete
+tempos.remove
 tempos.set
-time_signatures.delete
+time_signatures.remove
 time_signatures.set
 master.set_control
 ```
@@ -210,7 +210,7 @@ editor.show_bottom_panel_page
 ### settings / recent_files / package search paths（15）
 
 ```text
-settings.get
+settings.query
 settings.update_appearance
 settings.update_audio
 settings.update_developer

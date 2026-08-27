@@ -462,8 +462,8 @@ namespace AutomationWire {
         QJsonObject formatOptionsSchema() {
             return JsonSchema::object({
                 {QStringLiteral("encoding"),               omissionEquivalentStringSchema()},
-                {QStringLiteral("import_tempo"),           JsonSchema::boolean() },
-                {QStringLiteral("import_time_signatures"), JsonSchema::boolean() },
+                {QStringLiteral("import_tempo"),           JsonSchema::boolean()           },
+                {QStringLiteral("import_time_signatures"), JsonSchema::boolean()           },
             });
         }
 
@@ -601,8 +601,7 @@ namespace AutomationWire {
                  (name == QStringLiteral("query") || name == QStringLiteral("package_id"))) ||
                 ((id == PublicToolNames::documents_open ||
                   id == PublicToolNames::documents_import) &&
-                 (name == QStringLiteral("format_id") ||
-                  name == QStringLiteral("plan_digest"))) ||
+                 (name == QStringLiteral("format_id") || name == QStringLiteral("plan_digest"))) ||
                 (id == PublicToolNames::audio_clips_confirm_path &&
                  name == QStringLiteral("path"))) {
                 return omissionEquivalentStringSchema();
@@ -637,9 +636,9 @@ namespace AutomationWire {
             if (name == QStringLiteral("purpose")) {
                 return id == PublicToolNames::formats_inspect
                            ? JsonSchema::string({QStringLiteral("open"), QStringLiteral("import")})
-                           : omissionEquivalentStringSchema(
-                                 {QStringLiteral("open"), QStringLiteral("import"),
-                                  QStringLiteral("export")});
+                           : omissionEquivalentStringSchema({QStringLiteral("open"),
+                                                             QStringLiteral("import"),
+                                                             QStringLiteral("export")});
             }
             if (name == QStringLiteral("mode") && id == PublicToolNames::notes_search) {
                 return JsonSchema::string({QStringLiteral("starts_with"), QStringLiteral("exact"),
@@ -784,9 +783,9 @@ namespace AutomationWire {
                 }
                 const auto item = JsonSchema::object(
                     {
-                        {QStringLiteral("path"),        nonEmptyStringSchema()},
+                        {QStringLiteral("path"),        nonEmptyStringSchema()          },
                         {QStringLiteral("format_id"),   omissionEquivalentStringSchema()},
-                        {QStringLiteral("options"),     formatOptionsSchema() },
+                        {QStringLiteral("options"),     formatOptionsSchema()           },
                         {QStringLiteral("plan_digest"), omissionEquivalentStringSchema()},
                 },
                     {QStringLiteral("path")});
@@ -830,7 +829,7 @@ namespace AutomationWire {
                 PublicToolNames::clips_get_voice_context,
                 PublicToolNames::audio_clips_get,
                 PublicToolNames::speaker_mix_get,
-                PublicToolNames::notes_get,
+                PublicToolNames::notes_list,
                 PublicToolNames::notes_search,
                 PublicToolNames::parameters_get,
                 PublicToolNames::parameters_get_capabilities,
@@ -929,9 +928,9 @@ namespace AutomationWire {
                 PublicToolNames::parameters_remove_anchors,
                 PublicToolNames::parameters_set_anchor_interpolation,
                 PublicToolNames::tempos_set,
-                PublicToolNames::tempos_delete,
+                PublicToolNames::tempos_remove,
                 PublicToolNames::time_signatures_set,
-                PublicToolNames::time_signatures_delete,
+                PublicToolNames::time_signatures_remove,
                 PublicToolNames::history_undo,
                 PublicToolNames::history_redo,
                 PublicToolNames::playback_set_loop,
@@ -1049,7 +1048,7 @@ namespace AutomationWire {
                 {PublicToolNames::speaker_mix_presets_delete,          {QStringLiteral("preset_id")}                    },
                 {PublicToolNames::speaker_mix_presets_apply,
                  {QStringLiteral("target"), QStringLiteral("preset_id")}                                                },
-                {PublicToolNames::notes_get,                           {QStringLiteral("clip_id")}                      },
+                {PublicToolNames::notes_list,                          {QStringLiteral("clip_id")}                      },
                 {PublicToolNames::notes_search,
                  {QStringLiteral("clip_id"), QStringLiteral("query"), QStringLiteral("mode")}                           },
                 {PublicToolNames::notes_insert,
@@ -1127,11 +1126,11 @@ namespace AutomationWire {
                  {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("layer"),
                   QStringLiteral("anchor_ids"), QStringLiteral("interpolation")}                                        },
                 {PublicToolNames::tempos_set,                          {QStringLiteral("tick"), QStringLiteral("tempo")}},
-                {PublicToolNames::tempos_delete,                       {QStringLiteral("tick")}                         },
+                {PublicToolNames::tempos_remove,                       {QStringLiteral("tick")}                         },
                 {PublicToolNames::time_signatures_set,
                  {QStringLiteral("bar_index"), QStringLiteral("numerator"),
                   QStringLiteral("denominator")}                                                                        },
-                {PublicToolNames::time_signatures_delete,              {QStringLiteral("bar_index")}                    },
+                {PublicToolNames::time_signatures_remove,              {QStringLiteral("bar_index")}                    },
                 {PublicToolNames::playback_seek,                       {QStringLiteral("position")}                     },
                 {PublicToolNames::playback_set_loop,
                  {QStringLiteral("start"), QStringLiteral("end")}                                                       },
@@ -1191,7 +1190,7 @@ namespace AutomationWire {
                   QStringLiteral("limit")}                                                                         },
                 {PublicToolNames::speaker_mix_presets_list,     {QStringLiteral("singer")}                         },
                 {PublicToolNames::speaker_mix_keyframes_insert, {QStringLiteral("weights")}                        },
-                {PublicToolNames::notes_get,                    {QStringLiteral("cursor"), QStringLiteral("limit")}},
+                {PublicToolNames::notes_list,                   {QStringLiteral("cursor"), QStringLiteral("limit")}},
                 {PublicToolNames::notes_search,
                  {QStringLiteral("case_sensitive"), QStringLiteral("regex")}                                       },
                 {PublicToolNames::notes_fill_lyrics,            {QStringLiteral("options")}                        },
@@ -3063,7 +3062,7 @@ namespace AutomationWire {
             if (id == PublicToolNames::packages_describe) {
                 return JsonSchema::document(JsonSchema::object(
                     {
-                        {QStringLiteral("package_id"), nonEmptyStringSchema()},
+                        {QStringLiteral("package_id"), nonEmptyStringSchema()          },
                         {QStringLiteral("version"),    omissionEquivalentStringSchema()}
                 },
                     {QStringLiteral("package_id")}));
@@ -3077,7 +3076,7 @@ namespace AutomationWire {
                     {QStringLiteral("kind"),
                      omissionEquivalentStringSchema(
                          {QStringLiteral("splitter"), QStringLiteral("tagger")})},
-                    {QStringLiteral("include_disabled"), JsonSchema::boolean()                 },
+                    {QStringLiteral("include_disabled"), JsonSchema::boolean()  },
                 }));
             }
             if (id == PublicToolNames::lyric_rules_create) {
@@ -3949,7 +3948,7 @@ namespace AutomationWire {
             }
             if (id == PublicToolNames::speaker_mix_presets_list)
                 return speakerMixPresetsOutputSchema();
-            if (id == PublicToolNames::notes_get) {
+            if (id == PublicToolNames::notes_list) {
                 return queryEnvelopeSchema(QStringLiteral("notes"),
                                            JsonSchema::array(noteSnapshotSchema()), true);
             }
@@ -4225,7 +4224,7 @@ namespace AutomationWire {
                         sourceOperation == PublicToolNames::parameters_get_capabilities ||
                         sourceOperation == PublicToolNames::tracks_list ||
                         sourceOperation == PublicToolNames::clips_list ||
-                        sourceOperation == PublicToolNames::notes_get
+                        sourceOperation == PublicToolNames::notes_list
                     ? AutomationProfile::L1
                     : AutomationProfile::L2;
             const auto availability = sourceProfile == AutomationProfile::L3
@@ -4457,7 +4456,7 @@ namespace AutomationWire {
                     {QStringLiteral("/document_id")});
             if (id == PublicToolNames::clip_editor_piano_reveal_notes ||
                 id == PublicToolNames::clip_editor_piano_select_notes) {
-                add(QStringLiteral("/note_ids/*"), PublicToolNames::notes_get,
+                add(QStringLiteral("/note_ids/*"), PublicToolNames::notes_list,
                     {QStringLiteral("/window_id"), QStringLiteral("/document_id")});
             }
             if (id.startsWith(QStringLiteral("clip_editor.parameters.")) &&

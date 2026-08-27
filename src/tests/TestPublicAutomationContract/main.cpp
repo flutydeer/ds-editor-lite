@@ -276,61 +276,61 @@ namespace {
 
     void verifyOmissionEquivalentOptionalInputs() {
         const QList<QPair<QString, QStringList>> emptyStringCases{
-            {QStringLiteral("automation.get_manifest"), {QStringLiteral("cursor")}},
-            {QStringLiteral("tracks.list"), {QStringLiteral("cursor")}},
-            {QStringLiteral("clips.list"), {QStringLiteral("type")}},
-            {QStringLiteral("clips.list"), {QStringLiteral("cursor")}},
-            {QStringLiteral("voices.list"), {QStringLiteral("query")}},
-            {QStringLiteral("voices.list"), {QStringLiteral("package_id")}},
-            {QStringLiteral("voices.list"), {QStringLiteral("cursor")}},
-            {QStringLiteral("notes.get"), {QStringLiteral("cursor")}},
-            {QStringLiteral("tasks.list"), {QStringLiteral("state")}},
-            {QStringLiteral("tasks.list"), {QStringLiteral("kind")}},
-            {QStringLiteral("tasks.list"), {QStringLiteral("cursor")}},
-            {QStringLiteral("packages.list"), {QStringLiteral("cursor")}},
-            {QStringLiteral("formats.list"), {QStringLiteral("purpose")}},
-            {QStringLiteral("lyric_rules.list"), {QStringLiteral("kind")}},
-            {QStringLiteral("documents.open"), {QStringLiteral("format_id")}},
-            {QStringLiteral("documents.open"), {QStringLiteral("plan_digest")}},
+            {QStringLiteral("automation.get_manifest"),  {QStringLiteral("cursor")}       },
+            {QStringLiteral("tracks.list"),              {QStringLiteral("cursor")}       },
+            {QStringLiteral("clips.list"),               {QStringLiteral("type")}         },
+            {QStringLiteral("clips.list"),               {QStringLiteral("cursor")}       },
+            {QStringLiteral("voices.list"),              {QStringLiteral("query")}        },
+            {QStringLiteral("voices.list"),              {QStringLiteral("package_id")}   },
+            {QStringLiteral("voices.list"),              {QStringLiteral("cursor")}       },
+            {QStringLiteral("notes.list"),               {QStringLiteral("cursor")}       },
+            {QStringLiteral("tasks.list"),               {QStringLiteral("state")}        },
+            {QStringLiteral("tasks.list"),               {QStringLiteral("kind")}         },
+            {QStringLiteral("tasks.list"),               {QStringLiteral("cursor")}       },
+            {QStringLiteral("packages.list"),            {QStringLiteral("cursor")}       },
+            {QStringLiteral("formats.list"),             {QStringLiteral("purpose")}      },
+            {QStringLiteral("lyric_rules.list"),         {QStringLiteral("kind")}         },
+            {QStringLiteral("documents.open"),           {QStringLiteral("format_id")}    },
+            {QStringLiteral("documents.open"),           {QStringLiteral("plan_digest")}  },
             {QStringLiteral("documents.open"),
-             {QStringLiteral("options"), QStringLiteral("encoding")}},
-            {QStringLiteral("documents.import"), {QStringLiteral("format_id")}},
-            {QStringLiteral("documents.import"), {QStringLiteral("plan_digest")}},
+             {QStringLiteral("options"), QStringLiteral("encoding")}                      },
+            {QStringLiteral("documents.import"),         {QStringLiteral("format_id")}    },
+            {QStringLiteral("documents.import"),         {QStringLiteral("plan_digest")}  },
             {QStringLiteral("documents.import"),
-             {QStringLiteral("options"), QStringLiteral("encoding")}},
+             {QStringLiteral("options"), QStringLiteral("encoding")}                      },
             {QStringLiteral("documents.import_batch"),
-             {QStringLiteral("items"), QStringLiteral("*"), QStringLiteral("format_id")}},
+             {QStringLiteral("items"), QStringLiteral("*"), QStringLiteral("format_id")}  },
             {QStringLiteral("documents.import_batch"),
              {QStringLiteral("items"), QStringLiteral("*"), QStringLiteral("plan_digest")}},
             {QStringLiteral("documents.import_batch"),
              {QStringLiteral("items"), QStringLiteral("*"), QStringLiteral("options"),
-              QStringLiteral("encoding")}},
-            {QStringLiteral("audio_clips.confirm_path"), {QStringLiteral("path")}},
-            {QStringLiteral("packages.describe"), {QStringLiteral("version")}},
+              QStringLiteral("encoding")}                                                 },
+            {QStringLiteral("audio_clips.confirm_path"), {QStringLiteral("path")}         },
+            {QStringLiteral("packages.describe"),        {QStringLiteral("version")}      },
             {QStringLiteral("extract.pitch.start"),
-             {QStringLiteral("options"), QStringLiteral("model_id")}},
+             {QStringLiteral("options"), QStringLiteral("model_id")}                      },
             {QStringLiteral("extract.midi.start"),
-             {QStringLiteral("options"), QStringLiteral("model_id")}},
+             {QStringLiteral("options"), QStringLiteral("model_id")}                      },
             {QStringLiteral("extract.midi.start"),
-             {QStringLiteral("options"), QStringLiteral("default_language")}},
+             {QStringLiteral("options"), QStringLiteral("default_language")}              },
             {QStringLiteral("inference.start"),
-             {QStringLiteral("options"), QStringLiteral("provider_id")}},
+             {QStringLiteral("options"), QStringLiteral("provider_id")}                   },
             {QStringLiteral("inference.start"),
-             {QStringLiteral("options"), QStringLiteral("device_id")}},
+             {QStringLiteral("options"), QStringLiteral("device_id")}                     },
             {QStringLiteral("inference.start"),
-             {QStringLiteral("options"), QStringLiteral("model_id")}},
+             {QStringLiteral("options"), QStringLiteral("model_id")}                      },
         };
         const QList<QPair<QString, QStringList>> emptyArrayCases{
-            {QStringLiteral("settings.query"), {QStringLiteral("domains")}},
-            {QStringLiteral("inference.start"), {QStringLiteral("stages")}},
+            {QStringLiteral("settings.query"),       {QStringLiteral("domains")}},
+            {QStringLiteral("inference.start"),      {QStringLiteral("stages")} },
             {QStringLiteral("exports.midi.preview"),
-             {QStringLiteral("options"), QStringLiteral("track_ids")}},
+             {QStringLiteral("options"), QStringLiteral("track_ids")}           },
             {QStringLiteral("exports.midi.preview"),
-             {QStringLiteral("options"), QStringLiteral("clip_ids")}},
+             {QStringLiteral("options"), QStringLiteral("clip_ids")}            },
             {QStringLiteral("exports.midi.start"),
-             {QStringLiteral("options"), QStringLiteral("track_ids")}},
+             {QStringLiteral("options"), QStringLiteral("track_ids")}           },
             {QStringLiteral("exports.midi.start"),
-             {QStringLiteral("options"), QStringLiteral("clip_ids")}},
+             {QStringLiteral("options"), QStringLiteral("clip_ids")}            },
         };
 
         const auto verifyCase = [](const QPair<QString, QStringList> &testCase,
@@ -361,39 +361,36 @@ namespace {
             if (!properties.contains(QStringLiteral("idempotency_key")))
                 continue;
             ++idempotencyKeys;
-            expect(!requiredFields(contract.inputSchema).contains(QStringLiteral("idempotency_key")) &&
-                       validateJsonValue(QString(),
-                                         properties.value(QStringLiteral("idempotency_key"))
-                                             .toObject())
-                           .valid(),
-                   contract.operationId +
-                       QStringLiteral(" must accept an empty optional idempotency_key"));
+            expect(
+                !requiredFields(contract.inputSchema).contains(QStringLiteral("idempotency_key")) &&
+                    validateJsonValue(
+                        QString(), properties.value(QStringLiteral("idempotency_key")).toObject())
+                        .valid(),
+                contract.operationId +
+                    QStringLiteral(" must accept an empty optional idempotency_key"));
         }
         expect(idempotencyKeys == 86,
                QStringLiteral("all 86 document-write idempotency keys must share the policy"));
 
-        for (const auto &testCase :
-             QList<QPair<QString, QStringList>>{
-                 {QStringLiteral("notes.search"), {QStringLiteral("query")}},
-                 {QStringLiteral("documents.open"), {QStringLiteral("path")}},
-                 {QStringLiteral("formats.inspect"), {QStringLiteral("purpose")}},
+        for (const auto &testCase : QList<QPair<QString, QStringList>>{
+                 {QStringLiteral("notes.search"),      {QStringLiteral("query")}     },
+                 {QStringLiteral("documents.open"),    {QStringLiteral("path")}      },
+                 {QStringLiteral("formats.inspect"),   {QStringLiteral("purpose")}   },
                  {QStringLiteral("packages.describe"), {QStringLiteral("package_id")}},
-             }) {
+        }) {
             const auto *contract = findPublicTool(testCase.first);
-            expect(contract &&
-                       !validateJsonValue(QString(),
-                                          schemaAtPath(contract->inputSchema, testCase.second))
-                            .valid(),
+            expect(contract && !validateJsonValue(
+                                    QString(), schemaAtPath(contract->inputSchema, testCase.second))
+                                    .valid(),
                    testCase.first + u'.' + testCase.second.join(u'.') +
                        QStringLiteral(" must remain non-empty"));
         }
-        for (const auto &testCase :
-             QList<QPair<QString, QStringList>>{
-                 {QStringLiteral("clips.list"), {QStringLiteral("type")}},
-                 {QStringLiteral("tasks.list"), {QStringLiteral("state")}},
-                 {QStringLiteral("formats.list"), {QStringLiteral("purpose")}},
-                 {QStringLiteral("lyric_rules.list"), {QStringLiteral("kind")}},
-             }) {
+        for (const auto &testCase : QList<QPair<QString, QStringList>>{
+                 {QStringLiteral("clips.list"),       {QStringLiteral("type")}   },
+                 {QStringLiteral("tasks.list"),       {QStringLiteral("state")}  },
+                 {QStringLiteral("formats.list"),     {QStringLiteral("purpose")}},
+                 {QStringLiteral("lyric_rules.list"), {QStringLiteral("kind")}   },
+        }) {
             const auto *contract = findPublicTool(testCase.first);
             expect(contract &&
                        !validateJsonValue(QStringLiteral("not-a-valid-option"),
