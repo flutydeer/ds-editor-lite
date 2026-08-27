@@ -4396,6 +4396,9 @@ namespace AutomationWire {
             if (id == PublicToolNames::track_panel_select_track)
                 add(QStringLiteral("/track_id"), PublicToolNames::tracks_list,
                     {QStringLiteral("/document_id")});
+            if (id == PublicToolNames::track_panel_reveal_clips)
+                add(QStringLiteral("/track_id"), PublicToolNames::tracks_list,
+                    {QStringLiteral("/document_id")});
             if (id == PublicToolNames::track_panel_reveal_clips ||
                 id == PublicToolNames::track_panel_select_clips) {
                 add(QStringLiteral("/clip_ids/*"), PublicToolNames::clips_list,

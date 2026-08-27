@@ -741,6 +741,23 @@ namespace {
                        QStringLiteral("check"),
                QStringLiteral("document-bound parameter GUI actions must check object freshness"));
 
+        const auto *revealClips = findPublicTool(QStringLiteral("track_panel.reveal_clips"));
+        bool hasTrackSource = false;
+        bool hasClipSource = false;
+        if (revealClips) {
+            for (const auto &value : revealClips->valueSources) {
+                const auto source = value.toObject();
+                const auto fieldPath = source.value(QStringLiteral("field_path")).toString();
+                const auto operationId = source.value(QStringLiteral("operation_id")).toString();
+                hasTrackSource |= fieldPath == QStringLiteral("/track_id") &&
+                                  operationId == QStringLiteral("tracks.list");
+                hasClipSource |= fieldPath == QStringLiteral("/clip_ids/*") &&
+                                 operationId == QStringLiteral("clips.list");
+            }
+        }
+        expect(hasTrackSource && hasClipSource,
+               QStringLiteral("track_panel.reveal_clips must expose both branch value sources"));
+
         const auto *refresh = findPublicTool(QStringLiteral("packages.refresh"));
         const QJsonObject accepted{
             {QStringLiteral("task_id"),        QStringLiteral("00000000-0000-4000-8000-000000000002")},
