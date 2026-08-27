@@ -10,6 +10,7 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QEventLoop>
+#include <QFile>
 #include <QFileInfo>
 #include <QHostAddress>
 #include <QJsonArray>
@@ -429,6 +430,19 @@ namespace {
                 .filePath(QStringLiteral("%1/%2").arg(
                     QString::fromLatin1(LiteProductMetadata::Publisher),
                     QString::fromLatin1(LiteProductMetadata::ProductName)));
+        if (!QDir().mkpath(editorDataDirectory))
+            return fail(QStringLiteral("Could not create the isolated editor data directory"));
+        QFile seededConfig(QDir(editorDataDirectory).filePath(QStringLiteral("appConfig.json")));
+        if (!seededConfig.open(QIODevice::WriteOnly | QIODevice::Truncate))
+            return fail(QStringLiteral("Could not seed the isolated editor configuration"));
+        seededConfig.write(
+            QJsonDocument(QJsonObject{
+                              {QStringLiteral("audio"),
+                               QJsonObject{{QStringLiteral("deviceName"),
+                                            QStringLiteral("configured-only-device")}}},
+        })
+                .toJson(QJsonDocument::Compact));
+        seededConfig.close();
         const auto serviceName = SingleInstanceIdentity::serviceName(editorDataDirectory);
 
         auto environment = QProcessEnvironment::systemEnvironment();
@@ -560,6 +574,43 @@ namespace {
                                  upstreamManifestDiagnostic(editorEndpoint),
                                  QString::fromUtf8(connector.readAllStandardError()),
                                  QString::fromUtf8(editor.readAllStandardError())));
+        }
+
+        const auto settingsBefore = connectorToolContent(
+            connector, 210, QStringLiteral("settings.query"),
+            QJsonObject{
+                {QStringLiteral("domains"), QJsonArray{QStringLiteral("audio_device")}}
+        },
+            5000, exchangeError);
+        const auto configuredBefore = settingsBefore
+                                          ? settingsBefore->value(QStringLiteral("domains"))
+                                                .toObject()
+                                                .value(QStringLiteral("audio_device"))
+                                                .toObject()
+                                                .value(QStringLiteral("configured"))
+                                                .toObject()
+                                          : QJsonObject{};
+        if (configuredBefore.value(QStringLiteral("device_name")).toString() !=
+            QStringLiteral("configured-only-device")) {
+            return fail(
+                QStringLiteral("Editor did not preserve the seeded configured audio device: %1; "
+                               "configured=%2; config=%3")
+                    .arg(exchangeError, compactJson(configuredBefore), seededConfig.fileName()));
+        }
+        const auto sparseAudioUpdate =
+            connectorToolContent(connector, 211, QStringLiteral("settings.audio_device.update"),
+                                 QJsonObject{
+                                     {QStringLiteral("gain"), 0.75}
+        },
+                                 5000, exchangeError);
+        const auto configuredAfter =
+            sparseAudioUpdate ? sparseAudioUpdate->value(QStringLiteral("configured")).toObject()
+                              : QJsonObject{};
+        if (!sparseAudioUpdate || configuredAfter.value(QStringLiteral("device_name")).toString() !=
+                                      QStringLiteral("configured-only-device")) {
+            return fail(
+                QStringLiteral("Sparse audio update overwrote an omitted configured device: %1")
+                    .arg(exchangeError));
         }
 
         auto tools = exchange(

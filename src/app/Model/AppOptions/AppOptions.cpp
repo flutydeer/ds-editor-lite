@@ -2,15 +2,15 @@
 
 #include "AppOptions.h"
 
+#include "Bootstrap/SingleInstanceIdentity.h"
+
 #include <lite/Support/JsonUtils.h>
 #include <lite/Support/Log.h>
 
-#include <QStandardPaths>
 #include <QDir>
 
 AppOptions::AppOptions(QObject *parent) : QObject(parent) {
-    const QDir configDir(
-        QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first());
+    const QDir configDir(SingleInstanceIdentity::defaultDataDirectory());
     if (!configDir.exists()) {
         if (configDir.mkpath("."))
             Log::d(CLASS_NAME, "Successfully created config directory");

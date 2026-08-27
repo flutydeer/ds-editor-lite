@@ -940,13 +940,20 @@ namespace Automation {
 
             auto persistedValue = value;
             const auto effective = captureAudioRuntimeState(output);
-            persistedValue.driverName = effective.driverName;
-            persistedValue.deviceName = effective.deviceName;
-            persistedValue.adoptedBufferSize = effective.bufferSize;
-            persistedValue.adoptedSampleRate = effective.sampleRate;
-            persistedValue.hotPlugNotificationMode = effective.hotPlugNotificationMode;
-            persistedValue.deviceGain = effective.gain;
-            persistedValue.devicePan = effective.pan;
+            if (patch.driverName)
+                persistedValue.driverName = effective.driverName;
+            if (patch.deviceName)
+                persistedValue.deviceName = effective.deviceName;
+            if (patch.bufferSize)
+                persistedValue.adoptedBufferSize = effective.bufferSize;
+            if (patch.sampleRate)
+                persistedValue.adoptedSampleRate = effective.sampleRate;
+            if (patch.hotPlugNotificationMode)
+                persistedValue.hotPlugNotificationMode = effective.hotPlugNotificationMode;
+            if (patch.gain)
+                persistedValue.deviceGain = effective.gain;
+            if (patch.pan)
+                persistedValue.devicePan = effective.pan;
             if (!persistAudioSettings(options, persistedValue)) {
                 applyAudioRuntimeState(output, previousRuntime);
                 return runtimeApplyError(QStringLiteral("audio_device"),
