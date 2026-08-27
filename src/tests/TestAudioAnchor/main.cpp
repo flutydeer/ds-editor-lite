@@ -1,12 +1,77 @@
 #include <lite/MusicBase/Timeline.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 
+#include <TalcsFormat/AbstractAudioFormatIO.h>
+#include <TalcsFormat/AudioFormatInputSource.h>
+
 #include <QCoreApplication>
 
 #include <cmath>
 #include <cstdio>
 
 namespace {
+    class TestAudioFormatIo final : public talcs::AbstractAudioFormatIO {
+    public:
+        bool open(const OpenMode mode) override {
+            m_openMode = mode;
+            return true;
+        }
+
+        OpenMode openMode() const override {
+            return m_openMode;
+        }
+
+        void close() override {
+            m_openMode = NotOpen;
+        }
+
+        int format() const override {
+            return 0;
+        }
+
+        void setFormat(int) override {
+        }
+
+        int channelCount() const override {
+            return 2;
+        }
+
+        void setChannelCount(int) override {
+        }
+
+        double sampleRate() const override {
+            return 24000.0;
+        }
+
+        void setSampleRate(double) override {
+        }
+
+        qint64 length() const override {
+            return 240000;
+        }
+
+        qint64 read(float *, qint64) override {
+            return 0;
+        }
+
+        qint64 write(const float *, qint64) override {
+            return 0;
+        }
+
+        qint64 seek(const qint64 pos) override {
+            m_position = pos;
+            return m_position;
+        }
+
+        qint64 pos() const override {
+            return m_position;
+        }
+
+    private:
+        OpenMode m_openMode = NotOpen;
+        qint64 m_position = 0;
+    };
+
     bool expect(const bool condition, const char *message) {
         if (condition)
             return true;
@@ -347,6 +412,19 @@ namespace {
         }
         return ok;
     }
+
+    bool testClosedAudioSourcePreservesPositionUntilOpen() {
+        TestAudioFormatIo io;
+        talcs::AudioFormatInputSource source(&io, false);
+        source.setNextReadPosition(48000);
+        bool ok = expect(source.nextReadPosition() == 48000,
+                         "closed audio source preserves the requested output position");
+        ok &= expect(source.open(256, 48000.0), "audio source opens after a closed seek");
+        ok &= expect(io.pos() == 24000,
+                     "opening converts the preserved position with the established ratio");
+        source.close();
+        return ok;
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -360,6 +438,7 @@ int main(int argc, char *argv[]) {
     ok &= testPropertiesRoundTrip();
     ok &= testMovePreservesTruth();
     ok &= testDragPreviewMatchesCommit();
+    ok &= testClosedAudioSourcePreservesPositionUntilOpen();
 
     if (!ok)
         return 1;
