@@ -13,7 +13,7 @@
 - L3 的 45 项工具全部通过 Connector 泛化调用逐项执行；
 - Connector 的 6 项桥接工具全部逐项执行。
 
-同一候选完成 GUI/Computer Use 验收，最终成功路径未出现模态弹窗、界面假死或无人值守阻塞。完整 CTest 当前为 66/67；`TestAudioAnchor` 在 Qt 数值断言处退出。二期范围内发现的缺陷均已修复并重跑受影响域；第 8 节列出的既有依赖与推理稳定性问题不在本期授权修改范围内，本候选不包含相关修复，也不把对应场景或 CTest 失败计入通过结论。
+同一候选完成完整 CTest 与 GUI/Computer Use 验收，最终成功路径未出现模态弹窗、界面假死或无人值守阻塞。二期范围内发现的缺陷均已修复并重跑受影响域；第 8 节列出的既有依赖与推理稳定性问题不在本期授权修改范围内，本候选不包含相关修复，也不把对应场景计入通过结论。
 
 ## 2. 候选与执行摘要
 
@@ -24,12 +24,15 @@
 | 平台 | Windows 11 x64、VS x64 DevShell、Qt 6.11.2 MSVC x64、Ninja、vcpkg `x64-windows` |
 | Debug 配置与构建 | 项目标准 CMake preset wrapper，退出码 0 |
 | 最终测试清单 | 67 项 CTest |
-| 当前候选完整 CTest | 66/67 通过，`TestAudioAnchor` 失败，109.84 秒 |
+| 完整 CTest 第 1 轮 | 67/67 通过，0 失败，92.76 秒 |
+| 完整 CTest 第 2 轮 | 67/67 通过，0 失败，92.73 秒 |
+| 完整 CTest 第 3 轮 | 67/67 通过，0 失败，93.11 秒 |
+| 三轮合计 | **201/201 通过**，0 失败，0 超时，278.60 秒 |
 | L3 泛化调用 | 45/45 通过 |
 | Connector 桥接调用 | 6/6 通过 |
 | GUI/Computer Use | 25 域真实代表路径；界面证据保存在私有归档 |
 
-最终完整轮固定使用 `-j 1`，并显式设置 Qt offscreen platform 及有效的 platform plugin 目录。失败用例在 `qnumeric.h` 的 `value < maximalPlusOne` 断言处退出；其余 66 项通过。
+最终轮开始前使用标准 preset wrapper 的 `--target all` 按当前源码重建全部 67 个注册测试目标，避免 CTest 复用陈旧二进制。三轮均固定使用 `-j 1`，并显式设置 Qt offscreen platform 及有效的 platform plugin 目录；三轮之间没有修改源码或重新构建候选。
 
 ## 3. 工具集合与确定性覆盖
 
@@ -148,8 +151,6 @@ Computer Use 核对了 Automation 设置页、编辑区域和 MCP 变更后的 G
 
 talcs v0.1.0 在关闭的 `AudioFormatInputSource` 收到非零读位置时，会在采样率比例建立前换算输入位置；该时序由 talcs 自身的 Mixer、Buffering 和 DSPX 调用链产生，Debug 构建会导致 Editor 进程退出。上游 `main` 已有修复但尚无新发布标签。该依赖问题不属于本期 MCP/L3 的授权修改范围；本报告保留故障事实，不宣称非零位置重载场景通过或已修复。
 
-当前完整 CTest 中，`TestAudioAnchor` 在 Qt `qnumeric.h` 的 `value < maximalPlusOne` 断言处退出；其测试源码、依赖声明与主分支基线无差异，因此不属于本分支引入的改动，但仍作为完整测试门禁失败记录。当前只记录该测试事实，不将它进一步归因于上述 Editor 重载缺陷。
-
 长音频 DirectML RMVPE 资格测试观察到 Editor 进程退出。该问题属于既有推理实现，不属于本期 MCP/L3 的授权修改范围；为它制作的实验性 synthrt overlay 已完整回滚，当前分支没有相关产品代码或依赖补丁。本报告仅保留故障事实，不宣称该场景通过或已修复。
 
 ## 9. 数据安全、恢复与证据
@@ -172,7 +173,7 @@ talcs v0.1.0 在关闭的 `AudioFormatInputSource` 收到非零读位置时，�
 - [x] 两套 MCP 主协议及 2025-06-18 兼容握手、Editor HTTP、QLocal 与 Connector stdio 通过。
 - [x] Profile/Custom、File Guard、32 路并发、动态值、Manifest、exposure 和兼容缓存通过。
 - [x] Automation 设置页、中文、图标、配置复制、端口与领域分组通过 GUI 验收。
-- [ ] Debug 配置与构建通过；完整 CTest 当前为 **66/67**，`TestAudioAnchor` 失败。
+- [x] Debug 配置与构建通过；三轮完整 CTest **201/201** 通过。
 - [x] 用户素材零改动、应用配置精确恢复、Editor 进程与测试状态清理通过。
 
-综上，当前二期候选满足工具契约、协议、Connector、真实业务域、GUI 无人值守和数据安全验收要求；完整 CTest 尚受第 8 节记录的既有失败阻塞，合并评审需将该门禁状态一并纳入判断。
+综上，当前二期候选满足工具契约、协议、Connector、真实业务域、GUI 无人值守和数据安全验收要求，可以提交后续合并评审。
