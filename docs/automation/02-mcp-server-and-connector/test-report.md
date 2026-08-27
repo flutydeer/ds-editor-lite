@@ -2,7 +2,7 @@
 
 ## 1. 结论
 
-二期最终候选在 Windows x64 Debug 环境完成标准 preset 配置与构建、确定性 CTest、真实 Editor/Connector 联调和 Computer Use GUI 验收。公共工具面为 Editor **179** 项、Connector **6** 项，共 **185** 项；Editor 工具分属 **25** 个业务域，类型统计为 **45 Q/S + 123 C/S + 11 C/A**。
+二期最终候选在 Windows x64 Debug 环境完成标准 preset 配置与构建、完整 CTest 执行、真实 Editor/Connector 联调和 Computer Use GUI 验收。公共工具面为 Editor **179** 项、Connector **6** 项，共 **185** 项；Editor 工具分属 **25** 个业务域，类型统计为 **45 Q/S + 123 C/S + 11 C/A**。
 
 最低 Profile 分布为 Meta 4、L1 87、L2 43、L3 45，累积可见数量为 4、91、134、179。公共工具集版本及 185 项工具的 current、introduced、minimum-compatible 版本均为 **1**。
 
@@ -13,26 +13,23 @@
 - L3 的 45 项工具全部通过 Connector 泛化调用逐项执行；
 - Connector 的 6 项桥接工具全部逐项执行。
 
-同一候选完成完整 CTest 与 GUI/Computer Use 验收，最终成功路径未出现模态弹窗、界面假死或无人值守阻塞。二期范围内发现的缺陷均已修复并重跑受影响域；长音频 DirectML RMVPE 的既有稳定性问题不在本期授权修改范围内，本候选不包含相关修复，也不把该场景计入通过结论。
+同一候选完成 GUI/Computer Use 验收，最终成功路径未出现模态弹窗、界面假死或无人值守阻塞。完整 CTest 当前为 66/67；`TestAudioAnchor` 在 Qt 数值断言处退出。二期范围内发现的缺陷均已修复并重跑受影响域；第 8 节列出的既有依赖与推理稳定性问题不在本期授权修改范围内，本候选不包含相关修复，也不把对应场景或 CTest 失败计入通过结论。
 
 ## 2. 候选与执行摘要
 
 | 项目 | 最终结果 |
 |---|---|
 | 分支 | `mcp` |
-| 代码候选 | `be9c171b` 及后续文档提交 |
+| 代码候选 | `f4abb8e0` 及后续文档提交 |
 | 平台 | Windows 11 x64、VS x64 DevShell、Qt 6.11.2 MSVC x64、Ninja、vcpkg `x64-windows` |
 | Debug 配置与构建 | 项目标准 CMake preset wrapper，退出码 0 |
 | 最终测试清单 | 67 项 CTest |
-| 完整 CTest 第 1 轮 | 67/67 通过，0 失败，96.09 秒 |
-| 完整 CTest 第 2 轮 | 67/67 通过，0 失败，91.69 秒 |
-| 完整 CTest 第 3 轮 | 67/67 通过，0 失败，91.57 秒 |
-| 三轮合计 | **201/201 通过**，0 失败，0 超时，279.35 秒 |
+| 当前候选完整 CTest | 66/67 通过，`TestAudioAnchor` 失败，109.84 秒 |
 | L3 泛化调用 | 45/45 通过 |
 | Connector 桥接调用 | 6/6 通过 |
 | GUI/Computer Use | 25 域真实代表路径；界面证据保存在私有归档 |
 
-最终完整轮固定使用 `-j 1`，并显式设置 Qt offscreen platform 及有效的 platform plugin 目录。三轮之间没有修改源码或重新构建候选；文档编辑不影响被测二进制。
+最终完整轮固定使用 `-j 1`，并显式设置 Qt offscreen platform 及有效的 platform plugin 目录。失败用例在 `qnumeric.h` 的 `value < maximalPlusOne` 断言处退出；其余 66 项通过。
 
 ## 3. 工具集合与确定性覆盖
 
@@ -77,7 +74,7 @@
 | 轨道 | 重命名、轨道 voice 设置、查询与 Undo/Redo 通过 |
 | 总线 | 主总线增益变更、GUI 观察与 Undo 通过 |
 | 片段 | 重命名、片段 voice 设置、查询与 Undo 通过 |
-| 音频素材 | get、relocate、import、import_batch、confirm_path 五项均完成真实调用；结果恢复 |
+| 音频素材 | get、import、import_batch、confirm_path 完成真实调用；relocate 的契约与拒绝路径通过，非零播放位置重载场景不计入通过范围 |
 | 声库 | list/describe 及 singer/speaker 动态候选通过 |
 | Speaker Mix | fixed 混合和 preset save/list/apply/get/delete 通过，来源与 dirty 状态正确，结果恢复 |
 | 音符、歌词、语言、发音与音素 | 歌词编辑和向右级联音素位置重置通过；MCP 路径不触发 GUI 确认弹窗，整体 Undo 通过 |
@@ -146,9 +143,12 @@ Computer Use 核对了 Automation 设置页、编辑区域和 MCP 变更后的 G
 | 联合 Schema 在部分 MCP Host 上不可用 | 公共联合类型直接暴露了非 object 根；改为 object-rooted 严格联合 Schema | 179 项 input 根和 tools/list/describe/invoke 通过 |
 | 音频设备稀疏更新覆盖未提交字段 | 设置适配器把缺省字段当作新值应用；改为只验证和提交显式字段，并保持回滚 | validate-only、实际更新、GUI 回读和恢复通过 |
 | reveal 目标动态值来源不完整 | 互斥目标分支只发布一个候选来源；同时发布轨道与片段/音符适用来源 | 首次查询与两类 reveal 通过 |
-| 音频与推理操作的状态不变量不完整 | 文件准备、Task 写回和领域状态检查之间缺少统一约束；复用公共授权、generation/revision 与提交检查 | import、relocate、extract、inference 与取消路径通过 |
-| 非零播放位置重载音频时 Editor 崩溃 | 音频源替换后仍按旧播放位置读取新缓存；重载路径保持位置并重新建立合法读取状态 | 非零位置 relocate、GUI 播放事实与 Undo 通过 |
+| 音频与推理操作的状态不变量不完整 | 文件准备、Task 写回和领域状态检查之间缺少统一约束；复用公共授权、generation/revision 与提交检查 | import、extract、inference、授权与取消路径通过 |
 | 推理结果重复报告 scope 对象 | scope 根对象与分片结果合并时未去重；按稳定对象身份合并 | reset/start 返回唯一对象集合 |
+
+talcs v0.1.0 在关闭的 `AudioFormatInputSource` 收到非零读位置时，会在采样率比例建立前换算输入位置；该时序由 talcs 自身的 Mixer、Buffering 和 DSPX 调用链产生，Debug 构建会导致 Editor 进程退出。上游 `main` 已有修复但尚无新发布标签。该依赖问题不属于本期 MCP/L3 的授权修改范围；本报告保留故障事实，不宣称非零位置重载场景通过或已修复。
+
+当前完整 CTest 中，`TestAudioAnchor` 在 Qt `qnumeric.h` 的 `value < maximalPlusOne` 断言处退出；其测试源码、依赖声明与主分支基线无差异，因此不属于本分支引入的改动，但仍作为完整测试门禁失败记录。当前只记录该测试事实，不将它进一步归因于上述 Editor 重载缺陷。
 
 长音频 DirectML RMVPE 资格测试观察到 Editor 进程退出。该问题属于既有推理实现，不属于本期 MCP/L3 的授权修改范围；为它制作的实验性 synthrt overlay 已完整回滚，当前分支没有相关产品代码或依赖补丁。本报告仅保留故障事实，不宣称该场景通过或已修复。
 
@@ -159,7 +159,7 @@ Computer Use 核对了 Automation 设置页、编辑区域和 MCP 变更后的 G
 - Automation、设置、临时规则、工程 History 和测试场景状态均已恢复。
 - 应用配置从测试前备份精确恢复，恢复后 SHA-256 与备份一致。
 - 测试拥有的 Editor 已正常退出，无 Editor 残留进程；当前 Agent Host 使用的既有 Connector 连接保持运行，未被测试清理误伤。
-- 原始构建、CTest、结构化调用、窗口监控、故障现场和界面证据保存在仓库外私有归档；实验性修复证据与当前候选明确区分。
+- 原始构建、CTest、结构化调用、窗口监控、故障现场和界面证据保存在仓库外私有归档；超出范围的依赖修改证据与当前候选明确区分。
 - 正式文档不记录用户名、绝对路径、真实端口、PID、实例/对象/Task ID、素材名称、声库名称或用户规则内容。
 
 ## 10. 最终通过清单
@@ -172,7 +172,7 @@ Computer Use 核对了 Automation 设置页、编辑区域和 MCP 变更后的 G
 - [x] 两套 MCP 主协议及 2025-06-18 兼容握手、Editor HTTP、QLocal 与 Connector stdio 通过。
 - [x] Profile/Custom、File Guard、32 路并发、动态值、Manifest、exposure 和兼容缓存通过。
 - [x] Automation 设置页、中文、图标、配置复制、端口与领域分组通过 GUI 验收。
-- [x] Debug 配置与构建通过；三轮完整 CTest **201/201** 通过。
+- [ ] Debug 配置与构建通过；完整 CTest 当前为 **66/67**，`TestAudioAnchor` 失败。
 - [x] 用户素材零改动、应用配置精确恢复、Editor 进程与测试状态清理通过。
 
-综上，当前二期候选满足工具契约、协议、Connector、真实业务域、GUI 无人值守和数据安全验收要求，可以提交后续合并评审。
+综上，当前二期候选满足工具契约、协议、Connector、真实业务域、GUI 无人值守和数据安全验收要求；完整 CTest 尚受第 8 节记录的既有失败阻塞，合并评审需将该门禁状态一并纳入判断。
