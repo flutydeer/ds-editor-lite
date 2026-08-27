@@ -691,8 +691,10 @@ namespace Automation {
                     properties.clipLen = std::max(1, properties.length - properties.clipStart);
                 const auto visibleStart = start + properties.clipStart;
                 properties.trimStartMs = timeline.tickToMs(visibleStart) - startMs;
-                properties.playLengthMs = timeline.tickToMs(visibleStart + properties.clipLen) -
-                                          timeline.tickToMs(visibleStart);
+                properties.playLengthMs = std::min(
+                    timeline.tickToMs(visibleStart + properties.clipLen) -
+                        timeline.tickToMs(visibleStart),
+                    std::max(0.0, prepared.durationMs - properties.trimStartMs));
                 properties.materialLengthMs = prepared.durationMs;
                 clip.audioPath = prepared.path;
                 clip.audioInfo = prepared.audioInfo;
@@ -1184,9 +1186,11 @@ namespace Automation {
             auto selected = inferencePieces(model, request.scope);
             if (!selected)
                 return selected.getError();
-            for (auto *piece : selected.get())
-                mutation.pieceIds.append(PieceId(piece->id()));
-            if (mutation.pieceIds.isEmpty()) {
+            for (auto *piece : selected.get()) {
+                mutation.pieceTargets.append(
+                    {ClipId(piece->clipId()), PieceId(piece->id())});
+            }
+            if (mutation.pieceTargets.isEmpty()) {
                 return AutomationError::invalidArgument(
                     QStringLiteral("scope"),
                     QStringLiteral("The inference scope contains no singing pieces"));

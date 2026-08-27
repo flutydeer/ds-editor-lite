@@ -57,11 +57,17 @@ namespace Automation {
         InferParamCurve mouthOpening;
     };
 
+    struct InferencePieceTarget {
+        ClipId clipId;
+        PieceId pieceId;
+    };
+
     struct InferenceMutationRequest {
         InferenceMutationKind kind = InferenceMutationKind::ApplyPronunciations;
         ClipId clipId;
         PieceId pieceId;
         QList<PieceId> pieceIds;
+        QList<InferencePieceTarget> pieceTargets;
         QList<NoteId> noteIds;
         QList<InferencePronunciationDto> pronunciations;
         QList<InferencePhonemeNamesDto> phonemeNames;

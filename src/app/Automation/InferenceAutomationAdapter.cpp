@@ -511,33 +511,53 @@ namespace Automation {
 
         AutomationResult<PreparedInferenceMutation>
             prepareResetStage(AppModel *model, const InferenceMutationRequest &request) {
-            auto clipResult = resolveClip(model, request.clipId);
-            if (!clipResult)
-                return clipResult.getError();
-            auto pieceResult = resolvePiece(clipResult.get(), request.pieceId);
-            if (!pieceResult)
-                return pieceResult.getError();
-            auto *piece = pieceResult.get();
-            const bool changed = stageNeedsReset(*piece, request.stage);
+            auto targets = request.pieceTargets;
+            if (targets.isEmpty())
+                targets.append({request.clipId, request.pieceId});
+
+            QList<InferPiece *> pieces;
+            QList<ObjectRef> affectedObjects;
+            pieces.reserve(targets.size());
+            affectedObjects.reserve(targets.size() * 2);
+            bool changed = false;
+            bool advancesRevision = false;
+            for (const auto &target : std::as_const(targets)) {
+                auto clipResult = resolveClip(model, target.clipId);
+                if (!clipResult)
+                    return clipResult.getError();
+                auto pieceResult = resolvePiece(clipResult.get(), target.pieceId);
+                if (!pieceResult)
+                    return pieceResult.getError();
+                auto *piece = pieceResult.get();
+                pieces.append(piece);
+                affectedObjects.append(affected(target.clipId, target.pieceId));
+                const bool pieceChanged = stageNeedsReset(*piece, request.stage);
+                changed |= pieceChanged;
+                advancesRevision |=
+                    pieceChanged && stageResetChangesDocument(*piece, request.stage);
+            }
+
             return PreparedInferenceMutation{
                 .changed = changed,
-                .advancesRevision = changed && stageResetChangesDocument(*piece, request.stage),
-                .affectedObjects = affected(request.clipId, request.pieceId),
+                .advancesRevision = advancesRevision,
+                .affectedObjects = affectedObjects,
                 .apply =
-                    [piece, stage = request.stage](InferenceMutationSideEffects &) {
-                        switch (stage) {
-                            case InferenceStage::Duration:
-                                InferControllerHelper::resetPhoneOffset(piece->notes, *piece);
-                                break;
-                            case InferenceStage::Pitch:
-                                InferControllerHelper::resetPitch(*piece);
-                                break;
-                            case InferenceStage::Variance:
-                                InferControllerHelper::resetVariance(*piece);
-                                break;
-                            case InferenceStage::Acoustic:
-                                InferControllerHelper::resetAcoustic(*piece);
-                                break;
+                    [pieces, stage = request.stage](InferenceMutationSideEffects &) {
+                        for (auto *piece : pieces) {
+                            switch (stage) {
+                                case InferenceStage::Duration:
+                                    InferControllerHelper::resetPhoneOffset(piece->notes, *piece);
+                                    break;
+                                case InferenceStage::Pitch:
+                                    InferControllerHelper::resetPitch(*piece);
+                                    break;
+                                case InferenceStage::Variance:
+                                    InferControllerHelper::resetVariance(*piece);
+                                    break;
+                                case InferenceStage::Acoustic:
+                                    InferControllerHelper::resetAcoustic(*piece);
+                                    break;
+                            }
                         }
                     },
             };
