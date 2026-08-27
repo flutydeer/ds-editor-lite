@@ -27,6 +27,22 @@ namespace DsConnector {
         constexpr auto MaximumHandshakeRetryDelayMs = 1600;
         constexpr qint64 MaximumSafeJsonInteger = 9007199254740991LL;
 
+        enum class ToolEffect {
+            ReadOnly,
+            NonDestructive,
+            Destructive,
+        };
+
+        enum class ToolRepeatability {
+            Idempotent,
+            NonIdempotent,
+        };
+
+        enum class ToolWorldAccess {
+            ClosedWorld,
+            OpenWorld,
+        };
+
         struct HeaderBinding {
             QStringList path;
             QByteArray name;
@@ -578,10 +594,9 @@ namespace DsConnector {
         }
 
         QJsonObject bridgeTool(const QString &name, const QString &description,
-                               const QJsonObject &inputSchema, const QJsonObject &outputSchema) {
-            const auto readOnly = name != QStringLiteral("connector.reconnect") &&
-                                  name != QStringLiteral("editor.tools.invoke");
-            const auto destructive = name == QStringLiteral("editor.tools.invoke");
+                               const QJsonObject &inputSchema, const QJsonObject &outputSchema,
+                               const ToolEffect effect, const ToolRepeatability repeatability,
+                               const ToolWorldAccess worldAccess) {
             return {
                 {QStringLiteral("name"),         name        },
                 {QStringLiteral("title"),        name        },
@@ -590,10 +605,11 @@ namespace DsConnector {
                 {QStringLiteral("outputSchema"), outputSchema},
                 {QStringLiteral("annotations"),
                  QJsonObject{
-                     {QStringLiteral("readOnlyHint"), readOnly},
-                     {QStringLiteral("destructiveHint"), destructive},
-                     {QStringLiteral("idempotentHint"), readOnly},
-                     {QStringLiteral("openWorldHint"), false},
+                     {QStringLiteral("readOnlyHint"), effect == ToolEffect::ReadOnly},
+                     {QStringLiteral("destructiveHint"), effect == ToolEffect::Destructive},
+                     {QStringLiteral("idempotentHint"),
+                      repeatability == ToolRepeatability::Idempotent},
+                     {QStringLiteral("openWorldHint"), worldAccess == ToolWorldAccess::OpenWorld},
                  }                                           },
                 {QStringLiteral("_meta"),
                  QJsonObject{
@@ -997,10 +1013,12 @@ namespace DsConnector {
             bridgeTool(QStringLiteral("connector.get_status"),
                        QStringLiteral("Return connector, editor, bootstrap, MCP, manifest, and "
                                       "exposure facts."),
-                       emptyObjectSchema(), statusSchema()),
+                       emptyObjectSchema(), statusSchema(), ToolEffect::ReadOnly,
+                       ToolRepeatability::Idempotent, ToolWorldAccess::ClosedWorld),
             bridgeTool(QStringLiteral("connector.reconnect"),
                        QStringLiteral("Restart bootstrap discovery and the editor MCP handshake."),
-                       emptyObjectSchema(), statusSchema()),
+                       emptyObjectSchema(), statusSchema(), ToolEffect::NonDestructive,
+                       ToolRepeatability::NonIdempotent, ToolWorldAccess::ClosedWorld),
             bridgeTool(QStringLiteral("editor.tools.list"),
                        QStringLiteral("List current editor targets allowed by connector exposure."),
                        strictObjectSchema(QJsonObject{
@@ -1012,7 +1030,8 @@ namespace DsConnector {
                                         {QStringLiteral("maximum"), 200}}},
                                                       }
                        ),
-                       toolCollectionSchema(true)),
+                       toolCollectionSchema(true), ToolEffect::ReadOnly,
+                       ToolRepeatability::Idempotent, ToolWorldAccess::ClosedWorld),
             bridgeTool(
                 QStringLiteral("editor.tools.search"),
                 QStringLiteral("Search current editor targets by name, description, and category."),
@@ -1030,7 +1049,8 @@ namespace DsConnector {
                                                       },
                     QJsonArray{QStringLiteral("query")}
                        ),
-                toolCollectionSchema(false)),
+                toolCollectionSchema(false), ToolEffect::ReadOnly, ToolRepeatability::Idempotent,
+                ToolWorldAccess::ClosedWorld),
             bridgeTool(
                 QStringLiteral("editor.tools.describe"),
                 QStringLiteral("Describe one current editor target and its actual schemas."),
@@ -1040,7 +1060,8 @@ namespace DsConnector {
                                              {QStringLiteral("minLength"), 1}}}},
                     QJsonArray{QStringLiteral("name")}
                        ),
-                describeSchema()),
+                describeSchema(), ToolEffect::ReadOnly, ToolRepeatability::Idempotent,
+                ToolWorldAccess::ClosedWorld),
             bridgeTool(
                 QStringLiteral("editor.tools.invoke"),
                 QStringLiteral("Invoke one current editor target through its actual schema."),
@@ -1055,8 +1076,9 @@ namespace DsConnector {
                                                       },
                     QJsonArray{QStringLiteral("name"), QStringLiteral("arguments")}
                        ),
-                QJsonObject{}
-                       ),
+                QJsonObject{},
+                       ToolEffect::Destructive, ToolRepeatability::NonIdempotent,
+                ToolWorldAccess::ClosedWorld),
         };
         return definitions;
     }

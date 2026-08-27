@@ -17,6 +17,22 @@
 
 namespace AutomationWire {
     namespace {
+        enum class ToolEffect {
+            ReadOnly,
+            NonDestructive,
+            Destructive,
+        };
+
+        enum class ToolRepeatability {
+            Idempotent,
+            NonIdempotent,
+        };
+
+        enum class ToolWorldAccess {
+            ClosedWorld,
+            OpenWorld,
+        };
+
         QJsonObject uuidSchema() {
             auto schema = JsonSchema::string();
             schema.insert(QStringLiteral("format"), QStringLiteral("uuid"));
@@ -4589,31 +4605,15 @@ namespace AutomationWire {
                        : QStringLiteral("revision");
         }
 
-        QJsonObject toolAnnotations(const QString &id, const OperationKind kind) {
-            static const QSet<QString> destructive{
-                PublicToolNames::tracks_remove,
-                PublicToolNames::clips_remove,
-                PublicToolNames::notes_remove,
-                PublicToolNames::parameters_erase,
-                PublicToolNames::parameters_remove_anchors,
-                PublicToolNames::speaker_mix_presets_delete,
-                PublicToolNames::tempos_delete,
-                PublicToolNames::time_signatures_delete,
-                PublicToolNames::documents_new,
-                PublicToolNames::documents_open,
-                PublicToolNames::inference_reset_stage,
-                PublicToolNames::lyric_rules_delete,
-            };
-            const bool idempotent = kind == OperationKind::Query ||
-                                    (isL3Operation(id) && id != PublicToolNames::packages_refresh &&
-                                     id != PublicToolNames::lyric_rules_create &&
-                                     id != PublicToolNames::lyric_rules_delete);
+        QJsonObject toolAnnotations(const QString &id, const ToolEffect effect,
+                                    const ToolRepeatability repeatability,
+                                    const ToolWorldAccess worldAccess) {
             return {
-                {QStringLiteral("title"),           humanTitle(id)              },
-                {QStringLiteral("readOnlyHint"),    kind == OperationKind::Query},
-                {QStringLiteral("destructiveHint"), destructive.contains(id)    },
-                {QStringLiteral("idempotentHint"),  idempotent                  },
-                {QStringLiteral("openWorldHint"),   false                       },
+                {QStringLiteral("title"),           humanTitle(id)                                },
+                {QStringLiteral("readOnlyHint"),    effect == ToolEffect::ReadOnly                },
+                {QStringLiteral("destructiveHint"), effect == ToolEffect::Destructive             },
+                {QStringLiteral("idempotentHint"),  repeatability == ToolRepeatability::Idempotent},
+                {QStringLiteral("openWorldHint"),   worldAccess == ToolWorldAccess::OpenWorld     },
             };
         }
 
@@ -4722,7 +4722,8 @@ namespace AutomationWire {
             {QStringLiteral("conflict_policy"),            conflictPolicy(*this)                 },
             {QStringLiteral("safety_metadata"),
              QJsonObject{
-                 {QStringLiteral("read_only"), kind == OperationKind::Query},
+                 {QStringLiteral("read_only"),
+                  annotations.value(QStringLiteral("readOnlyHint")).toBool()},
                  {QStringLiteral("destructive"),
                   annotations.value(QStringLiteral("destructiveHint")).toBool()},
                  {QStringLiteral("idempotent"),
@@ -4742,7 +4743,8 @@ namespace AutomationWire {
             QList<ToolContract> result;
             result.reserve(179);
 #define AUTOMATION_WIRE_PUBLIC_TOOL(symbol, name, categoryValue, profile, kindValue, syncValue,    \
-                                    versionValue, introducedValue, minimumValue)                   \
+                                    versionValue, introducedValue, minimumValue, effectValue,      \
+                                    repeatabilityValue, worldAccessValue)                          \
     do {                                                                                           \
         const QString operationId(PublicToolNames::symbol);                                        \
         const auto operationKind = OperationKind::kindValue;                                       \
@@ -4766,7 +4768,9 @@ namespace AutomationWire {
             .inputSchema = inputSchema(operationId, operationKind),                                \
             .outputSchema = outputSchema(operationId, operationKind, operationSync),               \
             .valueSources = valueSources(operationId),                                             \
-            .annotations = toolAnnotations(operationId, operationKind),                            \
+            .annotations = toolAnnotations(operationId, ToolEffect::effectValue,                   \
+                                           ToolRepeatability::repeatabilityValue,                  \
+                                           ToolWorldAccess::worldAccessValue),                     \
         });                                                                                        \
     } while (false);
 #include "PublicToolDefinitions.inc"
