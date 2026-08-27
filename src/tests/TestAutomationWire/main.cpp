@@ -355,8 +355,8 @@ namespace {
         bool ok = true;
         const auto &tools = publicToolContracts();
         const auto expectedIds = PublicAutomationToolsetExpectations::editorToolIds();
-        ok &= expect(tools.size() == 134,
-                     QStringLiteral("public declaration must contain 134 editor tools"));
+        ok &= expect(tools.size() == 179,
+                     QStringLiteral("public declaration must contain 179 editor tools"));
         ok &=
             expect(publicToolIds() == expectedIds,
                    QStringLiteral("public declaration must exactly match the frozen tool matrix"));
@@ -506,8 +506,8 @@ namespace {
         ok &= expect(toolsForProfile(AutomationProfile::Meta).size() == 4 &&
                          toolsForProfile(AutomationProfile::L1).size() == 91 &&
                          toolsForProfile(AutomationProfile::L2).size() == 134 &&
-                         toolsForProfile(AutomationProfile::L3).size() == 134,
-                     QStringLiteral("public preset counts must be 4/91/134/134"));
+                         toolsForProfile(AutomationProfile::L3).size() == 179,
+                     QStringLiteral("public preset counts must be 4/91/134/179"));
         ok &= expect(
             toolsForProfile(AutomationProfile::Custom, {QStringLiteral("notes.insert")}).size() ==
                 5,
@@ -793,17 +793,26 @@ namespace {
             if (tool.syncMode != SyncMode::Asynchronous)
                 continue;
             ++asynchronousCount;
+            const bool applicationScoped = tool.operationId == QStringLiteral("packages.refresh");
             const QJsonObject accepted{
                 {QStringLiteral("task_id"),        QStringLiteral("00000000-0000-4000-8000-000000000002")},
-                {QStringLiteral("document"),       documentVersion                                       },
+                {QStringLiteral("scope"),
+                 applicationScoped ? QStringLiteral("application") : QStringLiteral("document")          },
+                {QStringLiteral("document"),
+                 applicationScoped ? QJsonValue(QJsonValue::Null) : QJsonValue(documentVersion)          },
                 {QStringLiteral("validated_only"), false                                                 },
             };
             const QJsonObject missingTask{
-                {QStringLiteral("document"),       documentVersion},
-                {QStringLiteral("validated_only"), false          },
+                {QStringLiteral("scope"),
+                 applicationScoped ? QStringLiteral("application") : QStringLiteral("document")},
+                {QStringLiteral("document"),
+                 applicationScoped ? QJsonValue(QJsonValue::Null) : QJsonValue(documentVersion)},
+                {QStringLiteral("validated_only"), false                                       },
             };
             const QJsonObject missingDocument{
                 {QStringLiteral("task_id"),        QStringLiteral("00000000-0000-4000-8000-000000000002")},
+                {QStringLiteral("scope"),
+                 applicationScoped ? QStringLiteral("application") : QStringLiteral("document")          },
                 {QStringLiteral("validated_only"), false                                                 },
             };
             ok &= expect(validateJsonValue(accepted, tool.outputSchema).valid() &&
@@ -812,10 +821,10 @@ namespace {
                          QStringLiteral("TaskAccepted must require task_id and document for %1")
                              .arg(tool.operationId));
         }
-        ok &=
-            expect(asynchronousCount == 10,
-                   QStringLiteral("all ten asynchronous public tools must share the discriminated "
-                                  "TaskAccepted schema"));
+        ok &= expect(
+            asynchronousCount == 11,
+            QStringLiteral("all eleven asynchronous public tools must share the discriminated "
+                           "TaskAccepted schema"));
 
         const auto parameterSourcePaths = [](const QString &id) {
             QSet<QString> paths;
@@ -860,8 +869,8 @@ namespace {
         ok &= expect(selectExposure({ExposureProfile::L0}).exposedIds.size() == 0 &&
                          selectExposure({ExposureProfile::L1}).exposedIds.size() == 91 &&
                          selectExposure({ExposureProfile::L2}).exposedIds.size() == 134 &&
-                         selectExposure({ExposureProfile::L3}).exposedIds.size() == 134,
-                     QStringLiteral("connector exposure preset counts must be 0/91/134/134"));
+                         selectExposure({ExposureProfile::L3}).exposedIds.size() == 179,
+                     QStringLiteral("connector exposure preset counts must be 0/91/134/179"));
 
         const ExposureConfig filtered{
             .profile = ExposureProfile::L0,

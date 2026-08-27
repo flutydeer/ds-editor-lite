@@ -272,3 +272,105 @@ AUTOMATION_WIRE_PUBLIC_TOOL(tasks_list, "tasks.list", "tasks", L2, Query, Synchr
 AUTOMATION_WIRE_PUBLIC_TOOL(tasks_get, "tasks.get", "tasks", L2, Query, Synchronous, 1, 1, 1)
 AUTOMATION_WIRE_PUBLIC_TOOL(tasks_cancel, "tasks.cancel", "tasks", L2, Command, Synchronous, 1, 1,
                             1)
+
+AUTOMATION_WIRE_PUBLIC_TOOL(workspace_get, "workspace.get", "workspace", L3, Query, Synchronous, 1,
+                            1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(workspace_set_panel_visibility, "workspace.set_panel_visibility",
+                            "workspace", L3, Command, Synchronous, 1, 1, 1)
+
+AUTOMATION_WIRE_PUBLIC_TOOL(track_panel_get, "track_panel.get", "track_panel", L3, Query,
+                            Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(track_panel_set_viewport, "track_panel.set_viewport", "track_panel", L3,
+                            Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(track_panel_reveal_clips, "track_panel.reveal_clips", "track_panel", L3,
+                            Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(track_panel_set_auto_page_turn, "track_panel.set_auto_page_turn",
+                            "track_panel", L3, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(track_panel_select_track, "track_panel.select_track", "track_panel", L3,
+                            Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(track_panel_select_clips, "track_panel.select_clips", "track_panel", L3,
+                            Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(track_panel_clear_selection, "track_panel.clear_selection",
+                            "track_panel", L3, Command, Synchronous, 1, 1, 1)
+
+AUTOMATION_WIRE_PUBLIC_TOOL(clip_editor_get, "clip_editor.get", "clip_editor", L3, Query,
+                            Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(clip_editor_set_active_clip, "clip_editor.set_active_clip",
+                            "clip_editor", L3, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(clip_editor_set_time_viewport, "clip_editor.set_time_viewport",
+                            "clip_editor", L3, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(clip_editor_set_auto_page_turn, "clip_editor.set_auto_page_turn",
+                            "clip_editor", L3, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(clip_editor_show_region, "clip_editor.show_region", "clip_editor", L3,
+                            Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(clip_editor_piano_set_pitch_viewport,
+                            "clip_editor.piano.set_pitch_viewport", "clip_editor", L3, Command,
+                            Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(clip_editor_piano_reveal_notes, "clip_editor.piano.reveal_notes",
+                            "clip_editor", L3, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(clip_editor_piano_set_edit_mode, "clip_editor.piano.set_edit_mode",
+                            "clip_editor", L3, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(clip_editor_piano_set_quantize, "clip_editor.piano.set_quantize",
+                            "clip_editor", L3, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(clip_editor_piano_select_notes, "clip_editor.piano.select_notes",
+                            "clip_editor", L3, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(clip_editor_piano_clear_selection, "clip_editor.piano.clear_selection",
+                            "clip_editor", L3, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(clip_editor_parameters_set_foreground,
+                            "clip_editor.parameters.set_foreground", "clip_editor", L3, Command,
+                            Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(clip_editor_parameters_set_background,
+                            "clip_editor.parameters.set_background", "clip_editor", L3, Command,
+                            Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(clip_editor_parameters_swap, "clip_editor.parameters.swap",
+                            "clip_editor", L3, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(clip_editor_parameters_set_tool, "clip_editor.parameters.set_tool",
+                            "clip_editor", L3, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(clip_editor_parameters_set_value_viewport,
+                            "clip_editor.parameters.set_value_viewport", "clip_editor", L3, Command,
+                            Synchronous, 1, 1, 1)
+
+AUTOMATION_WIRE_PUBLIC_TOOL(settings_query, "settings.query", "settings", L3, Query, Synchronous, 1,
+                            1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(settings_ui_language_update, "settings.ui_language.update", "settings",
+                            L3, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(settings_singing_update, "settings.singing.update", "settings", L3,
+                            Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(settings_theme_update, "settings.theme.update", "settings", L3, Command,
+                            Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(settings_audio_device_update, "settings.audio_device.update",
+                            "settings", L3, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(settings_playback_behavior_update, "settings.playback_behavior.update",
+                            "settings", L3, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(settings_compute_device_update, "settings.compute_device.update",
+                            "settings", L3, Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(settings_render_update, "settings.render.update", "settings", L3,
+                            Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(settings_singer_session_retention_update,
+                            "settings.singer_session_retention.update", "settings", L3, Command,
+                            Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(settings_package_search_paths_update,
+                            "settings.package_search_paths.update", "settings", L3, Command,
+                            Synchronous, 1, 1, 1)
+
+AUTOMATION_WIRE_PUBLIC_TOOL(packages_list, "packages.list", "packages", L3, Query, Synchronous, 1,
+                            1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(packages_describe, "packages.describe", "packages", L3, Query,
+                            Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(packages_refresh, "packages.refresh", "packages", L3, Command,
+                            Asynchronous, 1, 1, 1)
+
+AUTOMATION_WIRE_PUBLIC_TOOL(lyric_rules_list, "lyric_rules.list", "lyric_rules", L3, Query,
+                            Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(lyric_rules_create, "lyric_rules.create", "lyric_rules", L3, Command,
+                            Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(lyric_rules_update, "lyric_rules.update", "lyric_rules", L3, Command,
+                            Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(lyric_rules_delete, "lyric_rules.delete", "lyric_rules", L3, Command,
+                            Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(lyric_rules_set_enabled, "lyric_rules.set_enabled", "lyric_rules", L3,
+                            Command, Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(lyric_rules_move, "lyric_rules.move", "lyric_rules", L3, Command,
+                            Synchronous, 1, 1, 1)
+AUTOMATION_WIRE_PUBLIC_TOOL(lyric_rules_test, "lyric_rules.test", "lyric_rules", L3, Query,
+                            Synchronous, 1, 1, 1)

@@ -163,7 +163,25 @@ namespace AutomationWire {
         QJsonObject interpolationSchema();
         QJsonArray valueSources(const QString &id);
         QJsonObject inputSchema(const QString &id, OperationKind kind);
+        QJsonObject l3InputSchema(const QString &id);
+        QJsonObject l3OutputSchema(const QString &id);
+        QJsonObject packageRefreshResultSchema();
         QJsonObject getOptionsInputSchema(const QList<ToolContract> &tools);
+
+        bool isL3Operation(const QString &id) {
+            return id.startsWith(QStringLiteral("workspace.")) ||
+                   id.startsWith(QStringLiteral("track_panel.")) ||
+                   id.startsWith(QStringLiteral("clip_editor.")) ||
+                   id.startsWith(QStringLiteral("settings.")) ||
+                   id.startsWith(QStringLiteral("packages.")) ||
+                   id.startsWith(QStringLiteral("lyric_rules."));
+        }
+
+        bool isL3GuiOperation(const QString &id) {
+            return id.startsWith(QStringLiteral("workspace.")) ||
+                   id.startsWith(QStringLiteral("track_panel.")) ||
+                   id.startsWith(QStringLiteral("clip_editor."));
+        }
 
         QJsonObject trackControlSchema() {
             return JsonSchema::object(
@@ -1138,7 +1156,52 @@ namespace AutomationWire {
             };
         }
 
+        QJsonObject taskKindSchema() {
+            auto values = publicValueDomainValues(PublicValueDomain::TaskKind);
+            if (!values.contains(PublicToolNames::packages_refresh))
+                values.append(PublicToolNames::packages_refresh);
+            return JsonSchema::enumeration(values);
+        }
+
+        QJsonObject tasksInputSchema(const QString &id) {
+            QJsonObject common{
+                {QStringLiteral("scope"),
+                 JsonSchema::string({QStringLiteral("document"), QStringLiteral("application")})},
+            };
+            QStringList required{QStringLiteral("scope")};
+            if (id == PublicToolNames::tasks_get || id == PublicToolNames::tasks_cancel) {
+                common.insert(QStringLiteral("task_id"), uuidSchema());
+                required.append(QStringLiteral("task_id"));
+            } else {
+                common.insert(QStringLiteral("state"),
+                              stringDomainSchema(PublicValueDomain::TaskState));
+                common.insert(QStringLiteral("kind"), taskKindSchema());
+                common.insert(QStringLiteral("cursor"), nonEmptyStringSchema());
+                common.insert(QStringLiteral("limit"),
+                              JsonSchema::integer(MinimumPageSize, MaximumPageSize));
+            }
+
+            auto documentProperties = common;
+            documentProperties.insert(QStringLiteral("scope"),
+                                      JsonSchema::constant(QStringLiteral("document")));
+            documentProperties.insert(QStringLiteral("document_id"), uuidSchema());
+            auto documentRequired = required;
+            documentRequired.append(QStringLiteral("document_id"));
+
+            auto applicationProperties = common;
+            applicationProperties.insert(QStringLiteral("scope"),
+                                         JsonSchema::constant(QStringLiteral("application")));
+            return JsonSchema::document(JsonSchema::oneOf(QJsonArray{
+                JsonSchema::object(documentProperties, documentRequired),
+                JsonSchema::object(applicationProperties, required),
+            }));
+        }
+
         QJsonObject authoritativeInputSchema(const QString &id, const OperationKind kind) {
+            if (id.startsWith(QStringLiteral("tasks.")))
+                return tasksInputSchema(id);
+            if (isL3Operation(id))
+                return l3InputSchema(id);
             QJsonObject properties;
             QStringList required;
             const auto add = [&](const QString &name, const bool requiredField) {
@@ -1365,26 +1428,52 @@ namespace AutomationWire {
                  QStringLiteral("warnings")}));
         }
 
-        QJsonObject taskAcceptedSchema(const bool nullableDocument = false) {
+        QJsonObject taskAcceptedSchema(const bool nullableDocument = false,
+                                       const bool applicationScope = false) {
+            if (applicationScope) {
+                const auto accepted = JsonSchema::object(
+                    {
+                        {QStringLiteral("task_id"),        uuidSchema()               },
+                        {QStringLiteral("scope"),
+                         JsonSchema::constant(QStringLiteral("application"))          },
+                        {QStringLiteral("document"),       JsonSchema::null()         },
+                        {QStringLiteral("validated_only"), JsonSchema::constant(false)},
+                },
+                    {QStringLiteral("task_id"), QStringLiteral("scope"), QStringLiteral("document"),
+                     QStringLiteral("validated_only")});
+                const auto validated = JsonSchema::object(
+                    {
+                        {QStringLiteral("scope"),
+                         JsonSchema::constant(QStringLiteral("application"))         },
+                        {QStringLiteral("document"),       JsonSchema::null()        },
+                        {QStringLiteral("validated_only"), JsonSchema::constant(true)},
+                },
+                    {QStringLiteral("scope"), QStringLiteral("document"),
+                     QStringLiteral("validated_only")});
+                return JsonSchema::document(JsonSchema::oneOf(QJsonArray{accepted, validated}));
+            }
             const auto acceptedDocument =
                 nullableDocument
                     ? JsonSchema::oneOf(QJsonArray{documentVersionSchema(), JsonSchema::null()})
                     : documentVersionSchema();
             const auto accepted = JsonSchema::object(
                 {
-                    {QStringLiteral("task_id"),        uuidSchema()               },
-                    {QStringLiteral("document"),       acceptedDocument           },
-                    {QStringLiteral("validated_only"), JsonSchema::constant(false)},
+                    {QStringLiteral("task_id"),        uuidSchema()                                    },
+                    {QStringLiteral("scope"),          JsonSchema::constant(QStringLiteral("document"))},
+                    {QStringLiteral("document"),       acceptedDocument                                },
+                    {QStringLiteral("validated_only"), JsonSchema::constant(false)                     },
             },
-                {QStringLiteral("task_id"), QStringLiteral("document"),
+                {QStringLiteral("task_id"), QStringLiteral("scope"), QStringLiteral("document"),
                  QStringLiteral("validated_only")});
             const auto validated = JsonSchema::object(
                 {
+                    {QStringLiteral("scope"),          JsonSchema::constant(QStringLiteral("document"))},
                     {QStringLiteral("document"),
-                     JsonSchema::oneOf(QJsonArray{documentVersionSchema(), JsonSchema::null()})},
-                    {QStringLiteral("validated_only"), JsonSchema::constant(true)              },
+                     JsonSchema::oneOf(QJsonArray{documentVersionSchema(), JsonSchema::null()})        },
+                    {QStringLiteral("validated_only"), JsonSchema::constant(true)                      },
             },
-                {QStringLiteral("document"), QStringLiteral("validated_only")});
+                {QStringLiteral("scope"), QStringLiteral("document"),
+                 QStringLiteral("validated_only")});
             return JsonSchema::document(JsonSchema::oneOf(QJsonArray{accepted, validated}));
         }
 
@@ -1416,22 +1505,69 @@ namespace AutomationWire {
                     {
                         {QStringLiteral("task_id"),              uuidSchema()                                    },
                         {QStringLiteral("operation_id"),         JsonSchema::constant(operation)                 },
+                        {QStringLiteral("scope"),                JsonSchema::constant(QStringLiteral("document"))},
                         {QStringLiteral("document"),             document                                        },
                         {QStringLiteral("state"),                stringDomainSchema(PublicValueDomain::TaskState)},
                         {QStringLiteral("progress"),             progress                                        },
+                        {QStringLiteral("message"),              JsonSchema::string()                            },
                         {QStringLiteral("result"),               mutationObjectSchema(opensDocument)             },
                         {QStringLiteral("error"),                taskError                                       },
                         {QStringLiteral("created_by_client_id"), JsonSchema::string()                            },
+                        {QStringLiteral("cancelable"),           JsonSchema::boolean()                           },
+                        {QStringLiteral("validated_only"),       JsonSchema::boolean()                           },
                 },
                     {QStringLiteral("task_id"), QStringLiteral("operation_id"),
-                     QStringLiteral("document"), QStringLiteral("state"),
+                     QStringLiteral("scope"), QStringLiteral("document"), QStringLiteral("state"),
                      QStringLiteral("progress")}));
             }
+            branches.append(JsonSchema::object(
+                {
+                    {QStringLiteral("task_id"),              uuidSchema()                                       },
+                    {QStringLiteral("operation_id"),
+                     JsonSchema::constant(PublicToolNames::packages_refresh)                                    },
+                    {QStringLiteral("scope"),                JsonSchema::constant(QStringLiteral("application"))},
+                    {QStringLiteral("document"),             JsonSchema::null()                                 },
+                    {QStringLiteral("state"),                stringDomainSchema(PublicValueDomain::TaskState)   },
+                    {QStringLiteral("progress"),             progress                                           },
+                    {QStringLiteral("message"),              JsonSchema::string()                               },
+                    {QStringLiteral("application_result"),   packageRefreshResultSchema()                       },
+                    {QStringLiteral("error"),                taskError                                          },
+                    {QStringLiteral("created_by_client_id"), JsonSchema::string()                               },
+                    {QStringLiteral("cancelable"),           JsonSchema::boolean()                              },
+                    {QStringLiteral("validated_only"),       JsonSchema::boolean()                              },
+            },
+                {QStringLiteral("task_id"), QStringLiteral("operation_id"), QStringLiteral("scope"),
+                 QStringLiteral("document"), QStringLiteral("state"), QStringLiteral("progress")}));
             return JsonSchema::oneOf(branches);
         }
 
         QJsonObject taskSnapshotSchema() {
             return JsonSchema::document(taskSnapshotObjectSchema());
+        }
+
+        QJsonObject tasksListOutputSchema() {
+            const auto tasks = JsonSchema::array(taskSnapshotObjectSchema());
+            return JsonSchema::document(JsonSchema::oneOf(QJsonArray{
+                JsonSchema::object(
+                    {
+                              {QStringLiteral("scope"), JsonSchema::constant(QStringLiteral("document"))},
+                              {QStringLiteral("document"), documentVersionSchema()},
+                              {QStringLiteral("tasks"), tasks},
+                              {QStringLiteral("next_cursor"), JsonSchema::string()},
+                              },
+                    {QStringLiteral("scope"),                                                                           QStringLiteral("document"),                                                                                     QStringLiteral("tasks")                                                     }
+                    ),
+                JsonSchema::object(
+                    {
+                              {QStringLiteral("scope"),
+                         JsonSchema::constant(QStringLiteral("application"))},
+                              {QStringLiteral("document"), JsonSchema::null()},
+                              {QStringLiteral("tasks"), tasks},
+                              {QStringLiteral("next_cursor"), JsonSchema::string()},
+                              },
+                    {QStringLiteral("scope"),                                            QStringLiteral("document"), QStringLiteral("tasks")                                              }
+                    ),
+            }));
         }
 
         QJsonObject digestSchema() {
@@ -2469,6 +2605,1062 @@ namespace AutomationWire {
                 {QStringLiteral("changed"), QStringLiteral("validated_only")}));
         }
 
+        QJsonObject nullableSchema(const QJsonObject &schema) {
+            return JsonSchema::oneOf(QJsonArray{schema, JsonSchema::null()});
+        }
+
+        QJsonObject l3DocumentInput(QJsonObject properties, QStringList required,
+                                    const bool expectedRevision = false,
+                                    const int minimumProperties = -1) {
+            properties.insert(QStringLiteral("window_id"), nonEmptyStringSchema());
+            properties.insert(QStringLiteral("document_id"), uuidSchema());
+            required.prepend(QStringLiteral("document_id"));
+            required.prepend(QStringLiteral("window_id"));
+            if (expectedRevision) {
+                properties.insert(QStringLiteral("expected_revision"), revisionSchema());
+                required.append(QStringLiteral("expected_revision"));
+            }
+            auto root = JsonSchema::object(properties, required);
+            if (minimumProperties >= 0)
+                root.insert(QStringLiteral("minProperties"), minimumProperties);
+            return JsonSchema::document(root);
+        }
+
+        QJsonObject l3ApplicationUpdateInput(QJsonObject properties,
+                                             const int minimumProperties = 1) {
+            properties.insert(QStringLiteral("validate_only"), JsonSchema::boolean());
+            auto root = JsonSchema::object(properties);
+            root.insert(QStringLiteral("minProperties"), minimumProperties);
+            return JsonSchema::document(root);
+        }
+
+        QJsonObject defaultLyricsInputSchema() {
+            return JsonSchema::array(
+                JsonSchema::object(
+                    {
+                        {QStringLiteral("language_id"), nonEmptyStringSchema()},
+                        {QStringLiteral("lyric"),       JsonSchema::string()  },
+            },
+                    {QStringLiteral("language_id"), QStringLiteral("lyric")}),
+                0, MaximumCommandCollectionItems);
+        }
+
+        QJsonObject taggerEntrySchema() {
+            return JsonSchema::object(
+                {
+                    {QStringLiteral("type"),
+                     JsonSchema::string({QStringLiteral("regex"), QStringLiteral("array"),
+                                         QStringLiteral("dict")})},
+                    {QStringLiteral("value"),
+                     JsonSchema::array(nonEmptyStringSchema(), 1, MaximumCommandCollectionItems)},
+                    {QStringLiteral("tag"), nonEmptyStringSchema()},
+                    {QStringLiteral("discard"), JsonSchema::boolean()},
+            },
+                {QStringLiteral("type"), QStringLiteral("value"), QStringLiteral("tag"),
+                 QStringLiteral("discard")});
+        }
+
+        QJsonObject lyricRuleDraftSchema(const QString &kind) {
+            if (kind == QStringLiteral("splitter")) {
+                return JsonSchema::object(
+                    {
+                        {QStringLiteral("kind"), JsonSchema::constant(QStringLiteral("splitter"))},
+                        {QStringLiteral("name"), nonEmptyStringSchema()},
+                        {QStringLiteral("regexes"),
+                         JsonSchema::array(nonEmptyStringSchema(), 1,
+                         MaximumCommandCollectionItems)},
+                        {QStringLiteral("enabled"), JsonSchema::boolean()},
+                        {QStringLiteral("position"), JsonSchema::integer(0.0)},
+                        {QStringLiteral("validate_only"), JsonSchema::boolean()},
+                },
+                    {QStringLiteral("kind"), QStringLiteral("name"), QStringLiteral("regexes")});
+            }
+            return JsonSchema::object(
+                {
+                    {QStringLiteral("kind"), JsonSchema::constant(QStringLiteral("tagger"))},
+                    {QStringLiteral("name"), nonEmptyStringSchema()},
+                    {QStringLiteral("language"), nonEmptyStringSchema()},
+                    {QStringLiteral("entries"),
+                     JsonSchema::array(taggerEntrySchema(), 1, MaximumCommandCollectionItems)},
+                    {QStringLiteral("enabled"), JsonSchema::boolean()},
+                    {QStringLiteral("position"), JsonSchema::integer(0.0)},
+                    {QStringLiteral("validate_only"), JsonSchema::boolean()},
+            },
+                {QStringLiteral("kind"), QStringLiteral("name"), QStringLiteral("language"),
+                 QStringLiteral("entries")});
+        }
+
+        QJsonObject l3InputSchema(const QString &id) {
+            if (id == PublicToolNames::workspace_get) {
+                return JsonSchema::document(JsonSchema::object(
+                    {
+                        {QStringLiteral("window_id"), nonEmptyStringSchema()}
+                },
+                    {QStringLiteral("window_id")}));
+            }
+            if (id == PublicToolNames::workspace_set_panel_visibility) {
+                auto root = JsonSchema::object(
+                    {
+                        {QStringLiteral("window_id"),           nonEmptyStringSchema()},
+                        {QStringLiteral("track_panel_visible"), JsonSchema::boolean() },
+                        {QStringLiteral("clip_editor_visible"), JsonSchema::boolean() },
+                },
+                    {QStringLiteral("window_id")});
+                root.insert(QStringLiteral("minProperties"), 2);
+                return JsonSchema::document(root);
+            }
+
+            if (id == PublicToolNames::track_panel_get)
+                return l3DocumentInput({}, {});
+            if (id == PublicToolNames::track_panel_set_viewport) {
+                return l3DocumentInput(
+                    {
+                        {QStringLiteral("center_tick"),
+                         JsonSchema::number(0.0, static_cast<double>(MaximumSafeJsonInteger))},
+                        {QStringLiteral("center_track_index"), JsonSchema::number(0.0)},
+                        {QStringLiteral("horizontal_scale"), JsonSchema::number(0.000001)},
+                        {QStringLiteral("vertical_scale"), JsonSchema::number(0.000001)},
+                },
+                    {}, false, 3);
+            }
+            if (id == PublicToolNames::track_panel_reveal_clips) {
+                QJsonObject common{
+                    {QStringLiteral("window_id"),         nonEmptyStringSchema()},
+                    {QStringLiteral("document_id"),       uuidSchema()          },
+                    {QStringLiteral("expected_revision"), revisionSchema()      },
+                };
+                auto track = common;
+                track.insert(QStringLiteral("track_id"), identifierSchema());
+                auto clips = common;
+                clips.insert(
+                    QStringLiteral("clip_ids"),
+                    JsonSchema::array(identifierSchema(), 1, MaximumCommandCollectionItems));
+                return JsonSchema::document(JsonSchema::oneOf(QJsonArray{
+                    JsonSchema::object(
+                        track, {QStringLiteral("window_id"), QStringLiteral("document_id"),
+                                QStringLiteral("expected_revision"), QStringLiteral("track_id")}),
+                    JsonSchema::object(
+                        clips, {QStringLiteral("window_id"), QStringLiteral("document_id"),
+                                QStringLiteral("expected_revision"), QStringLiteral("clip_ids")}),
+                }));
+            }
+            if (id == PublicToolNames::track_panel_set_auto_page_turn) {
+                return l3DocumentInput(
+                    {
+                        {QStringLiteral("enabled"), JsonSchema::boolean()}
+                },
+                    {QStringLiteral("enabled")});
+            }
+            if (id == PublicToolNames::track_panel_select_track) {
+                return l3DocumentInput(
+                    {
+                        {QStringLiteral("track_id"), nullableSchema(identifierSchema())}
+                },
+                    {QStringLiteral("track_id")}, true);
+            }
+            if (id == PublicToolNames::track_panel_select_clips) {
+                return l3DocumentInput(
+                    {
+                        {QStringLiteral("clip_ids"),
+                         JsonSchema::array(identifierSchema(), 1, MaximumCommandCollectionItems)},
+                        {QStringLiteral("primary_clip_id"), nullableSchema(identifierSchema())},
+                },
+                    {QStringLiteral("clip_ids")}, true);
+            }
+            if (id == PublicToolNames::track_panel_clear_selection) {
+                return l3DocumentInput(
+                    {
+                        {QStringLiteral("target"),
+                         JsonSchema::string({QStringLiteral("track"), QStringLiteral("clips"),
+                                             QStringLiteral("all")})}
+                },
+                    {QStringLiteral("target")}, true);
+            }
+
+            if (id == PublicToolNames::clip_editor_get)
+                return l3DocumentInput({}, {});
+            if (id == PublicToolNames::clip_editor_set_active_clip) {
+                return l3DocumentInput(
+                    {
+                        {QStringLiteral("clip_id"), nullableSchema(identifierSchema())}
+                },
+                    {QStringLiteral("clip_id")}, true);
+            }
+            if (id == PublicToolNames::clip_editor_set_time_viewport) {
+                return l3DocumentInput(
+                    {
+                        {QStringLiteral("center_tick"),
+                         JsonSchema::number(0.0, static_cast<double>(MaximumSafeJsonInteger))},
+                        {QStringLiteral("horizontal_scale"), JsonSchema::number(0.000001)},
+                },
+                    {}, false, 3);
+            }
+            if (id == PublicToolNames::clip_editor_set_auto_page_turn) {
+                return l3DocumentInput(
+                    {
+                        {QStringLiteral("enabled"), JsonSchema::boolean()}
+                },
+                    {QStringLiteral("enabled")});
+            }
+            if (id == PublicToolNames::clip_editor_show_region) {
+                return l3DocumentInput(
+                    {
+                        {QStringLiteral("region"),
+                         JsonSchema::string(
+                             {QStringLiteral("piano"), QStringLiteral("parameters")})}
+                },
+                    {QStringLiteral("region")});
+            }
+            if (id == PublicToolNames::clip_editor_piano_set_pitch_viewport) {
+                return l3DocumentInput(
+                    {
+                        {QStringLiteral("center_key_index"),
+                         JsonSchema::number(MinimumMidiKeyIndex, MaximumMidiKeyIndex)},
+                        {QStringLiteral("vertical_scale"), JsonSchema::number(0.000001)},
+                },
+                    {}, false, 3);
+            }
+            if (id == PublicToolNames::clip_editor_piano_reveal_notes) {
+                return l3DocumentInput(
+                    {
+                        {QStringLiteral("note_ids"),
+                         JsonSchema::array(identifierSchema(), 1, MaximumCommandCollectionItems)}
+                },
+                    {QStringLiteral("note_ids")}, true);
+            }
+            if (id == PublicToolNames::clip_editor_piano_set_edit_mode) {
+                return l3DocumentInput(
+                    {
+                        {QStringLiteral("mode"),
+                         JsonSchema::string(
+                             {QStringLiteral("select"), QStringLiteral("interval_select"),
+                              QStringLiteral("draw_note"), QStringLiteral("erase_note"),
+                              QStringLiteral("split_note"), QStringLiteral("draw_pitch"),
+                              QStringLiteral("edit_pitch_anchor"), QStringLiteral("erase_pitch"),
+                              QStringLiteral("bake_pitch")})}
+                },
+                    {QStringLiteral("mode")});
+            }
+            if (id == PublicToolNames::clip_editor_piano_set_quantize) {
+                return l3DocumentInput(
+                    {
+                        {QStringLiteral("quantize"),
+                         valueDomainSchema(PublicValueDomain::Quantize)   },
+                        {QStringLiteral("enabled"),  JsonSchema::boolean()},
+                },
+                    {}, false, 3);
+            }
+            if (id == PublicToolNames::clip_editor_piano_select_notes) {
+                return l3DocumentInput(
+                    {
+                        {QStringLiteral("note_ids"),
+                         JsonSchema::array(identifierSchema(), 1, MaximumCommandCollectionItems)},
+                        {QStringLiteral("primary_note_id"), nullableSchema(identifierSchema())},
+                },
+                    {QStringLiteral("note_ids")}, true);
+            }
+            if (id == PublicToolNames::clip_editor_piano_clear_selection)
+                return l3DocumentInput({}, {}, true);
+            if (id == PublicToolNames::clip_editor_parameters_set_foreground) {
+                return l3DocumentInput(
+                    {
+                        {QStringLiteral("parameter"), parameterNameSchema()}
+                },
+                    {QStringLiteral("parameter")}, true);
+            }
+            if (id == PublicToolNames::clip_editor_parameters_set_background) {
+                return l3DocumentInput(
+                    {
+                        {QStringLiteral("parameter"), nullableSchema(parameterNameSchema())}
+                },
+                    {QStringLiteral("parameter")}, true);
+            }
+            if (id == PublicToolNames::clip_editor_parameters_swap)
+                return l3DocumentInput({}, {}, true);
+            if (id == PublicToolNames::clip_editor_parameters_set_tool) {
+                return l3DocumentInput(
+                    {
+                        {QStringLiteral("tool"),
+                         JsonSchema::string({QStringLiteral("draw"), QStringLiteral("erase"),
+                                             QStringLiteral("bake"), QStringLiteral("anchor")})}
+                },
+                    {QStringLiteral("tool")}, true);
+            }
+            if (id == PublicToolNames::clip_editor_parameters_set_value_viewport) {
+                return l3DocumentInput(
+                    {
+                        {QStringLiteral("center_ratio"), JsonSchema::number(0.0, 1.0)},
+                        {QStringLiteral("vertical_scale"), JsonSchema::number(0.000001)},
+                },
+                    {}, true, 4);
+            }
+
+            if (id == PublicToolNames::settings_query) {
+                auto domains = JsonSchema::array(
+                    JsonSchema::string({QStringLiteral("ui_language"), QStringLiteral("singing"),
+                                        QStringLiteral("theme"), QStringLiteral("audio_device"),
+                                        QStringLiteral("playback_behavior"),
+                                        QStringLiteral("compute_device"), QStringLiteral("render"),
+                                        QStringLiteral("singer_session_retention"),
+                                        QStringLiteral("package_search_paths")}),
+                    1, 9);
+                domains.insert(QStringLiteral("uniqueItems"), true);
+                return JsonSchema::document(JsonSchema::object({
+                    {QStringLiteral("domains"), domains}
+                }));
+            }
+            if (id == PublicToolNames::settings_ui_language_update) {
+                return l3ApplicationUpdateInput({
+                    {QStringLiteral("ui_language"), nonEmptyStringSchema()}
+                });
+            }
+            if (id == PublicToolNames::settings_singing_update) {
+                return l3ApplicationUpdateInput({
+                    {QStringLiteral("default_language"), nonEmptyStringSchema()    },
+                    {QStringLiteral("default_lyrics"),   defaultLyricsInputSchema()},
+                });
+            }
+            if (id == PublicToolNames::settings_theme_update) {
+                return l3ApplicationUpdateInput({
+                    {QStringLiteral("theme_id"), nonEmptyStringSchema()}
+                });
+            }
+            if (id == PublicToolNames::settings_audio_device_update) {
+                return l3ApplicationUpdateInput({
+                    {QStringLiteral("driver_name"), nonEmptyStringSchema()},
+                    {QStringLiteral("device_name"), nonEmptyStringSchema()},
+                    {QStringLiteral("buffer_size"), JsonSchema::integer(0.0)},
+                    {QStringLiteral("sample_rate"), JsonSchema::integer(0.0)},
+                    {QStringLiteral("hot_plug_notification_mode"), JsonSchema::integer(0.0, 2.0)},
+                    {QStringLiteral("gain"), JsonSchema::number(0.0)},
+                    {QStringLiteral("pan"), JsonSchema::number(MinimumPan, MaximumPan)},
+                });
+            }
+            if (id == PublicToolNames::settings_playback_behavior_update) {
+                return l3ApplicationUpdateInput({
+                    {QStringLiteral("behavior"), JsonSchema::integer(0.0, 2.0)}
+                });
+            }
+            if (id == PublicToolNames::settings_compute_device_update) {
+                return l3ApplicationUpdateInput({
+                    {QStringLiteral("execution_provider"),
+                     JsonSchema::string({QStringLiteral("CPU"), QStringLiteral("DirectML"),
+                                         QStringLiteral("CUDA")})                                },
+                    {QStringLiteral("gpu_index"),          JsonSchema::integer(-1.0)             },
+                    {QStringLiteral("gpu_id"),             nullableSchema(nonEmptyStringSchema())},
+                });
+            }
+            if (id == PublicToolNames::settings_render_update) {
+                return l3ApplicationUpdateInput({
+                    {QStringLiteral("sampling_steps"), JsonSchema::integer(1.0, 1000.0)},
+                    {QStringLiteral("depth"), JsonSchema::number(0.0, 1.0)},
+                    {QStringLiteral("run_vocoder_on_cpu"), JsonSchema::boolean()},
+                    {QStringLiteral("auto_start_inference"), JsonSchema::boolean()},
+                    {QStringLiteral("playback_lookahead_seconds"), JsonSchema::number(0.000001)},
+                    {QStringLiteral("pitch_smooth_kernel_size"), JsonSchema::integer(0.0)},
+                });
+            }
+            if (id == PublicToolNames::settings_singer_session_retention_update) {
+                auto idleTimeout = JsonSchema::integer(0.0, 300.0);
+                idleTimeout.insert(QStringLiteral("multipleOf"), 60);
+                return l3ApplicationUpdateInput({
+                    {QStringLiteral("capacity"), JsonSchema::integer(0.0, 8.0)},
+                    {QStringLiteral("idle_timeout_seconds"), idleTimeout},
+                });
+            }
+            if (id == PublicToolNames::settings_package_search_paths_update) {
+                return l3ApplicationUpdateInput({
+                    {QStringLiteral("paths"),
+                     JsonSchema::array(nonEmptyStringSchema(), 0, MaximumCommandCollectionItems)}
+                });
+            }
+
+            if (id == PublicToolNames::packages_list) {
+                return JsonSchema::document(JsonSchema::object({
+                    {QStringLiteral("query"), JsonSchema::string()},
+                    {QStringLiteral("cursor"), nonEmptyStringSchema()},
+                    {QStringLiteral("limit"),
+                     JsonSchema::integer(MinimumPageSize, MaximumPageSize)},
+                }));
+            }
+            if (id == PublicToolNames::packages_describe) {
+                return JsonSchema::document(JsonSchema::object(
+                    {
+                        {QStringLiteral("package_id"), nonEmptyStringSchema()}
+                },
+                    {QStringLiteral("package_id")}));
+            }
+            if (id == PublicToolNames::packages_refresh) {
+                return JsonSchema::document(JsonSchema::object({
+                    {QStringLiteral("validate_only"), JsonSchema::boolean()}
+                }));
+            }
+
+            if (id == PublicToolNames::lyric_rules_list) {
+                return JsonSchema::document(JsonSchema::object({
+                    {QStringLiteral("kind"),
+                     JsonSchema::string({QStringLiteral("splitter"), QStringLiteral("tagger")})},
+                    {QStringLiteral("include_disabled"), JsonSchema::boolean()                 },
+                }));
+            }
+            if (id == PublicToolNames::lyric_rules_create) {
+                return JsonSchema::document(JsonSchema::oneOf(QJsonArray{
+                    lyricRuleDraftSchema(QStringLiteral("splitter")),
+                    lyricRuleDraftSchema(QStringLiteral("tagger")),
+                }));
+            }
+            if (id == PublicToolNames::lyric_rules_update) {
+                auto root = JsonSchema::object(
+                    {
+                        {QStringLiteral("rule_id"), nonEmptyStringSchema()},
+                        {QStringLiteral("name"), nonEmptyStringSchema()},
+                        {QStringLiteral("language"), nonEmptyStringSchema()},
+                        {QStringLiteral("regexes"),
+                         JsonSchema::array(nonEmptyStringSchema(), 1,
+                         MaximumCommandCollectionItems)},
+                        {QStringLiteral("entries"),
+                         JsonSchema::array(taggerEntrySchema(), 1, MaximumCommandCollectionItems)},
+                        {QStringLiteral("validate_only"), JsonSchema::boolean()},
+                },
+                    {QStringLiteral("rule_id")});
+                root.insert(QStringLiteral("minProperties"), 2);
+                return JsonSchema::document(root);
+            }
+            if (id == PublicToolNames::lyric_rules_delete) {
+                return JsonSchema::document(JsonSchema::object(
+                    {
+                        {QStringLiteral("rule_id"),       nonEmptyStringSchema()},
+                        {QStringLiteral("validate_only"), JsonSchema::boolean() },
+                },
+                    {QStringLiteral("rule_id")}));
+            }
+            if (id == PublicToolNames::lyric_rules_set_enabled) {
+                return JsonSchema::document(JsonSchema::object(
+                    {
+                        {QStringLiteral("rule_id"),       nonEmptyStringSchema()},
+                        {QStringLiteral("enabled"),       JsonSchema::boolean() },
+                        {QStringLiteral("validate_only"), JsonSchema::boolean() },
+                },
+                    {QStringLiteral("rule_id"), QStringLiteral("enabled")}));
+            }
+            if (id == PublicToolNames::lyric_rules_move) {
+                return JsonSchema::document(JsonSchema::object(
+                    {
+                        {QStringLiteral("rule_id"),       nonEmptyStringSchema()  },
+                        {QStringLiteral("position"),      JsonSchema::integer(0.0)},
+                        {QStringLiteral("validate_only"), JsonSchema::boolean()   },
+                },
+                    {QStringLiteral("rule_id"), QStringLiteral("position")}));
+            }
+            if (id == PublicToolNames::lyric_rules_test) {
+                return JsonSchema::document(JsonSchema::object(
+                    {
+                        {QStringLiteral("text"), JsonSchema::string()}
+                },
+                    {QStringLiteral("text")}));
+            }
+
+            qFatal("No explicit L3 input schema for operation '%s'", qPrintable(id));
+            return {};
+        }
+
+        QJsonObject pianoEditModeSchema() {
+            return JsonSchema::string({
+                QStringLiteral("select"),
+                QStringLiteral("interval_select"),
+                QStringLiteral("draw_note"),
+                QStringLiteral("erase_note"),
+                QStringLiteral("split_note"),
+                QStringLiteral("draw_pitch"),
+                QStringLiteral("edit_pitch_anchor"),
+                QStringLiteral("erase_pitch"),
+                QStringLiteral("bake_pitch"),
+            });
+        }
+
+        QJsonObject parameterEditToolSchema() {
+            return JsonSchema::string({QStringLiteral("draw"), QStringLiteral("erase"),
+                                       QStringLiteral("bake"), QStringLiteral("anchor")});
+        }
+
+        QJsonObject trackViewportSchema() {
+            return JsonSchema::object(
+                {
+                    {QStringLiteral("center_tick"),        JsonSchema::number(0.0)     },
+                    {QStringLiteral("center_track_index"), JsonSchema::number(0.0)     },
+                    {QStringLiteral("horizontal_scale"),   JsonSchema::number(0.000001)},
+                    {QStringLiteral("vertical_scale"),     JsonSchema::number(0.000001)},
+            },
+                {QStringLiteral("center_tick"), QStringLiteral("center_track_index"),
+                 QStringLiteral("horizontal_scale"), QStringLiteral("vertical_scale")});
+        }
+
+        QJsonObject timeViewportSchema() {
+            return JsonSchema::object(
+                {
+                    {QStringLiteral("center_tick"),      JsonSchema::number(0.0)     },
+                    {QStringLiteral("horizontal_scale"), JsonSchema::number(0.000001)},
+            },
+                {QStringLiteral("center_tick"), QStringLiteral("horizontal_scale")});
+        }
+
+        QJsonObject pitchViewportSchema() {
+            return JsonSchema::object(
+                {
+                    {QStringLiteral("center_key_index"),
+                     JsonSchema::number(MinimumMidiKeyIndex, MaximumMidiKeyIndex)},
+                    {QStringLiteral("vertical_scale"), JsonSchema::number(0.000001)},
+            },
+                {QStringLiteral("center_key_index"), QStringLiteral("vertical_scale")});
+        }
+
+        QJsonObject parameterValueViewportSchema() {
+            return JsonSchema::object(
+                {
+                    {QStringLiteral("center_ratio"), JsonSchema::number(0.0, 1.0)},
+                    {QStringLiteral("vertical_scale"), JsonSchema::number(0.000001)},
+            },
+                {QStringLiteral("center_ratio"), QStringLiteral("vertical_scale")});
+        }
+
+        QJsonObject workspaceSnapshotObjectSchema() {
+            return JsonSchema::object(
+                {
+                    {QStringLiteral("window_id"),           nonEmptyStringSchema()              },
+                    {QStringLiteral("track_panel_visible"), JsonSchema::boolean()               },
+                    {QStringLiteral("clip_editor_visible"), JsonSchema::boolean()               },
+                    {QStringLiteral("active_panel"),
+                     JsonSchema::string({QStringLiteral("track_panel"),
+                                         QStringLiteral("clip_editor"), QStringLiteral("none")})},
+                    {QStringLiteral("focused_region"),
+                     JsonSchema::string({QStringLiteral("track_panel"), QStringLiteral("piano"),
+                                         QStringLiteral("parameters"), QStringLiteral("none")}) },
+            },
+                {QStringLiteral("window_id"), QStringLiteral("track_panel_visible"),
+                 QStringLiteral("clip_editor_visible"), QStringLiteral("active_panel"),
+                 QStringLiteral("focused_region")});
+        }
+
+        QJsonObject trackPanelSnapshotObjectSchema() {
+            return JsonSchema::object(
+                {
+                    {QStringLiteral("window_id"), nonEmptyStringSchema()},
+                    {QStringLiteral("document_id"), uuidSchema()},
+                    {QStringLiteral("viewport"), trackViewportSchema()},
+                    {QStringLiteral("auto_page_turn"), JsonSchema::boolean()},
+                    {QStringLiteral("selected_track_id"), nullableSchema(identifierSchema())},
+                    {QStringLiteral("selected_clip_ids"),
+                     JsonSchema::array(identifierSchema(), 0, MaximumCommandCollectionItems)},
+                    {QStringLiteral("primary_clip_id"), nullableSchema(identifierSchema())},
+                    {QStringLiteral("focused"), JsonSchema::boolean()},
+            },
+                {QStringLiteral("window_id"), QStringLiteral("document_id"),
+                 QStringLiteral("viewport"), QStringLiteral("auto_page_turn"),
+                 QStringLiteral("selected_track_id"), QStringLiteral("selected_clip_ids"),
+                 QStringLiteral("primary_clip_id"), QStringLiteral("focused")});
+        }
+
+        QJsonObject clipEditorSnapshotObjectSchema() {
+            const auto piano = JsonSchema::object(
+                {
+                    {QStringLiteral("visible"), JsonSchema::boolean()},
+                    {QStringLiteral("focused"), JsonSchema::boolean()},
+                    {QStringLiteral("pitch_viewport"), pitchViewportSchema()},
+                    {QStringLiteral("edit_mode"), pianoEditModeSchema()},
+                    {QStringLiteral("quantize"), valueDomainSchema(PublicValueDomain::Quantize)},
+                    {QStringLiteral("quantize_enabled"), JsonSchema::boolean()},
+                    {QStringLiteral("selected_note_ids"),
+                     JsonSchema::array(identifierSchema(), 0, MaximumCommandCollectionItems)},
+                    {QStringLiteral("primary_note_id"), nullableSchema(identifierSchema())},
+            },
+                {QStringLiteral("visible"), QStringLiteral("focused"),
+                 QStringLiteral("pitch_viewport"), QStringLiteral("edit_mode"),
+                 QStringLiteral("quantize"), QStringLiteral("quantize_enabled"),
+                 QStringLiteral("selected_note_ids"), QStringLiteral("primary_note_id")});
+            const auto parameters = JsonSchema::object(
+                {
+                    {QStringLiteral("visible"),        JsonSchema::boolean()                },
+                    {QStringLiteral("focused"),        JsonSchema::boolean()                },
+                    {QStringLiteral("foreground"),     parameterNameSchema()                },
+                    {QStringLiteral("background"),     nullableSchema(parameterNameSchema())},
+                    {QStringLiteral("tool"),           parameterEditToolSchema()            },
+                    {QStringLiteral("value_viewport"), parameterValueViewportSchema()       },
+            },
+                {QStringLiteral("visible"), QStringLiteral("focused"), QStringLiteral("foreground"),
+                 QStringLiteral("background"), QStringLiteral("tool"),
+                 QStringLiteral("value_viewport")});
+            return JsonSchema::object(
+                {
+                    {QStringLiteral("window_id"),      nonEmptyStringSchema()            },
+                    {QStringLiteral("document_id"),    uuidSchema()                      },
+                    {QStringLiteral("visible"),        JsonSchema::boolean()             },
+                    {QStringLiteral("active_clip_id"), nullableSchema(identifierSchema())},
+                    {QStringLiteral("active_region"),
+                     JsonSchema::string({QStringLiteral("piano"), QStringLiteral("parameters"),
+                                         QStringLiteral("none")})                        },
+                    {QStringLiteral("focused_region"),
+                     JsonSchema::string({QStringLiteral("piano"), QStringLiteral("parameters"),
+                                         QStringLiteral("none")})                        },
+                    {QStringLiteral("time_viewport"),  timeViewportSchema()              },
+                    {QStringLiteral("auto_page_turn"), JsonSchema::boolean()             },
+                    {QStringLiteral("piano"),          piano                             },
+                    {QStringLiteral("parameters"),     parameters                        },
+            },
+                {QStringLiteral("window_id"), QStringLiteral("document_id"),
+                 QStringLiteral("visible"), QStringLiteral("active_clip_id"),
+                 QStringLiteral("active_region"), QStringLiteral("focused_region"),
+                 QStringLiteral("time_viewport"), QStringLiteral("auto_page_turn"),
+                 QStringLiteral("piano"), QStringLiteral("parameters")});
+        }
+
+        QJsonObject guiMutationOutputSchema() {
+            return JsonSchema::document(JsonSchema::object(
+                {
+                    {QStringLiteral("window_id"),      nonEmptyStringSchema()},
+                    {QStringLiteral("changed"),        JsonSchema::boolean() },
+                    {QStringLiteral("validated_only"), JsonSchema::boolean() },
+            },
+                {QStringLiteral("window_id"), QStringLiteral("changed"),
+                 QStringLiteral("validated_only")}));
+        }
+
+        QJsonObject settingsDomainStateSchema(const QJsonObject &valueSchema,
+                                              const QJsonObject &candidatesSchema = {}) {
+            QJsonObject properties{
+                {QStringLiteral("configured"),         valueSchema          },
+                {QStringLiteral("effective"),          valueSchema          },
+                {QStringLiteral("restart_required"),   JsonSchema::boolean()},
+                {QStringLiteral("available"),          JsonSchema::boolean()},
+                {QStringLiteral("unavailable_reason"), JsonSchema::string() },
+            };
+            QStringList required{
+                QStringLiteral("configured"),         QStringLiteral("effective"),
+                QStringLiteral("restart_required"),   QStringLiteral("available"),
+                QStringLiteral("unavailable_reason"),
+            };
+            if (!candidatesSchema.isEmpty()) {
+                properties.insert(QStringLiteral("candidates"), candidatesSchema);
+                required.append(QStringLiteral("candidates"));
+            }
+            return JsonSchema::object(properties, required);
+        }
+
+        QJsonObject singingSettingsValueSchema() {
+            return JsonSchema::object(
+                {
+                    {QStringLiteral("default_language"), nonEmptyStringSchema()    },
+                    {QStringLiteral("default_lyrics"),   defaultLyricsInputSchema()},
+            },
+                {QStringLiteral("default_language"), QStringLiteral("default_lyrics")});
+        }
+
+        QJsonObject audioDeviceSettingsValueSchema() {
+            return JsonSchema::object(
+                {
+                    {QStringLiteral("driver_name"), nonEmptyStringSchema()},
+                    {QStringLiteral("device_name"), nonEmptyStringSchema()},
+                    {QStringLiteral("buffer_size"), JsonSchema::integer(0.0)},
+                    {QStringLiteral("sample_rate"), JsonSchema::integer(0.0)},
+                    {QStringLiteral("hot_plug_notification_mode"), JsonSchema::integer(0.0, 2.0)},
+                    {QStringLiteral("gain"), JsonSchema::number(0.0)},
+                    {QStringLiteral("pan"), JsonSchema::number(MinimumPan, MaximumPan)},
+            },
+                {QStringLiteral("driver_name"), QStringLiteral("device_name"),
+                 QStringLiteral("buffer_size"), QStringLiteral("sample_rate"),
+                 QStringLiteral("hot_plug_notification_mode"), QStringLiteral("gain"),
+                 QStringLiteral("pan")});
+        }
+
+        QJsonObject computeDeviceSettingsValueSchema() {
+            return JsonSchema::object(
+                {
+                    {QStringLiteral("execution_provider"), nonEmptyStringSchema()                },
+                    {QStringLiteral("gpu_index"),          JsonSchema::integer(-1.0)             },
+                    {QStringLiteral("gpu_id"),             nullableSchema(nonEmptyStringSchema())},
+            },
+                {QStringLiteral("execution_provider"), QStringLiteral("gpu_index"),
+                 QStringLiteral("gpu_id")});
+        }
+
+        QJsonObject renderSettingsValueSchema() {
+            return JsonSchema::object(
+                {
+                    {QStringLiteral("sampling_steps"), JsonSchema::integer(1.0, 1000.0)},
+                    {QStringLiteral("depth"), JsonSchema::number(0.0, 1.0)},
+                    {QStringLiteral("run_vocoder_on_cpu"), JsonSchema::boolean()},
+                    {QStringLiteral("auto_start_inference"), JsonSchema::boolean()},
+                    {QStringLiteral("playback_lookahead_seconds"), JsonSchema::number(0.0)},
+                    {QStringLiteral("pitch_smooth_kernel_size"), JsonSchema::integer(0.0)},
+            },
+                {QStringLiteral("sampling_steps"), QStringLiteral("depth"),
+                 QStringLiteral("run_vocoder_on_cpu"), QStringLiteral("auto_start_inference"),
+                 QStringLiteral("playback_lookahead_seconds"),
+                 QStringLiteral("pitch_smooth_kernel_size")});
+        }
+
+        QJsonObject retentionSettingsValueSchema() {
+            auto idleTimeout = JsonSchema::integer(0.0, 300.0);
+            idleTimeout.insert(QStringLiteral("multipleOf"), 60);
+            return JsonSchema::object(
+                {
+                    {QStringLiteral("capacity"), JsonSchema::integer(0.0, 8.0)},
+                    {QStringLiteral("idle_timeout_seconds"), idleTimeout},
+            },
+                {QStringLiteral("capacity"), QStringLiteral("idle_timeout_seconds")});
+        }
+
+        QJsonObject packagePathsValueSchema() {
+            return JsonSchema::object(
+                {
+                    {QStringLiteral("paths"),
+                     JsonSchema::array(nonEmptyStringSchema(), 0, MaximumCommandCollectionItems)}
+            },
+                {QStringLiteral("paths")});
+        }
+
+        QJsonObject settingsQueryOutputSchema() {
+            const auto stringCandidates = JsonSchema::array(nonEmptyStringSchema());
+            const auto languageCandidates = JsonSchema::object(
+                {
+                    {QStringLiteral("languages"), stringCandidates}
+            },
+                {QStringLiteral("languages")});
+            const auto audioCandidates = JsonSchema::object(
+                {
+                    {QStringLiteral("drivers"), stringCandidates},
+                    {QStringLiteral("devices"), stringCandidates},
+                    {QStringLiteral("buffer_sizes"), JsonSchema::array(JsonSchema::integer(0.0))},
+                    {QStringLiteral("sample_rates"), JsonSchema::array(JsonSchema::integer(0.0))},
+                    {QStringLiteral("hot_plug_notification_modes"),
+                     JsonSchema::array(JsonSchema::integer(0.0, 2.0))},
+                    {QStringLiteral("gain_range"),
+                     JsonSchema::object({{QStringLiteral("minimum"), JsonSchema::number(0.0)},
+                                         {QStringLiteral("maximum"), JsonSchema::number(0.0)}},
+                     {QStringLiteral("minimum"), QStringLiteral("maximum")})},
+                    {QStringLiteral("pan_range"),
+                     JsonSchema::object(
+                         {{QStringLiteral("minimum"), JsonSchema::number(MinimumPan, MaximumPan)},
+                          {QStringLiteral("maximum"), JsonSchema::number(MinimumPan, MaximumPan)}},
+                     {QStringLiteral("minimum"), QStringLiteral("maximum")})},
+            },
+                {QStringLiteral("drivers"), QStringLiteral("devices"),
+                 QStringLiteral("buffer_sizes"), QStringLiteral("sample_rates"),
+                 QStringLiteral("hot_plug_notification_modes"), QStringLiteral("gain_range"),
+                 QStringLiteral("pan_range")});
+            const auto computeCandidates = JsonSchema::object(
+                {
+                    {QStringLiteral("execution_providers"), stringCandidates},
+                    {QStringLiteral("gpus"),
+                     JsonSchema::array(JsonSchema::object(
+                         {
+                             {QStringLiteral("index"), JsonSchema::integer(0.0)},
+                             {QStringLiteral("id"), nonEmptyStringSchema()},
+                             {QStringLiteral("name"), JsonSchema::string()},
+                         }, {QStringLiteral("index"), QStringLiteral("id"), QStringLiteral("name")}))},
+            },
+                {QStringLiteral("execution_providers"), QStringLiteral("gpus")});
+            const auto renderRanges = JsonSchema::object(
+                {
+                    {QStringLiteral("sampling_steps"),
+                     JsonSchema::object({{QStringLiteral("minimum"), JsonSchema::integer(1.0)},
+                                         {QStringLiteral("maximum"), JsonSchema::integer(1.0)}},
+                     {QStringLiteral("minimum"), QStringLiteral("maximum")})},
+                    {QStringLiteral("depth"),
+                     JsonSchema::object({{QStringLiteral("minimum"), JsonSchema::number(0.0, 1.0)},
+                                         {QStringLiteral("maximum"), JsonSchema::number(0.0, 1.0)}},
+                     {QStringLiteral("minimum"), QStringLiteral("maximum")})},
+                    {QStringLiteral("playback_lookahead_seconds"),
+                     JsonSchema::object({{QStringLiteral("minimum"), JsonSchema::number(0.0)},
+                                         {QStringLiteral("maximum"), JsonSchema::number(0.0)}},
+                     {QStringLiteral("minimum"), QStringLiteral("maximum")})},
+                    {QStringLiteral("pitch_smooth_kernel_size"),
+                     JsonSchema::object({{QStringLiteral("minimum"), JsonSchema::integer(0.0)},
+                                         {QStringLiteral("maximum"), JsonSchema::integer(0.0)}},
+                     {QStringLiteral("minimum"), QStringLiteral("maximum")})},
+            },
+                {QStringLiteral("sampling_steps"), QStringLiteral("depth"),
+                 QStringLiteral("playback_lookahead_seconds"),
+                 QStringLiteral("pitch_smooth_kernel_size")});
+            const auto retentionRanges = JsonSchema::object(
+                {
+                    {QStringLiteral("capacity"),
+                     JsonSchema::object({{QStringLiteral("minimum"), JsonSchema::integer(0.0)},
+                                         {QStringLiteral("maximum"), JsonSchema::integer(0.0)}},
+                     {QStringLiteral("minimum"), QStringLiteral("maximum")})},
+                    {QStringLiteral("idle_timeout_seconds"),
+                     JsonSchema::object({{QStringLiteral("minimum"), JsonSchema::integer(0.0)},
+                                         {QStringLiteral("maximum"), JsonSchema::integer(0.0)},
+                                         {QStringLiteral("step"), JsonSchema::integer(1.0)}},
+                     {QStringLiteral("minimum"), QStringLiteral("maximum"),
+                                         QStringLiteral("step")})           },
+            },
+                {QStringLiteral("capacity"), QStringLiteral("idle_timeout_seconds")});
+
+            const auto domains = JsonSchema::object({
+                {QStringLiteral("ui_language"),
+                 settingsDomainStateSchema(nonEmptyStringSchema(), stringCandidates)},
+                {QStringLiteral("singing"),
+                 settingsDomainStateSchema(singingSettingsValueSchema(), languageCandidates)},
+                {QStringLiteral("theme"),
+                 settingsDomainStateSchema(nonEmptyStringSchema(), stringCandidates)},
+                {QStringLiteral("audio_device"),
+                 settingsDomainStateSchema(audioDeviceSettingsValueSchema(), audioCandidates)},
+                {QStringLiteral("playback_behavior"),
+                 settingsDomainStateSchema(JsonSchema::integer(0.0, 2.0),
+                 JsonSchema::array(JsonSchema::integer(0.0, 2.0)))},
+                {QStringLiteral("compute_device"),
+                 settingsDomainStateSchema(computeDeviceSettingsValueSchema(), computeCandidates)},
+                {QStringLiteral("render"),
+                 settingsDomainStateSchema(renderSettingsValueSchema(), renderRanges)},
+                {QStringLiteral("singer_session_retention"),
+                 settingsDomainStateSchema(retentionSettingsValueSchema(), retentionRanges)},
+                {QStringLiteral("package_search_paths"),
+                 settingsDomainStateSchema(packagePathsValueSchema())},
+            });
+            auto nonEmptyDomains = domains;
+            nonEmptyDomains.insert(QStringLiteral("minProperties"), 1);
+            return JsonSchema::document(JsonSchema::object(
+                {
+                    {QStringLiteral("domains"), nonEmptyDomains}
+            },
+                {QStringLiteral("domains")}));
+        }
+
+        QJsonObject settingsMutationOutputSchema(const QJsonObject &valueSchema) {
+            return JsonSchema::document(JsonSchema::object(
+                {
+                    {QStringLiteral("changed"),                 JsonSchema::boolean()                  },
+                    {QStringLiteral("validated_only"),          JsonSchema::boolean()                  },
+                    {QStringLiteral("configured"),              valueSchema                            },
+                    {QStringLiteral("effective"),               valueSchema                            },
+                    {QStringLiteral("restart_required"),        JsonSchema::boolean()                  },
+                    {QStringLiteral("restart_required_fields"),
+                     JsonSchema::array(nonEmptyStringSchema())                                         },
+                    {QStringLiteral("warnings"),                JsonSchema::array(JsonSchema::string())},
+            },
+                {QStringLiteral("changed"), QStringLiteral("validated_only"),
+                 QStringLiteral("configured"), QStringLiteral("effective"),
+                 QStringLiteral("restart_required"), QStringLiteral("restart_required_fields"),
+                 QStringLiteral("warnings")}));
+        }
+
+        QJsonObject packageVoiceSummarySchema(const bool detailed = false) {
+            QJsonObject properties{
+                {QStringLiteral("singer_id"), nonEmptyStringSchema()                   },
+                {QStringLiteral("name"),      JsonSchema::string()                     },
+                {QStringLiteral("languages"), JsonSchema::array(nonEmptyStringSchema())},
+                {QStringLiteral("speakers"),  JsonSchema::array(nonEmptyStringSchema())},
+            };
+            QStringList required{
+                QStringLiteral("singer_id"),
+                QStringLiteral("name"),
+                QStringLiteral("languages"),
+                QStringLiteral("speakers"),
+            };
+            if (detailed) {
+                properties.insert(QStringLiteral("description"), JsonSchema::string());
+                properties.insert(QStringLiteral("avatar_path"), JsonSchema::string());
+                required.append(QStringLiteral("description"));
+                required.append(QStringLiteral("avatar_path"));
+            }
+            return JsonSchema::object(properties, required);
+        }
+
+        QJsonObject packageSummarySchema(const bool detailed = false) {
+            QJsonObject properties{
+                {QStringLiteral("package_id"),     nonEmptyStringSchema()                                },
+                {QStringLiteral("name"),           JsonSchema::string()                                  },
+                {QStringLiteral("version"),        JsonSchema::string()                                  },
+                {QStringLiteral("vendor"),         JsonSchema::string()                                  },
+                {QStringLiteral("canonical_path"), nullableSchema(nonEmptyStringSchema())                },
+                {QStringLiteral("voices"),         JsonSchema::array(packageVoiceSummarySchema(detailed))},
+            };
+            QStringList required{
+                QStringLiteral("package_id"),     QStringLiteral("name"),
+                QStringLiteral("version"),        QStringLiteral("vendor"),
+                QStringLiteral("canonical_path"), QStringLiteral("voices"),
+            };
+            if (detailed) {
+                properties.insert(QStringLiteral("description"), JsonSchema::string());
+                properties.insert(QStringLiteral("license"), JsonSchema::string());
+                properties.insert(QStringLiteral("homepage"), JsonSchema::string());
+                required.append(QStringLiteral("description"));
+                required.append(QStringLiteral("license"));
+                required.append(QStringLiteral("homepage"));
+            }
+            return JsonSchema::object(properties, required);
+        }
+
+        QJsonObject packagesListOutputSchema() {
+            return JsonSchema::document(JsonSchema::object(
+                {
+                    {QStringLiteral("packages"),    JsonSchema::array(packageSummarySchema(false))},
+                    {QStringLiteral("next_cursor"), JsonSchema::string()                          },
+            },
+                {QStringLiteral("packages")}));
+        }
+
+        QJsonObject packageDescribeOutputSchema() {
+            return JsonSchema::document(JsonSchema::object(
+                {
+                    {QStringLiteral("package"), packageSummarySchema(true)}
+            },
+                {QStringLiteral("package")}));
+        }
+
+        QJsonObject packageRefreshResultSchema() {
+            const auto failure = JsonSchema::object(
+                {
+                    {QStringLiteral("path"),   nullableSchema(nonEmptyStringSchema())},
+                    {QStringLiteral("reason"), JsonSchema::string()                  },
+            },
+                {QStringLiteral("path"), QStringLiteral("reason")});
+            return JsonSchema::object(
+                {
+                    {QStringLiteral("packages"), JsonSchema::integer(0.0)                 },
+                    {QStringLiteral("added"),    JsonSchema::array(nonEmptyStringSchema())},
+                    {QStringLiteral("updated"),  JsonSchema::array(nonEmptyStringSchema())},
+                    {QStringLiteral("removed"),  JsonSchema::array(nonEmptyStringSchema())},
+                    {QStringLiteral("failures"), JsonSchema::array(failure)               },
+            },
+                {QStringLiteral("packages"), QStringLiteral("added"), QStringLiteral("updated"),
+                 QStringLiteral("removed"), QStringLiteral("failures")});
+        }
+
+        QJsonObject lyricRuleSchema() {
+            const auto common = QJsonObject{
+                {QStringLiteral("rule_id"), nonEmptyStringSchema()  },
+                {QStringLiteral("builtin"), JsonSchema::boolean()   },
+                {QStringLiteral("enabled"), JsonSchema::boolean()   },
+                {QStringLiteral("order"),   JsonSchema::integer(0.0)},
+            };
+            auto splitter = common;
+            splitter.insert(QStringLiteral("kind"),
+                            JsonSchema::constant(QStringLiteral("splitter")));
+            splitter.insert(QStringLiteral("name"), nonEmptyStringSchema());
+            splitter.insert(
+                QStringLiteral("regexes"),
+                JsonSchema::array(nonEmptyStringSchema(), 1, MaximumCommandCollectionItems));
+            auto tagger = common;
+            tagger.insert(QStringLiteral("kind"), JsonSchema::constant(QStringLiteral("tagger")));
+            tagger.insert(QStringLiteral("name"), JsonSchema::string());
+            tagger.insert(QStringLiteral("language"), nonEmptyStringSchema());
+            tagger.insert(QStringLiteral("entries"),
+                          JsonSchema::array(taggerEntrySchema(), 1, MaximumCommandCollectionItems));
+            return JsonSchema::oneOf(QJsonArray{
+                JsonSchema::object(splitter, {QStringLiteral("rule_id"), QStringLiteral("kind"),
+                                              QStringLiteral("builtin"), QStringLiteral("name"),
+                                              QStringLiteral("regexes"), QStringLiteral("enabled"),
+                                              QStringLiteral("order")}),
+                JsonSchema::object(tagger, {QStringLiteral("rule_id"), QStringLiteral("kind"),
+                                            QStringLiteral("builtin"), QStringLiteral("name"),
+                                            QStringLiteral("language"), QStringLiteral("entries"),
+                                            QStringLiteral("enabled"), QStringLiteral("order")}),
+            });
+        }
+
+        QJsonObject lyricRulesListOutputSchema() {
+            return JsonSchema::document(JsonSchema::object(
+                {
+                    {QStringLiteral("rules"), JsonSchema::array(lyricRuleSchema())}
+            },
+                {QStringLiteral("rules")}));
+        }
+
+        QJsonObject lyricRuleMutationOutputSchema(const bool deletion = false) {
+            QJsonObject properties{
+                {QStringLiteral("changed"),        JsonSchema::boolean()                  },
+                {QStringLiteral("validated_only"), JsonSchema::boolean()                  },
+                {QStringLiteral("warnings"),       JsonSchema::array(JsonSchema::string())},
+            };
+            QStringList required{
+                QStringLiteral("changed"),
+                QStringLiteral("validated_only"),
+                QStringLiteral("warnings"),
+            };
+            if (deletion) {
+                properties.insert(QStringLiteral("rule_id"), nonEmptyStringSchema());
+                required.append(QStringLiteral("rule_id"));
+            } else {
+                properties.insert(QStringLiteral("rule"), lyricRuleSchema());
+                required.append(QStringLiteral("rule"));
+            }
+            return JsonSchema::document(JsonSchema::object(properties, required));
+        }
+
+        QJsonObject lyricRulesTestOutputSchema() {
+            const auto tagged = JsonSchema::object(
+                {
+                    {QStringLiteral("lyric"),    JsonSchema::string()  },
+                    {QStringLiteral("language"), nonEmptyStringSchema()},
+                    {QStringLiteral("tag"),      nonEmptyStringSchema()},
+                    {QStringLiteral("discard"),  JsonSchema::boolean() },
+            },
+                {QStringLiteral("lyric"), QStringLiteral("language"), QStringLiteral("tag"),
+                 QStringLiteral("discard")});
+            return JsonSchema::document(JsonSchema::object(
+                {
+                    {QStringLiteral("split_tokens"),  JsonSchema::array(JsonSchema::string())},
+                    {QStringLiteral("tagged_tokens"), JsonSchema::array(tagged)              },
+            },
+                {QStringLiteral("split_tokens"), QStringLiteral("tagged_tokens")}));
+        }
+
+        QJsonObject l3OutputSchema(const QString &id) {
+            if (id == PublicToolNames::workspace_get)
+                return JsonSchema::document(workspaceSnapshotObjectSchema());
+            if (id == PublicToolNames::track_panel_get)
+                return JsonSchema::document(trackPanelSnapshotObjectSchema());
+            if (id == PublicToolNames::clip_editor_get)
+                return JsonSchema::document(clipEditorSnapshotObjectSchema());
+            if (isL3GuiOperation(id))
+                return guiMutationOutputSchema();
+
+            if (id == PublicToolNames::settings_query)
+                return settingsQueryOutputSchema();
+            if (id == PublicToolNames::settings_ui_language_update)
+                return settingsMutationOutputSchema(nonEmptyStringSchema());
+            if (id == PublicToolNames::settings_singing_update)
+                return settingsMutationOutputSchema(singingSettingsValueSchema());
+            if (id == PublicToolNames::settings_theme_update)
+                return settingsMutationOutputSchema(nonEmptyStringSchema());
+            if (id == PublicToolNames::settings_audio_device_update)
+                return settingsMutationOutputSchema(audioDeviceSettingsValueSchema());
+            if (id == PublicToolNames::settings_playback_behavior_update)
+                return settingsMutationOutputSchema(JsonSchema::integer(0.0, 2.0));
+            if (id == PublicToolNames::settings_compute_device_update)
+                return settingsMutationOutputSchema(computeDeviceSettingsValueSchema());
+            if (id == PublicToolNames::settings_render_update)
+                return settingsMutationOutputSchema(renderSettingsValueSchema());
+            if (id == PublicToolNames::settings_singer_session_retention_update)
+                return settingsMutationOutputSchema(retentionSettingsValueSchema());
+            if (id == PublicToolNames::settings_package_search_paths_update)
+                return settingsMutationOutputSchema(packagePathsValueSchema());
+
+            if (id == PublicToolNames::packages_list)
+                return packagesListOutputSchema();
+            if (id == PublicToolNames::packages_describe)
+                return packageDescribeOutputSchema();
+            if (id == PublicToolNames::packages_refresh)
+                return taskAcceptedSchema(false, true);
+
+            if (id == PublicToolNames::lyric_rules_list)
+                return lyricRulesListOutputSchema();
+            if (id == PublicToolNames::lyric_rules_delete)
+                return lyricRuleMutationOutputSchema(true);
+            if (id == PublicToolNames::lyric_rules_create ||
+                id == PublicToolNames::lyric_rules_update ||
+                id == PublicToolNames::lyric_rules_set_enabled ||
+                id == PublicToolNames::lyric_rules_move) {
+                return lyricRuleMutationOutputSchema();
+            }
+            if (id == PublicToolNames::lyric_rules_test)
+                return lyricRulesTestOutputSchema();
+
+            qFatal("No explicit L3 output schema for operation '%s'", qPrintable(id));
+            return {};
+        }
+
         QJsonObject formatInspectionOutputSchema() {
             const auto source = JsonSchema::object(
                 {
@@ -2725,8 +3917,7 @@ namespace AutomationWire {
                 return queryEnvelopeSchema(QStringLiteral("status"), inferenceStatusSchema());
             }
             if (id == PublicToolNames::tasks_list) {
-                return queryEnvelopeSchema(QStringLiteral("tasks"),
-                                           JsonSchema::array(taskSnapshotObjectSchema()), true);
+                return tasksListOutputSchema();
             }
             if (id == PublicToolNames::tasks_get || id == PublicToolNames::tasks_cancel)
                 return taskSnapshotSchema();
@@ -2738,6 +3929,8 @@ namespace AutomationWire {
 
         QJsonObject outputSchema(const QString &id, const OperationKind kind,
                                  const SyncMode syncMode) {
+            if (isL3Operation(id))
+                return l3OutputSchema(id);
             if (syncMode == SyncMode::Asynchronous)
                 return taskAcceptedSchema(id == PublicToolNames::documents_open);
             if (kind == OperationKind::Command) {
@@ -2791,6 +3984,60 @@ namespace AutomationWire {
                 return QStringLiteral(
                     "Read the canonical automation read/write roots and temporary file "
                     "grants enforced by the editor File Guard.");
+            }
+
+            if (isL3GuiOperation(operationId)) {
+                if (kind == OperationKind::Query) {
+                    return QStringLiteral(
+                               "Read the authoritative %1 GUI state for the explicit window and "
+                               "document context. This is presentation-only and never changes the "
+                               "document revision or History.")
+                        .arg(category);
+                }
+                return QStringLiteral(
+                           "Apply the GUI-equivalent %1 presentation action to the explicit "
+                           "window. "
+                           "Object-bearing requests validate stable document identities, while the "
+                           "action itself never changes document revision or History.")
+                    .arg(humanTitle(operationId).toLower());
+            }
+            if (operationId == PublicToolNames::settings_query) {
+                return QStringLiteral(
+                    "Read the configured and effective values, candidates or ranges, availability, "
+                    "and restart requirements for the requested public settings domains.");
+            }
+            if (operationId.startsWith(QStringLiteral("settings."))) {
+                return QStringLiteral(
+                           "Sparsely update the public %1 settings domain without modal dialogs. "
+                           "The response distinguishes configured and effective values and reports "
+                           "fields that require an application restart.")
+                    .arg(humanTitle(operationId).toLower());
+            }
+            if (operationId == PublicToolNames::packages_list ||
+                operationId == PublicToolNames::packages_describe) {
+                return QStringLiteral(
+                           "Read %1 from the current package index. Reported canonical paths are "
+                           "included only when permitted by the configured automation read roots.")
+                    .arg(humanTitle(operationId).toLower());
+            }
+            if (operationId == PublicToolNames::packages_refresh) {
+                return QStringLiteral(
+                    "Rescan the current effective package search paths as an application-scoped "
+                    "task, then atomically replace the package index and report added, updated, "
+                    "removed, and failed entries.");
+            }
+            if (operationId.startsWith(QStringLiteral("lyric_rules."))) {
+                if (kind == OperationKind::Query) {
+                    return QStringLiteral(
+                               "Read %1 from the application lyric splitter and tagger pipeline "
+                               "without changing its configuration.")
+                        .arg(humanTitle(operationId).toLower());
+                }
+                return QStringLiteral(
+                           "Apply %1 to the application lyric-rule store using a stable rule ID. "
+                           "Built-in rules retain their protected content and the operation never "
+                           "changes a document revision or History.")
+                    .arg(humanTitle(operationId).toLower());
             }
 
             const auto action = humanTitle(operationId).toLower();
@@ -2882,17 +4129,27 @@ namespace AutomationWire {
             for (const auto &field : contextFields)
                 context.append(field);
             const auto sourceProfile =
-                sourceOperation == PublicToolNames::voices_list ||
+                sourceOperation.startsWith(QStringLiteral("settings.")) ||
+                        sourceOperation.startsWith(QStringLiteral("packages.")) ||
+                        sourceOperation.startsWith(QStringLiteral("lyric_rules."))
+                    ? AutomationProfile::L3
+                : sourceOperation == PublicToolNames::voices_list ||
                         sourceOperation == PublicToolNames::voices_describe ||
-                        sourceOperation == PublicToolNames::parameters_get_capabilities
+                        sourceOperation == PublicToolNames::parameters_get_capabilities ||
+                        sourceOperation == PublicToolNames::tracks_list ||
+                        sourceOperation == PublicToolNames::clips_list ||
+                        sourceOperation == PublicToolNames::notes_get
                     ? AutomationProfile::L1
                     : AutomationProfile::L2;
+            const auto availability = sourceProfile == AutomationProfile::L3
+                                          ? QStringLiteral("both")
+                                          : QStringLiteral("gui");
             return {
                 {QStringLiteral("field_path"),        fieldPath                           },
                 {QStringLiteral("operation_id"),      sourceOperation                     },
                 {QStringLiteral("context_fields"),    context                             },
                 {QStringLiteral("minimum_profile"),   automationProfileName(sourceProfile)},
-                {QStringLiteral("host_availability"), QStringLiteral("gui")               },
+                {QStringLiteral("host_availability"), availability                        },
             };
         }
 
@@ -3039,10 +4296,55 @@ namespace AutomationWire {
                     }
                 }
             }
+            if (id == PublicToolNames::packages_describe)
+                add(QStringLiteral("/package_id"), PublicToolNames::packages_list);
+            if (id.startsWith(QStringLiteral("settings.")) &&
+                id != PublicToolNames::settings_query) {
+                const auto properties = inputSchema(id, OperationKind::Command)
+                                            .value(QStringLiteral("properties"))
+                                            .toObject();
+                for (auto it = properties.constBegin(); it != properties.constEnd(); ++it) {
+                    if (it.key() != QStringLiteral("validate_only"))
+                        add(u'/' + it.key(), PublicToolNames::settings_query);
+                }
+            }
+            if (id.startsWith(QStringLiteral("lyric_rules.")) &&
+                id != PublicToolNames::lyric_rules_list &&
+                id != PublicToolNames::lyric_rules_create &&
+                id != PublicToolNames::lyric_rules_test) {
+                add(QStringLiteral("/rule_id"), PublicToolNames::lyric_rules_list);
+            }
+            if (id == PublicToolNames::track_panel_select_track)
+                add(QStringLiteral("/track_id"), PublicToolNames::tracks_list,
+                    {QStringLiteral("/document_id")});
+            if (id == PublicToolNames::track_panel_reveal_clips ||
+                id == PublicToolNames::track_panel_select_clips) {
+                add(QStringLiteral("/clip_ids/*"), PublicToolNames::clips_list,
+                    {QStringLiteral("/document_id")});
+            }
+            if (id == PublicToolNames::clip_editor_set_active_clip)
+                add(QStringLiteral("/clip_id"), PublicToolNames::clips_list,
+                    {QStringLiteral("/document_id")});
+            if (id == PublicToolNames::clip_editor_piano_reveal_notes ||
+                id == PublicToolNames::clip_editor_piano_select_notes) {
+                add(QStringLiteral("/note_ids/*"), PublicToolNames::notes_get,
+                    {QStringLiteral("/document_id")});
+            }
+            if (id.startsWith(QStringLiteral("clip_editor.parameters.")) &&
+                id != PublicToolNames::clip_editor_parameters_swap &&
+                id != PublicToolNames::clip_editor_parameters_set_tool &&
+                id != PublicToolNames::clip_editor_parameters_set_value_viewport) {
+                add(QStringLiteral("/parameter"), PublicToolNames::parameters_get_capabilities,
+                    {QStringLiteral("/document_id")});
+            }
             return result;
         }
 
         QString documentPolicy(const ToolContract &tool) {
+            if (tool.operationId.startsWith(QStringLiteral("track_panel.")) ||
+                tool.operationId.startsWith(QStringLiteral("clip_editor."))) {
+                return QStringLiteral("read");
+            }
             if (tool.operationId == PublicToolNames::documents_new ||
                 tool.operationId == PublicToolNames::documents_open) {
                 return QStringLiteral("replace");
@@ -3058,6 +4360,23 @@ namespace AutomationWire {
         }
 
         QString revisionPolicy(const ToolContract &tool) {
+            static const QSet<QString> l3RevisionChecked{
+                PublicToolNames::track_panel_reveal_clips,
+                PublicToolNames::track_panel_select_track,
+                PublicToolNames::track_panel_select_clips,
+                PublicToolNames::track_panel_clear_selection,
+                PublicToolNames::clip_editor_set_active_clip,
+                PublicToolNames::clip_editor_piano_reveal_notes,
+                PublicToolNames::clip_editor_piano_select_notes,
+                PublicToolNames::clip_editor_piano_clear_selection,
+                PublicToolNames::clip_editor_parameters_set_foreground,
+                PublicToolNames::clip_editor_parameters_set_background,
+                PublicToolNames::clip_editor_parameters_swap,
+                PublicToolNames::clip_editor_parameters_set_tool,
+                PublicToolNames::clip_editor_parameters_set_value_viewport,
+            };
+            if (l3RevisionChecked.contains(tool.operationId))
+                return QStringLiteral("check");
             if (tool.operationId == PublicToolNames::documents_open ||
                 tool.operationId == PublicToolNames::exports_midi_start ||
                 tool.operationId == PublicToolNames::exports_audio_start) {
@@ -3073,6 +4392,8 @@ namespace AutomationWire {
         }
 
         QString historyPolicy(const ToolContract &tool) {
+            if (isL3Operation(tool.operationId))
+                return QStringLiteral("none");
             if (tool.kind == OperationKind::Query ||
                 tool.operationId == PublicToolNames::tasks_cancel ||
                 tool.operationId == PublicToolNames::speaker_mix_presets_save ||
@@ -3100,6 +4421,10 @@ namespace AutomationWire {
         }
 
         QString fileAccess(const QString &id) {
+            if (id == PublicToolNames::settings_package_search_paths_update ||
+                id.startsWith(QStringLiteral("packages."))) {
+                return QStringLiteral("read");
+            }
             if (id == PublicToolNames::documents_open || id == PublicToolNames::documents_import ||
                 id == PublicToolNames::documents_import_batch ||
                 id == PublicToolNames::formats_inspect ||
@@ -3121,6 +4446,16 @@ namespace AutomationWire {
         }
 
         QString concurrencyScope(const ToolContract &tool) {
+            if (tool.operationId.startsWith(QStringLiteral("workspace.")) ||
+                tool.operationId.startsWith(QStringLiteral("settings.")) ||
+                tool.operationId.startsWith(QStringLiteral("packages.")) ||
+                tool.operationId.startsWith(QStringLiteral("lyric_rules."))) {
+                return QStringLiteral("application");
+            }
+            if (tool.operationId.startsWith(QStringLiteral("track_panel.")) ||
+                tool.operationId.startsWith(QStringLiteral("clip_editor."))) {
+                return QStringLiteral("document");
+            }
             if (tool.operationId.startsWith(QStringLiteral("playback.")) &&
                 !isPersistentPlaybackOperation(tool.operationId)) {
                 return QStringLiteral("playback");
@@ -3142,6 +4477,10 @@ namespace AutomationWire {
         }
 
         QString conflictPolicy(const ToolContract &tool) {
+            if (isL3Operation(tool.operationId)) {
+                return revisionPolicy(tool) == QStringLiteral("check") ? QStringLiteral("revision")
+                                                                       : QStringLiteral("none");
+            }
             if (tool.kind == OperationKind::Query)
                 return QStringLiteral("none");
             if (tool.operationId == PublicToolNames::tasks_cancel)
@@ -3181,12 +4520,17 @@ namespace AutomationWire {
                 PublicToolNames::documents_new,
                 PublicToolNames::documents_open,
                 PublicToolNames::inference_reset_stage,
+                PublicToolNames::lyric_rules_delete,
             };
+            const bool idempotent = kind == OperationKind::Query ||
+                                    (isL3Operation(id) && id != PublicToolNames::packages_refresh &&
+                                     id != PublicToolNames::lyric_rules_create &&
+                                     id != PublicToolNames::lyric_rules_delete);
             return {
                 {QStringLiteral("title"),           humanTitle(id)              },
                 {QStringLiteral("readOnlyHint"),    kind == OperationKind::Query},
                 {QStringLiteral("destructiveHint"), destructive.contains(id)    },
-                {QStringLiteral("idempotentHint"),  kind == OperationKind::Query},
+                {QStringLiteral("idempotentHint"),  idempotent                  },
                 {QStringLiteral("openWorldHint"),   false                       },
             };
         }
@@ -3263,7 +4607,7 @@ namespace AutomationWire {
                       {QStringLiteral("minimum_profile"), automationProfileName(minimumProfile)},
                       {QStringLiteral("kind"), operationKindName(kind)},
                       {QStringLiteral("sync_mode"), syncModeName(syncMode)},
-                      {QStringLiteral("host_availability"), QStringLiteral("gui")},
+                      {QStringLiteral("host_availability"), hostAvailability},
                       {QStringLiteral("value_sources"), valueSources},
                   }},
              }                                           },
@@ -3291,7 +4635,7 @@ namespace AutomationWire {
             {QStringLiteral("revision_policy"),            revisionPolicy(*this)                 },
             {QStringLiteral("history_policy"),             historyPolicy(*this)                  },
             {QStringLiteral("file_access"),                fileAccess(operationId)               },
-            {QStringLiteral("host_availability"),          QStringLiteral("gui")                 },
+            {QStringLiteral("host_availability"),          hostAvailability                      },
             {QStringLiteral("concurrency_scope"),          concurrencyScope(*this)               },
             {QStringLiteral("conflict_policy"),            conflictPolicy(*this)                 },
             {QStringLiteral("safety_metadata"),
@@ -3314,7 +4658,7 @@ namespace AutomationWire {
     const QList<ToolContract> &publicToolContracts() {
         static const QList<ToolContract> tools = [] {
             QList<ToolContract> result;
-            result.reserve(134);
+            result.reserve(179);
 #define AUTOMATION_WIRE_PUBLIC_TOOL(symbol, name, categoryValue, profile, kindValue, syncValue,    \
                                     versionValue, introducedValue, minimumValue)                   \
     do {                                                                                           \
@@ -3334,6 +4678,9 @@ namespace AutomationWire {
             .minimumProfile = AutomationProfile::profile,                                          \
             .kind = operationKind,                                                                 \
             .syncMode = operationSync,                                                             \
+            .hostAvailability = isL3Operation(operationId) && !isL3GuiOperation(operationId)       \
+                                    ? QStringLiteral("both")                                       \
+                                    : QStringLiteral("gui"),                                       \
             .inputSchema = inputSchema(operationId, operationKind),                                \
             .outputSchema = outputSchema(operationId, operationKind, operationSync),               \
             .valueSources = valueSources(operationId),                                             \

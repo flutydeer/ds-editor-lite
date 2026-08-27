@@ -40,6 +40,7 @@ namespace AutomationWire {
         AutomationProfile minimumProfile = AutomationProfile::Meta;
         OperationKind kind = OperationKind::Query;
         SyncMode syncMode = SyncMode::Synchronous;
+        QString hostAvailability = QStringLiteral("gui");
         QJsonObject inputSchema;
         QJsonObject outputSchema;
         QJsonArray valueSources;

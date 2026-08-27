@@ -76,6 +76,19 @@ namespace {
         return result;
     }
 
+    bool hasStrictObjectRoot(const QJsonObject &schema) {
+        if (schema.value(QStringLiteral("type")) == QStringLiteral("object"))
+            return schema.value(QStringLiteral("additionalProperties")) == false;
+        const auto branches = schema.value(QStringLiteral("oneOf")).toArray();
+        if (branches.isEmpty())
+            return false;
+        return std::all_of(branches.cbegin(), branches.cend(), [](const auto &branch) {
+            const auto object = branch.toObject();
+            return object.value(QStringLiteral("type")) == QStringLiteral("object") &&
+                   object.value(QStringLiteral("additionalProperties")) == false;
+        });
+    }
+
     QJsonObject commandContext() {
         return {
             {QStringLiteral("document_id"),       QStringLiteral("00000000-0000-4000-8000-000000000001")},
@@ -86,10 +99,10 @@ namespace {
     void verifyAuthoritativeToolset() {
         const auto &contracts = publicToolContracts();
         const auto expectedIds = editorToolIds();
-        expect(editorTools().size() == 134 && editorToolIdSet().size() == 134,
-               QStringLiteral("test fixture must contain exactly 134 unique editor tools"));
-        expect(contracts.size() == 134,
-               QStringLiteral("public contract surface must contain exactly 134 editor tools"));
+        expect(editorTools().size() == 179 && editorToolIdSet().size() == 179,
+               QStringLiteral("test fixture must contain exactly 179 unique editor tools"));
+        expect(contracts.size() == 179,
+               QStringLiteral("public contract surface must contain exactly 179 editor tools"));
         expect(publicToolIds() == expectedIds,
                QStringLiteral("public contract order and operation set must equal section 10.3"));
 
@@ -116,8 +129,7 @@ namespace {
                            1,
                    QStringLiteral("all three per-tool version fields must equal one for ") +
                        contract.operationId);
-            expect(contract.inputSchema.value(QStringLiteral("type")) == QStringLiteral("object") &&
-                       contract.inputSchema.value(QStringLiteral("additionalProperties")) == false,
+            expect(hasStrictObjectRoot(contract.inputSchema),
                    QStringLiteral("input root must be a closed object for ") +
                        contract.operationId);
             expect(checkJsonSchema(contract.inputSchema).valid(),
@@ -134,8 +146,8 @@ namespace {
         expect(toolsForProfile(AutomationProfile::Meta).size() == 4 &&
                    toolsForProfile(AutomationProfile::L1).size() == 91 &&
                    toolsForProfile(AutomationProfile::L2).size() == 134 &&
-                   toolsForProfile(AutomationProfile::L3).size() == 134,
-               QStringLiteral("editor profile counts must be 4/91/134/134"));
+                   toolsForProfile(AutomationProfile::L3).size() == 179,
+               QStringLiteral("editor profile counts must be 4/91/134/179"));
     }
 
     void verifyShallowCreationAndNoteDefaults() {
@@ -683,6 +695,106 @@ namespace {
                               QStringLiteral("read"),
                QStringLiteral("exports.midi.preview must publish a read document policy"));
     }
+
+    void verifyAdvancedControlContracts() {
+        const auto l3Tools = toolsForProfile(AutomationProfile::L3).mid(134);
+        int queryCount = 0;
+        int synchronousCommandCount = 0;
+        int asynchronousCommandCount = 0;
+        for (const auto &tool : l3Tools) {
+            queryCount += tool.kind == OperationKind::Query;
+            synchronousCommandCount +=
+                tool.kind == OperationKind::Command && tool.syncMode == SyncMode::Synchronous;
+            asynchronousCommandCount +=
+                tool.kind == OperationKind::Command && tool.syncMode == SyncMode::Asynchronous;
+            const auto descriptor = tool.toManifestJson();
+            expect(descriptor.value(QStringLiteral("history_policy")) == QStringLiteral("none"),
+                   tool.operationId + QStringLiteral(" must not modify document History"));
+            if (tool.operationId.startsWith(QStringLiteral("workspace.")) ||
+                tool.operationId.startsWith(QStringLiteral("track_panel.")) ||
+                tool.operationId.startsWith(QStringLiteral("clip_editor."))) {
+                expect(tool.hostAvailability == QStringLiteral("gui") &&
+                           (tool.inputSchema.value(QStringLiteral("properties"))
+                                .toObject()
+                                .contains(QStringLiteral("window_id")) ||
+                            !tool.inputSchema.value(QStringLiteral("oneOf")).toArray().isEmpty()),
+                       tool.operationId +
+                           QStringLiteral(" must be GUI-only and identify an explicit window"));
+            } else {
+                expect(tool.hostAvailability == QStringLiteral("both") &&
+                           descriptor.value(QStringLiteral("document_policy")) ==
+                               QStringLiteral("none"),
+                       tool.operationId +
+                           QStringLiteral(" must be an application-scoped non-document operation"));
+            }
+        }
+        expect(l3Tools.size() == 45 && queryCount == 8 && synchronousCommandCount == 36 &&
+                   asynchronousCommandCount == 1,
+               QStringLiteral("L3 must contain exactly 8 Q/S, 36 C/S, and 1 C/A tools"));
+
+        const auto *parameterTool =
+            findPublicTool(QStringLiteral("clip_editor.parameters.set_foreground"));
+        expect(parameterTool &&
+                   requiredFields(parameterTool->inputSchema)
+                       .contains(QStringLiteral("expected_revision")) &&
+                   parameterTool->toManifestJson().value(QStringLiteral("revision_policy")) ==
+                       QStringLiteral("check"),
+               QStringLiteral("document-bound parameter GUI actions must check object freshness"));
+
+        const auto *refresh = findPublicTool(QStringLiteral("packages.refresh"));
+        const QJsonObject accepted{
+            {QStringLiteral("task_id"),        QStringLiteral("00000000-0000-4000-8000-000000000002")},
+            {QStringLiteral("scope"),          QStringLiteral("application")                         },
+            {QStringLiteral("document"),       QJsonValue::Null                                      },
+            {QStringLiteral("validated_only"), false                                                 },
+        };
+        auto fakeDocument = accepted;
+        fakeDocument.insert(QStringLiteral("document"), commandContext());
+        expect(refresh && validateJsonValue(accepted, refresh->outputSchema).valid() &&
+                   !validateJsonValue(fakeDocument, refresh->outputSchema).valid(),
+               QStringLiteral(
+                   "packages.refresh must accept an application task without fake document"));
+
+        const auto *packages = findPublicTool(QStringLiteral("packages.list"));
+        const QJsonObject redactedPackage{
+            {QStringLiteral("package_id"),     QStringLiteral("fixture")},
+            {QStringLiteral("name"),           QStringLiteral("Fixture")},
+            {QStringLiteral("version"),        QStringLiteral("1")      },
+            {QStringLiteral("vendor"),         QStringLiteral("Test")   },
+            {QStringLiteral("canonical_path"), QJsonValue::Null         },
+            {QStringLiteral("voices"),         QJsonArray{}             },
+        };
+        expect(packages && validateJsonValue(
+                               QJsonObject{
+                                   {QStringLiteral("packages"), QJsonArray{redactedPackage}}
+        },
+                               packages->outputSchema)
+                               .valid(),
+               QStringLiteral(
+                   "package discovery must preserve entries while redacting guarded paths"));
+
+        const auto *createRule = findPublicTool(QStringLiteral("lyric_rules.create"));
+        const QJsonObject validatedRule{
+            {QStringLiteral("kind"),          QStringLiteral("splitter")        },
+            {QStringLiteral("name"),          QStringLiteral("fixture")         },
+            {QStringLiteral("regexes"),       QJsonArray{QStringLiteral("\\s+")}},
+            {QStringLiteral("validate_only"), true                              },
+        };
+        expect(createRule && validateJsonValue(validatedRule, createRule->inputSchema).valid(),
+               QStringLiteral("lyric rule creation must support side-effect-free validation"));
+
+        const auto *tasksGet = findPublicTool(QStringLiteral("tasks.get"));
+        const QJsonObject applicationTask{
+            {QStringLiteral("scope"),   QStringLiteral("application")                         },
+            {QStringLiteral("task_id"), QStringLiteral("00000000-0000-4000-8000-000000000002")},
+        };
+        auto invalidApplicationTask = applicationTask;
+        invalidApplicationTask.insert(QStringLiteral("document_id"),
+                                      QStringLiteral("00000000-0000-4000-8000-000000000001"));
+        expect(tasksGet && validateJsonValue(applicationTask, tasksGet->inputSchema).valid() &&
+                   !validateJsonValue(invalidApplicationTask, tasksGet->inputSchema).valid(),
+               QStringLiteral("task lookup scope must determine whether document_id is legal"));
+    }
 }
 
 int main(int argc, char **argv) {
@@ -697,6 +809,7 @@ int main(int argc, char **argv) {
     verifyConditionalCapabilityContracts();
     verifyPlaybackPersistenceContracts();
     verifyDocumentPolicies();
+    verifyAdvancedControlContracts();
 
     if (failures != 0)
         QTextStream(stderr) << failures << " public automation contract test(s) failed" << Qt::endl;
