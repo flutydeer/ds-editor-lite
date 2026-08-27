@@ -106,6 +106,7 @@ public slots:
 
     void onStartEditingNoteLyric(NoteView *noteView);
     void finishInlineEditing();
+    [[nodiscard]] bool isInlineEditing() const;
     void onInlineTextSubmitted(const QString &text);
     void onInlineNavigationRequested(const QString &text, bool backwards);
     void onInlineEditCancelled();

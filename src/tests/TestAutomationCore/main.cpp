@@ -116,6 +116,10 @@ namespace {
             };
         }
 
+        Automation::AudioExportBackendResult waitUntilReady() override {
+            return {.state = Automation::AudioExportBackendState::Succeeded};
+        }
+
         Automation::AudioExportBackendResult
             execute(const Automation::AudioExportObserver &observer) override {
             ++m_state->executeCount;

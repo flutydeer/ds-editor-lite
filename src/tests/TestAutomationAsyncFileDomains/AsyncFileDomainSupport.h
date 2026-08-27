@@ -97,6 +97,7 @@ namespace AutomationAsyncFileTests {
 
     struct FakeAudioExportState {
         int createCount = 0;
+        int waitUntilReadyCount = 0;
         int executeCount = 0;
         int cancelCount = 0;
         int cleanupCount = 0;
@@ -104,6 +105,7 @@ namespace AutomationAsyncFileTests {
         Automation::AudioExportBackendState backendState =
             Automation::AudioExportBackendState::Succeeded;
         QString backendError = QStringLiteral("controlled audio export failure");
+        std::function<void()> waitUntilReadyHook;
         std::function<void()> executeHook;
     };
 
@@ -123,6 +125,13 @@ namespace AutomationAsyncFileTests {
                     QDir(m_config.fileDirectory).absoluteFilePath(m_config.fileName));
             }
             return result;
+        }
+
+        Automation::AudioExportBackendResult waitUntilReady() override {
+            ++m_state->waitUntilReadyCount;
+            if (m_state->waitUntilReadyHook)
+                m_state->waitUntilReadyHook();
+            return {.state = Automation::AudioExportBackendState::Succeeded};
         }
 
         Automation::AudioExportBackendResult

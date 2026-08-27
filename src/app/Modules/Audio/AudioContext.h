@@ -29,10 +29,19 @@ class AudioContextAudioExporterListener;
 class AudioContext : public talcs::DspxProjectContext, public Audio::AudioExporterListener {
     Q_OBJECT
 public:
+    enum class ExportInferenceStatus {
+        Ready,
+        Pending,
+        Failed,
+    };
+
     explicit AudioContext(QObject *parent = nullptr);
     ~AudioContext() override;
 
     static AudioContext *instance();
+
+    [[nodiscard]] ExportInferenceStatus exportInferenceStatus() const;
+    [[nodiscard]] ExportInferenceStatus exportInferenceStatus(const QList<Track *> &tracks) const;
 
     Track *getTrackFromContext(const talcs::DspxTrackContext *trackContext) const;
     AudioClip *getAudioClipFromContext(const talcs::DspxAudioClipContext *audioClipContext) const;

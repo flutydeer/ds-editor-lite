@@ -13,6 +13,7 @@ class Fader : public QWidget {
     Q_PROPERTY(QColor trackInactiveColor READ trackInactiveColor WRITE setTrackInactiveColor)
     Q_PROPERTY(QColor trackActiveColor READ trackActiveColor WRITE setTrackActiveColor)
     Q_PROPERTY(QColor thumbFillColor READ thumbFillColor WRITE setThumbFillColor)
+    Q_PROPERTY(QColor thumbBorderColor READ thumbBorderColor WRITE setThumbBorderColor)
     Q_PROPERTY(int animationDuration READ animationDuration WRITE setAnimationDuration)
 
 public:
@@ -56,6 +57,8 @@ private:
     void setTrackActiveColor(const QColor &color);
     QColor thumbFillColor() const;
     void setThumbFillColor(const QColor &color);
+    QColor thumbBorderColor() const;
+    void setThumbBorderColor(const QColor &color);
 };
 
 #endif // FADER_H

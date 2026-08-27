@@ -897,6 +897,10 @@ namespace {
             return result;
         }
 
+        Automation::AudioExportBackendResult waitUntilReady() override {
+            return {.state = Automation::AudioExportBackendState::Succeeded};
+        }
+
         Automation::AudioExportBackendResult
             execute(const Automation::AudioExportObserver &) override {
             ++m_control->executeCount;
@@ -1018,7 +1022,7 @@ namespace {
                           harness.scheduler().size() == 0 && harness.control().createCount == 1 &&
                           harness.control().executeCount == 1,
                       QStringLiteral("successful async replay must retain the original TaskId and "
-                                     "reuse the accepted snapshot"));
+                                     "reuse the accepted preview job"));
     }
 
     bool asyncPreAcceptanceFailuresDoNotClaimKeys() {

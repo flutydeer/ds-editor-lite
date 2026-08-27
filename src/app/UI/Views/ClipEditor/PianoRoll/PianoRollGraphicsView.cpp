@@ -1161,10 +1161,26 @@ void PianoRollGraphicsViewPrivate::restoreHandler() {
     m_currentHandler = m_handlers.value(m_editMode, nullptr);
 }
 
+bool PianoRollGraphicsViewPrivate::isInlineEditing() const {
+    return m_inlineEditor && m_inlineEditor->isEditing();
+}
+
 void PianoRollGraphicsViewPrivate::onNoteChanged(const SingingClip::NoteChangeType type,
                                                  const QList<Note *> &notes) {
     hideLyricToolTip();
-    finishInlineEditing();
+    // Inline lyrics hold an edit lock: non-destructive property updates fired
+    // while the inference pipeline applies results (Original/Edited word or
+    // pronunciation changes) must not close an active edit. Only removal of
+    // the edited note breaks the lock, discarding the pending text instead of
+    // submitting it to a removed note.
+    if (isInlineEditing() && type == SingingClip::Remove) {
+        for (const auto *note : notes) {
+            if (note->id() == m_inlineEditingNoteId) {
+                m_inlineEditor->dismiss(true);
+                break;
+            }
+        }
+    }
     if (type == SingingClip::Insert)
         for (const auto &note : notes)
             handleNoteInserted(note);
@@ -1190,7 +1206,11 @@ void PianoRollGraphicsViewPrivate::onNoteChanged(const SingingClip::NoteChangeTy
 
 void PianoRollGraphicsViewPrivate::onNoteSelectionChanged() {
     Q_Q(PianoRollGraphicsView);
-    finishInlineEditing();
+    // Selection sync must not break the inline lock: the overlay itself
+    // submits on any outside click, so an active edit stays open while typing
+    // and background selection updates cannot close the editor.
+    if (!isInlineEditing())
+        finishInlineEditing();
     if (m_clip)
         m_selectionModel->updateSceneSelectionState();
 }

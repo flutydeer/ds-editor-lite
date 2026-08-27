@@ -1350,9 +1350,9 @@ LevelMeter {
     qproperty-safeColor: ${meter.safe};
     qproperty-warnColor: ${meter.warning};
     qproperty-criticalColor: ${meter.critical};
-    qproperty-currentValueColor: ${meter.value};
-    qproperty-peakHoldColor: ${meter.value};
-    qproperty-valueBackColor: ${meter.background};
+    qproperty-currentValueColor: ${meter.readout};
+    qproperty-peakHoldColor: ${meter.peakHold};
+    qproperty-valueBackColor: ${meter.readoutBack};
 }
 
 /* TimelineView */

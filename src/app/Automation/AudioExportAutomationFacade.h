@@ -73,6 +73,7 @@ namespace Automation {
         virtual ~IAudioExportJob() = default;
 
         [[nodiscard]] virtual AudioExportPreviewDto preview() const = 0;
+        virtual AudioExportBackendResult waitUntilReady() = 0;
         virtual AudioExportBackendResult execute(const AudioExportObserver &observer) = 0;
         virtual void cancel() = 0;
         virtual void cleanup() = 0;
@@ -126,11 +127,11 @@ namespace Automation {
 
         void registerOperations();
         void executeTask(const TaskId &taskId, DocumentVersion baseDocument,
-                         AudioExportConfigDto config, AudioExportObserver observer,
+                         AudioExportObserver observer,
                          AudioExportAccessRevalidator reauthorize,
                          const std::shared_ptr<PendingJobState> &state);
         AutomationResult<std::reference_wrapper<DocumentSession>>
-            resolveVersion(const DocumentVersion &version) const;
+            resolveDocumentGeneration(const DocumentVersion &version) const;
         void removeJobRecord(const TaskId &taskId);
 
         OperationCatalog &m_catalog;
