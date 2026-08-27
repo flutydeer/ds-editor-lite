@@ -4,6 +4,8 @@
 #include "Modules/Inference/Models/PhonemeNameResult.h"
 #include "Modules/Inference/Models/PronunciationFetchResult.h"
 
+#include <QSet>
+
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
@@ -517,8 +519,10 @@ namespace Automation {
 
             QList<InferPiece *> pieces;
             QList<ObjectRef> affectedObjects;
+            QSet<int> affectedClipIds;
             pieces.reserve(targets.size());
             affectedObjects.reserve(targets.size() * 2);
+            affectedClipIds.reserve(targets.size());
             bool changed = false;
             bool advancesRevision = false;
             for (const auto &target : std::as_const(targets)) {
@@ -530,7 +534,11 @@ namespace Automation {
                     return pieceResult.getError();
                 auto *piece = pieceResult.get();
                 pieces.append(piece);
-                affectedObjects.append(affected(target.clipId, target.pieceId));
+                if (!affectedClipIds.contains(target.clipId.value())) {
+                    affectedClipIds.insert(target.clipId.value());
+                    affectedObjects.append(clipRef(target.clipId));
+                }
+                affectedObjects.append(pieceRef(target.pieceId));
                 const bool pieceChanged = stageNeedsReset(*piece, request.stage);
                 changed |= pieceChanged;
                 advancesRevision |=
