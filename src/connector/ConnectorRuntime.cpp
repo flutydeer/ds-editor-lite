@@ -391,9 +391,6 @@ namespace DsConnector {
             if (!tool.value(QStringLiteral("name")).isString() ||
                 tool.value(QStringLiteral("name")).toString().isEmpty() ||
                 !tool.value(QStringLiteral("inputSchema")).isObject() ||
-                tool.value(QStringLiteral("inputSchema"))
-                        .toObject()
-                        .value(QStringLiteral("type")) != QStringLiteral("object") ||
                 (tool.contains(QStringLiteral("title")) &&
                  !tool.value(QStringLiteral("title")).isString()) ||
                 (tool.contains(QStringLiteral("description")) &&
@@ -1351,8 +1348,11 @@ namespace DsConnector {
                     names.insert(tool.toObject().value(QStringLiteral("name")).toString());
                 for (const auto &tool : toolsValue.toArray()) {
                     const auto name = tool.toObject().value(QStringLiteral("name")).toString();
-                    if (!validToolDescriptor(tool, m_schemaValidationCache) || name.isEmpty() ||
-                        names.contains(name)) {
+                    const auto descriptorValid = validToolDescriptor(tool, m_schemaValidationCache);
+                    if (!descriptorValid || name.isEmpty() || names.contains(name)) {
+                        qWarning().noquote()
+                            << "Rejected upstream tool descriptor:" << name
+                            << "valid=" << descriptorValid << "duplicate=" << names.contains(name);
                         failHandshake(epoch, QStringLiteral("invalid_upstream_tool_descriptor"),
                                       QStringLiteral("not_loaded"), true);
                         return;

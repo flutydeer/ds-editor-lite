@@ -215,6 +215,36 @@
         <translation>播放</translation>
     </message>
     <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="106"/>
+        <source>Workspace</source>
+        <translation>工作区布局</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="108"/>
+        <source>Track Panel</source>
+        <translation>轨道面板</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="110"/>
+        <source>Clip Editor</source>
+        <translation>片段编辑器</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="112"/>
+        <source>Settings</source>
+        <translation>设置</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="114"/>
+        <source>Packages</source>
+        <translation>包信息</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="116"/>
+        <source>Lyric Rules</source>
+        <translation>歌词规则</translation>
+    </message>
+    <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="100"/>
         <source>Starting</source>
         <translation>正在启动</translation>

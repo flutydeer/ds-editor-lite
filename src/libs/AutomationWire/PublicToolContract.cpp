@@ -1157,10 +1157,7 @@ namespace AutomationWire {
         }
 
         QJsonObject taskKindSchema() {
-            auto values = publicValueDomainValues(PublicValueDomain::TaskKind);
-            if (!values.contains(PublicToolNames::packages_refresh))
-                values.append(PublicToolNames::packages_refresh);
-            return JsonSchema::enumeration(values);
+            return stringDomainSchema(PublicValueDomain::TaskKind);
         }
 
         QJsonObject tasksInputSchema(const QString &id) {
@@ -1496,6 +1493,8 @@ namespace AutomationWire {
                 {QStringLiteral("code"), QStringLiteral("message")});
             QJsonArray branches;
             for (const auto &operation : publicValueDomainValues(PublicValueDomain::TaskKind)) {
+                if (operation == PublicToolNames::packages_refresh)
+                    continue;
                 const bool opensDocument = operation == PublicToolNames::documents_open;
                 const auto document =
                     opensDocument
@@ -1833,13 +1832,13 @@ namespace AutomationWire {
                 voiceRefSchema(),
             });
             const auto metadata = JsonSchema::object({
-                {QStringLiteral("description"), JsonSchema::string()    },
-                {QStringLiteral("group"),       JsonSchema::string()    },
-                {QStringLiteral("deprecated"),  JsonSchema::boolean()   },
-                {QStringLiteral("minimum"),     JsonSchema::integer()   },
-                {QStringLiteral("maximum"),     JsonSchema::integer()   },
-                {QStringLiteral("step"),        JsonSchema::integer(1.0)},
-                {QStringLiteral("unit"),        JsonSchema::string()    },
+                {QStringLiteral("description"), JsonSchema::string()           },
+                {QStringLiteral("group"),       JsonSchema::string()           },
+                {QStringLiteral("deprecated"),  JsonSchema::boolean()          },
+                {QStringLiteral("minimum"),     JsonSchema::number()           },
+                {QStringLiteral("maximum"),     JsonSchema::number()           },
+                {QStringLiteral("step"),        JsonSchema::number(0.000000001)},
+                {QStringLiteral("unit"),        JsonSchema::string()           },
             });
             const auto option = JsonSchema::object(
                 {
@@ -1971,6 +1970,19 @@ namespace AutomationWire {
 
         QJsonObject parameterNameSchema() {
             return stringDomainSchema(PublicValueDomain::ParameterName);
+        }
+
+        QJsonObject parameterForegroundNameSchema() {
+            auto values = publicStringValueDomainValues(PublicValueDomain::ParameterName);
+            values.removeAll(QStringLiteral("pitch"));
+            return JsonSchema::string(values);
+        }
+
+        QJsonObject parameterBackgroundNameSchema() {
+            auto values = publicStringValueDomainValues(PublicValueDomain::ParameterName);
+            values.removeAll(QStringLiteral("pitch"));
+            values.removeAll(QStringLiteral("speaker_mix"));
+            return JsonSchema::string(values);
         }
 
         QJsonObject parameterLayerSchema() {
@@ -2628,9 +2640,14 @@ namespace AutomationWire {
 
         QJsonObject l3ApplicationUpdateInput(QJsonObject properties,
                                              const int minimumProperties = 1) {
+            auto updateOnly = JsonSchema::object(properties);
+            updateOnly.insert(QStringLiteral("minProperties"), minimumProperties);
             properties.insert(QStringLiteral("validate_only"), JsonSchema::boolean());
             auto root = JsonSchema::object(properties);
             root.insert(QStringLiteral("minProperties"), minimumProperties);
+            auto preview = JsonSchema::object(properties, {QStringLiteral("validate_only")});
+            preview.insert(QStringLiteral("minProperties"), minimumProperties + 1);
+            root.insert(QStringLiteral("oneOf"), QJsonArray{updateOnly, preview});
             return JsonSchema::document(root);
         }
 
@@ -2864,14 +2881,15 @@ namespace AutomationWire {
             if (id == PublicToolNames::clip_editor_parameters_set_foreground) {
                 return l3DocumentInput(
                     {
-                        {QStringLiteral("parameter"), parameterNameSchema()}
+                        {QStringLiteral("parameter"), parameterForegroundNameSchema()}
                 },
                     {QStringLiteral("parameter")}, true);
             }
             if (id == PublicToolNames::clip_editor_parameters_set_background) {
                 return l3DocumentInput(
                     {
-                        {QStringLiteral("parameter"), nullableSchema(parameterNameSchema())}
+                        {QStringLiteral("parameter"),
+                         nullableSchema(parameterBackgroundNameSchema())}
                 },
                     {QStringLiteral("parameter")}, true);
             }
@@ -2890,7 +2908,7 @@ namespace AutomationWire {
                 return l3DocumentInput(
                     {
                         {QStringLiteral("center_ratio"), JsonSchema::number(0.0, 1.0)},
-                        {QStringLiteral("vertical_scale"), JsonSchema::number(0.000001)},
+                        {QStringLiteral("vertical_scale"), JsonSchema::number(1.0)},
                 },
                     {}, true, 4);
             }
@@ -2928,11 +2946,11 @@ namespace AutomationWire {
             if (id == PublicToolNames::settings_audio_device_update) {
                 return l3ApplicationUpdateInput({
                     {QStringLiteral("driver_name"), nonEmptyStringSchema()},
-                    {QStringLiteral("device_name"), nonEmptyStringSchema()},
+                    {QStringLiteral("device_name"), JsonSchema::string()},
                     {QStringLiteral("buffer_size"), JsonSchema::integer(0.0)},
                     {QStringLiteral("sample_rate"), JsonSchema::integer(0.0)},
                     {QStringLiteral("hot_plug_notification_mode"), JsonSchema::integer(0.0, 2.0)},
-                    {QStringLiteral("gain"), JsonSchema::number(0.0)},
+                    {QStringLiteral("gain"), JsonSchema::number(0.0, MaximumAudioDeviceGain)},
                     {QStringLiteral("pan"), JsonSchema::number(MinimumPan, MaximumPan)},
                 });
             }
@@ -2986,7 +3004,8 @@ namespace AutomationWire {
             if (id == PublicToolNames::packages_describe) {
                 return JsonSchema::document(JsonSchema::object(
                     {
-                        {QStringLiteral("package_id"), nonEmptyStringSchema()}
+                        {QStringLiteral("package_id"), nonEmptyStringSchema()},
+                        {QStringLiteral("version"),    nonEmptyStringSchema()}
                 },
                     {QStringLiteral("package_id")}));
             }
@@ -3118,7 +3137,7 @@ namespace AutomationWire {
             return JsonSchema::object(
                 {
                     {QStringLiteral("center_ratio"), JsonSchema::number(0.0, 1.0)},
-                    {QStringLiteral("vertical_scale"), JsonSchema::number(0.000001)},
+                    {QStringLiteral("vertical_scale"), JsonSchema::number(1.0)},
             },
                 {QStringLiteral("center_ratio"), QStringLiteral("vertical_scale")});
         }
@@ -3257,12 +3276,12 @@ namespace AutomationWire {
         QJsonObject audioDeviceSettingsValueSchema() {
             return JsonSchema::object(
                 {
-                    {QStringLiteral("driver_name"), nonEmptyStringSchema()},
-                    {QStringLiteral("device_name"), nonEmptyStringSchema()},
+                    {QStringLiteral("driver_name"), JsonSchema::string()},
+                    {QStringLiteral("device_name"), JsonSchema::string()},
                     {QStringLiteral("buffer_size"), JsonSchema::integer(0.0)},
                     {QStringLiteral("sample_rate"), JsonSchema::integer(0.0)},
                     {QStringLiteral("hot_plug_notification_mode"), JsonSchema::integer(0.0, 2.0)},
-                    {QStringLiteral("gain"), JsonSchema::number(0.0)},
+                    {QStringLiteral("gain"), JsonSchema::number(0.0, MaximumAudioDeviceGain)},
                     {QStringLiteral("pan"), JsonSchema::number(MinimumPan, MaximumPan)},
             },
                 {QStringLiteral("driver_name"), QStringLiteral("device_name"),
@@ -3325,12 +3344,25 @@ namespace AutomationWire {
                     {QStringLiteral("languages"), stringCandidates}
             },
                 {QStringLiteral("languages")});
+            const auto audioDeviceCandidate = JsonSchema::object(
+                {
+                    {QStringLiteral("device_name"),  JsonSchema::string()                       },
+                    {QStringLiteral("name"),         JsonSchema::string()                       },
+                    {QStringLiteral("buffer_sizes"), JsonSchema::array(JsonSchema::integer(0.0))},
+                    {QStringLiteral("sample_rates"), JsonSchema::array(JsonSchema::number(0.0)) },
+            },
+                {QStringLiteral("device_name"), QStringLiteral("name"),
+                 QStringLiteral("buffer_sizes"), QStringLiteral("sample_rates")});
+            const auto audioDriverCandidate = JsonSchema::object(
+                {
+                    {QStringLiteral("driver_name"), nonEmptyStringSchema()                 },
+                    {QStringLiteral("name"),        JsonSchema::string()                   },
+                    {QStringLiteral("devices"),     JsonSchema::array(audioDeviceCandidate)},
+            },
+                {QStringLiteral("driver_name"), QStringLiteral("name"), QStringLiteral("devices")});
             const auto audioCandidates = JsonSchema::object(
                 {
-                    {QStringLiteral("drivers"), stringCandidates},
-                    {QStringLiteral("devices"), stringCandidates},
-                    {QStringLiteral("buffer_sizes"), JsonSchema::array(JsonSchema::integer(0.0))},
-                    {QStringLiteral("sample_rates"), JsonSchema::array(JsonSchema::integer(0.0))},
+                    {QStringLiteral("drivers"), JsonSchema::array(audioDriverCandidate)},
                     {QStringLiteral("hot_plug_notification_modes"),
                      JsonSchema::array(JsonSchema::integer(0.0, 2.0))},
                     {QStringLiteral("gain_range"),
@@ -3343,10 +3375,8 @@ namespace AutomationWire {
                           {QStringLiteral("maximum"), JsonSchema::number(MinimumPan, MaximumPan)}},
                      {QStringLiteral("minimum"), QStringLiteral("maximum")})},
             },
-                {QStringLiteral("drivers"), QStringLiteral("devices"),
-                 QStringLiteral("buffer_sizes"), QStringLiteral("sample_rates"),
-                 QStringLiteral("hot_plug_notification_modes"), QStringLiteral("gain_range"),
-                 QStringLiteral("pan_range")});
+                {QStringLiteral("drivers"), QStringLiteral("hot_plug_notification_modes"),
+                 QStringLiteral("gain_range"), QStringLiteral("pan_range")});
             const auto computeCandidates = JsonSchema::object(
                 {
                     {QStringLiteral("execution_providers"), stringCandidates},
@@ -3543,7 +3573,7 @@ namespace AutomationWire {
                 JsonSchema::array(nonEmptyStringSchema(), 1, MaximumCommandCollectionItems));
             auto tagger = common;
             tagger.insert(QStringLiteral("kind"), JsonSchema::constant(QStringLiteral("tagger")));
-            tagger.insert(QStringLiteral("name"), JsonSchema::string());
+            tagger.insert(QStringLiteral("name"), nonEmptyStringSchema());
             tagger.insert(QStringLiteral("language"), nonEmptyStringSchema());
             tagger.insert(QStringLiteral("entries"),
                           JsonSchema::array(taggerEntrySchema(), 1, MaximumCommandCollectionItems));
@@ -4296,16 +4326,56 @@ namespace AutomationWire {
                     }
                 }
             }
-            if (id == PublicToolNames::packages_describe)
+            if (id == PublicToolNames::packages_describe) {
                 add(QStringLiteral("/package_id"), PublicToolNames::packages_list);
+                add(QStringLiteral("/version"), PublicToolNames::packages_list,
+                    {QStringLiteral("/package_id")});
+            }
             if (id.startsWith(QStringLiteral("settings.")) &&
                 id != PublicToolNames::settings_query) {
                 const auto properties = inputSchema(id, OperationKind::Command)
                                             .value(QStringLiteral("properties"))
                                             .toObject();
+                static const QStringList queryableFields{
+                    QStringLiteral("ui_language"),
+                    QStringLiteral("default_language"),
+                    QStringLiteral("theme_id"),
+                    QStringLiteral("driver_name"),
+                    QStringLiteral("device_name"),
+                    QStringLiteral("buffer_size"),
+                    QStringLiteral("sample_rate"),
+                    QStringLiteral("hot_plug_notification_mode"),
+                    QStringLiteral("gain"),
+                    QStringLiteral("pan"),
+                    QStringLiteral("behavior"),
+                    QStringLiteral("execution_provider"),
+                    QStringLiteral("gpu_index"),
+                    QStringLiteral("gpu_id"),
+                    QStringLiteral("sampling_steps"),
+                    QStringLiteral("depth"),
+                    QStringLiteral("playback_lookahead_seconds"),
+                    QStringLiteral("pitch_smooth_kernel_size"),
+                    QStringLiteral("capacity"),
+                    QStringLiteral("idle_timeout_seconds"),
+                };
                 for (auto it = properties.constBegin(); it != properties.constEnd(); ++it) {
-                    if (it.key() != QStringLiteral("validate_only"))
-                        add(u'/' + it.key(), PublicToolNames::settings_query);
+                    if (!queryableFields.contains(it.key()))
+                        continue;
+                    QStringList contextFields;
+                    if (id == PublicToolNames::settings_audio_device_update) {
+                        if (it.key() == QStringLiteral("device_name")) {
+                            contextFields.append(QStringLiteral("/driver_name"));
+                        } else if (it.key() == QStringLiteral("buffer_size") ||
+                                   it.key() == QStringLiteral("sample_rate")) {
+                            contextFields.append(QStringLiteral("/driver_name"));
+                            contextFields.append(QStringLiteral("/device_name"));
+                        }
+                    } else if (id == PublicToolNames::settings_compute_device_update &&
+                               (it.key() == QStringLiteral("gpu_index") ||
+                                it.key() == QStringLiteral("gpu_id"))) {
+                        contextFields.append(QStringLiteral("/execution_provider"));
+                    }
+                    add(u'/' + it.key(), PublicToolNames::settings_query, contextFields);
                 }
             }
             if (id.startsWith(QStringLiteral("lyric_rules.")) &&
@@ -4328,14 +4398,14 @@ namespace AutomationWire {
             if (id == PublicToolNames::clip_editor_piano_reveal_notes ||
                 id == PublicToolNames::clip_editor_piano_select_notes) {
                 add(QStringLiteral("/note_ids/*"), PublicToolNames::notes_get,
-                    {QStringLiteral("/document_id")});
+                    {QStringLiteral("/window_id"), QStringLiteral("/document_id")});
             }
             if (id.startsWith(QStringLiteral("clip_editor.parameters.")) &&
                 id != PublicToolNames::clip_editor_parameters_swap &&
                 id != PublicToolNames::clip_editor_parameters_set_tool &&
                 id != PublicToolNames::clip_editor_parameters_set_value_viewport) {
                 add(QStringLiteral("/parameter"), PublicToolNames::parameters_get_capabilities,
-                    {QStringLiteral("/document_id")});
+                    {QStringLiteral("/window_id"), QStringLiteral("/document_id")});
             }
             return result;
         }

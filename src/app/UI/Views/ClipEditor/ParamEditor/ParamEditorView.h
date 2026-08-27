@@ -5,6 +5,7 @@
 #include <lite/ProjectModel/AppModel/Params.h>
 #include <lite/ProjectModel/AppModel/SpeakerMixData.h>
 #include "Interface/EditorInteraction.h"
+#include "Interface/EditorViewState.h"
 #include "UnsupportedParameterPromptState.h"
 
 #include <QWidget>
@@ -28,6 +29,14 @@ public:
     ~ParamEditorView() override;
     void setDataContext(SingingClip *clip);
     [[nodiscard]] ParamEditorGraphicsView *graphicsView() const;
+    [[nodiscard]] ParameterEditorViewState viewState() const;
+    [[nodiscard]] bool hasDataContext() const;
+    bool setForegroundParameter(ParamInfo::Name name);
+    bool setBackgroundParameter(ParamInfo::Name name);
+    bool swapParameters();
+    bool setParameterEditMode(EditorViewGlobal::ParameterEditMode mode);
+    bool setValueViewport(double centerRatio, double verticalScale);
+    bool focusEditor();
 
 public slots:
     void onForegroundChanged(ParamInfo::Name name);

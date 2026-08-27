@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <fstream>
+#include <iterator>
 #include <memory>
 #include <mutex>
 #include <unordered_map>
@@ -318,13 +319,32 @@ namespace FillLyric {
         }
     }
 
-    void TextTagger::setCustomRules(const QList<CustomTaggerRule> &rules) {
+    QString TextTagger::validateCustomRules(const QList<CustomTaggerRule> &rules) {
         ensureTaggerInitialized();
 
-        // Remove existing custom tagger configs
-        g_taggers.erase(std::remove_if(g_taggers.begin(), g_taggers.end(),
-                                       [](const TaggerConfig &c) { return !c.builtin; }),
-                        g_taggers.end());
+        for (const auto &rule : rules) {
+            for (const auto &entry : rule.entries) {
+                if (entry.type != QStringLiteral("dict"))
+                    continue;
+                for (const auto &filename : entry.value) {
+                    if (findDictFile(g_dictRootDir, filename.toStdString()).empty()) {
+                        return QCoreApplication::translate("TextTagger",
+                                                           "Tagger dictionary was not found: %1")
+                            .arg(filename);
+                    }
+                }
+            }
+        }
+        return {};
+    }
+
+    bool TextTagger::setCustomRules(const QList<CustomTaggerRule> &rules) {
+        ensureTaggerInitialized();
+        if (!validateCustomRules(rules).isEmpty())
+            return false;
+
+        std::vector<TaggerConfig> customTaggers;
+        customTaggers.reserve(static_cast<size_t>(rules.size()));
 
         for (const auto &rule : rules) {
             TaggerConfig cfg;
@@ -351,18 +371,33 @@ namespace FillLyric {
                     resolvedPaths.reserve(te.value.size());
                     for (const auto &filename : te.value) {
                         auto path = findDictFile(g_dictRootDir, filename);
-                        if (!path.empty())
-                            resolvedPaths.push_back(path);
+                        if (path.empty())
+                            return false;
+                        resolvedPaths.push_back(path);
                     }
-                    if (!resolvedPaths.empty())
-                        cfg.rules.push_back(
-                            std::make_unique<DictTaggerRule>(cfg.language, te, resolvedPaths));
+                    cfg.rules.push_back(
+                        std::make_unique<DictTaggerRule>(cfg.language, te, resolvedPaths));
                 }
+
+                TaggerEntryInfo info;
+                info.type = entry.type;
+                info.tag = entry.tag;
+                info.values = entry.value;
+                info.discard = entry.discard;
+                cfg.entryInfos.append(std::move(info));
             }
 
-            if (!cfg.rules.empty())
-                g_taggers.push_back(std::move(cfg));
+            if (cfg.rules.empty())
+                return false;
+            customTaggers.push_back(std::move(cfg));
         }
+
+        g_taggers.erase(std::remove_if(g_taggers.begin(), g_taggers.end(),
+                                       [](const TaggerConfig &config) { return !config.builtin; }),
+                        g_taggers.end());
+        g_taggers.insert(g_taggers.end(), std::make_move_iterator(customTaggers.begin()),
+                         std::make_move_iterator(customTaggers.end()));
+        return true;
     }
 
     QStringList TextTagger::builtinLanguages() {

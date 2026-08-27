@@ -14,6 +14,9 @@ class ParamEditToolBarView final : public QWidget {
 public:
     explicit ParamEditToolBarView(QWidget *parent = nullptr);
     void setBakeEnabled(bool enabled);
+    [[nodiscard]] ParamEditorEditMode editMode() const;
+    [[nodiscard]] bool supportsEditMode(ParamEditorEditMode mode) const;
+    bool setEditMode(ParamEditorEditMode mode);
 
 signals:
     void editModeChanged(ParamEditorEditMode mode);

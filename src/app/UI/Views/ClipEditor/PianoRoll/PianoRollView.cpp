@@ -13,6 +13,7 @@
 #include "UI/Views/Common/TimeGraphicsView.h"
 #include "UI/Views/Common/TimelineView.h"
 
+#include <QApplication>
 #include <QLabel>
 #include <QEvent>
 #include <QHideEvent>
@@ -22,6 +23,8 @@
 #include <QTimer>
 #include <QVBoxLayout>
 #include <QWheelEvent>
+
+#include <cmath>
 
 PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
@@ -304,6 +307,45 @@ bool PianoRollView::setViewScale(const double horizontalScale, const double vert
     if (m_rhiView)
         return m_rhiView->setViewScale(horizontalScale, verticalScale);
     return m_graphicsView->setViewportScale(horizontalScale, verticalScale);
+}
+
+bool PianoRollView::setTimeViewport(const double centerTick, const double horizontalScale) const {
+    if (!std::isfinite(centerTick) || centerTick < 0.0 || !std::isfinite(horizontalScale) ||
+        horizontalScale <= 0.0) {
+        return false;
+    }
+    const auto previous = viewState();
+    if (!setViewScale(horizontalScale, previous.verticalScale))
+        return false;
+    if (centerAt(centerTick, previous.centerKeyIndex))
+        return true;
+    setViewScale(previous.horizontalScale, previous.verticalScale);
+    centerAt(previous.centerTick, previous.centerKeyIndex);
+    return false;
+}
+
+bool PianoRollView::setPitchViewport(const double centerKeyIndex,
+                                     const double verticalScale) const {
+    if (!std::isfinite(centerKeyIndex) || centerKeyIndex < 0.0 || centerKeyIndex > 127.0 ||
+        !std::isfinite(verticalScale) || verticalScale <= 0.0) {
+        return false;
+    }
+    const auto previous = viewState();
+    if (!setViewScale(previous.horizontalScale, verticalScale))
+        return false;
+    if (centerAt(previous.centerTick, centerKeyIndex))
+        return true;
+    setViewScale(previous.horizontalScale, previous.verticalScale);
+    centerAt(previous.centerTick, previous.centerKeyIndex);
+    return false;
+}
+
+bool PianoRollView::focusEditor() {
+    if (!m_clip || !m_editorWidget->isVisibleTo(window()))
+        return false;
+    m_editorWidget->setFocus(Qt::OtherFocusReason);
+    auto *focused = QApplication::focusWidget();
+    return focused == m_editorWidget || m_editorWidget->isAncestorOf(focused);
 }
 
 HistoryFocusVisibility PianoRollView::focusVisibility(const HistoryFocus &focus) const {

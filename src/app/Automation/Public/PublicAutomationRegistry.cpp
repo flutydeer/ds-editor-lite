@@ -1,5 +1,6 @@
 #include "PublicAutomationRegistry.h"
 #include "PublicAutomationCodecs.h"
+#include "PublicCollectionPagination.h"
 
 #include "../CoreRuntime.h"
 #include "../OperationIds.h"
@@ -41,6 +42,8 @@ namespace Automation {
     namespace ToolNames = AutomationWire::PublicToolNames;
 
     namespace {
+        using PublicRegistryDetail::paginateJson;
+
         AutomationError error(const AutomationErrorCode code, QString message,
                               QString fieldPath = {}) {
             AutomationError result;
@@ -615,11 +618,14 @@ namespace Automation {
 
         QJsonObject encodeTaskAccepted(const TaskAcceptedResult &accepted) {
             QJsonObject result{
+                {QStringLiteral("scope"),          accepted.scope == AutomationTaskScope::Application
+                                              ? QStringLiteral("application")
+                                              : QStringLiteral("document")},
                 {QStringLiteral("document"),
                  accepted.document.documentId.isNull()
                      ? QJsonValue(QJsonValue::Null)
-                     : QJsonValue(encodeDocumentVersion(accepted.document))},
-                {QStringLiteral("validated_only"), accepted.validatedOnly  },
+                     : QJsonValue(encodeDocumentVersion(accepted.document))                                        },
+                {QStringLiteral("validated_only"), accepted.validatedOnly                                          },
             };
             if (!accepted.validatedOnly)
                 result.insert(QStringLiteral("task_id"), accepted.taskId.toString());
@@ -657,14 +663,20 @@ namespace Automation {
                 {QStringLiteral("indeterminate"), snapshot.progress.indeterminate},
             };
             QJsonObject result{
-                {QStringLiteral("task_id"),      snapshot.taskId.toString()                          },
-                {QStringLiteral("operation_id"), snapshot.operationId                                },
-                {QStringLiteral("document"),     encodeNullableDocumentVersion(snapshot.baseDocument)},
-                {QStringLiteral("state"),        taskStateName(snapshot.state)                       },
-                {QStringLiteral("progress"),     progress                                            },
+                {QStringLiteral("task_id"),      snapshot.taskId.toString()                                        },
+                {QStringLiteral("operation_id"), snapshot.operationId                                              },
+                {QStringLiteral("scope"),        snapshot.scope == AutomationTaskScope::Application
+                                              ? QStringLiteral("application")
+                                              : QStringLiteral("document")},
+                {QStringLiteral("document"),     encodeNullableDocumentVersion(snapshot.baseDocument)              },
+                {QStringLiteral("state"),        taskStateName(snapshot.state)                                     },
+                {QStringLiteral("progress"),     progress                                                          },
             };
             if (snapshot.mutation)
                 result.insert(QStringLiteral("result"), encodeMutation(*snapshot.mutation));
+            if (snapshot.applicationResult) {
+                result.insert(QStringLiteral("application_result"), *snapshot.applicationResult);
+            }
             if (snapshot.error)
                 result.insert(QStringLiteral("error"), encodeAutomationError(*snapshot.error));
             if (!snapshot.createdByClientId.isEmpty()) {
@@ -1523,39 +1535,6 @@ namespace Automation {
             };
         }
 
-        struct JsonPage {
-            QJsonArray items;
-            QString nextCursor;
-        };
-
-        AutomationResult<JsonPage> paginateJson(AutomationWire::OpaqueCursorCodec &codec,
-                                                const QJsonArray &all, const QJsonObject &arguments,
-                                                const QString &scope, const QJsonValue &identity) {
-            const auto digest = AutomationWire::sha256Digest(identity);
-            qint64 offset = 0;
-            const auto cursor = arguments.value(QStringLiteral("cursor")).toString();
-            if (!cursor.isEmpty()) {
-                const auto parsed = codec.parse(cursor, scope, digest);
-                if (!parsed.valid()) {
-                    return AutomationError::invalidArgument(
-                        QStringLiteral("cursor"), QStringLiteral("Collection cursor is invalid"));
-                }
-                offset = *parsed.offset;
-            }
-            if (offset < 0 || offset > all.size()) {
-                return AutomationError::invalidArgument(
-                    QStringLiteral("cursor"), QStringLiteral("Collection cursor is invalid"));
-            }
-            const auto requested = arguments.value(QStringLiteral("limit")).toInt(all.size());
-            const auto end = std::min<qint64>(all.size(), offset + requested);
-            JsonPage result;
-            for (auto index = offset; index < end; ++index)
-                result.items.append(all.at(static_cast<qsizetype>(index)));
-            if (end < all.size())
-                result.nextCursor = codec.issue(scope, digest, end);
-            return result;
-        }
-
         QJsonObject encodeClipSnapshot(const ClipSnapshotDto &clip) {
             return {
                 {QStringLiteral("clip_id"),             clip.id.value()                                       },
@@ -2152,6 +2131,10 @@ namespace Automation {
         registerBindings();
     }
 
+    PublicAutomationRegistry::~PublicAutomationRegistry() {
+        m_lifetimeState->active.store(false, std::memory_order_release);
+    }
+
     const QList<AutomationWire::ToolContract> &PublicAutomationRegistry::contracts() const {
         return AutomationWire::publicToolContracts();
     }
@@ -2217,6 +2200,237 @@ namespace Automation {
             return error(AutomationErrorCode::PermissionDenied,
                          QStringLiteral("Value provider is unavailable under the active profile"),
                          QStringLiteral("field_path"));
+        }
+
+        const auto appendStringCandidates =
+            [](QJsonArray &result, const QList<SettingsStringCandidateDto> &candidates) {
+                for (const auto &candidate : candidates) {
+                    result.append(optionEntry(candidate.id, candidate.displayName,
+                                              candidate.available, candidate.unavailableReason));
+                }
+            };
+        const auto rangeOption = [](const SettingsNumericRangeDto &range, const QString &label) {
+            QJsonObject metadata{
+                {QStringLiteral("minimum"), range.minimum},
+                {QStringLiteral("maximum"), range.maximum},
+            };
+            if (range.step > 0.0)
+                metadata.insert(QStringLiteral("step"), range.step);
+            return optionEntry(QJsonValue(QJsonValue::Null), label, true, {}, std::move(metadata));
+        };
+        const auto activeClipId = [&]() -> AutomationResult<ClipId> {
+            const auto explicitClip =
+                ClipId(partialArguments.value(QStringLiteral("clip_id")).toInt(-1));
+            if (explicitClip.isValid())
+                return explicitClip;
+            const auto document = DocumentId::fromString(
+                partialArguments.value(QStringLiteral("document_id")).toString());
+            const auto window = WindowId::fromString(
+                partialArguments.value(QStringLiteral("window_id")).toString());
+            auto state = m_runtime.facade().getEditorState(document, window);
+            if (!state)
+                return state.getError();
+            if (!state.get().selection.activeClipId) {
+                return AutomationError::invalidArgument(
+                    QStringLiteral("partial_arguments/window_id"),
+                    QStringLiteral("An active singing clip is required for this field"));
+            }
+            return *state.get().selection.activeClipId;
+        };
+
+        if (sourceOperation == ToolNames::packages_list) {
+            auto packages = m_runtime.packages().getInstalledPackages();
+            if (!packages)
+                return packages.getError();
+            QJsonArray result;
+            QSet<QString> seen;
+            const auto packageId = partialArguments.value(QStringLiteral("package_id")).toString();
+            for (const auto &package : packages.get()) {
+                const auto value = normalizedField == QStringLiteral("/version")
+                                       ? package.version.toString()
+                                       : package.id;
+                if ((normalizedField == QStringLiteral("/version") && !packageId.isEmpty() &&
+                     package.id != packageId) ||
+                    seen.contains(value)) {
+                    continue;
+                }
+                seen.insert(value);
+                result.append(optionEntry(value, value));
+            }
+            return result;
+        }
+
+        if (sourceOperation == ToolNames::lyric_rules_list) {
+            auto rules = m_runtime.settings().listLyricRules();
+            if (!rules)
+                return rules.getError();
+            QJsonArray result;
+            const auto protectsBuiltinContent =
+                target.operationId == ToolNames::lyric_rules_update ||
+                target.operationId == ToolNames::lyric_rules_delete;
+            for (const auto &rule : rules.get()) {
+                const auto available = !protectsBuiltinContent || !rule.builtin;
+                result.append(optionEntry(
+                    rule.ruleId, rule.name, available,
+                    available ? QString()
+                              : QStringLiteral("Built-in rule content cannot be modified")));
+            }
+            return result;
+        }
+
+        if (sourceOperation == ToolNames::tracks_list || sourceOperation == ToolNames::clips_list) {
+            const auto document = DocumentId::fromString(
+                partialArguments.value(QStringLiteral("document_id")).toString());
+            auto project = m_runtime.project().getProject(document);
+            if (!project)
+                return project.getError();
+            QJsonArray result;
+            for (const auto &track : project.get().tracks) {
+                if (sourceOperation == ToolNames::tracks_list) {
+                    result.append(optionEntry(track.id.value(), track.data.name));
+                    continue;
+                }
+                for (const auto &clip : track.clips) {
+                    if (target.operationId == ToolNames::clip_editor_set_active_clip &&
+                        clip.data.type != ClipDraftDto::Type::Singing) {
+                        continue;
+                    }
+                    result.append(optionEntry(clip.id.value(), clip.data.properties.name));
+                }
+            }
+            return result;
+        }
+
+        if (sourceOperation == ToolNames::notes_get) {
+            auto clipId = activeClipId();
+            if (!clipId)
+                return clipId.getError();
+            const auto document = DocumentId::fromString(
+                partialArguments.value(QStringLiteral("document_id")).toString());
+            auto notes = m_runtime.notes().getNotes(document, clipId.get());
+            if (!notes)
+                return notes.getError();
+            QJsonArray result;
+            for (const auto &note : notes.get())
+                result.append(optionEntry(note.id.value(), note.data.lyric));
+            return result;
+        }
+
+        if (sourceOperation == ToolNames::settings_query) {
+            const auto domain = target.operationId.section(u'.', 1, 1);
+            auto settings = m_runtime.settings().queryPublicSettings({domain});
+            if (!settings)
+                return settings.getError();
+            const auto &snapshot = settings.get();
+            QJsonArray result;
+            if (target.operationId == ToolNames::settings_ui_language_update &&
+                snapshot.uiLanguage) {
+                appendStringCandidates(result, snapshot.uiLanguage->candidates);
+            } else if (target.operationId == ToolNames::settings_singing_update &&
+                       snapshot.singing) {
+                appendStringCandidates(result, snapshot.singing->languageCandidates);
+            } else if (target.operationId == ToolNames::settings_theme_update && snapshot.theme) {
+                appendStringCandidates(result, snapshot.theme->candidates);
+            } else if (target.operationId == ToolNames::settings_audio_device_update &&
+                       snapshot.audioDevice) {
+                const auto &audio = *snapshot.audioDevice;
+                const auto driverName =
+                    partialArguments.value(QStringLiteral("driver_name")).toString();
+                const auto deviceName =
+                    partialArguments.value(QStringLiteral("device_name")).toString();
+                if (normalizedField == QStringLiteral("/driver_name")) {
+                    for (const auto &driver : audio.drivers) {
+                        result.append(optionEntry(driver.id, driver.displayName, driver.available,
+                                                  driver.unavailableReason));
+                    }
+                } else if (normalizedField == QStringLiteral("/hot_plug_notification_mode")) {
+                    for (const auto mode : {0, 1, 2})
+                        result.append(optionEntry(mode, QString::number(mode)));
+                } else if (normalizedField == QStringLiteral("/gain")) {
+                    result.append(rangeOption({0.0, AutomationWire::MaximumAudioDeviceGain, 0.0},
+                                              QStringLiteral("Gain range")));
+                } else if (normalizedField == QStringLiteral("/pan")) {
+                    result.append(
+                        rangeOption({AutomationWire::MinimumPan, AutomationWire::MaximumPan, 0.0},
+                                    QStringLiteral("Pan range")));
+                } else {
+                    QList<QJsonValue> values;
+                    for (const auto &driver : audio.drivers) {
+                        if (!driverName.isEmpty() && driver.id != driverName)
+                            continue;
+                        for (const auto &device : driver.devices) {
+                            if (!deviceName.isEmpty() && device.id != deviceName)
+                                continue;
+                            if (normalizedField == QStringLiteral("/device_name")) {
+                                result.append(optionEntry(device.id, device.displayName,
+                                                          driver.available && device.available,
+                                                          !driver.available
+                                                              ? driver.unavailableReason
+                                                              : device.unavailableReason));
+                            } else if (normalizedField == QStringLiteral("/buffer_size")) {
+                                for (const auto value : device.bufferSizes) {
+                                    const QJsonValue jsonValue(value);
+                                    if (!values.contains(jsonValue))
+                                        values.append(jsonValue);
+                                }
+                            } else if (normalizedField == QStringLiteral("/sample_rate")) {
+                                for (const auto value : device.sampleRates) {
+                                    const QJsonValue jsonValue(value);
+                                    if (!values.contains(jsonValue))
+                                        values.append(jsonValue);
+                                }
+                            }
+                        }
+                    }
+                    for (const auto &value : std::as_const(values))
+                        result.append(optionEntry(value, value.toVariant().toString()));
+                }
+            } else if (target.operationId == ToolNames::settings_playback_behavior_update &&
+                       snapshot.playbackBehavior) {
+                for (const auto value : snapshot.playbackBehavior->candidates)
+                    result.append(optionEntry(value, QString::number(value)));
+            } else if (target.operationId == ToolNames::settings_compute_device_update &&
+                       snapshot.computeDevice) {
+                const auto &compute = *snapshot.computeDevice;
+                if (normalizedField == QStringLiteral("/execution_provider")) {
+                    appendStringCandidates(result, compute.providerCandidates);
+                } else {
+                    if (normalizedField == QStringLiteral("/gpu_index"))
+                        result.append(optionEntry(-1, QStringLiteral("No GPU")));
+                    else
+                        result.append(
+                            optionEntry(QJsonValue(QJsonValue::Null), QStringLiteral("No GPU")));
+                    for (const auto &gpu : compute.gpuCandidates) {
+                        result.append(optionEntry(
+                            normalizedField == QStringLiteral("/gpu_index") ? QJsonValue(gpu.index)
+                                                                            : QJsonValue(gpu.id),
+                            gpu.displayName, gpu.available, gpu.unavailableReason));
+                    }
+                }
+            } else if (target.operationId == ToolNames::settings_render_update && snapshot.render) {
+                const auto &render = *snapshot.render;
+                if (normalizedField == QStringLiteral("/sampling_steps")) {
+                    result.append(rangeOption(render.samplingStepsRange,
+                                              QStringLiteral("Sampling steps range")));
+                } else if (normalizedField == QStringLiteral("/depth")) {
+                    result.append(rangeOption(render.depthRange, QStringLiteral("Depth range")));
+                } else if (normalizedField == QStringLiteral("/playback_lookahead_seconds")) {
+                    result.append(rangeOption(render.playbackLookaheadRange,
+                                              QStringLiteral("Playback lookahead range")));
+                } else {
+                    result.append(rangeOption(render.pitchSmoothKernelRange,
+                                              QStringLiteral("Pitch smoothing range")));
+                }
+            } else if (target.operationId == ToolNames::settings_singer_session_retention_update &&
+                       snapshot.singerSessionRetention) {
+                const auto &retention = *snapshot.singerSessionRetention;
+                const auto values = normalizedField == QStringLiteral("/capacity")
+                                        ? retention.capacityCandidates
+                                        : retention.idleTimeoutCandidates;
+                for (const auto value : values)
+                    result.append(optionEntry(value, QString::number(value)));
+            }
+            return result;
         }
 
         if (sourceOperation == QStringLiteral("voices.list")) {
@@ -2329,8 +2543,10 @@ namespace Automation {
         if (sourceOperation == OperationIds::parameters::get_capabilities) {
             const auto document = DocumentId::fromString(
                 partialArguments.value(QStringLiteral("document_id")).toString());
-            const auto clipId = ClipId(partialArguments.value(QStringLiteral("clip_id")).toInt(-1));
-            auto capabilities = m_runtime.parameters().getCapabilities(document, clipId);
+            auto clipId = activeClipId();
+            if (!clipId)
+                return clipId.getError();
+            auto capabilities = m_runtime.parameters().getCapabilities(document, clipId.get());
             if (!capabilities)
                 return capabilities.getError();
             QJsonArray result;
@@ -2369,7 +2585,8 @@ namespace Automation {
                                 optionEntry(QStringLiteral("anchor"), QStringLiteral("anchor")));
                     }
                     break;
-                } else if (normalizedField.endsWith(QStringLiteral("/name"))) {
+                } else if (normalizedField.endsWith(QStringLiteral("/name")) ||
+                           normalizedField.endsWith(QStringLiteral("/parameter"))) {
                     const auto name = parameterName(capability.name);
                     result.append(optionEntry(name, name));
                 } else if (normalizedField.endsWith(QStringLiteral("/layer"))) {
@@ -2562,13 +2779,19 @@ namespace Automation {
                     if (rangeMetadata.contains(QStringLiteral("minimum"))) {
                         const auto number = leaf.toDouble();
                         const auto minimum =
-                            rangeMetadata.value(QStringLiteral("minimum")).toInteger();
+                            rangeMetadata.value(QStringLiteral("minimum")).toDouble();
                         const auto maximum =
-                            rangeMetadata.value(QStringLiteral("maximum")).toInteger();
-                        const auto step = rangeMetadata.value(QStringLiteral("step")).toInteger();
-                        if (!leaf.isDouble() || number != std::floor(number) || number < minimum ||
-                            number > maximum || step <= 0 ||
-                            (static_cast<qint64>(number) - minimum) % step != 0) {
+                            rangeMetadata.value(QStringLiteral("maximum")).toDouble();
+                        const auto hasStep = rangeMetadata.contains(QStringLiteral("step"));
+                        const auto step = rangeMetadata.value(QStringLiteral("step")).toDouble();
+                        const auto stepsFromMinimum =
+                            hasStep && step > 0.0 ? (number - minimum) / step : 0.0;
+                        const auto aligned =
+                            !hasStep ||
+                            (step > 0.0 &&
+                             std::abs(stepsFromMinimum - std::round(stepsFromMinimum)) <= 1e-9);
+                        if (!leaf.isDouble() || !std::isfinite(number) || number < minimum ||
+                            number > maximum || !aligned) {
                             return AutomationError::invalidArgument(
                                 concretePath,
                                 QStringLiteral("Value is outside the capability-declared range"));
@@ -4417,10 +4640,17 @@ namespace Automation {
                    });
         addBinding(ToolNames::tasks_list, [this](const QJsonObject &arguments,
                                                  const PublicInvocationContext &) {
-            auto tasks = m_runtime.tasks().listTasks(documentId(arguments));
-            if (!tasks)
-                return AutomationResult<QJsonObject>(tasks.getError());
-            auto filtered = tasks.get();
+            const auto applicationScope = arguments.value(QStringLiteral("scope")).toString() ==
+                                          QStringLiteral("application");
+            QList<AutomationTaskSnapshot> filtered;
+            if (applicationScope) {
+                filtered = m_runtime.automationTasks().listApplication();
+            } else {
+                auto tasks = m_runtime.tasks().listTasks(documentId(arguments));
+                if (!tasks)
+                    return AutomationResult<QJsonObject>(tasks.getError());
+                filtered = tasks.get();
+            }
             const auto stateFilter = arguments.value(QStringLiteral("state")).toString();
             const auto kindFilter = arguments.value(QStringLiteral("kind")).toString();
             filtered.removeIf([&](const AutomationTaskSnapshot &task) {
@@ -4434,11 +4664,15 @@ namespace Automation {
             QString digestError;
             const auto snapshotDigest = AutomationWire::sha256Digest(
                 QJsonObject{
+                    {QStringLiteral("scope"),
+                     applicationScope ? QStringLiteral("application") : QStringLiteral("document")},
                     {QStringLiteral("document"),
-                     encodeDocumentVersion(m_runtime.documentVersion())},
-                    {QStringLiteral("state"),    stateFilter           },
-                    {QStringLiteral("kind"),     kindFilter            },
-                    {QStringLiteral("tasks"),    snapshot              },
+                     applicationScope
+                         ? QJsonValue(QJsonValue::Null)
+                         : QJsonValue(encodeDocumentVersion(m_runtime.documentVersion()))         },
+                    {QStringLiteral("state"),    stateFilter                                      },
+                    {QStringLiteral("kind"),     kindFilter                                       },
+                    {QStringLiteral("tasks"),    snapshot                                         },
             },
                 &digestError);
             if (!digestError.isEmpty()) {
@@ -4466,8 +4700,14 @@ namespace Automation {
             const auto end = std::min<qint64>(offset + limit, filtered.size());
             for (auto index = offset; index < end; ++index)
                 resultItems.append(encodeTaskSnapshot(filtered.at(static_cast<qsizetype>(index))));
-            QJsonObject result =
-                queryResult(m_runtime.documentVersion(), QStringLiteral("tasks"), resultItems);
+            QJsonObject result{
+                {QStringLiteral("scope"),
+                 applicationScope ? QStringLiteral("application") : QStringLiteral("document")    },
+                {QStringLiteral("document"),
+                 applicationScope ? QJsonValue(QJsonValue::Null)
+                                  : QJsonValue(encodeDocumentVersion(m_runtime.documentVersion()))},
+                {QStringLiteral("tasks"),    resultItems                                          },
+            };
             if (end < filtered.size()) {
                 const auto nextCursor = m_taskCursorCodec.issue(
                     QStringLiteral("editor-public-tasks-list/v1"), snapshotDigest, end);
@@ -4483,9 +4723,13 @@ namespace Automation {
         });
         addBinding(ToolNames::tasks_get, [this](const QJsonObject &arguments,
                                                 const PublicInvocationContext &) {
-            auto result = m_runtime.tasks().getTask(
-                documentId(arguments),
-                TaskId::fromString(arguments.value(QStringLiteral("task_id")).toString()));
+            const auto taskId =
+                TaskId::fromString(arguments.value(QStringLiteral("task_id")).toString());
+            const auto applicationScope = arguments.value(QStringLiteral("scope")).toString() ==
+                                          QStringLiteral("application");
+            auto result = applicationScope
+                              ? m_runtime.automationTasks().getApplication(taskId)
+                              : m_runtime.tasks().getTask(documentId(arguments), taskId);
             if (!result)
                 return AutomationResult<QJsonObject>(result.getError());
             if (!isPublicTaskKind(result.get().operationId)) {
@@ -4496,18 +4740,26 @@ namespace Automation {
         });
         addBinding(ToolNames::tasks_cancel, [this](const QJsonObject &arguments,
                                                    const PublicInvocationContext &invocation) {
-            auto context = documentQueryCommandContext(m_runtime, arguments, invocation);
-            if (!context)
-                return AutomationResult<QJsonObject>(context.getError());
             const auto taskId =
                 TaskId::fromString(arguments.value(QStringLiteral("task_id")).toString());
-            auto snapshot = m_runtime.tasks().getTask(documentId(arguments), taskId);
+            const auto applicationScope = arguments.value(QStringLiteral("scope")).toString() ==
+                                          QStringLiteral("application");
+            auto snapshot = applicationScope
+                                ? m_runtime.automationTasks().getApplication(taskId)
+                                : m_runtime.tasks().getTask(documentId(arguments), taskId);
             if (!snapshot)
                 return AutomationResult<QJsonObject>(snapshot.getError());
             if (!isPublicTaskKind(snapshot.get().operationId)) {
                 return AutomationResult<QJsonObject>(AutomationError::taskNotFound(taskId));
             }
-            auto result = m_runtime.tasks().cancelTask(context.get(), taskId);
+            AutomationResult<AutomationTaskSnapshot> result =
+                applicationScope ? m_runtime.automationTasks().requestCancelApplication(taskId)
+                                 : [&]() -> AutomationResult<AutomationTaskSnapshot> {
+                auto context = documentQueryCommandContext(m_runtime, arguments, invocation);
+                if (!context)
+                    return context.getError();
+                return m_runtime.tasks().cancelTask(context.get(), taskId);
+            }();
             if (!result)
                 return AutomationResult<QJsonObject>(result.getError());
             return AutomationResult<QJsonObject>(encodeTaskSnapshot(result.get()));
@@ -5367,6 +5619,9 @@ namespace Automation {
             return AutomationResult<QJsonObject>(
                 queryResult(snapshot.get().document, QStringLiteral("status"), status.get()));
         });
+
+        registerAdvancedGuiBindings();
+        registerAdvancedApplicationBindings();
 
         Q_ASSERT(m_handlers.size() == contracts().size());
         Q_ASSERT(isComplete());

@@ -156,15 +156,21 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
                                       : std::optional<EditorViewState>();
     };
     editorServices.captureStableState = [this] {
+        const auto selectedClips = m_appStatus->selectedClips.get();
+        const auto selectedNotes = m_appStatus->selectedNotes.get();
         return Automation::EditorStableState{
             .selectedTrackIndex = m_appStatus->selectedTrackIndex,
             .activeClipId = m_appStatus->activeClipId,
-            .selectedClipIds = m_appStatus->selectedClips,
-            .selectedNoteIds = m_appStatus->selectedNotes,
+            .selectedClipIds = selectedClips,
+            .selectedNoteIds = selectedNotes,
+            .primaryClipId = m_appStatus->primarySelectedClipId,
+            .primaryNoteId = m_appStatus->primarySelectedNoteId,
             .pianoRollQuantize = m_appStatus->pianoRollQuantize,
             .pianoRollQuantizeEnabled = m_appStatus->pianoRollQuantizeEnabled,
             .trackAutoPageTurnEnabled = m_appStatus->trackAutoPageTurnEnabled,
             .pianoRollAutoPageTurnEnabled = m_appStatus->pianoRollAutoPageTurnEnabled,
+            .parameterEditInProgress =
+                m_appStatus->currentEditObject.get() == AppStatus::EditObjectType::Param,
         };
     };
     editorServices.restoreView = [this](const EditorViewState &state) {
@@ -178,12 +184,21 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
         return m_editorViewController &&
                m_editorViewController->applyTrackPanelScale(horizontal, vertical);
     };
+    editorServices.setTrackPanelViewport = [this](const TrackPanelViewState &state) {
+        return m_editorViewController && m_editorViewController->applyTrackPanelViewport(state);
+    };
     editorServices.setPanelVisibility = [this](const bool trackVisible, const bool bottomVisible) {
         return m_editorViewController &&
                m_editorViewController->applyPanelVisibility(trackVisible, bottomVisible);
     };
     editorServices.showBottomPanelPage = [this](const QString &pageId) {
         return m_editorViewController && m_editorViewController->applyBottomPanelPage(pageId);
+    };
+    editorServices.showRegion = [this](const EditorViewGlobal::Region region) {
+        return m_editorViewController && m_editorViewController->applyShowRegion(region);
+    };
+    editorServices.focusRegion = [this](const EditorViewGlobal::Region region) {
+        return m_editorViewController && m_editorViewController->applyFocusRegion(region);
     };
     editorServices.centerPianoRoll = [this](const double tick, const double keyIndex) {
         return m_editorViewController &&
@@ -193,27 +208,59 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
         return m_editorViewController &&
                m_editorViewController->applyPianoRollScale(horizontal, vertical);
     };
+    editorServices.setClipEditorTimeViewport = [this](const double centerTick,
+                                                      const double horizontalScale) {
+        return m_editorViewController &&
+               m_editorViewController->applyClipEditorTimeViewport(centerTick, horizontalScale);
+    };
+    editorServices.setPianoRollPitchViewport = [this](const double centerKeyIndex,
+                                                      const double verticalScale) {
+        return m_editorViewController &&
+               m_editorViewController->applyPianoRollPitchViewport(centerKeyIndex, verticalScale);
+    };
     editorServices.setPianoRollEditMode = [this](const EditorViewGlobal::PianoRollEditMode mode) {
         return m_editorViewController && m_editorViewController->applyPianoRollEditMode(mode);
+    };
+    editorServices.setParameterForeground = [this](const ParamInfo::Name name) {
+        return m_editorViewController && m_editorViewController->applyParameterForeground(name);
+    };
+    editorServices.setParameterBackground = [this](const ParamInfo::Name name) {
+        return m_editorViewController && m_editorViewController->applyParameterBackground(name);
+    };
+    editorServices.swapParameters = [this] {
+        return m_editorViewController && m_editorViewController->applySwapParameters();
+    };
+    editorServices.setParameterEditMode = [this](const EditorViewGlobal::ParameterEditMode mode) {
+        return m_editorViewController && m_editorViewController->applyParameterEditMode(mode);
+    };
+    editorServices.setParameterValueViewport = [this](const double centerRatio,
+                                                      const double verticalScale) {
+        return m_editorViewController &&
+               m_editorViewController->applyParameterValueViewport(centerRatio, verticalScale);
     };
     editorServices.setActiveClip = [this](const int clipId) {
         if (m_appStatus->activeClipId == clipId)
             return;
         m_appStatus->selectedNotes = QList<int>();
+        m_appStatus->primarySelectedNoteId = -1;
         m_appStatus->activeClipId = clipId;
     };
     editorServices.setSelectedTrackIndex = [this](const int trackIndex) {
         m_appStatus->selectedTrackIndex = trackIndex;
     };
-    editorServices.setSelectedClips = [this](const QList<int> &clipIds) {
+    editorServices.setSelectedClips = [this](const QList<int> &clipIds, const int primaryClipId) {
         m_appStatus->selectedClips = clipIds;
+        m_appStatus->primarySelectedClipId = primaryClipId;
     };
-    editorServices.setSelectedNotes = [this](const int clipId, const QList<int> &noteIds) {
+    editorServices.setSelectedNotes = [this](const int clipId, const QList<int> &noteIds,
+                                             const int primaryNoteId) {
         if (m_appStatus->activeClipId != clipId) {
             m_appStatus->selectedNotes = QList<int>();
+            m_appStatus->primarySelectedNoteId = -1;
             m_appStatus->activeClipId = clipId;
         }
         m_appStatus->selectedNotes = noteIds;
+        m_appStatus->primarySelectedNoteId = primaryNoteId;
     };
     editorServices.setPianoRollQuantize = [this](const int quantize, const bool enabled) {
         m_appStatus->pianoRollQuantize = quantize;
@@ -225,6 +272,10 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
             m_appStatus->trackAutoPageTurnEnabled = enabled;
         else
             m_appStatus->pianoRollAutoPageTurnEnabled = enabled;
+    };
+    editorServices.focusVisibility = [this](const HistoryFocus &focus) {
+        return m_editorViewController ? m_editorViewController->focusVisibility(focus)
+                                      : HistoryFocusVisibility::Unavailable;
     };
     editorServices.revealFocus = [this](const HistoryFocus &focus, const bool finalize) {
         return m_editorViewController && m_editorViewController->applyRevealFocus(focus, finalize);
@@ -250,7 +301,7 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
         m_appModel, m_historyManager, std::move(documentServices), std::move(playbackServices),
         std::move(editorServices), Automation::createAppOptionsAutomationServices(m_appOptions),
         Automation::createAppOptionsPresetAutomationServices(m_appOptions),
-        Automation::createPackageAutomationServices(m_packageManager),
+        Automation::createPackageAutomationServices(m_packageManager, m_appOptions),
         Automation::createInferenceAutomationServices(), Automation::createFileAutomationServices(),
         Automation::createAudioExportAutomationServices(),
         Automation::createExtractionAutomationServices(m_appOptions, TaskManager::instance()),

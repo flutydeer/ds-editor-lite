@@ -41,8 +41,24 @@ namespace Automation {
         AutomationTaskSnapshot snapshot;
         snapshot.taskId = TaskId::create();
         snapshot.operationId = std::move(operationId);
+        snapshot.scope = AutomationTaskScope::Document;
         snapshot.baseDocument = std::move(baseDocument);
         snapshot.target = std::move(target);
+        snapshot.createdByClientId = std::move(createdByClientId);
+        snapshot.metadata = std::move(metadata);
+
+        const QMutexLocker locker(&m_mutex);
+        m_records.insert(snapshot.taskId, {snapshot, std::move(cancelCallback)});
+        return snapshot;
+    }
+
+    AutomationTaskSnapshot AutomationTaskManager::createApplicationTask(
+        OperationId operationId, CancelCallback cancelCallback, QString createdByClientId,
+        QJsonObject metadata) {
+        AutomationTaskSnapshot snapshot;
+        snapshot.taskId = TaskId::create();
+        snapshot.operationId = std::move(operationId);
+        snapshot.scope = AutomationTaskScope::Application;
         snapshot.createdByClientId = std::move(createdByClientId);
         snapshot.metadata = std::move(metadata);
 
@@ -85,11 +101,30 @@ namespace Automation {
         return findLocked(documentId, taskId);
     }
 
+    AutomationResult<AutomationTaskSnapshot>
+        AutomationTaskManager::getApplication(const TaskId &taskId) const {
+        const QMutexLocker locker(&m_mutex);
+        return findApplicationLocked(taskId);
+    }
+
     QList<AutomationTaskSnapshot> AutomationTaskManager::list(const DocumentId &documentId) const {
         const QMutexLocker locker(&m_mutex);
         QList<AutomationTaskSnapshot> result;
         for (const auto &record : m_records) {
             if (record.snapshot.baseDocument.documentId == documentId)
+                result.append(record.snapshot);
+        }
+        std::sort(result.begin(), result.end(), [](const auto &left, const auto &right) {
+            return left.taskId.toString() < right.taskId.toString();
+        });
+        return result;
+    }
+
+    QList<AutomationTaskSnapshot> AutomationTaskManager::listApplication() const {
+        const QMutexLocker locker(&m_mutex);
+        QList<AutomationTaskSnapshot> result;
+        for (const auto &record : m_records) {
+            if (record.snapshot.scope == AutomationTaskScope::Application)
                 result.append(record.snapshot);
         }
         std::sort(result.begin(), result.end(), [](const auto &left, const auto &right) {
@@ -105,6 +140,32 @@ namespace Automation {
         {
             const QMutexLocker locker(&m_mutex);
             auto found = findLocked(documentId, taskId);
+            if (!found)
+                return found.getError();
+            auto it = m_records.find(taskId);
+            if (isTerminal(it->snapshot.state) ||
+                it->snapshot.state == AutomationTaskState::CancelRequested) {
+                return it->snapshot;
+            }
+            if (it->snapshot.state == AutomationTaskState::Committing)
+                return notCancelable(taskId);
+            it->snapshot.state = AutomationTaskState::CancelRequested;
+            it->snapshot.cancelable = false;
+            snapshot = it->snapshot;
+            cancelCallback = it->cancel;
+        }
+        if (cancelCallback)
+            cancelCallback();
+        return snapshot;
+    }
+
+    AutomationResult<AutomationTaskSnapshot>
+        AutomationTaskManager::requestCancelApplication(const TaskId &taskId) {
+        CancelCallback cancelCallback;
+        AutomationTaskSnapshot snapshot;
+        {
+            const QMutexLocker locker(&m_mutex);
+            auto found = findApplicationLocked(taskId);
             if (!found)
                 return found.getError();
             auto it = m_records.find(taskId);
@@ -183,11 +244,36 @@ namespace Automation {
         {
             const QMutexLocker locker(&m_mutex);
             auto it = m_records.find(taskId);
-            if (it == m_records.end() || it->snapshot.state != AutomationTaskState::Committing)
+            if (it == m_records.end() || it->snapshot.scope != AutomationTaskScope::Document ||
+                it->snapshot.state != AutomationTaskState::Committing) {
                 return false;
+            }
             it->snapshot.state = AutomationTaskState::Succeeded;
             it->snapshot.cancelable = false;
             it->snapshot.mutation = std::move(mutation);
+            it->snapshot.error.reset();
+            it->unsuccessful = {};
+            terminal = std::move(it->terminal);
+            snapshot = it->snapshot;
+        }
+        if (terminal)
+            terminal(snapshot);
+        return true;
+    }
+
+    bool AutomationTaskManager::succeedApplication(const TaskId &taskId, QJsonObject result) {
+        TerminalCallback terminal;
+        AutomationTaskSnapshot snapshot;
+        {
+            const QMutexLocker locker(&m_mutex);
+            auto it = m_records.find(taskId);
+            if (it == m_records.end() || it->snapshot.scope != AutomationTaskScope::Application ||
+                it->snapshot.state != AutomationTaskState::Committing) {
+                return false;
+            }
+            it->snapshot.state = AutomationTaskState::Succeeded;
+            it->snapshot.cancelable = false;
+            it->snapshot.applicationResult = std::move(result);
             it->snapshot.error.reset();
             it->unsuccessful = {};
             terminal = std::move(it->terminal);
@@ -330,9 +416,19 @@ namespace Automation {
         const auto it = m_records.constFind(taskId);
         if (it == m_records.cend())
             return AutomationError::taskNotFound(taskId);
+        if (it->snapshot.scope != AutomationTaskScope::Document)
+            return AutomationError::taskNotFound(taskId);
         if (it->snapshot.baseDocument.documentId != documentId)
             return AutomationError::documentChanged(documentId,
                                                     it->snapshot.baseDocument.documentId);
+        return it->snapshot;
+    }
+
+    AutomationResult<AutomationTaskSnapshot>
+        AutomationTaskManager::findApplicationLocked(const TaskId &taskId) const {
+        const auto it = m_records.constFind(taskId);
+        if (it == m_records.cend() || it->snapshot.scope != AutomationTaskScope::Application)
+            return AutomationError::taskNotFound(taskId);
         return it->snapshot;
     }
 

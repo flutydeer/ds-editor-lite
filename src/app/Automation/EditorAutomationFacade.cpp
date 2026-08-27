@@ -11,6 +11,7 @@
 
 #include <QSet>
 
+#include <algorithm>
 #include <cmath>
 
 namespace Automation {
@@ -25,7 +26,15 @@ namespace Automation {
                    std::isfinite(state.trackPanel.verticalScale) &&
                    state.trackPanel.verticalScale > 0.0 &&
                    (state.layout.trackPanelVisible || state.layout.bottomPanelVisible) &&
+                   (state.layout.pianoRollVisible || state.layout.parametersVisible) &&
                    !state.layout.bottomPanelPageId.trimmed().isEmpty() &&
+                   (state.layout.activeRegion == EditorViewGlobal::Region::TrackPanel ||
+                    state.layout.activeRegion == EditorViewGlobal::Region::PianoRoll ||
+                    state.layout.activeRegion == EditorViewGlobal::Region::Parameters) &&
+                   (state.layout.focusedRegion == EditorViewGlobal::Region::None ||
+                    state.layout.focusedRegion == EditorViewGlobal::Region::TrackPanel ||
+                    state.layout.focusedRegion == EditorViewGlobal::Region::PianoRoll ||
+                    state.layout.focusedRegion == EditorViewGlobal::Region::Parameters) &&
                    std::isfinite(state.pianoRoll.centerTick) && state.pianoRoll.centerTick >= 0.0 &&
                    std::isfinite(state.pianoRoll.centerKeyIndex) &&
                    state.pianoRoll.centerKeyIndex >= 0.0 &&
@@ -35,7 +44,18 @@ namespace Automation {
                    std::isfinite(state.pianoRoll.verticalScale) &&
                    state.pianoRoll.verticalScale > 0.0 &&
                    state.pianoRoll.editMode >= EditorViewGlobal::Select &&
-                   state.pianoRoll.editMode <= EditorViewGlobal::BakePitch;
+                   state.pianoRoll.editMode <= EditorViewGlobal::BakePitch &&
+                   state.parameters.foreground > ParamInfo::Pitch &&
+                   state.parameters.foreground < ParamInfo::Unknown &&
+                   state.parameters.background >= ParamInfo::Expressiveness &&
+                   state.parameters.background != ParamInfo::SpeakerMix &&
+                   state.parameters.background <= ParamInfo::Unknown &&
+                   state.parameters.editMode >= EditorViewGlobal::ParameterEditMode::Draw &&
+                   state.parameters.editMode <= EditorViewGlobal::ParameterEditMode::Anchor &&
+                   std::isfinite(state.parameters.centerRatio) &&
+                   state.parameters.centerRatio >= 0.0 && state.parameters.centerRatio <= 1.0 &&
+                   std::isfinite(state.parameters.verticalScale) &&
+                   state.parameters.verticalScale >= 1.0;
         }
 
         AutomationError editorStateUnavailable() {
@@ -66,6 +86,19 @@ namespace Automation {
                 }
             }
             return result;
+        }
+
+        bool isValidRegion(const EditorViewGlobal::Region region) {
+            return region == EditorViewGlobal::Region::TrackPanel ||
+                   region == EditorViewGlobal::Region::PianoRoll ||
+                   region == EditorViewGlobal::Region::Parameters;
+        }
+
+        ParameterEditorViewState effectiveParameterViewport(ParameterEditorViewState state) {
+            const auto span = 1.0 / state.verticalScale;
+            const auto minimum = std::clamp(state.centerRatio - span * 0.5, 0.0, 1.0 - span);
+            state.centerRatio = minimum + span * 0.5;
+            return state;
         }
     }
 
@@ -107,8 +140,16 @@ namespace Automation {
                         result.selection.activeClipId = ClipId(stable.activeClipId);
                     for (const auto id : stable.selectedClipIds)
                         result.selection.selectedClipIds.append(ClipId(id));
+                    if (stable.primaryClipId >= 0 &&
+                        stable.selectedClipIds.contains(stable.primaryClipId)) {
+                        result.selection.primaryClipId = ClipId(stable.primaryClipId);
+                    }
                     for (const auto id : stable.selectedNoteIds)
                         result.selection.selectedNoteIds.append(NoteId(id));
+                    if (stable.primaryNoteId >= 0 &&
+                        stable.selectedNoteIds.contains(stable.primaryNoteId)) {
+                        result.selection.primaryNoteId = NoteId(stable.primaryNoteId);
+                    }
                 }
                 return AutomationResult<EditorStateDto>(std::move(result));
             });
@@ -124,7 +165,9 @@ namespace Automation {
         return mutateView(
             OperationIds::editor::restore_view, context,
             [state](EditorViewState &target) { target = state; },
-            [this, state] { return m_services.restoreView && m_services.restoreView(state); },
+            [this](const EditorViewState &target) {
+                return m_services.restoreView && m_services.restoreView(target);
+            },
             std::move(validationError));
     }
 
@@ -141,7 +184,7 @@ namespace Automation {
                 target.trackPanel.centerTick = tick;
                 target.trackPanel.centerTrackIndex = trackIndex;
             },
-            [this, tick, trackIndex] {
+            [this, tick, trackIndex](const EditorViewState &) {
                 return m_services.centerTrackPanel && m_services.centerTrackPanel(tick, trackIndex);
             },
             std::move(validationError));
@@ -162,9 +205,46 @@ namespace Automation {
                 target.trackPanel.horizontalScale = horizontal;
                 target.trackPanel.verticalScale = vertical;
             },
-            [this, horizontal, vertical] {
+            [this, horizontal, vertical](const EditorViewState &) {
                 return m_services.setTrackPanelScale &&
                        m_services.setTrackPanelScale(horizontal, vertical);
+            },
+            std::move(validationError));
+    }
+
+    AutomationResult<GuiMutationResult>
+        EditorAutomationFacade::setTrackPanelViewport(const GuiCommandContext &context,
+                                                      const TrackPanelViewportPatch &patch) {
+        std::optional<AutomationError> validationError;
+        const auto nonNegative = [](const std::optional<double> value) {
+            return !value || (std::isfinite(*value) && *value >= 0.0);
+        };
+        const auto positive = [](const std::optional<double> value) {
+            return !value || (std::isfinite(*value) && *value > 0.0);
+        };
+        if (patch.empty()) {
+            validationError = AutomationError::invalidArgument(
+                QStringLiteral("viewport"), QStringLiteral("Viewport patch is empty"));
+        } else if (!nonNegative(patch.centerTick) || !nonNegative(patch.centerTrackIndex) ||
+                   !positive(patch.horizontalScale) || !positive(patch.verticalScale)) {
+            validationError = AutomationError::invalidArgument(
+                QStringLiteral("viewport"), QStringLiteral("Track panel viewport is invalid"));
+        }
+        return mutateView(
+            OperationIds::editor::set_track_panel_viewport, context,
+            [patch](EditorViewState &target) {
+                if (patch.centerTick)
+                    target.trackPanel.centerTick = *patch.centerTick;
+                if (patch.centerTrackIndex)
+                    target.trackPanel.centerTrackIndex = *patch.centerTrackIndex;
+                if (patch.horizontalScale)
+                    target.trackPanel.horizontalScale = *patch.horizontalScale;
+                if (patch.verticalScale)
+                    target.trackPanel.verticalScale = *patch.verticalScale;
+            },
+            [this](const EditorViewState &target) {
+                return m_services.setTrackPanelViewport &&
+                       m_services.setTrackPanelViewport(target.trackPanel);
             },
             std::move(validationError));
     }
@@ -182,7 +262,7 @@ namespace Automation {
                 target.layout.trackPanelVisible = trackVisible;
                 target.layout.bottomPanelVisible = bottomVisible;
             },
-            [this, trackVisible, bottomVisible] {
+            [this, trackVisible, bottomVisible](const EditorViewState &) {
                 return m_services.setPanelVisibility &&
                        m_services.setPanelVisibility(trackVisible, bottomVisible);
             },
@@ -199,8 +279,65 @@ namespace Automation {
         return mutateView(
             OperationIds::editor::show_bottom_panel_page, context,
             [pageId](EditorViewState &target) { target.layout.bottomPanelPageId = pageId; },
-            [this, pageId] {
+            [this, pageId](const EditorViewState &) {
                 return m_services.showBottomPanelPage && m_services.showBottomPanelPage(pageId);
+            },
+            std::move(validationError));
+    }
+
+    AutomationResult<GuiMutationResult>
+        EditorAutomationFacade::showRegion(const GuiCommandContext &context,
+                                           const EditorViewGlobal::Region region) {
+        std::optional<AutomationError> validationError;
+        if (region != EditorViewGlobal::Region::PianoRoll &&
+            region != EditorViewGlobal::Region::Parameters) {
+            validationError = AutomationError::invalidArgument(
+                QStringLiteral("region"), QStringLiteral("Clip editor region is invalid"));
+        }
+        return mutateView(
+            OperationIds::editor::show_region, context,
+            [region](EditorViewState &target) {
+                target.layout.bottomPanelVisible = true;
+                target.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
+                if (region == EditorViewGlobal::Region::PianoRoll)
+                    target.layout.pianoRollVisible = true;
+                else
+                    target.layout.parametersVisible = true;
+                target.layout.activeRegion = region;
+                target.layout.focusedRegion = region;
+            },
+            [this, region](const EditorViewState &) {
+                return m_services.showRegion && m_services.showRegion(region);
+            },
+            std::move(validationError));
+    }
+
+    AutomationResult<GuiMutationResult>
+        EditorAutomationFacade::focusRegion(const GuiCommandContext &context,
+                                            const EditorViewGlobal::Region region) {
+        std::optional<AutomationError> validationError;
+        if (!isValidRegion(region)) {
+            validationError = AutomationError::invalidArgument(
+                QStringLiteral("region"), QStringLiteral("Editor region is invalid"));
+        }
+        return mutateView(
+            OperationIds::editor::focus_region, context,
+            [region](EditorViewState &target) {
+                if (region == EditorViewGlobal::Region::TrackPanel) {
+                    target.layout.trackPanelVisible = true;
+                } else {
+                    target.layout.bottomPanelVisible = true;
+                    target.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
+                    if (region == EditorViewGlobal::Region::PianoRoll)
+                        target.layout.pianoRollVisible = true;
+                    else
+                        target.layout.parametersVisible = true;
+                }
+                target.layout.activeRegion = region;
+                target.layout.focusedRegion = region;
+            },
+            [this, region](const EditorViewState &) {
+                return m_services.focusRegion && m_services.focusRegion(region);
             },
             std::move(validationError));
     }
@@ -220,7 +357,7 @@ namespace Automation {
                 target.pianoRoll.centerTick = tick;
                 target.pianoRoll.centerKeyIndex = keyIndex;
             },
-            [this, tick, keyIndex] {
+            [this, tick, keyIndex](const EditorViewState &) {
                 return m_services.centerPianoRoll && m_services.centerPianoRoll(tick, keyIndex);
             },
             std::move(validationError));
@@ -241,9 +378,68 @@ namespace Automation {
                 target.pianoRoll.horizontalScale = horizontal;
                 target.pianoRoll.verticalScale = vertical;
             },
-            [this, horizontal, vertical] {
+            [this, horizontal, vertical](const EditorViewState &) {
                 return m_services.setPianoRollScale &&
                        m_services.setPianoRollScale(horizontal, vertical);
+            },
+            std::move(validationError));
+    }
+
+    AutomationResult<GuiMutationResult> EditorAutomationFacade::setClipEditorTimeViewport(
+        const GuiCommandContext &context, const ClipEditorTimeViewportPatch &patch) {
+        std::optional<AutomationError> validationError;
+        if (patch.empty()) {
+            validationError = AutomationError::invalidArgument(
+                QStringLiteral("viewport"), QStringLiteral("Viewport patch is empty"));
+        } else if ((patch.centerTick &&
+                    (!std::isfinite(*patch.centerTick) || *patch.centerTick < 0.0)) ||
+                   (patch.horizontalScale &&
+                    (!std::isfinite(*patch.horizontalScale) || *patch.horizontalScale <= 0.0))) {
+            validationError = AutomationError::invalidArgument(
+                QStringLiteral("viewport"), QStringLiteral("Clip editor time viewport is invalid"));
+        }
+        return mutateView(
+            OperationIds::editor::set_clip_editor_time_viewport, context,
+            [patch](EditorViewState &target) {
+                if (patch.centerTick)
+                    target.pianoRoll.centerTick = *patch.centerTick;
+                if (patch.horizontalScale)
+                    target.pianoRoll.horizontalScale = *patch.horizontalScale;
+            },
+            [this](const EditorViewState &target) {
+                return m_services.setClipEditorTimeViewport &&
+                       m_services.setClipEditorTimeViewport(target.pianoRoll.centerTick,
+                                                            target.pianoRoll.horizontalScale);
+            },
+            std::move(validationError));
+    }
+
+    AutomationResult<GuiMutationResult> EditorAutomationFacade::setPianoRollPitchViewport(
+        const GuiCommandContext &context, const PianoRollPitchViewportPatch &patch) {
+        std::optional<AutomationError> validationError;
+        if (patch.empty()) {
+            validationError = AutomationError::invalidArgument(
+                QStringLiteral("viewport"), QStringLiteral("Viewport patch is empty"));
+        } else if ((patch.centerKeyIndex &&
+                    (!std::isfinite(*patch.centerKeyIndex) || *patch.centerKeyIndex < 0.0 ||
+                     *patch.centerKeyIndex > 127.0)) ||
+                   (patch.verticalScale &&
+                    (!std::isfinite(*patch.verticalScale) || *patch.verticalScale <= 0.0))) {
+            validationError = AutomationError::invalidArgument(
+                QStringLiteral("viewport"), QStringLiteral("Piano pitch viewport is invalid"));
+        }
+        return mutateView(
+            OperationIds::editor::set_piano_roll_pitch_viewport, context,
+            [patch](EditorViewState &target) {
+                if (patch.centerKeyIndex)
+                    target.pianoRoll.centerKeyIndex = *patch.centerKeyIndex;
+                if (patch.verticalScale)
+                    target.pianoRoll.verticalScale = *patch.verticalScale;
+            },
+            [this](const EditorViewState &target) {
+                return m_services.setPianoRollPitchViewport &&
+                       m_services.setPianoRollPitchViewport(target.pianoRoll.centerKeyIndex,
+                                                            target.pianoRoll.verticalScale);
             },
             std::move(validationError));
     }
@@ -257,7 +453,7 @@ namespace Automation {
         return mutateView(
             OperationIds::editor::set_piano_roll_edit_mode, context,
             [mode](EditorViewState &target) { target.pianoRoll.editMode = mode; },
-            [this, mode] {
+            [this, mode](const EditorViewState &) {
                 return m_services.setPianoRollEditMode && m_services.setPianoRollEditMode(mode);
             },
             std::move(validationError));
@@ -271,7 +467,7 @@ namespace Automation {
             [this, context, clipId](DocumentSession &session, const bool validateOnly) {
                 const int value = clipId ? clipId->value() : -1;
                 if (clipId) {
-                    const auto resolved = m_objectResolver.clip(session, *clipId);
+                    const auto resolved = m_objectResolver.singingClip(session, *clipId);
                     if (!resolved)
                         return AutomationResult<GuiMutationResult>(resolved.getError());
                 }
@@ -289,9 +485,17 @@ namespace Automation {
     AutomationResult<GuiMutationResult>
         EditorAutomationFacade::setSelectedTrack(const GuiDocumentCommandContext &context,
                                                  const std::optional<TrackId> trackId) {
+        return setSelectedTrack(context, trackId, false);
+    }
+
+    AutomationResult<GuiMutationResult>
+        EditorAutomationFacade::setSelectedTrack(const GuiDocumentCommandContext &context,
+                                                 const std::optional<TrackId> trackId,
+                                                 const bool focusTrackPanel) {
         return m_dispatcher.dispatchGuiDocumentCommand<GuiMutationResult>(
             OperationIds::editor::set_selection, context,
-            [this, context, trackId](DocumentSession &session, const bool validateOnly) {
+            [this, context, trackId, focusTrackPanel](DocumentSession &session,
+                                                      const bool validateOnly) {
                 int trackIndex = -1;
                 if (trackId) {
                     const auto resolved = m_objectResolver.track(session, *trackId);
@@ -299,11 +503,27 @@ namespace Automation {
                         return AutomationResult<GuiMutationResult>(resolved.getError());
                     trackIndex = session.model()->tracks().indexOf(resolved.get());
                 }
-                if (!m_services.captureStableState || !m_services.setSelectedTrackIndex)
+                if (!m_services.captureStableState || !m_services.setSelectedTrackIndex ||
+                    (focusTrackPanel && (!m_services.captureView || !m_services.focusRegion))) {
                     return AutomationResult<GuiMutationResult>(editorStateUnavailable());
-                const bool changed =
+                }
+                const bool selectionChanged =
                     m_services.captureStableState().selectedTrackIndex != trackIndex;
-                if (!validateOnly && changed)
+                bool focusChanged = false;
+                if (focusTrackPanel) {
+                    const auto view = m_services.captureView();
+                    if (!view)
+                        return AutomationResult<GuiMutationResult>(editorStateUnavailable());
+                    focusChanged =
+                        !view->layout.trackPanelVisible ||
+                        view->layout.focusedRegion != EditorViewGlobal::Region::TrackPanel;
+                }
+                const bool changed = selectionChanged || focusChanged;
+                if (!validateOnly && focusTrackPanel && focusChanged &&
+                    !m_services.focusRegion(EditorViewGlobal::Region::TrackPanel)) {
+                    return AutomationResult<GuiMutationResult>(editorStateUnavailable());
+                }
+                if (!validateOnly && selectionChanged)
                     m_services.setSelectedTrackIndex(trackIndex);
                 return AutomationResult<GuiMutationResult>(
                     guiMutation(context.windowId, changed, validateOnly));
@@ -313,20 +533,97 @@ namespace Automation {
     AutomationResult<GuiMutationResult>
         EditorAutomationFacade::setSelectedClips(const GuiDocumentCommandContext &context,
                                                  const QList<ClipId> &clipIds) {
+        const auto primary =
+            clipIds.isEmpty() ? std::nullopt : std::optional<ClipId>(clipIds.constLast());
+        return setSelectedClips(context, clipIds, primary, false);
+    }
+
+    AutomationResult<GuiMutationResult> EditorAutomationFacade::setSelectedClips(
+        const GuiDocumentCommandContext &context, const QList<ClipId> &clipIds,
+        const std::optional<ClipId> primaryClipId, const bool focusTrackPanel) {
         return m_dispatcher.dispatchGuiDocumentCommand<GuiMutationResult>(
             OperationIds::editor::set_selection, context,
-            [this, context, clipIds](DocumentSession &session, const bool validateOnly) {
+            [this, context, clipIds, primaryClipId, focusTrackPanel](DocumentSession &session,
+                                                                     const bool validateOnly) {
                 for (const auto clipId : clipIds) {
                     const auto resolved = m_objectResolver.clip(session, clipId);
                     if (!resolved)
                         return AutomationResult<GuiMutationResult>(resolved.getError());
                 }
-                if (!m_services.captureStableState || !m_services.setSelectedClips)
+                if (primaryClipId && !clipIds.contains(*primaryClipId)) {
+                    return AutomationResult<GuiMutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("primary_clip_id"),
+                        QStringLiteral("Primary clip must belong to the selected clip set")));
+                }
+                if (!m_services.captureStableState || !m_services.setSelectedClips ||
+                    (focusTrackPanel && (!m_services.captureView || !m_services.focusRegion))) {
                     return AutomationResult<GuiMutationResult>(editorStateUnavailable());
+                }
                 const auto normalized = normalizedObjectIds(clipIds);
-                const bool changed = m_services.captureStableState().selectedClipIds != normalized;
-                if (!validateOnly && changed)
-                    m_services.setSelectedClips(normalized);
+                const auto primary = primaryClipId ? primaryClipId->value() : -1;
+                const auto current = m_services.captureStableState();
+                const bool selectionChanged =
+                    current.selectedClipIds != normalized || current.primaryClipId != primary;
+                bool focusChanged = false;
+                if (focusTrackPanel) {
+                    const auto view = m_services.captureView();
+                    if (!view)
+                        return AutomationResult<GuiMutationResult>(editorStateUnavailable());
+                    focusChanged =
+                        !view->layout.trackPanelVisible ||
+                        view->layout.focusedRegion != EditorViewGlobal::Region::TrackPanel;
+                }
+                const bool changed = selectionChanged || focusChanged;
+                if (!validateOnly && focusTrackPanel && focusChanged &&
+                    !m_services.focusRegion(EditorViewGlobal::Region::TrackPanel)) {
+                    return AutomationResult<GuiMutationResult>(editorStateUnavailable());
+                }
+                if (!validateOnly && selectionChanged)
+                    m_services.setSelectedClips(normalized, primary);
+                return AutomationResult<GuiMutationResult>(
+                    guiMutation(context.windowId, changed, validateOnly));
+            });
+    }
+
+    AutomationResult<GuiMutationResult> EditorAutomationFacade::clearTrackPanelSelection(
+        const GuiDocumentCommandContext &context, const bool clearTrack, const bool clearClips,
+        const bool focusTrackPanel) {
+        return m_dispatcher.dispatchGuiDocumentCommand<GuiMutationResult>(
+            OperationIds::editor::set_selection, context,
+            [this, context, clearTrack, clearClips, focusTrackPanel](DocumentSession &,
+                                                                     const bool validateOnly) {
+                if (!clearTrack && !clearClips) {
+                    return AutomationResult<GuiMutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("scope"),
+                        QStringLiteral("At least one selection scope must be cleared")));
+                }
+                if (!m_services.captureStableState ||
+                    (clearTrack && !m_services.setSelectedTrackIndex) ||
+                    (clearClips && !m_services.setSelectedClips) ||
+                    (focusTrackPanel && (!m_services.captureView || !m_services.focusRegion))) {
+                    return AutomationResult<GuiMutationResult>(editorStateUnavailable());
+                }
+                const auto current = m_services.captureStableState();
+                const bool trackChanged = clearTrack && current.selectedTrackIndex >= 0;
+                const bool clipsChanged = clearClips && !current.selectedClipIds.isEmpty();
+                bool focusChanged = false;
+                if (focusTrackPanel) {
+                    const auto view = m_services.captureView();
+                    if (!view)
+                        return AutomationResult<GuiMutationResult>(editorStateUnavailable());
+                    focusChanged =
+                        !view->layout.trackPanelVisible ||
+                        view->layout.focusedRegion != EditorViewGlobal::Region::TrackPanel;
+                }
+                const bool changed = trackChanged || clipsChanged || focusChanged;
+                if (!validateOnly && focusTrackPanel && focusChanged &&
+                    !m_services.focusRegion(EditorViewGlobal::Region::TrackPanel)) {
+                    return AutomationResult<GuiMutationResult>(editorStateUnavailable());
+                }
+                if (!validateOnly && trackChanged)
+                    m_services.setSelectedTrackIndex(-1);
+                if (!validateOnly && clipsChanged)
+                    m_services.setSelectedClips({}, -1);
                 return AutomationResult<GuiMutationResult>(
                     guiMutation(context.windowId, changed, validateOnly));
             });
@@ -336,9 +633,18 @@ namespace Automation {
         EditorAutomationFacade::setSelectedNotes(const GuiDocumentCommandContext &context,
                                                  const ClipId clipId,
                                                  const QList<NoteId> &noteIds) {
+        const auto primary =
+            noteIds.isEmpty() ? std::nullopt : std::optional<NoteId>(noteIds.constLast());
+        return setSelectedNotes(context, clipId, noteIds, primary, false);
+    }
+
+    AutomationResult<GuiMutationResult> EditorAutomationFacade::setSelectedNotes(
+        const GuiDocumentCommandContext &context, const ClipId clipId, const QList<NoteId> &noteIds,
+        const std::optional<NoteId> primaryNoteId, const bool focusPianoRoll) {
         return m_dispatcher.dispatchGuiDocumentCommand<GuiMutationResult>(
             OperationIds::editor::set_selection, context,
-            [this, context, clipId, noteIds](DocumentSession &session, const bool validateOnly) {
+            [this, context, clipId, noteIds, primaryNoteId,
+             focusPianoRoll](DocumentSession &session, const bool validateOnly) {
                 const auto clip = m_objectResolver.singingClip(session, clipId);
                 if (!clip)
                     return AutomationResult<GuiMutationResult>(clip.getError());
@@ -347,14 +653,39 @@ namespace Automation {
                     if (!note)
                         return AutomationResult<GuiMutationResult>(note.getError());
                 }
-                if (!m_services.captureStableState || !m_services.setSelectedNotes)
+                if (primaryNoteId && !noteIds.contains(*primaryNoteId)) {
+                    return AutomationResult<GuiMutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("primary_note_id"),
+                        QStringLiteral("Primary note must belong to the selected note set")));
+                }
+                if (!m_services.captureStableState || !m_services.setSelectedNotes ||
+                    (focusPianoRoll && (!m_services.captureView || !m_services.focusRegion))) {
                     return AutomationResult<GuiMutationResult>(editorStateUnavailable());
+                }
                 const auto normalized = normalizedObjectIds(noteIds);
+                const auto primary = primaryNoteId ? primaryNoteId->value() : -1;
                 const auto current = m_services.captureStableState();
-                const bool changed =
-                    current.activeClipId != clipId.value() || current.selectedNoteIds != normalized;
-                if (!validateOnly && changed)
-                    m_services.setSelectedNotes(clipId.value(), normalized);
+                const bool selectionChanged = current.activeClipId != clipId.value() ||
+                                              current.selectedNoteIds != normalized ||
+                                              current.primaryNoteId != primary;
+                bool focusChanged = false;
+                if (focusPianoRoll) {
+                    const auto view = m_services.captureView();
+                    if (!view)
+                        return AutomationResult<GuiMutationResult>(editorStateUnavailable());
+                    focusChanged =
+                        !view->layout.bottomPanelVisible ||
+                        view->layout.bottomPanelPageId != QStringLiteral("ClipEditor") ||
+                        !view->layout.pianoRollVisible ||
+                        view->layout.focusedRegion != EditorViewGlobal::Region::PianoRoll;
+                }
+                const bool changed = selectionChanged || focusChanged;
+                if (!validateOnly && focusPianoRoll && focusChanged &&
+                    !m_services.focusRegion(EditorViewGlobal::Region::PianoRoll)) {
+                    return AutomationResult<GuiMutationResult>(editorStateUnavailable());
+                }
+                if (!validateOnly && selectionChanged)
+                    m_services.setSelectedNotes(clipId.value(), normalized, primary);
                 return AutomationResult<GuiMutationResult>(
                     guiMutation(context.windowId, changed, validateOnly));
             });
@@ -406,6 +737,139 @@ namespace Automation {
                 return AutomationResult<GuiMutationResult>(
                     guiMutation(context.windowId, changed, validateOnly));
             });
+    }
+
+    AutomationResult<GuiMutationResult>
+        EditorAutomationFacade::setParameterForeground(const GuiDocumentCommandContext &context,
+                                                       const ParamInfo::Name name) {
+        std::optional<AutomationError> validationError;
+        if (name <= ParamInfo::Pitch || name >= ParamInfo::Unknown) {
+            validationError = AutomationError::invalidArgument(
+                QStringLiteral("parameter"), QStringLiteral("Foreground parameter is invalid"));
+        }
+        return mutateParameterView(
+            OperationIds::editor::set_parameter_foreground, context,
+            [name](EditorViewState &target) {
+                target.parameters.foreground = name;
+                target.layout.bottomPanelVisible = true;
+                target.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
+                target.layout.parametersVisible = true;
+                target.layout.activeRegion = EditorViewGlobal::Region::Parameters;
+                target.layout.focusedRegion = EditorViewGlobal::Region::Parameters;
+            },
+            [this, name](const EditorViewState &) {
+                return m_services.setParameterForeground && m_services.setParameterForeground(name);
+            },
+            std::move(validationError));
+    }
+
+    AutomationResult<GuiMutationResult>
+        EditorAutomationFacade::setParameterBackground(const GuiDocumentCommandContext &context,
+                                                       const ParamInfo::Name name) {
+        std::optional<AutomationError> validationError;
+        if (name < ParamInfo::Expressiveness || name == ParamInfo::SpeakerMix ||
+            name > ParamInfo::Unknown) {
+            validationError = AutomationError::invalidArgument(
+                QStringLiteral("parameter"), QStringLiteral("Background parameter is invalid"));
+        }
+        return mutateParameterView(
+            OperationIds::editor::set_parameter_background, context,
+            [name](EditorViewState &target) {
+                target.parameters.background = name;
+                target.layout.bottomPanelVisible = true;
+                target.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
+                target.layout.parametersVisible = true;
+                target.layout.activeRegion = EditorViewGlobal::Region::Parameters;
+                target.layout.focusedRegion = EditorViewGlobal::Region::Parameters;
+            },
+            [this, name](const EditorViewState &) {
+                return m_services.setParameterBackground && m_services.setParameterBackground(name);
+            },
+            std::move(validationError));
+    }
+
+    AutomationResult<GuiMutationResult>
+        EditorAutomationFacade::swapParameters(const GuiDocumentCommandContext &context) {
+        return mutateParameterView(
+            OperationIds::editor::swap_parameters, context,
+            [](EditorViewState &target) {
+                if (target.parameters.foreground == ParamInfo::SpeakerMix ||
+                    target.parameters.background == ParamInfo::Unknown) {
+                    return;
+                }
+                std::swap(target.parameters.foreground, target.parameters.background);
+                target.layout.bottomPanelVisible = true;
+                target.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
+                target.layout.parametersVisible = true;
+                target.layout.activeRegion = EditorViewGlobal::Region::Parameters;
+                target.layout.focusedRegion = EditorViewGlobal::Region::Parameters;
+            },
+            [this](const EditorViewState &target) {
+                if (target.parameters.foreground == ParamInfo::SpeakerMix ||
+                    target.parameters.background == ParamInfo::Unknown) {
+                    return false;
+                }
+                return m_services.swapParameters && m_services.swapParameters();
+            });
+    }
+
+    AutomationResult<GuiMutationResult> EditorAutomationFacade::setParameterEditMode(
+        const GuiDocumentCommandContext &context, const EditorViewGlobal::ParameterEditMode mode) {
+        std::optional<AutomationError> validationError;
+        if (mode < EditorViewGlobal::ParameterEditMode::Draw ||
+            mode > EditorViewGlobal::ParameterEditMode::Anchor) {
+            validationError = AutomationError::invalidArgument(
+                QStringLiteral("tool"), QStringLiteral("Parameter edit mode is invalid"));
+        }
+        return mutateParameterView(
+            OperationIds::editor::set_parameter_edit_mode, context,
+            [mode](EditorViewState &target) {
+                target.parameters.editMode = mode;
+                target.layout.bottomPanelVisible = true;
+                target.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
+                target.layout.parametersVisible = true;
+                target.layout.activeRegion = EditorViewGlobal::Region::Parameters;
+                target.layout.focusedRegion = EditorViewGlobal::Region::Parameters;
+            },
+            [this, mode](const EditorViewState &) {
+                return m_services.setParameterEditMode && m_services.setParameterEditMode(mode);
+            },
+            std::move(validationError));
+    }
+
+    AutomationResult<GuiMutationResult> EditorAutomationFacade::setParameterValueViewport(
+        const GuiDocumentCommandContext &context, const ParameterValueViewportPatch &patch) {
+        std::optional<AutomationError> validationError;
+        if (patch.empty()) {
+            validationError = AutomationError::invalidArgument(
+                QStringLiteral("viewport"), QStringLiteral("Viewport patch is empty"));
+        } else if ((patch.centerRatio && (!std::isfinite(*patch.centerRatio) ||
+                                          *patch.centerRatio < 0.0 || *patch.centerRatio > 1.0)) ||
+                   (patch.verticalScale &&
+                    (!std::isfinite(*patch.verticalScale) || *patch.verticalScale < 1.0))) {
+            validationError = AutomationError::invalidArgument(
+                QStringLiteral("viewport"), QStringLiteral("Parameter value viewport is invalid"));
+        }
+        return mutateParameterView(
+            OperationIds::editor::set_parameter_value_viewport, context,
+            [patch](EditorViewState &target) {
+                if (patch.centerRatio)
+                    target.parameters.centerRatio = *patch.centerRatio;
+                if (patch.verticalScale)
+                    target.parameters.verticalScale = *patch.verticalScale;
+                target.parameters = effectiveParameterViewport(target.parameters);
+                target.layout.bottomPanelVisible = true;
+                target.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
+                target.layout.parametersVisible = true;
+                target.layout.activeRegion = EditorViewGlobal::Region::Parameters;
+                target.layout.focusedRegion = EditorViewGlobal::Region::Parameters;
+            },
+            [this](const EditorViewState &target) {
+                return m_services.setParameterValueViewport &&
+                       m_services.setParameterValueViewport(target.parameters.centerRatio,
+                                                            target.parameters.verticalScale);
+            },
+            std::move(validationError));
     }
 
     AutomationResult<GuiMutationResult>
@@ -470,16 +934,53 @@ namespace Automation {
                         QStringLiteral("kind"), QStringLiteral("Reveal kind is unsupported")));
                 }
 
-                if (!m_services.revealFocus)
+                if (!m_services.captureView || !m_services.focusVisibility ||
+                    !m_services.revealFocus) {
                     return AutomationResult<GuiMutationResult>(editorStateUnavailable());
-                if (!validateOnly && !m_services.revealFocus(focus, finalize)) {
+                }
+                const auto beforeView = m_services.captureView();
+                if (!beforeView)
+                    return AutomationResult<GuiMutationResult>(editorStateUnavailable());
+                std::optional<EditorStableState> beforeStable;
+                if (m_services.captureStableState)
+                    beforeStable = m_services.captureStableState();
+                if (validateOnly) {
+                    const auto visibility = m_services.focusVisibility(focus);
+                    bool changed = visibility != HistoryFocusVisibility::Visible;
+                    if (target.kind == EditorRevealKind::TrackClips) {
+                        changed = changed || !beforeView->layout.trackPanelVisible ||
+                                  beforeView->layout.activeRegion !=
+                                      EditorViewGlobal::Region::TrackPanel ||
+                                  beforeView->layout.focusedRegion !=
+                                      EditorViewGlobal::Region::TrackPanel;
+                    } else {
+                        changed =
+                            changed || !beforeView->layout.bottomPanelVisible ||
+                            beforeView->layout.bottomPanelPageId != QStringLiteral("ClipEditor") ||
+                            !beforeView->layout.pianoRollVisible ||
+                            beforeView->layout.activeRegion !=
+                                EditorViewGlobal::Region::PianoRoll ||
+                            beforeView->layout.focusedRegion !=
+                                EditorViewGlobal::Region::PianoRoll ||
+                            (beforeStable && beforeStable->activeClipId != target.containerId);
+                    }
+                    return AutomationResult<GuiMutationResult>(
+                        guiMutation(context.windowId, changed, true));
+                }
+                if (!m_services.revealFocus(focus, finalize)) {
                     AutomationError error;
                     error.code = AutomationErrorCode::HostCapabilityUnavailable;
                     error.message = QStringLiteral("Editor could not reveal the requested target");
                     return AutomationResult<GuiMutationResult>(std::move(error));
                 }
+                const auto afterView = m_services.captureView();
+                if (!afterView)
+                    return AutomationResult<GuiMutationResult>(editorStateUnavailable());
+                const auto changed =
+                    *afterView != *beforeView || (beforeStable && m_services.captureStableState &&
+                                                  m_services.captureStableState() != *beforeStable);
                 return AutomationResult<GuiMutationResult>(
-                    guiMutation(context.windowId, true, validateOnly));
+                    guiMutation(context.windowId, changed, false));
             });
     }
 
@@ -508,7 +1009,7 @@ namespace Automation {
                 auto target = *current;
                 mutation(target);
                 const bool changed = target != *current;
-                if (!validateOnly && changed && (!apply || !apply())) {
+                if (!validateOnly && changed && (!apply || !apply(target))) {
                     AutomationError error;
                     error.code = AutomationErrorCode::HostCapabilityUnavailable;
                     error.message = QStringLiteral("Editor view rejected the requested state");
@@ -519,6 +1020,69 @@ namespace Automation {
                     .changed = changed,
                     .validatedOnly = validateOnly,
                 });
+            });
+    }
+
+    AutomationResult<GuiMutationResult> EditorAutomationFacade::mutateParameterView(
+        const OperationId &operationId, const GuiDocumentCommandContext &context,
+        ViewMutation mutation, ViewApply apply, std::optional<AutomationError> validationError) {
+        return m_dispatcher.dispatchGuiDocumentCommand<GuiMutationResult>(
+            operationId, context,
+            [this, context, operationId, mutation = std::move(mutation), apply = std::move(apply),
+             validationError = std::move(validationError)](DocumentSession &session,
+                                                           const bool validateOnly) {
+                if (validationError)
+                    return AutomationResult<GuiMutationResult>(*validationError);
+                if (!m_services.captureView || !m_services.captureStableState)
+                    return AutomationResult<GuiMutationResult>(editorStateUnavailable());
+
+                const auto stable = m_services.captureStableState();
+                if (stable.parameterEditInProgress) {
+                    AutomationError error;
+                    error.code = AutomationErrorCode::Busy;
+                    error.message = QStringLiteral("A parameter edit is already in progress");
+                    return AutomationResult<GuiMutationResult>(std::move(error));
+                }
+                if (stable.activeClipId < 0) {
+                    return AutomationResult<GuiMutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("active_clip_id"),
+                        QStringLiteral("An active singing clip is required")));
+                }
+                const auto clip =
+                    m_objectResolver.singingClip(session, ClipId(stable.activeClipId));
+                if (!clip)
+                    return AutomationResult<GuiMutationResult>(clip.getError());
+
+                const auto current = m_services.captureView();
+                if (!current)
+                    return AutomationResult<GuiMutationResult>(editorStateUnavailable());
+                if ((operationId == OperationIds::editor::set_parameter_edit_mode ||
+                     operationId == OperationIds::editor::set_parameter_value_viewport) &&
+                    current->parameters.foreground == ParamInfo::SpeakerMix) {
+                    return AutomationResult<GuiMutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("foreground"),
+                        QStringLiteral("The operation is unavailable for speaker mix")));
+                }
+                auto target = *current;
+                mutation(target);
+
+                if (operationId == OperationIds::editor::swap_parameters &&
+                    (current->parameters.foreground == ParamInfo::SpeakerMix ||
+                     current->parameters.background == ParamInfo::Unknown)) {
+                    return AutomationResult<GuiMutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("parameters"),
+                        QStringLiteral("Current parameter selection cannot be swapped")));
+                }
+
+                const bool changed = target != *current;
+                if (!validateOnly && changed && (!apply || !apply(target))) {
+                    AutomationError error;
+                    error.code = AutomationErrorCode::HostCapabilityUnavailable;
+                    error.message = QStringLiteral("Parameter editor rejected the requested state");
+                    return AutomationResult<GuiMutationResult>(std::move(error));
+                }
+                return AutomationResult<GuiMutationResult>(
+                    guiMutation(context.windowId, changed, validateOnly));
             });
     }
 
@@ -596,17 +1160,27 @@ namespace Automation {
         };
         addGuiCommand(OperationIds::editor::center_piano_roll);
         addGuiCommand(OperationIds::editor::center_track_panel);
+        addGuiCommand(OperationIds::editor::focus_region);
         addGuiCommand(OperationIds::editor::restore_view);
+        addGuiCommand(OperationIds::editor::set_clip_editor_time_viewport);
         addGuiCommand(OperationIds::editor::set_panel_visibility);
         addGuiCommand(OperationIds::editor::set_piano_roll_edit_mode);
+        addGuiCommand(OperationIds::editor::set_piano_roll_pitch_viewport);
         addGuiCommand(OperationIds::editor::set_piano_roll_scale);
+        addGuiCommand(OperationIds::editor::set_track_panel_viewport);
         addGuiCommand(OperationIds::editor::set_track_panel_scale);
         addGuiCommand(OperationIds::editor::show_bottom_panel_page);
+        addGuiCommand(OperationIds::editor::show_region);
         addGuiCommand(OperationIds::editor::set_auto_page_turn);
         addGuiCommand(OperationIds::editor::set_quantize);
         addGuiDocumentCommand(OperationIds::editor::reveal);
         addGuiDocumentCommand(OperationIds::editor::set_active_clip);
+        addGuiDocumentCommand(OperationIds::editor::set_parameter_background);
+        addGuiDocumentCommand(OperationIds::editor::set_parameter_edit_mode);
+        addGuiDocumentCommand(OperationIds::editor::set_parameter_foreground);
+        addGuiDocumentCommand(OperationIds::editor::set_parameter_value_viewport);
         addGuiDocumentCommand(OperationIds::editor::set_selection);
+        addGuiDocumentCommand(OperationIds::editor::swap_parameters);
     }
 
 } // namespace Automation

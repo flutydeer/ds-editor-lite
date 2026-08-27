@@ -103,6 +103,18 @@ QString AutomationPage::categoryDisplayName(const QString &category) const {
         return tr("Tasks");
     if (category == QStringLiteral("playback"))
         return tr("Playback");
+    if (category == QStringLiteral("workspace"))
+        return tr("Workspace");
+    if (category == QStringLiteral("track_panel"))
+        return tr("Track Panel");
+    if (category == QStringLiteral("clip_editor"))
+        return tr("Clip Editor");
+    if (category == QStringLiteral("settings"))
+        return tr("Settings");
+    if (category == QStringLiteral("packages"))
+        return tr("Packages");
+    if (category == QStringLiteral("lyric_rules"))
+        return tr("Lyric Rules");
     return category;
 }
 

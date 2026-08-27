@@ -10,6 +10,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <optional>
 #include <sstream>
 
 #include <stdcorelib/path.h>
@@ -217,20 +218,26 @@ void PackageManager::initialize(const QStringList &searchPaths) {
 }
 
 Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
-    PackageManager::refreshInstalledPackages(const QStringList &searchPathsQt) {
+    PackageManager::refreshInstalledPackages(const QStringList &searchPathsQt,
+                                             RefreshCommitGate commitGate) {
     {
         std::unique_lock lock(m_refreshMutex);
         if (m_refreshing) {
             qDebug() << "Already refreshing, wait for completion";
             m_refreshCompleted.wait(lock, [this] { return !m_refreshing; });
-            return m_lastRefreshResult;
+            auto result = m_lastRefreshResult;
+            lock.unlock();
+            if (result && commitGate)
+                commitGate();
+            return result;
         }
         m_refreshing = true;
     }
 
+    bool commitRejected = false;
     auto completed =
-        [this,
-         &searchPathsQt]() -> Expected<GetInstalledPackagesResult, GetInstalledPackagesError> {
+        [this, &searchPathsQt, &commitGate,
+         &commitRejected]() -> Expected<GetInstalledPackagesResult, GetInstalledPackagesError> {
         QElapsedTimer timer;
         timer.start();
         GetInstalledPackagesResult result;
@@ -455,6 +462,10 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
         }
 
         qDebug() << "Package scan completed in" << timer.elapsed() << "ms";
+        if (commitGate && !commitGate()) {
+            commitRejected = true;
+            return result;
+        }
         {
             QWriteLocker writeLocker(&m_resultRwLock);
             m_result = result;
@@ -471,17 +482,23 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
         return result;
     }();
 
+    std::optional<GetInstalledPackagesResult> retainedResult;
+    if (commitRejected)
+        retainedResult = installedPackages();
     QList<PackageInfo> refreshedPackages;
     {
         std::lock_guard lock(m_refreshMutex);
-        m_lastRefreshResult = completed;
+        m_lastRefreshResult = retainedResult
+                                  ? Expected<GetInstalledPackagesResult, GetInstalledPackagesError>(
+                                        std::move(*retainedResult))
+                                  : completed;
         m_refreshing = false;
-        if (completed) {
+        if (completed && !commitRejected) {
             refreshedPackages = completed.get().successfulPackages;
         }
     }
     m_refreshCompleted.notify_all();
-    if (completed) {
+    if (completed && !commitRejected) {
         Q_EMIT packagesRefreshed(refreshedPackages);
     }
     return completed;

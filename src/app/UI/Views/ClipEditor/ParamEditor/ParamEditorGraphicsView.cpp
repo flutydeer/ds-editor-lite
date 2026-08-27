@@ -20,6 +20,9 @@
 #include <lite/GUI/Controls/Menu.h>
 #include <lite/GUI/Utils/IconUtils.h>
 
+#include <algorithm>
+#include <cmath>
+
 ParamEditorGraphicsView::ParamEditorGraphicsView(ParamEditorGraphicsScene *scene,
                                                  const ParamProperties &foregroundProperties,
                                                  const ParamProperties &backgroundProperties,
@@ -256,6 +259,27 @@ ParamEditorEditMode ParamEditorGraphicsView::editMode() const {
     return m_editMode;
 }
 
+std::pair<double, double> ParamEditorGraphicsView::normalizedValueViewport() const {
+    return m_foreground->normalizedValueViewport();
+}
+
+bool ParamEditorGraphicsView::setValueViewport(const double centerRatio,
+                                               const double verticalScale) {
+    if (m_speakerMixMode || !std::isfinite(centerRatio) || centerRatio < 0.0 || centerRatio > 1.0 ||
+        !std::isfinite(verticalScale) || verticalScale < 1.0) {
+        return false;
+    }
+    const auto span = 1.0 / verticalScale;
+    const auto minimum = std::clamp(centerRatio - span * 0.5, 0.0, 1.0 - span);
+    const auto maximum = minimum + span;
+    if (!m_foreground->setNormalizedValueViewport(minimum, maximum) ||
+        !m_background->setNormalizedValueViewport(minimum, maximum)) {
+        return false;
+    }
+    m_anchorOverlay->update();
+    return true;
+}
+
 void ParamEditorGraphicsView::setForegroundBaseCurveVisible(const bool visible) {
     m_foreground->setBaseCurveVisible(visible);
 }
@@ -271,6 +295,7 @@ void ParamEditorGraphicsView::setForeground(const ParamInfo::Name name,
     else
         m_foreground->discardAction();
     disarmEdgeAutoScroll();
+    m_foregroundParam = name;
     if (name == ParamInfo::SpeakerMix) {
         if (m_editMode == ParamEditorEditMode::Anchor)
             m_anchorController.setEditActive(false);
@@ -290,7 +315,6 @@ void ParamEditorGraphicsView::setForeground(const ParamInfo::Name name,
         m_foreground->setVisible(true);
     }
 
-    m_foregroundParam = name;
     m_foreground->setParamProperties(properties);
     if (!m_clip) {
         m_foreground->clearParams();

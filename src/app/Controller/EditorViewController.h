@@ -54,12 +54,14 @@ public:
     void registerPanel(IPanel *panel);
     void unregisterPanel(IPanel *panel);
     void setActivePanel(AppGlobal::PanelType panel);
+    void setActiveRegion(EditorViewGlobal::Region region);
     void activatePanelContext(AppGlobal::PanelType panel);
     void syncPanelVisibility(bool trackPanelVisible, bool bottomPanelVisible,
                              AppGlobal::PanelType bottomPanelType);
     void syncEditTargetVisibility(EditorInteraction::Target target, bool visible,
                                   AppGlobal::PanelType fallbackPanel);
     [[nodiscard]] AppGlobal::PanelType activePanel() const;
+    [[nodiscard]] EditorViewGlobal::Region activeRegion() const;
 
     void registerInteractionArea(QObject *area, AppGlobal::PanelType panel,
                                  EditorInteraction::Target target);
@@ -80,11 +82,21 @@ private:
     bool applyRestoreState(const EditorViewState &state) const;
     bool applyCenterTrackPanelAt(double tick, double trackIndex) const;
     bool applyTrackPanelScale(double horizontalScale, double verticalScale) const;
+    bool applyTrackPanelViewport(const TrackPanelViewState &state) const;
     bool applyPanelVisibility(bool trackPanelVisible, bool bottomPanelVisible) const;
     bool applyBottomPanelPage(const QString &pageId) const;
+    bool applyShowRegion(EditorViewGlobal::Region region) const;
+    bool applyFocusRegion(EditorViewGlobal::Region region) const;
     bool applyCenterPianoRollAt(double tick, double keyIndex) const;
     bool applyPianoRollScale(double horizontalScale, double verticalScale) const;
+    bool applyClipEditorTimeViewport(double centerTick, double horizontalScale) const;
+    bool applyPianoRollPitchViewport(double centerKeyIndex, double verticalScale) const;
     bool applyPianoRollEditMode(EditorViewGlobal::PianoRollEditMode mode) const;
+    bool applyParameterForeground(ParamInfo::Name name) const;
+    bool applyParameterBackground(ParamInfo::Name name) const;
+    bool applySwapParameters() const;
+    bool applyParameterEditMode(EditorViewGlobal::ParameterEditMode mode) const;
+    bool applyParameterValueViewport(double centerRatio, double verticalScale) const;
     bool applyRevealFocus(const HistoryFocus &focus, bool finalize) const;
     bool eventFilter(QObject *watched, QEvent *event) override;
     void setActiveContext(AppGlobal::PanelType panel, EditorInteraction::Target target);

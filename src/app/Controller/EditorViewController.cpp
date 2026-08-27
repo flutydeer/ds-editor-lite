@@ -161,6 +161,10 @@ bool EditorViewController::applyTrackPanelScale(const double horizontalScale,
     return m_view && m_view->setTrackPanelScale(horizontalScale, verticalScale);
 }
 
+bool EditorViewController::applyTrackPanelViewport(const TrackPanelViewState &state) const {
+    return m_view && m_view->setTrackPanelViewport(state);
+}
+
 bool EditorViewController::applyPanelVisibility(const bool trackPanelVisible,
                                                 const bool bottomPanelVisible) const {
     return m_view && m_view->setEditorPanelVisibility(trackPanelVisible, bottomPanelVisible);
@@ -168,6 +172,14 @@ bool EditorViewController::applyPanelVisibility(const bool trackPanelVisible,
 
 bool EditorViewController::applyBottomPanelPage(const QString &pageId) const {
     return m_view && m_view->showBottomPanelPage(pageId);
+}
+
+bool EditorViewController::applyShowRegion(const EditorViewGlobal::Region region) const {
+    return m_view && m_view->showEditorRegion(region);
+}
+
+bool EditorViewController::applyFocusRegion(const EditorViewGlobal::Region region) const {
+    return m_view && m_view->focusEditorRegion(region);
 }
 
 bool EditorViewController::applyCenterPianoRollAt(const double tick, const double keyIndex) const {
@@ -179,9 +191,41 @@ bool EditorViewController::applyPianoRollScale(const double horizontalScale,
     return m_view && m_view->setPianoRollScale(horizontalScale, verticalScale);
 }
 
+bool EditorViewController::applyClipEditorTimeViewport(const double centerTick,
+                                                       const double horizontalScale) const {
+    return m_view && m_view->setClipEditorTimeViewport(centerTick, horizontalScale);
+}
+
+bool EditorViewController::applyPianoRollPitchViewport(const double centerKeyIndex,
+                                                       const double verticalScale) const {
+    return m_view && m_view->setPianoRollPitchViewport(centerKeyIndex, verticalScale);
+}
+
 bool EditorViewController::applyPianoRollEditMode(
     const EditorViewGlobal::PianoRollEditMode mode) const {
     return m_view && m_view->setPianoRollEditMode(mode);
+}
+
+bool EditorViewController::applyParameterForeground(const ParamInfo::Name name) const {
+    return m_view && m_view->setParameterForeground(name);
+}
+
+bool EditorViewController::applyParameterBackground(const ParamInfo::Name name) const {
+    return m_view && m_view->setParameterBackground(name);
+}
+
+bool EditorViewController::applySwapParameters() const {
+    return m_view && m_view->swapParameters();
+}
+
+bool EditorViewController::applyParameterEditMode(
+    const EditorViewGlobal::ParameterEditMode mode) const {
+    return m_view && m_view->setParameterEditMode(mode);
+}
+
+bool EditorViewController::applyParameterValueViewport(const double centerRatio,
+                                                       const double verticalScale) const {
+    return m_view && m_view->setParameterValueViewport(centerRatio, verticalScale);
 }
 
 void EditorViewController::refreshActiveClipTrackPresentation() const {
@@ -242,6 +286,23 @@ void EditorViewController::setActivePanel(AppGlobal::PanelType panel) {
     setActiveContext(panel, EditorInteraction::defaultTargetForPanel(panel));
 }
 
+void EditorViewController::setActiveRegion(const EditorViewGlobal::Region region) {
+    switch (region) {
+        case EditorViewGlobal::Region::TrackPanel:
+            setActiveContext(AppGlobal::TracksEditor, EditorInteraction::Target::Tracks);
+            break;
+        case EditorViewGlobal::Region::PianoRoll:
+            setActiveContext(AppGlobal::ClipEditor, EditorInteraction::Target::PianoRoll);
+            break;
+        case EditorViewGlobal::Region::Parameters:
+            setActiveContext(AppGlobal::ClipEditor, EditorInteraction::Target::Parameters);
+            break;
+        case EditorViewGlobal::Region::None:
+            setActiveContext(AppGlobal::Generic, EditorInteraction::Target::None);
+            break;
+    }
+}
+
 void EditorViewController::activatePanelContext(const AppGlobal::PanelType panel) {
     const auto target = panel == AppGlobal::ClipEditor
                             ? m_lastClipEditTarget
@@ -271,6 +332,20 @@ void EditorViewController::syncEditTargetVisibility(const EditorInteraction::Tar
 
 AppGlobal::PanelType EditorViewController::activePanel() const {
     return m_activePanel;
+}
+
+EditorViewGlobal::Region EditorViewController::activeRegion() const {
+    switch (m_activeEditTarget) {
+        case EditorInteraction::Target::Tracks:
+            return EditorViewGlobal::Region::TrackPanel;
+        case EditorInteraction::Target::PianoRoll:
+            return EditorViewGlobal::Region::PianoRoll;
+        case EditorInteraction::Target::Parameters:
+            return EditorViewGlobal::Region::Parameters;
+        case EditorInteraction::Target::None:
+            return EditorViewGlobal::Region::None;
+    }
+    return EditorViewGlobal::Region::None;
 }
 
 void EditorViewController::registerInteractionArea(QObject *area, const AppGlobal::PanelType panel,

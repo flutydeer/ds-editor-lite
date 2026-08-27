@@ -49,19 +49,29 @@ namespace Automation::OperationIds {
     X(documents, save_as, "documents.save_as")                                                     \
     X(editor, center_piano_roll, "editor.center_piano_roll")                                       \
     X(editor, center_track_panel, "editor.center_track_panel")                                     \
+    X(editor, focus_region, "editor.focus_region")                                                 \
     X(editor, get_capabilities, "editor.get_capabilities")                                         \
     X(editor, get_state, "editor.get_state")                                                       \
     X(editor, restore_view, "editor.restore_view")                                                 \
     X(editor, reveal, "editor.reveal")                                                             \
     X(editor, set_active_clip, "editor.set_active_clip")                                           \
     X(editor, set_auto_page_turn, "editor.set_auto_page_turn")                                     \
+    X(editor, set_clip_editor_time_viewport, "editor.set_clip_editor_time_viewport")               \
+    X(editor, set_parameter_background, "editor.set_parameter_background")                         \
+    X(editor, set_parameter_edit_mode, "editor.set_parameter_edit_mode")                           \
+    X(editor, set_parameter_foreground, "editor.set_parameter_foreground")                         \
+    X(editor, set_parameter_value_viewport, "editor.set_parameter_value_viewport")                 \
     X(editor, set_panel_visibility, "editor.set_panel_visibility")                                 \
+    X(editor, set_piano_roll_pitch_viewport, "editor.set_piano_roll_pitch_viewport")               \
     X(editor, set_piano_roll_edit_mode, "editor.set_piano_roll_edit_mode")                         \
     X(editor, set_piano_roll_scale, "editor.set_piano_roll_scale")                                 \
     X(editor, set_quantize, "editor.set_quantize")                                                 \
     X(editor, set_selection, "editor.set_selection")                                               \
+    X(editor, set_track_panel_viewport, "editor.set_track_panel_viewport")                         \
     X(editor, set_track_panel_scale, "editor.set_track_panel_scale")                               \
+    X(editor, show_region, "editor.show_region")                                                   \
     X(editor, show_bottom_panel_page, "editor.show_bottom_panel_page")                             \
+    X(editor, swap_parameters, "editor.swap_parameters")                                           \
     X(exports::audio, cleanup, "exports.audio.cleanup")                                            \
     X(exports::audio, get_capabilities, "exports.audio.get_capabilities")                          \
     X(exports::audio, preview, "exports.audio.preview")                                            \
@@ -122,6 +132,7 @@ namespace Automation::OperationIds {
     X(notes, split_at, "notes.split_at")                                                           \
     X(packages, get_search_paths, "packages.get_search_paths")                                     \
     X(packages, list, "packages.list")                                                             \
+    X(packages, refresh, "packages.refresh")                                                       \
     X(packages, resolve_document_voices, "packages.resolve_document_voices")                       \
     X(packages, set_search_paths, "packages.set_search_paths")                                     \
     X(packages, validate, "packages.validate")                                                     \

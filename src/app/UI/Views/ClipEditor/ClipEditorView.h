@@ -32,10 +32,24 @@ public:
     explicit ClipEditorView(QWidget *parent = nullptr);
 
     [[nodiscard]] PianoRollViewState viewState() const;
+    [[nodiscard]] ParameterEditorViewState parameterViewState() const;
+    [[nodiscard]] EditorViewGlobal::Region focusedRegion() const;
+    [[nodiscard]] bool regionVisible(EditorViewGlobal::Region region) const;
+    [[nodiscard]] bool hasActiveSingingClip() const;
     [[nodiscard]] bool supportsEditMode(EditorViewGlobal::PianoRollEditMode mode) const;
     bool centerAt(double tick, double keyIndex) const;
     bool setViewScale(double horizontalScale, double verticalScale) const;
+    bool setTimeViewport(double centerTick, double horizontalScale) const;
+    bool setPitchViewport(double centerKeyIndex, double verticalScale) const;
     bool setEditMode(EditorViewGlobal::PianoRollEditMode mode);
+    bool setRegionVisibility(bool pianoRollVisible, bool parametersVisible) const;
+    bool showRegion(EditorViewGlobal::Region region) const;
+    bool focusRegion(EditorViewGlobal::Region region) const;
+    bool setParameterForeground(ParamInfo::Name name) const;
+    bool setParameterBackground(ParamInfo::Name name) const;
+    bool swapParameters() const;
+    bool setParameterEditMode(EditorViewGlobal::ParameterEditMode mode) const;
+    bool setParameterValueViewport(double centerRatio, double verticalScale) const;
     [[nodiscard]] HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const;
     bool revealFocus(const HistoryFocus &focus) const;
     bool revealFocus(const HistoryFocus &focus, bool animated) const;

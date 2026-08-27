@@ -7,6 +7,7 @@ namespace AutomationWire {
 
     inline constexpr double MinimumPan = -1.0;
     inline constexpr double MaximumPan = 1.0;
+    inline constexpr double MaximumAudioDeviceGain = 1.9952623149688795;
     inline constexpr double MinimumMixWeight = 0.0;
     inline constexpr double MaximumMixWeight = 1.0;
 

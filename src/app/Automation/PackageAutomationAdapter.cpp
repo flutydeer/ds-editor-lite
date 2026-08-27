@@ -1,5 +1,7 @@
 #include "PackageAutomationAdapter.h"
 
+#include "Model/AppOptions/AppOptions.h"
+
 #include <diffsinger/Bank/PackageValidator.h>
 
 #include <lite/PackageManager/PackageManager.h>
@@ -7,6 +9,14 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/Support/StringUtils.h>
+
+#include <QCoreApplication>
+#include <QMap>
+#include <QMetaObject>
+#include <QPointer>
+#include <QThreadPool>
+
+#include <algorithm>
 
 namespace Automation {
     namespace {
@@ -71,15 +81,9 @@ namespace Automation {
             }
             return resolvedPairs;
         }
-    }
 
-    PackageRuntimeServices createPackageAutomationServices(PackageManager *manager) {
-        PackageRuntimeServices services;
-        if (!manager)
-            return services;
-        services.installedPackages = [manager] {
+        QList<PackageDto> convertPackages(const GetInstalledPackagesResult &packages) {
             QList<PackageDto> result;
-            const auto packages = manager->installedPackages();
             for (const auto &package : packages.successfulPackages) {
                 PackageDto converted{
                     .id = package.id(),
@@ -103,6 +107,79 @@ namespace Automation {
                 result.append(std::move(converted));
             }
             return result;
+        }
+
+        QString packageKey(const PackageDto &package) {
+            return package.id + u'@' + package.version.toString();
+        }
+
+        PackageRefreshResultDto buildRefreshResult(const QList<PackageDto> &before,
+                                                   const GetInstalledPackagesResult &afterRaw) {
+            const auto after = convertPackages(afterRaw);
+            QMap<QString, PackageDto> beforeByKey;
+            QMap<QString, PackageDto> afterByKey;
+            for (const auto &package : before)
+                beforeByKey.insert(packageKey(package), package);
+            for (const auto &package : after)
+                afterByKey.insert(packageKey(package), package);
+
+            PackageRefreshResultDto result{.packages = static_cast<int>(after.size())};
+            for (auto it = afterByKey.cbegin(); it != afterByKey.cend(); ++it) {
+                const auto previous = beforeByKey.constFind(it.key());
+                if (previous == beforeByKey.cend())
+                    result.added.append(it.key());
+                else if (*previous != it.value())
+                    result.updated.append(it.key());
+            }
+            for (auto it = beforeByKey.cbegin(); it != beforeByKey.cend(); ++it) {
+                if (!afterByKey.contains(it.key()))
+                    result.removed.append(it.key());
+            }
+            for (const auto &failure : afterRaw.failedPackages) {
+                result.failures.append({
+                    .path = failure.path,
+                    .reason = failure.reason,
+                });
+            }
+            return result;
+        }
+
+        AutomationError packageRefreshError(const GetInstalledPackagesError &error) {
+            AutomationError result;
+            result.code = error.type == GetInstalledPackagesErrorType::MetadataBackendNotInitialized
+                              ? AutomationErrorCode::ModuleNotReady
+                              : AutomationErrorCode::IoError;
+            result.message =
+                error.type == GetInstalledPackagesErrorType::MetadataBackendNotInitialized
+                    ? QStringLiteral("Package metadata service is unavailable")
+                    : QStringLiteral("Package refresh failed");
+            return result;
+        }
+
+        void deliverRefreshResult(PackageRefreshCompletion completion,
+                                  AutomationResult<PackageRefreshResultDto> result) {
+            if (auto *application = QCoreApplication::instance()) {
+                QMetaObject::invokeMethod(
+                    application,
+                    [completion = std::move(completion), result = std::move(result)]() mutable {
+                        completion(std::move(result));
+                    },
+                    Qt::QueuedConnection);
+                return;
+            }
+            completion(std::move(result));
+        }
+    }
+
+    PackageRuntimeServices createPackageAutomationServices(PackageManager *manager,
+                                                           AppOptions *options) {
+        PackageRuntimeServices services;
+        if (!manager)
+            return services;
+        const auto effectiveSearchPaths =
+            options ? options->general()->packageSearchPaths : QStringList{};
+        services.installedPackages = [manager] {
+            return convertPackages(manager->installedPackages());
         };
         services.validatePackage = [](const QString &path) {
             ds::bank::PackageValidator validator;
@@ -128,6 +205,53 @@ namespace Automation {
         };
         services.resolveDocumentVoices = [manager](AppModel *model, const bool apply) {
             return resolveDocumentVoices(manager, model, apply);
+        };
+        services.refreshPackages =
+            [manager = QPointer<PackageManager>(manager), effectiveSearchPaths](
+                PackageRefreshCommitGate commitGate,
+                PackageRefreshCompletion completion) -> AutomationResult<AutomationUnit> {
+            if (!completion) {
+                return AutomationError::invalidArgument(
+                    QStringLiteral("completion"),
+                    QStringLiteral("Package refresh completion callback is missing"));
+            }
+            if (!manager)
+                return packageRefreshError({GetInstalledPackagesErrorType::Unknown,
+                                            QStringLiteral("Package manager is unavailable")});
+            QThreadPool::globalInstance()->start([manager, effectiveSearchPaths,
+                                                  commitGate = std::move(commitGate),
+                                                  completion = std::move(completion)]() mutable {
+                if (!manager) {
+                    deliverRefreshResult(
+                        std::move(completion),
+                        packageRefreshError({GetInstalledPackagesErrorType::Unknown,
+                                             QStringLiteral("Package manager is unavailable")}));
+                    return;
+                }
+                const auto before = convertPackages(manager->installedPackages());
+                bool commitGateReached = false;
+                bool commitAccepted = false;
+                PackageManager::RefreshCommitGate managerCommitGate;
+                if (commitGate) {
+                    managerCommitGate = [&] {
+                        commitGateReached = true;
+                        commitAccepted = commitGate();
+                        return commitAccepted;
+                    };
+                }
+                const auto refreshed = manager->refreshInstalledPackages(
+                    effectiveSearchPaths, std::move(managerCommitGate));
+                if (commitGateReached && !commitAccepted)
+                    return;
+                if (!refreshed) {
+                    deliverRefreshResult(std::move(completion),
+                                         packageRefreshError(refreshed.getError()));
+                    return;
+                }
+                deliverRefreshResult(std::move(completion),
+                                     buildRefreshResult(before, refreshed.get()));
+            });
+            return AutomationUnit{};
         };
         return services;
     }

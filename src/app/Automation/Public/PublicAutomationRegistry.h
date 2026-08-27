@@ -17,7 +17,9 @@
 #include <QJsonObject>
 #include <QLatin1StringView>
 
+#include <atomic>
 #include <functional>
+#include <memory>
 #include <optional>
 
 namespace Automation {
@@ -163,6 +165,7 @@ namespace Automation {
                                  AutomationFileGuard &fileGuard,
                                  AdmissionController &admissionController,
                                  PublicAutomationHostServices hostServices = {});
+        ~PublicAutomationRegistry();
 
         [[nodiscard]] const QList<AutomationWire::ToolContract> &contracts() const;
         [[nodiscard]] QStringList bindingIds() const;
@@ -174,10 +177,16 @@ namespace Automation {
                                              const PublicInvocationContext &context = {});
 
     private:
+        struct LifetimeState {
+            std::atomic_bool active{true};
+        };
+
         using Handler = std::function<AutomationResult<QJsonObject>(
             const QJsonObject &, const PublicInvocationContext &)>;
 
         void registerBindings();
+        void registerAdvancedGuiBindings();
+        void registerAdvancedApplicationBindings();
         void addBinding(QLatin1StringView toolName, Handler handler);
         [[nodiscard]] const AutomationWire::PublicManifest &
             manifestForPolicy(const AutomationAccessPolicySnapshot &policy);
@@ -192,6 +201,7 @@ namespace Automation {
         AutomationAccessPolicy &m_accessPolicy;
         AutomationFileGuard &m_fileGuard;
         AdmissionController &m_admissionController;
+        std::shared_ptr<LifetimeState> m_lifetimeState = std::make_shared<LifetimeState>();
         PublicAutomationHostServices m_hostServices;
         QHash<QString, Handler> m_handlers;
         std::optional<AutomationAccessPolicySnapshot> m_manifestCachePolicy;

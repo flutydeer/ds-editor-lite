@@ -6,6 +6,13 @@ else()
     file(GLOB_RECURSE _src CONFIGURE_DEPENDS *.h *.cpp)
 endif()
 
+if(MSVC)
+    set_source_files_properties(
+        Automation/Public/PublicAutomationRegistry.cpp
+        PROPERTIES COMPILE_OPTIONS "/bigobj"
+    )
+endif()
+
 find_package(Qt6 REQUIRED COMPONENTS
     Core Widgets Network HttpServer Concurrent StateMachine LinguistTools GuiPrivate ShaderTools
 )

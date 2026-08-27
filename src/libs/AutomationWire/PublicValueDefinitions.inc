@@ -118,6 +118,7 @@ AUTOMATION_WIRE_PUBLIC_STRING_VALUE(TaskKind, ExportsAudioStart, "exports.audio.
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(TaskKind, ExtractPitchStart, "extract.pitch.start")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(TaskKind, ExtractMidiStart, "extract.midi.start")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(TaskKind, InferenceStart, "inference.start")
+AUTOMATION_WIRE_PUBLIC_STRING_VALUE(TaskKind, PackagesRefresh, "packages.refresh")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(PlaybackState, Stopped, "stopped")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(PlaybackState, Playing, "playing")
 AUTOMATION_WIRE_PUBLIC_STRING_VALUE(PlaybackState, Paused, "paused")

@@ -39,6 +39,8 @@ public:
     [[nodiscard]] TrackPanelViewState viewState() const;
     bool centerAt(double tick, double trackIndex) const;
     bool setViewScale(double horizontalScale, double verticalScale) const;
+    bool setViewport(const TrackPanelViewState &state) const;
+    bool focusEditor();
     [[nodiscard]] HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const;
     bool revealFocus(const HistoryFocus &focus) const;
     bool revealFocus(const HistoryFocus &focus, bool animated) const;
