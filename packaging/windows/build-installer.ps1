@@ -353,7 +353,6 @@ if (-not $NoBuild) {
                 "install",
                 "--x-manifest-root=$RepoRoot\scripts\vcpkg-manifest",
                 "--x-install-root=$RepoRoot\vcpkg\installed",
-                "--overlay-ports=$RepoRoot\scripts\vcpkg-overlays",
                 "--triplet=x64-windows"
             )
         }
