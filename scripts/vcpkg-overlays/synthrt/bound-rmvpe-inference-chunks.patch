@@ -1,0 +1,156 @@
+--- a/plugins/Extract/rmvpe/RmvpeExtractor.cpp
++++ b/plugins/Extract/rmvpe/RmvpeExtractor.cpp
+@@ -1,5 +1,7 @@
+ #include "RmvpeExtractor.h"
+ 
++#include <algorithm>
++#include <cstddef>
+ #include <cmath>
+ #include <map>
+ #include <set>
+@@ -17,6 +19,22 @@
+ 
+ namespace srt::extract::plugins::Rmvpe {
+ 
++namespace {
++
++    // Bound each ONNX run while retaining context that is discarded after inference.
++    constexpr int64_t kModelSampleRate = 16000;
++    constexpr int64_t kModelHopSamples = 160;
++    constexpr int64_t kMaxInferenceSamples = 30 * kModelSampleRate;
++    constexpr int64_t kInferenceContextSamples = kModelSampleRate;
++    constexpr int64_t kInferenceCoreSamples =
++        kMaxInferenceSamples - 2 * kInferenceContextSamples;
++
++    static_assert(kInferenceCoreSamples > 0);
++    static_assert(kInferenceCoreSamples % kModelHopSamples == 0);
++    static_assert(kInferenceContextSamples % kModelHopSamples == 0);
++
++}
++
+ RmvpeExtractor::RmvpeExtractor(srt::core::Runtime *runtime)
+     : m_runtime(runtime) {
+ }
+@@ -67,7 +85,7 @@
+ }
+ 
+ srt::extract::AudioRequirements RmvpeExtractor::audioRequirements() const {
+-    return {16000, 1};  // RMVPE 要求 16000 Hz 单声道
++    return {kModelSampleRate, 1};  // RMVPE 要求 16000 Hz 单声道
+ }
+ 
+ srt::core::Expected<srt::extract::PitchResult>
+@@ -84,7 +102,8 @@
+     //    切片器参数从 Rmvpe.cpp:117 迁移；第一个参数由 160（hopSize）
+     //    修正为 16000（sampleRate）。
+     const auto req = audioRequirements();
+-    srt::audio::Slicer slicer(16000, 0.02f, 160, 160 * 4, 500, 30, 50);
++    srt::audio::Slicer slicer(kModelSampleRate, 0.02f, kModelHopSamples,
++                             kModelHopSamples * 4, 500, 30, 50);
+     auto slicesExp = srt::extract::AudioPreprocessor::prepare(
+         buffer, sampleRate, req, slicer);
+     if (!slicesExp) {
+@@ -102,32 +121,86 @@
+     srt::extract::PitchResult result;
+     constexpr float threshold = 0.03f;
+ 
+-    int64_t totalFrames = 0;
++    int64_t totalSamples = 0;
+     for (const auto &slice : slices) {
+-        totalFrames += slice.endFrame - slice.startFrame;
++        totalSamples += static_cast<int64_t>(slice.samples.size());
+     }
+ 
+-    int64_t processedFrames = 0;
++    int64_t processedSamples = 0;
+     for (const auto &slice : slices) {
++        const auto sampleCount = static_cast<int64_t>(slice.samples.size());
++        if (sampleCount <= 0) {
++            continue;
++        }
++
++        const bool needsChunking = sampleCount > kMaxInferenceSamples;
++        const int64_t coreSpan = needsChunking ? kInferenceCoreSamples : sampleCount;
+         srt::extract::PitchFrame frame;
+         frame.offset = static_cast<float>(
+-            static_cast<double>(slice.startFrame) / (16000.0 / 1000.0));
++            static_cast<double>(slice.startFrame) /
++            (static_cast<double>(kModelSampleRate) / 1000.0));
+ 
+-        std::vector<float> f0;
+-        std::vector<bool> uv;
+-        if (auto exp = forward(slice.samples, threshold, f0, uv); !exp) {
+-            return exp.takeError();
++        for (int64_t coreStart = 0; coreStart < sampleCount; coreStart += coreSpan) {
++            const int64_t coreEnd = std::min(coreStart + coreSpan, sampleCount);
++            const int64_t inferenceStart =
++                needsChunking ? std::max<int64_t>(0, coreStart - kInferenceContextSamples) : 0;
++            const int64_t inferenceEnd =
++                needsChunking
++                    ? std::min(sampleCount, coreEnd + kInferenceContextSamples)
++                    : sampleCount;
++
++            std::vector<float> waveform(
++                slice.samples.begin() + inferenceStart,
++                slice.samples.begin() + inferenceEnd);
++            std::vector<float> f0;
++            std::vector<bool> uv;
++            if (auto exp = forward(waveform, threshold, f0, uv); !exp) {
++                return exp.takeError();
++            }
++            if (f0.size() != uv.size()) {
++                return srt::core::Error(
++                    srt::core::ErrorCode::ExtractOutputInvalid,
++                    "extract: RMVPE f0 and uv output sizes differ");
++            }
++            interpF0(f0, uv);
++
++            size_t keepBegin = 0;
++            size_t keepEnd = f0.size();
++            if (needsChunking) {
++                const int64_t keepBeginSamples = coreStart - inferenceStart;
++                const int64_t keepEndSamples = coreEnd - inferenceStart;
++                keepBegin = static_cast<size_t>(
++                    (keepBeginSamples + kModelHopSamples - 1) / kModelHopSamples);
++                if (coreEnd == sampleCount) {
++                    keepEnd = static_cast<size_t>(
++                        keepEndSamples / kModelHopSamples + 1);
++                } else {
++                    keepEnd = static_cast<size_t>(
++                        (keepEndSamples + kModelHopSamples - 1) / kModelHopSamples);
++                }
++                keepEnd = std::min(keepEnd, f0.size());
++                if (keepBegin >= keepEnd) {
++                    return srt::core::Error(
++                        srt::core::ErrorCode::ExtractOutputInvalid,
++                        "extract: RMVPE chunk output does not cover its core range");
++                }
++            }
++
++            frame.f0.insert(frame.f0.end(),
++                            f0.begin() + static_cast<std::ptrdiff_t>(keepBegin),
++                            f0.begin() + static_cast<std::ptrdiff_t>(keepEnd));
++            frame.uv.insert(frame.uv.end(),
++                            uv.begin() + static_cast<std::ptrdiff_t>(keepBegin),
++                            uv.begin() + static_cast<std::ptrdiff_t>(keepEnd));
++
++            processedSamples += coreEnd - coreStart;
++            if (progress && totalSamples > 0) {
++                progress(static_cast<int>(
++                    static_cast<double>(processedSamples) /
++                    static_cast<double>(totalSamples) * 100.0));
++            }
+         }
+-        interpF0(f0, uv);
+-        frame.f0 = std::move(f0);
+-        frame.uv = std::move(uv);
+         result.frames.push_back(std::move(frame));
+-
+-        processedFrames += slice.endFrame - slice.startFrame;
+-        if (progress && totalFrames > 0) {
+-            progress(static_cast<int>(
+-                static_cast<float>(processedFrames) / totalFrames * 100));
+-        }
+     }
+     return result;
+ }
