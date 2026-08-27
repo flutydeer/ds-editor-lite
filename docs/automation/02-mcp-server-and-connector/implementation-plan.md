@@ -2,9 +2,9 @@
 
 ## 1. 目标与决策基线
 
-二期在一期 Automation Facade 基线上交付运行中 GUI Editor 的公共 MCP Server、公共 Wire Contract、实例发现与状态观察、DS Connector Lite，以及设置、CLI、安全和运行时生命周期。
+二期在一期 Automation Facade 基线上交付运行中 GUI Editor 的公共 MCP Server、公共 Wire Contract、实例发现与状态观察、DS Connector Lite，以及 GUI 进阶控制、允许公开的应用设置与歌词规则、包索引、设置页、CLI、安全和运行时生命周期。
 
-设计语义以《DS Editor Lite MCP 与自动化体系设计》当前版为权威来源，并参考[自动化体系五期建设路线图 #96](https://github.com/flutydeer/ds-editor-lite/issues/96)。公共工具分母由[公共工具矩阵](public-tool-matrix.md)冻结：Editor 134 项，Connector 6 项，总计 140 项。
+设计语义以《DS Editor Lite MCP 与自动化体系设计》当前版为权威来源，并参考[自动化体系五期建设路线图 #96](https://github.com/flutydeer/ds-editor-lite/issues/96)。公共工具分母由[公共工具矩阵](public-tool-matrix.md)冻结：Editor 179 项，Connector 6 项，总计 185 项。
 
 本期产品形态为：
 
@@ -21,7 +21,7 @@ Agent 会话可先于 Editor 启动。Connector 通过全局实例 Bootstrap 观
 
 ## 2. 域优先原则
 
-公共能力先按业务域建模，再映射到 Profile、MCP descriptor 和 Connector exposure。Editor 的 19 个域依次为：应用、自动化与安全边界、文档与工程、格式、轨道、总线、片段、音频素材、声库、Speaker Mix、音符/歌词/语言/发音/音素、参数曲线与锚点、时间轴、历史记录、播放、导出、提取、推理、异步任务。
+公共能力先按业务域建模，再映射到 Profile、MCP descriptor 和 Connector exposure。Editor 的 25 个域依次为：应用、自动化与安全边界、文档与工程、格式、轨道、总线、片段、音频素材、声库、Speaker Mix、音符/歌词/语言/发音/音素、参数曲线与锚点、时间轴、历史记录、播放、导出、提取、推理、异步任务、工作区布局、轨道面板、片段编辑器、设置、包信息、歌词规则。
 
 领域契约遵循以下规则：
 
@@ -35,6 +35,9 @@ Agent 会话可先于 Editor 启动。Connector 通过全局实例 Bootstrap 观
 - voice selection 以 singer 为必填稳定引用；speaker 可省略或为 `null`。零 speaker 声库保持空 speaker，单 speaker 声库自动解析唯一 speaker，多 speaker 声库要求显式选择；查询结果以 `speaker: null` 表达空 speaker。
 - 同步 Command 在模型信号、历史记录与 revision 提交完成后返回；异步 Command 在最终写回与信号完成后进入成功终态。
 - 自动化路径使用显式策略与稳定错误，不触发模态对话框。
+- GUI 进阶控制以工作区、轨道面板和片段编辑器归域；钢琴与参数子区域共享时间视口，选择与焦点归入所属面板域。
+- 应用设置使用明确 allowlist 与按小标题聚合的稀疏更新；自动化/MCP 自身配置和未列入设置不能由 MCP 修改。
+- 应用级设置与歌词规则不进入文档 revision/history；包刷新使用 application-scoped Task，不伪造文档身份。
 
 总线域的 descriptor category 为 `bus`，公开操作 ID 保持 `master.*`。历史记录是独立域，固定包含状态查询、Undo 与 Redo。
 
@@ -94,7 +97,7 @@ Wire 字段使用 `snake_case`。业务 object 使用封闭 Schema；未知字�
 
 ### 5.2 Binding Registry
 
-Registry 从同一工具声明建立 134 个类型化 binding，并派生：
+Registry 从同一工具声明建立 179 个类型化 binding，并派生：
 
 - Editor `tools/list` 的确定顺序和 descriptor；
 - Public Automation Manifest；
@@ -116,7 +119,7 @@ Public Automation Manifest 根级包含：
 - 不透明 `next_cursor`；
 - 根级版本化 `extensions`。
 
-本期工具集维持 v1：`toolsetVersion = 1`。140 个工具各自持有的 current version、introduced version、minimum compatible version 都是 1；digest 用于缓存和漂移检测。
+本期工具集维持 v1：`toolsetVersion = 1`。185 个工具各自持有的 current version、introduced version、minimum compatible version 都是 1；digest 用于缓存和漂移检测。
 
 Connector 对同名类型化工具同时检查双方版本门槛和 Schema 方向：
 
@@ -213,7 +216,7 @@ editor.tools.describe
 editor.tools.invoke
 ```
 
-Connector 同时携带构建时已知的 134 个 Editor 类型化工具描述。进程启动时根据 exposure 生成固定 downstream 类型化工具集合：
+Connector 同时携带构建时已知的 179 个 Editor 类型化工具描述。进程启动时根据 exposure 生成固定 downstream 类型化工具集合：
 
 ```text
 --exposure-profile l0|l1|l2|l3
@@ -270,9 +273,9 @@ CLI override 只影响本次运行，优先于持久设置。选项菜单中的 
 ## 13. 实施顺序与阶段提交
 
 1. 校正一期 Task 名称与受影响测试。
-2. 冻结 134 + 6 工具矩阵、公共 enum、Schema 与版本不变量。
+2. 冻结 179 + 6 工具矩阵、公共 enum、Schema 与版本不变量。
 3. 完成 Wire Contract、Manifest、游标与 Schema 兼容。
-4. 按 19 个域完成 134 个 Registry binding 和 host adapter。
+4. 按 25 个域完成 179 个 Registry binding 和 host adapter。
 5. 完成 Profile/Custom、File Guard 与 Admission。
 6. 完成 Editor 2025-11-25 与 2026-07-28 两套主协议，以及 2025-06-18 兼容握手生命周期。
 7. 完成 QLocal discover/watch 与状态机。
@@ -297,10 +300,10 @@ docs(automation): report phase two delivery
 
 ## 14. 验收门禁与正式产物
 
-- 134 个 Editor ID、6 个 Connector ID、140 个总 ID 唯一且集合相等。
-- 19 个 Editor 域及总线、历史记录归属与权威矩阵一致。
+- 179 个 Editor ID、6 个 Connector ID、185 个总 ID 唯一且集合相等。
+- 25 个 Editor 域及总线、历史记录、GUI 子区域归属与权威矩阵一致。
 - toolset v1 和每工具版本三元组均为 1。
-- 134 个 Editor 工具均具备严格 Schema、descriptor、binding 与适用测试。
+- 179 个 Editor 工具均具备严格 Schema、descriptor、binding 与适用测试。
 - Editor MCP 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手、QLocal watch、Connector stdio/exposure/compatibility、Profile/Custom、File Guard、Admission、设置与 CLI 完成验证。
 - Editor 直连与 Connector 转接保持业务结果、稳定错误、历史记录、revision 和 Task 语义等价。
 - 多 Connector、运行时换端口/启停、限流、退出和资源清理满足有界生命周期。

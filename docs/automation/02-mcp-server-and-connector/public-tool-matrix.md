@@ -2,9 +2,9 @@
 
 ## 1. 冻结口径
 
-二期工具面按业务域组织。Editor 提供 **134** 个公共工具，DS Connector Lite 提供 **6** 个桥接工具，合计 **140** 个。MCP tool name 是跨 Contract、Registry、Manifest、Editor 与 Connector 的稳定身份，不使用依赖表内顺序的编号。
+二期工具面按业务域组织。Editor 提供 **179** 个公共工具，DS Connector Lite 提供 **6** 个桥接工具，合计 **185** 个。MCP tool name 是跨 Contract、Registry、Manifest、Editor 与 Connector 的稳定身份，不使用依赖表内顺序的编号。
 
-公共工具集维持 v1：`toolsetVersion = 1`，140 个工具各自的 current version、introduced version、minimum compatible version 均为 1。版本是全表不变量，因此工具清单不设置横向版本列。
+公共工具集维持 v1：`toolsetVersion = 1`，185 个工具各自的 current version、introduced version、minimum compatible version 均为 1。版本是全表不变量，因此工具清单不设置横向版本列。
 
 标记说明：
 
@@ -38,7 +38,13 @@
 | 提取 | 3 | 音高/MIDI 提取能力与任务 |
 | 推理 | 4 | 能力、状态、启动与阶段重置 |
 | 异步任务 | 3 | 任务列表、详情与取消 |
-| **Editor 合计** | **134** | **37 Q/S + 87 C/S + 10 C/A** |
+| 工作区布局 | 2 | 主编辑面板布局、可见性与焦点归属 |
+| 轨道面板 | 7 | 面板状态、视口、选择、焦点与自动翻页 |
+| 片段编辑器 | 16 | 共享时间视口、钢琴与参数子区域的显示、选择和工具状态 |
+| 设置 | 10 | 允许公开的应用设置查询、稀疏更新、候选值与生效状态 |
+| 包信息 | 3 | 已安装包查询、详情与异步刷新 |
+| 歌词规则 | 7 | splitter/tagger 规则管理与只读流水线测试 |
+| **Editor 合计** | **179** | **45 Q/S + 123 C/S + 11 C/A** |
 
 ## 3. Editor 公共工具
 
@@ -273,9 +279,90 @@
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
-| `tasks.list` | L2 | Q/S | 当前 document generation、筛选与分页 |
-| `tasks.get` | L2 | Q/S | 状态、进度、结果、错误与创建者归因 |
-| `tasks.cancel` | L2 | C/S | 排队、运行、提交点与终态取消语义 |
+| `tasks.list` | L2 | Q/S | 按 document/application scope 列出任务，支持筛选与分页 |
+| `tasks.get` | L2 | Q/S | 按 scope 返回状态、进度、结果、错误与创建者归因 |
+| `tasks.cancel` | L2 | C/S | 按 scope 执行排队、运行、提交点与终态取消语义 |
+
+### 3.20 工作区布局（2）
+
+| 工具 | Profile | 类型 | 契约要点 |
+|---|---|---|---|
+| `workspace.get` | L3 | Q/S | 返回主编辑面板可见性、布局与当前键盘焦点所属面板 |
+| `workspace.set_panel_visibility` | L3 | C/S | 稀疏更新轨道面板与片段编辑器可见性；至少保留一个主编辑面板 |
+
+### 3.21 轨道面板（7）
+
+| 工具 | Profile | 类型 | 契约要点 |
+|---|---|---|---|
+| `track_panel.get` | L3 | Q/S | 返回视口、自动翻页、当前轨道、有序片段选择与 primary item |
+| `track_panel.set_viewport` | L3 | C/S | 稀疏更新中心 tick、中心轨道索引与横纵缩放 |
+| `track_panel.reveal_clips` | L3 | C/S | 完整显示目标轨道或片段集合，不修改工程 |
+| `track_panel.set_auto_page_turn` | L3 | C/S | 设置轨道面板自动翻页 |
+| `track_panel.select_track` | L3 | C/S | 选择或清除当前轨道，并将焦点切到轨道面板 |
+| `track_panel.select_clips` | L3 | C/S | 原子替换有序片段选择与 primary clip，并聚焦轨道面板 |
+| `track_panel.clear_selection` | L3 | C/S | 按 track/clips/all 清除选择并保持确定焦点 |
+
+### 3.22 片段编辑器（16）
+
+钢琴和参数子区域共享时间位置与横向缩放；钢琴另有音高纵向视口，参数另有值域纵向视口。焦点与选择归入各自面板/子区域，不建立平行的选择域。
+
+| 工具 | Profile | 类型 | 契约要点 |
+|---|---|---|---|
+| `clip_editor.get` | L3 | Q/S | 返回活动片段、当前子区域、共享时间视口、自动翻页、钢琴与参数状态 |
+| `clip_editor.set_active_clip` | L3 | C/S | 设置活动歌声片段，或关闭当前活动片段 |
+| `clip_editor.set_time_viewport` | L3 | C/S | 稀疏更新钢琴与参数共享的中心 tick 和横向缩放 |
+| `clip_editor.set_auto_page_turn` | L3 | C/S | 设置片段编辑器自动翻页 |
+| `clip_editor.show_region` | L3 | C/S | 显示、展开并聚焦 piano 或 parameters 子区域 |
+| `clip_editor.piano.set_pitch_viewport` | L3 | C/S | 稀疏更新中心音高与纵向缩放 |
+| `clip_editor.piano.reveal_notes` | L3 | C/S | 在活动歌声片段中完整显示指定音符 |
+| `clip_editor.piano.set_edit_mode` | L3 | C/S | 设置钢琴窗受支持的编辑模式 |
+| `clip_editor.piano.set_quantize` | L3 | C/S | 稀疏更新量化分度与启用状态 |
+| `clip_editor.piano.select_notes` | L3 | C/S | 原子替换有序音符选择与 primary note，并聚焦钢琴子区域 |
+| `clip_editor.piano.clear_selection` | L3 | C/S | 清除活动片段音符选择并聚焦钢琴子区域 |
+| `clip_editor.parameters.set_foreground` | L3 | C/S | 设置前景参数 |
+| `clip_editor.parameters.set_background` | L3 | C/S | 设置背景参数或 none |
+| `clip_editor.parameters.swap` | L3 | C/S | 原子交换前景与背景；不可交换时不产生部分变化 |
+| `clip_editor.parameters.set_tool` | L3 | C/S | 设置绘制、擦除、烘焙或锚点等受支持工具 |
+| `clip_editor.parameters.set_value_viewport` | L3 | C/S | 稀疏更新归一化值域中心与纵向缩放，不改变共享时间视口 |
+
+### 3.23 设置（10）
+
+设置工具只公开明确允许的应用选项，不公开自动化/MCP 自配置、开发者选项、窗口/动画/触控、文件缓存、MIDI、合成器、G2P 优先级、推理缓存、最近文件清理或未列出的设置。
+
+| 工具 | Profile | 类型 | 契约要点 |
+|---|---|---|---|
+| `settings.query` | L3 | Q/S | 按可选 domain 返回配置值、生效值、候选/范围、重启要求与不可用原因 |
+| `settings.ui_language.update` | L3 | C/S | 稀疏更新 UI 语言并立即应用 |
+| `settings.singing.update` | L3 | C/S | 稀疏更新默认歌唱语言及按语言保存的默认歌词 |
+| `settings.theme.update` | L3 | C/S | 稀疏更新颜色主题并立即应用 |
+| `settings.audio_device.update` | L3 | C/S | 稀疏更新驱动、设备、缓冲、采样率、热插拔、增益与声像；失败回滚且不弹窗 |
+| `settings.playback_behavior.update` | L3 | C/S | 稀疏更新播放头停止行为 |
+| `settings.compute_device.update` | L3 | C/S | 稀疏更新执行提供程序与 GPU；需要重启时只返回事实 |
+| `settings.render.update` | L3 | C/S | 稀疏更新采样步数、深度、Vocoder CPU、自动推理、前瞻与音高平滑 |
+| `settings.singer_session_retention.update` | L3 | C/S | 稀疏更新会话容量与空闲释放时间 |
+| `settings.package_search_paths.update` | L3 | C/S | 替换有序读取根内路径；配置值持久化并报告重启后生效 |
+
+### 3.24 包信息（3）
+
+| 工具 | Profile | 类型 | 契约要点 |
+|---|---|---|---|
+| `packages.list` | L3 | Q/S | 列出包、版本、供应方、受读取根约束的 canonical path 与声库摘要 |
+| `packages.describe` | L3 | Q/S | 返回指定包元数据、许可、说明与声库明细 |
+| `packages.refresh` | L3 | C/A | 使用当前 effective 搜索路径后台扫描，完成后原子切换索引并报告增删改与失败 |
+
+`packages.refresh` 创建 application-scoped Task；不伪造 `document_id`，也不参与工程 revision 或历史记录。
+
+### 3.25 歌词规则（7）
+
+| 工具 | Profile | 类型 | 契约要点 |
+|---|---|---|---|
+| `lyric_rules.list` | L3 | Q/S | 列出内置/自定义 splitter、tagger 的稳定 ID、内容、启用状态与分类顺序 |
+| `lyric_rules.create` | L3 | C/S | 创建自定义 splitter 或 tagger，不允许伪造内置规则 |
+| `lyric_rules.update` | L3 | C/S | 按稳定 rule ID 稀疏更新自定义规则；内置内容不可修改 |
+| `lyric_rules.delete` | L3 | C/S | 删除自定义规则；内置规则不可删除 |
+| `lyric_rules.set_enabled` | L3 | C/S | 单独启停内置或自定义规则 |
+| `lyric_rules.move` | L3 | C/S | 在 splitter/tagger 各自序列中原子移动规则 |
+| `lyric_rules.test` | L3 | Q/S | 对给定文本只读运行 splitter→tagger，返回逐阶段结果 |
 
 ## 4. DS Connector Lite 桥接工具（6）
 
@@ -304,7 +391,7 @@ Editor PublicToolDefinitions
 Connector bridge definitions
 = Connector downstream 固定桥接工具 names
 
-134 + 6 = 140
+179 + 6 = 185
 ```
 
 每个 Editor 工具必须具备唯一 operation ID、域、最低 profile、Query/Command、同步模式、严格 input/output Schema、`value_sources`、历史记录/file/host/concurrency/conflict/safety descriptor 和执行 binding。每次调用在实际 dispatch 前重新执行 profile/Custom、Schema、动态值、File Guard 与 Admission 检查。
