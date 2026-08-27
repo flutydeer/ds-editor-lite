@@ -164,7 +164,6 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 17. 对 settings.query 与九个 update 验证公开字段 allowlist、domain 过滤、候选/生效/重启信息、稀疏更新、validate-only、持久化和失败回滚。
 18. 对 packages.list/describe/refresh 验证读取根内路径、有效搜索路径、application task 的成功/取消/部分失败，以及索引原子切换。
 19. 对 lyric_rules 七项工具验证稳定 ID 迁移、内置/自定义边界、CRUD、启停、分类内移动、非法规则回滚和 splitter→tagger 只读测试。
-20. 对 RMVPE 长音频路径验证有界分块、进度、取消、完整成功、参数点时间轴和 Editor 存活；真实长输入通过后再进入最终 CTest 门禁。
 
 ### 证据
 

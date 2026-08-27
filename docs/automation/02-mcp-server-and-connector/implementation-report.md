@@ -170,12 +170,6 @@ GUI 进阶控制按真实面板层级归入 `workspace`、`track_panel` 和 `cli
 
 `lyric_rules` 使用稳定 rule ID 管理 splitter 与 tagger 两类规则。自定义规则支持创建、稀疏更新、删除、启停和分类内移动；内置规则内容不可修改或删除，但可以独立启停。`lyric_rules.test` 只读运行 splitter→tagger 流水线，返回逐阶段结果，不改变规则、文档或应用状态。
 
-### 5.8 长音频 Pitch 提取
-
-RMVPE 的连续音频推理通过项目的 synthrt vcpkg overlay 采用有界分块：单次模型输入最长 30 秒，核心区间前后各保留 1 秒上下文，并在 10 ms 网格上裁剪和拼接 `PitchFrame`。进度按非重叠核心样本计算，取消检查延续到每个分块之间。该路径避免 DirectML 为完整长音频一次分配超大张量，同时保持原有 Task、进度、取消和参数写回接口不变。
-
-overlay 的 port version 随补丁递增，确保本地依赖不会误复用未分块的旧包。后续升级 synthrt 或 ONNX Runtime 时应同步复核补丁；上下文分块不承诺与一次性超大张量逐位相同，但输出时间轴和点数语义保持一致。
-
 ## 6. 历史记录、revision 与 Task
 
 `CommandCommitter` 为一次编辑构造一个 `ActionSequence`，成功时记录一条历史记录并推进一次 revision；预检失败、handler 失败、文件失败和 no-op 都不会产生半提交。Undo/Redo 仅在真实导航时推进 revision，save/save-as 更新 savepoint，文档换代重置 generation 与历史基线。
@@ -265,4 +259,4 @@ CLI override 只影响本次运行，并在设置页显示来源，不改写持�
 - 设置稀疏更新、包索引后台刷新、歌词规则管理与失败回滚；
 - Automation 设置持久化、CLI override、端口、配置 JSON、Custom 领域分组与中文界面。
 
-最终候选已完成 Debug 配置与构建、179 项确定性契约覆盖、25 个业务域真实代表路径、L3 45/45 项与 Connector 6/6 项实际调用，以及 Computer Use GUI 验收。完整 CTest 在同一候选上串行三轮共 201/201 通过；长音频 DirectML 提取、配置恢复和只读素材完整性也已完成回归。具体运行数据、证据口径和验收判断集中写入测试报告。
+最终候选已完成 Debug 配置与构建、179 项确定性契约覆盖、25 个业务域真实代表路径、L3 45/45 项与 Connector 6/6 项实际调用，以及 Computer Use GUI 验收。完整 CTest、配置恢复和只读素材完整性的具体运行数据、证据口径及验收判断集中写入测试报告。
