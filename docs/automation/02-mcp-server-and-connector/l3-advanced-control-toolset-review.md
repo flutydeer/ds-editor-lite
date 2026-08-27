@@ -2,26 +2,26 @@
 
 | 领域 | 工具 | 类型 | 契约要点 |
 |---|---|---|---|
-| 工作区布局 | `workspace.get` | Q/S | 返回轨道面板、底部面板、当前底部页面及可用页面 ID |
-| 工作区布局 | `workspace.set_panel_visibility` | C/S | 部分更新轨道面板和底部面板可见性；至少保留一个主编辑面板 |
-| 工作区布局 | `workspace.show_bottom_panel_page` | C/S | 显示指定底部页面并在需要时展开底部面板 |
-| 轨道视图 | `track_view.get` | Q/S | 返回视口中心、横纵缩放和自动翻页状态 |
-| 轨道视图 | `track_view.set_viewport` | C/S | 部分更新中心 tick、中心轨道索引及横纵缩放 |
-| 轨道视图 | `track_view.reveal_clips` | C/S | 定位并完整显示指定轨道或片段集合，不修改工程数据 |
-| 轨道视图 | `track_view.set_auto_page_turn` | C/S | 开启或关闭轨道视图播放自动翻页 |
-| 钢琴窗 | `piano_roll.get` | Q/S | 返回活动片段、视口、编辑模式、量化和自动翻页状态 |
-| 钢琴窗 | `piano_roll.set_active_clip` | C/S | 打开指定歌声片段，或关闭当前钢琴窗片段 |
-| 钢琴窗 | `piano_roll.set_viewport` | C/S | 部分更新中心 tick、中心音高及横纵缩放 |
-| 钢琴窗 | `piano_roll.reveal_notes` | C/S | 定位并完整显示指定片段中的音符集合，不修改工程数据 |
-| 钢琴窗 | `piano_roll.set_edit_mode` | C/S | 切换选择、绘制、音高编辑等当前可用编辑模式 |
-| 钢琴窗 | `piano_roll.set_quantize` | C/S | 部分更新量化分度与量化启用状态 |
-| 钢琴窗 | `piano_roll.set_auto_page_turn` | C/S | 开启或关闭钢琴窗播放自动翻页 |
-| 参数编辑器 | `parameter_editor.get` | Q/S | 返回前景参数、背景参数、编辑工具和视口状态 |
-| 参数编辑器 | `parameter_editor.set_foreground` | C/S | 切换当前编辑的前景参数并显示参数编辑页面 |
-| 参数编辑器 | `parameter_editor.set_background` | C/S | 设置用于对照的背景参数，允许设为 none |
-| 参数编辑器 | `parameter_editor.swap` | C/S | 交换前景与背景参数；当前布局不可交换时原子失败 |
-| 参数编辑器 | `parameter_editor.set_tool` | C/S | 切换绘制、擦除、锚点等当前可用参数工具 |
-| 参数编辑器 | `parameter_editor.set_viewport` | C/S | 部分更新参数视图的时间范围和值域范围 |
+| 工作区布局 | `workspace.get` | Q/S | 返回轨道面板与片段编辑器的可见性和整体布局；子区域状态由所属面板返回 |
+| 工作区布局 | `workspace.set_panel_visibility` | C/S | 部分更新轨道面板和片段编辑器可见性；至少保留一个主编辑面板 |
+| 轨道面板 | `track_panel.get` | Q/S | 返回轨道面板的中心 tick、中心轨道、横纵缩放和自动翻页状态 |
+| 轨道面板 | `track_panel.set_viewport` | C/S | 部分更新轨道面板的中心 tick、中心轨道索引及横纵缩放 |
+| 轨道面板 | `track_panel.reveal_clips` | C/S | 定位并完整显示指定轨道或片段集合，不修改工程数据 |
+| 轨道面板 | `track_panel.set_auto_page_turn` | C/S | 开启或关闭轨道面板播放自动翻页 |
+| 片段编辑器 | `clip_editor.get` | Q/S | 以同一快照返回活动片段、当前子区域、共享时间视口和自动翻页，以及钢琴与参数子区域状态 |
+| 片段编辑器 | `clip_editor.set_active_clip` | C/S | 打开指定歌声片段，或关闭当前片段编辑器中的活动片段 |
+| 片段编辑器 | `clip_editor.set_time_viewport` | C/S | 部分更新钢琴与参数子区域共享的中心 tick 和横向缩放 |
+| 片段编辑器 | `clip_editor.set_auto_page_turn` | C/S | 开启或关闭片段编辑器共享时间轴的播放自动翻页 |
+| 片段编辑器 | `clip_editor.show_region` | C/S | 显示 piano 或 parameters 子区域，并在需要时展开片段编辑器 |
+| 钢琴子区域 | `clip_editor.piano.set_pitch_viewport` | C/S | 只更新钢琴子区域的中心音高和纵向缩放，不重复修改共享时间视口 |
+| 钢琴子区域 | `clip_editor.piano.reveal_notes` | C/S | 切换到钢琴子区域并完整显示指定活动片段中的音符集合，不修改工程数据 |
+| 钢琴子区域 | `clip_editor.piano.set_edit_mode` | C/S | 切换选择、绘制、音高编辑等当前可用编辑模式 |
+| 钢琴子区域 | `clip_editor.piano.set_quantize` | C/S | 部分更新量化分度与量化启用状态 |
+| 参数子区域 | `clip_editor.parameters.set_foreground` | C/S | 切换当前编辑的前景参数并显示参数子区域 |
+| 参数子区域 | `clip_editor.parameters.set_background` | C/S | 设置用于对照的背景参数，允许设为 none |
+| 参数子区域 | `clip_editor.parameters.swap` | C/S | 交换前景与背景参数；当前状态不可交换时原子失败 |
+| 参数子区域 | `clip_editor.parameters.set_tool` | C/S | 切换绘制、擦除、锚点等当前可用参数工具 |
+| 参数子区域 | `clip_editor.parameters.set_value_viewport` | C/S | 只更新参数子区域的值域范围或纵向缩放，不重复修改共享时间视口 |
 | 选择与焦点 | `selection.get` | Q/S | 返回当前轨道、片段和音符选择及键盘焦点归属 |
 | 选择与焦点 | `selection.set_track` | C/S | 选择一条轨道，或清除轨道选择 |
 | 选择与焦点 | `selection.set_clips` | C/S | 原子替换有序片段选择集合 |
