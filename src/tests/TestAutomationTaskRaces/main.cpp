@@ -153,6 +153,55 @@ namespace {
                "unknown TaskId must fail consistently on query, cancel, and commit entry");
     }
 
+    void testApplicationTaskScope(Checks &checks) {
+        checks.scenario("application tasks remain independent from document generations");
+
+        Automation::AutomationTaskManager tasks;
+        const auto document = Automation::DocumentVersion{Automation::DocumentId::create(), 4};
+        int cancelCount = 0;
+        const auto canceledTask = tasks.createApplicationTask(
+            QStringLiteral("packages.refresh"), [&cancelCount] { ++cancelCount; },
+            QStringLiteral("test-client"));
+        EXPECT(checks,
+               canceledTask.scope == Automation::AutomationTaskScope::Application &&
+                   canceledTask.baseDocument.documentId.isNull() &&
+                   tasks.listApplication().size() == 1 && tasks.list(document.documentId).isEmpty(),
+               "application tasks must expose an explicit scope without a fake document");
+        EXPECT(checks,
+               !tasks.get(document.documentId, canceledTask.taskId) &&
+                   tasks.getApplication(canceledTask.taskId),
+               "document and application task lookup must remain scope-safe");
+        const auto firstCancel = tasks.requestCancelApplication(canceledTask.taskId);
+        const auto repeatedCancel = tasks.requestCancelApplication(canceledTask.taskId);
+        const auto canceledCommit = tasks.beginCommitting(canceledTask.taskId);
+        EXPECT(checks,
+               firstCancel && repeatedCancel && canceledCommit && !canceledCommit.get() &&
+                   cancelCount == 1 &&
+                   tasks.getApplication(canceledTask.taskId).get().state ==
+                       Automation::AutomationTaskState::Canceled,
+               "application cancellation must be idempotent and win before commit");
+
+        const auto succeededTask = tasks.createApplicationTask(QStringLiteral("packages.refresh"));
+        const auto running = tasks.markRunning(succeededTask.taskId);
+        const auto committing = tasks.beginCommitting(succeededTask.taskId);
+        EXPECT(checks,
+               running && committing && committing.get() &&
+                   tasks.succeedApplication(
+                       succeededTask.taskId,
+                       QJsonObject{
+                           {QStringLiteral("added"),   2},
+                           {QStringLiteral("removed"), 1}
+        }),
+               "application tasks must support one successful application result");
+        tasks.discardDocumentGeneration(document.documentId);
+        const auto succeeded = tasks.getApplication(succeededTask.taskId);
+        EXPECT(checks,
+               succeeded && succeeded.get().state == Automation::AutomationTaskState::Succeeded &&
+                   succeeded.get().applicationResult &&
+                   succeeded.get().applicationResult->value(QStringLiteral("added")).toInt() == 2,
+               "document generation cleanup must not discard application task results");
+    }
+
     struct CancelRaceOutcome {
         bool succeeded = false;
         Automation::AutomationTaskState state = Automation::AutomationTaskState::Queued;
@@ -304,9 +353,8 @@ namespace {
         int unsuccessfulCallbacks = 0;
         int terminalCallbacks = 0;
         std::optional<Automation::AutomationTaskSnapshot> removedSnapshot;
-        const auto task = tasks.createTask(
-            Automation::OperationIds::extract::pitch::start, oldVersion, std::nullopt,
-            [&] { ++cancelCallbacks; });
+        const auto task = tasks.createTask(Automation::OperationIds::extract::pitch::start,
+                                           oldVersion, std::nullopt, [&] { ++cancelCallbacks; });
         tasks.setUnsuccessfulCallback(task.taskId, [&](const auto &snapshot) {
             ++unsuccessfulCallbacks;
             removedSnapshot = snapshot;
@@ -336,9 +384,8 @@ namespace {
                    !removedSnapshot->cancelable,
                "discarding a generation must terminalize removed work outside the task store");
 
-        const auto replacementTask = tasks.createTask(
-            QStringLiteral("documents.open"), newVersion, std::nullopt,
-            [&] { ++cancelCallbacks; });
+        const auto replacementTask = tasks.createTask(QStringLiteral("documents.open"), newVersion,
+                                                      std::nullopt, [&] { ++cancelCallbacks; });
         tasks.setUnsuccessfulCallback(replacementTask.taskId,
                                       [&](const auto &) { ++unsuccessfulCallbacks; });
         tasks.setTerminalCallback(replacementTask.taskId,
@@ -818,6 +865,7 @@ int main(int argc, char *argv[]) {
     Checks checks;
 
     testTaskManagerStateBoundaries(checks);
+    testApplicationTaskScope(checks);
     testCancelVersusCommitStress(checks);
     testDuplicateCompletionStress(checks);
     testSessionGenerationContract(checks);

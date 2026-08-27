@@ -11,6 +11,7 @@ namespace RuntimeDimensions {
             std::function<GuiResult(RuntimeHarness &, const Automation::GuiCommandContext &)> valid;
             std::function<GuiResult(RuntimeHarness &, const Automation::GuiCommandContext &)>
                 invalid;
+            std::function<void(RuntimeHarness &)> prepare;
         };
 
         QList<ViewCase> viewCases() {
@@ -53,53 +54,127 @@ namespace RuntimeDimensions {
                             return harness.core().facade().setTrackPanelScale(context, 0.0, 1.0);
                         }, },
                 {
-                 .operationId = Automation::OperationIds::editor::set_panel_visibility,
+                 .operationId = Automation::OperationIds::editor::set_track_panel_viewport,
                  .valid =
                         [](RuntimeHarness &harness,                   const auto &context) {
-                            return harness.core().facade().setPanelVisibility(context, true, false);
+                            Automation::TrackPanelViewportPatch patch;
+                            patch.centerTick = 960.0;
+                            patch.verticalScale = 1.5;
+                            return harness.core().facade().setTrackPanelViewport(context, patch);
                         }, .invalid =
                         [](RuntimeHarness &harness, const auto &context) {
+                            return harness.core().facade().setTrackPanelViewport(context, {});
+                        }, },
+                {
+                 .operationId = Automation::OperationIds::editor::set_panel_visibility,
+                 .valid =
+                        [](RuntimeHarness &harness,     const auto &context) {
+                            return harness.core().facade().setPanelVisibility(context, true, false);
+                        },                                                                              .invalid =
+                        [](RuntimeHarness &harness,                                                                               const auto &context) {
                             return harness.core().facade().setPanelVisibility(context, false,
                                                                               false);
                         }, },
                 {
                  .operationId = Automation::OperationIds::editor::show_bottom_panel_page,
                  .valid =
-                        [](RuntimeHarness &harness,         const auto &context) {
+                        [](RuntimeHarness &harness,                                                 const auto &context) {
                             return harness.core().facade().showBottomPanelPage(
                                 context, QStringLiteral("歌词/Phoneme"));
-                        },                                                                              .invalid =
-                        [](RuntimeHarness &harness,                                                                               const auto &context) {
+                        },                                                                                 .invalid =
+                        [](RuntimeHarness &harness,                                                                     const auto &context) {
                             return harness.core().facade().showBottomPanelPage(
                                 context, QStringLiteral("   "));
                         }, },
                 {
+                 .operationId = Automation::OperationIds::editor::show_region,
+                 .valid =
+                        [](RuntimeHarness &harness,  const auto &context) {
+                            return harness.core().facade().showRegion(
+                                context, EditorViewGlobal::Region::Parameters);
+                        },        .invalid =
+                        [](RuntimeHarness &harness,                                const auto &context) {
+                            return harness.core().facade().showRegion(
+                                context, EditorViewGlobal::Region::TrackPanel);
+                        }, .prepare =
+                        [](RuntimeHarness &harness) {
+                            harness.editorView.layout.bottomPanelVisible = true;
+                            harness.editorView.layout.bottomPanelPageId =
+                                QStringLiteral("ClipEditor");
+                            harness.editorView.layout.parametersVisible = false;
+                            harness.editorView.layout.activeRegion =
+                                EditorViewGlobal::Region::Parameters;
+                            harness.editorView.layout.focusedRegion =
+                                EditorViewGlobal::Region::Parameters;
+                        }, },
+                {
+                 .operationId = Automation::OperationIds::editor::focus_region,
+                 .valid =
+                        [](RuntimeHarness &harness,                                             const auto &context) {
+                            return harness.core().facade().focusRegion(
+                                context, EditorViewGlobal::Region::PianoRoll);
+                        },                                                    .invalid =
+                        [](RuntimeHarness &harness,                            const auto &context) {
+                            return harness.core().facade().focusRegion(
+                                context, EditorViewGlobal::Region::None);
+                        }, },
+                {
                  .operationId = Automation::OperationIds::editor::center_piano_roll,
                  .valid =
-                        [](RuntimeHarness &harness,                                                 const auto &context) {
+                        [](RuntimeHarness &harness,                                                                           const auto &context) {
                             return harness.core().facade().centerPianoRoll(context, 1440.0, 72.0);
-                        },                                                                                 .invalid =
-                        [](RuntimeHarness &harness,                                                                   const auto &context) {
+                        },                                                   .invalid =
+                        [](RuntimeHarness &harness,                                                                                                         const auto &context) {
                             return harness.core().facade().centerPianoRoll(context, 0.0, 128.0);
                         }, },
                 {
                  .operationId = Automation::OperationIds::editor::set_piano_roll_scale,
                  .valid =
-                        [](RuntimeHarness &harness,  const auto &context) {
+                        [](RuntimeHarness &harness, const auto &context) {
                             return harness.core().facade().setPianoRollScale(context, 1.5, 2.0);
-                        },        .invalid =
-                        [](RuntimeHarness &harness,                                const auto &context) {
+                        },                               .invalid =
+                        [](RuntimeHarness &harness,                                                         const auto &context) {
                             return harness.core().facade().setPianoRollScale(
                                 context, std::numeric_limits<double>::infinity(), 1.0);
                         }, },
                 {
+                 .operationId = Automation::OperationIds::editor::set_clip_editor_time_viewport,
+                 .valid =
+                        [](RuntimeHarness &harness,                   const auto &context) {
+                            Automation::ClipEditorTimeViewportPatch patch;
+                            patch.centerTick = 1440.0;
+                            return harness.core().facade().setClipEditorTimeViewport(context,
+                                                                                     patch);
+                        }, .invalid =
+                        [](RuntimeHarness &harness, const auto &context) {
+                            Automation::ClipEditorTimeViewportPatch patch;
+                            patch.horizontalScale = 0.0;
+                            return harness.core().facade().setClipEditorTimeViewport(context,
+                                                                                     patch);
+                        }, },
+                {
+                 .operationId = Automation::OperationIds::editor::set_piano_roll_pitch_viewport,
+                 .valid =
+                        [](RuntimeHarness &harness,            const auto &context) {
+                            Automation::PianoRollPitchViewportPatch patch;
+                            patch.centerKeyIndex = 72.0;
+                            return harness.core().facade().setPianoRollPitchViewport(context,
+                                                                                     patch);
+                        },                                                                              .invalid =
+                        [](RuntimeHarness &harness,                                                                               const auto &context) {
+                            Automation::PianoRollPitchViewportPatch patch;
+                            patch.centerKeyIndex = 128.0;
+                            return harness.core().facade().setPianoRollPitchViewport(context,
+                                                                                     patch);
+                        }, },
+                {
                  .operationId = Automation::OperationIds::editor::set_piano_roll_edit_mode,
                  .valid =
-                        [](RuntimeHarness &harness,                                             const auto &context) {
+                        [](RuntimeHarness &harness,                                                 const auto &context) {
                             return harness.core().facade().setPianoRollEditMode(
                                 context, EditorViewGlobal::DrawNote);
-                        },                                                    .invalid =
-                        [](RuntimeHarness &harness,                            const auto &context) {
+                        },                                                                                 .invalid =
+                        [](RuntimeHarness &harness,                                                                     const auto &context) {
                             return harness.core().facade().setPianoRollEditMode(
                                 context, static_cast<EditorViewGlobal::PianoRollEditMode>(99));
                         }, },
@@ -109,8 +184,13 @@ namespace RuntimeDimensions {
         void runViewCommands(ScenarioLog &log) {
             for (const auto &testCase : viewCases()) {
                 const auto operationId = testCase.operationId;
+                const auto prepare = [&testCase](RuntimeHarness &harness) {
+                    if (testCase.prepare)
+                        testCase.prepare(harness);
+                };
                 log.run(operationId, QStringLiteral("NORMAL"), [&] {
                     RuntimeHarness harness;
+                    prepare(harness);
                     const auto result = testCase.valid(harness, guiContext(harness));
                     log.expect(result && result.get().changed && !result.get().validatedOnly &&
                                    result.get().windowId == harness.core().windowId() &&
@@ -119,6 +199,7 @@ namespace RuntimeDimensions {
                 });
                 log.run(operationId, QStringLiteral("NO-OP"), [&] {
                     RuntimeHarness harness;
+                    prepare(harness);
                     const auto first = testCase.valid(harness, guiContext(harness));
                     const auto second = testCase.valid(harness, guiContext(harness));
                     log.expect(first && first.get().changed && second && !second.get().changed &&
@@ -127,6 +208,7 @@ namespace RuntimeDimensions {
                 });
                 log.run(operationId, QStringLiteral("VALIDATE-ONLY"), [&] {
                     RuntimeHarness harness;
+                    prepare(harness);
                     const auto before = harness.editorView;
                     const auto result = testCase.valid(harness, guiContext(harness, true));
                     log.expect(result && result.get().changed && result.get().validatedOnly &&
@@ -136,6 +218,7 @@ namespace RuntimeDimensions {
                 });
                 log.run(operationId, QStringLiteral("INVALID-INPUT"), [&] {
                     RuntimeHarness harness;
+                    prepare(harness);
                     const auto result = testCase.invalid(harness, guiContext(harness));
                     log.expectError(result, Automation::AutomationErrorCode::InvalidArgument,
                                     operationId,
@@ -145,6 +228,7 @@ namespace RuntimeDimensions {
                 });
                 log.run(operationId, QStringLiteral("UNKNOWN-WINDOW"), [&] {
                     RuntimeHarness harness;
+                    prepare(harness);
                     auto context = guiContext(harness);
                     context.windowId = Automation::WindowId::create();
                     const auto result = testCase.valid(harness, context);
@@ -156,6 +240,7 @@ namespace RuntimeDimensions {
                 });
                 log.run(operationId, QStringLiteral("HOST-UNAVAILABLE"), [&] {
                     RuntimeHarness harness({.missingOperation = operationId});
+                    prepare(harness);
                     const auto result = testCase.valid(harness, guiContext(harness));
                     log.expectError(
                         result, Automation::AutomationErrorCode::HostCapabilityUnavailable,
@@ -163,6 +248,7 @@ namespace RuntimeDimensions {
                 });
                 log.run(operationId, QStringLiteral("HOST-REJECT"), [&] {
                     RuntimeHarness harness;
+                    prepare(harness);
                     const auto before = harness.editorView;
                     harness.editorApplySucceeds = false;
                     const auto result = testCase.valid(harness, guiContext(harness));
@@ -176,6 +262,7 @@ namespace RuntimeDimensions {
                 });
                 log.run(operationId, QStringLiteral("DOCUMENT-NO-SIDE-EFFECT"), [&] {
                     RuntimeHarness harness;
+                    prepare(harness);
                     const auto version = harness.core().documentVersion();
                     const auto result = testCase.valid(harness, guiContext(harness));
                     log.expect(result && harness.core().documentVersion() == version,
@@ -259,7 +346,9 @@ namespace RuntimeDimensions {
                     harness.editorStable.selectedTrackIndex = 0;
                     harness.editorStable.activeClipId = objects->clipId.value();
                     harness.editorStable.selectedClipIds = {objects->clipId.value()};
+                    harness.editorStable.primaryClipId = objects->clipId.value();
                     harness.editorStable.selectedNoteIds = {objects->noteId.value()};
+                    harness.editorStable.primaryNoteId = objects->noteId.value();
                     harness.editorStable.pianoRollQuantize = 24;
                     harness.editorStable.trackAutoPageTurnEnabled = false;
                 }
@@ -270,8 +359,10 @@ namespace RuntimeDimensions {
                                result.get().selection.activeClipId == objects->clipId &&
                                result.get().selection.selectedClipIds ==
                                    QList<Automation::ClipId>{objects->clipId} &&
+                               result.get().selection.primaryClipId == objects->clipId &&
                                result.get().selection.selectedNoteIds ==
                                    QList<Automation::NoteId>{objects->noteId} &&
+                               result.get().selection.primaryNoteId == objects->noteId &&
                                result.get().pianoRollQuantize == 24 &&
                                !result.get().trackAutoPageTurnEnabled,
                            QStringLiteral("editor state must preserve rich typed selection"));
@@ -586,24 +677,50 @@ namespace RuntimeDimensions {
             log.run(operationId, QStringLiteral("TYPED-NORMALIZATION"), [&] {
                 RuntimeHarness harness;
                 const auto objects = createEditorObjects(harness);
+                Automation::NoteId secondNoteId;
+                if (objects) {
+                    Automation::NoteDraftDto additionalNote;
+                    additionalNote.clientRef = QStringLiteral("runtime-dimension-primary-note");
+                    additionalNote.localStart = 600;
+                    additionalNote.length = 480;
+                    additionalNote.keyIndex = 64;
+                    additionalNote.lyric = QStringLiteral("主");
+                    additionalNote.language = QStringLiteral("cmn");
+                    const auto inserted = harness.core().notes().insertNotes(
+                        commandContext(harness), objects->clipId, {additionalNote});
+                    if (inserted && !inserted.get().createdObjects.isEmpty()) {
+                        secondNoteId = Automation::NoteId(
+                            inserted.get().createdObjects.constFirst().object.value);
+                    }
+                }
                 const auto version = harness.core().documentVersion();
                 const auto context = guiDocumentContext(harness);
                 const auto track =
-                    objects ? harness.core().facade().setSelectedTrack(context, objects->trackId)
-                            : GuiResult(Automation::AutomationError{});
+                    objects
+                        ? harness.core().facade().setSelectedTrack(context, objects->trackId, true)
+                        : GuiResult(Automation::AutomationError{});
                 const auto clips = objects ? harness.core().facade().setSelectedClips(
-                                                 context, {objects->clipId, objects->clipId})
+                                                 context, {objects->clipId, objects->clipId},
+                                                 objects->clipId, true)
                                            : GuiResult(Automation::AutomationError{});
-                const auto notes =
-                    objects ? harness.core().facade().setSelectedNotes(
-                                  context, objects->clipId, {objects->noteId, objects->noteId})
-                            : GuiResult(Automation::AutomationError{});
-                log.expect(objects && track && clips && notes &&
+                const auto notes = objects && secondNoteId.isValid()
+                                       ? harness.core().facade().setSelectedNotes(
+                                             context, objects->clipId,
+                                             {objects->noteId, secondNoteId}, objects->noteId, true)
+                                       : GuiResult(Automation::AutomationError{});
+                const auto state = harness.core().facade().getEditorState(
+                    harness.core().documentVersion().documentId, harness.core().windowId());
+                log.expect(objects && secondNoteId.isValid() && track && clips && notes && state &&
                                harness.editorStable.selectedTrackIndex == 0 &&
                                harness.editorStable.selectedClipIds ==
                                    QList<int>{objects->clipId.value()} &&
                                harness.editorStable.selectedNoteIds ==
-                                   QList<int>{objects->noteId.value()} &&
+                                   QList<int>{objects->noteId.value(), secondNoteId.value()} &&
+                               state.get().selection.selectedNoteIds ==
+                                   QList<Automation::NoteId>{objects->noteId, secondNoteId} &&
+                               state.get().selection.primaryNoteId == objects->noteId &&
+                               harness.editorView.layout.focusedRegion ==
+                                   EditorViewGlobal::Region::PianoRoll &&
                                harness.hostCalls.value(operationId) == 3 &&
                                harness.core().documentVersion() == version,
                            QStringLiteral(
@@ -639,14 +756,15 @@ namespace RuntimeDimensions {
             log.run(operationId, QStringLiteral("CLEAR"), [&] {
                 RuntimeHarness harness;
                 harness.editorStable.selectedClipIds = {1, 2};
-                const auto clips =
-                    harness.core().facade().setSelectedClips(guiDocumentContext(harness), {});
                 harness.editorStable.selectedTrackIndex = 0;
-                const auto track = harness.core().facade().setSelectedTrack(
-                    guiDocumentContext(harness), std::nullopt);
-                log.expect(clips && track && harness.editorStable.selectedClipIds.isEmpty() &&
-                               harness.editorStable.selectedTrackIndex == -1,
-                           QStringLiteral("selection must support explicit empty clearing"));
+                const auto result = harness.core().facade().clearTrackPanelSelection(
+                    guiDocumentContext(harness), true, true, true);
+                log.expect(result && harness.editorStable.selectedClipIds.isEmpty() &&
+                               harness.editorStable.selectedTrackIndex == -1 &&
+                               harness.editorView.layout.focusedRegion ==
+                                   EditorViewGlobal::Region::TrackPanel,
+                           QStringLiteral(
+                               "selection clear must atomically clear scopes and focus the panel"));
             });
             log.run(operationId, QStringLiteral("UNKNOWN-DOCUMENT"), [&] {
                 RuntimeHarness harness;
@@ -682,10 +800,19 @@ namespace RuntimeDimensions {
             });
             log.run(operationId, QStringLiteral("MISSING-OBJECT"), [&] {
                 RuntimeHarness harness;
-                const auto result = harness.core().facade().setSelectedClips(
+                const auto missing = harness.core().facade().setSelectedClips(
                     guiDocumentContext(harness), {Automation::ClipId(999999)});
-                log.expectError(result, Automation::AutomationErrorCode::NotFound, operationId,
+                const auto objects = createEditorObjects(harness);
+                const auto invalidPrimary =
+                    objects ? harness.core().facade().setSelectedClips(guiDocumentContext(harness),
+                                                                       {objects->clipId},
+                                                                       Automation::ClipId(999998))
+                            : GuiResult(Automation::AutomationError{});
+                log.expectError(missing, Automation::AutomationErrorCode::NotFound, operationId,
                                 QStringLiteral("selection must report missing typed object"));
+                log.expectError(invalidPrimary, Automation::AutomationErrorCode::InvalidArgument,
+                                operationId,
+                                QStringLiteral("primary selection must belong to ordered IDs"));
             });
             log.run(operationId, QStringLiteral("HOST-UNAVAILABLE"), [&] {
                 RuntimeHarness harness({.missingOperation = operationId});
@@ -698,6 +825,196 @@ namespace RuntimeDimensions {
                                 operationId,
                                 QStringLiteral("missing selection host must be explicit"));
             });
+        }
+
+        struct ParameterCase {
+            Automation::OperationId operationId;
+            std::function<GuiResult(RuntimeHarness &,
+                                    const Automation::GuiDocumentCommandContext &)>
+                valid;
+            std::function<GuiResult(RuntimeHarness &,
+                                    const Automation::GuiDocumentCommandContext &)>
+                invalid;
+            bool repeatedRequestIsNoOp = true;
+        };
+
+        QList<ParameterCase> parameterCases() {
+            return {
+                {
+                 .operationId = Automation::OperationIds::editor::set_parameter_foreground,
+                 .valid =
+                        [](RuntimeHarness &harness, const auto &context) {
+                            return harness.core().facade().setParameterForeground(
+                                context, ParamInfo::Energy);
+                        }, .invalid =
+                        [](RuntimeHarness &harness, const auto &context) {
+                            return harness.core().facade().setParameterForeground(context,
+                                                                                  ParamInfo::Pitch);
+                        }, },
+                {
+                 .operationId = Automation::OperationIds::editor::set_parameter_background,
+                 .valid =
+                        [](RuntimeHarness &harness, const auto &context) {
+                            return harness.core().facade().setParameterBackground(
+                                context, ParamInfo::Breathiness);
+                        }, .invalid =
+                        [](RuntimeHarness &harness, const auto &context) {
+                            return harness.core().facade().setParameterBackground(
+                                context, ParamInfo::SpeakerMix);
+                        }, },
+                {
+                 .operationId = Automation::OperationIds::editor::swap_parameters,
+                 .valid =
+                        [](RuntimeHarness &harness, const auto &context) {
+                            return harness.core().facade().swapParameters(context);
+                        }, .invalid =
+                        [](RuntimeHarness &harness, const auto &context) {
+                            harness.editorView.parameters.background = ParamInfo::Unknown;
+                            return harness.core().facade().swapParameters(context);
+                        }, .repeatedRequestIsNoOp = false,
+                 },
+                {
+                 .operationId = Automation::OperationIds::editor::set_parameter_edit_mode,
+                 .valid =
+                        [](RuntimeHarness &harness, const auto &context) {
+                            return harness.core().facade().setParameterEditMode(
+                                context, EditorViewGlobal::ParameterEditMode::Erase);
+                        }, .invalid =
+                        [](RuntimeHarness &harness, const auto &context) {
+                            return harness.core().facade().setParameterEditMode(
+                                context, static_cast<EditorViewGlobal::ParameterEditMode>(99));
+                        }, },
+                {
+                 .operationId = Automation::OperationIds::editor::set_parameter_value_viewport,
+                 .valid =
+                        [](RuntimeHarness &harness, const auto &context) {
+                            Automation::ParameterValueViewportPatch patch;
+                            patch.centerRatio = 0.0;
+                            patch.verticalScale = 4.0;
+                            return harness.core().facade().setParameterValueViewport(context,
+                                                                                     patch);
+                        }, .invalid =
+                        [](RuntimeHarness &harness, const auto &context) {
+                            return harness.core().facade().setParameterValueViewport(context, {});
+                        }, },
+            };
+        }
+
+        void runParameterCommands(ScenarioLog &log) {
+            for (const auto &testCase : parameterCases()) {
+                const auto operationId = testCase.operationId;
+                log.run(operationId, QStringLiteral("NORMAL-NO-SIDE-EFFECT"), [&] {
+                    RuntimeHarness harness;
+                    const auto objects = createEditorObjects(harness);
+                    if (objects)
+                        harness.editorStable.activeClipId = objects->clipId.value();
+                    const auto version = harness.core().documentVersion();
+                    const auto result = testCase.valid(harness, guiDocumentContext(harness));
+                    log.expect(
+                        objects && result && result.get().changed && !result.get().validatedOnly &&
+                            harness.hostCalls.value(operationId) == 1 &&
+                            harness.core().documentVersion() == version,
+                        QStringLiteral("parameter GUI mutation must apply once without revision"));
+                });
+                log.run(operationId,
+                        testCase.repeatedRequestIsNoOp ? QStringLiteral("NO-OP")
+                                                       : QStringLiteral("REPEATED-REQUEST"),
+                        [&] {
+                            RuntimeHarness harness;
+                            const auto objects = createEditorObjects(harness);
+                            if (objects)
+                                harness.editorStable.activeClipId = objects->clipId.value();
+                            const auto first = testCase.valid(harness, guiDocumentContext(harness));
+                            const auto second =
+                                testCase.valid(harness, guiDocumentContext(harness));
+                            const auto expectedCalls = testCase.repeatedRequestIsNoOp ? 1 : 2;
+                            log.expect(objects && first && second &&
+                                           second.get().changed != testCase.repeatedRequestIsNoOp &&
+                                           harness.hostCalls.value(operationId) == expectedCalls,
+                                       QStringLiteral(
+                                           "parameter repeated-request semantics must be stable"));
+                        });
+                log.run(operationId, QStringLiteral("VALIDATE-ONLY"), [&] {
+                    RuntimeHarness harness;
+                    const auto objects = createEditorObjects(harness);
+                    if (objects)
+                        harness.editorStable.activeClipId = objects->clipId.value();
+                    const auto before = harness.editorView;
+                    const auto result = testCase.valid(harness, guiDocumentContext(harness, true));
+                    log.expect(objects && result && result.get().changed &&
+                                   result.get().validatedOnly && harness.editorView == before &&
+                                   harness.hostCalls.value(operationId) == 0,
+                               QStringLiteral("parameter preview must not call its GUI host"));
+                });
+                log.run(operationId, QStringLiteral("INVALID-INPUT"), [&] {
+                    RuntimeHarness harness;
+                    const auto result = testCase.invalid(harness, guiDocumentContext(harness));
+                    log.expectError(result, Automation::AutomationErrorCode::InvalidArgument,
+                                    operationId,
+                                    QStringLiteral("invalid parameter GUI input must be rejected"));
+                    log.expect(harness.hostCalls.value(operationId) == 0,
+                               QStringLiteral("invalid parameter input must not reach the host"));
+                });
+                log.run(operationId, QStringLiteral("MISSING-CLIP"), [&] {
+                    RuntimeHarness harness;
+                    const auto result = testCase.valid(harness, guiDocumentContext(harness));
+                    log.expectError(
+                        result, Automation::AutomationErrorCode::InvalidArgument, operationId,
+                        QStringLiteral("parameter command must require an active singing clip"));
+                    log.expect(harness.hostCalls.value(operationId) == 0,
+                               QStringLiteral("missing clip must not reach the parameter host"));
+                });
+                log.run(operationId, QStringLiteral("STALE-REVISION"), [&] {
+                    RuntimeHarness harness;
+                    auto context = guiDocumentContext(harness);
+                    ++context.expected.revision;
+                    const auto result = testCase.valid(harness, context);
+                    log.expectError(result, Automation::AutomationErrorCode::RevisionConflict,
+                                    operationId,
+                                    QStringLiteral("parameter GUI command must check revision"));
+                });
+                log.run(operationId, QStringLiteral("BUSY"), [&] {
+                    RuntimeHarness harness;
+                    const auto objects = createEditorObjects(harness);
+                    if (objects)
+                        harness.editorStable.activeClipId = objects->clipId.value();
+                    harness.editorStable.parameterEditInProgress = true;
+                    const auto before = harness.editorView;
+                    const auto result = testCase.valid(harness, guiDocumentContext(harness));
+                    log.expectError(
+                        result, Automation::AutomationErrorCode::Busy, operationId,
+                        QStringLiteral("parameter command must not interrupt an active edit"));
+                    log.expect(
+                        objects && harness.editorView == before &&
+                            harness.hostCalls.value(operationId) == 0,
+                        QStringLiteral("busy rejection must not partially mutate GUI state"));
+                });
+                log.run(operationId, QStringLiteral("HOST-FAILURES"), [&] {
+                    RuntimeHarness missingHarness({.missingOperation = operationId});
+                    const auto missingObjects = createEditorObjects(missingHarness);
+                    if (missingObjects)
+                        missingHarness.editorStable.activeClipId = missingObjects->clipId.value();
+                    const auto missing =
+                        testCase.valid(missingHarness, guiDocumentContext(missingHarness));
+
+                    RuntimeHarness rejectedHarness;
+                    const auto rejectedObjects = createEditorObjects(rejectedHarness);
+                    if (rejectedObjects)
+                        rejectedHarness.editorStable.activeClipId = rejectedObjects->clipId.value();
+                    rejectedHarness.editorApplySucceeds = false;
+                    const auto rejected =
+                        testCase.valid(rejectedHarness, guiDocumentContext(rejectedHarness));
+                    log.expect(missingObjects && rejectedObjects,
+                               QStringLiteral("parameter fixtures must be created"));
+                    log.expectError(
+                        missing, Automation::AutomationErrorCode::HostCapabilityUnavailable,
+                        operationId, QStringLiteral("missing parameter GUI host must be explicit"));
+                    log.expectError(rejected,
+                                    Automation::AutomationErrorCode::HostCapabilityUnavailable,
+                                    operationId,
+                                    QStringLiteral("rejected parameter GUI host must be explicit"));
+                });
+            }
         }
 
         Automation::EditorRevealDto noteReveal(const EditorObjects &objects) {
@@ -729,7 +1046,7 @@ namespace RuntimeDimensions {
                                harness.core().documentVersion() == version,
                            QStringLiteral("note reveal must apply once without revision"));
             });
-            log.run(operationId, QStringLiteral("TRACK-CLIPS"), [&] {
+            log.run(operationId, QStringLiteral("TRACK-CLIPS-NO-OP-PRESERVES-SELECTION"), [&] {
                 RuntimeHarness harness;
                 const auto objects = createEditorObjects(harness);
                 Automation::EditorRevealDto target;
@@ -740,12 +1057,24 @@ namespace RuntimeDimensions {
                     target.tickStart = 0.0;
                     target.tickEnd = 1920.0;
                 }
-                const auto result =
+                const auto first =
                     objects
                         ? harness.core().facade().reveal(guiDocumentContext(harness), target, false)
                         : GuiResult(Automation::AutomationError{});
-                log.expect(objects && result && harness.hostCalls.value(operationId) == 1,
-                           QStringLiteral("track reveal must resolve both track and clip"));
+                if (objects) {
+                    harness.editorStable.selectedClipIds = {objects->clipId.value()};
+                    harness.editorStable.primaryClipId = objects->clipId.value();
+                    harness.editorFocusVisibility = HistoryFocusVisibility::Visible;
+                }
+                const auto before = harness.editorStable;
+                const auto second =
+                    objects ? harness.core().facade().reveal(guiDocumentContext(harness), target)
+                            : GuiResult(Automation::AutomationError{});
+                log.expect(
+                    objects && first && first.get().changed && second && !second.get().changed &&
+                        harness.editorStable == before && harness.hostCalls.value(operationId) == 2,
+                    QStringLiteral("track reveal must resolve its target, then remain a no-op and "
+                                   "preserve selection when fully visible"));
             });
             log.run(operationId, QStringLiteral("RANGE-FALLBACK"), [&] {
                 RuntimeHarness harness;
@@ -859,6 +1188,7 @@ namespace RuntimeDimensions {
         runAutoPage(log);
         runActiveClip(log);
         runSelection(log);
+        runParameterCommands(log);
         runReveal(log);
     }
 

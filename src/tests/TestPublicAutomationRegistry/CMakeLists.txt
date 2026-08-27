@@ -8,6 +8,8 @@ lite_add_test(${PROJECT_NAME}
         ../../app/Automation/Public/AutomationAccessPolicy.cpp
         ../../app/Automation/Public/AutomationFileGuard.cpp
         ../../app/Automation/Public/PublicAutomationRegistry.cpp
+        ../../app/Automation/Public/PublicAutomationRegistryAdvancedApplication.cpp
+        ../../app/Automation/Public/PublicAutomationRegistryAdvancedGui.cpp
         ../../app/Modules/FillLyric/Utils/SplitLyric.cpp
         ../../app/Modules/FillLyric/Utils/TaggerRuleOrder.cpp
         ../../app/Modules/FillLyric/Utils/TextSplitter.cpp

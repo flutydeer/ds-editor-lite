@@ -25,11 +25,20 @@ namespace AutomationTestSupport {
         services.setTrackPanelScale = [view](const double horizontal, const double vertical) {
             return *view && (*view)->setTrackPanelScale(horizontal, vertical);
         };
+        services.setTrackPanelViewport = [view](const TrackPanelViewState &state) {
+            return *view && (*view)->setTrackPanelViewport(state);
+        };
         services.setPanelVisibility = [view](const bool trackVisible, const bool bottomVisible) {
             return *view && (*view)->setEditorPanelVisibility(trackVisible, bottomVisible);
         };
         services.showBottomPanelPage = [view](const QString &pageId) {
             return *view && (*view)->showBottomPanelPage(pageId);
+        };
+        services.showRegion = [view](const EditorViewGlobal::Region region) {
+            return *view && (*view)->showEditorRegion(region);
+        };
+        services.focusRegion = [view](const EditorViewGlobal::Region region) {
+            return *view && (*view)->focusEditorRegion(region);
         };
         services.centerPianoRoll = [view](const double tick, const double keyIndex) {
             return *view && (*view)->centerPianoRollAt(tick, keyIndex);
@@ -37,8 +46,30 @@ namespace AutomationTestSupport {
         services.setPianoRollScale = [view](const double horizontal, const double vertical) {
             return *view && (*view)->setPianoRollScale(horizontal, vertical);
         };
+        services.setClipEditorTimeViewport = [view](const double tick, const double horizontal) {
+            return *view && (*view)->setClipEditorTimeViewport(tick, horizontal);
+        };
+        services.setPianoRollPitchViewport = [view](const double key, const double vertical) {
+            return *view && (*view)->setPianoRollPitchViewport(key, vertical);
+        };
         services.setPianoRollEditMode = [view](const EditorViewGlobal::PianoRollEditMode mode) {
             return *view && (*view)->setPianoRollEditMode(mode);
+        };
+        services.setParameterForeground = [view](const ParamInfo::Name name) {
+            return *view && (*view)->setParameterForeground(name);
+        };
+        services.setParameterBackground = [view](const ParamInfo::Name name) {
+            return *view && (*view)->setParameterBackground(name);
+        };
+        services.swapParameters = [view] { return *view && (*view)->swapParameters(); };
+        services.setParameterEditMode = [view](const EditorViewGlobal::ParameterEditMode mode) {
+            return *view && (*view)->setParameterEditMode(mode);
+        };
+        services.setParameterValueViewport = [view](const double center, const double vertical) {
+            return *view && (*view)->setParameterValueViewport(center, vertical);
+        };
+        services.focusVisibility = [view](const HistoryFocus &focus) {
+            return *view ? (*view)->focusVisibility(focus) : HistoryFocusVisibility::Unavailable;
         };
         services.revealFocus = [view](const HistoryFocus &focus, const bool finalize) {
             return *view &&

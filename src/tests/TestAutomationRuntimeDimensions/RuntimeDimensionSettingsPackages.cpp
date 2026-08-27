@@ -235,6 +235,7 @@ namespace RuntimeDimensions {
                         .regexes = {QStringLiteral("[,，]")},
                     });
                     value.customTaggerRules.append({
+                        .name = QStringLiteral("中文标注"),
                         .language = QStringLiteral("cmn"),
                         .entries = {{
                             .type = QStringLiteral("regex"),

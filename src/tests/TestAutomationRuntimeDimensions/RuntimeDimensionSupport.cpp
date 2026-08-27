@@ -389,6 +389,15 @@ namespace RuntimeDimensions {
                 return true;
             };
         }
+        if (!missing(Automation::OperationIds::editor::set_track_panel_viewport)) {
+            services.setTrackPanelViewport = [this](const TrackPanelViewState &value) {
+                ++hostCalls[Automation::OperationIds::editor::set_track_panel_viewport];
+                if (!editorApplySucceeds)
+                    return false;
+                editorView.trackPanel = value;
+                return true;
+            };
+        }
         if (!missing(Automation::OperationIds::editor::set_panel_visibility)) {
             services.setPanelVisibility = [this](const bool track, const bool bottom) {
                 ++hostCalls[Automation::OperationIds::editor::set_panel_visibility];
@@ -405,6 +414,42 @@ namespace RuntimeDimensions {
                 if (!editorApplySucceeds)
                     return false;
                 editorView.layout.bottomPanelPageId = pageId;
+                return true;
+            };
+        }
+        if (!missing(Automation::OperationIds::editor::show_region)) {
+            services.showRegion = [this](const EditorViewGlobal::Region region) {
+                ++hostCalls[Automation::OperationIds::editor::show_region];
+                if (!editorApplySucceeds)
+                    return false;
+                editorView.layout.bottomPanelVisible = true;
+                editorView.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
+                if (region == EditorViewGlobal::Region::PianoRoll)
+                    editorView.layout.pianoRollVisible = true;
+                else
+                    editorView.layout.parametersVisible = true;
+                editorView.layout.activeRegion = region;
+                editorView.layout.focusedRegion = region;
+                return true;
+            };
+        }
+        if (!missing(Automation::OperationIds::editor::focus_region)) {
+            services.focusRegion = [this](const EditorViewGlobal::Region region) {
+                ++hostCalls[Automation::OperationIds::editor::focus_region];
+                if (!editorApplySucceeds)
+                    return false;
+                if (region == EditorViewGlobal::Region::TrackPanel) {
+                    editorView.layout.trackPanelVisible = true;
+                } else {
+                    editorView.layout.bottomPanelVisible = true;
+                    editorView.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
+                    if (region == EditorViewGlobal::Region::PianoRoll)
+                        editorView.layout.pianoRollVisible = true;
+                    else
+                        editorView.layout.parametersVisible = true;
+                }
+                editorView.layout.activeRegion = region;
+                editorView.layout.focusedRegion = region;
                 return true;
             };
         }
@@ -428,12 +473,105 @@ namespace RuntimeDimensions {
                 return true;
             };
         }
+        if (!missing(Automation::OperationIds::editor::set_clip_editor_time_viewport)) {
+            services.setClipEditorTimeViewport = [this](const double tick,
+                                                        const double horizontal) {
+                ++hostCalls[Automation::OperationIds::editor::set_clip_editor_time_viewport];
+                if (!editorApplySucceeds)
+                    return false;
+                editorView.pianoRoll.centerTick = tick;
+                editorView.pianoRoll.horizontalScale = horizontal;
+                return true;
+            };
+        }
+        if (!missing(Automation::OperationIds::editor::set_piano_roll_pitch_viewport)) {
+            services.setPianoRollPitchViewport = [this](const double key, const double vertical) {
+                ++hostCalls[Automation::OperationIds::editor::set_piano_roll_pitch_viewport];
+                if (!editorApplySucceeds)
+                    return false;
+                editorView.pianoRoll.centerKeyIndex = key;
+                editorView.pianoRoll.verticalScale = vertical;
+                return true;
+            };
+        }
         if (!missing(Automation::OperationIds::editor::set_piano_roll_edit_mode)) {
             services.setPianoRollEditMode = [this](const auto mode) {
                 ++hostCalls[Automation::OperationIds::editor::set_piano_roll_edit_mode];
                 if (!editorApplySucceeds)
                     return false;
                 editorView.pianoRoll.editMode = mode;
+                return true;
+            };
+        }
+        if (!missing(Automation::OperationIds::editor::set_parameter_foreground)) {
+            services.setParameterForeground = [this](const ParamInfo::Name name) {
+                ++hostCalls[Automation::OperationIds::editor::set_parameter_foreground];
+                if (!editorApplySucceeds)
+                    return false;
+                editorView.parameters.foreground = name;
+                editorView.layout.bottomPanelVisible = true;
+                editorView.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
+                editorView.layout.parametersVisible = true;
+                editorView.layout.activeRegion = EditorViewGlobal::Region::Parameters;
+                editorView.layout.focusedRegion = EditorViewGlobal::Region::Parameters;
+                return true;
+            };
+        }
+        if (!missing(Automation::OperationIds::editor::set_parameter_background)) {
+            services.setParameterBackground = [this](const ParamInfo::Name name) {
+                ++hostCalls[Automation::OperationIds::editor::set_parameter_background];
+                if (!editorApplySucceeds)
+                    return false;
+                editorView.parameters.background = name;
+                editorView.layout.bottomPanelVisible = true;
+                editorView.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
+                editorView.layout.parametersVisible = true;
+                editorView.layout.activeRegion = EditorViewGlobal::Region::Parameters;
+                editorView.layout.focusedRegion = EditorViewGlobal::Region::Parameters;
+                return true;
+            };
+        }
+        if (!missing(Automation::OperationIds::editor::swap_parameters)) {
+            services.swapParameters = [this] {
+                ++hostCalls[Automation::OperationIds::editor::swap_parameters];
+                if (!editorApplySucceeds)
+                    return false;
+                std::swap(editorView.parameters.foreground, editorView.parameters.background);
+                editorView.layout.bottomPanelVisible = true;
+                editorView.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
+                editorView.layout.parametersVisible = true;
+                editorView.layout.activeRegion = EditorViewGlobal::Region::Parameters;
+                editorView.layout.focusedRegion = EditorViewGlobal::Region::Parameters;
+                return true;
+            };
+        }
+        if (!missing(Automation::OperationIds::editor::set_parameter_edit_mode)) {
+            services.setParameterEditMode = [this](const auto mode) {
+                ++hostCalls[Automation::OperationIds::editor::set_parameter_edit_mode];
+                if (!editorApplySucceeds)
+                    return false;
+                editorView.parameters.editMode = mode;
+                editorView.layout.bottomPanelVisible = true;
+                editorView.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
+                editorView.layout.parametersVisible = true;
+                editorView.layout.activeRegion = EditorViewGlobal::Region::Parameters;
+                editorView.layout.focusedRegion = EditorViewGlobal::Region::Parameters;
+                return true;
+            };
+        }
+        if (!missing(Automation::OperationIds::editor::set_parameter_value_viewport)) {
+            services.setParameterValueViewport = [this](const double center,
+                                                        const double vertical) {
+                ++hostCalls[Automation::OperationIds::editor::set_parameter_value_viewport];
+                if (!editorApplySucceeds)
+                    return false;
+                editorView.parameters.centerRatio = center;
+                editorView.parameters.verticalScale = vertical;
+                editorView.layout.bottomPanelVisible = true;
+                editorView.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
+                editorView.layout.parametersVisible = true;
+                editorView.layout.activeRegion = EditorViewGlobal::Region::Parameters;
+                editorView.layout.focusedRegion = EditorViewGlobal::Region::Parameters;
                 return true;
             };
         }
@@ -450,14 +588,17 @@ namespace RuntimeDimensions {
                 ++hostCalls[Automation::OperationIds::editor::set_selection];
                 editorStable.selectedTrackIndex = index;
             };
-            services.setSelectedClips = [this](const QList<int> &ids) {
+            services.setSelectedClips = [this](const QList<int> &ids, const int primaryId) {
                 ++hostCalls[Automation::OperationIds::editor::set_selection];
                 editorStable.selectedClipIds = ids;
+                editorStable.primaryClipId = primaryId;
             };
-            services.setSelectedNotes = [this](const int clipId, const QList<int> &ids) {
+            services.setSelectedNotes = [this](const int clipId, const QList<int> &ids,
+                                               const int primaryId) {
                 ++hostCalls[Automation::OperationIds::editor::set_selection];
                 editorStable.activeClipId = clipId;
                 editorStable.selectedNoteIds = ids;
+                editorStable.primaryNoteId = primaryId;
             };
         }
         if (!missing(Automation::OperationIds::editor::set_quantize)) {
@@ -477,9 +618,30 @@ namespace RuntimeDimensions {
             };
         }
         if (!missing(Automation::OperationIds::editor::reveal)) {
-            services.revealFocus = [this](const HistoryFocus &, const bool) {
+            services.focusVisibility = [this](const HistoryFocus &) {
+                return editorFocusVisibility;
+            };
+            services.revealFocus = [this](const HistoryFocus &focus, const bool) {
                 ++hostCalls[Automation::OperationIds::editor::reveal];
-                return editorRevealSucceeds;
+                if (!editorRevealSucceeds)
+                    return false;
+                if (focus.kind == HistoryFocusKind::TrackClips) {
+                    editorView.layout.trackPanelVisible = true;
+                    editorView.layout.activeRegion = EditorViewGlobal::Region::TrackPanel;
+                    editorView.layout.focusedRegion = EditorViewGlobal::Region::TrackPanel;
+                    editorView.trackPanel.centerTick = (focus.tickStart + focus.tickEnd) * 0.5;
+                } else {
+                    editorView.layout.bottomPanelVisible = true;
+                    editorView.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
+                    editorView.layout.pianoRollVisible = true;
+                    editorView.layout.activeRegion = EditorViewGlobal::Region::PianoRoll;
+                    editorView.layout.focusedRegion = EditorViewGlobal::Region::PianoRoll;
+                    editorView.pianoRoll.centerTick = (focus.tickStart + focus.tickEnd) * 0.5;
+                    editorView.pianoRoll.centerKeyIndex = (focus.valueStart + focus.valueEnd) * 0.5;
+                    editorStable.activeClipId = focus.containerId;
+                }
+                editorFocusVisibility = HistoryFocusVisibility::Visible;
+                return true;
             };
         }
         return services;

@@ -1069,8 +1069,7 @@ namespace {
         ok &= expect(l0.typedContracts().isEmpty(), "l0 must expose no typed editor tools");
         ok &= expect(l1.typedContracts().size() == 91, "l1 must expose the exact 91 tools");
         ok &= expect(l2.typedContracts().size() == 134, "l2 must expose all 134 editor tools");
-        ok &= expect(l3.typedContracts().size() == 134,
-                     "the highest preset must include the 134 editor tools");
+        ok &= expect(l3.typedContracts().size() == 179, "l3 must expose all 179 editor tools");
         return ok;
     }
 
@@ -1448,18 +1447,18 @@ namespace {
                      "250 ms");
         responses.clear();
 
-        DsConnector::ConnectorRuntime l2Runtime(
+        DsConnector::ConnectorRuntime l3Runtime(
             DsConnector::ConnectorOptions{
-                .exposure = {.profile = AutomationWire::ExposureProfile::L2},
+                .exposure = {.profile = AutomationWire::ExposureProfile::L3},
             },
-            QStringLiteral("DsConnectorLite-No-Such-Editor-L2"));
-        DsConnector::DownstreamMcpServer l2Server(&l2Runtime);
-        QObject::connect(&l2Server, &DsConnector::DownstreamMcpServer::responseLine, &l2Server,
+            QStringLiteral("DsConnectorLite-No-Such-Editor-L3"));
+        DsConnector::DownstreamMcpServer l3Server(&l3Runtime);
+        QObject::connect(&l3Server, &DsConnector::DownstreamMcpServer::responseLine, &l3Server,
                          [&responses](const QByteArray &line) { responses.enqueue(line); });
-        l2Server.processLine(
+        l3Server.processLine(
             QJsonDocument(AutomationWire::Mcp::makeRequest(
                               QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod), {},
-                              context, QStringLiteral("l2-list")))
+                              context, QStringLiteral("l3-list")))
                 .toJson(QJsonDocument::Compact));
         if (!responses.isEmpty()) {
             const auto result = QJsonDocument::fromJson(responses.dequeue())
@@ -1467,43 +1466,43 @@ namespace {
                                     .value(QStringLiteral("result"))
                                     .toObject();
             const auto tools = result.value(QStringLiteral("tools")).toArray();
-            ok &= expect(tools.size() == 140 &&
+            ok &= expect(tools.size() == 185 &&
                              toolNames(tools) ==
                                  PublicAutomationToolsetExpectations::completeToolIdSet() &&
                              !result.contains(QStringLiteral("nextCursor")),
-                         "the exact 140-tool surface must fit one downstream tools/list page");
+                         "the exact 185-tool L3 surface must fit one downstream tools/list page");
         } else {
-            ok &= expect(false, "the frozen L2 downstream list must respond");
+            ok &= expect(false, "the frozen L3 downstream list must respond");
         }
 
-        DsConnector::DownstreamMcpServer l2LegacyServer(&l2Runtime);
-        QObject::connect(&l2LegacyServer, &DsConnector::DownstreamMcpServer::responseLine,
-                         &l2LegacyServer,
+        DsConnector::DownstreamMcpServer l3LegacyServer(&l3Runtime);
+        QObject::connect(&l3LegacyServer, &DsConnector::DownstreamMcpServer::responseLine,
+                         &l3LegacyServer,
                          [&responses](const QByteArray &line) { responses.enqueue(line); });
-        const AutomationWire::Mcp::RequestContext l2LegacyContext{
+        const AutomationWire::Mcp::RequestContext l3LegacyContext{
             .protocolVersion = QString::fromLatin1(AutomationWire::Mcp::LegacyProtocolVersion),
             .clientCapabilities = QJsonObject{                                         },
             .clientInfo =
                 AutomationWire::Mcp::ImplementationInfo{
-                                              .name = QStringLiteral("l2-legacy-client"),
+                                              .name = QStringLiteral("l3-legacy-client"),
                                               .version = QStringLiteral("1"),
                                               },
         };
-        l2LegacyServer.processLine(
+        l3LegacyServer.processLine(
             QJsonDocument(AutomationWire::Mcp::makeInitializeRequest(
-                              l2LegacyContext, QStringLiteral("l2-legacy-initialize")))
+                              l3LegacyContext, QStringLiteral("l3-legacy-initialize")))
                 .toJson(QJsonDocument::Compact));
         if (!responses.isEmpty())
             responses.dequeue();
-        l2LegacyServer.processLine(
+        l3LegacyServer.processLine(
             QJsonDocument(AutomationWire::Mcp::makeRequest(
                               QString::fromLatin1(AutomationWire::Mcp::InitializedNotification), {},
-                              l2LegacyContext))
+                              l3LegacyContext))
                 .toJson(QJsonDocument::Compact));
-        l2LegacyServer.processLine(
+        l3LegacyServer.processLine(
             QJsonDocument(AutomationWire::Mcp::makeRequest(
                               QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod), {},
-                              l2LegacyContext, QStringLiteral("l2-legacy-list")))
+                              l3LegacyContext, QStringLiteral("l3-legacy-list")))
                 .toJson(QJsonDocument::Compact));
         if (!responses.isEmpty()) {
             const auto result = QJsonDocument::fromJson(responses.dequeue())
@@ -1511,15 +1510,15 @@ namespace {
                                     .value(QStringLiteral("result"))
                                     .toObject();
             const auto tools = result.value(QStringLiteral("tools")).toArray();
-            ok &= expect(tools.size() == 140 &&
+            ok &= expect(tools.size() == 185 &&
                              toolNames(tools) ==
                                  PublicAutomationToolsetExpectations::completeToolIdSet() &&
                              !result.contains(QStringLiteral("nextCursor")) &&
                              !result.contains(QStringLiteral("resultType")),
-                         "the first legacy L2 tools/list must expose all 140 tools without a "
+                         "the first legacy L3 tools/list must expose all 185 tools without a "
                          "cursor");
         } else {
-            ok &= expect(false, "the first legacy L2 tools/list must respond");
+            ok &= expect(false, "the first legacy L3 tools/list must respond");
         }
         return ok;
     }
@@ -3252,7 +3251,7 @@ namespace {
             ok &=
                 expect(statusStable && statusElapsedMs < 400,
                        "cached get_status must remain content-stable and complete 256 reads within "
-                       "400 ms after a 134-tool handshake");
+                       "400 ms after a large paginated handshake");
         }
         QJsonObject described;
         runtime.callTool(

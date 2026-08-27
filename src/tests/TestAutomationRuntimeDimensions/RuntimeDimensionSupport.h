@@ -99,6 +99,7 @@ namespace RuntimeDimensions {
         bool editorViewAvailable = true;
         bool editorApplySucceeds = true;
         bool editorRevealSucceeds = true;
+        HistoryFocusVisibility editorFocusVisibility = HistoryFocusVisibility::ScrollRequired;
         bool settingsApplySucceeds = true;
         bool presetApplySucceeds = true;
         bool packageValidationSucceeds = true;

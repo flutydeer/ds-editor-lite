@@ -38,6 +38,15 @@ namespace {
 
     int failures = 0;
 
+    struct PackageRefreshTestControl {
+        QString privatePath;
+        int starts = 0;
+        bool deferNext = false;
+        bool failNext = false;
+        Automation::PackageRefreshCommitGate pendingCommitGate;
+        Automation::PackageRefreshCompletion pendingCompletion;
+    };
+
     class PreviewAudioExportJob final : public Automation::IAudioExportJob {
     public:
         explicit PreviewAudioExportJob(Automation::AudioExportConfigDto config)
@@ -507,6 +516,699 @@ namespace {
         Automation::ClipId mixClipId;
         QList<Automation::NoteId> noteIds;
     };
+
+    std::optional<QJsonObject> invokeSchemaValid(Automation::PublicAutomationRegistry &registry,
+                                                 const QString &operationId,
+                                                 const QJsonObject &arguments,
+                                                 const QString &label) {
+        const auto result = registry.invoke(
+            operationId, arguments, {.clientId = QStringLiteral("registry-l3-") + operationId});
+        reportFailure(operationId, result);
+        const auto *contract = AutomationWire::findPublicTool(operationId);
+        const auto schemaValid =
+            result && contract &&
+            AutomationWire::validateJsonValue(result.get(), contract->outputSchema).valid();
+        expect(schemaValid, label + QStringLiteral(" must return its declared output schema"));
+        return result ? std::optional<QJsonObject>(result.get()) : std::nullopt;
+    }
+
+    void verifyAdvancedGuiBindings(Automation::PublicAutomationRegistry &registry,
+                                   Automation::CoreRuntime &runtime,
+                                   const PublicEditingFixture &fixture) {
+        const auto before = runtime.documentVersion();
+        const QJsonObject window{
+            {QStringLiteral("window_id"), runtime.windowId().toString()},
+        };
+        const QJsonObject document{
+            {QStringLiteral("window_id"),   runtime.windowId().toString()},
+            {QStringLiteral("document_id"), before.documentId.toString() },
+        };
+        QJsonObject revision = document;
+        revision.insert(QStringLiteral("expected_revision"), static_cast<qint64>(before.revision));
+        const auto with = [](QJsonObject base, const QJsonObject &fields) {
+            for (auto it = fields.constBegin(); it != fields.constEnd(); ++it)
+                base.insert(it.key(), it.value());
+            return base;
+        };
+
+        invokeSchemaValid(registry, QStringLiteral("workspace.get"), window,
+                          QStringLiteral("workspace.get"));
+        invokeSchemaValid(registry, QStringLiteral("workspace.set_panel_visibility"),
+                          with(window,
+                               {
+                                   {QStringLiteral("track_panel_visible"), true },
+                                   {QStringLiteral("clip_editor_visible"), false}
+        }),
+                          QStringLiteral("workspace.set_panel_visibility"));
+        invokeSchemaValid(registry, QStringLiteral("track_panel.get"), document,
+                          QStringLiteral("track_panel.get"));
+        invokeSchemaValid(registry, QStringLiteral("track_panel.set_viewport"),
+                          with(document,
+                               {
+                                   {QStringLiteral("center_tick"),        2400.0},
+                                   {QStringLiteral("center_track_index"), 1.0   },
+                                   {QStringLiteral("horizontal_scale"),   1.5   },
+                                   {QStringLiteral("vertical_scale"),     1.25  }
+        }),
+                          QStringLiteral("track_panel.set_viewport"));
+        invokeSchemaValid(registry, QStringLiteral("track_panel.reveal_clips"),
+                          with(revision,
+                               {
+                                   {QStringLiteral("track_id"), fixture.trackId.value()}
+        }),
+                          QStringLiteral("track_panel.reveal_clips"));
+        invokeSchemaValid(registry, QStringLiteral("track_panel.set_auto_page_turn"),
+                          with(document,
+                               {
+                                   {QStringLiteral("enabled"), false}
+        }),
+                          QStringLiteral("track_panel.set_auto_page_turn"));
+        invokeSchemaValid(registry, QStringLiteral("track_panel.select_track"),
+                          with(revision,
+                               {
+                                   {QStringLiteral("track_id"), fixture.trackId.value()}
+        }),
+                          QStringLiteral("track_panel.select_track"));
+        invokeSchemaValid(
+            registry, QStringLiteral("track_panel.select_clips"),
+            with(revision,
+                 {
+                     {QStringLiteral("clip_ids"),
+                      QJsonArray{fixture.scalarClipId.value(), fixture.noteClipId.value()}},
+                     {QStringLiteral("primary_clip_id"), fixture.scalarClipId.value()     }
+        }),
+            QStringLiteral("track_panel.select_clips"));
+        const auto selectedTrackPanel =
+            invokeSchemaValid(registry, QStringLiteral("track_panel.get"), document,
+                              QStringLiteral("selected track panel state"));
+        const auto selectedClipIds =
+            selectedTrackPanel
+                ? selectedTrackPanel->value(QStringLiteral("selected_clip_ids")).toArray()
+                : QJsonArray{};
+        expect(
+            selectedTrackPanel && selectedClipIds.size() == 2 &&
+                selectedClipIds.first() == fixture.scalarClipId.value() &&
+                selectedClipIds.last() == fixture.noteClipId.value() &&
+                selectedTrackPanel->value(QStringLiteral("primary_clip_id")) ==
+                    fixture.scalarClipId.value(),
+            QStringLiteral("track selection order and primary clip must remain independent"));
+        const auto invalidPrimaryClip = registry.invoke(
+            QStringLiteral("track_panel.select_clips"),
+            with(revision,
+                 {
+                     {QStringLiteral("clip_ids"),        QJsonArray{fixture.scalarClipId.value()}},
+                     {QStringLiteral("primary_clip_id"), fixture.noteClipId.value()              }
+        }));
+        expect(!invalidPrimaryClip &&
+                   invalidPrimaryClip.getError().code ==
+                       Automation::AutomationErrorCode::InvalidArgument &&
+                   invalidPrimaryClip.getError().fieldPath == QStringLiteral("primary_clip_id"),
+               QStringLiteral("track clip primary must belong to the selected set"));
+        invokeSchemaValid(registry, QStringLiteral("track_panel.clear_selection"),
+                          with(revision,
+                               {
+                                   {QStringLiteral("target"), QStringLiteral("clips")}
+        }),
+                          QStringLiteral("track_panel.clear_selection"));
+
+        const auto initialClipEditor =
+            invokeSchemaValid(registry, QStringLiteral("clip_editor.get"), document,
+                              QStringLiteral("clip_editor.get"));
+        expect(initialClipEditor &&
+                   initialClipEditor->value(QStringLiteral("piano"))
+                       .toObject()
+                       .value(QStringLiteral("visible"))
+                       .toBool() &&
+                   initialClipEditor->value(QStringLiteral("parameters"))
+                       .toObject()
+                       .value(QStringLiteral("visible"))
+                       .toBool(),
+               QStringLiteral("clip editor subregion visibility must not depend on active focus"));
+        invokeSchemaValid(registry, QStringLiteral("clip_editor.set_active_clip"),
+                          with(revision,
+                               {
+                                   {QStringLiteral("clip_id"), fixture.noteClipId.value()}
+        }),
+                          QStringLiteral("clip_editor.set_active_clip"));
+        invokeSchemaValid(registry, QStringLiteral("clip_editor.set_time_viewport"),
+                          with(document,
+                               {
+                                   {QStringLiteral("center_tick"),      3600.0},
+                                   {QStringLiteral("horizontal_scale"), 2.0   }
+        }),
+                          QStringLiteral("clip_editor.set_time_viewport"));
+        invokeSchemaValid(registry, QStringLiteral("clip_editor.set_auto_page_turn"),
+                          with(document,
+                               {
+                                   {QStringLiteral("enabled"), false}
+        }),
+                          QStringLiteral("clip_editor.set_auto_page_turn"));
+        invokeSchemaValid(registry, QStringLiteral("clip_editor.show_region"),
+                          with(document,
+                               {
+                                   {QStringLiteral("region"), QStringLiteral("parameters")}
+        }),
+                          QStringLiteral("clip_editor.show_region"));
+        invokeSchemaValid(registry, QStringLiteral("clip_editor.piano.set_pitch_viewport"),
+                          with(document,
+                               {
+                                   {QStringLiteral("center_key_index"), 64.0},
+                                   {QStringLiteral("vertical_scale"),   1.75}
+        }),
+                          QStringLiteral("clip_editor.piano.set_pitch_viewport"));
+        invokeSchemaValid(
+            registry, QStringLiteral("clip_editor.piano.reveal_notes"),
+            with(revision,
+                 {
+                     {QStringLiteral("note_ids"), QJsonArray{fixture.noteIds.first().value()}}
+        }),
+            QStringLiteral("clip_editor.piano.reveal_notes"));
+        invokeSchemaValid(registry, QStringLiteral("clip_editor.piano.set_edit_mode"),
+                          with(document,
+                               {
+                                   {QStringLiteral("mode"), QStringLiteral("draw_note")}
+        }),
+                          QStringLiteral("clip_editor.piano.set_edit_mode"));
+        invokeSchemaValid(
+            registry, QStringLiteral("clip_editor.piano.set_quantize"),
+            with(document,
+                 {
+                     {QStringLiteral("quantize"), 16  },
+                     {QStringLiteral("enabled"),  true}
+        }),
+            QStringLiteral("clip_editor.piano.set_quantize"));
+        invokeSchemaValid(
+            registry, QStringLiteral("clip_editor.piano.select_notes"),
+            with(revision,
+                 {
+                     {QStringLiteral("note_ids"),
+                      QJsonArray{fixture.noteIds.first().value(), fixture.noteIds.last().value()}},
+                     {QStringLiteral("primary_note_id"), fixture.noteIds.first().value()         }
+        }),
+            QStringLiteral("clip_editor.piano.select_notes"));
+        const auto selectedClipEditor =
+            invokeSchemaValid(registry, QStringLiteral("clip_editor.get"), document,
+                              QStringLiteral("selected clip editor state"));
+        const auto selectedPiano =
+            selectedClipEditor ? selectedClipEditor->value(QStringLiteral("piano")).toObject()
+                               : QJsonObject{};
+        const auto selectedNoteIds =
+            selectedPiano.value(QStringLiteral("selected_note_ids")).toArray();
+        expect(selectedClipEditor && selectedNoteIds.first() == fixture.noteIds.first().value() &&
+                   selectedNoteIds.last() == fixture.noteIds.last().value() &&
+                   selectedPiano.value(QStringLiteral("primary_note_id")) ==
+                       fixture.noteIds.first().value(),
+               QStringLiteral("piano selection order and primary note must remain independent"));
+        const auto invalidPrimaryNote = registry.invoke(
+            QStringLiteral("clip_editor.piano.select_notes"),
+            with(revision,
+                 {
+                     {QStringLiteral("note_ids"),        QJsonArray{fixture.noteIds.first().value()}},
+                     {QStringLiteral("primary_note_id"), fixture.noteIds.last().value()             }
+        }));
+        expect(!invalidPrimaryNote &&
+                   invalidPrimaryNote.getError().code ==
+                       Automation::AutomationErrorCode::InvalidArgument &&
+                   invalidPrimaryNote.getError().fieldPath == QStringLiteral("primary_note_id"),
+               QStringLiteral("piano primary note must belong to the selected set"));
+        invokeSchemaValid(registry, QStringLiteral("clip_editor.piano.clear_selection"), revision,
+                          QStringLiteral("clip_editor.piano.clear_selection"));
+
+        invokeSchemaValid(registry, QStringLiteral("clip_editor.parameters.set_foreground"),
+                          with(revision,
+                               {
+                                   {QStringLiteral("parameter"), QStringLiteral("breathiness")}
+        }),
+                          QStringLiteral("clip_editor.parameters.set_foreground"));
+        invokeSchemaValid(registry, QStringLiteral("clip_editor.parameters.set_background"),
+                          with(revision,
+                               {
+                                   {QStringLiteral("parameter"), QStringLiteral("tension")}
+        }),
+                          QStringLiteral("clip_editor.parameters.set_background"));
+        const auto invalidForegroundParameter = registry.invoke(
+            QStringLiteral("clip_editor.parameters.set_foreground"),
+            with(revision, {
+                               {QStringLiteral("parameter"), QStringLiteral("pitch")}
+        }));
+        const auto invalidBackgroundParameter = registry.invoke(
+            QStringLiteral("clip_editor.parameters.set_background"),
+            with(revision, {
+                               {QStringLiteral("parameter"), QStringLiteral("speaker_mix")}
+        }));
+        expect(!invalidForegroundParameter && !invalidBackgroundParameter &&
+                   invalidForegroundParameter.getError().code ==
+                       Automation::AutomationErrorCode::InvalidArgument &&
+                   invalidBackgroundParameter.getError().code ==
+                       Automation::AutomationErrorCode::InvalidArgument,
+               QStringLiteral(
+                   "parameter GUI schemas must reject unsupported foreground/background values"));
+        invokeSchemaValid(registry, QStringLiteral("clip_editor.parameters.swap"), revision,
+                          QStringLiteral("clip_editor.parameters.swap"));
+        invokeSchemaValid(registry, QStringLiteral("clip_editor.parameters.set_tool"),
+                          with(revision,
+                               {
+                                   {QStringLiteral("tool"), QStringLiteral("anchor")}
+        }),
+                          QStringLiteral("clip_editor.parameters.set_tool"));
+        invokeSchemaValid(registry, QStringLiteral("clip_editor.parameters.set_value_viewport"),
+                          with(revision,
+                               {
+                                   {QStringLiteral("center_ratio"),   0.75},
+                                   {QStringLiteral("vertical_scale"), 2.0 }
+        }),
+                          QStringLiteral("clip_editor.parameters.set_value_viewport"));
+
+        auto staleRevision = revision;
+        staleRevision.insert(QStringLiteral("expected_revision"),
+                             static_cast<qint64>(before.revision + 1));
+        staleRevision.insert(QStringLiteral("track_id"), fixture.trackId.value());
+        const auto staleSelection =
+            registry.invoke(QStringLiteral("track_panel.select_track"), staleRevision);
+        expect(!staleSelection && staleSelection.getError().code ==
+                                      Automation::AutomationErrorCode::RevisionConflict,
+               QStringLiteral("GUI object selection must reject a stale expected revision"));
+        const auto missingRevision = registry.invoke(
+            QStringLiteral("track_panel.select_track"),
+            with(document, {
+                               {QStringLiteral("track_id"), fixture.trackId.value()}
+        }));
+        expect(!missingRevision && missingRevision.getError().code ==
+                                       Automation::AutomationErrorCode::InvalidArgument,
+               QStringLiteral("GUI object selection must require expected_revision"));
+        expect(
+            runtime.documentVersion() == before,
+            QStringLiteral("all L3 GUI bindings must leave document revision and History intact"));
+    }
+
+    void verifyAdvancedApplicationBindings(Automation::PublicAutomationRegistry &registry,
+                                           Automation::CoreRuntime &runtime,
+                                           const QString &allowedPackagePath,
+                                           const QString &builtinLyricRuleId,
+                                           const QString &customLyricRuleId,
+                                           PackageRefreshTestControl &refreshControl) {
+        const auto before = runtime.documentVersion();
+        const auto query = invokeSchemaValid(
+            registry, QStringLiteral("settings.query"),
+            QJsonObject{
+                {QStringLiteral("domains"),
+                 QJsonArray{QStringLiteral("audio_device"), QStringLiteral("render")}}
+        },
+            QStringLiteral("filtered settings query"));
+        const auto queriedDomains =
+            query ? query->value(QStringLiteral("domains")).toObject() : QJsonObject{};
+        const auto audioBefore = queriedDomains.value(QStringLiteral("audio_device"))
+                                     .toObject()
+                                     .value(QStringLiteral("configured"));
+        const auto renderBefore = queriedDomains.value(QStringLiteral("render"))
+                                      .toObject()
+                                      .value(QStringLiteral("configured"));
+        expect(queriedDomains.size() == 2 && !audioBefore.isUndefined() &&
+                   !renderBefore.isUndefined(),
+               QStringLiteral("settings.query must return only requested domains"));
+        invokeSchemaValid(
+            registry, QStringLiteral("automation.get_options"),
+            QJsonObject{
+                {QStringLiteral("operation_id"),      QStringLiteral("settings.audio_device.update")},
+                {QStringLiteral("field_path"),        QStringLiteral("/gain")                       },
+                {QStringLiteral("partial_arguments"), QJsonObject{}                                 }
+        },
+            QStringLiteral("settings range options"));
+
+        struct SettingsUpdate {
+            const char *operationId;
+            QJsonObject arguments;
+        };
+
+        const QList<SettingsUpdate> updates{
+            {"settings.ui_language.update",
+             {{QStringLiteral("ui_language"), QStringLiteral("zh_CN")},
+              {QStringLiteral("validate_only"), true}}                                 },
+            {"settings.singing.update",
+             {{QStringLiteral("default_language"), QStringLiteral("zh")},
+              {QStringLiteral("validate_only"), true}}                                 },
+            {"settings.theme.update",
+             {{QStringLiteral("theme_id"), QStringLiteral("dark")},
+              {QStringLiteral("validate_only"), true}}                                 },
+            {"settings.audio_device.update",
+             {{QStringLiteral("gain"), 0.5}, {QStringLiteral("validate_only"), true}}  },
+            {"settings.playback_behavior.update",
+             {{QStringLiteral("behavior"), 1}, {QStringLiteral("validate_only"), true}}},
+            {"settings.compute_device.update",
+             {{QStringLiteral("execution_provider"), QStringLiteral("CPU")},
+              {QStringLiteral("validate_only"), true}}                                 },
+            {"settings.render.update",
+             {{QStringLiteral("depth"), 0.5}, {QStringLiteral("validate_only"), true}} },
+            {"settings.singer_session_retention.update",
+             {{QStringLiteral("capacity"), 4}, {QStringLiteral("validate_only"), true}}},
+            {"settings.package_search_paths.update",
+             {{QStringLiteral("paths"), QJsonArray{allowedPackagePath}},
+              {QStringLiteral("validate_only"), true}}                                 },
+        };
+        for (const auto &update : updates) {
+            invokeSchemaValid(registry, QString::fromLatin1(update.operationId), update.arguments,
+                              QString::fromLatin1(update.operationId));
+        }
+        invokeSchemaValid(registry, QStringLiteral("settings.audio_device.update"),
+                          QJsonObject{
+                              {QStringLiteral("device_name"),   QString()},
+                              {QStringLiteral("validate_only"), true     },
+        },
+                          QStringLiteral("default audio device update"));
+        const auto sparseAudio =
+            invokeSchemaValid(registry, QStringLiteral("settings.audio_device.update"),
+                              QJsonObject{
+                                  {QStringLiteral("gain"), 0.5}
+        },
+                              QStringLiteral("sparse audio update"));
+        expect(sparseAudio && sparseAudio->value(QStringLiteral("configured"))
+                                      .toObject()
+                                      .value(QStringLiteral("device_name")) ==
+                                  audioBefore.toObject().value(QStringLiteral("device_name")),
+               QStringLiteral("sparse settings updates must preserve omitted fields"));
+        const auto sparseRender =
+            invokeSchemaValid(registry, QStringLiteral("settings.render.update"),
+                              QJsonObject{
+                                  {QStringLiteral("depth"), 0.5}
+        },
+                              QStringLiteral("sparse render update"));
+        expect(sparseRender && sparseRender->value(QStringLiteral("configured"))
+                                       .toObject()
+                                       .value(QStringLiteral("sampling_steps")) ==
+                                   renderBefore.toObject().value(QStringLiteral("sampling_steps")),
+               QStringLiteral("sparse render updates must preserve omitted fields"));
+        const auto emptyUpdate = registry.invoke(QStringLiteral("settings.theme.update"),
+                                                 QJsonObject{
+                                                     {QStringLiteral("validate_only"), true}
+        });
+        expect(!emptyUpdate &&
+                   emptyUpdate.getError().code == Automation::AutomationErrorCode::InvalidArgument,
+               QStringLiteral("settings updates must reject an empty patch"));
+        const auto unknownDomain = registry.invoke(
+            QStringLiteral("settings.query"),
+            QJsonObject{
+                {QStringLiteral("domains"), QJsonArray{QStringLiteral("automation")}}
+        });
+        expect(!unknownDomain && unknownDomain.getError().code ==
+                                     Automation::AutomationErrorCode::InvalidArgument,
+               QStringLiteral("settings.query must reject a non-public domain"));
+        const auto unknownLanguage =
+            registry.invoke(QStringLiteral("settings.ui_language.update"),
+                            QJsonObject{
+                                {QStringLiteral("ui_language"), QStringLiteral("not-installed")}
+        });
+        expect(!unknownLanguage && unknownLanguage.getError().code ==
+                                       Automation::AutomationErrorCode::InvalidArgument,
+               QStringLiteral("settings updates must reject values absent from settings.query"));
+
+        const auto packages = invokeSchemaValid(registry, QStringLiteral("packages.list"), {},
+                                                QStringLiteral("packages.list"));
+        const auto packageItems =
+            packages ? packages->value(QStringLiteral("packages")).toArray() : QJsonArray{};
+        expect(packageItems.size() == 1 &&
+                   packageItems.first().toObject().value(QStringLiteral("canonical_path")).isNull(),
+               QStringLiteral("packages.list must redact paths outside the allowed roots"));
+        const auto package = invokeSchemaValid(
+            registry, QStringLiteral("packages.describe"),
+            QJsonObject{
+                {QStringLiteral("package_id"), QStringLiteral("registry-package")}
+        },
+            QStringLiteral("packages.describe"));
+        expect(package && package->value(QStringLiteral("package"))
+                              .toObject()
+                              .value(QStringLiteral("canonical_path"))
+                              .isNull(),
+               QStringLiteral("packages.describe must redact paths outside the allowed roots"));
+        const auto versionedPackage = invokeSchemaValid(
+            registry, QStringLiteral("packages.describe"),
+            QJsonObject{
+                {QStringLiteral("package_id"), QStringLiteral("registry-package")},
+                {QStringLiteral("version"),    QStringLiteral("1.0")             },
+        },
+            QStringLiteral("versioned packages.describe"));
+        expect(versionedPackage &&
+                   versionedPackage->value(QStringLiteral("package"))
+                           .toObject()
+                           .value(QStringLiteral("version")) == QStringLiteral("1.0"),
+               QStringLiteral("packages.describe must accept an explicit installed version"));
+        invokeSchemaValid(registry, QStringLiteral("automation.get_options"),
+                          QJsonObject{
+                              {QStringLiteral("operation_id"),      QStringLiteral("packages.describe")},
+                              {QStringLiteral("field_path"),        QStringLiteral("/package_id")      },
+                              {QStringLiteral("partial_arguments"), QJsonObject{}                      }
+        },
+                          QStringLiteral("package ID options"));
+        invokeSchemaValid(
+            registry, QStringLiteral("automation.get_options"),
+            QJsonObject{
+                {QStringLiteral("operation_id"),      QStringLiteral("packages.describe")       },
+                {QStringLiteral("field_path"),        QStringLiteral("/version")                },
+                {QStringLiteral("partial_arguments"),
+                 QJsonObject{{QStringLiteral("package_id"), QStringLiteral("registry-package")}}},
+        },
+            QStringLiteral("package version options"));
+        const auto unknownPackage =
+            registry.invoke(QStringLiteral("packages.describe"),
+                            QJsonObject{
+                                {QStringLiteral("package_id"), QStringLiteral("not-installed")}
+        });
+        expect(!unknownPackage && unknownPackage.getError().code ==
+                                      Automation::AutomationErrorCode::InvalidArgument,
+               QStringLiteral("packages.describe must reject IDs absent from packages.list"));
+        const auto validatedRefresh =
+            invokeSchemaValid(registry, QStringLiteral("packages.refresh"),
+                              QJsonObject{
+                                  {QStringLiteral("validate_only"), true}
+        },
+                              QStringLiteral("validated package refresh"));
+        expect(validatedRefresh &&
+                   validatedRefresh->value(QStringLiteral("scope")) ==
+                       QStringLiteral("application") &&
+                   validatedRefresh->value(QStringLiteral("document")).isNull() &&
+                   validatedRefresh->value(QStringLiteral("validated_only")).toBool() &&
+                   !validatedRefresh->contains(QStringLiteral("task_id")),
+               QStringLiteral("validate-only package refresh must not create a task"));
+        const auto refresh = invokeSchemaValid(registry, QStringLiteral("packages.refresh"), {},
+                                               QStringLiteral("package refresh"));
+        const auto taskId =
+            refresh ? refresh->value(QStringLiteral("task_id")).toString() : QString();
+        const QJsonObject applicationTask{
+            {QStringLiteral("scope"),   QStringLiteral("application")},
+            {QStringLiteral("task_id"), taskId                       },
+        };
+        const auto task = invokeSchemaValid(registry, QStringLiteral("tasks.get"), applicationTask,
+                                            QStringLiteral("application task get"));
+        const auto refreshFailures = task ? task->value(QStringLiteral("application_result"))
+                                                .toObject()
+                                                .value(QStringLiteral("failures"))
+                                                .toArray()
+                                          : QJsonArray{};
+        expect(
+            task && task->value(QStringLiteral("scope")) == QStringLiteral("application") &&
+                task->value(QStringLiteral("document")).isNull() &&
+                task->value(QStringLiteral("state")) == QStringLiteral("succeeded") &&
+                refreshFailures.size() == 1 &&
+                refreshFailures.first().toObject().value(QStringLiteral("path")).isNull() &&
+                !refreshFailures.first()
+                     .toObject()
+                     .value(QStringLiteral("reason"))
+                     .toString()
+                     .contains(refreshControl.privatePath),
+            QStringLiteral(
+                "package refresh must redact structured and free-text paths before task output"));
+        const auto applicationTasks =
+            invokeSchemaValid(registry, QStringLiteral("tasks.list"),
+                              QJsonObject{
+                                  {QStringLiteral("scope"), QStringLiteral("application")}
+        },
+                              QStringLiteral("application tasks list"));
+        expect(
+            applicationTasks && applicationTasks->value(QStringLiteral("document")).isNull() &&
+                applicationTasks->value(QStringLiteral("tasks")).toArray().size() == 1,
+            QStringLiteral("tasks.list must expose application tasks only in application scope"));
+        const auto documentTasks =
+            invokeSchemaValid(registry, QStringLiteral("tasks.list"),
+                              QJsonObject{
+                                  {QStringLiteral("scope"),       QStringLiteral("document")  },
+                                  {QStringLiteral("document_id"), before.documentId.toString()}
+        },
+                              QStringLiteral("document tasks list"));
+        expect(documentTasks && documentTasks->value(QStringLiteral("tasks")).toArray().isEmpty(),
+               QStringLiteral("document task scope must not leak application tasks"));
+
+        refreshControl.deferNext = true;
+        const auto cancelableRefresh =
+            invokeSchemaValid(registry, QStringLiteral("packages.refresh"), {},
+                              QStringLiteral("cancelable package refresh"));
+        const auto cancelableTaskId =
+            cancelableRefresh ? cancelableRefresh->value(QStringLiteral("task_id")).toString()
+                              : QString();
+        const QJsonObject cancelableTask{
+            {QStringLiteral("scope"),   QStringLiteral("application")},
+            {QStringLiteral("task_id"), cancelableTaskId             },
+        };
+        const auto cancelRequested =
+            invokeSchemaValid(registry, QStringLiteral("tasks.cancel"), cancelableTask,
+                              QStringLiteral("cancel package refresh"));
+        const bool commitRejected =
+            refreshControl.pendingCommitGate && !refreshControl.pendingCommitGate();
+        refreshControl.pendingCommitGate = {};
+        refreshControl.pendingCompletion = {};
+        const auto canceledTask =
+            invokeSchemaValid(registry, QStringLiteral("tasks.get"), cancelableTask,
+                              QStringLiteral("canceled package refresh task"));
+        expect(cancelRequested &&
+                   cancelRequested->value(QStringLiteral("state")) ==
+                       QStringLiteral("cancel_requested") &&
+                   commitRejected && canceledTask &&
+                   canceledTask->value(QStringLiteral("state")) == QStringLiteral("canceled") &&
+                   !canceledTask->contains(QStringLiteral("application_result")),
+               QStringLiteral(
+                   "packages.refresh cancellation must close its commit gate before publication"));
+
+        refreshControl.failNext = true;
+        const auto failedRefresh = invokeSchemaValid(registry, QStringLiteral("packages.refresh"),
+                                                     {}, QStringLiteral("failed package refresh"));
+        const QJsonObject failedTaskInput{
+            {QStringLiteral("scope"),   QStringLiteral("application")},
+            {QStringLiteral("task_id"),
+             failedRefresh ? failedRefresh->value(QStringLiteral("task_id")).toString()
+                           : QString()                               },
+        };
+        const auto failedTask =
+            invokeSchemaValid(registry, QStringLiteral("tasks.get"), failedTaskInput,
+                              QStringLiteral("failed package refresh task"));
+        const auto publicError =
+            failedTask ? failedTask->value(QStringLiteral("error")).toObject() : QJsonObject{};
+        expect(
+            failedTask && failedTask->value(QStringLiteral("state")) == QStringLiteral("failed") &&
+                !publicError.value(QStringLiteral("message"))
+                     .toString()
+                     .contains(refreshControl.privatePath),
+            QStringLiteral("package refresh errors must not expose unauthorized absolute paths"));
+
+        invokeSchemaValid(registry, QStringLiteral("lyric_rules.list"),
+                          QJsonObject{
+                              {QStringLiteral("include_disabled"), true}
+        },
+                          QStringLiteral("lyric rules list"));
+        invokeSchemaValid(
+            registry, QStringLiteral("automation.get_options"),
+            QJsonObject{
+                {QStringLiteral("operation_id"),      QStringLiteral("lyric_rules.update")},
+                {QStringLiteral("field_path"),        QStringLiteral("/rule_id")          },
+                {QStringLiteral("partial_arguments"), QJsonObject{}                       }
+        },
+            QStringLiteral("lyric rule ID options"));
+        invokeSchemaValid(registry, QStringLiteral("lyric_rules.create"),
+                          QJsonObject{
+                              {QStringLiteral("kind"),          QStringLiteral("splitter")        },
+                              {QStringLiteral("name"),          QStringLiteral("Registry Draft")  },
+                              {QStringLiteral("regexes"),       QJsonArray{QStringLiteral("[,.]")}},
+                              {QStringLiteral("validate_only"), true                              }
+        },
+                          QStringLiteral("lyric rule create"));
+        invokeSchemaValid(registry, QStringLiteral("lyric_rules.create"),
+                          QJsonObject{
+                              {QStringLiteral("kind"),          QStringLiteral("tagger")         },
+                              {QStringLiteral("name"),          QStringLiteral("Registry Tagger")},
+                              {QStringLiteral("language"),      QStringLiteral("en")             },
+                              {QStringLiteral("entries"),
+                               QJsonArray{QJsonObject{
+                                   {QStringLiteral("type"), QStringLiteral("array")},
+                                   {QStringLiteral("value"), QJsonArray{QStringLiteral("star")}},
+                                   {QStringLiteral("tag"), QStringLiteral("word")},
+                                   {QStringLiteral("discard"), false},
+                               }}                                                                },
+                              {QStringLiteral("validate_only"), true                             },
+        },
+                          QStringLiteral("tagger lyric rule create"));
+        invokeSchemaValid(registry, QStringLiteral("lyric_rules.update"),
+                          QJsonObject{
+                              {QStringLiteral("rule_id"),       customLyricRuleId                 },
+                              {QStringLiteral("name"),          QStringLiteral("Registry Renamed")},
+                              {QStringLiteral("validate_only"), true                              }
+        },
+                          QStringLiteral("lyric rule update"));
+        invokeSchemaValid(registry, QStringLiteral("lyric_rules.set_enabled"),
+                          QJsonObject{
+                              {QStringLiteral("rule_id"),       builtinLyricRuleId},
+                              {QStringLiteral("enabled"),       false             },
+                              {QStringLiteral("validate_only"), true              }
+        },
+                          QStringLiteral("lyric rule set enabled"));
+        invokeSchemaValid(registry, QStringLiteral("lyric_rules.move"),
+                          QJsonObject{
+                              {QStringLiteral("rule_id"),       customLyricRuleId},
+                              {QStringLiteral("position"),      0                },
+                              {QStringLiteral("validate_only"), true             }
+        },
+                          QStringLiteral("lyric rule move"));
+        invokeSchemaValid(registry, QStringLiteral("lyric_rules.delete"),
+                          QJsonObject{
+                              {QStringLiteral("rule_id"),       customLyricRuleId},
+                              {QStringLiteral("validate_only"), true             }
+        },
+                          QStringLiteral("lyric rule delete"));
+        invokeSchemaValid(registry, QStringLiteral("lyric_rules.test"),
+                          QJsonObject{
+                              {QStringLiteral("text"), QStringLiteral("hello world")}
+        },
+                          QStringLiteral("lyric rules test"));
+        for (const auto operationId :
+             {QStringLiteral("lyric_rules.update"), QStringLiteral("lyric_rules.delete")}) {
+            QJsonObject arguments{
+                {QStringLiteral("rule_id"), builtinLyricRuleId}
+            };
+            if (operationId.endsWith(QStringLiteral("update")))
+                arguments.insert(QStringLiteral("name"), QStringLiteral("Forbidden"));
+            const auto result = registry.invoke(operationId, arguments);
+            expect(!result &&
+                       result.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+                       result.getError().fieldPath.endsWith(QStringLiteral("rule_id")),
+                   operationId + QStringLiteral(" must reject writes to built-in rule content"));
+        }
+        expect(runtime.documentVersion() == before,
+               QStringLiteral("all L3 application bindings must leave document revision intact"));
+    }
+
+    void verifyPackageRefreshLifetime(Automation::CoreRuntime &runtime,
+                                      Automation::AutomationAccessPolicy &access,
+                                      Automation::AutomationFileGuard &fileGuard,
+                                      Automation::AdmissionController &admission,
+                                      PackageRefreshTestControl &refreshControl) {
+        refreshControl.deferNext = true;
+        QString taskId;
+        {
+            Automation::PublicAutomationRegistry transientRegistry(runtime, access, fileGuard,
+                                                                   admission);
+            const auto started = transientRegistry.invoke(QStringLiteral("packages.refresh"), {});
+            expect(bool(started), QStringLiteral("transient registry refresh must start"));
+            if (started)
+                taskId = started.get().value(QStringLiteral("task_id")).toString();
+        }
+
+        const bool rejectedAfterDestruction =
+            refreshControl.pendingCommitGate && !refreshControl.pendingCommitGate();
+        if (refreshControl.pendingCompletion) {
+            refreshControl.pendingCompletion(Automation::PackageRefreshResultDto{
+                .packages = 1,
+                .failures = {{refreshControl.privatePath, QStringLiteral("late result from %1")
+                                                              .arg(refreshControl.privatePath)}},
+            });
+        }
+        refreshControl.pendingCommitGate = {};
+        refreshControl.pendingCompletion = {};
+
+        const auto snapshot =
+            runtime.automationTasks().getApplication(Automation::TaskId::fromString(taskId));
+        expect(rejectedAfterDestruction && snapshot &&
+                   snapshot.get().state == Automation::AutomationTaskState::Running &&
+                   !snapshot.get().applicationResult,
+               QStringLiteral(
+                   "destroyed registries must reject commit and discard late package callbacks"));
+        runtime.automationTasks().cancel(Automation::TaskId::fromString(taskId));
+    }
 
     std::optional<PublicEditingFixture>
         verifyPublicEditingBehavior(Automation::PublicAutomationRegistry &registry,
@@ -2326,9 +3028,14 @@ int main(int argc, char *argv[]) {
         {LanguageInfo(QStringLiteral("zh"), QStringLiteral("Chinese"),
                       QStringLiteral("registry-g2p"))},
         QStringLiteral("zh"));
+    QTemporaryDir privatePackageDirectory;
+    expect(privatePackageDirectory.isValid(),
+           QStringLiteral("private package fixture directory must be available"));
     Automation::PackageDto registryPackage;
     registryPackage.id = QStringLiteral("registry-package");
     registryPackage.version = QVersionNumber(1, 0);
+    registryPackage.vendor = QStringLiteral("Registry Vendor");
+    registryPackage.path = privatePackageDirectory.path();
     registryPackage.singers.append({
         .singerId = QStringLiteral("registry-singer"),
         .packageId = registryPackage.id,
@@ -2347,6 +3054,43 @@ int main(int argc, char *argv[]) {
     packageServices.installedPackages = [registryPackage] {
         return QList<Automation::PackageDto>{registryPackage};
     };
+    auto packageRefreshControl = std::make_shared<PackageRefreshTestControl>();
+    packageRefreshControl->privatePath = privatePackageDirectory.path();
+    packageServices.refreshPackages =
+        [packageRefreshControl](Automation::PackageRefreshCommitGate commitGate,
+                                Automation::PackageRefreshCompletion completion) {
+            ++packageRefreshControl->starts;
+            if (packageRefreshControl->deferNext) {
+                packageRefreshControl->deferNext = false;
+                packageRefreshControl->pendingCommitGate = std::move(commitGate);
+                packageRefreshControl->pendingCompletion = std::move(completion);
+                return Automation::AutomationResult<Automation::AutomationUnit>(
+                    Automation::AutomationUnit{});
+            }
+            if (packageRefreshControl->failNext) {
+                packageRefreshControl->failNext = false;
+                Automation::AutomationError error;
+                error.code = Automation::AutomationErrorCode::IoError;
+                error.message =
+                    QStringLiteral("Unable to scan %1").arg(packageRefreshControl->privatePath);
+                completion(std::move(error));
+                return Automation::AutomationResult<Automation::AutomationUnit>(
+                    Automation::AutomationUnit{});
+            }
+            if (commitGate && !commitGate()) {
+                return Automation::AutomationResult<Automation::AutomationUnit>(
+                    Automation::AutomationUnit{});
+            }
+            completion(Automation::PackageRefreshResultDto{
+                .packages = 1,
+                .added = {QStringLiteral("registry-package")},
+                .failures = {{packageRefreshControl->privatePath,
+                              QStringLiteral("Unable to inspect %1/manifest.json")
+                                  .arg(packageRefreshControl->privatePath)}},
+            });
+            return Automation::AutomationResult<Automation::AutomationUnit>(
+                Automation::AutomationUnit{});
+        };
     auto playbackState = std::make_shared<Automation::PlaybackHostSnapshot>();
     Automation::PlaybackRuntimeServices playbackServices;
     playbackServices.snapshot = [playbackState] { return *playbackState; };
@@ -2380,6 +3124,15 @@ int main(int argc, char *argv[]) {
         };
     };
     auto settingsSnapshot = std::make_shared<Automation::SettingsSnapshotDto>();
+    settingsSnapshot->general.uiLanguage = QStringLiteral("en_US");
+    settingsSnapshot->general.defaultSingingLanguage = QStringLiteral("unknown");
+    settingsSnapshot->general.defaultLyrics.insert(QStringLiteral("en"), QStringLiteral("la"));
+    settingsSnapshot->appearance.themeId = QStringLiteral("light");
+    settingsSnapshot->audio.driverName = QStringLiteral("test-driver");
+    settingsSnapshot->audio.deviceName = QStringLiteral("test-device");
+    settingsSnapshot->audio.adoptedBufferSize = 512;
+    settingsSnapshot->audio.adoptedSampleRate = 44100.0;
+    settingsSnapshot->inference.executionProvider = QStringLiteral("CPU");
     const QDir temporaryDirectory(QDir::tempPath());
     settingsSnapshot->general.recentProjectFiles = {
         temporaryDirectory.filePath(QStringLiteral("registry-recent-a.dspx")),
@@ -2387,6 +3140,205 @@ int main(int argc, char *argv[]) {
     };
     Automation::SettingsRuntimeServices settingsServices;
     settingsServices.snapshot = [settingsSnapshot] { return *settingsSnapshot; };
+    settingsServices.publicSnapshot = [settingsSnapshot] {
+        Automation::PublicSettingsSnapshotDto result;
+        result.uiLanguage = Automation::UiLanguagePublicSettingsDto{
+            .configured = settingsSnapshot->general.uiLanguage,
+            .effective = settingsSnapshot->general.uiLanguage,
+            .candidates =
+                {
+                             {QStringLiteral("en_US"), QStringLiteral("English"), true, {}},
+                             {QStringLiteral("zh_CN"), QStringLiteral("简体中文"), true, {}},
+                             },
+        };
+        result.singing = Automation::SingingPublicSettingsDto{
+            .configuredDefaultLanguage = settingsSnapshot->general.defaultSingingLanguage,
+            .effectiveDefaultLanguage = settingsSnapshot->general.defaultSingingLanguage,
+            .configuredDefaultLyrics = settingsSnapshot->general.defaultLyrics,
+            .effectiveDefaultLyrics = settingsSnapshot->general.defaultLyrics,
+            .languageCandidates =
+                {
+                                     {QStringLiteral("unknown"), QStringLiteral("Unknown"), true, {}},
+                                     {QStringLiteral("en"), QStringLiteral("English"), true, {}},
+                                     {QStringLiteral("zh"), QStringLiteral("Chinese"), true, {}},
+                                     },
+        };
+        result.theme = Automation::ThemePublicSettingsDto{
+            .configured = settingsSnapshot->appearance.themeId,
+            .effective = settingsSnapshot->appearance.themeId,
+            .candidates =
+                {
+                             {QStringLiteral("light"), QStringLiteral("Light"), true, {}},
+                             {QStringLiteral("dark"), QStringLiteral("Dark"), true, {}},
+                             },
+        };
+        Automation::AudioDevicePublicSettingsDto audio;
+        audio.configured = {
+            .driverName = settingsSnapshot->audio.driverName,
+            .deviceName = settingsSnapshot->audio.deviceName,
+            .bufferSize = settingsSnapshot->audio.adoptedBufferSize,
+            .sampleRate = settingsSnapshot->audio.adoptedSampleRate,
+            .hotPlugNotificationMode = settingsSnapshot->audio.hotPlugNotificationMode,
+            .gain = settingsSnapshot->audio.deviceGain,
+            .pan = settingsSnapshot->audio.devicePan,
+        };
+        audio.effective = audio.configured;
+        audio.drivers = {
+            {
+             .id = QStringLiteral("test-driver"),
+             .displayName = QStringLiteral("Test Driver"),
+             .devices =
+                    {
+                        {
+                            .id = {},
+                            .displayName = QStringLiteral("Default Device"),
+                        },
+                        {
+                            .id = QStringLiteral("test-device"),
+                            .displayName = QStringLiteral("Test Device"),
+                            .bufferSizes = {256, 512},
+                            .sampleRates = {44100.0, 48000.0},
+                        },
+                    }, }
+        };
+        result.audioDevice = audio;
+        result.playbackBehavior = Automation::PlaybackBehaviorPublicSettingsDto{
+            .configured = settingsSnapshot->audio.playheadBehavior,
+            .effective = settingsSnapshot->audio.playheadBehavior,
+            .candidates = {0, 1, 2},
+        };
+        result.computeDevice = Automation::ComputeDevicePublicSettingsDto{
+            .configured = {settingsSnapshot->inference.executionProvider,
+                           settingsSnapshot->inference.selectedGpuIndex,
+                           settingsSnapshot->inference.selectedGpuId},
+            .effective = {settingsSnapshot->inference.executionProvider,
+                           settingsSnapshot->inference.selectedGpuIndex,
+                           settingsSnapshot->inference.selectedGpuId},
+            .providerCandidates =
+                {
+                           {QStringLiteral("CPU"), QStringLiteral("CPU"), true, {}},
+                           {QStringLiteral("DML"), QStringLiteral("DirectML"), true, {}},
+                           },
+            .gpuCandidates = {{0, QStringLiteral("gpu-0"), QStringLiteral("GPU 0"), true, {}}},
+        };
+        const Automation::RenderPublicValueDto renderValue{
+            settingsSnapshot->inference.samplingSteps,
+            settingsSnapshot->inference.depth,
+            settingsSnapshot->inference.runVocoderOnCpu,
+            settingsSnapshot->inference.autoStartInference,
+            settingsSnapshot->inference.playbackLookaheadSeconds,
+            settingsSnapshot->inference.pitchSmoothKernelSize,
+        };
+        result.render = Automation::RenderPublicSettingsDto{
+            .configured = renderValue,
+            .effective = renderValue,
+            .samplingStepsRange = {1,   100,   1   },
+            .depthRange = {0.0, 1.0,   0.01},
+            .playbackLookaheadRange = {1.0, 120.0, 1.0 },
+            .pitchSmoothKernelRange = {0,   21,    2   },
+        };
+        const Automation::SingerSessionRetentionPublicValueDto retentionValue{
+            settingsSnapshot->inference.singerSessionCacheCapacity,
+            settingsSnapshot->inference.singerSessionIdleTimeoutSeconds,
+        };
+        result.singerSessionRetention = Automation::SingerSessionRetentionPublicSettingsDto{
+            .configured = retentionValue,
+            .effective = retentionValue,
+            .capacityCandidates = {1,  4,  8  },
+            .idleTimeoutCandidates = {30, 60, 120},
+        };
+        result.packageSearchPaths = Automation::PackageSearchPathsPublicSettingsDto{
+            .configured = settingsSnapshot->general.packageSearchPaths,
+            .effective = settingsSnapshot->general.packageSearchPaths,
+        };
+        return result;
+    };
+    settingsServices.applyGeneral =
+        [settingsSnapshot](const Automation::GeneralSettingsDto &value) {
+            settingsSnapshot->general = value;
+            return true;
+        };
+    settingsServices.applyAppearance =
+        [settingsSnapshot](const Automation::AppearanceSettingsDto &value) {
+            settingsSnapshot->appearance = value;
+            return true;
+        };
+    settingsServices.applyInference =
+        [settingsSnapshot](const Automation::InferenceSettingsDto &value) {
+            settingsSnapshot->inference = value;
+            return true;
+        };
+    settingsServices.applyAudio = [settingsSnapshot](const Automation::AudioSettingsDto &value) {
+        settingsSnapshot->audio = value;
+        return true;
+    };
+    settingsServices.applyUiLanguage =
+        [settingsSnapshot](const Automation::GeneralSettingsDto &value) {
+            settingsSnapshot->general = value;
+            return Automation::AutomationResult<Automation::AutomationUnit>(
+                Automation::AutomationUnit{});
+        };
+    settingsServices.applyTheme =
+        [settingsSnapshot](const Automation::AppearanceSettingsDto &value) {
+            settingsSnapshot->appearance = value;
+            return Automation::AutomationResult<Automation::AutomationUnit>(
+                Automation::AutomationUnit{});
+        };
+    settingsServices.applyAudioDevice =
+        [settingsSnapshot](const Automation::AudioSettingsDto &value,
+                           const Automation::AudioDeviceSettingsPatchDto &) {
+            settingsSnapshot->audio = value;
+            return Automation::AutomationResult<Automation::AutomationUnit>(
+                Automation::AutomationUnit{});
+        };
+    settingsServices.applyFillLyric =
+        [settingsSnapshot](const Automation::FillLyricSettingsDto &value) {
+            settingsSnapshot->fillLyric = value;
+            return true;
+        };
+    const auto builtinLyricRuleId = QStringLiteral("builtin-splitter-1234567890abcdef12345678");
+    const auto customLyricRuleId = QStringLiteral("11111111-1111-4111-8111-111111111111");
+    settingsSnapshot->fillLyric.builtinSplitterEnabled.insert(QStringLiteral("Character"), true);
+    settingsSnapshot->fillLyric.customSplitterRules.append({
+        .ruleId = customLyricRuleId,
+        .name = QStringLiteral("Registry Custom"),
+        .regexes = {QStringLiteral("\\s+")},
+        .enabled = true,
+        .order = 1,
+    });
+    settingsSnapshot->fillLyric.splitterOrder = {QStringLiteral("Character"),
+                                                 QStringLiteral("Registry Custom")};
+    auto lyricRules =
+        std::make_shared<QList<Automation::LyricRuleDto>>(QList<Automation::LyricRuleDto>{
+            Automation::LyricRuleDto{
+                                     .ruleId = builtinLyricRuleId,
+                                     .kind = Automation::LyricRuleKind::Splitter,
+                                     .builtin = true,
+                                     .name = QStringLiteral("Character"),
+                                     .regexes = {QStringLiteral(".")},
+                                     .enabled = true,
+                                     .order = 0,
+                                     .engineOrderKey = QStringLiteral("Character"),
+                                     },
+            Automation::LyricRuleDto{
+                                     .ruleId = customLyricRuleId,
+                                     .kind = Automation::LyricRuleKind::Splitter,
+                                     .builtin = false,
+                                     .name = QStringLiteral("Registry Custom"),
+                                     .regexes = {QStringLiteral("\\s+")},
+                                     .enabled = true,
+                                     .order = 1,
+                                     .engineOrderKey = QStringLiteral("Registry Custom"),
+                                     },
+    });
+    settingsServices.lyricRules = [lyricRules] { return *lyricRules; };
+    settingsServices.testLyricRules = [](const QString &text) {
+        return Automation::AutomationResult<Automation::LyricRuleTestResultDto>(
+            Automation::LyricRuleTestResultDto{
+                .splitTokens = {text},
+                .taggedTokens = {{text, QStringLiteral("en"), QStringLiteral("word"), false}},
+            });
+    };
     auto presetStore = std::make_shared<QList<Automation::SpeakerMixPresetDto>>();
     Automation::PresetRuntimeServices presetServices;
     presetServices.speakerMixPresets = [presetStore] { return *presetStore; };
@@ -2395,10 +3347,160 @@ int main(int argc, char *argv[]) {
             *presetStore = presets;
             return true;
         };
+
+    auto editorViewState = std::make_shared<EditorViewState>();
+    auto editorStableState = std::make_shared<Automation::EditorStableState>();
+    Automation::EditorRuntimeServices editorServices;
+    editorServices.captureView = [editorViewState] {
+        return std::optional<EditorViewState>(*editorViewState);
+    };
+    editorServices.captureStableState = [editorStableState] { return *editorStableState; };
+    editorServices.restoreView = [editorViewState](const EditorViewState &state) {
+        *editorViewState = state;
+        return true;
+    };
+    editorServices.setTrackPanelViewport = [editorViewState](const TrackPanelViewState &state) {
+        editorViewState->trackPanel = state;
+        return true;
+    };
+    editorServices.setPanelVisibility = [editorViewState](const bool trackVisible,
+                                                          const bool clipVisible) {
+        if (!trackVisible && !clipVisible)
+            return false;
+        editorViewState->layout.trackPanelVisible = trackVisible;
+        editorViewState->layout.bottomPanelVisible = clipVisible;
+        return true;
+    };
+    const auto focusRegion = [editorViewState](const EditorViewGlobal::Region region) {
+        if (region == EditorViewGlobal::Region::TrackPanel) {
+            editorViewState->layout.trackPanelVisible = true;
+        } else if (region == EditorViewGlobal::Region::PianoRoll ||
+                   region == EditorViewGlobal::Region::Parameters) {
+            editorViewState->layout.bottomPanelVisible = true;
+            editorViewState->layout.bottomPanelPageId = QStringLiteral("ClipEditor");
+            if (region == EditorViewGlobal::Region::PianoRoll)
+                editorViewState->layout.pianoRollVisible = true;
+            else
+                editorViewState->layout.parametersVisible = true;
+        } else {
+            return false;
+        }
+        editorViewState->layout.activeRegion = region;
+        editorViewState->layout.focusedRegion = region;
+        return true;
+    };
+    editorServices.showRegion = focusRegion;
+    editorServices.focusRegion = focusRegion;
+    editorServices.setClipEditorTimeViewport = [editorViewState](const double centerTick,
+                                                                 const double horizontalScale) {
+        editorViewState->pianoRoll.centerTick = centerTick;
+        editorViewState->pianoRoll.horizontalScale = horizontalScale;
+        return true;
+    };
+    editorServices.setPianoRollPitchViewport = [editorViewState](const double centerKeyIndex,
+                                                                 const double verticalScale) {
+        editorViewState->pianoRoll.centerKeyIndex = centerKeyIndex;
+        editorViewState->pianoRoll.verticalScale = verticalScale;
+        return true;
+    };
+    editorServices.setPianoRollEditMode =
+        [editorViewState](const EditorViewGlobal::PianoRollEditMode mode) {
+            editorViewState->pianoRoll.editMode = mode;
+            return true;
+        };
+    editorServices.setParameterForeground = [editorViewState](const ParamInfo::Name name) {
+        editorViewState->parameters.foreground = name;
+        editorViewState->layout.bottomPanelVisible = true;
+        editorViewState->layout.activeRegion = EditorViewGlobal::Region::Parameters;
+        editorViewState->layout.focusedRegion = EditorViewGlobal::Region::Parameters;
+        return true;
+    };
+    editorServices.setParameterBackground = [editorViewState](const ParamInfo::Name name) {
+        editorViewState->parameters.background = name;
+        editorViewState->layout.bottomPanelVisible = true;
+        editorViewState->layout.activeRegion = EditorViewGlobal::Region::Parameters;
+        editorViewState->layout.focusedRegion = EditorViewGlobal::Region::Parameters;
+        return true;
+    };
+    editorServices.swapParameters = [editorViewState] {
+        std::swap(editorViewState->parameters.foreground, editorViewState->parameters.background);
+        editorViewState->layout.bottomPanelVisible = true;
+        editorViewState->layout.activeRegion = EditorViewGlobal::Region::Parameters;
+        editorViewState->layout.focusedRegion = EditorViewGlobal::Region::Parameters;
+        return true;
+    };
+    editorServices.setParameterEditMode =
+        [editorViewState](const EditorViewGlobal::ParameterEditMode mode) {
+            editorViewState->parameters.editMode = mode;
+            editorViewState->layout.bottomPanelVisible = true;
+            editorViewState->layout.activeRegion = EditorViewGlobal::Region::Parameters;
+            editorViewState->layout.focusedRegion = EditorViewGlobal::Region::Parameters;
+            return true;
+        };
+    editorServices.setParameterValueViewport = [editorViewState](const double centerRatio,
+                                                                 const double verticalScale) {
+        editorViewState->parameters.centerRatio = centerRatio;
+        editorViewState->parameters.verticalScale = verticalScale;
+        editorViewState->layout.bottomPanelVisible = true;
+        editorViewState->layout.activeRegion = EditorViewGlobal::Region::Parameters;
+        editorViewState->layout.focusedRegion = EditorViewGlobal::Region::Parameters;
+        return true;
+    };
+    editorServices.setActiveClip = [editorStableState](const int clipId) {
+        editorStableState->activeClipId = clipId;
+    };
+    editorServices.setSelectedTrackIndex = [editorStableState](const int trackIndex) {
+        editorStableState->selectedTrackIndex = trackIndex;
+    };
+    editorServices.setSelectedClips = [editorStableState](const QList<int> &clipIds,
+                                                          const int primaryClipId) {
+        editorStableState->selectedClipIds = clipIds;
+        editorStableState->primaryClipId = primaryClipId;
+    };
+    editorServices.setSelectedNotes =
+        [editorStableState](const int clipId, const QList<int> &noteIds, const int primaryNoteId) {
+            editorStableState->activeClipId = clipId;
+            editorStableState->selectedNoteIds = noteIds;
+            editorStableState->primaryNoteId = primaryNoteId;
+        };
+    editorServices.setPianoRollQuantize = [editorStableState](const int quantize,
+                                                              const bool enabled) {
+        editorStableState->pianoRollQuantize = quantize;
+        editorStableState->pianoRollQuantizeEnabled = enabled;
+    };
+    editorServices.setAutoPageTurn =
+        [editorStableState](const Automation::EditorAutoPageTarget target, const bool enabled) {
+            if (target == Automation::EditorAutoPageTarget::TrackPanel)
+                editorStableState->trackAutoPageTurnEnabled = enabled;
+            else
+                editorStableState->pianoRollAutoPageTurnEnabled = enabled;
+        };
+    editorServices.focusVisibility = [](const HistoryFocus &) {
+        return HistoryFocusVisibility::ScrollRequired;
+    };
+    editorServices.revealFocus = [editorViewState, editorStableState](const HistoryFocus &focus,
+                                                                      const bool) {
+        if (focus.kind == HistoryFocusKind::TrackClips) {
+            editorViewState->layout.trackPanelVisible = true;
+            editorViewState->layout.activeRegion = EditorViewGlobal::Region::TrackPanel;
+            editorViewState->layout.focusedRegion = EditorViewGlobal::Region::TrackPanel;
+            editorViewState->trackPanel.centerTick = (focus.tickStart + focus.tickEnd) * 0.5;
+        } else {
+            editorViewState->layout.bottomPanelVisible = true;
+            editorViewState->layout.bottomPanelPageId = QStringLiteral("ClipEditor");
+            editorViewState->layout.pianoRollVisible = true;
+            editorViewState->layout.activeRegion = EditorViewGlobal::Region::PianoRoll;
+            editorViewState->layout.focusedRegion = EditorViewGlobal::Region::PianoRoll;
+            editorViewState->pianoRoll.centerTick = (focus.tickStart + focus.tickEnd) * 0.5;
+            editorStableState->activeClipId = focus.containerId;
+        }
+        return true;
+    };
+
     AutomationTestSupport::TestRuntime fixture(
-        {}, std::move(documentServices), std::move(fileServices), std::move(audioExportServices),
-        std::move(packageServices), std::move(playbackServices), std::move(applicationServices),
-        std::move(settingsServices), std::move(presetServices));
+        std::move(editorServices), std::move(documentServices), std::move(fileServices),
+        std::move(audioExportServices), std::move(packageServices), std::move(playbackServices),
+        std::move(applicationServices), std::move(settingsServices), std::move(presetServices));
     fixture.model().newProject();
     auto &runtime = fixture.runtime();
 
@@ -2421,7 +3523,7 @@ int main(int argc, char *argv[]) {
            QStringLiteral("async document-open fixture must use a registered format"));
     backgroundOpenFile.close();
 
-    Automation::AutomationAccessPolicy access(AutomationWire::AutomationProfile::L2);
+    Automation::AutomationAccessPolicy access(AutomationWire::AutomationProfile::L3);
     Automation::AutomationFileGuard fileGuard;
     expect(bool(fileGuard.setConfiguredRoots({directory.path()}, {directory.path()})),
            QStringLiteral("file guard roots must configure"));
@@ -2462,6 +3564,10 @@ int main(int argc, char *argv[]) {
     Automation::PublicAutomationRegistry registry(runtime, access, fileGuard, admission,
                                                   std::move(services));
 
+    verifyAdvancedApplicationBindings(registry, runtime, directory.path(), builtinLyricRuleId,
+                                      customLyricRuleId, *packageRefreshControl);
+    verifyPackageRefreshLifetime(runtime, access, fileGuard, admission, *packageRefreshControl);
+
     const auto applicationInfo = registry.invoke(QStringLiteral("application.get_info"), {});
     expect(applicationInfo &&
                applicationInfo.get().value(QStringLiteral("build_id")).toString() ==
@@ -2501,8 +3607,8 @@ int main(int argc, char *argv[]) {
     auto expectedIds = PublicAutomationToolsetExpectations::editorToolIds();
     auto bindingIds = registry.bindingIds();
     std::sort(expectedIds.begin(), expectedIds.end());
-    expect(expectedIds.size() == 134 && bindingIds == expectedIds && registry.isComplete(),
-           QStringLiteral("all 134 editor contracts must have exact bindings"));
+    expect(expectedIds.size() == 179 && bindingIds == expectedIds && registry.isComplete(),
+           QStringLiteral("all 179 editor contracts must have exact bindings"));
 
     const auto lifecycleSchemaBase = runtime.documentVersion();
     for (const auto &operationId :
@@ -2795,7 +3901,7 @@ int main(int argc, char *argv[]) {
                access.isAllowed(QStringLiteral("documents.get")) &&
                !access.isAllowed(QStringLiteral("tracks.set_color")),
            QStringLiteral("custom profile must retain Meta and only explicit business tools"));
-    access.update(AutomationWire::AutomationProfile::L2);
+    access.update(AutomationWire::AutomationProfile::L3);
     const auto staticOptions =
         registry.invoke(QStringLiteral("automation.get_options"),
                         QJsonObject{
@@ -2866,6 +3972,7 @@ int main(int argc, char *argv[]) {
     const auto encodedMetadataTask = registry.invoke(
         QStringLiteral("tasks.get"),
         QJsonObject{
+            {QStringLiteral("scope"),       QStringLiteral("document")                     },
             {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()},
             {QStringLiteral("task_id"),     metadataTask.taskId.toString()                 },
     });
@@ -3541,6 +4648,7 @@ int main(int argc, char *argv[]) {
         verifyPublicVoiceAndSpeakerMix(registry, runtime, *publicEditingFixture, registrySinger,
                                        registrySpeakerA, registrySpeakerB,
                                        registrySpeakerlessSinger);
+        verifyAdvancedGuiBindings(registry, runtime, *publicEditingFixture);
         const auto projectForStatistics =
             runtime.project().getProject(runtime.documentVersion().documentId);
         const auto documentWithStatistics = registry.invoke(
@@ -3590,6 +4698,7 @@ int main(int argc, char *argv[]) {
     const auto polled = registry.invoke(
         QStringLiteral("tasks.get"),
         QJsonObject{
+            {QStringLiteral("scope"),       QStringLiteral("document")                     },
             {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()},
             {QStringLiteral("task_id"),     taskId.toString()                              },
     },
@@ -3627,6 +4736,7 @@ int main(int argc, char *argv[]) {
     const auto queuedDocumentTasks = registry.invoke(
         QStringLiteral("tasks.list"),
         QJsonObject{
+            {QStringLiteral("scope"),       QStringLiteral("document")                     },
             {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()},
             {QStringLiteral("state"),       QStringLiteral("queued")                       },
             {QStringLiteral("kind"),        QStringLiteral("documents.open")               },
@@ -3636,6 +4746,7 @@ int main(int argc, char *argv[]) {
     const auto unrelatedTasks = registry.invoke(
         QStringLiteral("tasks.list"),
         QJsonObject{
+            {QStringLiteral("scope"),       QStringLiteral("document")                     },
             {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()},
             {QStringLiteral("kind"),        QStringLiteral("exports.audio.start")          },
             {QStringLiteral("limit"),       10                                             },
@@ -3657,6 +4768,7 @@ int main(int argc, char *argv[]) {
     const auto canceled = registry.invoke(
         QStringLiteral("tasks.cancel"),
         QJsonObject{
+            {QStringLiteral("scope"),       QStringLiteral("document")                     },
             {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()},
             {QStringLiteral("task_id"),     reopenedTaskId.toString()                      },
     },
@@ -3677,6 +4789,7 @@ int main(int argc, char *argv[]) {
     const auto internalTask = runtime.automationTasks().createTask(
         QStringLiteral("audio_clips.apply_decode_cache"), runtime.documentVersion());
     const QJsonObject allTasksInput{
+        {QStringLiteral("scope"),       QStringLiteral("document")                     },
         {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()},
     };
     const auto publicTasks = registry.invoke(QStringLiteral("tasks.list"), allTasksInput);
@@ -3688,6 +4801,7 @@ int main(int argc, char *argv[]) {
         }
     }
     QJsonObject internalTaskInput{
+        {QStringLiteral("scope"),       QStringLiteral("document")                     },
         {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()},
         {QStringLiteral("task_id"),     internalTask.taskId.toString()                 },
     };
@@ -3700,6 +4814,7 @@ int main(int argc, char *argv[]) {
                internalTaskCancel.getError().code == Automation::AutomationErrorCode::NotFound,
            QStringLiteral("public task tools must hide GUI and internal automation tasks"));
     const QJsonObject taskPageInput{
+        {QStringLiteral("scope"),       QStringLiteral("document")                     },
         {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()},
         {QStringLiteral("limit"),       1                                              },
     };
@@ -3783,9 +4898,9 @@ int main(int argc, char *argv[]) {
     for (const auto &tool : listedTools)
         listedIds.insert(tool.toObject().value(QStringLiteral("name")).toString());
     expect(!listCursor.isEmpty() && !nextListResponse.contains(QStringLiteral("error")) &&
-               cachedToolsPageElapsedMs < 250 && listedTools.size() == 134 &&
+               cachedToolsPageElapsedMs < 250 && listedTools.size() == 179 &&
                listedIds == PublicAutomationToolsetExpectations::editorToolIdSet(),
-           QStringLiteral("tools/list must expose the exact 134-tool editor surface"));
+           QStringLiteral("tools/list must expose the exact 179-tool editor surface"));
     access.update(AutomationWire::AutomationProfile::L1);
     const auto reducedListResponse = dispatcher.dispatch(list, QStringLiteral("adapter"));
     const auto reducedListResult = reducedListResponse.value(QStringLiteral("result")).toObject();
@@ -3799,7 +4914,7 @@ int main(int argc, char *argv[]) {
                    .value(QStringLiteral("code"))
                    .toInt() == Mcp::InvalidParams,
            QStringLiteral("tools/list cursors must be bound to the enabled tool snapshot"));
-    access.update(AutomationWire::AutomationProfile::L2);
+    access.update(AutomationWire::AutomationProfile::L3);
     auto forgedList = list;
     forgedList.params.insert(QStringLiteral("cursor"), QStringLiteral("1"));
     const auto forgedListResponse = dispatcher.dispatch(forgedList, QStringLiteral("client-a"));

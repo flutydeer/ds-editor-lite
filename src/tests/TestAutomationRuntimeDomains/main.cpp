@@ -315,14 +315,17 @@ namespace {
                 ++editorStableApplyCalls;
                 editorStable.selectedTrackIndex = index;
             };
-            services.setSelectedClips = [this](const QList<int> &ids) {
+            services.setSelectedClips = [this](const QList<int> &ids, const int primaryId) {
                 ++editorStableApplyCalls;
                 editorStable.selectedClipIds = ids;
+                editorStable.primaryClipId = primaryId;
             };
-            services.setSelectedNotes = [this](const int clipId, const QList<int> &ids) {
+            services.setSelectedNotes = [this](const int clipId, const QList<int> &ids,
+                                               const int primaryId) {
                 ++editorStableApplyCalls;
                 editorStable.activeClipId = clipId;
                 editorStable.selectedNoteIds = ids;
+                editorStable.primaryNoteId = primaryId;
             };
             services.setPianoRollQuantize = [this](const int quantize, const bool enabled) {
                 ++editorStableApplyCalls;
@@ -336,9 +339,28 @@ namespace {
                 else
                     editorStable.pianoRollAutoPageTurnEnabled = enabled;
             };
-            services.revealFocus = [this](const HistoryFocus &, const bool) {
+            services.focusVisibility = [](const HistoryFocus &) {
+                return HistoryFocusVisibility::ScrollRequired;
+            };
+            services.revealFocus = [this](const HistoryFocus &focus, const bool) {
                 ++revealCalls;
-                return editorRevealSucceeds;
+                if (!editorRevealSucceeds)
+                    return false;
+                if (focus.kind == HistoryFocusKind::TrackClips) {
+                    editorView.layout.trackPanelVisible = true;
+                    editorView.layout.activeRegion = EditorViewGlobal::Region::TrackPanel;
+                    editorView.layout.focusedRegion = EditorViewGlobal::Region::TrackPanel;
+                    editorView.trackPanel.centerTick = (focus.tickStart + focus.tickEnd) * 0.5;
+                } else {
+                    editorView.layout.bottomPanelVisible = true;
+                    editorView.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
+                    editorView.layout.pianoRollVisible = true;
+                    editorView.layout.activeRegion = EditorViewGlobal::Region::PianoRoll;
+                    editorView.layout.focusedRegion = EditorViewGlobal::Region::PianoRoll;
+                    editorView.pianoRoll.centerTick = (focus.tickStart + focus.tickEnd) * 0.5;
+                    editorStable.activeClipId = focus.containerId;
+                }
+                return true;
             };
             return services;
         }
@@ -1216,6 +1238,7 @@ namespace {
                     .regexes = {QStringLiteral("[,，]")},
                 });
                 value.customTaggerRules.append({
+                    .name = QStringLiteral("unicode-tagger"),
                     .language = QStringLiteral("cmn"),
                     .entries = {{
                         .type = QStringLiteral("regex"),

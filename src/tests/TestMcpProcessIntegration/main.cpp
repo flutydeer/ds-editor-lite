@@ -460,7 +460,7 @@ namespace {
         portProbe.close();
 
         editor.start(editorPath, {QStringLiteral("--mcp"), QStringLiteral("--automation-profile"),
-                                  QStringLiteral("l2"), QStringLiteral("--control-port"),
+                                  QStringLiteral("l3"), QStringLiteral("--control-port"),
                                   QString::number(controlPort)});
         if (!editor.waitForStarted(10000)) {
             return fail(QStringLiteral("Editor failed to start: %1").arg(editor.errorString()));
@@ -510,7 +510,7 @@ namespace {
         connector.setWorkingDirectory(QFileInfo(connectorPath).absolutePath());
         connector.setProcessChannelMode(QProcess::SeparateChannels);
         connector.start(connectorPath,
-                        {QStringLiteral("--exposure-profile"), QStringLiteral("l2")});
+                        {QStringLiteral("--exposure-profile"), QStringLiteral("l3")});
         if (!connector.waitForStarted(10000)) {
             return fail(
                 QStringLiteral("Connector failed to start: %1").arg(connector.errorString()));
@@ -583,10 +583,14 @@ namespace {
         const auto missingFixedTool =
             std::find_if(fixedToolNames.cbegin(), fixedToolNames.cend(),
                          [&toolNames](const QString &name) { return !toolNames.contains(name); });
-        if (missingFixedTool != fixedToolNames.cend() ||
+        if (toolNames.size() != 185 || missingFixedTool != fixedToolNames.cend() ||
             !toolNames.contains(QStringLiteral("automation.get_status")) ||
+            !toolNames.contains(QStringLiteral("workspace.get")) ||
+            !toolNames.contains(QStringLiteral("settings.query")) ||
+            !toolNames.contains(QStringLiteral("packages.refresh")) ||
             toolNames.contains(QStringLiteral("application.request_exit"))) {
-            return fail(QStringLiteral("Connector published an unexpected fixed tool surface"));
+            return fail(
+                QStringLiteral("Connector did not publish the exact 179+6 L3 tool surface"));
         }
 
         QJsonObject lastEditorStatus;
@@ -789,8 +793,9 @@ namespace {
         }
 
         const QJsonObject taskArguments{
-            {QStringLiteral("document_id"), documentId},
-            {QStringLiteral("limit"),       100       },
+            {QStringLiteral("scope"),       QStringLiteral("document")},
+            {QStringLiteral("document_id"), documentId                },
+            {QStringLiteral("limit"),       100                       },
         };
         const auto connectorTasks = connectorToolContent(
             connector, 1003, QStringLiteral("tasks.list"), taskArguments, 10000, toolError);
@@ -822,7 +827,7 @@ namespace {
         legacyConnector.setWorkingDirectory(QFileInfo(connectorPath).absolutePath());
         legacyConnector.setProcessChannelMode(QProcess::SeparateChannels);
         legacyConnector.start(connectorPath,
-                              {QStringLiteral("--exposure-profile"), QStringLiteral("l2")});
+                              {QStringLiteral("--exposure-profile"), QStringLiteral("l3")});
         if (!legacyConnector.waitForStarted(10000)) {
             return failWithProcessDiagnostics(
                 QStringLiteral("Legacy-protocol Connector failed to start: %1")
@@ -907,7 +912,7 @@ namespace {
                     .toObject()
                     .value(QStringLiteral("tools"))
                     .toArray()
-                    .size() < 6) {
+                    .size() != 185) {
             return failWithProcessDiagnostics(
                 QStringLiteral("Connector MCP 2025-06-18 tools/list failed: %1")
                     .arg(legacyTools ? compactJson(*legacyTools) : exchangeError));
@@ -984,7 +989,8 @@ namespace {
 
         QTextStream(stdout)
             << "Validated real editor + connector MCP 2025-06-18/2025-11-25/2026-07-28 process "
-               "integration, L1 mutation, L2 queries, and normalized direct-editor equivalence"
+               "integration, L1/L2 operations, the 179+6 L3 surface, and normalized direct-editor "
+               "equivalence"
             << Qt::endl;
         return true;
     }

@@ -415,13 +415,16 @@ int main(int argc, char *argv[]) {
     editorServices.setSelectedTrackIndex = [&editorStableState](const int index) {
         editorStableState.selectedTrackIndex = index;
     };
-    editorServices.setSelectedClips = [&editorStableState](const QList<int> &ids) {
+    editorServices.setSelectedClips = [&editorStableState](const QList<int> &ids,
+                                                           const int primaryId) {
         editorStableState.selectedClipIds = ids;
+        editorStableState.primaryClipId = primaryId;
     };
-    editorServices.setSelectedNotes = [&editorStableState](const int clipId,
-                                                           const QList<int> &ids) {
+    editorServices.setSelectedNotes = [&editorStableState](const int clipId, const QList<int> &ids,
+                                                           const int primaryId) {
         editorStableState.activeClipId = clipId;
         editorStableState.selectedNoteIds = ids;
+        editorStableState.primaryNoteId = primaryId;
     };
     editorServices.setPianoRollQuantize = [&editorStableState](const int quantize,
                                                                const bool enabled) {
@@ -434,8 +437,26 @@ int main(int argc, char *argv[]) {
         else
             editorStableState.pianoRollAutoPageTurnEnabled = enabled;
     };
-    editorServices.revealFocus = [&editorRevealApplied](const HistoryFocus &, const bool) {
+    editorServices.focusVisibility = [](const HistoryFocus &) {
+        return HistoryFocusVisibility::ScrollRequired;
+    };
+    editorServices.revealFocus = [&editorRevealApplied, &editorViewState,
+                                  &editorStableState](const HistoryFocus &focus, const bool) {
         editorRevealApplied = true;
+        if (focus.kind == HistoryFocusKind::TrackClips) {
+            editorViewState.layout.trackPanelVisible = true;
+            editorViewState.layout.activeRegion = EditorViewGlobal::Region::TrackPanel;
+            editorViewState.layout.focusedRegion = EditorViewGlobal::Region::TrackPanel;
+            editorViewState.trackPanel.centerTick = (focus.tickStart + focus.tickEnd) * 0.5;
+        } else {
+            editorViewState.layout.bottomPanelVisible = true;
+            editorViewState.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
+            editorViewState.layout.pianoRollVisible = true;
+            editorViewState.layout.activeRegion = EditorViewGlobal::Region::PianoRoll;
+            editorViewState.layout.focusedRegion = EditorViewGlobal::Region::PianoRoll;
+            editorViewState.pianoRoll.centerTick = (focus.tickStart + focus.tickEnd) * 0.5;
+            editorStableState.activeClipId = focus.containerId;
+        }
         return true;
     };
     Automation::SettingsSnapshotDto applicationSettings;
@@ -661,7 +682,7 @@ int main(int argc, char *argv[]) {
     ok &= expect(capabilities && capabilities.get().maxConcurrentDocuments == 1 &&
                      capabilities.get().maxConcurrentWindows == 1,
                  "capabilities must declare the single document/window boundary");
-    ok &= expect(Automation::OperationIds::all().size() == 197,
+    ok &= expect(Automation::OperationIds::all().size() == 208,
                  "centralized operation registry must retain the approved automation surface");
     if (capabilities && capabilities.get().operationIds != Automation::OperationIds::all()) {
         auto missing = Automation::OperationIds::all();
