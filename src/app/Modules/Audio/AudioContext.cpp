@@ -231,6 +231,28 @@ AudioContext *AudioContext::instance() {
     return m_instance;
 }
 
+AudioContext::ExportInferenceStatus AudioContext::exportInferenceStatus() const {
+    return exportInferenceStatus(m_trackInferDict.keys());
+}
+
+AudioContext::ExportInferenceStatus
+    AudioContext::exportInferenceStatus(const QList<Track *> &tracks) const {
+    auto result = ExportInferenceStatus::Ready;
+    for (const auto track : tracks) {
+        for (const auto clip : track->clips()) {
+            if (clip->clipType() != Clip::Singing)
+                continue;
+            for (const auto piece : static_cast<SingingClip *>(clip)->pieces()) {
+                if (piece->acousticInferStatus == Failed)
+                    return ExportInferenceStatus::Failed;
+                if (piece->acousticInferStatus != Success)
+                    result = ExportInferenceStatus::Pending;
+            }
+        }
+    }
+    return result;
+}
+
 Track *AudioContext::getTrackFromContext(const talcs::DspxTrackContext *trackContext) const {
     Q_UNUSED(this)
     return trackContext->data().value<Track *>();
@@ -644,19 +666,7 @@ bool AudioContext::willStartCallback(AudioExporter *exporter) {
     for (const auto trackInferenceHandler : m_trackInferDict.values()) {
         trackInferenceHandler->setMode(talcs::DspxTrackInferenceContext::Export);
     }
-    const bool isOK = [this] {
-        for (const auto track : m_trackInferDict.keys()) {
-            for (const auto clip : track->clips()) {
-                if (clip->clipType() != Clip::Singing)
-                    continue;
-                for (const auto piece : static_cast<SingingClip *>(clip)->pieces()) {
-                    if (piece->acousticInferStatus == Failed)
-                        return false;
-                }
-            }
-        }
-        return true;
-    }();
+    const bool isOK = exportInferenceStatus() != ExportInferenceStatus::Failed;
     if (!isOK)
         exporter->cancel(true, tr("Inference failed"));
     return isOK;

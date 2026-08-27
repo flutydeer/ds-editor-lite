@@ -314,6 +314,10 @@ namespace Automation {
                 }
 
                 auto state = std::make_shared<PendingJobState>();
+                {
+                    const QMutexLocker locker(&state->mutex);
+                    state->job = validationJob.get();
+                }
                 const auto task = m_tasks.createTask(
                     OperationIds::exports::audio::start, session.version(), std::nullopt,
                     [weak = std::weak_ptr<PendingJobState>(state)] {
@@ -340,9 +344,9 @@ namespace Automation {
                     Q_ASSERT(bound);
                 }
 
-                auto execute = [this, taskId = task.taskId, base = session.version(), config,
+                auto execute = [this, taskId = task.taskId, base = session.version(),
                                 observer = std::move(observer), state]() mutable {
-                    executeTask(taskId, base, std::move(config), std::move(observer), state);
+                    executeTask(taskId, base, std::move(observer), state);
                 };
                 if (m_services.schedule)
                     m_services.schedule(execute);
@@ -388,46 +392,38 @@ namespace Automation {
 
     void AudioExportAutomationFacade::executeTask(const TaskId &taskId,
                                                   const DocumentVersion baseDocument,
-                                                  AudioExportConfigDto config,
                                                   AudioExportObserver observer,
                                                   const std::shared_ptr<PendingJobState> &state) {
-        if (m_tasks.isCancellationRequested(taskId)) {
-            m_tasks.cancel(taskId);
-            return;
-        }
-        auto resolved = resolveVersion(baseDocument);
-        if (!resolved) {
-            m_tasks.fail(taskId, taskError(resolved.getError(), taskId));
-            return;
-        }
-        if (!m_services.createJob) {
-            m_tasks.fail(taskId, taskError(unavailable(), taskId));
-            return;
-        }
-        auto created =
-            m_services.createJob(resolved.get().get().model(), resolved.get().get().path(), config);
-        if (!created) {
-            m_tasks.fail(taskId, taskError(created.getError(), taskId));
-            return;
-        }
+        std::shared_ptr<IAudioExportJob> job;
         bool cancelBeforeRun = false;
         {
             const QMutexLocker locker(&state->mutex);
-            state->job = created.get();
+            job = state->job;
             cancelBeforeRun = state->cancellationRequested;
         }
+        if (!job) {
+            m_tasks.fail(taskId, taskError(unavailable(), taskId));
+            return;
+        }
         const auto cleanup = [state] {
-            if (const auto job = state->claimCleanup())
-                job->cleanup();
+            if (const auto current = state->claimCleanup())
+                current->cleanup();
         };
         const auto cleanupIfRequested = [state] {
-            if (const auto job = state->claimRequestedCleanup())
-                job->cleanup();
+            if (const auto current = state->claimRequestedCleanup())
+                current->cleanup();
         };
         if (cancelBeforeRun || m_tasks.isCancellationRequested(taskId)) {
-            created.get()->cancel();
+            if (!cancelBeforeRun)
+                job->cancel();
             m_tasks.cancel(taskId);
             cleanupIfRequested();
+            return;
+        }
+        auto resolved = resolveDocumentGeneration(baseDocument);
+        if (!resolved) {
+            cleanupIfRequested();
+            m_tasks.fail(taskId, taskError(resolved.getError(), taskId));
             return;
         }
         if (!m_tasks.markRunning(taskId)) {
@@ -463,7 +459,7 @@ namespace Automation {
                 callback(message, sourceIndex);
         };
 
-        const auto result = created.get()->execute(taskObserver);
+        const auto result = job->execute(taskObserver);
         if (result.state == AudioExportBackendState::Canceled ||
             m_tasks.isCancellationRequested(taskId)) {
             m_tasks.cancel(taskId);
@@ -481,37 +477,38 @@ namespace Automation {
             return;
         }
 
-        resolved = resolveVersion(baseDocument);
+        resolved = resolveDocumentGeneration(baseDocument);
         if (!resolved) {
             cleanup();
             m_tasks.fail(taskId, taskError(resolved.getError(), taskId));
             return;
         }
+        const auto currentDocument = resolved.get().get().version();
         const auto committing = m_tasks.beginCommitting(taskId);
         if (!committing || !committing.get()) {
             cleanup();
             return;
         }
         MutationResult mutation;
-        mutation.previous = baseDocument;
-        mutation.current = baseDocument;
+        mutation.previous = currentDocument;
+        mutation.current = currentDocument;
         mutation.warnings = std::move(warnings);
         if (!m_tasks.succeed(taskId, std::move(mutation)))
             cleanupIfRequested();
     }
 
     AutomationResult<std::reference_wrapper<DocumentSession>>
-        AudioExportAutomationFacade::resolveVersion(const DocumentVersion &version) const {
+        AudioExportAutomationFacade::resolveDocumentGeneration(
+            const DocumentVersion &version) const {
         auto resolved = m_documentResolver.resolveDocument(version.documentId);
         if (!resolved)
             return resolved.getError();
         auto &session = resolved.get().get();
         if (session.lifecycleState() != DocumentLifecycleState::Active)
             return AutomationError::documentBusy(session.documentId());
-        if (session.revision() != version.revision) {
-            return AutomationError::revisionConflict(session.documentId(), version.revision,
-                                                     session.revision());
-        }
+        const auto rebased = rebaseTaskVersionWithinGeneration(version, session.version());
+        if (!rebased)
+            return rebased.getError();
         return std::ref(session);
     }
 

@@ -859,9 +859,9 @@ namespace {
             EXPECT(matrix,
                    terminal && terminal.get().state == Automation::AutomationTaskState::Succeeded &&
                        terminalReplay && terminalReplay.get() == first.get() &&
-                       harness.audioExportState()->createCount == 2 &&
+                       harness.audioExportState()->createCount == 1 &&
                        harness.audioExportState()->executeCount == 1,
-                   QStringLiteral("terminal replay must keep the accepted TaskId"));
+                   QStringLiteral("terminal replay must execute the accepted preview job"));
         });
 
         matrix.run(operationId, "AFD-EXP-AUDIO-003-QUEUED-CANCEL", [&] {
@@ -942,28 +942,99 @@ namespace {
                    QStringLiteral("I/O failure must be queryable and release the key"));
         });
 
-        matrix.run(operationId, "AFD-EXP-AUDIO-006-REVISION-BEFORE-RUN", [&] {
+        matrix.run(operationId, "AFD-EXP-AUDIO-006-SAME-GENERATION-REBASE", [&] {
             matrix.cover("Queued");
+            matrix.cover("Running");
+            matrix.cover("CancelRequested");
             matrix.cover("terminal");
-            RuntimeHarness harness;
-            const auto base = harness.runtime().documentVersion();
-            const auto accepted = harness.runtime().audioExports().start(
-                harness.context(), audioConfig(harness, QStringLiteral("stale.wav")), {});
-            const auto edit = harness.runtime().timeline().setTempo(harness.context(), 1440, 139.0);
-            const auto released = harness.audioScheduler.runNext();
-            const auto terminal =
-                accepted ? harness.runtime().tasks().getTask(base.documentId, accepted.get().taskId)
-                         : Automation::AutomationResult<Automation::AutomationTaskSnapshot>(
-                               Automation::AutomationError{});
-            EXPECT(matrix,
-                   accepted && edit && released && terminal &&
-                       terminal.get().state == Automation::AutomationTaskState::Failed &&
-                       terminal.get().error &&
-                       terminal.get().error->code ==
-                           Automation::AutomationErrorCode::RevisionConflict &&
-                       harness.audioExportState()->executeCount == 0 &&
-                       harness.runtime().documentVersion().revision == base.revision + 1,
-                   QStringLiteral("revision drift must fail before file execution"));
+            {
+                RuntimeHarness harness;
+                const auto base = harness.runtime().documentVersion();
+                const auto accepted = harness.runtime().audioExports().start(
+                    harness.context(), audioConfig(harness, QStringLiteral("queued-rebase.wav")),
+                    {});
+                const auto edit =
+                    harness.runtime().timeline().setTempo(harness.context(), 1440, 139.0);
+                const auto current = harness.runtime().documentVersion();
+                const auto released = harness.audioScheduler.runNext();
+                const auto terminal =
+                    accepted
+                        ? harness.runtime().tasks().getTask(base.documentId, accepted.get().taskId)
+                        : Automation::AutomationResult<Automation::AutomationTaskSnapshot>(
+                              Automation::AutomationError{});
+                EXPECT(matrix,
+                       accepted && edit && released && terminal &&
+                           terminal.get().state == Automation::AutomationTaskState::Succeeded &&
+                           terminal.get().mutation &&
+                           terminal.get().mutation->previous == current &&
+                           terminal.get().mutation->current == current &&
+                           harness.audioExportState()->executeCount == 1 &&
+                           current.revision == base.revision + 1,
+                       QStringLiteral("queued export must rebase before file execution"));
+            }
+
+            {
+                RuntimeHarness harness;
+                const auto base = harness.runtime().documentVersion();
+                std::optional<Automation::AutomationResult<Automation::MutationResult>> edit;
+                harness.audioExportState()->executeHook = [&] {
+                    edit.emplace(
+                        harness.runtime().timeline().setTempo(harness.context(), 1440, 139.0));
+                };
+                const auto accepted = harness.runtime().audioExports().start(
+                    harness.context(), audioConfig(harness, QStringLiteral("running-rebase.wav")),
+                    {});
+                const auto released = harness.audioScheduler.runNext();
+                const auto current = harness.runtime().documentVersion();
+                const auto terminal =
+                    accepted
+                        ? harness.runtime().tasks().getTask(base.documentId, accepted.get().taskId)
+                        : Automation::AutomationResult<Automation::AutomationTaskSnapshot>(
+                              Automation::AutomationError{});
+                EXPECT(matrix,
+                       accepted && released && edit && *edit && terminal &&
+                           terminal.get().state == Automation::AutomationTaskState::Succeeded &&
+                           terminal.get().mutation &&
+                           terminal.get().mutation->previous == current &&
+                           terminal.get().mutation->current == current &&
+                           harness.audioExportState()->executeCount == 1 &&
+                           current.revision == base.revision + 1,
+                       QStringLiteral("running export must rebase after file execution"));
+            }
+
+            {
+                RuntimeHarness harness;
+                const auto base = harness.runtime().documentVersion();
+                Automation::TaskId taskId;
+                std::optional<Automation::AutomationResult<Automation::MutationResult>> edit;
+                std::optional<Automation::AutomationResult<Automation::AutomationTaskSnapshot>>
+                    cancel;
+                harness.audioExportState()->executeHook = [&] {
+                    edit.emplace(
+                        harness.runtime().timeline().setTempo(harness.context(), 1440, 139.0));
+                    cancel.emplace(harness.runtime().tasks().cancelTask(harness.context(), taskId));
+                };
+                const auto accepted = harness.runtime().audioExports().start(
+                    harness.context(), audioConfig(harness, QStringLiteral("running-cancel.wav")),
+                    {});
+                if (accepted)
+                    taskId = accepted.get().taskId;
+                const auto released = harness.audioScheduler.runNext();
+                const auto terminal =
+                    accepted
+                        ? harness.runtime().tasks().getTask(base.documentId, accepted.get().taskId)
+                        : Automation::AutomationResult<Automation::AutomationTaskSnapshot>(
+                              Automation::AutomationError{});
+                EXPECT(matrix,
+                       accepted && released && edit && *edit && cancel && *cancel && terminal &&
+                           cancel->get().state ==
+                               Automation::AutomationTaskState::CancelRequested &&
+                           terminal.get().state == Automation::AutomationTaskState::Canceled &&
+                           harness.audioExportState()->executeCount == 1 &&
+                           harness.audioExportState()->cancelCount == 1 &&
+                           harness.runtime().documentVersion().revision == base.revision + 1,
+                       QStringLiteral("revision drift must not prevent running cancellation"));
+            }
         });
 
         matrix.run(operationId, "AFD-EXP-AUDIO-007-GENERATION-BEFORE-RUN", [&] {
