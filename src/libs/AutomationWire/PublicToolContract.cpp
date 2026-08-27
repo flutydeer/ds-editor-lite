@@ -1188,10 +1188,15 @@ namespace AutomationWire {
             auto applicationProperties = common;
             applicationProperties.insert(QStringLiteral("scope"),
                                          JsonSchema::constant(QStringLiteral("application")));
-            return JsonSchema::document(JsonSchema::oneOf(QJsonArray{
-                JsonSchema::object(documentProperties, documentRequired),
-                JsonSchema::object(applicationProperties, required),
-            }));
+            auto rootProperties = common;
+            rootProperties.insert(QStringLiteral("document_id"), uuidSchema());
+            auto root = JsonSchema::object(rootProperties);
+            root.insert(QStringLiteral("oneOf"),
+                        QJsonArray{
+                            JsonSchema::object(documentProperties, documentRequired),
+                            JsonSchema::object(applicationProperties, required),
+                        });
+            return JsonSchema::document(root);
         }
 
         QJsonObject authoritativeInputSchema(const QString &id, const OperationKind kind) {
@@ -2752,14 +2757,16 @@ namespace AutomationWire {
                 clips.insert(
                     QStringLiteral("clip_ids"),
                     JsonSchema::array(identifierSchema(), 1, MaximumCommandCollectionItems));
-                return JsonSchema::document(JsonSchema::oneOf(QJsonArray{
+                auto root = JsonSchema::oneOf(QJsonArray{
                     JsonSchema::object(
                         track, {QStringLiteral("window_id"), QStringLiteral("document_id"),
                                 QStringLiteral("expected_revision"), QStringLiteral("track_id")}),
                     JsonSchema::object(
                         clips, {QStringLiteral("window_id"), QStringLiteral("document_id"),
                                 QStringLiteral("expected_revision"), QStringLiteral("clip_ids")}),
-                }));
+                });
+                root.insert(QStringLiteral("type"), QStringLiteral("object"));
+                return JsonSchema::document(root);
             }
             if (id == PublicToolNames::track_panel_set_auto_page_turn) {
                 return l3DocumentInput(
@@ -3023,10 +3030,12 @@ namespace AutomationWire {
                 }));
             }
             if (id == PublicToolNames::lyric_rules_create) {
-                return JsonSchema::document(JsonSchema::oneOf(QJsonArray{
+                auto root = JsonSchema::oneOf(QJsonArray{
                     lyricRuleDraftSchema(QStringLiteral("splitter")),
                     lyricRuleDraftSchema(QStringLiteral("tagger")),
-                }));
+                });
+                root.insert(QStringLiteral("type"), QStringLiteral("object"));
+                return JsonSchema::document(root);
             }
             if (id == PublicToolNames::lyric_rules_update) {
                 auto root = JsonSchema::object(

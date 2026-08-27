@@ -391,6 +391,9 @@ namespace DsConnector {
             if (!tool.value(QStringLiteral("name")).isString() ||
                 tool.value(QStringLiteral("name")).toString().isEmpty() ||
                 !tool.value(QStringLiteral("inputSchema")).isObject() ||
+                tool.value(QStringLiteral("inputSchema"))
+                        .toObject()
+                        .value(QStringLiteral("type")) != QStringLiteral("object") ||
                 (tool.contains(QStringLiteral("title")) &&
                  !tool.value(QStringLiteral("title")).isString()) ||
                 (tool.contains(QStringLiteral("description")) &&

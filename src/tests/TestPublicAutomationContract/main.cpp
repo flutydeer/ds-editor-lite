@@ -77,16 +77,15 @@ namespace {
     }
 
     bool hasStrictObjectRoot(const QJsonObject &schema) {
-        if (schema.value(QStringLiteral("type")) == QStringLiteral("object"))
-            return schema.value(QStringLiteral("additionalProperties")) == false;
         const auto branches = schema.value(QStringLiteral("oneOf")).toArray();
-        if (branches.isEmpty())
-            return false;
-        return std::all_of(branches.cbegin(), branches.cend(), [](const auto &branch) {
-            const auto object = branch.toObject();
-            return object.value(QStringLiteral("type")) == QStringLiteral("object") &&
-                   object.value(QStringLiteral("additionalProperties")) == false;
-        });
+        if (!branches.isEmpty()) {
+            return std::all_of(branches.cbegin(), branches.cend(), [](const auto &branch) {
+                const auto object = branch.toObject();
+                return object.value(QStringLiteral("type")) == QStringLiteral("object") &&
+                       object.value(QStringLiteral("additionalProperties")) == false;
+            });
+        }
+        return schema.value(QStringLiteral("additionalProperties")) == false;
     }
 
     QJsonObject commandContext() {
@@ -129,7 +128,8 @@ namespace {
                            1,
                    QStringLiteral("all three per-tool version fields must equal one for ") +
                        contract.operationId);
-            expect(hasStrictObjectRoot(contract.inputSchema),
+            expect(contract.inputSchema.value(QStringLiteral("type")) == QStringLiteral("object") &&
+                       hasStrictObjectRoot(contract.inputSchema),
                    QStringLiteral("input root must be a closed object for ") +
                        contract.operationId);
             expect(checkJsonSchema(contract.inputSchema).valid(),
