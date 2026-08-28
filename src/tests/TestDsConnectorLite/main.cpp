@@ -1,3 +1,4 @@
+#include "BootstrapWatcher.h"
 #include "ConnectorOptions.h"
 #include "ConnectorRuntime.h"
 #include "DownstreamMcpServer.h"
@@ -1434,6 +1435,30 @@ namespace {
         } else {
             ok &= expect(false, "the first legacy L3 tools/list must respond");
         }
+        return ok;
+    }
+
+    bool verifyOfflineBootstrapError() {
+        const auto serviceName = QStringLiteral("DsConnectorLite-No-Such-Bootstrap-%1")
+                                     .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+        DsConnector::BootstrapWatcher watcher(QStringLiteral("connector-test"),
+                                               QStringLiteral("1"), serviceName);
+        watcher.start();
+
+        bool ok = expect(waitUntil([&] {
+                             return watcher.observation().error ==
+                                    QStringLiteral("editor_not_running");
+                         }),
+                         "a missing editor must be reported as editor_not_running");
+        const auto changedToTimeout = waitUntil(
+            [&] {
+                return watcher.observation().error == QStringLiteral("bootstrap_timeout");
+            },
+            4500);
+        ok &= expect(!changedToTimeout &&
+                         watcher.observation().error == QStringLiteral("editor_not_running"),
+                     "a missing editor must not be reclassified as bootstrap_timeout");
+        watcher.stop();
         return ok;
     }
 
@@ -3578,8 +3603,10 @@ int main(int argc, char *argv[]) {
     };
     if (only(QStringLiteral("options")))
         ok &= verifyOptionsAndExposure();
-    if (only(QStringLiteral("offline")))
+    if (only(QStringLiteral("offline"))) {
         ok &= verifyOfflineDownstream();
+        ok &= verifyOfflineBootstrapError();
+    }
     if (only(QStringLiteral("states")))
         ok &= verifyUnavailableEditorStates();
     if (only(QStringLiteral("bootstrap")))

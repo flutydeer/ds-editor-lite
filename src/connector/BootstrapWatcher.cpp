@@ -31,6 +31,7 @@ namespace DsConnector {
         connect(m_socket, &QLocalSocket::disconnected, this, &BootstrapWatcher::handleDisconnected);
         connect(m_socket, &QLocalSocket::errorOccurred, this,
                 [this](const QLocalSocket::LocalSocketError error) {
+                    m_responseTimer->stop();
                     if (error == QLocalSocket::ServerNotFoundError ||
                         error == QLocalSocket::ConnectionRefusedError) {
                         publishError(QStringLiteral("editor_not_running"));
@@ -83,7 +84,6 @@ namespace DsConnector {
             return;
         m_buffer.clear();
         m_socket->connectToServer(m_serviceName, QIODevice::ReadWrite);
-        m_responseTimer->start(2000);
     }
 
     void BootstrapWatcher::sendWatchRequest() {
