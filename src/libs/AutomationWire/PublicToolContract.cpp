@@ -953,8 +953,6 @@ namespace AutomationWire {
 
         const QSet<QString> &documentIdempotencyKeyOperations() {
             static const QSet<QString> ids{
-                PublicToolNames::documents_import,
-                PublicToolNames::documents_import_batch,
                 PublicToolNames::tracks_insert,
                 PublicToolNames::clips_insert,
                 PublicToolNames::clips_duplicate,
@@ -968,7 +966,6 @@ namespace AutomationWire {
                 PublicToolNames::parameters_insert_anchors,
                 PublicToolNames::extract_pitch_start,
                 PublicToolNames::extract_midi_start,
-                PublicToolNames::inference_start,
             };
             return ids;
         }

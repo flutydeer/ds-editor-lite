@@ -114,7 +114,9 @@ namespace Automation {
     AutomationResult<TaskAcceptedResult> ExtractionAutomationFacade::startPitch(
         const CommandContext &context, const ClipId audioClipId, const ClipId singingClipId,
         PitchExtractionOptionsDto options, ExtractionObserver observer) {
-        const auto requestFingerprint = pitchFingerprint(audioClipId, singingClipId, options);
+        const auto requestFingerprint = context.idempotencyKey.isEmpty()
+                                            ? QByteArray{}
+                                            : pitchFingerprint(audioClipId, singingClipId, options);
         return m_dispatcher.dispatchIdempotentDocumentCommandResult<TaskAcceptedResult>(
             OperationIds::extract::pitch::start, context, requestFingerprint,
             [this, context, requestFingerprint, audioClipId, singingClipId, source = context.source,
@@ -227,7 +229,8 @@ namespace Automation {
     AutomationResult<TaskAcceptedResult> ExtractionAutomationFacade::startMidi(
         const CommandContext &context, const ClipId audioClipId, MidiExtractionOptionsDto options,
         ExtractionObserver observer) {
-        const auto requestFingerprint = midiFingerprint(audioClipId, options);
+        const auto requestFingerprint =
+            context.idempotencyKey.isEmpty() ? QByteArray{} : midiFingerprint(audioClipId, options);
         return m_dispatcher.dispatchIdempotentDocumentCommandResult<TaskAcceptedResult>(
             OperationIds::extract::midi::start, context, requestFingerprint,
             [this, context, requestFingerprint, audioClipId, source = context.source,

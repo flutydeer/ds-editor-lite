@@ -372,8 +372,10 @@ namespace Automation {
     AutomationResult<MutationResult>
         NoteAutomationFacade::insertNotes(const CommandContext &context, const ClipId clipId,
                                           const QList<NoteDraftDto> &notes) {
+        const auto requestFingerprint =
+            context.idempotencyKey.isEmpty() ? QByteArray{} : insertFingerprint(clipId, notes);
         return m_dispatcher.dispatchIdempotentDocumentCommand(
-            OperationIds::notes::insert, context, insertFingerprint(clipId, notes),
+            OperationIds::notes::insert, context, requestFingerprint,
             [this, clipId, notes](DocumentSession &session, const bool validateOnly) {
                 auto resolved = m_objects.singingClip(session, clipId);
                 if (!resolved)
@@ -423,7 +425,9 @@ namespace Automation {
                                              const ClipId sourceClipId, QList<NoteId> noteIds,
                                              const ClipId targetClipId, const int targetStart) {
         const auto requestFingerprint =
-            noteIdsFingerprint(sourceClipId, noteIds, {targetClipId.value(), targetStart});
+            context.idempotencyKey.isEmpty()
+                ? QByteArray{}
+                : noteIdsFingerprint(sourceClipId, noteIds, {targetClipId.value(), targetStart});
         return m_dispatcher.dispatchIdempotentDocumentCommand(
             OperationIds::notes::duplicate, context, requestFingerprint,
             [this, sourceClipId, noteIds = std::move(noteIds), targetClipId,
@@ -458,9 +462,12 @@ namespace Automation {
         NoteAutomationFacade::pasteNotes(const CommandContext &context, const ClipId targetClipId,
                                          const int targetStart,
                                          const NoteTransferPayload &payload) {
+        const auto requestFingerprint =
+            context.idempotencyKey.isEmpty()
+                ? QByteArray{}
+                : transferFingerprint(targetClipId, targetStart, payload);
         return m_dispatcher.dispatchIdempotentDocumentCommand(
-            OperationIds::notes::duplicate, context,
-            transferFingerprint(targetClipId, targetStart, payload),
+            OperationIds::notes::duplicate, context, requestFingerprint,
             [this, targetClipId, targetStart, payload](DocumentSession &session,
                                                        const bool validateOnly) {
                 return commitTransfer(session, targetClipId, targetStart, payload, validateOnly);
@@ -771,9 +778,11 @@ namespace Automation {
     AutomationResult<MutationResult>
         NoteAutomationFacade::splitNoteAt(const CommandContext &context, const ClipId clipId,
                                           const NoteId noteId, const int localPosition) {
+        const auto requestFingerprint = context.idempotencyKey.isEmpty()
+                                            ? QByteArray{}
+                                            : noteIdsFingerprint(clipId, {noteId}, {localPosition});
         return m_dispatcher.dispatchIdempotentDocumentCommand(
-            OperationIds::notes::split_at, context,
-            noteIdsFingerprint(clipId, {noteId}, {localPosition}),
+            OperationIds::notes::split_at, context, requestFingerprint,
             [this, clipId, noteId, localPosition](DocumentSession &session,
                                                   const bool validateOnly) {
                 auto resolved = m_objects.note(session, clipId, noteId);

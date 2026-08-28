@@ -234,8 +234,11 @@ namespace Automation {
     AutomationResult<MutationResult>
         ProjectAutomationFacade::insertTracks(const CommandContext &context, const qsizetype index,
                                               const QList<TrackDraftDto> &trackDrafts) {
+        const auto requestFingerprint = context.idempotencyKey.isEmpty()
+                                            ? QByteArray{}
+                                            : trackInsertFingerprint(index, trackDrafts);
         return m_dispatcher.dispatchIdempotentDocumentCommand(
-            OperationIds::tracks::insert, context, trackInsertFingerprint(index, trackDrafts),
+            OperationIds::tracks::insert, context, requestFingerprint,
             [this, index, trackDrafts](DocumentSession &session, const bool validateOnly) {
                 auto *model = session.model();
                 if (!model)
@@ -599,8 +602,10 @@ namespace Automation {
     AutomationResult<MutationResult>
         ProjectAutomationFacade::insertClips(const CommandContext &context,
                                              const QList<ClipInsertDto> &clips) {
+        const auto requestFingerprint =
+            context.idempotencyKey.isEmpty() ? QByteArray{} : fingerprint(clips);
         return m_dispatcher.dispatchIdempotentDocumentCommand(
-            OperationIds::clips::insert, context, fingerprint(clips),
+            OperationIds::clips::insert, context, requestFingerprint,
             [this, clips](DocumentSession &session, const bool validateOnly) {
                 QList<Track *> tracks;
                 tracks.reserve(clips.size());
@@ -802,8 +807,11 @@ namespace Automation {
         ProjectAutomationFacade::duplicateClips(const CommandContext &context,
                                                 QList<ClipId> clipIds,
                                                 const ClipDuplicateDestinationDto &destination) {
+        const auto requestFingerprint = context.idempotencyKey.isEmpty()
+                                            ? QByteArray{}
+                                            : clipDuplicateFingerprint(clipIds, destination);
         return m_dispatcher.dispatchIdempotentDocumentCommand(
-            OperationIds::clips::duplicate, context, clipDuplicateFingerprint(clipIds, destination),
+            OperationIds::clips::duplicate, context, requestFingerprint,
             [this, clipIds = std::move(clipIds), destination](DocumentSession &session,
                                                               const bool validateOnly) {
                 if (clipIds.isEmpty())

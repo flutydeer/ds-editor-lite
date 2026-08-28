@@ -640,14 +640,17 @@ namespace Automation {
     AutomationResult<MutationResult> ParameterAutomationFacade::insertAnchors(
         const CommandContext &context, const ClipId clipId, const ParamInfo::Name name,
         const Param::Type type, const CurveId curveId, const QList<AnchorInsertDto> &anchors) {
-        QList<qint64> scalars{curveId.value(), anchors.size()};
-        for (const auto &anchor : anchors) {
-            scalars.append(anchor.position);
-            scalars.append(anchor.value);
-            scalars.append(static_cast<qint64>(anchor.interpolation));
+        QByteArray requestFingerprint;
+        if (!context.idempotencyKey.isEmpty()) {
+            QList<qint64> scalars{curveId.value(), anchors.size()};
+            for (const auto &anchor : anchors) {
+                scalars.append(anchor.position);
+                scalars.append(anchor.value);
+                scalars.append(static_cast<qint64>(anchor.interpolation));
+            }
+            requestFingerprint = parameterMutationFingerprint(QByteArrayLiteral("insert_anchors"),
+                                                              clipId, name, type, scalars);
         }
-        const auto requestFingerprint = parameterMutationFingerprint(
-            QByteArrayLiteral("insert_anchors"), clipId, name, type, scalars);
         return mutateIdempotentParameter(
             OperationIds::parameters::insert_anchors, context, QByteArrayLiteral("insert_anchors"),
             requestFingerprint, clipId, name, type,
@@ -703,20 +706,23 @@ namespace Automation {
             return AutomationError::invalidArgument(QStringLiteral("client_ref"),
                                                     QStringLiteral("Client reference is empty"));
         }
-        QCryptographicHash fingerprintHash(QCryptographicHash::Sha256);
-        fingerprintHash.addData(clientRef.toUtf8());
-        hashInteger(fingerprintHash, anchors.size());
-        for (const auto &anchor : anchors) {
-            hashInteger(fingerprintHash, anchor.position);
-            hashInteger(fingerprintHash, anchor.value);
-            hashInteger(fingerprintHash, static_cast<qint64>(anchor.interpolation));
+        QByteArray requestFingerprint;
+        if (!context.idempotencyKey.isEmpty()) {
+            QCryptographicHash fingerprintHash(QCryptographicHash::Sha256);
+            fingerprintHash.addData(clientRef.toUtf8());
+            hashInteger(fingerprintHash, anchors.size());
+            for (const auto &anchor : anchors) {
+                hashInteger(fingerprintHash, anchor.position);
+                hashInteger(fingerprintHash, anchor.value);
+                hashInteger(fingerprintHash, static_cast<qint64>(anchor.interpolation));
+            }
+            fingerprintHash.addData(parameterMutationFingerprint(
+                QByteArrayLiteral("create_anchor_curve"), clipId, name, type, {}));
+            requestFingerprint = fingerprintHash.result();
         }
-        const auto requestFingerprint = parameterMutationFingerprint(
-            QByteArrayLiteral("create_anchor_curve"), clipId, name, type, {});
-        fingerprintHash.addData(requestFingerprint);
         return mutateIdempotentParameter(
             OperationIds::parameters::create_anchor_curve, context,
-            QByteArrayLiteral("create_anchor_curve"), fingerprintHash.result(), clipId, name, type,
+            QByteArrayLiteral("create_anchor_curve"), requestFingerprint, clipId, name, type,
             [anchors](QList<CurveDraftDto> &curves) -> AutomationResult<bool> {
                 const auto validation = validateAnchorDrafts(anchors, QStringLiteral("anchors"), 2);
                 if (!validation)
@@ -1490,10 +1496,13 @@ namespace Automation {
     AutomationResult<MutationResult> ParameterAutomationFacade::insertSpeakerMixKeyframe(
         const CommandContext &context, const ClipId clipId, const int position,
         const std::optional<QVector<double>> weights) {
+        const auto requestFingerprint =
+            context.idempotencyKey.isEmpty()
+                ? QByteArray{}
+                : speakerMixEditFingerprint(QByteArrayLiteral("insert_keyframe"), clipId,
+                                            {position}, weights.value_or(QVector<double>{}));
         return mutateIdempotentClipSpeakerMix(
-            OperationIds::speaker_mix::keyframes::insert, context, clipId,
-            speakerMixEditFingerprint(QByteArrayLiteral("insert_keyframe"), clipId, {position},
-                                      weights.value_or(QVector<double>{})),
+            OperationIds::speaker_mix::keyframes::insert, context, clipId, requestFingerprint,
             [position, weights](SpeakerMixModel::SpeakerMixData &data) -> AutomationResult<bool> {
                 if (data.mode != SpeakerMixModel::SingerSourceMode::DynamicMix ||
                     data.dynamicKeyframes.isEmpty()) {
