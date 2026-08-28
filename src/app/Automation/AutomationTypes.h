@@ -135,7 +135,8 @@ namespace Automation {
     };
 
     struct GuiDocumentCommandContext {
-        DocumentVersion expected;
+        DocumentId documentId;
+        std::optional<Revision> expectedRevision;
         WindowId windowId;
         bool validateOnly = false;
         InvocationSource source = InvocationSource::TrustedGui;

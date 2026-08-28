@@ -774,8 +774,7 @@ namespace {
             QStringLiteral("changed"),          QStringLiteral("validated_only"),
             QStringLiteral("affected_objects"), QStringLiteral("created_objects"),
             QStringLiteral("resolved_values"),  QStringLiteral("presentation_effects"),
-            QStringLiteral("warnings"),         QStringLiteral("state_version"),
-            QStringLiteral("playback"),
+            QStringLiteral("warnings"),         QStringLiteral("playback"),
         };
         for (const auto &operation : persistentOperations) {
             const auto *contract = findPublicTool(operation);
@@ -787,15 +786,13 @@ namespace {
             const auto inputRequired = requiredFields(contract->inputSchema);
             expect(inputProperties.contains(QStringLiteral("document_id")) &&
                        inputProperties.contains(QStringLiteral("expected_revision")) &&
-                       inputProperties.contains(QStringLiteral("expected_state_version")) &&
+                       !inputProperties.contains(QStringLiteral("expected_state_version")) &&
                        !inputProperties.contains(QStringLiteral("validate_only")) &&
                        !inputProperties.contains(QStringLiteral("idempotency_key")) &&
                        inputRequired.contains(QStringLiteral("document_id")) &&
-                       inputRequired.contains(QStringLiteral("expected_revision")) &&
-                       !inputRequired.contains(QStringLiteral("expected_state_version")),
+                       inputRequired.contains(QStringLiteral("expected_revision")),
                    operation +
-                       QStringLiteral(
-                           " must require document revision and optionally check playback state"));
+                       QStringLiteral(" must require only the persistent document revision"));
             expect(keys(contract->outputSchema.value(QStringLiteral("properties")).toObject()) ==
                            mutationOutputFields &&
                        requiredFields(contract->outputSchema) == mutationOutputFields,
@@ -830,7 +827,7 @@ namespace {
                 seek->inputSchema.value(QStringLiteral("properties")).toObject();
             expect(!properties.contains(QStringLiteral("expected_revision")) &&
                        !properties.contains(QStringLiteral("idempotency_key")) &&
-                       properties.contains(QStringLiteral("expected_state_version")) &&
+                       !properties.contains(QStringLiteral("expected_state_version")) &&
                        !seek->outputSchema.value(QStringLiteral("properties"))
                             .toObject()
                             .contains(QStringLiteral("previous")),

@@ -110,17 +110,18 @@ namespace Automation {
                                                        const GuiDocumentCommandContext &context,
                                                        Handler &&handler) {
             return runSerialized([&]() -> AutomationResult<T> {
-                auto resolved = m_documentResolver.resolveDocument(context.expected.documentId);
+                auto resolved = m_documentResolver.resolveDocument(context.documentId);
                 if (!resolved)
                     return decorateError(resolved.getError(), operationId);
                 auto &session = resolved.get().get();
                 if (session.lifecycleState() != DocumentLifecycleState::Active)
                     return decorateError(AutomationError::documentBusy(session.documentId()),
                                          operationId);
-                if (session.revision() != context.expected.revision) {
+                if (context.expectedRevision && session.revision() != *context.expectedRevision) {
                     return decorateError(
-                        AutomationError::revisionConflict(
-                            session.documentId(), context.expected.revision, session.revision()),
+                        AutomationError::revisionConflict(session.documentId(),
+                                                          *context.expectedRevision,
+                                                          session.revision()),
                         operationId);
                 }
 

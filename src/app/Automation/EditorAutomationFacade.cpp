@@ -302,7 +302,6 @@ namespace Automation {
                 else
                     target.layout.parametersVisible = true;
                 target.layout.activeRegion = region;
-                target.layout.focusedRegion = region;
             },
             [this, region](const EditorViewState &) {
                 return m_services.showRegion && m_services.showRegion(region);
@@ -502,29 +501,40 @@ namespace Automation {
                     trackIndex = session.model()->tracks().indexOf(resolved.get());
                 }
                 if (!m_services.captureStableState || !m_services.setSelectedTrackIndex ||
-                    (focusTrackPanel && (!m_services.captureView || !m_services.focusRegion))) {
+                    (focusTrackPanel && (!m_services.captureView || !m_services.showRegion))) {
                     return AutomationResult<GuiMutationResult>(editorStateUnavailable());
                 }
                 const bool selectionChanged =
                     m_services.captureStableState().selectedTrackIndex != trackIndex;
-                bool focusChanged = false;
+                bool presentationChanged = false;
+                bool keyboardFocusRequested = false;
                 if (focusTrackPanel) {
                     const auto view = m_services.captureView();
                     if (!view)
                         return AutomationResult<GuiMutationResult>(editorStateUnavailable());
-                    focusChanged =
+                    presentationChanged =
                         !view->layout.trackPanelVisible ||
+                        view->layout.activeRegion != EditorViewGlobal::Region::TrackPanel;
+                    keyboardFocusRequested =
                         view->layout.focusedRegion != EditorViewGlobal::Region::TrackPanel;
                 }
-                const bool changed = selectionChanged || focusChanged;
-                if (!validateOnly && focusTrackPanel && focusChanged &&
-                    !m_services.focusRegion(EditorViewGlobal::Region::TrackPanel)) {
-                    return AutomationResult<GuiMutationResult>(editorStateUnavailable());
+                if (validateOnly) {
+                    return AutomationResult<GuiMutationResult>(guiMutation(
+                        context.windowId,
+                        selectionChanged || presentationChanged || keyboardFocusRequested, true));
                 }
-                if (!validateOnly && selectionChanged)
+                if (focusTrackPanel && presentationChanged &&
+                    !m_services.showRegion(EditorViewGlobal::Region::TrackPanel))
+                    return AutomationResult<GuiMutationResult>(editorStateUnavailable());
+                if (selectionChanged)
                     m_services.setSelectedTrackIndex(trackIndex);
+                const bool keyboardFocusChanged =
+                    focusTrackPanel && keyboardFocusRequested && m_services.focusRegion &&
+                    m_services.focusRegion(EditorViewGlobal::Region::TrackPanel);
                 return AutomationResult<GuiMutationResult>(
-                    guiMutation(context.windowId, changed, validateOnly));
+                    guiMutation(context.windowId,
+                                selectionChanged || presentationChanged || keyboardFocusChanged,
+                                false));
             });
     }
 
@@ -554,7 +564,7 @@ namespace Automation {
                         QStringLiteral("Primary clip must belong to the selected clip set")));
                 }
                 if (!m_services.captureStableState || !m_services.setSelectedClips ||
-                    (focusTrackPanel && (!m_services.captureView || !m_services.focusRegion))) {
+                    (focusTrackPanel && (!m_services.captureView || !m_services.showRegion))) {
                     return AutomationResult<GuiMutationResult>(editorStateUnavailable());
                 }
                 const auto normalized = normalizedObjectIds(clipIds);
@@ -562,24 +572,35 @@ namespace Automation {
                 const auto current = m_services.captureStableState();
                 const bool selectionChanged =
                     current.selectedClipIds != normalized || current.primaryClipId != primary;
-                bool focusChanged = false;
+                bool presentationChanged = false;
+                bool keyboardFocusRequested = false;
                 if (focusTrackPanel) {
                     const auto view = m_services.captureView();
                     if (!view)
                         return AutomationResult<GuiMutationResult>(editorStateUnavailable());
-                    focusChanged =
+                    presentationChanged =
                         !view->layout.trackPanelVisible ||
+                        view->layout.activeRegion != EditorViewGlobal::Region::TrackPanel;
+                    keyboardFocusRequested =
                         view->layout.focusedRegion != EditorViewGlobal::Region::TrackPanel;
                 }
-                const bool changed = selectionChanged || focusChanged;
-                if (!validateOnly && focusTrackPanel && focusChanged &&
-                    !m_services.focusRegion(EditorViewGlobal::Region::TrackPanel)) {
-                    return AutomationResult<GuiMutationResult>(editorStateUnavailable());
+                if (validateOnly) {
+                    return AutomationResult<GuiMutationResult>(guiMutation(
+                        context.windowId,
+                        selectionChanged || presentationChanged || keyboardFocusRequested, true));
                 }
-                if (!validateOnly && selectionChanged)
+                if (focusTrackPanel && presentationChanged &&
+                    !m_services.showRegion(EditorViewGlobal::Region::TrackPanel))
+                    return AutomationResult<GuiMutationResult>(editorStateUnavailable());
+                if (selectionChanged)
                     m_services.setSelectedClips(normalized, primary);
+                const bool keyboardFocusChanged =
+                    focusTrackPanel && keyboardFocusRequested && m_services.focusRegion &&
+                    m_services.focusRegion(EditorViewGlobal::Region::TrackPanel);
                 return AutomationResult<GuiMutationResult>(
-                    guiMutation(context.windowId, changed, validateOnly));
+                    guiMutation(context.windowId,
+                                selectionChanged || presentationChanged || keyboardFocusChanged,
+                                false));
             });
     }
 
@@ -598,32 +619,44 @@ namespace Automation {
                 if (!m_services.captureStableState ||
                     (clearTrack && !m_services.setSelectedTrackIndex) ||
                     (clearClips && !m_services.setSelectedClips) ||
-                    (focusTrackPanel && (!m_services.captureView || !m_services.focusRegion))) {
+                    (focusTrackPanel && (!m_services.captureView || !m_services.showRegion))) {
                     return AutomationResult<GuiMutationResult>(editorStateUnavailable());
                 }
                 const auto current = m_services.captureStableState();
                 const bool trackChanged = clearTrack && current.selectedTrackIndex >= 0;
                 const bool clipsChanged = clearClips && !current.selectedClipIds.isEmpty();
-                bool focusChanged = false;
+                bool presentationChanged = false;
+                bool keyboardFocusRequested = false;
                 if (focusTrackPanel) {
                     const auto view = m_services.captureView();
                     if (!view)
                         return AutomationResult<GuiMutationResult>(editorStateUnavailable());
-                    focusChanged =
+                    presentationChanged =
                         !view->layout.trackPanelVisible ||
+                        view->layout.activeRegion != EditorViewGlobal::Region::TrackPanel;
+                    keyboardFocusRequested =
                         view->layout.focusedRegion != EditorViewGlobal::Region::TrackPanel;
                 }
-                const bool changed = trackChanged || clipsChanged || focusChanged;
-                if (!validateOnly && focusTrackPanel && focusChanged &&
-                    !m_services.focusRegion(EditorViewGlobal::Region::TrackPanel)) {
-                    return AutomationResult<GuiMutationResult>(editorStateUnavailable());
+                if (validateOnly) {
+                    return AutomationResult<GuiMutationResult>(guiMutation(
+                        context.windowId, trackChanged || clipsChanged || presentationChanged ||
+                                              keyboardFocusRequested,
+                        true));
                 }
-                if (!validateOnly && trackChanged)
+                if (focusTrackPanel && presentationChanged &&
+                    !m_services.showRegion(EditorViewGlobal::Region::TrackPanel))
+                    return AutomationResult<GuiMutationResult>(editorStateUnavailable());
+                if (trackChanged)
                     m_services.setSelectedTrackIndex(-1);
-                if (!validateOnly && clipsChanged)
+                if (clipsChanged)
                     m_services.setSelectedClips({}, -1);
+                const bool keyboardFocusChanged =
+                    focusTrackPanel && keyboardFocusRequested && m_services.focusRegion &&
+                    m_services.focusRegion(EditorViewGlobal::Region::TrackPanel);
                 return AutomationResult<GuiMutationResult>(
-                    guiMutation(context.windowId, changed, validateOnly));
+                    guiMutation(context.windowId, trackChanged || clipsChanged ||
+                                                      presentationChanged || keyboardFocusChanged,
+                                false));
             });
     }
 
@@ -657,7 +690,7 @@ namespace Automation {
                         QStringLiteral("Primary note must belong to the selected note set")));
                 }
                 if (!m_services.captureStableState || !m_services.setSelectedNotes ||
-                    (focusPianoRoll && (!m_services.captureView || !m_services.focusRegion))) {
+                    (focusPianoRoll && (!m_services.captureView || !m_services.showRegion))) {
                     return AutomationResult<GuiMutationResult>(editorStateUnavailable());
                 }
                 const auto normalized = normalizedObjectIds(noteIds);
@@ -666,26 +699,37 @@ namespace Automation {
                 const bool selectionChanged = current.activeClipId != clipId.value() ||
                                               current.selectedNoteIds != normalized ||
                                               current.primaryNoteId != primary;
-                bool focusChanged = false;
+                bool presentationChanged = false;
+                bool keyboardFocusRequested = false;
                 if (focusPianoRoll) {
                     const auto view = m_services.captureView();
                     if (!view)
                         return AutomationResult<GuiMutationResult>(editorStateUnavailable());
-                    focusChanged =
+                    presentationChanged =
                         !view->layout.bottomPanelVisible ||
                         view->layout.bottomPanelPageId != QStringLiteral("ClipEditor") ||
                         !view->layout.pianoRollVisible ||
+                        view->layout.activeRegion != EditorViewGlobal::Region::PianoRoll;
+                    keyboardFocusRequested =
                         view->layout.focusedRegion != EditorViewGlobal::Region::PianoRoll;
                 }
-                const bool changed = selectionChanged || focusChanged;
-                if (!validateOnly && focusPianoRoll && focusChanged &&
-                    !m_services.focusRegion(EditorViewGlobal::Region::PianoRoll)) {
-                    return AutomationResult<GuiMutationResult>(editorStateUnavailable());
+                if (validateOnly) {
+                    return AutomationResult<GuiMutationResult>(guiMutation(
+                        context.windowId,
+                        selectionChanged || presentationChanged || keyboardFocusRequested, true));
                 }
-                if (!validateOnly && selectionChanged)
+                if (focusPianoRoll && presentationChanged &&
+                    !m_services.showRegion(EditorViewGlobal::Region::PianoRoll))
+                    return AutomationResult<GuiMutationResult>(editorStateUnavailable());
+                if (selectionChanged)
                     m_services.setSelectedNotes(clipId.value(), normalized, primary);
+                const bool keyboardFocusChanged =
+                    focusPianoRoll && keyboardFocusRequested && m_services.focusRegion &&
+                    m_services.focusRegion(EditorViewGlobal::Region::PianoRoll);
                 return AutomationResult<GuiMutationResult>(
-                    guiMutation(context.windowId, changed, validateOnly));
+                    guiMutation(context.windowId,
+                                selectionChanged || presentationChanged || keyboardFocusChanged,
+                                false));
             });
     }
 
@@ -753,7 +797,6 @@ namespace Automation {
                 target.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
                 target.layout.parametersVisible = true;
                 target.layout.activeRegion = EditorViewGlobal::Region::Parameters;
-                target.layout.focusedRegion = EditorViewGlobal::Region::Parameters;
             },
             [this, name](const EditorViewState &) {
                 return m_services.setParameterForeground && m_services.setParameterForeground(name);
@@ -778,7 +821,6 @@ namespace Automation {
                 target.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
                 target.layout.parametersVisible = true;
                 target.layout.activeRegion = EditorViewGlobal::Region::Parameters;
-                target.layout.focusedRegion = EditorViewGlobal::Region::Parameters;
             },
             [this, name](const EditorViewState &) {
                 return m_services.setParameterBackground && m_services.setParameterBackground(name);
@@ -800,7 +842,6 @@ namespace Automation {
                 target.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
                 target.layout.parametersVisible = true;
                 target.layout.activeRegion = EditorViewGlobal::Region::Parameters;
-                target.layout.focusedRegion = EditorViewGlobal::Region::Parameters;
             },
             [this](const EditorViewState &target) {
                 if (target.parameters.foreground == ParamInfo::SpeakerMix ||
@@ -827,7 +868,6 @@ namespace Automation {
                 target.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
                 target.layout.parametersVisible = true;
                 target.layout.activeRegion = EditorViewGlobal::Region::Parameters;
-                target.layout.focusedRegion = EditorViewGlobal::Region::Parameters;
             },
             [this, mode](const EditorViewState &) {
                 return m_services.setParameterEditMode && m_services.setParameterEditMode(mode);
@@ -860,7 +900,6 @@ namespace Automation {
                 target.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
                 target.layout.parametersVisible = true;
                 target.layout.activeRegion = EditorViewGlobal::Region::Parameters;
-                target.layout.focusedRegion = EditorViewGlobal::Region::Parameters;
             },
             [this](const EditorViewState &target) {
                 return m_services.setParameterValueViewport &&
@@ -948,8 +987,6 @@ namespace Automation {
                     if (target.kind == EditorRevealKind::TrackClips) {
                         changed = changed || !beforeView->layout.trackPanelVisible ||
                                   beforeView->layout.activeRegion !=
-                                      EditorViewGlobal::Region::TrackPanel ||
-                                  beforeView->layout.focusedRegion !=
                                       EditorViewGlobal::Region::TrackPanel;
                     } else {
                         changed =
@@ -957,8 +994,6 @@ namespace Automation {
                             beforeView->layout.bottomPanelPageId != QStringLiteral("ClipEditor") ||
                             !beforeView->layout.pianoRollVisible ||
                             beforeView->layout.activeRegion !=
-                                EditorViewGlobal::Region::PianoRoll ||
-                            beforeView->layout.focusedRegion !=
                                 EditorViewGlobal::Region::PianoRoll ||
                             (beforeStable && beforeStable->activeClipId != target.containerId);
                     }

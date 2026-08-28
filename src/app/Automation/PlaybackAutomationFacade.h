@@ -7,8 +7,6 @@
 #include <lite/ProjectModel/AppModel/LoopSettings.h>
 
 #include <functional>
-#include <optional>
-
 namespace Automation {
 
     enum class PlaybackState {
@@ -26,7 +24,6 @@ namespace Automation {
 
     struct PlaybackSnapshotDto : PlaybackHostSnapshot {
         DocumentVersion document;
-        Revision stateVersion = 0;
         bool playable = false;
     };
 
@@ -66,13 +63,10 @@ namespace Automation {
                                                   PlaybackState state);
         AutomationResult<MutationResult>
             commitLoop(DocumentSession &session, const LoopSettings &settings, bool validateOnly);
-        PlaybackHostSnapshot observedSnapshot() const;
 
         AutomationDispatcher &m_dispatcher;
         CommandCommitter &m_committer;
         PlaybackRuntimeServices m_services;
-        mutable std::optional<PlaybackHostSnapshot> m_lastSnapshot;
-        mutable Revision m_stateVersion = 0;
     };
 
 } // namespace Automation

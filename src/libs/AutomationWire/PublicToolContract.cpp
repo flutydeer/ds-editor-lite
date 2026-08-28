@@ -528,8 +528,7 @@ namespace AutomationWire {
                 name == QStringLiteral("task_id")) {
                 return uuidSchema();
             }
-            if (name == QStringLiteral("expected_revision") ||
-                name == QStringLiteral("expected_state_version")) {
+            if (name == QStringLiteral("expected_revision")) {
                 return revisionSchema();
             }
             if (name == QStringLiteral("track_id") || name == QStringLiteral("clip_id") ||
@@ -1291,8 +1290,6 @@ namespace AutomationWire {
             if (documentIdempotencyKeyOperations().contains(id)) {
                 add(QStringLiteral("idempotency_key"), false);
             }
-            if (playbackWrite)
-                add(QStringLiteral("expected_state_version"), false);
             if (documentValidateOnlyOperations().contains(id))
                 add(QStringLiteral("validate_only"), false);
             const auto requiredFields = requiredInputFields().value(id);
@@ -2195,38 +2192,33 @@ namespace AutomationWire {
                 {QStringLiteral("enabled"), QStringLiteral("start"), QStringLiteral("end")});
             return JsonSchema::object(
                 {
-                    {QStringLiteral("state_version"), revisionSchema()                                    },
                     {QStringLiteral("state"),         stringDomainSchema(PublicValueDomain::PlaybackState)},
                     {QStringLiteral("playable"),      JsonSchema::boolean()                               },
                     {QStringLiteral("position"),      JsonSchema::number(0.0)                             },
                     {QStringLiteral("last_position"), JsonSchema::number(0.0)                             },
                     {QStringLiteral("loop"),          loop                                                },
             },
-                {QStringLiteral("state_version"), QStringLiteral("state"),
-                 QStringLiteral("playable"), QStringLiteral("position"),
+                {QStringLiteral("state"), QStringLiteral("playable"), QStringLiteral("position"),
                  QStringLiteral("last_position"), QStringLiteral("loop")});
         }
 
         QJsonObject playbackMutationSchema() {
             return JsonSchema::document(JsonSchema::object(
                 {
-                    {QStringLiteral("state_version"), revisionSchema()                       },
-                    {QStringLiteral("changed"),       JsonSchema::boolean()                  },
-                    {QStringLiteral("playback"),      playbackSnapshotSchema()               },
-                    {QStringLiteral("warnings"),      JsonSchema::array(JsonSchema::string())},
+                    {QStringLiteral("changed"),  JsonSchema::boolean()                  },
+                    {QStringLiteral("playback"), playbackSnapshotSchema()               },
+                    {QStringLiteral("warnings"), JsonSchema::array(JsonSchema::string())},
             },
-                {QStringLiteral("state_version"), QStringLiteral("changed"),
-                 QStringLiteral("playback"), QStringLiteral("warnings")}));
+                {QStringLiteral("changed"), QStringLiteral("playback"),
+                 QStringLiteral("warnings")}));
         }
 
         QJsonObject persistentPlaybackMutationSchema() {
             auto root = mutationObjectSchema();
             auto properties = root.value(QStringLiteral("properties")).toObject();
-            properties.insert(QStringLiteral("state_version"), revisionSchema());
             properties.insert(QStringLiteral("playback"), playbackSnapshotSchema());
             root.insert(QStringLiteral("properties"), properties);
             auto required = root.value(QStringLiteral("required")).toArray();
-            required.append(QStringLiteral("state_version"));
             required.append(QStringLiteral("playback"));
             root.insert(QStringLiteral("required"), required);
             return JsonSchema::document(root);
@@ -2452,16 +2444,11 @@ namespace AutomationWire {
         }
 
         QJsonObject l3DocumentInput(QJsonObject properties, QStringList required,
-                                    const bool expectedRevision = false,
                                     const int minimumProperties = -1) {
             properties.insert(QStringLiteral("window_id"), nonEmptyStringSchema());
             properties.insert(QStringLiteral("document_id"), uuidSchema());
             required.prepend(QStringLiteral("document_id"));
             required.prepend(QStringLiteral("window_id"));
-            if (expectedRevision) {
-                properties.insert(QStringLiteral("expected_revision"), revisionSchema());
-                required.append(QStringLiteral("expected_revision"));
-            }
             auto root = JsonSchema::object(properties, required);
             if (minimumProperties >= 0)
                 root.insert(QStringLiteral("minProperties"), minimumProperties);
@@ -2575,13 +2562,12 @@ namespace AutomationWire {
                         {QStringLiteral("horizontal_scale"), JsonSchema::number(0.000001)},
                         {QStringLiteral("vertical_scale"), JsonSchema::number(0.000001)},
                 },
-                    {}, false, 3);
+                    {}, 3);
             }
             if (id == PublicToolNames::track_panel_reveal_clips) {
                 QJsonObject common{
-                    {QStringLiteral("window_id"),         nonEmptyStringSchema()},
-                    {QStringLiteral("document_id"),       uuidSchema()          },
-                    {QStringLiteral("expected_revision"), revisionSchema()      },
+                    {QStringLiteral("window_id"),   nonEmptyStringSchema()},
+                    {QStringLiteral("document_id"), uuidSchema()          },
                 };
                 auto track = common;
                 track.insert(QStringLiteral("track_id"), identifierSchema());
@@ -2592,10 +2578,10 @@ namespace AutomationWire {
                 auto root = JsonSchema::oneOf(QJsonArray{
                     JsonSchema::object(
                         track, {QStringLiteral("window_id"), QStringLiteral("document_id"),
-                                QStringLiteral("expected_revision"), QStringLiteral("track_id")}),
+                                QStringLiteral("track_id")}),
                     JsonSchema::object(
                         clips, {QStringLiteral("window_id"), QStringLiteral("document_id"),
-                                QStringLiteral("expected_revision"), QStringLiteral("clip_ids")}),
+                                QStringLiteral("clip_ids")}),
                 });
                 root.insert(QStringLiteral("type"), QStringLiteral("object"));
                 return JsonSchema::document(root);
@@ -2612,7 +2598,7 @@ namespace AutomationWire {
                     {
                         {QStringLiteral("track_id"), nullableSchema(identifierSchema())}
                 },
-                    {QStringLiteral("track_id")}, true);
+                    {QStringLiteral("track_id")});
             }
             if (id == PublicToolNames::track_panel_select_clips) {
                 return l3DocumentInput(
@@ -2621,7 +2607,7 @@ namespace AutomationWire {
                          JsonSchema::array(identifierSchema(), 1, MaximumCommandCollectionItems)},
                         {QStringLiteral("primary_clip_id"), nullableSchema(identifierSchema())},
                 },
-                    {QStringLiteral("clip_ids")}, true);
+                    {QStringLiteral("clip_ids")});
             }
             if (id == PublicToolNames::track_panel_clear_selection) {
                 return l3DocumentInput(
@@ -2630,7 +2616,7 @@ namespace AutomationWire {
                          JsonSchema::string({QStringLiteral("track"), QStringLiteral("clips"),
                                              QStringLiteral("all")})}
                 },
-                    {QStringLiteral("target")}, true);
+                    {QStringLiteral("target")});
             }
 
             if (id == PublicToolNames::clip_editor_get)
@@ -2640,7 +2626,7 @@ namespace AutomationWire {
                     {
                         {QStringLiteral("clip_id"), nullableSchema(identifierSchema())}
                 },
-                    {QStringLiteral("clip_id")}, true);
+                    {QStringLiteral("clip_id")});
             }
             if (id == PublicToolNames::clip_editor_set_time_viewport) {
                 return l3DocumentInput(
@@ -2649,7 +2635,7 @@ namespace AutomationWire {
                          JsonSchema::number(0.0, static_cast<double>(MaximumSafeJsonInteger))},
                         {QStringLiteral("horizontal_scale"), JsonSchema::number(0.000001)},
                 },
-                    {}, false, 3);
+                    {}, 3);
             }
             if (id == PublicToolNames::clip_editor_set_auto_page_turn) {
                 return l3DocumentInput(
@@ -2674,7 +2660,7 @@ namespace AutomationWire {
                          JsonSchema::number(MinimumMidiKeyIndex, MaximumMidiKeyIndex)},
                         {QStringLiteral("vertical_scale"), JsonSchema::number(0.000001)},
                 },
-                    {}, false, 3);
+                    {}, 3);
             }
             if (id == PublicToolNames::clip_editor_piano_reveal_notes) {
                 return l3DocumentInput(
@@ -2682,7 +2668,7 @@ namespace AutomationWire {
                         {QStringLiteral("note_ids"),
                          JsonSchema::array(identifierSchema(), 1, MaximumCommandCollectionItems)}
                 },
-                    {QStringLiteral("note_ids")}, true);
+                    {QStringLiteral("note_ids")});
             }
             if (id == PublicToolNames::clip_editor_piano_set_edit_mode) {
                 return l3DocumentInput(
@@ -2704,7 +2690,7 @@ namespace AutomationWire {
                          valueDomainSchema(PublicValueDomain::Quantize)   },
                         {QStringLiteral("enabled"),  JsonSchema::boolean()},
                 },
-                    {}, false, 3);
+                    {}, 3);
             }
             if (id == PublicToolNames::clip_editor_piano_select_notes) {
                 return l3DocumentInput(
@@ -2713,16 +2699,16 @@ namespace AutomationWire {
                          JsonSchema::array(identifierSchema(), 1, MaximumCommandCollectionItems)},
                         {QStringLiteral("primary_note_id"), nullableSchema(identifierSchema())},
                 },
-                    {QStringLiteral("note_ids")}, true);
+                    {QStringLiteral("note_ids")});
             }
             if (id == PublicToolNames::clip_editor_piano_clear_selection)
-                return l3DocumentInput({}, {}, true);
+                return l3DocumentInput({}, {});
             if (id == PublicToolNames::clip_editor_parameters_set_foreground) {
                 return l3DocumentInput(
                     {
                         {QStringLiteral("parameter"), parameterForegroundNameSchema()}
                 },
-                    {QStringLiteral("parameter")}, true);
+                    {QStringLiteral("parameter")});
             }
             if (id == PublicToolNames::clip_editor_parameters_set_background) {
                 return l3DocumentInput(
@@ -2730,10 +2716,10 @@ namespace AutomationWire {
                         {QStringLiteral("parameter"),
                          nullableSchema(parameterBackgroundNameSchema())}
                 },
-                    {QStringLiteral("parameter")}, true);
+                    {QStringLiteral("parameter")});
             }
             if (id == PublicToolNames::clip_editor_parameters_swap)
-                return l3DocumentInput({}, {}, true);
+                return l3DocumentInput({}, {});
             if (id == PublicToolNames::clip_editor_parameters_set_tool) {
                 return l3DocumentInput(
                     {
@@ -2741,7 +2727,7 @@ namespace AutomationWire {
                          JsonSchema::string({QStringLiteral("draw"), QStringLiteral("erase"),
                                              QStringLiteral("bake"), QStringLiteral("anchor")})}
                 },
-                    {QStringLiteral("tool")}, true);
+                    {QStringLiteral("tool")});
             }
             if (id == PublicToolNames::clip_editor_parameters_set_value_viewport) {
                 return l3DocumentInput(
@@ -2749,7 +2735,7 @@ namespace AutomationWire {
                         {QStringLiteral("center_ratio"), JsonSchema::number(0.0, 1.0)},
                         {QStringLiteral("vertical_scale"), JsonSchema::number(1.0)},
                 },
-                    {}, true, 4);
+                    {}, 4);
             }
 
             if (id == PublicToolNames::settings_query) {
@@ -3914,13 +3900,13 @@ namespace AutomationWire {
                 return QStringLiteral(
                            "Apply the GUI-equivalent %1 loop edit, commit it as one atomic History "
                            "entry, and return both the resulting document revision and playback "
-                           "state version.")
+                           "snapshot.")
                     .arg(action);
             }
             if (operationId.startsWith(QStringLiteral("playback."))) {
                 return QStringLiteral(
-                           "Apply the GUI-equivalent %1 playback transition and return the "
-                           "new state version. It does not change document revision or History.")
+                           "Apply the GUI-equivalent %1 playback transition and return the current "
+                           "playback snapshot. It does not change document revision or History.")
                     .arg(action);
             }
             if (operationId.startsWith(QStringLiteral("history."))) {

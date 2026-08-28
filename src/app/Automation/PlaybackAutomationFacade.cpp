@@ -66,19 +66,6 @@ namespace Automation {
         : m_dispatcher(dispatcher), m_committer(committer), m_services(std::move(services)) {
     }
 
-    PlaybackHostSnapshot PlaybackAutomationFacade::observedSnapshot() const {
-        const auto snapshot = m_services.snapshot();
-        const auto changed = !m_lastSnapshot || m_lastSnapshot->state != snapshot.state ||
-                             m_lastSnapshot->position != snapshot.position ||
-                             m_lastSnapshot->lastPosition != snapshot.lastPosition ||
-                             m_lastSnapshot->loop != snapshot.loop;
-        if (changed) {
-            ++m_stateVersion;
-            m_lastSnapshot = snapshot;
-        }
-        return snapshot;
-    }
-
     AutomationResult<PlaybackSnapshotDto>
         PlaybackAutomationFacade::getPlayback(const DocumentId &documentId) {
         return m_dispatcher.dispatchDocumentQuery<PlaybackSnapshotDto>(
@@ -86,14 +73,13 @@ namespace Automation {
                 if (!m_services.snapshot)
                     return AutomationResult<PlaybackSnapshotDto>(
                         unavailable(QStringLiteral("Playback host is unavailable")));
-                const auto host = observedSnapshot();
+                const auto host = m_services.snapshot();
                 PlaybackSnapshotDto result;
                 result.state = host.state;
                 result.position = host.position;
                 result.lastPosition = host.lastPosition;
                 result.loop = host.loop;
                 result.document = session.version();
-                result.stateVersion = m_stateVersion;
                 result.playable = m_services.canStart && m_services.canStart();
                 return AutomationResult<PlaybackSnapshotDto>(std::move(result));
             });
@@ -187,7 +173,7 @@ namespace Automation {
                     return AutomationResult<MutationResult>(
                         unavailable(QStringLiteral("Playback host is unavailable")));
                 }
-                const auto current = observedSnapshot();
+                const auto current = m_services.snapshot();
                 const bool changed = current.position != tick || current.lastPosition != tick;
                 if (!validateOnly && changed) {
                     m_services.setPosition(tick);

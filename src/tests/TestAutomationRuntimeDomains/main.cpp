@@ -76,8 +76,10 @@ namespace {
 
     Automation::GuiDocumentCommandContext guiDocumentContext(const Automation::CoreRuntime &runtime,
                                                              const bool validateOnly = false) {
+        const auto version = runtime.documentVersion();
         return {
-            .expected = runtime.documentVersion(),
+            .documentId = version.documentId,
+            .expectedRevision = version.revision,
             .windowId = runtime.windowId(),
             .validateOnly = validateOnly,
             .source = Automation::InvocationSource::Test,
@@ -1027,13 +1029,13 @@ namespace {
 
         log.scenario(QStringLiteral("EDITOR-C-SELECTION-ERROR-PRIORITY"));
         auto wrongDocumentContext = context;
-        wrongDocumentContext.expected.documentId = Automation::DocumentId::create();
-        wrongDocumentContext.expected.revision += 100;
+        wrongDocumentContext.documentId = Automation::DocumentId::create();
+        wrongDocumentContext.expectedRevision = runtime.documentVersion().revision + 100;
         wrongDocumentContext.windowId = Automation::WindowId::create();
         const auto wrongDocumentSelection =
             runtime.facade().setActiveClip(wrongDocumentContext, Automation::ClipId(999999));
         auto staleContext = context;
-        ++staleContext.expected.revision;
+        ++*staleContext.expectedRevision;
         staleContext.windowId = Automation::WindowId::create();
         const auto staleSelection =
             runtime.facade().setActiveClip(staleContext, Automation::ClipId(999999));

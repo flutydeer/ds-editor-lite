@@ -245,21 +245,29 @@ HistoryFocusVisibility EditorViewController::focusVisibility(const HistoryFocus 
 bool EditorViewController::revealFocus(const HistoryFocus &focus) const {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
     const auto target = revealDto(focus);
-    return runtime && target &&
-           runtime->facade().reveal({.expected = runtime->documentVersion(),
-                                     .windowId = runtime->windowId(),
-                                     .source = Automation::InvocationSource::TrustedGui},
-                                    *target, false);
+    if (!runtime || !target)
+        return false;
+    const auto version = runtime->documentVersion();
+    return static_cast<bool>(
+        runtime->facade().reveal({.documentId = version.documentId,
+                                  .expectedRevision = version.revision,
+                                  .windowId = runtime->windowId(),
+                                  .source = Automation::InvocationSource::TrustedGui},
+                                 *target, false));
 }
 
 bool EditorViewController::finalizeFocus(const HistoryFocus &focus) const {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
     const auto target = revealDto(focus);
-    return runtime && target &&
-           runtime->facade().reveal({.expected = runtime->documentVersion(),
-                                     .windowId = runtime->windowId(),
-                                     .source = Automation::InvocationSource::TrustedGui},
-                                    *target, true);
+    if (!runtime || !target)
+        return false;
+    const auto version = runtime->documentVersion();
+    return static_cast<bool>(
+        runtime->facade().reveal({.documentId = version.documentId,
+                                  .expectedRevision = version.revision,
+                                  .windowId = runtime->windowId(),
+                                  .source = Automation::InvocationSource::TrustedGui},
+                                 *target, true));
 }
 
 bool EditorViewController::applyRevealFocus(const HistoryFocus &focus, const bool finalize) const {

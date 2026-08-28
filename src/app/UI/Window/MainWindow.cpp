@@ -588,10 +588,6 @@ bool MainWindow::showBottomPanelPage(const QString &pageId) {
 }
 
 bool MainWindow::showEditorRegion(const EditorViewGlobal::Region region) {
-    return focusEditorRegion(region);
-}
-
-bool MainWindow::focusEditorRegion(const EditorViewGlobal::Region region) {
     if (editorFocusControlBlocked())
         return false;
     if (region == EditorViewGlobal::Region::TrackPanel) {
@@ -599,8 +595,6 @@ bool MainWindow::focusEditorRegion(const EditorViewGlobal::Region region) {
             !setEditorPanelVisibility(true, !appStatus->bottomPanelCollapsed)) {
             return false;
         }
-        if (!m_trackEditorView->focusEditor())
-            return false;
         editorViewController->setActiveRegion(region);
         return true;
     }
@@ -611,10 +605,20 @@ bool MainWindow::focusEditorRegion(const EditorViewGlobal::Region region) {
     if (!showBottomPanelPage(QStringLiteral("ClipEditor")))
         return false;
     auto *clipEditor = m_bottomPanelView->clipEditorView();
-    if (!clipEditor->focusRegion(region))
+    if (!clipEditor->showRegion(region))
         return false;
     editorViewController->setActiveRegion(region);
     return true;
+}
+
+bool MainWindow::focusEditorRegion(const EditorViewGlobal::Region region) {
+    if (!showEditorRegion(region))
+        return false;
+    if (region == EditorViewGlobal::Region::TrackPanel) {
+        return m_trackEditorView->focusEditor();
+    }
+    auto *clipEditor = m_bottomPanelView->clipEditorView();
+    return clipEditor->focusRegion(region);
 }
 
 bool MainWindow::centerPianoRollAt(const double tick, const double keyIndex) {
@@ -642,39 +646,58 @@ bool MainWindow::setParameterForeground(const ParamInfo::Name name) {
     if (editorFocusControlBlocked())
         return false;
     auto *clipEditor = m_bottomPanelView->clipEditorView();
-    return clipEditor->setParameterForeground(name) &&
-           focusEditorRegion(EditorViewGlobal::Region::Parameters);
+    if (!showEditorRegion(EditorViewGlobal::Region::Parameters) ||
+        !clipEditor->setParameterForeground(name)) {
+        return false;
+    }
+    focusEditorRegion(EditorViewGlobal::Region::Parameters);
+    return true;
 }
 
 bool MainWindow::setParameterBackground(const ParamInfo::Name name) {
     if (editorFocusControlBlocked())
         return false;
     auto *clipEditor = m_bottomPanelView->clipEditorView();
-    return clipEditor->setParameterBackground(name) &&
-           focusEditorRegion(EditorViewGlobal::Region::Parameters);
+    if (!showEditorRegion(EditorViewGlobal::Region::Parameters) ||
+        !clipEditor->setParameterBackground(name)) {
+        return false;
+    }
+    focusEditorRegion(EditorViewGlobal::Region::Parameters);
+    return true;
 }
 
 bool MainWindow::swapParameters() {
     if (editorFocusControlBlocked())
         return false;
     auto *clipEditor = m_bottomPanelView->clipEditorView();
-    return clipEditor->swapParameters() && focusEditorRegion(EditorViewGlobal::Region::Parameters);
+    if (!showEditorRegion(EditorViewGlobal::Region::Parameters) || !clipEditor->swapParameters())
+        return false;
+    focusEditorRegion(EditorViewGlobal::Region::Parameters);
+    return true;
 }
 
 bool MainWindow::setParameterEditMode(const EditorViewGlobal::ParameterEditMode mode) {
     if (editorFocusControlBlocked())
         return false;
     auto *clipEditor = m_bottomPanelView->clipEditorView();
-    return clipEditor->setParameterEditMode(mode) &&
-           focusEditorRegion(EditorViewGlobal::Region::Parameters);
+    if (!showEditorRegion(EditorViewGlobal::Region::Parameters) ||
+        !clipEditor->setParameterEditMode(mode)) {
+        return false;
+    }
+    focusEditorRegion(EditorViewGlobal::Region::Parameters);
+    return true;
 }
 
 bool MainWindow::setParameterValueViewport(const double centerRatio, const double verticalScale) {
     if (editorFocusControlBlocked())
         return false;
     auto *clipEditor = m_bottomPanelView->clipEditorView();
-    return clipEditor->setParameterValueViewport(centerRatio, verticalScale) &&
-           focusEditorRegion(EditorViewGlobal::Region::Parameters);
+    if (!showEditorRegion(EditorViewGlobal::Region::Parameters) ||
+        !clipEditor->setParameterValueViewport(centerRatio, verticalScale)) {
+        return false;
+    }
+    focusEditorRegion(EditorViewGlobal::Region::Parameters);
+    return true;
 }
 
 void MainWindow::refreshActiveClipTrackPresentation() {
@@ -724,17 +747,23 @@ bool MainWindow::revealFocus(const HistoryFocus &focus) {
 
 bool MainWindow::navigateToFocus(const HistoryFocus &focus, const bool animated) {
     if (focus.kind == HistoryFocusKind::TrackClips) {
-        if (!focusEditorRegion(EditorViewGlobal::Region::TrackPanel))
+        if (!showEditorRegion(EditorViewGlobal::Region::TrackPanel) ||
+            !m_trackEditorView->revealFocus(focus, animated)) {
             return false;
-        return m_trackEditorView->revealFocus(focus, animated);
+        }
+        focusEditorRegion(EditorViewGlobal::Region::TrackPanel);
+        return true;
     }
     if (focus.kind == HistoryFocusKind::PianoRollNotes) {
         if (!appModel->findClipById(focus.containerId))
             return false;
         trackController->setActiveClip(focus.containerId);
-        if (!focusEditorRegion(EditorViewGlobal::Region::PianoRoll))
+        if (!showEditorRegion(EditorViewGlobal::Region::PianoRoll) ||
+            !m_bottomPanelView->clipEditorView()->revealFocus(focus, animated)) {
             return false;
-        return m_bottomPanelView->clipEditorView()->revealFocus(focus, animated);
+        }
+        focusEditorRegion(EditorViewGlobal::Region::PianoRoll);
+        return true;
     }
     return false;
 }

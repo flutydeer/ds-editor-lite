@@ -1794,11 +1794,10 @@ namespace Automation {
                 AutomationWire::PublicValueDomain::PlaybackState);
             const auto state = states.value(static_cast<qsizetype>(snapshot.state));
             return {
-                {QStringLiteral("state_version"), static_cast<qint64>(snapshot.stateVersion)},
-                {QStringLiteral("state"),         state                                     },
-                {QStringLiteral("playable"),      snapshot.playable                         },
-                {QStringLiteral("position"),      snapshot.position                         },
-                {QStringLiteral("last_position"), snapshot.lastPosition                     },
+                {QStringLiteral("state"),         state                },
+                {QStringLiteral("playable"),      snapshot.playable    },
+                {QStringLiteral("position"),      snapshot.position    },
+                {QStringLiteral("last_position"), snapshot.lastPosition},
                 {QStringLiteral("loop"),
                  QJsonObject{
                      {QStringLiteral("enabled"), snapshot.loop.enabled},
@@ -1820,10 +1819,9 @@ namespace Automation {
             for (const auto &warning : mutation.get().warnings)
                 warnings.append(warning);
             return QJsonObject{
-                {QStringLiteral("state_version"), static_cast<qint64>(playback.get().stateVersion)},
-                {QStringLiteral("changed"),       mutation.get().changed                          },
-                {QStringLiteral("playback"),      encodePlayback(playback.get())                  },
-                {QStringLiteral("warnings"),      warnings                                        },
+                {QStringLiteral("changed"),  mutation.get().changed        },
+                {QStringLiteral("playback"), encodePlayback(playback.get())},
+                {QStringLiteral("warnings"), warnings                      },
             };
         }
 
@@ -1836,8 +1834,6 @@ namespace Automation {
             if (!playback)
                 return playback.getError();
             auto result = encodeMutation(mutation.get());
-            result.insert(QStringLiteral("state_version"),
-                          static_cast<qint64>(playback.get().stateVersion));
             result.insert(QStringLiteral("playback"), encodePlayback(playback.get()));
             return result;
         }
@@ -2055,26 +2051,6 @@ namespace Automation {
             auto result = authorized.getError();
             result.operationId = operationId;
             return result;
-        }
-        if (operationId.startsWith(QStringLiteral("playback.")) &&
-            effectiveArguments.contains(QStringLiteral("expected_state_version"))) {
-            auto playback = m_runtime.playback().getPlayback(documentId(effectiveArguments));
-            if (!playback) {
-                auto result = playback.getError();
-                result.operationId = operationId;
-                return result;
-            }
-            const auto expected = static_cast<Revision>(
-                effectiveArguments.value(QStringLiteral("expected_state_version")).toInteger());
-            if (expected != playback.get().stateVersion) {
-                auto result = AutomationError::invalidArgument(
-                    QStringLiteral("expected_state_version"),
-                    QStringLiteral("Playback state changed; expected %1 but current state is %2")
-                        .arg(expected)
-                        .arg(playback.get().stateVersion));
-                result.operationId = operationId;
-                return result;
-            }
         }
         if (operationId.startsWith(QStringLiteral("inference.")) &&
             effectiveArguments.contains(QStringLiteral("scope"))) {

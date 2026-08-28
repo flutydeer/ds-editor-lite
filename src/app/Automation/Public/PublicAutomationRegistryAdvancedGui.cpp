@@ -35,12 +35,7 @@ namespace Automation {
             guiDocumentCommandContext(const QJsonObject &arguments,
                                       const PublicInvocationContext &invocation) {
             return {
-                .expected =
-                    {
-                               guiDocumentId(arguments),
-                               static_cast<Revision>(
-                            arguments.value(QStringLiteral("expected_revision")).toInteger()),
-                               },
+                .documentId = guiDocumentId(arguments),
                 .windowId = guiWindowId(arguments),
                 .validateOnly = arguments.value(QStringLiteral("validate_only")).toBool(false),
                 .source = InvocationSource::PublicMcp,

@@ -143,8 +143,6 @@ namespace {
             {QStringLiteral("window_id"),   runtime.windowId().toString()},
             {QStringLiteral("document_id"), before.documentId.toString() },
         };
-        QJsonObject revision = document;
-        revision.insert(QStringLiteral("expected_revision"), static_cast<qint64>(before.revision));
         const auto with = [](QJsonObject base, const QJsonObject &fields) {
             for (auto it = fields.constBegin(); it != fields.constEnd(); ++it)
                 base.insert(it.key(), it.value());
@@ -172,7 +170,7 @@ namespace {
         }),
                           QStringLiteral("track_panel.set_viewport"));
         invokeSchemaValid(registry, QStringLiteral("track_panel.reveal_clips"),
-                          with(revision,
+                          with(document,
                                {
                                    {QStringLiteral("track_id"), fixture.trackId.value()}
         }),
@@ -184,14 +182,14 @@ namespace {
         }),
                           QStringLiteral("track_panel.set_auto_page_turn"));
         invokeSchemaValid(registry, QStringLiteral("track_panel.select_track"),
-                          with(revision,
+                          with(document,
                                {
                                    {QStringLiteral("track_id"), fixture.trackId.value()}
         }),
                           QStringLiteral("track_panel.select_track"));
         invokeSchemaValid(
             registry, QStringLiteral("track_panel.select_clips"),
-            with(revision,
+            with(document,
                  {
                      {QStringLiteral("clip_ids"),
                       QJsonArray{fixture.scalarClipId.value(), fixture.noteClipId.value()}},
@@ -213,7 +211,7 @@ namespace {
                QStringLiteral("track selection order and primary clip must remain independent"));
         const auto invalidPrimaryClip = registry.invoke(
             QStringLiteral("track_panel.select_clips"),
-            with(revision,
+            with(document,
                  {
                      {QStringLiteral("clip_ids"),        QJsonArray{fixture.scalarClipId.value()}},
                      {QStringLiteral("primary_clip_id"), fixture.noteClipId.value()              }
@@ -224,7 +222,7 @@ namespace {
                    invalidPrimaryClip.getError().fieldPath == QStringLiteral("primary_clip_id"),
                QStringLiteral("track clip primary must belong to the selected set"));
         invokeSchemaValid(registry, QStringLiteral("track_panel.clear_selection"),
-                          with(revision,
+                          with(document,
                                {
                                    {QStringLiteral("target"), QStringLiteral("clips")}
         }),
@@ -244,7 +242,7 @@ namespace {
                        .toBool(),
                QStringLiteral("clip editor subregion visibility must not depend on active focus"));
         invokeSchemaValid(registry, QStringLiteral("clip_editor.set_active_clip"),
-                          with(revision,
+                          with(document,
                                {
                                    {QStringLiteral("clip_id"), fixture.noteClipId.value()}
         }),
@@ -277,7 +275,7 @@ namespace {
                           QStringLiteral("clip_editor.piano.set_pitch_viewport"));
         invokeSchemaValid(
             registry, QStringLiteral("clip_editor.piano.reveal_notes"),
-            with(revision,
+            with(document,
                  {
                      {QStringLiteral("note_ids"), QJsonArray{fixture.noteIds.first().value()}}
         }),
@@ -298,7 +296,7 @@ namespace {
             QStringLiteral("clip_editor.piano.set_quantize"));
         invokeSchemaValid(
             registry, QStringLiteral("clip_editor.piano.select_notes"),
-            with(revision,
+            with(document,
                  {
                      {QStringLiteral("note_ids"),
                       QJsonArray{fixture.noteIds.first().value(), fixture.noteIds.last().value()}},
@@ -320,7 +318,7 @@ namespace {
                QStringLiteral("piano selection order and primary note must remain independent"));
         const auto invalidPrimaryNote = registry.invoke(
             QStringLiteral("clip_editor.piano.select_notes"),
-            with(revision,
+            with(document,
                  {
                      {QStringLiteral("note_ids"),        QJsonArray{fixture.noteIds.first().value()}},
                      {QStringLiteral("primary_note_id"), fixture.noteIds.last().value()             }
@@ -330,29 +328,29 @@ namespace {
                        Automation::AutomationErrorCode::InvalidArgument &&
                    invalidPrimaryNote.getError().fieldPath == QStringLiteral("primary_note_id"),
                QStringLiteral("piano primary note must belong to the selected set"));
-        invokeSchemaValid(registry, QStringLiteral("clip_editor.piano.clear_selection"), revision,
+        invokeSchemaValid(registry, QStringLiteral("clip_editor.piano.clear_selection"), document,
                           QStringLiteral("clip_editor.piano.clear_selection"));
 
         invokeSchemaValid(registry, QStringLiteral("clip_editor.parameters.set_foreground"),
-                          with(revision,
+                          with(document,
                                {
                                    {QStringLiteral("parameter"), QStringLiteral("breathiness")}
         }),
                           QStringLiteral("clip_editor.parameters.set_foreground"));
         invokeSchemaValid(registry, QStringLiteral("clip_editor.parameters.set_background"),
-                          with(revision,
+                          with(document,
                                {
                                    {QStringLiteral("parameter"), QStringLiteral("tension")}
         }),
                           QStringLiteral("clip_editor.parameters.set_background"));
         const auto invalidForegroundParameter = registry.invoke(
             QStringLiteral("clip_editor.parameters.set_foreground"),
-            with(revision, {
+            with(document, {
                                {QStringLiteral("parameter"), QStringLiteral("pitch")}
         }));
         const auto invalidBackgroundParameter = registry.invoke(
             QStringLiteral("clip_editor.parameters.set_background"),
-            with(revision, {
+            with(document, {
                                {QStringLiteral("parameter"), QStringLiteral("speaker_mix")}
         }));
         expect(!invalidForegroundParameter && !invalidBackgroundParameter &&
@@ -362,39 +360,22 @@ namespace {
                        Automation::AutomationErrorCode::InvalidArgument,
                QStringLiteral(
                    "parameter GUI schemas must reject unsupported foreground/background values"));
-        invokeSchemaValid(registry, QStringLiteral("clip_editor.parameters.swap"), revision,
+        invokeSchemaValid(registry, QStringLiteral("clip_editor.parameters.swap"), document,
                           QStringLiteral("clip_editor.parameters.swap"));
         invokeSchemaValid(registry, QStringLiteral("clip_editor.parameters.set_tool"),
-                          with(revision,
+                          with(document,
                                {
                                    {QStringLiteral("tool"), QStringLiteral("anchor")}
         }),
                           QStringLiteral("clip_editor.parameters.set_tool"));
         invokeSchemaValid(registry, QStringLiteral("clip_editor.parameters.set_value_viewport"),
-                          with(revision,
+                          with(document,
                                {
                                    {QStringLiteral("center_ratio"),   0.75},
                                    {QStringLiteral("vertical_scale"), 2.0 }
         }),
                           QStringLiteral("clip_editor.parameters.set_value_viewport"));
 
-        auto staleRevision = revision;
-        staleRevision.insert(QStringLiteral("expected_revision"),
-                             static_cast<qint64>(before.revision + 1));
-        staleRevision.insert(QStringLiteral("track_id"), fixture.trackId.value());
-        const auto staleSelection =
-            registry.invoke(QStringLiteral("track_panel.select_track"), staleRevision);
-        expect(!staleSelection && staleSelection.getError().code ==
-                                      Automation::AutomationErrorCode::RevisionConflict,
-               QStringLiteral("GUI object selection must reject a stale expected revision"));
-        const auto missingRevision = registry.invoke(
-            QStringLiteral("track_panel.select_track"),
-            with(document, {
-                               {QStringLiteral("track_id"), fixture.trackId.value()}
-        }));
-        expect(!missingRevision && missingRevision.getError().code ==
-                                       Automation::AutomationErrorCode::InvalidArgument,
-               QStringLiteral("GUI object selection must require expected_revision"));
         expect(
             runtime.documentVersion() == before,
             QStringLiteral("all L3 GUI bindings must leave document revision and History intact"));
@@ -1383,7 +1364,7 @@ int main(int argc, char *argv[]) {
         editorViewState->layout.bottomPanelVisible = clipVisible;
         return true;
     };
-    const auto focusRegion = [editorViewState](const EditorViewGlobal::Region region) {
+    const auto showRegion = [editorViewState](const EditorViewGlobal::Region region) {
         if (region == EditorViewGlobal::Region::TrackPanel) {
             editorViewState->layout.trackPanelVisible = true;
         } else if (region == EditorViewGlobal::Region::PianoRoll ||
@@ -1398,11 +1379,10 @@ int main(int argc, char *argv[]) {
             return false;
         }
         editorViewState->layout.activeRegion = region;
-        editorViewState->layout.focusedRegion = region;
         return true;
     };
-    editorServices.showRegion = focusRegion;
-    editorServices.focusRegion = focusRegion;
+    editorServices.showRegion = showRegion;
+    editorServices.focusRegion = [](const EditorViewGlobal::Region) { return false; };
     editorServices.setClipEditorTimeViewport = [editorViewState](const double centerTick,
                                                                  const double horizontalScale) {
         editorViewState->pianoRoll.centerTick = centerTick;
@@ -1424,21 +1404,18 @@ int main(int argc, char *argv[]) {
         editorViewState->parameters.foreground = name;
         editorViewState->layout.bottomPanelVisible = true;
         editorViewState->layout.activeRegion = EditorViewGlobal::Region::Parameters;
-        editorViewState->layout.focusedRegion = EditorViewGlobal::Region::Parameters;
         return true;
     };
     editorServices.setParameterBackground = [editorViewState](const ParamInfo::Name name) {
         editorViewState->parameters.background = name;
         editorViewState->layout.bottomPanelVisible = true;
         editorViewState->layout.activeRegion = EditorViewGlobal::Region::Parameters;
-        editorViewState->layout.focusedRegion = EditorViewGlobal::Region::Parameters;
         return true;
     };
     editorServices.swapParameters = [editorViewState] {
         std::swap(editorViewState->parameters.foreground, editorViewState->parameters.background);
         editorViewState->layout.bottomPanelVisible = true;
         editorViewState->layout.activeRegion = EditorViewGlobal::Region::Parameters;
-        editorViewState->layout.focusedRegion = EditorViewGlobal::Region::Parameters;
         return true;
     };
     editorServices.setParameterEditMode =
@@ -1446,7 +1423,6 @@ int main(int argc, char *argv[]) {
             editorViewState->parameters.editMode = mode;
             editorViewState->layout.bottomPanelVisible = true;
             editorViewState->layout.activeRegion = EditorViewGlobal::Region::Parameters;
-            editorViewState->layout.focusedRegion = EditorViewGlobal::Region::Parameters;
             return true;
         };
     editorServices.setParameterValueViewport = [editorViewState](const double centerRatio,
@@ -1455,7 +1431,6 @@ int main(int argc, char *argv[]) {
         editorViewState->parameters.verticalScale = verticalScale;
         editorViewState->layout.bottomPanelVisible = true;
         editorViewState->layout.activeRegion = EditorViewGlobal::Region::Parameters;
-        editorViewState->layout.focusedRegion = EditorViewGlobal::Region::Parameters;
         return true;
     };
     editorServices.setActiveClip = [editorStableState](const int clipId) {
@@ -1495,14 +1470,12 @@ int main(int argc, char *argv[]) {
         if (focus.kind == HistoryFocusKind::TrackClips) {
             editorViewState->layout.trackPanelVisible = true;
             editorViewState->layout.activeRegion = EditorViewGlobal::Region::TrackPanel;
-            editorViewState->layout.focusedRegion = EditorViewGlobal::Region::TrackPanel;
             editorViewState->trackPanel.centerTick = (focus.tickStart + focus.tickEnd) * 0.5;
         } else {
             editorViewState->layout.bottomPanelVisible = true;
             editorViewState->layout.bottomPanelPageId = QStringLiteral("ClipEditor");
             editorViewState->layout.pianoRollVisible = true;
             editorViewState->layout.activeRegion = EditorViewGlobal::Region::PianoRoll;
-            editorViewState->layout.focusedRegion = EditorViewGlobal::Region::PianoRoll;
             editorViewState->pianoRoll.centerTick = (focus.tickStart + focus.tickEnd) * 0.5;
             editorStableState->activeClipId = focus.containerId;
         }
