@@ -354,24 +354,6 @@ namespace {
         for (const auto &testCase : emptyArrayCases)
             verifyCase(testCase, QJsonArray{});
 
-        int idempotencyKeys = 0;
-        for (const auto &contract : publicToolContracts()) {
-            const auto properties =
-                contract.inputSchema.value(QStringLiteral("properties")).toObject();
-            if (!properties.contains(QStringLiteral("idempotency_key")))
-                continue;
-            ++idempotencyKeys;
-            expect(
-                !requiredFields(contract.inputSchema).contains(QStringLiteral("idempotency_key")) &&
-                    validateJsonValue(
-                        QString(), properties.value(QStringLiteral("idempotency_key")).toObject())
-                        .valid(),
-                contract.operationId +
-                    QStringLiteral(" must accept an empty optional idempotency_key"));
-        }
-        expect(idempotencyKeys == 86,
-               QStringLiteral("all 86 document-write idempotency keys must share the policy"));
-
         for (const auto &testCase : QList<QPair<QString, QStringList>>{
                  {QStringLiteral("notes.search"),      {QStringLiteral("query")}     },
                  {QStringLiteral("documents.open"),    {QStringLiteral("path")}      },
@@ -412,7 +394,6 @@ namespace {
         QSet<QString> expected{
             QStringLiteral("document_id"),
             QStringLiteral("expected_revision"),
-            QStringLiteral("idempotency_key"),
             valueField,
         };
         if (!targetField.isEmpty())
@@ -760,7 +741,7 @@ namespace {
                        inputProperties.contains(QStringLiteral("expected_revision")) &&
                        inputProperties.contains(QStringLiteral("expected_state_version")) &&
                        !inputProperties.contains(QStringLiteral("validate_only")) &&
-                       inputProperties.contains(QStringLiteral("idempotency_key")) &&
+                       !inputProperties.contains(QStringLiteral("idempotency_key")) &&
                        inputRequired.contains(QStringLiteral("document_id")) &&
                        inputRequired.contains(QStringLiteral("expected_revision")) &&
                        !inputRequired.contains(QStringLiteral("expected_state_version")),

@@ -39,6 +39,7 @@ Agent 会话可先于 Editor 启动。Connector 通过全局实例 Bootstrap 观
 - 应用设置使用明确 allowlist 与按小标题聚合的稀疏更新；自动化/MCP 自身配置和未列入设置不能由 MCP 修改。
 - 应用级设置与歌词规则不进入文档 revision/history；包刷新使用 application-scoped Task，不伪造文档身份。
 - `validate_only` 只开放给保存到新路径、批量文件导入、设备或包搜索路径设置，以及歌词规则创建/更新等确有复杂预检价值的操作；其他命令仍在提交前完成内部校验，不额外暴露预演参数。
+- `idempotency_key` 只开放给会创建稳定对象、启动文档任务或执行高成本导入的操作；普通属性编辑、移动/缩放、删除、历史记录和播放状态写入使用 revision/state version 处理冲突，不额外要求 Agent 管理幂等键。
 
 总线域的 descriptor category 为 `bus`，公开操作 ID 保持 `master.*`。历史记录是独立域，固定包含状态查询、Undo 与 Redo。
 

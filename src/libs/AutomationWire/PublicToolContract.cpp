@@ -953,6 +953,28 @@ namespace AutomationWire {
             return ids;
         }
 
+        const QSet<QString> &documentIdempotencyKeyOperations() {
+            static const QSet<QString> ids{
+                PublicToolNames::documents_import,
+                PublicToolNames::documents_import_batch,
+                PublicToolNames::tracks_insert,
+                PublicToolNames::clips_insert,
+                PublicToolNames::clips_duplicate,
+                PublicToolNames::audio_clips_import,
+                PublicToolNames::audio_clips_import_batch,
+                PublicToolNames::speaker_mix_keyframes_insert,
+                PublicToolNames::notes_insert,
+                PublicToolNames::notes_duplicate,
+                PublicToolNames::notes_split_at,
+                PublicToolNames::parameters_create_anchor_curve,
+                PublicToolNames::parameters_insert_anchors,
+                PublicToolNames::extract_pitch_start,
+                PublicToolNames::extract_midi_start,
+                PublicToolNames::inference_start,
+            };
+            return ids;
+        }
+
         QHash<QString, QStringList> requiredInputFields() {
             return {
                 {PublicToolNames::automation_get_options,
@@ -1274,6 +1296,8 @@ namespace AutomationWire {
             }
             if (documentWriteOperations().contains(id)) {
                 add(QStringLiteral("expected_revision"), true);
+            }
+            if (documentIdempotencyKeyOperations().contains(id)) {
                 add(QStringLiteral("idempotency_key"), false);
             }
             if (playbackWrite)

@@ -575,7 +575,7 @@ namespace {
                        setLoopRequired.contains(QStringLiteral("expected_revision")) &&
                        !setLoopRequired.contains(QStringLiteral("expected_state_version")) &&
                        setLoopProperties.contains(QStringLiteral("expected_state_version")) &&
-                       setLoopProperties.contains(QStringLiteral("idempotency_key")) &&
+                       !setLoopProperties.contains(QStringLiteral("idempotency_key")) &&
                        validateJsonValue(integerLoop, setLoop->inputSchema).valid() &&
                        !validateJsonValue(fractionalLoop, setLoop->inputSchema).valid() &&
                        setLoop->outputSchema.value(QStringLiteral("properties"))
