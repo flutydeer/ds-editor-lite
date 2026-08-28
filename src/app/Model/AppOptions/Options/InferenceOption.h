@@ -26,6 +26,15 @@ public:
 #endif
     }
 
+    [[nodiscard]] static constexpr bool directMlExecutionProviderAvailable() noexcept {
+#if defined(Q_OS_WIN)
+        return true;
+#else
+        // DirectML is a Windows-only ONNX Runtime payload.
+        return false;
+#endif
+    }
+
     static constexpr int kSingerSessionCacheCapacityUnlimited = 0;
     static constexpr int kSingerSessionCacheCapacityMin = 1;
     static constexpr int kSingerSessionCacheCapacityMax = 8;

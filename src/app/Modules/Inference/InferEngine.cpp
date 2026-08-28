@@ -147,7 +147,7 @@ bool InferEngine::initialize(QString &error) {
         return true;
     }
 
-    const auto ep = appOptions->inference()->executionProvider;
+    auto ep = appOptions->inference()->executionProvider;
     const auto gpuDeviceList = [&ep]() -> QList<GpuInfo> {
         if (ep == QStringLiteral("DirectML")) {
             return DmlGpuUtils::getGpuList();
@@ -158,11 +158,17 @@ bool InferEngine::initialize(QString &error) {
         return {};
     }();
 
+    // No qualified GPU for the requested provider (e.g. integrated graphics
+    // only): degrade to CPU for this session instead of failing the engine.
+    // Runtime-only: the stored option is kept so a restored GPU picks the
+    // provider back up on next launch.
     if ((ep == QStringLiteral("DirectML") || ep == QStringLiteral("CUDA")) &&
         gpuDeviceList.empty()) {
-        qCritical() << "InferEngine: Unable to find GPU device.";
-        error = "No available GPU device found.";
-        return false;
+        qWarning().noquote() << QStringLiteral(
+                                    "InferEngine: no qualified GPU found for execution provider "
+                                    "'%1'; falling back to CPU for this session.")
+                                    .arg(ep);
+        ep = QStringLiteral("CPU");
     }
 
     const auto [index, description, deviceId, memory] = [&ep]() -> GpuInfo {

@@ -252,10 +252,8 @@ QWidget *InferencePage::createContentWidget() {
     if (InferenceOption::cudaExecutionProviderAvailable()) {
         m_cbExecutionProvider->addItem(QStringLiteral("CUDA"));
     }
-    // A saved provider this platform does not offer (e.g. DirectML settings
-    // carried over from Windows) would otherwise leave the combo showing
-    // "CPU" while the stored option still says "DirectML" — normalize it and
-    // say so instead.
+    // Defensive only: InferenceOption::load() already normalizes providers this
+    // platform cannot run; this branch just covers unrecognized strings.
     if (m_cbExecutionProvider->findText(option->executionProvider) < 0) {
         qWarning().noquote() << QStringLiteral("Saved execution provider '%1' is unavailable on "
                                                "this platform; falling back to '%2'")

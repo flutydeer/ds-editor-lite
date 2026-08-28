@@ -18,14 +18,20 @@ void InferenceOption::load(const QJsonObject &object) {
     load_executionProvider(object);
     load_selectedGpuIndex(object);
     load_selectedGpuId(object);
-    if (executionProvider == QStringLiteral("CUDA") && !cudaExecutionProviderAvailable()) {
+    // Normalize recognized providers that this platform/build cannot run (e.g.
+    // DirectML settings carried over from a Windows installation): fall back to
+    // the platform default and drop the now-meaningless GPU selection.
+    if ((executionProvider == QStringLiteral("DirectML") &&
+         !directMlExecutionProviderAvailable()) ||
+        (executionProvider == QStringLiteral("CUDA") && !cudaExecutionProviderAvailable())) {
+        const auto unavailableProvider = executionProvider;
         executionProvider = defaultExecutionProvider();
         selectedGpuIndex = -1;
         selectedGpuId.clear();
         qWarning().noquote() << QStringLiteral(
-                                    "CUDA execution provider is unavailable in this build; falling "
-                                    "back to '%1'.")
-                                    .arg(executionProvider);
+                                    "Execution provider '%1' is unavailable on this "
+                                    "platform/build; falling back to '%2'.")
+                                    .arg(unavailableProvider, executionProvider);
     }
     load_samplingSteps(object);
     load_depth(object);
