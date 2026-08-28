@@ -3,7 +3,6 @@
 #include <lite/AutomationWire/CanonicalJson.h>
 
 #include <lite/AutomationWire/JsonSchema.h>
-#include <lite/AutomationWire/SchemaCompatibility.h>
 #include <lite/ProductMetadata.h>
 
 #include <QJsonArray>
@@ -507,7 +506,6 @@ namespace DsConnector {
                      enumStringSchema({QStringLiteral("not_loaded"), QStringLiteral("refreshing"),
                                        QStringLiteral("manifest_unavailable"),
                                        QStringLiteral("compatible"),
-                                       QStringLiteral("compatible_subset"),
                                        QStringLiteral("contract_incompatible")})  },
                     {QStringLiteral("connector_toolset_version"), integerSchema(1)},
                     {QStringLiteral("editor_toolset_version"),    integerSchema() },
@@ -571,21 +569,19 @@ namespace DsConnector {
         QJsonObject describeSchema() {
             auto result = strictObjectSchema(
                 QJsonObject{
-                    {QStringLiteral("tool"),                       toolDescriptorSchema()                   },
-                    {QStringLiteral("version"),                    integerSchema(1)                         },
-                    {QStringLiteral("introduced_version"),         integerSchema(1)                         },
-                    {QStringLiteral("minimum_compatible_version"), integerSchema(1)                         },
-                    {QStringLiteral("input_schema"),               schemaReference(QStringLiteral("schema"))},
-                    {QStringLiteral("output_schema"),              schemaReference(QStringLiteral("schema"))},
-                    {QStringLiteral("manifest_digest"),            stringSchema()                           },
-                    {QStringLiteral("typed_compatibility"),        stringSchema()                           },
-                    {QStringLiteral("availability"),               stringSchema()                           },
-                    {QStringLiteral("minimum_profile"),            stringSchema()                           },
-                    {QStringLiteral("category"),                   stringSchema()                           },
+                    {QStringLiteral("tool"),                    toolDescriptorSchema()                   },
+                    {QStringLiteral("toolset_version"),         integerSchema(1)                         },
+                    {QStringLiteral("minimum_toolset_version"), integerSchema(1)                         },
+                    {QStringLiteral("input_schema"),            schemaReference(QStringLiteral("schema"))},
+                    {QStringLiteral("output_schema"),           schemaReference(QStringLiteral("schema"))},
+                    {QStringLiteral("manifest_digest"),         stringSchema()                           },
+                    {QStringLiteral("typed_compatibility"),     stringSchema()                           },
+                    {QStringLiteral("availability"),            stringSchema()                           },
+                    {QStringLiteral("minimum_profile"),         stringSchema()                           },
+                    {QStringLiteral("category"),                stringSchema()                           },
             },
-                QJsonArray{QStringLiteral("tool"), QStringLiteral("version"),
-                           QStringLiteral("introduced_version"),
-                           QStringLiteral("minimum_compatible_version"),
+                QJsonArray{QStringLiteral("tool"), QStringLiteral("toolset_version"),
+                           QStringLiteral("minimum_toolset_version"),
                            QStringLiteral("input_schema"), QStringLiteral("manifest_digest"),
                            QStringLiteral("typed_compatibility"), QStringLiteral("availability"),
                            QStringLiteral("minimum_profile"), QStringLiteral("category")});
@@ -615,9 +611,7 @@ namespace DsConnector {
                  QJsonObject{
                      {QStringLiteral("io.openvpi.ds-editor-lite/tool"),
                       QJsonObject{
-                          {QStringLiteral("version"), 1},
-                          {QStringLiteral("introduced_version"), 1},
-                          {QStringLiteral("minimum_compatible_version"), 1},
+                          {QStringLiteral("minimum_toolset_version"), 1},
                           {QStringLiteral("category"), QStringLiteral("connector")},
                       }},
                  }                                           },
@@ -695,13 +689,9 @@ namespace DsConnector {
                 if (!value.isUndefined())
                     metadata.insert(target, value);
             };
-            synthesize(QStringLiteral("version"), QStringLiteral("version"),
-                       QStringLiteral("version"));
-            synthesize(QStringLiteral("introduced_version"), QStringLiteral("introducedVersion"),
-                       QStringLiteral("introduced_version"));
-            synthesize(QStringLiteral("minimum_compatible_version"),
-                       QStringLiteral("minimumCompatibleVersion"),
-                       QStringLiteral("minimum_compatible_version"));
+            synthesize(QStringLiteral("minimum_toolset_version"),
+                       QStringLiteral("minimumToolsetVersion"),
+                       QStringLiteral("minimum_toolset_version"));
             synthesize(QStringLiteral("category"), QStringLiteral("category"),
                        QStringLiteral("category"));
             synthesize(QStringLiteral("minimum_profile"), QStringLiteral("minimumProfile"),
@@ -1520,12 +1510,10 @@ namespace DsConnector {
         m_connectorManifestDigest =
             AutomationWire::buildPublicManifest(*editorProfile, customEnabled, hostMode).digest;
 
-        int consideredCount = 0;
         m_compatibleCount = 0;
         m_incompatibleCount = 0;
         m_unavailableCount = 0;
         for (const auto &tool : m_exposure.typedContracts()) {
-            ++consideredCount;
             const auto compatibility = compatibilityFor(tool);
             if (compatibility == QStringLiteral("compatible"))
                 ++m_compatibleCount;
@@ -1534,21 +1522,9 @@ namespace DsConnector {
             else
                 ++m_unavailableCount;
         }
-        const auto editorVersion = jsonInteger(m_manifest, QStringLiteral("toolsetVersion"),
-                                               QStringLiteral("toolset_version"), 0);
-        const auto editorDigest =
-            jsonString(m_manifest, QStringLiteral("digest"), QStringLiteral("manifest_digest"));
-        if (consideredCount == 0) {
-            m_manifestCompatibility = QStringLiteral("compatible_subset");
-        } else if (m_compatibleCount == consideredCount &&
-                   editorVersion == static_cast<qint64>(AutomationWire::PublicToolsetVersion) &&
-                   !editorDigest.isEmpty() && editorDigest == m_connectorManifestDigest) {
-            m_manifestCompatibility = QStringLiteral("compatible");
-        } else if (m_compatibleCount > 0) {
-            m_manifestCompatibility = QStringLiteral("compatible_subset");
-        } else {
-            m_manifestCompatibility = QStringLiteral("contract_incompatible");
-        }
+        m_manifestCompatibility = m_incompatibleCount == 0
+                                      ? QStringLiteral("compatible")
+                                      : QStringLiteral("contract_incompatible");
         m_mcpError.clear();
         emit statusChanged();
         completeHandshakeCycle(epoch, true);
@@ -1716,34 +1692,17 @@ namespace DsConnector {
             return QStringLiteral("host_unavailable");
         }
 
-        const auto editorVersion = toolMetadataInteger(
-            editorTool, QStringLiteral("version"), QStringLiteral("version"),
-            jsonInteger(m_manifest, QStringLiteral("toolsetVersion"),
-                        QStringLiteral("toolset_version"),
-                        static_cast<qint64>(AutomationWire::PublicToolsetVersion)));
+        const auto editorToolsetVersion = jsonInteger(
+            m_manifest, QStringLiteral("toolsetVersion"), QStringLiteral("toolset_version"),
+            static_cast<qint64>(AutomationWire::PublicToolsetVersion));
         const auto editorMinimum =
-            toolMetadataInteger(editorTool, QStringLiteral("minimumCompatibleVersion"),
-                                QStringLiteral("minimum_compatible_version"), 1);
+            toolMetadataInteger(editorTool, QStringLiteral("minimumToolsetVersion"),
+                                QStringLiteral("minimum_toolset_version"), 1);
         const auto versionCompatible =
-            static_cast<qint64>(tool.version) >= editorMinimum &&
-            editorVersion >= static_cast<qint64>(tool.minimumCompatibleVersion);
-        if (!versionCompatible)
-            return QStringLiteral("contract_incompatible");
-
-        const auto editorInput =
-            jsonValue(editorTool, QStringLiteral("inputSchema"), QStringLiteral("input_schema"));
-        const auto editorOutput =
-            jsonValue(editorTool, QStringLiteral("outputSchema"), QStringLiteral("output_schema"));
-        if (!editorInput.isObject() || !editorOutput.isObject())
-            return QStringLiteral("contract_incompatible");
-        if (editorInput.toObject() == tool.inputSchema &&
-            editorOutput.toObject() == tool.outputSchema) {
-            return QStringLiteral("compatible");
-        }
-        const auto schemas = AutomationWire::checkToolSchemaCompatibility(
-            tool.inputSchema, editorInput, editorOutput, tool.outputSchema);
-        return schemas.compatible() ? QStringLiteral("compatible")
-                                    : QStringLiteral("contract_incompatible");
+            static_cast<qint64>(AutomationWire::PublicToolsetVersion) >= editorMinimum &&
+            editorToolsetVersion >= static_cast<qint64>(tool.minimumToolsetVersion);
+        return versionCompatible ? QStringLiteral("compatible")
+                                 : QStringLiteral("contract_incompatible");
     }
 
     bool ConnectorRuntime::targetAllowed(const QJsonObject &tool, const QString &name) const {
@@ -1901,16 +1860,13 @@ namespace DsConnector {
             availability = QStringLiteral("available");
         const QJsonObject structured{
             {QStringLiteral("tool"), toolDescriptor(tool)},
-            {QStringLiteral("version"),
-             std::max<qint64>(1, toolMetadataInteger(tool, QStringLiteral("version"),
-             QStringLiteral("version"), 1))},
-            {QStringLiteral("introduced_version"),
-             std::max<qint64>(1, toolMetadataInteger(tool, QStringLiteral("introducedVersion"),
-             QStringLiteral("introduced_version"), 1))},
-            {QStringLiteral("minimum_compatible_version"),
-             std::max<qint64>(
-                 1, toolMetadataInteger(tool, QStringLiteral("minimumCompatibleVersion"),
-             QStringLiteral("minimum_compatible_version"), 1))},
+            {QStringLiteral("toolset_version"),
+             jsonInteger(m_manifest, QStringLiteral("toolsetVersion"),
+             QStringLiteral("toolset_version"), 0)},
+            {QStringLiteral("minimum_toolset_version"),
+             std::max<qint64>(1,
+             toolMetadataInteger(tool, QStringLiteral("minimumToolsetVersion"),
+             QStringLiteral("minimum_toolset_version"), 1))},
             {QStringLiteral("input_schema"),
              jsonValue(tool, QStringLiteral("inputSchema"), QStringLiteral("input_schema"))},
             {QStringLiteral("output_schema"),

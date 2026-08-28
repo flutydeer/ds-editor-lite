@@ -557,8 +557,7 @@ namespace {
                                  .toObject()
                                  .value(QStringLiteral("connected"))
                                  .toBool() &&
-                             (manifestCompatibility == QStringLiteral("compatible") ||
-                              manifestCompatibility == QStringLiteral("compatible_subset"));
+                             manifestCompatibility == QStringLiteral("compatible");
             if (!connectorReady)
                 QThread::msleep(100);
         }
@@ -634,14 +633,14 @@ namespace {
         const auto missingFixedTool =
             std::find_if(fixedToolNames.cbegin(), fixedToolNames.cend(),
                          [&toolNames](const QString &name) { return !toolNames.contains(name); });
-        if (toolNames.size() != 185 || missingFixedTool != fixedToolNames.cend() ||
+        if (toolNames.size() != 183 || missingFixedTool != fixedToolNames.cend() ||
             !toolNames.contains(QStringLiteral("automation.get_status")) ||
             !toolNames.contains(QStringLiteral("workspace.get")) ||
             !toolNames.contains(QStringLiteral("settings.query")) ||
             !toolNames.contains(QStringLiteral("packages.refresh")) ||
             toolNames.contains(QStringLiteral("application.request_exit"))) {
             return fail(
-                QStringLiteral("Connector did not publish the exact 179+6 L3 tool surface"));
+                QStringLiteral("Connector did not publish the exact 177+6 L3 tool surface"));
         }
 
         QJsonObject lastEditorStatus;
@@ -940,8 +939,7 @@ namespace {
                                        .toObject()
                                        .value(QStringLiteral("connected"))
                                        .toBool() &&
-                                   (compatibility == QStringLiteral("compatible") ||
-                                    compatibility == QStringLiteral("compatible_subset"));
+                                   compatibility == QStringLiteral("compatible");
             if (!legacyConnectorReady)
                 QThread::msleep(100);
         }
@@ -963,7 +961,7 @@ namespace {
                     .toObject()
                     .value(QStringLiteral("tools"))
                     .toArray()
-                    .size() != 185) {
+                    .size() != 183) {
             return failWithProcessDiagnostics(
                 QStringLiteral("Connector MCP 2025-06-18 tools/list failed: %1")
                     .arg(legacyTools ? compactJson(*legacyTools) : exchangeError));
@@ -1040,7 +1038,7 @@ namespace {
 
         QTextStream(stdout)
             << "Validated real editor + connector MCP 2025-06-18/2025-11-25/2026-07-28 process "
-               "integration, L1/L2 operations, the 179+6 L3 surface, and normalized direct-editor "
+               "integration, L1/L2 operations, the 177+6 L3 surface, and normalized direct-editor "
                "equivalence"
             << Qt::endl;
         return true;

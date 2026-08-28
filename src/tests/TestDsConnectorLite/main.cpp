@@ -47,21 +47,17 @@ namespace {
         return result;
     }
 
-    std::optional<QJsonObject> versionMetadata(const QJsonObject &object) {
-        const auto introduced = object.contains(QStringLiteral("introduced_version"))
-                                    ? object.value(QStringLiteral("introduced_version"))
-                                    : object.value(QStringLiteral("introducedVersion"));
-        const auto minimum = object.contains(QStringLiteral("minimum_compatible_version"))
-                                 ? object.value(QStringLiteral("minimum_compatible_version"))
-                                 : object.value(QStringLiteral("minimumCompatibleVersion"));
-        if (object.value(QStringLiteral("version")).isDouble() && introduced.isDouble() &&
-            minimum.isDouble()) {
+    std::optional<QJsonObject> toolMetadata(const QJsonObject &object) {
+        const auto minimum = object.contains(QStringLiteral("minimum_toolset_version"))
+                                 ? object.value(QStringLiteral("minimum_toolset_version"))
+                                 : object.value(QStringLiteral("minimumToolsetVersion"));
+        if (minimum.isDouble()) {
             return object;
         }
         for (auto it = object.constBegin(); it != object.constEnd(); ++it) {
             if (!it.value().isObject())
                 continue;
-            if (const auto nested = versionMetadata(it.value().toObject()))
+            if (const auto nested = toolMetadata(it.value().toObject()))
                 return nested;
         }
         return std::nullopt;
@@ -73,15 +69,11 @@ namespace {
         return value.isDouble() ? value.toInteger() : 0;
     }
 
-    bool hasVersionedToolMetadata(const QJsonObject &tool) {
-        const auto metadata = versionMetadata(tool.value(QStringLiteral("_meta")).toObject());
+    bool hasToolMetadata(const QJsonObject &tool) {
+        const auto metadata = toolMetadata(tool.value(QStringLiteral("_meta")).toObject());
         return metadata &&
-               metadataInteger(*metadata, QStringLiteral("version"), QStringLiteral("version")) >=
-                   1 &&
-               metadataInteger(*metadata, QStringLiteral("introduced_version"),
-                               QStringLiteral("introducedVersion")) >= 1 &&
-               metadataInteger(*metadata, QStringLiteral("minimum_compatible_version"),
-                               QStringLiteral("minimumCompatibleVersion")) >= 1 &&
+               metadataInteger(*metadata, QStringLiteral("minimum_toolset_version"),
+                               QStringLiteral("minimumToolsetVersion")) >= 1 &&
                !metadata->value(QStringLiteral("category")).toString().isEmpty() &&
                !metadata->value(QStringLiteral("minimum_profile")).toString().isEmpty();
     }
@@ -283,7 +275,7 @@ namespace {
         bool headersValid = true;
         bool exposeNotes = false;
         bool exposeFilteredTool = false;
-        bool incompatibleApplicationSchema = false;
+        bool applicationSchemaVariant = false;
         bool annotatedApplicationHeaders = false;
         bool exposeInvalidAnnotatedTool = false;
         bool exposeCommandTool = false;
@@ -302,8 +294,7 @@ namespace {
         int pageSize = 0;
         AutomationWire::AutomationProfile manifestProfile = AutomationWire::AutomationProfile::L1;
         int manifestToolsetVersion = static_cast<int>(AutomationWire::PublicToolsetVersion);
-        int applicationVersion = static_cast<int>(AutomationWire::PublicToolsetVersion);
-        int applicationMinimumCompatibleVersion = 1;
+        int applicationMinimumToolsetVersion = 1;
         int discoverResponseDelayMs = 0;
         int discoverRateLimitFailuresRemaining = 0;
         int discoverCount = 0;
@@ -387,18 +378,17 @@ namespace {
         }
 
         QJsonArray allTools() const {
-            const auto cacheKey = QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8|%9|%10|%11")
+            const auto cacheKey = QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8|%9|%10")
                                       .arg(exposeNotes)
                                       .arg(exposeFilteredTool)
-                                      .arg(incompatibleApplicationSchema)
+                                      .arg(applicationSchemaVariant)
                                       .arg(annotatedApplicationHeaders)
                                       .arg(exposeInvalidAnnotatedTool)
                                       .arg(exposeCommandTool)
                                       .arg(applicationAvailability)
                                       .arg(extraToolCount)
                                       .arg(exposeForwardCompatibleTools)
-                                      .arg(applicationVersion)
-                                      .arg(applicationMinimumCompatibleVersion);
+                                      .arg(applicationMinimumToolsetVersion);
             if (cacheKey == m_toolsCacheKey)
                 return m_cachedTools;
             QJsonArray tools;
@@ -409,9 +399,8 @@ namespace {
                                            .toObject()
                                            .value(QStringLiteral("io.openvpi.ds-editor-lite/tool"))
                                            .toObject();
-            applicationMetadata.insert(QStringLiteral("version"), applicationVersion);
-            applicationMetadata.insert(QStringLiteral("minimum_compatible_version"),
-                                       applicationMinimumCompatibleVersion);
+            applicationMetadata.insert(QStringLiteral("minimum_toolset_version"),
+                                       applicationMinimumToolsetVersion);
             auto applicationMeta = applicationTool.value(QStringLiteral("_meta")).toObject();
             applicationMeta.insert(QStringLiteral("io.openvpi.ds-editor-lite/tool"),
                                    applicationMetadata);
@@ -420,7 +409,7 @@ namespace {
                 applicationTool.insert(QStringLiteral("availability"), applicationAvailability);
             if (annotatedApplicationHeaders)
                 applicationTool.insert(QStringLiteral("inputSchema"), annotatedInputSchema());
-            if (incompatibleApplicationSchema) {
+            if (applicationSchemaVariant) {
                 applicationTool.insert(
                     QStringLiteral("outputSchema"),
                     QJsonObject{
@@ -483,9 +472,7 @@ namespace {
                          {QStringLiteral("com.openvpi.ds-editor-lite/fixture"), true},
                          {QStringLiteral("io.openvpi.ds-editor-lite/tool"),
                           QJsonObject{
-                              {QStringLiteral("version"), 1},
-                              {QStringLiteral("introduced_version"), 1},
-                              {QStringLiteral("minimum_compatible_version"), 1},
+                              {QStringLiteral("minimum_toolset_version"), 1},
                               {QStringLiteral("category"), QStringLiteral("fake")},
                               {QStringLiteral("minimum_profile"), QStringLiteral("meta")},
                               {QStringLiteral("sync_mode"), QStringLiteral("synchronous")},
@@ -532,15 +519,14 @@ namespace {
         }
 
         QJsonObject fullManifest() const {
-            const auto cacheKey = QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8|%9|%10")
-                                      .arg(incompatibleApplicationSchema)
+            const auto cacheKey = QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8|%9")
+                                      .arg(applicationSchemaVariant)
                                       .arg(annotatedApplicationHeaders)
                                       .arg(exposeInvalidAnnotatedTool)
                                       .arg(exposeCommandTool)
                                       .arg(extraToolCount)
                                       .arg(manifestToolsetVersion)
-                                      .arg(applicationVersion)
-                                      .arg(applicationMinimumCompatibleVersion)
+                                      .arg(applicationMinimumToolsetVersion)
                                       .arg(exposeForwardCompatibleTools)
                                       .arg(AutomationWire::automationProfileName(manifestProfile));
             if (cacheKey == m_manifestCacheKey)
@@ -553,10 +539,9 @@ namespace {
                 auto operation = operations.at(index).toObject();
                 if (operation.value(QStringLiteral("operation_id")) ==
                     QStringLiteral("application.get_info")) {
-                    operation.insert(QStringLiteral("version"), applicationVersion);
-                    operation.insert(QStringLiteral("minimum_compatible_version"),
-                                     applicationMinimumCompatibleVersion);
-                    if (incompatibleApplicationSchema) {
+                    operation.insert(QStringLiteral("minimum_toolset_version"),
+                                     applicationMinimumToolsetVersion);
+                    if (applicationSchemaVariant) {
                         operation.insert(
                             QStringLiteral("output_schema"),
                             QJsonObject{
@@ -1067,9 +1052,9 @@ namespace {
             .exposure = {.profile = AutomationWire::ExposureProfile::L3},
         });
         ok &= expect(l0.typedContracts().isEmpty(), "l0 must expose no typed editor tools");
-        ok &= expect(l1.typedContracts().size() == 91, "l1 must expose the exact 91 tools");
-        ok &= expect(l2.typedContracts().size() == 134, "l2 must expose all 134 editor tools");
-        ok &= expect(l3.typedContracts().size() == 179, "l3 must expose all 179 editor tools");
+        ok &= expect(l1.typedContracts().size() == 89, "l1 must expose the exact 89 tools");
+        ok &= expect(l2.typedContracts().size() == 132, "l2 must expose all 132 editor tools");
+        ok &= expect(l3.typedContracts().size() == 177, "l3 must expose all 177 editor tools");
         return ok;
     }
 
@@ -1093,30 +1078,21 @@ namespace {
             "connector must publish the exact six fixed bridge definitions");
         for (const auto &entry : bridgeTools) {
             const auto tool = entry.toObject();
-            const auto versions = versionMetadata(tool.value(QStringLiteral("_meta")).toObject());
-            const auto introduced =
-                versions && versions->contains(QStringLiteral("introduced_version"))
-                    ? versions->value(QStringLiteral("introduced_version"))
-                : versions ? versions->value(QStringLiteral("introducedVersion"))
-                           : QJsonValue{};
-            const auto minimum =
-                versions && versions->contains(QStringLiteral("minimum_compatible_version"))
-                    ? versions->value(QStringLiteral("minimum_compatible_version"))
-                : versions ? versions->value(QStringLiteral("minimumCompatibleVersion"))
-                           : QJsonValue{};
+            const auto metadata = toolMetadata(tool.value(QStringLiteral("_meta")).toObject());
             ok &= expect(
                 AutomationWire::checkJsonSchema(tool.value(QStringLiteral("inputSchema")))
                         .valid() &&
                     AutomationWire::checkJsonSchema(tool.value(QStringLiteral("outputSchema")))
                         .valid(),
                 "every bridge tool must publish valid input and output schemas");
-            ok &= expect(versions && versions->value(QStringLiteral("version")).toInteger() == 1 &&
-                             introduced.toInteger() == 1 && minimum.toInteger() == 1,
-                         "every connector tool must publish version, introduced, and minimum as "
-                         "one in namespaced _meta");
+            ok &= expect(
+                metadata &&
+                    metadata->value(QStringLiteral("minimum_toolset_version")).toInteger() == 1,
+                "every connector tool must publish its minimum toolset version in "
+                "namespaced _meta");
             const auto annotations = tool.value(QStringLiteral("annotations")).toObject();
             ok &= expect(!annotations.contains(QStringLiteral("toolsetVersion")) &&
-                             !annotations.contains(QStringLiteral("minimumCompatibleVersion")),
+                             !annotations.contains(QStringLiteral("minimumToolsetVersion")),
                          "DS tool metadata must not occupy standard MCP safety annotations");
         }
         const auto statusTool =
@@ -1466,11 +1442,11 @@ namespace {
                                     .value(QStringLiteral("result"))
                                     .toObject();
             const auto tools = result.value(QStringLiteral("tools")).toArray();
-            ok &= expect(tools.size() == 185 &&
+            ok &= expect(tools.size() == 183 &&
                              toolNames(tools) ==
                                  PublicAutomationToolsetExpectations::completeToolIdSet() &&
                              !result.contains(QStringLiteral("nextCursor")),
-                         "the exact 185-tool L3 surface must fit one downstream tools/list page");
+                         "the exact 183-tool L3 surface must fit one downstream tools/list page");
         } else {
             ok &= expect(false, "the frozen L3 downstream list must respond");
         }
@@ -1510,12 +1486,12 @@ namespace {
                                     .value(QStringLiteral("result"))
                                     .toObject();
             const auto tools = result.value(QStringLiteral("tools")).toArray();
-            ok &= expect(tools.size() == 185 &&
+            ok &= expect(tools.size() == 183 &&
                              toolNames(tools) ==
                                  PublicAutomationToolsetExpectations::completeToolIdSet() &&
                              !result.contains(QStringLiteral("nextCursor")) &&
                              !result.contains(QStringLiteral("resultType")),
-                         "the first legacy L3 tools/list must expose all 185 tools without a "
+                         "the first legacy L3 tools/list must expose all 183 tools without a "
                          "cursor");
         } else {
             ok &= expect(false, "the first legacy L3 tools/list must respond");
@@ -1658,8 +1634,7 @@ namespace {
                        .toObject()
                        .value(QStringLiteral("connected"))
                        .toBool() &&
-                   (compatibility == QStringLiteral("compatible") ||
-                    compatibility == QStringLiteral("compatible_subset")) &&
+                   compatibility == QStringLiteral("compatible") &&
                    status.value(QStringLiteral("exposure"))
                            .toObject()
                            .value(QStringLiteral("generic_target_count"))
@@ -1953,10 +1928,10 @@ namespace {
                                                .toObject()
                                                .value(QStringLiteral("compatibility"))
                                                .toString();
-        if (manifestCompatibility != QStringLiteral("compatible_subset"))
+        if (manifestCompatibility != QStringLiteral("compatible"))
             QTextStream(stderr) << "Observed compatibility: " << manifestCompatibility << Qt::endl;
-        ok &= expect(manifestCompatibility == QStringLiteral("compatible_subset"),
-                     "connector status must report the manifest compatibility subset");
+        ok &= expect(manifestCompatibility == QStringLiteral("compatible"),
+                     "connector status must report version-compatible contracts");
 
         DsConnector::DownstreamMcpServer server(&runtime);
         QQueue<QByteArray> responses;
@@ -2042,7 +2017,7 @@ namespace {
                 const auto descriptor = entry.toObject();
                 containsFiltered |= descriptor.value(QStringLiteral("name")).toString() ==
                                     QStringLiteral("documents.get");
-                descriptorsVersioned &= hasVersionedToolMetadata(descriptor);
+                descriptorsVersioned &= hasToolMetadata(descriptor);
             }
             ok &=
                 expect(tools.size() == 2 && !containsFiltered && descriptorsVersioned,
@@ -2069,7 +2044,7 @@ namespace {
                                    .toObject()
                                    .value(QStringLiteral("tools"))
                                    .toArray();
-            ok &= expect(tools.size() == 1 && hasVersionedToolMetadata(tools.first().toObject()),
+            ok &= expect(tools.size() == 1 && hasToolMetadata(tools.first().toObject()),
                          "generic search must retain manifest-backed version metadata");
         } else {
             ok &= expect(false, "versioned generic search must return a result");
@@ -2094,12 +2069,10 @@ namespace {
                                         .value(QStringLiteral("structuredContent"))
                                         .toObject();
             ok &= expect(
-                structured.value(QStringLiteral("version")).toInteger() >= 1 &&
-                    structured.value(QStringLiteral("introduced_version")).toInteger() >= 1 &&
-                    structured.value(QStringLiteral("minimum_compatible_version")).toInteger() >=
-                        1 &&
-                    hasVersionedToolMetadata(structured.value(QStringLiteral("tool")).toObject()),
-                "generic describe must expose per-tool version metadata at one or newer");
+                structured.value(QStringLiteral("toolset_version")).toInteger() >= 1 &&
+                    structured.value(QStringLiteral("minimum_toolset_version")).toInteger() >= 1 &&
+                    hasToolMetadata(structured.value(QStringLiteral("tool")).toObject()),
+                "generic describe must expose toolset compatibility metadata at one or newer");
         } else {
             ok &= expect(false, "versioned generic describe must return a result");
         }
@@ -2464,7 +2437,7 @@ namespace {
         }
         http.applicationAvailability.clear();
         http.exposeNotes = true;
-        http.incompatibleApplicationSchema = true;
+        http.applicationSchemaVariant = true;
         bootstrap.publish(ready);
         ok &= expect(waitUntil(
                          [&] {
@@ -2478,13 +2451,15 @@ namespace {
                                             .value(QStringLiteral("manifest"))
                                             .toObject()
                                             .value(QStringLiteral("compatibility"))
-                                            .toString() != QStringLiteral("refreshing");
+                                            .toString() == QStringLiteral("compatible");
                          },
                          10000),
-                     "a new ready watch snapshot must refresh same-endpoint editor tools");
+                     "schema drift must not change version-based contract compatibility");
         ok &= expect(runtime.downstreamTools().size() == fixedToolCount,
                      "same-endpoint refresh must not mutate the fixed typed downstream set");
 
+        const auto typedCallsBefore =
+            http.calledTools.count(QStringLiteral("application.get_info"));
         server.processLine(
             QJsonDocument(AutomationWire::Mcp::makeRequest(
                               QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
@@ -2492,20 +2467,22 @@ namespace {
                                   {QStringLiteral("name"),      QStringLiteral("application.get_info")},
                                   {QStringLiteral("arguments"), QJsonObject{}                         }
         },
-                              context, QStringLiteral("incompatible-typed")))
+                              context, QStringLiteral("schema-variant-typed")))
                 .toJson(QJsonDocument::Compact));
-        const auto incompatibleTyped =
-            takeResponseById(responses, QStringLiteral("incompatible-typed"));
-        ok &= expect(incompatibleTyped.has_value(),
-                     "incompatible typed wrapper must fail without an upstream call");
-        if (incompatibleTyped) {
-            const auto structured = incompatibleTyped->value(QStringLiteral("result"))
-                                        .toObject()
-                                        .value(QStringLiteral("structuredContent"))
-                                        .toObject();
-            ok &= expect(structured.value(QStringLiteral("code")).toString() ==
-                             QStringLiteral("contract_incompatible"),
-                         "typed schema mismatch must report contract_incompatible");
+        const auto schemaVariantTyped =
+            takeResponseById(responses, QStringLiteral("schema-variant-typed"));
+        ok &= expect(schemaVariantTyped.has_value(),
+                     "a version-compatible typed wrapper must reach the editor");
+        if (schemaVariantTyped) {
+            const auto result = schemaVariantTyped->value(QStringLiteral("result")).toObject();
+            const auto structured = result.value(QStringLiteral("structuredContent")).toObject();
+            ok &= expect(!result.value(QStringLiteral("isError")).toBool() &&
+                             structured.value(QStringLiteral("name")) ==
+                                 QStringLiteral("DS Editor Lite") &&
+                             http.calledTools.count(QStringLiteral("application.get_info")) >
+                                 typedCallsBefore,
+                         "schema differences must be treated as implementation bugs, not a "
+                         "compatibility gate");
         }
 
         server.processLine(
@@ -2523,7 +2500,7 @@ namespace {
                     context, QStringLiteral("incompatible-generic")))
                 .toJson(QJsonDocument::Compact));
         ok &= expect(waitUntil([&] { return !responses.isEmpty(); }),
-                     "generic invoke must remain available after typed schema mismatch");
+                     "generic invoke must remain available across schema drift");
         if (!responses.isEmpty()) {
             const auto result = QJsonDocument::fromJson(responses.dequeue())
                                     .object()
@@ -2651,23 +2628,24 @@ namespace {
                                           .toObject()
                                           .value(QStringLiteral("io.openvpi.ds-editor-lite/tool"))
                                           .toObject();
-            ok &= expect(!result.value(QStringLiteral("isError")).toBool() && tools.size() == 2 &&
-                             !minimalDescriptor.isEmpty() &&
-                             !minimalDescriptor.contains(QStringLiteral("title")) &&
-                             !minimalDescriptor.contains(QStringLiteral("description")) &&
-                             !minimalDescriptor.contains(QStringLiteral("outputSchema")) &&
-                             !minimalDescriptor.contains(QStringLiteral("annotations")) &&
-                             minimalDescriptor.value(QStringLiteral("icons")).isArray() &&
-                             minimalDescriptor.value(QStringLiteral("_meta")).isObject() &&
-                             flexibleMeta.value(QStringLiteral("version")).toInteger() == 1 &&
-                             flexibleMeta.value(QStringLiteral("category")) ==
-                                 QStringLiteral("fake") &&
-                             flexibleDescriptor.value(QStringLiteral("_meta"))
-                                 .toObject()
-                                 .value(QStringLiteral("com.openvpi.ds-editor-lite/fixture"))
-                                 .toBool(),
-                         "generic list must preserve standard optional metadata without inventing "
-                         "omitted fields and must retain namespaced tools/list metadata");
+            ok &= expect(
+                !result.value(QStringLiteral("isError")).toBool() && tools.size() == 2 &&
+                    !minimalDescriptor.isEmpty() &&
+                    !minimalDescriptor.contains(QStringLiteral("title")) &&
+                    !minimalDescriptor.contains(QStringLiteral("description")) &&
+                    !minimalDescriptor.contains(QStringLiteral("outputSchema")) &&
+                    !minimalDescriptor.contains(QStringLiteral("annotations")) &&
+                    minimalDescriptor.value(QStringLiteral("icons")).isArray() &&
+                    minimalDescriptor.value(QStringLiteral("_meta")).isObject() &&
+                    flexibleMeta.value(QStringLiteral("minimum_toolset_version")).toInteger() ==
+                        1 &&
+                    flexibleMeta.value(QStringLiteral("category")) == QStringLiteral("fake") &&
+                    flexibleDescriptor.value(QStringLiteral("_meta"))
+                        .toObject()
+                        .value(QStringLiteral("com.openvpi.ds-editor-lite/fixture"))
+                        .toBool(),
+                "generic list must preserve standard optional metadata without inventing "
+                "omitted fields and must retain namespaced tools/list metadata");
         } else {
             ok &= expect(false, "forward-compatible generic list must return a result");
         }
@@ -2716,16 +2694,14 @@ namespace {
             ok &= expect(
                 !result.value(QStringLiteral("isError")).toBool() &&
                     !structured.contains(QStringLiteral("output_schema")) &&
-                    structured.value(QStringLiteral("version")).toInteger() == 1 &&
-                    structured.value(QStringLiteral("introduced_version")).toInteger() == 1 &&
-                    structured.value(QStringLiteral("minimum_compatible_version")).toInteger() ==
-                        1 &&
+                    structured.value(QStringLiteral("toolset_version")).toInteger() == 1 &&
+                    structured.value(QStringLiteral("minimum_toolset_version")).toInteger() == 1 &&
                     structured.value(QStringLiteral("tool"))
                         .toObject()
                         .value(QStringLiteral("icons"))
                         .isArray(),
-                "generic describe must support omitted outputSchema and default every "
-                "version field to one");
+                "generic describe must support omitted outputSchema and default the minimum "
+                "toolset version to one");
         } else {
             ok &= expect(false, "forward-compatible generic describe must return a result");
         }
@@ -2785,8 +2761,7 @@ namespace {
         if (!ok)
             return false;
         http.manifestToolsetVersion = 2;
-        http.applicationVersion = 2;
-        http.applicationMinimumCompatibleVersion = 1;
+        http.applicationMinimumToolsetVersion = 1;
         http.exposeNotes = true;
 
         const auto serviceName = QStringLiteral("DsConnectorLite-Compatibility-%1")
@@ -2826,13 +2801,12 @@ namespace {
                 .value(QStringLiteral("compatibility"))
                 .toString();
         };
-        ok &=
-            expect(waitUntil([&] { return compatibility() == QStringLiteral("compatible_subset"); },
-                             10000),
-                   "a newer backward-compatible editor contract must be a compatible subset");
+        ok &= expect(
+            waitUntil([&] { return compatibility() == QStringLiteral("compatible"); }, 10000),
+            "a newer editor toolset must remain compatible when every tool allows it");
 
         auto refreshCount = http.toolsListCount;
-        http.applicationMinimumCompatibleVersion = 2;
+        http.applicationMinimumToolsetVersion = 2;
         bootstrap.publish(ready);
         ok &=
             expect(waitUntil(
@@ -2840,7 +2814,7 @@ namespace {
                            const auto manifest =
                                runtime.status().value(QStringLiteral("manifest")).toObject();
                            return http.toolsListCount > refreshCount &&
-                                  compatibility() == QStringLiteral("compatible_subset") &&
+                                  compatibility() == QStringLiteral("contract_incompatible") &&
                                   manifest.value(QStringLiteral("compatible_count")).toInt() == 1 &&
                                   manifest.value(QStringLiteral("incompatible_count")).toInt() == 1;
                        },
@@ -2868,17 +2842,17 @@ namespace {
                     outcome.result.value(QStringLiteral("structuredContent")).toObject();
             });
         ok &= expect(
-            applicationDescription.value(QStringLiteral("version")).toInteger() == 2 &&
-                applicationDescription.value(QStringLiteral("minimum_compatible_version"))
+            applicationDescription.value(QStringLiteral("toolset_version")).toInteger() == 2 &&
+                applicationDescription.value(QStringLiteral("minimum_toolset_version"))
                         .toInteger() == 2 &&
                 applicationDescription.value(QStringLiteral("typed_compatibility")) ==
                     QStringLiteral("contract_incompatible") &&
-                notesDescription.value(QStringLiteral("version")).toInteger() >= 1 &&
-                notesDescription.value(QStringLiteral("minimum_compatible_version")).toInteger() ==
+                notesDescription.value(QStringLiteral("toolset_version")).toInteger() == 2 &&
+                notesDescription.value(QStringLiteral("minimum_toolset_version")).toInteger() ==
                     1 &&
                 notesDescription.value(QStringLiteral("typed_compatibility")) ==
                     QStringLiteral("compatible"),
-            "version and minimum compatibility must be evaluated independently for each tool");
+            "global and minimum toolset versions must be evaluated for each tool");
         QString incompatibleCode;
         runtime.callTool(QStringLiteral("application.get_info"), {},
                          [&incompatibleCode](const DsConnector::ToolCallOutcome &outcome) {
@@ -2892,8 +2866,7 @@ namespace {
                      "newer incompatible typed tools must fail before forwarding");
 
         refreshCount = http.toolsListCount;
-        http.applicationVersion = 1;
-        http.applicationMinimumCompatibleVersion = 1;
+        http.applicationMinimumToolsetVersion = 1;
         http.manifestToolsetVersion = 1;
         bootstrap.publish(ready);
         ok &= expect(waitUntil(
@@ -3078,7 +3051,7 @@ namespace {
                                     status.value(QStringLiteral("manifest"))
                                             .toObject()
                                             .value(QStringLiteral("compatibility"))
-                                            .toString() == QStringLiteral("compatible_subset");
+                                            .toString() == QStringLiteral("compatible");
                          },
                          10000),
                      "the fake command must become available after handshake");
@@ -3459,7 +3432,7 @@ namespace {
                            .toObject()
                            .value(QStringLiteral("tools"))
                            .toArray()
-                           .size() == 140;
+                           .size() == 138;
         };
         QProcess largeOutput;
         largeOutput.setProgram(executable);
@@ -3474,7 +3447,7 @@ namespace {
                          largeOutput.exitCode() == 0 && largeResponse.size() > 64 * 1024 &&
                          validCompleteToolList(largeResponse) &&
                          largeOutput.readAllStandardError().isEmpty(),
-                     "the complete 140-tool response must drain as one valid large JSON frame");
+                     "the complete 138-tool response must drain as one valid large JSON frame");
 
         const auto slowSinkPath =
             QDir::temp().filePath(QStringLiteral("DsConnectorLite-slow-stdout-%1.json")
