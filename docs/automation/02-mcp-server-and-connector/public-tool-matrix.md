@@ -235,7 +235,7 @@
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
-| `playback.get` | L2 | Q/S | 播放状态、位置、循环与当前可播放性 |
+| `playback.get_state` | L2 | Q/S | 播放状态、位置、循环与当前可播放性 |
 | `playback.play` | L2 | C/S | 播放状态转换与能力检查 |
 | `playback.pause` | L2 | C/S | 暂停状态转换 |
 | `playback.stop` | L2 | C/S | 停止与恢复位置语义 |
@@ -286,14 +286,14 @@
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
-| `workspace.get` | L3 | Q/S | 返回主编辑面板可见性、布局与当前键盘焦点所属面板 |
+| `workspace.get_state` | L3 | Q/S | 返回主编辑面板可见性、布局与当前键盘焦点所属面板 |
 | `workspace.set_panel_visibility` | L3 | C/S | 稀疏更新轨道面板与片段编辑器可见性；至少保留一个主编辑面板 |
 
 ### 3.20 轨道面板（7）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
-| `track_panel.get` | L3 | Q/S | 返回视口、自动翻页、当前轨道、有序片段选择与 primary item |
+| `track_panel.get_state` | L3 | Q/S | 返回视口、自动翻页、当前轨道、有序片段选择与 primary item |
 | `track_panel.set_viewport` | L3 | C/S | 稀疏更新中心 tick、中心轨道索引与横纵缩放 |
 | `track_panel.reveal_clips` | L3 | C/S | 完整显示目标轨道或片段集合，不修改工程 |
 | `track_panel.set_auto_page_turn` | L3 | C/S | 设置轨道面板自动翻页 |
@@ -307,7 +307,7 @@
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
-| `clip_editor.get` | L3 | Q/S | 返回活动片段、当前子区域、共享时间视口、自动翻页、钢琴与参数状态 |
+| `clip_editor.get_state` | L3 | Q/S | 返回活动片段、当前子区域、共享时间视口、自动翻页、钢琴与参数状态 |
 | `clip_editor.set_active_clip` | L3 | C/S | 设置活动歌声片段，或关闭当前活动片段 |
 | `clip_editor.set_time_viewport` | L3 | C/S | 稀疏更新钢琴与参数共享的中心 tick 和横向缩放 |
 | `clip_editor.set_auto_page_turn` | L3 | C/S | 设置片段编辑器自动翻页 |

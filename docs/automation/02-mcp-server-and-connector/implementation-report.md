@@ -270,6 +270,9 @@ Command outcome 和 host 过滤语义。Connector 只验证自己六个桥接工
 类型化工具和泛化 invoke 的业务 Schema 由 Editor MCP 验证，避免在转接层重复执行同一套 Schema
 引擎。Editor 与 Connector 的分页 cursor 均以 base64url 承载上下文、快照和 offset，不使用
 HMAC；正常握手只重建一次工具与兼容缓存，`connector.get_status` 只读取现有缓存和当前观察状态。
+Bootstrap 的首包计时从 watch 请求成功写入后开始；连接失败会停止该计时并稳定报告
+`editor_not_running`，只有已建立引导连接但 2 秒内没有首个状态快照时才报告
+`bootstrap_timeout`。
 
 Downstream stdio 支持两套主协议及 2025-06-18 兼容握手，具有有界 reader/writer 队列、并发请求 ID 映射、取消、超时、EOF、broken pipe 和 backpressure 处理。Windows 非阻塞管道按 4 KiB 分块写出大响应，停滞计时只在连续无进度时触发；stdout 只输出 MCP 帧，诊断写入 stderr。
 

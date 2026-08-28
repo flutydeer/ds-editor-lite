@@ -256,7 +256,8 @@ downstream descriptor 在该 Connector 生命周期内保持稳定。
 
 `connector.get_status` 返回 Connector identity、Bootstrap、Editor、上游协议、工具集版本兼容、
 exposure 与 pending selector 事实。稳定错误区分 Editor 状态、上游连接、工具过滤、工具可用性、
-契约版本、timeout、取消和结果未知。
+契约版本、timeout、取消和结果未知。`editor_not_running` 表示引导端点不存在或拒绝连接；
+`bootstrap_timeout` 只用于已连接且成功写入 watch 请求后，2 秒内未收到首个状态快照的情形。
 
 每个 Connector 拥有独立 QLocal watch、HTTP client、握手 epoch、工具目录缓存和 downstream
 请求表。Connector 并发转发下游请求，不为 Editor 的 32 路上限增加串行队列。任一 Connector

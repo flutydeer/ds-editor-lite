@@ -247,6 +247,8 @@ Connector 桥接工具：6
 - 握手成功后协议版本固定，`tools/list` 分页完整读取，随后只调用一次 `application.get_status` 取得全局工具集版本、Profile 与 host 摘要。
 - 重复 ready 合并、尾随刷新、有界指数退避、手动 reconnect 和目标变化覆盖。
 - instance/endpoint 改变后旧 request、工具目录、状态摘要、cursor 和兼容缓存失效。
+- Editor 未运行时持续报告 `editor_not_running`，不得被首包计时器延迟覆盖为
+  `bootstrap_timeout`；后者只覆盖 watch 请求已写入而首个状态快照超时。
 
 ### 10.3 六个桥接工具与兼容
 

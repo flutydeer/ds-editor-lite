@@ -22,7 +22,7 @@ L3 downstream 为 177 个 Editor wrapper 加 6 个桥接工具，共 183 项。�
 | 平台与工具链 | Visual Studio 2026 v18.9.0；Qt 6.11.2 |
 | Debug 配置与构建 | 标准 preset `ConfigureAndBuild` 通过；随后 `all` target 通过 |
 | 最终 CTest 清单 | 62 项 |
-| 一次完整 CTest | 62/62 通过，36.15 s |
+| 一次完整 CTest | 62/62 通过，40.20 s |
 | Connector 真实联调 | 2025-11-25 下游握手和 2026-07-28 上游连接通过；L0 重启后自动重连且 toolset compatible |
 | GUI/Computer Use | 真实编辑、合成、播放、另存，以及 dirty 拒绝、丢弃重启和 clean 退出全程无决策弹窗 |
 | 测试素材完整性 | 素材源 19/19 项 SHA-256 不变；真实用户应用配置 SHA-256 不变 |
@@ -116,6 +116,11 @@ revision。L3 的选择、定位、面板和视口命令不修改工程，也不
 | `editor.tools.search` | 摘要搜索与确定性契约测试通过 |
 | `editor.tools.describe` | 完整 descriptor 与 Schema 契约测试通过 |
 | `editor.tools.invoke` | 真实调用 `clips.get` 通过；生命周期目标的 exposure 与转发由确定性测试覆盖 |
+
+Bootstrap 错误分类回归通过：不存在 Editor 引导端点时，Connector 在超过旧首包计时窗口后仍
+稳定报告 `editor_not_running`；`bootstrap_timeout` 只覆盖 watch 请求成功写入后 2 秒内未收到
+首个状态快照。公共契约、Registry 和进程联调均使用 `playback.get_state`、
+`workspace.get_state`、`track_panel.get_state` 与 `clip_editor.get_state`。
 
 同机 A/B 使用 125 个工具、每页 17 项的 8 页握手夹具，对比本轮修改前提交与最终候选；预热后
 各执行 5 轮并取中位数。list/search/describe/status 各在一次就绪连接内连续调用 20 次：
