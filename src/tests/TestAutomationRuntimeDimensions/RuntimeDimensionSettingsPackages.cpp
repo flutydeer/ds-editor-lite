@@ -185,13 +185,7 @@ namespace RuntimeDimensions {
                     return harness.core().settings().updateInference(context, value);
                 },
                 [](auto &value) {
-#if defined(Q_OS_WIN)
                     value.executionProvider = QStringLiteral("DirectML");
-#else
-                    // DirectML is Windows-only and the facade rejects it
-                    // elsewhere; use the always-supported provider.
-                    value.executionProvider = QStringLiteral("CPU");
-#endif
                     value.selectedGpuIndex = 0;
                     value.selectedGpuId = QStringLiteral("GPU-测试");
                     value.samplingSteps = 1000;

@@ -1,8 +1,6 @@
 #include "SettingsAutomationFacade.h"
 #include "OperationIds.h"
 
-#include "Model/AppOptions/Options/InferenceOption.h"
-
 #include <QDir>
 
 #include <cmath>
@@ -97,18 +95,6 @@ namespace Automation {
                 return AutomationError::invalidArgument(
                     QStringLiteral("execution_provider"),
                     QStringLiteral("Inference execution provider is unsupported"));
-            }
-            // A recognized provider can still be unusable on this platform/build
-            // (e.g. DirectML on Linux); reject it instead of persisting a value
-            // the engine cannot start with.
-            if ((settings.executionProvider == QStringLiteral("DirectML") &&
-                 !InferenceOption::directMlExecutionProviderAvailable()) ||
-                (settings.executionProvider == QStringLiteral("CUDA") &&
-                 !InferenceOption::cudaExecutionProviderAvailable())) {
-                return AutomationError::invalidArgument(
-                    QStringLiteral("execution_provider"),
-                    QStringLiteral("Inference execution provider is unavailable on this "
-                                   "platform/build"));
             }
             if (settings.selectedGpuIndex < -1 || settings.samplingSteps < 1 ||
                 settings.samplingSteps > 1000 || !std::isfinite(settings.depth) ||
