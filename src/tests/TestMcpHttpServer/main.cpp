@@ -187,9 +187,8 @@ int main(int argc, char *argv[]) {
     QCoreApplication application(argc, argv);
 
     const Automation::McpHttpLimits defaultHttpLimits;
-    expect(defaultHttpLimits.maximumClientInFlight == 32 &&
-               defaultHttpLimits.clientTokenCapacity >= 64.0,
-           QStringLiteral("default HTTP admission must reserve tokens for a 32-request burst"));
+    expect(defaultHttpLimits.maximumGlobalInFlight == 32,
+           QStringLiteral("default HTTP admission must allow 32 in-flight requests"));
 
     QMutex observationMutex;
     QString observedClientId;
@@ -204,10 +203,6 @@ int main(int argc, char *argv[]) {
     limits.maximumRequestBytes = 1024;
     limits.maximumResponseBytes = 4096;
     limits.maximumJsonNodes = 128;
-    limits.globalTokenCapacity = 1000;
-    limits.globalTokensPerSecond = 1000;
-    limits.peerTokenCapacity = 1000;
-    limits.peerTokensPerSecond = 1000;
     Automation::McpHttpServer server(
         [&](const Mcp::RequestEnvelope &request, const QString &clientId) {
             {
@@ -755,90 +750,6 @@ int main(int argc, char *argv[]) {
            QStringLiteral("the no-limits constructor must apply server-side default deadlines"));
     defaultLimitsServer.stop();
 
-    Automation::McpHttpLimits globalRateLimits;
-    globalRateLimits.globalTokenCapacity = 2;
-    globalRateLimits.globalTokensPerSecond = 0;
-    globalRateLimits.peerTokenCapacity = 100;
-    globalRateLimits.peerTokensPerSecond = 100;
-    Automation::McpHttpServer globalRateServer(basicHandler, globalRateLimits);
-    QString globalRateError;
-    expect(globalRateServer.start(0, globalRateError),
-           QStringLiteral("global-rate test server must start: %1").arg(globalRateError));
-    const QUrl globalRateEndpoint(globalRateServer.endpoint());
-    const auto globalRateFirst =
-        send(manager, baseRequest(globalRateEndpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
-             QJsonDocument(discover).toJson(QJsonDocument::Compact));
-    const auto globalRateSecond =
-        send(manager, baseRequest(globalRateEndpoint, QString::fromLatin1(Mcp::ToolsListMethod)),
-             QJsonDocument(list).toJson(QJsonDocument::Compact));
-    const auto globalRateThird =
-        send(manager, baseRequest(globalRateEndpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
-             QJsonDocument(discover).toJson(QJsonDocument::Compact));
-    expect(globalRateFirst.status == 200 && globalRateSecond.status == 200 &&
-               globalRateThird.status == 429,
-           QStringLiteral("the global token bucket must limit discover and tools/list requests"));
-    globalRateServer.stop();
-
-    Automation::McpHttpLimits peerRateLimits;
-    peerRateLimits.globalTokenCapacity = 100;
-    peerRateLimits.globalTokensPerSecond = 100;
-    peerRateLimits.peerTokenCapacity = 2;
-    peerRateLimits.peerTokensPerSecond = 0;
-    Automation::McpHttpServer peerRateServer(basicHandler, peerRateLimits);
-    QString peerRateError;
-    expect(peerRateServer.start(0, peerRateError),
-           QStringLiteral("peer-rate test server must start: %1").arg(peerRateError));
-    const QUrl peerRateEndpoint(peerRateServer.endpoint());
-    auto changedIdentity = discover;
-    auto changedParams = changedIdentity.value(QStringLiteral("params")).toObject();
-    auto changedMeta = changedParams.value(QStringLiteral("_meta")).toObject();
-    changedMeta.insert(QStringLiteral("com.openvpi.ds-editor-lite/connectorInstanceId"),
-                       QStringLiteral("body-controlled-different-identity"));
-    changedParams.insert(QStringLiteral("_meta"), changedMeta);
-    changedIdentity.insert(QStringLiteral("params"), changedParams);
-    const auto peerRateFirst =
-        send(manager, baseRequest(peerRateEndpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
-             QJsonDocument(discover).toJson(QJsonDocument::Compact));
-    const auto peerRateSecond =
-        send(manager, baseRequest(peerRateEndpoint, QString::fromLatin1(Mcp::ToolsListMethod)),
-             QJsonDocument(list).toJson(QJsonDocument::Compact));
-    const auto peerRateThird =
-        send(manager, baseRequest(peerRateEndpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
-             QJsonDocument(changedIdentity).toJson(QJsonDocument::Compact));
-    expect(peerRateFirst.status == 200 && peerRateSecond.status == 200 &&
-               peerRateThird.status == 429,
-           QStringLiteral("body metadata must not bypass the immutable peer token bucket"));
-    peerRateServer.stop();
-
-    Automation::McpHttpLimits clientRateLimits;
-    clientRateLimits.globalTokenCapacity = 100;
-    clientRateLimits.globalTokensPerSecond = 100;
-    clientRateLimits.peerTokenCapacity = 100;
-    clientRateLimits.peerTokensPerSecond = 100;
-    clientRateLimits.clientTokenCapacity = 2;
-    clientRateLimits.clientTokensPerSecond = 0;
-    Automation::McpHttpServer clientRateServer(basicHandler, clientRateLimits);
-    QString clientRateError;
-    expect(clientRateServer.start(0, clientRateError),
-           QStringLiteral("client-rate test server must start: %1").arg(clientRateError));
-    const QUrl clientRateEndpoint(clientRateServer.endpoint());
-    const auto clientRateFirst =
-        send(manager, baseRequest(clientRateEndpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
-             QJsonDocument(discover).toJson(QJsonDocument::Compact));
-    const auto clientRateSecond =
-        send(manager, baseRequest(clientRateEndpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
-             QJsonDocument(discover).toJson(QJsonDocument::Compact));
-    const auto clientRateThird =
-        send(manager, baseRequest(clientRateEndpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
-             QJsonDocument(discover).toJson(QJsonDocument::Compact));
-    const auto otherClient =
-        send(manager, baseRequest(clientRateEndpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
-             QJsonDocument(changedIdentity).toJson(QJsonDocument::Compact));
-    expect(clientRateFirst.status == 200 && clientRateSecond.status == 200 &&
-               clientRateThird.status == 429 && otherClient.status == 200,
-           QStringLiteral("one logical MCP client must not consume another client's quota"));
-    clientRateServer.stop();
-
     QThread handlerThread;
     QObject handlerContext;
     handlerContext.moveToThread(&handlerThread);
@@ -849,11 +760,6 @@ int main(int argc, char *argv[]) {
     QSemaphore globalDone;
     Automation::McpHttpLimits globalConcurrencyLimits;
     globalConcurrencyLimits.maximumGlobalInFlight = 1;
-    globalConcurrencyLimits.maximumPeerInFlight = 2;
-    globalConcurrencyLimits.globalTokenCapacity = 100;
-    globalConcurrencyLimits.globalTokensPerSecond = 100;
-    globalConcurrencyLimits.peerTokenCapacity = 100;
-    globalConcurrencyLimits.peerTokensPerSecond = 100;
     globalConcurrencyLimits.requestDeadlineMs = 1000;
     Automation::McpHttpServer globalConcurrencyServer(
         &handlerContext,
@@ -893,54 +799,6 @@ int main(int argc, char *argv[]) {
         expect(acquireWhileProcessing(globalDone, 2000),
                QStringLiteral("the timed-out handler must finish after its gate is released"));
     }
-
-    QSemaphore peerEntered;
-    QSemaphore peerRelease;
-    QSemaphore peerDone;
-    Automation::McpHttpLimits peerConcurrencyLimits;
-    peerConcurrencyLimits.maximumGlobalInFlight = 2;
-    peerConcurrencyLimits.maximumPeerInFlight = 1;
-    peerConcurrencyLimits.globalTokenCapacity = 100;
-    peerConcurrencyLimits.globalTokensPerSecond = 100;
-    peerConcurrencyLimits.peerTokenCapacity = 100;
-    peerConcurrencyLimits.peerTokensPerSecond = 100;
-    peerConcurrencyLimits.requestDeadlineMs = 2000;
-    Automation::McpHttpServer peerConcurrencyServer(
-        &handlerContext,
-        [&](const Mcp::RequestEnvelope &request, const QString &) {
-            peerEntered.release();
-            peerRelease.acquire();
-            peerDone.release();
-            return Mcp::makeResultResponse(request.id, Mcp::makeDiscoverResult(serverInfo),
-                                           serverInfo);
-        },
-        peerConcurrencyLimits);
-    QString peerConcurrencyError;
-    expect(peerConcurrencyServer.start(0, peerConcurrencyError),
-           QStringLiteral("peer-concurrency test server must start: %1").arg(peerConcurrencyError));
-    const QUrl peerConcurrencyEndpoint(peerConcurrencyServer.endpoint());
-    auto *peerPending = startRequest(
-        manager, baseRequest(peerConcurrencyEndpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
-        QJsonDocument(discover).toJson(QJsonDocument::Compact));
-    const auto peerHandlerEntered = acquireWhileProcessing(peerEntered, 2000);
-    expect(peerHandlerEntered,
-           QStringLiteral("the first peer-concurrency request must reach the handler"));
-    const auto peerBusy = send(
-        manager, baseRequest(peerConcurrencyEndpoint, QString::fromLatin1(Mcp::ToolsListMethod)),
-        QJsonDocument(list).toJson(QJsonDocument::Compact), HttpMethod::Post, 2000);
-    expect(!peerBusy.timedOut && peerBusy.status == 429,
-           QStringLiteral("the immutable remote peer key must enforce its concurrency gate"));
-    peerRelease.release();
-    const auto peerFirst = finishRequest(peerPending, 2000);
-    expect(!peerFirst.timedOut && peerFirst.status == 200,
-           QStringLiteral("a gated request must complete after the handler is released"));
-    if (peerHandlerEntered) {
-        expect(acquireWhileProcessing(peerDone, 2000),
-               QStringLiteral("the peer-concurrency handler must leave its gate"));
-    }
-    peerConcurrencyServer.requestStop();
-    expect(waitForStop(peerConcurrencyServer),
-           QStringLiteral("peer-concurrency server shutdown must have a hard completion bound"));
 
     QMetaObject::invokeMethod(
         &handlerContext,

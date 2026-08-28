@@ -345,31 +345,6 @@ namespace Automation {
             return {tracks, clips};
         }
 
-        QString admissionDomain(const AutomationWire::ToolContract &contract,
-                                const QJsonObject &arguments,
-                                const DocumentVersion &currentDocument) {
-            const auto scope =
-                contract.toManifestJson().value(QStringLiteral("concurrency_scope")).toString();
-            if (scope == QStringLiteral("application"))
-                return QStringLiteral("application");
-            if (scope == QStringLiteral("playback"))
-                return QStringLiteral("playback");
-
-            auto document = arguments.value(QStringLiteral("document_id")).toString();
-            if (document.isEmpty() && !currentDocument.documentId.isNull())
-                document = currentDocument.documentId.toString();
-            if (scope == QStringLiteral("task")) {
-                const auto task = arguments.value(QStringLiteral("task_id")).toString();
-                return task.isEmpty() ? QStringLiteral("tasks:") + document
-                                      : QStringLiteral("task:") + task;
-            }
-            if (scope == QStringLiteral("export"))
-                return QStringLiteral("export:") + document;
-            if (scope == QStringLiteral("document"))
-                return QStringLiteral("document:") + document;
-            return QStringLiteral("scope:") + scope;
-        }
-
         QString unescapePointerToken(QString token) {
             token.replace(QStringLiteral("~1"), QStringLiteral("/"));
             token.replace(QStringLiteral("~0"), QStringLiteral("~"));
@@ -413,48 +388,6 @@ namespace Automation {
                 current = std::move(next);
             }
             return current;
-        }
-
-        void collectConcretePointerValues(const QJsonValue &value, const QStringList &segments,
-                                          const qsizetype offset, const QString &path,
-                                          QList<QPair<QString, QJsonValue>> &result) {
-            if (offset == segments.size()) {
-                result.append({path.isEmpty() ? QStringLiteral("/") : path, value});
-                return;
-            }
-            const auto &segment = segments.at(offset);
-            if (value.isObject()) {
-                const auto object = value.toObject();
-                if (object.contains(segment)) {
-                    collectConcretePointerValues(object.value(segment), segments, offset + 1,
-                                                 path + u'/' + segment, result);
-                }
-                return;
-            }
-            if (!value.isArray())
-                return;
-            const auto array = value.toArray();
-            if (segment == QStringLiteral("*")) {
-                for (qsizetype index = 0; index < array.size(); ++index) {
-                    collectConcretePointerValues(array.at(index), segments, offset + 1,
-                                                 path + u'/' + QString::number(index), result);
-                }
-                return;
-            }
-            bool ok = false;
-            const auto index = segment.toLongLong(&ok);
-            if (ok && index >= 0 && index < array.size()) {
-                collectConcretePointerValues(array.at(index), segments, offset + 1,
-                                             path + u'/' + segment, result);
-            }
-        }
-
-        QList<QPair<QString, QJsonValue>> concretePointerValues(const QJsonValue &root,
-                                                                const QString &pointer) {
-            QList<QPair<QString, QJsonValue>> result;
-            const auto segments = pointerSegments(pointer);
-            collectConcretePointerValues(root, segments, 0, {}, result);
-            return result;
         }
 
         QJsonObject schemaAtPointer(QJsonObject schema, const QString &pointer) {
@@ -514,30 +447,6 @@ namespace Automation {
             if (!metadata.isEmpty())
                 result.insert(QStringLiteral("metadata"), std::move(metadata));
             return result;
-        }
-
-        bool optionMatches(const QJsonValue &actual, const QJsonObject &option) {
-            const auto expected = option.value(QStringLiteral("value"));
-            if (actual.isObject() || expected.isObject()) {
-                if (!actual.isObject() || !expected.isObject())
-                    return false;
-                const auto actualRef = actual.toObject();
-                const auto expectedRef = expected.toObject();
-                bool comparedIdentity = false;
-                for (const auto &key :
-                     {QStringLiteral("package_id"), QStringLiteral("package_version"),
-                      QStringLiteral("singer_id"), QStringLiteral("speaker_id")}) {
-                    if (!actualRef.contains(key))
-                        continue;
-                    comparedIdentity = true;
-                    if (!expectedRef.contains(key) ||
-                        actualRef.value(key) != expectedRef.value(key)) {
-                        return false;
-                    }
-                }
-                return comparedIdentity;
-            }
-            return actual == expected;
         }
 
         QJsonObject encodeDocumentVersion(const DocumentVersion &version) {
@@ -2051,12 +1960,12 @@ namespace Automation {
                 };
             };
             auto result = arguments;
-            const auto access =
-                contract.toManifestJson().value(QStringLiteral("file_access")).toString();
-            if (access == QStringLiteral("none"))
+            const auto access = contract.fileAccess;
+            if (access == AutomationWire::FileAccess::None)
                 return result;
-            const auto purpose = access == QStringLiteral("write") ? FileAccessPurpose::Write
-                                                                   : FileAccessPurpose::Read;
+            const auto purpose = access == AutomationWire::FileAccess::Write
+                                     ? FileAccessPurpose::Write
+                                     : FileAccessPurpose::Read;
             if (arguments.contains(QStringLiteral("path"))) {
                 auto authorized =
                     guard.authorize(arguments.value(QStringLiteral("path")).toString(), purpose);
@@ -2784,76 +2693,6 @@ namespace Automation {
                      QStringLiteral("field_path"));
     }
 
-    AutomationResult<AutomationUnit> PublicAutomationRegistry::validateDynamicArguments(
-        const AutomationWire::ToolContract &target, const QJsonObject &arguments) {
-        for (const auto &value : target.valueSources) {
-            const auto source = value.toObject();
-            const auto fieldPath = source.value(QStringLiteral("field_path")).toString();
-            const auto actualValues = concretePointerValues(arguments, fieldPath);
-            if (actualValues.isEmpty())
-                continue;
-            for (const auto &[concretePath, actual] : actualValues) {
-                auto options = resolveValueOptions(target, concretePath, arguments);
-                if (!options)
-                    return options.getError();
-                if (options.get().isEmpty()) {
-                    return AutomationError::invalidArgument(
-                        concretePath, QStringLiteral("No values are available for this field"));
-                }
-                QList<QJsonValue> leaves{actual};
-                if (actual.isArray()) {
-                    leaves.clear();
-                    for (const auto &item : actual.toArray())
-                        leaves.append(item);
-                }
-                for (const auto &leaf : std::as_const(leaves)) {
-                    const auto rangeMetadata = options.get().size() == 1
-                                                   ? options.get()
-                                                         .first()
-                                                         .toObject()
-                                                         .value(QStringLiteral("metadata"))
-                                                         .toObject()
-                                                   : QJsonObject{};
-                    if (rangeMetadata.contains(QStringLiteral("minimum"))) {
-                        const auto number = leaf.toDouble();
-                        const auto minimum =
-                            rangeMetadata.value(QStringLiteral("minimum")).toDouble();
-                        const auto maximum =
-                            rangeMetadata.value(QStringLiteral("maximum")).toDouble();
-                        const auto hasStep = rangeMetadata.contains(QStringLiteral("step"));
-                        const auto step = rangeMetadata.value(QStringLiteral("step")).toDouble();
-                        const auto stepsFromMinimum =
-                            hasStep && step > 0.0 ? (number - minimum) / step : 0.0;
-                        const auto aligned =
-                            !hasStep ||
-                            (step > 0.0 &&
-                             std::abs(stepsFromMinimum - std::round(stepsFromMinimum)) <= 1e-9);
-                        if (!leaf.isDouble() || !std::isfinite(number) || number < minimum ||
-                            number > maximum || !aligned) {
-                            return AutomationError::invalidArgument(
-                                concretePath,
-                                QStringLiteral("Value is outside the capability-declared range"));
-                        }
-                        continue;
-                    }
-                    const auto match = std::find_if(
-                        options.get().constBegin(), options.get().constEnd(),
-                        [&](const auto &candidate) {
-                            const auto option = candidate.toObject();
-                            return option.value(QStringLiteral("available")).toBool() &&
-                                   optionMatches(leaf, option);
-                        });
-                    if (match == options.get().constEnd()) {
-                        return AutomationError::invalidArgument(
-                            concretePath,
-                            QStringLiteral("Value is not available from the declared provider"));
-                    }
-                }
-            }
-        }
-        return AutomationUnit{};
-    }
-
     void PublicAutomationRegistry::addBinding(const QLatin1StringView toolName, Handler handler) {
         const QString operationId(toolName);
         const auto *contract = AutomationWire::findPublicTool(operationId);
@@ -2912,12 +2751,6 @@ namespace Automation {
             effectiveArguments.insert(QStringLiteral("overwrite_policy"),
                                       QStringLiteral("overwrite"));
         }
-        auto dynamicValidation = validateDynamicArguments(*contract, effectiveArguments);
-        if (!dynamicValidation) {
-            auto result = dynamicValidation.getError();
-            result.operationId = operationId;
-            return result;
-        }
         auto authorized = validateFileArguments(m_fileGuard, *contract, effectiveArguments);
         if (!authorized) {
             auto result = authorized.getError();
@@ -2955,10 +2788,8 @@ namespace Automation {
                 return result;
             }
         }
-        const auto domain =
-            admissionDomain(*contract, effectiveArguments, m_runtime.documentVersion());
-        auto lease = m_admissionController.tryAcquire(
-            context.clientId, domain, contract->syncMode == AutomationWire::SyncMode::Asynchronous);
+        auto lease = m_admissionController.tryAcquire(contract->syncMode ==
+                                                      AutomationWire::SyncMode::Asynchronous);
         if (!lease) {
             auto result = lease.getError();
             result.operationId = operationId;
@@ -2969,17 +2800,6 @@ namespace Automation {
             auto decorated = result.getError();
             decorated.operationId = operationId;
             return decorated;
-        }
-        const auto outputValidation =
-            AutomationWire::validateJsonValue(result.get(), contract->outputSchema);
-        if (!outputValidation.valid()) {
-            const auto &issue = outputValidation.issues.constFirst();
-            auto failure = error(AutomationErrorCode::InternalError,
-                                 QStringLiteral("Public operation produced an invalid result: %1")
-                                     .arg(issue.message),
-                                 issue.instancePath);
-            failure.operationId = operationId;
-            return failure;
         }
         if (contract->syncMode == AutomationWire::SyncMode::Asynchronous) {
             const auto taskId =
@@ -3169,7 +2989,7 @@ namespace Automation {
                        });
                    });
         addBinding(ToolNames::notes_list, [this](const QJsonObject &arguments,
-                                                const PublicInvocationContext &) {
+                                                 const PublicInvocationContext &) {
             auto result = m_runtime.notes().getNotes(
                 documentId(arguments), ClipId(arguments.value(QStringLiteral("clip_id")).toInt()));
             if (!result)
@@ -5028,9 +4848,17 @@ namespace Automation {
             for (qsizetype index = 0; index < project.get().tracks.size(); ++index) {
                 const auto &track = project.get().tracks.at(index);
                 if (track.id == trackId) {
-                    return AutomationResult<QJsonObject>(
-                        queryResult(project.get().document, QStringLiteral("snapshot"),
-                                    encodeTrackSnapshot(track, index)));
+                    auto snapshot = encodeTrackSnapshot(track, index);
+                    const auto language = !track.data.defaultLanguage.isEmpty()
+                                              ? track.data.defaultLanguage
+                                              : track.data.singerInfo.defaultLanguage();
+                    snapshot.insert(QStringLiteral("voice_context"),
+                                    encodeVoiceContext(track.data.singerInfo,
+                                                       track.data.speakerInfo,
+                                                       track.data.singerInfo,
+                                                       track.data.speakerInfo, false, language));
+                    return AutomationResult<QJsonObject>(queryResult(
+                        project.get().document, QStringLiteral("snapshot"), std::move(snapshot)));
                 }
             }
             return AutomationResult<QJsonObject>(AutomationError::notFound(
@@ -5065,28 +4893,6 @@ namespace Automation {
                            TrackId(arguments.value(QStringLiteral("track_id")).toInt()),
                            arguments.value(QStringLiteral("solo")).toBool()));
                    });
-
-        addBinding(ToolNames::tracks_get_voice_context, [this](const QJsonObject &arguments,
-                                                               const PublicInvocationContext &) {
-            auto project = m_runtime.project().getProject(documentId(arguments));
-            if (!project)
-                return AutomationResult<QJsonObject>(project.getError());
-            const auto trackId = TrackId(arguments.value(QStringLiteral("track_id")).toInt());
-            for (const auto &track : project.get().tracks) {
-                if (track.id != trackId)
-                    continue;
-                const auto language = !track.data.defaultLanguage.isEmpty()
-                                          ? track.data.defaultLanguage
-                                          : track.data.singerInfo.defaultLanguage();
-                return AutomationResult<QJsonObject>(
-                    queryResult(project.get().document, QStringLiteral("snapshot"),
-                                encodeVoiceContext(track.data.singerInfo, track.data.speakerInfo,
-                                                   track.data.singerInfo, track.data.speakerInfo,
-                                                   false, language)));
-            }
-            return AutomationResult<QJsonObject>(AutomationError::notFound(
-                {ObjectKind::Track, trackId.value()}, QStringLiteral("Track was not found")));
-        });
 
         addBinding(ToolNames::tracks_clear_voice,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
@@ -5172,9 +4978,34 @@ namespace Automation {
             for (const auto &track : project.get().tracks) {
                 for (const auto &clip : track.clips) {
                     if (clip.id == clipId) {
+                        auto snapshot = encodeClipSnapshot(clip);
+                        if (clip.data.type == ClipDraftDto::Type::Singing) {
+                            const auto effectiveSinger = clip.data.usesTrackVoiceContext
+                                                             ? track.data.singerInfo
+                                                             : clip.data.ownSingerInfo;
+                            const auto effectiveSpeaker = clip.data.usesTrackVoiceContext
+                                                              ? track.data.speakerInfo
+                                                              : clip.data.ownSpeakerInfo;
+                            auto language = clip.data.defaultLanguage;
+                            if (language.isEmpty()) {
+                                language = clip.data.usesTrackVoiceContext
+                                               ? (!track.data.defaultLanguage.isEmpty()
+                                                      ? track.data.defaultLanguage
+                                                      : effectiveSinger.defaultLanguage())
+                                               : effectiveSinger.defaultLanguage();
+                            }
+                            snapshot.insert(QStringLiteral("voice_context"),
+                                            encodeVoiceContext(
+                                                clip.data.ownSingerInfo, clip.data.ownSpeakerInfo,
+                                                effectiveSinger, effectiveSpeaker,
+                                                clip.data.usesTrackVoiceContext, language));
+                        } else {
+                            snapshot.insert(QStringLiteral("voice_context"),
+                                            QJsonValue(QJsonValue::Null));
+                        }
                         return AutomationResult<QJsonObject>(queryResult(project.get().document,
                                                                          QStringLiteral("snapshot"),
-                                                                         encodeClipSnapshot(clip)));
+                                                                         std::move(snapshot)));
                     }
                 }
             }
@@ -5237,46 +5068,6 @@ namespace Automation {
                            ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                            arguments.value(QStringLiteral("mute")).toBool()));
                    });
-
-        addBinding(ToolNames::clips_get_voice_context, [this](const QJsonObject &arguments,
-                                                              const PublicInvocationContext &) {
-            auto project = m_runtime.project().getProject(documentId(arguments));
-            if (!project)
-                return AutomationResult<QJsonObject>(project.getError());
-            const auto clipId = ClipId(arguments.value(QStringLiteral("clip_id")).toInt());
-            for (const auto &track : project.get().tracks) {
-                for (const auto &clip : track.clips) {
-                    if (clip.id != clipId)
-                        continue;
-                    if (clip.data.type != ClipDraftDto::Type::Singing) {
-                        return AutomationResult<QJsonObject>(AutomationError::wrongObjectType(
-                            {ObjectKind::Clip, clipId.value()},
-                            QStringLiteral("Voice context is available only for singing clips")));
-                    }
-                    const auto effectiveSinger = clip.data.usesTrackVoiceContext
-                                                     ? track.data.singerInfo
-                                                     : clip.data.ownSingerInfo;
-                    const auto effectiveSpeaker = clip.data.usesTrackVoiceContext
-                                                      ? track.data.speakerInfo
-                                                      : clip.data.ownSpeakerInfo;
-                    auto language = clip.data.defaultLanguage;
-                    if (language.isEmpty()) {
-                        language = clip.data.usesTrackVoiceContext
-                                       ? (!track.data.defaultLanguage.isEmpty()
-                                              ? track.data.defaultLanguage
-                                              : effectiveSinger.defaultLanguage())
-                                       : effectiveSinger.defaultLanguage();
-                    }
-                    return AutomationResult<QJsonObject>(queryResult(
-                        project.get().document, QStringLiteral("snapshot"),
-                        encodeVoiceContext(clip.data.ownSingerInfo, clip.data.ownSpeakerInfo,
-                                           effectiveSinger, effectiveSpeaker,
-                                           clip.data.usesTrackVoiceContext, language)));
-                }
-            }
-            return AutomationResult<QJsonObject>(AutomationError::notFound(
-                {ObjectKind::Clip, clipId.value()}, QStringLiteral("Clip was not found")));
-        });
 
         addBinding(ToolNames::clips_clear_voice,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
@@ -5518,6 +5309,28 @@ namespace Automation {
                     ? decodeLanguageSelection(options.value(QStringLiteral("language")),
                                               defaultLanguage)
                     : QString();
+            if (languageSelection.value(QStringLiteral("mode")) == QStringLiteral("explicit")) {
+                bool supported = false;
+                for (const auto &track : project.get().tracks) {
+                    for (const auto &clip : track.clips) {
+                        if (clip.id != clipId)
+                            continue;
+                        const auto &singer = clip.data.usesTrackVoiceContext
+                                                 ? track.data.singerInfo
+                                                 : clip.data.ownSingerInfo;
+                        const auto languages = singer.languages();
+                        supported = std::any_of(languages.cbegin(), languages.cend(),
+                                                [&languageOverride](const auto &language) {
+                                                    return language.id() == languageOverride;
+                                                });
+                    }
+                }
+                if (!supported) {
+                    return AutomationResult<QJsonObject>(AutomationError::invalidArgument(
+                        QStringLiteral("/options/language/language_id"),
+                        QStringLiteral("The requested lyric language is unavailable")));
+                }
+            }
             QStringList priority{languageOverride.isEmpty() ? defaultLanguage : languageOverride};
             std::vector<std::string> priorityLanguages;
             for (const auto &language : std::as_const(priority)) {

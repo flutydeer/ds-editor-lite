@@ -3,29 +3,21 @@
 
 #include "../AutomationTypes.h"
 
-#include <QHash>
 #include <QMutex>
 
-#include <functional>
 #include <memory>
 
 namespace Automation {
 
     struct AdmissionLimits {
         int maximumGlobalInFlight = 32;
-        int maximumClientInFlight = 32;
         int maximumBackgroundTasks = 8;
-        int maximumPerDomain = 1;
-        double tokenCapacity = 64.0;
-        double tokensPerSecond = 10.0;
     };
 
     struct AdmissionSnapshot {
         bool accepting = true;
         int globalInFlight = 0;
         int backgroundTasks = 0;
-        QHash<QString, int> clientInFlight;
-        QHash<QString, int> domainInFlight;
     };
 
     class AdmissionController;
@@ -48,13 +40,9 @@ namespace Automation {
 
     class AdmissionController final {
     public:
-        using MonotonicClock = std::function<qint64()>;
+        explicit AdmissionController(AdmissionLimits limits = {});
 
-        explicit AdmissionController(AdmissionLimits limits = {}, MonotonicClock clock = {});
-
-        [[nodiscard]] AutomationResult<AdmissionLease> tryAcquire(QString clientId,
-                                                                  QString concurrencyDomain = {},
-                                                                  bool backgroundTask = false);
+        [[nodiscard]] AutomationResult<AdmissionLease> tryAcquire(bool backgroundTask = false);
 
         void setAccepting(bool accepting);
         [[nodiscard]] AdmissionSnapshot snapshot() const;

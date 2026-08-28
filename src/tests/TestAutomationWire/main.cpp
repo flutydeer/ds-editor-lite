@@ -8,7 +8,6 @@
 #include <lite/AutomationWire/PublicConstants.h>
 #include <lite/AutomationWire/PublicEnums.h>
 #include <lite/AutomationWire/PublicToolContract.h>
-#include <lite/AutomationWire/SchemaCompatibility.h>
 
 #include <QCoreApplication>
 #include <QJsonArray>
@@ -269,94 +268,12 @@ namespace {
         return ok;
     }
 
-    bool testSchemaCompatibility() {
-        bool ok = true;
-        const auto narrow = JsonSchema::document(JsonSchema::object(
-            {
-                {QStringLiteral("name"),
-                 JsonSchema::string({QStringLiteral("alpha"), QStringLiteral("beta")})}
-        },
-            {QStringLiteral("name")}));
-        const auto broad = JsonSchema::document(JsonSchema::object(
-            {
-                {QStringLiteral("name"), JsonSchema::string()}
-        },
-            {QStringLiteral("name")}));
-        ok &= expect(proveSchemaSubset(narrow, broad).compatible(),
-                     QStringLiteral("a narrower schema must prove as a subset"));
-        ok &= expect(!proveSchemaSubset(broad, narrow).compatible(),
-                     QStringLiteral("an unconstrained value must not satisfy a target enum"));
-
-        const auto extraProperty = JsonSchema::document(JsonSchema::object(
-            {
-                {QStringLiteral("name"),  JsonSchema::string() },
-                {QStringLiteral("extra"), JsonSchema::boolean()},
-        },
-            {QStringLiteral("name")}));
-        ok &= expect(!proveSchemaSubset(extraProperty, broad).compatible(),
-                     QStringLiteral("a source property rejected by target must be incompatible"));
-
-        const auto ambiguousOneOf = JsonSchema::document(JsonSchema::oneOf(QJsonArray{
-            JsonSchema::string({}, 1),
-            JsonSchema::string({}, {}, 10),
-        }));
-        ok &= expect(!proveSchemaSubset(broad, ambiguousOneOf).compatible(),
-                     QStringLiteral("unprovable oneOf coverage must fail closed"));
-
-        const auto toolCompatibility = checkToolSchemaCompatibility(narrow, broad, narrow, broad);
-        ok &= expect(toolCompatibility.compatible(),
-                     QStringLiteral("tool compatibility must apply input and output directions"));
-
-        QJsonObject sourceLower{
-            {QStringLiteral("type"),    QStringLiteral("number")},
-            {QStringLiteral("minimum"), 5                       }
-        };
-        QJsonObject targetLower{
-            {QStringLiteral("type"),             QStringLiteral("number")},
-            {QStringLiteral("minimum"),          10                      },
-            {QStringLiteral("exclusiveMinimum"), 0                       }
-        };
-        ok &= expect(!proveSchemaSubset(sourceLower, targetLower).compatible(),
-                     QStringLiteral("minimum must dominate a weaker exclusiveMinimum"));
-        sourceLower.insert(QStringLiteral("minimum"), 10);
-        sourceLower.insert(QStringLiteral("exclusiveMinimum"), 0);
-        targetLower = {
-            {QStringLiteral("type"),    QStringLiteral("number")},
-            {QStringLiteral("minimum"), 5                       }
-        };
-        ok &= expect(
-            proveSchemaSubset(sourceLower, targetLower).compatible(),
-            QStringLiteral("source lower-bound normalization must retain its strictest bound"));
-
-        QJsonObject sourceUpper{
-            {QStringLiteral("type"),    QStringLiteral("number")},
-            {QStringLiteral("maximum"), 15                      }
-        };
-        QJsonObject targetUpper{
-            {QStringLiteral("type"),             QStringLiteral("number")},
-            {QStringLiteral("maximum"),          10                      },
-            {QStringLiteral("exclusiveMaximum"), 20                      }
-        };
-        ok &= expect(!proveSchemaSubset(sourceUpper, targetUpper).compatible(),
-                     QStringLiteral("maximum must dominate a weaker exclusiveMaximum"));
-        sourceUpper.insert(QStringLiteral("maximum"), 10);
-        sourceUpper.insert(QStringLiteral("exclusiveMaximum"), 20);
-        targetUpper = {
-            {QStringLiteral("type"),    QStringLiteral("number")},
-            {QStringLiteral("maximum"), 15                      }
-        };
-        ok &= expect(
-            proveSchemaSubset(sourceUpper, targetUpper).compatible(),
-            QStringLiteral("source upper-bound normalization must retain its strictest bound"));
-        return ok;
-    }
-
     bool testPublicContract() {
         bool ok = true;
         const auto &tools = publicToolContracts();
         const auto expectedIds = PublicAutomationToolsetExpectations::editorToolIds();
-        ok &= expect(tools.size() == 179,
-                     QStringLiteral("public declaration must contain 179 editor tools"));
+        ok &= expect(tools.size() == 177,
+                     QStringLiteral("public declaration must contain 177 editor tools"));
         ok &=
             expect(publicToolIds() == expectedIds,
                    QStringLiteral("public declaration must exactly match the frozen tool matrix"));
@@ -365,37 +282,20 @@ namespace {
         qsizetype dynamicSourceCount = 0;
         qsizetype openSchemaCount = 0;
         const QStringList descriptorFields{
-            QStringLiteral("operation_id"),
-            QStringLiteral("version"),
-            QStringLiteral("minimum_compatible_version"),
-            QStringLiteral("category"),
-            QStringLiteral("kind"),
-            QStringLiteral("input_schema"),
-            QStringLiteral("output_schema"),
-            QStringLiteral("value_sources"),
-            QStringLiteral("minimum_profile"),
-            QStringLiteral("sync_mode"),
-            QStringLiteral("document_policy"),
-            QStringLiteral("revision_policy"),
-            QStringLiteral("history_policy"),
-            QStringLiteral("file_access"),
-            QStringLiteral("host_availability"),
-            QStringLiteral("concurrency_scope"),
-            QStringLiteral("conflict_policy"),
-            QStringLiteral("safety_metadata"),
-            QStringLiteral("introduced_version"),
-            QStringLiteral("schema_digest"),
+            QStringLiteral("operation_id"),      QStringLiteral("title"),
+            QStringLiteral("description"),       QStringLiteral("minimum_toolset_version"),
+            QStringLiteral("category"),          QStringLiteral("kind"),
+            QStringLiteral("input_schema"),      QStringLiteral("output_schema"),
+            QStringLiteral("value_sources"),     QStringLiteral("minimum_profile"),
+            QStringLiteral("sync_mode"),         QStringLiteral("file_access"),
+            QStringLiteral("host_availability"), QStringLiteral("annotations"),
         };
         const QStringList legacyDescriptorFields{
-            QStringLiteral("operationId"),      QStringLiteral("minimumCompatibleVersion"),
+            QStringLiteral("operationId"),      QStringLiteral("minimumToolsetVersion"),
             QStringLiteral("inputSchema"),      QStringLiteral("outputSchema"),
             QStringLiteral("valueSources"),     QStringLiteral("minimumProfile"),
-            QStringLiteral("syncMode"),         QStringLiteral("documentPolicy"),
-            QStringLiteral("revisionPolicy"),   QStringLiteral("historyPolicy"),
-            QStringLiteral("fileAccess"),       QStringLiteral("hostAvailability"),
-            QStringLiteral("concurrencyScope"), QStringLiteral("conflictPolicy"),
-            QStringLiteral("safetyMetadata"),   QStringLiteral("introducedVersion"),
-            QStringLiteral("schemaDigest"),
+            QStringLiteral("syncMode"),         QStringLiteral("fileAccess"),
+            QStringLiteral("hostAvailability"),
         };
         for (const auto &tool : tools) {
             ids.insert(tool.operationId);
@@ -441,18 +341,19 @@ namespace {
                              QStringLiteral("public descriptor field is required: %1.%2")
                                  .arg(tool.operationId, field));
             }
+            ok &=
+                expect(descriptor.size() == descriptorFields.size(),
+                       QStringLiteral("public descriptor must contain only its contract fields: %1")
+                           .arg(tool.operationId));
             for (const auto &field : legacyDescriptorFields) {
                 ok &= expect(!descriptor.contains(field),
                              QStringLiteral("Manifest descriptor must not expose camelCase: %1.%2")
                                  .arg(tool.operationId, field));
             }
             ok &= expect(
-                tool.version == 1 && tool.introducedVersion == 1 &&
-                    tool.minimumCompatibleVersion == 1 &&
-                    descriptor.value(QStringLiteral("version")).toInteger() == 1 &&
-                    descriptor.value(QStringLiteral("introduced_version")).toInteger() == 1 &&
-                    descriptor.value(QStringLiteral("minimum_compatible_version")).toInteger() == 1,
-                QStringLiteral("all three per-tool version fields must start at one"));
+                tool.minimumToolsetVersion == 1 &&
+                    descriptor.value(QStringLiteral("minimum_toolset_version")).toInteger() == 1,
+                QStringLiteral("minimum toolset versions must start at one"));
             const auto mcpMetadata = tool.toMcpToolJson()
                                          .value(QStringLiteral("_meta"))
                                          .toObject()
@@ -504,10 +405,10 @@ namespace {
                 !findPublicTool(QStringLiteral("inference.start"))->valueSources.isEmpty(),
             QStringLiteral("controlled dynamic fields must publish discoverable value sources"));
         ok &= expect(toolsForProfile(AutomationProfile::Meta).size() == 4 &&
-                         toolsForProfile(AutomationProfile::L1).size() == 91 &&
-                         toolsForProfile(AutomationProfile::L2).size() == 134 &&
-                         toolsForProfile(AutomationProfile::L3).size() == 179,
-                     QStringLiteral("public preset counts must be 4/91/134/179"));
+                         toolsForProfile(AutomationProfile::L1).size() == 89 &&
+                         toolsForProfile(AutomationProfile::L2).size() == 132 &&
+                         toolsForProfile(AutomationProfile::L3).size() == 177,
+                     QStringLiteral("public preset counts must be 4/89/132/177"));
         ok &= expect(
             toolsForProfile(AutomationProfile::Custom, {QStringLiteral("notes.insert")}).size() ==
                 5,
@@ -516,7 +417,7 @@ namespace {
         const auto manifest = buildPublicManifest(AutomationProfile::L1);
         const auto page =
             buildPublicManifest(AutomationProfile::L1, {}, QStringLiteral("gui"), 0, 7);
-        ok &= expect(manifest.toolsetVersion == 1 && manifest.operations.size() == 91 &&
+        ok &= expect(manifest.toolsetVersion == 1 && manifest.operations.size() == 89 &&
                          !manifest.digest.isEmpty() && page.operations.size() == 7 &&
                          page.digest == manifest.digest && !page.nextCursor.isEmpty(),
                      QStringLiteral("public Manifest must be versioned, digested and pageable"));
@@ -561,7 +462,6 @@ namespace {
         for (const auto &field : setLoop->inputSchema.value(QStringLiteral("required")).toArray())
             setLoopRequired.insert(field.toString());
         const auto setLoopProperties = propertiesFor(QStringLiteral("playback.set_loop"));
-        const auto setLoopDescriptor = setLoop->toManifestJson();
         QJsonObject integerLoop{
             {QStringLiteral("document_id"),       QStringLiteral("00000000-0000-4000-8000-000000000001")},
             {QStringLiteral("expected_revision"), 0                                                     },
@@ -584,10 +484,6 @@ namespace {
                        setLoop->outputSchema.value(QStringLiteral("properties"))
                            .toObject()
                            .contains(QStringLiteral("playback")) &&
-                       setLoopDescriptor.value(QStringLiteral("document_policy")) ==
-                           QStringLiteral("write") &&
-                       setLoopDescriptor.value(QStringLiteral("history_policy")) ==
-                           QStringLiteral("single_entry") &&
                        !propertiesFor(QStringLiteral("playback.seek"))
                             .contains(QStringLiteral("expected_revision")),
                    QStringLiteral(
@@ -753,25 +649,9 @@ namespace {
 
         const auto exportDescriptor =
             findPublicTool(QStringLiteral("exports.audio.start"))->toManifestJson();
-        const auto taskDescriptor =
-            findPublicTool(QStringLiteral("tasks.cancel"))->toManifestJson();
-        const auto metaDescriptor =
-            findPublicTool(QStringLiteral("application.get_info"))->toManifestJson();
-        ok &= expect(
-            exportDescriptor.value(QStringLiteral("document_policy")) == QStringLiteral("read") &&
-                exportDescriptor.value(QStringLiteral("revision_policy")) ==
-                    QStringLiteral("check_and_revalidate") &&
-                exportDescriptor.value(QStringLiteral("history_policy")) ==
-                    QStringLiteral("none") &&
-                exportDescriptor.value(QStringLiteral("file_access")) == QStringLiteral("write") &&
-                taskDescriptor.value(QStringLiteral("document_policy")) == QStringLiteral("read") &&
-                taskDescriptor.value(QStringLiteral("revision_policy")) == QStringLiteral("none") &&
-                taskDescriptor.value(QStringLiteral("concurrency_scope")) ==
-                    QStringLiteral("task") &&
-                metaDescriptor.value(QStringLiteral("document_policy")) == QStringLiteral("none") &&
-                metaDescriptor.value(QStringLiteral("concurrency_scope")) ==
-                    QStringLiteral("application"),
-            QStringLiteral("Meta, export, and task descriptor policy exceptions must be explicit"));
+        ok &=
+            expect(exportDescriptor.value(QStringLiteral("file_access")) == QStringLiteral("write"),
+                   QStringLiteral("audio export must declare file write access"));
 
         const auto midiExportProperties = propertiesFor(QStringLiteral("exports.midi.start"));
         const auto audioExportProperties = propertiesFor(QStringLiteral("exports.audio.start"));
@@ -867,10 +747,10 @@ namespace {
     bool testExposurePolicy() {
         bool ok = true;
         ok &= expect(selectExposure({ExposureProfile::L0}).exposedIds.size() == 0 &&
-                         selectExposure({ExposureProfile::L1}).exposedIds.size() == 91 &&
-                         selectExposure({ExposureProfile::L2}).exposedIds.size() == 134 &&
-                         selectExposure({ExposureProfile::L3}).exposedIds.size() == 179,
-                     QStringLiteral("connector exposure preset counts must be 0/91/134/179"));
+                         selectExposure({ExposureProfile::L1}).exposedIds.size() == 89 &&
+                         selectExposure({ExposureProfile::L2}).exposedIds.size() == 132 &&
+                         selectExposure({ExposureProfile::L3}).exposedIds.size() == 177,
+                     QStringLiteral("connector exposure preset counts must be 0/89/132/177"));
 
         const ExposureConfig filtered{
             .profile = ExposureProfile::L0,
@@ -894,7 +774,7 @@ namespace {
         auto targets = publicExposureTargets();
         targets.append(
             {QStringLiteral("future.gui_tool"), QStringLiteral("future"), AutomationProfile::L3});
-        ok &= expect(selectExposure({ExposureProfile::L2}, targets).exposedIds.size() == 134 &&
+        ok &= expect(selectExposure({ExposureProfile::L2}, targets).exposedIds.size() == 132 &&
                          selectExposure({ExposureProfile::L3}, targets)
                              .exposedIds.contains(QStringLiteral("future.gui_tool")),
                      QStringLiteral("higher exposure presets must include higher-profile targets"));
@@ -1170,7 +1050,6 @@ int main(int argc, char *argv[]) {
     bool ok = true;
     ok &= testCanonicalJson();
     ok &= testJsonSchema();
-    ok &= testSchemaCompatibility();
     ok &= testPublicContract();
     ok &= testExposurePolicy();
     ok &= testMcpProtocol();

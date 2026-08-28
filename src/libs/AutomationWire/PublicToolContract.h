@@ -26,20 +26,26 @@ namespace AutomationWire {
         Asynchronous,
     };
 
+    enum class FileAccess {
+        None,
+        Read,
+        Write,
+    };
+
     QString operationKindName(OperationKind kind);
     QString syncModeName(SyncMode mode);
+    QString fileAccessName(FileAccess access);
 
     struct ToolContract {
         QString operationId;
-        quint64 version = 1;
-        quint64 introducedVersion = 1;
-        quint64 minimumCompatibleVersion = 1;
+        quint64 minimumToolsetVersion = 1;
         QString title;
         QString description;
         QString category;
         AutomationProfile minimumProfile = AutomationProfile::Meta;
         OperationKind kind = OperationKind::Query;
         SyncMode syncMode = SyncMode::Synchronous;
+        FileAccess fileAccess = FileAccess::None;
         QString hostAvailability = QStringLiteral("gui");
         QJsonObject inputSchema;
         QJsonObject outputSchema;

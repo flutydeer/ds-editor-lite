@@ -185,10 +185,6 @@ namespace Automation {
             return QStringLiteral("mcp-%1").arg(QString::fromLatin1(digest.toHex().left(24)));
         }
 
-        QString peerKeyFor(const QHttpServerRequest &request) {
-            return request.remoteAddress().toString();
-        }
-
         Mcp::TransportMetadata transportMetadata(const QHttpServerRequest &request) {
             const auto optionalHeader =
                 [&request](const QByteArray &name) -> std::optional<QString> {
@@ -210,11 +206,6 @@ namespace Automation {
             return StatusCode::BadRequest;
         }
 
-        qint64 monotonicMilliseconds() {
-            return std::chrono::duration_cast<std::chrono::milliseconds>(
-                       std::chrono::steady_clock::now().time_since_epoch())
-                .count();
-        }
     }
 
     class McpHttpTransportState final {
@@ -223,15 +214,10 @@ namespace Automation {
             None,
             Stopping,
             GlobalBusy,
-            PeerBusy,
-            ClientBusy,
-            RateLimited,
         };
 
         struct PendingRequest {
             quint64 id = 0;
-            QString peerKey;
-            QString clientKey;
             QPromise<QHttpServerResponse> promise;
         };
 
@@ -248,11 +234,6 @@ namespace Automation {
             const QMutexLocker locker(&m_mutex);
             m_accepting = true;
             m_globalInFlight = 0;
-            m_peerInFlight.clear();
-            m_clientInFlight.clear();
-            m_globalBucket = {};
-            m_peerBuckets.clear();
-            m_clientBuckets.clear();
             m_pending.clear();
         }
 
@@ -261,33 +242,18 @@ namespace Automation {
             return m_accepting;
         }
 
-        Admission admit(const QString &peerKey) {
-            const auto now = monotonicMilliseconds();
+        Admission admit() {
             const QMutexLocker locker(&m_mutex);
             if (!m_accepting)
                 return {.rejection = Rejection::Stopping};
             if (m_globalInFlight >= m_limits.maximumGlobalInFlight)
                 return {.rejection = Rejection::GlobalBusy};
-            if (m_peerInFlight.value(peerKey) >= m_limits.maximumPeerInFlight)
-                return {.rejection = Rejection::PeerBusy};
-
-            refill(m_globalBucket, m_limits.globalTokenCapacity, m_limits.globalTokensPerSecond,
-                   now);
-            auto &peerBucket = m_peerBuckets[peerKey];
-            refill(peerBucket, m_limits.peerTokenCapacity, m_limits.peerTokensPerSecond, now);
-            if (m_globalBucket.tokens < 1.0 || peerBucket.tokens < 1.0)
-                return {.rejection = Rejection::RateLimited};
-            m_globalBucket.tokens -= 1.0;
-            peerBucket.tokens -= 1.0;
-
             auto pending = std::make_shared<PendingRequest>();
             pending->id = m_nextRequestId++;
-            pending->peerKey = peerKey;
             pending->promise.start();
             auto future = pending->promise.future();
             m_pending.insert(pending->id, pending);
             ++m_globalInFlight;
-            ++m_peerInFlight[peerKey];
             return {
                 .rejection = Rejection::None,
                 .pending = std::move(pending),
@@ -300,27 +266,6 @@ namespace Automation {
             return m_pending.contains(id);
         }
 
-        Rejection attachClient(const quint64 id, const QString &clientKey) {
-            const auto now = monotonicMilliseconds();
-            const QMutexLocker locker(&m_mutex);
-            const auto pending = m_pending.find(id);
-            if (!m_accepting || pending == m_pending.end())
-                return Rejection::Stopping;
-            if (!pending.value()->clientKey.isEmpty())
-                return Rejection::None;
-            if (m_clientInFlight.value(clientKey) >= m_limits.maximumClientInFlight)
-                return Rejection::ClientBusy;
-
-            auto &bucket = m_clientBuckets[clientKey];
-            refill(bucket, m_limits.clientTokenCapacity, m_limits.clientTokensPerSecond, now);
-            if (bucket.tokens < 1.0)
-                return Rejection::RateLimited;
-            bucket.tokens -= 1.0;
-            pending.value()->clientKey = clientKey;
-            ++m_clientInFlight[clientKey];
-            return Rejection::None;
-        }
-
         bool complete(const quint64 id, QHttpServerResponse response) {
             std::shared_ptr<PendingRequest> pending;
             {
@@ -331,19 +276,6 @@ namespace Automation {
                 pending = it.value();
                 m_pending.erase(it);
                 m_globalInFlight = std::max(0, m_globalInFlight - 1);
-                const auto remaining = std::max(0, m_peerInFlight.value(pending->peerKey) - 1);
-                if (remaining == 0)
-                    m_peerInFlight.remove(pending->peerKey);
-                else
-                    m_peerInFlight[pending->peerKey] = remaining;
-                if (!pending->clientKey.isEmpty()) {
-                    const auto clientRemaining =
-                        std::max(0, m_clientInFlight.value(pending->clientKey) - 1);
-                    if (clientRemaining == 0)
-                        m_clientInFlight.remove(pending->clientKey);
-                    else
-                        m_clientInFlight[pending->clientKey] = clientRemaining;
-                }
             }
             pending->promise.addResult(std::move(response));
             pending->promise.finish();
@@ -358,8 +290,6 @@ namespace Automation {
                 pending = m_pending.values();
                 m_pending.clear();
                 m_globalInFlight = 0;
-                m_peerInFlight.clear();
-                m_clientInFlight.clear();
             }
             for (const auto &request : pending) {
                 request->promise.addResult(transportError(QStringLiteral("mcp_stopping"),
@@ -370,34 +300,10 @@ namespace Automation {
         }
 
     private:
-        struct Bucket {
-            double tokens = 0.0;
-            qint64 updatedAt = 0;
-            bool initialized = false;
-        };
-
-        static void refill(Bucket &bucket, const double capacity, const double perSecond,
-                           const qint64 now) {
-            if (!bucket.initialized) {
-                bucket.tokens = capacity;
-                bucket.updatedAt = now;
-                bucket.initialized = true;
-                return;
-            }
-            const auto elapsed = std::max<qint64>(0, now - bucket.updatedAt);
-            bucket.tokens = std::min(capacity, bucket.tokens + elapsed * perSecond / 1000.0);
-            bucket.updatedAt = now;
-        }
-
         McpHttpLimits m_limits;
         mutable QMutex m_mutex;
         bool m_accepting = false;
         int m_globalInFlight = 0;
-        QHash<QString, int> m_peerInFlight;
-        QHash<QString, int> m_clientInFlight;
-        Bucket m_globalBucket;
-        QHash<QString, Bucket> m_peerBuckets;
-        QHash<QString, Bucket> m_clientBuckets;
         QHash<quint64, std::shared_ptr<PendingRequest>> m_pending;
         quint64 m_nextRequestId = 1;
     };
@@ -497,7 +403,7 @@ namespace Automation {
                                                     StatusCode::ServiceUnavailable));
             }
 
-            auto admission = m_transportState->admit(peerKeyFor(request));
+            auto admission = m_transportState->admit();
             if (admission.rejection != McpHttpTransportState::Rejection::None) {
                 switch (admission.rejection) {
                     case McpHttpTransportState::Rejection::Stopping:
@@ -510,13 +416,6 @@ namespace Automation {
                             QStringLiteral("busy"),
                             QStringLiteral("Global MCP concurrency limit was reached"),
                             StatusCode::ServiceUnavailable));
-                    case McpHttpTransportState::Rejection::PeerBusy:
-                    case McpHttpTransportState::Rejection::ClientBusy:
-                    case McpHttpTransportState::Rejection::RateLimited:
-                        return readyResponse(
-                            transportError(QStringLiteral("too_many_requests"),
-                                           QStringLiteral("MCP peer request limit was reached"),
-                                           StatusCode::TooManyRequests));
                     case McpHttpTransportState::Rejection::None:
                         break;
                 }
@@ -661,20 +560,6 @@ namespace Automation {
                                          protocolErrorStatus(error)));
             }
             const auto clientId = clientIdFor(validatedRequest, request);
-            const auto clientAdmission = m_transportState->attachClient(pendingId, clientId);
-            if (clientAdmission != McpHttpTransportState::Rejection::None) {
-                if (clientAdmission == McpHttpTransportState::Rejection::Stopping) {
-                    return fail(transportError(QStringLiteral("mcp_stopping"),
-                                               QStringLiteral("MCP server is stopping"),
-                                               StatusCode::ServiceUnavailable));
-                }
-                return fail(
-                    transportError(QStringLiteral("too_many_requests"),
-                                   clientAdmission == McpHttpTransportState::Rejection::ClientBusy
-                                       ? QStringLiteral("MCP client concurrency limit was reached")
-                                       : QStringLiteral("MCP client request limit was reached"),
-                                   StatusCode::TooManyRequests));
-            }
             if (validatedRequest.notification)
                 return fail(QHttpServerResponse(StatusCode::Accepted));
             if (!Mcp::isSupportedCoreMethod(validatedRequest.method)) {
@@ -771,14 +656,6 @@ namespace Automation {
         m_limits.maximumJsonDepth = std::max(8, m_limits.maximumJsonDepth);
         m_limits.maximumJsonNodes = std::max<qsizetype>(128, m_limits.maximumJsonNodes);
         m_limits.maximumGlobalInFlight = std::max(1, m_limits.maximumGlobalInFlight);
-        m_limits.maximumPeerInFlight = std::max(1, m_limits.maximumPeerInFlight);
-        m_limits.maximumClientInFlight = std::max(1, m_limits.maximumClientInFlight);
-        m_limits.globalTokenCapacity = std::max(1.0, m_limits.globalTokenCapacity);
-        m_limits.globalTokensPerSecond = std::max(0.0, m_limits.globalTokensPerSecond);
-        m_limits.peerTokenCapacity = std::max(1.0, m_limits.peerTokenCapacity);
-        m_limits.peerTokensPerSecond = std::max(0.0, m_limits.peerTokensPerSecond);
-        m_limits.clientTokenCapacity = std::max(1.0, m_limits.clientTokenCapacity);
-        m_limits.clientTokensPerSecond = std::max(0.0, m_limits.clientTokensPerSecond);
         m_limits.requestDeadlineMs = std::max(10, m_limits.requestDeadlineMs);
         m_transportState = std::make_shared<McpHttpTransportState>(m_limits);
     }

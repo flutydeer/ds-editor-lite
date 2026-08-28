@@ -193,10 +193,6 @@ namespace Automation {
         AutomationResult<QJsonArray> resolveValueOptions(const AutomationWire::ToolContract &target,
                                                          const QString &fieldPath,
                                                          const QJsonObject &partialArguments);
-        AutomationResult<AutomationUnit>
-            validateDynamicArguments(const AutomationWire::ToolContract &target,
-                                     const QJsonObject &arguments);
-
         CoreRuntime &m_runtime;
         AutomationAccessPolicy &m_accessPolicy;
         AutomationFileGuard &m_fileGuard;

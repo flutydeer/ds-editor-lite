@@ -114,10 +114,10 @@ namespace {
     void verifyAuthoritativeToolset() {
         const auto &contracts = publicToolContracts();
         const auto expectedIds = editorToolIds();
-        expect(editorTools().size() == 179 && editorToolIdSet().size() == 179,
-               QStringLiteral("test fixture must contain exactly 179 unique editor tools"));
-        expect(contracts.size() == 179,
-               QStringLiteral("public contract surface must contain exactly 179 editor tools"));
+        expect(editorTools().size() == 177 && editorToolIdSet().size() == 177,
+               QStringLiteral("test fixture must contain exactly 177 unique editor tools"));
+        expect(contracts.size() == 177,
+               QStringLiteral("public contract surface must contain exactly 177 editor tools"));
         expect(publicToolIds() == expectedIds,
                QStringLiteral("public contract order and operation set must equal section 10.3"));
 
@@ -138,11 +138,9 @@ namespace {
                    QStringLiteral("minimum profile differs for ") + contract.operationId);
 
             const auto descriptor = contract.toManifestJson();
-            expect(descriptor.value(QStringLiteral("version")).toInteger() == 1 &&
-                       descriptor.value(QStringLiteral("introduced_version")).toInteger() == 1 &&
-                       descriptor.value(QStringLiteral("minimum_compatible_version")).toInteger() ==
-                           1,
-                   QStringLiteral("all three per-tool version fields must equal one for ") +
+            expect(contract.minimumToolsetVersion == 1 &&
+                       descriptor.value(QStringLiteral("minimum_toolset_version")).toInteger() == 1,
+                   QStringLiteral("minimum toolset version must equal one for ") +
                        contract.operationId);
             expect(contract.inputSchema.value(QStringLiteral("type")) == QStringLiteral("object") &&
                        hasStrictObjectRoot(contract.inputSchema),
@@ -160,10 +158,10 @@ namespace {
         expect(PublicToolsetVersion == 1,
                QStringLiteral("the first public toolset version must remain one"));
         expect(toolsForProfile(AutomationProfile::Meta).size() == 4 &&
-                   toolsForProfile(AutomationProfile::L1).size() == 91 &&
-                   toolsForProfile(AutomationProfile::L2).size() == 134 &&
-                   toolsForProfile(AutomationProfile::L3).size() == 179,
-               QStringLiteral("editor profile counts must be 4/91/134/179"));
+                   toolsForProfile(AutomationProfile::L1).size() == 89 &&
+                   toolsForProfile(AutomationProfile::L2).size() == 132 &&
+                   toolsForProfile(AutomationProfile::L3).size() == 177,
+               QStringLiteral("editor profile counts must be 4/89/132/177"));
     }
 
     void verifyShallowCreationAndNoteDefaults() {
@@ -400,11 +398,6 @@ namespace {
             expected.insert(targetField);
         expect(keys(properties) == expected,
                operationId + QStringLiteral(" must expose one independent scalar edit"));
-        const auto descriptor = contract->toManifestJson();
-        expect(descriptor.value(QStringLiteral("history_policy")) ==
-                       QStringLiteral("single_entry") &&
-                   descriptor.value(QStringLiteral("revision_policy")) == QStringLiteral("check"),
-               operationId + QStringLiteral(" must be exactly one History/revision edit"));
     }
 
     void verifyIndependentScalarOperations() {
@@ -445,18 +438,36 @@ namespace {
 
     void verifyVoiceContracts() {
         for (const auto &operation :
-             {QStringLiteral("tracks.get_voice_context"), QStringLiteral("tracks.set_voice"),
-              QStringLiteral("tracks.clear_voice")}) {
+             {QStringLiteral("tracks.set_voice"), QStringLiteral("tracks.clear_voice")}) {
             const auto *contract = findPublicTool(operation);
             expect(contract && contract->category == QStringLiteral("tracks"),
                    operation + QStringLiteral(" must belong to the track domain"));
         }
         for (const auto &operation :
-             {QStringLiteral("clips.get_voice_context"), QStringLiteral("clips.use_track_voice"),
-              QStringLiteral("clips.set_voice"), QStringLiteral("clips.clear_voice")}) {
+             {QStringLiteral("clips.use_track_voice"), QStringLiteral("clips.set_voice"),
+              QStringLiteral("clips.clear_voice")}) {
             const auto *contract = findPublicTool(operation);
             expect(contract && contract->category == QStringLiteral("clips"),
                    operation + QStringLiteral(" must belong to the clip domain"));
+        }
+        expect(findPublicTool(QStringLiteral("tracks.get_voice_context")) == nullptr &&
+                   findPublicTool(QStringLiteral("clips.get_voice_context")) == nullptr,
+               QStringLiteral("voice context must be part of track and clip detail snapshots"));
+        for (const auto &operation : {QStringLiteral("tracks.get"), QStringLiteral("clips.get")}) {
+            const auto *contract = findPublicTool(operation);
+            const auto snapshot = contract
+                                      ? resolveSchema(propertySchema(contract->outputSchema,
+                                                                     QStringLiteral("snapshot")),
+                                                      contract->outputSchema)
+                                      : QJsonObject{};
+            const auto voiceContext =
+                propertySchema(snapshot, QStringLiteral("voice_context"),
+                               contract ? contract->outputSchema : QJsonObject{});
+            expect(contract &&
+                       requiredFields(snapshot, contract->outputSchema)
+                           .contains(QStringLiteral("voice_context")) &&
+                       !voiceContext.isEmpty(),
+                   operation + QStringLiteral(" must return voice_context in its detail snapshot"));
         }
 
         const auto checkVoice = [](const QString &operation) {
@@ -569,24 +580,6 @@ namespace {
             expect(presetContract->minimumProfile == AutomationProfile::L2,
                    presetContract->operationId + QStringLiteral(" must start at L2"));
         }
-        for (const auto *applicationContract : {presetList, presetSave, presetDelete}) {
-            const auto descriptor = applicationContract->toManifestJson();
-            expect(descriptor.value(QStringLiteral("concurrency_scope")) ==
-                           QStringLiteral("application") &&
-                       descriptor.value(QStringLiteral("document_policy")) ==
-                           QStringLiteral("none") &&
-                       descriptor.value(QStringLiteral("history_policy")) == QStringLiteral("none"),
-                   applicationContract->operationId +
-                       QStringLiteral(" must remain application-scoped"));
-        }
-        const auto applyDescriptor = presetApply->toManifestJson();
-        expect(applyDescriptor.value(QStringLiteral("concurrency_scope")) ==
-                       QStringLiteral("document") &&
-                   applyDescriptor.value(QStringLiteral("document_policy")) ==
-                       QStringLiteral("write") &&
-                   applyDescriptor.value(QStringLiteral("history_policy")) ==
-                       QStringLiteral("single_entry"),
-               QStringLiteral("speaker_mix.presets.apply must be one undoable document edit"));
     }
 
     void verifyDocumentAndParameterContracts() {
@@ -736,7 +729,6 @@ namespace {
             const auto inputProperties =
                 contract->inputSchema.value(QStringLiteral("properties")).toObject();
             const auto inputRequired = requiredFields(contract->inputSchema);
-            const auto descriptor = contract->toManifestJson();
             expect(inputProperties.contains(QStringLiteral("document_id")) &&
                        inputProperties.contains(QStringLiteral("expected_revision")) &&
                        inputProperties.contains(QStringLiteral("expected_state_version")) &&
@@ -748,16 +740,6 @@ namespace {
                    operation +
                        QStringLiteral(
                            " must require document revision and optionally check playback state"));
-            expect(descriptor.value(QStringLiteral("document_policy")) == QStringLiteral("write") &&
-                       descriptor.value(QStringLiteral("revision_policy")) ==
-                           QStringLiteral("check") &&
-                       descriptor.value(QStringLiteral("history_policy")) ==
-                           QStringLiteral("single_entry") &&
-                       descriptor.value(QStringLiteral("concurrency_scope")) ==
-                           QStringLiteral("document") &&
-                       descriptor.value(QStringLiteral("conflict_policy")) ==
-                           QStringLiteral("revision_and_state_version"),
-                   operation + QStringLiteral(" must publish its persistent loop-edit policies"));
             expect(keys(contract->outputSchema.value(QStringLiteral("properties")).toObject()) ==
                            mutationOutputFields &&
                        requiredFields(contract->outputSchema) == mutationOutputFields,
@@ -790,40 +772,18 @@ namespace {
         if (seek) {
             const auto properties =
                 seek->inputSchema.value(QStringLiteral("properties")).toObject();
-            const auto descriptor = seek->toManifestJson();
-            expect(
-                !properties.contains(QStringLiteral("expected_revision")) &&
-                    !properties.contains(QStringLiteral("idempotency_key")) &&
-                    properties.contains(QStringLiteral("expected_state_version")) &&
-                    !seek->outputSchema.value(QStringLiteral("properties"))
-                         .toObject()
-                         .contains(QStringLiteral("previous")) &&
-                    descriptor.value(QStringLiteral("document_policy")) == QStringLiteral("read") &&
-                    descriptor.value(QStringLiteral("history_policy")) == QStringLiteral("none") &&
-                    descriptor.value(QStringLiteral("concurrency_scope")) ==
-                        QStringLiteral("playback"),
-                QStringLiteral("seek must remain a non-persistent playback state operation"));
+            expect(!properties.contains(QStringLiteral("expected_revision")) &&
+                       !properties.contains(QStringLiteral("idempotency_key")) &&
+                       properties.contains(QStringLiteral("expected_state_version")) &&
+                       !seek->outputSchema.value(QStringLiteral("properties"))
+                            .toObject()
+                            .contains(QStringLiteral("previous")),
+                   QStringLiteral("seek must remain a non-persistent playback state operation"));
         }
-    }
-
-    void verifyDocumentPolicies() {
-        for (const auto &operation :
-             {QStringLiteral("extract.pitch.start"), QStringLiteral("extract.midi.start"),
-              QStringLiteral("inference.start")}) {
-            const auto *contract = findPublicTool(operation);
-            expect(contract && contract->toManifestJson().value(
-                                   QStringLiteral("document_policy")) == QStringLiteral("write"),
-                   operation + QStringLiteral(" must publish a write document policy"));
-        }
-
-        const auto *preview = findPublicTool(QStringLiteral("exports.midi.preview"));
-        expect(preview && preview->toManifestJson().value(QStringLiteral("document_policy")) ==
-                              QStringLiteral("read"),
-               QStringLiteral("exports.midi.preview must publish a read document policy"));
     }
 
     void verifyAdvancedControlContracts() {
-        const auto l3Tools = toolsForProfile(AutomationProfile::L3).mid(134);
+        const auto l3Tools = toolsForProfile(AutomationProfile::L3).mid(132);
         int queryCount = 0;
         int synchronousCommandCount = 0;
         int asynchronousCommandCount = 0;
@@ -833,9 +793,6 @@ namespace {
                 tool.kind == OperationKind::Command && tool.syncMode == SyncMode::Synchronous;
             asynchronousCommandCount +=
                 tool.kind == OperationKind::Command && tool.syncMode == SyncMode::Asynchronous;
-            const auto descriptor = tool.toManifestJson();
-            expect(descriptor.value(QStringLiteral("history_policy")) == QStringLiteral("none"),
-                   tool.operationId + QStringLiteral(" must not modify document History"));
             if (tool.operationId.startsWith(QStringLiteral("workspace.")) ||
                 tool.operationId.startsWith(QStringLiteral("track_panel.")) ||
                 tool.operationId.startsWith(QStringLiteral("clip_editor."))) {
@@ -847,11 +804,8 @@ namespace {
                        tool.operationId +
                            QStringLiteral(" must be GUI-only and identify an explicit window"));
             } else {
-                expect(tool.hostAvailability == QStringLiteral("both") &&
-                           descriptor.value(QStringLiteral("document_policy")) ==
-                               QStringLiteral("none"),
-                       tool.operationId +
-                           QStringLiteral(" must be an application-scoped non-document operation"));
+                expect(tool.hostAvailability == QStringLiteral("both"),
+                       tool.operationId + QStringLiteral(" must be available in both hosts"));
             }
         }
         expect(l3Tools.size() == 45 && queryCount == 8 && synchronousCommandCount == 36 &&
@@ -860,11 +814,8 @@ namespace {
 
         const auto *parameterTool =
             findPublicTool(QStringLiteral("clip_editor.parameters.set_foreground"));
-        expect(parameterTool &&
-                   requiredFields(parameterTool->inputSchema)
-                       .contains(QStringLiteral("expected_revision")) &&
-                   parameterTool->toManifestJson().value(QStringLiteral("revision_policy")) ==
-                       QStringLiteral("check"),
+        expect(parameterTool && requiredFields(parameterTool->inputSchema)
+                                    .contains(QStringLiteral("expected_revision")),
                QStringLiteral("document-bound parameter GUI actions must check object freshness"));
 
         const auto *revealClips = findPublicTool(QStringLiteral("track_panel.reveal_clips"));
@@ -952,7 +903,6 @@ int main(int argc, char **argv) {
     verifyDocumentAndParameterContracts();
     verifyConditionalCapabilityContracts();
     verifyPlaybackPersistenceContracts();
-    verifyDocumentPolicies();
     verifyAdvancedControlContracts();
 
     if (failures != 0)

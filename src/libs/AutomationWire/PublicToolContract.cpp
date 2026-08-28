@@ -822,11 +822,9 @@ namespace AutomationWire {
                 PublicToolNames::documents_get,
                 PublicToolNames::tracks_list,
                 PublicToolNames::tracks_get,
-                PublicToolNames::tracks_get_voice_context,
                 PublicToolNames::master_get,
                 PublicToolNames::clips_list,
                 PublicToolNames::clips_get,
-                PublicToolNames::clips_get_voice_context,
                 PublicToolNames::audio_clips_get,
                 PublicToolNames::speaker_mix_get,
                 PublicToolNames::notes_list,
@@ -1010,7 +1008,6 @@ namespace AutomationWire {
                  {QStringLiteral("track_id"), QStringLiteral("solo")}                                                   },
                 {PublicToolNames::tracks_set_default_language,
                  {QStringLiteral("track_id"), QStringLiteral("language_id")}                                            },
-                {PublicToolNames::tracks_get_voice_context,            {QStringLiteral("track_id")}                     },
                 {PublicToolNames::tracks_set_voice,
                  {QStringLiteral("track_id"), QStringLiteral("voice")}                                                  },
                 {PublicToolNames::tracks_clear_voice,                  {QStringLiteral("track_id")}                     },
@@ -1036,7 +1033,6 @@ namespace AutomationWire {
                  {QStringLiteral("clip_id"), QStringLiteral("mute")}                                                    },
                 {PublicToolNames::clips_set_default_language,
                  {QStringLiteral("clip_id"), QStringLiteral("language_id")}                                             },
-                {PublicToolNames::clips_get_voice_context,             {QStringLiteral("clip_id")}                      },
                 {PublicToolNames::clips_use_track_voice,               {QStringLiteral("clip_id")}                      },
                 {PublicToolNames::clips_set_voice,
                  {QStringLiteral("clip_id"), QStringLiteral("voice")}                                                   },
@@ -1740,29 +1736,23 @@ namespace AutomationWire {
                 {QStringLiteral("field_path"), QStringLiteral("operation_id"),
                  QStringLiteral("context_fields"), QStringLiteral("minimum_profile"),
                  QStringLiteral("host_availability")});
-            const auto safety = JsonSchema::object(
+            const auto annotations = JsonSchema::object(
                 {
-                    {QStringLiteral("read_only"),   JsonSchema::boolean()},
-                    {QStringLiteral("destructive"), JsonSchema::boolean()},
-                    {QStringLiteral("idempotent"),  JsonSchema::boolean()},
-                    {QStringLiteral("open_world"),  JsonSchema::boolean()},
+                    {QStringLiteral("title"),           nonEmptyStringSchema()},
+                    {QStringLiteral("readOnlyHint"),    JsonSchema::boolean() },
+                    {QStringLiteral("destructiveHint"), JsonSchema::boolean() },
+                    {QStringLiteral("idempotentHint"),  JsonSchema::boolean() },
+                    {QStringLiteral("openWorldHint"),   JsonSchema::boolean() },
             },
-                {QStringLiteral("read_only"), QStringLiteral("destructive"),
-                 QStringLiteral("idempotent"), QStringLiteral("open_world")});
-            const auto schemaDigest = JsonSchema::object(
-                {
-                    {QStringLiteral("input"),  digestSchema()},
-                    {QStringLiteral("output"), digestSchema()},
-            },
-                {QStringLiteral("input"), QStringLiteral("output")});
+                {QStringLiteral("title"), QStringLiteral("readOnlyHint"),
+                 QStringLiteral("destructiveHint"), QStringLiteral("idempotentHint"),
+                 QStringLiteral("openWorldHint")});
             return JsonSchema::object(
                 {
                     {QStringLiteral("operation_id"), nonEmptyStringSchema()},
                     {QStringLiteral("title"), nonEmptyStringSchema()},
                     {QStringLiteral("description"), nonEmptyStringSchema()},
-                    {QStringLiteral("version"),
-                     JsonSchema::integer(1.0, static_cast<double>(MaximumSafeJsonInteger))},
-                    {QStringLiteral("minimum_compatible_version"),
+                    {QStringLiteral("minimum_toolset_version"),
                      JsonSchema::integer(1.0, static_cast<double>(MaximumSafeJsonInteger))},
                     {QStringLiteral("category"), nonEmptyStringSchema()},
                     {QStringLiteral("kind"), stringDomainSchema(PublicValueDomain::OperationKind)},
@@ -1773,31 +1763,17 @@ namespace AutomationWire {
                     {QStringLiteral("value_sources"), JsonSchema::array(valueSource)},
                     {QStringLiteral("minimum_profile"), automationProfileSchema()},
                     {QStringLiteral("sync_mode"), stringDomainSchema(PublicValueDomain::SyncMode)},
-                    {QStringLiteral("document_policy"),
-                     stringDomainSchema(PublicValueDomain::DocumentPolicy)},
-                    {QStringLiteral("revision_policy"),
-                     stringDomainSchema(PublicValueDomain::RevisionPolicy)},
-                    {QStringLiteral("history_policy"),
-                     stringDomainSchema(PublicValueDomain::HistoryPolicy)},
                     {QStringLiteral("file_access"),
                      stringDomainSchema(PublicValueDomain::FileAccess)},
                     {QStringLiteral("host_availability"),
                      stringDomainSchema(PublicValueDomain::HostAvailability)},
-                    {QStringLiteral("concurrency_scope"),
-                     stringDomainSchema(PublicValueDomain::ConcurrencyScope)},
-                    {QStringLiteral("conflict_policy"),
-                     stringDomainSchema(PublicValueDomain::ConflictPolicy)},
-                    {QStringLiteral("safety_metadata"), safety},
-                    {QStringLiteral("introduced_version"),
-                     JsonSchema::integer(1.0, static_cast<double>(MaximumSafeJsonInteger))},
-                    {QStringLiteral("schema_digest"), schemaDigest},
+                    {QStringLiteral("annotations"), annotations},
             },
                 {
                     QStringLiteral("operation_id"),
                     QStringLiteral("title"),
                     QStringLiteral("description"),
-                    QStringLiteral("version"),
-                    QStringLiteral("minimum_compatible_version"),
+                    QStringLiteral("minimum_toolset_version"),
                     QStringLiteral("category"),
                     QStringLiteral("kind"),
                     QStringLiteral("input_schema"),
@@ -1805,16 +1781,9 @@ namespace AutomationWire {
                     QStringLiteral("value_sources"),
                     QStringLiteral("minimum_profile"),
                     QStringLiteral("sync_mode"),
-                    QStringLiteral("document_policy"),
-                    QStringLiteral("revision_policy"),
-                    QStringLiteral("history_policy"),
                     QStringLiteral("file_access"),
                     QStringLiteral("host_availability"),
-                    QStringLiteral("concurrency_scope"),
-                    QStringLiteral("conflict_policy"),
-                    QStringLiteral("safety_metadata"),
-                    QStringLiteral("introduced_version"),
-                    QStringLiteral("schema_digest"),
+                    QStringLiteral("annotations"),
                 });
         }
 
@@ -2509,25 +2478,37 @@ namespace AutomationWire {
             return JsonSchema::document(root);
         }
 
-        QJsonObject trackSnapshotSchema() {
-            return JsonSchema::object(
-                {
-                    {QStringLiteral("track_id"), identifierSchema()},
-                    {QStringLiteral("index"), JsonSchema::integer(0.0)},
-                    {QStringLiteral("name"), JsonSchema::string()},
-                    {QStringLiteral("color_index"),
-                     JsonSchema::integer(0.0, TrackPaletteColorCount - 1)},
-                    {QStringLiteral("gain"), JsonSchema::number()},
-                    {QStringLiteral("pan"), JsonSchema::number(MinimumPan, MaximumPan)},
-                    {QStringLiteral("mute"), JsonSchema::boolean()},
-                    {QStringLiteral("solo"), JsonSchema::boolean()},
-                    {QStringLiteral("default_language_id"), JsonSchema::string()},
-                    {QStringLiteral("clip_count"), JsonSchema::integer(0.0)},
-            },
-                {QStringLiteral("track_id"), QStringLiteral("index"), QStringLiteral("name"),
-                 QStringLiteral("color_index"), QStringLiteral("gain"), QStringLiteral("pan"),
-                 QStringLiteral("mute"), QStringLiteral("solo"),
-                 QStringLiteral("default_language_id"), QStringLiteral("clip_count")});
+        QJsonObject voiceContextSnapshotSchema();
+
+        QJsonObject trackSnapshotSchema(const bool includeVoiceContext = false) {
+            QJsonObject properties{
+                {QStringLiteral("track_id"), identifierSchema()},
+                {QStringLiteral("index"), JsonSchema::integer(0.0)},
+                {QStringLiteral("name"), JsonSchema::string()},
+                {QStringLiteral("color_index"),
+                 JsonSchema::integer(0.0, TrackPaletteColorCount - 1)},
+                {QStringLiteral("gain"), JsonSchema::number()},
+                {QStringLiteral("pan"), JsonSchema::number(MinimumPan, MaximumPan)},
+                {QStringLiteral("mute"), JsonSchema::boolean()},
+                {QStringLiteral("solo"), JsonSchema::boolean()},
+                {QStringLiteral("default_language_id"), JsonSchema::string()},
+                {QStringLiteral("clip_count"), JsonSchema::integer(0.0)},
+            };
+            QStringList required{QStringLiteral("track_id"),
+                                 QStringLiteral("index"),
+                                 QStringLiteral("name"),
+                                 QStringLiteral("color_index"),
+                                 QStringLiteral("gain"),
+                                 QStringLiteral("pan"),
+                                 QStringLiteral("mute"),
+                                 QStringLiteral("solo"),
+                                 QStringLiteral("default_language_id"),
+                                 QStringLiteral("clip_count")};
+            if (includeVoiceContext) {
+                properties.insert(QStringLiteral("voice_context"), voiceContextSnapshotSchema());
+                required.append(QStringLiteral("voice_context"));
+            }
+            return JsonSchema::object(properties, required);
         }
 
         QJsonObject masterSnapshotSchema() {
@@ -2543,23 +2524,34 @@ namespace AutomationWire {
                  QStringLiteral("solo"), QStringLiteral("metering_available")});
         }
 
-        QJsonObject clipSnapshotSchema() {
-            return JsonSchema::object(
-                {
-                    {QStringLiteral("clip_id"),             identifierSchema()                             },
-                    {QStringLiteral("track_id"),            identifierSchema()                             },
-                    {QStringLiteral("type"),                stringDomainSchema(PublicValueDomain::ClipType)},
-                    {QStringLiteral("name"),                JsonSchema::string()                           },
-                    {QStringLiteral("start"),               JsonSchema::integer(0.0)                       },
-                    {QStringLiteral("length"),              JsonSchema::integer(1.0)                       },
-                    {QStringLiteral("gain"),                JsonSchema::number()                           },
-                    {QStringLiteral("mute"),                JsonSchema::boolean()                          },
-                    {QStringLiteral("default_language_id"), JsonSchema::string()                           },
-            },
-                {QStringLiteral("clip_id"), QStringLiteral("track_id"), QStringLiteral("type"),
-                 QStringLiteral("name"), QStringLiteral("start"), QStringLiteral("length"),
-                 QStringLiteral("gain"), QStringLiteral("mute"),
-                 QStringLiteral("default_language_id")});
+        QJsonObject clipSnapshotSchema(const bool includeVoiceContext = false) {
+            QJsonObject properties{
+                {QStringLiteral("clip_id"),             identifierSchema()                             },
+                {QStringLiteral("track_id"),            identifierSchema()                             },
+                {QStringLiteral("type"),                stringDomainSchema(PublicValueDomain::ClipType)},
+                {QStringLiteral("name"),                JsonSchema::string()                           },
+                {QStringLiteral("start"),               JsonSchema::integer(0.0)                       },
+                {QStringLiteral("length"),              JsonSchema::integer(1.0)                       },
+                {QStringLiteral("gain"),                JsonSchema::number()                           },
+                {QStringLiteral("mute"),                JsonSchema::boolean()                          },
+                {QStringLiteral("default_language_id"), JsonSchema::string()                           },
+            };
+            QStringList required{QStringLiteral("clip_id"),
+                                 QStringLiteral("track_id"),
+                                 QStringLiteral("type"),
+                                 QStringLiteral("name"),
+                                 QStringLiteral("start"),
+                                 QStringLiteral("length"),
+                                 QStringLiteral("gain"),
+                                 QStringLiteral("mute"),
+                                 QStringLiteral("default_language_id")};
+            if (includeVoiceContext) {
+                properties.insert(QStringLiteral("voice_context"),
+                                  JsonSchema::oneOf(QJsonArray{voiceContextSnapshotSchema(),
+                                                               JsonSchema::null()}));
+                required.append(QStringLiteral("voice_context"));
+            }
+            return JsonSchema::object(properties, required);
         }
 
         QJsonObject voiceContextSnapshotSchema() {
@@ -3950,12 +3942,7 @@ namespace AutomationWire {
                                            JsonSchema::array(trackSnapshotSchema()), true);
             }
             if (id == PublicToolNames::tracks_get)
-                return queryEnvelopeSchema(QStringLiteral("snapshot"), trackSnapshotSchema());
-            if (id == PublicToolNames::tracks_get_voice_context ||
-                id == PublicToolNames::clips_get_voice_context) {
-                return queryEnvelopeSchema(QStringLiteral("snapshot"),
-                                           voiceContextSnapshotSchema());
-            }
+                return queryEnvelopeSchema(QStringLiteral("snapshot"), trackSnapshotSchema(true));
             if (id == PublicToolNames::master_get)
                 return queryEnvelopeSchema(QStringLiteral("snapshot"), masterSnapshotSchema());
             if (id == PublicToolNames::clips_list) {
@@ -3963,7 +3950,7 @@ namespace AutomationWire {
                                            JsonSchema::array(clipSnapshotSchema()), true);
             }
             if (id == PublicToolNames::clips_get)
-                return queryEnvelopeSchema(QStringLiteral("snapshot"), clipSnapshotSchema());
+                return queryEnvelopeSchema(QStringLiteral("snapshot"), clipSnapshotSchema(true));
             if (id == PublicToolNames::audio_clips_get) {
                 return queryEnvelopeSchema(QStringLiteral("snapshot"), audioClipSnapshotSchema());
             }
@@ -4493,90 +4480,10 @@ namespace AutomationWire {
             return result;
         }
 
-        QString documentPolicy(const ToolContract &tool) {
-            if (tool.operationId.startsWith(QStringLiteral("track_panel.")) ||
-                tool.operationId.startsWith(QStringLiteral("clip_editor."))) {
-                return QStringLiteral("read");
-            }
-            if (tool.operationId == PublicToolNames::documents_new ||
-                tool.operationId == PublicToolNames::documents_open) {
-                return QStringLiteral("replace");
-            }
-            if (documentWriteOperations().contains(tool.operationId))
-                return QStringLiteral("write");
-            if (documentQueryOperations().contains(tool.operationId) ||
-                (tool.operationId.startsWith(QStringLiteral("playback.")) &&
-                 !isPersistentPlaybackOperation(tool.operationId))) {
-                return QStringLiteral("read");
-            }
-            return QStringLiteral("none");
-        }
-
-        QString revisionPolicy(const ToolContract &tool) {
-            static const QSet<QString> l3RevisionChecked{
-                PublicToolNames::track_panel_reveal_clips,
-                PublicToolNames::track_panel_select_track,
-                PublicToolNames::track_panel_select_clips,
-                PublicToolNames::track_panel_clear_selection,
-                PublicToolNames::clip_editor_set_active_clip,
-                PublicToolNames::clip_editor_piano_reveal_notes,
-                PublicToolNames::clip_editor_piano_select_notes,
-                PublicToolNames::clip_editor_piano_clear_selection,
-                PublicToolNames::clip_editor_parameters_set_foreground,
-                PublicToolNames::clip_editor_parameters_set_background,
-                PublicToolNames::clip_editor_parameters_swap,
-                PublicToolNames::clip_editor_parameters_set_tool,
-                PublicToolNames::clip_editor_parameters_set_value_viewport,
-            };
-            if (l3RevisionChecked.contains(tool.operationId))
-                return QStringLiteral("check");
-            if (tool.operationId == PublicToolNames::documents_open ||
-                tool.operationId == PublicToolNames::exports_midi_start ||
-                tool.operationId == PublicToolNames::exports_audio_start) {
-                return QStringLiteral("check_and_revalidate");
-            }
-            if (tool.operationId == PublicToolNames::documents_new)
-                return QStringLiteral("check");
-            if (documentWriteOperations().contains(tool.operationId))
-                return tool.syncMode == SyncMode::Asynchronous
-                           ? QStringLiteral("check_and_revalidate")
-                           : QStringLiteral("check");
-            return QStringLiteral("none");
-        }
-
-        QString historyPolicy(const ToolContract &tool) {
-            if (isL3Operation(tool.operationId))
-                return QStringLiteral("none");
-            if (tool.kind == OperationKind::Query ||
-                tool.operationId == PublicToolNames::tasks_cancel ||
-                tool.operationId == PublicToolNames::speaker_mix_presets_save ||
-                tool.operationId == PublicToolNames::speaker_mix_presets_delete ||
-                tool.operationId == PublicToolNames::documents_new ||
-                tool.operationId == PublicToolNames::documents_open ||
-                tool.operationId == PublicToolNames::exports_midi_start ||
-                tool.operationId == PublicToolNames::exports_audio_start ||
-                tool.operationId == PublicToolNames::playback_play ||
-                tool.operationId == PublicToolNames::playback_pause ||
-                tool.operationId == PublicToolNames::playback_stop ||
-                tool.operationId == PublicToolNames::playback_seek) {
-                return QStringLiteral("none");
-            }
-            if (tool.operationId == PublicToolNames::documents_save ||
-                tool.operationId == PublicToolNames::documents_save_as) {
-                return QStringLiteral("savepoint");
-            }
-            if (tool.operationId == PublicToolNames::history_undo ||
-                tool.operationId == PublicToolNames::history_redo) {
-                return QStringLiteral("navigate");
-            }
-            return tool.syncMode == SyncMode::Asynchronous ? QStringLiteral("commit_once")
-                                                           : QStringLiteral("single_entry");
-        }
-
-        QString fileAccess(const QString &id) {
+        FileAccess fileAccess(const QString &id) {
             if (id == PublicToolNames::settings_package_search_paths_update ||
                 id.startsWith(QStringLiteral("packages."))) {
-                return QStringLiteral("read");
+                return FileAccess::Read;
             }
             if (id == PublicToolNames::documents_open || id == PublicToolNames::documents_import ||
                 id == PublicToolNames::documents_import_batch ||
@@ -4586,78 +4493,16 @@ namespace AutomationWire {
                 id == PublicToolNames::audio_clips_relocate ||
                 id == PublicToolNames::audio_clips_confirm_path ||
                 id.startsWith(QStringLiteral("extract."))) {
-                return QStringLiteral("read");
+                return FileAccess::Read;
             }
             if (id == PublicToolNames::documents_save || id == PublicToolNames::documents_save_as ||
                 id == PublicToolNames::exports_midi_preview ||
                 id == PublicToolNames::exports_midi_start ||
                 id == PublicToolNames::exports_audio_preview ||
                 id == PublicToolNames::exports_audio_start) {
-                return QStringLiteral("write");
+                return FileAccess::Write;
             }
-            return QStringLiteral("none");
-        }
-
-        QString concurrencyScope(const ToolContract &tool) {
-            if (tool.operationId.startsWith(QStringLiteral("workspace.")) ||
-                tool.operationId.startsWith(QStringLiteral("settings.")) ||
-                tool.operationId.startsWith(QStringLiteral("packages.")) ||
-                tool.operationId.startsWith(QStringLiteral("lyric_rules."))) {
-                return QStringLiteral("application");
-            }
-            if (tool.operationId.startsWith(QStringLiteral("track_panel.")) ||
-                tool.operationId.startsWith(QStringLiteral("clip_editor."))) {
-                return QStringLiteral("document");
-            }
-            if (tool.operationId.startsWith(QStringLiteral("playback.")) &&
-                !isPersistentPlaybackOperation(tool.operationId)) {
-                return QStringLiteral("playback");
-            }
-            if (tool.operationId.startsWith(QStringLiteral("tasks.")))
-                return QStringLiteral("task");
-            if (tool.operationId.startsWith(QStringLiteral("exports.")))
-                return QStringLiteral("export");
-            if (tool.minimumProfile == AutomationProfile::Meta ||
-                tool.operationId.startsWith(QStringLiteral("automation.")) ||
-                tool.operationId.startsWith(QStringLiteral("voices.")) ||
-                tool.operationId.startsWith(QStringLiteral("formats.")) ||
-                tool.operationId == PublicToolNames::documents_list_recent ||
-                (tool.operationId.startsWith(QStringLiteral("speaker_mix.presets.")) &&
-                 tool.operationId != PublicToolNames::speaker_mix_presets_apply)) {
-                return QStringLiteral("application");
-            }
-            return QStringLiteral("document");
-        }
-
-        QString conflictPolicy(const ToolContract &tool) {
-            if (isL3Operation(tool.operationId)) {
-                return revisionPolicy(tool) == QStringLiteral("check") ? QStringLiteral("revision")
-                                                                       : QStringLiteral("none");
-            }
-            if (tool.kind == OperationKind::Query)
-                return QStringLiteral("none");
-            if (tool.operationId == PublicToolNames::tasks_cancel)
-                return QStringLiteral("task_state");
-            if (tool.operationId == PublicToolNames::speaker_mix_presets_save ||
-                tool.operationId == PublicToolNames::speaker_mix_presets_delete) {
-                return QStringLiteral("none");
-            }
-            if (tool.operationId == PublicToolNames::exports_midi_start ||
-                tool.operationId == PublicToolNames::exports_audio_start) {
-                return QStringLiteral("snapshot");
-            }
-            if (tool.operationId == PublicToolNames::documents_new ||
-                tool.operationId == PublicToolNames::documents_open) {
-                return QStringLiteral("replacement");
-            }
-            if (isPersistentPlaybackOperation(tool.operationId))
-                return QStringLiteral("revision_and_state_version");
-            if (tool.operationId.startsWith(QStringLiteral("playback."))) {
-                return QStringLiteral("state_version");
-            }
-            return tool.syncMode == SyncMode::Asynchronous
-                       ? QStringLiteral("revision_and_generation")
-                       : QStringLiteral("revision");
+            return FileAccess::None;
         }
 
         QJsonObject toolAnnotations(const QString &id, const ToolEffect effect,
@@ -4690,19 +4535,14 @@ namespace AutomationWire {
         }
 
         QJsonObject manifestDigestContent(const PublicManifest &manifest) {
-            static const QHash<QString, QJsonObject> operationCache = [] {
-                QHash<QString, QJsonObject> result;
-                for (const auto &tool : publicToolContracts()) {
-                    auto operation = tool.toManifestJson();
-                    operation.remove(QStringLiteral("input_schema"));
-                    operation.remove(QStringLiteral("output_schema"));
-                    result.insert(tool.operationId, operation);
-                }
-                return result;
-            }();
             QJsonArray operations;
-            for (const auto &tool : manifest.operations)
-                operations.append(operationCache.value(tool.operationId));
+            for (const auto &tool : manifest.operations) {
+                operations.append(QJsonObject{
+                    {QStringLiteral("operation_id"),            tool.operationId},
+                    {QStringLiteral("minimum_toolset_version"),
+                     static_cast<qint64>(tool.minimumToolsetVersion)            },
+                });
+            }
             return {
                 {QStringLiteral("toolset_version"), static_cast<qint64>(manifest.toolsetVersion)},
                 {QStringLiteral("profile"),         automationProfileName(manifest.profile)     },
@@ -4723,6 +4563,11 @@ namespace AutomationWire {
             .value(static_cast<qsizetype>(mode));
     }
 
+    QString fileAccessName(const FileAccess access) {
+        return publicStringValueDomainValues(PublicValueDomain::FileAccess)
+            .value(static_cast<qsizetype>(access));
+    }
+
     QJsonObject ToolContract::toMcpToolJson() const {
         return {
             {QStringLiteral("name"),         operationId },
@@ -4735,11 +4580,8 @@ namespace AutomationWire {
              QJsonObject{
                  {QStringLiteral("io.openvpi.ds-editor-lite/tool"),
                   QJsonObject{
-                      {QStringLiteral("version"), static_cast<qint64>(version)},
-                      {QStringLiteral("introduced_version"),
-                       static_cast<qint64>(introducedVersion)},
-                      {QStringLiteral("minimum_compatible_version"),
-                       static_cast<qint64>(minimumCompatibleVersion)},
+                      {QStringLiteral("minimum_toolset_version"),
+                       static_cast<qint64>(minimumToolsetVersion)},
                       {QStringLiteral("category"), category},
                       {QStringLiteral("minimum_profile"), automationProfileName(minimumProfile)},
                       {QStringLiteral("kind"), operationKindName(kind)},
@@ -4752,54 +4594,31 @@ namespace AutomationWire {
     }
 
     QJsonObject ToolContract::toManifestJson() const {
-        const auto inputDigest = sha256Digest(inputSchema);
-        const auto outputDigest = sha256Digest(outputSchema);
         return {
-            {QStringLiteral("operation_id"),               operationId                           },
-            {QStringLiteral("title"),                      title                                 },
-            {QStringLiteral("description"),                description                           },
-            {QStringLiteral("version"),                    static_cast<qint64>(version)          },
-            {QStringLiteral("minimum_compatible_version"),
-             static_cast<qint64>(minimumCompatibleVersion)                                       },
-            {QStringLiteral("category"),                   category                              },
-            {QStringLiteral("kind"),                       operationKindName(kind)               },
-            {QStringLiteral("input_schema"),               inputSchema                           },
-            {QStringLiteral("output_schema"),              outputSchema                          },
-            {QStringLiteral("value_sources"),              valueSources                          },
-            {QStringLiteral("minimum_profile"),            automationProfileName(minimumProfile) },
-            {QStringLiteral("sync_mode"),                  syncModeName(syncMode)                },
-            {QStringLiteral("document_policy"),            documentPolicy(*this)                 },
-            {QStringLiteral("revision_policy"),            revisionPolicy(*this)                 },
-            {QStringLiteral("history_policy"),             historyPolicy(*this)                  },
-            {QStringLiteral("file_access"),                fileAccess(operationId)               },
-            {QStringLiteral("host_availability"),          hostAvailability                      },
-            {QStringLiteral("concurrency_scope"),          concurrencyScope(*this)               },
-            {QStringLiteral("conflict_policy"),            conflictPolicy(*this)                 },
-            {QStringLiteral("safety_metadata"),
-             QJsonObject{
-                 {QStringLiteral("read_only"),
-                  annotations.value(QStringLiteral("readOnlyHint")).toBool()},
-                 {QStringLiteral("destructive"),
-                  annotations.value(QStringLiteral("destructiveHint")).toBool()},
-                 {QStringLiteral("idempotent"),
-                  annotations.value(QStringLiteral("idempotentHint")).toBool()},
-                 {QStringLiteral("open_world"),
-                  annotations.value(QStringLiteral("openWorldHint")).toBool()},
-             }                                                                                   },
-            {QStringLiteral("introduced_version"),         static_cast<qint64>(introducedVersion)},
-            {QStringLiteral("schema_digest"),
-             QJsonObject{{QStringLiteral("input"), inputDigest},
-                         {QStringLiteral("output"), outputDigest}}                               },
+            {QStringLiteral("operation_id"),            operationId                               },
+            {QStringLiteral("title"),                   title                                     },
+            {QStringLiteral("description"),             description                               },
+            {QStringLiteral("minimum_toolset_version"), static_cast<qint64>(minimumToolsetVersion)},
+            {QStringLiteral("category"),                category                                  },
+            {QStringLiteral("kind"),                    operationKindName(kind)                   },
+            {QStringLiteral("input_schema"),            inputSchema                               },
+            {QStringLiteral("output_schema"),           outputSchema                              },
+            {QStringLiteral("value_sources"),           valueSources                              },
+            {QStringLiteral("minimum_profile"),         automationProfileName(minimumProfile)     },
+            {QStringLiteral("sync_mode"),               syncModeName(syncMode)                    },
+            {QStringLiteral("file_access"),             fileAccessName(fileAccess)                },
+            {QStringLiteral("host_availability"),       hostAvailability                          },
+            {QStringLiteral("annotations"),             annotations                               },
         };
     }
 
     const QList<ToolContract> &publicToolContracts() {
         static const QList<ToolContract> tools = [] {
             QList<ToolContract> result;
-            result.reserve(179);
+            result.reserve(177);
 #define AUTOMATION_WIRE_PUBLIC_TOOL(symbol, name, categoryValue, profile, kindValue, syncValue,    \
-                                    versionValue, introducedValue, minimumValue, effectValue,      \
-                                    repeatabilityValue, worldAccessValue)                          \
+                                    minimumValue, effectValue, repeatabilityValue,                 \
+                                    worldAccessValue)                                              \
     do {                                                                                           \
         const QString operationId(PublicToolNames::symbol);                                        \
         const auto operationKind = OperationKind::kindValue;                                       \
@@ -4807,9 +4626,7 @@ namespace AutomationWire {
         const auto title = humanTitle(operationId);                                                \
         result.append({                                                                            \
             .operationId = operationId,                                                            \
-            .version = versionValue,                                                               \
-            .introducedVersion = introducedValue,                                                  \
-            .minimumCompatibleVersion = minimumValue,                                              \
+            .minimumToolsetVersion = minimumValue,                                                 \
             .title = title,                                                                        \
             .description = toolDescription(operationId, QStringLiteral(categoryValue),             \
                                            operationKind, operationSync),                          \
@@ -4817,6 +4634,7 @@ namespace AutomationWire {
             .minimumProfile = AutomationProfile::profile,                                          \
             .kind = operationKind,                                                                 \
             .syncMode = operationSync,                                                             \
+            .fileAccess = fileAccess(operationId),                                                 \
             .hostAvailability = isL3Operation(operationId) && !isL3GuiOperation(operationId)       \
                                     ? QStringLiteral("both")                                       \
                                     : QStringLiteral("gui"),                                       \

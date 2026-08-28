@@ -529,9 +529,20 @@ namespace {
             operationId, arguments, {.clientId = QStringLiteral("registry-l3-") + operationId});
         reportFailure(operationId, result);
         const auto *contract = AutomationWire::findPublicTool(operationId);
-        const auto schemaValid =
-            result && contract &&
-            AutomationWire::validateJsonValue(result.get(), contract->outputSchema).valid();
+        bool schemaValid = false;
+        if (result && contract) {
+            const auto validation =
+                AutomationWire::validateJsonValue(result.get(), contract->outputSchema);
+            schemaValid = validation.valid();
+            if (!schemaValid && !validation.issues.isEmpty()) {
+                const auto &issue = validation.issues.first();
+                QTextStream(stderr)
+                    << "DETAIL " << operationId << " output schema: " << issue.schemaPath << ", "
+                    << issue.instancePath << ", " << issue.message
+                    << ", output=" << QJsonDocument(result.get()).toJson(QJsonDocument::Compact)
+                    << Qt::endl;
+            }
+        }
         expect(schemaValid, label + QStringLiteral(" must return its declared output schema"));
         return result ? std::optional<QJsonObject>(result.get()) : std::nullopt;
     }
@@ -609,13 +620,12 @@ namespace {
             selectedTrackPanel
                 ? selectedTrackPanel->value(QStringLiteral("selected_clip_ids")).toArray()
                 : QJsonArray{};
-        expect(
-            selectedTrackPanel && selectedClipIds.size() == 2 &&
-                selectedClipIds.first() == fixture.scalarClipId.value() &&
-                selectedClipIds.last() == fixture.noteClipId.value() &&
-                selectedTrackPanel->value(QStringLiteral("primary_clip_id")) ==
-                    fixture.scalarClipId.value(),
-            QStringLiteral("track selection order and primary clip must remain independent"));
+        expect(selectedTrackPanel && selectedClipIds.size() == 2 &&
+                   selectedClipIds.first() == fixture.scalarClipId.value() &&
+                   selectedClipIds.last() == fixture.noteClipId.value() &&
+                   selectedTrackPanel->value(QStringLiteral("primary_clip_id")) ==
+                       fixture.scalarClipId.value(),
+               QStringLiteral("track selection order and primary clip must remain independent"));
         const auto invalidPrimaryClip = registry.invoke(
             QStringLiteral("track_panel.select_clips"),
             with(revision,
@@ -971,9 +981,9 @@ namespace {
                             QJsonObject{
                                 {QStringLiteral("package_id"), QStringLiteral("not-installed")}
         });
-        expect(!unknownPackage && unknownPackage.getError().code ==
-                                      Automation::AutomationErrorCode::InvalidArgument,
-               QStringLiteral("packages.describe must reject IDs absent from packages.list"));
+        expect(!unknownPackage &&
+                   unknownPackage.getError().code == Automation::AutomationErrorCode::NotFound,
+               QStringLiteral("packages.describe must report an unknown installed package"));
         const auto validatedRefresh = registry.invoke(QStringLiteral("packages.refresh"),
                                                       QJsonObject{
                                                           {QStringLiteral("validate_only"), true}
@@ -2226,7 +2236,12 @@ namespace {
                 {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()},
                 {idField,                       id                                             },
         });
-        return result ? result.get().value(QStringLiteral("snapshot")).toObject() : QJsonObject{};
+        return result ? result.get()
+                            .value(QStringLiteral("snapshot"))
+                            .toObject()
+                            .value(QStringLiteral("voice_context"))
+                            .toObject()
+                      : QJsonObject{};
     }
 
     QJsonObject speakerMixSnapshot(Automation::PublicAutomationRegistry &registry,
@@ -2472,7 +2487,7 @@ namespace {
             QStringLiteral("track-set-newer-voice"),
             QStringLiteral("tracks.set_voice with an exact package version"));
         const auto newerTrackVoice =
-            voiceContextSnapshot(registry, runtime, QStringLiteral("tracks.get_voice_context"),
+            voiceContextSnapshot(registry, runtime, QStringLiteral("tracks.get"),
                                  QStringLiteral("track_id"), fixture.trackId.value());
         const auto newerSingerRef = newerTrackVoice.value(QStringLiteral("own_voice"))
                                         .toObject()
@@ -2534,7 +2549,7 @@ namespace {
         },
                           QStringLiteral("track-set-voice"), QStringLiteral("tracks.set_voice"));
         const auto trackVoice =
-            voiceContextSnapshot(registry, runtime, QStringLiteral("tracks.get_voice_context"),
+            voiceContextSnapshot(registry, runtime, QStringLiteral("tracks.get"),
                                  QStringLiteral("track_id"), fixture.trackId.value());
         expect(trackVoice.value(QStringLiteral("available")).toBool() &&
                    !trackVoice.value(QStringLiteral("inherits_track")).toBool() &&
@@ -2634,7 +2649,7 @@ namespace {
         },
                           QStringLiteral("clip-set-voice"), QStringLiteral("clips.set_voice"));
         const auto ownedClip =
-            voiceContextSnapshot(registry, runtime, QStringLiteral("clips.get_voice_context"),
+            voiceContextSnapshot(registry, runtime, QStringLiteral("clips.get"),
                                  QStringLiteral("clip_id"), fixture.mixClipId.value());
         expect(ownedClip.value(QStringLiteral("available")).toBool() &&
                    !ownedClip.value(QStringLiteral("inherits_track")).toBool() &&
@@ -2658,7 +2673,7 @@ namespace {
                           QStringLiteral("clip-use-track-voice"),
                           QStringLiteral("clips.use_track_voice"));
         const auto inheritedClip =
-            voiceContextSnapshot(registry, runtime, QStringLiteral("clips.get_voice_context"),
+            voiceContextSnapshot(registry, runtime, QStringLiteral("clips.get"),
                                  QStringLiteral("clip_id"), fixture.mixClipId.value());
         expect(inheritedClip.value(QStringLiteral("available")).toBool() &&
                    inheritedClip.value(QStringLiteral("inherits_track")).toBool() &&
@@ -2672,7 +2687,7 @@ namespace {
             registry.invoke(QStringLiteral("history.undo"), commandArguments(undoInheritanceBase),
                             {.clientId = QStringLiteral("clip-use-track-voice-undo")});
         const auto restoredOwnedClip =
-            voiceContextSnapshot(registry, runtime, QStringLiteral("clips.get_voice_context"),
+            voiceContextSnapshot(registry, runtime, QStringLiteral("clips.get"),
                                  QStringLiteral("clip_id"), fixture.mixClipId.value());
         expect(undoInheritance && undoInheritance.get().value(QStringLiteral("changed")).toBool() &&
                    runtime.documentVersion().revision == undoInheritanceBase.revision + 1 &&
@@ -2687,7 +2702,7 @@ namespace {
         },
                           QStringLiteral("clip-clear-voice"), QStringLiteral("clips.clear_voice"));
         const auto clearedClip =
-            voiceContextSnapshot(registry, runtime, QStringLiteral("clips.get_voice_context"),
+            voiceContextSnapshot(registry, runtime, QStringLiteral("clips.get"),
                                  QStringLiteral("clip_id"), fixture.mixClipId.value());
         expect(!clearedClip.value(QStringLiteral("available")).toBool() &&
                    !clearedClip.value(QStringLiteral("inherits_track")).toBool() &&
@@ -2699,7 +2714,7 @@ namespace {
             registry.invoke(QStringLiteral("history.undo"), commandArguments(undoClearClipBase),
                             {.clientId = QStringLiteral("clip-clear-voice-undo")});
         const auto restoredAfterClear =
-            voiceContextSnapshot(registry, runtime, QStringLiteral("clips.get_voice_context"),
+            voiceContextSnapshot(registry, runtime, QStringLiteral("clips.get"),
                                  QStringLiteral("clip_id"), fixture.mixClipId.value());
         expect(undoClearClip && undoClearClip.get().value(QStringLiteral("changed")).toBool() &&
                    runtime.documentVersion().revision == undoClearClipBase.revision + 1 &&
@@ -3003,7 +3018,7 @@ namespace {
                           QStringLiteral("track-clear-voice"),
                           QStringLiteral("tracks.clear_voice"));
         const auto clearedTrack =
-            voiceContextSnapshot(registry, runtime, QStringLiteral("tracks.get_voice_context"),
+            voiceContextSnapshot(registry, runtime, QStringLiteral("tracks.get"),
                                  QStringLiteral("track_id"), fixture.trackId.value());
         expect(!clearedTrack.value(QStringLiteral("available")).toBool() &&
                    clearedTrack.value(QStringLiteral("own_voice")).isNull(),
@@ -3013,7 +3028,7 @@ namespace {
             registry.invoke(QStringLiteral("history.undo"), commandArguments(undoTrackClearBase),
                             {.clientId = QStringLiteral("track-clear-voice-undo")});
         const auto restoredTrack =
-            voiceContextSnapshot(registry, runtime, QStringLiteral("tracks.get_voice_context"),
+            voiceContextSnapshot(registry, runtime, QStringLiteral("tracks.get"),
                                  QStringLiteral("track_id"), fixture.trackId.value());
         expect(undoTrackClear && undoTrackClear.get().value(QStringLiteral("changed")).toBool() &&
                    runtime.documentVersion().revision == undoTrackClearBase.revision + 1 &&
@@ -3045,7 +3060,7 @@ namespace {
                           QStringLiteral("track-set-speakerless-voice"),
                           QStringLiteral("tracks.set_voice without speaker"));
         const auto speakerlessContext =
-            voiceContextSnapshot(registry, runtime, QStringLiteral("tracks.get_voice_context"),
+            voiceContextSnapshot(registry, runtime, QStringLiteral("tracks.get"),
                                  QStringLiteral("track_id"), fixture.trackId.value());
         const auto effectiveVoice =
             speakerlessContext.value(QStringLiteral("effective_voice")).toObject();
@@ -3663,11 +3678,7 @@ int main(int argc, char *argv[]) {
            QStringLiteral("file guard roots must configure"));
     Automation::AdmissionLimits limits;
     limits.maximumGlobalInFlight = 8;
-    limits.maximumClientInFlight = 8;
     limits.maximumBackgroundTasks = 1;
-    limits.maximumPerDomain = 1;
-    limits.tokenCapacity = 1000;
-    limits.tokensPerSecond = 1000;
     Automation::AdmissionController admission(limits);
     auto services = hostServices(runtime);
     int audioPathPreparationCount = 0;
@@ -3745,8 +3756,8 @@ int main(int argc, char *argv[]) {
     auto expectedIds = PublicAutomationToolsetExpectations::editorToolIds();
     auto bindingIds = registry.bindingIds();
     std::sort(expectedIds.begin(), expectedIds.end());
-    expect(expectedIds.size() == 179 && bindingIds == expectedIds && registry.isComplete(),
-           QStringLiteral("all 179 editor contracts must have exact bindings"));
+    expect(expectedIds.size() == 177 && bindingIds == expectedIds && registry.isComplete(),
+           QStringLiteral("all 177 editor contracts must have exact bindings"));
 
     const auto lifecycleSchemaBase = runtime.documentVersion();
     for (const auto &operationId :
@@ -4009,15 +4020,6 @@ int main(int argc, char *argv[]) {
     expect(status && status.get().value(QStringLiteral("documents")).toArray().size() == 1 &&
                status.get().value(QStringLiteral("windows")).toArray().size() == 1,
            QStringLiteral("single-document host status must truncate documents and windows"));
-    const auto internalOnlyId = QStringLiteral("registry-test.internal-only");
-    expect(bool(runtime.catalog().add({
-               .id = internalOnlyId,
-               .category = QStringLiteral("test"),
-               .exposure = Automation::ExposurePolicy::InternalOnly,
-           })) &&
-               !registry.bindingIds().contains(internalOnlyId),
-           QStringLiteral("InternalOnly catalog entries must not be auto-exposed"));
-
     access.update(AutomationWire::AutomationProfile::L1);
     const auto denied = registry.invoke(QStringLiteral("formats.list"), {},
                                         {.clientId = QStringLiteral("permission")});
@@ -4306,6 +4308,18 @@ int main(int argc, char *argv[]) {
                    },
            QStringLiteral("audio clip candidates must be confirmable absolute file paths in GUI "
                           "resolution order"));
+    const auto audioClipDetail = registry.invoke(
+        QStringLiteral("clips.get"),
+        QJsonObject{
+            {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()},
+            {QStringLiteral("clip_id"),     audioClipId.value()                            },
+    });
+    expect(audioClipDetail && audioClipDetail.get()
+                                  .value(QStringLiteral("snapshot"))
+                                  .toObject()
+                                  .value(QStringLiteral("voice_context"))
+                                  .isNull(),
+           QStringLiteral("clips.get must mark voice context unavailable for audio clips"));
 
     const auto extractionLanguages = registry.invoke(
         QStringLiteral("automation.get_options"),
@@ -5078,14 +5092,14 @@ int main(int argc, char *argv[]) {
     for (const auto &tool : listedTools)
         listedIds.insert(tool.toObject().value(QStringLiteral("name")).toString());
     expect(!listCursor.isEmpty() && !nextListResponse.contains(QStringLiteral("error")) &&
-               cachedToolsPageElapsedMs < 250 && listedTools.size() == 179 &&
+               cachedToolsPageElapsedMs < 250 && listedTools.size() == 177 &&
                listedIds == PublicAutomationToolsetExpectations::editorToolIdSet(),
-           QStringLiteral("tools/list must expose the exact 179-tool editor surface"));
+           QStringLiteral("tools/list must expose the exact 177-tool editor surface"));
     access.update(AutomationWire::AutomationProfile::L1);
     const auto reducedListResponse = dispatcher.dispatch(list, QStringLiteral("adapter"));
     const auto reducedListResult = reducedListResponse.value(QStringLiteral("result")).toObject();
     expect(!reducedListResponse.contains(QStringLiteral("error")) &&
-               reducedListResult.value(QStringLiteral("tools")).toArray().size() == 91 &&
+               reducedListResult.value(QStringLiteral("tools")).toArray().size() == 89 &&
                reducedListResult.value(QStringLiteral("nextCursor")).toString().isEmpty(),
            QStringLiteral("tools/list cache must invalidate when the access profile changes"));
     const auto staleListResponse = dispatcher.dispatch(nextList, QStringLiteral("adapter"));
