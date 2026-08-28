@@ -363,7 +363,7 @@ namespace {
                 !findPublicTool(QStringLiteral("exports.audio.start"))->valueSources.isEmpty() &&
                 !findPublicTool(QStringLiteral("inference.start"))->valueSources.isEmpty(),
             QStringLiteral("controlled dynamic fields must publish discoverable value sources"));
-        ok &= expect(toolsForProfile(AutomationProfile::Meta).size() == 2 &&
+        ok &= expect(toolsForProfile(AutomationProfile::L0).size() == 2 &&
                          toolsForProfile(AutomationProfile::L1).size() == 87 &&
                          toolsForProfile(AutomationProfile::L2).size() == 130 &&
                          toolsForProfile(AutomationProfile::L3).size() == 175,
@@ -371,7 +371,7 @@ namespace {
         ok &= expect(
             toolsForProfile(AutomationProfile::Custom, {QStringLiteral("notes.insert")}).size() ==
                 3,
-            QStringLiteral("Custom must retain Meta and explicit enabled tools"));
+            QStringLiteral("Custom must retain L0 and explicit enabled tools"));
 
         const auto revisionProperty = findPublicTool(QStringLiteral("history.undo"))
                                           ->inputSchema.value(QStringLiteral("properties"))
@@ -690,11 +690,21 @@ namespace {
 
     bool testExposurePolicy() {
         bool ok = true;
-        ok &= expect(selectExposure({ExposureProfile::L0}).exposedIds.size() == 0 &&
+        ok &= expect(selectExposure({ExposureProfile::L0}).exposedIds.size() == 2 &&
                          selectExposure({ExposureProfile::L1}).exposedIds.size() == 87 &&
                          selectExposure({ExposureProfile::L2}).exposedIds.size() == 130 &&
                          selectExposure({ExposureProfile::L3}).exposedIds.size() == 175,
-                     QStringLiteral("connector exposure preset counts must be 0/87/130/175"));
+                     QStringLiteral("connector exposure preset counts must be 2/87/130/175"));
+
+        const auto protectedL0 = selectExposure({
+            .profile = ExposureProfile::L0,
+            .excludes = {QStringLiteral("category:application")},
+        });
+        ok &= expect(
+            protectedL0.exposedIds ==
+                QSet<QString>{QStringLiteral("application.get_info"),
+                              QStringLiteral("application.get_status")},
+            QStringLiteral("connector excludes must not remove intrinsic L0 tools"));
 
         const ExposureConfig filtered{
             .profile = ExposureProfile::L0,

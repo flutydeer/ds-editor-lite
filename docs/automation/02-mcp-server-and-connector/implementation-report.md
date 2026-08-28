@@ -5,7 +5,7 @@
 二期形成了可由 Agent Host 使用的完整自动化链路：GUI Editor 内置 Streamable HTTP MCP Server，DS Connector Lite 以 stdio 向下游提供 MCP，并通过本机实例观察和 HTTP 与运行中的 Editor 建立连接。公共工具面按业务域组织，Editor 175 项、Connector 6 项，共 181 项。
 
 Editor 的 175 项工具分属 24 个业务域，类型统计为 **41 Q/S + 123 C/S + 11 C/A**。
-最低 Profile 分布为 Meta 2 项、L1 85 项、L2 43 项、L3 45 项；累积可见数量分别为
+最低 Profile 分布为 L0 2 项、L1 85 项、L2 43 项、L3 45 项；累积可见数量分别为
 2、87、130、175。公共工具集 `toolset_version` 与 181 项工具的
 `minimum_toolset_version` 均为 **1**。
 
@@ -200,6 +200,8 @@ GUI 进阶控制按真实面板层级归入 `workspace`、`track_panel` 和 `cli
 
 `L3` 在产品文案中称为“进阶控制”（Advanced Control），表示在 L2 之上按明确范围增加部分 GUI 自动化操作与设置项更改，而非不受限制的完全控制；自动化/MCP 自身的配置和运行生命周期明确排除在外。
 
+L0 是不可禁用的固有工具层。Editor 的所有 preset 和 Custom 都始终包含 L0，Custom 设置页不显示这些工具，也不为其持久化开关。Connector 的 `l0` exposure 包含同一组 L0 Editor 工具；include 可以增加其他工具，但任何 `--exclude-tool` selector 都不能移除 L0。
+
 Allowed Read Folders 与 Allowed Write Folders 是自动化文件工具的规范路径 allowlist：前者约束打开、导入、检查和读取素材等操作，后者约束保存、导出等写操作。它们不表示本机进程权限，也不改变非文件工具的能力。`AutomationFileGuard` 还分离持久根与会话 grant，处理路径组件边界、相对路径、相邻前缀、链接/重解析点和未创建输出的最近现存父目录；授权后、实际 I/O 前会再次检查 canonical 目标。
 
 业务 Admission 只限制全局 32 个在途请求和 8 个后台 Task；HTTP Transport 同样只执行全局
@@ -248,7 +250,7 @@ Editor 类型化描述；downstream 工具面由六项桥接工具与 exposure �
 泛化 `editor.tools.list/search` 只返回摘要，需要完整 Schema 时调用 `editor.tools.describe`。
 
 Exposure 默认 L1，支持 `l0/l1/l2/l3`、`id:`、`category:`、`prefix:`、include 和
-exclude；同一选择同时约束类型化 wrapper 和泛化 list/search/describe/invoke。兼容计算只检查
+exclude；L0 固有工具始终保留，其余工具才应用 exclude。同一选择同时约束类型化 wrapper 和泛化 list/search/describe/invoke。兼容计算只检查
 全局 `toolset_version` 与每工具 `minimum_toolset_version`，不计算 Schema 方向、子集、digest
 或 `compatible_subset`。同版本 Schema 不一致按产品缺陷处理，并由 MCP 输入校验与测试发现。
 `tools/list` 的 namespaced `_meta` 仍携带 `kind` 与 host availability，确保泛化工具保留
@@ -261,7 +263,7 @@ Downstream stdio 支持两套主协议及 2025-06-18 兼容握手，具有有界
 
 ## 10. 设置页、配置复制与 CLI
 
-Automation 设置已进入选项对话框导航，并使用与其他选项页一致的主题图标。页面、运行状态和 24 个域的显示文本已补齐中文翻译，其中 `history` 显示为“历史记录”。Custom 工具不再使用平铺清单，而是按公共契约的领域建立独立卡片；每组默认收起，支持独立展开/收起、启用计数和整组启停。单工具开关仍直接写入同一 `customPermissions` 集合，组级操作只批量更新这些既有权限，不引入第二套配置。
+Automation 设置已进入选项对话框导航，并使用与其他选项页一致的主题图标。页面、运行状态和 24 个域的显示文本已补齐中文翻译，其中 `history` 显示为“历史记录”。Custom 工具不再使用平铺清单，而是按公共契约的领域建立独立卡片；固有的 L0 工具不进入 Custom 列表。每组默认收起，支持独立展开/收起、启用计数和整组启停。单工具开关仍直接写入同一 `customPermissions` 集合，组级操作只批量更新这些既有权限，不引入第二套配置。
 
 持久设置的安全默认值为 MCP 关闭、L1、空的额外读写根和非零控制端口。配置中缺少有效端口时在动态私有范围生成一个端口，保存后后续启动继续使用该值；只有用户点击“刷新”或直接编辑才改变端口。页面不提供固定/随机下拉框，“刷新”按钮与端口输入框位于同一行并始终可操作。
 

@@ -150,7 +150,7 @@ customPermissions[stableOperationId] = enabled | disabled
 
 `L3` 的显示名称和能力含义统一为“进阶控制”（Advanced Control）：在 L2 之上仅增加经明确纳入的部分 GUI 自动化操作和设置项更改，不表示或承诺完全控制。自动化/MCP 自身的配置与运行生命周期不属于可由 MCP 修改的对象。
 
-Meta 工具构成握手、发现和诊断面。Preset 使用最低 Profile 的累积关系；Custom 使用稳定 operation ID 的显式集合。切换 preset 保留 Custom 配置，切回 Custom 恢复先前选择；新增 operation 在无持久记录时采用安全默认。
+L0 工具构成固有能力面：所有 preset 和 Custom 都始终包含，不能通过任何权限配置禁用，也不显示在 Custom 工具列表中。L1～L3 使用最低 Profile 的累积关系；Custom 只为非 L0 工具使用稳定 operation ID 的显式集合。切换 preset 保留 Custom 配置，切回 Custom 恢复先前选择；新增非 L0 operation 在无持久记录时采用安全默认。
 
 同一 `AutomationAccessPolicy` 同时控制：
 
@@ -233,8 +233,8 @@ Connector 同时携带构建时已知的 175 个 Editor 类型化工具描述。
 --exclude-tool <selector>
 ```
 
-Selector 支持 `id:`、`category:`、`prefix:`；最终集合为 preset 与 include 的并集，再应用
-exclude。相同 exposure 结果同时过滤类型化 wrapper 和泛化
+Selector 支持 `id:`、`category:`、`prefix:`；L0 固有工具始终进入最终集合，不能被
+`--exclude-tool` 去除；其余工具由 preset 与 include 的并集再应用 exclude。相同 exposure 结果同时过滤类型化 wrapper 和泛化
 `list/search/describe/invoke`。Editor 上下线、Profile、工具目录和版本兼容变化更新状态缓存，
 downstream descriptor 在该 Connector 生命周期内保持稳定。
 
@@ -282,7 +282,7 @@ Editor CLI：
 --automation-profile l1|l2|l3|custom
 ```
 
-CLI override 只影响本次运行，优先于持久设置。选项菜单中的 Automation 入口具有现有菜单体系一致的图标，面板文字完整本地化。设置页同时展示持久值、生效值、覆盖来源、运行状态、endpoint 与错误，并提供 Profile、Custom、读写根和端口管理。Custom 工具按公共契约中的领域分别成组；组默认收起，可独立展开，并在标题中显示启用数/总数。组级开关可一次开启或关闭整组，单工具开关仍保持独立持久化，且折叠状态不改变权限。端口下拉模式不存在，刷新按钮与端口输入框始终可用并位于同一行。
+CLI override 只影响本次运行，优先于持久设置。选项菜单中的 Automation 入口具有现有菜单体系一致的图标，面板文字完整本地化。设置页同时展示持久值、生效值、覆盖来源、运行状态、endpoint 与错误，并提供 Profile、Custom、读写根和端口管理。Custom 工具按公共契约中的领域分别成组，且不显示固有的 L0 工具；组默认收起，可独立展开，并在标题中显示启用数/总数。组级开关可一次开启或关闭整组，单工具开关仍保持独立持久化，且折叠状态不改变权限。端口下拉模式不存在，刷新按钮与端口输入框始终可用并位于同一行。
 
 设置页提供可随时复制的 Connector stdio 配置和 Editor Streamable HTTP 配置。复制内容是单个 server entry，不包含外层 `mcpServers`；即使 MCP 尚未 ready 也能根据持久配置生成稳定内容。读写根的帮助文字明确说明它们只是自动化文件工具的路径 allowlist，不表示本机进程权限；面板不展示无动态事实的“本机进程访问”栏目。
 

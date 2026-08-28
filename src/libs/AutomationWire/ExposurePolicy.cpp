@@ -24,9 +24,11 @@ namespace AutomationWire {
         }
 
         bool presetContains(const ExposureProfile profile, const AutomationProfile minimum) {
+            if (minimum == AutomationProfile::L0)
+                return true;
             if (profile == ExposureProfile::L0)
                 return false;
-            if (minimum == AutomationProfile::Meta || minimum == AutomationProfile::L1)
+            if (minimum == AutomationProfile::L1)
                 return true;
             if (minimum == AutomationProfile::L2)
                 return profile == ExposureProfile::L2 || profile == ExposureProfile::L3;
@@ -196,7 +198,8 @@ namespace AutomationWire {
                                               [&](const auto &selector) {
                                                   return selectorMatches(selector, target);
                                               });
-            if (included && !excluded) {
+            if (included &&
+                (target.minimumProfile == AutomationProfile::L0 || !excluded)) {
                 result.targets.append(target);
                 result.exposedIds.insert(target.operationId);
             }

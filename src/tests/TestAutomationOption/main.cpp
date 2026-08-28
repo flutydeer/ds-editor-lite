@@ -114,7 +114,7 @@ namespace {
                                   .arg(serialized));
         }
         success &= expect(!AutomationOption::profileFromString(QStringLiteral("l0")),
-                          QStringLiteral("L0 is not an editor profile"));
+                          QStringLiteral("L0 is intrinsic rather than a selectable editor profile"));
         return success;
     }
 

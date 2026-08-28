@@ -4356,7 +4356,7 @@ namespace AutomationWire {
                                         const QSet<QString> &customEnabled) {
         QList<ToolContract> result;
         for (const auto &tool : publicToolContracts()) {
-            const auto enabled = tool.minimumProfile == AutomationProfile::Meta ||
+            const auto enabled = tool.minimumProfile == AutomationProfile::L0 ||
                                  (profile == AutomationProfile::Custom
                                       ? customEnabled.contains(tool.operationId)
                                       : presetIncludes(profile, tool.minimumProfile));

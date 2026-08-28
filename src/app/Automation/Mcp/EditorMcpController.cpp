@@ -108,7 +108,7 @@ namespace Automation {
     QStringList EditorMcpController::customPermissionOperationIds() const {
         QStringList result;
         for (const auto &contract : AutomationWire::publicToolContracts()) {
-            if (contract.minimumProfile != AutomationWire::AutomationProfile::Meta)
+            if (contract.minimumProfile != AutomationWire::AutomationProfile::L0)
                 result.append(contract.operationId);
         }
         result.sort();
@@ -189,7 +189,7 @@ namespace Automation {
              it != option.customPermissions.constEnd(); ++it) {
             const auto *contract = AutomationWire::findPublicTool(it.key());
             if (it.value() && contract &&
-                contract->minimumProfile != AutomationWire::AutomationProfile::Meta) {
+                contract->minimumProfile != AutomationWire::AutomationProfile::L0) {
                 result.insert(it.key());
             }
         }

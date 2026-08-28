@@ -13,7 +13,7 @@
 - `Q/S`：同步 Query。
 - `C/S`：同步 Command。
 - `C/A`：接受后返回任务句柄的异步 Command。
-- Profile 列表示工具契约声明的最低开放层级；Meta 始终参与握手、发现和诊断。
+- Profile 列表示工具契约声明的最低开放层级；L0 是固有层，始终参与发现与执行，不能通过 Profile、Custom 或 Connector exclude 禁用。
 
 矩阵按被查询或修改的主状态所有者归域，不按 Profile 分组。编辑工具以可整体 Undo/Redo 的历史记录为原子边界；同类多对象可批量提交，不能共同撤销的属性保持独立。创建输入限制嵌套深度：轨道与歌声片段只创建空容器，音符作为叶节点可携带完整初始数据。
 
@@ -53,8 +53,8 @@
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
-| `application.get_info` | Meta | Q/S | 返回产品名、版本、平台与构建身份 |
-| `application.get_status` | Meta | Q/S | Editor 实例、host、profile、工具集版本与当前 document/window 摘要 |
+| `application.get_info` | L0 | Q/S | 返回产品名、版本、平台与构建身份 |
+| `application.get_status` | L0 | Q/S | Editor 实例、host、profile、工具集版本与当前 document/window 摘要 |
 | `application.get_file_access` | L2 | Q/S | 返回 canonical 读写根与会话授权事实 |
 
 ### 3.2 文档与工程（8）

@@ -169,14 +169,14 @@ Editor 的 175 项按 24 个业务域追踪；Connector 的 6 项单独追踪。
 
 ## 6. Profile、Custom 与 exposure
 
-- Meta 精确 2 项；L1 累积精确 87 项；L2 累积精确 130 项；L3 累积精确 175 项。
+- L0 精确 2 项；L1 累积精确 87 项；L2 累积精确 130 项；L3 累积精确 175 项。
 - `selectedProfile` 与 `customPermissions` 独立持久化，preset 切换保持 Custom 内容。
-- Custom 的单项、领域分组、空集合、新 operation 安全默认和坏配置恢复覆盖。
+- Custom 的单项、领域分组、空集合、新 operation 安全默认和坏配置恢复覆盖；L0 不进入 Custom 列表且不能被其配置禁用。
 - 领域卡片默认收起；展开/收起不改变权限，标题启用数与单项状态一致，组级关闭/开启分别原子更新整组并持久化。
 - Editor `tools/list` 和执行期 Registry 使用同一策略。
 - 列表后改变 Profile/Custom 时，实际调用按最新策略判定。
-- Connector exposure profile `l0/l1/l2/l3`、include、exclude 和 selector 规范化覆盖。
-- `id:`、`category:`、`prefix:`、裸 ID、重复 selector、pending selector 和 exclude 优先级覆盖。
+- Connector exposure profile `l0/l1/l2/l3`、include、exclude 和 selector 规范化覆盖；L0 profile 固有包含 L0 Editor 工具，exclude 不能移除。
+- `id:`、`category:`、`prefix:`、裸 ID、重复 selector、pending selector、非 L0 目标的 exclude 优先级和 L0 不可排除约束覆盖。
 - 同一 exposure 同时约束类型化工具与 `editor.tools.list/search/describe/invoke`。
 - Connector exposure 只塑造下游说明面，Editor 执行期策略仍是最终授权。
 
@@ -289,7 +289,7 @@ Editor 的 175 项按 24 个业务域追踪；Connector 的 6 项单独追踪。
 
 - Connector 先启动，再经历 Editor 启动、MCP enable 和 ready。
 - Editor 先 ready，Connector 首次 watch 后完成协议、tools 目录和状态摘要握手。
-- Editor direct HTTP 与 Connector stdio 复用同一 Meta/L1/L2/L3 业务语料并比对结果。
+- Editor direct HTTP 与 Connector stdio 复用同一 L0/L1/L2/L3 业务语料并比对结果。
 - open/save/import/export、音频素材、推理、Task、播放与历史记录使用隔离工作区。
 - 两至八个 Connector 并发查询、编辑、任务与重连；覆盖 revision conflict、全局上限和状态隔离。
 - 一个 Connector 退出、崩溃、慢读或触发全局准入上限时，Editor 与其他 Connector 继续服务。

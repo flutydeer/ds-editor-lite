@@ -48,7 +48,7 @@ namespace AutomationWire {
     struct ExposureTarget {
         QString operationId;
         QString category;
-        AutomationProfile minimumProfile = AutomationProfile::Meta;
+        AutomationProfile minimumProfile = AutomationProfile::L0;
     };
 
     struct ExposureConfig {

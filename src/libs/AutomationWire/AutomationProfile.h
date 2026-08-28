@@ -9,7 +9,7 @@
 namespace AutomationWire {
 
     enum class AutomationProfile {
-        Meta,
+        L0,
         L1,
         L2,
         L3,

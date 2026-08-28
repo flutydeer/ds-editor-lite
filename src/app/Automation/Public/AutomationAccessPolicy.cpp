@@ -19,7 +19,7 @@ namespace Automation {
 
     bool AutomationAccessPolicy::isAllowed(const AutomationWire::ToolContract &contract) const {
         QReadLocker locker(&m_lock);
-        if (contract.minimumProfile == AutomationWire::AutomationProfile::Meta)
+        if (contract.minimumProfile == AutomationWire::AutomationProfile::L0)
             return true;
         if (m_profile == AutomationWire::AutomationProfile::Custom)
             return m_customEnabled.contains(contract.operationId);

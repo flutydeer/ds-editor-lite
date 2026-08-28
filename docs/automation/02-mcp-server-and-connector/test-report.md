@@ -6,8 +6,8 @@
 共 **181** 项；Editor 工具分属 **24** 个业务域，类型统计为
 **41 Q/S + 123 C/S + 11 C/A**。
 
-最低 Profile 分布为 Meta 2、L1 85、L2 43、L3 45，累积可见数量为
-2、87、130、175。L2 downstream 为 130 个 Editor wrapper 加 6 个桥接工具，共 136 项；
+最低 Profile 分布为 L0 2、L1 85、L2 43、L3 45，累积可见数量为
+2、87、130、175。L0 downstream 为 2 个固有 Editor wrapper 加 6 个桥接工具，共 8 项；L2 downstream 为 130 个 Editor wrapper 加 6 个桥接工具，共 136 项；
 L3 downstream 为 175 个 Editor wrapper 加 6 个桥接工具，共 181 项。全局
 `toolset_version` 与每工具 `minimum_toolset_version` 均为 **1**。
 
@@ -22,7 +22,7 @@ L3 downstream 为 175 个 Editor wrapper 加 6 个桥接工具，共 181 项。�
 | 平台与工具链 | Visual Studio 2026 v18.9.0；Qt 6.11.2 |
 | Debug 配置与构建 | 标准 preset `ConfigureAndBuild` 通过；随后 `all` target 通过 |
 | 最终 CTest 清单 | 65 项 |
-| 一次完整 CTest | 65/65 通过，41.40 s |
+| 一次完整 CTest | 65/65 通过，42.76 s |
 | Connector 真实联调 | 2025-11-25 下游握手和 2026-07-28 上游连接通过；toolset compatible |
 | GUI/Computer Use | 真实编辑、合成、播放、另存和无弹窗关闭通过 |
 | 测试素材完整性 | 素材源 19/19 项 SHA-256 不变；真实用户应用配置 SHA-256 不变 |
@@ -45,7 +45,7 @@ plugin 路径；GUI 与 Connector 进程测试使用独立测试实例和隔离�
   `tracks.get_voice_context` 或 `clips.get_voice_context`；
 - 175 项 input JSON Schema 均为 object 根，未知字段、错误类型、非法枚举和不满足联合分支的输入
   在 handler 前失败；output Schema 由确定性契约测试覆盖，运行时不逐次 assert；
-- Meta、L1、L2、L3 与 Custom 的发现面和 Registry 执行期授权使用同一 Access Policy；
+- L0、L1、L2、L3 与 Custom 的发现面和 Registry 执行期授权使用同一 Access Policy；L0 固有工具始终可用、不进入 Custom 列表，Connector exclude 也不能移除；
 - 动态 `value_sources` 只服务显式发现；正常 invocation 不自动回查 provider；
 - 标准 MCP `tools/list` 提供工具目录和完整 Schema，`application.get_status` 提供全局工具集版本、
   Profile、host 与当前文档/窗口摘要；
@@ -154,7 +154,7 @@ GUI 与无人值守实测结果：**通过**。Computer Use 可见创建后的�
 - 真实联调曾因陈旧 revision 和未结束 Task 返回 `revision_conflict`；客户端遵循查询最新状态后
   重试的契约完成闭环。
 
-以上均已通过最终 7/7 定向回归（35.85 s）和 65/65 完整 CTest（41.40 s），不构成产品遗留失败。
+以上均已通过最终 7/7 定向回归（35.85 s）和 65/65 完整 CTest（42.76 s），不构成产品遗留失败。
 
 超出本分支授权范围的第三方依赖或既有推理问题只记录事实，不在本报告中冒充已修复或通过。
 

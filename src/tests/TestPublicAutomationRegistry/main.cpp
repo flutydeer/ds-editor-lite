@@ -3976,7 +3976,7 @@ int main(int argc, char *argv[]) {
     expect(access.isAllowed(QStringLiteral("application.get_status")) &&
                access.isAllowed(QStringLiteral("documents.get")) &&
                !access.isAllowed(QStringLiteral("tracks.set_color")),
-           QStringLiteral("custom profile must retain Meta and only explicit business tools"));
+           QStringLiteral("custom profile must retain L0 and only explicit business tools"));
     access.update(AutomationWire::AutomationProfile::L3);
     const QJsonObject registrySingerRef{
         {QStringLiteral("package_id"),      QStringLiteral("registry-package")},

@@ -1,8 +1,8 @@
 // symbol, MCP tool name, category, minimum profile, operation kind, sync mode,
 // minimum toolset version, effect, repeatability, world access
-AUTOMATION_WIRE_PUBLIC_TOOL(application_get_info, "application.get_info", "application", Meta,
+AUTOMATION_WIRE_PUBLIC_TOOL(application_get_info, "application.get_info", "application", L0,
                             Query, Synchronous, 1, ReadOnly, Idempotent, ClosedWorld)
-AUTOMATION_WIRE_PUBLIC_TOOL(application_get_status, "application.get_status", "application", Meta,
+AUTOMATION_WIRE_PUBLIC_TOOL(application_get_status, "application.get_status", "application", L0,
                             Query, Synchronous, 1, ReadOnly, Idempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(application_get_file_access, "application.get_file_access",
                             "application", L2, Query, Synchronous, 1, ReadOnly, Idempotent,

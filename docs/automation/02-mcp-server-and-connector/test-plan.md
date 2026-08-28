@@ -146,7 +146,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 ### 执行
 
 1. 精确比较 175 项 ID、顺序、域、Profile、Query/Command、sync mode、Schema 和版本。
-2. 精确比较 Profile 累积数量 Meta 2、L1 87、L2 130、L3 175。
+2. 精确比较 Profile 累积数量 L0 2、L1 87、L2 130、L3 175，并验证 L0 不进入 Custom 设置且不能被任何权限配置禁用。
 3. 对全部 175 项生成 schema-valid 输入并验证 Registry binding 可达。
 4. 对每项执行 schema-invalid、权限关闭或 host unavailable 的适用拒绝路径。
 5. 由确定性语料为 175 项逐工具覆盖适用的成功、no-op、validate-only、revision conflict、结构化不可用或失败原子性；另按 24 个域各执行至少一条真实产品代表路径。
@@ -220,12 +220,12 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 4. 验证 upstream 优先执行 2026-07-28 发现，回退到 2025-11-25 初始化，并接受协商到 2025-06-18。
 5. 验证每轮握手完整读取所有 `tools/list` 页后只调用一次 `application.get_status`，不调用额外的并行工具目录接口。
 6. 验证 ID 重映射、并发乱序、notification、取消、timeout、EOF、broken pipe 与 backpressure。
-7. 验证 `l0/l1/l2/l3`、include/exclude、三类 selector、pending 与 exclude 优先级。
+7. 验证 `l0/l1/l2/l3`、include/exclude、三类 selector、pending、非 L0 工具的 exclude 优先级，以及 L0 不可排除约束。
 8. 验证同一 exposure 约束类型化工具与 list/search/describe/invoke；泛化 list/search 只返回摘要，describe 返回完整 Schema。
 9. 验证双方全局 `toolset_version` 与逐工具 `minimum_toolset_version` 门槛；不运行 Schema
    方向性/子集/digest 兼容计算，同版本 Schema 差异直接使契约测试失败。
    Connector 只校验自身桥接工具 envelope，类型化工具和泛化 invoke 的业务 Schema 由 Editor MCP 校验。
-10. 验证 L2 downstream 集合为 130 个 Editor 工具加 6 个桥接工具，共 136 项；L3 downstream 集合为 175 个 Editor 工具加 6 个桥接工具，共 181 项。
+10. 验证 L0 downstream 集合为 2 个固有 Editor 工具加 6 个桥接工具，共 8 项；L2 downstream 集合为 130 + 6，共 136 项；L3 downstream 集合为 175 + 6，共 181 项。
 11. 验证 ready burst 合并、尾随刷新、退避、manual reconnect、instance/endpoint 变化。
 
 ### 门禁
@@ -238,7 +238,7 @@ stdio 零污染；工具面、exposure 与兼容结果确定；旧握手结果�
 
 1. Connector 先启动，再启动 Editor 并启用 MCP，观察自动接入。
 2. Editor 先 ready，再启动 Connector，验证首次 watch 到完整握手。
-3. 在 direct HTTP 与 Connector stdio 上复用 Meta/L1/L2/L3 全域语料；175 项 Editor 工具由确定性进程测试逐项覆盖，真实 Connector 会话覆盖 24 个业务域、逐项执行 L3 45 项和六个 Connector 桥接工具。
+3. 在 direct HTTP 与 Connector stdio 上复用 L0/L1/L2/L3 全域语料；175 项 Editor 工具由确定性进程测试逐项覆盖，真实 Connector 会话覆盖 24 个业务域、逐项执行 L3 45 项和六个 Connector 桥接工具。
 4. 在隔离工作区完成文档、格式、轨道、总线、片段、音频素材、声库、Speaker Mix、音符、参数曲线、时间轴、历史记录、播放、导出、提取、推理与 Task 链路；GUI、设置、包信息和歌词规则域在同一真实进程候选中闭环。
 5. 运行两至八个 Connector，并发 Query、Command、Task 和 reconnect。
 6. 验证 revision conflict、全局 32 路上限、独立缓存与请求映射。

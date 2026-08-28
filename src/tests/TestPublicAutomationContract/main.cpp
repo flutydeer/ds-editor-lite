@@ -161,7 +161,7 @@ namespace {
                QStringLiteral("public contract operation set must be exact"));
         expect(PublicToolsetVersion == 1,
                QStringLiteral("the first public toolset version must remain one"));
-        expect(toolsForProfile(AutomationProfile::Meta).size() == 2 &&
+        expect(toolsForProfile(AutomationProfile::L0).size() == 2 &&
                    toolsForProfile(AutomationProfile::L1).size() == 87 &&
                    toolsForProfile(AutomationProfile::L2).size() == 130 &&
                    toolsForProfile(AutomationProfile::L3).size() == 175,

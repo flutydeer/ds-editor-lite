@@ -42,7 +42,7 @@ namespace AutomationWire {
         QString title;
         QString description;
         QString category;
-        AutomationProfile minimumProfile = AutomationProfile::Meta;
+        AutomationProfile minimumProfile = AutomationProfile::L0;
         OperationKind kind = OperationKind::Query;
         SyncMode syncMode = SyncMode::Synchronous;
         FileAccess fileAccess = FileAccess::None;

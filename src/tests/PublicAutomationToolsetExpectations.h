@@ -20,10 +20,10 @@ namespace PublicAutomationToolsetExpectations {
         using AutomationWire::AutomationProfile;
         static const QList<EditorTool> tools{
             {QStringLiteral("application.get_info"),                      QStringLiteral("application"),
-             AutomationProfile::Meta                                                                                          },
+             AutomationProfile::L0                                                                                            },
 
             {QStringLiteral("application.get_status"),                    QStringLiteral("application"),
-             AutomationProfile::Meta                                                                                          },
+             AutomationProfile::L0                                                                                            },
             {QStringLiteral("application.get_file_access"),               QStringLiteral("application"),
              AutomationProfile::L2                                                                                            },
 

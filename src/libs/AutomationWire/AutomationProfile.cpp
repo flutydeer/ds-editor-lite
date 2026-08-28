@@ -26,7 +26,7 @@ namespace AutomationWire {
     }
 
     bool presetIncludes(const AutomationProfile selected, const AutomationProfile minimum) {
-        if (minimum == AutomationProfile::Meta)
+        if (minimum == AutomationProfile::L0)
             return true;
         if (selected == AutomationProfile::Custom || minimum == AutomationProfile::Custom)
             return false;
