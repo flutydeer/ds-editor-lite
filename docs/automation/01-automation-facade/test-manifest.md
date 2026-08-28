@@ -41,7 +41,7 @@
 | tracks | 16 | 轨道查询、细粒度编辑、语言与声音 |
 | **合计** | **208** | **集中 ID、显式路由和领域行为测试** |
 
-内部 208 项不等于公共 MCP 工具面。公共 Editor 工具为 177 项，其中
+内部 208 项不等于公共 MCP 工具面。公共 Editor 工具为 175 项，其中
 `tracks.get_voice_context` 与 `clips.get_voice_context` 不单独公开；相应声音上下文由
 `tracks.get` 与 `clips.get` 返回。
 

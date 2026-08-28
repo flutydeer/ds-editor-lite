@@ -4,7 +4,7 @@
 
 二期在一期 Automation Facade 基线上交付运行中 GUI Editor 的公共 MCP Server、公共 Wire Contract、实例发现与状态观察、DS Connector Lite，以及 GUI 进阶控制、允许公开的应用设置与歌词规则、包索引、设置页、CLI、安全和运行时生命周期。
 
-设计语义以《DS Editor Lite MCP 与自动化体系设计》当前版为权威来源，并参考[自动化体系五期建设路线图 #96](https://github.com/flutydeer/ds-editor-lite/issues/96)。公共工具分母由[公共工具矩阵](public-tool-matrix.md)冻结：Editor 177 项，Connector 6 项，总计 183 项。
+设计语义以《DS Editor Lite MCP 与自动化体系设计》当前版为权威来源，并参考[自动化体系五期建设路线图 #96](https://github.com/flutydeer/ds-editor-lite/issues/96)。公共工具分母由[公共工具矩阵](public-tool-matrix.md)冻结：Editor 175 项，Connector 6 项，总计 181 项。
 
 本期产品形态为：
 
@@ -21,7 +21,7 @@ Agent 会话可先于 Editor 启动。Connector 通过全局实例 Bootstrap 观
 
 ## 2. 域优先原则
 
-公共能力先按业务域建模，再映射到 Profile、MCP descriptor 和 Connector exposure。Editor 的 25 个域依次为：应用、自动化与安全边界、文档与工程、格式、轨道、总线、片段、音频素材、声库、Speaker Mix、音符/歌词/语言/发音/音素、参数曲线与锚点、时间轴、历史记录、播放、导出、提取、推理、异步任务、工作区布局、轨道面板、片段编辑器、设置、包信息、歌词规则。
+公共能力先按业务域建模，再映射到 Profile、MCP descriptor 和 Connector exposure。Editor 的 24 个域依次为：应用、文档与工程、格式、轨道、总线、片段、音频素材、声库、Speaker Mix、音符/歌词/语言/发音/音素、参数曲线与锚点、时间轴、历史记录、播放、导出、提取、推理、异步任务、工作区布局、轨道面板、片段编辑器、设置、包信息、歌词规则。
 
 领域契约遵循以下规则：
 
@@ -82,9 +82,8 @@ Streamable HTTP / stdio
 ```
 
 每层职责单一。Editor MCP 与 Connector 都从同一公共契约表派生工具描述；业务提交只发生在领域
-Facade 与其既有运行时路径中。动态候选仍通过 `value_sources` 与
-`automation.get_options` 发现，但正常 invocation 不自动回查 provider；调用参数以目标 input
-Schema 和领域 handler 为准。
+Facade 与其既有运行时路径中。动态候选由 `value_sources` 指向同层级可达的领域查询；正常
+invocation 不自动回查 provider，调用参数以目标 input Schema 和领域 handler 为准。
 
 ## 5. Wire Contract 与 Binding Registry
 
@@ -102,14 +101,13 @@ Schema 和领域 handler 为准。
 - MCP 2025-11-25 与 2026-07-28 两套主协议，以及 2025-06-18 兼容握手的消息、结果塑形和 header codec；
 - exposure selector 与分页游标。
 
-Wire 字段使用 `snake_case`。业务 object 使用封闭 Schema；未知字段、未知枚举、非有限数字、越界整数、非法 ID、超限集合和非法分页游标在进入 Facade 前失败。表示默认值、自动选择、无过滤或分页首页的可选字段采用显式白名单：字符串空值与省略等义，具有“全部”语义的集合空值与省略等义；必填标识、路径、查询词和编辑值仍保持严格校验。动态候选由 `value_sources` 指向同层级可达的查询，`automation.get_options` 继承目标工具的 Profile、Custom 和执行权限。
+Wire 字段使用 `snake_case`。业务 object 使用封闭 Schema；未知字段、未知枚举、非有限数字、越界整数、非法 ID、超限集合和非法分页游标在进入 Facade 前失败。表示默认值、自动选择、无过滤或分页首页的可选字段采用显式白名单：字符串空值与省略等义，具有“全部”语义的集合空值与省略等义；必填标识、路径、查询词和编辑值仍保持严格校验。动态候选由 `value_sources` 指向同层级可达的领域查询，并继承该查询自身的 Profile、Custom 和执行权限。
 
 ### 5.2 Binding Registry
 
-Registry 从同一工具声明建立 177 个类型化 binding，并派生：
+Registry 从同一工具声明建立 175 个类型化 binding，并派生：
 
 - Editor `tools/list` 的确定顺序和 descriptor；
-- Public Automation Manifest；
 - input 解码、执行 handler 与 output 编码；output Schema 由确定性契约测试验证；
 - Profile/Custom 的发现过滤与执行期授权；
 - Connector 构建时已知的类型化 Editor 工具描述；
@@ -119,19 +117,12 @@ Registry 从同一工具声明建立 177 个类型化 binding，并派生：
 binding 集合完整，以及工具描述与执行入口一致。执行时不再次访问 value source；同一版本下
 Editor、Connector 或文档 Schema 不一致均按缺陷处理。
 
-## 6. Manifest、版本与兼容
+## 6. 工具集版本与兼容
 
-Public Automation Manifest 根级包含：
-
-- `toolset_version`；
-- 当前 Profile 与 host mode；
-- 分页的运行时工具元数据，包括 ID、域、类型、同步方式、最低 Profile、
-  `minimum_toolset_version`、host/file facts 和标准 MCP annotations；
-- 不透明 `next_cursor`；
-- 运行诊断所需的轻量摘要。
-
-本期工具集维持 v1：`toolset_version = 1`。183 个工具各自只持有
-`minimum_toolset_version = 1`，Manifest 不重复 current/introduced 三元组。
+标准 MCP `tools/list` 是运行时工具目录与完整 Schema 的事实来源；
+`application.get_status` 返回 Editor 的 `toolset_version`、当前 Profile、host mode 及文档/窗口摘要。
+本期工具集维持 v1：`toolset_version = 1`，181 个工具各自只持有
+`minimum_toolset_version = 1`。
 
 Connector 对同名类型化工具只检查双方工具集版本门槛：
 
@@ -164,8 +155,6 @@ Meta 工具构成握手、发现和诊断面。Preset 使用最低 Profile 的�
 同一 `AutomationAccessPolicy` 同时控制：
 
 - Editor `tools/list`；
-- Public Automation Manifest；
-- `automation.get_options`；
 - Registry 执行期 dispatch；
 - Connector 的实际目标状态。
 
@@ -217,10 +206,9 @@ Connector 是独立多实例进程：下游为 MCP stdio Server，上游为 Edit
 
 上游优先按 2026-07-28 发起 `server/discover`，失败后使用 2025-11-25
 `initialize/initialized`，并接受服务端协商到 2025-06-18 的 legacy 会话。协议握手成功后完整分页
-读取 `tools/list`，再调用一次 `automation.get_status` 取得 toolset version、Profile 与 host 摘要；
+读取 `tools/list`，再调用一次 `application.get_status` 取得 toolset version、Profile 与 host 摘要；
 逐工具 Schema 和可用性以 `tools/list` 为事实来源，兼容性只计算全局版本与逐工具最低版本。
-完整 `automation.get_manifest` 保留为按需运行诊断工具，不进入 Connector 常规握手。Editor
-instance 或 endpoint 变化会切换 handshake epoch、取消旧请求、清除旧缓存并建立新连接。
+Editor instance 或 endpoint 变化会切换 handshake epoch、取消旧请求、清除旧缓存并建立新连接。
 
 stdout 只写 MCP stdio 帧；诊断写 stderr。Reader 和 writer 都使用有界队列，覆盖部分读写、合并唤醒、EOF、broken pipe、backpressure 和停滞 deadline。
 
@@ -237,7 +225,7 @@ editor.tools.describe
 editor.tools.invoke
 ```
 
-Connector 同时携带构建时已知的 177 个 Editor 类型化工具描述。进程启动时根据 exposure 生成固定 downstream 类型化工具集合：
+Connector 同时携带构建时已知的 175 个 Editor 类型化工具描述。进程启动时根据 exposure 生成固定 downstream 类型化工具集合：
 
 ```text
 --exposure-profile l0|l1|l2|l3
@@ -272,7 +260,7 @@ exposure 与 pending selector 事实。稳定错误区分 Editor 状态、上游
 - 输出目标尚未存在时的最近存在父目录；
 - authorize 后、实际 I/O 前的 reauthorize。
 
-Editor 直连、Connector 类型化工具和泛化 invoke 进入同一个 Guard。`automation.get_file_access` 返回当前授权事实。
+Editor 直连、Connector 类型化工具和泛化 invoke 进入同一个 Guard。`application.get_file_access` 返回当前授权事实。
 
 ### 11.2 Admission
 
@@ -303,9 +291,9 @@ CLI override 只影响本次运行，优先于持久设置。选项菜单中的 
 ## 13. 实施顺序与阶段提交
 
 1. 校正一期 Task 名称与受影响测试。
-2. 冻结 177 + 6 工具矩阵、公共 enum、Schema 与版本不变量。
-3. 完成 Wire Contract、轻量 Manifest、版本兼容与透明分页游标。
-4. 按 25 个域完成 177 个 Registry binding 和 host adapter。
+2. 冻结 175 + 6 工具矩阵、公共 enum、Schema 与版本不变量。
+3. 完成 Wire Contract、版本兼容与透明分页游标。
+4. 按 24 个域完成 175 个 Registry binding 和 host adapter。
 5. 完成 Profile/Custom、File Guard 与 Admission。
 6. 完成 Editor 2025-11-25 与 2026-07-28 两套主协议，以及 2025-06-18 兼容握手生命周期。
 7. 完成 QLocal discover/watch 与状态机。
@@ -330,10 +318,10 @@ docs(automation): report phase two delivery
 
 ## 14. 验收门禁与正式产物
 
-- 177 个 Editor ID、6 个 Connector ID、183 个总 ID 唯一且集合相等。
-- 25 个 Editor 域及总线、历史记录、GUI 子区域归属与权威矩阵一致。
+- 175 个 Editor ID、6 个 Connector ID、181 个总 ID 唯一且集合相等。
+- 24 个 Editor 域及总线、历史记录、GUI 子区域归属与权威矩阵一致。
 - `toolset_version = 1`，且每工具 `minimum_toolset_version = 1`。
-- 177 个 Editor 工具均具备严格 Schema、descriptor、binding 与适用测试。
+- 175 个 Editor 工具均具备严格 Schema、descriptor、binding 与适用测试。
 - Editor MCP 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手、QLocal watch、Connector stdio/exposure/compatibility、Profile/Custom、File Guard、Admission、设置与 CLI 完成验证。
 - Editor 直连与 Connector 转接保持业务结果、稳定错误、历史记录、revision 和 Task 语义等价。
 - 多 Connector、运行时换端口/启停、全局准入、退出和资源清理满足有界生命周期。

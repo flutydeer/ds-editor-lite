@@ -2,11 +2,11 @@
 
 ## 1. 交付结论与口径
 
-二期形成了可由 Agent Host 使用的完整自动化链路：GUI Editor 内置 Streamable HTTP MCP Server，DS Connector Lite 以 stdio 向下游提供 MCP，并通过本机实例观察和 HTTP 与运行中的 Editor 建立连接。公共工具面按业务域组织，Editor 177 项、Connector 6 项，共 183 项。
+二期形成了可由 Agent Host 使用的完整自动化链路：GUI Editor 内置 Streamable HTTP MCP Server，DS Connector Lite 以 stdio 向下游提供 MCP，并通过本机实例观察和 HTTP 与运行中的 Editor 建立连接。公共工具面按业务域组织，Editor 175 项、Connector 6 项，共 181 项。
 
-Editor 的 177 项工具分属 25 个业务域，类型统计为 **43 Q/S + 123 C/S + 11 C/A**。
-最低 Profile 分布为 Meta 4 项、L1 85 项、L2 43 项、L3 45 项；累积可见数量分别为
-4、89、132、177。公共工具集 `toolset_version` 与 183 项工具的
+Editor 的 175 项工具分属 24 个业务域，类型统计为 **41 Q/S + 123 C/S + 11 C/A**。
+最低 Profile 分布为 Meta 2 项、L1 85 项、L2 43 项、L3 45 项；累积可见数量分别为
+2、87、130、175。公共工具集 `toolset_version` 与 181 项工具的
 `minimum_toolset_version` 均为 **1**。
 
 本报告记录当前源码的实现事实。权威工具分母和逐项语义见[公共工具矩阵](public-tool-matrix.md)，验证范围与执行方法见[全量测试大纲](test-outline.md)和[测试执行计划](test-plan.md)，实际运行结果由[测试报告](test-report.md)统一记录。
@@ -15,7 +15,7 @@ Editor 的 177 项工具分属 25 个业务域，类型统计为 **43 Q/S + 123 
 
 当前实现把 GUI 与 MCP 视为同一业务模型的两个入口，边界遵循以下规则：
 
-- 公共能力先按状态所有者归入业务域，再映射到 Profile、Manifest 和 Connector exposure；总线、时间轴、历史记录和播放各自独立。
+- 公共能力先按状态所有者归入业务域，再映射到 Profile 和 Connector exposure；总线、时间轴、历史记录和播放各自独立。
 - 在相应开放层级内，GUI 可完成的原子操作具有对应 MCP 工具；MCP handler 复用同一 Model、Action、历史记录、Task 和文件后端，提交后由既有信号链立即反映到 GUI。
 - 历史记录是编辑工具的原子边界。能够整体撤销和重做的同类多对象操作可批量提交；不能共同撤销的属性使用独立工具。例如轨道、片段和总线的标量控制分别提交，已有音符的歌词、语言、长度和发音也分别提交。
 - 创建输入限制对象树深度。轨道创建只接收空轨道的名称和颜色；歌声片段创建只接收目标轨道、位置、长度和名称；音符是叶节点，可在创建时携带完整初始属性。
@@ -27,9 +27,9 @@ Editor 的 177 项工具分属 25 个业务域，类型统计为 **43 Q/S + 123 
 
 | 层 | 主要代码 | 已实现职责 |
 |---|---|---|
-| Wire Contract | `src/libs/AutomationWire` | 177 项公共定义、值域、严格 JSON Schema、轻量 Manifest、游标、MCP codec、exposure 与工具集版本 |
+| Wire Contract | `src/libs/AutomationWire` | 175 项公共定义、值域、严格 JSON Schema、游标、MCP codec、exposure 与工具集版本 |
 | Domain Facade | `src/app/Automation` | 类型化 Query/Command、显式 Dispatcher 路由、CommandCommitter、历史记录、revision、Task 与领域适配 |
-| Public Registry | `src/app/Automation/Public` | 177 项 binding、Profile/Custom、动态值发现、File Guard、Admission、输入校验与 handler 路由；输出契约由确定性测试验证 |
+| Public Registry | `src/app/Automation/Public` | 175 项 binding、Profile/Custom、动态值发现、File Guard、Admission、输入校验与 handler 路由；输出契约由确定性测试验证 |
 | Editor MCP | `src/app/Automation/Mcp` | 双协议请求处理、loopback HTTP、运行时配置、启停与状态发布 |
 | Instance Bootstrap | `src/app/Bootstrap` | 单实例身份、`automation.discover/watch`、完整状态快照与广播 |
 | Connector | `src/connector` | QLocal watcher、HTTP upstream、stdio downstream、六项桥接工具、exposure、兼容缓存与重连 |
@@ -53,20 +53,19 @@ contract / handler 查找
   → output 编码
 ```
 
-异步工具的 Admission lease 会保留到 Task 终态。动态 `value_sources` 供
-`automation.get_options` 做发现，正常 invocation 不自动回查 provider。Registry 在启动时把实际
+异步工具的 Admission lease 会保留到 Task 终态。动态 `value_sources` 指向同层级可达的领域查询，
+正常 invocation 不自动回查 provider。Registry 在启动时把实际
 binding ID 与公共契约 ID 排序后做精确相等校验；完整性门禁失败时，Editor 发布错误状态，不启动
 缺少 binding 的 MCP listener。
 
-## 4. 177 项域优先公共契约
+## 4. 175 项域优先公共契约
 
 `src/libs/AutomationWire/PublicToolDefinitions.inc` 是 Editor 工具身份、域、最低 Profile、类型、
 同步模式和逐工具 `minimum_toolset_version` 的单一来源。
 
 | 业务域 | category | 数量 |
 |---|---|---:|
-| 应用 | `application` | 1 |
-| 自动化与安全边界 | `automation` | 4 |
+| 应用 | `application` | 3 |
 | 文档与工程 | `documents` | 8 |
 | 格式 | `formats` | 2 |
 | 轨道 | `tracks` | 14 |
@@ -90,7 +89,7 @@ binding ID 与公共契约 ID 排序后做精确相等校验；完整性门禁�
 | 设置 | `settings` | 10 |
 | 包信息 | `packages` | 3 |
 | 歌词规则 | `lyric_rules` | 7 |
-| **合计** |  | **177** |
+| **合计** |  | **175** |
 
 `master.*` 的公开 operation ID 保持稳定，descriptor category 为 `bus`。历史记录域使用 `history.get_state/undo/redo`，异步执行实例统一使用 `tasks.list/get/cancel`；`operation_id` 表示能力定义，`task_id` 表示一次执行实例。
 
@@ -102,10 +101,10 @@ binding ID 与公共契约 ID 排序后做精确相等校验；完整性门禁�
 - dynamic `value_sources` 及其上下文参数；
 - 唯一 Registry binding；输出 Schema 由确定性契约测试验证，运行时不逐次 assert。
 
-Manifest 包含工具集版本、当前 Profile、host mode、分页的运行时工具元数据和 cursor。它不重复
-document/revision/history/concurrency/conflict/safety、schema digest、current 或 introduced 等文档性
-字段；标准 MCP annotations 保持在工具元数据中。Cursor 对调用方透明地延续分页，内部只将
-`context + snapshot + offset` 编码为 base64url 并校验上下文/快照，不使用密钥或 HMAC。
+标准 MCP `tools/list` 提供运行时工具目录和完整 Schema，`application.get_status` 提供工具集版本、
+当前 Profile、host mode 及文档/窗口摘要。标准 MCP annotations 保持在工具 descriptor 中。
+Cursor 对调用方透明地延续分页，内部只将 `context + snapshot + offset` 编码为 base64url 并校验
+上下文/快照，不使用密钥或 HMAC。
 
 ## 5. 领域语义收口
 
@@ -197,7 +196,7 @@ GUI 进阶控制按真实面板层级归入 `workspace`、`track_panel` 和 `cli
 
 ## 7. Profile、Custom、File Guard 与 Admission
 
-`AutomationAccessPolicy` 分离 preset Profile 与 Custom operation 集合。Editor 的 `tools/list`、Manifest、`automation.get_options` 和 Registry 执行期 dispatch 都读取同一策略；工具列表缓存不能替代每次调用时的授权检查。Connector exposure 只决定下游可见面，Editor 仍执行最终授权。
+`AutomationAccessPolicy` 分离 preset Profile 与 Custom operation 集合。Editor 的 `tools/list` 和 Registry 执行期 dispatch 读取同一策略；工具列表缓存不能替代每次调用时的授权检查。Connector exposure 只决定下游可见面，Editor 仍执行最终授权。
 
 `L3` 在产品文案中称为“进阶控制”（Advanced Control），表示在 L2 之上按明确范围增加部分 GUI 自动化操作与设置项更改，而非不受限制的完全控制；自动化/MCP 自身的配置和运行生命周期明确排除在外。
 
@@ -229,39 +228,40 @@ Editor 的单实例协议提供 `automation.discover` 和 `automation.watch`。�
 Connector 可先于 Editor 启动。`BootstrapWatcher` 只作为 QLocal 客户端观察当前实例，使用实例
 身份与 handshake epoch 丢弃旧结果，并以有界退避重连。上游优先使用 2026-07-28
 `server/discover`，失败时进入 2025-11-25 initialize 流程，并接受服务端协商到 2025-06-18。
-协议建立后，Connector 完整分页读取 `tools/list`，再用一次 `automation.get_status` 取得
-toolset version、Profile 和 host；完整 `automation.get_manifest` 不进入常规握手，只保留为按需
-运行诊断能力。
+协议建立后，Connector 完整分页读取 `tools/list`，再用一次 `application.get_status` 取得
+toolset version、Profile 和 host。
 
 Connector 固定提供六个桥接工具：
 
 | 工具 | 职责 |
 |---|---|
-| `connector.get_status` | 返回 Connector、Bootstrap、Editor、协议、Manifest、兼容与 exposure 的缓存事实 |
+| `connector.get_status` | 返回 Connector、Bootstrap、Editor、协议、工具集兼容与 exposure 的缓存事实 |
 | `connector.reconnect` | 主动重建观察和上游握手 |
-| `editor.tools.list` | 分页列出 exposure 后的实际 Editor 工具 |
-| `editor.tools.search` | 按 ID、标题、说明和域搜索实际工具 |
+| `editor.tools.list` | 分页列出 exposure 后的实际 Editor 工具摘要 |
+| `editor.tools.search` | 按 ID、标题、说明和域搜索实际工具摘要 |
 | `editor.tools.describe` | 返回实际 Schema、版本、权限、兼容与可用性 |
 | `editor.tools.invoke` | 按 Editor 当前真实 Schema 调用获准目标 |
 
-六项桥接工具的 `minimum_toolset_version` 均为 1。Connector 还携带构建时已知的 177 项
+六项桥接工具的 `minimum_toolset_version` 均为 1。Connector 还携带构建时已知的 175 项
 Editor 类型化描述；downstream 工具面由六项桥接工具与 exposure 选择的类型化工具组成，并在
-单个 Connector 生命周期内保持描述稳定。
+单个 Connector 生命周期内保持描述稳定。标准 downstream `tools/list` 直接发布类型化描述；
+泛化 `editor.tools.list/search` 只返回摘要，需要完整 Schema 时调用 `editor.tools.describe`。
 
 Exposure 默认 L1，支持 `l0/l1/l2/l3`、`id:`、`category:`、`prefix:`、include 和
 exclude；同一选择同时约束类型化 wrapper 和泛化 list/search/describe/invoke。兼容计算只检查
 全局 `toolset_version` 与每工具 `minimum_toolset_version`，不计算 Schema 方向、子集、digest
 或 `compatible_subset`。同版本 Schema 不一致按产品缺陷处理，并由 MCP 输入校验与测试发现。
 `tools/list` 的 namespaced `_meta` 仍携带 `kind` 与 host availability，确保泛化工具保留
-Command outcome 和 host 过滤语义。Editor 与 Connector 的分页 cursor 均以 base64url 承载上下文、
-快照和 offset，不使用 HMAC；正常握手只重建一次工具与兼容缓存，`connector.get_status` 只读取
-现有缓存和当前观察状态。
+Command outcome 和 host 过滤语义。Connector 只验证自己六个桥接工具的输入输出 envelope；
+类型化工具和泛化 invoke 的业务 Schema 由 Editor MCP 验证，避免在转接层重复执行同一套 Schema
+引擎。Editor 与 Connector 的分页 cursor 均以 base64url 承载上下文、快照和 offset，不使用
+HMAC；正常握手只重建一次工具与兼容缓存，`connector.get_status` 只读取现有缓存和当前观察状态。
 
 Downstream stdio 支持两套主协议及 2025-06-18 兼容握手，具有有界 reader/writer 队列、并发请求 ID 映射、取消、超时、EOF、broken pipe 和 backpressure 处理。Windows 非阻塞管道按 4 KiB 分块写出大响应，停滞计时只在连续无进度时触发；stdout 只输出 MCP 帧，诊断写入 stderr。
 
 ## 10. 设置页、配置复制与 CLI
 
-Automation 设置已进入选项对话框导航，并使用与其他选项页一致的主题图标。页面、运行状态和 25 个域的显示文本已补齐中文翻译，其中 `history` 显示为“历史记录”。Custom 工具不再使用平铺清单，而是按公共契约的领域建立独立卡片；每组默认收起，支持独立展开/收起、启用计数和整组启停。单工具开关仍直接写入同一 `customPermissions` 集合，组级操作只批量更新这些既有权限，不引入第二套配置。
+Automation 设置已进入选项对话框导航，并使用与其他选项页一致的主题图标。页面、运行状态和 24 个域的显示文本已补齐中文翻译，其中 `history` 显示为“历史记录”。Custom 工具不再使用平铺清单，而是按公共契约的领域建立独立卡片；每组默认收起，支持独立展开/收起、启用计数和整组启停。单工具开关仍直接写入同一 `customPermissions` 集合，组级操作只批量更新这些既有权限，不引入第二套配置。
 
 持久设置的安全默认值为 MCP 关闭、L1、空的额外读写根和非零控制端口。配置中缺少有效端口时在动态私有范围生成一个端口，保存后后续启动继续使用该值；只有用户点击“刷新”或直接编辑才改变端口。页面不提供固定/随机下拉框，“刷新”按钮与端口输入框位于同一行并始终可操作。
 
@@ -286,20 +286,20 @@ CLI override 只影响本次运行，并在设置页显示来源，不改写持�
 
 当前测试代码对以下实现不变量建立了自动保护：
 
-- 177 项稳定 tool name、25 个域、类型、Profile、Schema 和逐工具最低工具集版本；
-- 177 项 Contract、Registry、Manifest、Editor `tools/list` 与 Connector 已知描述的集合相等；
+- 175 项稳定 tool name、24 个域、类型、Profile、Schema 和逐工具最低工具集版本；
+- 175 项 Contract、Registry、Editor `tools/list` 与 Connector 已知描述的集合相等；
 - 六个 Connector 桥接工具和 exposure 后的 downstream 集合；
 - 历史记录原子边界、创建深度、音符叶节点、轨道/片段 voice 和持久循环；
 - NoteTransfer 的音符与参数曲线深复制、GUI 剪贴板 round-trip；
 - MIDI headless 解析/生成、LibreSVIP 共享转换、文件授权与异步写回；
-- Profile/Custom、File Guard、全局 Admission、轻量 Manifest、游标和版本兼容；
+- Profile/Custom、File Guard、全局 Admission、游标和版本兼容；
 - 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手、HTTP、QLocal、Connector stdio 和真实进程路径；
 - 工作区、轨道面板和片段编辑器的 GUI 状态、选择、焦点、共享视口及无历史记录副作用；
 - 设置稀疏更新、包索引后台刷新、歌词规则管理与失败回滚；
 - Automation 设置持久化、CLI override、端口、配置 JSON、Custom 领域分组与中文界面。
 
 最终候选在 Visual Studio 2026 v18.9.0、Qt 6.11.2 环境中通过标准 preset
-`ConfigureAndBuild` 和 `all` target。完整 CTest 为 65/65（48.14 s），定向回归为
-7/7（15.54 s）。Editor 177 项、Connector 6 项、25 个业务域、L3 45 项和内部 208 个
+`ConfigureAndBuild` 和 `all` target。完整 CTest 为 65/65（41.40 s），定向回归为
+7/7（35.85 s）。Editor 175 项、Connector 6 项、24 个业务域、L3 45 项和内部 208 个
 Operation ID 的确定性覆盖通过；2025-11-25 下游握手、2026-07-28 上游连接、真实编辑联调、
 Computer Use GUI、配置恢复和只读素材完整性均通过。

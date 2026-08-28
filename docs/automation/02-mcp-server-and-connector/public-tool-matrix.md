@@ -2,7 +2,7 @@
 
 ## 1. 冻结口径
 
-二期工具面按业务域组织。Editor 提供 **177** 个公共工具，DS Connector Lite 提供 **6** 个桥接工具，合计 **183** 个。MCP tool name 是跨 Contract、Registry、Manifest、Editor 与 Connector 的稳定身份，不使用依赖表内顺序的编号。
+二期工具面按业务域组织。Editor 提供 **175** 个公共工具，DS Connector Lite 提供 **6** 个桥接工具，合计 **181** 个。MCP tool name 是跨 Contract、Registry、Editor 与 Connector 的稳定身份，不使用依赖表内顺序的编号。
 
 公共工具集维持 v1：`toolset_version = 1`。每个工具只声明自己的
 `minimum_toolset_version`，当前均为 1；兼容性只由这两个版本字段决定。Schema 不一致属于
@@ -21,8 +21,7 @@
 
 | 域 | 数量 | 核心职责 |
 |---|---:|---|
-| 应用 | 1 | 产品与构建身份 |
-| 自动化与安全边界 | 4 | 状态、Manifest、动态选项、文件授权事实 |
+| 应用 | 3 | 产品与构建身份、运行状态、文件授权事实 |
 | 文档与工程 | 8 | 文档状态与统计、最近项目、生命周期、保存与导入 |
 | 格式 | 2 | 格式能力与导入前检查 |
 | 轨道 | 14 | 轨道查询、细粒度编辑、语言与声音 |
@@ -46,26 +45,19 @@
 | 设置 | 10 | 允许公开的应用设置查询、稀疏更新、候选值与生效状态 |
 | 包信息 | 3 | 已安装包查询、详情与异步刷新 |
 | 歌词规则 | 7 | splitter/tagger 规则管理与只读流水线测试 |
-| **Editor 合计** | **177** | **43 Q/S + 123 C/S + 11 C/A** |
+| **Editor 合计** | **175** | **41 Q/S + 123 C/S + 11 C/A** |
 
 ## 3. Editor 公共工具
 
-### 3.1 应用（1）
+### 3.1 应用（3）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
 | `application.get_info` | Meta | Q/S | 返回产品名、版本、平台与构建身份 |
+| `application.get_status` | Meta | Q/S | Editor 实例、host、profile、工具集版本与当前 document/window 摘要 |
+| `application.get_file_access` | L2 | Q/S | 返回 canonical 读写根与会话授权事实 |
 
-### 3.2 自动化与安全边界（4）
-
-| 工具 | Profile | 类型 | 契约要点 |
-|---|---|---|---|
-| `automation.get_status` | Meta | Q/S | Editor 实例、host、profile、Manifest、当前 document/window 摘要 |
-| `automation.get_manifest` | Meta | Q/S | 分页返回运行时工具元数据、最低工具集版本与标准 annotations |
-| `automation.get_options` | Meta | Q/S | 按目标字段与上下文解析动态候选，继承目标权限 |
-| `automation.get_file_access` | L2 | Q/S | 返回 canonical 读写根与会话授权事实 |
-
-### 3.3 文档与工程（8）
+### 3.2 文档与工程（8）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
@@ -78,14 +70,14 @@
 | `documents.import` | L2 | C/A | 单文件导入计划、格式选项与任务写回 |
 | `documents.import_batch` | L2 | C/A | 批量导入、失败策略与任务写回 |
 
-### 3.4 格式（2）
+### 3.3 格式（2）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
 | `formats.list` | L2 | Q/S | 格式、扩展名、用途、可用性与 option Schema |
 | `formats.inspect` | L2 | Q/S | 文件格式、来源、诊断与稳定 plan digest |
 
-### 3.5 轨道（14）
+### 3.4 轨道（14）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
@@ -104,7 +96,7 @@
 | `tracks.set_voice` | L1 | C/S | 稳定 singer 引用；speaker 可空，多个 speaker 时显式选择 |
 | `tracks.clear_voice` | L1 | C/S | 清除轨道声音上下文 |
 
-### 3.6 总线（5）
+### 3.5 总线（5）
 
 总线域在 descriptor 中使用 category `bus`，公开 operation ID 保持 `master.*`。
 
@@ -116,7 +108,7 @@
 | `master.set_mute` | L1 | C/S | Master 静音单字段命令 |
 | `master.set_solo` | L1 | C/S | Master 独奏单字段命令 |
 
-### 3.7 片段（15）
+### 3.6 片段（15）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
@@ -136,7 +128,7 @@
 | `clips.set_voice` | L1 | C/S | 设置片段自有声音；speaker 可空，多个 speaker 时显式选择 |
 | `clips.clear_voice` | L1 | C/S | 清除片段自有声音 |
 
-### 3.8 音频素材（5）
+### 3.7 音频素材（5）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
@@ -146,7 +138,7 @@
 | `audio_clips.relocate` | L2 | C/S | 新路径校验、解码、hash 与最终写回组成一项同步 Mutation |
 | `audio_clips.confirm_path` | L2 | C/S | 候选校验、重新授权与最终写回组成一项同步 Mutation |
 
-### 3.9 声库（2）
+### 3.8 声库（2）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
@@ -155,7 +147,7 @@
 
 声库域只负责列出可用声库和描述特定声库；应用 voice 的命令分别保留在轨道域和片段域。L1/L2 的发现、动态候选、设置与回读均使用版本完整的 SingerRef，不依赖 L3 包信息域。
 
-### 3.10 Speaker Mix（13）
+### 3.9 Speaker Mix（13）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
@@ -173,7 +165,7 @@
 | `speaker_mix.presets.delete` | L2 | C/S | 删除应用级预设，不改变引用该预设的既有文档混合值 |
 | `speaker_mix.presets.apply` | L2 | C/S | 将预设值应用到轨道/片段，形成一条文档历史记录并保留来源元数据 |
 
-### 3.11 音符、歌词、语言、发音与音素（19）
+### 3.10 音符、歌词、语言、发音与音素（19）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
@@ -197,7 +189,7 @@
 | `notes.reset_phonemes` | L1 | C/S | 恢复自动音素与边界 |
 | `notes.fill_lyrics` | L1 | C/S | 批量歌词填充与分词/语言选项 |
 
-### 3.12 参数曲线与锚点（12）
+### 3.11 参数曲线与锚点（12）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
@@ -214,7 +206,7 @@
 | `parameters.set_anchor_interpolation` | L1 | C/S | 批量锚点插值更新 |
 | `parameters.merge_anchor_curves` | L1 | C/S | 显式合并同一参数层内相邻且不重叠的完整锚点曲线 |
 
-### 3.13 时间轴（5）
+### 3.12 时间轴（5）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
@@ -224,7 +216,7 @@
 | `time_signatures.set` | L1 | C/S | 新增/替换拍号与 bar 0 规则 |
 | `time_signatures.remove` | L1 | C/S | 拍号删除与 bar 0 规则 |
 
-### 3.14 历史记录（3）
+### 3.13 历史记录（3）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
@@ -232,7 +224,7 @@
 | `history.undo` | L1 | C/S | 显式历史记录导航与 revision |
 | `history.redo` | L1 | C/S | 显式历史记录导航与 revision |
 
-### 3.15 播放（8）
+### 3.14 播放（8）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
@@ -247,7 +239,7 @@
 
 `playback.play/pause/stop/seek` 只修改瞬时播放状态；三个循环工具修改工程持久状态，同时遵守文档 revision 与播放 state version 冲突检查，并可由 `history.undo/redo` 整体导航。
 
-### 3.16 导出（6）
+### 3.15 导出（6）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
@@ -258,7 +250,7 @@
 | `exports.audio.preview` | L2 | Q/S | 目标计划与阻断诊断 |
 | `exports.audio.start` | L2 | C/A | 受控写路径、渲染任务与失败清理 |
 
-### 3.17 提取（3）
+### 3.16 提取（3）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
@@ -266,7 +258,7 @@
 | `extract.pitch.start` | L2 | C/A | 音高提取任务与目标片段写回 |
 | `extract.midi.start` | L2 | C/A | MIDI 提取任务与目标位置写回 |
 
-### 3.18 推理（4）
+### 3.17 推理（4）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
@@ -275,7 +267,7 @@
 | `inference.start` | L2 | C/A | 作用域、阶段、执行选项与任务 |
 | `inference.reset_stage` | L2 | C/S | 作用域内阶段重置 |
 
-### 3.19 异步任务（3）
+### 3.18 异步任务（3）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
@@ -283,14 +275,14 @@
 | `tasks.get` | L2 | Q/S | 按 scope 返回状态、进度、结果、错误与创建者归因 |
 | `tasks.cancel` | L2 | C/S | 按 scope 执行排队、运行、提交点与终态取消语义 |
 
-### 3.20 工作区布局（2）
+### 3.19 工作区布局（2）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
 | `workspace.get` | L3 | Q/S | 返回主编辑面板可见性、布局与当前键盘焦点所属面板 |
 | `workspace.set_panel_visibility` | L3 | C/S | 稀疏更新轨道面板与片段编辑器可见性；至少保留一个主编辑面板 |
 
-### 3.21 轨道面板（7）
+### 3.20 轨道面板（7）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
@@ -302,7 +294,7 @@
 | `track_panel.select_clips` | L3 | C/S | 原子替换有序片段选择与 primary clip，并聚焦轨道面板 |
 | `track_panel.clear_selection` | L3 | C/S | 按 track/clips/all 清除选择并保持确定焦点 |
 
-### 3.22 片段编辑器（16）
+### 3.21 片段编辑器（16）
 
 钢琴和参数子区域共享时间位置与横向缩放；钢琴另有音高纵向视口，参数另有值域纵向视口。焦点与选择归入各自面板/子区域，不建立平行的选择域。
 
@@ -325,7 +317,7 @@
 | `clip_editor.parameters.set_tool` | L3 | C/S | 设置绘制、擦除、烘焙或锚点等受支持工具 |
 | `clip_editor.parameters.set_value_viewport` | L3 | C/S | 稀疏更新归一化值域中心与纵向缩放，不改变共享时间视口 |
 
-### 3.23 设置（10）
+### 3.22 设置（10）
 
 设置工具只公开明确允许的应用选项，不公开自动化/MCP 自配置、开发者选项、窗口/动画/触控、文件缓存、MIDI、合成器、G2P 优先级、推理缓存、最近文件清理或未列出的设置。
 
@@ -342,7 +334,7 @@
 | `settings.singer_session_retention.update` | L3 | C/S | 稀疏更新会话容量与空闲释放时间 |
 | `settings.package_search_paths.update` | L3 | C/S | 替换有序读取根内路径；配置值持久化并报告重启后生效 |
 
-### 3.24 包信息（3）
+### 3.23 包信息（3）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
@@ -352,7 +344,7 @@
 
 `packages.refresh` 创建 application-scoped Task；不伪造 `document_id`，也不参与工程 revision 或历史记录。
 
-### 3.25 歌词规则（7）
+### 3.24 歌词规则（7）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
@@ -368,10 +360,10 @@
 
 | 工具 | 类型 | 固定职责 |
 |---|---|---|
-| `connector.get_status` | Q/S | 返回 Connector、Bootstrap、Editor、MCP、Manifest、兼容和 exposure 事实 |
-| `connector.reconnect` | C/S | 主动刷新 QLocal 观察、上游握手、工具目录与 Manifest 摘要，并返回当前状态 |
-| `editor.tools.list` | Q/S | 分页列出通过 exposure 的 Editor 实际工具 |
-| `editor.tools.search` | Q/S | 按 ID、标题、说明和域搜索实际工具 |
+| `connector.get_status` | Q/S | 返回 Connector、Bootstrap、Editor、MCP、工具集兼容和 exposure 的缓存事实 |
+| `connector.reconnect` | C/S | 主动刷新 QLocal 观察、上游握手与工具目录，并返回当前状态 |
+| `editor.tools.list` | Q/S | 分页列出通过 exposure 的 Editor 实际工具摘要 |
+| `editor.tools.search` | Q/S | 按 ID、标题、说明和域搜索实际工具摘要 |
 | `editor.tools.describe` | Q/S | 返回目标 Schema、版本、权限、兼容与可用性 |
 | `editor.tools.invoke` | 继承目标 | 按 Editor 当前真实 Schema 调用获准目标 |
 
@@ -385,17 +377,16 @@
 Editor PublicToolDefinitions
 = Editor Public Registry bindings
 = Editor tools/list names
-= Public Automation Manifest operation IDs
 = Connector 构建时已知 Editor 类型化工具 names
 
 Connector bridge definitions
 = Connector downstream 固定桥接工具 names
 
-177 + 6 = 183
+175 + 6 = 181
 ```
 
 每个 Editor 工具必须具备唯一 operation ID、域、最低 profile、Query/Command、同步模式、严格
 input/output Schema、必要的 `value_sources`、标准 MCP annotations、
-`minimum_toolset_version` 和执行 binding。动态选项仍可通过发现工具查询，但业务调用不自动回查
-provider；每次调用在实际 dispatch 前重新执行 profile/Custom、输入 Schema、File Guard 与
+`minimum_toolset_version` 和执行 binding。动态候选由 `value_sources` 指向同层级可达的领域查询，
+业务调用不自动回查 provider；每次调用在实际 dispatch 前重新执行 profile/Custom、输入 Schema、File Guard 与
 Admission 检查。输出 Schema 由确定性契约测试覆盖，运行时不逐次 assert。
