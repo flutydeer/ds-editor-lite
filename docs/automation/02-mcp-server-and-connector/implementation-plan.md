@@ -332,10 +332,10 @@ docs(automation): report phase two delivery
 
 ## 14. 验收门禁与正式产物
 
-- 177 个 Editor ID、6 个 Connector ID、183 个总 ID 唯一且集合相等。
-- 24 个 Editor 域及总线、历史记录、GUI 子区域归属与权威矩阵一致。
-- `toolset_version = 1`，且每工具 `minimum_toolset_version = 1`。
-- 177 个 Editor 工具均具备严格 Schema、descriptor、binding 与适用测试。
+- 权威 Editor 契约与 Connector 桥接 ID 各自唯一；Registry、发现面和 downstream 满足其集合关系。
+- Editor 工具的域及总线、历史记录、GUI 子区域归属符合契约语义。
+- 发布前 `toolset_version = 1`，每工具 `minimum_toolset_version` 合法且不高于当前版本。
+- 权威 Editor 契约均具备严格 Schema 与 descriptor，Registry binding 集合与契约集合相等；共享不变量在所有者层验证一次，各域独特语义具有适用测试。
 - Editor MCP 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手、QLocal watch、Connector stdio/exposure/compatibility、Profile/Custom、File Guard、Admission、设置与 CLI 完成验证。
 - Editor 直连与 Connector 转接保持业务结果、稳定错误、历史记录、revision 和 Task 语义等价。
 - 多 Connector、运行时换端口/启停、全局准入、退出和资源清理满足有界生命周期。

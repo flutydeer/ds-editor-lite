@@ -21,8 +21,8 @@ L3 downstream 为 177 个 Editor wrapper 加 6 个桥接工具，共 183 项。�
 | 代码候选 | `mcp` 分支当前最终候选 |
 | 平台与工具链 | Visual Studio 2026 v18.9.0；Qt 6.11.2 |
 | Debug 配置与构建 | 标准 preset `ConfigureAndBuild` 通过；随后 `all` target 通过 |
-| 最终 CTest 清单 | 65 项 |
-| 一次完整 CTest | 65/65 通过，38.12 s |
+| 最终 CTest 清单 | 62 项 |
+| 一次完整 CTest | 62/62 通过，35.58 s |
 | Connector 真实联调 | 2025-11-25 下游握手和 2026-07-28 上游连接通过；L0 重启后自动重连且 toolset compatible |
 | GUI/Computer Use | 真实编辑、合成、播放、另存，以及 dirty 拒绝、丢弃重启和 clean 退出全程无决策弹窗 |
 | 测试素材完整性 | 素材源 19/19 项 SHA-256 不变；真实用户应用配置 SHA-256 不变 |
@@ -35,11 +35,9 @@ plugin 路径；GUI 与 Connector 进程测试使用独立测试实例和隔离�
 
 本轮需要确认以下不变量：
 
-- Editor Contract、Registry binding、Editor `tools/list`、Connector 已知类型化描述
-  和公共矩阵的 177 个 ID 精确相等；
-- Connector 固定桥接定义、downstream 固定面和公共矩阵的 6 个 ID 精确相等；
-- 24 个域的工具数量、Query/Command 类型、同步模式、最低 Profile、
-  `minimum_toolset_version` 和动态值来源逐项一致；
+- Editor 公共 Contract 的 ID 唯一；Registry binding、授权后的 Editor `tools/list` 与相应契约集合相等，Connector 已知类型化描述来自同一权威源；
+- Connector 固定桥接定义唯一，downstream 等于当前 exposure 下可用的 Editor 工具与桥接工具之并集；
+- 域、Query/Command 类型、同步模式、最低 Profile、`minimum_toolset_version` 和动态值来源满足声明约束；工具与域数量只作为候选快照记录，不作为固定测试门禁；
 - `tracks.get` 返回轨道属性、统计、自有/有效 voice 与默认语言上下文，`clips.get` 对歌声片段
   返回 own/effective voice、继承来源和有效默认语言；公共集合不含
   `tracks.get_voice_context` 或 `clips.get_voice_context`；
@@ -52,8 +50,9 @@ plugin 路径；GUI 与 Connector 进程测试使用独立测试实例和隔离�
   Profile、host 与当前文档/窗口摘要；
 - Cursor 的 base64url payload 只绑定 context、snapshot 和 offset，不使用密钥或 HMAC。
 
-集合与契约实测结果：**通过**。Editor 177 项、Connector 6 项、总计 183 项；最低 Profile
-累计数量为 4/89/132/177，内部能力集合为 208 个 Operation ID。Connector 工具集状态报告
+集合与契约实测结果：**通过**。当前候选快照为 Editor 177 项、Connector 6 项、总计 183 项；
+最低 Profile 累计数量为 4/89/132/177，内部能力集合为 208 个 Operation ID。集合正确性由单一
+契约源及其与 Registry、发现面和 downstream 的关系验证。Connector 工具集状态报告
 `compatible`，177 项 compatible、0 项 unavailable、0 项 incompatible。
 
 ## 4. 版本兼容、准入与幂等
@@ -153,18 +152,12 @@ Editor 窗口与进程均消失。三个阶段均未出现保存确认或其他�
 
 ## 8. 缺陷与回归
 
-本轮 failure ledger 已全部闭环：
+最终候选的共享 Dispatcher、公共契约、Registry、Wire、Connector、文档生命周期和真实进程路径
+均通过受影响测试与最终 62/62 完整 CTest（35.58 s）。压力测试仍在默认套件中，保留通知洪泛、
+并发请求、大帧、慢读、取消与竞态覆盖；没有将其拆分、降次或改为可选执行。
 
-- 首次完整 CTest 使用了产品构建刷新前的旧测试可执行文件，进程测试因此失败；完成 `all` target
-  构建后重跑通过；
-- 旧 `EditingDimensions` 断言错误假设所有写操作均支持幂等；按工具显式 opt-in 能力收缩断言后，
-  定向回归与完整 CTest 均通过；
-- 真实联调曾因陈旧 revision 和未结束 Task 返回 `revision_conflict`；客户端遵循查询最新状态后
-  重试的契约完成闭环。
-
-以上均已通过受影响测试和最终 65/65 完整 CTest（38.12 s）。新增生命周期路径还通过
-`TestPublicAutomationContract`、`TestPublicAutomationRegistry`、`TestAutomationRuntimeDimensions`、
-`TestDocumentWorkflow`、`TestDsConnectorLite` 与真实进程/GUI 联调，不构成产品遗留失败。
+测试实现不再维护第二份手工工具清单，也不以固定工具数量、CTest 数量、场景配额或逐工具复制的
+通用错误矩阵证明正确性。共享规则在其所有者层验证一次，各领域只保留独特业务语义与高风险边界。
 
 超出本分支授权范围的第三方依赖或既有推理问题只记录事实，不在本报告中冒充已修复或通过。
 
@@ -183,11 +176,11 @@ Editor 窗口与进程均消失。三个阶段均未出现保存确认或其他�
 
 ## 10. 最终通过清单
 
-- [x] Editor 177、Connector 6、合计 183 项的集合、域、类型与 Profile 分母成立。
+- [x] Editor 契约 ID 唯一，Registry、发现面与 Connector downstream 的集合关系成立；177/6/183 为当前候选快照。
 - [x] 全局工具集版本和每工具最低工具集版本契约成立。
-- [x] 177 项 Editor 工具具有 Contract、Schema、Registry、权限和 MCP 确定性覆盖。
+- [x] 全部公共 Contract Schema 可校验，Registry 与授权集合一致；共享权限/MCP 不变量和各域独特语义覆盖通过。
 - [x] 24 个业务域具有 Connector 代表路径和适用的 GUI、query、Task 或进程闭环。
-- [x] L3 45 项契约覆盖、GUI 代表路径与 Connector 6 项确定性覆盖通过。
+- [x] L3 契约集合、GUI 代表路径与 Connector 桥接工具的独特行为覆盖通过。
 - [x] 两套 MCP 主协议、2025-06-18 兼容路径、Editor HTTP、QLocal 与 Connector stdio 通过；
   2025-11-25 下游和 2026-07-28 上游真实握手成功。
 - [x] Profile/Custom、File Guard、global/background Admission、动态值、工具目录、exposure

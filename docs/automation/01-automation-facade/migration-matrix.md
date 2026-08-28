@@ -35,9 +35,9 @@ GUI 可以保留输入、绘制、hover、拖动预览和对话框；最终业�
 | Speaker Mix 预设 | `SpeakerMixPresetStore` | `PresetAutomationFacade` | list/save/delete、重复 ID、运行期元数据不入工程 |
 | 包 | 包管理器、`ProjectPackageResolver` | `PackageAutomationFacade` | list/refresh/validate/resolve、application task 和文档版本 |
 
-行为与编译期测试守卫上述边界；`TestAutomationCore` 负责 Dispatcher、Session、显式幂等、Task、
-`OperationIds::all()` 和各 Facade 的基础契约。领域、维度、文件、并发和 GUI 测试补充对应行为，
-不依赖精确 Descriptor 镜像或源码文本扫描。
+行为与编译期测试守卫上述边界；`TestAutomationCore` 负责 Dispatcher、Session、revision 与显式
+幂等的共享契约。领域、文件、并发和 GUI 测试只补充对应层独有的行为，不按 Operation 数量复制
+通用错误矩阵，也不依赖精确 Descriptor 镜像或源码文本扫描。
 
 ## 3. 当前内部能力域（208）
 

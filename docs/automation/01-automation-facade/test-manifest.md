@@ -52,20 +52,22 @@
 
 | 目标/目标组 | 职责 |
 |---|---|
-| `TestAutomationCore` | `OperationIds::all()`、Dispatcher、Session、Facade、History、revision 和 Task 基础行为 |
+| `TestAutomationCore` | Dispatcher、Session、revision、显式幂等和单窗口上下文的共享边界 |
 | `TestAutomationIdempotency` | 显式 opt-in 的同步/异步重放、冲突、失败释放和 generation 键空间 |
 | `TestAutomationTaskRaces` | Task 状态机、取消/提交点、重复完成、revision/对象/generation 竞态 |
 | `TestAutomationDocumentLifecycle` | new/open/import/save、失败回滚、savepoint、generation 清理和错误优先级 |
-| `TestAutomationEditingDomains` / `Dimensions` | 编辑域正常、no-op、非法输入、History/revision、Undo/Redo 和失败原子性 |
-| `TestAutomationRuntimeDomains` / `Dimensions` | application、playback、editor、settings、recent、packages 和 presets 行为 |
+| `TestAutomationEditingDomains` | 编辑域的独特业务语义、History/revision、Undo/Redo 和失败原子性 |
+| `TestAutomationRuntimeDomains` | application、playback、editor、settings、recent、packages 和 presets 的独特业务语义 |
 | `TestAutomationL3ApplicationDomains` | 公开 L3 设置、包刷新与歌词规则所需的内部 Facade 行为 |
-| `TestAutomationAsyncFileDomains` / `Dimensions` | inference、audio、import/export/extract、文件失败和 Task 终态 |
+| `TestAutomationAsyncFileDomains` | inference、audio、import/export/extract、文件失败和 Task 终态 |
 | `TestAudioAssetResolution` | 相对路径、source generation、解析/解码协议和晚到写回隔离 |
 | `TestAutomationFileGuard` | canonical path、读写根、会话授权和实际 I/O 前复核 |
 | `TestAutomationAdmission` | global 32 与 background 8 两个准入上限及计数释放 |
 | `TestPianoRollNoteCommit` | GUI 音符插入/拆分的 created ID、revision 和失败无副作用 |
 
-控制器层回归补充 GUI host 转发、可见状态和 History focus；它们不替代 Facade 行为断言。
+共享的 Schema、错误优先级、授权、revision 与 Task 状态规则只在其所有者层验证一次；领域测试只补充
+该领域独有的业务语义，不按 Operation 数量复制同构用例。控制器层回归补充 GUI host 转发、可见
+状态和 History focus；它们不替代 Facade 行为断言。
 
 ## 4. 行为维度
 
@@ -103,11 +105,11 @@
 | Task 竞态 | cancel/commit、重复完成、对象删除、revision 前进和 generation 换代 |
 | GUI 等价 | GUI 和自动化入口复用同一领域 Facade；可见状态在模型信号后同步 |
 | 文件边界 | canonical path、读写根、覆盖策略、重新授权和失败清理 |
-| 路由完整性 | `OperationIds::all()` 是能力来源；未知 ID 稳定失败，已支持 ID 具有显式路由和行为证据 |
+| 路由边界 | `OperationIds::all()` 是能力来源；未知 ID 稳定失败，代表性 Query/Command 具有显式路由行为证据 |
 
 ## 6. 维护规则
 
-- 新增、移除或重命名内部 ID 时，同步调整对应领域行为测试和本清单域计数。
+- 新增、移除或重命名内部 ID 时，若引入新的业务语义则补充对应领域行为测试，并更新本清单的产品快照。
 - 不为元数据完整性复制一份 Descriptor 表；必要约束落在类型、显式路由和行为测试中。
 - 测试结果只在最终候选上运行一次完整 CTest 后写入测试报告。
 - 文档不记录用户名、本机绝对路径、真实端口、PID 或用户素材名称。

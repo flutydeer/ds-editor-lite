@@ -300,9 +300,9 @@ CLI override 只影响本次运行，并在设置页显示来源，不改写持�
 
 当前测试代码对以下实现不变量建立了自动保护：
 
-- 177 项稳定 tool name、24 个域、类型、Profile、Schema 和逐工具最低工具集版本；
-- 177 项 Contract、Registry、Editor `tools/list` 与 Connector 已知描述的集合相等；
-- 六个 Connector 桥接工具和 exposure 后的 downstream 集合；
+- 公共 tool name 唯一，域、类型、Profile、Schema 和逐工具最低工具集版本合法；
+- Contract、Registry、Editor `tools/list` 与 Connector 已知描述来自同一权威集合；
+- Connector 桥接工具唯一，exposure 后的 downstream 等于可用 Editor 工具与桥接工具之并集；
 - 历史记录原子边界、创建深度、音符叶节点、轨道/片段 voice 和持久循环；
 - NoteTransfer 的音符与参数曲线深复制、GUI 剪贴板 round-trip；
 - MIDI headless 解析/生成、LibreSVIP 共享转换、文件授权与异步写回；
@@ -314,8 +314,8 @@ CLI override 只影响本次运行，并在设置页显示来源，不改写持�
 - Automation 设置持久化、CLI override、端口、配置 JSON、Custom 领域分组与中文界面。
 
 最终候选在 Visual Studio 2026 v18.9.0、Qt 6.11.2 环境中通过标准 preset
-`ConfigureAndBuild` 和 `all` target，完整 CTest 为 65/65（38.12 s）。Editor 177 项、Connector
-6 项、24 个业务域、L3 45 项和内部 208 个 Operation ID 的确定性覆盖通过；2025-11-25 下游
+`ConfigureAndBuild` 和 `all` target，完整 CTest 为 62/62（35.58 s）。Editor 177 项、Connector
+6 项、24 个业务域、L3 45 项和内部 208 个 Operation ID 为当前产品快照；契约集合关系、共享不变量和领域独特语义的确定性覆盖通过；2025-11-25 下游
 握手、2026-07-28 上游连接、真实编辑联调、Computer Use GUI、配置恢复和只读素材完整性均通过。
 生命周期增量联调还确认 dirty 默认拒绝无弹窗、显式丢弃重启后 instance ID 变化且 Connector
 自动恢复 compatible，以及 clean 默认退出后无 Editor 进程残留。

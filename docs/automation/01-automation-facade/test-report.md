@@ -14,8 +14,8 @@
 |---|---|
 | Debug configure/generate | 项目标准 preset `ConfigureAndBuild` 通过 |
 | Debug 全目标构建 | `all` target 通过 |
-| 注册 CTest | 65 项 |
-| 一次完整 CTest | 65/65 通过，48.14 s |
+| 注册 CTest | 62 项 |
+| 一次完整 CTest | 62/62 通过，35.58 s |
 | Qt/进程异常 | 定向回归 7/7 通过，15.54 s；最终无遗留异常或无人值守弹窗 |
 
 测试使用项目标准 preset wrapper。Qt 组件测试显式配置可用的 offscreen platform plugin 路径。
@@ -23,15 +23,15 @@
 
 ## 3. 内部契约覆盖
 
-- 208 个 Operation ID 集中定义且唯一，`OperationIds::all()` 是能力集合的唯一运行时来源；
-- Dispatcher 对每个 ID 使用显式类型化路由，未知 ID 与 handler 错误具有稳定 operation 上下文；
+- 208 个 Operation ID 集中定义，`OperationIds::all()` 是能力集合的唯一运行时来源；该数量作为当前产品快照记录，不作为测试硬编码门禁；
+- Dispatcher 使用显式类型化路由，代表性 Query/Command、未知文档、revision 与 handler 错误具有稳定 operation 上下文；
 - 不维护精确 Descriptor 镜像，也不使用源码文本扫描作为实现完整性的替代品；
 - Facade、CommandCommitter、History、revision、DocumentSession 和 TaskManager 由行为测试覆盖；
 - 幂等为显式 opt-in：只有实际携带受支持的 `idempotency_key` 时才计算请求指纹并进入存储，
   不带 key 的调用不哈希、不创建幂等记录。
 
-内部契约实测结果：**通过**。`OperationIds::all()` 的 208 项能力集合、显式路由、
-确定性输出校验和显式 opt-in 幂等均通过完整 CTest；相关定向回归为 7/7。
+内部契约实测结果：**通过**。共享 Dispatcher 边界、领域独特行为、确定性输出校验和显式
+opt-in 幂等均通过完整 CTest；测试不再为每个 Operation 复制同构错误矩阵或数量断言。
 
 ## 4. 一致性与竞态
 
@@ -72,7 +72,7 @@ GUI 与真实环境实测结果：**通过**。测试实例打开只读素材副
 
 ## 7. 最终通过清单
 
-- [x] 208 个 Operation ID 唯一，显式 Dispatcher 路由和行为覆盖完整。
+- [x] Operation ID 保持单一来源，显式 Dispatcher 共享边界与领域独特行为覆盖通过。
 - [x] 文档生命周期、History、revision、显式幂等和 Task 竞态通过。
 - [x] GUI 与内部任务复用同一领域 Facade 和提交路径。
 - [x] Debug 配置、全目标构建与一次完整 CTest 通过。
