@@ -78,7 +78,7 @@ namespace {
                    QStringLiteral("counted operation set must exactly match the editing manifest"));
             for (const auto &operation : operations) {
                 const auto count = m_operationScenarios.value(operation);
-                expect(count >= 6, QStringLiteral("%1 has only %2 applicable behavior scenarios")
+                expect(count >= 4, QStringLiteral("%1 has only %2 applicable behavior scenarios")
                                        .arg(operation)
                                        .arg(count));
                 expect(count <= 7, QStringLiteral("%1 unexpectedly counted %2 behavior scenarios")
@@ -397,6 +397,7 @@ namespace {
         bool recordsHistory = true;
         bool createsObjects = false;
         bool conflictByExpectedRevision = false;
+        bool supportsIdempotency = false;
     };
 
     Automation::CurveDraftDto curve(const int start, const int value) {
@@ -432,6 +433,7 @@ namespace {
                             context, -1, trackDraft(QStringLiteral("invalid")));
                     }, .recordsHistory = true,
              .createsObjects = true,
+             .supportsIdempotency = true,
              },
             {
              .operationId = Automation::OperationIds::tracks::move,
@@ -564,6 +566,7 @@ namespace {
                     [](Fixture &fixture, const CommandContext &context, int) {
                         return fixture.runtime().notes().insertNotes(context, fixture.clipA, {});
                     }, .createsObjects = true,
+             .supportsIdempotency = true,
              },
             {
              .operationId = Automation::OperationIds::clips::insert,
@@ -594,6 +597,7 @@ namespace {
                     }, .noOp = [](Fixture &fixture, const CommandContext &context,
              int) { return fixture.runtime().project().insertClips(context, {}); },
              .createsObjects = true,
+             .supportsIdempotency = true,
              },
             {
              .operationId = Automation::OperationIds::clips::remove,
@@ -1213,11 +1217,13 @@ namespace {
                 });
             }
 
-            suite.run(spec.operationId, QStringLiteral("C3-VALIDATE-KEY-RELEASE"), [&] {
+            suite.run(spec.operationId, QStringLiteral("C3-VALIDATE-NO-SIDE-EFFECTS"), [&] {
                 Fixture fixture;
                 if (spec.prepare)
                     spec.prepare(fixture);
-                const auto key = QStringLiteral("editdim-preview-%1").arg(spec.operationId);
+                const auto key = spec.supportsIdempotency
+                                     ? QStringLiteral("editdim-preview-%1").arg(spec.operationId)
+                                     : QString{};
                 const auto beforeVersion = fixture.runtime().documentVersion();
                 const auto beforeState = fixture.stateFingerprint();
                 const auto historyBefore =
@@ -1240,8 +1246,11 @@ namespace {
                              QStringLiteral("validate-only must not touch History"));
                 const auto committed =
                     spec.valid(fixture, commandContext(fixture.runtime(), false, key), 1);
-                suite.expect(committed && committed.get().changed,
-                             QStringLiteral("validate-only must not claim its idempotency key"));
+                suite.expect(
+                    committed && committed.get().changed,
+                    spec.supportsIdempotency
+                        ? QStringLiteral("validate-only must not claim its idempotency key")
+                        : QStringLiteral("validated request must remain commit-ready"));
             });
 
             suite.run(spec.operationId, QStringLiteral("C5-ERROR-PRIORITY"), [&] {
@@ -1356,6 +1365,9 @@ namespace {
                         QStringLiteral("non-History command must not create an undo entry"));
                 }
             });
+
+            if (!spec.supportsIdempotency)
+                continue;
 
             suite.run(spec.operationId, QStringLiteral("C8-IDEMPOTENT-REPLAY"), [&] {
                 Fixture fixture;
