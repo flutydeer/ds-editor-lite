@@ -38,7 +38,6 @@ AppContext
 │  ├─ SingleDocumentSessionResolver
 │  ├─ EditorAutomationFacade
 │  ├─ AutomationDispatcher
-│  ├─ OperationCatalog
 │  ├─ CommandCommitter
 │  └─ AutomationTaskManager
 └─ GuiContext
@@ -67,23 +66,18 @@ DTO 不暴露 Model/QObject 指针、QWidget 或协议 JSON。错误模型稳定
 对象不存在/类型错误、文档已替换、revision 冲突、幂等冲突、能力/模块不可用、
 busy、不可取消、I/O 和内部错误，并携带 operation、字段、对象及版本上下文。
 
-### 2.3 Operation Catalog
+### 2.3 Operation ID 与显式路由
 
-Catalog 只登记同时具备真实现有行为、类型化 handler 和测试覆盖条目的能力。
-Descriptor 至少包含：
+内部能力由 `OperationIds::all()` 给出集中、稳定的 ID 集合。Dispatcher 对每个 ID 使用显式、
+类型化路由；领域 Facade 的 C++ 函数签名和 DTO 是编译期契约，不维护另一份
+`OperationCatalog` / `OperationDescriptor` 注册表，也不在运行时重述 document、revision、
+History、file、host 或 safety 文档字段。
 
-- stable operation ID、分类、Query/Command；
-- 同步/异步方式；
-- document、revision、History、file 和 host policy；
-- safety、`InternalOnly/AutomationCandidate`。
+一期内部入口不实现 Schema AST、schema digest、权限 profile 或 `QString + QVariantMap` 式
+泛化业务调用；公共 MCP 契约由 Wire 层单独维护。
 
-一期默认 `InternalOnly`，不实现 Schema AST、schema digest、权限 profile 或
-`QString + QVariantMap` 式泛化业务调用。
-
-所有产品 operation ID 只在 `OperationIds.h` 定义一次，Facade、任务和测试均引用该
-符号表。C++ 函数签名及 DTO 已提供编译期契约；一期不为同一进程内的契约维护 `.v1`
-字符串或 introduced version。需要协议兼容的 schema/version 机制延后到 MCP/headless
-传输层设计时统一引入。
+所有产品 operation ID 只在 `OperationIds.h` 定义一次，Facade、任务和测试均引用该符号表。
+一期不为同一进程内的契约维护 `.v1` 字符串或逐操作 wire version。
 
 ## 3. 一致性语义
 
@@ -114,7 +108,9 @@ History、不增 revision、不发业务变更通知。
 
 ### 3.3 幂等
 
-幂等记录属于当前 document generation，键为：
+幂等是显式 opt-in。只有调用方实际提供受支持的 `idempotency_key` 时，Dispatcher 才计算规范化
+输入指纹并访问当前 document generation 的幂等记录；不带 key 的请求不哈希、不创建记录。
+键为：
 
 ```text
 (document_id, operation_id, idempotency_key)
@@ -149,13 +145,13 @@ Committing、原子提交一次。session 替换后旧任务不得写入新工�
 
 基线为同步后的 `origin/main`。所有改动在 `codex/automation-facade-phase-1` 分支完成。
 
-1. 建立契约、错误、Catalog、单槽 resolver、SingleWindowContext 和测试支点。
+1. 建立契约、错误、集中 Operation ID、显式 Dispatcher、单槽 resolver、SingleWindowContext 和测试支点。
 2. 集中 document revision、History、CommandCommitter 和幂等语义。
 3. 迁移轨道/Master、片段、音符/歌词/音素。
 4. 迁移参数、声线/Speaker Mix、Tempo/拍号和 History。
 5. 迁移文档、导入/保存、解码、导出、提取、包任务和自动推理写回。
 6. 迁移播放、Recent、设置、包路径、预设、歌词规则和稳定 GUI 状态。
-7. 删除业务绕过路径并增加源码架构守卫。
+7. 删除业务绕过路径并增加行为与边界回归。
 8. 完成实现级保护测试、完整构建和全量 CTest，随后提交详细测试大纲。
 
 复杂、分层或可独立验证的工作包分别提交，提交格式为
@@ -171,20 +167,17 @@ Committing、原子提交一次。session 替换后旧任务不得写入新工�
 通过后才输出详细测试大纲并请用户执行 GUI 冒烟。由 Codex 使用 Computer Use 执行的
 全量 GUI 回归必须等待用户明确批准，不在本阶段提前启动。
 
-集中 operation 注册表与 Catalog、handler 的 operation ID 集合必须完全相等。实际 Catalog
-数量记为 `N`，预计确定性场景数为：
-
-```text
-N × 6～9 + 80～150 个跨域、竞态和迁移缺陷场景
-```
+`OperationIds::all()` 是能力来源，Dispatcher 为每个受支持 ID 提供显式类型化路由。测试按领域
+语义覆盖适用的正常、拒绝、no-op、回滚和竞态路径，不维护 Descriptor 镜像，也不以固定场景数
+作为门禁。
 
 单 session 专项覆盖 new/open generation、旧 ID、revision、savepoint、异步竞态、
 幂等清理、SingleWindowContext 和 selection 隔离。Dispatcher 使用可注入 resolver
 的双 fake 测试证明它按请求 ID 路由；生产 CoreRuntime 仍只装配一个 session。
 
-确定性测试覆盖实际 Catalog 100% 适用项并连续运行三次无 flaky。真实环境资格验证
+确定性测试覆盖全部内部 operation 的适用行为，并在最终候选上运行一次完整 CTest。真实环境资格验证
 单列 DSPX/MIDI、音频 codec、声库、短推理和设备初始化。最终报告记录构建环境、
-Catalog 快照、命令、场景/断言数、逐域结果、耗时、失败修复轨迹、环境限制和残余
+Operation ID 快照、命令、逐域结果、耗时、失败修复轨迹、环境限制和残余
 风险。
 
 实施产物：

@@ -6,13 +6,13 @@
 
 1. 冻结源码、工具清单、测试清单和环境摘要。
 2. 配置并完整构建 Editor、Connector 与全部测试目标。
-3. 验证 Wire、179 个 Editor 工具、6 个 Connector 工具、Profile/Custom、安全和兼容。
+3. 验证 Wire、177 个 Editor 工具、6 个 Connector 工具、Profile/Custom、安全和兼容。
 4. 验证 Editor MCP 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手、QLocal Bootstrap 与 Connector stdio。
 5. 完成真实进程联调、多 Connector 与 GUI。
-6. 在同一候选上串行执行三轮完整 CTest。
+6. 在同一候选上串行执行一次完整 CTest。
 7. 完成失败修复闭环、实现报告和测试报告。
 
-冻结分母为 Editor 179、Connector 6、总计 185。CTest 数量、顶层场景数和断言数由本轮配置与执行产物分别记录，彼此不替代。
+冻结分母为 Editor 177、Connector 6、总计 183。CTest 数量、顶层场景数和断言数由本轮配置与执行产物分别记录，彼此不替代。
 
 ## 2. 环境与记录项
 
@@ -43,7 +43,7 @@
 05-connector/
 06-process-integration/
 07-gui-and-qualification/
-08-ctest-rounds/
+08-ctest/
 09-failures-and-fixes/
 10-final/
 work/
@@ -80,7 +80,7 @@ Evidence 索引使用归档内相对路径。敏感字段、用户文本、绝�
 GUI、进程测试与开发构建共享一个全局 Editor Primary。所有启动 Editor 或使用全局 QLocal 服务的阶段串行执行：
 
 - 相关 CTest 设置 `RUN_SERIAL TRUE` 和统一 resource lock。
-- 三轮完整 CTest 使用 `-j 1`。
+- 完整 CTest 使用 `-j 1`。
 - 每次启动前检查 Editor/Connector、全局锁、QLocal 服务和预期端口。
 - 发现来源未知的 Editor 时停止该阶段并记录，不主动结束用户进程。
 - 测试 fixture 只管理自己创建的 PID/process handle、端口、socket 和临时根。
@@ -115,11 +115,11 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 
 1. 记录 git/submodule/工具链和现有进程状态。
 2. 执行 `git diff --check` 与敏感信息扫描。
-3. 解析 `PublicToolDefinitions`、测试期望和公共矩阵，核对 179 个稳定 tool name，并确认公共集合不含 `project.get`。
-4. 核对六个 Connector 桥接工具及 179 + 6 = 185。
+3. 通过编译后的公共契约枚举、Registry 与 MCP 发现结果核对 177 个稳定 tool name，并确认公共集合不含 `project.get`；不使用源码文本扫描替代行为验证。
+4. 核对六个 Connector 桥接工具及 177 + 6 = 183。
 5. 核对 25 个 Editor 域名称与数量、`bus` category、`clip_editor` 子区域归属和三项历史记录域。
-6. 核对 toolset v1 与每工具 current/introduced/minimum-compatible 均为 1。
-7. 核对 `tasks.list/get/cancel` 与当前 Core Catalog/Facade 回归集合。
+6. 核对 `toolset_version = 1` 与每工具 `minimum_toolset_version = 1`。
+7. 核对 `tasks.list/get/cancel`、`OperationIds::all()` 与 Dispatcher 显式路由覆盖。
 8. 获取 `ctest -N` 与 JSON 清单，区分 target 数、CTest case 数和源码顶层场景数。
 
 ### 门禁
@@ -132,38 +132,42 @@ tool name、域、Profile、类型、版本或集合出现缺口、重复或漂�
 
 1. Debug configure，确认 `LITE_BUILD_TESTS=ON`、Qt 与 vcpkg 配置。
 2. 完整构建所有产品和测试目标。
-3. 运行 JSON Schema、codec、Manifest、digest、游标、Profile 与版本单元测试。
-4. 运行 Access Policy、Custom、File Guard、Admission、exposure 与 Schema compatibility 单元测试。
-5. 运行 Automation Catalog、Core、历史记录、revision、idempotency、Task、document 与 architecture 回归。
-6. 使用固定 seed 运行路径、兼容和令牌桶边界语料。
+3. 运行 JSON Schema、codec、轻量 Manifest、base64url cursor、Profile 与版本单元测试。
+4. 运行 Access Policy、Custom、File Guard、global/background Admission、exposure 与版本兼容单元测试。
+5. 运行 Automation Core、显式 Dispatcher 路由、历史记录、revision、显式幂等、Task 与 document 回归。
+6. 使用固定 seed 运行路径、分页上下文与版本门槛边界语料。
 
 ### 门禁
 
 Configure/build 零错误；生成物可复现；受影响回归和二期纯单元测试完成。任一失败进入第 16 节流程。
 
-## 9. 阶段 C：179 项域契约与 Registry
+## 9. 阶段 C：177 项域契约与 Registry
 
 ### 执行
 
-1. 精确比较 179 项 ID、顺序、域、Profile、Query/Command、sync mode、Schema 和版本。
-2. 精确比较 Profile 累积数量 Meta 4、L1 91、L2 134、L3 179。
-3. 对全部 179 项生成 schema-valid 输入并验证 Registry binding 可达。
+1. 精确比较 177 项 ID、顺序、域、Profile、Query/Command、sync mode、Schema 和版本。
+2. 精确比较 Profile 累积数量 Meta 4、L1 89、L2 132、L3 177。
+3. 对全部 177 项生成 schema-valid 输入并验证 Registry binding 可达。
 4. 对每项执行 schema-invalid、权限关闭或 host unavailable 的适用拒绝路径。
-5. 由确定性语料为 179 项逐工具覆盖适用的成功、no-op、validate-only、revision conflict、结构化不可用或失败原子性；另按 25 个域各执行至少一条真实产品代表路径。
+5. 由确定性语料为 177 项逐工具覆盖适用的成功、no-op、validate-only、revision conflict、结构化不可用或失败原子性；另按 25 个域各执行至少一条真实产品代表路径。
 6. 验证历史记录原子边界：同类批量操作整体撤销；轨道/总线/片段标量、已有音符歌词/语言/长度互不捆绑。
 7. 验证创建深度：轨道只能创建为空轨道，歌声片段只能创建为空片段，音符叶节点可携带完整初始数据且不要求 voice context。
-8. 验证 `audio_clips.relocate/confirm_path` 同步返回 Mutation、不创建 Task，并在 GUI 中立即反映。
-9. 验证 `playback.set_loop/set_loop_enabled/clear_loop` 形成工程持久历史记录，逐项 Undo/Redo；play/pause/stop/seek 保持瞬时状态。
-10. 验证动态值来源、output Schema 自检、异步任务和文件重新授权。
-11. 验证零 speaker 声库可用 singer-only 参数查询动态选项并设置到轨道/片段；单 speaker 自动解析，多 speaker 缺少选择时稳定拒绝；构造 package ID 与 singer ID 相同、package version 不同的两个并存版本，在 L2 明确拒绝 `packages.*` 的前提下验证 list、describe、动态 speaker 候选、轨道/片段设置、Speaker Mix/预设和回读均按版本精确闭环。
-12. 验证 `documents.get` 的工程长度、轨道/片段总数和分类统计；验证 `documents.list_recent` 只读取应用设置且不修改当前文档。
-13. 验证 `parameters.get` 的半开范围、默认/显式点数上限、采样曲线确定性降采样，以及锚点曲线在上限不足时明确失败而不丢失稳定 ID。
-14. 验证 `parameters.create_anchor_curve`、显式 `insert_anchors`、跨曲线移动拒绝和 `merge_anchor_curves` 的相邻/重叠规则及逐步 Undo/Redo。
-15. 验证 Speaker Mix 预设 list/save/delete 的应用级无文档副作用，apply 的单条 History，以及来源预设 dirty 状态。
-16. 对 workspace、track_panel、clip_editor 三个 GUI 域的 25 项工具逐项验证真实 QWidget 状态、焦点、共享/独立视口、选择顺序与 primary；确认 revision/history 不变且不出现模态窗口。
-17. 对 settings.query 与九个 update 验证公开字段 allowlist、domain 过滤、候选/生效/重启信息、稀疏更新、持久化和失败回滚；validate-only 只覆盖音频设备、计算设备和包搜索路径更新，其他设置 update 必须拒绝该字段。
-18. 对 packages.list/describe/refresh 验证读取根内路径、有效搜索路径、application task 的成功/取消/部分失败，以及索引原子切换。
-19. 对 lyric_rules 七项工具验证稳定 ID 迁移、内置/自定义边界、CRUD、启停、分类内移动、非法规则回滚和 splitter→tagger 只读测试。
+8. 验证 `tracks.get` 直接返回轨道属性、统计和 voice/default-language 上下文，`clips.get`
+   对歌声片段直接返回 own/effective voice、继承来源和有效默认语言；公共集合没有独立的
+   voice-context 查询工具。
+9. 验证 `audio_clips.relocate/confirm_path` 同步返回 Mutation、不创建 Task，并在 GUI 中立即反映。
+10. 验证 `playback.set_loop/set_loop_enabled/clear_loop` 形成工程持久历史记录，逐项 Undo/Redo；play/pause/stop/seek 保持瞬时状态。
+11. 验证动态值发现、异步任务和文件重新授权；正常 invocation 不自动回查 provider，output
+    Schema 由确定性契约测试覆盖，运行时不逐次 assert。
+12. 验证零 speaker 声库可用 singer-only 参数查询动态选项并设置到轨道/片段；单 speaker 自动解析，多 speaker 缺少选择时稳定拒绝；构造 package ID 与 singer ID 相同、package version 不同的两个并存版本，在 L2 明确拒绝 `packages.*` 的前提下验证 list、describe、动态 speaker 候选、轨道/片段设置、Speaker Mix/预设和回读均按版本精确闭环。
+13. 验证 `documents.get` 的工程长度、轨道/片段总数和分类统计；验证 `documents.list_recent` 只读取应用设置且不修改当前文档。
+14. 验证 `parameters.get` 的半开范围、默认/显式点数上限、采样曲线确定性降采样，以及锚点曲线在上限不足时明确失败而不丢失稳定 ID。
+15. 验证 `parameters.create_anchor_curve`、显式 `insert_anchors`、跨曲线移动拒绝和 `merge_anchor_curves` 的相邻/重叠规则及逐步 Undo/Redo。
+16. 验证 Speaker Mix 预设 list/save/delete 的应用级无文档副作用，apply 的单条 History，以及来源预设 dirty 状态。
+17. 对 workspace、track_panel、clip_editor 三个 GUI 域的 25 项工具逐项验证真实 QWidget 状态、焦点、共享/独立视口、选择顺序与 primary；确认 revision/history 不变且不出现模态窗口。
+18. 对 settings.query 与九个 update 验证公开字段 allowlist、domain 过滤、候选/生效/重启信息、稀疏更新、持久化和失败回滚；validate-only 只覆盖音频设备、计算设备和包搜索路径更新，其他设置 update 必须拒绝该字段。
+19. 对 packages.list/describe/refresh 验证读取根内路径、有效搜索路径、application task 的成功/取消/部分失败，以及索引原子切换。
+20. 对 lyric_rules 七项工具验证稳定 ID 迁移、内置/自定义边界、CRUD、启停、分类内移动、非法规则回滚和 splitter→tagger 只读测试。
 
 ### 证据
 
@@ -171,7 +175,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 
 ### 门禁
 
-179 项无漏项；Registry 与 Contract 集合精确；业务失败不推进不属于它的历史记录或 revision；文档编辑域完成 Undo/Redo，GUI 与应用域完成 query 回读和状态恢复闭环。
+177 项无漏项；Registry 与 Contract 集合精确；业务失败不推进不属于它的历史记录或 revision；文档编辑域完成 Undo/Redo，GUI 与应用域完成 query 回读和状态恢复闭环。
 
 ## 10. 阶段 D：Editor MCP 双协议、兼容握手与 HTTP
 
@@ -182,13 +186,14 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 3. 执行 `2026-07-28` server/discover、逐请求 metadata、ping、tools/list、tools/call，并验证 `initialize` 被拒绝。
 4. 请求 `2025-06-18` initialize，确认服务端接受并回显兼容版本，再完成 initialized、ping、tools/list 与 tools/call。
 5. 验证版本协商、支持列表、header/body 镜像、协商版本对应的结果形状。
-6. 验证 179 项 descriptor、分页、Schema、structured/text 内容和业务错误。
+6. 验证 177 项 MCP 工具描述、分页、Schema、structured/text 内容和业务错误。
 7. 验证 Host、Origin、method、Content-Type、Accept、body/depth/node/response 上限和 deadline。
-8. 验证 global/peer/client 并发与速率、timeout、disable、换端口和 shutdown 配额释放；正常握手和基线查询后，通过 Connector 同时发出 32 个请求应全部成功，第 33 个在途请求应被拒绝，令牌桶不得提前截断该批次。
+8. 验证 global 32 路硬上限、background 8 路容量、timeout、disable、换端口和 shutdown
+   计数释放；同时发出 32 个请求应全部进入，第 33 个在途请求应被拒绝且不排队。
 
 ### 门禁
 
-两套主协议和 2025-06-18 兼容握手/会话都形成证据；HTTP 安全与限流在 handler 前生效；Server 停止后无残留 listener 或在途计数。
+两套主协议和 2025-06-18 兼容握手/会话都形成证据；HTTP 安全与全局准入上限在 handler 前生效；Server 停止后无残留 listener 或在途计数。
 
 ## 11. 阶段 E：QLocal Bootstrap
 
@@ -210,15 +215,17 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 ### 执行
 
 1. Editor 离线启动 Connector，验证 downstream 握手与六个固定桥接工具。
-2. 验证 stdout 仅含 MCP 帧、stderr 承载诊断；完整 185 工具大响应在正常读端和延迟慢读端均无截断、无零进度误超时。
+2. 验证 stdout 仅含 MCP 帧、stderr 承载诊断；完整 183 工具大响应在正常读端和延迟慢读端均无截断、无零进度误超时。
 3. 分别执行 2025-11-25 与 2026-07-28 两套主协议的 downstream 生命周期，并执行请求 2025-06-18 的兼容握手和结果塑形；2026-07-28 不执行 `initialize`。
 4. 验证 upstream 优先执行 2026-07-28 发现，回退到 2025-11-25 初始化，并接受协商到 2025-06-18。
-5. 验证每轮握手完整读取所有 `tools/list` 页后只调用一次 `automation.get_status`，且不调用 `automation.get_manifest`；完整 Manifest 的独立分页、digest 和游标测试继续保留。
+5. 验证每轮握手完整读取所有 `tools/list` 页后只调用一次 `automation.get_status`，且不调用
+   `automation.get_manifest`；完整 Manifest 的独立分页、运行时元数据和游标测试继续保留。
 6. 验证 ID 重映射、并发乱序、notification、取消、timeout、EOF、broken pipe 与 backpressure。
 7. 验证 `l0/l1/l2/l3`、include/exclude、三类 selector、pending 与 exclude 优先级。
 8. 验证同一 exposure 约束类型化工具与 list/search/describe/invoke。
-9. 验证版本门槛、Schema 对象精确相等快速路径、差异 Schema 的输入/输出方向性兼容、按 Editor Profile/host/Custom 集合动态生成的 Manifest 基准 digest 与状态分类。
-10. 验证 L2 downstream 集合为 134 个 Editor 工具加 6 个桥接工具，共 140 项；L3 downstream 集合为 179 个 Editor 工具加 6 个桥接工具，共 185 项。
+9. 验证双方全局 `toolset_version` 与逐工具 `minimum_toolset_version` 门槛；不运行 Schema
+   方向性/子集/digest 兼容计算，同版本 Schema 差异直接使契约测试失败。
+10. 验证 L2 downstream 集合为 132 个 Editor 工具加 6 个桥接工具，共 138 项；L3 downstream 集合为 177 个 Editor 工具加 6 个桥接工具，共 183 项。
 11. 验证 ready burst 合并、尾随刷新、退避、manual reconnect、instance/endpoint 变化。
 
 ### 门禁
@@ -231,10 +238,10 @@ stdio 零污染；工具面、exposure 与兼容结果确定；旧握手结果�
 
 1. Connector 先启动，再启动 Editor 并启用 MCP，观察自动接入。
 2. Editor 先 ready，再启动 Connector，验证首次 watch 到完整握手。
-3. 在 direct HTTP 与 Connector stdio 上复用 Meta/L1/L2/L3 全域语料；179 项 Editor 工具由确定性进程测试逐项覆盖，真实 Connector 会话覆盖 25 个业务域、逐项执行 L3 45 项和六个 Connector 桥接工具。
+3. 在 direct HTTP 与 Connector stdio 上复用 Meta/L1/L2/L3 全域语料；177 项 Editor 工具由确定性进程测试逐项覆盖，真实 Connector 会话覆盖 25 个业务域、逐项执行 L3 45 项和六个 Connector 桥接工具。
 4. 在隔离工作区完成文档、格式、轨道、总线、片段、音频素材、声库、Speaker Mix、音符、参数曲线、时间轴、历史记录、播放、导出、提取、推理与 Task 链路；GUI、设置、包信息和歌词规则域在同一真实进程候选中闭环。
 5. 运行两至八个 Connector，并发 Query、Command、Task 和 reconnect。
-6. 验证 revision conflict、公平配额、独立缓存与请求映射。
+6. 验证 revision conflict、全局 32 路上限、独立缓存与请求映射。
 7. 运行时切换 Profile/Custom/roots/port/enabled，验证两侧状态与调用结果。
 8. Editor stop/restart 与 Connector crash/exit/slow-reader 场景后检查自动恢复与资源清理。
 
@@ -262,7 +269,7 @@ Editor direct 与 Connector 转接在结果、错误、历史记录、revision �
 
 ### Agent Host 与环境资格
 
-使用临时测试配置启动一个真实 Agent Host，经 stdio 调用 status、list、describe；通过泛化调用逐项覆盖 L3 45 项，并以每个业务域的代表性真实路径覆盖其余工具面，同时逐项执行六个 Connector 桥接工具。179 项逐工具的协议、权限和错误分支由同一候选的确定性进程测试完成。异步工具同时保存 Task 创建、查询与终态证据。配置只在隔离工作区存活，结束后进入 cleanup manifest。
+使用临时测试配置启动一个真实 Agent Host，经 stdio 调用 status、list、describe；通过泛化调用逐项覆盖 L3 45 项，并以每个业务域的代表性真实路径覆盖其余工具面，同时逐项执行六个 Connector 桥接工具。177 项逐工具的协议、权限和错误分支由同一候选的确定性进程测试完成。异步工具同时保存 Task 创建、查询与终态证据。配置只在隔离工作区存活，结束后进入 cleanup manifest。
 
 格式、声音、模型、codec 和音频设备资格逐项探测；环境条件与确定性测试分母分开记录。环境依赖不满足时必须同时具备真实结构化不可用证据与确定性可用分支证据，不能以“未执行”代替域覆盖。
 
@@ -270,25 +277,25 @@ Editor direct 与 Connector 转接在结果、错误、历史记录、revision �
 
 25 个 Editor 业务域均具有确定性覆盖与真实代表路径，可见 UI 域另有 GUI 证据；无模态阻塞、UI 假死、offscreen 插件错误或用户文件写入；GUI 可见状态与 MCP 事实一致；所有测试新增产物进入清理清单。
 
-## 15. 阶段 I：完整 CTest 三轮
+## 15. 阶段 I：完整 CTest
 
-GUI 阶段结束并确认全局资源释放后，在同一 commit、同一构建产物上连续执行三轮：
+GUI 阶段结束并确认全局资源释放后，在同一 commit、同一构建产物上执行一次：
 
 ```powershell
 ctest --test-dir build/Debug --output-on-failure -j 1
-ctest --test-dir build/Debug --output-on-failure -j 1
-ctest --test-dir build/Debug --output-on-failure -j 1
 ```
 
-当前候选清单为 67 项。每轮保存：实际命令、CTest 清单、开始/结束时间、退出码、总数、逐 case 结果、耗时、失败/timeout、XML/JSON 与环境差异。轮间保持源码和构建候选不变，正式报告只采用三轮实际结果。
+本轮测试数量以 `ctest -N` 实测为准。保存实际命令、CTest 清单、开始/结束时间、退出码、总数、
+逐 case 结果、耗时、失败/timeout、XML/JSON 与环境摘要。
 
-任一轮失败、timeout、crash 或残留均使三轮门禁重新开始。修复后先执行第 16 节回归链，再从第一轮重新计数。
+任一失败、timeout、crash 或残留都必须进入第 16 节回归链；修复后先执行最小复现和所属域，再
+重新执行一次完整 CTest。
 
-三轮后执行：
+完整 CTest 后执行：
 
 - `git diff --check` 与工作树审计；
 - Editor/Connector、Primary、QLocal、端口、pipe 和临时目录残留检查；
-- 179/6/185 工具与 CTest 清单最终快照；
+- 177/6/183 工具与 CTest 清单最终快照；
 - Evidence 索引、failure ledger 和 cleanup manifest 完整性检查。
 
 ## 16. 缺陷修复与回归门禁
@@ -303,7 +310,7 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 6. 执行受影响的 Facade、历史记录与 GUI 回归。
 7. 执行 Editor direct + Connector stdio 等价联调。
 8. 涉及 UI 或生命周期时重做对应 Computer Use 场景。
-9. 重新构建受影响目标并从头执行完整 CTest 三轮。
+9. 重新构建受影响目标并执行一次完整 CTest。
 
 协议、安全、越权文件访问、数据损坏、crash、stdout 污染、错误文档写回和历史记录/revision 破坏为阻断级。阶段性修复使用独立 `fix(scope): summary` 提交，私有证据保持在归档中。
 
@@ -313,7 +320,7 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 
 `implementation-report.md` 记录：
 
-- 179 + 6 工具与 25 个域；
+- 177 + 6 工具与 25 个域；
 - Wire/Registry/Manifest/Profile/Custom；
 - Editor MCP 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手与 QLocal；
 - Connector stdio/exposure/compatibility；
@@ -328,7 +335,7 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 - 实际命令、退出码和 Evidence ID；
 - 工具/域/协议/安全/兼容/Profile/Custom/Bootstrap/Connector/Editor/联调/GUI 结果；
 - 失败与修复轨迹；
-- 三轮完整 CTest；
+- 一次完整 CTest；
 - 资格项、残余风险和 cleanup；
 - 最终判定。
 

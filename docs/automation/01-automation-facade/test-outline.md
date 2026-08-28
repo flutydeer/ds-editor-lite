@@ -6,14 +6,9 @@
 当前全部 CTest；待用户完成 GUI 基本功能冒烟并明确批准后，才由 Codex 使用
 Computer Use 启动全量 GUI 回归并形成正式报告。
 
-测试分母是集中注册且进入 Catalog 的 122 个 operation。预计确定性场景总量为：
-
-```text
-122 × 6～9 + 80～150 = 812～1,248
-```
-
-并非每个 operation 机械复制同一组用例；只计算适用维度，operation 清单、用例和结果
-必须能相互追踪。多个断言验证同一输入路径时计为一个场景，避免用断言数量夸大覆盖。
+测试范围是 `OperationIds::all()` 中的 208 个 operation。测试按业务语义选择适用维度，重点验证
+可达路由、结果、错误、原子提交与可观察副作用；不为每个 operation 机械复制同一组用例，也不以
+固定场景数或断言数代替行为覆盖。
 
 ## 2. 测试环境与证据
 
@@ -22,8 +17,8 @@ Computer Use 启动全量 GUI 回归并形成正式报告。
 - git commit、分支、工作树状态、submodule 状态；
 - Windows、MSVC、Qt、CMake、Ninja、vcpkg triplet 和关键依赖版本；
 - Debug/Release 配置及完整命令；
-- Catalog descriptor 和集中 operation 注册表快照；
-- 每个测试目标的场景数、断言数、轮次、耗时和结果；
+- Operation ID 集合与 Dispatcher 显式路由快照；
+- 每个测试目标的命令、耗时和结果；
 - 真实测试文件、codec、声库、推理模型和音频设备资格；
 - 首次失败、复现步骤、根因、修复 commit、回归结果；
 - 未执行项、环境限制和残余风险。
@@ -42,7 +37,7 @@ Computer Use 启动全量 GUI 回归并形成正式报告。
 3. 未知/旧 DocumentId、未知 WindowId、模块或宿主不可用；
 4. 空集合、边界数值、Unicode、长文本和可选字段；
 5. 查询不改变 Model、History、revision、幂等缓存、文件和通知计数；
-6. Catalog descriptor 的 kind、host、document、revision、file 和安全策略一致。
+6. Dispatcher 显式路由进入正确类型化 handler，错误和副作用语义与领域契约一致。
 
 ### 3.2 Command
 
@@ -55,7 +50,7 @@ Computer Use 启动全量 GUI 回归并形成正式报告。
 5. DocumentId → revision → 对象 ID/类型 → 领域约束的固定错误优先级；
 6. 成功提交最多一个 History entry、revision 恰增一次，undo/redo 可逆；
 7. handler/宿主/I/O 失败时不产生半提交；
-8. descriptor 声明为 DocumentGeneration 时的幂等重放、冲突和并发去重；
+8. 显式支持幂等且携带 `idempotency_key` 时的重放、冲突和并发去重；不带 key 时不计算指纹；
 9. GUI-only 命令的有效/未知 WindowId，且不把 WindowId 混入文档身份。
 10. 创建类命令的 `client_ref → object_id` 有序绑定、跨层唯一性、重放一致性，以及
     `validate_only`/失败请求不分配绑定。
@@ -102,10 +97,11 @@ Computer Use 启动全量 GUI 回归并形成正式报告。
 
 ### 4.4 幂等 generation
 
+- 不带 `idempotency_key` 的请求不计算指纹、不访问幂等存储；只有显式 opt-in 的请求进入以下键空间；
 - 键空间严格为 `(document_id, operation_id, idempotency_key)`；
 - 同键同规范化输入在 revision 前进后仍返回首次结果；
 - 同键异参数、异 operation 或异原 expected revision 返回 `idempotency_conflict`；
-- 16/64 路并发重放只有一次执行，其余等待同一结果；
+- 代表性并发重放只有一次执行，其余等待同一结果；
 - validation 失败、validate-only、提交前取消不占键；
 - save、焦点和 GUI 状态不清缓存，new/open 成功清除旧 generation；
 - new/open、应用设置和 GUI 状态拒绝文档级幂等键；
@@ -116,25 +112,25 @@ Computer Use 启动全量 GUI 回归并形成正式报告。
 | 域 | Operation 数 | 重点组合 |
 |---|---:|---|
 | application | 3 | info、WindowId、validate-only、宿主拒绝、退出/重启只调用一次 |
-| documents | 5 | new/open/import/save、路径、savepoint、失败回滚、generation |
-| tracks/clips/audio/import/project | 18 | 强类型 ID、顺序、复制保真、批原子、解码/哈希竞态 |
-| notes | 10 | 重叠/边界、量化、左右 resize、split、歌词/语言/音素、edited 参数保真 |
-| parameters/speaker_mix | 10 | 多曲线、step、空/边界点、继承/动态混合、归一化、运行期 ID |
-| timeline/master | 6 | tick/bar 0 锚点、排序、重复点、拍号合法性、Master no-op |
+| documents | 10 | new/open/import/save、路径、savepoint、失败回滚、generation |
+| tracks/clips/audio/import/project | 44 | 强类型 ID、细粒度编辑、声音上下文、批原子、解码/哈希竞态 |
+| notes | 21 | 重叠/边界、量化、resize/split、歌词、语言、发音、音素和复制保真 |
+| parameters/speaker_mix | 29 | 有界曲线、采样/锚点、继承、固定/动态混合、关键帧和运行期 ID |
+| timeline/master | 11 | tick/bar 0 锚点、排序、拍号合法性、Master 查询与细粒度控制 |
 | history | 3 | 空栈、undo/redo、savepoint、focus、revision、分支截断 |
-| inference | 12 | 每个 stage、对象删除、目标级门禁、并行分段 revision 重基、cache-only 与持久化边界 |
-| extract | 2 | pitch/MIDI 后端、取消、TaskId、原子写回、旧 generation |
-| exports/formats | 5 | 格式能力、模板、冲突路径、覆盖策略、cleanup、任务失败 |
+| inference | 15 | capabilities/status/start、stage、对象删除、revision 重基、cache 与持久化边界 |
+| extract | 3 | capabilities、pitch/MIDI 后端、取消、TaskId、原子写回、旧 generation |
+| exports/formats | 9 | 格式检查、能力、预览、冲突路径、覆盖策略、cleanup 和任务失败 |
 | tasks | 3 | get/list/cancel、过滤、稳定终态、未知/旧 TaskId |
-| playback | 9 | 状态/位置不增 revision；loop 区间、启用/清除；拖动只预览且松手单 History/revision |
-| editor | 15 | 唯一 WindowId、selection 隔离、reveal fallback、量化、auto-page、view restore |
+| playback | 10 | 状态/seek 不增 revision；loop 区间、启用/清除；拖动只预览且松手单 History/revision |
+| editor | 25 | WindowId、selection、焦点、面板/子区域视口、量化、auto-page 和 view restore |
 | settings/recent/search paths | 15 | 每个设置域、no-op、持久化次数、路径规范化、Unicode、清空 |
-| packages | 3 | 模块状态、坏包、声音解析、缺失声库、文档版本 |
+| packages | 4 | 模块状态、刷新、坏包、声音解析、缺失声库、文档版本 |
 | speaker_mix_presets | 3 | CRUD、重复/缺失 ID、归一化、工程序列化隔离 |
 
 ## 6. 跨域、竞态与迁移缺陷集
 
-额外 80～150 个场景至少包括：
+跨域与竞态场景至少包括：
 
 - new/open 与提取、导出、解码、哈希、包解析、推理完成同时发生；
 - cancel 与 revision 前进、对象删除、进入 Committing 同时发生；
@@ -147,8 +143,8 @@ Computer Use 启动全量 GUI 回归并形成正式报告。
   空推理分段或红色失败状态；
 - 复制/粘贴、导入、undo/redo 后 edited parameters、语言、声线和音素保真；
 - 文件名大小写、Unicode、只读目录、已存在文件、临时文件清理和磁盘失败；
-- Catalog/集中注册表不一致、重复 operation ID、产品代码硬编码 operation ID；
-- 源码架构守卫的正向通过和注入违规样本的自检。
+- `OperationIds::all()`、Dispatcher 可达路径和行为集合不一致或存在重复 operation ID；
+- 关键边界的编译期与行为回归，不以源码文本扫描或 Descriptor 镜像替代。
 
 ## 7. GUI 冒烟与真实环境资格
 
@@ -184,16 +180,16 @@ Computer Use 回归不以内部 DTO 断言代替 GUI 可见结果，也不把手
 
 ## 8. 执行顺序与门禁
 
-1. Debug configure/build，运行 `TestAutomationCore`、`TestAutomationArchitecture` 和受影响回归；
+1. Debug configure/build，运行 `TestAutomationCore` 和受影响领域回归；
 2. 完整构建 `DsEditorLite` 并执行当前全部 CTest；失败则修复并重跑，不交付大纲；
 3. 提交本大纲，等待用户 GUI 冒烟和对 Computer Use 全量 GUI 回归的明确批准；
-4. 生成 122-operation 用例清单，审查适用维度和预计场景数；
-5. 确定性单元/契约/集成测试连续完整运行三轮；
+4. 按领域审查 208 个 Operation ID 的可达路径与适用行为维度；
+5. 确定性单元/契约/集成测试在最终候选上完整运行一次；
 6. 竞态测试使用受控调度并进行高迭代压力运行；
 7. 按获批大纲执行 Computer Use 全量 GUI 回归和真实环境资格验证；
-8. 修复失败后先重跑最小复现，再跑所属域，最后重跑三轮全量；
-9. 输出正式测试报告、Catalog 快照、GUI 证据索引和残余风险。
+8. 修复失败后先重跑最小复现，再跑所属域，最后重跑一次完整 CTest；
+9. 输出正式测试报告、Operation ID/路由快照、GUI 证据索引和残余风险。
 
-通过标准：适用的确定性场景 100% 通过，三轮无 flaky，Catalog 与集中注册表完全一致，
-源码架构守卫通过，应用和测试完整构建通过，用户 GUI 冒烟通过。任何 skipped/环境未
+通过标准：适用的确定性场景 100% 通过，`OperationIds::all()` 与 Dispatcher 行为覆盖完整，
+应用和测试完整构建与一次完整 CTest 通过，用户 GUI 冒烟通过。任何 skipped/环境未
 具备项目都必须逐项解释，不能计入通过率。

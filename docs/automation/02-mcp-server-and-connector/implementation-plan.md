@@ -4,7 +4,7 @@
 
 二期在一期 Automation Facade 基线上交付运行中 GUI Editor 的公共 MCP Server、公共 Wire Contract、实例发现与状态观察、DS Connector Lite，以及 GUI 进阶控制、允许公开的应用设置与歌词规则、包索引、设置页、CLI、安全和运行时生命周期。
 
-设计语义以《DS Editor Lite MCP 与自动化体系设计》当前版为权威来源，并参考[自动化体系五期建设路线图 #96](https://github.com/flutydeer/ds-editor-lite/issues/96)。公共工具分母由[公共工具矩阵](public-tool-matrix.md)冻结：Editor 179 项，Connector 6 项，总计 185 项。
+设计语义以《DS Editor Lite MCP 与自动化体系设计》当前版为权威来源，并参考[自动化体系五期建设路线图 #96](https://github.com/flutydeer/ds-editor-lite/issues/96)。公共工具分母由[公共工具矩阵](public-tool-matrix.md)冻结：Editor 177 项，Connector 6 项，总计 183 项。
 
 本期产品形态为：
 
@@ -39,13 +39,13 @@ Agent 会话可先于 Editor 启动。Connector 通过全局实例 Bootstrap 观
 - 应用设置使用明确 allowlist 与按小标题聚合的稀疏更新；自动化/MCP 自身配置和未列入设置不能由 MCP 修改。
 - 应用级设置与歌词规则不进入文档 revision/history；包刷新使用 application-scoped Task，不伪造文档身份。
 - `validate_only` 只开放给保存到新路径、批量文件导入、设备或包搜索路径设置，以及歌词规则创建/更新等确有复杂预检价值的操作；其他命令仍在提交前完成内部校验，不额外暴露预演参数。
-- `idempotency_key` 只开放给会创建稳定对象、启动文档任务或执行高成本导入的操作；普通属性编辑、移动/缩放、删除、历史记录和播放状态写入使用 revision/state version 处理冲突，不额外要求 Agent 管理幂等键。
+- `idempotency_key` 只开放给能够以稳定结果安全去重的对象创建、批量导入和提取任务；文档导入、推理启动及普通属性编辑、移动/缩放、删除、历史记录和播放状态写入使用 revision/state version 或 Task 状态处理冲突，不额外要求 Agent 管理幂等键。
 
 总线域的 descriptor category 为 `bus`，公开操作 ID 保持 `master.*`。历史记录是独立域，固定包含状态查询、Undo 与 Redo。
 
 已冻结的跨域边界包括：`audio_clips.relocate` 与 `audio_clips.confirm_path` 在当前实现中同步完成校验、解码/hash 和最终写回，直接返回 Mutation；`playback.set_loop`、`playback.set_loop_enabled` 与 `playback.clear_loop` 修改工程持久状态，各自形成一条历史记录并递增文档 revision，而 `play/pause/stop/seek` 只修改瞬时播放状态。
 
-## 3. 一期契约校正与复用
+## 3. 一期契约复用
 
 异步执行实例统一使用 Task 术语：
 
@@ -55,9 +55,15 @@ operations.get    → tasks.get
 operations.cancel → tasks.cancel
 ```
 
-`OperationId` 表示稳定能力定义，`TaskId` 表示一次异步执行实例。校正覆盖集中 ID、Catalog descriptor、Facade 路由、测试名称、Wire 字段和文档引用，公开字段固定为 `operation_id` 与 `task_id`。
+`OperationId` 表示稳定能力定义，`TaskId` 表示一次异步执行实例。内部能力由
+`OperationIds::all()` 提供权威集合，Dispatcher 使用显式类型化路由，不维护
+`OperationCatalog` 或 `OperationDescriptor` 注册表。公开字段固定为 `operation_id` 与
+`task_id`。
 
 Editor MCP 的业务执行继续复用一期类型化 Facade、Dispatcher、CommandCommitter、历史记录、document/revision、idempotency、generation 和 TaskManager。新增公共语义时优先扩展现有领域 Facade；Transport、Wire Binding 和 Connector 只负责协议、权限、转换与转接。
+
+Dispatcher 的幂等处理是显式 opt-in：只有调用方实际提供已获工具支持的
+`idempotency_key` 时才计算请求指纹并进入去重存储；不带 key 的调用不做哈希，也不创建幂等记录。
 
 ## 4. 公共调用路径
 
@@ -66,18 +72,19 @@ Streamable HTTP / stdio
   → MCP framing、版本与元数据校验
   → 公共 operation descriptor 与 input Schema
   → Profile / Custom Access Policy
-  → dynamic value validation
-  → File Guard
-  → Admission Control
+  → 必要的 File Guard 与 Admission Control
   → typed Wire Binding
   → typed Domain Facade / host adapter
   → Dispatcher / TaskManager
   → 历史记录 / revision / Model / file backend
-  → output Schema 自检
+  → output 编码
   → MCP structuredContent + TextContent
 ```
 
-每层职责单一。Editor MCP 与 Connector 都从同一公共契约表派生工具描述；业务提交只发生在领域 Facade 与其既有运行时路径中。
+每层职责单一。Editor MCP 与 Connector 都从同一公共契约表派生工具描述；业务提交只发生在领域
+Facade 与其既有运行时路径中。动态候选仍通过 `value_sources` 与
+`automation.get_options` 发现，但正常 invocation 不自动回查 provider；调用参数以目标 input
+Schema 和领域 handler 为准。
 
 ## 5. Wire Contract 与 Binding Registry
 
@@ -90,49 +97,56 @@ Streamable HTTP / stdio
 - JSON Schema 2020-12 input/output Schema；
 - 公共 enum、值域、范围、集合上限与稳定 codec；
 - `value_sources` 及其上下文字段；
-- document/revision/历史记录/file/host/concurrency/conflict/safety descriptor；
-- 工具版本、Schema digest 与 Manifest digest；
+- 执行所需的 Profile、host、file access 和标准 MCP annotations；
+- 全局 `toolset_version` 与每工具 `minimum_toolset_version`；
 - MCP 2025-11-25 与 2026-07-28 两套主协议，以及 2025-06-18 兼容握手的消息、结果塑形和 header codec；
-- exposure selector、Schema 方向性兼容与不透明分页游标。
+- exposure selector 与分页游标。
 
 Wire 字段使用 `snake_case`。业务 object 使用封闭 Schema；未知字段、未知枚举、非有限数字、越界整数、非法 ID、超限集合和非法分页游标在进入 Facade 前失败。表示默认值、自动选择、无过滤或分页首页的可选字段采用显式白名单：字符串空值与省略等义，具有“全部”语义的集合空值与省略等义；必填标识、路径、查询词和编辑值仍保持严格校验。动态候选由 `value_sources` 指向同层级可达的查询，`automation.get_options` 继承目标工具的 Profile、Custom 和执行权限。
 
 ### 5.2 Binding Registry
 
-Registry 从同一工具声明建立 179 个类型化 binding，并派生：
+Registry 从同一工具声明建立 177 个类型化 binding，并派生：
 
 - Editor `tools/list` 的确定顺序和 descriptor；
 - Public Automation Manifest；
-- input 解码、执行 handler、output 编码和 Schema 自检；
+- input 解码、执行 handler 与 output 编码；output Schema 由确定性契约测试验证；
 - Profile/Custom 的发现过滤与执行期授权；
 - Connector 构建时已知的类型化 Editor 工具描述；
 - 测试中的 ID、域、Profile、类型、Schema 和版本期望。
 
-注册门禁校验 MCP tool name 与 operation ID 唯一且一一对应、Schema 有效、value source 可达、binding 集合完整、descriptor 字段完整，以及工具描述与执行入口一致。
+注册门禁校验 MCP tool name 与 operation ID 唯一且一一对应、Schema 有效、value source 可达、
+binding 集合完整，以及工具描述与执行入口一致。执行时不再次访问 value source；同一版本下
+Editor、Connector 或文档 Schema 不一致均按缺陷处理。
 
 ## 6. Manifest、版本与兼容
 
 Public Automation Manifest 根级包含：
 
 - `toolset_version`；
-- 规范化元数据与逐项 Schema digest 形成的 SHA-256 digest；
 - 当前 Profile 与 host mode；
-- 分页的 operation descriptor；
+- 分页的运行时工具元数据，包括 ID、域、类型、同步方式、最低 Profile、
+  `minimum_toolset_version`、host/file facts 和标准 MCP annotations；
 - 不透明 `next_cursor`；
-- 根级版本化 `extensions`。
+- 运行诊断所需的轻量摘要。
 
-本期工具集维持 v1：`toolsetVersion = 1`。185 个工具各自持有的 current version、introduced version、minimum compatible version 都是 1；digest 用于缓存和漂移检测。
+本期工具集维持 v1：`toolset_version = 1`。183 个工具各自只持有
+`minimum_toolset_version = 1`，Manifest 不重复 current/introduced 三元组。
 
-Connector 对同名类型化工具同时检查双方版本门槛和 Schema 方向：
+Connector 对同名类型化工具只检查双方工具集版本门槛：
 
 ```text
-connector current >= editor minimum compatible
-AND editor current >= connector minimum compatible
-AND connector input ⊆ editor accepted input
-AND editor output ⊆ connector accepted output
+connector toolset_version >= editor minimum_toolset_version
+AND editor toolset_version >= connector minimum_toolset_version
 ```
 
-双方 Schema 对象完全相同走精确快速路径；存在差异时进入受支持关键字集合上的确定性包含证明。Manifest digest 直接覆盖所有非 Schema descriptor 字段，并通过各 input/output Schema 的 SHA-256 覆盖 Schema 内容，避免在摘要阶段再次规范化同一批大型 Schema 原文。Connector 的预期 digest 按 Editor 实际 Profile、host mode 构造；Custom 还使用当前 `tools/list` 中出现的已知 operation ID，不能固定套用某个 preset 的摘要。digest 用于工具集快照缓存和整体漂移检测；兼容状态与 Editor 当前可用状态分别记录，便于 Agent 判断契约漂移、Profile 限制和运行时能力。
+兼容判断不计算 Schema 方向性子集、Schema digest 或 `compatible_subset`。逐工具实际 Schema 仍以标准
+MCP `tools/list` 为事实来源，泛化调用按 Editor 当前 Schema 发送；同一工具集版本下的 Schema
+差异不是可协商兼容状态，而是应由 MCP 输入校验和契约测试修复的缺陷。Profile、Custom 和 host
+availability 继续独立报告，不与契约版本混淆。
+
+分页对调用方仍表现为 opaque cursor；内部编码只把 `context + snapshot + offset` 序列化为
+base64url，并在下一页校验上下文和快照。游标不携带密钥、不计算 HMAC，也不承担认证职责。
 
 ## 7. Profile、Custom 与执行期授权
 
@@ -180,7 +194,7 @@ HTTP 层实施：
 - Host 与 Origin allowlist；
 - POST、Content-Type 与 Accept 校验；
 - 请求/响应字节、JSON 深度/节点和 deadline 上限；
-- global、peer、logical client 三层在途与令牌桶限制；logical client 最多 32 个在途请求，并保留 64 个请求的突发令牌容量，避免正常握手先消耗配额后使 32 路并发失真；
+- 全局最多 32 个在途请求；超限立即拒绝，不排队；
 - 安全响应头与稳定 transport error；
 - 有序停止、在途请求完成或超时、配额可靠释放。
 
@@ -201,7 +215,12 @@ Watcher 具备最大连接数、最大帧、待写帧数、累计待写字节、
 
 Connector 是独立多实例进程：下游为 MCP stdio Server，上游为 Editor Streamable HTTP Client。两侧分别维护 MCP 生命周期、request ID、取消、超时和结果验证。
 
-上游优先按 2026-07-28 发起 `server/discover`，失败后使用 2025-11-25 `initialize/initialized`，并接受服务端协商到 2025-06-18 的 legacy 会话。协议握手成功后完整分页读取 `tools/list`，再调用一次 `automation.get_status` 取得 toolset version、Manifest digest、Profile 与 host 摘要；逐工具 descriptor、Schema、版本和可用性均以 `tools/list` 为事实来源。完整 `automation.get_manifest` 保留为按需诊断/审计工具，不进入 Connector 常规握手。Editor instance 或 endpoint 变化会切换 handshake epoch、取消旧请求、清除旧缓存并建立新连接。
+上游优先按 2026-07-28 发起 `server/discover`，失败后使用 2025-11-25
+`initialize/initialized`，并接受服务端协商到 2025-06-18 的 legacy 会话。协议握手成功后完整分页
+读取 `tools/list`，再调用一次 `automation.get_status` 取得 toolset version、Profile 与 host 摘要；
+逐工具 Schema 和可用性以 `tools/list` 为事实来源，兼容性只计算全局版本与逐工具最低版本。
+完整 `automation.get_manifest` 保留为按需运行诊断工具，不进入 Connector 常规握手。Editor
+instance 或 endpoint 变化会切换 handshake epoch、取消旧请求、清除旧缓存并建立新连接。
 
 stdout 只写 MCP stdio 帧；诊断写 stderr。Reader 和 writer 都使用有界队列，覆盖部分读写、合并唤醒、EOF、broken pipe、backpressure 和停滞 deadline。
 
@@ -218,7 +237,7 @@ editor.tools.describe
 editor.tools.invoke
 ```
 
-Connector 同时携带构建时已知的 179 个 Editor 类型化工具描述。进程启动时根据 exposure 生成固定 downstream 类型化工具集合：
+Connector 同时携带构建时已知的 177 个 Editor 类型化工具描述。进程启动时根据 exposure 生成固定 downstream 类型化工具集合：
 
 ```text
 --exposure-profile l0|l1|l2|l3
@@ -226,13 +245,20 @@ Connector 同时携带构建时已知的 179 个 Editor 类型化工具描述。
 --exclude-tool <selector>
 ```
 
-Selector 支持 `id:`、`category:`、`prefix:`；最终集合为 preset 与 include 的并集，再应用 exclude。相同 exposure 结果同时过滤类型化 wrapper 和泛化 `list/search/describe/invoke`。Editor 上下线、Profile、工具目录、Manifest 摘要和兼容变化更新状态缓存，downstream descriptor 在该 Connector 生命周期内保持稳定。
+Selector 支持 `id:`、`category:`、`prefix:`；最终集合为 preset 与 include 的并集，再应用
+exclude。相同 exposure 结果同时过滤类型化 wrapper 和泛化
+`list/search/describe/invoke`。Editor 上下线、Profile、工具目录和版本兼容变化更新状态缓存，
+downstream descriptor 在该 Connector 生命周期内保持稳定。
 
 ### 10.3 状态、错误与多 Connector
 
-`connector.get_status` 返回 Connector identity、Bootstrap、Editor、上游协议、Manifest、兼容计数、exposure 与 pending selector 事实。稳定错误区分 Editor 状态、上游连接、工具过滤、工具可用性、契约兼容、timeout、取消和结果未知。
+`connector.get_status` 返回 Connector identity、Bootstrap、Editor、上游协议、工具集版本兼容、
+exposure 与 pending selector 事实。稳定错误区分 Editor 状态、上游连接、工具过滤、工具可用性、
+契约版本、timeout、取消和结果未知。
 
-每个 Connector 拥有独立 QLocal watch、HTTP client、握手 epoch、工具目录/Manifest 摘要缓存和 downstream 请求表。Connector 并发转发下游请求，不为 Editor 的 32 路上限增加串行队列；多个 Connector 共享 Editor 时由 Editor Admission 维护公平性。任一 Connector 的退出、慢读、限流或重连不会修改其他 Connector 的状态。
+每个 Connector 拥有独立 QLocal watch、HTTP client、握手 epoch、工具目录缓存和 downstream
+请求表。Connector 并发转发下游请求，不为 Editor 的 32 路上限增加串行队列。任一 Connector
+的退出、慢读、触发全局准入上限或重连不会修改其他 Connector 的状态。
 
 ## 11. File Guard 与 Admission Control
 
@@ -250,7 +276,9 @@ Editor 直连、Connector 类型化工具和泛化 invoke 进入同一个 Guard�
 
 ### 11.2 Admission
 
-业务 Admission 维护全局在途、每客户端在途、后台任务容量、每并发域占用和逻辑客户端令牌桶。每客户端在途上限为 32，突发令牌容量为 64；HTTP Transport 使用相同的 32/64 客户端口径，并另维护 global/peer 并发与速率。超限请求立即得到稳定 `busy` 或 `too_many_requests`，不进入业务 handler。
+业务 Admission 只维护全局 32 个在途请求与 8 个后台 Task 容量；HTTP Transport 只执行相同的
+全局 32 路硬上限。不设置 client/peer/domain 配额、令牌桶或公平排队。超限请求立即得到稳定
+`busy` 或 `too_many_requests`，不进入业务 handler；请求和 Task 终结时释放计数。
 
 Command 使用显式 `document_id + expected_revision`；异步任务保留不可变执行快照，并在最终写回前复核 document generation、revision 和文件授权。断线时 Connector 不自动重放有副作用 Command，结果事实无法确认时返回 `outcome_unknown`，由调用方结合 revision、Task 和 idempotency 信息确认。
 
@@ -275,15 +303,15 @@ CLI override 只影响本次运行，优先于持久设置。选项菜单中的 
 ## 13. 实施顺序与阶段提交
 
 1. 校正一期 Task 名称与受影响测试。
-2. 冻结 179 + 6 工具矩阵、公共 enum、Schema 与版本不变量。
-3. 完成 Wire Contract、Manifest、游标与 Schema 兼容。
-4. 按 25 个域完成 179 个 Registry binding 和 host adapter。
+2. 冻结 177 + 6 工具矩阵、公共 enum、Schema 与版本不变量。
+3. 完成 Wire Contract、轻量 Manifest、版本兼容与透明分页游标。
+4. 按 25 个域完成 177 个 Registry binding 和 host adapter。
 5. 完成 Profile/Custom、File Guard 与 Admission。
 6. 完成 Editor 2025-11-25 与 2026-07-28 两套主协议，以及 2025-06-18 兼容握手生命周期。
 7. 完成 QLocal discover/watch 与状态机。
 8. 完成 Connector 上游、下游、桥接工具、exposure 与兼容缓存。
 9. 完成设置页、CLI、运行时启停和多 Connector 收口。
-10. 完成静态、单元、组件、进程、GUI 与三轮全量回归。
+10. 完成静态、单元、组件、进程、GUI 与一次完整 CTest 回归。
 11. 更新实现报告和测试报告。
 
 复杂或独立职责使用阶段提交，示例：
@@ -302,14 +330,14 @@ docs(automation): report phase two delivery
 
 ## 14. 验收门禁与正式产物
 
-- 179 个 Editor ID、6 个 Connector ID、185 个总 ID 唯一且集合相等。
+- 177 个 Editor ID、6 个 Connector ID、183 个总 ID 唯一且集合相等。
 - 25 个 Editor 域及总线、历史记录、GUI 子区域归属与权威矩阵一致。
-- toolset v1 和每工具版本三元组均为 1。
-- 179 个 Editor 工具均具备严格 Schema、descriptor、binding 与适用测试。
+- `toolset_version = 1`，且每工具 `minimum_toolset_version = 1`。
+- 177 个 Editor 工具均具备严格 Schema、descriptor、binding 与适用测试。
 - Editor MCP 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手、QLocal watch、Connector stdio/exposure/compatibility、Profile/Custom、File Guard、Admission、设置与 CLI 完成验证。
 - Editor 直连与 Connector 转接保持业务结果、稳定错误、历史记录、revision 和 Task 语义等价。
-- 多 Connector、运行时换端口/启停、限流、退出和资源清理满足有界生命周期。
-- Debug 全目标构建与全部 CTest 在同一候选上连续三轮完成，GUI 与真实进程联调形成新证据。
+- 多 Connector、运行时换端口/启停、全局准入、退出和资源清理满足有界生命周期。
+- Debug 全目标构建与一次完整 CTest 在同一候选上完成，GUI 与真实进程联调形成新证据。
 
 正式文档：
 

@@ -2,9 +2,9 @@
 
 ## 1. 文档状态与口径
 
-本文是一期 Automation Facade 全量 Computer Use 回归的稳定执行清单，不是测试结果或
-排期记录。正式 `test-report.md` 采用 append-only 规则且已有 `R00` 及后续轮次；矩阵只定义
-可重复引用的场景组，任何实际尝试都不得回填或改写既有报告轮次。
+本文是一期 Automation Facade 全量 Computer Use 回归的稳定执行清单，不是测试结果或排期记录。
+正式结果写入 `test-report.md`；矩阵只定义可重复引用的场景组，原始尝试、失败和修复证据保存在
+仓库外私有归档。
 
 矩阵遵循 `test-outline.md` 和 `migration-matrix.md` 的一期边界：真实 GUI 负责验证用户
 入口、交互提交、可见状态与文件结果；内部 DTO、DocumentId、revision、History entry
@@ -220,7 +220,7 @@ buffer/sample-rate 的安全恢复。若某控件按已装备条件本应出现�
   gain/pan 文本随提交更新；删除/撤销/重做保持正确对象与顺序。
 - **恢复/清理**：Undo 到初始轨道状态，或放弃工作副本；Master 和轨道控制恢复基线。
 - **未能自动观察的限制**：gain/pan 精确浮点值、一次提交对应一次 History/revision 和
-  affected-object ID 需补充日志；仅 hover 预览明确不属于一期 Catalog 提交。
+  affected-object ID 需补充日志；仅 hover 预览明确不属于一期 Facade 提交。
 
 ### GUI-G05：歌声片段、跨轨移动、缩放与剪贴板
 
@@ -516,7 +516,7 @@ buffer/sample-rate 的安全恢复。若某控件按已装备条件本应出现�
 - **恢复/清理**：移除所有测试路径，重启确认包计数回到基线；关闭 Package Manager。
 - **未能自动观察的限制**：坏包可能不会进入可选择列表，其验证只能依靠扫描日志；当前
   Package Manager 的 `Install...` 按钮在源码中没有连接安装动作，不把点击它算作任何
-  Catalog operation 通过；文档版本复检与运行期 voice ID 需内部证据。
+  Automation operation 通过；文档版本复检与运行期 voice ID 需内部证据。
 
 ### GUI-G20：MIDI 导入与 LibreSVIP Open/Import（条件子场景）
 
@@ -658,7 +658,7 @@ buffer/sample-rate 的安全恢复。若某控件按已装备条件本应出现�
 
 | 项目 | GUI 能证明什么 | 仍需的补证/处理 |
 |---|---|---|
-| 各域 `get`、Catalog descriptor | 当前窗口中的一部分呈现 | DTO 完整性、快照无副作用、未知 ID/WindowId 由确定性测试覆盖 |
+| 各域 `get`、Operation ID/路由 | 当前窗口中的一部分呈现 | DTO 完整性、快照无副作用、未知 ID/WindowId 由确定性测试覆盖 |
 | DocumentId、revision、idempotency | 标题、路径、内容和保存点变化 | ID 轮换、revision 次数、generation 由日志/契约测试覆盖 |
 | `playback.clear_loop` | toggle 只能启用/禁用并保留区域 | 当前无清零入口，只做契约测试，不记 GUI 通过 |
 | `editor.restore_view/get_state/get_capabilities` | 可手工改变 view | 当前无用户触发 restore DTO 的入口，只做 Facade 测试 |
@@ -706,4 +706,4 @@ buffer/sample-rate 的安全恢复。若某控件按已装备条件本应出现�
 | 应用重启、退出与最终清理 | `GUI-G24` |
 
 所有未执行或未装备项都必须精确到子场景、能力编号和原因；禁止写“环境原因，整组跳过”。
-条件子场景未装备不降低 Catalog 的确定性测试分母，只作为真实环境资格单独统计。
+条件子场景未装备不降低内部 operation 的确定性测试分母，只作为真实环境资格单独统计。

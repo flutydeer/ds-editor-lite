@@ -1,26 +1,25 @@
-# 一期 Automation Facade 实现报告
+# Automation Facade 实现报告
 
 ## 1. 最终结论
 
-一期已完成协议无关的 Automation Facade、单 DocumentSession 运行时、统一提交语义、异步任务
-保护及现有 GUI 业务入口迁移。当前 Catalog 共 122 个真实 operation，全部具有集中 ID、类型化
-C++ 契约、真实 handler 和直接行为测试。
+当前协议无关的 Automation Facade 提供单 DocumentSession 运行时、统一提交语义、异步任务
+保护及现有 GUI 业务入口迁移。当前共有 208 个集中 Operation ID，全部具有类型化 C++ 契约、
+显式 Dispatcher 路由、真实 handler 和直接行为测试。
 
-本期没有实现 MCP、Headless 或多文档产品行为；它完成的是这些后续入口共同依赖的业务层。
-GUI、内部异步任务和未来协议适配器可以复用同一套验证、提交、History、revision、幂等和错误
-语义，不再各自维护平行业务实现。
+MCP、Headless 宿主和多文档产品行为不在 Facade 层实现。GUI、内部异步任务和协议适配器复用
+同一套验证、提交、History、revision、显式幂等和错误语义。
 
 ## 2. 已交付的公共架构
 
 | 能力 | 最终实现结果 |
 |---|---|
-| 运行时 | 建立 `CoreRuntime`，集中装配 Session、Resolver、Dispatcher、Catalog、Committer、TaskManager 和各域 Facade |
+| 运行时 | 建立 `CoreRuntime`，集中装配 Session、Resolver、Dispatcher、Committer、TaskManager 和各域 Facade |
 | 文档身份 | 生产运行时保持单 DocumentSession；所有文档请求显式携带 `document_id`，写操作携带 `expected_revision` |
-| 窗口身份 | GUI-only operation 显式携带 `window_id`；一期由 SingleWindowContext 接受唯一有效窗口 |
+| 窗口身份 | GUI-only operation 显式携带 `window_id`；当前由 SingleWindowContext 接受唯一有效窗口 |
 | 公共类型 | 建立强类型 Document/Window/Task/Operation/业务对象 ID、DTO、快照、MutationResult 和 AutomationError |
-| Operation 注册 | 122 个 operation ID 只在集中符号表定义；产品调用不散落字符串，也不使用 `.v1` 进程内版本后缀 |
+| Operation ID | 208 个 operation ID 只在集中符号表定义；能力集合由 `OperationIds::all()` 返回，产品调用不散落字符串 |
 | Dispatcher | 统一文档、revision、对象、领域约束和宿主错误顺序，并为所有错误补齐 operation 上下文 |
-| Catalog | 每项登记 Query/Command、同步方式、document/revision/History/file/host/idempotency policy 和安全属性 |
+| 显式路由 | Dispatcher 对集中 ID 使用类型化分支，不维护平行的 Catalog/Descriptor 注册表 |
 | 提交器 | 业务命令统一执行完整验证、不可失败 ActionSequence、一次 execute、最多一次 History 和一次 revision |
 | 测试运行时 | 提供可注入 resolver、fake host、受控任务执行器和隔离 Runtime，支持确定性契约及竞态测试 |
 
@@ -50,6 +49,8 @@ GUI、内部异步任务和未来协议适配器可以复用同一套验证、�
 
 ### 3.3 幂等
 
+- 幂等是显式 opt-in；只有请求实际携带受支持的 key 时才计算指纹并进入存储，不带 key 的调用
+  不哈希、不创建记录。
 - 文档级键空间为 `(document_id, operation_id, idempotency_key)`，生命周期等于当前 document
   generation。
 - 同键同规范化输入返回首次结果；同键异参数、异 operation 或异初始 revision 返回
@@ -71,27 +72,27 @@ GUI、内部异步任务和未来协议适配器可以复用同一套验证、�
 - Save、Save As、Import 的 busy 窗口会延期已完成任务的提交；New/Open 换代后旧任务只能结束，
   不能写入新文档。
 
-## 4. 122 个 operation 的域覆盖
+## 4. 208 个 operation 的域覆盖
 
 | 域 | 数量 | 已实现能力 |
 |---|---:|---|
 | application | 3 | 应用信息、退出、重启及窗口/宿主边界 |
-| documents | 5 | New、Open、Import、Save、文档状态与 generation |
-| project/tracks/clips/audio/imports | 18 | 工程快照、轨道和片段编辑、音频资产状态、批量导入 |
-| notes | 10 | 查询、插入、移动、删除、左右缩放、量化、拆分、歌词/语言、音素偏移 |
-| parameters/speaker mix | 10 | 参数曲线替换、轨道/片段固定与动态混合、继承和单声线选择 |
-| timeline/master | 6 | Tempo、拍号、时间线快照和 Master 控制 |
+| documents | 10 | New、Open、Import、Save、文档状态与 generation |
+| project/tracks/clips/audio/imports | 44 | 工程快照、轨道和片段编辑、音频资产状态、声音上下文与批量导入 |
+| notes | 21 | 查询、插入、移动、删除、缩放、量化、拆分、歌词、语言、发音与音素 |
+| parameters/speaker mix | 29 | 参数查询/绘制/锚点、固定/动态混合、关键帧、继承和兼容入口 |
+| timeline/master | 11 | Tempo、拍号、时间线快照和 Master 查询/细粒度控制 |
 | history | 3 | 状态、Undo、Redo |
-| inference | 12 | 发音、音素、时长、音高、方差、声学、分段、参数和 Speaker Mix 写回 |
-| extraction | 2 | RMVPE 音高提取、GAME MIDI 提取 |
-| exports/formats | 5 | 格式能力、MIDI 导出、音频导出 preview/start/cleanup 内部入口 |
+| inference | 15 | 能力、状态、任务，以及发音、音素、时长、音高、方差、声学、分段和参数写回 |
+| extraction | 3 | 能力查询、RMVPE 音高提取、GAME MIDI 提取 |
+| exports/formats | 9 | 格式检查、MIDI/音频能力、preview/start/cleanup |
 | tasks | 3 | Task get/list/cancel 与稳定终态 |
-| playback | 9 | 播放、暂停、停止、位置、last position、loop 设置/启用/清除 |
-| editor | 15 | 能力/状态、selection、reveal、视图恢复、面板、缩放、编辑模式、量化和自动翻页 |
+| playback | 10 | 播放、暂停、停止、seek/位置、last position、loop 设置/启用/清除 |
+| editor | 25 | 能力/状态、selection、reveal、视图恢复、面板/子区域、视口、焦点、量化和自动翻页 |
 | settings/recent/search paths | 15 | 九个设置域、Recent CRUD、包搜索路径 |
-| packages | 3 | 包列表、验证、工程声音解析 |
+| packages | 4 | 包列表、刷新、验证、工程声音解析 |
 | speaker mix presets | 3 | 预设 list/save/delete |
-| **合计** | **122** | **集中注册、真实 handler 和直接行为覆盖完整** |
+| **合计** | **208** | **集中 ID、显式路由、真实 handler 和领域行为覆盖** |
 
 ## 5. GUI 与既有业务入口迁移结果
 
@@ -148,20 +149,20 @@ GUI、内部异步任务和未来协议适配器可以复用同一套验证、�
 
 ## 7. 测试与长期保护产物
 
-- 122 个 operation 被三套精确集合矩阵分为编辑 40、异步/文件 34、运行时 48；每项具有 6～9 个
-  适用场景门禁。
-- 已建立 Catalog、架构、文档生命周期、幂等、任务竞态、编辑域、运行时域、异步文件域、音频
+- 208 个 operation 使用集中 ID、显式 Dispatcher 路由和按领域组织的行为测试；测试按实际语义
+  覆盖正常、拒绝、no-op、回滚和竞态路径，不维护 Descriptor 镜像或源码扫描门禁。
+- 已建立文档生命周期、显式幂等、任务竞态、编辑域、运行时域、异步文件域、音频
   资产、Piano Roll 提交、Fill Lyric、MIDI 导入、设置持久化等直接回归目标。
-- 幂等覆盖 16/64 路并发；任务竞态覆盖 cancel/commit barrier、重复完成、对象删除和 generation
-  换代。
+- 幂等只覆盖显式 opt-in 的代表性操作；任务竞态覆盖 cancel/commit barrier、重复完成、对象删除
+  和 generation 换代。
 - 测试专用 Modifier 输入桥与受控推理延迟均由编译/运行开关隔离，正式产品默认不启用。
-- 最终 Debug 全目标构建及三轮完整 CTest 均通过；详细结论见 `test-report.md`。
+- 本轮最终 Debug 全目标构建与一次完整 CTest 结果见 `test-report.md`。
 
 ## 8. 明确边界
 
-以下内容不属于一期实现：多个真实 DocumentSession、DocumentRegistry、WindowRegistry、跨文档
-操作、多个真实窗口的生命周期、MCP/HTTP/JSON-RPC、权限 profile、Schema AST/digest、Headless
-bootstrap、独立 Core target，以及尚无真实后端的路线图/TODO 能力。
+以下内容不属于 Automation Facade 层：多个真实 DocumentSession、DocumentRegistry、
+WindowRegistry、跨文档操作、多个真实窗口的生命周期、MCP/HTTP/JSON-RPC transport、权限
+profile、Headless bootstrap、独立 Core target，以及尚无真实后端的路线图/TODO 能力。
 
-这些边界没有作为 skipped operation 混入 122 项通过率。未来增加真实能力时，应同时增加类型化
-handler、集中 OperationId、Catalog descriptor、Facade 路径和测试矩阵。
+这些边界不作为 skipped operation 混入 208 项能力面。增加真实能力时，应同时增加类型化
+handler、集中 OperationId、显式 Dispatcher 路径、Facade 路径和测试矩阵。
