@@ -392,14 +392,6 @@ void MainWindow::restoreBackgroundInteraction() {
 #endif
 }
 
-void MainWindow::quit() {
-    documentWorkflowController->requestTermination(TerminationMode::Exit);
-}
-
-void MainWindow::restart() {
-    documentWorkflowController->requestTermination(TerminationMode::Restart);
-}
-
 QWidget *MainWindow::documentWorkflowParentWidget() {
     return this;
 }

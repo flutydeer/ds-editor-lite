@@ -290,12 +290,29 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
         };
     };
     applicationServices.requestTermination =
-        [this](const Automation::ApplicationTerminationMode mode) {
-            if (!m_appController)
-                return false;
-            return mode == Automation::ApplicationTerminationMode::Exit
-                       ? m_appController->applyQuit()
-                       : m_appController->applyRestart();
+        [this](const Automation::ApplicationTerminationMode mode,
+               const Automation::ApplicationTerminationSavePolicy savePolicy) {
+            if (!m_documentWorkflowController)
+                return Automation::ApplicationTerminationRequestResult::Unavailable;
+            const auto workflowMode = mode == Automation::ApplicationTerminationMode::Exit
+                                          ? TerminationMode::Exit
+                                          : TerminationMode::Restart;
+            const auto workflowPolicy =
+                savePolicy == Automation::ApplicationTerminationSavePolicy::Prompt
+                    ? TerminationSavePolicy::Prompt
+                    : savePolicy == Automation::ApplicationTerminationSavePolicy::Discard
+                          ? TerminationSavePolicy::Discard
+                          : TerminationSavePolicy::RejectUnsaved;
+            switch (m_documentWorkflowController->requestTermination(workflowMode,
+                                                                     workflowPolicy)) {
+                case TerminationRequestResult::Accepted:
+                    return Automation::ApplicationTerminationRequestResult::Accepted;
+                case TerminationRequestResult::Busy:
+                    return Automation::ApplicationTerminationRequestResult::Busy;
+                case TerminationRequestResult::UnsavedChanges:
+                    return Automation::ApplicationTerminationRequestResult::UnsavedChanges;
+            }
+            return Automation::ApplicationTerminationRequestResult::Unavailable;
         };
     m_coreRuntime = std::make_unique<Automation::CoreRuntime>(
         m_appModel, m_historyManager, std::move(documentServices), std::move(playbackServices),

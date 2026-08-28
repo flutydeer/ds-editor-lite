@@ -280,14 +280,17 @@ namespace RuntimeDimensions {
         }
         if (!missing(Automation::OperationIds::application::request_exit) &&
             !missing(Automation::OperationIds::application::request_restart)) {
-            services.requestTermination = [this](const auto mode) {
+            services.requestTermination = [this](const auto mode, const auto savePolicy) {
                 const auto operationId =
                     mode == Automation::ApplicationTerminationMode::Exit
                         ? Automation::OperationIds::application::request_exit
                         : Automation::OperationIds::application::request_restart;
                 ++hostCalls[operationId];
                 lastTerminationMode = mode;
-                return applicationTerminationSucceeds;
+                lastTerminationSavePolicy = savePolicy;
+                return applicationTerminationSucceeds
+                           ? Automation::ApplicationTerminationRequestResult::Accepted
+                           : Automation::ApplicationTerminationRequestResult::Unavailable;
             };
         }
         return services;

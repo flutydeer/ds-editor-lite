@@ -447,10 +447,12 @@ namespace {
         Automation::ApplicationRuntimeServices applicationServices() {
             Automation::ApplicationRuntimeServices services;
             services.info = [this] { return applicationInfo; };
-            services.requestTermination = [this](const auto mode) {
+            services.requestTermination = [this](const auto mode, const auto) {
                 ++terminationCalls;
                 lastTerminationMode = mode;
-                return terminationSucceeds;
+                return terminationSucceeds
+                           ? Automation::ApplicationTerminationRequestResult::Accepted
+                           : Automation::ApplicationTerminationRequestResult::Unavailable;
             };
             return services;
         }

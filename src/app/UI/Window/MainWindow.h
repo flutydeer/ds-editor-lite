@@ -39,8 +39,6 @@ public:
     explicit MainWindow();
     ~MainWindow() override;
     void updateWindowTitle() override;
-    void quit() override;
-    void restart() override;
     [[nodiscard]] EditorViewState captureEditorViewState() const override;
     bool restoreEditorViewState(const EditorViewState &state) override;
     bool centerTrackPanelAt(double tick, double trackIndex) override;

@@ -21,6 +21,8 @@ class Track;
 
 enum class DocumentOperation { New, Open, Import, Save, SaveAs };
 enum class TerminationMode { Exit, Restart };
+enum class TerminationSavePolicy { Prompt, RejectUnsaved, Discard };
+enum class TerminationRequestResult { Accepted, Busy, UnsavedChanges };
 
 class DocumentWorkflowController final : public QObject {
     Q_OBJECT
@@ -41,7 +43,9 @@ public:
     void requestImport(const QString &path);
     void requestSave();
     void requestSaveAs();
-    void requestTermination(TerminationMode mode);
+    TerminationRequestResult
+        requestTermination(TerminationMode mode,
+                           TerminationSavePolicy savePolicy = TerminationSavePolicy::Prompt);
     void cancelCurrentOperation();
 
     [[nodiscard]] bool busy() const;

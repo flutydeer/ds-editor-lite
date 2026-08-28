@@ -2163,6 +2163,34 @@ namespace Automation {
                 {QStringLiteral("windows"),            windows                                              },
             });
         });
+        const auto addTerminationBinding = [this](const QLatin1StringView toolName,
+                                                  const ApplicationTerminationMode mode,
+                                                  const QString &action) {
+            addBinding(toolName,
+                       [this, mode, action](const QJsonObject &arguments,
+                                            const PublicInvocationContext &invocation) {
+                           const bool discardChanges =
+                               arguments.value(QStringLiteral("discard_changes")).toBool(false);
+                           const GuiCommandContext context{
+                               .windowId = m_runtime.windowId(),
+                               .source = InvocationSource::PublicMcp,
+                               .clientId = invocation.clientId,
+                           };
+                           auto result = m_runtime.application().requestTermination(
+                               context, mode, discardChanges);
+                           if (!result)
+                               return AutomationResult<QJsonObject>(result.getError());
+                           return AutomationResult<QJsonObject>(QJsonObject{
+                               {QStringLiteral("accepted"),        true          },
+                               {QStringLiteral("action"),          action        },
+                               {QStringLiteral("discard_changes"), discardChanges},
+                           });
+                       });
+        };
+        addTerminationBinding(ToolNames::application_request_exit,
+                              ApplicationTerminationMode::Exit, QStringLiteral("exit"));
+        addTerminationBinding(ToolNames::application_request_restart,
+                              ApplicationTerminationMode::Restart, QStringLiteral("restart"));
         addBinding(ToolNames::documents_get,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &) {
                        auto result = m_runtime.documents().getDocument(documentId(arguments));

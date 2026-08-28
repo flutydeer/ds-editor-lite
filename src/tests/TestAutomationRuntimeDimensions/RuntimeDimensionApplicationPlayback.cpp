@@ -71,13 +71,41 @@ namespace RuntimeDimensions {
             });
             log.run(operationId, QStringLiteral("COMMIT"), [&] {
                 RuntimeHarness harness;
-                const auto result =
-                    harness.core().application().requestTermination(guiContext(harness), mode);
+                auto context = guiContext(harness);
+                context.source = Automation::InvocationSource::TrustedGui;
+                const auto result = harness.core().application().requestTermination(context, mode);
                 log.expect(
                     result && result.get().changed && !result.get().validatedOnly &&
                         harness.lastTerminationMode == mode &&
+                        harness.lastTerminationSavePolicy ==
+                            Automation::ApplicationTerminationSavePolicy::Prompt &&
                         harness.hostCalls.value(operationId) == 1,
                     QStringLiteral("termination commit must forward the selected mode once"));
+            });
+            log.run(operationId, QStringLiteral("PUBLIC-REJECT-UNSAVED-POLICY"), [&] {
+                RuntimeHarness harness;
+                auto context = guiContext(harness);
+                context.source = Automation::InvocationSource::PublicMcp;
+                context.clientId = QStringLiteral("runtime-public");
+                const auto result =
+                    harness.core().application().requestTermination(context, mode);
+                log.expect(
+                    result && harness.lastTerminationSavePolicy ==
+                                  Automation::ApplicationTerminationSavePolicy::RejectUnsaved,
+                    QStringLiteral("public lifecycle requests must default to rejecting unsaved "
+                                   "changes without prompting"));
+            });
+            log.run(operationId, QStringLiteral("PUBLIC-DISCARD-POLICY"), [&] {
+                RuntimeHarness harness;
+                auto context = guiContext(harness);
+                context.source = Automation::InvocationSource::PublicMcp;
+                context.clientId = QStringLiteral("runtime-public");
+                const auto result =
+                    harness.core().application().requestTermination(context, mode, true);
+                log.expect(result && harness.lastTerminationSavePolicy ==
+                                         Automation::ApplicationTerminationSavePolicy::Discard,
+                           QStringLiteral("discard_changes must select the non-interactive discard "
+                                          "policy"));
             });
             log.run(operationId, QStringLiteral("SINGLE-HOST-CALL"), [&] {
                 RuntimeHarness harness;

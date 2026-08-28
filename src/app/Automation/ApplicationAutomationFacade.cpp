@@ -11,6 +11,14 @@ namespace Automation {
             error.message = QStringLiteral("Application lifecycle host is unavailable");
             return error;
         }
+
+        AutomationError busy(const QString &message, QString fieldPath = {}) {
+            AutomationError error;
+            error.code = AutomationErrorCode::Busy;
+            error.message = message;
+            error.fieldPath = std::move(fieldPath);
+            return error;
+        }
     }
 
     ApplicationAutomationFacade::ApplicationAutomationFacade(AutomationDispatcher &dispatcher,
@@ -29,7 +37,8 @@ namespace Automation {
 
     AutomationResult<GuiMutationResult>
         ApplicationAutomationFacade::requestTermination(const GuiCommandContext &context,
-                                                        const ApplicationTerminationMode mode) {
+                                                        const ApplicationTerminationMode mode,
+                                                        const bool discardChanges) {
         if (mode != ApplicationTerminationMode::Exit &&
             mode != ApplicationTerminationMode::Restart) {
             return AutomationError::invalidArgument(
@@ -39,11 +48,30 @@ namespace Automation {
                                      ? OperationIds::application::request_exit
                                      : OperationIds::application::request_restart;
         return m_dispatcher.dispatchGuiCommand<GuiMutationResult>(
-            operationId, context, [this, context, mode](const bool validateOnly) {
+            operationId, context, [this, context, mode, discardChanges](const bool validateOnly) {
                 if (!m_services.requestTermination)
                     return AutomationResult<GuiMutationResult>(unavailable());
-                if (!validateOnly && !m_services.requestTermination(mode))
-                    return AutomationResult<GuiMutationResult>(unavailable());
+                if (!validateOnly) {
+                    const auto savePolicy =
+                        context.source == InvocationSource::TrustedGui
+                            ? ApplicationTerminationSavePolicy::Prompt
+                            : discardChanges ? ApplicationTerminationSavePolicy::Discard
+                                             : ApplicationTerminationSavePolicy::RejectUnsaved;
+                    switch (m_services.requestTermination(mode, savePolicy)) {
+                        case ApplicationTerminationRequestResult::Accepted:
+                            break;
+                        case ApplicationTerminationRequestResult::Busy:
+                            return AutomationResult<GuiMutationResult>(busy(
+                                QStringLiteral("The editor is busy and cannot terminate now")));
+                        case ApplicationTerminationRequestResult::UnsavedChanges:
+                            return AutomationResult<GuiMutationResult>(busy(
+                                QStringLiteral("The current document has unsaved changes; set "
+                                               "discard_changes to true to terminate without saving"),
+                                QStringLiteral("discard_changes")));
+                        case ApplicationTerminationRequestResult::Unavailable:
+                            return AutomationResult<GuiMutationResult>(unavailable());
+                    }
+                }
                 return AutomationResult<GuiMutationResult>({
                     .windowId = context.windowId,
                     .changed = true,

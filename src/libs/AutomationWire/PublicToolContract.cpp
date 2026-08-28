@@ -589,7 +589,8 @@ namespace AutomationWire {
                 name == QStringLiteral("bypassed") || name == QStringLiteral("case_sensitive") ||
                 name == QStringLiteral("regex") || name == QStringLiteral("quantize_start") ||
                 name == QStringLiteral("quantize_length") || name == QStringLiteral("enabled") ||
-                name == QStringLiteral("validate_only")) {
+                name == QStringLiteral("validate_only") ||
+                name == QStringLiteral("discard_changes")) {
                 return JsonSchema::boolean();
             }
             if (name == QStringLiteral("name") && id.startsWith(QStringLiteral("parameters.")))
@@ -1177,6 +1178,10 @@ namespace AutomationWire {
 
         QHash<QString, QStringList> optionalInputFields() {
             return {
+                {PublicToolNames::application_request_exit,
+                 {QStringLiteral("discard_changes")}                                              },
+                {PublicToolNames::application_request_restart,
+                 {QStringLiteral("discard_changes")}                                              },
                 {PublicToolNames::documents_new,                {QStringLiteral("template")}                       },
                 {PublicToolNames::documents_open,
                  {QStringLiteral("format_id"), QStringLiteral("options"),
@@ -2429,6 +2434,17 @@ namespace AutomationWire {
                     {QStringLiteral("validated_only"), JsonSchema::boolean()},
             },
                 {QStringLiteral("changed"), QStringLiteral("validated_only")}));
+        }
+
+        QJsonObject applicationTerminationSchema(const QString &action) {
+            return JsonSchema::document(JsonSchema::object(
+                {
+                    {QStringLiteral("accepted"),        JsonSchema::constant(true)  },
+                    {QStringLiteral("action"),          JsonSchema::constant(action)},
+                    {QStringLiteral("discard_changes"), JsonSchema::boolean()       },
+            },
+                {QStringLiteral("accepted"), QStringLiteral("action"),
+                 QStringLiteral("discard_changes")}));
         }
 
         QJsonObject nullableSchema(const QJsonObject &schema) {
@@ -3776,6 +3792,10 @@ namespace AutomationWire {
             if (syncMode == SyncMode::Asynchronous)
                 return taskAcceptedSchema(id == PublicToolNames::documents_open);
             if (kind == OperationKind::Command) {
+                if (id == PublicToolNames::application_request_exit)
+                    return applicationTerminationSchema(QStringLiteral("exit"));
+                if (id == PublicToolNames::application_request_restart)
+                    return applicationTerminationSchema(QStringLiteral("restart"));
                 if (id == PublicToolNames::documents_new)
                     return documentLifecycleResultSchema();
                 if (isPersistentPlaybackOperation(id))
@@ -3811,6 +3831,16 @@ namespace AutomationWire {
                 return QStringLiteral(
                     "Read the active editor instance, host, access profile, toolset version, and "
                     "stable document/window identities.");
+            }
+            if (operationId == PublicToolNames::application_request_exit) {
+                return QStringLiteral(
+                    "Request a graceful editor exit. Unsaved changes are rejected unless "
+                    "discard_changes is true; the MCP path never opens a save dialog.");
+            }
+            if (operationId == PublicToolNames::application_request_restart) {
+                return QStringLiteral(
+                    "Request a graceful editor restart. Unsaved changes are rejected unless "
+                    "discard_changes is true; the MCP path never opens a save dialog.");
             }
             if (operationId == PublicToolNames::application_get_file_access) {
                 return QStringLiteral(
@@ -4298,7 +4328,7 @@ namespace AutomationWire {
     const QList<ToolContract> &publicToolContracts() {
         static const QList<ToolContract> tools = [] {
             QList<ToolContract> result;
-            result.reserve(175);
+            result.reserve(177);
 #define AUTOMATION_WIRE_PUBLIC_TOOL(symbol, name, categoryValue, profile, kindValue, syncValue,    \
                                     minimumValue, effectValue, repeatabilityValue,                 \
                                     worldAccessValue)                                              \

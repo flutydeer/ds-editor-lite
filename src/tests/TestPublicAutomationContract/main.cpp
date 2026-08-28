@@ -114,10 +114,10 @@ namespace {
     void verifyAuthoritativeToolset() {
         const auto &contracts = publicToolContracts();
         const auto expectedIds = editorToolIds();
-        expect(editorTools().size() == 175 && editorToolIdSet().size() == 175,
-               QStringLiteral("test fixture must contain exactly 175 unique editor tools"));
-        expect(contracts.size() == 175,
-               QStringLiteral("public contract surface must contain exactly 175 editor tools"));
+        expect(editorTools().size() == 177 && editorToolIdSet().size() == 177,
+               QStringLiteral("test fixture must contain exactly 177 unique editor tools"));
+        expect(contracts.size() == 177,
+               QStringLiteral("public contract surface must contain exactly 177 editor tools"));
         expect(publicToolIds() == expectedIds,
                QStringLiteral("public contract order and operation set must equal section 10.3"));
 
@@ -161,11 +161,50 @@ namespace {
                QStringLiteral("public contract operation set must be exact"));
         expect(PublicToolsetVersion == 1,
                QStringLiteral("the first public toolset version must remain one"));
-        expect(toolsForProfile(AutomationProfile::L0).size() == 2 &&
-                   toolsForProfile(AutomationProfile::L1).size() == 87 &&
-                   toolsForProfile(AutomationProfile::L2).size() == 130 &&
-                   toolsForProfile(AutomationProfile::L3).size() == 175,
-               QStringLiteral("editor profile counts must be 2/87/130/175"));
+        expect(toolsForProfile(AutomationProfile::L0).size() == 4 &&
+                   toolsForProfile(AutomationProfile::L1).size() == 89 &&
+                   toolsForProfile(AutomationProfile::L2).size() == 132 &&
+                   toolsForProfile(AutomationProfile::L3).size() == 177,
+               QStringLiteral("editor profile counts must be 4/89/132/177"));
+    }
+
+    void verifyApplicationLifecycleContracts() {
+        const auto *exit = findPublicTool(QStringLiteral("application.request_exit"));
+        const auto *restart = findPublicTool(QStringLiteral("application.request_restart"));
+        expect(exit && restart,
+               QStringLiteral("graceful exit and restart must both be public L0 tools"));
+        if (!exit || !restart)
+            return;
+
+        for (const auto *contract : {exit, restart}) {
+            expect(contract->minimumProfile == AutomationProfile::L0 &&
+                       keys(contract->inputSchema.value(QStringLiteral("properties")).toObject()) ==
+                           QSet<QString>{QStringLiteral("discard_changes")} &&
+                       requiredFields(contract->inputSchema).isEmpty() &&
+                       validateJsonValue(QJsonObject{}, contract->inputSchema).valid() &&
+                       validateJsonValue(
+                           QJsonObject{{QStringLiteral("discard_changes"), true}},
+                           contract->inputSchema)
+                           .valid() &&
+                       !validateJsonValue(QJsonObject{{QStringLiteral("force"), true}},
+                                          contract->inputSchema)
+                            .valid(),
+                   QStringLiteral("%1 must expose only optional discard_changes")
+                       .arg(contract->operationId));
+        }
+
+        expect(validateJsonValue(QJsonObject{{QStringLiteral("accepted"), true},
+                                             {QStringLiteral("action"), QStringLiteral("exit")},
+                                             {QStringLiteral("discard_changes"), false}},
+                                 exit->outputSchema)
+                   .valid() &&
+                   validateJsonValue(QJsonObject{{QStringLiteral("accepted"), true},
+                                                  {QStringLiteral("action"),
+                                                   QStringLiteral("restart")},
+                                                  {QStringLiteral("discard_changes"), true}},
+                                      restart->outputSchema)
+                       .valid(),
+               QStringLiteral("lifecycle output must identify the accepted action"));
     }
 
     void verifyShallowCreationAndNoteDefaults() {
@@ -786,7 +825,7 @@ namespace {
     }
 
     void verifyAdvancedControlContracts() {
-        const auto l3Tools = toolsForProfile(AutomationProfile::L3).mid(130);
+        const auto l3Tools = toolsForProfile(AutomationProfile::L3).mid(132);
         int queryCount = 0;
         int synchronousCommandCount = 0;
         int asynchronousCommandCount = 0;
@@ -897,6 +936,7 @@ namespace {
 int main(int argc, char **argv) {
     QCoreApplication application(argc, argv);
     verifyAuthoritativeToolset();
+    verifyApplicationLifecycleContracts();
     verifyShallowCreationAndNoteDefaults();
     verifyLifecycleIdempotencyContracts();
     verifyOmissionEquivalentOptionalInputs();

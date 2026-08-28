@@ -12,6 +12,19 @@ namespace Automation {
         Restart,
     };
 
+    enum class ApplicationTerminationSavePolicy {
+        Prompt,
+        RejectUnsaved,
+        Discard,
+    };
+
+    enum class ApplicationTerminationRequestResult {
+        Accepted,
+        Busy,
+        UnsavedChanges,
+        Unavailable,
+    };
+
     struct ApplicationInfoDto {
         QString name;
         QString version;
@@ -23,7 +36,9 @@ namespace Automation {
 
     struct ApplicationRuntimeServices {
         std::function<ApplicationInfoDto()> info;
-        std::function<bool(ApplicationTerminationMode)> requestTermination;
+        std::function<ApplicationTerminationRequestResult(ApplicationTerminationMode,
+                                                          ApplicationTerminationSavePolicy)>
+            requestTermination;
     };
 
     class ApplicationAutomationFacade final {
@@ -33,7 +48,8 @@ namespace Automation {
 
         AutomationResult<ApplicationInfoDto> getInfo();
         AutomationResult<GuiMutationResult> requestTermination(const GuiCommandContext &context,
-                                                               ApplicationTerminationMode mode);
+                                                               ApplicationTerminationMode mode,
+                                                               bool discardChanges = false);
 
     private:
         AutomationDispatcher &m_dispatcher;

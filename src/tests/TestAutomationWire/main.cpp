@@ -272,8 +272,8 @@ namespace {
         bool ok = true;
         const auto &tools = publicToolContracts();
         const auto expectedIds = PublicAutomationToolsetExpectations::editorToolIds();
-        ok &= expect(tools.size() == 175,
-                     QStringLiteral("public declaration must contain 175 editor tools"));
+        ok &= expect(tools.size() == 177,
+                     QStringLiteral("public declaration must contain 177 editor tools"));
         ok &=
             expect(publicToolIds() == expectedIds,
                    QStringLiteral("public declaration must exactly match the frozen tool matrix"));
@@ -363,14 +363,14 @@ namespace {
                 !findPublicTool(QStringLiteral("exports.audio.start"))->valueSources.isEmpty() &&
                 !findPublicTool(QStringLiteral("inference.start"))->valueSources.isEmpty(),
             QStringLiteral("controlled dynamic fields must publish discoverable value sources"));
-        ok &= expect(toolsForProfile(AutomationProfile::L0).size() == 2 &&
-                         toolsForProfile(AutomationProfile::L1).size() == 87 &&
-                         toolsForProfile(AutomationProfile::L2).size() == 130 &&
-                         toolsForProfile(AutomationProfile::L3).size() == 175,
-                     QStringLiteral("public preset counts must be 2/87/130/175"));
+        ok &= expect(toolsForProfile(AutomationProfile::L0).size() == 4 &&
+                         toolsForProfile(AutomationProfile::L1).size() == 89 &&
+                         toolsForProfile(AutomationProfile::L2).size() == 132 &&
+                         toolsForProfile(AutomationProfile::L3).size() == 177,
+                     QStringLiteral("public preset counts must be 4/89/132/177"));
         ok &= expect(
             toolsForProfile(AutomationProfile::Custom, {QStringLiteral("notes.insert")}).size() ==
-                3,
+                5,
             QStringLiteral("Custom must retain L0 and explicit enabled tools"));
 
         const auto revisionProperty = findPublicTool(QStringLiteral("history.undo"))
@@ -690,11 +690,11 @@ namespace {
 
     bool testExposurePolicy() {
         bool ok = true;
-        ok &= expect(selectExposure({ExposureProfile::L0}).exposedIds.size() == 2 &&
-                         selectExposure({ExposureProfile::L1}).exposedIds.size() == 87 &&
-                         selectExposure({ExposureProfile::L2}).exposedIds.size() == 130 &&
-                         selectExposure({ExposureProfile::L3}).exposedIds.size() == 175,
-                     QStringLiteral("connector exposure preset counts must be 2/87/130/175"));
+        ok &= expect(selectExposure({ExposureProfile::L0}).exposedIds.size() == 4 &&
+                         selectExposure({ExposureProfile::L1}).exposedIds.size() == 89 &&
+                         selectExposure({ExposureProfile::L2}).exposedIds.size() == 132 &&
+                         selectExposure({ExposureProfile::L3}).exposedIds.size() == 177,
+                     QStringLiteral("connector exposure preset counts must be 4/89/132/177"));
 
         const auto protectedL0 = selectExposure({
             .profile = ExposureProfile::L0,
@@ -703,7 +703,9 @@ namespace {
         ok &= expect(
             protectedL0.exposedIds ==
                 QSet<QString>{QStringLiteral("application.get_info"),
-                              QStringLiteral("application.get_status")},
+                              QStringLiteral("application.get_status"),
+                              QStringLiteral("application.request_exit"),
+                              QStringLiteral("application.request_restart")},
             QStringLiteral("connector excludes must not remove intrinsic L0 tools"));
 
         const ExposureConfig filtered{
@@ -728,7 +730,7 @@ namespace {
         auto targets = publicExposureTargets();
         targets.append(
             {QStringLiteral("future.gui_tool"), QStringLiteral("future"), AutomationProfile::L3});
-        ok &= expect(selectExposure({ExposureProfile::L2}, targets).exposedIds.size() == 130 &&
+        ok &= expect(selectExposure({ExposureProfile::L2}, targets).exposedIds.size() == 132 &&
                          selectExposure({ExposureProfile::L3}, targets)
                              .exposedIds.contains(QStringLiteral("future.gui_tool")),
                      QStringLiteral("higher exposure presets must include higher-profile targets"));

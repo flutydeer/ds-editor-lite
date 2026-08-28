@@ -107,6 +107,8 @@ namespace RuntimeDimensions {
         Automation::ApplicationInfoDto applicationInfo;
         Automation::ApplicationTerminationMode lastTerminationMode =
             Automation::ApplicationTerminationMode::Exit;
+        Automation::ApplicationTerminationSavePolicy lastTerminationSavePolicy =
+            Automation::ApplicationTerminationSavePolicy::Prompt;
         Automation::PlaybackHostSnapshot playback;
         EditorViewState editorView;
         Automation::EditorStableState editorStable;

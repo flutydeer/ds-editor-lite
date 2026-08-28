@@ -602,10 +602,10 @@ int main(int argc, char *argv[]) {
         };
     };
     applicationServices.requestTermination = [&terminationRequestCount,
-                                              &lastTerminationMode](const auto mode) {
+                                              &lastTerminationMode](const auto mode, const auto) {
         ++terminationRequestCount;
         lastTerminationMode = mode;
-        return true;
+        return Automation::ApplicationTerminationRequestResult::Accepted;
     };
     Automation::CoreRuntime runtime(&model, history, std::move(documentServices),
                                     std::move(playbackServices), std::move(editorServices),

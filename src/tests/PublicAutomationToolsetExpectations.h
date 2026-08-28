@@ -24,6 +24,10 @@ namespace PublicAutomationToolsetExpectations {
 
             {QStringLiteral("application.get_status"),                    QStringLiteral("application"),
              AutomationProfile::L0                                                                                            },
+            {QStringLiteral("application.request_exit"),                  QStringLiteral("application"),
+             AutomationProfile::L0                                                                                            },
+            {QStringLiteral("application.request_restart"),               QStringLiteral("application"),
+             AutomationProfile::L0                                                                                            },
             {QStringLiteral("application.get_file_access"),               QStringLiteral("application"),
              AutomationProfile::L2                                                                                            },
 

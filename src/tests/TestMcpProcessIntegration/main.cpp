@@ -633,14 +633,15 @@ namespace {
         const auto missingFixedTool =
             std::find_if(fixedToolNames.cbegin(), fixedToolNames.cend(),
                          [&toolNames](const QString &name) { return !toolNames.contains(name); });
-        if (toolNames.size() != 181 || missingFixedTool != fixedToolNames.cend() ||
+        if (toolNames.size() != 183 || missingFixedTool != fixedToolNames.cend() ||
             !toolNames.contains(QStringLiteral("application.get_status")) ||
+            !toolNames.contains(QStringLiteral("application.request_exit")) ||
+            !toolNames.contains(QStringLiteral("application.request_restart")) ||
             !toolNames.contains(QStringLiteral("workspace.get")) ||
             !toolNames.contains(QStringLiteral("settings.query")) ||
-            !toolNames.contains(QStringLiteral("packages.refresh")) ||
-            toolNames.contains(QStringLiteral("application.request_exit"))) {
+            !toolNames.contains(QStringLiteral("packages.refresh"))) {
             return fail(
-                QStringLiteral("Connector did not publish the exact 175+6 L3 tool surface"));
+                QStringLiteral("Connector did not publish the exact 177+6 L3 tool surface"));
         }
 
         QJsonObject lastEditorStatus;
@@ -961,7 +962,7 @@ namespace {
                     .toObject()
                     .value(QStringLiteral("tools"))
                     .toArray()
-                    .size() != 181) {
+                    .size() != 183) {
             return failWithProcessDiagnostics(
                 QStringLiteral("Connector MCP 2025-06-18 tools/list failed: %1")
                     .arg(legacyTools ? compactJson(*legacyTools) : exchangeError));
@@ -1036,10 +1037,41 @@ namespace {
                     .arg(toolError));
         }
 
+        const auto rejectedExit = exchange(
+            connector,
+            makeToolRequest(30000, QStringLiteral("application.request_exit"), QJsonObject{}),
+            10000, exchangeError);
+        const auto rejectedExitResult =
+            rejectedExit ? rejectedExit->value(QStringLiteral("result")).toObject() : QJsonObject{};
+        const auto rejectedExitContent =
+            rejectedExitResult.value(QStringLiteral("structuredContent")).toObject();
+        if (!rejectedExit || !rejectedExitResult.value(QStringLiteral("isError")).toBool() ||
+            rejectedExitContent.value(QStringLiteral("code")).toString() !=
+                QStringLiteral("busy") ||
+            rejectedExitContent.value(QStringLiteral("field_path")).toString() !=
+                QStringLiteral("discard_changes") ||
+            editor.state() != QProcess::Running) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("Dirty editor exit was not rejected non-interactively: %1")
+                    .arg(rejectedExit ? compactJson(*rejectedExit) : exchangeError));
+        }
+
+        const auto acceptedExit = connectorToolContent(
+            connector, 30001, QStringLiteral("application.request_exit"),
+            QJsonObject{{QStringLiteral("discard_changes"), true}}, 10000, exchangeError);
+        if (!acceptedExit || !acceptedExit->value(QStringLiteral("accepted")).toBool() ||
+            acceptedExit->value(QStringLiteral("action")).toString() != QStringLiteral("exit") ||
+            !acceptedExit->value(QStringLiteral("discard_changes")).toBool() ||
+            !editor.waitForFinished(15000)) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("Forced graceful editor exit did not complete: %1")
+                    .arg(acceptedExit ? compactJson(*acceptedExit) : exchangeError));
+        }
+
         QTextStream(stdout)
             << "Validated real editor + connector MCP 2025-06-18/2025-11-25/2026-07-28 process "
-               "integration, L1/L2 operations, the 175+6 L3 surface, and normalized direct-editor "
-               "equivalence"
+               "integration, L1/L2 operations, the 177+6 L3 surface, normalized direct-editor "
+               "equivalence, and non-interactive graceful exit"
             << Qt::endl;
         return true;
     }

@@ -3219,6 +3219,23 @@ int main(int argc, char *argv[]) {
             .buildId = QStringLiteral("registry-build-id"),
         };
     };
+    auto terminationResult = std::make_shared<Automation::ApplicationTerminationRequestResult>(
+        Automation::ApplicationTerminationRequestResult::Accepted);
+    auto terminationCalls = std::make_shared<int>(0);
+    auto lastTerminationMode = std::make_shared<Automation::ApplicationTerminationMode>(
+        Automation::ApplicationTerminationMode::Exit);
+    auto lastTerminationSavePolicy =
+        std::make_shared<Automation::ApplicationTerminationSavePolicy>(
+            Automation::ApplicationTerminationSavePolicy::Prompt);
+    applicationServices.requestTermination =
+        [terminationResult, terminationCalls, lastTerminationMode,
+         lastTerminationSavePolicy](const Automation::ApplicationTerminationMode mode,
+                                    const Automation::ApplicationTerminationSavePolicy savePolicy) {
+            ++*terminationCalls;
+            *lastTerminationMode = mode;
+            *lastTerminationSavePolicy = savePolicy;
+            return *terminationResult;
+        };
     auto settingsSnapshot = std::make_shared<Automation::SettingsSnapshotDto>();
     settingsSnapshot->general.uiLanguage = QStringLiteral("en_US");
     settingsSnapshot->general.defaultSingingLanguage = QStringLiteral("unknown");
@@ -3672,6 +3689,42 @@ int main(int argc, char *argv[]) {
                    applicationInfo.get().value(QStringLiteral("version")).toString(),
            QStringLiteral("application.get_info must expose the host build identifier"));
 
+    const auto exitRequest = registry.invoke(QStringLiteral("application.request_exit"), {});
+    expect(exitRequest && exitRequest.get().value(QStringLiteral("accepted")).toBool() &&
+               exitRequest.get().value(QStringLiteral("action")).toString() ==
+                   QStringLiteral("exit") &&
+               !exitRequest.get().value(QStringLiteral("discard_changes")).toBool() &&
+               *terminationCalls == 1 &&
+               *lastTerminationMode == Automation::ApplicationTerminationMode::Exit &&
+               *lastTerminationSavePolicy ==
+                   Automation::ApplicationTerminationSavePolicy::RejectUnsaved,
+           QStringLiteral("application.request_exit must request non-interactive graceful exit"));
+
+    *terminationResult = Automation::ApplicationTerminationRequestResult::UnsavedChanges;
+    const auto rejectedRestart =
+        registry.invoke(QStringLiteral("application.request_restart"), {});
+    expect(!rejectedRestart &&
+               rejectedRestart.getError().code == Automation::AutomationErrorCode::Busy &&
+               rejectedRestart.getError().fieldPath == QStringLiteral("discard_changes") &&
+               *terminationCalls == 2 &&
+               *lastTerminationSavePolicy ==
+                   Automation::ApplicationTerminationSavePolicy::RejectUnsaved,
+           QStringLiteral("lifecycle requests must reject unsaved changes without prompting"));
+
+    *terminationResult = Automation::ApplicationTerminationRequestResult::Accepted;
+    const auto restartRequest = registry.invoke(
+        QStringLiteral("application.request_restart"),
+        QJsonObject{{QStringLiteral("discard_changes"), true}});
+    expect(restartRequest &&
+               restartRequest.get().value(QStringLiteral("action")).toString() ==
+                   QStringLiteral("restart") &&
+               restartRequest.get().value(QStringLiteral("discard_changes")).toBool() &&
+               *terminationCalls == 3 &&
+               *lastTerminationMode == Automation::ApplicationTerminationMode::Restart &&
+               *lastTerminationSavePolicy ==
+                   Automation::ApplicationTerminationSavePolicy::Discard,
+           QStringLiteral("discard_changes must opt into a non-interactive graceful restart"));
+
     const auto recentDocuments = registry.invoke(QStringLiteral("documents.list_recent"), {});
     const auto recentProjects =
         recentDocuments ? recentDocuments.get().value(QStringLiteral("projects")).toArray()
@@ -3703,8 +3756,8 @@ int main(int argc, char *argv[]) {
     auto expectedIds = PublicAutomationToolsetExpectations::editorToolIds();
     auto bindingIds = registry.bindingIds();
     std::sort(expectedIds.begin(), expectedIds.end());
-    expect(expectedIds.size() == 175 && bindingIds == expectedIds && registry.isComplete(),
-           QStringLiteral("all 175 editor contracts must have exact bindings"));
+    expect(expectedIds.size() == 177 && bindingIds == expectedIds && registry.isComplete(),
+           QStringLiteral("all 177 editor contracts must have exact bindings"));
 
     const auto lifecycleSchemaBase = runtime.documentVersion();
     for (const auto &operationId :
@@ -4961,14 +5014,14 @@ int main(int argc, char *argv[]) {
     for (const auto &tool : listedTools)
         listedIds.insert(tool.toObject().value(QStringLiteral("name")).toString());
     expect(!listCursor.isEmpty() && !nextListResponse.contains(QStringLiteral("error")) &&
-               cachedToolsPageElapsedMs < 250 && listedTools.size() == 175 &&
+               cachedToolsPageElapsedMs < 250 && listedTools.size() == 177 &&
                listedIds == PublicAutomationToolsetExpectations::editorToolIdSet(),
-           QStringLiteral("tools/list must expose the exact 175-tool editor surface"));
+           QStringLiteral("tools/list must expose the exact 177-tool editor surface"));
     access.update(AutomationWire::AutomationProfile::L1);
     const auto reducedListResponse = dispatcher.dispatch(list, QStringLiteral("adapter"));
     const auto reducedListResult = reducedListResponse.value(QStringLiteral("result")).toObject();
     expect(!reducedListResponse.contains(QStringLiteral("error")) &&
-               reducedListResult.value(QStringLiteral("tools")).toArray().size() == 87 &&
+               reducedListResult.value(QStringLiteral("tools")).toArray().size() == 89 &&
                reducedListResult.value(QStringLiteral("nextCursor")).toString().isEmpty(),
            QStringLiteral("tools/list cache must invalidate when the access profile changes"));
     const auto staleListResponse = dispatcher.dispatch(nextList, QStringLiteral("adapter"));

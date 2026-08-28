@@ -4,6 +4,10 @@ AUTOMATION_WIRE_PUBLIC_TOOL(application_get_info, "application.get_info", "appli
                             Query, Synchronous, 1, ReadOnly, Idempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(application_get_status, "application.get_status", "application", L0,
                             Query, Synchronous, 1, ReadOnly, Idempotent, ClosedWorld)
+AUTOMATION_WIRE_PUBLIC_TOOL(application_request_exit, "application.request_exit", "application", L0,
+                            Command, Synchronous, 1, Destructive, NonIdempotent, ClosedWorld)
+AUTOMATION_WIRE_PUBLIC_TOOL(application_request_restart, "application.request_restart", "application",
+                            L0, Command, Synchronous, 1, Destructive, NonIdempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(application_get_file_access, "application.get_file_access",
                             "application", L2, Query, Synchronous, 1, ReadOnly, Idempotent,
                             ClosedWorld)
