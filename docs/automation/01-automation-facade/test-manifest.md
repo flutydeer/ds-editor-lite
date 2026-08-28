@@ -69,6 +69,20 @@
 该领域独有的业务语义，不按 Operation 数量复制同构用例。控制器层回归补充 GUI host 转发、可见
 状态和 History focus；它们不替代 Facade 行为断言。
 
+### 3.1 行为风险唯一归属
+
+| 风险族 | 主要所有者 | 保留的关键保证 |
+|---|---|---|
+| 编辑提交 | `TestAutomationEditingDomains`、`TestAutomationCore` | 批量原子性、独立标量边界、History/revision、Undo/Redo、失败无副作用 |
+| 运行时状态 | `TestAutomationRuntimeDomains`、`TestAutomationL3ApplicationDomains` | application、playback、editor、settings、recent、packages、presets 的领域语义和状态回读 |
+| 异步与文件 | `TestAutomationAsyncFileDomains`、`TestAutomationTaskRaces`、`TestAutomationDocumentLifecycle`、`TestAudioAssetResolution` | Task 终态、取消/提交竞态、generation 隔离、文件失败回滚和晚到写回隔离 |
+| 路径与准入 | `TestAutomationFileGuard`、`TestAutomationAdmission` | canonical path、根目录授权、I/O 前复核、global/background 容量和计数释放 |
+| 公共适配 | `TestPublicAutomationRegistry` | 契约与 binding 集合一致、代表性 JSON 映射、权限与严格 Schema、版本化声音引用、回调寿命 |
+| 协议与进程 | `TestAutomationWire`、`TestMcpHttpServer`、`TestDsConnectorLite`、`TestMcpProcessIntegration` | 协议编解码、HTTP 边界、Connector 转发和真实进程握手 |
+
+同一风险不因 Operation 数量、参数排列或开放层级重复铺设矩阵；新增测试前先确认它是否引入了现有
+所有者无法表达的新状态转换或失败模式。
+
 ## 4. 行为维度
 
 ### 4.1 Query

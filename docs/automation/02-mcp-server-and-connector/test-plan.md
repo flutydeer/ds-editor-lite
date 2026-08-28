@@ -173,6 +173,11 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 
 保存测试目标职责、关键关系断言、代表性业务场景和失败回归的证据索引；能力型工具记录测试 host 的 available/unavailable 事实。不维护与权威契约重复的逐工具测试名册。
 
+Registry 测试只拥有公共适配层风险：契约与 binding 集合一致、代表性 JSON 参数/结果映射、权限与
+严格 Schema 前置拒绝、同 ID 不同版本声音引用，以及异步回调跨 Registry 生命周期的隔离。编辑、
+播放、设置、文件、Task 和协议行为分别由对应领域、Task/生命周期、Wire/HTTP/Connector/进程测试
+拥有；Registry 不再重复这些领域的完整成功/失败矩阵。
+
 ### 门禁
 
 Registry、Editor 发现面与 Contract 集合关系精确；公共 Schema 全部可校验；业务失败不推进不属于它的历史记录或 revision；文档编辑域完成代表性 Undo/Redo，GUI 与应用域完成 query 回读和状态恢复闭环。

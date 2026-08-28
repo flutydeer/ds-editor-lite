@@ -15,7 +15,7 @@
 | Debug configure/generate | 项目标准 preset `ConfigureAndBuild` 通过 |
 | Debug 全目标构建 | `all` target 通过 |
 | 注册 CTest | 62 项 |
-| 一次完整 CTest | 62/62 通过，35.58 s |
+| 一次完整 CTest | 62/62 通过，35.76 s |
 | Qt/进程异常 | 定向回归 7/7 通过，15.54 s；最终无遗留异常或无人值守弹窗 |
 
 测试使用项目标准 preset wrapper。Qt 组件测试显式配置可用的 offscreen platform plugin 路径。

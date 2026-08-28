@@ -26,22 +26,22 @@ Computer Use 启动全量 GUI 回归并形成正式报告。
 确定性测试使用固定 seed、隔离临时目录、受控时钟/Task executor 和 fake host。涉及
 真实文件、设备或模型的资格验证单独统计，不混入确定性通过率。
 
-## 3. 每个 operation 的基础维度
+## 3. 共享基础维度
 
 ### 3.1 Query
 
-对每个适用 Query 覆盖：
+Query 的共享所有者层按风险覆盖：
 
 1. 最小有效状态与有数据状态的 DTO 完整性；
 2. 返回值是快照，不泄漏 Model/QObject/QWidget 指针；
 3. 未知/旧 DocumentId、未知 WindowId、模块或宿主不可用；
 4. 空集合、边界数值、Unicode、长文本和可选字段；
 5. 查询不改变 Model、History、revision、幂等缓存、文件和通知计数；
-6. Dispatcher 显式路由进入正确类型化 handler，错误和副作用语义与领域契约一致。
+6. 代表性 Dispatcher 路由进入正确类型化 handler，错误和副作用语义与领域契约一致。
 
 ### 3.2 Command
 
-对每个适用 Command 覆盖：
+Command 的共享所有者层按参数形状和状态转换覆盖：
 
 1. 正常变更及 DTO/affected-object/通知结果；
 2. 合法 no-op：`changed=false`，History/revision/业务通知均不变；
@@ -57,7 +57,7 @@ Computer Use 启动全量 GUI 回归并形成正式报告。
 
 ### 3.3 异步 Command
 
-除 Command 基础维度外，覆盖：
+异步 Command 在共享 Task/生命周期测试中覆盖：
 
 - `Queued → Running → CancelRequested → Committing → terminal` 的允许迁移；
 - 排队取消、运行取消、重复取消、终态后取消；
