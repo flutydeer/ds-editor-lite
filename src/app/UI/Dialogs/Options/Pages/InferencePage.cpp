@@ -26,6 +26,7 @@
 #include <synthrt/Core/Core/Runtime.h>
 #include <synthrt/SVS/SingerContrib.h>
 
+#include <QDebug>
 #include <QDir>
 #include <QFileInfo>
 #include <QLocale>
@@ -241,11 +242,29 @@ QWidget *InferencePage::createContentWidget() {
     const auto option = appOptions->inference();
     // Device - Execution Provider
     m_cbExecutionProvider = new ComboBox();
+#if defined(Q_OS_WIN)
     m_cbExecutionProvider->addItems({QStringLiteral("CPU"), QStringLiteral("DirectML")});
+#else
+    // DirectML is a Windows-only ONNX Runtime payload; other platforms offer
+    // CPU (plus optional CUDA when built with LITE_ENABLE_CUDA).
+    m_cbExecutionProvider->addItems({QStringLiteral("CPU")});
+#endif
     if (InferenceOption::cudaExecutionProviderAvailable()) {
         m_cbExecutionProvider->addItem(QStringLiteral("CUDA"));
     }
-    m_cbExecutionProvider->setCurrentText(option->executionProvider);
+    // A saved provider this platform does not offer (e.g. DirectML settings
+    // carried over from Windows) would otherwise leave the combo showing
+    // "CPU" while the stored option still says "DirectML" — normalize it and
+    // say so instead.
+    if (m_cbExecutionProvider->findText(option->executionProvider) < 0) {
+        qWarning().noquote() << QStringLiteral("Saved execution provider '%1' is unavailable on "
+                                               "this platform; falling back to '%2'")
+                                    .arg(option->executionProvider,
+                                         InferenceOption::defaultExecutionProvider());
+        m_cbExecutionProvider->setCurrentText(InferenceOption::defaultExecutionProvider());
+    } else {
+        m_cbExecutionProvider->setCurrentText(option->executionProvider);
+    }
 
     // Device - GPU
     m_cbDeviceList = new ComboBox();

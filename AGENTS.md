@@ -7,7 +7,7 @@ DS Editor Lite is a C++20 / Qt 6 Widgets desktop application (singing voice edit
 ## Build system
 
 - **CMake** with **vcpkg** for dependency management.
-- Clone with `--recursive` (git submodules: `src/libs/qtmediate`, `scripts/vcpkg`).
+- Clone with `--recursive` (git submodules: `src/3rdparty/qtmediate`, `scripts/vcpkg`).
 - vcpkg manifest lives at `scripts/vcpkg-manifest/vcpkg.json`, not the repo root.
 - Toolchain file: `vcpkg/scripts/buildsystems/vcpkg.cmake`.
 
@@ -52,7 +52,7 @@ vcpkg install --x-manifest-root=../scripts/vcpkg-manifest --x-install-root=./ins
 cd ..
 ```
 
-可选 CUDA 支持：在 vcpkg install 后追加 `--x-feature=cuda12` 或 `--x-feature=cuda11`。
+可选 CUDA 支持：在 vcpkg install 后追加 `--x-feature=cuda12`。
 
 #### 4. CMake 配置
 
@@ -118,17 +118,16 @@ Tests are gated behind `-DLITE_BUILD_TESTS=ON` (enabled by default in the `debug
 ```
 src/
   app/          # Main application (DsEditorLite target)
-    Controller/ Model/ UI/ Interface/ Modules/ Global/ Utils/
-  libs/         # Internal libraries
-    qtmediate/       # Git submodule - UI framework
-    rmvpe-infer/     # Pitch inference
-    game-infer/      # Game inference
-    audio-util/      # Audio utilities
-    curve-util/      # Curve utilities
-  tests/        # Test targets (opt-in)
+    Automation/ Bootstrap/ Controller/ Global/ Interface/ Model/ Modules/
+    Resources/ UI/ Utils/
+  libs/         # Internal libraries (ADT, Core, GUI, History, Language,
+                #   MusicBase, PackageManager, ProjectConverters, ProjectModel,
+                #   Support, SynthrtEngine, Tasking)
+  3rdparty/     # curve-util; qtmediate (Git submodule - UI framework)
+  tests/        # Test targets (opt-in via LITE_BUILD_TESTS)
   tools/        # Auxiliary tools
 scripts/
-  cmake/        # CMake utilities (winrc, etc.)
+  cmake/        # CMake utilities (LiteBuildApi, OrtRuntimeGate, winrc, etc.)
   vcpkg/        # Git submodule - vcpkg overlay ports/triplets
   vcpkg-manifest/ # vcpkg.json
 docs/           # Chinese-language dev docs (design/ = 已完成的设计契约, plans/ = 进行中方案, guides/ = 开发指南, theme/ = 主题文档, archive/ = 历史归档)

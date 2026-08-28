@@ -45,18 +45,6 @@
     }
   ],
   "features": {
-    "cuda11": {
-      "description": "Enable synthrt (dsinfer) CUDA 11.x support",
-      "dependencies": [
-        {
-          "name": "synthrt",
-          "features": [
-            "cuda11"
-          ]
-        }
-      ],
-      "supports": "!osx & !arm & !arm64"
-    },
     "cuda12": {
       "description": "Enable synthrt (dsinfer) CUDA 12.x support",
       "dependencies": [

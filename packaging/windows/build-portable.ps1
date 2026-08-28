@@ -1,7 +1,10 @@
 [CmdletBinding()]
 param(
     [string]$OutputDir = "dist\portable",
-    [switch]$SkipVcpkgInstall,
+    # Build the CUDA flavor: configures LITE_ENABLE_CUDA=ON. Default is the
+    # DirectML (DML) flavor. The vcpkg tree must already carry
+    # onnxruntime-builds[cuda12] (run vcpkg install with --x-feature=cuda12).
+    [switch]$EnableCuda,
     [switch]$NoBuild
 )
 
@@ -148,7 +151,14 @@ if (-not $NoBuild) {
     }
 
     Invoke-Step "Configure CMake preset package-dml-portable" {
-        Invoke-Process "cmake" @("--preset", "package-dml-portable")
+        $configureArgs = @("--preset", "package-dml-portable")
+        if ($EnableCuda) {
+            # The preset pins LITE_ENABLE_CUDA=OFF for the DML flavor; the
+            # switch overrides it so this script and the CMake runtime gate
+            # agree on one source of truth.
+            $configureArgs += "-DLITE_ENABLE_CUDA=ON"
+        }
+        Invoke-Process "cmake" $configureArgs
     }
 
     Invoke-Step "Build package-dml-portable" {
@@ -208,8 +218,25 @@ if ($PdbCount -eq 0) {
     throw "No PDB symbols in the installed tree - build was not RelWithDebInfo?"
 }
 
+# Flavor assertion: the staging tree must agree with -EnableCuda. The CMake
+# runtime gate already enforces this at build/install time; this is the
+# packaging-boundary net so a stale vcpkg tree can never slip through.
+Invoke-Step "Validate staging flavor" {
+    $cudaRuntimeDir = Join-Path $AppDir "plugins\srt-driver\inferencedrivers\srt-onnxdriver\runtimes\onnx\cuda"
+    $cudaPresent = Test-Path -LiteralPath $cudaRuntimeDir
+    if ($EnableCuda -and -not $cudaPresent) {
+        throw ("CUDA staging is missing the ONNX Runtime cuda/ runtimes. " +
+            "Run vcpkg install with --x-feature=cuda12, then rebuild with -EnableCuda.")
+    }
+    if (-not $EnableCuda -and $cudaPresent) {
+        throw ("DML staging contains the ONNX Runtime cuda/ runtimes (vcpkg tree built " +
+            "with --x-feature=cuda12?). " +
+            "Rerun vcpkg install without the feature, then rebuild.")
+    }
+}
+
 $Timestamp = Get-Date -Format "yyyyMMdd-HHmm"
-$ZipBaseName = "DsEditorLite-$Timestamp-win-x64-dml-portable"
+$ZipBaseName = "DsEditorLite-$Timestamp-win-x64-$(if ($EnableCuda) { 'cuda' } else { 'dml' })-portable"
 $ZipPath = Join-Path $ResolvedOutputDir "$ZipBaseName.zip"
 
 Invoke-Step "Package portable zip" {
