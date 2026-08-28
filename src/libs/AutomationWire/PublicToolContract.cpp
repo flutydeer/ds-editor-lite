@@ -831,7 +831,7 @@ namespace AutomationWire {
                 PublicToolNames::parameters_get_capabilities,
                 PublicToolNames::timeline_get,
                 PublicToolNames::history_get_state,
-                PublicToolNames::playback_get,
+                PublicToolNames::playback_get_state,
                 PublicToolNames::exports_midi_get_capabilities,
                 PublicToolNames::exports_midi_preview,
                 PublicToolNames::exports_midi_start,
@@ -2532,7 +2532,7 @@ namespace AutomationWire {
         }
 
         QJsonObject l3InputSchema(const QString &id) {
-            if (id == PublicToolNames::workspace_get) {
+            if (id == PublicToolNames::workspace_get_state) {
                 return JsonSchema::document(JsonSchema::object(
                     {
                         {QStringLiteral("window_id"), nonEmptyStringSchema()}
@@ -2551,7 +2551,7 @@ namespace AutomationWire {
                 return JsonSchema::document(root);
             }
 
-            if (id == PublicToolNames::track_panel_get)
+            if (id == PublicToolNames::track_panel_get_state)
                 return l3DocumentInput({}, {});
             if (id == PublicToolNames::track_panel_set_viewport) {
                 return l3DocumentInput(
@@ -2619,7 +2619,7 @@ namespace AutomationWire {
                     {QStringLiteral("target")});
             }
 
-            if (id == PublicToolNames::clip_editor_get)
+            if (id == PublicToolNames::clip_editor_get_state)
                 return l3DocumentInput({}, {});
             if (id == PublicToolNames::clip_editor_set_active_clip) {
                 return l3DocumentInput(
@@ -3460,11 +3460,11 @@ namespace AutomationWire {
         }
 
         QJsonObject l3OutputSchema(const QString &id) {
-            if (id == PublicToolNames::workspace_get)
+            if (id == PublicToolNames::workspace_get_state)
                 return JsonSchema::document(workspaceSnapshotObjectSchema());
-            if (id == PublicToolNames::track_panel_get)
+            if (id == PublicToolNames::track_panel_get_state)
                 return JsonSchema::document(trackPanelSnapshotObjectSchema());
-            if (id == PublicToolNames::clip_editor_get)
+            if (id == PublicToolNames::clip_editor_get_state)
                 return JsonSchema::document(clipEditorSnapshotObjectSchema());
             if (isL3GuiOperation(id))
                 return guiMutationOutputSchema();
@@ -3765,7 +3765,7 @@ namespace AutomationWire {
             }
             if (id == PublicToolNames::tasks_get || id == PublicToolNames::tasks_cancel)
                 return taskSnapshotSchema();
-            if (id == PublicToolNames::playback_get)
+            if (id == PublicToolNames::playback_get_state)
                 return queryEnvelopeSchema(QStringLiteral("snapshot"), playbackSnapshotSchema());
             qFatal("No explicit public query output schema for operation '%s'", qPrintable(id));
             return {};

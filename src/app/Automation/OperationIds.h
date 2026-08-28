@@ -149,7 +149,7 @@ namespace Automation::OperationIds {
     X(parameters, replace, "parameters.replace")                                                   \
     X(parameters, set_anchor_interpolation, "parameters.set_anchor_interpolation")                 \
     X(playback, clear_loop, "playback.clear_loop")                                                 \
-    X(playback, get, "playback.get")                                                               \
+    X(playback, get_state, "playback.get_state")                                                   \
     X(playback, pause, "playback.pause")                                                           \
     X(playback, play, "playback.play")                                                             \
     X(playback, seek, "playback.seek")                                                             \

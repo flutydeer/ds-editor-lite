@@ -3844,14 +3844,15 @@ namespace Automation {
                 return AutomationResult<QJsonObject>(result.getError());
             return AutomationResult<QJsonObject>(encodeTaskSnapshot(result.get()));
         });
-        addBinding(ToolNames::playback_get, [this](const QJsonObject &arguments,
-                                                   const PublicInvocationContext &) {
-            auto result = m_runtime.playback().getPlayback(documentId(arguments));
-            if (!result)
-                return AutomationResult<QJsonObject>(result.getError());
-            return AutomationResult<QJsonObject>(queryResult(
-                result.get().document, QStringLiteral("snapshot"), encodePlayback(result.get())));
-        });
+        addBinding(ToolNames::playback_get_state,
+                   [this](const QJsonObject &arguments, const PublicInvocationContext &) {
+                       auto result = m_runtime.playback().getPlayback(documentId(arguments));
+                       if (!result)
+                           return AutomationResult<QJsonObject>(result.getError());
+                       return AutomationResult<QJsonObject>(queryResult(
+                           result.get().document, QStringLiteral("snapshot"),
+                           encodePlayback(result.get())));
+                   });
         addBinding(ToolNames::playback_play,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
                        return playbackStateMutationResult(

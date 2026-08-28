@@ -637,7 +637,7 @@ namespace {
             !toolNames.contains(QStringLiteral("application.get_status")) ||
             !toolNames.contains(QStringLiteral("application.request_exit")) ||
             !toolNames.contains(QStringLiteral("application.request_restart")) ||
-            !toolNames.contains(QStringLiteral("workspace.get")) ||
+            !toolNames.contains(QStringLiteral("workspace.get_state")) ||
             !toolNames.contains(QStringLiteral("settings.query")) ||
             !toolNames.contains(QStringLiteral("packages.refresh"))) {
             return fail(

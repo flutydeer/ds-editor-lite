@@ -605,7 +605,7 @@ namespace {
         log.scenario(QStringLiteral("PLAY-Q-DOCUMENT-ISOLATION"));
         const auto wrongDocument = runtime.playback().getPlayback(Automation::DocumentId::create());
         log.expectError(wrongDocument, Automation::AutomationErrorCode::DocumentChanged,
-                        Automation::OperationIds::playback::get,
+                        Automation::OperationIds::playback::get_state,
                         QStringLiteral("playback query must reject another document"));
 
         log.scenario(QStringLiteral("PLAY-C-STATE-VALIDATE-NOOP"));
@@ -1671,7 +1671,7 @@ namespace {
         const auto loop =
             runtime.playback().setLoop(commandContext(runtime), LoopSettings(false, 0, 480));
         log.expectError(playback, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::playback::get,
+                        Automation::OperationIds::playback::get_state,
                         QStringLiteral("missing playback snapshot host must be explicit"));
         log.expectError(play, Automation::AutomationErrorCode::HostCapabilityUnavailable,
                         Automation::OperationIds::playback::play,

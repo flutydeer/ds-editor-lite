@@ -298,7 +298,7 @@ namespace Automation {
     } // namespace
 
     void PublicAutomationRegistry::registerAdvancedGuiBindings() {
-        addBinding(ToolNames::workspace_get,
+        addBinding(ToolNames::workspace_get_state,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &) {
                        auto state = editorState(m_runtime, arguments, true);
                        if (!state)
@@ -323,7 +323,7 @@ namespace Automation {
                     guiCommandContext(arguments, invocation), trackVisible, clipEditorVisible));
             });
 
-        addBinding(ToolNames::track_panel_get,
+        addBinding(ToolNames::track_panel_get_state,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &) {
                        auto state = editorState(m_runtime, arguments);
                        if (!state)
@@ -410,7 +410,7 @@ namespace Automation {
                            true));
                    });
 
-        addBinding(ToolNames::clip_editor_get,
+        addBinding(ToolNames::clip_editor_get_state,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &) {
                        auto state = editorState(m_runtime, arguments);
                        if (!state)

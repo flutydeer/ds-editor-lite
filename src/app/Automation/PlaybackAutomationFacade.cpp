@@ -69,7 +69,7 @@ namespace Automation {
     AutomationResult<PlaybackSnapshotDto>
         PlaybackAutomationFacade::getPlayback(const DocumentId &documentId) {
         return m_dispatcher.dispatchDocumentQuery<PlaybackSnapshotDto>(
-            OperationIds::playback::get, documentId, [this](DocumentSession &session) {
+            OperationIds::playback::get_state, documentId, [this](DocumentSession &session) {
                 if (!m_services.snapshot)
                     return AutomationResult<PlaybackSnapshotDto>(
                         unavailable(QStringLiteral("Playback host is unavailable")));

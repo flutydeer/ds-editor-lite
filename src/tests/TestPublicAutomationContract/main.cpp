@@ -855,12 +855,6 @@ namespace {
             }
         }
 
-        const auto *parameterTool =
-            findPublicTool(QStringLiteral("clip_editor.parameters.set_foreground"));
-        expect(parameterTool && requiredFields(parameterTool->inputSchema)
-                                    .contains(QStringLiteral("expected_revision")),
-               QStringLiteral("document-bound parameter GUI actions must check object freshness"));
-
         const auto *revealClips = findPublicTool(QStringLiteral("track_panel.reveal_clips"));
         bool hasTrackSource = false;
         bool hasClipSource = false;

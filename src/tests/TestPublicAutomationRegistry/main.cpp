@@ -149,8 +149,8 @@ namespace {
             return base;
         };
 
-        invokeSchemaValid(registry, QStringLiteral("workspace.get"), window,
-                          QStringLiteral("workspace.get"));
+        invokeSchemaValid(registry, QStringLiteral("workspace.get_state"), window,
+                          QStringLiteral("workspace.get_state"));
         invokeSchemaValid(registry, QStringLiteral("workspace.set_panel_visibility"),
                           with(window,
                                {
@@ -158,8 +158,8 @@ namespace {
                                    {QStringLiteral("clip_editor_visible"), false}
         }),
                           QStringLiteral("workspace.set_panel_visibility"));
-        invokeSchemaValid(registry, QStringLiteral("track_panel.get"), document,
-                          QStringLiteral("track_panel.get"));
+        invokeSchemaValid(registry, QStringLiteral("track_panel.get_state"), document,
+                          QStringLiteral("track_panel.get_state"));
         invokeSchemaValid(registry, QStringLiteral("track_panel.set_viewport"),
                           with(document,
                                {
@@ -197,7 +197,7 @@ namespace {
         }),
             QStringLiteral("track_panel.select_clips"));
         const auto selectedTrackPanel =
-            invokeSchemaValid(registry, QStringLiteral("track_panel.get"), document,
+            invokeSchemaValid(registry, QStringLiteral("track_panel.get_state"), document,
                               QStringLiteral("selected track panel state"));
         const auto selectedClipIds =
             selectedTrackPanel
@@ -229,8 +229,8 @@ namespace {
                           QStringLiteral("track_panel.clear_selection"));
 
         const auto initialClipEditor =
-            invokeSchemaValid(registry, QStringLiteral("clip_editor.get"), document,
-                              QStringLiteral("clip_editor.get"));
+            invokeSchemaValid(registry, QStringLiteral("clip_editor.get_state"), document,
+                              QStringLiteral("clip_editor.get_state"));
         expect(initialClipEditor &&
                    initialClipEditor->value(QStringLiteral("piano"))
                        .toObject()
@@ -304,7 +304,7 @@ namespace {
         }),
             QStringLiteral("clip_editor.piano.select_notes"));
         const auto selectedClipEditor =
-            invokeSchemaValid(registry, QStringLiteral("clip_editor.get"), document,
+            invokeSchemaValid(registry, QStringLiteral("clip_editor.get_state"), document,
                               QStringLiteral("selected clip editor state"));
         const auto selectedPiano =
             selectedClipEditor ? selectedClipEditor->value(QStringLiteral("piano")).toObject()

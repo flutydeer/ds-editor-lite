@@ -239,8 +239,8 @@ AUTOMATION_WIRE_PUBLIC_TOOL(history_undo, "history.undo", "history", L1, Command
 AUTOMATION_WIRE_PUBLIC_TOOL(history_redo, "history.redo", "history", L1, Command, Synchronous, 1,
                             NonDestructive, Idempotent, ClosedWorld)
 
-AUTOMATION_WIRE_PUBLIC_TOOL(playback_get, "playback.get", "playback", L2, Query, Synchronous, 1,
-                            ReadOnly, Idempotent, ClosedWorld)
+AUTOMATION_WIRE_PUBLIC_TOOL(playback_get_state, "playback.get_state", "playback", L2, Query,
+                            Synchronous, 1, ReadOnly, Idempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(playback_play, "playback.play", "playback", L2, Command, Synchronous, 1,
                             NonDestructive, Idempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(playback_pause, "playback.pause", "playback", L2, Command, Synchronous,
@@ -292,13 +292,13 @@ AUTOMATION_WIRE_PUBLIC_TOOL(tasks_get, "tasks.get", "tasks", L2, Query, Synchron
 AUTOMATION_WIRE_PUBLIC_TOOL(tasks_cancel, "tasks.cancel", "tasks", L2, Command, Synchronous, 1,
                             NonDestructive, Idempotent, ClosedWorld)
 
-AUTOMATION_WIRE_PUBLIC_TOOL(workspace_get, "workspace.get", "workspace", L3, Query, Synchronous, 1,
-                            ReadOnly, Idempotent, ClosedWorld)
+AUTOMATION_WIRE_PUBLIC_TOOL(workspace_get_state, "workspace.get_state", "workspace", L3, Query,
+                            Synchronous, 1, ReadOnly, Idempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(workspace_set_panel_visibility, "workspace.set_panel_visibility",
                             "workspace", L3, Command, Synchronous, 1, NonDestructive, Idempotent,
                             ClosedWorld)
 
-AUTOMATION_WIRE_PUBLIC_TOOL(track_panel_get, "track_panel.get", "track_panel", L3, Query,
+AUTOMATION_WIRE_PUBLIC_TOOL(track_panel_get_state, "track_panel.get_state", "track_panel", L3, Query,
                             Synchronous, 1, ReadOnly, Idempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(track_panel_set_viewport, "track_panel.set_viewport", "track_panel", L3,
                             Command, Synchronous, 1, NonDestructive, Idempotent, ClosedWorld)
@@ -315,7 +315,7 @@ AUTOMATION_WIRE_PUBLIC_TOOL(track_panel_clear_selection, "track_panel.clear_sele
                             "track_panel", L3, Command, Synchronous, 1, NonDestructive, Idempotent,
                             ClosedWorld)
 
-AUTOMATION_WIRE_PUBLIC_TOOL(clip_editor_get, "clip_editor.get", "clip_editor", L3, Query,
+AUTOMATION_WIRE_PUBLIC_TOOL(clip_editor_get_state, "clip_editor.get_state", "clip_editor", L3, Query,
                             Synchronous, 1, ReadOnly, Idempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(clip_editor_set_active_clip, "clip_editor.set_active_clip",
                             "clip_editor", L3, Command, Synchronous, 1, NonDestructive, Idempotent,
