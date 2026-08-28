@@ -13,7 +13,7 @@ namespace {
     struct InferenceCase {
         Automation::InferenceMutationKind kind;
         Automation::OperationId operationId;
-        bool catalogCanIncrement = false;
+        bool advancesRevision = false;
     };
 
     [[nodiscard]] QList<InferenceCase> inferenceCases() {
@@ -62,19 +62,12 @@ namespace {
         int discriminator = 0;
         for (const auto &testCase : inferenceCases()) {
             suite.run(testCase.operationId, QStringLiteral("validate-success-no-op"), [&] {
-                const auto *descriptor = runtime.catalog().find(testCase.operationId);
-                suite.expect(
-                    Automation::InferenceAutomationFacade::operationId(testCase.kind) ==
-                            testCase.operationId &&
-                        descriptor && descriptor->kind == Automation::OperationKind::Command &&
-                        descriptor->syncMode == Automation::SyncMode::Synchronous &&
-                        descriptor->revisionPolicy == (testCase.catalogCanIncrement
-                                                           ? Automation::RevisionPolicy::Increment
-                                                           : Automation::RevisionPolicy::Check),
-                    QStringLiteral("kind, centralized ID, and descriptor policy must agree"));
+                suite.expect(Automation::InferenceAutomationFacade::operationId(testCase.kind) ==
+                                 testCase.operationId,
+                             QStringLiteral("kind and centralized operation ID must agree"));
 
                 harness.inferenceChanged = true;
-                harness.inferenceAdvancesRevision = testCase.catalogCanIncrement;
+                harness.inferenceAdvancesRevision = testCase.advancesRevision;
                 const auto request = inferenceRequest(harness, testCase, ++discriminator);
                 const auto base = runtime.documentVersion();
                 const auto prepareBefore = harness.inferencePrepareCount;
@@ -87,7 +80,7 @@ namespace {
                         preview.get().mutation.changed && preview.get().mutation.previous == base &&
                         preview.get().mutation.current.documentId == base.documentId &&
                         preview.get().mutation.current.revision ==
-                            base.revision + (testCase.catalogCanIncrement ? 1 : 0) &&
+                            base.revision + (testCase.advancesRevision ? 1 : 0) &&
                         runtime.documentVersion() == base &&
                         harness.inferencePrepareCount == prepareBefore + 1 &&
                         harness.inferenceApplyCount == applyBefore,
@@ -95,8 +88,7 @@ namespace {
 
                 const auto committed =
                     runtime.inference().applyMutation(harness.context(), request);
-                const auto expectedRevision =
-                    base.revision + (testCase.catalogCanIncrement ? 1 : 0);
+                const auto expectedRevision = base.revision + (testCase.advancesRevision ? 1 : 0);
                 suite.expect(committed && committed.get().mutation.changed &&
                                  !committed.get().mutation.validatedOnly &&
                                  committed.get().mutation.current.revision == expectedRevision &&
@@ -425,7 +417,7 @@ namespace {
                 const AudioPathInfo preparedInfo{{}, QStringLiteral("sha512-confirmed")};
                 const QJsonObject preparedFormat{
                     {QStringLiteral("entryClassName"), QStringLiteral("PreparedFormatEntry")},
-                    {QStringLiteral("userData"), QStringLiteral("prepared-data")},
+                    {QStringLiteral("userData"),       QStringLiteral("prepared-data")      },
                 };
                 const auto base = runtime.documentVersion();
                 const auto preview = runtime.project().confirmAudioClipPath(
@@ -438,19 +430,18 @@ namespace {
                 const auto committed = Automation::audioAssetSnapshotDto(*audio);
                 const auto undo = runtime.history().undo(harness.context());
                 const auto restored = Automation::audioAssetSnapshotDto(*audio);
-                suite.expect(
-                    preview && preview.get().validatedOnly && preview.get().changed &&
-                        afterPreview == previous && commit && commit.get().changed &&
-                        commit.get().current.revision == base.revision + 1 &&
-                        committed.path == preparedPath &&
-                        committed.pathInfo.sha512 == QStringLiteral("sha512-confirmed") &&
-                        committed.formatData == preparedFormat && undo && undo.get().changed &&
-                        restored.path == previous.path &&
-                        restored.pathInfo.relativeDir == previous.pathInfo.relativeDir &&
-                        restored.pathInfo.sha512 == previous.pathInfo.sha512 &&
-                        restored.formatData == previous.formatData,
-                    QStringLiteral(
-                        "prepared confirmation must preview without mutation and commit one undoable path triple"));
+                suite.expect(preview && preview.get().validatedOnly && preview.get().changed &&
+                                 afterPreview == previous && commit && commit.get().changed &&
+                                 commit.get().current.revision == base.revision + 1 &&
+                                 committed.path == preparedPath &&
+                                 committed.pathInfo.sha512 == QStringLiteral("sha512-confirmed") &&
+                                 committed.formatData == preparedFormat && undo &&
+                                 undo.get().changed && restored.path == previous.path &&
+                                 restored.pathInfo.relativeDir == previous.pathInfo.relativeDir &&
+                                 restored.pathInfo.sha512 == previous.pathInfo.sha512 &&
+                                 restored.formatData == previous.formatData,
+                             QStringLiteral("prepared confirmation must preview without mutation "
+                                            "and commit one undoable path triple"));
             });
 
         suite.run(
@@ -686,27 +677,25 @@ namespace {
 
         suite.run(
             Automation::OperationIds::exports::midi::start,
-            QStringLiteral("validate-idempotent-write-and-path-errors"), [&] {
+            QStringLiteral("validate-write-and-path-errors"), [&] {
                 const auto path = harness.temporaryPath(QStringLiteral("export.mid"));
-                auto context = harness.context();
-                context.idempotencyKey = QStringLiteral("a11f0000-0000-4000-8000-000000000001");
-                auto previewContext = context;
+                auto previewContext = harness.context();
                 previewContext.validateOnly = true;
                 const Automation::MidiExportOptionsDto options{
                     .includeTempo = false,
                     .includeTimeSignatures = false,
                 };
                 const auto base = runtime.documentVersion();
-                const auto preview = runtime.files().exportMidi(previewContext, path, false, options);
-                const auto commit = runtime.files().exportMidi(context, path, false, options);
-                const auto replay = runtime.files().exportMidi(context, path, false, options);
-                suite.expect(preview && preview.get().validatedOnly && !preview.get().wroteFile &&
-                                 commit && commit.get().wroteFile && replay &&
-                                 replay.get() == commit.get() && harness.midiExportCount == 1 &&
-                                 harness.lastMidiExportOptions == options &&
-                                 runtime.documentVersion() == base,
-                             QStringLiteral(
-                                 "MIDI export must validate, forward options, write once, and replay"));
+                const auto preview =
+                    runtime.files().exportMidi(previewContext, path, false, options);
+                const auto commit =
+                    runtime.files().exportMidi(harness.context(), path, false, options);
+                suite.expect(
+                    preview && preview.get().validatedOnly && !preview.get().wroteFile && commit &&
+                        commit.get().wroteFile && harness.midiExportCount == 1 &&
+                        harness.lastMidiExportOptions == options &&
+                        runtime.documentVersion() == base,
+                    QStringLiteral("MIDI export must validate, forward options, and write once"));
 
                 const Automation::MidiExportOptionsDto preparedOptions{
                     .includeTempo = true,
@@ -722,8 +711,8 @@ namespace {
                                  harness.midiExportCount == 1,
                              QStringLiteral("MIDI preview must validate without writing a file"));
                 const auto prepared = runtime.files().prepareMidiExport(
-                    harness.context(), harness.temporaryPath(QStringLiteral("prepared.mid")),
-                    false, preparedOptions);
+                    harness.context(), harness.temporaryPath(QStringLiteral("prepared.mid")), false,
+                    preparedOptions);
                 const auto preparedWrite =
                     prepared ? runtime.files().writePreparedMidiExport(prepared.get())
                              : Automation::AutomationResult<Automation::FileWriteResultDto>(
@@ -735,12 +724,13 @@ namespace {
                                  preparedWrite && preparedWrite.get().wroteFile &&
                                  harness.midiExportCount == 2 &&
                                  harness.lastMidiExportOptions == preparedOptions,
-                             QStringLiteral(
-                                 "prepared MIDI export must freeze a restorable model and preserve options"));
+                             QStringLiteral("prepared MIDI export must freeze a restorable model "
+                                            "and preserve options"));
 
                 const auto invalidPreview = runtime.files().previewMidiExport(
                     runtime.documentVersion().documentId, QStringLiteral("relative.mid"));
-                suite.expect(isError(invalidPreview, Automation::AutomationErrorCode::InvalidArgument,
+                suite.expect(isError(invalidPreview,
+                                     Automation::AutomationErrorCode::InvalidArgument,
                                      Automation::OperationIds::exports::midi::preview),
                              QStringLiteral(
                                  "MIDI preview validation must retain its own operation identity"));
@@ -840,15 +830,15 @@ namespace {
                 const auto base = runtime.documentVersion();
                 const auto ran = harness.audioScheduler.runNext();
                 const auto terminal = runtime.tasks().getTask(base.documentId, acceptedTask);
-                suite.expect(
-                    ran && terminal &&
-                        terminal.get().state == Automation::AutomationTaskState::Succeeded &&
-                        terminal.get().progress.value == 75 &&
-                        harness.audioExportState()->executeCount == 1 &&
-                        harness.audioExportState()->cleanupCount == 0 &&
-                        runtime.documentVersion() == base,
-                    QStringLiteral(
-                        "audio export success must retain progress and release its job without cleanup"));
+                suite.expect(ran && terminal &&
+                                 terminal.get().state ==
+                                     Automation::AutomationTaskState::Succeeded &&
+                                 terminal.get().progress.value == 75 &&
+                                 harness.audioExportState()->executeCount == 1 &&
+                                 harness.audioExportState()->cleanupCount == 0 &&
+                                 runtime.documentVersion() == base,
+                             QStringLiteral("audio export success must retain progress and release "
+                                            "its job without cleanup"));
 
                 harness.audioExportState()->warningFlags = Automation::AudioExportLossyFormat;
                 auto lossy = audioConfig(harness, QStringLiteral("lossy.ogg"));
@@ -866,8 +856,9 @@ namespace {
                     runtime.tasks().cancelTask(harness.context(), allowed.get().taskId);
                     harness.audioScheduler.runNext();
                 }
-                suite.expect(harness.audioExportState()->cleanupCount == 1,
-                             QStringLiteral("canceled audio export must force cleanup exactly once"));
+                suite.expect(
+                    harness.audioExportState()->cleanupCount == 1,
+                    QStringLiteral("canceled audio export must force cleanup exactly once"));
 
                 harness.audioExportState()->warningFlags = 0;
                 harness.audioExportState()->backendState =
@@ -888,8 +879,8 @@ namespace {
                         failedTask.get().error &&
                         failedTask.get().error->code == Automation::AutomationErrorCode::IoError &&
                         harness.audioExportState()->cleanupCount == 2,
-                    QStringLiteral(
-                        "audio backend failure must remain queryable and force cleanup exactly once"));
+                    QStringLiteral("audio backend failure must remain queryable and force cleanup "
+                                   "exactly once"));
             });
 
         suite.run(
@@ -920,13 +911,13 @@ namespace {
                     runtime.audioExports().cleanup(harness.context(), acceptedTask);
                 const auto unknown =
                     runtime.audioExports().cleanup(harness.context(), Automation::TaskId::create());
-                suite.expect(first && !first.get().changed && repeated &&
-                                 !repeated.get().changed &&
-                                 harness.audioExportState()->cleanupCount == 2 &&
-                                 isError(unknown, Automation::AutomationErrorCode::NotFound,
-                                         Automation::OperationIds::exports::audio::cleanup),
-                             QStringLiteral(
-                                 "completed jobs must already be released; cleanup remains TaskId-scoped"));
+                suite.expect(
+                    first && !first.get().changed && repeated && !repeated.get().changed &&
+                        harness.audioExportState()->cleanupCount == 2 &&
+                        isError(unknown, Automation::AutomationErrorCode::NotFound,
+                                Automation::OperationIds::exports::audio::cleanup),
+                    QStringLiteral(
+                        "completed jobs must already be released; cleanup remains TaskId-scoped"));
             });
     }
 

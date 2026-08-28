@@ -43,8 +43,7 @@ namespace Automation {
 
     class PlaybackAutomationFacade final {
     public:
-        PlaybackAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
-                                 CommandCommitter &committer,
+        PlaybackAutomationFacade(AutomationDispatcher &dispatcher, CommandCommitter &committer,
                                  PlaybackRuntimeServices services = {});
 
         AutomationResult<PlaybackSnapshotDto> getPlayback(const DocumentId &documentId);
@@ -68,9 +67,7 @@ namespace Automation {
         AutomationResult<MutationResult>
             commitLoop(DocumentSession &session, const LoopSettings &settings, bool validateOnly);
         PlaybackHostSnapshot observedSnapshot() const;
-        void registerOperations();
 
-        OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
         CommandCommitter &m_committer;
         PlaybackRuntimeServices m_services;

@@ -104,8 +104,7 @@ namespace Automation {
             return AutomationUnit{};
         }
 
-        AutomationResult<AutomationUnit>
-            validatePublicSinging(const GeneralSettingsDto &settings) {
+        AutomationResult<AutomationUnit> validatePublicSinging(const GeneralSettingsDto &settings) {
             if (settings.defaultSingingLanguage.trimmed().isEmpty()) {
                 return AutomationError::invalidArgument(
                     QStringLiteral("default_singing_language"),
@@ -346,8 +345,7 @@ namespace Automation {
             validatePublicPlaybackBehavior(const AudioSettingsDto &settings) {
             if (settings.playheadBehavior < 0 || settings.playheadBehavior > 2) {
                 return AutomationError::invalidArgument(
-                    QStringLiteral("behavior"),
-                    QStringLiteral("Playback behavior is unsupported"));
+                    QStringLiteral("behavior"), QStringLiteral("Playback behavior is unsupported"));
             }
             return AutomationUnit{};
         }
@@ -672,11 +670,9 @@ namespace Automation {
         }
     }
 
-    SettingsAutomationFacade::SettingsAutomationFacade(OperationCatalog &catalog,
-                                                       AutomationDispatcher &dispatcher,
+    SettingsAutomationFacade::SettingsAutomationFacade(AutomationDispatcher &dispatcher,
                                                        SettingsRuntimeServices services)
-        : m_catalog(catalog), m_dispatcher(dispatcher), m_services(std::move(services)) {
-        registerOperations();
+        : m_dispatcher(dispatcher), m_services(std::move(services)) {
     }
 
     AutomationResult<SettingsSnapshotDto> SettingsAutomationFacade::getSettings() {
@@ -853,9 +849,7 @@ namespace Automation {
                     target.general.defaultLyrics = *patch.defaultLyrics;
                 return AutomationUnit{};
             },
-            [](const SettingsSnapshotDto &target) {
-                return validatePublicSinging(target.general);
-            },
+            [](const SettingsSnapshotDto &target) { return validatePublicSinging(target.general); },
             [this](const SettingsSnapshotDto &target) {
                 if (!m_services.applyGeneral)
                     return AutomationResult<AutomationUnit>(unavailable());
@@ -1684,60 +1678,6 @@ namespace Automation {
                                   [paths = std::move(paths)](GeneralSettingsDto &general) {
                                       general.packageSearchPaths = normalizedPaths(paths);
                                   });
-    }
-
-    void SettingsAutomationFacade::registerOperations() {
-        const auto add = [this](OperationDescriptor descriptor) {
-            const auto result = m_catalog.add(std::move(descriptor));
-            Q_ASSERT(result);
-        };
-        const auto addQuery = [&add](const OperationId &id, const QString &category) {
-            add({
-                .id = id,
-                .category = category,
-                .kind = OperationKind::Query,
-                .syncMode = SyncMode::Synchronous,
-                .documentPolicy = DocumentPolicy::None,
-                .revisionPolicy = RevisionPolicy::None,
-                .historyPolicy = HistoryPolicy::None,
-                .fileAccess = FileAccessPolicy::None,
-                .hostAvailability = HostAvailability::Core,
-                .safety = SafetyClass::ReadOnly,
-                .exposure = ExposurePolicy::InternalOnly,
-                .idempotency = IdempotencyPolicy::Unsupported,
-            });
-        };
-        const auto addCommand = [&add](const OperationId &id, const QString &category) {
-            add({
-                .id = id,
-                .category = category,
-                .kind = OperationKind::Command,
-                .syncMode = SyncMode::Synchronous,
-                .documentPolicy = DocumentPolicy::None,
-                .revisionPolicy = RevisionPolicy::None,
-                .historyPolicy = HistoryPolicy::None,
-                .fileAccess = FileAccessPolicy::Write,
-                .hostAvailability = HostAvailability::Core,
-                .safety = SafetyClass::Reversible,
-                .exposure = ExposurePolicy::InternalOnly,
-                .idempotency = IdempotencyPolicy::Unsupported,
-            });
-        };
-        addQuery(OperationIds::settings::query, QStringLiteral("settings"));
-        addQuery(OperationIds::recent_files::list, QStringLiteral("recent_files"));
-        addQuery(OperationIds::packages::get_search_paths, QStringLiteral("packages"));
-        addCommand(OperationIds::settings::update_general, QStringLiteral("settings"));
-        addCommand(OperationIds::settings::update_appearance, QStringLiteral("settings"));
-        addCommand(OperationIds::settings::update_inference, QStringLiteral("settings"));
-        addCommand(OperationIds::settings::update_developer, QStringLiteral("settings"));
-        addCommand(OperationIds::settings::update_g2p_language, QStringLiteral("settings"));
-        addCommand(OperationIds::settings::update_fill_lyric, QStringLiteral("settings"));
-        addCommand(OperationIds::settings::update_window, QStringLiteral("settings"));
-        addCommand(OperationIds::settings::update_audio, QStringLiteral("settings"));
-        addCommand(OperationIds::recent_files::add, QStringLiteral("recent_files"));
-        addCommand(OperationIds::recent_files::remove, QStringLiteral("recent_files"));
-        addCommand(OperationIds::recent_files::clear, QStringLiteral("recent_files"));
-        addCommand(OperationIds::packages::set_search_paths, QStringLiteral("packages"));
     }
 
 } // namespace Automation

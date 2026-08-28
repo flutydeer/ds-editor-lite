@@ -4,7 +4,6 @@
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 
-#include <QDataStream>
 #include <QDir>
 #include <QFileInfo>
 #include <QSet>
@@ -61,21 +60,6 @@ namespace Automation {
             return QDir::cleanPath(fileInfo.absoluteFilePath());
         }
 
-        QByteArray exportFingerprint(const QString &path, const bool allowOverwrite,
-                                     const MidiExportOptionsDto &options) {
-            QByteArray result;
-            QDataStream stream(&result, QIODevice::WriteOnly);
-            stream << path << allowOverwrite << options.includeTempo
-                   << options.includeTimeSignatures << options.includeLyrics;
-            stream << static_cast<qint32>(options.trackIds.size());
-            for (const auto trackId : options.trackIds)
-                stream << trackId.value();
-            stream << static_cast<qint32>(options.clipIds.size());
-            for (const auto clipId : options.clipIds)
-                stream << clipId.value();
-            return result;
-        }
-
         DocumentDraftDto snapshotDocument(const AppModel &model,
                                           const MidiExportOptionsDto &options) {
             DocumentDraftDto result;
@@ -109,11 +93,9 @@ namespace Automation {
         }
     }
 
-    FileAutomationFacade::FileAutomationFacade(OperationCatalog &catalog,
-                                               AutomationDispatcher &dispatcher,
+    FileAutomationFacade::FileAutomationFacade(AutomationDispatcher &dispatcher,
                                                FileRuntimeServices services)
-        : m_catalog(catalog), m_dispatcher(dispatcher), m_services(std::move(services)) {
-        registerOperations();
+        : m_dispatcher(dispatcher), m_services(std::move(services)) {
     }
 
     AutomationResult<QList<ProjectFormatDto>> FileAutomationFacade::listFormats() {
@@ -142,7 +124,6 @@ namespace Automation {
                                          const bool allowOverwrite, MidiExportOptionsDto options) {
         return m_dispatcher.dispatchDocumentCommandResult<FileWriteResultDto>(
             OperationIds::exports::midi::start, context,
-            exportFingerprint(path, allowOverwrite, options),
             [this, path, allowOverwrite, options = std::move(options)](DocumentSession &session,
                                                                        const bool validateOnly) {
                 const auto validatedPath = validateMidiPath(path, allowOverwrite);
@@ -179,7 +160,6 @@ namespace Automation {
                                                 MidiExportOptionsDto options) {
         return m_dispatcher.dispatchDocumentCommandResult<PreparedMidiExportDto>(
             OperationIds::exports::midi::start, context,
-            exportFingerprint(path, allowOverwrite, options),
             [this, path, allowOverwrite, options = std::move(options)](DocumentSession &session,
                                                                        const bool validateOnly) {
                 const auto validatedPath = validateMidiPath(path, allowOverwrite);
@@ -249,73 +229,6 @@ namespace Automation {
             .path = validatedPath.get(),
             .wroteFile = true,
         };
-    }
-
-    void FileAutomationFacade::registerOperations() {
-        const auto add = [this](OperationDescriptor descriptor) {
-            const auto result = m_catalog.add(std::move(descriptor));
-            Q_ASSERT(result);
-        };
-        add({
-            .id = OperationIds::formats::list,
-            .category = QStringLiteral("files"),
-            .kind = OperationKind::Query,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::None,
-            .revisionPolicy = RevisionPolicy::None,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::None,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::ReadOnly,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
-        add({
-            .id = OperationIds::formats::inspect,
-            .category = QStringLiteral("files"),
-            .kind = OperationKind::Query,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::None,
-            .revisionPolicy = RevisionPolicy::None,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::Read,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::ReadOnly,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
-        const auto addMidiQuery = [&add](const OperationId &id, const FileAccessPolicy fileAccess) {
-            add({
-                .id = id,
-                .category = QStringLiteral("exports"),
-                .kind = OperationKind::Query,
-                .syncMode = SyncMode::Synchronous,
-                .documentPolicy = DocumentPolicy::Read,
-                .revisionPolicy = RevisionPolicy::None,
-                .historyPolicy = HistoryPolicy::None,
-                .fileAccess = fileAccess,
-                .hostAvailability = HostAvailability::Core,
-                .safety = SafetyClass::ReadOnly,
-                .exposure = ExposurePolicy::InternalOnly,
-                .idempotency = IdempotencyPolicy::Unsupported,
-            });
-        };
-        addMidiQuery(OperationIds::exports::midi::get_capabilities, FileAccessPolicy::None);
-        addMidiQuery(OperationIds::exports::midi::preview, FileAccessPolicy::Write);
-        add({
-            .id = OperationIds::exports::midi::start,
-            .category = QStringLiteral("exports"),
-            .kind = OperationKind::Command,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::Read,
-            .revisionPolicy = RevisionPolicy::Check,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::Write,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::FileSystem,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::DocumentGeneration,
-        });
     }
 
 } // namespace Automation

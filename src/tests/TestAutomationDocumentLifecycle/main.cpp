@@ -381,21 +381,26 @@ namespace {
         test.expect(bool(committedBaseline), scenario,
                     "the rollback fixture must establish its baseline generation");
 
-        auto saveContext = commandContext(runtime, QStringLiteral("rollback-save-key"));
         const auto savedBaseline = runtime.documents().saveDocument(
-            saveContext, QStringLiteral("fixtures/rollback-baseline.dspx"));
-        auto importContext = commandContext(runtime, QStringLiteral("rollback-import-key"));
+            commandContext(runtime), QStringLiteral("fixtures/rollback-baseline.dspx"));
         const auto imported = runtime.documents().commitImportedDocument(
-            importContext,
+            commandContext(runtime),
             makeDocumentDraft(QStringLiteral("Rollback Import"), QStringLiteral("rollback-import")),
             false, false);
+        Automation::TrackDraftDto idempotentTrack;
+        idempotentTrack.clientRef = QStringLiteral("rollback-idempotent-track");
+        idempotentTrack.name = QStringLiteral("Rollback Idempotent Track");
+        idempotentTrack.gain = 1.0;
+        const auto insertedTrack = runtime.project().insertTrack(
+            commandContext(runtime, QStringLiteral("rollback-track-key")), 0, idempotentTrack);
         int taskCancelCount = 0;
         const auto task = runtime.automationTasks().createTask(
             Automation::OperationIds::extract::pitch::start, runtime.documentVersion(),
             std::nullopt, [&taskCancelCount] { ++taskCancelCount; });
         runtime.automationTasks().markRunning(task.taskId);
         const auto beforeFailure = captureState(fixture);
-        test.expect(savedBaseline && imported && beforeFailure.has_value(), scenario,
+        test.expect(savedBaseline && imported && insertedTrack && beforeFailure.has_value(),
+                    scenario,
                     "the rollback fixture must contain path, History, idempotency, and task state");
 
         auto invalidDocument = makeDocumentDraft(QStringLiteral("Invalid Replacement"),
@@ -465,18 +470,8 @@ namespace {
                     "AFC-DOC-LIFECYCLE-006",
                     "a prepared replacement with a stale base revision must roll back completely");
 
-        const auto saveCallsBeforeReplay = fixture.host.saveCalls;
-        const auto beforeReplay = captureState(fixture);
-        const auto replayedSave = runtime.documents().saveDocument(
-            saveContext, QStringLiteral("fixtures/rollback-baseline.dspx"));
-        const auto afterReplay = captureState(fixture);
-        test.expect(replayedSave && savedBaseline && replayedSave.get() == savedBaseline.get() &&
-                        fixture.host.saveCalls == saveCallsBeforeReplay && beforeReplay &&
-                        afterReplay && sameState(*beforeReplay, *afterReplay) &&
-                        taskCancelCount == 0,
-                    "AFC-DOC-LIFECYCLE-006",
-                    "failed/canceled replacement attempts must preserve idempotency and task "
-                    "state");
+        test.expect(taskCancelCount == 0, "AFC-DOC-LIFECYCLE-006",
+                    "failed/canceled replacement attempts must preserve the active task state");
     }
 
     void testSaveAndSaveAs(TestRun &test) {
@@ -494,20 +489,17 @@ namespace {
             false, false);
         const auto dirtyVersion = runtime.documentVersion();
         const auto dirtySnapshot = runtime.documents().getDocument(dirtyVersion.documentId);
-        auto saveAsContext = commandContext(runtime, QStringLiteral("save-as-key"));
         const QString firstPath = QStringLiteral("fixtures/first-save-as.dspx");
-        const auto saveAs = runtime.documents().saveDocument(saveAsContext, firstPath);
-        const auto saveAsReplay = runtime.documents().saveDocument(saveAsContext, firstPath);
+        const auto saveAs = runtime.documents().saveDocument(commandContext(runtime), firstPath);
         const auto afterSaveAs = runtime.documents().getDocument(dirtyVersion.documentId);
 
         test.expect(committedNew && imported && dirtySnapshot && !dirtySnapshot.get().saved &&
-                        saveAs && saveAsReplay && saveAs.get() == saveAsReplay.get() &&
-                        runtime.documentVersion() == dirtyVersion && fixture.host.saveCalls == 1 &&
-                        afterSaveAs && afterSaveAs.get().path == firstPath &&
+                        saveAs && runtime.documentVersion() == dirtyVersion &&
+                        fixture.host.saveCalls == 1 && afterSaveAs &&
+                        afterSaveAs.get().path == firstPath &&
                         afterSaveAs.get().projectName == QStringLiteral("first-save-as.dspx") &&
                         afterSaveAs.get().saved,
-                    scenario,
-                    "save-as must preserve identity/revision, set path/savepoint, and replay once");
+                    scenario, "save-as must preserve identity/revision and set path/savepoint");
 
         const auto edited = runtime.timeline().setTempo(commandContext(runtime), 960, 128.0);
         const auto versionBeforeSave = runtime.documentVersion();
@@ -524,31 +516,28 @@ namespace {
         const auto beforeFailedSave = captureState(fixture);
         const auto failedVersion = runtime.documentVersion();
         fixture.host.saveSucceeds = false;
-        auto failingContext = commandContext(runtime, QStringLiteral("failed-save-key"));
         const QString failedPath = QStringLiteral("fixtures/failed-save-as.dspx");
-        const auto failedSave = runtime.documents().saveDocument(failingContext, failedPath);
+        const auto failedSave =
+            runtime.documents().saveDocument(commandContext(runtime), failedPath);
         const auto afterFailedSave = captureState(fixture);
-        test.expect(editedAgain && !failedSave &&
-                        failedSave.getError().code == Automation::AutomationErrorCode::IoError &&
-                        failedSave.getError().operationId ==
-                            Automation::OperationIds::documents::save &&
-                        beforeFailedSave && afterFailedSave &&
-                        sameState(*beforeFailedSave, *afterFailedSave),
-                    scenario,
-                    "save I/O failure must leave document, path, savepoint, and idempotency "
-                    "unchanged");
+        test.expect(
+            editedAgain && !failedSave &&
+                failedSave.getError().code == Automation::AutomationErrorCode::IoError &&
+                failedSave.getError().operationId == Automation::OperationIds::documents::save &&
+                beforeFailedSave && afterFailedSave &&
+                sameState(*beforeFailedSave, *afterFailedSave),
+            scenario, "save I/O failure must leave document, path, and savepoint unchanged");
 
         fixture.host.saveSucceeds = true;
-        const auto retriedSave = runtime.documents().saveDocument(failingContext, failedPath);
+        const auto retriedSave =
+            runtime.documents().saveDocument(commandContext(runtime), failedPath);
         const auto afterRetry = runtime.documents().getDocument(failedVersion.documentId);
         test.expect(retriedSave && runtime.documentVersion() == failedVersion &&
                         fixture.host.saveCalls == 4 && afterRetry &&
                         afterRetry.get().path == failedPath &&
                         afterRetry.get().projectName == QStringLiteral("failed-save-as.dspx") &&
                         afterRetry.get().saved,
-                    scenario,
-                    "a failed save must not consume its idempotency key and must be safely "
-                    "retryable");
+                    scenario, "a failed save must be safely retryable");
     }
 
     void testGenerationCleanup(TestRun &test) {
@@ -559,11 +548,16 @@ namespace {
         const auto committedNew = runtime.documents().commitNewDocument(
             commandContext(runtime), makeDocumentDraft(QStringLiteral("Cleanup Baseline"),
                                                        QStringLiteral("cleanup-baseline")));
-        auto firstImportContext = commandContext(runtime, QStringLiteral("generation-key"));
         const auto firstImportDraft = makeDocumentDraft(QStringLiteral("Cleanup Import One"),
                                                         QStringLiteral("cleanup-import-one"));
         const auto firstImport = runtime.documents().commitImportedDocument(
-            firstImportContext, firstImportDraft, false, false);
+            commandContext(runtime), firstImportDraft, false, false);
+        Automation::TrackDraftDto idempotentTrack;
+        idempotentTrack.clientRef = QStringLiteral("generation-track");
+        idempotentTrack.name = QStringLiteral("Generation Track");
+        idempotentTrack.gain = 1.0;
+        const auto firstInsert = runtime.project().insertTrack(
+            commandContext(runtime, QStringLiteral("generation-key")), 0, idempotentTrack);
         const auto secondImport = runtime.documents().commitImportedDocument(
             commandContext(runtime),
             makeDocumentDraft(QStringLiteral("Cleanup Import Two"),
@@ -606,8 +600,8 @@ namespace {
         const auto oldTaskFromNewGeneration =
             runtime.tasks().getTask(newVersion.documentId, runningTask.taskId);
 
-        test.expect(committedNew && firstImport && secondImport && undo && historyBefore &&
-                        historyBefore.get().canUndo && historyBefore.get().canRedo,
+        test.expect(committedNew && firstImport && firstInsert && secondImport && undo &&
+                        historyBefore && historyBefore.get().canUndo && historyBefore.get().canRedo,
                     scenario,
                     "the cleanup fixture must contain both History branches before replacement");
         test.expect(replacement && newVersion.documentId != oldVersion.documentId &&
@@ -632,9 +626,8 @@ namespace {
                     scenario,
                     "old document/task identities must not be observable from the new generation");
 
-        auto reusedKeyContext = commandContext(runtime, QStringLiteral("generation-key"));
-        const auto reusedKey = runtime.documents().commitImportedDocument(
-            reusedKeyContext, firstImportDraft, false, false);
+        const auto reusedKey = runtime.project().insertTrack(
+            commandContext(runtime, QStringLiteral("generation-key")), 0, idempotentTrack);
         test.expect(reusedKey && reusedKey.get().changed &&
                         runtime.documentVersion().documentId == newVersion.documentId &&
                         runtime.documentVersion().revision == 1,
@@ -660,22 +653,7 @@ namespace {
         Automation::DocumentSession currentSession(nullptr, nullptr);
         Automation::SingleDocumentSessionResolver resolver(currentSession);
         Automation::SingleWindowContext window;
-        Automation::OperationCatalog catalog;
-        const auto descriptorAdded = catalog.add({
-            .id = Automation::OperationIds::tracks::set_color,
-            .category = QStringLiteral("tracks"),
-            .kind = Automation::OperationKind::Command,
-            .syncMode = Automation::SyncMode::Synchronous,
-            .documentPolicy = Automation::DocumentPolicy::Write,
-            .revisionPolicy = Automation::RevisionPolicy::Increment,
-            .historyPolicy = Automation::HistoryPolicy::Record,
-            .fileAccess = Automation::FileAccessPolicy::None,
-            .hostAvailability = Automation::HostAvailability::Core,
-            .safety = Automation::SafetyClass::Reversible,
-            .exposure = Automation::ExposurePolicy::InternalOnly,
-            .idempotency = Automation::IdempotencyPolicy::DocumentGeneration,
-        });
-        Automation::AutomationDispatcher dispatcher(resolver, window, catalog);
+        Automation::AutomationDispatcher dispatcher(resolver, window);
         const auto oldDocument = Automation::DocumentId::create();
         const GenerationObjectIndex index{oldDocument, currentSession.documentId(), 37};
         Automation::CommandContext oldContext{
@@ -684,7 +662,7 @@ namespace {
         };
         bool objectLookupAttempted = false;
         const auto collision = dispatcher.dispatchDocumentCommand(
-            Automation::OperationIds::tracks::set_color, oldContext, QByteArrayLiteral("37"),
+            Automation::OperationIds::tracks::set_color, oldContext,
             [&index, &objectLookupAttempted](Automation::DocumentSession &session, const bool) {
                 objectLookupAttempted = true;
                 if (!index.contains(session.documentId(), index.collidingObjectId)) {
@@ -699,8 +677,8 @@ namespace {
                 return Automation::AutomationResult<Automation::MutationResult>(result);
             });
         test.expect(
-            descriptorAdded && index.contains(oldDocument, 37) &&
-                index.contains(currentSession.documentId(), 37) && !collision &&
+            index.contains(oldDocument, 37) && index.contains(currentSession.documentId(), 37) &&
+                !collision &&
                 collision.getError().code == Automation::AutomationErrorCode::DocumentChanged &&
                 collision.getError().operationId == Automation::OperationIds::tracks::set_color &&
                 !objectLookupAttempted,

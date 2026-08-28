@@ -5,37 +5,30 @@
 namespace Automation {
 
     AutomationDispatcher::AutomationDispatcher(IDocumentSessionResolver &documentResolver,
-                                               SingleWindowContext &windowContext,
-                                               const OperationCatalog &catalog)
-        : m_documentResolver(documentResolver), m_windowContext(windowContext), m_catalog(catalog) {
+                                               SingleWindowContext &windowContext)
+        : m_documentResolver(documentResolver), m_windowContext(windowContext) {
     }
 
-    AutomationResult<MutationResult> AutomationDispatcher::dispatchDocumentCommand(
+    AutomationResult<MutationResult>
+        AutomationDispatcher::dispatchDocumentCommand(const OperationId &operationId,
+                                                      const CommandContext &context,
+                                                      const DocumentCommandHandler &handler) {
+        return dispatchDocumentCommandResult<MutationResult>(operationId, context, handler);
+    }
+
+    AutomationResult<MutationResult>
+        AutomationDispatcher::dispatchDocumentCommandWithoutRevisionCheck(
+            const OperationId &operationId, const CommandContext &context,
+            const DocumentCommandHandler &handler) {
+        return dispatchDocumentCommandResultWithoutRevisionCheck<MutationResult>(operationId,
+                                                                                 context, handler);
+    }
+
+    AutomationResult<MutationResult> AutomationDispatcher::dispatchIdempotentDocumentCommand(
         const OperationId &operationId, const CommandContext &context,
         const QByteArray &requestFingerprint, const DocumentCommandHandler &handler) {
-        return dispatchDocumentCommandResult<MutationResult>(operationId, context,
-                                                             requestFingerprint, handler);
-    }
-
-    AutomationResult<const OperationDescriptor *>
-        AutomationDispatcher::requireDescriptor(const OperationId &operationId,
-                                                const OperationKind expectedKind) const {
-        const auto descriptor = m_catalog.find(operationId);
-        if (!descriptor) {
-            AutomationError error;
-            error.code = AutomationErrorCode::OperationUnavailable;
-            error.operationId = operationId;
-            error.message = QStringLiteral("Operation is not registered");
-            return error;
-        }
-        if (descriptor->kind != expectedKind) {
-            return decorateError(
-                AutomationError::invalidArgument(
-                    QStringLiteral("operation_id"),
-                    QStringLiteral("Operation kind does not match the dispatch path")),
-                operationId);
-        }
-        return descriptor;
+        return dispatchIdempotentDocumentCommandResult<MutationResult>(operationId, context,
+                                                                       requestFingerprint, handler);
     }
 
     AutomationError AutomationDispatcher::decorateError(AutomationError error,

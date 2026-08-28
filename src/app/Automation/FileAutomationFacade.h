@@ -63,8 +63,7 @@ namespace Automation {
 
     class FileAutomationFacade final {
     public:
-        FileAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
-                             FileRuntimeServices services = {});
+        FileAutomationFacade(AutomationDispatcher &dispatcher, FileRuntimeServices services = {});
 
         AutomationResult<QList<ProjectFormatDto>> listFormats();
         AutomationResult<QByteArray> convertLibreSvipToDspx(const QString &path);
@@ -83,9 +82,6 @@ namespace Automation {
             writePreparedMidiExport(const PreparedMidiExportDto &prepared) const;
 
     private:
-        void registerOperations();
-
-        OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
         FileRuntimeServices m_services;
     };

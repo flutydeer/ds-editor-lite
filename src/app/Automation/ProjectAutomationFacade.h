@@ -61,8 +61,8 @@ namespace Automation {
 
     class ProjectAutomationFacade final {
     public:
-        ProjectAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
-                                CommandCommitter &committer, DocumentObjectResolver &objects);
+        ProjectAutomationFacade(AutomationDispatcher &dispatcher, CommandCommitter &committer,
+                                DocumentObjectResolver &objects);
 
         AutomationResult<ProjectSnapshotDto> getProject(const DocumentId &documentId);
 
@@ -163,9 +163,7 @@ namespace Automation {
             setClipProperties(const OperationId &operationId, const CommandContext &context,
                               const ClipPropertiesDto &properties,
                               std::optional<TrackId> targetTrackId = std::nullopt);
-        void registerOperations();
 
-        OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
         CommandCommitter &m_committer;
         DocumentObjectResolver &m_objects;

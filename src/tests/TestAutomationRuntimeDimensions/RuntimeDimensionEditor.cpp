@@ -26,10 +26,10 @@ namespace RuntimeDimensions {
                 {
                  .operationId = Automation::OperationIds::editor::restore_view,
                  .valid =
-                        [restored](RuntimeHarness &harness,                                     const auto &context) {
+                        [restored](RuntimeHarness &harness, const auto &context) {
                             return harness.core().facade().restoreView(context, restored);
-                        },                                            .invalid =
-                        [](RuntimeHarness &harness,                    const auto &context) {
+                        }, .invalid =
+                        [](RuntimeHarness &harness, const auto &context) {
                             auto invalid = validViewState();
                             invalid.layout.trackPanelVisible = false;
                             invalid.layout.bottomPanelVisible = false;
@@ -38,10 +38,10 @@ namespace RuntimeDimensions {
                 {
                  .operationId = Automation::OperationIds::editor::center_track_panel,
                  .valid =
-                        [](RuntimeHarness &harness,                                                                           const auto &context) {
+                        [](RuntimeHarness &harness, const auto &context) {
                             return harness.core().facade().centerTrackPanel(context, 960.0, 3.0);
-                        },                                            .invalid =
-                        [](RuntimeHarness &harness,                                                                                                         const auto &context) {
+                        }, .invalid =
+                        [](RuntimeHarness &harness, const auto &context) {
                             return harness.core().facade().centerTrackPanel(context, -1.0, 0.0);
                         }, },
                 {
@@ -49,14 +49,14 @@ namespace RuntimeDimensions {
                  .valid =
                         [](RuntimeHarness &harness, const auto &context) {
                             return harness.core().facade().setTrackPanelScale(context, 2.0, 1.5);
-                        },                               .invalid =
-                        [](RuntimeHarness &harness,                                                         const auto &context) {
+                        }, .invalid =
+                        [](RuntimeHarness &harness, const auto &context) {
                             return harness.core().facade().setTrackPanelScale(context, 0.0, 1.0);
                         }, },
                 {
                  .operationId = Automation::OperationIds::editor::set_track_panel_viewport,
                  .valid =
-                        [](RuntimeHarness &harness,                   const auto &context) {
+                        [](RuntimeHarness &harness, const auto &context) {
                             Automation::TrackPanelViewportPatch patch;
                             patch.centerTick = 960.0;
                             patch.verticalScale = 1.5;
@@ -68,32 +68,32 @@ namespace RuntimeDimensions {
                 {
                  .operationId = Automation::OperationIds::editor::set_panel_visibility,
                  .valid =
-                        [](RuntimeHarness &harness,     const auto &context) {
+                        [](RuntimeHarness &harness, const auto &context) {
                             return harness.core().facade().setPanelVisibility(context, true, false);
-                        },                                                                              .invalid =
-                        [](RuntimeHarness &harness,                                                                               const auto &context) {
+                        }, .invalid =
+                        [](RuntimeHarness &harness, const auto &context) {
                             return harness.core().facade().setPanelVisibility(context, false,
                                                                               false);
                         }, },
                 {
                  .operationId = Automation::OperationIds::editor::show_bottom_panel_page,
                  .valid =
-                        [](RuntimeHarness &harness,                                                 const auto &context) {
+                        [](RuntimeHarness &harness, const auto &context) {
                             return harness.core().facade().showBottomPanelPage(
                                 context, QStringLiteral("歌词/Phoneme"));
-                        },                                                                                 .invalid =
-                        [](RuntimeHarness &harness,                                                                     const auto &context) {
+                        }, .invalid =
+                        [](RuntimeHarness &harness, const auto &context) {
                             return harness.core().facade().showBottomPanelPage(
                                 context, QStringLiteral("   "));
                         }, },
                 {
                  .operationId = Automation::OperationIds::editor::show_region,
                  .valid =
-                        [](RuntimeHarness &harness,  const auto &context) {
+                        [](RuntimeHarness &harness, const auto &context) {
                             return harness.core().facade().showRegion(
                                 context, EditorViewGlobal::Region::Parameters);
-                        },        .invalid =
-                        [](RuntimeHarness &harness,                                const auto &context) {
+                        }, .invalid =
+                        [](RuntimeHarness &harness, const auto &context) {
                             return harness.core().facade().showRegion(
                                 context, EditorViewGlobal::Region::TrackPanel);
                         }, .prepare =
@@ -110,21 +110,21 @@ namespace RuntimeDimensions {
                 {
                  .operationId = Automation::OperationIds::editor::focus_region,
                  .valid =
-                        [](RuntimeHarness &harness,                                             const auto &context) {
+                        [](RuntimeHarness &harness, const auto &context) {
                             return harness.core().facade().focusRegion(
                                 context, EditorViewGlobal::Region::PianoRoll);
-                        },                                                    .invalid =
-                        [](RuntimeHarness &harness,                            const auto &context) {
+                        }, .invalid =
+                        [](RuntimeHarness &harness, const auto &context) {
                             return harness.core().facade().focusRegion(
                                 context, EditorViewGlobal::Region::None);
                         }, },
                 {
                  .operationId = Automation::OperationIds::editor::center_piano_roll,
                  .valid =
-                        [](RuntimeHarness &harness,                                                                           const auto &context) {
+                        [](RuntimeHarness &harness, const auto &context) {
                             return harness.core().facade().centerPianoRoll(context, 1440.0, 72.0);
-                        },                                                   .invalid =
-                        [](RuntimeHarness &harness,                                                                                                         const auto &context) {
+                        }, .invalid =
+                        [](RuntimeHarness &harness, const auto &context) {
                             return harness.core().facade().centerPianoRoll(context, 0.0, 128.0);
                         }, },
                 {
@@ -132,15 +132,15 @@ namespace RuntimeDimensions {
                  .valid =
                         [](RuntimeHarness &harness, const auto &context) {
                             return harness.core().facade().setPianoRollScale(context, 1.5, 2.0);
-                        },                               .invalid =
-                        [](RuntimeHarness &harness,                                                         const auto &context) {
+                        }, .invalid =
+                        [](RuntimeHarness &harness, const auto &context) {
                             return harness.core().facade().setPianoRollScale(
                                 context, std::numeric_limits<double>::infinity(), 1.0);
                         }, },
                 {
                  .operationId = Automation::OperationIds::editor::set_clip_editor_time_viewport,
                  .valid =
-                        [](RuntimeHarness &harness,                   const auto &context) {
+                        [](RuntimeHarness &harness, const auto &context) {
                             Automation::ClipEditorTimeViewportPatch patch;
                             patch.centerTick = 1440.0;
                             return harness.core().facade().setClipEditorTimeViewport(context,
@@ -155,13 +155,13 @@ namespace RuntimeDimensions {
                 {
                  .operationId = Automation::OperationIds::editor::set_piano_roll_pitch_viewport,
                  .valid =
-                        [](RuntimeHarness &harness,            const auto &context) {
+                        [](RuntimeHarness &harness, const auto &context) {
                             Automation::PianoRollPitchViewportPatch patch;
                             patch.centerKeyIndex = 72.0;
                             return harness.core().facade().setPianoRollPitchViewport(context,
                                                                                      patch);
-                        },                                                                              .invalid =
-                        [](RuntimeHarness &harness,                                                                               const auto &context) {
+                        }, .invalid =
+                        [](RuntimeHarness &harness, const auto &context) {
                             Automation::PianoRollPitchViewportPatch patch;
                             patch.centerKeyIndex = 128.0;
                             return harness.core().facade().setPianoRollPitchViewport(context,
@@ -170,11 +170,11 @@ namespace RuntimeDimensions {
                 {
                  .operationId = Automation::OperationIds::editor::set_piano_roll_edit_mode,
                  .valid =
-                        [](RuntimeHarness &harness,                                                 const auto &context) {
+                        [](RuntimeHarness &harness, const auto &context) {
                             return harness.core().facade().setPianoRollEditMode(
                                 context, EditorViewGlobal::DrawNote);
-                        },                                                                                 .invalid =
-                        [](RuntimeHarness &harness,                                                                     const auto &context) {
+                        }, .invalid =
+                        [](RuntimeHarness &harness, const auto &context) {
                             return harness.core().facade().setPianoRollEditMode(
                                 context, static_cast<EditorViewGlobal::PianoRollEditMode>(99));
                         }, },
@@ -284,9 +284,7 @@ namespace RuntimeDimensions {
             log.run(operationId, QStringLiteral("OPERATION-SURFACE"), [&] {
                 RuntimeHarness harness;
                 const auto result = harness.core().facade().getEditorCapabilities();
-                log.expect(result &&
-                               result.get().operationIds ==
-                                   harness.core().catalog().operationIds() &&
+                log.expect(result && result.get().operationIds == Automation::OperationIds::all() &&
                                result.get().operationIds.contains(
                                    Automation::OperationIds::editor::set_selection),
                            QStringLiteral("capability handler must return the runtime surface"));

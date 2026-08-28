@@ -11,7 +11,6 @@ add_library(AutomationTestSupport STATIC
     ../../app/Automation/AudioExportAutomationFacade.cpp
     ../../app/Automation/AutomationTypes.cpp
     ../../app/Automation/AutomationTaskManager.cpp
-    ../../app/Automation/OperationCatalog.cpp
     ../../app/Automation/IdempotencyStore.cpp
     ../../app/Automation/DocumentSession.cpp
     ../../app/Automation/DocumentSessionResolver.cpp

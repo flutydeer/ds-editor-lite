@@ -99,7 +99,7 @@ namespace Automation {
 
     class PackageAutomationFacade final {
     public:
-        PackageAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
+        PackageAutomationFacade(AutomationDispatcher &dispatcher,
                                 PackageRuntimeServices services = {});
 
         AutomationResult<QList<PackageDto>> getInstalledPackages();
@@ -118,9 +118,6 @@ namespace Automation {
         AutomationResult<MutationResult> resolveDocumentVoices(const CommandContext &context);
 
     private:
-        void registerOperations();
-
-        OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
         PackageRuntimeServices m_services;
     };

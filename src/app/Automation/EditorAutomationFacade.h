@@ -156,7 +156,7 @@ namespace Automation {
 
     class EditorAutomationFacade final {
     public:
-        EditorAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
+        EditorAutomationFacade(AutomationDispatcher &dispatcher,
                                DocumentObjectResolver &objectResolver,
                                EditorRuntimeServices services = {});
 
@@ -251,9 +251,7 @@ namespace Automation {
                                 const GuiDocumentCommandContext &context, ViewMutation mutation,
                                 ViewApply apply,
                                 std::optional<AutomationError> validationError = std::nullopt);
-        void registerOperations();
 
-        OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
         DocumentObjectResolver &m_objectResolver;
         EditorRuntimeServices m_services;

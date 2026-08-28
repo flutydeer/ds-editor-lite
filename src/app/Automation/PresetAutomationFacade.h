@@ -40,7 +40,7 @@ namespace Automation {
 
     class PresetAutomationFacade final {
     public:
-        PresetAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
+        PresetAutomationFacade(AutomationDispatcher &dispatcher,
                                PresetRuntimeServices services = {});
 
         AutomationResult<QList<SpeakerMixPresetDto>> getSpeakerMixPresets();
@@ -52,9 +52,6 @@ namespace Automation {
                                    const QString &presetId);
 
     private:
-        void registerOperations();
-
-        OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
         PresetRuntimeServices m_services;
     };

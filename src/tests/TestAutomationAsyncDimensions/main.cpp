@@ -833,38 +833,6 @@ namespace {
                    QStringLiteral("validation may preview but must not allocate or execute"));
         });
 
-        matrix.run(operationId, "AFD-EXP-AUDIO-002-IDEMPOTENT-TASK-ID", [&] {
-            matrix.cover("Queued");
-            matrix.cover("Running");
-            matrix.cover("Committing");
-            matrix.cover("terminal");
-            RuntimeHarness harness;
-            const auto context =
-                keyedContext(harness, QStringLiteral("afda0000-0000-4000-8000-000000000003"));
-            const auto config = audioConfig(harness, QStringLiteral("idempotent.wav"));
-            const auto first = harness.runtime().audioExports().start(context, config, {});
-            const auto replay = harness.runtime().audioExports().start(context, config, {});
-            EXPECT(matrix,
-                   first && replay && replay.get() == first.get() &&
-                       harness.audioScheduler.pendingCount() == 1 &&
-                       harness.runtime().automationTasks().size() == 1 &&
-                       harness.audioExportState()->createCount == 1,
-                   QStringLiteral("queued replay must retain one TaskId and one preview job"));
-            if (!first)
-                return;
-            harness.audioScheduler.runNext();
-            const auto terminalReplay = harness.runtime().audioExports().start(context, config, {});
-            const auto terminal = harness.runtime().tasks().getTask(
-                harness.runtime().documentVersion().documentId, first.get().taskId);
-            EXPECT(matrix,
-                   terminal && terminal.get().state == Automation::AutomationTaskState::Succeeded &&
-                       terminalReplay && terminalReplay.get() == first.get() &&
-                       harness.audioExportState()->createCount == 1 &&
-                       harness.audioExportState()->executeCount == 1,
-                   QStringLiteral(
-                       "terminal replay must keep the TaskId and reuse the authorized preview job"));
-        });
-
         matrix.run(operationId, "AFD-EXP-AUDIO-003-QUEUED-CANCEL", [&] {
             matrix.cover("Queued");
             matrix.cover("CancelRequested");
@@ -923,8 +891,7 @@ namespace {
             matrix.cover("terminal");
             RuntimeHarness harness;
             harness.audioExportState()->backendState = Automation::AudioExportBackendState::Failed;
-            const auto context =
-                keyedContext(harness, QStringLiteral("afda0000-0000-4000-8000-000000000004"));
+            const auto context = harness.context();
             const auto config = audioConfig(harness, QStringLiteral("failure.wav"));
             const auto first = harness.runtime().audioExports().start(context, config, {});
             EXPECT(matrix, first && harness.audioScheduler.runNext(),
@@ -944,7 +911,7 @@ namespace {
                        harness.audioExportState()->cleanupCount == 1 &&
                        harness.audioScheduler.pendingCount() == 1,
                    QStringLiteral(
-                       "I/O failure must be queryable, clean its snapshot, and release the key"));
+                       "I/O failure must be queryable, clean its snapshot, and allow a retry"));
         });
 
         matrix.run(operationId, "AFD-EXP-AUDIO-006-SAME-GENERATION-REBASE", [&] {
@@ -1072,17 +1039,18 @@ namespace {
                         ? harness.runtime().tasks().getTask(base.documentId, accepted.get().taskId)
                         : Automation::AutomationResult<Automation::AutomationTaskSnapshot>(
                               Automation::AutomationError{});
-                EXPECT(matrix,
-                       accepted && released && terminal &&
-                           terminal.get().state == Automation::AutomationTaskState::Failed &&
-                           terminal.get().error &&
-                           terminal.get().error->code ==
-                               Automation::AutomationErrorCode::PermissionDenied &&
-                           authorizationChecks == 2 &&
-                           harness.audioExportState()->waitUntilReadyCount == 1 &&
-                           harness.audioExportState()->executeCount == 0 &&
-                           harness.audioExportState()->cleanupCount == 1,
-                       QStringLiteral("write access revoked while waiting must fail before export"));
+                EXPECT(
+                    matrix,
+                    accepted && released && terminal &&
+                        terminal.get().state == Automation::AutomationTaskState::Failed &&
+                        terminal.get().error &&
+                        terminal.get().error->code ==
+                            Automation::AutomationErrorCode::PermissionDenied &&
+                        authorizationChecks == 2 &&
+                        harness.audioExportState()->waitUntilReadyCount == 1 &&
+                        harness.audioExportState()->executeCount == 0 &&
+                        harness.audioExportState()->cleanupCount == 1,
+                    QStringLiteral("write access revoked while waiting must fail before export"));
             }
         });
 
@@ -1133,8 +1101,7 @@ namespace {
                 harness.audioExportState()->executeHook = [&] {
                     replacement.emplace(harness.runtime().documents().commitNewDocument(
                         harness.context(), RuntimeHarness::emptyDocument()));
-                    cleanupObservedDuringExecution =
-                        harness.audioExportState()->cleanupCount != 0;
+                    cleanupObservedDuringExecution = harness.audioExportState()->cleanupCount != 0;
                 };
                 const auto accepted = harness.runtime().audioExports().start(
                     harness.context(),
@@ -1496,13 +1463,14 @@ namespace {
                 harness.runtime().tasks().cancelTask(staleRevision, unknownTask);
             const auto taskError =
                 harness.runtime().tasks().cancelTask(harness.context(), unknownTask);
-            EXPECT(matrix,
-                   isError(documentError, Automation::AutomationErrorCode::DocumentChanged,
-                           cancelId) &&
-                       isError(revisionError, Automation::AutomationErrorCode::NotFound, cancelId) &&
-                       isError(taskError, Automation::AutomationErrorCode::NotFound, cancelId),
-                   QStringLiteral(
-                       "cancel must route by document but ignore revision before resolving TaskId"));
+            EXPECT(
+                matrix,
+                isError(documentError, Automation::AutomationErrorCode::DocumentChanged,
+                        cancelId) &&
+                    isError(revisionError, Automation::AutomationErrorCode::NotFound, cancelId) &&
+                    isError(taskError, Automation::AutomationErrorCode::NotFound, cancelId),
+                QStringLiteral(
+                    "cancel must route by document but ignore revision before resolving TaskId"));
         });
     }
 
@@ -1574,18 +1542,12 @@ namespace {
                     const auto base = harness.runtime().documentVersion();
                     const auto historyBefore =
                         harness.runtime().history().getState(base.documentId);
-                    const auto *descriptor = harness.runtime().catalog().find(testCase.operationId);
                     const auto result =
                         harness.runtime().inference().applyMutation(harness.context(true), request);
                     const auto historyAfter = harness.runtime().history().getState(base.documentId);
                     EXPECT(
                         matrix,
-                        descriptor &&
-                            descriptor->revisionPolicy ==
-                                (testCase.advancesRevision ? Automation::RevisionPolicy::Increment
-                                                           : Automation::RevisionPolicy::Check) &&
-                            descriptor->historyPolicy == Automation::HistoryPolicy::None &&
-                            Automation::InferenceAutomationFacade::operationId(testCase.kind) ==
+                        Automation::InferenceAutomationFacade::operationId(testCase.kind) ==
                                 testCase.operationId &&
                             result && result.get().mutation.validatedOnly &&
                             result.get().mutation.changed &&
@@ -1882,21 +1844,12 @@ namespace {
                     const auto pathBefore = audio ? audio->path() : QString();
                     const auto statusBefore =
                         audio ? audio->pathStatus() : AudioClip::PathStatus::Missing;
-                    const auto *descriptor = harness.runtime().catalog().find(testCase.operationId);
                     const auto result = invokeAudioMutation(harness, plan, harness.context(true),
                                                             harness.audioClipId());
                     const auto historyAfter = harness.runtime().history().getState(base.documentId);
                     EXPECT(matrix,
-                           audio && plan.fixtureReady && descriptor &&
-                               descriptor->revisionPolicy ==
-                                   (testCase.advancesRevision
-                                        ? Automation::RevisionPolicy::Increment
-                                        : Automation::RevisionPolicy::None) &&
-                               descriptor->historyPolicy ==
-                                   (testCase.recordsHistory ? Automation::HistoryPolicy::Record
-                                                            : Automation::HistoryPolicy::None) &&
-                               result && result.get().validatedOnly && result.get().changed &&
-                               result.get().previous == base &&
+                           audio && plan.fixtureReady && result && result.get().validatedOnly &&
+                               result.get().changed && result.get().previous == base &&
                                result.get().current.revision ==
                                    base.revision + (testCase.advancesRevision ? 1 : 0) &&
                                harness.runtime().documentVersion() == base &&
@@ -1956,34 +1909,34 @@ namespace {
                            QStringLiteral("reapplying identical audio state must be a true no-op"));
                 });
 
-            matrix.run(
-                testCase.operationId, audioScenario(index + 1, 4, QStringLiteral("ERROR-PRIORITY")),
-                [&] {
-                    RuntimeHarness harness;
-                    const auto plan = makeAudioPlan(harness, testCase, discriminator + 4);
-                    auto wrongDocument = harness.context();
-                    wrongDocument.expected.documentId = Automation::DocumentId::create();
-                    ++wrongDocument.expected.revision;
-                    auto staleRevision = harness.context();
-                    ++staleRevision.expected.revision;
-                    const auto invalidClip = Automation::ClipId(990000 + index);
-                    const auto documentError =
-                        invokeAudioMutation(harness, plan, wrongDocument, invalidClip);
-                    const auto revisionError =
-                        invokeAudioMutation(harness, plan, staleRevision, invalidClip);
-                    EXPECT(matrix,
-                           plan.fixtureReady &&
-                               isError(documentError,
-                                       Automation::AutomationErrorCode::DocumentChanged,
-                                       testCase.operationId) &&
-                               isError(revisionError,
-                                       testCase.advancesRevision
-                                           ? Automation::AutomationErrorCode::RevisionConflict
-                                           : Automation::AutomationErrorCode::NotFound,
-                                       testCase.operationId),
-                           QStringLiteral(
-                               "audio handler must apply its declared revision policy before object lookup"));
-                });
+            matrix.run(testCase.operationId,
+                       audioScenario(index + 1, 4, QStringLiteral("ERROR-PRIORITY")), [&] {
+                           RuntimeHarness harness;
+                           const auto plan = makeAudioPlan(harness, testCase, discriminator + 4);
+                           auto wrongDocument = harness.context();
+                           wrongDocument.expected.documentId = Automation::DocumentId::create();
+                           ++wrongDocument.expected.revision;
+                           auto staleRevision = harness.context();
+                           ++staleRevision.expected.revision;
+                           const auto invalidClip = Automation::ClipId(990000 + index);
+                           const auto documentError =
+                               invokeAudioMutation(harness, plan, wrongDocument, invalidClip);
+                           const auto revisionError =
+                               invokeAudioMutation(harness, plan, staleRevision, invalidClip);
+                           EXPECT(
+                               matrix,
+                               plan.fixtureReady &&
+                                   isError(documentError,
+                                           Automation::AutomationErrorCode::DocumentChanged,
+                                           testCase.operationId) &&
+                                   isError(revisionError,
+                                           testCase.advancesRevision
+                                               ? Automation::AutomationErrorCode::RevisionConflict
+                                               : Automation::AutomationErrorCode::NotFound,
+                                           testCase.operationId),
+                               QStringLiteral("audio handler must apply its declared revision "
+                                              "policy before object lookup"));
+                       });
 
             matrix.run(testCase.operationId,
                        audioScenario(index + 1, 5, QStringLiteral("WRONG-OBJECT-TYPE")), [&] {
@@ -2053,28 +2006,6 @@ namespace {
                            QStringLiteral(
                                "stale asset or invalid input must fail without partial writeback"));
                 });
-
-            matrix.run(
-                testCase.operationId,
-                audioScenario(index + 1, 8, QStringLiteral("IDEMPOTENT-REPLAY")), [&] {
-                    RuntimeHarness harness;
-                    auto *audio = fixtureAudio(harness);
-                    const auto plan = makeAudioPlan(harness, testCase, discriminator + 8);
-                    const auto base = harness.runtime().documentVersion();
-                    const auto context =
-                        keyedContext(harness, QStringLiteral("afda1000-0000-4000-8000-%1")
-                                                  .arg(index + 1, 12, 10, QLatin1Char('0')));
-                    const auto first =
-                        invokeAudioMutation(harness, plan, context, harness.audioClipId());
-                    const auto replay =
-                        invokeAudioMutation(harness, plan, context, harness.audioClipId());
-                    EXPECT(matrix,
-                           audio && plan.fixtureReady && first && replay &&
-                               replay.get() == first.get() && audioPlanApplied(plan, *audio) &&
-                               harness.runtime().documentVersion().revision ==
-                                   base.revision + (testCase.advancesRevision ? 1 : 0),
-                           QStringLiteral("same idempotency key must replay one audio mutation"));
-                });
         }
     }
 
@@ -2094,12 +2025,8 @@ namespace {
 
         matrix.run(operationId, "AFD-FMT-001-TYPED-SNAPSHOT", [&] {
             RuntimeHarness harness;
-            const auto *descriptor = harness.runtime().catalog().find(operationId);
             const auto result = harness.runtime().files().listFormats();
-            EXPECT(matrix,
-                   descriptor && descriptor->kind == Automation::OperationKind::Query &&
-                       descriptor->documentPolicy == Automation::DocumentPolicy::None && result &&
-                       result.get() == harness.formats && result.get().size() == 2,
+            EXPECT(matrix, result && result.get() == harness.formats && result.get().size() == 2,
                    QStringLiteral("formats must expose the provider's typed value snapshot"));
         });
 
@@ -2291,18 +2218,6 @@ namespace {
                     isError(inputError, Automation::AutomationErrorCode::PathRequired, operationId),
                 QStringLiteral("MIDI errors must order document, revision, input, then host"));
         });
-
-        matrix.run(operationId, "AFD-EXP-MIDI-008-IDEMPOTENT-WRITE", [&] {
-            RuntimeHarness harness;
-            const auto context =
-                keyedContext(harness, QStringLiteral("afda3000-0000-4000-8000-000000000001"));
-            const auto path = harness.temporaryPath(QStringLiteral("dimension-idempotent.mid"));
-            const auto first = harness.runtime().files().exportMidi(context, path, false);
-            const auto replay = harness.runtime().files().exportMidi(context, path, false);
-            EXPECT(matrix,
-                   first && replay && replay.get() == first.get() && harness.midiExportCount == 1,
-                   QStringLiteral("MIDI idempotency replay must write exactly once"));
-        });
     }
 
     void testAudioPreviewDimensions(Matrix &matrix) {
@@ -2430,13 +2345,13 @@ namespace {
             const auto historyBefore = harness.runtime().history().getState(base.documentId);
             const auto result = harness.runtime().audioExports().cleanup(harness.context(), taskId);
             const auto historyAfter = harness.runtime().history().getState(base.documentId);
-            EXPECT(matrix,
-                   !taskId.isNull() && result && !result.get().changed &&
-                       harness.audioExportState()->cleanupCount == 0 &&
-                       harness.runtime().documentVersion() == base && historyBefore &&
-                       historyAfter && sameHistory(historyBefore.get(), historyAfter.get()),
-                   QStringLiteral(
-                       "cleanup after success must be a no-op without document mutation"));
+            EXPECT(
+                matrix,
+                !taskId.isNull() && result && !result.get().changed &&
+                    harness.audioExportState()->cleanupCount == 0 &&
+                    harness.runtime().documentVersion() == base && historyBefore && historyAfter &&
+                    sameHistory(historyBefore.get(), historyAfter.get()),
+                QStringLiteral("cleanup after success must be a no-op without document mutation"));
         });
 
         matrix.run(operationId, "AFD-EXP-CLEANUP-003-REPEATED-NO-OP", [&] {
@@ -2638,11 +2553,8 @@ namespace {
             RuntimeHarness harness;
             const auto version = harness.runtime().documentVersion();
             const auto result = harness.runtime().documents().getDocument(version.documentId);
-            const auto *descriptor = harness.runtime().catalog().find(operationId);
             EXPECT(matrix,
-                   descriptor && descriptor->kind == Automation::OperationKind::Query &&
-                       descriptor->documentPolicy == Automation::DocumentPolicy::Read && result &&
-                       result.get().document == version &&
+                   result && result.get().document == version &&
                        result.get().lifecycle == Automation::DocumentLifecycleState::Active &&
                        !result.get().busy,
                    QStringLiteral("documents.get must return the active generation snapshot"));
@@ -2994,24 +2906,6 @@ namespace {
                        "document import must gate document and revision before validation"));
         });
 
-        matrix.run(operationId, "AFD-DOC-IMPORT-006-IDEMPOTENT-REPLAY", [&] {
-            RuntimeHarness harness;
-            const auto base = harness.runtime().documentVersion();
-            const auto tracksBefore = harness.model().tracks().size();
-            const auto context =
-                keyedContext(harness, QStringLiteral("afda5000-0000-4000-8000-000000000001"));
-            const auto draft = dimensionDocument(QStringLiteral("document-import-key"));
-            const auto first =
-                harness.runtime().documents().commitImportedDocument(context, draft, false, false);
-            const auto replay =
-                harness.runtime().documents().commitImportedDocument(context, draft, false, false);
-            EXPECT(matrix,
-                   first && replay && replay.get() == first.get() &&
-                       harness.runtime().documentVersion().revision == base.revision + 1 &&
-                       harness.model().tracks().size() == tracksBefore + 1,
-                   QStringLiteral("document import replay must commit exactly once"));
-        });
-
         matrix.run(operationId, "AFD-DOC-IMPORT-007-GENERATION-FENCE", [&] {
             RuntimeHarness harness;
             const auto staleContext = harness.context();
@@ -3061,20 +2955,19 @@ namespace {
         matrix.run(operationId, "AFD-DOC-SAVE-003-IO-FAILURE-ROLLBACK-RETRY", [&] {
             RuntimeHarness harness;
             harness.saveSucceeds = false;
-            const auto context =
-                keyedContext(harness, QStringLiteral("afda6000-0000-4000-8000-000000000001"));
+            const auto context = harness.context();
             const auto path = harness.temporaryPath(QStringLiteral("dimension-save-failed.dspx"));
             const auto before = captureSessionState(harness);
             const auto failed = harness.runtime().documents().saveDocument(context, path);
             const auto afterFailure = captureSessionState(harness);
             harness.saveSucceeds = true;
             const auto retried = harness.runtime().documents().saveDocument(context, path);
-            EXPECT(
-                matrix,
-                before && isError(failed, Automation::AutomationErrorCode::IoError, operationId) &&
-                    afterFailure && sameSessionState(*before, *afterFailure) && retried &&
-                    harness.saveCount == 2,
-                QStringLiteral("failed save must roll back fully and release its idempotency key"));
+            EXPECT(matrix,
+                   before &&
+                       isError(failed, Automation::AutomationErrorCode::IoError, operationId) &&
+                       afterFailure && sameSessionState(*before, *afterFailure) && retried &&
+                       harness.saveCount == 2,
+                   QStringLiteral("failed save must roll back fully and allow a retry"));
         });
 
         matrix.run(operationId, "AFD-DOC-SAVE-004-HOST-UNAVAILABLE", [&] {
@@ -3127,17 +3020,6 @@ namespace {
                        isError(inputError, Automation::AutomationErrorCode::InvalidArgument,
                                operationId),
                    QStringLiteral("save errors must order document, revision, input, then host"));
-        });
-
-        matrix.run(operationId, "AFD-DOC-SAVE-007-IDEMPOTENT-WRITE", [&] {
-            RuntimeHarness harness;
-            const auto context =
-                keyedContext(harness, QStringLiteral("afda6000-0000-4000-8000-000000000002"));
-            const auto path = harness.temporaryPath(QStringLiteral("dimension-save-key.dspx"));
-            const auto first = harness.runtime().documents().saveDocument(context, path);
-            const auto replay = harness.runtime().documents().saveDocument(context, path);
-            EXPECT(matrix, first && replay && replay.get() == first.get() && harness.saveCount == 1,
-                   QStringLiteral("save idempotency replay must call the writer exactly once"));
         });
 
         matrix.run(operationId, "AFD-DOC-SAVE-008-GENERATION-FENCE", [&] {
@@ -3253,52 +3135,6 @@ namespace {
                                operationId),
                    QStringLiteral("batch import must gate document and revision before payload"));
         });
-
-        matrix.run(operationId, "AFD-IMPORT-BATCH-007-IDEMPOTENT-REPLAY", [&] {
-            RuntimeHarness harness;
-            const auto base = harness.runtime().documentVersion();
-            const auto clipsBefore = harness.model().tracks().first()->clips().count();
-            const auto context =
-                keyedContext(harness, QStringLiteral("afda7000-0000-4000-8000-000000000001"));
-            const auto batch = dimensionBatch(harness, QStringLiteral("batch-key"));
-            const auto first = harness.runtime().project().commitBatchImport(context, batch);
-            const auto replay = harness.runtime().project().commitBatchImport(context, batch);
-            EXPECT(matrix,
-                   first && replay && replay.get() == first.get() &&
-                       harness.runtime().documentVersion().revision == base.revision + 1 &&
-                       harness.model().tracks().first()->clips().count() == clipsBefore + 1,
-                   QStringLiteral("batch idempotency replay must commit exactly once"));
-        });
-    }
-
-    [[nodiscard]] QList<Automation::OperationId> expectedDimensionOperations() {
-        QList<Automation::OperationId> operations{
-            Automation::OperationIds::documents::commit_import,
-            Automation::OperationIds::documents::commit_new,
-            Automation::OperationIds::documents::commit_open,
-            Automation::OperationIds::documents::get,
-            Automation::OperationIds::documents::save,
-            Automation::OperationIds::audio_clips::apply_decode_cache,
-            Automation::OperationIds::audio_clips::apply_resolved_path,
-            Automation::OperationIds::audio_clips::confirm_path,
-            Automation::OperationIds::audio_clips::relocate,
-            Automation::OperationIds::audio_clips::set_hash,
-            Automation::OperationIds::audio_clips::set_path_status,
-            Automation::OperationIds::imports::commit_batch,
-            Automation::OperationIds::extract::midi::start,
-            Automation::OperationIds::extract::pitch::start,
-            Automation::OperationIds::exports::audio::cleanup,
-            Automation::OperationIds::exports::audio::preview,
-            Automation::OperationIds::exports::audio::start,
-            Automation::OperationIds::exports::midi::start,
-            Automation::OperationIds::formats::list,
-            Automation::OperationIds::tasks::cancel,
-            Automation::OperationIds::tasks::get,
-            Automation::OperationIds::tasks::list,
-        };
-        for (const auto &testCase : inferenceDimensionCases())
-            operations.append(testCase.operationId);
-        return operations;
     }
 }
 
@@ -3323,47 +3159,5 @@ int main(int argc, char *argv[]) {
     testDocumentSaveDimensions(matrix);
     testBatchImportDimensions(matrix);
 
-    matrix.requireAtLeast(Automation::OperationIds::extract::midi::start, 9);
-    matrix.requireAtLeast(Automation::OperationIds::extract::pitch::start, 9);
-    matrix.requireAtLeast(Automation::OperationIds::exports::audio::start, 9);
-    matrix.requireAtLeast(Automation::OperationIds::tasks::get, 6);
-    matrix.requireAtLeast(Automation::OperationIds::tasks::list, 6);
-    matrix.requireAtLeast(Automation::OperationIds::tasks::cancel, 6);
-    for (const auto &testCase : inferenceDimensionCases())
-        matrix.requireAtLeast(testCase.operationId, 6);
-    for (const auto &testCase : audioDimensionCases())
-        matrix.requireAtLeast(testCase.operationId, 8);
-    matrix.requireAtLeast(Automation::OperationIds::formats::list, 6);
-    matrix.requireAtLeast(Automation::OperationIds::exports::midi::start, 8);
-    matrix.requireAtLeast(Automation::OperationIds::exports::audio::preview, 7);
-    matrix.requireAtLeast(Automation::OperationIds::exports::audio::cleanup, 7);
-    matrix.requireAtLeast(Automation::OperationIds::documents::get, 6);
-    matrix.requireAtLeast(Automation::OperationIds::documents::commit_new, 6);
-    matrix.requireAtLeast(Automation::OperationIds::documents::commit_open, 6);
-    matrix.requireAtLeast(Automation::OperationIds::documents::commit_import, 7);
-    matrix.requireAtLeast(Automation::OperationIds::documents::save, 8);
-    matrix.requireAtLeast(Automation::OperationIds::imports::commit_batch, 7);
-    const auto expectedOperations = expectedDimensionOperations();
-    matrix.requireOperationsExactly(expectedOperations);
-    for (const auto &operationId : expectedOperations)
-        matrix.requireBetween(operationId, 6, 9);
-    matrix.requireDimension("Queued", 1);
-    matrix.requireDimension("Running", 1);
-    matrix.requireDimension("CancelRequested", 1);
-    matrix.requireDimension("Committing", 1);
-    matrix.requireDimension("terminal", 1);
-    const QList<Automation::OperationId> asyncOperations{
-        Automation::OperationIds::extract::midi::start,
-        Automation::OperationIds::extract::pitch::start,
-        Automation::OperationIds::exports::audio::start,
-        Automation::OperationIds::tasks::cancel,
-    };
-    for (const auto &operationId : asyncOperations) {
-        matrix.requireAsyncDimension(operationId, "Queued");
-        matrix.requireAsyncDimension(operationId, "Running");
-        matrix.requireAsyncDimension(operationId, "CancelRequested");
-        matrix.requireAsyncDimension(operationId, "Committing");
-        matrix.requireAsyncDimension(operationId, "terminal");
-    }
     return matrix.finish();
 }

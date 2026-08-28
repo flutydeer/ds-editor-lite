@@ -924,8 +924,8 @@ namespace {
         const auto capabilities = runtime.facade().getEditorCapabilities();
         log.expect(capabilities && capabilities.get().maxConcurrentDocuments == 1 &&
                        capabilities.get().maxConcurrentWindows == 1 &&
-                       capabilities.get().operationIds == runtime.catalog().operationIds(),
-                   QStringLiteral("capabilities must expose the single-session host and catalog"));
+                       capabilities.get().operationIds == Automation::OperationIds::all(),
+                   QStringLiteral("capabilities must expose the single-session operation surface"));
 
         log.scenario(QStringLiteral("EDITOR-SETUP-OBJECTS"));
         const auto objects = createEditorObjects(harness, log);

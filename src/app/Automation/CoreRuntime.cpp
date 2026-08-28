@@ -28,29 +28,27 @@ namespace Automation {
         ExtractionRuntimeServices extractionServices,
         ApplicationRuntimeServices applicationServices)
         : m_session(model, historyManager), m_documentResolver(m_session),
-          m_dispatcher(m_documentResolver, m_windowContext, m_catalog),
-          m_applicationFacade(m_catalog, m_dispatcher, std::move(applicationServices)),
-          m_parameterFacade(m_catalog, m_dispatcher, m_committer, m_objectResolver),
-          m_projectFacade(m_catalog, m_dispatcher, m_committer, m_objectResolver),
-          m_noteFacade(m_catalog, m_dispatcher, m_committer, m_objectResolver),
-          m_audioExportFacade(m_catalog, m_dispatcher, m_documentResolver, m_taskManager,
+          m_dispatcher(m_documentResolver, m_windowContext),
+          m_applicationFacade(m_dispatcher, std::move(applicationServices)),
+          m_parameterFacade(m_dispatcher, m_committer, m_objectResolver),
+          m_projectFacade(m_dispatcher, m_committer, m_objectResolver),
+          m_noteFacade(m_dispatcher, m_committer, m_objectResolver),
+          m_audioExportFacade(m_dispatcher, m_documentResolver, m_taskManager,
                               std::move(audioExportServices)),
-          m_extractionFacade(m_catalog, m_dispatcher, m_taskManager, m_objectResolver,
-                             m_parameterFacade, m_projectFacade, m_noteFacade,
-                             std::move(extractionServices)),
-          m_documentFacade(m_catalog, m_dispatcher, m_committer, m_taskManager,
+          m_extractionFacade(m_dispatcher, m_taskManager, m_objectResolver, m_parameterFacade,
+                             m_projectFacade, m_noteFacade, std::move(extractionServices)),
+          m_documentFacade(m_dispatcher, m_committer, m_taskManager,
                            bindGenerationLifecycle(std::move(documentServices),
                                                    &m_audioExportFacade, &m_extractionFacade)),
-          m_facade(m_catalog, m_dispatcher, m_objectResolver, std::move(editorServices)),
-          m_fileFacade(m_catalog, m_dispatcher, std::move(fileServices)),
-          m_historyFacade(m_catalog, m_dispatcher, m_committer),
-          m_inferenceFacade(m_catalog, m_dispatcher, m_committer, std::move(inferenceServices)),
-          m_packageFacade(m_catalog, m_dispatcher, std::move(packageServices)),
-          m_playbackFacade(m_catalog, m_dispatcher, m_committer, std::move(playbackServices)),
-          m_presetFacade(m_catalog, m_dispatcher, std::move(presetServices)),
-          m_settingsFacade(m_catalog, m_dispatcher, std::move(settingsServices)),
-          m_taskFacade(m_catalog, m_dispatcher, m_taskManager),
-          m_timelineFacade(m_catalog, m_dispatcher, m_committer) {
+          m_facade(m_dispatcher, m_objectResolver, std::move(editorServices)),
+          m_fileFacade(m_dispatcher, std::move(fileServices)),
+          m_historyFacade(m_dispatcher, m_committer),
+          m_inferenceFacade(m_dispatcher, m_committer, std::move(inferenceServices)),
+          m_packageFacade(m_dispatcher, std::move(packageServices)),
+          m_playbackFacade(m_dispatcher, m_committer, std::move(playbackServices)),
+          m_presetFacade(m_dispatcher, std::move(presetServices)),
+          m_settingsFacade(m_dispatcher, std::move(settingsServices)),
+          m_taskFacade(m_dispatcher, m_taskManager), m_timelineFacade(m_dispatcher, m_committer) {
     }
 
     DocumentVersion CoreRuntime::documentVersion() const {
@@ -84,14 +82,6 @@ namespace Automation {
 
     const EditorAutomationFacade &CoreRuntime::facade() const {
         return m_facade;
-    }
-
-    OperationCatalog &CoreRuntime::catalog() {
-        return m_catalog;
-    }
-
-    const OperationCatalog &CoreRuntime::catalog() const {
-        return m_catalog;
     }
 
     AutomationDispatcher &CoreRuntime::dispatcher() {

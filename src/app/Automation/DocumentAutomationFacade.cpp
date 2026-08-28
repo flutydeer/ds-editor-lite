@@ -7,34 +7,12 @@
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 
-#include <QCryptographicHash>
 #include <QFileInfo>
 
 #include <memory>
 
 namespace Automation {
     namespace {
-        QByteArray replaceFingerprint(const DocumentDraftDto &document, const QString &path,
-                                      const QString &projectName, const bool savedBaseline) {
-            QCryptographicHash hash(QCryptographicHash::Sha256);
-            hash.addData(fingerprint(document));
-            hash.addData("\0", 1);
-            hash.addData(path.toUtf8());
-            hash.addData("\0", 1);
-            hash.addData(projectName.toUtf8());
-            hash.addData(savedBaseline ? "1" : "0", 1);
-            return hash.result();
-        }
-
-        QByteArray importFingerprint(const DocumentDraftDto &document, const bool importTempo,
-                                     const bool importTimeSignature) {
-            QCryptographicHash hash(QCryptographicHash::Sha256);
-            hash.addData(fingerprint(document));
-            hash.addData(importTempo ? "1" : "0", 1);
-            hash.addData(importTimeSignature ? "1" : "0", 1);
-            return hash.result();
-        }
-
         AutomationError missingRuntime(const QString &message) {
             AutomationError error;
             error.code = AutomationErrorCode::HostCapabilityUnavailable;
@@ -43,14 +21,12 @@ namespace Automation {
         }
     }
 
-    DocumentAutomationFacade::DocumentAutomationFacade(OperationCatalog &catalog,
-                                                       AutomationDispatcher &dispatcher,
+    DocumentAutomationFacade::DocumentAutomationFacade(AutomationDispatcher &dispatcher,
                                                        CommandCommitter &committer,
                                                        AutomationTaskManager &tasks,
                                                        DocumentRuntimeServices services)
-        : m_catalog(catalog), m_dispatcher(dispatcher), m_committer(committer), m_tasks(tasks),
+        : m_dispatcher(dispatcher), m_committer(committer), m_tasks(tasks),
           m_services(std::move(services)) {
-        registerOperations();
     }
 
     AutomationResult<DocumentSnapshotDto>
@@ -95,7 +71,7 @@ namespace Automation {
         const DocumentDraftDto &document, const QString &path, const QString &projectName,
         const bool savedBaseline) {
         return m_dispatcher.dispatchDocumentCommand(
-            operationId, context, replaceFingerprint(document, path, projectName, savedBaseline),
+            operationId, context,
             [this, document, path, projectName, savedBaseline,
              taskId = context.taskId](DocumentSession &session, const bool validateOnly) {
                 auto validation = validate(document);
@@ -143,7 +119,6 @@ namespace Automation {
         const bool importTimeSignature) {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::documents::commit_import, context,
-            importFingerprint(document, importTempo, importTimeSignature),
             [this, document, importTempo, importTimeSignature](DocumentSession &session,
                                                                const bool validateOnly) {
                 auto validation = validate(document);
@@ -195,10 +170,8 @@ namespace Automation {
     AutomationResult<MutationResult> DocumentAutomationFacade::saveDocumentWithOperation(
         const OperationId &operationId, const CommandContext &context, const QString &path,
         const bool allowOverwrite) {
-        auto requestFingerprint = path.toUtf8();
-        requestFingerprint.append(allowOverwrite ? "\1" : "\0", 1);
         return m_dispatcher.dispatchDocumentCommand(
-            operationId, context, requestFingerprint,
+            operationId, context,
             [this, path, allowOverwrite](DocumentSession &session, const bool validateOnly) {
                 if (path.trimmed().isEmpty()) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
@@ -236,133 +209,6 @@ namespace Automation {
                 session.setPathAndProjectName(path, QFileInfo(path).fileName());
                 return AutomationResult<MutationResult>(std::move(result));
             });
-    }
-
-    void DocumentAutomationFacade::registerOperations() {
-        const auto add = [this](OperationDescriptor descriptor) {
-            const auto result = m_catalog.add(std::move(descriptor));
-            Q_ASSERT(result);
-        };
-        add({
-            .id = OperationIds::documents::get,
-            .category = QStringLiteral("documents"),
-            .kind = OperationKind::Query,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::Read,
-            .revisionPolicy = RevisionPolicy::None,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::None,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::ReadOnly,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
-        const auto addReplace = [&add](const QString &id) {
-            add({
-                .id = id,
-                .category = QStringLiteral("documents"),
-                .kind = OperationKind::Command,
-                .syncMode = SyncMode::Synchronous,
-                .documentPolicy = DocumentPolicy::Replace,
-                .revisionPolicy = RevisionPolicy::Reset,
-                .historyPolicy = HistoryPolicy::None,
-                .fileAccess = FileAccessPolicy::None,
-                .hostAvailability = HostAvailability::Core,
-                .safety = SafetyClass::Destructive,
-                .exposure = ExposurePolicy::InternalOnly,
-                .idempotency = IdempotencyPolicy::Unsupported,
-            });
-        };
-        addReplace(OperationIds::documents::commit_new);
-        addReplace(OperationIds::documents::commit_open);
-        add({
-            .id = OperationIds::documents::new_document,
-            .category = QStringLiteral("documents"),
-            .kind = OperationKind::Command,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::Replace,
-            .revisionPolicy = RevisionPolicy::Reset,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::None,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::Destructive,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
-        add({
-            .id = OperationIds::documents::open,
-            .category = QStringLiteral("documents"),
-            .kind = OperationKind::Command,
-            .syncMode = SyncMode::Asynchronous,
-            .documentPolicy = DocumentPolicy::Replace,
-            .revisionPolicy = RevisionPolicy::Reset,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::Read,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::Destructive,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::DocumentGeneration,
-        });
-        add({
-            .id = OperationIds::documents::commit_import,
-            .category = QStringLiteral("documents"),
-            .kind = OperationKind::Command,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::Write,
-            .revisionPolicy = RevisionPolicy::Increment,
-            .historyPolicy = HistoryPolicy::Record,
-            .fileAccess = FileAccessPolicy::None,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::Reversible,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::DocumentGeneration,
-        });
-        const auto addImport = [&add](const OperationId &id) {
-            add({
-                .id = id,
-                .category = QStringLiteral("documents"),
-                .kind = OperationKind::Command,
-                .syncMode = SyncMode::Asynchronous,
-                .documentPolicy = DocumentPolicy::Write,
-                .revisionPolicy = RevisionPolicy::Increment,
-                .historyPolicy = HistoryPolicy::Record,
-                .fileAccess = FileAccessPolicy::Read,
-                .hostAvailability = HostAvailability::Core,
-                .safety = SafetyClass::Reversible,
-                .exposure = ExposurePolicy::InternalOnly,
-                .idempotency = IdempotencyPolicy::DocumentGeneration,
-            });
-        };
-        addImport(OperationIds::documents::import_document);
-        addImport(OperationIds::documents::import_batch);
-        add({
-            .id = OperationIds::documents::save,
-            .category = QStringLiteral("documents"),
-            .kind = OperationKind::Command,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::Write,
-            .revisionPolicy = RevisionPolicy::Check,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::Write,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::FileSystem,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::DocumentGeneration,
-        });
-        add({
-            .id = OperationIds::documents::save_as,
-            .category = QStringLiteral("documents"),
-            .kind = OperationKind::Command,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::Write,
-            .revisionPolicy = RevisionPolicy::Check,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::Write,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::FileSystem,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::DocumentGeneration,
-        });
     }
 
 } // namespace Automation

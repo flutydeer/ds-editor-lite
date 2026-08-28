@@ -1,7 +1,6 @@
 #include "AudioExportAutomationFacade.h"
 #include "OperationIds.h"
 
-#include <QDataStream>
 #include <QDir>
 #include <QFileInfo>
 #include <QMutex>
@@ -193,21 +192,6 @@ namespace Automation {
             return AutomationUnit{};
         }
 
-        QByteArray fingerprint(const AudioExportConfigDto &config,
-                               const AudioExportPolicyDto &policy) {
-            QByteArray result;
-            QDataStream stream(&result, QIODevice::WriteOnly);
-            const auto formatOption = config.fileType >= 2 ? 0 : config.formatOption;
-            const auto sources = config.sourceOption == 0 ? QList<int>() : config.sources;
-            stream << config.fileName << config.fileDirectory << config.fileType << config.mono
-                   << formatOption << config.formatQuality << config.sampleRate
-                   << config.mixingOption << config.muteSoloEnabled << config.sourceOption
-                   << sources << config.timeRange << policy.allowNoFiles
-                   << policy.allowDuplicatePaths << policy.allowOverwrite
-                   << policy.allowUnrecognizedTemplate << policy.allowLossyFormat;
-            return result;
-        }
-
         bool terminal(const AutomationTaskState state) {
             return state == AutomationTaskState::Succeeded ||
                    state == AutomationTaskState::Failed || state == AutomationTaskState::Canceled;
@@ -248,12 +232,10 @@ namespace Automation {
     };
 
     AudioExportAutomationFacade::AudioExportAutomationFacade(
-        OperationCatalog &catalog, AutomationDispatcher &dispatcher,
-        IDocumentSessionResolver &documentResolver, AutomationTaskManager &tasks,
-        AudioExportRuntimeServices services)
-        : m_catalog(catalog), m_dispatcher(dispatcher), m_documentResolver(documentResolver),
-          m_tasks(tasks), m_services(std::move(services)) {
-        registerOperations();
+        AutomationDispatcher &dispatcher, IDocumentSessionResolver &documentResolver,
+        AutomationTaskManager &tasks, AudioExportRuntimeServices services)
+        : m_dispatcher(dispatcher), m_documentResolver(documentResolver), m_tasks(tasks),
+          m_services(std::move(services)) {
     }
 
     AudioExportCapabilitiesDto AudioExportAutomationFacade::capabilities() {
@@ -303,10 +285,9 @@ namespace Automation {
         const CommandContext &context, const AudioExportConfigDto &config,
         const AudioExportPolicyDto &policy, AudioExportObserver observer,
         AudioExportOutputAuthorizer authorizeOutputs, AudioExportAccessRevalidator reauthorize) {
-        const auto requestFingerprint = fingerprint(config, policy);
         return m_dispatcher.dispatchDocumentCommandResult<TaskAcceptedResult>(
-            OperationIds::exports::audio::start, context, requestFingerprint,
-            [this, context, requestFingerprint, config, policy, observer = std::move(observer),
+            OperationIds::exports::audio::start, context,
+            [this, context, config, policy, observer = std::move(observer),
              authorizeOutputs = std::move(authorizeOutputs), reauthorize = std::move(reauthorize)](
                 DocumentSession &session, const bool validateOnly) mutable {
                 const auto valid = validateConfig(config);
@@ -357,16 +338,6 @@ namespace Automation {
                     .taskId = task.taskId,
                     .document = session.version(),
                 };
-                if (!context.idempotencyKey.isEmpty()) {
-                    const auto bound = m_tasks.setUnsuccessfulCallback(
-                        task.taskId, [this, context, requestFingerprint,
-                                      accepted](const AutomationTaskSnapshot &) {
-                            m_dispatcher.releaseDocumentIdempotency(
-                                OperationIds::exports::audio::start, context, requestFingerprint,
-                                accepted);
-                        });
-                    Q_ASSERT(bound);
-                }
 
                 auto execute = [this, taskId = task.taskId, base = session.version(),
                                 observer = std::move(observer),
@@ -384,7 +355,7 @@ namespace Automation {
     AutomationResult<ApplicationMutationResult>
         AudioExportAutomationFacade::cleanup(const CommandContext &context, const TaskId &taskId) {
         return m_dispatcher.dispatchDocumentCommandResult<ApplicationMutationResult>(
-            OperationIds::exports::audio::cleanup, context, taskId.toString().toUtf8(),
+            OperationIds::exports::audio::cleanup, context,
             [this, taskId](DocumentSession &session, const bool validateOnly) {
                 const auto task = m_tasks.get(session.documentId(), taskId);
                 if (!task)
@@ -626,69 +597,6 @@ namespace Automation {
         }
         for (const auto &record : std::as_const(removed))
             record->state->requestCancel();
-    }
-
-    void AudioExportAutomationFacade::registerOperations() {
-        const auto add = [this](OperationDescriptor descriptor) {
-            const auto result = m_catalog.add(std::move(descriptor));
-            Q_ASSERT(result);
-        };
-        add({
-            .id = OperationIds::exports::audio::get_capabilities,
-            .category = QStringLiteral("exports"),
-            .kind = OperationKind::Query,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::Read,
-            .revisionPolicy = RevisionPolicy::None,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::None,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::ReadOnly,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
-        add({
-            .id = OperationIds::exports::audio::preview,
-            .category = QStringLiteral("exports"),
-            .kind = OperationKind::Query,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::Read,
-            .revisionPolicy = RevisionPolicy::None,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::Read,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::ReadOnly,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
-        add({
-            .id = OperationIds::exports::audio::start,
-            .category = QStringLiteral("exports"),
-            .kind = OperationKind::Command,
-            .syncMode = SyncMode::Asynchronous,
-            .documentPolicy = DocumentPolicy::Read,
-            .revisionPolicy = RevisionPolicy::Check,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::Write,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::FileSystem,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::DocumentGeneration,
-        });
-        add({
-            .id = OperationIds::exports::audio::cleanup,
-            .category = QStringLiteral("exports"),
-            .kind = OperationKind::Command,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::Read,
-            .revisionPolicy = RevisionPolicy::Check,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::Write,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::FileSystem,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
     }
 
 } // namespace Automation

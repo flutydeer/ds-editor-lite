@@ -107,8 +107,7 @@ namespace Automation {
 
     class InferenceAutomationFacade final {
     public:
-        InferenceAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
-                                  CommandCommitter &committer,
+        InferenceAutomationFacade(AutomationDispatcher &dispatcher, CommandCommitter &committer,
                                   InferenceRuntimeServices services = {});
 
         AutomationResult<InferenceMutationResultDto>
@@ -118,9 +117,6 @@ namespace Automation {
         [[nodiscard]] static QStringList supportedStages();
 
     private:
-        void registerOperations();
-
-        OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
         CommandCommitter &m_committer;
         InferenceRuntimeServices m_services;

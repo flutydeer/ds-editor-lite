@@ -20,8 +20,7 @@ namespace Automation {
 
     class TimelineAutomationFacade final {
     public:
-        TimelineAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
-                                 CommandCommitter &committer);
+        TimelineAutomationFacade(AutomationDispatcher &dispatcher, CommandCommitter &committer);
 
         AutomationResult<TimelineSnapshotDto> getTimeline(const DocumentId &documentId);
         AutomationResult<MutationResult> setTempo(const CommandContext &context, int tick,
@@ -46,11 +45,8 @@ namespace Automation {
                                                           const TrackControl &control);
         AutomationResult<MutationResult>
             mutateMasterControl(const OperationId &operationId, const CommandContext &context,
-                                const QByteArray &fingerprint,
                                 const std::function<void(TrackControl &)> &mutate);
-        void registerOperations();
 
-        OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
         CommandCommitter &m_committer;
     };

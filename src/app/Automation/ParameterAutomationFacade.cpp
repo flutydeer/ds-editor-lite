@@ -46,17 +46,6 @@ namespace Automation {
             }
         }
 
-        QByteArray parameterFingerprint(const ClipId clipId, const ParamInfo::Name name,
-                                        const Param::Type type,
-                                        const QList<CurveDraftDto> &curves) {
-            QCryptographicHash hash(QCryptographicHash::Sha256);
-            hashInteger(hash, clipId.value());
-            hashInteger(hash, name);
-            hashInteger(hash, type);
-            hashCurves(hash, curves);
-            return hash.result();
-        }
-
         void hashCurveShapes(QCryptographicHash &hash, const QList<CurveDraftDto> &curves) {
             hashInteger(hash, curves.size());
             for (const auto &curve : curves) {
@@ -149,17 +138,6 @@ namespace Automation {
                    left.followsTrack == right.followsTrack &&
                    canonicalVoiceSpeakerMixPayload(left.speakerMix) ==
                        canonicalVoiceSpeakerMixPayload(right.speakerMix);
-        }
-
-        QByteArray voiceFingerprint(const int objectId, const SingerInfo &singerInfo,
-                                    const SpeakerInfo &speakerInfo,
-                                    const SpeakerMixModel::SpeakerMixData &data) {
-            QCryptographicHash hash(QCryptographicHash::Sha256);
-            hashInteger(hash, objectId);
-            hash.addData(fingerprint(singerInfo));
-            hash.addData(fingerprint(speakerInfo));
-            hash.addData(fingerprint(canonicalVoiceSpeakerMixPayload(data)));
-            return hash.result();
         }
 
         QByteArray speakerMixEditFingerprint(const QByteArray &operationTag, const ClipId clipId,
@@ -336,12 +314,10 @@ namespace Automation {
         }
     }
 
-    ParameterAutomationFacade::ParameterAutomationFacade(OperationCatalog &catalog,
-                                                         AutomationDispatcher &dispatcher,
+    ParameterAutomationFacade::ParameterAutomationFacade(AutomationDispatcher &dispatcher,
                                                          CommandCommitter &committer,
                                                          DocumentObjectResolver &objects)
-        : m_catalog(catalog), m_dispatcher(dispatcher), m_committer(committer), m_objects(objects) {
-        registerOperations();
+        : m_dispatcher(dispatcher), m_committer(committer), m_objects(objects) {
     }
 
     AutomationResult<ParameterSnapshotDto>
@@ -374,7 +350,6 @@ namespace Automation {
         const Param::Type type, const QList<CurveDraftDto> &curves) {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::parameters::replace, context,
-            parameterFingerprint(clipId, name, type, curves),
             [this, clipId, name, type, curves](DocumentSession &session, const bool validateOnly) {
                 auto resolved = m_objects.singingClip(session, clipId);
                 if (!resolved)
@@ -474,6 +449,14 @@ namespace Automation {
     }
 
     AutomationResult<MutationResult> ParameterAutomationFacade::mutateParameter(
+        const OperationId &operationId, const CommandContext &context, const ClipId clipId,
+        const ParamInfo::Name name, const Param::Type type, CurveMutation mutation,
+        QString createdCurveClientRef) {
+        return mutateParameterImpl(operationId, context, std::nullopt, clipId, name, type,
+                                   std::move(mutation), std::move(createdCurveClientRef));
+    }
+
+    AutomationResult<MutationResult> ParameterAutomationFacade::mutateIdempotentParameter(
         const OperationId &operationId, const CommandContext &context,
         const QByteArray &operationTag, const QByteArray &requestFingerprint, const ClipId clipId,
         const ParamInfo::Name name, const Param::Type type, CurveMutation mutation,
@@ -483,8 +466,16 @@ namespace Automation {
             isolatedContext.idempotencyKey = QString::fromLatin1(operationTag) + QLatin1Char(':') +
                                              isolatedContext.idempotencyKey;
         }
-        return m_dispatcher.dispatchDocumentCommand(
-            operationId, isolatedContext, requestFingerprint,
+        return mutateParameterImpl(operationId, isolatedContext, requestFingerprint, clipId, name,
+                                   type, std::move(mutation), std::move(createdCurveClientRef));
+    }
+
+    AutomationResult<MutationResult> ParameterAutomationFacade::mutateParameterImpl(
+        const OperationId &operationId, const CommandContext &context,
+        const std::optional<QByteArray> &requestFingerprint, const ClipId clipId,
+        const ParamInfo::Name name, const Param::Type type, CurveMutation mutation,
+        QString createdCurveClientRef) {
+        const AutomationDispatcher::DocumentCommandHandler handler =
             [this, clipId, name, type, mutation = std::move(mutation),
              createdCurveClientRef = std::move(createdCurveClientRef)](DocumentSession &session,
                                                                        const bool validateOnly) {
@@ -537,7 +528,12 @@ namespace Automation {
                 actions->replaceParam(name, type, rawCurves, clip);
                 return m_committer.commit(session, std::move(actions), affected,
                                           std::move(createdObjects));
-            });
+            };
+        if (requestFingerprint) {
+            return m_dispatcher.dispatchIdempotentDocumentCommand(operationId, context,
+                                                                  *requestFingerprint, handler);
+        }
+        return m_dispatcher.dispatchDocumentCommand(operationId, context, handler);
     }
 
     AutomationResult<MutationResult>
@@ -545,12 +541,8 @@ namespace Automation {
                                                  const ParamInfo::Name name, const Param::Type type,
                                                  const int localStart, const int step,
                                                  QList<int> values, const bool overlay) {
-        const auto requestFingerprint =
-            parameterMutationFingerprint(QByteArrayLiteral("draw"), clipId, name, type,
-                                         {localStart, step, static_cast<qint64>(overlay)}, values);
         return mutateParameter(
-            OperationIds::parameters::draw, context, QByteArrayLiteral("draw"), requestFingerprint,
-            clipId, name, type,
+            OperationIds::parameters::draw, context, clipId, name, type,
             [localStart, step, values = std::move(values),
              overlay](QList<CurveDraftDto> &curves) -> AutomationResult<bool> {
                 QCryptographicHash beforeHash(QCryptographicHash::Sha256);
@@ -605,11 +597,8 @@ namespace Automation {
     AutomationResult<MutationResult> ParameterAutomationFacade::eraseParameter(
         const CommandContext &context, const ClipId clipId, const ParamInfo::Name name,
         const Param::Type type, const int localStart, const int localEnd) {
-        const auto requestFingerprint = parameterMutationFingerprint(
-            QByteArrayLiteral("erase"), clipId, name, type, {localStart, localEnd});
         return mutateParameter(
-            OperationIds::parameters::erase, context, QByteArrayLiteral("erase"),
-            requestFingerprint, clipId, name, type,
+            OperationIds::parameters::erase, context, clipId, name, type,
             [localStart, localEnd](QList<CurveDraftDto> &curves) -> AutomationResult<bool> {
                 if (localStart < 0 || localEnd <= localStart) {
                     return AutomationError::invalidArgument(
@@ -659,7 +648,7 @@ namespace Automation {
         }
         const auto requestFingerprint = parameterMutationFingerprint(
             QByteArrayLiteral("insert_anchors"), clipId, name, type, scalars);
-        return mutateParameter(
+        return mutateIdempotentParameter(
             OperationIds::parameters::insert_anchors, context, QByteArrayLiteral("insert_anchors"),
             requestFingerprint, clipId, name, type,
             [curveId, anchors](QList<CurveDraftDto> &curves) -> AutomationResult<bool> {
@@ -725,7 +714,7 @@ namespace Automation {
         const auto requestFingerprint = parameterMutationFingerprint(
             QByteArrayLiteral("create_anchor_curve"), clipId, name, type, {});
         fingerprintHash.addData(requestFingerprint);
-        return mutateParameter(
+        return mutateIdempotentParameter(
             OperationIds::parameters::create_anchor_curve, context,
             QByteArrayLiteral("create_anchor_curve"), fingerprintHash.result(), clipId, name, type,
             [anchors](QList<CurveDraftDto> &curves) -> AutomationResult<bool> {
@@ -759,12 +748,8 @@ namespace Automation {
     AutomationResult<MutationResult> ParameterAutomationFacade::mergeAnchorCurves(
         const CommandContext &context, const ClipId clipId, const ParamInfo::Name name,
         const Param::Type type, const CurveId targetCurveId, const CurveId sourceCurveId) {
-        const auto requestFingerprint =
-            parameterMutationFingerprint(QByteArrayLiteral("merge_anchor_curves"), clipId, name,
-                                         type, {targetCurveId.value(), sourceCurveId.value()});
         return mutateParameter(
-            OperationIds::parameters::merge_anchor_curves, context,
-            QByteArrayLiteral("merge_anchor_curves"), requestFingerprint, clipId, name, type,
+            OperationIds::parameters::merge_anchor_curves, context, clipId, name, type,
             [targetCurveId, sourceCurveId](QList<CurveDraftDto> &curves) -> AutomationResult<bool> {
                 if (!targetCurveId.isValid() || !sourceCurveId.isValid() ||
                     targetCurveId == sourceCurveId) {
@@ -837,17 +822,8 @@ namespace Automation {
         ParameterAutomationFacade::moveAnchors(const CommandContext &context, const ClipId clipId,
                                                const ParamInfo::Name name, const Param::Type type,
                                                const QList<AnchorMoveDto> &moves) {
-        QList<qint64> scalars{moves.size()};
-        for (const auto &move : moves) {
-            scalars.append(move.anchorId.value());
-            scalars.append(move.position);
-            scalars.append(move.value);
-        }
-        const auto requestFingerprint = parameterMutationFingerprint(
-            QByteArrayLiteral("move_anchors"), clipId, name, type, scalars);
         return mutateParameter(
-            OperationIds::parameters::move_anchors, context, QByteArrayLiteral("move_anchors"),
-            requestFingerprint, clipId, name, type,
+            OperationIds::parameters::move_anchors, context, clipId, name, type,
             [moves](QList<CurveDraftDto> &curves) -> AutomationResult<bool> {
                 if (moves.isEmpty())
                     return false;
@@ -923,14 +899,8 @@ namespace Automation {
         ParameterAutomationFacade::removeAnchors(const CommandContext &context, const ClipId clipId,
                                                  const ParamInfo::Name name, const Param::Type type,
                                                  QList<AnchorId> anchorIds) {
-        QList<qint64> scalars{anchorIds.size()};
-        for (const auto id : anchorIds)
-            scalars.append(id.value());
-        const auto requestFingerprint = parameterMutationFingerprint(
-            QByteArrayLiteral("remove_anchors"), clipId, name, type, scalars);
         return mutateParameter(
-            OperationIds::parameters::remove_anchors, context, QByteArrayLiteral("remove_anchors"),
-            requestFingerprint, clipId, name, type,
+            OperationIds::parameters::remove_anchors, context, clipId, name, type,
             [anchorIds =
                  std::move(anchorIds)](QList<CurveDraftDto> &curves) -> AutomationResult<bool> {
                 if (anchorIds.isEmpty())
@@ -979,14 +949,8 @@ namespace Automation {
         const CommandContext &context, const ClipId clipId, const ParamInfo::Name name,
         const Param::Type type, QList<AnchorId> anchorIds,
         const AnchorNode::InterpMode interpolation) {
-        QList<qint64> scalars{anchorIds.size(), static_cast<qint64>(interpolation)};
-        for (const auto id : anchorIds)
-            scalars.append(id.value());
-        const auto requestFingerprint = parameterMutationFingerprint(
-            QByteArrayLiteral("set_anchor_interpolation"), clipId, name, type, scalars);
         return mutateParameter(
-            OperationIds::parameters::set_anchor_interpolation, context,
-            QByteArrayLiteral("set_anchor_interpolation"), requestFingerprint, clipId, name, type,
+            OperationIds::parameters::set_anchor_interpolation, context, clipId, name, type,
             [anchorIds = std::move(anchorIds),
              interpolation](QList<CurveDraftDto> &curves) -> AutomationResult<bool> {
                 if (interpolation != AnchorNode::Linear && interpolation != AnchorNode::Hermite &&
@@ -1034,8 +998,6 @@ namespace Automation {
         }
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::parameters::bake, isolatedContext,
-            parameterMutationFingerprint(QByteArrayLiteral("bake"), clipId, name, Param::Edited,
-                                         {rangeStart, rangeEnd}),
             [this, clipId, name, localStart, localEnd](DocumentSession &session,
                                                        const bool validateOnly) {
                 auto resolved = m_objects.singingClip(session, clipId);
@@ -1127,7 +1089,6 @@ namespace Automation {
         const SpeakerMixModel::SpeakerMixData &data) {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::speaker_mix::clip::replace, context,
-            voiceFingerprint(clipId.value(), {}, {}, data),
             [this, clipId, data](DocumentSession &session, const bool validateOnly) {
                 auto resolved = m_objects.singingClip(session, clipId);
                 if (!resolved)
@@ -1157,7 +1118,6 @@ namespace Automation {
                                                         const ClipId clipId) {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::clips::use_track_voice, context,
-            voiceFingerprint(clipId.value(), {}, {}, {}),
             [this, clipId](DocumentSession &session, const bool validateOnly) {
                 auto resolved = m_objects.singingClip(session, clipId);
                 if (!resolved)
@@ -1198,7 +1158,6 @@ namespace Automation {
                                                                const ClipId clipId) {
         return mutateClipSpeakerMix(
             OperationIds::speaker_mix::enable_dynamic, context, clipId,
-            speakerMixEditFingerprint(QByteArrayLiteral("enable_dynamic"), clipId, {}),
             [](SpeakerMixModel::SpeakerMixData &data) -> AutomationResult<bool> {
                 data = SpeakerMixModel::normalizeSpeakerMixData(data);
                 if (data.mode == SpeakerMixModel::SingerSourceMode::DynamicMix)
@@ -1234,7 +1193,7 @@ namespace Automation {
         const ClipId clipId, const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo,
         const SpeakerMixModel::SpeakerMixData &data) {
         return m_dispatcher.dispatchDocumentCommand(
-            operationId, context, voiceFingerprint(clipId.value(), singerInfo, speakerInfo, data),
+            operationId, context,
             [this, clipId, singerInfo, speakerInfo, data, action](DocumentSession &session,
                                                                   const bool validateOnly) {
                 auto resolved = m_objects.singingClip(session, clipId);
@@ -1273,7 +1232,6 @@ namespace Automation {
         const SpeakerInfo &speakerInfo) {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::tracks::set_voice, context,
-            voiceFingerprint(trackId.value(), singerInfo, speakerInfo, {}),
             [this, trackId, singerInfo, speakerInfo](DocumentSession &session,
                                                      const bool validateOnly) {
                 auto resolved = m_objects.track(session, trackId);
@@ -1301,7 +1259,6 @@ namespace Automation {
         const SpeakerInfo &speakerInfo, const SpeakerMixModel::SpeakerMixData &data) {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::speaker_mix::track::apply, context,
-            voiceFingerprint(trackId.value(), singerInfo, speakerInfo, data),
             [this, trackId, singerInfo, speakerInfo, data](DocumentSession &session,
                                                            const bool validateOnly) {
                 auto resolved = m_objects.track(session, trackId);
@@ -1330,7 +1287,6 @@ namespace Automation {
         const SpeakerMixModel::SpeakerMixData &data) {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::speaker_mix::track::replace, context,
-            voiceFingerprint(trackId.value(), {}, {}, data),
             [this, trackId, data](DocumentSession &session, const bool validateOnly) {
                 auto resolved = m_objects.track(session, trackId);
                 if (!resolved)
@@ -1393,7 +1349,6 @@ namespace Automation {
         const auto normalized = SpeakerMixModel::normalizeSpeakerMixData(data);
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::speaker_mix::set_fixed, context,
-            voiceFingerprint(target.id, singerInfo, speakerInfo, normalized),
             [this, target, singerInfo, speakerInfo, normalized](DocumentSession &session,
                                                                 const bool validateOnly) {
                 if (normalized.mode == SpeakerMixModel::SingerSourceMode::DynamicMix) {
@@ -1448,9 +1403,22 @@ namespace Automation {
 
     AutomationResult<MutationResult> ParameterAutomationFacade::mutateClipSpeakerMix(
         const OperationId &operationId, const CommandContext &context, const ClipId clipId,
+        SpeakerMixMutation mutation) {
+        return mutateClipSpeakerMixImpl(operationId, context, clipId, std::nullopt,
+                                        std::move(mutation));
+    }
+
+    AutomationResult<MutationResult> ParameterAutomationFacade::mutateIdempotentClipSpeakerMix(
+        const OperationId &operationId, const CommandContext &context, const ClipId clipId,
         const QByteArray &requestFingerprint, SpeakerMixMutation mutation) {
-        return m_dispatcher.dispatchDocumentCommand(
-            operationId, context, requestFingerprint,
+        return mutateClipSpeakerMixImpl(operationId, context, clipId, requestFingerprint,
+                                        std::move(mutation));
+    }
+
+    AutomationResult<MutationResult> ParameterAutomationFacade::mutateClipSpeakerMixImpl(
+        const OperationId &operationId, const CommandContext &context, const ClipId clipId,
+        const std::optional<QByteArray> &requestFingerprint, SpeakerMixMutation mutation) {
+        const AutomationDispatcher::DocumentCommandHandler handler =
             [this, clipId, mutation = std::move(mutation)](DocumentSession &session,
                                                            const bool validateOnly) {
                 auto resolved = m_objects.singingClip(session, clipId);
@@ -1474,7 +1442,12 @@ namespace Automation {
                 auto actions = std::make_unique<SpeakerMixActions>();
                 actions->replaceSpeakerMix(data, clip);
                 return m_committer.commit(session, std::move(actions), affected);
-            });
+            };
+        if (requestFingerprint) {
+            return m_dispatcher.dispatchIdempotentDocumentCommand(operationId, context,
+                                                                  *requestFingerprint, handler);
+        }
+        return m_dispatcher.dispatchDocumentCommand(operationId, context, handler);
     }
 
     AutomationResult<MutationResult>
@@ -1482,7 +1455,6 @@ namespace Automation {
                                                                 const ClipId clipId) {
         return mutateClipSpeakerMix(
             OperationIds::speaker_mix::disable_dynamic, context, clipId,
-            speakerMixEditFingerprint(QByteArrayLiteral("disable_dynamic"), clipId, {}),
             [](SpeakerMixModel::SpeakerMixData &data) -> AutomationResult<bool> {
                 if (data.mode != SpeakerMixModel::SingerSourceMode::DynamicMix ||
                     data.dynamicKeyframes.isEmpty())
@@ -1500,7 +1472,6 @@ namespace Automation {
         const CommandContext &context, const ClipId clipId, const bool bypassed) {
         return mutateClipSpeakerMix(
             OperationIds::speaker_mix::set_dynamic_bypass, context, clipId,
-            speakerMixEditFingerprint(QByteArrayLiteral("set_dynamic_bypass"), clipId, {bypassed}),
             [bypassed](SpeakerMixModel::SpeakerMixData &data) -> AutomationResult<bool> {
                 if (data.mode != SpeakerMixModel::SingerSourceMode::DynamicMix ||
                     data.dynamicKeyframes.isEmpty()) {
@@ -1519,7 +1490,7 @@ namespace Automation {
     AutomationResult<MutationResult> ParameterAutomationFacade::insertSpeakerMixKeyframe(
         const CommandContext &context, const ClipId clipId, const int position,
         const std::optional<QVector<double>> weights) {
-        return mutateClipSpeakerMix(
+        return mutateIdempotentClipSpeakerMix(
             OperationIds::speaker_mix::keyframes::insert, context, clipId,
             speakerMixEditFingerprint(QByteArrayLiteral("insert_keyframe"), clipId, {position},
                                       weights.value_or(QVector<double>{})),
@@ -1569,7 +1540,6 @@ namespace Automation {
         }
         return mutateClipSpeakerMix(
             OperationIds::speaker_mix::keyframes::move, context, clipId,
-            speakerMixEditFingerprint(QByteArrayLiteral("move_keyframes"), clipId, scalars),
             [moves](SpeakerMixModel::SpeakerMixData &data) -> AutomationResult<bool> {
                 if (data.mode != SpeakerMixModel::SingerSourceMode::DynamicMix)
                     return AutomationError::invalidArgument(
@@ -1624,8 +1594,6 @@ namespace Automation {
         QVector<double> weights) {
         return mutateClipSpeakerMix(
             OperationIds::speaker_mix::keyframes::set_weights, context, clipId,
-            speakerMixEditFingerprint(QByteArrayLiteral("set_keyframe_weights"), clipId,
-                                      {keyframeId.value()}, weights),
             [keyframeId, weights = std::move(weights)](
                 SpeakerMixModel::SpeakerMixData &data) -> AutomationResult<bool> {
                 auto converted = storedSpeakerMixWeights(weights, data.sources.size());
@@ -1652,7 +1620,6 @@ namespace Automation {
             scalars.append(id.value());
         return mutateClipSpeakerMix(
             OperationIds::speaker_mix::keyframes::remove, context, clipId,
-            speakerMixEditFingerprint(QByteArrayLiteral("remove_keyframes"), clipId, scalars),
             [keyframeIds = std::move(keyframeIds)](
                 SpeakerMixModel::SpeakerMixData &data) -> AutomationResult<bool> {
                 QSet<int> remaining;
@@ -1691,7 +1658,6 @@ namespace Automation {
                                                    const TrackId trackId) {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::tracks::clear_voice, context,
-            voiceFingerprint(trackId.value(), {}, {}, {}),
             [this, trackId](DocumentSession &session, const bool validateOnly) {
                 auto resolved = m_objects.track(session, trackId);
                 if (!resolved)
@@ -1716,7 +1682,7 @@ namespace Automation {
         ParameterAutomationFacade::clearClipVoice(const CommandContext &context,
                                                   const ClipId clipId) {
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::clips::clear_voice, context, voiceFingerprint(clipId.value(), {}, {}, {}),
+            OperationIds::clips::clear_voice, context,
             [this, clipId](DocumentSession &session, const bool validateOnly) {
                 auto resolved = m_objects.singingClip(session, clipId);
                 if (!resolved)
@@ -1736,102 +1702,6 @@ namespace Automation {
                 actions->selectClipSingleSpeaker({}, {}, clip);
                 return m_committer.commit(session, std::move(actions), affected);
             });
-    }
-
-    void ParameterAutomationFacade::registerOperations() {
-        const auto add = [this](OperationDescriptor descriptor) {
-            const auto result = m_catalog.add(std::move(descriptor));
-            Q_ASSERT(result);
-        };
-        add({
-            .id = OperationIds::parameters::get,
-            .category = QStringLiteral("parameters"),
-            .kind = OperationKind::Query,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::Read,
-            .revisionPolicy = RevisionPolicy::None,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::None,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::ReadOnly,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
-        add({
-            .id = OperationIds::parameters::get_capabilities,
-            .category = QStringLiteral("parameters"),
-            .kind = OperationKind::Query,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::Read,
-            .revisionPolicy = RevisionPolicy::None,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::None,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::ReadOnly,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
-        add({
-            .id = OperationIds::speaker_mix::get,
-            .category = QStringLiteral("speaker_mix"),
-            .kind = OperationKind::Query,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::Read,
-            .revisionPolicy = RevisionPolicy::None,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::None,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::ReadOnly,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
-        const auto addMutation = [&add](const OperationId &id) {
-            add({
-                .id = id,
-                .category = id.section('.', 0, 0),
-                .kind = OperationKind::Command,
-                .syncMode = SyncMode::Synchronous,
-                .documentPolicy = DocumentPolicy::Write,
-                .revisionPolicy = RevisionPolicy::Increment,
-                .historyPolicy = HistoryPolicy::Record,
-                .fileAccess = FileAccessPolicy::None,
-                .hostAvailability = HostAvailability::Core,
-                .safety = SafetyClass::Reversible,
-                .exposure = ExposurePolicy::InternalOnly,
-                .idempotency = IdempotencyPolicy::DocumentGeneration,
-            });
-        };
-        addMutation(OperationIds::parameters::replace);
-        addMutation(OperationIds::parameters::draw);
-        addMutation(OperationIds::parameters::erase);
-        addMutation(OperationIds::parameters::bake);
-        addMutation(OperationIds::parameters::create_anchor_curve);
-        addMutation(OperationIds::parameters::insert_anchors);
-        addMutation(OperationIds::parameters::merge_anchor_curves);
-        addMutation(OperationIds::parameters::move_anchors);
-        addMutation(OperationIds::parameters::remove_anchors);
-        addMutation(OperationIds::parameters::set_anchor_interpolation);
-        addMutation(OperationIds::tracks::set_voice);
-        addMutation(OperationIds::tracks::clear_voice);
-        addMutation(OperationIds::clips::use_track_voice);
-        addMutation(OperationIds::clips::set_voice);
-        addMutation(OperationIds::clips::clear_voice);
-        addMutation(OperationIds::speaker_mix::set_fixed);
-        addMutation(OperationIds::speaker_mix::enable_dynamic);
-        addMutation(OperationIds::speaker_mix::disable_dynamic);
-        addMutation(OperationIds::speaker_mix::set_dynamic_bypass);
-        addMutation(OperationIds::speaker_mix::keyframes::insert);
-        addMutation(OperationIds::speaker_mix::keyframes::move);
-        addMutation(OperationIds::speaker_mix::keyframes::set_weights);
-        addMutation(OperationIds::speaker_mix::keyframes::remove);
-        addMutation(OperationIds::speaker_mix::clip::apply);
-        addMutation(OperationIds::speaker_mix::clip::enable_dynamic);
-        addMutation(OperationIds::speaker_mix::clip::replace);
-        addMutation(OperationIds::speaker_mix::clip::select_single);
-        addMutation(OperationIds::speaker_mix::clip::use_track);
-        addMutation(OperationIds::speaker_mix::track::apply);
-        addMutation(OperationIds::speaker_mix::track::replace);
-        addMutation(OperationIds::speaker_mix::track::select_single);
     }
 
 } // namespace Automation

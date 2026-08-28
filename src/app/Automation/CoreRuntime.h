@@ -48,8 +48,6 @@ namespace Automation {
 
         EditorAutomationFacade &facade();
         const EditorAutomationFacade &facade() const;
-        OperationCatalog &catalog();
-        const OperationCatalog &catalog() const;
         AutomationDispatcher &dispatcher();
         ApplicationAutomationFacade &application();
         AudioExportAutomationFacade &audioExports();
@@ -75,7 +73,6 @@ namespace Automation {
         DocumentSession m_session;
         SingleDocumentSessionResolver m_documentResolver;
         SingleWindowContext m_windowContext;
-        OperationCatalog m_catalog;
         AutomationDispatcher m_dispatcher;
         CommandCommitter m_committer;
         DocumentObjectResolver m_objectResolver;

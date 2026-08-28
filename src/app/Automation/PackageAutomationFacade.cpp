@@ -42,11 +42,9 @@ namespace Automation {
         }
     }
 
-    PackageAutomationFacade::PackageAutomationFacade(OperationCatalog &catalog,
-                                                     AutomationDispatcher &dispatcher,
+    PackageAutomationFacade::PackageAutomationFacade(AutomationDispatcher &dispatcher,
                                                      PackageRuntimeServices services)
-        : m_catalog(catalog), m_dispatcher(dispatcher), m_services(std::move(services)) {
-        registerOperations();
+        : m_dispatcher(dispatcher), m_services(std::move(services)) {
     }
 
     AutomationResult<QList<PackageDto>> PackageAutomationFacade::getInstalledPackages() {
@@ -169,7 +167,7 @@ namespace Automation {
     AutomationResult<MutationResult>
         PackageAutomationFacade::resolveDocumentVoices(const CommandContext &context) {
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::packages::resolve_document_voices, context, {},
+            OperationIds::packages::resolve_document_voices, context,
             [this](DocumentSession &session, const bool validateOnly) {
                 if (!m_services.resolveDocumentVoices)
                     return AutomationResult<MutationResult>(unavailable());
@@ -183,69 +181,6 @@ namespace Automation {
                     .validatedOnly = validateOnly,
                 });
             });
-    }
-
-    void PackageAutomationFacade::registerOperations() {
-        const auto add = [this](OperationDescriptor descriptor) {
-            const auto result = m_catalog.add(std::move(descriptor));
-            Q_ASSERT(result);
-        };
-        add({
-            .id = OperationIds::packages::list,
-            .category = QStringLiteral("packages"),
-            .kind = OperationKind::Query,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::None,
-            .revisionPolicy = RevisionPolicy::None,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::None,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::ReadOnly,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
-        add({
-            .id = OperationIds::packages::resolve_document_voices,
-            .category = QStringLiteral("packages"),
-            .kind = OperationKind::Command,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::Write,
-            .revisionPolicy = RevisionPolicy::Check,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::None,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::Reversible,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
-        add({
-            .id = OperationIds::packages::refresh,
-            .category = QStringLiteral("packages"),
-            .kind = OperationKind::Command,
-            .syncMode = SyncMode::Asynchronous,
-            .documentPolicy = DocumentPolicy::None,
-            .revisionPolicy = RevisionPolicy::None,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::Read,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::FileSystem,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
-        add({
-            .id = OperationIds::packages::validate,
-            .category = QStringLiteral("packages"),
-            .kind = OperationKind::Query,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::None,
-            .revisionPolicy = RevisionPolicy::None,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::Read,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::ReadOnly,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
     }
 
 } // namespace Automation

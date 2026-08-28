@@ -499,30 +499,13 @@ namespace RuntimeDimensions {
                                 operationId,
                                 QStringLiteral("missing loop apply host must be explicit"));
             });
-            log.run(operationId, QStringLiteral("IDEMPOTENT-REPLAY"), [&] {
+            log.run(operationId, QStringLiteral("IDEMPOTENCY-REJECTED"), [&] {
                 RuntimeHarness harness;
                 const auto context = commandContext(harness, false, QStringLiteral("set-loop-key"));
-                const auto first = harness.core().playback().setLoop(context, target);
-                const auto replay = harness.core().playback().setLoop(context, target);
-                log.expect(
-                    first && replay && first.get() == replay.get() &&
-                        harness.core().documentVersion().revision == 1 &&
-                        harness.hostCalls.value(QStringLiteral("playback.loop.apply")) == 1,
-                    QStringLiteral("loop replay must return the first result without reapply"));
-            });
-            log.run(operationId, QStringLiteral("IDEMPOTENCY-CONFLICT"), [&] {
-                RuntimeHarness harness;
-                const auto context =
-                    commandContext(harness, false, QStringLiteral("loop-conflict"));
-                const auto first = harness.core().playback().setLoop(context, target);
-                const auto conflict =
-                    harness.core().playback().setLoop(context, LoopSettings(false, 480, 1920));
-                log.expect(bool(first), QStringLiteral("first keyed loop mutation must commit"));
-                log.expectError(conflict, Automation::AutomationErrorCode::IdempotencyConflict,
+                const auto result = harness.core().playback().setLoop(context, target);
+                log.expectError(result, Automation::AutomationErrorCode::InvalidArgument,
                                 operationId,
-                                QStringLiteral("same key with another loop must conflict"));
-                log.expect(harness.hostCalls.value(QStringLiteral("playback.loop.apply")) == 1,
-                           QStringLiteral("loop conflict must not reapply host state"));
+                                QStringLiteral("loop mutation must reject idempotency keys"));
             });
         }
 
@@ -596,30 +579,15 @@ namespace RuntimeDimensions {
                                 operationId,
                                 QStringLiteral("missing loop host must reject enable"));
             });
-            log.run(operationId, QStringLiteral("IDEMPOTENT-REPLAY"), [&] {
+            log.run(operationId, QStringLiteral("IDEMPOTENCY-REJECTED"), [&] {
                 RuntimeHarness harness;
                 harness.playback.loop = LoopSettings(false, 100, 500);
                 const auto context =
                     commandContext(harness, false, QStringLiteral("enable-loop-key"));
-                const auto first = harness.core().playback().setLoopEnabled(context, true);
-                const auto replay = harness.core().playback().setLoopEnabled(context, true);
-                log.expect(first && replay && first.get() == replay.get() &&
-                               harness.hostCalls.value(QStringLiteral("playback.loop.apply")) ==
-                                   1 &&
-                               harness.core().documentVersion().revision == 1,
-                           QStringLiteral("loop enable replay must apply once"));
-            });
-            log.run(operationId, QStringLiteral("IDEMPOTENCY-CONFLICT"), [&] {
-                RuntimeHarness harness;
-                harness.playback.loop = LoopSettings(false, 100, 500);
-                const auto context =
-                    commandContext(harness, false, QStringLiteral("enable-conflict"));
-                const auto first = harness.core().playback().setLoopEnabled(context, true);
-                const auto conflict = harness.core().playback().setLoopEnabled(context, false);
-                log.expect(bool(first), QStringLiteral("first keyed enable must commit"));
-                log.expectError(conflict, Automation::AutomationErrorCode::IdempotencyConflict,
+                const auto result = harness.core().playback().setLoopEnabled(context, true);
+                log.expectError(result, Automation::AutomationErrorCode::InvalidArgument,
                                 operationId,
-                                QStringLiteral("same key with another enabled flag must conflict"));
+                                QStringLiteral("loop enable must reject idempotency keys"));
             });
         }
 
@@ -680,32 +648,15 @@ namespace RuntimeDimensions {
                 log.expectError(result, Automation::AutomationErrorCode::HostCapabilityUnavailable,
                                 operationId, QStringLiteral("missing loop host must reject clear"));
             });
-            log.run(operationId, QStringLiteral("IDEMPOTENT-REPLAY"), [&] {
+            log.run(operationId, QStringLiteral("IDEMPOTENCY-REJECTED"), [&] {
                 RuntimeHarness harness;
                 harness.playback.loop = LoopSettings(true, 100, 500);
                 const auto context =
                     commandContext(harness, false, QStringLiteral("clear-loop-key"));
-                const auto first = harness.core().playback().clearLoop(context);
-                const auto replay = harness.core().playback().clearLoop(context);
-                log.expect(first && replay && first.get() == replay.get() &&
-                               harness.hostCalls.value(QStringLiteral("playback.loop.apply")) ==
-                                   1 &&
-                               harness.core().documentVersion().revision == 1,
-                           QStringLiteral("clear replay must preserve first result and call once"));
-            });
-            log.run(operationId, QStringLiteral("IDEMPOTENCY-CONFLICT"), [&] {
-                RuntimeHarness harness;
-                harness.playback.loop = LoopSettings(true, 100, 500);
-                const auto context =
-                    commandContext(harness, false, QStringLiteral("clear-conflict"));
-                const auto first = harness.core().playback().clearLoop(context);
-                auto changedExpected = context;
-                changedExpected.expected = harness.core().documentVersion();
-                const auto conflict = harness.core().playback().clearLoop(changedExpected);
-                log.expect(bool(first), QStringLiteral("first keyed clear must commit"));
-                log.expectError(
-                    conflict, Automation::AutomationErrorCode::IdempotencyConflict, operationId,
-                    QStringLiteral("same key with another expected revision must conflict"));
+                const auto result = harness.core().playback().clearLoop(context);
+                log.expectError(result, Automation::AutomationErrorCode::InvalidArgument,
+                                operationId,
+                                QStringLiteral("clear loop must reject idempotency keys"));
             });
         }
     }

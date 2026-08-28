@@ -47,40 +47,6 @@ namespace {
         Automation::DocumentSession &m_second;
     };
 
-    Automation::OperationDescriptor commandDescriptor() {
-        return {
-            .id = QStringLiteral("test.command"),
-            .category = QStringLiteral("test"),
-            .kind = Automation::OperationKind::Command,
-            .syncMode = Automation::SyncMode::Synchronous,
-            .documentPolicy = Automation::DocumentPolicy::Write,
-            .revisionPolicy = Automation::RevisionPolicy::Increment,
-            .historyPolicy = Automation::HistoryPolicy::Record,
-            .fileAccess = Automation::FileAccessPolicy::None,
-            .hostAvailability = Automation::HostAvailability::Core,
-            .safety = Automation::SafetyClass::Reversible,
-            .exposure = Automation::ExposurePolicy::InternalOnly,
-            .idempotency = Automation::IdempotencyPolicy::DocumentGeneration,
-        };
-    }
-
-    Automation::OperationDescriptor queryDescriptor() {
-        return {
-            .id = QStringLiteral("test.query"),
-            .category = QStringLiteral("test"),
-            .kind = Automation::OperationKind::Query,
-            .syncMode = Automation::SyncMode::Synchronous,
-            .documentPolicy = Automation::DocumentPolicy::Read,
-            .revisionPolicy = Automation::RevisionPolicy::None,
-            .historyPolicy = Automation::HistoryPolicy::None,
-            .fileAccess = Automation::FileAccessPolicy::None,
-            .hostAvailability = Automation::HostAvailability::Core,
-            .safety = Automation::SafetyClass::ReadOnly,
-            .exposure = Automation::ExposurePolicy::InternalOnly,
-            .idempotency = Automation::IdempotencyPolicy::Unsupported,
-        };
-    }
-
     bool hasTempoAt(const AppModel &model, const int tick, const double value) {
         const auto &tempos = model.timeline().tempos();
         return std::any_of(tempos.cbegin(), tempos.cend(), [tick, value](const Tempo &tempo) {
@@ -232,16 +198,6 @@ int main(int argc, char *argv[]) {
     Automation::DocumentSession second(nullptr, nullptr);
     FakeResolver resolver(first, second);
     Automation::SingleWindowContext window;
-    Automation::OperationCatalog catalog;
-
-    ok &= expect(catalog.add(queryDescriptor()).isPresent(), "query descriptor must register");
-    ok &= expect(catalog.add(commandDescriptor()).isPresent(), "command descriptor must register");
-    ok &= expect(!catalog.add(commandDescriptor()).isPresent(),
-                 "duplicate operation ID must be rejected");
-    auto otherCommand = commandDescriptor();
-    otherCommand.id = QStringLiteral("test.other_command");
-    ok &= expect(catalog.add(std::move(otherCommand)).isPresent(),
-                 "second command descriptor must register");
     ok &=
         expect(Automation::errorCodeName(Automation::AutomationErrorCode::PathRequired) ==
                        QStringLiteral("path_required") &&
@@ -261,7 +217,7 @@ int main(int argc, char *argv[]) {
                        QStringLiteral("unsupported"),
                "file error codes must keep stable external names");
 
-    Automation::AutomationDispatcher dispatcher(resolver, window, catalog);
+    Automation::AutomationDispatcher dispatcher(resolver, window);
     auto secondQuery = dispatcher.dispatchDocumentQuery<Automation::Revision>(
         QStringLiteral("test.query"), second.documentId(),
         [](Automation::DocumentSession &session) {
@@ -285,24 +241,24 @@ int main(int argc, char *argv[]) {
         return Automation::AutomationResult<Automation::MutationResult>(result);
     };
 
-    const auto firstResult = dispatcher.dispatchDocumentCommand(
+    const auto firstResult = dispatcher.dispatchIdempotentDocumentCommand(
         QStringLiteral("test.command"), context, QByteArrayLiteral("payload"), handler);
     ok &= expect(firstResult && firstResult.get().current.revision == 1,
                  "command must return the committed revision");
 
-    const auto replayed = dispatcher.dispatchDocumentCommand(
+    const auto replayed = dispatcher.dispatchIdempotentDocumentCommand(
         QStringLiteral("test.command"), context, QByteArrayLiteral("payload"), handler);
     ok &= expect(replayed && replayed.get() == firstResult.get(),
                  "same idempotency key must replay the original result");
     ok &= expect(executionCount == 1 && first.revision() == 1,
                  "idempotent replay must not execute or increment revision again");
 
-    const auto conflict = dispatcher.dispatchDocumentCommand(
+    const auto conflict = dispatcher.dispatchIdempotentDocumentCommand(
         QStringLiteral("test.command"), context, QByteArrayLiteral("different"), handler);
     ok &= expect(!conflict && conflict.getError().code ==
                                   Automation::AutomationErrorCode::IdempotencyConflict,
                  "same key with another request must fail with idempotency conflict");
-    const auto operationConflict = dispatcher.dispatchDocumentCommand(
+    const auto operationConflict = dispatcher.dispatchIdempotentDocumentCommand(
         QStringLiteral("test.other_command"), context, QByteArrayLiteral("payload"), handler);
     ok &= expect(!operationConflict && operationConflict.getError().code ==
                                            Automation::AutomationErrorCode::IdempotencyConflict,
@@ -701,144 +657,21 @@ int main(int argc, char *argv[]) {
                             << "; extra: " << extra.join(", ") << Qt::endl;
     }
     ok &= expect(capabilities && capabilities.get().operationIds == Automation::OperationIds::all(),
-                 "Catalog and the centralized operation registry must match");
-
-    struct DescriptorExpectation {
-        Automation::OperationId id;
-        Automation::OperationKind kind;
-        Automation::SyncMode syncMode;
-        Automation::DocumentPolicy documentPolicy;
-        Automation::RevisionPolicy revisionPolicy;
-        Automation::HistoryPolicy historyPolicy;
-        Automation::FileAccessPolicy fileAccess;
-    };
-
-    const QList<DescriptorExpectation> publicFacadeDescriptors{
-        {Automation::OperationIds::audio_clips::get,                 Automation::OperationKind::Query,
-         Automation::SyncMode::Synchronous,                                                                                                 Automation::DocumentPolicy::Read,
-         Automation::RevisionPolicy::None,                                                                                                                                                                         Automation::HistoryPolicy::None,
-         Automation::FileAccessPolicy::None                                                                                                                                                                                                                                             },
-        {Automation::OperationIds::audio_clips::import_audio,        Automation::OperationKind::Command,
-         Automation::SyncMode::Asynchronous,                                                                                                Automation::DocumentPolicy::Write,
-         Automation::RevisionPolicy::Increment,                                                                                                                                                                    Automation::HistoryPolicy::Record,
-         Automation::FileAccessPolicy::Read                                                                                                                                                                                                                                             },
-        {Automation::OperationIds::audio_clips::import_batch,        Automation::OperationKind::Command,
-         Automation::SyncMode::Asynchronous,                                                                                                Automation::DocumentPolicy::Write,
-         Automation::RevisionPolicy::Increment,                                                                                                                                                                    Automation::HistoryPolicy::Record,
-         Automation::FileAccessPolicy::Read                                                                                                                                                                                                                                             },
-        {Automation::OperationIds::clips::get,                       Automation::OperationKind::Query,
-         Automation::SyncMode::Synchronous,                                                                                                 Automation::DocumentPolicy::Read,
-         Automation::RevisionPolicy::None,                                                                                                                                                                         Automation::HistoryPolicy::None,
-         Automation::FileAccessPolicy::None                                                                                                                                                                                                                                             },
-        {Automation::OperationIds::clips::get_voice_context,         Automation::OperationKind::Query,
-         Automation::SyncMode::Synchronous,                                                                                                 Automation::DocumentPolicy::Read,
-         Automation::RevisionPolicy::None,                                                                                                                                                                         Automation::HistoryPolicy::None,
-         Automation::FileAccessPolicy::None                                                                                                                                                                                                                                             },
-        {Automation::OperationIds::clips::list,                      Automation::OperationKind::Query,
-         Automation::SyncMode::Synchronous,                                                                                                 Automation::DocumentPolicy::Read,
-         Automation::RevisionPolicy::None,                                                                                                                                                                         Automation::HistoryPolicy::None,
-         Automation::FileAccessPolicy::None                                                                                                                                                                                                                                             },
-        {Automation::OperationIds::documents::import_document,       Automation::OperationKind::Command,
-         Automation::SyncMode::Asynchronous,                                                                                                Automation::DocumentPolicy::Write,
-         Automation::RevisionPolicy::Increment,                                                                                                                                                                    Automation::HistoryPolicy::Record,
-         Automation::FileAccessPolicy::Read                                                                                                                                                                                                                                             },
-        {Automation::OperationIds::documents::import_batch,          Automation::OperationKind::Command,
-         Automation::SyncMode::Asynchronous,                                                                                                Automation::DocumentPolicy::Write,
-         Automation::RevisionPolicy::Increment,                                                                                                                                                                    Automation::HistoryPolicy::Record,
-         Automation::FileAccessPolicy::Read                                                                                                                                                                                                                                             },
-        {Automation::OperationIds::documents::new_document,          Automation::OperationKind::Command,
-         Automation::SyncMode::Synchronous,                                                                                                 Automation::DocumentPolicy::Replace,
-         Automation::RevisionPolicy::Reset,                                                                                                                                                                        Automation::HistoryPolicy::None,
-         Automation::FileAccessPolicy::None                                                                                                                                                                                                                                             },
-        {Automation::OperationIds::documents::open,                  Automation::OperationKind::Command,
-         Automation::SyncMode::Asynchronous,                                                                                                Automation::DocumentPolicy::Replace,
-         Automation::RevisionPolicy::Reset,                                                                                                                                                                        Automation::HistoryPolicy::None,
-         Automation::FileAccessPolicy::Read                                                                                                                                                                                                                                             },
-        {Automation::OperationIds::documents::save_as,               Automation::OperationKind::Command,
-         Automation::SyncMode::Synchronous,                                                                                                 Automation::DocumentPolicy::Write,
-         Automation::RevisionPolicy::Check,                                                                                                                                                                        Automation::HistoryPolicy::None,
-         Automation::FileAccessPolicy::Write                                                                                                                                                                                                                                            },
-        {Automation::OperationIds::exports::audio::get_capabilities,
-         Automation::OperationKind::Query,                                                               Automation::SyncMode::Synchronous,
-         Automation::DocumentPolicy::Read,                                                                                                                                       Automation::RevisionPolicy::None,
-         Automation::HistoryPolicy::None,                                                                                                                                                                                                             Automation::FileAccessPolicy::None},
-        {Automation::OperationIds::exports::midi::get_capabilities,
-         Automation::OperationKind::Query,                                                               Automation::SyncMode::Synchronous,
-         Automation::DocumentPolicy::Read,                                                                                                                                       Automation::RevisionPolicy::None,
-         Automation::HistoryPolicy::None,                                                                                                                                                                                                             Automation::FileAccessPolicy::None},
-        {Automation::OperationIds::exports::midi::preview,           Automation::OperationKind::Query,
-         Automation::SyncMode::Synchronous,                                                                                                 Automation::DocumentPolicy::Read,
-         Automation::RevisionPolicy::None,                                                                                                                                                                         Automation::HistoryPolicy::None,
-         Automation::FileAccessPolicy::Write                                                                                                                                                                                                                                            },
-        {Automation::OperationIds::extract::get_capabilities,        Automation::OperationKind::Query,
-         Automation::SyncMode::Synchronous,                                                                                                 Automation::DocumentPolicy::Read,
-         Automation::RevisionPolicy::None,                                                                                                                                                                         Automation::HistoryPolicy::None,
-         Automation::FileAccessPolicy::Read                                                                                                                                                                                                                                             },
-        {Automation::OperationIds::formats::inspect,                 Automation::OperationKind::Query,
-         Automation::SyncMode::Synchronous,                                                                                                 Automation::DocumentPolicy::None,
-         Automation::RevisionPolicy::None,                                                                                                                                                                         Automation::HistoryPolicy::None,
-         Automation::FileAccessPolicy::Read                                                                                                                                                                                                                                             },
-        {Automation::OperationIds::inference::get_capabilities,      Automation::OperationKind::Query,
-         Automation::SyncMode::Synchronous,                                                                                                 Automation::DocumentPolicy::Read,
-         Automation::RevisionPolicy::None,                                                                                                                                                                         Automation::HistoryPolicy::None,
-         Automation::FileAccessPolicy::None                                                                                                                                                                                                                                             },
-        {Automation::OperationIds::inference::get_status,            Automation::OperationKind::Query,
-         Automation::SyncMode::Synchronous,                                                                                                 Automation::DocumentPolicy::Read,
-         Automation::RevisionPolicy::None,                                                                                                                                                                         Automation::HistoryPolicy::None,
-         Automation::FileAccessPolicy::None                                                                                                                                                                                                                                             },
-        {Automation::OperationIds::inference::start,                 Automation::OperationKind::Command,
-         Automation::SyncMode::Asynchronous,                                                                                                Automation::DocumentPolicy::Write,
-         Automation::RevisionPolicy::Increment,                                                                                                                                                                    Automation::HistoryPolicy::Record,
-         Automation::FileAccessPolicy::None                                                                                                                                                                                                                                             },
-        {Automation::OperationIds::notes::fill_lyrics,               Automation::OperationKind::Command,
-         Automation::SyncMode::Synchronous,                                                                                                 Automation::DocumentPolicy::Write,
-         Automation::RevisionPolicy::Increment,                                                                                                                                                                    Automation::HistoryPolicy::Record,
-         Automation::FileAccessPolicy::None                                                                                                                                                                                                                                             },
-        {Automation::OperationIds::tracks::get,                      Automation::OperationKind::Query,
-         Automation::SyncMode::Synchronous,                                                                                                 Automation::DocumentPolicy::Read,
-         Automation::RevisionPolicy::None,                                                                                                                                                                         Automation::HistoryPolicy::None,
-         Automation::FileAccessPolicy::None                                                                                                                                                                                                                                             },
-        {Automation::OperationIds::tracks::get_voice_context,        Automation::OperationKind::Query,
-         Automation::SyncMode::Synchronous,                                                                                                 Automation::DocumentPolicy::Read,
-         Automation::RevisionPolicy::None,                                                                                                                                                                         Automation::HistoryPolicy::None,
-         Automation::FileAccessPolicy::None                                                                                                                                                                                                                                             },
-        {Automation::OperationIds::tracks::list,                     Automation::OperationKind::Query,
-         Automation::SyncMode::Synchronous,                                                                                                 Automation::DocumentPolicy::Read,
-         Automation::RevisionPolicy::None,                                                                                                                                                                         Automation::HistoryPolicy::None,
-         Automation::FileAccessPolicy::None                                                                                                                                                                                                                                             },
-    };
-    for (const auto &expected : publicFacadeDescriptors) {
-        const auto *descriptor = runtime.catalog().find(expected.id);
-        const auto matches = descriptor && descriptor->kind == expected.kind &&
-                             descriptor->syncMode == expected.syncMode &&
-                             descriptor->documentPolicy == expected.documentPolicy &&
-                             descriptor->revisionPolicy == expected.revisionPolicy &&
-                             descriptor->historyPolicy == expected.historyPolicy &&
-                             descriptor->fileAccess == expected.fileAccess;
-        if (!matches)
-            QTextStream(stderr) << "FAILED: catalog descriptor mismatch for " << expected.id
-                                << Qt::endl;
-        ok &= matches;
-    }
+                 "Capability surface and the centralized operation registry must match");
 
     const auto formats = runtime.files().listFormats();
     ok &= expect(formats && formats.get().size() == 1 && formats.get().first().canExport,
                  "format discovery must return typed handler capabilities");
     QTemporaryDir exportDirectory;
     auto midiContext = commandContext(runtime);
-    midiContext.idempotencyKey = QStringLiteral("a6a762a9-ed3c-4bbf-b2a4-921f332cd303");
     const auto midiPath = exportDirectory.filePath(QStringLiteral("automation.mid"));
     auto midiPreviewContext = midiContext;
     midiPreviewContext.validateOnly = true;
     const auto midiPreview = runtime.files().exportMidi(midiPreviewContext, midiPath, false);
     const auto midiExport = runtime.files().exportMidi(midiContext, midiPath, false);
-    const auto midiReplay = runtime.files().exportMidi(midiContext, midiPath, false);
     ok &= expect(exportDirectory.isValid() && midiPreview && midiPreview.get().validatedOnly &&
-                     !midiPreview.get().wroteFile && midiExport && midiReplay &&
-                     midiExport.get() == midiReplay.get() && midiExportCount == 1,
-                 "MIDI export must preview without writing and replay idempotently");
-    const auto midiConflict = runtime.files().exportMidi(
-        midiContext, exportDirectory.filePath(QStringLiteral("another.mid")), false);
+                     !midiPreview.get().wroteFile && midiExport && midiExportCount == 1,
+                 "MIDI export must preview without writing before one export");
     const auto missingMidiPath = runtime.files().exportMidi(commandContext(runtime), {}, false);
     const auto relativeMidiPath =
         runtime.files().exportMidi(commandContext(runtime), QStringLiteral("relative.mid"), false);
@@ -848,9 +681,7 @@ int main(int argc, char *argv[]) {
         commandContext(runtime), exportDirectory.filePath(QStringLiteral("absent/automation.mid")),
         false);
     ok &= expect(
-        !midiConflict &&
-            midiConflict.getError().code == Automation::AutomationErrorCode::IdempotencyConflict &&
-            !missingMidiPath &&
+        !missingMidiPath &&
             missingMidiPath.getError().code == Automation::AutomationErrorCode::PathRequired &&
             !relativeMidiPath &&
             relativeMidiPath.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
@@ -859,7 +690,7 @@ int main(int argc, char *argv[]) {
                 Automation::AutomationErrorCode::FormatUnsupported &&
             !absentMidiDirectory &&
             absentMidiDirectory.getError().code == Automation::AutomationErrorCode::FileNotFound,
-        "MIDI export must expose stable idempotency and path validation errors");
+        "MIDI export must expose stable path validation errors");
     const auto existingMidiPath = exportDirectory.filePath(QStringLiteral("existing.mid"));
     QFile existingMidi(existingMidiPath);
     const auto createdExistingMidi = existingMidi.open(QIODevice::WriteOnly);
@@ -882,19 +713,14 @@ int main(int argc, char *argv[]) {
     const auto audioPreview =
         runtime.audioExports().preview(runtime.documentVersion().documentId, audioExportConfig);
     auto audioValidateContext = commandContext(runtime, true);
-    audioValidateContext.idempotencyKey = QStringLiteral("12d0198d-57d7-4454-84c8-19fdce34e457");
     const auto audioValidation =
         runtime.audioExports().start(audioValidateContext, audioExportConfig, {});
     auto audioContext = commandContext(runtime);
-    audioContext.idempotencyKey = audioValidateContext.idempotencyKey;
     const auto audioAccepted = runtime.audioExports().start(audioContext, audioExportConfig, {});
-    const auto audioReplayed = runtime.audioExports().start(audioContext, audioExportConfig, {});
-    ok &=
-        expect(audioPreview && audioPreview.get().filePaths.size() == 1 && audioValidation &&
-                   audioValidation.get().validatedOnly && audioValidation.get().taskId.isNull() &&
-                   audioAccepted && audioReplayed && audioAccepted.get() == audioReplayed.get() &&
-                   scheduledAudioExport,
-               "audio export must preview, validate without a task, and replay one accepted task");
+    ok &= expect(audioPreview && audioPreview.get().filePaths.size() == 1 && audioValidation &&
+                     audioValidation.get().validatedOnly && audioValidation.get().taskId.isNull() &&
+                     audioAccepted && scheduledAudioExport,
+                 "audio export must preview, validate without a task, and accept one task");
     const auto audioVersion = runtime.documentVersion();
     scheduledAudioExport();
     scheduledAudioExport = {};
@@ -1769,48 +1595,23 @@ int main(int argc, char *argv[]) {
                  "extraction completion must reject writeback after an intervening edit");
 
     auto saveContext = commandContext(runtime);
-    saveContext.idempotencyKey = QStringLiteral("7e1f1564-5335-43b8-a464-50db58c1ef2c");
     const auto beforeSave = runtime.documentVersion();
     const auto save = runtime.documents().saveDocument(
         saveContext, QStringLiteral("D:/automation-contract-test.dspx"));
-    const auto saveReplay = runtime.documents().saveDocument(
-        saveContext, QStringLiteral("D:/automation-contract-test.dspx"));
     const auto savedDocument =
         runtime.documents().getDocument(runtime.documentVersion().documentId);
-    ok &= expect(
-        save && saveReplay && save.get() == saveReplay.get() && save.get().changed &&
-            runtime.documentVersion() == beforeSave && saveCount == 1 && savedDocument &&
-            savedDocument.get().path == QStringLiteral("D:/automation-contract-test.dspx") &&
-            savedDocument.get().saved,
-        "save must preserve revision, update identity, set savepoint, and replay idempotently");
+    ok &=
+        expect(save && save.get().changed && runtime.documentVersion() == beforeSave &&
+                   saveCount == 1 && savedDocument &&
+                   savedDocument.get().path == QStringLiteral("D:/automation-contract-test.dspx") &&
+                   savedDocument.get().saved,
+               "save must preserve revision, update identity, and set the savepoint");
 
-    auto sharedSaveKeyContext = commandContext(runtime);
-    sharedSaveKeyContext.idempotencyKey = QStringLiteral("7e1f1564-5335-43b8-a464-50db58c1ef2d");
-    const auto saveCountBeforeSharedKey = saveCount;
+    const auto saveCountBeforeSaveAs = saveCount;
     const auto sharedSavePath = QStringLiteral("D:/automation-shared-save-key.dspx");
-    const auto sharedKeySave =
-        runtime.documents().saveDocument(sharedSaveKeyContext, sharedSavePath);
-    const auto sharedKeySaveAsConflict =
-        runtime.documents().saveDocumentAs(sharedSaveKeyContext, sharedSavePath);
-    const auto sharedKeySaveReplay =
-        runtime.documents().saveDocument(sharedSaveKeyContext, sharedSavePath);
-    ok &= expect(sharedKeySave && !sharedKeySaveAsConflict &&
-                     sharedKeySaveAsConflict.getError().code ==
-                         Automation::AutomationErrorCode::IdempotencyConflict &&
-                     sharedKeySaveAsConflict.getError().operationId ==
-                         Automation::OperationIds::documents::save_as &&
-                     sharedKeySaveReplay && sharedKeySaveReplay.get() == sharedKeySave.get() &&
-                     saveCount == saveCountBeforeSharedKey + 1,
-                 "save-as must report its own operation when a key conflicts with save");
-
-    auto saveAsReplayContext = commandContext(runtime);
-    saveAsReplayContext.idempotencyKey = QStringLiteral("7e1f1564-5335-43b8-a464-50db58c1ef2e");
-    const auto saveAs = runtime.documents().saveDocumentAs(saveAsReplayContext, sharedSavePath);
-    const auto saveAsReplay =
-        runtime.documents().saveDocumentAs(saveAsReplayContext, sharedSavePath);
-    ok &= expect(saveAs && saveAsReplay && saveAsReplay.get() == saveAs.get() &&
-                     saveCount == saveCountBeforeSharedKey + 2,
-                 "save-as must replay once under its own operation id");
+    const auto saveAs = runtime.documents().saveDocumentAs(commandContext(runtime), sharedSavePath);
+    ok &= expect(saveAs && saveCount == saveCountBeforeSaveAs + 1,
+                 "save-as must invoke the backend once");
 
     int cancelCount = 0;
     const auto task = runtime.automationTasks().createTask(

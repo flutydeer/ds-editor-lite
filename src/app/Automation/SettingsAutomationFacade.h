@@ -593,7 +593,7 @@ namespace Automation {
 
     class SettingsAutomationFacade final {
     public:
-        SettingsAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
+        SettingsAutomationFacade(AutomationDispatcher &dispatcher,
                                  SettingsRuntimeServices services = {});
 
         AutomationResult<SettingsSnapshotDto> getSettings();
@@ -708,9 +708,7 @@ namespace Automation {
         AutomationResult<AutomationUnit>
             validateFillLyricTarget(const FillLyricSettingsDto &target) const;
 
-        void registerOperations();
 
-        OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
         SettingsRuntimeServices m_services;
     };

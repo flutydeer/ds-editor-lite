@@ -92,7 +92,7 @@ namespace Automation {
 
     class AudioExportAutomationFacade final {
     public:
-        AudioExportAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
+        AudioExportAutomationFacade(AutomationDispatcher &dispatcher,
                                     IDocumentSessionResolver &documentResolver,
                                     AutomationTaskManager &tasks,
                                     AudioExportRuntimeServices services = {});
@@ -125,16 +125,13 @@ namespace Automation {
         struct PendingJobState;
         struct JobRecord;
 
-        void registerOperations();
         void executeTask(const TaskId &taskId, DocumentVersion baseDocument,
-                         AudioExportObserver observer,
-                         AudioExportAccessRevalidator reauthorize,
+                         AudioExportObserver observer, AudioExportAccessRevalidator reauthorize,
                          const std::shared_ptr<PendingJobState> &state);
         AutomationResult<std::reference_wrapper<DocumentSession>>
             resolveDocumentGeneration(const DocumentVersion &version) const;
         void removeJobRecord(const TaskId &taskId);
 
-        OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
         IDocumentSessionResolver &m_documentResolver;
         AutomationTaskManager &m_tasks;

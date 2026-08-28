@@ -29,8 +29,8 @@ namespace Automation {
 
     class DocumentAutomationFacade final {
     public:
-        DocumentAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
-                                 CommandCommitter &committer, AutomationTaskManager &tasks,
+        DocumentAutomationFacade(AutomationDispatcher &dispatcher, CommandCommitter &committer,
+                                 AutomationTaskManager &tasks,
                                  DocumentRuntimeServices services = {});
 
         AutomationResult<DocumentSnapshotDto> getDocument(const DocumentId &documentId);
@@ -62,9 +62,7 @@ namespace Automation {
                                                                    const CommandContext &context,
                                                                    const QString &path,
                                                                    bool allowOverwrite);
-        void registerOperations();
 
-        OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
         CommandCommitter &m_committer;
         AutomationTaskManager &m_tasks;

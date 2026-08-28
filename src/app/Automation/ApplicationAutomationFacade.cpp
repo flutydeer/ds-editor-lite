@@ -13,11 +13,9 @@ namespace Automation {
         }
     }
 
-    ApplicationAutomationFacade::ApplicationAutomationFacade(OperationCatalog &catalog,
-                                                             AutomationDispatcher &dispatcher,
+    ApplicationAutomationFacade::ApplicationAutomationFacade(AutomationDispatcher &dispatcher,
                                                              ApplicationRuntimeServices services)
-        : m_catalog(catalog), m_dispatcher(dispatcher), m_services(std::move(services)) {
-        registerOperations();
+        : m_dispatcher(dispatcher), m_services(std::move(services)) {
     }
 
     AutomationResult<ApplicationInfoDto> ApplicationAutomationFacade::getInfo() {
@@ -52,45 +50,6 @@ namespace Automation {
                     .validatedOnly = validateOnly,
                 });
             });
-    }
-
-    void ApplicationAutomationFacade::registerOperations() {
-        const auto add = [this](OperationDescriptor descriptor) {
-            const auto result = m_catalog.add(std::move(descriptor));
-            Q_ASSERT(result);
-        };
-        add({
-            .id = OperationIds::application::get_info,
-            .category = QStringLiteral("application"),
-            .kind = OperationKind::Query,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::None,
-            .revisionPolicy = RevisionPolicy::None,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::None,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::ReadOnly,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
-        const auto addTermination = [&add](const QString &id) {
-            add({
-                .id = id,
-                .category = QStringLiteral("application"),
-                .kind = OperationKind::Command,
-                .syncMode = SyncMode::Synchronous,
-                .documentPolicy = DocumentPolicy::None,
-                .revisionPolicy = RevisionPolicy::None,
-                .historyPolicy = HistoryPolicy::None,
-                .fileAccess = FileAccessPolicy::None,
-                .hostAvailability = HostAvailability::GuiOnly,
-                .safety = SafetyClass::Destructive,
-                .exposure = ExposurePolicy::InternalOnly,
-                .idempotency = IdempotencyPolicy::Unsupported,
-            });
-        };
-        addTermination(OperationIds::application::request_exit);
-        addTermination(OperationIds::application::request_restart);
     }
 
 } // namespace Automation

@@ -44,8 +44,8 @@ namespace Automation {
 
     class NoteAutomationFacade final {
     public:
-        NoteAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
-                             CommandCommitter &committer, DocumentObjectResolver &objects);
+        NoteAutomationFacade(AutomationDispatcher &dispatcher, CommandCommitter &committer,
+                             DocumentObjectResolver &objects);
 
         AutomationResult<QList<NoteSnapshotDto>> getNotes(const DocumentId &documentId,
                                                           ClipId clipId);
@@ -115,9 +115,7 @@ namespace Automation {
                                                              const CommandContext &context,
                                                              ClipId clipId,
                                                              QList<NoteWordPatchDto> edits);
-        void registerOperations();
 
-        OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
         CommandCommitter &m_committer;
         DocumentObjectResolver &m_objects;

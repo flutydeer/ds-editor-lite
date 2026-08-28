@@ -28,7 +28,7 @@ namespace Automation {
 
     class ApplicationAutomationFacade final {
     public:
-        ApplicationAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
+        ApplicationAutomationFacade(AutomationDispatcher &dispatcher,
                                     ApplicationRuntimeServices services = {});
 
         AutomationResult<ApplicationInfoDto> getInfo();
@@ -36,9 +36,6 @@ namespace Automation {
                                                                ApplicationTerminationMode mode);
 
     private:
-        void registerOperations();
-
-        OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
         ApplicationRuntimeServices m_services;
     };

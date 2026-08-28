@@ -117,69 +117,6 @@ namespace Automation {
             return hash.result();
         }
 
-        QByteArray splitFingerprint(const ClipId clipId, const NoteId noteId,
-                                    const NoteDraftDto &newNote, const int newLength) {
-            QCryptographicHash hash(QCryptographicHash::Sha256);
-            hashInteger(hash, clipId.value());
-            hashInteger(hash, noteId.value());
-            hashInteger(hash, newLength);
-            hashNoteDraft(hash, newNote);
-            return hash.result();
-        }
-
-        QByteArray wordEditsFingerprint(const ClipId clipId, const QList<NoteWordEditDto> &edits) {
-            QCryptographicHash hash(QCryptographicHash::Sha256);
-            hashInteger(hash, clipId.value());
-            hashInteger(hash, edits.size());
-            for (const auto &edit : edits) {
-                hashInteger(hash, edit.noteId.value());
-                hashString(hash, edit.lyric);
-                hashString(hash, edit.language);
-                hashString(hash, edit.pronunciation.original);
-                hashString(hash, edit.pronunciation.edited);
-                hashInteger(hash, edit.pronunciationCandidates.size());
-                for (const auto &candidate : edit.pronunciationCandidates)
-                    hashString(hash, candidate);
-                hash.addData(
-                    QJsonDocument(edit.phonemes.serialize()).toJson(QJsonDocument::Compact));
-                hashInteger(hash, edit.replacePronunciation);
-                hashInteger(hash, edit.replacePronunciationCandidates);
-            }
-            return hash.result();
-        }
-
-        QByteArray wordPatchesFingerprint(const ClipId clipId,
-                                          const QList<NoteWordPatchDto> &edits) {
-            QCryptographicHash hash(QCryptographicHash::Sha256);
-            hashInteger(hash, clipId.value());
-            hashInteger(hash, edits.size());
-            for (const auto &edit : edits) {
-                hashInteger(hash, edit.noteId.value());
-                hashInteger(hash, edit.lyric.has_value());
-                if (edit.lyric)
-                    hashString(hash, *edit.lyric);
-                hashInteger(hash, edit.language.has_value());
-                if (edit.language)
-                    hashString(hash, *edit.language);
-                hashInteger(hash, edit.pronunciation.has_value());
-                if (edit.pronunciation) {
-                    hashString(hash, edit.pronunciation->original);
-                    hashString(hash, edit.pronunciation->edited);
-                }
-                hashInteger(hash, edit.pronunciationCandidates.has_value());
-                if (edit.pronunciationCandidates) {
-                    for (const auto &candidate : *edit.pronunciationCandidates)
-                        hashString(hash, candidate);
-                }
-                hashInteger(hash, edit.phonemes.has_value());
-                if (edit.phonemes) {
-                    hash.addData(
-                        QJsonDocument(edit.phonemes->serialize()).toJson(QJsonDocument::Compact));
-                }
-            }
-            return hash.result();
-        }
-
         bool validNoteDraft(const NoteDraftDto &note) {
             return note.localStart >= 0 && note.length > 0 && note.keyIndex >= 0 &&
                    note.keyIndex <= 127;
@@ -350,12 +287,10 @@ namespace Automation {
         };
     }
 
-    NoteAutomationFacade::NoteAutomationFacade(OperationCatalog &catalog,
-                                               AutomationDispatcher &dispatcher,
+    NoteAutomationFacade::NoteAutomationFacade(AutomationDispatcher &dispatcher,
                                                CommandCommitter &committer,
                                                DocumentObjectResolver &objects)
-        : m_catalog(catalog), m_dispatcher(dispatcher), m_committer(committer), m_objects(objects) {
-        registerOperations();
+        : m_dispatcher(dispatcher), m_committer(committer), m_objects(objects) {
     }
 
     AutomationResult<QList<NoteSnapshotDto>>
@@ -437,7 +372,7 @@ namespace Automation {
     AutomationResult<MutationResult>
         NoteAutomationFacade::insertNotes(const CommandContext &context, const ClipId clipId,
                                           const QList<NoteDraftDto> &notes) {
-        return m_dispatcher.dispatchDocumentCommand(
+        return m_dispatcher.dispatchIdempotentDocumentCommand(
             OperationIds::notes::insert, context, insertFingerprint(clipId, notes),
             [this, clipId, notes](DocumentSession &session, const bool validateOnly) {
                 auto resolved = m_objects.singingClip(session, clipId);
@@ -489,7 +424,7 @@ namespace Automation {
                                              const ClipId targetClipId, const int targetStart) {
         const auto requestFingerprint =
             noteIdsFingerprint(sourceClipId, noteIds, {targetClipId.value(), targetStart});
-        return m_dispatcher.dispatchDocumentCommand(
+        return m_dispatcher.dispatchIdempotentDocumentCommand(
             OperationIds::notes::duplicate, context, requestFingerprint,
             [this, sourceClipId, noteIds = std::move(noteIds), targetClipId,
              targetStart](DocumentSession &session, const bool validateOnly) {
@@ -523,7 +458,7 @@ namespace Automation {
         NoteAutomationFacade::pasteNotes(const CommandContext &context, const ClipId targetClipId,
                                          const int targetStart,
                                          const NoteTransferPayload &payload) {
-        return m_dispatcher.dispatchDocumentCommand(
+        return m_dispatcher.dispatchIdempotentDocumentCommand(
             OperationIds::notes::duplicate, context,
             transferFingerprint(targetClipId, targetStart, payload),
             [this, targetClipId, targetStart, payload](DocumentSession &session,
@@ -617,9 +552,8 @@ namespace Automation {
             return left.value() < right.value();
         });
         const bool duplicates = hasDuplicateIds(noteIds);
-        const auto requestFingerprint = noteIdsFingerprint(clipId, noteIds);
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::notes::remove, context, requestFingerprint,
+            OperationIds::notes::remove, context,
             [this, clipId, noteIds = std::move(noteIds), duplicates](DocumentSession &session,
                                                                      const bool validateOnly) {
                 auto clipResult = m_objects.singingClip(session, clipId);
@@ -657,9 +591,8 @@ namespace Automation {
             return left.value() < right.value();
         });
         const bool duplicates = hasDuplicateIds(noteIds);
-        const auto requestFingerprint = noteIdsFingerprint(clipId, noteIds, {deltaTick, deltaKey});
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::notes::move, context, requestFingerprint,
+            OperationIds::notes::move, context,
             [this, clipId, noteIds = std::move(noteIds), deltaTick, duplicates,
              deltaKey](DocumentSession &session, const bool validateOnly) {
                 auto clipResult = m_objects.singingClip(session, clipId);
@@ -712,10 +645,8 @@ namespace Automation {
             return left.value() < right.value();
         });
         const bool duplicates = hasDuplicateIds(noteIds);
-        const auto requestFingerprint =
-            noteIdsFingerprint(clipId, noteIds, {deltaTick, minimumLength});
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::notes::resize_left, context, requestFingerprint,
+            OperationIds::notes::resize_left, context,
             [this, clipId, noteIds = std::move(noteIds), deltaTick, duplicates,
              minimumLength](DocumentSession &session, const bool validateOnly) {
                 auto clipResult = m_objects.singingClip(session, clipId);
@@ -763,10 +694,8 @@ namespace Automation {
             return left.value() < right.value();
         });
         const bool duplicates = hasDuplicateIds(noteIds);
-        const auto requestFingerprint =
-            noteIdsFingerprint(clipId, noteIds, {deltaTick, minimumLength});
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::notes::resize_right, context, requestFingerprint,
+            OperationIds::notes::resize_right, context,
             [this, clipId, noteIds = std::move(noteIds), deltaTick, duplicates,
              minimumLength](DocumentSession &session, const bool validateOnly) {
                 auto clipResult = m_objects.singingClip(session, clipId);
@@ -809,7 +738,6 @@ namespace Automation {
                                                                      const int newLength) {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::notes::split, context,
-            splitFingerprint(clipId, noteId, newNote, newLength),
             [this, clipId, noteId, newNote, newLength](DocumentSession &session,
                                                        const bool validateOnly) {
                 auto resolved = m_objects.note(session, clipId, noteId);
@@ -843,7 +771,7 @@ namespace Automation {
     AutomationResult<MutationResult>
         NoteAutomationFacade::splitNoteAt(const CommandContext &context, const ClipId clipId,
                                           const NoteId noteId, const int localPosition) {
-        return m_dispatcher.dispatchDocumentCommand(
+        return m_dispatcher.dispatchIdempotentDocumentCommand(
             OperationIds::notes::split_at, context,
             noteIdsFingerprint(clipId, {noteId}, {localPosition}),
             [this, clipId, noteId, localPosition](DocumentSession &session,
@@ -895,9 +823,8 @@ namespace Automation {
             return left.value() < right.value();
         });
         const bool duplicates = hasDuplicateIds(noteIds);
-        const auto requestFingerprint = noteIdsFingerprint(clipId, noteIds);
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::notes::reset_phoneme_offsets, context, requestFingerprint,
+            OperationIds::notes::reset_phoneme_offsets, context,
             [this, clipId, noteIds = std::move(noteIds), duplicates](DocumentSession &session,
                                                                      const bool validateOnly) {
                 auto clipResult = m_objects.singingClip(session, clipId);
@@ -945,7 +872,6 @@ namespace Automation {
                                                 const NoteId noteId, const QList<int> &offsets) {
         return m_dispatcher.dispatchDocumentCommand(
             OperationIds::notes::set_phoneme_offsets, context,
-            noteIdsFingerprint(clipId, {noteId}, offsets),
             [this, clipId, noteId, offsets](DocumentSession &session, const bool validateOnly) {
                 auto resolved = m_objects.note(session, clipId, noteId);
                 if (!resolved)
@@ -981,10 +907,8 @@ namespace Automation {
             return left.value() < right.value();
         });
         const bool duplicates = hasDuplicateIds(noteIds);
-        const auto requestFingerprint =
-            noteIdsFingerprint(clipId, noteIds, {quantize, quantizeStart, quantizeLength});
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::notes::quantize, context, requestFingerprint,
+            OperationIds::notes::quantize, context,
             [this, clipId, noteIds = std::move(noteIds), quantize, quantizeStart, duplicates,
              quantizeLength](DocumentSession &session, const bool validateOnly) {
                 auto clipResult = m_objects.singingClip(session, clipId);
@@ -1041,9 +965,8 @@ namespace Automation {
                   [](const NoteWordEditDto &left, const NoteWordEditDto &right) {
                       return left.noteId.value() < right.noteId.value();
                   });
-        const auto requestFingerprint = wordEditsFingerprint(clipId, edits);
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::notes::set_word_properties, context, requestFingerprint,
+            OperationIds::notes::set_word_properties, context,
             [this, clipId, edits = std::move(edits)](DocumentSession &session,
                                                      const bool validateOnly) {
                 QList<NoteId> ids;
@@ -1145,13 +1068,8 @@ namespace Automation {
             });
         }
 
-        QCryptographicHash hash(QCryptographicHash::Sha256);
-        hashInteger(hash, clipId.value());
-        hashInteger(hash, noteId.value());
-        hashInteger(hash, originalSource);
-        hashString(hash, pronunciation);
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::notes::set_pronunciation, context, hash.result(),
+            OperationIds::notes::set_pronunciation, context,
             [this, clipId, noteId, pronunciation](DocumentSession &session,
                                                   const bool validateOnly) {
                 auto resolved = m_objects.note(session, clipId, noteId);
@@ -1227,9 +1145,8 @@ namespace Automation {
                   [](const NoteWordPatchDto &left, const NoteWordPatchDto &right) {
                       return left.noteId.value() < right.noteId.value();
                   });
-        const auto requestFingerprint = wordPatchesFingerprint(clipId, edits);
         return m_dispatcher.dispatchDocumentCommand(
-            operationId, context, requestFingerprint,
+            operationId, context,
             [this, clipId, edits = std::move(edits)](DocumentSession &session,
                                                      const bool validateOnly) {
                 QList<NoteId> ids;
@@ -1297,76 +1214,6 @@ namespace Automation {
                                                  options);
                 return m_committer.commit(session, std::move(actions), affected);
             });
-    }
-
-    void NoteAutomationFacade::registerOperations() {
-        const auto add = [this](OperationDescriptor descriptor) {
-            const auto result = m_catalog.add(std::move(descriptor));
-            Q_ASSERT(result);
-        };
-        add({
-            .id = OperationIds::notes::list,
-            .category = QStringLiteral("notes"),
-            .kind = OperationKind::Query,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::Read,
-            .revisionPolicy = RevisionPolicy::None,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::None,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::ReadOnly,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
-        add({
-            .id = OperationIds::notes::search,
-            .category = QStringLiteral("notes"),
-            .kind = OperationKind::Query,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::Read,
-            .revisionPolicy = RevisionPolicy::None,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::None,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::ReadOnly,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
-        const auto addMutation = [&add](const OperationId &id) {
-            add({
-                .id = id,
-                .category = QStringLiteral("notes"),
-                .kind = OperationKind::Command,
-                .syncMode = SyncMode::Synchronous,
-                .documentPolicy = DocumentPolicy::Write,
-                .revisionPolicy = RevisionPolicy::Increment,
-                .historyPolicy = HistoryPolicy::Record,
-                .fileAccess = FileAccessPolicy::None,
-                .hostAvailability = HostAvailability::Core,
-                .safety = SafetyClass::Reversible,
-                .exposure = ExposurePolicy::InternalOnly,
-                .idempotency = IdempotencyPolicy::DocumentGeneration,
-            });
-        };
-        addMutation(OperationIds::notes::insert);
-        addMutation(OperationIds::notes::duplicate);
-        addMutation(OperationIds::notes::fill_lyrics);
-        addMutation(OperationIds::notes::move);
-        addMutation(OperationIds::notes::quantize);
-        addMutation(OperationIds::notes::remove);
-        addMutation(OperationIds::notes::resize_left);
-        addMutation(OperationIds::notes::resize_right);
-        addMutation(OperationIds::notes::reset_phoneme_offsets);
-        addMutation(OperationIds::notes::reset_phonemes);
-        addMutation(OperationIds::notes::reset_pronunciation);
-        addMutation(OperationIds::notes::set_language);
-        addMutation(OperationIds::notes::set_lyric);
-        addMutation(OperationIds::notes::set_phonemes);
-        addMutation(OperationIds::notes::set_phoneme_offsets);
-        addMutation(OperationIds::notes::set_pronunciation);
-        addMutation(OperationIds::notes::set_word_properties);
-        addMutation(OperationIds::notes::split);
-        addMutation(OperationIds::notes::split_at);
     }
 
 } // namespace Automation

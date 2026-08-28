@@ -9,6 +9,7 @@
 #include <lite/ProjectModel/AppModel/EffectiveVoiceContext.h>
 
 #include <functional>
+#include <optional>
 
 namespace Automation {
 
@@ -69,8 +70,8 @@ namespace Automation {
 
     class ParameterAutomationFacade final {
     public:
-        ParameterAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
-                                  CommandCommitter &committer, DocumentObjectResolver &objects);
+        ParameterAutomationFacade(AutomationDispatcher &dispatcher, CommandCommitter &committer,
+                                  DocumentObjectResolver &objects);
 
         AutomationResult<ParameterSnapshotDto> getParameter(const DocumentId &documentId,
                                                             ClipId clipId, ParamInfo::Name name,
@@ -200,21 +201,35 @@ namespace Automation {
                                 const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo,
                                 const SpeakerMixModel::SpeakerMixData &data);
         using CurveMutation = std::function<AutomationResult<bool>(QList<CurveDraftDto> &curves)>;
+        AutomationResult<MutationResult> mutateParameter(const OperationId &operationId,
+                                                         const CommandContext &context,
+                                                         ClipId clipId, ParamInfo::Name name,
+                                                         Param::Type type, CurveMutation mutation,
+                                                         QString createdCurveClientRef = {});
         AutomationResult<MutationResult>
-            mutateParameter(const OperationId &operationId, const CommandContext &context,
-                            const QByteArray &operationTag, const QByteArray &requestFingerprint,
-                            ClipId clipId, ParamInfo::Name name, Param::Type type,
-                            CurveMutation mutation, QString createdCurveClientRef = {});
+            mutateIdempotentParameter(const OperationId &operationId, const CommandContext &context,
+                                      const QByteArray &operationTag,
+                                      const QByteArray &requestFingerprint, ClipId clipId,
+                                      ParamInfo::Name name, Param::Type type,
+                                      CurveMutation mutation, QString createdCurveClientRef = {});
+        AutomationResult<MutationResult>
+            mutateParameterImpl(const OperationId &operationId, const CommandContext &context,
+                                const std::optional<QByteArray> &requestFingerprint, ClipId clipId,
+                                ParamInfo::Name name, Param::Type type, CurveMutation mutation,
+                                QString createdCurveClientRef);
         using SpeakerMixMutation =
             std::function<AutomationResult<bool>(SpeakerMixModel::SpeakerMixData &data)>;
         AutomationResult<MutationResult> mutateClipSpeakerMix(const OperationId &operationId,
                                                               const CommandContext &context,
                                                               ClipId clipId,
-                                                              const QByteArray &requestFingerprint,
                                                               SpeakerMixMutation mutation);
-        void registerOperations();
+        AutomationResult<MutationResult> mutateIdempotentClipSpeakerMix(
+            const OperationId &operationId, const CommandContext &context, ClipId clipId,
+            const QByteArray &requestFingerprint, SpeakerMixMutation mutation);
+        AutomationResult<MutationResult> mutateClipSpeakerMixImpl(
+            const OperationId &operationId, const CommandContext &context, ClipId clipId,
+            const std::optional<QByteArray> &requestFingerprint, SpeakerMixMutation mutation);
 
-        OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
         CommandCommitter &m_committer;
         DocumentObjectResolver &m_objects;

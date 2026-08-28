@@ -149,8 +149,8 @@ namespace Automation {
 
     class ExtractionAutomationFacade final {
     public:
-        ExtractionAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
-                                   AutomationTaskManager &tasks, DocumentObjectResolver &objects,
+        ExtractionAutomationFacade(AutomationDispatcher &dispatcher, AutomationTaskManager &tasks,
+                                   DocumentObjectResolver &objects,
                                    ParameterAutomationFacade &parameters,
                                    ProjectAutomationFacade &project, NoteAutomationFacade &notes,
                                    ExtractionRuntimeServices services = {});
@@ -193,9 +193,7 @@ namespace Automation {
                               const ExtractionObserver &observer);
         void notifyFinished(const TaskId &taskId, const DocumentId &documentId,
                             const ExtractionObserver &observer);
-        void registerOperations();
 
-        OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
         AutomationTaskManager &m_tasks;
         DocumentObjectResolver &m_objects;

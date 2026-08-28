@@ -93,15 +93,15 @@ namespace Automation {
         }
     }
 
-    ExtractionAutomationFacade::ExtractionAutomationFacade(
-        OperationCatalog &catalog, AutomationDispatcher &dispatcher, AutomationTaskManager &tasks,
-        DocumentObjectResolver &objects, ParameterAutomationFacade &parameters,
-        ProjectAutomationFacade &project, NoteAutomationFacade &notes,
-        ExtractionRuntimeServices services)
-        : m_catalog(catalog), m_dispatcher(dispatcher), m_tasks(tasks), m_objects(objects),
-          m_parameters(parameters), m_project(project), m_notes(notes),
-          m_services(std::move(services)) {
-        registerOperations();
+    ExtractionAutomationFacade::ExtractionAutomationFacade(AutomationDispatcher &dispatcher,
+                                                           AutomationTaskManager &tasks,
+                                                           DocumentObjectResolver &objects,
+                                                           ParameterAutomationFacade &parameters,
+                                                           ProjectAutomationFacade &project,
+                                                           NoteAutomationFacade &notes,
+                                                           ExtractionRuntimeServices services)
+        : m_dispatcher(dispatcher), m_tasks(tasks), m_objects(objects), m_parameters(parameters),
+          m_project(project), m_notes(notes), m_services(std::move(services)) {
     }
 
     AutomationResult<TaskAcceptedResult>
@@ -115,7 +115,7 @@ namespace Automation {
         const CommandContext &context, const ClipId audioClipId, const ClipId singingClipId,
         PitchExtractionOptionsDto options, ExtractionObserver observer) {
         const auto requestFingerprint = pitchFingerprint(audioClipId, singingClipId, options);
-        return m_dispatcher.dispatchDocumentCommandResult<TaskAcceptedResult>(
+        return m_dispatcher.dispatchIdempotentDocumentCommandResult<TaskAcceptedResult>(
             OperationIds::extract::pitch::start, context, requestFingerprint,
             [this, context, requestFingerprint, audioClipId, singingClipId, source = context.source,
              options = std::move(options), observer = std::move(observer)](
@@ -228,7 +228,7 @@ namespace Automation {
         const CommandContext &context, const ClipId audioClipId, MidiExtractionOptionsDto options,
         ExtractionObserver observer) {
         const auto requestFingerprint = midiFingerprint(audioClipId, options);
-        return m_dispatcher.dispatchDocumentCommandResult<TaskAcceptedResult>(
+        return m_dispatcher.dispatchIdempotentDocumentCommandResult<TaskAcceptedResult>(
             OperationIds::extract::midi::start, context, requestFingerprint,
             [this, context, requestFingerprint, audioClipId, source = context.source,
              options = std::move(options), observer = std::move(observer)](
@@ -641,43 +641,6 @@ namespace Automation {
             it->job->cancel();
             it = m_jobs.erase(it);
         }
-    }
-
-    void ExtractionAutomationFacade::registerOperations() {
-        auto result = m_catalog.add({
-            .id = OperationIds::extract::get_capabilities,
-            .category = QStringLiteral("extract"),
-            .kind = OperationKind::Query,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::Read,
-            .revisionPolicy = RevisionPolicy::None,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::Read,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::ReadOnly,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
-        Q_ASSERT(result);
-        const auto add = [this](const OperationId &id) {
-            const auto result = m_catalog.add({
-                .id = id,
-                .category = QStringLiteral("extract"),
-                .kind = OperationKind::Command,
-                .syncMode = SyncMode::Asynchronous,
-                .documentPolicy = DocumentPolicy::Write,
-                .revisionPolicy = RevisionPolicy::Increment,
-                .historyPolicy = HistoryPolicy::Record,
-                .fileAccess = FileAccessPolicy::Read,
-                .hostAvailability = HostAvailability::Core,
-                .safety = SafetyClass::Reversible,
-                .exposure = ExposurePolicy::InternalOnly,
-                .idempotency = IdempotencyPolicy::DocumentGeneration,
-            });
-            Q_ASSERT(result);
-        };
-        add(OperationIds::extract::pitch::start);
-        add(OperationIds::extract::midi::start);
     }
 
 } // namespace Automation

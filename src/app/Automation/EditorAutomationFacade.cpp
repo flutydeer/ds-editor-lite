@@ -102,13 +102,11 @@ namespace Automation {
         }
     }
 
-    EditorAutomationFacade::EditorAutomationFacade(OperationCatalog &catalog,
-                                                   AutomationDispatcher &dispatcher,
+    EditorAutomationFacade::EditorAutomationFacade(AutomationDispatcher &dispatcher,
                                                    DocumentObjectResolver &objectResolver,
                                                    EditorRuntimeServices services)
-        : m_catalog(catalog), m_dispatcher(dispatcher), m_objectResolver(objectResolver),
+        : m_dispatcher(dispatcher), m_objectResolver(objectResolver),
           m_services(std::move(services)) {
-        registerOperations();
     }
 
     AutomationResult<EditorStateDto>
@@ -1090,97 +1088,9 @@ namespace Automation {
         return m_dispatcher.dispatchApplicationQuery<EditorCapabilitiesDto>(
             OperationIds::editor::get_capabilities, [this] {
                 EditorCapabilitiesDto result;
-                result.operationIds = m_catalog.operationIds();
+                result.operationIds = OperationIds::all();
                 return AutomationResult<EditorCapabilitiesDto>(std::move(result));
             });
-    }
-
-    void EditorAutomationFacade::registerOperations() {
-        m_catalog.add({
-            .id = OperationIds::editor::get_capabilities,
-            .category = QStringLiteral("editor"),
-            .kind = OperationKind::Query,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::None,
-            .revisionPolicy = RevisionPolicy::None,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::None,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::ReadOnly,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
-        m_catalog.add({
-            .id = OperationIds::editor::get_state,
-            .category = QStringLiteral("editor"),
-            .kind = OperationKind::Query,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::Read,
-            .revisionPolicy = RevisionPolicy::None,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::None,
-            .hostAvailability = HostAvailability::GuiOnly,
-            .safety = SafetyClass::ReadOnly,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
-        const auto addGuiCommand = [this](const OperationId &id) {
-            const auto result = m_catalog.add({
-                .id = id,
-                .category = QStringLiteral("editor"),
-                .kind = OperationKind::Command,
-                .syncMode = SyncMode::Synchronous,
-                .documentPolicy = DocumentPolicy::None,
-                .revisionPolicy = RevisionPolicy::None,
-                .historyPolicy = HistoryPolicy::None,
-                .fileAccess = FileAccessPolicy::None,
-                .hostAvailability = HostAvailability::GuiOnly,
-                .safety = SafetyClass::Reversible,
-                .exposure = ExposurePolicy::InternalOnly,
-                .idempotency = IdempotencyPolicy::Unsupported,
-            });
-            Q_ASSERT(result);
-        };
-        const auto addGuiDocumentCommand = [this](const OperationId &id) {
-            const auto result = m_catalog.add({
-                .id = id,
-                .category = QStringLiteral("editor"),
-                .kind = OperationKind::Command,
-                .syncMode = SyncMode::Synchronous,
-                .documentPolicy = DocumentPolicy::Read,
-                .revisionPolicy = RevisionPolicy::Check,
-                .historyPolicy = HistoryPolicy::None,
-                .fileAccess = FileAccessPolicy::None,
-                .hostAvailability = HostAvailability::GuiOnly,
-                .safety = SafetyClass::Reversible,
-                .exposure = ExposurePolicy::InternalOnly,
-                .idempotency = IdempotencyPolicy::Unsupported,
-            });
-            Q_ASSERT(result);
-        };
-        addGuiCommand(OperationIds::editor::center_piano_roll);
-        addGuiCommand(OperationIds::editor::center_track_panel);
-        addGuiCommand(OperationIds::editor::focus_region);
-        addGuiCommand(OperationIds::editor::restore_view);
-        addGuiCommand(OperationIds::editor::set_clip_editor_time_viewport);
-        addGuiCommand(OperationIds::editor::set_panel_visibility);
-        addGuiCommand(OperationIds::editor::set_piano_roll_edit_mode);
-        addGuiCommand(OperationIds::editor::set_piano_roll_pitch_viewport);
-        addGuiCommand(OperationIds::editor::set_piano_roll_scale);
-        addGuiCommand(OperationIds::editor::set_track_panel_viewport);
-        addGuiCommand(OperationIds::editor::set_track_panel_scale);
-        addGuiCommand(OperationIds::editor::show_bottom_panel_page);
-        addGuiCommand(OperationIds::editor::show_region);
-        addGuiCommand(OperationIds::editor::set_auto_page_turn);
-        addGuiCommand(OperationIds::editor::set_quantize);
-        addGuiDocumentCommand(OperationIds::editor::reveal);
-        addGuiDocumentCommand(OperationIds::editor::set_active_clip);
-        addGuiDocumentCommand(OperationIds::editor::set_parameter_background);
-        addGuiDocumentCommand(OperationIds::editor::set_parameter_edit_mode);
-        addGuiDocumentCommand(OperationIds::editor::set_parameter_foreground);
-        addGuiDocumentCommand(OperationIds::editor::set_parameter_value_viewport);
-        addGuiDocumentCommand(OperationIds::editor::set_selection);
-        addGuiDocumentCommand(OperationIds::editor::swap_parameters);
     }
 
 } // namespace Automation

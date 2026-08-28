@@ -1,24 +1,16 @@
 #include "Automation/AutomationDispatcher.h"
-#include "Automation/AudioExportAutomationFacade.h"
 #include "Automation/CoreRuntime.h"
 #include "Automation/OperationIds.h"
 #include "Automation/ProjectAutomationDtos.h"
 #include "TestRuntime.h"
 
-#include <lite/History/HistoryManager.h>
-#include <lite/ProjectModel/AppModel/AppModel.h>
-
 #include <QCoreApplication>
-#include <QDir>
 #include <QEventLoop>
 #include <QMetaObject>
-#include <QTemporaryDir>
 #include <QTextStream>
 
 #include <atomic>
 #include <barrier>
-#include <functional>
-#include <memory>
 #include <optional>
 #include <thread>
 #include <vector>
@@ -33,26 +25,21 @@ namespace {
         return false;
     }
 
-    Automation::CommandContext commandContext(const Automation::CoreRuntime &runtime,
+    Automation::CommandContext commandContext(const Automation::DocumentVersion &version,
                                               const QString &idempotencyKey = {},
                                               const bool validateOnly = false) {
         return {
-            .expected = runtime.documentVersion(),
+            .expected = version,
             .validateOnly = validateOnly,
             .idempotencyKey = idempotencyKey,
             .source = Automation::InvocationSource::Test,
         };
     }
 
-    Automation::CommandContext commandContext(const Automation::DocumentSession &session,
+    Automation::CommandContext commandContext(const Automation::CoreRuntime &runtime,
                                               const QString &idempotencyKey = {},
                                               const bool validateOnly = false) {
-        return {
-            .expected = session.version(),
-            .validateOnly = validateOnly,
-            .idempotencyKey = idempotencyKey,
-            .source = Automation::InvocationSource::Test,
-        };
+        return commandContext(runtime.documentVersion(), idempotencyKey, validateOnly);
     }
 
     Automation::MutationResult successfulMutation(Automation::DocumentSession &session,
@@ -72,621 +59,131 @@ namespace {
         };
     }
 
-    bool serialReplayExecutesOnce() {
+    bool serialReplayAndExplicitOptIn() {
         AutomationTestSupport::TestRuntime fixture;
         auto &runtime = fixture.runtime();
         const auto context =
             commandContext(runtime, QStringLiteral("d0d00000-0000-4000-8000-000000000001"));
-        int executionCount = 0;
-        const auto handler = countedHandler(executionCount);
+        int executions = 0;
+        const auto handler = countedHandler(executions);
 
-        const auto first = runtime.dispatcher().dispatchDocumentCommand(
-            Automation::OperationIds::tracks::insert, context, QByteArrayLiteral("serial"),
-            handler);
-        const auto replay = runtime.dispatcher().dispatchDocumentCommand(
-            Automation::OperationIds::tracks::insert, context, QByteArrayLiteral("serial"),
-            handler);
+        const auto first = runtime.dispatcher().dispatchIdempotentDocumentCommand(
+            Automation::OperationIds::tracks::insert, context, QByteArrayLiteral("alpha"), handler);
+        const auto replay = runtime.dispatcher().dispatchIdempotentDocumentCommand(
+            Automation::OperationIds::tracks::insert, context, QByteArrayLiteral("alpha"), handler);
+        const auto changedInput = runtime.dispatcher().dispatchIdempotentDocumentCommand(
+            Automation::OperationIds::tracks::insert, context, QByteArrayLiteral("beta"), handler);
+        const auto changedOperation = runtime.dispatcher().dispatchIdempotentDocumentCommand(
+            Automation::OperationIds::tracks::move, context, QByteArrayLiteral("alpha"), handler);
 
-        return expect(first && replay && first.get() == replay.get(),
-                      QStringLiteral("serial replay must return the first result")) &&
-               expect(executionCount == 1 && runtime.documentVersion().revision == 1,
-                      QStringLiteral("serial replay must execute and advance revision once"));
+        int ordinaryExecutions = 0;
+        const auto unsupported = runtime.dispatcher().dispatchDocumentCommand(
+            Automation::OperationIds::tracks::move, context, countedHandler(ordinaryExecutions));
+        const auto ordinary = runtime.dispatcher().dispatchDocumentCommand(
+            Automation::OperationIds::tracks::move, commandContext(runtime),
+            countedHandler(ordinaryExecutions));
+
+        const auto isConflict = [](const MutationResult &result) {
+            return !result &&
+                   result.getError().code == Automation::AutomationErrorCode::IdempotencyConflict &&
+                   result.getError().fieldPath == QStringLiteral("idempotency_key");
+        };
+        return expect(first && replay && first.get() == replay.get() && executions == 1,
+                      QStringLiteral("opt-in replay must execute once")) &&
+               expect(isConflict(changedInput) && isConflict(changedOperation),
+                      QStringLiteral("a claimed key must reject changed input or operation")) &&
+               expect(!unsupported &&
+                          unsupported.getError().code ==
+                              Automation::AutomationErrorCode::InvalidArgument &&
+                          ordinaryExecutions == 1 && ordinary,
+                      QStringLiteral(
+                          "ordinary dispatch must reject a key and otherwise bypass the cache"));
     }
 
-    bool concurrentReplayExecutesOnce(const int laneCount) {
+    bool concurrentReplayExecutesOnce() {
+        constexpr int LaneCount = 8;
         AutomationTestSupport::TestRuntime fixture;
         auto &runtime = fixture.runtime();
-        const auto context = commandContext(
-            runtime, QStringLiteral("d0d00000-0000-4000-8000-000000000002-%1").arg(laneCount));
-        std::atomic<int> executionCount = 0;
+        const auto context =
+            commandContext(runtime, QStringLiteral("d0d00000-0000-4000-8000-000000000002"));
+        std::atomic<int> executions = 0;
         Automation::AutomationDispatcher::DocumentCommandHandler handler =
-            [&executionCount](Automation::DocumentSession &session, const bool validateOnly) {
-                executionCount.fetch_add(1, std::memory_order_relaxed);
+            [&executions](Automation::DocumentSession &session, const bool validateOnly) {
+                executions.fetch_add(1, std::memory_order_relaxed);
                 return MutationResult(successfulMutation(session, validateOnly));
             };
 
-        std::vector<std::optional<MutationResult>> results(static_cast<size_t>(laneCount));
-        std::barrier<> startGate(laneCount + 1);
+        std::vector<std::optional<MutationResult>> results(LaneCount);
+        std::barrier startGate(LaneCount + 1);
         std::atomic<int> completed = 0;
         QEventLoop eventLoop;
         std::vector<std::thread> workers;
-        workers.reserve(static_cast<size_t>(laneCount));
-        for (int index = 0; index < laneCount; ++index) {
+        workers.reserve(LaneCount);
+        for (int index = 0; index < LaneCount; ++index) {
             workers.emplace_back([&, index] {
                 startGate.arrive_and_wait();
                 results[static_cast<size_t>(index)].emplace(
-                    runtime.dispatcher().dispatchDocumentCommand(
+                    runtime.dispatcher().dispatchIdempotentDocumentCommand(
                         Automation::OperationIds::tracks::insert, context,
                         QByteArrayLiteral("concurrent"), handler));
-                if (completed.fetch_add(1, std::memory_order_acq_rel) + 1 == laneCount) {
+                if (completed.fetch_add(1, std::memory_order_acq_rel) + 1 == LaneCount)
                     QMetaObject::invokeMethod(&eventLoop, "quit", Qt::QueuedConnection);
-                }
             });
         }
-
         startGate.arrive_and_wait();
         eventLoop.exec();
         for (auto &worker : workers)
             worker.join();
 
-        bool allReplayed = !results.empty() && results.front() && *results.front();
-        if (allReplayed) {
+        bool sameResult = results.front() && *results.front();
+        if (sameResult) {
             const auto expected = results.front()->get();
-            for (const auto &result : results) {
-                allReplayed &= result && *result && result->get() == expected;
-            }
+            for (const auto &result : results)
+                sameResult &= result && *result && result->get() == expected;
         }
-        return expect(allReplayed,
-                      QStringLiteral("all %1 concurrent callers must receive one result")
-                          .arg(laneCount)) &&
-               expect(executionCount.load(std::memory_order_relaxed) == 1 &&
+        return expect(sameResult && executions.load(std::memory_order_relaxed) == 1 &&
                           runtime.documentVersion().revision == 1,
-                      QStringLiteral("%1 concurrent callers must execute once").arg(laneCount));
+                      QStringLiteral("concurrent opt-in replays must serialize to one execution"));
     }
 
-    bool successfulKeyConflictsAreStable() {
+    bool unsuccessfulAttemptsDoNotClaimKeys() {
         AutomationTestSupport::TestRuntime fixture;
         auto &runtime = fixture.runtime();
-        auto original =
-            commandContext(runtime, QStringLiteral("d0d00000-0000-4000-8000-000000000003"));
-        int executionCount = 0;
-        const auto handler = countedHandler(executionCount);
+        int executions = 0;
+        const auto handler = countedHandler(executions);
+        const auto key = QStringLiteral("d0d00000-0000-4000-8000-000000000003");
 
-        const auto first = runtime.dispatcher().dispatchDocumentCommand(
-            Automation::OperationIds::tracks::insert, original, QByteArrayLiteral("alpha"),
-            handler);
-        const auto changedParameters = runtime.dispatcher().dispatchDocumentCommand(
-            Automation::OperationIds::tracks::insert, original, QByteArrayLiteral("beta"), handler);
-        auto changedExpectedRevision = original;
-        changedExpectedRevision.expected = runtime.documentVersion();
-        const auto changedExpected = runtime.dispatcher().dispatchDocumentCommand(
-            Automation::OperationIds::tracks::insert, changedExpectedRevision,
-            QByteArrayLiteral("alpha"), handler);
-        const auto changedOperation = runtime.dispatcher().dispatchDocumentCommand(
-            Automation::OperationIds::tracks::move, original, QByteArrayLiteral("alpha"), handler);
+        const auto preview = runtime.dispatcher().dispatchIdempotentDocumentCommand(
+            Automation::OperationIds::tracks::insert, commandContext(runtime, key, true),
+            QByteArrayLiteral("preview"), handler);
+        const auto committed = runtime.dispatcher().dispatchIdempotentDocumentCommand(
+            Automation::OperationIds::tracks::insert, commandContext(runtime, key),
+            QByteArrayLiteral("commit"), handler);
 
-        const auto isConflict = [](const MutationResult &result) {
-            return !result &&
-                   result.getError().code == Automation::AutomationErrorCode::IdempotencyConflict &&
-                   result.getError().fieldPath == QStringLiteral("idempotency_key");
-        };
-        return expect(first && isConflict(changedParameters) && isConflict(changedExpected) &&
-                          isConflict(changedOperation),
-                      QStringLiteral("a successful key must conflict on parameters, original "
-                                     "expected revision, and operation")) &&
-               expect(executionCount == 1,
-                      QStringLiteral("idempotency conflicts must not invoke the handler"));
-    }
-
-    bool audioClipStateChangesConflict() {
-        AutomationTestSupport::TestRuntime fixture;
-        auto &runtime = fixture.runtime();
-
-        Automation::TrackDraftDto track;
-        track.clientRef = QStringLiteral("idempotency-audio-track");
-        track.name = QStringLiteral("Audio Track");
-        track.gain = 1.0;
-        const auto insertedTrack = runtime.project().insertTrack(commandContext(runtime), 0, track);
-        if (!expect(insertedTrack && insertedTrack.get().affectedObjects.size() == 1,
-                    QStringLiteral("audio idempotency fixture track must be inserted"))) {
-            return false;
-        }
-        const Automation::TrackId trackId(insertedTrack.get().affectedObjects.first().value);
-
-        Automation::ClipDraftDto audio;
-        audio.clientRef = QStringLiteral("idempotency-audio-clip");
-        audio.type = Automation::ClipDraftDto::Type::Audio;
-        audio.properties.name = QStringLiteral("audio.wav");
-        audio.properties.length = 480;
-        audio.properties.clipLen = 480;
-        audio.properties.gain = 1.0;
-        audio.properties.trimStartMs = 0.0;
-        audio.properties.playLengthMs = 500.0;
-        audio.properties.materialLengthMs = 1000.0;
-        audio.audioPath = QStringLiteral("audio.wav");
-        const QList<Automation::ClipInsertDto> request{
-            {.trackId = trackId, .clip = audio}
-        };
-        const auto context =
-            commandContext(runtime, QStringLiteral("d0d00000-0000-4000-8000-000000000017"));
-        const auto first = runtime.project().insertClips(context, request);
-        if (!expect(first && first.get().changed,
-                    QStringLiteral("the first audio clip request must commit"))) {
-            return false;
-        }
-
-        QList<QList<Automation::ClipInsertDto>> variants;
-        auto statusVariant = request;
-        statusVariant.first().clip.audioPathStatus = AudioClip::PathStatus::Missing;
-        variants.append(statusVariant);
-        auto anchorVariant = request;
-        anchorVariant.first().clip.hasRealTimeAnchor = true;
-        variants.append(anchorVariant);
-        auto chunkVariant = request;
-        chunkVariant.first().clip.audioInfo.chunkSize = 1024;
-        variants.append(chunkVariant);
-        auto mipmapScaleVariant = request;
-        mipmapScaleVariant.first().clip.audioInfo.mipmapScale = 4;
-        variants.append(mipmapScaleVariant);
-        auto mipmapVariant = request;
-        mipmapVariant.first().clip.audioInfo.peakCacheMipmap.append({-12, 34});
-        variants.append(mipmapVariant);
-
-        bool conflicts = true;
-        for (const auto &variant : variants) {
-            const auto result = runtime.project().insertClips(context, variant);
-            conflicts &=
-                !result &&
-                result.getError().code == Automation::AutomationErrorCode::IdempotencyConflict &&
-                result.getError().fieldPath == QStringLiteral("idempotency_key") &&
-                result.getError().operationId == Automation::OperationIds::clips::insert;
-        }
-        return expect(conflicts,
-                      QStringLiteral("every constructed audio state field must conflict under a "
-                                     "reused idempotency key")) &&
-               expect(runtime.documentVersion().revision == context.expected.revision + 1,
-                      QStringLiteral("audio state conflicts must not commit another clip"));
-    }
-
-    bool curveCollectionsChangeConflict() {
-        AutomationTestSupport::TestRuntime fixture;
-        auto &runtime = fixture.runtime();
-
-        Automation::TrackDraftDto track;
-        track.clientRef = QStringLiteral("idempotency-curve-track");
-        track.name = QStringLiteral("Curve Track");
-        track.gain = 1.0;
-        const auto insertedTrack = runtime.project().insertTrack(commandContext(runtime), 0, track);
-        if (!expect(insertedTrack && insertedTrack.get().affectedObjects.size() == 1,
-                    QStringLiteral("curve idempotency fixture track must be inserted"))) {
-            return false;
-        }
-        const Automation::TrackId trackId(insertedTrack.get().affectedObjects.first().value);
-
-        Automation::CurveDraftDto curve;
-        curve.type = Automation::CurveDraftDto::Type::Draw;
-        curve.step = 5;
-        curve.values = {1, 2, 0};
-        Automation::ParamCurvesDraftDto parameter;
-        parameter.name = ParamInfo::Pitch;
-        parameter.type = Param::Edited;
-        parameter.curves = {curve};
-        Automation::ClipDraftDto singing;
-        singing.clientRef = QStringLiteral("idempotency-curve-clip");
-        singing.type = Automation::ClipDraftDto::Type::Singing;
-        singing.properties.name = QStringLiteral("Curve Clip");
-        singing.properties.length = 480;
-        singing.properties.clipLen = 480;
-        singing.properties.gain = 1.0;
-        singing.defaultLanguage = QStringLiteral("en");
-        singing.params = {parameter};
-        const QList<Automation::ClipInsertDto> request{
-            {.trackId = trackId, .clip = singing}
-        };
-        const auto context =
-            commandContext(runtime, QStringLiteral("d0d00000-0000-4000-8000-000000000018"));
-        const auto first = runtime.project().insertClips(context, request);
-        if (!expect(first && first.get().changed,
-                    QStringLiteral("the first curve request must commit"))) {
-            return false;
-        }
-
-        auto redistributed = request;
-        auto &redistributedCurve = redistributed.first().clip.params.first().curves.first();
-        redistributedCurve.values.clear();
-        redistributedCurve.nodes.append({
-            .position = 1,
-            .value = 2,
-            .interpolation = static_cast<AnchorNode::InterpMode>(0),
-        });
-        const auto conflict = runtime.project().insertClips(context, redistributed);
-        return expect(!conflict &&
-                          conflict.getError().code ==
-                              Automation::AutomationErrorCode::IdempotencyConflict &&
-                          conflict.getError().fieldPath == QStringLiteral("idempotency_key") &&
-                          conflict.getError().operationId ==
-                              Automation::OperationIds::clips::insert,
-                      QStringLiteral("curve value and node collection boundaries must produce "
-                                     "distinct idempotency fingerprints")) &&
-               expect(runtime.documentVersion().revision == context.expected.revision + 1,
-                      QStringLiteral("curve collection conflicts must not commit another clip"));
-    }
-
-    bool voiceContextMetadataChangesConflict() {
-        SpeakerInfo speaker(QStringLiteral("speaker-a"), QStringLiteral("Speaker A"),
-                            QStringLiteral("C3"), QStringLiteral("C5"));
-        speaker.setLocalizedNames({
-            {QStringLiteral("zh-CN"), QStringLiteral("声线 A")}
-        });
-        speaker.setToneRange(std::make_pair(48, 72));
-        speaker.setMixable(true);
-
-        LanguageInfo language(QStringLiteral("zh"), QStringLiteral("Chinese"),
-                              QStringLiteral("g2p-a"), QStringLiteral("dict-a"),
-                              QStringLiteral("s2p-a"), QStringLiteral("onset-a"),
-                              QStringLiteral("s2p-a.txt"), QStringLiteral("onset-a.txt"));
-        language.setLocalizedNames({
-            {QStringLiteral("zh-CN"), QStringLiteral("中文")}
-        });
-        language.setG2pPackageVersion(QStringLiteral("1.2.3"));
-        language.setG2pPackagePaths({QStringLiteral("g2p/a"), QStringLiteral("dict/a")});
-
-        SingerInfo singer(
-            {QStringLiteral("singer-a"), QStringLiteral("package-a"), QVersionNumber(1, 2, 3)},
-            QStringLiteral("Singer A"), {speaker}, {language}, QStringLiteral("zh"),
-            QStringLiteral("default-dict"));
-        singer.setLocalizedNames({
-            {QStringLiteral("zh-CN"), QStringLiteral("歌手 A")}
-        });
-        singer.setResolutionState(ResolutionState::Resolved);
-        SingerCapabilitySummary capability;
-        capability.mixableSpeakers = {QStringLiteral("speaker-a")};
-        capability.speakerConsistency = 1;
-        capability.speakerWarnings = {QStringLiteral("speaker-warning")};
-        capability.acousticParameters = QStringList{QStringLiteral("energy")};
-        capability.pitchUsesExpressiveness = true;
-        capability.vocoderPitchControllable = false;
-        capability.effectivePhonemes = {QStringLiteral("a")};
-        capability.phonemeConsistency = 1;
-        capability.phonemeWarnings = {QStringLiteral("phoneme-warning")};
-        capability.phonemeDegraded = true;
-        capability.effectiveLanguages = {QStringLiteral("zh")};
-        capability.languageConsistency = 1;
-        capability.languageWarnings = {QStringLiteral("language-warning")};
-        singer.setCapability(capability);
-
-        QList<QPair<QString, SpeakerInfo>> speakerVariants;
-        const auto addSpeakerVariant = [&](const QString &label, const auto &change) {
-            auto variant = speaker;
-            change(variant);
-            speakerVariants.append(qMakePair(label, variant));
-        };
-        addSpeakerVariant(QStringLiteral("name"),
-                          [](SpeakerInfo &value) { value.setName(QStringLiteral("Speaker B")); });
-        addSpeakerVariant(QStringLiteral("localized names"), [](SpeakerInfo &value) {
-            value.setLocalizedNames({
-                {QStringLiteral("ja-JP"), QStringLiteral("話者 A")}
-            });
-        });
-        addSpeakerVariant(QStringLiteral("legacy tone minimum"),
-                          [](SpeakerInfo &value) { value.setToneMin(QStringLiteral("D3")); });
-        addSpeakerVariant(QStringLiteral("legacy tone maximum"),
-                          [](SpeakerInfo &value) { value.setToneMax(QStringLiteral("D5")); });
-        addSpeakerVariant(QStringLiteral("numeric tone range"),
-                          [](SpeakerInfo &value) { value.setToneRange(std::make_pair(50, 74)); });
-        addSpeakerVariant(QStringLiteral("mixability"),
-                          [](SpeakerInfo &value) { value.setMixable(false); });
-
-        QList<QPair<QString, LanguageInfo>> languageVariants;
-        const auto addLanguageVariant = [&](const QString &label, const auto &change) {
-            auto variant = language;
-            change(variant);
-            languageVariants.append(qMakePair(label, variant));
-        };
-        addLanguageVariant(QStringLiteral("language name"),
-                           [](LanguageInfo &value) { value.setName(QStringLiteral("Mandarin")); });
-        addLanguageVariant(QStringLiteral("language localized names"), [](LanguageInfo &value) {
-            value.setLocalizedNames({
-                {QStringLiteral("ja-JP"), QStringLiteral("中国語")}
-            });
-        });
-        addLanguageVariant(QStringLiteral("G2P mapping"),
-                           [](LanguageInfo &value) { value.setG2p(QStringLiteral("g2p-b")); });
-        addLanguageVariant(QStringLiteral("dictionary"),
-                           [](LanguageInfo &value) { value.setDict(QStringLiteral("dict-b")); });
-        addLanguageVariant(QStringLiteral("S2P mode"),
-                           [](LanguageInfo &value) { value.setS2pMode(QStringLiteral("s2p-b")); });
-        addLanguageVariant(QStringLiteral("onset mode"), [](LanguageInfo &value) {
-            value.setOnsetMode(QStringLiteral("onset-b"));
-        });
-        addLanguageVariant(QStringLiteral("S2P file"), [](LanguageInfo &value) {
-            value.setS2pFile(QStringLiteral("s2p-b.txt"));
-        });
-        addLanguageVariant(QStringLiteral("onset file"), [](LanguageInfo &value) {
-            value.setOnsetFile(QStringLiteral("onset-b.txt"));
-        });
-        addLanguageVariant(QStringLiteral("G2P version"), [](LanguageInfo &value) {
-            value.setG2pPackageVersion(QStringLiteral("2.0.0"));
-        });
-        addLanguageVariant(QStringLiteral("G2P version presence"),
-                           [](LanguageInfo &value) { value.clearG2pPackageVersion(); });
-        addLanguageVariant(QStringLiteral("G2P package paths"), [](LanguageInfo &value) {
-            value.setG2pPackagePaths({QStringLiteral("g2p/b")});
-        });
-
-        QList<QPair<QString, SingerInfo>> singerVariants;
-        const auto addSingerVariant = [&](const QString &label, const auto &change) {
-            auto variant = singer;
-            change(variant);
-            singerVariants.append(qMakePair(label, variant));
-        };
-        addSingerVariant(QStringLiteral("singer name"),
-                         [](SingerInfo &value) { value.setName(QStringLiteral("Singer B")); });
-        addSingerVariant(QStringLiteral("singer localized names"), [](SingerInfo &value) {
-            value.setLocalizedNames({
-                {QStringLiteral("ja-JP"), QStringLiteral("歌手 A")}
-            });
-        });
-        addSingerVariant(QStringLiteral("default language"),
-                         [](SingerInfo &value) { value.setDefaultLanguage(QStringLiteral("ja")); });
-        addSingerVariant(QStringLiteral("default dictionary"), [](SingerInfo &value) {
-            value.setDefaultDict(QStringLiteral("default-dict-b"));
-        });
-        addSingerVariant(QStringLiteral("resolution state"), [](SingerInfo &value) {
-            value.setResolutionState(ResolutionState::Missing);
-        });
-        for (const auto &[label, variant] : speakerVariants) {
-            addSingerVariant(QStringLiteral("nested speaker %1").arg(label),
-                             [&](SingerInfo &value) { value.setSpeakers({variant}); });
-        }
-        for (const auto &[label, variant] : languageVariants) {
-            addSingerVariant(QStringLiteral("nested language %1").arg(label),
-                             [&](SingerInfo &value) { value.setLanguages({variant}); });
-        }
-        addSingerVariant(QStringLiteral("capability presence"),
-                         [](SingerInfo &value) { value.setCapability(std::nullopt); });
-        const auto addCapabilityVariant = [&](const QString &label, const auto &change) {
-            auto variant = capability;
-            change(variant);
-            addSingerVariant(QStringLiteral("capability %1").arg(label),
-                             [&](SingerInfo &value) { value.setCapability(variant); });
-        };
-        addCapabilityVariant(QStringLiteral("mixable speakers"), [](auto &value) {
-            value.mixableSpeakers.append(QStringLiteral("speaker-b"));
-        });
-        addCapabilityVariant(QStringLiteral("speaker consistency"),
-                             [](auto &value) { value.speakerConsistency = 2; });
-        addCapabilityVariant(QStringLiteral("speaker warnings"), [](auto &value) {
-            value.speakerWarnings.append(QStringLiteral("speaker-warning-b"));
-        });
-        addCapabilityVariant(QStringLiteral("acoustic parameters"), [](auto &value) {
-            value.acousticParameters = QStringList{QStringLiteral("tension")};
-        });
-        addCapabilityVariant(QStringLiteral("pitch expressiveness"),
-                             [](auto &value) { value.pitchUsesExpressiveness = false; });
-        addCapabilityVariant(QStringLiteral("vocoder pitch"),
-                             [](auto &value) { value.vocoderPitchControllable = true; });
-        addCapabilityVariant(QStringLiteral("effective phonemes"), [](auto &value) {
-            value.effectivePhonemes.append(QStringLiteral("b"));
-        });
-        addCapabilityVariant(QStringLiteral("phoneme consistency"),
-                             [](auto &value) { value.phonemeConsistency = 2; });
-        addCapabilityVariant(QStringLiteral("phoneme warnings"), [](auto &value) {
-            value.phonemeWarnings.append(QStringLiteral("phoneme-warning-b"));
-        });
-        addCapabilityVariant(QStringLiteral("phoneme degraded"),
-                             [](auto &value) { value.phonemeDegraded = false; });
-        addCapabilityVariant(QStringLiteral("effective languages"), [](auto &value) {
-            value.effectiveLanguages.append(QStringLiteral("ja"));
-        });
-        addCapabilityVariant(QStringLiteral("language consistency"),
-                             [](auto &value) { value.languageConsistency = 2; });
-        addCapabilityVariant(QStringLiteral("language warnings"), [](auto &value) {
-            value.languageWarnings.append(QStringLiteral("language-warning-b"));
-        });
-
-        bool ok = true;
-        const auto singerFingerprint = Automation::fingerprint(singer);
-        for (const auto &[label, variant] : singerVariants) {
-            ok &= expect(Automation::fingerprint(variant) != singerFingerprint,
-                         QStringLiteral("singer %1 must affect the fingerprint").arg(label));
-        }
-        const auto speakerFingerprint = Automation::fingerprint(speaker);
-        for (const auto &[label, variant] : speakerVariants) {
-            ok &= expect(Automation::fingerprint(variant) != speakerFingerprint,
-                         QStringLiteral("speaker %1 must affect the fingerprint").arg(label));
-        }
-
-        SpeakerMixModel::SpeakerMixData mix;
-        mix.mode = SpeakerMixModel::SingerSourceMode::FixedMix;
-        mix.sources = {{speaker},
-                       {SpeakerInfo(QStringLiteral("speaker-b"), QStringLiteral("Speaker B"))}};
-        mix.fixedWeights = {0.4};
-        auto mixVariant = mix;
-        mixVariant.sources.first().speaker = speakerVariants.first().second;
-        ok &= expect(Automation::fingerprint(mixVariant) != Automation::fingerprint(mix),
-                     QStringLiteral("full speaker metadata inside mix sources must be hashed"));
-
-        Automation::TrackDraftDto track;
-        track.clientRef = QStringLiteral("voice-track");
-        track.name = QStringLiteral("Voice Track");
-        track.gain = 1.0;
-        track.singerInfo = singer;
-        track.speakerInfo = speaker;
-        auto trackVariant = track;
-        trackVariant.singerInfo = singerVariants.first().second;
-        ok &= expect(Automation::fingerprint(trackVariant) != Automation::fingerprint(track),
-                     QStringLiteral("track drafts must hash complete voice context"));
-
-        Automation::ClipDraftDto clip;
-        clip.clientRef = QStringLiteral("voice-clip");
-        clip.type = Automation::ClipDraftDto::Type::Singing;
-        clip.properties.name = QStringLiteral("Voice Clip");
-        clip.properties.length = 480;
-        clip.properties.clipLen = 480;
-        clip.properties.gain = 1.0;
-        clip.usesTrackVoiceContext = false;
-        clip.ownSingerInfo = singer;
-        clip.ownSpeakerInfo = speaker;
-        QList<Automation::ClipInsertDto> clips{
-            {Automation::TrackId(1), clip}
-        };
-        auto clipsVariant = clips;
-        clipsVariant.first().clip.ownSpeakerInfo = speakerVariants.first().second;
-        ok &= expect(Automation::fingerprint(clipsVariant) != Automation::fingerprint(clips),
-                     QStringLiteral("clip drafts must hash complete voice context"));
-
-        Automation::DocumentDraftDto document;
-        document.tracks = {track};
-        auto documentVariant = document;
-        documentVariant.tracks.first().singerInfo = singerVariants.first().second;
-        ok &= expect(Automation::fingerprint(documentVariant) != Automation::fingerprint(document),
-                     QStringLiteral("document drafts must retain nested voice fingerprints"));
-
-        Automation::BatchImportDraftDto batch;
-        batch.items = {
-            {std::nullopt, track, {clip}}
-        };
-        auto batchVariant = batch;
-        batchVariant.items.first().clips.first().ownSpeakerMixData = mixVariant;
-        ok &= expect(Automation::fingerprint(batchVariant) != Automation::fingerprint(batch),
-                     QStringLiteral("import drafts must retain nested voice fingerprints"));
-
-        AutomationTestSupport::TestRuntime fixture;
-        auto &runtime = fixture.runtime();
-        const auto insertContext =
-            commandContext(runtime, QStringLiteral("d0d00000-0000-4000-8000-000000000019"));
-        const auto inserted = runtime.project().insertTrack(insertContext, 0, track);
-        const auto trackConflict = runtime.project().insertTrack(insertContext, 0, trackVariant);
-        const auto isConflict = [](const MutationResult &result) {
-            return !result &&
-                   result.getError().code == Automation::AutomationErrorCode::IdempotencyConflict &&
-                   result.getError().fieldPath == QStringLiteral("idempotency_key");
-        };
-        ok &= expect(inserted && isConflict(trackConflict),
-                     QStringLiteral("metadata-only track retries must conflict"));
-
-        Automation::TrackDraftDto emptyTrack;
-        emptyTrack.clientRef = QStringLiteral("voice-target-track");
-        emptyTrack.name = QStringLiteral("Voice Target");
-        emptyTrack.gain = 1.0;
-        const auto target = runtime.project().insertTrack(commandContext(runtime), 1, emptyTrack);
-        if (!expect(target && target.get().affectedObjects.size() == 1,
-                    QStringLiteral("voice fingerprint target track must be inserted"))) {
-            return false;
-        }
-        const Automation::TrackId targetTrackId(target.get().affectedObjects.first().value);
-        clips.first().trackId = targetTrackId;
-        clipsVariant.first().trackId = targetTrackId;
-        const auto clipContext =
-            commandContext(runtime, QStringLiteral("d0d00000-0000-4000-8000-000000000020"));
-        const auto insertedClip = runtime.project().insertClips(clipContext, clips);
-        const auto clipConflict = runtime.project().insertClips(clipContext, clipsVariant);
-        ok &= expect(insertedClip && isConflict(clipConflict),
-                     QStringLiteral("metadata-only clip retries must conflict"));
-
-        Automation::TrackDraftDto parameterTrack;
-        parameterTrack.clientRef = QStringLiteral("voice-parameter-track");
-        parameterTrack.name = QStringLiteral("Voice Parameter Target");
-        parameterTrack.gain = 1.0;
-        const auto parameterTarget =
-            runtime.project().insertTrack(commandContext(runtime), 2, parameterTrack);
-        if (!expect(parameterTarget && parameterTarget.get().affectedObjects.size() == 1,
-                    QStringLiteral("voice parameter target track must be inserted"))) {
-            return false;
-        }
-        const Automation::TrackId parameterTrackId(
-            parameterTarget.get().affectedObjects.first().value);
-        const auto parameterContext =
-            commandContext(runtime, QStringLiteral("d0d00000-0000-4000-8000-000000000021"));
-        const auto selected = runtime.parameters().selectTrackSingleSpeaker(
-            parameterContext, parameterTrackId, singer, speaker);
-        const auto parameterConflict = runtime.parameters().selectTrackSingleSpeaker(
-            parameterContext, parameterTrackId, singerVariants.first().second, speaker);
-        ok &= expect(selected && isConflict(parameterConflict),
-                     QStringLiteral("metadata-only Speaker Mix retries must conflict"));
-        return ok;
-    }
-
-    bool previewsAndValidationFailuresDoNotClaimKeys() {
-        AutomationTestSupport::TestRuntime fixture;
-        auto &runtime = fixture.runtime();
-        int previewExecutions = 0;
-        auto previewContext =
-            commandContext(runtime, QStringLiteral("d0d00000-0000-4000-8000-000000000004"), true);
-        const auto previewHandler = countedHandler(previewExecutions);
-        const auto preview = runtime.dispatcher().dispatchDocumentCommand(
-            Automation::OperationIds::tracks::insert, previewContext,
-            QByteArrayLiteral("preview-input"), previewHandler);
-
-        auto commitContext = previewContext;
-        commitContext.validateOnly = false;
-        const auto committed = runtime.dispatcher().dispatchDocumentCommand(
-            Automation::OperationIds::tracks::insert, commitContext,
-            QByteArrayLiteral("different-committed-input"), previewHandler);
-
-        const auto validationContext =
-            commandContext(runtime, QStringLiteral("d0d00000-0000-4000-8000-000000000005"));
-        int validationAttempts = 0;
-        Automation::AutomationDispatcher::DocumentCommandHandler invalid =
-            [&validationAttempts](Automation::DocumentSession &, bool) {
-                ++validationAttempts;
-                return MutationResult(Automation::AutomationError::invalidArgument(
-                    QStringLiteral("request"), QStringLiteral("simulated validation failure")));
-            };
-        Automation::AutomationDispatcher::DocumentCommandHandler valid =
-            [&validationAttempts](Automation::DocumentSession &session, const bool validateOnly) {
-                ++validationAttempts;
-                return MutationResult(successfulMutation(session, validateOnly));
-            };
-        const auto rejected = runtime.dispatcher().dispatchDocumentCommand(
-            Automation::OperationIds::tracks::insert, validationContext,
-            QByteArrayLiteral("invalid-input"), invalid);
-        const auto accepted = runtime.dispatcher().dispatchDocumentCommand(
-            Automation::OperationIds::tracks::insert, validationContext,
-            QByteArrayLiteral("valid-input"), valid);
-
-        return expect(preview && preview.get().validatedOnly && committed &&
-                          !committed.get().validatedOnly && previewExecutions == 2,
-                      QStringLiteral("validate-only must not claim its idempotency key")) &&
-               expect(!rejected &&
-                          rejected.getError().code ==
-                              Automation::AutomationErrorCode::InvalidArgument &&
-                          accepted && validationAttempts == 2,
-                      QStringLiteral("validation failure must not claim its idempotency key"));
-    }
-
-    bool commitFailureDoesNotClaimKey() {
-        AutomationTestSupport::TestRuntime fixture;
-        auto &runtime = fixture.runtime();
-        const auto context =
-            commandContext(runtime, QStringLiteral("d0d00000-0000-4000-8000-000000000006"));
+        const auto failedKey = QStringLiteral("d0d00000-0000-4000-8000-000000000004");
         int attempts = 0;
         Automation::AutomationDispatcher::DocumentCommandHandler failing =
             [&attempts](Automation::DocumentSession &, bool) {
                 ++attempts;
-                Automation::AutomationError error;
-                error.code = Automation::AutomationErrorCode::IoError;
-                error.message = QStringLiteral("simulated commit failure");
-                return MutationResult(std::move(error));
+                return MutationResult(Automation::AutomationError::invalidArgument(
+                    QStringLiteral("request"), QStringLiteral("simulated failure")));
             };
         Automation::AutomationDispatcher::DocumentCommandHandler succeeding =
             [&attempts](Automation::DocumentSession &session, const bool validateOnly) {
                 ++attempts;
                 return MutationResult(successfulMutation(session, validateOnly));
             };
+        const auto failed = runtime.dispatcher().dispatchIdempotentDocumentCommand(
+            Automation::OperationIds::tracks::insert, commandContext(runtime, failedKey),
+            QByteArrayLiteral("failed"), failing);
+        const auto retried = runtime.dispatcher().dispatchIdempotentDocumentCommand(
+            Automation::OperationIds::tracks::insert, commandContext(runtime, failedKey),
+            QByteArrayLiteral("retry"), succeeding);
 
-        const auto failed = runtime.dispatcher().dispatchDocumentCommand(
-            Automation::OperationIds::tracks::insert, context, QByteArrayLiteral("failed-commit"),
-            failing);
-        const auto retried = runtime.dispatcher().dispatchDocumentCommand(
-            Automation::OperationIds::tracks::insert, context,
-            QByteArrayLiteral("retry-after-failure"), succeeding);
-
-        return expect(!failed &&
-                          failed.getError().code == Automation::AutomationErrorCode::IoError &&
-                          retried && attempts == 2 && runtime.documentVersion().revision == 1,
-                      QStringLiteral("commit failure must release the idempotency key"));
+        return expect(preview && preview.get().validatedOnly && committed && executions == 2,
+                      QStringLiteral("validate-only must not claim its key")) &&
+               expect(!failed && retried && attempts == 2,
+                      QStringLiteral("a failed handler must not claim its key"));
     }
 
     class TwoDocumentResolver final : public Automation::IDocumentSessionResolver {
@@ -709,514 +206,76 @@ namespace {
         Automation::DocumentSession &m_second;
     };
 
-    Automation::OperationDescriptor documentCommandDescriptor(const Automation::OperationId &id) {
-        return {
-            .id = id,
-            .category = QStringLiteral("tracks"),
-            .kind = Automation::OperationKind::Command,
-            .syncMode = Automation::SyncMode::Synchronous,
-            .documentPolicy = Automation::DocumentPolicy::Write,
-            .revisionPolicy = Automation::RevisionPolicy::Increment,
-            .historyPolicy = Automation::HistoryPolicy::Record,
-            .fileAccess = Automation::FileAccessPolicy::None,
-            .hostAvailability = Automation::HostAvailability::Core,
-            .safety = Automation::SafetyClass::Reversible,
-            .exposure = Automation::ExposurePolicy::InternalOnly,
-            .idempotency = Automation::IdempotencyPolicy::DocumentGeneration,
-        };
-    }
-
-    bool documentsHaveIndependentKeySpaces() {
+    bool documentsAndGenerationsHaveIndependentKeySpaces() {
         Automation::DocumentSession first(nullptr, nullptr);
         Automation::DocumentSession second(nullptr, nullptr);
         TwoDocumentResolver resolver(first, second);
         Automation::SingleWindowContext window;
-        Automation::OperationCatalog catalog;
-        if (!expect(catalog.add(documentCommandDescriptor(Automation::OperationIds::tracks::insert))
-                        .isPresent(),
-                    QStringLiteral("document-isolation descriptor must register"))) {
-            return false;
-        }
-        Automation::AutomationDispatcher dispatcher(resolver, window, catalog);
-        const auto key = QStringLiteral("d0d00000-0000-4000-8000-000000000007");
+        Automation::AutomationDispatcher dispatcher(resolver, window);
+        const auto key = QStringLiteral("d0d00000-0000-4000-8000-000000000005");
         int executions = 0;
         const auto handler = countedHandler(executions);
 
-        const auto firstResult = dispatcher.dispatchDocumentCommand(
-            Automation::OperationIds::tracks::insert, commandContext(first, key),
-            QByteArrayLiteral("shared-input"), handler);
-        const auto secondResult = dispatcher.dispatchDocumentCommand(
-            Automation::OperationIds::tracks::insert, commandContext(second, key),
-            QByteArrayLiteral("shared-input"), handler);
+        const auto firstResult = dispatcher.dispatchIdempotentDocumentCommand(
+            Automation::OperationIds::tracks::insert, commandContext(first.version(), key),
+            QByteArrayLiteral("shared"), handler);
+        const auto secondResult = dispatcher.dispatchIdempotentDocumentCommand(
+            Automation::OperationIds::tracks::insert, commandContext(second.version(), key),
+            QByteArrayLiteral("shared"), handler);
+        first.replaceGeneration({}, QStringLiteral("Replacement"));
+        const auto reused = dispatcher.dispatchIdempotentDocumentCommand(
+            Automation::OperationIds::tracks::insert, commandContext(first.version(), key),
+            QByteArrayLiteral("shared"), handler);
 
-        return expect(first.documentId() != second.documentId() && firstResult && secondResult &&
-                          executions == 2 && first.revision() == 1 && second.revision() == 1,
-                      QStringLiteral("the same key must execute once in each document"));
+        return expect(firstResult && secondResult && reused && executions == 3 &&
+                          first.revision() == 1 && second.revision() == 1,
+                      QStringLiteral("document and generation boundaries must isolate keys"));
     }
 
-    bool generationsHaveIndependentKeySpaces() {
+    bool facadeWiringUsesOptInOnly() {
         AutomationTestSupport::TestRuntime fixture;
         auto &runtime = fixture.runtime();
-        const auto key = QStringLiteral("d0d00000-0000-4000-8000-000000000008");
-        const auto originalContext = commandContext(runtime, key);
-        int executions = 0;
-        const auto handler = countedHandler(executions);
-        const auto original = runtime.dispatcher().dispatchDocumentCommand(
-            Automation::OperationIds::tracks::insert, originalContext,
-            QByteArrayLiteral("generation-input"), handler);
-        const auto originalDocumentId = runtime.documentVersion().documentId;
+        Automation::TrackDraftDto draft;
+        draft.clientRef = QStringLiteral("idempotent-track");
+        draft.name = QStringLiteral("Track A");
+        draft.gain = 1.0;
+        const auto context =
+            commandContext(runtime, QStringLiteral("d0d00000-0000-4000-8000-000000000006"));
+        const auto first = runtime.project().insertTrack(context, 0, draft);
+        const auto replay = runtime.project().insertTrack(context, 0, draft);
+        auto changedDraft = draft;
+        changedDraft.name = QStringLiteral("Track B");
+        const auto conflict = runtime.project().insertTrack(context, 0, changedDraft);
+        if (!first || first.get().affectedObjects.isEmpty())
+            return expect(false, QStringLiteral("track insertion fixture must succeed"));
 
-        AppModel replacementModel;
-        replacementModel.newProject();
-        const auto replacementDraft =
-            Automation::documentDraftDto(replacementModel.takeProjectData(), {});
-        const auto replacement =
-            runtime.documents().commitNewDocument(commandContext(runtime), replacementDraft);
-        const auto replacementContext = commandContext(runtime, key);
-        const auto reused = runtime.dispatcher().dispatchDocumentCommand(
-            Automation::OperationIds::tracks::insert, replacementContext,
-            QByteArrayLiteral("generation-input"), handler);
+        const Automation::TrackId trackId(first.get().affectedObjects.first().value);
+        const auto keyedRename = runtime.project().renameTrack(
+            commandContext(runtime, QStringLiteral("d0d00000-0000-4000-8000-000000000007")),
+            trackId, QStringLiteral("Renamed"));
+        const auto rename = runtime.project().renameTrack(commandContext(runtime), trackId,
+                                                          QStringLiteral("Renamed"));
 
-        return expect(original && replacement && reused &&
-                          runtime.documentVersion().documentId != originalDocumentId &&
-                          executions == 2 && runtime.documentVersion().revision == 1,
-                      QStringLiteral("a replaced generation must accept the old key as new"));
-    }
-
-    class ServiceRuntime final {
-    public:
-        ServiceRuntime(Automation::DocumentRuntimeServices documentServices = {},
-                       Automation::AudioExportRuntimeServices audioExportServices = {})
-            : m_history(resetHistory()) {
-            m_runtime = std::make_unique<Automation::CoreRuntime>(
-                &m_model, m_history, std::move(documentServices),
-                Automation::PlaybackRuntimeServices{}, Automation::EditorRuntimeServices{},
-                Automation::SettingsRuntimeServices{}, Automation::PresetRuntimeServices{},
-                Automation::PackageRuntimeServices{}, Automation::InferenceRuntimeServices{},
-                Automation::FileRuntimeServices{}, std::move(audioExportServices));
-        }
-
-        ~ServiceRuntime() {
-            m_runtime.reset();
-            m_history->reset();
-        }
-
-        Automation::CoreRuntime &runtime() const {
-            return *m_runtime;
-        }
-
-    private:
-        static HistoryManager *resetHistory() {
-            auto *history = HistoryManager::instance();
-            history->reset();
-            return history;
-        }
-
-        AppModel m_model;
-        HistoryManager *m_history;
-        std::unique_ptr<Automation::CoreRuntime> m_runtime;
-    };
-
-    bool saveDoesNotClearCache() {
-        int saveCount = 0;
-        Automation::DocumentRuntimeServices services;
-        services.saveProject = [&saveCount](const QString &, AppModel *, QString &) {
-            ++saveCount;
-            return true;
-        };
-        ServiceRuntime fixture(std::move(services));
-        auto &runtime = fixture.runtime();
-        QTemporaryDir directory;
-        if (!expect(directory.isValid(), QStringLiteral("temporary save directory must exist")))
-            return false;
-
-        const auto cachedContext =
-            commandContext(runtime, QStringLiteral("d0d00000-0000-4000-8000-000000000009"));
-        int executionCount = 0;
-        const auto handler = countedHandler(executionCount);
-        const auto cached = runtime.dispatcher().dispatchDocumentCommand(
-            Automation::OperationIds::tracks::insert, cachedContext,
-            QByteArrayLiteral("cache-before-save"), handler);
-        const auto beforeSave = runtime.documentVersion();
-        const auto saved = runtime.documents().saveDocument(
-            commandContext(runtime), directory.filePath(QStringLiteral("project.dspx")));
-        const auto replayed = runtime.dispatcher().dispatchDocumentCommand(
-            Automation::OperationIds::tracks::insert, cachedContext,
-            QByteArrayLiteral("cache-before-save"), handler);
-
-        return expect(cached && saved && replayed && cached.get() == replayed.get() &&
-                          runtime.documentVersion() == beforeSave && executionCount == 1 &&
-                          saveCount == 1,
-                      QStringLiteral("save must preserve prior generation cache entries"));
-    }
-
-    class ControlledScheduler final {
-    public:
-        void schedule(std::function<void()> execute) {
-            m_pending.append(std::move(execute));
-        }
-
-        [[nodiscard]] qsizetype size() const {
-            return m_pending.size();
-        }
-
-        bool runNext() {
-            if (m_pending.isEmpty())
-                return false;
-            auto execute = m_pending.takeFirst();
-            execute();
-            return true;
-        }
-
-    private:
-        QList<std::function<void()>> m_pending;
-    };
-
-    struct FakeAudioControl {
-        int createCount = 0;
-        int executeCount = 0;
-        int cancelCount = 0;
-        int cleanupCount = 0;
-        int createFailuresRemaining = 0;
-        Automation::AudioExportBackendState backendState =
-            Automation::AudioExportBackendState::Succeeded;
-    };
-
-    class FakeAudioJob final : public Automation::IAudioExportJob {
-    public:
-        FakeAudioJob(Automation::AudioExportConfigDto config,
-                     std::shared_ptr<FakeAudioControl> control)
-            : m_config(std::move(config)), m_control(std::move(control)) {
-        }
-
-        Automation::AudioExportPreviewDto preview() const override {
-            Automation::AudioExportPreviewDto result;
-            result.baseDirectory = m_config.fileDirectory;
-            result.filePaths.append(
-                QDir(m_config.fileDirectory).absoluteFilePath(m_config.fileName));
-            return result;
-        }
-
-        Automation::AudioExportBackendResult waitUntilReady() override {
-            return {.state = Automation::AudioExportBackendState::Succeeded};
-        }
-
-        Automation::AudioExportBackendResult
-            execute(const Automation::AudioExportObserver &) override {
-            ++m_control->executeCount;
-            return {
-                .state = m_control->backendState,
-                .errorMessage =
-                    m_control->backendState == Automation::AudioExportBackendState::Failed
-                        ? QStringLiteral("simulated runtime failure")
-                        : QString(),
-            };
-        }
-
-        void cancel() override {
-            ++m_control->cancelCount;
-        }
-
-        void cleanup() override {
-            ++m_control->cleanupCount;
-        }
-
-    private:
-        Automation::AudioExportConfigDto m_config;
-        std::shared_ptr<FakeAudioControl> m_control;
-    };
-
-    Automation::AutomationError simulatedSubmissionFailure() {
-        Automation::AutomationError error;
-        error.code = Automation::AutomationErrorCode::ModuleNotReady;
-        error.message = QStringLiteral("simulated submission failure");
-        return error;
-    }
-
-    Automation::AudioExportRuntimeServices
-        audioServices(ControlledScheduler &scheduler,
-                      const std::shared_ptr<FakeAudioControl> &control) {
-        Automation::AudioExportRuntimeServices services;
-        services.createJob = [control](AppModel *, const QString &,
-                                       const Automation::AudioExportConfigDto &config) {
-            ++control->createCount;
-            if (control->createFailuresRemaining > 0) {
-                --control->createFailuresRemaining;
-                return Automation::AutomationResult<std::shared_ptr<Automation::IAudioExportJob>>(
-                    simulatedSubmissionFailure());
-            }
-            std::shared_ptr<Automation::IAudioExportJob> job =
-                std::make_shared<FakeAudioJob>(config, control);
-            return Automation::AutomationResult<std::shared_ptr<Automation::IAudioExportJob>>(
-                std::move(job));
-        };
-        services.schedule = [&scheduler](std::function<void()> execute) {
-            scheduler.schedule(std::move(execute));
-        };
-        return services;
-    }
-
-    class AudioHarness final {
-    public:
-        AudioHarness()
-            : m_control(std::make_shared<FakeAudioControl>()),
-              m_runtime({}, audioServices(m_scheduler, m_control)) {
-        }
-
-        [[nodiscard]] bool isValid() const {
-            return m_directory.isValid();
-        }
-
-        Automation::CoreRuntime &runtime() {
-            return m_runtime.runtime();
-        }
-
-        ControlledScheduler &scheduler() {
-            return m_scheduler;
-        }
-
-        FakeAudioControl &control() {
-            return *m_control;
-        }
-
-        Automation::AudioExportConfigDto config(const QString &fileName) const {
-            return {
-                .fileName = fileName,
-                .fileDirectory = m_directory.path(),
-            };
-        }
-
-    private:
-        QTemporaryDir m_directory;
-        ControlledScheduler m_scheduler;
-        std::shared_ptr<FakeAudioControl> m_control;
-        ServiceRuntime m_runtime;
-    };
-
-    bool asyncAcceptedReplaySchedulesOnce() {
-        AudioHarness harness;
-        if (!expect(harness.isValid(), QStringLiteral("async-replay audio harness must be valid")))
-            return false;
-        const auto context = commandContext(harness.runtime(),
-                                            QStringLiteral("d0d00000-0000-4000-8000-000000000010"));
-        const auto config = harness.config(QStringLiteral("serial-replay.wav"));
-        const auto first = harness.runtime().audioExports().start(context, config, {});
-        const auto replay = harness.runtime().audioExports().start(context, config, {});
-        const bool acceptedOnce =
-            first && replay && first.get() == replay.get() && harness.scheduler().size() == 1 &&
-            harness.runtime().automationTasks().size() == 1 && harness.control().createCount == 1;
-        const auto ran = harness.scheduler().runNext();
-        std::optional<Automation::AutomationResult<Automation::AutomationTaskSnapshot>> completed;
-        if (first) {
-            completed.emplace(harness.runtime().tasks().getTask(
-                harness.runtime().documentVersion().documentId, first.get().taskId));
-        }
-        const auto terminalReplay = harness.runtime().audioExports().start(context, config, {});
-
-        return expect(acceptedOnce,
+        return expect(replay && replay.get() == first.get() && !conflict &&
+                          conflict.getError().code ==
+                              Automation::AutomationErrorCode::IdempotencyConflict,
+                      QStringLiteral("the retained track creator must opt in to replay")) &&
+               expect(!keyedRename &&
+                          keyedRename.getError().code ==
+                              Automation::AutomationErrorCode::InvalidArgument &&
+                          rename && rename.get().changed,
                       QStringLiteral(
-                          "accepted async replay must return one TaskId and schedule once")) &&
-               expect(ran && completed && *completed &&
-                          completed->get().state == Automation::AutomationTaskState::Succeeded &&
-                          terminalReplay && terminalReplay.get() == first.get() &&
-                          harness.scheduler().size() == 0 && harness.control().createCount == 1 &&
-                          harness.control().executeCount == 1,
-                      QStringLiteral("successful async replay must retain the original TaskId and "
-                                     "reuse the accepted preview job"));
-    }
-
-    bool asyncPreAcceptanceFailuresDoNotClaimKeys() {
-        bool ok = true;
-        {
-            AudioHarness harness;
-            ok &= expect(harness.isValid(),
-                         QStringLiteral("validate-only audio harness must be valid"));
-            auto previewContext = commandContext(
-                harness.runtime(), QStringLiteral("d0d00000-0000-4000-8000-000000000011"), true);
-            const auto preview = harness.runtime().audioExports().start(
-                previewContext, harness.config(QStringLiteral("preview.wav")), {});
-            auto acceptedContext = previewContext;
-            acceptedContext.validateOnly = false;
-            const auto accepted = harness.runtime().audioExports().start(
-                acceptedContext, harness.config(QStringLiteral("accepted.wav")), {});
-            ok &= expect(
-                preview && preview.get().validatedOnly && preview.get().taskId.isNull() &&
-                    accepted && !accepted.get().taskId.isNull() &&
-                    harness.scheduler().size() == 1 &&
-                    harness.runtime().automationTasks().size() == 1,
-                QStringLiteral("async validate-only must not claim a key or allocate a task"));
-        }
-        {
-            AudioHarness harness;
-            ok &= expect(harness.isValid(),
-                         QStringLiteral("validation-failure audio harness must be valid"));
-            const auto context = commandContext(
-                harness.runtime(), QStringLiteral("d0d00000-0000-4000-8000-000000000012"));
-            auto invalidConfig = harness.config(QString{});
-            const auto rejected =
-                harness.runtime().audioExports().start(context, invalidConfig, {});
-            const auto accepted = harness.runtime().audioExports().start(
-                context, harness.config(QStringLiteral("accepted.wav")), {});
-            ok &= expect(!rejected &&
-                             rejected.getError().code ==
-                                 Automation::AutomationErrorCode::PathRequired &&
-                             accepted && harness.scheduler().size() == 1 &&
-                             harness.runtime().automationTasks().size() == 1,
-                         QStringLiteral("async validation failure must not claim a key"));
-        }
-        {
-            AudioHarness harness;
-            ok &= expect(harness.isValid(),
-                         QStringLiteral("submission-failure audio harness must be valid"));
-            harness.control().createFailuresRemaining = 1;
-            const auto context = commandContext(
-                harness.runtime(), QStringLiteral("d0d00000-0000-4000-8000-000000000013"));
-            const auto rejected = harness.runtime().audioExports().start(
-                context, harness.config(QStringLiteral("rejected.wav")), {});
-            const auto accepted = harness.runtime().audioExports().start(
-                context, harness.config(QStringLiteral("accepted.wav")), {});
-            ok &= expect(!rejected &&
-                             rejected.getError().code ==
-                                 Automation::AutomationErrorCode::ModuleNotReady &&
-                             accepted && harness.control().createCount == 2 &&
-                             harness.scheduler().size() == 1 &&
-                             harness.runtime().automationTasks().size() == 1,
-                         QStringLiteral("async submission failure must release its key"));
-        }
-        return ok;
-    }
-
-    bool queuedCancellationReleasesKey() {
-        AudioHarness harness;
-        if (!expect(harness.isValid(), QStringLiteral("queued-cancel audio harness must be valid")))
-            return false;
-        const auto key = QStringLiteral("d0d00000-0000-4000-8000-000000000014");
-        const auto context = commandContext(harness.runtime(), key);
-        const auto config = harness.config(QStringLiteral("queued.wav"));
-        const auto first = harness.runtime().audioExports().start(context, config, {});
-        if (!expect(first && harness.scheduler().size() == 1,
-                    QStringLiteral("first queued task must be accepted"))) {
-            return false;
-        }
-        const auto cancel = harness.runtime().tasks().cancelTask(commandContext(harness.runtime()),
-                                                                 first.get().taskId);
-        const auto ran = harness.scheduler().runNext();
-        const auto canceled = harness.runtime().tasks().getTask(
-            harness.runtime().documentVersion().documentId, first.get().taskId);
-        const auto retried = harness.runtime().audioExports().start(context, config, {});
-
-        return expect(cancel && ran && canceled &&
-                          canceled.get().state == Automation::AutomationTaskState::Canceled,
-                      QStringLiteral("queued task must reach canceled before retry")) &&
-               expect(retried && retried.get().taskId != first.get().taskId &&
-                          harness.scheduler().size() == 1,
-                      QStringLiteral("queued cancellation must release the idempotency key"));
-    }
-
-    bool runningFailureReleasesKey() {
-        AudioHarness harness;
-        if (!expect(harness.isValid(),
-                    QStringLiteral("runtime-failure audio harness must be valid")))
-            return false;
-        harness.control().backendState = Automation::AudioExportBackendState::Failed;
-        const auto key = QStringLiteral("d0d00000-0000-4000-8000-000000000015");
-        const auto context = commandContext(harness.runtime(), key);
-        const auto config = harness.config(QStringLiteral("runtime-failure.wav"));
-        const auto first = harness.runtime().audioExports().start(context, config, {});
-        if (!expect(first && harness.scheduler().runNext(),
-                    QStringLiteral("first failing task must run"))) {
-            return false;
-        }
-        const auto failed = harness.runtime().tasks().getTask(
-            harness.runtime().documentVersion().documentId, first.get().taskId);
-        harness.control().backendState = Automation::AudioExportBackendState::Succeeded;
-        const auto retried = harness.runtime().audioExports().start(context, config, {});
-        bool retrySucceeded = false;
-        if (retried && retried.get().taskId != first.get().taskId &&
-            harness.scheduler().runNext()) {
-            const auto succeeded = harness.runtime().tasks().getTask(
-                harness.runtime().documentVersion().documentId, retried.get().taskId);
-            retrySucceeded =
-                succeeded && succeeded.get().state == Automation::AutomationTaskState::Succeeded;
-        }
-
-        return expect(failed && failed.get().state == Automation::AutomationTaskState::Failed &&
-                          failed.get().error &&
-                          failed.get().error->code == Automation::AutomationErrorCode::IoError,
-                      QStringLiteral("backend failure must reach a stable failed task")) &&
-               expect(retried && retried.get().taskId != first.get().taskId && retrySucceeded,
-                      QStringLiteral("runtime failure must release the idempotency key"));
-    }
-
-    bool synchronousFailureBeforeStoreReleasesKey() {
-        auto control = std::make_shared<FakeAudioControl>();
-        control->backendState = Automation::AudioExportBackendState::Failed;
-        Automation::AudioExportRuntimeServices services;
-        services.createJob = [control](AppModel *, const QString &,
-                                       const Automation::AudioExportConfigDto &config) {
-            ++control->createCount;
-            std::shared_ptr<Automation::IAudioExportJob> job =
-                std::make_shared<FakeAudioJob>(config, control);
-            return Automation::AutomationResult<std::shared_ptr<Automation::IAudioExportJob>>(
-                std::move(job));
-        };
-        services.schedule = [](std::function<void()> execute) { execute(); };
-        ServiceRuntime fixture({}, std::move(services));
-        QTemporaryDir directory;
-        if (!expect(directory.isValid(),
-                    QStringLiteral("synchronous-failure directory must be valid"))) {
-            return false;
-        }
-
-        const auto context = commandContext(fixture.runtime(),
-                                            QStringLiteral("d0d00000-0000-4000-8000-000000000016"));
-        const Automation::AudioExportConfigDto config{
-            .fileName = QStringLiteral("synchronous.wav"),
-            .fileDirectory = directory.path(),
-        };
-        const auto first = fixture.runtime().audioExports().start(context, config, {});
-        if (!expect(bool(first), QStringLiteral("synchronous failing task must be accepted")))
-            return false;
-        const auto failed = fixture.runtime().tasks().getTask(
-            fixture.runtime().documentVersion().documentId, first.get().taskId);
-
-        control->backendState = Automation::AudioExportBackendState::Succeeded;
-        const auto retried = fixture.runtime().audioExports().start(context, config, {});
-        std::optional<Automation::AutomationResult<Automation::AutomationTaskSnapshot>> succeeded;
-        if (retried) {
-            succeeded.emplace(fixture.runtime().tasks().getTask(
-                fixture.runtime().documentVersion().documentId, retried.get().taskId));
-        }
-
-        return expect(failed && failed.get().state == Automation::AutomationTaskState::Failed,
-                      QStringLiteral("synchronous backend failure must be terminal")) &&
-               expect(retried && retried.get().taskId != first.get().taskId && succeeded &&
-                          *succeeded &&
-                          succeeded->get().state == Automation::AutomationTaskState::Succeeded &&
-                          control->executeCount == 2,
-                      QStringLiteral("failure before dispatcher store must still release the key"));
+                          "ordinary edits must reject keys and remain callable without one"));
     }
 }
 
 int main(int argc, char *argv[]) {
     QCoreApplication application(argc, argv);
     bool ok = true;
-    ok &= serialReplayExecutesOnce();
-    ok &= concurrentReplayExecutesOnce(16);
-    ok &= concurrentReplayExecutesOnce(64);
-    ok &= successfulKeyConflictsAreStable();
-    ok &= audioClipStateChangesConflict();
-    ok &= curveCollectionsChangeConflict();
-    ok &= voiceContextMetadataChangesConflict();
-    ok &= previewsAndValidationFailuresDoNotClaimKeys();
-    ok &= commitFailureDoesNotClaimKey();
-    ok &= documentsHaveIndependentKeySpaces();
-    ok &= generationsHaveIndependentKeySpaces();
-    ok &= saveDoesNotClearCache();
-    ok &= asyncAcceptedReplaySchedulesOnce();
-    ok &= asyncPreAcceptanceFailuresDoNotClaimKeys();
-    ok &= queuedCancellationReleasesKey();
-    ok &= runningFailureReleasesKey();
-    ok &= synchronousFailureBeforeStoreReleasesKey();
+    ok &= serialReplayAndExplicitOptIn();
+    ok &= concurrentReplayExecutesOnce();
+    ok &= unsuccessfulAttemptsDoNotClaimKeys();
+    ok &= documentsAndGenerationsHaveIndependentKeySpaces();
+    ok &= facadeWiringUsesOptInOnly();
     return ok ? 0 : 1;
 }
