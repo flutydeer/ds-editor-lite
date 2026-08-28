@@ -22,7 +22,7 @@ L3 downstream 为 177 个 Editor wrapper 加 6 个桥接工具，共 183 项。�
 | 平台与工具链 | Visual Studio 2026 v18.9.0；Qt 6.11.2 |
 | Debug 配置与构建 | 标准 preset `ConfigureAndBuild` 通过；随后 `all` target 通过 |
 | 最终 CTest 清单 | 62 项 |
-| 一次完整 CTest | 62/62 通过，35.76 s |
+| 一次完整 CTest | 62/62 通过，36.15 s |
 | Connector 真实联调 | 2025-11-25 下游握手和 2026-07-28 上游连接通过；L0 重启后自动重连且 toolset compatible |
 | GUI/Computer Use | 真实编辑、合成、播放、另存，以及 dirty 拒绝、丢弃重启和 clean 退出全程无决策弹窗 |
 | 测试素材完整性 | 素材源 19/19 项 SHA-256 不变；真实用户应用配置 SHA-256 不变 |
@@ -75,7 +75,13 @@ Custom、host availability 与契约版本分别报告。
 Dispatcher 的幂等处理为显式 opt-in。只有工具支持且请求实际带有 `idempotency_key` 时才计算
 请求指纹并进入幂等存储；不带 key 的调用不哈希、不创建幂等记录。
 
-版本、准入和幂等实测结果：**通过**。版本与工具目录契约通过完整 CTest；
+瞬时播放命令不再公开或维护 playback state version，`play/pause/stop/seek` 以目标状态或位置
+执行并保留 `idempotentHint`；重复 pause 返回 `changed=false`。三个持久循环工具只校验文档
+revision。L3 的选择、定位、面板和视口命令不修改工程，也不要求 `expected_revision`；除
+`clip_editor.parameters.swap` 外，目标状态类 GUI 命令均保留 `idempotentHint`。
+
+版本、准入和幂等实测结果：**通过**。版本与工具目录契约通过完整 CTest；真实 Editor 会话在
+改变播放位置后不带版本令牌执行 pause 成功，再次 pause 得到 no-op；
 `connector.get_status` 只读取缓存状态，标准 `tools/list` 不执行 Schema 兼容计算。真实 `notes.insert`
 以相同幂等键精确重放成功，未开放幂等的写操作不进入指纹与存储路径。
 
@@ -85,16 +91,18 @@ Dispatcher 的幂等处理为显式 opt-in。只有工具支持且请求实际�
 |---|---:|---|
 | Editor 全部业务域 | 177 | 契约与完整 CTest 通过 |
 | `workspace` | 2 | 契约与确定性测试通过 |
-| `track_panel` | 7 | 契约、确定性测试与 GUI 代表路径通过 |
-| `clip_editor` | 16 | 契约、确定性测试与 GUI 代表路径通过 |
+| `track_panel` | 7 | 契约、确定性测试与后台窗口 GUI 代表路径通过 |
+| `clip_editor` | 16 | 契约、确定性测试与后台窗口 GUI 代表路径通过 |
 | `settings` | 10 | 契约与确定性测试通过 |
 | `packages` | 3 | 契约与确定性测试通过 |
 | `lyric_rules` | 7 | 契约与确定性测试通过 |
-| L3 合计 | 45 | 契约覆盖与 GUI 聚焦代表路径通过 |
+| L3 合计 | 45 | 契约覆盖、区域激活与尽力焦点代表路径通过 |
 
 24 个业务域的 Query、同步 Command 和异步 Task 由确定性测试覆盖。真实 Connector 代表路径
 覆盖精确声库选择、轨道 voice、片段、音符、合并后的 voice context 查询、泛化 invoke、L3 UI
-聚焦与另存；编辑结果以结构化查询和 GUI 可见状态交叉确认。
+区域激活与另存；编辑结果以结构化查询和 GUI 可见状态交叉确认。后台窗口增量场景确认
+`track_panel.select_track` 在 `focused=false` 时仍成功并可回读选中轨道，`reveal_clips` 与
+`clip_editor.show_region` 同样不因操作系统未授予键盘焦点而报错。
 
 ## 6. Editor、Connector 与协议
 
@@ -141,11 +149,13 @@ connected/compatible；重启后的 clean 工程默认 exit 在 9.91 ms 内返�
 
 ## 7. GUI 与无人值守
 
-Computer Use 验收 MCP 调用后的 GUI 即时状态、L3 UI 聚焦、合成波形、播放和另存结果；
+Computer Use 验收 MCP 调用后的 GUI 即时状态、L3 区域激活与焦点事实、合成波形、播放和另存结果；
 全过程监控顶层窗口、活动模态窗口、进程心跳与无响应状态，自动化调用未触发交互式确认框。
 
 GUI 与无人值守实测结果：**通过**。Computer Use 可见创建后的片段、7 个音符、歌词、发音、
-音高曲线和合成波形；L3 UI 聚焦成功。播放时间由 101:01:341 前进至 102:02:437，
+音高曲线和合成波形；L3 UI 区域激活成功。增量回归把 Editor 保持在后台，真实调用轨道选择、
+片段定位和参数区域显示均成功；query 回读同时证明目标状态已应用而键盘焦点仍为 false。
+播放时间由 101:01:341 前进至 102:02:437，
 `documents.save_as` 成功。生命周期增量场景中，dirty 默认拒绝后测试轨道仍即时可见且窗口保持
 可操作；显式丢弃后旧窗口关闭、只出现一个 clean 新实例，未保存轨道不再存在；clean 默认退出后
 Editor 窗口与进程均消失。三个阶段均未出现保存确认或其他模态窗口。
@@ -153,7 +163,7 @@ Editor 窗口与进程均消失。三个阶段均未出现保存确认或其他�
 ## 8. 缺陷与回归
 
 最终候选的共享 Dispatcher、公共契约、Registry、Wire、Connector、文档生命周期和真实进程路径
-均通过受影响测试与最终 62/62 完整 CTest（35.76 s）。压力测试仍在默认套件中，保留通知洪泛、
+均通过受影响测试与最终 62/62 完整 CTest（36.15 s）。压力测试仍在默认套件中，保留通知洪泛、
 并发请求、大帧、慢读、取消与竞态覆盖；没有将其拆分、降次或改为可选执行。
 
 测试实现不再维护第二份手工工具清单，也不以固定工具数量、CTest 数量、场景配额或逐工具复制的
@@ -186,7 +196,7 @@ Editor 窗口与进程均消失。三个阶段均未出现保存确认或其他�
 - [x] Profile/Custom、File Guard、global/background Admission、动态值、工具目录、exposure
   和版本兼容通过。
 - [x] 两个 L0 生命周期工具不可禁用或排除；dirty 默认拒绝、显式丢弃重启、Connector 自动重连与 clean 优雅退出通过，且不触发 GUI 决策弹窗。
-- [x] GUI 可见编辑结果、L3 UI 聚焦、播放、另存与无人值守关闭验收通过。
+- [x] GUI 可见编辑结果、L3 区域激活、后台尽力焦点语义、播放、另存与无人值守关闭验收通过。
 - [x] Debug 配置、全目标构建与一次完整 CTest 通过。
 - [x] 用户素材零改动、应用配置恢复和测试进程/状态清理通过。
 

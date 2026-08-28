@@ -35,11 +35,11 @@ Agent 会话可先于 Editor 启动。Connector 通过全局实例 Bootstrap 观
 - voice selection 以 `{package_id, package_version, singer_id}` 组成的 singer 稳定引用；相同 package/singer ID 的并存版本必须精确区分，L1/L2 调用方可直接从 `voices.list/describe` 完成发现和选择，不依赖 L3 `packages.*`。speaker 可省略或为 `null`；零 speaker 声库保持空 speaker，单 speaker 声库自动解析唯一 speaker，多 speaker 声库要求显式选择；查询结果以 `speaker: null` 表达空 speaker。
 - 同步 Command 在模型信号、历史记录与 revision 提交完成后返回；异步 Command 在最终写回与信号完成后进入成功终态。
 - 自动化路径使用显式策略与稳定错误，不触发模态对话框。
-- GUI 进阶控制以工作区、轨道面板和片段编辑器归域；钢琴与参数子区域共享时间视口，选择与焦点归入所属面板域。
+- GUI 进阶控制以工作区、轨道面板和片段编辑器归域；钢琴与参数子区域共享时间视口，选择与焦点事实归入所属面板域。选择、定位和区域显示以表示状态完成为成功边界，键盘焦点只作尽力获取。
 - 应用设置使用明确 allowlist 与按小标题聚合的稀疏更新；自动化/MCP 自身配置和未列入设置不能由 MCP 修改。
 - 应用级设置与歌词规则不进入文档 revision/history；包刷新使用 application-scoped Task，不伪造文档身份。
 - `validate_only` 只开放给保存到新路径、批量文件导入、设备或包搜索路径设置，以及歌词规则创建/更新等确有复杂预检价值的操作；其他命令仍在提交前完成内部校验，不额外暴露预演参数。
-- `idempotency_key` 只开放给能够以稳定结果安全去重的对象创建、批量导入和提取任务；文档导入、推理启动及普通属性编辑、移动/缩放、删除、历史记录和播放状态写入使用 revision/state version 或 Task 状态处理冲突，不额外要求 Agent 管理幂等键。
+- `idempotency_key` 只开放给需要稳定结果去重的对象创建、批量导入和提取任务；文档导入、推理启动及普通文档编辑使用 revision 或 Task 状态处理冲突，不额外要求 Agent 管理幂等键。瞬时 GUI 与播放目标状态命令不使用客户端版本令牌，并以 `idempotentHint` 表达可安全重复调用。
 
 总线域的 descriptor category 为 `bus`，公开操作 ID 保持 `master.*`。历史记录是独立域，固定包含状态查询、Undo 与 Redo。
 
@@ -282,7 +282,7 @@ Editor 直连、Connector 类型化工具和泛化 invoke 进入同一个 Guard�
 全局 32 路硬上限。不设置 client/peer/domain 配额、令牌桶或公平排队。超限请求立即得到稳定
 `busy` 或 `too_many_requests`，不进入业务 handler；请求和 Task 终结时释放计数。
 
-Command 使用显式 `document_id + expected_revision`；异步任务保留不可变执行快照，并在最终写回前复核 document generation、revision 和文件授权。断线时 Connector 不自动重放有副作用 Command，结果事实无法确认时返回 `outcome_unknown`，由调用方结合 revision、Task 和 idempotency 信息确认。
+修改工程或保存点的 Command 使用显式 `document_id + expected_revision`；只修改瞬时播放、选择、面板和视口状态的 Command 使用目标 document/window 身份但不要求 revision。异步任务保留不可变执行快照，并在最终写回前复核 document generation、revision 和文件授权。断线时 Connector 不自动重放有副作用 Command，结果事实无法确认时返回 `outcome_unknown`，由调用方结合 revision、Task 和 idempotency 信息确认。
 
 ## 12. 设置页、CLI 与运行时生命周期
 

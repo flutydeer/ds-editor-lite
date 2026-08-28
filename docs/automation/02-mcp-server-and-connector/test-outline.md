@@ -111,13 +111,13 @@ Connector 桥接工具：6
 | 参数曲线与锚点 | 12 | capability、有界查询、draw/anchor、replace/draw/erase/bake 与显式曲线拓扑操作 |
 | 时间轴 | 5 | Tempo/拍号排序、零点锚、单条历史记录 |
 | 历史记录 | 3 | 状态、Undo/Redo、分支与 savepoint |
-| 播放 | 8 | 瞬时 state version；持久 loop 的历史记录、revision、Undo/Redo 与并发检查 |
+| 播放 | 8 | 瞬时目标状态的幂等/no-op；持久 loop 的历史记录、revision、Undo/Redo 与并发检查 |
 | 导出 | 6 | MIDI/audio capability、preview、写授权、任务与清理 |
 | 提取 | 3 | 来源/模型/语言能力、pitch/MIDI 任务与写回 |
 | 推理 | 4 | scope/stage/provider/device/model、状态、任务和 reset |
 | 异步任务 | 3 | 分页/筛选/详情、取消点、终态与创建者归因 |
 | 工作区布局 | 2 | 主编辑面板布局、可见性、至少保留一个主面板与焦点归属 |
-| 轨道面板 | 7 | 稀疏视口、reveal、自动翻页、有序选择、primary 与真实焦点 |
+| 轨道面板 | 7 | 稀疏视口、reveal、自动翻页、有序选择、primary、活动区域与尽力键盘焦点 |
 | 片段编辑器 | 16 | 活动片段、共享时间视口、钢琴/参数显示、选择、工具和值域视口 |
 | 设置 | 10 | domain query、公开字段稀疏更新、立即/重启生效、无弹窗与回滚 |
 | 包信息 | 3 | 读取根内路径披露、详情、后台刷新、取消与索引原子切换 |
@@ -132,21 +132,21 @@ Connector 桥接工具：6
 - 确定性契约测试验证代表结果和错误满足 output Schema；运行时不逐次重复校验输出。
 - `structuredContent` 与 TextContent 表达等价。
 - 排序、分页、Unicode、空集合、长文本和边界数字确定。
-- Query 不推进 revision、历史记录、state version 或 Task 状态。
+- Query 不推进 revision、历史记录或 Task 状态。
 - 能力查询同时表达 supported、available 和 unavailable reason。
 - `documents.get` 的工程长度和轨道/片段分类统计在空工程、空轨、有歌声/音频/混合轨状态下准确；`documents.list_recent` 不改变文档身份或 revision。
 - `parameters.get` 对采样数据执行确定性有界返回，对锚点数据完整返回或明确拒绝过小上限，不静默裁剪稳定对象。
 
 ### 5.2 同步 Command
 
-- 执行前校验 document、expected revision、对象 owner/type、动态值、File Guard 和 Admission。
+- 工程编辑执行前校验 document、expected revision、对象 owner/type、动态值、File Guard 和 Admission；瞬时 GUI 与播放目标状态命令不要求客户端版本令牌。
 - 成功结果含 previous/current、changed、affected/created objects、resolved values、presentation effects 与 warnings。
 - 合法 no-op 返回 `changed=false`，历史记录与 revision 保持原值。
 - `documents.save_as`、`documents.import_batch`、`audio_clips.import_batch`、三项复杂设置更新以及歌词规则 create/update 的 validate-only 执行完整校验，且不产生 ID、Task、文件写入、历史记录、revision 或业务通知；其他命令拒绝该额外字段。
 - 批量命令先完整预检，再以一条历史记录和一次 revision 提交。
 - handler、I/O、Schema 编码和 host adapter 失败不产生半提交。
 - `audio_clips.relocate` 与 `audio_clips.confirm_path` 同步完成校验、解码/hash 和最终写回，返回 Mutation，不创建 Task。
-- `playback.set_loop`、`set_loop_enabled` 与 `clear_loop` 修改工程持久状态，各自产生一条可撤销、可重做的历史记录；瞬时播放命令不进入历史记录。
+- `playback.set_loop`、`set_loop_enabled` 与 `clear_loop` 修改工程持久状态，各自产生一条可撤销、可重做的历史记录；瞬时播放命令不进入历史记录，播放头在调用间变化不造成冲突，重复目标调用返回 no-op。
 - Speaker Mix 预设 save/delete 不改变文档 revision 或 History；apply 只形成一条文档历史记录，后续直接编辑将来源标记为 dirty。
 - 创建、插入和合并锚点曲线分别形成单条历史记录；非法重叠、非相邻合并和跨曲线移动在提交前失败。
 
@@ -294,7 +294,7 @@ Connector 桥接工具：6
 - Contract、Registry、Editor MCP 与 Connector 的集合关系由确定性测试覆盖；真实 Connector 会话按业务域、调用类型与风险覆盖代表路径，并执行各 Connector 桥接工具的独特行为。
 - 24 个业务域均建立真实产品会话代表路径；具有可见 UI 的域同时保存 GUI 观察证据。MCP 编辑后 GUI 立即呈现；GUI 编辑后 MCP 查询与 revision 立即更新；不直接可见的查询、应用设置和 Task 通过对应 query、应用状态或进程事实闭环。
 - 轨道、总线、片段、音符、参数曲线、时间轴、Speaker Mix、历史记录与播放均执行至少一条真实 mutation，并使用 GUI 与 MCP Undo/Redo 验证代表路径的历史记录粒度及状态恢复；其余领域特有边界由确定性测试覆盖。
-- 工作区布局、轨道面板和片段编辑器分别以代表路径保存调用前后界面、对应 get 回读与恢复证据；持续监控真实焦点、顶层窗口和活动模态窗口。
+- 工作区布局、轨道面板和片段编辑器分别以代表路径保存调用前后界面、对应 get 回读与恢复证据；验证 Editor 处于后台且无法取得键盘焦点时，已完成的显示、选择和定位仍成功，并持续监控实际焦点、顶层窗口和活动模态窗口。
 - 设置更新按主要参数形状和生效方式取样，包刷新和歌词规则管理覆盖其关键成功与回滚路径，并在场景后恢复隔离配置。
 - 文档、格式、音频素材、声库、导出、提取、推理和异步任务均在隔离工作区执行真实资格路径；环境缺少 codec、声音、模型或音频设备时，保存结构化不可用事实，并由确定性 CTest 覆盖可用分支。
 - 一个真实 Agent Host 通过 stdio 启动 Connector，执行各桥接工具的独特行为，并以各域代表性 Query/Command/Task 覆盖产品链路；公共契约、权限与 Schema 的通用不变量由组件测试覆盖。

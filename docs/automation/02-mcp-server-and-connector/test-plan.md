@@ -156,7 +156,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
    对歌声片段直接返回 own/effective voice、继承来源和有效默认语言；公共集合没有独立的
    voice-context 查询工具。
 9. 验证 `audio_clips.relocate/confirm_path` 同步返回 Mutation、不创建 Task，并在 GUI 中立即反映。
-10. 验证 `playback.set_loop/set_loop_enabled/clear_loop` 形成工程持久历史记录，逐项 Undo/Redo；play/pause/stop/seek 保持瞬时状态。
+10. 验证 `playback.set_loop/set_loop_enabled/clear_loop` 形成工程持久历史记录，逐项 Undo/Redo；play/pause/stop/seek 保持瞬时、目标状态幂等，播放头在查询与命令间变化不导致版本冲突。
 11. 验证动态值发现、异步任务和文件重新授权；正常 invocation 不自动回查 provider，output
     Schema 由确定性契约测试覆盖，运行时不逐次 assert。
 12. 验证零 speaker 声库可用完整 SingerRef 设置到轨道/片段；单 speaker 自动解析，多 speaker 候选可由 `voices.describe` 查询，缺少选择时稳定拒绝；构造 package ID 与 singer ID 相同、package version 不同的两个并存版本，在 L2 明确拒绝 `packages.*` 的前提下验证 list、describe、轨道/片段设置、Speaker Mix/预设和回读均按版本精确闭环。
@@ -164,7 +164,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 14. 验证 `parameters.get` 的半开范围、默认/显式点数上限、采样曲线确定性降采样，以及锚点曲线在上限不足时明确失败而不丢失稳定 ID。
 15. 验证 `parameters.create_anchor_curve`、显式 `insert_anchors`、跨曲线移动拒绝和 `merge_anchor_curves` 的相邻/重叠规则及逐步 Undo/Redo。
 16. 验证 Speaker Mix 预设 list/save/delete 的应用级无文档副作用，apply 的单条 History，以及来源预设 dirty 状态。
-17. 对 workspace、track_panel、clip_editor 的布局、焦点、共享/独立视口、选择顺序与 primary 各选代表路径验证真实 QWidget 状态；确认 revision/history 不变且不出现模态窗口。
+17. 对 workspace、track_panel、clip_editor 的布局、焦点事实、共享/独立视口、选择顺序与 primary 各选代表路径验证真实 QWidget 状态；确认 revision/history 不变，且 Editor 在后台无法取得键盘焦点时已完成的显示、选择和定位不被误报为失败，也不出现模态窗口。
 18. 对 settings.query 与设置更新的公共 allowlist、domain 过滤、候选/生效/重启信息、稀疏更新、持久化和失败回滚进行分形状代表覆盖；validate-only 只覆盖音频设备、计算设备和包搜索路径更新，其他设置 update 必须拒绝该字段。
 19. 对 packages.list/describe/refresh 验证读取根内路径、有效搜索路径、application task 的成功/取消/部分失败，以及索引原子切换。
 20. 对 lyric_rules 验证稳定 ID 迁移、内置/自定义边界、CRUD、启停、分类内移动、非法规则回滚和 splitter→tagger 只读测试。
@@ -272,7 +272,7 @@ Editor direct 与 Connector 转接在结果、错误、历史记录、revision �
 9. 对文档、格式、音频素材、声库、保存、导入、导出、提取、推理和异步任务逐域执行真实资格路径；环境缺少 codec、声音、模型或音频设备时保存结构化不可用事实，同时由确定性 CTest 覆盖可用分支。
 10. 同时运行多个 Connector，结束其中一个后验证其余链路。
 11. 使用 CLI override 启动测试拥有的 Editor，核对来源显示与持久配置保持。
-12. 对 workspace、track_panel、clip_editor（含 piano/parameters）的布局、焦点、选择与共享视口分别建立代表性 GUI 场景，保存调用前后截图、query 回读和恢复证据。
+12. 对 workspace、track_panel、clip_editor（含 piano/parameters）的布局、焦点事实、选择与共享视口分别建立代表性 GUI 场景；增加 Editor 处于后台的调用，确认键盘焦点仅尽力获取且不会推翻已完成操作，并保存调用前后截图、query 回读和恢复证据。
 13. 对设置更新的主要形状、包刷新与歌词规则管理选择代表路径观察 GUI/应用即时状态、重启后持久状态和失败回滚；全过程监测顶层窗口与活动模态窗口。
 
 ### Agent Host 与环境资格

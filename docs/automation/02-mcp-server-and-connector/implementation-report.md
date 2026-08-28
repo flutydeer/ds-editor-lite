@@ -154,10 +154,10 @@ Closed World Command，不提供 `force`、`validate_only`、幂等键或任意�
 
 播放状态被拆为两类：
 
-- `playback.play/pause/stop/seek` 只修改瞬时播放状态和 playback state version，不进入历史记录；
+- `playback.play/pause/stop/seek` 以目标状态或目标位置表达瞬时控制，不进入历史记录，也不要求调用方维护状态版本；重复调用同一目标是合法 no-op；
 - `playback.set_loop/set_loop_enabled/clear_loop` 修改工程持久循环状态，通过 `CommandCommitter` 各自形成一条历史记录，并推进文档 revision；Undo/Redo 使用同一 ActionSequence 恢复循环设置。
 
-持久循环同时校验文档 revision 与调用方可选的 playback state version，避免播放状态和工程状态的竞态写入。
+持久循环只按工程文档 revision 校验并发编辑。播放头在播放期间持续变化不会使 pause、stop、seek 或循环编辑产生瞬时版本冲突。
 
 ### 5.5 格式、MIDI 与 LibreSVIP
 
@@ -182,9 +182,9 @@ Speaker Mix 预设并入 `speaker_mix` 域并开放在 L2。`presets.list/save/d
 
 ### 5.7 工作区、轨道面板与片段编辑器
 
-GUI 进阶控制按真实面板层级归入 `workspace`、`track_panel` 和 `clip_editor` 三个域。所有工具都显式定位 `window_id`；涉及工程对象的命令同时定位 `document_id`，对象选择继续使用稳定的 track、clip 和 note ID。它们只修改 QWidget 表示状态、选择、焦点或视口，不推进工程 revision，也不写入历史记录。
+GUI 进阶控制按真实面板层级归入 `workspace`、`track_panel` 和 `clip_editor` 三个域。所有工具都显式定位 `window_id`；涉及工程对象的命令同时定位 `document_id`，对象选择继续使用稳定的 track、clip 和 note ID。它们只修改 QWidget 表示状态、选择、活动区域或视口，不推进工程 revision，也不写入历史记录，因此公共输入不要求 `expected_revision`。
 
-`workspace` 管理轨道面板与片段编辑器的可见性，并保证至少保留一个主编辑面板。`track_panel` 管理自己的共享轨道视口、自动翻页、当前轨道、有序片段选择、primary item 与真实焦点；reveal 会根据目标轨道或片段调整可见范围，但不改变工程内容。选择和焦点没有平行的全局域，而是由其状态所属面板直接管理。
+`workspace` 管理轨道面板与片段编辑器的可见性，并保证至少保留一个主编辑面板。`track_panel` 管理自己的共享轨道视口、自动翻页、当前轨道、有序片段选择与 primary item；reveal 会根据目标轨道或片段调整可见范围，但不改变工程内容。选择类命令会显示并激活所属区域，键盘焦点只作尽力获取；Editor 位于后台、操作系统拒绝抢焦点时，已完成的选择或定位仍按成功返回。查询继续报告实际焦点事实。
 
 `clip_editor` 把钢琴窗和参数面板建模为同一编辑面板的子区域：两者共享时间位置和横向缩放，钢琴另有音高纵向视口，参数另有值域纵向视口。活动片段、区域显示、自动翻页、钢琴编辑模式与量化、音符选择，以及参数前景、背景、交换和工具状态均走现有 Controller 与 ViewModel 路径，因此 MCP 结果会通过同一信号链立即反映在 GUI。
 
@@ -202,7 +202,7 @@ GUI 进阶控制按真实面板层级归入 `workspace`、`track_panel` 和 `cli
 
 公开 `validate_only` 仅保留在 `documents.save_as`、`documents.import_batch`、`audio_clips.import_batch`、`settings.audio_device.update`、`settings.compute_device.update`、`settings.package_search_paths.update`、`lyric_rules.create` 和 `lyric_rules.update`。其他命令仍执行同样的提交前校验，但不向 Agent 暴露无实际收益的预演开关。
 
-公开 `idempotency_key` 收敛到 `tracks.insert`、`clips.insert/duplicate`、`audio_clips.import*`、`speaker_mix.keyframes.insert`、`notes.insert/duplicate/split_at`、`parameters.create_anchor_curve/insert_anchors` 和 `extract.*.start`。这些操作能够以稳定结果安全去重；`documents.import*`、`inference.start` 及其余普通文档写操作只公开 revision/state version 或 Task 状态冲突控制。
+公开 `idempotency_key` 收敛到 `tracks.insert`、`clips.insert/duplicate`、`audio_clips.import*`、`speaker_mix.keyframes.insert`、`notes.insert/duplicate/split_at`、`parameters.create_anchor_curve/insert_anchors` 和 `extract.*.start`。这些操作能够以稳定结果安全去重；`documents.import*`、`inference.start` 及其余普通文档写操作只使用文档 revision 或 Task 状态处理冲突。瞬时 GUI 与播放目标状态命令不依赖客户端版本令牌，并通过 MCP `idempotentHint` 表达可安全重复调用。
 
 异步工具由 `AutomationTaskManager` 管理 Queued、Running、CancelRequested、Committing 和终态。Task 记录 operation、基准文档、创建者、进度、结果或错误；最终写回前复核 generation、revision、对象和文件授权。Connector 在有副作用请求的结果事实不明确时返回 `outcome_unknown`，不自动重放 Command。
 

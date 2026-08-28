@@ -235,16 +235,16 @@
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
-| `playback.get` | L2 | Q/S | 播放状态、位置、循环与 state version |
+| `playback.get` | L2 | Q/S | 播放状态、位置、循环与当前可播放性 |
 | `playback.play` | L2 | C/S | 播放状态转换与能力检查 |
 | `playback.pause` | L2 | C/S | 暂停状态转换 |
 | `playback.stop` | L2 | C/S | 停止与恢复位置语义 |
-| `playback.seek` | L2 | C/S | 有限非负位置与 state version |
+| `playback.seek` | L2 | C/S | 设置有限非负播放位置 |
 | `playback.set_loop` | L2 | C/S | 设置持久循环区间，形成一条历史记录并递增文档 revision |
 | `playback.set_loop_enabled` | L2 | C/S | 设置持久循环开关，形成一条历史记录并递增文档 revision |
 | `playback.clear_loop` | L2 | C/S | 清除持久循环状态，形成一条历史记录并递增文档 revision |
 
-`playback.play/pause/stop/seek` 只修改瞬时播放状态；三个循环工具修改工程持久状态，同时遵守文档 revision 与播放 state version 冲突检查，并可由 `history.undo/redo` 整体导航。
+`playback.play/pause/stop/seek` 只修改瞬时播放状态，以目标状态/位置为准且可安全重复调用，不使用状态版本；三个循环工具修改工程持久状态，遵守文档 revision 并可由 `history.undo/redo` 整体导航。
 
 ### 3.15 导出（6）
 
@@ -297,13 +297,13 @@
 | `track_panel.set_viewport` | L3 | C/S | 稀疏更新中心 tick、中心轨道索引与横纵缩放 |
 | `track_panel.reveal_clips` | L3 | C/S | 完整显示目标轨道或片段集合，不修改工程 |
 | `track_panel.set_auto_page_turn` | L3 | C/S | 设置轨道面板自动翻页 |
-| `track_panel.select_track` | L3 | C/S | 选择或清除当前轨道，并将焦点切到轨道面板 |
-| `track_panel.select_clips` | L3 | C/S | 原子替换有序片段选择与 primary clip，并聚焦轨道面板 |
-| `track_panel.clear_selection` | L3 | C/S | 按 track/clips/all 清除选择并保持确定焦点 |
+| `track_panel.select_track` | L3 | C/S | 选择或清除当前轨道，并显示、激活轨道面板 |
+| `track_panel.select_clips` | L3 | C/S | 原子替换有序片段选择与 primary clip，并显示、激活轨道面板 |
+| `track_panel.clear_selection` | L3 | C/S | 按 track/clips/all 清除选择，并显示、激活轨道面板 |
 
 ### 3.21 片段编辑器（16）
 
-钢琴和参数子区域共享时间位置与横向缩放；钢琴另有音高纵向视口，参数另有值域纵向视口。焦点与选择归入各自面板/子区域，不建立平行的选择域。
+钢琴和参数子区域共享时间位置与横向缩放；钢琴另有音高纵向视口，参数另有值域纵向视口。焦点事实与选择归入各自面板/子区域，不建立平行的选择域。GUI Command 不要求文档 revision；显示和激活目标区域是成功条件，键盘焦点只作尽力获取。
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
@@ -311,13 +311,13 @@
 | `clip_editor.set_active_clip` | L3 | C/S | 设置活动歌声片段，或关闭当前活动片段 |
 | `clip_editor.set_time_viewport` | L3 | C/S | 稀疏更新钢琴与参数共享的中心 tick 和横向缩放 |
 | `clip_editor.set_auto_page_turn` | L3 | C/S | 设置片段编辑器自动翻页 |
-| `clip_editor.show_region` | L3 | C/S | 显示、展开并聚焦 piano 或 parameters 子区域 |
+| `clip_editor.show_region` | L3 | C/S | 显示、展开并激活 piano 或 parameters 子区域 |
 | `clip_editor.piano.set_pitch_viewport` | L3 | C/S | 稀疏更新中心音高与纵向缩放 |
 | `clip_editor.piano.reveal_notes` | L3 | C/S | 在活动歌声片段中完整显示指定音符 |
 | `clip_editor.piano.set_edit_mode` | L3 | C/S | 设置钢琴窗受支持的编辑模式 |
 | `clip_editor.piano.set_quantize` | L3 | C/S | 稀疏更新量化分度与启用状态 |
-| `clip_editor.piano.select_notes` | L3 | C/S | 原子替换有序音符选择与 primary note，并聚焦钢琴子区域 |
-| `clip_editor.piano.clear_selection` | L3 | C/S | 清除活动片段音符选择并聚焦钢琴子区域 |
+| `clip_editor.piano.select_notes` | L3 | C/S | 原子替换有序音符选择与 primary note，并显示、激活钢琴子区域 |
+| `clip_editor.piano.clear_selection` | L3 | C/S | 清除活动片段音符选择，并显示、激活钢琴子区域 |
 | `clip_editor.parameters.set_foreground` | L3 | C/S | 设置前景参数 |
 | `clip_editor.parameters.set_background` | L3 | C/S | 设置背景参数或 none |
 | `clip_editor.parameters.swap` | L3 | C/S | 原子交换前景与背景；不可交换时不产生部分变化 |
