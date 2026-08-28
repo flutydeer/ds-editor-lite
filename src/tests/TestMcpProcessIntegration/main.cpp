@@ -355,8 +355,8 @@ namespace {
             .arg(response->result.value(QStringLiteral("nextCursor")).toString());
     }
 
-    QString upstreamManifestDiagnostic(const QString &endpoint) {
-        DsConnector::UpstreamMcpClient client(QStringLiteral("process-test-manifest-diagnostic"),
+    QString upstreamStatusDiagnostic(const QString &endpoint) {
+        DsConnector::UpstreamMcpClient client(QStringLiteral("process-test-status-diagnostic"),
                                               QStringLiteral("1"));
         QString endpointError;
         if (!client.setEndpoint(endpoint, &endpointError))
@@ -368,12 +368,12 @@ namespace {
         client.send(
             QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
             QJsonObject{
-                {QStringLiteral("name"),      QStringLiteral("automation.get_manifest")  },
-                {QStringLiteral("arguments"), QJsonObject{{QStringLiteral("limit"), 100}}},
+                {QStringLiteral("name"),      QStringLiteral("application.get_status")},
+                {QStringLiteral("arguments"), QJsonObject{}                           },
         },
             [&response](DsConnector::UpstreamResult result) { response = std::move(result); },
-            30000);
-        if (!waitUntil([&response] { return response.has_value(); }, 31000)) {
+            5000);
+        if (!waitUntil([&response] { return response.has_value(); }, 6000)) {
             return QStringLiteral("callback timeout; elapsed_ms=%1").arg(elapsed.elapsed());
         }
 
@@ -400,10 +400,10 @@ namespace {
                 .arg(prefix, content.value(QStringLiteral("code")).toString(),
                      content.value(QStringLiteral("message")).toString());
         }
-        return QStringLiteral("%1; tool_error=false; operations=%2; next_cursor=%3")
+        return QStringLiteral("%1; tool_error=false; toolset_version=%2; documents=%3")
             .arg(prefix)
-            .arg(content.value(QStringLiteral("operations")).toArray().size())
-            .arg(content.value(QStringLiteral("next_cursor")).toString());
+            .arg(content.value(QStringLiteral("toolset_version")).toInteger())
+            .arg(content.value(QStringLiteral("documents")).toArray().size());
     }
 
     void stopProcess(QProcess &process) {
@@ -549,28 +549,28 @@ namespace {
             }
             const auto content = structuredContent(*status).toObject();
             lastConnectorStatus = content;
-            const auto manifestCompatibility = content.value(QStringLiteral("manifest"))
-                                                   .toObject()
-                                                   .value(QStringLiteral("compatibility"))
-                                                   .toString();
+            const auto toolsetCompatibility = content.value(QStringLiteral("toolset"))
+                                                  .toObject()
+                                                  .value(QStringLiteral("compatibility"))
+                                                  .toString();
             connectorReady = content.value(QStringLiteral("mcp"))
                                  .toObject()
                                  .value(QStringLiteral("connected"))
                                  .toBool() &&
-                             manifestCompatibility == QStringLiteral("compatible");
+                             toolsetCompatibility == QStringLiteral("compatible");
             if (!connectorReady)
                 QThread::msleep(100);
         }
         if (!connectorReady) {
             return fail(QStringLiteral("Connector did not complete the upstream editor handshake; "
                                        "bootstrap_snapshot_sequence=%1; status=%2; "
-                                       "upstream_tools=%3; upstream_manifest=%4; "
+                                       "upstream_tools=%3; upstream_status=%4; "
                                        "connector_stderr=%5; editor_stderr=%6")
                             .arg(watcher.observation().snapshotSequence)
                             .arg(QString::fromUtf8(
                                 QJsonDocument(lastConnectorStatus).toJson(QJsonDocument::Compact)))
                             .arg(upstreamToolsDiagnostic(editorEndpoint),
-                                 upstreamManifestDiagnostic(editorEndpoint),
+                                 upstreamStatusDiagnostic(editorEndpoint),
                                  QString::fromUtf8(connector.readAllStandardError()),
                                  QString::fromUtf8(editor.readAllStandardError())));
         }
@@ -633,14 +633,14 @@ namespace {
         const auto missingFixedTool =
             std::find_if(fixedToolNames.cbegin(), fixedToolNames.cend(),
                          [&toolNames](const QString &name) { return !toolNames.contains(name); });
-        if (toolNames.size() != 183 || missingFixedTool != fixedToolNames.cend() ||
-            !toolNames.contains(QStringLiteral("automation.get_status")) ||
+        if (toolNames.size() != 181 || missingFixedTool != fixedToolNames.cend() ||
+            !toolNames.contains(QStringLiteral("application.get_status")) ||
             !toolNames.contains(QStringLiteral("workspace.get")) ||
             !toolNames.contains(QStringLiteral("settings.query")) ||
             !toolNames.contains(QStringLiteral("packages.refresh")) ||
             toolNames.contains(QStringLiteral("application.request_exit"))) {
             return fail(
-                QStringLiteral("Connector did not publish the exact 177+6 L3 tool surface"));
+                QStringLiteral("Connector did not publish the exact 175+6 L3 tool surface"));
         }
 
         QJsonObject lastEditorStatus;
@@ -648,10 +648,10 @@ namespace {
         bool editorStatusReady = false;
         for (qint64 attempt = 0; attempt < 100 && !editorStatusReady; ++attempt) {
             auto editorStatus = exchange(
-                connector, makeToolRequest(101 + attempt, QStringLiteral("automation.get_status")),
+                connector, makeToolRequest(101 + attempt, QStringLiteral("application.get_status")),
                 5000, exchangeError);
             if (!editorStatus) {
-                return fail(QStringLiteral("automation.get_status failed: %1").arg(exchangeError));
+                return fail(QStringLiteral("application.get_status failed: %1").arg(exchangeError));
             }
             lastEditorStatusResponse = *editorStatus;
             if (editorStatus->contains(QStringLiteral("error")) ||
@@ -659,7 +659,7 @@ namespace {
                     .toObject()
                     .value(QStringLiteral("isError"))
                     .toBool()) {
-                return fail(QStringLiteral("automation.get_status returned an error: %1")
+                return fail(QStringLiteral("application.get_status returned an error: %1")
                                 .arg(QString::fromUtf8(
                                     QJsonDocument(*editorStatus).toJson(QJsonDocument::Compact))));
             }
@@ -704,9 +704,9 @@ namespace {
 
         QString toolError;
         const auto directInitialStatus = directToolContent(
-            directClient, QStringLiteral("automation.get_status"), {}, 10000, toolError);
+            directClient, QStringLiteral("application.get_status"), {}, 10000, toolError);
         if (!directInitialStatus ||
-            !equivalentContent(QStringLiteral("automation.get_status"), lastEditorStatus,
+            !equivalentContent(QStringLiteral("application.get_status"), lastEditorStatus,
                                directInitialStatus.value_or(QJsonObject{}), toolError)) {
             return failWithProcessDiagnostics(
                 QStringLiteral("Initial direct/connector status equivalence failed: %1")
@@ -728,7 +728,7 @@ namespace {
         if (documentId.isEmpty() || initialRevision < 0) {
             return failWithProcessDiagnostics(
                 QStringLiteral(
-                    "automation.get_status did not provide a usable document version: %1")
+                    "application.get_status did not provide a usable document version: %1")
                     .arg(compactJson(lastEditorStatus)));
         }
 
@@ -931,7 +931,7 @@ namespace {
                         .arg(compactJson(*status)));
             }
             legacyConnectorStatus = result.value(QStringLiteral("structuredContent")).toObject();
-            const auto compatibility = legacyConnectorStatus.value(QStringLiteral("manifest"))
+            const auto compatibility = legacyConnectorStatus.value(QStringLiteral("toolset"))
                                            .toObject()
                                            .value(QStringLiteral("compatibility"))
                                            .toString();
@@ -961,7 +961,7 @@ namespace {
                     .toObject()
                     .value(QStringLiteral("tools"))
                     .toArray()
-                    .size() != 183) {
+                    .size() != 181) {
             return failWithProcessDiagnostics(
                 QStringLiteral("Connector MCP 2025-06-18 tools/list failed: %1")
                     .arg(legacyTools ? compactJson(*legacyTools) : exchangeError));
@@ -1027,7 +1027,7 @@ namespace {
                 QStringLiteral("Direct Editor MCP 2025-11-25 tools/list failed"));
         }
         const auto legacyDirectStatus = directToolContent(
-            legacyDirectClient, QStringLiteral("automation.get_status"), {}, 10000, toolError);
+            legacyDirectClient, QStringLiteral("application.get_status"), {}, 10000, toolError);
         if (!legacyDirectStatus ||
             legacyDirectStatus->value(QStringLiteral("editor_instance_id")).toString() !=
                 editorInstanceId) {
@@ -1038,7 +1038,7 @@ namespace {
 
         QTextStream(stdout)
             << "Validated real editor + connector MCP 2025-06-18/2025-11-25/2026-07-28 process "
-               "integration, L1/L2 operations, the 177+6 L3 surface, and normalized direct-editor "
+               "integration, L1/L2 operations, the 175+6 L3 surface, and normalized direct-editor "
                "equivalence"
             << Qt::endl;
         return true;

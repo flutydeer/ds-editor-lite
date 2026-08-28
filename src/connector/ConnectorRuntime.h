@@ -63,7 +63,7 @@ namespace DsConnector {
         void startModernHandshake(quint64 epoch);
         void startLegacyHandshake(quint64 epoch);
         void failHandshake(quint64 epoch, const QString &error,
-                           const QString &manifestCompatibility = QStringLiteral("not_loaded"),
+                           const QString &toolsetCompatibility = QStringLiteral("not_loaded"),
                            bool preserveMcpConnection = false);
         void completeHandshakeCycle(quint64 epoch, bool succeeded);
         void requestToolsPage(quint64 epoch, const QString &cursor, QJsonArray accumulated,
@@ -93,14 +93,13 @@ namespace DsConnector {
         UpstreamMcpClient *m_upstream = nullptr;
         QTimer *m_handshakeRetryTimer = nullptr;
         QJsonArray m_actualTools;
-        QJsonObject m_manifest;
+        QJsonObject m_editorContract;
         QHash<QString, QJsonObject> m_actualToolIndex;
         QJsonArray m_filteredActualToolsCache;
         QStringList m_pendingSelectorsCache;
-        QString m_filteredActualToolsDigest;
-        QString m_connectorManifestDigest;
-        QHash<QByteArray, bool> m_schemaValidationCache;
-        QString m_manifestCompatibility = QStringLiteral("not_loaded");
+        QString m_filteredActualToolsSnapshot;
+        quint64 m_toolCatalogGeneration = 0;
+        QString m_toolsetCompatibility = QStringLiteral("not_loaded");
         int m_compatibleCount = 0;
         int m_incompatibleCount = 0;
         int m_unavailableCount = 0;

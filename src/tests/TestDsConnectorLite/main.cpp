@@ -78,6 +78,16 @@ namespace {
                !metadata->value(QStringLiteral("minimum_profile")).toString().isEmpty();
     }
 
+    bool isToolSummary(const QJsonObject &tool) {
+        return !tool.value(QStringLiteral("name")).toString().isEmpty() &&
+               !tool.value(QStringLiteral("category")).toString().isEmpty() &&
+               !tool.value(QStringLiteral("minimum_profile")).toString().isEmpty() &&
+               tool.value(QStringLiteral("minimum_toolset_version")).toInteger() >= 1 &&
+               !tool.value(QStringLiteral("availability")).toString().isEmpty() &&
+               !tool.contains(QStringLiteral("inputSchema")) &&
+               !tool.contains(QStringLiteral("outputSchema"));
+    }
+
     bool waitUntil(const std::function<bool()> &condition, const int timeoutMs = 3000) {
         QElapsedTimer timer;
         timer.start();
@@ -292,8 +302,8 @@ namespace {
         bool applicationTransportExtraField = false;
         int extraToolCount = 0;
         int pageSize = 0;
-        AutomationWire::AutomationProfile manifestProfile = AutomationWire::AutomationProfile::L1;
-        int manifestToolsetVersion = static_cast<int>(AutomationWire::PublicToolsetVersion);
+        AutomationWire::AutomationProfile editorProfile = AutomationWire::AutomationProfile::L1;
+        int editorToolsetVersion = static_cast<int>(AutomationWire::PublicToolsetVersion);
         int applicationMinimumToolsetVersion = 1;
         int discoverResponseDelayMs = 0;
         int discoverRateLimitFailuresRemaining = 0;
@@ -303,7 +313,6 @@ namespace {
         int cancelledNotificationCount = 0;
         int toolsListCount = 0;
         int statusCallCount = 0;
-        int manifestCallCount = 0;
         QList<QJsonValue> requestIds;
         QList<QJsonObject> cancelledNotificationParams;
         QStringList calledTools;
@@ -423,9 +432,7 @@ namespace {
                 });
             }
             tools.append(applicationTool);
-            tools.append(AutomationWire::findPublicTool(QStringLiteral("automation.get_status"))
-                             ->toMcpToolJson());
-            tools.append(AutomationWire::findPublicTool(QStringLiteral("automation.get_manifest"))
+            tools.append(AutomationWire::findPublicTool(QStringLiteral("application.get_status"))
                              ->toMcpToolJson());
             if (exposeNotes) {
                 tools.append(
@@ -516,91 +523,6 @@ namespace {
             m_toolsCacheKey = cacheKey;
             m_cachedTools = tools;
             return m_cachedTools;
-        }
-
-        QJsonObject fullManifest() const {
-            const auto cacheKey = QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8|%9")
-                                      .arg(applicationSchemaVariant)
-                                      .arg(annotatedApplicationHeaders)
-                                      .arg(exposeInvalidAnnotatedTool)
-                                      .arg(exposeCommandTool)
-                                      .arg(extraToolCount)
-                                      .arg(manifestToolsetVersion)
-                                      .arg(applicationMinimumToolsetVersion)
-                                      .arg(exposeForwardCompatibleTools)
-                                      .arg(AutomationWire::automationProfileName(manifestProfile));
-            if (cacheKey == m_manifestCacheKey)
-                return m_cachedManifest;
-            auto manifest = AutomationWire::buildPublicManifest(manifestProfile).toJson();
-            manifest.insert(QStringLiteral("toolset_version"), manifestToolsetVersion);
-            auto operations = manifest.value(QStringLiteral("operations")).toArray();
-            QJsonObject applicationOperation;
-            for (auto index = 0; index < operations.size(); ++index) {
-                auto operation = operations.at(index).toObject();
-                if (operation.value(QStringLiteral("operation_id")) ==
-                    QStringLiteral("application.get_info")) {
-                    operation.insert(QStringLiteral("minimum_toolset_version"),
-                                     applicationMinimumToolsetVersion);
-                    if (applicationSchemaVariant) {
-                        operation.insert(
-                            QStringLiteral("output_schema"),
-                            QJsonObject{
-                                {QStringLiteral("type"),                 QStringLiteral("object")},
-                                {QStringLiteral("properties"),
-                                 QJsonObject{{QStringLiteral("incompatible"),
-                                              QJsonObject{{QStringLiteral("type"),
-                                                           QStringLiteral("boolean")}}}}         },
-                                {QStringLiteral("required"),
-                                 QJsonArray{QStringLiteral("incompatible")}                      },
-                                {QStringLiteral("additionalProperties"), false                   },
-                        });
-                    }
-                    if (annotatedApplicationHeaders)
-                        operation.insert(QStringLiteral("input_schema"), annotatedInputSchema());
-                    applicationOperation = operation;
-                    operations.replace(index, operation);
-                }
-            }
-            if (exposeInvalidAnnotatedTool) {
-                auto invalid = applicationOperation;
-                invalid.insert(QStringLiteral("operation_id"),
-                               QStringLiteral("fake.invalid_header"));
-                invalid.insert(QStringLiteral("title"), QStringLiteral("Invalid header mapping"));
-                invalid.insert(QStringLiteral("input_schema"), annotatedInputSchema(false));
-                operations.append(invalid);
-            }
-            if (exposeCommandTool) {
-                auto command = applicationOperation;
-                command.insert(QStringLiteral("operation_id"), QStringLiteral("fake.command"));
-                command.insert(QStringLiteral("title"), QStringLiteral("Fake command"));
-                command.insert(QStringLiteral("kind"), QStringLiteral("command"));
-                operations.append(command);
-            }
-            if (exposeForwardCompatibleTools) {
-                auto flexible = applicationOperation;
-                flexible.insert(QStringLiteral("operation_id"),
-                                QStringLiteral("fake.flexible_output"));
-                flexible.insert(QStringLiteral("title"), QStringLiteral("Flexible output"));
-                flexible.insert(QStringLiteral("category"), QStringLiteral("fake"));
-                flexible.insert(QStringLiteral("minimum_profile"), QStringLiteral("meta"));
-                flexible.insert(QStringLiteral("kind"), QStringLiteral("query"));
-                flexible.insert(QStringLiteral("input_schema"), flexibleInputSchema());
-                flexible.insert(QStringLiteral("output_schema"), flexibleOutputSchema());
-                operations.append(flexible);
-            }
-            for (auto index = 0; index < extraToolCount; ++index) {
-                auto operation = applicationOperation;
-                const auto id = QStringLiteral("fake.tool.%1").arg(index, 3, 10, QLatin1Char('0'));
-                operation.insert(QStringLiteral("operation_id"), id);
-                operation.insert(QStringLiteral("title"), id);
-                operation.insert(QStringLiteral("category"), QStringLiteral("fake"));
-                operation.insert(QStringLiteral("minimum_profile"), QStringLiteral("meta"));
-                operations.append(operation);
-            }
-            manifest.insert(QStringLiteral("operations"), operations);
-            m_manifestCacheKey = cacheKey;
-            m_cachedManifest = manifest;
-            return m_cachedManifest;
         }
 
         QJsonArray page(const QJsonArray &items, const int offset, QString &nextCursor) const {
@@ -764,42 +686,20 @@ namespace {
                 const auto tools = page(allTools(), cursorValid ? offset : 0, nextCursor);
                 result = AutomationWire::Mcp::makeToolsListResult(
                     tools, nextCursor, 0, QStringLiteral("private"), info, request.protocolVersion);
-            } else if (request.name == QStringLiteral("automation.get_status")) {
+            } else if (request.name == QStringLiteral("application.get_status")) {
                 ++statusCallCount;
-                const auto manifest = fullManifest();
                 result = AutomationWire::Mcp::makeToolCallResult(
                     QJsonObject{
                         {QStringLiteral("editor_instance_id"),
-                         QStringLiteral("11111111-1111-4111-8111-111111111111")                           },
-                        {QStringLiteral("host_mode"),          manifest.value(QStringLiteral("host_mode"))},
-                        {QStringLiteral("profile"),            manifest.value(QStringLiteral("profile"))  },
-                        {QStringLiteral("manifest"),
-                         QJsonObject{
-                             {QStringLiteral("toolset_version"),
-                              manifest.value(QStringLiteral("toolset_version"))},
-                             {QStringLiteral("digest"), manifest.value(QStringLiteral("digest"))},
-                         }                                                                                },
-                        {QStringLiteral("documents"),          QJsonArray{}                               },
-                        {QStringLiteral("windows"),            QJsonArray{}                               },
+                         QStringLiteral("11111111-1111-4111-8111-111111111111")     },
+                        {QStringLiteral("host_mode"),          QStringLiteral("gui")},
+                        {QStringLiteral("profile"),
+                         AutomationWire::automationProfileName(editorProfile)       },
+                        {QStringLiteral("toolset_version"),    editorToolsetVersion },
+                        {QStringLiteral("documents"),          QJsonArray{}         },
+                        {QStringLiteral("windows"),            QJsonArray{}         },
                 },
                     false, {}, {}, request.protocolVersion);
-            } else if (request.name == QStringLiteral("automation.get_manifest")) {
-                ++manifestCallCount;
-                auto manifest = fullManifest();
-                const auto arguments = request.params.value(QStringLiteral("arguments")).toObject();
-                bool cursorValid = true;
-                const auto cursorText = arguments.value(QStringLiteral("cursor")).toString();
-                const auto offset = cursorText.isEmpty() ? 0 : cursorText.toInt(&cursorValid);
-                QString nextCursor;
-                const auto operations = page(manifest.value(QStringLiteral("operations")).toArray(),
-                                             cursorValid ? offset : 0, nextCursor);
-                manifest.insert(QStringLiteral("operations"), operations);
-                if (nextCursor.isEmpty())
-                    manifest.remove(QStringLiteral("next_cursor"));
-                else
-                    manifest.insert(QStringLiteral("next_cursor"), nextCursor);
-                result = AutomationWire::Mcp::makeToolCallResult(manifest, false, {}, {},
-                                                                 request.protocolVersion);
             } else if (request.name == QStringLiteral("fake.flexible_output")) {
                 const auto shape = request.params.value(QStringLiteral("arguments"))
                                        .toObject()
@@ -1010,8 +910,6 @@ namespace {
         QByteArray m_rawLog;
         mutable QString m_toolsCacheKey;
         mutable QJsonArray m_cachedTools;
-        mutable QString m_manifestCacheKey;
-        mutable QJsonObject m_cachedManifest;
     };
 
     bool verifyOptionsAndExposure() {
@@ -1052,9 +950,9 @@ namespace {
             .exposure = {.profile = AutomationWire::ExposureProfile::L3},
         });
         ok &= expect(l0.typedContracts().isEmpty(), "l0 must expose no typed editor tools");
-        ok &= expect(l1.typedContracts().size() == 89, "l1 must expose the exact 89 tools");
-        ok &= expect(l2.typedContracts().size() == 132, "l2 must expose all 132 editor tools");
-        ok &= expect(l3.typedContracts().size() == 177, "l3 must expose all 177 editor tools");
+        ok &= expect(l1.typedContracts().size() == 87, "l1 must expose the exact 87 tools");
+        ok &= expect(l2.typedContracts().size() == 130, "l2 must expose all 130 editor tools");
+        ok &= expect(l3.typedContracts().size() == 175, "l3 must expose all 175 editor tools");
         return ok;
     }
 
@@ -1442,11 +1340,11 @@ namespace {
                                     .value(QStringLiteral("result"))
                                     .toObject();
             const auto tools = result.value(QStringLiteral("tools")).toArray();
-            ok &= expect(tools.size() == 183 &&
+            ok &= expect(tools.size() == 181 &&
                              toolNames(tools) ==
                                  PublicAutomationToolsetExpectations::completeToolIdSet() &&
                              !result.contains(QStringLiteral("nextCursor")),
-                         "the exact 183-tool L3 surface must fit one downstream tools/list page");
+                         "the exact 181-tool L3 surface must fit one downstream tools/list page");
         } else {
             ok &= expect(false, "the frozen L3 downstream list must respond");
         }
@@ -1486,12 +1384,12 @@ namespace {
                                     .value(QStringLiteral("result"))
                                     .toObject();
             const auto tools = result.value(QStringLiteral("tools")).toArray();
-            ok &= expect(tools.size() == 183 &&
+            ok &= expect(tools.size() == 181 &&
                              toolNames(tools) ==
                                  PublicAutomationToolsetExpectations::completeToolIdSet() &&
                              !result.contains(QStringLiteral("nextCursor")) &&
                              !result.contains(QStringLiteral("resultType")),
-                         "the first legacy L3 tools/list must expose all 183 tools without a "
+                         "the first legacy L3 tools/list must expose all 181 tools without a "
                          "cursor");
         } else {
             ok &= expect(false, "the first legacy L3 tools/list must respond");
@@ -1606,7 +1504,7 @@ namespace {
                 {
                            .profile = AutomationWire::ExposureProfile::L0,
                            .includes = {QStringLiteral("id:application.get_info"),
-                                 QStringLiteral("id:automation.get_manifest"),
+                                 QStringLiteral("id:application.get_status"),
                                  QStringLiteral("id:notes.list")},
                            },
             .upstreamTimeoutMs = 2000,
@@ -1626,7 +1524,7 @@ namespace {
         const auto readyRuntime = [](const DsConnector::ConnectorRuntime &runtime,
                                      const int targetCount) {
             const auto status = runtime.status();
-            const auto compatibility = status.value(QStringLiteral("manifest"))
+            const auto compatibility = status.value(QStringLiteral("toolset"))
                                            .toObject()
                                            .value(QStringLiteral("compatibility"))
                                            .toString();
@@ -1671,8 +1569,8 @@ namespace {
                 waitUntil([&] { return http.discoverCount > 2; }, 700);
             ok &= expect(
                 !unexpectedExtraHandshake && http.discoverCount == 2 && http.toolsListCount == 2 &&
-                    http.statusCallCount == 2 && http.manifestCallCount == 0 &&
-                    http.requestIds.size() == 6 && http.requestIds.size() < 20,
+                    http.statusCallCount == 2 && http.requestIds.size() == 6 &&
+                    http.requestIds.size() < 20,
                 "a same-target ready burst must stay below the default client request budget");
 
             http.discoverResponseDelayMs = 0;
@@ -1721,7 +1619,7 @@ namespace {
                                               .toObject()
                                               .value(QStringLiteral("error"))
                                               .toString() == QStringLiteral("too_many_requests") &&
-                                      status.value(QStringLiteral("manifest"))
+                                      status.value(QStringLiteral("toolset"))
                                               .toObject()
                                               .value(QStringLiteral("compatibility"))
                                               .toString() == QStringLiteral("not_loaded");
@@ -1772,8 +1670,7 @@ namespace {
                          "a 2025-06-18 editor must connect after the preferred 2026 probe fails");
             ok &= expect(http.discoverCount == 1 && http.initializeCount == 1 &&
                              http.initializedNotificationCount == 1 && http.toolsListCount == 1 &&
-                             http.statusCallCount == 1 && http.manifestCallCount == 0 &&
-                             http.headersValid,
+                             http.statusCallCount == 1 && http.headersValid,
                          "legacy fallback must preserve the session while adopting negotiated "
                          "2025-06-18 transport metadata");
 
@@ -1883,7 +1780,7 @@ namespace {
                            .includes =
                         {
                             QStringLiteral("id:application.get_info"),
-                            QStringLiteral("id:automation.get_manifest"),
+                            QStringLiteral("id:application.get_status"),
                             QStringLiteral("id:notes.list"),
                         }, },
             .upstreamTimeoutMs = 2000,
@@ -1901,11 +1798,11 @@ namespace {
                                .toObject()
                                .value(QStringLiteral("generic_target_count"))
                                .toInt() == 2 &&
-                       status.value(QStringLiteral("manifest"))
+                       status.value(QStringLiteral("toolset"))
                                .toObject()
                                .value(QStringLiteral("compatibility"))
                                .toString() != QStringLiteral("not_loaded") &&
-                       status.value(QStringLiteral("manifest"))
+                       status.value(QStringLiteral("toolset"))
                                .toObject()
                                .value(QStringLiteral("compatibility"))
                                .toString() != QStringLiteral("refreshing");
@@ -1924,13 +1821,13 @@ namespace {
                              .value(QStringLiteral("editor_instance_id"))
                              .toString() == ready.editorInstanceId,
                      "connector status must report the actual editor identity");
-        const auto manifestCompatibility = connectedStatus.value(QStringLiteral("manifest"))
-                                               .toObject()
-                                               .value(QStringLiteral("compatibility"))
-                                               .toString();
-        if (manifestCompatibility != QStringLiteral("compatible"))
-            QTextStream(stderr) << "Observed compatibility: " << manifestCompatibility << Qt::endl;
-        ok &= expect(manifestCompatibility == QStringLiteral("compatible"),
+        const auto toolsetCompatibility = connectedStatus.value(QStringLiteral("toolset"))
+                                              .toObject()
+                                              .value(QStringLiteral("compatibility"))
+                                              .toString();
+        if (toolsetCompatibility != QStringLiteral("compatible"))
+            QTextStream(stderr) << "Observed compatibility: " << toolsetCompatibility << Qt::endl;
+        ok &= expect(toolsetCompatibility == QStringLiteral("compatible"),
                      "connector status must report version-compatible contracts");
 
         DsConnector::DownstreamMcpServer server(&runtime);
@@ -2012,16 +1909,16 @@ namespace {
                                    .value(QStringLiteral("tools"))
                                    .toArray();
             bool containsFiltered = false;
-            bool descriptorsVersioned = true;
+            bool summariesValid = true;
             for (const auto &entry : tools) {
                 const auto descriptor = entry.toObject();
                 containsFiltered |= descriptor.value(QStringLiteral("name")).toString() ==
                                     QStringLiteral("documents.get");
-                descriptorsVersioned &= hasToolMetadata(descriptor);
+                summariesValid &= isToolSummary(descriptor);
             }
-            ok &=
-                expect(tools.size() == 2 && !containsFiltered && descriptorsVersioned,
-                       "generic list must preserve exposure and manifest-backed version metadata");
+            ok &= expect(
+                tools.size() == 2 && !containsFiltered && summariesValid,
+                "generic list must preserve exposure and return compact versioned summaries");
         }
 
         server.processLine(
@@ -2044,8 +1941,8 @@ namespace {
                                    .toObject()
                                    .value(QStringLiteral("tools"))
                                    .toArray();
-            ok &= expect(tools.size() == 1 && hasToolMetadata(tools.first().toObject()),
-                         "generic search must retain manifest-backed version metadata");
+            ok &= expect(tools.size() == 1 && isToolSummary(tools.first().toObject()),
+                         "generic search must return a compact versioned summary");
         } else {
             ok &= expect(false, "versioned generic search must return a result");
         }
@@ -2070,9 +1967,10 @@ namespace {
                                         .toObject();
             ok &= expect(
                 structured.value(QStringLiteral("toolset_version")).toInteger() >= 1 &&
-                    structured.value(QStringLiteral("minimum_toolset_version")).toInteger() >= 1 &&
+                    structured.value(QStringLiteral("typed_compatibility")) ==
+                        QStringLiteral("compatible") &&
                     hasToolMetadata(structured.value(QStringLiteral("tool")).toObject()),
-                "generic describe must expose toolset compatibility metadata at one or newer");
+                "generic describe must return the complete actual descriptor and compatibility");
         } else {
             ok &= expect(false, "versioned generic describe must return a result");
         }
@@ -2279,14 +2177,10 @@ namespace {
         if (invalidOutput) {
             const auto result = invalidOutput->value(QStringLiteral("result")).toObject();
             const auto structured = result.value(QStringLiteral("structuredContent")).toObject();
-            ok &=
-                expect(result.value(QStringLiteral("isError")).toBool() &&
-                           structured.value(QStringLiteral("code")) ==
-                               QStringLiteral("invalid_upstream_output") &&
-                           !QJsonDocument(*invalidOutput)
-                                .toJson(QJsonDocument::Compact)
-                                .contains("must-not-pass"),
-                       "invalid upstream output must become a complete non-leaking CallToolResult");
+            ok &= expect(!result.value(QStringLiteral("isError")).toBool() &&
+                             structured.value(QStringLiteral("leaked_secret")) ==
+                                 QStringLiteral("must-not-pass"),
+                         "typed proxying must leave business output validation to the editor");
         }
 
         http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::Redirect;
@@ -2344,7 +2238,7 @@ namespace {
                          [&] {
                              return http.toolsListCount > policyRefreshCount &&
                                     runtime.status()
-                                            .value(QStringLiteral("manifest"))
+                                            .value(QStringLiteral("toolset"))
                                             .toObject()
                                             .value(QStringLiteral("compatibility"))
                                             .toString() != QStringLiteral("refreshing");
@@ -2448,7 +2342,7 @@ namespace {
                                             .toInt() == 3 &&
                                     http.toolsListCount >= 2 &&
                                     runtime.status()
-                                            .value(QStringLiteral("manifest"))
+                                            .value(QStringLiteral("toolset"))
                                             .toObject()
                                             .value(QStringLiteral("compatibility"))
                                             .toString() == QStringLiteral("compatible");
@@ -2506,12 +2400,12 @@ namespace {
                                     .object()
                                     .value(QStringLiteral("result"))
                                     .toObject();
-            ok &= expect(result.value(QStringLiteral("isError")).toBool() &&
+            ok &= expect(!result.value(QStringLiteral("isError")).toBool() &&
                              result.value(QStringLiteral("structuredContent"))
                                      .toObject()
-                                     .value(QStringLiteral("code")) ==
-                                 QStringLiteral("invalid_upstream_output"),
-                         "generic invoke must enforce the editor actual output schema");
+                                     .value(QStringLiteral("name")) ==
+                                 QStringLiteral("DS Editor Lite"),
+                         "generic proxying must leave business output validation to the editor");
         }
 
         auto disabled = ready;
@@ -2580,7 +2474,7 @@ namespace {
                                .toObject()
                                .value(QStringLiteral("generic_target_count"))
                                .toInt() == 2 &&
-                       status.value(QStringLiteral("manifest"))
+                       status.value(QStringLiteral("toolset"))
                                .toObject()
                                .value(QStringLiteral("compatibility"))
                                .toString() != QStringLiteral("refreshing");
@@ -2624,28 +2518,23 @@ namespace {
                     flexibleDescriptor = descriptor;
                 }
             }
-            const auto flexibleMeta = flexibleDescriptor.value(QStringLiteral("_meta"))
-                                          .toObject()
-                                          .value(QStringLiteral("io.openvpi.ds-editor-lite/tool"))
-                                          .toObject();
-            ok &= expect(
-                !result.value(QStringLiteral("isError")).toBool() && tools.size() == 2 &&
-                    !minimalDescriptor.isEmpty() &&
-                    !minimalDescriptor.contains(QStringLiteral("title")) &&
-                    !minimalDescriptor.contains(QStringLiteral("description")) &&
-                    !minimalDescriptor.contains(QStringLiteral("outputSchema")) &&
-                    !minimalDescriptor.contains(QStringLiteral("annotations")) &&
-                    minimalDescriptor.value(QStringLiteral("icons")).isArray() &&
-                    minimalDescriptor.value(QStringLiteral("_meta")).isObject() &&
-                    flexibleMeta.value(QStringLiteral("minimum_toolset_version")).toInteger() ==
-                        1 &&
-                    flexibleMeta.value(QStringLiteral("category")) == QStringLiteral("fake") &&
-                    flexibleDescriptor.value(QStringLiteral("_meta"))
-                        .toObject()
-                        .value(QStringLiteral("com.openvpi.ds-editor-lite/fixture"))
-                        .toBool(),
-                "generic list must preserve standard optional metadata without inventing "
-                "omitted fields and must retain namespaced tools/list metadata");
+            ok &= expect(!result.value(QStringLiteral("isError")).toBool() && tools.size() == 2 &&
+                             !minimalDescriptor.isEmpty() &&
+                             !minimalDescriptor.contains(QStringLiteral("title")) &&
+                             !minimalDescriptor.contains(QStringLiteral("description")) &&
+                             !minimalDescriptor.contains(QStringLiteral("outputSchema")) &&
+                             !minimalDescriptor.contains(QStringLiteral("inputSchema")) &&
+                             minimalDescriptor.value(QStringLiteral("category")) ==
+                                 QStringLiteral("editor") &&
+                             minimalDescriptor.value(QStringLiteral("minimum_profile")) ==
+                                 QStringLiteral("l3") &&
+                             minimalDescriptor.value(QStringLiteral("minimum_toolset_version"))
+                                     .toInteger() == 1 &&
+                             flexibleDescriptor.value(QStringLiteral("category")) ==
+                                 QStringLiteral("fake") &&
+                             flexibleDescriptor.value(QStringLiteral("minimum_toolset_version"))
+                                     .toInteger() == 1,
+                         "generic list must return compact summaries and synthesize safe defaults");
         } else {
             ok &= expect(false, "forward-compatible generic list must return a result");
         }
@@ -2673,7 +2562,7 @@ namespace {
         ok &= expect(searchTools.size() == 1 &&
                          searchTools.first().toObject().value(QStringLiteral("name")) ==
                              QStringLiteral("fake.flexible_output"),
-                     "generic search category filtering must use synthesized manifest metadata");
+                     "generic search category filtering must use synthesized tool metadata");
 
         server.processLine(
             QJsonDocument(
@@ -2693,15 +2582,17 @@ namespace {
             const auto structured = result.value(QStringLiteral("structuredContent")).toObject();
             ok &= expect(
                 !result.value(QStringLiteral("isError")).toBool() &&
-                    !structured.contains(QStringLiteral("output_schema")) &&
                     structured.value(QStringLiteral("toolset_version")).toInteger() == 1 &&
-                    structured.value(QStringLiteral("minimum_toolset_version")).toInteger() == 1 &&
+                    structured.value(QStringLiteral("typed_compatibility")) ==
+                        QStringLiteral("generic_only") &&
                     structured.value(QStringLiteral("tool"))
                         .toObject()
                         .value(QStringLiteral("icons"))
-                        .isArray(),
-                "generic describe must support omitted outputSchema and default the minimum "
-                "toolset version to one");
+                        .isArray() &&
+                    !structured.value(QStringLiteral("tool"))
+                         .toObject()
+                         .contains(QStringLiteral("outputSchema")),
+                "generic describe must return the complete descriptor with omitted outputSchema");
         } else {
             ok &= expect(false, "forward-compatible generic describe must return a result");
         }
@@ -2744,13 +2635,12 @@ namespace {
                        null && structured(null).isNull(),
                    "generic invoke must preserve valid scalar, array, and null structuredContent");
         ok &= expect(invalid &&
-                         invalid->value(QStringLiteral("result"))
-                             .toObject()
-                             .value(QStringLiteral("isError"))
-                             .toBool() &&
-                         structured(invalid).toObject().value(QStringLiteral("code")) ==
-                             QStringLiteral("invalid_upstream_output"),
-                     "generic invoke must validate object results against the target outputSchema");
+                         !invalid->value(QStringLiteral("result"))
+                              .toObject()
+                              .value(QStringLiteral("isError"))
+                              .toBool() &&
+                         structured(invalid).toObject().value(QStringLiteral("unexpected")) == true,
+                     "generic proxying must leave output-schema validation to the editor");
         runtime.stop();
         return ok;
     }
@@ -2760,7 +2650,7 @@ namespace {
         bool ok = expect(http.listen(), "compatibility fake editor must listen");
         if (!ok)
             return false;
-        http.manifestToolsetVersion = 2;
+        http.editorToolsetVersion = 2;
         http.applicationMinimumToolsetVersion = 1;
         http.exposeNotes = true;
 
@@ -2796,7 +2686,7 @@ namespace {
         runtime.start();
         const auto compatibility = [&] {
             return runtime.status()
-                .value(QStringLiteral("manifest"))
+                .value(QStringLiteral("toolset"))
                 .toObject()
                 .value(QStringLiteral("compatibility"))
                 .toString();
@@ -2811,12 +2701,12 @@ namespace {
         ok &=
             expect(waitUntil(
                        [&] {
-                           const auto manifest =
-                               runtime.status().value(QStringLiteral("manifest")).toObject();
+                           const auto toolset =
+                               runtime.status().value(QStringLiteral("toolset")).toObject();
                            return http.toolsListCount > refreshCount &&
                                   compatibility() == QStringLiteral("contract_incompatible") &&
-                                  manifest.value(QStringLiteral("compatible_count")).toInt() == 1 &&
-                                  manifest.value(QStringLiteral("incompatible_count")).toInt() == 1;
+                                  toolset.value(QStringLiteral("compatible_count")).toInt() == 1 &&
+                                  toolset.value(QStringLiteral("incompatible_count")).toInt() == 1;
                        },
                        10000),
                    "compatibility aggregation must retain the compatible tool while marking the "
@@ -2841,15 +2731,26 @@ namespace {
                 notesDescription =
                     outcome.result.value(QStringLiteral("structuredContent")).toObject();
             });
+        const auto applicationMetadata =
+            toolMetadata(applicationDescription.value(QStringLiteral("tool"))
+                             .toObject()
+                             .value(QStringLiteral("_meta"))
+                             .toObject());
+        const auto notesMetadata = toolMetadata(notesDescription.value(QStringLiteral("tool"))
+                                                    .toObject()
+                                                    .value(QStringLiteral("_meta"))
+                                                    .toObject());
         ok &= expect(
             applicationDescription.value(QStringLiteral("toolset_version")).toInteger() == 2 &&
-                applicationDescription.value(QStringLiteral("minimum_toolset_version"))
-                        .toInteger() == 2 &&
+                applicationMetadata &&
+                metadataInteger(*applicationMetadata, QStringLiteral("minimum_toolset_version"),
+                                QStringLiteral("minimumToolsetVersion")) == 2 &&
                 applicationDescription.value(QStringLiteral("typed_compatibility")) ==
                     QStringLiteral("contract_incompatible") &&
                 notesDescription.value(QStringLiteral("toolset_version")).toInteger() == 2 &&
-                notesDescription.value(QStringLiteral("minimum_toolset_version")).toInteger() ==
-                    1 &&
+                notesMetadata &&
+                metadataInteger(*notesMetadata, QStringLiteral("minimum_toolset_version"),
+                                QStringLiteral("minimumToolsetVersion")) == 1 &&
                 notesDescription.value(QStringLiteral("typed_compatibility")) ==
                     QStringLiteral("compatible"),
             "global and minimum toolset versions must be evaluated for each tool");
@@ -2867,7 +2768,7 @@ namespace {
 
         refreshCount = http.toolsListCount;
         http.applicationMinimumToolsetVersion = 1;
-        http.manifestToolsetVersion = 1;
+        http.editorToolsetVersion = 1;
         bootstrap.publish(ready);
         ok &= expect(waitUntil(
                          [&] {
@@ -2878,20 +2779,22 @@ namespace {
                      "a matching L1 editor contract must be fully compatible");
 
         refreshCount = http.toolsListCount;
-        http.manifestProfile = AutomationWire::AutomationProfile::L3;
+        http.editorProfile = AutomationWire::AutomationProfile::L3;
         bootstrap.publish(ready);
         ok &= expect(
             waitUntil(
                 [&] {
-                    const auto manifest =
-                        runtime.status().value(QStringLiteral("manifest")).toObject();
+                    const auto toolset =
+                        runtime.status().value(QStringLiteral("toolset")).toObject();
                     return http.toolsListCount > refreshCount &&
                            compatibility() == QStringLiteral("compatible") &&
-                           manifest.value(QStringLiteral("connector_digest")) ==
-                               manifest.value(QStringLiteral("editor_digest"));
+                           toolset.value(QStringLiteral("connector_version")).toInteger() == 1 &&
+                           toolset.value(QStringLiteral("editor_version")).toInteger() == 1 &&
+                           !toolset.contains(QStringLiteral("connector_digest")) &&
+                           !toolset.contains(QStringLiteral("editor_digest"));
                 },
                 10000),
-            "the connector Manifest baseline must follow the editor profile instead of fixed L2");
+            "editor profile refresh must preserve version-only compatibility without digests");
         runtime.stop();
         return ok;
     }
@@ -2937,7 +2840,7 @@ namespace {
         ok &= expect(waitUntil(
                          [&] {
                              const auto status = runtime.status();
-                             return status.value(QStringLiteral("manifest"))
+                             return status.value(QStringLiteral("toolset"))
                                             .toObject()
                                             .value(QStringLiteral("compatibility"))
                                             .toString() != QStringLiteral("refreshing") &&
@@ -2988,7 +2891,8 @@ namespace {
                      "primitive and nested x-mcp-header values must be extracted and encoded");
 
         const auto callsBeforeInvalid = http.calledTools.size();
-        QString invalidCode;
+        bool invalidCompleted = false;
+        bool invalidIsError = true;
         runtime.callTool(QStringLiteral("editor.tools.invoke"),
                          QJsonObject{
                              {QStringLiteral("name"),      QStringLiteral("application.get_info")},
@@ -2996,14 +2900,13 @@ namespace {
                               QJsonObject{{QStringLiteral("route"), QStringLiteral("missing")}}  }
         },
                          [&](const DsConnector::ToolCallOutcome &outcome) {
-                             invalidCode = outcome.result.value(QStringLiteral("structuredContent"))
-                                               .toObject()
-                                               .value(QStringLiteral("code"))
-                                               .toString();
+                             invalidCompleted = true;
+                             invalidIsError =
+                                 outcome.result.value(QStringLiteral("isError")).toBool();
                          });
-        ok &= expect(invalidCode == QStringLiteral("invalid_editor_tool_arguments") &&
-                         http.calledTools.size() == callsBeforeInvalid,
-                     "generic invoke must validate the actual input schema before forwarding");
+        ok &= expect(waitUntil([&] { return invalidCompleted; }, 5000) && !invalidIsError &&
+                         http.calledTools.size() > callsBeforeInvalid,
+                     "generic proxying must leave business argument validation to the editor");
         runtime.stop();
         return ok;
     }
@@ -3048,7 +2951,7 @@ namespace {
                                             .toObject()
                                             .value(QStringLiteral("generic_target_count"))
                                             .toInt() == 1 &&
-                                    status.value(QStringLiteral("manifest"))
+                                    status.value(QStringLiteral("toolset"))
                                             .toObject()
                                             .value(QStringLiteral("compatibility"))
                                             .toString() == QStringLiteral("compatible");
@@ -3188,12 +3091,11 @@ namespace {
                                .toObject()
                                .value(QStringLiteral("generic_target_count"))
                                .toInt() == 125 &&
-                       status.value(QStringLiteral("manifest"))
+                       status.value(QStringLiteral("toolset"))
                                .toObject()
                                .value(QStringLiteral("compatibility"))
                                .toString() != QStringLiteral("refreshing") &&
-                       http.toolsListCount >= 8 && http.statusCallCount == 1 &&
-                       http.manifestCallCount == 0;
+                       http.toolsListCount >= 8 && http.statusCallCount == 1;
             },
             15000);
         if (!paginationReady) {
@@ -3201,7 +3103,6 @@ namespace {
                                 << QJsonDocument(runtime.status()).toJson(QJsonDocument::Compact)
                                 << " tools_pages=" << http.toolsListCount
                                 << " status_calls=" << http.statusCallCount
-                                << " manifest_calls=" << http.manifestCallCount
                                 << " raw_tail=" << http.rawLog().right(4000) << Qt::endl;
         }
         ok &= expect(
@@ -3235,11 +3136,11 @@ namespace {
             [&described](const DsConnector::ToolCallOutcome &outcome) {
                 described = outcome.result.value(QStringLiteral("structuredContent")).toObject();
             });
-        ok &= expect(
-            described.value(QStringLiteral("tool")).toObject().value(QStringLiteral("name")) ==
-                    QStringLiteral("fake.tool.124") &&
-                described.value(QStringLiteral("input_schema")).isObject(),
-            "the final pages must be available to generic describe");
+        const auto describedTool = described.value(QStringLiteral("tool")).toObject();
+        ok &=
+            expect(describedTool.value(QStringLiteral("name")) == QStringLiteral("fake.tool.124") &&
+                       describedTool.value(QStringLiteral("inputSchema")).isObject(),
+                   "the final pages must be available to generic describe");
         runtime.stop();
         return ok;
     }
@@ -3284,7 +3185,7 @@ namespace {
                        .toObject()
                        .value(QStringLiteral("connected"))
                        .toBool() &&
-                   status.value(QStringLiteral("manifest"))
+                   status.value(QStringLiteral("toolset"))
                            .toObject()
                            .value(QStringLiteral("compatibility"))
                            .toString() != QStringLiteral("refreshing");
@@ -3432,7 +3333,7 @@ namespace {
                            .toObject()
                            .value(QStringLiteral("tools"))
                            .toArray()
-                           .size() == 138;
+                           .size() == 136;
         };
         QProcess largeOutput;
         largeOutput.setProgram(executable);
@@ -3447,7 +3348,7 @@ namespace {
                          largeOutput.exitCode() == 0 && largeResponse.size() > 64 * 1024 &&
                          validCompleteToolList(largeResponse) &&
                          largeOutput.readAllStandardError().isEmpty(),
-                     "the complete 138-tool response must drain as one valid large JSON frame");
+                     "the complete 136-tool response must drain as one valid large JSON frame");
 
         const auto slowSinkPath =
             QDir::temp().filePath(QStringLiteral("DsConnectorLite-slow-stdout-%1.json")

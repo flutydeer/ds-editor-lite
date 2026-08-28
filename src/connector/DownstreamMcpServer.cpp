@@ -1,6 +1,5 @@
 #include "DownstreamMcpServer.h"
 
-#include <lite/AutomationWire/CanonicalJson.h>
 #include <lite/AutomationWire/JsonSchema.h>
 #include <lite/ProductMetadata.h>
 
@@ -205,18 +204,12 @@ namespace DsConnector {
             return;
         }
         const auto tools = m_runtime->downstreamTools();
-        QString digestError;
-        const auto snapshotDigest = AutomationWire::sha256Digest(tools, &digestError);
-        if (!digestError.isEmpty()) {
-            sendError(request.id, AutomationWire::Mcp::InternalError,
-                      QStringLiteral("Unable to create tools/list cursor snapshot"));
-            return;
-        }
+        const auto snapshot = m_runtime->instanceId();
         const auto cursorText = request.params.value(QStringLiteral("cursor")).toString();
         qint64 offset = 0;
         if (!cursorText.isEmpty()) {
             const auto parsed = m_toolsCursorCodec.parse(
-                cursorText, QStringLiteral("connector-downstream-tools-list/v1"), snapshotDigest);
+                cursorText, QStringLiteral("connector-downstream-tools-list/v1"), snapshot);
             if (!parsed.valid()) {
                 sendError(request.id, AutomationWire::Mcp::InvalidParams,
                           QStringLiteral("Invalid tools/list cursor"));
@@ -236,7 +229,7 @@ namespace DsConnector {
         QString next;
         if (offset + page.size() < tools.size()) {
             next = m_toolsCursorCodec.issue(QStringLiteral("connector-downstream-tools-list/v1"),
-                                            snapshotDigest, offset + page.size());
+                                            snapshot, offset + page.size());
             if (next.isEmpty()) {
                 sendError(request.id, AutomationWire::Mcp::InternalError,
                           QStringLiteral("Unable to create tools/list cursor"));
@@ -262,10 +255,12 @@ namespace DsConnector {
         const auto name = request.name;
         QJsonObject schema;
         QJsonObject outputSchema;
-        bool validateOutput = true;
+        bool validateInput = false;
+        bool validateOutput = false;
         if (const auto bridge = ConnectorRuntime::findBridgeTool(name)) {
             schema = bridge->value(QStringLiteral("inputSchema")).toObject();
             outputSchema = bridge->value(QStringLiteral("outputSchema")).toObject();
+            validateInput = true;
             validateOutput = name != QStringLiteral("editor.tools.invoke");
         } else if (const auto *tool = AutomationWire::findPublicTool(name)) {
             if (!m_runtime->exposurePolicy().allowsKnownTool(*tool)) {
@@ -279,8 +274,6 @@ namespace DsConnector {
                                                                  request.protocolVersion));
                 return;
             }
-            schema = tool->inputSchema;
-            outputSchema = tool->outputSchema;
         } else {
             sendError(request.id, AutomationWire::Mcp::InvalidParams,
                       QStringLiteral("Unknown connector tool"));
@@ -288,22 +281,24 @@ namespace DsConnector {
         }
 
         const auto arguments = request.params.value(QStringLiteral("arguments")).toObject();
-        const auto validation = AutomationWire::validateJsonValue(arguments, schema);
-        if (!validation.valid()) {
-            QJsonArray issues;
-            for (const auto &issue : validation.issues) {
-                issues.append(QJsonObject{
-                    {QStringLiteral("instancePath"), issue.instancePath},
-                    {QStringLiteral("schemaPath"),   issue.schemaPath  },
-                    {QStringLiteral("message"),      issue.message     }
+        if (validateInput) {
+            const auto validation = AutomationWire::validateJsonValue(arguments, schema);
+            if (!validation.valid()) {
+                QJsonArray issues;
+                for (const auto &issue : validation.issues) {
+                    issues.append(QJsonObject{
+                        {QStringLiteral("instancePath"), issue.instancePath},
+                        {QStringLiteral("schemaPath"),   issue.schemaPath  },
+                        {QStringLiteral("message"),      issue.message     }
+                    });
+                }
+                sendError(request.id, AutomationWire::Mcp::InvalidParams,
+                          QStringLiteral("Tool arguments do not match inputSchema"),
+                          QJsonObject{
+                              {QStringLiteral("issues"), issues}
                 });
+                return;
             }
-            sendError(request.id, AutomationWire::Mcp::InvalidParams,
-                      QStringLiteral("Tool arguments do not match inputSchema"),
-                      QJsonObject{
-                          {QStringLiteral("issues"), issues}
-            });
-            return;
         }
 
         const auto key = idKey(request.id);
