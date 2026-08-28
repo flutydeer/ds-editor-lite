@@ -188,11 +188,6 @@ namespace Automation {
         void registerAdvancedGuiBindings();
         void registerAdvancedApplicationBindings();
         void addBinding(QLatin1StringView toolName, Handler handler);
-        [[nodiscard]] const AutomationWire::PublicManifest &
-            manifestForPolicy(const AutomationAccessPolicySnapshot &policy);
-        AutomationResult<QJsonArray> resolveValueOptions(const AutomationWire::ToolContract &target,
-                                                         const QString &fieldPath,
-                                                         const QJsonObject &partialArguments);
         CoreRuntime &m_runtime;
         AutomationAccessPolicy &m_accessPolicy;
         AutomationFileGuard &m_fileGuard;
@@ -200,10 +195,6 @@ namespace Automation {
         std::shared_ptr<LifetimeState> m_lifetimeState = std::make_shared<LifetimeState>();
         PublicAutomationHostServices m_hostServices;
         QHash<QString, Handler> m_handlers;
-        std::optional<AutomationAccessPolicySnapshot> m_manifestCachePolicy;
-        QString m_manifestCacheHostMode;
-        std::optional<AutomationWire::PublicManifest> m_manifestCache;
-        AutomationWire::OpaqueCursorCodec m_manifestCursorCodec;
         AutomationWire::OpaqueCursorCodec m_taskCursorCodec;
         AutomationWire::OpaqueCursorCodec m_collectionCursorCodec;
     };

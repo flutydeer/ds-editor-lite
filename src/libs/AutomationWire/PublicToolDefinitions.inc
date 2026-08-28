@@ -2,14 +2,11 @@
 // minimum toolset version, effect, repeatability, world access
 AUTOMATION_WIRE_PUBLIC_TOOL(application_get_info, "application.get_info", "application", Meta,
                             Query, Synchronous, 1, ReadOnly, Idempotent, ClosedWorld)
-AUTOMATION_WIRE_PUBLIC_TOOL(automation_get_status, "automation.get_status", "automation", Meta,
+AUTOMATION_WIRE_PUBLIC_TOOL(application_get_status, "application.get_status", "application", Meta,
                             Query, Synchronous, 1, ReadOnly, Idempotent, ClosedWorld)
-AUTOMATION_WIRE_PUBLIC_TOOL(automation_get_manifest, "automation.get_manifest", "automation", Meta,
-                            Query, Synchronous, 1, ReadOnly, Idempotent, ClosedWorld)
-AUTOMATION_WIRE_PUBLIC_TOOL(automation_get_options, "automation.get_options", "automation", Meta,
-                            Query, Synchronous, 1, ReadOnly, Idempotent, ClosedWorld)
-AUTOMATION_WIRE_PUBLIC_TOOL(automation_get_file_access, "automation.get_file_access", "automation",
-                            L2, Query, Synchronous, 1, ReadOnly, Idempotent, ClosedWorld)
+AUTOMATION_WIRE_PUBLIC_TOOL(application_get_file_access, "application.get_file_access",
+                            "application", L2, Query, Synchronous, 1, ReadOnly, Idempotent,
+                            ClosedWorld)
 
 AUTOMATION_WIRE_PUBLIC_TOOL(documents_get, "documents.get", "documents", L1, Query, Synchronous, 1,
                             ReadOnly, Idempotent, ClosedWorld)

@@ -114,10 +114,10 @@ namespace {
     void verifyAuthoritativeToolset() {
         const auto &contracts = publicToolContracts();
         const auto expectedIds = editorToolIds();
-        expect(editorTools().size() == 177 && editorToolIdSet().size() == 177,
-               QStringLiteral("test fixture must contain exactly 177 unique editor tools"));
-        expect(contracts.size() == 177,
-               QStringLiteral("public contract surface must contain exactly 177 editor tools"));
+        expect(editorTools().size() == 175 && editorToolIdSet().size() == 175,
+               QStringLiteral("test fixture must contain exactly 175 unique editor tools"));
+        expect(contracts.size() == 175,
+               QStringLiteral("public contract surface must contain exactly 175 editor tools"));
         expect(publicToolIds() == expectedIds,
                QStringLiteral("public contract order and operation set must equal section 10.3"));
 
@@ -137,9 +137,13 @@ namespace {
             expect(contract.minimumProfile == expected.minimumProfile,
                    QStringLiteral("minimum profile differs for ") + contract.operationId);
 
-            const auto descriptor = contract.toManifestJson();
+            const auto descriptor = contract.toMcpToolJson();
+            const auto metadata = descriptor.value(QStringLiteral("_meta"))
+                                      .toObject()
+                                      .value(QStringLiteral("io.openvpi.ds-editor-lite/tool"))
+                                      .toObject();
             expect(contract.minimumToolsetVersion == 1 &&
-                       descriptor.value(QStringLiteral("minimum_toolset_version")).toInteger() == 1,
+                       metadata.value(QStringLiteral("minimum_toolset_version")).toInteger() == 1,
                    QStringLiteral("minimum toolset version must equal one for ") +
                        contract.operationId);
             expect(contract.inputSchema.value(QStringLiteral("type")) == QStringLiteral("object") &&
@@ -157,11 +161,11 @@ namespace {
                QStringLiteral("public contract operation set must be exact"));
         expect(PublicToolsetVersion == 1,
                QStringLiteral("the first public toolset version must remain one"));
-        expect(toolsForProfile(AutomationProfile::Meta).size() == 4 &&
-                   toolsForProfile(AutomationProfile::L1).size() == 89 &&
-                   toolsForProfile(AutomationProfile::L2).size() == 132 &&
-                   toolsForProfile(AutomationProfile::L3).size() == 177,
-               QStringLiteral("editor profile counts must be 4/89/132/177"));
+        expect(toolsForProfile(AutomationProfile::Meta).size() == 2 &&
+                   toolsForProfile(AutomationProfile::L1).size() == 87 &&
+                   toolsForProfile(AutomationProfile::L2).size() == 130 &&
+                   toolsForProfile(AutomationProfile::L3).size() == 175,
+               QStringLiteral("editor profile counts must be 2/87/130/175"));
     }
 
     void verifyShallowCreationAndNoteDefaults() {
@@ -274,7 +278,6 @@ namespace {
 
     void verifyOmissionEquivalentOptionalInputs() {
         const QList<QPair<QString, QStringList>> emptyStringCases{
-            {QStringLiteral("automation.get_manifest"),  {QStringLiteral("cursor")}       },
             {QStringLiteral("tracks.list"),              {QStringLiteral("cursor")}       },
             {QStringLiteral("clips.list"),               {QStringLiteral("type")}         },
             {QStringLiteral("clips.list"),               {QStringLiteral("cursor")}       },
@@ -783,7 +786,7 @@ namespace {
     }
 
     void verifyAdvancedControlContracts() {
-        const auto l3Tools = toolsForProfile(AutomationProfile::L3).mid(132);
+        const auto l3Tools = toolsForProfile(AutomationProfile::L3).mid(130);
         int queryCount = 0;
         int synchronousCommandCount = 0;
         int asynchronousCommandCount = 0;

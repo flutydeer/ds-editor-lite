@@ -840,14 +840,6 @@ namespace {
         expect(queriedDomains.size() == 2 && !audioBefore.isUndefined() &&
                    !renderBefore.isUndefined(),
                QStringLiteral("settings.query must return only requested domains"));
-        invokeSchemaValid(
-            registry, QStringLiteral("automation.get_options"),
-            QJsonObject{
-                {QStringLiteral("operation_id"),      QStringLiteral("settings.audio_device.update")},
-                {QStringLiteral("field_path"),        QStringLiteral("/gain")                       },
-                {QStringLiteral("partial_arguments"), QJsonObject{}                                 }
-        },
-            QStringLiteral("settings range options"));
 
         struct SettingsUpdate {
             const char *operationId;
@@ -960,22 +952,6 @@ namespace {
                            .toObject()
                            .value(QStringLiteral("version")) == QStringLiteral("1.0"),
                QStringLiteral("packages.describe must accept an explicit installed version"));
-        invokeSchemaValid(registry, QStringLiteral("automation.get_options"),
-                          QJsonObject{
-                              {QStringLiteral("operation_id"),      QStringLiteral("packages.describe")},
-                              {QStringLiteral("field_path"),        QStringLiteral("/package_id")      },
-                              {QStringLiteral("partial_arguments"), QJsonObject{}                      }
-        },
-                          QStringLiteral("package ID options"));
-        invokeSchemaValid(
-            registry, QStringLiteral("automation.get_options"),
-            QJsonObject{
-                {QStringLiteral("operation_id"),      QStringLiteral("packages.describe")       },
-                {QStringLiteral("field_path"),        QStringLiteral("/version")                },
-                {QStringLiteral("partial_arguments"),
-                 QJsonObject{{QStringLiteral("package_id"), QStringLiteral("registry-package")}}},
-        },
-            QStringLiteral("package version options"));
         const auto unknownPackage =
             registry.invoke(QStringLiteral("packages.describe"),
                             QJsonObject{
@@ -1095,14 +1071,6 @@ namespace {
                               {QStringLiteral("include_disabled"), true}
         },
                           QStringLiteral("lyric rules list"));
-        invokeSchemaValid(
-            registry, QStringLiteral("automation.get_options"),
-            QJsonObject{
-                {QStringLiteral("operation_id"),      QStringLiteral("lyric_rules.update")},
-                {QStringLiteral("field_path"),        QStringLiteral("/rule_id")          },
-                {QStringLiteral("partial_arguments"), QJsonObject{}                       }
-        },
-            QStringLiteral("lyric rule ID options"));
         invokeSchemaValid(registry, QStringLiteral("lyric_rules.create"),
                           QJsonObject{
                               {QStringLiteral("kind"),          QStringLiteral("splitter")        },
@@ -2585,25 +2553,6 @@ namespace {
                QStringLiteral("notes.set_language must validate against the effective voice and "
                               "remain one independently undoable edit"));
 
-        const auto fillLanguageOptions = registry.invoke(
-            QStringLiteral("automation.get_options"),
-            QJsonObject{
-                {QStringLiteral("operation_id"),      QStringLiteral("notes.fill_lyrics")            },
-                {QStringLiteral("field_path"),        QStringLiteral("/options/language/language_id")},
-                {QStringLiteral("partial_arguments"),
-                 QJsonObject{
-                     {QStringLiteral("document_id"),
-                      runtime.documentVersion().documentId.toString()},
-                     {QStringLiteral("clip_id"), fixture.noteClipId.value()},
-                 }                                                                                   },
-        });
-        QSet<QString> fillLanguages;
-        if (fillLanguageOptions) {
-            for (const auto &value :
-                 fillLanguageOptions.get().value(QStringLiteral("options")).toArray()) {
-                fillLanguages.insert(value.toObject().value(QStringLiteral("value")).toString());
-            }
-        }
         auto invalidFillLanguage = commandArguments(runtime.documentVersion());
         invalidFillLanguage.insert(QStringLiteral("clip_id"), fixture.noteClipId.value());
         invalidFillLanguage.insert(QStringLiteral("note_ids"),
@@ -2622,16 +2571,13 @@ namespace {
         const auto rejectedFillLanguage =
             registry.invoke(QStringLiteral("notes.fill_lyrics"), invalidFillLanguage,
                             {.clientId = QStringLiteral("fill-language-validation")});
-        expect(fillLanguageOptions &&
-                   fillLanguages == QSet<QString>{QStringLiteral("en"), QStringLiteral("zh")} &&
-                   !rejectedFillLanguage &&
+        expect(!rejectedFillLanguage &&
                    rejectedFillLanguage.getError().code ==
                        Automation::AutomationErrorCode::InvalidArgument &&
                    rejectedFillLanguage.getError().fieldPath ==
                        QStringLiteral("/options/language/language_id") &&
                    runtime.documentVersion() == fillLanguageBase,
-               QStringLiteral(
-                   "fill-lyrics explicit language must be discovered and capability-validated"));
+               QStringLiteral("fill-lyrics explicit language must be capability-validated"));
         verifyScalarEdit(
             registry, runtime, QStringLiteral("tracks.set_default_language"),
             QJsonObject{
@@ -3043,15 +2989,12 @@ namespace {
                  {QStringLiteral("singer_id"), speakerlessSinger.singerId()},
              }},
         };
-        const auto speakerlessOptions = registry.invoke(
-            QStringLiteral("automation.get_options"),
+        const auto speakerlessDescription = registry.invoke(
+            QStringLiteral("voices.describe"),
             QJsonObject{
-                {QStringLiteral("operation_id"),      QStringLiteral("tracks.set_voice")},
-                {QStringLiteral("field_path"),        QStringLiteral("/voice/speaker")  },
-                {QStringLiteral("partial_arguments"),
-                 QJsonObject{{QStringLiteral("voice"), speakerlessSelection}}           },
+                {QStringLiteral("singer"), speakerlessSelection.value(QStringLiteral("singer"))},
         },
-            {.clientId = QStringLiteral("speakerless-options")});
+            {.clientId = QStringLiteral("speakerless-description")});
         invokeChangedOnce(registry, runtime, QStringLiteral("tracks.set_voice"),
                           QJsonObject{
                               {QStringLiteral("track_id"), fixture.trackId.value()},
@@ -3064,15 +3007,19 @@ namespace {
                                  QStringLiteral("track_id"), fixture.trackId.value());
         const auto effectiveVoice =
             speakerlessContext.value(QStringLiteral("effective_voice")).toObject();
-        expect(
-            speakerlessOptions &&
-                speakerlessOptions.get().value(QStringLiteral("options")).toArray().isEmpty() &&
-                speakerlessContext.value(QStringLiteral("available")).toBool() &&
-                effectiveVoice.value(QStringLiteral("speaker")).isNull() &&
-                effectiveVoice.value(QStringLiteral("singer"))
-                        .toObject()
-                        .value(QStringLiteral("singer_id")) == speakerlessSinger.singerId(),
-            QStringLiteral("speakerless voices must be discoverable, assignable, and queryable"));
+        expect(speakerlessDescription &&
+                   speakerlessDescription.get()
+                       .value(QStringLiteral("snapshot"))
+                       .toObject()
+                       .value(QStringLiteral("speakers"))
+                       .toArray()
+                       .isEmpty() &&
+                   speakerlessContext.value(QStringLiteral("available")).toBool() &&
+                   effectiveVoice.value(QStringLiteral("speaker")).isNull() &&
+                   effectiveVoice.value(QStringLiteral("singer"))
+                           .toObject()
+                           .value(QStringLiteral("singer_id")) == speakerlessSinger.singerId(),
+               QStringLiteral("speakerless voices must be describable, assignable, and queryable"));
     }
 }
 
@@ -3756,8 +3703,8 @@ int main(int argc, char *argv[]) {
     auto expectedIds = PublicAutomationToolsetExpectations::editorToolIds();
     auto bindingIds = registry.bindingIds();
     std::sort(expectedIds.begin(), expectedIds.end());
-    expect(expectedIds.size() == 177 && bindingIds == expectedIds && registry.isComplete(),
-           QStringLiteral("all 177 editor contracts must have exact bindings"));
+    expect(expectedIds.size() == 175 && bindingIds == expectedIds && registry.isComplete(),
+           QStringLiteral("all 175 editor contracts must have exact bindings"));
 
     const auto lifecycleSchemaBase = runtime.documentVersion();
     for (const auto &operationId :
@@ -4015,7 +3962,7 @@ int main(int argc, char *argv[]) {
                runtime.documentVersion().revision == loopBase.revision + 8,
            QStringLiteral(
                "loop range, enabled flag, and clear must each use one undoable document revision"));
-    const auto status = registry.invoke(QStringLiteral("automation.get_status"), {},
+    const auto status = registry.invoke(QStringLiteral("application.get_status"), {},
                                         {.clientId = QStringLiteral("status")});
     expect(status && status.get().value(QStringLiteral("documents")).toArray().size() == 1 &&
                status.get().value(QStringLiteral("windows")).toArray().size() == 1,
@@ -4025,35 +3972,12 @@ int main(int argc, char *argv[]) {
                                         {.clientId = QStringLiteral("permission")});
     expect(!denied && denied.getError().code == Automation::AutomationErrorCode::PermissionDenied,
            QStringLiteral("L1 must deny an L2 tool"));
-    const auto hiddenOptions =
-        registry.invoke(QStringLiteral("automation.get_options"),
-                        QJsonObject{
-                            {QStringLiteral("operation_id"),      QStringLiteral("exports.audio.start")},
-                            {QStringLiteral("field_path"),        QStringLiteral("/options/format")    },
-                            {QStringLiteral("partial_arguments"), QJsonObject{}                        },
-    },
-                        {.clientId = QStringLiteral("permission-options")});
-    expect(!hiddenOptions &&
-               hiddenOptions.getError().code == Automation::AutomationErrorCode::PermissionDenied,
-           QStringLiteral("get_options must not reveal a profile-blocked target"));
     access.update(AutomationWire::AutomationProfile::Custom, {QStringLiteral("documents.get")});
-    expect(access.isAllowed(QStringLiteral("automation.get_status")) &&
+    expect(access.isAllowed(QStringLiteral("application.get_status")) &&
                access.isAllowed(QStringLiteral("documents.get")) &&
                !access.isAllowed(QStringLiteral("tracks.set_color")),
            QStringLiteral("custom profile must retain Meta and only explicit business tools"));
     access.update(AutomationWire::AutomationProfile::L3);
-    const auto staticOptions =
-        registry.invoke(QStringLiteral("automation.get_options"),
-                        QJsonObject{
-                            {QStringLiteral("operation_id"),      QStringLiteral("documents.new")},
-                            {QStringLiteral("field_path"),        QStringLiteral("/template")    },
-                            {QStringLiteral("partial_arguments"), QJsonObject{}                  },
-    },
-                        {.clientId = QStringLiteral("static-options")});
-    expect(!staticOptions &&
-               staticOptions.getError().code == Automation::AutomationErrorCode::InvalidArgument,
-           QStringLiteral("get_options must reject fixed enums already declared by input schema"));
-
     const QJsonObject registrySingerRef{
         {QStringLiteral("package_id"),      QStringLiteral("registry-package")},
         {QStringLiteral("package_version"), QStringLiteral("1.0")             },
@@ -4064,72 +3988,48 @@ int main(int argc, char *argv[]) {
         {QStringLiteral("package_version"), QStringLiteral("2.0")             },
         {QStringLiteral("singer_id"),       QStringLiteral("registry-singer") },
     };
-    const auto singerOptions =
-        registry.invoke(QStringLiteral("automation.get_options"),
-                        QJsonObject{
-                            {QStringLiteral("operation_id"),      QStringLiteral("tracks.set_voice")},
-                            {QStringLiteral("field_path"),        QStringLiteral("/voice/singer")   },
-                            {QStringLiteral("partial_arguments"), QJsonObject{}                     },
-    },
-                        {.clientId = QStringLiteral("singer-reference-options")});
-    const auto speakerOptions =
-        registry.invoke(QStringLiteral("automation.get_options"),
-                        QJsonObject{
-                            {QStringLiteral("operation_id"),      QStringLiteral("tracks.set_voice")},
-                            {QStringLiteral("field_path"),        QStringLiteral("/voice/speaker")  },
-                            {QStringLiteral("partial_arguments"),
-                             QJsonObject{
-                                 {QStringLiteral("voice"),
-                                  QJsonObject{
-                                      {QStringLiteral("singer"), registrySingerRef},
-                                  }},
-                             }                                                                      },
-    },
-                        {.clientId = QStringLiteral("speaker-reference-options")});
-    const auto speakerV2Options =
-        registry.invoke(QStringLiteral("automation.get_options"),
-                        QJsonObject{
-                            {QStringLiteral("operation_id"),      QStringLiteral("tracks.set_voice")},
-                            {QStringLiteral("field_path"),        QStringLiteral("/voice/speaker")  },
-                            {QStringLiteral("partial_arguments"),
-                             QJsonObject{
-                                 {QStringLiteral("voice"),
-                                  QJsonObject{
-                                      {QStringLiteral("singer"), registrySingerV2Ref},
-                                  }},
-                             }                                                                      },
-    },
-                        {.clientId = QStringLiteral("speaker-v2-reference-options")});
-    const auto singerOptionValues =
-        singerOptions ? singerOptions.get().value(QStringLiteral("options")).toArray()
-                      : QJsonArray{};
-    const auto speakerOptionValues =
-        speakerOptions ? speakerOptions.get().value(QStringLiteral("options")).toArray()
-                       : QJsonArray{};
-    const auto speakerV2OptionValues =
-        speakerV2Options ? speakerV2Options.get().value(QStringLiteral("options")).toArray()
-                         : QJsonArray{};
-    const auto hasOptionValue = [](const QJsonArray &options, const QJsonObject &expected) {
-        return std::any_of(options.cbegin(), options.cend(), [&](const QJsonValue &value) {
-            return value.toObject().value(QStringLiteral("value")).toObject() == expected;
-        });
+    const auto singers = registry.invoke(QStringLiteral("voices.list"), {});
+    const auto singerDescription = registry.invoke(
+        QStringLiteral("voices.describe"), QJsonObject{
+                                               {QStringLiteral("singer"), registrySingerRef}
+    });
+    const auto singerV2Description = registry.invoke(
+        QStringLiteral("voices.describe"), QJsonObject{
+                                               {QStringLiteral("singer"), registrySingerV2Ref}
+    });
+    const auto singerEntries =
+        singers ? singers.get().value(QStringLiteral("singers")).toArray() : QJsonArray{};
+    const auto hasSinger = [&singerEntries](const QJsonObject &expected) {
+        return std::any_of(singerEntries.cbegin(), singerEntries.cend(),
+                           [&expected](const QJsonValue &value) {
+                               const auto singer = value.toObject();
+                               return singer.value(QStringLiteral("package_id")) ==
+                                          expected.value(QStringLiteral("package_id")) &&
+                                      singer.value(QStringLiteral("package_version")) ==
+                                          expected.value(QStringLiteral("package_version")) &&
+                                      singer.value(QStringLiteral("singer_id")) ==
+                                          expected.value(QStringLiteral("singer_id"));
+                           });
     };
-    expect(singerOptions && singerOptionValues.size() == 3 &&
-               hasOptionValue(singerOptionValues, registrySingerRef) &&
-               hasOptionValue(singerOptionValues, registrySingerV2Ref) && speakerOptions &&
-               speakerOptionValues.size() == 2 &&
-               speakerOptionValues.first()
-                   .toObject()
-                   .value(QStringLiteral("value"))
-                   .toObject()
-                   .contains(QStringLiteral("speaker_id")) &&
-               speakerV2Options && speakerV2OptionValues.size() == 2 &&
-               speakerV2OptionValues.first()
-                       .toObject()
-                       .value(QStringLiteral("value"))
-                       .toObject()
-                       .value(QStringLiteral("speaker_id")) == QStringLiteral("speaker-v2"),
-           QStringLiteral("get_options must distinguish same-ID singer versions and return their "
+    const auto speakers = singerDescription ? singerDescription.get()
+                                                  .value(QStringLiteral("snapshot"))
+                                                  .toObject()
+                                                  .value(QStringLiteral("speakers"))
+                                                  .toArray()
+                                            : QJsonArray{};
+    const auto speakersV2 = singerV2Description ? singerV2Description.get()
+                                                      .value(QStringLiteral("snapshot"))
+                                                      .toObject()
+                                                      .value(QStringLiteral("speakers"))
+                                                      .toArray()
+                                                : QJsonArray{};
+    expect(singers && singerEntries.size() == 3 && hasSinger(registrySingerRef) &&
+               hasSinger(registrySingerV2Ref) && singerDescription && speakers.size() == 2 &&
+               speakers.first().toObject().contains(QStringLiteral("speaker_id")) &&
+               singerV2Description && speakersV2.size() == 2 &&
+               speakersV2.first().toObject().value(QStringLiteral("speaker_id")) ==
+                   QStringLiteral("speaker-v2"),
+           QStringLiteral("voice queries must distinguish same-ID singer versions and return their "
                           "own speakers"));
 
     const auto metadataTask = runtime.automationTasks().createTask(QStringLiteral("documents.open"),
@@ -4203,7 +4103,7 @@ int main(int argc, char *argv[]) {
                saveWithoutCurrentPath.getError().fieldPath == QStringLiteral("path"),
            QStringLiteral("save-current must reject a document without an existing path"));
 
-    const auto strictInput = registry.invoke(QStringLiteral("automation.get_file_access"),
+    const auto strictInput = registry.invoke(QStringLiteral("application.get_file_access"),
                                              QJsonObject{
                                                  {QStringLiteral("unexpected"), true}
     },
@@ -4321,26 +4221,23 @@ int main(int argc, char *argv[]) {
                                   .isNull(),
            QStringLiteral("clips.get must mark voice context unavailable for audio clips"));
 
-    const auto extractionLanguages = registry.invoke(
-        QStringLiteral("automation.get_options"),
+    const auto extractionCapabilitiesForAudio = registry.invoke(
+        QStringLiteral("extract.get_capabilities"),
         QJsonObject{
-            {QStringLiteral("operation_id"),      QStringLiteral("extract.midi.start")       },
-            {QStringLiteral("field_path"),        QStringLiteral("/options/default_language")},
-            {QStringLiteral("partial_arguments"),
-             QJsonObject{
-                 {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()},
-                 {QStringLiteral("source_audio_clip_id"), audioClipId.value()},
-             }                                                                               },
+            {QStringLiteral("document_id"),          runtime.documentVersion().documentId.toString()},
+            {QStringLiteral("source_audio_clip_id"), audioClipId.value()                            },
     },
-        {.clientId = QStringLiteral("extraction-language-options")});
-    const auto extractionLanguageOptions =
-        extractionLanguages ? extractionLanguages.get().value(QStringLiteral("options")).toArray()
-                            : QJsonArray{};
-    expect(extractionLanguages && extractionLanguageOptions.size() == 1 &&
-               extractionLanguageOptions.first().toObject().value(QStringLiteral("value")) ==
-                   QStringLiteral("zh"),
-           QStringLiteral(
-               "MIDI extraction language options must resolve from extraction capabilities"));
+        {.clientId = QStringLiteral("extraction-capabilities")});
+    const auto extractionLanguageOptions = extractionCapabilitiesForAudio
+                                               ? extractionCapabilitiesForAudio.get()
+                                                     .value(QStringLiteral("capabilities"))
+                                                     .toObject()
+                                                     .value(QStringLiteral("languages"))
+                                                     .toArray()
+                                               : QJsonArray{};
+    expect(extractionCapabilitiesForAudio &&
+               extractionLanguageOptions == QJsonArray{QStringLiteral("zh")},
+           QStringLiteral("MIDI extraction languages must be exposed by capabilities"));
 
     audioPathPreparationCount = 0;
     lastPreparedAudioPath.clear();
@@ -5028,35 +4925,7 @@ int main(int argc, char *argv[]) {
             forgedTaskPage.getError().code == Automation::AutomationErrorCode::InvalidArgument,
         QStringLiteral("tasks.list must round-trip opaque cursors and reject numeric forgeries"));
 
-    const QJsonObject manifestPageInput{
-        {QStringLiteral("limit"), 1}
-    };
-    const auto manifestPageOne =
-        registry.invoke(QStringLiteral("automation.get_manifest"), manifestPageInput);
-    const auto manifestCursor =
-        manifestPageOne ? manifestPageOne.get().value(QStringLiteral("next_cursor")).toString()
-                        : QString();
-    auto manifestPageTwoInput = manifestPageInput;
-    manifestPageTwoInput.insert(QStringLiteral("cursor"), manifestCursor);
-    QElapsedTimer cachedManifestPageTimer;
-    cachedManifestPageTimer.start();
-    const auto manifestPageTwo =
-        registry.invoke(QStringLiteral("automation.get_manifest"), manifestPageTwoInput);
-    const auto cachedManifestPageElapsedMs = cachedManifestPageTimer.elapsed();
-    auto forgedManifestInput = manifestPageInput;
-    forgedManifestInput.insert(QStringLiteral("cursor"), QStringLiteral("1"));
-    const auto forgedManifest =
-        registry.invoke(QStringLiteral("automation.get_manifest"), forgedManifestInput);
-    expect(
-        manifestPageOne && !manifestCursor.isEmpty() && manifestCursor != QStringLiteral("1") &&
-            manifestPageTwo &&
-            manifestPageTwo.get().value(QStringLiteral("operations")).toArray().size() == 1 &&
-            cachedManifestPageElapsedMs < 250 && !forgedManifest &&
-            forgedManifest.getError().code == Automation::AutomationErrorCode::InvalidArgument,
-        QStringLiteral(
-            "automation.get_manifest must round-trip opaque cursors and reject numeric forgeries"));
-
-    const auto direct = registry.invoke(QStringLiteral("automation.get_file_access"), {},
+    const auto direct = registry.invoke(QStringLiteral("application.get_file_access"), {},
                                         {.clientId = QStringLiteral("adapter")});
     Automation::McpRequestDispatcher dispatcher(
         registry, {QStringLiteral("registry-test"), QStringLiteral("1.0"), {}, {}});
@@ -5092,14 +4961,14 @@ int main(int argc, char *argv[]) {
     for (const auto &tool : listedTools)
         listedIds.insert(tool.toObject().value(QStringLiteral("name")).toString());
     expect(!listCursor.isEmpty() && !nextListResponse.contains(QStringLiteral("error")) &&
-               cachedToolsPageElapsedMs < 250 && listedTools.size() == 177 &&
+               cachedToolsPageElapsedMs < 250 && listedTools.size() == 175 &&
                listedIds == PublicAutomationToolsetExpectations::editorToolIdSet(),
-           QStringLiteral("tools/list must expose the exact 177-tool editor surface"));
+           QStringLiteral("tools/list must expose the exact 175-tool editor surface"));
     access.update(AutomationWire::AutomationProfile::L1);
     const auto reducedListResponse = dispatcher.dispatch(list, QStringLiteral("adapter"));
     const auto reducedListResult = reducedListResponse.value(QStringLiteral("result")).toObject();
     expect(!reducedListResponse.contains(QStringLiteral("error")) &&
-               reducedListResult.value(QStringLiteral("tools")).toArray().size() == 89 &&
+               reducedListResult.value(QStringLiteral("tools")).toArray().size() == 87 &&
                reducedListResult.value(QStringLiteral("nextCursor")).toString().isEmpty(),
            QStringLiteral("tools/list cache must invalidate when the access profile changes"));
     const auto staleListResponse = dispatcher.dispatch(nextList, QStringLiteral("adapter"));
@@ -5121,7 +4990,7 @@ int main(int argc, char *argv[]) {
     call.id = 4;
     call.method = QString::fromLatin1(Mcp::ToolsCallMethod);
     call.protocolVersion = QString::fromLatin1(Mcp::ProtocolVersion);
-    call.name = QStringLiteral("automation.get_file_access");
+    call.name = QStringLiteral("application.get_file_access");
     call.params = QJsonObject{
         {QStringLiteral("name"),      call.name    },
         {QStringLiteral("arguments"), QJsonObject{}}

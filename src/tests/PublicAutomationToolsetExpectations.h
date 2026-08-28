@@ -22,13 +22,9 @@ namespace PublicAutomationToolsetExpectations {
             {QStringLiteral("application.get_info"),                      QStringLiteral("application"),
              AutomationProfile::Meta                                                                                          },
 
-            {QStringLiteral("automation.get_status"),                     QStringLiteral("automation"),
+            {QStringLiteral("application.get_status"),                    QStringLiteral("application"),
              AutomationProfile::Meta                                                                                          },
-            {QStringLiteral("automation.get_manifest"),                   QStringLiteral("automation"),
-             AutomationProfile::Meta                                                                                          },
-            {QStringLiteral("automation.get_options"),                    QStringLiteral("automation"),
-             AutomationProfile::Meta                                                                                          },
-            {QStringLiteral("automation.get_file_access"),                QStringLiteral("automation"),
+            {QStringLiteral("application.get_file_access"),               QStringLiteral("application"),
              AutomationProfile::L2                                                                                            },
 
             {QStringLiteral("documents.get"),                             QStringLiteral("documents"),   AutomationProfile::L1},

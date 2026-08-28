@@ -53,7 +53,6 @@ namespace AutomationWire {
         QJsonObject annotations;
 
         QJsonObject toMcpToolJson() const;
-        QJsonObject toManifestJson() const;
     };
 
     const QList<ToolContract> &publicToolContracts();
@@ -61,23 +60,6 @@ namespace AutomationWire {
     QStringList publicToolIds();
     QList<ToolContract> toolsForProfile(AutomationProfile profile,
                                         const QSet<QString> &customEnabled = {});
-
-    struct PublicManifest {
-        quint64 toolsetVersion = PublicToolsetVersion;
-        QString digest;
-        AutomationProfile profile = AutomationProfile::L1;
-        QString hostMode = QStringLiteral("gui");
-        QList<ToolContract> operations;
-        QJsonObject extensions;
-        QString nextCursor;
-
-        QJsonObject toJson() const;
-    };
-
-    PublicManifest buildPublicManifest(AutomationProfile profile,
-                                       const QSet<QString> &customEnabled = {},
-                                       const QString &hostMode = QStringLiteral("gui"),
-                                       qsizetype offset = 0, qsizetype limit = 0);
 
 }
 

@@ -272,8 +272,8 @@ namespace {
         bool ok = true;
         const auto &tools = publicToolContracts();
         const auto expectedIds = PublicAutomationToolsetExpectations::editorToolIds();
-        ok &= expect(tools.size() == 177,
-                     QStringLiteral("public declaration must contain 177 editor tools"));
+        ok &= expect(tools.size() == 175,
+                     QStringLiteral("public declaration must contain 175 editor tools"));
         ok &=
             expect(publicToolIds() == expectedIds,
                    QStringLiteral("public declaration must exactly match the frozen tool matrix"));
@@ -281,22 +281,6 @@ namespace {
         QSet<QString> ids;
         qsizetype dynamicSourceCount = 0;
         qsizetype openSchemaCount = 0;
-        const QStringList descriptorFields{
-            QStringLiteral("operation_id"),      QStringLiteral("title"),
-            QStringLiteral("description"),       QStringLiteral("minimum_toolset_version"),
-            QStringLiteral("category"),          QStringLiteral("kind"),
-            QStringLiteral("input_schema"),      QStringLiteral("output_schema"),
-            QStringLiteral("value_sources"),     QStringLiteral("minimum_profile"),
-            QStringLiteral("sync_mode"),         QStringLiteral("file_access"),
-            QStringLiteral("host_availability"), QStringLiteral("annotations"),
-        };
-        const QStringList legacyDescriptorFields{
-            QStringLiteral("operationId"),      QStringLiteral("minimumToolsetVersion"),
-            QStringLiteral("inputSchema"),      QStringLiteral("outputSchema"),
-            QStringLiteral("valueSources"),     QStringLiteral("minimumProfile"),
-            QStringLiteral("syncMode"),         QStringLiteral("fileAccess"),
-            QStringLiteral("hostAvailability"),
-        };
         for (const auto &tool : tools) {
             ids.insert(tool.operationId);
             ok &= expect(tool.minimumProfile != AutomationProfile::Custom,
@@ -320,51 +304,27 @@ namespace {
             collectOpenSchemaPaths(tool.outputSchema, {}, outputOpenSchemas);
             for (const auto &path : inputOpenSchemas) {
                 ++openSchemaCount;
-                ok &= expect(tool.operationId == QStringLiteral("automation.get_options") &&
-                                 path == QStringLiteral(
-                                             "/properties/partial_arguments/additionalProperties"),
-                             QStringLiteral("unexpected open input schema: %1%2")
-                                 .arg(tool.operationId, path));
+                ok &= expect(false, QStringLiteral("unexpected open input schema: %1%2")
+                                        .arg(tool.operationId, path));
             }
             for (const auto &path : outputOpenSchemas) {
                 ++openSchemaCount;
-                ok &= expect(tool.operationId == QStringLiteral("automation.get_manifest") &&
-                                 path ==
-                                     QStringLiteral("/properties/extensions/additionalProperties"),
-                             QStringLiteral("unexpected open output schema: %1%2")
-                                 .arg(tool.operationId, path));
+                ok &= expect(false, QStringLiteral("unexpected open output schema: %1%2")
+                                        .arg(tool.operationId, path));
             }
 
-            const auto descriptor = tool.toManifestJson();
-            for (const auto &field : descriptorFields) {
-                ok &= expect(descriptor.contains(field),
-                             QStringLiteral("public descriptor field is required: %1.%2")
-                                 .arg(tool.operationId, field));
-            }
-            ok &=
-                expect(descriptor.size() == descriptorFields.size(),
-                       QStringLiteral("public descriptor must contain only its contract fields: %1")
-                           .arg(tool.operationId));
-            for (const auto &field : legacyDescriptorFields) {
-                ok &= expect(!descriptor.contains(field),
-                             QStringLiteral("Manifest descriptor must not expose camelCase: %1.%2")
-                                 .arg(tool.operationId, field));
-            }
-            ok &= expect(
-                tool.minimumToolsetVersion == 1 &&
-                    descriptor.value(QStringLiteral("minimum_toolset_version")).toInteger() == 1,
-                QStringLiteral("minimum toolset versions must start at one"));
-            const auto mcpMetadata = tool.toMcpToolJson()
-                                         .value(QStringLiteral("_meta"))
+            const auto descriptor = tool.toMcpToolJson();
+            const auto mcpMetadata = descriptor.value(QStringLiteral("_meta"))
                                          .toObject()
                                          .value(QStringLiteral("io.openvpi.ds-editor-lite/tool"))
                                          .toObject();
             ok &= expect(
-                mcpMetadata.value(QStringLiteral("kind")) ==
-                        descriptor.value(QStringLiteral("kind")) &&
-                    mcpMetadata.value(QStringLiteral("host_availability")) ==
-                        descriptor.value(QStringLiteral("host_availability")),
-                QStringLiteral("MCP tool metadata must preserve Manifest execution semantics: %1")
+                descriptor.value(QStringLiteral("name")) == tool.operationId &&
+                    descriptor.value(QStringLiteral("inputSchema")) == tool.inputSchema &&
+                    descriptor.value(QStringLiteral("outputSchema")) == tool.outputSchema &&
+                    tool.minimumToolsetVersion == 1 &&
+                    mcpMetadata.value(QStringLiteral("minimum_toolset_version")).toInteger() == 1,
+                QStringLiteral("MCP descriptor must preserve the public tool contract: %1")
                     .arg(tool.operationId));
             for (const auto &entry : tool.valueSources) {
                 ++dynamicSourceCount;
@@ -385,9 +345,8 @@ namespace {
         }
         ok &= expect(ids.size() == tools.size(),
                      QStringLiteral("public operation IDs must be unique"));
-        ok &= expect(openSchemaCount == 2,
-                     QStringLiteral("only controlled partial arguments and Manifest extensions may "
-                                    "use open nested schemas"));
+        ok &= expect(openSchemaCount == 0,
+                     QStringLiteral("public tool schemas must not contain open object branches"));
         ok &= expect(documentLifecycleValues() == QStringList{QStringLiteral("active"),
                                                               QStringLiteral("replacing"),
                                                               QStringLiteral("closing")} &&
@@ -404,34 +363,15 @@ namespace {
                 !findPublicTool(QStringLiteral("exports.audio.start"))->valueSources.isEmpty() &&
                 !findPublicTool(QStringLiteral("inference.start"))->valueSources.isEmpty(),
             QStringLiteral("controlled dynamic fields must publish discoverable value sources"));
-        ok &= expect(toolsForProfile(AutomationProfile::Meta).size() == 4 &&
-                         toolsForProfile(AutomationProfile::L1).size() == 89 &&
-                         toolsForProfile(AutomationProfile::L2).size() == 132 &&
-                         toolsForProfile(AutomationProfile::L3).size() == 177,
-                     QStringLiteral("public preset counts must be 4/89/132/177"));
+        ok &= expect(toolsForProfile(AutomationProfile::Meta).size() == 2 &&
+                         toolsForProfile(AutomationProfile::L1).size() == 87 &&
+                         toolsForProfile(AutomationProfile::L2).size() == 130 &&
+                         toolsForProfile(AutomationProfile::L3).size() == 175,
+                     QStringLiteral("public preset counts must be 2/87/130/175"));
         ok &= expect(
             toolsForProfile(AutomationProfile::Custom, {QStringLiteral("notes.insert")}).size() ==
-                5,
+                3,
             QStringLiteral("Custom must retain Meta and explicit enabled tools"));
-
-        const auto manifest = buildPublicManifest(AutomationProfile::L1);
-        const auto page =
-            buildPublicManifest(AutomationProfile::L1, {}, QStringLiteral("gui"), 0, 7);
-        ok &= expect(manifest.toolsetVersion == 1 && manifest.operations.size() == 89 &&
-                         !manifest.digest.isEmpty() && page.operations.size() == 7 &&
-                         page.digest == manifest.digest && !page.nextCursor.isEmpty(),
-                     QStringLiteral("public Manifest must be versioned, digested and pageable"));
-        const auto manifestJson = manifest.toJson();
-        ok &= expect(
-            manifestJson.contains(QStringLiteral("toolset_version")) &&
-                manifestJson.contains(QStringLiteral("profile")) &&
-                manifestJson.contains(QStringLiteral("host_mode")) &&
-                !manifestJson.contains(QStringLiteral("toolsetVersion")) &&
-                validateJsonValue(
-                    manifestJson,
-                    findPublicTool(QStringLiteral("automation.get_manifest"))->outputSchema)
-                    .valid(),
-            QStringLiteral("PublicManifest wire codec must use the strict snake_case envelope"));
 
         const auto revisionProperty = findPublicTool(QStringLiteral("history.undo"))
                                           ->inputSchema.value(QStringLiteral("properties"))
@@ -647,8 +587,12 @@ namespace {
                              .contains(QStringLiteral("overwrite_policy")),
                      QStringLiteral("file exports must require one typed overwrite policy"));
 
-        const auto exportDescriptor =
-            findPublicTool(QStringLiteral("exports.audio.start"))->toManifestJson();
+        const auto exportDescriptor = findPublicTool(QStringLiteral("exports.audio.start"))
+                                          ->toMcpToolJson()
+                                          .value(QStringLiteral("_meta"))
+                                          .toObject()
+                                          .value(QStringLiteral("io.openvpi.ds-editor-lite/tool"))
+                                          .toObject();
         ok &=
             expect(exportDescriptor.value(QStringLiteral("file_access")) == QStringLiteral("write"),
                    QStringLiteral("audio export must declare file write access"));
@@ -747,10 +691,10 @@ namespace {
     bool testExposurePolicy() {
         bool ok = true;
         ok &= expect(selectExposure({ExposureProfile::L0}).exposedIds.size() == 0 &&
-                         selectExposure({ExposureProfile::L1}).exposedIds.size() == 89 &&
-                         selectExposure({ExposureProfile::L2}).exposedIds.size() == 132 &&
-                         selectExposure({ExposureProfile::L3}).exposedIds.size() == 177,
-                     QStringLiteral("connector exposure preset counts must be 0/89/132/177"));
+                         selectExposure({ExposureProfile::L1}).exposedIds.size() == 87 &&
+                         selectExposure({ExposureProfile::L2}).exposedIds.size() == 130 &&
+                         selectExposure({ExposureProfile::L3}).exposedIds.size() == 175,
+                     QStringLiteral("connector exposure preset counts must be 0/87/130/175"));
 
         const ExposureConfig filtered{
             .profile = ExposureProfile::L0,
@@ -774,7 +718,7 @@ namespace {
         auto targets = publicExposureTargets();
         targets.append(
             {QStringLiteral("future.gui_tool"), QStringLiteral("future"), AutomationProfile::L3});
-        ok &= expect(selectExposure({ExposureProfile::L2}, targets).exposedIds.size() == 132 &&
+        ok &= expect(selectExposure({ExposureProfile::L2}, targets).exposedIds.size() == 130 &&
                          selectExposure({ExposureProfile::L3}, targets)
                              .exposedIds.contains(QStringLiteral("future.gui_tool")),
                      QStringLiteral("higher exposure presets must include higher-profile targets"));

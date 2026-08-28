@@ -1,6 +1,5 @@
 #include "PublicToolContract.h"
 
-#include "CanonicalJson.h"
 #include "JsonSchema.h"
 #include "PublicConstants.h"
 #include "PublicEnums.h"
@@ -197,7 +196,6 @@ namespace AutomationWire {
         QJsonObject l3InputSchema(const QString &id);
         QJsonObject l3OutputSchema(const QString &id);
         QJsonObject packageRefreshResultSchema();
-        QJsonObject getOptionsInputSchema(const QList<ToolContract> &tools);
 
         bool isL3Operation(const QString &id) {
             return id.startsWith(QStringLiteral("workspace.")) ||
@@ -972,8 +970,6 @@ namespace AutomationWire {
 
         QHash<QString, QStringList> requiredInputFields() {
             return {
-                {PublicToolNames::automation_get_options,
-                 {QStringLiteral("operation_id"), QStringLiteral("field_path")}                                         },
                 {PublicToolNames::documents_new,                       {QStringLiteral("unsaved_policy")}               },
                 {PublicToolNames::documents_open,
                  {QStringLiteral("unsaved_policy"), QStringLiteral("path")}                                             },
@@ -1181,9 +1177,6 @@ namespace AutomationWire {
 
         QHash<QString, QStringList> optionalInputFields() {
             return {
-                {PublicToolNames::automation_get_manifest,
-                 {QStringLiteral("cursor"), QStringLiteral("limit")}                                               },
-                {PublicToolNames::automation_get_options,       {QStringLiteral("partial_arguments")}              },
                 {PublicToolNames::documents_new,                {QStringLiteral("template")}                       },
                 {PublicToolNames::documents_open,
                  {QStringLiteral("format_id"), QStringLiteral("options"),
@@ -1308,112 +1301,6 @@ namespace AutomationWire {
 
         QJsonObject inputSchema(const QString &id, const OperationKind kind) {
             return authoritativeInputSchema(id, kind);
-        }
-
-        QJsonObject partialRootSchema(QJsonObject schema) {
-            std::function<QJsonValue(const QJsonValue &)> relax;
-            relax = [&relax](const QJsonValue &value) -> QJsonValue {
-                if (!value.isObject())
-                    return value;
-                auto result = value.toObject();
-                result.remove(QStringLiteral("required"));
-                result.remove(QStringLiteral("minProperties"));
-
-                for (const auto &keyword :
-                     {QStringLiteral("items"), QStringLiteral("additionalProperties"),
-                      QStringLiteral("contains"), QStringLiteral("not"), QStringLiteral("if"),
-                      QStringLiteral("then"), QStringLiteral("else")}) {
-                    if (result.value(keyword).isObject())
-                        result.insert(keyword, relax(result.value(keyword)));
-                }
-                for (const auto &keyword :
-                     {QStringLiteral("oneOf"), QStringLiteral("anyOf"), QStringLiteral("allOf"),
-                      QStringLiteral("prefixItems")}) {
-                    if (!result.value(keyword).isArray())
-                        continue;
-                    QJsonArray relaxed;
-                    for (const auto &entry : result.value(keyword).toArray())
-                        relaxed.append(relax(entry));
-                    result.insert(keyword, relaxed);
-                }
-                for (const auto &keyword :
-                     {QStringLiteral("properties"), QStringLiteral("$defs")}) {
-                    if (!result.value(keyword).isObject())
-                        continue;
-                    auto entries = result.value(keyword).toObject();
-                    for (auto it = entries.begin(); it != entries.end(); ++it)
-                        it.value() = relax(it.value());
-                    result.insert(keyword, entries);
-                }
-                return result;
-            };
-
-            schema.remove(QStringLiteral("$schema"));
-            if (schema.contains(QStringLiteral("oneOf"))) {
-                QJsonObject mergedProperties;
-                for (const auto &value : schema.value(QStringLiteral("oneOf")).toArray()) {
-                    const auto branchProperties =
-                        value.toObject().value(QStringLiteral("properties")).toObject();
-                    for (auto it = branchProperties.constBegin(); it != branchProperties.constEnd();
-                         ++it) {
-                        mergedProperties.insert(it.key(), relax(it.value()));
-                    }
-                }
-                return JsonSchema::object(mergedProperties);
-            }
-            return relax(schema).toObject();
-        }
-
-        QJsonObject fieldPathSchema(const QString &path) {
-            if (!path.contains(u'*'))
-                return JsonSchema::constant(path);
-            auto pattern = QRegularExpression::escape(path);
-            pattern.replace(QStringLiteral("\\*"), QStringLiteral("(?:\\*|[0-9]+)"));
-            auto schema = JsonSchema::string();
-            schema.insert(QStringLiteral("pattern"), u'^' + pattern + u'$');
-            return schema;
-        }
-
-        QJsonObject getOptionsInputSchema(const QList<ToolContract> &tools) {
-            QJsonArray branches;
-            QJsonObject definitions;
-            for (const auto &target : tools) {
-                if (target.operationId == PublicToolNames::automation_get_options) {
-                    continue;
-                }
-                QSet<QString> paths;
-                for (const auto &sourceValue : target.valueSources) {
-                    paths.insert(
-                        sourceValue.toObject().value(QStringLiteral("field_path")).toString());
-                }
-                if (paths.isEmpty())
-                    continue;
-                const auto definitionKey = target.operationId;
-                definitions.insert(definitionKey, partialRootSchema(target.inputSchema));
-                auto orderedPaths = paths.values();
-                std::sort(orderedPaths.begin(), orderedPaths.end());
-                for (const auto &fieldPath : std::as_const(orderedPaths)) {
-                    branches.append(JsonSchema::object(
-                        {
-                            {QStringLiteral("operation_id"),
-                             JsonSchema::constant(target.operationId)                         },
-                            {QStringLiteral("field_path"),        fieldPathSchema(fieldPath)  },
-                            {QStringLiteral("partial_arguments"),
-                             JsonSchema::reference(QStringLiteral("#/$defs/") + definitionKey)},
-                    },
-                        {QStringLiteral("operation_id"), QStringLiteral("field_path")}));
-                }
-            }
-            auto root = JsonSchema::object(
-                {
-                    {QStringLiteral("operation_id"), nonEmptyStringSchema()},
-                    {QStringLiteral("field_path"), nonEmptyStringSchema()},
-                    {QStringLiteral("partial_arguments"),
-                     JsonSchema::objectWithAdditionalSchema({}, {}, QJsonValue(true))},
-            },
-                {QStringLiteral("operation_id"), QStringLiteral("field_path")});
-            root.insert(QStringLiteral("oneOf"), branches);
-            return JsonSchema::document(std::move(root), definitions);
         }
 
         QJsonObject objectRefSchema() {
@@ -1720,95 +1607,6 @@ namespace AutomationWire {
             return JsonSchema::oneOf(QJsonArray{JsonSchema::boolean(), schemaObject});
         }
 
-        QJsonObject manifestOperationSchema() {
-            const auto valueSource = JsonSchema::object(
-                {
-                    {QStringLiteral("field_path"),        nonEmptyStringSchema()                   },
-                    {QStringLiteral("operation_id"),      nonEmptyStringSchema()                   },
-                    {QStringLiteral("context_fields"),    JsonSchema::array(nonEmptyStringSchema())},
-                    {QStringLiteral("minimum_profile"),   automationProfileSchema()                },
-                    {QStringLiteral("host_availability"),
-                     stringDomainSchema(PublicValueDomain::HostAvailability)                       },
-            },
-                {QStringLiteral("field_path"), QStringLiteral("operation_id"),
-                 QStringLiteral("context_fields"), QStringLiteral("minimum_profile"),
-                 QStringLiteral("host_availability")});
-            const auto annotations = JsonSchema::object(
-                {
-                    {QStringLiteral("title"),           nonEmptyStringSchema()},
-                    {QStringLiteral("readOnlyHint"),    JsonSchema::boolean() },
-                    {QStringLiteral("destructiveHint"), JsonSchema::boolean() },
-                    {QStringLiteral("idempotentHint"),  JsonSchema::boolean() },
-                    {QStringLiteral("openWorldHint"),   JsonSchema::boolean() },
-            },
-                {QStringLiteral("title"), QStringLiteral("readOnlyHint"),
-                 QStringLiteral("destructiveHint"), QStringLiteral("idempotentHint"),
-                 QStringLiteral("openWorldHint")});
-            return JsonSchema::object(
-                {
-                    {QStringLiteral("operation_id"), nonEmptyStringSchema()},
-                    {QStringLiteral("title"), nonEmptyStringSchema()},
-                    {QStringLiteral("description"), nonEmptyStringSchema()},
-                    {QStringLiteral("minimum_toolset_version"),
-                     JsonSchema::integer(1.0, static_cast<double>(MaximumSafeJsonInteger))},
-                    {QStringLiteral("category"), nonEmptyStringSchema()},
-                    {QStringLiteral("kind"), stringDomainSchema(PublicValueDomain::OperationKind)},
-                    {QStringLiteral("input_schema"),
-                     JsonSchema::reference(QStringLiteral("#/$defs/schema"))},
-                    {QStringLiteral("output_schema"),
-                     JsonSchema::reference(QStringLiteral("#/$defs/schema"))},
-                    {QStringLiteral("value_sources"), JsonSchema::array(valueSource)},
-                    {QStringLiteral("minimum_profile"), automationProfileSchema()},
-                    {QStringLiteral("sync_mode"), stringDomainSchema(PublicValueDomain::SyncMode)},
-                    {QStringLiteral("file_access"),
-                     stringDomainSchema(PublicValueDomain::FileAccess)},
-                    {QStringLiteral("host_availability"),
-                     stringDomainSchema(PublicValueDomain::HostAvailability)},
-                    {QStringLiteral("annotations"), annotations},
-            },
-                {
-                    QStringLiteral("operation_id"),
-                    QStringLiteral("title"),
-                    QStringLiteral("description"),
-                    QStringLiteral("minimum_toolset_version"),
-                    QStringLiteral("category"),
-                    QStringLiteral("kind"),
-                    QStringLiteral("input_schema"),
-                    QStringLiteral("output_schema"),
-                    QStringLiteral("value_sources"),
-                    QStringLiteral("minimum_profile"),
-                    QStringLiteral("sync_mode"),
-                    QStringLiteral("file_access"),
-                    QStringLiteral("host_availability"),
-                    QStringLiteral("annotations"),
-                });
-        }
-
-        QJsonObject manifestOutputSchema() {
-            const auto root = JsonSchema::object(
-                {
-                    {QStringLiteral("toolset_version"),
-                     JsonSchema::integer(1.0, static_cast<double>(MaximumSafeJsonInteger))},
-                    {QStringLiteral("digest"), digestSchema()},
-                    {QStringLiteral("profile"), automationProfileSchema()},
-                    {QStringLiteral("host_mode"), hostModeSchema()},
-                    {QStringLiteral("operations"),
-                     JsonSchema::array(JsonSchema::reference(QStringLiteral("#/$defs/operation")))},
-                    {QStringLiteral("extensions"),
-                     JsonSchema::objectWithAdditionalSchema({}, {}, QJsonValue(true))},
-                    {QStringLiteral("next_cursor"), JsonSchema::string()},
-            },
-                {QStringLiteral("toolset_version"), QStringLiteral("digest"),
-                 QStringLiteral("profile"), QStringLiteral("host_mode"),
-                 QStringLiteral("operations"), QStringLiteral("extensions")});
-            return JsonSchema::document(
-                root, {
-                          {QStringLiteral("json_value"), jsonValueMetaSchema()    },
-                          {QStringLiteral("schema"),     jsonSchemaMetaSchema()   },
-                          {QStringLiteral("operation"),  manifestOperationSchema()},
-            });
-        }
-
         QJsonObject queryEnvelopeSchema(const QString &name, const QJsonValue &valueSchema,
                                         const bool nextCursor = false) {
             QJsonObject properties{
@@ -1822,13 +1620,6 @@ namespace AutomationWire {
         }
 
         QJsonObject statusOutputSchema() {
-            const auto manifest = JsonSchema::object(
-                {
-                    {QStringLiteral("toolset_version"),
-                     JsonSchema::integer(1.0, static_cast<double>(MaximumSafeJsonInteger))},
-                    {QStringLiteral("digest"), digestSchema()},
-            },
-                {QStringLiteral("toolset_version"), QStringLiteral("digest")});
             const auto document = JsonSchema::object(
                 {
                     {QStringLiteral("document_id"), uuidSchema()         },
@@ -1849,56 +1640,17 @@ namespace AutomationWire {
             windows.insert(QStringLiteral("maxItems"), 1);
             return JsonSchema::document(JsonSchema::object(
                 {
-                    {QStringLiteral("editor_instance_id"), uuidSchema()             },
-                    {QStringLiteral("host_mode"),          hostModeSchema()         },
-                    {QStringLiteral("profile"),            automationProfileSchema()},
-                    {QStringLiteral("manifest"),           manifest                 },
-                    {QStringLiteral("documents"),          documents                },
-                    {QStringLiteral("windows"),            windows                  },
+                    {QStringLiteral("editor_instance_id"), uuidSchema()},
+                    {QStringLiteral("host_mode"), hostModeSchema()},
+                    {QStringLiteral("profile"), automationProfileSchema()},
+                    {QStringLiteral("toolset_version"),
+                     JsonSchema::integer(1.0, static_cast<double>(MaximumSafeJsonInteger))},
+                    {QStringLiteral("documents"), documents},
+                    {QStringLiteral("windows"), windows},
             },
                 {QStringLiteral("editor_instance_id"), QStringLiteral("host_mode"),
-                 QStringLiteral("profile"), QStringLiteral("manifest"), QStringLiteral("documents"),
-                 QStringLiteral("windows")}));
-        }
-
-        QJsonObject optionsOutputSchema() {
-            const auto optionValue = JsonSchema::oneOf(QJsonArray{
-                JsonSchema::null(),
-                JsonSchema::boolean(),
-                JsonSchema::number(),
-                JsonSchema::string(),
-                singerRefSchema(),
-                speakerRefSchema(),
-                voiceRefSchema(),
-            });
-            const auto metadata = JsonSchema::object({
-                {QStringLiteral("description"), JsonSchema::string()           },
-                {QStringLiteral("group"),       JsonSchema::string()           },
-                {QStringLiteral("deprecated"),  JsonSchema::boolean()          },
-                {QStringLiteral("minimum"),     JsonSchema::number()           },
-                {QStringLiteral("maximum"),     JsonSchema::number()           },
-                {QStringLiteral("step"),        JsonSchema::number(0.000000001)},
-                {QStringLiteral("unit"),        JsonSchema::string()           },
-            });
-            const auto option = JsonSchema::object(
-                {
-                    {QStringLiteral("value"),              optionValue          },
-                    {QStringLiteral("label"),              JsonSchema::string() },
-                    {QStringLiteral("available"),          JsonSchema::boolean()},
-                    {QStringLiteral("unavailable_reason"), JsonSchema::string() },
-                    {QStringLiteral("metadata"),           metadata             },
-            },
-                {QStringLiteral("value"), QStringLiteral("label"), QStringLiteral("available")});
-            return JsonSchema::document(JsonSchema::object(
-                {
-                    {QStringLiteral("operation_id"),   nonEmptyStringSchema()                   },
-                    {QStringLiteral("field_path"),     nonEmptyStringSchema()                   },
-                    {QStringLiteral("options"),        JsonSchema::array(option)                },
-                    {QStringLiteral("dependencies"),   JsonSchema::array(nonEmptyStringSchema())},
-                    {QStringLiteral("context_digest"), digestSchema()                           },
-            },
-                {QStringLiteral("operation_id"), QStringLiteral("field_path"),
-                 QStringLiteral("options"), QStringLiteral("dependencies")}));
+                 QStringLiteral("profile"), QStringLiteral("toolset_version"),
+                 QStringLiteral("documents"), QStringLiteral("windows")}));
         }
 
         QJsonObject fileAccessOutputSchema() {
@@ -3918,13 +3670,9 @@ namespace AutomationWire {
                     {QStringLiteral("name"), QStringLiteral("version"), QStringLiteral("platform"),
                      QStringLiteral("build_id")}));
             }
-            if (id == PublicToolNames::automation_get_status)
+            if (id == PublicToolNames::application_get_status)
                 return statusOutputSchema();
-            if (id == PublicToolNames::automation_get_manifest)
-                return manifestOutputSchema();
-            if (id == PublicToolNames::automation_get_options)
-                return optionsOutputSchema();
-            if (id == PublicToolNames::automation_get_file_access)
+            if (id == PublicToolNames::application_get_file_access)
                 return fileAccessOutputSchema();
             if (id == PublicToolNames::documents_get)
                 return queryEnvelopeSchema(QStringLiteral("snapshot"), documentSnapshotSchema());
@@ -4059,22 +3807,12 @@ namespace AutomationWire {
                 return QStringLiteral("Read the editor product name, version, platform, and build "
                                       "identifier without changing editor state.");
             }
-            if (operationId == PublicToolNames::automation_get_status) {
+            if (operationId == PublicToolNames::application_get_status) {
                 return QStringLiteral(
-                    "Read the active editor instance, host, access profile, Manifest "
-                    "summary, and stable document/window identities.");
+                    "Read the active editor instance, host, access profile, toolset version, and "
+                    "stable document/window identities.");
             }
-            if (operationId == PublicToolNames::automation_get_manifest) {
-                return QStringLiteral(
-                    "Page through the effective public automation contracts, including "
-                    "per-tool versions, schemas, policies, availability, and digests.");
-            }
-            if (operationId == PublicToolNames::automation_get_options) {
-                return QStringLiteral(
-                    "Resolve legal values for one dynamic field of an exposed target "
-                    "operation using the supplied partial arguments and editor context.");
-            }
-            if (operationId == PublicToolNames::automation_get_file_access) {
+            if (operationId == PublicToolNames::application_get_file_access) {
                 return QStringLiteral(
                     "Read the canonical automation read/write roots and temporary file "
                     "grants enforced by the editor File Guard.");
@@ -4514,40 +4252,6 @@ namespace AutomationWire {
             };
         }
 
-        QJsonObject manifestContent(const PublicManifest &manifest) {
-            QJsonArray operations;
-            for (const auto &tool : manifest.operations)
-                operations.append(tool.toManifestJson());
-            QJsonObject result{
-                {QStringLiteral("toolset_version"), static_cast<qint64>(manifest.toolsetVersion)},
-                {QStringLiteral("profile"),         automationProfileName(manifest.profile)     },
-                {QStringLiteral("host_mode"),       manifest.hostMode                           },
-                {QStringLiteral("operations"),      operations                                  },
-                {QStringLiteral("extensions"),      manifest.extensions                         },
-            };
-            result.insert(QStringLiteral("digest"), manifest.digest);
-            if (!manifest.nextCursor.isEmpty())
-                result.insert(QStringLiteral("next_cursor"), manifest.nextCursor);
-            return result;
-        }
-
-        QJsonObject manifestDigestContent(const PublicManifest &manifest) {
-            QJsonArray operations;
-            for (const auto &tool : manifest.operations) {
-                operations.append(QJsonObject{
-                    {QStringLiteral("operation_id"),            tool.operationId},
-                    {QStringLiteral("minimum_toolset_version"),
-                     static_cast<qint64>(tool.minimumToolsetVersion)            },
-                });
-            }
-            return {
-                {QStringLiteral("toolset_version"), static_cast<qint64>(manifest.toolsetVersion)},
-                {QStringLiteral("profile"),         automationProfileName(manifest.profile)     },
-                {QStringLiteral("host_mode"),       manifest.hostMode                           },
-                {QStringLiteral("operations"),      operations                                  },
-                {QStringLiteral("extensions"),      manifest.extensions                         },
-            };
-        }
     }
 
     QString operationKindName(const OperationKind kind) {
@@ -4583,6 +4287,7 @@ namespace AutomationWire {
                       {QStringLiteral("minimum_profile"), automationProfileName(minimumProfile)},
                       {QStringLiteral("kind"), operationKindName(kind)},
                       {QStringLiteral("sync_mode"), syncModeName(syncMode)},
+                      {QStringLiteral("file_access"), fileAccessName(fileAccess)},
                       {QStringLiteral("host_availability"), hostAvailability},
                       {QStringLiteral("value_sources"), valueSources},
                   }},
@@ -4590,29 +4295,10 @@ namespace AutomationWire {
         };
     }
 
-    QJsonObject ToolContract::toManifestJson() const {
-        return {
-            {QStringLiteral("operation_id"),            operationId                               },
-            {QStringLiteral("title"),                   title                                     },
-            {QStringLiteral("description"),             description                               },
-            {QStringLiteral("minimum_toolset_version"), static_cast<qint64>(minimumToolsetVersion)},
-            {QStringLiteral("category"),                category                                  },
-            {QStringLiteral("kind"),                    operationKindName(kind)                   },
-            {QStringLiteral("input_schema"),            inputSchema                               },
-            {QStringLiteral("output_schema"),           outputSchema                              },
-            {QStringLiteral("value_sources"),           valueSources                              },
-            {QStringLiteral("minimum_profile"),         automationProfileName(minimumProfile)     },
-            {QStringLiteral("sync_mode"),               syncModeName(syncMode)                    },
-            {QStringLiteral("file_access"),             fileAccessName(fileAccess)                },
-            {QStringLiteral("host_availability"),       hostAvailability                          },
-            {QStringLiteral("annotations"),             annotations                               },
-        };
-    }
-
     const QList<ToolContract> &publicToolContracts() {
         static const QList<ToolContract> tools = [] {
             QList<ToolContract> result;
-            result.reserve(177);
+            result.reserve(175);
 #define AUTOMATION_WIRE_PUBLIC_TOOL(symbol, name, categoryValue, profile, kindValue, syncValue,    \
                                     minimumValue, effectValue, repeatabilityValue,                 \
                                     worldAccessValue)                                              \
@@ -4645,11 +4331,6 @@ namespace AutomationWire {
     } while (false);
 #include "PublicToolDefinitions.inc"
 #undef AUTOMATION_WIRE_PUBLIC_TOOL
-            const auto options = std::find_if(result.begin(), result.end(), [](const auto &tool) {
-                return tool.operationId == PublicToolNames::automation_get_options;
-            });
-            Q_ASSERT(options != result.end());
-            options->inputSchema = getOptionsInputSchema(result);
             return result;
         }();
         return tools;
@@ -4683,33 +4364,6 @@ namespace AutomationWire {
                 result.append(tool);
         }
         return result;
-    }
-
-    QJsonObject PublicManifest::toJson() const {
-        return manifestContent(*this);
-    }
-
-    PublicManifest buildPublicManifest(const AutomationProfile profile,
-                                       const QSet<QString> &customEnabled, const QString &hostMode,
-                                       qsizetype offset, const qsizetype limit) {
-        const auto allOperations = toolsForProfile(profile, customEnabled);
-        offset = std::clamp<qsizetype>(offset, 0, allOperations.size());
-        const auto count = limit <= 0 ? allOperations.size() - offset
-                                      : std::min(limit, allOperations.size() - offset);
-
-        PublicManifest manifest{
-            .profile = profile,
-            .hostMode = hostMode,
-            .operations = allOperations.mid(offset, count),
-        };
-        if (offset + count < allOperations.size())
-            manifest.nextCursor = QString::number(offset + count);
-
-        auto digestManifest = manifest;
-        digestManifest.operations = allOperations;
-        digestManifest.nextCursor.clear();
-        manifest.digest = sha256Digest(manifestDigestContent(digestManifest));
-        return manifest;
     }
 
 }
