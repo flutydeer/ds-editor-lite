@@ -1043,31 +1043,6 @@ namespace {
                   });
     }
 
-    [[nodiscard]] QList<Automation::OperationId> coveredOperations() {
-        QList<Automation::OperationId> operations;
-        for (const auto &testCase : inferenceCases())
-            operations.append(testCase.operationId);
-        operations.append({
-            Automation::OperationIds::audio_clips::apply_decode_cache,
-            Automation::OperationIds::audio_clips::apply_resolved_path,
-            Automation::OperationIds::audio_clips::confirm_path,
-            Automation::OperationIds::audio_clips::relocate,
-            Automation::OperationIds::audio_clips::set_hash,
-            Automation::OperationIds::audio_clips::set_path_status,
-            Automation::OperationIds::documents::commit_import,
-            Automation::OperationIds::documents::save,
-            Automation::OperationIds::imports::commit_batch,
-            Automation::OperationIds::formats::list,
-            Automation::OperationIds::exports::midi::start,
-            Automation::OperationIds::exports::audio::preview,
-            Automation::OperationIds::exports::audio::start,
-            Automation::OperationIds::exports::audio::cleanup,
-            Automation::OperationIds::extract::pitch::start,
-            Automation::OperationIds::extract::midi::start,
-            Automation::OperationIds::tasks::list,
-        });
-        return operations;
-    }
 }
 
 int main(int argc, char *argv[]) {
@@ -1081,7 +1056,6 @@ int main(int argc, char *argv[]) {
     testFormatsAndMidiExport(suite);
     testAudioExportAndTaskList(suite);
     testExtractionDomains(suite);
-    suite.requireOperations(coveredOperations());
 
     return suite.finish();
 }

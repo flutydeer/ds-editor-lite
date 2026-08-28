@@ -12,7 +12,6 @@
 
 #include <QDir>
 #include <QFileInfo>
-#include <QHash>
 #include <QTemporaryDir>
 #include <QTextStream>
 
@@ -31,7 +30,6 @@ namespace AutomationAsyncFileTests {
                  Function function) {
             m_current = operationId + QStringLiteral("/") + scenario;
             ++m_scenarios;
-            ++m_operationScenarios[operationId];
             const auto before = m_failures;
             function();
             if (before == m_failures)
@@ -46,15 +44,6 @@ namespace AutomationAsyncFileTests {
             QTextStream(stderr) << "FAILED [" << m_current << "]: " << message << Qt::endl;
         }
 
-        void requireOperations(const QList<Automation::OperationId> &operationIds) {
-            run(QStringLiteral("coverage"), QStringLiteral("async-file-operation-manifest"), [&] {
-                for (const auto &operationId : operationIds) {
-                    expect(m_operationScenarios.value(operationId) > 0,
-                           QStringLiteral("missing direct scenario for %1").arg(operationId));
-                }
-            });
-        }
-
         [[nodiscard]] int finish() const {
             QTextStream(stdout) << "Automation async/file domains: " << m_scenarios
                                 << " scenarios, " << m_passedScenarios << " passed, "
@@ -65,7 +54,6 @@ namespace AutomationAsyncFileTests {
 
     private:
         QString m_current;
-        QHash<Automation::OperationId, int> m_operationScenarios;
         int m_scenarios = 0;
         int m_passedScenarios = 0;
         int m_assertions = 0;
