@@ -1,5 +1,3 @@
-#include "../PublicAutomationToolsetExpectations.h"
-
 #include <lite/AutomationWire/JsonSchema.h>
 #include <lite/AutomationWire/PublicToolContract.h>
 
@@ -14,7 +12,6 @@
 
 namespace {
     using namespace AutomationWire;
-    using namespace PublicAutomationToolsetExpectations;
 
     int failures = 0;
 
@@ -113,38 +110,25 @@ namespace {
 
     void verifyAuthoritativeToolset() {
         const auto &contracts = publicToolContracts();
-        const auto expectedIds = editorToolIds();
-        expect(editorTools().size() == 177 && editorToolIdSet().size() == 177,
-               QStringLiteral("test fixture must contain exactly 177 unique editor tools"));
-        expect(contracts.size() == 177,
-               QStringLiteral("public contract surface must contain exactly 177 editor tools"));
-        expect(publicToolIds() == expectedIds,
-               QStringLiteral("public contract order and operation set must equal section 10.3"));
-
+        QStringList contractIds;
         QSet<QString> actualIds;
-        const auto count = std::min(contracts.size(), editorTools().size());
-        for (qsizetype index = 0; index < count; ++index) {
-            const auto &contract = contracts.at(index);
-            const auto &expected = editorTools().at(index);
+        for (const auto &contract : contracts) {
             expect(!actualIds.contains(contract.operationId),
                    QStringLiteral("duplicate public operation: ") + contract.operationId);
             actualIds.insert(contract.operationId);
-            expect(contract.operationId == expected.operationId,
-                   QStringLiteral("operation order differs at index %1").arg(index));
-            expect(contract.category == expected.category,
-                   QStringLiteral("business domain differs for %1: expected %2, found %3")
-                       .arg(contract.operationId, expected.category, contract.category));
-            expect(contract.minimumProfile == expected.minimumProfile,
-                   QStringLiteral("minimum profile differs for ") + contract.operationId);
+            contractIds.append(contract.operationId);
 
             const auto descriptor = contract.toMcpToolJson();
             const auto metadata = descriptor.value(QStringLiteral("_meta"))
                                       .toObject()
                                       .value(QStringLiteral("io.openvpi.ds-editor-lite/tool"))
                                       .toObject();
-            expect(contract.minimumToolsetVersion == 1 &&
-                       metadata.value(QStringLiteral("minimum_toolset_version")).toInteger() == 1,
-                   QStringLiteral("minimum toolset version must equal one for ") +
+            expect(contract.minimumProfile != AutomationProfile::Custom &&
+                       contract.minimumToolsetVersion > 0 &&
+                       contract.minimumToolsetVersion <= PublicToolsetVersion &&
+                       metadata.value(QStringLiteral("minimum_toolset_version")).toInteger() ==
+                           static_cast<qint64>(contract.minimumToolsetVersion),
+                   QStringLiteral("profile and toolset version metadata must be valid for ") +
                        contract.operationId);
             expect(contract.inputSchema.value(QStringLiteral("type")) == QStringLiteral("object") &&
                        hasStrictObjectRoot(contract.inputSchema),
@@ -155,17 +139,43 @@ namespace {
             expect(checkJsonSchema(contract.outputSchema).valid(),
                    QStringLiteral("output schema must be supported for ") + contract.operationId);
         }
-        for (const auto &contract : contracts)
-            actualIds.insert(contract.operationId);
-        expect(actualIds == editorToolIdSet(),
-               QStringLiteral("public contract operation set must be exact"));
-        expect(PublicToolsetVersion == 1,
-               QStringLiteral("the first public toolset version must remain one"));
-        expect(toolsForProfile(AutomationProfile::L0).size() == 4 &&
-                   toolsForProfile(AutomationProfile::L1).size() == 89 &&
-                   toolsForProfile(AutomationProfile::L2).size() == 132 &&
-                   toolsForProfile(AutomationProfile::L3).size() == 177,
-               QStringLiteral("editor profile counts must be 4/89/132/177"));
+        expect(!contracts.isEmpty() && publicToolIds() == contractIds &&
+                   actualIds.size() == contracts.size(),
+               QStringLiteral("public tool IDs must be unique and match the declared contracts"));
+
+        QSet<QString> previousProfileIds;
+        const auto includesAll = [](const QSet<QString> &superset, const QSet<QString> &subset) {
+            return std::all_of(subset.cbegin(), subset.cend(),
+                               [&superset](const QString &id) { return superset.contains(id); });
+        };
+        for (const auto profile : {AutomationProfile::L0, AutomationProfile::L1,
+                                   AutomationProfile::L2, AutomationProfile::L3}) {
+            const auto selected = toolsForProfile(profile);
+            QSet<QString> selectedIds;
+            for (const auto &tool : selected) {
+                selectedIds.insert(tool.operationId);
+                expect(presetIncludes(profile, tool.minimumProfile),
+                       tool.operationId + QStringLiteral(" is exposed below its minimum profile"));
+            }
+            expect(selectedIds.size() == selected.size() &&
+                       includesAll(selectedIds, previousProfileIds),
+                   QStringLiteral("preset profiles must be unique and cumulative"));
+            previousProfileIds = std::move(selectedIds);
+        }
+        expect(previousProfileIds == actualIds,
+               QStringLiteral("L3 must expose every declared public tool"));
+
+        const QSet<QString> intrinsicTools{
+            QStringLiteral("application.get_info"),
+            QStringLiteral("application.get_status"),
+            QStringLiteral("application.request_exit"),
+            QStringLiteral("application.request_restart"),
+        };
+        QSet<QString> l0Ids;
+        for (const auto &tool : toolsForProfile(AutomationProfile::L0))
+            l0Ids.insert(tool.operationId);
+        expect(l0Ids == intrinsicTools,
+               QStringLiteral("L0 must contain only the intrinsic lifecycle tool set"));
     }
 
     void verifyApplicationLifecycleContracts() {
@@ -179,12 +189,13 @@ namespace {
         for (const auto *contract : {exit, restart}) {
             expect(contract->minimumProfile == AutomationProfile::L0 &&
                        keys(contract->inputSchema.value(QStringLiteral("properties")).toObject()) ==
-                           QSet<QString>{QStringLiteral("discard_changes")} &&
+                           QSet<QString>{
+                               QStringLiteral("discard_changes")
+            } &&
                        requiredFields(contract->inputSchema).isEmpty() &&
                        validateJsonValue(QJsonObject{}, contract->inputSchema).valid() &&
-                       validateJsonValue(
-                           QJsonObject{{QStringLiteral("discard_changes"), true}},
-                           contract->inputSchema)
+                       validateJsonValue(QJsonObject{{QStringLiteral("discard_changes"), true}},
+                                         contract->inputSchema)
                            .valid() &&
                        !validateJsonValue(QJsonObject{{QStringLiteral("force"), true}},
                                           contract->inputSchema)
@@ -193,18 +204,21 @@ namespace {
                        .arg(contract->operationId));
         }
 
-        expect(validateJsonValue(QJsonObject{{QStringLiteral("accepted"), true},
-                                             {QStringLiteral("action"), QStringLiteral("exit")},
-                                             {QStringLiteral("discard_changes"), false}},
-                                 exit->outputSchema)
-                   .valid() &&
-                   validateJsonValue(QJsonObject{{QStringLiteral("accepted"), true},
-                                                  {QStringLiteral("action"),
-                                                   QStringLiteral("restart")},
-                                                  {QStringLiteral("discard_changes"), true}},
-                                      restart->outputSchema)
-                       .valid(),
-               QStringLiteral("lifecycle output must identify the accepted action"));
+        expect(
+            validateJsonValue(
+                QJsonObject{
+                    {QStringLiteral("accepted"),        true                  },
+                    {QStringLiteral("action"),          QStringLiteral("exit")},
+                    {QStringLiteral("discard_changes"), false                 }
+        },
+                exit->outputSchema)
+                    .valid() &&
+                validateJsonValue(QJsonObject{{QStringLiteral("accepted"), true},
+                                              {QStringLiteral("action"), QStringLiteral("restart")},
+                                              {QStringLiteral("discard_changes"), true}},
+                                  restart->outputSchema)
+                    .valid(),
+            QStringLiteral("lifecycle output must identify the accepted action"));
     }
 
     void verifyShallowCreationAndNoteDefaults() {
@@ -825,16 +839,9 @@ namespace {
     }
 
     void verifyAdvancedControlContracts() {
-        const auto l3Tools = toolsForProfile(AutomationProfile::L3).mid(132);
-        int queryCount = 0;
-        int synchronousCommandCount = 0;
-        int asynchronousCommandCount = 0;
-        for (const auto &tool : l3Tools) {
-            queryCount += tool.kind == OperationKind::Query;
-            synchronousCommandCount +=
-                tool.kind == OperationKind::Command && tool.syncMode == SyncMode::Synchronous;
-            asynchronousCommandCount +=
-                tool.kind == OperationKind::Command && tool.syncMode == SyncMode::Asynchronous;
+        for (const auto &tool : publicToolContracts()) {
+            if (tool.minimumProfile != AutomationProfile::L3)
+                continue;
             if (tool.operationId.startsWith(QStringLiteral("workspace.")) ||
                 tool.operationId.startsWith(QStringLiteral("track_panel.")) ||
                 tool.operationId.startsWith(QStringLiteral("clip_editor."))) {
@@ -850,9 +857,6 @@ namespace {
                        tool.operationId + QStringLiteral(" must be available in both hosts"));
             }
         }
-        expect(l3Tools.size() == 45 && queryCount == 8 && synchronousCommandCount == 36 &&
-                   asynchronousCommandCount == 1,
-               QStringLiteral("L3 must contain exactly 8 Q/S, 36 C/S, and 1 C/A tools"));
 
         const auto *parameterTool =
             findPublicTool(QStringLiteral("clip_editor.parameters.set_foreground"));

@@ -2,7 +2,6 @@
 #include "ConnectorRuntime.h"
 #include "DownstreamMcpServer.h"
 #include "ExposurePolicy.h"
-#include "../PublicAutomationToolsetExpectations.h"
 
 #include <lite/AutomationWire/McpProtocol.h>
 #include <lite/AutomationWire/JsonSchema.h>
@@ -44,6 +43,13 @@ namespace {
         QSet<QString> result;
         for (const auto &entry : tools)
             result.insert(entry.toObject().value(QStringLiteral("name")).toString());
+        return result;
+    }
+
+    QSet<QString> contractNames(const QList<AutomationWire::ToolContract> &contracts) {
+        QSet<QString> result;
+        for (const auto &contract : contracts)
+            result.insert(contract.operationId);
         return result;
     }
 
@@ -278,6 +284,10 @@ namespace {
             return m_rawLog;
         }
 
+        QSet<QString> advertisedToolNames() const {
+            return toolNames(allTools());
+        }
+
         qsizetype connectionCount() const {
             return m_buffers.size();
         }
@@ -434,9 +444,8 @@ namespace {
             tools.append(applicationTool);
             tools.append(AutomationWire::findPublicTool(QStringLiteral("application.get_status"))
                              ->toMcpToolJson());
-            tools.append(
-                AutomationWire::findPublicTool(QStringLiteral("application.request_exit"))
-                    ->toMcpToolJson());
+            tools.append(AutomationWire::findPublicTool(QStringLiteral("application.request_exit"))
+                             ->toMcpToolJson());
             tools.append(
                 AutomationWire::findPublicTool(QStringLiteral("application.request_restart"))
                     ->toMcpToolJson());
@@ -708,20 +717,19 @@ namespace {
                     false, {}, {}, request.protocolVersion);
             } else if (request.name == QStringLiteral("application.request_exit") ||
                        request.name == QStringLiteral("application.request_restart")) {
-                const auto discardChanges =
-                    request.params.value(QStringLiteral("arguments"))
-                        .toObject()
-                        .value(QStringLiteral("discard_changes"))
-                        .toBool(false);
+                const auto discardChanges = request.params.value(QStringLiteral("arguments"))
+                                                .toObject()
+                                                .value(QStringLiteral("discard_changes"))
+                                                .toBool(false);
                 result = AutomationWire::Mcp::makeToolCallResult(
                     QJsonObject{
-                        {QStringLiteral("accepted"), true},
+                        {QStringLiteral("accepted"),        true          },
                         {QStringLiteral("action"),
                          request.name.endsWith(QStringLiteral("request_exit"))
                              ? QStringLiteral("exit")
-                             : QStringLiteral("restart")},
+                             : QStringLiteral("restart")                  },
                         {QStringLiteral("discard_changes"), discardChanges},
-                    },
+                },
                     false, {}, {}, request.protocolVersion);
             } else if (request.name == QStringLiteral("fake.flexible_output")) {
                 const auto shape = request.params.value(QStringLiteral("arguments"))
@@ -951,18 +959,23 @@ namespace {
                          options.exposure.excludes.size() == 1,
                      "connector options must normalize profiles and duplicate selectors");
         DsConnector::ExposurePolicy policy(options);
-        ok &= expect(policy.typedContracts().size() == 4,
+        const QSet<QString> intrinsicIds{
+            QStringLiteral("application.get_info"),
+            QStringLiteral("application.get_status"),
+            QStringLiteral("application.request_exit"),
+            QStringLiteral("application.request_restart"),
+        };
+        ok &= expect(contractNames(policy.typedContracts()) == intrinsicIds,
                      "exclude must win over an exact include while retaining L0 tools");
 
         DsConnector::ConnectorOptions protectedOptions;
-        ok &= expect(
-            DsConnector::parseConnectorOptions(
-                {QStringLiteral("--exposure-profile=l0"),
-                 QStringLiteral("--exclude-tool=category:application")},
-                protectedOptions, error),
-            "an exclusion matching an L0 category must remain a valid connector option");
+        ok &= expect(DsConnector::parseConnectorOptions(
+                         {QStringLiteral("--exposure-profile=l0"),
+                          QStringLiteral("--exclude-tool=category:application")},
+                         protectedOptions, error),
+                     "an exclusion matching an L0 category must remain a valid connector option");
         DsConnector::ExposurePolicy protectedPolicy(protectedOptions);
-        ok &= expect(protectedPolicy.typedContracts().size() == 4,
+        ok &= expect(contractNames(protectedPolicy.typedContracts()) == intrinsicIds,
                      "connector exclusions must never remove L0 tools");
 
         ok &= expect(!DsConnector::parseConnectorOptions(
@@ -983,11 +996,19 @@ namespace {
         DsConnector::ExposurePolicy l3(DsConnector::ConnectorOptions{
             .exposure = {.profile = AutomationWire::ExposureProfile::L3},
         });
-        ok &= expect(l0.typedContracts().size() == 4,
-                     "l0 must expose the four intrinsic editor tools");
-        ok &= expect(l1.typedContracts().size() == 89, "l1 must expose the exact 89 tools");
-        ok &= expect(l2.typedContracts().size() == 132, "l2 must expose all 132 editor tools");
-        ok &= expect(l3.typedContracts().size() == 177, "l3 must expose all 177 editor tools");
+        const auto l0Ids = contractNames(l0.typedContracts());
+        const auto l1Ids = contractNames(l1.typedContracts());
+        const auto l2Ids = contractNames(l2.typedContracts());
+        const auto l3Ids = contractNames(l3.typedContracts());
+        const auto includesAll = [](const QSet<QString> &superset, const QSet<QString> &subset) {
+            return std::all_of(subset.cbegin(), subset.cend(),
+                               [&superset](const QString &id) { return superset.contains(id); });
+        };
+        const auto declaredIds = AutomationWire::publicToolIds();
+        ok &= expect(l0Ids == intrinsicIds && includesAll(l1Ids, l0Ids) &&
+                         includesAll(l2Ids, l1Ids) && includesAll(l3Ids, l2Ids) &&
+                         l3Ids == QSet<QString>(declaredIds.cbegin(), declaredIds.cend()),
+                     "connector exposure profiles must be intrinsic, cumulative, and complete");
         return ok;
     }
 
@@ -1003,12 +1024,12 @@ namespace {
                          [&responses](const QByteArray &line) { responses.enqueue(line); });
 
         const auto bridgeTools = DsConnector::ConnectorRuntime::bridgeToolDefinitions();
-        bool ok = expect(
-            bridgeTools.size() == 6 &&
-                toolNames(bridgeTools) ==
-                    QSet<QString>(PublicAutomationToolsetExpectations::connectorToolIds().cbegin(),
-                                  PublicAutomationToolsetExpectations::connectorToolIds().cend()),
-            "connector must publish the exact six fixed bridge definitions");
+        const auto &bridgeNames = DsConnector::ConnectorRuntime::bridgeToolNames();
+        const QSet<QString> bridgeNameSet(bridgeNames.cbegin(), bridgeNames.cend());
+        bool ok = expect(bridgeNameSet.size() == bridgeNames.size() &&
+                             bridgeTools.size() == bridgeNames.size() &&
+                             toolNames(bridgeTools) == bridgeNameSet,
+                         "connector bridge names and definitions must be unique and match");
         for (const auto &entry : bridgeTools) {
             const auto tool = entry.toObject();
             const auto metadata = toolMetadata(tool.value(QStringLiteral("_meta")).toObject());
@@ -1145,8 +1166,7 @@ namespace {
                                         .toObject();
                 const auto tools = result.value(QStringLiteral("tools")).toArray();
                 ok &= expect(
-                    tools.size() == 10 &&
-                        toolNames(tools) == toolNames(runtime.downstreamTools()) &&
+                    toolNames(tools) == toolNames(runtime.downstreamTools()) &&
                         !result.contains(QStringLiteral("resultType")) &&
                         !result.contains(QStringLiteral("ttlMs")),
                     "legacy tools/list must expose bridges and intrinsic L0 tools using the 2025 "
@@ -1224,10 +1244,9 @@ namespace {
                                               .value(QStringLiteral("result"))
                                               .toObject();
             const auto tools = listResult.value(QStringLiteral("tools")).toArray();
-            ok &= expect(
-                tools.size() == 10 && toolNames(tools) == toolNames(runtime.downstreamTools()) &&
-                    !listResult.contains(QStringLiteral("resultType")),
-                "MCP 2025-06-18 tools/list must expose the legacy-compatible surface");
+            ok &= expect(toolNames(tools) == toolNames(runtime.downstreamTools()) &&
+                             !listResult.contains(QStringLiteral("resultType")),
+                         "MCP 2025-06-18 tools/list must expose the legacy-compatible surface");
         }
         server.processLine(
             QJsonDocument(AutomationWire::Mcp::makeRequest(
@@ -1257,7 +1276,7 @@ namespace {
             const auto result = response.value(QStringLiteral("result")).toObject();
             const auto tools = result.value(QStringLiteral("tools")).toArray();
             ok &= expect(
-                tools.size() == 10 && toolNames(tools) == toolNames(runtime.downstreamTools()) &&
+                toolNames(tools) == toolNames(runtime.downstreamTools()) &&
                     !result.contains(QStringLiteral("nextCursor")),
                 "l0 downstream list must retain bridges and intrinsic tools without a cursor");
         }
@@ -1364,11 +1383,9 @@ namespace {
                                     .value(QStringLiteral("result"))
                                     .toObject();
             const auto tools = result.value(QStringLiteral("tools")).toArray();
-            ok &= expect(tools.size() == 183 &&
-                             toolNames(tools) ==
-                                 PublicAutomationToolsetExpectations::completeToolIdSet() &&
+            ok &= expect(toolNames(tools) == toolNames(l3Runtime.downstreamTools()) &&
                              !result.contains(QStringLiteral("nextCursor")),
-                         "the exact 183-tool L3 surface must fit one downstream tools/list page");
+                         "the complete L3 surface must fit one downstream tools/list page");
         } else {
             ok &= expect(false, "the frozen L3 downstream list must respond");
         }
@@ -1408,13 +1425,12 @@ namespace {
                                     .value(QStringLiteral("result"))
                                     .toObject();
             const auto tools = result.value(QStringLiteral("tools")).toArray();
-            ok &= expect(tools.size() == 183 &&
-                             toolNames(tools) ==
-                                 PublicAutomationToolsetExpectations::completeToolIdSet() &&
-                             !result.contains(QStringLiteral("nextCursor")) &&
-                             !result.contains(QStringLiteral("resultType")),
-                         "the first legacy L3 tools/list must expose all 183 tools without a "
-                         "cursor");
+            ok &=
+                expect(toolNames(tools) == toolNames(l3Runtime.downstreamTools()) &&
+                           !result.contains(QStringLiteral("nextCursor")) &&
+                           !result.contains(QStringLiteral("resultType")),
+                       "the first legacy L3 tools/list must expose the complete surface without a "
+                       "cursor");
         } else {
             ok &= expect(false, "the first legacy L3 tools/list must respond");
         }
@@ -1889,15 +1905,15 @@ namespace {
                      "connector must allocate independent upstream request IDs");
 
         server.processLine(
-            QJsonDocument(AutomationWire::Mcp::makeRequest(
-                              QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
-                              QJsonObject{
-                                  {QStringLiteral("name"),
-                                   QStringLiteral("application.request_restart")},
-                                  {QStringLiteral("arguments"),
-                                   QJsonObject{{QStringLiteral("discard_changes"), true}}},
+            QJsonDocument(
+                AutomationWire::Mcp::makeRequest(
+                    QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
+                    QJsonObject{
+                        {QStringLiteral("name"),      QStringLiteral("application.request_restart")},
+                        {QStringLiteral("arguments"),
+                         QJsonObject{{QStringLiteral("discard_changes"), true}}                    },
         },
-                              context, QStringLiteral("downstream-restart-id")))
+                    context, QStringLiteral("downstream-restart-id")))
                 .toJson(QJsonDocument::Compact));
         ok &= expect(waitUntil([&] { return !responses.isEmpty(); }),
                      "intrinsic lifecycle calls must complete through fake editor HTTP");
@@ -1907,15 +1923,13 @@ namespace {
                                         .toObject()
                                         .value(QStringLiteral("structuredContent"))
                                         .toObject();
-            ok &= expect(response.value(QStringLiteral("id")) ==
-                                 QStringLiteral("downstream-restart-id") &&
-                             structured.value(QStringLiteral("accepted")).toBool() &&
-                             structured.value(QStringLiteral("action")) ==
-                                 QStringLiteral("restart") &&
-                             structured.value(QStringLiteral("discard_changes")).toBool() &&
-                             http.calledTools.contains(
-                                 QStringLiteral("application.request_restart")),
-                         "connector must preserve lifecycle arguments and structured results");
+            ok &= expect(
+                response.value(QStringLiteral("id")) == QStringLiteral("downstream-restart-id") &&
+                    structured.value(QStringLiteral("accepted")).toBool() &&
+                    structured.value(QStringLiteral("action")) == QStringLiteral("restart") &&
+                    structured.value(QStringLiteral("discard_changes")).toBool() &&
+                    http.calledTools.contains(QStringLiteral("application.request_restart")),
+                "connector must preserve lifecycle arguments and structured results");
         }
 
         server.processLine(
@@ -1962,6 +1976,8 @@ namespace {
                                    .toObject()
                                    .value(QStringLiteral("tools"))
                                    .toArray();
+            auto expectedNames = contractNames(runtime.exposurePolicy().typedContracts());
+            expectedNames.intersect(http.advertisedToolNames());
             bool containsFiltered = false;
             bool summariesValid = true;
             for (const auto &entry : tools) {
@@ -1971,7 +1987,7 @@ namespace {
                 summariesValid &= isToolSummary(descriptor);
             }
             ok &= expect(
-                tools.size() == 4 && !containsFiltered && summariesValid,
+                toolNames(tools) == expectedNames && !containsFiltered && summariesValid,
                 "generic list must preserve exposure and return compact versioned summaries");
         }
 
@@ -3108,6 +3124,14 @@ namespace {
             return false;
         http.extraToolCount = 125;
         http.pageSize = 17;
+        const auto expectedGenericTargets =
+            http.extraToolCount +
+            DsConnector::ExposurePolicy(
+                DsConnector::ConnectorOptions{
+                    .exposure = {.profile = AutomationWire::ExposureProfile::L0},
+                })
+                .typedContracts()
+                .size();
 
         const auto serviceName = QStringLiteral("DsConnectorLite-Pagination-%1")
                                      .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
@@ -3144,7 +3168,7 @@ namespace {
                 return status.value(QStringLiteral("exposure"))
                                .toObject()
                                .value(QStringLiteral("generic_target_count"))
-                               .toInt() == 129 &&
+                               .toInt() == expectedGenericTargets &&
                        status.value(QStringLiteral("toolset"))
                                .toObject()
                                .value(QStringLiteral("compatibility"))
@@ -3162,7 +3186,10 @@ namespace {
         ok &= expect(
             paginationReady,
             "handshake must collect every tools/list cursor page and read one status summary");
-        ok &= expect(runtime.downstreamTools().size() == 10,
+        auto expectedDownstreamIds = contractNames(runtime.exposurePolicy().typedContracts());
+        for (const auto &name : DsConnector::ConnectorRuntime::bridgeToolNames())
+            expectedDownstreamIds.insert(name);
+        ok &= expect(toolNames(runtime.downstreamTools()) == expectedDownstreamIds,
                      "paginated unknown tools must not change the frozen typed tool set");
         if (paginationReady) {
             const auto stableStatus = runtime.status();
@@ -3379,7 +3406,15 @@ namespace {
                          rapidInput.readAllStandardError().isEmpty(),
                      "bounded stdin delivery must drain a rapid notification flood without output");
 
-        const auto validCompleteToolList = [](const QByteArray &output) {
+        const auto expectedL2ToolCount =
+            DsConnector::ExposurePolicy(
+                DsConnector::ConnectorOptions{
+                    .exposure = {.profile = AutomationWire::ExposureProfile::L2},
+                })
+                .typedContracts()
+                .size() +
+            DsConnector::ConnectorRuntime::bridgeToolNames().size();
+        const auto validCompleteToolList = [expectedL2ToolCount](const QByteArray &output) {
             QJsonParseError error;
             const auto response = QJsonDocument::fromJson(output.trimmed(), &error).object();
             return error.error == QJsonParseError::NoError &&
@@ -3387,7 +3422,7 @@ namespace {
                            .toObject()
                            .value(QStringLiteral("tools"))
                            .toArray()
-                           .size() == 138;
+                           .size() == expectedL2ToolCount;
         };
         QProcess largeOutput;
         largeOutput.setProgram(executable);
@@ -3402,7 +3437,7 @@ namespace {
                          largeOutput.exitCode() == 0 && largeResponse.size() > 64 * 1024 &&
                          validCompleteToolList(largeResponse) &&
                          largeOutput.readAllStandardError().isEmpty(),
-                     "the complete 138-tool response must drain as one valid large JSON frame");
+                     "the complete tool response must drain as one valid large JSON frame");
 
         const auto slowSinkPath =
             QDir::temp().filePath(QStringLiteral("DsConnectorLite-slow-stdout-%1.json")

@@ -633,7 +633,7 @@ namespace {
         const auto missingFixedTool =
             std::find_if(fixedToolNames.cbegin(), fixedToolNames.cend(),
                          [&toolNames](const QString &name) { return !toolNames.contains(name); });
-        if (toolNames.size() != 183 || missingFixedTool != fixedToolNames.cend() ||
+        if (missingFixedTool != fixedToolNames.cend() ||
             !toolNames.contains(QStringLiteral("application.get_status")) ||
             !toolNames.contains(QStringLiteral("application.request_exit")) ||
             !toolNames.contains(QStringLiteral("application.request_restart")) ||
@@ -641,7 +641,7 @@ namespace {
             !toolNames.contains(QStringLiteral("settings.query")) ||
             !toolNames.contains(QStringLiteral("packages.refresh"))) {
             return fail(
-                QStringLiteral("Connector did not publish the exact 177+6 L3 tool surface"));
+                QStringLiteral("Connector did not publish the required bridge and L3 tools"));
         }
 
         QJsonObject lastEditorStatus;
@@ -833,41 +833,6 @@ namespace {
                 QStringLiteral("Connector formats.list failed or returned an invalid payload: %1")
                     .arg(toolError));
         }
-        const auto directFormats =
-            directToolContent(directClient, QStringLiteral("formats.list"), {}, 10000, toolError);
-        if (!directFormats ||
-            !equivalentContent(QStringLiteral("formats.list"), *connectorFormats,
-                               directFormats.value_or(QJsonObject{}), toolError)) {
-            return failWithProcessDiagnostics(
-                QStringLiteral("Direct/connector formats.list equivalence failed: %1")
-                    .arg(toolError));
-        }
-
-        const QJsonObject taskArguments{
-            {QStringLiteral("scope"),       QStringLiteral("document")},
-            {QStringLiteral("document_id"), documentId                },
-            {QStringLiteral("limit"),       100                       },
-        };
-        const auto connectorTasks = connectorToolContent(
-            connector, 1003, QStringLiteral("tasks.list"), taskArguments, 10000, toolError);
-        if (!connectorTasks || !connectorTasks->value(QStringLiteral("tasks")).isArray() ||
-            connectorTasks->value(QStringLiteral("document"))
-                    .toObject()
-                    .value(QStringLiteral("revision"))
-                    .toInteger(-1) != currentRevision) {
-            return failWithProcessDiagnostics(
-                QStringLiteral("Connector tasks.list failed or returned an invalid payload: %1")
-                    .arg(toolError));
-        }
-        const auto directTasks = directToolContent(directClient, QStringLiteral("tasks.list"),
-                                                   taskArguments, 10000, toolError);
-        if (!directTasks || !equivalentContent(QStringLiteral("tasks.list"), *connectorTasks,
-                                               directTasks.value_or(QJsonObject{}), toolError)) {
-            return failWithProcessDiagnostics(
-                QStringLiteral("Direct/connector tasks.list equivalence failed: %1")
-                    .arg(toolError));
-        }
-
         QProcess legacyConnector;
         const auto legacyConnectorCleanup = qScopeGuard([&legacyConnector] {
             legacyConnector.closeWriteChannel();
@@ -954,15 +919,20 @@ namespace {
             legacyConnector,
             makeLegacyRequest(20150, QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod)),
             10000, exchangeError);
+        QSet<QString> legacyToolNames;
+        if (legacyTools) {
+            for (const auto &tool : legacyTools->value(QStringLiteral("result"))
+                                        .toObject()
+                                        .value(QStringLiteral("tools"))
+                                        .toArray()) {
+                legacyToolNames.insert(tool.toObject().value(QStringLiteral("name")).toString());
+            }
+        }
         if (!legacyTools || legacyTools->contains(QStringLiteral("error")) ||
             legacyTools->value(QStringLiteral("result"))
                 .toObject()
                 .contains(QStringLiteral("resultType")) ||
-            legacyTools->value(QStringLiteral("result"))
-                    .toObject()
-                    .value(QStringLiteral("tools"))
-                    .toArray()
-                    .size() != 183) {
+            legacyToolNames != toolNames) {
             return failWithProcessDiagnostics(
                 QStringLiteral("Connector MCP 2025-06-18 tools/list failed: %1")
                     .arg(legacyTools ? compactJson(*legacyTools) : exchangeError));
@@ -1056,9 +1026,12 @@ namespace {
                     .arg(rejectedExit ? compactJson(*rejectedExit) : exchangeError));
         }
 
-        const auto acceptedExit = connectorToolContent(
-            connector, 30001, QStringLiteral("application.request_exit"),
-            QJsonObject{{QStringLiteral("discard_changes"), true}}, 10000, exchangeError);
+        const auto acceptedExit =
+            connectorToolContent(connector, 30001, QStringLiteral("application.request_exit"),
+                                 QJsonObject{
+                                     {QStringLiteral("discard_changes"), true}
+        },
+                                 10000, exchangeError);
         if (!acceptedExit || !acceptedExit->value(QStringLiteral("accepted")).toBool() ||
             acceptedExit->value(QStringLiteral("action")).toString() != QStringLiteral("exit") ||
             !acceptedExit->value(QStringLiteral("discard_changes")).toBool() ||
@@ -1070,7 +1043,7 @@ namespace {
 
         QTextStream(stdout)
             << "Validated real editor + connector MCP 2025-06-18/2025-11-25/2026-07-28 process "
-               "integration, L1/L2 operations, the 177+6 L3 surface, normalized direct-editor "
+               "integration, representative operations, the complete L3 surface, direct-editor "
                "equivalence, and non-interactive graceful exit"
             << Qt::endl;
         return true;

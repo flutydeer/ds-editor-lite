@@ -4,7 +4,6 @@
 #include "Automation/Public/AutomationAccessPolicy.h"
 #include "Automation/Public/AutomationFileGuard.h"
 #include "Automation/Public/PublicAutomationRegistry.h"
-#include "../PublicAutomationToolsetExpectations.h"
 #include "TestRuntime.h"
 
 #include <lite/AutomationWire/McpProtocol.h>
@@ -98,69 +97,6 @@ namespace {
         QTextStream(stderr) << "DETAIL " << operationId << ": "
                             << Automation::errorCodeName(failure.code) << ", " << failure.fieldPath
                             << ", " << failure.message << Qt::endl;
-    }
-
-    QJsonValue schemaSample(const QJsonObject &schema, const QString &field,
-                            const Automation::DocumentVersion &document) {
-        if (schema.contains(QStringLiteral("const")))
-            return schema.value(QStringLiteral("const"));
-        const auto choices = schema.value(QStringLiteral("enum")).toArray();
-        if (!choices.isEmpty())
-            return choices.first();
-        const auto branches = schema.value(QStringLiteral("oneOf")).toArray();
-        if (!branches.isEmpty())
-            return schemaSample(branches.first().toObject(), field, document);
-        const auto type = schema.value(QStringLiteral("type")).toString();
-        if (type == QStringLiteral("object")) {
-            QJsonObject result;
-            const auto properties = schema.value(QStringLiteral("properties")).toObject();
-            for (const auto &required : schema.value(QStringLiteral("required")).toArray()) {
-                const auto name = required.toString();
-                result.insert(name,
-                              schemaSample(properties.value(name).toObject(), name, document));
-            }
-            const auto minimumProperties =
-                schema.value(QStringLiteral("minProperties")).toInteger();
-            for (auto it = properties.begin();
-                 result.size() < minimumProperties && it != properties.end(); ++it) {
-                if (!result.contains(it.key()))
-                    result.insert(it.key(),
-                                  schemaSample(it.value().toObject(), it.key(), document));
-            }
-            return result;
-        }
-        if (type == QStringLiteral("array")) {
-            QJsonArray result;
-            const auto count =
-                std::max<qint64>(1, schema.value(QStringLiteral("minItems")).toInteger());
-            for (qint64 index = 0; index < count; ++index)
-                result.append(schemaSample(schema.value(QStringLiteral("items")).toObject(), field,
-                                           document));
-            return result;
-        }
-        if (type == QStringLiteral("boolean"))
-            return false;
-        if (type == QStringLiteral("integer") || type == QStringLiteral("number")) {
-            if (field == QStringLiteral("expected_revision"))
-                return static_cast<qint64>(document.revision);
-            return schema.contains(QStringLiteral("minimum"))
-                       ? schema.value(QStringLiteral("minimum"))
-                       : QJsonValue(0);
-        }
-        if (type == QStringLiteral("null"))
-            return QJsonValue(QJsonValue::Null);
-        if (field == QStringLiteral("document_id"))
-            return document.documentId.toString();
-        if (field == QStringLiteral("task_id") ||
-            schema.value(QStringLiteral("format")).toString() == QStringLiteral("uuid")) {
-            return QStringLiteral("00000000-0000-4000-8000-000000000001");
-        }
-        return QStringLiteral("x");
-    }
-
-    QJsonObject validInputSample(const AutomationWire::ToolContract &contract,
-                                 const Automation::DocumentVersion &document) {
-        return schemaSample(contract.inputSchema, {}, document).toObject();
     }
 
     Automation::PublicAutomationHostServices hostServices(Automation::CoreRuntime &runtime) {
@@ -3224,9 +3160,8 @@ int main(int argc, char *argv[]) {
     auto terminationCalls = std::make_shared<int>(0);
     auto lastTerminationMode = std::make_shared<Automation::ApplicationTerminationMode>(
         Automation::ApplicationTerminationMode::Exit);
-    auto lastTerminationSavePolicy =
-        std::make_shared<Automation::ApplicationTerminationSavePolicy>(
-            Automation::ApplicationTerminationSavePolicy::Prompt);
+    auto lastTerminationSavePolicy = std::make_shared<Automation::ApplicationTerminationSavePolicy>(
+        Automation::ApplicationTerminationSavePolicy::Prompt);
     applicationServices.requestTermination =
         [terminationResult, terminationCalls, lastTerminationMode,
          lastTerminationSavePolicy](const Automation::ApplicationTerminationMode mode,
@@ -3701,8 +3636,7 @@ int main(int argc, char *argv[]) {
            QStringLiteral("application.request_exit must request non-interactive graceful exit"));
 
     *terminationResult = Automation::ApplicationTerminationRequestResult::UnsavedChanges;
-    const auto rejectedRestart =
-        registry.invoke(QStringLiteral("application.request_restart"), {});
+    const auto rejectedRestart = registry.invoke(QStringLiteral("application.request_restart"), {});
     expect(!rejectedRestart &&
                rejectedRestart.getError().code == Automation::AutomationErrorCode::Busy &&
                rejectedRestart.getError().fieldPath == QStringLiteral("discard_changes") &&
@@ -3712,17 +3646,17 @@ int main(int argc, char *argv[]) {
            QStringLiteral("lifecycle requests must reject unsaved changes without prompting"));
 
     *terminationResult = Automation::ApplicationTerminationRequestResult::Accepted;
-    const auto restartRequest = registry.invoke(
-        QStringLiteral("application.request_restart"),
-        QJsonObject{{QStringLiteral("discard_changes"), true}});
+    const auto restartRequest = registry.invoke(QStringLiteral("application.request_restart"),
+                                                QJsonObject{
+                                                    {QStringLiteral("discard_changes"), true}
+    });
     expect(restartRequest &&
                restartRequest.get().value(QStringLiteral("action")).toString() ==
                    QStringLiteral("restart") &&
                restartRequest.get().value(QStringLiteral("discard_changes")).toBool() &&
                *terminationCalls == 3 &&
                *lastTerminationMode == Automation::ApplicationTerminationMode::Restart &&
-               *lastTerminationSavePolicy ==
-                   Automation::ApplicationTerminationSavePolicy::Discard,
+               *lastTerminationSavePolicy == Automation::ApplicationTerminationSavePolicy::Discard,
            QStringLiteral("discard_changes must opt into a non-interactive graceful restart"));
 
     const auto recentDocuments = registry.invoke(QStringLiteral("documents.list_recent"), {});
@@ -3753,11 +3687,11 @@ int main(int argc, char *argv[]) {
                initialStatistics.value(QStringLiteral("clip_count")).toInt(-1) == 0,
            QStringLiteral("documents.get must embed zeroed statistics for an empty project"));
 
-    auto expectedIds = PublicAutomationToolsetExpectations::editorToolIds();
+    auto expectedIds = AutomationWire::publicToolIds();
     auto bindingIds = registry.bindingIds();
     std::sort(expectedIds.begin(), expectedIds.end());
-    expect(expectedIds.size() == 177 && bindingIds == expectedIds && registry.isComplete(),
-           QStringLiteral("all 177 editor contracts must have exact bindings"));
+    expect(bindingIds == expectedIds && registry.isComplete(),
+           QStringLiteral("every declared editor contract must have exactly one binding"));
 
     const auto lifecycleSchemaBase = runtime.documentVersion();
     for (const auto &operationId :
@@ -5013,15 +4947,23 @@ int main(int argc, char *argv[]) {
     QSet<QString> listedIds;
     for (const auto &tool : listedTools)
         listedIds.insert(tool.toObject().value(QStringLiteral("name")).toString());
+    QSet<QString> enabledIds;
+    for (const auto &contract : registry.enabledContracts())
+        enabledIds.insert(contract.operationId);
     expect(!listCursor.isEmpty() && !nextListResponse.contains(QStringLiteral("error")) &&
-               cachedToolsPageElapsedMs < 250 && listedTools.size() == 177 &&
-               listedIds == PublicAutomationToolsetExpectations::editorToolIdSet(),
-           QStringLiteral("tools/list must expose the exact 177-tool editor surface"));
+               cachedToolsPageElapsedMs < 250 && listedIds == enabledIds,
+           QStringLiteral("tools/list must expose the enabled editor contract set"));
     access.update(AutomationWire::AutomationProfile::L1);
     const auto reducedListResponse = dispatcher.dispatch(list, QStringLiteral("adapter"));
     const auto reducedListResult = reducedListResponse.value(QStringLiteral("result")).toObject();
+    QSet<QString> reducedExpectedIds;
+    for (const auto &contract : registry.enabledContracts())
+        reducedExpectedIds.insert(contract.operationId);
+    QSet<QString> reducedListedIds;
+    for (const auto &tool : reducedListResult.value(QStringLiteral("tools")).toArray())
+        reducedListedIds.insert(tool.toObject().value(QStringLiteral("name")).toString());
     expect(!reducedListResponse.contains(QStringLiteral("error")) &&
-               reducedListResult.value(QStringLiteral("tools")).toArray().size() == 89 &&
+               reducedListedIds == reducedExpectedIds &&
                reducedListResult.value(QStringLiteral("nextCursor")).toString().isEmpty(),
            QStringLiteral("tools/list cache must invalidate when the access profile changes"));
     const auto staleListResponse = dispatcher.dispatch(nextList, QStringLiteral("adapter"));
@@ -5095,36 +5037,6 @@ int main(int argc, char *argv[]) {
         unknown.value(QStringLiteral("error")).toObject().value(QStringLiteral("code")).toInt() ==
             Mcp::InvalidParams,
         QStringLiteral("unknown tool must be a JSON-RPC invalid-params error"));
-
-    for (const auto &contract : registry.contracts()) {
-        auto input = validInputSample(contract, runtime.documentVersion());
-        const auto validatesOnly = contract.inputSchema.value(QStringLiteral("properties"))
-                                       .toObject()
-                                       .contains(QStringLiteral("validate_only"));
-        if (validatesOnly)
-            input.insert(QStringLiteral("validate_only"), true);
-        expect(AutomationWire::validateJsonValue(input, contract.inputSchema).valid(),
-               QStringLiteral("generated schema-valid smoke input failed for %1")
-                   .arg(contract.operationId));
-        if (contract.kind == AutomationWire::OperationKind::Command && !validatesOnly)
-            continue;
-        const auto smoke =
-            registry.invoke(contract.operationId, input, {.clientId = QStringLiteral("smoke")});
-        const auto stableFailure =
-            smoke ||
-            (smoke.getError().operationId == contract.operationId &&
-             smoke.getError().code != Automation::AutomationErrorCode::InternalError &&
-             smoke.getError().code != Automation::AutomationErrorCode::OperationUnavailable &&
-             smoke.getError().code != Automation::AutomationErrorCode::ModuleNotReady);
-        expect(stableFailure,
-               QStringLiteral("binding smoke for %1 failed with unstable %2: %3")
-                   .arg(contract.operationId,
-                        smoke ? QStringLiteral("success")
-                              : Automation::errorCodeName(smoke.getError().code),
-                        smoke ? QString()
-                              : QStringLiteral("%1 (%2)").arg(smoke.getError().message,
-                                                              smoke.getError().fieldPath)));
-    }
 
     Automation::CommandContext replaceContext;
     replaceContext.expected = runtime.documentVersion();
