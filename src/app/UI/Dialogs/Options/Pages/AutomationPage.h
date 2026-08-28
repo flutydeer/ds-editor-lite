@@ -51,7 +51,7 @@ private:
     PathEditor *m_writeRoots = nullptr;
     QMap<QString, SwitchButton *> m_customPermissionSwitches;
     QMap<QString, SwitchButton *> m_customCategorySwitches;
-    QMap<QString, OptionListCard *> m_customCategoryCards;
+    QMap<QString, OptionsCardItem *> m_customCategoryHeaderItems;
     QMap<QString, QStringList> m_customCategoryOperationIds;
     QStringList m_customPermissionOperationIds;
     OptionsCardItem *m_runtimeStateItem = nullptr;

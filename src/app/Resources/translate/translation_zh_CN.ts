@@ -425,7 +425,7 @@
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="308"/>
         <source>Custom Tools</source>
-        <translation>自定义工具</translation>
+        <translation>自定义工具集</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="310"/>
@@ -467,6 +467,11 @@
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="338"/>
         <source>Allowed Write Folders</source>
         <translation>允许写入的文件夹</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="535"/>
+        <source>Read/Write Path Permissions</source>
+        <translation>读写路径权限</translation>
     </message>
 </context>
 <context>

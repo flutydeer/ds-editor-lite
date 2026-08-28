@@ -23,20 +23,26 @@ OptionsCard::OptionsCard(QWidget *parent) : QWidget(parent) {
 
     m_card = new CardView;
 
-    const auto mainLayout = new QVBoxLayout;
-    mainLayout->addLayout(m_titleLayout);
-    mainLayout->addWidget(m_card);
+    m_mainLayout = new QVBoxLayout;
+    m_mainLayout->addLayout(m_titleLayout);
+    m_mainLayout->addWidget(m_card);
     // No bottom margin on the card itself: card-to-card spacing belongs to
     // the outer layout (otherwise the last card floats above the page
     // bottom by its own margin).
-    mainLayout->setContentsMargins({0, 0, 0, 0});
-    mainLayout->setSpacing(6);
-    setLayout(mainLayout);
+    m_mainLayout->setContentsMargins({0, 0, 0, 0});
+    m_mainLayout->setSpacing(6);
+    setLayout(m_mainLayout);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 }
 
 void OptionsCard::setTitle(const QString &title) const {
     m_lbTitle->setText(title);
+}
+
+void OptionsCard::setTitleVisible(const bool visible) const {
+    m_lbTitle->setVisible(visible);
+    m_titleLayout->setContentsMargins(0, 0, visible ? 10 : 0, 0);
+    m_mainLayout->setSpacing(visible ? 6 : 0);
 }
 
 void OptionsCard::addTitleWidget(QWidget *widget) const {

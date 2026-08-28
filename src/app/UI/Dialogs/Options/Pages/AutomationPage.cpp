@@ -23,9 +23,12 @@
 #include <QFontDatabase>
 #include <QGuiApplication>
 #include <QHBoxLayout>
+#include <QLabel>
 #include <QPlainTextEdit>
 #include <QSignalBlocker>
 #include <QSpinBox>
+#include <QStyle>
+#include <QTextDocument>
 #include <QVBoxLayout>
 
 #include <algorithm>
@@ -40,7 +43,6 @@ AutomationPage::AutomationPage(QWidget *parent) : IOptionPage(parent) {
 void AutomationPage::setCustomPermissionOperationIds(QStringList operationIds) {
     operationIds.removeAll(QString{});
     operationIds.removeDuplicates();
-    operationIds.sort();
     if (operationIds == m_customPermissionOperationIds)
         return;
 
@@ -153,11 +155,11 @@ void AutomationPage::refreshCategoryPermissionSwitches() {
             });
         const QSignalBlocker blocker(it.value());
         it.value()->setValue(enabledCount > 0);
-        if (auto *card = m_customCategoryCards.value(it.key())) {
-            card->setTitle(tr("%1 (%L2/%L3 enabled)")
-                               .arg(categoryDisplayName(it.key()))
-                               .arg(enabledCount)
-                               .arg(operationIds.size()));
+        if (auto *header = m_customCategoryHeaderItems.value(it.key())) {
+            header->setTitle(tr("%1 (%L2/%L3 enabled)")
+                                 .arg(categoryDisplayName(it.key()))
+                                 .arg(enabledCount)
+                                 .arg(operationIds.size()));
         }
     }
 }
@@ -348,7 +350,8 @@ QWidget *AutomationPage::createContentWidget() {
     const auto connectionCard = new OptionListCard(tr("Connection Configurations"));
     const auto createConfigurationControl =
         [this](QPlainTextEdit *&configuration, Button *&copyButton, const QString &copiedMessage,
-               const QString &objectName) {
+               const QString &objectName, const int visibleLineCount,
+               const bool reserveHorizontalScrollBar) {
             auto *container = new QWidget;
             auto *layout = new QVBoxLayout(container);
             layout->setContentsMargins({});
@@ -359,7 +362,16 @@ QWidget *AutomationPage::createContentWidget() {
             configuration->setReadOnly(true);
             configuration->setLineWrapMode(QPlainTextEdit::NoWrap);
             configuration->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
-            configuration->setMinimumSize(420, 132);
+            configuration->setMinimumWidth(420);
+            const auto documentMargin = qRound(configuration->document()->documentMargin() * 2);
+            const auto horizontalScrollBarHeight =
+                reserveHorizontalScrollBar
+                    ? configuration->style()->pixelMetric(QStyle::PM_ScrollBarExtent)
+                    : 0;
+            configuration->setFixedHeight(configuration->fontMetrics().lineSpacing() *
+                                                  visibleLineCount +
+                                              documentMargin + configuration->frameWidth() * 2 +
+                                              horizontalScrollBarHeight);
             layout->addWidget(configuration);
 
             copyButton = new Button(tr("Copy Configuration"), container);
@@ -373,9 +385,15 @@ QWidget *AutomationPage::createContentWidget() {
         };
 
     Button *stdioCopyButton = nullptr;
+    const auto presetStdioLineCount =
+        Automation::McpClientConfiguration::stdioJson(
+            QString{}, Automation::McpClientConfiguration::connectorArguments(
+                           AutomationOption::Profile::L1))
+            .count(QLatin1Char('\n')) +
+        1;
     const auto stdioControl = createConfigurationControl(
         m_stdioConfiguration, stdioCopyButton, tr("STDIO configuration copied"),
-        QStringLiteral("automationStdioConfiguration"));
+        QStringLiteral("automationStdioConfiguration"), presetStdioLineCount, true);
     connectionCard->addItem(
         tr("STDIO Connector"),
         tr("Starts DS Connector Lite and discovers this editor automatically. The copied JSON "
@@ -383,10 +401,14 @@ QWidget *AutomationPage::createContentWidget() {
         stdioControl);
 
     Button *streamableHttpCopyButton = nullptr;
+    const auto streamableHttpLineCount =
+        Automation::McpClientConfiguration::streamableHttpJson(QString{}).count(QLatin1Char('\n')) +
+        1;
     const auto streamableHttpControl =
         createConfigurationControl(m_streamableHttpConfiguration, streamableHttpCopyButton,
                                    tr("Streamable HTTP configuration copied"),
-                                   QStringLiteral("automationStreamableHttpConfiguration"));
+                                   QStringLiteral("automationStreamableHttpConfiguration"),
+                                   streamableHttpLineCount, false);
     connectionCard->addItem(
         tr("Streamable HTTP"),
         tr("Connects directly to the editor's configured MCP endpoint. The generated port stays "
@@ -402,29 +424,52 @@ QWidget *AutomationPage::createContentWidget() {
 
     m_customPermissionSwitches.clear();
     m_customCategorySwitches.clear();
-    m_customCategoryCards.clear();
+    m_customCategoryHeaderItems.clear();
     m_customCategoryOperationIds.clear();
+    QStringList customCategoryOrder;
     for (const auto &operationId : std::as_const(m_customPermissionOperationIds)) {
         if (const auto *contract = AutomationWire::findPublicTool(operationId);
             contract && !contract->category.isEmpty()) {
+            if (!m_customCategoryOperationIds.contains(contract->category))
+                customCategoryOrder.append(contract->category);
             m_customCategoryOperationIds[contract->category].append(operationId);
         }
     }
     QList<OptionListCard *> customCategoryCards;
     if (m_customPermissionOperationIds.isEmpty()) {
-        const auto customCard = new OptionListCard(tr("Custom Tools"));
+        const auto customCard = new OptionListCard;
+        customCard->setTitleVisible(false);
         customCard->addItem(tr("No public tools available"),
                             tr("Public tools appear here when the automation manifest is ready"));
         customCategoryCards.append(customCard);
     } else {
-        for (auto it = m_customCategoryOperationIds.constBegin();
-             it != m_customCategoryOperationIds.constEnd(); ++it) {
-            const auto category = it.key();
-            const auto operationIds = it.value();
+        for (const auto &category : std::as_const(customCategoryOrder)) {
+            const auto operationIds = m_customCategoryOperationIds.value(category);
             auto *categoryCard = new OptionListCard;
+            categoryCard->setTitleVisible(false);
             categoryCard->setObjectName(
                 QStringLiteral("automationCustomToolGroup_%1").arg(category));
-            m_customCategoryCards.insert(category, categoryCard);
+
+            auto *expandButton = new ToolButton(categoryCard);
+            expandButton->setObjectName(
+                QStringLiteral("automationCustomToolGroupExpand_%1").arg(category));
+            expandButton->setFixedSize(28, 28);
+            expandButton->setCheckable(true);
+            expandButton->setActionIcon(QStringLiteral(":/svg/icons/chevron_right_16_regular.svg"));
+            expandButton->setToolTip(tr("Expand tool group"));
+
+            const auto anyEnabled = std::any_of(
+                operationIds.cbegin(), operationIds.cend(), [option](const QString &operationId) {
+                    return option->customPermissionEnabled(operationId);
+                });
+            auto *categorySwitch = new SwitchButton(anyEnabled, categoryCard);
+            categorySwitch->setObjectName(
+                QStringLiteral("automationCustomToolGroupSwitch_%1").arg(category));
+            categorySwitch->setToolTip(tr("Enable or disable all tools in this group"));
+            m_customCategorySwitches.insert(category, categorySwitch);
+
+            auto *headerItem = categoryCard->addItem(QString{}, {expandButton, categorySwitch});
+            m_customCategoryHeaderItems.insert(category, headerItem);
 
             QList<OptionsCardItem *> operationItems;
             for (const auto &operationId : operationIds) {
@@ -442,13 +487,6 @@ QWidget *AutomationPage::createContentWidget() {
                 operationItems.append(item);
             }
 
-            auto *expandButton = new ToolButton(categoryCard);
-            expandButton->setObjectName(
-                QStringLiteral("automationCustomToolGroupExpand_%1").arg(category));
-            expandButton->setFixedSize(28, 28);
-            expandButton->setCheckable(true);
-            expandButton->setActionIcon(QStringLiteral(":/svg/icons/chevron_right_16_regular.svg"));
-            expandButton->setToolTip(tr("Expand tool group"));
             connect(expandButton, &QPushButton::toggled, this,
                     [this, categoryCard, expandButton, operationItems](const bool expanded) {
                         for (auto *item : operationItems)
@@ -459,17 +497,6 @@ QWidget *AutomationPage::createContentWidget() {
                         expandButton->setToolTip(expanded ? tr("Collapse tool group")
                                                           : tr("Expand tool group"));
                     });
-            categoryCard->addTitleWidget(expandButton);
-
-            const auto anyEnabled = std::any_of(
-                operationIds.cbegin(), operationIds.cend(), [option](const QString &operationId) {
-                    return option->customPermissionEnabled(operationId);
-                });
-            auto *categorySwitch = new SwitchButton(anyEnabled, categoryCard);
-            categorySwitch->setObjectName(
-                QStringLiteral("automationCustomToolGroupSwitch_%1").arg(category));
-            categorySwitch->setToolTip(tr("Enable or disable all tools in this group"));
-            m_customCategorySwitches.insert(category, categorySwitch);
             connect(categorySwitch, &SwitchButton::toggled, this,
                     [this, operationIds](const bool enabled) {
                         for (const auto &operationId : operationIds) {
@@ -481,18 +508,30 @@ QWidget *AutomationPage::createContentWidget() {
                         refreshCategoryPermissionSwitches();
                         modifyOption();
                     });
-            categoryCard->addTitleWidget(categorySwitch);
             customCategoryCards.append(categoryCard);
         }
         refreshCategoryPermissionSwitches();
     }
 
+    const auto customToolsSection = new QWidget;
+    const auto customToolsLayout = new QVBoxLayout(customToolsSection);
+    customToolsLayout->setContentsMargins({});
+    customToolsLayout->setSpacing(6);
+    const auto customToolsTitle = new QLabel(tr("Custom Tools"), customToolsSection);
+    customToolsTitle->setObjectName(QStringLiteral("automationCustomToolsSectionTitle"));
+    customToolsTitle->setProperty("optionsSectionTitle", true);
+    customToolsTitle->setContentsMargins(10, 0, 0, 0);
+    customToolsLayout->addWidget(customToolsTitle);
+    for (auto *categoryCard : std::as_const(customCategoryCards))
+        customToolsLayout->addWidget(categoryCard);
+
     m_readRoots = new PathEditor;
     m_readRoots->setPaths(option->readRoots);
     connect(m_readRoots, &PathEditor::pathsChanged, this, &AutomationPage::modifyOption);
-    const auto readRootsCard = new OptionListCard(tr("Allowed Read Folders"));
+    const auto readRootsCard = new OptionListCard;
+    readRootsCard->setTitleVisible(false);
     m_readRootsItem = readRootsCard->addItem(
-        tr("Folders"),
+        tr("Allowed Read Folders"),
         tr("Limits MCP file reads, such as opening and importing, to the listed folders. "
            "Existing folders are saved as canonical paths."),
         m_readRoots);
@@ -500,21 +539,33 @@ QWidget *AutomationPage::createContentWidget() {
     m_writeRoots = new PathEditor;
     m_writeRoots->setPaths(option->writeRoots);
     connect(m_writeRoots, &PathEditor::pathsChanged, this, &AutomationPage::modifyOption);
-    const auto writeRootsCard = new OptionListCard(tr("Allowed Write Folders"));
+    const auto writeRootsCard = new OptionListCard;
+    writeRootsCard->setTitleVisible(false);
     m_writeRootsItem = writeRootsCard->addItem(
-        tr("Folders"),
+        tr("Allowed Write Folders"),
         tr("Limits MCP file writes, such as saving and exporting, to the listed folders. "
            "Existing folders are saved as canonical paths."),
         m_writeRoots);
+
+    const auto pathPermissionsSection = new QWidget;
+    const auto pathPermissionsLayout = new QVBoxLayout(pathPermissionsSection);
+    pathPermissionsLayout->setContentsMargins({});
+    pathPermissionsLayout->setSpacing(6);
+    const auto pathPermissionsTitle =
+        new QLabel(tr("Read/Write Path Permissions"), pathPermissionsSection);
+    pathPermissionsTitle->setObjectName(QStringLiteral("automationPathPermissionsSectionTitle"));
+    pathPermissionsTitle->setProperty("optionsSectionTitle", true);
+    pathPermissionsTitle->setContentsMargins(10, 0, 0, 0);
+    pathPermissionsLayout->addWidget(pathPermissionsTitle);
+    pathPermissionsLayout->addWidget(readRootsCard);
+    pathPermissionsLayout->addWidget(writeRootsCard);
 
     const auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(serverCard, 0, Qt::AlignTop);
     mainLayout->addWidget(connectionCard, 0, Qt::AlignTop);
     mainLayout->addWidget(accessCard, 0, Qt::AlignTop);
-    for (auto *categoryCard : std::as_const(customCategoryCards))
-        mainLayout->addWidget(categoryCard, 0, Qt::AlignTop);
-    mainLayout->addWidget(readRootsCard, 0, Qt::AlignTop);
-    mainLayout->addWidget(writeRootsCard, 0, Qt::AlignTop);
+    mainLayout->addWidget(customToolsSection, 0, Qt::AlignTop);
+    mainLayout->addWidget(pathPermissionsSection, 0, Qt::AlignTop);
     mainLayout->addStretch();
     mainLayout->setContentsMargins({});
     widget->setLayout(mainLayout);

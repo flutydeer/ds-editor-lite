@@ -1172,6 +1172,11 @@ OptionsCard>QLabel#title {
     color: ${text.secondary};
 }
 
+QLabel[optionsSectionTitle="true"] {
+    font-size: 15px;
+    color: ${text.secondary};
+}
+
 OptionsCardItem>QLabel#title {
     font-size: 13px;
     /* font-weight: bold; */
