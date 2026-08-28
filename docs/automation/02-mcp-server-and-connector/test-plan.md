@@ -6,13 +6,13 @@
 
 1. 冻结源码、工具清单、测试清单和环境摘要。
 2. 配置并完整构建 Editor、Connector 与全部测试目标。
-3. 验证 Wire、175 个 Editor 工具、6 个 Connector 工具、Profile/Custom、安全和兼容。
+3. 验证 Wire、177 个 Editor 工具、6 个 Connector 工具、Profile/Custom、安全和兼容。
 4. 验证 Editor MCP 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手、QLocal Bootstrap 与 Connector stdio。
 5. 完成真实进程联调、多 Connector 与 GUI。
 6. 在同一候选上串行执行一次完整 CTest。
 7. 完成失败修复闭环、实现报告和测试报告。
 
-冻结分母为 Editor 175、Connector 6、总计 181。CTest 数量、顶层场景数和断言数由本轮配置与执行产物分别记录，彼此不替代。
+冻结分母为 Editor 177、Connector 6、总计 183。CTest 数量、顶层场景数和断言数由本轮配置与执行产物分别记录，彼此不替代。
 
 ## 2. 环境与记录项
 
@@ -115,8 +115,8 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 
 1. 记录 git/submodule/工具链和现有进程状态。
 2. 执行 `git diff --check` 与敏感信息扫描。
-3. 通过编译后的公共契约枚举、Registry 与 MCP 发现结果核对 175 个稳定 tool name，并确认公共集合不含 `project.get`；不使用源码文本扫描替代行为验证。
-4. 核对六个 Connector 桥接工具及 175 + 6 = 181。
+3. 通过编译后的公共契约枚举、Registry 与 MCP 发现结果核对 177 个稳定 tool name，并确认公共集合不含 `project.get`；不使用源码文本扫描替代行为验证。
+4. 核对六个 Connector 桥接工具及 177 + 6 = 183。
 5. 核对 24 个 Editor 域名称与数量、`bus` category、`clip_editor` 子区域归属和三项历史记录域。
 6. 核对 `toolset_version = 1` 与每工具 `minimum_toolset_version = 1`。
 7. 核对 `tasks.list/get/cancel`、`OperationIds::all()` 与 Dispatcher 显式路由覆盖。
@@ -141,15 +141,15 @@ tool name、域、Profile、类型、版本或集合出现缺口、重复或漂�
 
 Configure/build 零错误；生成物可复现；受影响回归和二期纯单元测试完成。任一失败进入第 16 节流程。
 
-## 9. 阶段 C：175 项域契约与 Registry
+## 9. 阶段 C：177 项域契约与 Registry
 
 ### 执行
 
-1. 精确比较 175 项 ID、顺序、域、Profile、Query/Command、sync mode、Schema 和版本。
-2. 精确比较 Profile 累积数量 L0 2、L1 87、L2 130、L3 175，并验证 L0 不进入 Custom 设置且不能被任何权限配置禁用。
-3. 对全部 175 项生成 schema-valid 输入并验证 Registry binding 可达。
+1. 精确比较 177 项 ID、顺序、域、Profile、Query/Command、sync mode、Schema 和版本。
+2. 精确比较 Profile 累积数量 L0 4、L1 89、L2 132、L3 177，并验证 L0 不进入 Custom 设置且不能被任何权限配置禁用。
+3. 对全部 177 项生成 schema-valid 输入并验证 Registry binding 可达。
 4. 对每项执行 schema-invalid、权限关闭或 host unavailable 的适用拒绝路径。
-5. 由确定性语料为 175 项逐工具覆盖适用的成功、no-op、validate-only、revision conflict、结构化不可用或失败原子性；另按 24 个域各执行至少一条真实产品代表路径。
+5. 由确定性语料为 177 项逐工具覆盖适用的成功、no-op、validate-only、revision conflict、结构化不可用或失败原子性；另按 24 个域各执行至少一条真实产品代表路径。
 6. 验证历史记录原子边界：同类批量操作整体撤销；轨道/总线/片段标量、已有音符歌词/语言/长度互不捆绑。
 7. 验证创建深度：轨道只能创建为空轨道，歌声片段只能创建为空片段，音符叶节点可携带完整初始数据且不要求 voice context。
 8. 验证 `tracks.get` 直接返回轨道属性、统计和 voice/default-language 上下文，`clips.get`
@@ -175,7 +175,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 
 ### 门禁
 
-175 项无漏项；Registry 与 Contract 集合精确；业务失败不推进不属于它的历史记录或 revision；文档编辑域完成 Undo/Redo，GUI 与应用域完成 query 回读和状态恢复闭环。
+177 项无漏项；Registry 与 Contract 集合精确；业务失败不推进不属于它的历史记录或 revision；文档编辑域完成 Undo/Redo，GUI 与应用域完成 query 回读和状态恢复闭环。
 
 ## 10. 阶段 D：Editor MCP 双协议、兼容握手与 HTTP
 
@@ -186,7 +186,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 3. 执行 `2026-07-28` server/discover、逐请求 metadata、ping、tools/list、tools/call，并验证 `initialize` 被拒绝。
 4. 请求 `2025-06-18` initialize，确认服务端接受并回显兼容版本，再完成 initialized、ping、tools/list 与 tools/call。
 5. 验证版本协商、支持列表、header/body 镜像、协商版本对应的结果形状。
-6. 验证 175 项 MCP 工具描述、分页、Schema、structured/text 内容和业务错误。
+6. 验证 177 项 MCP 工具描述、分页、Schema、structured/text 内容和业务错误。
 7. 验证 Host、Origin、method、Content-Type、Accept、body/depth/node/response 上限和 deadline。
 8. 验证 global 32 路硬上限、background 8 路容量、timeout、disable、换端口和 shutdown
    计数释放；同时发出 32 个请求应全部进入，第 33 个在途请求应被拒绝且不排队。
@@ -215,7 +215,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 ### 执行
 
 1. Editor 离线启动 Connector，验证 downstream 握手与六个固定桥接工具。
-2. 验证 stdout 仅含 MCP 帧、stderr 承载诊断；完整 181 工具大响应在正常读端和延迟慢读端均无截断、无零进度误超时。
+2. 验证 stdout 仅含 MCP 帧、stderr 承载诊断；完整 183 工具大响应在正常读端和延迟慢读端均无截断、无零进度误超时。
 3. 分别执行 2025-11-25 与 2026-07-28 两套主协议的 downstream 生命周期，并执行请求 2025-06-18 的兼容握手和结果塑形；2026-07-28 不执行 `initialize`。
 4. 验证 upstream 优先执行 2026-07-28 发现，回退到 2025-11-25 初始化，并接受协商到 2025-06-18。
 5. 验证每轮握手完整读取所有 `tools/list` 页后只调用一次 `application.get_status`，不调用额外的并行工具目录接口。
@@ -225,8 +225,11 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 9. 验证双方全局 `toolset_version` 与逐工具 `minimum_toolset_version` 门槛；不运行 Schema
    方向性/子集/digest 兼容计算，同版本 Schema 差异直接使契约测试失败。
    Connector 只校验自身桥接工具 envelope，类型化工具和泛化 invoke 的业务 Schema 由 Editor MCP 校验。
-10. 验证 L0 downstream 集合为 2 个固有 Editor 工具加 6 个桥接工具，共 8 项；L2 downstream 集合为 130 + 6，共 136 项；L3 downstream 集合为 175 + 6，共 181 项。
-11. 验证 ready burst 合并、尾随刷新、退避、manual reconnect、instance/endpoint 变化。
+10. 验证 L0 downstream 集合为 4 个固有 Editor 工具加 6 个桥接工具，共 10 项；L2 downstream 集合为 132 + 6，共 138 项；L3 downstream 集合为 177 + 6，共 183 项。
+11. 验证 `application.request_exit/restart` 无论 preset、Custom 或 Connector exclude 都保留；Schema 只允许可选 `discard_changes`，且两项均可经类型化 wrapper 与泛化 invoke 调用。
+12. 在脏工程上不传 `discard_changes`，确认返回 `busy`、字段路径正确、Editor 保持运行且没有活动模态窗口；传 `true` 后确认工具结果先返回，再完成优雅退出或重启。
+13. 重启场景确认只产生一个新 Editor instance、复用原启动参数、Connector 自动重连；随后用默认策略关闭 clean 工程，确保无孤儿进程。
+14. 验证 ready burst 合并、尾随刷新、退避、manual reconnect、instance/endpoint 变化。
 
 ### 门禁
 
@@ -238,7 +241,7 @@ stdio 零污染；工具面、exposure 与兼容结果确定；旧握手结果�
 
 1. Connector 先启动，再启动 Editor 并启用 MCP，观察自动接入。
 2. Editor 先 ready，再启动 Connector，验证首次 watch 到完整握手。
-3. 在 direct HTTP 与 Connector stdio 上复用 L0/L1/L2/L3 全域语料；175 项 Editor 工具由确定性进程测试逐项覆盖，真实 Connector 会话覆盖 24 个业务域、逐项执行 L3 45 项和六个 Connector 桥接工具。
+3. 在 direct HTTP 与 Connector stdio 上复用 L0/L1/L2/L3 全域语料；177 项 Editor 工具由确定性进程测试逐项覆盖，真实 Connector 会话覆盖 24 个业务域、逐项执行 L3 45 项和六个 Connector 桥接工具。
 4. 在隔离工作区完成文档、格式、轨道、总线、片段、音频素材、声库、Speaker Mix、音符、参数曲线、时间轴、历史记录、播放、导出、提取、推理与 Task 链路；GUI、设置、包信息和歌词规则域在同一真实进程候选中闭环。
 5. 运行两至八个 Connector，并发 Query、Command、Task 和 reconnect。
 6. 验证 revision conflict、全局 32 路上限、独立缓存与请求映射。
@@ -269,7 +272,7 @@ Editor direct 与 Connector 转接在结果、错误、历史记录、revision �
 
 ### Agent Host 与环境资格
 
-使用临时测试配置启动一个真实 Agent Host，经 stdio 调用 status、list、describe；通过泛化调用逐项覆盖 L3 45 项，并以每个业务域的代表性真实路径覆盖其余工具面，同时逐项执行六个 Connector 桥接工具。175 项逐工具的协议、权限和错误分支由同一候选的确定性进程测试完成。异步工具同时保存 Task 创建、查询与终态证据。配置只在隔离工作区存活，结束后进入 cleanup manifest。
+使用临时测试配置启动一个真实 Agent Host，经 stdio 调用 status、list、describe；通过泛化调用逐项覆盖 L3 45 项，并以每个业务域的代表性真实路径覆盖其余工具面，同时逐项执行六个 Connector 桥接工具。177 项逐工具的协议、权限和错误分支由同一候选的确定性进程测试完成。异步工具同时保存 Task 创建、查询与终态证据。配置只在隔离工作区存活，结束后进入 cleanup manifest。
 
 格式、声音、模型、codec 和音频设备资格逐项探测；环境条件与确定性测试分母分开记录。环境依赖不满足时必须同时具备真实结构化不可用证据与确定性可用分支证据，不能以“未执行”代替域覆盖。
 
@@ -295,7 +298,7 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 
 - `git diff --check` 与工作树审计；
 - Editor/Connector、Primary、QLocal、端口、pipe 和临时目录残留检查；
-- 175/6/181 工具与 CTest 清单最终快照；
+- 177/6/183 工具与 CTest 清单最终快照；
 - Evidence 索引、failure ledger 和 cleanup manifest 完整性检查。
 
 ## 16. 缺陷修复与回归门禁
@@ -320,7 +323,7 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 
 `implementation-report.md` 记录：
 
-- 175 + 6 工具与 24 个域；
+- 177 + 6 工具与 24 个域；
 - Wire/Registry/Profile/Custom；
 - Editor MCP 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手与 QLocal；
 - Connector stdio/exposure/compatibility；

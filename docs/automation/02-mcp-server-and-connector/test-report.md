@@ -2,13 +2,13 @@
 
 ## 1. 结论
 
-本报告对应当前最终架构的同一候选验证。公共工具面为 Editor **175** 项、Connector **6** 项，
-共 **181** 项；Editor 工具分属 **24** 个业务域，类型统计为
-**41 Q/S + 123 C/S + 11 C/A**。
+本报告对应当前最终架构的同一候选验证。公共工具面为 Editor **177** 项、Connector **6** 项，
+共 **183** 项；Editor 工具分属 **24** 个业务域，类型统计为
+**41 Q/S + 125 C/S + 11 C/A**。
 
-最低 Profile 分布为 L0 2、L1 85、L2 43、L3 45，累积可见数量为
-2、87、130、175。L0 downstream 为 2 个固有 Editor wrapper 加 6 个桥接工具，共 8 项；L2 downstream 为 130 个 Editor wrapper 加 6 个桥接工具，共 136 项；
-L3 downstream 为 175 个 Editor wrapper 加 6 个桥接工具，共 181 项。全局
+最低 Profile 分布为 L0 4、L1 85、L2 43、L3 45，累积可见数量为
+4、89、132、177。L0 downstream 为 4 个固有 Editor wrapper 加 6 个桥接工具，共 10 项；L2 downstream 为 132 个 Editor wrapper 加 6 个桥接工具，共 138 项；
+L3 downstream 为 177 个 Editor wrapper 加 6 个桥接工具，共 183 项。全局
 `toolset_version` 与每工具 `minimum_toolset_version` 均为 **1**。
 
 本轮最终判定：**通过**。
@@ -22,9 +22,9 @@ L3 downstream 为 175 个 Editor wrapper 加 6 个桥接工具，共 181 项。�
 | 平台与工具链 | Visual Studio 2026 v18.9.0；Qt 6.11.2 |
 | Debug 配置与构建 | 标准 preset `ConfigureAndBuild` 通过；随后 `all` target 通过 |
 | 最终 CTest 清单 | 65 项 |
-| 一次完整 CTest | 65/65 通过，42.76 s |
-| Connector 真实联调 | 2025-11-25 下游握手和 2026-07-28 上游连接通过；toolset compatible |
-| GUI/Computer Use | 真实编辑、合成、播放、另存和无弹窗关闭通过 |
+| 一次完整 CTest | 65/65 通过，38.12 s |
+| Connector 真实联调 | 2025-11-25 下游握手和 2026-07-28 上游连接通过；L0 重启后自动重连且 toolset compatible |
+| GUI/Computer Use | 真实编辑、合成、播放、另存，以及 dirty 拒绝、丢弃重启和 clean 退出全程无决策弹窗 |
 | 测试素材完整性 | 素材源 19/19 项 SHA-256 不变；真实用户应用配置 SHA-256 不变 |
 
 构建与 CTest 使用项目标准 preset wrapper。Qt 组件测试显式配置可用的 offscreen platform
@@ -36,24 +36,25 @@ plugin 路径；GUI 与 Connector 进程测试使用独立测试实例和隔离�
 本轮需要确认以下不变量：
 
 - Editor Contract、Registry binding、Editor `tools/list`、Connector 已知类型化描述
-  和公共矩阵的 175 个 ID 精确相等；
+  和公共矩阵的 177 个 ID 精确相等；
 - Connector 固定桥接定义、downstream 固定面和公共矩阵的 6 个 ID 精确相等；
 - 24 个域的工具数量、Query/Command 类型、同步模式、最低 Profile、
   `minimum_toolset_version` 和动态值来源逐项一致；
 - `tracks.get` 返回轨道属性、统计、自有/有效 voice 与默认语言上下文，`clips.get` 对歌声片段
   返回 own/effective voice、继承来源和有效默认语言；公共集合不含
   `tracks.get_voice_context` 或 `clips.get_voice_context`；
-- 175 项 input JSON Schema 均为 object 根，未知字段、错误类型、非法枚举和不满足联合分支的输入
+- 177 项 input JSON Schema 均为 object 根，未知字段、错误类型、非法枚举和不满足联合分支的输入
   在 handler 前失败；output Schema 由确定性契约测试覆盖，运行时不逐次 assert；
 - L0、L1、L2、L3 与 Custom 的发现面和 Registry 执行期授权使用同一 Access Policy；L0 固有工具始终可用、不进入 Custom 列表，Connector exclude 也不能移除；
+- L0 的 `application.request_exit/restart` 只接受可选 `discard_changes`；dirty 默认拒绝并指向该字段，显式丢弃或 clean 工程返回动作明确的 accepted 结果；
 - 动态 `value_sources` 只服务显式发现；正常 invocation 不自动回查 provider；
 - 标准 MCP `tools/list` 提供工具目录和完整 Schema，`application.get_status` 提供全局工具集版本、
   Profile、host 与当前文档/窗口摘要；
 - Cursor 的 base64url payload 只绑定 context、snapshot 和 offset，不使用密钥或 HMAC。
 
-集合与契约实测结果：**通过**。Editor 175 项、Connector 6 项、总计 181 项；最低 Profile
-累计数量为 2/87/130/175，内部能力集合为 208 个 Operation ID。Connector 工具集状态报告
-`compatible`，175 项 compatible、0 项 unavailable、0 项 incompatible。
+集合与契约实测结果：**通过**。Editor 177 项、Connector 6 项、总计 183 项；最低 Profile
+累计数量为 4/89/132/177，内部能力集合为 208 个 Operation ID。Connector 工具集状态报告
+`compatible`，177 项 compatible、0 项 unavailable、0 项 incompatible。
 
 ## 4. 版本兼容、准入与幂等
 
@@ -83,7 +84,7 @@ Dispatcher 的幂等处理为显式 opt-in。只有工具支持且请求实际�
 
 | 范围 | 工具数 | 本轮结果 |
 |---|---:|---|
-| Editor 全部业务域 | 175 | 契约与完整 CTest 通过 |
+| Editor 全部业务域 | 177 | 契约与完整 CTest 通过 |
 | `workspace` | 2 | 契约与确定性测试通过 |
 | `track_panel` | 7 | 契约、确定性测试与 GUI 代表路径通过 |
 | `clip_editor` | 16 | 契约、确定性测试与 GUI 代表路径通过 |
@@ -107,7 +108,7 @@ Dispatcher 的幂等处理为显式 opt-in。只有工具支持且请求实际�
 | `editor.tools.list` | 摘要分页与确定性契约测试通过 |
 | `editor.tools.search` | 摘要搜索与确定性契约测试通过 |
 | `editor.tools.describe` | 完整 descriptor 与 Schema 契约测试通过 |
-| `editor.tools.invoke` | 真实调用 `clips.get` 通过 |
+| `editor.tools.invoke` | 真实调用 `clips.get` 通过；生命周期目标的 exposure 与转发由确定性测试覆盖 |
 
 同机 A/B 使用 125 个工具、每页 17 项的 8 页握手夹具，对比本轮修改前提交与最终候选；预热后
 各执行 5 轮并取中位数。list/search/describe/status 各在一次就绪连接内连续调用 20 次：
@@ -126,13 +127,18 @@ Dispatcher 的幂等处理为显式 opt-in。只有工具支持且请求实际�
 协议与进程验证覆盖 2025-11-25 `initialize/initialized`、2026-07-28
 `server/discover`、2025-06-18 兼容握手、loopback HTTP、QLocal watch、stdio 大帧、并发乱序、
 取消、timeout、EOF、broken pipe、重连和旧 epoch 隔离。Connector 常规握手分页读取
-`tools/list` 后只读取 `application.get_status` 的轻量状态，不为 175 项 Schema 做兼容重算。
+`tools/list` 后只读取 `application.get_status` 的轻量状态，不为 177 项 Schema 做兼容重算。
 
 协议与真实联调结果：**通过**。Connector 使用 2025-11-25 完成下游握手，并以
 2026-07-28 连接 Editor 上游；自动化协议兼容路径通过完整 CTest。真实会话通过
 `package_id + package_version + singer_id` 精确选择同 ID 多版本声库中的目标版本，随后完成
 `tracks.set_voice`、`clips.insert`、`notes.insert`、`tracks.get`、`clips.get` 和
 `editor.tools.invoke(clips.get)`；合并后的两个 get 工具均返回有效 voice context。
+
+生命周期真实联调另以隔离配置完成：Connector 工具面为 183 项；dirty 工程对默认 exit 与
+restart 均返回 `busy + field_path=discard_changes`，Editor 继续运行；显式丢弃的 restart 在
+8.93 ms 内返回 accepted，随后 instance ID 变化，Connector 观察到断开并自动恢复为
+connected/compatible；重启后的 clean 工程默认 exit 在 9.91 ms 内返回 accepted 并优雅退出。
 
 ## 7. GUI 与无人值守
 
@@ -141,7 +147,9 @@ Computer Use 验收 MCP 调用后的 GUI 即时状态、L3 UI 聚焦、合成波
 
 GUI 与无人值守实测结果：**通过**。Computer Use 可见创建后的片段、7 个音符、歌词、发音、
 音高曲线和合成波形；L3 UI 聚焦成功。播放时间由 101:01:341 前进至 102:02:437，
-`documents.save_as` 成功，关闭时无弹窗。
+`documents.save_as` 成功。生命周期增量场景中，dirty 默认拒绝后测试轨道仍即时可见且窗口保持
+可操作；显式丢弃后旧窗口关闭、只出现一个 clean 新实例，未保存轨道不再存在；clean 默认退出后
+Editor 窗口与进程均消失。三个阶段均未出现保存确认或其他模态窗口。
 
 ## 8. 缺陷与回归
 
@@ -154,7 +162,9 @@ GUI 与无人值守实测结果：**通过**。Computer Use 可见创建后的�
 - 真实联调曾因陈旧 revision 和未结束 Task 返回 `revision_conflict`；客户端遵循查询最新状态后
   重试的契约完成闭环。
 
-以上均已通过最终 7/7 定向回归（35.85 s）和 65/65 完整 CTest（42.76 s），不构成产品遗留失败。
+以上均已通过受影响测试和最终 65/65 完整 CTest（38.12 s）。新增生命周期路径还通过
+`TestPublicAutomationContract`、`TestPublicAutomationRegistry`、`TestAutomationRuntimeDimensions`、
+`TestDocumentWorkflow`、`TestDsConnectorLite` 与真实进程/GUI 联调，不构成产品遗留失败。
 
 超出本分支授权范围的第三方依赖或既有推理问题只记录事实，不在本报告中冒充已修复或通过。
 
@@ -173,15 +183,16 @@ GUI 与无人值守实测结果：**通过**。Computer Use 可见创建后的�
 
 ## 10. 最终通过清单
 
-- [x] Editor 175、Connector 6、合计 181 项的集合、域、类型与 Profile 分母成立。
+- [x] Editor 177、Connector 6、合计 183 项的集合、域、类型与 Profile 分母成立。
 - [x] 全局工具集版本和每工具最低工具集版本契约成立。
-- [x] 175 项 Editor 工具具有 Contract、Schema、Registry、权限和 MCP 确定性覆盖。
+- [x] 177 项 Editor 工具具有 Contract、Schema、Registry、权限和 MCP 确定性覆盖。
 - [x] 24 个业务域具有 Connector 代表路径和适用的 GUI、query、Task 或进程闭环。
 - [x] L3 45 项契约覆盖、GUI 代表路径与 Connector 6 项确定性覆盖通过。
 - [x] 两套 MCP 主协议、2025-06-18 兼容路径、Editor HTTP、QLocal 与 Connector stdio 通过；
   2025-11-25 下游和 2026-07-28 上游真实握手成功。
 - [x] Profile/Custom、File Guard、global/background Admission、动态值、工具目录、exposure
   和版本兼容通过。
+- [x] 两个 L0 生命周期工具不可禁用或排除；dirty 默认拒绝、显式丢弃重启、Connector 自动重连与 clean 优雅退出通过，且不触发 GUI 决策弹窗。
 - [x] GUI 可见编辑结果、L3 UI 聚焦、播放、另存与无人值守关闭验收通过。
 - [x] Debug 配置、全目标构建与一次完整 CTest 通过。
 - [x] 用户素材零改动、应用配置恢复和测试进程/状态清理通过。

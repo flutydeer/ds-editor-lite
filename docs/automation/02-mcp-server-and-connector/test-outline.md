@@ -5,12 +5,12 @@
 本大纲验证二期从公共契约到真实 GUI Editor/Connector 联调的完整链路。正式验收以同一候选重新生成的 CTest 与 GUI 双轨证据为准，冻结分母为：
 
 ```text
-Editor 公共工具：175
+Editor 公共工具：177
 Connector 桥接工具：6
-总工具面：181
+总工具面：183
 ```
 
-Editor 的 175 项按 24 个业务域追踪；Connector 的 6 项单独追踪。每个工具至少关联 MCP 描述/Schema、发现授权、Registry binding、Editor MCP、Connector 路径中适用的测试证据。每个业务域同时具有确定性 CTest 与真实产品会话代表路径：可见状态由 GUI 观察闭环，不直接可见的查询、安全拒绝和后台任务由 Connector 回读、应用状态及进程事实闭环。
+Editor 的 177 项按 24 个业务域追踪；Connector 的 6 项单独追踪。每个工具至少关联 MCP 描述/Schema、发现授权、Registry binding、Editor MCP、Connector 路径中适用的测试证据。每个业务域同时具有确定性 CTest 与真实产品会话代表路径：可见状态由 GUI 观察闭环，不直接可见的查询、安全拒绝和后台任务由 Connector 回读、应用状态及进程事实闭环。
 
 测试层次：
 
@@ -20,7 +20,7 @@ Editor 的 175 项按 24 个业务域追踪；Connector 的 6 项单独追踪。
 | 单元 | codec、validator、Policy、Guard、Admission、exposure、版本兼容 |
 | 组件 | MCP parser/router、HTTP、QLocal、stdio framing、上下游 client/server |
 | 进程 | Editor、Connector、单实例、重连、运行时启停、多 Connector |
-| 业务域 | 175 项工具与类型化 Facade、GUI 状态、应用设置、历史记录、revision、Task、文件语义 |
+| 业务域 | 177 项工具与类型化 Facade、GUI 状态、应用设置、历史记录、revision、Task、文件语义 |
 | GUI | Automation 设置页、可见编辑结果、Undo/Redo、运行状态 |
 | 资格 | 真实格式、声音、推理、播放与 Agent Host 环境 |
 
@@ -28,9 +28,9 @@ Editor 的 175 项按 24 个业务域追踪；Connector 的 6 项单独追踪。
 
 ### 2.1 ID 与域
 
-- 175 个 Editor tool name 唯一，并与公开 operation ID 一一对应；`project.get` 不在公共集合，内部 Facade 名称不泄露为 MCP 工具。
+- 177 个 Editor tool name 唯一，并与公开 operation ID 一一对应；`project.get` 不在公共集合，内部 Facade 名称不泄露为 MCP 工具。
 - 六个 Connector 桥接 tool name 唯一，并与固定定义一致。
-- Editor Contract、Registry binding、Editor `tools/list`、Connector 已知类型化描述和矩阵的 175 个 ID 精确相等。
+- Editor Contract、Registry binding、Editor `tools/list`、Connector 已知类型化描述和矩阵的 177 个 ID 精确相等。
 - Connector bridge definitions、downstream 固定桥接面和矩阵的 6 个 ID 精确相等。
 - 24 个域的数量与矩阵一致；`master.*` 的 category 为 `bus`；历史记录域严格包含三项；钢琴与参数工具均归入 `clip_editor` category。
 - Query/Command、同步模式与最低 Profile 逐项相等。
@@ -38,7 +38,7 @@ Editor 的 175 项按 24 个业务域追踪；Connector 的 6 项单独追踪。
 
 ### 2.2 版本
 
-- 全局 `toolset_version` 精确为 1，181 个工具的 `minimum_toolset_version` 均精确为 1。
+- 全局 `toolset_version` 精确为 1，183 个工具的 `minimum_toolset_version` 均精确为 1。
 - `application.get_status` 的全局版本以及 `tools/list` 的逐工具最低版本与契约一致。
 - Connector 只按双方全局工具集版本与逐工具最低版本判断同名类型化工具是否兼容。
 - 同一工具集版本下的 Schema 差异按测试失败处理，不产生 Schema 子集、digest 或
@@ -56,7 +56,7 @@ Editor 的 175 项按 24 个业务域追踪；Connector 的 6 项单独追踪。
 
 ### 3.1 Schema 与 codec
 
-- 175 个 Editor 工具的 input/output Schema 均可通过 meta-schema 检查。
+- 177 个 Editor 工具的 input/output Schema 均可通过 meta-schema 检查。
 - 业务对象为封闭结构；未知字段、错误类型、非法枚举、NaN/Inf、整数溢出、非法 UUID 和超限集合在 handler 前失败。
 - 无参工具只接受空 object；必填字段、oneOf 分支、nullable 和分页字段严格执行。
 - 轨道/片段 voice Schema 要求 singer、允许 speaker 省略或为 `null`；零、单、多 speaker 三种解析分支分别覆盖。
@@ -77,6 +77,8 @@ Editor 的 175 项按 24 个业务域追踪；Connector 的 6 项单独追踪。
 ### 3.2 动态值与首次调用
 
 - `application.get_status` 零参数返回 Editor、工具集版本、Profile、host 和当前 document/window 摘要。
+- `application.request_exit/restart` 在所有 Profile 与 Custom 中均可发现且不可禁用；输入只允许可选布尔字段 `discard_changes`，输出明确区分 exit/restart。
+- 脏工程默认返回 `busy + field_path=discard_changes` 并保持进程与 GUI 可操作；显式丢弃后优雅退出或重启。公共路径不得出现保存确认、忙碌提示或其他决策弹窗，GUI 路径仍保留原行为。
 - `value_sources` 指向可达查询，最低 Profile 与 host availability 合法。
 - voices、parameters、formats、exports、extract、inference、settings 与 file access 等领域查询覆盖所有公开动态候选，且在目标最低 Profile 下可达。
 - 目标隐藏、Custom 关闭、exposure 过滤和 host 能力变化时，领域查询与对应调用遵守各自授权结果。
@@ -93,7 +95,7 @@ Editor 的 175 项按 24 个业务域追踪；Connector 的 6 项单独追踪。
 - Cursor 的 base64url payload 只绑定 context、snapshot 和 offset，不使用 HMAC 或认证密钥。
 - Profile/Custom 或实际工具目录更新后，新 snapshot 反映新可见集合；旧 cursor 不能跨快照使用。
 
-## 4. 175 项 Editor 工具的域覆盖
+## 4. 177 项 Editor 工具的域覆盖
 
 | 域 | 数量 | 重点验证 |
 |---|---:|---|
@@ -169,7 +171,7 @@ Editor 的 175 项按 24 个业务域追踪；Connector 的 6 项单独追踪。
 
 ## 6. Profile、Custom 与 exposure
 
-- L0 精确 2 项；L1 累积精确 87 项；L2 累积精确 130 项；L3 累积精确 175 项。
+- L0 精确 4 项；L1 累积精确 89 项；L2 累积精确 132 项；L3 累积精确 177 项。
 - `selectedProfile` 与 `customPermissions` 独立持久化，preset 切换保持 Custom 内容。
 - Custom 的单项、领域分组、空集合、新 operation 安全默认和坏配置恢复覆盖；L0 不进入 Custom 列表且不能被其配置禁用。
 - 领域卡片默认收起；展开/收起不改变权限，标题启用数与单项状态一致，组级关闭/开启分别原子更新整组并持久化。
@@ -222,9 +224,9 @@ Editor 的 175 项按 24 个业务域追踪；Connector 的 6 项单独追踪。
 
 ### 8.3 Tools
 
-- 2025-11-25 与 2026-07-28 两套主协议，以及协商到 2025-06-18 的兼容会话，对当前 175 集合、顺序、分页、Schema、annotations 和适用 server metadata 进行比对。
+- 2025-11-25 与 2026-07-28 两套主协议，以及协商到 2025-06-18 的兼容会话，对当前 177 集合、顺序、分页、Schema、annotations 和适用 server metadata 进行比对。
 - `tools/call` 覆盖缺 name/arguments、未知工具、权限变化、Schema 错误、业务错误与成功结果。
-- 175 项均有 schema-valid Registry 可达性测试，并按工具语义逐项覆盖 schema-invalid、真实成功或结构化不可用、无副作用/no-op、失败回滚和异步终态中的适用分支。
+- 177 项均有 schema-valid Registry 可达性测试，并按工具语义逐项覆盖 schema-invalid、真实成功或结构化不可用、无副作用/no-op、失败回滚和异步终态中的适用分支。
 - 确定性语料覆盖 output Schema 的有效结果与反例；Editor 运行时不执行逐次 output Schema assert。
 
 ## 9. QLocal Bootstrap
@@ -244,7 +246,7 @@ Editor 的 175 项按 24 个业务域追踪；Connector 的 6 项单独追踪。
 - Editor 离线时 Connector 仍完成 downstream 握手并发布固定桥接面。
 - stdout 字节流仅含 MCP 帧，诊断只在 stderr。
 - CRLF、部分行、多帧、notification 洪泛、非法 JSON、最大帧、超限、EOF 与 broken pipe。
-- writer queue 的部分写、backpressure、停滞 deadline 和确定性关闭；181 工具大响应分别由正常读端与延迟慢读端完整接收。
+- writer queue 的部分写、backpressure、停滞 deadline 和确定性关闭；183 工具大响应分别由正常读端与延迟慢读端完整接收。
 - downstream request ID 到 upstream ID 的映射支持并发乱序、取消和 timeout。
 
 ### 10.2 双协议与兼容握手的上游/下游
@@ -260,8 +262,8 @@ Editor 的 175 项按 24 个业务域追踪；Connector 的 6 项单独追踪。
 - `connector.get_status` 各字段与 Bootstrap、HTTP、toolset compatibility 和 exposure 事实相等。
 - `connector.reconnect` 的并发与重复调用合并。
 - `editor.tools.list/search` 返回摘要，`describe` 返回完整 Schema，`invoke` 透传调用；四者对可用性、过滤和调用授权一致。
-- L2 exposure 由 130 个类型化 Editor wrapper 与六个桥接工具形成 136 项 downstream 集合；L3
-  exposure 由 175 个类型化 Editor wrapper 与六个桥接工具形成 181 项 downstream 集合。
+- L2 exposure 由 132 个类型化 Editor wrapper 与六个桥接工具形成 138 项 downstream 集合；L3
+  exposure 由 177 个类型化 Editor wrapper 与六个桥接工具形成 183 项 downstream 集合。
 - 双向全局 toolset/逐工具 minimum toolset 门槛覆盖；不执行 input/output Schema 子集证明或
   Schema digest 兼容计算。
 - Connector 只验证六个桥接工具 envelope；类型化工具和泛化 invoke 的业务 Schema 由 Editor MCP 验证。
@@ -290,6 +292,7 @@ Editor 的 175 项按 24 个业务域追踪；Connector 的 6 项单独追踪。
 - Connector 先启动，再经历 Editor 启动、MCP enable 和 ready。
 - Editor 先 ready，Connector 首次 watch 后完成协议、tools 目录和状态摘要握手。
 - Editor direct HTTP 与 Connector stdio 复用同一 L0/L1/L2/L3 业务语料并比对结果。
+- 在隔离配置下分别验证 clean 默认退出、dirty 默认拒绝、dirty 显式丢弃退出，以及重启后的新 instance ID、Connector 自动重连与最终优雅退出。
 - open/save/import/export、音频素材、推理、Task、播放与历史记录使用隔离工作区。
 - 两至八个 Connector 并发查询、编辑、任务与重连；覆盖 revision conflict、全局上限和状态隔离。
 - 一个 Connector 退出、崩溃、慢读或触发全局准入上限时，Editor 与其他 Connector 继续服务。
@@ -298,18 +301,18 @@ Editor 的 175 项按 24 个业务域追踪；Connector 的 6 项单独追踪。
 ### 12.2 GUI 与真实资格
 
 - 设置页默认、修改、CLI 覆盖、Custom 领域分组和运行状态展示。
-- 175 项 Editor 工具全部由 Contract、Registry、Editor MCP 与 Connector 确定性测试覆盖；真实 Connector 会话覆盖 24 个业务域，L3 的 45 项工具逐项通过泛化调用执行，六个 Connector 桥接工具逐项执行。
+- 177 项 Editor 工具全部由 Contract、Registry、Editor MCP 与 Connector 确定性测试覆盖；真实 Connector 会话覆盖 24 个业务域，L3 的 45 项工具逐项通过泛化调用执行，六个 Connector 桥接工具逐项执行。
 - 24 个业务域均建立真实产品会话代表路径；具有可见 UI 的域同时保存 GUI 观察证据。MCP 编辑后 GUI 立即呈现；GUI 编辑后 MCP 查询与 revision 立即更新；不直接可见的查询、应用设置和 Task 通过对应 query、应用状态或进程事实闭环。
 - 轨道、总线、片段、音符、参数曲线、时间轴、Speaker Mix、历史记录与播放均执行至少一条真实 mutation，并使用 GUI 与 MCP Undo/Redo 验证代表路径的历史记录粒度及状态恢复；其余逐工具边界由确定性测试覆盖。
 - 工作区布局、轨道面板和片段编辑器的 25 项 GUI 工具逐项保存调用前后界面、对应 get 回读与恢复证据；持续监控真实焦点、顶层窗口和活动模态窗口。
 - 九个设置更新、包刷新和歌词规则管理逐项从 GUI 或应用状态观察即时结果，并在场景后恢复隔离配置。
 - 文档、格式、音频素材、声库、导出、提取、推理和异步任务均在隔离工作区执行真实资格路径；环境缺少 codec、声音、模型或音频设备时，保存结构化不可用事实，并由确定性 CTest 覆盖可用分支。
-- 一个真实 Agent Host 通过 stdio 启动 Connector，逐项执行六个桥接工具和 L3 45 项，并以各域代表性 Query/Command/Task 覆盖产品链路；175 项全体的协议、权限、Schema 与异常分支由确定性进程测试覆盖。
+- 一个真实 Agent Host 通过 stdio 启动 Connector，逐项执行六个桥接工具和 L3 45 项，并以各域代表性 Query/Command/Task 覆盖产品链路；177 项全体的协议、权限、Schema 与异常分支由确定性进程测试覆盖。
 
 ## 13. 通过标准
 
-- 175 + 6 = 181 的工具集合、稳定名称、域和版本不变量全部成立。
-- 175 个 Editor 工具均有 Contract、Registry、权限与 CTest 证据；24 个业务域均有真实代表路径，L3 45 项和 Connector 6 项逐项实测。
+- 177 + 6 = 183 的工具集合、稳定名称、域和版本不变量全部成立。
+- 177 个 Editor 工具均有 Contract、Registry、权限与 CTest 证据；24 个业务域均有真实代表路径，L3 45 项和 Connector 6 项逐项实测。
 - 两套 MCP 主协议、2025-06-18 兼容握手/会话、Editor HTTP、QLocal、Connector stdio、exposure、Profile/Custom、File Guard 和 Admission 全部完成。
 - Editor direct 与 Connector 路径的业务结果、错误、历史记录、revision 和 Task 语义一致。
 - 24 个 Editor 业务域均完成确定性覆盖和真实代表路径；可见 UI 域另有 GUI 证据，进程联调、真实资格与清理结果形成同一候选的证据。

@@ -18,7 +18,7 @@ GUI 可以保留输入、绘制、hover、拖动预览和对话框；最终业�
 
 | 域 | 产品入口/适配器 | 领域 Facade/运行时 | 关键保护行为 |
 |---|---|---|---|
-| 应用生命周期 | `AppController`、主菜单 | `ApplicationAutomationFacade` | info、WindowId、退出/重启宿主调用；生命周期 operation 保持 InternalOnly |
+| 应用生命周期 | `AppController`、主菜单 | `ApplicationAutomationFacade` | info、WindowId、类型化退出/重启宿主调用；二期公共绑定复用同一 Facade，并区分 GUI 保存询问与无人值守策略 |
 | 文档 | `DocumentWorkflowController` | `DocumentAutomationFacade` | generation 轮换、失败不替换、savepoint、revision、旧 ID |
 | 轨道/片段/音频素材 | `TrackController`、`AudioDecodingController`、导入器 | `ProjectAutomationFacade` 及公共编排 | 对象解析、浅层创建、no-op、批提交、声音上下文和音频晚到写回 |
 | 音符/歌词/音素 | `ClipController`、音符交互 Controller | `NoteAutomationFacade` | 增删改、量化、拆分、歌词/语言/发音/音素、单 History/revision |
@@ -58,8 +58,9 @@ GUI 可以保留输入、绘制、hover、拖动预览和对话框；最终业�
 | timeline | 1 | tracks | 16 |
 | **合计** | **208** |  |  |
 
-内部能力和公共 MCP 工具面不是同一集合。内部提交、兼容入口与 GUI 生命周期 operation 可以保留
-在 Facade 层而不公开；公共 Editor 工具为 175 项，另由 Connector 提供 6 项桥接工具。
+内部能力和公共 MCP 工具面不是同一集合。内部提交与兼容入口可以保留在 Facade 层而不公开；
+二期公共 Editor 工具为 177 项，其中退出和重启复用一期生命周期 Facade，另由 Connector 提供
+6 项桥接工具。
 
 ## 4. 内部能力边界
 

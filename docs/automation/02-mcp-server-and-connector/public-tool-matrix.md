@@ -2,7 +2,7 @@
 
 ## 1. 冻结口径
 
-二期工具面按业务域组织。Editor 提供 **175** 个公共工具，DS Connector Lite 提供 **6** 个桥接工具，合计 **181** 个。MCP tool name 是跨 Contract、Registry、Editor 与 Connector 的稳定身份，不使用依赖表内顺序的编号。
+二期工具面按业务域组织。Editor 提供 **177** 个公共工具，DS Connector Lite 提供 **6** 个桥接工具，合计 **183** 个。MCP tool name 是跨 Contract、Registry、Editor 与 Connector 的稳定身份，不使用依赖表内顺序的编号。
 
 公共工具集维持 v1：`toolset_version = 1`。每个工具只声明自己的
 `minimum_toolset_version`，当前均为 1；兼容性只由这两个版本字段决定。Schema 不一致属于
@@ -21,7 +21,7 @@
 
 | 域 | 数量 | 核心职责 |
 |---|---:|---|
-| 应用 | 3 | 产品与构建身份、运行状态、文件授权事实 |
+| 应用 | 5 | 产品与构建身份、运行状态、生命周期闭环、文件授权事实 |
 | 文档与工程 | 8 | 文档状态与统计、最近项目、生命周期、保存与导入 |
 | 格式 | 2 | 格式能力与导入前检查 |
 | 轨道 | 14 | 轨道查询、细粒度编辑、语言与声音 |
@@ -45,17 +45,24 @@
 | 设置 | 10 | 允许公开的应用设置查询、稀疏更新、候选值与生效状态 |
 | 包信息 | 3 | 已安装包查询、详情与异步刷新 |
 | 歌词规则 | 7 | splitter/tagger 规则管理与只读流水线测试 |
-| **Editor 合计** | **175** | **41 Q/S + 123 C/S + 11 C/A** |
+| **Editor 合计** | **177** | **41 Q/S + 125 C/S + 11 C/A** |
 
 ## 3. Editor 公共工具
 
-### 3.1 应用（3）
+### 3.1 应用（5）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
 | `application.get_info` | L0 | Q/S | 返回产品名、版本、平台与构建身份 |
 | `application.get_status` | L0 | Q/S | Editor 实例、host、profile、工具集版本与当前 document/window 摘要 |
+| `application.request_exit` | L0 | C/S | 请求优雅退出；脏工程默认以 `busy` 拒绝，`discard_changes: true` 时无弹窗丢弃改动后退出 |
+| `application.request_restart` | L0 | C/S | 请求以当前可执行文件和参数优雅重启；未保存策略与退出相同，不开放任意进程启动 |
 | `application.get_file_access` | L2 | Q/S | 返回 canonical 读写根与会话授权事实 |
+
+两个生命周期工具只接受可选布尔字段 `discard_changes`，默认 `false`；不提供 `force`、
+`validate_only` 或幂等键。成功响应先确认请求已接受，再由既有文档工作流完成关闭。公共调用在工程
+繁忙或存在未授权丢弃的改动时返回结构化错误，绝不进入 GUI 保存确认；菜单、窗口关闭等 GUI 路径
+仍保留原有保存询问。两项均为不可禁用、不可排除且不显示在 Custom 设置中的 L0 固有能力。
 
 ### 3.2 文档与工程（8）
 
@@ -382,7 +389,7 @@ Editor PublicToolDefinitions
 Connector bridge definitions
 = Connector downstream 固定桥接工具 names
 
-175 + 6 = 181
+177 + 6 = 183
 ```
 
 每个 Editor 工具必须具备唯一 operation ID、域、最低 profile、Query/Command、同步模式、严格

@@ -4,7 +4,7 @@
 
 二期在一期 Automation Facade 基线上交付运行中 GUI Editor 的公共 MCP Server、公共 Wire Contract、实例发现与状态观察、DS Connector Lite，以及 GUI 进阶控制、允许公开的应用设置与歌词规则、包索引、设置页、CLI、安全和运行时生命周期。
 
-设计语义以《DS Editor Lite MCP 与自动化体系设计》当前版为权威来源，并参考[自动化体系五期建设路线图 #96](https://github.com/flutydeer/ds-editor-lite/issues/96)。公共工具分母由[公共工具矩阵](public-tool-matrix.md)冻结：Editor 175 项，Connector 6 项，总计 181 项。
+设计语义以《DS Editor Lite MCP 与自动化体系设计》当前版为权威来源，并参考[自动化体系五期建设路线图 #96](https://github.com/flutydeer/ds-editor-lite/issues/96)。公共工具分母由[公共工具矩阵](public-tool-matrix.md)冻结：Editor 177 项，Connector 6 项，总计 183 项。
 
 本期产品形态为：
 
@@ -105,7 +105,7 @@ Wire 字段使用 `snake_case`。业务 object 使用封闭 Schema；未知字�
 
 ### 5.2 Binding Registry
 
-Registry 从同一工具声明建立 175 个类型化 binding，并派生：
+Registry 从同一工具声明建立 177 个类型化 binding，并派生：
 
 - Editor `tools/list` 的确定顺序和 descriptor；
 - input 解码、执行 handler 与 output 编码；output Schema 由确定性契约测试验证；
@@ -117,11 +117,25 @@ Registry 从同一工具声明建立 175 个类型化 binding，并派生：
 binding 集合完整，以及工具描述与执行入口一致。执行时不再次访问 value source；同一版本下
 Editor、Connector 或文档 Schema 不一致均按缺陷处理。
 
+### 5.3 L0 应用生命周期闭环
+
+`application.request_exit` 与 `application.request_restart` 是与查询元工具同级的 L0 固有能力，
+在所有 preset、Custom 和 Connector exposure 中始终存在，不能被 Custom 或
+`--exclude-tool` 移除。两者均为同步、Closed World、Destructive、Non-idempotent Command，
+只接受可选布尔字段 `discard_changes`，默认 `false`；不接受 `force`、`validate_only` 或幂等键。
+
+公共调用复用既有文档工作流，但使用非交互保存策略：繁忙状态返回 `busy`；工程存在未保存改动且
+未传 `discard_changes: true` 时，以 `discard_changes` 为字段路径返回 `busy`，不显示保存确认、
+Toast 或其他决策弹窗；显式允许丢弃后才进入既有优雅关闭流程。GUI 菜单和窗口关闭仍使用交互式
+保存询问。重启只复用产品现有 Restarter，以当前可执行文件、原参数和工作目录重新启动 Editor，
+不开放任意程序、命令或参数启动能力。成功结果先返回 `accepted + action + discard_changes`，随后
+由事件循环完成关闭或重启。
+
 ## 6. 工具集版本与兼容
 
 标准 MCP `tools/list` 是运行时工具目录与完整 Schema 的事实来源；
 `application.get_status` 返回 Editor 的 `toolset_version`、当前 Profile、host mode 及文档/窗口摘要。
-本期工具集维持 v1：`toolset_version = 1`，181 个工具各自只持有
+本期工具集维持 v1：`toolset_version = 1`，183 个工具各自只持有
 `minimum_toolset_version = 1`。
 
 Connector 对同名类型化工具只检查双方工具集版本门槛：
@@ -148,7 +162,7 @@ selectedProfile = l1 | l2 | l3 | custom
 customPermissions[stableOperationId] = enabled | disabled
 ```
 
-`L3` 的显示名称和能力含义统一为“进阶控制”（Advanced Control）：在 L2 之上仅增加经明确纳入的部分 GUI 自动化操作和设置项更改，不表示或承诺完全控制。自动化/MCP 自身的配置与运行生命周期不属于可由 MCP 修改的对象。
+`L3` 的显示名称和能力含义统一为“进阶控制”（Advanced Control）：在 L2 之上仅增加经明确纳入的部分 GUI 自动化操作和设置项更改，不表示或承诺完全控制。自动化/MCP 自身的配置与服务启停不属于可由 MCP 修改的对象；应用的优雅退出和重启是独立的 L0 固有能力。
 
 L0 工具构成固有能力面：所有 preset 和 Custom 都始终包含，不能通过任何权限配置禁用，也不显示在 Custom 工具列表中。L1～L3 使用最低 Profile 的累积关系；Custom 只为非 L0 工具使用稳定 operation ID 的显式集合。切换 preset 保留 Custom 配置，切回 Custom 恢复先前选择；新增非 L0 operation 在无持久记录时采用安全默认。
 
@@ -225,7 +239,7 @@ editor.tools.describe
 editor.tools.invoke
 ```
 
-Connector 同时携带构建时已知的 175 个 Editor 类型化工具描述。进程启动时根据 exposure 生成固定 downstream 类型化工具集合：
+Connector 同时携带构建时已知的 177 个 Editor 类型化工具描述。进程启动时根据 exposure 生成固定 downstream 类型化工具集合：
 
 ```text
 --exposure-profile l0|l1|l2|l3
@@ -291,9 +305,9 @@ CLI override 只影响本次运行，优先于持久设置。选项菜单中的 
 ## 13. 实施顺序与阶段提交
 
 1. 校正一期 Task 名称与受影响测试。
-2. 冻结 175 + 6 工具矩阵、公共 enum、Schema 与版本不变量。
+2. 冻结 177 + 6 工具矩阵、公共 enum、Schema 与版本不变量。
 3. 完成 Wire Contract、版本兼容与透明分页游标。
-4. 按 24 个域完成 175 个 Registry binding 和 host adapter。
+4. 按 24 个域完成 177 个 Registry binding 和 host adapter。
 5. 完成 Profile/Custom、File Guard 与 Admission。
 6. 完成 Editor 2025-11-25 与 2026-07-28 两套主协议，以及 2025-06-18 兼容握手生命周期。
 7. 完成 QLocal discover/watch 与状态机。
@@ -318,10 +332,10 @@ docs(automation): report phase two delivery
 
 ## 14. 验收门禁与正式产物
 
-- 175 个 Editor ID、6 个 Connector ID、181 个总 ID 唯一且集合相等。
+- 177 个 Editor ID、6 个 Connector ID、183 个总 ID 唯一且集合相等。
 - 24 个 Editor 域及总线、历史记录、GUI 子区域归属与权威矩阵一致。
 - `toolset_version = 1`，且每工具 `minimum_toolset_version = 1`。
-- 175 个 Editor 工具均具备严格 Schema、descriptor、binding 与适用测试。
+- 177 个 Editor 工具均具备严格 Schema、descriptor、binding 与适用测试。
 - Editor MCP 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手、QLocal watch、Connector stdio/exposure/compatibility、Profile/Custom、File Guard、Admission、设置与 CLI 完成验证。
 - Editor 直连与 Connector 转接保持业务结果、稳定错误、历史记录、revision 和 Task 语义等价。
 - 多 Connector、运行时换端口/启停、全局准入、退出和资源清理满足有界生命周期。
