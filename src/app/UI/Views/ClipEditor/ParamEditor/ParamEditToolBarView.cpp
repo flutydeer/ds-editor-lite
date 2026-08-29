@@ -20,8 +20,8 @@ ParamEditToolBarView::ParamEditToolBarView(QWidget *parent) : QWidget(parent) {
         return button;
     };
 
-    m_btnDraw = createEditModeButton("btnParamDraw",
-                                     QStringLiteral(":/svg/icons/draw_shape_24_filled.svg"));
+    m_btnDraw =
+        createEditModeButton("btnParamDraw", QStringLiteral(":/svg/icons/edit_24_filled.svg"));
     m_btnShape = createEditModeButton("btnParamShape",
                                       QStringLiteral(":/svg/icons/more_horizontal_24_regular.svg"));
     m_btnScale = createEditModeButton("btnParamScale",
