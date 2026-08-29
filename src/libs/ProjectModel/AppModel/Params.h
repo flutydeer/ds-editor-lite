@@ -71,6 +71,7 @@ public:
     Param *getParamByName(Name name);
     const Param *getParamByName(Name name) const;
     static bool hasOriginalParam(Name name);
+    static bool supportsCurveTransform(Name name);
 
 private:
     QPointer<SingingClip> m_clip;

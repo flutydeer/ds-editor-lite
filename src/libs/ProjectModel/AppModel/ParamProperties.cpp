@@ -19,7 +19,11 @@ QString ParamProperties::valueToString(const int value, const bool withUnit,
 }
 
 int ParamProperties::valueFromNormalized(const double normalized) const {
-    return static_cast<int>(normalized * (maximum - minimum)) + minimum;
+    return static_cast<int>(valueFromNormalizedDouble(normalized));
+}
+
+double ParamProperties::valueFromNormalizedDouble(const double normalized) const {
+    return normalized * (maximum - minimum) + minimum;
 }
 
 double ParamProperties::valueToNormalized(const int value) const {
@@ -44,9 +48,8 @@ DecibelParamProperties::DecibelParamProperties() {
     divisionValue = 12'000; // 12 dB
 }
 
-int DecibelParamProperties::valueFromNormalized(const double normalized) const {
-    const auto value = (MathUtils::inPowerCurveValueAt(normalized, 0.8) - 1) * (maximum - minimum);
-    return static_cast<int>(value);
+double DecibelParamProperties::valueFromNormalizedDouble(const double normalized) const {
+    return (MathUtils::inPowerCurveValueAt(normalized, 0.8) - 1) * (maximum - minimum);
 }
 
 double DecibelParamProperties::valueToNormalized(const int value) const {
@@ -60,11 +63,11 @@ TensionParamProperties::TensionParamProperties() {
     divisionValue = 2'000;
 }
 
-int TensionParamProperties::valueFromNormalized(const double normalized) const {
+double TensionParamProperties::valueFromNormalizedDouble(const double normalized) const {
     const auto base = (normalized - 0.5) * 2;
     const auto input = qAbs(base);
     const auto absValue = MathUtils::inPowerCurveValueAt(input, 0.7) * maximum;
-    return static_cast<int>(base >= 0 ? absValue : -absValue);
+    return base >= 0 ? absValue : -absValue;
 }
 
 double TensionParamProperties::valueToNormalized(const int value) const {

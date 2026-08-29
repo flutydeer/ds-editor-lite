@@ -101,3 +101,17 @@ bool ParamInfo::hasOriginalParam(const Name name) {
             return false;
     }
 }
+
+bool ParamInfo::supportsCurveTransform(const Name name) {
+    switch (name) {
+        case Pitch:
+        case Breathiness:
+        case Voicing:
+        case Energy:
+        case Tension:
+        case MouthOpening:
+            return true;
+        default:
+            return false;
+    }
+}

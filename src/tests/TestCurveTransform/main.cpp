@@ -1,0 +1,249 @@
+#include "UI/Views/ClipEditor/CurveTransform/CurveTransformSession.h"
+
+#include <lite/ProjectModel/AppModel/DrawCurve.h>
+#include <lite/ProjectModel/AppModel/ParamProperties.h>
+#include <lite/ProjectModel/AppModel/Params.h>
+
+#include <QCoreApplication>
+#include <QTextStream>
+
+#include <cmath>
+#include <limits>
+
+namespace {
+    bool expect(const bool condition, const char *message) {
+        if (condition)
+            return true;
+        QTextStream(stderr) << "FAILED: " << message << Qt::endl;
+        return false;
+    }
+
+    bool expectNear(const double actual, const double expected, const double tolerance,
+                    const char *message) {
+        return expect(std::abs(actual - expected) <= tolerance, message);
+    }
+
+    DrawCurve curve(const int startTick, const QList<int> &values) {
+        DrawCurve result;
+        result.setLocalStart(startTick);
+        result.setValues(values);
+        return result;
+    }
+
+    int valueAt(const QList<DrawCurve *> &curves, const int tick) {
+        for (const auto *item : curves) {
+            if (item->localStart() <= tick && tick < item->localEndTick())
+                return item->values().at((tick - item->localStart()) / item->step);
+        }
+        return -999999;
+    }
+
+    bool testMappings() {
+        bool ok = true;
+        DecibelParamProperties decibel;
+        TensionParamProperties tension;
+        MouthOpeningParamProperties mouth;
+
+        ok &= expectNear(decibel.valueToNormalized(-96000), 0.0, 1e-12,
+                         "decibel lower endpoint");
+        ok &= expectNear(decibel.valueToNormalized(0), 1.0, 1e-12,
+                         "decibel upper endpoint");
+        ok &= expectNear(decibel.valueFromNormalizedDouble(0.0), -96000.0, 1e-9,
+                         "decibel inverse lower endpoint");
+        ok &= expectNear(tension.valueToNormalized(-10000), 0.0, 1e-12,
+                         "tension lower endpoint");
+        ok &= expectNear(tension.valueToNormalized(0), 0.5, 1e-12, "tension center");
+        ok &= expectNear(tension.valueFromNormalizedDouble(0.0), -10000.0, 1e-9,
+                         "tension zero percent is minus ten");
+        ok &= expectNear(mouth.valueToNormalized(250), 0.25, 1e-12, "mouth identity mapping");
+
+        double previousDb = -std::numeric_limits<double>::infinity();
+        double previousTension = -std::numeric_limits<double>::infinity();
+        for (int value = 0; value <= 1000; ++value) {
+            const auto normalized = value / 1000.0;
+            const auto db = decibel.valueFromNormalizedDouble(normalized);
+            const auto tensionValue = tension.valueFromNormalizedDouble(normalized);
+            ok &= expect(db >= previousDb, "decibel inverse is monotonic");
+            ok &= expect(tensionValue >= previousTension, "tension inverse is monotonic");
+            previousDb = db;
+            previousTension = tensionValue;
+        }
+        for (const int db : {-96000, -72000, -48000, -24000, 0}) {
+            const auto roundTrip =
+                decibel.valueFromNormalizedDouble(decibel.valueToNormalized(db));
+            ok &= expectNear(roundTrip, db, 1e-7, "decibel mapping round trip");
+        }
+        for (const int value : {-10000, -5000, 0, 5000, 10000}) {
+            const auto roundTrip =
+                tension.valueFromNormalizedDouble(tension.valueToNormalized(value));
+            ok &= expectNear(roundTrip, value, 1e-7, "tension mapping round trip");
+        }
+        return ok;
+    }
+
+    bool testSelectionDirectionAndPartitions() {
+        using namespace CurveTransform;
+        bool ok = true;
+        auto first = curve(20, {100, 110, 120, 130});
+        auto second = curve(60, {200, 210, 220, 230});
+        const QList<DrawCurve *> originals{&first, &second};
+
+        Session session;
+        session.setSource(originals, {}, {});
+        session.beginSelection(0);
+        ok &= expect(session.finishSelection(100), "forward hole selection succeeds");
+        ok &= expect(session.bounds().componentStart == 20 && session.bounds().componentEnd == 35,
+                     "forward selection picks first component");
+
+        session.beginSelection(100);
+        ok &= expect(session.finishSelection(0), "reverse hole selection succeeds");
+        ok &= expect(session.bounds().componentStart == 60 && session.bounds().componentEnd == 75,
+                     "reverse selection picks first component in travel direction");
+
+        session.beginSelection(45);
+        ok &= expect(session.updateSelection(100), "selection preview finds right component");
+        ok &= expect(session.bounds().componentStart == 60, "right preview component");
+        ok &= expect(session.updateSelection(0), "direction reversal finds left component");
+        ok &= expect(session.bounds().componentStart == 20, "reversal recomputes first component");
+        ok &= expect(!session.updateSelection(44), "retreat to empty range hides preview");
+
+        auto continuous = curve(0, QList<int>(20, 500));
+        Config partitioned;
+        partitioned.partitions = {{0, 45}, {50, 95}};
+        session.setSource({&continuous}, {}, partitioned);
+        session.beginSelection(0);
+        ok &= expect(session.finishSelection(95), "partitioned selection succeeds");
+        ok &= expect(session.bounds().componentEnd == 45,
+                     "pitch partition boundary splits continuous source");
+        return ok;
+    }
+
+    bool testShouldersAndBoundaries() {
+        using namespace CurveTransform;
+        bool ok = true;
+        auto source = curve(0, QList<int>(161, 500));
+        Config config;
+        config.tickToMilliseconds = [](const int tick) { return static_cast<double>(tick); };
+        Session session;
+        session.setSource({&source}, {}, config);
+        session.beginSelection(200);
+        ok &= expect(session.finishSelection(600), "wide selection succeeds");
+        ok &= expect(session.bounds().c == 140 && session.bounds().d == 660,
+                     "default shoulders use 25 percent capped at 60 ms");
+        ok &= expect(session.setBoundary(Boundary::C, 0), "left shoulder can expand past default cap");
+        ok &= expect(session.setBoundary(Boundary::D, 800),
+                     "right shoulder can expand past default cap");
+        ok &= expect(session.bounds().c == 0 && session.bounds().d == 800,
+                     "expanded shoulders clamp to component");
+        session.setBoundary(Boundary::A, 900);
+        session.setBoundary(Boundary::B, -100);
+        ok &= expect(session.bounds().a + SampleStep == session.bounds().b,
+                     "target boundaries retain two samples");
+
+        auto shortSource = curve(0, QList<int>(5, 500));
+        session.setSource({&shortSource}, {}, config);
+        session.beginSelection(5);
+        ok &= expect(session.finishSelection(15), "short selection succeeds");
+        ok &= expect(session.bounds().c == session.bounds().a &&
+                         session.bounds().b == session.bounds().d,
+                     "small target permits zero-width default shoulders");
+        return ok;
+    }
+
+    bool testShapeAndScale() {
+        using namespace CurveTransform;
+        bool ok = true;
+        MouthOpeningParamProperties properties;
+        auto source = curve(0, {0, 250, 1000});
+
+        Session shape;
+        Config shapeConfig;
+        shapeConfig.kind = Kind::Shape;
+        shapeConfig.properties = &properties;
+        shape.setSource({&source}, {}, shapeConfig);
+        shape.beginSelection(0);
+        ok &= expect(shape.finishSelection(10), "shape selection succeeds");
+        ok &= expect(shape.beginTransform(), "shape transform starts");
+        ok &= expect(!shape.hasEffectiveChange(), "one hundred percent is a no-op");
+        shape.updateTransform(100.0);
+        auto preview = shape.buildEditedPreview();
+        ok &= expect(valueAt(preview, 5) == 500, "zero percent shape produces endpoint line");
+        ok &= expect(shape.hasEffectiveChange(), "shape reports rounded change");
+        qDeleteAll(preview);
+
+        shape.updateTransform(-100.0);
+        preview = shape.buildEditedPreview();
+        ok &= expect(valueAt(preview, 5) == 0, "two hundred percent doubles line residual");
+        qDeleteAll(preview);
+
+        auto scaleSource = curve(0, {500, 500, 500, 500, 500, 500, 500});
+        Session scale;
+        Config scaleConfig;
+        scaleConfig.kind = Kind::Scale;
+        scaleConfig.properties = &properties;
+        scale.setSource({&scaleSource}, {}, scaleConfig);
+        scale.beginSelection(10);
+        ok &= expect(scale.finishSelection(20), "scale selection succeeds");
+        scale.setBoundary(Boundary::C, 0);
+        scale.setBoundary(Boundary::D, 30);
+        ok &= expect(scale.beginTransform(), "scale transform starts");
+        scale.updateTransform(100.0);
+        preview = scale.buildEditedPreview();
+        ok &= expect(valueAt(preview, 0) == 500, "left shoulder outer edge is unchanged");
+        ok &= expect(valueAt(preview, 5) == 250, "left shoulder uses smooth midpoint weight");
+        ok &= expect(valueAt(preview, 15) == 0, "zero percent scale reaches visual lower bound");
+        qDeleteAll(preview);
+
+        scale.updateTransform(-100.0);
+        preview = scale.buildEditedPreview();
+        ok &= expect(valueAt(preview, 15) == 1000, "scale clamps at visual upper bound");
+        qDeleteAll(preview);
+        return ok;
+    }
+
+    bool testPitchAndEditedOnlySource() {
+        using namespace CurveTransform;
+        bool ok = true;
+        auto edited = curve(0, {6100, 6200, 6300});
+        Config config;
+        config.kind = Kind::PitchAmplitude;
+        config.pitchBaselineAtTick = [](int) { return std::optional<double>(6000.0); };
+        Session session;
+        session.setSource({}, {&edited}, config);
+        ok &= expect(session.hasSource(), "edited-only source supports transforms");
+        session.beginSelection(0);
+        ok &= expect(session.finishSelection(10), "pitch selection succeeds");
+        ok &= expect(session.beginTransform(), "pitch transform starts");
+        session.updateTransform(100.0);
+        auto preview = session.buildEditedPreview();
+        ok &= expect(valueAt(preview, 0) == 6000 && valueAt(preview, 10) == 6000,
+                     "zero percent pitch follows base pitch");
+        qDeleteAll(preview);
+        session.updateTransform(-100.0);
+        preview = session.buildEditedPreview();
+        ok &= expect(valueAt(preview, 5) == 6400, "two hundred percent pitch doubles deviation");
+        qDeleteAll(preview);
+
+        ok &= expect(ParamInfo::supportsCurveTransform(ParamInfo::Pitch),
+                     "pitch supports curve transforms");
+        ok &= expect(ParamInfo::supportsCurveTransform(ParamInfo::MouthOpening),
+                     "mouth opening supports curve transforms");
+        ok &= expect(!ParamInfo::supportsCurveTransform(ParamInfo::Gender),
+                     "offset parameter does not support transforms");
+        return ok;
+    }
+}
+
+int main(int argc, char *argv[]) {
+    QCoreApplication app(argc, argv);
+    bool ok = true;
+    ok &= testMappings();
+    ok &= testSelectionDirectionAndPartitions();
+    ok &= testShouldersAndBoundaries();
+    ok &= testShapeAndScale();
+    ok &= testPitchAndEditedOnlySource();
+    if (!ok)
+        return 1;
+    QTextStream(stdout) << "TestCurveTransform passed" << Qt::endl;
+    return 0;
+}
