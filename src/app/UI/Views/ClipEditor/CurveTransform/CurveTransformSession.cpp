@@ -103,12 +103,15 @@ namespace CurveTransform {
                             Config config) {
         clear();
         m_config = std::move(config);
-        copyNormalizedCurves(edited, m_editedSnapshot);
+        AppModelUtils::copyCurves(edited, m_editedSnapshot);
 
         QList<DrawCurve *> originalSnapshot;
+        QList<DrawCurve *> editedSourceSnapshot;
         copyNormalizedCurves(original, originalSnapshot);
-        const auto merged = AppModelUtils::mergeCurves(originalSnapshot, m_editedSnapshot);
+        copyNormalizedCurves(edited, editedSourceSnapshot);
+        const auto merged = AppModelUtils::mergeCurves(originalSnapshot, editedSourceSnapshot);
         qDeleteAll(originalSnapshot);
+        qDeleteAll(editedSourceSnapshot);
         int previousPartition = -1;
         for (const auto *curve : merged) {
             if (!curve || curve->isEmpty() || curve->step <= 0)
@@ -233,8 +236,15 @@ namespace CurveTransform {
             return result;
         }
         auto transformed = transformedCurve();
-        const QList<DrawCurve *> overlay{&transformed};
-        return AppModelUtils::mergeCurves(m_editedSnapshot, overlay);
+        QList<DrawCurve *> result;
+        AppModelUtils::copyCurves(m_editedSnapshot, result);
+        AppModelUtils::eraseDrawCurveRange(result, transformed.localStart(),
+                                           transformed.localEndTick());
+        result.append(new DrawCurve(transformed));
+        std::sort(result.begin(), result.end(), [](const auto *left, const auto *right) {
+            return left->localStart() < right->localStart();
+        });
+        return result;
     }
 
     bool Session::hasEffectiveChange() const {

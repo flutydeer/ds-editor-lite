@@ -8,6 +8,7 @@
 #include <QCoreApplication>
 #include <QTextStream>
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 
@@ -309,8 +310,9 @@ namespace {
         ok &= expect(session.beginTransform(), "non-sample-step transform starts");
         session.updateTransform(100.0);
         auto preview = session.buildEditedPreview();
-        ok &= expect(preview.size() == 1 && preview.first()->step == SampleStep,
-                     "edited snapshot is normalized before merging");
+        ok &= expect(std::all_of(preview.cbegin(), preview.cend(),
+                                 [](const auto *item) { return item->step == SampleStep; }),
+                     "coarse edited segments are normalized before replacement");
         ok &= expect(valueAt(preview, 0) == 100 && valueAt(preview, 5) == 150 &&
                          valueAt(preview, 10) == 200,
                      "normalization preserves the untouched prefix");
@@ -320,6 +322,41 @@ namespace {
         ok &= expect(valueAt(preview, 30) == 400 && valueAt(preview, 35) == 450 &&
                          valueAt(preview, 40) == 500 && valueAt(preview, 45) == 500,
                      "normalization preserves the untouched suffix");
+        qDeleteAll(preview);
+        return ok;
+    }
+
+    bool testFineEditedSamplesOutsideTransformArePreserved() {
+        using namespace CurveTransform;
+        bool ok = true;
+        MouthOpeningParamProperties properties;
+        QList<int> values(30, 100);
+        values[3] = 900;
+        values[23] = 800;
+        auto edited = curve(0, values);
+        edited.step = 1;
+
+        Config config;
+        config.kind = Kind::Scale;
+        config.properties = &properties;
+        Session session;
+        session.setSource({}, {&edited}, config);
+        session.beginSelection(10);
+        ok &= expect(session.finishSelection(15), "fine-step selection succeeds");
+        ok &= expect(session.beginTransform(), "fine-step transform starts");
+        session.updateTransform(100.0);
+        auto preview = session.buildEditedPreview();
+        ok &= expect(valueAt(preview, 3) == 900 && valueAt(preview, 23) == 800,
+                     "fine samples outside the transformed range are preserved");
+        ok &= expect(valueAt(preview, 10) == 0 && valueAt(preview, 15) == 0,
+                     "fine samples inside the transformed range are replaced");
+        ok &= expect(std::any_of(preview.cbegin(), preview.cend(), [](const auto *item) {
+                         return item->step == 1 && item->localStart() == 0;
+                     }) &&
+                         std::any_of(preview.cbegin(), preview.cend(), [](const auto *item) {
+                             return item->step == 1 && item->localStart() == 20;
+                         }),
+                     "untouched prefix and suffix retain their original resolution");
         qDeleteAll(preview);
         return ok;
     }
@@ -393,6 +430,7 @@ int main(int argc, char *argv[]) {
     ok &= testScaleMappingsAndSessionPhases();
     ok &= testPitchAndEditedOnlySource();
     ok &= testNonSampleStepEditedCurve();
+    ok &= testFineEditedSamplesOutsideTransformArePreserved();
     ok &= testBasePitchRestKeys();
     if (!ok)
         return 1;
