@@ -42,6 +42,19 @@ namespace AutomationWire {
             return JsonSchema::integer(0.0, std::numeric_limits<int>::max());
         }
 
+        QJsonObject modelIntegerSchema() {
+            return JsonSchema::integer(std::numeric_limits<int>::min(),
+                                       std::numeric_limits<int>::max());
+        }
+
+        QJsonObject nonNegativeModelIntegerSchema() {
+            return JsonSchema::integer(0.0, std::numeric_limits<int>::max());
+        }
+
+        QJsonObject positiveModelIntegerSchema() {
+            return JsonSchema::integer(1.0, std::numeric_limits<int>::max());
+        }
+
         QJsonObject revisionSchema() {
             return JsonSchema::integer(0.0, static_cast<double>(MaximumSafeJsonInteger));
         }
@@ -229,10 +242,10 @@ namespace AutomationWire {
                 {
                     {QStringLiteral("clip_id"),     identifierSchema()      },
                     {QStringLiteral("name"),        JsonSchema::string()    },
-                    {QStringLiteral("start"),       JsonSchema::integer(0.0)},
-                    {QStringLiteral("length"),      JsonSchema::integer(1.0)},
-                    {QStringLiteral("clip_start"),  JsonSchema::integer(0.0)},
-                    {QStringLiteral("clip_length"), JsonSchema::integer(1.0)},
+                    {QStringLiteral("start"),       nonNegativeModelIntegerSchema()},
+                    {QStringLiteral("length"),      positiveModelIntegerSchema()   },
+                    {QStringLiteral("clip_start"),  nonNegativeModelIntegerSchema()},
+                    {QStringLiteral("clip_length"), positiveModelIntegerSchema()   },
                     {QStringLiteral("gain"),        JsonSchema::number()    },
                     {QStringLiteral("mute"),        JsonSchema::boolean()   },
             },
@@ -246,14 +259,14 @@ namespace AutomationWire {
                 {
                     {QStringLiteral("symbol"),   nonEmptyStringSchema()},
                     {QStringLiteral("language"), JsonSchema::string()  },
-                    {QStringLiteral("offset"),   JsonSchema::integer() },
+                    {QStringLiteral("offset"),   modelIntegerSchema()  },
             },
                 {QStringLiteral("symbol")});
             return JsonSchema::object(
                 {
                     {QStringLiteral("client_ref"), JsonSchema::string()},
-                    {QStringLiteral("local_start"), JsonSchema::integer(0.0)},
-                    {QStringLiteral("length"), JsonSchema::integer(1.0)},
+                    {QStringLiteral("local_start"), nonNegativeModelIntegerSchema()},
+                    {QStringLiteral("length"), positiveModelIntegerSchema()},
                     {QStringLiteral("key_index"),
                      JsonSchema::integer(MinimumMidiKeyIndex, MaximumMidiKeyIndex)},
                     {QStringLiteral("cent_shift"),
@@ -276,7 +289,7 @@ namespace AutomationWire {
                 {
                     {QStringLiteral("symbol"),   nonEmptyStringSchema()},
                     {QStringLiteral("language"), JsonSchema::string()  },
-                    {QStringLiteral("offset"),   JsonSchema::integer() },
+                    {QStringLiteral("offset"),   modelIntegerSchema()  },
             },
                 {QStringLiteral("symbol")});
             auto result = JsonSchema::object(
@@ -300,17 +313,17 @@ namespace AutomationWire {
                 {
                     {QStringLiteral("type"),
                      domainConstant(PublicValueDomain::CurveType, QStringLiteral("draw"))},
-                    {QStringLiteral("local_start"), JsonSchema::integer()},
-                    {QStringLiteral("step"), JsonSchema::integer(1.0)},
+                    {QStringLiteral("local_start"), modelIntegerSchema()},
+                    {QStringLiteral("step"), positiveModelIntegerSchema()},
                     {QStringLiteral("values"),
-                     JsonSchema::array(JsonSchema::integer(), 1, MaximumCurveSampleItems)},
+                     JsonSchema::array(modelIntegerSchema(), 1, MaximumCurveSampleItems)},
             },
                 {QStringLiteral("type"), QStringLiteral("local_start"), QStringLiteral("step"),
                  QStringLiteral("values")});
             const auto anchorNode = JsonSchema::object(
                 {
-                    {QStringLiteral("position"),      JsonSchema::integer()},
-                    {QStringLiteral("value"),         JsonSchema::integer()},
+                    {QStringLiteral("position"),      modelIntegerSchema()  },
+                    {QStringLiteral("value"),         modelIntegerSchema()  },
                     {QStringLiteral("interpolation"), interpolationSchema()},
             },
                 {QStringLiteral("position"), QStringLiteral("value"),
@@ -335,8 +348,8 @@ namespace AutomationWire {
                 {
                     {QStringLiteral("client_ref"), JsonSchema::string()    },
                     {QStringLiteral("track_id"),   identifierSchema()      },
-                    {QStringLiteral("start"),      JsonSchema::integer(0.0)},
-                    {QStringLiteral("length"),     JsonSchema::integer(1.0)},
+                    {QStringLiteral("start"),      nonNegativeModelIntegerSchema()},
+                    {QStringLiteral("length"),     positiveModelIntegerSchema()   },
                     {QStringLiteral("name"),       JsonSchema::string()    },
             },
                 {QStringLiteral("track_id"), QStringLiteral("start")});
@@ -491,7 +504,7 @@ namespace AutomationWire {
             const auto createClip = JsonSchema::object(
                 {
                     {QStringLiteral("target_track_id"), identifierSchema()                                 },
-                    {QStringLiteral("start"),           JsonSchema::integer(0.0)                           },
+                    {QStringLiteral("start"),           nonNegativeModelIntegerSchema()                   },
                     {QStringLiteral("mode"),            JsonSchema::constant(QStringLiteral("create_clip"))},
             },
                 {QStringLiteral("target_track_id"), QStringLiteral("start"),
@@ -499,7 +512,7 @@ namespace AutomationWire {
             const auto mergeIntoClip = JsonSchema::object(
                 {
                     {QStringLiteral("target_track_id"), identifierSchema()      },
-                    {QStringLiteral("start"),           JsonSchema::integer(0.0)},
+                    {QStringLiteral("start"),           nonNegativeModelIntegerSchema()},
                     {QStringLiteral("mode"),
                      JsonSchema::constant(QStringLiteral("merge_into_clip"))    },
                     {QStringLiteral("target_clip_id"),  identifierSchema()      },
@@ -559,8 +572,7 @@ namespace AutomationWire {
                 name == QStringLiteral("delta_key") || name == QStringLiteral("local_start") ||
                 name == QStringLiteral("local_end") || name == QStringLiteral("local_position") ||
                 name == QStringLiteral("value")) {
-                return JsonSchema::integer(std::numeric_limits<int>::min(),
-                                           std::numeric_limits<int>::max());
+                return modelIntegerSchema();
             }
             if (name == QStringLiteral("start") || name == QStringLiteral("end") ||
                 name == QStringLiteral("position") || name == QStringLiteral("target_start")) {
@@ -570,7 +582,7 @@ namespace AutomationWire {
                 }
                 return id.startsWith(QStringLiteral("playback."))
                            ? JsonSchema::number(0.0)
-                           : JsonSchema::integer(0.0, std::numeric_limits<int>::max());
+                           : nonNegativeModelIntegerSchema();
             }
             if (name == QStringLiteral("step") || name == QStringLiteral("numerator") ||
                 name == QStringLiteral("denominator")) {
@@ -694,7 +706,7 @@ namespace AutomationWire {
             if (name == QStringLiteral("scope"))
                 return inferenceScopeSchema();
             if (name == QStringLiteral("values") || name == QStringLiteral("offsets")) {
-                return JsonSchema::array(JsonSchema::integer(), {}, MaximumCurveSampleItems);
+                return JsonSchema::array(modelIntegerSchema(), {}, MaximumCurveSampleItems);
             }
             if (name == QStringLiteral("names")) {
                 return JsonSchema::array(nonEmptyStringSchema(), 1, MaximumCommandCollectionItems);
@@ -706,8 +718,8 @@ namespace AutomationWire {
             if (name == QStringLiteral("range")) {
                 return JsonSchema::object(
                     {
-                        {QStringLiteral("start"), JsonSchema::integer(0.0)},
-                        {QStringLiteral("end"),   JsonSchema::integer(0.0)},
+                        {QStringLiteral("start"), nonNegativeModelIntegerSchema()},
+                        {QStringLiteral("end"),   nonNegativeModelIntegerSchema()},
                 },
                     {QStringLiteral("start"), QStringLiteral("end")});
             }
@@ -717,7 +729,7 @@ namespace AutomationWire {
                 return JsonSchema::object(
                     {
                         {QStringLiteral("target_track_id"), identifierSchema()      },
-                        {QStringLiteral("start"),           JsonSchema::integer(0.0)},
+                        {QStringLiteral("start"),           nonNegativeModelIntegerSchema()},
                 },
                     {QStringLiteral("target_track_id"), QStringLiteral("start")});
             }
@@ -729,7 +741,7 @@ namespace AutomationWire {
                         {
                             {QStringLiteral("clip_id"),         identifierSchema()      },
                             {QStringLiteral("target_track_id"), identifierSchema()      },
-                            {QStringLiteral("start"),           JsonSchema::integer(0.0)},
+                            {QStringLiteral("start"),           nonNegativeModelIntegerSchema()},
                     },
                         {QStringLiteral("clip_id"), QStringLiteral("target_track_id"),
                          QStringLiteral("start")});
@@ -737,15 +749,15 @@ namespace AutomationWire {
                     item = JsonSchema::object(
                         {
                             {QStringLiteral("keyframe_id"), identifierSchema()      },
-                            {QStringLiteral("position"),    JsonSchema::integer(0.0)},
+                            {QStringLiteral("position"),    nonNegativeModelIntegerSchema()},
                     },
                         {QStringLiteral("keyframe_id"), QStringLiteral("position")});
                 } else {
                     item = JsonSchema::object(
                         {
                             {QStringLiteral("anchor_id"), identifierSchema()   },
-                            {QStringLiteral("position"),  JsonSchema::integer()},
-                            {QStringLiteral("value"),     JsonSchema::integer()},
+                            {QStringLiteral("position"),  modelIntegerSchema()},
+                            {QStringLiteral("value"),     modelIntegerSchema()},
                     },
                         {QStringLiteral("anchor_id"), QStringLiteral("position"),
                          QStringLiteral("value")});
@@ -755,8 +767,8 @@ namespace AutomationWire {
             if (name == QStringLiteral("anchors")) {
                 const auto anchor = JsonSchema::object(
                     {
-                        {QStringLiteral("position"),      JsonSchema::integer()},
-                        {QStringLiteral("value"),         JsonSchema::integer()},
+                        {QStringLiteral("position"),      modelIntegerSchema()  },
+                        {QStringLiteral("value"),         modelIntegerSchema()  },
                         {QStringLiteral("interpolation"), interpolationSchema()},
                 },
                     {QStringLiteral("position"), QStringLiteral("value")});
@@ -769,7 +781,7 @@ namespace AutomationWire {
                     const auto item = JsonSchema::object(
                         {
                             {QStringLiteral("track_id"), identifierSchema()      },
-                            {QStringLiteral("start"),    JsonSchema::integer(0.0)},
+                            {QStringLiteral("start"),    nonNegativeModelIntegerSchema()},
                             {QStringLiteral("path"),     nonEmptyStringSchema()  },
                             {QStringLiteral("name"),     JsonSchema::string()    },
                             {QStringLiteral("gain"),     JsonSchema::number()    },
@@ -2511,7 +2523,7 @@ namespace AutomationWire {
                          JsonSchema::array(nonEmptyStringSchema(), 1,
                          MaximumCommandCollectionItems)},
                         {QStringLiteral("enabled"), JsonSchema::boolean()},
-                        {QStringLiteral("position"), JsonSchema::integer(0.0)},
+                        {QStringLiteral("position"), nonNegativeModelIntegerSchema()},
                         {QStringLiteral("validate_only"), JsonSchema::boolean()},
                 },
                     {QStringLiteral("kind"), QStringLiteral("name"), QStringLiteral("regexes")});
@@ -2524,7 +2536,7 @@ namespace AutomationWire {
                     {QStringLiteral("entries"),
                      JsonSchema::array(taggerEntrySchema(), 1, MaximumCommandCollectionItems)},
                     {QStringLiteral("enabled"), JsonSchema::boolean()},
-                    {QStringLiteral("position"), JsonSchema::integer(0.0)},
+                    {QStringLiteral("position"), nonNegativeModelIntegerSchema()},
                     {QStringLiteral("validate_only"), JsonSchema::boolean()},
             },
                 {QStringLiteral("kind"), QStringLiteral("name"), QStringLiteral("language"),
@@ -2772,8 +2784,8 @@ namespace AutomationWire {
                 return l3ApplicationValidatableUpdateInput({
                     {QStringLiteral("driver_name"), nonEmptyStringSchema()},
                     {QStringLiteral("device_name"), JsonSchema::string()},
-                    {QStringLiteral("buffer_size"), JsonSchema::integer(0.0)},
-                    {QStringLiteral("sample_rate"), JsonSchema::integer(0.0)},
+                    {QStringLiteral("buffer_size"), nonNegativeModelIntegerSchema()},
+                    {QStringLiteral("sample_rate"), nonNegativeModelIntegerSchema()},
                     {QStringLiteral("hot_plug_notification_mode"), JsonSchema::integer(0.0, 2.0)},
                     {QStringLiteral("gain"), JsonSchema::number(0.0, MaximumAudioDeviceGain)},
                     {QStringLiteral("pan"), JsonSchema::number(MinimumPan, MaximumPan)},
@@ -2789,7 +2801,8 @@ namespace AutomationWire {
                     {QStringLiteral("execution_provider"),
                      JsonSchema::string({QStringLiteral("CPU"), QStringLiteral("DirectML"),
                                          QStringLiteral("CUDA")})                                },
-                    {QStringLiteral("gpu_index"),          JsonSchema::integer(-1.0)             },
+                    {QStringLiteral("gpu_index"),
+                     JsonSchema::integer(-1.0, std::numeric_limits<int>::max())                   },
                     {QStringLiteral("gpu_id"),             nullableSchema(nonEmptyStringSchema())},
                 });
             }
@@ -2800,7 +2813,8 @@ namespace AutomationWire {
                     {QStringLiteral("run_vocoder_on_cpu"), JsonSchema::boolean()},
                     {QStringLiteral("auto_start_inference"), JsonSchema::boolean()},
                     {QStringLiteral("playback_lookahead_seconds"), JsonSchema::number(0.000001)},
-                    {QStringLiteral("pitch_smooth_kernel_size"), JsonSchema::integer(0.0)},
+                    {QStringLiteral("pitch_smooth_kernel_size"),
+                     nonNegativeModelIntegerSchema()},
                 });
             }
             if (id == PublicToolNames::settings_singer_session_retention_update) {
@@ -2890,7 +2904,7 @@ namespace AutomationWire {
                 return JsonSchema::document(JsonSchema::object(
                     {
                         {QStringLiteral("rule_id"),  nonEmptyStringSchema()  },
-                        {QStringLiteral("position"), JsonSchema::integer(0.0)},
+                        {QStringLiteral("position"), nonNegativeModelIntegerSchema()},
                 },
                     {QStringLiteral("rule_id"), QStringLiteral("position")}));
             }

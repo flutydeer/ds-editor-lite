@@ -8,6 +8,7 @@
 #include <QTextStream>
 
 #include <algorithm>
+#include <limits>
 #include <string>
 
 namespace {
@@ -703,11 +704,12 @@ namespace {
     void verifyConditionalCapabilityContracts() {
         const auto *audioPreview = findPublicTool(QStringLiteral("exports.audio.preview"));
         const auto *midiExtraction = findPublicTool(QStringLiteral("extract.midi.start"));
+        const auto *clipMove = findPublicTool(QStringLiteral("clips.move"));
         const auto *fillLyrics = findPublicTool(QStringLiteral("notes.fill_lyrics"));
         const auto *audioGet = findPublicTool(QStringLiteral("audio_clips.get"));
-        expect(audioPreview && midiExtraction && fillLyrics && audioGet,
+        expect(audioPreview && midiExtraction && clipMove && fillLyrics && audioGet,
                QStringLiteral("conditional capability contracts must exist"));
-        if (!audioPreview || !midiExtraction || !fillLyrics || !audioGet)
+        if (!audioPreview || !midiExtraction || !clipMove || !fillLyrics || !audioGet)
             return;
 
         const auto audioOptions =
@@ -727,6 +729,47 @@ namespace {
             propertySchema(midiExtraction->inputSchema, QStringLiteral("destination"));
         expect(destination.value(QStringLiteral("oneOf")).toArray().size() == 2,
                QStringLiteral("MIDI extraction destination must be discriminated by mode"));
+
+        const auto maximumModelInteger = std::numeric_limits<int>::max();
+        const auto overflowingModelInteger = static_cast<qint64>(maximumModelInteger) + 1;
+        auto validMove = commandContext();
+        validMove.insert(
+            QStringLiteral("moves"),
+            QJsonArray{QJsonObject{
+                {QStringLiteral("clip_id"), 1},
+                {QStringLiteral("target_track_id"), 1},
+                {QStringLiteral("start"), maximumModelInteger},
+            }});
+        auto overflowingMove = validMove;
+        auto overflowingMoveItem = overflowingMove.value(QStringLiteral("moves"))
+                                       .toArray()
+                                       .first()
+                                       .toObject();
+        overflowingMoveItem.insert(QStringLiteral("start"), overflowingModelInteger);
+        overflowingMove.insert(QStringLiteral("moves"), QJsonArray{overflowingMoveItem});
+
+        auto validExtraction = commandContext();
+        validExtraction.insert(QStringLiteral("source_audio_clip_id"), 1);
+        validExtraction.insert(
+            QStringLiteral("destination"),
+            QJsonObject{
+                {QStringLiteral("target_track_id"), 1},
+                {QStringLiteral("start"), maximumModelInteger},
+                {QStringLiteral("mode"), QStringLiteral("merge_into_clip")},
+                {QStringLiteral("target_clip_id"), 2},
+            });
+        validExtraction.insert(QStringLiteral("options"), QJsonObject{});
+        auto overflowingExtraction = validExtraction;
+        auto overflowingDestination =
+            overflowingExtraction.value(QStringLiteral("destination")).toObject();
+        overflowingDestination.insert(QStringLiteral("start"), overflowingModelInteger);
+        overflowingExtraction.insert(QStringLiteral("destination"), overflowingDestination);
+        expect(validateJsonValue(validMove, clipMove->inputSchema).valid() &&
+                   !validateJsonValue(overflowingMove, clipMove->inputSchema).valid() &&
+                   validateJsonValue(validExtraction, midiExtraction->inputSchema).valid() &&
+                   !validateJsonValue(overflowingExtraction, midiExtraction->inputSchema).valid(),
+               QStringLiteral("nested model positions must reject values outside the C++ integer "
+                              "range"));
 
         bool hasFillLanguageSource = false;
         for (const auto &value : fillLyrics->valueSources) {

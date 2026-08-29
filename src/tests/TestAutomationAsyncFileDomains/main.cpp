@@ -1003,6 +1003,39 @@ namespace {
                                        harness.model().tracks().size() == tracksBefore + 1,
                                    QStringLiteral("MIDI extraction must atomically add one track"));
 
+                      Automation::MidiExtractionOptionsDto overflowingMerge;
+                      overflowingMerge.destinationMode = QStringLiteral("merge_into_clip");
+                      overflowingMerge.targetTrackId = harness.trackId();
+                      overflowingMerge.targetClipId = harness.singingClipId();
+                      overflowingMerge.targetStart = std::numeric_limits<int>::max();
+                      const auto mergeBase = runtime.documentVersion();
+                      const auto mergeAccepted = runtime.extractions().startMidi(
+                          harness.context(), harness.audioClipId(), overflowingMerge);
+                      const auto mergeState = harness.midiStates.last();
+                      const auto mergeRan = harness.extractionScheduler.runNext();
+                      mergeState->complete({
+                          .state = Automation::ExtractionBackendState::Succeeded,
+                          .notes = {{.keyIndex = 62, .localStart = 1, .length = 240}},
+                      });
+                      const auto mergeTerminal =
+                          mergeAccepted
+                              ? runtime.tasks().getTask(mergeBase.documentId,
+                                                        mergeAccepted.get().taskId)
+                              : Automation::AutomationResult<Automation::AutomationTaskSnapshot>(
+                                    Automation::AutomationError{});
+                      suite.expect(
+                          mergeAccepted && mergeRan && mergeTerminal &&
+                              mergeTerminal.get().state ==
+                                  Automation::AutomationTaskState::Failed &&
+                              mergeTerminal.get().error &&
+                              mergeTerminal.get().error->code ==
+                                  Automation::AutomationErrorCode::InvalidArgument &&
+                              mergeTerminal.get().error->fieldPath ==
+                                  QStringLiteral("destination.start") &&
+                              runtime.documentVersion() == mergeBase,
+                          QStringLiteral("MIDI merge must reject translated note ranges that exceed "
+                                         "the model tick type"));
+
                       const auto failedAccepted =
                           runtime.extractions().startMidi(harness.context(), harness.audioClipId());
                       const auto failedState = harness.midiStates.last();

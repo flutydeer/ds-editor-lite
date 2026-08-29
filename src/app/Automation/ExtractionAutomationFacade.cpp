@@ -72,9 +72,17 @@ namespace Automation {
             curves.reserve(segments.size());
             for (qsizetype segmentIndex = 0; segmentIndex < segments.size(); ++segmentIndex) {
                 const auto &segment = segments.at(segmentIndex);
+                const auto localStart = static_cast<qint64>(segment.globalStartTick) -
+                                        input.singingClipStartTick;
+                if (localStart < std::numeric_limits<int>::min() ||
+                    localStart > std::numeric_limits<int>::max()) {
+                    return AutomationError::invalidArgument(
+                        QStringLiteral("result.segments[%1].global_start_tick").arg(segmentIndex),
+                        QStringLiteral("Pitch extraction returned an out-of-range position"));
+                }
                 CurveDraftDto curve;
                 curve.type = CurveDraftDto::Type::Draw;
-                curve.localStart = segment.globalStartTick - input.singingClipStartTick;
+                curve.localStart = static_cast<int>(localStart);
                 curve.values.reserve(segment.values.size());
                 for (const auto value : segment.values) {
                     const auto scaled = value * 100.0;
@@ -574,9 +582,28 @@ namespace Automation {
                 notifyFinished(taskId, baseDocument.documentId, observer);
                 return;
             }
-            const auto offset = input.targetStart - targetClipStart;
-            for (auto &note : extractedNotes)
-                note.localStart += offset;
+            const auto offset = static_cast<qint64>(input.targetStart) - targetClipStart;
+            QList<int> translatedStarts;
+            translatedStarts.reserve(extractedNotes.size());
+            for (const auto &note : extractedNotes) {
+                const auto translatedStart = static_cast<qint64>(note.localStart) + offset;
+                const auto translatedEnd = translatedStart + note.length;
+                if (translatedStart < 0 ||
+                    translatedStart > std::numeric_limits<int>::max() ||
+                    translatedEnd > std::numeric_limits<int>::max()) {
+                    m_tasks.fail(
+                        taskId,
+                        taskError(AutomationError::invalidArgument(
+                                      QStringLiteral("destination.start"),
+                                      QStringLiteral("Translated extracted note range is out of bounds")),
+                                  taskId, OperationIds::extract::midi::start));
+                    notifyFinished(taskId, baseDocument.documentId, observer);
+                    return;
+                }
+                translatedStarts.append(static_cast<int>(translatedStart));
+            }
+            for (qsizetype index = 0; index < extractedNotes.size(); ++index)
+                extractedNotes[index].localStart = translatedStarts.at(index);
         }
 
         const auto apply = [&](const CommandContext &context) -> AutomationResult<MutationResult> {
