@@ -166,14 +166,14 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_btnPitchPencil =
         d->buildToolButton("btnPitchPencil", ":svg/icons/pitch_edit_24_filled.svg",
                            tr("Draw Pitch"), Qt::Key_G, pitchPencilDesc);
+    d->m_btnScalePitch = d->buildToolButton(
+        "btnScalePitch", ":svg/icons/more_horizontal_24_regular.svg", tr("Scale Pitch"));
     d->m_btnPitchEraser = d->buildToolButton(
         "btnPitchEraser", ":svg/icons/pitch_erase_24_filled.svg", tr("Erase Pitch"), Qt::Key_H);
     const auto bakePitchDesc =
         tr("Bake automatic pitch inference results into the edited pitch curve");
     d->m_btnPitchBake = d->buildToolButton("btnPitchBake", ":svg/icons/pitch_brush.svg",
                                            tr("Bake Pitch"), Qt::Key_J, bakePitchDesc);
-    d->m_btnScalePitch = d->buildToolButton(
-        "btnScalePitch", ":svg/icons/pitch_vibrato_24_filled.svg", tr("Scale Pitch"));
 
     d->m_btnAutoPageTurn = d->buildToolButton(
         "btnAutoPageTurn", ":svg/icons/arrow_right_16_regular.svg", tr("Auto Page Turn"));
@@ -202,9 +202,9 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_toolButtonGroup->addButton(d->m_btnNoteSplit);
     d->m_toolButtonGroup->addButton(d->m_btnPitchAnchor);
     d->m_toolButtonGroup->addButton(d->m_btnPitchPencil);
+    d->m_toolButtonGroup->addButton(d->m_btnScalePitch);
     d->m_toolButtonGroup->addButton(d->m_btnPitchEraser);
     d->m_toolButtonGroup->addButton(d->m_btnPitchBake);
-    d->m_toolButtonGroup->addButton(d->m_btnScalePitch);
     connect(d->m_toolButtonGroup, &QButtonGroup::buttonToggled, d,
             &ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled);
 
@@ -226,9 +226,9 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     toolButtonLayout->addWidget(d->m_btnNoteSplit);
     toolButtonLayout->addWidget(d->m_btnPitchAnchor);
     toolButtonLayout->addWidget(d->m_btnPitchPencil);
+    toolButtonLayout->addWidget(d->m_btnScalePitch);
     toolButtonLayout->addWidget(d->m_btnPitchEraser);
     toolButtonLayout->addWidget(d->m_btnPitchBake);
-    toolButtonLayout->addWidget(d->m_btnScalePitch);
     toolButtonLayout->setSpacing(1);
     toolButtonLayout->setContentsMargins({});
 

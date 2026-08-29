@@ -26,9 +26,9 @@ private:
     void retranslateUi();
 
     Button *m_btnDraw = nullptr;
-    Button *m_btnErase = nullptr;
     Button *m_btnShape = nullptr;
     Button *m_btnScale = nullptr;
+    Button *m_btnErase = nullptr;
     Button *m_btnBake = nullptr;
     Button *m_btnAnchor = nullptr;
     QButtonGroup *m_editModeGroup = nullptr;

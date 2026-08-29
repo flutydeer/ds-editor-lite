@@ -78,9 +78,9 @@ public:
     Button *m_btnNoteSplit = nullptr;
     Button *m_btnPitchPencil = nullptr;
     Button *m_btnPitchAnchor = nullptr;
+    Button *m_btnScalePitch = nullptr;
     Button *m_btnPitchEraser = nullptr;
     Button *m_btnPitchBake = nullptr;
-    Button *m_btnScalePitch = nullptr;
 
     TwoLevelComboBox *m_cbSinger = nullptr;
     LanguageComboBox *m_cbClipLanguage = nullptr;
