@@ -118,8 +118,9 @@ namespace Automation {
         }
 
         bool validNoteDraft(const NoteDraftDto &note) {
+            const auto end = static_cast<qint64>(note.localStart) + note.length;
             return note.localStart >= 0 && note.length > 0 && note.keyIndex >= 0 &&
-                   note.keyIndex <= 127;
+                   note.keyIndex <= 127 && end <= std::numeric_limits<int>::max();
         }
 
         bool wordPropertiesEqual(const Note::WordProperties &left,

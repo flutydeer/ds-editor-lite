@@ -17,6 +17,7 @@
 #include <memory>
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <vector>
 
 namespace Automation {
@@ -370,6 +371,14 @@ namespace Automation {
                             QStringLiteral("curves.step"),
                             QStringLiteral("Curve step must be positive")));
                     }
+                    if (curve.type == CurveDraftDto::Type::Draw &&
+                        static_cast<qint64>(curve.localStart) +
+                                static_cast<qint64>(curve.step) * curve.values.size() >
+                            std::numeric_limits<int>::max()) {
+                        return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                            QStringLiteral("curves.values"),
+                            QStringLiteral("Draw curve range exceeds the supported timeline")));
+                    }
                 }
                 if (!validCurveValues(name, curves)) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
@@ -554,7 +563,14 @@ namespace Automation {
                         QStringLiteral("Draw curves require a non-negative start, positive step, "
                                        "and at least two values"));
                 }
-                const int localEnd = localStart + step * values.size();
+                const auto computedEnd = static_cast<qint64>(localStart) +
+                                         static_cast<qint64>(step) * values.size();
+                if (computedEnd > std::numeric_limits<int>::max()) {
+                    return AutomationError::invalidArgument(
+                        QStringLiteral("values"),
+                        QStringLiteral("Draw curve range exceeds the supported timeline"));
+                }
+                const auto localEnd = static_cast<int>(computedEnd);
                 QList<DrawCurve *> existing;
                 for (const auto &draft : curves) {
                     if (draft.type == CurveDraftDto::Type::Draw)

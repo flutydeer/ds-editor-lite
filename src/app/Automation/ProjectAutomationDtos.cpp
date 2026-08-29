@@ -746,8 +746,9 @@ namespace Automation {
             return validateUniqueClientRefs(clientRefs);
         }
         for (const auto &note : draft.notes) {
+            const auto noteEnd = static_cast<qint64>(note.localStart) + note.length;
             if (note.localStart < 0 || note.length <= 0 || note.keyIndex < 0 ||
-                note.keyIndex > 127) {
+                note.keyIndex > 127 || noteEnd > std::numeric_limits<int>::max()) {
                 return AutomationError::invalidArgument(
                     QStringLiteral("clip.notes"),
                     QStringLiteral("Note geometry or key is invalid"));
@@ -762,10 +763,19 @@ namespace Automation {
                     QStringLiteral("Parameter name or type is unsupported"));
             }
             for (const auto &curve : parameter.curves) {
-                if (curve.type == CurveDraftDto::Type::Draw && curve.step <= 0) {
-                    return AutomationError::invalidArgument(
-                        QStringLiteral("clip.parameters.curves.step"),
-                        QStringLiteral("Curve step must be positive"));
+                if (curve.type == CurveDraftDto::Type::Draw) {
+                    if (curve.step <= 0) {
+                        return AutomationError::invalidArgument(
+                            QStringLiteral("clip.parameters.curves.step"),
+                            QStringLiteral("Curve step must be positive"));
+                    }
+                    const auto curveEnd = static_cast<qint64>(curve.localStart) +
+                                          static_cast<qint64>(curve.step) * curve.values.size();
+                    if (curveEnd > std::numeric_limits<int>::max()) {
+                        return AutomationError::invalidArgument(
+                            QStringLiteral("clip.parameters.curves.values"),
+                            QStringLiteral("Draw curve range exceeds the supported timeline"));
+                    }
                 }
             }
         }

@@ -452,6 +452,33 @@ namespace {
                 suite.expect(isError(localOverflow, AutomationErrorCode::InvalidArgument,
                                      QStringLiteral("clip.properties")),
                              QStringLiteral("clip-local end must fit the model tick type"));
+                auto noteOverflowDraft = singingClipDraft(QStringLiteral("Note Overflow"));
+                noteOverflowDraft.notes.append(
+                    noteDraft(std::numeric_limits<int>::max() - 1, 2, 60, QStringLiteral("bad")));
+                const auto noteOverflow = runtime.project().insertClips(
+                    commandContext(runtime), {
+                                                 {.trackId = second, .clip = noteOverflowDraft}
+                });
+                Automation::CurveDraftDto overflowCurve;
+                overflowCurve.localStart = std::numeric_limits<int>::max() - 1;
+                overflowCurve.step = 2;
+                overflowCurve.values = {6000, 6010};
+                Automation::ParamCurvesDraftDto overflowParameter;
+                overflowParameter.name = ParamInfo::Pitch;
+                overflowParameter.type = Param::Edited;
+                overflowParameter.curves = {overflowCurve};
+                auto curveOverflowDraft = singingClipDraft(QStringLiteral("Curve Overflow"));
+                curveOverflowDraft.params = {overflowParameter};
+                const auto curveOverflow = runtime.project().insertClips(
+                    commandContext(runtime), {
+                                                 {.trackId = second, .clip = curveOverflowDraft}
+                });
+                suite.expect(isError(noteOverflow, AutomationErrorCode::InvalidArgument,
+                                     QStringLiteral("clip.notes")) &&
+                                 isError(curveOverflow, AutomationErrorCode::InvalidArgument,
+                                         QStringLiteral("clip.parameters.curves.values")),
+                             QStringLiteral("nested note and draw ranges must fit the model tick "
+                                            "type"));
                 const auto draft =
                     singingClipDraft(QStringLiteral("歌声 Clip"), QStringLiteral("clip-main"));
                 const auto preview = runtime.project().insertClips(
@@ -921,9 +948,15 @@ namespace {
                 const auto invalid =
                     runtime.notes().insertNotes(commandContext(runtime), fixture.clipId,
                                                 {noteDraft(1000, 0, 60, QStringLiteral("bad"))});
+                const auto overflow = runtime.notes().insertNotes(
+                    commandContext(runtime), fixture.clipId,
+                    {noteDraft(std::numeric_limits<int>::max() - 1, 2, 60,
+                               QStringLiteral("bad"))});
                 suite.expect(
-                    isError(invalid, AutomationErrorCode::InvalidArgument, QStringLiteral("notes")),
-                    QStringLiteral("zero-length note must be rejected"));
+                    isError(invalid, AutomationErrorCode::InvalidArgument, QStringLiteral("notes")) &&
+                        isError(overflow, AutomationErrorCode::InvalidArgument,
+                                QStringLiteral("notes")),
+                    QStringLiteral("zero-length and overflowing notes must be rejected"));
                 const auto candidate =
                     noteDraft(1200, 240, 67, QStringLiteral("so"), QStringLiteral("note-c"));
                 const auto preview = runtime.notes().insertNotes(commandContext(runtime, true),
@@ -1418,9 +1451,30 @@ namespace {
                 const auto invalidStep = runtime.parameters().replaceParameter(
                     commandContext(runtime, true), clipId, ParamInfo::Pitch, Param::Edited,
                     {invalid});
-                suite.expect(isError(invalidStep, AutomationErrorCode::InvalidArgument),
-                             QStringLiteral("draw curve step must be positive"));
+                auto overflow = draw;
+                overflow.localStart = std::numeric_limits<int>::max() - 1;
+                overflow.step = 2;
+                overflow.values = {6000, 6010};
+                const auto invalidRange = runtime.parameters().replaceParameter(
+                    commandContext(runtime, true), clipId, ParamInfo::Pitch, Param::Edited,
+                    {overflow});
+                suite.expect(isError(invalidStep, AutomationErrorCode::InvalidArgument) &&
+                                 isError(invalidRange, AutomationErrorCode::InvalidArgument,
+                                         QStringLiteral("curves.values")),
+                             QStringLiteral("draw curve step and range must be valid"));
             });
+
+        suite.run(Automation::OperationIds::parameters::draw, QStringLiteral("overflow-rejected"),
+                  [&] {
+                      const auto base = runtime.documentVersion();
+                      const auto overflow = runtime.parameters().drawParameter(
+                          commandContext(runtime), clipId, ParamInfo::Pitch, Param::Edited,
+                          std::numeric_limits<int>::max() - 1, 2, {6000, 6010}, false);
+                      suite.expect(isError(overflow, AutomationErrorCode::InvalidArgument,
+                                           QStringLiteral("values")) &&
+                                       runtime.documentVersion() == base,
+                                   QStringLiteral("draw range overflow must fail without mutation"));
+                  });
 
         const auto speakerA = speaker(QStringLiteral("speaker-a"));
         const auto speakerB = speaker(QStringLiteral("speaker-b"));
