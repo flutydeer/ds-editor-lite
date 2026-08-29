@@ -165,6 +165,7 @@ namespace Audio {
 
     signals:
         void progressChanged(double progressRatio, int sourceIndex);
+        void inferenceProgressChanged(double progressRatio);
         void clippingDetected(int sourceIndex);
         void warningAdded(const QString &message, int sourceIndex);
 

@@ -43,6 +43,10 @@ public:
     [[nodiscard]] ExportInferenceStatus exportInferenceStatus() const;
     [[nodiscard]] ExportInferenceStatus exportInferenceStatus(const QList<Track *> &tracks) const;
 
+    // Ratio of succeeded singing pieces among all pieces of the given tracks, used to
+    // show inference progress while an export waits for pending pieces to render.
+    [[nodiscard]] double exportInferenceProgress(const QList<Track *> &tracks) const;
+
     Track *getTrackFromContext(const talcs::DspxTrackContext *trackContext) const;
     AudioClip *getAudioClipFromContext(const talcs::DspxAudioClipContext *audioClipContext) const;
 

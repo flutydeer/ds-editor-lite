@@ -685,42 +685,42 @@
         <translation>音频导出运行时不可用</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="703"/>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="706"/>
         <source>Audio export failed</source>
         <translation>音频导出失败</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="749"/>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="752"/>
         <source>Cannot open file for writing: %1</source>
         <translation>无法打开文件写入：%1</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="758"/>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="761"/>
         <source>Format not supported: %1</source>
         <translation>不支持的格式：%1</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="808"/>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="811"/>
         <source>Cannot reopen audio after exported</source>
         <translation>导出后无法重新打开音频</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="814"/>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="817"/>
         <source>Cannot start audio exporting</source>
         <translation>无法开始音频导出</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="848"/>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="851"/>
         <source>Internal Error</source>
         <translation>内部错误</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="859"/>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="862"/>
         <source>Cannot rename temporary files to target files</source>
         <translation>无法将临时文件重命名为目标文件</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioExporter.cpp" line="915"/>
+        <location filename="../../Modules/Audio/AudioExporter.cpp" line="918"/>
         <source>Unknown error</source>
         <translation>未知错误</translation>
     </message>
@@ -1021,7 +1021,7 @@
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="526"/>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="706"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="713"/>
         <source>Warnings</source>
         <translation>警告</translation>
     </message>
@@ -1052,39 +1052,44 @@
         <translation>导出中...</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="711"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="702"/>
+        <source>Inferring...</source>
+        <translation>正在推理...</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="718"/>
         <source>Clipping is detected</source>
         <translation>检测到削波</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="713"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="720"/>
         <source>Clipping is detected in track %L1 &quot;%2&quot;</source>
         <translation>轨道 %L1“%2”中检测到削波</translation>
     </message>
     <message numerus="yes">
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="721"/>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="734"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="728"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="741"/>
         <source>%Ln warning(s)</source>
         <translation>
             <numerusform>%Ln 个警告</numerusform>
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="786"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="793"/>
         <source>Export finished with %Ln warning(s)</source>
         <translation>
             <numerusform>导出完成，但有 %Ln 个警告</numerusform>
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="791"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="798"/>
         <source>Export aborted with %Ln warning(s)</source>
         <translation>
             <numerusform>导出已中止，有 %Ln 个警告</numerusform>
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="797"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="804"/>
         <source>Export failed with %Ln warning(s)
 %1</source>
         <translation>
@@ -1093,29 +1098,29 @@
         </translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="782"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="789"/>
         <source>Close</source>
         <translation>关闭</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="811"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="818"/>
         <source>Export aborted</source>
         <translation>导出已中止</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="817"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="824"/>
         <source>Export failed
 %1</source>
         <translation>导出失败
 %1</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="852"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="859"/>
         <source>Continue to export?</source>
         <translation>继续导出？</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="857"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="864"/>
         <source>Don&apos;t ask again</source>
         <translation>不再询问</translation>
     </message>
@@ -1150,13 +1155,13 @@
 <context>
     <name>AudioContext</name>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="274"/>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="661"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="313"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="688"/>
         <source>Inference failed</source>
         <translation>推理失败</translation>
     </message>
     <message>
-        <location filename="../../Modules/Audio/AudioContext.cpp" line="318"/>
+        <location filename="../../Modules/Audio/AudioContext.cpp" line="357"/>
         <source>Cannot open audio device!</source>
         <translation>无法打开音频设备！</translation>
     </message>
@@ -4053,104 +4058,104 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="439"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="440"/>
         <source>DiffScope Project File (*.dspx)</source>
         <translation>DiffScope 工程文件 (*.dspx)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="409"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="410"/>
         <source>Warning</source>
         <translation>警告</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="116"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="117"/>
         <source>Failed to reload theme</source>
         <translation>重新加载主题失败</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="118"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="119"/>
         <source>Theme reloaded</source>
         <translation>主题已重新加载</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="223"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="224"/>
         <source>Press Undo again to apply</source>
         <translation>再次按下撤销以应用</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="224"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="225"/>
         <source>Press Redo again to apply</source>
         <translation>再次按下重做以应用</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="410"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="411"/>
         <source>Do you want to save changes?</source>
         <translation>要保存更改吗？</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="413"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="414"/>
         <source>Save</source>
         <translation>保存</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="420"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="421"/>
         <source>Don&apos;t save</source>
         <translation>不保存</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="427"/>
-        <location filename="../../UI/Window/MainWindow.cpp" line="447"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="428"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="448"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="453"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="454"/>
         <source>Error</source>
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="456"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="457"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="837"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="838"/>
         <source>You have unsaved changes, please save first</source>
         <translation>你有未保存的更改，请先保存</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="438"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="439"/>
         <source>Save project</source>
         <translation>保存工程</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="443"/>
-        <location filename="../../UI/Window/MainWindow.cpp" line="445"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="444"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="446"/>
         <source>Package scan failed</source>
         <translation>包扫描失败</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="444"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="445"/>
         <source>Singer package metadata is not available. Open the project anyway?</source>
         <translation>歌手包元数据不可用。是否仍然打开工程？</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="446"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="447"/>
         <source>Open Anyway</source>
         <translation>仍然打开</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="461"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="462"/>
         <source>Another document operation is already in progress</source>
         <translation>另一个文档操作正在进行中</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="790"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="791"/>
         <source>%1 is exiting...</source>
         <translation>%1 正在退出...</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="791"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="792"/>
         <source>Terminating background tasks...</source>
         <translation>正在停止后台任务...</translation>
     </message>
@@ -6085,14 +6090,14 @@ All current mix settings will be lost.</source>
 <context>
     <name>TrackEditorView</name>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="96"/>
-        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="442"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="97"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="444"/>
         <source>Tempo</source>
         <translation>曲速</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="107"/>
-        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="443"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="108"/>
+        <location filename="../../UI/Views/TrackEditor/TrackEditorView.cpp" line="445"/>
         <source>Time Signature</source>
         <translation>拍号</translation>
     </message>

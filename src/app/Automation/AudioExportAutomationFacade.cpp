@@ -441,7 +441,46 @@ namespace Automation {
             }
         }
 
-        const auto readiness = job->waitUntilReady();
+        QStringList warnings;
+        AudioExportObserver taskObserver;
+        taskObserver.progress = [this, taskId, callback = std::move(observer.progress)](
+                                    const double progress, const int sourceIndex) {
+            m_tasks.updateProgress(taskId,
+                                   {.minimum = 0,
+                                    .maximum = 100,
+                                    .value = std::clamp(static_cast<int>(progress * 100.0), 0, 100),
+                                    .indeterminate = false});
+            if (callback)
+                callback(progress, sourceIndex);
+        };
+        taskObserver.inferenceProgress = [this, taskId,
+                                          callback = std::move(observer.inferenceProgress)](
+                                             const double progress) {
+            m_tasks.updateProgress(taskId,
+                                   {.minimum = 0,
+                                    .maximum = 100,
+                                    .value = std::clamp(static_cast<int>(progress * 100.0), 0, 100),
+                                    .indeterminate = true});
+            if (callback)
+                callback(progress);
+        };
+        taskObserver.clipping = [&warnings,
+                                 callback = std::move(observer.clipping)](const int sourceIndex) {
+            warnings.append(
+                sourceIndex < 0
+                    ? QStringLiteral("Clipping detected")
+                    : QStringLiteral("Clipping detected in source %1").arg(sourceIndex));
+            if (callback)
+                callback(sourceIndex);
+        };
+        taskObserver.warning = [&warnings, callback = std::move(observer.warning)](
+                                   const QString &message, const int sourceIndex) {
+            warnings.append(message);
+            if (callback)
+                callback(message, sourceIndex);
+        };
+
+        const auto readiness = job->waitUntilReady(taskObserver);
         if (readiness.state == AudioExportBackendState::Canceled ||
             m_tasks.isCancellationRequested(taskId)) {
             m_tasks.cancel(taskId);
@@ -477,34 +516,6 @@ namespace Automation {
                 return;
             }
         }
-
-        QStringList warnings;
-        AudioExportObserver taskObserver;
-        taskObserver.progress = [this, taskId, callback = std::move(observer.progress)](
-                                    const double progress, const int sourceIndex) {
-            m_tasks.updateProgress(taskId,
-                                   {.minimum = 0,
-                                    .maximum = 100,
-                                    .value = std::clamp(static_cast<int>(progress * 100.0), 0, 100),
-                                    .indeterminate = false});
-            if (callback)
-                callback(progress, sourceIndex);
-        };
-        taskObserver.clipping = [&warnings,
-                                 callback = std::move(observer.clipping)](const int sourceIndex) {
-            warnings.append(
-                sourceIndex < 0
-                    ? QStringLiteral("Clipping detected")
-                    : QStringLiteral("Clipping detected in source %1").arg(sourceIndex));
-            if (callback)
-                callback(sourceIndex);
-        };
-        taskObserver.warning = [&warnings, callback = std::move(observer.warning)](
-                                   const QString &message, const int sourceIndex) {
-            warnings.append(message);
-            if (callback)
-                callback(message, sourceIndex);
-        };
 
         const auto result = job->execute(taskObserver);
         if (reauthorize) {

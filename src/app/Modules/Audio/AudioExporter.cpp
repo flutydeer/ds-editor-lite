@@ -667,6 +667,9 @@ namespace Audio {
         observer.progress = [this](const double progress, const int sourceIndex) {
             emit progressChanged(progress, sourceIndex);
         };
+        observer.inferenceProgress = [this](const double progress) {
+            emit inferenceProgressChanged(progress);
+        };
         observer.clipping = [this](const int sourceIndex) { emit clippingDetected(sourceIndex); };
         observer.warning = [this](const QString &message, const int sourceIndex) {
             emit warningAdded(message, sourceIndex);

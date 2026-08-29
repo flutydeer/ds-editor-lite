@@ -695,6 +695,13 @@ namespace Audio::Internal {
                     mainProgressBar->setValue(static_cast<int>(totalRatio / sourceCount * 100.0));
                 });
         }
+        connect(m_audioExporter, &AudioExporter::inferenceProgressChanged, &progressDialog,
+                [=, &isProgressing](const double ratio) {
+                    if (isProgressing)
+                        return; // real export progress has priority once it starts
+                    mainPromptLabel->setText(tr("Inferring..."));
+                    mainProgressBar->setValue(static_cast<int>(ratio * 100.0));
+                });
 
         QDialog warningListDialog(this);
         const auto warningListDialogLayout = new QVBoxLayout;

@@ -110,7 +110,8 @@ public:
     void clearPendingForClip(int clipId, const QString &reason);
 
     void refreshPlaybackWindow(double pos);
-    void suspendPendingAcousticPipelines();
+    void suspendPendingAcousticPipelines(const QSet<Track *> &tracks = {});
+    Track *pipelineTrack(const InferPipeline *pipeline) const;
 
     AppStatus::EditObjectType m_lastEditObjectType = AppStatus::EditObjectType::None;
 

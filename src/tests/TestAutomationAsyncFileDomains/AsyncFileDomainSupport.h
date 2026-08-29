@@ -115,7 +115,8 @@ namespace AutomationAsyncFileTests {
             return result;
         }
 
-        Automation::AudioExportBackendResult waitUntilReady() override {
+        Automation::AudioExportBackendResult
+            waitUntilReady(const Automation::AudioExportObserver &) override {
             ++m_state->waitUntilReadyCount;
             if (m_state->waitUntilReadyHook)
                 m_state->waitUntilReadyHook();
