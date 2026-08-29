@@ -16,6 +16,7 @@
 #include <lite/GUI/Controls/ToolButton.h>
 #include <lite/GUI/Controls/Toast.h>
 
+#include <QAbstractTextDocumentLayout>
 #include <QClipboard>
 #include <QCoreApplication>
 #include <QEvent>
@@ -25,11 +26,14 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPlainTextEdit>
+#include <QScrollBar>
 #include <QSignalBlocker>
 #include <QSpinBox>
-#include <QStyle>
+#include <QTextBlock>
 #include <QTextDocument>
+#include <QTimer>
 #include <QVBoxLayout>
+#include <QtMath>
 
 #include <algorithm>
 #include <utility>
@@ -348,52 +352,63 @@ QWidget *AutomationPage::createContentWidget() {
     refreshRuntimeStatus();
 
     const auto connectionCard = new OptionListCard(tr("Connection Configurations"));
-    const auto createConfigurationControl =
-        [this](QPlainTextEdit *&configuration, Button *&copyButton, const QString &copiedMessage,
-               const QString &objectName, const int visibleLineCount,
-               const bool reserveHorizontalScrollBar) {
-            auto *container = new QWidget;
-            auto *layout = new QVBoxLayout(container);
-            layout->setContentsMargins({});
-            layout->setSpacing(6);
+    const auto createConfigurationControl = [this](QPlainTextEdit *&configuration,
+                                                   Button *&copyButton,
+                                                   const QString &copiedMessage,
+                                                   const QString &objectName,
+                                                   const QString &sizingConfiguration,
+                                                   const bool reserveHorizontalScrollBar) {
+        auto *container = new QWidget;
+        auto *layout = new QVBoxLayout(container);
+        layout->setContentsMargins({});
+        layout->setSpacing(6);
 
-            configuration = new QPlainTextEdit(container);
-            configuration->setObjectName(objectName);
-            configuration->setReadOnly(true);
-            configuration->setLineWrapMode(QPlainTextEdit::NoWrap);
-            configuration->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
-            configuration->setMinimumWidth(420);
-            const auto documentMargin = qRound(configuration->document()->documentMargin() * 2);
-            const auto horizontalScrollBarHeight =
-                reserveHorizontalScrollBar
-                    ? configuration->style()->pixelMetric(QStyle::PM_ScrollBarExtent)
-                    : 0;
-            configuration->setFixedHeight(configuration->fontMetrics().lineSpacing() *
-                                                  visibleLineCount +
-                                              documentMargin + configuration->frameWidth() * 2 +
-                                              horizontalScrollBarHeight);
-            layout->addWidget(configuration);
+        configuration = new QPlainTextEdit(container);
+        configuration->setObjectName(objectName);
+        configuration->setReadOnly(true);
+        configuration->setLineWrapMode(QPlainTextEdit::NoWrap);
+        configuration->setFont(QFontDatabase::systemFont(QFontDatabase::FixedFont));
+        configuration->document()->setDocumentMargin(0);
+        configuration->setMinimumWidth(420);
+        configuration->setPlainText(sizingConfiguration);
+        configuration->ensurePolished();
+        auto *document = configuration->document();
+        auto *documentLayout = document->documentLayout();
+        qreal contentHeight = 0;
+        for (auto block = document->begin(); block.isValid(); block = block.next())
+            contentHeight += documentLayout->blockBoundingRect(block).height();
+        const auto viewportHeight = qCeil(contentHeight + document->documentMargin() + 1);
+        const auto contentsMargins = configuration->contentsMargins();
+        const auto verticalMargins = contentsMargins.top() + contentsMargins.bottom();
+        configuration->horizontalScrollBar()->ensurePolished();
+        const auto horizontalScrollBarHeight =
+            reserveHorizontalScrollBar ? configuration->horizontalScrollBar()->sizeHint().height()
+                                       : 0;
+        configuration->setFixedHeight(viewportHeight + verticalMargins + horizontalScrollBarHeight);
+        QTimer::singleShot(0, configuration, [configuration, viewportHeight] {
+            const auto heightAdjustment = viewportHeight - configuration->viewport()->height();
+            if (heightAdjustment != 0)
+                configuration->setFixedHeight(configuration->height() + heightAdjustment);
+        });
+        layout->addWidget(configuration);
 
-            copyButton = new Button(tr("Copy Configuration"), container);
-            copyButton->setObjectName(objectName + QStringLiteral("CopyButton"));
-            connect(copyButton, &Button::clicked, this, [configuration, copiedMessage] {
-                QGuiApplication::clipboard()->setText(configuration->toPlainText());
-                Toast::show(copiedMessage);
-            });
-            layout->addWidget(copyButton, 0, Qt::AlignRight);
-            return container;
-        };
+        copyButton = new Button(tr("Copy Configuration"), container);
+        copyButton->setObjectName(objectName + QStringLiteral("CopyButton"));
+        connect(copyButton, &Button::clicked, this, [configuration, copiedMessage] {
+            QGuiApplication::clipboard()->setText(configuration->toPlainText());
+            Toast::show(copiedMessage);
+        });
+        layout->addWidget(copyButton, 0, Qt::AlignRight);
+        return container;
+    };
 
     Button *stdioCopyButton = nullptr;
-    const auto presetStdioLineCount =
-        Automation::McpClientConfiguration::stdioJson(
-            QString{}, Automation::McpClientConfiguration::connectorArguments(
-                           AutomationOption::Profile::L1))
-            .count(QLatin1Char('\n')) +
-        1;
+    const auto presetStdioConfiguration = Automation::McpClientConfiguration::stdioJson(
+        QString{},
+        Automation::McpClientConfiguration::connectorArguments(AutomationOption::Profile::L1));
     const auto stdioControl = createConfigurationControl(
         m_stdioConfiguration, stdioCopyButton, tr("STDIO configuration copied"),
-        QStringLiteral("automationStdioConfiguration"), presetStdioLineCount, true);
+        QStringLiteral("automationStdioConfiguration"), presetStdioConfiguration, true);
     connectionCard->addItem(
         tr("STDIO Connector"),
         tr("Starts DS Connector Lite and discovers this editor automatically. The copied JSON "
@@ -401,14 +416,13 @@ QWidget *AutomationPage::createContentWidget() {
         stdioControl);
 
     Button *streamableHttpCopyButton = nullptr;
-    const auto streamableHttpLineCount =
-        Automation::McpClientConfiguration::streamableHttpJson(QString{}).count(QLatin1Char('\n')) +
-        1;
+    const auto streamableHttpConfiguration =
+        Automation::McpClientConfiguration::streamableHttpJson(QString{});
     const auto streamableHttpControl =
         createConfigurationControl(m_streamableHttpConfiguration, streamableHttpCopyButton,
                                    tr("Streamable HTTP configuration copied"),
                                    QStringLiteral("automationStreamableHttpConfiguration"),
-                                   streamableHttpLineCount, false);
+                                   streamableHttpConfiguration, false);
     connectionCard->addItem(
         tr("Streamable HTTP"),
         tr("Connects directly to the editor's configured MCP endpoint. The generated port stays "
