@@ -35,7 +35,7 @@ namespace Automation {
                    std::isfinite(state.pianoRoll.verticalScale) &&
                    state.pianoRoll.verticalScale > 0.0 &&
                    state.pianoRoll.editMode >= EditorViewGlobal::Select &&
-                   state.pianoRoll.editMode <= EditorViewGlobal::BakePitch;
+                   state.pianoRoll.editMode <= EditorViewGlobal::ScalePitch;
         }
 
         AutomationError editorStateUnavailable() {
@@ -251,7 +251,7 @@ namespace Automation {
     AutomationResult<GuiMutationResult> EditorAutomationFacade::setPianoRollEditMode(
         const GuiCommandContext &context, const EditorViewGlobal::PianoRollEditMode mode) {
         std::optional<AutomationError> validationError;
-        if (mode < EditorViewGlobal::Select || mode > EditorViewGlobal::BakePitch)
+        if (mode < EditorViewGlobal::Select || mode > EditorViewGlobal::ScalePitch)
             validationError = AutomationError::invalidArgument(
                 QStringLiteral("mode"), QStringLiteral("Piano roll edit mode is invalid"));
         return mutateView(

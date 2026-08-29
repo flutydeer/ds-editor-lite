@@ -23,6 +23,7 @@ namespace ClipEditorGlobal {
     inline constexpr auto EditPitchAnchor = EditorViewGlobal::EditPitchAnchor;
     inline constexpr auto ErasePitch = EditorViewGlobal::ErasePitch;
     inline constexpr auto BakePitch = EditorViewGlobal::BakePitch;
+    inline constexpr auto ScalePitch = EditorViewGlobal::ScalePitch;
 }
 
 #endif // PIANOROLLGLOBAL_H

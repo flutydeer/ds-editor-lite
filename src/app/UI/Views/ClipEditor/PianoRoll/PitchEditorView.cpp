@@ -72,6 +72,7 @@ void PitchEditorView::paint(QPainter *painter, const QStyleOptionGraphicsItem *o
         color.setAlpha(std::min(color.alpha(), layer.maximumAlpha));
         drawCurveLayer(painter, *curves, color, layer.hiddenCoverage, layer.dashedCoverage);
     }
+    drawCurveTransformOverlay(painter);
 }
 
 void PitchEditorView::drawGraduates(QPainter *painter, const QStyleOptionGraphicsItem *option,

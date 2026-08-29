@@ -170,6 +170,12 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
             &PianoRollGraphicsViewPrivate::hideLyricToolTip);
     connect(appStatus, &AppStatus::noteSelectionChanged, d,
             &PianoRollGraphicsViewPrivate::onNoteSelectionChanged);
+    connect(appModel, &AppModel::timelineChanged, this, [d] {
+        if (d->m_editMode != ScalePitch || !d->m_clip)
+            return;
+        d->m_pitchTransformContext.invalidate();
+        d->setPitchEditMode(true, false, false, true);
+    });
 }
 
 PianoRollGraphicsView::~PianoRollGraphicsView() {
@@ -1141,6 +1147,9 @@ void PianoRollGraphicsView::setEditMode(const PianoRollEditMode mode) {
     } else if (mode == BakePitch) {
         setDragBehavior(DragBehavior::None);
         d->setPitchEditMode(true, false, true);
+    } else if (mode == ScalePitch) {
+        setDragBehavior(DragBehavior::None);
+        d->setPitchEditMode(true, false, false, true);
     }
 }
 
@@ -1189,6 +1198,9 @@ void PianoRollGraphicsViewPrivate::onNoteChanged(const SingingClip::NoteChangeTy
     }
 
     m_selectionModel->updateOverlappedState();
+    m_pitchTransformContext.invalidate();
+    if (m_editMode == ScalePitch)
+        setPitchEditMode(true, false, false, true);
 }
 
 void PianoRollGraphicsViewPrivate::onNoteSelectionChanged() {
@@ -1375,6 +1387,7 @@ void PianoRollGraphicsViewPrivate::moveToNullClipState() {
     q->setSceneVisibility(false);
     q->setEnabled(false);
     m_pitchEditor->clearParams();
+    m_pitchTransformContext.clear();
     while (m_notes.count() > 0)
         handleNoteRemoved(m_notes.first());
     if (m_clip) {
@@ -1414,6 +1427,9 @@ void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
 
     updatePitch(Param::Original, *m_clip->params.getParamByName(ParamInfo::Pitch));
     updatePitch(Param::Edited, *m_clip->params.getParamByName(ParamInfo::Pitch));
+    m_pitchTransformContext.clear();
+    if (m_editMode == ScalePitch)
+        setPitchEditMode(true, false, false, true);
 
     connect(clip, &SingingClip::propertyChanged, this,
             &PianoRollGraphicsViewPrivate::onClipPropertyChanged);
@@ -1456,7 +1472,7 @@ void PianoRollGraphicsViewPrivate::updateNoteWord(const Note *note) const {
 }
 
 void PianoRollGraphicsViewPrivate::setPitchEditMode(const bool on, const bool isErase,
-                                                    const bool isBake) {
+                                                    const bool isBake, const bool isScale) {
     Q_Q(PianoRollGraphicsView);
     if (on)
         q->setCursor(Qt::ArrowCursor);
@@ -1467,6 +1483,20 @@ void PianoRollGraphicsViewPrivate::setPitchEditMode(const bool on, const bool is
     m_pitchEditor->setTransparentMouseEvents(!on);
     m_pitchEditor->setEraseMode(isErase);
     m_pitchEditor->setBakeMode(isBake);
+    if (isScale && m_clip) {
+        m_pitchTransformContext.rebuild(m_clip);
+        m_pitchEditor->setCurveTransformMode(
+            CurveTransform::Kind::ScalePitch,
+            [this](const int localTick) {
+                return appModel->tickToMs((m_clip ? m_clip->start() : 0) + localTick);
+            },
+            m_pitchTransformContext.partitions(),
+            [this](const int localTick) {
+                return m_pitchTransformContext.baselineAtTick(localTick);
+            });
+    } else {
+        m_pitchEditor->setCurveTransformMode(std::nullopt);
+    }
 }
 
 NoteView *PianoRollGraphicsViewPrivate::noteViewAt(const QPoint &pos) {
@@ -1630,6 +1660,9 @@ void PianoRollGraphicsViewPrivate::onClipPropertyChanged() {
     for (const auto note : m_notes) {
         updateNoteTimeAndKey(note);
     }
+    m_pitchTransformContext.invalidate();
+    if (m_editMode == ScalePitch)
+        setPitchEditMode(true, false, false, true);
 }
 
 void PianoRollGraphicsViewPrivate::updatePitch(const Param::Type paramType,

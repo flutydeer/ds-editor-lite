@@ -172,6 +172,8 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
         tr("Bake automatic pitch inference results into the edited pitch curve");
     d->m_btnPitchBake = d->buildToolButton("btnPitchBake", ":svg/icons/pitch_brush.svg",
                                            tr("Bake Pitch"), Qt::Key_J, bakePitchDesc);
+    d->m_btnScalePitch = d->buildToolButton(
+        "btnScalePitch", ":svg/icons/pitch_vibrato_24_filled.svg", tr("Scale Pitch"));
 
     d->m_btnAutoPageTurn = d->buildToolButton(
         "btnAutoPageTurn", ":svg/icons/arrow_right_16_regular.svg", tr("Auto Page Turn"));
@@ -202,6 +204,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     d->m_toolButtonGroup->addButton(d->m_btnPitchPencil);
     d->m_toolButtonGroup->addButton(d->m_btnPitchEraser);
     d->m_toolButtonGroup->addButton(d->m_btnPitchBake);
+    d->m_toolButtonGroup->addButton(d->m_btnScalePitch);
     connect(d->m_toolButtonGroup, &QButtonGroup::buttonToggled, d,
             &ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled);
 
@@ -225,6 +228,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     toolButtonLayout->addWidget(d->m_btnPitchPencil);
     toolButtonLayout->addWidget(d->m_btnPitchEraser);
     toolButtonLayout->addWidget(d->m_btnPitchBake);
+    toolButtonLayout->addWidget(d->m_btnScalePitch);
     toolButtonLayout->setSpacing(1);
     toolButtonLayout->setContentsMargins({});
 
@@ -300,9 +304,21 @@ PianoRollEditMode ClipEditorToolBarView::editMode() const {
 
 bool ClipEditorToolBarView::supportsEditMode(const PianoRollEditMode mode) const {
     Q_D(const ClipEditorToolBarView);
-    if (mode < Select || mode > BakePitch)
-        return false;
-    return mode != BakePitch || (d->m_btnPitchBake && d->m_btnPitchBake->isEnabled());
+    switch (mode) {
+        case Select:
+        case IntervalSelect:
+        case DrawNote:
+        case EraseNote:
+        case SplitNote:
+        case DrawPitch:
+        case EditPitchAnchor:
+        case ErasePitch:
+        case ScalePitch:
+            return true;
+        case BakePitch:
+            return d->m_btnPitchBake && d->m_btnPitchBake->isEnabled();
+    }
+    return false;
 }
 
 bool ClipEditorToolBarView::setEditMode(const PianoRollEditMode mode) {
@@ -339,6 +355,9 @@ bool ClipEditorToolBarView::setEditMode(const PianoRollEditMode mode) {
         case BakePitch:
             button = d->m_btnPitchBake;
             break;
+        case ScalePitch:
+            button = d->m_btnScalePitch;
+            break;
     }
 
     if (!button || (mode == BakePitch && !button->isEnabled()))
@@ -371,6 +390,8 @@ void ClipEditorToolBarViewPrivate::onPianoRollToolButtonToggled(const QAbstractB
         m_editMode = ErasePitch;
     } else if (button == m_btnPitchBake) {
         m_editMode = BakePitch;
+    } else if (button == m_btnScalePitch) {
+        m_editMode = ScalePitch;
     } else {
         return;
     }
@@ -712,6 +733,9 @@ void ClipEditorToolBarViewPrivate::retranslateUi() const {
     setToolTip(m_btnPitchBake, ClipEditorToolBarView::tr("Bake Pitch"),
                ClipEditorToolBarView::tr(
                    "Bake automatic pitch inference results into the edited pitch curve"));
+    setToolTip(
+        m_btnScalePitch, ClipEditorToolBarView::tr("Scale Pitch"),
+        ClipEditorToolBarView::tr("Scale pitch deviations from the smoothed note pitch curve"));
     refreshSingerComboPresentation();
 }
 

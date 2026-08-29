@@ -80,6 +80,7 @@ public:
     Button *m_btnPitchAnchor = nullptr;
     Button *m_btnPitchEraser = nullptr;
     Button *m_btnPitchBake = nullptr;
+    Button *m_btnScalePitch = nullptr;
 
     TwoLevelComboBox *m_cbSinger = nullptr;
     LanguageComboBox *m_cbClipLanguage = nullptr;
