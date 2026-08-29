@@ -35,8 +35,8 @@ protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
-    [[nodiscard]] QString sourceDescription(StartupArguments::ConfigSource source,
-                                            const QString &optionName) const;
+    [[nodiscard]] QString settingDescription(const QString &description,
+                                             StartupArguments::ConfigSource source) const;
     [[nodiscard]] QString categoryDisplayName(const QString &category) const;
     [[nodiscard]] QString runtimeStateDescription(const QString &state) const;
     void refreshCategoryPermissionSwitches();

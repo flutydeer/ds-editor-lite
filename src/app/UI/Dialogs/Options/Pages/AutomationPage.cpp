@@ -54,12 +54,12 @@ void AutomationPage::setCustomPermissionOperationIds(QStringList operationIds) {
     initializePage();
 }
 
-QString AutomationPage::sourceDescription(const StartupArguments::ConfigSource source,
-                                          const QString &optionName) const {
-    if (source == StartupArguments::ConfigSource::CommandLine) {
-        return tr("Overridden for this run by %1; the saved value is unchanged").arg(optionName);
-    }
-    return tr("Saved in the application configuration");
+QString AutomationPage::settingDescription(const QString &description,
+                                           const StartupArguments::ConfigSource source) const {
+    if (source == StartupArguments::ConfigSource::Persisted)
+        return description;
+    return description + QLatin1Char('\n') +
+           tr("Overridden and locked by a command-line argument.");
 }
 
 QString AutomationPage::categoryDisplayName(const QString &category) const {
@@ -230,7 +230,8 @@ void AutomationPage::modifyOption() {
     auto *option = appOptions->automation();
     if (m_effectiveConfig.mcpEnabledSource == StartupArguments::ConfigSource::Persisted)
         option->mcpEnabled = m_mcpEnabled->value();
-    option->controlPort = static_cast<quint16>(m_controlPort->value());
+    if (m_effectiveConfig.controlPortSource == StartupArguments::ConfigSource::Persisted)
+        option->controlPort = static_cast<quint16>(m_controlPort->value());
     if (m_effectiveConfig.profileSource == StartupArguments::ConfigSource::Persisted) {
         option->selectedProfile =
             static_cast<AutomationOption::Profile>(m_profile->currentData().toInt());
@@ -307,7 +308,11 @@ QWidget *AutomationPage::createContentWidget() {
     m_refreshControlPort = new Button(tr("Refresh"));
     m_controlPort = new SVS::ExpressionSpinBox;
     m_controlPort->setRange(1, 65535);
-    m_controlPort->setValue(option->controlPort);
+    m_controlPort->setValue(m_effectiveConfig.controlPort);
+    const auto controlPortEditable =
+        m_effectiveConfig.controlPortSource == StartupArguments::ConfigSource::Persisted;
+    m_refreshControlPort->setEnabled(controlPortEditable);
+    m_controlPort->setEnabled(controlPortEditable);
     connect(m_refreshControlPort, &Button::clicked, this, [this] {
         const QSignalBlocker blocker(m_controlPort);
         m_controlPort->setValue(
@@ -332,9 +337,8 @@ QWidget *AutomationPage::createContentWidget() {
     const auto serverCard = new OptionListCard(tr("MCP Server"));
     serverCard->addItem(
         tr("Enable MCP Server"),
-        sourceDescription(m_effectiveConfig.mcpEnabledSource, m_effectiveConfig.mcpEnabled
-                                                                  ? QStringLiteral("--mcp")
-                                                                  : QStringLiteral("--no-mcp")),
+        settingDescription(tr("Starts an MCP server that listens only on this computer."),
+                           m_effectiveConfig.mcpEnabledSource),
         m_mcpEnabled);
     auto *controlPortControl = new QWidget;
     auto *controlPortLayout = new QHBoxLayout(controlPortControl);
@@ -342,10 +346,10 @@ QWidget *AutomationPage::createContentWidget() {
     controlPortLayout->setSpacing(6);
     controlPortLayout->addWidget(m_refreshControlPort);
     controlPortLayout->addWidget(m_controlPort);
-    serverCard->addItem(
-        tr("Control Port"),
-        sourceDescription(m_effectiveConfig.controlPortSource, QStringLiteral("--control-port")),
-        controlPortControl);
+    serverCard->addItem(tr("Control Port"),
+                        settingDescription(tr("Sets the port the MCP server listens on."),
+                                           m_effectiveConfig.controlPortSource),
+                        controlPortControl);
     m_runtimeStateItem = serverCard->addItem(tr("Runtime Status"), QString{});
     m_runtimeEndpointItem = serverCard->addItem(tr("Current Endpoint"), QString{});
     m_runtimeErrorItem = serverCard->addItem(tr("Last Error"), QString{});
@@ -431,10 +435,10 @@ QWidget *AutomationPage::createContentWidget() {
     refreshConnectionConfigurations();
 
     const auto accessCard = new OptionListCard(tr("Access Profile"));
-    accessCard->addItem(
-        tr("Profile"),
-        sourceDescription(m_effectiveConfig.profileSource, QStringLiteral("--automation-profile")),
-        m_profile);
+    accessCard->addItem(tr("Profile"),
+                        settingDescription(tr("Determines which tools clients can see and call."),
+                                           m_effectiveConfig.profileSource),
+                        m_profile);
 
     m_customPermissionSwitches.clear();
     m_customCategorySwitches.clear();
