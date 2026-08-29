@@ -15,7 +15,7 @@
 - `C/A`：接受后返回任务句柄的异步 Command。
 - Profile 列表示工具契约声明的最低开放层级；L0 是固有层，始终参与发现与执行，不能通过 Profile、Custom 或 Connector exclude 禁用。
 
-矩阵按被查询或修改的主状态所有者归域，不按 Profile 分组。编辑工具以可整体 Undo/Redo 的历史记录为原子边界；同类多对象可批量提交，不能共同撤销的属性保持独立。创建输入限制嵌套深度：轨道与歌声片段只创建空容器，音符作为叶节点可携带完整初始数据。
+矩阵按被查询或修改的主状态所有者归域，不按 Profile 分组。编辑工具以可整体 Undo/Redo 的历史记录为原子边界；同类多对象可批量提交，不能共同撤销的属性保持独立。创建输入限制嵌套深度：轨道与歌声剪辑只创建空容器，音符作为叶节点可携带完整初始数据。
 
 ## 2. Editor 域汇总
 
@@ -26,8 +26,8 @@
 | 格式 | 2 | 格式能力与导入前检查 |
 | 轨道 | 14 | 轨道查询、细粒度编辑、语言与声音 |
 | 总线 | 5 | Master 总线查询与细粒度控制 |
-| 片段 | 15 | 片段查询、几何、属性与声音继承 |
-| 音频素材 | 5 | 音频查询、导入和路径解析 |
+| 剪辑 | 15 | 剪辑查询、几何、属性与声音继承 |
+| 音频剪辑 | 5 | 音频查询、导入和路径解析 |
 | 声库 | 2 | 可用声库发现与描述 |
 | Speaker Mix | 13 | 固定/动态混合、关键帧与预设 |
 | 音符、歌词、语言、发音与音素 | 19 | 叶节点创建、几何、歌词、语言、发音和音素 |
@@ -41,7 +41,7 @@
 | 异步任务 | 3 | 任务列表、详情与取消 |
 | 工作区布局 | 2 | 主编辑面板布局、可见性与焦点归属 |
 | 轨道面板 | 7 | 面板状态、视口、选择、焦点与自动翻页 |
-| 片段编辑器 | 16 | 共享时间视口、钢琴与参数子区域的显示、选择和工具状态 |
+| 剪辑编辑器 | 16 | 共享时间视口、钢琴与参数子区域的显示、选择和工具状态 |
 | 设置 | 10 | 允许公开的应用设置查询、稀疏更新、候选值与生效状态 |
 | 包信息 | 3 | 已安装包查询、详情与异步刷新 |
 | 歌词规则 | 7 | splitter/tagger 规则管理与只读流水线测试 |
@@ -68,7 +68,7 @@
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
-| `documents.get` | L1 | Q/S | 文档状态、路径、dirty/savepoint、revision、工程长度及轨道/片段分类统计 |
+| `documents.get` | L1 | Q/S | 文档状态、路径、dirty/savepoint、revision、工程长度及轨道/剪辑分类统计 |
 | `documents.list_recent` | L2 | Q/S | 从应用设置列出最近项目的路径、文件名与当前存在状态 |
 | `documents.new` | L2 | C/S | 未保存策略、模板与原子文档换代 |
 | `documents.open` | L2 | C/A | 受控读路径、格式选项与异步换代 |
@@ -115,14 +115,14 @@
 | `master.set_mute` | L1 | C/S | Master 静音单字段命令 |
 | `master.set_solo` | L1 | C/S | Master 独奏单字段命令 |
 
-### 3.6 片段（15）
+### 3.6 剪辑（15）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
 | `clips.list` | L1 | Q/S | 按轨道、类型、范围筛选并分页 |
-| `clips.get` | L1 | Q/S | 单片段属性、稳定 ID；歌声片段同时返回继承、自有与有效声音上下文 |
-| `clips.insert` | L1 | C/S | 只创建可指定轨道/位置/长度/名称的空歌声片段 |
-| `clips.duplicate` | L1 | C/S | 深复制既有片段的音符、参数、声音和相对布局；请求不接受对象树 |
+| `clips.get` | L1 | Q/S | 单个剪辑属性、稳定 ID；歌声剪辑同时返回继承、自有与有效声音上下文 |
+| `clips.insert` | L1 | C/S | 只创建可指定轨道/位置/长度/名称的空歌声剪辑 |
+| `clips.duplicate` | L1 | C/S | 深复制既有剪辑的音符、参数、声音和相对布局；请求不接受对象树 |
 | `clips.remove` | L1 | C/S | 批量 ID 与单条历史记录 |
 | `clips.move` | L1 | C/S | 逐项目标轨道与起点 |
 | `clips.resize_left` | L1 | C/S | 左边界与内容偏移语义 |
@@ -130,17 +130,17 @@
 | `clips.rename` | L1 | C/S | 名称单字段命令 |
 | `clips.set_gain` | L1 | C/S | 增益单字段命令 |
 | `clips.set_mute` | L1 | C/S | 静音单字段命令 |
-| `clips.set_default_language` | L1 | C/S | 片段语言与有效声音能力校验 |
+| `clips.set_default_language` | L1 | C/S | 剪辑语言与有效声音能力校验 |
 | `clips.use_track_voice` | L1 | C/S | 恢复轨道声音继承 |
-| `clips.set_voice` | L1 | C/S | 设置片段自有声音；speaker 可空，多个 speaker 时显式选择 |
-| `clips.clear_voice` | L1 | C/S | 清除片段自有声音 |
+| `clips.set_voice` | L1 | C/S | 设置剪辑自有声音；speaker 可空，多个 speaker 时显式选择 |
+| `clips.clear_voice` | L1 | C/S | 清除剪辑自有声音 |
 
-### 3.7 音频素材（5）
+### 3.7 音频剪辑（5）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
 | `audio_clips.get` | L2 | Q/S | 路径状态、候选、hash 与音频元数据 |
-| `audio_clips.import` | L2 | C/A | 单文件读授权、解码与片段任务 |
+| `audio_clips.import` | L2 | C/A | 单文件读授权、解码与剪辑任务 |
 | `audio_clips.import_batch` | L2 | C/A | 多文件授权、批量上限与失败策略 |
 | `audio_clips.relocate` | L2 | C/S | 新路径校验、解码、hash 与最终写回组成一项同步 Mutation |
 | `audio_clips.confirm_path` | L2 | C/S | 候选校验、重新授权与最终写回组成一项同步 Mutation |
@@ -152,13 +152,13 @@
 | `voices.list` | L1 | Q/S | 列出包含 package ID、package version 与 singer ID 的完整 SingerRef、显示信息、筛选与分页 |
 | `voices.describe` | L1 | Q/S | 按完整 SingerRef 精确描述特定并存版本的说话人、语言、G2P、默认值与混合能力 |
 
-声库域只负责列出可用声库和描述特定声库；应用 voice 的命令分别保留在轨道域和片段域。L1/L2 的发现、动态候选、设置与回读均使用版本完整的 SingerRef，不依赖 L3 包信息域。
+声库域只负责列出可用声库和描述特定声库；应用 voice 的命令分别保留在轨道域和剪辑域。L1/L2 的发现、动态候选、设置与回读均使用版本完整的 SingerRef，不依赖 L3 包信息域。
 
 ### 3.9 Speaker Mix（13）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
-| `speaker_mix.get` | L1 | Q/S | 轨道/片段目标的混合、关键帧及来源预设/脏状态快照 |
+| `speaker_mix.get` | L1 | Q/S | 轨道/剪辑目标的混合、关键帧及来源预设/脏状态快照 |
 | `speaker_mix.set_fixed` | L1 | C/S | 固定权重混合与归一化 |
 | `speaker_mix.enable_dynamic` | L1 | C/S | 启用动态混合 |
 | `speaker_mix.disable_dynamic` | L1 | C/S | 关闭动态混合并保持确定状态 |
@@ -170,7 +170,7 @@
 | `speaker_mix.presets.list` | L2 | Q/S | 列出应用级预设，可按 singer 过滤；不读取或修改文档历史记录 |
 | `speaker_mix.presets.save` | L2 | C/S | 新建或按稳定 ID 更新应用级预设，名称冲突时原子失败 |
 | `speaker_mix.presets.delete` | L2 | C/S | 删除应用级预设，不改变引用该预设的既有文档混合值 |
-| `speaker_mix.presets.apply` | L2 | C/S | 将预设值应用到轨道/片段，形成一条文档历史记录并保留来源元数据 |
+| `speaker_mix.presets.apply` | L2 | C/S | 将预设值应用到轨道/剪辑，形成一条文档历史记录并保留来源元数据 |
 
 ### 3.10 音符、歌词、语言、发音与音素（19）
 
@@ -180,7 +180,7 @@
 | `notes.search` | L1 | Q/S | 歌词查询、匹配模式与大小写/正则选项 |
 | `notes.insert` | L1 | C/S | 叶节点完整初始 draft，不要求 voice context；批量形成一条历史记录 |
 | `notes.duplicate` | L1 | C/S | 深复制音符及关联参数，保持相对布局并整体撤销 |
-| `notes.remove` | L1 | C/S | 片段归属与批量原子删除 |
+| `notes.remove` | L1 | C/S | 剪辑归属与批量原子删除 |
 | `notes.move` | L1 | C/S | 批量时间/音高增量 |
 | `notes.resize_left` | L1 | C/S | 批量左边界调整 |
 | `notes.resize_right` | L1 | C/S | 批量右边界调整 |
@@ -262,7 +262,7 @@
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
 | `extract.get_capabilities` | L2 | Q/S | 音频来源、模型、语言、范围与 option Schema |
-| `extract.pitch.start` | L2 | C/A | 音高提取任务与目标片段写回 |
+| `extract.pitch.start` | L2 | C/A | 音高提取任务与目标剪辑写回 |
 | `extract.midi.start` | L2 | C/A | MIDI 提取任务与目标位置写回 |
 
 ### 3.17 推理（4）
@@ -287,37 +287,37 @@
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
 | `workspace.get_state` | L3 | Q/S | 返回主编辑面板可见性、布局与当前键盘焦点所属面板 |
-| `workspace.set_panel_visibility` | L3 | C/S | 稀疏更新轨道面板与片段编辑器可见性；至少保留一个主编辑面板 |
+| `workspace.set_panel_visibility` | L3 | C/S | 稀疏更新轨道面板与剪辑编辑器可见性；至少保留一个主编辑面板 |
 
 ### 3.20 轨道面板（7）
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
-| `track_panel.get_state` | L3 | Q/S | 返回视口、自动翻页、当前轨道、有序片段选择与 primary item |
+| `track_panel.get_state` | L3 | Q/S | 返回视口、自动翻页、当前轨道、有序剪辑选择与 primary item |
 | `track_panel.set_viewport` | L3 | C/S | 稀疏更新中心 tick、中心轨道索引与横纵缩放 |
-| `track_panel.reveal_clips` | L3 | C/S | 完整显示目标轨道或片段集合，不修改工程 |
+| `track_panel.reveal_clips` | L3 | C/S | 完整显示目标轨道或剪辑集合，不修改工程 |
 | `track_panel.set_auto_page_turn` | L3 | C/S | 设置轨道面板自动翻页 |
 | `track_panel.select_track` | L3 | C/S | 选择或清除当前轨道，并显示、激活轨道面板 |
-| `track_panel.select_clips` | L3 | C/S | 原子替换有序片段选择与 primary clip，并显示、激活轨道面板 |
+| `track_panel.select_clips` | L3 | C/S | 原子替换有序剪辑选择与 primary clip，并显示、激活轨道面板 |
 | `track_panel.clear_selection` | L3 | C/S | 按 track/clips/all 清除选择，并显示、激活轨道面板 |
 
-### 3.21 片段编辑器（16）
+### 3.21 剪辑编辑器（16）
 
 钢琴和参数子区域共享时间位置与横向缩放；钢琴另有音高纵向视口，参数另有值域纵向视口。焦点事实与选择归入各自面板/子区域，不建立平行的选择域。GUI Command 不要求文档 revision；显示和激活目标区域是成功条件，键盘焦点只作尽力获取。
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
-| `clip_editor.get_state` | L3 | Q/S | 返回活动片段、当前子区域、共享时间视口、自动翻页、钢琴与参数状态 |
-| `clip_editor.set_active_clip` | L3 | C/S | 设置活动歌声片段，或关闭当前活动片段 |
+| `clip_editor.get_state` | L3 | Q/S | 返回活动剪辑、当前子区域、共享时间视口、自动翻页、钢琴与参数状态 |
+| `clip_editor.set_active_clip` | L3 | C/S | 设置活动歌声剪辑，或关闭当前活动剪辑 |
 | `clip_editor.set_time_viewport` | L3 | C/S | 稀疏更新钢琴与参数共享的中心 tick 和横向缩放 |
-| `clip_editor.set_auto_page_turn` | L3 | C/S | 设置片段编辑器自动翻页 |
+| `clip_editor.set_auto_page_turn` | L3 | C/S | 设置剪辑编辑器自动翻页 |
 | `clip_editor.show_region` | L3 | C/S | 显示、展开并激活 piano 或 parameters 子区域 |
 | `clip_editor.piano.set_pitch_viewport` | L3 | C/S | 稀疏更新中心音高与纵向缩放 |
-| `clip_editor.piano.reveal_notes` | L3 | C/S | 在活动歌声片段中完整显示指定音符 |
+| `clip_editor.piano.reveal_notes` | L3 | C/S | 在活动歌声剪辑中完整显示指定音符 |
 | `clip_editor.piano.set_edit_mode` | L3 | C/S | 设置钢琴窗受支持的编辑模式 |
 | `clip_editor.piano.set_quantize` | L3 | C/S | 稀疏更新量化分度与启用状态 |
 | `clip_editor.piano.select_notes` | L3 | C/S | 原子替换有序音符选择与 primary note，并显示、激活钢琴子区域 |
-| `clip_editor.piano.clear_selection` | L3 | C/S | 清除活动片段音符选择，并显示、激活钢琴子区域 |
+| `clip_editor.piano.clear_selection` | L3 | C/S | 清除活动剪辑音符选择，并显示、激活钢琴子区域 |
 | `clip_editor.parameters.set_foreground` | L3 | C/S | 设置前景参数 |
 | `clip_editor.parameters.set_background` | L3 | C/S | 设置背景参数或 none |
 | `clip_editor.parameters.swap` | L3 | C/S | 原子交换前景与背景；不可交换时不产生部分变化 |

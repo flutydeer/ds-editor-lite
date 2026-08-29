@@ -58,12 +58,12 @@ Connector 桥接工具：6
 - 权威公共契约声明的全部 input/output Schema 均可通过 meta-schema 检查。
 - 业务对象为封闭结构；未知字段、错误类型、非法枚举、NaN/Inf、整数溢出、非法 UUID 和超限集合在 handler 前失败。
 - 无参工具只接受空 object；必填字段、oneOf 分支、nullable 和分页字段严格执行。
-- 轨道/片段 voice Schema 要求 singer、允许 speaker 省略或为 `null`；零、单、多 speaker 三种解析分支分别覆盖。
-- `tracks.get` 返回轨道属性、统计和 voice/default-language 上下文；`clips.get` 对歌声片段返回
+- 轨道/剪辑 voice Schema 要求 singer、允许 speaker 省略或为 `null`；零、单、多 speaker 三种解析分支分别覆盖。
+- `tracks.get` 返回轨道属性、统计和 voice/default-language 上下文；`clips.get` 对歌声剪辑返回
   own/effective voice、继承来源和有效默认语言。公共集合不含独立的 voice-context 查询工具。
 - 公共 enum/值域在 C++ codec、Schema、动态候选和测试语料中来自同一声明。
-- 轨道、片段、总线的细粒度标量命令，以及已有音符的歌词、语言和长度命令，各自具有单条历史记录与 revision-check descriptor。
-- 空轨道/空歌声片段的浅层创建 draft 与完整 note leaf draft 的合法/非法形状分别覆盖；轨道不得嵌套片段，片段不得嵌套音符、参数、voice 或 mix。
+- 轨道、剪辑、总线的细粒度标量命令，以及已有音符的歌词、语言和长度命令，各自具有单条历史记录与 revision-check descriptor。
+- 空轨道/空歌声剪辑的浅层创建 draft 与完整 note leaf draft 的合法/非法形状分别覆盖；轨道不得嵌套剪辑，剪辑不得嵌套音符、参数、voice 或 mix。
 - duplicate、move、resize、split、keyframe 与 anchor 使用稳定 ID，并覆盖重复、失效和跨 owner ID。
 - `documents.get` 的统计字段为非负整数且与领域查询一致；`documents.list_recent` 为 L2 应用级只读查询。
 - `parameters.get` 的半开范围、默认/显式点数上限、采样降采样元数据和“锚点不得丢失”失败路径均满足严格 Schema。
@@ -103,8 +103,8 @@ Connector 桥接工具：6
 | 格式 | 2 | 用途过滤、可用性、inspect 诊断与 plan digest |
 | 轨道 | 14 | 列表/详情（含声音上下文）、浅层创建、删除/移动、标量命令、语言与声音设置 |
 | 总线 | 5 | `bus` 归属、四个标量命令、历史记录/revision |
-| 片段 | 15 | 筛选/详情（含声音上下文）、浅层创建、duplicate、几何、标量命令和声音继承 |
-| 音频素材 | 5 | 元数据、导入/batch 任务，以及 relocate/confirm 同步 Mutation 与授权重检 |
+| 剪辑 | 15 | 筛选/详情（含声音上下文）、浅层创建、duplicate、几何、标量命令和声音继承 |
+| 音频剪辑 | 5 | 元数据、导入/batch 任务，以及 relocate/confirm 同步 Mutation 与授权重检 |
 | 声库 | 2 | 可用 singer/speaker/language/G2P/mix 能力，以及含 package version 的稳定引用和同 ID 并存版本精确解析；L1/L2 不依赖包信息域 |
 | Speaker Mix | 13 | fixed/dynamic/bypass、权重归一化、关键帧稳定 ID、应用级预设与文档级应用 |
 | 音符、歌词、语言、发音与音素 | 19 | 查询/搜索/叶节点创建/duplicate/几何、歌词、语言、发音、音素与填充 |
@@ -118,7 +118,7 @@ Connector 桥接工具：6
 | 异步任务 | 3 | 分页/筛选/详情、取消点、终态与创建者归因 |
 | 工作区布局 | 2 | 主编辑面板布局、可见性、至少保留一个主面板与焦点归属 |
 | 轨道面板 | 7 | 稀疏视口、reveal、自动翻页、有序选择、primary、活动区域与尽力键盘焦点 |
-| 片段编辑器 | 16 | 活动片段、共享时间视口、钢琴/参数显示、选择、工具和值域视口 |
+| 剪辑编辑器 | 16 | 活动剪辑、共享时间视口、钢琴/参数显示、选择、工具和值域视口 |
 | 设置 | 10 | domain query、公开字段稀疏更新、立即/重启生效、无弹窗与回滚 |
 | 包信息 | 3 | 读取根内路径披露、详情、后台刷新、取消与索引原子切换 |
 | 歌词规则 | 7 | 稳定 ID、CRUD、启停、分类内移动、非法规则与只读流水线测试 |
@@ -134,7 +134,7 @@ Connector 桥接工具：6
 - 排序、分页、Unicode、空集合、长文本和边界数字确定。
 - Query 不推进 revision、历史记录或 Task 状态。
 - 能力查询同时表达 supported、available 和 unavailable reason。
-- `documents.get` 的工程长度和轨道/片段分类统计在空工程、空轨、有歌声/音频/混合轨状态下准确；`documents.list_recent` 不改变文档身份或 revision。
+- `documents.get` 的工程长度和轨道/剪辑分类统计在空工程、空轨、有歌声/音频/混合轨状态下准确；`documents.list_recent` 不改变文档身份或 revision。
 - `parameters.get` 对采样数据执行确定性有界返回，对锚点数据完整返回或明确拒绝过小上限，不静默裁剪稳定对象。
 
 ### 5.2 同步 Command
@@ -285,7 +285,7 @@ Connector 桥接工具：6
 - Editor 先 ready，Connector 首次 watch 后完成协议、tools 目录和状态摘要握手。
 - Editor direct HTTP 与 Connector stdio 复用同一 L0/L1/L2/L3 业务语料并比对结果。
 - 在隔离配置下分别验证 clean 默认退出、dirty 默认拒绝、dirty 显式丢弃退出，以及重启后的新 instance ID、Connector 自动重连与最终优雅退出。
-- open/save/import/export、音频素材、推理、Task、播放与历史记录使用隔离工作区。
+- open/save/import/export、音频剪辑、推理、Task、播放与历史记录使用隔离工作区。
 - 两至八个 Connector 并发查询、编辑、任务与重连；覆盖 revision conflict、全局上限和状态隔离。
 - 一个 Connector 退出、崩溃、慢读或触发全局准入上限时，Editor 与其他 Connector 继续服务。
 - Editor stop/restart、instance ID 与 endpoint 更换后自动建立新链路。
@@ -295,10 +295,10 @@ Connector 桥接工具：6
 - 设置页默认、修改、CLI 覆盖、Custom 领域分组和运行状态展示。
 - Contract、Registry、Editor MCP 与 Connector 的集合关系由确定性测试覆盖；真实 Connector 会话按业务域、调用类型与风险覆盖代表路径，并执行各 Connector 桥接工具的独特行为。
 - 24 个业务域均建立真实产品会话代表路径；具有可见 UI 的域同时保存 GUI 观察证据。MCP 编辑后 GUI 立即呈现；GUI 编辑后 MCP 查询与 revision 立即更新；不直接可见的查询、应用设置和 Task 通过对应 query、应用状态或进程事实闭环。
-- 轨道、总线、片段、音符、参数曲线、时间轴、Speaker Mix、历史记录与播放均执行至少一条真实 mutation，并使用 GUI 与 MCP Undo/Redo 验证代表路径的历史记录粒度及状态恢复；其余领域特有边界由确定性测试覆盖。
-- 工作区布局、轨道面板和片段编辑器分别以代表路径保存调用前后界面、对应 get 回读与恢复证据；验证 Editor 处于后台且无法取得键盘焦点时，已完成的显示、选择和定位仍成功，并持续监控实际焦点、顶层窗口和活动模态窗口。
+- 轨道、总线、剪辑、音符、参数曲线、时间轴、Speaker Mix、历史记录与播放均执行至少一条真实 mutation，并使用 GUI 与 MCP Undo/Redo 验证代表路径的历史记录粒度及状态恢复；其余领域特有边界由确定性测试覆盖。
+- 工作区布局、轨道面板和剪辑编辑器分别以代表路径保存调用前后界面、对应 get 回读与恢复证据；验证 Editor 处于后台且无法取得键盘焦点时，已完成的显示、选择和定位仍成功，并持续监控实际焦点、顶层窗口和活动模态窗口。
 - 设置更新按主要参数形状和生效方式取样，包刷新和歌词规则管理覆盖其关键成功与回滚路径，并在场景后恢复隔离配置。
-- 文档、格式、音频素材、声库、导出、提取、推理和异步任务均在隔离工作区执行真实资格路径；环境缺少 codec、声音、模型或音频设备时，保存结构化不可用事实，并由确定性 CTest 覆盖可用分支。
+- 文档、格式、音频剪辑、声库、导出、提取、推理和异步任务均在隔离工作区执行真实资格路径；环境缺少 codec、声音、模型或音频设备时，保存结构化不可用事实，并由确定性 CTest 覆盖可用分支。
 - 一个真实 Agent Host 通过 stdio 启动 Connector，执行各桥接工具的独特行为，并以各域代表性 Query/Command/Task 覆盖产品链路；公共契约、权限与 Schema 的通用不变量由组件测试覆盖。
 
 ## 13. 通过标准

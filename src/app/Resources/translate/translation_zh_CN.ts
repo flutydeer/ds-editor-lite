@@ -167,7 +167,7 @@
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="72"/>
         <source>Clips</source>
-        <translation>片段</translation>
+        <translation>剪辑</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="74"/>
@@ -197,7 +197,7 @@
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="84"/>
         <source>Audio Clips</source>
-        <translation>音频片段</translation>
+        <translation>音频剪辑</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="86"/>
@@ -237,7 +237,7 @@
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="110"/>
         <source>Clip Editor</source>
-        <translation>片段编辑器</translation>
+        <translation>剪辑编辑器</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="112"/>
@@ -399,8 +399,8 @@
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="349"/>
-        <source>Starts DS Connector Lite, discovers this editor automatically, and uses the current access profile in the copied JSON</source>
-        <translation>启动 DS Connector Lite、自动发现本编辑器，并在复制的 JSON 中使用当前访问级别</translation>
+        <source>Starts DS Connector Lite and discovers this editor automatically</source>
+        <translation>启动 DS Connector Lite 自动发现本编辑器</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="355"/>
@@ -414,8 +414,8 @@
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="359"/>
-        <source>Connects directly to the editor&apos;s configured MCP endpoint; the generated port stays unchanged until you edit it or press Refresh</source>
-        <translation>直接连接编辑器配置的 MCP 端点，生成的端口会保持不变，直到您手动编辑或点击“刷新”</translation>
+        <source>Connects directly to the editor&apos;s configured MCP endpoint</source>
+        <translation>直接连接编辑器配置的 MCP 端点</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="270"/>

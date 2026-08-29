@@ -150,17 +150,17 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 3. 按 Query、同步 Command、异步 Command 和特殊参数形状选取代表工具，验证 Registry JSON 映射与结果封装；不为每个工具生成一份同构 smoke 调用。
 4. Schema-invalid、权限关闭、host unavailable、错误优先级、revision 与通用失败封装在各自共享层验证一次；领域测试仅补充工具特有的拒绝条件。
 5. 由确定性语料覆盖各域独有的成功、no-op、validate-only、冲突、不可用、失败原子性和异步终态；真实产品会话按风险与可见行为选择代表路径，不设置逐工具场景配额。
-6. 验证历史记录原子边界：同类批量操作整体撤销；轨道/总线/片段标量、已有音符歌词/语言/长度互不捆绑。
-7. 验证创建深度：轨道只能创建为空轨道，歌声片段只能创建为空片段，音符叶节点可携带完整初始数据且不要求 voice context。
+6. 验证历史记录原子边界：同类批量操作整体撤销；轨道/总线/剪辑标量、已有音符歌词/语言/长度互不捆绑。
+7. 验证创建深度：轨道只能创建为空轨道，歌声剪辑只能创建为空剪辑，音符叶节点可携带完整初始数据且不要求 voice context。
 8. 验证 `tracks.get` 直接返回轨道属性、统计和 voice/default-language 上下文，`clips.get`
-   对歌声片段直接返回 own/effective voice、继承来源和有效默认语言；公共集合没有独立的
+   对歌声剪辑直接返回 own/effective voice、继承来源和有效默认语言；公共集合没有独立的
    voice-context 查询工具。
 9. 验证 `audio_clips.relocate/confirm_path` 同步返回 Mutation、不创建 Task，并在 GUI 中立即反映。
 10. 验证 `playback.set_loop/set_loop_enabled/clear_loop` 形成工程持久历史记录，逐项 Undo/Redo；play/pause/stop/seek 保持瞬时、目标状态幂等，播放头在查询与命令间变化不导致版本冲突。
 11. 验证动态值发现、异步任务和文件重新授权；正常 invocation 不自动回查 provider，output
     Schema 由确定性契约测试覆盖，运行时不逐次 assert。
-12. 验证零 speaker 声库可用完整 SingerRef 设置到轨道/片段；单 speaker 自动解析，多 speaker 候选可由 `voices.describe` 查询，缺少选择时稳定拒绝；构造 package ID 与 singer ID 相同、package version 不同的两个并存版本，在 L2 明确拒绝 `packages.*` 的前提下验证 list、describe、轨道/片段设置、Speaker Mix/预设和回读均按版本精确闭环。
-13. 验证 `documents.get` 的工程长度、轨道/片段总数和分类统计；验证 `documents.list_recent` 只读取应用设置且不修改当前文档。
+12. 验证零 speaker 声库可用完整 SingerRef 设置到轨道/剪辑；单 speaker 自动解析，多 speaker 候选可由 `voices.describe` 查询，缺少选择时稳定拒绝；构造 package ID 与 singer ID 相同、package version 不同的两个并存版本，在 L2 明确拒绝 `packages.*` 的前提下验证 list、describe、轨道/剪辑设置、Speaker Mix/预设和回读均按版本精确闭环。
+13. 验证 `documents.get` 的工程长度、轨道/剪辑总数和分类统计；验证 `documents.list_recent` 只读取应用设置且不修改当前文档。
 14. 验证 `parameters.get` 的半开范围、默认/显式点数上限、采样曲线确定性降采样，以及锚点曲线在上限不足时明确失败而不丢失稳定 ID。
 15. 验证 `parameters.create_anchor_curve`、显式 `insert_anchors`、跨曲线移动拒绝和 `merge_anchor_curves` 的相邻/重叠规则及逐步 Undo/Redo。
 16. 验证 Speaker Mix 预设 list/save/delete 的应用级无文档副作用，apply 的单条 History，以及来源预设 dirty 状态。
@@ -247,7 +247,7 @@ stdio 零污染；工具面、exposure 与兼容结果确定；旧握手结果�
 1. Connector 先启动，再启动 Editor 并启用 MCP，观察自动接入。
 2. Editor 先 ready，再启动 Connector，验证首次 watch 到完整握手。
 3. 在 direct HTTP 与 Connector stdio 上复用 L0/L1/L2/L3 代表语料；契约集合关系由确定性组件测试覆盖，真实 Connector 会话按业务域、调用类型和风险选择代表路径，并覆盖所有桥接工具的独特行为。
-4. 在隔离工作区完成文档、格式、轨道、总线、片段、音频素材、声库、Speaker Mix、音符、参数曲线、时间轴、历史记录、播放、导出、提取、推理与 Task 链路；GUI、设置、包信息和歌词规则域在同一真实进程候选中闭环。
+4. 在隔离工作区完成文档、格式、轨道、总线、剪辑、音频剪辑、声库、Speaker Mix、音符、参数曲线、时间轴、历史记录、播放、导出、提取、推理与 Task 链路；GUI、设置、包信息和歌词规则域在同一真实进程候选中闭环。
 5. 运行两至八个 Connector，并发 Query、Command、Task 和 reconnect。
 6. 验证 revision conflict、全局 32 路上限、独立缓存与请求映射。
 7. 运行时切换 Profile/Custom/roots/port/enabled，验证两侧状态与调用结果。
@@ -267,9 +267,9 @@ Editor direct 与 Connector 转接在结果、错误、历史记录、revision �
 4. 核对端口刷新按钮与输入框同一行且始终可用；首次配置生成非零端口后重启不变化，刷新、直接编辑、冲突恢复、disable/enable 的状态序列正确。
 5. 在 ready、disabled 和 error 状态分别复制 stdio 与 Streamable HTTP 配置；解析为单个 server entry，并确认不含外层 `mcpServers`。
 6. 核对读写根说明为自动化文件工具 allowlist，且页面不存在无动态内容的本机进程访问栏目；使用隔离工作区验证允许与拒绝。
-7. 通过 Connector 对轨道、总线、片段、音符、参数曲线、时间轴、Speaker Mix、历史记录与播放逐域执行真实 mutation，观察 GUI 立即变化，并以对应 Query 核对同一状态。
+7. 通过 Connector 对轨道、总线、剪辑、音符、参数曲线、时间轴、Speaker Mix、历史记录与播放逐域执行真实 mutation，观察 GUI 立即变化，并以对应 Query 核对同一状态。
 8. 对第 7 步各编辑域的 mutation 使用 GUI 与 MCP Undo/Redo；细粒度 Command、批量命令和三个持久循环命令的历史记录粒度均由确定性 CTest 覆盖。
-9. 对文档、格式、音频素材、声库、保存、导入、导出、提取、推理和异步任务逐域执行真实资格路径；环境缺少 codec、声音、模型或音频设备时保存结构化不可用事实，同时由确定性 CTest 覆盖可用分支。
+9. 对文档、格式、音频剪辑、声库、保存、导入、导出、提取、推理和异步任务逐域执行真实资格路径；环境缺少 codec、声音、模型或音频设备时保存结构化不可用事实，同时由确定性 CTest 覆盖可用分支。
 10. 同时运行多个 Connector，结束其中一个后验证其余链路。
 11. 使用 CLI override 启动测试拥有的 Editor，核对来源显示与持久配置保持。
 12. 对 workspace、track_panel、clip_editor（含 piano/parameters）的布局、焦点事实、选择与共享视口分别建立代表性 GUI 场景；增加 Editor 处于后台的调用，确认键盘焦点仅尽力获取且不会推翻已完成操作，并保存调用前后截图、query 回读和恢复证据。

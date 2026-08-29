@@ -414,9 +414,7 @@ QWidget *AutomationPage::createContentWidget() {
         QStringLiteral("automationStdioConfiguration"), presetStdioConfiguration, true);
     connectionCard->addItem(
         tr("STDIO Connector"),
-        tr("Starts DS Connector Lite, discovers this editor automatically, and uses the current "
-           "access profile in the copied JSON"),
-        stdioControl);
+        tr("Starts DS Connector Lite and discovers this editor automatically"), stdioControl);
 
     Button *streamableHttpCopyButton = nullptr;
     const auto streamableHttpConfiguration =
@@ -427,9 +425,7 @@ QWidget *AutomationPage::createContentWidget() {
                                    QStringLiteral("automationStreamableHttpConfiguration"),
                                    streamableHttpConfiguration, false);
     connectionCard->addItem(
-        tr("Streamable HTTP"),
-        tr("Connects directly to the editor's configured MCP endpoint; the generated port stays "
-           "unchanged until you edit it or press Refresh"),
+        tr("Streamable HTTP"), tr("Connects directly to the editor's configured MCP endpoint"),
         streamableHttpControl);
     refreshConnectionConfigurations();
 

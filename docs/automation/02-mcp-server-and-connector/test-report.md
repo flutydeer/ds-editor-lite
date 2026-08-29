@@ -38,7 +38,7 @@ plugin 路径；GUI 与 Connector 进程测试使用独立测试实例和隔离�
 - Editor 公共 Contract 的 ID 唯一；Registry binding、授权后的 Editor `tools/list` 与相应契约集合相等，Connector 已知类型化描述来自同一权威源；
 - Connector 固定桥接定义唯一，downstream 等于当前 exposure 下可用的 Editor 工具与桥接工具之并集；
 - 域、Query/Command 类型、同步模式、最低 Profile、`minimum_toolset_version` 和动态值来源满足声明约束；工具与域数量只作为候选快照记录，不作为固定测试门禁；
-- `tracks.get` 返回轨道属性、统计、自有/有效 voice 与默认语言上下文，`clips.get` 对歌声片段
+- `tracks.get` 返回轨道属性、统计、自有/有效 voice 与默认语言上下文，`clips.get` 对歌声剪辑
   返回 own/effective voice、继承来源和有效默认语言；公共集合不含
   `tracks.get_voice_context` 或 `clips.get_voice_context`；
 - 177 项 input JSON Schema 均为 object 根，未知字段、错误类型、非法枚举和不满足联合分支的输入
@@ -99,7 +99,7 @@ revision。L3 的选择、定位、面板和视口命令不修改工程，也不
 | L3 合计 | 45 | 契约覆盖、区域激活与尽力焦点代表路径通过 |
 
 24 个业务域的 Query、同步 Command 和异步 Task 由确定性测试覆盖。真实 Connector 代表路径
-覆盖精确声库选择、轨道 voice、片段、音符、合并后的 voice context 查询、泛化 invoke、L3 UI
+覆盖精确声库选择、轨道 voice、剪辑、音符、合并后的 voice context 查询、泛化 invoke、L3 UI
 区域激活与另存；编辑结果以结构化查询和 GUI 可见状态交叉确认。后台窗口增量场景确认
 `track_panel.select_track` 在 `focused=false` 时仍成功并可回读选中轨道，`reveal_clips` 与
 `clip_editor.show_region` 同样不因操作系统未授予键盘焦点而报错。
@@ -157,9 +157,9 @@ connected/compatible；重启后的 clean 工程默认 exit 在 9.91 ms 内返�
 Computer Use 验收 MCP 调用后的 GUI 即时状态、L3 区域激活与焦点事实、合成波形、播放和另存结果；
 全过程监控顶层窗口、活动模态窗口、进程心跳与无响应状态，自动化调用未触发交互式确认框。
 
-GUI 与无人值守实测结果：**通过**。Computer Use 可见创建后的片段、7 个音符、歌词、发音、
+GUI 与无人值守实测结果：**通过**。Computer Use 可见创建后的剪辑、7 个音符、歌词、发音、
 音高曲线和合成波形；L3 UI 区域激活成功。增量回归把 Editor 保持在后台，真实调用轨道选择、
-片段定位和参数区域显示均成功；query 回读同时证明目标状态已应用而键盘焦点仍为 false。
+剪辑定位和参数区域显示均成功；query 回读同时证明目标状态已应用而键盘焦点仍为 false。
 播放时间由 101:01:341 前进至 102:02:437，
 `documents.save_as` 成功。生命周期增量场景中，dirty 默认拒绝后测试轨道仍即时可见且窗口保持
 可操作；显式丢弃后旧窗口关闭、只出现一个 clean 新实例，未保存轨道不再存在；clean 默认退出后

@@ -17,8 +17,8 @@ Editor 的 177 项工具分属 24 个业务域，类型统计为 **41 Q/S + 125 
 
 - 公共能力先按状态所有者归入业务域，再映射到 Profile 和 Connector exposure；总线、时间轴、历史记录和播放各自独立。
 - 在相应开放层级内，GUI 可完成的原子操作具有对应 MCP 工具；MCP handler 复用同一 Model、Action、历史记录、Task 和文件后端，提交后由既有信号链立即反映到 GUI。
-- 历史记录是编辑工具的原子边界。能够整体撤销和重做的同类多对象操作可批量提交；不能共同撤销的属性使用独立工具。例如轨道、片段和总线的标量控制分别提交，已有音符的歌词、语言、长度和发音也分别提交。
-- 创建输入限制对象树深度。轨道创建只接收空轨道的名称和颜色；歌声片段创建只接收目标轨道、位置、长度和名称；音符是叶节点，可在创建时携带完整初始属性。
+- 历史记录是编辑工具的原子边界。能够整体撤销和重做的同类多对象操作可批量提交；不能共同撤销的属性使用独立工具。例如轨道、剪辑和总线的标量控制分别提交，已有音符的歌词、语言、长度和发音也分别提交。
+- 创建输入限制对象树深度。轨道创建只接收空轨道的名称和颜色；歌声剪辑创建只接收目标轨道、位置、长度和名称；音符是叶节点，可在创建时携带完整初始属性。
 - duplicate、move、resize、split、关键帧和参数锚点以稳定对象 ID 工作，不依赖当前选区、焦点或活动面板。
 - Query 不提交业务状态；同步 Command 在模型、历史记录和 revision 完成后返回；异步 Command 返回 Task 句柄，并在最终写回完成后进入成功终态。
 - 自动化路径使用显式参数、稳定错误和无对话框的文件/任务流程，适合无人值守调用。
@@ -70,8 +70,8 @@ binding ID 与公共契约 ID 排序后做精确相等校验；完整性门禁�
 | 格式 | `formats` | 2 |
 | 轨道 | `tracks` | 14 |
 | 总线 | `bus` | 5 |
-| 片段 | `clips` | 15 |
-| 音频素材 | `audio_clips` | 5 |
+| 剪辑 | `clips` | 15 |
+| 音频剪辑 | `audio_clips` | 5 |
 | 声库 | `voices` | 2 |
 | Speaker Mix | `speaker_mix` | 13 |
 | 音符、歌词、语言、发音与音素 | `notes` | 19 |
@@ -85,7 +85,7 @@ binding ID 与公共契约 ID 排序后做精确相等校验；完整性门禁�
 | 异步任务 | `tasks` | 3 |
 | 工作区布局 | `workspace` | 2 |
 | 轨道面板 | `track_panel` | 7 |
-| 片段编辑器 | `clip_editor` | 16 |
+| 剪辑编辑器 | `clip_editor` | 16 |
 | 设置 | `settings` | 10 |
 | 包信息 | `packages` | 3 |
 | 歌词规则 | `lyric_rules` | 7 |
@@ -122,23 +122,23 @@ Closed World Command，不提供 `force`、`validate_only`、幂等键或任意�
 
 ### 5.2 音符叶节点与 voice 归属
 
-`notes.insert` 的 note draft 支持位置、长度、音高、cent shift、歌词、语言、发音、发音候选、音素、音素偏移和换行标记。创建完整音符叶节点不要求 voice context；省略语言时保留“跟随歌手”语义，省略歌词时才按片段、轨道和应用设置推导与 GUI 同源的默认歌词，并把该默认值写入 `resolved_values`。
+`notes.insert` 的 note draft 支持位置、长度、音高、cent shift、歌词、语言、发音、发音候选、音素、音素偏移和换行标记。创建完整音符叶节点不要求 voice context；省略语言时保留“跟随歌手”语义，省略歌词时才按剪辑、轨道和应用设置推导与 GUI 同源的默认歌词，并把该默认值写入 `resolved_values`。
 
 已有音符的后续编辑保持细粒度：歌词、语言、发音、音素名称、音素偏移、左右边界、移动和量化均为独立 Command。`notes.reset_phoneme_offsets` 接受所选词根，由领域 Facade 计算向右级联闭包，将恢复后会与左词重叠的已编辑右邻一并纳入同一条历史记录；GUI Controller 只在闭包超出选区时显示确认，公共 Registry 直接调用无界面的领域路径，因此 MCP 调用不会弹窗。批量命令先完整预检，再以一条历史记录和一次 revision 提交；合法 no-op 不新增历史记录。
 
-轨道和片段各自拥有 voice 操作与回读：
+轨道和剪辑各自拥有 voice 操作与回读：
 
 - `tracks.get` 在轨道属性和统计之外返回自有/有效 voice 与默认语言上下文；轨道域另提供
   `tracks.set_voice/clear_voice`；
-- `clips.get` 对歌声片段同时返回 own/effective voice、继承来源和有效默认语言；片段域另提供
+- `clips.get` 对歌声剪辑同时返回 own/effective voice、继承来源和有效默认语言；剪辑域另提供
   `clips.use_track_voice/set_voice/clear_voice`；
-- `use_track_voice` 恢复片段对轨道 voice 的继承，`set_voice` 设置片段自己的 voice；
+- `use_track_voice` 恢复剪辑对轨道 voice 的继承，`set_voice` 设置剪辑自己的 voice；
 - `set_voice` 必须指定由 `package_id`、`package_version` 和 `singer_id` 共同组成的 singer 引用；同 ID 并存版本按完整引用精确解析。L1/L2 调用方通过 `voices.list/describe` 即可获得该引用及对应 speaker，不需要访问 L3 `packages.*`；speaker 可省略或为 `null`，零 speaker 声库保持空 speaker，单 speaker 声库解析唯一项，多 speaker 声库要求显式选择，查询统一以 `speaker: null` 表达空 speaker；
 - 声库域只负责 `voices.list/describe`，Speaker Mix 的固定、动态、bypass 和关键帧操作保留在独立域。
 
 ### 5.3 创建深度、duplicate 与 NoteTransfer
 
-`tracks.insert` 的公开 Schema 不接受片段树；`clips.insert` 不接受音符、参数、voice 或 mix 树。调用方先创建空容器，再通过所属域的工具填充内容。相对地，`clips.duplicate` 和 `notes.duplicate` 以已有稳定 ID 为来源，执行深复制并整体撤销，不把任意对象树暴露为创建参数。
+`tracks.insert` 的公开 Schema 不接受剪辑树；`clips.insert` 不接受音符、参数、voice 或 mix 树。调用方先创建空容器，再通过所属域的工具填充内容。相对地，`clips.duplicate` 和 `notes.duplicate` 以已有稳定 ID 为来源，执行深复制并整体撤销，不把任意对象树暴露为创建参数。
 
 音符深复制和 GUI 剪贴板现在共用 `NoteTransfer`：
 
@@ -174,19 +174,19 @@ LibreSVIP 转换抽取为共享 `LibreSVIPConverter`。GUI 转换 Task 与自动
 
 ### 5.6 文档统计、有界参数查询与 Speaker Mix 预设
 
-公开工具不再暴露聚合对象树式的 `project.get`。`documents.get` 在既有文档状态上增加工程长度、轨道总数与空轨/纯歌声/纯音频/混合轨分类，以及片段总数与歌声/音频分类统计；对象详情继续由轨道和片段域分页查询。L2 的 `documents.list_recent` 只读取应用最近项目记录并报告路径、文件名和存在状态，不打开文件、不切换文档。
+公开工具不再暴露聚合对象树式的 `project.get`。`documents.get` 在既有文档状态上增加工程长度、轨道总数与空轨/纯歌声/纯音频/混合轨分类，以及剪辑总数与歌声/音频分类统计；对象详情继续由轨道和剪辑域分页查询。L2 的 `documents.list_recent` 只读取应用最近项目记录并报告路径、文件名和存在状态，不打开文件、不切换文档。
 
 `parameters.get` 接受可选半开时间范围和 `max_points`。锚点曲线始终完整返回，点数上限不足以容纳稳定锚点身份时明确失败；采样曲线使用确定性步长降采样，并返回原始点数、实际点数和 `downsampled`。锚点拓扑操作也改为显式边界：`create_anchor_curve` 创建至少含两个锚点且不重叠的新曲线，`insert_anchors` 只写指定既有曲线，`merge_anchor_curves` 只显式合并相邻且不重叠的完整曲线；移动锚点不会隐式跨曲线合并。
 
-Speaker Mix 预设并入 `speaker_mix` 域并开放在 L2。`presets.list/save/delete` 管理应用级预设，不改变文档 revision 或 History；`presets.apply` 把预设值作为一条文档历史记录应用到轨道或片段。查询快照携带可空来源预设和 dirty 标记，后续直接编辑混合会保留来源身份并标记已偏离预设。
+Speaker Mix 预设并入 `speaker_mix` 域并开放在 L2。`presets.list/save/delete` 管理应用级预设，不改变文档 revision 或 History；`presets.apply` 把预设值作为一条文档历史记录应用到轨道或剪辑。查询快照携带可空来源预设和 dirty 标记，后续直接编辑混合会保留来源身份并标记已偏离预设。
 
-### 5.7 工作区、轨道面板与片段编辑器
+### 5.7 工作区、轨道面板与剪辑编辑器
 
 GUI 进阶控制按真实面板层级归入 `workspace`、`track_panel` 和 `clip_editor` 三个域。所有工具都显式定位 `window_id`；涉及工程对象的命令同时定位 `document_id`，对象选择继续使用稳定的 track、clip 和 note ID。它们只修改 QWidget 表示状态、选择、活动区域或视口，不推进工程 revision，也不写入历史记录，因此公共输入不要求 `expected_revision`。
 
-`workspace` 管理轨道面板与片段编辑器的可见性，并保证至少保留一个主编辑面板。`track_panel` 管理自己的共享轨道视口、自动翻页、当前轨道、有序片段选择与 primary item；reveal 会根据目标轨道或片段调整可见范围，但不改变工程内容。选择类命令会显示并激活所属区域，键盘焦点只作尽力获取；Editor 位于后台、操作系统拒绝抢焦点时，已完成的选择或定位仍按成功返回。查询继续报告实际焦点事实。
+`workspace` 管理轨道面板与剪辑编辑器的可见性，并保证至少保留一个主编辑面板。`track_panel` 管理自己的共享轨道视口、自动翻页、当前轨道、有序剪辑选择与 primary item；reveal 会根据目标轨道或剪辑调整可见范围，但不改变工程内容。选择类命令会显示并激活所属区域，键盘焦点只作尽力获取；Editor 位于后台、操作系统拒绝抢焦点时，已完成的选择或定位仍按成功返回。查询继续报告实际焦点事实。
 
-`clip_editor` 把钢琴窗和参数面板建模为同一编辑面板的子区域：两者共享时间位置和横向缩放，钢琴另有音高纵向视口，参数另有值域纵向视口。活动片段、区域显示、自动翻页、钢琴编辑模式与量化、音符选择，以及参数前景、背景、交换和工具状态均走现有 Controller 与 ViewModel 路径，因此 MCP 结果会通过同一信号链立即反映在 GUI。
+`clip_editor` 把钢琴窗和参数面板建模为同一编辑面板的子区域：两者共享时间位置和横向缩放，钢琴另有音高纵向视口，参数另有值域纵向视口。活动剪辑、区域显示、自动翻页、钢琴编辑模式与量化、音符选择，以及参数前景、背景、交换和工具状态均走现有 Controller 与 ViewModel 路径，因此 MCP 结果会通过同一信号链立即反映在 GUI。
 
 ### 5.8 设置、包信息与歌词规则
 
@@ -306,13 +306,13 @@ CLI override 只影响本次运行，并在设置页显示来源，不改写持�
 - 公共 tool name 唯一，域、类型、Profile、Schema 和逐工具最低工具集版本合法；
 - Contract、Registry、Editor `tools/list` 与 Connector 已知描述来自同一权威集合；
 - Connector 桥接工具唯一，exposure 后的 downstream 等于可用 Editor 工具与桥接工具之并集；
-- 历史记录原子边界、创建深度、音符叶节点、轨道/片段 voice 和持久循环；
+- 历史记录原子边界、创建深度、音符叶节点、轨道/剪辑 voice 和持久循环；
 - NoteTransfer 的音符与参数曲线深复制、GUI 剪贴板 round-trip；
 - MIDI headless 解析/生成、LibreSVIP 共享转换、文件授权与异步写回；
 - Profile/Custom、File Guard、全局 Admission、游标和版本兼容；
 - 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手、HTTP、QLocal、Connector stdio 和真实进程路径；
 - L0 退出/重启的 Schema、不可禁用策略、dirty 拒绝、显式丢弃、响应后关闭、重启换代与 Connector 自动重连；
-- 工作区、轨道面板和片段编辑器的 GUI 状态、选择、焦点、共享视口及无历史记录副作用；
+- 工作区、轨道面板和剪辑编辑器的 GUI 状态、选择、焦点、共享视口及无历史记录副作用；
 - 设置稀疏更新、包索引后台刷新、歌词规则管理与失败回滚；
 - Automation 设置持久化、CLI override、端口、配置 JSON、Custom 领域分组与中文界面。
 
