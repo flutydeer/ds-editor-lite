@@ -48,10 +48,8 @@ namespace Automation::McpClientConfiguration {
         enabledCustomOperations.removeAll(QString{});
         enabledCustomOperations.removeDuplicates();
         enabledCustomOperations.sort();
-        for (const auto &operationId : enabledCustomOperations) {
-            arguments.append(QStringLiteral("--include-tool"));
-            arguments.append(QStringLiteral("id:%1").arg(operationId));
-        }
+        for (const auto &operationId : enabledCustomOperations)
+            arguments.append(QStringLiteral("--include-tool=id:%1").arg(operationId));
         return arguments;
     }
 

@@ -162,9 +162,8 @@ namespace {
                                {QStringLiteral("notes.list"), QStringLiteral("documents.save"),
                                 QStringLiteral("notes.list")}) ==
                 QStringList{QStringLiteral("--exposure-profile"), QStringLiteral("l0"),
-                            QStringLiteral("--include-tool"),
-                            QStringLiteral("id:documents.save"),
-                            QStringLiteral("--include-tool"), QStringLiteral("id:notes.list")},
+                            QStringLiteral("--include-tool=id:documents.save"),
+                            QStringLiteral("--include-tool=id:notes.list")},
             QStringLiteral("Custom connector arguments should be sorted and deduplicated"));
 
         const auto command = connectorExecutablePath(QStringLiteral("C:/Program Files/DS Editor Lite"));
