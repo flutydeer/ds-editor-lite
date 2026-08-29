@@ -15,7 +15,7 @@ Editor 的 177 项工具分属 24 个业务域，类型统计为 **41 Q/S + 125 
 
 当前实现把 GUI 与 MCP 视为同一业务模型的两个入口，边界遵循以下规则：
 
-- 公共能力先按状态所有者归入业务域，再映射到 Profile 和 Connector exposure；总线、时间轴、历史记录和播放各自独立。
+- 公共能力先按状态所有者归入业务域，再映射到 Profile 和 Connector exposure；总线、时间线、历史记录和播放各自独立。
 - 在相应开放层级内，GUI 可完成的原子操作具有对应 MCP 工具；MCP handler 复用同一 Model、Action、历史记录、Task 和文件后端，提交后由既有信号链立即反映到 GUI。
 - 历史记录是编辑工具的原子边界。能够整体撤销和重做的同类多对象操作可批量提交；不能共同撤销的属性使用独立工具。例如轨道、剪辑和总线的标量控制分别提交，已有音符的歌词、语言、长度和发音也分别提交。
 - 创建输入限制对象树深度。轨道创建只接收空轨道的名称和颜色；歌声剪辑创建只接收目标轨道、位置、长度和名称；音符是叶节点，可在创建时携带完整初始属性。
@@ -76,7 +76,7 @@ binding ID 与公共契约 ID 排序后做精确相等校验；完整性门禁�
 | Speaker Mix | `speaker_mix` | 13 |
 | 音符、歌词、语言、发音与音素 | `notes` | 19 |
 | 参数曲线与锚点 | `parameters` | 12 |
-| 时间轴 | `timeline` | 5 |
+| 时间线 | `timeline` | 5 |
 | 历史记录 | `history` | 3 |
 | 播放 | `playback` | 8 |
 | 导出 | `exports` | 6 |
@@ -166,7 +166,7 @@ Closed World Command，不提供 `force`、`validate_only`、幂等键或任意�
 MIDI 路径拆为可复用的两段：
 
 1. `MidiFileParser` 读取并解析为可复用中间数据，不修改 Model；
-2. `MidiTrackGenerator` 根据编码、轨道选择、Tempo 和拍号选项生成轨道与时间轴结果，再由 GUI session、批量导入或自动化提交者应用。
+2. `MidiTrackGenerator` 根据编码、轨道选择、Tempo 和拍号选项生成轨道与时间线结果，再由 GUI session、批量导入或自动化提交者应用。
 
 `formats.inspect` 与 MIDI 文档导入复用 parser，交互式 GUI、批量导入和 headless session 复用 generator。MIDI capability/preview/start 则复用同一 converter 和公开 option Schema；导出支持 Tempo、拍号和歌词选项，使用临时文件语义的安全写入后提交目标文件。
 

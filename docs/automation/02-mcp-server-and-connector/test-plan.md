@@ -247,7 +247,7 @@ stdio 零污染；工具面、exposure 与兼容结果确定；旧握手结果�
 1. Connector 先启动，再启动 Editor 并启用 MCP，观察自动接入。
 2. Editor 先 ready，再启动 Connector，验证首次 watch 到完整握手。
 3. 在 direct HTTP 与 Connector stdio 上复用 L0/L1/L2/L3 代表语料；契约集合关系由确定性组件测试覆盖，真实 Connector 会话按业务域、调用类型和风险选择代表路径，并覆盖所有桥接工具的独特行为。
-4. 在隔离工作区完成文档、格式、轨道、总线、剪辑、音频剪辑、声库、Speaker Mix、音符、参数曲线、时间轴、历史记录、播放、导出、提取、推理与 Task 链路；GUI、设置、包信息和歌词规则域在同一真实进程候选中闭环。
+4. 在隔离工作区完成文档、格式、轨道、总线、剪辑、音频剪辑、声库、Speaker Mix、音符、参数曲线、时间线、历史记录、播放、导出、提取、推理与 Task 链路；GUI、设置、包信息和歌词规则域在同一真实进程候选中闭环。
 5. 运行两至八个 Connector，并发 Query、Command、Task 和 reconnect。
 6. 验证 revision conflict、全局 32 路上限、独立缓存与请求映射。
 7. 运行时切换 Profile/Custom/roots/port/enabled，验证两侧状态与调用结果。
@@ -267,7 +267,7 @@ Editor direct 与 Connector 转接在结果、错误、历史记录、revision �
 4. 核对端口刷新按钮与输入框同一行且始终可用；首次配置生成非零端口后重启不变化，刷新、直接编辑、冲突恢复、disable/enable 的状态序列正确。
 5. 在 ready、disabled 和 error 状态分别复制 stdio 与 Streamable HTTP 配置；解析为单个 server entry，并确认不含外层 `mcpServers`。
 6. 核对读写根说明为自动化文件工具 allowlist，且页面不存在无动态内容的本机进程访问栏目；使用隔离工作区验证允许与拒绝。
-7. 通过 Connector 对轨道、总线、剪辑、音符、参数曲线、时间轴、Speaker Mix、历史记录与播放逐域执行真实 mutation，观察 GUI 立即变化，并以对应 Query 核对同一状态。
+7. 通过 Connector 对轨道、总线、剪辑、音符、参数曲线、时间线、Speaker Mix、历史记录与播放逐域执行真实 mutation，观察 GUI 立即变化，并以对应 Query 核对同一状态。
 8. 对第 7 步各编辑域的 mutation 使用 GUI 与 MCP Undo/Redo；细粒度 Command、批量命令和三个持久循环命令的历史记录粒度均由确定性 CTest 覆盖。
 9. 对文档、格式、音频剪辑、声库、保存、导入、导出、提取、推理和异步任务逐域执行真实资格路径；环境缺少 codec、声音、模型或音频设备时保存结构化不可用事实，同时由确定性 CTest 覆盖可用分支。
 10. 同时运行多个 Connector，结束其中一个后验证其余链路。
