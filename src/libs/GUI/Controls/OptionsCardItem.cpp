@@ -24,7 +24,6 @@ OptionsCardItem::OptionsCardItem(QWidget *parent) : QWidget(parent) {
 
     m_mainLayout = new QHBoxLayout;
     m_mainLayout->addLayout(titleDescLayout, 1);
-    m_mainLayout->addSpacing(8);
     m_mainLayout->setContentsMargins(0, 3, 0, 3);
     setLayout(m_mainLayout);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
