@@ -219,10 +219,9 @@ void CommonParamEditorView::discardAction() {
 
 void CommonParamEditorView::commitAction() {
     if (m_curveTransformKind) {
-        if (m_curveTransform.phase() == CurveTransform::Phase::Transforming)
-            finishCurveTransform();
-        else
-            cancelCurveTransform(false);
+        // Curve transforms own their three-stage release lifecycle. The containing piano-roll
+        // view commits its generic action before forwarding the release to the graphics scene.
+        // Ending the transform here would discard selection and boundary adjustment prematurely.
         return;
     }
     if (m_mouseMoved) {
