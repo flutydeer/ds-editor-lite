@@ -843,20 +843,41 @@ namespace Automation {
                         QStringLiteral("destination.target_start"),
                         QStringLiteral("Destination start must be non-negative")));
                 }
+                const auto delta =
+                    static_cast<qint64>(destination.targetStart) - minimumStart;
+                QList<int> translatedStarts;
+                translatedStarts.reserve(sources.size());
+                for (const auto &source : sources) {
+                    auto properties = clipDraftDto(*source.clip).properties;
+                    const auto translatedStart = static_cast<qint64>(properties.start) + delta;
+                    if (translatedStart < std::numeric_limits<int>::min() ||
+                        translatedStart > std::numeric_limits<int>::max()) {
+                        return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                            QStringLiteral("destination.target_start"),
+                            QStringLiteral("Translated clip range is out of bounds")));
+                    }
+                    properties.start = static_cast<int>(translatedStart);
+                    if (!validClipProperties(properties)) {
+                        return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                            QStringLiteral("destination.target_start"),
+                            QStringLiteral("Translated clip range is out of bounds")));
+                    }
+                    translatedStarts.append(properties.start);
+                }
                 if (validateOnly)
                     return AutomationResult<MutationResult>(m_committer.preview(session, true));
 
-                const auto delta = destination.targetStart - minimumStart;
                 QList<Track *> targets;
                 QList<Clip *> rawClips;
                 QList<ObjectRef> affected;
                 QList<CreatedObjectRef> createdObjects;
                 std::vector<std::unique_ptr<Clip>> owned;
                 qsizetype duplicateIndex = 0;
-                for (const auto &source : sources) {
+                for (qsizetype sourceIndex = 0; sourceIndex < sources.size(); ++sourceIndex) {
+                    const auto &source = sources.at(sourceIndex);
                     auto draft = clipDraftDto(*source.clip);
                     draft.clientRef = QStringLiteral("duplicate_clip_%1").arg(duplicateIndex++);
-                    draft.properties.start += delta;
+                    draft.properties.start = translatedStarts.at(sourceIndex);
                     for (auto &keyframe : draft.ownSpeakerMixData.dynamicKeyframes)
                         keyframe.id = IdGenerator::instance()->next();
                     for (auto &parameter : draft.params) {
@@ -935,6 +956,11 @@ namespace Automation {
                         drag.writeTruth(item.next);
                     } else {
                         item.next.start = move.start - item.next.clipStart;
+                    }
+                    if (!validClipProperties(toDto(item.next))) {
+                        return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                            QStringLiteral("moves.start"),
+                            QStringLiteral("Moved clip range is out of bounds")));
                     }
                     changed |= item.target != item.resolved.track ||
                                !clipPropertiesEqual(item.previous, toDto(item.next));

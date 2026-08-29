@@ -502,6 +502,64 @@ namespace {
             });
 
         suite.run(
+            Automation::OperationIds::clips::duplicate,
+            QStringLiteral("translated-range-overflow-is-atomic"), [&] {
+                auto farDraft = singingClipDraft(QStringLiteral("Far Clip"),
+                                                 QStringLiteral("clip-far"));
+                farDraft.properties.start = std::numeric_limits<int>::max() - 10;
+                farDraft.properties.length = 1;
+                farDraft.properties.clipStart = 0;
+                farDraft.properties.clipLen = 1;
+                const auto inserted = runtime.project().insertClips(
+                    commandContext(runtime), {
+                                                 {.trackId = second, .clip = farDraft}
+                });
+                const auto farClip = inserted && !inserted.get().affectedObjects.isEmpty()
+                                         ? ClipId(inserted.get().affectedObjects.first().value)
+                                         : ClipId{};
+                suite.expect(farClip.isValid(), QStringLiteral("far clip fixture must be created"));
+                testRuntime.history()->reset();
+                const auto base = runtime.documentVersion();
+                const Automation::ClipDuplicateDestinationDto destination{
+                    .targetTrackId = second,
+                    .targetStart = 100,
+                };
+                const auto preview = runtime.project().duplicateClips(
+                    commandContext(runtime, true), {clip, farClip}, destination);
+                const auto commit = runtime.project().duplicateClips(commandContext(runtime),
+                                                                     {clip, farClip}, destination);
+                suite.expect(
+                    isError(preview, AutomationErrorCode::InvalidArgument,
+                            QStringLiteral("destination.target_start")) &&
+                        isError(commit, AutomationErrorCode::InvalidArgument,
+                                QStringLiteral("destination.target_start")) &&
+                        runtime.documentVersion() == base,
+                    QStringLiteral("translated duplicate ranges must be checked before preview or "
+                                   "commit"));
+            });
+
+        suite.run(Automation::OperationIds::clips::move,
+                  QStringLiteral("visible-range-overflow-is-atomic"), [&] {
+                      testRuntime.history()->reset();
+                      const auto base = runtime.documentVersion();
+                      const QList<Automation::ClipMoveDto> moves{
+                          {.id = clip,
+                           .targetTrackId = second,
+                           .start = std::numeric_limits<int>::max()},
+                      };
+                      const auto preview =
+                          runtime.project().moveClips(commandContext(runtime, true), moves);
+                      const auto commit = runtime.project().moveClips(commandContext(runtime), moves);
+                      suite.expect(isError(preview, AutomationErrorCode::InvalidArgument,
+                                           QStringLiteral("moves.start")) &&
+                                       isError(commit, AutomationErrorCode::InvalidArgument,
+                                               QStringLiteral("moves.start")) &&
+                                       runtime.documentVersion() == base,
+                                   QStringLiteral("clip moves must reject an overflowing visible "
+                                                  "range before preview or commit"));
+                  });
+
+        suite.run(
             Automation::OperationIds::clips::set_properties,
             QStringLiteral("legacy-range-move-and-edit-atomically"), [&] {
                 testRuntime.history()->reset();
@@ -1014,6 +1072,19 @@ namespace {
                 suite.expect(isError(invalidKey, AutomationErrorCode::InvalidArgument,
                                      QStringLiteral("delta_key")),
                              QStringLiteral("out-of-range key must be rejected"));
+                const auto overflowingTick = runtime.notes().moveNotes(
+                    commandContext(runtime), fixture.clipId, {fixture.firstNoteId},
+                    std::numeric_limits<int>::max(), 0);
+                const auto overflowingKey = runtime.notes().moveNotes(
+                    commandContext(runtime), fixture.clipId, {fixture.firstNoteId}, 0,
+                    std::numeric_limits<int>::max());
+                suite.expect(
+                    isError(overflowingTick, AutomationErrorCode::InvalidArgument,
+                            QStringLiteral("delta_tick")) &&
+                        isError(overflowingKey, AutomationErrorCode::InvalidArgument,
+                                QStringLiteral("delta_key")) &&
+                        runtime.documentVersion() == base,
+                    QStringLiteral("projected note positions and keys must not overflow"));
                 const auto noOp = runtime.notes().moveNotes(commandContext(runtime), fixture.clipId,
                                                             {fixture.firstNoteId}, 0, 0);
                 suite.expect(noOp && !noOp.get().changed && runtime.documentVersion() == base,
@@ -1098,6 +1169,13 @@ namespace {
                                      QStringLiteral("resize")),
                              QStringLiteral("non-positive minimum length must be rejected"));
                 const auto base = runtime.documentVersion();
+                const auto overflowing = runtime.notes().resizeNotesRight(
+                    commandContext(runtime), fixture.clipId, {fixture.firstNoteId},
+                    std::numeric_limits<int>::max(), 1);
+                suite.expect(isError(overflowing, AutomationErrorCode::InvalidArgument,
+                                     QStringLiteral("delta_tick")) &&
+                                 runtime.documentVersion() == base,
+                             QStringLiteral("projected note length must not overflow"));
                 const auto preview = runtime.notes().resizeNotesRight(
                     commandContext(runtime, true), fixture.clipId, {fixture.firstNoteId}, 60, 120);
                 suite.expect(preview && preview.get().changed && runtime.documentVersion() == base,

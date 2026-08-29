@@ -623,7 +623,15 @@ namespace Automation {
                     notes.isEmpty() ? 0
                                     : NoteResizeUtils::clampLeftMoveDelta(deltaTick, minimumStart);
                 for (const auto *note : notes) {
-                    const auto targetKey = note->keyIndex() + deltaKey;
+                    const auto targetStart =
+                        static_cast<qint64>(note->localStart()) + safeDeltaTick;
+                    const auto targetEnd = targetStart + note->length();
+                    if (targetStart < 0 || targetEnd > std::numeric_limits<int>::max()) {
+                        return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                            QStringLiteral("delta_tick"),
+                            QStringLiteral("Moved note range is out of bounds")));
+                    }
+                    const auto targetKey = static_cast<qint64>(note->keyIndex()) + deltaKey;
                     if (targetKey < 0 || targetKey > 127) {
                         return AutomationResult<MutationResult>(AutomationError::invalidArgument(
                             QStringLiteral("delta_key"),
@@ -724,6 +732,17 @@ namespace Automation {
                 for (const auto *note : notes)
                     safeDelta =
                         NoteResizeUtils::clampRightDelta(note->length(), safeDelta, minimumLength);
+                for (const auto *note : notes) {
+                    const auto targetLength = static_cast<qint64>(note->length()) + safeDelta;
+                    const auto targetEnd =
+                        static_cast<qint64>(note->localStart()) + targetLength;
+                    if (targetLength > std::numeric_limits<int>::max() ||
+                        targetEnd > std::numeric_limits<int>::max()) {
+                        return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                            QStringLiteral("delta_tick"),
+                            QStringLiteral("Resized note range is out of bounds")));
+                    }
+                }
                 const bool changed = !notes.isEmpty() && safeDelta != 0;
                 const auto affected = noteRefs(noteIds);
                 if (validateOnly)
