@@ -307,8 +307,8 @@
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="199"/>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="331"/>
-        <source>Limits MCP file reads, such as opening and importing, to the listed folders. Existing folders are saved as canonical paths.</source>
-        <translation>将 MCP 的打开、导入等文件读取操作限制在所列文件夹内。现有文件夹会以规范路径保存。</translation>
+        <source>Limits MCP file reads, such as opening and importing, to the listed folders</source>
+        <translation>将 MCP 的打开、导入等文件读取操作限制在所列文件夹内</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="201"/>
@@ -319,8 +319,8 @@
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="207"/>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="341"/>
-        <source>Limits MCP file writes, such as saving and exporting, to the listed folders. Existing folders are saved as canonical paths.</source>
-        <translation>将 MCP 的保存、导出等文件写入操作限制在所列文件夹内。现有文件夹会以规范路径保存。</translation>
+        <source>Limits MCP file writes, such as saving and exporting, to the listed folders</source>
+        <translation>将 MCP 的保存、导出等文件写入操作限制在所列文件夹内</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="241"/>
@@ -399,8 +399,8 @@
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="349"/>
-        <source>Starts DS Connector Lite and discovers this editor automatically. The copied JSON uses the current access profile.</source>
-        <translation>启动 DS Connector Lite 并自动发现本编辑器。复制的 JSON 使用当前访问级别。</translation>
+        <source>Starts DS Connector Lite, discovers this editor automatically, and uses the current access profile in the copied JSON</source>
+        <translation>启动 DS Connector Lite、自动发现本编辑器，并在复制的 JSON 中使用当前访问级别</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="355"/>
@@ -414,8 +414,8 @@
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="359"/>
-        <source>Connects directly to the editor&apos;s configured MCP endpoint. The generated port stays unchanged until you edit it or press Refresh.</source>
-        <translation>直接连接编辑器配置的 MCP 端点。生成的端口会保持不变，直到您手动编辑或点击“刷新”。</translation>
+        <source>Connects directly to the editor&apos;s configured MCP endpoint; the generated port stays unchanged until you edit it or press Refresh</source>
+        <translation>直接连接编辑器配置的 MCP 端点，生成的端口会保持不变，直到您手动编辑或点击“刷新”</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="270"/>

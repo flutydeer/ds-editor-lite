@@ -268,16 +268,16 @@ void AutomationPage::modifyOption() {
     if (m_readRootsItem) {
         m_readRootsItem->setDescription(
             invalidReadRoots.isEmpty()
-                ? tr("Limits MCP file reads, such as opening and importing, to the listed folders. "
-                     "Existing folders are saved as canonical paths.")
+                ? tr("Limits MCP file reads, such as opening and importing, to the listed "
+                     "folders")
                 : tr("Not saved because a folder is missing or invalid: %1")
                       .arg(invalidReadRoots.join(QStringLiteral(", "))));
     }
     if (m_writeRootsItem) {
         m_writeRootsItem->setDescription(
             invalidWriteRoots.isEmpty()
-                ? tr("Limits MCP file writes, such as saving and exporting, to the listed folders. "
-                     "Existing folders are saved as canonical paths.")
+                ? tr("Limits MCP file writes, such as saving and exporting, to the listed "
+                     "folders")
                 : tr("Not saved because a folder is missing or invalid: %1")
                       .arg(invalidWriteRoots.join(QStringLiteral(", "))));
     }
@@ -414,8 +414,8 @@ QWidget *AutomationPage::createContentWidget() {
         QStringLiteral("automationStdioConfiguration"), presetStdioConfiguration, true);
     connectionCard->addItem(
         tr("STDIO Connector"),
-        tr("Starts DS Connector Lite and discovers this editor automatically. The copied JSON "
-           "uses the current access profile."),
+        tr("Starts DS Connector Lite, discovers this editor automatically, and uses the current "
+           "access profile in the copied JSON"),
         stdioControl);
 
     Button *streamableHttpCopyButton = nullptr;
@@ -428,8 +428,8 @@ QWidget *AutomationPage::createContentWidget() {
                                    streamableHttpConfiguration, false);
     connectionCard->addItem(
         tr("Streamable HTTP"),
-        tr("Connects directly to the editor's configured MCP endpoint. The generated port stays "
-           "unchanged until you edit it or press Refresh."),
+        tr("Connects directly to the editor's configured MCP endpoint; the generated port stays "
+           "unchanged until you edit it or press Refresh"),
         streamableHttpControl);
     refreshConnectionConfigurations();
 
@@ -549,8 +549,7 @@ QWidget *AutomationPage::createContentWidget() {
     readRootsCard->setTitleVisible(false);
     m_readRootsItem = readRootsCard->addItem(
         tr("Allowed Read Folders"),
-        tr("Limits MCP file reads, such as opening and importing, to the listed folders. "
-           "Existing folders are saved as canonical paths."),
+        tr("Limits MCP file reads, such as opening and importing, to the listed folders"),
         m_readRoots);
 
     m_writeRoots = new PathEditor;
@@ -560,8 +559,7 @@ QWidget *AutomationPage::createContentWidget() {
     writeRootsCard->setTitleVisible(false);
     m_writeRootsItem = writeRootsCard->addItem(
         tr("Allowed Write Folders"),
-        tr("Limits MCP file writes, such as saving and exporting, to the listed folders. "
-           "Existing folders are saved as canonical paths."),
+        tr("Limits MCP file writes, such as saving and exporting, to the listed folders"),
         m_writeRoots);
 
     const auto pathPermissionsSection = new QWidget;
