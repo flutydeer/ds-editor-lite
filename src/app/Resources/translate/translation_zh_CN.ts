@@ -4005,8 +4005,8 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="813"/>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="897"/>
-        <source>&amp;Automation...</source>
-        <translation>自动化(&amp;A)...</translation>
+        <source>A&amp;utomation...</source>
+        <translation>自动化(&amp;U)...</translation>
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="813"/>
