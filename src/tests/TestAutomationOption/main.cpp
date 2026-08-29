@@ -177,9 +177,11 @@ namespace {
         const auto stdio = QJsonDocument::fromJson(
             stdioJson(command, connectorArguments(AutomationOption::Profile::L1)).toUtf8());
         const auto stdioServer = stdio.object();
+        const auto stdioCommand = stdioServer.value(QStringLiteral("command")).toString();
         success &= expect(stdioServer.value(QStringLiteral("type")).toString() ==
                                   QStringLiteral("stdio") &&
-                              stdioServer.value(QStringLiteral("command")).toString() == command &&
+                              stdioCommand == QDir::fromNativeSeparators(command) &&
+                              !stdioCommand.contains(QLatin1Char('\\')) &&
                               stdioServer.value(QStringLiteral("args")).toArray().size() == 2,
                           QStringLiteral("STDIO JSON should contain command and arguments"));
 

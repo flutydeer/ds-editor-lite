@@ -56,7 +56,7 @@ namespace Automation::McpClientConfiguration {
     QString stdioJson(const QString &command, const QStringList &arguments) {
         const QJsonObject server{
             {QStringLiteral("type"),    QStringLiteral("stdio")              },
-            {QStringLiteral("command"), command                              },
+            {QStringLiteral("command"), QDir::fromNativeSeparators(command)  },
             {QStringLiteral("args"),    QJsonArray::fromStringList(arguments)},
         };
         return configurationJson(server);
