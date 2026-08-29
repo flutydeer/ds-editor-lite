@@ -35,21 +35,23 @@ CommonParamEditorView::~CommonParamEditorView() {
 }
 
 void CommonParamEditorView::setParamProperties(const ParamProperties &properties) {
-    cancelCurveTransform(false);
+    cancelCurveTransform(true);
     clearParams();
     m_properties = &properties;
     m_curveTransformConfig.properties = m_properties;
 }
 
 void CommonParamEditorView::loadOriginal(const QList<DrawCurve *> &curves) {
-    cancelCurveTransform(false);
+    // Own commits make the transform idle before their synchronous model update. A transform that
+    // is still active here was interrupted by an external reload and must close its transaction.
+    cancelCurveTransform(true);
     AppModelUtils::copyCurves(curves, m_drawCurvesOriginal);
     reloadCurveTransformSource();
     update();
 }
 
 void CommonParamEditorView::loadEdited(const QList<DrawCurve *> &curves) {
-    cancelCurveTransform(false);
+    cancelCurveTransform(true);
     AppModelUtils::copyCurves(curves, m_drawCurvesEdited);
     reloadCurveTransformSource();
     update();
@@ -68,7 +70,7 @@ void CommonParamEditorView::loadAnchorEdited(const QList<AnchorCurve *> &curves)
 }
 
 void CommonParamEditorView::clearParams() {
-    cancelCurveTransform(false);
+    cancelCurveTransform(true);
     for (const auto curve : m_drawCurvesOriginal)
         delete curve;
     for (const auto curve : m_drawCurvesEdited)
