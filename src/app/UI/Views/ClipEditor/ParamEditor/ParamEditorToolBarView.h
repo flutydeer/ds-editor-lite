@@ -24,6 +24,7 @@ public:
     void setSpeakers(const QStringList &names, const QList<QColor> &colors);
     void setSpeakerMixDynamicState(SpeakerMixDynamicUiState state);
     void setBakeEnabled(bool enabled);
+    void setTransformEnabled(bool enabled);
 
 signals:
     void foregroundChanged(ParamInfo::Name name);

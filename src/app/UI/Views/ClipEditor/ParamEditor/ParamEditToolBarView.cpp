@@ -20,10 +20,16 @@ ParamEditToolBarView::ParamEditToolBarView(QWidget *parent) : QWidget(parent) {
         return button;
     };
 
-    m_btnDraw = createEditModeButton("btnParamDraw",
-                                     QStringLiteral(":/svg/icons/draw_shape_24_filled.svg"));
+    m_btnDraw =
+        createEditModeButton("btnParamDraw", QStringLiteral(":/svg/icons/edit_24_filled.svg"));
     m_btnErase =
         createEditModeButton("btnParamErase", QStringLiteral(":/svg/icons/eraser_24_filled.svg"));
+    m_btnShape = createEditModeButton("btnParamShape",
+                                      QStringLiteral(":/svg/icons/draw_shape_24_filled.svg"));
+    m_btnScale = createEditModeButton("btnParamScale",
+                                      QStringLiteral(":/svg/icons/arrow_split_24_filled.svg"));
+    m_btnShape->setEnabled(false);
+    m_btnScale->setEnabled(false);
     m_btnBake =
         createEditModeButton("btnParamBake", QStringLiteral(":/svg/icons/brush_24_filled.svg"));
     m_btnBake->setEnabled(false);
@@ -34,6 +40,8 @@ ParamEditToolBarView::ParamEditToolBarView(QWidget *parent) : QWidget(parent) {
     m_editModeGroup->setExclusive(true);
     m_editModeGroup->addButton(m_btnDraw, static_cast<int>(ParamEditorEditMode::Draw));
     m_editModeGroup->addButton(m_btnErase, static_cast<int>(ParamEditorEditMode::Erase));
+    m_editModeGroup->addButton(m_btnShape, static_cast<int>(ParamEditorEditMode::Shape));
+    m_editModeGroup->addButton(m_btnScale, static_cast<int>(ParamEditorEditMode::Scale));
     m_editModeGroup->addButton(m_btnBake, static_cast<int>(ParamEditorEditMode::Bake));
     m_editModeGroup->addButton(m_btnAnchor, static_cast<int>(ParamEditorEditMode::Anchor));
     m_btnDraw->setChecked(true);
@@ -41,6 +49,8 @@ ParamEditToolBarView::ParamEditToolBarView(QWidget *parent) : QWidget(parent) {
     auto *layout = new QHBoxLayout;
     layout->addWidget(m_btnDraw);
     layout->addWidget(m_btnErase);
+    layout->addWidget(m_btnShape);
+    layout->addWidget(m_btnScale);
     layout->addWidget(m_btnBake);
     layout->addWidget(m_btnAnchor);
     layout->setSpacing(4);
@@ -63,6 +73,13 @@ void ParamEditToolBarView::setBakeEnabled(const bool enabled) {
         m_btnDraw->setChecked(true);
 }
 
+void ParamEditToolBarView::setTransformEnabled(const bool enabled) {
+    m_btnShape->setEnabled(enabled);
+    m_btnScale->setEnabled(enabled);
+    if (!enabled && (m_btnShape->isChecked() || m_btnScale->isChecked()))
+        m_btnDraw->setChecked(true);
+}
+
 void ParamEditToolBarView::changeEvent(QEvent *event) {
     QWidget::changeEvent(event);
     if (event->type() == QEvent::LanguageChange)
@@ -72,6 +89,8 @@ void ParamEditToolBarView::changeEvent(QEvent *event) {
 void ParamEditToolBarView::retranslateUi() {
     m_btnDraw->setToolTip(tr("Draw"));
     m_btnErase->setToolTip(tr("Erase"));
+    m_btnShape->setToolTip(tr("Shape"));
+    m_btnScale->setToolTip(tr("Scale"));
     m_btnBake->setToolTip(tr("Bake"));
     m_btnAnchor->setToolTip(tr("Anchor"));
 }

@@ -25,8 +25,9 @@ namespace {
 
     int alignedNearest(const int tick) {
         const auto before = alignedAtOrBefore(tick);
-        return tick - before < CurveTransform::SampleStep / 2.0 ? before
-                                                                : before + CurveTransform::SampleStep;
+        return tick - before < CurveTransform::SampleStep / 2.0
+                   ? before
+                   : before + CurveTransform::SampleStep;
     }
 
     std::optional<int> valueAt(const DrawCurve &curve, const int tick) {
@@ -48,8 +49,7 @@ namespace {
 
 namespace CurveTransform {
     bool Bounds::isValid() const {
-        return componentStart <= c && c <= a && a + SampleStep <= b && b <= d &&
-               d <= componentEnd;
+        return componentStart <= c && c <= a && a + SampleStep <= b && b <= d && d <= componentEnd;
     }
 
     double smoothWeight(const int tick, const Bounds &bounds) {
@@ -204,8 +204,7 @@ namespace CurveTransform {
     }
 
     QList<DrawCurve *> Session::buildEditedPreview() const {
-        if ((m_phase != Phase::Adjusting && m_phase != Phase::Transforming) ||
-            !m_bounds.isValid()) {
+        if (m_phase == Phase::Idle || !m_bounds.isValid()) {
             QList<DrawCurve *> result;
             AppModelUtils::copyCurves(m_editedSnapshot, result);
             return result;
@@ -288,10 +287,10 @@ namespace CurveTransform {
         const auto preferred = alignedAtOrBefore(static_cast<int>(targetWidth * 0.25));
         const auto leftAvailable = m_bounds.a - m_bounds.componentStart;
         const auto rightAvailable = m_bounds.componentEnd - m_bounds.b;
-        const auto left = std::min(preferred,
-                                   defaultShoulderWidth(m_bounds.a, leftAvailable, true));
-        const auto right = std::min(preferred,
-                                    defaultShoulderWidth(m_bounds.b, rightAvailable, false));
+        const auto left =
+            std::min(preferred, defaultShoulderWidth(m_bounds.a, leftAvailable, true));
+        const auto right =
+            std::min(preferred, defaultShoulderWidth(m_bounds.b, rightAvailable, false));
         m_bounds.c = m_bounds.a - left;
         m_bounds.d = m_bounds.b + right;
     }
@@ -329,7 +328,7 @@ namespace CurveTransform {
         const auto &component = m_components.at(m_selectedComponent);
         const auto source = component.valueAt(tick);
         const auto lambda = factorAt(tick, m_bounds, m_factor);
-        if (m_config.kind == Kind::PitchAmplitude) {
+        if (m_config.kind == Kind::ScalePitch) {
             const auto baseline = m_config.pitchBaselineAtTick
                                       ? m_config.pitchBaselineAtTick(tick).value_or(source)
                                       : source;
@@ -344,10 +343,11 @@ namespace CurveTransform {
         if (m_config.kind == Kind::Scale) {
             result = lambda * normalized;
         } else {
-            const auto aValue = m_config.properties->valueToNormalized(component.valueAt(m_bounds.a));
-            const auto bValue = m_config.properties->valueToNormalized(component.valueAt(m_bounds.b));
-            const auto line = aValue + (bValue - aValue) *
-                                           static_cast<double>(tick - m_bounds.a) /
+            const auto aValue =
+                m_config.properties->valueToNormalized(component.valueAt(m_bounds.a));
+            const auto bValue =
+                m_config.properties->valueToNormalized(component.valueAt(m_bounds.b));
+            const auto line = aValue + (bValue - aValue) * static_cast<double>(tick - m_bounds.a) /
                                            (m_bounds.b - m_bounds.a);
             result = line + lambda * (normalized - line);
         }

@@ -409,6 +409,8 @@ void ParamEditorView::refreshParameterSupportState() {
     const bool bakeEnabled = foregroundSupported && m_clip && !m_clip->singerInfo().isEmpty() &&
                              foreground && !foreground->curves(Param::Original).isEmpty();
     m_toolBar->setBakeEnabled(bakeEnabled);
+    m_toolBar->setTransformEnabled(foregroundSupported && m_clip &&
+                                   ParamInfo::supportsCurveTransform(m_foregroundParam));
 
     if (m_foregroundParam == ParamInfo::SpeakerMix)
         return;

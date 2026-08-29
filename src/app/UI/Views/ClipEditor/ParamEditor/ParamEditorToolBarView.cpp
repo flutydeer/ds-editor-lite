@@ -127,6 +127,10 @@ void ParamEditorToolBarView::setBakeEnabled(const bool enabled) {
     m_paramEditToolBar->setBakeEnabled(enabled);
 }
 
+void ParamEditorToolBarView::setTransformEnabled(const bool enabled) {
+    m_paramEditToolBar->setTransformEnabled(enabled);
+}
+
 void ParamEditorToolBarView::onForegroundSelectionChanged(const int index) {
     const auto name = static_cast<ParamInfo::Name>(index + 1);
     setSpeakerMixMode(name == ParamInfo::SpeakerMix);

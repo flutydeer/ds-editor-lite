@@ -6,6 +6,7 @@
 #include "Controller/ClipController.h"
 
 #include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
@@ -220,6 +221,11 @@ void ParamEditorGraphicsView::discardAction() {
         disarmEdgeAutoScroll();
         return;
     }
+    if (m_editMode == ParamEditorEditMode::Shape || m_editMode == ParamEditorEditMode::Scale) {
+        if (m_foreground)
+            m_foreground->discardAction();
+        return;
+    }
     if (appStatus->currentEditObject != AppStatus::EditObjectType::Param)
         return;
     if (m_foreground)
@@ -248,6 +254,7 @@ void ParamEditorGraphicsView::setEditMode(const ParamEditorEditMode mode) {
     const bool anchorActive = mode == ParamEditorEditMode::Anchor && !m_speakerMixMode;
     m_foreground->setEraseMode(mode == ParamEditorEditMode::Erase);
     m_foreground->setBakeMode(mode == ParamEditorEditMode::Bake);
+    refreshCurveTransformMode();
     m_anchorOverlay->setInteractive(anchorActive);
     m_anchorController.setEditActive(anchorActive);
 }
@@ -292,6 +299,7 @@ void ParamEditorGraphicsView::setForeground(const ParamInfo::Name name,
 
     m_foregroundParam = name;
     m_foreground->setParamProperties(properties);
+    refreshCurveTransformMode();
     if (!m_clip) {
         m_foreground->clearParams();
         m_anchorController.loadFromModel({});
@@ -578,6 +586,23 @@ void ParamEditorGraphicsView::onAnchorStateChanged() {
         m_foreground->loadAnchorEdited(m_anchorController.curves());
     }
     m_anchorOverlay->update();
+}
+
+void ParamEditorGraphicsView::refreshCurveTransformMode() {
+    std::optional<CurveTransform::Kind> kind;
+    if (m_editMode == ParamEditorEditMode::Shape)
+        kind = CurveTransform::Kind::Shape;
+    else if (m_editMode == ParamEditorEditMode::Scale)
+        kind = CurveTransform::Kind::Scale;
+
+    std::function<double(int)> tickToMilliseconds;
+    if (kind) {
+        tickToMilliseconds = [this](const int localTick) {
+            const auto clipStart = m_clip ? m_clip->start() : 0;
+            return appModel->tickToMs(clipStart + localTick);
+        };
+    }
+    m_foreground->setCurveTransformMode(kind, std::move(tickToMilliseconds));
 }
 
 void ParamEditorGraphicsView::showAnchorContextMenu(const QPointF scenePos,
