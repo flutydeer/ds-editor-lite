@@ -443,6 +443,17 @@ namespace Automation {
             if (callback)
                 callback(progress, sourceIndex);
         };
+        taskObserver.inferenceProgress = [this, taskId,
+                                          callback = std::move(observer.inferenceProgress)](
+                                             const double progress) {
+            m_tasks.updateProgress(taskId,
+                                   {.minimum = 0,
+                                    .maximum = 100,
+                                    .value = std::clamp(static_cast<int>(progress * 100.0), 0, 100),
+                                    .indeterminate = true});
+            if (callback)
+                callback(progress);
+        };
         taskObserver.clipping = [&warnings,
                                  callback = std::move(observer.clipping)](const int sourceIndex) {
             warnings.append(

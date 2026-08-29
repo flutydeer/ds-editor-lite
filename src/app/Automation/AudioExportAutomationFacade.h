@@ -57,6 +57,9 @@ namespace Automation {
         std::function<void(double progress, int sourceIndex)> progress;
         std::function<void(int sourceIndex)> clipping;
         std::function<void(const QString &message, int sourceIndex)> warning;
+        // Emitted while the backend waits for pending pieces to render, before the
+        // actual audio export starts. progress in [0, 1] over renderable pieces.
+        std::function<void(double progress)> inferenceProgress;
     };
 
     class IAudioExportJob {

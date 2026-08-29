@@ -288,6 +288,28 @@ bool InferController::finishCurrentInferAcousticCacheProbeTask(InferAcousticCach
     return d->m_inferAcousticCacheProbeTasks.onCurrentFinished(task);
 }
 
+void InferController::startPendingAcousticInference(const QList<Track *> &tracks) {
+    Q_D(InferController);
+    const QSet<Track *> trackSet(tracks.cbegin(), tracks.cend());
+    for (const auto pipeline : std::as_const(d->m_inferPipelines)) {
+        Track *owningTrack = nullptr;
+        const auto clip =
+            dynamic_cast<SingingClip *>(appModel->findClipById(pipeline->clipId(), owningTrack));
+        if (!clip || !owningTrack)
+            continue;
+        if (!trackSet.isEmpty() && !trackSet.contains(owningTrack))
+            continue;
+        if (pipeline->piece().acousticInferStatus == Pending)
+            pipeline->notifyPlaybackStarted();
+    }
+}
+
+void InferController::suspendPendingAcousticInference(const QList<Track *> &tracks) {
+    Q_D(InferController);
+    const QSet<Track *> trackSet(tracks.cbegin(), tracks.cend());
+    d->suspendPendingAcousticPipelines(trackSet);
+}
+
 void InferControllerPrivate::onModuleStatusChanged(const AppStatus::ModuleType module,
                                                    const AppStatus::ModuleStatus status) {
     if (module == AppStatus::ModuleType::Language)
@@ -375,7 +397,7 @@ void InferControllerPrivate::refreshPlaybackWindow(const double pos) {
     }
 }
 
-void InferControllerPrivate::suspendPendingAcousticPipelines() {
+void InferControllerPrivate::suspendPendingAcousticPipelines(const QSet<Track *> &tracks) {
     // Keep the currently running acoustic task and let it finish naturally;
     // the other Running/Pending pipelines get playbackSuspended back to probe state.
     const auto currentPieceId =
@@ -383,10 +405,21 @@ void InferControllerPrivate::suspendPendingAcousticPipelines() {
     for (const auto pipeline : std::as_const(m_inferPipelines)) {
         if (pipeline->pieceId() == currentPieceId)
             continue; // let the current piece finish in TaskQueue
+        if (!tracks.isEmpty() && !tracks.contains(pipelineTrack(pipeline)))
+            continue;
         const auto status = pipeline->piece().acousticInferStatus;
         if (status == Running || status == Pending)
             pipeline->notifyPlaybackSuspended();
     }
+}
+
+Track *InferControllerPrivate::pipelineTrack(const InferPipeline *pipeline) const {
+    Track *owningTrack = nullptr;
+    const auto clip =
+        dynamic_cast<SingingClip *>(appModel->findClipById(pipeline->clipId(), owningTrack));
+    if (!clip || !owningTrack)
+        return nullptr;
+    return owningTrack;
 }
 
 void InferControllerPrivate::handleModelChanged() {

@@ -253,6 +253,23 @@ AudioContext::ExportInferenceStatus
     return result;
 }
 
+double AudioContext::exportInferenceProgress(const QList<Track *> &tracks) const {
+    int total = 0;
+    int succeeded = 0;
+    for (const auto track : tracks) {
+        for (const auto clip : track->clips()) {
+            if (clip->clipType() != Clip::Singing)
+                continue;
+            for (const auto piece : static_cast<SingingClip *>(clip)->pieces()) {
+                ++total;
+                if (piece->acousticInferStatus == Success)
+                    ++succeeded;
+            }
+        }
+    }
+    return total == 0 ? 1.0 : static_cast<double>(succeeded) / total;
+}
+
 Track *AudioContext::getTrackFromContext(const talcs::DspxTrackContext *trackContext) const {
     Q_UNUSED(this)
     return trackContext->data().value<Track *>();

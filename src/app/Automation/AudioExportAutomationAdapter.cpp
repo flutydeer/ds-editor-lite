@@ -3,6 +3,7 @@
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Audio/AudioExporter.h"
 #include "Modules/Audio/AudioExporter_p.h"
+#include "Modules/Inference/InferController.h"
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
@@ -93,9 +94,25 @@ namespace Automation {
                 return {.state = AudioExportBackendState::Failed,
                         .errorMessage = QStringLiteral("Audio export sources changed")};
             }
+
+            // Trigger pending inference before and throughout the wait. Pieces reach the
+            // lazy-acoustic state at different times (duration/pitch/variance chains run
+            // serially), so a one-shot trigger here can miss pieces that dock later and
+            // stall the loop forever. notifyPlaybackStarted() is a no-op for pipelines
+            // not awaiting acoustic inference, so repeated triggers are safe.
+            auto triggerPendingInference = [&sourceTracks]() {
+                if (auto *ctrl = InferController::instance())
+                    ctrl->startPendingAcousticInference(sourceTracks);
+            };
+            triggerPendingInference();
+
             auto inferenceStatus = m_audioContext->exportInferenceStatus(sourceTracks);
             while (inferenceStatus == AudioContext::ExportInferenceStatus::Pending &&
                    !m_cancellationRequested.load(std::memory_order_acquire)) {
+                if (observer.inferenceProgress)
+                    observer.inferenceProgress(
+                        m_audioContext->exportInferenceProgress(sourceTracks));
+                triggerPendingInference();
                 QEventLoop loop;
                 QTimer::singleShot(25, &loop, &QEventLoop::quit);
                 loop.exec();
@@ -109,16 +126,33 @@ namespace Automation {
                 }
                 inferenceStatus = m_audioContext->exportInferenceStatus(sourceTracks);
             }
-            if (m_cancellationRequested.load(std::memory_order_acquire))
+            if (observer.inferenceProgress)
+                observer.inferenceProgress(1.0);
+            if (m_cancellationRequested.load(std::memory_order_acquire)) {
+                // Mirror playback-stop semantics: the running acoustic task finishes
+                // naturally, the rest return to the lazy probe-wait state.
+                if (auto *ctrl = InferController::instance())
+                    ctrl->suspendPendingAcousticInference(sourceTracks);
                 return {.state = AudioExportBackendState::Canceled};
+            }
             if (!m_audioContext) {
                 return {.state = AudioExportBackendState::Failed,
                         .errorMessage = QStringLiteral("Audio context is unavailable")};
             }
             if (inferenceStatus == AudioContext::ExportInferenceStatus::Failed) {
+                // The export is gone as a consumer; stop queueing the remaining pieces.
+                if (auto *ctrl = InferController::instance())
+                    ctrl->suspendPendingAcousticInference(sourceTracks);
                 return {.state = AudioExportBackendState::Failed,
                         .errorMessage = QStringLiteral("Inference failed")};
             }
+            // Drain queued FutureCallOut events before opening the audio graph. The last
+            // piece's promise is already finished (status reports Ready) when the loop
+            // above exits, but FutureAudioSource::d->src is only assigned when its
+            // watcher event is dispatched; opening the graph before that crashes on a
+            // null src in FutureAudioSource::open().
+            QCoreApplication::processEvents();
+
             const auto progressConnection = QObject::connect(
                 m_exporter.get(), &Audio::AudioExporter::progressChanged,
                 [callback = observer.progress](const double progress, const int sourceIndex) {
