@@ -69,11 +69,12 @@ namespace {
 
 namespace CurveTransform {
     bool Bounds::isValid() const {
-        return componentStart <= c && c <= a && a + SampleStep <= b && b <= d && d <= componentEnd;
+        return componentStart <= c && c <= a && a + 2 * SampleStep <= b && b <= d &&
+               d <= componentEnd;
     }
 
     double smoothWeight(const int tick, const Bounds &bounds) {
-        if (tick < bounds.c || tick > bounds.d)
+        if (tick < bounds.c || tick >= bounds.d)
             return 0.0;
         if (tick < bounds.a) {
             if (bounds.c == bounds.a)
@@ -81,7 +82,7 @@ namespace CurveTransform {
             const auto z = static_cast<double>(tick - bounds.c) / (bounds.a - bounds.c);
             return z * z * (3.0 - 2.0 * z);
         }
-        if (tick <= bounds.b)
+        if (tick < bounds.b)
             return 1.0;
         if (bounds.b == bounds.d)
             return 0.0;
@@ -128,7 +129,7 @@ namespace CurveTransform {
                     continue;
                 }
                 if (m_components.isEmpty() || previousPartition != partition ||
-                    m_components.last().endTick() + SampleStep != tick) {
+                    m_components.last().endTick() != tick) {
                     m_components.append(Component{tick, {}});
                 }
                 m_components.last().values.append(*sample);
@@ -200,10 +201,10 @@ namespace CurveTransform {
                 m_bounds.c = std::clamp(aligned, m_bounds.componentStart, m_bounds.a);
                 break;
             case Boundary::A:
-                m_bounds.a = std::clamp(aligned, m_bounds.c, m_bounds.b - SampleStep);
+                m_bounds.a = std::clamp(aligned, m_bounds.c, m_bounds.b - 2 * SampleStep);
                 break;
             case Boundary::B:
-                m_bounds.b = std::clamp(aligned, m_bounds.a + SampleStep, m_bounds.d);
+                m_bounds.b = std::clamp(aligned, m_bounds.a + 2 * SampleStep, m_bounds.d);
                 break;
             case Boundary::D:
                 m_bounds.d = std::clamp(aligned, m_bounds.b, m_bounds.componentEnd);
@@ -251,7 +252,7 @@ namespace CurveTransform {
         if (m_phase != Phase::Transforming || !m_bounds.isValid() || m_selectedComponent < 0)
             return false;
         const auto &component = m_components.at(m_selectedComponent);
-        for (auto tick = m_bounds.c; tick <= m_bounds.d; tick += SampleStep) {
+        for (auto tick = m_bounds.c; tick < m_bounds.d; tick += SampleStep) {
             if (transformedValueAt(tick) != component.valueAt(tick))
                 return true;
         }
@@ -259,7 +260,7 @@ namespace CurveTransform {
     }
 
     int Session::Component::endTick() const {
-        return startTick + (values.size() - 1) * SampleStep;
+        return startTick + values.size() * SampleStep;
     }
 
     int Session::Component::valueAt(const int tick) const {
@@ -283,13 +284,13 @@ namespace CurveTransform {
         if (toTick > fromTick) {
             for (int i = 0; i < m_components.size(); ++i) {
                 const auto &component = m_components.at(i);
-                if (component.endTick() >= fromTick && component.startTick <= toTick)
+                if (component.endTick() > fromTick && component.startTick < toTick)
                     return i;
             }
         } else if (toTick < fromTick) {
             for (int i = m_components.size() - 1; i >= 0; --i) {
                 const auto &component = m_components.at(i);
-                if (component.startTick <= fromTick && component.endTick() >= toTick)
+                if (component.startTick < fromTick && component.endTick() > toTick)
                     return i;
             }
         }
@@ -305,8 +306,8 @@ namespace CurveTransform {
         const auto &component = m_components.at(m_selectedComponent);
         const auto [rawStart, rawEnd] = std::minmax(m_selectionStartTick, tick);
         const auto a = std::max(component.startTick, alignedAtOrAfter(rawStart));
-        const auto b = std::min(component.endTick(), alignedAtOrBefore(rawEnd));
-        if (b - a < SampleStep) {
+        const auto b = std::min(component.endTick(), alignedAtOrAfter(rawEnd));
+        if (b - a < 2 * SampleStep) {
             m_bounds = {};
             m_selectedComponent = -1;
             return false;
@@ -352,7 +353,7 @@ namespace CurveTransform {
         DrawCurve result(-1);
         result.step = SampleStep;
         result.setLocalStart(m_bounds.c);
-        for (auto tick = m_bounds.c; tick <= m_bounds.d; tick += SampleStep)
+        for (auto tick = m_bounds.c; tick < m_bounds.d; tick += SampleStep)
             result.appendValue(transformedValueAt(tick));
         return result;
     }
@@ -376,12 +377,13 @@ namespace CurveTransform {
         if (m_config.kind == Kind::Scale) {
             result = lambda * normalized;
         } else {
+            const auto targetEndTick = m_bounds.b - SampleStep;
             const auto aValue =
                 m_config.properties->valueToNormalized(component.valueAt(m_bounds.a));
             const auto bValue =
-                m_config.properties->valueToNormalized(component.valueAt(m_bounds.b));
+                m_config.properties->valueToNormalized(component.valueAt(targetEndTick));
             const auto line = aValue + (bValue - aValue) * static_cast<double>(tick - m_bounds.a) /
-                                           (m_bounds.b - m_bounds.a);
+                                           (targetEndTick - m_bounds.a);
             result = line + lambda * (normalized - line);
         }
         result = std::clamp(result, 0.0, 1.0);

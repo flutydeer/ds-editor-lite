@@ -90,12 +90,12 @@ namespace {
         session.setSource(originals, {}, {});
         session.beginSelection(0);
         ok &= expect(session.finishSelection(100), "forward hole selection succeeds");
-        ok &= expect(session.bounds().componentStart == 20 && session.bounds().componentEnd == 35,
+        ok &= expect(session.bounds().componentStart == 20 && session.bounds().componentEnd == 40,
                      "forward selection picks first component");
 
         session.beginSelection(100);
         ok &= expect(session.finishSelection(0), "reverse hole selection succeeds");
-        ok &= expect(session.bounds().componentStart == 60 && session.bounds().componentEnd == 75,
+        ok &= expect(session.bounds().componentStart == 60 && session.bounds().componentEnd == 80,
                      "reverse selection picks first component in travel direction");
 
         session.beginSelection(45);
@@ -114,7 +114,7 @@ namespace {
         session.setSource({&continuous}, {}, partitioned);
         session.beginSelection(0);
         ok &= expect(session.finishSelection(95), "partitioned selection succeeds");
-        ok &= expect(session.bounds().componentEnd == 45,
+        ok &= expect(session.bounds().componentEnd == 50,
                      "pitch partition boundary splits continuous source");
         return ok;
     }
@@ -139,8 +139,8 @@ namespace {
                      "expanded shoulders clamp to component");
         session.setBoundary(Boundary::A, 900);
         session.setBoundary(Boundary::B, -100);
-        ok &= expect(session.bounds().a + SampleStep == session.bounds().b,
-                     "target boundaries retain two samples");
+        ok &= expect(session.bounds().a + 2 * SampleStep == session.bounds().b,
+                     "minimum target retains two samples");
 
         auto shortSource = curve(0, QList<int>(5, 500));
         session.setSource({&shortSource}, {}, config);
@@ -163,7 +163,7 @@ namespace {
         using namespace CurveTransform;
         bool ok = true;
         MouthOpeningParamProperties properties;
-        auto source = curve(0, {0, 250, 1000});
+        auto source = curve(0, {0, 250, 1000, 1000});
 
         Session shape;
         Config shapeConfig;
@@ -171,7 +171,7 @@ namespace {
         shapeConfig.properties = &properties;
         shape.setSource({&source}, {}, shapeConfig);
         shape.beginSelection(0);
-        ok &= expect(shape.finishSelection(10), "shape selection succeeds");
+        ok &= expect(shape.finishSelection(15), "shape selection succeeds");
         ok &= expect(shape.beginTransform(), "shape transform starts");
         ok &= expect(!shape.hasEffectiveChange(), "one hundred percent is a no-op");
         shape.updateTransform(100.0);
@@ -276,8 +276,9 @@ namespace {
         ok &= expect(session.beginTransform(), "pitch transform starts");
         session.updateTransform(100.0);
         auto preview = session.buildEditedPreview();
-        ok &= expect(valueAt(preview, 0) == 6000 && valueAt(preview, 10) == 6000,
-                     "zero percent pitch follows base pitch");
+        ok &= expect(valueAt(preview, 0) == 6000 && valueAt(preview, 5) == 6000 &&
+                         valueAt(preview, 10) == 6300,
+                     "pitch transform uses the drawing tool's half-open range");
         qDeleteAll(preview);
         session.updateTransform(-100.0);
         preview = session.buildEditedPreview();
@@ -317,7 +318,7 @@ namespace {
                          valueAt(preview, 10) == 200,
                      "normalization preserves the untouched prefix");
         ok &= expect(valueAt(preview, 15) == 0 && valueAt(preview, 20) == 0 &&
-                         valueAt(preview, 25) == 0,
+                         valueAt(preview, 25) == 350,
                      "transform replaces only the selected samples");
         ok &= expect(valueAt(preview, 30) == 400 && valueAt(preview, 35) == 450 &&
                          valueAt(preview, 40) == 500 && valueAt(preview, 45) == 500,
@@ -332,7 +333,12 @@ namespace {
         MouthOpeningParamProperties properties;
         QList<int> values(30, 100);
         values[3] = 900;
-        values[23] = 800;
+        values[20] = 600;
+        values[21] = 610;
+        values[22] = 620;
+        values[23] = 630;
+        values[24] = 640;
+        values[27] = 800;
         auto edited = curve(0, values);
         edited.step = 1;
 
@@ -342,21 +348,25 @@ namespace {
         Session session;
         session.setSource({}, {&edited}, config);
         session.beginSelection(10);
-        ok &= expect(session.finishSelection(15), "fine-step selection succeeds");
+        ok &= expect(session.finishSelection(20), "fine-step selection succeeds");
         ok &= expect(session.beginTransform(), "fine-step transform starts");
         session.updateTransform(100.0);
         auto preview = session.buildEditedPreview();
-        ok &= expect(valueAt(preview, 3) == 900 && valueAt(preview, 23) == 800,
+        ok &= expect(valueAt(preview, 3) == 900 && valueAt(preview, 27) == 800,
                      "fine samples outside the transformed range are preserved");
         ok &= expect(valueAt(preview, 10) == 0 && valueAt(preview, 15) == 0,
                      "fine samples inside the transformed range are replaced");
+        ok &= expect(valueAt(preview, 20) == 600 && valueAt(preview, 21) == 610 &&
+                         valueAt(preview, 22) == 620 && valueAt(preview, 23) == 630 &&
+                         valueAt(preview, 24) == 640,
+                     "fine samples immediately after the transformed range are preserved");
         ok &= expect(std::any_of(preview.cbegin(), preview.cend(), [](const auto *item) {
                          return item->step == 1 && item->localStart() == 0;
                      }) &&
                          std::any_of(preview.cbegin(), preview.cend(), [](const auto *item) {
                              return item->step == 1 && item->localStart() == 20;
                          }),
-                     "untouched prefix and suffix retain their original resolution");
+                     "half-open replacement retains the untouched fine-resolution suffix");
         qDeleteAll(preview);
         return ok;
     }
