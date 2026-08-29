@@ -195,7 +195,6 @@ namespace Automation {
         int vstPluginPort = 28082;
         bool audioExporterClippingCheckEnabled = true;
         int audioExporterIgnoredWarningFlags = 0;
-        bool audioExporterUseTemporaryFile = true;
         QList<AudioExportPresetDto> audioExporterPresets;
         QString currentAudioExporterPreset;
         int legacyAudioExporterPresetIndex = 0;

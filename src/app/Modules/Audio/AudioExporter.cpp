@@ -19,6 +19,10 @@
 #include <QStandardPaths>
 #include <QHash>
 
+#ifdef Q_OS_WIN
+#  include <qt_windows.h>
+#endif
+
 #include <TalcsCore/TransportAudioSource.h>
 #include <TalcsCore/MixerAudioSource.h>
 #include <TalcsFormat/AudioFormatIO.h>
@@ -27,6 +31,19 @@
 #include <TalcsDspx/DspxTrackContext.h>
 
 #include <Modules/Audio/AudioSettings.h>
+
+namespace {
+    bool replaceFile(const QString &source, const QString &target) {
+#ifdef Q_OS_WIN
+        return MoveFileExW(reinterpret_cast<LPCWSTR>(source.utf16()),
+                           reinterpret_cast<LPCWSTR>(target.utf16()),
+                           MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
+#else
+        QFile::remove(target);
+        return QFile::rename(source, target);
+#endif
+    }
+}
 
 namespace Audio {
     using namespace Internal;
@@ -738,15 +755,11 @@ namespace Audio {
                                   .mid(0, 8);
             for (int i = 0; i < d->fileList.size(); i++) {
                 QString filename = d->fileList.at(i);
-                if (AudioSettings::audioExporterUseTemporaryFile()) {
-                    auto temporaryFileName = QFileInfo(filename).dir().filePath(
-                        ".ds$" + uuid + QFileInfo(filename).fileName() + ".exporting");
-                    temporaryFiles.insert(filename, temporaryFileName);
-                    d->temporaryFileList.append(temporaryFileName);
-                    filename = temporaryFileName;
-                } else {
-                    d->temporaryFileList.append(filename);
-                }
+                auto temporaryFileName = QFileInfo(filename).dir().filePath(
+                    ".ds$" + uuid + QFileInfo(filename).fileName() + ".exporting");
+                temporaryFiles.insert(filename, temporaryFileName);
+                d->temporaryFileList.append(temporaryFileName);
+                filename = temporaryFileName;
                 const auto file = new QFile(filename, &o);
                 if (!file->open(QIODevice::WriteOnly)) {
                     setErrorString(tr("Cannot open file for writing: %1").arg(filename));
@@ -858,22 +871,18 @@ namespace Audio {
         d->temporaryFileList.clear();
 
         // rename temporary files
-        if (AudioSettings::audioExporterUseTemporaryFile()) {
-            auto temporaryFileErrorString = tr("Cannot rename temporary files to target files");
-            bool failFlag = false;
-            for (const auto &filename : temporaryFiles.keys()) {
-                QFile::remove(filename);
-                auto temporaryFile = QFile(temporaryFiles.value(filename));
-                if (!temporaryFile.rename(filename)) {
-                    temporaryFileErrorString += "\n" + filename;
-                    setErrorString(temporaryFileErrorString);
-                    failFlag = true;
-                    d->temporaryFileList.append(temporaryFile.fileName());
-                }
+        auto temporaryFileErrorString = tr("Cannot rename temporary files to target files");
+        bool failFlag = false;
+        for (auto it = temporaryFiles.constBegin(); it != temporaryFiles.constEnd(); ++it) {
+            if (!replaceFile(it.value(), it.key())) {
+                temporaryFileErrorString += "\n" + it.key();
+                setErrorString(temporaryFileErrorString);
+                failFlag = true;
+                d->temporaryFileList.append(it.value());
             }
-            if (failFlag)
-                return R_Fail;
         }
+        if (failFlag)
+            return R_Fail;
 
         return R_Ok;
     }
