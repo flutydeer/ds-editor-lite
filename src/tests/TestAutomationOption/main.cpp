@@ -4,9 +4,11 @@
 #include <QCoreApplication>
 #include <QDebug>
 #include <QDir>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QStandardPaths>
 
 namespace {
 
@@ -19,6 +21,15 @@ namespace {
 
     bool testDefaults() {
         AutomationOption option;
+        const auto documents = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+        const QFileInfo documentsInfo(documents);
+        const auto canonicalDocuments =
+            documents.isEmpty() || !documentsInfo.isDir() ? QString{}
+                                                          : documentsInfo.canonicalFilePath();
+        const auto defaultRoots = canonicalDocuments.isEmpty()
+                                      ? QStringList{}
+                                      : QStringList{QDir::cleanPath(
+                                            QDir::fromNativeSeparators(canonicalDocuments))};
         bool success = expect(!option.mcpEnabled, QStringLiteral("MCP should default to disabled"));
         success &= expect(option.controlPort >= AutomationOption::kRandomControlPortMinimum &&
                               option.controlPort <= AutomationOption::kRandomControlPortMaximum,
@@ -27,8 +38,19 @@ namespace {
                           QStringLiteral("profile should default to L1"));
         success &= expect(!option.customPermissionEnabled(QStringLiteral("notes.list")),
                           QStringLiteral("unknown Custom permissions should default to disabled"));
-        success &= expect(option.readRoots.isEmpty() && option.writeRoots.isEmpty(),
-                          QStringLiteral("file roots should default to empty"));
+        success &= expect(option.readRoots == defaultRoots && option.writeRoots == defaultRoots,
+                          QStringLiteral("file roots should default to the user documents folder"));
+
+        AutomationOption migrated;
+        migrated.load({});
+        success &= expect(migrated.readRoots == defaultRoots && migrated.writeRoots == defaultRoots,
+                          QStringLiteral("missing file root settings should use defaults"));
+
+        AutomationOption cleared;
+        cleared.load(QJsonObject{{QStringLiteral("readRoots"), QJsonArray{}},
+                                 {QStringLiteral("writeRoots"), QJsonArray{}}});
+        success &= expect(cleared.readRoots.isEmpty() && cleared.writeRoots.isEmpty(),
+                          QStringLiteral("explicitly empty file roots should remain empty"));
         return success;
     }
 

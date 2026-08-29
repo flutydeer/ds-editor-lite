@@ -20,8 +20,7 @@ public:
     static constexpr quint16 kRandomControlPortMinimum = 49152;
     static constexpr quint16 kRandomControlPortMaximum = 65535;
 
-    explicit AutomationOption() : IOption("automation"), controlPort(generateRandomControlPort()) {
-    }
+    explicit AutomationOption();
 
     void load(const QJsonObject &object) override;
     void save(QJsonObject &object) override;

@@ -1,7 +1,10 @@
 #include "AutomationOption.h"
 
+#include <QDir>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QRandomGenerator>
+#include <QStandardPaths>
 
 #include <cmath>
 
@@ -13,6 +16,17 @@ namespace {
     constexpr auto kCustomPermissionsKey = "customPermissions";
     constexpr auto kReadRootsKey = "readRoots";
     constexpr auto kWriteRootsKey = "writeRoots";
+
+    QStringList defaultFileRoots() {
+        const auto documents = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+        const QFileInfo documentsInfo(documents);
+        if (documents.isEmpty() || !documentsInfo.isDir())
+            return {};
+        const auto canonicalPath = documentsInfo.canonicalFilePath();
+        if (canonicalPath.isEmpty())
+            return {};
+        return {QDir::cleanPath(QDir::fromNativeSeparators(canonicalPath))};
+    }
 
     QStringList loadStringList(const QJsonValue &value) {
         QStringList result;
@@ -31,13 +45,23 @@ namespace {
 
 } // namespace
 
+AutomationOption::AutomationOption() : IOption("automation"), controlPort(generateRandomControlPort()) {
+    readRoots = defaultFileRoots();
+    writeRoots = readRoots;
+}
+
 void AutomationOption::load(const QJsonObject &object) {
     mcpEnabled = false;
     controlPort = generateRandomControlPort(controlPort);
     selectedProfile = Profile::L1;
     customPermissions.clear();
-    readRoots.clear();
-    writeRoots.clear();
+    const auto defaultRoots = defaultFileRoots();
+    readRoots = object.contains(QLatin1String(kReadRootsKey))
+                    ? loadStringList(object.value(QLatin1String(kReadRootsKey)))
+                    : defaultRoots;
+    writeRoots = object.contains(QLatin1String(kWriteRootsKey))
+                     ? loadStringList(object.value(QLatin1String(kWriteRootsKey)))
+                     : defaultRoots;
 
     const auto enabledValue = object.value(QLatin1String(kMcpEnabledKey));
     if (enabledValue.isBool())
@@ -62,9 +86,6 @@ void AutomationOption::load(const QJsonObject &object) {
                 customPermissions.insert(it.key(), it.value().toBool());
         }
     }
-
-    readRoots = loadStringList(object.value(QLatin1String(kReadRootsKey)));
-    writeRoots = loadStringList(object.value(QLatin1String(kWriteRootsKey)));
 }
 
 void AutomationOption::save(QJsonObject &object) {
