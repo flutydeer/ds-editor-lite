@@ -100,11 +100,14 @@ namespace Automation {
             HeadlessProjectLoadTask(CoreRuntime &runtime, QString path, QString mergeMode,
                                     const ProjectLoadPurpose purpose, QByteArray encoding,
                                     const bool importTempo, const bool importTimeSignature,
-                                    CommandContext command, QObject *parent)
+                                    CommandContext command,
+                                    std::function<AutomationResult<AutomationUnit>()> revalidatePlan,
+                                    QObject *parent)
                 : QObject(parent), m_runtime(runtime), m_path(std::move(path)),
                   m_mergeMode(std::move(mergeMode)), m_purpose(purpose),
                   m_encoding(std::move(encoding)), m_importTempo(importTempo),
-                  m_importTimeSignature(importTimeSignature), m_command(std::move(command)) {
+                  m_importTimeSignature(importTimeSignature), m_command(std::move(command)),
+                  m_revalidatePlan(std::move(revalidatePlan)) {
             }
 
             AutomationResult<TaskAcceptedResult> prepare() {
@@ -181,14 +184,30 @@ namespace Automation {
                     error.taskId = m_taskId;
                     return error;
                 }
-                QTimer::singleShot(0, m_session, [session = QPointer(m_session)] {
-                    if (session)
-                        session->start();
-                });
+                QTimer::singleShot(0, this, [this] { start(); });
                 return TaskAcceptedResult{m_taskId, base.get(), false};
             }
 
         private:
+            void start() {
+                if (!m_session)
+                    return;
+                if (m_revalidatePlan) {
+                    auto revalidated = m_revalidatePlan();
+                    if (!revalidated) {
+                        auto failure = revalidated.getError();
+                        failure.taskId = m_taskId;
+                        failure.operationId = m_purpose == ProjectLoadPurpose::Open
+                                                  ? OperationIds::documents::open
+                                                  : OperationIds::documents::import_document;
+                        m_runtime.automationTasks().fail(m_taskId, std::move(failure));
+                        deleteLater();
+                        return;
+                    }
+                }
+                m_session->start();
+            }
+
             void cancel() {
                 if (m_session)
                     m_session->cancel();
@@ -240,6 +259,7 @@ namespace Automation {
             bool m_importTempo = true;
             bool m_importTimeSignature = true;
             CommandContext m_command;
+            std::function<AutomationResult<AutomationUnit>()> m_revalidatePlan;
             TaskId m_taskId;
             QPointer<IProjectLoadSession> m_session;
         };
@@ -248,10 +268,12 @@ namespace Automation {
             startProjectLoad(CoreRuntime &runtime, const QString &path, const QString &mergeMode,
                              const ProjectLoadPurpose purpose, QByteArray encoding,
                              const bool importTempo, const bool importTimeSignature,
-                             CommandContext command) {
+                             CommandContext command,
+                             std::function<AutomationResult<AutomationUnit>()> revalidatePlan) {
             auto *state = new HeadlessProjectLoadTask(
                 runtime, path, mergeMode, purpose, std::move(encoding), importTempo,
-                importTimeSignature, std::move(command), QCoreApplication::instance());
+                importTimeSignature, std::move(command), std::move(revalidatePlan),
+                QCoreApplication::instance());
             auto result = state->prepare();
             if (!result || result.get().validatedOnly)
                 state->deleteLater();
@@ -1281,6 +1303,7 @@ namespace Automation {
             void evaluate();
             void finishCanceled();
             void fail(AutomationError error);
+            [[nodiscard]] std::optional<MutationResult> terminalMutation() const;
 
             CoreRuntime &m_runtime;
             AppModel *m_model = nullptr;
@@ -1438,7 +1461,7 @@ namespace Automation {
                 if (piece)
                     inferController->cancelPieceInference(piece->id());
             }
-            m_runtime.automationTasks().cancel(m_taskId);
+            m_runtime.automationTasks().cancel(m_taskId, terminalMutation());
             deleteLater();
         }
 
@@ -1463,7 +1486,8 @@ namespace Automation {
                 });
             if (!ready)
                 return;
-            const auto committing = m_runtime.automationTasks().beginCommitting(m_taskId);
+            const auto committing =
+                m_runtime.automationTasks().beginCommitting(m_taskId, terminalMutation());
             if (!committing || !committing.get()) {
                 if (!committing)
                     fail(committing.getError());
@@ -1472,8 +1496,7 @@ namespace Automation {
                 return;
             }
             m_finished = true;
-            m_mutation.current = m_runtime.documentVersion();
-            m_mutation.changed = m_mutation.current != m_mutation.previous;
+            m_mutation = *terminalMutation();
             m_runtime.automationTasks().succeed(m_taskId, std::move(m_mutation));
             deleteLater();
         }
@@ -1482,7 +1505,7 @@ namespace Automation {
             if (m_finished)
                 return;
             m_finished = true;
-            m_runtime.automationTasks().cancel(m_taskId);
+            m_runtime.automationTasks().cancel(m_taskId, terminalMutation());
             deleteLater();
         }
 
@@ -1496,8 +1519,17 @@ namespace Automation {
                 if (piece)
                     inferController->cancelPieceInference(piece->id());
             }
-            m_runtime.automationTasks().fail(m_taskId, std::move(error));
+            m_runtime.automationTasks().fail(m_taskId, std::move(error), terminalMutation());
             deleteLater();
+        }
+
+        std::optional<MutationResult> HeadlessInferenceTask::terminalMutation() const {
+            if (!m_started)
+                return std::nullopt;
+            auto result = m_mutation;
+            result.current = m_runtime.documentVersion();
+            result.changed = result.changed || result.current != result.previous;
+            return result;
         }
 
         AutomationResult<TaskAcceptedResult> startInference(CoreRuntime &runtime, AppModel *model,
@@ -1528,13 +1560,14 @@ namespace Automation {
             }
             return startProjectLoad(runtime, request.canonicalPath, {}, ProjectLoadPurpose::Open,
                                     request.encoding.toLatin1(), request.importTempo,
-                                    request.importTimeSignature, request.command);
+                                    request.importTimeSignature, request.command,
+                                    request.revalidatePlan);
         };
         services.importDocument = [&runtime](const PublicDocumentImportRequest &request) {
             return startProjectLoad(runtime, request.canonicalPath, request.mergeMode,
                                     ProjectLoadPurpose::Import, request.encoding.toLatin1(),
                                     request.importTempo, request.importTimeSignature,
-                                    request.command);
+                                    request.command, request.revalidatePlan);
         };
         services.importDocuments = [&runtime,
                                     model](const PublicDocumentBatchImportRequest &request) {

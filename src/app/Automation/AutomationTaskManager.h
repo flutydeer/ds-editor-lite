@@ -94,7 +94,9 @@ namespace Automation {
         AutomationResult<AutomationTaskSnapshot> requestCancel(const DocumentId &documentId,
                                                                const TaskId &taskId);
         AutomationResult<AutomationTaskSnapshot> requestCancelApplication(const TaskId &taskId);
-        AutomationResult<bool> beginCommitting(const TaskId &taskId);
+        AutomationResult<bool>
+            beginCommitting(const TaskId &taskId,
+                            std::optional<MutationResult> unsuccessfulMutation = std::nullopt);
         bool setUnsuccessfulCallback(const TaskId &taskId, UnsuccessfulCallback callback);
         bool setTerminalCallback(const TaskId &taskId, TerminalCallback callback);
         bool markRunning(const TaskId &taskId);
@@ -102,8 +104,10 @@ namespace Automation {
                             QString message = {});
         bool succeed(const TaskId &taskId, MutationResult mutation);
         bool succeedApplication(const TaskId &taskId, QJsonObject result);
-        bool fail(const TaskId &taskId, AutomationError error);
-        bool cancel(const TaskId &taskId);
+        bool fail(const TaskId &taskId, AutomationError error,
+                  std::optional<MutationResult> mutation = std::nullopt);
+        bool cancel(const TaskId &taskId,
+                    std::optional<MutationResult> mutation = std::nullopt);
         [[nodiscard]] bool isCancellationRequested(const TaskId &taskId) const;
 
         void discardDocumentGeneration(const DocumentId &documentId);

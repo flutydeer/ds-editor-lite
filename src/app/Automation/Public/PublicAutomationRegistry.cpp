@@ -255,6 +255,38 @@ namespace Automation {
             return result;
         }
 
+        std::function<AutomationResult<AutomationUnit>()> planRevalidator(
+            CoreRuntime &runtime, AutomationFileGuard &fileGuard, QList<ProjectFormatDto> formats,
+            QString path, QString purpose, QString formatId, QString expectedDigest,
+            QString pathField, QString digestField) {
+            if (expectedDigest.isEmpty())
+                return {};
+            return [&runtime, &fileGuard, formats = std::move(formats), path = std::move(path),
+                    purpose = std::move(purpose), formatId = std::move(formatId),
+                    expectedDigest = std::move(expectedDigest), pathField = std::move(pathField),
+                    digestField = std::move(digestField)]() -> AutomationResult<AutomationUnit> {
+                auto authorized =
+                    fileGuard.reauthorize({path, FileAccessPurpose::Read});
+                if (!authorized) {
+                    auto failure = authorized.getError();
+                    failure.fieldPath = pathField;
+                    return failure;
+                }
+                auto plan = inspectFormatPath(runtime, formats, path, purpose, formatId);
+                if (!plan) {
+                    auto failure = plan.getError();
+                    failure.fieldPath = pathField;
+                    return failure;
+                }
+                if (plan.get().value(QStringLiteral("plan_digest")).toString() != expectedDigest) {
+                    return AutomationError::invalidArgument(
+                        digestField,
+                        QStringLiteral("The %1 plan digest is stale or invalid").arg(purpose));
+                }
+                return AutomationUnit{};
+            };
+        }
+
         AutomationResult<MidiExportOptionsDto>
             decodeMidiExportOptions(const ProjectSnapshotDto &project, const QJsonObject &encoded) {
             MidiExportOptionsDto result;
@@ -3189,6 +3221,10 @@ namespace Automation {
                 .importTimeSignature =
                     options.value(QStringLiteral("import_time_signatures")).toBool(true),
                 .planDigest = planDigest,
+                .revalidatePlan = planRevalidator(
+                    m_runtime, m_fileGuard, formats.get(), path, QStringLiteral("open"),
+                    format.get().id, planDigest, QStringLiteral("path"),
+                    QStringLiteral("plan_digest")),
                 .unsavedPolicy = arguments.value(QStringLiteral("unsaved_policy")).toString() ==
                                          QStringLiteral("discard")
                                      ? PublicUnsavedPolicy::Discard
@@ -3234,6 +3270,10 @@ namespace Automation {
                 .importTimeSignature =
                     options.value(QStringLiteral("import_time_signatures")).toBool(true),
                 .planDigest = planDigest,
+                .revalidatePlan = planRevalidator(
+                    m_runtime, m_fileGuard, formats.get(), path, QStringLiteral("import"),
+                    format.get().id, planDigest, QStringLiteral("path"),
+                    QStringLiteral("plan_digest")),
                 .mergeMode = QStringLiteral("append"),
             };
             return taskAcceptedResult(m_hostServices.importDocument(request));
@@ -4010,38 +4050,10 @@ namespace Automation {
                         }
                     }
                     requestItem.formatId = format.get().id;
-                    if (!requestItem.planDigest.isEmpty()) {
-                        const auto expectedDigest = requestItem.planDigest;
-                        const auto canonicalPath = requestItem.canonicalPath;
-                        const auto formatId = requestItem.formatId;
-                        const auto availableFormats = formats.get();
-                        requestItem.revalidatePlan =
-                            [runtime = &m_runtime, guard = &m_fileGuard, expectedDigest,
-                             canonicalPath, formatId,
-                             availableFormats]() -> AutomationResult<AutomationUnit> {
-                            auto authorized = guard->reauthorize(
-                                {canonicalPath, FileAccessPurpose::Read});
-                            if (!authorized) {
-                                auto failure = authorized.getError();
-                                failure.fieldPath = QStringLiteral("items.path");
-                                return failure;
-                            }
-                            auto plan = inspectFormatPath(*runtime, availableFormats, canonicalPath,
-                                                          QStringLiteral("import"), formatId);
-                            if (!plan) {
-                                auto failure = plan.getError();
-                                failure.fieldPath = QStringLiteral("items.path");
-                                return failure;
-                            }
-                            if (plan.get().value(QStringLiteral("plan_digest")).toString() !=
-                                expectedDigest) {
-                                return AutomationError::invalidArgument(
-                                    QStringLiteral("items.plan_digest"),
-                                    QStringLiteral("The import plan digest is stale or invalid"));
-                            }
-                            return AutomationUnit{};
-                        };
-                    }
+                    requestItem.revalidatePlan = planRevalidator(
+                        m_runtime, m_fileGuard, formats.get(), requestItem.canonicalPath,
+                        QStringLiteral("import"), requestItem.formatId, requestItem.planDigest,
+                        QStringLiteral("items.path"), QStringLiteral("items.plan_digest"));
                     request.items.append(std::move(requestItem));
                 }
                 return taskAcceptedResult(m_hostServices.importDocuments(request));

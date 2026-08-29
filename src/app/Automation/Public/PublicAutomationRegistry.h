@@ -48,6 +48,7 @@ namespace Automation {
         bool importTempo = true;
         bool importTimeSignature = true;
         QString planDigest;
+        std::function<AutomationResult<AutomationUnit>()> revalidatePlan;
         PublicUnsavedPolicy unsavedPolicy = PublicUnsavedPolicy::Reject;
     };
 
@@ -59,6 +60,7 @@ namespace Automation {
         bool importTempo = true;
         bool importTimeSignature = true;
         QString planDigest;
+        std::function<AutomationResult<AutomationUnit>()> revalidatePlan;
         QString mergeMode;
     };
 
