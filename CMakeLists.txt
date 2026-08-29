@@ -15,7 +15,11 @@ project(lite
 option(LITE_BUILD_TESTS "Build test targets" OFF)
 option(LITE_ENABLE_BREAKPAD "Enable breakpad for crash reporting" OFF)
 option(LITE_ENABLE_FILE_LOG "Enable file logging (used by packaged builds)" OFF)
-option(LITE_ENABLE_CUDA "Enable CUDA execution provider (off for DML-only builds)" ON)
+# Default is DML-only; opt in to CUDA per invocation with -D LITE_ENABLE_CUDA=ON
+# (build-installer.ps1 -EnableCuda does the same). cmake/OrtRuntimeGate.cmake
+# enforces the deployed flavors at build/install time, both directions.
+option(LITE_ENABLE_CUDA "Enable CUDA execution provider (off for DML-only builds)"
+    OFF)
 option(LITE_INSTALL "Install the project" OFF)
 
 # ----------------------------------
