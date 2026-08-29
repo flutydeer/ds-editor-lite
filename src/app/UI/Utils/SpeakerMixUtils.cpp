@@ -1,5 +1,7 @@
 #include "SpeakerMixUtils.h"
 
+#include "OverlappingHandleResolver.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -156,15 +158,14 @@ namespace SpeakerMixUtils {
         if (splitIndex < 0 || splitIndex >= normalized.size() - 1 || qFuzzyIsNull(dragDelta))
             return splitIndex;
 
-        int firstSplit = splitIndex;
-        while (firstSplit > 0 && qFuzzyIsNull(normalized[firstSplit]))
-            --firstSplit;
-
-        int lastSplit = splitIndex;
-        while (lastSplit < normalized.size() - 2 && qFuzzyIsNull(normalized[lastSplit + 1]))
-            ++lastSplit;
-
-        return dragDelta < 0 ? firstSplit : lastSplit;
+        QVector<double> splitPositions;
+        splitPositions.reserve(normalized.size() - 1);
+        double cumulative = 0.0;
+        for (int i = 0; i < normalized.size() - 1; ++i) {
+            cumulative += normalized.at(i);
+            splitPositions.append(cumulative);
+        }
+        return OverlappingHandleResolver::resolve(splitPositions, splitIndex, dragDelta);
     }
 
     QVector<double> adjacentDragWeights(const QVector<double> &dragStartFullWeights,
