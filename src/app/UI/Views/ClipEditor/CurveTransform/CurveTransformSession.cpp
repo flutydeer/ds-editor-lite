@@ -45,6 +45,26 @@ namespace {
         const auto right = curve.values().at(leftIndex + 1);
         return qRound(left + (right - left) * static_cast<double>(remainder) / curve.step);
     }
+
+    void copyNormalizedCurves(const QList<DrawCurve *> &source, QList<DrawCurve *> &target) {
+        AppModelUtils::copyCurves(source, target);
+        for (auto *curve : target) {
+            if (!curve || curve->isEmpty() || curve->step <= 0 ||
+                curve->step == CurveTransform::SampleStep)
+                continue;
+            QList<int> values;
+            values.reserve(
+                (curve->localEndTick() - curve->localStart() + CurveTransform::SampleStep - 1) /
+                CurveTransform::SampleStep);
+            for (auto tick = curve->localStart(); tick < curve->localEndTick();
+                 tick += CurveTransform::SampleStep) {
+                if (const auto sample = valueAt(*curve, tick))
+                    values.append(*sample);
+            }
+            curve->step = CurveTransform::SampleStep;
+            curve->setValues(values);
+        }
+    }
 }
 
 namespace CurveTransform {
@@ -83,9 +103,12 @@ namespace CurveTransform {
                             Config config) {
         clear();
         m_config = std::move(config);
-        AppModelUtils::copyCurves(edited, m_editedSnapshot);
+        copyNormalizedCurves(edited, m_editedSnapshot);
 
-        const auto merged = AppModelUtils::mergeCurves(original, edited);
+        QList<DrawCurve *> originalSnapshot;
+        copyNormalizedCurves(original, originalSnapshot);
+        const auto merged = AppModelUtils::mergeCurves(originalSnapshot, m_editedSnapshot);
+        qDeleteAll(originalSnapshot);
         int previousPartition = -1;
         for (const auto *curve : merged) {
             if (!curve || curve->isEmpty() || curve->step <= 0)

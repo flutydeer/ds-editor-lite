@@ -292,6 +292,38 @@ namespace {
         return ok;
     }
 
+    bool testNonSampleStepEditedCurve() {
+        using namespace CurveTransform;
+        bool ok = true;
+        MouthOpeningParamProperties properties;
+        auto edited = curve(0, {100, 200, 300, 400, 500});
+        edited.step = 10;
+
+        Config config;
+        config.kind = Kind::Scale;
+        config.properties = &properties;
+        Session session;
+        session.setSource({}, {&edited}, config);
+        session.beginSelection(15);
+        ok &= expect(session.finishSelection(25), "non-sample-step selection succeeds");
+        ok &= expect(session.beginTransform(), "non-sample-step transform starts");
+        session.updateTransform(100.0);
+        auto preview = session.buildEditedPreview();
+        ok &= expect(preview.size() == 1 && preview.first()->step == SampleStep,
+                     "edited snapshot is normalized before merging");
+        ok &= expect(valueAt(preview, 0) == 100 && valueAt(preview, 5) == 150 &&
+                         valueAt(preview, 10) == 200,
+                     "normalization preserves the untouched prefix");
+        ok &= expect(valueAt(preview, 15) == 0 && valueAt(preview, 20) == 0 &&
+                         valueAt(preview, 25) == 0,
+                     "transform replaces only the selected samples");
+        ok &= expect(valueAt(preview, 30) == 400 && valueAt(preview, 35) == 450 &&
+                         valueAt(preview, 40) == 500 && valueAt(preview, 45) == 500,
+                     "normalization preserves the untouched suffix");
+        qDeleteAll(preview);
+        return ok;
+    }
+
     bool testBasePitchRestKeys() {
         bool ok = true;
         using InputNote = BasePitchCurve::InputNote;
@@ -360,6 +392,7 @@ int main(int argc, char *argv[]) {
     ok &= testShapeAndScale();
     ok &= testScaleMappingsAndSessionPhases();
     ok &= testPitchAndEditedOnlySource();
+    ok &= testNonSampleStepEditedCurve();
     ok &= testBasePitchRestKeys();
     if (!ok)
         return 1;
