@@ -23,8 +23,8 @@ OptionsCardItem::OptionsCardItem(QWidget *parent) : QWidget(parent) {
     titleDescLayout->setSpacing(2);
 
     m_mainLayout = new QHBoxLayout;
-    m_mainLayout->addLayout(titleDescLayout);
-    m_mainLayout->addSpacerItem(new QSpacerItem(8, 4, QSizePolicy::Expanding));
+    m_mainLayout->addLayout(titleDescLayout, 1);
+    m_mainLayout->addSpacing(8);
     m_mainLayout->setContentsMargins(0, 3, 0, 3);
     setLayout(m_mainLayout);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
