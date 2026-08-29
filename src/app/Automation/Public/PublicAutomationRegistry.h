@@ -67,6 +67,7 @@ namespace Automation {
         QString formatId;
         QJsonObject options;
         QString planDigest;
+        std::function<AutomationResult<AutomationUnit>()> revalidatePlan;
         std::optional<AutomationError> validationError;
     };
 

@@ -352,6 +352,13 @@ namespace Automation {
                     handleFailure(handler.getError());
                     return;
                 }
+                if (item.revalidatePlan) {
+                    auto revalidated = item.revalidatePlan();
+                    if (!revalidated) {
+                        handleFailure(revalidated.getError());
+                        return;
+                    }
+                }
                 const auto options = item.options;
                 ProjectLoadRequest loadRequest{
                     .filePath = item.canonicalPath,
@@ -565,7 +572,10 @@ namespace Automation {
                         entry.task = nullptr;
                         entry.error =
                             QStringLiteral("No audio decoder is available for %1").arg(path);
+                        continue;
                     }
+                    entry.hashTask = new ComputeAudioHashTask;
+                    entry.hashTask->path = entry.request.clip.audioPath;
                 }
 
                 if (m_command.validateOnly) {
@@ -575,6 +585,8 @@ namespace Automation {
                     for (auto &entry : m_entries) {
                         delete entry.task;
                         entry.task = nullptr;
+                        delete entry.hashTask;
+                        entry.hashTask = nullptr;
                     }
                     if (invalid != m_entries.cend() &&
                         m_failurePolicy == PublicBatchFailurePolicy::Atomic) {
@@ -611,14 +623,22 @@ namespace Automation {
 
                 m_remaining = 0;
                 for (auto &entry : m_entries) {
-                    if (!entry.task)
-                        continue;
-                    ++m_remaining;
-                    auto *decodeTask = entry.task;
-                    connect(
-                        decodeTask, &Task::finished, this,
-                        [this, decodeTask] { handleFinished(decodeTask); }, Qt::QueuedConnection);
-                    QThreadPool::globalInstance()->start(decodeTask);
+                    if (entry.task) {
+                        ++m_remaining;
+                        auto *decodeTask = entry.task;
+                        connect(
+                            decodeTask, &Task::finished, this,
+                            [this, decodeTask] { handleFinished(decodeTask); }, Qt::QueuedConnection);
+                        QThreadPool::globalInstance()->start(decodeTask);
+                    }
+                    if (entry.hashTask) {
+                        ++m_remaining;
+                        auto *hashTask = entry.hashTask;
+                        connect(hashTask, &Task::finished, this,
+                                [this, hashTask] { handleHashFinished(hashTask); },
+                                Qt::QueuedConnection);
+                        QThreadPool::globalInstance()->start(hashTask);
+                    }
                 }
                 if (m_remaining == 0)
                     QTimer::singleShot(0, this, [this] { finishPreparation(); });
@@ -629,7 +649,9 @@ namespace Automation {
             struct Entry {
                 ClipInsertDto request;
                 DecodeAudioTask *task = nullptr;
+                ComputeAudioHashTask *hashTask = nullptr;
                 std::optional<PreparedAudioItem> prepared;
+                QString sha512;
                 QString error;
             };
 
@@ -649,6 +671,8 @@ namespace Automation {
                 for (const auto &entry : std::as_const(m_entries)) {
                     if (entry.task)
                         entry.task->terminate();
+                    if (entry.hashTask)
+                        entry.hashTask->terminate();
                 }
             }
 
@@ -668,6 +692,27 @@ namespace Automation {
                     found->prepared = AudioFilePreparer::prepareResult(task);
                 }
                 found->task = nullptr;
+                task->deleteLater();
+                if (--m_remaining == 0)
+                    finishPreparation();
+            }
+
+            void handleHashFinished(ComputeAudioHashTask *task) {
+                const auto found =
+                    std::find_if(m_entries.begin(), m_entries.end(),
+                                 [task](const Entry &entry) { return entry.hashTask == task; });
+                if (found == m_entries.end())
+                    return;
+                if (task->terminated()) {
+                    if (found->error.isEmpty())
+                        found->error = QStringLiteral("Audio hashing was canceled");
+                } else if (!task->success || task->resultSha512.isEmpty()) {
+                    if (found->error.isEmpty())
+                        found->error = QStringLiteral("Failed to compute audio hash");
+                } else {
+                    found->sha512 = task->resultSha512;
+                }
+                found->hashTask = nullptr;
                 task->deleteLater();
                 if (--m_remaining == 0)
                     finishPreparation();
@@ -699,7 +744,7 @@ namespace Automation {
                 clip.audioPath = prepared.path;
                 clip.audioInfo = prepared.audioInfo;
                 clip.audioPathInfo = {
-                    DiffscopeAudioWorkspace::relativeDirFor(prepared.path, projectPath), {}};
+                    DiffscopeAudioWorkspace::relativeDirFor(prepared.path, projectPath), entry.sha512};
                 clip.hasRealTimeAnchor = true;
                 clip.workspace.insert(QStringLiteral("diffscope.audio.formatData"),
                                       prepared.workspace);

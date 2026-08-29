@@ -7,6 +7,7 @@
 #include <lite/ProductMetadata.h>
 
 #include <QCoreApplication>
+#include <QDataStream>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QEventLoop>
@@ -421,6 +422,31 @@ namespace {
         }
     }
 
+    bool writeWaveFixture(const QString &path) {
+        constexpr quint32 sampleRate = 8000;
+        constexpr quint16 channels = 1;
+        constexpr quint16 bitsPerSample = 16;
+        constexpr quint32 sampleCount = 800;
+        const QByteArray samples(static_cast<qsizetype>(sampleCount * channels *
+                                                       (bitsPerSample / 8)),
+                                 '\0');
+        QFile file(path);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate))
+            return false;
+        QDataStream stream(&file);
+        stream.setByteOrder(QDataStream::LittleEndian);
+        stream.writeRawData("RIFF", 4);
+        stream << quint32(36 + samples.size());
+        stream.writeRawData("WAVEfmt ", 8);
+        stream << quint32(16) << quint16(1) << channels << sampleRate
+               << quint32(sampleRate * channels * (bitsPerSample / 8))
+               << quint16(channels * (bitsPerSample / 8)) << bitsPerSample;
+        stream.writeRawData("data", 4);
+        stream << quint32(samples.size());
+        stream.writeRawData(samples.constData(), samples.size());
+        return stream.status() == QDataStream::Ok;
+    }
+
     bool runIntegration(const QString &editorPath, const QString &connectorPath) {
         QTemporaryDir isolatedRoot;
         if (!isolatedRoot.isValid()) {
@@ -437,6 +463,9 @@ namespace {
                     QString::fromLatin1(LiteProductMetadata::ProductName)));
         if (!QDir().mkpath(editorDataDirectory))
             return fail(QStringLiteral("Could not create the isolated editor data directory"));
+        const auto audioPath = isolatedRoot.filePath(QStringLiteral("import-fixture.wav"));
+        if (!writeWaveFixture(audioPath))
+            return fail(QStringLiteral("Could not create the audio import fixture"));
         QFile seededConfig(QDir(editorDataDirectory).filePath(QStringLiteral("appConfig.json")));
         if (!seededConfig.open(QIODevice::WriteOnly | QIODevice::Truncate))
             return fail(QStringLiteral("Could not seed the isolated editor configuration"));
@@ -445,6 +474,13 @@ namespace {
                               {QStringLiteral("audio"),
                                QJsonObject{{QStringLiteral("deviceName"),
                                             QStringLiteral("configured-only-device")}}},
+                              {QStringLiteral("automation"),
+                               QJsonObject{
+                                   {QStringLiteral("readRoots"),
+                                    QJsonArray{QDir::fromNativeSeparators(isolatedRoot.path())}},
+                                   {QStringLiteral("writeRoots"),
+                                    QJsonArray{QDir::fromNativeSeparators(isolatedRoot.path())}},
+                               }},
         })
                 .toJson(QJsonDocument::Compact));
         seededConfig.close();
@@ -816,6 +852,82 @@ namespace {
                     .arg(compactJson(*mutation)));
         }
 
+        const auto audioImport = connectorToolContent(
+            connector, 1003, QStringLiteral("audio_clips.import"),
+            QJsonObject{
+                {QStringLiteral("document_id"),       documentId      },
+                {QStringLiteral("expected_revision"), currentRevision },
+                {QStringLiteral("track_id"),          createdTrackId  },
+                {QStringLiteral("start"),             0               },
+                {QStringLiteral("path"),              audioPath       },
+            },
+            10000, toolError);
+        const auto audioImportTaskId =
+            audioImport ? audioImport->value(QStringLiteral("task_id")).toString() : QString{};
+        if (audioImportTaskId.isEmpty()) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("audio_clips.import did not start: %1").arg(toolError));
+        }
+        QJsonObject audioImportTask;
+        for (qint64 attempt = 0; attempt < 100; ++attempt) {
+            const auto snapshot = connectorToolContent(
+                connector, 1100 + attempt, QStringLiteral("tasks.get"),
+                QJsonObject{
+                    {QStringLiteral("scope"),       QStringLiteral("document")},
+                    {QStringLiteral("document_id"), documentId                 },
+                    {QStringLiteral("task_id"),     audioImportTaskId           },
+                },
+                5000, toolError);
+            if (!snapshot) {
+                return failWithProcessDiagnostics(
+                    QStringLiteral("Audio import task lookup failed: %1").arg(toolError));
+            }
+            audioImportTask = *snapshot;
+            const auto state = audioImportTask.value(QStringLiteral("state")).toString();
+            if (state == QStringLiteral("succeeded") || state == QStringLiteral("failed") ||
+                state == QStringLiteral("canceled")) {
+                break;
+            }
+            QThread::msleep(50);
+        }
+        if (audioImportTask.value(QStringLiteral("state")).toString() !=
+            QStringLiteral("succeeded")) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("Audio import task did not succeed: %1")
+                    .arg(compactJson(audioImportTask)));
+        }
+        qint64 createdAudioClipId = -1;
+        const auto audioMutation = audioImportTask.value(QStringLiteral("result")).toObject();
+        const auto audioCurrentRevision = audioMutation.value(QStringLiteral("current"))
+                                              .toObject()
+                                              .value(QStringLiteral("revision"))
+                                              .toInteger(-1);
+        for (const auto &affectedValue :
+             audioMutation.value(QStringLiteral("affected_objects")).toArray()) {
+            const auto object = affectedValue.toObject();
+            if (object.value(QStringLiteral("kind")).toString() == QStringLiteral("clip")) {
+                createdAudioClipId = object.value(QStringLiteral("id")).toInteger(-1);
+                break;
+            }
+        }
+        const auto importedAudio = connectorToolContent(
+            connector, 1200, QStringLiteral("audio_clips.get"),
+            QJsonObject{
+                {QStringLiteral("document_id"), documentId        },
+                {QStringLiteral("clip_id"),     createdAudioClipId},
+            },
+            5000, toolError);
+        if (audioCurrentRevision != currentRevision + 1 || createdAudioClipId < 0 ||
+            !importedAudio ||
+            !importedAudio->value(QStringLiteral("snapshot"))
+                 .toObject()
+                 .value(QStringLiteral("hash_exists"))
+                 .toBool()) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("Imported audio clip did not retain a SHA-512 digest: %1")
+                    .arg(importedAudio ? compactJson(*importedAudio) : toolError));
+        }
+
         const auto connectorDocument = connectorToolContent(
             connector, 1001, QStringLiteral("documents.get"), documentArguments, 10000, toolError);
         if (!connectorDocument) {
@@ -829,17 +941,17 @@ namespace {
         if (connectorDocument->value(QStringLiteral("document"))
                     .toObject()
                     .value(QStringLiteral("revision"))
-                    .toInteger(-1) != currentRevision ||
+                    .toInteger(-1) != audioCurrentRevision ||
             statistics.value(QStringLiteral("track_count")).toInteger(-1) !=
                 initialStatistics.value(QStringLiteral("track_count")).toInteger(-1) + 1 ||
             statistics.value(QStringLiteral("empty_track_count")).toInteger(-1) !=
-                initialStatistics.value(QStringLiteral("empty_track_count")).toInteger(-1) + 1 ||
+                initialStatistics.value(QStringLiteral("empty_track_count")).toInteger(-1) ||
             statistics.value(QStringLiteral("clip_count")).toInteger(-1) !=
-                initialStatistics.value(QStringLiteral("clip_count")).toInteger(-1)) {
+                initialStatistics.value(QStringLiteral("clip_count")).toInteger(-1) + 1) {
             return failWithProcessDiagnostics(
                 QStringLiteral(
-                    "documents.get did not expose the inserted empty track statistics at the new "
-                    "revision: %1")
+                    "documents.get did not expose the inserted track and audio clip statistics at "
+                    "the new revision: %1")
                     .arg(compactJson(*connectorDocument)));
         }
         const auto directDocument = directToolContent(directClient, QStringLiteral("documents.get"),

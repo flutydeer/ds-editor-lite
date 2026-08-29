@@ -4010,6 +4010,38 @@ namespace Automation {
                         }
                     }
                     requestItem.formatId = format.get().id;
+                    if (!requestItem.planDigest.isEmpty()) {
+                        const auto expectedDigest = requestItem.planDigest;
+                        const auto canonicalPath = requestItem.canonicalPath;
+                        const auto formatId = requestItem.formatId;
+                        const auto availableFormats = formats.get();
+                        requestItem.revalidatePlan =
+                            [runtime = &m_runtime, guard = &m_fileGuard, expectedDigest,
+                             canonicalPath, formatId,
+                             availableFormats]() -> AutomationResult<AutomationUnit> {
+                            auto authorized = guard->reauthorize(
+                                {canonicalPath, FileAccessPurpose::Read});
+                            if (!authorized) {
+                                auto failure = authorized.getError();
+                                failure.fieldPath = QStringLiteral("items.path");
+                                return failure;
+                            }
+                            auto plan = inspectFormatPath(*runtime, availableFormats, canonicalPath,
+                                                          QStringLiteral("import"), formatId);
+                            if (!plan) {
+                                auto failure = plan.getError();
+                                failure.fieldPath = QStringLiteral("items.path");
+                                return failure;
+                            }
+                            if (plan.get().value(QStringLiteral("plan_digest")).toString() !=
+                                expectedDigest) {
+                                return AutomationError::invalidArgument(
+                                    QStringLiteral("items.plan_digest"),
+                                    QStringLiteral("The import plan digest is stale or invalid"));
+                            }
+                            return AutomationUnit{};
+                        };
+                    }
                     request.items.append(std::move(requestItem));
                 }
                 return taskAcceptedResult(m_hostServices.importDocuments(request));
