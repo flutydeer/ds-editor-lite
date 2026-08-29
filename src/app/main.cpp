@@ -68,6 +68,12 @@ int main(int argc, char *argv[]) {
     SingleInstanceCoordinator coordinator;
     switch (coordinator.start()) {
         case SingleInstanceCoordinator::StartResult::Secondary: {
+            if (!parsedArguments.automation.isEmpty()) {
+                reportBootstrapError(QStringLiteral(
+                    "Automation command-line options cannot be applied while another editor "
+                    "instance is running"));
+                return EXIT_FAILURE;
+            }
             QString error;
             if (coordinator.forwardRequest(startupRequest, error))
                 return EXIT_SUCCESS;

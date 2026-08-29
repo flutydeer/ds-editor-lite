@@ -459,7 +459,9 @@ namespace {
 
         QProcess editor;
         QProcess connector;
+        QProcess secondaryEditor;
         const auto cleanup = qScopeGuard([&] {
+            stopProcess(secondaryEditor);
             connector.closeWriteChannel();
             if (!connector.waitForFinished(3000))
                 stopProcess(connector);
@@ -524,6 +526,25 @@ namespace {
         }
         const auto editorInstanceId = watcher.observation().snapshot->result.editorInstanceId;
         const auto editorEndpoint = watcher.observation().snapshot->result.mcpEndpoint;
+
+        secondaryEditor.setProcessEnvironment(environment);
+        secondaryEditor.setWorkingDirectory(QFileInfo(editorPath).absolutePath());
+        secondaryEditor.setProcessChannelMode(QProcess::SeparateChannels);
+        secondaryEditor.start(editorPath, {QStringLiteral("--no-mcp")});
+        if (!secondaryEditor.waitForStarted(10000) || !secondaryEditor.waitForFinished(10000)) {
+            return fail(QStringLiteral("Secondary editor with automation overrides did not exit"));
+        }
+        const auto secondaryError = QString::fromUtf8(secondaryEditor.readAllStandardError());
+        if (secondaryEditor.exitStatus() != QProcess::NormalExit ||
+            secondaryEditor.exitCode() == 0 ||
+            !secondaryError.contains(
+                QStringLiteral("Automation command-line options cannot be applied"))) {
+            return fail(QStringLiteral("Secondary editor did not reject automation overrides; "
+                                       "exit_status=%1; exit_code=%2; stderr=%3")
+                            .arg(static_cast<int>(secondaryEditor.exitStatus()))
+                            .arg(secondaryEditor.exitCode())
+                            .arg(secondaryError));
+        }
 
         connector.setProcessEnvironment(environment);
         connector.setWorkingDirectory(QFileInfo(connectorPath).absolutePath());
