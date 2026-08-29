@@ -219,6 +219,10 @@ namespace Automation {
         struct PendingRequest {
             quint64 id = 0;
             QPromise<QHttpServerResponse> promise;
+            QString clientId;
+            QString protocolVersion;
+            QJsonValue requestId = QJsonValue(QJsonValue::Undefined);
+            bool handling = false;
         };
 
         struct Admission {
@@ -261,9 +265,50 @@ namespace Automation {
             };
         }
 
-        [[nodiscard]] bool isPending(const quint64 id) const {
+        bool correlate(const quint64 id, QString clientId, QString protocolVersion,
+                       QJsonValue requestId) {
             const QMutexLocker locker(&m_mutex);
-            return m_pending.contains(id);
+            const auto it = m_pending.find(id);
+            if (it == m_pending.end())
+                return false;
+            it.value()->clientId = std::move(clientId);
+            it.value()->protocolVersion = std::move(protocolVersion);
+            it.value()->requestId = std::move(requestId);
+            return true;
+        }
+
+        bool beginHandling(const quint64 id) {
+            const QMutexLocker locker(&m_mutex);
+            const auto it = m_pending.find(id);
+            if (it == m_pending.end())
+                return false;
+            it.value()->handling = true;
+            return true;
+        }
+
+        bool cancelQueued(const QString &clientId, const QString &protocolVersion,
+                          const QJsonValue &requestId) {
+            std::shared_ptr<PendingRequest> pending;
+            {
+                const QMutexLocker locker(&m_mutex);
+                for (auto it = m_pending.begin(); it != m_pending.end(); ++it) {
+                    const auto &candidate = it.value();
+                    if (candidate->handling || candidate->clientId != clientId ||
+                        candidate->protocolVersion != protocolVersion ||
+                        candidate->requestId != requestId) {
+                        continue;
+                    }
+                    pending = candidate;
+                    m_pending.erase(it);
+                    m_globalInFlight = std::max(0, m_globalInFlight - 1);
+                    break;
+                }
+            }
+            if (!pending)
+                return false;
+            pending->promise.addResult(QHttpServerResponse(StatusCode::NoContent));
+            pending->promise.finish();
+            return true;
         }
 
         bool complete(const quint64 id, QHttpServerResponse response) {
@@ -403,31 +448,6 @@ namespace Automation {
                                                     StatusCode::ServiceUnavailable));
             }
 
-            auto admission = m_transportState->admit();
-            if (admission.rejection != McpHttpTransportState::Rejection::None) {
-                switch (admission.rejection) {
-                    case McpHttpTransportState::Rejection::Stopping:
-                        return readyResponse(
-                            transportError(QStringLiteral("mcp_stopping"),
-                                           QStringLiteral("MCP server is stopping"),
-                                           StatusCode::ServiceUnavailable));
-                    case McpHttpTransportState::Rejection::GlobalBusy:
-                        return readyResponse(transportError(
-                            QStringLiteral("busy"),
-                            QStringLiteral("Global MCP concurrency limit was reached"),
-                            StatusCode::ServiceUnavailable));
-                    case McpHttpTransportState::Rejection::None:
-                        break;
-                }
-            }
-
-            const auto pendingId = admission.pending->id;
-            const auto fail = [state = m_transportState, pendingId,
-                               future = admission.future](QHttpServerResponse response) {
-                state->complete(pendingId, std::move(response));
-                return future;
-            };
-
             if (request.method() != QHttpServerRequest::Method::Post) {
                 auto response =
                     transportError(QStringLiteral("method_not_allowed"),
@@ -437,26 +457,27 @@ namespace Automation {
                 headers.replaceOrAppend(QHttpHeaders::WellKnownHeader::Allow,
                                         QStringLiteral("POST"));
                 response.setHeaders(std::move(headers));
-                return fail(std::move(response));
+                return readyResponse(std::move(response));
             }
 
             const auto contentType =
                 uniqueHeader(request.headers(), QByteArrayLiteral("Content-Type"));
             if (!contentType || !isJsonContentType(*contentType)) {
-                return fail(transportError(QStringLiteral("unsupported_media_type"),
-                                           QStringLiteral("MCP requests require application/json"),
-                                           StatusCode::UnsupportedMediaType));
+                return readyResponse(transportError(
+                    QStringLiteral("unsupported_media_type"),
+                    QStringLiteral("MCP requests require application/json"),
+                    StatusCode::UnsupportedMediaType));
             }
             const auto acceptValues =
                 request.headers().values(QHttpHeaders::WellKnownHeader::Accept);
             if (!acceptsRequiredMediaTypes(acceptValues.join(QByteArrayLiteral(",")))) {
-                return fail(transportError(
+                return readyResponse(transportError(
                     QStringLiteral("not_acceptable"),
                     QStringLiteral("Accept must include application/json and text/event-stream"),
                     StatusCode::NotAcceptable));
             }
             if (request.body().size() > m_limits.maximumRequestBytes) {
-                return fail(
+                return readyResponse(
                     transportError(QStringLiteral("request_too_large"),
                                    QStringLiteral("MCP request body exceeds the configured limit"),
                                    StatusCode::PayloadTooLarge));
@@ -465,7 +486,7 @@ namespace Automation {
             QJsonParseError parseError;
             const auto document = QJsonDocument::fromJson(request.body(), &parseError);
             if (parseError.error != QJsonParseError::NoError) {
-                return fail(jsonResponse(
+                return readyResponse(jsonResponse(
                     Mcp::makeErrorResponse(QJsonValue(QJsonValue::Null),
                                            {Mcp::ParseError, QStringLiteral("Invalid JSON")}),
                     StatusCode::BadRequest));
@@ -501,7 +522,7 @@ namespace Automation {
                        transportMethod == QString::fromLatin1(Mcp::ToolsCallMethod)) &&
                       !hasUniqueNonEmptyHeader(headers, QByteArrayLiteral("Mcp-Name"))));
                 if (missingRequiredHeader) {
-                    return fail(jsonResponse(
+                    return readyResponse(jsonResponse(
                         Mcp::makeErrorResponse(
                             rawId, {Mcp::HeaderMismatch,
                                     QStringLiteral(
@@ -511,7 +532,7 @@ namespace Automation {
             }
 
             if (!withinJsonLimits(message, m_limits.maximumJsonDepth, m_limits.maximumJsonNodes)) {
-                return fail(jsonResponse(
+                return readyResponse(jsonResponse(
                     Mcp::makeErrorResponse(
                         hasRequestId ? rawId : QJsonValue(QJsonValue::Null),
                         {Mcp::InvalidRequest, QStringLiteral("JSON structure limit exceeded")}),
@@ -524,8 +545,8 @@ namespace Automation {
             if (!validation.valid()) {
                 const auto id = document.isObject() ? document.object().value(QStringLiteral("id"))
                                                     : QJsonValue(QJsonValue::Null);
-                return fail(jsonResponse(Mcp::makeErrorResponse(id, validation.error),
-                                         protocolErrorStatus(validation.error)));
+                return readyResponse(jsonResponse(Mcp::makeErrorResponse(id, validation.error),
+                                                  protocolErrorStatus(validation.error)));
             }
             const auto &validatedRequest = *validation.request;
             const auto protocolHeaderValues =
@@ -539,13 +560,13 @@ namespace Automation {
                 const Mcp::ProtocolError error{
                     Mcp::HeaderMismatch,
                     QStringLiteral("MCP-Protocol-Version header is missing or malformed")};
-                return fail(jsonResponse(Mcp::makeErrorResponse(validatedRequest.id, error),
-                                         protocolErrorStatus(error)));
+                return readyResponse(jsonResponse(Mcp::makeErrorResponse(validatedRequest.id, error),
+                                                  protocolErrorStatus(error)));
             }
             const auto metadataValidation =
                 Mcp::validateTransportMetadata(metadata, validatedRequest);
             if (!metadataValidation.valid()) {
-                return fail(jsonResponse(
+                return readyResponse(jsonResponse(
                     Mcp::makeErrorResponse(validatedRequest.id, *metadataValidation.error),
                     protocolErrorStatus(*metadataValidation.error)));
             }
@@ -556,17 +577,52 @@ namespace Automation {
                     Mcp::InvalidRequest,
                     QStringLiteral(
                         "initialize is only available for MCP 2025-06-18 and 2025-11-25")};
-                return fail(jsonResponse(Mcp::makeErrorResponse(validatedRequest.id, error),
-                                         protocolErrorStatus(error)));
+                return readyResponse(jsonResponse(Mcp::makeErrorResponse(validatedRequest.id, error),
+                                                  protocolErrorStatus(error)));
             }
             const auto clientId = clientIdFor(validatedRequest, request);
-            if (validatedRequest.notification)
-                return fail(QHttpServerResponse(StatusCode::Accepted));
+            if (validatedRequest.notification) {
+                if (validatedRequest.method == QString::fromLatin1(Mcp::CancelledNotification)) {
+                    const auto requestId =
+                        validatedRequest.params.value(QStringLiteral("requestId"));
+                    const auto reason = validatedRequest.params.value(QStringLiteral("reason"));
+                    if (Mcp::isValidRequestId(requestId) &&
+                        (reason.isUndefined() || reason.isString())) {
+                        m_transportState->cancelQueued(clientId, validatedRequest.protocolVersion,
+                                                       requestId);
+                    }
+                }
+                return readyResponse(QHttpServerResponse(StatusCode::Accepted));
+            }
             if (!Mcp::isSupportedCoreMethod(validatedRequest.method)) {
                 const Mcp::ProtocolError error{Mcp::MethodNotFound,
                                                QStringLiteral("MCP method is not supported")};
-                return fail(jsonResponse(Mcp::makeErrorResponse(validatedRequest.id, error),
-                                         StatusCode::NotFound));
+                return readyResponse(jsonResponse(Mcp::makeErrorResponse(validatedRequest.id, error),
+                                                  StatusCode::NotFound));
+            }
+
+            auto admission = m_transportState->admit();
+            if (admission.rejection != McpHttpTransportState::Rejection::None) {
+                switch (admission.rejection) {
+                    case McpHttpTransportState::Rejection::Stopping:
+                        return readyResponse(
+                            transportError(QStringLiteral("mcp_stopping"),
+                                           QStringLiteral("MCP server is stopping"),
+                                           StatusCode::ServiceUnavailable));
+                    case McpHttpTransportState::Rejection::GlobalBusy:
+                        return readyResponse(transportError(
+                            QStringLiteral("busy"),
+                            QStringLiteral("Global MCP concurrency limit was reached"),
+                            StatusCode::ServiceUnavailable));
+                    case McpHttpTransportState::Rejection::None:
+                        break;
+                }
+            }
+
+            const auto pendingId = admission.pending->id;
+            if (validatedRequest.method != QString::fromLatin1(Mcp::InitializeMethod)) {
+                m_transportState->correlate(pendingId, clientId, validatedRequest.protocolVersion,
+                                            validatedRequest.id);
             }
             QTimer::singleShot(
                 m_limits.requestDeadlineMs, this, [state = m_transportState, pendingId] {
@@ -581,7 +637,7 @@ namespace Automation {
                 m_handlerContext,
                 [state = m_transportState, pendingId, handler = m_handler,
                  validated = validatedRequest, clientId, limits = m_limits]() mutable {
-                    if (!state->isPending(pendingId))
+                    if (!state->beginHandling(pendingId))
                         return;
                     QJsonObject responseObject;
                     try {

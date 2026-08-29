@@ -800,6 +800,78 @@ int main(int argc, char *argv[]) {
                QStringLiteral("the timed-out handler must finish after its gate is released"));
     }
 
+    QSemaphore cancellationContextEntered;
+    QSemaphore cancellationContextRelease;
+    QSemaphore canceledHandlerEntered;
+    Automation::McpHttpLimits cancellationLimits;
+    cancellationLimits.maximumGlobalInFlight = 1;
+    cancellationLimits.requestDeadlineMs = 2000;
+    Automation::McpHttpServer cancellationServer(
+        &handlerContext,
+        [&](const Mcp::RequestEnvelope &request, const QString &) {
+            canceledHandlerEntered.release();
+            return Mcp::makeResultResponse(
+                request.id,
+                Mcp::makeToolCallResult(QJsonObject{{QStringLiteral("mutated"), true}}, false, {},
+                                        serverInfo, request.protocolVersion),
+                serverInfo, request.protocolVersion);
+        },
+        cancellationLimits);
+    QString cancellationError;
+    expect(cancellationServer.start(0, cancellationError),
+           QStringLiteral("cancellation server must start: %1").arg(cancellationError));
+    QMetaObject::invokeMethod(
+        &handlerContext,
+        [&] {
+            cancellationContextEntered.release();
+            cancellationContextRelease.acquire();
+        },
+        Qt::QueuedConnection);
+    const auto cancellationContextBlocked =
+        acquireWhileProcessing(cancellationContextEntered, 2000);
+    expect(cancellationContextBlocked,
+           QStringLiteral("the cancellation fixture must block the handler executor"));
+
+    const QUrl cancellationEndpoint(cancellationServer.endpoint());
+    const auto canceledCall =
+        Mcp::makeRequest(QString::fromLatin1(Mcp::ToolsCallMethod),
+                         QJsonObject{
+                             {QStringLiteral("name"),      QStringLiteral("mutating.test")},
+                             {QStringLiteral("arguments"), QJsonObject{}                   },
+                         },
+                         legacyContext, QStringLiteral("cancel-before-dispatch"));
+    auto *canceledReply =
+        startRequest(manager, legacyRequest(cancellationEndpoint),
+                     QJsonDocument(canceledCall).toJson(QJsonDocument::Compact));
+    QElapsedTimer admissionWait;
+    admissionWait.start();
+    while (admissionWait.elapsed() < 100) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
+        QThread::msleep(1);
+    }
+    const auto cancellationNotification =
+        Mcp::makeRequest(QString::fromLatin1(Mcp::CancelledNotification),
+                         QJsonObject{
+                             {QStringLiteral("requestId"), QStringLiteral("cancel-before-dispatch")},
+                             {QStringLiteral("reason"),    QStringLiteral("test cancellation")      },
+                         },
+                         legacyContext);
+    const auto cancellationResult =
+        send(manager, legacyRequest(cancellationEndpoint),
+             QJsonDocument(cancellationNotification).toJson(QJsonDocument::Compact));
+    const auto canceledResult = finishRequest(canceledReply, 2000);
+    expect(cancellationResult.status == 202 && cancellationResult.body.isEmpty(),
+           QStringLiteral("cancellation notifications must bypass a full request admission limit"));
+    expect(canceledResult.status == 204 && canceledResult.body.isEmpty(),
+           QStringLiteral("a canceled queued request must close without a JSON-RPC response"));
+
+    cancellationContextRelease.release();
+    if (cancellationContextBlocked) {
+        expect(!canceledHandlerEntered.tryAcquire(1, 250),
+               QStringLiteral("a canceled queued request must not enter the editor handler"));
+    }
+    cancellationServer.stop();
+
     QMetaObject::invokeMethod(
         &handlerContext,
         [&] { handlerContext.moveToThread(QCoreApplication::instance()->thread()); },
