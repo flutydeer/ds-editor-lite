@@ -92,23 +92,23 @@
     <name>AutomationPage</name>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="45"/>
-        <source>Overridden and locked by a command-line argument.</source>
-        <translation>已通过命令行参数覆盖并锁定。</translation>
+        <source> (overridden and locked by a command-line argument)</source>
+        <translation>（已通过命令行参数覆盖并锁定）</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="336"/>
-        <source>Starts an MCP server that listens only on this computer.</source>
-        <translation>启动仅监听本机的 MCP 服务。</translation>
+        <source>Starts an MCP server that listens only on this computer</source>
+        <translation>启动仅监听本机的 MCP 服务</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="347"/>
-        <source>Sets the port the MCP server listens on.</source>
-        <translation>设置 MCP 服务监听的端口。</translation>
+        <source>Sets the port the MCP server listens on</source>
+        <translation>设置 MCP 服务监听的端口</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="437"/>
-        <source>Determines which tools clients can see and call.</source>
-        <translation>决定客户端可以看到并调用的工具范围。</translation>
+        <source>Determines which tools clients can see and call</source>
+        <translation>决定客户端可以看到并调用的工具范围</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="52"/>

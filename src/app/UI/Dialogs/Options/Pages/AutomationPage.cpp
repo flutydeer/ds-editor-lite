@@ -58,8 +58,7 @@ QString AutomationPage::settingDescription(const QString &description,
                                            const StartupArguments::ConfigSource source) const {
     if (source == StartupArguments::ConfigSource::Persisted)
         return description;
-    return description + QLatin1Char('\n') +
-           tr("Overridden and locked by a command-line argument.");
+    return description + tr(" (overridden and locked by a command-line argument)");
 }
 
 QString AutomationPage::categoryDisplayName(const QString &category) const {
@@ -337,7 +336,7 @@ QWidget *AutomationPage::createContentWidget() {
     const auto serverCard = new OptionListCard(tr("MCP Server"));
     serverCard->addItem(
         tr("Enable MCP Server"),
-        settingDescription(tr("Starts an MCP server that listens only on this computer."),
+        settingDescription(tr("Starts an MCP server that listens only on this computer"),
                            m_effectiveConfig.mcpEnabledSource),
         m_mcpEnabled);
     auto *controlPortControl = new QWidget;
@@ -347,7 +346,7 @@ QWidget *AutomationPage::createContentWidget() {
     controlPortLayout->addWidget(m_refreshControlPort);
     controlPortLayout->addWidget(m_controlPort);
     serverCard->addItem(tr("Control Port"),
-                        settingDescription(tr("Sets the port the MCP server listens on."),
+                        settingDescription(tr("Sets the port the MCP server listens on"),
                                            m_effectiveConfig.controlPortSource),
                         controlPortControl);
     m_runtimeStateItem = serverCard->addItem(tr("Runtime Status"), QString{});
@@ -436,7 +435,7 @@ QWidget *AutomationPage::createContentWidget() {
 
     const auto accessCard = new OptionListCard(tr("Access Profile"));
     accessCard->addItem(tr("Profile"),
-                        settingDescription(tr("Determines which tools clients can see and call."),
+                        settingDescription(tr("Determines which tools clients can see and call"),
                                            m_effectiveConfig.profileSource),
                         m_profile);
 
