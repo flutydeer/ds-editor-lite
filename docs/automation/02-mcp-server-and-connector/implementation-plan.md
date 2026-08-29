@@ -287,7 +287,7 @@ Editor 直连、Connector 类型化工具和泛化 invoke 进入同一个 Guard�
 
 ## 12. 设置页、CLI 与运行时生命周期
 
-Automation 持久设置包含 MCP enabled、具体控制端口、selected Profile、Custom 权限、canonical 读写根。安全默认是 MCP 关闭、L1、持久化的非零本机端口和当前用户文档目录的读写根；缺少读写根字段时使用 Qt 提供的跨平台文档目录，显式空列表保持为空。端口只在配置首次建立时随机生成，随后保持不变，除非用户点击刷新或直接编辑。
+Automation 持久设置包含 MCP enabled、具体控制端口、selected Profile、Custom 权限、canonical 读写根。安全默认是 MCP 关闭、L1、持久化的非零本机端口和当前用户文档目录的读写根；缺少读写根字段时使用 Qt 提供的跨平台文档目录，显式空列表保持为空。自定义工具集支持从当前所选 L1、L2 或 L3 精确覆盖同步，选择 Custom 时禁用同步。端口只在配置首次建立时随机生成，随后保持不变，除非用户点击刷新或直接编辑。
 
 Editor CLI：
 

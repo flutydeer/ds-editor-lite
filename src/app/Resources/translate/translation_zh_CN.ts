@@ -438,6 +438,18 @@
         <translation>自定义工具集</translation>
     </message>
     <message>
+        <source>Sync</source>
+        <translation>同步</translation>
+    </message>
+    <message>
+        <source>Sync from Access Profile</source>
+        <translation>从访问级别同步</translation>
+    </message>
+    <message>
+        <source>Replaces the custom toolset with the tools available in the selected access profile</source>
+        <translation>使用所选访问级别中的可用工具覆盖自定义工具集</translation>
+    </message>
+    <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="310"/>
         <source>No public tools available</source>
         <translation>没有可用的公共工具</translation>

@@ -539,6 +539,48 @@ QWidget *AutomationPage::createContentWidget() {
     customToolsTitle->setProperty("optionsSectionTitle", true);
     customToolsTitle->setContentsMargins(10, 0, 0, 0);
     customToolsLayout->addWidget(customToolsTitle);
+
+    auto *syncCustomToolsButton = new Button(tr("Sync"), customToolsSection);
+    syncCustomToolsButton->setObjectName(QStringLiteral("automationSyncCustomToolsButton"));
+    const auto refreshSyncCustomToolsButton = [this, syncCustomToolsButton] {
+        const auto profile =
+            static_cast<AutomationOption::Profile>(m_profile->currentData().toInt());
+        syncCustomToolsButton->setEnabled(profile != AutomationOption::Profile::Custom);
+    };
+    refreshSyncCustomToolsButton();
+    connect(m_profile, &ComboBox::currentIndexChanged, syncCustomToolsButton,
+            refreshSyncCustomToolsButton);
+    connect(syncCustomToolsButton, &Button::clicked, this, [this] {
+        const auto profile =
+            static_cast<AutomationOption::Profile>(m_profile->currentData().toInt());
+        const auto wireProfile = AutomationWire::automationProfileFromName(
+            AutomationOption::profileToString(profile));
+        if (!wireProfile || *wireProfile == AutomationWire::AutomationProfile::Custom)
+            return;
+
+        auto *option = appOptions->automation();
+        option->customPermissions.clear();
+        for (const auto &operationId : std::as_const(m_customPermissionOperationIds)) {
+            const auto *contract = AutomationWire::findPublicTool(operationId);
+            const auto enabled =
+                contract && AutomationWire::presetIncludes(*wireProfile, contract->minimumProfile);
+            option->setCustomPermissionEnabled(operationId, enabled);
+            if (auto *permissionSwitch = m_customPermissionSwitches.value(operationId)) {
+                const QSignalBlocker blocker(permissionSwitch);
+                permissionSwitch->setValue(enabled);
+            }
+        }
+        refreshCategoryPermissionSwitches();
+        modifyOption();
+    });
+
+    const auto syncCustomToolsCard = new OptionListCard;
+    syncCustomToolsCard->setTitleVisible(false);
+    syncCustomToolsCard->addItem(
+        tr("Sync from Access Profile"),
+        tr("Replaces the custom toolset with the tools available in the selected access profile"),
+        syncCustomToolsButton);
+    customToolsLayout->addWidget(syncCustomToolsCard);
     for (auto *categoryCard : std::as_const(customCategoryCards))
         customToolsLayout->addWidget(categoryCard);
 
