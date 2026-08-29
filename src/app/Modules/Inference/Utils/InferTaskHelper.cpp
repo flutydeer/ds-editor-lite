@@ -35,13 +35,18 @@ QList<InferWord> InferTaskHelper::buildWords(const InferInputBase &input, bool u
     };
 
     if (useOffsetInfo) {
+        bool offsetsValid = true;
         for (const auto &note : notes) {
-            if (!note.isRest && note.phonemeOffsets.count() != note.phonemeNames.count())
+            if (!note.isRest && note.phonemeOffsets.count() != note.phonemeNames.count()) {
                 qCCritical(logInferBuildWords)
                     << "buildWords: phoneme offset count does not match phoneme name count"
                     << "noteId:" << note.id << "offsetCount:" << note.phonemeOffsets.count()
                     << "nameCount:" << note.phonemeNames.count();
+                offsetsValid = false;
+            }
         }
+        if (!offsetsValid)
+            return {};
 
         const auto headLayout = PhonemeHeadLayout::calculate(
             input.paddingStartMs, input.headAvailableLengthMs, notes.first().phonemeOffsets);
