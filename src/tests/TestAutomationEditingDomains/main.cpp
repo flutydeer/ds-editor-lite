@@ -830,6 +830,26 @@ namespace {
                 suite.expect(undo && trackSnapshot(runtime, third).has_value() &&
                                  clipSnapshot(runtime, clip).has_value(),
                              QStringLiteral("track removal must restore child clips on undo"));
+
+                auto explicitZeroDraft = trackDraft(QStringLiteral("Explicit Zero"));
+                explicitZeroDraft.colorIndex = 0;
+                explicitZeroDraft.resolveColorIndex = false;
+                const auto explicitZeroInsert = runtime.project().insertTrack(
+                    commandContext(runtime), 3, explicitZeroDraft);
+                const auto explicitZeroId =
+                    explicitZeroInsert && !explicitZeroInsert.get().affectedObjects.isEmpty()
+                        ? TrackId(explicitZeroInsert.get().affectedObjects.first().value)
+                        : TrackId{};
+                testRuntime.history()->reset();
+                const auto explicitZeroRemove = runtime.project().removeTracks(
+                    commandContext(runtime), {explicitZeroId});
+                const auto explicitZeroUndo = runtime.history().undo(commandContext(runtime));
+                const auto explicitZeroRestored = trackSnapshot(runtime, explicitZeroId);
+                suite.expect(explicitZeroInsert && explicitZeroRemove && explicitZeroUndo &&
+                                 explicitZeroRestored &&
+                                 explicitZeroRestored->data.colorIndex == 0,
+                             QStringLiteral(
+                                 "track removal undo must preserve an explicit zero color"));
             });
     }
 
