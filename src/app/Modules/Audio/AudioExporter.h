@@ -25,6 +25,7 @@ namespace Audio {
 
     namespace Internal {
         class AudioExportDialog;
+        class AudioExportProgressDialog;
     }
 
     class AudioExporter;
@@ -119,6 +120,7 @@ namespace Audio {
         Q_OBJECT
         Q_DECLARE_PRIVATE(AudioExporter)
         friend class Internal::AudioExportDialog;
+        friend class Internal::AudioExportProgressDialog;
         friend class Automation::AudioExportJobAdapter;
 
     public:
