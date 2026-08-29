@@ -5,8 +5,11 @@
 #include <lite/ProjectModel/AppModel/Track.h>
 
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
+#include <QSaveFile>
 #include <QSet>
+#include <QTemporaryFile>
 
 namespace Automation {
     namespace {
@@ -14,6 +17,14 @@ namespace Automation {
             AutomationError error;
             error.code = AutomationErrorCode::ModuleNotReady;
             error.message = QStringLiteral("File services are unavailable");
+            return error;
+        }
+
+        AutomationError midiIoError(QString message) {
+            AutomationError error;
+            error.code = AutomationErrorCode::IoError;
+            error.fieldPath = QStringLiteral("path");
+            error.message = std::move(message);
             return error;
         }
 
@@ -138,18 +149,12 @@ namespace Automation {
                     });
                 }
 
-                QString errorMessage;
-                if (!m_services.exportMidi(session.model(), validatedPath.get(), options,
-                                           errorMessage)) {
-                    AutomationError error;
-                    error.code = AutomationErrorCode::IoError;
-                    error.message = errorMessage.isEmpty() ? QStringLiteral("MIDI export failed")
-                                                           : std::move(errorMessage);
-                    return AutomationResult<FileWriteResultDto>(std::move(error));
-                }
-                return AutomationResult<FileWriteResultDto>({
+                return writePreparedMidiExport({
+                    .document = session.version(),
                     .path = validatedPath.get(),
-                    .wroteFile = true,
+                    .allowOverwrite = allowOverwrite,
+                    .options = options,
+                    .modelSnapshot = snapshotDocument(*session.model(), options),
                 });
             });
     }
@@ -200,31 +205,67 @@ namespace Automation {
             });
     }
 
-    AutomationResult<FileWriteResultDto>
-        FileAutomationFacade::writePreparedMidiExport(const PreparedMidiExportDto &prepared) const {
+    AutomationResult<FileWriteResultDto> FileAutomationFacade::writePreparedMidiExport(
+        const PreparedMidiExportDto &prepared,
+        std::function<AutomationResult<AutomationUnit>()> beforePublish) const {
         if (prepared.validatedOnly) {
             return FileWriteResultDto{
                 .path = prepared.path,
                 .validatedOnly = true,
             };
         }
-        const auto validatedPath = validateMidiPath(prepared.path, prepared.allowOverwrite);
+        auto validatedPath = validateMidiPath(prepared.path, prepared.allowOverwrite);
         if (!validatedPath)
             return validatedPath.getError();
         if (!m_services.exportMidi)
             return unavailable();
 
+        QTemporaryFile stagingFile(
+            QDir(QFileInfo(validatedPath.get()).absolutePath())
+                .filePath(QStringLiteral(".ds-editor-lite-midi-XXXXXX.mid")));
+        stagingFile.setAutoRemove(true);
+        if (!stagingFile.open())
+            return midiIoError(QStringLiteral("MIDI export staging file could not be created"));
+        const auto stagingPath = stagingFile.fileName();
+        stagingFile.close();
+
         AppModel snapshot;
         snapshot.replaceProject(buildProjectModelData(prepared.modelSnapshot));
         QString errorMessage;
-        if (!m_services.exportMidi(&snapshot, validatedPath.get(), prepared.options,
-                                   errorMessage)) {
-            AutomationError error;
-            error.code = AutomationErrorCode::IoError;
-            error.message = errorMessage.isEmpty() ? QStringLiteral("MIDI export failed")
-                                                   : std::move(errorMessage);
-            return error;
+        if (!m_services.exportMidi(&snapshot, stagingPath, prepared.options, errorMessage))
+            return midiIoError(errorMessage.isEmpty() ? QStringLiteral("MIDI export failed")
+                                                      : std::move(errorMessage));
+
+        if (beforePublish) {
+            auto authorized = beforePublish();
+            if (!authorized)
+                return authorized.getError();
         }
+        validatedPath = validateMidiPath(prepared.path, prepared.allowOverwrite);
+        if (!validatedPath)
+            return validatedPath.getError();
+
+        QFile staged(stagingPath);
+        if (!staged.open(QIODevice::ReadOnly))
+            return midiIoError(QStringLiteral("MIDI export staging file could not be read"));
+        QSaveFile destination(validatedPath.get());
+        destination.setDirectWriteFallback(false);
+        if (!destination.open(QIODevice::WriteOnly))
+            return midiIoError(QStringLiteral("MIDI export target could not be opened"));
+        while (!staged.atEnd()) {
+            const auto chunk = staged.read(64 * 1024);
+            if (chunk.isEmpty() && staged.error() != QFileDevice::NoError) {
+                destination.cancelWriting();
+                return midiIoError(QStringLiteral("MIDI export staging file could not be read"));
+            }
+            if (destination.write(chunk) != chunk.size()) {
+                destination.cancelWriting();
+                return midiIoError(QStringLiteral("MIDI export target could not be written"));
+            }
+        }
+        if (!destination.commit())
+            return midiIoError(QStringLiteral("MIDI export target could not be committed"));
+
         return FileWriteResultDto{
             .path = validatedPath.get(),
             .wroteFile = true,

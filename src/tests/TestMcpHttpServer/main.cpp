@@ -170,6 +170,15 @@ namespace {
         return Mcp::makeRequest(method, std::move(params), context, id);
     }
 
+    QJsonObject withConnectorInstanceId(QJsonObject request, const QString &instanceId) {
+        auto params = request.value(QStringLiteral("params")).toObject();
+        auto meta = params.value(QStringLiteral("_meta")).toObject();
+        meta.insert(QStringLiteral("com.openvpi.ds-editor-lite/connectorInstanceId"), instanceId);
+        params.insert(QStringLiteral("_meta"), meta);
+        request.insert(QStringLiteral("params"), params);
+        return request;
+    }
+
     QJsonObject bodyObject(const HttpResult &result) {
         return QJsonDocument::fromJson(result.body).object();
     }
@@ -265,16 +274,9 @@ int main(int argc, char *argv[]) {
     manager.setProxy(QNetworkProxy::NoProxy);
     const QUrl endpoint(server.endpoint());
 
-    auto discover = requestObject(QString::fromLatin1(Mcp::DiscoverMethod), 1);
-    auto discoverMeta = discover.value(QStringLiteral("params"))
-                            .toObject()
-                            .value(QStringLiteral("_meta"))
-                            .toObject();
-    discoverMeta.insert(QStringLiteral("com.openvpi.ds-editor-lite/connectorInstanceId"),
-                        QStringLiteral("connector-test-instance"));
-    auto discoverParams = discover.value(QStringLiteral("params")).toObject();
-    discoverParams.insert(QStringLiteral("_meta"), discoverMeta);
-    discover.insert(QStringLiteral("params"), discoverParams);
+    const auto discover = withConnectorInstanceId(
+        requestObject(QString::fromLatin1(Mcp::DiscoverMethod), 1),
+        QStringLiteral("connector-test-instance"));
 
     const auto success =
         send(manager, baseRequest(endpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
@@ -299,6 +301,35 @@ int main(int argc, char *argv[]) {
                 observedMethod == QString::fromLatin1(Mcp::DiscoverMethod),
             QStringLiteral("a server-derived client identity and method must reach the handler"));
     }
+
+    QNetworkAccessManager directManagerA;
+    QNetworkAccessManager directManagerB;
+    directManagerA.setProxy(QNetworkProxy::NoProxy);
+    directManagerB.setProxy(QNetworkProxy::NoProxy);
+    const auto directDiscoverA = requestObject(QString::fromLatin1(Mcp::DiscoverMethod),
+                                               QStringLiteral("direct-a"));
+    const auto directResultA =
+        send(directManagerA, baseRequest(endpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
+             QJsonDocument(directDiscoverA).toJson(QJsonDocument::Compact));
+    QString directClientA;
+    {
+        const QMutexLocker locker(&observationMutex);
+        directClientA = observedClientId;
+    }
+    const auto directDiscoverB = requestObject(QString::fromLatin1(Mcp::DiscoverMethod),
+                                               QStringLiteral("direct-b"));
+    const auto directResultB =
+        send(directManagerB, baseRequest(endpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
+             QJsonDocument(directDiscoverB).toJson(QJsonDocument::Compact));
+    QString directClientB;
+    {
+        const QMutexLocker locker(&observationMutex);
+        directClientB = observedClientId;
+    }
+    expect(directResultA.status == 200 && directResultB.status == 200 &&
+               !directClientA.isEmpty() && !directClientB.isEmpty() &&
+               directClientA != directClientB,
+           QStringLiteral("independent direct HTTP connections must have isolated client identities"));
 
     const Mcp::RequestContext legacyContext{
         .protocolVersion = QString::fromLatin1(Mcp::LegacyProtocolVersion),
@@ -833,13 +864,14 @@ int main(int argc, char *argv[]) {
            QStringLiteral("the cancellation fixture must block the handler executor"));
 
     const QUrl cancellationEndpoint(cancellationServer.endpoint());
-    const auto canceledCall =
+    const auto canceledCall = withConnectorInstanceId(
         Mcp::makeRequest(QString::fromLatin1(Mcp::ToolsCallMethod),
                          QJsonObject{
                              {QStringLiteral("name"),      QStringLiteral("mutating.test")},
                              {QStringLiteral("arguments"), QJsonObject{}                   },
                          },
-                         legacyContext, QStringLiteral("cancel-before-dispatch"));
+                         legacyContext, QStringLiteral("cancel-before-dispatch")),
+        QStringLiteral("cancellation-test-instance"));
     auto *canceledReply =
         startRequest(manager, legacyRequest(cancellationEndpoint),
                      QJsonDocument(canceledCall).toJson(QJsonDocument::Compact));
@@ -849,13 +881,14 @@ int main(int argc, char *argv[]) {
         QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
         QThread::msleep(1);
     }
-    const auto cancellationNotification =
+    const auto cancellationNotification = withConnectorInstanceId(
         Mcp::makeRequest(QString::fromLatin1(Mcp::CancelledNotification),
                          QJsonObject{
                              {QStringLiteral("requestId"), QStringLiteral("cancel-before-dispatch")},
                              {QStringLiteral("reason"),    QStringLiteral("test cancellation")      },
                          },
-                         legacyContext);
+                         legacyContext),
+        QStringLiteral("cancellation-test-instance"));
     const auto cancellationResult =
         send(manager, legacyRequest(cancellationEndpoint),
              QJsonDocument(cancellationNotification).toJson(QJsonDocument::Compact));

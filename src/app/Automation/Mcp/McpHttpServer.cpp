@@ -174,11 +174,11 @@ namespace Automation {
             QJsonObject identity{
                 {QStringLiteral("remoteAddress"), httpRequest.remoteAddress().toString()},
             };
-            if (request.clientInfo)
-                identity.insert(QStringLiteral("clientInfo"), request.clientInfo->toJson());
             if (connectorMetadata.isString() && !connectorMetadata.toString().isEmpty() &&
                 connectorMetadata.toString().size() <= 128) {
                 identity.insert(QStringLiteral("connectorMetadata"), connectorMetadata.toString());
+            } else {
+                identity.insert(QStringLiteral("remotePort"), httpRequest.remotePort());
             }
             const auto digest = QCryptographicHash::hash(
                 QJsonDocument(identity).toJson(QJsonDocument::Compact), QCryptographicHash::Sha256);

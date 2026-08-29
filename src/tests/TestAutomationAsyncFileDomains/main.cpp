@@ -727,6 +727,60 @@ namespace {
                              QStringLiteral("prepared MIDI export must freeze a restorable model "
                                             "and preserve options"));
 
+                Automation::AutomationError publishDenied;
+                publishDenied.code = Automation::AutomationErrorCode::PermissionDenied;
+                publishDenied.fieldPath = QStringLiteral("path");
+                publishDenied.message = QStringLiteral("controlled final authorization failure");
+                const auto deniedNewPath =
+                    harness.temporaryPath(QStringLiteral("denied-new.mid"));
+                const auto deniedNewPrepared = runtime.files().prepareMidiExport(
+                    harness.context(), deniedNewPath, false, preparedOptions);
+                bool checkedNewPublish = false;
+                const auto deniedNewWrite =
+                    deniedNewPrepared
+                        ? runtime.files().writePreparedMidiExport(
+                              deniedNewPrepared.get(), [&] {
+                                  checkedNewPublish = true;
+                                  return Automation::AutomationResult<Automation::AutomationUnit>(
+                                      publishDenied);
+                              })
+                        : Automation::AutomationResult<Automation::FileWriteResultDto>(
+                              deniedNewPrepared.getError());
+
+                const auto preservedPath =
+                    harness.temporaryPath(QStringLiteral("denied-overwrite.mid"));
+                QFile preservedTarget(preservedPath);
+                const auto preservedCreated = preservedTarget.open(QIODevice::WriteOnly) &&
+                                              preservedTarget.write("original") == 8;
+                preservedTarget.close();
+                const auto deniedOverwritePrepared = runtime.files().prepareMidiExport(
+                    harness.context(), preservedPath, true, preparedOptions);
+                bool checkedOverwritePublish = false;
+                const auto deniedOverwriteWrite =
+                    deniedOverwritePrepared
+                        ? runtime.files().writePreparedMidiExport(
+                              deniedOverwritePrepared.get(), [&] {
+                                  checkedOverwritePublish = true;
+                                  return Automation::AutomationResult<Automation::AutomationUnit>(
+                                      publishDenied);
+                              })
+                        : Automation::AutomationResult<Automation::FileWriteResultDto>(
+                              deniedOverwritePrepared.getError());
+                const auto preservedReadable = preservedTarget.open(QIODevice::ReadOnly);
+                const auto preservedContents = preservedTarget.readAll();
+                preservedTarget.close();
+                suite.expect(
+                    deniedNewPrepared && checkedNewPublish &&
+                        isError(deniedNewWrite,
+                                Automation::AutomationErrorCode::PermissionDenied) &&
+                        !QFileInfo::exists(deniedNewPath) && deniedOverwritePrepared &&
+                        checkedOverwritePublish &&
+                        isError(deniedOverwriteWrite,
+                                Automation::AutomationErrorCode::PermissionDenied) &&
+                        preservedCreated && preservedReadable && preservedContents == "original",
+                    QStringLiteral("failed final authorization must neither create nor replace the "
+                                   "MIDI target"));
+
                 const auto invalidPreview = runtime.files().previewMidiExport(
                     runtime.documentVersion().documentId, QStringLiteral("relative.mid"));
                 suite.expect(isError(invalidPreview,

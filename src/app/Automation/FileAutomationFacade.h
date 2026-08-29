@@ -78,8 +78,9 @@ namespace Automation {
         AutomationResult<PreparedMidiExportDto>
             prepareMidiExport(const CommandContext &context, const QString &path,
                               bool allowOverwrite, MidiExportOptionsDto options = {});
-        AutomationResult<FileWriteResultDto>
-            writePreparedMidiExport(const PreparedMidiExportDto &prepared) const;
+        AutomationResult<FileWriteResultDto> writePreparedMidiExport(
+            const PreparedMidiExportDto &prepared,
+            std::function<AutomationResult<AutomationUnit>()> beforePublish = {}) const;
 
     private:
         AutomationDispatcher &m_dispatcher;
