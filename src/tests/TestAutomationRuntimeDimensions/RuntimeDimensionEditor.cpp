@@ -97,7 +97,7 @@ namespace RuntimeDimensions {
                  .valid =
                         [](RuntimeHarness &harness,                                             const auto &context) {
                             return harness.core().facade().setPianoRollEditMode(
-                                context, EditorViewGlobal::DrawNote);
+                                context, EditorViewGlobal::ScalePitch);
                         },                                                    .invalid =
                         [](RuntimeHarness &harness,                            const auto &context) {
                             return harness.core().facade().setPianoRollEditMode(

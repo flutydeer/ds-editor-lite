@@ -4,6 +4,7 @@ lite_add_test(${PROJECT_NAME}
     SOURCES
         main.cpp
         ../../app/UI/Views/ClipEditor/CurveTransform/CurveTransformSession.cpp
+        ../../app/Modules/Inference/Utils/BasePitchCurve.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
@@ -11,10 +12,15 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
+find_package(dsinfer CONFIG REQUIRED)
+find_package(synthrt CONFIG REQUIRED)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt${QT_VERSION_MAJOR}::Core
     lite::ProjectModel
+    srt::synthrt
+    srt::diffsinger
+    dsinfer::dsinfer
 )
 
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})

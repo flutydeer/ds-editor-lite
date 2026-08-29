@@ -1,4 +1,5 @@
 #include "UI/Views/ClipEditor/CurveTransform/CurveTransformSession.h"
+#include "Modules/Inference/Utils/BasePitchCurve.h"
 
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
 #include <lite/ProjectModel/AppModel/ParamProperties.h>
@@ -44,14 +45,11 @@ namespace {
         TensionParamProperties tension;
         MouthOpeningParamProperties mouth;
 
-        ok &= expectNear(decibel.valueToNormalized(-96000), 0.0, 1e-12,
-                         "decibel lower endpoint");
-        ok &= expectNear(decibel.valueToNormalized(0), 1.0, 1e-12,
-                         "decibel upper endpoint");
+        ok &= expectNear(decibel.valueToNormalized(-96000), 0.0, 1e-12, "decibel lower endpoint");
+        ok &= expectNear(decibel.valueToNormalized(0), 1.0, 1e-12, "decibel upper endpoint");
         ok &= expectNear(decibel.valueFromNormalizedDouble(0.0), -96000.0, 1e-9,
                          "decibel inverse lower endpoint");
-        ok &= expectNear(tension.valueToNormalized(-10000), 0.0, 1e-12,
-                         "tension lower endpoint");
+        ok &= expectNear(tension.valueToNormalized(-10000), 0.0, 1e-12, "tension lower endpoint");
         ok &= expectNear(tension.valueToNormalized(0), 0.5, 1e-12, "tension center");
         ok &= expectNear(tension.valueFromNormalizedDouble(0.0), -10000.0, 1e-9,
                          "tension zero percent is minus ten");
@@ -69,8 +67,7 @@ namespace {
             previousTension = tensionValue;
         }
         for (const int db : {-96000, -72000, -48000, -24000, 0}) {
-            const auto roundTrip =
-                decibel.valueFromNormalizedDouble(decibel.valueToNormalized(db));
+            const auto roundTrip = decibel.valueFromNormalizedDouble(decibel.valueToNormalized(db));
             ok &= expectNear(roundTrip, db, 1e-7, "decibel mapping round trip");
         }
         for (const int value : {-10000, -5000, 0, 5000, 10000}) {
@@ -109,7 +106,10 @@ namespace {
 
         auto continuous = curve(0, QList<int>(20, 500));
         Config partitioned;
-        partitioned.partitions = {{0, 45}, {50, 95}};
+        partitioned.partitions = {
+            {0,  45},
+            {50, 95}
+        };
         session.setSource({&continuous}, {}, partitioned);
         session.beginSelection(0);
         ok &= expect(session.finishSelection(95), "partitioned selection succeeds");
@@ -130,7 +130,8 @@ namespace {
         ok &= expect(session.finishSelection(600), "wide selection succeeds");
         ok &= expect(session.bounds().c == 140 && session.bounds().d == 660,
                      "default shoulders use 25 percent capped at 60 ms");
-        ok &= expect(session.setBoundary(Boundary::C, 0), "left shoulder can expand past default cap");
+        ok &= expect(session.setBoundary(Boundary::C, 0),
+                     "left shoulder can expand past default cap");
         ok &= expect(session.setBoundary(Boundary::D, 800),
                      "right shoulder can expand past default cap");
         ok &= expect(session.bounds().c == 0 && session.bounds().d == 800,
@@ -147,6 +148,13 @@ namespace {
         ok &= expect(session.bounds().c == session.bounds().a &&
                          session.bounds().b == session.bounds().d,
                      "small target permits zero-width default shoulders");
+
+        config.tickToMilliseconds = [](const int tick) { return tick * 2.0; };
+        session.setSource({&source}, {}, config);
+        session.beginSelection(200);
+        ok &= expect(session.finishSelection(600), "tempo-aware shoulder selection succeeds");
+        ok &= expect(session.bounds().c == 170 && session.bounds().d == 630,
+                     "default shoulder cap is converted through the timeline");
         return ok;
     }
 
@@ -201,12 +209,63 @@ namespace {
         return ok;
     }
 
+    bool testScaleMappingsAndSessionPhases() {
+        using namespace CurveTransform;
+        bool ok = true;
+
+        DecibelParamProperties decibel;
+        auto dbSource = curve(0, {-24000, -24000, -24000});
+        Config dbConfig;
+        dbConfig.kind = Kind::Scale;
+        dbConfig.properties = &decibel;
+        Session dbScale;
+        dbScale.setSource({&dbSource}, {}, dbConfig);
+        dbScale.beginSelection(0);
+        ok &= expect(dbScale.phase() == Phase::Selecting, "selection phase begins explicitly");
+        ok &= expect(dbScale.finishSelection(10), "decibel scale selection succeeds");
+        ok &= expect(dbScale.phase() == Phase::Adjusting,
+                     "selection release enters boundary adjustment");
+        dbScale.setBoundary(Boundary::C, 0);
+        ok &= expect(dbScale.phase() == Phase::Adjusting,
+                     "boundary adjustment remains in the second phase");
+        ok &= expect(dbScale.beginTransform(), "factor press enters final transform phase");
+        ok &= expect(dbScale.phase() == Phase::Transforming,
+                     "factor transform phase is irreversible");
+        dbScale.updateTransform(1000.0);
+        ok &= expectNear(dbScale.factor(), 0.0, 1e-12, "factor clamps at zero percent");
+        auto preview = dbScale.buildEditedPreview();
+        ok &=
+            expect(valueAt(preview, 5) == -96000, "zero percent decibel scale reaches minus 96 dB");
+        qDeleteAll(preview);
+        dbScale.updateTransform(-1000.0);
+        ok &= expectNear(dbScale.factor(), 2.0, 1e-12, "factor clamps at two hundred percent");
+        dbScale.cancel();
+        ok &= expect(dbScale.phase() == Phase::Idle, "cancellation clears the whole session");
+
+        TensionParamProperties tension;
+        auto tensionSource = curve(0, {0, 0, 0});
+        Config tensionConfig;
+        tensionConfig.kind = Kind::Scale;
+        tensionConfig.properties = &tension;
+        Session tensionScale;
+        tensionScale.setSource({&tensionSource}, {}, tensionConfig);
+        tensionScale.beginSelection(0);
+        ok &= expect(tensionScale.finishSelection(10), "tension scale selection succeeds");
+        ok &= expect(tensionScale.beginTransform(), "tension scale starts");
+        tensionScale.updateTransform(100.0);
+        preview = tensionScale.buildEditedPreview();
+        ok &= expect(valueAt(preview, 5) == -10000,
+                     "zero percent tension scale reaches its visual lower bound");
+        qDeleteAll(preview);
+        return ok;
+    }
+
     bool testPitchAndEditedOnlySource() {
         using namespace CurveTransform;
         bool ok = true;
         auto edited = curve(0, {6100, 6200, 6300});
         Config config;
-        config.kind = Kind::PitchAmplitude;
+        config.kind = Kind::ScalePitch;
         config.pitchBaselineAtTick = [](int) { return std::optional<double>(6000.0); };
         Session session;
         session.setSource({}, {&edited}, config);
@@ -232,6 +291,64 @@ namespace {
                      "offset parameter does not support transforms");
         return ok;
     }
+
+    bool testBasePitchRestKeys() {
+        bool ok = true;
+        using InputNote = BasePitchCurve::InputNote;
+        const auto filled = BasePitchCurve::fillRestKeys({
+            {50, 10, 0.1, true },
+            {60, 20, 0.2, false},
+            {51, 30, 0.3, true },
+            {52, 40, 0.4, true },
+            {53, 50, 0.5, true },
+            {70, 60, 0.6, false},
+            {54, 70, 0.7, true },
+        });
+        ok &= expect(filled.at(0).key == 60, "leading rest takes nearest right note");
+        ok &= expect(filled.at(2).key == 60 && filled.at(3).key == 60 && filled.at(4).key == 70,
+                     "odd middle rest run favors the left side");
+        ok &= expect(filled.at(6).key == 70, "trailing rest takes nearest left note");
+
+        const auto even = BasePitchCurve::fillRestKeys({
+            {60, 0, 0.1, false},
+            {10, 0, 0.1, true },
+            {11, 0, 0.1, true },
+            {70, 0, 0.1, false},
+        });
+        ok &= expect(even.at(1).key == 60 && even.at(2).key == 70,
+                     "even middle rest run splits evenly");
+        const auto single = BasePitchCurve::fillRestKeys({
+            {60, 0, 0.1, false},
+            {10, 0, 0.1, true },
+            {70, 0, 0.1, false}
+        });
+        ok &= expect(single.at(1).key == 60, "single middle rest takes the left note");
+        const auto allRest = BasePitchCurve::fillRestKeys({
+            {40, 0, 0.1, true},
+            {50, 0, 0.2, true},
+            {60, 0, 0.3, true}
+        });
+        ok &= expect(allRest.at(0).key == 40 && allRest.at(1).key == 50 && allRest.at(2).key == 60,
+                     "all-rest piece preserves drawn keys");
+
+        BasePitchCurve empty(std::vector<InputNote>{});
+        ok &= expect(empty.isEmpty() && empty.GetPitchPoints(0.01).empty() &&
+                         empty.SemitoneValueAt(0.0) == 0.0,
+                     "empty base pitch curve is safe");
+        BasePitchCurve zeroDuration(std::vector<InputNote>{
+            {60, 0, 0.0, false}
+        });
+        ok &= expect(zeroDuration.isEmpty(), "zero-duration base pitch curve is safe");
+        BasePitchCurve withCents(std::vector<InputNote>{
+            {60, 99, 0.2, false}
+        });
+        BasePitchCurve withoutCents(std::vector<InputNote>{
+            {60, 0, 0.2, false}
+        });
+        ok &= expectNear(withCents.SemitoneValueAt(0.1), withoutCents.SemitoneValueAt(0.1), 1e-12,
+                         "base pitch continues to ignore cents");
+        return ok;
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -241,7 +358,9 @@ int main(int argc, char *argv[]) {
     ok &= testSelectionDirectionAndPartitions();
     ok &= testShouldersAndBoundaries();
     ok &= testShapeAndScale();
+    ok &= testScaleMappingsAndSessionPhases();
     ok &= testPitchAndEditedOnlySource();
+    ok &= testBasePitchRestKeys();
     if (!ok)
         return 1;
     QTextStream(stdout) << "TestCurveTransform passed" << Qt::endl;
