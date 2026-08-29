@@ -5,6 +5,7 @@
 
 #include <QJsonDocument>
 #include <QJsonParseError>
+#include <QScopeGuard>
 
 namespace DsConnector {
     namespace {
@@ -308,10 +309,12 @@ namespace DsConnector {
             return;
         }
         m_inFlight.insert(key);
+        emit pendingResponseStarted();
         const auto token = m_runtime->callTool(
             name, arguments,
             [this, id = request.id, key, outputSchema, validateOutput,
              protocolVersion = request.protocolVersion](ToolCallOutcome outcome) {
+                const auto finish = qScopeGuard([this] { emit pendingResponseFinished(); });
                 m_pending.remove(key);
                 m_inFlight.remove(key);
                 if (m_cancelled.remove(key))

@@ -118,11 +118,8 @@ namespace {
         return true;
     }
 
-    std::optional<QJsonObject> exchange(QProcess &process, const QJsonObject &request,
-                                        const int timeoutMilliseconds, QString &error) {
-        if (!writeMessage(process, request, error))
-            return std::nullopt;
-
+    std::optional<QJsonObject> readResponse(QProcess &process, const QJsonValue &requestId,
+                                            const int timeoutMilliseconds, QString &error) {
         QElapsedTimer timer;
         timer.start();
         while (timer.elapsed() < timeoutMilliseconds) {
@@ -139,7 +136,7 @@ namespace {
                 return std::nullopt;
             }
             const auto response = document.object();
-            if (response.value(QStringLiteral("id")) != request.value(QStringLiteral("id"))) {
+            if (response.value(QStringLiteral("id")) != requestId) {
                 error = QStringLiteral("Connector returned an unexpected JSON-RPC id");
                 return std::nullopt;
             }
@@ -147,6 +144,14 @@ namespace {
         }
         error = QStringLiteral("Timed out waiting for a connector response");
         return std::nullopt;
+    }
+
+    std::optional<QJsonObject> exchange(QProcess &process, const QJsonObject &request,
+                                        const int timeoutMilliseconds, QString &error) {
+        if (!writeMessage(process, request, error))
+            return std::nullopt;
+        return readResponse(process, request.value(QStringLiteral("id")), timeoutMilliseconds,
+                            error);
     }
 
     QJsonValue structuredContent(const QJsonObject &response) {
@@ -1026,19 +1031,33 @@ namespace {
                     .arg(rejectedExit ? compactJson(*rejectedExit) : exchangeError));
         }
 
+        const auto acceptedExitRequest = makeToolRequest(
+            30001, QStringLiteral("application.request_exit"),
+            QJsonObject{
+                {QStringLiteral("discard_changes"), true}
+        });
+        if (!writeMessage(connector, acceptedExitRequest, exchangeError))
+            return failWithProcessDiagnostics(exchangeError);
+        connector.closeWriteChannel();
+        const auto acceptedExitResponse =
+            readResponse(connector, acceptedExitRequest.value(QStringLiteral("id")), 10000,
+                         exchangeError);
+        const auto acceptedExitResult = acceptedExitResponse
+                                            ? acceptedExitResponse->value(QStringLiteral("result"))
+                                                  .toObject()
+                                            : QJsonObject{};
         const auto acceptedExit =
-            connectorToolContent(connector, 30001, QStringLiteral("application.request_exit"),
-                                 QJsonObject{
-                                     {QStringLiteral("discard_changes"), true}
-        },
-                                 10000, exchangeError);
-        if (!acceptedExit || !acceptedExit->value(QStringLiteral("accepted")).toBool() ||
-            acceptedExit->value(QStringLiteral("action")).toString() != QStringLiteral("exit") ||
-            !acceptedExit->value(QStringLiteral("discard_changes")).toBool() ||
-            !editor.waitForFinished(15000)) {
+            acceptedExitResult.value(QStringLiteral("structuredContent")).toObject();
+        if (!acceptedExitResponse || acceptedExitResponse->contains(QStringLiteral("error")) ||
+            acceptedExitResult.value(QStringLiteral("isError")).toBool() ||
+            !acceptedExit.value(QStringLiteral("accepted")).toBool() ||
+            acceptedExit.value(QStringLiteral("action")).toString() != QStringLiteral("exit") ||
+            !acceptedExit.value(QStringLiteral("discard_changes")).toBool() ||
+            !connector.waitForFinished(5000) || !editor.waitForFinished(15000)) {
             return failWithProcessDiagnostics(
                 QStringLiteral("Forced graceful editor exit did not complete: %1")
-                    .arg(acceptedExit ? compactJson(*acceptedExit) : exchangeError));
+                    .arg(acceptedExitResponse ? compactJson(*acceptedExitResponse)
+                                              : exchangeError));
         }
 
         QTextStream(stdout)

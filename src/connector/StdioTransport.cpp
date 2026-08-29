@@ -421,6 +421,16 @@ namespace DsConnector {
             fail(queueError);
     }
 
+    void StdioTransport::beginPendingResponse() {
+        ++m_pendingResponses;
+    }
+
+    void StdioTransport::endPendingResponse() {
+        if (m_pendingResponses > 0)
+            --m_pendingResponses;
+        closeOutputIfReady();
+    }
+
     void StdioTransport::drainInput() {
         for (auto count = 0; count < InputDrainBatchSize; ++count) {
             QByteArray line;
@@ -445,9 +455,8 @@ namespace DsConnector {
                 continue;
             }
             if (terminal) {
-                const QMutexLocker locker(&m_state->mutex);
-                m_state->outputClosing = true;
-                m_state->outputAvailable.wakeOne();
+                m_inputTerminal = true;
+                closeOutputIfReady();
             }
             return;
         }
@@ -476,6 +485,16 @@ namespace DsConnector {
 
     void StdioTransport::writerFailed(const QString &error) {
         fail(error);
+    }
+
+    void StdioTransport::closeOutputIfReady() {
+        if (!m_inputTerminal || m_pendingResponses != 0 || m_terminalDelivered)
+            return;
+        const QMutexLocker locker(&m_state->mutex);
+        if (m_state->stopping || m_state->outputClosing)
+            return;
+        m_state->outputClosing = true;
+        m_state->outputAvailable.wakeOne();
     }
 
     void StdioTransport::fail(const QString &error) {

@@ -52,6 +52,10 @@ int main(int argc, char *argv[]) {
                      &DsConnector::DownstreamMcpServer::processLine);
     QObject::connect(&server, &DsConnector::DownstreamMcpServer::responseLine, &transport,
                      &DsConnector::StdioTransport::writeLine);
+    QObject::connect(&server, &DsConnector::DownstreamMcpServer::pendingResponseStarted,
+                     &transport, &DsConnector::StdioTransport::beginPendingResponse);
+    QObject::connect(&server, &DsConnector::DownstreamMcpServer::pendingResponseFinished,
+                     &transport, &DsConnector::StdioTransport::endPendingResponse);
     QObject::connect(&transport, &DsConnector::StdioTransport::inputClosed, &application,
                      &QCoreApplication::quit);
     QObject::connect(&transport, &DsConnector::StdioTransport::transportError, &application,

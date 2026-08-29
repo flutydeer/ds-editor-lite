@@ -23,6 +23,8 @@ namespace DsConnector {
 
     public slots:
         void writeLine(const QByteArray &line);
+        void beginPendingResponse();
+        void endPendingResponse();
 
     signals:
         void lineReceived(const QByteArray &line);
@@ -33,6 +35,7 @@ namespace DsConnector {
         void drainInput();
         void writerDrained();
         void writerFailed(const QString &error);
+        void closeOutputIfReady();
         void fail(const QString &error);
         void stopThreads();
 
@@ -40,7 +43,9 @@ namespace DsConnector {
         QThread *m_reader = nullptr;
         QThread *m_writer = nullptr;
         QString m_inputTerminalError;
+        qsizetype m_pendingResponses = 0;
         bool m_started = false;
+        bool m_inputTerminal = false;
         bool m_terminalDelivered = false;
     };
 

@@ -23,6 +23,8 @@ namespace DsConnector {
 
     signals:
         void responseLine(const QByteArray &line);
+        void pendingResponseStarted();
+        void pendingResponseFinished();
 
     private:
         void sendJson(const QJsonObject &message);
