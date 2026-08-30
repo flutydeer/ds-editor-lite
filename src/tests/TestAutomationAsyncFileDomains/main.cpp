@@ -1072,6 +1072,18 @@ namespace {
         RuntimeHarness harness;
         suite.expect(harness.isReady(), QStringLiteral("extraction harness must initialize"));
         auto &runtime = harness.runtime();
+        const auto sourceAuthorizer = [](const std::shared_ptr<bool> &allowed) {
+            return [allowed](const QString &)
+                -> Automation::AutomationResult<Automation::AutomationUnit> {
+                if (*allowed)
+                    return Automation::AutomationUnit{};
+                Automation::AutomationError error;
+                error.code = Automation::AutomationErrorCode::PermissionDenied;
+                error.fieldPath = QStringLiteral("path");
+                error.message = QStringLiteral("Controlled source authorization revocation");
+                return error;
+            };
+        };
 
         suite.run(
             Automation::OperationIds::extract::pitch::start,
@@ -1107,6 +1119,33 @@ namespace {
                                  terminal.get().progress.value == 30 &&
                                  runtime.documentVersion().revision == base.revision + 1,
                              QStringLiteral("pitch completion must commit one parameter revision"));
+
+                const auto pitchSourceAllowed = std::make_shared<bool>(true);
+                Automation::PitchExtractionOptionsDto guardedOptions;
+                guardedOptions.authorizeSource = sourceAuthorizer(pitchSourceAllowed);
+                const auto revokedBase = runtime.documentVersion();
+                const auto revokedAccepted = runtime.extractions().startPitch(
+                    harness.context(), harness.audioClipId(), harness.singingClipId(), guardedOptions);
+                const auto revokedState = harness.pitchStates.last();
+                const auto revokedRan = harness.extractionScheduler.runNext();
+                *pitchSourceAllowed = false;
+                revokedState->complete({
+                    .state = Automation::ExtractionBackendState::Succeeded,
+                    .segments = {{.globalStartTick = 20, .values = {61.0}}},
+                });
+                const auto revokedTerminal =
+                    revokedAccepted
+                        ? runtime.tasks().getTask(revokedBase.documentId, revokedAccepted.get().taskId)
+                        : Automation::AutomationResult<Automation::AutomationTaskSnapshot>(
+                              Automation::AutomationError{});
+                suite.expect(
+                    revokedAccepted && revokedRan && revokedTerminal &&
+                        revokedTerminal.get().state == Automation::AutomationTaskState::Failed &&
+                        revokedTerminal.get().error &&
+                        revokedTerminal.get().error->code ==
+                            Automation::AutomationErrorCode::PermissionDenied &&
+                        runtime.documentVersion() == revokedBase,
+                    QStringLiteral("pitch extraction must reauthorize its source before commit"));
 
                 const auto wrongType = runtime.extractions().startPitch(
                     harness.context(), harness.singingClipId(), harness.singingClipId());
@@ -1149,6 +1188,37 @@ namespace {
                                        runtime.documentVersion().revision == base.revision + 1 &&
                                        harness.model().tracks().size() == tracksBefore + 1,
                                    QStringLiteral("MIDI extraction must atomically add one track"));
+
+                      const auto midiSourceAllowed = std::make_shared<bool>(true);
+                      Automation::MidiExtractionOptionsDto guardedOptions;
+                      guardedOptions.authorizeSource = sourceAuthorizer(midiSourceAllowed);
+                      const auto revokedBase = runtime.documentVersion();
+                      const auto revokedTracks = harness.model().tracks().size();
+                      const auto revokedAccepted = runtime.extractions().startMidi(
+                          harness.context(), harness.audioClipId(), guardedOptions);
+                      const auto revokedState = harness.midiStates.last();
+                      const auto revokedRan = harness.extractionScheduler.runNext();
+                      *midiSourceAllowed = false;
+                      revokedState->complete({
+                          .state = Automation::ExtractionBackendState::Succeeded,
+                          .notes = {{.keyIndex = 63, .localStart = 20, .length = 240}},
+                      });
+                      const auto revokedTerminal =
+                          revokedAccepted
+                              ? runtime.tasks().getTask(revokedBase.documentId,
+                                                        revokedAccepted.get().taskId)
+                              : Automation::AutomationResult<
+                                    Automation::AutomationTaskSnapshot>(Automation::AutomationError{});
+                      suite.expect(
+                          revokedAccepted && revokedRan && revokedTerminal &&
+                              revokedTerminal.get().state ==
+                                  Automation::AutomationTaskState::Failed &&
+                              revokedTerminal.get().error &&
+                              revokedTerminal.get().error->code ==
+                                  Automation::AutomationErrorCode::PermissionDenied &&
+                              runtime.documentVersion() == revokedBase &&
+                              harness.model().tracks().size() == revokedTracks,
+                          QStringLiteral("MIDI extraction must reauthorize its source before commit"));
 
                       Automation::MidiExtractionOptionsDto overflowingMerge;
                       overflowingMerge.destinationMode = QStringLiteral("merge_into_clip");

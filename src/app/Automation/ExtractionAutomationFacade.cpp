@@ -475,6 +475,15 @@ namespace Automation {
             notifyFinished(taskId, baseDocument.documentId, observer);
             return;
         }
+        if (input.authorizeSource) {
+            auto authorized = input.authorizeSource(input.audioPath);
+            if (!authorized) {
+                m_tasks.fail(taskId, taskError(authorized.getError(), taskId,
+                                               OperationIds::extract::pitch::start));
+                notifyFinished(taskId, baseDocument.documentId, observer);
+                return;
+            }
+        }
         const auto committing = m_tasks.beginCommitting(taskId);
         if (!committing || !committing.get()) {
             if (!committing) {
@@ -629,6 +638,15 @@ namespace Automation {
             m_tasks.cancel(taskId);
             notifyFinished(taskId, baseDocument.documentId, observer);
             return;
+        }
+        if (input.authorizeSource) {
+            auto authorized = input.authorizeSource(input.audioPath);
+            if (!authorized) {
+                m_tasks.fail(taskId, taskError(authorized.getError(), taskId,
+                                               OperationIds::extract::midi::start));
+                notifyFinished(taskId, baseDocument.documentId, observer);
+                return;
+            }
         }
         const auto committing = m_tasks.beginCommitting(taskId);
         if (!committing || !committing.get()) {
