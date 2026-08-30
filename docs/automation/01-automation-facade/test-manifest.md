@@ -61,7 +61,7 @@
 | `TestAutomationL3ApplicationDomains` | 公开 L3 设置、包刷新与歌词规则所需的内部 Facade 行为 |
 | `TestAutomationAsyncFileDomains` | inference、audio、import/export/extract、文件失败和 Task 终态 |
 | `TestAudioAssetResolution` | 相对路径、source generation、解析/解码协议和晚到写回隔离 |
-| `TestAutomationFileGuard` | canonical path、读写根、会话授权和实际 I/O 前复核 |
+| `TestAutomationFileGuard` | canonical path、读写根、大小写敏感目录和会话授权 |
 | `TestAutomationAdmission` | global 32 与 background 8 两个准入上限及计数释放 |
 | `TestPianoRollNoteCommit` | GUI 音符插入/拆分的 created ID、revision 和失败无副作用 |
 
@@ -76,7 +76,7 @@
 | 编辑提交 | `TestAutomationEditingDomains`、`TestAutomationCore` | 批量原子性、独立标量边界、History/revision、Undo/Redo、失败无副作用 |
 | 运行时状态 | `TestAutomationRuntimeDomains`、`TestAutomationL3ApplicationDomains` | application、playback、editor、settings、recent、packages、presets 的领域语义和状态回读 |
 | 异步与文件 | `TestAutomationAsyncFileDomains`、`TestAutomationTaskRaces`、`TestAutomationDocumentLifecycle`、`TestAudioAssetResolution` | Task 终态、取消/提交竞态、generation 隔离、文件失败回滚和晚到写回隔离 |
-| 路径与准入 | `TestAutomationFileGuard`、`TestAutomationAdmission` | canonical path、根目录授权、I/O 前复核、global/background 容量和计数释放 |
+| 路径与准入 | `TestAutomationFileGuard`、`TestAutomationAdmission` | canonical path、根目录授权、文件系统路径身份、global/background 容量和计数释放 |
 | 公共适配 | `TestPublicAutomationRegistry` | 契约与 binding 集合一致、代表性 JSON 映射、权限与严格 Schema、版本化声音引用、回调寿命 |
 | 协议与进程 | `TestAutomationWire`、`TestMcpHttpServer`、`TestDsConnectorLite`、`TestMcpProcessIntegration` | 协议编解码、HTTP 边界、Connector 转发和真实进程握手 |
 
@@ -105,7 +105,8 @@
 
 - Queued、Running、CancelRequested、Committing 和稳定终态；
 - 排队/运行取消、重复取消、不可取消提交点和一次最终提交；
-- 捕获不可变输入，并在写回前复核 document generation、revision、对象与文件授权；
+- 捕获不可变输入；异步编辑在写回前复核 document generation、revision 与目标对象，文件输入在请求
+  边界授权并由任务持有快照，最终文件发布复核写授权；
 - Editor 重启、文档换代、对象删除或输入变化后，晚到结果不能写入错误目标。
 
 ## 5. 跨域边界

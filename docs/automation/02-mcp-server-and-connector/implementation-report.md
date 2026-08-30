@@ -223,7 +223,7 @@ GUI 进阶控制按真实面板层级归入 `workspace`、`track_panel` 和 `cli
 占用幂等键；同指纹重试返回原 `TaskAcceptedResult`，不同指纹立即返回冲突。失败或取消会释放
 占用，最终剪辑提交不再使用同一个 key 二次去重。
 
-异步工具由 `AutomationTaskManager` 管理 Queued、Running、CancelRequested、Committing 和终态。Task 记录 operation、基准文档、创建者、进度、结果或错误；最终写回前复核 generation、revision、对象和文件授权。`tasks.list` 的游标摘要只包含 scope、筛选条件、document generation 和有序 Task ID，因此运行中任务的进度、消息或状态更新不会阻断后续分页；筛选后成员变化仍会使游标失效。Pitch/MIDI 提取由后台任务创建并哈希源音频快照，后端只读取快照；完成后再次后台哈希原路径，并在进入 Committing 前复核音频剪辑身份和冻结路径权限，源内容或权限变化都不会写回参数或工程对象。MIDI 导出在准备和渲染期间保持 Running，只有紧邻最终文件发布时才进入不可取消的 Committing。每个文档 generation 与应用级作用域的活动任务都不被清理，各自终态历史按完成顺序有界保留最近 128 项。Connector 在有副作用请求的结果事实不明确时返回 `outcome_unknown`，不自动重放 Command。
+异步工具由 `AutomationTaskManager` 管理 Queued、Running、CancelRequested、Committing 和终态。Task 记录 operation、受理时的基准文档、创建者、进度、结果或错误；异步编辑在最终写回前复核 document generation、revision 和目标对象。`tasks.list` 的游标摘要只包含 scope、筛选条件、document generation 和有序 Task ID，因此运行中任务的进度、消息或状态更新不会阻断后续分页；筛选后成员变化仍会使游标失效。文件输入在公开请求边界完成授权，后台任务只消费一次复制并哈希形成的不可变快照，不反复读取、哈希或重新授权原路径。Pitch/MIDI 提取在后端启动前把快照摘要与剪辑已记录摘要比对，完成后复核目标剪辑和文档提交条件。MIDI 导出在准备和渲染期间保持 Running，只有紧邻最终文件发布时才进入不可取消的 Committing。音频导出把基准文档用于任务归属和 generation 隔离；同一 generation 内的普通编辑不使暂存输出失效。每个文档 generation 与应用级作用域的活动任务都不被清理，各自终态历史按完成顺序有界保留最近 128 项。Connector 在有副作用请求的结果事实不明确时返回 `outcome_unknown`，不自动重放 Command。
 
 ## 7. Profile、Custom、File Guard 与 Admission
 
@@ -233,7 +233,7 @@ GUI 进阶控制按真实面板层级归入 `workspace`、`track_panel` 和 `cli
 
 L0 是不可禁用的固有工具层。Editor 的所有 preset 和 Custom 都始终包含 L0，Custom 设置页不显示这些工具，也不为其持久化开关。Connector 的 `l0` exposure 包含同一组 L0 Editor 工具；include 可以增加其他工具，但任何 `--exclude-tool` selector 都不能移除 L0。
 
-Allowed Read Folders 与 Allowed Write Folders 是自动化文件工具的规范路径 allowlist：前者约束打开、导入、检查和读取素材等操作，后者约束保存、导出等写操作。它们不表示本机进程权限，也不改变非文件工具的能力。`AutomationFileGuard` 还分离持久根与会话 grant，处理路径组件边界、相对路径、相邻前缀、链接/重解析点和未创建输出的最近现存父目录；授权后、实际 I/O 前会再次检查 canonical 目标。
+Allowed Read Folders 与 Allowed Write Folders 是自动化文件工具的规范路径 allowlist：前者约束打开、导入、检查和读取素材等操作，后者约束保存、导出等写操作。它们不表示本机进程权限，也不改变非文件工具的能力。`AutomationFileGuard` 还分离持久根与会话 grant，处理路径组件边界、大小写敏感目录、相对路径、相邻前缀、链接/重解析点和未创建输出的最近现存父目录。输入路径在公开请求边界授权；已经取得的不可变快照不因随后调整读根而失效，项目加载在任务开始时复核输入计划，最终文件发布则复核写入目标。
 
 业务 Admission 只限制全局 32 个在途请求和 8 个后台 Task；HTTP Transport 同样只执行全局
 32 路硬上限。不设置 logical client、peer、domain 配额、令牌桶或公平排队。每个 Connector
