@@ -18,6 +18,7 @@
 #include <QThread>
 #include <QTimer>
 #include <QUrl>
+#include <QUuid>
 
 #include <algorithm>
 #include <chrono>
@@ -168,9 +169,15 @@ namespace Automation {
         }
 
         QString clientIdFor(const Mcp::RequestEnvelope &request,
-                            const QHttpServerRequest &httpRequest) {
+                            const QHttpServerRequest &httpRequest,
+                            const std::optional<QString> &sessionClientId) {
             const auto connectorMetadata = request.meta.value(
                 QStringLiteral("com.openvpi.ds-editor-lite/connectorInstanceId"));
+            if ((!connectorMetadata.isString() || connectorMetadata.toString().isEmpty() ||
+                 connectorMetadata.toString().size() > 128) &&
+                sessionClientId) {
+                return *sessionClientId;
+            }
             QJsonObject identity{
                 {QStringLiteral("remoteAddress"), httpRequest.remoteAddress().toString()},
             };
@@ -231,6 +238,11 @@ namespace Automation {
             QFuture<QHttpServerResponse> future;
         };
 
+        struct Session {
+            QString clientId;
+            QString protocolVersion;
+        };
+
         explicit McpHttpTransportState(McpHttpLimits limits) : m_limits(std::move(limits)) {
         }
 
@@ -239,6 +251,7 @@ namespace Automation {
             m_accepting = true;
             m_globalInFlight = 0;
             m_pending.clear();
+            m_sessions.clear();
         }
 
         [[nodiscard]] bool isAccepting() const {
@@ -327,6 +340,42 @@ namespace Automation {
             return true;
         }
 
+        bool completeInitialize(const quint64 id, QHttpServerResponse response, QString clientId,
+                                QString protocolVersion) {
+            std::shared_ptr<PendingRequest> pending;
+            QByteArray sessionId;
+            {
+                const QMutexLocker locker(&m_mutex);
+                const auto it = m_pending.find(id);
+                if (it == m_pending.end())
+                    return false;
+                do {
+                    sessionId = QUuid::createUuid()
+                                    .toString(QUuid::WithoutBraces)
+                                    .remove(u'-')
+                                    .toLatin1();
+                } while (m_sessions.contains(sessionId));
+                m_sessions.insert(sessionId,
+                                  {std::move(clientId), std::move(protocolVersion)});
+                pending = it.value();
+                m_pending.erase(it);
+                m_globalInFlight = std::max(0, m_globalInFlight - 1);
+            }
+            auto headers = response.headers();
+            headers.replaceOrAppend(QByteArrayLiteral("MCP-Session-Id"), sessionId);
+            response.setHeaders(std::move(headers));
+            pending->promise.addResult(std::move(response));
+            pending->promise.finish();
+            return true;
+        }
+
+        [[nodiscard]] std::optional<Session> session(const QByteArray &sessionId) const {
+            const QMutexLocker locker(&m_mutex);
+            const auto found = m_sessions.constFind(sessionId);
+            return found == m_sessions.cend() ? std::nullopt
+                                              : std::optional<Session>(*found);
+        }
+
         void stopAccepting() {
             QList<std::shared_ptr<PendingRequest>> pending;
             {
@@ -334,6 +383,7 @@ namespace Automation {
                 m_accepting = false;
                 pending = m_pending.values();
                 m_pending.clear();
+                m_sessions.clear();
                 m_globalInFlight = 0;
             }
             for (const auto &request : pending) {
@@ -350,6 +400,7 @@ namespace Automation {
         bool m_accepting = false;
         int m_globalInFlight = 0;
         QHash<quint64, std::shared_ptr<PendingRequest>> m_pending;
+        QHash<QByteArray, Session> m_sessions;
         quint64 m_nextRequestId = 1;
     };
 
@@ -580,7 +631,32 @@ namespace Automation {
                 return readyResponse(jsonResponse(Mcp::makeErrorResponse(validatedRequest.id, error),
                                                   protocolErrorStatus(error)));
             }
-            const auto clientId = clientIdFor(validatedRequest, request);
+            const auto sessionHeaderValues =
+                request.headers().values(QByteArrayLiteral("MCP-Session-Id"));
+            if (sessionHeaderValues.size() > 1 ||
+                (sessionHeaderValues.size() == 1 && sessionHeaderValues.constFirst().isEmpty())) {
+                return readyResponse(transportError(
+                    QStringLiteral("invalid_session"),
+                    QStringLiteral("MCP-Session-Id header is malformed"), StatusCode::BadRequest));
+            }
+            std::optional<McpHttpTransportState::Session> session;
+            if (sessionHeaderValues.size() == 1) {
+                session = m_transportState->session(sessionHeaderValues.constFirst());
+                if (!session) {
+                    return readyResponse(transportError(
+                        QStringLiteral("session_not_found"),
+                        QStringLiteral("MCP session is unknown or expired"), StatusCode::NotFound));
+                }
+                if (session->protocolVersion != validatedRequest.protocolVersion) {
+                    return readyResponse(transportError(
+                        QStringLiteral("session_protocol_mismatch"),
+                        QStringLiteral("MCP session protocol version does not match the request"),
+                        StatusCode::BadRequest));
+                }
+            }
+            const auto clientId =
+                clientIdFor(validatedRequest, request,
+                            session ? std::optional<QString>(session->clientId) : std::nullopt);
             if (validatedRequest.notification) {
                 if (validatedRequest.method == QString::fromLatin1(Mcp::CancelledNotification)) {
                     const auto requestId =
@@ -667,7 +743,16 @@ namespace Automation {
                                                                 StatusCode::InternalServerError));
                         return;
                     }
-                    state->complete(pendingId, jsonResponse(responseObject, StatusCode::Ok));
+                    auto response = jsonResponse(responseObject, StatusCode::Ok);
+                    const auto successfulInitialize =
+                        validated.method == QString::fromLatin1(Mcp::InitializeMethod) &&
+                        responseValidation.valid() && !responseValidation.response->error;
+                    if (successfulInitialize) {
+                        state->completeInitialize(pendingId, std::move(response), clientId,
+                                                  validated.protocolVersion);
+                    } else {
+                        state->complete(pendingId, std::move(response));
+                    }
                 },
                 Qt::QueuedConnection);
             if (!invoked) {
