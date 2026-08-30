@@ -155,7 +155,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 8. 验证 `tracks.get` 直接返回轨道属性、统计和 voice/default-language 上下文，`clips.get`
    对歌声剪辑直接返回 own/effective voice、继承来源和有效默认语言；公共集合没有独立的
    voice-context 查询工具。
-9. 验证 `audio_clips.relocate/confirm_path` 同步返回 Mutation、不创建 Task，并在 GUI 中立即反映。
+9. 验证 `audio_clips.relocate/confirm_path` 接受后返回 Task，不在 GUI 线程执行音频 hash/解码；成功终态携带 Mutation，并在 GUI 中反映最终路径和元数据。
 10. 验证 `playback.set_loop/set_loop_enabled/clear_loop` 形成工程持久历史记录，逐项 Undo/Redo；play/pause/stop/seek 保持瞬时、目标状态幂等，播放头在查询与命令间变化不导致版本冲突。
 11. 验证动态值发现、异步任务和文件重新授权；open/import/import_batch 在开始和提交边界检查
     当前读权限，带 plan digest 时加载检查器返回的同一字节快照并拒绝随后换内容；`formats.inspect`
@@ -177,7 +177,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 20. 对 packages.list/describe/refresh 验证读取根内路径、有效搜索路径、application task 的成功/取消/部分失败，以及索引原子切换；验证领先刷新在提交门被拒绝时，并发等待调用重新扫描而不返回陈旧索引。
 21. 对 lyric_rules 验证稳定 ID 迁移、内置/自定义边界、CRUD、启停、分类内移动、非法规则回滚和 splitter→tagger 只读测试。
 22. 验证音频导入、重定位和路径确认的 SHA-512 与解码结果来自同一临时快照；在快照解码完成后
-    替换原始路径内容，确认提交前的后台摘要复核拒绝陈旧快照。分别验证每个文档 generation 与
+    替换原始路径内容，确认三类操作提交前的后台摘要复核均拒绝陈旧快照。分别验证每个文档 generation 与
     应用级作用域的活动任务不被终态历史上限淘汰、只保留最近 128 项终态，且互不影响。
 23. 分别模拟文档保存、MIDI 与音频完成覆盖预检后由外部创建同名目标，确认同目录暂存文件的
     排他最终发布不会替换外部文件，也不会暴露部分 DSPX/MIDI；多文件音频发布在后续目标冲突时

@@ -149,9 +149,9 @@ Closed World Command，不提供 `force`、`validate_only`、幂等键或任意�
 - GUI 剪贴板 v2 序列化相同 payload，旧剪贴内容仍可按音符数据读取，越界或无效的外部音符几何会整包丢弃；
 - MCP duplicate 与 GUI copy/paste 因而复用同一深复制语义和提交路径。
 
-### 5.4 同步音频路径修复与持久循环
+### 5.4 音频路径修复与持久循环
 
-`audio_clips.relocate` 和 `audio_clips.confirm_path` 是同步 Command。Registry 在调用模型前完成读路径重新授权、音频解码与内容摘要准备，在准备后再次授权，再通过 Project Facade 提交最终路径和音频元数据。成功返回 Mutation，不创建后台 Task，模型信号完成后 GUI 可立即看到结果。
+`audio_clips.relocate` 和 `audio_clips.confirm_path` 是异步 Command。Registry 先规范化并授权读路径，再返回 Task；Host Adapter 在线程池中创建带摘要的临时快照并只解码该快照，随后重新计算原路径摘要。进入提交点前再次校验读权限、文档 revision 与目标剪辑，源内容或权限变化会使 Task 失败。最终路径和音频元数据仍通过 Project Facade 形成一条历史记录，Task 仅在模型信号完成后进入成功终态，GUI 随即反映结果。
 
 播放状态被拆为两类：
 
@@ -165,8 +165,8 @@ Closed World Command，不提供 `force`、`validate_only`、幂等键或任意�
 文档打开、导入和批量导入复用 Project Format Registry 与 `IProjectLoadSession`。自动化 host adapter 使用 `interactive=false` 创建 headless session，格式选项由严格 Schema 提供，不打开配置对话框；带 plan digest 的输入由检查器返回同一份已验证字节，session 只解析保留原扩展名的临时快照，提交前再核对原路径的当前摘要。DSPX 输入在构造 Timeline 前使用宽整数检查每段拍号投影，无法表示在模型 tick 范围内的工程会直接拒绝，单文件与批量加载共享该入口。Task 保留文档 generation 和调用者归因，最终通过 Document Facade 完成换代或单条历史记录导入。
 
 音频导入、重定位和路径确认在一次顺序读取中同时生成 SHA-512 与临时文件快照，随后只解码该快照；
-音频导入在解码完成后于后台重算原始路径的摘要，只有源文件仍与快照一致才进入提交。提交记录原始
-授权路径，摘要、解码结果与提交时源内容保持一致；临时快照随准备任务结束清理，不进入工程。
+三类操作均在解码完成后于后台重算原始路径的摘要，只有源文件仍与快照一致才进入提交。提交记录
+规范化授权路径，摘要、解码结果与提交时源内容保持一致；临时快照随准备任务结束清理，不进入工程。
 
 MIDI 路径拆为可复用的两段：
 

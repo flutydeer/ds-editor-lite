@@ -43,7 +43,7 @@ Agent 会话可先于 Editor 启动。Connector 通过全局实例 Bootstrap 观
 
 总线域的 descriptor category 为 `bus`，公开操作 ID 保持 `master.*`。历史记录是独立域，固定包含状态查询、Undo 与 Redo。
 
-已冻结的跨域边界包括：`audio_clips.relocate` 与 `audio_clips.confirm_path` 在当前实现中同步完成校验、解码/hash 和最终写回，直接返回 Mutation；`playback.set_loop`、`playback.set_loop_enabled` 与 `playback.clear_loop` 修改工程持久状态，各自形成一条历史记录并递增文档 revision，而 `play/pause/stop/seek` 只修改瞬时播放状态。
+已冻结的跨域边界包括：`audio_clips.relocate` 与 `audio_clips.confirm_path` 接受后返回 Task，在后台完成音频快照、解码/hash 和源内容复核，提交边界再次校验读权限、文档 revision 与目标剪辑，成功终态包含最终 Mutation；`playback.set_loop`、`playback.set_loop_enabled` 与 `playback.clear_loop` 修改工程持久状态，各自形成一条历史记录并递增文档 revision，而 `play/pause/stop/seek` 只修改瞬时播放状态。
 
 ## 3. 一期契约复用
 

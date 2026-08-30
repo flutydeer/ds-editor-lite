@@ -152,7 +152,6 @@ Connector 桥接工具：6
 - `time_signatures.set/remove` 对候选时间线执行宽整数投影；删除中间拍号若会使后续拍号 tick
   超出模型范围，则预检和提交均原子拒绝。
 - handler、I/O、Schema 编码和 host adapter 失败不产生半提交。
-- `audio_clips.import*`、`relocate` 与 `confirm_path` 的 SHA-512 和解码结果来自同一临时字节快照；同步工具完成校验和最终写回后返回 Mutation，不创建 Task。
 - `playback.set_loop`、`set_loop_enabled` 与 `clear_loop` 修改工程持久状态，各自产生一条可撤销、可重做的历史记录；瞬时播放命令不进入历史记录，播放头在调用间变化不造成冲突，重复目标调用返回 no-op。
 - Speaker Mix 预设 save/delete 不改变文档 revision 或 History；apply 只形成一条文档历史记录，后续直接编辑将来源标记为 dirty。
 - 创建、插入和合并锚点曲线分别形成单条历史记录；非法重叠、非相邻合并和跨曲线移动在提交前失败。
@@ -169,6 +168,9 @@ Connector 桥接工具：6
   检查器返回的同一字节快照并拒绝随后换内容，缺省 digest 只省略摘要比对。
 - Pitch/MIDI 提取只解码后台创建的哈希快照；完成后复核原文件摘要、音频剪辑身份和源路径权限。
   运行期间换内容、换来源或撤销权限时任务失败，文档 revision 和目标对象保持不变。
+- `audio_clips.import*`、`relocate` 与 `confirm_path` 的 SHA-512 和解码结果来自同一临时字节快照；
+  后台解码完成后重算原路径摘要，并在提交点前复核读权限、文档 revision 与目标剪辑。成功 Task
+  携带最终 Mutation，源文件在准备期间变化时不提交。
 - `audio_clips.import*` 在创建 Task 前占用幂等键；同指纹重放原 Task，不同指纹立即冲突，失败或
   取消后释放占用，重试不会重复启动哈希与解码。
 - 并发 `packages.refresh` 只有在领先扫描完成有效提交时才复用其结果；若领先扫描被提交门拒绝，等待调用重新扫描并提交，不返回陈旧索引。
