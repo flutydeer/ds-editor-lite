@@ -167,7 +167,7 @@ ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
         d->buildToolButton("btnPitchPencil", ":svg/icons/pitch_edit_24_filled.svg",
                            tr("Draw Pitch"), Qt::Key_G, pitchPencilDesc);
     d->m_btnScalePitch = d->buildToolButton(
-        "btnScalePitch", ":svg/icons/more_horizontal_24_regular.svg", tr("Scale Pitch"));
+        "btnScalePitch", ":svg/icons/pitch_modulation_24_filled.svg", tr("Scale Pitch"));
     d->m_btnPitchEraser = d->buildToolButton(
         "btnPitchEraser", ":svg/icons/pitch_erase_24_filled.svg", tr("Erase Pitch"), Qt::Key_H);
     const auto bakePitchDesc =

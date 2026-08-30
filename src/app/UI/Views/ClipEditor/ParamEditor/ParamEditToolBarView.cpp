@@ -25,7 +25,7 @@ ParamEditToolBarView::ParamEditToolBarView(QWidget *parent) : QWidget(parent) {
     m_btnShape = createEditModeButton("btnParamShape",
                                       QStringLiteral(":/svg/icons/param_shape_24_filled.svg"));
     m_btnScale = createEditModeButton("btnParamScale",
-                                      QStringLiteral(":/svg/icons/more_horizontal_24_regular.svg"));
+                                      QStringLiteral(":/svg/icons/param_scale_24_filled.svg"));
     m_btnShape->setEnabled(false);
     m_btnScale->setEnabled(false);
     m_btnErase =
