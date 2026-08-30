@@ -221,7 +221,7 @@
 | `tempos.set` | L1 | C/S | 新增/替换 Tempo 与零点锚规则 |
 | `tempos.remove` | L1 | C/S | Tempo 删除与零点锚规则 |
 | `time_signatures.set` | L1 | C/S | 新增/替换拍号与 bar 0 规则 |
-| `time_signatures.remove` | L1 | C/S | 拍号删除与 bar 0 规则 |
+| `time_signatures.remove` | L1 | C/S | 拍号删除、bar 0 规则与删除后的时间线投影上界 |
 
 ### 3.13 历史记录（3）
 

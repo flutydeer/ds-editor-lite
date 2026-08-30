@@ -118,7 +118,7 @@ Command 的共享所有者层按参数形状和状态转换覆盖：
 | tracks/clips/audio/import/project | 44 | 强类型 ID、细粒度编辑、声音上下文、批原子、解码/哈希竞态 |
 | notes | 21 | 重叠/边界、量化、resize/split、歌词、语言、发音、音素和复制保真 |
 | parameters/speaker_mix | 29 | 有界曲线、采样/锚点、继承、固定/动态混合、关键帧和运行期 ID |
-| timeline/master | 11 | tick/bar 0 锚点、排序、拍号合法性、Master 查询与细粒度控制 |
+| timeline/master | 11 | tick/bar 0 锚点、排序、拍号增删后的派生位置上界、Master 查询与细粒度控制 |
 | history | 3 | 空栈、undo/redo、savepoint、focus、revision、分支截断 |
 | inference | 15 | capabilities/status/start、stage、对象删除、revision 重基、cache 与持久化边界 |
 | extract | 3 | capabilities、pitch/MIDI 后端、取消、TaskId、原子写回、旧 generation |

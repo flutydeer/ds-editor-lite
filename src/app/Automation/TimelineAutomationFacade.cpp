@@ -11,6 +11,7 @@
 #include <cmath>
 #include <limits>
 #include <memory>
+#include <utility>
 
 namespace Automation {
     namespace {
@@ -18,16 +19,7 @@ namespace Automation {
             return value > 0 && (value & (value - 1)) == 0;
         }
 
-        bool validTimeSignatureProjection(QList<TimeSignature> signatures,
-                                          const TimeSignature &candidate) {
-            const auto existing = std::find_if(
-                signatures.begin(), signatures.end(), [&candidate](const TimeSignature &value) {
-                    return value.barIndex == candidate.barIndex;
-                });
-            if (existing == signatures.end())
-                signatures.append(candidate);
-            else
-                *existing = candidate;
+        bool validTimeSignatureProjection(QList<TimeSignature> signatures) {
             std::sort(signatures.begin(), signatures.end(), [](const TimeSignature &left,
                                                                const TimeSignature &right) {
                 return left.barIndex < right.barIndex;
@@ -51,6 +43,19 @@ namespace Automation {
                     return false;
             }
             return true;
+        }
+
+        bool validTimeSignatureProjection(QList<TimeSignature> signatures,
+                                          const TimeSignature &candidate) {
+            const auto existing = std::find_if(
+                signatures.begin(), signatures.end(), [&candidate](const TimeSignature &value) {
+                    return value.barIndex == candidate.barIndex;
+                });
+            if (existing == signatures.end())
+                signatures.append(candidate);
+            else
+                *existing = candidate;
+            return validTimeSignatureProjection(std::move(signatures));
         }
 
         bool controlsEqual(const TrackControl &left, const TrackControl &right) {
@@ -188,10 +193,23 @@ namespace Automation {
                 const bool changed = std::any_of(
                     signatures.cbegin(), signatures.cend(),
                     [barIndex](const TimeSignature &value) { return value.barIndex == barIndex; });
-                if (validateOnly)
-                    return AutomationResult<MutationResult>(m_committer.preview(session, changed));
                 if (!changed)
-                    return AutomationResult<MutationResult>(m_committer.unchanged(session));
+                    return AutomationResult<MutationResult>(
+                        validateOnly ? m_committer.preview(session, false)
+                                     : m_committer.unchanged(session));
+
+                auto projected = signatures;
+                projected.removeIf([barIndex](const TimeSignature &value) {
+                    return value.barIndex == barIndex;
+                });
+                if (!validTimeSignatureProjection(std::move(projected))) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("bar_index"),
+                        QStringLiteral("Removing the time signature would move a later signature "
+                                       "out of bounds")));
+                }
+                if (validateOnly)
+                    return AutomationResult<MutationResult>(m_committer.preview(session, true));
 
                 auto actions = std::make_unique<TimeSignatureActions>();
                 actions->removeTimeSignatureAt(barIndex, model);

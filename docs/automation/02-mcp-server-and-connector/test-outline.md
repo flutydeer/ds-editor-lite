@@ -109,7 +109,7 @@ Connector 桥接工具：6
 | Speaker Mix | 13 | fixed/dynamic/bypass、权重归一化、关键帧稳定 ID、应用级预设与文档级应用 |
 | 音符、歌词、语言、发音与音素 | 19 | 查询/搜索/叶节点创建/duplicate/几何、歌词、语言、发音、音素与填充 |
 | 参数曲线与锚点 | 12 | capability、有界查询、draw/anchor、replace/draw/erase/bake 与显式曲线拓扑操作 |
-| 时间线 | 5 | Tempo/拍号排序、零点锚、单条历史记录 |
+| 时间线 | 5 | Tempo/拍号排序、零点锚、拍号增删后的派生位置上界、单条历史记录 |
 | 历史记录 | 3 | 状态、Undo/Redo、分支与 savepoint |
 | 播放 | 8 | 瞬时目标状态的幂等/no-op；持久 loop 的历史记录、revision、Undo/Redo 与并发检查 |
 | 导出 | 6 | MIDI/audio capability、preview、写授权、任务与清理 |
@@ -145,6 +145,8 @@ Connector 桥接工具：6
 - `documents.save_as`、`documents.import_batch`、`audio_clips.import_batch`、三项复杂设置更新以及歌词规则 create/update 的 validate-only 执行完整校验，且不产生 ID、Task、文件写入、历史记录、revision 或业务通知；其他命令拒绝该额外字段。
 - 批量命令先完整预检，再以一条历史记录和一次 revision 提交。
 - `clips.insert` 的四小节默认长度覆盖拍号变化，并在起点接近 tick 上界时稳定拒绝，不发生有符号溢出或部分提交。
+- `time_signatures.set/remove` 对候选时间线执行宽整数投影；删除中间拍号若会使后续拍号 tick
+  超出模型范围，则预检和提交均原子拒绝。
 - handler、I/O、Schema 编码和 host adapter 失败不产生半提交。
 - `audio_clips.import*`、`relocate` 与 `confirm_path` 的 SHA-512 和解码结果来自同一临时字节快照；同步工具完成校验和最终写回后返回 Mutation，不创建 Task。
 - `playback.set_loop`、`set_loop_enabled` 与 `clear_loop` 修改工程持久状态，各自产生一条可撤销、可重做的历史记录；瞬时播放命令不进入历史记录，播放头在调用间变化不造成冲突，重复目标调用返回 no-op。

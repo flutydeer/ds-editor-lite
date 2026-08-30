@@ -1916,6 +1916,34 @@ namespace {
                           runtime.timeline().getTimeline(runtime.documentVersion().documentId);
                       suite.expect(undo && restored && hasSignature(restored.get(), 4, 5, 4),
                                    QStringLiteral("signature deletion must undo once"));
+
+                      TestRuntime overflowTestRuntime;
+                      auto &overflowRuntime = overflowTestRuntime.runtime();
+                      const auto hugeAnchor = overflowRuntime.timeline().setTimeSignature(
+                          commandContext(overflowRuntime), 0, 1000000, 1);
+                      const auto bridge = overflowRuntime.timeline().setTimeSignature(
+                          commandContext(overflowRuntime), 1, 1, 2048);
+                      const auto laterSignature = overflowRuntime.timeline().setTimeSignature(
+                          commandContext(overflowRuntime), 2, 4, 4);
+                      const auto overflowBase = overflowRuntime.documentVersion();
+                      const auto overflowPreview =
+                          overflowRuntime.timeline().deleteTimeSignature(
+                              commandContext(overflowRuntime, true), 1);
+                      const auto overflowRemoval = overflowRuntime.timeline().deleteTimeSignature(
+                          commandContext(overflowRuntime), 1);
+                      const auto overflowTimeline = overflowRuntime.timeline().getTimeline(
+                          overflowRuntime.documentVersion().documentId);
+                      suite.expect(
+                          hugeAnchor && bridge && laterSignature &&
+                              isError(overflowPreview, AutomationErrorCode::InvalidArgument,
+                                      QStringLiteral("bar_index")) &&
+                              isError(overflowRemoval, AutomationErrorCode::InvalidArgument,
+                                      QStringLiteral("bar_index")) &&
+                              overflowRuntime.documentVersion() == overflowBase && overflowTimeline &&
+                              hasSignature(overflowTimeline.get(), 1, 1, 2048) &&
+                              hasSignature(overflowTimeline.get(), 2, 4, 4),
+                          QStringLiteral(
+                              "signature deletion must reject a derived tick overflow atomically"));
                   });
 
         suite.run(
