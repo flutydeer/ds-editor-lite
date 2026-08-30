@@ -54,6 +54,10 @@ int main(int argc, char *argv[]) {
     expect(allowedRead && QFileInfo(allowedRead.get().canonicalPath).canonicalFilePath() ==
                               QFileInfo(readable).canonicalFilePath(),
            QStringLiteral("existing file below a read root must be authorized canonically"));
+#ifdef Q_OS_WIN
+    expect(guard.authorize(readable.toUpper(), Automation::FileAccessPurpose::Read).isPresent(),
+           QStringLiteral("Windows path aliases must resolve through filesystem identity"));
+#endif
 
     const auto missingRead = guard.authorize(
         QDir(readRoot).filePath(QStringLiteral("missing.dspx")),

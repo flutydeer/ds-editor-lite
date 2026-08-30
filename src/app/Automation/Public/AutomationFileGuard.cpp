@@ -5,6 +5,9 @@
 #include <QRegularExpression>
 
 #include <algorithm>
+#ifdef Q_OS_WIN
+#  include <filesystem>
+#endif
 
 namespace Automation {
     namespace {
@@ -16,17 +19,38 @@ namespace Automation {
             return error;
         }
 
-        Qt::CaseSensitivity pathCaseSensitivity() {
-#ifdef Q_OS_WIN
-            return Qt::CaseInsensitive;
-#else
-            return Qt::CaseSensitive;
-#endif
-        }
-
         QString normalizedSeparators(const QString &path) {
             return QDir::cleanPath(QDir::fromNativeSeparators(path));
         }
+
+        bool sameCanonicalPath(const QString &left, const QString &right) {
+            if (left == right)
+                return true;
+#ifdef Q_OS_WIN
+            std::error_code error;
+            const auto equivalent = std::filesystem::equivalent(
+                std::filesystem::path(left.toStdWString()),
+                std::filesystem::path(right.toStdWString()), error);
+            return !error && equivalent;
+#else
+            return false;
+#endif
+        }
+
+#ifdef Q_OS_WIN
+        bool isWithinDirectory(const QString &canonicalPath, const QString &canonicalDirectory) {
+            auto currentPath = canonicalPath;
+            for (;;) {
+                const QFileInfo current(currentPath);
+                if (current.exists() && sameCanonicalPath(currentPath, canonicalDirectory))
+                    return true;
+                const auto parent = normalizedSeparators(current.dir().absolutePath());
+                if (parent == currentPath)
+                    return false;
+                currentPath = parent;
+            }
+        }
+#endif
 
         bool containsInvalidWindowsComponent(const QString &path) {
 #ifdef Q_OS_WIN
@@ -51,11 +75,10 @@ namespace Automation {
 
         template <typename Rule>
         bool appendUniqueRule(QList<Rule> &rules, Rule rule) {
-            const auto sensitivity = pathCaseSensitivity();
             const auto duplicate =
                 std::find_if(rules.cbegin(), rules.cend(), [&](const auto &current) {
                     return current.directory == rule.directory &&
-                           current.canonicalPath.compare(rule.canonicalPath, sensitivity) == 0;
+                           sameCanonicalPath(current.canonicalPath, rule.canonicalPath);
                 });
             if (duplicate != rules.cend())
                 return false;
@@ -135,8 +158,7 @@ namespace Automation {
         auto current = authorize(authorizedPath.canonicalPath, authorizedPath.purpose);
         if (!current)
             return current.getError();
-        if (current.get().canonicalPath.compare(authorizedPath.canonicalPath,
-                                                pathCaseSensitivity()) != 0) {
+        if (!sameCanonicalPath(current.get().canonicalPath, authorizedPath.canonicalPath)) {
             return pathError(AutomationErrorCode::PermissionDenied,
                              QStringLiteral("Path changed after it was authorized"));
         }
@@ -230,14 +252,19 @@ namespace Automation {
     }
 
     bool AutomationFileGuard::matchesRule(const QString &canonicalPath, const PathRule &rule) {
-        const auto sensitivity = pathCaseSensitivity();
-        if (canonicalPath.compare(rule.canonicalPath, sensitivity) == 0)
+        if (sameCanonicalPath(canonicalPath, rule.canonicalPath))
             return true;
         if (!rule.directory)
             return false;
         const auto prefix =
             rule.canonicalPath.endsWith(u'/') ? rule.canonicalPath : rule.canonicalPath + u'/';
-        return canonicalPath.startsWith(prefix, sensitivity);
+        if (canonicalPath.startsWith(prefix, Qt::CaseSensitive))
+            return true;
+#ifdef Q_OS_WIN
+        return isWithinDirectory(canonicalPath, rule.canonicalPath);
+#else
+        return false;
+#endif
     }
 
     QStringList AutomationFileGuard::rulePaths(const QList<PathRule> &rules) {
