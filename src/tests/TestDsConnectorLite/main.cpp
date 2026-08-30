@@ -16,6 +16,7 @@
 #include <QLocalSocket>
 #include <QFile>
 #include <QProcess>
+#include <QPointer>
 #include <QQueue>
 #include <QSet>
 #include <QTcpServer>
@@ -259,9 +260,9 @@ namespace {
             QObject::connect(&m_server, &QTcpServer::newConnection, &m_server, [this] {
                 while (auto *socket = m_server.nextPendingConnection()) {
                     m_buffers.insert(socket, {});
-                    QObject::connect(socket, &QTcpSocket::readyRead, socket,
+                    QObject::connect(socket, &QTcpSocket::readyRead, &m_server,
                                      [this, socket] { readRequest(socket); });
-                    QObject::connect(socket, &QTcpSocket::disconnected, socket, [this, socket] {
+                    QObject::connect(socket, &QTcpSocket::disconnected, &m_server, [this, socket] {
                         m_buffers.remove(socket);
                         socket->deleteLater();
                     });
@@ -693,8 +694,12 @@ namespace {
                 if (discoverResponseDelayMs > 0) {
                     const auto response = AutomationWire::Mcp::makeResultResponse(
                         request.id, result, info, request.protocolVersion);
-                    QTimer::singleShot(discoverResponseDelayMs, socket,
-                                       [this, socket, response] { respond(socket, response); });
+                    const QPointer<QTcpSocket> guardedSocket(socket);
+                    QTimer::singleShot(discoverResponseDelayMs, &m_server,
+                                       [this, guardedSocket, response] {
+                                           if (guardedSocket)
+                                               respond(guardedSocket, response);
+                                       });
                     return;
                 }
             } else if (request.method ==
@@ -942,11 +947,11 @@ namespace {
             socket->disconnectFromHost();
         }
 
-        QTcpServer m_server;
         QHash<QTcpSocket *, QByteArray> m_buffers;
         QByteArray m_rawLog;
         mutable QString m_toolsCacheKey;
         mutable QJsonArray m_cachedTools;
+        QTcpServer m_server;
     };
 
     bool verifyOptionsAndExposure() {
