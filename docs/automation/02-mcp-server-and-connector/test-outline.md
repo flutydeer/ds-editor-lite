@@ -100,7 +100,7 @@ Connector 桥接工具：6
 |---|---:|---|
 | 应用 | 3 | 产品/版本/平台/build、运行状态、工具集版本、文件授权与权限继承 |
 | 文档与工程 | 8 | 文档统计、最近项目、new/open/save/save-as/import/batch、未保存策略、换代与 savepoint |
-| 格式 | 2 | 用途过滤、可用性、inspect 诊断与 plan digest |
+| 格式 | 2 | 用途过滤、可用性、inspect 有界快照、诊断与 plan digest |
 | 轨道 | 14 | 列表/详情（含声音上下文）、浅层创建、删除/移动、标量命令、语言与声音设置 |
 | 总线 | 5 | `bus` 归属、四个标量命令、历史记录/revision |
 | 剪辑 | 15 | 筛选/详情（含声音上下文）、浅层创建、duplicate、几何、标量命令和声音继承 |
@@ -136,6 +136,8 @@ Connector 桥接工具：6
 - 能力查询同时表达 supported、available 和 unavailable reason。
 - `documents.get` 的工程长度和轨道/剪辑分类统计在空工程、空轨、有歌声/音频/混合轨状态下准确；`documents.list_recent` 不改变文档身份或 revision。
 - `parameters.get` 对采样数据执行确定性有界返回，对锚点数据完整返回或明确拒绝过小上限，不静默裁剪稳定对象。
+- `formats.inspect` 在解析前拒绝超过 64 MiB 的工程文件；MIDI 的解析、预览和摘要来自同一份
+  有界快照。
 
 ### 5.2 同步 Command
 
@@ -160,6 +162,8 @@ Connector 桥接工具：6
 - Queued、Running、CancelRequested、Committing 和各终态遵守允许迁移。
 - 排队/运行取消、重复取消、终态取消和提交点取消分别覆盖。
 - Editor 重启、文档 generation 更换、revision 前进、目标消失和晚到结果不能写入错误文档；文档 generation 清理不得误删 application task。
+- 文档 open/import/import_batch 在任务开始读取时重新检查 File Guard；缺省 plan digest 只省略
+  摘要复算，不得省略重新授权。
 - 每个 document generation 与 application scope 的活动记录全部保留；各自终态历史超过 128 项时
   只淘汰最旧终态，不影响活动任务或其他作用域。
 - 最终成功在业务写回、历史记录/revision 和信号完成后发布。

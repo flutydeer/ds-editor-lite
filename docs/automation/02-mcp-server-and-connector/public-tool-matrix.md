@@ -82,7 +82,7 @@
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
 | `formats.list` | L2 | Q/S | 格式、扩展名、用途、可用性与 option Schema |
-| `formats.inspect` | L2 | Q/S | 文件格式、来源、诊断与稳定 plan digest |
+| `formats.inspect` | L2 | Q/S | 64 MiB 内的有界快照、格式、来源、诊断与稳定 plan digest |
 
 ### 3.4 轨道（14）
 
