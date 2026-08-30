@@ -63,6 +63,12 @@ void IcuWrapperTests::rejectsSiblingScriptRegionCrossMatch()
                                   {QStringLiteral("zh-Hant")}).isEmpty());
     QVERIFY(IcuWrapper::bestMatch(QStringLiteral("zh-Hant"),
                                   {QStringLiteral("zh-TW")}).isEmpty());
+    // Region siblings are off the parent chain too (pt-BR's chain is
+    // pt-BR -> pt and never contains pt-PT).
+    QVERIFY(IcuWrapper::bestMatch(QStringLiteral("pt-BR"),
+                                  {QStringLiteral("pt-PT")}).isEmpty());
+    QVERIFY(IcuWrapper::bestMatch(QStringLiteral("pt-PT"),
+                                  {QStringLiteral("pt-BR")}).isEmpty());
     // Positive control: an exact sibling key still wins when it exists.
     QCOMPARE(IcuWrapper::bestMatch(QStringLiteral("zh-TW"),
                                    {QStringLiteral("zh-Hant"),

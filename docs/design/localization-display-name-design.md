@@ -76,10 +76,10 @@ Qt 实测（Qt 6.11.2）`QLocale("zh_CN")`：
 
 - **匹配内核**：仅用 `uloc_forLanguageTag`（归一化）+ `uloc_getParent`（父链展开）做**规范 ID 精确比对**，不使用 `uloc_acceptLanguage` 当匹配器（2026-08-26 修订）。后者两头都不满足需求：Windows SDK umbrella ICU（64.2）对 script+region 组合不做内部回退；而自 ICU 67 起它改委托 `LocaleMatcher` 距离匹配，likely-subtag 最大化会让 zh_TW↔zh_Hant 兄弟 locale 互相命中（ICU 67.1/68.2/70.1/74.2 源码对拍确认；`IcuWrapperTests::rejectsSiblingScriptRegionCrossMatch` 锁定；`TestLocalizedText` 含同义断言）。注：ICU ≤66 的手写实现恰好就是「父链 + 精确 strcmp」，本修复等于把该语义统一固化到全平台全版本。父链式匹配语义逐候选确定、跨平台/跨 ICU 版本一致。
 - **运行时面**：Windows IBM 系统组件（Win10 1903+ 自带 `icuuc.dll`），零新增依赖；包体零变化（静态库）
-- **跨平台**：三后端各用平台原生能力（Win：SDK umbrella ICU；macOS：Foundation `NSBundle`；Linux：`ICU::uc`），统一 `IcuWrapper::bestMatch` API + 共享单测
+- **跨平台**：三后端各用平台原生能力（Win：SDK umbrella ICU；macOS：Foundation `NSBundle`；Linux：`ICU::uc`），统一 `IcuWrapper::bestMatch` API + 共享单测。其中 macOS 后端的 Foundation 仅负责候选排序，**命中与否由显式父链 membership 闸门关断**（§4 同一契约：Foundation 的距离式 fallback 会跨 zh-TW/zh-Hant、pt-BR/pt-PT 此类兄弟 locale 命中，不能当判定依据）
 - **fetch 契约闭环**：bestMatch 返回**原样拼写**的命中键，宿主再经 synthrt `text(key)` 精确直取——归一化只发生在匹配阶段，不污染数据面
 
-仍成立的注意点：macOS 路径未随本波实测（P3）：返回键拼写与原样的等价性、zh-Hant/zh-TW 边界行为以 ICU 路径测试为准。
+仍成立的注意点：macOS 后端 2026-08-30 已按 Codex P1 复核结论补上父链闸门（兄弟 locale 语义与 ICU 后端逐一对齐、共享单测含区域兄弟用例锁定），但 .mm 编译与运行仍未在本机实测（无 macOS 环境），合并前需在一台 mac 上跑一次 `ctest -R IcuWrapperTests` 闭环。
 
 ### 5. 切语言刷新链路
 
