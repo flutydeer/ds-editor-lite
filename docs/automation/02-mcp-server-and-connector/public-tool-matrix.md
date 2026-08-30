@@ -262,8 +262,8 @@
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
 | `extract.get_capabilities` | L2 | Q/S | 音频来源、模型、语言、范围与 option Schema |
-| `extract.pitch.start` | L2 | C/A | 音高提取任务与目标剪辑写回 |
-| `extract.midi.start` | L2 | C/A | MIDI 提取任务与目标位置写回 |
+| `extract.pitch.start` | L2 | C/A | 源路径启动/提交双重授权、音高提取任务与目标剪辑写回 |
+| `extract.midi.start` | L2 | C/A | 源路径启动/提交双重授权、MIDI 提取任务与目标位置写回 |
 
 ### 3.17 推理（4）
 

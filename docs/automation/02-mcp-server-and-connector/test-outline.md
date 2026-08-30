@@ -164,6 +164,8 @@ Connector 桥接工具：6
 - Editor 重启、文档 generation 更换、revision 前进、目标消失和晚到结果不能写入错误文档；文档 generation 清理不得误删 application task。
 - 文档 open/import/import_batch 在任务开始读取时重新检查 File Guard；缺省 plan digest 只省略
   摘要复算，不得省略重新授权。
+- Pitch/MIDI 提取在后端启动前和进入 Committing 前分别复核源路径；运行期间撤销读权限时任务失败，
+  文档 revision 和目标对象保持不变。
 - 每个 document generation 与 application scope 的活动记录全部保留；各自终态历史超过 128 项时
   只淘汰最旧终态，不影响活动任务或其他作用域。
 - 最终成功在业务写回、历史记录/revision 和信号完成后发布。
