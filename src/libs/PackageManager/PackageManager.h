@@ -61,6 +61,7 @@ private:
     mutable std::mutex m_refreshMutex;
     std::condition_variable m_refreshCompleted;
     bool m_refreshing = false;
+    bool m_lastRefreshCommitRejected = false;
     Expected<GetInstalledPackagesResult, GetInstalledPackagesError> m_lastRefreshResult;
     mutable QReadWriteLock m_resultRwLock;
     GetInstalledPackagesResult m_result;

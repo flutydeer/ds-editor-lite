@@ -225,11 +225,14 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
         if (m_refreshing) {
             qDebug() << "Already refreshing, wait for completion";
             m_refreshCompleted.wait(lock, [this] { return !m_refreshing; });
-            auto result = m_lastRefreshResult;
-            lock.unlock();
-            if (result && commitGate)
-                commitGate();
-            return result;
+            if (!m_lastRefreshCommitRejected) {
+                auto result = m_lastRefreshResult;
+                lock.unlock();
+                if (result && commitGate)
+                    commitGate();
+                return result;
+            }
+            qDebug() << "Leading package refresh was not committed, retry scan";
         }
         m_refreshing = true;
     }
@@ -492,6 +495,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                                   ? Expected<GetInstalledPackagesResult, GetInstalledPackagesError>(
                                         std::move(*retainedResult))
                                   : completed;
+        m_lastRefreshCommitRejected = commitRejected;
         m_refreshing = false;
         if (completed && !commitRejected) {
             refreshedPackages = completed.get().successfulPackages;
