@@ -353,286 +353,293 @@
 <context>
     <name>Audio::Internal::AudioExportDialog</name>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="46"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="47"/>
         <source>Export Audio</source>
         <translation>导出音频</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="61"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="62"/>
         <source>&amp;Delete</source>
         <translation>删除(&amp;D)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="63"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="64"/>
         <source>&amp;Preset</source>
         <translation>预设(&amp;P)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="73"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="74"/>
         <source>File Path</source>
         <translation>文件路径</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="59"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="60"/>
         <source>Save &amp;As...</source>
         <translation>另存为(&amp;A)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="75"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="76"/>
         <source>&amp;Browse...</source>
         <translation>浏览(&amp;B)...</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="82"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="83"/>
         <source>Template</source>
         <translation>模板</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="115"/>
-        <source>&lt;p&gt;You can specify the name (including extension name) of exported files.&lt;/p&gt;&lt;p&gt;Template tags in the file name will be replaced with the corresponding text. The following are the available template tags:&lt;/p&gt;&lt;ul&gt;&lt;li&gt;&lt;b&gt;${projectName}&lt;/b&gt;: the base name of the project file (excluding extension name)&lt;/li&gt;&lt;li&gt;&lt;b&gt;${sampleRate}&lt;/b&gt;: the sample rate specified in export configuration&lt;/li&gt;&lt;li&gt;&lt;b&gt;${today}&lt;/b&gt;: today&apos;s date in &quot;yyyyMMdd&quot; format (e. g. &quot;19260817&quot; for August 17, 1926)&lt;/li&gt;&lt;li&gt;&lt;b&gt;${$}&lt;/b&gt;: a single &quot;$&quot; character&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;In particular, the following template tags are available only when the mixing option is not &quot;mixed&quot;:&lt;/p&gt;&lt;ul&gt;&lt;li&gt;&lt;b&gt;${trackName}&lt;/b&gt;: the name of track&lt;/li&gt;&lt;li&gt;&lt;b&gt;${trackIndex}&lt;/b&gt;: the index of track (starting from 1)&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;You can select the template tag in the pop-up menu. The selected template tag will be appended to the end of the file name.&lt;/p&gt;</source>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="116"/>
+        <source>&lt;p&gt;You can specify the name (including extension name) of exported files.&lt;/p&gt;&lt;p&gt;Template tags in the file name will be replaced with the corresponding text. The following are the available template tags:&lt;/p&gt;&lt;ul&gt;&lt;li&gt;&lt;b&gt;${projectName}&lt;/b&gt;: the base name of the project file (excluding extension name)&lt;/li&gt;&lt;li&gt;&lt;b&gt;${sampleRate}&lt;/b&gt;: the sample rate specified in export configuration&lt;/li&gt;&lt;li&gt;&lt;b&gt;${today}&lt;/b&gt;: today's date in "yyyyMMdd" format (e. g. "19260817" for August 17, 1926)&lt;/li&gt;&lt;li&gt;&lt;b&gt;${$}&lt;/b&gt;: a single "$" character&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;In particular, the following template tags are available only when the mixing option is not "mixed":&lt;/p&gt;&lt;ul&gt;&lt;li&gt;&lt;b&gt;${trackName}&lt;/b&gt;: the name of track&lt;/li&gt;&lt;li&gt;&lt;b&gt;${trackIndex}&lt;/b&gt;: the index of track (starting from 1)&lt;/li&gt;&lt;/ul&gt;&lt;p&gt;You can select the template tag in the pop-up menu. The selected template tag will be appended to the end of the file name.&lt;/p&gt;</source>
         <translation>您可以指定导出文件的名称（包括扩展名）。文件名中的模板标签将被替换为相应的文本。以下是可用的模板标签：
 • ${projectName}：工程文件的基本名称（不含扩展名）
 • ${sampleRate}：导出配置中指定的采样率
-• ${today}：以 &quot;yyyyMMdd&quot; 格式表示的今天日期（例如 &quot;19260817&quot; 表示 1926 年 8 月 17 日）
-• ${$}：一个 &quot;$&quot; 字符
-当混合选项不为 &quot;mixed&quot; 时，还支持以下模板标签：
+• ${today}：以 "yyyyMMdd" 格式表示的今天日期（例如 "19260817" 表示 1926 年 8 月 17 日）
+• ${$}：一个 "$" 字符
+当混合选项不为 "mixed" 时，还支持以下模板标签：
 • ${trackName}：轨道名称
 • ${trackIndex}：轨道索引（从 1 开始）
 您可以在弹出菜单中选择模板标签。选中的模板标签将追加到文件名的末尾。</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="137"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="138"/>
         <source>&amp;Name</source>
         <translation>名称(&amp;N)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="143"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="144"/>
         <source>(Project directory)</source>
         <translation>（项目目录）</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="144"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="145"/>
         <source>Dire&amp;ctory</source>
         <translation>目录(&amp;c)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="146"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="147"/>
         <source>WAV</source>
         <translation>WAV</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="146"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="147"/>
         <source>FLAC</source>
         <translation>FLAC</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="146"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="147"/>
         <source>Ogg Vorbis</source>
         <translation>Ogg Vorbis</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="146"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="147"/>
         <source>MP3</source>
         <translation>MP3</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="147"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="148"/>
         <source>&amp;Type</source>
         <translation>类型(&amp;T)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="151"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="152"/>
         <source>Format</source>
         <translation>格式</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="155"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="156"/>
         <source>Mono</source>
         <translation>单声道</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="155"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="156"/>
         <source>Stereo</source>
         <translation>立体声</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="156"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="157"/>
         <source>C&amp;hannel</source>
         <translation>声道(&amp;h)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="158"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="159"/>
         <source>&amp;Option</source>
         <translation>选项(&amp;O)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="169"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="170"/>
         <source>&amp;Quality</source>
         <translation>质量(&amp;Q)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="184"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="185"/>
         <source>&amp;Sample rate</source>
         <translation>采样率(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="188"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="189"/>
         <source>Mixer</source>
         <translation>混音器</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="192"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="193"/>
         <source>Mixed</source>
         <translation>混合</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="193"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="194"/>
         <source>Separated</source>
         <translation>分离</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="194"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="195"/>
         <source>Separated (through master track)</source>
         <translation>分离（通过主轨）</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="200"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="201"/>
         <source>&amp;Mixing option</source>
         <translation>混音选项(&amp;M)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="201"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="202"/>
         <source>Enable m&amp;ute/solo</source>
         <translation>启用静音/独奏(&amp;u)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="206"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="207"/>
         <source>All tracks</source>
         <translation>所有轨道</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="207"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="208"/>
         <source>Selected tracks</source>
         <translation>选中轨道</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="208"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="209"/>
         <source>Custom</source>
         <translation>自定义</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="211"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="212"/>
         <source>&amp;Source</source>
         <translation>源(&amp;S)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="239"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="240"/>
         <source>Time Range</source>
         <translation>时间范围</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="242"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="243"/>
         <source>A&amp;ll</source>
         <translation>全部(&amp;l)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="245"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="246"/>
         <source>Loop s&amp;ection</source>
         <translation>循环选区(&amp;e)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="258"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="259"/>
         <source>&amp;Keep this dialog open after successful export</source>
         <translation>导出成功后保持此对话框打开(&amp;K)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="262"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="263"/>
         <source>Dry &amp;Run</source>
         <translation>预演(&amp;R)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="266"/>
-        <source>&quot;Dry Run&quot; shows the paths of files to export. No files will actually be exported.</source>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="267"/>
+        <source>"Dry Run" shows the paths of files to export. No files will actually be exported.</source>
         <translation>「预演」显示将要导出的文件路径。实际上不会导出任何文件。</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="272"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="273"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="749"/>
         <source>Warning</source>
         <translation>警告</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="274"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="275"/>
         <source>Export</source>
         <translation>导出</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="277"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="278"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="756"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="393"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="394"/>
         <source>Preset name</source>
         <translation>预设名称</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="399"/>
-        <source>Preset &quot;%1&quot; already exists. Overwrite it?</source>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="400"/>
+        <source>Preset "%1" already exists. Overwrite it?</source>
         <translation>预设「%1」已存在。是否覆盖？</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="470"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="471"/>
         <source>WAV (*.wav)</source>
         <translation>WAV (*.wav)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="471"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="472"/>
         <source>FLAC (*.flac)</source>
         <translation>FLAC (*.flac)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="472"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="473"/>
         <source>Ogg Vorbis (*.ogg)</source>
         <translation>Ogg Vorbis (*.ogg)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="473"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="474"/>
         <source>MP3 (*.mp3)</source>
         <translation>MP3 (*.mp3)</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="502"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="503"/>
         <source>File List</source>
         <translation>文件列表</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="531"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="532"/>
         <source>Warnings</source>
         <translation>警告</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="547"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="548"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="553"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="554"/>
         <source>Dry Run</source>
         <translation>预演</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="632"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="633"/>
         <source>Export canceled</source>
         <translation>已取消导出</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="749"/>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="750"/>
         <source>Continue to export?</source>
         <translation>继续导出？</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="754"/>
-        <source>Don&apos;t ask again</source>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="755"/>
+        <source>Continue</source>
+        <translation>继续</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Audio/AudioExportDialog.cpp" line="758"/>
+        <source>Don't ask again</source>
         <translation>不再询问</translation>
     </message>
 </context>
@@ -681,7 +688,7 @@
     </message>
     <message>
         <location filename="../../UI/Dialogs/Audio/AudioExportProgressDialog.cpp" line="110"/>
-        <source>Clipping is detected in track %L1 &quot;%2&quot;</source>
+        <source>Clipping is detected in track %L1 "%2"</source>
         <translation>轨道 %L1“%2”中检测到削波</translation>
     </message>
     <message numerus="yes">
@@ -729,7 +736,7 @@
     </message>
     <message>
         <location filename="../../Modules/Audio/utils/SettingPagesSynthHelper.cpp" line="113"/>
-        <source>I&apos;ll put an end to it.</source>
+        <source>I'll put an end to it.</source>
         <translation>我来终结它。</translation>
     </message>
 </context>
@@ -2024,7 +2031,7 @@ errors: %1</source>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/RuleTestTab.cpp" line="30"/>
-        <source>Enter text here, e.g.: &quot;小酒窝长睫毛是你最美的记号&quot;</source>
+        <source>Enter text here, e.g.: "小酒窝长睫毛是你最美的记号"</source>
         <translation>在此输入文本，例如：「小酒窝长睫毛是你最美的记号」</translation>
     </message>
     <message>
@@ -2129,7 +2136,7 @@ errors: %1</source>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/SplitterConfigTab.cpp" line="309"/>
-        <source>Rule &quot;%1&quot;: regex error in &quot;%2&quot;: %3</source>
+        <source>Rule "%1": regex error in "%2": %3</source>
         <translation>规则「%1」：正则表达式「%2」错误：%3</translation>
     </message>
 </context>
@@ -2176,8 +2183,8 @@ Uses RE2 syntax (no backreferences or lookahead).</source>
     <name>FillLyric::TaggerConfigTab</name>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/TaggerConfigTab.cpp" line="60"/>
-        <source>Tagger rules affect all split modes. Rules only match tokens with language=&quot;unknown&quot;; first match wins.</source>
-        <translation>标注器规则影响所有分割模式。规则仅匹配 language=&quot;unknown&quot; 的标记；首个匹配优先。</translation>
+        <source>Tagger rules affect all split modes. Rules only match tokens with language="unknown"; first match wins.</source>
+        <translation>标注器规则影响所有分割模式。规则仅匹配 language="unknown" 的标记；首个匹配优先。</translation>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/TaggerConfigTab.cpp" line="66"/>
@@ -2211,7 +2218,7 @@ Uses RE2 syntax (no backreferences or lookahead).</source>
     </message>
     <message>
         <location filename="../../Modules/FillLyric/Widgets/TaggerConfigTab.cpp" line="250"/>
-        <source>Rule &quot;%1&quot;: regex error in &quot;%2&quot;: %3</source>
+        <source>Rule "%1": regex error in "%2": %3</source>
         <translation>规则「%1」：正则表达式「%2」错误：%3</translation>
     </message>
 </context>
@@ -2972,12 +2979,12 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     </message>
     <message>
         <location filename="../../UI/Controls/G2pInfoWidget.cpp" line="99"/>
-        <source>Failed to load g2p &apos;%1&apos; in context &apos;%2&apos; (version %3). Check voicebank G2P package installation.</source>
+        <source>Failed to load g2p '%1' in context '%2' (version %3). Check voicebank G2P package installation.</source>
         <translation>无法加载上下文“%2”中的 G2P“%1”（版本 %3）。请检查歌手库 G2P 包的安装。</translation>
     </message>
     <message>
         <location filename="../../UI/Controls/G2pInfoWidget.cpp" line="110"/>
-        <source>G2P &apos;%1&apos; loaded.</source>
+        <source>G2P '%1' loaded.</source>
         <translation>G2P“%1”已加载。</translation>
     </message>
 </context>
@@ -3688,7 +3695,7 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     </message>
     <message>
         <location filename="../../UI/Window/MainWindow.cpp" line="421"/>
-        <source>Don&apos;t save</source>
+        <source>Don't save</source>
         <translation>不保存</translation>
     </message>
     <message>

@@ -2,6 +2,7 @@
 #include "AudioExportProgressDialog.h"
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
+#include "UI/Dialogs/Base/MessageDialog.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include "Modules/Audio/AudioSettings.h"
@@ -745,17 +746,17 @@ namespace Audio::Internal {
                                                    const bool canIgnored) {
         if (AudioSettings::audioExporterIgnoredWarningFlag() & warning)
             return true;
-        QMessageBox msgBox(this);
-        msgBox.setText(AudioExporter::warningText(warning)[0] + "\n\n" + tr("Continue to export?"));
-        msgBox.setIcon(QMessageBox::Warning);
-        msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-        QCheckBox *checkBox = nullptr;
-        if (canIgnored) {
-            checkBox = new QCheckBox(tr("Don't ask again"));
-            msgBox.setCheckBox(checkBox);
-        }
-        if (msgBox.exec() == QMessageBox::Yes) {
-            if (canIgnored && checkBox->isChecked())
+        MessageDialog dialog(
+            tr("Warning"),
+            AudioExporter::warningText(warning)[0] + "\n\n" + tr("Continue to export?"), this);
+        constexpr int continueButtonId = 0;
+        constexpr int cancelButtonId = 1;
+        dialog.addAccentButton(tr("Continue"), continueButtonId);
+        dialog.addButton(tr("Cancel"), cancelButtonId);
+        if (canIgnored)
+            dialog.addCheckBox(tr("Don't ask again"));
+        if (dialog.exec() == continueButtonId) {
+            if (canIgnored && dialog.isCheckBoxChecked())
                 AudioSettings::setAudioExporterIgnoredWarningFlag(
                     AudioSettings::audioExporterIgnoredWarningFlag() | warning);
             return true;
