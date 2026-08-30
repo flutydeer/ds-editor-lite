@@ -1035,6 +1035,48 @@ namespace {
             });
 
         suite.run(
+            Automation::OperationIds::exports::audio::start,
+            QStringLiteral("revision-change-before-publication"), [&] {
+                auto state = harness.audioExportState();
+                state->backendState = Automation::AudioExportBackendState::Succeeded;
+                state->publishWarning.clear();
+                const auto executeBefore = state->executeCount;
+                const auto publishBefore = state->publishCount;
+                const auto cleanupBefore = state->cleanupCount;
+                const auto base = runtime.documentVersion();
+                bool editedDuringRender = false;
+                state->executeHook = [&] {
+                    const auto edited =
+                        runtime.project().renameTrack(harness.context(), harness.trackId(),
+                                                      QStringLiteral("Edited During Export"));
+                    editedDuringRender = edited && edited.get().changed;
+                };
+                Automation::AudioExportPolicyDto overwritePolicy;
+                overwritePolicy.allowOverwrite = true;
+                const auto accepted = runtime.audioExports().start(
+                    RuntimeHarness::contextFor(base),
+                    audioConfig(harness, QStringLiteral("revision-changed.wav")), overwritePolicy);
+                const auto ran = harness.audioScheduler.runNext();
+                state->executeHook = {};
+                const auto terminal =
+                    accepted ? runtime.tasks().getTask(base.documentId, accepted.get().taskId)
+                             : Automation::AutomationResult<Automation::AutomationTaskSnapshot>(
+                                   Automation::AutomationError{});
+                suite.expect(
+                    accepted && ran && editedDuringRender && terminal &&
+                        terminal.get().state == Automation::AutomationTaskState::Failed &&
+                        terminal.get().error &&
+                        terminal.get().error->code ==
+                            Automation::AutomationErrorCode::RevisionConflict &&
+                        state->executeCount == executeBefore + 1 && state->deferPublish &&
+                        state->publishCount == publishBefore &&
+                        state->cleanupCount == cleanupBefore + 1 &&
+                        runtime.documentVersion().revision == base.revision + 1,
+                    QStringLiteral("audio export must stage output and reject publication after "
+                                   "the accepted document revision changes"));
+            });
+
+        suite.run(
             Automation::OperationIds::tasks::list,
             QStringLiteral("queued-terminal-and-wrong-document"), [&] {
                 const auto listed = runtime.tasks().listTasks(runtime.documentVersion().documentId);
@@ -1057,6 +1099,7 @@ namespace {
         suite.run(
             Automation::OperationIds::exports::audio::cleanup,
             QStringLiteral("cleanup-once-and-unknown-task"), [&] {
+                const auto cleanupBefore = harness.audioExportState()->cleanupCount;
                 const auto first = runtime.audioExports().cleanup(harness.context(), acceptedTask);
                 const auto repeated =
                     runtime.audioExports().cleanup(harness.context(), acceptedTask);
@@ -1064,7 +1107,7 @@ namespace {
                     runtime.audioExports().cleanup(harness.context(), Automation::TaskId::create());
                 suite.expect(
                     first && !first.get().changed && repeated && !repeated.get().changed &&
-                        harness.audioExportState()->cleanupCount == 3 &&
+                        harness.audioExportState()->cleanupCount == cleanupBefore &&
                         isError(unknown, Automation::AutomationErrorCode::NotFound,
                                 Automation::OperationIds::exports::audio::cleanup),
                     QStringLiteral(

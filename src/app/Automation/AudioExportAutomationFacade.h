@@ -135,7 +135,7 @@ namespace Automation {
                          AudioExportObserver observer, AudioExportAccessRevalidator reauthorize,
                          const std::shared_ptr<PendingJobState> &state, bool allowOverwrite);
         AutomationResult<std::reference_wrapper<DocumentSession>>
-            resolveDocumentGeneration(const DocumentVersion &version) const;
+            resolveDocumentVersion(const DocumentVersion &version) const;
         void removeJobRecord(const TaskId &taskId);
 
         AutomationDispatcher &m_dispatcher;

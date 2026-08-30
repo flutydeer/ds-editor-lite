@@ -422,7 +422,7 @@ namespace Automation {
             removeJobRecord(taskId);
             return;
         }
-        auto resolved = resolveDocumentGeneration(baseDocument);
+        auto resolved = resolveDocumentVersion(baseDocument);
         if (!resolved) {
             m_tasks.fail(taskId, taskError(resolved.getError(), taskId));
             cleanup();
@@ -503,7 +503,7 @@ namespace Automation {
             removeJobRecord(taskId);
             return;
         }
-        resolved = resolveDocumentGeneration(baseDocument);
+        resolved = resolveDocumentVersion(baseDocument);
         if (!resolved) {
             m_tasks.fail(taskId, taskError(resolved.getError(), taskId));
             cleanup();
@@ -520,8 +520,7 @@ namespace Automation {
             }
         }
 
-        const auto deferPublish = static_cast<bool>(reauthorize) || !allowOverwrite;
-        const auto result = job->execute(taskObserver, deferPublish);
+        const auto result = job->execute(taskObserver, true);
         if (result.state == AudioExportBackendState::Canceled ||
             m_tasks.isCancellationRequested(taskId)) {
             m_tasks.cancel(taskId);
@@ -540,7 +539,7 @@ namespace Automation {
             removeJobRecord(taskId);
             return;
         }
-        resolved = resolveDocumentGeneration(baseDocument);
+        resolved = resolveDocumentVersion(baseDocument);
         if (!resolved) {
             m_tasks.fail(taskId, taskError(resolved.getError(), taskId));
             cleanup();
@@ -563,20 +562,18 @@ namespace Automation {
             removeJobRecord(taskId);
             return;
         }
-        if (deferPublish) {
-            const auto published = job->publish(taskObserver, allowOverwrite);
-            if (published.state != AudioExportBackendState::Succeeded) {
-                AutomationError error;
-                error.code = AutomationErrorCode::IoError;
-                error.taskId = taskId;
-                error.message = published.errorMessage.isEmpty()
-                                    ? QStringLiteral("Audio export publication failed")
-                                    : published.errorMessage;
-                m_tasks.fail(taskId, std::move(error));
-                cleanup();
-                removeJobRecord(taskId);
-                return;
-            }
+        const auto published = job->publish(taskObserver, allowOverwrite);
+        if (published.state != AudioExportBackendState::Succeeded) {
+            AutomationError error;
+            error.code = AutomationErrorCode::IoError;
+            error.taskId = taskId;
+            error.message = published.errorMessage.isEmpty()
+                                ? QStringLiteral("Audio export publication failed")
+                                : published.errorMessage;
+            m_tasks.fail(taskId, std::move(error));
+            cleanup();
+            removeJobRecord(taskId);
+            return;
         }
         MutationResult mutation;
         mutation.previous = currentDocument;
@@ -593,17 +590,17 @@ namespace Automation {
     }
 
     AutomationResult<std::reference_wrapper<DocumentSession>>
-        AudioExportAutomationFacade::resolveDocumentGeneration(
-            const DocumentVersion &version) const {
+        AudioExportAutomationFacade::resolveDocumentVersion(const DocumentVersion &version) const {
         auto resolved = m_documentResolver.resolveDocument(version.documentId);
         if (!resolved)
             return resolved.getError();
         auto &session = resolved.get().get();
         if (session.lifecycleState() != DocumentLifecycleState::Active)
             return AutomationError::documentBusy(session.documentId());
-        const auto rebased = rebaseTaskVersionWithinGeneration(version, session.version());
-        if (!rebased)
-            return rebased.getError();
+        if (session.revision() != version.revision) {
+            return AutomationError::revisionConflict(session.documentId(), version.revision,
+                                                     session.revision());
+        }
         return std::ref(session);
     }
 
