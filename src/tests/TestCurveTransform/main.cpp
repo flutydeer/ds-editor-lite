@@ -371,6 +371,37 @@ namespace {
         return ok;
     }
 
+    bool testIncompleteFineSampleCellIsExcluded() {
+        using namespace CurveTransform;
+        bool ok = true;
+        MouthOpeningParamProperties properties;
+        QList<int> values(17, 500);
+        values[15] = 700;
+        values[16] = 800;
+        auto edited = curve(0, values);
+        edited.step = 1;
+
+        Config config;
+        config.kind = Kind::Scale;
+        config.properties = &properties;
+        Session session;
+        session.setSource({}, {&edited}, config);
+        session.beginSelection(0);
+        ok &= expect(session.finishSelection(20), "fine curve selection succeeds");
+        ok &= expect(session.bounds().componentEnd == 15,
+                     "incomplete final sample cell is excluded from the component");
+        ok &= expect(session.beginTransform(), "fine curve transform starts");
+        session.updateTransform(100.0);
+        auto preview = session.buildEditedPreview();
+        ok &= expect(valueAt(preview, 10) == 0, "complete fine sample cells are transformed");
+        ok &= expect(valueAt(preview, 15) == 700 && valueAt(preview, 16) == 800,
+                     "incomplete fine sample cell remains unchanged");
+        ok &= expect(valueAt(preview, 17) == -999999,
+                     "transform does not extend beyond the fine curve source");
+        qDeleteAll(preview);
+        return ok;
+    }
+
     bool testBasePitchRestKeys() {
         bool ok = true;
         using InputNote = BasePitchCurve::InputNote;
@@ -441,6 +472,7 @@ int main(int argc, char *argv[]) {
     ok &= testPitchAndEditedOnlySource();
     ok &= testNonSampleStepEditedCurve();
     ok &= testFineEditedSamplesOutsideTransformArePreserved();
+    ok &= testIncompleteFineSampleCellIsExcluded();
     ok &= testBasePitchRestKeys();
     if (!ok)
         return 1;

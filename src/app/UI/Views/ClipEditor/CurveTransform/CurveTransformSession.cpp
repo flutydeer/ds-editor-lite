@@ -53,10 +53,9 @@ namespace {
                 curve->step == CurveTransform::SampleStep)
                 continue;
             QList<int> values;
-            values.reserve(
-                (curve->localEndTick() - curve->localStart() + CurveTransform::SampleStep - 1) /
-                CurveTransform::SampleStep);
-            for (auto tick = curve->localStart(); tick < curve->localEndTick();
+            const auto endTick = curve->localEndTick();
+            values.reserve((endTick - curve->localStart()) / CurveTransform::SampleStep);
+            for (auto tick = curve->localStart(); tick + CurveTransform::SampleStep <= endTick;
                  tick += CurveTransform::SampleStep) {
                 if (const auto sample = valueAt(*curve, tick))
                     values.append(*sample);
