@@ -722,8 +722,29 @@ namespace {
                             .toObject()
                             .contains(QStringLiteral("range"));
             });
-        expect(audioBranches.size() == 2 && audioRangeAbsent,
-               QStringLiteral("audio export options must use two closed source-mode branches"));
+        QJsonObject audioPreviewInput{
+            {QStringLiteral("document_id"),
+             QStringLiteral("00000000-0000-4000-8000-000000000001")},
+        };
+        audioPreviewInput.insert(QStringLiteral("path"), QStringLiteral("mix.wav"));
+        audioPreviewInput.insert(
+            QStringLiteral("options"),
+            QJsonObject{
+                {QStringLiteral("format"),       QStringLiteral("unknown")},
+                {QStringLiteral("sample_rate"),  44100                    },
+                {QStringLiteral("channel_mode"), QStringLiteral("stereo")},
+                {QStringLiteral("mixing_mode"),  QStringLiteral("mixed") },
+                {QStringLiteral("source"),       QStringLiteral("all")   },
+            });
+        auto supportedAudioPreviewInput = audioPreviewInput;
+        auto supportedOptions = supportedAudioPreviewInput.value(QStringLiteral("options")).toObject();
+        supportedOptions.insert(QStringLiteral("format"), QStringLiteral("wav"));
+        supportedAudioPreviewInput.insert(QStringLiteral("options"), supportedOptions);
+        expect(audioBranches.size() == 2 && audioRangeAbsent &&
+                   validateJsonValue(supportedAudioPreviewInput, audioPreview->inputSchema).valid() &&
+                   !validateJsonValue(audioPreviewInput, audioPreview->inputSchema).valid(),
+               QStringLiteral("audio export options must use closed source branches and reject "
+                              "unknown formats"));
 
         const auto destination =
             propertySchema(midiExtraction->inputSchema, QStringLiteral("destination"));

@@ -381,7 +381,9 @@ namespace AutomationWire {
 
         QJsonObject audioExportOptionsSchema() {
             const auto commonProperties = QJsonObject{
-                {QStringLiteral("format"), nonEmptyStringSchema()},
+                {QStringLiteral("format"),
+                 JsonSchema::string({QStringLiteral("wav"), QStringLiteral("flac"),
+                                     QStringLiteral("ogg"), QStringLiteral("mp3")})},
                 {QStringLiteral("sample_rate"),
                  JsonSchema::integer(MinimumAudioSampleRate, MaximumAudioSampleRate)},
                 {QStringLiteral("channel_mode"),
