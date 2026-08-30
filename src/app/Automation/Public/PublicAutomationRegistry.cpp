@@ -57,6 +57,13 @@ namespace Automation {
             return error(AutomationErrorCode::HostCapabilityUnavailable, message);
         }
 
+        AutomationError formatInspectionTooLarge() {
+            return AutomationError::invalidArgument(
+                QStringLiteral("path"),
+                QStringLiteral("The project file exceeds the %1 MiB inspection limit")
+                    .arg(AutomationWire::MaximumFormatInspectionBytes / 1024 / 1024));
+        }
+
         bool supportsPurpose(const ProjectFormatDto &format, const QString &purpose) {
             return (purpose == QStringLiteral("open") && format.canOpen) ||
                    (purpose == QStringLiteral("import") && format.canImport);
@@ -148,19 +155,23 @@ namespace Automation {
                              QStringLiteral("The project file could not be read"),
                              QStringLiteral("path"));
             }
-            const auto bytes = file.readAll();
+            if (file.size() > AutomationWire::MaximumFormatInspectionBytes)
+                return formatInspectionTooLarge();
+            const auto bytes = file.read(AutomationWire::MaximumFormatInspectionBytes + 1);
             if (file.error() != QFileDevice::NoError) {
                 return error(AutomationErrorCode::IoError,
                              QStringLiteral("The project file could not be read completely"),
                              QStringLiteral("path"));
             }
+            if (bytes.size() > AutomationWire::MaximumFormatInspectionBytes || !file.atEnd())
+                return formatInspectionTooLarge();
 
             QJsonArray sources;
             QJsonArray lyricsPreview;
             QString encoding;
             if (purpose != QStringLiteral("export")) {
                 if (selected.get().id == QStringLiteral("midi")) {
-                    const auto parsed = MidiFileParser::parse(path);
+                    const auto parsed = MidiFileParser::parse(path, bytes);
                     if (!parsed.valid) {
                         return error(AutomationErrorCode::FormatUnsupported,
                                      parsed.errorMessage.isEmpty()
@@ -255,23 +266,23 @@ namespace Automation {
             return result;
         }
 
-        std::function<AutomationResult<AutomationUnit>()> planRevalidator(
-            CoreRuntime &runtime, AutomationFileGuard &fileGuard, QList<ProjectFormatDto> formats,
-            QString path, QString purpose, QString formatId, QString expectedDigest,
-            QString pathField, QString digestField) {
-            if (expectedDigest.isEmpty())
-                return {};
+        std::function<AutomationResult<AutomationUnit>()>
+            planRevalidator(CoreRuntime &runtime, AutomationFileGuard &fileGuard,
+                            QList<ProjectFormatDto> formats, QString path, QString purpose,
+                            QString formatId, QString expectedDigest, QString pathField,
+                            QString digestField) {
             return [&runtime, &fileGuard, formats = std::move(formats), path = std::move(path),
                     purpose = std::move(purpose), formatId = std::move(formatId),
                     expectedDigest = std::move(expectedDigest), pathField = std::move(pathField),
                     digestField = std::move(digestField)]() -> AutomationResult<AutomationUnit> {
-                auto authorized =
-                    fileGuard.reauthorize({path, FileAccessPurpose::Read});
+                auto authorized = fileGuard.reauthorize({path, FileAccessPurpose::Read});
                 if (!authorized) {
                     auto failure = authorized.getError();
                     failure.fieldPath = pathField;
                     return failure;
                 }
+                if (expectedDigest.isEmpty())
+                    return AutomationUnit{};
                 auto plan = inspectFormatPath(runtime, formats, path, purpose, formatId);
                 if (!plan) {
                     auto failure = plan.getError();
@@ -3255,10 +3266,10 @@ namespace Automation {
                 .importTimeSignature =
                     options.value(QStringLiteral("import_time_signatures")).toBool(true),
                 .planDigest = planDigest,
-                .revalidatePlan = planRevalidator(
-                    m_runtime, m_fileGuard, formats.get(), path, QStringLiteral("open"),
-                    format.get().id, planDigest, QStringLiteral("path"),
-                    QStringLiteral("plan_digest")),
+                .revalidatePlan =
+                    planRevalidator(m_runtime, m_fileGuard, formats.get(), path,
+                                    QStringLiteral("open"), format.get().id, planDigest,
+                                    QStringLiteral("path"), QStringLiteral("plan_digest")),
                 .unsavedPolicy = arguments.value(QStringLiteral("unsaved_policy")).toString() ==
                                          QStringLiteral("discard")
                                      ? PublicUnsavedPolicy::Discard
@@ -3304,10 +3315,10 @@ namespace Automation {
                 .importTimeSignature =
                     options.value(QStringLiteral("import_time_signatures")).toBool(true),
                 .planDigest = planDigest,
-                .revalidatePlan = planRevalidator(
-                    m_runtime, m_fileGuard, formats.get(), path, QStringLiteral("import"),
-                    format.get().id, planDigest, QStringLiteral("path"),
-                    QStringLiteral("plan_digest")),
+                .revalidatePlan =
+                    planRevalidator(m_runtime, m_fileGuard, formats.get(), path,
+                                    QStringLiteral("import"), format.get().id, planDigest,
+                                    QStringLiteral("path"), QStringLiteral("plan_digest")),
                 .mergeMode = QStringLiteral("append"),
             };
             return taskAcceptedResult(m_hostServices.importDocument(request));

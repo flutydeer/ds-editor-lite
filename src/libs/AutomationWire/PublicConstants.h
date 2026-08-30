@@ -24,6 +24,7 @@ namespace AutomationWire {
     inline constexpr int MaximumCommandCollectionItems = 1024;
     inline constexpr int MaximumCurveSampleItems = 65536;
     inline constexpr int MaximumAudioImportBatchItems = 64;
+    inline constexpr long long MaximumFormatInspectionBytes = 64LL * 1024 * 1024;
 
 }
 

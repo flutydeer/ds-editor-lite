@@ -45,6 +45,10 @@ namespace {
         QSemaphore release;
     };
 
+    struct ProjectInputTestControl {
+        std::function<Automation::AutomationResult<Automation::AutomationUnit>()> revalidateOpen;
+    };
+
     void expect(const bool condition, const QString &message) {
         if (condition)
             return;
@@ -62,7 +66,9 @@ namespace {
                             << ", " << failure.message << Qt::endl;
     }
 
-    Automation::PublicAutomationHostServices hostServices(Automation::CoreRuntime &runtime) {
+    Automation::PublicAutomationHostServices
+        hostServices(Automation::CoreRuntime &runtime,
+                     ProjectInputTestControl *projectInputControl = nullptr) {
         Automation::PublicAutomationHostServices services;
         services.documentStatus = [&runtime] {
             const auto document = runtime.documentVersion();
@@ -81,6 +87,15 @@ namespace {
             };
             return QJsonArray{entry, entry};
         };
+        if (projectInputControl) {
+            services.openDocument =
+                [projectInputControl](const Automation::PublicDocumentOpenRequest &request)
+                -> Automation::AutomationResult<Automation::TaskAcceptedResult> {
+                projectInputControl->revalidateOpen = request.revalidatePlan;
+                return Automation::AutomationError::invalidArgument(
+                    QStringLiteral("test"), QStringLiteral("Test host captured the open request"));
+            };
+        }
         return services;
     }
 
@@ -823,6 +838,62 @@ namespace {
         const bool discardedWorkerFinished = QThreadPool::globalInstance()->waitForDone(2000);
         expect(discardedWorkerFinished && !QFileInfo::exists(discardedPath),
                QStringLiteral("discarded document generations must not publish staged MIDI"));
+    }
+
+    void verifyProjectInputGuards(Automation::PublicAutomationRegistry &registry,
+                                  Automation::AutomationFileGuard &fileGuard,
+                                  const QString &directoryPath, ProjectInputTestControl &control) {
+        const auto projectPath =
+            QDir(directoryPath).absoluteFilePath(QStringLiteral("delayed-open.dspx"));
+        QFile project(projectPath);
+        const bool projectCreated =
+            project.open(QIODevice::WriteOnly | QIODevice::Truncate) && project.write("{}") == 2;
+        project.close();
+        expect(projectCreated, QStringLiteral("delayed open fixture must be created"));
+
+        const auto opened = registry.invoke(
+            QStringLiteral("documents.open"),
+            QJsonObject{
+                {QStringLiteral("path"),           projectPath             },
+                {QStringLiteral("unsaved_policy"), QStringLiteral("reject")},
+            });
+        expect(!opened && bool(control.revalidateOpen),
+               QStringLiteral("open without plan_digest must retain a start-time revalidator"));
+
+        const auto revokedRoot = QDir(directoryPath).absoluteFilePath(QStringLiteral("revoked"));
+        expect(QDir().mkpath(revokedRoot) &&
+                   bool(fileGuard.setConfiguredRoots({revokedRoot}, {directoryPath})),
+               QStringLiteral("read root must be replaceable before delayed open starts"));
+        if (control.revalidateOpen) {
+            const auto revalidated = control.revalidateOpen();
+            expect(!revalidated &&
+                       revalidated.getError().code ==
+                           Automation::AutomationErrorCode::PermissionDenied &&
+                       revalidated.getError().fieldPath == QStringLiteral("path"),
+                   QStringLiteral(
+                       "delayed open must observe revoked read access without a digest"));
+        }
+        expect(bool(fileGuard.setConfiguredRoots({directoryPath}, {directoryPath})),
+               QStringLiteral("project input roots must be restored"));
+
+        const auto oversizedPath =
+            QDir(directoryPath).absoluteFilePath(QStringLiteral("oversized.dspx"));
+        QFile oversized(oversizedPath);
+        const bool oversizedCreated =
+            oversized.open(QIODevice::WriteOnly) &&
+            oversized.resize(AutomationWire::MaximumFormatInspectionBytes + 1);
+        oversized.close();
+        expect(oversizedCreated, QStringLiteral("oversized inspection fixture must be created"));
+        const auto inspected = registry.invoke(
+            QStringLiteral("formats.inspect"),
+            QJsonObject{
+                {QStringLiteral("path"),    oversizedPath         },
+                {QStringLiteral("purpose"), QStringLiteral("open")},
+            });
+        expect(!inspected &&
+                   inspected.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+                   inspected.getError().fieldPath == QStringLiteral("path"),
+               QStringLiteral("formats.inspect must reject files above its synchronous limit"));
     }
 
     std::optional<PublicEditingFixture>
@@ -1582,7 +1653,19 @@ int main(int argc, char *argv[]) {
     };
 
     auto midiExportControl = std::make_shared<MidiExportTestControl>();
+    ProjectInputTestControl projectInputControl;
     Automation::FileRuntimeServices fileServices;
+    fileServices.listProjectFormats = [] {
+        return QList<Automation::ProjectFormatDto>{
+            {
+                .id = QStringLiteral("dspx"),
+                .displayName = QStringLiteral("DSPX"),
+                .extensions = {QStringLiteral("*.dspx")},
+                .canOpen = true,
+                .canImport = true,
+            },
+        };
+    };
     fileServices.exportMidi = [midiExportControl](AppModel *, const QString &path,
                                                   const Automation::MidiExportOptionsDto &,
                                                   QString &error) {
@@ -1614,8 +1697,9 @@ int main(int argc, char *argv[]) {
     limits.maximumBackgroundTasks = 1;
     Automation::AdmissionController admission(limits);
     Automation::PublicAutomationRegistry registry(runtime, access, fileGuard, admission,
-                                                  hostServices(runtime));
+                                                  hostServices(runtime, &projectInputControl));
 
+    verifyProjectInputGuards(registry, fileGuard, directory.path(), projectInputControl);
     verifyMidiExportPublicationGate(registry, runtime, directory.path(), *midiExportControl);
 
     const auto settingsBeforeAdvancedBindings = *settingsSnapshot;

@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <sstream>
+#include <utility>
 
 static QList<Note *> convertNotes(const std::vector<opendspx::Note> &arrNotes, const int offset,
                                   const QString &language, const QString &defaultLyric) {
@@ -253,18 +254,23 @@ MidiConverter::LoadStatus MidiConverter::loadInteractive(const QString &path, Ap
 }
 
 MidiParseData MidiFileParser::parse(const QString &path) {
-    MidiParseData result;
-    result.path = path;
-
     QFile midiFile(path);
     if (!midiFile.open(QIODevice::ReadOnly)) {
+        MidiParseData result;
+        result.path = path;
         result.errorMessage =
             QCoreApplication::translate("MidiConverter", "Failed to read MIDI file.\npath: %1")
                 .arg(path);
         return result;
     }
 
-    result.rawData = midiFile.readAll();
+    return parse(path, midiFile.readAll());
+}
+
+MidiParseData MidiFileParser::parse(const QString &path, QByteArray rawData) {
+    MidiParseData result;
+    result.path = path;
+    result.rawData = std::move(rawData);
     opendspx::MidiConverter converter;
     opendspx::MidiConverter::Error midiError;
     std::stringstream ss(result.rawData.toStdString(), std::ios::in);

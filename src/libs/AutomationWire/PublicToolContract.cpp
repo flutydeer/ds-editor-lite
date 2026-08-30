@@ -3851,6 +3851,13 @@ namespace AutomationWire {
                     "Read the canonical automation read/write roots and temporary file "
                     "grants enforced by the editor File Guard.");
             }
+            if (operationId == PublicToolNames::formats_inspect) {
+                return QStringLiteral(
+                           "Inspect an authorized project file before opening or importing it, "
+                           "including source and lyric previews, options, and a plan digest. "
+                           "Synchronous inspection accepts files up to %1 MiB.")
+                    .arg(MaximumFormatInspectionBytes / 1024 / 1024);
+            }
 
             if (isL3GuiOperation(operationId)) {
                 if (kind == OperationKind::Query) {

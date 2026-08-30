@@ -113,6 +113,7 @@ struct MidiParseData {
 class MidiFileParser {
 public:
     static MidiParseData parse(const QString &path);
+    static MidiParseData parse(const QString &path, QByteArray rawData);
 };
 
 // Tracks generated from parsed MIDI data, ready to be committed. Generation
