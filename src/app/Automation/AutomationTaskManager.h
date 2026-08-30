@@ -70,6 +70,7 @@ namespace Automation {
 
     class AutomationTaskManager final {
     public:
+        static constexpr qsizetype MaximumRetainedDocumentTasks = 128;
         static constexpr qsizetype MaximumRetainedApplicationTasks = 128;
 
         using CancelCallback = std::function<void()>;
@@ -128,6 +129,7 @@ namespace Automation {
 
         static bool isTerminal(AutomationTaskState state);
         static AutomationError notCancelable(const TaskId &taskId);
+        void retainTerminalDocumentLocked(const TaskId &taskId);
         void retainTerminalApplicationLocked(const TaskId &taskId);
         AutomationResult<AutomationTaskSnapshot> findLocked(const DocumentId &documentId,
                                                             const TaskId &taskId) const;
@@ -135,6 +137,7 @@ namespace Automation {
 
         mutable QMutex m_mutex;
         QHash<TaskId, Record> m_records;
+        QHash<DocumentId, QList<TaskId>> m_terminalDocumentOrder;
         QList<TaskId> m_terminalApplicationOrder;
     };
 

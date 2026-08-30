@@ -205,6 +205,8 @@ namespace Automation {
                 snapshot = it->snapshot;
                 if (it->snapshot.scope == AutomationTaskScope::Application)
                     retainTerminalApplicationLocked(taskId);
+                else
+                    retainTerminalDocumentLocked(taskId);
             } else {
                 if (it->snapshot.state != AutomationTaskState::Queued &&
                     it->snapshot.state != AutomationTaskState::Running) {
@@ -260,6 +262,7 @@ namespace Automation {
             it->unsuccessful = {};
             terminal = std::move(it->terminal);
             snapshot = it->snapshot;
+            retainTerminalDocumentLocked(taskId);
         }
         if (terminal)
             terminal(snapshot);
@@ -309,6 +312,8 @@ namespace Automation {
             snapshot = it->snapshot;
             if (it->snapshot.scope == AutomationTaskScope::Application)
                 retainTerminalApplicationLocked(taskId);
+            else
+                retainTerminalDocumentLocked(taskId);
         }
         if (unsuccessful)
             unsuccessful(snapshot);
@@ -337,6 +342,8 @@ namespace Automation {
             snapshot = it->snapshot;
             if (it->snapshot.scope == AutomationTaskScope::Application)
                 retainTerminalApplicationLocked(taskId);
+            else
+                retainTerminalDocumentLocked(taskId);
         }
         if (unsuccessful)
             unsuccessful(snapshot);
@@ -371,6 +378,7 @@ namespace Automation {
                 }
                 it = m_records.erase(it);
             }
+            m_terminalDocumentOrder.remove(documentId);
         }
         notifyRemovedTasks(removedTasks);
     }
@@ -402,6 +410,7 @@ namespace Automation {
                 }
                 it = m_records.erase(it);
             }
+            m_terminalDocumentOrder.remove(oldDocumentId);
         }
         notifyRemovedTasks(removedTasks);
     }
@@ -422,6 +431,16 @@ namespace Automation {
         error.taskId = taskId;
         error.message = QStringLiteral("Automation task can no longer be canceled");
         return error;
+    }
+
+    void AutomationTaskManager::retainTerminalDocumentLocked(const TaskId &taskId) {
+        const auto record = m_records.constFind(taskId);
+        if (record == m_records.cend())
+            return;
+        auto &order = m_terminalDocumentOrder[record->snapshot.baseDocument.documentId];
+        order.append(taskId);
+        while (order.size() > MaximumRetainedDocumentTasks)
+            m_records.remove(order.takeFirst());
     }
 
     void AutomationTaskManager::retainTerminalApplicationLocked(const TaskId &taskId) {

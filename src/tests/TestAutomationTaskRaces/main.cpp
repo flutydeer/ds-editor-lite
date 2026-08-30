@@ -256,6 +256,48 @@ namespace {
                "terminal application history must be bounded without evicting active tasks");
     }
 
+    void testDocumentTaskRetention(Checks &checks) {
+        checks.scenario("document terminal task history remains bounded per generation");
+
+        Automation::AutomationTaskManager tasks;
+        const auto document = Automation::DocumentVersion{Automation::DocumentId::create(), 4};
+        const auto otherDocument = Automation::DocumentVersion{Automation::DocumentId::create(), 2};
+        const auto active = tasks.createTask(Automation::OperationIds::inference::start, document);
+        EXPECT(checks, tasks.markRunning(active.taskId),
+               "the document retention fixture must keep one active task");
+
+        const auto other = tasks.createTask(Automation::OperationIds::inference::start, otherDocument);
+        const auto otherCommit = tasks.beginCommitting(other.taskId);
+        EXPECT(checks,
+               otherCommit && otherCommit.get() &&
+                   tasks.succeed(other.taskId,
+                                 {.previous = otherDocument, .current = otherDocument}),
+               "a second document generation must retain its own terminal history");
+
+        QList<Automation::TaskId> terminalIds;
+        for (qsizetype index = 0;
+             index <= Automation::AutomationTaskManager::MaximumRetainedDocumentTasks; ++index) {
+            const auto terminal =
+                tasks.createTask(Automation::OperationIds::inference::start, document);
+            terminalIds.append(terminal.taskId);
+            const auto enteredCommit = tasks.beginCommitting(terminal.taskId);
+            EXPECT(checks,
+                   enteredCommit && enteredCommit.get() &&
+                       tasks.succeed(terminal.taskId,
+                                     {.previous = document, .current = document}),
+                   "document history fixture tasks must reach a terminal state");
+        }
+        EXPECT(checks,
+               tasks.list(document.documentId).size() ==
+                       Automation::AutomationTaskManager::MaximumRetainedDocumentTasks + 1 &&
+                   !tasks.get(document.documentId, terminalIds.first()) &&
+                   tasks.get(document.documentId, terminalIds.last()) &&
+                   tasks.get(document.documentId, active.taskId) &&
+                   tasks.get(otherDocument.documentId, other.taskId),
+               "terminal document history must be bounded per generation without evicting active "
+               "or unrelated tasks");
+    }
+
     struct CancelRaceOutcome {
         bool succeeded = false;
         Automation::AutomationTaskState state = Automation::AutomationTaskState::Queued;
@@ -920,6 +962,7 @@ int main(int argc, char *argv[]) {
 
     testTaskManagerStateBoundaries(checks);
     testApplicationTaskScope(checks);
+    testDocumentTaskRetention(checks);
     testCancelVersusCommitStress(checks);
     testDuplicateCompletionStress(checks);
     testSessionGenerationContract(checks);
