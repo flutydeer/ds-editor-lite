@@ -76,6 +76,9 @@ Dispatcher 的幂等处理为显式 opt-in。只有工具支持且请求实际�
 请求指纹并进入幂等存储；不带 key 的调用不哈希、不创建幂等记录。公开 key 的 128 字符上限与
 每个 document generation 最近 256 个成功键的 FIFO 保留上限均通过边界测试。
 
+应用级 Task 的活动记录不受历史清理影响，终态只保留最近 128 项；边界测试确认第 129 项完成后
+最旧终态不可再查询，而最新终态与既有活动任务仍可查询。
+
 瞬时播放命令不再公开或维护 playback state version，`play/pause/stop/seek` 以目标状态或位置
 执行并保留 `idempotentHint`；重复 pause 返回 `changed=false`。三个持久循环工具只校验文档
 revision。L3 的选择、定位、面板和视口命令不修改工程，也不要求 `expected_revision`；除
@@ -138,9 +141,12 @@ Bootstrap 错误分类回归通过：不存在 Editor 引导端点时，Connecto
 仍按需返回 Schema，因此收益较小但未回退。基准插桩只用于仓库外测量，未进入产品或测试代码。
 
 协议与进程验证覆盖 2025-11-25 `initialize/initialized`、2026-07-28
-`server/discover`、2025-06-18 兼容握手、loopback HTTP、QLocal watch、stdio 大帧、并发乱序、
-取消、timeout、EOF、broken pipe、重连和旧 epoch 隔离。Connector 常规握手分页读取
+`server/discover`、2025-06-18 兼容握手、legacy session 有界淘汰与 DELETE 结束、loopback HTTP、
+QLocal watch、stdio 大帧、并发乱序、取消、timeout、EOF、broken pipe、重连和旧 epoch 隔离。Connector 常规握手分页读取
 `tools/list` 后只读取 `application.get_status` 的轻量状态，不为 177 项 Schema 做兼容重算。
+
+音频准备回归确认哈希与临时快照由同一次读取产生，导入解码只读取该快照；源文件随后变化不会
+使已准备的摘要与解码内容分离。
 
 协议与真实联调结果：**通过**。Connector 使用 2025-11-25 完成下游握手，并以
 2026-07-28 连接 Editor 上游；自动化协议兼容路径通过完整 CTest。真实会话通过

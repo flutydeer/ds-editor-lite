@@ -145,7 +145,7 @@ Connector 桥接工具：6
 - `documents.save_as`、`documents.import_batch`、`audio_clips.import_batch`、三项复杂设置更新以及歌词规则 create/update 的 validate-only 执行完整校验，且不产生 ID、Task、文件写入、历史记录、revision 或业务通知；其他命令拒绝该额外字段。
 - 批量命令先完整预检，再以一条历史记录和一次 revision 提交。
 - handler、I/O、Schema 编码和 host adapter 失败不产生半提交。
-- `audio_clips.relocate` 与 `audio_clips.confirm_path` 同步完成校验、解码/hash 和最终写回，返回 Mutation，不创建 Task。
+- `audio_clips.import*`、`relocate` 与 `confirm_path` 的 SHA-512 和解码结果来自同一临时字节快照；同步工具完成校验和最终写回后返回 Mutation，不创建 Task。
 - `playback.set_loop`、`set_loop_enabled` 与 `clear_loop` 修改工程持久状态，各自产生一条可撤销、可重做的历史记录；瞬时播放命令不进入历史记录，播放头在调用间变化不造成冲突，重复目标调用返回 no-op。
 - Speaker Mix 预设 save/delete 不改变文档 revision 或 History；apply 只形成一条文档历史记录，后续直接编辑将来源标记为 dirty。
 - 创建、插入和合并锚点曲线分别形成单条历史记录；非法重叠、非相邻合并和跨曲线移动在提交前失败。
@@ -156,6 +156,7 @@ Connector 桥接工具：6
 - Queued、Running、CancelRequested、Committing 和各终态遵守允许迁移。
 - 排队/运行取消、重复取消、终态取消和提交点取消分别覆盖。
 - Editor 重启、文档 generation 更换、revision 前进、目标消失和晚到结果不能写入错误文档；文档 generation 清理不得误删 application task。
+- application task 的活动记录全部保留；终态历史超过 128 项时只淘汰最旧终态，不影响活动任务。
 - 最终成功在业务写回、历史记录/revision 和信号完成后发布。
 - MCP/Connector 断线后已接受任务仍可通过 `tasks.list/get/cancel` 观察和管理。
 - 结果未知场景通过 idempotency、revision 或 Task 查询确认，Connector 不重放有副作用请求。
@@ -208,7 +209,9 @@ Connector 桥接工具：6
 
 - `MCP-Protocol-Version`、`Mcp-Method`、`Mcp-Name` 与 body 镜像一致。
 - header Base64 sentinel、Unicode、控制符、前后空格、重复 header 和大小写规则。
-- 仅 `POST /mcp`，notification 返回 202；method、Content-Type 和 Accept 行为符合约定。
+- POST 承载 request/notification 且 notification 返回 202；legacy session 可由带 session 与协议 header
+  的 DELETE 结束，缺失/重复 header、版本不符、未知或重复结束均返回稳定状态。
+- legacy session 最多保留 128 个，超限只淘汰最早建立的会话。
 - 单消息、非法 JSON、数组/batch、错误 id、超大 body、深度、节点、响应体和 deadline。
 - listener 仅为 `127.0.0.1`；Host、Origin、DNS rebinding、CORS 与远端地址拒绝矩阵。
 - shutdown 先停止 admission，再结束在途请求并释放端口。

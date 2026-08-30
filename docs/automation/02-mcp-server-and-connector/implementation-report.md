@@ -163,6 +163,9 @@ Closed World Command，不提供 `force`、`validate_only`、幂等键或任意�
 
 文档打开、导入和批量导入复用 Project Format Registry 与 `IProjectLoadSession`。自动化 host adapter 使用 `interactive=false` 创建 headless session，格式选项由严格 Schema 提供，不打开配置对话框；Task 保留文档 generation 和调用者归因，最终通过 Document Facade 完成换代或单条历史记录导入。
 
+音频导入、重定位和路径确认在一次顺序读取中同时生成 SHA-512 与临时文件快照，随后只解码该快照；
+提交仍记录原始授权路径，但摘要与解码结果必定来自同一组字节。临时快照随准备任务结束清理，不进入工程。
+
 MIDI 路径拆为可复用的两段：
 
 1. `MidiFileParser` 读取并解析为可复用中间数据，不修改 Model；
@@ -204,7 +207,7 @@ GUI 进阶控制按真实面板层级归入 `workspace`、`track_panel` 和 `cli
 
 公开 `idempotency_key` 收敛到 `tracks.insert`、`clips.insert/duplicate`、`audio_clips.import*`、`speaker_mix.keyframes.insert`、`notes.insert/duplicate/split_at`、`parameters.create_anchor_curve/insert_anchors` 和 `extract.*.start`。这些操作能够以稳定结果安全去重；key 最长 128 个字符，每个 document generation 以 FIFO 保留最近 256 个成功键。`documents.import*`、`inference.start` 及其余普通文档写操作只使用文档 revision 或 Task 状态处理冲突。瞬时 GUI 与播放目标状态命令不依赖客户端版本令牌，并通过 MCP `idempotentHint` 表达可安全重复调用。
 
-异步工具由 `AutomationTaskManager` 管理 Queued、Running、CancelRequested、Committing 和终态。Task 记录 operation、基准文档、创建者、进度、结果或错误；最终写回前复核 generation、revision、对象和文件授权。Connector 在有副作用请求的结果事实不明确时返回 `outcome_unknown`，不自动重放 Command。
+异步工具由 `AutomationTaskManager` 管理 Queued、Running、CancelRequested、Committing 和终态。Task 记录 operation、基准文档、创建者、进度、结果或错误；最终写回前复核 generation、revision、对象和文件授权。应用级活动任务不被清理，终态历史按完成顺序有界保留最近 128 项。Connector 在有副作用请求的结果事实不明确时返回 `outcome_unknown`，不自动重放 Command。
 
 ## 7. Profile、Custom、File Guard 与 Admission
 
@@ -230,7 +233,7 @@ Wire 和 Editor MCP 同时实现两套主协议：
 
 同一 legacy 入口接受客户端以 **2025-06-18** 发起握手，回显协商版本并完成 initialize/initialized 生命周期。2026-07-28 请求使用 `MCP-Protocol-Version`、`Mcp-Method`，`tools/call` 还校验 `Mcp-Name`；协议版本决定现代或 legacy 的结果塑形、server metadata 与 structured content 表达。
 
-`McpHttpServer` 仅监听数值 loopback 地址，固定路由为 `POST /mcp`。Transport 校验本机地址、Host、Origin、Content-Type、Accept、请求元数据、JSON 资源上限、请求/响应大小和 deadline；notification 接受后返回 HTTP 202。有序停止先关闭 admission，再等待或终止在途工作并释放 listener。
+`McpHttpServer` 仅监听数值 loopback 地址，固定路由为 `/mcp`。POST 承载请求与 notification，legacy 客户端可用带 session 与协议 header 的 DELETE 主动结束会话；服务端最多保留 128 个 legacy session，超限淘汰最早建立者。Transport 校验本机地址、Host、Origin、method、Content-Type、Accept、请求元数据、JSON 资源上限、请求/响应大小和 deadline；notification 接受后返回 HTTP 202。有序停止先关闭 admission，再等待或终止在途工作并释放 listener 与会话。
 
 ## 9. QLocal Bootstrap 与 DS Connector Lite
 

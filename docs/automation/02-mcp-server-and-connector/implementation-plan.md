@@ -181,6 +181,7 @@ Editor 在数值 loopback 地址提供：
 
 ```text
 POST http://127.0.0.1:<port>/mcp
+DELETE http://127.0.0.1:<port>/mcp  # 结束 legacy session
 ```
 
 协议层实现两套主协议契约：
@@ -196,9 +197,11 @@ HTTP 层实施：
 
 - 仅监听 `127.0.0.1`；
 - Host 与 Origin allowlist；
-- POST、Content-Type 与 Accept 校验；
+- POST/DELETE、Content-Type 与 Accept 校验；
 - 请求/响应字节、JSON 深度/节点和 deadline 上限；
 - 全局最多 32 个在途请求；超限立即拒绝，不排队；
+- legacy session 最多保留 128 个，超限按建立顺序淘汰；客户端可携带 session 与协议 header
+  通过 DELETE 主动结束会话；
 - 安全响应头与稳定 transport error；
 - 有序停止、在途请求完成或超时、配额可靠释放。
 
@@ -284,7 +287,7 @@ Editor 直连、Connector 类型化工具和泛化 invoke 进入同一个 Guard�
 全局 32 路硬上限。不设置 client/peer/domain 配额、令牌桶或公平排队。超限请求立即得到稳定
 `busy` 或 `too_many_requests`，不进入业务 handler；请求和 Task 终结时释放计数。
 
-修改工程或保存点的 Command 使用显式 `document_id + expected_revision`；只修改瞬时播放、选择、面板和视口状态的 Command 使用目标 document/window 身份但不要求 revision。异步任务保留不可变执行快照，并在最终写回前复核 document generation、revision 和文件授权。断线时 Connector 不自动重放有副作用 Command，结果事实无法确认时返回 `outcome_unknown`，由调用方结合 revision、Task 和 idempotency 信息确认。
+修改工程或保存点的 Command 使用显式 `document_id + expected_revision`；只修改瞬时播放、选择、面板和视口状态的 Command 使用目标 document/window 身份但不要求 revision。异步任务保留不可变执行快照，并在最终写回前复核 document generation、revision 和文件授权；应用级活动任务全部保留，终态历史只保留最近 128 项。断线时 Connector 不自动重放有副作用 Command，结果事实无法确认时返回 `outcome_unknown`，由调用方结合 revision、Task 和 idempotency 信息确认。
 
 ## 12. 设置页、CLI 与运行时生命周期
 

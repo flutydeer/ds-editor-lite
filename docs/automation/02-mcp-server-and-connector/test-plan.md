@@ -168,6 +168,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 18. 对 settings.query 与设置更新的公共 allowlist、domain 过滤、候选/生效/重启信息、稀疏更新、持久化和失败回滚进行分形状代表覆盖；validate-only 只覆盖音频设备、计算设备和包搜索路径更新，其他设置 update 必须拒绝该字段。
 19. 对 packages.list/describe/refresh 验证读取根内路径、有效搜索路径、application task 的成功/取消/部分失败，以及索引原子切换。
 20. 对 lyric_rules 验证稳定 ID 迁移、内置/自定义边界、CRUD、启停、分类内移动、非法规则回滚和 splitter→tagger 只读测试。
+21. 验证音频导入、重定位和路径确认的 SHA-512 与解码结果来自同一临时快照；验证应用级活动任务不被终态历史上限淘汰，且只保留最近 128 项终态。
 
 ### 证据
 
@@ -195,10 +196,12 @@ Registry、Editor 发现面与 Contract 集合关系精确；公共 Schema 全�
 7. 验证 Host、Origin、method、Content-Type、Accept、body/depth/node/response 上限和 deadline。
 8. 验证 global 32 路硬上限、background 8 路容量、timeout、disable、换端口和 shutdown
    计数释放；同时发出 32 个请求应全部进入，第 33 个在途请求应被拒绝且不排队。
+9. 验证 legacy session 的 128 项上限、最旧会话淘汰，以及 DELETE 正常结束、重复结束、未知
+   session 和协议版本不符。
 
 ### 门禁
 
-两套主协议和 2025-06-18 兼容握手/会话都形成证据；HTTP 安全与全局准入上限在 handler 前生效；Server 停止后无残留 listener 或在途计数。
+两套主协议和 2025-06-18 兼容握手/会话都形成证据；HTTP 安全、全局准入和 legacy session 保留上限生效；Server 停止后无残留 listener、session 或在途计数。
 
 ## 11. 阶段 E：QLocal Bootstrap
 

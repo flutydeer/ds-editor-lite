@@ -42,7 +42,9 @@ opt-in 幂等均通过完整 CTest；测试不再为每个 Operation 复制同�
 - 合法 no-op、单 History、单 revision、Undo/Redo 与分支截断；
 - 显式幂等重放、冲突、并发去重、失败释放与 generation 隔离；
 - Task 的 Queued、Running、CancelRequested、Committing 和稳定终态；
+- 应用级活动任务保留与最近 128 项终态历史的有界淘汰；
 - cancel/commit、对象删除、revision 前进、文档换代与晚到写回竞态；
+- 音频哈希与导入解码共享同一字节快照，源路径后续变化不改变已准备内容的摘要；
 - 轨道、片段、音符、参数、Speaker Mix、时间轴、播放、设置、文件和推理领域行为。
 
 一致性与竞态实测结果：**通过**。幂等重放按工具显式能力生效；真实联调中的陈旧 revision

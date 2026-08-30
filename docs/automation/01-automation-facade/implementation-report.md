@@ -63,12 +63,14 @@ MCP、Headless 宿主和多文档产品行为不在 Facade 层实现。GUI、内
 
 - 任务状态统一为 Queued、Running、CancelRequested、Committing 和稳定终态。
 - Committing 是不可取消点；重复完成、取消竞争和晚到回调最多产生一次最终提交。
+- 文档任务按 generation 隔离；应用级活动任务全部保留，终态历史按完成顺序有界保留最近 128 项。
 - 任务只捕获 DocumentId、base revision、OperationId、对象 ID 和不可变输入快照，不依赖跨线程
   Model/Track/Clip/Note 裸指针提交。
 - 推理以 clip revision、piece 输入签名、音符归属和声线快照复检目标；合法兄弟分段可在同一
   DocumentId 内依次重基提交，旧 generation 或输入变化仍被拒绝。
-- 音频解析、解码、哈希和状态写回使用 source generation 与各操作实际依赖的指纹；可重建缓存
-  不增 revision/History，持久化结果仍遵守统一提交规则。
+- 音频解析、解码、哈希和状态写回使用 source generation 与各操作实际依赖的指纹；导入、重定位
+  和路径确认的哈希与解码读取同一份临时快照；可重建缓存不增 revision/History，持久化结果仍
+  遵守统一提交规则。
 - Save、Save As、Import 的 busy 窗口会延期已完成任务的提交；New/Open 换代后旧任务只能结束，
   不能写入新文档。
 
