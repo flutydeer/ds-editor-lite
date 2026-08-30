@@ -25,6 +25,8 @@ namespace AutomationWire::Mcp {
     inline constexpr auto ClientCapabilitiesMetaKey = "io.modelcontextprotocol/clientCapabilities";
     inline constexpr auto ClientInfoMetaKey = "io.modelcontextprotocol/clientInfo";
     inline constexpr auto ServerInfoMetaKey = "io.modelcontextprotocol/serverInfo";
+    inline constexpr auto ConnectorInstanceIdMetaKey =
+        "com.openvpi.ds-editor-lite/connectorInstanceId";
 
     inline constexpr auto InitializeMethod = "initialize";
     inline constexpr auto InitializedNotification = "notifications/initialized";

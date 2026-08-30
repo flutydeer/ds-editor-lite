@@ -176,7 +176,7 @@ namespace {
     QJsonObject withConnectorInstanceId(QJsonObject request, const QString &instanceId) {
         auto params = request.value(QStringLiteral("params")).toObject();
         auto meta = params.value(QStringLiteral("_meta")).toObject();
-        meta.insert(QStringLiteral("com.openvpi.ds-editor-lite/connectorInstanceId"), instanceId);
+        meta.insert(QString::fromLatin1(Mcp::ConnectorInstanceIdMetaKey), instanceId);
         params.insert(QStringLiteral("_meta"), meta);
         request.insert(QStringLiteral("params"), params);
         return request;
@@ -330,10 +330,9 @@ int main(int argc, char *argv[]) {
         const QMutexLocker locker(&observationMutex);
         directClientB = observedClientId;
     }
-    expect(
-        directResultA.status == 200 && directResultB.status == 200 && !directClientA.isEmpty() &&
-            directClientA == directClientB,
-        QStringLiteral("a modern direct client identity must survive HTTP connection changes"));
+    expect(directResultA.status == 200 && directResultB.status == 200 && !directClientA.isEmpty() &&
+               !directClientB.isEmpty() && directClientA != directClientB,
+           QStringLiteral("independent direct clients must have isolated connection identities"));
 
     auto distinctDirectDiscover =
         requestObject(QString::fromLatin1(Mcp::DiscoverMethod), QStringLiteral("direct-distinct"));
@@ -995,12 +994,14 @@ int main(int argc, char *argv[]) {
         acquireWhileProcessing(cancellationContextEntered, 2000);
     expect(modernCancellationContextBlocked,
            QStringLiteral("the modern cancellation fixture must block the handler executor"));
-    const auto modernCanceledCall = requestObject(
-        QString::fromLatin1(Mcp::ToolsCallMethod), QStringLiteral("modern-cancel-before-dispatch"),
-        QJsonObject{
-            {QStringLiteral("name"),      QStringLiteral("mutating.test")},
-            {QStringLiteral("arguments"), QJsonObject{}                  },
-        });
+    const auto modernCanceledCall = withConnectorInstanceId(
+        requestObject(QString::fromLatin1(Mcp::ToolsCallMethod),
+                      QStringLiteral("modern-cancel-before-dispatch"),
+                      QJsonObject{
+                          {QStringLiteral("name"),      QStringLiteral("mutating.test")},
+                          {QStringLiteral("arguments"), QJsonObject{}                  },
+                      }),
+        QStringLiteral("modern-cancel-instance"));
     auto *modernCanceledReply = startRequest(
         cancellationRequestManager,
         baseRequest(cancellationEndpoint, QString::fromLatin1(Mcp::ToolsCallMethod),
@@ -1011,12 +1012,14 @@ int main(int argc, char *argv[]) {
         QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
         QThread::msleep(1);
     }
-    const auto modernCancellationNotification = requestObject(
-        QString::fromLatin1(Mcp::CancelledNotification), QJsonValue(QJsonValue::Undefined),
-        QJsonObject{
-            {QStringLiteral("requestId"), QStringLiteral("modern-cancel-before-dispatch")},
-            {QStringLiteral("reason"),    QStringLiteral("test cancellation")            },
-        });
+    const auto modernCancellationNotification = withConnectorInstanceId(
+        requestObject(
+            QString::fromLatin1(Mcp::CancelledNotification), QJsonValue(QJsonValue::Undefined),
+            QJsonObject{
+                {QStringLiteral("requestId"), QStringLiteral("modern-cancel-before-dispatch")},
+                {QStringLiteral("reason"),    QStringLiteral("test cancellation")            },
+            }),
+        QStringLiteral("modern-cancel-instance"));
     const auto modernCancellationResult = send(
         cancellationNotificationManager,
         baseRequest(cancellationEndpoint, QString::fromLatin1(Mcp::CancelledNotification)),

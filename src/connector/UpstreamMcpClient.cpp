@@ -229,9 +229,15 @@ namespace DsConnector {
         if (legacy && method == QString::fromLatin1(AutomationWire::Mcp::InitializeMethod))
             m_sessionId.clear();
         const auto sessionId = legacy ? m_sessionId : QByteArray{};
-        const auto message = AutomationWire::Mcp::makeRequest(
+        auto message = AutomationWire::Mcp::makeRequest(
             method, std::move(params),
             requestContext(m_connectorInstanceId, m_connectorVersion, protocolVersion), upstreamId);
+        auto messageParams = message.value(QStringLiteral("params")).toObject();
+        auto messageMeta = messageParams.value(QStringLiteral("_meta")).toObject();
+        messageMeta.insert(QString::fromLatin1(AutomationWire::Mcp::ConnectorInstanceIdMetaKey),
+                           m_connectorInstanceId);
+        messageParams.insert(QStringLiteral("_meta"), messageMeta);
+        message.insert(QStringLiteral("params"), messageParams);
 
         QNetworkRequest request(m_endpoint);
         request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
@@ -306,9 +312,7 @@ namespace DsConnector {
         const auto protocolVersion = it->protocolVersion;
         const auto method = it->method;
         const auto notification = it->notification;
-        if (notifyPeer && !notification &&
-            AutomationWire::Mcp::isLegacyProtocolVersion(protocolVersion) &&
-            protocolVersion == m_protocolVersion &&
+        if (notifyPeer && !notification && protocolVersion == m_protocolVersion &&
             method != QString::fromLatin1(AutomationWire::Mcp::InitializeMethod)) {
             QJsonObject params{
                 {QStringLiteral("requestId"), upstreamId}

@@ -597,7 +597,12 @@ namespace {
             if (modern) {
                 headersValid &= headers.value("mcp-protocol-version") ==
                                     QByteArray(AutomationWire::Mcp::ProtocolVersion) &&
-                                headers.value("mcp-method") == request.method.toUtf8();
+                                headers.value("mcp-method") == request.method.toUtf8() &&
+                                !request.meta
+                                     .value(QString::fromLatin1(
+                                         AutomationWire::Mcp::ConnectorInstanceIdMetaKey))
+                                     .toString()
+                                     .isEmpty();
             } else {
                 const auto initialize =
                     request.method == QString::fromLatin1(AutomationWire::Mcp::InitializeMethod);
@@ -2189,9 +2194,9 @@ namespace {
                                     .value(QStringLiteral("pending_request_count"))
                                     .toInt() == 0;
                      }) &&
-                         responses.isEmpty() && http.cancelledNotificationCount == 0,
-                     "modern cancellation must close the upstream request without forwarding the "
-                     "legacy notification or emitting a response");
+                         responses.isEmpty() && http.cancelledNotificationCount == 1,
+                     "modern cancellation must close the upstream request, notify the editor, and "
+                     "emit no downstream response");
         http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::Success;
 
         server.processLine(

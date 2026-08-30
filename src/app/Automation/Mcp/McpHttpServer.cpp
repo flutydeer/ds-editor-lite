@@ -172,8 +172,8 @@ namespace Automation {
         QString clientIdFor(const Mcp::RequestEnvelope &request,
                             const QHttpServerRequest &httpRequest,
                             const std::optional<QString> &sessionClientId) {
-            const auto connectorMetadata = request.meta.value(
-                QStringLiteral("com.openvpi.ds-editor-lite/connectorInstanceId"));
+            const auto connectorMetadata =
+                request.meta.value(QString::fromLatin1(Mcp::ConnectorInstanceIdMetaKey));
             const auto hasConnectorIdentity =
                 connectorMetadata.isString() && !connectorMetadata.toString().isEmpty() &&
                 connectorMetadata.toString().size() <= 128;
@@ -184,9 +184,12 @@ namespace Automation {
             };
             if (hasConnectorIdentity) {
                 identity.insert(QStringLiteral("connectorMetadata"), connectorMetadata.toString());
-            } else if (request.clientInfo) {
-                identity.insert(QStringLiteral("clientName"), request.clientInfo->name);
-                identity.insert(QStringLiteral("clientVersion"), request.clientInfo->version);
+            } else {
+                identity.insert(QStringLiteral("remotePort"), httpRequest.remotePort());
+                if (request.clientInfo) {
+                    identity.insert(QStringLiteral("clientName"), request.clientInfo->name);
+                    identity.insert(QStringLiteral("clientVersion"), request.clientInfo->version);
+                }
             }
             const auto digest = QCryptographicHash::hash(
                 QJsonDocument(identity).toJson(QJsonDocument::Compact), QCryptographicHash::Sha256);
