@@ -4,6 +4,7 @@
 #include "Automation/AudioExportAutomationAdapter.h"
 #include "Automation/CoreRuntime.h"
 #include "AudioContext.h"
+#include "AudioFilePublisher.h"
 #include "AudioExporter_p.h"
 #include "Controller/AppController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
@@ -875,19 +876,23 @@ namespace Audio {
         d->pendingTemporaryFiles.clear();
         d->temporaryFileList.clear();
 
-        auto temporaryFileErrorString = tr("Cannot rename temporary files to target files");
-        bool failFlag = false;
-        for (const auto &filename : pendingTemporaryFiles.keys()) {
-            QFile::remove(filename);
-            auto temporaryFile = QFile(pendingTemporaryFiles.value(filename));
-            if (!temporaryFile.rename(filename)) {
-                temporaryFileErrorString += "\n" + filename;
-                setErrorString(temporaryFileErrorString);
-                failFlag = true;
-                d->temporaryFileList.append(temporaryFile.fileName());
+        const auto publication = publishAudioFiles(pendingTemporaryFiles);
+        d->temporaryFileList = publication.remainingTemporaryFiles;
+        if (!publication.succeeded()) {
+            auto message = tr("Cannot publish temporary audio file: %1")
+                               .arg(publication.failedTarget);
+            if (!publication.recoveryFailures.isEmpty()) {
+                message += tr("\nCannot restore original audio files:");
+                for (const auto &path : publication.recoveryFailures)
+                    message += QStringLiteral("\n") + path;
             }
+            setErrorString(message);
+            return R_Fail;
         }
-        return failFlag ? R_Fail : R_Ok;
+        for (const auto &path : publication.backupCleanupFailures) {
+            addWarning(tr("Cannot remove audio export backup file: %1").arg(path));
+        }
+        return R_Ok;
     }
 
     void AudioExporter::cleanUp() {

@@ -2,6 +2,8 @@
 #include <lite/ProjectConverters/MidiConverter.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 
+#include "Modules/Audio/AudioFilePublisher.h"
+
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
@@ -130,13 +132,44 @@ namespace {
             },
             [](const QByteArray &output) { return output.startsWith("MThd"); });
     }
+
+    void testAudioPublicationRollback() {
+        QTemporaryDir directory;
+        const auto firstTarget = directory.filePath(QStringLiteral("a.wav"));
+        const auto secondTarget = directory.filePath(QStringLiteral("b.wav"));
+        const auto firstTemporary = directory.filePath(QStringLiteral("a.exporting"));
+        const auto missingTemporary = directory.filePath(QStringLiteral("b.exporting"));
+        const auto fixtureReady =
+            directory.isValid() && writeFile(firstTarget, QByteArrayLiteral("original-a")) &&
+            writeFile(secondTarget, QByteArrayLiteral("original-b")) &&
+            writeFile(firstTemporary, QByteArrayLiteral("replacement-a"));
+        expect(fixtureReady,
+               QStringLiteral("audio publication fixtures must be created"));
+        if (!fixtureReady)
+            return;
+
+        const auto result = Audio::Internal::publishAudioFiles({
+            {firstTarget, firstTemporary},
+            {secondTarget, missingTemporary},
+        });
+        expect(!result.succeeded() && result.failedTarget == secondTarget,
+               QStringLiteral("missing staged audio must fail publication"));
+        expect(readFile(firstTarget) == QByteArrayLiteral("original-a") &&
+                   readFile(secondTarget) == QByteArrayLiteral("original-b"),
+               QStringLiteral("failed separated audio publication must restore every target"));
+        expect(directoryEntries(directory.path()) ==
+                   QStringList{QFileInfo(firstTarget).fileName(),
+                               QFileInfo(secondTarget).fileName()},
+               QStringLiteral("audio publication rollback must remove staged and backup files"));
+    }
 }
 
 int main(int argc, char *argv[]) {
     QCoreApplication application(argc, argv);
     testDspxAtomicWrite();
     testMidiAtomicWrite();
+    testAudioPublicationRollback();
     if (failures == 0)
-        QTextStream(stdout) << "Validated atomic DSPX and MIDI replacement" << Qt::endl;
+        QTextStream(stdout) << "Validated atomic DSPX, MIDI, and audio replacement" << Qt::endl;
     return failures == 0 ? 0 : 1;
 }
