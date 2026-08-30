@@ -517,16 +517,8 @@ namespace Automation {
             }
         }
 
-        const auto result = job->execute(taskObserver);
-        if (reauthorize) {
-            auto authorized = reauthorize();
-            if (!authorized) {
-                m_tasks.fail(taskId, taskError(authorized.getError(), taskId));
-                cleanup();
-                removeJobRecord(taskId);
-                return;
-            }
-        }
+        const auto deferPublish = static_cast<bool>(reauthorize);
+        const auto result = job->execute(taskObserver, deferPublish);
         if (result.state == AudioExportBackendState::Canceled ||
             m_tasks.isCancellationRequested(taskId)) {
             m_tasks.cancel(taskId);
@@ -552,12 +544,36 @@ namespace Automation {
             removeJobRecord(taskId);
             return;
         }
+        if (reauthorize) {
+            auto authorized = reauthorize();
+            if (!authorized) {
+                m_tasks.fail(taskId, taskError(authorized.getError(), taskId));
+                cleanup();
+                removeJobRecord(taskId);
+                return;
+            }
+        }
         const auto currentDocument = resolved.get().get().version();
         const auto committing = m_tasks.beginCommitting(taskId);
         if (!committing || !committing.get()) {
             cleanup();
             removeJobRecord(taskId);
             return;
+        }
+        if (deferPublish) {
+            const auto published = job->publish();
+            if (published.state != AudioExportBackendState::Succeeded) {
+                AutomationError error;
+                error.code = AutomationErrorCode::IoError;
+                error.taskId = taskId;
+                error.message = published.errorMessage.isEmpty()
+                                    ? QStringLiteral("Audio export publication failed")
+                                    : published.errorMessage;
+                m_tasks.fail(taskId, std::move(error));
+                cleanup();
+                removeJobRecord(taskId);
+                return;
+            }
         }
         MutationResult mutation;
         mutation.previous = currentDocument;

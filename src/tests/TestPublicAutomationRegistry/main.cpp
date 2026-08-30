@@ -7,6 +7,7 @@
 #include <lite/AutomationWire/JsonSchema.h>
 #include <lite/AutomationWire/PublicConstants.h>
 #include <lite/AutomationWire/PublicToolContract.h>
+#include <lite/ProjectModel/AppModel/Clip.h>
 
 #include <QCoreApplication>
 #include <QDir>
@@ -18,6 +19,7 @@
 #include <QVersionNumber>
 
 #include <algorithm>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -1599,6 +1601,31 @@ int main(int argc, char *argv[]) {
                                        registrySingerV2, registrySpeakerV2, registrySpeakerV2B);
         access.update(AutomationWire::AutomationProfile::L3);
         verifyAdvancedGuiBindings(registry, runtime, *publicEditingFixture);
+
+        auto *longClip = fixture.model().findClipById(publicEditingFixture->scalarClipId.value());
+        if (longClip) {
+            longClip->setStart(1);
+            longClip->setLength(std::numeric_limits<int>::max());
+        }
+        const auto rangedClips = registry.invoke(
+            QStringLiteral("clips.list"),
+            QJsonObject{
+                {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()},
+                {QStringLiteral("range"),
+                 QJsonObject{
+                     {QStringLiteral("start"), std::numeric_limits<int>::max() - 1},
+                     {QStringLiteral("end"),   std::numeric_limits<int>::max()    },
+                 }                                                                          },
+        });
+        bool containsLongClip = false;
+        if (rangedClips) {
+            for (const auto &value : rangedClips.get().value(QStringLiteral("clips")).toArray()) {
+                containsLongClip |= value.toObject().value(QStringLiteral("clip_id")).toInt() ==
+                                    publicEditingFixture->scalarClipId.value();
+            }
+        }
+        expect(longClip && rangedClips && containsLongClip,
+               QStringLiteral("clip range filtering must use widened end arithmetic"));
     }
 
     return failures == 0 ? 0 : 1;

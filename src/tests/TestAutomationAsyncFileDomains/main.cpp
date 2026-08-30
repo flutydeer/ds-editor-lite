@@ -938,6 +938,63 @@ namespace {
             });
 
         suite.run(
+            Automation::OperationIds::exports::audio::start,
+            QStringLiteral("deferred-publication-after-final-authorization"), [&] {
+                auto state = harness.audioExportState();
+                state->backendState = Automation::AudioExportBackendState::Succeeded;
+                const auto executeBefore = state->executeCount;
+                const auto publishBefore = state->publishCount;
+                const auto cleanupBefore = state->cleanupCount;
+                bool renderFinished = false;
+                state->executeHook = [&] { renderFinished = true; };
+                const auto denied = runtime.audioExports().start(
+                    harness.context(), audioConfig(harness, QStringLiteral("denied.wav")), {}, {},
+                    [&]() -> Automation::AutomationResult<Automation::AutomationUnit> {
+                        if (!renderFinished)
+                            return Automation::AutomationUnit{};
+                        Automation::AutomationError error;
+                        error.code = Automation::AutomationErrorCode::PermissionDenied;
+                        error.message = QStringLiteral("controlled final authorization failure");
+                        return error;
+                    });
+                const auto deniedRan = harness.audioScheduler.runNext();
+                const auto deniedTask =
+                    denied ? runtime.tasks().getTask(runtime.documentVersion().documentId,
+                                                     denied.get().taskId)
+                           : Automation::AutomationResult<Automation::AutomationTaskSnapshot>(
+                                 Automation::AutomationError{});
+                suite.expect(
+                    denied && deniedRan && deniedTask &&
+                        deniedTask.get().state == Automation::AutomationTaskState::Failed &&
+                        deniedTask.get().error &&
+                        deniedTask.get().error->code ==
+                            Automation::AutomationErrorCode::PermissionDenied &&
+                        state->executeCount == executeBefore + 1 && state->deferPublish &&
+                        state->publishCount == publishBefore &&
+                        state->cleanupCount == cleanupBefore + 1,
+                    QStringLiteral("failed final authorization must discard staged audio without "
+                                   "publishing"));
+
+                state->executeHook = {};
+                const auto published = runtime.audioExports().start(
+                    harness.context(), audioConfig(harness, QStringLiteral("published.wav")), {},
+                    {}, [] { return Automation::AutomationResult<Automation::AutomationUnit>(
+                                Automation::AutomationUnit{}); });
+                const auto publishedRan = harness.audioScheduler.runNext();
+                const auto publishedTask =
+                    published ? runtime.tasks().getTask(runtime.documentVersion().documentId,
+                                                        published.get().taskId)
+                              : Automation::AutomationResult<Automation::AutomationTaskSnapshot>(
+                                    Automation::AutomationError{});
+                suite.expect(
+                    published && publishedRan && publishedTask &&
+                        publishedTask.get().state == Automation::AutomationTaskState::Succeeded &&
+                        state->publishCount == publishBefore + 1 &&
+                        state->cleanupCount == cleanupBefore + 1,
+                    QStringLiteral("successful final authorization must publish staged audio once"));
+            });
+
+        suite.run(
             Automation::OperationIds::tasks::list,
             QStringLiteral("queued-terminal-and-wrong-document"), [&] {
                 const auto listed = runtime.tasks().listTasks(runtime.documentVersion().documentId);
@@ -967,7 +1024,7 @@ namespace {
                     runtime.audioExports().cleanup(harness.context(), Automation::TaskId::create());
                 suite.expect(
                     first && !first.get().changed && repeated && !repeated.get().changed &&
-                        harness.audioExportState()->cleanupCount == 2 &&
+                        harness.audioExportState()->cleanupCount == 3 &&
                         isError(unknown, Automation::AutomationErrorCode::NotFound,
                                 Automation::OperationIds::exports::audio::cleanup),
                     QStringLiteral(

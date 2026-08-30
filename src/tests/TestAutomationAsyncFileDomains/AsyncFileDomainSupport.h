@@ -87,8 +87,10 @@ namespace AutomationAsyncFileTests {
         int createCount = 0;
         int waitUntilReadyCount = 0;
         int executeCount = 0;
+        int publishCount = 0;
         int cancelCount = 0;
         int cleanupCount = 0;
+        bool deferPublish = false;
         quint32 warningFlags = 0;
         Automation::AudioExportBackendState backendState =
             Automation::AudioExportBackendState::Succeeded;
@@ -123,9 +125,10 @@ namespace AutomationAsyncFileTests {
             return {.state = Automation::AudioExportBackendState::Succeeded};
         }
 
-        Automation::AudioExportBackendResult
-            execute(const Automation::AudioExportObserver &observer) override {
+        Automation::AudioExportBackendResult execute(const Automation::AudioExportObserver &observer,
+                                                     const bool deferPublish) override {
             ++m_state->executeCount;
+            m_state->deferPublish = deferPublish;
             if (observer.progress)
                 observer.progress(0.75, 0);
             if (observer.warning)
@@ -138,6 +141,11 @@ namespace AutomationAsyncFileTests {
                                     ? m_state->backendError
                                     : QString(),
             };
+        }
+
+        Automation::AudioExportBackendResult publish() override {
+            ++m_state->publishCount;
+            return {.state = Automation::AudioExportBackendState::Succeeded};
         }
 
         void cancel() override {

@@ -77,7 +77,9 @@ namespace Automation {
 
         [[nodiscard]] virtual AudioExportPreviewDto preview() const = 0;
         virtual AudioExportBackendResult waitUntilReady(const AudioExportObserver &observer) = 0;
-        virtual AudioExportBackendResult execute(const AudioExportObserver &observer) = 0;
+        virtual AudioExportBackendResult execute(const AudioExportObserver &observer,
+                                                 bool deferPublish) = 0;
+        virtual AudioExportBackendResult publish() = 0;
         virtual void cancel() = 0;
         virtual void cleanup() = 0;
     };

@@ -717,16 +717,19 @@ namespace Audio {
         }
     }
 
-    AudioExporter::Result AudioExporter::execInternal() {
+    AudioExporter::Result AudioExporter::execInternal(const bool deferPublish) {
         Q_D(AudioExporter);
 
         const auto config = this->config();
         const auto projectContext = d->projectContext();
+        const auto useTemporaryFiles =
+            deferPublish || AudioSettings::audioExporterUseTemporaryFile();
 
         clearErrorString();
         QHash<QString, QString> temporaryFiles;
 
         d->temporaryFileList.clear();
+        d->pendingTemporaryFiles.clear();
 
         {
             // prepare AudioFormatIO for exporting
@@ -738,7 +741,7 @@ namespace Audio {
                                   .mid(0, 8);
             for (int i = 0; i < d->fileList.size(); i++) {
                 QString filename = d->fileList.at(i);
-                if (AudioSettings::audioExporterUseTemporaryFile()) {
+                if (useTemporaryFiles) {
                     auto temporaryFileName = QFileInfo(filename).dir().filePath(
                         ".ds$" + uuid + QFileInfo(filename).fileName() + ".exporting");
                     temporaryFiles.insert(filename, temporaryFileName);
@@ -855,27 +858,36 @@ namespace Audio {
                 return R_Abort;
         }
 
-        d->temporaryFileList.clear();
-
-        // rename temporary files
-        if (AudioSettings::audioExporterUseTemporaryFile()) {
-            auto temporaryFileErrorString = tr("Cannot rename temporary files to target files");
-            bool failFlag = false;
-            for (const auto &filename : temporaryFiles.keys()) {
-                QFile::remove(filename);
-                auto temporaryFile = QFile(temporaryFiles.value(filename));
-                if (!temporaryFile.rename(filename)) {
-                    temporaryFileErrorString += "\n" + filename;
-                    setErrorString(temporaryFileErrorString);
-                    failFlag = true;
-                    d->temporaryFileList.append(temporaryFile.fileName());
-                }
-            }
-            if (failFlag)
-                return R_Fail;
+        if (useTemporaryFiles) {
+            d->pendingTemporaryFiles = std::move(temporaryFiles);
+            if (deferPublish)
+                return R_Ok;
+            return publishInternal();
         }
 
+        d->temporaryFileList.clear();
         return R_Ok;
+    }
+
+    AudioExporter::Result AudioExporter::publishInternal() {
+        Q_D(AudioExporter);
+        const auto pendingTemporaryFiles = d->pendingTemporaryFiles;
+        d->pendingTemporaryFiles.clear();
+        d->temporaryFileList.clear();
+
+        auto temporaryFileErrorString = tr("Cannot rename temporary files to target files");
+        bool failFlag = false;
+        for (const auto &filename : pendingTemporaryFiles.keys()) {
+            QFile::remove(filename);
+            auto temporaryFile = QFile(pendingTemporaryFiles.value(filename));
+            if (!temporaryFile.rename(filename)) {
+                temporaryFileErrorString += "\n" + filename;
+                setErrorString(temporaryFileErrorString);
+                failFlag = true;
+                d->temporaryFileList.append(temporaryFile.fileName());
+            }
+        }
+        return failFlag ? R_Fail : R_Ok;
     }
 
     void AudioExporter::cleanUp() {
@@ -896,6 +908,8 @@ namespace Audio {
         for (const auto &filename : d->temporaryFileList) {
             QFile::remove(filename);
         }
+        d->temporaryFileList.clear();
+        d->pendingTemporaryFiles.clear();
     }
 
     void AudioExporter::cancel(const bool isFail, const QString &message) {

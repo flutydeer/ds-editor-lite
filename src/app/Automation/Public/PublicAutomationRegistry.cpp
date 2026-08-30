@@ -4200,7 +4200,7 @@ namespace Automation {
                                           : QStringLiteral("audio");
                     if (!typeFilter.isEmpty() && type != typeFilter)
                         continue;
-                    const auto start = clip.data.properties.start;
+                    const auto start = static_cast<qint64>(clip.data.properties.start);
                     const auto end = start + clip.data.properties.length;
                     if (hasRange && (end <= rangeStart || start >= rangeEnd))
                         continue;
