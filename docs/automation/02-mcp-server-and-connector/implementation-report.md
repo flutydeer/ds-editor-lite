@@ -161,7 +161,7 @@ Closed World Command，不提供 `force`、`validate_only`、幂等键或任意�
 
 ### 5.5 格式、MIDI 与 LibreSVIP
 
-文档打开、导入和批量导入复用 Project Format Registry 与 `IProjectLoadSession`。自动化 host adapter 使用 `interactive=false` 创建 headless session，格式选项由严格 Schema 提供，不打开配置对话框；Task 保留文档 generation 和调用者归因，最终通过 Document Facade 完成换代或单条历史记录导入。
+文档打开、导入和批量导入复用 Project Format Registry 与 `IProjectLoadSession`。自动化 host adapter 使用 `interactive=false` 创建 headless session，格式选项由严格 Schema 提供，不打开配置对话框；带 plan digest 的输入由检查器返回同一份已验证字节，session 只解析保留原扩展名的临时快照，提交前再核对原路径的当前摘要。Task 保留文档 generation 和调用者归因，最终通过 Document Facade 完成换代或单条历史记录导入。
 
 音频导入、重定位和路径确认在一次顺序读取中同时生成 SHA-512 与临时文件快照，随后只解码该快照；
 音频导入在解码完成后于后台重算原始路径的摘要，只有源文件仍与快照一致才进入提交。提交记录原始
@@ -172,7 +172,7 @@ MIDI 路径拆为可复用的两段：
 1. `MidiFileParser` 读取并解析为可复用中间数据，不修改 Model；
 2. `MidiTrackGenerator` 根据编码、轨道选择、Tempo 和拍号选项生成轨道与时间线结果，再由 GUI session、批量导入或自动化提交者应用。
 
-`formats.inspect` 与 MIDI 文档导入复用 parser，交互式 GUI、批量导入和 headless session 复用 generator。同步检查最多读取 64 MiB 的单份文件快照，超限在解析前拒绝；MIDI 解析和摘要复用该快照，不重复读取原路径。异步文档打开、导入和批量导入在任务真正开始读取前都会重新检查当前读权限，是否提供 plan digest 只决定是否额外复算和比对检查计划，不会跳过授权复核。MIDI capability/preview/start 则复用同一 converter 和公开 option Schema；导出支持 Tempo、拍号和歌词选项，先写同目录临时文件并在最终发布前复核文件授权、Task 取消和文档 generation。拒绝覆盖时，文档保存、MIDI 和音频均把完成的同目录暂存文件以拒绝已存在目标的重命名一次性发布；目标在检查后被其他进程创建也不会被替换，也不会向并发读取者暴露部分 MIDI 或 DSPX，批量音频发布失败时回滚本次已发布文件。允许覆盖时使用原子替换提交。
+`formats.inspect` 与 MIDI 文档导入复用 parser，交互式 GUI、批量导入和 headless session 复用 generator。同步检查最多读取 64 MiB 的单份文件快照，超限在解析前拒绝；MIDI 解析、LibreSVIP 转换和摘要都消费该快照，不重复打开原路径。异步文档打开、导入和批量导入在任务开始及提交边界重新检查当前读权限；带 plan digest 时加载已验证快照并在提交前复算摘要，缺省 digest 只省略内容比对，不会跳过授权复核。MIDI capability/preview/start 则复用同一 converter 和公开 option Schema；导出支持 Tempo、拍号和歌词选项，先写同目录临时文件并在最终发布前复核文件授权、Task 取消和文档 generation。拒绝覆盖时，文档保存、MIDI 和音频均把完成的同目录暂存文件以拒绝已存在目标的重命名一次性发布；目标在检查后被其他进程创建也不会被替换，也不会向并发读取者暴露部分 MIDI 或 DSPX，批量音频发布失败时回滚本次已发布文件。允许覆盖时使用原子替换提交。
 
 LibreSVIP 转换抽取为共享 `LibreSVIPConverter`。GUI 转换 Task 与自动化文件服务使用同一外部转换入口、临时输出、超时和错误映射；headless 转换显式提供默认 stdin 回答，因此不会等待交互式输入。格式能力会根据转换器可用状态返回 available 与稳定原因。
 
@@ -213,7 +213,7 @@ GUI 进阶控制按真实面板层级归入 `workspace`、`track_panel` 和 `cli
 
 公开 `idempotency_key` 收敛到 `tracks.insert`、`clips.insert/duplicate`、`audio_clips.import*`、`speaker_mix.keyframes.insert`、`notes.insert/duplicate/split_at`、`parameters.create_anchor_curve/insert_anchors` 和 `extract.*.start`。这些操作能够以稳定结果安全去重；key 最长 128 个字符，每个 document generation 以 FIFO 保留最近 256 个成功键。`documents.import*`、`inference.start` 及其余普通文档写操作只使用文档 revision 或 Task 状态处理冲突。瞬时 GUI 与播放目标状态命令不依赖客户端版本令牌，并通过 MCP `idempotentHint` 表达可安全重复调用。
 
-异步工具由 `AutomationTaskManager` 管理 Queued、Running、CancelRequested、Committing 和终态。Task 记录 operation、基准文档、创建者、进度、结果或错误；最终写回前复核 generation、revision、对象和文件授权。Pitch/MIDI 提取在后端启动前与进入 Committing 前分别复核冻结的源路径；运行期间撤销权限不会写回参数或工程对象。MIDI 导出在准备和渲染期间保持 Running，只有紧邻最终文件发布时才进入不可取消的 Committing。每个文档 generation 与应用级作用域的活动任务都不被清理，各自终态历史按完成顺序有界保留最近 128 项。Connector 在有副作用请求的结果事实不明确时返回 `outcome_unknown`，不自动重放 Command。
+异步工具由 `AutomationTaskManager` 管理 Queued、Running、CancelRequested、Committing 和终态。Task 记录 operation、基准文档、创建者、进度、结果或错误；最终写回前复核 generation、revision、对象和文件授权。Pitch/MIDI 提取由后台任务创建并哈希源音频快照，后端只读取快照；完成后再次后台哈希原路径，并在进入 Committing 前复核音频剪辑身份和冻结路径权限，源内容或权限变化都不会写回参数或工程对象。MIDI 导出在准备和渲染期间保持 Running，只有紧邻最终文件发布时才进入不可取消的 Committing。每个文档 generation 与应用级作用域的活动任务都不被清理，各自终态历史按完成顺序有界保留最近 128 项。Connector 在有副作用请求的结果事实不明确时返回 `outcome_unknown`，不自动重放 Command。
 
 ## 7. Profile、Custom、File Guard 与 Admission
 
@@ -326,7 +326,7 @@ CLI override 只影响本次运行，并在设置页显示来源，不改写持�
 - Automation 设置持久化、CLI override、端口、配置 JSON、Custom 领域分组与中文界面。
 
 最终候选在 Visual Studio 2026 v18.9.0、Qt 6.11.2 环境中通过标准 preset
-`ConfigureAndBuild` 和 `all` target，完整 CTest 为 62/62（43.12 s）。Editor 177 项、Connector
+`ConfigureAndBuild` 和 `all` target，完整 CTest 为 62/62（45.08 s）。Editor 177 项、Connector
 6 项、24 个业务域、L3 45 项和内部 208 个 Operation ID 为当前产品快照；契约集合关系、共享不变量和领域独特语义的确定性覆盖通过；2025-11-25 下游
 握手、2026-07-28 上游连接、真实编辑联调、Computer Use GUI、配置恢复和只读素材完整性均通过。
 生命周期增量联调还确认 dirty 默认拒绝无弹窗、显式丢弃重启后 instance ID 变化且 Connector

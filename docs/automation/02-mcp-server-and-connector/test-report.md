@@ -22,7 +22,7 @@ L3 downstream 为 177 个 Editor wrapper 加 6 个桥接工具，共 183 项。�
 | 平台与工具链 | Visual Studio 2026 v18.9.0；Qt 6.11.2 |
 | Debug 配置与构建 | 标准 preset `ConfigureAndBuild` 通过；随后 `all` target 通过 |
 | 最终 CTest 清单 | 62 项 |
-| 一次完整 CTest | 62/62 通过，43.12 s |
+| 一次完整 CTest | 62/62 通过，45.08 s |
 | Connector 真实联调 | 2025-11-25 下游握手和 2026-07-28 上游连接通过；L0 重启后自动重连且 toolset compatible |
 | GUI/Computer Use | 真实编辑、合成、播放、另存，以及 dirty 拒绝、丢弃重启和 clean 退出全程无决策弹窗 |
 | 测试素材完整性 | 素材源 19/19 项 SHA-256 不变；真实用户应用配置 SHA-256 不变 |
@@ -151,6 +151,10 @@ watch、stdio 大帧、并发乱序、取消、timeout、EOF、broken pipe、重
 音频准备回归确认哈希与临时快照由同一次读取产生，导入解码只读取该快照；源文件随后变化不会
 使已准备的摘要与解码内容分离，且提交前的后台摘要复核会拒绝同路径换内容。
 
+文档计划回归确认带 digest 的 open/import/import_batch 解析检查器返回的同一份原始字节，并在
+提交前拒绝原路径换内容；Pitch/MIDI 提取回归确认后端只读取哈希快照，原文件摘要、音频剪辑
+身份或读权限变化时均不进入 Committing。
+
 协议与真实联调结果：**通过**。Connector 使用 2025-11-25 完成下游握手，并以
 2026-07-28 连接 Editor 上游；自动化协议兼容路径通过完整 CTest。真实会话通过
 `package_id + package_version + singer_id` 精确选择同 ID 多版本声库中的目标版本，随后完成
@@ -178,7 +182,7 @@ Editor 窗口与进程均消失。三个阶段均未出现保存确认或其他�
 ## 8. 缺陷与回归
 
 最终候选的共享 Dispatcher、公共契约、Registry、Wire、Connector、文档生命周期和真实进程路径
-均通过受影响测试与最终 62/62 完整 CTest（43.12 s）。压力测试仍在默认套件中，保留通知洪泛、
+均通过受影响测试与最终 62/62 完整 CTest（45.08 s）。压力测试仍在默认套件中，保留通知洪泛、
 并发请求、大帧、慢读、取消与竞态覆盖；没有将其拆分、降次或改为可选执行。
 
 时间线回归还覆盖了删除中间拍号后后续拍号继承超长小节的边界：validate-only 与实际删除均在
@@ -197,13 +201,15 @@ MIDI 导出回归在受控渲染阻塞期间分别发起取消和文档 generati
 失败并保留外部内容，同时回滚本次已经发布的第一个目标，不留下部分批次。
 
 文档输入回归通过 open 代表路径确认共用的 plan revalidator 不会把接单时授权当作长期凭据：即使
-未提供 plan digest，任务开始前撤销读根也会稳定返回 `permission_denied`；open、import 和
-import_batch 均接入该共用入口。格式检查回归使用超过 64 MiB 的稀疏工程文件，确认同步调用在解析和
-摘要前以 `invalid_argument` 拒绝；实现层的 MIDI 检查复用已经受限的单份字节快照，不再二次读取
-原路径。
+未提供 plan digest，任务开始前撤销读根也会稳定返回 `permission_denied`；带 digest 时校验器返回
+与摘要一致的原始字节，原路径随后换内容会在加载或提交边界拒绝。open、import 和 import_batch
+均接入该共用入口。格式检查回归使用超过 64 MiB 的稀疏工程文件，确认同步调用在解析和摘要前以
+`invalid_argument` 拒绝；MIDI 检查和 LibreSVIP 转换复用已经受限的单份字节快照。
 
-提取回归分别让 Pitch 与 MIDI 后端在源路径仍获授权时启动，随后在完成回调前撤销授权；两项任务
-都在进入 Committing 前稳定失败为 `permission_denied`，文档 revision、参数和轨道集合保持不变。
+提取回归确认 Pitch 与 MIDI 成功结果必须携带已验证的源快照身份；未验证结果以
+`invalid_argument` 失败。另在后端启动后、完成回调前撤销读权限，两项任务均在进入 Committing
+前稳定失败为 `permission_denied`，文档 revision、参数和轨道集合保持不变。实际 adapter 在后台
+复制并哈希源音频、只把快照交给 RMVPE/GAME，完成后再后台哈希原路径并比对。
 
 测试实现不再维护第二份手工工具清单，也不以固定工具数量、CTest 数量、场景配额或逐工具复制的
 通用错误矩阵证明正确性。共享规则在其所有者层验证一次，各领域只保留独特业务语义与高风险边界。

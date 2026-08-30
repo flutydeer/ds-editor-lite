@@ -281,12 +281,12 @@ exposure 与 pending selector 事实。稳定错误区分 Editor 状态、上游
 - `..`、相对路径、drive-relative 与 UNC；
 - symlink、junction 与 reparse point；
 - 输出目标尚未存在时的最近存在父目录；
-- authorize 后、实际 I/O 前的 reauthorize；异步文档打开/导入即使未提供 plan digest，也必须在
-  任务真正开始读取时重新检查当前读权限；Pitch/MIDI 提取还必须在后端完成后、进入不可取消提交
-  前再次复核冻结的源路径授权。
+- authorize 后、实际 I/O 前的 reauthorize；异步文档打开/导入在开始和提交边界检查当前读权限，
+  带 plan digest 时 session 必须解析检查器返回的同一字节快照并拒绝随后换内容。Pitch/MIDI 提取
+  必须只解码哈希绑定的临时快照，并在后端完成后复核原文件摘要、音频剪辑身份和冻结路径授权。
 
 `formats.inspect` 是同步查询，只读取一份有界文件快照；超过 64 MiB 的输入在解析前拒绝，MIDI
-解析与摘要复用同一份快照，不对原路径重复执行无界读取。
+解析、LibreSVIP 转换与摘要复用同一份快照，不对原路径重复执行无界读取。
 
 Editor 直连、Connector 类型化工具和泛化 invoke 进入同一个 Guard。`application.get_file_access` 返回当前授权事实。
 

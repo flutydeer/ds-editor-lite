@@ -157,10 +157,11 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
    voice-context 查询工具。
 9. 验证 `audio_clips.relocate/confirm_path` 同步返回 Mutation、不创建 Task，并在 GUI 中立即反映。
 10. 验证 `playback.set_loop/set_loop_enabled/clear_loop` 形成工程持久历史记录，逐项 Undo/Redo；play/pause/stop/seek 保持瞬时、目标状态幂等，播放头在查询与命令间变化不导致版本冲突。
-11. 验证动态值发现、异步任务和文件重新授权；open/import/import_batch 无论是否携带 plan digest，
-    都在任务真正开始读取时重新检查当前读权限；`formats.inspect` 在解析前拒绝超过 64 MiB 的输入，
-    MIDI 解析和摘要复用同一有界快照；Pitch/MIDI 提取在后端启动与提交边界分别复核源路径，运行
-    期间撤销权限不得写回。正常 invocation 不自动回查 provider，output Schema 由确定性契约测试
+11. 验证动态值发现、异步任务和文件重新授权；open/import/import_batch 在开始和提交边界检查
+    当前读权限，带 plan digest 时加载检查器返回的同一字节快照并拒绝随后换内容；`formats.inspect`
+    在解析前拒绝超过 64 MiB 的输入，MIDI 解析、LibreSVIP 转换和摘要复用同一有界快照；
+    Pitch/MIDI 提取只解码哈希绑定的音频快照，完成后复核原文件摘要、剪辑身份和源路径权限。
+    正常 invocation 不自动回查 provider，output Schema 由确定性契约测试
     覆盖，运行时不逐次 assert。
 12. 验证零 speaker 声库可用完整 SingerRef 设置到轨道/剪辑；单 speaker 自动解析，多 speaker 候选可由 `voices.describe` 查询，缺少选择时稳定拒绝；构造 package ID 与 singer ID 相同、package version 不同的两个并存版本，在 L2 明确拒绝 `packages.*` 的前提下验证 list、describe、轨道/剪辑设置、Speaker Mix/预设和回读均按版本精确闭环。
 13. 验证 `documents.get` 的工程长度、轨道/剪辑总数和分类统计；验证 `documents.list_recent` 只读取应用设置且不修改当前文档。

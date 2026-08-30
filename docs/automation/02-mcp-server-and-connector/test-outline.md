@@ -162,10 +162,10 @@ Connector 桥接工具：6
 - Queued、Running、CancelRequested、Committing 和各终态遵守允许迁移。
 - 排队/运行取消、重复取消、终态取消和提交点取消分别覆盖。
 - Editor 重启、文档 generation 更换、revision 前进、目标消失和晚到结果不能写入错误文档；文档 generation 清理不得误删 application task。
-- 文档 open/import/import_batch 在任务开始读取时重新检查 File Guard；缺省 plan digest 只省略
-  摘要复算，不得省略重新授权。
-- Pitch/MIDI 提取在后端启动前和进入 Committing 前分别复核源路径；运行期间撤销读权限时任务失败，
-  文档 revision 和目标对象保持不变。
+- 文档 open/import/import_batch 在任务开始和提交边界重新检查 File Guard；带 plan digest 时解析
+  检查器返回的同一字节快照并拒绝随后换内容，缺省 digest 只省略摘要比对。
+- Pitch/MIDI 提取只解码后台创建的哈希快照；完成后复核原文件摘要、音频剪辑身份和源路径权限。
+  运行期间换内容、换来源或撤销权限时任务失败，文档 revision 和目标对象保持不变。
 - 每个 document generation 与 application scope 的活动记录全部保留；各自终态历史超过 128 项时
   只淘汰最旧终态，不影响活动任务或其他作用域。
 - 最终成功在业务写回、历史记录/revision 和信号完成后发布。
@@ -194,7 +194,7 @@ Connector 桥接工具：6
 - symlink、junction、reparse point 与根边界的 canonical 判定。
 - 输出文件尚未创建时按最近存在父目录授权。
 - authorize 与实际 I/O 前 reauthorize；根配置变化、目标变化和链接重定向被识别。
-- 音频导入的哈希与解码读取同一临时快照；快照完成后同路径源文件换内容由提交前的后台摘要复核拒绝。
+- 音频导入和 Pitch/MIDI 提取的哈希与解码读取同一临时快照；完成后同路径源文件换内容由后台摘要复核拒绝。
 - 单文件和 batch 路径全部通过同一 Guard，类型化与泛化调用结果一致。
 - overwrite、只读、父目录、权限、磁盘和失败清理覆盖；文档保存、MIDI 与音频拒绝覆盖均先完成
   同目录暂存，再使用拒绝已存在目标的重命名发布。覆盖检查后出现的同名目标仍保留原内容，

@@ -71,11 +71,11 @@
 | `documents.get` | L1 | Q/S | 文档状态、路径、dirty/savepoint、revision、工程长度及轨道/剪辑分类统计 |
 | `documents.list_recent` | L2 | Q/S | 从应用设置列出最近项目的路径、文件名与当前存在状态 |
 | `documents.new` | L2 | C/S | 未保存策略、模板与原子文档换代 |
-| `documents.open` | L2 | C/A | 受控读路径、格式选项与异步换代 |
+| `documents.open` | L2 | C/A | 受控读路径、已验证输入快照、格式选项与异步换代 |
 | `documents.save` | L2 | C/S | 当前路径保存、覆盖策略与 savepoint |
 | `documents.save_as` | L2 | C/S | 受控写路径、扩展名与同目录排他发布 |
-| `documents.import` | L2 | C/A | 单文件导入计划、格式选项与任务写回 |
-| `documents.import_batch` | L2 | C/A | 批量导入、失败策略与任务写回 |
+| `documents.import` | L2 | C/A | 单文件导入计划、已验证输入快照、格式选项与任务写回 |
+| `documents.import_batch` | L2 | C/A | 逐项输入快照、失败策略与任务写回 |
 
 ### 3.3 格式（2）
 
@@ -262,8 +262,8 @@
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
 | `extract.get_capabilities` | L2 | Q/S | 音频来源、模型、语言、范围与 option Schema |
-| `extract.pitch.start` | L2 | C/A | 源路径启动/提交双重授权、音高提取任务与目标剪辑写回 |
-| `extract.midi.start` | L2 | C/A | 源路径启动/提交双重授权、MIDI 提取任务与目标位置写回 |
+| `extract.pitch.start` | L2 | C/A | 哈希音频快照、源身份复核、音高提取任务与目标剪辑写回 |
+| `extract.midi.start` | L2 | C/A | 哈希音频快照、源身份复核、MIDI 提取任务与目标位置写回 |
 
 ### 3.17 推理（4）
 
