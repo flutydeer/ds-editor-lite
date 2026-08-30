@@ -199,7 +199,8 @@ namespace Automation {
             return result;
 
         const auto delta = targetStart - payload.sourceStart;
-        const auto targetEnd = targetStart + payload.sourceEnd - payload.sourceStart;
+        const auto targetEnd = static_cast<int>(static_cast<qint64>(targetStart) +
+                                                payload.sourceEnd - payload.sourceStart);
         for (const auto name : kParameterNames) {
             const auto *targetParameter = target.params.getParamByName(name);
             if (!targetParameter)
