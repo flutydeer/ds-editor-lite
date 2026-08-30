@@ -14,11 +14,12 @@ lite_add_test(${PROJECT_NAME}
         ../../app/Modules/FillLyric/Utils/TaggerRuleOrder.cpp
         ../../app/Modules/FillLyric/Utils/TextSplitter.cpp
         ../../app/Modules/FillLyric/Utils/TextTagger.cpp
+        ../../app/Utils/UiLanguageManager.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE ../../app)
 
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Widgets)
 find_package(re2 CONFIG REQUIRED)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
@@ -26,6 +27,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     lite::AutomationWire
     lite::ProjectConverters
     Qt${QT_VERSION_MAJOR}::Core
+    Qt${QT_VERSION_MAJOR}::Widgets
     re2::re2
 )
 

@@ -1926,6 +1926,10 @@ namespace AutomationWire {
                  QStringLiteral("redo_name")});
         }
 
+        QJsonObject localizedTextMapSchema() {
+            return JsonSchema::objectWithAdditionalSchema({}, {}, JsonSchema::string());
+        }
+
         QJsonObject voiceSummarySchema() {
             return JsonSchema::object(
                 {
@@ -1933,9 +1937,11 @@ namespace AutomationWire {
                     {QStringLiteral("package_version"), nonEmptyStringSchema()},
                     {QStringLiteral("singer_id"),       nonEmptyStringSchema()},
                     {QStringLiteral("name"),            nonEmptyStringSchema()},
+                    {QStringLiteral("display_name"),    nonEmptyStringSchema()},
             },
                 {QStringLiteral("package_id"), QStringLiteral("package_version"),
-                 QStringLiteral("singer_id"), QStringLiteral("name")});
+                 QStringLiteral("singer_id"), QStringLiteral("name"),
+                 QStringLiteral("display_name")});
         }
 
         QJsonObject voiceSnapshotSchema() {
@@ -1945,21 +1951,29 @@ namespace AutomationWire {
                 {
                     {QStringLiteral("speaker_id"), nonEmptyStringSchema()                   },
                     {QStringLiteral("name"),       JsonSchema::string()                     },
+                    {QStringLiteral("display_name"), JsonSchema::string()                   },
+                    {QStringLiteral("localized_names"), localizedTextMapSchema()            },
                     {QStringLiteral("languages"),  JsonSchema::array(nonEmptyStringSchema())},
                     {QStringLiteral("mixable"),    JsonSchema::boolean()                    },
                     {QStringLiteral("default"),    JsonSchema::boolean()                    },
             },
-                {QStringLiteral("speaker_id"), QStringLiteral("name"), QStringLiteral("languages"),
+                {QStringLiteral("speaker_id"), QStringLiteral("name"),
+                 QStringLiteral("display_name"), QStringLiteral("localized_names"),
+                 QStringLiteral("languages"),
                  QStringLiteral("mixable"), QStringLiteral("default")});
             const auto language = JsonSchema::object(
                 {
                     {QStringLiteral("language_id"), nonEmptyStringSchema()},
                     {QStringLiteral("name"),        JsonSchema::string()  },
+                    {QStringLiteral("display_name"), JsonSchema::string() },
+                    {QStringLiteral("localized_names"), localizedTextMapSchema()},
                     {QStringLiteral("g2p_id"),      JsonSchema::string()  },
                     {QStringLiteral("g2p_ready"),   JsonSchema::boolean() },
                     {QStringLiteral("default"),     JsonSchema::boolean() },
             },
-                {QStringLiteral("language_id"), QStringLiteral("name"), QStringLiteral("g2p_id"),
+                {QStringLiteral("language_id"), QStringLiteral("name"),
+                 QStringLiteral("display_name"), QStringLiteral("localized_names"),
+                 QStringLiteral("g2p_id"),
                  QStringLiteral("g2p_ready"), QStringLiteral("default")});
             return JsonSchema::object(
                 {
@@ -1967,6 +1981,8 @@ namespace AutomationWire {
                     {QStringLiteral("package_version"),    nonEmptyStringSchema()     },
                     {QStringLiteral("singer_id"),          nonEmptyStringSchema()     },
                     {QStringLiteral("name"),               nonEmptyStringSchema()     },
+                    {QStringLiteral("display_name"),       nonEmptyStringSchema()     },
+                    {QStringLiteral("localized_names"),    localizedTextMapSchema()   },
                     {QStringLiteral("speakers"),           JsonSchema::array(speaker) },
                     {QStringLiteral("languages"),          JsonSchema::array(language)},
                     {QStringLiteral("default_speaker_id"), optionalIdentifier         },
@@ -1977,7 +1993,9 @@ namespace AutomationWire {
                     {QStringLiteral("mixing_supported"),   JsonSchema::boolean()      },
             },
                 {QStringLiteral("package_id"), QStringLiteral("package_version"),
-                 QStringLiteral("singer_id"), QStringLiteral("name"), QStringLiteral("speakers"),
+                 QStringLiteral("singer_id"), QStringLiteral("name"),
+                 QStringLiteral("display_name"), QStringLiteral("localized_names"),
+                 QStringLiteral("speakers"),
                  QStringLiteral("languages"), QStringLiteral("default_speaker_id"),
                  QStringLiteral("default_language"), QStringLiteral("g2p_ready"),
                  QStringLiteral("resolution_state"), QStringLiteral("mixing_supported")});
@@ -3312,18 +3330,22 @@ namespace AutomationWire {
             QJsonObject properties{
                 {QStringLiteral("singer_id"), nonEmptyStringSchema()                   },
                 {QStringLiteral("name"),      JsonSchema::string()                     },
+                {QStringLiteral("display_name"), JsonSchema::string()                 },
                 {QStringLiteral("languages"), JsonSchema::array(nonEmptyStringSchema())},
                 {QStringLiteral("speakers"),  JsonSchema::array(nonEmptyStringSchema())},
             };
             QStringList required{
                 QStringLiteral("singer_id"),
                 QStringLiteral("name"),
+                QStringLiteral("display_name"),
                 QStringLiteral("languages"),
                 QStringLiteral("speakers"),
             };
             if (detailed) {
+                properties.insert(QStringLiteral("localized_names"), localizedTextMapSchema());
                 properties.insert(QStringLiteral("description"), JsonSchema::string());
                 properties.insert(QStringLiteral("avatar_path"), JsonSchema::string());
+                required.append(QStringLiteral("localized_names"));
                 required.append(QStringLiteral("description"));
                 required.append(QStringLiteral("avatar_path"));
             }
@@ -3333,23 +3355,33 @@ namespace AutomationWire {
         QJsonObject packageSummarySchema(const bool detailed = false) {
             QJsonObject properties{
                 {QStringLiteral("package_id"),     nonEmptyStringSchema()                                },
-                {QStringLiteral("name"),           JsonSchema::string()                                  },
                 {QStringLiteral("version"),        JsonSchema::string()                                  },
                 {QStringLiteral("vendor"),         JsonSchema::string()                                  },
+                {QStringLiteral("display_vendor"), JsonSchema::string()                                  },
                 {QStringLiteral("canonical_path"), nullableSchema(nonEmptyStringSchema())                },
                 {QStringLiteral("voices"),         JsonSchema::array(packageVoiceSummarySchema(detailed))},
             };
             QStringList required{
-                QStringLiteral("package_id"),     QStringLiteral("name"),
-                QStringLiteral("version"),        QStringLiteral("vendor"),
+                QStringLiteral("package_id"),     QStringLiteral("version"),
+                QStringLiteral("vendor"),         QStringLiteral("display_vendor"),
                 QStringLiteral("canonical_path"), QStringLiteral("voices"),
             };
             if (detailed) {
+                properties.insert(QStringLiteral("localized_vendor"), localizedTextMapSchema());
                 properties.insert(QStringLiteral("description"), JsonSchema::string());
+                properties.insert(QStringLiteral("display_description"), JsonSchema::string());
+                properties.insert(QStringLiteral("localized_description"), localizedTextMapSchema());
                 properties.insert(QStringLiteral("license"), JsonSchema::string());
+                properties.insert(QStringLiteral("display_license"), JsonSchema::string());
+                properties.insert(QStringLiteral("localized_license"), localizedTextMapSchema());
                 properties.insert(QStringLiteral("homepage"), JsonSchema::string());
+                required.append(QStringLiteral("localized_vendor"));
                 required.append(QStringLiteral("description"));
+                required.append(QStringLiteral("display_description"));
+                required.append(QStringLiteral("localized_description"));
                 required.append(QStringLiteral("license"));
+                required.append(QStringLiteral("display_license"));
+                required.append(QStringLiteral("localized_license"));
                 required.append(QStringLiteral("homepage"));
             }
             return JsonSchema::object(properties, required);

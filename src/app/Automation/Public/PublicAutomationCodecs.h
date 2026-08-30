@@ -3,8 +3,13 @@
 
 #include "Automation/AutomationTypes.h"
 #include "Automation/DocumentSession.h"
+#include "Utils/UiLanguageManager.h"
 
 #include <lite/AutomationWire/PublicEnums.h>
+#include <lite/Support/LocalizedTextUtils.h>
+
+#include <QJsonObject>
+#include <QMap>
 
 namespace Automation {
 
@@ -42,6 +47,30 @@ namespace Automation {
                 return AutomationWire::publicObjectKindName(WireKind::SpeakerMixKeyframe);
         }
         return {};
+    }
+
+    inline QString resolvePublicDisplayText(const QString &defaultText,
+                                            const QMap<QString, QString> &localized) {
+        return lite::Support::lookupLocalizedText(localized, defaultText,
+                                                  UiLanguageManager::currentBcp47Candidates());
+    }
+
+    inline QJsonObject encodePublicLocalizedText(const QMap<QString, QString> &localized) {
+        QJsonObject result;
+        for (auto it = localized.cbegin(); it != localized.cend(); ++it)
+            result.insert(it.key(), it.value());
+        return result;
+    }
+
+    inline bool publicLocalizedTextContains(const QString &query, const QString &defaultText,
+                                            const QMap<QString, QString> &localized) {
+        if (query.isEmpty() || defaultText.contains(query, Qt::CaseInsensitive))
+            return true;
+        for (auto it = localized.cbegin(); it != localized.cend(); ++it) {
+            if (it.value().contains(query, Qt::CaseInsensitive))
+                return true;
+        }
+        return false;
     }
 
 } // namespace Automation

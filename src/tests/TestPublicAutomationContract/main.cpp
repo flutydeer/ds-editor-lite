@@ -963,9 +963,9 @@ namespace {
         const auto *packages = findPublicTool(QStringLiteral("packages.list"));
         const QJsonObject redactedPackage{
             {QStringLiteral("package_id"),     QStringLiteral("fixture")},
-            {QStringLiteral("name"),           QStringLiteral("Fixture")},
             {QStringLiteral("version"),        QStringLiteral("1")      },
             {QStringLiteral("vendor"),         QStringLiteral("Test")   },
+            {QStringLiteral("display_vendor"), QStringLiteral("Test")   },
             {QStringLiteral("canonical_path"), QJsonValue::Null         },
             {QStringLiteral("voices"),         QJsonArray{}             },
         };

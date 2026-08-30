@@ -28,11 +28,14 @@ namespace {
     PackageInfo fromAutomationDto(const Automation::PackageDto &package) {
         QList<SingerInfo> singers;
         for (const auto &singer : package.singers) {
-            singers.append(SingerInfo({singer.singerId, singer.packageId, singer.packageVersion},
-                                      singer.name));
+            singers.append(singer.info);
         }
-        return PackageInfo(package.id, package.version, package.vendor, package.description,
+        PackageInfo result(package.id, package.version, package.vendor, package.description,
                            package.license, package.readme, package.url, package.path, singers);
+        result.setLocalizedVendor(package.localizedVendor);
+        result.setLocalizedDescription(package.localizedDescription);
+        result.setLocalizedLicense(package.localizedLicense);
+        return result;
     }
 }
 

@@ -6,6 +6,7 @@
 #include <lite/ProjectModel/Voice/SingerInfo.h>
 
 #include <QVersionNumber>
+#include <QMap>
 
 #include <functional>
 #include <optional>
@@ -28,8 +29,11 @@ namespace Automation {
         QString id;
         QVersionNumber version;
         QString vendor;
+        QMap<QString, QString> localizedVendor;
         QString description;
+        QMap<QString, QString> localizedDescription;
         QString license;
+        QMap<QString, QString> localizedLicense;
         QString readme;
         QString url;
         QString path;

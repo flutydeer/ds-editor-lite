@@ -2375,15 +2375,17 @@ namespace Automation {
             auto result = m_runtime.packages().getInstalledPackages();
             if (!result)
                 return AutomationResult<QJsonObject>(result.getError());
-            const auto query = arguments.value(QStringLiteral("query")).toString();
+            const auto query = arguments.value(QStringLiteral("query")).toString().trimmed();
             const auto packageFilter = arguments.value(QStringLiteral("package_id")).toString();
             QJsonArray voices;
             for (const auto &package : result.get()) {
                 if (!packageFilter.isEmpty() && package.id != packageFilter)
                     continue;
                 for (const auto &singer : package.singers) {
-                    if (!query.isEmpty() && !singer.name.contains(query, Qt::CaseInsensitive) &&
-                        !singer.singerId.contains(query, Qt::CaseInsensitive)) {
+                    if (!query.isEmpty() &&
+                        !singer.singerId.contains(query, Qt::CaseInsensitive) &&
+                        !publicLocalizedTextContains(query, singer.name,
+                                                     singer.info.localizedNames())) {
                         continue;
                     }
                     voices.append(QJsonObject{
@@ -2391,6 +2393,8 @@ namespace Automation {
                         {QStringLiteral("package_version"), singer.packageVersion.toString()},
                         {QStringLiteral("singer_id"),       singer.singerId                 },
                         {QStringLiteral("name"),            singer.name                     },
+                        {QStringLiteral("display_name"),
+                         resolvePublicDisplayText(singer.name, singer.info.localizedNames())},
                     });
                 }
             }
@@ -2443,6 +2447,11 @@ namespace Automation {
                             languages.append(QJsonObject{
                                 {QStringLiteral("language_id"), languageId                   },
                                 {QStringLiteral("name"),        language.name()              },
+                                {QStringLiteral("display_name"),
+                                 resolvePublicDisplayText(language.name(),
+                                                          language.localizedNames())},
+                                {QStringLiteral("localized_names"),
+                                 encodePublicLocalizedText(language.localizedNames())},
                                 {QStringLiteral("g2p_id"),      g2pId                        },
                                 {QStringLiteral("g2p_ready"),   g2pReady                     },
                                 {QStringLiteral("default"),     languageId == defaultLanguage},
@@ -2458,6 +2467,11 @@ namespace Automation {
                             speakers.append(QJsonObject{
                                 {QStringLiteral("speaker_id"), speaker.id()                  },
                                 {QStringLiteral("name"),       speaker.name()                },
+                                {QStringLiteral("display_name"),
+                                 resolvePublicDisplayText(speaker.name(),
+                                                          speaker.localizedNames())},
+                                {QStringLiteral("localized_names"),
+                                 encodePublicLocalizedText(speaker.localizedNames())},
                                 {QStringLiteral("languages"),  languageIds                   },
                                 {QStringLiteral("mixable"),    speaker.mixable()             },
                                 {QStringLiteral("default"),    speaker.id() == defaultSpeaker},
@@ -2474,6 +2488,11 @@ namespace Automation {
                                   singer.packageVersion.toString()},
                                  {QStringLiteral("singer_id"), singer.singerId},
                                  {QStringLiteral("name"), singer.name},
+                                 {QStringLiteral("display_name"),
+                                  resolvePublicDisplayText(singer.name,
+                                                           singer.info.localizedNames())},
+                                 {QStringLiteral("localized_names"),
+                                  encodePublicLocalizedText(singer.info.localizedNames())},
                                  {QStringLiteral("speakers"), speakers},
                                  {QStringLiteral("languages"), languages},
                                  {QStringLiteral("default_speaker_id"),

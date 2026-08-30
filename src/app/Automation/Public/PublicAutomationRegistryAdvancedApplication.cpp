@@ -1,4 +1,5 @@
 #include "PublicAutomationRegistry.h"
+#include "PublicAutomationCodecs.h"
 #include "PublicCollectionPagination.h"
 
 #include "../CoreRuntime.h"
@@ -493,28 +494,44 @@ namespace Automation {
                     speakers.append(speaker.id());
                 QJsonObject voice{
                     {QStringLiteral("singer_id"), singer.singerId},
-                    {QStringLiteral("name"),      singer.name    },
-                    {QStringLiteral("languages"), languages      },
-                    {QStringLiteral("speakers"),  speakers       },
+                    {QStringLiteral("name"), singer.name},
+                    {QStringLiteral("display_name"),
+                     resolvePublicDisplayText(singer.name, singer.info.localizedNames())},
+                    {QStringLiteral("languages"), languages},
+                    {QStringLiteral("speakers"), speakers},
                 };
                 if (detailed) {
+                    voice.insert(QStringLiteral("localized_names"),
+                                 encodePublicLocalizedText(singer.info.localizedNames()));
                     voice.insert(QStringLiteral("description"), QString());
                     voice.insert(QStringLiteral("avatar_path"), QString());
                 }
                 voices.append(voice);
             }
             QJsonObject result{
-                {QStringLiteral("package_id"),     package.id                                    },
-                {QStringLiteral("name"),           package.id                                    },
-                {QStringLiteral("version"),        package.version.toString()                    },
-                {QStringLiteral("vendor"),         package.vendor                                },
+                {QStringLiteral("package_id"), package.id},
+                {QStringLiteral("version"), package.version.toString()},
+                {QStringLiteral("vendor"), package.vendor},
+                {QStringLiteral("display_vendor"),
+                 resolvePublicDisplayText(package.vendor, package.localizedVendor)},
                 {QStringLiteral("canonical_path"),
                  package.path.isEmpty() ? QJsonValue(QJsonValue::Null) : QJsonValue(package.path)},
-                {QStringLiteral("voices"),         voices                                        },
+                {QStringLiteral("voices"), voices},
             };
             if (detailed) {
+                result.insert(QStringLiteral("localized_vendor"),
+                              encodePublicLocalizedText(package.localizedVendor));
                 result.insert(QStringLiteral("description"), package.description);
+                result.insert(
+                    QStringLiteral("display_description"),
+                    resolvePublicDisplayText(package.description, package.localizedDescription));
+                result.insert(QStringLiteral("localized_description"),
+                              encodePublicLocalizedText(package.localizedDescription));
                 result.insert(QStringLiteral("license"), package.license);
+                result.insert(QStringLiteral("display_license"),
+                              resolvePublicDisplayText(package.license, package.localizedLicense));
+                result.insert(QStringLiteral("localized_license"),
+                              encodePublicLocalizedText(package.localizedLicense));
                 result.insert(QStringLiteral("homepage"), package.url);
             }
             return result;
@@ -770,15 +787,17 @@ namespace Automation {
             });
             QJsonArray encoded;
             for (const auto &package : values) {
-                bool matches = query.isEmpty() || package.id.contains(query, Qt::CaseInsensitive) ||
-                               package.vendor.contains(query, Qt::CaseInsensitive);
+                bool matches =
+                    package.id.contains(query, Qt::CaseInsensitive) ||
+                    publicLocalizedTextContains(query, package.vendor, package.localizedVendor);
                 if (!matches) {
-                    matches =
-                        std::any_of(package.singers.cbegin(), package.singers.cend(),
-                                    [&query](const auto &singer) {
-                                        return singer.name.contains(query, Qt::CaseInsensitive) ||
-                                               singer.singerId.contains(query, Qt::CaseInsensitive);
-                                    });
+                    matches = std::any_of(
+                        package.singers.cbegin(), package.singers.cend(),
+                        [&query](const auto &singer) {
+                            return singer.singerId.contains(query, Qt::CaseInsensitive) ||
+                                   publicLocalizedTextContains(query, singer.name,
+                                                               singer.info.localizedNames());
+                        });
                 }
                 if (matches)
                     encoded.append(encodePackage(package, false));

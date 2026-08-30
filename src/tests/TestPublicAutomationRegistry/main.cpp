@@ -4,6 +4,7 @@
 #include "Automation/Public/PublicAutomationRegistry.h"
 #include "Automation/OperationIds.h"
 #include "TestRuntime.h"
+#include "Utils/UiLanguageManager.h"
 
 #include <lite/AutomationWire/JsonSchema.h>
 #include <lite/AutomationWire/PublicConstants.h>
@@ -567,6 +568,26 @@ namespace {
         }
         expect(packagePathsRedacted,
                QStringLiteral("packages.list must redact paths outside the allowed roots"));
+        const auto localizedPackages = invokeSchemaValid(
+            registry, QStringLiteral("packages.list"),
+            QJsonObject{
+                {QStringLiteral("query"), QStringLiteral("Localized Registry Vendor")}
+        },
+            QStringLiteral("localized packages.list"));
+        const auto localizedPackageItems =
+            localizedPackages ? localizedPackages->value(QStringLiteral("packages")).toArray()
+                              : QJsonArray{};
+        bool localizedPackageProjection = localizedPackageItems.size() == 2;
+        for (const auto &item : localizedPackageItems) {
+            const auto object = item.toObject();
+            localizedPackageProjection &= !object.contains(QStringLiteral("name")) &&
+                                          object.value(QStringLiteral("vendor")) ==
+                                              QStringLiteral("Registry Vendor") &&
+                                          object.value(QStringLiteral("display_vendor")) ==
+                                              QStringLiteral("Localized Registry Vendor");
+        }
+        expect(localizedPackageProjection,
+               QStringLiteral("packages.list must search localized vendors without a fake name"));
         const auto package = invokeSchemaValid(
             registry, QStringLiteral("packages.describe"),
             QJsonObject{
@@ -590,6 +611,35 @@ namespace {
                            .toObject()
                            .value(QStringLiteral("version")) == QStringLiteral("1.0"),
                QStringLiteral("packages.describe must accept an explicit installed version"));
+        const auto versionedPackageSnapshot = versionedPackage
+                                                  ? versionedPackage->value(QStringLiteral("package"))
+                                                        .toObject()
+                                                  : QJsonObject{};
+        expect(versionedPackageSnapshot.value(QStringLiteral("vendor")) ==
+                       QStringLiteral("Registry Vendor") &&
+                   versionedPackageSnapshot.value(QStringLiteral("display_vendor")) ==
+                       QStringLiteral("Localized Registry Vendor") &&
+                   versionedPackageSnapshot.value(QStringLiteral("localized_vendor"))
+                           .toObject()
+                           .value(QStringLiteral("en")) ==
+                       QStringLiteral("Localized Registry Vendor") &&
+                   versionedPackageSnapshot.value(QStringLiteral("description")) ==
+                       QStringLiteral("Registry Description") &&
+                   versionedPackageSnapshot.value(QStringLiteral("display_description")) ==
+                       QStringLiteral("Localized Registry Description") &&
+                   versionedPackageSnapshot.value(QStringLiteral("localized_description"))
+                           .toObject()
+                           .value(QStringLiteral("en")) ==
+                       QStringLiteral("Localized Registry Description") &&
+                   versionedPackageSnapshot.value(QStringLiteral("license")) ==
+                       QStringLiteral("Registry License") &&
+                   versionedPackageSnapshot.value(QStringLiteral("display_license")) ==
+                       QStringLiteral("Localized Registry License") &&
+                   versionedPackageSnapshot.value(QStringLiteral("localized_license"))
+                           .toObject()
+                           .value(QStringLiteral("en")) ==
+                       QStringLiteral("Localized Registry License"),
+               QStringLiteral("packages.describe must expose default, display, and localized metadata"));
         const auto unknownPackage =
             registry.invoke(QStringLiteral("packages.describe"),
                             QJsonObject{
@@ -1263,6 +1313,23 @@ namespace {
         expect(matchingVersions == QSet<QString>{singer.packageVersion().toString(),
                                                  sameIdNewerSinger.packageVersion().toString()},
                QStringLiteral("voices.list must expose complete references for same-ID versions"));
+        const auto localizedVoices = invokeSchemaValid(
+            registry, QStringLiteral("voices.list"),
+            QJsonObject{
+                {QStringLiteral("query"), QStringLiteral("Localized Registry Singer V2")}
+        },
+            QStringLiteral("localized voices.list"));
+        const auto localizedVoiceItems = localizedVoices
+                                             ? localizedVoices->value(QStringLiteral("singers")).toArray()
+                                             : QJsonArray{};
+        const auto localizedVoice = localizedVoiceItems.size() == 1
+                                        ? localizedVoiceItems.first().toObject()
+                                        : QJsonObject{};
+        expect(localizedVoiceItems.size() == 1 &&
+                   localizedVoice.value(QStringLiteral("name")) == sameIdNewerSinger.name() &&
+                   localizedVoice.value(QStringLiteral("display_name")) ==
+                       QStringLiteral("Localized Registry Singer V2"),
+               QStringLiteral("voices.list must search localized aliases and preserve default names"));
 
         const auto exactVoice = voiceSelection(sameIdNewerSinger, sameIdNewerSpeaker);
         const auto described = invokeSchemaValid(
@@ -1276,11 +1343,40 @@ namespace {
         expect(described &&
                    describedSnapshot.value(QStringLiteral("package_version")).toString() ==
                        sameIdNewerSinger.packageVersion().toString() &&
+                   describedSnapshot.value(QStringLiteral("name")) == sameIdNewerSinger.name() &&
+                   describedSnapshot.value(QStringLiteral("display_name")) ==
+                       QStringLiteral("Localized Registry Singer V2") &&
+                   describedSnapshot.value(QStringLiteral("localized_names"))
+                           .toObject()
+                           .value(QStringLiteral("en")) ==
+                       QStringLiteral("Localized Registry Singer V2") &&
                    describedSnapshot.value(QStringLiteral("speakers"))
                            .toArray()
                            .first()
                            .toObject()
-                           .value(QStringLiteral("speaker_id")) == sameIdNewerSpeaker.id(),
+                           .value(QStringLiteral("speaker_id")) == sameIdNewerSpeaker.id() &&
+                   describedSnapshot.value(QStringLiteral("speakers"))
+                           .toArray()
+                           .first()
+                           .toObject()
+                           .value(QStringLiteral("display_name")) ==
+                       QStringLiteral("Localized Speaker V2") &&
+                   describedSnapshot.value(QStringLiteral("speakers"))
+                           .toArray()
+                           .first()
+                           .toObject()
+                           .value(QStringLiteral("localized_names"))
+                           .toObject()
+                           .value(QStringLiteral("en")) ==
+                       QStringLiteral("Localized Speaker V2") &&
+                   describedSnapshot.value(QStringLiteral("languages"))
+                           .toArray()
+                           .first()
+                           .toObject()
+                           .value(QStringLiteral("localized_names"))
+                           .toObject()
+                           .value(QStringLiteral("en")) ==
+                       QStringLiteral("Localized Japanese"),
                QStringLiteral("voices.describe must resolve the requested package version"));
 
         invokeChangedOnce(registry, runtime, QStringLiteral("tracks.set_voice"),
@@ -1353,6 +1449,7 @@ namespace {
 
 int main(int argc, char *argv[]) {
     QCoreApplication application(argc, argv);
+    UiLanguageManager uiLanguageManager;
     auto registrySpeakerA = SpeakerInfo(QStringLiteral("speaker-a"), QStringLiteral("Speaker A"));
     auto registrySpeakerB = SpeakerInfo(QStringLiteral("speaker-b"), QStringLiteral("Speaker B"));
     auto registrySpeakerV2 =
@@ -1363,22 +1460,35 @@ int main(int argc, char *argv[]) {
     registrySpeakerB.setMixable(true);
     registrySpeakerV2.setMixable(true);
     registrySpeakerV2B.setMixable(true);
-    const SingerInfo registrySinger({QStringLiteral("registry-singer"),
-                                     QStringLiteral("registry-package"), QVersionNumber(1, 0)},
-                                    QStringLiteral("Registry Singer"),
-                                    {registrySpeakerA, registrySpeakerB},
-                                    {LanguageInfo(QStringLiteral("en"), QStringLiteral("English"),
-                                                  QStringLiteral("registry-g2p")),
-                                     LanguageInfo(QStringLiteral("zh"), QStringLiteral("Chinese"),
-                                                  QStringLiteral("registry-g2p"))},
-                                    QStringLiteral("en"));
-    const SingerInfo registrySingerV2(
+    registrySpeakerA.setLocalizedNames(
+        {{QStringLiteral("en"), QStringLiteral("Localized Speaker A")}});
+    registrySpeakerV2.setLocalizedNames(
+        {{QStringLiteral("en"), QStringLiteral("Localized Speaker V2")}});
+    auto registryLanguageEn = LanguageInfo(QStringLiteral("en"), QStringLiteral("English"),
+                                           QStringLiteral("registry-g2p"));
+    registryLanguageEn.setLocalizedNames(
+        {{QStringLiteral("en"), QStringLiteral("Localized English")}});
+    auto registryLanguageZh = LanguageInfo(QStringLiteral("zh"), QStringLiteral("Chinese"),
+                                           QStringLiteral("registry-g2p"));
+    auto registryLanguageJa = LanguageInfo(QStringLiteral("ja"), QStringLiteral("Japanese"),
+                                           QStringLiteral("registry-g2p"));
+    registryLanguageJa.setLocalizedNames(
+        {{QStringLiteral("en"), QStringLiteral("Localized Japanese")}});
+    auto registrySinger = SingerInfo({QStringLiteral("registry-singer"),
+                                      QStringLiteral("registry-package"), QVersionNumber(1, 0)},
+                                     QStringLiteral("Registry Singer"),
+                                     {registrySpeakerA, registrySpeakerB},
+                                     {registryLanguageEn, registryLanguageZh},
+                                     QStringLiteral("en"));
+    registrySinger.setLocalizedNames(
+        {{QStringLiteral("en"), QStringLiteral("Localized Registry Singer")}});
+    auto registrySingerV2 = SingerInfo(
         {QStringLiteral("registry-singer"), QStringLiteral("registry-package"),
          QVersionNumber(2, 0)},
         QStringLiteral("Registry Singer V2"), {registrySpeakerV2, registrySpeakerV2B},
-        {LanguageInfo(QStringLiteral("ja"), QStringLiteral("Japanese"),
-                      QStringLiteral("registry-g2p"))},
-        QStringLiteral("ja"));
+        {registryLanguageJa}, QStringLiteral("ja"));
+    registrySingerV2.setLocalizedNames(
+        {{QStringLiteral("en"), QStringLiteral("Localized Registry Singer V2")}});
     QTemporaryDir privatePackageDirectory;
     expect(privatePackageDirectory.isValid(),
            QStringLiteral("private package fixture directory must be available"));
@@ -1386,6 +1496,14 @@ int main(int argc, char *argv[]) {
     registryPackage.id = QStringLiteral("registry-package");
     registryPackage.version = QVersionNumber(1, 0);
     registryPackage.vendor = QStringLiteral("Registry Vendor");
+    registryPackage.localizedVendor = {
+        {QStringLiteral("en"), QStringLiteral("Localized Registry Vendor")}};
+    registryPackage.description = QStringLiteral("Registry Description");
+    registryPackage.localizedDescription = {
+        {QStringLiteral("en"), QStringLiteral("Localized Registry Description")}};
+    registryPackage.license = QStringLiteral("Registry License");
+    registryPackage.localizedLicense = {
+        {QStringLiteral("en"), QStringLiteral("Localized Registry License")}};
     registryPackage.path = privatePackageDirectory.path();
     registryPackage.singers.append({
         .singerId = QStringLiteral("registry-singer"),
@@ -1398,6 +1516,7 @@ int main(int argc, char *argv[]) {
     registryPackageV2.id = QStringLiteral("registry-package");
     registryPackageV2.version = QVersionNumber(2, 0);
     registryPackageV2.vendor = QStringLiteral("Registry Vendor");
+    registryPackageV2.localizedVendor = registryPackage.localizedVendor;
     registryPackageV2.path = privatePackageDirectory.path();
     registryPackageV2.singers.append({
         .singerId = QStringLiteral("registry-singer"),
