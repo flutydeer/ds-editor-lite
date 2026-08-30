@@ -1,5 +1,7 @@
 #include "UndoRedoController.h"
 
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include "EditorViewController.h"
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/History/ActionSequence.h>
@@ -38,10 +40,7 @@ void UndoRedoController::request(const Direction direction) {
 
     if (!sequence->focusTransition().has_value()) {
         clearPending();
-        if (direction == Direction::Undo)
-            historyManager->undo();
-        else
-            historyManager->redo();
+        commit(direction);
         return;
     }
 
@@ -78,12 +77,20 @@ void UndoRedoController::execute(const Direction direction, const ActionSequence
                                  const HistoryFocus &resultFocus) {
     Q_UNUSED(sequence);
     clearPending();
-    if (direction == Direction::Undo)
-        historyManager->undo();
-    else
-        historyManager->redo();
+    commit(direction);
     if (resultFocus.isValid())
         editorViewController->finalizeFocus(resultFocus);
+}
+
+void UndoRedoController::commit(const Direction direction) {
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime)
+        return;
+    Automation::CommandContext context{.expected = runtime->documentVersion()};
+    if (direction == Direction::Undo)
+        runtime->history().undo(context);
+    else
+        runtime->history().redo(context);
 }
 
 void UndoRedoController::clearPending() {

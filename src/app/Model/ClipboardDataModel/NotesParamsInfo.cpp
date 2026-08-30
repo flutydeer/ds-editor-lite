@@ -7,7 +7,9 @@ QJsonObject NotesParamsInfo::serializeToJson(const NotesParamsInfo &info) {
     for (const auto note : info.selectedNotes)
         noteList.append(note->serialize());
 
-    return QJsonObject{{"notes", noteList}};
+    return QJsonObject{
+        {"notes", noteList}
+    };
 }
 
 NotesParamsInfo NotesParamsInfo::deserializeFromJson(const QJsonObject &obj) {

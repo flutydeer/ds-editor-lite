@@ -3,6 +3,7 @@
 
 #define documentImportController DocumentImportController::instance()
 
+#include "Automation/AutomationTypes.h"
 #include "PreparedImportItem.h"
 
 #include <lite/Core/Singleton.h>
@@ -51,6 +52,7 @@ private:
     void showMessageDialog(const QString &title, const QString &message) const;
 
     QStringList m_pendingPaths;
+    Automation::DocumentVersion m_baseDocument;
     QList<PreparedImportItem> m_prepared;
     DecodeAudioTask *m_currentTask = nullptr;
     std::optional<FileImportDropTarget> m_target;

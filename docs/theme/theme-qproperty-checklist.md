@@ -98,9 +98,9 @@
 | safeColor | `${meter.safe}` |
 | warnColor | `${meter.warning}` |
 | criticalColor | `${meter.critical}` |
-| currentValueColor | `${meter.value}` |
-| peakHoldColor | `${meter.value}` |
-| valueBackColor | `${meter.background}` |
+| currentValueColor | `${meter.readout}` |
+| peakHoldColor | `${meter.peakHold}` |
+| valueBackColor | `${meter.readoutBack}` |
 
 ### TimelineView
 | 属性 | lite-dark 值 |
@@ -194,7 +194,7 @@
 | safeColor | `${meter.safe}` |
 | warnColor | `${meter.warning}` |
 | criticalColor | `${meter.critical}` |
-| currentValueColor | `${meter.value}` |
+| currentValueColor | `${meter.readout}` |
 
 ### TracksGraphicsView
 | 属性 | lite-dark 值 |
@@ -284,12 +284,13 @@
 | 属性 | lite-dark 值 |
 |---|---|
 | trackInactiveColor | `${mix.fader.trackInactive}` |
-| thumbFillColor | `${meter.value}` |
+| thumbFillColor | `${mix.fader.thumbFill}` |
+| thumbBorderColor | `${mix.fader.thumbBorder}` |
 
 ### PanSlider
 | 属性 | lite-dark 值 |
 |---|---|
-| centerGraduateColor | `${mix.fader.trackInactive}` |
+| centerGraduateColor | `${mix.pan.centerGraduate}` |
 
 ## dialogs.qss
 

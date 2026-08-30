@@ -1,18 +1,13 @@
 #include "SpeakerMixPresetStore.h"
 
-#include "Global/AppOptionsGlobal.h"
-#include "Model/AppOptions/AppOptions.h"
-
-#include <QJsonArray>
-#include <QJsonObject>
-#include <QUuid>
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 
 #include <algorithm>
 #include <cmath>
 
 namespace {
 
-    constexpr int kSchemaVersion = 1;
     constexpr double kWeightEpsilon = 1e-6;
 
     using namespace SpeakerMixModel;
@@ -53,37 +48,54 @@ namespace {
         return true;
     }
 
-    QJsonObject rootObject() {
-        return appOptions->general()->speakerMixPresets.toObject();
+    Automation::SpeakerMixPresetDto toDto(const SpeakerMixPreset &preset) {
+        Automation::SpeakerMixPresetDto result{
+            .id = preset.id,
+            .name = preset.name,
+            .packageId = preset.packageId,
+            .singerId = preset.singerId,
+            .packageVersion = preset.packageVersion,
+            .fixedWeights = preset.fixedWeights,
+            .createdAt = preset.createdAt,
+            .updatedAt = preset.updatedAt,
+        };
+        for (const auto &source : preset.sources) {
+            result.sources.append({
+                .speakerId = source.speaker.id(),
+                .speakerName = source.speaker.name(),
+            });
+        }
+        return result;
     }
 
-    bool writePresets(const QList<SpeakerMixPreset> &presets) {
-        QJsonArray presetArray;
-        for (const auto &preset : presets)
-            presetArray.append(preset.toJson());
-
-        QJsonObject root;
-        root["schemaVersion"] = kSchemaVersion;
-        root["presets"] = presetArray;
-        appOptions->general()->speakerMixPresets = root;
-        return appOptions->saveAndNotify(AppOptionsGlobal::Option::General);
+    SpeakerMixPreset fromDto(const Automation::SpeakerMixPresetDto &preset) {
+        SpeakerMixPreset result{
+            .id = preset.id,
+            .name = preset.name,
+            .packageId = preset.packageId,
+            .singerId = preset.singerId,
+            .packageVersion = preset.packageVersion,
+            .fixedWeights = preset.fixedWeights,
+            .createdAt = preset.createdAt,
+            .updatedAt = preset.updatedAt,
+        };
+        for (const auto &source : preset.sources)
+            result.sources.append({SpeakerInfo(source.speakerId, source.speakerName)});
+        return result;
     }
 
 } // namespace
 
 QList<SpeakerMixPreset> SpeakerMixPresetStore::allPresets() {
-    const auto root = rootObject();
-    if (root["schemaVersion"].toInt(kSchemaVersion) != kSchemaVersion)
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime)
         return {};
-
+    const auto result = runtime->presets().getSpeakerMixPresets();
+    if (!result)
+        return {};
     QList<SpeakerMixPreset> presets;
-    const auto presetArray = root["presets"].toArray();
-    for (const auto &value : presetArray) {
-        auto preset = SpeakerMixPreset::fromJson(value.toObject());
-        if (!preset.id.isEmpty() && !preset.name.isEmpty() && !preset.singerId.isEmpty() &&
-            !preset.packageId.isEmpty())
-            presets.append(std::move(preset));
-    }
+    for (const auto &preset : result.get())
+        presets.append(fromDto(preset));
     return presets;
 }
 
@@ -151,51 +163,20 @@ std::optional<SpeakerMixPreset>
     return preset;
 }
 
-std::optional<SpeakerMixPreset>
-    SpeakerMixPresetStore::savePreset(SpeakerMixPreset preset) {
-    const auto now = QDateTime::currentDateTimeUtc();
-    if (preset.id.isEmpty())
-        preset.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    if (!preset.createdAt.isValid())
-        preset.createdAt = now;
-    preset.updatedAt = now;
-
-    if (preset.name.trimmed().isEmpty() || preset.singerId.isEmpty() || preset.packageId.isEmpty())
+std::optional<SpeakerMixPreset> SpeakerMixPresetStore::savePreset(SpeakerMixPreset preset) {
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime)
         return std::nullopt;
-
-    auto presets = allPresets();
-    for (const auto &existing : std::as_const(presets)) {
-        if (existing.id != preset.id && matchesSinger(existing, preset.singerIdentifier()) &&
-            existing.name == preset.name)
-            return std::nullopt;
-    }
-
-    for (auto &existing : presets) {
-        if (existing.id == preset.id) {
-            if (existing.createdAt.isValid())
-                preset.createdAt = existing.createdAt;
-            existing = preset;
-            if (writePresets(presets))
-                return preset;
-            return std::nullopt;
-        }
-    }
-
-    presets.append(preset);
-    if (writePresets(presets))
-        return preset;
-    return std::nullopt;
+    const auto result = runtime->presets().saveSpeakerMixPreset({}, toDto(preset));
+    return result ? std::optional<SpeakerMixPreset>(fromDto(result.get())) : std::nullopt;
 }
 
 bool SpeakerMixPresetStore::deletePreset(const QString &id) {
-    auto presets = allPresets();
-    const auto oldSize = presets.size();
-    presets.erase(std::remove_if(presets.begin(), presets.end(),
-                                 [&id](const SpeakerMixPreset &preset) { return preset.id == id; }),
-                  presets.end());
-    if (presets.size() == oldSize)
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime)
         return false;
-    return writePresets(presets);
+    const auto result = runtime->presets().deleteSpeakerMixPreset({}, id);
+    return result && result.get().changed;
 }
 
 bool SpeakerMixPresetStore::presetNameExists(const SingerInfo &singerInfo, const QString &name,

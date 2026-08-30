@@ -91,10 +91,9 @@ EditorRhiTextureDrawSpan EditorGlyphAtlas::appendText(
 }
 
 void EditorGlyphAtlas::populateTextureBatches(QVector<EditorRhiTextureBatch> &batches) const {
-    const auto batchCount = std::count_if(m_pages.cbegin(), m_pages.cend(),
-                                          [](const auto &page) {
-                                              return !page->vertices.isEmpty();
-                                          });
+    const auto batchCount = std::count_if(m_pages.cbegin(), m_pages.cend(), [](const auto &page) {
+        return !page->vertices.isEmpty();
+    });
     batches.resize(batchCount);
     auto batchIndex = qsizetype(0);
     for (const auto &page : m_pages) {

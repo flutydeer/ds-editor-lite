@@ -43,8 +43,7 @@ void BasePitchCurve::Convolve(const std::vector<NoteInSeconds> &noteArray) {
     }
 }
 
-BasePitchCurve::BasePitchCurve(
-    const std::vector<srt::svs::Api::Common::L1::InputWordInfo> &word) {
+BasePitchCurve::BasePitchCurve(const std::vector<srt::svs::Api::Common::L1::InputWordInfo> &word) {
     std::vector<NoteInSeconds> noteArray;
     double startTime = 0.0;
 

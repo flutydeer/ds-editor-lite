@@ -5,8 +5,7 @@
 
 #include "Modules/FillLyric/LangCommon.h"
 
-namespace FillLyric
-{
+namespace FillLyric {
     static void flushLine(QList<QList<LangNote>> &result, QList<LangNote> &notes) {
         if (!notes.isEmpty()) {
             result.append(notes);
@@ -14,8 +13,9 @@ namespace FillLyric
         }
     }
 
-    QList<QList<LangNote>> LyricSplitter::splitAuto(const QString &input,
-                                                     const std::vector<std::string> &priorityLanguages) {
+    QList<QList<LangNote>>
+        LyricSplitter::splitAuto(const QString &input,
+                                 const std::vector<std::string> &priorityLanguages) {
         QList<QList<LangNote>> result;
         QList<LangNote> notes;
 
@@ -42,8 +42,9 @@ namespace FillLyric
                c == QChar::ParagraphSeparator;
     }
 
-    QList<QList<LangNote>> LyricSplitter::splitByChar(const QString &input,
-                                                       const std::vector<std::string> &priorityLanguages) {
+    QList<QList<LangNote>>
+        LyricSplitter::splitByChar(const QString &input,
+                                   const std::vector<std::string> &priorityLanguages) {
         struct CharInfo {
             int lineIdx;
             QChar ch;
@@ -57,6 +58,7 @@ namespace FillLyric
         struct LineBreakPos {
             int charIndex;
         };
+
         std::vector<int> lineBreaks;
 
         for (int i = 0; i < input.length(); i++) {
@@ -101,12 +103,14 @@ namespace FillLyric
         return result;
     }
 
-    QList<QList<LangNote>> LyricSplitter::splitCustom(const QString &input, const QStringList &splitter,
-                                                       const std::vector<std::string> &priorityLanguages) {
+    QList<QList<LangNote>>
+        LyricSplitter::splitCustom(const QString &input, const QStringList &splitter,
+                                   const std::vector<std::string> &priorityLanguages) {
         struct WordInfo {
             QString lyric;
             bool isLineBreak;
         };
+
         std::vector<WordInfo> words;
         std::vector<std::string> taggerInput;
 

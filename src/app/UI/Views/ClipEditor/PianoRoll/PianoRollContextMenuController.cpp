@@ -176,10 +176,28 @@ void PianoRollContextMenuController::showMenu(const PianoRollMenuContext &contex
         connect(fillLyrics, &QAction::triggered, clipController,
                 [this] { clipController->onFillLyric(m_owner); });
 
+        auto *shiftLyricsBackward = menu.addAction(tr("Move Lyrics Backward"));
+        shiftLyricsBackward->setEnabled(
+            clipController->canShiftWordProperties(context.selectedNoteIds));
+        connect(shiftLyricsBackward, &QAction::triggered, clipController,
+                [ids = context.selectedNoteIds] {
+                    clipController->onShiftWordPropertiesBackward(ids);
+                });
+
         auto *editPhonemes = menu.addAction(tr("Edit Phonemes..."));
         editPhonemes->setEnabled(context.phonemeEditorEnabled);
         connect(editPhonemes, &QAction::triggered, this,
                 [this, clip, noteId = context.noteId] { openPhonemeEditor(clip, noteId); });
+
+        // Reset phoneme durations: clear manual edited offsets back to the model
+        // baseline, cascading to adjacent edited words that would overlap.
+        auto *resetPhonemes = menu.addAction(tr("Reset Phoneme Durations"));
+        resetPhonemes->setEnabled(canResetPhonemeDurations(clip, context.selectedNoteIds));
+        resetPhonemes->setIcon(
+            IconUtils::menuIcon(QStringLiteral(":/svg/icons/history_16_regular.svg")));
+        connect(resetPhonemes, &QAction::triggered, this,
+                [this] { clipController->onResetPhonemeOffsets(m_owner); });
+
         menu.addSeparator();
 
         auto *cut = menu.addAction(tr("Cu&t"));
@@ -199,7 +217,7 @@ void PianoRollContextMenuController::showMenu(const PianoRollMenuContext &contex
         split->setIcon(
             IconUtils::menuIcon(QStringLiteral(":/svg/icons/arrow_split_16_filled.svg")));
         connect(split, &QAction::triggered, this, [context] {
-            PianoRollGraphicsViewHelper::splitNote(context.noteId, context.globalTick);
+            (void) PianoRollGraphicsViewHelper::splitNote(context.noteId, context.globalTick);
         });
         menu.addSeparator();
 
@@ -324,4 +342,20 @@ void PianoRollContextMenuController::openPhonemeEditor(SingingClip *clip, const 
         clipController->onNotePhonemesEdited(noteId, dialog->phonemeNames());
     });
     dialog->show();
+}
+
+bool PianoRollContextMenuController::canResetPhonemeDurations(const SingingClip *clip,
+                                                              const QList<int> &selectedNoteIds) {
+    if (!clip)
+        return false;
+    for (const auto id : selectedNoteIds) {
+        const auto *note = clip->findNoteById(id);
+        if (!note || !note->canEditPhonemes())
+            continue;
+        const auto &offsets = note->phonemeOffsetSeq();
+        // Only word roots with manual edits and a baseline to restore are eligible.
+        if (offsets.isEdited() && !offsets.original.isEmpty())
+            return true;
+    }
+    return false;
 }

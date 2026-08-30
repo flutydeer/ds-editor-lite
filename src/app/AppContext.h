@@ -11,7 +11,10 @@ class ParamUtils;
 class TaskManager;
 class HistoryManager;
 class PackageManager;
-namespace LangSetting { class ILangSetManager; }
+
+namespace LangSetting {
+    class ILangSetManager;
+}
 class InferEngine;
 class SynthrtEngine;
 class AudioDecodingController;
@@ -31,6 +34,10 @@ class AppController;
 class DocumentWorkflowController;
 class LevelMeterManager;
 
+namespace Automation {
+    class CoreRuntime;
+}
+
 struct AudioSystemContext;
 
 class AppContext {
@@ -39,7 +46,7 @@ public:
     AppContext &operator=(const AppContext &) = delete;
 
     template <typename T>
-    static T *instance();  // Returns nullptr if AppContext is not constructed
+    static T *instance(); // Returns nullptr if AppContext is not constructed
 
     // Public so main() can construct, but conceptually private to the app entry point.
     // Making it a friend of main() is not possible (main is a C runtime symbol).
@@ -55,6 +62,7 @@ public:
     // L1: Independent modules
     HistoryManager *m_historyManager = nullptr;
     PackageManager *m_packageManager = nullptr;
+    std::unique_ptr<Automation::CoreRuntime> m_coreRuntime;
 
     // L2: Language modules
     LangSetting::ILangSetManager *m_iLangSetManager = nullptr;

@@ -4,6 +4,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/InferController.h"
 #include "Modules/Inference/InferControllerHelper.h"
+#include "Modules/Inference/InferenceAutomationBridge.h"
 #include "Modules/Inference/InferPipeline.h"
 
 #include <QDebug>
@@ -24,7 +25,17 @@ void ProbeAcousticCacheState::onEntry(QEvent *event) {
     auto &piece = m_pipeline.piece();
     piece.acousticInferStatus = Pending;
     piece.state = QString("Acoustic.CacheProbe");
-    Helper::resetAcoustic(piece);
+    Automation::InferenceMutationRequest request;
+    request.kind = Automation::InferenceMutationKind::ResetStage;
+    request.clipId = Automation::ClipId(piece.clipId());
+    request.pieceId = Automation::PieceId(piece.id());
+    request.stage = Automation::InferenceStage::Acoustic;
+    const auto reset = InferenceAutomationBridge::executeCurrent(request);
+    if (!reset) {
+        m_pipeline.notifyDropped(InferenceAutomationBridge::dropReason(reset.getError()));
+        QTimer::singleShot(0, this, [this] { emit dropped(); });
+        return;
+    }
     m_pipeline.setAcousticResult({});
 
     const auto input = Helper::buildInferAcousticInput(piece, piece.clip->singerIdentifier());
@@ -80,8 +91,7 @@ void ProbeAcousticCacheState::handleTaskFinished(InferAcousticCacheProbeTask &ta
     if (hasCacheHit)
         m_pipeline.setAcousticResult(task.result());
     const bool immediateInference = appOptions->inference()->autoStartInfer ||
-                                    playbackController->playbackStatus() ==
-                                        PlaybackStatus::Playing;
+                                    playbackController->playbackStatus() == PlaybackStatus::Playing;
     finishCurrentTask();
 
     QTimer::singleShot(0, this, [this, hasCacheHit, immediateInference] {

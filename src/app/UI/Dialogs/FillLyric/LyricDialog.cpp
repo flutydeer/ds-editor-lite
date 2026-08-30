@@ -1,5 +1,7 @@
 #include "LyricDialog.h"
 
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include <QApplication>
 
 #include <lite/ProjectModel/AppModel/Note.h>
@@ -167,9 +169,9 @@ void LyricDialog::onCurrentTabChanged(const int index) {
 
 int LyricDialog::lyricCompactWidthFor(const int expandedWidth) const {
     const auto bodyMargins = body()->contentsMargins();
-    const int layoutSpacing = qMax(
-        0, m_lyricWidget->style()->pixelMetric(QStyle::PM_LayoutHorizontalSpacing, nullptr,
-                                               m_lyricWidget));
+    const int layoutSpacing =
+        qMax(0, m_lyricWidget->style()->pixelMetric(QStyle::PM_LayoutHorizontalSpacing, nullptr,
+                                                    m_lyricWidget));
     const int contentWidth =
         expandedWidth - bodyMargins.left() - bodyMargins.right() - layoutSpacing;
     const int totalStretch = kLyricBaseStretch + kLyricPreviewStretch;
@@ -239,15 +241,19 @@ LyricResult LyricDialog::exportLangNotes() const {
 }
 
 void LyricDialog::_on_modifyOption(const FillLyric::LyricTabConfig &config) {
-    const auto options = appOptions->fillLyric();
-    options->baseVisible = config.lyricBaseVisible;
-    options->extVisible = config.lyricExtVisible;
-
-    options->textEditFontSize = config.lyricBaseFontSize;
-    options->skipSlur = config.baseSkipSlur;
-    options->splitMode = config.splitMode;
-
-    options->viewFontSize = config.lyricExtFontSize;
-    options->exportLanguage = config.exportLanguage;
-    appOptions->saveAndNotify(AppOptionsGlobal::FillLyric);
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime)
+        return;
+    const auto snapshot = runtime->settings().getSettings();
+    if (!snapshot)
+        return;
+    auto settings = snapshot.get().fillLyric;
+    settings.baseVisible = config.lyricBaseVisible;
+    settings.extensionVisible = config.lyricExtVisible;
+    settings.textEditFontSize = config.lyricBaseFontSize;
+    settings.skipSlur = config.baseSkipSlur;
+    settings.splitMode = config.splitMode;
+    settings.viewFontSize = config.lyricExtFontSize;
+    settings.exportLanguage = config.exportLanguage;
+    runtime->settings().updateFillLyric({}, settings);
 }

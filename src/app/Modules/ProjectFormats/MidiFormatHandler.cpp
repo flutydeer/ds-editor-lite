@@ -10,6 +10,7 @@ ProjectFormatDescriptor MidiFormatHandler::descriptor() const {
     result.extensions = {QStringLiteral("mid"), QStringLiteral("midi")};
     result.canOpen = true;
     result.canImport = true;
+    result.canExport = true;
     return result;
 }
 

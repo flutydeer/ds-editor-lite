@@ -1,42 +1,24 @@
 /* System Buttons */
-Button#CloseButton {
-    /* qproperty-dropShadow: ""; */
+SystemWindowButton#CloseButton {
     border-radius: 0px;
     padding: 6px;
-    /* image: url(:svg/title-bar/close.svg); */
-    background: transparent;
+    background: transparent; /* fill is painted by the control (animated) */
 }
 
-Button#CloseButton:hover {
-    background: ${window.closeButton.hover};
-    color: ${window.closeButton.foreground};
+SystemWindowButton#CloseButton:hover,
+SystemWindowButton#CloseButton:pressed {
+    color: ${window.closeButton.foreground}; /* white glyph over the red fill */
 }
 
-Button#CloseButton:pressed {
-    background: ${window.closeButton.pressed};
-    color: ${window.closeButton.foreground};
-}
-
-Button#MaximizeButton:checked {
+SystemWindowButton#MaximizeButton:checked {
     color: ${control.foreground.default};
 }
 
-Button#MinimizeButton,
-Button#MaximizeButton {
-    /* qproperty-dropShadow: ""; */
+SystemWindowButton#MinimizeButton,
+SystemWindowButton#MaximizeButton {
     border-radius: 0px;
     padding: 6px;
-    background: transparent;
-}
-
-Button#MinimizeButton:hover,
-Button#MaximizeButton:hover {
-    background: ${control.fill.hover};
-}
-
-Button#MinimizeButton:pressed,
-Button#MaximizeButton:pressed {
-    background: ${control.fill.pressed};
+    background: transparent; /* fill is painted by the control (animated) */
 }
 
 /* ControlGroup */
@@ -244,7 +226,7 @@ TempoPopupWidget TapTempoButton#btnTapTempo:pressed {
 }
 
 TempoPopupWidget TapTempoButton#btnTapTempo[stable="true"] {
-    color: ${text.link};
+    color: ${text.accent};
     font-size: 18px;
     font-weight: bold;
 }

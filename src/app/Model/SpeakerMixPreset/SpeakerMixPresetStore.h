@@ -14,13 +14,14 @@ public:
     static std::optional<SpeakerMixPreset> findPreset(const QString &id);
     static std::optional<SpeakerMixPreset> findPresetByName(const SingerInfo &singerInfo,
                                                             const QString &name);
-    static SpeakerMixModel::SpeakerMixData speakerMixDataFromPreset(
-        const SpeakerMixPreset &preset, const SingerInfo &singerInfo);
+    static SpeakerMixModel::SpeakerMixData speakerMixDataFromPreset(const SpeakerMixPreset &preset,
+                                                                    const SingerInfo &singerInfo);
     static bool speakerMixDataMatchesPreset(const SpeakerMixPreset &preset,
                                             const SingerInfo &singerInfo,
                                             const SpeakerMixModel::SpeakerMixData &data);
-    static std::optional<SpeakerMixPreset> sourcePresetForData(
-        const SingerInfo &singerInfo, const SpeakerMixModel::SpeakerMixData &data);
+    static std::optional<SpeakerMixPreset>
+        sourcePresetForData(const SingerInfo &singerInfo,
+                            const SpeakerMixModel::SpeakerMixData &data);
     static std::optional<SpeakerMixPreset> savePreset(SpeakerMixPreset preset);
     static bool deletePreset(const QString &id);
     static bool presetNameExists(const SingerInfo &singerInfo, const QString &name,

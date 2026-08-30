@@ -3,6 +3,7 @@
 #include "Modules/Inference/InferController.h"
 #include "Modules/Inference/InferPipeline.h"
 #include "Modules/Inference/InferControllerHelper.h"
+#include "Modules/Inference/InferenceAutomationBridge.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 
 #include <QDebug>
@@ -13,9 +14,17 @@ InferVarianceState::InferVarianceState(InferPipeline &pipeline, QState *parent)
     : BaseInferState(pipeline, parent) {
 }
 
-void InferVarianceState::resetState() {
+bool InferVarianceState::resetState() {
     auto &piece = m_pipeline.piece();
-    Helper::resetVariance(piece);
+    Automation::InferenceMutationRequest request;
+    request.kind = Automation::InferenceMutationKind::ResetStage;
+    request.clipId = Automation::ClipId(piece.clipId());
+    request.pieceId = Automation::PieceId(piece.id());
+    request.stage = Automation::InferenceStage::Variance;
+    const auto result = InferenceAutomationBridge::executeCurrent(request);
+    if (!result)
+        qWarning() << "Failed to reset variance inference state:" << result.getError().message;
+    return static_cast<bool>(result);
 }
 
 void InferVarianceState::buildTaskInput() {
@@ -36,8 +45,7 @@ void InferVarianceState::cancelTaskInController(int taskId) {
 }
 
 bool InferVarianceState::finishTaskInController(IInferTask *task) {
-    return inferController->finishCurrentInferVarianceTask(
-        static_cast<InferVarianceTask *>(task));
+    return inferController->finishCurrentInferVarianceTask(static_cast<InferVarianceTask *>(task));
 }
 
 void InferVarianceState::setTaskResultToPipeline(IInferTask *task) {

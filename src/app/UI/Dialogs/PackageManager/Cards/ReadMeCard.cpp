@@ -12,7 +12,7 @@
 
 ReadMeCard::ReadMeCard(QWidget *parent) : OptionsCard(parent) {
     setAttribute(Qt::WA_StyledBackground);
-    
+
     lbReadMe = new QLabel;
     lbReadMe->setObjectName("lbReadMe");
     lbReadMe->setWordWrap(true);
@@ -22,9 +22,9 @@ ReadMeCard::ReadMeCard(QWidget *parent) : OptionsCard(parent) {
     layout->addWidget(lbReadMe);
     layout->setContentsMargins({16, 16, 16, 16});
     layout->setSpacing(0);
-    
+
     card()->setLayout(layout);
-    
+
     setTitle(tr("ReadMe"));
 }
 

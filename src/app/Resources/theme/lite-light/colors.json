@@ -79,8 +79,8 @@
         "text.primary": "{neutral.850}",
         "text.secondary": "{neutral.700}",
         "text.emphasis": "{neutral.1000}",
+        "text.accent": "{accent.500}",
         "text.onAccent": "{accent.ink}",
-        "text.link": "{accent.500}",
 
         "icon.primary": "{neutral.850}",
         "icon.secondary": "{neutral.700}",
@@ -200,14 +200,15 @@
         "curve.anchor": "{neutral.750}",
         "curve.anchorSelected": "{accent.500}",
 
-        "meter.dimmed": "{neutral.300}",
-        "meter.safe": "{feedback.info}",
-        "meter.warning": "{feedback.success}",
-        "meter.critical": "{feedback.warning}",
-        "meter.clipped": "{feedback.error}",
-        "meter.value": "{neutral.750}",
-        "meter.background": "{neutral.black75}",
-        "meter.trackBackground": "{neutral.200}",
+        "meter.dimmed": "{neutral.150}",
+        "meter.safe": "#7BBFDE",
+        "meter.warning": "#7ADD8E",
+        "meter.critical": "#FFCD9B",
+        "meter.clipped": "#B84F4D",
+        "meter.peakHold": "{neutral.500}",
+        "meter.readout": "{neutral.750}",
+        "meter.readoutBack": "{neutral.white50}",
+        "meter.trackBack": "{transparent.default}",
 
         "timeline.background": "{transparent.default}",
 
@@ -246,7 +247,11 @@
         "speakerMix.emptyState.fill": "#E6FFFFFF",
         "speakerMix.emptyState.text": "{neutral.800}",
 
-        "mix.fader.trackInactive": "{neutral.400}",
+        "mix.fader.trackInactive": "{neutral.250}",
+        "mix.fader.thumbBorder": "{neutral.200}",
+
+        "mix.fader.thumbFill": "{neutral.0}",
+        "mix.pan.centerGraduate": "{neutral.300}",
 
         "button.mute.checked.foreground": "{feedback.error}",
         "button.mute.checked.fill": "#40B3262E",

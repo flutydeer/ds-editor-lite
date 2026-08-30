@@ -2,6 +2,7 @@
 #define AUDIO_AUDIOEXPORTER_P_H
 
 #include "AudioExporter.h"
+#include "Automation/AutomationTypes.h"
 
 #include <QSharedData>
 
@@ -16,16 +17,16 @@ namespace Audio {
     public:
         QString fileName;
         QString fileDirectory;
-        AudioExporterConfig::FileType fileType;
-        bool formatMono;
-        int formatOption;
-        int formatQuality;
-        double formatSampleRate;
-        AudioExporterConfig::MixingOption mixingOption;
-        bool isMuteSoloEnabled;
-        AudioExporterConfig::SourceOption sourceOption;
+        AudioExporterConfig::FileType fileType = AudioExporterConfig::FT_Wav;
+        bool formatMono = false;
+        int formatOption = 0;
+        int formatQuality = 100;
+        double formatSampleRate = 44100.0;
+        AudioExporterConfig::MixingOption mixingOption = AudioExporterConfig::MO_Mixed;
+        bool isMuteSoloEnabled = true;
+        AudioExporterConfig::SourceOption sourceOption = AudioExporterConfig::SO_All;
         QList<int> source;
-        AudioExporterConfig::TimeRange timeRange;
+        AudioExporterConfig::TimeRange timeRange = AudioExporterConfig::TR_All;
     };
 
     class AudioExporterPrivate {
@@ -34,16 +35,22 @@ namespace Audio {
         AudioExporter *q_ptr;
         AudioExporterConfig config;
         Core::IProjectWindow *windowHandle;
+        AppModel *model = nullptr;
+        QString projectPath;
+        talcs::DspxProjectContext *context = nullptr;
+        bool automationBackend = false;
+        Automation::TaskId lastTaskId;
 
-        static QString projectName();
-        static QString projectDirectory();
-        static QString trackName(int trackIndex);
-        static talcs::DspxProjectContext *projectContext();
-        static QPair<int, int> calculateRange();
-        static QList<int> selectedSources();
+        QString projectName() const;
+        QString projectDirectory() const;
+        QString trackName(int trackIndex) const;
+        talcs::DspxProjectContext *projectContext() const;
+        QPair<int, int> calculateRange() const;
+        QList<int> selectedSources() const;
 
         bool calculateTemplate(QString &templateString) const;
-        bool calculateTemplate(QString &templateString, const QString &trackName, int trackIndex) const;
+        bool calculateTemplate(QString &templateString, const QString &trackName,
+                               int trackIndex) const;
 
         int calculateFormat() const;
 

@@ -10,6 +10,16 @@ namespace Core {
     class IProjectWindow;
 }
 
+class AppModel;
+
+namespace talcs {
+    class DspxProjectContext;
+}
+
+namespace Automation {
+    class AudioExportJobAdapter;
+}
+
 namespace Audio {
 
 
@@ -39,6 +49,7 @@ namespace Audio {
             FT_OggVorbis,
             FT_Mp3,
         };
+
         FileType fileType() const;
         void setFileType(FileType);
 
@@ -62,6 +73,7 @@ namespace Audio {
             MO_Separated,
             MO_SeparatedThruMaster,
         };
+
         MixingOption mixingOption() const;
         void setMixingOption(MixingOption);
 
@@ -73,6 +85,7 @@ namespace Audio {
             SO_Selected,
             SO_Custom,
         };
+
         SourceOption sourceOption() const;
         void setSourceOption(SourceOption);
 
@@ -83,6 +96,7 @@ namespace Audio {
             TR_All,
             TR_LoopSection,
         };
+
         TimeRange timeRange() const;
         void setTimeRange(TimeRange);
 
@@ -105,8 +119,9 @@ namespace Audio {
         Q_OBJECT
         Q_DECLARE_PRIVATE(AudioExporter)
         friend class Internal::AudioExportDialog;
-    public:
+        friend class Automation::AudioExportJobAdapter;
 
+    public:
         explicit AudioExporter(Core::IProjectWindow *window, QObject *parent = nullptr);
         ~AudioExporter() override;
 
@@ -132,7 +147,7 @@ namespace Audio {
         };
         Q_DECLARE_FLAGS(Warning, WarningFlag)
         Warning warning() const;
-        [[nodiscard]]static QStringList warningText(Warning warning);
+        [[nodiscard]] static QStringList warningText(Warning warning);
 
         QStringList dryRun() const;
 
@@ -141,6 +156,7 @@ namespace Audio {
             R_Fail,
             R_Abort,
         };
+
         Result exec();
         void cleanUp();
 
@@ -149,10 +165,21 @@ namespace Audio {
 
     signals:
         void progressChanged(double progressRatio, int sourceIndex);
+        void inferenceProgressChanged(double progressRatio);
         void clippingDetected(int sourceIndex);
         void warningAdded(const QString &message, int sourceIndex);
 
     private:
+        void configureAutomationBackend(AppModel *model, QString projectPath,
+                                        talcs::DspxProjectContext *projectContext);
+        void setConfigInternal(const AudioExporterConfig &config);
+        [[nodiscard]] Warning warningInternal() const;
+        [[nodiscard]] QStringList dryRunInternal() const;
+        [[nodiscard]] QString projectDirectoryInternal() const;
+        Result execInternal();
+        void cleanUpInternal();
+        void cancelInternal(bool isFail, const QString &message);
+
         QScopedPointer<AudioExporterPrivate> d_ptr;
     };
 

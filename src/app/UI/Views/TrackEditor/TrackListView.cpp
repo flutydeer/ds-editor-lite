@@ -230,12 +230,11 @@ void TrackListView::updateDropIndicator(const int insertionIndex) {
         return;
     }
 
-    const auto boundary = insertionIndex == count
-                              ? visualItemRect(item(count - 1)).bottom() + 1
-                              : visualItemRect(item(insertionIndex)).top();
+    const auto boundary = insertionIndex == count ? visualItemRect(item(count - 1)).bottom() + 1
+                                                  : visualItemRect(item(insertionIndex)).top();
     constexpr auto indicatorHeight = 2;
-    const auto top = qBound(0, boundary - indicatorHeight / 2,
-                            viewport()->height() - indicatorHeight);
+    const auto top =
+        qBound(0, boundary - indicatorHeight / 2, viewport()->height() - indicatorHeight);
     m_dropIndicator->setGeometry(0, top, viewport()->width(), indicatorHeight);
     m_dropIndicator->raise();
     m_dropIndicator->show();

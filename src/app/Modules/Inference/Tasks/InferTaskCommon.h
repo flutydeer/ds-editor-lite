@@ -75,6 +75,7 @@ auto convertInputWords(const QList<InferWord> &words, const std::string &speaker
                        const InferSpeakerMix &speakerMix,
                        const std::map<std::string, std::string> &speakerMapping, QString &error)
     -> std::vector<srt::svs::Api::Common::L1::InputWordInfo>;
+
 // Serializes DirectML driver-facing inference and session lifecycle operations.
 // Construct it before ModelSetHandle/Inference references so their destruction
 // also completes before the guard unlocks. It is a no-op for other providers.
@@ -89,7 +90,6 @@ public:
 private:
     bool m_locked = false;
 };
-
 
 auto convertInputParams(const QList<InferParam> &params)
     -> std::vector<srt::svs::Api::Common::L1::InputParameterInfo>;

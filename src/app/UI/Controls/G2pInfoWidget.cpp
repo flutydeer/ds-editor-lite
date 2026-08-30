@@ -77,27 +77,28 @@ namespace LangSetting {
         const auto contextStd = context.toStdString();
         srt::core::Expected<srt::core::NO<srt::g2p::Task>> g2pFactory;
         if (context.isEmpty() && contextVersion.isNull()) {
-            g2pFactory = srt::g2p::Manager::instance()->task("g2p", contextStd, g2pId.toStdString());
+            g2pFactory =
+                srt::g2p::Manager::instance()->task("g2p", contextStd, g2pId.toStdString());
         } else {
             const auto versionStd = VersionUtils::qt_to_stdc(contextVersion);
-            g2pFactory = srt::g2p::Manager::instance()->task(
-                "g2p", contextStd, versionStd, g2pId.toStdString());
+            g2pFactory = srt::g2p::Manager::instance()->task("g2p", contextStd, versionStd,
+                                                             g2pId.toStdString());
         }
 
         if (!g2pFactory) {
             // 路由加载失败时给出可诊断的 UI 提示，避免静默无反馈
             // 补充分类日志，便于无控制台时排障
             const auto contextDisplay = context.isEmpty() ? tr("(official)") : context;
-            const auto versionDisplay = contextVersion.isNull() ? tr("N/A") : contextVersion.toString();
+            const auto versionDisplay =
+                contextVersion.isNull() ? tr("N/A") : contextVersion.toString();
             qCWarning(logLangSetting).nospace()
                 << "G2P config load failed g2pId='" << g2pId << "' context='" << context
-                << "' version=" << contextVersion.toString()
-                << " reason='" << QString::fromStdString(g2pFactory.error().message()) << "'";
+                << "' version=" << contextVersion.toString() << " reason='"
+                << QString::fromStdString(g2pFactory.error().message()) << "'";
             m_label->setText(tr("G2P Config (Load Failed)"));
-            m_descriptionLabel->setText(
-                tr("Failed to load g2p '%1' in context '%2' (version %3). "
-                   "Check voicebank G2P package installation.")
-                    .arg(g2pId, contextDisplay, versionDisplay));
+            m_descriptionLabel->setText(tr("Failed to load g2p '%1' in context '%2' (version %3). "
+                                           "Check voicebank G2P package installation.")
+                                            .arg(g2pId, contextDisplay, versionDisplay));
             return;
         }
 

@@ -7,10 +7,8 @@
 #include <QStringList>
 #include <QVector>
 
-namespace FillLyric
-{
-    namespace QssParser
-    {
+namespace FillLyric {
+    namespace QssParser {
         // Accepts both the legacy "r,g,b,a[,width]" component lists and
         // single "#RRGGBB"/"#AARRGGBB" literals or "${token}" theme tokens.
         QVector<QBrush> parseBrushes(const QString &value, int count);

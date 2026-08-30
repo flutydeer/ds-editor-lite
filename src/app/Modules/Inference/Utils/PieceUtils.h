@@ -13,4 +13,4 @@ public:
     static bool isSamePiece(const InferPiece &left, const Segment &right);
 };
 
-#endif //DS_EDITOR_LITE_PIECEUTILS_H
+#endif // DS_EDITOR_LITE_PIECEUTILS_H

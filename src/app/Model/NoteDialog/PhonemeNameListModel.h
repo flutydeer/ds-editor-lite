@@ -11,11 +11,7 @@ class PhonemeNameListModel : public QAbstractListModel {
 public:
     explicit PhonemeNameListModel(QObject *parent = nullptr);
 
-    enum Roles {
-        LanguageRole = Qt::UserRole + 1,
-        NameRole,
-        IsOnsetRole
-    };
+    enum Roles { LanguageRole = Qt::UserRole + 1, NameRole, IsOnsetRole };
 
     [[nodiscard]] PhonemeNameItemModel getItem(const QModelIndex &index) const;
     [[nodiscard]] QList<PhonemeNameItemModel> items() const;
@@ -35,4 +31,4 @@ private:
 
 
 
-#endif //DS_EDITOR_LITE_PHONEMENAMELISTMODEL_H
+#endif // DS_EDITOR_LITE_PHONEMENAMELISTMODEL_H

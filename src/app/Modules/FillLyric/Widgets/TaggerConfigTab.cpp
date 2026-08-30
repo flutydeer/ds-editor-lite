@@ -1,5 +1,7 @@
 #include "TaggerConfigTab.h"
 
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include <QLabel>
 #include <QListWidgetItem>
 #include <QMessageBox>
@@ -10,6 +12,7 @@
 #include <re2/re2.h>
 
 #include "Model/AppOptions/AppOptions.h"
+#include "Modules/FillLyric/Utils/TaggerRuleOrder.h"
 #include "Modules/FillLyric/Utils/TextTagger.h"
 
 #include "RuleListItemWidget.h"
@@ -17,8 +20,7 @@
 #include "RuleListWidget.h"
 #include "TaggerDetailPanel.h"
 
-namespace FillLyric
-{
+namespace FillLyric {
     static bool validateTaggerRegex(const QString &pattern, QString &errorMsg) {
         RE2::Options opts;
         opts.set_encoding(RE2::Options::EncodingUTF8);
@@ -54,9 +56,9 @@ namespace FillLyric
 
         // Info + Apply row
         auto *bottomLayout = new QHBoxLayout;
-        auto *infoLabel = new QLabel(tr(
-            "Tagger rules affect all split modes. "
-            "Rules only match tokens with language=\"unknown\"; first match wins."));
+        auto *infoLabel =
+            new QLabel(tr("Tagger rules affect all split modes. "
+                          "Rules only match tokens with language=\"unknown\"; first match wins."));
         infoLabel->setObjectName("ruleInfoLabel");
         infoLabel->setWordWrap(true);
         bottomLayout->addWidget(infoLabel, 1);
@@ -73,8 +75,10 @@ namespace FillLyric
         // Connections
         connect(m_listPanel, &RuleListPanel::addRequested, this, &TaggerConfigTab::onAddRule);
         connect(m_listPanel, &RuleListPanel::removeRequested, this, &TaggerConfigTab::onRemoveRule);
-        connect(m_listPanel->listWidget(), &RuleListWidget::orderChanged, this, &TaggerConfigTab::onOrderChanged);
-        connect(m_listPanel->listWidget(), &QListWidget::currentRowChanged, this, &TaggerConfigTab::onSelectionChanged);
+        connect(m_listPanel->listWidget(), &RuleListWidget::orderChanged, this,
+                &TaggerConfigTab::onOrderChanged);
+        connect(m_listPanel->listWidget(), &QListWidget::currentRowChanged, this,
+                &TaggerConfigTab::onSelectionChanged);
         connect(m_applyBtn, &QPushButton::clicked, this, &TaggerConfigTab::applyConfig);
         connect(testJumpBtn, &QPushButton::clicked, this, &TaggerConfigTab::jumpToTestRequested);
     }
@@ -86,76 +90,31 @@ namespace FillLyric
         const auto infos = TextTagger::ruleInfoList();
         m_knownLanguages = TextTagger::builtinLanguages();
 
-        if (!opt->taggerOrder.isEmpty()) {
-            for (const auto &name : opt->taggerOrder) {
-                RuleItem item;
-                item.name = name;
-
-                bool found = false;
-                for (const auto &info : infos) {
-                    if (info.language == name && info.builtin) {
-                        item.builtin = true;
-                        item.enabled = info.enabled;
-                        item.builtinInfo = info;
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    for (const auto &cr : opt->customTaggerRules) {
-                        if (cr.language == name) {
-                            item.builtin = false;
-                            item.enabled = cr.enabled;
-                            item.customRule = cr;
-                            found = true;
-                            break;
-                        }
-                    }
-                }
-                if (found)
-                    m_rules.append(item);
-            }
-
-            // Append new builtins not in saved order
-            for (const auto &info : infos) {
-                if (!info.builtin)
-                    continue;
-                bool exists = false;
-                for (const auto &r : m_rules) {
-                    if (r.name == info.language) {
-                        exists = true;
-                        break;
-                    }
-                }
-                if (!exists) {
-                    RuleItem item;
-                    item.name = info.language;
-                    item.builtin = true;
-                    item.enabled = info.enabled;
-                    item.builtinInfo = info;
-                    m_rules.append(item);
-                }
-            }
-        } else {
-            for (const auto &info : infos) {
-                if (!info.builtin)
-                    continue;
-                RuleItem item;
-                item.name = info.language;
-                item.builtin = true;
-                item.enabled = opt->builtinTaggerEnabled.value(info.language, true);
-                item.builtinInfo = info;
-                m_rules.append(item);
-            }
-            for (const auto &cr : opt->customTaggerRules) {
-                RuleItem item;
-                item.name = cr.language;
-                item.builtin = false;
-                item.enabled = cr.enabled;
-                item.customRule = cr;
-                m_rules.append(item);
-            }
+        QList<RuleItem> availableRules;
+        QList<TaggerRuleIdentity> identities;
+        for (const auto &info : infos) {
+            if (!info.builtin)
+                continue;
+            RuleItem item;
+            item.name = info.language;
+            item.builtin = true;
+            item.enabled = opt->builtinTaggerEnabled.value(info.language, true);
+            item.builtinInfo = info;
+            availableRules.append(item);
+            identities.append({.language = info.language, .builtin = true});
         }
+        for (const auto &customRule : opt->customTaggerRules) {
+            RuleItem item;
+            item.name = customRule.language;
+            item.builtin = false;
+            item.enabled = customRule.enabled;
+            item.customRule = customRule;
+            availableRules.append(item);
+            identities.append({.language = customRule.language, .builtin = false});
+        }
+
+        for (const int index : TaggerRuleOrder::resolve(opt->taggerOrder, identities))
+            m_rules.append(availableRules.at(index));
 
         rebuildItemWidgets();
         m_detailPanel->showPlaceholder();
@@ -249,6 +208,8 @@ namespace FillLyric
     }
 
     void TaggerConfigTab::onOrderChanged() {
+        saveCurrentDetail();
+
         auto *list = m_listPanel->listWidget();
         QList<RuleItem> reordered;
         reordered.reserve(m_rules.size());
@@ -296,26 +257,47 @@ namespace FillLyric
             }
         }
 
-        auto *opt = appOptions->fillLyric();
+        auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+        if (!runtime)
+            return;
+        const auto snapshot = runtime->settings().getSettings();
+        if (!snapshot)
+            return;
+        auto settings = snapshot.get().fillLyric;
+        settings.builtinTaggerEnabled.clear();
+        settings.customTaggerRules.clear();
+        settings.taggerOrder.clear();
 
-        opt->builtinTaggerEnabled.clear();
-        opt->customTaggerRules.clear();
-        QStringList order;
+        QList<TaggerRuleIdentity> identities;
+        identities.reserve(m_rules.size());
+        for (const auto &rule : m_rules)
+            identities.append({.language = rule.name, .builtin = rule.builtin});
+        settings.taggerOrder = TaggerRuleOrder::canonicalize({}, identities);
 
         for (const auto &rule : m_rules) {
-            order.append(rule.name);
             if (rule.builtin) {
-                opt->builtinTaggerEnabled[rule.name] = rule.enabled;
+                settings.builtinTaggerEnabled[rule.name] = rule.enabled;
             } else {
-                auto cr = rule.customRule;
-                cr.enabled = rule.enabled;
-                opt->customTaggerRules.append(cr);
+                Automation::TaggerRuleDto converted{
+                    .language = rule.customRule.language,
+                    .enabled = rule.enabled,
+                };
+                for (const auto &entry : rule.customRule.entries) {
+                    converted.entries.append({
+                        .type = entry.type,
+                        .value = entry.value,
+                        .tag = entry.tag,
+                        .discard = entry.discard,
+                    });
+                }
+                settings.customTaggerRules.append(std::move(converted));
             }
         }
-        opt->taggerOrder = order;
+        const auto updated = runtime->settings().updateFillLyric({}, settings);
+        if (!updated)
+            return;
 
-        appOptions->saveAndNotify(AppOptionsGlobal::FillLyric);
-
+        const auto *opt = appOptions->fillLyric();
         TextTagger::setBuiltinEnabled(opt->builtinTaggerEnabled);
         TextTagger::setCustomRules(opt->customTaggerRules);
         TextTagger::setRuleOrder(opt->taggerOrder);

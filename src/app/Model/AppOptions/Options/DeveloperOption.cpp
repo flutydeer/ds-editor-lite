@@ -37,8 +37,8 @@ QString DeveloperOption::editorRenderBackendToString(const EditorRenderBackend b
     }
 }
 
-DeveloperOption::EditorRenderBackend DeveloperOption::editorRenderBackendFromString(
-    const QString &value) {
+DeveloperOption::EditorRenderBackend
+    DeveloperOption::editorRenderBackendFromString(const QString &value) {
     if (value.compare(QStringLiteral("rhi-experimental"), Qt::CaseInsensitive) == 0)
         return EditorRenderBackend::RhiExperimental;
     return EditorRenderBackend::Legacy;

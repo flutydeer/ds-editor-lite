@@ -9,7 +9,7 @@
 #include <functional>
 
 class NoteView;
-class Note;
+class SingingClip;
 class PianoRollGraphicsView;
 
 class PianoRollSelectionModel : public QObject {
@@ -19,11 +19,13 @@ public:
     using NoteSelectionMode = EditorSelectionUtils::SelectionMode;
 
     explicit PianoRollSelectionModel(PianoRollGraphicsView *view, QList<NoteView *> &noteViews,
-                                     QHash<int, NoteView *> &noteViewIndex, QList<Note *> &notes,
+                                     QHash<int, NoteView *> &noteViewIndex,
                                      QObject *parent = nullptr);
 
     [[nodiscard]] QList<NoteView *> selectedNoteItems() const;
     [[nodiscard]] QList<NoteView *> orderedNoteItems() const;
+    [[nodiscard]] QList<int> selectedNoteIds() const;
+    void setDataContext(SingingClip *clip);
     [[nodiscard]] EditorSelectionUtils::PressResult
         applyNoteSelection(NoteView *noteView, Qt::KeyboardModifiers modifiers);
     [[nodiscard]] EditorSelectionUtils::PressResult applyPressSelection(NoteView *noteView,
@@ -88,7 +90,6 @@ signals:
     void selectionChanged();
 
 private:
-    [[nodiscard]] QList<int> selectedNoteIds() const;
     [[nodiscard]] QList<int> orderedNoteIds() const;
     void applySelection(const QList<int> &selection) const;
 
@@ -101,7 +102,7 @@ private:
     // References held from PianoRollGraphicsViewPrivate
     QList<NoteView *> &m_noteViews;
     QHash<int, NoteView *> &m_noteViewIndex;
-    QList<Note *> &m_notes;
+    SingingClip *m_clip = nullptr;
     PianoRollGraphicsView *m_view = nullptr;
 };
 

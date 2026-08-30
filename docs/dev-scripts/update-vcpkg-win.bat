@@ -9,8 +9,6 @@ set VCPKG_KEEP_ENV_VARS=QT_DIR;Qt6_DIR;Qt6GuiTools_DIR;CMAKE_PREFIX_PATH
 set FEATURE_ARG=
 if "%1"=="cuda12" (
     set FEATURE_ARG=--x-feature=cuda12
-) else if "%1"=="cuda11" (
-    set FEATURE_ARG=--x-feature=cuda11
 )
 
 pushd vcpkg

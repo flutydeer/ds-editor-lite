@@ -5,17 +5,19 @@
 #include <QSharedPointer>
 #include <QString>
 
-namespace LrcTools
-{
+namespace LrcTools {
 
     struct LyricPacket {
         QString lyric;
         qint64 pts = 0;
 
-        bool isEmpty() const { return lyric.isEmpty() && pts == 0; }
+        bool isEmpty() const {
+            return lyric.isEmpty() && pts == 0;
+        }
     };
 
     class LrcDecoderPrivate;
+
     class LrcDecoder final : public QObject {
         Q_OBJECT
         Q_DECLARE_PRIVATE(LrcDecoder)

@@ -4,8 +4,7 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
 void EditNotesLengthAction::execute() {
-    const auto previousWordStates =
-        SingingClipPhonemeNormalizer::captureWordStates(*m_clip);
+    const auto previousWordStates = SingingClipPhonemeNormalizer::captureWordStates(*m_clip);
     for (const auto &note : m_notes) {
         m_clip->removeNote(note);
         note->setLength(note->length() + m_deltaTick);

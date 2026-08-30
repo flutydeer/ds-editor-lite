@@ -13,8 +13,7 @@
 
 #include <re2/re2.h>
 
-namespace FillLyric
-{
+namespace FillLyric {
     struct SplitterConfig {
         std::string name;
         std::vector<std::unique_ptr<RE2>> regexes;
@@ -29,9 +28,12 @@ namespace FillLyric
 
     static void ensureSplitterInitialized() {
         std::call_once(g_splitterInitOnce, [] {
-            if (g_splitterInitialized) // allow init() to be called directly (e.g. by tests) and skip re-initialization
+            if (g_splitterInitialized) // allow init() to be called directly (e.g. by tests) and
+                                       // skip re-initialization
                 return;
-            const auto basePath = std::filesystem::path(QCoreApplication::applicationDirPath().toStdString()) / "configs";
+            const auto basePath =
+                std::filesystem::path(QCoreApplication::applicationDirPath().toStdString()) /
+                "configs";
             TextSplitter::init(basePath / "splitter");
         });
     }
@@ -176,10 +178,9 @@ namespace FillLyric
         ensureSplitterInitialized();
 
         // Remove existing custom rules
-        g_splitters.erase(
-            std::remove_if(g_splitters.begin(), g_splitters.end(),
-                           [](const SplitterConfig &c) { return !c.builtin; }),
-            g_splitters.end());
+        g_splitters.erase(std::remove_if(g_splitters.begin(), g_splitters.end(),
+                                         [](const SplitterConfig &c) { return !c.builtin; }),
+                          g_splitters.end());
 
         RE2::Options options;
         options.set_encoding(RE2::Options::EncodingUTF8);
@@ -215,8 +216,7 @@ namespace FillLyric
 
         // Insert prepend rules at the beginning
         if (!prependRules.empty()) {
-            g_splitters.insert(g_splitters.begin(),
-                               std::make_move_iterator(prependRules.begin()),
+            g_splitters.insert(g_splitters.begin(), std::make_move_iterator(prependRules.begin()),
                                std::make_move_iterator(prependRules.end()));
         }
 

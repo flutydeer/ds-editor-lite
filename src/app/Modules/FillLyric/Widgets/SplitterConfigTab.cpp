@@ -1,5 +1,7 @@
 #include "SplitterConfigTab.h"
 
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include <QLabel>
 #include <QListWidgetItem>
 #include <QMessageBox>
@@ -17,8 +19,7 @@
 #include "RuleListWidget.h"
 #include "SplitterDetailPanel.h"
 
-namespace FillLyric
-{
+namespace FillLyric {
     // ── Helper: validate RE2 regex ──────────────────────────────────────────
 
     static bool validateRegex(const QString &pattern, QString &errorMsg) {
@@ -56,9 +57,8 @@ namespace FillLyric
 
         // Info + Apply row
         auto *bottomLayout = new QHBoxLayout;
-        auto *infoLabel = new QLabel(tr(
-            "Splitter rules only affect Auto split mode. "
-            "Regexes are applied in list order from top to bottom."));
+        auto *infoLabel = new QLabel(tr("Splitter rules only affect Auto split mode. "
+                                        "Regexes are applied in list order from top to bottom."));
         infoLabel->setObjectName("ruleInfoLabel");
         infoLabel->setWordWrap(true);
         bottomLayout->addWidget(infoLabel, 1);
@@ -74,9 +74,12 @@ namespace FillLyric
 
         // Connections
         connect(m_listPanel, &RuleListPanel::addRequested, this, &SplitterConfigTab::onAddRule);
-        connect(m_listPanel, &RuleListPanel::removeRequested, this, &SplitterConfigTab::onRemoveRule);
-        connect(m_listPanel->listWidget(), &RuleListWidget::orderChanged, this, &SplitterConfigTab::onOrderChanged);
-        connect(m_listPanel->listWidget(), &QListWidget::currentRowChanged, this, &SplitterConfigTab::onSelectionChanged);
+        connect(m_listPanel, &RuleListPanel::removeRequested, this,
+                &SplitterConfigTab::onRemoveRule);
+        connect(m_listPanel->listWidget(), &RuleListWidget::orderChanged, this,
+                &SplitterConfigTab::onOrderChanged);
+        connect(m_listPanel->listWidget(), &QListWidget::currentRowChanged, this,
+                &SplitterConfigTab::onSelectionChanged);
         connect(m_applyBtn, &QPushButton::clicked, this, &SplitterConfigTab::applyConfig);
         connect(testJumpBtn, &QPushButton::clicked, this, &SplitterConfigTab::jumpToTestRequested);
     }
@@ -301,38 +304,44 @@ namespace FillLyric
             for (const auto &regex : cr.regexes) {
                 QString err;
                 if (!validateRegex(regex, err)) {
-                    QMessageBox::warning(this, tr("Invalid Regex"),
-                                         tr("Rule \"%1\": regex error in \"%2\": %3")
-                                             .arg(cr.name, regex, err));
+                    QMessageBox::warning(
+                        this, tr("Invalid Regex"),
+                        tr("Rule \"%1\": regex error in \"%2\": %3").arg(cr.name, regex, err));
                     m_listPanel->listWidget()->setCurrentRow(i);
                     return;
                 }
             }
         }
 
-        auto *opt = appOptions->fillLyric();
-
-        // Collect enabled states and custom rules
-        opt->builtinSplitterEnabled.clear();
-        opt->customSplitterRules.clear();
-        QStringList order;
+        auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+        if (!runtime)
+            return;
+        const auto snapshot = runtime->settings().getSettings();
+        if (!snapshot)
+            return;
+        auto settings = snapshot.get().fillLyric;
+        settings.builtinSplitterEnabled.clear();
+        settings.customSplitterRules.clear();
+        settings.splitterOrder.clear();
 
         for (const auto &rule : m_rules) {
-            order.append(rule.name);
+            settings.splitterOrder.append(rule.name);
             if (rule.builtin) {
-                opt->builtinSplitterEnabled[rule.name] = rule.enabled;
+                settings.builtinSplitterEnabled[rule.name] = rule.enabled;
             } else {
-                auto cr = rule.customRule;
-                cr.enabled = rule.enabled;
-                opt->customSplitterRules.append(cr);
+                settings.customSplitterRules.append({
+                    .name = rule.customRule.name,
+                    .regexes = rule.customRule.regexes,
+                    .enabled = rule.enabled,
+                    .order = rule.customRule.order,
+                });
             }
         }
-        opt->splitterOrder = order;
+        const auto updated = runtime->settings().updateFillLyric({}, settings);
+        if (!updated)
+            return;
 
-        // Save to disk
-        appOptions->saveAndNotify(AppOptionsGlobal::FillLyric);
-
-        // Apply to engine
+        const auto *opt = appOptions->fillLyric();
         TextSplitter::setBuiltinEnabled(opt->builtinSplitterEnabled);
         TextSplitter::setCustomRules(opt->customSplitterRules);
         TextSplitter::setRuleOrder(opt->splitterOrder);

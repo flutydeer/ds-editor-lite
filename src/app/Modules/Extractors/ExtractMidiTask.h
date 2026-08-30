@@ -8,8 +8,6 @@
 #include <QMutex>
 
 /// Local MIDI note struct, decoupled from synthrt types.
-/// Field order (note, start, duration) preserves structured-binding compatibility
-/// with MidiExtractController.
 struct ExtractMidiNote {
     int note = 0;
     int start = 0;

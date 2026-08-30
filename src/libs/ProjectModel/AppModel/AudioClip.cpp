@@ -24,9 +24,21 @@ QString AudioClip::path() const {
 void AudioClip::setPath(const QString &path) {
     const bool changed = m_path != path;
     m_path = path;
-    if (changed)
+    if (changed) {
+        ++m_sourceGeneration;
         emit pathChanged();
+        emit sourceChanged();
+    }
     emit propertyChanged();
+}
+
+void AudioClip::notifySourceChanged() {
+    ++m_sourceGeneration;
+    emit sourceChanged();
+}
+
+quint64 AudioClip::sourceGeneration() const {
+    return m_sourceGeneration;
 }
 
 AudioPathInfo AudioClip::pathInfo() const {
@@ -55,7 +67,8 @@ const AudioInfoModel &AudioClip::audioInfo() const {
 void AudioClip::setAudioInfo(const AudioInfoModel &audioInfo) {
     m_info = audioInfo;
     if (m_info.sampleRate > 0 && m_info.frames > 0)
-        m_materialLengthMs = static_cast<double>(m_info.frames) * 1000.0 / m_info.sampleRate;
+        m_materialLengthMs = qMax(m_trimStartMs + m_playLengthMs,
+                                  static_cast<double>(m_info.frames) * 1000.0 / m_info.sampleRate);
     emit propertyChanged();
 }
 
@@ -79,7 +92,7 @@ void AudioClip::setRealTimeAnchor(const double trimStartMs, const double playLen
                                   const double materialLengthMs) {
     m_trimStartMs = qMax(0.0, trimStartMs);
     m_playLengthMs = qMax(0.0, playLengthMs);
-    m_materialLengthMs = qMax(m_playLengthMs, materialLengthMs);
+    m_materialLengthMs = qMax(m_trimStartMs + m_playLengthMs, materialLengthMs);
 }
 
 void AudioClip::syncTruthFromTicks(const Timeline &timeline) {
@@ -90,10 +103,11 @@ void AudioClip::syncTruthFromTicks(const Timeline &timeline) {
     m_playLengthMs = qMax(0.0, timeline.tickToMs(visibleStart + m_clipLen) - visibleMs);
     const double materialMs = timeline.tickToMs(m_start + m_length) - originMs;
     // Prefer the decoded file duration when available; ticks are a fallback
-    if (m_info.sampleRate > 0 && m_info.frames > 0)
-        m_materialLengthMs = static_cast<double>(m_info.frames) * 1000.0 / m_info.sampleRate;
-    else
-        m_materialLengthMs = qMax(m_playLengthMs, materialMs);
+    const double decodedMaterialMs =
+        m_info.sampleRate > 0 && m_info.frames > 0
+            ? static_cast<double>(m_info.frames) * 1000.0 / m_info.sampleRate
+            : materialMs;
+    m_materialLengthMs = qMax(m_trimStartMs + m_playLengthMs, decodedMaterialMs);
 }
 
 bool AudioClip::updateTicksFromTruth(const Timeline &timeline) {
@@ -101,8 +115,8 @@ bool AudioClip::updateTicksFromTruth(const Timeline &timeline) {
         return false;
     const auto caches = deriveTickCaches(m_trimStartMs, m_playLengthMs, m_materialLengthMs,
                                          m_start + m_clipStart, timeline);
-    if (caches.start == m_start && caches.clipStart == m_clipStart &&
-        caches.clipLen == m_clipLen && caches.length == m_length)
+    if (caches.start == m_start && caches.clipStart == m_clipStart && caches.clipLen == m_clipLen &&
+        caches.length == m_length)
         return false;
     m_start = caches.start;
     m_clipStart = caches.clipStart;
@@ -134,8 +148,8 @@ void AudioClip::deriveTruthForProperties(ClipCommonProperties &args, const Timel
     const double visibleMs = timeline.tickToMs(visibleStart);
     args.trimStartMs = qMax(0.0, visibleMs - originMs);
     args.playLengthMs = qMax(0.0, timeline.tickToMs(visibleStart + args.clipLen) - visibleMs);
-    args.materialLengthMs =
-        qMax(args.playLengthMs, timeline.tickToMs(args.start + args.length) - originMs);
+    args.materialLengthMs = qMax(args.trimStartMs + args.playLengthMs,
+                                 timeline.tickToMs(args.start + args.length) - originMs);
 }
 
 void AudioClip::preserveUnchangedTruth(ClipCommonProperties &newArgs,
@@ -146,14 +160,25 @@ void AudioClip::preserveUnchangedTruth(ClipCommonProperties &newArgs,
         newArgs.trimStartMs = oldArgs.trimStartMs;
     if (newArgs.clipLen == oldArgs.clipLen)
         newArgs.playLengthMs = oldArgs.playLengthMs;
-    newArgs.materialLengthMs = qMax(newArgs.playLengthMs, oldArgs.materialLengthMs);
+    newArgs.materialLengthMs =
+        qMax(newArgs.trimStartMs + newArgs.playLengthMs, oldArgs.materialLengthMs);
+}
+
+bool AudioClip::timingPropertiesEqual(const ClipCommonProperties &left,
+                                      const ClipCommonProperties &right) {
+    return left.start == right.start && left.length == right.length &&
+           left.clipStart == right.clipStart && left.clipLen == right.clipLen &&
+           left.trimStartMs == right.trimStartMs && left.playLengthMs == right.playLengthMs &&
+           left.materialLengthMs == right.materialLengthMs;
 }
 
 void AudioClip::applyRealTimeAnchorFromProperties(const ClipCommonProperties &args,
-                                                  const Timeline &timeline) {
+                                                  const Timeline &timeline,
+                                                  const bool updateTickCaches) {
     if (args.playLengthMs >= 0)
         setRealTimeAnchor(args.trimStartMs, args.playLengthMs, args.materialLengthMs);
     else
         syncTruthFromTicks(timeline);
-    updateTicksFromTruth(timeline);
+    if (updateTickCaches)
+        updateTicksFromTruth(timeline);
 }

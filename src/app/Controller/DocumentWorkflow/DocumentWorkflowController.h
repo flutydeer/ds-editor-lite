@@ -3,6 +3,7 @@
 
 #define documentWorkflowController DocumentWorkflowController::instance()
 
+#include "Automation/AutomationTypes.h"
 #include "ProjectLoadTypes.h"
 #include <lite/Core/Singleton.h>
 
@@ -87,6 +88,7 @@ private:
 
     struct PendingRequest {
         quint64 requestId = 0;
+        Automation::DocumentVersion baseDocument;
         std::optional<DocumentOperation> operation;
         std::optional<TerminationMode> termination;
         QString filePath;
@@ -110,10 +112,9 @@ private:
     void handleSessionFailed(IProjectLoadSession *session, const ProjectOperationError &error);
     void handleSessionCanceled(IProjectLoadSession *session);
     void prepareNewProject();
-    void commitReplace(ReplaceProjectPayload &&payload);
-    void commitAppend(AppendProjectPayload &&payload);
+    bool commitReplace(ReplaceProjectPayload &&payload);
+    bool commitAppend(AppendProjectPayload &&payload);
     void activateFirstClip(const QList<Track *> &preferredTracks = {});
-    void updateProjectIdentity(const QString &path, const QString &name = {});
     void addRecentProjectFile(const QString &path);
     QString suggestedSavePath() const;
     void rejectBusyRequest();
@@ -136,9 +137,6 @@ private:
     PreparedProject m_prepared;
     ProjectOperationError m_error;
     QString m_savePath;
-    QString m_projectPath;
-    // An empty name and path represent an untitled project; projectName() translates its label.
-    QString m_projectName;
     QString m_lastProjectFolder;
     std::optional<TerminationMode> m_terminationAfterCancellation;
     quint64 m_nextRequestId = 0;

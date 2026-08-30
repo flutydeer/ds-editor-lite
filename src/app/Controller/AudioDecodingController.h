@@ -30,17 +30,19 @@ public slots:
     void onClipChanged(Track::ClipChangeType type, Clip *clip);
 
 public:
-    // Cascading resolution: use filePath's directory as the candidate and try to resolve all still-missing audio clips
-    // (matched by file name + sha512; missing items without sha512 do not participate).
-    // Called after the user manually relinks one file, to recover other files moved to the same directory.
-    // Hits adopt the new path SILENTLY (no undo entry, no dirty flag) — by design, undo boundaries follow
-    // "could the content have changed": a manual relink is an edit (unverified user choice, undoable),
-    // while a sha512-verified hit is mathematically the original file, a fact correction with no user
-    // intent to revert. Undoing a manual relink therefore does NOT roll back cascade hits it triggered
+    // Cascading resolution: use filePath's directory as the candidate and try to resolve all
+    // still-missing audio clips (matched by file name + sha512; missing items without sha512 do not
+    // participate). Called after the user manually relinks one file, to recover other files moved
+    // to the same directory. Hits adopt the new path SILENTLY (no undo entry, no dirty flag) — by
+    // design, undo boundaries follow "could the content have changed": a manual relink is an edit
+    // (unverified user choice, undoable), while a sha512-verified hit is mathematically the
+    // original file, a fact correction with no user intent to revert. Undoing a manual relink
+    // therefore does NOT roll back cascade hits it triggered
     void resolveMissingClipsNear(const QString &filePath);
 
 signals:
-    // Emitted when cascading resolution recovers a clip (the missing-media dialog refreshes its row)
+    // Emitted when cascading resolution recovers a clip (the missing-media dialog refreshes its
+    // row)
     void clipRelocated(int clipId, const QString &newPath);
 
     // Emitted when all path resolution after project load has finished.
@@ -53,18 +55,22 @@ private:
     QList<DecodeAudioTask *> m_tasks;
     QList<ResolveAudioPathTask *> m_resolveTasks;
 
-    // Aggregated path resolution state during project load (D6: notify once the counter reaches zero)
+    // Aggregated path resolution state during project load (D6: notify once the counter reaches
+    // zero)
     int m_pendingResolveCount = 0;
     QList<int> m_missingClipIds;
     QList<int> m_unconfirmedClipIds;
     int m_autoRelocatedCount = 0;
+    quint64 m_modelChangeEpoch = 0;
 
+    void startDecodingOrResolving(AudioClip *clip, bool forceDecode);
     void createAndStartTask(AudioClip *clip);
     void createAndStartResolveTask(AudioClip *clip);
     void connectClip(AudioClip *clip);
     void startDecodingAndResolving();
     void handleTaskFinished(DecodeAudioTask *task);
     void handleResolveTaskFinished(ResolveAudioPathTask *task);
+    void handleCascadeResolveTaskFinished(ResolveAudioPathTask *task);
     void finishResolveIfSessionDone();
     void terminateTaskByClipId(int clipId);
     void terminateTasksByTrackId(int trackId);

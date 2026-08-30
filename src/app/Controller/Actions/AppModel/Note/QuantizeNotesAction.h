@@ -25,7 +25,8 @@ public:
     };
 
     explicit QuantizeNotesAction(QList<Change> changes, SingingClip *clip)
-        : m_changes(std::move(changes)), m_clip(clip) {}
+        : m_changes(std::move(changes)), m_clip(clip) {
+    }
 
     void execute() override;
     void undo() override;

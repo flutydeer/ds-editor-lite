@@ -102,22 +102,25 @@ void EventDiagFilter::printStats() {
     bool intervalDelayed = elapsedSec > 1.5;
 
     // Diagnostic console output intentionally remains locale-independent.
-    qDebug().noquote().nospace()
-        << "[Diag] interval=" << QString::number(elapsedSec, 'f', 1) << "s"
-        << " | total=" << qSetFieldWidth(5) << int(totalPerSec) << qSetFieldWidth(0)
-        << "/s | MetaCall=" << qSetFieldWidth(5) << int(metaCallsPerSec) << qSetFieldWidth(0)
-        << "/s | Timer=" << qSetFieldWidth(5) << int(timersPerSec) << qSetFieldWidth(0)
-        << "/s | Paint=" << qSetFieldWidth(4) << int(paintsPerSec) << qSetFieldWidth(0)
-        << "/s | Input=" << qSetFieldWidth(3) << int(inputsPerSec) << qSetFieldWidth(0) << "/s ("
-        << QString::number(inputRatio, 'f', 1) << "%)";
+    qDebug().noquote().nospace() << "[Diag] interval=" << QString::number(elapsedSec, 'f', 1) << "s"
+                                 << " | total=" << qSetFieldWidth(5) << int(totalPerSec)
+                                 << qSetFieldWidth(0) << "/s | MetaCall=" << qSetFieldWidth(5)
+                                 << int(metaCallsPerSec) << qSetFieldWidth(0)
+                                 << "/s | Timer=" << qSetFieldWidth(5) << int(timersPerSec)
+                                 << qSetFieldWidth(0) << "/s | Paint=" << qSetFieldWidth(4)
+                                 << int(paintsPerSec) << qSetFieldWidth(0)
+                                 << "/s | Input=" << qSetFieldWidth(3) << int(inputsPerSec)
+                                 << qSetFieldWidth(0) << "/s ("
+                                 << QString::number(inputRatio, 'f', 1) << "%)";
 
-    qDebug().noquote().nospace()
-        << "  [Backlog] maxGap=" << m_maxGapMs << "ms"
-        << " | gaps>=" << kBacklogSevereMs << "ms: " << m_severeGapCount
-        << " | gaps>=" << kBacklogWarnMs << "ms: " << m_warnGapCount
-        << " | paintTime=" << QString::number(m_paintTimeUs / 1000.0, 'f', 0) << "ms"
-        << " (" << QString::number(m_paintTimeUs / 10000.0 / elapsedSec, 'f', 1) << "% CPU)"
-        << (intervalDelayed ? " | *** TIMER DELAYED ***" : "");
+    qDebug().noquote().nospace() << "  [Backlog] maxGap=" << m_maxGapMs << "ms"
+                                 << " | gaps>=" << kBacklogSevereMs << "ms: " << m_severeGapCount
+                                 << " | gaps>=" << kBacklogWarnMs << "ms: " << m_warnGapCount
+                                 << " | paintTime="
+                                 << QString::number(m_paintTimeUs / 1000.0, 'f', 0) << "ms"
+                                 << " ("
+                                 << QString::number(m_paintTimeUs / 10000.0 / elapsedSec, 'f', 1)
+                                 << "% CPU)" << (intervalDelayed ? " | *** TIMER DELAYED ***" : "");
 
     // Sort paint sources by time descending, print top entries
     using Pair = QPair<QString, qint64>;

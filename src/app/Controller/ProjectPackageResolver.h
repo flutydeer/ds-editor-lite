@@ -21,9 +21,6 @@ public:
 private:
     void scheduleResolve();
     void resolveProject();
-    static SingerInfo resolveSinger(const SingerInfo &singerInfo);
-    static SpeakerInfo resolveSpeaker(const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo);
-
     bool m_resolveScheduled = false;
 };
 

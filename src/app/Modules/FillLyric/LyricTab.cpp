@@ -114,10 +114,9 @@ namespace FillLyric {
         for (const auto &note : m_langNotes)
             inputNotes.append(*note);
 
-        const auto g2pResults =
-            m_g2pService.convert(inputNotes, toStdVector(m_priorityLanguages));
-        const int resultCount = std::min(static_cast<int>(m_langNotes.size()),
-                                         static_cast<int>(g2pResults.size()));
+        const auto g2pResults = m_g2pService.convert(inputNotes, toStdVector(m_priorityLanguages));
+        const int resultCount =
+            std::min(static_cast<int>(m_langNotes.size()), static_cast<int>(g2pResults.size()));
         for (int i = 0; i < resultCount; i++) {
             if (m_langNotes[i]->language == QStringLiteral("unknown"))
                 m_langNotes[i]->language = g2pResults[i].language;

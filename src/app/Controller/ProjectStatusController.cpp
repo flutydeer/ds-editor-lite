@@ -1,5 +1,6 @@
 #include "ProjectStatusController.h"
 
+#include "TrackController.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include "Model/AppStatus/AppStatus.h"
 #include "Global/AppGlobal.h"
@@ -18,10 +19,8 @@ void ProjectStatusController::handleClipInserted(Clip *clip) {
 void ProjectStatusController::handleClipRemoved(Clip *clip) {
     if (appStatus->activeClipId == clip->id()) {
         // If the clip still exists in a track, it's a cross-track move, not a delete
-        if (!appModel->findClipById(clip->id())) {
-            appStatus->selectedNotes = QList<int>();
-            appStatus->activeClipId = -1;
-        }
+        if (!appModel->findClipById(clip->id()))
+            trackController->setActiveClip(-1);
     }
     updateProjectEditableLength();
 }

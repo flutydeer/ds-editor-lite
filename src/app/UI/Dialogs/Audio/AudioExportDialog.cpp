@@ -1,4 +1,6 @@
 #include "AudioExportDialog.h"
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include "Modules/Audio/AudioSettings.h"
@@ -201,6 +203,7 @@ namespace Audio::Internal {
             tr("Selected tracks"),
             tr("Custom"),
         });
+        m_sourceComboBox->setItemData(AudioExporterConfig::SO_Selected, 0, Qt::UserRole - 1);
         mixingLayout->addRow(tr("&Source"), m_sourceComboBox);
         m_sourceListWidget = new QListWidget;
         m_sourceListWidget->setSelectionMode(QAbstractItemView::ExtendedSelection);
@@ -236,6 +239,7 @@ namespace Audio::Internal {
         m_rangeSelectAllRadio->setChecked(true);
         rangeOptionLayout->addWidget(m_rangeSelectAllRadio);
         m_rangeLoopIntervalRadio = new QRadioButton(tr("Loop s&ection"));
+        m_rangeLoopIntervalRadio->setEnabled(false);
         rangeOptionLayout->addWidget(m_rangeLoopIntervalRadio);
         rangeOptionLayout->addStretch();
         timeRangeLayout->addLayout(rangeOptionLayout);
@@ -417,16 +421,22 @@ namespace Audio::Internal {
         emit m_fileTypeComboBox->currentIndexChanged(0);
         emit m_sourceComboBox->currentIndexChanged(0);
         emit m_mixingOptionComboBox->currentIndexChanged(0);
-        auto currentPresetKey = AudioSettings::audioExporterCurrentPreset();
-        if (currentPresetKey.isString()) {
+        Automation::AudioSettingsDto audioSettings;
+        if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
+            const auto snapshot = runtime->settings().getSettings();
+            if (snapshot)
+                audioSettings = snapshot.get().audio;
+        }
+        if (audioSettings.currentAudioExporterPresetIsName) {
             for (int i = 0; i < m_presetComboBox->count(); i++) {
-                if (m_presetComboBox->itemData(i).toString() == currentPresetKey.toString()) {
+                if (m_presetComboBox->itemData(i).toString() ==
+                    audioSettings.currentAudioExporterPreset) {
                     m_presetComboBox->setCurrentIndex(i);
                     break;
                 }
             }
         } else {
-            m_presetComboBox->setCurrentIndex(currentPresetKey.toInt());
+            m_presetComboBox->setCurrentIndex(audioSettings.legacyAudioExporterPresetIndex);
         }
         emit m_presetComboBox->currentIndexChanged(m_presetComboBox->currentIndex());
         if (hasTemporaryPreset()) {
@@ -591,8 +601,10 @@ namespace Audio::Internal {
         m_formatSampleRateComboBox->setCurrentText(locale.toString(config.formatSampleRate()));
         m_mixingOptionComboBox->setCurrentIndex(config.mixingOption());
         m_enableMuteSoloCheckBox->setChecked(config.isMuteSoloEnabled());
-        m_sourceComboBox->setCurrentIndex(config.sourceOption());
-        m_rangeSelectAllRadio->setChecked(config.timeRange() == AudioExporterConfig::TR_All);
+        m_sourceComboBox->setCurrentIndex(config.sourceOption() == AudioExporterConfig::SO_Selected
+                                              ? AudioExporterConfig::SO_Custom
+                                              : config.sourceOption());
+        m_rangeSelectAllRadio->setChecked(true);
         skipUpdateFlag = false;
         updateConfig();
     }
@@ -683,6 +695,13 @@ namespace Audio::Internal {
                     mainProgressBar->setValue(static_cast<int>(totalRatio / sourceCount * 100.0));
                 });
         }
+        connect(m_audioExporter, &AudioExporter::inferenceProgressChanged, &progressDialog,
+                [=, &isProgressing](const double ratio) {
+                    if (isProgressing)
+                        return; // real export progress has priority once it starts
+                    mainPromptLabel->setText(tr("Inferring..."));
+                    mainProgressBar->setValue(static_cast<int>(ratio * 100.0));
+                });
 
         QDialog warningListDialog(this);
         const auto warningListDialogLayout = new QVBoxLayout;
@@ -815,9 +834,16 @@ namespace Audio::Internal {
             m_audioExporter->cleanUp();
         }
         const auto currentData = m_presetComboBox->currentData();
-        AudioSettings::setAudioExporterCurrentPreset(
-            currentData.isNull() ? QJsonValue(m_presetComboBox->currentIndex())
-                                 : QJsonValue(currentData.toString()));
+        if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
+            const auto snapshot = runtime->settings().getSettings();
+            if (snapshot) {
+                auto settings = snapshot.get().audio;
+                settings.currentAudioExporterPresetIsName = !currentData.isNull();
+                settings.currentAudioExporterPreset = currentData.toString();
+                settings.legacyAudioExporterPresetIndex = m_presetComboBox->currentIndex();
+                runtime->settings().updateAudio({}, settings);
+            }
+        }
         saveTemporaryPreset();
         if (ret == QDialog::Accepted && !m_keepOpenCheckBox->isChecked())
             accept();

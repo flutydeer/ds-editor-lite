@@ -2,9 +2,9 @@
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
 
-EditTimeSignaturesAction *EditTimeSignaturesAction::build(
-    const QList<TimeSignature> &oldSignatures, const QList<TimeSignature> &newSignatures,
-    AppModel *model) {
+EditTimeSignaturesAction *EditTimeSignaturesAction::build(const QList<TimeSignature> &oldSignatures,
+                                                          const QList<TimeSignature> &newSignatures,
+                                                          AppModel *model) {
     const auto a = new EditTimeSignaturesAction;
     a->m_oldSignatures = oldSignatures;
     a->m_newSignatures = newSignatures;

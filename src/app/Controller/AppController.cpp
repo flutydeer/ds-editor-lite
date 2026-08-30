@@ -1,13 +1,13 @@
 #include "AppController.h"
 
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include "AppController_p.h"
 #include "AudioDecodingController.h"
 #include "ClipController.h"
 #include "ProjectPackageResolver.h"
 #include "ProjectStatusController.h"
 #include "TrackController.h"
-#include "Actions/AppModel/Tempo/TempoActions.h"
-#include "Actions/AppModel/TimeSignature/TimeSignatureActions.h"
 #include "Interface/IMainWindow.h"
 #include <lite/ProjectModel/AppModel/Track.h>
 #include "Model/AppOptions/AppOptions.h"
@@ -17,19 +17,11 @@
 #include <lite/PackageManager/PackageManager.h>
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Audio/subsystem/MidiSystem.h"
-#include <lite/History/HistoryManager.h>
 #include "Modules/Inference/InferController.h"
 #include "Modules/Inference/InferEngine.h"
-#include <lite/ProjectConverters/MidiConverter.h>
 #include <lite/Tasking/TaskManager.h>
 #include "Tasks/DecodeAudioTask.h"
 #include <lite/GUI/Theme/ThemeManager.h>
-#include <lite/Support/Log.h>
-
-#include "Actions/AppModel/MasterControl/MasterControlActions.h"
-
-#include <algorithm>
-#include <cmath>
 
 AppController::AppController(QObject *parent)
     : QObject(parent), d_ptr(new AppControllerPrivate(this)) {
@@ -44,10 +36,14 @@ AppController::~AppController() {
 LITE_SINGLETON_IMPLEMENT_INSTANCE(AppController)
 
 bool AppController::exportMidiFile(const QString &filePath) {
-    MidiConverter converter;
-    QString errMsg;
-    Log::i("Midi exporter", errMsg);
-    return converter.save(filePath, appModel, errMsg);
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime)
+        return false;
+    const auto result =
+        runtime->files().exportMidi({.expected = runtime->documentVersion(),
+                                     .source = Automation::InvocationSource::TrustedGui},
+                                    filePath, true);
+    return static_cast<bool>(result);
 }
 
 void AppController::onSetTempo(const double tempo) {
@@ -55,87 +51,44 @@ void AppController::onSetTempo(const double tempo) {
 }
 
 void AppController::onSetTempoAt(const int tick, const double tempo) {
-    if (tick < 0 || !std::isfinite(tempo) || tempo <= 0.0)
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime)
         return;
-
-    const auto model = appModel;
-    const auto &tempos = model->timeline().tempos();
-    const auto existing =
-        std::find_if(tempos.cbegin(), tempos.cend(),
-                     [tick](const Tempo &candidate) { return candidate.pos == tick; });
-    if (existing != tempos.cend() && existing->value == tempo)
-        return;
-
-    const auto actions = new TempoActions;
-    actions->setTempoAt({tick, tempo}, model);
-    actions->execute();
-    historyManager->record(actions);
+    Automation::CommandContext context{.expected = runtime->documentVersion()};
+    runtime->timeline().setTempo(context, tick, tempo);
 }
 
 void AppController::onRemoveTempoAt(const int tick) {
-    if (tick <= 0)
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime)
         return;
-
-    const auto model = appModel;
-    const auto &tempos = model->timeline().tempos();
-    const bool exists = std::any_of(tempos.cbegin(), tempos.cend(), [tick](const Tempo &candidate) {
-        return candidate.pos == tick;
-    });
-    if (!exists)
-        return;
-
-    const auto actions = new TempoActions;
-    actions->removeTempoAt(tick, model);
-    actions->execute();
-    historyManager->record(actions);
+    Automation::CommandContext context{.expected = runtime->documentVersion()};
+    runtime->timeline().deleteTempo(context, tick);
 }
 
 void AppController::onSetTimeSignatureAt(const int barIndex, const int numerator,
                                          const int denominator) {
-    const auto model = appModel;
-    if (barIndex < 0 || numerator <= 0 || denominator <= 0 ||
-        !AppControllerPrivate::isPowerOf2(denominator))
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime)
         return;
-
-    // Skip when an existing point at this bar already has these values, so
-    // live edits from the popup do not spam the undo stack with no-ops
-    const auto &signatures = model->timeline().timeSignatures();
-    const auto existing =
-        std::find_if(signatures.cbegin(), signatures.cend(),
-                     [barIndex](const TimeSignature &sig) { return sig.barIndex == barIndex; });
-    if (existing != signatures.cend() && existing->numerator == numerator &&
-        existing->denominator == denominator)
-        return;
-
-    const auto actions = new TimeSignatureActions;
-    actions->setTimeSignatureAt(TimeSignature(barIndex, numerator, denominator), model);
-    actions->execute();
-    historyManager->record(actions);
+    Automation::CommandContext context{.expected = runtime->documentVersion()};
+    runtime->timeline().setTimeSignature(context, barIndex, numerator, denominator);
 }
 
 void AppController::onRemoveTimeSignatureAt(const int barIndex) {
-    const auto model = appModel;
-    // The bar 0 anchor point is never removable
-    if (barIndex <= 0)
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime)
         return;
-    const auto &signatures = model->timeline().timeSignatures();
-    const bool exists =
-        std::any_of(signatures.cbegin(), signatures.cend(),
-                    [barIndex](const TimeSignature &sig) { return sig.barIndex == barIndex; });
-    if (!exists)
-        return;
-
-    const auto actions = new TimeSignatureActions;
-    actions->removeTimeSignatureAt(barIndex, model);
-    actions->execute();
-    historyManager->record(actions);
+    Automation::CommandContext context{.expected = runtime->documentVersion()};
+    runtime->timeline().deleteTimeSignature(context, barIndex);
 }
 
 void AppController::editMasterControl(const TrackControl &control) {
-    const auto actions = new MasterControlActions;
-    actions->editMasterControl(control, appModel);
-    actions->execute();
-    historyManager->record(actions);
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime)
+        return;
+    Automation::CommandContext context{.expected = runtime->documentVersion()};
+    runtime->timeline().setMasterControl(context, control);
 }
 
 void AppController::onUndoRedoChanged(const bool canUndo, const QString &undoActionName,
@@ -154,14 +107,37 @@ void AppController::setMainWindow(IMainWindow *window) {
 }
 
 void AppController::quit() {
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime)
+        return;
+    runtime->application().requestTermination(
+        {.windowId = runtime->windowId(), .source = Automation::InvocationSource::TrustedGui},
+        Automation::ApplicationTerminationMode::Exit);
+}
+
+bool AppController::applyQuit() {
     Q_D(AppController);
+    if (!d->m_mainWindow)
+        return false;
     d->m_mainWindow->quit();
+    return true;
 }
 
 void AppController::restart() {
-    qDebug() << "restart";
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime)
+        return;
+    runtime->application().requestTermination(
+        {.windowId = runtime->windowId(), .source = Automation::InvocationSource::TrustedGui},
+        Automation::ApplicationTerminationMode::Restart);
+}
+
+bool AppController::applyRestart() {
     Q_D(AppController);
+    if (!d->m_mainWindow)
+        return false;
     d->m_mainWindow->restart();
+    return true;
 }
 
 void AppControllerPrivate::initializeModules() {
@@ -220,8 +196,4 @@ void AppControllerPrivate::initializeModules() {
             &AudioDecodingController::onModelChanged);
     connect(appModel, &AppModel::trackChanged, audioDecodingController,
             &AudioDecodingController::onTrackChanged);
-}
-
-bool AppControllerPrivate::isPowerOf2(const int num) {
-    return num > 0 && (num & num - 1) == 0;
 }

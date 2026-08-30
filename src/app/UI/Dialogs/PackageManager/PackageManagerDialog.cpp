@@ -1,4 +1,6 @@
 #include "PackageManagerDialog.h"
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include "Model/AppStatus/AppStatus.h"
 
 #include <lite/PackageManager/PackageManager.h>
@@ -13,9 +15,6 @@
 #include "UI/Dialogs/PackageManager/PackageItemDelegate.h"
 #include "UI/Dialogs/PackageManager/PackageListModel.h"
 #include <lite/GUI/Theme/ThemeManager.h>
-#include <lite/Support/StringUtils.h>
-
-#include <diffsinger/Bank/PackageValidator.h>
 
 #include <QHBoxLayout>
 #include <QLabel>
@@ -24,6 +23,18 @@
 #include <QScrollArea>
 #include <QSplitter>
 #include <QStackedWidget>
+
+namespace {
+    PackageInfo fromAutomationDto(const Automation::PackageDto &package) {
+        QList<SingerInfo> singers;
+        for (const auto &singer : package.singers) {
+            singers.append(SingerInfo({singer.singerId, singer.packageId, singer.packageVersion},
+                                      singer.name));
+        }
+        return PackageInfo(package.id, package.version, package.vendor, package.description,
+                           package.license, package.readme, package.url, package.path, singers);
+    }
+}
 
 PackageManagerDialog::PackageManagerDialog(QWidget *parent) : Dialog(parent) {
     initUi();
@@ -67,49 +78,55 @@ void PackageManagerDialog::onSelectionChanged(const QModelIndex &current,
 }
 
 void PackageManagerDialog::onVerifyPackageRequested(const PackageInfo &package) {
-    ds::bank::PackageValidator validator;
-    const auto report = validator.validatePackage(StringUtils::qstr_to_path(package.path()),
-                                                  ds::bank::PackageValidator::SchemaVersion::V10);
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime)
+        return;
+    const auto validation = runtime->packages().validatePackage(package.path());
+    if (!validation) {
+        QMessageBox::critical(this, tr("Verify Package"), validation.getError().message);
+        return;
+    }
+    const auto &report = validation.get();
 
-    if (report.items().empty()) {
+    if (report.items.isEmpty()) {
         QMessageBox::information(this, tr("Verify Package"),
                                  tr("No issues found in package:\n%1").arg(package.path()));
         return;
     }
 
     QStringList lines;
-    for (const auto &item : report.items()) {
+    for (const auto &item : report.items) {
         QString severity;
         switch (item.severity) {
-            case ds::bank::ValidationItem::Error:
+            case Automation::PackageValidationSeverity::Error:
                 severity = tr("Error");
                 break;
-            case ds::bank::ValidationItem::Warning:
+            case Automation::PackageValidationSeverity::Warning:
                 severity = tr("Warning");
                 break;
-            case ds::bank::ValidationItem::Info:
+            case Automation::PackageValidationSeverity::Info:
             default:
                 severity = tr("Info");
                 break;
         }
         QString line = QStringLiteral("[%1] ").arg(severity);
-        if (!item.path.empty()) {
-            line += QString::fromStdString(item.path) + QStringLiteral(": ");
+        if (!item.path.isEmpty()) {
+            line += item.path + QStringLiteral(": ");
         }
-        line += QString::fromStdString(item.message);
-        if (!item.actualValue.empty()) {
-            line += tr("\n  Actual: %1").arg(QString::fromStdString(item.actualValue));
+        line += item.message;
+        if (!item.actualValue.isEmpty()) {
+            line += tr("\n  Actual: %1").arg(item.actualValue);
         }
-        if (!item.recommendation.empty()) {
-            line += tr("\n  Recommendation: %1").arg(QString::fromStdString(item.recommendation));
+        if (!item.recommendation.isEmpty()) {
+            line += tr("\n  Recommendation: %1").arg(item.recommendation);
         }
         lines.append(line);
     }
 
-    QMessageBox messageBox(report.hasErrors() ? QMessageBox::Critical : QMessageBox::Warning,
+    QMessageBox messageBox(report.hasErrors ? QMessageBox::Critical : QMessageBox::Warning,
                            tr("Verify Package"),
-                           report.hasErrors() ? tr("Package verification failed.")
-                                              : tr("Package verification completed with warnings."),
+                           report.hasErrors ? tr("Package verification failed.")
+                                            : tr("Package verification completed with warnings."),
                            QMessageBox::Ok, this);
     messageBox.setDetailedText(lines.join(QStringLiteral("\n\n")));
     messageBox.exec();
@@ -157,13 +174,21 @@ void PackageManagerDialog::onInferenceModuleReady() {
 }
 
 void PackageManagerDialog::loadPackageList() {
-    auto packages = packageManager->installedPackages();
-    if (packages.successfulPackages.empty()) {
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime)
+        return;
+    const auto packageResult = runtime->packages().getInstalledPackages();
+    if (!packageResult)
+        return;
+    QList<PackageInfo> packages;
+    for (const auto &package : packageResult.get())
+        packages.append(fromAutomationDto(package));
+    if (packages.isEmpty()) {
         listView->setModel(nullptr);
         lbPackageCount->setText(tr("Installed (%L1)").arg(0));
     }
-    updatePackageCount(packages.successfulPackages.size());
-    updatePackageList(packages.successfulPackages);
+    updatePackageCount(packages.size());
+    updatePackageList(std::move(packages));
 }
 
 QWidget *PackageManagerDialog::buildPackagePanel() {

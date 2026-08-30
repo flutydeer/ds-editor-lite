@@ -77,6 +77,8 @@ function Invoke-CMakeCommand {
     )
 
     $cmd = @(
+        # CMake and Ninja must encode localized MSVC /showIncludes prefixes identically.
+        "chcp 65001 >nul",
         "call `"$VcVars`" x64",
         "set `"QT_DIR=$QtPath`"",
         "set `"Qt6_DIR=$QtPath`"",

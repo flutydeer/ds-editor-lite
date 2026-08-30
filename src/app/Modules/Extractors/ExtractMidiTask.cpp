@@ -4,7 +4,6 @@
 
 #include "AppContext.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
-#include "Model/AppOptions/AppOptions.h"
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 #include <lite/Support/StringUtils.h>
 
@@ -50,13 +49,13 @@ void ExtractMidiTask::runTask() {
         return;
     }
 
-    const auto gameDir = appOptions->general()->gameDir;
-    const auto modelPath = StringUtils::qstr_to_path(gameDir);
+    const auto modelPath = StringUtils::qstr_to_path(m_input.modelPath);
 
     if (modelPath.empty() || !exists(modelPath) || !is_directory(modelPath)) {
         m_errorCode = ErrorCode::ModelNotLoaded;
-        m_errorMessage = tr("Invalid GAME model dir: ") +
-                         (gameDir.isEmpty() ? QString("Dir is Empty.") : gameDir);
+        m_errorMessage =
+            tr("Invalid GAME model dir: ") +
+            (m_input.modelPath.isEmpty() ? QString("Dir is Empty.") : m_input.modelPath);
         qCritical().noquote() << "Error:" << errorMessage();
         return;
     }

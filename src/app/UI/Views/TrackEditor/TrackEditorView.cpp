@@ -1,5 +1,6 @@
 #include "TrackEditorView.h"
 
+#include "TrackAreaView.h"
 #include "TrackControlView.h"
 #include "TrackEditorContextMenuController.h"
 #include "TrackListHeaderView.h"
@@ -108,6 +109,8 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     m_timeSignatureLaneHeader->setFixedHeight(TracksEditorGlobal::infoLaneHeight);
 
     const auto trackListHeader = new TrackListHeaderView;
+    const auto trackListArea = new TrackAreaView(m_trackListView);
+    m_trackCanvasArea = new TrackAreaView(editorWidget);
 
     const auto trackListPanelLayout = new QVBoxLayout;
     trackListPanelLayout->setContentsMargins({});
@@ -115,15 +118,15 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     trackListPanelLayout->addWidget(trackListHeader);
     trackListPanelLayout->addWidget(m_tempoLaneHeader);
     trackListPanelLayout->addWidget(m_timeSignatureLaneHeader);
-    trackListPanelLayout->addWidget(m_trackListView);
+    trackListPanelLayout->addWidget(trackListArea);
 
-    m_trackTimelineAndViewLayout = new QVBoxLayout;
-    m_trackTimelineAndViewLayout->setContentsMargins({});
-    m_trackTimelineAndViewLayout->setSpacing(0);
-    m_trackTimelineAndViewLayout->addWidget(m_timeline);
-    m_trackTimelineAndViewLayout->addWidget(m_tempoLane);
-    m_trackTimelineAndViewLayout->addWidget(m_timeSignatureLane);
-    m_trackTimelineAndViewLayout->addWidget(editorWidget);
+    const auto trackTimelineAndViewLayout = new QVBoxLayout;
+    trackTimelineAndViewLayout->setContentsMargins({});
+    trackTimelineAndViewLayout->setSpacing(0);
+    trackTimelineAndViewLayout->addWidget(m_timeline);
+    trackTimelineAndViewLayout->addWidget(m_tempoLane);
+    trackTimelineAndViewLayout->addWidget(m_timeSignatureLane);
+    trackTimelineAndViewLayout->addWidget(m_trackCanvasArea);
 
     auto *trackListPanel = new QWidget;
     trackListPanel->setObjectName("trackListPanel");
@@ -132,7 +135,7 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
     trackListPanel->setMaximumWidth(600);
 
     auto *trackTimelineAndView = new QWidget;
-    trackTimelineAndView->setLayout(m_trackTimelineAndViewLayout);
+    trackTimelineAndView->setLayout(trackTimelineAndViewLayout);
 
     m_splitter = new OverlaySplitter(Qt::Horizontal);
     m_splitter->setObjectName("trackSplitter");
@@ -162,6 +165,13 @@ TrackEditorView::TrackEditorView(QWidget *parent) : PanelView(AppGlobal::TracksE
         m_rhiView->setAutoPageTurn(appStatus->trackAutoPageTurnEnabled);
     else
         m_graphicsView->setAutoTurnPage(appStatus->trackAutoPageTurnEnabled);
+    connect(appStatus, &AppStatus::trackAutoPageTurnEnabledChanged, this,
+            [this](const bool enabled) {
+                if (m_rhiView)
+                    m_rhiView->setAutoPageTurn(enabled);
+                else if (m_graphicsView)
+                    m_graphicsView->setAutoTurnPage(enabled);
+            });
     if (m_rhiView)
         connectRhiBackend();
     else
@@ -374,8 +384,7 @@ void TrackEditorView::fallbackToLegacy() {
     auto *failedView = m_rhiView;
     m_rhiView = nullptr;
     createLegacyBackend();
-    m_trackTimelineAndViewLayout->replaceWidget(failedView, m_graphicsView);
-    failedView->hide();
+    m_trackCanvasArea->setContentWidget(m_graphicsView);
     failedView->deleteLater();
     connectLegacyBackend();
     for (const auto *trackViewModel : std::as_const(m_viewModel.tracks)) {
@@ -548,7 +557,7 @@ bool TrackEditorView::revealFocus(const HistoryFocus &focus, const bool animated
                                              : itemBounds.united(item->sceneBoundingRect());
         }
     }
-    appStatus->selectedClips = selectedIds;
+    trackController->setSelectedClips(selectedIds);
     if (!selectedIds.isEmpty())
         trackController->setActiveClip(selectedIds.first());
 
@@ -687,7 +696,7 @@ void TrackEditorView::onViewScaleChanged(const qreal sx, const qreal sy) const {
 
 void TrackEditorView::setSelectedTrackIndex(const int trackIndex) const {
     if (appStatus->selectedTrackIndex != trackIndex)
-        appStatus->selectedTrackIndex = trackIndex;
+        trackController->setSelectedTrackIndex(trackIndex);
     else
         syncSelectedTrackToList(trackIndex);
 }

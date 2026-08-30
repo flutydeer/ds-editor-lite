@@ -4,8 +4,9 @@
 
 PianoRollGraphicsScene::PianoRollGraphicsScene() {
     setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
-    constexpr auto w =
-        static_cast<double>(AppGlobal::ticksPerWholeNote) / AppGlobal::ticksPerQuarterNote * ClipEditorGlobal::pixelsPerQuarterNote * 80; // TODO: Use project length
+    constexpr auto w = static_cast<double>(AppGlobal::ticksPerWholeNote) /
+                       AppGlobal::ticksPerQuarterNote * ClipEditorGlobal::pixelsPerQuarterNote *
+                       80; // TODO: Use project length
     constexpr auto h = 128 * ClipEditorGlobal::noteHeight;
     setSceneBaseSize(QSizeF(w, h));
 }

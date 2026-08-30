@@ -155,8 +155,7 @@ void OpendspxImportLoadSession::materialize(const DspxUserInput &input) {
     SingingClipPhonemeNormalizer::normalizeEditedOffsets(resultModel);
 
     if (m_purpose == ProjectLoadPurpose::Open) {
-        // Open replaces the whole document: the Ui converter pushes the
-        // source loop region into AppStatus, matching native DSPX Open.
+        // Open preserves the source loop region for the later atomic document replacement.
         emit progressChanged({tr("Opening Project"), tr("Applying project..."), 0, 100, 0, true});
         AppModel openModel;
         LoopSettings openLoopSettings;

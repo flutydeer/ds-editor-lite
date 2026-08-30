@@ -4,10 +4,8 @@
 
 #include "Model/AppOptions/AppOptions.h"
 #include "Controller/PlaybackController.h"
-#include "Modules/Inference/InferControllerHelper.h"
+#include "Modules/Inference/InferenceAutomationBridge.h"
 #include "Modules/Inference/InferPipeline.h"
-
-namespace Helper = InferControllerHelper;
 
 UpdateVarianceState::UpdateVarianceState(InferPipeline &pipeline, QState *parent)
     : QState(parent), m_pipeline(pipeline) {
@@ -30,9 +28,24 @@ void UpdateVarianceState::onEntry(QEvent *event) {
             return;
     }
 
-    auto &piece = *gate.resolution.piece;
-    piece.state = QString("Variance.Update");
-    Helper::updateVariance(m_pipeline.varianceResult(), piece);
+    gate.resolution.piece->state = QString("Variance.Update");
+    Automation::InferenceMutationRequest request;
+    request.kind = Automation::InferenceMutationKind::ApplyVariance;
+    request.clipId = Automation::ClipId(m_pipeline.applyContext().clipId);
+    request.pieceId = Automation::PieceId(m_pipeline.applyContext().pieceId);
+    const auto &variance = m_pipeline.varianceResult();
+    request.varianceResult.breathiness = variance.breathiness;
+    request.varianceResult.tension = variance.tension;
+    request.varianceResult.voicing = variance.voicing;
+    request.varianceResult.energy = variance.energy;
+    request.varianceResult.mouthOpening = variance.mouthOpening;
+    const auto result = InferenceAutomationBridge::executeAfterGate(
+        m_pipeline.applyContext().documentVersion, request);
+    if (!result) {
+        m_pipeline.notifyDropped(InferenceAutomationBridge::dropReason(result.getError()));
+        QTimer::singleShot(0, this, [this] { emit pieceNotFound(); });
+        return;
+    }
 
     auto isLazy = !appOptions->inference()->autoStartInfer &&
                   playbackController->playbackStatus() != PlaybackStatus::Playing;

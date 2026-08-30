@@ -1,5 +1,7 @@
 #include "GeneralPage.h"
 
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include "Model/AppOptions/AppOptions.h"
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/CardView.h>
@@ -27,20 +29,27 @@ GeneralPage::GeneralPage(QWidget *parent) : IOptionPage(parent) {
 }
 
 void GeneralPage::modifyOption() {
-    const auto option = appOptions->general();
-    option->uiLanguage = m_cbUiLanguage->currentData().toString();
-    option->defaultSingingLanguage = m_cbDefaultSingingLanguage->currentLanguage();
-    option->defaultLyrics[option->defaultSingingLanguage] = m_leDefaultLyric->text();
-
-    option->gameDir = m_fsGameDir->path();
-    option->rmvpePath = m_fsRmvpePath->path();
-    option->libreSVIPPath = m_fsLibreSVIPPath->path();
-    appOptions->saveAndNotify(AppOptionsGlobal::Option::General);
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime)
+        return;
+    const auto snapshot = runtime->settings().getSettings();
+    if (!snapshot)
+        return;
+    auto settings = snapshot.get().general;
+    settings.uiLanguage = m_cbUiLanguage->currentData().toString();
+    settings.defaultSingingLanguage = m_cbDefaultSingingLanguage->currentLanguage();
+    m_defaultLyrics[settings.defaultSingingLanguage] = m_leDefaultLyric->text();
+    settings.defaultLyrics = m_defaultLyrics;
+    settings.gameDirectory = m_fsGameDir->path();
+    settings.pitchModelPath = m_fsRmvpePath->path();
+    settings.libreSvipPath = m_fsLibreSVIPPath->path();
+    runtime->settings().updateGeneral({}, settings);
 }
 
 QWidget *GeneralPage::createContentWidget() {
     const auto widget = new QWidget;
     const auto option = appOptions->general();
+    m_defaultLyrics = option->defaultLyrics;
 
     m_cbUiLanguage = new ComboBox;
     m_cbUiLanguage->addItem(tr("Auto Detect"), UiLanguageManager::System);
@@ -77,10 +86,9 @@ QWidget *GeneralPage::createContentWidget() {
     m_cbDefaultSingingLanguage = new LanguageComboBox(langKey);
     m_previousLanguage = langKey;
     connect(m_cbDefaultSingingLanguage, &ComboBox::currentIndexChanged, this, [this]() {
-        const auto option = appOptions->general();
-        option->defaultLyrics[m_previousLanguage] = m_leDefaultLyric->text();
+        m_defaultLyrics[m_previousLanguage] = m_leDefaultLyric->text();
         const auto newLang = m_cbDefaultSingingLanguage->currentLanguage();
-        m_leDefaultLyric->setText(option->defaultLyricForLanguage(newLang));
+        m_leDefaultLyric->setText(m_defaultLyrics.value(newLang, QStringLiteral("la")));
         m_previousLanguage = newLang;
         modifyOption();
     });
@@ -97,9 +105,9 @@ QWidget *GeneralPage::createContentWidget() {
     m_packageSearchPaths = new PathEditor;
     m_packageSearchPaths->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     m_packageSearchPaths->setPaths(option->packageSearchPaths);
-    connect(m_packageSearchPaths, &PathEditor::pathsChanged, this, [option, this]() {
-        option->setPackageSearchPathsAndNotify(m_packageSearchPaths->paths());
-        appOptions->saveAndNotify(AppOptionsGlobal::Option::General);
+    connect(m_packageSearchPaths, &PathEditor::pathsChanged, this, [this]() {
+        if (auto *runtime = AppContext::instance<Automation::CoreRuntime>())
+            runtime->settings().setPackageSearchPaths({}, m_packageSearchPaths->paths());
     });
 
     auto packagePathsCard = new OptionsCard;

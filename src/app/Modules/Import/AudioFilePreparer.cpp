@@ -30,9 +30,8 @@ PreparedAudioItem AudioFilePreparer::prepareResult(const DecodeAudioTask *task) 
     item.workspace = task->workspace;
     item.audioInfo = task->result();
     const auto sampleRate = item.audioInfo.sampleRate;
-    item.durationMs = sampleRate > 0
-                          ? static_cast<double>(item.audioInfo.frames) * 1000.0 / sampleRate
-                          : 0.0;
+    item.durationMs =
+        sampleRate > 0 ? static_cast<double>(item.audioInfo.frames) * 1000.0 / sampleRate : 0.0;
     return item;
 }
 

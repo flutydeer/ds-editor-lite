@@ -683,22 +683,12 @@ public:
     }
 
     QList<int> orderedNoteIds() const {
-        QList<const Note *> ordered;
-        if (clip) {
-            ordered.reserve(clip->notes().count());
-            for (const auto *note : clip->notes())
-                ordered.append(note);
-        }
-        std::sort(ordered.begin(), ordered.end(), [](const Note *left, const Note *right) {
-            if (left->localStart() != right->localStart())
-                return left->localStart() < right->localStart();
-            return left->id() < right->id();
-        });
-
         QList<int> result;
-        result.reserve(ordered.size());
-        for (const auto *note : ordered)
-            result.append(note->id());
+        if (clip) {
+            result.reserve(clip->notes().count());
+            for (const auto *note : clip->notes())
+                result.append(note->id());
+        }
         return result;
     }
 
@@ -996,16 +986,7 @@ public:
         submitInlineText(text);
         if (!clip)
             return;
-        QList<Note *> ordered;
-        for (auto *note : clip->notes())
-            ordered.append(note);
-        std::sort(ordered.begin(), ordered.end(), [](const Note *left, const Note *right) {
-            if (left->localStart() != right->localStart())
-                return left->localStart() < right->localStart();
-            if (left->keyIndex() != right->keyIndex())
-                return left->keyIndex() > right->keyIndex();
-            return left->id() < right->id();
-        });
+        const auto ordered = clip->notes().toList();
         const auto current =
             std::find_if(ordered.begin(), ordered.end(),
                          [currentId](const Note *note) { return note->id() == currentId; });
@@ -1355,8 +1336,8 @@ public:
         if (editMode == SplitNote) {
             updateSplitPreview(event->position());
             if (note && splitPreviewNoteId == note->id())
-                PianoRollGraphicsViewHelper::splitNote(note->id(),
-                                                       splitPreviewTick + clip->start());
+                (void) PianoRollGraphicsViewHelper::splitNote(note->id(),
+                                                              splitPreviewTick + clip->start());
             clearSplitPreview();
             return;
         }
@@ -1482,9 +1463,11 @@ public:
             return;
         }
         if (interaction == Interaction::Draw) {
-            PianoRollGraphicsViewHelper::drawNote(drawStart, drawEnd - drawStart, drawKey);
+            const auto committed =
+                PianoRollGraphicsViewHelper::drawNote(drawStart, drawEnd - drawStart, drawKey);
             appStatus->pianoRollNoteEditPreview = {};
-            finishNoteEditSession(EditSessionEndReason::Commit);
+            finishNoteEditSession(committed ? EditSessionEndReason::Commit
+                                            : EditSessionEndReason::Discard);
         } else if (interaction != Interaction::None && interaction != Interaction::RectSelect &&
                    interactionNoteId >= 0) {
             if (interactionMoved && interaction == Interaction::Move) {

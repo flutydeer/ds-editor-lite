@@ -339,9 +339,8 @@ namespace AnchorEditor {
             if (auto *curve = findOwnerCurve(node))
                 nodesByCurve[curve].append(node);
         }
-        const bool discardingOnlyProvisional =
-            m_provisionalCurve && nodesByCurve.size() == 1 &&
-            nodesByCurve.contains(m_provisionalCurve);
+        const bool discardingOnlyProvisional = m_provisionalCurve && nodesByCurve.size() == 1 &&
+                                               nodesByCurve.contains(m_provisionalCurve);
         clearSelection();
         for (auto it = nodesByCurve.begin(); it != nodesByCurve.end(); ++it) {
             auto *curve = it.key();

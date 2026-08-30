@@ -74,10 +74,9 @@ namespace {
     }
 }
 
-SpeakerMixValidator::Result
-    SpeakerMixValidator::validate(const QString &speaker,
-                                  const InferSpeakerMix &mix,
-                                  const SingerInfo &singer) {
+SpeakerMixValidator::Result SpeakerMixValidator::validate(const QString &speaker,
+                                                          const InferSpeakerMix &mix,
+                                                          const SingerInfo &singer) {
     Result result;
     result.sanitizedMix = mix;
     result.primarySpeaker = speaker;
@@ -194,7 +193,8 @@ SpeakerMixValidator::Result
             // a new fallbackSpeaker if needed.
             renormalizeSources(validSources);
             InferSpeakerMix sanitized;
-            sanitized.fallbackSpeaker = pickFallbackFromSources(validSources, result.primarySpeaker);
+            sanitized.fallbackSpeaker =
+                pickFallbackFromSources(validSources, result.primarySpeaker);
             sanitized.sources = std::move(validSources);
             result.sanitizedMix = std::move(sanitized);
             result.status = Status::Degraded;
@@ -203,7 +203,8 @@ SpeakerMixValidator::Result
 
     // 5. Build warning message (only when something was dropped).
     if (!result.droppedSpeakers.isEmpty()) {
-        result.warningMessage = formatWarning(singer, result.droppedSpeakers, result.primarySpeaker);
+        result.warningMessage =
+            formatWarning(singer, result.droppedSpeakers, result.primarySpeaker);
     }
 
     return result;

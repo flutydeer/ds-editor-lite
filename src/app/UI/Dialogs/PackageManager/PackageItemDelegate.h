@@ -30,4 +30,4 @@ private:
 };
 
 
-#endif //PACKAGEITEMDELEGATE_H
+#endif // PACKAGEITEMDELEGATE_H

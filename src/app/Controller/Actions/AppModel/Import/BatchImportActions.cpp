@@ -26,8 +26,8 @@ BatchImportActions *BatchImportActions::build(const QList<Tempo> &oldTempos,
         if (item.newTrack) {
             // New tracks are appended at the end; the ordinal accounts for the
             // tracks this very batch inserts before it.
-            a->addAction(InsertTrackAction::build(
-                item.newTrack, model->tracks().size() + newTrackOrdinal, model));
+            a->addAction(InsertTrackAction::build(item.newTrack,
+                                                  model->tracks().size() + newTrackOrdinal, model));
             newTrackOrdinal++;
         } else if (item.existingTrack) {
             a->addAction(InsertClipAction::build(item.clip, item.existingTrack));

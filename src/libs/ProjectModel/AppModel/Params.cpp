@@ -84,6 +84,10 @@ Param *ParamInfo::getParamByName(const Name name) {
     return nullptr;
 }
 
+const Param *ParamInfo::getParamByName(const Name name) const {
+    return const_cast<ParamInfo *>(this)->getParamByName(name);
+}
+
 bool ParamInfo::hasOriginalParam(const Name name) {
     switch (name) {
         case ParamInfo::Pitch:

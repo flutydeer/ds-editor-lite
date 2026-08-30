@@ -5,8 +5,7 @@
 #include <QGraphicsView>
 #include <QPen>
 
-namespace FillLyric
-{
+namespace FillLyric {
     class SplitterItem final : public QGraphicsItem {
     public:
         explicit SplitterItem(const qreal &x, const qreal &y, const qreal &w, QGraphicsView *view,
@@ -29,7 +28,8 @@ namespace FillLyric
         QRectF boundingRect() const override;
         QPainterPath shape() const override;
 
-        void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
+        void paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+                   QWidget *widget) override;
 
     private:
         qreal m_width = 0;

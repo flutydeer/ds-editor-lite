@@ -50,8 +50,9 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
 
     cbBackgroundParam = new ComboBox(WheelEventPolicy::Handle);
     cbBackgroundParam->setObjectName("cbBackgroundParam");
+    cbBackgroundParam->addItem(tr("(None)"));
     cbBackgroundParam->addItems(paramUtils->names());
-    cbBackgroundParam->removeItem(0);                              // Remove pitch
+    cbBackgroundParam->removeItem(1);                              // Remove pitch
     cbBackgroundParam->removeItem(cbBackgroundParam->count() - 1); // Remove speaker mix
 
     m_paramEditToolBar = new ParamEditToolBarView;
@@ -103,7 +104,7 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
             &ParamEditorToolBarView::stopDynamicMix);
 
     cbForegroundParam->setCurrentIndex(appOptions->general()->defaultForegroundParam - 1);
-    cbBackgroundParam->setCurrentIndex(appOptions->general()->defaultBackgroundParam - 1);
+    cbBackgroundParam->setCurrentIndex(appOptions->general()->defaultBackgroundParam);
     setSpeakerMixMode(static_cast<ParamInfo::Name>(cbForegroundParam->currentIndex() + 1) ==
                       ParamInfo::SpeakerMix);
     retranslateUi();
@@ -133,17 +134,23 @@ void ParamEditorToolBarView::onForegroundSelectionChanged(const int index) {
 }
 
 void ParamEditorToolBarView::onBackgroundSelectionChanged(const int index) {
-    emit backgroundChanged(static_cast<ParamInfo::Name>(index + 1));
+    if (index == 0) {
+        emit backgroundChanged(ParamInfo::Unknown);
+        return;
+    }
+    emit backgroundChanged(static_cast<ParamInfo::Name>(index));
 }
 
 void ParamEditorToolBarView::onSwap() const {
-    const int fgIndex = cbForegroundParam->currentIndex();
-    const int speakerMixIndex = cbForegroundParam->count() - 1;
-    if (fgIndex == speakerMixIndex)
+    const auto fgName = static_cast<ParamInfo::Name>(cbForegroundParam->currentIndex() + 1);
+    if (fgName == ParamInfo::SpeakerMix)
         return;
-    const int temp = fgIndex;
-    cbForegroundParam->setCurrentIndex(cbBackgroundParam->currentIndex());
-    cbBackgroundParam->setCurrentIndex(temp);
+    const int bgIndex = cbBackgroundParam->currentIndex();
+    if (bgIndex == 0)
+        return; // Cannot swap with "None" background
+    const auto bgName = static_cast<ParamInfo::Name>(bgIndex);
+    cbForegroundParam->setCurrentIndex(static_cast<int>(bgName) - 1);
+    cbBackgroundParam->setCurrentIndex(static_cast<int>(fgName));
 }
 
 void ParamEditorToolBarView::changeEvent(QEvent *event) {
@@ -167,8 +174,9 @@ void ParamEditorToolBarView::retranslateUi() {
     const auto backgroundIndex = cbBackgroundParam->currentIndex();
     const QSignalBlocker backgroundBlocker(cbBackgroundParam);
     cbBackgroundParam->clear();
+    cbBackgroundParam->addItem(tr("(None)"));
     cbBackgroundParam->addItems(paramUtils->names());
-    cbBackgroundParam->removeItem(0);
+    cbBackgroundParam->removeItem(1);
     cbBackgroundParam->removeItem(cbBackgroundParam->count() - 1);
     cbBackgroundParam->setCurrentIndex(backgroundIndex);
 }

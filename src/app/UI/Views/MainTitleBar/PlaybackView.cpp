@@ -5,6 +5,7 @@
 #include "MainTitleBarIconPalette.h"
 #include <lite/GUI/Controls/ControlGroup.h>
 #include "Controller/AppController.h"
+#include "Controller/EditorViewController.h"
 #include "Controller/PlaybackController.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include "Model/AppStatus/AppStatus.h"
@@ -142,7 +143,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
             settings.length = barTicks; // One bar length
         }
 
-        appStatus->loopSettings.set(settings);
+        playbackController->setLoopSettings(settings);
         updateLoopButtonView();
     });
 
@@ -160,7 +161,7 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
     m_btnAutoPageTurn->setCheckable(true);
     m_btnAutoPageTurn->setToolTip(tr("Auto Page Turn"));
     connect(m_btnAutoPageTurn, &QPushButton::clicked, this,
-            [](const bool checked) { appStatus->trackAutoPageTurnEnabled = checked; });
+            [](const bool checked) { editorViewController->setTrackAutoPageTurn(checked); });
 
     m_elTime = new InlineEditLabel;
     m_elTime->setObjectName("elTime");

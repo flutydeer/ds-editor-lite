@@ -40,7 +40,7 @@ class PianoRollGraphicsViewPrivate : public QObject {
 public:
     enum class InlineEditField { None, Lyric, Pronunciation };
 
-    explicit PianoRollGraphicsViewPrivate(PianoRollGraphicsView *p) : q_ptr(p){};
+    explicit PianoRollGraphicsViewPrivate(PianoRollGraphicsView *p) : q_ptr(p) {};
     SingingClip *m_clip = nullptr;
     int m_offset = 0;
     QList<Note *> m_notes;
@@ -106,6 +106,7 @@ public slots:
 
     void onStartEditingNoteLyric(NoteView *noteView);
     void finishInlineEditing();
+    [[nodiscard]] bool isInlineEditing() const;
     void onInlineTextSubmitted(const QString &text);
     void onInlineNavigationRequested(const QString &text, bool backwards);
     void onInlineEditCancelled();

@@ -1,6 +1,6 @@
 # 主题语义 Token Map（初稿）
 
-> 版本：v1 基线，已完成第一轮协同审查和 Phase 3 迁移。当前共 **152 个 semantic token**。
+> 版本：v1 基线，已完成第一轮协同审查和 Phase 3 迁移。当前共 **162 个 semantic token**。
 >
 > 本稿确定职责和状态接口。`lite-dark/colors.json` 中的值主要来自现有视觉基线，新增状态使用
 > 临近颜色占位，均不代表最终配色已经定稿。
@@ -69,7 +69,7 @@ Toast、ToolTip 不使用 `surface.popup`，见后文组件 token。
 | `text.secondary` | 说明、提示、占位文字 |
 | `text.emphasis` | 透明控件悬停等需要更高对比度的文本 |
 | `text.onAccent` | 实色强调背景上的文本 |
-| `text.link` | 可点击文本链接 |
+| `text.accent` | 强调色文字（当前工程标题、选中项、拍速稳定态等） |
 | `icon.primary` | 默认图标 |
 | `icon.secondary` | 次级图标 |
 | `icon.disabled` | 禁用图标 |
@@ -223,9 +223,10 @@ Mute/Solo 可覆盖 checked 色相；未覆盖的状态继续使用通用矩阵�
 | `meter.warning` | 已进入警告阈值、但尚未临界的电平段 |
 | `meter.critical` | 临界电平段 |
 | `meter.clipped` | 削波指示 |
-| `meter.value` | 当前值和峰值保持线 |
-| `meter.background` | 电平读数背板 |
-| `meter.trackBackground` | 轨道控制区电平表背景 |
+| `meter.readout` | hover 读数文本与悬停线（非主填充；主填充是 safe/warning/critical 渐变） |
+| `meter.readoutBack` | 读数背板 |
+| `meter.peakHold` | 峰值保持线 |
+| `meter.trackBack` | 轨道控制区电平表背景 |
 
 电平色保留领域命名，不直接等同于 `status.*`。当前 `warnColor` 实际为绿色，其含义是电平
 区间，而不是全局警告。
@@ -271,7 +272,10 @@ Mute/Solo 可覆盖 checked 色相；未覆盖的状态继续使用通用矩阵�
 | `speakerMix.dividerDragging` | 拖动中的分隔线 |
 | `speakerMix.emptyState.fill` | 说话人混合编辑器空状态遮罩 |
 | `speakerMix.emptyState.text` | 说话人混合编辑器空状态文本 |
-| `mix.fader.trackInactive` | 推子和声像滑杆未激活轨道 |
+| `mix.fader.trackInactive` | 增益推子未激活轨道 |
+| `mix.fader.thumbFill` | 增益推子手柄填充 |
+| `mix.fader.thumbBorder` | 增益推子手柄描边（浅色主题中性灰勾边；深色主题透明保持无描边） |
+| `mix.pan.centerGraduate` | 声像滑杆中心刻度线 |
 
 ### Mute / Solo Button Variant
 

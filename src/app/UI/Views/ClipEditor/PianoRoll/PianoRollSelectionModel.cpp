@@ -3,38 +3,45 @@
 #include "NoteView.h"
 #include "PronunciationView.h"
 #include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
 #include "Model/AppStatus/AppStatus.h"
 #include "Global/AppGlobal.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
-#include <lite/Support/Linq.h>
 
 #include <QDebug>
 
 #include "UI/Views/Common/TimeGraphicsScene.h"
 
-#include <algorithm>
-
 PianoRollSelectionModel::PianoRollSelectionModel(PianoRollGraphicsView *view,
                                                  QList<NoteView *> &noteViews,
                                                  QHash<int, NoteView *> &noteViewIndex,
-                                                 QList<Note *> &notes, QObject *parent)
-    : QObject(parent), m_noteViews(noteViews), m_noteViewIndex(noteViewIndex), m_notes(notes),
-      m_view(view) {
+                                                 QObject *parent)
+    : QObject(parent), m_noteViews(noteViews), m_noteViewIndex(noteViewIndex), m_view(view) {
 }
 
 QList<NoteView *> PianoRollSelectionModel::selectedNoteItems() const {
-    return Linq::where(m_noteViews, L_PRED(n, n->isSelected()));
+    QList<NoteView *> result;
+    for (auto *item : orderedNoteItems()) {
+        if (item->isSelected())
+            result.append(item);
+    }
+    return result;
 }
 
 QList<NoteView *> PianoRollSelectionModel::orderedNoteItems() const {
-    auto orderedItems = m_noteViews;
-    std::sort(orderedItems.begin(), orderedItems.end(),
-              [](const NoteView *lhs, const NoteView *rhs) {
-                  if (lhs->rStart() != rhs->rStart())
-                      return lhs->rStart() < rhs->rStart();
-                  return lhs->id() < rhs->id();
-              });
-    return orderedItems;
+    QList<NoteView *> result;
+    if (!m_clip)
+        return result;
+    result.reserve(m_clip->notes().count());
+    for (const auto *note : m_clip->notes()) {
+        if (auto *item = m_noteViewIndex.value(note->id(), nullptr))
+            result.append(item);
+    }
+    return result;
+}
+
+void PianoRollSelectionModel::setDataContext(SingingClip *clip) {
+    m_clip = clip;
 }
 
 EditorSelectionUtils::PressResult
@@ -129,7 +136,9 @@ void PianoRollSelectionModel::updateSceneSelectionState() {
 }
 
 void PianoRollSelectionModel::updateOverlappedState() {
-    for (const auto note : m_notes) {
+    if (!m_clip)
+        return;
+    for (const auto note : m_clip->notes()) {
         const auto noteView = m_noteViewIndex.value(note->id(), nullptr);
         if (!noteView) {
             continue;

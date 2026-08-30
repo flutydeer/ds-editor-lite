@@ -3,17 +3,18 @@
 
 #include "Modules/FillLyric/LangCommon.h"
 
-namespace FillLyric
-{
+namespace FillLyric {
     class LyricSplitter {
     public:
-        static QList<QList<LangNote>> splitAuto(const QString &input, const std::vector<std::string> &priorityLanguages);
+        static QList<QList<LangNote>> splitAuto(const QString &input,
+                                                const std::vector<std::string> &priorityLanguages);
 
-        static QList<QList<LangNote>> splitByChar(const QString &input,
-                                                   const std::vector<std::string> &priorityLanguages);
+        static QList<QList<LangNote>>
+            splitByChar(const QString &input, const std::vector<std::string> &priorityLanguages);
 
-        static QList<QList<LangNote>> splitCustom(const QString &input, const QStringList &splitter,
-                                                   const std::vector<std::string> &priorityLanguages);
+        static QList<QList<LangNote>>
+            splitCustom(const QString &input, const QStringList &splitter,
+                        const std::vector<std::string> &priorityLanguages);
     };
 } // namespace FillLyric
 

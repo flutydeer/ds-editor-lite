@@ -24,7 +24,7 @@
 namespace {
 
     // Re-tints the sidebar icon at paint time to match the item text color:
-    // text.primary normally, text.link while selected, mirroring the ::item QSS
+    // text.primary normally, text.accent while selected, mirroring the ::item QSS
     // color rules so icon and label always read as one element.
     class AppOptionsSidebarDelegate final : public QStyledItemDelegate {
     public:
@@ -38,7 +38,7 @@ namespace {
             const auto svgPath = index.data(Qt::UserRole).toString();
             if (!svgPath.isEmpty()) {
                 auto color = ThemeManager::instance()->semanticColor(
-                    selected ? QStringLiteral("text.link") : QStringLiteral("text.primary"));
+                    selected ? QStringLiteral("text.accent") : QStringLiteral("text.primary"));
                 if (!color.isValid())
                     color = QColor(240, 240, 240, 255);
                 opt.icon = IconUtils::createTintedSvgIcon(svgPath, QSize(20, 20), color);

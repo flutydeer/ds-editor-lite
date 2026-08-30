@@ -62,7 +62,6 @@ void PronunciationView::paint(QPainter *painter, const QStyleOptionGraphicsItem 
     pen.setColor(m_pronunciationEdited ? pronColorEdited : pronColorOriginal);
     painter->setPen(pen);
     painter->drawText(textRect, m_pronunciation);
-
 }
 
 void PronunciationView::updateRectAndPos() {

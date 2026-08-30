@@ -21,8 +21,11 @@ public:
         int singingClipId = -1;
         int audioClipId = -1;
         QString audioPath;
+        QString modelPath;
         Timeline timeline;
         int singingClipStartTick = 0;
+        int audioClipStartTick = 0;
+        int audioClipLengthTick = 0;
         double audioMaterialOriginMs = 0;
         double audioVisibleStartMs = 0;
         double audioVisibleEndMs = 0;

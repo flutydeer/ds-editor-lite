@@ -3,6 +3,8 @@
 
 #include "ProgressDialog.h"
 
+#include <functional>
+
 class TaskStatus;
 class Task;
 
@@ -13,6 +15,8 @@ public:
     explicit TaskDialog(Task *task = nullptr, bool cancellable = true, bool canHide = true,
                         QWidget *parent = nullptr);
 
+    void setCancelCallback(std::function<void()> callback);
+
 private:
     void onCanceled() override;
 
@@ -21,6 +25,7 @@ private slots:
 
 private:
     Task *m_task;
+    std::function<void()> m_cancelCallback;
 };
 
 #endif // TASKDIALOG_H

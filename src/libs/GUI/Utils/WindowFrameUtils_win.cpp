@@ -70,9 +70,11 @@ void WindowFrameUtils::applyPopupEffects(QWidget *widget, const CornerPreference
 
     const INT corner = static_cast<INT>(cornerPreference);
     DwmSetWindowAttribute(hwnd, kWindowCornerPreference, &corner, sizeof(corner));
-    // Popups draw their own 1px border via QSS when needed; suppress the DWM border so it
-    // doesn't paint a second (dark) outline hugging the rounded corners.
-    applyTheme(hwnd, kDwmColorNone);
+    // Match the menu (CMenu) border behaviour: in dark mode DWM draws a 1px light border so
+    // the popup outline stays visible against the dark backdrop; in light mode it is suppressed
+    // and the QSS border stands alone. Do not suppress the DWM border unconditionally.
+    const bool dark = ThemeManager::instance()->colorType() != ThemeManager::ThemeColorType::Light;
+    applyTheme(hwnd, dark ? kDwmColorDefault : kDwmColorNone);
 }
 
 #endif

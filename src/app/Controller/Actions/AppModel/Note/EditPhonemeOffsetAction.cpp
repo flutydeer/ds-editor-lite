@@ -6,7 +6,6 @@ EditPhonemeOffsetAction::EditPhonemeOffsetAction(Note *note, const QList<int> &o
                                                  SingingClip *clip)
     : m_note(note), m_newOffsets(offsets), m_clip(clip) {
     m_oldOffsets = m_note->phonemeOffsetSeq().edited;
-    
 }
 
 void EditPhonemeOffsetAction::execute() {

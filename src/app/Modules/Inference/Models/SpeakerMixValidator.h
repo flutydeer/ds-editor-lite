@@ -29,25 +29,26 @@
 class SpeakerMixValidator {
 public:
     enum class Status {
-        Ok,        ///< all speakers valid, mix unchanged
-        Degraded,  ///< some speakers dropped, mix renormalized
-        Invalid,   ///< all speakers dropped, mix fell back to static
+        Ok,       ///< all speakers valid, mix unchanged
+        Degraded, ///< some speakers dropped, mix renormalized
+        Invalid,  ///< all speakers dropped, mix fell back to static
     };
 
     struct Result {
         Status status = Status::Ok;
-        InferSpeakerMix sanitizedMix;     ///< filtered mix safe for inference
-        QString primarySpeaker;           ///< authoritative speaker name for input.speaker
-        QStringList droppedSpeakers;      ///< invalid speaker names (for UI / log)
-        QString warningMessage;           ///< single-line summary for qWarning
+        InferSpeakerMix sanitizedMix; ///< filtered mix safe for inference
+        QString primarySpeaker;       ///< authoritative speaker name for input.speaker
+        QStringList droppedSpeakers;  ///< invalid speaker names (for UI / log)
+        QString warningMessage;       ///< single-line summary for qWarning
 
-        bool ok() const { return status == Status::Ok; }
+        bool ok() const {
+            return status == Status::Ok;
+        }
     };
 
     /// Validate (speaker, mix) against singer's mixableSpeakers.
     /// Does NOT throw; never returns a mix that references unavailable speakers.
-    static Result validate(const QString &speaker,
-                           const InferSpeakerMix &mix,
+    static Result validate(const QString &speaker, const InferSpeakerMix &mix,
                            const SingerInfo &singer);
 
 private:

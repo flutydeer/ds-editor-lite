@@ -5,8 +5,7 @@
 
 #include <QMap>
 
-namespace LrcTools
-{
+namespace LrcTools {
     class LrcDecoderPrivate {
         Q_DECLARE_PUBLIC(LrcDecoder)
     public:

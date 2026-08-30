@@ -14,6 +14,7 @@ class InferVarianceTask;
 class InferAcousticTask;
 class InferAcousticCacheProbeTask;
 class Task;
+class Track;
 
 class InferController final : public QObject {
     Q_OBJECT
@@ -41,6 +42,17 @@ public:
     void addInferAcousticCacheProbeTask(InferAcousticCacheProbeTask &task);
     void cancelInferAcousticCacheProbeTask(int taskId);
     bool finishCurrentInferAcousticCacheProbeTask(InferAcousticCacheProbeTask *task = nullptr);
+
+    // Starts acoustic inference for all Pending pieces that belong to the given tracks
+    // (empty list = all tracks). Idempotent: pipelines not awaiting acoustic inference
+    // ignore the trigger. Used by audio export so unrendered pieces do not stall it.
+    void startPendingAcousticInference(const QList<Track *> &tracks = {});
+
+    // Suspends inference started on behalf of the given tracks (empty list = all
+    // tracks): the currently running acoustic task finishes naturally, the remaining
+    // Running/Pending pipelines return to the lazy probe-wait state. Mirrors what
+    // playback stop does, so canceling an export behaves like stopping playback.
+    void suspendPendingAcousticInference(const QList<Track *> &tracks = {});
 
 private:
     explicit InferController(QObject *parent = nullptr);

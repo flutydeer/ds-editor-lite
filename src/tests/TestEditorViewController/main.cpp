@@ -2,6 +2,7 @@
 #include "Interface/IEditorView.h"
 #include "AppContext.h"
 #include "Interface/IPanel.h"
+#include "TestRuntime.h"
 
 #include <QCoreApplication>
 #include <QEvent>
@@ -9,9 +10,19 @@
 
 #include <cmath>
 
+namespace {
+    Automation::CoreRuntime *g_runtime = nullptr;
+    IEditorView *g_editorHost = nullptr;
+}
+
 template <>
 EditorViewController *AppContext::instance<EditorViewController>() {
     return nullptr;
+}
+
+template <>
+Automation::CoreRuntime *AppContext::instance<Automation::CoreRuntime>() {
+    return g_runtime;
 }
 
 namespace {
@@ -176,6 +187,11 @@ namespace {
         }
     };
 
+    void bindEditorView(EditorViewController *controller, IEditorView *view) {
+        controller->setView(view);
+        g_editorHost = view;
+    }
+
     EditorViewState sampleState() {
         return {
             .trackPanel =
@@ -203,7 +219,7 @@ namespace {
     }
 
     void testNoView(EditorViewController *controller) {
-        controller->setView(nullptr);
+        bindEditorView(controller, nullptr);
         expect(!controller->captureState().has_value(),
                "capture without a bound view must return no state");
         expect(!controller->restoreState(sampleState()), "restore without a bound view must fail");
@@ -250,7 +266,7 @@ namespace {
     void testForwardingAndSnapshots(EditorViewController *controller) {
         FakeEditorView view;
         view.state = sampleState();
-        controller->setView(&view);
+        bindEditorView(controller, &view);
 
         const auto captured = controller->captureState();
         expect(captured.has_value() && *captured == sampleState(),
@@ -270,6 +286,7 @@ namespace {
         controller->refreshActiveClipTrackPresentation();
         controller->previewActiveClipTrackColor(7);
         HistoryFocus focus;
+        focus.objectIds = {42};
         focus.tickEnd = 10;
         expect(controller->focusVisibility(focus) == HistoryFocusVisibility::Visible,
                "focus visibility must be forwarded");
@@ -333,7 +350,7 @@ namespace {
         expect(!controller->showBottomPanelPage(QStringLiteral("MissingPage")),
                "direct page control must report an unknown stable ID");
 
-        controller->setView(nullptr);
+        bindEditorView(controller, nullptr);
     }
 
     void testActivePanels(EditorViewController *controller) {
@@ -548,6 +565,9 @@ namespace {
 
 int main(int argc, char *argv[]) {
     QCoreApplication application(argc, argv);
+    AutomationTestSupport::TestRuntime testRuntime(
+        AutomationTestSupport::editorServices(&g_editorHost));
+    g_runtime = &testRuntime.runtime();
     auto *controller = editorViewController;
 
     testNoView(controller);
@@ -557,7 +577,8 @@ int main(int argc, char *argv[]) {
     testInteractionRouting(controller);
     testPanelVisibilityRouting(controller);
 
-    controller->setView(nullptr);
+    bindEditorView(controller, nullptr);
+    g_runtime = nullptr;
     if (g_failures == 0) {
         QTextStream(stdout) << "All EditorViewController tests passed" << Qt::endl;
         return 0;

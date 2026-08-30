@@ -10,129 +10,129 @@
 
 namespace {
 
-constexpr double kFadeInStartRatio = 0.6;
-constexpr double kFadeInEndRatio = 1.0;
-constexpr double kVisibilityEpsilon = 0.001;
-constexpr double kSnapVisibilityThreshold = 0.5;
+    constexpr double kFadeInStartRatio = 0.6;
+    constexpr double kFadeInEndRatio = 1.0;
+    constexpr double kVisibilityEpsilon = 0.001;
+    constexpr double kSnapVisibilityThreshold = 0.5;
 
-double clamp01(double value) {
-    if (value < 0.0)
-        return 0.0;
-    if (value > 1.0)
-        return 1.0;
-    return value;
-}
+    double clamp01(double value) {
+        if (value < 0.0)
+            return 0.0;
+        if (value > 1.0)
+            return 1.0;
+        return value;
+    }
 
-double smoothStep(double t) {
-    const auto clamped = clamp01(t);
-    return clamped * clamped * (3.0 - 2.0 * clamped);
-}
+    double smoothStep(double t) {
+        const auto clamped = clamp01(t);
+        return clamped * clamped * (3.0 - 2.0 * clamped);
+    }
 
-double spacingVisibility(double spacing, double minimumSpacing) {
-    if (minimumSpacing <= 0)
-        return 1.0;
-    const double start = minimumSpacing * kFadeInStartRatio;
-    const double end = minimumSpacing * kFadeInEndRatio;
-    if (spacing <= start)
-        return 0.0;
-    if (spacing >= end)
-        return 1.0;
-    return smoothStep((spacing - start) / (end - start));
-}
+    double spacingVisibility(double spacing, double minimumSpacing) {
+        if (minimumSpacing <= 0)
+            return 1.0;
+        const double start = minimumSpacing * kFadeInStartRatio;
+        const double end = minimumSpacing * kFadeInEndRatio;
+        if (spacing <= start)
+            return 0.0;
+        if (spacing >= end)
+            return 1.0;
+        return smoothStep((spacing - start) / (end - start));
+    }
 
-template <typename DrawFn>
-void drawWithOpacity(QPainter *painter, double opacity, DrawFn &&draw) {
-    const auto alpha = clamp01(opacity);
-    if (alpha <= 0.0)
-        return;
-    const auto previousOpacity = painter->opacity();
-    painter->setOpacity(previousOpacity * alpha);
-    draw();
-    painter->setOpacity(previousOpacity);
-}
+    template <typename DrawFn>
+    void drawWithOpacity(QPainter *painter, double opacity, DrawFn &&draw) {
+        const auto alpha = clamp01(opacity);
+        if (alpha <= 0.0)
+            return;
+        const auto previousOpacity = painter->opacity();
+        painter->setOpacity(previousOpacity * alpha);
+        draw();
+        painter->setOpacity(previousOpacity);
+    }
 
-std::vector<int> buildSubdivisionCandidates(int beatTicks, int minSubdivisionTicks) {
-    std::vector<int> result;
-    if (beatTicks <= 1 || minSubdivisionTicks >= beatTicks)
+    std::vector<int> buildSubdivisionCandidates(int beatTicks, int minSubdivisionTicks) {
+        std::vector<int> result;
+        if (beatTicks <= 1 || minSubdivisionTicks >= beatTicks)
+            return result;
+
+        for (int step = beatTicks / 2; step >= minSubdivisionTicks; step /= 2) {
+            result.push_back(step);
+            if (step == 1)
+                break;
+        }
+
+        // The minimum step may not divide the beat evenly (e.g. quarter-note
+        // triplet = 320 ticks vs a 480-tick beat). It still needs to be drawn so
+        // the triplet grid is visible; the binary halving loop above can never
+        // produce such a step.
+        if (minSubdivisionTicks < beatTicks &&
+            std::find(result.begin(), result.end(), minSubdivisionTicks) == result.end()) {
+            result.push_back(minSubdivisionTicks);
+        }
+
+        std::sort(result.begin(), result.end(), std::greater<>());
         return result;
-
-    for (int step = beatTicks / 2; step >= minSubdivisionTicks; step /= 2) {
-        result.push_back(step);
-        if (step == 1)
-            break;
     }
 
-    // The minimum step may not divide the beat evenly (e.g. quarter-note
-    // triplet = 320 ticks vs a 480-tick beat). It still needs to be drawn so
-    // the triplet grid is visible; the binary halving loop above can never
-    // produce such a step.
-    if (minSubdivisionTicks < beatTicks &&
-        std::find(result.begin(), result.end(), minSubdivisionTicks) == result.end()) {
-        result.push_back(minSubdivisionTicks);
+    struct StepLevel {
+        int step = 0;
+        int level = 0;
+        double opacity = 1.0;
+    };
+
+    int levelIndexForTick(int tick, const std::vector<StepLevel> &levels) {
+        for (int i = 0; i < static_cast<int>(levels.size()); ++i) {
+            if (tick % levels[i].step == 0)
+                return i;
+        }
+        return -1;
     }
 
-    std::sort(result.begin(), result.end(), std::greater<>());
-    return result;
-}
-
-struct StepLevel {
-    int step = 0;
-    int level = 0;
-    double opacity = 1.0;
-};
-
-int levelIndexForTick(int tick, const std::vector<StepLevel> &levels) {
-    for (int i = 0; i < static_cast<int>(levels.size()); ++i) {
-        if (tick % levels[i].step == 0)
-            return i;
-    }
-    return -1;
-}
-
-std::vector<StepLevel> buildSubdivisionLevels(const std::vector<int> &candidates,
-                                              double ticksPerPixel, int minimumSpacing) {
-    std::vector<StepLevel> levels;
-    int level = 0;
-    for (const int step : candidates) {
-        const double spacing = step / ticksPerPixel;
-        const double opacity = spacingVisibility(spacing, minimumSpacing);
-        if (opacity > kVisibilityEpsilon)
-            levels.push_back({step, level, opacity});
-        ++level;
-    }
-    return levels;
-}
-
-// Bar thinning levels expressed in whole bars (hop = draw every n-th bar).
-// Measures are not equally wide across signature changes, so thinning is
-// keyed on the measure number instead of a global tick modulo.
-struct BarLevel {
-    int hop = 1;
-    int level = 0;
-    double opacity = 1.0;
-};
-
-std::vector<BarLevel> buildBarLevels(double barSpacing, int minimumSpacing) {
-    int baseHop = 1;
-    double spacing = barSpacing;
-    while (spacing < minimumSpacing && spacing > 0) {
-        baseHop *= 2;
-        spacing *= 2;
+    std::vector<StepLevel> buildSubdivisionLevels(const std::vector<int> &candidates,
+                                                  double ticksPerPixel, int minimumSpacing) {
+        std::vector<StepLevel> levels;
+        int level = 0;
+        for (const int step : candidates) {
+            const double spacing = step / ticksPerPixel;
+            const double opacity = spacingVisibility(spacing, minimumSpacing);
+            if (opacity > kVisibilityEpsilon)
+                levels.push_back({step, level, opacity});
+            ++level;
+        }
+        return levels;
     }
 
-    std::vector<BarLevel> levels;
-    int level = 0;
-    for (int hop = baseHop; hop >= 1; hop /= 2) {
-        const double opacity =
-            hop == baseHop ? 1.0 : spacingVisibility(barSpacing * hop, minimumSpacing);
-        if (opacity > kVisibilityEpsilon)
-            levels.push_back({hop, level, opacity});
-        ++level;
-        if (hop == 1)
-            break;
+    // Bar thinning levels expressed in whole bars (hop = draw every n-th bar).
+    // Measures are not equally wide across signature changes, so thinning is
+    // keyed on the measure number instead of a global tick modulo.
+    struct BarLevel {
+        int hop = 1;
+        int level = 0;
+        double opacity = 1.0;
+    };
+
+    std::vector<BarLevel> buildBarLevels(double barSpacing, int minimumSpacing) {
+        int baseHop = 1;
+        double spacing = barSpacing;
+        while (spacing < minimumSpacing && spacing > 0) {
+            baseHop *= 2;
+            spacing *= 2;
+        }
+
+        std::vector<BarLevel> levels;
+        int level = 0;
+        for (int hop = baseHop; hop >= 1; hop /= 2) {
+            const double opacity =
+                hop == baseHop ? 1.0 : spacingVisibility(barSpacing * hop, minimumSpacing);
+            if (opacity > kVisibilityEpsilon)
+                levels.push_back({hop, level, opacity});
+            ++level;
+            if (hop == 1)
+                break;
+        }
+        return levels;
     }
-    return levels;
-}
 
 } // namespace
 

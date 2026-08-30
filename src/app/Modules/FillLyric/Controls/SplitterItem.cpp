@@ -4,10 +4,10 @@
 
 #include "Modules/FillLyric/Utils/QssParser.h"
 
-namespace FillLyric
-{
+namespace FillLyric {
     SplitterItem::SplitterItem(const qreal &x, const qreal &y, const qreal &w, QGraphicsView *view,
-                               QGraphicsItem *parent) : QGraphicsItem(parent), m_view(view) {
+                               QGraphicsItem *parent)
+        : QGraphicsItem(parent), m_view(view) {
         this->setX(x);
         this->setY(y);
         this->setWidth(w);
@@ -31,7 +31,9 @@ namespace FillLyric
         return path;
     }
 
-    qreal SplitterItem::width() const { return m_width; }
+    qreal SplitterItem::width() const {
+        return m_width;
+    }
 
     void SplitterItem::setWidth(const qreal &w) {
         m_width = w;
@@ -57,9 +59,12 @@ namespace FillLyric
         }
     }
 
-    qreal SplitterItem::margin() const { return m_margin; }
+    qreal SplitterItem::margin() const {
+        return m_margin;
+    }
 
-    void SplitterItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) {
+    void SplitterItem::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
+                             QWidget *widget) {
         painter->setPen(Qt::NoPen);
         painter->setBrush(m_pen.color());
         painter->drawRect(QRectF(m_margin, m_margin, m_width - m_margin, m_lineHeight));

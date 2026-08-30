@@ -4,7 +4,9 @@
 #include "ExternalFileClassifier.h"
 #include "MidiFilePreparer.h"
 
-#include "Controller/Actions/AppModel/Import/BatchImportActions.h"
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
+#include "Automation/ProjectAutomationDtos.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/PlaybackController.h"
 #include "Controller/Tasks/DecodeAudioTask.h"
@@ -13,7 +15,6 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/ProjectConverters/MidiBatchImportDialog.h"
 
-#include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
@@ -29,28 +30,36 @@
 #include <QFileInfo>
 #include <QJsonObject>
 
-namespace {
-constexpr auto kFormatDataKey = "diffscope.audio.formatData";
+#include <algorithm>
+#include <memory>
 
-AudioClip *buildAudioClip(const PreparedAudioItem &audio, const int startTick,
-                          const Timeline &timeline) {
-    const auto clip = new AudioClip;
-    clip->setName(QFileInfo(audio.path).baseName());
-    clip->setStart(startTick);
-    clip->setClipStart(0);
-    const auto posMs = timeline.tickToMs(startTick);
-    const auto length = qMax(1, qRound(timeline.msToTick(posMs + audio.durationMs)) - startTick);
-    clip->setLength(length);
-    clip->setClipLen(length);
-    clip->setPath(audio.path);
-    clip->setAudioInfo(audio.audioInfo);
-    clip->setRealTimeAnchor(0, audio.durationMs, audio.durationMs);
-    clip->workspace().insert(QLatin1String(kFormatDataKey), audio.workspace);
-    clip->setPathInfo({DiffscopeAudioWorkspace::relativeDirFor(
-                           audio.path, documentWorkflowController->projectPath()),
-                       {}});
-    return clip;
-}
+namespace {
+    constexpr auto kFormatDataKey = "diffscope.audio.formatData";
+
+    AudioClip *buildAudioClip(const PreparedAudioItem &audio, const int startTick,
+                              const Timeline &timeline) {
+        const auto clip = new AudioClip;
+        clip->setName(QFileInfo(audio.path).baseName());
+        clip->setStart(startTick);
+        clip->setClipStart(0);
+        const auto posMs = timeline.tickToMs(startTick);
+        const auto length =
+            qMax(1, qRound(timeline.msToTick(posMs + audio.durationMs)) - startTick);
+        clip->setLength(length);
+        clip->setClipLen(length);
+        clip->setPath(audio.path);
+        clip->setAudioInfo(audio.audioInfo);
+        clip->setRealTimeAnchor(0, audio.durationMs, audio.durationMs);
+        clip->workspace().insert(QLatin1String(kFormatDataKey), audio.workspace);
+        clip->setPathInfo({DiffscopeAudioWorkspace::relativeDirFor(
+                               audio.path, documentWorkflowController->projectPath()),
+                           {}});
+        return clip;
+    }
+
+    Automation::CoreRuntime *automationRuntime() {
+        return AppContext::instance<Automation::CoreRuntime>();
+    }
 } // namespace
 
 DocumentImportController::DocumentImportController(QObject *parent) : QObject(parent) {
@@ -70,17 +79,17 @@ void DocumentImportController::requestImport(const QStringList &paths,
     for (const auto &path : paths) {
         const auto result = ExternalFileClassifier::classify(path);
         switch (result.kind) {
-        case ExternalFileKind::Project:
-            projectCount++;
-            projectPath = path;
-            break;
-        case ExternalFileKind::Midi:
-        case ExternalFileKind::Audio:
-            importablePaths.append(path);
-            break;
-        case ExternalFileKind::Unsupported:
-            m_failedMessages.append(path + QStringLiteral(" - ") + result.reason);
-            break;
+            case ExternalFileKind::Project:
+                projectCount++;
+                projectPath = path;
+                break;
+            case ExternalFileKind::Midi:
+            case ExternalFileKind::Audio:
+                importablePaths.append(path);
+                break;
+            case ExternalFileKind::Unsupported:
+                m_failedMessages.append(path + QStringLiteral(" - ") + result.reason);
+                break;
         }
     }
 
@@ -106,6 +115,8 @@ void DocumentImportController::requestImport(const QStringList &paths,
 }
 
 void DocumentImportController::startPreparation() {
+    if (auto *runtime = automationRuntime())
+        m_baseDocument = runtime->documentVersion();
     m_prepared.clear();
     m_successCount = 0;
     m_canceled = false;
@@ -130,29 +141,10 @@ void DocumentImportController::prepareNext() {
         return;
     }
 
-    // MIDI files parse synchronously (fast); failures become Failed items.
-    auto parseData = MidiFileParser::parse(path);
-    PreparedImportItem item;
-    item.path = path;
-    if (!parseData.valid) {
-        item.kind = PreparedImportItem::Kind::Failed;
-        item.errorMessage = parseData.errorMessage;
-    } else {
-        bool hasNotes = false;
-        for (const auto &info : parseData.trackInfos) {
-            if (info.noteCount > 0) {
-                hasNotes = true;
-                break;
-            }
-        }
-        if (!hasNotes) {
-            item.kind = PreparedImportItem::Kind::Failed;
-            item.errorMessage = tr("No notes in MIDI file");
-        } else {
-            item.kind = PreparedImportItem::Kind::Midi;
-            item.midi = std::move(parseData);
-        }
-    }
+    auto prepared = MidiFilePreparer::prepare({path});
+    auto item = std::move(prepared.first());
+    if (const auto failure = MidiFilePreparer::failureMessage(item); !failure.isEmpty())
+        m_failedMessages.append(failure);
     m_prepared.append(std::move(item));
     prepareNext();
 }
@@ -208,27 +200,31 @@ void DocumentImportController::onAllPrepared() {
 
 void DocumentImportController::commitBatch() {
     auto *model = appModel;
+    auto *runtime = automationRuntime();
+    if (!runtime) {
+        m_failedMessages.append(tr("Automation runtime is unavailable"));
+        return;
+    }
     const auto language = appOptions->general()->defaultSingingLanguage;
     const auto defaultLyric = appOptions->general()->defaultLyricForLanguage(language);
 
-    // 1. Generate MIDI tracks; tempo / time signature come from the first
-    //    successfully generated MIDI file only.
     struct GeneratedMidi {
-        PreparedImportItem prepared;
+        int preparedIndex = -1;
         MidiGenerationResult result;
     };
+
     QList<GeneratedMidi> generatedMidis;
     QList<Tempo> newTempos;
     QList<TimeSignature> newSignatures;
     bool hasImportedTimeline = false;
-    for (auto &item : m_prepared) {
+    for (int preparedIndex = 0; preparedIndex < m_prepared.size(); ++preparedIndex) {
+        auto &item = m_prepared[preparedIndex];
         if (item.kind != PreparedImportItem::Kind::Midi)
             continue;
-        const auto options = MidiFilePreparer::makeBatchOptions(
-            m_codec, m_importTempo, m_importTimeSignature, item.midi);
-        auto result =
-            MidiTrackGenerator::generateTracks(item.midi, options, language, defaultLyric,
-                                               model->timeline());
+        const auto options = MidiFilePreparer::makeBatchOptions(m_codec, m_importTempo,
+                                                                m_importTimeSignature, item.midi);
+        auto result = MidiTrackGenerator::generateTracks(item.midi, options, language, defaultLyric,
+                                                         model->timeline());
         if (!result.errorMessage.isEmpty()) {
             m_failedMessages.append(item.path + QStringLiteral(" - ") + result.errorMessage);
             continue;
@@ -238,11 +234,9 @@ void DocumentImportController::commitBatch() {
             newSignatures = result.timeSignatures;
             hasImportedTimeline = true;
         }
-        generatedMidis.append({item, std::move(result)});
+        generatedMidis.append({preparedIndex, std::move(result)});
     }
 
-    // 2. The final timeline the batch commits; audio lengths are derived from
-    //    it.
     auto finalTimeline = model->timeline();
     if (hasImportedTimeline) {
         if (!newSignatures.isEmpty())
@@ -251,102 +245,91 @@ void DocumentImportController::commitBatch() {
             finalTimeline.setTempos(newTempos);
     }
 
-    // 3. Shared track cursor: consume existing tracks first, then create new
-    //    ones. One audio clip or one generated MIDI track occupies one slot.
-    QList<BatchImportActions::Item> items;
-    QList<Clip *> firstSuccessClips;
-    QList<AudioClip *> audioClipsForHash;
+    Automation::BatchImportDraftDto batch;
+    batch.timeline = finalTimeline;
     int existingCursor = 0;
-    int midiCursor = 0;
-    for (const auto &item : m_prepared) {
+    for (int preparedIndex = 0; preparedIndex < m_prepared.size(); ++preparedIndex) {
+        const auto &item = m_prepared.at(preparedIndex);
         if (item.kind == PreparedImportItem::Kind::Audio) {
             const auto startTick =
-                m_target ? m_target->audioStartTick
-                         : qRound(playbackController->position());
-            auto *clip = buildAudioClip(item.audio, startTick, finalTimeline);
-
-            BatchImportActions::Item entry;
-            entry.clip = clip;
+                m_target ? m_target->audioStartTick : qRound(playbackController->position());
+            const std::unique_ptr<AudioClip> clip(
+                buildAudioClip(item.audio, startTick, finalTimeline));
+            Automation::BatchImportItemDraftDto entry;
+            entry.clips.append(Automation::clipDraftDto(*clip));
             if (m_target && existingCursor < m_target->existingTrackIds.size()) {
                 const auto trackId = m_target->existingTrackIds.at(existingCursor++);
-                auto *track = model->findTrackById(trackId);
-                if (!track) {
-                    // The target track vanished; the content fails instead of
-                    // being moved to another track.
-                    m_failedMessages.append(
-                        item.path + QStringLiteral(" - ") + tr("Target track was deleted"));
-                    delete clip;
+                if (!model->findTrackById(trackId)) {
+                    m_failedMessages.append(item.path + QStringLiteral(" - ") +
+                                            tr("Target track was deleted"));
                     continue;
                 }
-                entry.existingTrack = track;
+                entry.existingTrackId = Automation::TrackId(trackId);
             } else {
-                const auto track = new Track;
-                track->setName(QFileInfo(item.path).baseName());
-                track->setDefaultLanguage(language);
-                track->insertClip(clip);
-                entry.newTrack = track;
+                entry.newTrack.name = QFileInfo(item.path).baseName();
+                entry.newTrack.defaultLanguage = language;
             }
-            items.append(entry);
+            batch.items.append(std::move(entry));
             m_successCount++;
-            audioClipsForHash.append(static_cast<AudioClip *>(clip));
-            firstSuccessClips.append(clip);
-        } else if (item.kind == PreparedImportItem::Kind::Midi && midiCursor < generatedMidis.size()) {
-            auto &generated = generatedMidis.at(midiCursor++).result;
+        } else if (item.kind == PreparedImportItem::Kind::Midi) {
+            const auto generatedIt =
+                std::find_if(generatedMidis.begin(), generatedMidis.end(),
+                             [preparedIndex](const auto &generated) {
+                                 return generated.preparedIndex == preparedIndex;
+                             });
+            if (generatedIt == generatedMidis.end())
+                continue;
+            auto &generated = generatedIt->result;
             for (auto *track : generated.tracks) {
-                BatchImportActions::Item entry;
+                const std::unique_ptr<Track> ownedTrack(track);
+                Automation::BatchImportItemDraftDto entry;
+                entry.newTrack = Automation::trackDraftDto(*track);
+                entry.clips = std::move(entry.newTrack.clips);
+                entry.newTrack.clips.clear();
                 if (m_target && existingCursor < m_target->existingTrackIds.size()) {
                     const auto trackId = m_target->existingTrackIds.at(existingCursor++);
-                    auto *existingTrack = model->findTrackById(trackId);
-                    if (!existingTrack) {
-                        m_failedMessages.append(
-                            item.path + QStringLiteral(" - ") +
-                            tr("Target track was deleted"));
-                        delete track;
+                    if (!model->findTrackById(trackId)) {
+                        m_failedMessages.append(item.path + QStringLiteral(" - ") +
+                                                tr("Target track was deleted"));
                         continue;
                     }
-                    // Write into an existing track: only the clips move in,
-                    // the track properties are preserved.
-                    const auto clips = track->clips();
-                    for (const auto clip : clips)
-                        track->removeClip(clip);
-                    delete track;
-                    for (const auto clip : clips) {
-                        BatchImportActions::Item clipEntry;
-                        clipEntry.clip = clip;
-                        clipEntry.existingTrack = existingTrack;
-                        items.append(clipEntry);
-                        firstSuccessClips.append(clip);
-                    }
-                    m_successCount++;
-                } else {
-                    entry.newTrack = track;
-                    items.append(entry);
-                    const auto clips = track->clips();
-                    if (clips.count() > 0)
-                        firstSuccessClips.append(*clips.begin());
-                    m_successCount++;
+                    entry.existingTrackId = Automation::TrackId(trackId);
                 }
+                batch.items.append(std::move(entry));
+                m_successCount++;
             }
         }
     }
 
-    // 4. Commit everything as one undoable history item.
-    if (items.isEmpty())
+    if (batch.items.isEmpty())
         return;
-    auto *batch = BatchImportActions::build(model->timeline().tempos(), newTempos,
-                                            model->timeline().timeSignatures(), newSignatures,
-                                            items, model);
-    batch->execute();
-    historyManager->record(batch);
+    Automation::CommandContext context{
+        .expected = m_baseDocument,
+        .source = Automation::InvocationSource::TrustedGui,
+    };
+    const auto result = runtime->project().commitBatchImport(context, batch);
+    if (!result) {
+        m_successCount = 0;
+        m_failedMessages.append(tr("Batch commit failed: %1").arg(result.getError().message));
+        return;
+    }
 
-    // 5. Activate the first successfully imported clip and start audio
-    //    hashing for the committed audio clips.
-    if (!firstSuccessClips.isEmpty()) {
-        const auto firstId = firstSuccessClips.first()->id();
-        appStatus->selectedClips = QList<int>{firstId};
+    int firstClipId = -1;
+    QList<AudioClip *> audioClipsForHash;
+    for (const auto &affected : result.get().affectedObjects) {
+        if (affected.kind != Automation::ObjectKind::Clip)
+            continue;
+        if (firstClipId < 0)
+            firstClipId = affected.value;
+        if (auto *audio = dynamic_cast<AudioClip *>(model->findClipById(affected.value)))
+            audioClipsForHash.append(audio);
+    }
+    if (firstClipId >= 0) {
+        const auto firstId = firstClipId;
+        trackController->setSelectedClips({firstId});
         trackController->setActiveClip(firstId);
     }
-    for (const auto clip : audioClipsForHash)
+    for (auto *clip : audioClipsForHash)
         trackController->scheduleHashUpdate(clip);
 }
 

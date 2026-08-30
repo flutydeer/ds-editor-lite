@@ -22,6 +22,7 @@
 Q_LOGGING_CATEGORY(logInferHelper, "infer.helper")
 
 #include "Model/AppOptions/AppOptions.h"
+#include "Modules/Inference/InferenceAutomationBridge.h"
 
 namespace InferControllerHelper {
 
@@ -46,6 +47,7 @@ namespace InferControllerHelper {
 
         void populateBaseInput(InferInputBase &input, const InferPiece &piece,
                                const SingerIdentifier &identifier) {
+            input.documentVersion = InferenceAutomationBridge::currentDocumentVersion();
             input.clipId = piece.clipId();
             input.pieceId = piece.id();
             input.clipRevision = piece.clip->inferenceRevision();
@@ -180,9 +182,9 @@ namespace InferControllerHelper {
         return {};
     }
 
-    QList<InferPiece *> getParamDirtyPiecesAndUpdateInput(const ParamInfo::Name name,
-                                                          SingingClip &clip) {
-        QList<InferPiece *> result;
+    QList<ParamInputUpdate> buildParamInputUpdates(const ParamInfo::Name name, SingingClip &clip,
+                                                   const Timeline &timeline) {
+        QList<ParamInputUpdate> result;
         for (auto &piece : clip.pieces()) {
             // 重新合并参数曲线，并与之前的缓存比较
             const auto param = clip.params.getParamByName(name);
@@ -193,21 +195,31 @@ namespace InferControllerHelper {
                 auto original = *piece->getOriginalCurve(name);
                 if (auto resultCurve = AppModelUtils::getResultCurve(original, editedCurves);
                     resultCurve != input) {
-                    piece->setInputCurve(name, resultCurve);
-                    result.append(piece);
+                    result.append({piece, std::move(resultCurve)});
                 }
             } else {
                 const auto baseValue = paramUtils->getPropertiesByName(name)->defaultValue;
-                if (auto resultCurve =
-                        AppModelUtils::getResultCurve({piece->localStartTick(appModel->timeline()),
-                                                       piece->localEndTick(appModel->timeline())},
-                                                      baseValue, editedCurves);
+                if (auto resultCurve = AppModelUtils::getResultCurve(
+                        {piece->localStartTick(timeline), piece->localEndTick(timeline)}, baseValue,
+                        editedCurves);
                     resultCurve != input) {
-                    piece->setInputCurve(name, resultCurve);
-                    result.append(piece);
+                    result.append({piece, std::move(resultCurve)});
                 }
             }
             qDeleteAll(ownedCurves);
+        }
+        return result;
+    }
+
+    QList<InferPiece *> getParamDirtyPiecesAndUpdateInput(const ParamInfo::Name name,
+                                                          SingingClip &clip,
+                                                          const Timeline &timeline) {
+        const auto updates = buildParamInputUpdates(name, clip, timeline);
+        QList<InferPiece *> result;
+        result.reserve(updates.count());
+        for (const auto &update : updates) {
+            update.piece->setInputCurve(name, update.input);
+            result.append(update.piece);
         }
         return result;
     }
@@ -253,20 +265,28 @@ namespace InferControllerHelper {
         clip.notifyNoteChanged(SingingClip::OriginalWordPropertyChange, notes);
     }
 
-    void updatePhoneOffset(const QList<Note *> &notes, const QList<InferInputNote> &args,
-                           SingingClip &clip) {
+    QList<QList<int>> collectPhoneOffsetsForStorage(const QList<Note *> &notes,
+                                                    const QList<InferInputNote> &args,
+                                                    const SingingClip &clip,
+                                                    const Timeline &timeline) {
         if (notes.count() != args.count()) {
             qCCritical(logInferHelper)
                 << "updateNotesPhonemeName() note count != args count:" << notes.count()
                 << args.count() << "clipId:" << clip.id();
-            return;
+            return {};
         }
         QStringList lyrics;
         lyrics.reserve(notes.size());
         for (const auto note : notes)
             lyrics.append(note->lyric());
-        const auto storedOffsets =
-            Syllabification::collectForStorage(lyrics, args, appModel->timeline(), clip.start());
+        return Syllabification::collectForStorage(lyrics, args, timeline, clip.start());
+    }
+
+    void updatePhoneOffset(const QList<Note *> &notes, const QList<InferInputNote> &args,
+                           SingingClip &clip, const Timeline &timeline) {
+        const auto storedOffsets = collectPhoneOffsetsForStorage(notes, args, clip, timeline);
+        if (storedOffsets.count() != notes.count())
+            return;
 
         for (int i = 0; i < notes.size(); ++i) {
             const auto note = notes.at(i);
@@ -287,12 +307,12 @@ namespace InferControllerHelper {
         clip.notifyNoteChanged(SingingClip::OriginalWordPropertyChange, notes);
     }
 
-    void updateParam(const ParamInfo::Name name, const InferParamCurve &taskResult,
-                     InferPiece &piece, int scale, int smoothKernelSize) {
+    ParamUpdate buildParamUpdate(const ParamInfo::Name name, const InferParamCurve &taskResult,
+                                 InferPiece &piece, const int scale, int smoothKernelSize) {
         const auto alignTick = taskResult.localStartTick;
         const std::vector<double> alignValues{taskResult.values.begin(), taskResult.values.end()};
 
-        if (smoothKernelSize < 0)
+        if (name == ParamInfo::Pitch && smoothKernelSize < 0)
             smoothKernelSize = appOptions->inference()->pitch_smooth_kernel_size;
         std::vector<double> paramValue;
         if (name == ParamInfo::Pitch && smoothKernelSize > 0) {
@@ -303,16 +323,23 @@ namespace InferControllerHelper {
             paramValue = alignValues;
 
         // 将推理结果保存到分段内部
-        DrawCurve original;
-        original.setLocalStart(alignTick);
-        original.setValues(Linq::selectMany(paramValue, L_PRED(v, static_cast<int>(v * scale))));
-        piece.setOriginalCurve(name, original);
+        ParamUpdate update;
+        update.original.setLocalStart(alignTick);
+        update.original.setValues(
+            Linq::selectMany(paramValue, L_PRED(v, static_cast<int>(v * scale))));
         const auto param = piece.clip->params.getParamByName(name);
         QList<DrawCurve *> ownedCurves;
         const auto editedCurves = getEditedCurvesIncludingAnchor(param, ownedCurves);
-        const auto mergedCurve = AppModelUtils::getResultCurve(original, editedCurves);
-        piece.setInputCurve(name, mergedCurve);
+        update.input = AppModelUtils::getResultCurve(update.original, editedCurves);
         qDeleteAll(ownedCurves);
+        return update;
+    }
+
+    void updateParam(const ParamInfo::Name name, const InferParamCurve &taskResult,
+                     InferPiece &piece, const int scale, const int smoothKernelSize) {
+        const auto update = buildParamUpdate(name, taskResult, piece, scale, smoothKernelSize);
+        piece.setOriginalCurve(name, update.original);
+        piece.setInputCurve(name, update.input);
         piece.clip->updateOriginalParam(name);
     }
 

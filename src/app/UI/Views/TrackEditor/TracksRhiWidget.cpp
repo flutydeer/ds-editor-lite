@@ -1566,7 +1566,7 @@ bool TracksRhiWidget::updateClipSelection(const ClipSnapshot &clip, const bool t
 }
 
 void TracksRhiWidget::syncSelection(const QList<int> &ids, const int preferredTrack) const {
-    appStatus->selectedClips = ids;
+    trackController->setSelectedClips(ids);
     auto trackIndex = preferredTrack;
     if (trackIndex < 0 && !ids.isEmpty()) {
         Track *track = nullptr;
@@ -1574,7 +1574,7 @@ void TracksRhiWidget::syncSelection(const QList<int> &ids, const int preferredTr
             trackIndex = appModel->tracks().indexOf(track);
     }
     if (trackIndex >= 0)
-        appStatus->selectedTrackIndex = trackIndex;
+        trackController->setSelectedTrackIndex(trackIndex);
 }
 
 void TracksRhiWidget::updateCursor(const QPointF &position) {

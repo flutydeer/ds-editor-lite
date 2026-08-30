@@ -19,7 +19,8 @@ struct CustomSplitterRule {
 };
 
 struct CustomTaggerEntry {
-    QString type;       // "regex", "array", or "dict" (dict: value 为字典文件名列表，从 configs/tagger/ 解析)
+    QString
+        type; // "regex", "array", or "dict" (dict: value 为字典文件名列表，从 configs/tagger/ 解析)
     QStringList value;
     QString tag;
     bool discard = false;
@@ -64,9 +65,9 @@ public:
     QList<CustomSplitterRule> customSplitterRules;
     QList<CustomTaggerRule> customTaggerRules;
 
-    // Execution order (list of rule names/languages, includes both builtin and custom)
-    // Empty means default order
+    // Empty order means the engine default.
     QStringList splitterOrder;
+    // Source-qualified keys keep same-language built-in and custom taggers distinct.
     QStringList taggerOrder;
 
 protected:

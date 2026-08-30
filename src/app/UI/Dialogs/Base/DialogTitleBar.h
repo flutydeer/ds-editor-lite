@@ -8,7 +8,7 @@
 class QVariantAnimation;
 class QGraphicsOpacityEffect;
 class QLabel;
-class Button;
+class SystemWindowButton;
 
 class DialogTitleBar : public QWidget, public IAnimatable {
     Q_OBJECT
@@ -16,7 +16,7 @@ class DialogTitleBar : public QWidget, public IAnimatable {
 public:
     explicit DialogTitleBar(QWidget *parent = nullptr);
 
-    [[nodiscard]] Button *closeButton() const;
+    [[nodiscard]] SystemWindowButton *closeButton() const;
 
     void setTitle(const QString &title) const;
 
@@ -36,7 +36,7 @@ private:
 
     QWidget *m_window;
     QLabel *m_lbTitle = nullptr;
-    Button *m_btnClose = nullptr;
+    SystemWindowButton *m_btnClose = nullptr;
     QGraphicsOpacityEffect *m_opacityEffect;
     QVariantAnimation *m_animation;
     bool m_targetActive = true;

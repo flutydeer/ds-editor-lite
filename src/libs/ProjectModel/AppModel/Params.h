@@ -69,6 +69,7 @@ public:
     Param toneShift;
 
     Param *getParamByName(Name name);
+    const Param *getParamByName(Name name) const;
     static bool hasOriginalParam(Name name);
 
 private:

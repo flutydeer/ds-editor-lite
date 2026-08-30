@@ -106,6 +106,13 @@ PianoRollView::PianoRollView(QWidget *parent) : QWidget(parent) {
         connectRhiBackend();
     else
         connectLegacyBackend();
+    connect(appStatus, &AppStatus::pianoRollAutoPageTurnEnabledChanged, this,
+            [this](const bool enabled) {
+                if (m_rhiView)
+                    m_rhiView->setAutoPageTurn(enabled);
+                else if (m_graphicsView)
+                    m_graphicsView->setAutoTurnPage(enabled);
+            });
     connect(
         editorViewController, &EditorViewController::editCommandRequested, this,
         [this](const EditorInteraction::Target target, const EditorInteraction::Command command) {

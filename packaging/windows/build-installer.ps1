@@ -1,14 +1,14 @@
 [CmdletBinding()]
 param(
-    [ValidateSet("Release")]
-    [string]$Configuration = "Release",
-
     [string]$StageDir = "dist\stage\dml",
     [string]$OutputDir = "dist\installer",
     [string]$InnoSetupPath = "",
     [string]$VcRedistPath = "",
 
     [switch]$SkipVcpkgInstall,
+    # Build the CUDA flavor: installs onnxruntime-builds[cuda12] and configures
+    # LITE_ENABLE_CUDA=ON. Default is the DirectML (DML) flavor.
+    [switch]$EnableCuda,
     [switch]$NoBuild,
     [switch]$CheckPrerequisites,
 
@@ -208,7 +208,7 @@ function Write-InnoScript {
         APP_ID               = "{{$($ProductMetadata.windowsAppId)}"
         STAGE_DIR            = Convert-ToInnoPath $ResolvedStageDir
         OUTPUT_DIR           = Convert-ToInnoPath $ResolvedOutputDir
-        OUTPUT_BASE_FILENAME = "$($ProductMetadata.executableBaseName)-$($ProductMetadata.version)-win-x64-dml-internal"
+        OUTPUT_BASE_FILENAME = "$($ProductMetadata.executableBaseName)-$($ProductMetadata.version)-win-x64-$(if ($EnableCuda) { 'cuda' } else { 'dml' })-internal"
         VC_REDIST_PATH       = Convert-ToInnoPath $ResolvedVcRedistPath
         SIGN_TOOL_NAME       = $Script:SignToolName
     }
@@ -249,6 +249,21 @@ function Assert-StagingLayout {
         Select-Object -ExpandProperty InputObject
     if ($missingDlls) {
         throw "Installer staging is missing runtime DLLs: $($missingDlls -join ', ')"
+    }
+
+    # Flavor assertion: the staging tree must agree with -EnableCuda. The CMake
+    # runtime gate already enforces this at build/install time; this is the
+    # packaging-boundary net so a stale vcpkg tree can never slip through.
+    $cudaRuntimeDir = Join-Path $ResolvedStageDir "bin\plugins\srt-driver\inferencedrivers\srt-onnxdriver\runtimes\onnx\cuda"
+    $cudaPresent = Test-Path -LiteralPath $cudaRuntimeDir
+    if ($EnableCuda -and -not $cudaPresent) {
+        throw ("CUDA staging is missing the ONNX Runtime cuda/ runtimes. " +
+            "Run vcpkg install with --x-feature=cuda12, then rebuild.")
+    }
+    if (-not $EnableCuda -and $cudaPresent) {
+        throw ("DML staging contains the ONNX Runtime cuda/ runtimes (vcpkg tree built " +
+            "with --x-feature=cuda12?). " +
+            "Rerun vcpkg install without the feature, then rebuild.")
     }
 }
 
@@ -346,20 +361,32 @@ if ($CheckPrerequisites) {
 }
 
 if (-not $NoBuild) {
+    $flavor = if ($EnableCuda) { "CUDA" } else { "DML" }
     if (-not $SkipVcpkgInstall) {
-        Invoke-Step "Install vcpkg dependencies for DML package" {
+        Invoke-Step "Install vcpkg dependencies for $flavor package" {
             $vcpkg = Find-Vcpkg
-            Invoke-Process $vcpkg @(
+            $vcpkgArgs = @(
                 "install",
                 "--x-manifest-root=$RepoRoot\scripts\vcpkg-manifest",
                 "--x-install-root=$RepoRoot\vcpkg\installed",
                 "--triplet=x64-windows"
             )
+            if ($EnableCuda) {
+                $vcpkgArgs += "--x-feature=cuda12"
+            }
+            Invoke-Process $vcpkg $vcpkgArgs
         }
     }
 
     Invoke-Step "Configure CMake preset $PresetName" {
-        Invoke-Process "cmake" @("--preset", $PresetName)
+        $configureArgs = @("--preset", $PresetName)
+        if ($EnableCuda) {
+            # The preset pins LITE_ENABLE_CUDA=OFF for the DML flavor; the
+            # switch overrides it so this script and the CMake runtime gate
+            # agree on one source of truth.
+            $configureArgs += "-DLITE_ENABLE_CUDA=ON"
+        }
+        Invoke-Process "cmake" $configureArgs
     }
 
     Invoke-Step "Build $PresetName" {
@@ -394,7 +421,7 @@ Invoke-Step "Build installer" {
     Invoke-Process $ResolvedInnoSetupPath $isccArgs
 }
 
-$InstallerPath = Join-Path $ResolvedOutputDir "$($ProductMetadata.executableBaseName)-$($ProductMetadata.version)-win-x64-dml-internal.exe"
+$InstallerPath = Join-Path $ResolvedOutputDir "$($ProductMetadata.executableBaseName)-$($ProductMetadata.version)-win-x64-$(if ($EnableCuda) { 'cuda' } else { 'dml' })-internal.exe"
 $InstallerHash = (Get-FileHash -LiteralPath $InstallerPath -Algorithm SHA256).Hash
 Write-Host ""
 Write-Host "Installer created: $InstallerPath" -ForegroundColor Green

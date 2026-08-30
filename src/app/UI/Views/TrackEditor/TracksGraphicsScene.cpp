@@ -25,8 +25,8 @@ bool TracksGraphicsScene::isAppendSlotAt(const double sceneY) const {
 }
 
 int TracksGraphicsScene::tickAt(const double sceneX) const {
-    return static_cast<int>(AppGlobal::ticksPerQuarterNote * (sceneX - leftMarginPx()) /
-                            scaleX() / TracksEditorGlobal::pixelsPerQuarterNote);
+    return static_cast<int>(AppGlobal::ticksPerQuarterNote * (sceneX - leftMarginPx()) / scaleX() /
+                            TracksEditorGlobal::pixelsPerQuarterNote);
 }
 
 void TracksGraphicsScene::onViewResized(const QSize size) {
@@ -43,8 +43,7 @@ void TracksGraphicsScene::updateSceneRect() {
     const auto targetSceneWidth = sceneBaseSize().width() * scaleX() + leftMarginPx();
     // One extra row for the virtual append slot at the bottom of the canvas,
     // so the slot stays reachable by scrolling once the tracks fill the view.
-    const auto totalTrackHeight =
-        (m_trackCount + 1) * TracksEditorGlobal::trackHeight * scaleY();
+    const auto totalTrackHeight = (m_trackCount + 1) * TracksEditorGlobal::trackHeight * scaleY();
     const auto viewHeight = m_graphicsViewSize.height();
 
     auto targetSceneHeight = totalTrackHeight;

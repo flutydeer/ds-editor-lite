@@ -3,7 +3,7 @@
 #include <lite/ProjectModel/AppModel/AppModel.h>
 
 MoveTrackAction *MoveTrackAction::build(const qsizetype fromIndex, const qsizetype toIndex,
-                                         AppModel *model) {
+                                        AppModel *model) {
     const auto a = new MoveTrackAction;
     a->m_fromIndex = fromIndex;
     a->m_toIndex = toIndex;

@@ -29,9 +29,13 @@ void EditAudioClipPathAction::undo() {
 
 void EditAudioClipPathAction::apply(const QString &path, const AudioPathInfo &pathInfo,
                                     const QJsonObject &formatData) const {
+    const bool pathChanged = m_clip->path() != path;
     m_clip->setPathInfo(pathInfo);
     m_clip->workspace().insert(kFormatDataKey, formatData);
-    // The old peak cache is invalid after relinking; clear it to trigger re-decoding (see AudioDecodingController)
-    m_clip->setAudioInfo({});
     m_clip->setPath(path);
+    if (!pathChanged)
+        m_clip->notifySourceChanged();
+    // The old peak cache is invalid after relinking; clear it after the source notification has
+    // synchronously started a replacement decode.
+    m_clip->setAudioInfo({});
 }

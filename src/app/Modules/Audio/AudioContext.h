@@ -4,6 +4,7 @@
 #define audioContext AudioContext::instance()
 
 #include <QElapsedTimer>
+#include <QSet>
 #include <QTimer>
 
 #include <TalcsCore/PositionableMixerAudioSource.h>
@@ -28,10 +29,23 @@ class AudioContextAudioExporterListener;
 class AudioContext : public talcs::DspxProjectContext, public Audio::AudioExporterListener {
     Q_OBJECT
 public:
+    enum class ExportInferenceStatus {
+        Ready,
+        Pending,
+        Failed,
+    };
+
     explicit AudioContext(QObject *parent = nullptr);
     ~AudioContext() override;
 
     static AudioContext *instance();
+
+    [[nodiscard]] ExportInferenceStatus exportInferenceStatus() const;
+    [[nodiscard]] ExportInferenceStatus exportInferenceStatus(const QList<Track *> &tracks) const;
+
+    // Ratio of succeeded singing pieces among all pieces of the given tracks, used to
+    // show inference progress while an export waits for pending pieces to render.
+    [[nodiscard]] double exportInferenceProgress(const QList<Track *> &tracks) const;
 
     Track *getTrackFromContext(const talcs::DspxTrackContext *trackContext) const;
     AudioClip *getAudioClipFromContext(const talcs::DspxAudioClipContext *audioClipContext) const;
@@ -60,6 +74,7 @@ private:
 
     QHash<Track *, talcs::DspxTrackContext *> m_trackModelDict;
     QHash<AudioClip *, talcs::DspxAudioClipContext *> m_audioClipModelDict;
+    QSet<const AudioClip *> m_unloadableAudioClips;
 
     QHash<Track *, TrackSynthesizer *> m_trackSynthDict;
     QHash<Track *, TrackInferenceHandler *> m_trackInferDict;
@@ -92,7 +107,8 @@ private:
     void handleClipInserted(Track *track, int id, AudioClip *audioClip);
     void handleClipRemoved(Track *track, int id, AudioClip *audioClip);
 
-    void handleClipPropertyChanged(AudioClip *audioClip) const;
+    void handleClipPropertyChanged(AudioClip *audioClip, bool forceSourceReload = false);
+    [[nodiscard]] bool shouldSilenceAudioClip(const AudioClip *audioClip) const;
     static void feedCompensatedPosition(const AudioClip *audioClip,
                                         talcs::DspxAudioClipContext *audioClipContext);
 

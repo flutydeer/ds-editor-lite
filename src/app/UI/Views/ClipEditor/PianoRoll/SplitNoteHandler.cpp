@@ -49,7 +49,7 @@ bool SplitNoteHandler::mousePressEvent(QMouseEvent *event) {
     const auto noteView = d->noteViewAt(event->position().toPoint());
 
     if (noteView) {
-        Helper::splitNote(noteView->id(), tick);
+        (void) Helper::splitNote(noteView->id(), tick);
         if (m_indicator)
             m_indicator->clearState();
     }

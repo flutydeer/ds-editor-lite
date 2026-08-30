@@ -79,6 +79,10 @@ QString LanguageInfo::name() const {
     return d->name;
 }
 
+QMap<QString, QString> LanguageInfo::localizedNames() const {
+    return d->localizedNames;
+}
+
 QString LanguageInfo::displayName(const QString &bcp47Locale) const {
     return lite::Support::lookupLocalizedText(d->localizedNames, d->name, bcp47Locale);
 }

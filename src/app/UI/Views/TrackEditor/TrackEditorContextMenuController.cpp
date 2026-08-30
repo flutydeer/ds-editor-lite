@@ -219,7 +219,7 @@ void TrackEditorContextMenuController::selectAll() const {
         for (const auto *clip : track->clips())
             ids.append(clip->id());
     }
-    appStatus->selectedClips = ids;
+    trackController->setSelectedClips(ids);
     if (!ids.isEmpty())
         trackController->setActiveClip(ids.first());
 }
@@ -256,7 +256,6 @@ void TrackEditorContextMenuController::relocateAudioClip(const int clipId) const
         tr("Select an Audio File"), QStringLiteral("."));
     if (fileName.isNull())
         return;
-    trackController->onRelocateAudioClip(clipId, fileName, io,
-                                         AudioFilePreparer::makeWorkspace(userData,
-                                                                          entryClassName));
+    trackController->onRelocateAudioClip(
+        clipId, fileName, io, AudioFilePreparer::makeWorkspace(userData, entryClassName));
 }

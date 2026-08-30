@@ -10,8 +10,7 @@ SplitNoteAction::SplitNoteAction(Note *originalNote, Note *newNote, int newLengt
 }
 
 void SplitNoteAction::execute() {
-    const auto previousWordStates =
-        SingingClipPhonemeNormalizer::captureWordStates(*m_clip);
+    const auto previousWordStates = SingingClipPhonemeNormalizer::captureWordStates(*m_clip);
     m_clip->removeNote(m_originalNote);
     m_originalNote->setLength(m_newLength);
     m_clip->insertNote(m_originalNote);

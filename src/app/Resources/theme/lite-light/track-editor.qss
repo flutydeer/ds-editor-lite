@@ -29,15 +29,6 @@ InfoLaneHeaderView>QLabel {
     color: ${text.secondary};
 }
 
-/* Last lane (time signature) keeps a bottom border */
-InfoLaneView#timeSignatureLaneView {
-    border-bottom: 1px solid ${border.subtle};
-}
-
-InfoLaneHeaderView#timeSignatureLaneHeaderView {
-    border-bottom: 1px solid ${border.subtle};
-}
-
 /* TrackListHeaderView */
 TrackListHeaderView {
     background: ${editor.trackListHeader};
@@ -151,7 +142,7 @@ TrackControlView>TwoLevelComboBox:disabled {
 }
 
 TrackControlView>LevelMeter {
-    background: ${meter.trackBackground};
+    background: ${meter.trackBack};
     min-width: 12;
     qproperty-padding: 0;
     qproperty-spacing: 1;
@@ -162,7 +153,12 @@ TrackControlView>LevelMeter {
     qproperty-safeColor: ${meter.safe};
     qproperty-warnColor: ${meter.warning};
     qproperty-criticalColor: ${meter.critical};
-    qproperty-currentValueColor: ${meter.value};
+    qproperty-currentValueColor: ${meter.readout};
+}
+
+/* TrackAreaView */
+TrackAreaView>DividerLine#trackAreaDivider {
+    qproperty-lineMargin: 0px;
 }
 
 /* TrackListView */

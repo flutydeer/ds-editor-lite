@@ -1,4 +1,5 @@
 #include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include "Bootstrap/AppEnvironment.h"
 #include "Bootstrap/CrashHandler.h"
 #include "Bootstrap/ExternalOpenRequestQueue.h"
@@ -47,14 +48,13 @@ int main(int argc, char *argv[]) {
             QString error;
             if (coordinator.forwardRequest(startupRequest, error))
                 return EXIT_SUCCESS;
-            QMessageBox::critical(
-                nullptr, QString::fromLatin1(LiteProductMetadata::ProductName), error);
+            QMessageBox::critical(nullptr, QString::fromLatin1(LiteProductMetadata::ProductName),
+                                  error);
             return EXIT_FAILURE;
         }
         case SingleInstanceCoordinator::StartResult::Error:
-            QMessageBox::critical(
-                nullptr, QString::fromLatin1(LiteProductMetadata::ProductName),
-                coordinator.errorString());
+            QMessageBox::critical(nullptr, QString::fromLatin1(LiteProductMetadata::ProductName),
+                                  coordinator.errorString());
             return EXIT_FAILURE;
         case SingleInstanceCoordinator::StartResult::Primary:
             break;
@@ -107,8 +107,9 @@ int main(int argc, char *argv[]) {
         CrashHandler crashHandler;
         result = a.exec();
         coordinator.stopAcceptingRequests();
-        appOptions->window()->setMainWindowGeometry(windowPlacement.saveGeometry());
-        if (!appOptions->saveAndNotify(AppOptionsGlobal::Window))
+        const auto saveWindow = appContext.m_coreRuntime->settings().updateWindow(
+            {}, {.mainWindowGeometry = windowPlacement.saveGeometry()});
+        if (!saveWindow)
             qWarning("Failed to save main-window placement");
     }
     coordinator.shutdown();

@@ -17,6 +17,10 @@ public:
     // block the other files.
     static QList<PreparedImportItem> prepare(const QStringList &paths);
 
+    // Formats a Failed item for a batch summary. Non-failed items return an
+    // empty string so callers can append the result conditionally.
+    static QString failureMessage(const PreparedImportItem &item);
+
     // Detects the shared encoding from the aggregated lyrics of all
     // successfully parsed MIDI items (falls back to the default codec).
     static QByteArray detectCommonCodec(const QList<PreparedImportItem> &prepared);
@@ -25,8 +29,7 @@ public:
     // track is selected (empty tracks are skipped), separate MIDI channels are
     // always on, and the shared tempo/time-signature flags are applied.
     static MidiImportOptions makeBatchOptions(const QByteArray &codec, bool importTempo,
-                                              bool importTimeSignature,
-                                              const MidiParseData &data);
+                                              bool importTimeSignature, const MidiParseData &data);
 };
 
 #endif // DS_EDITOR_LITE_MIDIFILEPREPARER_H

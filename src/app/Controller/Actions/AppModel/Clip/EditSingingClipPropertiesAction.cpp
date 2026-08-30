@@ -18,8 +18,7 @@ EditSingingClipPropertiesAction *
 }
 
 void EditSingingClipPropertiesAction::execute() {
-    const auto previousWordStates =
-        SingingClipPhonemeNormalizer::captureWordStates(*m_clip);
+    const auto previousWordStates = SingingClipPhonemeNormalizer::captureWordStates(*m_clip);
     m_track->removeClip(m_clip);
     auto newArgs = m_newArgs;
     // opendspx requires clip.pos = start + clipStart to stay non-negative.
@@ -29,11 +28,13 @@ void EditSingingClipPropertiesAction::execute() {
     m_clip->setClipStart(newArgs.clipStart);
     m_clip->setLength(newArgs.length);
     m_clip->setClipLen(newArgs.clipLen);
+    m_clip->setGain(newArgs.gain);
+    m_clip->setMute(newArgs.mute);
     m_track->insertClip(m_clip);
-    m_resetRecords = previousWordStates.isEmpty()
-                         ? QList<SingingClipPhonemeNormalizer::ResetRecord>{}
-                         : SingingClipPhonemeNormalizer::normalizeEditedOffsets(
-                               *m_clip, previousWordStates);
+    m_resetRecords =
+        previousWordStates.isEmpty()
+            ? QList<SingingClipPhonemeNormalizer::ResetRecord>{}
+            : SingingClipPhonemeNormalizer::normalizeEditedOffsets(*m_clip, previousWordStates);
     m_clip->notifyPropertyChanged();
     if (!m_resetRecords.isEmpty())
         m_clip->notifyNoteChanged(
@@ -48,6 +49,8 @@ void EditSingingClipPropertiesAction::undo() {
     m_clip->setClipStart(m_oldArgs.clipStart);
     m_clip->setLength(m_oldArgs.length);
     m_clip->setClipLen(m_oldArgs.clipLen);
+    m_clip->setGain(m_oldArgs.gain);
+    m_clip->setMute(m_oldArgs.mute);
     m_track->insertClip(m_clip);
     SingingClipPhonemeNormalizer::restoreEditedOffsets(m_resetRecords);
     m_clip->notifyPropertyChanged();

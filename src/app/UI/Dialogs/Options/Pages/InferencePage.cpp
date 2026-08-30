@@ -1,5 +1,7 @@
 #include "InferencePage.h"
 
+#include "AppContext.h"
+#include "Automation/CoreRuntime.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/Utils/DmlGpuUtils.h"
@@ -231,26 +233,33 @@ void InferencePage::confirmCleanCache() {
 }
 
 void InferencePage::modifyOption() {
-    const auto option = appOptions->inference();
-
-    option->executionProvider = m_cbExecutionProvider->currentText();
-    if (option->executionProvider != QStringLiteral("CPU") && m_cbDeviceList->isEnabled()) {
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    if (!runtime)
+        return;
+    const auto snapshot = runtime->settings().getSettings();
+    if (!snapshot)
+        return;
+    auto settings = snapshot.get().inference;
+    settings.executionProvider = m_cbExecutionProvider->currentText();
+    if (settings.executionProvider != QStringLiteral("CPU") && m_cbDeviceList->isEnabled()) {
         if (m_cbDeviceList->currentData(IsDefaultGpuRole).toBool() == true) {
-            option->selectedGpuIndex = -1;
-            option->selectedGpuId = {};
+            settings.selectedGpuIndex = -1;
+            settings.selectedGpuId = {};
         } else {
             const GpuInfo &gpuInfo = m_cbDeviceList->currentData(GpuInfoRole).value<GpuInfo>();
-            option->selectedGpuIndex = gpuInfo.index;
-            option->selectedGpuId = gpuInfo.deviceId;
+            settings.selectedGpuIndex = gpuInfo.index;
+            settings.selectedGpuId = gpuInfo.deviceId;
         }
     }
-    option->samplingSteps = QLocale().toInt(m_cbSamplingSteps->currentText());
-    option->depth = m_dsDepthSlider->spinbox->value();
-    option->runVocoderOnCpu = m_swRunVocoderOnCpu->value();
-    option->autoStartInfer = m_autoStartInfer->value();
-    option->singerSessionCacheCapacity = m_cbSingerSessionCacheCapacity->currentData().toInt();
-    option->singerSessionIdleTimeoutSeconds = m_cbSingerSessionIdleTimeout->currentData().toInt();
-    appOptions->saveAndNotify(AppOptionsGlobal::Inference);
+    settings.samplingSteps = QLocale().toInt(m_cbSamplingSteps->currentText());
+    settings.depth = m_dsDepthSlider->spinbox->value();
+    settings.runVocoderOnCpu = m_swRunVocoderOnCpu->value();
+    settings.autoStartInference = m_autoStartInfer->value();
+    settings.playbackLookaheadSeconds = m_playbackWindowSlider->spinbox->value();
+    settings.pitchSmoothKernelSize = m_smoothSlider->spinbox->value();
+    settings.singerSessionCacheCapacity = m_cbSingerSessionCacheCapacity->currentData().toInt();
+    settings.singerSessionIdleTimeoutSeconds = m_cbSingerSessionIdleTimeout->currentData().toInt();
+    runtime->settings().updateInference({}, settings);
 }
 
 QWidget *InferencePage::createContentWidget() {
@@ -309,8 +318,6 @@ QWidget *InferencePage::createContentWidget() {
     // Prevent accidental value changes while scrolling the settings page.
     m_dsDepthSlider->spinbox->setWheelEventPolicy(WheelEventPolicy::Consume);
     m_dsDepthSlider->spinbox->setFocusPolicy(Qt::StrongFocus);
-    connect(m_dsDepthSlider, &DoubleSeekBarSpinboxGroup::valueChanged, this,
-            [&](const double value) { appOptions->inference()->depth = value; });
     connect(m_dsDepthSlider, &DoubleSeekBarSpinboxGroup::editFinished, this,
             &InferencePage::modifyOption);
 
@@ -335,8 +342,6 @@ QWidget *InferencePage::createContentWidget() {
     // Prevent accidental value changes while scrolling the settings page.
     m_playbackWindowSlider->spinbox->setWheelEventPolicy(WheelEventPolicy::Consume);
     m_playbackWindowSlider->spinbox->setFocusPolicy(Qt::StrongFocus);
-    connect(m_playbackWindowSlider, &SeekBarSpinboxGroup::valueChanged, this,
-            [&](const double value) { appOptions->inference()->playbackLookaheadSeconds = value; });
     connect(m_playbackWindowSlider, &SeekBarSpinboxGroup::editFinished, this,
             &InferencePage::modifyOption);
 
@@ -347,8 +352,6 @@ QWidget *InferencePage::createContentWidget() {
     m_smoothSlider->spinbox->setWheelEventPolicy(WheelEventPolicy::Consume);
     m_smoothSlider->spinbox->setFocusPolicy(Qt::StrongFocus);
 
-    connect(m_smoothSlider, &SeekBarSpinboxGroup::valueChanged, this,
-            [&](const double value) { appOptions->inference()->pitch_smooth_kernel_size = value; });
     connect(m_smoothSlider, &SeekBarSpinboxGroup::editFinished, this, &InferencePage::modifyOption);
 
 

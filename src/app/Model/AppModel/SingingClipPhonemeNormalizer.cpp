@@ -14,6 +14,8 @@
 
 #include <QSet>
 
+#include <limits>
+
 namespace {
     bool isRestNote(const Note &note) {
         const auto lyric = note.lyric().trimmed();
@@ -48,7 +50,7 @@ namespace {
     }
 
     SingingClipPhonemeNormalizer::WordStates captureWordStates(const SingingClip &clip,
-                                                                 const Timeline &timeline) {
+                                                               const Timeline &timeline) {
         SingingClipPhonemeNormalizer::WordStates result;
         const auto notes = clip.notes().toList();
         for (int i = 0; i < notes.count(); ++i) {
@@ -60,8 +62,7 @@ namespace {
             state.rootSyllabificationCount = Note::trailingSyllabificationCount(root->lyric());
             for (const auto &phoneme : root->phonemeNameSeq().result())
                 state.rootOnsets.append(phoneme.isOnset);
-            const auto rootStartMs =
-                timeline.tickToMs(clip.start() + root->localStart());
+            const auto rootStartMs = timeline.tickToMs(clip.start() + root->localStart());
             auto wordEndTick = root->localStart() + root->length();
             bool hasSyllabification = false;
             int wordEnd = i + 1;
@@ -78,10 +79,9 @@ namespace {
                     timeline.tickToMs(clip.start() + continuationNote->localStart());
                 state.members.append({continuationNote, continuationNote->lyric().trimmed(),
                                       qRound(continuationStartMs - rootStartMs)});
-                hasSyllabification =
-                    hasSyllabification || continuationNote->isSyllabification();
-                wordEndTick = std::max(
-                    wordEndTick, continuationNote->localStart() + continuationNote->length());
+                hasSyllabification = hasSyllabification || continuationNote->isSyllabification();
+                wordEndTick = std::max(wordEndTick,
+                                       continuationNote->localStart() + continuationNote->length());
             }
 
             if (hasSyllabification)
@@ -92,9 +92,9 @@ namespace {
     }
 
     void appendChangedWordRoots(const SingingClip &clip,
-                                 const SingingClipPhonemeNormalizer::WordStates &previousStates,
-                                 const SingingClipPhonemeNormalizer::WordStates &currentStates,
-                                 QList<Note *> &result, QSet<Note *> &resultSet) {
+                                const SingingClipPhonemeNormalizer::WordStates &previousStates,
+                                const SingingClipPhonemeNormalizer::WordStates &currentStates,
+                                QList<Note *> &result, QSet<Note *> &resultSet) {
         for (const auto root : clip.notes()) {
             if (!root || !root->phonemeOffsetSeq().isEdited())
                 continue;
@@ -140,8 +140,8 @@ namespace {
     }
 
     bool editedOffsetExceedsLeftBoundary(const EffectiveNote &effective,
-                                         const int leftBoundaryGlobalTick,
-                                         const int clipStartTick, const Timeline &timeline) {
+                                         const int leftBoundaryGlobalTick, const int clipStartTick,
+                                         const Timeline &timeline) {
         const auto note = effective.note;
         if (!note || isRestNote(*note) || !note->phonemeOffsetSeq().isEdited())
             return false;
@@ -153,6 +153,114 @@ namespace {
         const auto earliestStartTick =
             qCeil(timeline.msToTick(noteStartMs + minimumEditedOffset(*note)));
         return earliestStartTick < leftBoundaryGlobalTick;
+    }
+
+    // Word span in global ticks. Mirrors PhonemeView::buildPhonemeList: a word is
+    // its root note plus the slur / syllabification member chain that overlaps.
+    class WordSpan {
+    public:
+        Note *root = nullptr;
+        int startTick = 0;
+        int endTick = 0;
+    };
+
+    QList<WordSpan> buildWordSpans(const QList<Note *> &notes) {
+        QList<WordSpan> result;
+        for (int i = 0; i < notes.count(); ++i) {
+            const auto root = notes.at(i);
+            if (!root || root->isSlur() || root->isSyllabification() || root->overlapped())
+                continue;
+            WordSpan span;
+            span.root = root;
+            span.startTick = root->globalStart();
+            span.endTick = span.startTick + root->length();
+            for (int j = i + 1; j < notes.count(); ++j) {
+                const auto next = notes.at(j);
+                if (!next || (!next->isSlur() && !next->isSyllabification()) || next->overlapped())
+                    break;
+                const auto nextStart = next->globalStart();
+                if (nextStart > span.endTick)
+                    break;
+                span.endTick = std::max(span.endTick, nextStart + next->length());
+            }
+            result.append(span);
+        }
+        return result;
+    }
+
+    QList<Note *> collectCascadeResetRootsWithTimeline(SingingClip &clip,
+                                                       const QList<Note *> &selectedRoots,
+                                                       const Timeline &timeline) {
+        const auto notes = clip.notes().toList();
+        const auto spans = buildWordSpans(notes);
+        if (spans.isEmpty())
+            return {};
+
+        QSet<Note *> closedSet;
+        QList<Note *> result;
+        const auto appendUnique = [&](Note *root) {
+            if (closedSet.contains(root) || !root)
+                return;
+            closedSet.insert(root);
+            result.append(root);
+        };
+
+        // Seed with the caller's word roots (must also hold the normalizer's
+        // invariants: not rest/overlapped and have a baseline to restore to).
+        for (const auto root : selectedRoots) {
+            if (!root || root->overlapped() || !root->canEditPhonemes())
+                continue;
+            const auto &offsets = root->phonemeOffsetSeq();
+            if (offsets.original.isEmpty())
+                continue;
+            appendUnique(root);
+        }
+
+        // Restored "last phoneme start tick" and current edited "first phoneme
+        // start tick" helpers; empty baseline returns max() so it never triggers.
+        const auto restoredLastStartTick = [&](const Note *root) {
+            const auto &offsets = root->phonemeOffsetSeq().original;
+            if (offsets.isEmpty())
+                return std::numeric_limits<int>::max();
+            const auto rootMs = timeline.tickToMs(root->globalStart());
+            return qRound(timeline.msToTick(rootMs + offsets.last()));
+        };
+        const auto editedFirstStartTick = [&](const Note *root) {
+            const auto &offsets = root->phonemeOffsetSeq().edited;
+            if (offsets.isEmpty())
+                return std::numeric_limits<int>::max();
+            const auto rootMs = timeline.tickToMs(root->globalStart());
+            return qRound(timeline.msToTick(rootMs + offsets.first()));
+        };
+
+        // Rightward cascade: resetting A may leave B (edited) overlapping A's
+        // restored last phoneme. Each word participates at most once -> converges.
+        bool changed = true;
+        while (changed) {
+            changed = false;
+            for (int i = 0; i + 1 < spans.count(); ++i) {
+                const auto *left = &spans.at(i);
+                if (!closedSet.contains(left->root))
+                    continue;
+                for (int j = i + 1; j < spans.count(); ++j) {
+                    const auto *right = &spans.at(j);
+                    if (closedSet.contains(right->root))
+                        break; // already reset, chain is closed on the right
+                    if (!right->root->canEditPhonemes())
+                        break; // non-editable word boundary stops the cascade
+                    const auto &offsets = right->root->phonemeOffsetSeq();
+                    if (!offsets.isEdited() || offsets.original.isEmpty() ||
+                        offsets.edited.isEmpty())
+                        break; // nothing to reset (or no baseline) stops the cascade
+                    if (editedFirstStartTick(right->root) >= restoredLastStartTick(left->root))
+                        break; // no overlap -> stop
+                    appendUnique(right->root);
+                    changed = true;
+                    break; // re-scan whole clip so the next neighbor is re-evaluated
+                }
+            }
+        }
+        return result;
     }
 
     QList<Note *> collectInvalidEditedOffsetNotes(
@@ -168,8 +276,7 @@ namespace {
 
         if (previousWordStates) {
             const auto currentWordStates = captureWordStates(clip, timeline);
-            appendChangedWordRoots(clip, *previousWordStates, currentWordStates, result,
-                                    resultSet);
+            appendChangedWordRoots(clip, *previousWordStates, currentWordStates, result, resultSet);
         }
 
         const auto sliceResult = SingingClipSlicer::slice(timeline, clip.notes().toList());
@@ -182,10 +289,9 @@ namespace {
                     continue;
 
                 if (i == 0) {
-                    const auto headLayout =
-                        PhonemeHeadLayout::calculate(segment.paddingStartMs,
-                                                     segment.headAvailableLengthMs,
-                                                     note->phonemeOffsetSeq().edited);
+                    const auto headLayout = PhonemeHeadLayout::calculate(
+                        segment.paddingStartMs, segment.headAvailableLengthMs,
+                        note->phonemeOffsetSeq().edited);
                     if (!headLayout.isWithinBounds())
                         appendUnique(result, resultSet, note);
                     continue;
@@ -193,8 +299,7 @@ namespace {
 
                 const auto &previous = effectiveNotes.at(i - 1);
                 const auto leftBoundary =
-                    clip.start() +
-                    (previous.end < effective.start ? previous.end : previous.start);
+                    clip.start() + (previous.end < effective.start ? previous.end : previous.start);
                 if (editedOffsetExceedsLeftBoundary(effective, leftBoundary, clip.start(),
                                                     timeline))
                     appendUnique(result, resultSet, note);
@@ -204,10 +309,9 @@ namespace {
         return result;
     }
 
-    QList<SingingClipPhonemeNormalizer::ResetRecord>
-        normalizeEditedOffsetsWithTimeline(SingingClip &clip, const Timeline &timeline,
-                                           const SingingClipPhonemeNormalizer::WordStates
-                                               *previousWordStates = nullptr) {
+    QList<SingingClipPhonemeNormalizer::ResetRecord> normalizeEditedOffsetsWithTimeline(
+        SingingClip &clip, const Timeline &timeline,
+        const SingingClipPhonemeNormalizer::WordStates *previousWordStates = nullptr) {
         QList<SingingClipPhonemeNormalizer::ResetRecord> records;
         const auto notes = collectInvalidEditedOffsetNotes(clip, timeline, previousWordStates);
         for (const auto note : notes) {
@@ -231,7 +335,7 @@ SingingClipPhonemeNormalizer::WordStates
 
 SingingClipPhonemeNormalizer::WordStates
     SingingClipPhonemeNormalizer::captureWordStates(const SingingClip &clip,
-                                                     const Timeline &timeline) {
+                                                    const Timeline &timeline) {
     return ::captureWordStates(clip, timeline);
 }
 
@@ -245,14 +349,15 @@ QList<SingingClipPhonemeNormalizer::ResetRecord>
 }
 
 QList<SingingClipPhonemeNormalizer::ResetRecord>
-    SingingClipPhonemeNormalizer::normalizeEditedOffsets(
-        SingingClip &clip, const WordStates &previousWordStates) {
+    SingingClipPhonemeNormalizer::normalizeEditedOffsets(SingingClip &clip,
+                                                         const WordStates &previousWordStates) {
     return normalizeEditedOffsetsWithTimeline(clip, appModel->timeline(), &previousWordStates);
 }
 
 QList<SingingClipPhonemeNormalizer::ResetRecord>
-    SingingClipPhonemeNormalizer::normalizeEditedOffsets(
-        SingingClip &clip, const WordStates &previousWordStates, const Timeline &timeline) {
+    SingingClipPhonemeNormalizer::normalizeEditedOffsets(SingingClip &clip,
+                                                         const WordStates &previousWordStates,
+                                                         const Timeline &timeline) {
     return normalizeEditedOffsetsWithTimeline(clip, timeline, &previousWordStates);
 }
 
@@ -282,4 +387,15 @@ void SingingClipPhonemeNormalizer::normalizeEditedOffsets(AppModel &model) {
                 normalizeEditedOffsetsWithTimeline(*static_cast<SingingClip *>(clip), timeline);
         }
     }
+}
+
+QList<Note *> SingingClipPhonemeNormalizer::collectCascadeResetRoots(
+    SingingClip &clip, const QList<Note *> &selectedRoots, const Timeline &timeline) {
+    return ::collectCascadeResetRootsWithTimeline(clip, selectedRoots, timeline);
+}
+
+QList<Note *>
+    SingingClipPhonemeNormalizer::collectCascadeResetRoots(SingingClip &clip,
+                                                           const QList<Note *> &selectedRoots) {
+    return ::collectCascadeResetRootsWithTimeline(clip, selectedRoots, appModel->timeline());
 }

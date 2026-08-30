@@ -452,9 +452,8 @@ namespace FillLyric {
 
     void CellList::repaintItems() {
         m_selectedFillBrush = QBrush();
-        const auto selectedFill =
-            QssParser::parseBrushes(QssParser::propertyValue(m_view, "cellListSelectedFillBrush"),
-                                    1);
+        const auto selectedFill = QssParser::parseBrushes(
+            QssParser::propertyValue(m_view, "cellListSelectedFillBrush"), 1);
         if (!selectedFill.isEmpty())
             m_selectedFillBrush = selectedFill[0];
 

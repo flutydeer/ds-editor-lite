@@ -12,8 +12,7 @@
 
 struct CustomSplitterRule;
 
-namespace FillLyric
-{
+namespace FillLyric {
     struct SplitterRuleInfo {
         QString name;
         QStringList regexes;
