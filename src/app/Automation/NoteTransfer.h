@@ -22,7 +22,7 @@ namespace Automation {
     [[nodiscard]] NoteTransferPayload captureNoteTransfer(const SingingClip &clip,
                                                           const QList<Note *> &notes);
 
-    [[nodiscard]] QList<ParamCurvesDraftDto>
+    [[nodiscard]] AutomationResult<QList<ParamCurvesDraftDto>>
         mergeNoteTransferParameters(const SingingClip &target, const NoteTransferPayload &payload,
                                     int targetStart);
 

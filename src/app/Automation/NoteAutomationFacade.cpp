@@ -512,6 +512,8 @@ namespace Automation {
         auto *targetClip = static_cast<SingingClip *>(target.get().clip);
         const auto parameterReplacements =
             mergeNoteTransferParameters(*targetClip, payload, targetStart);
+        if (!parameterReplacements)
+            return parameterReplacements.getError();
         std::vector<std::unique_ptr<Note>> ownedNotes;
         QList<Note *> rawNotes;
         QList<ObjectRef> affected;
@@ -530,7 +532,7 @@ namespace Automation {
         auto actions = std::make_unique<NoteTransferActions>();
         actions->insertNotes(rawNotes, targetClip, target.get().track);
         std::vector<std::unique_ptr<Curve>> ownedCurves;
-        for (const auto &parameter : parameterReplacements) {
+        for (const auto &parameter : parameterReplacements.get()) {
             QList<Curve *> rawCurves;
             rawCurves.reserve(parameter.curves.size());
             for (const auto &draft : parameter.curves) {
@@ -541,7 +543,7 @@ namespace Automation {
             }
             actions->replaceParameter(parameter.name, parameter.type, rawCurves, targetClip);
         }
-        if (!parameterReplacements.isEmpty())
+        if (!parameterReplacements.get().isEmpty())
             affected.append({ObjectKind::Clip, targetClipId.value()});
 
         auto result =

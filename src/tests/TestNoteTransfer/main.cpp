@@ -337,11 +337,41 @@ namespace {
         }
     }
 
+    void testOversizedTargetTailIsRejected() {
+        TestRuntime testRuntime;
+        auto &runtime = testRuntime.runtime();
+        const auto sourceTrack = insertTrack(runtime, QStringLiteral("Source"));
+        const auto targetTrack = insertTrack(runtime, QStringLiteral("Target"));
+        const auto sourceClip = insertClip(runtime, sourceTrack, QStringLiteral("Source Clip"));
+        const auto targetClip = insertClip(runtime, targetTrack, QStringLiteral("Target Clip"));
+        const auto noteIds = insertNotes(runtime, sourceClip);
+        replace(runtime, sourceClip, ParamInfo::Pitch, Param::Edited,
+                {draw(100, 100, {6000, 6100, 6200, 6300})});
+        replace(runtime, targetClip, ParamInfo::Pitch, Param::Edited,
+                {anchor({{0, 5000}, {1000000, 7000}})});
+
+        const auto before = runtime.documentVersion();
+        const auto targetBefore =
+            parameter(runtime, targetClip, ParamInfo::Pitch, Param::Edited);
+        const auto duplicate = runtime.notes().duplicateNotes(commandContext(runtime), sourceClip,
+                                                              noteIds, targetClip, 100);
+        const auto targetNotes =
+            runtime.notes().getNotes(runtime.documentVersion().documentId, targetClip);
+        const auto targetAfter =
+            parameter(runtime, targetClip, ParamInfo::Pitch, Param::Edited);
+        expect(!duplicate &&
+                   duplicate.getError().code == Automation::AutomationErrorCode::Unsupported &&
+                   runtime.documentVersion() == before && targetNotes && targetNotes.get().isEmpty() &&
+                   sameShape(targetBefore, targetAfter),
+               QStringLiteral("an oversized retained curve tail must reject the whole transfer"));
+    }
+
 } // namespace
 
 int main(int argc, char **argv) {
     QCoreApplication application(argc, argv);
     testDuplicateWithParameters();
+    testOversizedTargetTailIsRejected();
     QTextStream(stdout) << "Note transfer: " << (failures == 0 ? "PASS" : "FAIL") << Qt::endl;
     return failures == 0 ? 0 : 1;
 }

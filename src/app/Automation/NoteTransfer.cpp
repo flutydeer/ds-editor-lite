@@ -178,17 +178,26 @@ namespace Automation {
             return result ? QList<CurveDraftDto>{*result} : QList<CurveDraftDto>{};
         }
 
-        QList<CurveDraftDto> subtractRange(const Curve &curve, const int start, const int end) {
+        std::optional<QList<CurveDraftDto>> subtractRange(const Curve &curve, const int start,
+                                                          const int end) {
             const auto curveRangeStart = curveStart(curve);
             const auto curveRangeEnd = curveEnd(curve);
             if (start >= end || curveRangeEnd <= start || curveRangeStart >= end)
-                return {curveDraftDto(curve)};
+                return QList<CurveDraftDto>{curveDraftDto(curve)};
 
             QList<CurveDraftDto> result;
-            if (curveRangeStart < start)
-                result.append(sliceCurve(curve, curveRangeStart, start));
-            if (curveRangeEnd > end)
-                result.append(sliceCurve(curve, end, curveRangeEnd));
+            if (curveRangeStart < start) {
+                const auto prefix = sliceCurve(curve, curveRangeStart, start);
+                if (prefix.isEmpty())
+                    return std::nullopt;
+                result.append(prefix);
+            }
+            if (curveRangeEnd > end) {
+                const auto suffix = sliceCurve(curve, end, curveRangeEnd);
+                if (suffix.isEmpty())
+                    return std::nullopt;
+                result.append(suffix);
+            }
             for (auto &draft : result)
                 clearIdentity(draft);
             return result;
@@ -261,9 +270,9 @@ namespace Automation {
         return result;
     }
 
-    QList<ParamCurvesDraftDto> mergeNoteTransferParameters(const SingingClip &target,
-                                                           const NoteTransferPayload &payload,
-                                                           const int targetStart) {
+    AutomationResult<QList<ParamCurvesDraftDto>>
+        mergeNoteTransferParameters(const SingingClip &target, const NoteTransferPayload &payload,
+                                    const int targetStart) {
         QList<ParamCurvesDraftDto> result;
         if (payload.sourceEnd <= payload.sourceStart)
             return result;
@@ -282,8 +291,17 @@ namespace Automation {
 
                 ParamCurvesDraftDto replacement{.name = name, .type = type};
                 for (const auto *curve : targetParameter->curves(type)) {
-                    if (curve)
-                        replacement.curves.append(subtractRange(*curve, targetStart, targetEnd));
+                    if (!curve)
+                        continue;
+                    const auto retained = subtractRange(*curve, targetStart, targetEnd);
+                    if (!retained) {
+                        return AutomationError{
+                            .code = AutomationErrorCode::Unsupported,
+                            .message = QStringLiteral(
+                                "Target parameter curve is too long to preserve during note transfer"),
+                        };
+                    }
+                    replacement.curves.append(*retained);
                 }
                 for (auto curve : sourceParameter->curves) {
                     translate(curve, delta);
