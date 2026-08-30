@@ -940,14 +940,18 @@ namespace Automation {
 
             auto persistedValue = value;
             const auto effective = captureAudioRuntimeState(output);
-            if (patch.driverName)
+            const auto deviceSelectionChanged = patch.driverName || patch.deviceName;
+            if (deviceSelectionChanged) {
                 persistedValue.driverName = effective.driverName;
-            if (patch.deviceName)
                 persistedValue.deviceName = effective.deviceName;
-            if (patch.bufferSize)
                 persistedValue.adoptedBufferSize = effective.bufferSize;
-            if (patch.sampleRate)
                 persistedValue.adoptedSampleRate = effective.sampleRate;
+            } else {
+                if (patch.bufferSize)
+                    persistedValue.adoptedBufferSize = effective.bufferSize;
+                if (patch.sampleRate)
+                    persistedValue.adoptedSampleRate = effective.sampleRate;
+            }
             if (patch.hotPlugNotificationMode)
                 persistedValue.hotPlugNotificationMode = effective.hotPlugNotificationMode;
             if (patch.gain)
