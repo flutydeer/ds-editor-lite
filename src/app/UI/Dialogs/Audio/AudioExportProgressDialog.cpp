@@ -56,9 +56,7 @@ namespace Audio::Internal {
         m_warningList->setMinimumHeight(120);
         mainLayout->addWidget(m_warningList);
 
-        m_openFolderButton =
-            new AccentButton(QIcon(QStringLiteral(":/svg/icons/folder_open_16_regular.svg")),
-                             tr("Open Folder"), this);
+        m_openFolderButton = new AccentButton(tr("Open Folder"), this);
         m_openFolderButton->setVisible(false);
         m_openFolderButton->setEnabled(false);
         m_closeButton = new Button(tr("Close"), this);

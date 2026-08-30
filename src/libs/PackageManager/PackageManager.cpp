@@ -45,12 +45,15 @@ namespace {
     }
 
     /// Copies all translations of a synthrt DisplayText into a Qt map
-    /// (BCP 47 tag -> text) so the host can re-resolve the display text per
-    /// UI language without rescanning the voicebank.
+    /// (language tag -> text, keys kept verbatim per ds-spec 2.4) so the host
+    /// can re-resolve the display text per UI language without rescanning the
+    /// voicebank.
     QMap<QString, QString> toLocalizedTextMap(const srt::core::DisplayText &text) {
         QMap<QString, QString> map;
-        for (const auto &locale : text.locales())
-            map.insert(QString::fromStdString(locale), QString::fromStdString(text.text(locale)));
+        for (const auto &locale : text.locales()) {
+            if (const auto *value = text.text(locale))
+                map.insert(QString::fromStdString(locale), QString::fromStdString(*value));
+        }
         return map;
     }
 
