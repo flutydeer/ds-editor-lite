@@ -3,6 +3,9 @@
 > 状态：✅ 实施完成（2026-08-25 透传化迭代：`text(key)` 契约 + ICU 匹配内核对拍通过，ctest 38/38）
 > 修订：2026-08-26 PR#164 审阅修复——ICU ≥67 的 `uloc_acceptLanguage` 改走 LocaleMatcher 距离匹配，
 > 兄弟 locale（zh_TW↔zh_Hant）会互相命中；匹配内核改为「显式父链 + 规范 ID 精确比对」（见 §4）。
+> 修订：2026-08-30 PR#164 Codex P2——macOS 后端「Foundation 排序 + 父链闸门」会压制合法父级回退
+> （zh-TW 请求 + {zh-Hant, zh} 键时 Foundation 只返回 zh-Hant，闸门拒绝后一无所获，而 ICU 后端
+> 返回 zh）；改为与 ICU 后端同构的「链优先直配」，Foundation 不再参与匹配（见 §4）。
 > 上游契约：synthrt `localization/passthrough-keys`（透传化提交 `217862d`，见
 > `synthrt/docs/api-changes-2026-08-25.md`）+ ds-spec 2.4 多语言文本规则。
 > 历史：首版实现（2026-08-23，自研 Lookup）已被本节 §1/§4 的记录取代。
@@ -48,7 +51,7 @@ UI 取词
 synthrt 的 `DisplayText` 自 2026-08-25 透传化后**不再有匹配语义**：键是不透明、区分大小写的 map key，`text(key)` 只做精确直取。宿主需自承载匹配，内核选择为 ICU：
 
 - `lite::Support::lookupLocalizedText()` 保持既有 API 不变（UI 消费点零改动），实现改为逐候选调 `IcuWrapper::bestMatch(candidate, keys)`，首个非空命中即按**原样拼写**回查 map
-- icu-wrapper 以源码 vendored 于 `src/3rdparty/icu-wrapper`（静态库，Windows 链系统 SDK `icu.lib` → 系统 `icuuc.dll`，零新增运行时依赖；macOS 用 `NSBundle`/`NSLocale`，Linux 用 `ICU::uc`）
+- icu-wrapper 以源码 vendored 于 `src/3rdparty/icu-wrapper`（静态库，Windows 链系统 SDK `icu.lib` → 系统 `icuuc.dll`，零新增运行时依赖；macOS 用 Foundation 字符串原语（NSString，不用 NSBundle 匹配，见 §4 P2 修订），Linux 用 `ICU::uc`）
 - 顺带收益：POSIX 键老包（`zh_CN`）经归一化后**恢复显示**；大小写差异键可互命中
 - 旧决策「不用 ICU」被推翻，理由与新依据见下文 §4
 
@@ -76,10 +79,10 @@ Qt 实测（Qt 6.11.2）`QLocale("zh_CN")`：
 
 - **匹配内核**：仅用 `uloc_forLanguageTag`（归一化）+ `uloc_getParent`（父链展开）做**规范 ID 精确比对**，不使用 `uloc_acceptLanguage` 当匹配器（2026-08-26 修订）。后者两头都不满足需求：Windows SDK umbrella ICU（64.2）对 script+region 组合不做内部回退；而自 ICU 67 起它改委托 `LocaleMatcher` 距离匹配，likely-subtag 最大化会让 zh_TW↔zh_Hant 兄弟 locale 互相命中（ICU 67.1/68.2/70.1/74.2 源码对拍确认；`IcuWrapperTests::rejectsSiblingScriptRegionCrossMatch` 锁定；`TestLocalizedText` 含同义断言）。注：ICU ≤66 的手写实现恰好就是「父链 + 精确 strcmp」，本修复等于把该语义统一固化到全平台全版本。父链式匹配语义逐候选确定、跨平台/跨 ICU 版本一致。
 - **运行时面**：Windows IBM 系统组件（Win10 1903+ 自带 `icuuc.dll`），零新增依赖；包体零变化（静态库）
-- **跨平台**：三后端各用平台原生能力（Win：SDK umbrella ICU；macOS：Foundation `NSBundle`；Linux：`ICU::uc`），统一 `IcuWrapper::bestMatch` API + 共享单测。其中 macOS 后端的 Foundation 仅负责候选排序，**命中与否由显式父链 membership 闸门关断**（§4 同一契约：Foundation 的距离式 fallback 会跨 zh-TW/zh-Hant、pt-BR/pt-PT 此类兄弟 locale 命中，不能当判定依据）
+- **跨平台**：三后端各用平台原生能力（Win：SDK umbrella ICU；macOS：Foundation 字符串原语；Linux：`ICU::uc`），统一 `IcuWrapper::bestMatch` API + 共享单测。三后端匹配算法**同构**：沿显式父链最具体优先逐级、规范化小写（ICU 侧为规范 ID）后精确比对、同层平手保持 available 顺序。macOS 后端不使用 Foundation 的匹配/排序 API（2026-08-30 P2 修订：`preferredLocalizationsFromArray` 的距离式候选选择既会跨 zh-TW/zh-Hant、pt-BR/pt-PT 兄弟命中（P1），也可能把排在兄弟后面的合法父级挤出结果列表、闸门过滤后一无所获（P2）——两头痛点同源，故将其彻底移出匹配路径）
 - **fetch 契约闭环**：bestMatch 返回**原样拼写**的命中键，宿主再经 synthrt `text(key)` 精确直取——归一化只发生在匹配阶段，不污染数据面
 
-仍成立的注意点：macOS 后端 2026-08-30 已按 Codex P1 复核结论补上父链闸门（兄弟 locale 语义与 ICU 后端逐一对齐、共享单测含区域兄弟用例锁定），但 .mm 编译与运行仍未在本机实测（无 macOS 环境），合并前需在一台 mac 上跑一次 `ctest -R IcuWrapperTests` 闭环。
+仍成立的注意点：macOS 后端 2026-08-30 先后按 Codex P1（兄弟 locale 闸门）与 P2（父级回退被 Foundation 压制）修订为「链优先直配」——与 ICU 后端逐字同构、Foundation 不再参与匹配；共享单测 `rejectsSiblingScriptRegionCrossMatch`（兄弟互斥 + 精确键正控）与 `keepsParentFallbackBehindSibling`（父级回退，zh-TW+{zh-Hant,zh}→zh、pt-BR+{pt-PT,pt}→pt）锁定语义。但 .mm 编译与运行仍未在本机实测（无 macOS 环境），合并前需在一台 mac 上跑一次 `ctest -R IcuWrapperTests` 闭环。
 
 ### 5. 切语言刷新链路
 

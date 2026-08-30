@@ -12,6 +12,7 @@ private slots:
     void matchesLanguageFallback();
     void matchesScriptFallback();
     void rejectsSiblingScriptRegionCrossMatch();
+    void keepsParentFallbackBehindSibling();
     void rejectsUnrelatedLanguage();
     void skipsInvalidAvailableTags();
 };
@@ -74,6 +75,23 @@ void IcuWrapperTests::rejectsSiblingScriptRegionCrossMatch()
                                    {QStringLiteral("zh-Hant"),
                                     QStringLiteral("zh-TW")}),
              QStringLiteral("zh-TW"));
+}
+
+void IcuWrapperTests::keepsParentFallbackBehindSibling()
+{
+    // Regression (macOS Foundation backend, Codex P2): Foundation's
+    // preferredLocalizationsFromArray may rank an off-chain sibling
+    // (zh-Hant for a zh-TW request) first and omit the valid parent (zh)
+    // from its match list entirely; rejecting the sibling must not
+    // suppress the parent fallback the ICU backends return.
+    QCOMPARE(IcuWrapper::bestMatch(QStringLiteral("zh-TW"),
+                                   {QStringLiteral("zh-Hant"),
+                                    QStringLiteral("zh")}),
+             QStringLiteral("zh"));
+    QCOMPARE(IcuWrapper::bestMatch(QStringLiteral("pt-BR"),
+                                   {QStringLiteral("pt-PT"),
+                                    QStringLiteral("pt")}),
+             QStringLiteral("pt"));
 }
 
 void IcuWrapperTests::rejectsUnrelatedLanguage()

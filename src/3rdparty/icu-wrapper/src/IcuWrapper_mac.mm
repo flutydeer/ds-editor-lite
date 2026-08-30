@@ -48,26 +48,24 @@ QString platformBestMatch(const QString &requested,
         if (supported.count == 0)
             return {};
 
-        NSString *preference = [NSString stringWithUTF8String:
-            requested.toUtf8().constData()];
-        NSArray<NSString *> *matches =
-            [NSBundle preferredLocalizationsFromArray:supported
-                                       forPreferences:@[ preference ]];
-
-        // Foundation picks candidate ordering with a distance-based fallback
-        // that may cross script/region siblings (zh-TW -> zh-Hant), so every
-        // candidate must additionally be a member of the requested tag's
-        // explicit parent chain — the contract shared with the ICU backends
-        // (see docs/design/localization-display-name-design.md §4).
+        // Match by walking the requested tag's explicit fallback chain (most
+        // specific entry first) and returning the first available key whose
+        // normalized, case-folded form equals a chain entry; ties keep the
+        // available order. Same algorithm as the ICU backends (exact
+        // comparison against the parent chain, see
+        // docs/design/localization-display-name-design.md §4).
+        // Foundation's preferredLocalizationsFromArray is deliberately not
+        // consulted: its distance-based candidate selection may rank an
+        // off-chain sibling first (zh-TW -> zh-Hant) and omit the valid
+        // parent (zh) from its result list entirely, which would both
+        // cross-match siblings and suppress the parent fallback.
         NSArray<NSString *> *acceptChain =
             acceptChainForNormalizedTag(requested);
-        for (NSString *match in matches) {
-            if (![acceptChain containsObject:[match lowercaseString]])
-                continue;
-            const NSUInteger index = [supported indexOfObject:match];
-            if (index == NSNotFound)
-                continue;
-            return available.at(indexes[index].longLongValue);
+        for (NSString *chainItem in acceptChain) {
+            for (NSUInteger i = 0; i < supported.count; ++i) {
+                if ([[supported[i] lowercaseString] isEqualToString:chainItem])
+                    return available.at(indexes[i].longLongValue);
+            }
         }
         return {};
     }
