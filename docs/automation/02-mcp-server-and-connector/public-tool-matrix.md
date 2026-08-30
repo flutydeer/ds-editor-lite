@@ -179,7 +179,7 @@
 | `notes.list` | L1 | Q/S | 有序音符快照与分页 |
 | `notes.search` | L1 | Q/S | 歌词查询、匹配模式与大小写/正则选项 |
 | `notes.insert` | L1 | C/S | 叶节点完整初始 draft，不要求 voice context；批量形成一条历史记录 |
-| `notes.duplicate` | L1 | C/S | 深复制音符及关联参数，保持相对布局并整体撤销 |
+| `notes.duplicate` | L1 | C/S | 深复制音符及关联参数；锚点仅在所选范围内有界采样，保持相对布局并整体撤销 |
 | `notes.remove` | L1 | C/S | 剪辑归属与批量原子删除 |
 | `notes.move` | L1 | C/S | 批量时间/音高增量 |
 | `notes.resize_left` | L1 | C/S | 批量左边界调整 |
@@ -347,7 +347,7 @@
 |---|---|---|---|
 | `packages.list` | L3 | Q/S | 列出包、版本、供应方、受读取根约束的 canonical path 与声库摘要 |
 | `packages.describe` | L3 | Q/S | 返回指定包元数据、许可、说明与声库明细 |
-| `packages.refresh` | L3 | C/A | 使用当前 effective 搜索路径后台扫描，完成后原子切换索引并报告增删改与失败 |
+| `packages.refresh` | L3 | C/A | 使用当前 effective 搜索路径后台扫描，完成后原子切换索引；前序提交被拒绝时等待调用重新扫描 |
 
 `packages.refresh` 创建 application-scoped Task；不伪造 `document_id`，也不参与工程 revision 或历史记录。
 

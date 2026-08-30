@@ -143,6 +143,7 @@ Closed World Command，不提供 `force`、`validate_only`、幂等键或任意�
 音符深复制和 GUI 剪贴板现在共用 `NoteTransfer`：
 
 - 捕获完整 note draft，并按所选音符范围切取 Edited/Envelope 参数曲线；
+- 锚点曲线只在所选音符与曲线的交集内按固定步长采样，以 64 位整数计算点数并受公共曲线点数上限约束，不会为局部复制展开远超所选范围的整条锚点曲线；
 - 粘贴或 duplicate 时按目标起点平移，清除来源对象身份；
 - 目标区间先移除被覆盖的参数片段，再合并来源曲线；
 - GUI 剪贴板 v2 序列化相同 payload，旧剪贴内容仍可按音符数据读取，越界或无效的外部音符几何会整包丢弃；
@@ -201,7 +202,7 @@ GUI 进阶控制按真实面板层级归入 `workspace`、`track_panel` 和 `cli
 
 设置工具采用 `settings.<domain>.update` 三段式命名，并以 `settings.query` 集中返回公开域的配置值、生效值、候选/范围、重启要求和不可用原因。九个 update 都是严格 allowlist 上的稀疏更新，只验证和提交调用方明确提供的字段；其中音频设备、计算设备和包搜索路径更新开放 validate-only。所有设置更新失败时都不留下部分持久化或运行时状态，也不触发交互式错误对话框。UI 语言使用独立 `ui_language` 域；自动化/MCP 自配置、开发者选项和其他未列入契约的设置不向 MCP 暴露。
 
-`packages.list/describe` 从当前包索引提供受读取根约束的规范路径和公开元数据。`packages.refresh` 使用当前生效搜索路径创建 application-scoped Task，在后台完成扫描后原子切换索引；它不伪造文档身份，也不参与工程 revision 或历史记录。
+`packages.list/describe` 从当前包索引提供受读取根约束的规范路径和公开元数据。`packages.refresh` 使用当前生效搜索路径创建 application-scoped Task，在后台完成扫描后原子切换索引；并发调用可复用已提交的扫描结果，但如果领先扫描在提交门被拒绝，等待调用会重新取得刷新权并执行自己的扫描，不会把保留的旧索引误报为刷新成功。它不伪造文档身份，也不参与工程 revision 或历史记录。
 
 `lyric_rules` 使用稳定 rule ID 管理 splitter 与 tagger 两类规则。自定义规则支持创建、稀疏更新、删除、启停和分类内移动；内置规则内容不可修改或删除，但可以独立启停。`lyric_rules.test` 只读运行 splitter→tagger 流水线，返回逐阶段结果，不改变规则、文档或应用状态。
 
@@ -329,17 +330,17 @@ CLI override 只影响本次运行，并在设置页显示来源，不改写持�
 - Contract、Registry、Editor `tools/list` 与 Connector 已知描述来自同一权威集合；
 - Connector 桥接工具唯一，exposure 后的 downstream 等于可用 Editor 工具与桥接工具之并集；
 - 历史记录原子边界、创建深度、音符叶节点、轨道/剪辑 voice 和持久循环；
-- NoteTransfer 的音符与参数曲线深复制、GUI 剪贴板 round-trip 与无效几何拒绝；
+- NoteTransfer 的音符与参数曲线深复制、局部锚点有界采样、GUI 剪贴板 round-trip 与无效几何拒绝；
 - MIDI headless 解析/生成、LibreSVIP 共享转换、文件授权与异步写回；
 - Profile/Custom、File Guard、全局 Admission、游标和版本兼容；
 - 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手、HTTP、QLocal、Connector stdio 和真实进程路径；
 - L0 退出/重启的 Schema、不可禁用策略、dirty 拒绝、显式丢弃、响应后关闭、重启换代与 Connector 自动重连；
 - 工作区、轨道面板和剪辑编辑器的 GUI 状态、选择、焦点、共享视口及无历史记录副作用；
-- 设置稀疏更新、包索引后台刷新、歌词规则管理与失败回滚；
+- 设置稀疏更新、包索引后台刷新与提交门拒绝后的并发重试、歌词规则管理与失败回滚；
 - Automation 设置持久化、CLI override、端口、配置 JSON、Custom 领域分组与中文界面。
 
 最终候选在 Visual Studio 2026 v18.9.0、Qt 6.11.2 环境中通过标准 preset
-`ConfigureAndBuild` 和 `all` target，完整 CTest 为 62/62（43.89 s）。Editor 177 项、Connector
+`ConfigureAndBuild` 和 `all` target，完整 CTest 为 62/62（42.41 s）。Editor 177 项、Connector
 6 项、24 个业务域、L3 45 项和内部 208 个 Operation ID 为当前产品快照；契约集合关系、共享不变量和领域独特语义的确定性覆盖通过；2025-11-25 下游
 握手、2026-07-28 上游连接、真实编辑联调、Computer Use GUI、配置恢复和只读素材完整性均通过。
 生命周期增量联调还确认 dirty 默认拒绝无弹窗、显式丢弃重启后 instance ID 变化且 Connector
