@@ -1635,16 +1635,6 @@ namespace Automation {
             [](GeneralSettingsDto &general) { general.recentProjectFiles.clear(); });
     }
 
-    AutomationResult<QStringList> SettingsAutomationFacade::getPackageSearchPaths() {
-        return m_dispatcher.dispatchApplicationQuery<QStringList>(
-            OperationIds::packages::get_search_paths, [this] {
-                if (!m_services.snapshot)
-                    return AutomationResult<QStringList>(unavailable());
-                return AutomationResult<QStringList>(
-                    m_services.snapshot().general.packageSearchPaths);
-            });
-    }
-
     AutomationResult<ApplicationMutationResult>
         SettingsAutomationFacade::setPackageSearchPaths(const ApplicationCommandContext &context,
                                                         QStringList paths) {

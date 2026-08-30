@@ -1387,11 +1387,6 @@ namespace {
         RuntimeHarness harness;
         auto &runtime = harness.core();
 
-        log.scenario(QStringLiteral("PACKAGE-PATH-Q-EMPTY"));
-        const auto initial = runtime.settings().getPackageSearchPaths();
-        log.expect(initial && initial.get().isEmpty(),
-                   QStringLiteral("package path query must preserve an empty list"));
-
         log.scenario(QStringLiteral("PACKAGE-PATH-C-NORMALIZE"));
         const QStringList input{
             QStringLiteral(" packages/../voices/主声库 "),
@@ -1406,11 +1401,11 @@ namespace {
         const auto noOp = runtime.settings().setPackageSearchPaths(
             applicationContext(),
             {QStringLiteral("voices/主声库"), QStringLiteral("voices/secondary")});
-        const auto result = runtime.settings().getPackageSearchPaths();
         log.expect(preview && preview.get().validatedOnly && preview.get().changed && committed &&
-                       committed.get().changed && noOp && !noOp.get().changed && result &&
-                       result.get() == QStringList{QStringLiteral("voices/主声库"),
-                                                   QStringLiteral("voices/secondary")},
+                       committed.get().changed && noOp && !noOp.get().changed &&
+                       harness.settings.general.packageSearchPaths ==
+                           QStringList{QStringLiteral("voices/主声库"),
+                                       QStringLiteral("voices/secondary")},
                    QStringLiteral("package paths must normalize, deduplicate and preserve order"));
 
         log.scenario(QStringLiteral("PACKAGE-PATH-C-PERSISTENCE-FAILURE"));
@@ -1420,7 +1415,9 @@ namespace {
         log.expectError(failed, Automation::AutomationErrorCode::IoError,
                         Automation::OperationIds::packages::set_search_paths,
                         QStringLiteral("package path persistence failure must be reported"));
-        log.expect(harness.settings.general.packageSearchPaths == result.get(),
+        log.expect(harness.settings.general.packageSearchPaths ==
+                       QStringList{QStringLiteral("voices/主声库"),
+                                   QStringLiteral("voices/secondary")},
                    QStringLiteral("failed package path write must preserve stored paths"));
     }
 
@@ -1702,7 +1699,6 @@ namespace {
         const auto updateGeneral =
             runtime.settings().updateGeneral(applicationContext(), validSettings().general);
         const auto recent = runtime.settings().getRecentProjectFiles();
-        const auto paths = runtime.settings().getPackageSearchPaths();
         log.expectError(settings, Automation::AutomationErrorCode::HostCapabilityUnavailable,
                         Automation::OperationIds::settings::query,
                         QStringLiteral("missing settings snapshot host must be explicit"));
@@ -1712,10 +1708,6 @@ namespace {
         log.expectError(recent, Automation::AutomationErrorCode::HostCapabilityUnavailable,
                         Automation::OperationIds::recent_files::list,
                         QStringLiteral("missing recent-file host must be explicit"));
-        log.expectError(paths, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::packages::get_search_paths,
-                        QStringLiteral("missing package-path host must be explicit"));
-
         log.scenario(QStringLiteral("HOST-PACKAGES-UNAVAILABLE"));
         const auto packages = runtime.packages().getInstalledPackages();
         const auto validation = runtime.packages().validatePackage(QStringLiteral("package.dspk"));

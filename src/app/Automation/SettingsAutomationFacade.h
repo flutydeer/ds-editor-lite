@@ -670,7 +670,6 @@ namespace Automation {
         AutomationResult<ApplicationMutationResult>
             clearRecentProjectFiles(const ApplicationCommandContext &context);
 
-        AutomationResult<QStringList> getPackageSearchPaths();
         AutomationResult<ApplicationMutationResult>
             setPackageSearchPaths(const ApplicationCommandContext &context, QStringList paths);
 

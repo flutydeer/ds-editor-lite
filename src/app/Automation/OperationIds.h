@@ -130,7 +130,6 @@ namespace Automation::OperationIds {
     X(notes, set_word_properties, "notes.set_word_properties")                                     \
     X(notes, split, "notes.split")                                                                 \
     X(notes, split_at, "notes.split_at")                                                           \
-    X(packages, get_search_paths, "packages.get_search_paths")                                     \
     X(packages, list, "packages.list")                                                             \
     X(packages, refresh, "packages.refresh")                                                       \
     X(packages, resolve_document_voices, "packages.resolve_document_voices")                       \
