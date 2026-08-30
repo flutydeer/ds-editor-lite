@@ -159,7 +159,8 @@ Connector 桥接工具：6
 - Queued、Running、CancelRequested、Committing 和各终态遵守允许迁移。
 - 排队/运行取消、重复取消、终态取消和提交点取消分别覆盖。
 - Editor 重启、文档 generation 更换、revision 前进、目标消失和晚到结果不能写入错误文档；文档 generation 清理不得误删 application task。
-- application task 的活动记录全部保留；终态历史超过 128 项时只淘汰最旧终态，不影响活动任务。
+- 每个 document generation 与 application scope 的活动记录全部保留；各自终态历史超过 128 项时
+  只淘汰最旧终态，不影响活动任务或其他作用域。
 - 最终成功在业务写回、历史记录/revision 和信号完成后发布。
 - MCP/Connector 断线后已接受任务仍可通过 `tasks.list/get/cancel` 观察和管理。
 - 结果未知场景通过 idempotency、revision 或 Task 查询确认，Connector 不重放有副作用请求。
@@ -187,8 +188,9 @@ Connector 桥接工具：6
 - 输出文件尚未创建时按最近存在父目录授权。
 - authorize 与实际 I/O 前 reauthorize；根配置变化、目标变化和链接重定向被识别。
 - 单文件和 batch 路径全部通过同一 Guard，类型化与泛化调用结果一致。
-- overwrite、只读、父目录、权限、磁盘和失败清理覆盖；MIDI 拒绝覆盖使用排他创建，覆盖检查后
-  出现的同名目标仍保留原内容。
+- overwrite、只读、父目录、权限、磁盘和失败清理覆盖；MIDI 拒绝覆盖使用排他创建，音频拒绝
+  覆盖使用拒绝已存在目标的同目录重命名。覆盖检查后出现的同名目标仍保留原内容，多文件音频
+  发布失败时回滚本次已发布目标。
 - MIDI 渲染期间取消与 document generation 淘汰均在最终发布门前生效，不创建目标文件。
 
 ### 7.2 Admission

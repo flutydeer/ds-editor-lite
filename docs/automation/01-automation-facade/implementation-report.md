@@ -63,7 +63,8 @@ MCP、Headless 宿主和多文档产品行为不在 Facade 层实现。GUI、内
 
 - 任务状态统一为 Queued、Running、CancelRequested、Committing 和稳定终态。
 - Committing 是不可取消点；重复完成、取消竞争和晚到回调最多产生一次最终提交。
-- 文档任务按 generation 隔离；应用级活动任务全部保留，终态历史按完成顺序有界保留最近 128 项。
+- 文档任务按 generation 隔离；每个文档 generation 与应用级作用域都保留全部活动任务，终态历史
+  分别按完成顺序有界保留最近 128 项。
 - 任务只捕获 DocumentId、base revision、OperationId、对象 ID 和不可变输入快照，不依赖跨线程
   Model/Track/Clip/Note 裸指针提交。
 - 推理以 clip revision、piece 输入签名、音符归属和声线快照复检目标；合法兄弟分段可在同一
@@ -122,8 +123,9 @@ MCP、Headless 宿主和多文档产品行为不在 Facade 层实现。GUI、内
   修改遍历容器导致的越界/挂起。
 - 拍号新增、替换和删除均在提交前以宽整数验证完整时间线投影，拒绝会使后续拍号 tick 超出
   模型范围的变更，避免派生位置发生有符号溢出。
-- MIDI 导出把渲染与最终发布分开：渲染期间保持可取消，最终发布前复核 generation 与授权；
-  拒绝覆盖使用排他创建，消除检查与写入之间替换新目标的竞态。
+- MIDI 与音频导出把渲染与最终发布分开：渲染期间保持可取消，最终发布前复核 generation 与授权；
+  拒绝覆盖在最终发布点使用排他创建或拒绝已存在目标的同目录重命名，消除检查与写入之间替换
+  新目标的竞态；批量音频发布失败时回滚本次已经发布的文件。
 - 补齐 Editor、Recent 和 Speaker Mix Preset 的前置验证、未知 ID、权重归一化及持久化边界。
 
 ### 推理、任务与音频资产

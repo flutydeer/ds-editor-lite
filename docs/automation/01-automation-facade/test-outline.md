@@ -107,7 +107,8 @@ Command 的共享所有者层按参数形状和状态转换覆盖：
 - save、焦点和 GUI 状态不清缓存，new/open 成功清除旧 generation；
 - new/open、应用设置和 GUI 状态拒绝文档级幂等键；
 - TaskId 与终态记录在 generation 内保留，替换后不可从新文档查询。
-- 应用级活动任务不受终态历史清理影响；终态记录超过 128 项时按完成顺序淘汰最旧项。
+- 每个文档 generation 与应用级作用域的活动任务都不受终态历史清理影响；各自终态记录超过
+  128 项时按完成顺序淘汰最旧项，不影响其他作用域。
 
 ## 5. 分域测试矩阵
 
@@ -122,7 +123,7 @@ Command 的共享所有者层按参数形状和状态转换覆盖：
 | history | 3 | 空栈、undo/redo、savepoint、focus、revision、分支截断 |
 | inference | 15 | capabilities/status/start、stage、对象删除、revision 重基、cache 与持久化边界 |
 | extract | 3 | capabilities、pitch/MIDI 后端、取消、TaskId、原子写回、旧 generation |
-| exports/formats | 9 | 格式检查、能力、预览、排他覆盖策略、取消/generation 发布门、cleanup 和任务失败 |
+| exports/formats | 9 | 格式检查、能力、预览、MIDI/音频排他发布、取消/generation 发布门、cleanup 和任务失败 |
 | tasks | 3 | get/list/cancel、过滤、稳定终态、未知/旧 TaskId |
 | playback | 10 | 状态/seek 不增 revision；loop 区间、启用/清除；拖动只预览且松手单 History/revision |
 | editor | 25 | WindowId、selection、焦点、面板/子区域视口、量化、auto-page 和 view restore |

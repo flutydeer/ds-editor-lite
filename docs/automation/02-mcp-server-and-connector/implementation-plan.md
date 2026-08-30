@@ -291,7 +291,7 @@ Editor 直连、Connector 类型化工具和泛化 invoke 进入同一个 Guard�
 全局 32 路硬上限。不设置 client/peer/domain 配额、令牌桶或公平排队。超限请求立即得到稳定
 `busy` 或 `too_many_requests`，不进入业务 handler；请求和 Task 终结时释放计数。
 
-修改工程或保存点的 Command 使用显式 `document_id + expected_revision`；只修改瞬时播放、选择、面板和视口状态的 Command 使用目标 document/window 身份但不要求 revision。异步任务保留不可变执行快照，并在最终写回前复核 document generation、revision 和文件授权；应用级活动任务全部保留，终态历史只保留最近 128 项。断线时 Connector 不自动重放有副作用 Command，结果事实无法确认时返回 `outcome_unknown`，由调用方结合 revision、Task 和 idempotency 信息确认。
+修改工程或保存点的 Command 使用显式 `document_id + expected_revision`；只修改瞬时播放、选择、面板和视口状态的 Command 使用目标 document/window 身份但不要求 revision。异步任务保留不可变执行快照，并在最终写回前复核 document generation、revision 和文件授权；每个文档 generation 与应用级作用域都完整保留活动任务，并分别只保留最近 128 项终态历史。断线时 Connector 不自动重放有副作用 Command，结果事实无法确认时返回 `outcome_unknown`，由调用方结合 revision、Task 和 idempotency 信息确认。
 
 ## 12. 设置页、CLI 与运行时生命周期
 
