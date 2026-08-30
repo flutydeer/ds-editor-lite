@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.17)
 
 project(IcuWrapper VERSION 1.0.0 LANGUAGES CXX)
 
@@ -13,10 +13,12 @@ add_library(IcuWrapper::IcuWrapper ALIAS IcuWrapper)
 target_sources(IcuWrapper
     PRIVATE
         src/IcuWrapper.cpp
-    PUBLIC
-        FILE_SET HEADERS
-        BASE_DIRS include
-        FILES include/IcuWrapper/IcuWrapper.h
+        include/IcuWrapper/IcuWrapper.h
+)
+
+target_include_directories(IcuWrapper PUBLIC
+    "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
+    "$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>"
 )
 
 target_compile_features(IcuWrapper PUBLIC cxx_std_17)
@@ -63,10 +65,13 @@ endif()
 
 install(TARGETS IcuWrapper
     EXPORT IcuWrapperTargets
-    FILE_SET HEADERS DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+)
+
+install(DIRECTORY include/IcuWrapper
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
 )
 
 install(EXPORT IcuWrapperTargets

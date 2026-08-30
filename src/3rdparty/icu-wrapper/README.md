@@ -17,7 +17,7 @@ const QString matched = IcuWrapper::bestMatch(
 
 ## 构建
 
-需要 CMake 3.21+、Qt 6.2+。Windows/Linux 还需要 ICU 65+；macOS 使用系统
+需要 CMake 3.17+、Qt 6.2+。Windows/Linux 还需要 ICU 65+；macOS 使用系统
 Foundation framework。
 
 ```sh
