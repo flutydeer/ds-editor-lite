@@ -174,6 +174,9 @@ MIDI 路径拆为可复用的两段：
 
 `formats.inspect` 与 MIDI 文档导入复用 parser，交互式 GUI、批量导入和 headless session 复用 generator。同步检查最多读取 64 MiB 的单份文件快照，超限在解析前拒绝；MIDI 解析、LibreSVIP 转换和摘要都消费该快照，不重复打开原路径。异步文档打开、导入和批量导入在任务开始及提交边界重新检查当前读权限；带 plan digest 时加载已验证快照并在提交前复算摘要，缺省 digest 只省略内容比对，不会跳过授权复核。MIDI capability/preview/start 则复用同一 converter 和公开 option Schema；导出支持 Tempo、拍号和歌词选项，先写同目录临时文件并在最终发布前复核文件授权、Task 取消和文档 generation。拒绝覆盖时，文档保存、MIDI 和音频均把完成的同目录暂存文件以拒绝已存在目标的重命名一次性发布；目标在检查后被其他进程创建也不会被替换，也不会向并发读取者暴露部分 MIDI 或 DSPX。批量音频后续目标失败时，回滚会把前序目标原子移入随机隔离名并核对发布前记录的文件身份；只有仍属于本次事务的产物才会删除，外部替换文件会放回原位并使旧备份留待恢复。允许覆盖时使用原子替换提交。
 
+`documents.save` 在公共 Registry 中只补齐当前文档路径；显式 `overwrite_policy` 保持调用值，省略
+时才采用当前路径保存的默认覆盖策略，避免把调用方要求的拒绝覆盖改写为覆盖。
+
 音频导出的 observer 覆盖渲染与 deferred publication 两个阶段；最终发布成功但备份文件清理失败时，残留路径 warning 会进入 Task mutation，并同步转发给调用方 observer。
 
 LibreSVIP 转换抽取为共享 `LibreSVIPConverter`。GUI 转换 Task 与自动化文件服务使用同一外部转换入口、临时输出、超时和错误映射；headless 转换显式提供默认 stdin 回答，因此不会等待交互式输入。格式能力会根据转换器可用状态返回 available 与稳定原因。
@@ -332,7 +335,7 @@ CLI override 只影响本次运行，并在设置页显示来源，不改写持�
 - Automation 设置持久化、CLI override、端口、配置 JSON、Custom 领域分组与中文界面。
 
 最终候选在 Visual Studio 2026 v18.9.0、Qt 6.11.2 环境中通过标准 preset
-`ConfigureAndBuild` 和 `all` target，完整 CTest 为 62/62（44.47 s）。Editor 177 项、Connector
+`ConfigureAndBuild` 和 `all` target，完整 CTest 为 62/62（43.64 s）。Editor 177 项、Connector
 6 项、24 个业务域、L3 45 项和内部 208 个 Operation ID 为当前产品快照；契约集合关系、共享不变量和领域独特语义的确定性覆盖通过；2025-11-25 下游
 握手、2026-07-28 上游连接、真实编辑联调、Computer Use GUI、配置恢复和只读素材完整性均通过。
 生命周期增量联调还确认 dirty 默认拒绝无弹窗、显式丢弃重启后 instance ID 变化且 Connector

@@ -72,7 +72,7 @@
 | `documents.list_recent` | L2 | Q/S | 从应用设置列出最近项目的路径、文件名与当前存在状态 |
 | `documents.new` | L2 | C/S | 未保存策略、模板与原子文档换代 |
 | `documents.open` | L2 | C/A | 受控读路径、已验证输入快照、格式选项与异步换代 |
-| `documents.save` | L2 | C/S | 当前路径保存、覆盖策略与 savepoint |
+| `documents.save` | L2 | C/S | 当前路径保存；显式覆盖策略优先，省略时使用默认覆盖行为并更新 savepoint |
 | `documents.save_as` | L2 | C/S | 受控写路径、扩展名与同目录排他发布 |
 | `documents.import` | L2 | C/A | 单文件导入计划、已验证输入快照、格式选项与任务写回 |
 | `documents.import_batch` | L2 | C/A | 逐项输入快照、失败策略与任务写回 |
