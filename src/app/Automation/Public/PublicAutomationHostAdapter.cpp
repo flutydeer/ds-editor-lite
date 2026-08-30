@@ -22,6 +22,7 @@
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 
 #include <QCoreApplication>
+#include <QDir>
 #include <QFileInfo>
 #include <QHash>
 #include <QJsonArray>
@@ -30,6 +31,7 @@
 #include <QSet>
 #include <QThreadPool>
 #include <QTimer>
+#include <QTemporaryDir>
 
 #include <algorithm>
 #include <cmath>
@@ -55,23 +57,38 @@ namespace Automation {
         }
 
         AutomationResult<PublicPreparedAudioPath> prepareAudioPath(const QString &path) {
-            std::unique_ptr<DecodeAudioTask> decodeTask(AudioFilePreparer::createPrepareTask(path));
-            if (!decodeTask || !decodeTask->io) {
+            std::unique_ptr<DecodeAudioTask> probe(AudioFilePreparer::createPrepareTask(path));
+            if (!probe || !probe->io) {
                 return audioPathPreparationError(
                     QStringLiteral("No audio decoder is available for the selected file"));
             }
-            static_cast<QRunnable *>(decodeTask.get())->run();
-            if (!decodeTask->success || decodeTask->terminated()) {
-                return audioPathPreparationError(QStringLiteral("Audio decoding failed"));
-            }
+            const auto workspace = probe->workspace;
+            probe.reset();
+
+            QTemporaryDir snapshotDirectory;
+            if (!snapshotDirectory.isValid())
+                return audioPathPreparationError(
+                    QStringLiteral("Failed to create an audio snapshot"));
+            const auto snapshotPath =
+                QDir(snapshotDirectory.path()).filePath(QFileInfo(path).fileName());
 
             auto hashTask = std::make_unique<ComputeAudioHashTask>();
             hashTask->path = path;
+            hashTask->snapshotPath = snapshotPath;
             static_cast<QRunnable *>(hashTask.get())->run();
             if (!hashTask->success || hashTask->resultSha512.isEmpty()) {
                 return audioPathPreparationError(QStringLiteral("Failed to compute audio hash"));
             }
-            return PublicPreparedAudioPath{hashTask->resultSha512, decodeTask->workspace};
+
+            std::unique_ptr<DecodeAudioTask> decodeTask(
+                AudioFilePreparer::createPrepareTask(snapshotPath, nullptr, workspace));
+            if (!decodeTask || !decodeTask->io)
+                return audioPathPreparationError(
+                    QStringLiteral("Failed to open the audio snapshot"));
+            static_cast<QRunnable *>(decodeTask.get())->run();
+            if (!decodeTask->success || decodeTask->terminated())
+                return audioPathPreparationError(QStringLiteral("Audio decoding failed"));
+            return PublicPreparedAudioPath{hashTask->resultSha512, workspace};
         }
 
         AutomationResult<DocumentVersion> validateBase(CoreRuntime &runtime,
@@ -98,12 +115,11 @@ namespace Automation {
 
         class HeadlessProjectLoadTask final : public QObject {
         public:
-            HeadlessProjectLoadTask(CoreRuntime &runtime, QString path, QString mergeMode,
-                                    const ProjectLoadPurpose purpose, QByteArray encoding,
-                                    const bool importTempo, const bool importTimeSignature,
-                                    CommandContext command,
-                                    std::function<AutomationResult<AutomationUnit>()> revalidatePlan,
-                                    QObject *parent)
+            HeadlessProjectLoadTask(
+                CoreRuntime &runtime, QString path, QString mergeMode,
+                const ProjectLoadPurpose purpose, QByteArray encoding, const bool importTempo,
+                const bool importTimeSignature, CommandContext command,
+                std::function<AutomationResult<AutomationUnit>()> revalidatePlan, QObject *parent)
                 : QObject(parent), m_runtime(runtime), m_path(std::move(path)),
                   m_mergeMode(std::move(mergeMode)), m_purpose(purpose),
                   m_encoding(std::move(encoding)), m_importTempo(importTempo),
@@ -558,12 +574,11 @@ namespace Automation {
 
         class HeadlessAudioImportTask final : public QObject {
         public:
-            HeadlessAudioImportTask(CoreRuntime &runtime, AppModel *model, CommandContext command,
-                                    QList<ClipInsertDto> clips, QStringList validationErrors,
-                                    QList<std::function<AutomationResult<AutomationUnit>()>>
-                                        reauthorizeSources,
-                                    const PublicBatchFailurePolicy failurePolicy,
-                                    QString operationId, QObject *parent)
+            HeadlessAudioImportTask(
+                CoreRuntime &runtime, AppModel *model, CommandContext command,
+                QList<ClipInsertDto> clips, QStringList validationErrors,
+                QList<std::function<AutomationResult<AutomationUnit>()>> reauthorizeSources,
+                const PublicBatchFailurePolicy failurePolicy, QString operationId, QObject *parent)
                 : QObject(parent), m_runtime(runtime), m_model(model),
                   m_command(std::move(command)), m_failurePolicy(failurePolicy),
                   m_operationId(std::move(operationId)) {
@@ -589,7 +604,8 @@ namespace Automation {
                         QStringLiteral("No audio import items were supplied"));
                 }
 
-                for (auto &entry : m_entries) {
+                for (qsizetype index = 0; index < m_entries.size(); ++index) {
+                    auto &entry = m_entries[index];
                     if (!entry.error.isEmpty())
                         continue;
                     if (entry.reauthorizeSource) {
@@ -599,31 +615,37 @@ namespace Automation {
                             continue;
                         }
                     }
-                    entry.task = AudioFilePreparer::createPrepareTask(entry.request.clip.audioPath);
-                    if (!entry.task || !entry.task->io) {
+                    std::unique_ptr<DecodeAudioTask> probe(
+                        AudioFilePreparer::createPrepareTask(entry.request.clip.audioPath));
+                    if (!probe || !probe->io) {
                         const auto path = entry.request.clip.audioPath;
-                        delete entry.task;
-                        entry.task = nullptr;
                         entry.error =
                             QStringLiteral("No audio decoder is available for %1").arg(path);
                         continue;
                     }
+                    entry.workspace = probe->workspace;
+                    if (m_command.validateOnly)
+                        continue;
+                    if (!m_snapshotDirectory)
+                        m_snapshotDirectory = std::make_unique<QTemporaryDir>();
+                    if (!m_snapshotDirectory->isValid()) {
+                        entry.error = QStringLiteral("Failed to create an audio snapshot");
+                        continue;
+                    }
+                    entry.snapshotPath =
+                        QDir(m_snapshotDirectory->path())
+                            .filePath(QStringLiteral("%1-%2").arg(index).arg(
+                                QFileInfo(entry.request.clip.audioPath).fileName()));
                     entry.hashTask = new ComputeAudioHashTask;
                     entry.hashTask->path = entry.request.clip.audioPath;
+                    entry.hashTask->snapshotPath = entry.snapshotPath;
                 }
 
                 if (m_command.validateOnly) {
                     const auto invalid =
-                        std::find_if(m_entries.cbegin(), m_entries.cend(),
-                                     [](const Entry &entry) {
-                                         return !entry.error.isEmpty() || entry.accessError.has_value();
-                                     });
-                    for (auto &entry : m_entries) {
-                        delete entry.task;
-                        entry.task = nullptr;
-                        delete entry.hashTask;
-                        entry.hashTask = nullptr;
-                    }
+                        std::find_if(m_entries.cbegin(), m_entries.cend(), [](const Entry &entry) {
+                            return !entry.error.isEmpty() || entry.accessError.has_value();
+                        });
                     if (invalid != m_entries.cend() &&
                         m_failurePolicy == PublicBatchFailurePolicy::Atomic) {
                         if (invalid->accessError)
@@ -662,20 +684,13 @@ namespace Automation {
 
                 m_remaining = 0;
                 for (auto &entry : m_entries) {
-                    if (entry.task) {
-                        ++m_remaining;
-                        auto *decodeTask = entry.task;
-                        connect(
-                            decodeTask, &Task::finished, this,
-                            [this, decodeTask] { handleFinished(decodeTask); }, Qt::QueuedConnection);
-                        QThreadPool::globalInstance()->start(decodeTask);
-                    }
                     if (entry.hashTask) {
                         ++m_remaining;
                         auto *hashTask = entry.hashTask;
-                        connect(hashTask, &Task::finished, this,
-                                [this, hashTask] { handleHashFinished(hashTask); },
-                                Qt::QueuedConnection);
+                        connect(
+                            hashTask, &Task::finished, this,
+                            [this, hashTask] { handleHashFinished(hashTask); },
+                            Qt::QueuedConnection);
                         QThreadPool::globalInstance()->start(hashTask);
                     }
                 }
@@ -690,6 +705,8 @@ namespace Automation {
                 DecodeAudioTask *task = nullptr;
                 ComputeAudioHashTask *hashTask = nullptr;
                 std::optional<PreparedAudioItem> prepared;
+                QJsonObject workspace;
+                QString snapshotPath;
                 QString sha512;
                 QString error;
                 std::function<AutomationResult<AutomationUnit>()> reauthorizeSource;
@@ -743,6 +760,7 @@ namespace Automation {
                                        : task->errorMessage;
                 } else {
                     found->prepared = AudioFilePreparer::prepareResult(task);
+                    found->prepared->path = found->request.clip.audioPath;
                 }
                 found->task = nullptr;
                 task->deleteLater();
@@ -764,6 +782,23 @@ namespace Automation {
                         found->error = QStringLiteral("Failed to compute audio hash");
                 } else {
                     found->sha512 = task->resultSha512;
+                    if (!m_runtime.automationTasks().isCancellationRequested(m_taskId)) {
+                        found->task = AudioFilePreparer::createPrepareTask(
+                            found->snapshotPath, nullptr, found->workspace);
+                        if (!found->task || !found->task->io) {
+                            delete found->task;
+                            found->task = nullptr;
+                            found->error = QStringLiteral("Failed to open the audio snapshot");
+                        } else {
+                            ++m_remaining;
+                            auto *decodeTask = found->task;
+                            connect(
+                                decodeTask, &Task::finished, this,
+                                [this, decodeTask] { handleFinished(decodeTask); },
+                                Qt::QueuedConnection);
+                            QThreadPool::globalInstance()->start(decodeTask);
+                        }
+                    }
                 }
                 found->hashTask = nullptr;
                 task->deleteLater();
@@ -828,13 +863,12 @@ namespace Automation {
                     return geometryError(index,
                                          QStringLiteral("Audio clip geometry is out of bounds"));
                 }
-                const auto visibleStart =
-                    static_cast<qint64>(start) + properties.clipStart;
+                const auto visibleStart = static_cast<qint64>(start) + properties.clipStart;
                 const auto visibleEnd = visibleStart + properties.clipLen;
                 properties.trimStartMs = timeline.tickToMs(visibleStart) - startMs;
-                properties.playLengthMs = std::min(
-                    timeline.tickToMs(visibleEnd) - timeline.tickToMs(visibleStart),
-                    std::max(0.0, prepared.durationMs - properties.trimStartMs));
+                properties.playLengthMs =
+                    std::min(timeline.tickToMs(visibleEnd) - timeline.tickToMs(visibleStart),
+                             std::max(0.0, prepared.durationMs - properties.trimStartMs));
                 properties.materialLengthMs = prepared.durationMs;
                 if (!validate(clip)) {
                     return geometryError(index,
@@ -843,7 +877,8 @@ namespace Automation {
                 clip.audioPath = prepared.path;
                 clip.audioInfo = prepared.audioInfo;
                 clip.audioPathInfo = {
-                    DiffscopeAudioWorkspace::relativeDirFor(prepared.path, projectPath), entry.sha512};
+                    DiffscopeAudioWorkspace::relativeDirFor(prepared.path, projectPath),
+                    entry.sha512};
                 clip.hasRealTimeAnchor = true;
                 clip.workspace.insert(QStringLiteral("diffscope.audio.formatData"),
                                       prepared.workspace);
@@ -890,9 +925,9 @@ namespace Automation {
                             deleteLater();
                             return;
                         }
-                        warnings.append(QStringLiteral("Skipped %1: %2")
-                                            .arg(entry.request.clip.audioPath,
-                                                 accessFailure->message));
+                        warnings.append(
+                            QStringLiteral("Skipped %1: %2")
+                                .arg(entry.request.clip.audioPath, accessFailure->message));
                         continue;
                     }
                     QString failure = entry.error;
@@ -915,9 +950,9 @@ namespace Automation {
                             deleteLater();
                             return;
                         }
-                        warnings.append(QStringLiteral("Skipped %1: %2")
-                                            .arg(entry.request.clip.audioPath,
-                                                 prepared.getError().message));
+                        warnings.append(
+                            QStringLiteral("Skipped %1: %2")
+                                .arg(entry.request.clip.audioPath, prepared.getError().message));
                         continue;
                     }
                     selected.append(prepared.get());
@@ -969,21 +1004,20 @@ namespace Automation {
             PublicBatchFailurePolicy m_failurePolicy = PublicBatchFailurePolicy::Atomic;
             QString m_operationId;
             QList<Entry> m_entries;
+            std::unique_ptr<QTemporaryDir> m_snapshotDirectory;
             TaskId m_taskId;
             qsizetype m_remaining = 0;
         };
 
-        AutomationResult<TaskAcceptedResult>
-            startAudioImport(CoreRuntime &runtime, AppModel *model, CommandContext command,
-                             QList<ClipInsertDto> clips, QStringList validationErrors,
-                             QList<std::function<AutomationResult<AutomationUnit>()>>
-                                 reauthorizeSources,
-                             const PublicBatchFailurePolicy failurePolicy,
-                             const QString &operationId) {
-            auto *state = new HeadlessAudioImportTask(
-                runtime, model, std::move(command), std::move(clips), std::move(validationErrors),
-                std::move(reauthorizeSources), failurePolicy, operationId,
-                QCoreApplication::instance());
+        AutomationResult<TaskAcceptedResult> startAudioImport(
+            CoreRuntime &runtime, AppModel *model, CommandContext command,
+            QList<ClipInsertDto> clips, QStringList validationErrors,
+            QList<std::function<AutomationResult<AutomationUnit>()>> reauthorizeSources,
+            const PublicBatchFailurePolicy failurePolicy, const QString &operationId) {
+            auto *state = new HeadlessAudioImportTask(runtime, model, std::move(command),
+                                                      std::move(clips), std::move(validationErrors),
+                                                      std::move(reauthorizeSources), failurePolicy,
+                                                      operationId, QCoreApplication::instance());
             auto result = state->prepare();
             if (!result || result.get().validatedOnly)
                 state->deleteLater();
@@ -1364,8 +1398,7 @@ namespace Automation {
             if (!selected)
                 return selected.getError();
             for (auto *piece : selected.get()) {
-                mutation.pieceTargets.append(
-                    {ClipId(piece->clipId()), PieceId(piece->id())});
+                mutation.pieceTargets.append({ClipId(piece->clipId()), PieceId(piece->id())});
             }
             if (mutation.pieceTargets.isEmpty()) {
                 return AutomationError::invalidArgument(
