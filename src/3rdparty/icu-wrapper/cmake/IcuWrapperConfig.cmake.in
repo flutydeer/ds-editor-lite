@@ -1,0 +1,10 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(Qt6 6.2 COMPONENTS Core)
+if(NOT APPLE AND NOT WIN32)
+    find_dependency(ICU 65 COMPONENTS uc)
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/IcuWrapperTargets.cmake")
+check_required_components(IcuWrapper)
