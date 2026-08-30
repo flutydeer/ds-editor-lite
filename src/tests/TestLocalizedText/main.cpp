@@ -86,14 +86,14 @@ int main(int argc, char **argv) {
     // spelling for the exact map fetch (ds-spec 2.4: keys are opaque, the
     // frontend owns matching; legacy packages resume showing translations).
     const QMap<QString, QString> posix{
-        {QStringLiteral("zh_CN"), QStringLiteral("绣萱")}
+        {QStringLiteral("zh_CN"), QStringLiteral("绮萱")}
     };
-    expectText(posix, QStringLiteral("Qixuan"), {QStringLiteral("zh-CN")}, QStringLiteral("绣萱"),
+    expectText(posix, QStringLiteral("Qixuan"), {QStringLiteral("zh-CN")}, QStringLiteral("绮萱"),
                "POSIX key zh_CN hits zh-CN request");
     expectText(posix, QStringLiteral("Qixuan"),
                {QStringLiteral("zh-Hans-CN"), QStringLiteral("zh-CN"), QStringLiteral("zh-Hans"),
                 QStringLiteral("zh")},
-               QStringLiteral("绣萱"), "candidate chain hits POSIX key");
+               QStringLiteral("绮萱"), "candidate chain hits POSIX key");
 
     // Empty candidates / empty table.
     expectText(sungNames, defaultName, {}, defaultName, "empty candidates -> default");
@@ -103,7 +103,7 @@ int main(int argc, char **argv) {
     expectTextSingle(sungNames, defaultName, QStringLiteral("zh-Hant"),
                      QStringLiteral("君凝華"), "single-tag overload zh-Hant");
     expectTextSingle(posix, QStringLiteral("Qixuan"), QStringLiteral("zh_CN"),
-                     QStringLiteral("绣萱"), "single-tag overload hits POSIX key");
+                     QStringLiteral("绮萱"), "single-tag overload hits POSIX key");
 
     if (g_failures == 0) {
         qInfo() << "TestLocalizedText: ALL PASSED";
