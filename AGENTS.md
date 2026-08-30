@@ -14,7 +14,7 @@ DS Editor Lite is a C++20 / Qt 6 Widgets desktop application (singing voice edit
 ### 前置条件
 
 - **Visual Studio 2026**：安装"使用 C++ 的桌面开发"工作负荷，包含 MSVC v145 生成工具和 Windows 11 SDK。
-- **Qt 6**：安装 Qt 6.11.1+，选择 MSVC 2022 64-bit 组件和 Qt State Machines。
+- **Qt 6**：安装 Qt 6.11.1+，选择 MSVC 2022 64-bit、Qt State Machines 和 Qt HTTP Server 组件。
 - **vcpkg**：克隆到项目同级目录或全局安装，详见下方 vcpkg 安装步骤。
 
 ### 配置和构建（Windows presets 主线）
