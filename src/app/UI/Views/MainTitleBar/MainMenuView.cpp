@@ -255,8 +255,9 @@ void MainMenuViewPrivate::onExportMidiFile() {
 
 void MainMenuViewPrivate::onExportAudioFile() {
     Q_Q(MainMenuView);
-    AudioExportDialog dlg(q);
-    dlg.exec();
+    const auto dialog = new AudioExportDialog(q);
+    dialog->setAttribute(Qt::WA_DeleteOnClose);
+    dialog->open();
 }
 
 void MainMenuViewPrivate::onUndoRedoChanged(bool canUndo, const QString &undoName, bool canRedo,
