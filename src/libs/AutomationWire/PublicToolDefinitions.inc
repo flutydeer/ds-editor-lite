@@ -112,9 +112,9 @@ AUTOMATION_WIRE_PUBLIC_TOOL(audio_clips_import, "audio_clips.import", "audio_cli
 AUTOMATION_WIRE_PUBLIC_TOOL(audio_clips_import_batch, "audio_clips.import_batch", "audio_clips", L2,
                             Command, Asynchronous, 1, NonDestructive, NonIdempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(audio_clips_relocate, "audio_clips.relocate", "audio_clips", L2,
-                            Command, Synchronous, 1, NonDestructive, Idempotent, ClosedWorld)
+                            Command, Asynchronous, 1, NonDestructive, Idempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(audio_clips_confirm_path, "audio_clips.confirm_path", "audio_clips", L2,
-                            Command, Synchronous, 1, NonDestructive, Idempotent, ClosedWorld)
+                            Command, Asynchronous, 1, NonDestructive, Idempotent, ClosedWorld)
 
 AUTOMATION_WIRE_PUBLIC_TOOL(voices_list, "voices.list", "voices", L1, Query, Synchronous, 1,
                             ReadOnly, Idempotent, ClosedWorld)

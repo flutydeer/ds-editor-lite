@@ -50,6 +50,10 @@ namespace {
         Automation::PublicProjectInputRevalidator revalidateOpen;
     };
 
+    struct AudioPathUpdateTestControl {
+        QList<Automation::PublicAudioPathUpdateRequest> requests;
+    };
+
     void expect(const bool condition, const QString &message) {
         if (condition)
             return;
@@ -69,7 +73,8 @@ namespace {
 
     Automation::PublicAutomationHostServices
         hostServices(Automation::CoreRuntime &runtime,
-                     ProjectInputTestControl *projectInputControl = nullptr) {
+                     ProjectInputTestControl *projectInputControl = nullptr,
+                     AudioPathUpdateTestControl *audioPathUpdateControl = nullptr) {
         Automation::PublicAutomationHostServices services;
         services.documentStatus = [&runtime] {
             const auto document = runtime.documentVersion();
@@ -95,6 +100,20 @@ namespace {
                 projectInputControl->revalidateOpen = request.revalidatePlan;
                 return Automation::AutomationError::invalidArgument(
                     QStringLiteral("test"), QStringLiteral("Test host captured the open request"));
+            };
+        }
+        if (audioPathUpdateControl) {
+            services.updateAudioClipPath =
+                [audioPathUpdateControl](const Automation::PublicAudioPathUpdateRequest &request)
+                -> Automation::AutomationResult<Automation::TaskAcceptedResult> {
+                if (request.reauthorizeSource) {
+                    auto authorized = request.reauthorizeSource();
+                    if (!authorized)
+                        return authorized.getError();
+                }
+                audioPathUpdateControl->requests.append(request);
+                return Automation::TaskAcceptedResult{Automation::TaskId::create(),
+                                                      request.command.expected, false};
             };
         }
         return services;
@@ -157,6 +176,41 @@ namespace {
         }
         expect(schemaValid, label + QStringLiteral(" must return its declared output schema"));
         return result ? std::optional<QJsonObject>(result.get()) : std::nullopt;
+    }
+
+    void verifyAudioPathUpdateRouting(Automation::PublicAutomationRegistry &registry,
+                                      Automation::CoreRuntime &runtime,
+                                      const QString &directoryPath,
+                                      AudioPathUpdateTestControl &control) {
+        const auto path = QDir(directoryPath).absoluteFilePath(QStringLiteral("path-update.wav"));
+        QFile file(path);
+        expect(file.open(QIODevice::WriteOnly | QIODevice::Truncate) && file.write("audio") == 5,
+               QStringLiteral("audio path update fixture must be writable"));
+        file.close();
+
+        const auto document = runtime.documentVersion();
+        const auto arguments = mergeCommandArguments(
+            document,
+            {
+                {QStringLiteral("clip_id"), 42  },
+                {QStringLiteral("path"),    path},
+            });
+        const auto relocated =
+            invokeSchemaValid(registry, QStringLiteral("audio_clips.relocate"), arguments,
+                              QStringLiteral("audio path relocation routing"));
+        const auto confirmed =
+            invokeSchemaValid(registry, QStringLiteral("audio_clips.confirm_path"), arguments,
+                              QStringLiteral("audio path confirmation routing"));
+
+        const auto canonicalPath = QFileInfo(path).canonicalFilePath();
+        expect(relocated && confirmed && control.requests.size() == 2 &&
+                   control.requests.at(0).mode == Automation::PublicAudioPathUpdateMode::Relocate &&
+                   control.requests.at(1).mode == Automation::PublicAudioPathUpdateMode::Confirm &&
+                   control.requests.at(0).clipId == Automation::ClipId(42) &&
+                   control.requests.at(1).clipId == Automation::ClipId(42) &&
+                   control.requests.at(0).canonicalPath == canonicalPath &&
+                   control.requests.at(1).canonicalPath == canonicalPath,
+               QStringLiteral("audio path updates must delegate canonical asynchronous requests"));
     }
 
     void verifyAdvancedGuiBindings(Automation::PublicAutomationRegistry &registry,
@@ -1786,6 +1840,7 @@ int main(int argc, char *argv[]) {
 
     auto midiExportControl = std::make_shared<MidiExportTestControl>();
     ProjectInputTestControl projectInputControl;
+    AudioPathUpdateTestControl audioPathUpdateControl;
     Automation::FileRuntimeServices fileServices;
     fileServices.listProjectFormats = [] {
         return QList<Automation::ProjectFormatDto>{
@@ -1850,8 +1905,10 @@ int main(int argc, char *argv[]) {
     limits.maximumBackgroundTasks = 1;
     Automation::AdmissionController admission(limits);
     Automation::PublicAutomationRegistry registry(runtime, access, fileGuard, admission,
-                                                  hostServices(runtime, &projectInputControl));
+                                                  hostServices(runtime, &projectInputControl,
+                                                               &audioPathUpdateControl));
 
+    verifyAudioPathUpdateRouting(registry, runtime, directory.path(), audioPathUpdateControl);
     verifyProjectInputGuards(registry, fileGuard, directory.path(), projectInputControl);
     verifyMidiExportPublicationGate(registry, runtime, directory.path(), *midiExportControl);
     verifyCurrentDocumentSavePolicy(registry, runtime, directory.path(), documentSaveCount);

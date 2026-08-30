@@ -130,9 +130,17 @@ namespace Automation {
         QString stage;
     };
 
-    struct PublicPreparedAudioPath {
-        QString sha512;
-        QJsonObject formatData;
+    enum class PublicAudioPathUpdateMode {
+        Relocate,
+        Confirm,
+    };
+
+    struct PublicAudioPathUpdateRequest {
+        CommandContext command;
+        ClipId clipId;
+        QString canonicalPath;
+        PublicAudioPathUpdateMode mode = PublicAudioPathUpdateMode::Relocate;
+        std::function<AutomationResult<AutomationUnit>()> reauthorizeSource;
     };
 
     struct PublicAutomationHostServices {
@@ -153,8 +161,8 @@ namespace Automation {
         std::function<AutomationResult<TaskAcceptedResult>(
             const PublicAudioClipBatchImportRequest &)>
             importAudioClips;
-        std::function<AutomationResult<PublicPreparedAudioPath>(const QString &canonicalPath)>
-            prepareAudioPath;
+        std::function<AutomationResult<TaskAcceptedResult>(const PublicAudioPathUpdateRequest &)>
+            updateAudioClipPath;
         std::function<AutomationResult<QJsonValue>(const DocumentId &)> audioExportCapabilities;
         std::function<AutomationResult<QJsonValue>(const DocumentId &, ClipId)>
             extractionCapabilities;

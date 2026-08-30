@@ -36,6 +36,7 @@
 #include <QTemporaryDir>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <limits>
 #include <memory>
@@ -58,7 +59,12 @@ namespace Automation {
             return result;
         }
 
-        AutomationResult<PublicPreparedAudioPath> prepareAudioPath(const QString &path) {
+        struct PreparedAudioPath {
+            QString sha512;
+            QJsonObject formatData;
+        };
+
+        AutomationResult<PreparedAudioPath> prepareAudioPath(const QString &path) {
             std::unique_ptr<DecodeAudioTask> probe(AudioFilePreparer::createPrepareTask(path));
             if (!probe || !probe->io) {
                 return audioPathPreparationError(
@@ -90,7 +96,26 @@ namespace Automation {
             static_cast<QRunnable *>(decodeTask.get())->run();
             if (!decodeTask->success || decodeTask->terminated())
                 return audioPathPreparationError(QStringLiteral("Audio decoding failed"));
-            return PublicPreparedAudioPath{hashTask->resultSha512, workspace};
+            return PreparedAudioPath{hashTask->resultSha512, workspace};
+        }
+
+        AutomationResult<PreparedAudioPath> prepareStableAudioPath(const QString &path) {
+            auto prepared = prepareAudioPath(path);
+            if (!prepared)
+                return prepared.getError();
+
+            ComputeAudioHashTask verification;
+            verification.path = path;
+            static_cast<QRunnable *>(&verification)->run();
+            if (!verification.success || verification.resultSha512.isEmpty()) {
+                return audioPathPreparationError(
+                    QStringLiteral("Failed to verify the prepared audio source"));
+            }
+            if (verification.resultSha512 != prepared.get().sha512) {
+                return audioPathPreparationError(
+                    QStringLiteral("Audio source changed while preparing its path"));
+            }
+            return prepared;
         }
 
         AutomationResult<DocumentVersion> validateBase(CoreRuntime &runtime,
@@ -1210,6 +1235,152 @@ namespace Automation {
                 });
         }
 
+        class HeadlessAudioPathUpdateTask final : public QObject {
+        public:
+            HeadlessAudioPathUpdateTask(CoreRuntime &runtime, PublicAudioPathUpdateRequest request,
+                                        QObject *parent)
+                : QObject(parent), m_runtime(runtime), m_request(std::move(request)) {
+            }
+
+            AutomationResult<TaskAcceptedResult> prepare() {
+                auto base = validateBase(m_runtime, m_request.command);
+                if (!base)
+                    return base.getError();
+                if (m_request.canonicalPath.isEmpty()) {
+                    return AutomationError::invalidArgument(
+                        QStringLiteral("path"), QStringLiteral("Audio path is empty"));
+                }
+                if (m_request.reauthorizeSource) {
+                    auto authorized = m_request.reauthorizeSource();
+                    if (!authorized)
+                        return authorized.getError();
+                }
+
+                auto validationContext = m_request.command;
+                validationContext.validateOnly = true;
+                auto validated = apply(validationContext, {});
+                if (!validated)
+                    return validated.getError();
+
+                const auto operationId = this->operationId();
+                const auto task = m_runtime.automationTasks().createTask(
+                    operationId, base.get(),
+                    ObjectRef{ObjectKind::Clip, m_request.clipId.value()},
+                    [guard = QPointer<HeadlessAudioPathUpdateTask>(this)] {
+                        if (guard)
+                            guard->m_cancelRequested.store(true, std::memory_order_release);
+                    },
+                    m_request.command.clientId);
+                m_taskId = task.taskId;
+                m_request.command.taskId = m_taskId;
+                if (!m_runtime.automationTasks().markRunning(m_taskId))
+                    return AutomationError::taskNotFound(m_taskId);
+
+                QThreadPool::globalInstance()->start(
+                    [guard = QPointer<HeadlessAudioPathUpdateTask>(this),
+                     path = m_request.canonicalPath] {
+                        auto prepared = prepareStableAudioPath(path);
+                        if (!guard)
+                            return;
+                        QMetaObject::invokeMethod(
+                            guard.data(),
+                            [guard, prepared = std::move(prepared)]() mutable {
+                                if (guard)
+                                    guard->finish(std::move(prepared));
+                            },
+                            Qt::QueuedConnection);
+                    });
+                return TaskAcceptedResult{m_taskId, base.get(), false};
+            }
+
+        private:
+            QString operationId() const {
+                return m_request.mode == PublicAudioPathUpdateMode::Relocate
+                           ? OperationIds::audio_clips::relocate
+                           : OperationIds::audio_clips::confirm_path;
+            }
+
+            AutomationResult<MutationResult> apply(const CommandContext &context,
+                                                   const PreparedAudioPath &prepared) {
+                const AudioPathInfo pathInfo{{}, prepared.sha512};
+                if (m_request.mode == PublicAudioPathUpdateMode::Relocate) {
+                    return m_runtime.project().relocateAudioClip(
+                        context, m_request.clipId, m_request.canonicalPath, pathInfo,
+                        prepared.formatData);
+                }
+                return m_runtime.project().confirmAudioClipPath(
+                    context, m_request.clipId, m_request.canonicalPath, pathInfo,
+                    prepared.formatData);
+            }
+
+            void fail(AutomationError failure) {
+                failure.operationId = operationId();
+                failure.taskId = m_taskId;
+                m_runtime.automationTasks().fail(m_taskId, std::move(failure));
+                deleteLater();
+            }
+
+            void finish(AutomationResult<PreparedAudioPath> prepared) {
+                if (m_cancelRequested.load(std::memory_order_acquire) ||
+                    m_runtime.automationTasks().isCancellationRequested(m_taskId)) {
+                    m_runtime.automationTasks().cancel(m_taskId);
+                    deleteLater();
+                    return;
+                }
+                if (!prepared) {
+                    fail(prepared.getError());
+                    return;
+                }
+                if (m_request.reauthorizeSource) {
+                    auto authorized = m_request.reauthorizeSource();
+                    if (!authorized) {
+                        fail(authorized.getError());
+                        return;
+                    }
+                }
+
+                auto validationContext = m_request.command;
+                validationContext.validateOnly = true;
+                auto validated = apply(validationContext, prepared.get());
+                if (!validated) {
+                    fail(validated.getError());
+                    return;
+                }
+                const auto committing = m_runtime.automationTasks().beginCommitting(m_taskId);
+                if (!committing || !committing.get()) {
+                    if (!committing)
+                        fail(committing.getError());
+                    else
+                        deleteLater();
+                    return;
+                }
+
+                m_request.command.validateOnly = false;
+                auto committed = apply(m_request.command, prepared.get());
+                if (!committed) {
+                    fail(committed.getError());
+                    return;
+                }
+                m_runtime.automationTasks().succeed(m_taskId, committed.get());
+                deleteLater();
+            }
+
+            CoreRuntime &m_runtime;
+            PublicAudioPathUpdateRequest m_request;
+            TaskId m_taskId;
+            std::atomic_bool m_cancelRequested{false};
+        };
+
+        AutomationResult<TaskAcceptedResult>
+            startAudioPathUpdate(CoreRuntime &runtime, const PublicAudioPathUpdateRequest &request) {
+            auto *state = new HeadlessAudioPathUpdateTask(runtime, request,
+                                                         QCoreApplication::instance());
+            auto result = state->prepare();
+            if (!result)
+                state->deleteLater();
+            return result;
+        }
+
         AutomationResult<QJsonObject> audioExportCapabilities(CoreRuntime &runtime,
                                                               const DocumentId &documentId) {
             const auto supported = AudioExportAutomationFacade::capabilities();
@@ -1931,8 +2102,8 @@ namespace Automation {
                                     std::move(validationErrors), std::move(reauthorizeSources),
                                     request.failurePolicy, OperationIds::audio_clips::import_batch);
         };
-        services.prepareAudioPath = [](const QString &canonicalPath) {
-            return prepareAudioPath(canonicalPath);
+        services.updateAudioClipPath = [&runtime](const PublicAudioPathUpdateRequest &request) {
+            return startAudioPathUpdate(runtime, request);
         };
         services.audioExportCapabilities = [&runtime](const DocumentId &documentId) {
             auto capabilities = audioExportCapabilities(runtime, documentId);

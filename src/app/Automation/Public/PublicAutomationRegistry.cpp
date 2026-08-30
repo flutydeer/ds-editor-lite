@@ -1985,30 +1985,6 @@ namespace Automation {
             return failure;
         }
 
-        AutomationResult<PublicPreparedAudioPath>
-            prepareAuthorizedAudioPath(PublicAutomationHostServices &services,
-                                       AutomationFileGuard &guard, const QString &canonicalPath) {
-            if (!services.prepareAudioPath) {
-                return unavailable(QStringLiteral("Audio path preparation service is unavailable"));
-            }
-            const AuthorizedPath authorizedPath{canonicalPath, FileAccessPurpose::Read};
-            auto authorized = guard.reauthorize(authorizedPath);
-            if (!authorized)
-                return authorized.getError();
-            auto prepared = services.prepareAudioPath(canonicalPath);
-            if (!prepared)
-                return prepared.getError();
-            if (prepared.get().sha512.trimmed().isEmpty()) {
-                return error(AutomationErrorCode::IoError,
-                             QStringLiteral("Audio path preparation did not produce a hash"),
-                             QStringLiteral("path"));
-            }
-            authorized = guard.reauthorize(authorizedPath);
-            if (!authorized)
-                return authorized.getError();
-            return prepared;
-        }
-
         std::function<AutomationResult<AutomationUnit>(const QString &)>
             sourcePathAuthorizer(AutomationFileGuard &guard) {
             auto frozen = std::make_shared<std::optional<AuthorizedPath>>();
@@ -3489,19 +3465,33 @@ namespace Automation {
             });
         addBinding(ToolNames::audio_clips_relocate,
                    [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
-                       const auto path = arguments.value(QStringLiteral("path")).toString();
-                       auto prepared =
-                           prepareAuthorizedAudioPath(m_hostServices, m_fileGuard, path);
-                       if (!prepared)
-                           return AutomationResult<QJsonObject>(prepared.getError());
-                       return mutationResult(m_runtime.project().relocateAudioClip(
-                           commandContext(arguments, invocation),
-                           ClipId(arguments.value(QStringLiteral("clip_id")).toInt()), path,
-                           AudioPathInfo{{}, prepared.get().sha512}, prepared.get().formatData));
+                       if (!m_hostServices.updateAudioClipPath) {
+                           return AutomationResult<QJsonObject>(unavailable(
+                               QStringLiteral("Audio path update service is unavailable")));
+                       }
+                       auto authorized = m_fileGuard.authorize(
+                           arguments.value(QStringLiteral("path")).toString(),
+                           FileAccessPurpose::Read);
+                       if (!authorized)
+                           return AutomationResult<QJsonObject>(authorized.getError());
+                       const auto path = authorized.get().canonicalPath;
+                       PublicAudioPathUpdateRequest request{
+                           .command = commandContext(arguments, invocation),
+                           .clipId = ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
+                           .canonicalPath = path,
+                           .mode = PublicAudioPathUpdateMode::Relocate,
+                           .reauthorizeSource = sourcePathReauthorizer(
+                               m_fileGuard, path, QStringLiteral("path")),
+                       };
+                       return taskAcceptedResult(m_hostServices.updateAudioClipPath(request));
                    });
         addBinding(
             ToolNames::audio_clips_confirm_path,
             [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
+                if (!m_hostServices.updateAudioClipPath) {
+                    return AutomationResult<QJsonObject>(
+                        unavailable(QStringLiteral("Audio path update service is unavailable")));
+                }
                 auto path = arguments.value(QStringLiteral("path")).toString();
                 if (path.isEmpty()) {
                     auto project = m_runtime.project().getProject(documentId(arguments));
@@ -3528,13 +3518,19 @@ namespace Automation {
                             QStringLiteral("The audio clip or its candidate path was not found")));
                     }
                 }
-                auto prepared = prepareAuthorizedAudioPath(m_hostServices, m_fileGuard, path);
-                if (!prepared)
-                    return AutomationResult<QJsonObject>(prepared.getError());
-                return mutationResult(m_runtime.project().confirmAudioClipPath(
-                    commandContext(arguments, invocation),
-                    ClipId(arguments.value(QStringLiteral("clip_id")).toInt()), path,
-                    AudioPathInfo{{}, prepared.get().sha512}, prepared.get().formatData));
+                auto authorized = m_fileGuard.authorize(path, FileAccessPurpose::Read);
+                if (!authorized)
+                    return AutomationResult<QJsonObject>(authorized.getError());
+                path = authorized.get().canonicalPath;
+                PublicAudioPathUpdateRequest request{
+                    .command = commandContext(arguments, invocation),
+                    .clipId = ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
+                    .canonicalPath = path,
+                    .mode = PublicAudioPathUpdateMode::Confirm,
+                    .reauthorizeSource =
+                        sourcePathReauthorizer(m_fileGuard, path, QStringLiteral("path")),
+                };
+                return taskAcceptedResult(m_hostServices.updateAudioClipPath(request));
             });
         addBinding(ToolNames::exports_midi_start, [this](
                                                       const QJsonObject &arguments,
