@@ -102,10 +102,16 @@ namespace {
         EXPECT(checks, snapshotFile.open(QIODevice::ReadOnly),
                "the completed snapshot must be readable");
         const auto snapshotBytes = snapshotFile.readAll();
+        ComputeAudioHashTask liveVerification;
+        liveVerification.path = source;
+        EXPECT(checks, runHashTask(liveVerification),
+               "the replaced live source must remain hashable");
         EXPECT(checks,
                task.success && snapshotBytes == original &&
-                   task.resultSha512 == sha512(snapshotBytes),
-               "the digest and immutable snapshot must represent exactly the same bytes");
+                   task.resultSha512 == sha512(snapshotBytes) && liveVerification.success &&
+                   liveVerification.resultSha512 != task.resultSha512,
+               "the digest and immutable snapshot must represent the same bytes while a final live "
+               "digest detects source replacement");
     }
 
     class CurrentDirectoryGuard final {

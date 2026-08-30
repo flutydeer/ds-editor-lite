@@ -704,6 +704,7 @@ namespace Automation {
                 ClipInsertDto request;
                 DecodeAudioTask *task = nullptr;
                 ComputeAudioHashTask *hashTask = nullptr;
+                ComputeAudioHashTask *verificationTask = nullptr;
                 std::optional<PreparedAudioItem> prepared;
                 QJsonObject workspace;
                 QString snapshotPath;
@@ -743,6 +744,8 @@ namespace Automation {
                         entry.task->terminate();
                     if (entry.hashTask)
                         entry.hashTask->terminate();
+                    if (entry.verificationTask)
+                        entry.verificationTask->terminate();
                 }
             }
 
@@ -761,8 +764,40 @@ namespace Automation {
                 } else {
                     found->prepared = AudioFilePreparer::prepareResult(task);
                     found->prepared->path = found->request.clip.audioPath;
+                    found->verificationTask = new ComputeAudioHashTask;
+                    found->verificationTask->path = found->request.clip.audioPath;
+                    ++m_remaining;
+                    auto *verificationTask = found->verificationTask;
+                    connect(
+                        verificationTask, &Task::finished, this,
+                        [this, verificationTask] {
+                            handleVerificationFinished(verificationTask);
+                        },
+                        Qt::QueuedConnection);
+                    QThreadPool::globalInstance()->start(verificationTask);
                 }
                 found->task = nullptr;
+                task->deleteLater();
+                if (--m_remaining == 0)
+                    finishPreparation();
+            }
+
+            void handleVerificationFinished(ComputeAudioHashTask *task) {
+                const auto found = std::find_if(
+                    m_entries.begin(), m_entries.end(),
+                    [task](const Entry &entry) { return entry.verificationTask == task; });
+                if (found == m_entries.end())
+                    return;
+                if (task->terminated()) {
+                    if (found->error.isEmpty())
+                        found->error = QStringLiteral("Audio source verification was canceled");
+                } else if (!task->success || task->resultSha512.isEmpty()) {
+                    if (found->error.isEmpty())
+                        found->error = QStringLiteral("Failed to verify the audio source");
+                } else if (task->resultSha512 != found->sha512) {
+                    found->error = QStringLiteral("Audio source changed while importing");
+                }
+                found->verificationTask = nullptr;
                 task->deleteLater();
                 if (--m_remaining == 0)
                     finishPreparation();
