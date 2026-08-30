@@ -402,6 +402,32 @@ namespace {
         return ok;
     }
 
+    bool testMismatchedSamplePhasesAreAligned() {
+        using namespace CurveTransform;
+        bool ok = true;
+        MouthOpeningParamProperties properties;
+        auto original = curve(0, QList<int>(6, 100));
+        auto edited = curve(0, {200, 300, 400, 500});
+        edited.Curve::setLocalStart(2);
+
+        Config config;
+        config.kind = Kind::Scale;
+        config.properties = &properties;
+        Session session;
+        session.setSource({&original}, {&edited}, config);
+        session.beginSelection(5);
+        ok &= expect(session.finishSelection(15), "mismatched-phase selection succeeds");
+        ok &= expect(session.beginTransform(), "mismatched-phase transform starts");
+        session.updateTransform(-100.0);
+        auto preview = session.buildEditedPreview();
+        ok &= expect(valueAt(preview, 5) == 520 && valueAt(preview, 10) == 720,
+                     "calculation snapshots share the five-tick lattice");
+        ok &= expect(valueAt(preview, 2) == 200 && valueAt(preview, 15) == 460,
+                     "off-lattice edited samples outside the target are preserved");
+        qDeleteAll(preview);
+        return ok;
+    }
+
     bool testBasePitchRestKeys() {
         bool ok = true;
         using InputNote = BasePitchCurve::InputNote;
@@ -473,6 +499,7 @@ int main(int argc, char *argv[]) {
     ok &= testNonSampleStepEditedCurve();
     ok &= testFineEditedSamplesOutsideTransformArePreserved();
     ok &= testIncompleteFineSampleCellIsExcluded();
+    ok &= testMismatchedSamplePhasesAreAligned();
     ok &= testBasePitchRestKeys();
     if (!ok)
         return 1;

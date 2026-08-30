@@ -49,18 +49,21 @@ namespace {
     void copyNormalizedCurves(const QList<DrawCurve *> &source, QList<DrawCurve *> &target) {
         AppModelUtils::copyCurves(source, target);
         for (auto *curve : target) {
-            if (!curve || curve->isEmpty() || curve->step <= 0 ||
-                curve->step == CurveTransform::SampleStep)
+            if (!curve || curve->isEmpty() || curve->step <= 0)
+                continue;
+            const auto startTick = alignedAtOrAfter(curve->localStart());
+            if (curve->step == CurveTransform::SampleStep && curve->localStart() == startTick)
                 continue;
             QList<int> values;
             const auto endTick = curve->localEndTick();
-            values.reserve((endTick - curve->localStart()) / CurveTransform::SampleStep);
-            for (auto tick = curve->localStart(); tick + CurveTransform::SampleStep <= endTick;
+            values.reserve(std::max((endTick - startTick) / CurveTransform::SampleStep, 0));
+            for (auto tick = startTick; tick + CurveTransform::SampleStep <= endTick;
                  tick += CurveTransform::SampleStep) {
                 if (const auto sample = valueAt(*curve, tick))
                     values.append(*sample);
             }
             curve->step = CurveTransform::SampleStep;
+            curve->setLocalStart(startTick);
             curve->setValues(values);
         }
     }
