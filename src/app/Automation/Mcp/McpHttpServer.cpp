@@ -251,6 +251,7 @@ namespace Automation {
         struct Session {
             QString clientId;
             QString protocolVersion;
+            bool initialized = false;
         };
 
         explicit McpHttpTransportState(McpHttpLimits limits) : m_limits(std::move(limits)) {
@@ -390,6 +391,15 @@ namespace Automation {
             const QMutexLocker locker(&m_mutex);
             const auto found = m_sessions.constFind(sessionId);
             return found == m_sessions.cend() ? std::nullopt : std::optional<Session>(*found);
+        }
+
+        bool markSessionInitialized(const QByteArray &sessionId, const QString &protocolVersion) {
+            const QMutexLocker locker(&m_mutex);
+            const auto found = m_sessions.find(sessionId);
+            if (found == m_sessions.end() || found->protocolVersion != protocolVersion)
+                return false;
+            found->initialized = true;
+            return true;
         }
 
         SessionRetirement retireSession(const QByteArray &sessionId,
@@ -734,6 +744,35 @@ namespace Automation {
             const auto clientId =
                 clientIdFor(validatedRequest, request,
                             session ? std::optional<QString>(session->clientId) : std::nullopt);
+            if (validatedRequest.method == QString::fromLatin1(Mcp::InitializedNotification)) {
+                if (!validatedRequest.notification) {
+                    const Mcp::ProtocolError error{
+                        Mcp::InvalidRequest,
+                        QStringLiteral("notifications/initialized must be a notification")};
+                    return readyResponse(
+                        jsonResponse(Mcp::makeErrorResponse(validatedRequest.id, error),
+                                     protocolErrorStatus(error)));
+                }
+                if (Mcp::isLegacyProtocolVersion(validatedRequest.protocolVersion) &&
+                    !m_transportState->markSessionInitialized(sessionHeaderValues.constFirst(),
+                                                              validatedRequest.protocolVersion)) {
+                    return readyResponse(transportError(
+                        QStringLiteral("session_not_found"),
+                        QStringLiteral("MCP session is unknown or expired"), StatusCode::NotFound));
+                }
+                return readyResponse(QHttpServerResponse(StatusCode::Accepted));
+            }
+            if (session && Mcp::isLegacyProtocolVersion(validatedRequest.protocolVersion) &&
+                !session->initialized &&
+                validatedRequest.method != QString::fromLatin1(Mcp::PingMethod)) {
+                if (validatedRequest.notification)
+                    return readyResponse(QHttpServerResponse(StatusCode::Accepted));
+                const Mcp::ProtocolError error{Mcp::ServerNotInitialized,
+                                               QStringLiteral("MCP server is not initialized")};
+                return readyResponse(
+                    jsonResponse(Mcp::makeErrorResponse(validatedRequest.id, error),
+                                 protocolErrorStatus(error)));
+            }
             if (validatedRequest.notification) {
                 if (validatedRequest.method == QString::fromLatin1(Mcp::CancelledNotification)) {
                     const auto requestId =

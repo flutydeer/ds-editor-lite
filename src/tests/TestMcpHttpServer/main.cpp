@@ -392,6 +392,29 @@ int main(int argc, char *argv[]) {
                !initializeResult.sessionId.isEmpty(),
            QStringLiteral("MCP 2025-11-25 initialize must work without modern transport headers"));
 
+    const auto prematureLegacyCall =
+        Mcp::makeRequest(QString::fromLatin1(Mcp::ToolsCallMethod),
+                         QJsonObject{
+                             {QStringLiteral("name"),      QStringLiteral("legacy.tool")},
+                             {QStringLiteral("arguments"), QJsonObject{}                }
+    },
+                         legacyContext, QStringLiteral("premature-call-2025"));
+    {
+        const QMutexLocker locker(&observationMutex);
+        observedMethod = QStringLiteral("before-initialized");
+    }
+    const auto prematureLegacyCallResult =
+        send(manager,
+             legacyRequest(endpoint, true, Mcp::LegacyProtocolVersion, initializeResult.sessionId),
+             QJsonDocument(prematureLegacyCall).toJson(QJsonDocument::Compact));
+    {
+        const QMutexLocker locker(&observationMutex);
+        expect(prematureLegacyCallResult.status == 400 &&
+                   jsonRpcErrorCode(prematureLegacyCallResult) == Mcp::ServerNotInitialized &&
+                   observedMethod == QStringLiteral("before-initialized"),
+               QStringLiteral("legacy tools must not dispatch before notifications/initialized"));
+    }
+
     const auto initialized =
         Mcp::makeRequest(QString::fromLatin1(Mcp::InitializedNotification), {}, legacyContext);
     const auto initializedResult =
@@ -483,6 +506,17 @@ int main(int argc, char *argv[]) {
                !compatibilityInitializePayload.contains(QStringLiteral("resultType")) &&
                !compatibilityInitializeResult.sessionId.isEmpty(),
            QStringLiteral("MCP 2025-06-18 initialize must echo the requested supported version"));
+    const auto compatibilityInitialized =
+        Mcp::makeRequest(QString::fromLatin1(Mcp::InitializedNotification), {},
+                         compatibilityContext);
+    const auto compatibilityInitializedResult =
+        send(manager,
+             legacyRequest(endpoint, true, Mcp::CompatibilityProtocolVersion,
+                           compatibilityInitializeResult.sessionId),
+             QJsonDocument(compatibilityInitialized).toJson(QJsonDocument::Compact));
+    expect(compatibilityInitializedResult.status == 202 &&
+               compatibilityInitializedResult.body.isEmpty(),
+           QStringLiteral("MCP 2025-06-18 initialized notification must complete the session"));
     const auto compatibilityList =
         Mcp::makeRequest(QString::fromLatin1(Mcp::ToolsListMethod), {}, compatibilityContext,
                          QStringLiteral("list-2025-06"));
@@ -949,6 +983,16 @@ int main(int argc, char *argv[]) {
     expect(cancellationInitializeResult.status == 200 &&
                !cancellationInitializeResult.sessionId.isEmpty(),
            QStringLiteral("the cancellation fixture must establish a legacy HTTP session"));
+    const auto cancellationInitialized =
+        Mcp::makeRequest(QString::fromLatin1(Mcp::InitializedNotification), {}, legacyContext);
+    const auto cancellationInitializedResult =
+        send(cancellationRequestManager,
+             legacyRequest(cancellationEndpoint, true, Mcp::LegacyProtocolVersion,
+                           cancellationInitializeResult.sessionId),
+             QJsonDocument(cancellationInitialized).toJson(QJsonDocument::Compact));
+    expect(cancellationInitializedResult.status == 202 &&
+               cancellationInitializedResult.body.isEmpty(),
+           QStringLiteral("the cancellation fixture must complete its legacy HTTP handshake"));
     QMetaObject::invokeMethod(
         &handlerContext,
         [&] {
