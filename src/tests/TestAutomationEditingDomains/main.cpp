@@ -1554,6 +1554,29 @@ namespace {
                                    QStringLiteral("draw range overflow must fail without mutation"));
                   });
 
+        suite.run(
+            Automation::OperationIds::parameters::bake,
+            QStringLiteral("anchor-materialization-bounded"), [&] {
+                const auto created = runtime.parameters().createAnchorCurve(
+                    commandContext(runtime), clipId, ParamInfo::Pitch, Param::Edited,
+                    QStringLiteral("huge-anchor"),
+                    {
+                        {0,                               6000, AnchorNode::Linear},
+                        {std::numeric_limits<int>::max(), 6000, AnchorNode::Linear},
+                });
+                suite.expect(created && created.get().changed,
+                             QStringLiteral("the bake bound fixture must create its anchor"));
+                const auto base = runtime.documentVersion();
+                const auto baked = runtime.parameters().bakeParameter(
+                    commandContext(runtime), clipId, ParamInfo::Pitch, 0, 5);
+                suite.expect(
+                    isError(baked, AutomationErrorCode::InvalidArgument,
+                            QStringLiteral("local_end")) &&
+                        runtime.documentVersion() == base,
+                    QStringLiteral(
+                        "partial bake must reject an unsafe anchor expansion before mutation"));
+            });
+
         const auto speakerA = speaker(QStringLiteral("speaker-a"));
         const auto speakerB = speaker(QStringLiteral("speaker-b"));
         const auto singerA = singer(QStringLiteral("singer-a"), {speakerA, speakerB});

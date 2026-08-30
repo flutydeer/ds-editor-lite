@@ -4,6 +4,7 @@
 #include "Controller/Actions/AppModel/Param/ParamsActions.h"
 #include "Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.h"
 
+#include <lite/AutomationWire/PublicConstants.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
@@ -93,6 +94,39 @@ namespace Automation {
             }
             const auto curve = buildCurve(draft);
             return static_cast<const AnchorCurve *>(curve.get())->toDrawCurve();
+        }
+
+        std::optional<qint64> drawMaterializationPointCount(const CurveDraftDto &draft) {
+            if (draft.type == CurveDraftDto::Type::Draw) {
+                if (draft.step <= 0 || draft.localStart < 0)
+                    return std::nullopt;
+                const auto end = static_cast<qint64>(draft.localStart) +
+                                 static_cast<qint64>(draft.step) * draft.values.size();
+                if (end > std::numeric_limits<int>::max())
+                    return std::nullopt;
+                return draft.values.size();
+            }
+            if (draft.nodes.size() < 2)
+                return 0;
+
+            const auto first = static_cast<qint64>(draft.nodes.constFirst().position);
+            const auto last = static_cast<qint64>(draft.nodes.constLast().position);
+            if (first < 0 || last < first)
+                return std::nullopt;
+            constexpr qint64 step = 5;
+            const auto start = first / step * step;
+            const auto count = (last - start) / step + 1;
+            if (start + step * count > std::numeric_limits<int>::max())
+                return std::nullopt;
+            return count;
+        }
+
+        bool reserveBakeMaterialization(const CurveDraftDto &draft, qint64 &reservedPoints) {
+            const auto count = drawMaterializationPointCount(draft);
+            if (!count || *count > AutomationWire::MaximumCurveSampleItems - reservedPoints)
+                return false;
+            reservedPoints += *count;
+            return true;
         }
 
         void retainDrawRange(QList<DrawCurve *> &curves, const int localStart, const int localEnd) {
@@ -1051,6 +1085,33 @@ namespace Automation {
                     for (auto &curve : replacement)
                         clearCurveIdentity(curve);
                 } else {
+                    qint64 materializedPoints = 0;
+                    for (const auto &draft : edited) {
+                        if (draft.type == CurveDraftDto::Type::Anchor) {
+                            const int anchorEnd = draft.nodes.isEmpty()
+                                                      ? draft.localStart
+                                                      : draft.nodes.constLast().position;
+                            if (anchorEnd <= *localStart || draft.localStart >= *localEnd)
+                                continue;
+                        }
+                        if (!reserveBakeMaterialization(draft, materializedPoints)) {
+                            return AutomationResult<MutationResult>(
+                                AutomationError::invalidArgument(
+                                    QStringLiteral("local_end"),
+                                    QStringLiteral("Bake curve materialization exceeds the "
+                                                   "supported point limit")));
+                        }
+                    }
+                    for (const auto &draft : original) {
+                        if (!reserveBakeMaterialization(draft, materializedPoints)) {
+                            return AutomationResult<MutationResult>(
+                                AutomationError::invalidArgument(
+                                    QStringLiteral("local_end"),
+                                    QStringLiteral("Bake curve materialization exceeds the "
+                                                   "supported point limit")));
+                        }
+                    }
+
                     QList<DrawCurve *> editedDraws;
                     for (const auto &draft : edited) {
                         if (draft.type == CurveDraftDto::Type::Anchor) {
