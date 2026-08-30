@@ -204,6 +204,8 @@ namespace {
                 {anchor({{150, -100}, {350, 100}})});
         replace(runtime, sourceClip, ParamInfo::Tension, Param::Edited,
                 {anchor({{50, -500}, {250, 500}, {550, -500}})});
+        replace(runtime, sourceClip, ParamInfo::Breathiness, Param::Edited,
+                {anchor({{0, 0}, {std::numeric_limits<int>::max(), 0}})});
 
         replace(runtime, targetClip, ParamInfo::Pitch, Param::Edited,
                 {draw(0, 100,
@@ -265,6 +267,13 @@ namespace {
                    tensionAfter.curves.first().type == CurveDraftDto::Type::Draw &&
                    tensionAfter.curves.first().localStart == 603,
                QStringLiteral("partially selected Anchor curves must be shape-safe sampled draws"));
+        const auto breathinessAfter =
+            parameter(runtime, targetClip, ParamInfo::Breathiness, Param::Edited);
+        expect(breathinessAfter.curves.size() == 1 &&
+                   breathinessAfter.curves.first().type == CurveDraftDto::Type::Draw &&
+                   breathinessAfter.curves.first().localStart == 603 &&
+                   breathinessAfter.curves.first().values.size() == 80,
+               QStringLiteral("note transfer must sample only the selected anchor intersection"));
 
         const auto undo = runtime.history().undo(commandContext(runtime));
         expect(undo && undo.get().changed,

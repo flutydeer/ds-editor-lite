@@ -1,5 +1,6 @@
 #include "NoteTransfer.h"
 
+#include <lite/AutomationWire/PublicConstants.h>
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
 #include <lite/ProjectModel/AppModel/Note.h>
@@ -7,6 +8,7 @@
 
 #include <algorithm>
 #include <array>
+#include <limits>
 #include <memory>
 #include <numeric>
 #include <optional>
@@ -75,8 +77,76 @@ namespace Automation {
             result.type = CurveDraftDto::Type::Draw;
             result.localStart = clippedStart;
             result.step = commonStep;
-            for (auto tick = clippedStart; tick < clippedEnd; tick += commonStep)
-                result.values.append(drawValueAt(curve, tick));
+            const auto pointCount =
+                (static_cast<qint64>(clippedEnd) - clippedStart + commonStep - 1) / commonStep;
+            if (pointCount > AutomationWire::MaximumCurveSampleItems)
+                return std::nullopt;
+            result.values.reserve(static_cast<qsizetype>(pointCount));
+            for (qint64 tick = clippedStart; tick < clippedEnd; tick += commonStep)
+                result.values.append(drawValueAt(curve, static_cast<int>(tick)));
+            return result;
+        }
+
+        std::unique_ptr<DrawCurve> sampleAnchorRange(const AnchorCurve &anchor, const int start,
+                                                     const int end) {
+            const auto &nodes = anchor.nodes().toList();
+            if (nodes.size() < 2 || start >= end)
+                return {};
+
+            constexpr qint64 step = 5;
+            const auto fullStart = static_cast<qint64>(nodes.first()->pos()) / step * step;
+            const auto lastNode = static_cast<qint64>(nodes.last()->pos());
+            const auto lastSample = fullStart + (lastNode - fullStart) / step * step;
+            const auto requestedStart = std::max<qint64>(start, fullStart);
+            const auto requestedEnd = std::min<qint64>(end, lastSample + step);
+            if (requestedStart >= requestedEnd)
+                return {};
+
+            const auto sampleStart =
+                fullStart + (requestedStart - fullStart) / step * step;
+            const auto sampleEnd = std::min(
+                lastSample,
+                fullStart + (requestedEnd - 1 - fullStart + step - 1) / step * step);
+            const auto pointCount = (sampleEnd - sampleStart) / step + 1;
+            const auto materializedEnd = sampleStart + pointCount * step;
+            if (pointCount <= 0 || pointCount > AutomationWire::MaximumCurveSampleItems ||
+                materializedEnd > std::numeric_limits<int>::max()) {
+                return {};
+            }
+
+            int segmentIndex = 0;
+            while (segmentIndex < nodes.size() - 2 &&
+                   sampleStart >= nodes.at(segmentIndex + 1)->pos()) {
+                ++segmentIndex;
+            }
+            auto *leftReference = segmentIndex > 0 ? nodes.at(segmentIndex - 1) : nullptr;
+            auto *rightReference =
+                segmentIndex + 2 < nodes.size() ? nodes.at(segmentIndex + 2) : nullptr;
+            auto interpolator = AnchorCurve::createInterpolator(
+                nodes.at(segmentIndex), nodes.at(segmentIndex + 1), leftReference, rightReference);
+
+            QList<int> values;
+            values.reserve(static_cast<qsizetype>(pointCount));
+            for (qint64 tick = sampleStart; tick <= sampleEnd; tick += step) {
+                while (segmentIndex < nodes.size() - 2 &&
+                       tick >= nodes.at(segmentIndex + 1)->pos()) {
+                    ++segmentIndex;
+                    leftReference = segmentIndex > 0 ? nodes.at(segmentIndex - 1) : nullptr;
+                    rightReference =
+                        segmentIndex + 2 < nodes.size() ? nodes.at(segmentIndex + 2) : nullptr;
+                    interpolator = AnchorCurve::createInterpolator(
+                        nodes.at(segmentIndex), nodes.at(segmentIndex + 1), leftReference,
+                        rightReference);
+                }
+                const auto sampleTick = std::clamp<qint64>(
+                    tick, nodes.at(segmentIndex)->pos(), nodes.at(segmentIndex + 1)->pos());
+                values.append(static_cast<int>(interpolator.evaluate(sampleTick)));
+            }
+
+            auto result = std::make_unique<DrawCurve>();
+            result->setLocalStart(static_cast<int>(sampleStart));
+            result->step = static_cast<int>(step);
+            result->setValues(values);
             return result;
         }
 
@@ -101,7 +171,7 @@ namespace Automation {
                 return {std::move(result)};
             }
 
-            const std::unique_ptr<DrawCurve> sampled(anchor.toDrawCurve());
+            const auto sampled = sampleAnchorRange(anchor, start, end);
             if (!sampled)
                 return {};
             const auto result = sliceDrawCurve(*sampled, start, end);
