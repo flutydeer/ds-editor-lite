@@ -93,6 +93,7 @@ Connector 桥接工具：6
 - 排序确定；首页、中间页、末页、零/最大 limit、非法编码、过期/跨上下文 cursor 行为稳定。
 - Cursor 的 base64url payload 只绑定 context、snapshot 和 offset，不使用 HMAC 或认证密钥。
 - Profile/Custom 或实际工具目录更新后，新 snapshot 反映新可见集合；旧 cursor 不能跨快照使用。
+- Task 游标绑定筛选后的稳定 Task ID 成员与顺序；运行中进度、消息或无筛选状态变化不影响下一页，筛选后成员变化仍使旧游标失效。
 
 ## 4. Editor 工具的域覆盖
 
@@ -171,6 +172,7 @@ Connector 桥接工具：6
 - `audio_clips.import*` 在创建 Task 前占用幂等键；同指纹重放原 Task，不同指纹立即冲突，失败或
   取消后释放占用，重试不会重复启动哈希与解码。
 - 并发 `packages.refresh` 只有在领先扫描完成有效提交时才复用其结果；若领先扫描被提交门拒绝，等待调用重新扫描并提交，不返回陈旧索引。
+- 音频导出始终暂存渲染结果；渲染期间推进文档 revision 后，最终发布以 `revision_conflict` 拒绝且不留下目标文件。
 - 每个 document generation 与 application scope 的活动记录全部保留；各自终态历史超过 128 项时
   只淘汰最旧终态，不影响活动任务或其他作用域。
 - 最终成功在业务写回、历史记录/revision 和信号完成后发布。

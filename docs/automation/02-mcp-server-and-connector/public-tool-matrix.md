@@ -255,7 +255,7 @@
 | `exports.midi.start` | L2 | C/A | 受控写路径、同目录排他发布与任务 |
 | `exports.audio.get_capabilities` | L2 | Q/S | 格式、采样率、声道、混音和来源 |
 | `exports.audio.preview` | L2 | Q/S | 目标计划与阻断诊断 |
-| `exports.audio.start` | L2 | C/A | 受控写路径、渲染任务与失败清理 |
+| `exports.audio.start` | L2 | C/A | 暂存渲染、发布前精确 revision 复核、受控写路径与失败清理 |
 
 ### 3.16 提取（3）
 
@@ -278,7 +278,7 @@
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
-| `tasks.list` | L2 | Q/S | 按 document/application scope 列出任务，支持筛选与分页 |
+| `tasks.list` | L2 | Q/S | 按 document/application scope 筛选分页；进度更新不使稳定成员游标失效 |
 | `tasks.get` | L2 | Q/S | 按 scope 返回状态、进度、结果、错误与创建者归因 |
 | `tasks.cancel` | L2 | C/S | 按 scope 执行排队、运行、提交点与终态取消语义 |
 

@@ -155,7 +155,9 @@ MCP `tools/list` 为事实来源，泛化调用按 Editor 当前 Schema 发送�
 availability 继续独立报告，不与契约版本混淆。
 
 分页对调用方仍表现为 opaque cursor；内部编码只把 `context + snapshot + offset` 序列化为
-base64url，并在下一页校验上下文和快照。游标不携带密钥、不计算 HMAC，也不承担认证职责。
+base64url，并在下一页校验上下文和快照。Task 分页的 snapshot 只绑定筛选后的稳定 Task ID
+成员与顺序，不绑定进度、消息或其他可变状态；成员或顺序变化仍使旧游标失效。游标不携带密钥、
+不计算 HMAC，也不承担认证职责。
 
 ## 7. Profile、Custom 与执行期授权
 
@@ -310,7 +312,7 @@ Editor 直连、Connector 类型化工具和泛化 invoke 进入同一个 Guard�
 client/peer/domain 配额、令牌桶或公平排队。超限请求立即得到稳定 `busy` 或
 `too_many_requests`，不进入业务 handler 或上游转发；请求和 Task 终结时释放计数。
 
-修改工程或保存点的 Command 使用显式 `document_id + expected_revision`；只修改瞬时播放、选择、面板和视口状态的 Command 使用目标 document/window 身份但不要求 revision。异步任务保留不可变执行快照，并在最终写回前复核 document generation、revision 和文件授权；每个文档 generation 与应用级作用域都完整保留活动任务，并分别只保留最近 128 项终态历史。断线时 Connector 不自动重放有副作用 Command，结果事实无法确认时返回 `outcome_unknown`，由调用方结合 revision、Task 和 idempotency 信息确认。
+修改工程或保存点的 Command 使用显式 `document_id + expected_revision`；只修改瞬时播放、选择、面板和视口状态的 Command 使用目标 document/window 身份但不要求 revision。异步任务保留不可变执行快照，并在最终写回前复核 document generation、revision 和文件授权；音频导出始终先渲染到暂存文件，并在发布前要求当前文档仍为接单时的精确 revision，变化时拒绝发布。每个文档 generation 与应用级作用域都完整保留活动任务，并分别只保留最近 128 项终态历史。断线时 Connector 不自动重放有副作用 Command，结果事实无法确认时返回 `outcome_unknown`，由调用方结合 revision、Task 和 idempotency 信息确认。
 
 ## 12. 设置页、CLI 与运行时生命周期
 

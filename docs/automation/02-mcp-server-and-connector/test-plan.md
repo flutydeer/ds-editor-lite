@@ -119,7 +119,7 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 4. 验证 Connector 桥接定义唯一，downstream 集合等于当前 exposure 下可用的 Editor 工具与桥接工具之并集。
 5. 核对域、category、Query/Command、同步模式、Profile 和版本元数据的合法性及关键语义归属，不以各域固定数量作为门禁。
 6. 核对全局 `toolset_version` 与每工具 `minimum_toolset_version` 的版本关系。
-7. 核对 `tasks.list/get/cancel` 的语义及 Dispatcher 代表性显式路由。
+7. 核对 `tasks.list/get/cancel` 的语义及 Dispatcher 代表性显式路由；验证运行中任务进度更新不会使稳定成员集合的分页游标失效。
 8. 获取 `ctest -N` 与 JSON 清单，区分 target 数、CTest case 数和源码顶层场景数。
 
 ### 门禁
@@ -182,7 +182,8 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 23. 分别模拟文档保存、MIDI 与音频完成覆盖预检后由外部创建同名目标，确认同目录暂存文件的
     排他最终发布不会替换外部文件，也不会暴露部分 DSPX/MIDI；多文件音频发布在后续目标冲突时
     只回滚身份仍匹配本次事务的前序文件，已被外部替换的目标内容不得删除。另验证
-    `documents.save` 保留显式拒绝覆盖策略，只有省略策略时才使用当前路径保存的默认覆盖行为。
+    `documents.save` 保留显式拒绝覆盖策略，只有省略策略时才使用当前路径保存的默认覆盖行为；
+    音频渲染期间修改工程时，精确 revision 复核必须阻止暂存结果发布。
 
 ### 证据
 
