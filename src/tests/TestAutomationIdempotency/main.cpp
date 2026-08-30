@@ -267,6 +267,29 @@ namespace {
                       QStringLiteral(
                           "ordinary edits must reject keys and remain callable without one"));
     }
+
+    bool retentionIsBounded() {
+        Automation::IdempotencyStore store;
+        const auto operationId = Automation::OperationIds::tracks::insert;
+        for (qsizetype index = 0; index <= Automation::IdempotencyStore::MaximumRetainedKeys;
+             ++index) {
+            const auto key = QString::number(index);
+            const auto stored = store.store(operationId, key, QByteArrayLiteral("request"), index);
+            if (!stored)
+                return expect(false, QStringLiteral("bounded cache fixture must store entries"));
+        }
+
+        const auto oldest = store.replay<qsizetype>(operationId, QStringLiteral("0"),
+                                                    QByteArrayLiteral("request"));
+        const auto newestKey =
+            QString::number(Automation::IdempotencyStore::MaximumRetainedKeys);
+        const auto newest =
+            store.replay<qsizetype>(operationId, newestKey, QByteArrayLiteral("request"));
+        return expect(store.size() == Automation::IdempotencyStore::MaximumRetainedKeys && oldest &&
+                          !oldest.get() && newest && newest.get() &&
+                          *newest.get() == Automation::IdempotencyStore::MaximumRetainedKeys,
+                      QStringLiteral("idempotency retention must evict the oldest completed key"));
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -277,5 +300,6 @@ int main(int argc, char *argv[]) {
     ok &= unsuccessfulAttemptsDoNotClaimKeys();
     ok &= documentsAndGenerationsHaveIndependentKeySpaces();
     ok &= facadeWiringUsesOptInOnly();
+    ok &= retentionIsBounded();
     return ok ? 0 : 1;
 }

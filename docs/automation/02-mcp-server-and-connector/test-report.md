@@ -73,7 +73,8 @@ Custom、host availability 与契约版本分别报告。
 得到稳定拒绝，所有完成、失败、取消、deadline、disable 和 shutdown 路径都必须释放计数。
 
 Dispatcher 的幂等处理为显式 opt-in。只有工具支持且请求实际带有 `idempotency_key` 时才计算
-请求指纹并进入幂等存储；不带 key 的调用不哈希、不创建幂等记录。
+请求指纹并进入幂等存储；不带 key 的调用不哈希、不创建幂等记录。公开 key 的 128 字符上限与
+每个 document generation 最近 256 个成功键的 FIFO 保留上限均通过边界测试。
 
 瞬时播放命令不再公开或维护 playback state version，`play/pause/stop/seek` 以目标状态或位置
 执行并保留 `idempotentHint`；重复 pause 返回 `changed=false`。三个持久循环工具只校验文档

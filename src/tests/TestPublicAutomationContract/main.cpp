@@ -1,4 +1,5 @@
 #include <lite/AutomationWire/JsonSchema.h>
+#include <lite/AutomationWire/PublicConstants.h>
 #include <lite/AutomationWire/PublicToolContract.h>
 
 #include <QCoreApplication>
@@ -243,6 +244,15 @@ namespace {
         minimalTrack.insert(QStringLiteral("tracks"), QJsonArray{QJsonObject{}});
         expect(validateJsonValue(minimalTrack, tracks->inputSchema).valid(),
                QStringLiteral("tracks.insert must accept a shallow default track"));
+        auto withMaximumKey = minimalTrack;
+        withMaximumKey.insert(QStringLiteral("idempotency_key"),
+                              QString(MaximumIdempotencyKeyLength, QChar('k')));
+        auto withOversizedKey = minimalTrack;
+        withOversizedKey.insert(QStringLiteral("idempotency_key"),
+                                QString(MaximumIdempotencyKeyLength + 1, QChar('k')));
+        expect(validateJsonValue(withMaximumKey, tracks->inputSchema).valid() &&
+                   !validateJsonValue(withOversizedKey, tracks->inputSchema).valid(),
+               QStringLiteral("idempotency keys must have bounded length"));
         auto nestedTrack = minimalTrack;
         nestedTrack.insert(QStringLiteral("tracks"),
                            QJsonArray{

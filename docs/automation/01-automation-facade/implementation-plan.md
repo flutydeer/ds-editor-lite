@@ -116,9 +116,9 @@ History、不增 revision、不发业务变更通知。
 (document_id, operation_id, idempotency_key)
 ```
 
-记录从 DocumentId 创建保留到成功 new/open 替换 session、显式关闭文档或应用
-退出。相同键和规范化输入重放首次结果；同键异参返回 `idempotency_conflict`。
-缓存查询先于当前 revision 校验。并发相同请求只执行一次。
+每个 document generation 以 FIFO 保留最近 256 个成功键，成功 new/open 替换 session、显式关闭
+文档或应用退出时整体清空；公开 key 最长 128 个字符。保留窗口内相同键和规范化输入重放首次
+结果，同键异参返回 `idempotency_conflict`。缓存查询先于当前 revision 校验，并发相同请求只执行一次。
 
 只缓存成功提交或已接受的异步操作；验证失败、提交前取消和 `validate_only` 不占用
 键。new/open、应用级设置和纯 GUI 状态不支持文档级幂等键。异步重试返回相同

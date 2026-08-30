@@ -608,7 +608,9 @@ namespace AutomationWire {
             }
             if (name == QStringLiteral("name") && id.startsWith(QStringLiteral("parameters.")))
                 return parameterNameSchema();
-            if (name == QStringLiteral("idempotency_key") || name == QStringLiteral("cursor") ||
+            if (name == QStringLiteral("idempotency_key"))
+                return JsonSchema::string({}, 0, MaximumIdempotencyKeyLength);
+            if (name == QStringLiteral("cursor") ||
                 (id == PublicToolNames::voices_list &&
                  (name == QStringLiteral("query") || name == QStringLiteral("package_id"))) ||
                 ((id == PublicToolNames::documents_open ||

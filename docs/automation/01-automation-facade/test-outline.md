@@ -99,6 +99,7 @@ Command 的共享所有者层按参数形状和状态转换覆盖：
 
 - 不带 `idempotency_key` 的请求不计算指纹、不访问幂等存储；只有显式 opt-in 的请求进入以下键空间；
 - 键空间严格为 `(document_id, operation_id, idempotency_key)`；
+- 公开 key 拒绝超过 128 个字符的输入，每个 generation 的成功结果缓存最多保留最近 256 个键；
 - 同键同规范化输入在 revision 前进后仍返回首次结果；
 - 同键异参数、异 operation 或异原 expected revision 返回 `idempotency_conflict`；
 - 代表性并发重放只有一次执行，其余等待同一结果；

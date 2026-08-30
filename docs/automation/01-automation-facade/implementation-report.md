@@ -51,8 +51,8 @@ MCP、Headless 宿主和多文档产品行为不在 Facade 层实现。GUI、内
 
 - 幂等是显式 opt-in；只有请求实际携带受支持的 key 时才计算指纹并进入存储，不带 key 的调用
   不哈希、不创建记录。
-- 文档级键空间为 `(document_id, operation_id, idempotency_key)`，生命周期等于当前 document
-  generation。
+- 文档级键空间为 `(document_id, operation_id, idempotency_key)`；公开 key 最长 128 个字符，每个
+  document generation 以 FIFO 保留最近 256 个成功键，generation 替换时整体清空。
 - 同键同规范化输入返回首次结果；同键异参数、异 operation 或异初始 revision 返回
   `idempotency_conflict`。
 - 相同并发请求只执行一次；异步重放返回同一 TaskId。
