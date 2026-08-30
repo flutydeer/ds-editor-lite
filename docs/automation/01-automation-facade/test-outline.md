@@ -115,15 +115,15 @@ Command 的共享所有者层按参数形状和状态转换覆盖：
 | 域 | Operation 数 | 重点组合 |
 |---|---:|---|
 | application | 3 | info、WindowId、validate-only、宿主拒绝、退出/重启只调用一次 |
-| documents | 10 | new/open/import/save、路径、savepoint、失败回滚、generation |
+| documents | 10 | new/open/import/save、路径、savepoint、拒绝覆盖的排他发布、失败回滚、generation |
 | tracks/clips/audio/import/project | 44 | 强类型 ID、细粒度编辑、声音上下文、批原子、解码/哈希竞态 |
-| notes | 21 | 重叠/边界、量化、resize/split、歌词、语言、发音、音素和复制保真 |
+| notes | 21 | 重叠/边界、量化宽整数边界、resize/split、歌词、语言、发音、音素和复制保真 |
 | parameters/speaker_mix | 29 | 有界曲线、采样/锚点、继承、固定/动态混合、关键帧和运行期 ID |
 | timeline/master | 11 | tick/bar 0 锚点、排序、拍号增删后的派生位置上界、Master 查询与细粒度控制 |
 | history | 3 | 空栈、undo/redo、savepoint、focus、revision、分支截断 |
 | inference | 15 | capabilities/status/start、stage、对象删除、revision 重基、cache 与持久化边界 |
 | extract | 3 | capabilities、pitch/MIDI 后端、取消、TaskId、原子写回、旧 generation |
-| exports/formats | 9 | 格式检查、能力、预览、MIDI/音频排他发布、取消/generation 发布门、cleanup 和任务失败 |
+| exports/formats | 9 | 格式检查、能力、预览、MIDI/音频同目录排他发布、取消/generation 发布门、cleanup 和任务失败 |
 | tasks | 3 | get/list/cancel、过滤、稳定终态、未知/旧 TaskId |
 | playback | 10 | 状态/seek 不增 revision；loop 区间、启用/清除；拖动只预览且松手单 History/revision |
 | editor | 25 | WindowId、selection、焦点、面板/子区域视口、量化、auto-page 和 view restore |

@@ -145,6 +145,7 @@ Connector 桥接工具：6
 - `documents.save_as`、`documents.import_batch`、`audio_clips.import_batch`、三项复杂设置更新以及歌词规则 create/update 的 validate-only 执行完整校验，且不产生 ID、Task、文件写入、历史记录、revision 或业务通知；其他命令拒绝该额外字段。
 - 批量命令先完整预检，再以一条历史记录和一次 revision 提交。
 - `clips.insert` 的四小节默认长度覆盖拍号变化，并在起点接近 tick 上界时稳定拒绝，不发生有符号溢出或部分提交。
+- `notes.quantize` 以宽整数计算候选全局起点、长度和局部终点；极值输入产生越界候选时稳定拒绝，文档与历史记录不变。
 - `time_signatures.set/remove` 对候选时间线执行宽整数投影；删除中间拍号若会使后续拍号 tick
   超出模型范围，则预检和提交均原子拒绝。
 - handler、I/O、Schema 编码和 host adapter 失败不产生半提交。
@@ -189,9 +190,9 @@ Connector 桥接工具：6
 - authorize 与实际 I/O 前 reauthorize；根配置变化、目标变化和链接重定向被识别。
 - 音频导入的哈希与解码读取同一临时快照；快照完成后同路径源文件换内容由提交前的后台摘要复核拒绝。
 - 单文件和 batch 路径全部通过同一 Guard，类型化与泛化调用结果一致。
-- overwrite、只读、父目录、权限、磁盘和失败清理覆盖；MIDI 拒绝覆盖使用排他创建，音频拒绝
-  覆盖使用拒绝已存在目标的同目录重命名。覆盖检查后出现的同名目标仍保留原内容，多文件音频
-  发布失败时回滚本次已发布目标。
+- overwrite、只读、父目录、权限、磁盘和失败清理覆盖；文档保存、MIDI 与音频拒绝覆盖均先完成
+  同目录暂存，再使用拒绝已存在目标的重命名发布。覆盖检查后出现的同名目标仍保留原内容，
+  并发读取者不会看到部分 DSPX/MIDI，多文件音频发布失败时回滚本次已发布目标。
 - MIDI 渲染期间取消与 document generation 淘汰均在最终发布门前生效，不创建目标文件。
 
 ### 7.2 Admission
