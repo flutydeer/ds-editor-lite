@@ -95,6 +95,7 @@ namespace Automation {
         QString canonicalPath;
         std::optional<PublicAudioClipProperties> properties;
         QString clientRef;
+        std::function<AutomationResult<AutomationUnit>()> reauthorizeSource;
     };
 
     struct PublicAudioClipBatchItem {
@@ -102,6 +103,7 @@ namespace Automation {
         QString canonicalPath;
         std::optional<PublicAudioClipProperties> properties;
         QString clientRef;
+        std::function<AutomationResult<AutomationUnit>()> reauthorizeSource;
         std::optional<AutomationError> validationError;
     };
 

@@ -1981,6 +1981,22 @@ namespace Automation {
                 return AutomationUnit{};
             };
         }
+
+        std::function<AutomationResult<AutomationUnit>()>
+            sourcePathReauthorizer(AutomationFileGuard &guard, QString canonicalPath,
+                                   QString fieldPath) {
+            const AuthorizedPath authorizedPath{std::move(canonicalPath), FileAccessPurpose::Read};
+            return [&guard, authorizedPath = std::move(authorizedPath),
+                    fieldPath = std::move(fieldPath)]() -> AutomationResult<AutomationUnit> {
+                auto authorized = guard.reauthorize(authorizedPath);
+                if (!authorized) {
+                    auto failure = authorized.getError();
+                    failure.fieldPath = fieldPath;
+                    return failure;
+                }
+                return AutomationUnit{};
+            };
+        }
     }
 
     PublicAutomationRegistry::PublicAutomationRegistry(CoreRuntime &runtime,
@@ -3351,12 +3367,14 @@ namespace Automation {
                            properties.gain = arguments.value(QStringLiteral("gain")).toDouble();
                        if (arguments.contains(QStringLiteral("mute")))
                            properties.mute = arguments.value(QStringLiteral("mute")).toBool();
+                       const auto path = arguments.value(QStringLiteral("path")).toString();
                        return taskAcceptedResult(m_hostServices.importAudioClip(
                            {commandContext(arguments, invocation),
                             TrackId(arguments.value(QStringLiteral("track_id")).toInt()),
-                            arguments.value(QStringLiteral("path")).toString(),
+                            path,
                             properties,
-                            {}}));
+                            {},
+                            sourcePathReauthorizer(m_fileGuard, path, QStringLiteral("path"))}));
                    });
         addBinding(
             ToolNames::audio_clips_import_batch,
@@ -3371,29 +3389,36 @@ namespace Automation {
                             QStringLiteral("best_effort")
                         ? PublicBatchFailurePolicy::BestEffort
                         : PublicBatchFailurePolicy::Atomic;
-                for (const auto &value : arguments.value(QStringLiteral("items")).toArray()) {
+                const auto items = arguments.value(QStringLiteral("items")).toArray();
+                for (qsizetype index = 0; index < items.size(); ++index) {
+                    const auto &value = items.at(index);
                     const auto item = value.toObject();
-                    request.items.append({
-                        TrackId(item.value(QStringLiteral("track_id")).toInt()),
-                        item.value(QStringLiteral("path")).toString(),
-                        PublicAudioClipProperties{
-                                                  .name = item.contains(QStringLiteral("name"))
+                    PublicAudioClipBatchItem requestItem;
+                    requestItem.trackId =
+                        TrackId(item.value(QStringLiteral("track_id")).toInt());
+                    requestItem.canonicalPath = item.value(QStringLiteral("path")).toString();
+                    requestItem.properties = PublicAudioClipProperties{
+                        .name = item.contains(QStringLiteral("name"))
                                         ? std::optional<QString>(
                                               item.value(QStringLiteral("name")).toString())
                                         : std::nullopt,
-                                                  .start = item.value(QStringLiteral("start")).toInt(),
-                                                  .gain = item.contains(QStringLiteral("gain"))
+                        .start = item.value(QStringLiteral("start")).toInt(),
+                        .gain = item.contains(QStringLiteral("gain"))
                                         ? std::optional<double>(
                                               item.value(QStringLiteral("gain")).toDouble())
                                         : std::nullopt,
-                                                  .mute = item.contains(QStringLiteral("mute"))
+                        .mute = item.contains(QStringLiteral("mute"))
                                         ? std::optional<bool>(
                                               item.value(QStringLiteral("mute")).toBool())
                                         : std::nullopt,
-                                                  },
-                        {},
-                        itemValidationError(item),
-                    });
+                    };
+                    requestItem.validationError = itemValidationError(item);
+                    if (!requestItem.validationError) {
+                        requestItem.reauthorizeSource = sourcePathReauthorizer(
+                            m_fileGuard, requestItem.canonicalPath,
+                            QStringLiteral("items[%1].path").arg(index));
+                    }
+                    request.items.append(std::move(requestItem));
                 }
                 return taskAcceptedResult(m_hostServices.importAudioClips(request));
             });

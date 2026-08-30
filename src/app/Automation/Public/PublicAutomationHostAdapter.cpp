@@ -559,6 +559,8 @@ namespace Automation {
         public:
             HeadlessAudioImportTask(CoreRuntime &runtime, AppModel *model, CommandContext command,
                                     QList<ClipInsertDto> clips, QStringList validationErrors,
+                                    QList<std::function<AutomationResult<AutomationUnit>()>>
+                                        reauthorizeSources,
                                     const PublicBatchFailurePolicy failurePolicy,
                                     QString operationId, QObject *parent)
                 : QObject(parent), m_runtime(runtime), m_model(model),
@@ -570,6 +572,8 @@ namespace Automation {
                     entry.request = std::move(clips[index]);
                     if (index < validationErrors.size())
                         entry.error = validationErrors.at(index);
+                    if (index < reauthorizeSources.size())
+                        entry.reauthorizeSource = std::move(reauthorizeSources[index]);
                     m_entries.append(std::move(entry));
                 }
             }
@@ -587,6 +591,13 @@ namespace Automation {
                 for (auto &entry : m_entries) {
                     if (!entry.error.isEmpty())
                         continue;
+                    if (entry.reauthorizeSource) {
+                        auto authorized = entry.reauthorizeSource();
+                        if (!authorized) {
+                            entry.accessError = authorized.getError();
+                            continue;
+                        }
+                    }
                     entry.task = AudioFilePreparer::createPrepareTask(entry.request.clip.audioPath);
                     if (!entry.task || !entry.task->io) {
                         const auto path = entry.request.clip.audioPath;
@@ -603,7 +614,9 @@ namespace Automation {
                 if (m_command.validateOnly) {
                     const auto invalid =
                         std::find_if(m_entries.cbegin(), m_entries.cend(),
-                                     [](const Entry &entry) { return !entry.error.isEmpty(); });
+                                     [](const Entry &entry) {
+                                         return !entry.error.isEmpty() || entry.accessError.has_value();
+                                     });
                     for (auto &entry : m_entries) {
                         delete entry.task;
                         entry.task = nullptr;
@@ -612,11 +625,14 @@ namespace Automation {
                     }
                     if (invalid != m_entries.cend() &&
                         m_failurePolicy == PublicBatchFailurePolicy::Atomic) {
+                        if (invalid->accessError)
+                            return taskAccessError(*invalid->accessError,
+                                                   invalid - m_entries.cbegin());
                         return importError(invalid->error, invalid - m_entries.cbegin());
                     }
                     QList<ClipInsertDto> candidates;
                     for (const auto &entry : std::as_const(m_entries)) {
-                        if (entry.error.isEmpty())
+                        if (entry.error.isEmpty() && !entry.accessError)
                             candidates.append(entry.request);
                     }
                     if (candidates.isEmpty()) {
@@ -675,6 +691,8 @@ namespace Automation {
                 std::optional<PreparedAudioItem> prepared;
                 QString sha512;
                 QString error;
+                std::function<AutomationResult<AutomationUnit>()> reauthorizeSource;
+                std::optional<AutomationError> accessError;
             };
 
             AutomationError importError(const QString &message, const qsizetype index) const {
@@ -686,6 +704,18 @@ namespace Automation {
                                        ? QStringLiteral("path")
                                        : QStringLiteral("items[%1].path").arg(index);
                 result.message = message;
+                return result;
+            }
+
+            AutomationError taskAccessError(AutomationError result, const qsizetype index) const {
+                result.operationId = m_operationId;
+                if (!m_taskId.isNull())
+                    result.taskId = m_taskId;
+                if (result.fieldPath.isEmpty()) {
+                    result.fieldPath = m_entries.size() == 1
+                                           ? QStringLiteral("path")
+                                           : QStringLiteral("items[%1].path").arg(index);
+                }
                 return result;
             }
 
@@ -800,6 +830,24 @@ namespace Automation {
                 QStringList warnings;
                 for (qsizetype index = 0; index < m_entries.size(); ++index) {
                     const auto &entry = m_entries.at(index);
+                    auto accessFailure = entry.accessError;
+                    if (!accessFailure && entry.reauthorizeSource) {
+                        auto authorized = entry.reauthorizeSource();
+                        if (!authorized)
+                            accessFailure = authorized.getError();
+                    }
+                    if (accessFailure) {
+                        if (m_failurePolicy == PublicBatchFailurePolicy::Atomic) {
+                            m_runtime.automationTasks().fail(
+                                m_taskId, taskAccessError(*accessFailure, index));
+                            deleteLater();
+                            return;
+                        }
+                        warnings.append(QStringLiteral("Skipped %1: %2")
+                                            .arg(entry.request.clip.audioPath,
+                                                 accessFailure->message));
+                        continue;
+                    }
                     QString failure = entry.error;
                     if (failure.isEmpty() && !trackIds.contains(entry.request.trackId.value()))
                         failure = QStringLiteral("Target track does not exist");
@@ -869,11 +917,14 @@ namespace Automation {
         AutomationResult<TaskAcceptedResult>
             startAudioImport(CoreRuntime &runtime, AppModel *model, CommandContext command,
                              QList<ClipInsertDto> clips, QStringList validationErrors,
+                             QList<std::function<AutomationResult<AutomationUnit>()>>
+                                 reauthorizeSources,
                              const PublicBatchFailurePolicy failurePolicy,
                              const QString &operationId) {
             auto *state = new HeadlessAudioImportTask(
                 runtime, model, std::move(command), std::move(clips), std::move(validationErrors),
-                failurePolicy, operationId, QCoreApplication::instance());
+                std::move(reauthorizeSources), failurePolicy, operationId,
+                QCoreApplication::instance());
             auto result = state->prepare();
             if (!result || result.get().validatedOnly)
                 state->deleteLater();
@@ -1580,23 +1631,27 @@ namespace Automation {
                     {request.trackId,
                      audioClipDraft(request.canonicalPath, request.properties, request.clientRef)}
             },
-                {}, PublicBatchFailurePolicy::Atomic, OperationIds::audio_clips::import_audio);
+                {}, {request.reauthorizeSource}, PublicBatchFailurePolicy::Atomic,
+                OperationIds::audio_clips::import_audio);
         };
         services.importAudioClips = [&runtime,
                                      model](const PublicAudioClipBatchImportRequest &request) {
             QList<ClipInsertDto> clips;
             QStringList validationErrors;
+            QList<std::function<AutomationResult<AutomationUnit>()>> reauthorizeSources;
             clips.reserve(request.items.size());
             validationErrors.reserve(request.items.size());
+            reauthorizeSources.reserve(request.items.size());
             for (const auto &item : request.items) {
                 clips.append({item.trackId,
                               audioClipDraft(item.canonicalPath, item.properties, item.clientRef)});
                 validationErrors.append(item.validationError ? item.validationError->message
                                                              : QString());
+                reauthorizeSources.append(item.reauthorizeSource);
             }
             return startAudioImport(runtime, model, request.command, std::move(clips),
-                                    std::move(validationErrors), request.failurePolicy,
-                                    OperationIds::audio_clips::import_batch);
+                                    std::move(validationErrors), std::move(reauthorizeSources),
+                                    request.failurePolicy, OperationIds::audio_clips::import_batch);
         };
         services.prepareAudioPath = [](const QString &canonicalPath) {
             return prepareAudioPath(canonicalPath);

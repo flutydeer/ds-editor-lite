@@ -9,12 +9,48 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <memory>
 
 namespace Automation {
     namespace {
         bool isPowerOfTwo(const int value) {
             return value > 0 && (value & (value - 1)) == 0;
+        }
+
+        bool validTimeSignatureProjection(QList<TimeSignature> signatures,
+                                          const TimeSignature &candidate) {
+            const auto existing = std::find_if(
+                signatures.begin(), signatures.end(), [&candidate](const TimeSignature &value) {
+                    return value.barIndex == candidate.barIndex;
+                });
+            if (existing == signatures.end())
+                signatures.append(candidate);
+            else
+                *existing = candidate;
+            std::sort(signatures.begin(), signatures.end(), [](const TimeSignature &left,
+                                                               const TimeSignature &right) {
+                return left.barIndex < right.barIndex;
+            });
+
+            qint64 tick = 0;
+            for (qsizetype index = 0; index < signatures.size(); ++index) {
+                const auto &signature = signatures.at(index);
+                const auto ticksPerBar =
+                    static_cast<qint64>(signature.ticksPerBeat()) * signature.numerator;
+                if (ticksPerBar <= 0 || ticksPerBar > std::numeric_limits<int>::max())
+                    return false;
+                if (index == 0)
+                    continue;
+                const auto &previous = signatures.at(index - 1);
+                const auto previousTicksPerBar =
+                    static_cast<qint64>(previous.ticksPerBeat()) * previous.numerator;
+                tick += (static_cast<qint64>(signature.barIndex) - previous.barIndex) *
+                        previousTicksPerBar;
+                if (tick > std::numeric_limits<int>::max())
+                    return false;
+            }
+            return true;
         }
 
         bool controlsEqual(const TrackControl &left, const TrackControl &right) {
@@ -112,6 +148,12 @@ namespace Automation {
 
                 auto *model = session.model();
                 const auto &signatures = model->timeline().timeSignatures();
+                const TimeSignature candidate(barIndex, numerator, denominator);
+                if (!validTimeSignatureProjection(signatures, candidate)) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("time_signature"),
+                        QStringLiteral("Time signature position is out of bounds")));
+                }
                 const auto existing = std::find_if(
                     signatures.cbegin(), signatures.cend(),
                     [barIndex](const TimeSignature &value) { return value.barIndex == barIndex; });
@@ -124,7 +166,7 @@ namespace Automation {
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
 
                 auto actions = std::make_unique<TimeSignatureActions>();
-                actions->setTimeSignatureAt(TimeSignature(barIndex, numerator, denominator), model);
+                actions->setTimeSignatureAt(candidate, model);
                 return m_committer.commit(session, std::move(actions));
             });
     }

@@ -1843,11 +1843,20 @@ namespace {
                     runtime.timeline().setTimeSignature(commandContext(runtime), 2, 0, 4);
                 const auto invalidDenominator =
                     runtime.timeline().setTimeSignature(commandContext(runtime), 2, 3, 3);
+                const auto overflowingPosition = runtime.timeline().setTimeSignature(
+                    commandContext(runtime), std::numeric_limits<int>::max(), 4, 4);
+                const auto overflowingBarLength = runtime.timeline().setTimeSignature(
+                    commandContext(runtime), 2, std::numeric_limits<int>::max(), 4);
                 suite.expect(isError(invalidBar, AutomationErrorCode::InvalidArgument,
                                      QStringLiteral("time_signature")) &&
                                  isError(invalidNumerator, AutomationErrorCode::InvalidArgument,
                                          QStringLiteral("time_signature")) &&
                                  isError(invalidDenominator, AutomationErrorCode::InvalidArgument,
+                                         QStringLiteral("time_signature")) &&
+                                 isError(overflowingPosition, AutomationErrorCode::InvalidArgument,
+                                         QStringLiteral("time_signature")) &&
+                                 isError(overflowingBarLength,
+                                         AutomationErrorCode::InvalidArgument,
                                          QStringLiteral("time_signature")) &&
                                  runtime.documentVersion() == base,
                              QStringLiteral("invalid signatures must fail atomically"));
