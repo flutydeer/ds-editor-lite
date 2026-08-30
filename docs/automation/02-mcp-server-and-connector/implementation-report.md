@@ -138,7 +138,7 @@ Closed World Command，不提供 `force`、`validate_only`、幂等键或任意�
 
 ### 5.3 创建深度、duplicate 与 NoteTransfer
 
-`tracks.insert` 的公开 Schema 不接受剪辑树；`clips.insert` 不接受音符、参数、voice 或 mix 树。调用方先创建空容器，再通过所属域的工具填充内容。相对地，`clips.duplicate` 和 `notes.duplicate` 以已有稳定 ID 为来源，执行深复制并整体撤销，不把任意对象树暴露为创建参数。
+`tracks.insert` 的公开 Schema 不接受剪辑树；`clips.insert` 不接受音符、参数、voice 或 mix 树。调用方先创建空容器，再通过所属域的工具填充内容。省略剪辑长度时按所在小节起算四个完整小节，使用宽整数累计并在提交前拒绝超出模型 tick 范围的终点。相对地，`clips.duplicate` 和 `notes.duplicate` 以已有稳定 ID 为来源，执行深复制并整体撤销，不把任意对象树暴露为创建参数。
 
 音符深复制和 GUI 剪贴板现在共用 `NoteTransfer`：
 

@@ -144,6 +144,7 @@ Connector 桥接工具：6
 - 合法 no-op 返回 `changed=false`，历史记录与 revision 保持原值。
 - `documents.save_as`、`documents.import_batch`、`audio_clips.import_batch`、三项复杂设置更新以及歌词规则 create/update 的 validate-only 执行完整校验，且不产生 ID、Task、文件写入、历史记录、revision 或业务通知；其他命令拒绝该额外字段。
 - 批量命令先完整预检，再以一条历史记录和一次 revision 提交。
+- `clips.insert` 的四小节默认长度覆盖拍号变化，并在起点接近 tick 上界时稳定拒绝，不发生有符号溢出或部分提交。
 - handler、I/O、Schema 编码和 host adapter 失败不产生半提交。
 - `audio_clips.import*`、`relocate` 与 `confirm_path` 的 SHA-512 和解码结果来自同一临时字节快照；同步工具完成校验和最终写回后返回 Mutation，不创建 Task。
 - `playback.set_loop`、`set_loop_enabled` 与 `clear_loop` 修改工程持久状态，各自产生一条可撤销、可重做的历史记录；瞬时播放命令不进入历史记录，播放头在调用间变化不造成冲突，重复目标调用返回 no-op。

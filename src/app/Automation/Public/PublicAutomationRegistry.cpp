@@ -2618,10 +2618,28 @@ namespace Automation {
                     constexpr int bars = 4;
                     const int start = object.value(QStringLiteral("start")).toInt();
                     const int startBar = timeline.tickToTime(qMax(0, start)).measure;
-                    const int length =
-                        timeline.barToTick(startBar + bars) - timeline.barToTick(startBar);
-                    object.insert(QStringLiteral("length"), length);
-                    resolvedValues.append({path + QStringLiteral("length"), length});
+                    qint64 length = 0;
+                    qint64 bar = startBar;
+                    for (int offset = 0; offset < bars; ++offset, ++bar) {
+                        if (bar > std::numeric_limits<int>::max()) {
+                            return AutomationResult<QJsonObject>(AutomationError::invalidArgument(
+                                QStringLiteral("clips[%1].length").arg(index),
+                                QStringLiteral(
+                                    "The default clip range exceeds the supported tick range")));
+                        }
+                        length += timeline.timeSignatureAt(static_cast<int>(bar)).ticksPerBar();
+                    }
+                    if (length > std::numeric_limits<int>::max() ||
+                        static_cast<qint64>(start) + length >
+                            std::numeric_limits<int>::max()) {
+                        return AutomationResult<QJsonObject>(AutomationError::invalidArgument(
+                            QStringLiteral("clips[%1].length").arg(index),
+                            QStringLiteral(
+                                "The default clip range exceeds the supported tick range")));
+                    }
+                    const auto resolvedLength = static_cast<int>(length);
+                    object.insert(QStringLiteral("length"), resolvedLength);
+                    resolvedValues.append({path + QStringLiteral("length"), resolvedLength});
                 }
                 const auto trackId = TrackId(object.value(QStringLiteral("track_id")).toInt());
                 object.insert(QStringLiteral("default_language"),

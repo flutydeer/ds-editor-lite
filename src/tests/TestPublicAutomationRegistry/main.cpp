@@ -774,6 +774,24 @@ namespace {
 
         PublicEditingFixture fixture;
         fixture.trackId = Automation::TrackId(trackIds.first());
+        const auto versionBeforeOverflow = runtime.documentVersion();
+        auto overflowInput = commandArguments(versionBeforeOverflow);
+        overflowInput.insert(
+            QStringLiteral("clips"),
+            QJsonArray{
+                QJsonObject{
+                    {QStringLiteral("track_id"), fixture.trackId.value()},
+                    {QStringLiteral("start"),    std::numeric_limits<int>::max()},
+                },
+        });
+        const auto rejectedOverflow = registry.invoke(QStringLiteral("clips.insert"), overflowInput);
+        expect(!rejectedOverflow &&
+                   rejectedOverflow.getError().code ==
+                       Automation::AutomationErrorCode::InvalidArgument &&
+                   rejectedOverflow.getError().fieldPath == QStringLiteral("clips[0].length") &&
+                   runtime.documentVersion() == versionBeforeOverflow,
+               QStringLiteral("default clip length must reject an endpoint beyond the tick range"));
+
         auto clipInput = commandArguments(runtime.documentVersion());
         clipInput.insert(QStringLiteral("clips"),
                          QJsonArray{

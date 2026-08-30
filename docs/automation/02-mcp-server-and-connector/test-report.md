@@ -107,6 +107,7 @@ revision。L3 的选择、定位、面板和视口命令不修改工程，也不
 区域激活与另存；编辑结果以结构化查询和 GUI 可见状态交叉确认。后台窗口增量场景确认
 `track_panel.select_track` 在 `focused=false` 时仍成功并可回读选中轨道，`reveal_clips` 与
 `clip_editor.show_region` 同样不因操作系统未授予键盘焦点而报错。
+`clips.insert` 省略长度时的四小节推导使用宽整数；tick 上界输入稳定返回参数错误且不推进 revision。
 
 ## 6. Editor、Connector 与协议
 
