@@ -165,15 +165,14 @@ namespace Automation {
                 input.audioVisibleEndMs = visibleStartMs + visibleLengthMs;
                 input.showProgressDialog = source == InvocationSource::TrustedGui;
                 input.modelId = options.modelId;
-                input.authorizeSource = options.authorizeSource;
                 if (options.minimumFrequency || options.maximumFrequency) {
                     return AutomationResult<TaskAcceptedResult>(AutomationError::invalidArgument(
                         QStringLiteral("options"),
                         QStringLiteral("The active pitch extraction backend does not support a "
                                        "custom frequency range")));
                 }
-                if (input.authorizeSource) {
-                    auto authorized = input.authorizeSource(input.audioPath);
+                if (options.authorizeSource) {
+                    auto authorized = options.authorizeSource(input.audioPath);
                     if (!authorized)
                         return AutomationResult<TaskAcceptedResult>(authorized.getError());
                 }
@@ -303,9 +302,8 @@ namespace Automation {
                     }
                 }
                 input.showProgressDialog = source == InvocationSource::TrustedGui;
-                input.authorizeSource = options.authorizeSource;
-                if (input.authorizeSource) {
-                    auto authorized = input.authorizeSource(input.audioPath);
+                if (options.authorizeSource) {
+                    auto authorized = options.authorizeSource(input.audioPath);
                     if (!authorized)
                         return AutomationResult<TaskAcceptedResult>(authorized.getError());
                 }
@@ -374,15 +372,6 @@ namespace Automation {
         }
         if (!m_tasks.markRunning(taskId))
             return;
-        if (input.authorizeSource) {
-            auto authorized = input.authorizeSource(input.audioPath);
-            if (!authorized) {
-                m_tasks.fail(taskId, taskError(authorized.getError(), taskId,
-                                               OperationIds::extract::pitch::start));
-                notifyFinished(taskId, baseDocument.documentId, observer);
-                return;
-            }
-        }
         ExtractionJobCallbacks callbacks;
         callbacks.progress = [this, taskId](AutomationTaskProgress progress,
                                             const QString &message) {
@@ -410,15 +399,6 @@ namespace Automation {
         }
         if (!m_tasks.markRunning(taskId))
             return;
-        if (input.authorizeSource) {
-            auto authorized = input.authorizeSource(input.audioPath);
-            if (!authorized) {
-                m_tasks.fail(taskId, taskError(authorized.getError(), taskId,
-                                               OperationIds::extract::midi::start));
-                notifyFinished(taskId, baseDocument.documentId, observer);
-                return;
-            }
-        }
         ExtractionJobCallbacks callbacks;
         callbacks.progress = [this, taskId](AutomationTaskProgress progress,
                                             const QString &message) {
@@ -451,18 +431,6 @@ namespace Automation {
             notifyFinished(taskId, baseDocument.documentId, observer);
             return;
         }
-        if (!result.sourceIdentityVerified || result.sourceSha512.isEmpty() ||
-            (!input.sourceAsset.pathInfo.sha512.isEmpty() &&
-             input.sourceAsset.pathInfo.sha512 != result.sourceSha512)) {
-            m_tasks.fail(taskId,
-                         taskError(AutomationError::invalidArgument(
-                                       QStringLiteral("source_audio_clip_id"),
-                                       QStringLiteral("The source audio changed during extraction")),
-                                   taskId, OperationIds::extract::pitch::start));
-            notifyFinished(taskId, baseDocument.documentId, observer);
-            return;
-        }
-
         auto curves = pitchCurves(input, result.segments);
         if (!curves) {
             m_tasks.fail(taskId,
@@ -495,15 +463,6 @@ namespace Automation {
                                            OperationIds::extract::pitch::start));
             notifyFinished(taskId, baseDocument.documentId, observer);
             return;
-        }
-        if (input.authorizeSource) {
-            auto authorized = input.authorizeSource(input.audioPath);
-            if (!authorized) {
-                m_tasks.fail(taskId, taskError(authorized.getError(), taskId,
-                                               OperationIds::extract::pitch::start));
-                notifyFinished(taskId, baseDocument.documentId, observer);
-                return;
-            }
         }
         const auto committing = m_tasks.beginCommitting(taskId);
         if (!committing || !committing.get()) {
@@ -542,18 +501,6 @@ namespace Automation {
             notifyFinished(taskId, baseDocument.documentId, observer);
             return;
         }
-        if (!result.sourceIdentityVerified || result.sourceSha512.isEmpty() ||
-            (!input.sourceAsset.pathInfo.sha512.isEmpty() &&
-             input.sourceAsset.pathInfo.sha512 != result.sourceSha512)) {
-            m_tasks.fail(taskId,
-                         taskError(AutomationError::invalidArgument(
-                                       QStringLiteral("source_audio_clip_id"),
-                                       QStringLiteral("The source audio changed during extraction")),
-                                   taskId, OperationIds::extract::midi::start));
-            notifyFinished(taskId, baseDocument.documentId, observer);
-            return;
-        }
-
         QList<NoteDraftDto> extractedNotes;
         int createdNoteIndex = 0;
         for (const auto &note : result.notes) {
@@ -679,15 +626,6 @@ namespace Automation {
                                    OperationIds::extract::midi::start));
             notifyFinished(taskId, baseDocument.documentId, observer);
             return;
-        }
-        if (input.authorizeSource) {
-            auto authorized = input.authorizeSource(input.audioPath);
-            if (!authorized) {
-                m_tasks.fail(taskId, taskError(authorized.getError(), taskId,
-                                               OperationIds::extract::midi::start));
-                notifyFinished(taskId, baseDocument.documentId, observer);
-                return;
-            }
         }
         const auto committing = m_tasks.beginCommitting(taskId);
         if (!committing || !committing.get()) {

@@ -167,8 +167,6 @@ namespace Automation {
                     m_hashTask->terminate();
                 if (m_task)
                     m_task->terminate();
-                if (m_verificationTask)
-                    m_verificationTask->terminate();
             }
 
         private:
@@ -185,7 +183,13 @@ namespace Automation {
                          QStringLiteral("Failed to snapshot the source audio"));
                     return;
                 }
-                m_sourceSha512 = task->resultSha512;
+                if (!m_input.sourceAsset.pathInfo.sha512.isEmpty() &&
+                    m_input.sourceAsset.pathInfo.sha512 != task->resultSha512) {
+                    task->deleteLater();
+                    fail(AutomationErrorCode::InvalidArgument,
+                         QStringLiteral("The source audio does not match the selected clip"));
+                    return;
+                }
                 task->deleteLater();
                 startExtraction();
             }
@@ -233,43 +237,6 @@ namespace Automation {
                     m_result.errorMessage = task->errorMessage();
                 }
                 delete task;
-                if (m_result.state != ExtractionBackendState::Succeeded) {
-                    finish(std::move(m_result));
-                    return;
-                }
-                const auto self = shared_from_this();
-                m_verificationTask = startAudioHashTask(
-                    m_input.audioPath, {}, [self](ComputeAudioHashTask *verification) {
-                        self->handleVerificationFinished(verification);
-                    });
-                if (m_callbacks.progress) {
-                    m_callbacks.progress({.indeterminate = true},
-                                         QStringLiteral("Verifying the source audio"));
-                }
-            }
-
-            void handleVerificationFinished(ComputeAudioHashTask *task) {
-                m_verificationTask = nullptr;
-                if (m_canceled || task->terminated()) {
-                    task->deleteLater();
-                    finish({.state = ExtractionBackendState::Canceled});
-                    return;
-                }
-                if (!task->success || task->resultSha512.isEmpty()) {
-                    task->deleteLater();
-                    fail(AutomationErrorCode::IoError,
-                         QStringLiteral("Failed to verify the source audio"));
-                    return;
-                }
-                if (task->resultSha512 != m_sourceSha512) {
-                    task->deleteLater();
-                    fail(AutomationErrorCode::InvalidArgument,
-                         QStringLiteral("The source audio changed during extraction"));
-                    return;
-                }
-                task->deleteLater();
-                m_result.sourceSha512 = m_sourceSha512;
-                m_result.sourceIdentityVerified = true;
                 finish(std::move(m_result));
             }
 
@@ -292,11 +259,9 @@ namespace Automation {
             std::unique_ptr<QTemporaryDir> m_snapshotDirectory;
             ComputeAudioHashTask *m_hashTask = nullptr;
             ExtractPitchTask *m_task = nullptr;
-            ComputeAudioHashTask *m_verificationTask = nullptr;
             ExtractionJobCallbacks m_callbacks;
             std::function<void(PitchExtractionBackendResult)> m_completed;
             PitchExtractionBackendResult m_result;
-            QString m_sourceSha512;
             bool m_canceled = false;
             bool m_finished = false;
         };
@@ -341,8 +306,6 @@ namespace Automation {
                     m_hashTask->terminate();
                 if (m_task)
                     m_task->terminate();
-                if (m_verificationTask)
-                    m_verificationTask->terminate();
             }
 
         private:
@@ -359,7 +322,13 @@ namespace Automation {
                          QStringLiteral("Failed to snapshot the source audio"));
                     return;
                 }
-                m_sourceSha512 = task->resultSha512;
+                if (!m_input.sourceAsset.pathInfo.sha512.isEmpty() &&
+                    m_input.sourceAsset.pathInfo.sha512 != task->resultSha512) {
+                    task->deleteLater();
+                    fail(AutomationErrorCode::InvalidArgument,
+                         QStringLiteral("The source audio does not match the selected clip"));
+                    return;
+                }
                 task->deleteLater();
                 startExtraction();
             }
@@ -407,43 +376,6 @@ namespace Automation {
                     m_result.errorMessage = task->errorMessage();
                 }
                 delete task;
-                if (m_result.state != ExtractionBackendState::Succeeded) {
-                    finish(std::move(m_result));
-                    return;
-                }
-                const auto self = shared_from_this();
-                m_verificationTask = startAudioHashTask(
-                    m_input.audioPath, {}, [self](ComputeAudioHashTask *verification) {
-                        self->handleVerificationFinished(verification);
-                    });
-                if (m_callbacks.progress) {
-                    m_callbacks.progress({.indeterminate = true},
-                                         QStringLiteral("Verifying the source audio"));
-                }
-            }
-
-            void handleVerificationFinished(ComputeAudioHashTask *task) {
-                m_verificationTask = nullptr;
-                if (m_canceled || task->terminated()) {
-                    task->deleteLater();
-                    finish({.state = ExtractionBackendState::Canceled});
-                    return;
-                }
-                if (!task->success || task->resultSha512.isEmpty()) {
-                    task->deleteLater();
-                    fail(AutomationErrorCode::IoError,
-                         QStringLiteral("Failed to verify the source audio"));
-                    return;
-                }
-                if (task->resultSha512 != m_sourceSha512) {
-                    task->deleteLater();
-                    fail(AutomationErrorCode::InvalidArgument,
-                         QStringLiteral("The source audio changed during extraction"));
-                    return;
-                }
-                task->deleteLater();
-                m_result.sourceSha512 = m_sourceSha512;
-                m_result.sourceIdentityVerified = true;
                 finish(std::move(m_result));
             }
 
@@ -466,11 +398,9 @@ namespace Automation {
             std::unique_ptr<QTemporaryDir> m_snapshotDirectory;
             ComputeAudioHashTask *m_hashTask = nullptr;
             ExtractMidiTask *m_task = nullptr;
-            ComputeAudioHashTask *m_verificationTask = nullptr;
             ExtractionJobCallbacks m_callbacks;
             std::function<void(MidiExtractionBackendResult)> m_completed;
             MidiExtractionBackendResult m_result;
-            QString m_sourceSha512;
             bool m_canceled = false;
             bool m_finished = false;
         };

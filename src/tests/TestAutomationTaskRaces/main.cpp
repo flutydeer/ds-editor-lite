@@ -99,14 +99,12 @@ namespace {
                    cancelCallbackCount == 1,
                "Running cancellation must enter CancelRequested and invoke its callback once");
 
-        const auto canceledMutation = successfulMutation(base);
-        const auto commitAfterCancel = tasks.beginCommitting(task.taskId, canceledMutation);
+        const auto commitAfterCancel = tasks.beginCommitting(task.taskId);
         const auto canceled = tasks.get(base.documentId, task.taskId);
         EXPECT(checks,
                commitAfterCancel && !commitAfterCancel.get() && canceled &&
                    canceled.get().state == Automation::AutomationTaskState::Canceled &&
-                   !canceled.get().cancelable && canceled.get().mutation == canceledMutation &&
-                   isTerminal(canceled.get().state),
+                   !canceled.get().cancelable && isTerminal(canceled.get().state),
                "CancelRequested must beat beginCommitting and end as Canceled");
         EXPECT(checks,
                !tasks.cancel(task.taskId) &&
@@ -142,30 +140,6 @@ namespace {
                succeeded && succeeded.get().state == Automation::AutomationTaskState::Succeeded &&
                    succeeded.get().mutation == mutation,
                "the first successful terminal payload must remain authoritative");
-
-        const auto failedTask = tasks.createTask(Automation::OperationIds::inference::start, base);
-        EXPECT(checks,
-               tasks.markRunning(failedTask.taskId) &&
-                   tasks.fail(failedTask.taskId, Automation::AutomationError{}, mutation),
-               "a failed task must accept a partial mutation payload");
-        const auto failed = tasks.get(base.documentId, failedTask.taskId);
-        EXPECT(checks,
-               failed && failed.get().state == Automation::AutomationTaskState::Failed &&
-                   failed.get().mutation == mutation,
-               "a failed task must retain its reported partial mutation");
-
-        const auto canceledTask =
-            tasks.createTask(Automation::OperationIds::inference::start, base);
-        EXPECT(checks,
-               tasks.markRunning(canceledTask.taskId) &&
-                   tasks.cancel(canceledTask.taskId, mutation),
-               "a canceled task must accept a partial mutation payload");
-        const auto canceledWithMutation = tasks.get(base.documentId, canceledTask.taskId);
-        EXPECT(checks,
-               canceledWithMutation &&
-                   canceledWithMutation.get().state == Automation::AutomationTaskState::Canceled &&
-                   canceledWithMutation.get().mutation == mutation,
-               "a canceled task must retain its reported partial mutation");
 
         const auto unknownTaskId = Automation::TaskId::create();
         const auto unknownGet = tasks.get(base.documentId, unknownTaskId);

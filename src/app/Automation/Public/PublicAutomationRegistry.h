@@ -99,7 +99,6 @@ namespace Automation {
         QString canonicalPath;
         std::optional<PublicAudioClipProperties> properties;
         QString clientRef;
-        std::function<AutomationResult<AutomationUnit>()> reauthorizeSource;
     };
 
     struct PublicAudioClipBatchItem {
@@ -107,7 +106,6 @@ namespace Automation {
         QString canonicalPath;
         std::optional<PublicAudioClipProperties> properties;
         QString clientRef;
-        std::function<AutomationResult<AutomationUnit>()> reauthorizeSource;
         std::optional<AutomationError> validationError;
     };
 
@@ -140,7 +138,6 @@ namespace Automation {
         ClipId clipId;
         QString canonicalPath;
         PublicAudioPathUpdateMode mode = PublicAudioPathUpdateMode::Relocate;
-        std::function<AutomationResult<AutomationUnit>()> reauthorizeSource;
     };
 
     struct PublicAutomationHostServices {

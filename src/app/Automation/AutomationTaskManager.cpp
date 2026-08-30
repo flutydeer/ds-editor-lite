@@ -185,9 +185,7 @@ namespace Automation {
         return snapshot;
     }
 
-    AutomationResult<bool>
-        AutomationTaskManager::beginCommitting(const TaskId &taskId,
-                                               std::optional<MutationResult> unsuccessfulMutation) {
+    AutomationResult<bool> AutomationTaskManager::beginCommitting(const TaskId &taskId) {
         UnsuccessfulCallback unsuccessful;
         TerminalCallback terminal;
         std::optional<AutomationTaskSnapshot> snapshot;
@@ -199,7 +197,6 @@ namespace Automation {
             if (it->snapshot.state == AutomationTaskState::CancelRequested) {
                 it->snapshot.state = AutomationTaskState::Canceled;
                 it->snapshot.cancelable = false;
-                it->snapshot.mutation = std::move(unsuccessfulMutation);
                 unsuccessful = std::move(it->unsuccessful);
                 terminal = std::move(it->terminal);
                 snapshot = it->snapshot;
@@ -293,8 +290,7 @@ namespace Automation {
         return true;
     }
 
-    bool AutomationTaskManager::fail(const TaskId &taskId, AutomationError error,
-                                     std::optional<MutationResult> mutation) {
+    bool AutomationTaskManager::fail(const TaskId &taskId, AutomationError error) {
         UnsuccessfulCallback unsuccessful;
         TerminalCallback terminal;
         AutomationTaskSnapshot snapshot;
@@ -306,7 +302,6 @@ namespace Automation {
             it->snapshot.state = AutomationTaskState::Failed;
             it->snapshot.cancelable = false;
             it->snapshot.error = std::move(error);
-            it->snapshot.mutation = std::move(mutation);
             unsuccessful = std::move(it->unsuccessful);
             terminal = std::move(it->terminal);
             snapshot = it->snapshot;
@@ -322,8 +317,7 @@ namespace Automation {
         return true;
     }
 
-    bool AutomationTaskManager::cancel(const TaskId &taskId,
-                                       std::optional<MutationResult> mutation) {
+    bool AutomationTaskManager::cancel(const TaskId &taskId) {
         UnsuccessfulCallback unsuccessful;
         TerminalCallback terminal;
         AutomationTaskSnapshot snapshot;
@@ -336,7 +330,6 @@ namespace Automation {
             }
             it->snapshot.state = AutomationTaskState::Canceled;
             it->snapshot.cancelable = false;
-            it->snapshot.mutation = std::move(mutation);
             unsuccessful = std::move(it->unsuccessful);
             terminal = std::move(it->terminal);
             snapshot = it->snapshot;

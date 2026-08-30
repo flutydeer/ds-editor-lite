@@ -8,9 +8,7 @@ namespace Audio::Internal {
 
     struct AudioFilePublicationResult {
         QString failedTarget;
-        QStringList recoveryFailures;
         QStringList remainingTemporaryFiles;
-        QStringList backupCleanupFailures;
 
         [[nodiscard]] bool succeeded() const {
             return failedTarget.isEmpty();

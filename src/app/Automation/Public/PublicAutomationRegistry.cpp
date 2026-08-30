@@ -1987,34 +1987,10 @@ namespace Automation {
 
         std::function<AutomationResult<AutomationUnit>(const QString &)>
             sourcePathAuthorizer(AutomationFileGuard &guard) {
-            auto frozen = std::make_shared<std::optional<AuthorizedPath>>();
-            return [&guard, frozen](const QString &path) -> AutomationResult<AutomationUnit> {
-                if (!*frozen) {
-                    auto authorized = guard.authorize(path, FileAccessPurpose::Read);
-                    if (!authorized)
-                        return authorized.getError();
-                    *frozen = authorized.get();
-                    return AutomationUnit{};
-                }
-                auto authorized = guard.reauthorize(**frozen);
+            return [&guard](const QString &path) -> AutomationResult<AutomationUnit> {
+                auto authorized = guard.authorize(path, FileAccessPurpose::Read);
                 if (!authorized)
                     return authorized.getError();
-                return AutomationUnit{};
-            };
-        }
-
-        std::function<AutomationResult<AutomationUnit>()>
-            sourcePathReauthorizer(AutomationFileGuard &guard, QString canonicalPath,
-                                   QString fieldPath) {
-            const AuthorizedPath authorizedPath{std::move(canonicalPath), FileAccessPurpose::Read};
-            return [&guard, authorizedPath = std::move(authorizedPath),
-                    fieldPath = std::move(fieldPath)]() -> AutomationResult<AutomationUnit> {
-                auto authorized = guard.reauthorize(authorizedPath);
-                if (!authorized) {
-                    auto failure = authorized.getError();
-                    failure.fieldPath = fieldPath;
-                    return failure;
-                }
                 return AutomationUnit{};
             };
         }
@@ -3414,8 +3390,7 @@ namespace Automation {
                             TrackId(arguments.value(QStringLiteral("track_id")).toInt()),
                             path,
                             properties,
-                            {},
-                            sourcePathReauthorizer(m_fileGuard, path, QStringLiteral("path"))}));
+                            {}}));
                    });
         addBinding(
             ToolNames::audio_clips_import_batch,
@@ -3454,11 +3429,6 @@ namespace Automation {
                                         : std::nullopt,
                     };
                     requestItem.validationError = itemValidationError(item);
-                    if (!requestItem.validationError) {
-                        requestItem.reauthorizeSource = sourcePathReauthorizer(
-                            m_fileGuard, requestItem.canonicalPath,
-                            QStringLiteral("items[%1].path").arg(index));
-                    }
                     request.items.append(std::move(requestItem));
                 }
                 return taskAcceptedResult(m_hostServices.importAudioClips(request));
@@ -3480,8 +3450,6 @@ namespace Automation {
                            .clipId = ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                            .canonicalPath = path,
                            .mode = PublicAudioPathUpdateMode::Relocate,
-                           .reauthorizeSource = sourcePathReauthorizer(
-                               m_fileGuard, path, QStringLiteral("path")),
                        };
                        return taskAcceptedResult(m_hostServices.updateAudioClipPath(request));
                    });
@@ -3527,8 +3495,6 @@ namespace Automation {
                     .clipId = ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                     .canonicalPath = path,
                     .mode = PublicAudioPathUpdateMode::Confirm,
-                    .reauthorizeSource =
-                        sourcePathReauthorizer(m_fileGuard, path, QStringLiteral("path")),
                 };
                 return taskAcceptedResult(m_hostServices.updateAudioClipPath(request));
             });

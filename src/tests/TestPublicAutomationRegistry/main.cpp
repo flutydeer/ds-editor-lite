@@ -106,11 +106,6 @@ namespace {
             services.updateAudioClipPath =
                 [audioPathUpdateControl](const Automation::PublicAudioPathUpdateRequest &request)
                 -> Automation::AutomationResult<Automation::TaskAcceptedResult> {
-                if (request.reauthorizeSource) {
-                    auto authorized = request.reauthorizeSource();
-                    if (!authorized)
-                        return authorized.getError();
-                }
                 audioPathUpdateControl->requests.append(request);
                 return Automation::TaskAcceptedResult{Automation::TaskId::create(),
                                                       request.command.expected, false};

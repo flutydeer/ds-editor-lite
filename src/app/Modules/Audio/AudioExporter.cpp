@@ -879,19 +879,12 @@ namespace Audio {
         const auto publication = publishAudioFiles(pendingTemporaryFiles, allowOverwrite);
         d->temporaryFileList = publication.remainingTemporaryFiles;
         if (!publication.succeeded()) {
-            auto message = tr("Cannot publish temporary audio file: %1")
-                               .arg(publication.failedTarget);
-            if (!publication.recoveryFailures.isEmpty()) {
-                message += tr("\nCannot restore original audio files:");
-                for (const auto &path : publication.recoveryFailures)
-                    message += QStringLiteral("\n") + path;
-            }
-            setErrorString(message);
+            setErrorString(
+                tr("Cannot publish temporary audio file: %1").arg(publication.failedTarget));
             return R_Fail;
         }
-        for (const auto &path : publication.backupCleanupFailures) {
-            addWarning(tr("Cannot remove audio export backup file: %1").arg(path));
-        }
+        for (const auto &path : publication.remainingTemporaryFiles)
+            addWarning(tr("Cannot remove temporary audio export file: %1").arg(path));
         return R_Ok;
     }
 

@@ -98,9 +98,7 @@ namespace Automation {
 
     class AudioExportAutomationFacade final {
     public:
-        AudioExportAutomationFacade(AutomationDispatcher &dispatcher,
-                                    IDocumentSessionResolver &documentResolver,
-                                    AutomationTaskManager &tasks,
+        AudioExportAutomationFacade(AutomationDispatcher &dispatcher, AutomationTaskManager &tasks,
                                     AudioExportRuntimeServices services = {});
 
         AutomationResult<AudioExportPreviewDto> preview(const DocumentId &documentId,
@@ -134,12 +132,9 @@ namespace Automation {
         void executeTask(const TaskId &taskId, DocumentVersion baseDocument,
                          AudioExportObserver observer, AudioExportAccessRevalidator reauthorize,
                          const std::shared_ptr<PendingJobState> &state, bool allowOverwrite);
-        AutomationResult<std::reference_wrapper<DocumentSession>>
-            resolveDocumentVersion(const DocumentVersion &version) const;
         void removeJobRecord(const TaskId &taskId);
 
         AutomationDispatcher &m_dispatcher;
-        IDocumentSessionResolver &m_documentResolver;
         AutomationTaskManager &m_tasks;
         AudioExportRuntimeServices m_services;
         QMutex m_jobsMutex;

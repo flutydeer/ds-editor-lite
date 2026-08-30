@@ -63,7 +63,6 @@ namespace Automation {
         double audioVisibleStartMs = 0.0;
         double audioVisibleEndMs = 0.0;
         bool showProgressDialog = false;
-        std::function<AutomationResult<AutomationUnit>(const QString &)> authorizeSource;
     };
 
     struct MidiExtractionInput {
@@ -85,7 +84,6 @@ namespace Automation {
         std::optional<ClipId> targetClipId;
         int targetStart = 0;
         bool showProgressDialog = false;
-        std::function<AutomationResult<AutomationUnit>(const QString &)> authorizeSource;
     };
 
     enum class ExtractionBackendState {
@@ -97,8 +95,6 @@ namespace Automation {
     struct PitchExtractionBackendResult {
         ExtractionBackendState state = ExtractionBackendState::Failed;
         QList<PitchExtractionSegmentDto> segments;
-        QString sourceSha512;
-        bool sourceIdentityVerified = false;
         AutomationErrorCode errorCode = AutomationErrorCode::InferenceError;
         QString errorMessage;
     };
@@ -106,8 +102,6 @@ namespace Automation {
     struct MidiExtractionBackendResult {
         ExtractionBackendState state = ExtractionBackendState::Failed;
         QList<MidiExtractionNoteDto> notes;
-        QString sourceSha512;
-        bool sourceIdentityVerified = false;
         AutomationErrorCode errorCode = AutomationErrorCode::InferenceError;
         QString errorMessage;
     };

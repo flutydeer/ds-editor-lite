@@ -177,8 +177,6 @@ namespace AutomationTaskRaceTests {
             return {
                 .state = Automation::ExtractionBackendState::Succeeded,
                 .segments = {{.globalStartTick = 40, .values = {61.0, 61.5}}},
-                .sourceSha512 = QStringLiteral("verified-source"),
-                .sourceIdentityVerified = true,
             };
         }
 
