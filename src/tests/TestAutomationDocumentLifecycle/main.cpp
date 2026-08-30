@@ -11,8 +11,10 @@
 
 #include <QCoreApplication>
 #include <QDataStream>
+#include <QFile>
 #include <QIODevice>
 #include <QJsonDocument>
+#include <QTemporaryDir>
 #include <QTextStream>
 
 #include <algorithm>
@@ -50,6 +52,7 @@ namespace {
         bool saveSucceeds = true;
         int saveCalls = 0;
         QString lastSavePath;
+        QString lateSaveTarget;
         QList<Automation::DocumentId> replacementNotifications;
     };
 
@@ -61,10 +64,25 @@ namespace {
         services.saveProject = [&host](const QString &path, AppModel *, QString &errorMessage) {
             ++host.saveCalls;
             host.lastSavePath = path;
-            if (host.saveSucceeds)
+            if (!host.saveSucceeds) {
+                errorMessage = QStringLiteral("controlled save failure");
+                return false;
+            }
+            QFile staged(path);
+            if (!staged.open(QIODevice::WriteOnly) || staged.write("project") != 7) {
+                errorMessage = QStringLiteral("controlled staging failure");
+                return false;
+            }
+            staged.close();
+            if (host.lateSaveTarget.isEmpty())
                 return true;
-            errorMessage = QStringLiteral("controlled save failure");
-            return false;
+            QFile lateTarget(host.lateSaveTarget);
+            if (!lateTarget.open(QIODevice::WriteOnly | QIODevice::NewOnly) ||
+                lateTarget.write("external") != 8) {
+                errorMessage = QStringLiteral("controlled race fixture failure");
+                return false;
+            }
+            return true;
         };
         services.beforeReplaceGeneration = [&host](const Automation::DocumentId &documentId) {
             host.replacementNotifications.append(documentId);
@@ -372,6 +390,7 @@ namespace {
         constexpr auto scenario = "AFC-DOC-LIFECYCLE-005";
         LifecycleFixture fixture;
         auto &runtime = fixture.runtime;
+        QTemporaryDir directory;
 
         const LoopSettings baselineLoop(true, 240, 1200);
         const auto baselineDocument = makeDocumentDraft(
@@ -382,7 +401,7 @@ namespace {
                     "the rollback fixture must establish its baseline generation");
 
         const auto savedBaseline = runtime.documents().saveDocument(
-            commandContext(runtime), QStringLiteral("fixtures/rollback-baseline.dspx"));
+            commandContext(runtime), directory.filePath(QStringLiteral("rollback-baseline.dspx")));
         const auto imported = runtime.documents().commitImportedDocument(
             commandContext(runtime),
             makeDocumentDraft(QStringLiteral("Rollback Import"), QStringLiteral("rollback-import")),
@@ -478,6 +497,7 @@ namespace {
         constexpr auto scenario = "AFC-DOC-LIFECYCLE-007";
         LifecycleFixture fixture;
         auto &runtime = fixture.runtime;
+        QTemporaryDir directory;
 
         const auto committedNew = runtime.documents().commitNewDocument(
             commandContext(runtime),
@@ -489,7 +509,7 @@ namespace {
             false, false);
         const auto dirtyVersion = runtime.documentVersion();
         const auto dirtySnapshot = runtime.documents().getDocument(dirtyVersion.documentId);
-        const QString firstPath = QStringLiteral("fixtures/first-save-as.dspx");
+        const auto firstPath = directory.filePath(QStringLiteral("first-save-as.dspx"));
         const auto saveAs = runtime.documents().saveDocument(commandContext(runtime), firstPath);
         const auto afterSaveAs = runtime.documents().getDocument(dirtyVersion.documentId);
 
@@ -516,7 +536,7 @@ namespace {
         const auto beforeFailedSave = captureState(fixture);
         const auto failedVersion = runtime.documentVersion();
         fixture.host.saveSucceeds = false;
-        const QString failedPath = QStringLiteral("fixtures/failed-save-as.dspx");
+        const auto failedPath = directory.filePath(QStringLiteral("failed-save-as.dspx"));
         const auto failedSave =
             runtime.documents().saveDocument(commandContext(runtime), failedPath);
         const auto afterFailedSave = captureState(fixture);
@@ -538,6 +558,33 @@ namespace {
                         afterRetry.get().projectName == QStringLiteral("failed-save-as.dspx") &&
                         afterRetry.get().saved,
                     scenario, "a failed save must be safely retryable");
+
+        const auto exclusivePath = directory.filePath(QStringLiteral("exclusive-save-as.dspx"));
+        const auto exclusiveSave =
+            runtime.documents().saveDocumentAs(commandContext(runtime), exclusivePath, false);
+        QFile exclusiveTarget(exclusivePath);
+        const auto exclusiveReadable = exclusiveTarget.open(QIODevice::ReadOnly);
+        const auto exclusiveContents = exclusiveTarget.readAll();
+        test.expect(exclusiveSave && exclusiveReadable && exclusiveContents == "project", scenario,
+                    "reject-overwrite save-as must publish a completed staging file once");
+
+        const auto racedPath = directory.filePath(QStringLiteral("raced-save-as.dspx"));
+        fixture.host.lateSaveTarget = racedPath;
+        const auto beforeRace = captureState(fixture);
+        const auto racedSave =
+            runtime.documents().saveDocumentAs(commandContext(runtime), racedPath, false);
+        fixture.host.lateSaveTarget.clear();
+        const auto afterRace = captureState(fixture);
+        QFile racedTarget(racedPath);
+        const auto racedReadable = racedTarget.open(QIODevice::ReadOnly);
+        const auto racedContents = racedTarget.readAll();
+        test.expect(
+            !racedSave &&
+                racedSave.getError().code == Automation::AutomationErrorCode::OverwriteDenied &&
+                racedReadable && racedContents == "external" && beforeRace && afterRace &&
+                sameState(*beforeRace, *afterRace),
+            scenario,
+            "reject-overwrite save-as must not replace a target created during serialization");
     }
 
     void testGenerationCleanup(TestRun &test) {

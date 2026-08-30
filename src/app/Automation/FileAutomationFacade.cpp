@@ -8,6 +8,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QSaveFile>
+#include <QScopeGuard>
 #include <QSet>
 #include <QTemporaryFile>
 
@@ -238,14 +239,18 @@ namespace Automation {
         if (!m_services.exportMidi)
             return unavailable();
 
-        QTemporaryFile stagingFile(
-            QDir(QFileInfo(validatedPath.get()).absolutePath())
-                .filePath(QStringLiteral(".ds-editor-lite-midi-XXXXXX.mid")));
-        stagingFile.setAutoRemove(true);
-        if (!stagingFile.open())
-            return midiIoError(QStringLiteral("MIDI export staging file could not be created"));
-        const auto stagingPath = stagingFile.fileName();
-        stagingFile.close();
+        QString stagingPath;
+        {
+            QTemporaryFile stagingFile(
+                QDir(QFileInfo(validatedPath.get()).absolutePath())
+                    .filePath(QStringLiteral(".ds-editor-lite-midi-XXXXXX.mid")));
+            if (!stagingFile.open())
+                return midiIoError(QStringLiteral("MIDI export staging file could not be created"));
+            stagingPath = stagingFile.fileName();
+            stagingFile.close();
+            stagingFile.setAutoRemove(false);
+        }
+        auto removeStaging = qScopeGuard([&] { QFile::remove(stagingPath); });
 
         AppModel snapshot;
         snapshot.replaceProject(buildProjectModelData(prepared.modelSnapshot));
@@ -268,32 +273,24 @@ namespace Automation {
         if (!validatedPath)
             return validatedPath.getError();
 
-        QFile staged(stagingPath);
-        if (!staged.open(QIODevice::ReadOnly))
-            return midiIoError(QStringLiteral("MIDI export staging file could not be read"));
-
         if (!prepared.allowOverwrite) {
-            QFile destination(validatedPath.get());
-            if (!destination.open(QIODevice::WriteOnly | QIODevice::NewOnly)) {
+            QFile stagedPublication(stagingPath);
+            if (!stagedPublication.rename(validatedPath.get())) {
                 return QFileInfo::exists(validatedPath.get())
                            ? AutomationResult<FileWriteResultDto>(midiOverwriteDenied())
                            : AutomationResult<FileWriteResultDto>(midiIoError(
-                                 QStringLiteral("MIDI export target could not be opened")));
+                                     QStringLiteral("MIDI export target could not be published")));
             }
-            const auto copied = copyMidiPayload(staged, destination);
-            if (!copied || !destination.flush()) {
-                destination.close();
-                QFile::remove(validatedPath.get());
-                return copied ? AutomationResult<FileWriteResultDto>(midiIoError(
-                                    QStringLiteral("MIDI export target could not be written")))
-                              : AutomationResult<FileWriteResultDto>(copied.getError());
-            }
-            destination.close();
+            removeStaging.dismiss();
             return FileWriteResultDto{
                 .path = validatedPath.get(),
                 .wroteFile = true,
             };
         }
+
+        QFile staged(stagingPath);
+        if (!staged.open(QIODevice::ReadOnly))
+            return midiIoError(QStringLiteral("MIDI export staging file could not be read"));
 
         QSaveFile destination(validatedPath.get());
         destination.setDirectWriteFallback(false);

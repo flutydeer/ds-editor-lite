@@ -11,6 +11,7 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QTemporaryDir>
 #include <QTextStream>
@@ -126,8 +127,9 @@ namespace AutomationAsyncFileTests {
             return {.state = Automation::AudioExportBackendState::Succeeded};
         }
 
-        Automation::AudioExportBackendResult execute(const Automation::AudioExportObserver &observer,
-                                                     const bool deferPublish) override {
+        Automation::AudioExportBackendResult
+            execute(const Automation::AudioExportObserver &observer,
+                    const bool deferPublish) override {
             ++m_state->executeCount;
             m_state->deferPublish = deferPublish;
             if (observer.progress)
@@ -502,9 +504,16 @@ namespace AutomationAsyncFileTests {
                 ++midiExportCount;
                 lastMidiExportPath = path;
                 lastMidiExportOptions = options;
-                if (!midiExportSucceeds)
+                if (!midiExportSucceeds) {
                     errorMessage = QStringLiteral("controlled MIDI export failure");
-                return midiExportSucceeds;
+                    return false;
+                }
+                QFile output(path);
+                if (!output.open(QIODevice::WriteOnly) || output.write("midi") != 4) {
+                    errorMessage = QStringLiteral("controlled MIDI export write failure");
+                    return false;
+                }
+                return true;
             };
             return services;
         }

@@ -7,7 +7,11 @@
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 
+#include <QDir>
+#include <QFile>
 #include <QFileInfo>
+#include <QScopeGuard>
+#include <QTemporaryFile>
 
 #include <memory>
 
@@ -197,13 +201,48 @@ namespace Automation {
                     return AutomationResult<MutationResult>(std::move(result));
 
                 QString errorMessage;
-                if (!m_services.saveProject(path, session.model(), errorMessage)) {
+                QString savePath = path;
+                if (!allowOverwrite) {
+                    QTemporaryFile stagingFile(
+                        QDir(QFileInfo(path).absolutePath())
+                            .filePath(QStringLiteral(".ds-editor-lite-document-XXXXXX.dspx")));
+                    if (!stagingFile.open()) {
+                        AutomationError error;
+                        error.code = AutomationErrorCode::IoError;
+                        error.fieldPath = QStringLiteral("path");
+                        error.message =
+                            QStringLiteral("Project save staging file could not be created");
+                        return AutomationResult<MutationResult>(std::move(error));
+                    }
+                    savePath = stagingFile.fileName();
+                    stagingFile.close();
+                    stagingFile.setAutoRemove(false);
+                }
+                auto removeStaging = qScopeGuard([&] {
+                    if (!allowOverwrite)
+                        QFile::remove(savePath);
+                });
+                if (!m_services.saveProject(savePath, session.model(), errorMessage)) {
                     AutomationError error;
                     error.code = AutomationErrorCode::IoError;
                     error.fieldPath = QStringLiteral("path");
                     error.message = errorMessage;
                     return AutomationResult<MutationResult>(std::move(error));
                 }
+                if (!allowOverwrite && !QFile(savePath).rename(path)) {
+                    AutomationError error;
+                    error.code = QFileInfo::exists(path) ? AutomationErrorCode::OverwriteDenied
+                                                         : AutomationErrorCode::IoError;
+                    error.fieldPath = error.code == AutomationErrorCode::OverwriteDenied
+                                          ? QStringLiteral("allow_overwrite")
+                                          : QStringLiteral("path");
+                    error.message = error.code == AutomationErrorCode::OverwriteDenied
+                                        ? QStringLiteral("The destination file already exists")
+                                        : QStringLiteral("Saved project could not be published");
+                    return AutomationResult<MutationResult>(std::move(error));
+                }
+                if (!allowOverwrite)
+                    removeStaging.dismiss();
                 if (auto *history = session.history())
                     history->setSavePoint();
                 session.setPathAndProjectName(path, QFileInfo(path).fileName());

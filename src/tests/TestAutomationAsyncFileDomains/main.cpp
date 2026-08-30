@@ -690,9 +690,13 @@ namespace {
                     runtime.files().exportMidi(previewContext, path, false, options);
                 const auto commit =
                     runtime.files().exportMidi(harness.context(), path, false, options);
+                QFile exported(path);
+                const auto exportedReadable = exported.open(QIODevice::ReadOnly);
+                const auto exportedContents = exported.readAll();
                 suite.expect(
                     preview && preview.get().validatedOnly && !preview.get().wroteFile && commit &&
-                        commit.get().wroteFile && harness.midiExportCount == 1 &&
+                        commit.get().wroteFile && exportedReadable && exportedContents == "midi" &&
+                        harness.midiExportCount == 1 &&
                         harness.lastMidiExportOptions == options &&
                         runtime.documentVersion() == base,
                     QStringLiteral("MIDI export must validate, forward options, and write once"));
