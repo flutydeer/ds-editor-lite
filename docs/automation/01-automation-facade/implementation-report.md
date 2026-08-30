@@ -3,7 +3,7 @@
 ## 1. 最终结论
 
 当前协议无关的 Automation Facade 提供单 DocumentSession 运行时、统一提交语义、异步任务
-保护及现有 GUI 业务入口迁移。当前共有 208 个集中 Operation ID，全部具有类型化 C++ 契约、
+保护及现有 GUI 业务入口迁移。当前共有 207 个集中 Operation ID，全部具有类型化 C++ 契约、
 显式 Dispatcher 路由、真实 handler 和直接行为测试。
 
 MCP、Headless 宿主和多文档产品行为不在 Facade 层实现。GUI、内部异步任务和协议适配器复用
@@ -17,7 +17,7 @@ MCP、Headless 宿主和多文档产品行为不在 Facade 层实现。GUI、内
 | 文档身份 | 生产运行时保持单 DocumentSession；所有文档请求显式携带 `document_id`，写操作携带 `expected_revision` |
 | 窗口身份 | GUI-only operation 显式携带 `window_id`；当前由 SingleWindowContext 接受唯一有效窗口 |
 | 公共类型 | 建立强类型 Document/Window/Task/Operation/业务对象 ID、DTO、快照、MutationResult 和 AutomationError |
-| Operation ID | 208 个 operation ID 只在集中符号表定义；能力集合由 `OperationIds::all()` 返回，产品调用不散落字符串 |
+| Operation ID | 207 个 operation ID 只在集中符号表定义；能力集合由 `OperationIds::all()` 返回，产品调用不散落字符串 |
 | Dispatcher | 统一文档、revision、对象、领域约束和宿主错误顺序，并为所有错误补齐 operation 上下文 |
 | 显式路由 | Dispatcher 对集中 ID 使用类型化分支，不维护平行的 Catalog/Descriptor 注册表 |
 | 提交器 | 业务命令统一执行完整验证、不可失败 ActionSequence、一次 execute、最多一次 History 和一次 revision |
@@ -70,15 +70,14 @@ MCP、Headless 宿主和多文档产品行为不在 Facade 层实现。GUI、内
 - 推理以 clip revision、piece 输入签名、音符归属和声线快照复检目标；合法兄弟分段可在同一
   DocumentId 内依次重基提交，旧 generation 或输入变化仍被拒绝。
 - 音频解析、解码、哈希和状态写回使用 source generation 与各操作实际依赖的指纹；导入、重定位
-  和路径确认的哈希与解码读取同一份临时快照，并在提交前于后台重算源文件摘要、与快照摘要核对；
+  和路径确认的哈希与解码读取同一次顺序读取形成的临时快照，不在提交前重复读取原始路径；
   可重建缓存不增 revision/History，持久化结果仍遵守统一提交规则。
-- Pitch/MIDI 提取先在后台复制并哈希源音频，后端只解码该不可变快照；推理完成后再次后台计算
-  原路径摘要，并在进入不可取消的 Committing 前复核音频剪辑身份和冻结路径授权。源内容、剪辑
-  身份或读权限在运行期间变化都会使任务失败，不写回参数、音符、剪辑或轨道。
+- Pitch/MIDI 提取先在后台复制并哈希源音频，后端只解码该不可变快照；进入不可取消的 Committing
+  前复核音频剪辑身份、document generation 和 revision，不重复授权或哈希原始路径。
 - Save、Save As、Import 的 busy 窗口会延期已完成任务的提交；New/Open 换代后旧任务只能结束，
   不能写入新文档。
 
-## 4. 208 个 operation 的域覆盖
+## 4. 207 个 operation 的域覆盖
 
 | 域 | 数量 | 已实现能力 |
 |---|---:|---|
@@ -95,10 +94,10 @@ MCP、Headless 宿主和多文档产品行为不在 Facade 层实现。GUI、内
 | tasks | 3 | Task get/list/cancel 与稳定终态 |
 | playback | 10 | 播放、暂停、停止、seek/位置、last position、loop 设置/启用/清除 |
 | editor | 25 | 能力/状态、selection、reveal、视图恢复、面板/子区域、视口、焦点、量化和自动翻页 |
-| settings/recent/search paths | 15 | 九个设置域、Recent CRUD、包搜索路径 |
+| settings/recent/search paths | 14 | 九个设置域、Recent CRUD、包搜索路径更新 |
 | packages | 4 | 包列表、刷新、验证、工程声音解析 |
 | speaker mix presets | 3 | 预设 list/save/delete |
-| **合计** | **208** | **集中 ID、显式路由、真实 handler 和领域行为覆盖** |
+| **合计** | **207** | **集中 ID、显式路由、真实 handler 和领域行为覆盖** |
 
 ## 5. GUI 与既有业务入口迁移结果
 
@@ -106,7 +105,7 @@ MCP、Headless 宿主和多文档产品行为不在 Facade 层实现。GUI、内
   已统一进入 Facade。
 - 文档 New/Open/Import/Save、格式发现、MIDI 导出、音频导出、Pitch/MIDI 提取、音频解析/解码/
   哈希和全部推理写回已进入统一文档与任务契约。
-- 播放、loop、selection、reveal、视图、量化、自动翻页、Recent、设置、包路径、包验证/解析、
+- 播放、loop、selection、reveal、视图、量化、自动翻页、Recent、设置、GUI 包路径更新、包验证/解析、
   Speaker Mix 预设和应用退出/重启已具有类型化入口。
 - GUI 保留绘制、hover、拖动预览、对话框、文件选择和剪贴板；最终语义提交不再依赖焦点或选区
   推断目标。
@@ -129,9 +128,8 @@ MCP、Headless 宿主和多文档产品行为不在 Facade 层实现。GUI、内
   模型范围的变更，避免派生位置发生有符号溢出。
 - 文档保存、MIDI 与音频导出把序列化或渲染与最终发布分开；拒绝覆盖时先写同目录暂存文件，再以
   拒绝已存在目标的重命名完成一次性发布，消除检查与写入之间替换新目标或暴露部分文件的竞态；
-  MIDI/音频最终发布前仍复核 generation 与授权；批量音频发布失败时，前序目标先原子移入隔离名
-  并核对文件身份，只删除仍属于本次事务的产物，外部替换文件会恢复原位；
-  deferred 音频发布产生的备份清理 warning 仍进入同一 Task 结果。
+  MIDI/音频最终发布前仍复核 generation、取消和授权；批量音频按输出逐项原子发布，不维护跨
+  输出事务或文件身份回滚；deferred 音频发布产生的暂存清理 warning 仍进入同一 Task 结果。
 - 补齐 Editor、Recent 和 Speaker Mix Preset 的前置验证、未知 ID、权重归一化及持久化边界。
 
 ### 推理、任务与音频资产
@@ -163,7 +161,7 @@ MCP、Headless 宿主和多文档产品行为不在 Facade 层实现。GUI、内
 
 ## 7. 测试与长期保护产物
 
-- 208 个 operation 使用集中 ID、显式 Dispatcher 路由和按领域组织的行为测试；测试按实际语义
+- 207 个 operation 使用集中 ID、显式 Dispatcher 路由和按领域组织的行为测试；测试按实际语义
   覆盖正常、拒绝、no-op、回滚和竞态路径，不维护 Descriptor 镜像或源码扫描门禁。
 - 已建立文档生命周期、显式幂等、任务竞态、编辑域、运行时域、异步文件域、音频
   资产、Piano Roll 提交、Fill Lyric、MIDI 导入、设置持久化等直接回归目标。
@@ -178,5 +176,5 @@ MCP、Headless 宿主和多文档产品行为不在 Facade 层实现。GUI、内
 WindowRegistry、跨文档操作、多个真实窗口的生命周期、MCP/HTTP/JSON-RPC transport、权限
 profile、Headless bootstrap、独立 Core target，以及尚无真实后端的路线图/TODO 能力。
 
-这些边界不作为 skipped operation 混入 208 项能力面。增加真实能力时，应同时增加类型化
+这些边界不作为 skipped operation 混入 207 项能力面。增加真实能力时，应同时增加类型化
 handler、集中 OperationId、显式 Dispatcher 路径、Facade 路径和测试矩阵。

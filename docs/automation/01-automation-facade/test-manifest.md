@@ -2,7 +2,7 @@
 
 ## 1. 审计口径
 
-当前内部能力面由 `OperationIds::all()` 中的 **208** 个唯一 Operation ID 定义。Dispatcher 对受
+当前内部能力面由 `OperationIds::all()` 中的 **207** 个唯一 Operation ID 定义。Dispatcher 对受
 支持 ID 使用显式类型化路由；领域 Facade 的 C++ 签名、DTO 和行为测试构成实现契约。
 
 本清单索引测试职责，不复制 `OperationIds.h` 为第二份精确名册，也不维护
@@ -26,7 +26,7 @@
 | inference | 15 | 推理能力、状态、任务和阶段写回 |
 | master | 6 | Master 查询、细粒度控制与兼容内部入口 |
 | notes | 21 | 查询、创建、几何、歌词、语言、发音与音素 |
-| packages | 6 | 包、搜索路径、刷新、验证与声音解析 |
+| packages | 5 | 包、搜索路径更新、刷新、验证与声音解析 |
 | parameters | 12 | 曲线查询、采样绘制和锚点编辑 |
 | playback | 10 | 播放状态、定位与工程循环 |
 | project | 1 | 内部工程快照 |
@@ -39,9 +39,9 @@
 | time_signatures | 2 | 拍号设置与删除 |
 | timeline | 1 | 时间轴快照 |
 | tracks | 16 | 轨道查询、细粒度编辑、语言与声音 |
-| **合计** | **208** | **集中 ID、显式路由和领域行为测试** |
+| **合计** | **207** | **集中 ID、显式路由和领域行为测试** |
 
-内部 208 项不等于公共 MCP 工具面。二期公共 Editor 工具为 177 项，其中
+内部 207 项不等于公共 MCP 工具面。二期公共 Editor 工具为 176 项，其中
 `tracks.get_voice_context` 与 `clips.get_voice_context` 不单独公开；相应声音上下文由
 `tracks.get` 与 `clips.get` 返回；一期已有的两个应用生命周期 operation 在二期作为固有 L0
 工具公开。
@@ -118,7 +118,7 @@
 | 显式幂等 | 仅 opt-in 工具进入键空间；重放、冲突、并发去重和失败释放 |
 | Task 竞态 | cancel/commit、重复完成、对象删除、revision 前进和 generation 换代 |
 | GUI 等价 | GUI 和自动化入口复用同一领域 Facade；可见状态在模型信号后同步 |
-| 文件边界 | canonical path、读写根、覆盖策略、重新授权和失败清理 |
+| 文件边界 | canonical path、读写根、请求边界授权、不可变输入快照、发布前写授权和失败清理 |
 | 路由边界 | `OperationIds::all()` 是能力来源；未知 ID 稳定失败，代表性 Query/Command 具有显式路由行为证据 |
 
 ## 6. 维护规则

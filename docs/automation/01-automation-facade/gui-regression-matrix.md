@@ -503,7 +503,7 @@ buffer/sample-rate 的安全恢复。若某控件按已装备条件本应出现�
 
 ### GUI-G19：包搜索路径、Package Manager 与声音解析
 
-- **追踪**：`packages.get_search_paths/set_search_paths/list/validate/resolve_document_voices`。
+- **追踪**：`packages.set_search_paths/list/validate/resolve_document_voices`。
 - **前置**：`package-good`、`package-bad` 均在 `RUN_ROOT`；记录 Package Manager 初始数量；
   工程已保存，允许专用实例重启。
 - **动作**：General 的 Package Search Paths 中添加 `package-good`、Unicode 别名/重复形式和

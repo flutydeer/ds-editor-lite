@@ -2,7 +2,7 @@
 
 ## 1. 口径
 
-当前内部能力面包含 **208** 个集中 Operation ID。每项能力由类型化 C++ Facade、Dispatcher
+当前内部能力面包含 **207** 个集中 Operation ID。每项能力由类型化 C++ Facade、Dispatcher
 显式路由和真实 handler 承载；`OperationIds::all()` 是运行时能力集合的唯一来源。
 
 本矩阵记录产品入口如何收敛到领域 Facade，以及这些边界由哪些行为测试保护。它不复制
@@ -39,7 +39,7 @@ GUI 可以保留输入、绘制、hover、拖动预览和对话框；最终业�
 幂等的共享契约。领域、文件、并发和 GUI 测试只补充对应层独有的行为，不按 Operation 数量复制
 通用错误矩阵，也不依赖精确 Descriptor 镜像或源码文本扫描。
 
-## 3. 当前内部能力域（208）
+## 3. 当前内部能力域（207）
 
 | 域 | 数量 | 域 | 数量 |
 |---|---:|---|---:|
@@ -49,17 +49,17 @@ GUI 可以保留输入、绘制、hover、拖动预览和对话框；最终业�
 | extract | 3 | formats | 2 |
 | history | 3 | imports | 1 |
 | inference | 15 | master | 6 |
-| notes | 21 | packages | 6 |
+| notes | 21 | packages | 5 |
 | parameters | 12 | playback | 10 |
 | project | 1 | recent_files | 4 |
 | settings | 9 | speaker_mix | 17 |
 | speaker_mix_presets | 3 | tasks | 3 |
 | tempos | 2 | time_signatures | 2 |
 | timeline | 1 | tracks | 16 |
-| **合计** | **208** |  |  |
+| **合计** | **207** |  |  |
 
 内部能力和公共 MCP 工具面不是同一集合。内部提交与兼容入口可以保留在 Facade 层而不公开；
-二期公共 Editor 工具为 177 项，其中退出和重启复用一期生命周期 Facade，另由 Connector 提供
+二期公共 Editor 工具为 176 项，其中退出和重启复用一期生命周期 Facade，另由 Connector 提供
 6 项桥接工具。
 
 ## 4. 内部能力边界

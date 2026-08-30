@@ -6,7 +6,7 @@
 当前全部 CTest；待用户完成 GUI 基本功能冒烟并明确批准后，才由 Codex 使用
 Computer Use 启动全量 GUI 回归并形成正式报告。
 
-测试范围是 `OperationIds::all()` 中的 208 个 operation。测试按业务语义选择适用维度，重点验证
+测试范围是 `OperationIds::all()` 中的 207 个 operation。测试按业务语义选择适用维度，重点验证
 可达路由、结果、错误、原子提交与可观察副作用；不为每个 operation 机械复制同一组用例，也不以
 固定场景数或断言数代替行为覆盖。
 
@@ -127,7 +127,7 @@ Command 的共享所有者层按参数形状和状态转换覆盖：
 | tasks | 3 | get/list/cancel、过滤、稳定终态、未知/旧 TaskId |
 | playback | 10 | 状态/seek 不增 revision；loop 区间、启用/清除；拖动只预览且松手单 History/revision |
 | editor | 25 | WindowId、selection、焦点、面板/子区域视口、量化、auto-page 和 view restore |
-| settings/recent/search paths | 15 | 每个设置域、no-op、持久化次数、路径规范化、Unicode、清空 |
+| settings/recent/search paths | 14 | 每个设置域、no-op、持久化次数、GUI 路径更新规范化、Unicode、清空 |
 | packages | 4 | 模块状态、刷新、坏包、声音解析、缺失声库、文档版本 |
 | speaker_mix_presets | 3 | CRUD、重复/缺失 ID、归一化、工程序列化隔离 |
 
@@ -145,8 +145,8 @@ Command 的共享所有者层按参数形状和状态转换覆盖：
   DocumentId、目标 clip revision 或输入签名变化仍稳定丢弃；短音符立即撤销后不残留
   空推理分段或红色失败状态；
 - 复制/粘贴、导入、undo/redo 后 edited parameters、语言、声线和音素保真；
-- 文件名大小写、Unicode、只读目录、已存在文件、临时文件清理和磁盘失败；音频导入快照完成后
-  同路径源文件换内容必须在最终摘要复核中被拒绝；
+- 文件名大小写、Unicode、只读目录、已存在文件、临时文件清理和磁盘失败；音频导入的哈希与
+  解码必须消费同一次读取形成的快照；
 - `OperationIds::all()`、Dispatcher 可达路径和行为集合不一致或存在重复 operation ID；
 - 关键边界的编译期与行为回归，不以源码文本扫描或 Descriptor 镜像替代。
 
@@ -187,7 +187,7 @@ Computer Use 回归不以内部 DTO 断言代替 GUI 可见结果，也不把手
 1. Debug configure/build，运行 `TestAutomationCore` 和受影响领域回归；
 2. 完整构建 `DsEditorLite` 并执行当前全部 CTest；失败则修复并重跑，不交付大纲；
 3. 提交本大纲，等待用户 GUI 冒烟和对 Computer Use 全量 GUI 回归的明确批准；
-4. 按领域审查 208 个 Operation ID 的可达路径与适用行为维度；
+4. 按领域审查 207 个 Operation ID 的可达路径与适用行为维度；
 5. 确定性单元/契约/集成测试在最终候选上完整运行一次；
 6. 竞态测试使用受控调度并进行高迭代压力运行；
 7. 按获批大纲执行 Computer Use 全量 GUI 回归和真实环境资格验证；

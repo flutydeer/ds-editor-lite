@@ -151,7 +151,7 @@ Closed World Command，不提供 `force`、`validate_only`、幂等键或任意�
 
 ### 5.4 音频路径修复与持久循环
 
-`audio_clips.relocate` 和 `audio_clips.confirm_path` 是异步 Command。Registry 先规范化并授权读路径，再返回 Task；Host Adapter 在线程池中创建带摘要的临时快照并只解码该快照，随后重新计算原路径摘要。进入提交点前再次校验读权限、文档 revision 与目标剪辑，源内容或权限变化会使 Task 失败。最终路径和音频元数据仍通过 Project Facade 形成一条历史记录，Task 仅在模型信号完成后进入成功终态，GUI 随即反映结果。
+`audio_clips.relocate` 和 `audio_clips.confirm_path` 是异步 Command。Registry 先规范化并授权读路径，再返回 Task；Host Adapter 在线程池中以一次顺序读取同时创建摘要和临时快照，并只解码该快照。任务不再为防止接单后路径变化而重复授权或哈希原文件；进入提交点前仍校验文档 revision 与目标剪辑。最终路径和音频元数据通过 Project Facade 形成一条历史记录，Task 仅在模型信号完成后进入成功终态，GUI 随即反映结果。
 
 播放状态被拆为两类：
 
@@ -162,23 +162,23 @@ Closed World Command，不提供 `force`、`validate_only`、幂等键或任意�
 
 ### 5.5 格式、MIDI 与 LibreSVIP
 
-文档打开、导入和批量导入复用 Project Format Registry 与 `IProjectLoadSession`。自动化 host adapter 使用 `interactive=false` 创建 headless session，格式选项由严格 Schema 提供，不打开配置对话框；带 plan digest 的输入由检查器返回同一份已验证字节，session 只解析保留原扩展名的临时快照，提交前再核对原路径的当前摘要。DSPX 输入在构造 Timeline 前使用宽整数检查每段拍号投影，无法表示在模型 tick 范围内的工程会直接拒绝，单文件与批量加载共享该入口。Task 保留文档 generation 和调用者归因，最终通过 Document Facade 完成换代或单条历史记录导入。
+文档打开、导入和批量导入复用 Project Format Registry 与 `IProjectLoadSession`。自动化 host adapter 使用 `interactive=false` 创建 headless session，格式选项由严格 Schema 提供，不打开配置对话框；任务开始时重新检查读权限，带 plan digest 的输入由检查器返回同一份已验证字节，session 只解析保留原扩展名的临时快照，提交阶段不再重复读取原路径。DSPX 输入在构造 Timeline 前使用宽整数检查每段拍号投影，无法表示在模型 tick 范围内的工程会直接拒绝，单文件与批量加载共享该入口。Task 保留文档 generation 和调用者归因，最终通过 Document Facade 完成换代或单条历史记录导入。
 
 音频导入、重定位和路径确认在一次顺序读取中同时生成 SHA-512 与临时文件快照，随后只解码该快照；
-三类操作均在解码完成后于后台重算原始路径的摘要，只有源文件仍与快照一致才进入提交。提交记录
-规范化授权路径，摘要、解码结果与提交时源内容保持一致；临时快照随准备任务结束清理，不进入工程。
+三类操作不在解码后重新读取原始路径。提交记录规范化授权路径，摘要与解码结果来自同一份已接受
+快照；临时快照随准备任务结束清理，不进入工程。
 
 MIDI 路径拆为可复用的两段：
 
 1. `MidiFileParser` 读取并解析为可复用中间数据，不修改 Model；
 2. `MidiTrackGenerator` 根据编码、轨道选择、Tempo 和拍号选项生成轨道与时间线结果，再由 GUI session、批量导入或自动化提交者应用。
 
-`formats.inspect` 与 MIDI 文档导入复用 parser，交互式 GUI、批量导入和 headless session 复用 generator。同步检查最多读取 64 MiB 的单份文件快照，超限在解析前拒绝；MIDI 解析、LibreSVIP 转换和摘要都消费该快照，不重复打开原路径。异步文档打开、导入和批量导入在任务开始及提交边界重新检查当前读权限；带 plan digest 时加载已验证快照并在提交前复算摘要，缺省 digest 只省略内容比对，不会跳过授权复核。MIDI capability/preview/start 则复用同一 converter 和公开 option Schema；导出支持 Tempo、拍号和歌词选项，先写同目录临时文件并在最终发布前复核文件授权、Task 取消和文档 generation。拒绝覆盖时，文档保存、MIDI 和音频均把完成的同目录暂存文件以拒绝已存在目标的重命名一次性发布；目标在检查后被其他进程创建也不会被替换，也不会向并发读取者暴露部分 MIDI 或 DSPX。批量音频后续目标失败时，回滚会把前序目标原子移入随机隔离名并核对发布前记录的文件身份；只有仍属于本次事务的产物才会删除，外部替换文件会放回原位并使旧备份留待恢复。允许覆盖时使用原子替换提交。
+`formats.inspect` 与 MIDI 文档导入复用 parser，交互式 GUI、批量导入和 headless session 复用 generator。同步检查最多读取 64 MiB 的单份文件快照，超限在解析前拒绝；MIDI 解析、LibreSVIP 转换和摘要都消费该快照，不重复打开原路径。异步文档打开、导入和批量导入在任务开始时检查当前读权限；带 plan digest 时加载已验证快照，提交阶段不再复算原路径摘要。MIDI capability/preview/start 则复用同一 converter 和公开 option Schema；导出支持 Tempo、拍号和歌词选项，先写同目录临时文件并在最终发布前复核文件授权、Task 取消和文档 generation。拒绝覆盖时，文档保存、MIDI 和音频均把完成的同目录暂存文件以拒绝已存在目标的重命名一次性发布；目标在检查后被其他进程创建也不会被替换，也不会向并发读取者暴露部分 MIDI 或 DSPX。批量音频逐项原子发布，后续目标失败不回滚已经完成的输出；允许覆盖时每个输出使用 `QSaveFile` 原子替换提交。
 
 `documents.save` 在公共 Registry 中只补齐当前文档路径；显式 `overwrite_policy` 保持调用值，省略
 时才采用当前路径保存的默认覆盖策略，避免把调用方要求的拒绝覆盖改写为覆盖。
 
-音频导出始终把渲染结果保留在暂存文件中，并在最终发布前严格核对接单时的 document revision；等待推理或渲染期间发生工程编辑时，Task 以 `revision_conflict` 失败并清理暂存结果，不会从 live model 静默发布变化后的音频。observer 覆盖渲染与 deferred publication 两个阶段；最终发布成功但备份文件清理失败时，残留路径 warning 会进入 Task mutation，并同步转发给调用方 observer。
+音频导出始终把渲染结果保留在暂存文件中，并在最终发布前检查取消状态与输出授权；等待推理或渲染期间发生同一工程的普通编辑时，已完成的暂存结果仍可发布，文档 generation 换代则取消任务。observer 覆盖渲染与 deferred publication 两个阶段；无法清理的暂存路径作为 warning 进入 Task mutation，并同步转发给调用方 observer。
 
 LibreSVIP 转换抽取为共享 `LibreSVIPConverter`。GUI 转换 Task 与自动化文件服务使用同一外部转换入口、临时输出、超时和错误映射；headless 转换显式提供默认 stdin 回答，因此不会等待交互式输入。格式能力会根据转换器可用状态返回 available 与稳定原因。
 
@@ -340,8 +340,8 @@ CLI override 只影响本次运行，并在设置页显示来源，不改写持�
 - Automation 设置持久化、CLI override、端口、配置 JSON、Custom 领域分组与中文界面。
 
 最终候选在 Visual Studio 2026 v18.9.0、Qt 6.11.2 环境中通过标准 preset
-`ConfigureAndBuild` 和 `all` target，完整 CTest 为 62/62（44.43 s）。Editor 176 项、Connector
-6 项、24 个业务域、L3 44 项和内部 208 个 Operation ID 为当前产品快照；契约集合关系、共享不变量和领域独特语义的确定性覆盖通过；2025-11-25 下游
+`ConfigureAndBuild` 和 `all` target，完整 CTest 为 62/62（41.77 s）。Editor 176 项、Connector
+6 项、24 个业务域、L3 44 项和内部 207 个 Operation ID 为当前产品快照；契约集合关系、共享不变量和领域独特语义的确定性覆盖通过；2025-11-25 下游
 握手、2026-07-28 上游连接、真实编辑联调、Computer Use GUI、配置恢复和只读素材完整性均通过。
 生命周期增量联调还确认 dirty 默认拒绝无弹窗、显式丢弃重启后 instance ID 变化且 Connector
 自动恢复 compatible，以及 clean 默认退出后无 Editor 进程残留。

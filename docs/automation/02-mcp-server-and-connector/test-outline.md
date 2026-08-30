@@ -164,17 +164,17 @@ Connector 桥接工具：6
 - Queued、Running、CancelRequested、Committing 和各终态遵守允许迁移。
 - 排队/运行取消、重复取消、终态取消和提交点取消分别覆盖。
 - Editor 重启、文档 generation 更换、revision 前进、目标消失和晚到结果不能写入错误文档；文档 generation 清理不得误删 application task。
-- 文档 open/import/import_batch 在任务开始和提交边界重新检查 File Guard；带 plan digest 时解析
-  检查器返回的同一字节快照并拒绝随后换内容，缺省 digest 只省略摘要比对。
-- Pitch/MIDI 提取只解码后台创建的哈希快照；完成后复核原文件摘要、音频剪辑身份和源路径权限。
-  运行期间换内容、换来源或撤销权限时任务失败，文档 revision 和目标对象保持不变。
+- 文档 open/import/import_batch 在任务开始时重新检查 File Guard；带 plan digest 时解析检查器返回
+  的同一字节快照，缺省 digest 时直接读取已接受的规范路径。
+- Pitch/MIDI 提取只解码后台一次读取形成的哈希快照；提交点复核音频剪辑身份、文档 generation
+  和 revision，不在推理完成后重复读取源路径。
 - `audio_clips.import*`、`relocate` 与 `confirm_path` 的 SHA-512 和解码结果来自同一临时字节快照；
-  后台解码完成后重算原路径摘要，并在提交点前复核读权限、文档 revision 与目标剪辑。成功 Task
-  携带最终 Mutation，源文件在准备期间变化时不提交。
+  后台解码后不重算原路径摘要，提交点只复核文档 revision 与目标剪辑。成功 Task 携带最终 Mutation。
 - `audio_clips.import*` 在创建 Task 前占用幂等键；同指纹重放原 Task，不同指纹立即冲突，失败或
   取消后释放占用，重试不会重复启动哈希与解码。
 - 并发 `packages.refresh` 只有在领先扫描完成有效提交时才复用其结果；若领先扫描被提交门拒绝，等待调用重新扫描并提交，不返回陈旧索引。
-- 音频导出始终暂存渲染结果；渲染期间推进文档 revision 后，最终发布以 `revision_conflict` 拒绝且不留下目标文件。
+- 音频导出始终暂存渲染结果，在最终发布前检查输出授权和取消状态；渲染期间同一文档的普通编辑
+  不丢弃已完成输出，文档 generation 换代仍会取消任务。
 - 每个 document generation 与 application scope 的活动记录全部保留；各自终态历史超过 128 项时
   只淘汰最旧终态，不影响活动任务或其他作用域。
 - 最终成功在业务写回、历史记录/revision 和信号完成后发布。
@@ -202,13 +202,14 @@ Connector 桥接工具：6
 - 根本身、根内文件、相邻前缀、`..`、相对路径、drive-relative、UNC、大小写和混合分隔符。
 - symlink、junction、reparse point 与根边界的 canonical 判定。
 - 输出文件尚未创建时按最近存在父目录授权。
-- authorize 与实际 I/O 前 reauthorize；根配置变化、目标变化和链接重定向被识别。
-- 音频导入和 Pitch/MIDI 提取的哈希与解码读取同一临时快照；完成后同路径源文件换内容由后台摘要复核拒绝。
+- 输入路径在公共请求边界授权；异步读取生成不可变快照后由任务消费，不在每个阶段重复授权或读取。
+  延迟输出在最终发布前再检查一次写权限。
+- 音频导入和 Pitch/MIDI 提取的哈希与解码读取同一临时快照；后端不再访问原始路径。
 - 单文件和 batch 路径全部通过同一 Guard，类型化与泛化调用结果一致。
 - overwrite、只读、父目录、权限、磁盘和失败清理覆盖；文档保存、MIDI 与音频拒绝覆盖均先完成
   同目录暂存，再使用拒绝已存在目标的重命名发布。覆盖检查后出现的同名目标仍保留原内容，
-  并发读取者不会看到部分 DSPX/MIDI；多文件音频发布失败时，只回滚文件身份仍匹配本次事务的
-  已发布目标，外部替换文件不得被删除。
+  并发读取者不会看到部分 DSPX/MIDI；多文件音频按输出逐项原子发布，后续输出失败不回滚已经
+  完成的输出，也不覆盖已存在的外部目标。
 - `documents.save` 显式拒绝覆盖时保留外部修改；省略策略时仍使用当前路径保存的默认覆盖行为。
 - MIDI 渲染期间取消与 document generation 淘汰均在最终发布门前生效，不创建目标文件。
 

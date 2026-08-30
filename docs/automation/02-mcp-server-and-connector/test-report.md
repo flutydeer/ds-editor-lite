@@ -22,7 +22,7 @@ L3 downstream 为 176 个 Editor wrapper 加 6 个桥接工具，共 182 项。�
 | 平台与工具链 | Visual Studio 2026 v18.9.0；Qt 6.11.2 |
 | Debug 配置与构建 | 标准 preset `ConfigureAndBuild` 通过；随后 `all` target 通过 |
 | 最终 CTest 清单 | 62 项 |
-| 一次完整 CTest | 62/62 通过，44.43 s |
+| 一次完整 CTest | 62/62 通过，41.77 s |
 | Connector 真实联调 | 2025-11-25 下游握手和 2026-07-28 上游连接通过；L0 重启后自动重连且 toolset compatible |
 | GUI/Computer Use | 真实编辑、合成、播放、另存，以及 dirty 拒绝、丢弃重启和 clean 退出全程无决策弹窗 |
 | 测试素材完整性 | 素材源 19/19 项 SHA-256 不变；真实用户应用配置 SHA-256 不变 |
@@ -51,7 +51,7 @@ plugin 路径；GUI 与 Connector 进程测试使用独立测试实例和隔离�
 - Cursor 的 base64url payload 只绑定 context、snapshot 和 offset，不使用密钥或 HMAC。
 
 集合与契约实测结果：**通过**。当前候选快照为 Editor 176 项、Connector 6 项、总计 182 项；
-最低 Profile 累计数量为 4/89/132/176，内部能力集合为 208 个 Operation ID。集合正确性由单一
+最低 Profile 累计数量为 4/89/132/176，内部能力集合为 207 个 Operation ID。集合正确性由单一
 契约源及其与 Registry、发现面和 downstream 的关系验证。Connector 工具集状态报告
 `compatible`，176 项 compatible、0 项 unavailable、0 项 incompatible。
 
@@ -154,12 +154,12 @@ watch、stdio 大帧、32 路 downstream 饱和与第 33 路拒绝、并发乱�
 broken pipe、重连和旧 epoch 隔离。Connector 常规握手分页读取 `tools/list` 后只读取
 `application.get_status` 的轻量状态，不为 176 项 Schema 做兼容重算。
 
-音频准备回归确认哈希与临时快照由同一次读取产生，导入解码只读取该快照；源文件随后变化不会
-使已准备的摘要与解码内容分离，且提交前的后台摘要复核会拒绝同路径换内容。
+音频准备回归确认哈希与临时快照由同一次读取产生，导入解码只读取该快照；任务不再为同一路径
+变化增加第二次哈希或重复授权，提交阶段只验证文档与目标对象条件。
 
-文档计划回归确认带 digest 的 open/import/import_batch 解析检查器返回的同一份原始字节，并在
-提交前拒绝原路径换内容；Pitch/MIDI 提取回归确认后端只读取哈希快照，原文件摘要、音频剪辑
-身份或读权限变化时均不进入 Committing。
+文档计划回归确认带 digest 的 open/import/import_batch 在任务开始时校验并解析检查器返回的
+同一份原始字节；Pitch/MIDI 提取回归确认后端只读取哈希快照，快照与剪辑已记录摘要不符时在
+推理前拒绝，目标剪辑身份或文档版本变化时不进入 Committing。
 
 协议与真实联调结果：**通过**。Connector 使用 2025-11-25 完成下游握手，并以
 2026-07-28 连接 Editor 上游；自动化协议兼容路径通过完整 CTest。真实会话通过
@@ -188,7 +188,7 @@ Editor 窗口与进程均消失。三个阶段均未出现保存确认或其他�
 ## 8. 缺陷与回归
 
 最终候选的共享 Dispatcher、公共契约、Registry、Wire、Connector、文档生命周期和真实进程路径
-均通过受影响测试与最终 62/62 完整 CTest（44.43 s）。压力测试仍在默认套件中，保留通知洪泛、
+均通过受影响测试与最终 62/62 完整 CTest（41.77 s）。压力测试仍在默认套件中，保留通知洪泛、
 并发请求、大帧、慢读、取消与竞态覆盖；没有将其拆分、降次或改为可选执行。
 
 时间线回归还覆盖了删除中间拍号后后续拍号继承超长小节的边界：validate-only 与实际删除均在
@@ -220,34 +220,30 @@ MIDI 导出回归在受控渲染阻塞期间分别发起取消和文档 generati
 当前路径保存回归另确认 `documents.save` 不会改写显式 `overwrite_policy: reject`：外部修改保持
 不变且保存后端未被调用；省略策略时仍沿用默认覆盖行为并完成保存。
 
-音频导出回归使用两个同目录暂存输出，在第二个目标由外部占用后执行拒绝覆盖发布；最终发布稳定
-失败并保留外部内容，同时通过发布前记录的文件身份回滚本次已经发布的第一个目标，不留下部分
-批次。回滚实现不会直接删除最终目标：它先原子移入随机隔离名，再核对设备、文件 ID、尺寸和
-修改时间；身份不符时恢复隔离文件并保留原备份，避免误删后到的外部替换内容。
-deferred publication 的成功回归另模拟发布阶段 warning，确认它保留在成功 Task 的 mutation 中，
-不会因渲染阶段 observer 连接结束而丢失。
+音频发布回归分别确认允许覆盖时 `QSaveFile` 原子替换目标，以及拒绝覆盖时保留既有目标和待清理
+暂存文件。多输出采用逐项原子发布，不再维护跨文件备份、身份比对或事务回滚。deferred publication
+的成功回归另模拟发布阶段 warning，确认它保留在成功 Task 的 mutation 中，不会因渲染阶段
+observer 连接结束而丢失。
 
-音频导出 revision 回归在任务完成渲染、进入发布前修改轨道并推进文档版本；实现确认所有导出均
-使用暂存输出，最终任务稳定失败为 `revision_conflict`、执行清理且从未调用发布，避免接单后对
-live model 的编辑静默改变最终文件。
+音频导出编辑回归在任务渲染期间修改轨道并推进文档版本；实现确认渲染结果使用暂存输出，任务
+不会仅因同一文档发生普通编辑而丢弃已完成文件，最终发布成功且工程 revision 只由该编辑推进。
 
 Task 分页回归在 application scope 的多页结果间推进运行中任务的进度和状态，后续页游标仍可用；
 游标摘要只绑定筛选条件与有序 Task ID，成员集合变化时仍保持失效保护。
 
-文档输入回归通过 open 代表路径确认共用的 plan revalidator 不会把接单时授权当作长期凭据：即使
-未提供 plan digest，任务开始前撤销读根也会稳定返回 `permission_denied`；带 digest 时校验器返回
-与摘要一致的原始字节，原路径随后换内容会在加载或提交边界拒绝。open、import 和 import_batch
-均接入该共用入口。格式检查回归使用超过 64 MiB 的稀疏工程文件，确认同步调用在解析和摘要前以
+文档输入回归通过 open 代表路径确认共用的 plan revalidator 在任务开始时检查当前授权：即使未
+提供 plan digest，开始前撤销读根也会稳定返回 `permission_denied`；带 digest 时校验器返回与摘要
+一致的原始字节快照，后续加载不再读取原路径。open、import 和 import_batch 均接入该共用入口。
+格式检查回归使用超过 64 MiB 的稀疏工程文件，确认同步调用在解析和摘要前以
 `invalid_argument` 拒绝；MIDI 检查和 LibreSVIP 转换复用已经受限的单份字节快照。
 
-提取回归确认 Pitch 与 MIDI 成功结果必须携带已验证的源快照身份；未验证结果以
-`invalid_argument` 失败。另在后端启动后、完成回调前撤销读权限，两项任务均在进入 Committing
-前稳定失败为 `permission_denied`，文档 revision、参数和轨道集合保持不变。实际 adapter 在后台
-复制并哈希源音频、只把快照交给 RMVPE/GAME，完成后再后台哈希原路径并比对。
+提取回归确认 Pitch 与 MIDI 后端只接收 adapter 在后台一次复制并哈希形成的音频快照；快照摘要
+与剪辑已记录摘要不符时在启动 RMVPE/GAME 前失败。后端完成后只复核目标剪辑和文档提交条件，
+不再重新授权或哈希原始路径。
 
 音频重定位和候选路径确认已改为异步 Task。Registry 回归确认两项工具把规范化路径、目标剪辑和
 命令上下文路由到 Host Adapter 并返回符合契约的 Task 接受结果；实际 adapter 在线程池中完成
-快照、hash 与解码，再对原路径执行最终摘要比对，并在提交前复核路径授权和文档目标。完整构建、
+快照、hash 与解码，提交前只复核文档版本和目标剪辑。完整构建、
 公共契约、Registry、异步文件域、真实进程集成及最终 CTest 均通过。
 
 测试实现不再维护第二份手工工具清单，也不以固定工具数量、CTest 数量、场景配额或逐工具复制的

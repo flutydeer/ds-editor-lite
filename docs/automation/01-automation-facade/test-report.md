@@ -3,7 +3,7 @@
 ## 1. 结论
 
 本报告记录当前最终 Automation Facade 架构的回归结果。内部能力集合为
-`OperationIds::all()` 中的 208 个稳定 Operation ID；Dispatcher 使用显式类型化路由，不维护
+`OperationIds::all()` 中的 207 个稳定 Operation ID；Dispatcher 使用显式类型化路由，不维护
 `OperationCatalog` 或 `OperationDescriptor` 注册表。
 
 本轮最终判定：**通过**。
@@ -15,7 +15,7 @@
 | Debug configure/generate | 项目标准 preset `ConfigureAndBuild` 通过 |
 | Debug 全目标构建 | `all` target 通过 |
 | 注册 CTest | 62 项 |
-| 一次完整 CTest | 62/62 通过，42.76 s |
+| 一次完整 CTest | 62/62 通过，41.77 s |
 | Qt/进程异常 | 定向回归 7/7 通过，15.54 s；最终无遗留异常或无人值守弹窗 |
 
 测试使用项目标准 preset wrapper。Qt 组件测试显式配置可用的 offscreen platform plugin 路径。
@@ -23,7 +23,7 @@
 
 ## 3. 内部契约覆盖
 
-- 208 个 Operation ID 集中定义，`OperationIds::all()` 是能力集合的唯一运行时来源；该数量作为当前产品快照记录，不作为测试硬编码门禁；
+- 207 个 Operation ID 集中定义，`OperationIds::all()` 是能力集合的唯一运行时来源；该数量作为当前产品快照记录，不作为测试硬编码门禁；
 - Dispatcher 使用显式类型化路由，代表性 Query/Command、未知文档、revision 与 handler 错误具有稳定 operation 上下文；
 - 不维护精确 Descriptor 镜像，也不使用源码文本扫描作为实现完整性的替代品；
 - Facade、CommandCommitter、History、revision、DocumentSession 和 TaskManager 由行为测试覆盖；
@@ -44,12 +44,11 @@ opt-in 幂等均通过完整 CTest；测试不再为每个 Operation 复制同�
 - Task 的 Queued、Running、CancelRequested、Committing 和稳定终态；
 - 每个文档 generation 与应用级作用域的活动任务保留、最近 128 项终态历史的独立有界淘汰；
 - cancel/commit、对象删除、revision 前进、文档换代与晚到写回竞态；
-- 文档保存与 MIDI/音频拒绝覆盖的同目录排他最终发布、按发布文件身份执行的批量音频失败回滚、
-  音频发布 warning、MIDI 渲染期取消及 generation 淘汰；
+- 文档保存与 MIDI/音频拒绝覆盖的同目录排他最终发布、音频逐输出原子提交、发布 warning、MIDI
+  渲染期取消及 generation 淘汰；
 - 音符量化在共享宽整数时间轴计算中拒绝超出模型范围的候选起点、长度和终点；
-- 音频哈希与导入解码共享同一字节快照，提交前的后台摘要复核会拒绝同路径源文件换内容；
-- Pitch/MIDI 提取只解码哈希绑定的临时快照，并在后端完成后复核原文件摘要、音频剪辑身份和
-  源路径授权；换内容、换剪辑来源或撤销权限时保持文档不变；
+- 音频哈希与导入解码共享同一次读取形成的字节快照，异步后端不重复读取原始路径；
+- Pitch/MIDI 提取只解码哈希绑定的临时快照，并在后端完成后复核音频剪辑身份和文档提交条件；
 - 轨道、片段、音符、参数、Speaker Mix、时间轴、播放、设置、文件和推理领域行为。
 
 一致性与竞态实测结果：**通过**。幂等重放按工具显式能力生效；真实联调中的陈旧 revision

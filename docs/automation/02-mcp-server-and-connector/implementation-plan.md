@@ -43,7 +43,7 @@ Agent 会话可先于 Editor 启动。Connector 通过全局实例 Bootstrap 观
 
 总线域的 descriptor category 为 `bus`，公开操作 ID 保持 `master.*`。历史记录是独立域，固定包含状态查询、Undo 与 Redo。
 
-已冻结的跨域边界包括：`audio_clips.relocate` 与 `audio_clips.confirm_path` 接受后返回 Task，在后台完成音频快照、解码/hash 和源内容复核，提交边界再次校验读权限、文档 revision 与目标剪辑，成功终态包含最终 Mutation；`playback.set_loop`、`playback.set_loop_enabled` 与 `playback.clear_loop` 修改工程持久状态，各自形成一条历史记录并递增文档 revision，而 `play/pause/stop/seek` 只修改瞬时播放状态。
+已冻结的跨域边界包括：`audio_clips.relocate` 与 `audio_clips.confirm_path` 接受后返回 Task，在后台以一次读取完成音频快照、解码和 hash，提交边界校验文档 revision 与目标剪辑，成功终态包含最终 Mutation；`playback.set_loop`、`playback.set_loop_enabled` 与 `playback.clear_loop` 修改工程持久状态，各自形成一条历史记录并递增文档 revision，而 `play/pause/stop/seek` 只修改瞬时播放状态。
 
 ## 3. 一期契约复用
 
@@ -289,9 +289,9 @@ exposure 与 pending selector 事实。稳定错误区分 Editor 状态、上游
 - `..`、相对路径、drive-relative 与 UNC；
 - symlink、junction 与 reparse point；
 - 输出目标尚未存在时的最近存在父目录；
-- authorize 后、实际 I/O 前的 reauthorize；异步文档打开/导入在开始和提交边界检查当前读权限，
-  带 plan digest 时 session 必须解析检查器返回的同一字节快照并拒绝随后换内容。Pitch/MIDI 提取
-  必须只解码哈希绑定的临时快照，并在后端完成后复核原文件摘要、音频剪辑身份和冻结路径授权。
+- 输入路径在公共请求边界授权；异步文档打开/导入在任务开始时检查当前读权限，带 plan digest
+  时 session 解析检查器返回的同一字节快照。Pitch/MIDI 提取只解码一次读取形成的哈希快照，
+  后端完成后复核音频剪辑身份和文档提交条件，不再次读取原路径。
 
 File Guard 约束自动化调用显式提供的路径及向调用方披露的路径，不重新授权 Editor 按既有应用
 配置执行的内部资源访问。`packages.refresh` 不接收路径，只触发与 GUI 相同的既有 effective 搜索
@@ -303,9 +303,8 @@ File Guard 约束自动化调用显式提供的路径及向调用方披露的路
 `documents.save` 复用当前文档路径。调用方显式提供的 `overwrite_policy` 必须原样进入文件发布
 流程；只有省略该字段时才使用当前路径保存的默认覆盖策略。
 
-多文件音频导出先写同目录临时文件，再逐个发布最终目标。后续目标失败时，回滚只清理由本次
-事务发布且身份未变化的前序文件；目标先原子移入事务隔离名再核对文件身份，若已被外部进程替换
-则恢复外部文件并保留原备份，不对最终目标执行先检查后删除。
+多文件音频导出先写同目录临时文件，再逐个原子发布最终目标。每个输出独立遵守覆盖策略；后续
+目标失败时保留已经完成的输出，不维护跨输出事务、备份身份或回滚流程，也不覆盖已存在的外部目标。
 
 Editor 直连、Connector 类型化工具和泛化 invoke 进入同一个 Guard。`application.get_file_access` 返回当前授权事实。
 
@@ -316,7 +315,7 @@ Editor 直连、Connector 类型化工具和泛化 invoke 进入同一个 Guard�
 client/peer/domain 配额、令牌桶或公平排队。超限请求立即得到稳定 `busy` 或
 `too_many_requests`，不进入业务 handler 或上游转发；请求和 Task 终结时释放计数。
 
-修改工程或保存点的 Command 使用显式 `document_id + expected_revision`；只修改瞬时播放、选择、面板和视口状态的 Command 使用目标 document/window 身份但不要求 revision。异步任务保留不可变执行快照，并在最终写回前复核 document generation、revision 和文件授权；音频导出始终先渲染到暂存文件，并在发布前要求当前文档仍为接单时的精确 revision，变化时拒绝发布。每个文档 generation 与应用级作用域都完整保留活动任务，并分别只保留最近 128 项终态历史。断线时 Connector 不自动重放有副作用 Command，结果事实无法确认时返回 `outcome_unknown`，由调用方结合 revision、Task 和 idempotency 信息确认。
+修改工程或保存点的 Command 使用显式 `document_id + expected_revision`；只修改瞬时播放、选择、面板和视口状态的 Command 使用目标 document/window 身份但不要求 revision。异步编辑任务保留不可变执行快照，并在最终写回前复核 document generation、revision 和目标对象；音频导出先渲染到暂存文件，最终发布前检查取消状态和输出授权，同一文档的普通编辑不使已完成输出失效，generation 换代仍会取消任务。每个文档 generation 与应用级作用域都完整保留活动任务，并分别只保留最近 128 项终态历史。断线时 Connector 不自动重放有副作用 Command，结果事实无法确认时返回 `outcome_unknown`，由调用方结合 revision、Task 和 idempotency 信息确认。
 
 ## 12. 设置页、CLI 与运行时生命周期
 

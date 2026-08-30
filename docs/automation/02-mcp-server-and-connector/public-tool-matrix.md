@@ -255,7 +255,7 @@
 | `exports.midi.start` | L2 | C/A | 受控写路径、同目录排他发布与任务 |
 | `exports.audio.get_capabilities` | L2 | Q/S | 格式、采样率、声道、混音和来源 |
 | `exports.audio.preview` | L2 | Q/S | 目标计划与阻断诊断 |
-| `exports.audio.start` | L2 | C/A | 暂存渲染、发布前精确 revision 复核、受控写路径与失败清理 |
+| `exports.audio.start` | L2 | C/A | 暂存渲染、发布前取消/写授权检查与失败清理 |
 
 ### 3.16 提取（3）
 
