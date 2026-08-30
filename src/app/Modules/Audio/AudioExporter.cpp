@@ -723,9 +723,6 @@ namespace Audio {
 
         const auto config = this->config();
         const auto projectContext = d->projectContext();
-        const auto useTemporaryFiles =
-            deferPublish || AudioSettings::audioExporterUseTemporaryFile();
-
         clearErrorString();
         QHash<QString, QString> temporaryFiles;
 
@@ -742,15 +739,11 @@ namespace Audio {
                                   .mid(0, 8);
             for (int i = 0; i < d->fileList.size(); i++) {
                 QString filename = d->fileList.at(i);
-                if (useTemporaryFiles) {
-                    auto temporaryFileName = QFileInfo(filename).dir().filePath(
-                        ".ds$" + uuid + QFileInfo(filename).fileName() + ".exporting");
-                    temporaryFiles.insert(filename, temporaryFileName);
-                    d->temporaryFileList.append(temporaryFileName);
-                    filename = temporaryFileName;
-                } else {
-                    d->temporaryFileList.append(filename);
-                }
+                auto temporaryFileName = QFileInfo(filename).dir().filePath(
+                    ".ds$" + uuid + QFileInfo(filename).fileName() + ".exporting");
+                temporaryFiles.insert(filename, temporaryFileName);
+                d->temporaryFileList.append(temporaryFileName);
+                filename = temporaryFileName;
                 const auto file = new QFile(filename, &o);
                 if (!file->open(QIODevice::WriteOnly)) {
                     setErrorString(tr("Cannot open file for writing: %1").arg(filename));
@@ -859,15 +852,10 @@ namespace Audio {
                 return R_Abort;
         }
 
-        if (useTemporaryFiles) {
-            d->pendingTemporaryFiles = std::move(temporaryFiles);
-            if (deferPublish)
-                return R_Ok;
-            return publishInternal(true);
-        }
-
-        d->temporaryFileList.clear();
-        return R_Ok;
+        d->pendingTemporaryFiles = std::move(temporaryFiles);
+        if (deferPublish)
+            return R_Ok;
+        return publishInternal(true);
     }
 
     AudioExporter::Result AudioExporter::publishInternal(const bool allowOverwrite) {

@@ -277,7 +277,6 @@ namespace Automation {
                     AudioSettings::audioExporterClippingCheckEnabled(),
                 .audioExporterIgnoredWarningFlags =
                     AudioSettings::audioExporterIgnoredWarningFlag(),
-                .audioExporterUseTemporaryFile = AudioSettings::audioExporterUseTemporaryFile(),
             };
             for (int index = 0; index < 4; ++index) {
                 result.pseudoSingerSynthesizers.append({
@@ -374,8 +373,6 @@ namespace Automation {
                 value.audioExporterClippingCheckEnabled;
             object[QStringLiteral("audioExporterIgnoredWarningFlag")] =
                 value.audioExporterIgnoredWarningFlags;
-            object[QStringLiteral("audioExporterUseTemporaryFile")] =
-                value.audioExporterUseTemporaryFile;
             QJsonObject presets;
             for (const auto &preset : value.audioExporterPresets) {
                 const auto &config = preset.config;

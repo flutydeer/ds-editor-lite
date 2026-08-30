@@ -145,6 +145,3 @@ AUDIO_AUDIO_SETTINGS_OPTION_IMPLEMENTATION_2(audioExporterClippingCheckEnabled,
 AUDIO_AUDIO_SETTINGS_OPTION_IMPLEMENTATION_1(audioExporterIgnoredWarningFlag,
                                              setAudioExporterIgnoredWarningFlag,
                                              audioExporterIgnoredWarningFlags)
-AUDIO_AUDIO_SETTINGS_OPTION_IMPLEMENTATION_2(audioExporterUseTemporaryFile,
-                                             setAudioExporterUseTemporaryFile, true,
-                                             audioExporterUseTemporaryFile)
