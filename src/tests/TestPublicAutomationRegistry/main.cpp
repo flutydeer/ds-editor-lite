@@ -11,11 +11,15 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QSemaphore>
 #include <QSet>
 #include <QTemporaryDir>
 #include <QTextStream>
+#include <QThreadPool>
 #include <QVersionNumber>
 
 #include <algorithm>
@@ -34,6 +38,11 @@ namespace {
         bool failNext = false;
         Automation::PackageRefreshCommitGate pendingCommitGate;
         Automation::PackageRefreshCompletion pendingCompletion;
+    };
+
+    struct MidiExportTestControl {
+        QSemaphore entered;
+        QSemaphore release;
     };
 
     void expect(const bool condition, const QString &message) {
@@ -744,6 +753,76 @@ namespace {
                QStringLiteral(
                    "destroyed registries must reject commit and discard late package callbacks"));
         runtime.automationTasks().cancel(Automation::TaskId::fromString(taskId));
+    }
+
+    void verifyMidiExportPublicationGate(Automation::PublicAutomationRegistry &registry,
+                                         Automation::CoreRuntime &runtime,
+                                         const QString &directoryPath,
+                                         MidiExportTestControl &control) {
+        const auto document = runtime.documentVersion();
+        const auto startExport = [&](const QString &fileName) {
+            return registry.invoke(
+                QStringLiteral("exports.midi.start"),
+                QJsonObject{
+                    {QStringLiteral("document_id"), document.documentId.toString()},
+                    {QStringLiteral("path"), QDir(directoryPath).absoluteFilePath(fileName)},
+                    {QStringLiteral("options"), QJsonObject{}},
+                    {QStringLiteral("overwrite_policy"), QStringLiteral("reject")},
+                },
+                {.clientId = QStringLiteral("midi-publication-gate")});
+        };
+
+        const auto canceledPath =
+            QDir(directoryPath).absoluteFilePath(QStringLiteral("canceled.mid"));
+        const auto canceledExport = startExport(QStringLiteral("canceled.mid"));
+        reportFailure(QStringLiteral("exports.midi.start"), canceledExport);
+        expect(bool(canceledExport), QStringLiteral("MIDI export must start before cancellation"));
+        if (!canceledExport)
+            return;
+        const auto canceledTaskId = Automation::TaskId::fromString(
+            canceledExport.get().value(QStringLiteral("task_id")).toString());
+        const bool cancellationReachedRender = control.entered.tryAcquire(1, 2000);
+        expect(cancellationReachedRender,
+               QStringLiteral("MIDI export must remain cancelable while rendering"));
+        if (!cancellationReachedRender) {
+            control.release.release();
+            QThreadPool::globalInstance()->waitForDone(2000);
+            return;
+        }
+        const auto canceled =
+            runtime.automationTasks().requestCancel(document.documentId, canceledTaskId);
+        const bool cancellationAccepted =
+            canceled && canceled.get().state == Automation::AutomationTaskState::CancelRequested;
+        control.release.release();
+        const bool canceledWorkerFinished = QThreadPool::globalInstance()->waitForDone(2000);
+        const auto canceledSnapshot = runtime.automationTasks().get(document.documentId, canceledTaskId);
+        expect(cancellationAccepted && canceledWorkerFinished && canceledSnapshot &&
+                   canceledSnapshot.get().state == Automation::AutomationTaskState::Canceled &&
+                   !QFileInfo::exists(canceledPath),
+               QStringLiteral(
+                   "MIDI cancellation during rendering must win before final publication"));
+
+        const auto discardedPath =
+            QDir(directoryPath).absoluteFilePath(QStringLiteral("discarded.mid"));
+        const auto discardedExport = startExport(QStringLiteral("discarded.mid"));
+        reportFailure(QStringLiteral("exports.midi.start"), discardedExport);
+        expect(bool(discardedExport),
+               QStringLiteral("MIDI export must start before generation discard"));
+        if (!discardedExport)
+            return;
+        const bool discardReachedRender = control.entered.tryAcquire(1, 2000);
+        expect(discardReachedRender,
+               QStringLiteral("MIDI export must remain running until generation discard"));
+        if (!discardReachedRender) {
+            control.release.release();
+            QThreadPool::globalInstance()->waitForDone(2000);
+            return;
+        }
+        runtime.automationTasks().discardDocumentGeneration(document.documentId);
+        control.release.release();
+        const bool discardedWorkerFinished = QThreadPool::globalInstance()->waitForDone(2000);
+        expect(discardedWorkerFinished && !QFileInfo::exists(discardedPath),
+               QStringLiteral("discarded document generations must not publish staged MIDI"));
     }
 
     std::optional<PublicEditingFixture>
@@ -1502,8 +1581,23 @@ int main(int argc, char *argv[]) {
         return true;
     };
 
+    auto midiExportControl = std::make_shared<MidiExportTestControl>();
+    Automation::FileRuntimeServices fileServices;
+    fileServices.exportMidi = [midiExportControl](AppModel *, const QString &path,
+                                                  const Automation::MidiExportOptionsDto &,
+                                                  QString &error) {
+        midiExportControl->entered.release();
+        midiExportControl->release.acquire();
+        QFile file(path);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate) || file.write("midi") != 4) {
+            error = QStringLiteral("Test MIDI staging file could not be written");
+            return false;
+        }
+        return true;
+    };
+
     AutomationTestSupport::TestRuntime fixture(
-        std::move(editorServices), {}, {}, {}, std::move(packageServices), {},
+        std::move(editorServices), {}, std::move(fileServices), {}, std::move(packageServices), {},
         std::move(applicationServices), std::move(settingsServices));
     fixture.model().newProject();
     auto &runtime = fixture.runtime();
@@ -1521,6 +1615,8 @@ int main(int argc, char *argv[]) {
     Automation::AdmissionController admission(limits);
     Automation::PublicAutomationRegistry registry(runtime, access, fileGuard, admission,
                                                   hostServices(runtime));
+
+    verifyMidiExportPublicationGate(registry, runtime, directory.path(), *midiExportControl);
 
     const auto settingsBeforeAdvancedBindings = *settingsSnapshot;
     const auto lyricRulesBeforeAdvancedBindings = *lyricRules;

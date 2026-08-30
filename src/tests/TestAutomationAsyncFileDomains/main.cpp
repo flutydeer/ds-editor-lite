@@ -741,8 +741,7 @@ namespace {
                         ? runtime.files().writePreparedMidiExport(
                               deniedNewPrepared.get(), [&] {
                                   checkedNewPublish = true;
-                                  return Automation::AutomationResult<Automation::AutomationUnit>(
-                                      publishDenied);
+                                  return Automation::AutomationResult<bool>(publishDenied);
                               })
                         : Automation::AutomationResult<Automation::FileWriteResultDto>(
                               deniedNewPrepared.getError());
@@ -761,8 +760,7 @@ namespace {
                         ? runtime.files().writePreparedMidiExport(
                               deniedOverwritePrepared.get(), [&] {
                                   checkedOverwritePublish = true;
-                                  return Automation::AutomationResult<Automation::AutomationUnit>(
-                                      publishDenied);
+                                  return Automation::AutomationResult<bool>(publishDenied);
                               })
                         : Automation::AutomationResult<Automation::FileWriteResultDto>(
                               deniedOverwritePrepared.getError());
@@ -780,6 +778,34 @@ namespace {
                         preservedCreated && preservedReadable && preservedContents == "original",
                     QStringLiteral("failed final authorization must neither create nor replace the "
                                    "MIDI target"));
+
+                const auto racedPath = harness.temporaryPath(QStringLiteral("raced.mid"));
+                const auto racedPrepared = runtime.files().prepareMidiExport(
+                    harness.context(), racedPath, false, preparedOptions);
+                const auto racedWrite =
+                    racedPrepared
+                        ? runtime.files().writePreparedMidiExport(racedPrepared.get(), [&] {
+                              QFile racedTarget(racedPath);
+                              if (!racedTarget.open(QIODevice::WriteOnly) ||
+                                  racedTarget.write("external") != 8) {
+                                  return Automation::AutomationResult<bool>(
+                                      Automation::AutomationError::invalidArgument(
+                                          QStringLiteral("path"),
+                                          QStringLiteral("race fixture could not create target")));
+                              }
+                              return Automation::AutomationResult<bool>(true);
+                          })
+                        : Automation::AutomationResult<Automation::FileWriteResultDto>(
+                              racedPrepared.getError());
+                QFile racedTarget(racedPath);
+                const auto racedReadable = racedTarget.open(QIODevice::ReadOnly);
+                const auto racedContents = racedTarget.readAll();
+                suite.expect(
+                    racedPrepared &&
+                        isError(racedWrite, Automation::AutomationErrorCode::OverwriteDenied) &&
+                        racedReadable && racedContents == "external",
+                    QStringLiteral("reject-overwrite publication must not replace a target created "
+                                   "after staging"));
 
                 const auto invalidPreview = runtime.files().previewMidiExport(
                     runtime.documentVersion().documentId, QStringLiteral("relative.mid"));

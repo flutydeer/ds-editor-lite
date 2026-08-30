@@ -80,7 +80,7 @@ namespace Automation {
                               bool allowOverwrite, MidiExportOptionsDto options = {});
         AutomationResult<FileWriteResultDto> writePreparedMidiExport(
             const PreparedMidiExportDto &prepared,
-            std::function<AutomationResult<AutomationUnit>()> beforePublish = {}) const;
+            std::function<AutomationResult<bool>()> beforePublish = {}) const;
 
     private:
         AutomationDispatcher &m_dispatcher;

@@ -28,6 +28,28 @@ namespace Automation {
             return error;
         }
 
+        AutomationError midiOverwriteDenied() {
+            AutomationError error;
+            error.code = AutomationErrorCode::OverwriteDenied;
+            error.fieldPath = QStringLiteral("allow_overwrite");
+            error.message = QStringLiteral("MIDI export target already exists");
+            return error;
+        }
+
+        AutomationResult<AutomationUnit> copyMidiPayload(QFile &source, QIODevice &destination) {
+            while (!source.atEnd()) {
+                const auto chunk = source.read(64 * 1024);
+                if (chunk.isEmpty() && source.error() != QFileDevice::NoError) {
+                    return midiIoError(
+                        QStringLiteral("MIDI export staging file could not be read"));
+                }
+                if (destination.write(chunk) != chunk.size()) {
+                    return midiIoError(QStringLiteral("MIDI export target could not be written"));
+                }
+            }
+            return AutomationUnit{};
+        }
+
         AutomationResult<QString> validateMidiPath(const QString &path, const bool allowOverwrite) {
             if (path.trimmed().isEmpty()) {
                 AutomationError error;
@@ -62,11 +84,7 @@ namespace Automation {
                     QStringLiteral("path"), QStringLiteral("MIDI export target is not a file"));
             }
             if (fileInfo.exists() && !allowOverwrite) {
-                AutomationError error;
-                error.code = AutomationErrorCode::OverwriteDenied;
-                error.fieldPath = QStringLiteral("allow_overwrite");
-                error.message = QStringLiteral("MIDI export target already exists");
-                return error;
+                return midiOverwriteDenied();
             }
             return QDir::cleanPath(fileInfo.absoluteFilePath());
         }
@@ -207,7 +225,7 @@ namespace Automation {
 
     AutomationResult<FileWriteResultDto> FileAutomationFacade::writePreparedMidiExport(
         const PreparedMidiExportDto &prepared,
-        std::function<AutomationResult<AutomationUnit>()> beforePublish) const {
+        std::function<AutomationResult<bool>()> beforePublish) const {
         if (prepared.validatedOnly) {
             return FileWriteResultDto{
                 .path = prepared.path,
@@ -240,6 +258,11 @@ namespace Automation {
             auto authorized = beforePublish();
             if (!authorized)
                 return authorized.getError();
+            if (!authorized.get()) {
+                return FileWriteResultDto{
+                    .path = prepared.path,
+                };
+            }
         }
         validatedPath = validateMidiPath(prepared.path, prepared.allowOverwrite);
         if (!validatedPath)
@@ -248,20 +271,38 @@ namespace Automation {
         QFile staged(stagingPath);
         if (!staged.open(QIODevice::ReadOnly))
             return midiIoError(QStringLiteral("MIDI export staging file could not be read"));
+
+        if (!prepared.allowOverwrite) {
+            QFile destination(validatedPath.get());
+            if (!destination.open(QIODevice::WriteOnly | QIODevice::NewOnly)) {
+                return QFileInfo::exists(validatedPath.get())
+                           ? AutomationResult<FileWriteResultDto>(midiOverwriteDenied())
+                           : AutomationResult<FileWriteResultDto>(midiIoError(
+                                 QStringLiteral("MIDI export target could not be opened")));
+            }
+            const auto copied = copyMidiPayload(staged, destination);
+            if (!copied || !destination.flush()) {
+                destination.close();
+                QFile::remove(validatedPath.get());
+                return copied ? AutomationResult<FileWriteResultDto>(midiIoError(
+                                    QStringLiteral("MIDI export target could not be written")))
+                              : AutomationResult<FileWriteResultDto>(copied.getError());
+            }
+            destination.close();
+            return FileWriteResultDto{
+                .path = validatedPath.get(),
+                .wroteFile = true,
+            };
+        }
+
         QSaveFile destination(validatedPath.get());
         destination.setDirectWriteFallback(false);
         if (!destination.open(QIODevice::WriteOnly))
             return midiIoError(QStringLiteral("MIDI export target could not be opened"));
-        while (!staged.atEnd()) {
-            const auto chunk = staged.read(64 * 1024);
-            if (chunk.isEmpty() && staged.error() != QFileDevice::NoError) {
-                destination.cancelWriting();
-                return midiIoError(QStringLiteral("MIDI export staging file could not be read"));
-            }
-            if (destination.write(chunk) != chunk.size()) {
-                destination.cancelWriting();
-                return midiIoError(QStringLiteral("MIDI export target could not be written"));
-            }
+        const auto copied = copyMidiPayload(staged, destination);
+        if (!copied) {
+            destination.cancelWriting();
+            return copied.getError();
         }
         if (!destination.commit())
             return midiIoError(QStringLiteral("MIDI export target could not be committed"));

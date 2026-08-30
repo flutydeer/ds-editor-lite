@@ -3540,23 +3540,25 @@ namespace Automation {
                     tasks->fail(taskId, std::move(error));
                     return;
                 }
-                const auto committing = tasks->beginCommitting(taskId);
-                if (!committing || !committing.get())
-                    return;
                 auto exported = files->writePreparedMidiExport(
-                    prepared, [fileGuard, authorizedPath, taskId] {
+                    prepared, [tasks, fileGuard, authorizedPath, taskId] {
                         auto authorized = fileGuard->reauthorize(authorizedPath);
                         if (!authorized) {
                             auto error = authorized.getError();
                             error.taskId = taskId;
-                            return AutomationResult<AutomationUnit>(std::move(error));
+                            return AutomationResult<bool>(std::move(error));
                         }
-                        return AutomationResult<AutomationUnit>(AutomationUnit{});
+                        const auto committing = tasks->beginCommitting(taskId);
+                        if (!committing)
+                            return AutomationResult<bool>(committing.getError());
+                        return AutomationResult<bool>(committing.get());
                     });
                 if (!exported) {
                     tasks->fail(taskId, exported.getError());
                     return;
                 }
+                if (!exported.get().wroteFile)
+                    return;
                 MutationResult completed;
                 completed.previous = context.expected;
                 completed.current = context.expected;
