@@ -293,6 +293,11 @@ exposure 与 pending selector 事实。稳定错误区分 Editor 状态、上游
   带 plan digest 时 session 必须解析检查器返回的同一字节快照并拒绝随后换内容。Pitch/MIDI 提取
   必须只解码哈希绑定的临时快照，并在后端完成后复核原文件摘要、音频剪辑身份和冻结路径授权。
 
+File Guard 约束自动化调用显式提供的路径及向调用方披露的路径，不重新授权 Editor 按既有应用
+配置执行的内部资源访问。`packages.refresh` 不接收路径，只触发与 GUI 相同的既有 effective 搜索
+路径扫描；`settings.package_search_paths.update` 仍须校验调用方提供的每条路径，包查询结果仍按读根
+约束路径披露。
+
 `formats.inspect` 是同步查询，只读取一份有界文件快照；超过 64 MiB 的输入在解析前拒绝，MIDI
 解析、LibreSVIP 转换与摘要复用同一份快照，不对原路径重复执行无界读取。
 

@@ -350,6 +350,8 @@
 | `packages.refresh` | L3 | C/A | 使用当前 effective 搜索路径后台扫描，完成后原子切换索引；前序提交被拒绝时等待调用重新扫描 |
 
 `packages.refresh` 创建 application-scoped Task；不伪造 `document_id`，也不参与工程 revision 或历史记录。
+它不接收路径，仅触发 Editor 按既有应用配置执行常规包扫描；MCP 读根约束包查询结果中的路径披露，
+不重新授权 Editor 的内部资源访问。
 
 ### 3.24 歌词规则（7）
 

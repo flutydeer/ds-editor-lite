@@ -202,7 +202,7 @@ GUI 进阶控制按真实面板层级归入 `workspace`、`track_panel` 和 `cli
 
 设置工具采用 `settings.<domain>.update` 三段式命名，并以 `settings.query` 集中返回公开域的配置值、生效值、候选/范围、重启要求和不可用原因。九个 update 都是严格 allowlist 上的稀疏更新，只验证和提交调用方明确提供的字段；其中音频设备、计算设备和包搜索路径更新开放 validate-only。所有设置更新失败时都不留下部分持久化或运行时状态，也不触发交互式错误对话框。UI 语言使用独立 `ui_language` 域；自动化/MCP 自配置、开发者选项和其他未列入契约的设置不向 MCP 暴露。
 
-`packages.list/describe` 从当前包索引提供受读取根约束的规范路径和公开元数据。`packages.refresh` 使用当前生效搜索路径创建 application-scoped Task，在后台完成扫描后原子切换索引；并发调用可复用已提交的扫描结果，但如果领先扫描在提交门被拒绝，等待调用会重新取得刷新权并执行自己的扫描，不会把保留的旧索引误报为刷新成功。它不伪造文档身份，也不参与工程 revision 或历史记录。
+`packages.list/describe` 从当前包索引提供受读取根约束的规范路径和公开元数据。File Guard 约束 MCP 显式提供及向调用方披露的路径；`packages.refresh` 不接收路径，只触发 Editor 按既有应用配置执行与 GUI 相同的扫描，因此不把当前 effective 搜索路径重新解释为 MCP 路径授权。`settings.package_search_paths.update` 仍逐项校验调用方提供的路径。刷新使用 application-scoped Task，在后台完成扫描后原子切换索引；并发调用可复用已提交的扫描结果，但如果领先扫描在提交门被拒绝，等待调用会重新取得刷新权并执行自己的扫描，不会把保留的旧索引误报为刷新成功。它不伪造文档身份，也不参与工程 revision 或历史记录。
 
 `lyric_rules` 使用稳定 rule ID 管理 splitter 与 tagger 两类规则。自定义规则支持创建、稀疏更新、删除、启停和分类内移动；内置规则内容不可修改或删除，但可以独立启停。`lyric_rules.test` 只读运行 splitter→tagger 流水线，返回逐阶段结果，不改变规则、文档或应用状态。
 

@@ -105,7 +105,7 @@ Connector 桥接工具：6
 | 轨道 | 14 | 列表/详情（含声音上下文）、浅层创建、删除/移动、标量命令、语言与声音设置 |
 | 总线 | 5 | `bus` 归属、四个标量命令、历史记录/revision |
 | 剪辑 | 15 | 筛选/详情（含声音上下文）、浅层创建、duplicate、几何、标量命令和声音继承 |
-| 音频剪辑 | 5 | 元数据、导入/batch 任务，以及 relocate/confirm 同步 Mutation 与授权重检 |
+| 音频剪辑 | 5 | 元数据、导入/batch 任务，以及 relocate/confirm 异步 Task、快照与授权重检 |
 | 声库 | 2 | 可用 singer/speaker/language/G2P/mix 能力，以及含 package version 的稳定引用和同 ID 并存版本精确解析；L1/L2 不依赖包信息域 |
 | Speaker Mix | 13 | fixed/dynamic/bypass、权重归一化、关键帧稳定 ID、应用级预设与文档级应用 |
 | 音符、歌词、语言、发音与音素 | 19 | 查询/搜索/叶节点创建/duplicate/几何、歌词、语言、发音、音素与填充 |
