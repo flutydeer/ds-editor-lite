@@ -12,7 +12,7 @@
 6. 在同一候选上串行执行一次完整 CTest。
 7. 完成失败修复闭环、实现报告和测试报告。
 
-当前产品清单为 Editor 177、Connector 6、总计 183，仅作为候选快照记录。测试以权威契约源、Registry、发现面和 Connector 下游面之间的集合关系为门禁，不把工具数量、顺序、顶层场景数或断言数硬编码为正确性证明。CTest 数量由本轮配置与执行产物记录。
+当前产品清单为 Editor 176、Connector 6、总计 182，仅作为候选快照记录。测试以权威契约源、Registry、发现面和 Connector 下游面之间的集合关系为门禁，不把工具数量、顺序、顶层场景数或断言数硬编码为正确性证明。CTest 数量由本轮配置与执行产物记录。
 
 ## 2. 环境与记录项
 
@@ -173,7 +173,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 17. 对 workspace、track_panel、clip_editor 的布局、焦点事实、共享/独立视口、选择顺序与 primary 各选代表路径验证真实 QWidget 状态；确认 revision/history 不变，且 Editor 在后台无法取得键盘焦点时已完成的显示、选择和定位不被误报为失败，也不出现模态窗口。
 18. 验证拍号新增、替换和删除后的完整时间线投影使用宽整数校验；删除中间拍号会使后续
     拍号 tick 超出模型范围时，validate-only 与实际提交均原子拒绝。
-19. 对 settings.query 与设置更新的公共 allowlist、domain 过滤、候选/生效/重启信息、稀疏更新、持久化和失败回滚进行分形状代表覆盖；validate-only 只覆盖音频设备、计算设备和包搜索路径更新，其他设置 update 必须拒绝该字段。
+19. 对 settings.query 与设置更新的公共 allowlist、domain 过滤、候选/生效/重启信息、稀疏更新、持久化和失败回滚进行分形状代表覆盖；包搜索路径只允许查询，validate-only 只覆盖音频设备和计算设备更新，其他设置 update 必须拒绝该字段。
 20. 对 packages.list/describe/refresh 验证读取根内路径、有效搜索路径、application task 的成功/取消/部分失败，以及索引原子切换；验证领先刷新在提交门被拒绝时，并发等待调用重新扫描而不返回陈旧索引。
 21. 对 lyric_rules 验证稳定 ID 迁移、内置/自定义边界、CRUD、启停、分类内移动、非法规则回滚和 splitter→tagger 只读测试。
 22. 验证音频导入、重定位和路径确认的 SHA-512 与解码结果来自同一临时快照；在快照解码完成后
@@ -351,7 +351,7 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 
 `implementation-report.md` 记录：
 
-- 177 + 6 工具与 24 个域；
+- 176 + 6 工具与 24 个域；
 - Wire/Registry/Profile/Custom；
 - Editor MCP 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手与 QLocal；
 - Connector stdio/exposure/compatibility；

@@ -477,10 +477,6 @@ namespace Automation {
         std::optional<int> idleTimeoutSeconds;
     };
 
-    struct PackageSearchPathsSettingsPatchDto {
-        std::optional<QStringList> paths;
-    };
-
     struct SettingsMutationResultDto {
         bool changed = false;
         bool validatedOnly = false;
@@ -626,10 +622,6 @@ namespace Automation {
         AutomationResult<SettingsMutationResultDto>
             updateSingerSessionRetention(const ApplicationCommandContext &context,
                                          const SingerSessionRetentionSettingsPatchDto &patch);
-        AutomationResult<SettingsMutationResultDto>
-            updatePublicPackageSearchPaths(const ApplicationCommandContext &context,
-                                           const PackageSearchPathsSettingsPatchDto &patch);
-
         AutomationResult<QList<LyricRuleDto>> listLyricRules();
         AutomationResult<LyricRuleMutationResultDto>
             createLyricRule(const ApplicationCommandContext &context,

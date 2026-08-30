@@ -2,11 +2,11 @@
 
 ## 1. 交付结论与口径
 
-二期形成了可由 Agent Host 使用的完整自动化链路：GUI Editor 内置 Streamable HTTP MCP Server，DS Connector Lite 以 stdio 向下游提供 MCP，并通过本机实例观察和 HTTP 与运行中的 Editor 建立连接。公共工具面按业务域组织，Editor 177 项、Connector 6 项，共 183 项。
+二期形成了可由 Agent Host 使用的完整自动化链路：GUI Editor 内置 Streamable HTTP MCP Server，DS Connector Lite 以 stdio 向下游提供 MCP，并通过本机实例观察和 HTTP 与运行中的 Editor 建立连接。公共工具面按业务域组织，Editor 176 项、Connector 6 项，共 182 项。
 
-Editor 的 177 项工具分属 24 个业务域，类型统计为 **41 Q/S + 125 C/S + 11 C/A**。
-最低 Profile 分布为 L0 4 项、L1 85 项、L2 43 项、L3 45 项；累积可见数量分别为
-4、89、132、177。公共工具集 `toolset_version` 与 183 项工具的
+Editor 的 176 项工具分属 24 个业务域，类型统计为 **41 Q/S + 122 C/S + 13 C/A**。
+最低 Profile 分布为 L0 4 项、L1 85 项、L2 43 项、L3 44 项；累积可见数量分别为
+4、89、132、176。公共工具集 `toolset_version` 与 182 项工具的
 `minimum_toolset_version` 均为 **1**。
 
 本报告记录当前源码的实现事实。权威工具分母和逐项语义见[公共工具矩阵](public-tool-matrix.md)，验证范围与执行方法见[全量测试大纲](test-outline.md)和[测试执行计划](test-plan.md)，实际运行结果由[测试报告](test-report.md)统一记录。
@@ -27,9 +27,9 @@ Editor 的 177 项工具分属 24 个业务域，类型统计为 **41 Q/S + 125 
 
 | 层 | 主要代码 | 已实现职责 |
 |---|---|---|
-| Wire Contract | `src/libs/AutomationWire` | 177 项公共定义、值域、严格 JSON Schema、游标、MCP codec、exposure 与工具集版本 |
+| Wire Contract | `src/libs/AutomationWire` | 176 项公共定义、值域、严格 JSON Schema、游标、MCP codec、exposure 与工具集版本 |
 | Domain Facade | `src/app/Automation` | 类型化 Query/Command、显式 Dispatcher 路由、CommandCommitter、历史记录、revision、Task 与领域适配 |
-| Public Registry | `src/app/Automation/Public` | 177 项 binding、Profile/Custom、动态值发现、File Guard、Admission、输入校验与 handler 路由；输出契约由确定性测试验证 |
+| Public Registry | `src/app/Automation/Public` | 176 项 binding、Profile/Custom、动态值发现、File Guard、Admission、输入校验与 handler 路由；输出契约由确定性测试验证 |
 | Editor MCP | `src/app/Automation/Mcp` | 双协议请求处理、loopback HTTP、运行时配置、启停与状态发布 |
 | Instance Bootstrap | `src/app/Bootstrap` | 单实例身份、`automation.discover/watch`、完整状态快照与广播 |
 | Connector | `src/connector` | QLocal watcher、HTTP upstream、stdio downstream、六项桥接工具、exposure、兼容缓存与重连 |
@@ -58,7 +58,7 @@ contract / handler 查找
 binding ID 与公共契约 ID 排序后做精确相等校验；完整性门禁失败时，Editor 发布错误状态，不启动
 缺少 binding 的 MCP listener。
 
-## 4. 177 项域优先公共契约
+## 4. 176 项域优先公共契约
 
 `src/libs/AutomationWire/PublicToolDefinitions.inc` 是 Editor 工具身份、域、最低 Profile、类型、
 同步模式和逐工具 `minimum_toolset_version` 的单一来源。
@@ -86,10 +86,10 @@ binding ID 与公共契约 ID 排序后做精确相等校验；完整性门禁�
 | 工作区布局 | `workspace` | 2 |
 | 轨道面板 | `track_panel` | 7 |
 | 剪辑编辑器 | `clip_editor` | 16 |
-| 设置 | `settings` | 10 |
+| 设置 | `settings` | 9 |
 | 包信息 | `packages` | 3 |
 | 歌词规则 | `lyric_rules` | 7 |
-| **合计** |  | **177** |
+| **合计** |  | **176** |
 
 `master.*` 的公开 operation ID 保持稳定，descriptor category 为 `bus`。历史记录域使用 `history.get_state/undo/redo`，异步执行实例统一使用 `tasks.list/get/cancel`；`operation_id` 表示能力定义，`task_id` 表示一次执行实例。
 
@@ -200,9 +200,9 @@ GUI 进阶控制按真实面板层级归入 `workspace`、`track_panel` 和 `cli
 
 ### 5.8 设置、包信息与歌词规则
 
-设置工具采用 `settings.<domain>.update` 三段式命名，并以 `settings.query` 集中返回公开域的配置值、生效值、候选/范围、重启要求和不可用原因。九个 update 都是严格 allowlist 上的稀疏更新，只验证和提交调用方明确提供的字段；其中音频设备、计算设备和包搜索路径更新开放 validate-only。所有设置更新失败时都不留下部分持久化或运行时状态，也不触发交互式错误对话框。UI 语言使用独立 `ui_language` 域；自动化/MCP 自配置、开发者选项和其他未列入契约的设置不向 MCP 暴露。
+设置工具采用 `settings.<domain>.update` 三段式命名，并以 `settings.query` 集中返回公开域的配置值、生效值、候选/范围、重启要求和不可用原因。八个 update 都是严格 allowlist 上的稀疏更新，只验证和提交调用方明确提供的字段；其中音频设备和计算设备更新开放 validate-only。所有设置更新失败时都不留下部分持久化或运行时状态，也不触发交互式错误对话框。UI 语言使用独立 `ui_language` 域；包搜索路径可查询但不能由 MCP 修改，自动化/MCP 自配置、开发者选项和其他未列入契约的设置也不向 MCP 暴露。
 
-`packages.list/describe` 从当前包索引提供受读取根约束的规范路径和公开元数据。File Guard 约束 MCP 显式提供及向调用方披露的路径；`packages.refresh` 不接收路径，只触发 Editor 按既有应用配置执行与 GUI 相同的扫描，因此不把当前 effective 搜索路径重新解释为 MCP 路径授权。`settings.package_search_paths.update` 仍逐项校验调用方提供的路径。刷新使用 application-scoped Task，在后台完成扫描后原子切换索引；并发调用可复用已提交的扫描结果，但如果领先扫描在提交门被拒绝，等待调用会重新取得刷新权并执行自己的扫描，不会把保留的旧索引误报为刷新成功。它不伪造文档身份，也不参与工程 revision 或历史记录。
+`packages.list/describe` 从当前包索引提供受读取根约束的规范路径和公开元数据。File Guard 约束 MCP 显式提供及向调用方披露的路径；`packages.refresh` 不接收路径，只触发 Editor 按既有应用配置执行与 GUI 相同的扫描，因此不把当前 effective 搜索路径重新解释为 MCP 路径授权。公共接口不提供包搜索路径修改能力。刷新使用 application-scoped Task，在后台完成扫描后原子切换索引；并发调用可复用已提交的扫描结果，但如果领先扫描在提交门被拒绝，等待调用会重新取得刷新权并执行自己的扫描，不会把保留的旧索引误报为刷新成功。它不伪造文档身份，也不参与工程 revision 或历史记录。
 
 `lyric_rules` 使用稳定 rule ID 管理 splitter 与 tagger 两类规则。自定义规则支持创建、稀疏更新、删除、启停和分类内移动；内置规则内容不可修改或删除，但可以独立启停。`lyric_rules.test` 只读运行 splitter→tagger 流水线，返回逐阶段结果，不改变规则、文档或应用状态。
 
@@ -215,7 +215,7 @@ GUI 进阶控制按真实面板层级归入 `workspace`、`track_panel` 和 `cli
 音符量化复用同一时间轴规则的宽整数实现，先计算全局起点、长度和局部终点，再缩窄为模型 tick；
 任何越界候选都在 Action 构造前拒绝，预检和提交不会产生部分几何变化。
 
-公开 `validate_only` 仅保留在 `documents.save_as`、`documents.import_batch`、`audio_clips.import_batch`、`settings.audio_device.update`、`settings.compute_device.update`、`settings.package_search_paths.update`、`lyric_rules.create` 和 `lyric_rules.update`。其他命令仍执行同样的提交前校验，但不向 Agent 暴露无实际收益的预演开关。
+公开 `validate_only` 仅保留在 `documents.save_as`、`documents.import_batch`、`audio_clips.import_batch`、`settings.audio_device.update`、`settings.compute_device.update`、`lyric_rules.create` 和 `lyric_rules.update`。其他命令仍执行同样的提交前校验，但不向 Agent 暴露无实际收益的预演开关。
 
 公开 `idempotency_key` 收敛到 `tracks.insert`、`clips.insert/duplicate`、`audio_clips.import*`、`speaker_mix.keyframes.insert`、`notes.insert/duplicate/split_at`、`parameters.create_anchor_curve/insert_anchors` 和 `extract.*.start`。这些操作能够以稳定结果安全去重；key 最长 128 个字符，每个 document generation 以 FIFO 保留最近 256 个成功键。`documents.import*`、`inference.start` 及其余普通文档写操作只使用文档 revision 或 Task 状态处理冲突。瞬时 GUI 与播放目标状态命令不依赖客户端版本令牌，并通过 MCP `idempotentHint` 表达可安全重复调用。
 
@@ -276,7 +276,7 @@ Connector 固定提供六个桥接工具：
 | `editor.tools.describe` | 返回实际 Schema、版本、权限、兼容与可用性 |
 | `editor.tools.invoke` | 按 Editor 当前真实 Schema 调用获准目标 |
 
-六项桥接工具的 `minimum_toolset_version` 均为 1。Connector 还携带构建时已知的 177 项
+六项桥接工具的 `minimum_toolset_version` 均为 1。Connector 还携带构建时已知的 176 项
 Editor 类型化描述；downstream 工具面由六项桥接工具与 exposure 选择的类型化工具组成，并在
 单个 Connector 生命周期内保持描述稳定。标准 downstream `tools/list` 直接发布类型化描述；
 泛化 `editor.tools.list/search` 只返回摘要，需要完整 Schema 时调用 `editor.tools.describe`。
@@ -340,8 +340,8 @@ CLI override 只影响本次运行，并在设置页显示来源，不改写持�
 - Automation 设置持久化、CLI override、端口、配置 JSON、Custom 领域分组与中文界面。
 
 最终候选在 Visual Studio 2026 v18.9.0、Qt 6.11.2 环境中通过标准 preset
-`ConfigureAndBuild` 和 `all` target，完整 CTest 为 62/62（46.03 s）。Editor 177 项、Connector
-6 项、24 个业务域、L3 45 项和内部 208 个 Operation ID 为当前产品快照；契约集合关系、共享不变量和领域独特语义的确定性覆盖通过；2025-11-25 下游
+`ConfigureAndBuild` 和 `all` target，完整 CTest 为 62/62（44.43 s）。Editor 176 项、Connector
+6 项、24 个业务域、L3 44 项和内部 208 个 Operation ID 为当前产品快照；契约集合关系、共享不变量和领域独特语义的确定性覆盖通过；2025-11-25 下游
 握手、2026-07-28 上游连接、真实编辑联调、Computer Use GUI、配置恢复和只读素材完整性均通过。
 生命周期增量联调还确认 dirty 默认拒绝无弹窗、显式丢弃重启后 instance ID 变化且 Connector
 自动恢复 compatible，以及 clean 默认退出后无 Editor 进程残留。

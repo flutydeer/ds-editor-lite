@@ -384,9 +384,6 @@ AUTOMATION_WIRE_PUBLIC_TOOL(settings_render_update, "settings.render.update", "s
 AUTOMATION_WIRE_PUBLIC_TOOL(settings_singer_session_retention_update,
                             "settings.singer_session_retention.update", "settings", L3, Command,
                             Synchronous, 1, NonDestructive, Idempotent, ClosedWorld)
-AUTOMATION_WIRE_PUBLIC_TOOL(settings_package_search_paths_update,
-                            "settings.package_search_paths.update", "settings", L3, Command,
-                            Synchronous, 1, NonDestructive, Idempotent, ClosedWorld)
 
 AUTOMATION_WIRE_PUBLIC_TOOL(packages_list, "packages.list", "packages", L3, Query, Synchronous, 1,
                             ReadOnly, Idempotent, ClosedWorld)

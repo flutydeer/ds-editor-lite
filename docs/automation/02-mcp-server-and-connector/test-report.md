@@ -2,13 +2,13 @@
 
 ## 1. 结论
 
-本报告对应当前最终架构的同一候选验证。公共工具面为 Editor **177** 项、Connector **6** 项，
-共 **183** 项；Editor 工具分属 **24** 个业务域，类型统计为
-**41 Q/S + 125 C/S + 11 C/A**。
+本报告对应当前最终架构的同一候选验证。公共工具面为 Editor **176** 项、Connector **6** 项，
+共 **182** 项；Editor 工具分属 **24** 个业务域，类型统计为
+**41 Q/S + 122 C/S + 13 C/A**。
 
-最低 Profile 分布为 L0 4、L1 85、L2 43、L3 45，累积可见数量为
-4、89、132、177。L0 downstream 为 4 个固有 Editor wrapper 加 6 个桥接工具，共 10 项；L2 downstream 为 132 个 Editor wrapper 加 6 个桥接工具，共 138 项；
-L3 downstream 为 177 个 Editor wrapper 加 6 个桥接工具，共 183 项。全局
+最低 Profile 分布为 L0 4、L1 85、L2 43、L3 44，累积可见数量为
+4、89、132、176。L0 downstream 为 4 个固有 Editor wrapper 加 6 个桥接工具，共 10 项；L2 downstream 为 132 个 Editor wrapper 加 6 个桥接工具，共 138 项；
+L3 downstream 为 176 个 Editor wrapper 加 6 个桥接工具，共 182 项。全局
 `toolset_version` 与每工具 `minimum_toolset_version` 均为 **1**。
 
 本轮最终判定：**通过**。
@@ -22,7 +22,7 @@ L3 downstream 为 177 个 Editor wrapper 加 6 个桥接工具，共 183 项。�
 | 平台与工具链 | Visual Studio 2026 v18.9.0；Qt 6.11.2 |
 | Debug 配置与构建 | 标准 preset `ConfigureAndBuild` 通过；随后 `all` target 通过 |
 | 最终 CTest 清单 | 62 项 |
-| 一次完整 CTest | 62/62 通过，45.80 s |
+| 一次完整 CTest | 62/62 通过，44.43 s |
 | Connector 真实联调 | 2025-11-25 下游握手和 2026-07-28 上游连接通过；L0 重启后自动重连且 toolset compatible |
 | GUI/Computer Use | 真实编辑、合成、播放、另存，以及 dirty 拒绝、丢弃重启和 clean 退出全程无决策弹窗 |
 | 测试素材完整性 | 素材源 19/19 项 SHA-256 不变；真实用户应用配置 SHA-256 不变 |
@@ -41,7 +41,7 @@ plugin 路径；GUI 与 Connector 进程测试使用独立测试实例和隔离�
 - `tracks.get` 返回轨道属性、统计、自有/有效 voice 与默认语言上下文，`clips.get` 对歌声剪辑
   返回 own/effective voice、继承来源和有效默认语言；公共集合不含
   `tracks.get_voice_context` 或 `clips.get_voice_context`；
-- 177 项 input JSON Schema 均为 object 根，未知字段、错误类型、非法枚举和不满足联合分支的输入
+- 176 项 input JSON Schema 均为 object 根，未知字段、错误类型、非法枚举和不满足联合分支的输入
   在 handler 前失败；output Schema 由确定性契约测试覆盖，运行时不逐次 assert；
 - L0、L1、L2、L3 与 Custom 的发现面和 Registry 执行期授权使用同一 Access Policy；L0 固有工具始终可用、不进入 Custom 列表，Connector exclude 也不能移除；
 - L0 的 `application.request_exit/restart` 只接受可选 `discard_changes`；dirty 默认拒绝并指向该字段，显式丢弃或 clean 工程返回动作明确的 accepted 结果；
@@ -50,10 +50,10 @@ plugin 路径；GUI 与 Connector 进程测试使用独立测试实例和隔离�
   Profile、host 与当前文档/窗口摘要；
 - Cursor 的 base64url payload 只绑定 context、snapshot 和 offset，不使用密钥或 HMAC。
 
-集合与契约实测结果：**通过**。当前候选快照为 Editor 177 项、Connector 6 项、总计 183 项；
-最低 Profile 累计数量为 4/89/132/177，内部能力集合为 208 个 Operation ID。集合正确性由单一
+集合与契约实测结果：**通过**。当前候选快照为 Editor 176 项、Connector 6 项、总计 182 项；
+最低 Profile 累计数量为 4/89/132/176，内部能力集合为 208 个 Operation ID。集合正确性由单一
 契约源及其与 Registry、发现面和 downstream 的关系验证。Connector 工具集状态报告
-`compatible`，177 项 compatible、0 项 unavailable、0 项 incompatible。
+`compatible`，176 项 compatible、0 项 unavailable、0 项 incompatible。
 
 ## 4. 版本兼容、准入与幂等
 
@@ -97,14 +97,14 @@ revision。L3 的选择、定位、面板和视口命令不修改工程，也不
 
 | 范围 | 工具数 | 本轮结果 |
 |---|---:|---|
-| Editor 全部业务域 | 177 | 契约与完整 CTest 通过 |
+| Editor 全部业务域 | 176 | 契约与完整 CTest 通过 |
 | `workspace` | 2 | 契约与确定性测试通过 |
 | `track_panel` | 7 | 契约、确定性测试与后台窗口 GUI 代表路径通过 |
 | `clip_editor` | 16 | 契约、确定性测试与后台窗口 GUI 代表路径通过 |
-| `settings` | 10 | 契约与确定性测试通过 |
+| `settings` | 9 | 契约与确定性测试通过 |
 | `packages` | 3 | 契约与确定性测试通过 |
 | `lyric_rules` | 7 | 契约与确定性测试通过 |
-| L3 合计 | 45 | 契约覆盖、区域激活与尽力焦点代表路径通过 |
+| L3 合计 | 44 | 契约覆盖、区域激活与尽力焦点代表路径通过 |
 
 24 个业务域的 Query、同步 Command 和异步 Task 由确定性测试覆盖。真实 Connector 代表路径
 覆盖精确声库选择、轨道 voice、剪辑、音符、合并后的 voice context 查询、泛化 invoke、L3 UI
@@ -152,7 +152,7 @@ initialize 请求的存活 session 强制校验、有界
 身份跨 HTTP 连接稳定及排队取消、无显式实例 ID 的现代直连客户端隔离、loopback HTTP、QLocal
 watch、stdio 大帧、32 路 downstream 饱和与第 33 路拒绝、并发乱序、取消、timeout、EOF、
 broken pipe、重连和旧 epoch 隔离。Connector 常规握手分页读取 `tools/list` 后只读取
-`application.get_status` 的轻量状态，不为 177 项 Schema 做兼容重算。
+`application.get_status` 的轻量状态，不为 176 项 Schema 做兼容重算。
 
 音频准备回归确认哈希与临时快照由同一次读取产生，导入解码只读取该快照；源文件随后变化不会
 使已准备的摘要与解码内容分离，且提交前的后台摘要复核会拒绝同路径换内容。
@@ -167,7 +167,7 @@ broken pipe、重连和旧 epoch 隔离。Connector 常规握手分页读取 `to
 `tracks.set_voice`、`clips.insert`、`notes.insert`、`tracks.get`、`clips.get` 和
 `editor.tools.invoke(clips.get)`；合并后的两个 get 工具均返回有效 voice context。
 
-生命周期真实联调另以隔离配置完成：Connector 工具面为 183 项；dirty 工程对默认 exit 与
+生命周期真实联调另以隔离配置完成：Connector 工具面为 182 项；dirty 工程对默认 exit 与
 restart 均返回 `busy + field_path=discard_changes`，Editor 继续运行；显式丢弃的 restart 在
 8.93 ms 内返回 accepted，随后 instance ID 变化，Connector 观察到断开并自动恢复为
 connected/compatible；重启后的 clean 工程默认 exit 在 9.91 ms 内返回 accepted 并优雅退出。
@@ -188,7 +188,7 @@ Editor 窗口与进程均消失。三个阶段均未出现保存确认或其他�
 ## 8. 缺陷与回归
 
 最终候选的共享 Dispatcher、公共契约、Registry、Wire、Connector、文档生命周期和真实进程路径
-均通过受影响测试与最终 62/62 完整 CTest（45.80 s）。压力测试仍在默认套件中，保留通知洪泛、
+均通过受影响测试与最终 62/62 完整 CTest（44.43 s）。压力测试仍在默认套件中，保留通知洪泛、
 并发请求、大帧、慢读、取消与竞态覆盖；没有将其拆分、降次或改为可选执行。
 
 时间线回归还覆盖了删除中间拍号后后续拍号继承超长小节的边界：validate-only 与实际删除均在
@@ -270,7 +270,7 @@ Task 分页回归在 application scope 的多页结果间推进运行中任务�
 
 ## 10. 最终通过清单
 
-- [x] Editor 契约 ID 唯一，Registry、发现面与 Connector downstream 的集合关系成立；177/6/183 为当前候选快照。
+- [x] Editor 契约 ID 唯一，Registry、发现面与 Connector downstream 的集合关系成立；176/6/182 为当前候选快照。
 - [x] 全局工具集版本和每工具最低工具集版本契约成立。
 - [x] 全部公共 Contract Schema 可校验，Registry 与授权集合一致；共享权限/MCP 不变量和各域独特语义覆盖通过。
 - [x] 24 个业务域具有 Connector 代表路径和适用的 GUI、query、Task 或进程闭环。

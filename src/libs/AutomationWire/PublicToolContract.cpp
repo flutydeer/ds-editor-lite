@@ -2829,13 +2829,6 @@ namespace AutomationWire {
                     {QStringLiteral("idle_timeout_seconds"), idleTimeout},
                 });
             }
-            if (id == PublicToolNames::settings_package_search_paths_update) {
-                return l3ApplicationValidatableUpdateInput({
-                    {QStringLiteral("paths"),
-                     JsonSchema::array(nonEmptyStringSchema(), 0, MaximumCommandCollectionItems)}
-                });
-            }
-
             if (id == PublicToolNames::packages_list) {
                 return JsonSchema::document(JsonSchema::object({
                     {QStringLiteral("query"), JsonSchema::string()},
@@ -3505,9 +3498,6 @@ namespace AutomationWire {
                 return settingsMutationOutputSchema(renderSettingsValueSchema());
             if (id == PublicToolNames::settings_singer_session_retention_update)
                 return settingsMutationOutputSchema(retentionSettingsValueSchema());
-            if (id == PublicToolNames::settings_package_search_paths_update)
-                return settingsMutationOutputSchema(packagePathsValueSchema());
-
             if (id == PublicToolNames::packages_list)
                 return packagesListOutputSchema();
             if (id == PublicToolNames::packages_describe)
@@ -4257,8 +4247,7 @@ namespace AutomationWire {
         }
 
         FileAccess fileAccess(const QString &id) {
-            if (id == PublicToolNames::settings_package_search_paths_update ||
-                id.startsWith(QStringLiteral("packages."))) {
+            if (id.startsWith(QStringLiteral("packages."))) {
                 return FileAccess::Read;
             }
             if (id == PublicToolNames::documents_open || id == PublicToolNames::documents_import ||

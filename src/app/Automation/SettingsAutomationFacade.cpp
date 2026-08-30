@@ -1111,32 +1111,6 @@ namespace Automation {
             });
     }
 
-    AutomationResult<SettingsMutationResultDto>
-        SettingsAutomationFacade::updatePublicPackageSearchPaths(
-            const ApplicationCommandContext &context,
-            const PackageSearchPathsSettingsPatchDto &patch) {
-        return updatePublicSettings(
-            OperationIds::packages::set_search_paths, context,
-            [patch](SettingsSnapshotDto &target) -> AutomationResult<AutomationUnit> {
-                if (patch.paths)
-                    target.general.packageSearchPaths = normalizedPaths(*patch.paths);
-                return AutomationUnit{};
-            },
-            [](const SettingsSnapshotDto &) {
-                return AutomationResult<AutomationUnit>(AutomationUnit{});
-            },
-            [this](const SettingsSnapshotDto &target) {
-                if (!m_services.applyGeneral)
-                    return AutomationResult<AutomationUnit>(unavailable());
-                return persisted(m_services.applyGeneral(target.general));
-            },
-            [](const SettingsSnapshotDto &before, const SettingsSnapshotDto &after) {
-                return before.general.packageSearchPaths != after.general.packageSearchPaths
-                           ? QStringList{QStringLiteral("paths")}
-                           : QStringList{};
-            });
-    }
-
     AutomationResult<QList<LyricRuleDto>> SettingsAutomationFacade::listLyricRules() {
         return m_dispatcher.dispatchApplicationQuery<QList<LyricRuleDto>>(
             OperationIds::settings::query, [this] {

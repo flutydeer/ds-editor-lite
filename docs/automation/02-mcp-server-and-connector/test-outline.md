@@ -5,9 +5,9 @@
 本大纲验证二期从公共契约到真实 GUI Editor/Connector 联调的完整链路。正式验收以同一候选重新生成的 CTest 与 GUI 双轨证据为准。当前产品清单快照为：
 
 ```text
-Editor 公共工具：177
+Editor 公共工具：176
 Connector 桥接工具：6
-总工具面：183
+总工具面：182
 ```
 
 上述数量用于描述当前产品面，不作为硬编码测试门禁。公共契约是 Editor 工具清单的唯一来源；测试验证 ID 唯一、Schema 合法，以及 Registry、发现授权和 Connector downstream 与权威集合之间的关系。每个业务域保留独特语义的确定性 CTest 与真实产品会话代表路径：可见状态由 GUI 观察闭环，不直接可见的查询、安全拒绝和后台任务由 Connector 回读、应用状态及进程事实闭环。
@@ -70,7 +70,7 @@ Connector 桥接工具：6
 - `create_anchor_curve/insert_anchors/merge_anchor_curves` 分别承担创建、既有曲线插入和显式合并，不允许隐式创建、跨曲线移动或重叠。
 - Speaker Mix 预设的应用级 list/save/delete 与文档级 apply 具有不同 revision、History 和并发域契约；`speaker_mix.get` 返回来源预设及 dirty 状态。
 - 25 个 L3 GUI 工具均显式定位 `window_id`，涉及工程对象的工具还显式定位 `document_id`；GUI command 不改变 revision/history。
-- 设置更新 Schema 只包含公开 allowlist，全部为稀疏 update；音频设备、计算设备和包搜索路径更新另覆盖 validate-only，所有域覆盖候选值、生效值、重启要求和失败回滚。
+- 设置更新 Schema 只包含公开 allowlist，全部为稀疏 update；音频设备和计算设备更新另覆盖 validate-only，包搜索路径仅查询，所有域覆盖候选值、生效值、重启要求和失败回滚。
 - `packages.refresh` 使用 application-scoped Task；歌词规则使用稳定 rule ID，内置规则内容不可修改或删除。
 
 ### 3.2 动态值与首次调用
@@ -272,7 +272,7 @@ Connector 桥接工具：6
 - Editor 离线时 Connector 仍完成 downstream 握手并发布固定桥接面。
 - stdout 字节流仅含 MCP 帧，诊断只在 stderr。
 - CRLF、部分行、多帧、notification 洪泛、非法 JSON、最大帧、超限、EOF 与 broken pipe。
-- writer queue 的部分写、backpressure、停滞 deadline 和确定性关闭；183 工具大响应分别由正常读端与延迟慢读端完整接收。
+- writer queue 的部分写、backpressure、停滞 deadline 和确定性关闭；182 工具大响应分别由正常读端与延迟慢读端完整接收。
 - downstream request ID 到 upstream ID 的映射支持并发乱序、取消和 timeout。
 - 32 个 downstream 工具调用可同时在途；第 33 个立即返回 `busy`，不创建上游请求、不排队，
   取消后释放全部槽位。

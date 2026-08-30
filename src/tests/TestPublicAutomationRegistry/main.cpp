@@ -464,7 +464,6 @@ namespace {
 
     void verifyAdvancedApplicationBindings(Automation::PublicAutomationRegistry &registry,
                                            Automation::CoreRuntime &runtime,
-                                           const QString &allowedPackagePath,
                                            const QString &builtinLyricRuleId,
                                            const QString &customLyricRuleId,
                                            PackageRefreshTestControl &refreshControl) {
@@ -507,9 +506,6 @@ namespace {
               {QStringLiteral("validate_only"), true}}                                                         },
             {"settings.render.update",                   {{QStringLiteral("depth"), 0.5}}                      },
             {"settings.singer_session_retention.update", {{QStringLiteral("capacity"), 4}}                     },
-            {"settings.package_search_paths.update",
-             {{QStringLiteral("paths"), QJsonArray{allowedPackagePath}},
-              {QStringLiteral("validate_only"), true}}                                                         },
         };
         for (const auto &update : updates) {
             invokeSchemaValid(registry, QString::fromLatin1(update.operationId), update.arguments,
@@ -1915,8 +1911,8 @@ int main(int argc, char *argv[]) {
 
     const auto settingsBeforeAdvancedBindings = *settingsSnapshot;
     const auto lyricRulesBeforeAdvancedBindings = *lyricRules;
-    verifyAdvancedApplicationBindings(registry, runtime, directory.path(), builtinLyricRuleId,
-                                      customLyricRuleId, *packageRefreshControl);
+    verifyAdvancedApplicationBindings(registry, runtime, builtinLyricRuleId, customLyricRuleId,
+                                      *packageRefreshControl);
     *settingsSnapshot = settingsBeforeAdvancedBindings;
     *lyricRules = lyricRulesBeforeAdvancedBindings;
     verifyPackageRefreshLifetime(runtime, access, fileGuard, admission, *packageRefreshControl);

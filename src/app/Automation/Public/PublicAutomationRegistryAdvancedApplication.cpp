@@ -755,31 +755,6 @@ namespace Automation {
                                return settings.updateSingerSessionRetention(context, value);
                            });
                    });
-        addBinding(ToolNames::settings_package_search_paths_update,
-                   [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
-                       PackageSearchPathsSettingsPatchDto patch;
-                       if (arguments.contains(QStringLiteral("paths"))) {
-                           QStringList authorizedPaths;
-                           for (const auto &path :
-                                stringList(arguments.value(QStringLiteral("paths")).toArray())) {
-                               const auto authorized =
-                                   m_fileGuard.authorize(path, FileAccessPurpose::Read);
-                               if (!authorized)
-                                   return AutomationResult<QJsonObject>(authorized.getError());
-                               authorizedPaths.append(authorized.get().canonicalPath);
-                           }
-                           patch.paths = std::move(authorizedPaths);
-                       }
-                       return updateSetting(
-                           m_runtime, m_fileGuard, arguments, invocation,
-                           QStringLiteral("package_search_paths"), std::move(patch),
-                           [](SettingsAutomationFacade &settings,
-                              const ApplicationCommandContext &context,
-                              const PackageSearchPathsSettingsPatchDto &value) {
-                               return settings.updatePublicPackageSearchPaths(context, value);
-                           });
-                   });
-
         addBinding(ToolNames::packages_list, [this](const QJsonObject &arguments,
                                                     const PublicInvocationContext &) {
             auto packages =

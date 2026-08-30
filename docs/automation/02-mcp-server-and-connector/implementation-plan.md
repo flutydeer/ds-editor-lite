@@ -4,7 +4,7 @@
 
 二期在一期 Automation Facade 基线上交付运行中 GUI Editor 的公共 MCP Server、公共 Wire Contract、实例发现与状态观察、DS Connector Lite，以及 GUI 进阶控制、允许公开的应用设置与歌词规则、包索引、设置页、CLI、安全和运行时生命周期。
 
-设计语义以《DS Editor Lite MCP 与自动化体系设计》当前版为权威来源，并参考[自动化体系五期建设路线图 #96](https://github.com/flutydeer/ds-editor-lite/issues/96)。公共工具分母由[公共工具矩阵](public-tool-matrix.md)冻结：Editor 177 项，Connector 6 项，总计 183 项。
+设计语义以《DS Editor Lite MCP 与自动化体系设计》当前版为权威来源，并参考[自动化体系五期建设路线图 #96](https://github.com/flutydeer/ds-editor-lite/issues/96)。公共工具分母由[公共工具矩阵](public-tool-matrix.md)冻结：Editor 176 项，Connector 6 项，总计 182 项。
 
 本期产品形态为：
 
@@ -38,7 +38,7 @@ Agent 会话可先于 Editor 启动。Connector 通过全局实例 Bootstrap 观
 - GUI 进阶控制以工作区、轨道面板和剪辑编辑器归域；钢琴与参数子区域共享时间视口，选择与焦点事实归入所属面板域。选择、定位和区域显示以表示状态完成为成功边界，键盘焦点只作尽力获取。
 - 应用设置使用明确 allowlist 与按小标题聚合的稀疏更新；自动化/MCP 自身配置和未列入设置不能由 MCP 修改。
 - 应用级设置与歌词规则不进入文档 revision/history；包刷新使用 application-scoped Task，不伪造文档身份；并发刷新可合并已提交的扫描结果，但前序扫描在提交门被拒绝后，等待者必须重新扫描而不能把旧索引报告为成功。
-- `validate_only` 只开放给保存到新路径、批量文件导入、设备或包搜索路径设置，以及歌词规则创建/更新等确有复杂预检价值的操作；其他命令仍在提交前完成内部校验，不额外暴露预演参数。
+- `validate_only` 只开放给保存到新路径、批量文件导入、设备设置，以及歌词规则创建/更新等确有复杂预检价值的操作；其他命令仍在提交前完成内部校验，不额外暴露预演参数。
 - `idempotency_key` 只开放给需要稳定结果去重的对象创建、批量导入和提取任务；文档导入、推理启动及普通文档编辑使用 revision 或 Task 状态处理冲突，不额外要求 Agent 管理幂等键。瞬时 GUI 与播放目标状态命令不使用客户端版本令牌，并以 `idempotentHint` 表达可安全重复调用。
 
 总线域的 descriptor category 为 `bus`，公开操作 ID 保持 `master.*`。历史记录是独立域，固定包含状态查询、Undo 与 Redo。
@@ -109,7 +109,7 @@ Wire 字段使用 `snake_case`。业务 object 使用封闭 Schema；未知字�
 
 ### 5.2 Binding Registry
 
-Registry 从同一工具声明建立 177 个类型化 binding，并派生：
+Registry 从同一工具声明建立 176 个类型化 binding，并派生：
 
 - Editor `tools/list` 的确定顺序和 descriptor；
 - input 解码、执行 handler 与 output 编码；output Schema 由确定性契约测试验证；
@@ -139,7 +139,7 @@ Toast 或其他决策弹窗；显式允许丢弃后才进入既有优雅关闭�
 
 标准 MCP `tools/list` 是运行时工具目录与完整 Schema 的事实来源；
 `application.get_status` 返回 Editor 的 `toolset_version`、当前 Profile、host mode 及文档/窗口摘要。
-本期工具集维持 v1：`toolset_version = 1`，183 个工具各自只持有
+本期工具集维持 v1：`toolset_version = 1`，182 个工具各自只持有
 `minimum_toolset_version = 1`。
 
 Connector 对同名类型化工具只检查双方工具集版本门槛：
@@ -254,7 +254,7 @@ editor.tools.describe
 editor.tools.invoke
 ```
 
-Connector 同时携带构建时已知的 177 个 Editor 类型化工具描述。进程启动时根据 exposure 生成固定 downstream 类型化工具集合：
+Connector 同时携带构建时已知的 176 个 Editor 类型化工具描述。进程启动时根据 exposure 生成固定 downstream 类型化工具集合：
 
 ```text
 --exposure-profile l0|l1|l2|l3
@@ -295,8 +295,7 @@ exposure 与 pending selector 事实。稳定错误区分 Editor 状态、上游
 
 File Guard 约束自动化调用显式提供的路径及向调用方披露的路径，不重新授权 Editor 按既有应用
 配置执行的内部资源访问。`packages.refresh` 不接收路径，只触发与 GUI 相同的既有 effective 搜索
-路径扫描；`settings.package_search_paths.update` 仍须校验调用方提供的每条路径，包查询结果仍按读根
-约束路径披露。
+路径扫描；公共接口不提供包搜索路径修改能力，`settings.query` 与包查询结果仍按读根约束路径披露。
 
 `formats.inspect` 是同步查询，只读取一份有界文件快照；超过 64 MiB 的输入在解析前拒绝，MIDI
 解析、LibreSVIP 转换与摘要复用同一份快照，不对原路径重复执行无界读取。
@@ -340,9 +339,9 @@ CLI override 只影响本次运行，优先于持久设置。选项菜单中的 
 ## 13. 实施顺序与阶段提交
 
 1. 校正一期 Task 名称与受影响测试。
-2. 冻结 177 + 6 工具矩阵、公共 enum、Schema 与版本不变量。
+2. 冻结 176 + 6 工具矩阵、公共 enum、Schema 与版本不变量。
 3. 完成 Wire Contract、版本兼容与透明分页游标。
-4. 按 24 个域完成 177 个 Registry binding 和 host adapter。
+4. 按 24 个域完成 176 个 Registry binding 和 host adapter。
 5. 完成 Profile/Custom、File Guard 与 Admission。
 6. 完成 Editor 2025-11-25 与 2026-07-28 两套主协议，以及 2025-06-18 兼容握手生命周期。
 7. 完成 QLocal discover/watch 与状态机。

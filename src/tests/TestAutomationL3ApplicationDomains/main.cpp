@@ -271,15 +271,12 @@ namespace {
             applicationContext(), {.samplingSteps = 32, .runVocoderOnCpu = true});
         const auto retention = runtime.settings().updateSingerSessionRetention(
             applicationContext(), {.capacity = 2, .idleTimeoutSeconds = 120});
-        const auto packagePaths = runtime.settings().updatePublicPackageSearchPaths(
-            applicationContext(), {.paths = QStringList{QStringLiteral("C:/new/voices")}});
-        check(ui && singing && theme && audio && playback && compute && render && retention &&
-                  packagePaths,
-              QStringLiteral("all nine public settings domains must accept valid sparse updates"));
+        check(ui && singing && theme && audio && playback && compute && render && retention,
+              QStringLiteral("all public settings update domains must accept valid sparse updates"));
         check(compute.get().restartRequired &&
                   compute.get().restartRequiredFields.contains(
                       QStringLiteral("execution_provider")) &&
-                  render.get().restartRequired && packagePaths.get().restartRequired,
+                  render.get().restartRequired,
               QStringLiteral("restart-only settings must report precise restart fields"));
         check(runtime.documentVersion() == version,
               QStringLiteral("application settings must not change document revision"));

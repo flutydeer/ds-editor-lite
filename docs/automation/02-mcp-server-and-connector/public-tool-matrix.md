@@ -2,7 +2,7 @@
 
 ## 1. 冻结口径
 
-二期工具面按业务域组织。Editor 提供 **177** 个公共工具，DS Connector Lite 提供 **6** 个桥接工具，合计 **183** 个。MCP tool name 是跨 Contract、Registry、Editor 与 Connector 的稳定身份，不使用依赖表内顺序的编号。
+二期工具面按业务域组织。Editor 提供 **176** 个公共工具，DS Connector Lite 提供 **6** 个桥接工具，合计 **182** 个。MCP tool name 是跨 Contract、Registry、Editor 与 Connector 的稳定身份，不使用依赖表内顺序的编号。
 
 公共工具集维持 v1：`toolset_version = 1`。每个工具只声明自己的
 `minimum_toolset_version`，当前均为 1；兼容性只由这两个版本字段决定。Schema 不一致属于
@@ -42,10 +42,10 @@
 | 工作区布局 | 2 | 主编辑面板布局、可见性与焦点归属 |
 | 轨道面板 | 7 | 面板状态、视口、选择、焦点与自动翻页 |
 | 剪辑编辑器 | 16 | 共享时间视口、钢琴与参数子区域的显示、选择和工具状态 |
-| 设置 | 10 | 允许公开的应用设置查询、稀疏更新、候选值与生效状态 |
+| 设置 | 9 | 允许公开的应用设置查询、稀疏更新、候选值与生效状态 |
 | 包信息 | 3 | 已安装包查询、详情与异步刷新 |
 | 歌词规则 | 7 | splitter/tagger 规则管理与只读流水线测试 |
-| **Editor 合计** | **177** | **41 Q/S + 123 C/S + 13 C/A** |
+| **Editor 合计** | **176** | **41 Q/S + 122 C/S + 13 C/A** |
 
 ## 3. Editor 公共工具
 
@@ -324,7 +324,7 @@
 | `clip_editor.parameters.set_tool` | L3 | C/S | 设置绘制、擦除、烘焙或锚点等受支持工具 |
 | `clip_editor.parameters.set_value_viewport` | L3 | C/S | 稀疏更新归一化值域中心与纵向缩放，不改变共享时间视口 |
 
-### 3.22 设置（10）
+### 3.22 设置（9）
 
 设置工具只公开明确允许的应用选项，不公开自动化/MCP 自配置、开发者选项、窗口/动画/触控、文件缓存、MIDI、合成器、G2P 优先级、推理缓存、最近文件清理或未列出的设置。
 
@@ -339,7 +339,8 @@
 | `settings.compute_device.update` | L3 | C/S | 稀疏更新执行提供程序与 GPU；需要重启时只返回事实 |
 | `settings.render.update` | L3 | C/S | 稀疏更新采样步数、深度、Vocoder CPU、自动推理、前瞻与音高平滑 |
 | `settings.singer_session_retention.update` | L3 | C/S | 稀疏更新会话容量与空闲释放时间 |
-| `settings.package_search_paths.update` | L3 | C/S | 替换有序读取根内路径；配置值持久化并报告重启后生效 |
+
+`settings.query` 可返回经读根投影的 configured/effective 包搜索路径，但 MCP 不提供修改能力。
 
 ### 3.23 包信息（3）
 
@@ -391,7 +392,7 @@ Editor PublicToolDefinitions
 Connector bridge definitions
 = Connector downstream 固定桥接工具 names
 
-177 + 6 = 183
+176 + 6 = 182
 ```
 
 每个 Editor 工具必须具备唯一 operation ID、域、最低 profile、Query/Command、同步模式、严格
