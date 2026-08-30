@@ -79,7 +79,7 @@ namespace Automation {
         virtual AudioExportBackendResult waitUntilReady(const AudioExportObserver &observer) = 0;
         virtual AudioExportBackendResult execute(const AudioExportObserver &observer,
                                                  bool deferPublish) = 0;
-        virtual AudioExportBackendResult publish() = 0;
+        virtual AudioExportBackendResult publish(bool allowOverwrite) = 0;
         virtual void cancel() = 0;
         virtual void cleanup() = 0;
     };
@@ -132,7 +132,7 @@ namespace Automation {
 
         void executeTask(const TaskId &taskId, DocumentVersion baseDocument,
                          AudioExportObserver observer, AudioExportAccessRevalidator reauthorize,
-                         const std::shared_ptr<PendingJobState> &state);
+                         const std::shared_ptr<PendingJobState> &state, bool allowOverwrite);
         AutomationResult<std::reference_wrapper<DocumentSession>>
             resolveDocumentGeneration(const DocumentVersion &version) const;
         void removeJobRecord(const TaskId &taskId);

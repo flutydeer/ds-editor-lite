@@ -341,8 +341,10 @@ namespace Automation {
 
                 auto execute = [this, taskId = task.taskId, base = session.version(),
                                 observer = std::move(observer),
-                                reauthorize = std::move(reauthorize), state]() mutable {
-                    executeTask(taskId, base, std::move(observer), std::move(reauthorize), state);
+                                reauthorize = std::move(reauthorize), state,
+                                allowOverwrite = policy.allowOverwrite]() mutable {
+                    executeTask(taskId, base, std::move(observer), std::move(reauthorize), state,
+                                allowOverwrite);
                 };
                 if (m_services.schedule)
                     m_services.schedule(execute);
@@ -394,7 +396,8 @@ namespace Automation {
                                                   const DocumentVersion baseDocument,
                                                   AudioExportObserver observer,
                                                   AudioExportAccessRevalidator reauthorize,
-                                                  const std::shared_ptr<PendingJobState> &state) {
+                                                  const std::shared_ptr<PendingJobState> &state,
+                                                  const bool allowOverwrite) {
         std::shared_ptr<IAudioExportJob> job;
         bool cancelBeforeRun = false;
         {
@@ -517,7 +520,7 @@ namespace Automation {
             }
         }
 
-        const auto deferPublish = static_cast<bool>(reauthorize);
+        const auto deferPublish = static_cast<bool>(reauthorize) || !allowOverwrite;
         const auto result = job->execute(taskObserver, deferPublish);
         if (result.state == AudioExportBackendState::Canceled ||
             m_tasks.isCancellationRequested(taskId)) {
@@ -561,7 +564,7 @@ namespace Automation {
             return;
         }
         if (deferPublish) {
-            const auto published = job->publish();
+            const auto published = job->publish(allowOverwrite);
             if (published.state != AudioExportBackendState::Succeeded) {
                 AutomationError error;
                 error.code = AutomationErrorCode::IoError;

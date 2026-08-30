@@ -148,10 +148,12 @@ namespace {
         if (!fixtureReady)
             return;
 
-        const auto result = Audio::Internal::publishAudioFiles({
-            {firstTarget, firstTemporary},
-            {secondTarget, missingTemporary},
-        });
+        const auto result = Audio::Internal::publishAudioFiles(
+            {
+                {firstTarget, firstTemporary},
+                {secondTarget, missingTemporary},
+            },
+            true);
         expect(!result.succeeded() && result.failedTarget == secondTarget,
                QStringLiteral("missing staged audio must fail publication"));
         expect(readFile(firstTarget) == QByteArrayLiteral("original-a") &&
@@ -162,6 +164,35 @@ namespace {
                                QFileInfo(secondTarget).fileName()},
                QStringLiteral("audio publication rollback must remove staged and backup files"));
     }
+
+    void testAudioPublicationNoClobber() {
+        QTemporaryDir directory;
+        const auto firstTarget = directory.filePath(QStringLiteral("a.wav"));
+        const auto secondTarget = directory.filePath(QStringLiteral("b.wav"));
+        const auto firstTemporary = directory.filePath(QStringLiteral("a.exporting"));
+        const auto secondTemporary = directory.filePath(QStringLiteral("b.exporting"));
+        const auto fixtureReady =
+            directory.isValid() && writeFile(secondTarget, QByteArrayLiteral("external-b")) &&
+            writeFile(firstTemporary, QByteArrayLiteral("replacement-a")) &&
+            writeFile(secondTemporary, QByteArrayLiteral("replacement-b"));
+        expect(fixtureReady,
+               QStringLiteral("reject-mode audio publication fixtures must be created"));
+        if (!fixtureReady)
+            return;
+
+        const auto result = Audio::Internal::publishAudioFiles(
+            {
+                {firstTarget, firstTemporary},
+                {secondTarget, secondTemporary},
+            },
+            false);
+        expect(!result.succeeded() && result.failedTarget == secondTarget,
+               QStringLiteral("reject-mode audio publication must fail on a late target"));
+        expect(!QFileInfo::exists(firstTarget) &&
+                   readFile(secondTarget) == QByteArrayLiteral("external-b"),
+               QStringLiteral("reject-mode rollback must preserve external targets and remove "
+                              "partial publication"));
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -169,6 +200,7 @@ int main(int argc, char *argv[]) {
     testDspxAtomicWrite();
     testMidiAtomicWrite();
     testAudioPublicationRollback();
+    testAudioPublicationNoClobber();
     if (failures == 0)
         QTextStream(stdout) << "Validated atomic DSPX, MIDI, and audio replacement" << Qt::endl;
     return failures == 0 ? 0 : 1;

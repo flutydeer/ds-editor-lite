@@ -17,7 +17,8 @@ namespace Audio::Internal {
         };
     }
 
-    AudioFilePublicationResult publishAudioFiles(const QHash<QString, QString> &pendingFiles) {
+    AudioFilePublicationResult publishAudioFiles(const QHash<QString, QString> &pendingFiles,
+                                                 const bool allowOverwrite) {
         QStringList targets = pendingFiles.keys();
         targets.sort(Qt::CaseSensitive);
         QList<PublicationEntry> entries;
@@ -46,6 +47,17 @@ namespace Audio::Internal {
             }
             return result;
         };
+
+        if (!allowOverwrite) {
+            for (auto &entry : entries) {
+                // QFile::rename refuses an existing destination, so reject mode has no
+                // check-then-replace window at the final publication point.
+                if (!QFile(entry.temporary).rename(entry.target))
+                    return fail(entry.target);
+                entry.published = true;
+            }
+            return result;
+        }
 
         const auto backupToken =
             QByteArray::fromHex(QUuid::createUuid().toByteArray(QUuid::Id128))

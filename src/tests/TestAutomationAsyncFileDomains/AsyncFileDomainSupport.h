@@ -91,6 +91,7 @@ namespace AutomationAsyncFileTests {
         int cancelCount = 0;
         int cleanupCount = 0;
         bool deferPublish = false;
+        std::optional<bool> publishAllowOverwrite;
         quint32 warningFlags = 0;
         Automation::AudioExportBackendState backendState =
             Automation::AudioExportBackendState::Succeeded;
@@ -143,8 +144,9 @@ namespace AutomationAsyncFileTests {
             };
         }
 
-        Automation::AudioExportBackendResult publish() override {
+        Automation::AudioExportBackendResult publish(const bool allowOverwrite) override {
             ++m_state->publishCount;
+            m_state->publishAllowOverwrite = allowOverwrite;
             return {.state = Automation::AudioExportBackendState::Succeeded};
         }
 

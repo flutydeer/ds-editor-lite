@@ -177,7 +177,7 @@ namespace Audio {
         [[nodiscard]] QStringList dryRunInternal() const;
         [[nodiscard]] QString projectDirectoryInternal() const;
         Result execInternal(bool deferPublish);
-        Result publishInternal();
+        Result publishInternal(bool allowOverwrite);
         void cleanUpInternal();
         void cancelInternal(bool isFail, const QString &message);
 

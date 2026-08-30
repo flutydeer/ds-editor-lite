@@ -915,6 +915,8 @@ namespace {
                                      Automation::AutomationTaskState::Succeeded &&
                                  terminal.get().progress.value == 75 &&
                                  harness.audioExportState()->executeCount == 1 &&
+                                 harness.audioExportState()->deferPublish &&
+                                 harness.audioExportState()->publishAllowOverwrite == false &&
                                  harness.audioExportState()->cleanupCount == 0 &&
                                  runtime.documentVersion() == base,
                              QStringLiteral("audio export success must retain progress and release "
@@ -1002,10 +1004,13 @@ namespace {
                                    "publishing"));
 
                 state->executeHook = {};
+                Automation::AudioExportPolicyDto overwritePolicy;
+                overwritePolicy.allowOverwrite = true;
                 const auto published = runtime.audioExports().start(
-                    harness.context(), audioConfig(harness, QStringLiteral("published.wav")), {},
-                    {}, [] { return Automation::AutomationResult<Automation::AutomationUnit>(
-                                Automation::AutomationUnit{}); });
+                    harness.context(), audioConfig(harness, QStringLiteral("published.wav")),
+                    overwritePolicy, {},
+                    [] { return Automation::AutomationResult<Automation::AutomationUnit>(
+                             Automation::AutomationUnit{}); });
                 const auto publishedRan = harness.audioScheduler.runNext();
                 const auto publishedTask =
                     published ? runtime.tasks().getTask(runtime.documentVersion().documentId,
@@ -1016,6 +1021,7 @@ namespace {
                     published && publishedRan && publishedTask &&
                         publishedTask.get().state == Automation::AutomationTaskState::Succeeded &&
                         state->publishCount == publishBefore + 1 &&
+                        state->publishAllowOverwrite == true &&
                         state->cleanupCount == cleanupBefore + 1,
                     QStringLiteral("successful final authorization must publish staged audio once"));
             });

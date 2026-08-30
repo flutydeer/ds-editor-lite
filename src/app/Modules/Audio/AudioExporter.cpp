@@ -863,20 +863,20 @@ namespace Audio {
             d->pendingTemporaryFiles = std::move(temporaryFiles);
             if (deferPublish)
                 return R_Ok;
-            return publishInternal();
+            return publishInternal(true);
         }
 
         d->temporaryFileList.clear();
         return R_Ok;
     }
 
-    AudioExporter::Result AudioExporter::publishInternal() {
+    AudioExporter::Result AudioExporter::publishInternal(const bool allowOverwrite) {
         Q_D(AudioExporter);
         const auto pendingTemporaryFiles = d->pendingTemporaryFiles;
         d->pendingTemporaryFiles.clear();
         d->temporaryFileList.clear();
 
-        const auto publication = publishAudioFiles(pendingTemporaryFiles);
+        const auto publication = publishAudioFiles(pendingTemporaryFiles, allowOverwrite);
         d->temporaryFileList = publication.remainingTemporaryFiles;
         if (!publication.succeeded()) {
             auto message = tr("Cannot publish temporary audio file: %1")

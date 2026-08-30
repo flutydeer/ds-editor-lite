@@ -18,7 +18,7 @@ namespace Audio::Internal {
     };
 
     [[nodiscard]] AudioFilePublicationResult
-        publishAudioFiles(const QHash<QString, QString> &pendingFiles);
+        publishAudioFiles(const QHash<QString, QString> &pendingFiles, bool allowOverwrite);
 
 }
 
