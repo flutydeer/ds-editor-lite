@@ -2,6 +2,7 @@
 #include "Automation/Public/AutomationAccessPolicy.h"
 #include "Automation/Public/AutomationFileGuard.h"
 #include "Automation/Public/PublicAutomationRegistry.h"
+#include "Automation/OperationIds.h"
 #include "TestRuntime.h"
 
 #include <lite/AutomationWire/JsonSchema.h>
@@ -606,6 +607,40 @@ namespace {
                               QStringLiteral("document tasks list"));
         expect(documentTasks && documentTasks->value(QStringLiteral("tasks")).toArray().isEmpty(),
                QStringLiteral("document task scope must not leak application tasks"));
+
+        const auto progressingTask = runtime.automationTasks().createApplicationTask(
+            Automation::OperationIds::packages::refresh);
+        const auto siblingTask = runtime.automationTasks().createApplicationTask(
+            Automation::OperationIds::packages::refresh);
+        const auto firstTaskPage =
+            invokeSchemaValid(registry, QStringLiteral("tasks.list"),
+                              QJsonObject{
+                                  {QStringLiteral("scope"), QStringLiteral("application")},
+                                  {QStringLiteral("limit"), 1                            },
+        },
+                              QStringLiteral("first application task page"));
+        const auto taskCursor = firstTaskPage
+                                    ? firstTaskPage->value(QStringLiteral("next_cursor")).toString()
+                                    : QString();
+        const auto progressUpdated =
+            runtime.automationTasks().markRunning(progressingTask.taskId) &&
+            runtime.automationTasks().updateProgress(
+                progressingTask.taskId,
+                {.minimum = 0, .maximum = 100, .value = 50, .indeterminate = false});
+        const auto secondTaskPage =
+            invokeSchemaValid(registry, QStringLiteral("tasks.list"),
+                              QJsonObject{
+                                  {QStringLiteral("scope"),  QStringLiteral("application")},
+                                  {QStringLiteral("limit"),  1                            },
+                                  {QStringLiteral("cursor"), taskCursor                   },
+        },
+                              QStringLiteral("second application task page after progress"));
+        expect(firstTaskPage && !taskCursor.isEmpty() && progressUpdated && secondTaskPage &&
+                   secondTaskPage->value(QStringLiteral("tasks")).toArray().size() == 1,
+               QStringLiteral(
+                   "tasks.list cursor must survive progress updates when membership is stable"));
+        runtime.automationTasks().cancel(progressingTask.taskId);
+        runtime.automationTasks().cancel(siblingTask.taskId);
 
         refreshControl.deferNext = true;
         const auto cancelableRefresh =

@@ -3873,8 +3873,11 @@ namespace Automation {
                        (!kindFilter.isEmpty() && task.operationId != kindFilter);
             });
             QJsonArray snapshot;
-            for (const auto &task : std::as_const(filtered))
+            QJsonArray taskOrder;
+            for (const auto &task : std::as_const(filtered)) {
                 snapshot.append(encodeTaskSnapshot(task));
+                taskOrder.append(task.taskId.toString());
+            }
             QString digestError;
             const auto snapshotDigest = AutomationWire::sha256Digest(
                 QJsonObject{
@@ -3883,10 +3886,10 @@ namespace Automation {
                     {QStringLiteral("document"),
                      applicationScope
                          ? QJsonValue(QJsonValue::Null)
-                         : QJsonValue(encodeDocumentVersion(m_runtime.documentVersion()))         },
-                    {QStringLiteral("state"),    stateFilter                                      },
-                    {QStringLiteral("kind"),     kindFilter                                       },
-                    {QStringLiteral("tasks"),    snapshot                                         },
+                         : QJsonValue(m_runtime.documentVersion().documentId.toString())          },
+                    {QStringLiteral("state"),      stateFilter                                    },
+                    {QStringLiteral("kind"),       kindFilter                                     },
+                    {QStringLiteral("task_order"), taskOrder                                      },
             },
                 &digestError);
             if (!digestError.isEmpty()) {
