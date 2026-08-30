@@ -9,6 +9,7 @@
 #include <QJsonDocument>
 #include <QTextStream>
 
+#include <limits>
 #include <optional>
 
 namespace {
@@ -303,6 +304,18 @@ namespace {
                        decoded.payload.sourceStart == clipboard.payload.sourceStart &&
                        decoded.payload.sourceEnd == clipboard.payload.sourceEnd,
                    QStringLiteral("GUI transport serialization must retain the domain payload"));
+
+            auto malformed = encoded;
+            auto malformedNotes = malformed.value(QStringLiteral("notes")).toArray();
+            auto malformedNote = malformedNotes.first().toObject();
+            malformedNote.insert(QStringLiteral("localStart"), std::numeric_limits<int>::max());
+            malformedNote.insert(QStringLiteral("length"), 1);
+            malformedNotes.replace(0, malformedNote);
+            malformed.insert(QStringLiteral("notes"), malformedNotes);
+            const auto rejected = NotesParamsInfo::deserializeFromJson(malformed);
+            expect(rejected.payload.notes.isEmpty() && rejected.payload.parameters.isEmpty(),
+                   QStringLiteral("GUI transport must discard overflowing note geometry"));
+
             const auto paste = runtime.notes().pasteNotes(commandContext(runtime), guiTargetClip,
                                                           1203, decoded.payload);
             const auto pastedNotes = runtime.notes().getNotes(

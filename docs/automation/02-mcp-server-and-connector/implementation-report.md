@@ -145,7 +145,7 @@ Closed World Command，不提供 `force`、`validate_only`、幂等键或任意�
 - 捕获完整 note draft，并按所选音符范围切取 Edited/Envelope 参数曲线；
 - 粘贴或 duplicate 时按目标起点平移，清除来源对象身份；
 - 目标区间先移除被覆盖的参数片段，再合并来源曲线；
-- GUI 剪贴板 v2 序列化相同 payload，旧剪贴内容仍可按音符数据读取；
+- GUI 剪贴板 v2 序列化相同 payload，旧剪贴内容仍可按音符数据读取，越界或无效的外部音符几何会整包丢弃；
 - MCP duplicate 与 GUI copy/paste 因而复用同一深复制语义和提交路径。
 
 ### 5.4 同步音频路径修复与持久循环
@@ -307,7 +307,7 @@ CLI override 只影响本次运行，并在设置页显示来源，不改写持�
 - Contract、Registry、Editor `tools/list` 与 Connector 已知描述来自同一权威集合；
 - Connector 桥接工具唯一，exposure 后的 downstream 等于可用 Editor 工具与桥接工具之并集；
 - 历史记录原子边界、创建深度、音符叶节点、轨道/剪辑 voice 和持久循环；
-- NoteTransfer 的音符与参数曲线深复制、GUI 剪贴板 round-trip；
+- NoteTransfer 的音符与参数曲线深复制、GUI 剪贴板 round-trip 与无效几何拒绝；
 - MIDI headless 解析/生成、LibreSVIP 共享转换、文件授权与异步写回；
 - Profile/Custom、File Guard、全局 Admission、游标和版本兼容；
 - 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手、HTTP、QLocal、Connector stdio 和真实进程路径；
