@@ -11,8 +11,11 @@
 namespace {
     void printHelp() {
         QTextStream(stdout)
-            << "DS Connector Lite " << LiteProductMetadata::Version << Qt::endl
-            << "Usage: DsConnectorLite [options]" << Qt::endl
+            << QString::fromLatin1(LiteProductMetadata::ConnectorProductName) << ' '
+            << LiteProductMetadata::Version << Qt::endl
+            << "Usage: "
+            << QString::fromLatin1(LiteProductMetadata::ConnectorExecutableBasename)
+            << " [options]" << Qt::endl
             << "  --exposure-profile l0|l1|l2|l3" << Qt::endl
             << "  --include-tool id:<name>|category:<name>|prefix:<text>" << Qt::endl
             << "  --exclude-tool id:<name>|category:<name>|prefix:<text>"
@@ -24,7 +27,8 @@ namespace {
 int main(int argc, char *argv[]) {
     QCoreApplication application(argc, argv);
     QCoreApplication::setOrganizationName(QString::fromLatin1(LiteProductMetadata::Publisher));
-    QCoreApplication::setApplicationName(QStringLiteral("DS Connector Lite"));
+    QCoreApplication::setApplicationName(
+        QString::fromLatin1(LiteProductMetadata::ConnectorProductName));
     QCoreApplication::setApplicationVersion(QString::fromLatin1(LiteProductMetadata::Version));
 
     auto arguments = application.arguments();
@@ -41,7 +45,8 @@ int main(int argc, char *argv[]) {
     DsConnector::ConnectorOptions options;
     QString optionError;
     if (!DsConnector::parseConnectorOptions(arguments, options, optionError)) {
-        QTextStream(stderr) << "DsConnectorLite: " << optionError << Qt::endl;
+        QTextStream(stderr) << LiteProductMetadata::ConnectorExecutableBasename << ": "
+                            << optionError << Qt::endl;
         return 2;
     }
 
@@ -60,13 +65,16 @@ int main(int argc, char *argv[]) {
                      &QCoreApplication::quit);
     QObject::connect(&transport, &DsConnector::StdioTransport::transportError, &application,
                      [&application](const QString &error) {
-                         QTextStream(stderr) << "DsConnectorLite: " << error << Qt::endl;
+                         QTextStream(stderr)
+                             << LiteProductMetadata::ConnectorExecutableBasename << ": " << error
+                             << Qt::endl;
                          application.exit(3);
                      });
 
     QString transportError;
     if (!transport.start(&transportError)) {
-        QTextStream(stderr) << "DsConnectorLite: " << transportError << Qt::endl;
+        QTextStream(stderr) << LiteProductMetadata::ConnectorExecutableBasename << ": "
+                            << transportError << Qt::endl;
         return 3;
     }
     runtime.start();

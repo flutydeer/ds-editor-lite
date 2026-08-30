@@ -1,5 +1,7 @@
 #include "UpstreamMcpClient.h"
 
+#include <lite/ProductMetadata.h>
+
 #include <QJsonDocument>
 #include <QJsonParseError>
 #include <QNetworkAccessManager>
@@ -103,11 +105,13 @@ namespace DsConnector {
                 .clientCapabilities = QJsonObject{{QStringLiteral("tools"), QJsonObject{}}},
                 .clientInfo =
                     AutomationWire::Mcp::ImplementationInfo{
-                                                  .name = QStringLiteral("DS Connector Lite"),
+                                                  .name = QString::fromLatin1(
+                                                      LiteProductMetadata::ConnectorProductName),
                                                   .version = version,
                                                   .description =
-                            QStringLiteral("Local DS Editor Lite MCP stdio connector (%1)")
-                                .arg(instanceId),
+                            QStringLiteral("Local %1 MCP stdio connector (%2)")
+                                .arg(QString::fromLatin1(LiteProductMetadata::ProductName),
+                                     instanceId),
                                                   },
             };
         }

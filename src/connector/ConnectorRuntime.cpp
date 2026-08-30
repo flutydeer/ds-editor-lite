@@ -1065,10 +1065,11 @@ namespace DsConnector {
             {QStringLiteral("capabilities"),    QJsonObject{}               },
             {QStringLiteral("clientInfo"),
              AutomationWire::Mcp::ImplementationInfo{
-                 .name = QStringLiteral("DS Connector Lite"),
+                 .name = QString::fromLatin1(LiteProductMetadata::ConnectorProductName),
                  .version = m_version,
-                 .description = QStringLiteral("Local DS Editor Lite MCP stdio connector (%1)")
-                                    .arg(m_instanceId),
+                 .description = QStringLiteral("Local %1 MCP stdio connector (%2)")
+                                    .arg(QString::fromLatin1(LiteProductMetadata::ProductName),
+                                         m_instanceId),
              }
                  .toJson()                                                  },
         };
@@ -1209,8 +1210,10 @@ namespace DsConnector {
                             tool.toObject().value(QStringLiteral("inputSchema")).toObject(),
                             headerBindings, headerError)) {
                         qWarning().noquote()
-                            << QStringLiteral("DsConnectorLite: rejected upstream tool %1: %2")
-                                   .arg(name, headerError);
+                            << QStringLiteral("%1: rejected upstream tool %2: %3")
+                                   .arg(QString::fromLatin1(
+                                            LiteProductMetadata::ConnectorExecutableBasename),
+                                        name, headerError);
                         continue;
                     }
                     accumulated.append(tool);

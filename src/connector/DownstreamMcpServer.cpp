@@ -14,9 +14,10 @@ namespace DsConnector {
 
         AutomationWire::Mcp::ImplementationInfo serverInfo() {
             return {
-                .name = QStringLiteral("DS Connector Lite"),
+                .name = QString::fromLatin1(LiteProductMetadata::ConnectorProductName),
                 .version = QString::fromLatin1(LiteProductMetadata::Version),
-                .description = QStringLiteral("DS Editor Lite MCP stdio connector"),
+                .description = QStringLiteral("%1 MCP stdio connector")
+                                   .arg(QString::fromLatin1(LiteProductMetadata::ProductName)),
                 .websiteUrl = QString::fromLatin1(LiteProductMetadata::ProductUrl),
             };
         }
