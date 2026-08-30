@@ -203,7 +203,7 @@ Registry、Editor 发现面与 Contract 集合关系精确；公共 Schema 全�
 ### 执行
 
 1. 在隔离端口启动测试 Server，确认 listener 仅为 `127.0.0.1`。
-2. 执行 `2025-11-25` initialize/initialized、ping、tools/list、tools/call。
+2. 执行 `2025-11-25` initialize/initialized、ping、tools/list、tools/call，并确认初始化通知前的工具调用返回 `ServerNotInitialized` 且不进入 handler。
 3. 执行 `2026-07-28` server/discover、逐请求 metadata、ping、tools/list、tools/call，并验证 `initialize` 被拒绝。
 4. 请求 `2025-06-18` initialize，确认服务端接受并回显兼容版本，再完成 initialized、ping、tools/list 与 tools/call。
 5. 验证版本协商、支持列表、header/body 镜像、协商版本对应的结果形状。

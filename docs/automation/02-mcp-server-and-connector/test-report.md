@@ -22,7 +22,7 @@ L3 downstream 为 177 个 Editor wrapper 加 6 个桥接工具，共 183 项。�
 | 平台与工具链 | Visual Studio 2026 v18.9.0；Qt 6.11.2 |
 | Debug 配置与构建 | 标准 preset `ConfigureAndBuild` 通过；随后 `all` target 通过 |
 | 最终 CTest 清单 | 62 项 |
-| 一次完整 CTest | 62/62 通过，43.28 s |
+| 一次完整 CTest | 62/62 通过，46.03 s |
 | Connector 真实联调 | 2025-11-25 下游握手和 2026-07-28 上游连接通过；L0 重启后自动重连且 toolset compatible |
 | GUI/Computer Use | 真实编辑、合成、播放、另存，以及 dirty 拒绝、丢弃重启和 clean 退出全程无决策弹窗 |
 | 测试素材完整性 | 素材源 19/19 项 SHA-256 不变；真实用户应用配置 SHA-256 不变 |
@@ -145,8 +145,9 @@ Bootstrap 错误分类回归通过：不存在 Editor 引导端点时，Connecto
 结果表明清理后的连接与查询路径均有可测提升，其中摘要 list/search 的收益最明显；完整 describe
 仍按需返回 Schema，因此收益较小但未回退。基准插桩只用于仓库外测量，未进入产品或测试代码。
 
-协议与进程验证覆盖 2025-11-25 `initialize/initialized`、2026-07-28
-`server/discover`、2025-06-18 兼容握手、legacy 非 initialize 请求的存活 session 强制校验、有界
+协议与进程验证覆盖 2025-11-25 `initialize/initialized`、初始化通知前工具调用的
+`ServerNotInitialized` 门禁、2026-07-28 `server/discover`、2025-06-18 兼容握手、legacy 非
+initialize 请求的存活 session 强制校验、有界
 淘汰与 DELETE 结束、Connector 实例
 身份跨 HTTP 连接稳定及排队取消、无显式实例 ID 的现代直连客户端隔离、loopback HTTP、QLocal
 watch、stdio 大帧、32 路 downstream 饱和与第 33 路拒绝、并发乱序、取消、timeout、EOF、
@@ -187,7 +188,7 @@ Editor 窗口与进程均消失。三个阶段均未出现保存确认或其他�
 ## 8. 缺陷与回归
 
 最终候选的共享 Dispatcher、公共契约、Registry、Wire、Connector、文档生命周期和真实进程路径
-均通过受影响测试与最终 62/62 完整 CTest（43.28 s）。压力测试仍在默认套件中，保留通知洪泛、
+均通过受影响测试与最终 62/62 完整 CTest（46.03 s）。压力测试仍在默认套件中，保留通知洪泛、
 并发请求、大帧、慢读、取消与竞态覆盖；没有将其拆分、降次或改为可选执行。
 
 时间线回归还覆盖了删除中间拍号后后续拍号继承超长小节的边界：validate-only 与实际删除均在

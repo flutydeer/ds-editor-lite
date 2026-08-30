@@ -194,7 +194,7 @@ DELETE http://127.0.0.1:<port>/mcp  # 结束 legacy session
 - `2025-11-25`；
 - `2026-07-28`。
 
-2025-11-25 使用 `initialize → notifications/initialized` 生命周期；同一兼容入口接受客户端请求 `2025-06-18`，协商后以该版本完成 legacy 生命周期和后续工具调用。2026-07-28 使用无状态 `server/discover` 和逐请求 `_meta`，并对照 `MCP-Protocol-Version`、`Mcp-Method`、适用时的 `Mcp-Name` 与 body。2026-07-28 请求不经过 `initialize`。
+2025-11-25 使用 `initialize → notifications/initialized` 生命周期；`initialize` 返回后，会话保持未就绪，除 `ping` 和 `notifications/initialized` 外的调用不得进入业务处理。同一兼容入口接受客户端请求 `2025-06-18`，协商后以该版本完成 legacy 生命周期和后续工具调用。2026-07-28 使用无状态 `server/discover` 和逐请求 `_meta`，并对照 `MCP-Protocol-Version`、`Mcp-Method`、适用时的 `Mcp-Name` 与 body。2026-07-28 请求不经过 `initialize`。
 
 两套主协议以及 2025-06-18 兼容会话共同处理 `ping`、`tools/list` 与 `tools/call`。结果按协商版本塑形：2026-07-28 响应携带现代结果与 server metadata；2025-11-25 和 2025-06-18 响应使用 legacy 兼容结构。Legacy POST 承载 JSON-RPC request 或 notification；2026-07-28 核心协议按逐请求 POST 工作，Connector 取消转接另使用项目扩展 notification。接受 notification 后返回 HTTP 202。
 

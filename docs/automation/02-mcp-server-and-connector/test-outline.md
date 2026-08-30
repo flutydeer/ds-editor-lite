@@ -223,6 +223,7 @@ Connector 桥接工具：6
 ### 8.1 协议生命周期
 
 - `2025-11-25`：`initialize → notifications/initialized → ping/tools/list/tools/call`。
+- `initialize` 响应与 `notifications/initialized` 之间允许 `ping`；其他 request 返回 `ServerNotInitialized`，notification 不产生业务副作用。
 - `2026-07-28`：`server/discover → ping/tools/list/tools/call`，逐请求 `_meta`。
 - 兼容握手：客户端请求 `2025-06-18` 时，服务端回显该版本并完成 legacy initialize/initialized、ping、tools/list 与 tools/call；它不改变两套主协议契约的分母。
 - 2026-07-28 对 `initialize` 给出协议错误；协商、支持版本列表、client/server info、client capabilities 和 tools capability 精确。
