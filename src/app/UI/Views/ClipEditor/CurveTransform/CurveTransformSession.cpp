@@ -96,6 +96,14 @@ namespace CurveTransform {
         return 1.0 + (std::clamp(factor, 0.0, 2.0) - 1.0) * smoothWeight(tick, bounds);
     }
 
+    std::optional<Interval> completeSampleInterval(const int startTick, const int endTick) {
+        const auto start = alignedAtOrAfter(startTick);
+        const auto end = alignedAtOrBefore(endTick - SampleStep);
+        if (end < start)
+            return std::nullopt;
+        return Interval{start, end};
+    }
+
     Session::Session() = default;
 
     Session::~Session() {

@@ -8,20 +8,6 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 
-namespace {
-    int alignedAtOrAfter(const int tick) {
-        const auto remainder = ((tick % CurveTransform::SampleStep) + CurveTransform::SampleStep) %
-                               CurveTransform::SampleStep;
-        return remainder == 0 ? tick : tick + CurveTransform::SampleStep - remainder;
-    }
-
-    int alignedAtOrBefore(const int tick) {
-        const auto remainder = ((tick % CurveTransform::SampleStep) + CurveTransform::SampleStep) %
-                               CurveTransform::SampleStep;
-        return tick - remainder;
-    }
-}
-
 void CurveTransform::PitchContext::rebuild(SingingClip *clip) {
     if (!clip) {
         clear();
@@ -56,13 +42,12 @@ void CurveTransform::PitchContext::rebuild(SingingClip *clip) {
         if (curve->isEmpty())
             continue;
 
-        const auto start = alignedAtOrAfter(piece->localStartTick(timeline));
-        const auto end = alignedAtOrBefore(piece->localEndTick(timeline) - 1);
-        if (end < start)
+        const auto interval = completeSampleInterval(piece->localStartTick(timeline),
+                                                     piece->localEndTick(timeline));
+        if (!interval)
             continue;
-        const Interval interval{start, end};
-        m_partitions.append(interval);
-        m_pieces.append({interval, timeline.tickToMs(input.pieceStartTick), std::move(curve)});
+        m_partitions.append(*interval);
+        m_pieces.append({*interval, timeline.tickToMs(input.pieceStartTick), std::move(curve)});
     }
     m_curveCache = std::move(nextCurveCache);
     m_valid = true;

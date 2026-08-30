@@ -371,6 +371,23 @@ namespace {
         return ok;
     }
 
+    bool testCompleteSampleIntervals() {
+        using namespace CurveTransform;
+        bool ok = true;
+        const auto partialEnd = completeSampleInterval(0, 17);
+        ok &= expect(partialEnd && partialEnd->startTick == 0 && partialEnd->endTick == 10,
+                     "partial piece end excludes its incomplete sample cell");
+        const auto offset = completeSampleInterval(2, 17);
+        ok &= expect(offset && offset->startTick == 5 && offset->endTick == 10,
+                     "piece interval uses complete cells on the shared lattice");
+        const auto aligned = completeSampleInterval(0, 20);
+        ok &= expect(aligned && aligned->startTick == 0 && aligned->endTick == 15,
+                     "aligned piece end retains its final complete sample cell");
+        ok &= expect(!completeSampleInterval(2, 7),
+                     "piece without a complete shared-lattice cell is excluded");
+        return ok;
+    }
+
     bool testIncompleteFineSampleCellIsExcluded() {
         using namespace CurveTransform;
         bool ok = true;
@@ -492,6 +509,7 @@ int main(int argc, char *argv[]) {
     bool ok = true;
     ok &= testMappings();
     ok &= testSelectionDirectionAndPartitions();
+    ok &= testCompleteSampleIntervals();
     ok &= testShouldersAndBoundaries();
     ok &= testShapeAndScale();
     ok &= testScaleMappingsAndSessionPhases();

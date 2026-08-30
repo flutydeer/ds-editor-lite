@@ -44,6 +44,7 @@ namespace CurveTransform {
 
     [[nodiscard]] double smoothWeight(int tick, const Bounds &bounds);
     [[nodiscard]] double factorAt(int tick, const Bounds &bounds, double factor);
+    [[nodiscard]] std::optional<Interval> completeSampleInterval(int startTick, int endTick);
 
     class Session final {
     public:
