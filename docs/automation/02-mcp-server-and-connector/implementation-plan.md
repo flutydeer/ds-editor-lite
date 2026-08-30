@@ -270,8 +270,9 @@ exposure 与 pending selector 事实。稳定错误区分 Editor 状态、上游
 `bootstrap_timeout` 只用于已连接且成功写入 watch 请求后，2 秒内未收到首个状态快照的情形。
 
 每个 Connector 拥有独立 QLocal watch、HTTP client、握手 epoch、工具目录缓存和 downstream
-请求表。Connector 并发转发下游请求，不为 Editor 的 32 路上限增加串行队列。任一 Connector
-的退出、慢读、触发全局准入上限或重连不会修改其他 Connector 的状态。
+请求表。Connector 最多同时转发 32 个 downstream 工具调用，不增加串行队列；第 33 个请求在
+创建上游 HTTP 请求前立即返回 `busy`。任一 Connector 的退出、慢读、触发准入上限或重连不会
+修改其他 Connector 的状态。
 
 ## 11. File Guard 与 Admission Control
 
@@ -290,13 +291,18 @@ exposure 与 pending selector 事实。稳定错误区分 Editor 状态、上游
 `formats.inspect` 是同步查询，只读取一份有界文件快照；超过 64 MiB 的输入在解析前拒绝，MIDI
 解析、LibreSVIP 转换与摘要复用同一份快照，不对原路径重复执行无界读取。
 
+多文件音频导出先写同目录临时文件，再逐个发布最终目标。后续目标失败时，回滚只清理由本次
+事务发布且身份未变化的前序文件；目标先原子移入事务隔离名再核对文件身份，若已被外部进程替换
+则恢复外部文件并保留原备份，不对最终目标执行先检查后删除。
+
 Editor 直连、Connector 类型化工具和泛化 invoke 进入同一个 Guard。`application.get_file_access` 返回当前授权事实。
 
 ### 11.2 Admission
 
-业务 Admission 只维护全局 32 个在途请求与 8 个后台 Task 容量；HTTP Transport 只执行相同的
-全局 32 路硬上限。不设置 client/peer/domain 配额、令牌桶或公平排队。超限请求立即得到稳定
-`busy` 或 `too_many_requests`，不进入业务 handler；请求和 Task 终结时释放计数。
+业务 Admission 只维护全局 32 个在途请求与 8 个后台 Task 容量；HTTP Transport 执行相同的
+全局 32 路硬上限，每个 Connector downstream 另以 32 个在途工具调用约束自身资源。不设置
+client/peer/domain 配额、令牌桶或公平排队。超限请求立即得到稳定 `busy` 或
+`too_many_requests`，不进入业务 handler 或上游转发；请求和 Task 终结时释放计数。
 
 修改工程或保存点的 Command 使用显式 `document_id + expected_revision`；只修改瞬时播放、选择、面板和视口状态的 Command 使用目标 document/window 身份但不要求 revision。异步任务保留不可变执行快照，并在最终写回前复核 document generation、revision 和文件授权；每个文档 generation 与应用级作用域都完整保留活动任务，并分别只保留最近 128 项终态历史。断线时 Connector 不自动重放有副作用 Command，结果事实无法确认时返回 `outcome_unknown`，由调用方结合 revision、Task 和 idempotency 信息确认。
 

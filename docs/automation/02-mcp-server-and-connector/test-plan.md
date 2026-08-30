@@ -179,7 +179,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
     应用级作用域的活动任务不被终态历史上限淘汰、只保留最近 128 项终态，且互不影响。
 23. 分别模拟文档保存、MIDI 与音频完成覆盖预检后由外部创建同名目标，确认同目录暂存文件的
     排他最终发布不会替换外部文件，也不会暴露部分 DSPX/MIDI；多文件音频发布在后续目标冲突时
-    回滚本次已发布的前序文件。
+    只回滚身份仍匹配本次事务的前序文件，已被外部替换的目标内容不得删除。
 
 ### 证据
 
@@ -242,7 +242,8 @@ Registry、Editor 发现面与 Contract 集合关系精确；公共 Schema 全�
 3. 分别执行 2025-11-25 与 2026-07-28 两套主协议的 downstream 生命周期，并执行请求 2025-06-18 的兼容握手和结果塑形；2026-07-28 不执行 `initialize`。
 4. 验证 upstream 优先执行 2026-07-28 发现，回退到 2025-11-25 初始化，并接受协商到 2025-06-18。
 5. 验证每轮握手完整读取所有 `tools/list` 页后只调用一次 `application.get_status`，不调用额外的并行工具目录接口。
-6. 验证 ID 重映射、并发乱序、notification、取消、timeout、EOF、broken pipe 与 backpressure。
+6. 验证 ID 重映射、并发乱序、notification、取消、timeout、EOF、broken pipe 与 backpressure；
+   32 个 downstream 工具调用在途时，第 33 个调用必须在上游转发前返回 `busy` 且不排队。
 7. 验证 `l0/l1/l2/l3`、include/exclude、三类 selector、pending、非 L0 工具的 exclude 优先级，以及 L0 不可排除约束。
 8. 验证同一 exposure 约束类型化工具与 list/search/describe/invoke；泛化 list/search 只返回摘要，describe 返回完整 Schema。
 9. 验证双方全局 `toolset_version` 与逐工具 `minimum_toolset_version` 门槛；不运行 Schema

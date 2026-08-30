@@ -22,7 +22,7 @@ L3 downstream 为 177 个 Editor wrapper 加 6 个桥接工具，共 183 项。�
 | 平台与工具链 | Visual Studio 2026 v18.9.0；Qt 6.11.2 |
 | Debug 配置与构建 | 标准 preset `ConfigureAndBuild` 通过；随后 `all` target 通过 |
 | 最终 CTest 清单 | 62 项 |
-| 一次完整 CTest | 62/62 通过，43.07 s |
+| 一次完整 CTest | 62/62 通过，44.47 s |
 | Connector 真实联调 | 2025-11-25 下游握手和 2026-07-28 上游连接通过；L0 重启后自动重连且 toolset compatible |
 | GUI/Computer Use | 真实编辑、合成、播放、另存，以及 dirty 拒绝、丢弃重启和 clean 退出全程无决策弹窗 |
 | 测试素材完整性 | 素材源 19/19 项 SHA-256 不变；真实用户应用配置 SHA-256 不变 |
@@ -69,8 +69,9 @@ Editor 与 Connector 的 Schema 不一致属于缺陷，由 MCP 输入校验和�
 Custom、host availability 与契约版本分别报告。
 
 业务 Admission 只保留全局 32 个在途请求和 8 个后台 Task 容量，HTTP Transport 只执行全局
-32 路硬上限；没有 client/peer/domain 配额、令牌桶或公平队列。第 33 个并发在途请求应立即
-得到稳定拒绝，所有完成、失败、取消、deadline、disable 和 shutdown 路径都必须释放计数。
+32 路硬上限；没有 client/peer/domain 配额、令牌桶或公平队列。每个 Connector downstream
+同样最多保留 32 个在途工具调用，第 33 个请求在上游转发前立即返回 `busy`，不创建
+`QNetworkReply`、不排队；完成、失败、取消、deadline、disable 和 shutdown 路径均释放计数。
 
 Dispatcher 的幂等处理为显式 opt-in。只有工具支持且请求实际带有 `idempotency_key` 时才计算
 请求指纹并进入幂等存储；不带 key 的调用不哈希、不创建幂等记录。公开 key 的 128 字符上限与
@@ -146,8 +147,9 @@ Bootstrap 错误分类回归通过：不存在 Editor 引导端点时，Connecto
 `server/discover`、2025-06-18 兼容握手、legacy 非 initialize 请求的存活 session 强制校验、有界
 淘汰与 DELETE 结束、Connector 实例
 身份跨 HTTP 连接稳定及排队取消、无显式实例 ID 的现代直连客户端隔离、loopback HTTP、QLocal
-watch、stdio 大帧、并发乱序、取消、timeout、EOF、broken pipe、重连和旧 epoch 隔离。Connector 常规握手分页读取
-`tools/list` 后只读取 `application.get_status` 的轻量状态，不为 177 项 Schema 做兼容重算。
+watch、stdio 大帧、32 路 downstream 饱和与第 33 路拒绝、并发乱序、取消、timeout、EOF、
+broken pipe、重连和旧 epoch 隔离。Connector 常规握手分页读取 `tools/list` 后只读取
+`application.get_status` 的轻量状态，不为 177 项 Schema 做兼容重算。
 
 音频准备回归确认哈希与临时快照由同一次读取产生，导入解码只读取该快照；源文件随后变化不会
 使已准备的摘要与解码内容分离，且提交前的后台摘要复核会拒绝同路径换内容。
@@ -183,7 +185,7 @@ Editor 窗口与进程均消失。三个阶段均未出现保存确认或其他�
 ## 8. 缺陷与回归
 
 最终候选的共享 Dispatcher、公共契约、Registry、Wire、Connector、文档生命周期和真实进程路径
-均通过受影响测试与最终 62/62 完整 CTest（43.07 s）。压力测试仍在默认套件中，保留通知洪泛、
+均通过受影响测试与最终 62/62 完整 CTest（44.47 s）。压力测试仍在默认套件中，保留通知洪泛、
 并发请求、大帧、慢读、取消与竞态覆盖；没有将其拆分、降次或改为可选执行。
 
 时间线回归还覆盖了删除中间拍号后后续拍号继承超长小节的边界：validate-only 与实际删除均在
@@ -205,7 +207,9 @@ MIDI 导出回归在受控渲染阻塞期间分别发起取消和文档 generati
 返回 `overwrite_denied`，且文档路径、savepoint、revision 与工程内容均保持不变。
 
 音频导出回归使用两个同目录暂存输出，在第二个目标由外部占用后执行拒绝覆盖发布；最终发布稳定
-失败并保留外部内容，同时回滚本次已经发布的第一个目标，不留下部分批次。
+失败并保留外部内容，同时通过发布前记录的文件身份回滚本次已经发布的第一个目标，不留下部分
+批次。回滚实现不会直接删除最终目标：它先原子移入随机隔离名，再核对设备、文件 ID、尺寸和
+修改时间；身份不符时恢复隔离文件并保留原备份，避免误删后到的外部替换内容。
 deferred publication 的成功回归另模拟发布阶段 warning，确认它保留在成功 Task 的 mutation 中，
 不会因渲染阶段 observer 连接结束而丢失。
 

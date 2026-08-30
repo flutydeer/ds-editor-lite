@@ -199,7 +199,8 @@ Connector 桥接工具：6
 - 单文件和 batch 路径全部通过同一 Guard，类型化与泛化调用结果一致。
 - overwrite、只读、父目录、权限、磁盘和失败清理覆盖；文档保存、MIDI 与音频拒绝覆盖均先完成
   同目录暂存，再使用拒绝已存在目标的重命名发布。覆盖检查后出现的同名目标仍保留原内容，
-  并发读取者不会看到部分 DSPX/MIDI，多文件音频发布失败时回滚本次已发布目标。
+  并发读取者不会看到部分 DSPX/MIDI；多文件音频发布失败时，只回滚文件身份仍匹配本次事务的
+  已发布目标，外部替换文件不得被删除。
 - MIDI 渲染期间取消与 document generation 淘汰均在最终发布门前生效，不创建目标文件。
 
 ### 7.2 Admission
@@ -263,6 +264,8 @@ Connector 桥接工具：6
 - CRLF、部分行、多帧、notification 洪泛、非法 JSON、最大帧、超限、EOF 与 broken pipe。
 - writer queue 的部分写、backpressure、停滞 deadline 和确定性关闭；183 工具大响应分别由正常读端与延迟慢读端完整接收。
 - downstream request ID 到 upstream ID 的映射支持并发乱序、取消和 timeout。
+- 32 个 downstream 工具调用可同时在途；第 33 个立即返回 `busy`，不创建上游请求、不排队，
+  取消后释放全部槽位。
 
 ### 10.2 双协议与兼容握手的上游/下游
 

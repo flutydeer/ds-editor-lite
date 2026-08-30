@@ -44,7 +44,8 @@ opt-in 幂等均通过完整 CTest；测试不再为每个 Operation 复制同�
 - Task 的 Queued、Running、CancelRequested、Committing 和稳定终态；
 - 每个文档 generation 与应用级作用域的活动任务保留、最近 128 项终态历史的独立有界淘汰；
 - cancel/commit、对象删除、revision 前进、文档换代与晚到写回竞态；
-- 文档保存与 MIDI/音频拒绝覆盖的同目录排他最终发布、音频发布 warning、MIDI 渲染期取消、generation 淘汰及失败回滚；
+- 文档保存与 MIDI/音频拒绝覆盖的同目录排他最终发布、按发布文件身份执行的批量音频失败回滚、
+  音频发布 warning、MIDI 渲染期取消及 generation 淘汰；
 - 音符量化在共享宽整数时间轴计算中拒绝超出模型范围的候选起点、长度和终点；
 - 音频哈希与导入解码共享同一字节快照，提交前的后台摘要复核会拒绝同路径源文件换内容；
 - Pitch/MIDI 提取只解码哈希绑定的临时快照，并在后端完成后复核原文件摘要、音频剪辑身份和

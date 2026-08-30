@@ -172,7 +172,7 @@ MIDI 路径拆为可复用的两段：
 1. `MidiFileParser` 读取并解析为可复用中间数据，不修改 Model；
 2. `MidiTrackGenerator` 根据编码、轨道选择、Tempo 和拍号选项生成轨道与时间线结果，再由 GUI session、批量导入或自动化提交者应用。
 
-`formats.inspect` 与 MIDI 文档导入复用 parser，交互式 GUI、批量导入和 headless session 复用 generator。同步检查最多读取 64 MiB 的单份文件快照，超限在解析前拒绝；MIDI 解析、LibreSVIP 转换和摘要都消费该快照，不重复打开原路径。异步文档打开、导入和批量导入在任务开始及提交边界重新检查当前读权限；带 plan digest 时加载已验证快照并在提交前复算摘要，缺省 digest 只省略内容比对，不会跳过授权复核。MIDI capability/preview/start 则复用同一 converter 和公开 option Schema；导出支持 Tempo、拍号和歌词选项，先写同目录临时文件并在最终发布前复核文件授权、Task 取消和文档 generation。拒绝覆盖时，文档保存、MIDI 和音频均把完成的同目录暂存文件以拒绝已存在目标的重命名一次性发布；目标在检查后被其他进程创建也不会被替换，也不会向并发读取者暴露部分 MIDI 或 DSPX，批量音频发布失败时回滚本次已发布文件。允许覆盖时使用原子替换提交。
+`formats.inspect` 与 MIDI 文档导入复用 parser，交互式 GUI、批量导入和 headless session 复用 generator。同步检查最多读取 64 MiB 的单份文件快照，超限在解析前拒绝；MIDI 解析、LibreSVIP 转换和摘要都消费该快照，不重复打开原路径。异步文档打开、导入和批量导入在任务开始及提交边界重新检查当前读权限；带 plan digest 时加载已验证快照并在提交前复算摘要，缺省 digest 只省略内容比对，不会跳过授权复核。MIDI capability/preview/start 则复用同一 converter 和公开 option Schema；导出支持 Tempo、拍号和歌词选项，先写同目录临时文件并在最终发布前复核文件授权、Task 取消和文档 generation。拒绝覆盖时，文档保存、MIDI 和音频均把完成的同目录暂存文件以拒绝已存在目标的重命名一次性发布；目标在检查后被其他进程创建也不会被替换，也不会向并发读取者暴露部分 MIDI 或 DSPX。批量音频后续目标失败时，回滚会把前序目标原子移入随机隔离名并核对发布前记录的文件身份；只有仍属于本次事务的产物才会删除，外部替换文件会放回原位并使旧备份留待恢复。允许覆盖时使用原子替换提交。
 
 音频导出的 observer 覆盖渲染与 deferred publication 两个阶段；最终发布成功但备份文件清理失败时，残留路径 warning 会进入 Task mutation，并同步转发给调用方 observer。
 
@@ -228,8 +228,9 @@ L0 是不可禁用的固有工具层。Editor 的所有 preset 和 Custom 都始
 Allowed Read Folders 与 Allowed Write Folders 是自动化文件工具的规范路径 allowlist：前者约束打开、导入、检查和读取素材等操作，后者约束保存、导出等写操作。它们不表示本机进程权限，也不改变非文件工具的能力。`AutomationFileGuard` 还分离持久根与会话 grant，处理路径组件边界、相对路径、相邻前缀、链接/重解析点和未创建输出的最近现存父目录；授权后、实际 I/O 前会再次检查 canonical 目标。
 
 业务 Admission 只限制全局 32 个在途请求和 8 个后台 Task；HTTP Transport 同样只执行全局
-32 路硬上限。不设置 logical client、peer、domain 配额、令牌桶或公平排队。Connector 直接并发
-转发，不增加串行队列；超限请求在 handler 前返回稳定错误。RAII lease 在成功、失败或取消时
+32 路硬上限。不设置 logical client、peer、domain 配额、令牌桶或公平排队。每个 Connector
+downstream 最多保留 32 个在途工具调用，直接并发转发且不增加串行队列；第 33 个请求在创建
+上游 `QNetworkReply` 前返回稳定 `busy`。RAII lease 和 Connector 请求槽均在成功、失败或取消时
 释放，异步 lease 延续到 Task 终态。
 
 ## 8. MCP 双协议与 Editor HTTP
@@ -285,7 +286,10 @@ Bootstrap 的首包计时从 watch 请求成功写入后开始；连接失败会
 `editor_not_running`，只有已建立引导连接但 2 秒内没有首个状态快照时才报告
 `bootstrap_timeout`。
 
-Downstream stdio 支持两套主协议及 2025-06-18 兼容握手，具有有界 reader/writer 队列、并发请求 ID 映射、取消、超时、EOF、broken pipe 和 backpressure 处理。Windows 非阻塞管道按 4 KiB 分块写出大响应，停滞计时只在连续无进度时触发；stdout 只输出 MCP 帧，诊断写入 stderr。
+Downstream stdio 支持两套主协议及 2025-06-18 兼容握手，具有有界 reader/writer 队列、32 路
+在途工具调用硬上限、并发请求 ID 映射、取消、超时、EOF、broken pipe 和 backpressure 处理。
+Windows 非阻塞管道按 4 KiB 分块写出大响应，停滞计时只在连续无进度时触发；stdout 只输出
+MCP 帧，诊断写入 stderr。
 
 ## 10. 设置页、配置复制与 CLI
 
@@ -328,7 +332,7 @@ CLI override 只影响本次运行，并在设置页显示来源，不改写持�
 - Automation 设置持久化、CLI override、端口、配置 JSON、Custom 领域分组与中文界面。
 
 最终候选在 Visual Studio 2026 v18.9.0、Qt 6.11.2 环境中通过标准 preset
-`ConfigureAndBuild` 和 `all` target，完整 CTest 为 62/62（43.07 s）。Editor 177 项、Connector
+`ConfigureAndBuild` 和 `all` target，完整 CTest 为 62/62（44.47 s）。Editor 177 项、Connector
 6 项、24 个业务域、L3 45 项和内部 208 个 Operation ID 为当前产品快照；契约集合关系、共享不变量和领域独特语义的确定性覆盖通过；2025-11-25 下游
 握手、2026-07-28 上游连接、真实编辑联调、Computer Use GUI、配置恢复和只读素材完整性均通过。
 生命周期增量联调还确认 dirty 默认拒绝无弹窗、显式丢弃重启后 instance ID 变化且 Connector
