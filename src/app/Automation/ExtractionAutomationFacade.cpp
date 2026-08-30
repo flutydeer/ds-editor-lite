@@ -157,6 +157,7 @@ namespace Automation {
                 input.audioClipId = audioClipId;
                 input.singingClipId = singingClipId;
                 input.audioPath = audio->path();
+                input.sourceAsset = audioAssetSnapshotDto(*audio);
                 input.timeline = timeline;
                 input.singingClipStartTick = singing->start();
                 input.audioMaterialOriginMs = visibleStartMs - trimStartMs;
@@ -256,6 +257,7 @@ namespace Automation {
                 MidiExtractionInput input;
                 input.audioClipId = audioClipId;
                 input.audioPath = audio->path();
+                input.sourceAsset = audioAssetSnapshotDto(*audio);
                 input.timeline = session.model()->timeline();
                 input.audioClipStartTick = audio->start();
                 input.audioClipLengthTick = audio->length();
@@ -449,6 +451,17 @@ namespace Automation {
             notifyFinished(taskId, baseDocument.documentId, observer);
             return;
         }
+        if (!result.sourceIdentityVerified || result.sourceSha512.isEmpty() ||
+            (!input.sourceAsset.pathInfo.sha512.isEmpty() &&
+             input.sourceAsset.pathInfo.sha512 != result.sourceSha512)) {
+            m_tasks.fail(taskId,
+                         taskError(AutomationError::invalidArgument(
+                                       QStringLiteral("source_audio_clip_id"),
+                                       QStringLiteral("The source audio changed during extraction")),
+                                   taskId, OperationIds::extract::pitch::start));
+            notifyFinished(taskId, baseDocument.documentId, observer);
+            return;
+        }
 
         auto curves = pitchCurves(input, result.segments);
         if (!curves) {
@@ -472,6 +485,14 @@ namespace Automation {
         }
         if (m_tasks.isCancellationRequested(taskId)) {
             m_tasks.cancel(taskId);
+            notifyFinished(taskId, baseDocument.documentId, observer);
+            return;
+        }
+        const auto source = validateSourceAsset(OperationIds::extract::pitch::start, baseDocument,
+                                                input.audioClipId, input.sourceAsset);
+        if (!source) {
+            m_tasks.fail(taskId, taskError(source.getError(), taskId,
+                                           OperationIds::extract::pitch::start));
             notifyFinished(taskId, baseDocument.documentId, observer);
             return;
         }
@@ -518,6 +539,17 @@ namespace Automation {
         if (result.state == ExtractionBackendState::Failed) {
             m_tasks.fail(taskId, backendError(taskId, OperationIds::extract::midi::start,
                                               result.errorCode, std::move(result.errorMessage)));
+            notifyFinished(taskId, baseDocument.documentId, observer);
+            return;
+        }
+        if (!result.sourceIdentityVerified || result.sourceSha512.isEmpty() ||
+            (!input.sourceAsset.pathInfo.sha512.isEmpty() &&
+             input.sourceAsset.pathInfo.sha512 != result.sourceSha512)) {
+            m_tasks.fail(taskId,
+                         taskError(AutomationError::invalidArgument(
+                                       QStringLiteral("source_audio_clip_id"),
+                                       QStringLiteral("The source audio changed during extraction")),
+                                   taskId, OperationIds::extract::midi::start));
             notifyFinished(taskId, baseDocument.documentId, observer);
             return;
         }
@@ -639,6 +671,15 @@ namespace Automation {
             notifyFinished(taskId, baseDocument.documentId, observer);
             return;
         }
+        const auto source = validateSourceAsset(OperationIds::extract::midi::start, baseDocument,
+                                                input.audioClipId, input.sourceAsset);
+        if (!source) {
+            m_tasks.fail(taskId,
+                         taskError(source.getError(), taskId,
+                                   OperationIds::extract::midi::start));
+            notifyFinished(taskId, baseDocument.documentId, observer);
+            return;
+        }
         if (input.authorizeSource) {
             auto authorized = input.authorizeSource(input.audioPath);
             if (!authorized) {
@@ -665,6 +706,26 @@ namespace Automation {
             m_tasks.fail(taskId, taskError(committed.getError(), taskId,
                                            OperationIds::extract::midi::start));
         notifyFinished(taskId, baseDocument.documentId, observer);
+    }
+
+    AutomationResult<AutomationUnit> ExtractionAutomationFacade::validateSourceAsset(
+        const OperationId &operationId, const DocumentVersion &baseDocument,
+        const ClipId audioClipId, const AudioAssetSnapshotDto &expectedAsset) {
+        return m_dispatcher.dispatchDocumentQuery<AutomationUnit>(
+            operationId, baseDocument.documentId, [&](DocumentSession &session) {
+                auto resolved = m_objects.audioClip(session, audioClipId);
+                if (!resolved)
+                    return AutomationResult<AutomationUnit>(resolved.getError());
+                const auto *audio = static_cast<const AudioClip *>(resolved.get().clip);
+                if (audioAssetSnapshotDto(*audio) != expectedAsset) {
+                    auto failure = AutomationError::invalidArgument(
+                        QStringLiteral("source_audio_clip_id"),
+                        QStringLiteral("The source audio clip changed during extraction"));
+                    failure.object = ObjectRef{ObjectKind::Clip, audioClipId.value()};
+                    return AutomationResult<AutomationUnit>(std::move(failure));
+                }
+                return AutomationResult<AutomationUnit>(AutomationUnit{});
+            });
     }
 
     void ExtractionAutomationFacade::notifyFinished(const TaskId &taskId,

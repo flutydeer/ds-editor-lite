@@ -53,6 +53,8 @@ namespace Automation {
         ClipId audioClipId;
         ClipId singingClipId;
         QString audioPath;
+        QString snapshotPath;
+        AudioAssetSnapshotDto sourceAsset;
         QString modelId;
         QString modelPath;
         Timeline timeline;
@@ -67,6 +69,8 @@ namespace Automation {
     struct MidiExtractionInput {
         ClipId audioClipId;
         QString audioPath;
+        QString snapshotPath;
+        AudioAssetSnapshotDto sourceAsset;
         QString modelId;
         QString modelPath;
         Timeline timeline;
@@ -93,6 +97,8 @@ namespace Automation {
     struct PitchExtractionBackendResult {
         ExtractionBackendState state = ExtractionBackendState::Failed;
         QList<PitchExtractionSegmentDto> segments;
+        QString sourceSha512;
+        bool sourceIdentityVerified = false;
         AutomationErrorCode errorCode = AutomationErrorCode::InferenceError;
         QString errorMessage;
     };
@@ -100,6 +106,8 @@ namespace Automation {
     struct MidiExtractionBackendResult {
         ExtractionBackendState state = ExtractionBackendState::Failed;
         QList<MidiExtractionNoteDto> notes;
+        QString sourceSha512;
+        bool sourceIdentityVerified = false;
         AutomationErrorCode errorCode = AutomationErrorCode::InferenceError;
         QString errorMessage;
     };
@@ -193,6 +201,10 @@ namespace Automation {
                               const ExtractionObserver &observer);
         void notifyFinished(const TaskId &taskId, const DocumentId &documentId,
                             const ExtractionObserver &observer);
+        AutomationResult<AutomationUnit>
+            validateSourceAsset(const OperationId &operationId, const DocumentVersion &baseDocument,
+                                ClipId audioClipId,
+                                const AudioAssetSnapshotDto &expectedAsset);
 
         AutomationDispatcher &m_dispatcher;
         AutomationTaskManager &m_tasks;

@@ -1108,6 +1108,8 @@ namespace {
                 state->complete({
                     .state = Automation::ExtractionBackendState::Succeeded,
                     .segments = {{.globalStartTick = 20, .values = {60.0, 60.5}}},
+                    .sourceSha512 = QStringLiteral("verified-source"),
+                    .sourceIdentityVerified = true,
                 });
                 const auto terminal =
                     accepted ? runtime.tasks().getTask(base.documentId, accepted.get().taskId)
@@ -1132,6 +1134,8 @@ namespace {
                 revokedState->complete({
                     .state = Automation::ExtractionBackendState::Succeeded,
                     .segments = {{.globalStartTick = 20, .values = {61.0}}},
+                    .sourceSha512 = QStringLiteral("verified-source"),
+                    .sourceIdentityVerified = true,
                 });
                 const auto revokedTerminal =
                     revokedAccepted
@@ -1146,6 +1150,30 @@ namespace {
                             Automation::AutomationErrorCode::PermissionDenied &&
                         runtime.documentVersion() == revokedBase,
                     QStringLiteral("pitch extraction must reauthorize its source before commit"));
+
+                const auto changedBase = runtime.documentVersion();
+                const auto changedAccepted = runtime.extractions().startPitch(
+                    harness.context(), harness.audioClipId(), harness.singingClipId());
+                const auto changedState = harness.pitchStates.last();
+                const auto changedRan = harness.extractionScheduler.runNext();
+                changedState->complete({
+                    .state = Automation::ExtractionBackendState::Succeeded,
+                    .segments = {{.globalStartTick = 20, .values = {62.0}}},
+                    .sourceSha512 = QStringLiteral("unverified-source"),
+                });
+                const auto changedTerminal =
+                    changedAccepted
+                        ? runtime.tasks().getTask(changedBase.documentId, changedAccepted.get().taskId)
+                        : Automation::AutomationResult<Automation::AutomationTaskSnapshot>(
+                              Automation::AutomationError{});
+                suite.expect(
+                    changedAccepted && changedRan && changedTerminal &&
+                        changedTerminal.get().state == Automation::AutomationTaskState::Failed &&
+                        changedTerminal.get().error &&
+                        changedTerminal.get().error->code ==
+                            Automation::AutomationErrorCode::InvalidArgument &&
+                        runtime.documentVersion() == changedBase,
+                    QStringLiteral("pitch extraction must reject an unverified source snapshot"));
 
                 const auto wrongType = runtime.extractions().startPitch(
                     harness.context(), harness.singingClipId(), harness.singingClipId());
@@ -1176,6 +1204,8 @@ namespace {
                       state->complete({
                           .state = Automation::ExtractionBackendState::Succeeded,
                           .notes = {{.keyIndex = 62, .localStart = 10, .length = 240}},
+                          .sourceSha512 = QStringLiteral("verified-source"),
+                          .sourceIdentityVerified = true,
                       });
                       const auto terminal =
                           accepted
@@ -1202,6 +1232,8 @@ namespace {
                       revokedState->complete({
                           .state = Automation::ExtractionBackendState::Succeeded,
                           .notes = {{.keyIndex = 63, .localStart = 20, .length = 240}},
+                          .sourceSha512 = QStringLiteral("verified-source"),
+                          .sourceIdentityVerified = true,
                       });
                       const auto revokedTerminal =
                           revokedAccepted
@@ -1220,6 +1252,34 @@ namespace {
                               harness.model().tracks().size() == revokedTracks,
                           QStringLiteral("MIDI extraction must reauthorize its source before commit"));
 
+                      const auto changedBase = runtime.documentVersion();
+                      const auto changedTracks = harness.model().tracks().size();
+                      const auto changedAccepted = runtime.extractions().startMidi(
+                          harness.context(), harness.audioClipId());
+                      const auto changedState = harness.midiStates.last();
+                      const auto changedRan = harness.extractionScheduler.runNext();
+                      changedState->complete({
+                          .state = Automation::ExtractionBackendState::Succeeded,
+                          .notes = {{.keyIndex = 64, .localStart = 20, .length = 240}},
+                          .sourceSha512 = QStringLiteral("unverified-source"),
+                      });
+                      const auto changedTerminal =
+                          changedAccepted
+                              ? runtime.tasks().getTask(changedBase.documentId,
+                                                        changedAccepted.get().taskId)
+                              : Automation::AutomationResult<Automation::AutomationTaskSnapshot>(
+                                    Automation::AutomationError{});
+                      suite.expect(
+                          changedAccepted && changedRan && changedTerminal &&
+                              changedTerminal.get().state ==
+                                  Automation::AutomationTaskState::Failed &&
+                              changedTerminal.get().error &&
+                              changedTerminal.get().error->code ==
+                                  Automation::AutomationErrorCode::InvalidArgument &&
+                              runtime.documentVersion() == changedBase &&
+                              harness.model().tracks().size() == changedTracks,
+                          QStringLiteral("MIDI extraction must reject an unverified source snapshot"));
+
                       Automation::MidiExtractionOptionsDto overflowingMerge;
                       overflowingMerge.destinationMode = QStringLiteral("merge_into_clip");
                       overflowingMerge.targetTrackId = harness.trackId();
@@ -1233,6 +1293,8 @@ namespace {
                       mergeState->complete({
                           .state = Automation::ExtractionBackendState::Succeeded,
                           .notes = {{.keyIndex = 62, .localStart = 1, .length = 240}},
+                          .sourceSha512 = QStringLiteral("verified-source"),
+                          .sourceIdentityVerified = true,
                       });
                       const auto mergeTerminal =
                           mergeAccepted
