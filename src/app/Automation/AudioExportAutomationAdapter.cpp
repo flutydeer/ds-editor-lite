@@ -213,8 +213,16 @@ namespace Automation {
                     .errorMessage = QStringLiteral("Unknown audio export result")};
         }
 
-        AudioExportBackendResult publish(const bool allowOverwrite) override {
+        AudioExportBackendResult publish(const AudioExportObserver &observer,
+                                         const bool allowOverwrite) override {
+            const auto warningConnection = QObject::connect(
+                m_exporter.get(), &Audio::AudioExporter::warningAdded,
+                [callback = observer.warning](const QString &message, const int sourceIndex) {
+                    if (callback)
+                        callback(message, sourceIndex);
+                });
             const auto result = m_exporter->publishInternal(allowOverwrite);
+            QObject::disconnect(warningConnection);
             if (result == Audio::AudioExporter::R_Ok)
                 return {.state = AudioExportBackendState::Succeeded};
             return {.state = AudioExportBackendState::Failed,

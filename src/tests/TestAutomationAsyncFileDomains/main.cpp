@@ -1008,6 +1008,7 @@ namespace {
                                    "publishing"));
 
                 state->executeHook = {};
+                state->publishWarning = QStringLiteral("controlled publication warning");
                 Automation::AudioExportPolicyDto overwritePolicy;
                 overwritePolicy.allowOverwrite = true;
                 const auto published = runtime.audioExports().start(
@@ -1024,6 +1025,9 @@ namespace {
                 suite.expect(
                     published && publishedRan && publishedTask &&
                         publishedTask.get().state == Automation::AutomationTaskState::Succeeded &&
+                        publishedTask.get().mutation &&
+                        publishedTask.get().mutation->warnings.contains(
+                            state->publishWarning) &&
                         state->publishCount == publishBefore + 1 &&
                         state->publishAllowOverwrite == true &&
                         state->cleanupCount == cleanupBefore + 1,

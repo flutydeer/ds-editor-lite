@@ -564,7 +564,7 @@ namespace Automation {
             return;
         }
         if (deferPublish) {
-            const auto published = job->publish(allowOverwrite);
+            const auto published = job->publish(taskObserver, allowOverwrite);
             if (published.state != AudioExportBackendState::Succeeded) {
                 AutomationError error;
                 error.code = AutomationErrorCode::IoError;

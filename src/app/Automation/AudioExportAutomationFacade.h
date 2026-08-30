@@ -79,7 +79,8 @@ namespace Automation {
         virtual AudioExportBackendResult waitUntilReady(const AudioExportObserver &observer) = 0;
         virtual AudioExportBackendResult execute(const AudioExportObserver &observer,
                                                  bool deferPublish) = 0;
-        virtual AudioExportBackendResult publish(bool allowOverwrite) = 0;
+        virtual AudioExportBackendResult publish(const AudioExportObserver &observer,
+                                                 bool allowOverwrite) = 0;
         virtual void cancel() = 0;
         virtual void cleanup() = 0;
     };
