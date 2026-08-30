@@ -27,8 +27,4 @@ namespace lite::Support {
         return defaultText;
     }
 
-    bool hasLocalizedTexts(const QMap<QString, QString> &localized) {
-        return !localized.isEmpty();
-    }
-
 } // namespace lite::Support

@@ -28,9 +28,6 @@ namespace lite::Support {
                                               const QString &defaultText,
                                               const QStringList &bcp47LocaleCandidates);
 
-    /// True when \p localized contains any non-default localized text.
-    [[nodiscard]] bool hasLocalizedTexts(const QMap<QString, QString> &localized);
-
 } // namespace lite::Support
 
 #endif // LOCALIZEDTEXTUTILS_H

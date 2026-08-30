@@ -105,11 +105,6 @@ int main(int argc, char **argv) {
     expectTextSingle(posix, QStringLiteral("Qixuan"), QStringLiteral("zh_CN"),
                      QStringLiteral("绣萱"), "single-tag overload hits POSIX key");
 
-    // hasLocalizedTexts: any non-default entry counts as a usable translation.
-    expect(lite::Support::hasLocalizedTexts(sungNames), "hasLocalizedTexts true for BCP 47 keys");
-    expect(lite::Support::hasLocalizedTexts(posix), "hasLocalizedTexts true for POSIX-only keys");
-    expect(!lite::Support::hasLocalizedTexts({}), "hasLocalizedTexts false for empty table");
-
     if (g_failures == 0) {
         qInfo() << "TestLocalizedText: ALL PASSED";
         return 0;

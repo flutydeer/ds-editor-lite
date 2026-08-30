@@ -94,7 +94,7 @@ Qt 实测（Qt 6.11.2）`QLocale("zh_CN")`：
 | 文件 | 职责 |
 |---|---|
 | `src/3rdparty/icu-wrapper/` | vendored 匹配内核：`IcuWrapper::bestMatch`（平台后端 ×3，静态库）+ `IcuWrapperTests` |
-| `src/libs/Support/LocalizedTextUtils.{h,cpp}` | `lite::Support::lookupLocalizedText`（单标签 + 候选列表两个重载，内核走 IcuWrapper）、`hasLocalizedTexts` |
+| `src/libs/Support/LocalizedTextUtils.{h,cpp}` | `lite::Support::lookupLocalizedText`（单标签 + 候选列表两个重载，内核走 IcuWrapper） |
 | `src/app/Utils/UiLanguageManager.{h,cpp}` | `effectiveBcp47Candidates()` = `uiLanguages()`；`effectiveBcp47Name()` = 候选首位；同名静态 `current*` |
 | `src/libs/ProjectModel/Voice/{Singer,Language,Speaker}Info.{h,cpp}` | 新增 `localizedNames` + `displayName(String/StringList)` |
 | `src/libs/PackageManager/Models/PackageInfo.{h,cpp}` | 新增 `localizedVendor/Description/License` + `display*` 重载 |
@@ -111,7 +111,7 @@ Qt 实测（Qt 6.11.2）`QLocale("zh_CN")`：
 
 ## 验证
 
-- `TestLocalizedText`（`src/tests/TestLocalizedText/main.cpp`）对拍前端匹配语义：候选链命中 `zh-Hans`/`zh-CN`、POSIX 键 `zh_CN` 经归一化命中、大小写不敏感、空表回退、`zh-Hant`/`zh-TW` 边界互不命中、`hasLocalizedTexts` 判定；`IcuWrapperTests` 覆盖 ICU 内核（含 script+region 回退回归）
+- `TestLocalizedText`（`src/tests/TestLocalizedText/main.cpp`）对拍前端匹配语义：候选链命中 `zh-Hans`/`zh-CN`、POSIX 键 `zh_CN` 经归一化命中、大小写不敏感、空表回退、`zh-Hant`/`zh-TW` 边界互不命中；`IcuWrapperTests` 覆盖 ICU 内核（含 script+region 回退回归）
 - 构建：2026-08-25 经 GitHub pin（非本地 setdir）的 synthrt `0.1.0.13#5` debug preset 全量编译 + `ctest` 38/38 通过
 - GUI 冒烟：切 UI 语言 → 声库列表/歌手 combo/语言名单词/声库管理应显示本地化名（`junninghua`：君凝华/君凝華/うろこ音凝華；`qixuan` 绮萱、`zhibin` 挚彬 CE、`liliko` 琉璃、`shisakune` 試作音デモ）
 
