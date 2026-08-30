@@ -142,8 +142,8 @@ Bootstrap 错误分类回归通过：不存在 Editor 引导端点时，Connecto
 仍按需返回 Schema，因此收益较小但未回退。基准插桩只用于仓库外测量，未进入产品或测试代码。
 
 协议与进程验证覆盖 2025-11-25 `initialize/initialized`、2026-07-28
-`server/discover`、2025-06-18 兼容握手、legacy session 有界淘汰与 DELETE 结束、loopback HTTP、
-QLocal watch、stdio 大帧、并发乱序、取消、timeout、EOF、broken pipe、重连和旧 epoch 隔离。Connector 常规握手分页读取
+`server/discover`、2025-06-18 兼容握手、legacy session 有界淘汰与 DELETE 结束、现代直连身份
+跨 HTTP 连接稳定及排队取消、loopback HTTP、QLocal watch、stdio 大帧、并发乱序、取消、timeout、EOF、broken pipe、重连和旧 epoch 隔离。Connector 常规握手分页读取
 `tools/list` 后只读取 `application.get_status` 的轻量状态，不为 177 项 Schema 做兼容重算。
 
 音频准备回归确认哈希与临时快照由同一次读取产生，导入解码只读取该快照；源文件随后变化不会
@@ -176,7 +176,7 @@ Editor 窗口与进程均消失。三个阶段均未出现保存确认或其他�
 ## 8. 缺陷与回归
 
 最终候选的共享 Dispatcher、公共契约、Registry、Wire、Connector、文档生命周期和真实进程路径
-均通过受影响测试与最终 62/62 完整 CTest（36.15 s）。压力测试仍在默认套件中，保留通知洪泛、
+均通过受影响测试与最终 62/62 完整 CTest（45.17 s）。压力测试仍在默认套件中，保留通知洪泛、
 并发请求、大帧、慢读、取消与竞态覆盖；没有将其拆分、降次或改为可选执行。
 
 测试实现不再维护第二份手工工具清单，也不以固定工具数量、CTest 数量、场景配额或逐工具复制的

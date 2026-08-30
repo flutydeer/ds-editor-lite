@@ -198,10 +198,12 @@ Registry、Editor 发现面与 Contract 集合关系精确；公共 Schema 全�
    计数释放；同时发出 32 个请求应全部进入，第 33 个在途请求应被拒绝且不排队。
 9. 验证 legacy session 的 128 项上限、最旧会话淘汰，以及 DELETE 正常结束、重复结束、未知
    session 和协议版本不符。
+10. 分别验证 legacy session、Connector metadata 和现代 client info 的连接无关身份；使用两条
+    HTTP 连接发送现代排队请求与取消通知，确认请求不进入 handler。
 
 ### 门禁
 
-两套主协议和 2025-06-18 兼容握手/会话都形成证据；HTTP 安全、全局准入和 legacy session 保留上限生效；Server 停止后无残留 listener、session 或在途计数。
+两套主协议和 2025-06-18 兼容握手/会话都形成证据；HTTP 安全、跨连接取消、全局准入和 legacy session 保留上限生效；Server 停止后无残留 listener、session 或在途计数。
 
 ## 11. 阶段 E：QLocal Bootstrap
 

@@ -213,6 +213,8 @@ Connector 桥接工具：6
 - POST 承载 request/notification 且 notification 返回 202；legacy session 可由带 session 与协议 header
   的 DELETE 结束，缺失/重复 header、版本不符、未知或重复结束均返回稳定状态。
 - legacy session 最多保留 128 个，超限只淘汰最早建立的会话。
+- legacy session、Connector metadata 与现代 client info 的身份跨连接稳定；请求与取消通知使用
+  不同 HTTP 连接时仍能取消排队请求。
 - 单消息、非法 JSON、数组/batch、错误 id、超大 body、深度、节点、响应体和 deadline。
 - listener 仅为 `127.0.0.1`；Host、Origin、DNS rebinding、CORS 与远端地址拒绝矩阵。
 - shutdown 先停止 admission，再结束在途请求并释放端口。

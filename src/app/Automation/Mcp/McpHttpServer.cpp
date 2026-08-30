@@ -174,19 +174,19 @@ namespace Automation {
                             const std::optional<QString> &sessionClientId) {
             const auto connectorMetadata = request.meta.value(
                 QStringLiteral("com.openvpi.ds-editor-lite/connectorInstanceId"));
-            if ((!connectorMetadata.isString() || connectorMetadata.toString().isEmpty() ||
-                 connectorMetadata.toString().size() > 128) &&
-                sessionClientId) {
+            const auto hasConnectorIdentity =
+                connectorMetadata.isString() && !connectorMetadata.toString().isEmpty() &&
+                connectorMetadata.toString().size() <= 128;
+            if (!hasConnectorIdentity && sessionClientId)
                 return *sessionClientId;
-            }
             QJsonObject identity{
                 {QStringLiteral("remoteAddress"), httpRequest.remoteAddress().toString()},
             };
-            if (connectorMetadata.isString() && !connectorMetadata.toString().isEmpty() &&
-                connectorMetadata.toString().size() <= 128) {
+            if (hasConnectorIdentity) {
                 identity.insert(QStringLiteral("connectorMetadata"), connectorMetadata.toString());
-            } else {
-                identity.insert(QStringLiteral("remotePort"), httpRequest.remotePort());
+            } else if (request.clientInfo) {
+                identity.insert(QStringLiteral("clientName"), request.clientInfo->name);
+                identity.insert(QStringLiteral("clientVersion"), request.clientInfo->version);
             }
             const auto digest = QCryptographicHash::hash(
                 QJsonDocument(identity).toJson(QJsonDocument::Compact), QCryptographicHash::Sha256);
@@ -310,6 +310,7 @@ namespace Automation {
         bool cancelQueued(const QString &clientId, const QString &protocolVersion,
                           const QJsonValue &requestId) {
             std::shared_ptr<PendingRequest> pending;
+            quint64 pendingId = 0;
             {
                 const QMutexLocker locker(&m_mutex);
                 for (auto it = m_pending.begin(); it != m_pending.end(); ++it) {
@@ -319,10 +320,14 @@ namespace Automation {
                         candidate->requestId != requestId) {
                         continue;
                     }
+                    if (pending)
+                        return false;
                     pending = candidate;
-                    m_pending.erase(it);
+                    pendingId = it.key();
+                }
+                if (pending) {
+                    m_pending.remove(pendingId);
                     m_globalInFlight = std::max(0, m_globalInFlight - 1);
-                    break;
                 }
             }
             if (!pending)

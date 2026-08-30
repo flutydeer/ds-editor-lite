@@ -332,8 +332,30 @@ int main(int argc, char *argv[]) {
     }
     expect(
         directResultA.status == 200 && directResultB.status == 200 && !directClientA.isEmpty() &&
-            !directClientB.isEmpty() && directClientA != directClientB,
-        QStringLiteral("independent direct HTTP connections must have isolated client identities"));
+            directClientA == directClientB,
+        QStringLiteral("a modern direct client identity must survive HTTP connection changes"));
+
+    auto distinctDirectDiscover =
+        requestObject(QString::fromLatin1(Mcp::DiscoverMethod), QStringLiteral("direct-distinct"));
+    auto distinctParams = distinctDirectDiscover.value(QStringLiteral("params")).toObject();
+    auto distinctMeta = distinctParams.value(QStringLiteral("_meta")).toObject();
+    auto distinctClientInfo =
+        distinctMeta.value(QString::fromLatin1(Mcp::ClientInfoMetaKey)).toObject();
+    distinctClientInfo.insert(QStringLiteral("name"), QStringLiteral("DistinctMcpClient"));
+    distinctMeta.insert(QString::fromLatin1(Mcp::ClientInfoMetaKey), distinctClientInfo);
+    distinctParams.insert(QStringLiteral("_meta"), distinctMeta);
+    distinctDirectDiscover.insert(QStringLiteral("params"), distinctParams);
+    const auto distinctDirectResult =
+        send(directManagerB, baseRequest(endpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
+             QJsonDocument(distinctDirectDiscover).toJson(QJsonDocument::Compact));
+    QString distinctDirectClient;
+    {
+        const QMutexLocker locker(&observationMutex);
+        distinctDirectClient = observedClientId;
+    }
+    expect(distinctDirectResult.status == 200 && !distinctDirectClient.isEmpty() &&
+               distinctDirectClient != directClientA,
+           QStringLiteral("different modern client implementations must have distinct identities"));
 
     const Mcp::RequestContext legacyContext{
         .protocolVersion = QString::fromLatin1(Mcp::LegacyProtocolVersion),
@@ -960,6 +982,55 @@ int main(int argc, char *argv[]) {
     if (cancellationContextBlocked) {
         expect(!canceledHandlerEntered.tryAcquire(1, 250),
                QStringLiteral("a canceled queued request must not enter the editor handler"));
+    }
+
+    QMetaObject::invokeMethod(
+        &handlerContext,
+        [&] {
+            cancellationContextEntered.release();
+            cancellationContextRelease.acquire();
+        },
+        Qt::QueuedConnection);
+    const auto modernCancellationContextBlocked =
+        acquireWhileProcessing(cancellationContextEntered, 2000);
+    expect(modernCancellationContextBlocked,
+           QStringLiteral("the modern cancellation fixture must block the handler executor"));
+    const auto modernCanceledCall = requestObject(
+        QString::fromLatin1(Mcp::ToolsCallMethod), QStringLiteral("modern-cancel-before-dispatch"),
+        QJsonObject{
+            {QStringLiteral("name"),      QStringLiteral("mutating.test")},
+            {QStringLiteral("arguments"), QJsonObject{}                  },
+        });
+    auto *modernCanceledReply = startRequest(
+        cancellationRequestManager,
+        baseRequest(cancellationEndpoint, QString::fromLatin1(Mcp::ToolsCallMethod),
+                    QStringLiteral("mutating.test")),
+        QJsonDocument(modernCanceledCall).toJson(QJsonDocument::Compact));
+    admissionWait.restart();
+    while (admissionWait.elapsed() < 100) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
+        QThread::msleep(1);
+    }
+    const auto modernCancellationNotification = requestObject(
+        QString::fromLatin1(Mcp::CancelledNotification), QJsonValue(QJsonValue::Undefined),
+        QJsonObject{
+            {QStringLiteral("requestId"), QStringLiteral("modern-cancel-before-dispatch")},
+            {QStringLiteral("reason"),    QStringLiteral("test cancellation")            },
+        });
+    const auto modernCancellationResult = send(
+        cancellationNotificationManager,
+        baseRequest(cancellationEndpoint, QString::fromLatin1(Mcp::CancelledNotification)),
+        QJsonDocument(modernCancellationNotification).toJson(QJsonDocument::Compact));
+    const auto modernCanceledResult = finishRequest(modernCanceledReply, 2000);
+    expect(modernCancellationResult.status == 202 && modernCancellationResult.body.isEmpty(),
+           QStringLiteral("modern cancellation notifications must use a second HTTP connection"));
+    expect(modernCanceledResult.status == 204 && modernCanceledResult.body.isEmpty(),
+           QStringLiteral("modern cross-connection cancellation must close the queued request"));
+
+    cancellationContextRelease.release();
+    if (modernCancellationContextBlocked) {
+        expect(!canceledHandlerEntered.tryAcquire(1, 250),
+               QStringLiteral("a modern cross-connection cancellation must prevent dispatch"));
     }
     cancellationServer.stop();
 
