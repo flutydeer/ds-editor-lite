@@ -32,6 +32,7 @@
 #include <QTimer>
 
 #include <algorithm>
+#include <cmath>
 #include <limits>
 #include <memory>
 #include <variant>
@@ -770,29 +771,75 @@ namespace Automation {
                     finishPreparation();
             }
 
-            ClipInsertDto preparedInsert(const Entry &entry, const QString &projectPath) const {
+            AutomationError geometryError(const qsizetype index, const QString &message) const {
+                AutomationError result;
+                result.code = AutomationErrorCode::InvalidArgument;
+                result.operationId = m_operationId;
+                result.taskId = m_taskId;
+                result.fieldPath = m_entries.size() == 1
+                                       ? QStringLiteral("start")
+                                       : QStringLiteral("items[%1].start").arg(index);
+                result.message = message;
+                return result;
+            }
+
+            AutomationResult<ClipInsertDto> preparedInsert(const Entry &entry,
+                                                           const QString &projectPath,
+                                                           const qsizetype index) const {
                 auto result = entry.request;
                 const auto &prepared = *entry.prepared;
                 auto &clip = result.clip;
                 auto &properties = clip.properties;
+                if (!validate(clip)) {
+                    return geometryError(index,
+                                         QStringLiteral("Audio clip geometry is out of bounds"));
+                }
+                if (!std::isfinite(prepared.durationMs) || prepared.durationMs < 0.0) {
+                    return geometryError(index,
+                                         QStringLiteral("Decoded audio duration is invalid"));
+                }
                 const auto &timeline = m_model->timeline();
                 const auto start = properties.start;
                 const auto startMs = timeline.tickToMs(start);
+                const auto materialEndMs = startMs + prepared.durationMs;
+                const auto materialEndTick = timeline.msToTick(materialEndMs);
+                if (!std::isfinite(startMs) || !std::isfinite(materialEndMs) ||
+                    !std::isfinite(materialEndTick) ||
+                    materialEndTick < std::numeric_limits<int>::min() ||
+                    materialEndTick > std::numeric_limits<int>::max()) {
+                    return geometryError(index,
+                                         QStringLiteral("Decoded audio range is out of bounds"));
+                }
                 const auto materialTicks =
-                    std::max(1, qRound(timeline.msToTick(startMs + prepared.durationMs)) - start);
+                    std::max<qint64>(1, std::llround(materialEndTick) - static_cast<qint64>(start));
+                if (materialTicks > std::numeric_limits<int>::max()) {
+                    return geometryError(index,
+                                         QStringLiteral("Decoded audio length is out of bounds"));
+                }
                 if (properties.name.isEmpty())
                     properties.name = QFileInfo(prepared.path).baseName();
                 if (properties.length <= 0)
-                    properties.length = materialTicks;
-                if (properties.clipLen <= 0)
-                    properties.clipLen = std::max(1, properties.length - properties.clipStart);
-                const auto visibleStart = start + properties.clipStart;
+                    properties.length = static_cast<int>(materialTicks);
+                if (properties.clipLen <= 0) {
+                    properties.clipLen = static_cast<int>(std::max<qint64>(
+                        1, static_cast<qint64>(properties.length) - properties.clipStart));
+                }
+                if (!validate(clip)) {
+                    return geometryError(index,
+                                         QStringLiteral("Audio clip geometry is out of bounds"));
+                }
+                const auto visibleStart =
+                    static_cast<qint64>(start) + properties.clipStart;
+                const auto visibleEnd = visibleStart + properties.clipLen;
                 properties.trimStartMs = timeline.tickToMs(visibleStart) - startMs;
                 properties.playLengthMs = std::min(
-                    timeline.tickToMs(visibleStart + properties.clipLen) -
-                        timeline.tickToMs(visibleStart),
+                    timeline.tickToMs(visibleEnd) - timeline.tickToMs(visibleStart),
                     std::max(0.0, prepared.durationMs - properties.trimStartMs));
                 properties.materialLengthMs = prepared.durationMs;
+                if (!validate(clip)) {
+                    return geometryError(index,
+                                         QStringLiteral("Audio clip timing is out of bounds"));
+                }
                 clip.audioPath = prepared.path;
                 clip.audioInfo = prepared.audioInfo;
                 clip.audioPathInfo = {
@@ -861,7 +908,19 @@ namespace Automation {
                                             .arg(entry.request.clip.audioPath, failure));
                         continue;
                     }
-                    selected.append(preparedInsert(entry, document.get().path));
+                    auto prepared = preparedInsert(entry, document.get().path, index);
+                    if (!prepared) {
+                        if (m_failurePolicy == PublicBatchFailurePolicy::Atomic) {
+                            m_runtime.automationTasks().fail(m_taskId, prepared.getError());
+                            deleteLater();
+                            return;
+                        }
+                        warnings.append(QStringLiteral("Skipped %1: %2")
+                                            .arg(entry.request.clip.audioPath,
+                                                 prepared.getError().message));
+                        continue;
+                    }
+                    selected.append(prepared.get());
                 }
                 if (selected.isEmpty()) {
                     m_runtime.automationTasks().fail(
