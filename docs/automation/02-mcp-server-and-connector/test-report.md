@@ -22,7 +22,7 @@ L3 downstream 为 177 个 Editor wrapper 加 6 个桥接工具，共 183 项。�
 | 平台与工具链 | Visual Studio 2026 v18.9.0；Qt 6.11.2 |
 | Debug 配置与构建 | 标准 preset `ConfigureAndBuild` 通过；随后 `all` target 通过 |
 | 最终 CTest 清单 | 62 项 |
-| 一次完整 CTest | 62/62 通过，43.33 s |
+| 一次完整 CTest | 62/62 通过，45.14 s |
 | Connector 真实联调 | 2025-11-25 下游握手和 2026-07-28 上游连接通过；L0 重启后自动重连且 toolset compatible |
 | GUI/Computer Use | 真实编辑、合成、播放、另存，以及 dirty 拒绝、丢弃重启和 clean 退出全程无决策弹窗 |
 | 测试素材完整性 | 素材源 19/19 项 SHA-256 不变；真实用户应用配置 SHA-256 不变 |
@@ -182,7 +182,7 @@ Editor 窗口与进程均消失。三个阶段均未出现保存确认或其他�
 ## 8. 缺陷与回归
 
 最终候选的共享 Dispatcher、公共契约、Registry、Wire、Connector、文档生命周期和真实进程路径
-均通过受影响测试与最终 62/62 完整 CTest（43.33 s）。压力测试仍在默认套件中，保留通知洪泛、
+均通过受影响测试与最终 62/62 完整 CTest（45.14 s）。压力测试仍在默认套件中，保留通知洪泛、
 并发请求、大帧、慢读、取消与竞态覆盖；没有将其拆分、降次或改为可选执行。
 
 时间线回归还覆盖了删除中间拍号后后续拍号继承超长小节的边界：validate-only 与实际删除均在
@@ -201,6 +201,8 @@ MIDI 导出回归在受控渲染阻塞期间分别发起取消和文档 generati
 
 音频导出回归使用两个同目录暂存输出，在第二个目标由外部占用后执行拒绝覆盖发布；最终发布稳定
 失败并保留外部内容，同时回滚本次已经发布的第一个目标，不留下部分批次。
+deferred publication 的成功回归另模拟发布阶段 warning，确认它保留在成功 Task 的 mutation 中，
+不会因渲染阶段 observer 连接结束而丢失。
 
 文档输入回归通过 open 代表路径确认共用的 plan revalidator 不会把接单时授权当作长期凭据：即使
 未提供 plan digest，任务开始前撤销读根也会稳定返回 `permission_denied`；带 digest 时校验器返回
