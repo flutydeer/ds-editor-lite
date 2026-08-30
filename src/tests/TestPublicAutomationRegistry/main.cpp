@@ -840,6 +840,54 @@ namespace {
                QStringLiteral("discarded document generations must not publish staged MIDI"));
     }
 
+    void verifyCurrentDocumentSavePolicy(Automation::PublicAutomationRegistry &registry,
+                                         Automation::CoreRuntime &runtime,
+                                         const QString &directoryPath, const int &saveCount) {
+        const auto path =
+            QDir(directoryPath).absoluteFilePath(QStringLiteral("current-document.dspx"));
+        const auto savedAs = registry.invoke(
+            QStringLiteral("documents.save_as"),
+            mergeCommandArguments(
+                runtime.documentVersion(),
+                QJsonObject{
+                    {QStringLiteral("path"),             path                       },
+                    {QStringLiteral("overwrite_policy"), QStringLiteral("overwrite")},
+                }));
+        reportFailure(QStringLiteral("documents.save_as"), savedAs);
+
+        QFile external(path);
+        const auto replaced = savedAs && external.open(QIODevice::WriteOnly | QIODevice::Truncate) &&
+                              external.write("external") == 8;
+        external.close();
+        const auto savesBeforeReject = saveCount;
+        const auto rejected = registry.invoke(
+            QStringLiteral("documents.save"),
+            mergeCommandArguments(
+                runtime.documentVersion(),
+                QJsonObject{
+                    {QStringLiteral("overwrite_policy"), QStringLiteral("reject")}
+                }));
+        QFile preserved(path);
+        const auto preservedReadable = preserved.open(QIODevice::ReadOnly);
+        const auto preservedContents = preserved.readAll();
+        preserved.close();
+        expect(replaced && !rejected &&
+                   rejected.getError().code == Automation::AutomationErrorCode::OverwriteDenied &&
+                   saveCount == savesBeforeReject && preservedReadable &&
+                   preservedContents == QByteArrayLiteral("external"),
+               QStringLiteral("documents.save must preserve an explicit reject overwrite policy"));
+
+        const auto defaultSaved = registry.invoke(
+            QStringLiteral("documents.save"), commandArguments(runtime.documentVersion()));
+        reportFailure(QStringLiteral("documents.save"), defaultSaved);
+        QFile overwritten(path);
+        const auto overwrittenReadable = overwritten.open(QIODevice::ReadOnly);
+        const auto overwrittenContents = overwritten.readAll();
+        expect(defaultSaved && saveCount == savesBeforeReject + 1 && overwrittenReadable &&
+                   overwrittenContents == QByteArrayLiteral("registry-save"),
+               QStringLiteral("documents.save must retain overwrite as the omitted-policy default"));
+    }
+
     void verifyProjectInputGuards(Automation::PublicAutomationRegistry &registry,
                                   Automation::AutomationFileGuard &fileGuard,
                                   const QString &directoryPath, ProjectInputTestControl &control) {
@@ -1735,9 +1783,23 @@ int main(int argc, char *argv[]) {
         return true;
     };
 
+    int documentSaveCount = 0;
+    Automation::DocumentRuntimeServices documentServices;
+    documentServices.saveProject =
+        [&documentSaveCount](const QString &path, AppModel *, QString &error) {
+            QFile file(path);
+            if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate) ||
+                file.write("registry-save") != 13) {
+                error = QStringLiteral("Registry save fixture could not be written");
+                return false;
+            }
+            ++documentSaveCount;
+            return true;
+        };
+
     AutomationTestSupport::TestRuntime fixture(
-        std::move(editorServices), {}, std::move(fileServices), {}, std::move(packageServices), {},
-        std::move(applicationServices), std::move(settingsServices));
+        std::move(editorServices), std::move(documentServices), std::move(fileServices), {},
+        std::move(packageServices), {}, std::move(applicationServices), std::move(settingsServices));
     fixture.model().newProject();
     auto &runtime = fixture.runtime();
 
@@ -1757,6 +1819,7 @@ int main(int argc, char *argv[]) {
 
     verifyProjectInputGuards(registry, fileGuard, directory.path(), projectInputControl);
     verifyMidiExportPublicationGate(registry, runtime, directory.path(), *midiExportControl);
+    verifyCurrentDocumentSavePolicy(registry, runtime, directory.path(), documentSaveCount);
 
     const auto settingsBeforeAdvancedBindings = *settingsSnapshot;
     const auto lyricRulesBeforeAdvancedBindings = *lyricRules;

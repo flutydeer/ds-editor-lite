@@ -2136,8 +2136,10 @@ namespace Automation {
                 return result;
             }
             effectiveArguments.insert(QStringLiteral("path"), document.get().path);
-            effectiveArguments.insert(QStringLiteral("overwrite_policy"),
-                                      QStringLiteral("overwrite"));
+            if (!effectiveArguments.contains(QStringLiteral("overwrite_policy"))) {
+                effectiveArguments.insert(QStringLiteral("overwrite_policy"),
+                                          QStringLiteral("overwrite"));
+            }
         }
         auto authorized = validateFileArguments(m_fileGuard, *contract, effectiveArguments);
         if (!authorized) {
