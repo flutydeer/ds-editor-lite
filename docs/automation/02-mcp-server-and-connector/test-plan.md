@@ -166,7 +166,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 12. 验证零 speaker 声库可用完整 SingerRef 设置到轨道/剪辑；单 speaker 自动解析，多 speaker 候选可由 `voices.describe` 查询，缺少选择时稳定拒绝；构造 package ID 与 singer ID 相同、package version 不同的两个并存版本，在 L2 明确拒绝 `packages.*` 的前提下验证 list、describe、轨道/剪辑设置、Speaker Mix/预设和回读均按版本精确闭环。
 13. 验证 `documents.get` 的工程长度、轨道/剪辑总数和分类统计；验证 `documents.list_recent` 只读取应用设置且不修改当前文档。
 14. 验证 `parameters.get` 的半开范围、默认/显式点数上限、采样曲线确定性降采样，以及锚点曲线在上限不足时明确失败而不丢失稳定 ID。
-15. 验证 `parameters.create_anchor_curve`、显式 `insert_anchors`、跨曲线移动拒绝和 `merge_anchor_curves` 的相邻/重叠规则及逐步 Undo/Redo。
+15. 验证 `parameters.create_anchor_curve`、显式 `insert_anchors`、跨曲线移动拒绝和 `merge_anchor_curves` 的相邻/重叠规则及逐步 Undo/Redo；验证局部 `parameters.bake` 在采样前拒绝超限或无法表示的锚点展开，且不推进文档版本。
 16. 验证 Speaker Mix 预设 list/save/delete 的应用级无文档副作用，apply 的单条 History，以及来源预设 dirty 状态。
 17. 对 workspace、track_panel、clip_editor 的布局、焦点事实、共享/独立视口、选择顺序与 primary 各选代表路径验证真实 QWidget 状态；确认 revision/history 不变，且 Editor 在后台无法取得键盘焦点时已完成的显示、选择和定位不被误报为失败，也不出现模态窗口。
 18. 验证拍号新增、替换和删除后的完整时间线投影使用宽整数校验；删除中间拍号会使后续
@@ -210,12 +210,13 @@ Registry、Editor 发现面与 Contract 集合关系精确；公共 Schema 全�
 9. 验证除 `initialize` 外的 legacy 请求必须携带存活 session；覆盖缺失、未知、已淘汰和已结束
    session，以及 128 项上限、最旧会话淘汰、DELETE 正常结束、重复结束和协议版本不符。
 10. 验证 legacy session 与 Connector metadata 的连接无关身份；使用两条 HTTP 连接发送带同一
-    Connector instance ID 的现代排队请求与取消通知，确认请求不进入 handler；另验证未携带实例
-    ID 且 client info 相同的独立直连客户端仍按连接隔离。
+    Connector instance ID 的现代排队请求与项目扩展取消通知，确认请求不进入 handler；另验证
+    2026-07-28 核心 Streamable HTTP 不依赖该 notification，未携带 Connector 扩展身份且 client info
+    相同的独立直连客户端仍按连接隔离。
 
 ### 门禁
 
-两套主协议和 2025-06-18 兼容握手/会话都形成证据；HTTP 安全、跨连接取消、全局准入和 legacy session 保留上限生效；Server 停止后无残留 listener、session 或在途计数。
+两套主协议和 2025-06-18 兼容握手/会话都形成证据；HTTP 安全、Connector 扩展跨连接取消、全局准入和 legacy session 保留上限生效；Server 停止后无残留 listener、session 或在途计数。
 
 ## 11. 阶段 E：QLocal Bootstrap
 

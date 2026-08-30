@@ -191,7 +191,7 @@ DELETE http://127.0.0.1:<port>/mcp  # 结束 legacy session
 
 2025-11-25 使用 `initialize → notifications/initialized` 生命周期；同一兼容入口接受客户端请求 `2025-06-18`，协商后以该版本完成 legacy 生命周期和后续工具调用。2026-07-28 使用无状态 `server/discover` 和逐请求 `_meta`，并对照 `MCP-Protocol-Version`、`Mcp-Method`、适用时的 `Mcp-Name` 与 body。2026-07-28 请求不经过 `initialize`。
 
-两套主协议以及 2025-06-18 兼容会话共同处理 `ping`、`tools/list` 与 `tools/call`。结果按协商版本塑形：2026-07-28 响应携带现代结果与 server metadata；2025-11-25 和 2025-06-18 响应使用 legacy 兼容结构。每个 POST 承载一个 JSON-RPC request 或 notification，notification 接受后返回 HTTP 202。
+两套主协议以及 2025-06-18 兼容会话共同处理 `ping`、`tools/list` 与 `tools/call`。结果按协商版本塑形：2026-07-28 响应携带现代结果与 server metadata；2025-11-25 和 2025-06-18 响应使用 legacy 兼容结构。Legacy POST 承载 JSON-RPC request 或 notification；2026-07-28 核心协议按逐请求 POST 工作，Connector 取消转接另使用项目扩展 notification。接受 notification 后返回 HTTP 202。
 
 HTTP 层实施：
 
@@ -204,9 +204,10 @@ HTTP 层实施：
   和 notification 都必须携带存活 session，客户端可携带 session 与协议 header 通过 DELETE
   主动结束会话；
 - legacy session 与 Connector instance metadata 提供连接无关的客户端身份；Connector 的每个
-  上游请求都携带稳定实例 ID，使 `notifications/cancelled` 可跨 HTTP 连接取消尚未分派的请求；
-  未携带显式实例 ID 的现代直连客户端按 TCP 连接隔离，不能仅凭相同 client info 合并；重复身份与
-  request ID 产生歧义时不猜测目标；
+  上游请求都携带稳定实例 ID，使项目扩展的 `notifications/cancelled` 可跨 HTTP 连接取消尚未分派
+  的请求；2026-07-28 核心协议不在 Streamable HTTP 上发送该 notification，未携带 Connector
+  扩展身份的现代直连客户端按 TCP 连接隔离，不能仅凭相同 client info 合并；重复身份与 request ID
+  产生歧义时不猜测目标；
 - 安全响应头与稳定 transport error；
 - 有序停止、在途请求完成或超时、配额可靠释放。
 

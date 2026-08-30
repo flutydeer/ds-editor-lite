@@ -155,6 +155,7 @@ Connector 桥接工具：6
 - `playback.set_loop`、`set_loop_enabled` 与 `clear_loop` 修改工程持久状态，各自产生一条可撤销、可重做的历史记录；瞬时播放命令不进入历史记录，播放头在调用间变化不造成冲突，重复目标调用返回 no-op。
 - Speaker Mix 预设 save/delete 不改变文档 revision 或 History；apply 只形成一条文档历史记录，后续直接编辑将来源标记为 dirty。
 - 创建、插入和合并锚点曲线分别形成单条历史记录；非法重叠、非相邻合并和跨曲线移动在提交前失败。
+- 局部 `parameters.bake` 在锚点采样前以宽整数预检总点数和终点；极端跨度在分配和提交前稳定拒绝，文档版本不变。
 
 ### 5.3 异步 Command 与 Task
 
@@ -224,14 +225,14 @@ Connector 桥接工具：6
 
 - `MCP-Protocol-Version`、`Mcp-Method`、`Mcp-Name` 与 body 镜像一致。
 - header Base64 sentinel、Unicode、控制符、前后空格、重复 header 和大小写规则。
-- POST 承载 request/notification 且 notification 返回 202；legacy session 可由带 session 与协议 header
-  的 DELETE 结束，缺失/重复 header、版本不符、未知或重复结束均返回稳定状态。
+- Legacy POST 承载 request/notification 且 notification 返回 202；legacy session 可由带 session 与协议
+  header 的 DELETE 结束，缺失/重复 header、版本不符、未知或重复结束均返回稳定状态。
 - 除 `initialize` 外，2025-11-25/2025-06-18 request 与 notification 缺失 session、使用未知、已淘汰
   或已结束 session 时不得进入 handler；存活 session 正常闭环。
 - legacy session 最多保留 128 个，超限只淘汰最早建立的会话。
-- legacy session 与 Connector metadata 的身份跨连接稳定；Connector 请求与取消通知使用不同
-  HTTP 连接时仍能取消排队请求。无显式实例 ID 的现代直连客户端按连接隔离，相同 client info
-  不得造成跨客户端取消。
+- legacy session 与 Connector metadata 的身份跨连接稳定；Connector 项目扩展的请求与取消通知使用
+  不同 HTTP 连接时仍能取消排队请求。2026-07-28 核心 Streamable HTTP 不发送该 notification；
+  无 Connector 扩展身份的现代直连客户端按连接隔离，相同 client info 不得造成跨客户端取消。
 - 单消息、非法 JSON、数组/batch、错误 id、超大 body、深度、节点、响应体和 deadline。
 - listener 仅为 `127.0.0.1`；Host、Origin、DNS rebinding、CORS 与远端地址拒绝矩阵。
 - shutdown 先停止 admission，再结束在途请求并释放端口。
