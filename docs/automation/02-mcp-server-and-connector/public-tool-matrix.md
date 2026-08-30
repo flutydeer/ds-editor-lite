@@ -142,8 +142,8 @@
 | `audio_clips.get` | L2 | Q/S | 路径状态、候选、hash 与音频元数据 |
 | `audio_clips.import` | L2 | C/A | 单文件读授权、解码与剪辑任务；创建前按完整请求幂等去重 |
 | `audio_clips.import_batch` | L2 | C/A | 多文件授权、批量上限与失败策略；与单项入口共享 Task 幂等语义 |
-| `audio_clips.relocate` | L2 | C/A | 新路径授权、后台快照/解码/hash、源摘要复核与 Task 最终写回 |
-| `audio_clips.confirm_path` | L2 | C/A | 候选授权、后台快照/解码/hash、源摘要复核与 Task 最终写回 |
+| `audio_clips.relocate` | L2 | C/A | 新路径授权、后台单次读取快照/解码/hash 与 Task 最终写回 |
+| `audio_clips.confirm_path` | L2 | C/A | 候选路径确认/授权、后台单次读取快照/解码/hash 与 Task 最终写回 |
 
 ### 3.8 声库（2）
 
