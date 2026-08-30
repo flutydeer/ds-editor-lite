@@ -22,6 +22,7 @@
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 
 #include <QCoreApplication>
+#include <QCryptographicHash>
 #include <QDir>
 #include <QFileInfo>
 #include <QHash>
@@ -667,16 +668,38 @@ namespace Automation {
             return clip;
         }
 
+        QByteArray audioImportFingerprint(const QList<ClipInsertDto> &clips,
+                                          const QStringList &validationErrors,
+                                          const PublicBatchFailurePolicy failurePolicy) {
+            QCryptographicHash hash(QCryptographicHash::Sha256);
+            hash.addData(fingerprint(clips));
+            hash.addData(failurePolicy == PublicBatchFailurePolicy::Atomic
+                             ? QByteArrayLiteral("atomic")
+                             : QByteArrayLiteral("best_effort"));
+            hash.addData("\0", 1);
+            hash.addData(QByteArray::number(validationErrors.size()));
+            for (const auto &validationError : validationErrors) {
+                const auto bytes = validationError.toUtf8();
+                hash.addData("\0", 1);
+                hash.addData(QByteArray::number(bytes.size()));
+                hash.addData("\0", 1);
+                hash.addData(bytes);
+            }
+            return hash.result();
+        }
+
         class HeadlessAudioImportTask final : public QObject {
         public:
             HeadlessAudioImportTask(
                 CoreRuntime &runtime, AppModel *model, CommandContext command,
                 QList<ClipInsertDto> clips, QStringList validationErrors,
                 QList<std::function<AutomationResult<AutomationUnit>()>> reauthorizeSources,
-                const PublicBatchFailurePolicy failurePolicy, QString operationId, QObject *parent)
+                const PublicBatchFailurePolicy failurePolicy, QString operationId,
+                QByteArray requestFingerprint, QObject *parent)
                 : QObject(parent), m_runtime(runtime), m_model(model),
                   m_command(std::move(command)), m_failurePolicy(failurePolicy),
-                  m_operationId(std::move(operationId)) {
+                  m_operationId(std::move(operationId)),
+                  m_requestFingerprint(std::move(requestFingerprint)) {
                 m_entries.reserve(clips.size());
                 for (qsizetype index = 0; index < clips.size(); ++index) {
                     Entry entry;
@@ -776,6 +799,21 @@ namespace Automation {
                 if (!m_runtime.automationTasks().markRunning(m_taskId)) {
                     return AutomationError::taskNotFound(m_taskId);
                 }
+                const TaskAcceptedResult accepted{m_taskId, base.get(), false};
+                if (!m_command.idempotencyKey.isEmpty()) {
+                    const auto context = m_command;
+                    const auto operationId = m_operationId;
+                    const auto requestFingerprint = m_requestFingerprint;
+                    const auto bound = m_runtime.automationTasks().setUnsuccessfulCallback(
+                        m_taskId,
+                        [runtime = &m_runtime, context, operationId, requestFingerprint,
+                         accepted](const AutomationTaskSnapshot &) {
+                            runtime->dispatcher().releaseDocumentIdempotency(
+                                operationId, context, requestFingerprint, accepted);
+                        });
+                    Q_ASSERT(bound);
+                    m_command.idempotencyKey.clear();
+                }
 
                 m_remaining = 0;
                 for (auto &entry : m_entries) {
@@ -791,7 +829,7 @@ namespace Automation {
                 }
                 if (m_remaining == 0)
                     QTimer::singleShot(0, this, [this] { finishPreparation(); });
-                return TaskAcceptedResult{m_taskId, base.get(), false};
+                return accepted;
             }
 
         private:
@@ -1133,6 +1171,7 @@ namespace Automation {
             CommandContext m_command;
             PublicBatchFailurePolicy m_failurePolicy = PublicBatchFailurePolicy::Atomic;
             QString m_operationId;
+            QByteArray m_requestFingerprint;
             QList<Entry> m_entries;
             std::unique_ptr<QTemporaryDir> m_snapshotDirectory;
             TaskId m_taskId;
@@ -1144,14 +1183,31 @@ namespace Automation {
             QList<ClipInsertDto> clips, QStringList validationErrors,
             QList<std::function<AutomationResult<AutomationUnit>()>> reauthorizeSources,
             const PublicBatchFailurePolicy failurePolicy, const QString &operationId) {
-            auto *state = new HeadlessAudioImportTask(runtime, model, std::move(command),
-                                                      std::move(clips), std::move(validationErrors),
-                                                      std::move(reauthorizeSources), failurePolicy,
-                                                      operationId, QCoreApplication::instance());
-            auto result = state->prepare();
-            if (!result || result.get().validatedOnly)
-                state->deleteLater();
-            return result;
+            const auto requestFingerprint = command.idempotencyKey.isEmpty()
+                                                ? QByteArray{}
+                                                : audioImportFingerprint(
+                                                      clips, validationErrors, failurePolicy);
+            const auto context = command;
+            auto launch = [&runtime, model, command = std::move(command), clips = std::move(clips),
+                           validationErrors = std::move(validationErrors),
+                           reauthorizeSources = std::move(reauthorizeSources), failurePolicy,
+                           operationId, requestFingerprint]() mutable {
+                auto *state = new HeadlessAudioImportTask(
+                    runtime, model, std::move(command), std::move(clips),
+                    std::move(validationErrors), std::move(reauthorizeSources), failurePolicy,
+                    operationId, requestFingerprint, QCoreApplication::instance());
+                auto result = state->prepare();
+                if (!result || result.get().validatedOnly)
+                    state->deleteLater();
+                return result;
+            };
+            if (context.idempotencyKey.isEmpty())
+                return launch();
+            return runtime.dispatcher().dispatchIdempotentDocumentCommandResult<TaskAcceptedResult>(
+                operationId, context, requestFingerprint,
+                [launch = std::move(launch)](DocumentSession &, const bool) mutable {
+                    return launch();
+                });
         }
 
         AutomationResult<QJsonObject> audioExportCapabilities(CoreRuntime &runtime,

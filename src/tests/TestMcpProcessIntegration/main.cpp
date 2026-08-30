@@ -852,21 +852,38 @@ namespace {
                     .arg(compactJson(*mutation)));
         }
 
-        const auto audioImport = connectorToolContent(
-            connector, 1003, QStringLiteral("audio_clips.import"),
-            QJsonObject{
-                {QStringLiteral("document_id"),       documentId      },
-                {QStringLiteral("expected_revision"), currentRevision },
-                {QStringLiteral("track_id"),          createdTrackId  },
-                {QStringLiteral("start"),             0               },
-                {QStringLiteral("path"),              audioPath       },
-            },
-            10000, toolError);
+        const QJsonObject audioImportArguments{
+            {QStringLiteral("document_id"),       documentId                        },
+            {QStringLiteral("expected_revision"), currentRevision                   },
+            {QStringLiteral("track_id"),          createdTrackId                    },
+            {QStringLiteral("start"),             0                                 },
+            {QStringLiteral("path"),              audioPath                         },
+            {QStringLiteral("idempotency_key"),   QStringLiteral("audio-import-key")},
+        };
+        const auto audioImport = connectorToolContent(connector, 1003,
+                                                      QStringLiteral("audio_clips.import"),
+                                                      audioImportArguments, 10000, toolError);
         const auto audioImportTaskId =
             audioImport ? audioImport->value(QStringLiteral("task_id")).toString() : QString{};
         if (audioImportTaskId.isEmpty()) {
             return failWithProcessDiagnostics(
                 QStringLiteral("audio_clips.import did not start: %1").arg(toolError));
+        }
+        const auto replayedAudioImport = connectorToolContent(
+            connector, 1004, QStringLiteral("audio_clips.import"), audioImportArguments, 10000,
+            toolError);
+        auto conflictingAudioImportArguments = audioImportArguments;
+        conflictingAudioImportArguments.insert(QStringLiteral("start"), 1);
+        const auto conflictingAudioImport = connectorToolContent(
+            connector, 1005, QStringLiteral("audio_clips.import"),
+            conflictingAudioImportArguments, 10000, toolError);
+        if (!replayedAudioImport ||
+            replayedAudioImport->value(QStringLiteral("task_id")).toString() != audioImportTaskId ||
+            conflictingAudioImport ||
+            !toolError.contains(QStringLiteral("\"code\":\"idempotency_conflict\""))) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("Audio import idempotency did not replay or reject conflicts: %1")
+                    .arg(toolError));
         }
         QJsonObject audioImportTask;
         for (qint64 attempt = 0; attempt < 100; ++attempt) {
