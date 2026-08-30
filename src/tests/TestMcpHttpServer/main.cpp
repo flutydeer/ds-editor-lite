@@ -424,6 +424,19 @@ int main(int argc, char *argv[]) {
 
     const auto legacyList = Mcp::makeRequest(QString::fromLatin1(Mcp::ToolsListMethod), {},
                                              legacyContext, QStringLiteral("list-2025"));
+    {
+        const QMutexLocker locker(&observationMutex);
+        observedMethod = QStringLiteral("before-missing-session");
+    }
+    const auto legacyListWithoutSessionResult =
+        send(manager, legacyRequest(endpoint, true, Mcp::LegacyProtocolVersion),
+             QJsonDocument(legacyList).toJson(QJsonDocument::Compact));
+    {
+        const QMutexLocker locker(&observationMutex);
+        expect(legacyListWithoutSessionResult.status == 400 &&
+                   observedMethod == QStringLiteral("before-missing-session"),
+               QStringLiteral("legacy requests without a live session must not dispatch"));
+    }
     const auto legacyListResult =
         send(manager,
              legacyRequest(endpoint, true, Mcp::LegacyProtocolVersion, initializeResult.sessionId),
@@ -505,6 +518,13 @@ int main(int argc, char *argv[]) {
     const auto repeatedRetirement = send(manager, deleteSessionRequest, {}, HttpMethod::Delete);
     expect(retiredSession.status == 204 && repeatedRetirement.status == 404,
            QStringLiteral("DELETE /mcp must retire one known legacy session exactly once"));
+    const auto retiredSessionRequest =
+        send(manager,
+             legacyRequest(endpoint, true, Mcp::LegacyProtocolVersion,
+                           thirdInitializeResult.sessionId),
+             QJsonDocument(legacyPing).toJson(QJsonDocument::Compact));
+    expect(retiredSessionRequest.status == 404,
+           QStringLiteral("retired legacy sessions must not dispatch later requests"));
 
     {
         const QMutexLocker locker(&observationMutex);

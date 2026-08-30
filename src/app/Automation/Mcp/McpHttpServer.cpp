@@ -708,6 +708,14 @@ namespace Automation {
                     QStringLiteral("invalid_session"),
                     QStringLiteral("MCP-Session-Id header is malformed"), StatusCode::BadRequest));
             }
+            if (!initializeRequest &&
+                Mcp::isLegacyProtocolVersion(validatedRequest.protocolVersion) &&
+                sessionHeaderValues.isEmpty()) {
+                return readyResponse(transportError(
+                    QStringLiteral("invalid_session"),
+                    QStringLiteral("MCP-Session-Id header is required for legacy requests"),
+                    StatusCode::BadRequest));
+            }
             std::optional<McpHttpTransportState::Session> session;
             if (sessionHeaderValues.size() == 1) {
                 session = m_transportState->session(sessionHeaderValues.constFirst());
