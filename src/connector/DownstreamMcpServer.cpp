@@ -10,6 +10,7 @@
 namespace DsConnector {
     namespace {
         constexpr qsizetype MaxStdioMessageBytes = 16 * 1024 * 1024;
+        constexpr qsizetype MaxConcurrentToolCalls = 32;
 
         AutomationWire::Mcp::ImplementationInfo serverInfo() {
             return {
@@ -306,6 +307,18 @@ namespace DsConnector {
         if (m_inFlight.contains(key)) {
             sendError(request.id, AutomationWire::Mcp::InvalidRequest,
                       QStringLiteral("Duplicate in-flight JSON-RPC request id"));
+            return;
+        }
+        if (m_inFlight.size() >= MaxConcurrentToolCalls) {
+            const auto result = AutomationWire::Mcp::makeToolCallResult(
+                QJsonObject{
+                    {QStringLiteral("code"),    QStringLiteral("busy")           },
+                    {QStringLiteral("message"),
+                     QStringLiteral("Connector concurrent request limit reached")},
+            },
+                true, {}, {}, request.protocolVersion);
+            sendJson(AutomationWire::Mcp::makeResultResponse(request.id, result, serverInfo(),
+                                                             request.protocolVersion));
             return;
         }
         m_inFlight.insert(key);

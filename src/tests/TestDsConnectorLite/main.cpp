@@ -2508,6 +2508,63 @@ namespace {
                          "generic proxying must leave business output validation to the editor");
         }
 
+        http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::Hold;
+        QStringList saturatedRequestIds;
+        for (auto index = 0; index < 32; ++index) {
+            const auto id = QStringLiteral("saturated-%1").arg(index);
+            saturatedRequestIds.append(id);
+            sendApplication(id);
+        }
+        ok &= expect(waitUntil([&] {
+                         return runtime.status()
+                                    .value(QStringLiteral("mcp"))
+                                    .toObject()
+                                    .value(QStringLiteral("pending_request_count"))
+                                    .toInt() == 32;
+                     }),
+                     "the connector must admit up to 32 concurrent downstream calls");
+        sendApplication(QStringLiteral("saturated-overflow"));
+        const auto overflow =
+            takeResponseById(responses, QStringLiteral("saturated-overflow"), 1000);
+        ok &= expect(
+            overflow.has_value() &&
+                overflow->value(QStringLiteral("result"))
+                    .toObject()
+                    .value(QStringLiteral("isError"))
+                    .toBool() &&
+                overflow->value(QStringLiteral("result"))
+                        .toObject()
+                        .value(QStringLiteral("structuredContent"))
+                        .toObject()
+                        .value(QStringLiteral("code")) == QStringLiteral("busy") &&
+                runtime.status()
+                        .value(QStringLiteral("mcp"))
+                        .toObject()
+                        .value(QStringLiteral("pending_request_count"))
+                        .toInt() == 32,
+            "the thirty-third downstream call must be rejected without forwarding or queuing");
+        for (const auto &id : std::as_const(saturatedRequestIds)) {
+            server.processLine(
+                QJsonDocument(
+                    QJsonObject{
+                        {QStringLiteral("jsonrpc"), QStringLiteral("2.0")                         },
+                        {QStringLiteral("method"),  QStringLiteral("notifications/cancelled")     },
+                        {QStringLiteral("params"),  QJsonObject{{QStringLiteral("requestId"), id}}},
+            })
+                    .toJson(QJsonDocument::Compact));
+        }
+        ok &= expect(waitUntil(
+                         [&] {
+                             return runtime.status()
+                                        .value(QStringLiteral("mcp"))
+                                        .toObject()
+                                        .value(QStringLiteral("pending_request_count"))
+                                        .toInt() == 0;
+                         },
+                         10000),
+                     "cancelling the saturated downstream calls must release every slot");
+        http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::Success;
+
         auto disabled = ready;
         disabled.state = SingleInstanceAutomationState::McpDisabled;
         disabled.mcpEnabled = false;
