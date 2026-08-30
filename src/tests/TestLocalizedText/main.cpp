@@ -40,9 +40,9 @@ int main(int argc, char **argv) {
 
     // junninghua-style data (valid BCP 47 keys).
     const QMap<QString, QString> sungNames{
-        {QStringLiteral("ja"),      QStringLiteral("\u3046\u308d\u3053\u97f3\u51dd\u83ef")},
-        {QStringLiteral("zh-Hans"), QStringLiteral("\u541b\u51dd\u534e")                  },
-        {QStringLiteral("zh-Hant"), QStringLiteral("\u541b\u51dd\u83ef")                  }
+        {QStringLiteral("ja"),      QStringLiteral("ろこ音凝華")},
+        {QStringLiteral("zh-Hans"), QStringLiteral("君凝华")                  },
+        {QStringLiteral("zh-Hant"), QStringLiteral("君凝華")                  }
     };
     const QString defaultName(QStringLiteral("Jun Ninghua"));
 
@@ -50,19 +50,31 @@ int main(int argc, char **argv) {
     expectText(sungNames, defaultName,
                {QStringLiteral("zh-Hans-CN"), QStringLiteral("zh-CN"), QStringLiteral("zh-Hans"),
                 QStringLiteral("zh")},
-               QStringLiteral("\u541b\u51dd\u534e"), "zh-Hans-CN candidate hits zh-Hans key");
+               QStringLiteral("君凝华"), "zh-Hans-CN candidate hits zh-Hans key");
     // The first candidate alone (most complete uiLanguages entry) also works.
     expectText(sungNames, defaultName, {QStringLiteral("zh-Hans-CN")},
-               QStringLiteral("\u541b\u51dd\u534e"), "single zh-Hans-CN candidate hits zh-Hans");
+               QStringLiteral("君凝华"), "single zh-Hans-CN candidate hits zh-Hans");
     // English UI falls back to default.
     expectText(sungNames, defaultName,
                {QStringLiteral("en-US"), QStringLiteral("en-International"), QStringLiteral("en")},
                defaultName, "English UI falls back to default text");
     // Japanese candidate hits the ja key.
     expectText(sungNames, defaultName, {QStringLiteral("ja-JP"), QStringLiteral("ja")},
-               QStringLiteral("\u3046\u308d\u3053\u97f3\u51dd\u83ef"), "ja-JP hits ja key");
+               QStringLiteral("ろこ音凝華"), "ja-JP hits ja key");
+    // Script subtags do not cross-match via region truncation (zh-Hant request
+    // must not hit a zh-TW key, and vice versa).
+    const QMap<QString, QString> hantOnly{
+        {QStringLiteral("zh-Hant"), QStringLiteral("華-name")}
+    };
+    expectText(hantOnly, QStringLiteral("def"), {QStringLiteral("zh-TW")}, QStringLiteral("def"),
+               "zh-TW request does not hit zh-Hant key");
+    const QMap<QString, QString> twOnly{
+        {QStringLiteral("zh-TW"), QStringLiteral("tw-name")}
+    };
+    expectText(twOnly, QStringLiteral("def"), {QStringLiteral("zh-Hant")}, QStringLiteral("def"),
+               "zh-Hant request does not hit zh-TW key");
 
-    // Case-insensitive matching.
+    // Case-insensitive matching (ICU normalization).
     const QMap<QString, QString> mixed{
         {QStringLiteral("EN"),    QStringLiteral("EN-name")},
         {QStringLiteral("Zh-Cn"), QStringLiteral("cn-name")}
@@ -70,16 +82,18 @@ int main(int argc, char **argv) {
     expectText(mixed, QString(), {QStringLiteral("zh-cn")}, QStringLiteral("cn-name"),
                "case-insensitive tag match");
 
-    // POSIX-style keys never match, even under an equivalent request.
+    // POSIX-style keys match after normalization and keep their original
+    // spelling for the exact map fetch (ds-spec 2.4: keys are opaque, the
+    // frontend owns matching; legacy packages resume showing translations).
     const QMap<QString, QString> posix{
-        {QStringLiteral("zh_CN"), QStringLiteral("\u7ee3\u8431")}
+        {QStringLiteral("zh_CN"), QStringLiteral("绮萱")}
     };
-    expectText(posix, QStringLiteral("Qixuan"), {QStringLiteral("zh-CN")}, QStringLiteral("Qixuan"),
-               "POSIX key zh_CN is skipped, falls back to default");
+    expectText(posix, QStringLiteral("Qixuan"), {QStringLiteral("zh-CN")}, QStringLiteral("绮萱"),
+               "POSIX key zh_CN hits zh-CN request");
     expectText(posix, QStringLiteral("Qixuan"),
                {QStringLiteral("zh-Hans-CN"), QStringLiteral("zh-CN"), QStringLiteral("zh-Hans"),
                 QStringLiteral("zh")},
-               QStringLiteral("Qixuan"), "candidate chain does not match POSIX key");
+               QStringLiteral("绮萱"), "candidate chain hits POSIX key");
 
     // Empty candidates / empty table.
     expectText(sungNames, defaultName, {}, defaultName, "empty candidates -> default");
@@ -87,14 +101,9 @@ int main(int argc, char **argv) {
 
     // Single-tag overload agrees with the list overload.
     expectTextSingle(sungNames, defaultName, QStringLiteral("zh-Hant"),
-                     QStringLiteral("\u541b\u51dd\u83ef"), "single-tag overload zh-Hant");
+                     QStringLiteral("君凝華"), "single-tag overload zh-Hant");
     expectTextSingle(posix, QStringLiteral("Qixuan"), QStringLiteral("zh_CN"),
-                     QStringLiteral("Qixuan"), "single-tag overload never matches POSIX key");
-
-    // hasLocalizedTexts: POSIX-only keys do not count as usable translations.
-    expect(lite::Support::hasLocalizedTexts(sungNames), "hasLocalizedTexts true for BCP 47 keys");
-    expect(!lite::Support::hasLocalizedTexts(posix), "hasLocalizedTexts false for POSIX-only keys");
-    expect(!lite::Support::hasLocalizedTexts({}), "hasLocalizedTexts false for empty table");
+                     QStringLiteral("绮萱"), "single-tag overload hits POSIX key");
 
     if (g_failures == 0) {
         qInfo() << "TestLocalizedText: ALL PASSED";

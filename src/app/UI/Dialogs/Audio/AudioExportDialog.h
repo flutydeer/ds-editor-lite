@@ -5,6 +5,8 @@
 
 #include "UI/Dialogs/Base/Dialog.h"
 
+#include <QPointer>
+
 namespace Audio {
     class AudioExporter;
 }
@@ -23,8 +25,11 @@ class QDoubleSpinBox;
 class QListWidget;
 class QCheckBox;
 class QRadioButton;
+class QStateMachine;
 
 namespace Audio::Internal {
+
+    class AudioExportProgressDialog;
 
     class AudioExportDialog : public Dialog {
         Q_OBJECT
@@ -35,7 +40,16 @@ namespace Audio::Internal {
         explicit AudioExportDialog(Core::IProjectWindow *windowHandle, QWidget *parent = nullptr);
         ~AudioExportDialog() override;
 
+    signals:
+        void exportStarted();
+        void exportCanceled();
+        void exportFinished();
+        void exportFailed();
+        void exportDismissed();
+
     private:
+        enum class ExportOutcome { None, Succeeded, Failed };
+
         QComboBox *m_presetComboBox;
         QPushButton *m_presetDeleteButton;
         QLineEdit *m_fileDirectoryEdit;
@@ -59,6 +73,10 @@ namespace Audio::Internal {
         QString m_warningText;
 
         AudioExporter *m_audioExporter;
+        QStateMachine *m_stateMachine;
+        QPointer<AudioExportProgressDialog> m_progressDialog;
+        QStringList m_exportedFiles;
+        ExportOutcome m_exportOutcome = ExportOutcome::None;
 
         static QStringList projectTrackList();
 
@@ -67,10 +85,14 @@ namespace Audio::Internal {
         void showDryRunResult();
         void updateConfig() const;
         void updateView();
+        void initializeStateMachine();
+        void showConfiguration();
 
         bool skipUpdateFlag = false;
 
         void runExport();
+        void handleProgressDismissed();
+        void saveExporterSettings() const;
 
         bool askWarningBeforeExport(AudioExporter::Warning warning, bool canIgnored = false);
 

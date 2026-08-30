@@ -14,8 +14,11 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
 
+# IcuWrapper::IcuWrapper target comes from the vendored src/3rdparty/icu-wrapper.
+
 target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt${QT_VERSION_MAJOR}::Core
+        IcuWrapper::IcuWrapper
 )
 
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})

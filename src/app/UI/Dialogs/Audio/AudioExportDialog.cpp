@@ -1,11 +1,12 @@
 #include "AudioExportDialog.h"
+#include "AudioExportProgressDialog.h"
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
+#include "UI/Dialogs/Base/MessageDialog.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include "Modules/Audio/AudioSettings.h"
 
-#include <QApplication>
 #include <limits>
 
 #include <QBoxLayout>
@@ -23,12 +24,15 @@
 #include <QLabel>
 #include <QMessageBox>
 #include <QInputDialog>
-#include <QProgressBar>
+#include <QState>
+#include <QStateMachine>
 #include <QTimer>
 
 #include <lite/GUI/Controls/SvsExpressionSpinBox.h>
 #include <lite/GUI/Controls/ComboBox.h>
 #include <lite/GUI/Controls/SmoothScroller.h>
+#include <lite/GUI/Controls/Toast.h>
+#include <lite/Support/ShellUtils.h>
 
 #include <Modules/Audio/AudioExporter_p.h>
 
@@ -38,7 +42,8 @@ namespace Audio::Internal {
     static bool m_hasTemporaryPreset = false;
 
     AudioExportDialog::AudioExportDialog(Core::IProjectWindow *windowHandle, QWidget *parent)
-        : Dialog(parent), m_audioExporter(new AudioExporter(windowHandle, this)) {
+        : Dialog(parent), m_audioExporter(new AudioExporter(windowHandle, this)),
+          m_stateMachine(nullptr) {
         setWindowTitle(tr("Export Audio"));
         auto mainLayout = new QVBoxLayout(body());
 
@@ -446,6 +451,7 @@ namespace Audio::Internal {
 
         connect(exportButton, &QAbstractButton::clicked, this, &AudioExportDialog::runExport);
         connect(cancelButton, &QAbstractButton::clicked, this, &Dialog::reject);
+        initializeStateMachine();
     }
 
     AudioExportDialog::~AudioExportDialog() {
@@ -609,6 +615,37 @@ namespace Audio::Internal {
         updateConfig();
     }
 
+    void AudioExportDialog::initializeStateMachine() {
+        m_stateMachine = new QStateMachine(this);
+        const auto configuringState = new QState(m_stateMachine);
+        const auto runningState = new QState(m_stateMachine);
+        const auto canceledState = new QState(m_stateMachine);
+
+        m_stateMachine->setInitialState(configuringState);
+        configuringState->addTransition(this, &AudioExportDialog::exportStarted, runningState);
+        runningState->addTransition(this, &AudioExportDialog::exportFinished, configuringState);
+        runningState->addTransition(this, &AudioExportDialog::exportFailed, configuringState);
+        runningState->addTransition(this, &AudioExportDialog::exportCanceled, canceledState);
+        canceledState->addTransition(this, &AudioExportDialog::exportDismissed, configuringState);
+
+        connect(runningState, &QState::entered, this, &QWidget::hide);
+        connect(canceledState, &QState::entered, this, [this] {
+            Toast::show(tr("Export canceled"));
+            m_exportOutcome = ExportOutcome::None;
+            showConfiguration();
+            emit exportDismissed();
+        });
+        m_stateMachine->start();
+    }
+
+    void AudioExportDialog::showConfiguration() {
+        updateView();
+        setWindowModality(Qt::WindowModal);
+        open();
+        raise();
+        activateWindow();
+    }
+
     void AudioExportDialog::runExport() {
         const auto warning = m_audioExporter->warning();
         if (warning & AudioExporter::W_LossyFormat) {
@@ -632,207 +669,66 @@ namespace Audio::Internal {
                 return;
         }
 
-        QDialog progressDialog(this);
-        const auto layout = new QVBoxLayout;
-        layout->setSizeConstraint(QLayout::SetMinAndMaxSize);
+        m_exportedFiles = m_audioExporter->dryRun();
+        m_exportOutcome = ExportOutcome::None;
+        const auto progressDialog =
+            new AudioExportProgressDialog(m_audioExporter, Dialog::globalParent());
+        progressDialog->setAttribute(Qt::WA_DeleteOnClose);
+        m_progressDialog = progressDialog;
 
-        const auto mainPromptLayout = new QHBoxLayout;
-        const auto iconLabel = new QLabel;
-        iconLabel->setPixmap(style()->standardIcon(QStyle::SP_MessageBoxCritical).pixmap(24, 24));
-        iconLabel->setVisible(false);
-        mainPromptLayout->addWidget(iconLabel);
-        const auto mainPromptLabel = new QLabel(tr("Preparing..."));
-        mainPromptLabel->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Fixed);
-        mainPromptLayout->addWidget(mainPromptLabel, 1);
-        layout->addLayout(mainPromptLayout);
+        connect(progressDialog, &AudioExportProgressDialog::cancelRequested, this,
+                [this] { m_audioExporter->cancel(); });
+        connect(progressDialog, &AudioExportProgressDialog::openFolderRequested, this,
+                [](const QStringList &files) { ShellUtils::revealFiles(files); });
+        connect(progressDialog, &AudioExportProgressDialog::dismissed, this,
+                &AudioExportDialog::handleProgressDismissed);
 
-        const auto mainProgressBar = new QProgressBar;
-        mainProgressBar->setRange(0, 100);
-        mainProgressBar->setValue(0);
-        layout->addWidget(mainProgressBar);
-
-        const auto buttonLayout = new QHBoxLayout;
-        const auto keepPartialFileCheckBox = new QCheckBox(tr("&Keep partial files"));
-        keepPartialFileCheckBox->setVisible(false);
-        buttonLayout->addWidget(keepPartialFileCheckBox);
-        buttonLayout->addStretch();
-        const auto mainPromptWarningButton = new QPushButton;
-        mainPromptWarningButton->setVisible(false);
-        mainPromptWarningButton->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
-        buttonLayout->addWidget(mainPromptWarningButton, 0);
-        const auto abortButton = new QPushButton(tr("Cancel"));
-        buttonLayout->addWidget(abortButton);
-        layout->addLayout(buttonLayout);
-
-        progressDialog.setLayout(layout);
-        progressDialog.resize(400, progressDialog.height());
-
-        bool isProgressing = false;
-        QHash<int, double> progressRatioHash;
-        if (m_audioExporter->config().mixingOption() == AudioExporterConfig::MO_Mixed) {
-            connect(m_audioExporter, &AudioExporter::progressChanged, &progressDialog,
-                    [=, &isProgressing](const double ratio) {
-                        if (!isProgressing) {
-                            isProgressing = true;
-                            mainPromptLabel->setText(tr("Exporting..."));
-                        }
-                        mainProgressBar->setValue(static_cast<int>(ratio * 100.0));
-                    });
-        } else {
-            const int sourceCount = m_audioExporter->config().source().size();
-            connect(
-                m_audioExporter, &AudioExporter::progressChanged, &progressDialog,
-                [=, &progressRatioHash, &isProgressing](const double ratio, const int sourceIndex) {
-                    if (!isProgressing) {
-                        isProgressing = true;
-                        mainPromptLabel->setText(tr("Exporting..."));
-                    }
-                    progressRatioHash[sourceIndex] = ratio;
-                    double totalRatio = 0;
-                    for (const auto value : progressRatioHash.values()) {
-                        totalRatio += value;
-                    }
-                    mainProgressBar->setValue(static_cast<int>(totalRatio / sourceCount * 100.0));
-                });
-        }
-        connect(m_audioExporter, &AudioExporter::inferenceProgressChanged, &progressDialog,
-                [=, &isProgressing](const double ratio) {
-                    if (isProgressing)
-                        return; // real export progress has priority once it starts
-                    mainPromptLabel->setText(tr("Inferring..."));
-                    mainProgressBar->setValue(static_cast<int>(ratio * 100.0));
-                });
-
-        QDialog warningListDialog(this);
-        const auto warningListDialogLayout = new QVBoxLayout;
-        const auto warningList = new QListWidget;
-        warningList->setSelectionMode(QAbstractItemView::NoSelection);
-        warningListDialogLayout->addWidget(warningList);
-        warningListDialog.setLayout(warningListDialogLayout);
-        warningListDialog.resize(300, 300);
-        warningListDialog.setWindowTitle(tr("Warnings"));
-        connect(m_audioExporter, &AudioExporter::clippingDetected, &progressDialog,
-                [warningList, mainPromptWarningButton, this](const int sourceIndex) {
-                    const auto item = new QListWidgetItem;
-                    if (sourceIndex == -1) {
-                        item->setText(tr("Clipping is detected"));
-                    } else {
-                        item->setText(tr("Clipping is detected in track %L1 \"%2\"")
-                                          .arg(sourceIndex + 1)
-                                          .arg(m_audioExporter->d_func()->trackName(sourceIndex)));
-                    }
-                    item->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
-                    warningList->addItem(item);
-                    mainPromptWarningButton->setVisible(true);
-                    mainPromptWarningButton->setToolTip(
-                        tr("%Ln warning(s)", nullptr, warningList->count()));
-                    QApplication::beep();
-                });
-        connect(m_audioExporter, &AudioExporter::warningAdded, &progressDialog,
-                [warningList, mainPromptWarningButton, this](const QString &message,
-                                                             const int sourceIndex) {
-                    Q_UNUSED(sourceIndex); // may be used in future
-                    const auto item = new QListWidgetItem;
-                    item->setText(message);
-                    item->setIcon(style()->standardIcon(QStyle::SP_MessageBoxWarning));
-                    warningList->addItem(item);
-                    mainPromptWarningButton->setVisible(true);
-                    mainPromptWarningButton->setToolTip(
-                        tr("%Ln warning(s)", nullptr, warningList->count()));
-                    QApplication::beep();
-                });
-
-        connect(mainPromptWarningButton, &QAbstractButton::clicked, &progressDialog,
-                [&warningListDialog] { warningListDialog.exec(); });
-
-        bool interruptFlag = true;
-        connect(abortButton, &QAbstractButton::clicked, &progressDialog,
-                [&interruptFlag, &progressDialog, this] {
-                    if (interruptFlag) {
-                        m_audioExporter->cancel();
-                    } else {
-                        progressDialog.reject();
-                    }
-                });
-
-        class CloseEventFilter : public QObject {
-        public:
-            CloseEventFilter(QDialog *progressDialog, std::function<bool()> &&cb) : cb(cb) {
-                progressDialog->installEventFilter(this);
-            }
-
-            std::function<bool()> cb;
-
-            bool eventFilter(QObject *watched, QEvent *event) override {
-                if (event->type() == QEvent::Close) {
-                    if (cb())
-                        event->accept();
-                    else
-                        event->ignore();
-                    return true;
-                }
-                return QObject::eventFilter(watched, event);
-            }
-        } o(&progressDialog, [&interruptFlag, this] {
-            if (interruptFlag) {
-                m_audioExporter->cancel();
-                return false;
-            }
-            return true;
-        });
-
-        QTimer::singleShot(0, [abortButton, warningList, mainPromptLabel, iconLabel,
-                               keepPartialFileCheckBox, &interruptFlag, &progressDialog, this] {
+        emit exportStarted();
+        progressDialog->show();
+        QTimer::singleShot(0, progressDialog, [this, progressDialog] {
             QCoreApplication::processEvents();
             const auto ret = m_audioExporter->exec();
-            interruptFlag = false;
-            abortButton->setText(tr("Close"));
-            if (warningList->count()) {
-                switch (ret) {
-                    case AudioExporter::R_Ok:
-                        mainPromptLabel->setText(tr("Export finished with %Ln warning(s)", nullptr,
-                                                    warningList->count()));
-                        QApplication::beep();
-                        break;
-                    case AudioExporter::R_Abort:
-                        mainPromptLabel->setText(tr("Export aborted with %Ln warning(s)", nullptr,
-                                                    warningList->count()));
-                        QApplication::beep();
-                        keepPartialFileCheckBox->setVisible(true);
-                        break;
-                    case AudioExporter::R_Fail:
-                        mainPromptLabel->setText(tr("Export failed with %Ln warning(s)\n%1",
-                                                    nullptr, warningList->count())
-                                                     .arg(m_audioExporter->errorString()));
-                        iconLabel->setVisible(true);
-                        QApplication::beep();
-                        keepPartialFileCheckBox->setVisible(true);
-                        break;
-                }
-            } else {
-                switch (ret) {
-                    case AudioExporter::R_Ok:
-                        progressDialog.accept();
-                        break;
-                    case AudioExporter::R_Abort:
-                        mainPromptLabel->setText(tr("Export aborted"));
-                        QApplication::beep();
-                        keepPartialFileCheckBox->setVisible(true);
-                        break;
-                    case AudioExporter::R_Fail:
-                        mainPromptLabel->setText(
-                            tr("Export failed\n%1").arg(m_audioExporter->errorString()));
-                        iconLabel->setVisible(true);
-                        QApplication::beep();
-                        keepPartialFileCheckBox->setVisible(true);
-                        break;
-                }
+            m_audioExporter->cleanUp();
+            saveExporterSettings();
+            saveTemporaryPreset();
+
+            if (!m_progressDialog || m_progressDialog != progressDialog)
+                return;
+
+            switch (ret) {
+                case AudioExporter::R_Ok:
+                    m_exportOutcome = ExportOutcome::Succeeded;
+                    progressDialog->showSuccess(m_exportedFiles);
+                    emit exportFinished();
+                    break;
+                case AudioExporter::R_Abort:
+                    m_progressDialog = nullptr;
+                    progressDialog->dismissAfterCancellation();
+                    emit exportCanceled();
+                    break;
+                case AudioExporter::R_Fail:
+                    m_exportOutcome = ExportOutcome::Failed;
+                    progressDialog->showFailure(m_audioExporter->errorString());
+                    emit exportFailed();
+                    break;
             }
         });
-        const auto ret = progressDialog.exec();
-        if (!keepPartialFileCheckBox->isChecked()) {
-            m_audioExporter->cleanUp();
+    }
+
+    void AudioExportDialog::handleProgressDismissed() {
+        const auto outcome = m_exportOutcome;
+        m_exportOutcome = ExportOutcome::None;
+        m_progressDialog = nullptr;
+        emit exportDismissed();
+
+        if (outcome == ExportOutcome::Succeeded && !m_keepOpenCheckBox->isChecked()) {
+            accept();
+        } else {
+            showConfiguration();
         }
+    }
+
+    void AudioExportDialog::saveExporterSettings() const {
         const auto currentData = m_presetComboBox->currentData();
         if (auto *runtime = AppContext::instance<Automation::CoreRuntime>()) {
             const auto snapshot = runtime->settings().getSettings();
@@ -844,28 +740,23 @@ namespace Audio::Internal {
                 runtime->settings().updateAudio({}, settings);
             }
         }
-        saveTemporaryPreset();
-        if (ret == QDialog::Accepted && !m_keepOpenCheckBox->isChecked())
-            accept();
-        else
-            updateView();
     }
 
     bool AudioExportDialog::askWarningBeforeExport(const AudioExporter::Warning warning,
                                                    const bool canIgnored) {
         if (AudioSettings::audioExporterIgnoredWarningFlag() & warning)
             return true;
-        QMessageBox msgBox(this);
-        msgBox.setText(AudioExporter::warningText(warning)[0] + "\n\n" + tr("Continue to export?"));
-        msgBox.setIcon(QMessageBox::Warning);
-        msgBox.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-        QCheckBox *checkBox = nullptr;
-        if (canIgnored) {
-            checkBox = new QCheckBox(tr("Don't ask again"));
-            msgBox.setCheckBox(checkBox);
-        }
-        if (msgBox.exec() == QMessageBox::Yes) {
-            if (canIgnored && checkBox->isChecked())
+        MessageDialog dialog(
+            tr("Warning"),
+            AudioExporter::warningText(warning)[0] + "\n\n" + tr("Continue to export?"), this);
+        constexpr int continueButtonId = 0;
+        constexpr int cancelButtonId = 1;
+        dialog.addAccentButton(tr("Continue"), continueButtonId);
+        dialog.addButton(tr("Cancel"), cancelButtonId);
+        if (canIgnored)
+            dialog.addCheckBox(tr("Don't ask again"));
+        if (dialog.exec() == continueButtonId) {
+            if (canIgnored && dialog.isCheckBoxChecked())
                 AudioSettings::setAudioExporterIgnoredWarningFlag(
                     AudioSettings::audioExporterIgnoredWarningFlag() | warning);
             return true;
