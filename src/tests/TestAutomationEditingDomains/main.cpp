@@ -2056,7 +2056,39 @@ namespace {
             return 4;
         const auto noOp =
             runtime.notes().quantizeNotes(commandContext(runtime), clipId, ids, 16, true, true);
-        return noOp && !noOp.get().changed ? 0 : 5;
+        if (!noOp || noOp.get().changed)
+            return 5;
+
+        const auto extremeLengthIds = insertedNotes(
+            runtime, clipId,
+            {noteDraft(0, std::numeric_limits<int>::max(), 61, QStringLiteral("length"),
+                       QStringLiteral("quantize-extreme-length"))});
+        if (extremeLengthIds.size() != 1)
+            return 6;
+        const auto beforeLengthFailure = runtime.documentVersion();
+        const auto lengthFailure = runtime.notes().quantizeNotes(
+            commandContext(runtime), clipId, extremeLengthIds, 30, false, true);
+        if (!isError(lengthFailure, AutomationErrorCode::InvalidArgument,
+                     QStringLiteral("note_ids")) ||
+            runtime.documentVersion() != beforeLengthFailure)
+            return 7;
+
+        const auto lateClipId =
+            insertedSingingClip(runtime, trackId, QStringLiteral("Late Quantize Clip"), 100);
+        const auto lateIds = insertedNotes(
+            runtime, lateClipId,
+            {noteDraft(std::numeric_limits<int>::max() - 50, 1, 62,
+                       QStringLiteral("start"), QStringLiteral("quantize-extreme-start"))});
+        if (lateIds.size() != 1)
+            return 8;
+        const auto beforeStartFailure = runtime.documentVersion();
+        const auto startFailure = runtime.notes().quantizeNotes(
+            commandContext(runtime), lateClipId, lateIds, 16, true, false);
+        return isError(startFailure, AutomationErrorCode::InvalidArgument,
+                       QStringLiteral("note_ids")) &&
+                       runtime.documentVersion() == beforeStartFailure
+                   ? 0
+                   : 9;
     }
 
     void testQuantizeInChild(Suite &suite) {
@@ -2074,8 +2106,8 @@ namespace {
                       suite.expect(
                           started && finished && probe.exitStatus() == QProcess::NormalExit &&
                               probe.exitCode() == 0,
-                          QStringLiteral("quantize must commit safely, snap geometry, and no-op "
-                                         "when already aligned; exit=%1 stderr=%2")
+                          QStringLiteral("quantize must commit safely, reject out-of-range "
+                                         "geometry, and no-op when aligned; exit=%1 stderr=%2")
                               .arg(probe.exitCode())
                               .arg(QString::fromUtf8(probe.readAllStandardError())));
                   });

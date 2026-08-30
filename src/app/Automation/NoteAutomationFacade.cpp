@@ -734,8 +734,7 @@ namespace Automation {
                         NoteResizeUtils::clampRightDelta(note->length(), safeDelta, minimumLength);
                 for (const auto *note : notes) {
                     const auto targetLength = static_cast<qint64>(note->length()) + safeDelta;
-                    const auto targetEnd =
-                        static_cast<qint64>(note->localStart()) + targetLength;
+                    const auto targetEnd = static_cast<qint64>(note->localStart()) + targetLength;
                     if (targetLength > std::numeric_limits<int>::max() ||
                         targetEnd > std::numeric_limits<int>::max()) {
                         return AutomationResult<MutationResult>(AutomationError::invalidArgument(
@@ -963,16 +962,40 @@ namespace Automation {
                 QList<QPair<int, int>> geometry;
                 bool changed = false;
                 for (auto *note : notes) {
-                    auto start = note->localStart();
-                    auto length = note->length();
+                    auto start = static_cast<qint64>(note->localStart());
+                    auto length = static_cast<qint64>(note->length());
                     if (quantizeStart) {
-                        const auto snapped = TimelineSnapUtils::snapNearest(
-                            clip->start() + start, grid, session.model()->timeline());
-                        start = qMax(0, snapped - clip->start());
+                        const auto globalStart = static_cast<qint64>(clip->start()) + start;
+                        if (globalStart < std::numeric_limits<int>::min() ||
+                            globalStart > std::numeric_limits<int>::max()) {
+                            return AutomationResult<MutationResult>(
+                                AutomationError::invalidArgument(
+                                    QStringLiteral("note_ids"),
+                                    QStringLiteral("Quantized note range is out of bounds")));
+                        }
+                        const auto snapped = TimelineSnapUtils::snapNearestWide(
+                            static_cast<int>(globalStart), grid, session.model()->timeline());
+                        if (snapped < std::numeric_limits<int>::min() ||
+                            snapped > std::numeric_limits<int>::max()) {
+                            return AutomationResult<MutationResult>(
+                                AutomationError::invalidArgument(
+                                    QStringLiteral("note_ids"),
+                                    QStringLiteral("Quantized note range is out of bounds")));
+                        }
+                        start = std::max<qint64>(0, snapped - clip->start());
                     }
                     if (quantizeLength)
-                        length = qMax(grid, TimelineSnapUtils::snapNearest(length, grid));
-                    geometry.append({start, length});
+                        length = std::max<qint64>(grid,
+                                                  TimelineSnapUtils::snapNearestWide(length, grid));
+                    const auto end = start + length;
+                    if (start > std::numeric_limits<int>::max() ||
+                        length > std::numeric_limits<int>::max() ||
+                        end > std::numeric_limits<int>::max()) {
+                        return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                            QStringLiteral("note_ids"),
+                            QStringLiteral("Quantized note range is out of bounds")));
+                    }
+                    geometry.append({static_cast<int>(start), static_cast<int>(length)});
                     changed |= start != note->localStart() || length != note->length();
                 }
                 const auto affected = noteRefs(noteIds);
