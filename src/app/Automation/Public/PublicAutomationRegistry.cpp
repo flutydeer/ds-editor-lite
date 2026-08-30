@@ -26,7 +26,9 @@
 #include <QCryptographicHash>
 #include <QDir>
 #include <QJsonDocument>
+#include <QSaveFile>
 #include <QSet>
+#include <QTemporaryDir>
 #include <QThreadPool>
 #include <QTimer>
 #include <QVersionNumber>
@@ -141,10 +143,15 @@ namespace Automation {
             return normalizeMidiEncoding(encoding, fieldPrefix + QStringLiteral(".encoding"));
         }
 
-        AutomationResult<QJsonObject> inspectFormatPath(CoreRuntime &runtime,
-                                                        const QList<ProjectFormatDto> &formats,
-                                                        const QString &path, const QString &purpose,
-                                                        const QString &requestedId = {}) {
+        struct FormatInspection {
+            QJsonObject details;
+            QByteArray sourceBytes;
+        };
+
+        AutomationResult<FormatInspection>
+            inspectFormatInput(CoreRuntime &runtime, const QList<ProjectFormatDto> &formats,
+                               const QString &path, const QString &purpose,
+                               const QString &requestedId = {}) {
             auto selected = resolveFormat(formats, path, purpose, requestedId);
             if (!selected)
                 return selected.getError();
@@ -157,7 +164,7 @@ namespace Automation {
             }
             if (file.size() > AutomationWire::MaximumFormatInspectionBytes)
                 return formatInspectionTooLarge();
-            const auto bytes = file.read(AutomationWire::MaximumFormatInspectionBytes + 1);
+            auto bytes = file.read(AutomationWire::MaximumFormatInspectionBytes + 1);
             if (file.error() != QFileDevice::NoError) {
                 return error(AutomationErrorCode::IoError,
                              QStringLiteral("The project file could not be read completely"),
@@ -207,7 +214,22 @@ namespace Automation {
                 } else {
                     auto projectBytes = bytes;
                     if (selected.get().id != QStringLiteral("dspx")) {
-                        auto converted = runtime.files().convertLibreSvipToDspx(path);
+                        QTemporaryDir snapshotDirectory;
+                        if (!snapshotDirectory.isValid()) {
+                            return error(AutomationErrorCode::IoError,
+                                         QStringLiteral("A project snapshot could not be created"),
+                                         QStringLiteral("path"));
+                        }
+                        const auto snapshotPath = QDir(snapshotDirectory.path())
+                                                      .filePath(QFileInfo(path).fileName());
+                        QSaveFile snapshot(snapshotPath);
+                        if (!snapshot.open(QIODevice::WriteOnly) ||
+                            snapshot.write(bytes) != bytes.size() || !snapshot.commit()) {
+                            return error(AutomationErrorCode::IoError,
+                                         QStringLiteral("A project snapshot could not be written"),
+                                         QStringLiteral("path"));
+                        }
+                        auto converted = runtime.files().convertLibreSvipToDspx(snapshotPath);
                         if (!converted)
                             return converted.getError();
                         projectBytes = converted.get();
@@ -263,10 +285,20 @@ namespace Automation {
                 QString::fromLatin1(
                     QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex()));
             result.insert(QStringLiteral("plan_digest"), AutomationWire::sha256Digest(digestInput));
-            return result;
+            return FormatInspection{std::move(result), std::move(bytes)};
         }
 
-        std::function<AutomationResult<AutomationUnit>()>
+        AutomationResult<QJsonObject> inspectFormatPath(CoreRuntime &runtime,
+                                                        const QList<ProjectFormatDto> &formats,
+                                                        const QString &path, const QString &purpose,
+                                                        const QString &requestedId = {}) {
+            auto inspected = inspectFormatInput(runtime, formats, path, purpose, requestedId);
+            if (!inspected)
+                return inspected.getError();
+            return std::move(inspected.get().details);
+        }
+
+        PublicProjectInputRevalidator
             planRevalidator(CoreRuntime &runtime, AutomationFileGuard &fileGuard,
                             QList<ProjectFormatDto> formats, QString path, QString purpose,
                             QString formatId, QString expectedDigest, QString pathField,
@@ -274,7 +306,8 @@ namespace Automation {
             return [&runtime, &fileGuard, formats = std::move(formats), path = std::move(path),
                     purpose = std::move(purpose), formatId = std::move(formatId),
                     expectedDigest = std::move(expectedDigest), pathField = std::move(pathField),
-                    digestField = std::move(digestField)]() -> AutomationResult<AutomationUnit> {
+                    digestField = std::move(digestField)]()
+                -> AutomationResult<std::optional<QByteArray>> {
                 auto authorized = fileGuard.reauthorize({path, FileAccessPurpose::Read});
                 if (!authorized) {
                     auto failure = authorized.getError();
@@ -282,19 +315,20 @@ namespace Automation {
                     return failure;
                 }
                 if (expectedDigest.isEmpty())
-                    return AutomationUnit{};
-                auto plan = inspectFormatPath(runtime, formats, path, purpose, formatId);
-                if (!plan) {
-                    auto failure = plan.getError();
+                    return std::optional<QByteArray>{};
+                auto inspected = inspectFormatInput(runtime, formats, path, purpose, formatId);
+                if (!inspected) {
+                    auto failure = inspected.getError();
                     failure.fieldPath = pathField;
                     return failure;
                 }
-                if (plan.get().value(QStringLiteral("plan_digest")).toString() != expectedDigest) {
+                if (inspected.get().details.value(QStringLiteral("plan_digest")).toString() !=
+                    expectedDigest) {
                     return AutomationError::invalidArgument(
                         digestField,
                         QStringLiteral("The %1 plan digest is stale or invalid").arg(purpose));
                 }
-                return AutomationUnit{};
+                return std::optional<QByteArray>(std::move(inspected.get().sourceBytes));
             };
         }
 

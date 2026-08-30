@@ -46,7 +46,7 @@ namespace {
     };
 
     struct ProjectInputTestControl {
-        std::function<Automation::AutomationResult<Automation::AutomationUnit>()> revalidateOpen;
+        Automation::PublicProjectInputRevalidator revalidateOpen;
     };
 
     void expect(const bool condition, const QString &message) {
@@ -876,6 +876,55 @@ namespace {
         expect(bool(fileGuard.setConfiguredRoots({directoryPath}, {directoryPath})),
                QStringLiteral("project input roots must be restored"));
 
+        const auto plannedPath =
+            QDir(directoryPath).absoluteFilePath(QStringLiteral("planned-open.mid"));
+        const auto plannedBytes = QByteArray::fromHex(
+            "4d546864000000060000000101e04d54726b0000000400ff2f00");
+        QFile plannedProject(plannedPath);
+        const bool plannedProjectCreated =
+            plannedProject.open(QIODevice::WriteOnly | QIODevice::Truncate) &&
+            plannedProject.write(plannedBytes) == plannedBytes.size();
+        plannedProject.close();
+        expect(plannedProjectCreated,
+               QStringLiteral("project snapshot fixture must be created"));
+        const auto plan = registry.invoke(
+            QStringLiteral("formats.inspect"),
+            QJsonObject{
+                {QStringLiteral("path"),    plannedPath         },
+                {QStringLiteral("purpose"), QStringLiteral("open")},
+            });
+        reportFailure(QStringLiteral("formats.inspect"), plan);
+        expect(bool(plan), QStringLiteral("project snapshot fixture must produce an open plan"));
+        if (plan) {
+            control.revalidateOpen = {};
+            const auto plannedOpen = registry.invoke(
+                QStringLiteral("documents.open"),
+                QJsonObject{
+                    {QStringLiteral("path"),           plannedPath                                     },
+                    {QStringLiteral("plan_digest"),    plan.get().value(QStringLiteral("plan_digest"))},
+                    {QStringLiteral("unsaved_policy"), QStringLiteral("reject")                        },
+                });
+            expect(!plannedOpen && bool(control.revalidateOpen),
+                   QStringLiteral("planned open must retain its input snapshot revalidator"));
+            if (control.revalidateOpen) {
+                const auto snapshot = control.revalidateOpen();
+                expect(snapshot && snapshot.get() && *snapshot.get() == plannedBytes,
+                       QStringLiteral("planned open must return the exact verified input bytes"));
+
+                auto replacementBytes = plannedBytes;
+                replacementBytes[13] = static_cast<char>(0xdf);
+                QFile replacement(plannedPath);
+                const bool replaced = replacement.open(QIODevice::WriteOnly | QIODevice::Truncate) &&
+                                      replacement.write(replacementBytes) == replacementBytes.size();
+                replacement.close();
+                const auto stale = control.revalidateOpen();
+                expect(replaced && !stale &&
+                           stale.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+                           stale.getError().fieldPath == QStringLiteral("plan_digest"),
+                       QStringLiteral("planned open must reject source bytes changed after inspection"));
+            }
+        }
+
         const auto oversizedPath =
             QDir(directoryPath).absoluteFilePath(QStringLiteral("oversized.dspx"));
         QFile oversized(oversizedPath);
@@ -1661,6 +1710,13 @@ int main(int argc, char *argv[]) {
                 .id = QStringLiteral("dspx"),
                 .displayName = QStringLiteral("DSPX"),
                 .extensions = {QStringLiteral("*.dspx")},
+                .canOpen = true,
+                .canImport = true,
+            },
+            {
+                .id = QStringLiteral("midi"),
+                .displayName = QStringLiteral("MIDI"),
+                .extensions = {QStringLiteral("*.mid"), QStringLiteral("*.midi")},
                 .canOpen = true,
                 .canImport = true,
             },

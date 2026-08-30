@@ -28,6 +28,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QPointer>
+#include <QSaveFile>
 #include <QSet>
 #include <QThreadPool>
 #include <QTimer>
@@ -113,13 +114,41 @@ namespace Automation {
             return result;
         }
 
+        AutomationResult<QString>
+            materializeProjectSnapshot(std::unique_ptr<QTemporaryDir> &directory,
+                                       const QString &sourcePath, const QByteArray &bytes,
+                                       const qsizetype sequence) {
+            if (!directory)
+                directory = std::make_unique<QTemporaryDir>();
+            if (!directory->isValid()) {
+                return AutomationError{
+                    .code = AutomationErrorCode::IoError,
+                    .message = QStringLiteral("A project snapshot directory could not be created"),
+                };
+            }
+            const auto snapshotPath =
+                QDir(directory->path())
+                    .filePath(QStringLiteral("%1-%2")
+                                  .arg(sequence)
+                                  .arg(QFileInfo(sourcePath).fileName()));
+            QSaveFile snapshot(snapshotPath);
+            if (!snapshot.open(QIODevice::WriteOnly) || snapshot.write(bytes) != bytes.size() ||
+                !snapshot.commit()) {
+                return AutomationError{
+                    .code = AutomationErrorCode::IoError,
+                    .message = QStringLiteral("A project snapshot could not be written"),
+                };
+            }
+            return snapshotPath;
+        }
+
         class HeadlessProjectLoadTask final : public QObject {
         public:
             HeadlessProjectLoadTask(
                 CoreRuntime &runtime, QString path, QString mergeMode,
                 const ProjectLoadPurpose purpose, QByteArray encoding, const bool importTempo,
                 const bool importTimeSignature, CommandContext command,
-                std::function<AutomationResult<AutomationUnit>()> revalidatePlan, QObject *parent)
+                PublicProjectInputRevalidator revalidatePlan, QObject *parent)
                 : QObject(parent), m_runtime(runtime), m_path(std::move(path)),
                   m_mergeMode(std::move(mergeMode)), m_purpose(purpose),
                   m_encoding(std::move(encoding)), m_importTempo(importTempo),
@@ -150,6 +179,7 @@ namespace Automation {
                         QStringLiteral("The project format does not support this operation");
                     return error;
                 }
+                m_handler = handler;
                 if (m_command.validateOnly)
                     return TaskAcceptedResult{{}, base.get(), true};
 
@@ -166,8 +196,43 @@ namespace Automation {
                     m_command.clientId);
                 m_taskId = task.taskId;
                 m_command.taskId = m_taskId;
+                if (!m_runtime.automationTasks().markRunning(m_taskId)) {
+                    auto error =
+                        unavailable(QStringLiteral("The project load task could not start"));
+                    error.taskId = m_taskId;
+                    return error;
+                }
+                QTimer::singleShot(0, this, [this] { start(); });
+                return TaskAcceptedResult{m_taskId, base.get(), false};
+            }
+
+        private:
+            void start() {
+                if (m_runtime.automationTasks().isCancellationRequested(m_taskId)) {
+                    m_runtime.automationTasks().cancel(m_taskId);
+                    deleteLater();
+                    return;
+                }
+                QString loadPath = m_path;
+                if (m_revalidatePlan) {
+                    auto revalidated = m_revalidatePlan();
+                    if (!revalidated) {
+                        fail(revalidated.getError());
+                        return;
+                    }
+                    if (revalidated.get()) {
+                        auto snapshot = materializeProjectSnapshot(
+                            m_snapshotDirectory, m_path, *revalidated.get(), 0);
+                        if (!snapshot) {
+                            fail(snapshot.getError());
+                            return;
+                        }
+                        loadPath = snapshot.get();
+                    }
+                }
+
                 ProjectLoadRequest request{
-                    .filePath = m_path,
+                    .filePath = loadPath,
                     .purpose = m_purpose,
                     .requestId = 1,
                     .interactive = false,
@@ -175,13 +240,11 @@ namespace Automation {
                     .importTempo = m_importTempo,
                     .importTimeSignature = m_importTimeSignature,
                 };
-                m_session = handler->createSession(request, nullptr, this);
+                m_session = m_handler ? m_handler->createSession(request, nullptr, this) : nullptr;
                 if (!m_session) {
-                    auto error = unavailable(
-                        QStringLiteral("The project format could not create a load session"));
-                    error.taskId = m_taskId;
-                    m_runtime.automationTasks().fail(m_taskId, error);
-                    return error;
+                    fail(unavailable(
+                        QStringLiteral("The project format could not create a load session")));
+                    return;
                 }
                 connect(m_session, &IProjectLoadSession::ready, this,
                         [this] { commit(m_session->takeResult()); });
@@ -195,33 +258,6 @@ namespace Automation {
                     m_runtime.automationTasks().cancel(m_taskId);
                     deleteLater();
                 });
-                if (!m_runtime.automationTasks().markRunning(m_taskId)) {
-                    auto error =
-                        unavailable(QStringLiteral("The project load task could not start"));
-                    error.taskId = m_taskId;
-                    return error;
-                }
-                QTimer::singleShot(0, this, [this] { start(); });
-                return TaskAcceptedResult{m_taskId, base.get(), false};
-            }
-
-        private:
-            void start() {
-                if (!m_session)
-                    return;
-                if (m_revalidatePlan) {
-                    auto revalidated = m_revalidatePlan();
-                    if (!revalidated) {
-                        auto failure = revalidated.getError();
-                        failure.taskId = m_taskId;
-                        failure.operationId = m_purpose == ProjectLoadPurpose::Open
-                                                  ? OperationIds::documents::open
-                                                  : OperationIds::documents::import_document;
-                        m_runtime.automationTasks().fail(m_taskId, std::move(failure));
-                        deleteLater();
-                        return;
-                    }
-                }
                 m_session->start();
             }
 
@@ -231,6 +267,13 @@ namespace Automation {
             }
 
             void commit(PreparedProject prepared) {
+                if (m_revalidatePlan) {
+                    auto revalidated = m_revalidatePlan();
+                    if (!revalidated) {
+                        fail(revalidated.getError());
+                        return;
+                    }
+                }
                 const auto committing = m_runtime.automationTasks().beginCommitting(m_taskId);
                 if (!committing || !committing.get()) {
                     if (!committing)
@@ -244,10 +287,9 @@ namespace Automation {
                     const auto draft = documentDraftDto(replace->model, replace->loopSettings);
                     result = m_runtime.documents().commitOpenedDocument(
                         m_command, draft,
-                        replace->sourceKind == ProjectSourceKind::Native ? replace->sourcePath
-                                                                         : QString(),
+                        replace->sourceKind == ProjectSourceKind::Native ? m_path : QString(),
                         replace->sourceKind == ProjectSourceKind::Native
-                            ? QFileInfo(replace->sourcePath).fileName()
+                            ? QFileInfo(m_path).fileName()
                             : replace->displayName,
                         replace->sourceKind == ProjectSourceKind::Native);
                 } else if (auto *append = std::get_if<AppendProjectPayload>(&prepared)) {
@@ -268,6 +310,15 @@ namespace Automation {
                 deleteLater();
             }
 
+            void fail(AutomationError failure) {
+                failure.taskId = m_taskId;
+                failure.operationId = m_purpose == ProjectLoadPurpose::Open
+                                          ? OperationIds::documents::open
+                                          : OperationIds::documents::import_document;
+                m_runtime.automationTasks().fail(m_taskId, std::move(failure));
+                deleteLater();
+            }
+
             CoreRuntime &m_runtime;
             QString m_path;
             QString m_mergeMode;
@@ -276,9 +327,11 @@ namespace Automation {
             bool m_importTempo = true;
             bool m_importTimeSignature = true;
             CommandContext m_command;
-            std::function<AutomationResult<AutomationUnit>()> m_revalidatePlan;
+            PublicProjectInputRevalidator m_revalidatePlan;
             TaskId m_taskId;
+            IProjectFormatHandler *m_handler = nullptr;
             QPointer<IProjectLoadSession> m_session;
+            std::unique_ptr<QTemporaryDir> m_snapshotDirectory;
         };
 
         AutomationResult<TaskAcceptedResult>
@@ -286,7 +339,7 @@ namespace Automation {
                              const ProjectLoadPurpose purpose, QByteArray encoding,
                              const bool importTempo, const bool importTimeSignature,
                              CommandContext command,
-                             std::function<AutomationResult<AutomationUnit>()> revalidatePlan) {
+                             PublicProjectInputRevalidator revalidatePlan) {
             auto *state = new HeadlessProjectLoadTask(
                 runtime, path, mergeMode, purpose, std::move(encoding), importTempo,
                 importTimeSignature, std::move(command), std::move(revalidatePlan),
@@ -320,7 +373,7 @@ namespace Automation {
                 if (m_request.command.validateOnly)
                     return TaskAcceptedResult{{}, base.get(), true};
 
-                m_batch.timeline = m_model->timeline();
+                m_baseTimeline = m_model->timeline();
                 const QPointer<HeadlessProjectBatchLoadTask> weak(this);
                 const auto task = m_runtime.automationTasks().createTask(
                     OperationIds::documents::import_batch, base.get(), std::nullopt,
@@ -391,16 +444,26 @@ namespace Automation {
                     handleFailure(handler.getError());
                     return;
                 }
+                QString loadPath = item.canonicalPath;
                 if (item.revalidatePlan) {
                     auto revalidated = item.revalidatePlan();
                     if (!revalidated) {
                         handleFailure(revalidated.getError());
                         return;
                     }
+                    if (revalidated.get()) {
+                        auto snapshot = materializeProjectSnapshot(
+                            m_snapshotDirectory, item.canonicalPath, *revalidated.get(), m_index);
+                        if (!snapshot) {
+                            handleFailure(snapshot.getError());
+                            return;
+                        }
+                        loadPath = snapshot.get();
+                    }
                 }
                 const auto options = item.options;
                 ProjectLoadRequest loadRequest{
-                    .filePath = item.canonicalPath,
+                    .filePath = loadPath,
                     .purpose = ProjectLoadPurpose::Import,
                     .requestId = static_cast<quint64>(m_index + 1),
                     .interactive = false,
@@ -436,33 +499,16 @@ namespace Automation {
                     return;
                 }
 
-                const auto options = m_request.items.at(m_index).options;
+                const auto requestIndex = m_index;
+                const auto options = m_request.items.at(requestIndex).options;
                 const auto importTempo =
                     options.value(QStringLiteral("import_tempo")).toBool(true) &&
                     append->importTempo;
                 const auto importTimeSignatures =
                     options.value(QStringLiteral("import_time_signatures")).toBool(true) &&
                     append->importTimeSignature;
-                const auto draft = documentDraftDto(append->model);
-                if (importTempo && !m_importedTempo) {
-                    m_batch.timeline.setTempos(draft.timeline.tempos());
-                    m_importedTempo = true;
-                }
-                if (importTimeSignatures && !m_importedTimeSignatures) {
-                    m_batch.timeline.setTimeSignatures(draft.timeline.timeSignatures());
-                    m_importedTimeSignatures = true;
-                }
-                for (auto track : draft.tracks) {
-                    BatchImportItemDraftDto item;
-                    item.clips = track.clips;
-                    track.clips.clear();
-                    item.newTrack = std::move(track);
-                    if (!item.clips.isEmpty())
-                        m_batch.items.append(std::move(item));
-                }
-                if (draft.tracks.isEmpty()) {
-                    m_warnings.append(QStringLiteral("An import item contained no tracks"));
-                }
+                m_loadedItems.append({requestIndex, documentDraftDto(append->model), importTempo,
+                                      importTimeSignatures});
                 advance();
             }
 
@@ -489,6 +535,49 @@ namespace Automation {
             }
 
             void commit() {
+                BatchImportDraftDto batch;
+                batch.timeline = m_baseTimeline;
+                bool importedTempo = false;
+                bool importedTimeSignatures = false;
+                for (auto &loaded : m_loadedItems) {
+                    const auto &requestItem = m_request.items.at(loaded.requestIndex);
+                    if (requestItem.revalidatePlan) {
+                        auto revalidated = requestItem.revalidatePlan();
+                        if (!revalidated) {
+                            auto failure = revalidated.getError();
+                            if (m_request.failurePolicy == PublicBatchFailurePolicy::Atomic) {
+                                failure.taskId = m_taskId;
+                                failure.operationId = OperationIds::documents::import_batch;
+                                m_runtime.automationTasks().fail(m_taskId, std::move(failure));
+                                finish();
+                                return;
+                            }
+                            m_warnings.append(
+                                QStringLiteral("Skipped %1: %2")
+                                    .arg(requestItem.canonicalPath, failure.message));
+                            continue;
+                        }
+                    }
+                    if (loaded.importTempo && !importedTempo) {
+                        batch.timeline.setTempos(loaded.draft.timeline.tempos());
+                        importedTempo = true;
+                    }
+                    if (loaded.importTimeSignatures && !importedTimeSignatures) {
+                        batch.timeline.setTimeSignatures(
+                            loaded.draft.timeline.timeSignatures());
+                        importedTimeSignatures = true;
+                    }
+                    if (loaded.draft.tracks.isEmpty())
+                        m_warnings.append(QStringLiteral("An import item contained no tracks"));
+                    for (auto track : loaded.draft.tracks) {
+                        BatchImportItemDraftDto item;
+                        item.clips = track.clips;
+                        track.clips.clear();
+                        item.newTrack = std::move(track);
+                        if (!item.clips.isEmpty())
+                            batch.items.append(std::move(item));
+                    }
+                }
                 const auto committing = m_runtime.automationTasks().beginCommitting(m_taskId);
                 if (!committing || !committing.get()) {
                     if (!committing)
@@ -496,7 +585,7 @@ namespace Automation {
                     finish();
                     return;
                 }
-                auto result = m_runtime.project().commitBatchImport(m_request.command, m_batch);
+                auto result = m_runtime.project().commitBatchImport(m_request.command, batch);
                 if (result) {
                     auto mutation = result.get();
                     mutation.warnings.append(m_warnings);
@@ -525,14 +614,20 @@ namespace Automation {
             CoreRuntime &m_runtime;
             AppModel *m_model = nullptr;
             PublicDocumentBatchImportRequest m_request;
-            BatchImportDraftDto m_batch;
+            struct LoadedItem {
+                qsizetype requestIndex = 0;
+                DocumentDraftDto draft;
+                bool importTempo = false;
+                bool importTimeSignatures = false;
+            };
+            Timeline m_baseTimeline;
+            QList<LoadedItem> m_loadedItems;
             QStringList m_warnings;
             TaskId m_taskId;
             qsizetype m_index = 0;
-            bool m_importedTempo = false;
-            bool m_importedTimeSignatures = false;
             bool m_finished = false;
             QPointer<IProjectLoadSession> m_session;
+            std::unique_ptr<QTemporaryDir> m_snapshotDirectory;
         };
 
         AutomationResult<TaskAcceptedResult>

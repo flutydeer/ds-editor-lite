@@ -13,6 +13,7 @@
 #include <lite/AutomationWire/OpaqueCursorCodec.h>
 
 #include <QHash>
+#include <QByteArray>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QLatin1StringView>
@@ -40,6 +41,9 @@ namespace Automation {
         QString clientId;
     };
 
+    using PublicProjectInputRevalidator =
+        std::function<AutomationResult<std::optional<QByteArray>>()>;
+
     struct PublicDocumentOpenRequest {
         CommandContext command;
         QString canonicalPath;
@@ -48,7 +52,7 @@ namespace Automation {
         bool importTempo = true;
         bool importTimeSignature = true;
         QString planDigest;
-        std::function<AutomationResult<AutomationUnit>()> revalidatePlan;
+        PublicProjectInputRevalidator revalidatePlan;
         PublicUnsavedPolicy unsavedPolicy = PublicUnsavedPolicy::Reject;
     };
 
@@ -60,7 +64,7 @@ namespace Automation {
         bool importTempo = true;
         bool importTimeSignature = true;
         QString planDigest;
-        std::function<AutomationResult<AutomationUnit>()> revalidatePlan;
+        PublicProjectInputRevalidator revalidatePlan;
         QString mergeMode;
     };
 
@@ -69,7 +73,7 @@ namespace Automation {
         QString formatId;
         QJsonObject options;
         QString planDigest;
-        std::function<AutomationResult<AutomationUnit>()> revalidatePlan;
+        PublicProjectInputRevalidator revalidatePlan;
         std::optional<AutomationError> validationError;
     };
 
