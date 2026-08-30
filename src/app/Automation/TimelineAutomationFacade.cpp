@@ -9,7 +9,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <limits>
 #include <memory>
 #include <utility>
 
@@ -17,32 +16,6 @@ namespace Automation {
     namespace {
         bool isPowerOfTwo(const int value) {
             return value > 0 && (value & (value - 1)) == 0;
-        }
-
-        bool validTimeSignatureProjection(QList<TimeSignature> signatures) {
-            std::sort(signatures.begin(), signatures.end(), [](const TimeSignature &left,
-                                                               const TimeSignature &right) {
-                return left.barIndex < right.barIndex;
-            });
-
-            qint64 tick = 0;
-            for (qsizetype index = 0; index < signatures.size(); ++index) {
-                const auto &signature = signatures.at(index);
-                const auto ticksPerBar =
-                    static_cast<qint64>(signature.ticksPerBeat()) * signature.numerator;
-                if (ticksPerBar <= 0 || ticksPerBar > std::numeric_limits<int>::max())
-                    return false;
-                if (index == 0)
-                    continue;
-                const auto &previous = signatures.at(index - 1);
-                const auto previousTicksPerBar =
-                    static_cast<qint64>(previous.ticksPerBeat()) * previous.numerator;
-                tick += (static_cast<qint64>(signature.barIndex) - previous.barIndex) *
-                        previousTicksPerBar;
-                if (tick > std::numeric_limits<int>::max())
-                    return false;
-            }
-            return true;
         }
 
         bool validTimeSignatureProjection(QList<TimeSignature> signatures,
@@ -55,7 +28,7 @@ namespace Automation {
                 signatures.append(candidate);
             else
                 *existing = candidate;
-            return validTimeSignatureProjection(std::move(signatures));
+            return Timeline::isTimeSignatureProjectionValid(std::move(signatures));
         }
 
         bool controlsEqual(const TrackControl &left, const TrackControl &right) {
@@ -202,7 +175,7 @@ namespace Automation {
                 projected.removeIf([barIndex](const TimeSignature &value) {
                     return value.barIndex == barIndex;
                 });
-                if (!validTimeSignatureProjection(std::move(projected))) {
+                if (!Timeline::isTimeSignatureProjectionValid(std::move(projected))) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
                         QStringLiteral("bar_index"),
                         QStringLiteral("Removing the time signature would move a later signature "

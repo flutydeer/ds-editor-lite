@@ -1059,6 +1059,12 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
         timeSignatures.append(
             TimeSignature(signature.index, signature.numerator, signature.denominator));
     }
+    if (!Timeline::isTimeSignatureProjectionValid(timeSignatures)) {
+        errMsg = QCoreApplication::translate(
+            "DspxProjectConverter",
+            "Failed to load project file: timeline values are invalid.");
+        return false;
+    }
     model->setTimeline(Timeline(std::move(tempos), std::move(timeSignatures)));
     auto masterControl = TrackControl();
     masterControl.setGain(dspxModel.content.master.control.gain);

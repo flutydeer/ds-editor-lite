@@ -811,12 +811,10 @@ namespace Automation {
                                                         QStringLiteral("Tempo is invalid"));
             }
         }
-        for (const auto &signature : draft.timeline.timeSignatures()) {
-            if (signature.barIndex < 0 || signature.numerator <= 0 || signature.denominator <= 0) {
-                return AutomationError::invalidArgument(
-                    QStringLiteral("document.time_signatures"),
-                    QStringLiteral("Time signature is invalid"));
-            }
+        if (!Timeline::isTimeSignatureProjectionValid(draft.timeline.timeSignatures())) {
+            return AutomationError::invalidArgument(
+                QStringLiteral("document.time_signatures"),
+                QStringLiteral("Time signature is invalid or out of bounds"));
         }
         if (!std::isfinite(draft.masterControl.gain()) ||
             !std::isfinite(draft.masterControl.pan())) {

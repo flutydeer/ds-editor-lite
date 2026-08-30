@@ -2,6 +2,8 @@
 #include <lite/ProjectConverters/MidiConverter.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 
+#include <opendspx/model.h>
+
 #include "Modules/Audio/AudioFilePublisher.h"
 
 #include <QCoreApplication>
@@ -12,6 +14,7 @@
 #include <QTextStream>
 
 #include <functional>
+#include <limits>
 
 #ifdef Q_OS_WIN
 #  include <windows.h>
@@ -133,6 +136,23 @@ namespace {
             [](const QByteArray &output) { return output.startsWith("MThd"); });
     }
 
+    void testDspxTimeSignatureProjectionValidation() {
+        opendspx::Model project;
+        project.content.timeline.tempos.push_back({0, 120.0});
+        project.content.timeline.timeSignatures.push_back(
+            {0, (std::numeric_limits<int>::max)(), 1});
+        project.content.timeline.timeSignatures.push_back({1, 4, 4});
+
+        AppModel model;
+        LoopSettings loopSettings;
+        QString error;
+        DspxProjectConverter converter;
+        expect(!converter.loadParsedProject(project, &model, loopSettings, error,
+                                            ImportMode::NewProject) &&
+                   !error.isEmpty(),
+               QStringLiteral("DSPX load must reject out-of-range time signatures"));
+    }
+
     void testAudioPublicationRollback() {
         QTemporaryDir directory;
         const auto firstTarget = directory.filePath(QStringLiteral("a.wav"));
@@ -198,6 +218,7 @@ namespace {
 int main(int argc, char *argv[]) {
     QCoreApplication application(argc, argv);
     testDspxAtomicWrite();
+    testDspxTimeSignatureProjectionValidation();
     testMidiAtomicWrite();
     testAudioPublicationRollback();
     testAudioPublicationNoClobber();
