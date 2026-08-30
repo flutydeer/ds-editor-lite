@@ -21,6 +21,7 @@ namespace Automation {
         int maximumJsonDepth = 64;
         qsizetype maximumJsonNodes = 100000;
         int maximumGlobalInFlight = 32;
+        qsizetype maximumLegacySessions = 128;
         int requestDeadlineMs = 30000;
     };
 

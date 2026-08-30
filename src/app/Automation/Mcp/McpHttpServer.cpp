@@ -11,6 +11,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonParseError>
+#include <QList>
 #include <QMutex>
 #include <QPointer>
 #include <QPromise>
@@ -223,6 +224,12 @@ namespace Automation {
             GlobalBusy,
         };
 
+        enum class SessionRetirement {
+            Retired,
+            NotFound,
+            ProtocolMismatch,
+        };
+
         struct PendingRequest {
             quint64 id = 0;
             QPromise<QHttpServerResponse> promise;
@@ -252,6 +259,7 @@ namespace Automation {
             m_globalInFlight = 0;
             m_pending.clear();
             m_sessions.clear();
+            m_sessionOrder.clear();
         }
 
         [[nodiscard]] bool isAccepting() const {
@@ -350,13 +358,14 @@ namespace Automation {
                 if (it == m_pending.end())
                     return false;
                 do {
-                    sessionId = QUuid::createUuid()
-                                    .toString(QUuid::WithoutBraces)
-                                    .remove(u'-')
-                                    .toLatin1();
+                    sessionId =
+                        QUuid::createUuid().toString(QUuid::WithoutBraces).remove(u'-').toLatin1();
                 } while (m_sessions.contains(sessionId));
-                m_sessions.insert(sessionId,
-                                  {std::move(clientId), std::move(protocolVersion)});
+                m_sessions.insert(sessionId, {std::move(clientId), std::move(protocolVersion)});
+                m_sessionOrder.append(sessionId);
+                const auto maximumSessions = std::max<qsizetype>(1, m_limits.maximumLegacySessions);
+                while (m_sessionOrder.size() > maximumSessions)
+                    m_sessions.remove(m_sessionOrder.takeFirst());
                 pending = it.value();
                 m_pending.erase(it);
                 m_globalInFlight = std::max(0, m_globalInFlight - 1);
@@ -372,8 +381,20 @@ namespace Automation {
         [[nodiscard]] std::optional<Session> session(const QByteArray &sessionId) const {
             const QMutexLocker locker(&m_mutex);
             const auto found = m_sessions.constFind(sessionId);
-            return found == m_sessions.cend() ? std::nullopt
-                                              : std::optional<Session>(*found);
+            return found == m_sessions.cend() ? std::nullopt : std::optional<Session>(*found);
+        }
+
+        SessionRetirement retireSession(const QByteArray &sessionId,
+                                        const QString &protocolVersion) {
+            const QMutexLocker locker(&m_mutex);
+            const auto found = m_sessions.find(sessionId);
+            if (found == m_sessions.end())
+                return SessionRetirement::NotFound;
+            if (found->protocolVersion != protocolVersion)
+                return SessionRetirement::ProtocolMismatch;
+            m_sessions.erase(found);
+            m_sessionOrder.removeAll(sessionId);
+            return SessionRetirement::Retired;
         }
 
         void stopAccepting() {
@@ -384,6 +405,7 @@ namespace Automation {
                 pending = m_pending.values();
                 m_pending.clear();
                 m_sessions.clear();
+                m_sessionOrder.clear();
                 m_globalInFlight = 0;
             }
             for (const auto &request : pending) {
@@ -401,6 +423,7 @@ namespace Automation {
         int m_globalInFlight = 0;
         QHash<quint64, std::shared_ptr<PendingRequest>> m_pending;
         QHash<QByteArray, Session> m_sessions;
+        QList<QByteArray> m_sessionOrder;
         quint64 m_nextRequestId = 1;
     };
 
@@ -499,14 +522,50 @@ namespace Automation {
                                                     StatusCode::ServiceUnavailable));
             }
 
+            if (request.method() == QHttpServerRequest::Method::Delete) {
+                const auto sessionHeaders =
+                    request.headers().values(QByteArrayLiteral("MCP-Session-Id"));
+                if (sessionHeaders.size() != 1 || sessionHeaders.constFirst().isEmpty()) {
+                    return readyResponse(transportError(
+                        QStringLiteral("invalid_session"),
+                        QStringLiteral("MCP-Session-Id header is missing or malformed"),
+                        StatusCode::BadRequest));
+                }
+                const auto protocolHeaders =
+                    request.headers().values(QByteArrayLiteral("MCP-Protocol-Version"));
+                if (protocolHeaders.size() != 1 || protocolHeaders.constFirst().isEmpty()) {
+                    return readyResponse(transportError(
+                        QStringLiteral("invalid_protocol_version"),
+                        QStringLiteral("MCP-Protocol-Version header is missing or malformed"),
+                        StatusCode::BadRequest));
+                }
+                switch (m_transportState->retireSession(
+                    sessionHeaders.constFirst(),
+                    QString::fromLatin1(protocolHeaders.constFirst()))) {
+                    case McpHttpTransportState::SessionRetirement::Retired:
+                        return readyResponse(QHttpServerResponse(StatusCode::NoContent));
+                    case McpHttpTransportState::SessionRetirement::NotFound:
+                        return readyResponse(
+                            transportError(QStringLiteral("session_not_found"),
+                                           QStringLiteral("MCP session is unknown or expired"),
+                                           StatusCode::NotFound));
+                    case McpHttpTransportState::SessionRetirement::ProtocolMismatch:
+                        return readyResponse(transportError(
+                            QStringLiteral("session_protocol_mismatch"),
+                            QStringLiteral(
+                                "MCP session protocol version does not match the request"),
+                            StatusCode::BadRequest));
+                }
+            }
+
             if (request.method() != QHttpServerRequest::Method::Post) {
                 auto response =
                     transportError(QStringLiteral("method_not_allowed"),
-                                   QStringLiteral("MCP endpoint accepts POST requests only"),
+                                   QStringLiteral("MCP endpoint accepts POST and DELETE requests"),
                                    StatusCode::MethodNotAllowed);
                 auto headers = response.headers();
                 headers.replaceOrAppend(QHttpHeaders::WellKnownHeader::Allow,
-                                        QStringLiteral("POST"));
+                                        QStringLiteral("POST, DELETE"));
                 response.setHeaders(std::move(headers));
                 return readyResponse(std::move(response));
             }
@@ -514,10 +573,10 @@ namespace Automation {
             const auto contentType =
                 uniqueHeader(request.headers(), QByteArrayLiteral("Content-Type"));
             if (!contentType || !isJsonContentType(*contentType)) {
-                return readyResponse(transportError(
-                    QStringLiteral("unsupported_media_type"),
-                    QStringLiteral("MCP requests require application/json"),
-                    StatusCode::UnsupportedMediaType));
+                return readyResponse(
+                    transportError(QStringLiteral("unsupported_media_type"),
+                                   QStringLiteral("MCP requests require application/json"),
+                                   StatusCode::UnsupportedMediaType));
             }
             const auto acceptValues =
                 request.headers().values(QHttpHeaders::WellKnownHeader::Accept);
@@ -611,8 +670,9 @@ namespace Automation {
                 const Mcp::ProtocolError error{
                     Mcp::HeaderMismatch,
                     QStringLiteral("MCP-Protocol-Version header is missing or malformed")};
-                return readyResponse(jsonResponse(Mcp::makeErrorResponse(validatedRequest.id, error),
-                                                  protocolErrorStatus(error)));
+                return readyResponse(
+                    jsonResponse(Mcp::makeErrorResponse(validatedRequest.id, error),
+                                 protocolErrorStatus(error)));
             }
             const auto metadataValidation =
                 Mcp::validateTransportMetadata(metadata, validatedRequest);
@@ -628,8 +688,9 @@ namespace Automation {
                     Mcp::InvalidRequest,
                     QStringLiteral(
                         "initialize is only available for MCP 2025-06-18 and 2025-11-25")};
-                return readyResponse(jsonResponse(Mcp::makeErrorResponse(validatedRequest.id, error),
-                                                  protocolErrorStatus(error)));
+                return readyResponse(
+                    jsonResponse(Mcp::makeErrorResponse(validatedRequest.id, error),
+                                 protocolErrorStatus(error)));
             }
             const auto sessionHeaderValues =
                 request.headers().values(QByteArrayLiteral("MCP-Session-Id"));
@@ -673,8 +734,8 @@ namespace Automation {
             if (!Mcp::isSupportedCoreMethod(validatedRequest.method)) {
                 const Mcp::ProtocolError error{Mcp::MethodNotFound,
                                                QStringLiteral("MCP method is not supported")};
-                return readyResponse(jsonResponse(Mcp::makeErrorResponse(validatedRequest.id, error),
-                                                  StatusCode::NotFound));
+                return readyResponse(jsonResponse(
+                    Mcp::makeErrorResponse(validatedRequest.id, error), StatusCode::NotFound));
             }
 
             auto admission = m_transportState->admit();

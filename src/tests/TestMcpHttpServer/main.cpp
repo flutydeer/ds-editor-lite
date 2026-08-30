@@ -215,6 +215,7 @@ int main(int argc, char *argv[]) {
     limits.maximumRequestBytes = 1024;
     limits.maximumResponseBytes = 4096;
     limits.maximumJsonNodes = 128;
+    limits.maximumLegacySessions = 2;
     Automation::McpHttpServer server(
         [&](const Mcp::RequestEnvelope &request, const QString &clientId) {
             {
@@ -277,9 +278,9 @@ int main(int argc, char *argv[]) {
     manager.setProxy(QNetworkProxy::NoProxy);
     const QUrl endpoint(server.endpoint());
 
-    const auto discover = withConnectorInstanceId(
-        requestObject(QString::fromLatin1(Mcp::DiscoverMethod), 1),
-        QStringLiteral("connector-test-instance"));
+    const auto discover =
+        withConnectorInstanceId(requestObject(QString::fromLatin1(Mcp::DiscoverMethod), 1),
+                                QStringLiteral("connector-test-instance"));
 
     const auto success =
         send(manager, baseRequest(endpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
@@ -309,8 +310,8 @@ int main(int argc, char *argv[]) {
     QNetworkAccessManager directManagerB;
     directManagerA.setProxy(QNetworkProxy::NoProxy);
     directManagerB.setProxy(QNetworkProxy::NoProxy);
-    const auto directDiscoverA = requestObject(QString::fromLatin1(Mcp::DiscoverMethod),
-                                               QStringLiteral("direct-a"));
+    const auto directDiscoverA =
+        requestObject(QString::fromLatin1(Mcp::DiscoverMethod), QStringLiteral("direct-a"));
     const auto directResultA =
         send(directManagerA, baseRequest(endpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
              QJsonDocument(directDiscoverA).toJson(QJsonDocument::Compact));
@@ -319,8 +320,8 @@ int main(int argc, char *argv[]) {
         const QMutexLocker locker(&observationMutex);
         directClientA = observedClientId;
     }
-    const auto directDiscoverB = requestObject(QString::fromLatin1(Mcp::DiscoverMethod),
-                                               QStringLiteral("direct-b"));
+    const auto directDiscoverB =
+        requestObject(QString::fromLatin1(Mcp::DiscoverMethod), QStringLiteral("direct-b"));
     const auto directResultB =
         send(directManagerB, baseRequest(endpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
              QJsonDocument(directDiscoverB).toJson(QJsonDocument::Compact));
@@ -329,10 +330,10 @@ int main(int argc, char *argv[]) {
         const QMutexLocker locker(&observationMutex);
         directClientB = observedClientId;
     }
-    expect(directResultA.status == 200 && directResultB.status == 200 &&
-               !directClientA.isEmpty() && !directClientB.isEmpty() &&
-               directClientA != directClientB,
-           QStringLiteral("independent direct HTTP connections must have isolated client identities"));
+    expect(
+        directResultA.status == 200 && directResultB.status == 200 && !directClientA.isEmpty() &&
+            !directClientB.isEmpty() && directClientA != directClientB,
+        QStringLiteral("independent direct HTTP connections must have isolated client identities"));
 
     const Mcp::RequestContext legacyContext{
         .protocolVersion = QString::fromLatin1(Mcp::LegacyProtocolVersion),
@@ -373,9 +374,9 @@ int main(int argc, char *argv[]) {
     const auto initialized =
         Mcp::makeRequest(QString::fromLatin1(Mcp::InitializedNotification), {}, legacyContext);
     const auto initializedResult =
-        send(manager, legacyRequest(endpoint, true, Mcp::LegacyProtocolVersion,
-                                    initializeResult.sessionId),
-                                        QJsonDocument(initialized).toJson(QJsonDocument::Compact));
+        send(manager,
+             legacyRequest(endpoint, true, Mcp::LegacyProtocolVersion, initializeResult.sessionId),
+             QJsonDocument(initialized).toJson(QJsonDocument::Compact));
     expect(initializedResult.status == 202 && initializedResult.body.isEmpty(),
            QStringLiteral("MCP 2025-11-25 initialized notification must return empty HTTP 202"));
 
@@ -383,8 +384,8 @@ int main(int argc, char *argv[]) {
         Mcp::makeRequest(QString::fromLatin1(Mcp::ToolsListMethod), {}, legacyContext,
                          QStringLiteral("list-2025-without-version"));
     const auto legacyListWithoutVersionResult =
-        send(manager, legacyRequest(endpoint, false, Mcp::LegacyProtocolVersion,
-                                    initializeResult.sessionId),
+        send(manager,
+             legacyRequest(endpoint, false, Mcp::LegacyProtocolVersion, initializeResult.sessionId),
              QJsonDocument(legacyListWithoutVersion).toJson(QJsonDocument::Compact));
     expect(legacyListWithoutVersionResult.status == 400 &&
                jsonRpcErrorCode(legacyListWithoutVersionResult) == Mcp::HeaderMismatch,
@@ -393,9 +394,9 @@ int main(int argc, char *argv[]) {
     const auto legacyPing = Mcp::makeRequest(QString::fromLatin1(Mcp::PingMethod), {},
                                              legacyContext, QStringLiteral("ping-2025"));
     const auto legacyPingResult =
-        send(manager, legacyRequest(endpoint, true, Mcp::LegacyProtocolVersion,
-                                    initializeResult.sessionId),
-                                       QJsonDocument(legacyPing).toJson(QJsonDocument::Compact));
+        send(manager,
+             legacyRequest(endpoint, true, Mcp::LegacyProtocolVersion, initializeResult.sessionId),
+             QJsonDocument(legacyPing).toJson(QJsonDocument::Compact));
     expect(legacyPingResult.status == 200 &&
                bodyObject(legacyPingResult).value(QStringLiteral("result")).toObject().isEmpty(),
            QStringLiteral("MCP 2025-11-25 ping must use the legacy result envelope"));
@@ -403,9 +404,9 @@ int main(int argc, char *argv[]) {
     const auto legacyList = Mcp::makeRequest(QString::fromLatin1(Mcp::ToolsListMethod), {},
                                              legacyContext, QStringLiteral("list-2025"));
     const auto legacyListResult =
-        send(manager, legacyRequest(endpoint, true, Mcp::LegacyProtocolVersion,
-                                    initializeResult.sessionId),
-                                       QJsonDocument(legacyList).toJson(QJsonDocument::Compact));
+        send(manager,
+             legacyRequest(endpoint, true, Mcp::LegacyProtocolVersion, initializeResult.sessionId),
+             QJsonDocument(legacyList).toJson(QJsonDocument::Compact));
     const auto legacyListPayload =
         bodyObject(legacyListResult).value(QStringLiteral("result")).toObject();
     expect(legacyListResult.status == 200 &&
@@ -422,9 +423,9 @@ int main(int argc, char *argv[]) {
     },
                          legacyContext, QStringLiteral("call-2025"));
     const auto legacyCallResult =
-        send(manager, legacyRequest(endpoint, true, Mcp::LegacyProtocolVersion,
-                                    initializeResult.sessionId),
-                                       QJsonDocument(legacyCall).toJson(QJsonDocument::Compact));
+        send(manager,
+             legacyRequest(endpoint, true, Mcp::LegacyProtocolVersion, initializeResult.sessionId),
+             QJsonDocument(legacyCall).toJson(QJsonDocument::Compact));
     const auto legacyCallPayload =
         bodyObject(legacyCallResult).value(QStringLiteral("result")).toObject();
     expect(legacyCallResult.status == 200 &&
@@ -452,8 +453,9 @@ int main(int argc, char *argv[]) {
         Mcp::makeRequest(QString::fromLatin1(Mcp::ToolsListMethod), {}, compatibilityContext,
                          QStringLiteral("list-2025-06"));
     const auto compatibilityListResult =
-        send(manager, legacyRequest(endpoint, true, Mcp::CompatibilityProtocolVersion,
-                                    compatibilityInitializeResult.sessionId),
+        send(manager,
+             legacyRequest(endpoint, true, Mcp::CompatibilityProtocolVersion,
+                           compatibilityInitializeResult.sessionId),
              QJsonDocument(compatibilityList).toJson(QJsonDocument::Compact));
     const auto compatibilityListPayload =
         bodyObject(compatibilityListResult).value(QStringLiteral("result")).toObject();
@@ -461,6 +463,27 @@ int main(int argc, char *argv[]) {
                compatibilityListPayload.value(QStringLiteral("tools")).isArray() &&
                !compatibilityListPayload.contains(QStringLiteral("resultType")),
            QStringLiteral("MCP 2025-06-18 tools/list must use the legacy result envelope"));
+
+    const auto thirdInitialize =
+        Mcp::makeInitializeRequest(legacyContext, QStringLiteral("init-2025-third"));
+    const auto thirdInitializeResult =
+        send(manager, legacyRequest(endpoint, false),
+             QJsonDocument(thirdInitialize).toJson(QJsonDocument::Compact));
+    expect(thirdInitializeResult.status == 200 && !thirdInitializeResult.sessionId.isEmpty(),
+           QStringLiteral("a replacement legacy session must initialize successfully"));
+    const auto evictedSessionResult =
+        send(manager,
+             legacyRequest(endpoint, true, Mcp::LegacyProtocolVersion, initializeResult.sessionId),
+             QJsonDocument(legacyPing).toJson(QJsonDocument::Compact));
+    expect(evictedSessionResult.status == 404,
+           QStringLiteral("legacy session retention must evict the oldest session at its limit"));
+
+    auto deleteSessionRequest =
+        legacyRequest(endpoint, true, Mcp::LegacyProtocolVersion, thirdInitializeResult.sessionId);
+    const auto retiredSession = send(manager, deleteSessionRequest, {}, HttpMethod::Delete);
+    const auto repeatedRetirement = send(manager, deleteSessionRequest, {}, HttpMethod::Delete);
+    expect(retiredSession.status == 204 && repeatedRetirement.status == 404,
+           QStringLiteral("DELETE /mcp must retire one known legacy session exactly once"));
 
     {
         const QMutexLocker locker(&observationMutex);
@@ -487,8 +510,8 @@ int main(int argc, char *argv[]) {
     expect(getResult.status == 405,
            QStringLiteral("GET /mcp must be rejected without a legacy stream"));
     const auto deleteResult = send(manager, getRequest, {}, HttpMethod::Delete);
-    expect(deleteResult.status == 405,
-           QStringLiteral("DELETE /mcp must be rejected without a legacy session"));
+    expect(deleteResult.status == 400,
+           QStringLiteral("DELETE /mcp must require a legacy session identifier"));
 
     auto originRequest = baseRequest(endpoint, QString::fromLatin1(Mcp::DiscoverMethod));
     originRequest.setRawHeader("Origin", "https://example.com");
@@ -860,11 +883,13 @@ int main(int argc, char *argv[]) {
                     request.protocolVersion);
             }
             canceledHandlerEntered.release();
-            return Mcp::makeResultResponse(
-                request.id,
-                Mcp::makeToolCallResult(QJsonObject{{QStringLiteral("mutated"), true}}, false, {},
-                                        serverInfo, request.protocolVersion),
-                serverInfo, request.protocolVersion);
+            return Mcp::makeResultResponse(request.id,
+                                           Mcp::makeToolCallResult(
+                                               QJsonObject{
+                                                   {QStringLiteral("mutated"), true}
+            },
+                                               false, {}, serverInfo, request.protocolVersion),
+                                           serverInfo, request.protocolVersion);
         },
         cancellationLimits);
     QString cancellationError;
@@ -877,9 +902,9 @@ int main(int argc, char *argv[]) {
     cancellationNotificationManager.setProxy(QNetworkProxy::NoProxy);
     const auto cancellationInitialize =
         Mcp::makeInitializeRequest(legacyContext, QStringLiteral("cancel-init"));
-    const auto cancellationInitializeResult = send(
-        cancellationRequestManager, legacyRequest(cancellationEndpoint, false),
-        QJsonDocument(cancellationInitialize).toJson(QJsonDocument::Compact));
+    const auto cancellationInitializeResult =
+        send(cancellationRequestManager, legacyRequest(cancellationEndpoint, false),
+             QJsonDocument(cancellationInitialize).toJson(QJsonDocument::Compact));
     expect(cancellationInitializeResult.status == 200 &&
                !cancellationInitializeResult.sessionId.isEmpty(),
            QStringLiteral("the cancellation fixture must establish a legacy HTTP session"));
@@ -895,18 +920,18 @@ int main(int argc, char *argv[]) {
     expect(cancellationContextBlocked,
            QStringLiteral("the cancellation fixture must block the handler executor"));
 
-    const auto canceledCall = Mcp::makeRequest(
-        QString::fromLatin1(Mcp::ToolsCallMethod),
-        QJsonObject{
-            {QStringLiteral("name"),      QStringLiteral("mutating.test")},
-            {QStringLiteral("arguments"), QJsonObject{}                   },
-        },
-        legacyContext, QStringLiteral("cancel-before-dispatch"));
-    auto *canceledReply = startRequest(
-        cancellationRequestManager,
-        legacyRequest(cancellationEndpoint, true, Mcp::LegacyProtocolVersion,
-                      cancellationInitializeResult.sessionId),
-        QJsonDocument(canceledCall).toJson(QJsonDocument::Compact));
+    const auto canceledCall =
+        Mcp::makeRequest(QString::fromLatin1(Mcp::ToolsCallMethod),
+                         QJsonObject{
+                             {QStringLiteral("name"),      QStringLiteral("mutating.test")},
+                             {QStringLiteral("arguments"), QJsonObject{}                  },
+    },
+                         legacyContext, QStringLiteral("cancel-before-dispatch"));
+    auto *canceledReply =
+        startRequest(cancellationRequestManager,
+                     legacyRequest(cancellationEndpoint, true, Mcp::LegacyProtocolVersion,
+                                   cancellationInitializeResult.sessionId),
+                     QJsonDocument(canceledCall).toJson(QJsonDocument::Compact));
     QElapsedTimer admissionWait;
     admissionWait.start();
     while (admissionWait.elapsed() < 100) {
@@ -917,14 +942,14 @@ int main(int argc, char *argv[]) {
         QString::fromLatin1(Mcp::CancelledNotification),
         QJsonObject{
             {QStringLiteral("requestId"), QStringLiteral("cancel-before-dispatch")},
-            {QStringLiteral("reason"),    QStringLiteral("test cancellation")      },
-        },
+            {QStringLiteral("reason"),    QStringLiteral("test cancellation")     },
+    },
         legacyContext);
-    const auto cancellationResult = send(
-        cancellationNotificationManager,
-        legacyRequest(cancellationEndpoint, true, Mcp::LegacyProtocolVersion,
-                      cancellationInitializeResult.sessionId),
-        QJsonDocument(cancellationNotification).toJson(QJsonDocument::Compact));
+    const auto cancellationResult =
+        send(cancellationNotificationManager,
+             legacyRequest(cancellationEndpoint, true, Mcp::LegacyProtocolVersion,
+                           cancellationInitializeResult.sessionId),
+             QJsonDocument(cancellationNotification).toJson(QJsonDocument::Compact));
     const auto canceledResult = finishRequest(canceledReply, 2000);
     expect(cancellationResult.status == 202 && cancellationResult.body.isEmpty(),
            QStringLiteral("cancellation notifications must bypass a full request admission limit"));
