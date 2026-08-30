@@ -266,7 +266,7 @@ namespace {
         bool ok = true;
         auto edited = curve(0, {6100, 6200, 6300});
         Config config;
-        config.kind = Kind::ScalePitch;
+        config.kind = Kind::ModulatePitch;
         config.pitchBaselineAtTick = [](int) { return std::optional<double>(6000.0); };
         Session session;
         session.setSource({}, {&edited}, config);

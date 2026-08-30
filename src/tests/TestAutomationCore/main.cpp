@@ -881,7 +881,7 @@ int main(int argc, char *argv[]) {
     const auto editorPreview = runtime.facade().centerPianoRoll(guiPreviewContext, 1440.0, 72.0);
     const auto editorCenter = runtime.facade().centerPianoRoll(guiContext, 1440.0, 72.0);
     const auto editorMode =
-        runtime.facade().setPianoRollEditMode(guiContext, EditorViewGlobal::ScalePitch);
+        runtime.facade().setPianoRollEditMode(guiContext, EditorViewGlobal::ModulatePitch);
     const auto editorQuantize = runtime.facade().setPianoRollQuantize(guiContext, 24, true);
     const auto editorAutoPage = runtime.facade().setAutoPageTurn(
         guiContext, Automation::EditorAutoPageTarget::PianoRoll, false);
@@ -889,7 +889,7 @@ int main(int argc, char *argv[]) {
                      editorQuantize && editorAutoPage &&
                      editorViewState.pianoRoll.centerTick == 1440.0 &&
                      editorViewState.pianoRoll.centerKeyIndex == 72.0 &&
-                     editorViewState.pianoRoll.editMode == EditorViewGlobal::ScalePitch &&
+                     editorViewState.pianoRoll.editMode == EditorViewGlobal::ModulatePitch &&
                      editorStableState.pianoRollQuantize == 24 &&
                      !editorStableState.pianoRollAutoPageTurnEnabled,
                  "GUI editor commands must validate and route through the single window context");

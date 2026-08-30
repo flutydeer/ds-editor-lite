@@ -78,7 +78,7 @@ public:
     Button *m_btnNoteSplit = nullptr;
     Button *m_btnPitchPencil = nullptr;
     Button *m_btnPitchAnchor = nullptr;
-    Button *m_btnScalePitch = nullptr;
+    Button *m_btnPitchModulation = nullptr;
     Button *m_btnPitchEraser = nullptr;
     Button *m_btnPitchBake = nullptr;
 

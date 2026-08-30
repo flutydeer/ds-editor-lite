@@ -22,36 +22,36 @@ ParamEditToolBarView::ParamEditToolBarView(QWidget *parent) : QWidget(parent) {
 
     m_btnDraw =
         createEditModeButton("btnParamDraw", QStringLiteral(":/svg/icons/edit_24_filled.svg"));
+    m_btnErase =
+        createEditModeButton("btnParamErase", QStringLiteral(":/svg/icons/eraser_24_filled.svg"));
+    m_btnBake =
+        createEditModeButton("btnParamBake", QStringLiteral(":/svg/icons/brush_24_filled.svg"));
+    m_btnBake->setEnabled(false);
     m_btnShape = createEditModeButton("btnParamShape",
                                       QStringLiteral(":/svg/icons/param_shape_24_filled.svg"));
     m_btnScale = createEditModeButton("btnParamScale",
                                       QStringLiteral(":/svg/icons/param_scale_24_filled.svg"));
     m_btnShape->setEnabled(false);
     m_btnScale->setEnabled(false);
-    m_btnErase =
-        createEditModeButton("btnParamErase", QStringLiteral(":/svg/icons/eraser_24_filled.svg"));
-    m_btnBake =
-        createEditModeButton("btnParamBake", QStringLiteral(":/svg/icons/brush_24_filled.svg"));
-    m_btnBake->setEnabled(false);
     m_btnAnchor = createEditModeButton("btnParamAnchor",
                                        QStringLiteral(":/svg/icons/pitch_anchor_24_filled.svg"));
 
     m_editModeGroup = new QButtonGroup(this);
     m_editModeGroup->setExclusive(true);
     m_editModeGroup->addButton(m_btnDraw, static_cast<int>(ParamEditorEditMode::Draw));
-    m_editModeGroup->addButton(m_btnShape, static_cast<int>(ParamEditorEditMode::Shape));
-    m_editModeGroup->addButton(m_btnScale, static_cast<int>(ParamEditorEditMode::Scale));
     m_editModeGroup->addButton(m_btnErase, static_cast<int>(ParamEditorEditMode::Erase));
     m_editModeGroup->addButton(m_btnBake, static_cast<int>(ParamEditorEditMode::Bake));
+    m_editModeGroup->addButton(m_btnShape, static_cast<int>(ParamEditorEditMode::Shape));
+    m_editModeGroup->addButton(m_btnScale, static_cast<int>(ParamEditorEditMode::Scale));
     m_editModeGroup->addButton(m_btnAnchor, static_cast<int>(ParamEditorEditMode::Anchor));
     m_btnDraw->setChecked(true);
 
     auto *layout = new QHBoxLayout;
     layout->addWidget(m_btnDraw);
-    layout->addWidget(m_btnShape);
-    layout->addWidget(m_btnScale);
     layout->addWidget(m_btnErase);
     layout->addWidget(m_btnBake);
+    layout->addWidget(m_btnShape);
+    layout->addWidget(m_btnScale);
     layout->addWidget(m_btnAnchor);
     layout->setSpacing(4);
     layout->setContentsMargins({});

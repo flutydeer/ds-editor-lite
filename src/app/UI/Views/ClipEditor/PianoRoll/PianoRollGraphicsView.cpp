@@ -171,7 +171,7 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
     connect(appStatus, &AppStatus::noteSelectionChanged, d,
             &PianoRollGraphicsViewPrivate::onNoteSelectionChanged);
     connect(appModel, &AppModel::timelineChanged, this, [d] {
-        if (d->m_editMode != ScalePitch || !d->m_clip)
+        if (d->m_editMode != ModulatePitch || !d->m_clip)
             return;
         d->m_pitchTransformContext.invalidate();
         d->setPitchEditMode(true, false, false, true);
@@ -1147,7 +1147,7 @@ void PianoRollGraphicsView::setEditMode(const PianoRollEditMode mode) {
     } else if (mode == BakePitch) {
         setDragBehavior(DragBehavior::None);
         d->setPitchEditMode(true, false, true);
-    } else if (mode == ScalePitch) {
+    } else if (mode == ModulatePitch) {
         setDragBehavior(DragBehavior::None);
         d->setPitchEditMode(true, false, false, true);
     }
@@ -1199,7 +1199,7 @@ void PianoRollGraphicsViewPrivate::onNoteChanged(const SingingClip::NoteChangeTy
 
     m_selectionModel->updateOverlappedState();
     m_pitchTransformContext.invalidate();
-    if (m_editMode == ScalePitch)
+    if (m_editMode == ModulatePitch)
         setPitchEditMode(true, false, false, true);
 }
 
@@ -1428,7 +1428,7 @@ void PianoRollGraphicsViewPrivate::moveToSingingClipState(SingingClip *clip) {
     updatePitch(Param::Original, *m_clip->params.getParamByName(ParamInfo::Pitch));
     updatePitch(Param::Edited, *m_clip->params.getParamByName(ParamInfo::Pitch));
     m_pitchTransformContext.clear();
-    if (m_editMode == ScalePitch)
+    if (m_editMode == ModulatePitch)
         setPitchEditMode(true, false, false, true);
 
     connect(clip, &SingingClip::propertyChanged, this,
@@ -1486,7 +1486,7 @@ void PianoRollGraphicsViewPrivate::setPitchEditMode(const bool on, const bool is
     if (isScale && m_clip) {
         m_pitchTransformContext.rebuild(m_clip);
         m_pitchEditor->setCurveTransformMode(
-            CurveTransform::Kind::ScalePitch,
+            CurveTransform::Kind::ModulatePitch,
             [this](const int localTick) {
                 return appModel->tickToMs((m_clip ? m_clip->start() : 0) + localTick);
             },
@@ -1661,7 +1661,7 @@ void PianoRollGraphicsViewPrivate::onClipPropertyChanged() {
         updateNoteTimeAndKey(note);
     }
     m_pitchTransformContext.invalidate();
-    if (m_editMode == ScalePitch)
+    if (m_editMode == ModulatePitch)
         setPitchEditMode(true, false, false, true);
 }
 

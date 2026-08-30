@@ -1185,8 +1185,8 @@ Right drag: Erase</source>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="737"/>
-        <source>Scale pitch deviations from the smoothed note pitch curve</source>
-        <translation>缩放相对于平滑音符基准曲线的音高偏差</translation>
+        <source>Modulate pitch deviations from the smoothed note pitch curve</source>
+        <translation>调制相对于平滑音符基准曲线的音高偏差</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="172"/>
@@ -1203,8 +1203,8 @@ Right drag: Erase</source>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="176"/>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="736"/>
-        <source>Scale Pitch</source>
-        <translation>音高缩放</translation>
+        <source>Modulate Pitch</source>
+        <translation>调制音高</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="179"/>

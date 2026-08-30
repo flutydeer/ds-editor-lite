@@ -14,7 +14,7 @@ namespace CurveTransform {
     constexpr int SampleStep = 5;
     constexpr double DefaultShoulderMaximumMs = 60.0;
 
-    enum class Kind { Shape, Scale, ScalePitch };
+    enum class Kind { Shape, Scale, ModulatePitch };
     enum class Phase { Idle, Selecting, Adjusting, Transforming };
     enum class Boundary { None, C, A, B, D };
 

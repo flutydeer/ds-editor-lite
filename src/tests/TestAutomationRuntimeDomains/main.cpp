@@ -836,7 +836,7 @@ namespace {
              .invoke =
                     [](RuntimeHarness &harness, const auto &context) {
                         return harness.core().facade().setPianoRollEditMode(
-                            context, EditorViewGlobal::ScalePitch);
+                            context, EditorViewGlobal::ModulatePitch);
                     }, .invalid =
                     [](RuntimeHarness &harness, const auto &context) {
                         return harness.core().facade().setPianoRollEditMode(

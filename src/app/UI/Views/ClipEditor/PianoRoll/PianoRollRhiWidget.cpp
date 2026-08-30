@@ -1038,7 +1038,7 @@ public:
     }
 
     [[nodiscard]] bool pitchTransformEnabled() const {
-        return editMode == ScalePitch;
+        return editMode == ModulatePitch;
     }
 
     [[nodiscard]] bool pitchTransformActive() const {
@@ -1102,7 +1102,7 @@ public:
 
         pitchTransformContext.rebuild(clip);
         CurveTransform::Config config;
-        config.kind = CurveTransform::Kind::ScalePitch;
+        config.kind = CurveTransform::Kind::ModulatePitch;
         config.partitions = pitchTransformContext.partitions();
         const auto clipStart = clip->start();
         config.tickToMilliseconds = [clipStart](const int localTick) {
@@ -2925,7 +2925,7 @@ void PianoRollRhiWidget::setEditMode(const PianoRollEditMode mode) {
         }
     }
     d->editMode = mode;
-    if (mode == ScalePitch)
+    if (mode == ModulatePitch)
         d->reloadPitchTransformSource();
     d->scheduleSnapshot();
 }

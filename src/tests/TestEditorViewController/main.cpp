@@ -43,7 +43,7 @@ namespace {
                (state.layout.bottomPanelPageId == QStringLiteral("ClipEditor") ||
                 state.layout.bottomPanelPageId == QStringLiteral("MixConsole")) &&
                state.pianoRoll.editMode >= EditorViewGlobal::Select &&
-               state.pianoRoll.editMode <= EditorViewGlobal::ScalePitch &&
+               state.pianoRoll.editMode <= EditorViewGlobal::ModulatePitch &&
                finite(state.trackPanel.centerTick) && finite(state.trackPanel.centerTrackIndex) &&
                finite(state.trackPanel.horizontalScale) && finite(state.trackPanel.verticalScale) &&
                state.trackPanel.horizontalScale > 0 && state.trackPanel.verticalScale > 0 &&
@@ -136,7 +136,7 @@ namespace {
         }
 
         bool setPianoRollEditMode(const EditorViewGlobal::PianoRollEditMode mode) override {
-            if (mode < EditorViewGlobal::Select || mode > EditorViewGlobal::ScalePitch)
+            if (mode < EditorViewGlobal::Select || mode > EditorViewGlobal::ModulatePitch)
                 return false;
             state.pianoRoll.editMode = mode;
             return true;
@@ -281,7 +281,7 @@ namespace {
                "stable bottom page IDs must be forwarded");
         expect(controller->centerPianoRollAt(1440, 72.5), "piano-roll centering must be forwarded");
         expect(controller->setPianoRollScale(1.25, 2.25), "piano-roll scaling must be forwarded");
-        expect(controller->setPianoRollEditMode(EditorViewGlobal::ScalePitch),
+        expect(controller->setPianoRollEditMode(EditorViewGlobal::ModulatePitch),
                "tool switching must be forwarded");
         controller->refreshActiveClipTrackPresentation();
         controller->previewActiveClipTrackColor(7);
@@ -308,7 +308,7 @@ namespace {
                "piano-roll semantic center must reach the view");
         expect(view.state.pianoRoll.horizontalScale == 1.25 &&
                    view.state.pianoRoll.verticalScale == 2.25 &&
-                   view.state.pianoRoll.editMode == EditorViewGlobal::ScalePitch,
+                   view.state.pianoRoll.editMode == EditorViewGlobal::ModulatePitch,
                "piano-roll scale and tool must reach the view");
         expect(view.refreshCount == 1 && view.previewCount == 1 && view.previewColorIndex == 7,
                "track presentation operations must be forwarded");
