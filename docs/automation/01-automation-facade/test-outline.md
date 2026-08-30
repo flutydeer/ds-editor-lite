@@ -145,7 +145,8 @@ Command 的共享所有者层按参数形状和状态转换覆盖：
   DocumentId、目标 clip revision 或输入签名变化仍稳定丢弃；短音符立即撤销后不残留
   空推理分段或红色失败状态；
 - 复制/粘贴、导入、undo/redo 后 edited parameters、语言、声线和音素保真；
-- 文件名大小写、Unicode、只读目录、已存在文件、临时文件清理和磁盘失败；
+- 文件名大小写、Unicode、只读目录、已存在文件、临时文件清理和磁盘失败；音频导入快照完成后
+  同路径源文件换内容必须在最终摘要复核中被拒绝；
 - `OperationIds::all()`、Dispatcher 可达路径和行为集合不一致或存在重复 operation ID；
 - 关键边界的编译期与行为回归，不以源码文本扫描或 Descriptor 镜像替代。
 

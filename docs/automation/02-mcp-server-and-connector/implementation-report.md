@@ -164,7 +164,8 @@ Closed World Command，不提供 `force`、`validate_only`、幂等键或任意�
 文档打开、导入和批量导入复用 Project Format Registry 与 `IProjectLoadSession`。自动化 host adapter 使用 `interactive=false` 创建 headless session，格式选项由严格 Schema 提供，不打开配置对话框；Task 保留文档 generation 和调用者归因，最终通过 Document Facade 完成换代或单条历史记录导入。
 
 音频导入、重定位和路径确认在一次顺序读取中同时生成 SHA-512 与临时文件快照，随后只解码该快照；
-提交仍记录原始授权路径，但摘要与解码结果必定来自同一组字节。临时快照随准备任务结束清理，不进入工程。
+音频导入在解码完成后于后台重算原始路径的摘要，只有源文件仍与快照一致才进入提交。提交记录原始
+授权路径，摘要、解码结果与提交时源内容保持一致；临时快照随准备任务结束清理，不进入工程。
 
 MIDI 路径拆为可复用的两段：
 
@@ -323,7 +324,7 @@ CLI override 只影响本次运行，并在设置页显示来源，不改写持�
 - Automation 设置持久化、CLI override、端口、配置 JSON、Custom 领域分组与中文界面。
 
 最终候选在 Visual Studio 2026 v18.9.0、Qt 6.11.2 环境中通过标准 preset
-`ConfigureAndBuild` 和 `all` target，完整 CTest 为 62/62（42.63 s）。Editor 177 项、Connector
+`ConfigureAndBuild` 和 `all` target，完整 CTest 为 62/62（42.62 s）。Editor 177 项、Connector
 6 项、24 个业务域、L3 45 项和内部 208 个 Operation ID 为当前产品快照；契约集合关系、共享不变量和领域独特语义的确定性覆盖通过；2025-11-25 下游
 握手、2026-07-28 上游连接、真实编辑联调、Computer Use GUI、配置恢复和只读素材完整性均通过。
 生命周期增量联调还确认 dirty 默认拒绝无弹窗、显式丢弃重启后 instance ID 变化且 Connector

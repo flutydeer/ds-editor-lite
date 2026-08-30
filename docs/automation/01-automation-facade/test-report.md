@@ -15,7 +15,7 @@
 | Debug configure/generate | 项目标准 preset `ConfigureAndBuild` 通过 |
 | Debug 全目标构建 | `all` target 通过 |
 | 注册 CTest | 62 项 |
-| 一次完整 CTest | 62/62 通过，42.63 s |
+| 一次完整 CTest | 62/62 通过，42.62 s |
 | Qt/进程异常 | 定向回归 7/7 通过，15.54 s；最终无遗留异常或无人值守弹窗 |
 
 测试使用项目标准 preset wrapper。Qt 组件测试显式配置可用的 offscreen platform plugin 路径。
@@ -45,7 +45,7 @@ opt-in 幂等均通过完整 CTest；测试不再为每个 Operation 复制同�
 - 每个文档 generation 与应用级作用域的活动任务保留、最近 128 项终态历史的独立有界淘汰；
 - cancel/commit、对象删除、revision 前进、文档换代与晚到写回竞态；
 - MIDI 渲染期取消、generation 淘汰，以及 MIDI/音频拒绝覆盖的排他最终发布与失败回滚；
-- 音频哈希与导入解码共享同一字节快照，源路径后续变化不改变已准备内容的摘要；
+- 音频哈希与导入解码共享同一字节快照，提交前的后台摘要复核会拒绝同路径源文件换内容；
 - 轨道、片段、音符、参数、Speaker Mix、时间轴、播放、设置、文件和推理领域行为。
 
 一致性与竞态实测结果：**通过**。幂等重放按工具显式能力生效；真实联调中的陈旧 revision
