@@ -202,9 +202,10 @@ HTTP 层实施：
 - 全局最多 32 个在途请求；超限立即拒绝，不排队；
 - legacy session 最多保留 128 个，超限按建立顺序淘汰；客户端可携带 session 与协议 header
   通过 DELETE 主动结束会话；
-- legacy session、Connector instance metadata 与现代 client info 分别提供连接无关的客户端身份；
-  `notifications/cancelled` 可跨 HTTP 连接取消尚未分派的请求，重复身份与 request ID 产生歧义时
-  不猜测目标；
+- legacy session 与 Connector instance metadata 提供连接无关的客户端身份；Connector 的每个
+  上游请求都携带稳定实例 ID，使 `notifications/cancelled` 可跨 HTTP 连接取消尚未分派的请求；
+  未携带显式实例 ID 的现代直连客户端按 TCP 连接隔离，不能仅凭相同 client info 合并；重复身份与
+  request ID 产生歧义时不猜测目标；
 - 安全响应头与稳定 transport error；
 - 有序停止、在途请求完成或超时、配额可靠释放。
 

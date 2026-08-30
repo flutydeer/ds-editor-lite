@@ -200,8 +200,9 @@ Registry、Editor 发现面与 Contract 集合关系精确；公共 Schema 全�
    计数释放；同时发出 32 个请求应全部进入，第 33 个在途请求应被拒绝且不排队。
 9. 验证 legacy session 的 128 项上限、最旧会话淘汰，以及 DELETE 正常结束、重复结束、未知
    session 和协议版本不符。
-10. 分别验证 legacy session、Connector metadata 和现代 client info 的连接无关身份；使用两条
-    HTTP 连接发送现代排队请求与取消通知，确认请求不进入 handler。
+10. 验证 legacy session 与 Connector metadata 的连接无关身份；使用两条 HTTP 连接发送带同一
+    Connector instance ID 的现代排队请求与取消通知，确认请求不进入 handler；另验证未携带实例
+    ID 且 client info 相同的独立直连客户端仍按连接隔离。
 
 ### 门禁
 

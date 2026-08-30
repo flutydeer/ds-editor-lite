@@ -187,7 +187,9 @@ Connector 桥接工具：6
 - 输出文件尚未创建时按最近存在父目录授权。
 - authorize 与实际 I/O 前 reauthorize；根配置变化、目标变化和链接重定向被识别。
 - 单文件和 batch 路径全部通过同一 Guard，类型化与泛化调用结果一致。
-- overwrite、只读、父目录、权限、磁盘和失败清理覆盖。
+- overwrite、只读、父目录、权限、磁盘和失败清理覆盖；MIDI 拒绝覆盖使用排他创建，覆盖检查后
+  出现的同名目标仍保留原内容。
+- MIDI 渲染期间取消与 document generation 淘汰均在最终发布门前生效，不创建目标文件。
 
 ### 7.2 Admission
 
@@ -215,8 +217,9 @@ Connector 桥接工具：6
 - POST 承载 request/notification 且 notification 返回 202；legacy session 可由带 session 与协议 header
   的 DELETE 结束，缺失/重复 header、版本不符、未知或重复结束均返回稳定状态。
 - legacy session 最多保留 128 个，超限只淘汰最早建立的会话。
-- legacy session、Connector metadata 与现代 client info 的身份跨连接稳定；请求与取消通知使用
-  不同 HTTP 连接时仍能取消排队请求。
+- legacy session 与 Connector metadata 的身份跨连接稳定；Connector 请求与取消通知使用不同
+  HTTP 连接时仍能取消排队请求。无显式实例 ID 的现代直连客户端按连接隔离，相同 client info
+  不得造成跨客户端取消。
 - 单消息、非法 JSON、数组/batch、错误 id、超大 body、深度、节点、响应体和 deadline。
 - listener 仅为 `127.0.0.1`；Host、Origin、DNS rebinding、CORS 与远端地址拒绝矩阵。
 - shutdown 先停止 admission，再结束在途请求并释放端口。
