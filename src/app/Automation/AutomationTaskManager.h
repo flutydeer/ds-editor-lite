@@ -5,6 +5,7 @@
 
 #include <QHash>
 #include <QJsonObject>
+#include <QList>
 #include <QMutex>
 
 #include <functional>
@@ -69,6 +70,8 @@ namespace Automation {
 
     class AutomationTaskManager final {
     public:
+        static constexpr qsizetype MaximumRetainedApplicationTasks = 128;
+
         using CancelCallback = std::function<void()>;
         using UnsuccessfulCallback = std::function<void(const AutomationTaskSnapshot &)>;
         using TerminalCallback = std::function<void(const AutomationTaskSnapshot &)>;
@@ -106,8 +109,7 @@ namespace Automation {
         bool succeedApplication(const TaskId &taskId, QJsonObject result);
         bool fail(const TaskId &taskId, AutomationError error,
                   std::optional<MutationResult> mutation = std::nullopt);
-        bool cancel(const TaskId &taskId,
-                    std::optional<MutationResult> mutation = std::nullopt);
+        bool cancel(const TaskId &taskId, std::optional<MutationResult> mutation = std::nullopt);
         [[nodiscard]] bool isCancellationRequested(const TaskId &taskId) const;
 
         void discardDocumentGeneration(const DocumentId &documentId);
@@ -126,12 +128,14 @@ namespace Automation {
 
         static bool isTerminal(AutomationTaskState state);
         static AutomationError notCancelable(const TaskId &taskId);
+        void retainTerminalApplicationLocked(const TaskId &taskId);
         AutomationResult<AutomationTaskSnapshot> findLocked(const DocumentId &documentId,
                                                             const TaskId &taskId) const;
         AutomationResult<AutomationTaskSnapshot> findApplicationLocked(const TaskId &taskId) const;
 
         mutable QMutex m_mutex;
         QHash<TaskId, Record> m_records;
+        QList<TaskId> m_terminalApplicationOrder;
     };
 
 } // namespace Automation

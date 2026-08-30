@@ -186,8 +186,8 @@ namespace Automation {
     }
 
     AutomationResult<bool>
-        AutomationTaskManager::beginCommitting(
-            const TaskId &taskId, std::optional<MutationResult> unsuccessfulMutation) {
+        AutomationTaskManager::beginCommitting(const TaskId &taskId,
+                                               std::optional<MutationResult> unsuccessfulMutation) {
         UnsuccessfulCallback unsuccessful;
         TerminalCallback terminal;
         std::optional<AutomationTaskSnapshot> snapshot;
@@ -203,6 +203,8 @@ namespace Automation {
                 unsuccessful = std::move(it->unsuccessful);
                 terminal = std::move(it->terminal);
                 snapshot = it->snapshot;
+                if (it->snapshot.scope == AutomationTaskScope::Application)
+                    retainTerminalApplicationLocked(taskId);
             } else {
                 if (it->snapshot.state != AutomationTaskState::Queued &&
                     it->snapshot.state != AutomationTaskState::Running) {
@@ -281,6 +283,7 @@ namespace Automation {
             it->unsuccessful = {};
             terminal = std::move(it->terminal);
             snapshot = it->snapshot;
+            retainTerminalApplicationLocked(taskId);
         }
         if (terminal)
             terminal(snapshot);
@@ -304,6 +307,8 @@ namespace Automation {
             unsuccessful = std::move(it->unsuccessful);
             terminal = std::move(it->terminal);
             snapshot = it->snapshot;
+            if (it->snapshot.scope == AutomationTaskScope::Application)
+                retainTerminalApplicationLocked(taskId);
         }
         if (unsuccessful)
             unsuccessful(snapshot);
@@ -330,6 +335,8 @@ namespace Automation {
             unsuccessful = std::move(it->unsuccessful);
             terminal = std::move(it->terminal);
             snapshot = it->snapshot;
+            if (it->snapshot.scope == AutomationTaskScope::Application)
+                retainTerminalApplicationLocked(taskId);
         }
         if (unsuccessful)
             unsuccessful(snapshot);
@@ -415,6 +422,12 @@ namespace Automation {
         error.taskId = taskId;
         error.message = QStringLiteral("Automation task can no longer be canceled");
         return error;
+    }
+
+    void AutomationTaskManager::retainTerminalApplicationLocked(const TaskId &taskId) {
+        m_terminalApplicationOrder.append(taskId);
+        while (m_terminalApplicationOrder.size() > MaximumRetainedApplicationTasks)
+            m_records.remove(m_terminalApplicationOrder.takeFirst());
     }
 
     AutomationResult<AutomationTaskSnapshot>

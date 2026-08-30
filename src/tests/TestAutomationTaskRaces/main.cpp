@@ -143,10 +143,10 @@ namespace {
                    succeeded.get().mutation == mutation,
                "the first successful terminal payload must remain authoritative");
 
-        const auto failedTask =
-            tasks.createTask(Automation::OperationIds::inference::start, base);
-        EXPECT(checks, tasks.markRunning(failedTask.taskId) &&
-                           tasks.fail(failedTask.taskId, Automation::AutomationError{}, mutation),
+        const auto failedTask = tasks.createTask(Automation::OperationIds::inference::start, base);
+        EXPECT(checks,
+               tasks.markRunning(failedTask.taskId) &&
+                   tasks.fail(failedTask.taskId, Automation::AutomationError{}, mutation),
                "a failed task must accept a partial mutation payload");
         const auto failed = tasks.get(base.documentId, failedTask.taskId);
         EXPECT(checks,
@@ -156,14 +156,14 @@ namespace {
 
         const auto canceledTask =
             tasks.createTask(Automation::OperationIds::inference::start, base);
-        EXPECT(checks, tasks.markRunning(canceledTask.taskId) &&
-                           tasks.cancel(canceledTask.taskId, mutation),
+        EXPECT(checks,
+               tasks.markRunning(canceledTask.taskId) &&
+                   tasks.cancel(canceledTask.taskId, mutation),
                "a canceled task must accept a partial mutation payload");
         const auto canceledWithMutation = tasks.get(base.documentId, canceledTask.taskId);
         EXPECT(checks,
                canceledWithMutation &&
-                   canceledWithMutation.get().state ==
-                       Automation::AutomationTaskState::Canceled &&
+                   canceledWithMutation.get().state == Automation::AutomationTaskState::Canceled &&
                    canceledWithMutation.get().mutation == mutation,
                "a canceled task must retain its reported partial mutation");
 
@@ -226,6 +226,34 @@ namespace {
                    succeeded.get().applicationResult &&
                    succeeded.get().applicationResult->value(QStringLiteral("added")).toInt() == 2,
                "document generation cleanup must not discard application task results");
+
+        Automation::AutomationTaskManager retainedTasks;
+        const auto active = retainedTasks.createApplicationTask(QStringLiteral("packages.refresh"));
+        EXPECT(checks, retainedTasks.markRunning(active.taskId),
+               "the retained-history fixture must keep one active application task");
+        QList<Automation::TaskId> terminalIds;
+        for (qsizetype index = 0;
+             index <= Automation::AutomationTaskManager::MaximumRetainedApplicationTasks; ++index) {
+            const auto terminal =
+                retainedTasks.createApplicationTask(QStringLiteral("packages.refresh"));
+            terminalIds.append(terminal.taskId);
+            const auto enteredCommit = retainedTasks.beginCommitting(terminal.taskId);
+            EXPECT(checks,
+                   enteredCommit && enteredCommit.get() &&
+                       retainedTasks.succeedApplication(
+                           terminal.taskId,
+                           QJsonObject{
+                               {QStringLiteral("sequence"), static_cast<qint64>(index)}
+            }),
+                   "application history fixture tasks must reach a terminal state");
+        }
+        EXPECT(checks,
+               retainedTasks.listApplication().size() ==
+                       Automation::AutomationTaskManager::MaximumRetainedApplicationTasks + 1 &&
+                   !retainedTasks.getApplication(terminalIds.first()) &&
+                   retainedTasks.getApplication(terminalIds.last()) &&
+                   retainedTasks.getApplication(active.taskId),
+               "terminal application history must be bounded without evicting active tasks");
     }
 
     struct CancelRaceOutcome {
