@@ -241,7 +241,7 @@ Wire 和 Editor MCP 同时实现两套主协议：
 
 同一 legacy 入口接受客户端以 **2025-06-18** 发起握手，回显协商版本并完成 initialize/initialized 生命周期。2026-07-28 请求使用 `MCP-Protocol-Version`、`Mcp-Method`，`tools/call` 还校验 `Mcp-Name`；协议版本决定现代或 legacy 的结果塑形、server metadata 与 structured content 表达。
 
-`McpHttpServer` 仅监听数值 loopback 地址，固定路由为 `/mcp`。POST 承载请求与 notification，legacy 客户端可用带 session 与协议 header 的 DELETE 主动结束会话；服务端最多保留 128 个 legacy session，超限淘汰最早建立者。Legacy session 和 Connector 显式 instance metadata 形成连接无关的客户端身份；Connector 在所有现代上游请求中携带同一个实例 ID，因此 `notifications/cancelled` 可以从另一条 HTTP 连接取消尚未分派的请求。未携带实例 ID 的现代直连客户端按 TCP 连接隔离，相同 client info 不会把不同客户端合并；若同一身份与 request ID 同时匹配多个请求，则拒绝猜测。Transport 校验本机地址、Host、Origin、method、Content-Type、Accept、请求元数据、JSON 资源上限、请求/响应大小和 deadline；notification 接受后返回 HTTP 202。有序停止先关闭 admission，再等待或终止在途工作并释放 listener 与会话。
+`McpHttpServer` 仅监听数值 loopback 地址，固定路由为 `/mcp`。POST 承载请求与 notification，除 `initialize` 外的每个 legacy 请求都必须携带并命中存活 session；legacy 客户端可用带 session 与协议 header 的 DELETE 主动结束会话，服务端最多保留 128 个 legacy session，超限淘汰最早建立者。Legacy session 和 Connector 显式 instance metadata 形成连接无关的客户端身份；Connector 在所有现代上游请求中携带同一个实例 ID，因此 `notifications/cancelled` 可以从另一条 HTTP 连接取消尚未分派的请求。未携带实例 ID 的现代直连客户端按 TCP 连接隔离，相同 client info 不会把不同客户端合并；若同一身份与 request ID 同时匹配多个请求，则拒绝猜测。Transport 校验本机地址、Host、Origin、method、Content-Type、Accept、请求元数据、JSON 资源上限、请求/响应大小和 deadline；notification 接受后返回 HTTP 202。有序停止先关闭 admission，再等待或终止在途工作并释放 listener 与会话。
 
 ## 9. QLocal Bootstrap 与 DS Connector Lite
 
@@ -328,7 +328,7 @@ CLI override 只影响本次运行，并在设置页显示来源，不改写持�
 - Automation 设置持久化、CLI override、端口、配置 JSON、Custom 领域分组与中文界面。
 
 最终候选在 Visual Studio 2026 v18.9.0、Qt 6.11.2 环境中通过标准 preset
-`ConfigureAndBuild` 和 `all` target，完整 CTest 为 62/62（45.14 s）。Editor 177 项、Connector
+`ConfigureAndBuild` 和 `all` target，完整 CTest 为 62/62（42.76 s）。Editor 177 项、Connector
 6 项、24 个业务域、L3 45 项和内部 208 个 Operation ID 为当前产品快照；契约集合关系、共享不变量和领域独特语义的确定性覆盖通过；2025-11-25 下游
 握手、2026-07-28 上游连接、真实编辑联调、Computer Use GUI、配置恢复和只读素材完整性均通过。
 生命周期增量联调还确认 dirty 默认拒绝无弹窗、显式丢弃重启后 instance ID 变化且 Connector

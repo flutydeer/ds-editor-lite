@@ -200,8 +200,9 @@ HTTP 层实施：
 - POST/DELETE、Content-Type 与 Accept 校验；
 - 请求/响应字节、JSON 深度/节点和 deadline 上限；
 - 全局最多 32 个在途请求；超限立即拒绝，不排队；
-- legacy session 最多保留 128 个，超限按建立顺序淘汰；客户端可携带 session 与协议 header
-  通过 DELETE 主动结束会话；
+- legacy session 最多保留 128 个，超限按建立顺序淘汰；除 `initialize` 外的每个 legacy request
+  和 notification 都必须携带存活 session，客户端可携带 session 与协议 header 通过 DELETE
+  主动结束会话；
 - legacy session 与 Connector instance metadata 提供连接无关的客户端身份；Connector 的每个
   上游请求都携带稳定实例 ID，使 `notifications/cancelled` 可跨 HTTP 连接取消尚未分派的请求；
   未携带显式实例 ID 的现代直连客户端按 TCP 连接隔离，不能仅凭相同 client info 合并；重复身份与

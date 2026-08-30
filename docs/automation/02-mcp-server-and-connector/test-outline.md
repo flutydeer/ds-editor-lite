@@ -226,6 +226,8 @@ Connector 桥接工具：6
 - header Base64 sentinel、Unicode、控制符、前后空格、重复 header 和大小写规则。
 - POST 承载 request/notification 且 notification 返回 202；legacy session 可由带 session 与协议 header
   的 DELETE 结束，缺失/重复 header、版本不符、未知或重复结束均返回稳定状态。
+- 除 `initialize` 外，2025-11-25/2025-06-18 request 与 notification 缺失 session、使用未知、已淘汰
+  或已结束 session 时不得进入 handler；存活 session 正常闭环。
 - legacy session 最多保留 128 个，超限只淘汰最早建立的会话。
 - legacy session 与 Connector metadata 的身份跨连接稳定；Connector 请求与取消通知使用不同
   HTTP 连接时仍能取消排队请求。无显式实例 ID 的现代直连客户端按连接隔离，相同 client info

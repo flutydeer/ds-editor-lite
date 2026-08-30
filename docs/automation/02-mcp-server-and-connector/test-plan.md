@@ -207,8 +207,8 @@ Registry、Editor 发现面与 Contract 集合关系精确；公共 Schema 全�
 7. 验证 Host、Origin、method、Content-Type、Accept、body/depth/node/response 上限和 deadline。
 8. 验证 global 32 路硬上限、background 8 路容量、timeout、disable、换端口和 shutdown
    计数释放；同时发出 32 个请求应全部进入，第 33 个在途请求应被拒绝且不排队。
-9. 验证 legacy session 的 128 项上限、最旧会话淘汰，以及 DELETE 正常结束、重复结束、未知
-   session 和协议版本不符。
+9. 验证除 `initialize` 外的 legacy 请求必须携带存活 session；覆盖缺失、未知、已淘汰和已结束
+   session，以及 128 项上限、最旧会话淘汰、DELETE 正常结束、重复结束和协议版本不符。
 10. 验证 legacy session 与 Connector metadata 的连接无关身份；使用两条 HTTP 连接发送带同一
     Connector instance ID 的现代排队请求与取消通知，确认请求不进入 handler；另验证未携带实例
     ID 且 client info 相同的独立直连客户端仍按连接隔离。
