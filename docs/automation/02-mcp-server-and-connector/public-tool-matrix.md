@@ -149,10 +149,11 @@
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
-| `voices.list` | L1 | Q/S | 列出包含 package ID、package version 与 singer ID 的完整 SingerRef、显示信息、筛选与分页 |
-| `voices.describe` | L1 | Q/S | 按完整 SingerRef 精确描述特定并存版本的说话人、语言、G2P、默认值与混合能力 |
+| `voices.list` | L1 | Q/S | 列出包含 package ID、package version 与 singer ID 的完整 SingerRef；`name` 保持语言无关默认文本，`display_name` 按 Editor 当前 UI 语言解析；筛选匹配 ID、默认名称与全部本地化名称，并支持分页 |
+| `voices.describe` | L1 | Q/S | 按完整 SingerRef 精确描述特定并存版本；Singer、Speaker 与 Language 均返回默认 `name`、当前 UI 的 `display_name` 和完整 `localized_names`，并包含 G2P、默认值与混合能力 |
 
 声库域只负责列出可用声库和描述特定声库；应用 voice 的命令分别保留在轨道域和剪辑域。L1/L2 的发现、动态候选、设置与回读均使用版本完整的 SingerRef，不依赖 L3 包信息域。
+本地化显示只影响展示与名称筛选，不参与 SingerRef、SpeakerRef 或 LanguageSelection 的稳定身份。
 
 ### 3.9 Speaker Mix（13）
 
@@ -346,8 +347,8 @@
 
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
-| `packages.list` | L3 | Q/S | 列出包、版本、供应方、受读取根约束的 canonical path 与声库摘要 |
-| `packages.describe` | L3 | Q/S | 返回指定包元数据、许可、说明与声库明细 |
+| `packages.list` | L3 | Q/S | 列出包 ID、版本、默认 `vendor`、当前 UI 的 `display_vendor`、受读取根约束的 canonical path 与含默认/显示名称的声库摘要；筛选匹配包 ID、供应方和声库的全部本地化名称 |
+| `packages.describe` | L3 | Q/S | 返回指定包的默认值、当前 UI 显示值及 vendor/description/license 的完整本地化表，并返回声库明细；包模型没有独立可本地化名称，不伪造重复 package ID 的 `name` |
 | `packages.refresh` | L3 | C/A | 使用当前 effective 搜索路径后台扫描，完成后原子切换索引；前序提交被拒绝时等待调用重新扫描 |
 
 `packages.refresh` 创建 application-scoped Task；不伪造 `document_id`，也不参与工程 revision 或历史记录。

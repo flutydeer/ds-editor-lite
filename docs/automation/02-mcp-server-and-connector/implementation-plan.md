@@ -32,7 +32,7 @@ Agent 会话可先于 Editor 启动。Connector 通过全局实例 Bootstrap 观
 - 工具调用依赖显式 document/object 参数，业务结果不依赖 UI selection 或 focus。
 - 可能随工程规模增长的 L1 查询必须提供范围、分页或固定上限；参数采样允许确定性降采样并报告原始/返回规模，锚点身份和拓扑不得静默丢失；局部音符转移只采样与所选音符相交的锚点区间，并受公共曲线点数上限约束。
 - GUI Editor 的领域默认值由服务端按同源规则解析；`notes.insert` 不要求 voice context，description 说明对应 GUI 动作、默认值、历史记录、文件和任务语义。
-- voice selection 以 `{package_id, package_version, singer_id}` 组成的 singer 稳定引用；相同 package/singer ID 的并存版本必须精确区分，L1/L2 调用方可直接从 `voices.list/describe` 完成发现和选择，不依赖 L3 `packages.*`。speaker 可省略或为 `null`；零 speaker 声库保持空 speaker，单 speaker 声库自动解析唯一 speaker，多 speaker 声库要求显式选择；查询结果以 `speaker: null` 表达空 speaker。
+- voice selection 以 `{package_id, package_version, singer_id}` 组成的 singer 稳定引用；相同 package/singer ID 的并存版本必须精确区分，L1/L2 调用方可直接从 `voices.list/describe` 完成发现和选择，不依赖 L3 `packages.*`。speaker 可省略或为 `null`；零 speaker 声库保持空 speaker，单 speaker 声库自动解析唯一 speaker，多 speaker 声库要求显式选择；查询结果以 `speaker: null` 表达空 speaker。声库元数据中的 `name` 保持清单默认文本，`display_name` 使用 Editor 当前 UI 语言并复用宿主统一的 BCP 47 匹配；列表查询同时匹配稳定 ID、默认文本和全部本地化文本，详情返回完整本地化表。
 - 同步 Command 在模型信号、历史记录与 revision 提交完成后返回；异步 Command 在最终写回与信号完成后进入成功终态。
 - 自动化路径使用显式策略与稳定错误，不触发模态对话框。
 - GUI 进阶控制以工作区、轨道面板和剪辑编辑器归域；钢琴与参数子区域共享时间视口，选择与焦点事实归入所属面板域。选择、定位和区域显示以表示状态完成为成功边界，键盘焦点只作尽力获取。

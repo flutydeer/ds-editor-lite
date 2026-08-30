@@ -102,7 +102,7 @@ revision。L3 的选择、定位、面板和视口命令不修改工程，也不
 | `track_panel` | 7 | 契约、确定性测试与后台窗口 GUI 代表路径通过 |
 | `clip_editor` | 16 | 契约、确定性测试与后台窗口 GUI 代表路径通过 |
 | `settings` | 9 | 契约与确定性测试通过 |
-| `packages` | 3 | 契约与确定性测试通过 |
+| `packages` | 3 | 契约、默认/显示/本地化文本投影与别名筛选测试通过 |
 | `lyric_rules` | 7 | 契约与确定性测试通过 |
 | L3 合计 | 44 | 契约覆盖、区域激活与尽力焦点代表路径通过 |
 
@@ -112,6 +112,8 @@ revision。L3 的选择、定位、面板和视口命令不修改工程，也不
 `track_panel.select_track` 在 `focused=false` 时仍成功并可回读选中轨道，`reveal_clips` 与
 `clip_editor.show_region` 同样不因操作系统未授予键盘焦点而报错。
 `clips.insert` 省略长度时的四小节推导使用宽整数；tick 上界输入稳定返回参数错误且不推进 revision。
+声库与包信息的确定性测试确认默认文本保持语言无关，显示文本跟随 Editor 当前 UI 语言，详情保留
+完整翻译表；列表筛选可命中非默认语言别名，稳定 ID 与版本引用不受显示语言影响。
 
 ## 6. Editor、Connector 与协议
 
@@ -124,7 +126,7 @@ revision。L3 的选择、定位、面板和视口命令不修改工程，也不
 | `editor.tools.list` | 摘要分页与确定性契约测试通过 |
 | `editor.tools.search` | 摘要搜索与确定性契约测试通过 |
 | `editor.tools.describe` | 完整 descriptor 与 Schema 契约测试通过 |
-| `editor.tools.invoke` | 真实调用 `clips.get` 通过；生命周期目标的 exposure 与转发由确定性测试覆盖 |
+| `editor.tools.invoke` | 真实调用 `clips.get`、`voices.list/describe` 与 `packages.describe` 通过；生命周期目标的 exposure 与转发由确定性测试覆盖 |
 
 Bootstrap 错误分类回归通过：不存在 Editor 引导端点时，Connector 在超过旧首包计时窗口后仍
 稳定报告 `editor_not_running`；`bootstrap_timeout` 只覆盖 watch 请求成功写入后 2 秒内未收到
@@ -165,7 +167,9 @@ broken pipe、重连和旧 epoch 隔离。Connector 常规握手分页读取 `to
 2026-07-28 连接 Editor 上游；自动化协议兼容路径通过完整 CTest。真实会话通过
 `package_id + package_version + singer_id` 精确选择同 ID 多版本声库中的目标版本，随后完成
 `tracks.set_voice`、`clips.insert`、`notes.insert`、`tracks.get`、`clips.get` 和
-`editor.tools.invoke(clips.get)`；合并后的两个 get 工具均返回有效 voice context。
+`editor.tools.invoke(clips.get)`；合并后的两个 get 工具均返回有效 voice context。泛化调用还确认
+`voices.list` 能以本地化别名筛选并同时返回默认 `name` 与当前 UI 的 `display_name`，
+`voices.describe` 和 `packages.describe` 返回默认文本、显示文本及完整本地化表。
 
 生命周期真实联调另以隔离配置完成：Connector 工具面为 182 项；dirty 工程对默认 exit 与
 restart 均返回 `busy + field_path=discard_changes`，Editor 继续运行；显式丢弃的 restart 在

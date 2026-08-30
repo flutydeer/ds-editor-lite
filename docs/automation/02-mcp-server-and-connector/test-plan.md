@@ -174,7 +174,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 18. 验证拍号新增、替换和删除后的完整时间线投影使用宽整数校验；删除中间拍号会使后续
     拍号 tick 超出模型范围时，validate-only 与实际提交均原子拒绝。
 19. 对 settings.query 与设置更新的公共 allowlist、domain 过滤、候选/生效/重启信息、稀疏更新、持久化和失败回滚进行分形状代表覆盖；包搜索路径只允许查询，validate-only 只覆盖音频设备和计算设备更新，其他设置 update 必须拒绝该字段。
-20. 对 packages.list/describe/refresh 验证读取根内路径、有效搜索路径、application task 的成功/取消/部分失败，以及索引原子切换；验证领先刷新在提交门被拒绝时，并发等待调用重新扫描而不返回陈旧索引。
+20. 对 voices.list/describe 与 packages.list/describe 验证语言无关默认名称、当前 UI 显示名称、完整本地化表及本地化别名筛选；对 packages.list/describe/refresh 验证读取根内路径、有效搜索路径、application task 的成功/取消/部分失败，以及索引原子切换；验证领先刷新在提交门被拒绝时，并发等待调用重新扫描而不返回陈旧索引。
 21. 对 lyric_rules 验证稳定 ID 迁移、内置/自定义边界、CRUD、启停、分类内移动、非法规则回滚和 splitter→tagger 只读测试。
 22. 验证音频导入、重定位和路径确认的 SHA-512 与解码结果来自同一次读取形成的临时快照；后台
     任务不重复读取或哈希原路径，提交前只复核文档 generation、revision 和目标对象。分别验证每个
