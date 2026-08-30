@@ -22,7 +22,7 @@ L3 downstream 为 177 个 Editor wrapper 加 6 个桥接工具，共 183 项。�
 | 平台与工具链 | Visual Studio 2026 v18.9.0；Qt 6.11.2 |
 | Debug 配置与构建 | 标准 preset `ConfigureAndBuild` 通过；随后 `all` target 通过 |
 | 最终 CTest 清单 | 62 项 |
-| 一次完整 CTest | 62/62 通过，43.64 s |
+| 一次完整 CTest | 62/62 通过，43.89 s |
 | Connector 真实联调 | 2025-11-25 下游握手和 2026-07-28 上游连接通过；L0 重启后自动重连且 toolset compatible |
 | GUI/Computer Use | 真实编辑、合成、播放、另存，以及 dirty 拒绝、丢弃重启和 clean 退出全程无决策弹窗 |
 | 测试素材完整性 | 素材源 19/19 项 SHA-256 不变；真实用户应用配置 SHA-256 不变 |
@@ -76,6 +76,8 @@ Custom、host availability 与契约版本分别报告。
 Dispatcher 的幂等处理为显式 opt-in。只有工具支持且请求实际带有 `idempotency_key` 时才计算
 请求指纹并进入幂等存储；不带 key 的调用不哈希、不创建幂等记录。公开 key 的 128 字符上限与
 每个 document generation 最近 256 个成功键的 FIFO 保留上限均通过边界测试。
+真实音频导入进程回归确认，首次调用创建 Task 后，同键同请求立即重放同一个 Task ID；同键但
+起点不同的请求在新 Task、哈希或解码创建前返回 `idempotency_conflict`，最终只插入一个剪辑。
 
 每个文档 generation 与应用级 Task 作用域的活动记录都不受历史清理影响，终态分别只保留最近
 128 项；边界测试确认第 129 项完成后，最旧终态不可再查询，最新终态、既有活动任务和其他
@@ -185,7 +187,7 @@ Editor 窗口与进程均消失。三个阶段均未出现保存确认或其他�
 ## 8. 缺陷与回归
 
 最终候选的共享 Dispatcher、公共契约、Registry、Wire、Connector、文档生命周期和真实进程路径
-均通过受影响测试与最终 62/62 完整 CTest（43.64 s）。压力测试仍在默认套件中，保留通知洪泛、
+均通过受影响测试与最终 62/62 完整 CTest（43.89 s）。压力测试仍在默认套件中，保留通知洪泛、
 并发请求、大帧、慢读、取消与竞态覆盖；没有将其拆分、降次或改为可选执行。
 
 时间线回归还覆盖了删除中间拍号后后续拍号继承超长小节的边界：validate-only 与实际删除均在

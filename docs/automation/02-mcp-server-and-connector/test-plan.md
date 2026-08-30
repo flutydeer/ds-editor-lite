@@ -161,6 +161,8 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
     当前读权限，带 plan digest 时加载检查器返回的同一字节快照并拒绝随后换内容；`formats.inspect`
     在解析前拒绝超过 64 MiB 的输入，MIDI 解析、LibreSVIP 转换和摘要复用同一有界快照；
     Pitch/MIDI 提取只解码哈希绑定的音频快照，完成后复核原文件摘要、剪辑身份和源路径权限。
+    音频单项/批量导入在创建 Task 前按完整请求占用幂等键；相同请求重放同一 Task，不同请求
+    返回冲突，失败或取消后允许重试。
     正常 invocation 不自动回查 provider，output Schema 由确定性契约测试
     覆盖，运行时不逐次 assert。
 12. 验证零 speaker 声库可用完整 SingerRef 设置到轨道/剪辑；单 speaker 自动解析，多 speaker 候选可由 `voices.describe` 查询，缺少选择时稳定拒绝；构造 package ID 与 singer ID 相同、package version 不同的两个并存版本，在 L2 明确拒绝 `packages.*` 的前提下验证 list、describe、轨道/剪辑设置、Speaker Mix/预设和回读均按版本精确闭环。

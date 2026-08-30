@@ -140,8 +140,8 @@
 | 工具 | Profile | 类型 | 契约要点 |
 |---|---|---|---|
 | `audio_clips.get` | L2 | Q/S | 路径状态、候选、hash 与音频元数据 |
-| `audio_clips.import` | L2 | C/A | 单文件读授权、解码与剪辑任务 |
-| `audio_clips.import_batch` | L2 | C/A | 多文件授权、批量上限与失败策略 |
+| `audio_clips.import` | L2 | C/A | 单文件读授权、解码与剪辑任务；创建前按完整请求幂等去重 |
+| `audio_clips.import_batch` | L2 | C/A | 多文件授权、批量上限与失败策略；与单项入口共享 Task 幂等语义 |
 | `audio_clips.relocate` | L2 | C/S | 新路径校验、解码、hash 与最终写回组成一项同步 Mutation |
 | `audio_clips.confirm_path` | L2 | C/S | 候选校验、重新授权与最终写回组成一项同步 Mutation |
 

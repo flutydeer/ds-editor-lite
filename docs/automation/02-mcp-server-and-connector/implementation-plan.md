@@ -65,6 +65,9 @@ Editor MCP 的业务执行继续复用一期类型化 Facade、Dispatcher、Comm
 Dispatcher 的幂等处理是显式 opt-in：只有调用方实际提供已获工具支持的
 `idempotency_key` 时才计算请求指纹并进入去重存储；不带 key 的调用不做哈希，也不创建幂等记录。
 公开 key 最长 128 个字符，每个 document generation 以 FIFO 保留最近 256 个成功键。
+异步创建型工具在启动后台工作前保存并重放 `TaskAcceptedResult`，不同请求指纹立即冲突；Task
+失败或取消时释放该记录，使同一请求可以重新执行。`audio_clips.import*` 的单项和批量入口共享
+这条规则，哈希与解码不会在幂等重试中重复启动。
 
 ## 4. 公共调用路径
 
