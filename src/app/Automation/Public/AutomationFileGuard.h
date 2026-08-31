@@ -21,8 +21,7 @@ namespace Automation {
     };
 
     struct FileAccessSnapshot {
-        QStringList readRoots;
-        QStringList writeRoots;
+        QStringList accessRoots;
         QStringList sessionReadGrants;
         QStringList sessionWriteGrants;
 
@@ -31,8 +30,7 @@ namespace Automation {
 
     class AutomationFileGuard final {
     public:
-        AutomationResult<AutomationUnit> setConfiguredRoots(const QStringList &readRoots,
-                                                            const QStringList &writeRoots);
+        AutomationResult<AutomationUnit> setConfiguredRoots(const QStringList &accessRoots);
         AutomationResult<AuthorizedPath> addSessionGrant(const QString &path,
                                                          FileAccessPurpose purpose);
         void clearSessionGrants();
@@ -58,8 +56,7 @@ namespace Automation {
         static QStringList rulePaths(const QList<PathRule> &rules);
 
         mutable QReadWriteLock m_lock;
-        QList<PathRule> m_readRoots;
-        QList<PathRule> m_writeRoots;
+        QList<PathRule> m_accessRoots;
         QList<PathRule> m_sessionReadGrants;
         QList<PathRule> m_sessionWriteGrants;
     };

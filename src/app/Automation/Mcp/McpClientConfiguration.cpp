@@ -23,26 +23,26 @@ namespace Automation::McpClientConfiguration {
         return QDir::toNativeSeparators(QDir(applicationDirectory).absoluteFilePath(fileName));
     }
 
-    QStringList connectorArguments(const AutomationOption::Profile profile,
+    QStringList connectorArguments(const AutomationOption::ControlLevel controlLevel,
                                    QStringList enabledCustomOperations) {
-        QString profileName;
-        switch (profile) {
-            case AutomationOption::Profile::L1:
-                profileName = QStringLiteral("l1");
+        QString levelName;
+        switch (controlLevel) {
+            case AutomationOption::ControlLevel::L1:
+                levelName = QStringLiteral("l1");
                 break;
-            case AutomationOption::Profile::L2:
-                profileName = QStringLiteral("l2");
+            case AutomationOption::ControlLevel::L2:
+                levelName = QStringLiteral("l2");
                 break;
-            case AutomationOption::Profile::L3:
-                profileName = QStringLiteral("l3");
+            case AutomationOption::ControlLevel::L3:
+                levelName = QStringLiteral("l3");
                 break;
-            case AutomationOption::Profile::Custom:
-                profileName = QStringLiteral("l0");
+            case AutomationOption::ControlLevel::Custom:
+                levelName = QStringLiteral("l0");
                 break;
         }
 
-        QStringList arguments{QStringLiteral("--exposure-profile"), profileName};
-        if (profile != AutomationOption::Profile::Custom)
+        QStringList arguments{QStringLiteral("--control-level"), levelName};
+        if (controlLevel != AutomationOption::ControlLevel::Custom)
             return arguments;
 
         enabledCustomOperations.removeAll(QString{});

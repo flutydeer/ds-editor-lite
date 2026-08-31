@@ -92,18 +92,13 @@
     <name>AutomationPage</name>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="45"/>
-        <source> (overridden and locked by a command-line argument)</source>
-        <translation>（已通过命令行参数覆盖并锁定）</translation>
+        <source>Overridden and locked by a command-line argument</source>
+        <translation>已通过命令行参数覆盖并锁定</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="336"/>
-        <source>Starts an MCP server that listens only on this computer</source>
-        <translation>启动仅监听本机的 MCP 服务</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="347"/>
-        <source>Sets the port the MCP server listens on</source>
-        <translation>设置 MCP 服务监听的端口</translation>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="55"/>
+        <source>%1 (%2)</source>
+        <translation>%1（%2）</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="437"/>
@@ -256,28 +251,28 @@
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="100"/>
-        <source>Starting</source>
-        <translation>正在启动</translation>
+        <source>Editor starting</source>
+        <translation>编辑器正在启动</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="102"/>
-        <source>MCP disabled</source>
-        <translation>MCP 已禁用</translation>
+        <source>Server disabled</source>
+        <translation>服务器已禁用</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="104"/>
-        <source>MCP starting</source>
-        <translation>MCP 正在启动</translation>
+        <source>Server starting</source>
+        <translation>服务器正在启动</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="106"/>
-        <source>MCP ready</source>
-        <translation>MCP 已就绪</translation>
+        <source>Server ready</source>
+        <translation>服务器已就绪</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="108"/>
-        <source>MCP stopping</source>
-        <translation>MCP 正在停止</translation>
+        <source>Server stopping</source>
+        <translation>服务器正在停止</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="110"/>
@@ -295,32 +290,16 @@
         <translation>尚未初始化</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="150"/>
-        <source>Not listening</source>
-        <translation>未监听</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="153"/>
-        <source>No error</source>
-        <translation>无错误</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="199"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="331"/>
-        <source>Limits MCP file reads, such as opening and importing, to the listed folders</source>
-        <translation>将 MCP 的打开、导入等文件读取操作限制在所列文件夹内</translation>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="230"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="510"/>
+        <source>Limits MCP file access, such as opening, importing, saving, and exporting, to the listed folders</source>
+        <translation>将 MCP 的打开、导入、保存、导出等文件访问限制在所列文件夹内</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="201"/>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="209"/>
         <source>Not saved because a folder is missing or invalid: %1</source>
         <translation>文件夹不存在或无效，未保存：%1</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="207"/>
-        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="341"/>
-        <source>Limits MCP file writes, such as saving and exporting, to the listed folders</source>
-        <translation>将 MCP 的保存、导出等文件写入操作限制在所列文件夹内</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="241"/>
@@ -344,8 +323,8 @@
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="250"/>
-        <source>MCP Server</source>
-        <translation>MCP 服务器</translation>
+        <source>Local Server</source>
+        <translation>本地服务器</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="251"/>
@@ -359,18 +338,13 @@
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="297"/>
-        <source>Refresh</source>
-        <translation>刷新</translation>
+        <source>Randomize</source>
+        <translation>随机更换</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="265"/>
         <source>Runtime Status</source>
         <translation>运行状态</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="266"/>
-        <source>Current Endpoint</source>
-        <translation>当前端点</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="267"/>
@@ -408,6 +382,16 @@
         <translation>Streamable HTTP 配置已复制</translation>
     </message>
     <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="354"/>
+        <source>Copy Endpoint</source>
+        <translation>复制端点</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="359"/>
+        <source>Endpoint copied</source>
+        <translation>端点已复制</translation>
+    </message>
+    <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="358"/>
         <source>Streamable HTTP</source>
         <translation>Streamable HTTP</translation>
@@ -419,13 +403,13 @@
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="270"/>
-        <source>Access Profile</source>
-        <translation>访问级别</translation>
+        <source>Control Level</source>
+        <translation>控制层级</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="272"/>
-        <source>Profile</source>
-        <translation>级别</translation>
+        <source>Level</source>
+        <translation>层级</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="285"/>
@@ -442,12 +426,12 @@
         <translation>同步</translation>
     </message>
     <message>
-        <source>Sync from Access Profile</source>
-        <translation>从访问级别同步</translation>
+        <source>Sync from Control Level</source>
+        <translation>从控制层级同步</translation>
     </message>
     <message>
-        <source>Replaces the custom toolset with the tools available in the selected access profile</source>
-        <translation>使用所选访问级别中的可用工具覆盖自定义工具集</translation>
+        <source>Replaces the custom toolset with the tools available at the selected control level</source>
+        <translation>使用所选控制层级中的可用工具覆盖自定义工具集</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="310"/>
@@ -476,8 +460,8 @@
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="328"/>
-        <source>Allowed Read Folders</source>
-        <translation>允许读取的文件夹</translation>
+        <source>Allowed Folders</source>
+        <translation>允许访问的文件夹</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="330"/>
@@ -486,14 +470,9 @@
         <translation>文件夹列表</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="338"/>
-        <source>Allowed Write Folders</source>
-        <translation>允许写入的文件夹</translation>
-    </message>
-    <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="535"/>
-        <source>Read/Write Path Permissions</source>
-        <translation>读写路径权限</translation>
+        <source>Path Access Permissions</source>
+        <translation>路径访问权限</translation>
     </message>
 </context>
 <context>

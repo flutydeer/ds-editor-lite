@@ -27,7 +27,7 @@ namespace StartupArguments {
     struct AutomationOverrides {
         std::optional<bool> mcpEnabled;
         std::optional<quint16> controlPort;
-        std::optional<AutomationOption::Profile> profile;
+        std::optional<AutomationOption::ControlLevel> controlLevel;
 
         [[nodiscard]] bool isEmpty() const;
     };
@@ -48,10 +48,10 @@ namespace StartupArguments {
     struct EffectiveAutomationConfig {
         bool mcpEnabled = false;
         quint16 controlPort = AutomationOption::kRandomControlPortMinimum;
-        AutomationOption::Profile profile = AutomationOption::Profile::L1;
+        AutomationOption::ControlLevel controlLevel = AutomationOption::ControlLevel::L1;
         ConfigSource mcpEnabledSource = ConfigSource::Persisted;
         ConfigSource controlPortSource = ConfigSource::Persisted;
-        ConfigSource profileSource = ConfigSource::Persisted;
+        ConfigSource controlLevelSource = ConfigSource::Persisted;
     };
 
     // Parses arguments after the executable name.

@@ -9,7 +9,7 @@
 namespace Automation::McpClientConfiguration {
 
     [[nodiscard]] QString connectorExecutablePath(const QString &applicationDirectory);
-    [[nodiscard]] QStringList connectorArguments(AutomationOption::Profile profile,
+    [[nodiscard]] QStringList connectorArguments(AutomationOption::ControlLevel controlLevel,
                                                  QStringList enabledCustomOperations = {});
     [[nodiscard]] QString stdioJson(const QString &command, const QStringList &arguments);
     [[nodiscard]] QString streamableHttpJson(const QString &endpoint);

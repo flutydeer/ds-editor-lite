@@ -31,7 +31,7 @@ namespace {
 
     SingleInstanceAutomationStatus initialAutomationStatus() {
         return {
-            SingleInstanceAutomationState::Starting,
+            SingleInstanceAutomationState::EditorStarting,
             QUuid::createUuid().toString(QUuid::WithoutBraces),
             executablePath(),
             QCoreApplication::applicationVersion(),
@@ -446,12 +446,12 @@ void SingleInstanceCoordinator::updateAutomationState(
 }
 
 void SingleInstanceCoordinator::updateAutomationState(const SingleInstanceAutomationState state,
-                                                      const bool mcpEnabled, QString mcpEndpoint,
+                                                      const bool serverEnabled, QString serverEndpoint,
                                                       QString error) {
     auto status = automationState();
     status.state = state;
-    status.mcpEnabled = mcpEnabled;
-    status.mcpEndpoint = std::move(mcpEndpoint);
+    status.serverEnabled = serverEnabled;
+    status.serverEndpoint = std::move(serverEndpoint);
     status.error = std::move(error);
     updateAutomationState(status);
 }
@@ -471,7 +471,7 @@ void SingleInstanceCoordinator::stopAcceptingRequests() {
     if (m_worker && m_ipcThread) {
         auto status = automationState();
         status.state = SingleInstanceAutomationState::EditorStopping;
-        status.mcpEndpoint.clear();
+        status.serverEndpoint.clear();
         status.error.clear();
         {
             const QMutexLocker locker(&m_automationStateMutex);

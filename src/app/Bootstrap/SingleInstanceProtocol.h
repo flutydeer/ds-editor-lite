@@ -13,11 +13,11 @@ enum class SingleInstanceCommand {
 };
 
 enum class SingleInstanceAutomationState {
-    Starting,
-    McpDisabled,
-    McpStarting,
-    McpReady,
-    McpStopping,
+    EditorStarting,
+    ServerDisabled,
+    ServerStarting,
+    ServerReady,
+    ServerStopping,
     EditorStopping,
     Error,
 };
@@ -28,14 +28,14 @@ struct SingleInstanceConnectorInfo {
 };
 
 struct SingleInstanceAutomationStatus {
-    SingleInstanceAutomationState state = SingleInstanceAutomationState::Starting;
+    SingleInstanceAutomationState state = SingleInstanceAutomationState::EditorStarting;
     QString editorInstanceId;
     QString executablePath;
     QString applicationVersion;
     QString buildId;
     QString hostMode;
-    bool mcpEnabled = false;
-    QString mcpEndpoint;
+    bool serverEnabled = false;
+    QString serverEndpoint;
     QString error;
 };
 

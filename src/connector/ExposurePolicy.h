@@ -19,13 +19,13 @@ namespace DsConnector {
         const QList<AutomationWire::ToolContract> &typedContracts() const;
         bool allowsKnownTool(const AutomationWire::ToolContract &tool) const;
         bool allowsTarget(const QString &operationId, const QString &category,
-                          const QString &minimumProfile) const;
+                          const QString &minimumControlLevel) const;
         QJsonArray filterActualTools(const QJsonArray &tools) const;
         QStringList pendingSelectors(const QJsonArray &tools) const;
 
         static QString operationId(const QJsonObject &tool);
         static QString category(const QJsonObject &tool);
-        static QString minimumProfile(const QJsonObject &tool);
+        static QString minimumControlLevel(const QJsonObject &tool);
 
     private:
         QList<AutomationWire::ExposureTarget> targetsFor(const QJsonArray &tools) const;

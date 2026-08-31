@@ -10,7 +10,7 @@
 
 class AutomationOption final : public IOption {
 public:
-    enum class Profile {
+    enum class ControlLevel {
         L1,
         L2,
         L3,
@@ -28,16 +28,15 @@ public:
     [[nodiscard]] bool customPermissionEnabled(const QString &operationId) const;
     void setCustomPermissionEnabled(const QString &operationId, bool enabled);
 
-    [[nodiscard]] static QString profileToString(Profile profile);
-    [[nodiscard]] static std::optional<Profile> profileFromString(const QString &value);
+    [[nodiscard]] static QString controlLevelToString(ControlLevel level);
+    [[nodiscard]] static std::optional<ControlLevel> controlLevelFromString(const QString &value);
     [[nodiscard]] static quint16 generateRandomControlPort(quint16 previousPort = 0);
 
     bool mcpEnabled = false;
     quint16 controlPort;
-    Profile selectedProfile = Profile::L1;
+    ControlLevel controlLevel = ControlLevel::L1;
     QMap<QString, bool> customPermissions;
-    QStringList readRoots;
-    QStringList writeRoots;
+    QStringList accessRoots;
 };
 
 #endif // AUTOMATIONOPTION_H

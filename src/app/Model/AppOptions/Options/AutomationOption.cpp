@@ -12,10 +12,9 @@ namespace {
 
     constexpr auto kMcpEnabledKey = "mcpEnabled";
     constexpr auto kControlPortKey = "controlPort";
-    constexpr auto kSelectedProfileKey = "selectedProfile";
+    constexpr auto kControlLevelKey = "controlLevel";
     constexpr auto kCustomPermissionsKey = "customPermissions";
-    constexpr auto kReadRootsKey = "readRoots";
-    constexpr auto kWriteRootsKey = "writeRoots";
+    constexpr auto kAccessRootsKey = "accessRoots";
 
     QStringList defaultFileRoots() {
         const auto documents = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
@@ -46,22 +45,18 @@ namespace {
 } // namespace
 
 AutomationOption::AutomationOption() : IOption("automation"), controlPort(generateRandomControlPort()) {
-    readRoots = defaultFileRoots();
-    writeRoots = readRoots;
+    accessRoots = defaultFileRoots();
 }
 
 void AutomationOption::load(const QJsonObject &object) {
     mcpEnabled = false;
     controlPort = generateRandomControlPort(controlPort);
-    selectedProfile = Profile::L1;
+    controlLevel = ControlLevel::L1;
     customPermissions.clear();
     const auto defaultRoots = defaultFileRoots();
-    readRoots = object.contains(QLatin1String(kReadRootsKey))
-                    ? loadStringList(object.value(QLatin1String(kReadRootsKey)))
-                    : defaultRoots;
-    writeRoots = object.contains(QLatin1String(kWriteRootsKey))
-                     ? loadStringList(object.value(QLatin1String(kWriteRootsKey)))
-                     : defaultRoots;
+    accessRoots = object.contains(QLatin1String(kAccessRootsKey))
+                      ? loadStringList(object.value(QLatin1String(kAccessRootsKey)))
+                      : defaultRoots;
 
     const auto enabledValue = object.value(QLatin1String(kMcpEnabledKey));
     if (enabledValue.isBool())
@@ -73,9 +68,9 @@ void AutomationOption::load(const QJsonObject &object) {
         if (std::floor(numericPort) == numericPort && numericPort >= 1 && numericPort <= 65535)
             controlPort = static_cast<quint16>(numericPort);
     }
-    if (const auto profile =
-            profileFromString(object.value(QLatin1String(kSelectedProfileKey)).toString())) {
-        selectedProfile = *profile;
+    if (const auto level =
+            controlLevelFromString(object.value(QLatin1String(kControlLevelKey)).toString())) {
+        controlLevel = *level;
     }
 
     const auto permissionsValue = object.value(QLatin1String(kCustomPermissionsKey));
@@ -94,12 +89,11 @@ void AutomationOption::save(QJsonObject &object) {
         permissions.insert(it.key(), it.value());
 
     object = {
-        {QLatin1String(kMcpEnabledKey),        mcpEnabled                            },
-        {QLatin1String(kControlPortKey),       static_cast<int>(controlPort)         },
-        {QLatin1String(kSelectedProfileKey),   profileToString(selectedProfile)      },
-        {QLatin1String(kCustomPermissionsKey), permissions                           },
-        {QLatin1String(kReadRootsKey),         QJsonArray::fromStringList(readRoots) },
-        {QLatin1String(kWriteRootsKey),        QJsonArray::fromStringList(writeRoots)},
+        {QLatin1String(kMcpEnabledKey),        mcpEnabled                              },
+        {QLatin1String(kControlPortKey),       static_cast<int>(controlPort)           },
+        {QLatin1String(kControlLevelKey),      controlLevelToString(controlLevel)      },
+        {QLatin1String(kCustomPermissionsKey), permissions                             },
+        {QLatin1String(kAccessRootsKey),       QJsonArray::fromStringList(accessRoots)},
     };
 }
 
@@ -112,29 +106,30 @@ void AutomationOption::setCustomPermissionEnabled(const QString &operationId, co
         customPermissions.insert(operationId, enabled);
 }
 
-QString AutomationOption::profileToString(const Profile profile) {
-    switch (profile) {
-        case Profile::L2:
+QString AutomationOption::controlLevelToString(const ControlLevel level) {
+    switch (level) {
+        case ControlLevel::L2:
             return QStringLiteral("l2");
-        case Profile::L3:
+        case ControlLevel::L3:
             return QStringLiteral("l3");
-        case Profile::Custom:
+        case ControlLevel::Custom:
             return QStringLiteral("custom");
-        case Profile::L1:
+        case ControlLevel::L1:
         default:
             return QStringLiteral("l1");
     }
 }
 
-std::optional<AutomationOption::Profile> AutomationOption::profileFromString(const QString &value) {
+std::optional<AutomationOption::ControlLevel>
+    AutomationOption::controlLevelFromString(const QString &value) {
     if (value == QStringLiteral("l1"))
-        return Profile::L1;
+        return ControlLevel::L1;
     if (value == QStringLiteral("l2"))
-        return Profile::L2;
+        return ControlLevel::L2;
     if (value == QStringLiteral("l3"))
-        return Profile::L3;
+        return ControlLevel::L3;
     if (value == QStringLiteral("custom"))
-        return Profile::Custom;
+        return ControlLevel::Custom;
     return std::nullopt;
 }
 

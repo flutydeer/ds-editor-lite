@@ -28,8 +28,8 @@ public:
     bool forwardRequest(const SingleInstanceRequest &request, QString &error);
     void setRequestHandler(std::function<void(const SingleInstanceRequest &)> handler);
     void updateAutomationState(const SingleInstanceAutomationStatus &status);
-    void updateAutomationState(SingleInstanceAutomationState state, bool mcpEnabled,
-                               QString mcpEndpoint = {}, QString error = {});
+    void updateAutomationState(SingleInstanceAutomationState state, bool serverEnabled,
+                               QString serverEndpoint = {}, QString error = {});
     void broadcastAutomationState();
     void stopAcceptingRequests();
     void shutdown();

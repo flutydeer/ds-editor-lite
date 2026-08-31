@@ -1,4 +1,4 @@
-// symbol, MCP tool name, category, minimum profile, operation kind, sync mode,
+// symbol, MCP tool name, category, minimum control level, operation kind, sync mode,
 // minimum toolset version, effect, repeatability, world access
 AUTOMATION_WIRE_PUBLIC_TOOL(application_get_info, "application.get_info", "application", L0,
                             Query, Synchronous, 1, ReadOnly, Idempotent, ClosedWorld)

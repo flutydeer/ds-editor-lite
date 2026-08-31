@@ -88,26 +88,17 @@ namespace Automation {
     }
 
     AutomationResult<AutomationUnit>
-        AutomationFileGuard::setConfiguredRoots(const QStringList &readRoots,
-                                                const QStringList &writeRoots) {
-        QList<PathRule> normalizedReadRoots;
-        QList<PathRule> normalizedWriteRoots;
-        for (const auto &path : readRoots) {
+        AutomationFileGuard::setConfiguredRoots(const QStringList &accessRoots) {
+        QList<PathRule> normalizedAccessRoots;
+        for (const auto &path : accessRoots) {
             auto normalized = normalizeRoot(path);
             if (!normalized)
                 return normalized.getError();
-            appendUniqueRule(normalizedReadRoots, normalized.get());
-        }
-        for (const auto &path : writeRoots) {
-            auto normalized = normalizeRoot(path);
-            if (!normalized)
-                return normalized.getError();
-            appendUniqueRule(normalizedWriteRoots, normalized.get());
+            appendUniqueRule(normalizedAccessRoots, normalized.get());
         }
 
         const QWriteLocker locker(&m_lock);
-        m_readRoots = std::move(normalizedReadRoots);
-        m_writeRoots = std::move(normalizedWriteRoots);
+        m_accessRoots = std::move(normalizedAccessRoots);
         return AutomationUnit{};
     }
 
@@ -137,7 +128,6 @@ namespace Automation {
             return normalized.getError();
 
         const QReadLocker locker(&m_lock);
-        const auto &roots = purpose == FileAccessPurpose::Read ? m_readRoots : m_writeRoots;
         const auto &grants =
             purpose == FileAccessPurpose::Read ? m_sessionReadGrants : m_sessionWriteGrants;
         const auto allowedBy = [&](const QList<PathRule> &rules) {
@@ -145,7 +135,7 @@ namespace Automation {
                 return matchesRule(normalized.get(), rule);
             });
         };
-        if (!allowedBy(roots) && !allowedBy(grants)) {
+        if (!allowedBy(m_accessRoots) && !allowedBy(grants)) {
             return pathError(
                 AutomationErrorCode::PermissionDenied,
                 QStringLiteral("Path is outside the configured automation access roots"));
@@ -168,8 +158,7 @@ namespace Automation {
     FileAccessSnapshot AutomationFileGuard::snapshot() const {
         const QReadLocker locker(&m_lock);
         return {
-            .readRoots = rulePaths(m_readRoots),
-            .writeRoots = rulePaths(m_writeRoots),
+            .accessRoots = rulePaths(m_accessRoots),
             .sessionReadGrants = rulePaths(m_sessionReadGrants),
             .sessionWriteGrants = rulePaths(m_sessionWriteGrants),
         };

@@ -23,17 +23,17 @@ namespace AutomationWire {
             return false;
         }
 
-        bool presetContains(const ExposureProfile profile, const AutomationProfile minimum) {
-            if (minimum == AutomationProfile::L0)
+        bool presetContains(const ExposureLevel level, const ControlLevel minimum) {
+            if (minimum == ControlLevel::L0)
                 return true;
-            if (profile == ExposureProfile::L0)
+            if (level == ExposureLevel::L0)
                 return false;
-            if (minimum == AutomationProfile::L1)
+            if (minimum == ControlLevel::L1)
                 return true;
-            if (minimum == AutomationProfile::L2)
-                return profile == ExposureProfile::L2 || profile == ExposureProfile::L3;
-            if (minimum == AutomationProfile::L3)
-                return profile == ExposureProfile::L3;
+            if (minimum == ControlLevel::L2)
+                return level == ExposureLevel::L2 || level == ExposureLevel::L3;
+            if (minimum == ControlLevel::L3)
+                return level == ExposureLevel::L3;
             return false;
         }
 
@@ -50,22 +50,22 @@ namespace AutomationWire {
         }
     }
 
-    QString exposureProfileName(const ExposureProfile profile) {
-        const auto names = publicStringValueDomainValues(PublicValueDomain::ExposureProfile);
-        const auto index = static_cast<qsizetype>(profile);
+    QString exposureLevelName(const ExposureLevel level) {
+        const auto names = publicStringValueDomainValues(PublicValueDomain::ExposureLevel);
+        const auto index = static_cast<qsizetype>(level);
         return index >= 0 && index < names.size() ? names.at(index) : QString();
     }
 
-    std::optional<ExposureProfile> exposureProfileFromName(const QString &name) {
-        const auto names = publicStringValueDomainValues(PublicValueDomain::ExposureProfile);
+    std::optional<ExposureLevel> exposureLevelFromName(const QString &name) {
+        const auto names = publicStringValueDomainValues(PublicValueDomain::ExposureLevel);
         const auto index = names.indexOf(name);
-        if (index < 0 || index > static_cast<qsizetype>(ExposureProfile::L3))
+        if (index < 0 || index > static_cast<qsizetype>(ExposureLevel::L3))
             return std::nullopt;
-        return static_cast<ExposureProfile>(index);
+        return static_cast<ExposureLevel>(index);
     }
 
-    QStringList exposureProfileNames() {
-        return publicStringValueDomainValues(PublicValueDomain::ExposureProfile);
+    QStringList exposureLevelNames() {
+        return publicStringValueDomainValues(PublicValueDomain::ExposureLevel);
     }
 
     QString ExposureSelector::normalized() const {
@@ -136,7 +136,7 @@ namespace AutomationWire {
         QList<ExposureTarget> result;
         result.reserve(publicToolContracts().size());
         for (const auto &tool : publicToolContracts()) {
-            result.append({tool.operationId, tool.category, tool.minimumProfile});
+            result.append({tool.operationId, tool.category, tool.minimumControlLevel});
         }
         return result;
     }
@@ -189,7 +189,7 @@ namespace AutomationWire {
             if (target.operationId.isEmpty() || seenTargetIds.contains(target.operationId))
                 continue;
             seenTargetIds.insert(target.operationId);
-            const auto included = presetContains(config.profile, target.minimumProfile) ||
+            const auto included = presetContains(config.controlLevel, target.minimumControlLevel) ||
                                   std::any_of(includes.constBegin(), includes.constEnd(),
                                               [&](const auto &selector) {
                                                   return selectorMatches(selector, target);
@@ -199,7 +199,7 @@ namespace AutomationWire {
                                                   return selectorMatches(selector, target);
                                               });
             if (included &&
-                (target.minimumProfile == AutomationProfile::L0 || !excluded)) {
+                (target.minimumControlLevel == ControlLevel::L0 || !excluded)) {
                 result.targets.append(target);
                 result.exposedIds.insert(target.operationId);
             }

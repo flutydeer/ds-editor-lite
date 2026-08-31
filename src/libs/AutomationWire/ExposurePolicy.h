@@ -1,7 +1,7 @@
 #ifndef AUTOMATIONWIRE_EXPOSUREPOLICY_H
 #define AUTOMATIONWIRE_EXPOSUREPOLICY_H
 
-#include "AutomationProfile.h"
+#include "ControlLevel.h"
 
 #include <QList>
 #include <QSet>
@@ -12,16 +12,16 @@
 
 namespace AutomationWire {
 
-    enum class ExposureProfile {
+    enum class ExposureLevel {
         L0,
         L1,
         L2,
         L3,
     };
 
-    QString exposureProfileName(ExposureProfile profile);
-    std::optional<ExposureProfile> exposureProfileFromName(const QString &name);
-    QStringList exposureProfileNames();
+    QString exposureLevelName(ExposureLevel level);
+    std::optional<ExposureLevel> exposureLevelFromName(const QString &name);
+    QStringList exposureLevelNames();
 
     enum class SelectorKind {
         Id,
@@ -48,11 +48,11 @@ namespace AutomationWire {
     struct ExposureTarget {
         QString operationId;
         QString category;
-        AutomationProfile minimumProfile = AutomationProfile::L0;
+        ControlLevel minimumControlLevel = ControlLevel::L0;
     };
 
     struct ExposureConfig {
-        ExposureProfile profile = ExposureProfile::L1;
+        ExposureLevel controlLevel = ExposureLevel::L1;
         QStringList includes;
         QStringList excludes;
     };

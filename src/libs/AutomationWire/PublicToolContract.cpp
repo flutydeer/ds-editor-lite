@@ -1547,8 +1547,8 @@ namespace AutomationWire {
             return result;
         }
 
-        QJsonObject automationProfileSchema() {
-            return stringDomainSchema(PublicValueDomain::AutomationProfile);
+        QJsonObject controlLevelSchema() {
+            return stringDomainSchema(PublicValueDomain::ControlLevel);
         }
 
         QJsonObject hostModeSchema() {
@@ -1660,14 +1660,14 @@ namespace AutomationWire {
                 {
                     {QStringLiteral("editor_instance_id"), uuidSchema()},
                     {QStringLiteral("host_mode"), hostModeSchema()},
-                    {QStringLiteral("profile"), automationProfileSchema()},
+                    {QStringLiteral("control_level"), controlLevelSchema()},
                     {QStringLiteral("toolset_version"),
                      JsonSchema::integer(1.0, static_cast<double>(MaximumSafeJsonInteger))},
                     {QStringLiteral("documents"), documents},
                     {QStringLiteral("windows"), windows},
             },
                 {QStringLiteral("editor_instance_id"), QStringLiteral("host_mode"),
-                 QStringLiteral("profile"), QStringLiteral("toolset_version"),
+                 QStringLiteral("control_level"), QStringLiteral("toolset_version"),
                  QStringLiteral("documents"), QStringLiteral("windows")}));
         }
 
@@ -1681,12 +1681,10 @@ namespace AutomationWire {
                 {QStringLiteral("path"), QStringLiteral("access")});
             return JsonSchema::document(JsonSchema::object(
                 {
-                    {QStringLiteral("read_roots"),     JsonSchema::array(nonEmptyStringSchema())},
-                    {QStringLiteral("write_roots"),    JsonSchema::array(nonEmptyStringSchema())},
+                    {QStringLiteral("access_roots"),   JsonSchema::array(nonEmptyStringSchema())},
                     {QStringLiteral("session_grants"), JsonSchema::array(grant)                 },
             },
-                {QStringLiteral("read_roots"), QStringLiteral("write_roots"),
-                 QStringLiteral("session_grants")}));
+                {QStringLiteral("access_roots"), QStringLiteral("session_grants")}));
         }
 
         QJsonObject documentSnapshotSchema() {
@@ -3855,7 +3853,7 @@ namespace AutomationWire {
             }
             if (operationId == PublicToolNames::application_get_status) {
                 return QStringLiteral(
-                    "Read the active editor instance, host, access profile, toolset version, and "
+                    "Read the active editor instance, host, control level, toolset version, and "
                     "stable document/window identities.");
             }
             if (operationId == PublicToolNames::application_request_exit) {
@@ -3870,7 +3868,7 @@ namespace AutomationWire {
             }
             if (operationId == PublicToolNames::application_get_file_access) {
                 return QStringLiteral(
-                    "Read the canonical automation read/write roots and temporary file "
+                    "Read the canonical automation access roots and temporary file "
                     "grants enforced by the editor File Guard.");
             }
             if (operationId == PublicToolNames::formats_inspect) {
@@ -3912,7 +3910,7 @@ namespace AutomationWire {
                 operationId == PublicToolNames::packages_describe) {
                 return QStringLiteral(
                            "Read %1 from the current package index. Reported canonical paths are "
-                           "included only when permitted by the configured automation read roots.")
+                           "included only when permitted by the configured automation access roots.")
                     .arg(humanTitle(operationId).toLower());
             }
             if (operationId == PublicToolNames::packages_refresh) {
@@ -4023,27 +4021,27 @@ namespace AutomationWire {
             QJsonArray context;
             for (const auto &field : contextFields)
                 context.append(field);
-            const auto sourceProfile =
+            const auto sourceControlLevel =
                 sourceOperation.startsWith(QStringLiteral("settings.")) ||
                         sourceOperation.startsWith(QStringLiteral("packages.")) ||
                         sourceOperation.startsWith(QStringLiteral("lyric_rules."))
-                    ? AutomationProfile::L3
+                    ? ControlLevel::L3
                 : sourceOperation == PublicToolNames::voices_list ||
                         sourceOperation == PublicToolNames::voices_describe ||
                         sourceOperation == PublicToolNames::parameters_get_capabilities ||
                         sourceOperation == PublicToolNames::tracks_list ||
                         sourceOperation == PublicToolNames::clips_list ||
                         sourceOperation == PublicToolNames::notes_list
-                    ? AutomationProfile::L1
-                    : AutomationProfile::L2;
-            const auto availability = sourceProfile == AutomationProfile::L3
+                    ? ControlLevel::L1
+                    : ControlLevel::L2;
+            const auto availability = sourceControlLevel == ControlLevel::L3
                                           ? QStringLiteral("both")
                                           : QStringLiteral("gui");
             return {
                 {QStringLiteral("field_path"),        fieldPath                           },
                 {QStringLiteral("operation_id"),      sourceOperation                     },
                 {QStringLiteral("context_fields"),    context                             },
-                {QStringLiteral("minimum_profile"),   automationProfileName(sourceProfile)},
+                {QStringLiteral("minimum_control_level"), controlLevelName(sourceControlLevel)},
                 {QStringLiteral("host_availability"), availability                        },
             };
         }
@@ -4346,7 +4344,7 @@ namespace AutomationWire {
                       {QStringLiteral("minimum_toolset_version"),
                        static_cast<qint64>(minimumToolsetVersion)},
                       {QStringLiteral("category"), category},
-                      {QStringLiteral("minimum_profile"), automationProfileName(minimumProfile)},
+                      {QStringLiteral("minimum_control_level"), controlLevelName(minimumControlLevel)},
                       {QStringLiteral("kind"), operationKindName(kind)},
                       {QStringLiteral("sync_mode"), syncModeName(syncMode)},
                       {QStringLiteral("file_access"), fileAccessName(fileAccess)},
@@ -4361,7 +4359,8 @@ namespace AutomationWire {
         static const QList<ToolContract> tools = [] {
             QList<ToolContract> result;
             result.reserve(177);
-#define AUTOMATION_WIRE_PUBLIC_TOOL(symbol, name, categoryValue, profile, kindValue, syncValue,    \
+#define AUTOMATION_WIRE_PUBLIC_TOOL(symbol, name, categoryValue, controlLevelValue, kindValue,     \
+                                    syncValue,                                                      \
                                     minimumValue, effectValue, repeatabilityValue,                 \
                                     worldAccessValue)                                              \
     do {                                                                                           \
@@ -4376,7 +4375,7 @@ namespace AutomationWire {
             .description = toolDescription(operationId, QStringLiteral(categoryValue),             \
                                            operationKind, operationSync),                          \
             .category = QStringLiteral(categoryValue),                                             \
-            .minimumProfile = AutomationProfile::profile,                                          \
+            .minimumControlLevel = ControlLevel::controlLevelValue,                                \
             .kind = operationKind,                                                                 \
             .syncMode = operationSync,                                                             \
             .fileAccess = fileAccess(operationId),                                                 \
@@ -4414,14 +4413,14 @@ namespace AutomationWire {
         return result;
     }
 
-    QList<ToolContract> toolsForProfile(const AutomationProfile profile,
-                                        const QSet<QString> &customEnabled) {
+    QList<ToolContract> toolsForControlLevel(const ControlLevel controlLevel,
+                                             const QSet<QString> &customEnabled) {
         QList<ToolContract> result;
         for (const auto &tool : publicToolContracts()) {
-            const auto enabled = tool.minimumProfile == AutomationProfile::L0 ||
-                                 (profile == AutomationProfile::Custom
+            const auto enabled = tool.minimumControlLevel == ControlLevel::L0 ||
+                                 (controlLevel == ControlLevel::Custom
                                       ? customEnabled.contains(tool.operationId)
-                                      : presetIncludes(profile, tool.minimumProfile));
+                                      : presetIncludes(controlLevel, tool.minimumControlLevel));
             if (enabled)
                 result.append(tool);
         }

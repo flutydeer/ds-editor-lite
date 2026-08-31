@@ -13,10 +13,10 @@ namespace DsConnector {
                 .toObject();
         }
 
-        AutomationWire::AutomationProfile profileFromTool(const QJsonObject &tool) {
-            const auto name = ExposurePolicy::minimumProfile(tool);
-            const auto profile = AutomationWire::automationProfileFromName(name);
-            return profile.value_or(AutomationWire::AutomationProfile::L3);
+        AutomationWire::ControlLevel controlLevelFromTool(const QJsonObject &tool) {
+            const auto name = ExposurePolicy::minimumControlLevel(tool);
+            const auto controlLevel = AutomationWire::controlLevelFromName(name);
+            return controlLevel.value_or(AutomationWire::ControlLevel::L3);
         }
     }
 
@@ -38,11 +38,11 @@ namespace DsConnector {
     }
 
     bool ExposurePolicy::allowsTarget(const QString &operationId, const QString &category,
-                                      const QString &minimumProfile) const {
+                                      const QString &minimumControlLevel) const {
         QJsonObject tool{
             {QStringLiteral("operation_id"),    operationId   },
             {QStringLiteral("category"),        category      },
-            {QStringLiteral("minimum_profile"), minimumProfile},
+            {QStringLiteral("minimum_control_level"), minimumControlLevel},
         };
         const auto selection = selectionFor(QJsonArray{tool});
         return AutomationWire::isExposed(selection, operationId);
@@ -85,16 +85,16 @@ namespace DsConnector {
         return value;
     }
 
-    QString ExposurePolicy::minimumProfile(const QJsonObject &tool) {
-        auto value = tool.value(QStringLiteral("minimum_profile")).toString();
+    QString ExposurePolicy::minimumControlLevel(const QJsonObject &tool) {
+        auto value = tool.value(QStringLiteral("minimum_control_level")).toString();
         if (value.isEmpty())
-            value = tool.value(QStringLiteral("minimumProfile")).toString();
+            value = tool.value(QStringLiteral("minimumControlLevel")).toString();
         if (value.isEmpty())
-            value = toolMetadata(tool).value(QStringLiteral("minimum_profile")).toString();
+            value = toolMetadata(tool).value(QStringLiteral("minimum_control_level")).toString();
         if (value.isEmpty()) {
             value = tool.value(QStringLiteral("annotations"))
                         .toObject()
-                        .value(QStringLiteral("minimumProfile"))
+                        .value(QStringLiteral("minimumControlLevel"))
                         .toString();
         }
         return value.isEmpty() ? QStringLiteral("l3") : value;
@@ -110,7 +110,7 @@ namespace DsConnector {
             if (id.isEmpty() || seen.contains(id))
                 continue;
             seen.insert(id);
-            result.append({id, category(tool), profileFromTool(tool)});
+            result.append({id, category(tool), controlLevelFromTool(tool)});
         }
         for (const auto &target : AutomationWire::publicExposureTargets()) {
             if (!seen.contains(target.operationId))

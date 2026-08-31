@@ -16,7 +16,7 @@ namespace {
             << "Usage: "
             << QString::fromLatin1(LiteProductMetadata::ConnectorExecutableBasename)
             << " [options]" << Qt::endl
-            << "  --exposure-profile l0|l1|l2|l3" << Qt::endl
+            << "  --control-level l0|l1|l2|l3" << Qt::endl
             << "  --include-tool id:<name>|category:<name>|prefix:<text>" << Qt::endl
             << "  --exclude-tool id:<name>|category:<name>|prefix:<text>"
                " (L0 tools are intrinsic)"

@@ -1,7 +1,7 @@
 #ifndef AUTOMATIONWIRE_PUBLICTOOLCONTRACT_H
 #define AUTOMATIONWIRE_PUBLICTOOLCONTRACT_H
 
-#include "AutomationProfile.h"
+#include "ControlLevel.h"
 
 #include <QJsonArray>
 #include <QJsonObject>
@@ -42,7 +42,7 @@ namespace AutomationWire {
         QString title;
         QString description;
         QString category;
-        AutomationProfile minimumProfile = AutomationProfile::L0;
+        ControlLevel minimumControlLevel = ControlLevel::L0;
         OperationKind kind = OperationKind::Query;
         SyncMode syncMode = SyncMode::Synchronous;
         FileAccess fileAccess = FileAccess::None;
@@ -58,8 +58,8 @@ namespace AutomationWire {
     const QList<ToolContract> &publicToolContracts();
     const ToolContract *findPublicTool(const QString &operationId);
     QStringList publicToolIds();
-    QList<ToolContract> toolsForProfile(AutomationProfile profile,
-                                        const QSet<QString> &customEnabled = {});
+    QList<ToolContract> toolsForControlLevel(ControlLevel controlLevel,
+                                             const QSet<QString> &customEnabled = {});
 
 }
 

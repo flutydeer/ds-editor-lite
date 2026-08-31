@@ -162,16 +162,16 @@ bool SingleInstanceProtocol::decodeResponse(const QByteArray &payload,
 
 QString SingleInstanceProtocol::automationStateName(const SingleInstanceAutomationState state) {
     switch (state) {
-        case SingleInstanceAutomationState::Starting:
-            return QStringLiteral("starting");
-        case SingleInstanceAutomationState::McpDisabled:
-            return QStringLiteral("mcp_disabled");
-        case SingleInstanceAutomationState::McpStarting:
-            return QStringLiteral("mcp_starting");
-        case SingleInstanceAutomationState::McpReady:
-            return QStringLiteral("mcp_ready");
-        case SingleInstanceAutomationState::McpStopping:
-            return QStringLiteral("mcp_stopping");
+        case SingleInstanceAutomationState::EditorStarting:
+            return QStringLiteral("editor_starting");
+        case SingleInstanceAutomationState::ServerDisabled:
+            return QStringLiteral("server_disabled");
+        case SingleInstanceAutomationState::ServerStarting:
+            return QStringLiteral("server_starting");
+        case SingleInstanceAutomationState::ServerReady:
+            return QStringLiteral("server_ready");
+        case SingleInstanceAutomationState::ServerStopping:
+            return QStringLiteral("server_stopping");
         case SingleInstanceAutomationState::EditorStopping:
             return QStringLiteral("editor_stopping");
         case SingleInstanceAutomationState::Error:
@@ -182,16 +182,16 @@ QString SingleInstanceProtocol::automationStateName(const SingleInstanceAutomati
 
 bool SingleInstanceProtocol::parseAutomationState(const QString &name,
                                                   SingleInstanceAutomationState &state) {
-    if (name == QStringLiteral("starting")) {
-        state = SingleInstanceAutomationState::Starting;
-    } else if (name == QStringLiteral("mcp_disabled")) {
-        state = SingleInstanceAutomationState::McpDisabled;
-    } else if (name == QStringLiteral("mcp_starting")) {
-        state = SingleInstanceAutomationState::McpStarting;
-    } else if (name == QStringLiteral("mcp_ready")) {
-        state = SingleInstanceAutomationState::McpReady;
-    } else if (name == QStringLiteral("mcp_stopping")) {
-        state = SingleInstanceAutomationState::McpStopping;
+    if (name == QStringLiteral("editor_starting")) {
+        state = SingleInstanceAutomationState::EditorStarting;
+    } else if (name == QStringLiteral("server_disabled")) {
+        state = SingleInstanceAutomationState::ServerDisabled;
+    } else if (name == QStringLiteral("server_starting")) {
+        state = SingleInstanceAutomationState::ServerStarting;
+    } else if (name == QStringLiteral("server_ready")) {
+        state = SingleInstanceAutomationState::ServerReady;
+    } else if (name == QStringLiteral("server_stopping")) {
+        state = SingleInstanceAutomationState::ServerStopping;
     } else if (name == QStringLiteral("editor_stopping")) {
         state = SingleInstanceAutomationState::EditorStopping;
     } else if (name == QStringLiteral("error")) {
@@ -217,8 +217,8 @@ QByteArray SingleInstanceProtocol::encodeAutomationSnapshot(
              {QStringLiteral("applicationVersion"), status.applicationVersion},
              {QStringLiteral("buildId"), status.buildId},
              {QStringLiteral("executablePath"), status.executablePath},
-             {QStringLiteral("mcpEnabled"), status.mcpEnabled},
-             {QStringLiteral("mcpEndpoint"), status.mcpEndpoint},
+             {QStringLiteral("serverEnabled"), status.serverEnabled},
+             {QStringLiteral("serverEndpoint"), status.serverEndpoint},
              {QStringLiteral("error"), status.error},
          }                                                                            },
     };
@@ -256,14 +256,14 @@ bool SingleInstanceProtocol::decodeAutomationSnapshot(const QByteArray &payload,
                        error, true) ||
         !requireString(result, QStringLiteral("buildId"), status.buildId, error, true) ||
         !requireString(result, QStringLiteral("executablePath"), status.executablePath, error) ||
-        !requireString(result, QStringLiteral("mcpEndpoint"), status.mcpEndpoint, error, true) ||
+        !requireString(result, QStringLiteral("serverEndpoint"), status.serverEndpoint, error, true) ||
         !requireString(result, QStringLiteral("error"), status.error, error, true) ||
-        !result.value(QStringLiteral("mcpEnabled")).isBool()) {
+        !result.value(QStringLiteral("serverEnabled")).isBool()) {
         if (error.isEmpty())
-            error = QStringLiteral("Invalid automation state field: mcpEnabled");
+            error = QStringLiteral("Invalid automation state field: serverEnabled");
         return false;
     }
-    status.mcpEnabled = result.value(QStringLiteral("mcpEnabled")).toBool();
+    status.serverEnabled = result.value(QStringLiteral("serverEnabled")).toBool();
     snapshot.result = std::move(status);
     return true;
 }

@@ -49,7 +49,7 @@ namespace Automation {
             Error,
         };
 
-        static AutomationWire::AutomationProfile profileFor(AutomationOption::Profile profile);
+        static AutomationWire::ControlLevel controlLevelFor(AutomationOption::ControlLevel level);
         static QSet<QString> enabledCustomOperations(const AutomationOption &option);
 
         void transitionAfterStop(PendingTransition transition, QString error = {});

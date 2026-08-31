@@ -2056,7 +2056,7 @@ namespace Automation {
         if (!m_accessPolicy.isAllowed(*contract)) {
             auto result =
                 error(AutomationErrorCode::PermissionDenied,
-                      QStringLiteral("Public operation is disabled by the active profile"));
+                      QStringLiteral("Public operation is disabled by the active control level"));
             result.operationId = operationId;
             return result;
         }
@@ -2179,7 +2179,8 @@ namespace Automation {
                 {QStringLiteral("editor_instance_id"),
                  m_hostServices.editorInstanceId.toString(QUuid::WithoutBraces)                             },
                 {QStringLiteral("host_mode"),          m_hostServices.hostMode                              },
-                {QStringLiteral("profile"),            AutomationWire::automationProfileName(policy.profile)},
+                {QStringLiteral("control_level"),
+                 AutomationWire::controlLevelName(policy.controlLevel)                               },
                 {QStringLiteral("toolset_version"),
                  static_cast<qint64>(AutomationWire::PublicToolsetVersion)                                  },
                 {QStringLiteral("documents"),          documents                                            },
@@ -3177,12 +3178,9 @@ namespace Automation {
         addBinding(ToolNames::application_get_file_access,
                    [this](const QJsonObject &, const PublicInvocationContext &) {
                        const auto snapshot = m_fileGuard.snapshot();
-                       QJsonArray readRoots;
-                       for (const auto &path : snapshot.readRoots)
-                           readRoots.append(path);
-                       QJsonArray writeRoots;
-                       for (const auto &path : snapshot.writeRoots)
-                           writeRoots.append(path);
+                       QJsonArray accessRoots;
+                       for (const auto &path : snapshot.accessRoots)
+                           accessRoots.append(path);
                        QJsonArray grants;
                        for (const auto &path : snapshot.sessionReadGrants) {
                            grants.append(QJsonObject{
@@ -3197,8 +3195,7 @@ namespace Automation {
                            });
                        }
                        return AutomationResult<QJsonObject>(QJsonObject{
-                           {QStringLiteral("read_roots"),     readRoots },
-                           {QStringLiteral("write_roots"),    writeRoots},
+                           {QStringLiteral("access_roots"),   accessRoots},
                            {QStringLiteral("session_grants"), grants    },
                        });
                    });

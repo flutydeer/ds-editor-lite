@@ -29,7 +29,7 @@ namespace StartupArguments {
     } // namespace
 
     bool AutomationOverrides::isEmpty() const {
-        return !mcpEnabled && !controlPort && !profile;
+        return !mcpEnabled && !controlPort && !controlLevel;
     }
 
     bool ParsedArguments::isValid() const {
@@ -113,29 +113,29 @@ namespace StartupArguments {
                 continue;
             }
 
-            if (!positionalOnly && (argument == QStringLiteral("--automation-profile") ||
-                                    argument.startsWith(QStringLiteral("--automation-profile=")))) {
-                const auto value = readValue(QStringLiteral("--automation-profile"));
+            if (!positionalOnly && (argument == QStringLiteral("--control-level") ||
+                                    argument.startsWith(QStringLiteral("--control-level=")))) {
+                const auto value = readValue(QStringLiteral("--control-level"));
                 if (!value || value->isEmpty()) {
                     return fail(std::move(result), ParseErrorCode::MissingValue,
-                                QStringLiteral("--automation-profile"),
-                                QStringLiteral("Option --automation-profile requires a value."));
+                                QStringLiteral("--control-level"),
+                                QStringLiteral("Option --control-level requires a value."));
                 }
-                const auto profile = AutomationOption::profileFromString(*value);
-                if (!profile) {
+                const auto level = AutomationOption::controlLevelFromString(*value);
+                if (!level) {
                     return fail(std::move(result), ParseErrorCode::InvalidValue,
-                                QStringLiteral("--automation-profile"),
-                                QStringLiteral("Invalid value for --automation-profile: \"%1\"; "
+                                QStringLiteral("--control-level"),
+                                QStringLiteral("Invalid value for --control-level: \"%1\"; "
                                                "expected l1, l2, l3, or custom.")
                                     .arg(*value));
                 }
-                if (result.automation.profile && *result.automation.profile != *profile) {
+                if (result.automation.controlLevel && *result.automation.controlLevel != *level) {
                     return fail(std::move(result), ParseErrorCode::ConflictingOptions,
-                                QStringLiteral("--automation-profile"),
+                                QStringLiteral("--control-level"),
                                 QStringLiteral(
-                                    "Conflicting values were provided for --automation-profile."));
+                                    "Conflicting values were provided for --control-level."));
                 }
-                result.automation.profile = *profile;
+                result.automation.controlLevel = *level;
                 continue;
             }
 
@@ -160,7 +160,7 @@ namespace StartupArguments {
         EffectiveAutomationConfig result;
         result.mcpEnabled = persisted.mcpEnabled;
         result.controlPort = persisted.controlPort;
-        result.profile = persisted.selectedProfile;
+        result.controlLevel = persisted.controlLevel;
 
         if (overrides.mcpEnabled) {
             result.mcpEnabled = *overrides.mcpEnabled;
@@ -170,9 +170,9 @@ namespace StartupArguments {
             result.controlPort = *overrides.controlPort;
             result.controlPortSource = ConfigSource::CommandLine;
         }
-        if (overrides.profile) {
-            result.profile = *overrides.profile;
-            result.profileSource = ConfigSource::CommandLine;
+        if (overrides.controlLevel) {
+            result.controlLevel = *overrides.controlLevel;
+            result.controlLevelSource = ConfigSource::CommandLine;
         }
         return result;
     }

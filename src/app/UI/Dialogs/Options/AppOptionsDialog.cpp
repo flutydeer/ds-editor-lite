@@ -56,7 +56,7 @@ namespace {
 AppOptionsDialog::AppOptionsDialog(QWidget *parent, const bool standalone)
     : QWidget(parent), m_standalone(standalone) {
     for (const auto &contract : AutomationWire::publicToolContracts()) {
-        if (contract.minimumProfile != AutomationWire::AutomationProfile::L0)
+        if (contract.minimumControlLevel != AutomationWire::ControlLevel::L0)
             m_automationCustomPermissionOperationIds.append(contract.operationId);
     }
     setObjectName(QStringLiteral("AppOptionsDialog"));

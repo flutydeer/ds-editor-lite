@@ -5,25 +5,25 @@
 
 namespace Automation {
 
-    AutomationAccessPolicy::AutomationAccessPolicy(const AutomationWire::AutomationProfile profile,
+    AutomationAccessPolicy::AutomationAccessPolicy(const AutomationWire::ControlLevel controlLevel,
                                                    QSet<QString> customEnabled)
-        : m_profile(profile), m_customEnabled(std::move(customEnabled)) {
+        : m_controlLevel(controlLevel), m_customEnabled(std::move(customEnabled)) {
     }
 
-    void AutomationAccessPolicy::update(const AutomationWire::AutomationProfile profile,
+    void AutomationAccessPolicy::update(const AutomationWire::ControlLevel controlLevel,
                                         QSet<QString> customEnabled) {
         QWriteLocker locker(&m_lock);
-        m_profile = profile;
+        m_controlLevel = controlLevel;
         m_customEnabled = std::move(customEnabled);
     }
 
     bool AutomationAccessPolicy::isAllowed(const AutomationWire::ToolContract &contract) const {
         QReadLocker locker(&m_lock);
-        if (contract.minimumProfile == AutomationWire::AutomationProfile::L0)
+        if (contract.minimumControlLevel == AutomationWire::ControlLevel::L0)
             return true;
-        if (m_profile == AutomationWire::AutomationProfile::Custom)
+        if (m_controlLevel == AutomationWire::ControlLevel::Custom)
             return m_customEnabled.contains(contract.operationId);
-        return AutomationWire::presetIncludes(m_profile, contract.minimumProfile);
+        return AutomationWire::presetIncludes(m_controlLevel, contract.minimumControlLevel);
     }
 
     bool AutomationAccessPolicy::isAllowed(const QString &operationId) const {
@@ -33,12 +33,12 @@ namespace Automation {
 
     QList<AutomationWire::ToolContract> AutomationAccessPolicy::enabledContracts() const {
         QReadLocker locker(&m_lock);
-        return AutomationWire::toolsForProfile(m_profile, m_customEnabled);
+        return AutomationWire::toolsForControlLevel(m_controlLevel, m_customEnabled);
     }
 
     AutomationAccessPolicySnapshot AutomationAccessPolicy::snapshot() const {
         QReadLocker locker(&m_lock);
-        return {m_profile, m_customEnabled};
+        return {m_controlLevel, m_customEnabled};
     }
 
 } // namespace Automation

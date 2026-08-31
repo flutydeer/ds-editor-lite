@@ -10,10 +10,10 @@
 class ComboBox;
 class Button;
 class QEvent;
+class QLabel;
 class OptionListCard;
 class OptionsCardItem;
 class PathEditor;
-class QPlainTextEdit;
 class SwitchButton;
 
 namespace SVS {
@@ -39,28 +39,25 @@ private:
                                              StartupArguments::ConfigSource source) const;
     [[nodiscard]] QString categoryDisplayName(const QString &category) const;
     [[nodiscard]] QString runtimeStateDescription(const QString &state) const;
+    [[nodiscard]] QString currentMcpEndpoint() const;
     void refreshCategoryPermissionSwitches();
-    void refreshConnectionConfigurations();
     void refreshRuntimeStatus();
 
     SwitchButton *m_mcpEnabled = nullptr;
-    Button *m_refreshControlPort = nullptr;
+    Button *m_randomizeControlPort = nullptr;
     SVS::ExpressionSpinBox *m_controlPort = nullptr;
-    ComboBox *m_profile = nullptr;
-    PathEditor *m_readRoots = nullptr;
-    PathEditor *m_writeRoots = nullptr;
+    ComboBox *m_controlLevel = nullptr;
+    PathEditor *m_accessRoots = nullptr;
     QMap<QString, SwitchButton *> m_customPermissionSwitches;
     QMap<QString, SwitchButton *> m_customCategorySwitches;
     QMap<QString, OptionsCardItem *> m_customCategoryHeaderItems;
     QMap<QString, QStringList> m_customCategoryOperationIds;
     QStringList m_customPermissionOperationIds;
-    OptionsCardItem *m_runtimeStateItem = nullptr;
-    OptionsCardItem *m_runtimeEndpointItem = nullptr;
+    OptionListCard *m_serverCard = nullptr;
+    QLabel *m_runtimeStateValue = nullptr;
+    QLabel *m_runtimeErrorValue = nullptr;
     OptionsCardItem *m_runtimeErrorItem = nullptr;
-    OptionsCardItem *m_readRootsItem = nullptr;
-    OptionsCardItem *m_writeRootsItem = nullptr;
-    QPlainTextEdit *m_stdioConfiguration = nullptr;
-    QPlainTextEdit *m_streamableHttpConfiguration = nullptr;
+    OptionsCardItem *m_accessRootsItem = nullptr;
     StartupArguments::EffectiveAutomationConfig m_effectiveConfig;
 };
 

@@ -27,18 +27,18 @@ namespace DsConnector {
                 return !value.isEmpty();
             };
 
-            if (argument == QStringLiteral("--exposure-profile") ||
-                argument.startsWith(QStringLiteral("--exposure-profile="))) {
-                if (!takeValue(QStringLiteral("--exposure-profile"))) {
-                    error = QStringLiteral("--exposure-profile requires a value");
+            if (argument == QStringLiteral("--control-level") ||
+                argument.startsWith(QStringLiteral("--control-level="))) {
+                if (!takeValue(QStringLiteral("--control-level"))) {
+                    error = QStringLiteral("--control-level requires a value");
                     return false;
                 }
-                const auto profile = AutomationWire::exposureProfileFromName(value);
-                if (!profile) {
-                    error = QStringLiteral("Invalid exposure profile: %1").arg(value);
+                const auto level = AutomationWire::exposureLevelFromName(value);
+                if (!level) {
+                    error = QStringLiteral("Invalid control level: %1").arg(value);
                     return false;
                 }
-                options.exposure.profile = *profile;
+                options.exposure.controlLevel = *level;
                 continue;
             }
 

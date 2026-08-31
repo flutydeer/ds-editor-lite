@@ -281,9 +281,9 @@ namespace DsConnector {
                 QJsonObject{
                     {QStringLiteral("state"),
                      enumStringSchema(
-                         {QStringLiteral("not_running"), QStringLiteral("starting"),
-                          QStringLiteral("mcp_disabled"), QStringLiteral("mcp_starting"),
-                          QStringLiteral("mcp_ready"), QStringLiteral("mcp_stopping"),
+                         {QStringLiteral("not_running"), QStringLiteral("editor_starting"),
+                          QStringLiteral("server_disabled"), QStringLiteral("server_starting"),
+                          QStringLiteral("server_ready"), QStringLiteral("server_stopping"),
                           QStringLiteral("editor_stopping"), QStringLiteral("error")})  },
                     {QStringLiteral("editor_instance_id"),  stringSchema()              },
                     {QStringLiteral("process_id"),          integerSchema()             },
@@ -345,7 +345,7 @@ namespace DsConnector {
                            QStringLiteral("unavailable_count")});
             const auto exposure = strictObjectSchema(
                 QJsonObject{
-                    {QStringLiteral("profile"),
+                    {QStringLiteral("control_level"),
                      enumStringSchema({QStringLiteral("l0"), QStringLiteral("l1"),
                                        QStringLiteral("l2"), QStringLiteral("l3")})},
                     {QStringLiteral("includes"),             stringArraySchema()   },
@@ -354,7 +354,7 @@ namespace DsConnector {
                     {QStringLiteral("generic_target_count"), integerSchema()       },
                     {QStringLiteral("pending_selectors"),    stringArraySchema()   },
             },
-                QJsonArray{QStringLiteral("profile"), QStringLiteral("includes"),
+                QJsonArray{QStringLiteral("control_level"), QStringLiteral("includes"),
                            QStringLiteral("excludes"), QStringLiteral("typed_tool_count"),
                            QStringLiteral("generic_target_count"),
                            QStringLiteral("pending_selectors")});
@@ -389,13 +389,13 @@ namespace DsConnector {
                     {QStringLiteral("title"),                   stringSchema()  },
                     {QStringLiteral("description"),             stringSchema()  },
                     {QStringLiteral("category"),                stringSchema()  },
-                    {QStringLiteral("minimum_profile"),         stringSchema()  },
+                    {QStringLiteral("minimum_control_level"),         stringSchema()  },
                     {QStringLiteral("minimum_toolset_version"), integerSchema(1)},
                     {QStringLiteral("availability"),            stringSchema()  },
                     {QStringLiteral("annotations"),             annotations     },
             },
                 QJsonArray{QStringLiteral("name"), QStringLiteral("category"),
-                           QStringLiteral("minimum_profile"),
+                           QStringLiteral("minimum_control_level"),
                            QStringLiteral("minimum_toolset_version"),
                            QStringLiteral("availability")});
         }
@@ -530,8 +530,8 @@ namespace DsConnector {
                        QStringLiteral("minimum_toolset_version"));
             synthesize(QStringLiteral("category"), QStringLiteral("category"),
                        QStringLiteral("category"));
-            synthesize(QStringLiteral("minimum_profile"), QStringLiteral("minimumProfile"),
-                       QStringLiteral("minimum_profile"));
+            synthesize(QStringLiteral("minimum_control_level"), QStringLiteral("minimumControlLevel"),
+                       QStringLiteral("minimum_control_level"));
             synthesize(QStringLiteral("kind"), QStringLiteral("kind"), QStringLiteral("kind"));
             synthesize(QStringLiteral("sync_mode"), QStringLiteral("syncMode"),
                        QStringLiteral("sync_mode"));
@@ -557,9 +557,9 @@ namespace DsConnector {
                 {QStringLiteral("category"),
                  toolMetadataValue(tool, QStringLiteral("category"), QStringLiteral("category"))
                      .toString(QStringLiteral("editor"))},
-                {QStringLiteral("minimum_profile"),
-                 toolMetadataValue(tool, QStringLiteral("minimumProfile"),
-                 QStringLiteral("minimum_profile"))
+                {QStringLiteral("minimum_control_level"),
+                 toolMetadataValue(tool, QStringLiteral("minimumControlLevel"),
+                 QStringLiteral("minimum_control_level"))
                      .toString(QStringLiteral("l3"))},
                 {QStringLiteral("minimum_toolset_version"),
                  toolMetadataInteger(tool, QStringLiteral("minimumToolsetVersion"),
@@ -723,8 +723,8 @@ namespace DsConnector {
                          {QStringLiteral("unavailable_count"), m_unavailableCount}}            },
             {QStringLiteral("exposure"),
              QJsonObject{
-                 {QStringLiteral("profile"),
-                  AutomationWire::exposureProfileName(m_options.exposure.profile)},
+                 {QStringLiteral("control_level"),
+                  AutomationWire::exposureLevelName(m_options.exposure.controlLevel)},
                  {QStringLiteral("includes"), includes},
                  {QStringLiteral("excludes"), excludes},
                  {QStringLiteral("typed_tool_count"), m_exposure.typedContracts().size()},
@@ -933,7 +933,7 @@ namespace DsConnector {
             m_editorInstanceId = snapshot.result.editorInstanceId;
             clearEditorState(QStringLiteral("editor_instance_changed"));
         }
-        if (snapshot.result.state == SingleInstanceAutomationState::McpReady) {
+        if (snapshot.result.state == SingleInstanceAutomationState::ServerReady) {
             beginHandshake(snapshot);
         } else {
             clearEditorState(editorUnavailableCode());
@@ -967,7 +967,7 @@ namespace DsConnector {
         const auto sameTarget =
             m_handshakeTarget && m_handshakeTarget->primaryProcessId == snapshot.primaryProcessId &&
             m_handshakeTarget->result.editorInstanceId == snapshot.result.editorInstanceId &&
-            m_handshakeTarget->result.mcpEndpoint == snapshot.result.mcpEndpoint;
+            m_handshakeTarget->result.serverEndpoint == snapshot.result.serverEndpoint;
         if (!sameTarget) {
             ++m_handshakeEpoch;
             m_handshakeRetryTimer->stop();
@@ -1005,7 +1005,7 @@ namespace DsConnector {
         m_mcpProtocolVersion.clear();
         m_upstream->clearEndpoint(QStringLiteral("refreshing"));
         QString endpointError;
-        if (!m_upstream->setEndpoint(m_handshakeTarget->result.mcpEndpoint, &endpointError)) {
+        if (!m_upstream->setEndpoint(m_handshakeTarget->result.serverEndpoint, &endpointError)) {
             failHandshake(epoch,
                           QStringLiteral("invalid_discovered_endpoint: %1").arg(endpointError));
             return;
@@ -1288,7 +1288,7 @@ namespace DsConnector {
         const auto status = structuredContent(statusResult);
         const auto version = jsonInteger(status, QStringLiteral("toolsetVersion"),
                                          QStringLiteral("toolset_version"), 0);
-        const auto profile = status.value(QStringLiteral("profile")).toString();
+        const auto controlLevel = status.value(QStringLiteral("control_level")).toString();
         const auto hostMode =
             jsonString(status, QStringLiteral("hostMode"), QStringLiteral("host_mode"));
         const auto editorInstanceId =
@@ -1296,15 +1296,15 @@ namespace DsConnector {
         const auto rootValid = status.value(QStringLiteral("editor_instance_id")).isString() &&
                                !editorInstanceId.isNull() &&
                                status.value(QStringLiteral("host_mode")).isString() &&
-                               status.value(QStringLiteral("profile")).isString() &&
+                               status.value(QStringLiteral("control_level")).isString() &&
                                status.value(QStringLiteral("toolset_version")).isDouble() &&
                                status.value(QStringLiteral("documents")).isArray() &&
                                status.value(QStringLiteral("windows")).isArray();
-        const auto editorProfile = AutomationWire::automationProfileFromName(profile);
+        const auto editorControlLevel = AutomationWire::controlLevelFromName(controlLevel);
         const auto statusValid =
             statusResult.succeeded() &&
             !statusResult.result.value(QStringLiteral("isError")).toBool() && rootValid &&
-            version >= 1 && version <= MaximumSafeJsonInteger && editorProfile.has_value() &&
+            version >= 1 && version <= MaximumSafeJsonInteger && editorControlLevel.has_value() &&
             (hostMode == QStringLiteral("gui") || hostMode == QStringLiteral("headless"));
         if (!statusValid) {
             m_editorContract = {};
@@ -1319,7 +1319,7 @@ namespace DsConnector {
         }
         m_editorContract = {
             {QStringLiteral("toolset_version"), version },
-            {QStringLiteral("profile"),         profile },
+            {QStringLiteral("control_level"),   controlLevel},
             {QStringLiteral("host_mode"),       hostMode},
         };
         rebuildToolCaches();
@@ -1348,19 +1348,19 @@ namespace DsConnector {
         if (!observation.connected || !observation.snapshot)
             return QStringLiteral("editor_not_running");
         switch (observation.snapshot->result.state) {
-            case SingleInstanceAutomationState::Starting:
+            case SingleInstanceAutomationState::EditorStarting:
                 return QStringLiteral("editor_starting");
-            case SingleInstanceAutomationState::McpDisabled:
-                return QStringLiteral("mcp_disabled");
-            case SingleInstanceAutomationState::McpStarting:
-                return QStringLiteral("mcp_starting");
-            case SingleInstanceAutomationState::McpStopping:
-                return QStringLiteral("mcp_stopping");
+            case SingleInstanceAutomationState::ServerDisabled:
+                return QStringLiteral("server_disabled");
+            case SingleInstanceAutomationState::ServerStarting:
+                return QStringLiteral("server_starting");
+            case SingleInstanceAutomationState::ServerStopping:
+                return QStringLiteral("server_stopping");
             case SingleInstanceAutomationState::EditorStopping:
                 return QStringLiteral("editor_not_connected");
             case SingleInstanceAutomationState::Error:
                 return QStringLiteral("editor_error");
-            case SingleInstanceAutomationState::McpReady:
+            case SingleInstanceAutomationState::ServerReady:
                 return m_mcpConnected ? QString() : QStringLiteral("editor_not_connected");
         }
         return QStringLiteral("editor_not_connected");
@@ -1427,11 +1427,12 @@ namespace DsConnector {
             const auto unavailable = editorUnavailableCode();
             if (!unavailable.isEmpty())
                 return unavailable;
-            const auto profile = AutomationWire::automationProfileFromName(
-                m_editorContract.value(QStringLiteral("profile")).toString());
-            if (profile && (*profile == AutomationWire::AutomationProfile::Custom ||
-                            !AutomationWire::presetIncludes(*profile, tool.minimumProfile))) {
-                return QStringLiteral("profile_blocked");
+            const auto controlLevel = AutomationWire::controlLevelFromName(
+                m_editorContract.value(QStringLiteral("control_level")).toString());
+            if (controlLevel &&
+                (*controlLevel == AutomationWire::ControlLevel::Custom ||
+                 !AutomationWire::presetIncludes(*controlLevel, tool.minimumControlLevel))) {
+                return QStringLiteral("control_level_blocked");
             }
             const auto &observation = m_bootstrap->observation();
             if (observation.snapshot &&
@@ -1470,7 +1471,7 @@ namespace DsConnector {
     bool ConnectorRuntime::targetAllowed(const QJsonObject &tool, const QString &name) const {
         if (!tool.isEmpty()) {
             return m_exposure.allowsTarget(name, ExposurePolicy::category(tool),
-                                           ExposurePolicy::minimumProfile(tool));
+                                           ExposurePolicy::minimumControlLevel(tool));
         }
         const auto *known = AutomationWire::findPublicTool(name);
         return known && m_exposure.allowsKnownTool(*known);

@@ -1,6 +1,6 @@
 #include "EditorMcpController.h"
 
-#include "EditorMcpRuntimeStatus.h"
+#include "Automation/EditorAutomationRuntimeStatus.h"
 #include "McpHttpServer.h"
 #include "McpRequestDispatcher.h"
 #include "Automation/CoreRuntime.h"
@@ -108,7 +108,7 @@ namespace Automation {
     QStringList EditorMcpController::customPermissionOperationIds() const {
         QStringList result;
         for (const auto &contract : AutomationWire::publicToolContracts()) {
-            if (contract.minimumProfile != AutomationWire::AutomationProfile::L0)
+            if (contract.minimumControlLevel != AutomationWire::ControlLevel::L0)
                 result.append(contract.operationId);
         }
         result.sort();
@@ -128,11 +128,10 @@ namespace Automation {
             return;
         m_effectiveConfig =
             StartupArguments::effectiveAutomationConfig(*m_options.automation(), m_overrides);
-        m_accessPolicy.update(profileFor(m_effectiveConfig.profile),
+        m_accessPolicy.update(controlLevelFor(m_effectiveConfig.controlLevel),
                               enabledCustomOperations(*m_options.automation()));
 
-        const auto roots = m_fileGuard.setConfiguredRoots(m_options.automation()->readRoots,
-                                                          m_options.automation()->writeRoots);
+        const auto roots = m_fileGuard.setConfiguredRoots(m_options.automation()->accessRoots);
         if (!m_effectiveConfig.mcpEnabled) {
             transitionAfterStop(PendingTransition::Disabled);
             return;
@@ -149,7 +148,7 @@ namespace Automation {
 
         if (m_server->isListening() && m_boundRequestedPort == m_effectiveConfig.controlPort) {
             m_admissionController.setAccepting(true);
-            publishStatus(SingleInstanceAutomationState::McpReady, true, m_server->endpoint());
+            publishStatus(SingleInstanceAutomationState::ServerReady, true, m_server->endpoint());
             return;
         }
         transitionAfterStop(PendingTransition::Start);
@@ -168,19 +167,19 @@ namespace Automation {
         }
     }
 
-    AutomationWire::AutomationProfile
-        EditorMcpController::profileFor(const AutomationOption::Profile profile) {
-        switch (profile) {
-            case AutomationOption::Profile::L1:
-                return AutomationWire::AutomationProfile::L1;
-            case AutomationOption::Profile::L2:
-                return AutomationWire::AutomationProfile::L2;
-            case AutomationOption::Profile::L3:
-                return AutomationWire::AutomationProfile::L3;
-            case AutomationOption::Profile::Custom:
-                return AutomationWire::AutomationProfile::Custom;
+    AutomationWire::ControlLevel
+        EditorMcpController::controlLevelFor(const AutomationOption::ControlLevel level) {
+        switch (level) {
+            case AutomationOption::ControlLevel::L1:
+                return AutomationWire::ControlLevel::L1;
+            case AutomationOption::ControlLevel::L2:
+                return AutomationWire::ControlLevel::L2;
+            case AutomationOption::ControlLevel::L3:
+                return AutomationWire::ControlLevel::L3;
+            case AutomationOption::ControlLevel::Custom:
+                return AutomationWire::ControlLevel::Custom;
         }
-        return AutomationWire::AutomationProfile::L1;
+        return AutomationWire::ControlLevel::L1;
     }
 
     QSet<QString> EditorMcpController::enabledCustomOperations(const AutomationOption &option) {
@@ -189,7 +188,7 @@ namespace Automation {
              it != option.customPermissions.constEnd(); ++it) {
             const auto *contract = AutomationWire::findPublicTool(it.key());
             if (it.value() && contract &&
-                contract->minimumProfile != AutomationWire::AutomationProfile::L0) {
+                contract->minimumControlLevel != AutomationWire::ControlLevel::L0) {
                 result.insert(it.key());
             }
         }
@@ -202,7 +201,7 @@ namespace Automation {
         m_pendingError = std::move(error);
         m_admissionController.setAccepting(false);
         if (m_server->isListening() || m_server->isStopping()) {
-            publishStatus(SingleInstanceAutomationState::McpStopping, m_effectiveConfig.mcpEnabled);
+            publishStatus(SingleInstanceAutomationState::ServerStopping, m_effectiveConfig.mcpEnabled);
             m_server->requestStop();
             return;
         }
@@ -218,7 +217,7 @@ namespace Automation {
                 return;
             case PendingTransition::Disabled:
                 m_boundRequestedPort = 0;
-                publishStatus(SingleInstanceAutomationState::McpDisabled, false);
+                publishStatus(SingleInstanceAutomationState::ServerDisabled, false);
                 return;
             case PendingTransition::Error:
                 m_boundRequestedPort = 0;
@@ -232,7 +231,7 @@ namespace Automation {
     }
 
     void EditorMcpController::startServer() {
-        publishStatus(SingleInstanceAutomationState::McpStarting, true);
+        publishStatus(SingleInstanceAutomationState::ServerStarting, true);
         QString error;
         if (!m_server->start(m_effectiveConfig.controlPort, error)) {
             m_admissionController.setAccepting(false);
@@ -241,24 +240,24 @@ namespace Automation {
         }
         m_boundRequestedPort = m_effectiveConfig.controlPort;
         m_admissionController.setAccepting(true);
-        publishStatus(SingleInstanceAutomationState::McpReady, true, m_server->endpoint());
+        publishStatus(SingleInstanceAutomationState::ServerReady, true, m_server->endpoint());
     }
 
     void EditorMcpController::publishStatus(const SingleInstanceAutomationState state,
                                             const bool enabled, QString endpoint, QString error) {
         if (auto *application = QCoreApplication::instance()) {
-            application->setProperty(McpRuntimeStatus::StateProperty,
+            application->setProperty(AutomationRuntimeStatus::StateProperty,
                                      SingleInstanceProtocol::automationStateName(state));
-            application->setProperty(McpRuntimeStatus::EndpointProperty, endpoint);
-            application->setProperty(McpRuntimeStatus::ErrorProperty, error);
+            application->setProperty(AutomationRuntimeStatus::EndpointProperty, endpoint);
+            application->setProperty(AutomationRuntimeStatus::ErrorProperty, error);
         }
         auto status = m_coordinator.automationState();
         status.state = state;
         status.applicationVersion = QString::fromLatin1(LiteProductMetadata::Version);
         status.buildId = QString::fromLatin1(LITE_GIT_LAST_COMMIT_HASH);
         status.hostMode = QStringLiteral("gui");
-        status.mcpEnabled = enabled;
-        status.mcpEndpoint = std::move(endpoint);
+        status.serverEnabled = enabled;
+        status.serverEndpoint = std::move(endpoint);
         status.error = std::move(error);
         m_coordinator.updateAutomationState(status);
     }

@@ -1,5 +1,5 @@
-AUTOMATION_WIRE_PUBLIC_VALUE_DOMAIN(AutomationProfile, "automation_profile")
-AUTOMATION_WIRE_PUBLIC_VALUE_DOMAIN(ExposureProfile, "exposure_profile")
+AUTOMATION_WIRE_PUBLIC_VALUE_DOMAIN(ControlLevel, "control_level")
+AUTOMATION_WIRE_PUBLIC_VALUE_DOMAIN(ExposureLevel, "exposure_level")
 AUTOMATION_WIRE_PUBLIC_VALUE_DOMAIN(OperationKind, "operation_kind")
 AUTOMATION_WIRE_PUBLIC_VALUE_DOMAIN(SyncMode, "sync_mode")
 AUTOMATION_WIRE_PUBLIC_VALUE_DOMAIN(HostMode, "host_mode")
