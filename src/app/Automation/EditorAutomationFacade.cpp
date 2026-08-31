@@ -16,6 +16,22 @@
 
 namespace Automation {
     namespace {
+        bool isFocusedRegionVisible(const EditorViewState &state) {
+            const auto &layout = state.layout;
+            if (layout.focusedRegion == EditorViewGlobal::Region::None)
+                return true;
+            if (layout.focusedRegion == EditorViewGlobal::Region::TrackPanel)
+                return layout.trackPanelVisible;
+            if (!layout.bottomPanelVisible ||
+                layout.bottomPanelPageId != QStringLiteral("ClipEditor")) {
+                return false;
+            }
+            return (layout.focusedRegion == EditorViewGlobal::Region::PianoRoll &&
+                    layout.pianoRollVisible) ||
+                   (layout.focusedRegion == EditorViewGlobal::Region::Parameters &&
+                    layout.parametersVisible);
+        }
+
         bool isValidViewState(const EditorViewState &state) {
             return std::isfinite(state.trackPanel.centerTick) &&
                    state.trackPanel.centerTick >= 0.0 &&
@@ -35,6 +51,7 @@ namespace Automation {
                     state.layout.focusedRegion == EditorViewGlobal::Region::TrackPanel ||
                     state.layout.focusedRegion == EditorViewGlobal::Region::PianoRoll ||
                     state.layout.focusedRegion == EditorViewGlobal::Region::Parameters) &&
+                   isFocusedRegionVisible(state) &&
                    std::isfinite(state.pianoRoll.centerTick) && state.pianoRoll.centerTick >= 0.0 &&
                    std::isfinite(state.pianoRoll.centerKeyIndex) &&
                    state.pianoRoll.centerKeyIndex >= 0.0 &&

@@ -476,8 +476,19 @@ EditorViewState MainWindow::captureEditorViewState() const {
 
 bool MainWindow::restoreEditorViewState(const EditorViewState &state) {
     const auto finite = [](const double value) { return std::isfinite(value); };
+    const auto &layout = state.layout;
+    const bool focusedRegionVisible =
+        layout.focusedRegion == EditorViewGlobal::Region::None ||
+        (layout.focusedRegion == EditorViewGlobal::Region::TrackPanel &&
+         layout.trackPanelVisible) ||
+        (layout.bottomPanelVisible && layout.bottomPanelPageId == QStringLiteral("ClipEditor") &&
+         ((layout.focusedRegion == EditorViewGlobal::Region::PianoRoll &&
+           layout.pianoRollVisible) ||
+          (layout.focusedRegion == EditorViewGlobal::Region::Parameters &&
+           layout.parametersVisible)));
     if ((!state.layout.trackPanelVisible && !state.layout.bottomPanelVisible) ||
         (!state.layout.pianoRollVisible && !state.layout.parametersVisible) ||
+        !focusedRegionVisible ||
         !m_bottomPanelView->hasPage(state.layout.bottomPanelPageId) ||
         !m_bottomPanelView->clipEditorView()->supportsEditMode(state.pianoRoll.editMode) ||
         !finite(state.trackPanel.centerTick) || !finite(state.trackPanel.centerTrackIndex) ||
