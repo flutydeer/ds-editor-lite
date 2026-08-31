@@ -190,6 +190,7 @@ void CommonParamEditorView::commitAction() {
     }
 
     m_drawStroke = {};
+    m_bakeSource.clear();
     m_editType = None;
     m_mouseMoved = false;
     cancelRequested = false;
@@ -413,6 +414,8 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
         } else {
             m_drawStroke = DrawCurveEditUtils::beginStroke(m_drawCurvesEdited, m_mouseDownPos);
             m_editType = m_bakeMode ? Bake : Draw;
+            if (m_editType == Bake)
+                m_bakeSource.capture(m_drawCurvesOriginal);
         }
     } else if (event->button() == Qt::RightButton) {
         m_editType = m_eraseMode || m_bakeMode ? None : Erase;
@@ -442,7 +445,7 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
         const DrawCurveEditUtils::ValueProvider valueAtTick =
             m_editType == Bake
                 ? DrawCurveEditUtils::ValueProvider([this](const int sampleTick) {
-                      return DrawCurveEditUtils::generatedValueAt(m_drawCurvesOriginal, sampleTick);
+                      return m_bakeSource.valueAt(sampleTick);
                   })
                 : DrawCurveEditUtils::ValueProvider(
                       [previous = m_prevPos, current = curPos](const int sampleTick) {
@@ -486,6 +489,7 @@ bool CommonParamEditorView::cancelEditState() {
     }
 
     m_drawStroke = {};
+    m_bakeSource.clear();
     m_editType = None;
     m_mouseMoved = false;
     cancelRequested = true;
