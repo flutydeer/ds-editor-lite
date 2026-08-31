@@ -86,6 +86,8 @@ public:
     QString m_redoName;
 
     EditorInteraction::Target m_editTarget = EditorInteraction::Target::None;
+    QMetaObject::Connection m_clipCanSelectAllConnection;
+    QMetaObject::Connection m_noteSelectionConnection;
     QMetaObject::Connection m_clipSelectionConnection;
 
     void onNew() const;
@@ -103,6 +105,7 @@ public:
                            const QString &redoName);
 
     void onActiveEditTargetChanged(EditorInteraction::Target target);
+    void onEditCommandCapabilitiesChanged();
     void onSelectAll();
     void onDelete();
     void onCut();
@@ -120,6 +123,7 @@ public:
     void exitTracksEditorState();
     void enterParametersEditorState();
     void exitParametersEditorState();
+    void updateClipEditorActionState();
     void updatePasteActionState();
 
     void initActions();
