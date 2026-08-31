@@ -34,22 +34,21 @@ namespace {
         success &= expect(option.controlPort >= AutomationOption::kRandomControlPortMinimum &&
                               option.controlPort <= AutomationOption::kRandomControlPortMaximum,
                           QStringLiteral("the initial configuration should have a concrete private port"));
-        success &= expect(option.selectedProfile == AutomationOption::Profile::L1,
-                          QStringLiteral("profile should default to L1"));
+        success &= expect(option.controlLevel == AutomationOption::ControlLevel::L1,
+                          QStringLiteral("control level should default to L1"));
         success &= expect(!option.customPermissionEnabled(QStringLiteral("notes.list")),
                           QStringLiteral("unknown Custom permissions should default to disabled"));
-        success &= expect(option.readRoots == defaultRoots && option.writeRoots == defaultRoots,
+        success &= expect(option.accessRoots == defaultRoots,
                           QStringLiteral("file roots should default to the user documents folder"));
 
-        AutomationOption migrated;
-        migrated.load({});
-        success &= expect(migrated.readRoots == defaultRoots && migrated.writeRoots == defaultRoots,
+        AutomationOption loaded;
+        loaded.load({});
+        success &= expect(loaded.accessRoots == defaultRoots,
                           QStringLiteral("missing file root settings should use defaults"));
 
         AutomationOption cleared;
-        cleared.load(QJsonObject{{QStringLiteral("readRoots"), QJsonArray{}},
-                                 {QStringLiteral("writeRoots"), QJsonArray{}}});
-        success &= expect(cleared.readRoots.isEmpty() && cleared.writeRoots.isEmpty(),
+        cleared.load(QJsonObject{{QStringLiteral("accessRoots"), QJsonArray{}}});
+        success &= expect(cleared.accessRoots.isEmpty(),
                           QStringLiteral("explicitly empty file roots should remain empty"));
         return success;
     }
@@ -58,19 +57,18 @@ namespace {
         AutomationOption option;
         option.mcpEnabled = true;
         option.controlPort = 65535;
-        option.selectedProfile = AutomationOption::Profile::Custom;
+        option.controlLevel = AutomationOption::ControlLevel::Custom;
         option.setCustomPermissionEnabled(QStringLiteral("notes.list"), true);
         option.setCustomPermissionEnabled(QStringLiteral("documents.save"), false);
-        option.readRoots = {QStringLiteral("D:/inputs"), QStringLiteral("D:/shared")};
-        option.writeRoots = {QStringLiteral("D:/outputs")};
+        option.accessRoots = {QStringLiteral("D:/inputs"), QStringLiteral("D:/outputs")};
 
         AutomationOption reloaded;
         reloaded.load(option.value());
         bool success = expect(reloaded.mcpEnabled, QStringLiteral("MCP setting should round-trip"));
         success &= expect(reloaded.controlPort == 65535,
                           QStringLiteral("maximum control port should round-trip"));
-        success &= expect(reloaded.selectedProfile == AutomationOption::Profile::Custom,
-                          QStringLiteral("Custom profile should round-trip"));
+        success &= expect(reloaded.controlLevel == AutomationOption::ControlLevel::Custom,
+                          QStringLiteral("Custom control level should round-trip"));
         success &= expect(reloaded.customPermissionEnabled(QStringLiteral("notes.list")),
                           QStringLiteral("enabled Custom permission should round-trip"));
         success &= expect(reloaded.customPermissions.contains(QStringLiteral("documents.save")) &&
@@ -78,8 +76,7 @@ namespace {
                           QStringLiteral("explicitly disabled Custom permission should round-trip"));
         success &= expect(!reloaded.customPermissionEnabled(QStringLiteral("new.operation")),
                           QStringLiteral("new operations should stay disabled in Custom"));
-        success &= expect(reloaded.readRoots == option.readRoots &&
-                              reloaded.writeRoots == option.writeRoots,
+        success &= expect(reloaded.accessRoots == option.accessRoots,
                           QStringLiteral("file roots should round-trip"));
         return success;
     }
@@ -88,21 +85,20 @@ namespace {
         AutomationOption option;
         option.mcpEnabled = true;
         option.controlPort = 42;
-        option.selectedProfile = AutomationOption::Profile::L2;
+        option.controlLevel = AutomationOption::ControlLevel::L2;
         option.customPermissions.insert(QStringLiteral("old.operation"), true);
-        option.readRoots = {QStringLiteral("D:/old")};
+        option.accessRoots = {QStringLiteral("D:/old")};
 
         option.load(QJsonObject{
             {QStringLiteral("mcpEnabled"),       QStringLiteral("true")                 },
             {QStringLiteral("controlPortMode"),  QStringLiteral("invalid")              },
             {QStringLiteral("controlPort"),      65536                                  },
-            {QStringLiteral("selectedProfile"),  QStringLiteral("L2")                  },
+            {QStringLiteral("controlLevel"),  QStringLiteral("L2")                  },
             {QStringLiteral("customPermissions"),
              QJsonObject{{QStringLiteral("valid.false"), false},
                          {QStringLiteral("invalid"), QStringLiteral("true")}}          },
-            {QStringLiteral("readRoots"),
+            {QStringLiteral("accessRoots"),
              QJsonArray{QStringLiteral("D:/input"), 12, QString{}}                      },
-            {QStringLiteral("writeRoots"),       QStringLiteral("D:/not-an-array")     },
         });
 
         bool success = expect(!option.mcpEnabled,
@@ -110,33 +106,33 @@ namespace {
         success &= expect(option.controlPort >= AutomationOption::kRandomControlPortMinimum &&
                               option.controlPort <= AutomationOption::kRandomControlPortMaximum,
                           QStringLiteral("invalid port settings should generate a concrete port"));
-        success &= expect(option.selectedProfile == AutomationOption::Profile::L1,
-                          QStringLiteral("invalid profile should use L1"));
+        success &= expect(option.controlLevel == AutomationOption::ControlLevel::L1,
+                          QStringLiteral("invalid control level should use L1"));
         success &= expect(option.customPermissions.size() == 1 &&
                               option.customPermissions.contains(QStringLiteral("valid.false")),
                           QStringLiteral("only boolean Custom permissions should load"));
-        success &= expect(option.readRoots == QStringList{QStringLiteral("D:/input")} &&
-                              option.writeRoots.isEmpty(),
+        success &= expect(option.accessRoots == QStringList{QStringLiteral("D:/input")},
                           QStringLiteral("only non-empty roots in arrays should load"));
         return success;
     }
 
-    bool testProfileConversion() {
+    bool testControlLevelConversion() {
         bool success = true;
-        const QList<AutomationOption::Profile> profiles = {
-            AutomationOption::Profile::L1,
-            AutomationOption::Profile::L2,
-            AutomationOption::Profile::L3,
-            AutomationOption::Profile::Custom,
+        const QList<AutomationOption::ControlLevel> levels = {
+            AutomationOption::ControlLevel::L1,
+            AutomationOption::ControlLevel::L2,
+            AutomationOption::ControlLevel::L3,
+            AutomationOption::ControlLevel::Custom,
         };
-        for (const auto profile : profiles) {
-            const auto serialized = AutomationOption::profileToString(profile);
-            success &= expect(AutomationOption::profileFromString(serialized) == profile,
-                              QStringLiteral("profile conversion should round-trip: %1")
+        for (const auto level : levels) {
+            const auto serialized = AutomationOption::controlLevelToString(level);
+            success &= expect(AutomationOption::controlLevelFromString(serialized) == level,
+                              QStringLiteral("control level conversion should round-trip: %1")
                                   .arg(serialized));
         }
-        success &= expect(!AutomationOption::profileFromString(QStringLiteral("l0")),
-                          QStringLiteral("L0 is intrinsic rather than a selectable editor profile"));
+        success &= expect(!AutomationOption::controlLevelFromString(QStringLiteral("l0")),
+                          QStringLiteral(
+                              "L0 is intrinsic rather than a selectable editor control level"));
         return success;
     }
 
@@ -175,15 +171,16 @@ namespace {
         using namespace Automation::McpClientConfiguration;
 
         bool success = true;
-        success &= expect(connectorArguments(AutomationOption::Profile::L2) ==
-                              QStringList{QStringLiteral("--exposure-profile"),
+        success &= expect(connectorArguments(AutomationOption::ControlLevel::L2) ==
+                              QStringList{QStringLiteral("--control-level"),
                                           QStringLiteral("l2")},
-                          QStringLiteral("L2 connector arguments should match the editor profile"));
+                          QStringLiteral(
+                              "L2 connector arguments should match the editor control level"));
         success &= expect(
-            connectorArguments(AutomationOption::Profile::Custom,
+            connectorArguments(AutomationOption::ControlLevel::Custom,
                                {QStringLiteral("notes.list"), QStringLiteral("documents.save"),
                                 QStringLiteral("notes.list")}) ==
-                QStringList{QStringLiteral("--exposure-profile"), QStringLiteral("l0"),
+                QStringList{QStringLiteral("--control-level"), QStringLiteral("l0"),
                             QStringLiteral("--include-tool=id:documents.save"),
                             QStringLiteral("--include-tool=id:notes.list")},
             QStringLiteral("Custom connector arguments should be sorted and deduplicated"));
@@ -197,7 +194,7 @@ namespace {
                           QStringLiteral("connector path should use product metadata"));
 
         const auto stdio = QJsonDocument::fromJson(
-            stdioJson(command, connectorArguments(AutomationOption::Profile::L1)).toUtf8());
+            stdioJson(command, connectorArguments(AutomationOption::ControlLevel::L1)).toUtf8());
         const auto stdioServer = stdio.object();
         const auto stdioCommand = stdioServer.value(QStringLiteral("command")).toString();
         success &= expect(stdioServer.value(QStringLiteral("type")).toString() ==
@@ -226,7 +223,7 @@ int main(int argc, char *argv[]) {
     success &= testRoundTrip();
     success &= testInvalidValuesUseSafeDefaults();
     success &= testStableGeneratedControlPort();
-    success &= testProfileConversion();
+    success &= testControlLevelConversion();
     success &= testMcpClientConfigurations();
     return success ? 0 : 1;
 }

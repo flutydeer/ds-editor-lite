@@ -1039,9 +1039,8 @@ namespace {
                QStringLiteral("open without plan_digest must retain a start-time revalidator"));
 
         const auto revokedRoot = QDir(directoryPath).absoluteFilePath(QStringLiteral("revoked"));
-        expect(QDir().mkpath(revokedRoot) &&
-                   bool(fileGuard.setConfiguredRoots({revokedRoot}, {directoryPath})),
-               QStringLiteral("read root must be replaceable before delayed open starts"));
+        expect(QDir().mkpath(revokedRoot) && bool(fileGuard.setConfiguredRoots({revokedRoot})),
+               QStringLiteral("access root must be replaceable before delayed open starts"));
         if (control.revalidateOpen) {
             const auto revalidated = control.revalidateOpen();
             expect(!revalidated &&
@@ -1051,7 +1050,7 @@ namespace {
                    QStringLiteral(
                        "delayed open must observe revoked read access without a digest"));
         }
-        expect(bool(fileGuard.setConfiguredRoots({directoryPath}, {directoryPath})),
+        expect(bool(fileGuard.setConfiguredRoots({directoryPath})),
                QStringLiteral("project input roots must be restored"));
 
         const auto plannedPath =
@@ -2006,9 +2005,9 @@ int main(int argc, char *argv[]) {
     QTemporaryDir directory;
     expect(directory.isValid(), QStringLiteral("test file root must be available"));
 
-    Automation::AutomationAccessPolicy access(AutomationWire::AutomationProfile::L3);
+    Automation::AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
     Automation::AutomationFileGuard fileGuard;
-    expect(bool(fileGuard.setConfiguredRoots({directory.path()}, {directory.path()})),
+    expect(bool(fileGuard.setConfiguredRoots({directory.path()})),
            QStringLiteral("file guard roots must configure"));
     Automation::AdmissionLimits limits;
     limits.maximumGlobalInFlight = 8;
@@ -2095,30 +2094,30 @@ int main(int argc, char *argv[]) {
                strictInput.getError().code == Automation::AutomationErrorCode::InvalidArgument,
            QStringLiteral("strict input schemas must reject additional properties"));
 
-    access.update(AutomationWire::AutomationProfile::L1);
+    access.update(AutomationWire::ControlLevel::L1);
     const auto denied = registry.invoke(QStringLiteral("formats.list"), {},
                                         {.clientId = QStringLiteral("permission")});
     expect(!denied && denied.getError().code == Automation::AutomationErrorCode::PermissionDenied,
            QStringLiteral("L1 must deny an L2 tool"));
-    access.update(AutomationWire::AutomationProfile::Custom, {QStringLiteral("documents.get")});
+    access.update(AutomationWire::ControlLevel::Custom, {QStringLiteral("documents.get")});
     expect(access.isAllowed(QStringLiteral("application.get_status")) &&
                access.isAllowed(QStringLiteral("documents.get")) &&
                !access.isAllowed(QStringLiteral("tracks.set_color")),
-           QStringLiteral("custom profile must retain L0 and only explicit business tools"));
-    access.update(AutomationWire::AutomationProfile::L3);
+           QStringLiteral("custom control level must retain L0 and only explicit business tools"));
+    access.update(AutomationWire::ControlLevel::L3);
 
     const auto publicEditingFixture = createPublicEditingFixture(registry, runtime);
     expect(publicEditingFixture.has_value(),
            QStringLiteral("representative public editing fixture must be created"));
     if (publicEditingFixture) {
-        access.update(AutomationWire::AutomationProfile::L2);
+        access.update(AutomationWire::ControlLevel::L2);
         const auto deniedPackageLookup = registry.invoke(QStringLiteral("packages.list"), {});
         expect(!deniedPackageLookup && deniedPackageLookup.getError().code ==
                                            Automation::AutomationErrorCode::PermissionDenied,
                QStringLiteral("L2 voice workflows must not depend on the L3 packages domain"));
         verifyPublicVoiceAndSpeakerMix(registry, runtime, *publicEditingFixture, registrySinger,
                                        registrySingerV2, registrySpeakerV2, registrySpeakerV2B);
-        access.update(AutomationWire::AutomationProfile::L3);
+        access.update(AutomationWire::ControlLevel::L3);
         verifyAdvancedGuiBindings(registry, runtime, *publicEditingFixture);
 
         auto *longClip = fixture.model().findClipById(publicEditingFixture->scalarClipId.value());

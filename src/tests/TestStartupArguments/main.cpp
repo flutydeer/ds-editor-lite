@@ -17,7 +17,7 @@ namespace {
     bool testValidArguments(const QString &workingDirectory) {
         const auto parsed = StartupArguments::parseArguments(
             {QStringLiteral("--mcp"), QStringLiteral("--control-port=65535"),
-             QStringLiteral("--automation-profile"), QStringLiteral("custom"),
+             QStringLiteral("--control-level"), QStringLiteral("custom"),
              QStringLiteral("song.dspx")},
             workingDirectory);
         bool success = expect(parsed.isValid(), QStringLiteral("valid arguments should parse"));
@@ -25,8 +25,8 @@ namespace {
                           QStringLiteral("--mcp should enable the runtime override"));
         success &= expect(parsed.automation.controlPort == 65535,
                           QStringLiteral("control port should parse at its upper bound"));
-        success &= expect(parsed.automation.profile == AutomationOption::Profile::Custom,
-                          QStringLiteral("Custom profile should parse"));
+        success &= expect(parsed.automation.controlLevel == AutomationOption::ControlLevel::Custom,
+                          QStringLiteral("Custom control level should parse"));
         success &= expect(
             parsed.projectFilePaths ==
                 QStringList{QDir::cleanPath(QDir(workingDirectory).absoluteFilePath("song.dspx"))},
@@ -34,13 +34,13 @@ namespace {
         return success;
     }
 
-    bool testPortAndProfileBounds() {
+    bool testPortAndControlLevelBounds() {
         bool success = true;
         auto parsed = StartupArguments::parseArguments(
             {QStringLiteral("--control-port"), QStringLiteral("1"),
-             QStringLiteral("--automation-profile=l3")});
+             QStringLiteral("--control-level=l3")});
         success &= expect(parsed.isValid() && parsed.automation.controlPort == 1 &&
-                              parsed.automation.profile == AutomationOption::Profile::L3,
+                              parsed.automation.controlLevel == AutomationOption::ControlLevel::L3,
                           QStringLiteral("the minimum port and L3 should be accepted"));
 
         parsed = StartupArguments::parseArguments(
@@ -68,10 +68,11 @@ namespace {
                           QStringLiteral("negative ports should fail clearly"));
 
         parsed = StartupArguments::parseArguments(
-            {QStringLiteral("--automation-profile"), QStringLiteral("L2")});
+            {QStringLiteral("--control-level"), QStringLiteral("L2")});
         success &= expect(!parsed.isValid() &&
                               parsed.error->code == StartupArguments::ParseErrorCode::InvalidValue,
-                          QStringLiteral("profile values should use the documented lowercase form"));
+                          QStringLiteral(
+                              "control level values should use the documented lowercase form"));
         return success;
     }
 
@@ -84,10 +85,10 @@ namespace {
                           QStringLiteral("missing control port should identify its option"));
 
         parsed = StartupArguments::parseArguments(
-            {QStringLiteral("--automation-profile"), QStringLiteral("--mcp")});
+            {QStringLiteral("--control-level"), QStringLiteral("--mcp")});
         success &= expect(!parsed.isValid() &&
                               parsed.error->code == StartupArguments::ParseErrorCode::MissingValue,
-                          QStringLiteral("a following flag is not a profile value"));
+                          QStringLiteral("a following flag is not a control level value"));
 
         parsed = StartupArguments::parseArguments(
             {QStringLiteral("--mcp"), QStringLiteral("--no-mcp")});
@@ -110,12 +111,12 @@ namespace {
                           QStringLiteral("repeating the same concrete port should be accepted"));
 
         parsed = StartupArguments::parseArguments(
-            {QStringLiteral("--automation-profile=l1"),
-             QStringLiteral("--automation-profile=l2")});
+            {QStringLiteral("--control-level=l1"),
+             QStringLiteral("--control-level=l2")});
         success &= expect(
             !parsed.isValid() &&
                 parsed.error->code == StartupArguments::ParseErrorCode::ConflictingOptions,
-            QStringLiteral("different repeated profiles should conflict"));
+            QStringLiteral("different repeated control levels should conflict"));
         return success;
     }
 
@@ -141,27 +142,27 @@ namespace {
         AutomationOption persisted;
         persisted.mcpEnabled = false;
         persisted.controlPort = 1234;
-        persisted.selectedProfile = AutomationOption::Profile::L1;
+        persisted.controlLevel = AutomationOption::ControlLevel::L1;
         persisted.setCustomPermissionEnabled(QStringLiteral("notes.list"), true);
 
         StartupArguments::AutomationOverrides overrides;
         overrides.mcpEnabled = true;
         overrides.controlPort = 4321;
-        overrides.profile = AutomationOption::Profile::Custom;
+        overrides.controlLevel = AutomationOption::ControlLevel::Custom;
         const auto effective =
             StartupArguments::effectiveAutomationConfig(persisted, overrides);
 
         bool success = expect(effective.mcpEnabled && overrides.controlPort &&
                                   effective.controlPort == *overrides.controlPort &&
-                                  effective.profile == AutomationOption::Profile::Custom,
+                                  effective.controlLevel == AutomationOption::ControlLevel::Custom,
                               QStringLiteral("CLI values should win in the effective config"));
         success &= expect(
             effective.mcpEnabledSource == StartupArguments::ConfigSource::CommandLine &&
                 effective.controlPortSource == StartupArguments::ConfigSource::CommandLine &&
-                effective.profileSource == StartupArguments::ConfigSource::CommandLine,
+                effective.controlLevelSource == StartupArguments::ConfigSource::CommandLine,
             QStringLiteral("effective config should expose command-line sources"));
         success &= expect(!persisted.mcpEnabled && persisted.controlPort == 1234 &&
-                              persisted.selectedProfile == AutomationOption::Profile::L1 &&
+                              persisted.controlLevel == AutomationOption::ControlLevel::L1 &&
                               persisted.customPermissionEnabled(QStringLiteral("notes.list")),
                           QStringLiteral("resolving CLI overrides must not modify saved settings"));
         return success;
@@ -177,7 +178,7 @@ int main(int argc, char *argv[]) {
 
     bool success = true;
     success &= testValidArguments(workingDirectory.path());
-    success &= testPortAndProfileBounds();
+    success &= testPortAndControlLevelBounds();
     success &= testMissingAndConflictingOptions();
     success &= testUnknownOptionAndDelimiter(workingDirectory.path());
     success &= testEffectiveConfigDoesNotMutatePersistence();

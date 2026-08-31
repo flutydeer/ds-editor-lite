@@ -83,13 +83,13 @@ namespace {
                metadataInteger(*metadata, QStringLiteral("minimum_toolset_version"),
                                QStringLiteral("minimumToolsetVersion")) >= 1 &&
                !metadata->value(QStringLiteral("category")).toString().isEmpty() &&
-               !metadata->value(QStringLiteral("minimum_profile")).toString().isEmpty();
+               !metadata->value(QStringLiteral("minimum_control_level")).toString().isEmpty();
     }
 
     bool isToolSummary(const QJsonObject &tool) {
         return !tool.value(QStringLiteral("name")).toString().isEmpty() &&
                !tool.value(QStringLiteral("category")).toString().isEmpty() &&
-               !tool.value(QStringLiteral("minimum_profile")).toString().isEmpty() &&
+               !tool.value(QStringLiteral("minimum_control_level")).toString().isEmpty() &&
                tool.value(QStringLiteral("minimum_toolset_version")).toInteger() >= 1 &&
                !tool.value(QStringLiteral("availability")).toString().isEmpty() &&
                !tool.contains(QStringLiteral("inputSchema")) &&
@@ -314,7 +314,7 @@ namespace {
         bool applicationTransportExtraField = false;
         int extraToolCount = 0;
         int pageSize = 0;
-        AutomationWire::AutomationProfile editorProfile = AutomationWire::AutomationProfile::L1;
+        AutomationWire::ControlLevel editorControlLevel = AutomationWire::ControlLevel::L1;
         int editorToolsetVersion = static_cast<int>(AutomationWire::PublicToolsetVersion);
         int applicationMinimumToolsetVersion = 1;
         int discoverResponseDelayMs = 0;
@@ -498,7 +498,7 @@ namespace {
                           QJsonObject{
                               {QStringLiteral("minimum_toolset_version"), 1},
                               {QStringLiteral("category"), QStringLiteral("fake")},
-                              {QStringLiteral("minimum_profile"), QStringLiteral("l0")},
+                              {QStringLiteral("minimum_control_level"), QStringLiteral("l0")},
                               {QStringLiteral("sync_mode"), QStringLiteral("synchronous")},
                               {QStringLiteral("value_sources"), QJsonArray{}},
                               {QStringLiteral("kind"), QStringLiteral("query")},
@@ -531,7 +531,7 @@ namespace {
                                     .value(QStringLiteral("io.openvpi.ds-editor-lite/tool"))
                                     .toObject();
                 metadata.insert(QStringLiteral("category"), QStringLiteral("fake"));
-                metadata.insert(QStringLiteral("minimum_profile"), QStringLiteral("l0"));
+                metadata.insert(QStringLiteral("minimum_control_level"), QStringLiteral("l0"));
                 auto meta = tool.value(QStringLiteral("_meta")).toObject();
                 meta.insert(QStringLiteral("io.openvpi.ds-editor-lite/tool"), metadata);
                 tool.insert(QStringLiteral("_meta"), meta);
@@ -719,8 +719,8 @@ namespace {
                         {QStringLiteral("editor_instance_id"),
                          QStringLiteral("11111111-1111-4111-8111-111111111111")     },
                         {QStringLiteral("host_mode"),          QStringLiteral("gui")},
-                        {QStringLiteral("profile"),
-                         AutomationWire::automationProfileName(editorProfile)       },
+                        {QStringLiteral("control_level"),
+                         AutomationWire::controlLevelName(editorControlLevel)  },
                         {QStringLiteral("toolset_version"),    editorToolsetVersion },
                         {QStringLiteral("documents"),          QJsonArray{}         },
                         {QStringLiteral("windows"),            QJsonArray{}         },
@@ -960,15 +960,15 @@ namespace {
         bool ok = true;
         ok &= expect(
             DsConnector::parseConnectorOptions(
-                {QStringLiteral("--exposure-profile"), QStringLiteral("l0"),
+                {QStringLiteral("--control-level"), QStringLiteral("l0"),
                  QStringLiteral("--include-tool=id:notes.insert"), QStringLiteral("--include-tool"),
                  QStringLiteral("notes.insert"), QStringLiteral("--exclude-tool=category:notes")},
                 options, error),
             "valid connector options must parse");
-        ok &= expect(options.exposure.profile == AutomationWire::ExposureProfile::L0 &&
+        ok &= expect(options.exposure.controlLevel == AutomationWire::ExposureLevel::L0 &&
                          options.exposure.includes.size() == 1 &&
                          options.exposure.excludes.size() == 1,
-                     "connector options must normalize profiles and duplicate selectors");
+                     "connector options must normalize control levels and duplicate selectors");
         DsConnector::ExposurePolicy policy(options);
         const QSet<QString> intrinsicIds{
             QStringLiteral("application.get_info"),
@@ -981,7 +981,7 @@ namespace {
 
         DsConnector::ConnectorOptions protectedOptions;
         ok &= expect(DsConnector::parseConnectorOptions(
-                         {QStringLiteral("--exposure-profile=l0"),
+                         {QStringLiteral("--control-level=l0"),
                           QStringLiteral("--exclude-tool=category:application")},
                          protectedOptions, error),
                      "an exclusion matching an L0 category must remain a valid connector option");
@@ -996,16 +996,16 @@ namespace {
                      "unsupported selector syntax must fail startup parsing");
 
         DsConnector::ExposurePolicy l0(DsConnector::ConnectorOptions{
-            .exposure = {.profile = AutomationWire::ExposureProfile::L0},
+            .exposure = {.controlLevel = AutomationWire::ExposureLevel::L0},
         });
         DsConnector::ExposurePolicy l1(DsConnector::ConnectorOptions{
-            .exposure = {.profile = AutomationWire::ExposureProfile::L1},
+            .exposure = {.controlLevel = AutomationWire::ExposureLevel::L1},
         });
         DsConnector::ExposurePolicy l2(DsConnector::ConnectorOptions{
-            .exposure = {.profile = AutomationWire::ExposureProfile::L2},
+            .exposure = {.controlLevel = AutomationWire::ExposureLevel::L2},
         });
         DsConnector::ExposurePolicy l3(DsConnector::ConnectorOptions{
-            .exposure = {.profile = AutomationWire::ExposureProfile::L3},
+            .exposure = {.controlLevel = AutomationWire::ExposureLevel::L3},
         });
         const auto l0Ids = contractNames(l0.typedContracts());
         const auto l1Ids = contractNames(l1.typedContracts());
@@ -1019,14 +1019,14 @@ namespace {
         ok &= expect(l0Ids == intrinsicIds && includesAll(l1Ids, l0Ids) &&
                          includesAll(l2Ids, l1Ids) && includesAll(l3Ids, l2Ids) &&
                          l3Ids == QSet<QString>(declaredIds.cbegin(), declaredIds.cend()),
-                     "connector exposure profiles must be intrinsic, cumulative, and complete");
+                     "connector control levels must be intrinsic, cumulative, and complete");
         return ok;
     }
 
     bool verifyOfflineDownstream() {
         DsConnector::ConnectorRuntime runtime(
             DsConnector::ConnectorOptions{
-                .exposure = {.profile = AutomationWire::ExposureProfile::L0},
+                .exposure = {.controlLevel = AutomationWire::ExposureLevel::L0},
             },
             QStringLiteral("DsConnectorLite-No-Such-Editor"));
         DsConnector::DownstreamMcpServer server(&runtime);
@@ -1377,7 +1377,7 @@ namespace {
 
         DsConnector::ConnectorRuntime l3Runtime(
             DsConnector::ConnectorOptions{
-                .exposure = {.profile = AutomationWire::ExposureProfile::L3},
+                .exposure = {.controlLevel = AutomationWire::ExposureLevel::L3},
             },
             QStringLiteral("DsConnectorLite-No-Such-Editor-L3"));
         DsConnector::DownstreamMcpServer l3Server(&l3Runtime);
@@ -1482,7 +1482,7 @@ namespace {
 
         DsConnector::ConnectorRuntime runtime(
             DsConnector::ConnectorOptions{
-                .exposure = {.profile = AutomationWire::ExposureProfile::L1},
+                .exposure = {.controlLevel = AutomationWire::ExposureLevel::L1},
             },
             serviceName);
         const auto callCode = [&runtime] {
@@ -1502,10 +1502,10 @@ namespace {
         runtime.start();
 
         const QList<QPair<SingleInstanceAutomationState, QString>> states{
-            {SingleInstanceAutomationState::Starting,    QStringLiteral("editor_starting")},
-            {SingleInstanceAutomationState::McpDisabled, QStringLiteral("mcp_disabled")   },
-            {SingleInstanceAutomationState::McpStarting, QStringLiteral("mcp_starting")   },
-            {SingleInstanceAutomationState::McpStopping, QStringLiteral("mcp_stopping")   },
+            {SingleInstanceAutomationState::EditorStarting,    QStringLiteral("editor_starting")},
+            {SingleInstanceAutomationState::ServerDisabled, QStringLiteral("server_disabled")},
+            {SingleInstanceAutomationState::ServerStarting, QStringLiteral("server_starting")},
+            {SingleInstanceAutomationState::ServerStopping, QStringLiteral("server_stopping")},
             {SingleInstanceAutomationState::Error,       QStringLiteral("editor_error")   },
         };
         for (const auto &[state, expectedCode] : states) {
@@ -1548,7 +1548,7 @@ namespace {
             return false;
         bootstrap.emptyFirstRequestId = true;
         bootstrap.publish(SingleInstanceAutomationStatus{
-            .state = SingleInstanceAutomationState::Starting,
+            .state = SingleInstanceAutomationState::EditorStarting,
             .editorInstanceId = QStringLiteral("correlation-editor"),
             .executablePath = QCoreApplication::applicationFilePath(),
             .applicationVersion = QStringLiteral("test"),
@@ -1577,7 +1577,7 @@ namespace {
         const auto options = DsConnector::ConnectorOptions{
             .exposure =
                 {
-                           .profile = AutomationWire::ExposureProfile::L0,
+                           .controlLevel = AutomationWire::ExposureLevel::L0,
                            .includes = {QStringLiteral("id:application.get_info"),
                                  QStringLiteral("id:application.get_status"),
                                  QStringLiteral("id:notes.list")},
@@ -1586,14 +1586,14 @@ namespace {
         };
         const auto readyStatus = [](const QString &editorId, const QString &endpoint) {
             return SingleInstanceAutomationStatus{
-                .state = SingleInstanceAutomationState::McpReady,
+                .state = SingleInstanceAutomationState::ServerReady,
                 .editorInstanceId = editorId,
                 .executablePath = QCoreApplication::applicationFilePath(),
                 .applicationVersion = QStringLiteral("test"),
                 .buildId = QStringLiteral("fake-build"),
                 .hostMode = QStringLiteral("gui"),
-                .mcpEnabled = true,
-                .mcpEndpoint = endpoint,
+                .serverEnabled = true,
+                .serverEndpoint = endpoint,
             };
         };
         const auto readyRuntime = [](const DsConnector::ConnectorRuntime &runtime,
@@ -1837,21 +1837,21 @@ namespace {
             return false;
 
         SingleInstanceAutomationStatus ready{
-            .state = SingleInstanceAutomationState::McpReady,
+            .state = SingleInstanceAutomationState::ServerReady,
             .editorInstanceId = QUuid::createUuid().toString(QUuid::WithoutBraces),
             .executablePath = QCoreApplication::applicationFilePath(),
             .applicationVersion = QStringLiteral("test"),
             .buildId = QStringLiteral("fake-build"),
             .hostMode = QStringLiteral("gui"),
-            .mcpEnabled = true,
-            .mcpEndpoint = http.endpoint(),
+            .serverEnabled = true,
+            .serverEndpoint = http.endpoint(),
         };
         bootstrap.publish(ready);
 
         DsConnector::ConnectorOptions options{
             .exposure =
                 {
-                           .profile = AutomationWire::ExposureProfile::L0,
+                           .controlLevel = AutomationWire::ExposureLevel::L0,
                            .includes =
                         {
                             QStringLiteral("id:application.get_info"),
@@ -2337,7 +2337,7 @@ namespace {
 
         const auto fixedToolCount = runtime.downstreamTools().size();
         const auto policyRefreshCount = http.toolsListCount;
-        http.applicationAvailability = QStringLiteral("profile_disabled");
+        http.applicationAvailability = QStringLiteral("control_level_disabled");
         bootstrap.publish(ready);
         ok &= expect(waitUntil(
                          [&] {
@@ -2403,7 +2403,7 @@ namespace {
                                      .toString();
                          });
         ok &= expect(!policyListContainsApplication && policySearch.isEmpty() &&
-                         policyDescribeCode == QStringLiteral("profile_disabled"),
+                         policyDescribeCode == QStringLiteral("control_level_disabled"),
                      "generic list, search, and describe must enforce editor availability policy");
         server.processLine(
             QJsonDocument(
@@ -2428,7 +2428,7 @@ namespace {
                                   .toObject()
                                   .value(QStringLiteral("code"))
                                   .toString();
-            ok &= expect(code == QStringLiteral("profile_disabled") &&
+            ok &= expect(code == QStringLiteral("control_level_disabled") &&
                              http.calledTools.size() == callsBeforePolicyReject,
                          "generic invoke must not bypass actual editor availability policy");
         } else {
@@ -2571,9 +2571,9 @@ namespace {
         http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::Success;
 
         auto disabled = ready;
-        disabled.state = SingleInstanceAutomationState::McpDisabled;
-        disabled.mcpEnabled = false;
-        disabled.mcpEndpoint.clear();
+        disabled.state = SingleInstanceAutomationState::ServerDisabled;
+        disabled.serverEnabled = false;
+        disabled.serverEndpoint.clear();
         bootstrap.publish(disabled);
         ok &= expect(waitUntil([&] {
                          return !runtime.status()
@@ -2603,21 +2603,21 @@ namespace {
         if (!ok)
             return false;
         bootstrap.publish(SingleInstanceAutomationStatus{
-            .state = SingleInstanceAutomationState::McpReady,
+            .state = SingleInstanceAutomationState::ServerReady,
             .editorInstanceId = QStringLiteral("forward-compatible-editor"),
             .executablePath = QCoreApplication::applicationFilePath(),
             .applicationVersion = QStringLiteral("test"),
             .buildId = QStringLiteral("fake-build"),
             .hostMode = QStringLiteral("gui"),
-            .mcpEnabled = true,
-            .mcpEndpoint = http.endpoint(),
+            .serverEnabled = true,
+            .serverEndpoint = http.endpoint(),
         });
 
         DsConnector::ConnectorRuntime runtime(
             DsConnector::ConnectorOptions{
                 .exposure =
                     {
-                               .profile = AutomationWire::ExposureProfile::L0,
+                               .controlLevel = AutomationWire::ExposureLevel::L0,
                                .includes = {QStringLiteral("id:fake.flexible_output"),
                                      QStringLiteral("id:fake.minimal")},
                                },
@@ -2688,7 +2688,7 @@ namespace {
                              !minimalDescriptor.contains(QStringLiteral("inputSchema")) &&
                              minimalDescriptor.value(QStringLiteral("category")) ==
                                  QStringLiteral("editor") &&
-                             minimalDescriptor.value(QStringLiteral("minimum_profile")) ==
+                             minimalDescriptor.value(QStringLiteral("minimum_control_level")) ==
                                  QStringLiteral("l3") &&
                              minimalDescriptor.value(QStringLiteral("minimum_toolset_version"))
                                      .toInteger() == 1 &&
@@ -2823,14 +2823,14 @@ namespace {
         if (!ok)
             return false;
         SingleInstanceAutomationStatus ready{
-            .state = SingleInstanceAutomationState::McpReady,
+            .state = SingleInstanceAutomationState::ServerReady,
             .editorInstanceId = QStringLiteral("compatibility-editor"),
             .executablePath = QCoreApplication::applicationFilePath(),
             .applicationVersion = QStringLiteral("test"),
             .buildId = QStringLiteral("fake-build"),
             .hostMode = QStringLiteral("gui"),
-            .mcpEnabled = true,
-            .mcpEndpoint = http.endpoint(),
+            .serverEnabled = true,
+            .serverEndpoint = http.endpoint(),
         };
         bootstrap.publish(ready);
 
@@ -2838,7 +2838,7 @@ namespace {
             DsConnector::ConnectorOptions{
                 .exposure =
                     {
-                               .profile = AutomationWire::ExposureProfile::L0,
+                               .controlLevel = AutomationWire::ExposureLevel::L0,
                                .includes = {QStringLiteral("id:application.get_info"),
                                      QStringLiteral("id:notes.list")},
                                },
@@ -2941,7 +2941,7 @@ namespace {
                      "a matching L1 editor contract must be fully compatible");
 
         refreshCount = http.toolsListCount;
-        http.editorProfile = AutomationWire::AutomationProfile::L3;
+        http.editorControlLevel = AutomationWire::ControlLevel::L3;
         bootstrap.publish(ready);
         ok &= expect(
             waitUntil(
@@ -2956,7 +2956,7 @@ namespace {
                            !toolset.contains(QStringLiteral("editor_digest"));
                 },
                 10000),
-            "editor profile refresh must preserve version-only compatibility without digests");
+            "editor control-level refresh must preserve version-only compatibility without digests");
         runtime.stop();
         return ok;
     }
@@ -2976,14 +2976,14 @@ namespace {
         if (!ok)
             return false;
         const SingleInstanceAutomationStatus ready{
-            .state = SingleInstanceAutomationState::McpReady,
+            .state = SingleInstanceAutomationState::ServerReady,
             .editorInstanceId = QStringLiteral("parameter-header-editor"),
             .executablePath = QCoreApplication::applicationFilePath(),
             .applicationVersion = QStringLiteral("test"),
             .buildId = QStringLiteral("fake-build"),
             .hostMode = QStringLiteral("gui"),
-            .mcpEnabled = true,
-            .mcpEndpoint = http.endpoint(),
+            .serverEnabled = true,
+            .serverEndpoint = http.endpoint(),
         };
         bootstrap.publish(ready);
 
@@ -2991,7 +2991,7 @@ namespace {
             DsConnector::ConnectorOptions{
                 .exposure =
                     {
-                               .profile = AutomationWire::ExposureProfile::L0,
+                               .controlLevel = AutomationWire::ExposureLevel::L0,
                                .includes = {QStringLiteral("id:application.get_info"),
                                      QStringLiteral("id:fake.invalid_header")},
                                },
@@ -3086,20 +3086,20 @@ namespace {
         if (!ok)
             return false;
         bootstrap.publish(SingleInstanceAutomationStatus{
-            .state = SingleInstanceAutomationState::McpReady,
+            .state = SingleInstanceAutomationState::ServerReady,
             .editorInstanceId = QStringLiteral("command-editor"),
             .executablePath = QCoreApplication::applicationFilePath(),
             .applicationVersion = QStringLiteral("test"),
             .buildId = QStringLiteral("fake-build"),
             .hostMode = QStringLiteral("gui"),
-            .mcpEnabled = true,
-            .mcpEndpoint = http.endpoint(),
+            .serverEnabled = true,
+            .serverEndpoint = http.endpoint(),
         });
         DsConnector::ConnectorRuntime runtime(
             DsConnector::ConnectorOptions{
                 .exposure =
                     {
-                               .profile = AutomationWire::ExposureProfile::L0,
+                               .controlLevel = AutomationWire::ExposureLevel::L0,
                                .includes = {QStringLiteral("id:fake.command")},
                                },
                 .upstreamTimeoutMs = 2000,
@@ -3220,7 +3220,7 @@ namespace {
             http.extraToolCount +
             DsConnector::ExposurePolicy(
                 DsConnector::ConnectorOptions{
-                    .exposure = {.profile = AutomationWire::ExposureProfile::L0},
+                    .exposure = {.controlLevel = AutomationWire::ExposureLevel::L0},
                 })
                 .typedContracts()
                 .size();
@@ -3232,14 +3232,14 @@ namespace {
         if (!ok)
             return false;
         SingleInstanceAutomationStatus ready{
-            .state = SingleInstanceAutomationState::McpReady,
+            .state = SingleInstanceAutomationState::ServerReady,
             .editorInstanceId = QStringLiteral("pagination-editor"),
             .executablePath = QCoreApplication::applicationFilePath(),
             .applicationVersion = QStringLiteral("test"),
             .buildId = QStringLiteral("fake-build"),
             .hostMode = QStringLiteral("gui"),
-            .mcpEnabled = true,
-            .mcpEndpoint = http.endpoint(),
+            .serverEnabled = true,
+            .serverEndpoint = http.endpoint(),
         };
         bootstrap.publish(ready);
 
@@ -3247,7 +3247,7 @@ namespace {
             DsConnector::ConnectorOptions{
                 .exposure =
                     {
-                               .profile = AutomationWire::ExposureProfile::L0,
+                               .controlLevel = AutomationWire::ExposureLevel::L0,
                                .includes = {QStringLiteral("prefix:fake.")},
                                },
                 .upstreamTimeoutMs = 2000,
@@ -3330,20 +3330,20 @@ namespace {
         if (!ok)
             return false;
         SingleInstanceAutomationStatus ready{
-            .state = SingleInstanceAutomationState::McpReady,
+            .state = SingleInstanceAutomationState::ServerReady,
             .editorInstanceId = QStringLiteral("concurrent-editor"),
             .executablePath = QCoreApplication::applicationFilePath(),
             .applicationVersion = QStringLiteral("test"),
             .buildId = QStringLiteral("fake-build"),
             .hostMode = QStringLiteral("gui"),
-            .mcpEnabled = true,
-            .mcpEndpoint = http.endpoint(),
+            .serverEnabled = true,
+            .serverEndpoint = http.endpoint(),
         };
         bootstrap.publish(ready);
         const DsConnector::ConnectorOptions options{
             .exposure =
                 {
-                           .profile = AutomationWire::ExposureProfile::L0,
+                           .controlLevel = AutomationWire::ExposureLevel::L0,
                            .includes = {QStringLiteral("id:application.get_info")},
                            },
             .upstreamTimeoutMs = 2000,
@@ -3412,7 +3412,7 @@ namespace {
 
         QProcess process;
         process.setProgram(executable);
-        process.setArguments({QStringLiteral("--exposure-profile"), QStringLiteral("l0")});
+        process.setArguments({QStringLiteral("--control-level"), QStringLiteral("l0")});
         process.start();
         ok &= expect(process.waitForStarted(5000), "stdio connector process must start");
         const auto context = clientContext();
@@ -3447,7 +3447,7 @@ namespace {
 
         QProcess unterminated;
         unterminated.setProgram(executable);
-        unterminated.setArguments({QStringLiteral("--exposure-profile"), QStringLiteral("l0")});
+        unterminated.setArguments({QStringLiteral("--control-level"), QStringLiteral("l0")});
         unterminated.start();
         ok &= expect(unterminated.waitForStarted(5000),
                      "unterminated-final-frame connector must start");
@@ -3461,7 +3461,7 @@ namespace {
 
         QProcess notification;
         notification.setProgram(executable);
-        notification.setArguments({QStringLiteral("--exposure-profile"), QStringLiteral("l0")});
+        notification.setArguments({QStringLiteral("--control-level"), QStringLiteral("l0")});
         notification.start();
         ok &= expect(notification.waitForStarted(5000), "stdio notification connector must start");
         notification.write(
@@ -3478,7 +3478,7 @@ namespace {
 
         QProcess rapidInput;
         rapidInput.setProgram(executable);
-        rapidInput.setArguments({QStringLiteral("--exposure-profile"), QStringLiteral("l0")});
+        rapidInput.setArguments({QStringLiteral("--control-level"), QStringLiteral("l0")});
         rapidInput.start();
         ok &= expect(rapidInput.waitForStarted(5000), "rapid-input connector must start");
         const auto notificationFrame =
@@ -3501,7 +3501,7 @@ namespace {
         const auto expectedL2ToolCount =
             DsConnector::ExposurePolicy(
                 DsConnector::ConnectorOptions{
-                    .exposure = {.profile = AutomationWire::ExposureProfile::L2},
+                    .exposure = {.controlLevel = AutomationWire::ExposureLevel::L2},
                 })
                 .typedContracts()
                 .size() +
@@ -3518,7 +3518,7 @@ namespace {
         };
         QProcess largeOutput;
         largeOutput.setProgram(executable);
-        largeOutput.setArguments({QStringLiteral("--exposure-profile"), QStringLiteral("l2")});
+        largeOutput.setArguments({QStringLiteral("--control-level"), QStringLiteral("l2")});
         largeOutput.start();
         ok &= expect(largeOutput.waitForStarted(5000), "large-output connector must start");
         largeOutput.write(list + '\n');
@@ -3537,7 +3537,7 @@ namespace {
         QProcess slowOutput;
         QProcess slowSink;
         slowOutput.setProgram(executable);
-        slowOutput.setArguments({QStringLiteral("--exposure-profile"), QStringLiteral("l2")});
+        slowOutput.setArguments({QStringLiteral("--control-level"), QStringLiteral("l2")});
         slowSink.setProgram(QCoreApplication::applicationFilePath());
         slowSink.setArguments({QStringLiteral("--slow-stdio-sink"), slowSinkPath});
         slowOutput.setStandardOutputProcess(&slowSink);
@@ -3567,7 +3567,7 @@ namespace {
         QProcess blockedOutput;
         QProcess blockingSink;
         blockedOutput.setProgram(executable);
-        blockedOutput.setArguments({QStringLiteral("--exposure-profile"), QStringLiteral("l0")});
+        blockedOutput.setArguments({QStringLiteral("--control-level"), QStringLiteral("l0")});
         blockingSink.setProgram(QStringLiteral("powershell.exe"));
         blockingSink.setArguments({QStringLiteral("-NoProfile"), QStringLiteral("-Command"),
                                    QStringLiteral("Start-Sleep -Seconds 30")});
@@ -3608,7 +3608,7 @@ namespace {
 
         QProcess boundary;
         boundary.setProgram(executable);
-        boundary.setArguments({QStringLiteral("--exposure-profile"), QStringLiteral("l0")});
+        boundary.setArguments({QStringLiteral("--control-level"), QStringLiteral("l0")});
         boundary.start();
         ok &= expect(boundary.waitForStarted(5000), "boundary-frame connector must start");
         boundary.write(QByteArray(16 * 1024 * 1024, 'x') + '\n');
@@ -3626,7 +3626,7 @@ namespace {
 
         QProcess oversizedLine;
         oversizedLine.setProgram(executable);
-        oversizedLine.setArguments({QStringLiteral("--exposure-profile"), QStringLiteral("l0")});
+        oversizedLine.setArguments({QStringLiteral("--control-level"), QStringLiteral("l0")});
         oversizedLine.start();
         ok &= expect(oversizedLine.waitForStarted(5000),
                      "oversized newline-frame connector must start");
@@ -3640,7 +3640,7 @@ namespace {
 
         QProcess oversized;
         oversized.setProgram(executable);
-        oversized.setArguments({QStringLiteral("--exposure-profile"), QStringLiteral("l0")});
+        oversized.setArguments({QStringLiteral("--control-level"), QStringLiteral("l0")});
         oversized.start();
         ok &= expect(oversized.waitForStarted(5000), "oversized-frame connector must start");
         oversized.write(QByteArray(16 * 1024 * 1024 + 1, 'x'));

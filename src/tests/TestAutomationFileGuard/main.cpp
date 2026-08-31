@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
            QStringLiteral("fixture files must be created"));
 
     Automation::AutomationFileGuard guard;
-    const auto configured = guard.setConfiguredRoots({readRoot}, {writeRoot});
+    const auto configured = guard.setConfiguredRoots({readRoot, writeRoot});
     expect(configured.isPresent(), QStringLiteral("valid canonical roots must be accepted"));
 
     const auto allowedRead = guard.authorize(readable, Automation::FileAccessPurpose::Read);
@@ -86,19 +86,19 @@ int main(int argc, char *argv[]) {
         guard.authorize(directOutput, Automation::FileAccessPurpose::Write);
     expect(authorizedDirectWrite && guard.reauthorize(authorizedDirectWrite.get()),
            QStringLiteral("an unchanged authorized target must pass reauthorization"));
-    expect(guard.setConfiguredRoots({readRoot}, {siblingRoot}).isPresent(),
+    expect(guard.setConfiguredRoots({readRoot, siblingRoot}).isPresent(),
            QStringLiteral("replacement access roots must be accepted"));
     const auto revokedWrite = guard.reauthorize(authorizedDirectWrite.get());
     expect(hasError(revokedWrite, Automation::AutomationErrorCode::PermissionDenied),
            QStringLiteral("reauthorization must observe access policy changes"));
-    expect(guard.setConfiguredRoots({readRoot}, {writeRoot}).isPresent(),
+    expect(guard.setConfiguredRoots({readRoot, writeRoot}).isPresent(),
            QStringLiteral("original access roots must be restorable"));
 
-    const auto deniedWrite = guard.authorize(
+    const auto sharedRootWrite = guard.authorize(
         QDir(readRoot).filePath(QStringLiteral("render.wav")),
         Automation::FileAccessPurpose::Write);
-    expect(hasError(deniedWrite, Automation::AutomationErrorCode::PermissionDenied),
-           QStringLiteral("read roots must not implicitly grant write access"));
+    expect(sharedRootWrite.isPresent(),
+           QStringLiteral("configured access roots must allow both reads and writes"));
 
     const auto grant = guard.addSessionGrant(sibling, Automation::FileAccessPurpose::Read);
     const auto grantedRead = guard.authorize(sibling, Automation::FileAccessPurpose::Read);
@@ -114,7 +114,7 @@ int main(int argc, char *argv[]) {
            QStringLiteral("relative paths must be rejected before policy matching"));
 
     const auto snapshot = guard.snapshot();
-    expect(snapshot.readRoots.size() == 1 && snapshot.writeRoots.size() == 1 &&
+    expect(snapshot.accessRoots.size() == 2 &&
                snapshot.sessionReadGrants.size() == 1 &&
                snapshot.sessionWriteGrants.isEmpty(),
            QStringLiteral("file access snapshot must report configured roots and session grants"));

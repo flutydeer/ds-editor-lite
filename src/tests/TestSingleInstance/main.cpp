@@ -64,10 +64,10 @@ namespace {
         readyStatus(const SingleInstanceAutomationStatus &initial,
                     const QString &endpoint = QStringLiteral("http://127.0.0.1:52341/mcp")) {
         auto status = initial;
-        status.state = SingleInstanceAutomationState::McpReady;
+        status.state = SingleInstanceAutomationState::ServerReady;
         status.buildId = QStringLiteral("test-build-id");
-        status.mcpEnabled = true;
-        status.mcpEndpoint = endpoint;
+        status.serverEnabled = true;
+        status.serverEndpoint = endpoint;
         status.error.clear();
         return status;
     }
@@ -204,11 +204,11 @@ namespace {
                      "watch request without connector identity must be rejected");
 
         for (const auto state : {
-                 SingleInstanceAutomationState::Starting,
-                 SingleInstanceAutomationState::McpDisabled,
-                 SingleInstanceAutomationState::McpStarting,
-                 SingleInstanceAutomationState::McpReady,
-                 SingleInstanceAutomationState::McpStopping,
+                 SingleInstanceAutomationState::EditorStarting,
+                 SingleInstanceAutomationState::ServerDisabled,
+                 SingleInstanceAutomationState::ServerStarting,
+                 SingleInstanceAutomationState::ServerReady,
+                 SingleInstanceAutomationState::ServerStopping,
                  SingleInstanceAutomationState::EditorStopping,
                  SingleInstanceAutomationState::Error,
              }) {
@@ -221,7 +221,7 @@ namespace {
         }
 
         SingleInstanceAutomationStatus status{
-            SingleInstanceAutomationState::McpReady,
+            SingleInstanceAutomationState::ServerReady,
             QStringLiteral("editor-instance"),
             QStringLiteral("C:/apps/DsEditorLite.exe"),
             QStringLiteral("1.2.3"),
@@ -251,8 +251,8 @@ namespace {
                 decodedState.result.applicationVersion == stateEvent.result.applicationVersion &&
                 decodedState.result.buildId == stateEvent.result.buildId &&
                 decodedState.result.hostMode == stateEvent.result.hostMode &&
-                decodedState.result.mcpEnabled == stateEvent.result.mcpEnabled &&
-                decodedState.result.mcpEndpoint == stateEvent.result.mcpEndpoint &&
+                decodedState.result.serverEnabled == stateEvent.result.serverEnabled &&
+                decodedState.result.serverEndpoint == stateEvent.result.serverEndpoint &&
                 decodedState.result.error == stateEvent.result.error,
             "automation state snapshot must retain every field");
 
@@ -311,10 +311,10 @@ namespace {
                      "automation bootstrap coordinator must become primary");
 
         const auto initial = primary.automationState();
-        ok &= expect(initial.state == SingleInstanceAutomationState::Starting &&
+        ok &= expect(initial.state == SingleInstanceAutomationState::EditorStarting &&
                          !initial.editorInstanceId.isEmpty() && !initial.executablePath.isEmpty() &&
-                         initial.hostMode == QStringLiteral("gui") && !initial.mcpEnabled &&
-                         initial.mcpEndpoint.isEmpty(),
+                         initial.hostMode == QStringLiteral("gui") && !initial.serverEnabled &&
+                         initial.serverEndpoint.isEmpty(),
                      "primary must publish a complete starting snapshot");
 
         FramedClient discoverClient;
@@ -325,7 +325,7 @@ namespace {
         ok &= expect(discoverClient.receiveSnapshot(discovered) &&
                          discovered.requestId == discoverRequest.requestId &&
                          discovered.result.editorInstanceId == initial.editorInstanceId &&
-                         discovered.result.state == SingleInstanceAutomationState::Starting &&
+                         discovered.result.state == SingleInstanceAutomationState::EditorStarting &&
                          discovered.primaryProcessId == QCoreApplication::applicationPid(),
                      "discover must return the current complete snapshot");
         ok &= expect(discoverClient.waitForDisconnect(),
@@ -354,8 +354,8 @@ namespace {
         ok &= expect(firstWatcher.receiveSnapshot(firstSnapshot) &&
                          secondWatcher.receiveSnapshot(secondSnapshot) &&
                          firstSnapshot.requestId.isEmpty() && secondSnapshot.requestId.isEmpty() &&
-                         firstSnapshot.result.state == SingleInstanceAutomationState::McpReady &&
-                         secondSnapshot.result.mcpEndpoint == ready.mcpEndpoint,
+                         firstSnapshot.result.state == SingleInstanceAutomationState::ServerReady &&
+                         secondSnapshot.result.serverEndpoint == ready.serverEndpoint,
                      "state updates must broadcast a full snapshot to every watcher");
 
         primary.broadcastAutomationState();
@@ -366,34 +366,34 @@ namespace {
                      "explicit broadcasts must retain all current state fields");
 
         auto starting = ready;
-        starting.state = SingleInstanceAutomationState::McpStarting;
-        starting.mcpEndpoint.clear();
+        starting.state = SingleInstanceAutomationState::ServerStarting;
+        starting.serverEndpoint.clear();
         primary.updateAutomationState(starting);
-        ready.mcpEndpoint = QStringLiteral("http://127.0.0.1:52342/mcp");
+        ready.serverEndpoint = QStringLiteral("http://127.0.0.1:52342/mcp");
         primary.updateAutomationState(ready);
         ok &= expect(firstWatcher.receiveSnapshot(firstSnapshot) &&
-                         firstSnapshot.result.state == SingleInstanceAutomationState::McpStarting &&
+                         firstSnapshot.result.state == SingleInstanceAutomationState::ServerStarting &&
                          firstWatcher.receiveSnapshot(firstSnapshot) &&
-                         firstSnapshot.result.state == SingleInstanceAutomationState::McpReady &&
-                         firstSnapshot.result.mcpEndpoint == ready.mcpEndpoint,
+                         firstSnapshot.result.state == SingleInstanceAutomationState::ServerReady &&
+                         firstSnapshot.result.serverEndpoint == ready.serverEndpoint,
                      "watch connection must preserve consecutive framed state updates");
         ok &=
             expect(secondWatcher.receiveSnapshot(secondSnapshot) &&
-                       secondSnapshot.result.state == SingleInstanceAutomationState::McpStarting &&
+                       secondSnapshot.result.state == SingleInstanceAutomationState::ServerStarting &&
                        secondWatcher.receiveSnapshot(secondSnapshot) &&
-                       secondSnapshot.result.state == SingleInstanceAutomationState::McpReady,
+                       secondSnapshot.result.state == SingleInstanceAutomationState::ServerReady,
                    "all watchers must preserve consecutive framed updates");
 
         firstWatcher.socket.disconnectFromServer();
         ok &= expect(firstWatcher.waitForDisconnect(),
                      "a disconnected watcher must close independently");
         auto disabled = ready;
-        disabled.state = SingleInstanceAutomationState::McpDisabled;
-        disabled.mcpEnabled = false;
-        disabled.mcpEndpoint.clear();
+        disabled.state = SingleInstanceAutomationState::ServerDisabled;
+        disabled.serverEnabled = false;
+        disabled.serverEndpoint.clear();
         primary.updateAutomationState(disabled);
         ok &= expect(secondWatcher.receiveSnapshot(secondSnapshot) &&
-                         secondSnapshot.result.state == SingleInstanceAutomationState::McpDisabled,
+                         secondSnapshot.result.state == SingleInstanceAutomationState::ServerDisabled,
                      "remaining watchers must continue after another watcher disconnects");
 
         primary.shutdown();

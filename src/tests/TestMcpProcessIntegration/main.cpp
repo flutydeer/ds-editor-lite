@@ -476,9 +476,7 @@ namespace {
                                             QStringLiteral("configured-only-device")}}},
                               {QStringLiteral("automation"),
                                QJsonObject{
-                                   {QStringLiteral("readRoots"),
-                                    QJsonArray{QDir::fromNativeSeparators(isolatedRoot.path())}},
-                                   {QStringLiteral("writeRoots"),
+                                   {QStringLiteral("accessRoots"),
                                     QJsonArray{QDir::fromNativeSeparators(isolatedRoot.path())}},
                                }},
         })
@@ -516,7 +514,7 @@ namespace {
         const auto controlPort = portProbe.serverPort();
         portProbe.close();
 
-        editor.start(editorPath, {QStringLiteral("--mcp"), QStringLiteral("--automation-profile"),
+        editor.start(editorPath, {QStringLiteral("--mcp"), QStringLiteral("--control-level"),
                                   QStringLiteral("l3"), QStringLiteral("--control-port"),
                                   QString::number(controlPort)});
         if (!editor.waitForStarted(10000)) {
@@ -531,13 +529,13 @@ namespace {
             [&] {
                 const auto &observation = watcher.observation();
                 return observation.snapshot && observation.snapshot->result.state ==
-                                                   SingleInstanceAutomationState::McpReady ||
+                                                   SingleInstanceAutomationState::ServerReady ||
                        editor.state() == QProcess::NotRunning;
             },
             45000);
         const auto ready =
             editorSettled && watcher.observation().snapshot &&
-            watcher.observation().snapshot->result.state == SingleInstanceAutomationState::McpReady;
+            watcher.observation().snapshot->result.state == SingleInstanceAutomationState::ServerReady;
         if (!ready) {
             const auto &observation = watcher.observation();
             const auto snapshotState = observation.snapshot
@@ -547,7 +545,7 @@ namespace {
             const auto snapshotError =
                 observation.snapshot ? observation.snapshot->result.error : QString{};
             return fail(
-                QStringLiteral("Editor did not publish mcp_ready; appdata=%1; service=%2; "
+                QStringLiteral("Editor did not publish server_ready; appdata=%1; service=%2; "
                                "bootstrap=%3; connected=%4; snapshot_state=%5; "
                                "snapshot_error=%6; process_state=%7; exit_status=%8; "
                                "exit_code=%9; stdout=%10; stderr=%11")
@@ -561,7 +559,7 @@ namespace {
                          QString::fromUtf8(editor.readAllStandardError())));
         }
         const auto editorInstanceId = watcher.observation().snapshot->result.editorInstanceId;
-        const auto editorEndpoint = watcher.observation().snapshot->result.mcpEndpoint;
+        const auto editorEndpoint = watcher.observation().snapshot->result.serverEndpoint;
 
         secondaryEditor.setProcessEnvironment(environment);
         secondaryEditor.setWorkingDirectory(QFileInfo(editorPath).absolutePath());
@@ -586,7 +584,7 @@ namespace {
         connector.setWorkingDirectory(QFileInfo(connectorPath).absolutePath());
         connector.setProcessChannelMode(QProcess::SeparateChannels);
         connector.start(connectorPath,
-                        {QStringLiteral("--exposure-profile"), QStringLiteral("l3")});
+                        {QStringLiteral("--control-level"), QStringLiteral("l3")});
         if (!connector.waitForStarted(10000)) {
             return fail(
                 QStringLiteral("Connector failed to start: %1").arg(connector.errorString()));
@@ -998,7 +996,7 @@ namespace {
         legacyConnector.setWorkingDirectory(QFileInfo(connectorPath).absolutePath());
         legacyConnector.setProcessChannelMode(QProcess::SeparateChannels);
         legacyConnector.start(connectorPath,
-                              {QStringLiteral("--exposure-profile"), QStringLiteral("l3")});
+                              {QStringLiteral("--control-level"), QStringLiteral("l3")});
         if (!legacyConnector.waitForStarted(10000)) {
             return failWithProcessDiagnostics(
                 QStringLiteral("Legacy-protocol Connector failed to start: %1")

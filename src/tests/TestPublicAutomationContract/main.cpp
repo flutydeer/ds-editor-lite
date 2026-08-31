@@ -125,12 +125,12 @@ namespace {
                                       .toObject()
                                       .value(QStringLiteral("io.openvpi.ds-editor-lite/tool"))
                                       .toObject();
-            expect(contract.minimumProfile != AutomationProfile::Custom &&
+            expect(contract.minimumControlLevel != ControlLevel::Custom &&
                        contract.minimumToolsetVersion > 0 &&
                        contract.minimumToolsetVersion <= PublicToolsetVersion &&
                        metadata.value(QStringLiteral("minimum_toolset_version")).toInteger() ==
                            static_cast<qint64>(contract.minimumToolsetVersion),
-                   QStringLiteral("profile and toolset version metadata must be valid for ") +
+                   QStringLiteral("control level and toolset version metadata must be valid for ") +
                        contract.operationId);
             expect(contract.inputSchema.value(QStringLiteral("type")) == QStringLiteral("object") &&
                        hasStrictObjectRoot(contract.inputSchema),
@@ -145,26 +145,27 @@ namespace {
                    actualIds.size() == contracts.size(),
                QStringLiteral("public tool IDs must be unique and match the declared contracts"));
 
-        QSet<QString> previousProfileIds;
+        QSet<QString> previousLevelIds;
         const auto includesAll = [](const QSet<QString> &superset, const QSet<QString> &subset) {
             return std::all_of(subset.cbegin(), subset.cend(),
                                [&superset](const QString &id) { return superset.contains(id); });
         };
-        for (const auto profile : {AutomationProfile::L0, AutomationProfile::L1,
-                                   AutomationProfile::L2, AutomationProfile::L3}) {
-            const auto selected = toolsForProfile(profile);
+        for (const auto level : {ControlLevel::L0, ControlLevel::L1, ControlLevel::L2,
+                                ControlLevel::L3}) {
+            const auto selected = toolsForControlLevel(level);
             QSet<QString> selectedIds;
             for (const auto &tool : selected) {
                 selectedIds.insert(tool.operationId);
-                expect(presetIncludes(profile, tool.minimumProfile),
-                       tool.operationId + QStringLiteral(" is exposed below its minimum profile"));
+                expect(presetIncludes(level, tool.minimumControlLevel),
+                       tool.operationId +
+                           QStringLiteral(" is exposed below its minimum control level"));
             }
             expect(selectedIds.size() == selected.size() &&
-                       includesAll(selectedIds, previousProfileIds),
-                   QStringLiteral("preset profiles must be unique and cumulative"));
-            previousProfileIds = std::move(selectedIds);
+                       includesAll(selectedIds, previousLevelIds),
+                   QStringLiteral("preset control levels must be unique and cumulative"));
+            previousLevelIds = std::move(selectedIds);
         }
-        expect(previousProfileIds == actualIds,
+        expect(previousLevelIds == actualIds,
                QStringLiteral("L3 must expose every declared public tool"));
 
         const QSet<QString> intrinsicTools{
@@ -174,7 +175,7 @@ namespace {
             QStringLiteral("application.request_restart"),
         };
         QSet<QString> l0Ids;
-        for (const auto &tool : toolsForProfile(AutomationProfile::L0))
+        for (const auto &tool : toolsForControlLevel(ControlLevel::L0))
             l0Ids.insert(tool.operationId);
         expect(l0Ids == intrinsicTools,
                QStringLiteral("L0 must contain only the intrinsic lifecycle tool set"));
@@ -189,7 +190,7 @@ namespace {
             return;
 
         for (const auto *contract : {exit, restart}) {
-            expect(contract->minimumProfile == AutomationProfile::L0 &&
+            expect(contract->minimumControlLevel == ControlLevel::L0 &&
                        keys(contract->inputSchema.value(QStringLiteral("properties")).toObject()) ==
                            QSet<QString>{
                                QStringLiteral("discard_changes")
@@ -644,7 +645,7 @@ namespace {
                    .contains(QStringLiteral("source_preset")),
                QStringLiteral("speaker_mix.get must expose nullable preset-source metadata"));
         for (const auto *presetContract : {presetList, presetSave, presetDelete, presetApply}) {
-            expect(presetContract->minimumProfile == AutomationProfile::L2,
+            expect(presetContract->minimumControlLevel == ControlLevel::L2,
                    presetContract->operationId + QStringLiteral(" must start at L2"));
         }
     }
@@ -673,7 +674,7 @@ namespace {
                 QStringLiteral("audio_clip_count"),
             };
             expect(requiredFields(statistics, documentGet->outputSchema) == statisticFields &&
-                       recent->minimumProfile == AutomationProfile::L2 &&
+                       recent->minimumControlLevel == ControlLevel::L2 &&
                        !recent->inputSchema.value(QStringLiteral("properties"))
                             .toObject()
                             .contains(QStringLiteral("document_id")),
@@ -911,7 +912,7 @@ namespace {
 
     void verifyAdvancedControlContracts() {
         for (const auto &tool : publicToolContracts()) {
-            if (tool.minimumProfile != AutomationProfile::L3)
+            if (tool.minimumControlLevel != ControlLevel::L3)
                 continue;
             if (tool.operationId.startsWith(QStringLiteral("workspace.")) ||
                 tool.operationId.startsWith(QStringLiteral("track_panel.")) ||

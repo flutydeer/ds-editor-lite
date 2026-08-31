@@ -1,4 +1,4 @@
-#include <lite/AutomationWire/AutomationProfile.h>
+#include <lite/AutomationWire/ControlLevel.h>
 #include <lite/AutomationWire/CanonicalJson.h>
 #include <lite/AutomationWire/ExposurePolicy.h>
 #include <lite/AutomationWire/JsonSchema.h>
@@ -222,10 +222,10 @@ namespace {
 
     bool testExposurePolicy() {
         bool ok = true;
-        const auto l0 = selectExposure({ExposureProfile::L0});
-        const auto l1 = selectExposure({ExposureProfile::L1});
-        const auto l2 = selectExposure({ExposureProfile::L2});
-        const auto l3 = selectExposure({ExposureProfile::L3});
+        const auto l0 = selectExposure({ExposureLevel::L0});
+        const auto l1 = selectExposure({ExposureLevel::L1});
+        const auto l2 = selectExposure({ExposureLevel::L2});
+        const auto l3 = selectExposure({ExposureLevel::L3});
         QSet<QString> declaredIds;
         for (const auto &target : publicExposureTargets())
             declaredIds.insert(target.operationId);
@@ -243,7 +243,7 @@ namespace {
                      QStringLiteral("connector exposure presets must be cumulative and complete"));
 
         const auto protectedL0 = selectExposure({
-            .profile = ExposureProfile::L0,
+            .controlLevel = ExposureLevel::L0,
             .excludes = {QStringLiteral("category:application")},
         });
         ok &= expect(protectedL0.exposedIds ==
@@ -254,7 +254,7 @@ namespace {
                      QStringLiteral("connector excludes must not remove intrinsic L0 tools"));
 
         const ExposureConfig filtered{
-            .profile = ExposureProfile::L0,
+            .controlLevel = ExposureLevel::L0,
             .includes = {QStringLiteral("category:notes"), QStringLiteral("missing.future")},
             .excludes = {QStringLiteral("prefix:notes.set_")},
         };
@@ -274,12 +274,13 @@ namespace {
 
         auto targets = publicExposureTargets();
         targets.append(
-            {QStringLiteral("future.gui_tool"), QStringLiteral("future"), AutomationProfile::L3});
-        ok &= expect(!selectExposure({ExposureProfile::L2}, targets)
+            {QStringLiteral("future.gui_tool"), QStringLiteral("future"), ControlLevel::L3});
+        ok &= expect(!selectExposure({ExposureLevel::L2}, targets)
                              .exposedIds.contains(QStringLiteral("future.gui_tool")) &&
-                         selectExposure({ExposureProfile::L3}, targets)
+                         selectExposure({ExposureLevel::L3}, targets)
                              .exposedIds.contains(QStringLiteral("future.gui_tool")),
-                     QStringLiteral("higher exposure presets must include higher-profile targets"));
+                     QStringLiteral(
+                         "higher exposure presets must include higher control-level targets"));
         return ok;
     }
 
