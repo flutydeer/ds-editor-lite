@@ -135,10 +135,6 @@ PianoRollView::~PianoRollView() {
 }
 
 void PianoRollView::executeEditCommand(const EditorInteraction::Command command) const {
-    if (!EditorInteraction::supportsCommand(EditorInteraction::Target::PianoRoll, command,
-                                            m_editMode))
-        return;
-
     switch (command) {
         case EditorInteraction::Command::Cut:
             m_contextMenuController->cutSelection();
@@ -273,6 +269,7 @@ void PianoRollView::setDataContext(SingingClip *clip) const {
 
 void PianoRollView::onEditModeChanged(const PianoRollEditMode mode) const {
     m_editMode = mode;
+    editorViewController->syncPianoRollEditMode(mode);
     if (m_rhiView)
         m_rhiView->setEditMode(mode);
     else

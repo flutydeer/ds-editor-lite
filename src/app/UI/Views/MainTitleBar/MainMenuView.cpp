@@ -54,6 +54,8 @@ MainMenuView::MainMenuView(MainWindow *mainWindow)
 
     connect(editorViewController, &EditorViewController::activeEditTargetChanged, this,
             [=](const EditorInteraction::Target target) { d->onActiveEditTargetChanged(target); });
+    connect(editorViewController, &EditorViewController::editCommandCapabilitiesChanged, this,
+            [=] { d->onEditCommandCapabilitiesChanged(); });
 
     connect(QGuiApplication::clipboard(), &QClipboard::dataChanged, this,
             [this] { d_ptr->updatePasteActionState(); });
@@ -291,6 +293,11 @@ void MainMenuViewPrivate::onActiveEditTargetChanged(const EditorInteraction::Tar
         enterParametersEditorState();
 }
 
+void MainMenuViewPrivate::onEditCommandCapabilitiesChanged() {
+    if (m_editTarget == EditorInteraction::Target::PianoRoll)
+        updateClipEditorActionState();
+}
+
 void MainMenuViewPrivate::onSelectAll() {
     editorViewController->requestEditCommand(EditorInteraction::Command::SelectAll);
 }
@@ -380,74 +387,57 @@ void MainMenuViewPrivate::exitApp() {
 }
 
 void MainMenuViewPrivate::enterClipEditorState() {
-    bool hasSelectedNotes = clipController->hasSelectedNotes();
-
-    actionSelectAll->setEnabled(clipController->canSelectAll());
-    QObject::connect(clipController, &ClipController::canSelectAllChanged, actionSelectAll,
-                     &QAction::setEnabled);
-
-    actionDelete->setEnabled(hasSelectedNotes);
-    QObject::connect(clipController, &ClipController::hasSelectedNotesChanged, actionDelete,
-                     &QAction::setEnabled);
-
-    actionCut->setEnabled(hasSelectedNotes);
-    QObject::connect(clipController, &ClipController::hasSelectedNotesChanged, actionCut,
-                     &QAction::setEnabled);
-
-    actionCopy->setEnabled(hasSelectedNotes);
-    QObject::connect(clipController, &ClipController::hasSelectedNotesChanged, actionCopy,
-                     &QAction::setEnabled);
-
-    updatePasteActionState();
-
-    actionOctaveUp->setEnabled(hasSelectedNotes);
-    QObject::connect(clipController, &ClipController::hasSelectedNotesChanged, actionOctaveUp,
-                     &QAction::setEnabled);
-
-    actionOctaveDown->setEnabled(hasSelectedNotes);
-    QObject::connect(clipController, &ClipController::hasSelectedNotesChanged, actionOctaveDown,
-                     &QAction::setEnabled);
-
-    actionFillLyrics->setEnabled(hasSelectedNotes);
-    QObject::connect(clipController, &ClipController::hasSelectedNotesChanged, actionFillLyrics,
-                     &QAction::setEnabled);
-
-    // Quantize applies to selected notes or all notes in the active clip.
-    actionQuantize->setEnabled(true);
+    Q_Q(MainMenuView);
+    updateClipEditorActionState();
+    m_clipCanSelectAllConnection =
+        connect(clipController, &ClipController::canSelectAllChanged, q,
+                [this] { updateClipEditorActionState(); });
+    m_noteSelectionConnection =
+        connect(clipController, &ClipController::hasSelectedNotesChanged, q,
+                [this] { updateClipEditorActionState(); });
 }
 
 void MainMenuViewPrivate::exitClipEditorState() {
-    QObject::disconnect(clipController, &ClipController::canSelectAllChanged, actionSelectAll,
-                        &QAction::setEnabled);
+    disconnect(m_clipCanSelectAllConnection);
+    m_clipCanSelectAllConnection = {};
     actionSelectAll->setEnabled(false);
 
-    QObject::disconnect(clipController, &ClipController::hasSelectedNotesChanged, actionDelete,
-                        &QAction::setEnabled);
+    disconnect(m_noteSelectionConnection);
+    m_noteSelectionConnection = {};
     actionDelete->setEnabled(false);
 
-    QObject::disconnect(clipController, &ClipController::hasSelectedNotesChanged, actionCut,
-                        &QAction::setEnabled);
     actionCut->setEnabled(false);
 
-    QObject::disconnect(clipController, &ClipController::hasSelectedNotesChanged, actionCopy,
-                        &QAction::setEnabled);
     actionCopy->setEnabled(false);
 
     actionPaste->setEnabled(false);
 
-    QObject::disconnect(clipController, &ClipController::hasSelectedNotesChanged, actionOctaveUp,
-                        &QAction::setEnabled);
     actionOctaveUp->setEnabled(false);
 
-    QObject::disconnect(clipController, &ClipController::hasSelectedNotesChanged, actionOctaveDown,
-                        &QAction::setEnabled);
     actionOctaveDown->setEnabled(false);
 
-    QObject::disconnect(clipController, &ClipController::hasSelectedNotesChanged, actionFillLyrics,
-                        &QAction::setEnabled);
     actionFillLyrics->setEnabled(false);
 
     actionQuantize->setEnabled(false);
+}
+
+void MainMenuViewPrivate::updateClipEditorActionState() {
+    const auto supports = [](const EditorInteraction::Command command) {
+        return editorViewController->supportsEditCommand(command);
+    };
+    const auto hasSelectedNotes = clipController->hasSelectedNotes();
+    const auto noteCommandsEnabled = supports(EditorInteraction::Command::SelectAll);
+
+    actionSelectAll->setEnabled(noteCommandsEnabled && clipController->canSelectAll());
+    actionDelete->setEnabled(supports(EditorInteraction::Command::DeleteSelection) &&
+                             hasSelectedNotes);
+    actionCut->setEnabled(supports(EditorInteraction::Command::Cut) && hasSelectedNotes);
+    actionCopy->setEnabled(supports(EditorInteraction::Command::Copy) && hasSelectedNotes);
+    actionOctaveUp->setEnabled(noteCommandsEnabled && hasSelectedNotes);
+    actionOctaveDown->setEnabled(noteCommandsEnabled && hasSelectedNotes);
+    actionFillLyrics->setEnabled(noteCommandsEnabled && hasSelectedNotes);
+    actionQuantize->setEnabled(noteCommandsEnabled);
+    updatePasteActionState();
 }
 
 void MainMenuViewPrivate::enterTracksEditorState() {
@@ -505,6 +495,10 @@ void MainMenuViewPrivate::exitParametersEditorState() {
 }
 
 void MainMenuViewPrivate::updatePasteActionState() {
+    if (!editorViewController->supportsEditCommand(EditorInteraction::Command::Paste)) {
+        actionPaste->setEnabled(false);
+        return;
+    }
     const auto mimeData = QGuiApplication::clipboard()->mimeData();
     if (!mimeData) {
         actionPaste->setEnabled(false);
@@ -687,12 +681,15 @@ void MainMenuViewPrivate::initEditShortcuts() {
         auto *shortcut = EditorShortcutUtils::addApplication(
             q, key, isEditorWindow, editorViewController,
             [command] { editorViewController->requestEditCommand(command); });
-        const auto updateEnabled = [shortcut, command](const EditorInteraction::Target target) {
-            shortcut->setEnabled(EditorInteraction::supportsCommand(target, command));
+        const auto updateEnabled = [shortcut, command] {
+            shortcut->setEnabled(editorViewController->supportsEditCommand(command));
         };
         QObject::connect(editorViewController, &EditorViewController::activeEditTargetChanged,
-                         shortcut, updateEnabled);
-        updateEnabled(editorViewController->activeEditTarget());
+                         shortcut, [updateEnabled](EditorInteraction::Target) { updateEnabled(); });
+        QObject::connect(editorViewController,
+                         &EditorViewController::editCommandCapabilitiesChanged, shortcut,
+                         updateEnabled);
+        updateEnabled();
     };
 
     addShortcut(QKeySequence::Cut, EditorInteraction::Command::Cut);

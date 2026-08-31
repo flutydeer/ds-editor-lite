@@ -294,6 +294,51 @@ namespace {
                "note edit modes must retain piano-roll edit commands");
     }
 
+    void testModeAwareCommandRouting(EditorViewController *controller) {
+        controller->setActivePanel(AppGlobal::ClipEditor);
+        controller->syncPianoRollEditMode(EditorViewGlobal::Select);
+
+        int capabilityChangeCount = 0;
+        int commandCount = 0;
+        EditorInteraction::Command requestedCommand = EditorInteraction::Command::Cut;
+        const auto capabilityConnection =
+            QObject::connect(controller, &EditorViewController::editCommandCapabilitiesChanged,
+                             [&capabilityChangeCount] { ++capabilityChangeCount; });
+        const auto commandConnection = QObject::connect(
+            controller, &EditorViewController::editCommandRequested,
+            [&commandCount, &requestedCommand](EditorInteraction::Target,
+                                                const EditorInteraction::Command command) {
+                ++commandCount;
+                requestedCommand = command;
+            });
+
+        controller->requestEditCommand(EditorInteraction::Command::SelectAll);
+        expect(commandCount == 1 && requestedCommand == EditorInteraction::Command::SelectAll,
+               "note modes must dispatch supported piano-roll commands");
+
+        controller->syncPianoRollEditMode(EditorViewGlobal::DrawPitch);
+        expect(capabilityChangeCount == 1 &&
+                   !controller->supportsEditCommand(EditorInteraction::Command::SelectAll),
+               "entering pitch drawing must publish disabled note command capabilities");
+        controller->requestEditCommand(EditorInteraction::Command::SelectAll);
+        controller->requestEditCommand(EditorInteraction::Command::DeleteSelection);
+        expect(commandCount == 1, "pitch drawing must not dispatch note edit commands");
+
+        controller->syncPianoRollEditMode(EditorViewGlobal::EditPitchAnchor);
+        expect(capabilityChangeCount == 2 &&
+                   controller->supportsEditCommand(EditorInteraction::Command::DeleteSelection),
+               "pitch anchor mode must publish anchor deletion capability");
+        controller->requestEditCommand(EditorInteraction::Command::DeleteSelection);
+        expect(commandCount == 2 &&
+                   requestedCommand == EditorInteraction::Command::DeleteSelection,
+               "pitch anchor mode must dispatch anchor deletion");
+
+        controller->syncPianoRollEditMode(EditorViewGlobal::Select);
+        QObject::disconnect(commandConnection);
+        QObject::disconnect(capabilityConnection);
+        controller->setActivePanel(AppGlobal::TracksEditor);
+    }
+
     void testForwardingAndSnapshots(EditorViewController *controller) {
         FakeEditorView view;
         view.state = sampleState();
@@ -603,6 +648,7 @@ int main(int argc, char *argv[]) {
 
     testNoView(controller);
     testCommandCapabilities();
+    testModeAwareCommandRouting(controller);
     testForwardingAndSnapshots(controller);
     testActivePanels(controller);
     testInteractionRouting(controller);
