@@ -24,7 +24,8 @@ namespace Automation {
             return {
                 .name = QString::fromLatin1(LiteProductMetadata::ProductName),
                 .version = QString::fromLatin1(LiteProductMetadata::Version),
-                .description = QStringLiteral("DS Editor Lite embedded MCP server"),
+                .description = QStringLiteral("%1 embedded MCP server")
+                                   .arg(QString::fromLatin1(LiteProductMetadata::ProductName)),
                 .websiteUrl = QString::fromLatin1(LiteProductMetadata::ProductUrl),
             };
         }

@@ -94,9 +94,10 @@ namespace DsConnector {
                 request.id,
                 AutomationWire::Mcp::makeInitializeResult(
                     m_stdioProtocolVersion, serverInfo(),
-                    QStringLiteral("Use the typed DS Editor Lite tools when their schemas match "
-                                   "the requested operation. Connector status and discovery tools "
-                                   "remain available while the editor is offline.")),
+                    QStringLiteral("Use the typed %1 tools when their schemas match the requested "
+                                   "operation. Connector status and discovery tools remain "
+                                   "available while the editor is offline.")
+                        .arg(QString::fromLatin1(LiteProductMetadata::ProductName))),
                 {}, m_stdioProtocolVersion));
             return;
         }

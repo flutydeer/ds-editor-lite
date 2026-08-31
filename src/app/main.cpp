@@ -51,7 +51,8 @@ int main(int argc, char *argv[]) {
                 .compare(QStringLiteral("offscreen"), Qt::CaseInsensitive) == 0;
     const auto reportBootstrapError = [&](const QString &error) {
         if (nonInteractiveBootstrapErrors) {
-            QTextStream(stderr) << "DS Editor Lite bootstrap error: " << error << Qt::endl;
+            QTextStream(stderr) << LiteProductMetadata::ProductName << " bootstrap error: " << error
+                                << Qt::endl;
             return;
         }
         QMessageBox::critical(nullptr, QString::fromLatin1(LiteProductMetadata::ProductName),

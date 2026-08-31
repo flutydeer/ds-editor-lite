@@ -105,8 +105,9 @@ namespace Automation {
                 request.id,
                 Mcp::makeInitializeResult(
                     request.protocolVersion, m_serverInfo,
-                    QStringLiteral("DS Editor Lite exposes the same typed automation tools through "
-                                   "MCP 2025-06-18, MCP 2025-11-25, and MCP 2026-07-28.")),
+                    QStringLiteral("%1 exposes the same typed automation tools through MCP "
+                                   "2025-06-18, MCP 2025-11-25, and MCP 2026-07-28.")
+                        .arg(m_serverInfo.name)),
                 {}, request.protocolVersion);
         }
         if (request.method == QString::fromLatin1(Mcp::PingMethod)) {
