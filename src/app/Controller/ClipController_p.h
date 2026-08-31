@@ -16,7 +16,7 @@ public:
 
     Clip *m_clip = nullptr;
 
-    [[nodiscard]] NotesParamsInfo buildNoteParamsInfo() const;
+    [[nodiscard]] Automation::AutomationResult<NotesParamsInfo> buildNoteParamsInfo() const;
     [[nodiscard]] static QList<Note *> selectedNotesFromId(const QList<int> &notesId,
                                                            const SingingClip *clip);
 

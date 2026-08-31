@@ -305,7 +305,12 @@ namespace {
             for (const auto id : noteIds)
                 sourceNotes.append(sourceModel->findNoteById(id.value()));
             NotesParamsInfo clipboard;
-            clipboard.payload = Automation::captureNoteTransfer(*sourceModel, sourceNotes);
+            const auto captured = Automation::captureNoteTransfer(*sourceModel, sourceNotes);
+            expect(static_cast<bool>(captured),
+                   QStringLiteral("GUI transport capture must succeed"));
+            if (!captured)
+                return;
+            clipboard.payload = captured.get();
             const auto encoded = NotesParamsInfo::serializeToJson(clipboard);
             const auto decoded = NotesParamsInfo::deserializeFromJson(encoded);
             expect(decoded.payload.notes.size() == clipboard.payload.notes.size() &&
@@ -366,12 +371,48 @@ namespace {
                QStringLiteral("an oversized retained curve tail must reject the whole transfer"));
     }
 
+    void testOversizedSourceCurveIsRejected() {
+        TestRuntime testRuntime;
+        auto &runtime = testRuntime.runtime();
+        const auto sourceTrack = insertTrack(runtime, QStringLiteral("Source"));
+        const auto targetTrack = insertTrack(runtime, QStringLiteral("Target"));
+        auto longClip = clipDraft(QStringLiteral("Source Clip"));
+        longClip.properties.length = 400000;
+        longClip.properties.clipLen = 400000;
+        const auto sourceClipResult = runtime.project().insertClips(
+            commandContext(runtime), {{.trackId = sourceTrack, .clip = longClip}});
+        const auto sourceClip =
+            sourceClipResult && !sourceClipResult.get().affectedObjects.isEmpty()
+                ? ClipId(sourceClipResult.get().affectedObjects.first().value)
+                : ClipId{};
+        const auto targetClip = insertClip(runtime, targetTrack, QStringLiteral("Target Clip"));
+        const auto inserted = runtime.notes().insertNotes(
+            commandContext(runtime), sourceClip,
+            {noteDraft(100, 399800, 60, QStringLiteral("long"))});
+        const auto noteId = inserted && !inserted.get().affectedObjects.isEmpty()
+                                ? NoteId(inserted.get().affectedObjects.first().value)
+                                : NoteId{};
+        replace(runtime, sourceClip, ParamInfo::Pitch, Param::Edited,
+                {anchor({{0, 5000}, {400000, 7000}})});
+
+        const auto before = runtime.documentVersion();
+        const auto duplicate = runtime.notes().duplicateNotes(
+            commandContext(runtime), sourceClip, {noteId}, targetClip, 0);
+        const auto targetNotes =
+            runtime.notes().getNotes(runtime.documentVersion().documentId, targetClip);
+        expect(!duplicate &&
+                   duplicate.getError().code == Automation::AutomationErrorCode::Unsupported &&
+                   runtime.documentVersion() == before && targetNotes && targetNotes.get().isEmpty(),
+               QStringLiteral("an oversized source curve must reject the whole transfer"));
+    }
+
 } // namespace
 
 int main(int argc, char **argv) {
     QCoreApplication application(argc, argv);
     testDuplicateWithParameters();
     testOversizedTargetTailIsRejected();
+    testOversizedSourceCurveIsRejected();
     QTextStream(stdout) << "Note transfer: " << (failures == 0 ? "PASS" : "FAIL") << Qt::endl;
     return failures == 0 ? 0 : 1;
 }

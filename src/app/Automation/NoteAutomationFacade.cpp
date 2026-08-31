@@ -455,7 +455,10 @@ namespace Automation {
                     return AutomationResult<MutationResult>(m_committer.unchanged(session));
                 const auto payload = captureNoteTransfer(
                     *static_cast<const SingingClip *>(source.get().clip), sourceNotes);
-                return commitTransfer(session, targetClipId, targetStart, payload, validateOnly);
+                if (!payload)
+                    return AutomationResult<MutationResult>(payload.getError());
+                return commitTransfer(session, targetClipId, targetStart, payload.get(),
+                                      validateOnly);
             });
     }
 

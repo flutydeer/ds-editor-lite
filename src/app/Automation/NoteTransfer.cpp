@@ -56,7 +56,9 @@ namespace Automation {
         }
 
         std::optional<CurveDraftDto> sliceDrawCurve(const DrawCurve &curve, const int start,
-                                                    const int end) {
+                                                    const int end, bool *sampleLimitExceeded) {
+            if (sampleLimitExceeded)
+                *sampleLimitExceeded = false;
             if (curve.step <= 0 || curve.values().isEmpty() || start >= end ||
                 curve.localEndTick() <= start || curve.localStart() >= end) {
                 return std::nullopt;
@@ -79,8 +81,11 @@ namespace Automation {
             result.step = commonStep;
             const auto pointCount =
                 (static_cast<qint64>(clippedEnd) - clippedStart + commonStep - 1) / commonStep;
-            if (pointCount > AutomationWire::MaximumCurveSampleItems)
+            if (pointCount > AutomationWire::MaximumCurveSampleItems) {
+                if (sampleLimitExceeded)
+                    *sampleLimitExceeded = true;
                 return std::nullopt;
+            }
             result.values.reserve(static_cast<qsizetype>(pointCount));
             for (qint64 tick = clippedStart; tick < clippedEnd; tick += commonStep)
                 result.values.append(drawValueAt(curve, static_cast<int>(tick)));
@@ -88,7 +93,9 @@ namespace Automation {
         }
 
         std::unique_ptr<DrawCurve> sampleAnchorRange(const AnchorCurve &anchor, const int start,
-                                                     const int end) {
+                                                     const int end, bool *sampleLimitExceeded) {
+            if (sampleLimitExceeded)
+                *sampleLimitExceeded = false;
             const auto &nodes = anchor.nodes().toList();
             if (nodes.size() < 2 || start >= end)
                 return {};
@@ -109,8 +116,12 @@ namespace Automation {
                 fullStart + (requestedEnd - 1 - fullStart + step - 1) / step * step);
             const auto pointCount = (sampleEnd - sampleStart) / step + 1;
             const auto materializedEnd = sampleStart + pointCount * step;
-            if (pointCount <= 0 || pointCount > AutomationWire::MaximumCurveSampleItems ||
-                materializedEnd > std::numeric_limits<int>::max()) {
+            if (pointCount > AutomationWire::MaximumCurveSampleItems) {
+                if (sampleLimitExceeded)
+                    *sampleLimitExceeded = true;
+                return {};
+            }
+            if (pointCount <= 0 || materializedEnd > std::numeric_limits<int>::max()) {
                 return {};
             }
 
@@ -150,17 +161,21 @@ namespace Automation {
             return result;
         }
 
-        QList<CurveDraftDto> sliceCurve(const Curve &curve, const int start, const int end) {
+        std::optional<QList<CurveDraftDto>> sliceCurve(const Curve &curve, const int start,
+                                                       const int end) {
             if (start >= end || curveEnd(curve) <= start || curveStart(curve) >= end)
-                return {};
+                return QList<CurveDraftDto>{};
 
             if (curve.type() == Curve::Draw) {
-                const auto result =
-                    sliceDrawCurve(static_cast<const DrawCurve &>(curve), start, end);
+                bool sampleLimitExceeded = false;
+                const auto result = sliceDrawCurve(static_cast<const DrawCurve &>(curve), start,
+                                                   end, &sampleLimitExceeded);
+                if (sampleLimitExceeded)
+                    return std::nullopt;
                 return result ? QList<CurveDraftDto>{*result} : QList<CurveDraftDto>{};
             }
             if (curve.type() != Curve::Anchor)
-                return {};
+                return QList<CurveDraftDto>{};
 
             const auto &anchor = static_cast<const AnchorCurve &>(curve);
             const auto &nodes = anchor.nodes().toList();
@@ -168,13 +183,18 @@ namespace Automation {
                 auto result = curveDraftDto(anchor);
                 result.localStart = nodes.first()->pos();
                 clearIdentity(result);
-                return {std::move(result)};
+                return QList<CurveDraftDto>{std::move(result)};
             }
 
-            const auto sampled = sampleAnchorRange(anchor, start, end);
+            bool sampleLimitExceeded = false;
+            const auto sampled = sampleAnchorRange(anchor, start, end, &sampleLimitExceeded);
+            if (sampleLimitExceeded)
+                return std::nullopt;
             if (!sampled)
-                return {};
-            const auto result = sliceDrawCurve(*sampled, start, end);
+                return QList<CurveDraftDto>{};
+            const auto result = sliceDrawCurve(*sampled, start, end, &sampleLimitExceeded);
+            if (sampleLimitExceeded)
+                return std::nullopt;
             return result ? QList<CurveDraftDto>{*result} : QList<CurveDraftDto>{};
         }
 
@@ -188,15 +208,15 @@ namespace Automation {
             QList<CurveDraftDto> result;
             if (curveRangeStart < start) {
                 const auto prefix = sliceCurve(curve, curveRangeStart, start);
-                if (prefix.isEmpty())
+                if (!prefix || prefix->isEmpty())
                     return std::nullopt;
-                result.append(prefix);
+                result.append(*prefix);
             }
             if (curveRangeEnd > end) {
                 const auto suffix = sliceCurve(curve, end, curveRangeEnd);
-                if (suffix.isEmpty())
+                if (!suffix || suffix->isEmpty())
                     return std::nullopt;
-                result.append(suffix);
+                result.append(*suffix);
             }
             for (auto &draft : result)
                 clearIdentity(draft);
@@ -226,7 +246,8 @@ namespace Automation {
 
     } // namespace
 
-    NoteTransferPayload captureNoteTransfer(const SingingClip &clip, const QList<Note *> &notes) {
+    AutomationResult<NoteTransferPayload> captureNoteTransfer(const SingingClip &clip,
+                                                              const QList<Note *> &notes) {
         NoteTransferPayload result;
         QList<Note *> ordered;
         ordered.reserve(notes.size());
@@ -260,8 +281,15 @@ namespace Automation {
                 for (const auto *curve : parameter->curves(type)) {
                     if (!curve)
                         continue;
-                    captured.curves.append(
-                        sliceCurve(*curve, result.sourceStart, result.sourceEnd));
+                    const auto sliced = sliceCurve(*curve, result.sourceStart, result.sourceEnd);
+                    if (!sliced) {
+                        return AutomationError{
+                            .code = AutomationErrorCode::Unsupported,
+                            .message = QStringLiteral(
+                                "Source parameter curve is too long to capture during note transfer"),
+                        };
+                    }
+                    captured.curves.append(*sliced);
                 }
                 if (!captured.curves.isEmpty())
                     result.parameters.append(std::move(captured));

@@ -142,25 +142,30 @@ void ClipController::setClip(Clip *clip) {
     emit hasSelectedNotesChanged(hasSelectedNotes());
 }
 
-void ClipController::copySelectedNotesWithParams() const {
+bool ClipController::copySelectedNotesWithParams() const {
     Q_D(const ClipController);
     const auto info = d->buildNoteParamsInfo();
-    if (info.payload.isEmpty())
-        return;
+    if (!info) {
+        qWarning() << "Failed to copy notes with parameters:" << info.getError().message;
+        return false;
+    }
+    if (info.get().payload.isEmpty())
+        return false;
 
-    const auto jObj = NotesParamsInfo::serializeToJson(info);
+    const auto jObj = NotesParamsInfo::serializeToJson(info.get());
     QJsonDocument jDoc(jObj);
     const auto array = jDoc.toJson(QJsonDocument::Compact);
 
     const auto data = new QMimeData;
     data->setData(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams), array);
     QGuiApplication::clipboard()->setMimeData(data);
-    qDebug() << QString("Copied %1 notes").arg(info.payload.notes.count());
+    qDebug() << QString("Copied %1 notes").arg(info.get().payload.notes.count());
+    return true;
 }
 
 void ClipController::cutSelectedNotesWithParams() {
-    copySelectedNotesWithParams();
-    onDeleteSelectedNotes();
+    if (copySelectedNotesWithParams())
+        onDeleteSelectedNotes();
 }
 
 void ClipController::pasteNotesWithParams(const NotesParamsInfo &info, int tick) {
@@ -687,11 +692,14 @@ void ClipController::onSearchLyric(QWidget *parent) {
     searchDialog.exec();
 }
 
-NotesParamsInfo ClipControllerPrivate::buildNoteParamsInfo() const {
+Automation::AutomationResult<NotesParamsInfo> ClipControllerPrivate::buildNoteParamsInfo() const {
     const auto singingClip = static_cast<SingingClip *>(m_clip);
     auto notes = selectedNotesFromId(appStatus->selectedNotes, singingClip);
     NotesParamsInfo info;
-    info.payload = Automation::captureNoteTransfer(*singingClip, notes);
+    const auto payload = Automation::captureNoteTransfer(*singingClip, notes);
+    if (!payload)
+        return payload.getError();
+    info.payload = payload.get();
     return info;
 }
 
