@@ -418,12 +418,12 @@ namespace {
                     ->toMcpToolJson();
             auto applicationMetadata = applicationTool.value(QStringLiteral("_meta"))
                                            .toObject()
-                                           .value(QStringLiteral("io.openvpi.ds-editor-lite/tool"))
+                                           .value(QStringLiteral("org.openvpi.ds-editor-lite/tool"))
                                            .toObject();
             applicationMetadata.insert(QStringLiteral("minimum_toolset_version"),
                                        applicationMinimumToolsetVersion);
             auto applicationMeta = applicationTool.value(QStringLiteral("_meta")).toObject();
-            applicationMeta.insert(QStringLiteral("io.openvpi.ds-editor-lite/tool"),
+            applicationMeta.insert(QStringLiteral("org.openvpi.ds-editor-lite/tool"),
                                    applicationMetadata);
             applicationTool.insert(QStringLiteral("_meta"), applicationMeta);
             if (!applicationAvailability.isEmpty())
@@ -472,11 +472,11 @@ namespace {
                 command.insert(QStringLiteral("title"), QStringLiteral("Fake command"));
                 auto metadata = command.value(QStringLiteral("_meta"))
                                     .toObject()
-                                    .value(QStringLiteral("io.openvpi.ds-editor-lite/tool"))
+                                    .value(QStringLiteral("org.openvpi.ds-editor-lite/tool"))
                                     .toObject();
                 metadata.insert(QStringLiteral("kind"), QStringLiteral("command"));
                 auto meta = command.value(QStringLiteral("_meta")).toObject();
-                meta.insert(QStringLiteral("io.openvpi.ds-editor-lite/tool"), metadata);
+                meta.insert(QStringLiteral("org.openvpi.ds-editor-lite/tool"), metadata);
                 command.insert(QStringLiteral("_meta"), meta);
                 tools.append(command);
             }
@@ -493,8 +493,8 @@ namespace {
                      }}                                                                    },
                     {QStringLiteral("_meta"),
                      QJsonObject{
-                         {QStringLiteral("com.openvpi.ds-editor-lite/fixture"), true},
-                         {QStringLiteral("io.openvpi.ds-editor-lite/tool"),
+                         {QStringLiteral("org.openvpi.ds-editor-lite/fixture"), true},
+                         {QStringLiteral("org.openvpi.ds-editor-lite/tool"),
                           QJsonObject{
                               {QStringLiteral("minimum_toolset_version"), 1},
                               {QStringLiteral("category"), QStringLiteral("fake")},
@@ -517,7 +517,7 @@ namespace {
                           QStringLiteral("https://example.invalid/minimal.svg")},
                      }}                                                           },
                     {QStringLiteral("_meta"),
-                     QJsonObject{{QStringLiteral("com.openvpi.ds-editor-lite/fixture"),
+                     QJsonObject{{QStringLiteral("org.openvpi.ds-editor-lite/fixture"),
                                   QStringLiteral("minimal")}}                     },
                 });
             }
@@ -528,12 +528,12 @@ namespace {
                 tool.insert(QStringLiteral("title"), id);
                 auto metadata = tool.value(QStringLiteral("_meta"))
                                     .toObject()
-                                    .value(QStringLiteral("io.openvpi.ds-editor-lite/tool"))
+                                    .value(QStringLiteral("org.openvpi.ds-editor-lite/tool"))
                                     .toObject();
                 metadata.insert(QStringLiteral("category"), QStringLiteral("fake"));
                 metadata.insert(QStringLiteral("minimum_control_level"), QStringLiteral("l0"));
                 auto meta = tool.value(QStringLiteral("_meta")).toObject();
-                meta.insert(QStringLiteral("io.openvpi.ds-editor-lite/tool"), metadata);
+                meta.insert(QStringLiteral("org.openvpi.ds-editor-lite/tool"), metadata);
                 tool.insert(QStringLiteral("_meta"), meta);
                 tools.append(tool);
             }

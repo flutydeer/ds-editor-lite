@@ -4339,7 +4339,7 @@ namespace AutomationWire {
             {QStringLiteral("annotations"),  annotations },
             {QStringLiteral("_meta"),
              QJsonObject{
-                 {QStringLiteral("io.openvpi.ds-editor-lite/tool"),
+                 {QStringLiteral("org.openvpi.ds-editor-lite/tool"),
                   QJsonObject{
                       {QStringLiteral("minimum_toolset_version"),
                        static_cast<qint64>(minimumToolsetVersion)},

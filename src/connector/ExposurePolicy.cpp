@@ -9,7 +9,7 @@ namespace DsConnector {
         QJsonObject toolMetadata(const QJsonObject &tool) {
             return tool.value(QStringLiteral("_meta"))
                 .toObject()
-                .value(QStringLiteral("io.openvpi.ds-editor-lite/tool"))
+                .value(QStringLiteral("org.openvpi.ds-editor-lite/tool"))
                 .toObject();
         }
 

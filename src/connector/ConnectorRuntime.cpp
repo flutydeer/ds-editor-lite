@@ -445,7 +445,7 @@ namespace DsConnector {
                  }                                           },
                 {QStringLiteral("_meta"),
                  QJsonObject{
-                     {QStringLiteral("io.openvpi.ds-editor-lite/tool"),
+                     {QStringLiteral("org.openvpi.ds-editor-lite/tool"),
                       QJsonObject{
                           {QStringLiteral("minimum_toolset_version"), 1},
                           {QStringLiteral("category"), QStringLiteral("connector")},
@@ -476,7 +476,7 @@ namespace DsConnector {
         QJsonObject namespacedToolMetadata(const QJsonObject &tool) {
             return tool.value(QStringLiteral("_meta"))
                 .toObject()
-                .value(QStringLiteral("io.openvpi.ds-editor-lite/tool"))
+                .value(QStringLiteral("org.openvpi.ds-editor-lite/tool"))
                 .toObject();
         }
 
@@ -540,7 +540,7 @@ namespace DsConnector {
             synthesize(QStringLiteral("value_sources"), QStringLiteral("valueSources"),
                        QStringLiteral("value_sources"));
             if (!metadata.isEmpty()) {
-                meta.insert(QStringLiteral("io.openvpi.ds-editor-lite/tool"), metadata);
+                meta.insert(QStringLiteral("org.openvpi.ds-editor-lite/tool"), metadata);
                 result.insert(QStringLiteral("_meta"), meta);
             } else if (tool.value(QStringLiteral("_meta")).isObject()) {
                 result.insert(QStringLiteral("_meta"), meta);

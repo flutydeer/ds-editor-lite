@@ -123,7 +123,7 @@ namespace {
             const auto descriptor = contract.toMcpToolJson();
             const auto metadata = descriptor.value(QStringLiteral("_meta"))
                                       .toObject()
-                                      .value(QStringLiteral("io.openvpi.ds-editor-lite/tool"))
+                                      .value(QStringLiteral("org.openvpi.ds-editor-lite/tool"))
                                       .toObject();
             expect(contract.minimumControlLevel != ControlLevel::Custom &&
                        contract.minimumToolsetVersion > 0 &&
