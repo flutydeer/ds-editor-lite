@@ -32,7 +32,6 @@ public:
     void moveToAudioClipState() const;
     void refreshSingerComboPresentation() const;
     void refreshLanguageComboPresentation() const;
-    void refreshPitchBakeAvailability() const;
     void populatePresetMenus() const;
     void retranslateUi() const;
     void onPresetApplied(const QString &presetId) const;

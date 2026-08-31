@@ -26,7 +26,6 @@ ParamEditToolBarView::ParamEditToolBarView(QWidget *parent) : QWidget(parent) {
         createEditModeButton("btnParamErase", QStringLiteral(":/svg/icons/eraser_24_filled.svg"));
     m_btnBake =
         createEditModeButton("btnParamBake", QStringLiteral(":/svg/icons/brush_24_filled.svg"));
-    m_btnBake->setEnabled(false);
     m_btnAnchor = createEditModeButton("btnParamAnchor",
                                        QStringLiteral(":/svg/icons/pitch_anchor_24_filled.svg"));
 
@@ -55,12 +54,6 @@ ParamEditToolBarView::ParamEditToolBarView(QWidget *parent) : QWidget(parent) {
             });
 
     retranslateUi();
-}
-
-void ParamEditToolBarView::setBakeEnabled(const bool enabled) {
-    m_btnBake->setEnabled(enabled);
-    if (!enabled && m_btnBake->isChecked())
-        m_btnDraw->setChecked(true);
 }
 
 void ParamEditToolBarView::changeEvent(QEvent *event) {
