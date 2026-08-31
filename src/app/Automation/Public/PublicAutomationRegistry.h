@@ -17,6 +17,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QLatin1StringView>
+#include <QThreadPool>
 
 #include <atomic>
 #include <functional>
@@ -211,6 +212,7 @@ namespace Automation {
         QHash<QString, Handler> m_handlers;
         AutomationWire::OpaqueCursorCodec m_taskCursorCodec;
         AutomationWire::OpaqueCursorCodec m_collectionCursorCodec;
+        QThreadPool m_exportThreadPool;
     };
 
 } // namespace Automation

@@ -1488,15 +1488,18 @@ namespace Automation {
             };
         }
 
-        QJsonObject encodeAudioClipSnapshot(const ClipSnapshotDto &clip,
-                                            const QString &documentPath) {
+        QJsonObject encodeAudioClipSnapshot(const ClipSnapshotDto &clip, const QString &documentPath,
+                                            const AutomationFileGuard &fileGuard) {
             const auto &audio = clip.data.audioInfo;
             QJsonArray candidates;
             QSet<QString> candidateSet;
             const auto appendCandidate = [&](const QString &path) {
                 if (path.isEmpty())
                     return;
-                const auto cleanPath = QDir::cleanPath(QFileInfo(path).absoluteFilePath());
+                const auto authorized = fileGuard.authorize(path, FileAccessPurpose::Read);
+                if (!authorized)
+                    return;
+                const auto &cleanPath = authorized.get().canonicalPath;
                 if (!candidateSet.contains(cleanPath)) {
                     candidateSet.insert(cleanPath);
                     candidates.append(cleanPath);
@@ -1522,9 +1525,12 @@ namespace Automation {
                 audio.sampleRate > 0
                     ? QJsonValue(static_cast<double>(audio.frames) / audio.sampleRate)
                     : QJsonValue(QJsonValue::Null);
+            const auto authorizedPath =
+                fileGuard.authorize(clip.data.audioPath, FileAccessPurpose::Read);
             return {
                 {QStringLiteral("clip_id"),          clip.id.value()                                                             },
-                {QStringLiteral("path"),             clip.data.audioPath                                                         },
+                {QStringLiteral("path"),
+                 authorizedPath ? authorizedPath.get().canonicalPath : QString()                                                  },
                 {QStringLiteral("path_status"),      status                                                                      },
                 {QStringLiteral("candidate_paths"),  candidates                                                                  },
                 {QStringLiteral("hash_exists"),      !clip.data.audioPathInfo.sha512.isEmpty()                                   },
@@ -2017,6 +2023,7 @@ namespace Automation {
 
     PublicAutomationRegistry::~PublicAutomationRegistry() {
         m_lifetimeState->active.store(false, std::memory_order_release);
+        m_exportThreadPool.waitForDone();
     }
 
     const QList<AutomationWire::ToolContract> &PublicAutomationRegistry::contracts() const {
@@ -3597,7 +3604,7 @@ namespace Automation {
                 completed.validatedOnly = context.validateOnly;
                 tasks->succeed(taskId, completed);
             };
-            QThreadPool::globalInstance()->start(std::move(execute));
+            m_exportThreadPool.start(std::move(execute));
             return AutomationResult<QJsonObject>(
                 encodeTaskAccepted({snapshot.taskId, context.expected, context.validateOnly}));
         });
@@ -4432,7 +4439,7 @@ namespace Automation {
                     }
                     return AutomationResult<QJsonObject>(
                         queryResult(project.get().document, QStringLiteral("snapshot"),
-                                    encodeAudioClipSnapshot(clip, document.get().path)));
+                                    encodeAudioClipSnapshot(clip, document.get().path, m_fileGuard)));
                 }
             }
             return AutomationResult<QJsonObject>(AutomationError::notFound(

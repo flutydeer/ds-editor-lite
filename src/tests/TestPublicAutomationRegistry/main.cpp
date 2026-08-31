@@ -13,6 +13,7 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -21,7 +22,7 @@
 #include <QSet>
 #include <QTemporaryDir>
 #include <QTextStream>
-#include <QThreadPool>
+#include <QThread>
 #include <QVersionNumber>
 
 #include <algorithm>
@@ -70,6 +71,17 @@ namespace {
         QTextStream(stderr) << "DETAIL " << operationId << ": "
                             << Automation::errorCodeName(failure.code) << ", " << failure.fieldPath
                             << ", " << failure.message << Qt::endl;
+    }
+
+    template <typename Predicate> bool waitUntil(Predicate &&predicate, const int timeoutMs = 2000) {
+        QElapsedTimer timer;
+        timer.start();
+        while (!predicate()) {
+            if (timer.hasExpired(timeoutMs))
+                return false;
+            QThread::msleep(1);
+        }
+        return true;
     }
 
     Automation::PublicAutomationHostServices
@@ -931,7 +943,6 @@ namespace {
                QStringLiteral("MIDI export must remain cancelable while rendering"));
         if (!cancellationReachedRender) {
             control.release.release();
-            QThreadPool::globalInstance()->waitForDone(2000);
             return;
         }
         const auto canceled =
@@ -939,7 +950,11 @@ namespace {
         const bool cancellationAccepted =
             canceled && canceled.get().state == Automation::AutomationTaskState::CancelRequested;
         control.release.release();
-        const bool canceledWorkerFinished = QThreadPool::globalInstance()->waitForDone(2000);
+        const bool canceledWorkerFinished = waitUntil([&] {
+            const auto snapshot =
+                runtime.automationTasks().get(document.documentId, canceledTaskId);
+            return snapshot && snapshot.get().state == Automation::AutomationTaskState::Canceled;
+        });
         const auto canceledSnapshot = runtime.automationTasks().get(document.documentId, canceledTaskId);
         expect(cancellationAccepted && canceledWorkerFinished && canceledSnapshot &&
                    canceledSnapshot.get().state == Automation::AutomationTaskState::Canceled &&
@@ -960,12 +975,15 @@ namespace {
                QStringLiteral("MIDI export must remain running until generation discard"));
         if (!discardReachedRender) {
             control.release.release();
-            QThreadPool::globalInstance()->waitForDone(2000);
             return;
         }
         runtime.automationTasks().discardDocumentGeneration(document.documentId);
         control.release.release();
-        const bool discardedWorkerFinished = QThreadPool::globalInstance()->waitForDone(2000);
+        const bool discardedWorkerFinished = waitUntil([&] {
+            return QDir(directoryPath)
+                .entryList({QStringLiteral(".ds-editor-lite-midi-*.mid")}, QDir::Files)
+                .isEmpty();
+        });
         expect(discardedWorkerFinished && !QFileInfo::exists(discardedPath),
                QStringLiteral("discarded document generations must not publish staged MIDI"));
     }
