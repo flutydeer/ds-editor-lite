@@ -373,8 +373,8 @@
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="349"/>
-        <source>Starts DS Connector Lite and discovers this editor automatically</source>
-        <translation>启动 DS Connector Lite 自动发现本编辑器</translation>
+        <source>Starts %1 and discovers this editor automatically</source>
+        <translation>启动 %1 自动发现本编辑器</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="355"/>

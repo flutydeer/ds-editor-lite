@@ -7,6 +7,7 @@
 
 #include <lite/GUI/Controls/Button.h>
 #include <lite/AutomationWire/PublicToolContract.h>
+#include <lite/ProductMetadata.h>
 #include <lite/GUI/Controls/ComboBox.h>
 #include <lite/GUI/Controls/OptionListCard.h>
 #include <lite/GUI/Controls/OptionsCardItem.h>
@@ -367,9 +368,11 @@ QWidget *AutomationPage::createContentWidget() {
         QGuiApplication::clipboard()->setText(currentStdioConfiguration());
         Toast::show(tr("STDIO configuration copied"));
     });
-    connectionCard->addItem(tr("STDIO Connector"),
-                            tr("Starts DS Connector Lite and discovers this editor automatically"),
-                            stdioCopyButton);
+    connectionCard->addItem(
+        tr("STDIO Connector"),
+        tr("Starts %1 and discovers this editor automatically")
+            .arg(QString::fromLatin1(LiteProductMetadata::ConnectorProductName)),
+        stdioCopyButton);
 
     auto *streamableHttpCopyButton = new Button(tr("Copy Configuration"));
     streamableHttpCopyButton->setObjectName(
