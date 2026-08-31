@@ -12,7 +12,7 @@ class ParamProperties;
 
 namespace CurveTransform {
     constexpr int SampleStep = 5;
-    constexpr double DefaultShoulderMaximumMs = 60.0;
+    constexpr double DefaultShoulderLengthMs = 60.0;
 
     enum class Kind { Shape, Scale, ModulatePitch };
     enum class Phase { Idle, Selecting, Adjusting, Transforming };

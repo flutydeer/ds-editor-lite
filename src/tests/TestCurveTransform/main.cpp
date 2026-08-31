@@ -130,11 +130,11 @@ namespace {
         session.beginSelection(200);
         ok &= expect(session.finishSelection(600), "wide selection succeeds");
         ok &= expect(session.bounds().c == 140 && session.bounds().d == 660,
-                     "default shoulders use 25 percent capped at 60 ms");
+                     "default shoulders use a fixed 60 ms length");
         ok &= expect(session.setBoundary(Boundary::C, 0),
-                     "left shoulder can expand past default cap");
+                     "left shoulder can expand past the default length");
         ok &= expect(session.setBoundary(Boundary::D, 800),
-                     "right shoulder can expand past default cap");
+                     "right shoulder can expand past the default length");
         ok &= expect(session.bounds().c == 0 && session.bounds().d == 800,
                      "expanded shoulders clamp to component");
         session.setBoundary(Boundary::A, 900);
@@ -142,13 +142,19 @@ namespace {
         ok &= expect(session.bounds().a + 2 * SampleStep == session.bounds().b,
                      "minimum target retains two samples");
 
+        session.setSource({&source}, {}, config);
+        session.beginSelection(400);
+        ok &= expect(session.finishSelection(420), "narrow selection succeeds");
+        ok &= expect(session.bounds().c == 340 && session.bounds().d == 480,
+                     "default shoulder length is independent of target width");
+
         auto shortSource = curve(0, QList<int>(5, 500));
         session.setSource({&shortSource}, {}, config);
         session.beginSelection(5);
         ok &= expect(session.finishSelection(15), "short selection succeeds");
-        ok &= expect(session.bounds().c == session.bounds().a &&
-                         session.bounds().b == session.bounds().d,
-                     "small target permits zero-width default shoulders");
+        ok &= expect(session.bounds().c == session.bounds().componentStart &&
+                         session.bounds().d == session.bounds().componentEnd,
+                     "default shoulders clamp to short component boundaries");
 
         config.tickToMilliseconds = [](const int tick) { return tick * 2.0; };
         session.setSource({&source}, {}, config);

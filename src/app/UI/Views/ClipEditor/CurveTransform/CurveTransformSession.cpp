@@ -327,14 +327,10 @@ namespace CurveTransform {
     }
 
     void Session::initializeShoulders() {
-        const auto targetWidth = m_bounds.b - m_bounds.a;
-        const auto preferred = alignedAtOrBefore(static_cast<int>(targetWidth * 0.25));
         const auto leftAvailable = m_bounds.a - m_bounds.componentStart;
         const auto rightAvailable = m_bounds.componentEnd - m_bounds.b;
-        const auto left =
-            std::min(preferred, defaultShoulderWidth(m_bounds.a, leftAvailable, true));
-        const auto right =
-            std::min(preferred, defaultShoulderWidth(m_bounds.b, rightAvailable, false));
+        const auto left = defaultShoulderWidth(m_bounds.a, leftAvailable, true);
+        const auto right = defaultShoulderWidth(m_bounds.b, rightAvailable, false);
         m_bounds.c = m_bounds.a - left;
         m_bounds.d = m_bounds.b + right;
     }
@@ -343,7 +339,7 @@ namespace CurveTransform {
                                       const bool left) const {
         const auto available = alignedAtOrBefore(std::max(availableTicks, 0));
         if (!m_config.tickToMilliseconds || available == 0)
-            return available;
+            return 0;
         const auto boundaryMs = m_config.tickToMilliseconds(boundaryTick);
         int low = 0;
         int high = available / SampleStep;
@@ -351,7 +347,7 @@ namespace CurveTransform {
             const auto middle = (low + high + 1) / 2;
             const auto tick = boundaryTick + (left ? -1 : 1) * middle * SampleStep;
             const auto elapsed = std::abs(m_config.tickToMilliseconds(tick) - boundaryMs);
-            if (elapsed <= DefaultShoulderMaximumMs + 1e-9)
+            if (elapsed <= DefaultShoulderLengthMs + 1e-9)
                 low = middle;
             else
                 high = middle - 1;
