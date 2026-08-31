@@ -2248,11 +2248,15 @@ namespace Automation {
                            return AutomationResult<QJsonObject>(result.getError());
                        QJsonArray projects;
                        for (const auto &path : result.get()) {
-                           const QFileInfo info(path);
+                           const auto authorized =
+                               m_fileGuard.authorize(path, FileAccessPurpose::Read);
+                           if (!authorized)
+                               continue;
+                           const QFileInfo info(authorized.get().canonicalPath);
                            projects.append(QJsonObject{
-                               {QStringLiteral("path"),      QDir::cleanPath(path)},
-                               {QStringLiteral("file_name"), info.fileName()      },
-                               {QStringLiteral("exists"),    info.exists()        },
+                               {QStringLiteral("path"),      authorized.get().canonicalPath},
+                               {QStringLiteral("file_name"), info.fileName()                 },
+                               {QStringLiteral("exists"),    info.exists()                   },
                            });
                        }
                        return AutomationResult<QJsonObject>(QJsonObject{
