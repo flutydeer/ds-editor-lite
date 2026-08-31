@@ -533,8 +533,12 @@ bool MainWindow::restoreEditorViewState(const EditorViewState &state) {
         }
     }
     editorViewController->setActiveRegion(state.layout.activeRegion);
-    if (state.layout.focusedRegion != EditorViewGlobal::Region::None &&
-        !focusEditorRegion(state.layout.focusedRegion)) {
+    if (state.layout.focusedRegion == EditorViewGlobal::Region::None) {
+        if (focusedEditorRegion() != EditorViewGlobal::Region::None) {
+            if (auto *focused = QApplication::focusWidget())
+                focused->clearFocus();
+        }
+    } else if (!focusEditorRegion(state.layout.focusedRegion)) {
         return false;
     }
     return true;
