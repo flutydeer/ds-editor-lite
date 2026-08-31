@@ -309,7 +309,7 @@ Connector 桥接工具：6
 - Runtime enable、端口冲突、`server_ready`、`server_disabled`、换端口、错误恢复和退出顺序。
 - 控制层级/Custom/roots 在运行中变化时，Editor list/dispatch 与 Connector 状态及时更新。
 - 选项菜单“自动化”项的图标与中文名称、面板完整中文翻译通过 Computer Use 验证。
-- Custom 工具按领域显示为可折叠卡片；逐组验证默认收起、展开/收起、启用计数、整组关闭/开启和单项状态回读。
+- “访问控制”使用一个连续卡片依次呈现控制层级、自定义工具集和文件访问权限；工具组只在通过箭头首次进入自定义工具集二级页时创建。逐组验证默认收起、展开/收起、启用计数、整组关闭/开启和单项状态回读，并验证导入控制层级与返回导航。
 - “本地服务器”区域不保留独立 endpoint 卡片，enabled 卡片下也不显示常驻 endpoint；“随机更换”按钮与 number box 同行且始终可用，端口卡片没有常驻说明文本；不存在固定/随机下拉框，随机更换或直接编辑后的值与持久化结果正确。
 - stdio 与 Streamable HTTP 卡片不展示配置预览；两种配置在 `server_ready`、`server_disabled` 和 `error` 状态下始终可复制，复制对象不含外层 `mcpServers`，Streamable HTTP endpoint 还可单独复制。
 - 单一访问根卡片的帮助文本解释其为同时约束读写的自动化文件路径 allowlist，左侧文本相对路径编辑器顶部对齐；设置页不出现无动态事实的本机进程访问栏目。

@@ -15,6 +15,7 @@ class OptionListCard;
 class OptionsCardItem;
 class PathEditor;
 class SwitchButton;
+class QVBoxLayout;
 
 namespace SVS {
     class ExpressionSpinBox;
@@ -40,6 +41,12 @@ private:
     [[nodiscard]] QString categoryDisplayName(const QString &category) const;
     [[nodiscard]] QString runtimeStateDescription(const QString &state) const;
     [[nodiscard]] QString currentMcpEndpoint() const;
+    [[nodiscard]] QWidget *createToolsetPage();
+    void ensureToolsetPage();
+    void showAccessControlPage();
+    void showToolsetPage();
+    void importControlLevel();
+    void refreshCustomToolsetSummary();
     void refreshCategoryPermissionSwitches();
     void refreshRuntimeStatus();
 
@@ -57,7 +64,12 @@ private:
     QLabel *m_runtimeStateValue = nullptr;
     QLabel *m_runtimeErrorValue = nullptr;
     OptionsCardItem *m_runtimeErrorItem = nullptr;
+    OptionsCardItem *m_customToolsetItem = nullptr;
     OptionsCardItem *m_accessRootsItem = nullptr;
+    QVBoxLayout *m_pageHostLayout = nullptr;
+    QWidget *m_accessControlPage = nullptr;
+    QWidget *m_toolsetPage = nullptr;
+    bool m_toolsetPageVisible = false;
     StartupArguments::EffectiveAutomationConfig m_effectiveConfig;
 };
 

@@ -102,8 +102,8 @@
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="437"/>
-        <source>Determines which tools clients can see and call</source>
-        <translation>决定客户端可以看到并调用的工具范围</translation>
+        <source>Determines which tools clients can access</source>
+        <translation>决定客户端可访问的工具范围</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="52"/>
@@ -418,20 +418,24 @@
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="308"/>
-        <source>Custom Tools</source>
+        <source>Custom Toolset</source>
         <translation>自定义工具集</translation>
     </message>
     <message>
-        <source>Sync</source>
-        <translation>同步</translation>
+        <source>Import Control Level</source>
+        <translation>导入控制层级</translation>
     </message>
     <message>
-        <source>Sync from Control Level</source>
-        <translation>从控制层级同步</translation>
+        <source>%L1/%L2 enabled</source>
+        <translation>已启用 %L1/%L2</translation>
     </message>
     <message>
-        <source>Replaces the custom toolset with the tools available at the selected control level</source>
-        <translation>使用所选控制层级中的可用工具覆盖自定义工具集</translation>
+        <source>Open toolset</source>
+        <translation>打开工具集</translation>
+    </message>
+    <message>
+        <source>Back to Access Control</source>
+        <translation>返回访问控制</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="310"/>
@@ -460,8 +464,8 @@
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="328"/>
-        <source>Allowed Folders</source>
-        <translation>允许访问的文件夹</translation>
+        <source>File Access Permissions</source>
+        <translation>文件访问权限</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="330"/>
@@ -471,8 +475,8 @@
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="535"/>
-        <source>Path Access Permissions</source>
-        <translation>路径访问权限</translation>
+        <source>Access Control</source>
+        <translation>访问控制</translation>
     </message>
 </context>
 <context>

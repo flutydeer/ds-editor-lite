@@ -24,6 +24,7 @@
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QScrollBar>
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QVBoxLayout>
@@ -159,6 +160,23 @@ void AutomationPage::refreshCategoryPermissionSwitches() {
                                  .arg(operationIds.size()));
         }
     }
+    refreshCustomToolsetSummary();
+}
+
+void AutomationPage::refreshCustomToolsetSummary() {
+    if (!m_customToolsetItem)
+        return;
+
+    const auto *option = appOptions->automation();
+    const auto enabledCount = std::count_if(
+        m_customPermissionOperationIds.cbegin(), m_customPermissionOperationIds.cend(),
+        [this, option](const QString &operationId) {
+            if (const auto *permissionSwitch = m_customPermissionSwitches.value(operationId))
+                return permissionSwitch->value();
+            return option->customPermissionEnabled(operationId);
+        });
+    m_customToolsetItem->setDescription(
+        tr("%L1/%L2 enabled").arg(enabledCount).arg(m_customPermissionOperationIds.size()));
 }
 
 QString AutomationPage::currentMcpEndpoint() const {
@@ -244,11 +262,17 @@ void AutomationPage::modifyOption() {
 }
 
 QWidget *AutomationPage::createContentWidget() {
-    const auto widget = new QWidget;
+    const auto pageHost = new QWidget;
+    m_pageHostLayout = new QVBoxLayout(pageHost);
+    m_pageHostLayout->setContentsMargins({});
+    m_pageHostLayout->setSpacing(0);
+    m_accessControlPage = new QWidget;
+    m_toolsetPage = nullptr;
     m_serverCard = nullptr;
     m_runtimeStateValue = nullptr;
     m_runtimeErrorValue = nullptr;
     m_runtimeErrorItem = nullptr;
+    m_customToolsetItem = nullptr;
     auto *option = appOptions->automation();
     const auto parsedArguments = StartupArguments::parseApplicationArguments();
     m_effectiveConfig = StartupArguments::effectiveAutomationConfig(
@@ -280,16 +304,17 @@ QWidget *AutomationPage::createContentWidget() {
             &AutomationPage::modifyOption);
 
     m_controlLevel = new ComboBox;
-    m_controlLevel->addItem(tr("L1 - Basic Editing"), static_cast<int>(AutomationOption::ControlLevel::L1));
+    m_controlLevel->addItem(tr("L1 - Basic Editing"),
+                            static_cast<int>(AutomationOption::ControlLevel::L1));
     m_controlLevel->addItem(tr("L2 - Complete Creation"),
-                       static_cast<int>(AutomationOption::ControlLevel::L2));
+                            static_cast<int>(AutomationOption::ControlLevel::L2));
     m_controlLevel->addItem(tr("L3 - Advanced Control"),
-                       static_cast<int>(AutomationOption::ControlLevel::L3));
+                            static_cast<int>(AutomationOption::ControlLevel::L3));
     m_controlLevel->addItem(tr("Custom"), static_cast<int>(AutomationOption::ControlLevel::Custom));
     m_controlLevel->setCurrentIndex(
         m_controlLevel->findData(static_cast<int>(m_effectiveConfig.controlLevel)));
     m_controlLevel->setEnabled(m_effectiveConfig.controlLevelSource ==
-                          StartupArguments::ConfigSource::Persisted);
+                               StartupArguments::ConfigSource::Persisted);
     connect(m_controlLevel, &ComboBox::currentIndexChanged, this, &AutomationPage::modifyOption);
 
     m_serverCard = new OptionListCard(tr("Local Server"));
@@ -342,9 +367,9 @@ QWidget *AutomationPage::createContentWidget() {
         QGuiApplication::clipboard()->setText(currentStdioConfiguration());
         Toast::show(tr("STDIO configuration copied"));
     });
-    connectionCard->addItem(
-        tr("STDIO Connector"),
-        tr("Starts DS Connector Lite and discovers this editor automatically"), stdioCopyButton);
+    connectionCard->addItem(tr("STDIO Connector"),
+                            tr("Starts DS Connector Lite and discovers this editor automatically"),
+                            stdioCopyButton);
 
     auto *streamableHttpCopyButton = new Button(tr("Copy Configuration"));
     streamableHttpCopyButton->setObjectName(
@@ -365,34 +390,125 @@ QWidget *AutomationPage::createContentWidget() {
         tr("Streamable HTTP"), tr("Connects directly to the editor's configured MCP endpoint"),
         QList<QWidget *>{streamableHttpEndpointCopyButton, streamableHttpCopyButton});
 
-    const auto accessCard = new OptionListCard(tr("Control Level"));
-    accessCard->addItem(tr("Level"),
-                        settingDescription(tr("Determines which tools clients can see and call"),
-                                           m_effectiveConfig.controlLevelSource),
-                        m_controlLevel);
-
     m_customPermissionSwitches.clear();
     m_customCategorySwitches.clear();
     m_customCategoryHeaderItems.clear();
     m_customCategoryOperationIds.clear();
-    QStringList customCategoryOrder;
+    auto *importControlLevelButton = new Button(tr("Import Control Level"));
+    importControlLevelButton->setObjectName(QStringLiteral("automationImportControlLevelButton"));
+    const auto refreshImportControlLevelButton = [this, importControlLevelButton] {
+        const auto controlLevel =
+            static_cast<AutomationOption::ControlLevel>(m_controlLevel->currentData().toInt());
+        importControlLevelButton->setEnabled(controlLevel !=
+                                             AutomationOption::ControlLevel::Custom);
+    };
+    refreshImportControlLevelButton();
+    connect(m_controlLevel, &ComboBox::currentIndexChanged, importControlLevelButton,
+            refreshImportControlLevelButton);
+    connect(importControlLevelButton, &Button::clicked, this, &AutomationPage::importControlLevel);
+
+    auto *openToolsetButton = new ToolButton;
+    openToolsetButton->setObjectName(QStringLiteral("automationOpenToolsetButton"));
+    openToolsetButton->setFixedSize(28, 28);
+    openToolsetButton->setActionIcon(QStringLiteral(":/svg/icons/chevron_right_16_regular.svg"));
+    openToolsetButton->setToolTip(tr("Open toolset"));
+    connect(openToolsetButton, &QPushButton::clicked, this, &AutomationPage::showToolsetPage);
+
+    m_accessRoots = new PathEditor;
+    m_accessRoots->setPaths(option->accessRoots);
+    connect(m_accessRoots, &PathEditor::pathsChanged, this, &AutomationPage::modifyOption);
+    const auto accessControlCard = new OptionListCard;
+    accessControlCard->setTitleVisible(false);
+    accessControlCard->addItem(tr("Control Level"),
+                               settingDescription(tr("Determines which tools clients can access"),
+                                                  m_effectiveConfig.controlLevelSource),
+                               m_controlLevel);
+    m_customToolsetItem =
+        accessControlCard->addItem(tr("Custom Toolset"), QString{},
+                                   QList<QWidget *>{importControlLevelButton, openToolsetButton});
+    refreshCustomToolsetSummary();
+    m_accessRootsItem = accessControlCard->addItem(
+        tr("File Access Permissions"),
+        tr("Limits MCP file access, such as opening, importing, saving, and exporting, to the "
+           "listed folders"),
+        m_accessRoots);
+    m_accessRootsItem->setTextAreaAlignment(Qt::AlignTop);
+
+    const auto accessControlSection = new QWidget;
+    const auto accessControlLayout = new QVBoxLayout(accessControlSection);
+    accessControlLayout->setContentsMargins({});
+    accessControlLayout->setSpacing(6);
+    const auto accessControlTitle = new QLabel(tr("Access Control"), accessControlSection);
+    accessControlTitle->setObjectName(QStringLiteral("automationAccessControlSectionTitle"));
+    accessControlTitle->setProperty("optionsSectionTitle", true);
+    accessControlTitle->setContentsMargins(10, 0, 0, 0);
+    accessControlLayout->addWidget(accessControlTitle);
+    accessControlLayout->addWidget(accessControlCard);
+
+    const auto mainLayout = new QVBoxLayout;
+    mainLayout->addWidget(m_serverCard, 0, Qt::AlignTop);
+    mainLayout->addWidget(connectionCard, 0, Qt::AlignTop);
+    mainLayout->addWidget(accessControlSection, 0, Qt::AlignTop);
+    mainLayout->addStretch();
+    mainLayout->setContentsMargins({});
+    mainLayout->setSpacing(12);
+    m_accessControlPage->setLayout(mainLayout);
+    m_accessControlPage->setContentsMargins({});
+    m_pageHostLayout->addWidget(m_accessControlPage);
+
+    if (m_toolsetPageVisible) {
+        ensureToolsetPage();
+        m_accessControlPage->hide();
+        m_toolsetPage->show();
+    }
+    return pageHost;
+}
+
+QWidget *AutomationPage::createToolsetPage() {
+    const auto page = new QWidget;
+    const auto layout = new QVBoxLayout(page);
+    layout->setContentsMargins({});
+    layout->setSpacing(6);
+
+    auto *backButton = new ToolButton(page);
+    backButton->setObjectName(QStringLiteral("automationCloseToolsetButton"));
+    backButton->setFixedSize(28, 28);
+    backButton->setActionIcon(QStringLiteral(":/svg/icons/chevron_left_16_regular.svg"));
+    backButton->setToolTip(tr("Back to Access Control"));
+    connect(backButton, &QPushButton::clicked, this, &AutomationPage::showAccessControlPage);
+
+    const auto title = new QLabel(tr("Custom Toolset"), page);
+    title->setObjectName(QStringLiteral("automationToolsetPageTitle"));
+    title->setProperty("optionsSectionTitle", true);
+
+    const auto header = new QWidget(page);
+    const auto headerLayout = new QHBoxLayout(header);
+    headerLayout->setContentsMargins({});
+    headerLayout->setSpacing(6);
+    headerLayout->addWidget(backButton);
+    headerLayout->addWidget(title);
+    headerLayout->addStretch();
+    layout->addWidget(header);
+
+    QStringList categoryOrder;
     for (const auto &operationId : std::as_const(m_customPermissionOperationIds)) {
         if (const auto *contract = AutomationWire::findPublicTool(operationId);
             contract && !contract->category.isEmpty()) {
             if (!m_customCategoryOperationIds.contains(contract->category))
-                customCategoryOrder.append(contract->category);
+                categoryOrder.append(contract->category);
             m_customCategoryOperationIds[contract->category].append(operationId);
         }
     }
-    QList<OptionListCard *> customCategoryCards;
+
     if (m_customPermissionOperationIds.isEmpty()) {
-        const auto customCard = new OptionListCard;
-        customCard->setTitleVisible(false);
-        customCard->addItem(tr("No public tools available"),
-                            tr("Public tools appear here when the automation manifest is ready"));
-        customCategoryCards.append(customCard);
+        const auto emptyCard = new OptionListCard;
+        emptyCard->setTitleVisible(false);
+        emptyCard->addItem(tr("No public tools available"),
+                           tr("Public tools appear here when the automation manifest is ready"));
+        layout->addWidget(emptyCard);
     } else {
-        for (const auto &category : std::as_const(customCategoryOrder)) {
+        const auto *option = appOptions->automation();
+        for (const auto &category : std::as_const(categoryOrder)) {
             const auto operationIds = m_customCategoryOperationIds.value(category);
             auto *categoryCard = new OptionListCard;
             categoryCard->setTitleVisible(false);
@@ -457,99 +573,63 @@ QWidget *AutomationPage::createContentWidget() {
                         refreshCategoryPermissionSwitches();
                         modifyOption();
                     });
-            customCategoryCards.append(categoryCard);
+            layout->addWidget(categoryCard);
         }
         refreshCategoryPermissionSwitches();
     }
 
-    const auto customToolsSection = new QWidget;
-    const auto customToolsLayout = new QVBoxLayout(customToolsSection);
-    customToolsLayout->setContentsMargins({});
-    customToolsLayout->setSpacing(6);
-    const auto customToolsTitle = new QLabel(tr("Custom Tools"), customToolsSection);
-    customToolsTitle->setObjectName(QStringLiteral("automationCustomToolsSectionTitle"));
-    customToolsTitle->setProperty("optionsSectionTitle", true);
-    customToolsTitle->setContentsMargins(10, 0, 0, 0);
-    customToolsLayout->addWidget(customToolsTitle);
+    layout->addStretch();
+    return page;
+}
 
-    auto *syncCustomToolsButton = new Button(tr("Sync"), customToolsSection);
-    syncCustomToolsButton->setObjectName(QStringLiteral("automationSyncCustomToolsButton"));
-    const auto refreshSyncCustomToolsButton = [this, syncCustomToolsButton] {
-        const auto controlLevel =
-            static_cast<AutomationOption::ControlLevel>(m_controlLevel->currentData().toInt());
-        syncCustomToolsButton->setEnabled(controlLevel != AutomationOption::ControlLevel::Custom);
-    };
-    refreshSyncCustomToolsButton();
-    connect(m_controlLevel, &ComboBox::currentIndexChanged, syncCustomToolsButton,
-            refreshSyncCustomToolsButton);
-    connect(syncCustomToolsButton, &Button::clicked, this, [this] {
-        const auto controlLevel =
-            static_cast<AutomationOption::ControlLevel>(m_controlLevel->currentData().toInt());
-        const auto wireControlLevel = AutomationWire::controlLevelFromName(
-            AutomationOption::controlLevelToString(controlLevel));
-        if (!wireControlLevel || *wireControlLevel == AutomationWire::ControlLevel::Custom)
-            return;
+void AutomationPage::ensureToolsetPage() {
+    if (m_toolsetPage || !m_pageHostLayout)
+        return;
+    m_toolsetPage = createToolsetPage();
+    m_pageHostLayout->addWidget(m_toolsetPage);
+    m_toolsetPage->hide();
+}
 
-        auto *option = appOptions->automation();
-        option->customPermissions.clear();
-        for (const auto &operationId : std::as_const(m_customPermissionOperationIds)) {
-            const auto *contract = AutomationWire::findPublicTool(operationId);
-            const auto enabled =
-                contract &&
-                AutomationWire::presetIncludes(*wireControlLevel, contract->minimumControlLevel);
-            option->setCustomPermissionEnabled(operationId, enabled);
-            if (auto *permissionSwitch = m_customPermissionSwitches.value(operationId)) {
-                const QSignalBlocker blocker(permissionSwitch);
-                permissionSwitch->setValue(enabled);
-            }
+void AutomationPage::showAccessControlPage() {
+    if (!m_accessControlPage)
+        return;
+    m_toolsetPageVisible = false;
+    if (m_toolsetPage)
+        m_toolsetPage->hide();
+    m_accessControlPage->show();
+    verticalScrollBar()->setValue(0);
+}
+
+void AutomationPage::showToolsetPage() {
+    ensureToolsetPage();
+    if (!m_accessControlPage || !m_toolsetPage)
+        return;
+    m_toolsetPageVisible = true;
+    m_accessControlPage->hide();
+    m_toolsetPage->show();
+    verticalScrollBar()->setValue(0);
+}
+
+void AutomationPage::importControlLevel() {
+    const auto controlLevel =
+        static_cast<AutomationOption::ControlLevel>(m_controlLevel->currentData().toInt());
+    const auto wireControlLevel =
+        AutomationWire::controlLevelFromName(AutomationOption::controlLevelToString(controlLevel));
+    if (!wireControlLevel || *wireControlLevel == AutomationWire::ControlLevel::Custom)
+        return;
+
+    auto *option = appOptions->automation();
+    option->customPermissions.clear();
+    for (const auto &operationId : std::as_const(m_customPermissionOperationIds)) {
+        const auto *contract = AutomationWire::findPublicTool(operationId);
+        const auto enabled = contract && AutomationWire::presetIncludes(
+                                             *wireControlLevel, contract->minimumControlLevel);
+        option->setCustomPermissionEnabled(operationId, enabled);
+        if (auto *permissionSwitch = m_customPermissionSwitches.value(operationId)) {
+            const QSignalBlocker blocker(permissionSwitch);
+            permissionSwitch->setValue(enabled);
         }
-        refreshCategoryPermissionSwitches();
-        modifyOption();
-    });
-
-    const auto syncCustomToolsCard = new OptionListCard;
-    syncCustomToolsCard->setTitleVisible(false);
-    syncCustomToolsCard->addItem(
-        tr("Sync from Control Level"),
-        tr("Replaces the custom toolset with the tools available at the selected control level"),
-        syncCustomToolsButton);
-    customToolsLayout->addWidget(syncCustomToolsCard);
-    for (auto *categoryCard : std::as_const(customCategoryCards))
-        customToolsLayout->addWidget(categoryCard);
-
-    m_accessRoots = new PathEditor;
-    m_accessRoots->setPaths(option->accessRoots);
-    connect(m_accessRoots, &PathEditor::pathsChanged, this, &AutomationPage::modifyOption);
-    const auto accessRootsCard = new OptionListCard;
-    accessRootsCard->setTitleVisible(false);
-    m_accessRootsItem = accessRootsCard->addItem(
-        tr("Allowed Folders"),
-        tr("Limits MCP file access, such as opening, importing, saving, and exporting, to the "
-           "listed folders"),
-        m_accessRoots);
-    m_accessRootsItem->setTextAreaAlignment(Qt::AlignTop);
-
-    const auto pathPermissionsSection = new QWidget;
-    const auto pathPermissionsLayout = new QVBoxLayout(pathPermissionsSection);
-    pathPermissionsLayout->setContentsMargins({});
-    pathPermissionsLayout->setSpacing(6);
-    const auto pathPermissionsTitle =
-        new QLabel(tr("Path Access Permissions"), pathPermissionsSection);
-    pathPermissionsTitle->setObjectName(QStringLiteral("automationPathPermissionsSectionTitle"));
-    pathPermissionsTitle->setProperty("optionsSectionTitle", true);
-    pathPermissionsTitle->setContentsMargins(10, 0, 0, 0);
-    pathPermissionsLayout->addWidget(pathPermissionsTitle);
-    pathPermissionsLayout->addWidget(accessRootsCard);
-
-    const auto mainLayout = new QVBoxLayout;
-    mainLayout->addWidget(m_serverCard, 0, Qt::AlignTop);
-    mainLayout->addWidget(connectionCard, 0, Qt::AlignTop);
-    mainLayout->addWidget(accessCard, 0, Qt::AlignTop);
-    mainLayout->addWidget(customToolsSection, 0, Qt::AlignTop);
-    mainLayout->addWidget(pathPermissionsSection, 0, Qt::AlignTop);
-    mainLayout->addStretch();
-    mainLayout->setContentsMargins({});
-    widget->setLayout(mainLayout);
-    widget->setContentsMargins({});
-    return widget;
+    }
+    refreshCategoryPermissionSwitches();
+    modifyOption();
 }
