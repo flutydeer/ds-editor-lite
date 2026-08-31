@@ -6,7 +6,7 @@
 
 1. 冻结源码、工具清单、测试清单和环境摘要。
 2. 配置并完整构建 Editor、Connector 与全部测试目标。
-3. 验证 Wire、Editor 公共契约、Connector 桥接契约、Profile/Custom、安全和兼容。
+3. 验证 Wire、Editor 公共契约、Connector 桥接契约、控制层级/Custom、安全和兼容。
 4. 验证 Editor MCP 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手、QLocal Bootstrap 与 Connector stdio。
 5. 完成真实进程联调、多 Connector 与 GUI。
 6. 在同一候选上串行执行一次完整 CTest。
@@ -117,7 +117,7 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 2. 执行 `git diff --check` 与敏感信息扫描。
 3. 以编译后的公共契约枚举为唯一工具清单，验证 ID 唯一，并确认公共集合不含 `project.get`；Registry binding 与 Editor `tools/list` 必须与相应授权后的契约集合相等，不使用源码文本扫描或手工镜像替代行为验证。
 4. 验证 Connector 桥接定义唯一，downstream 集合等于当前 exposure 下可用的 Editor 工具与桥接工具之并集。
-5. 核对域、category、Query/Command、同步模式、Profile 和版本元数据的合法性及关键语义归属，不以各域固定数量作为门禁。
+5. 核对域、category、Query/Command、同步模式、控制层级和版本元数据的合法性及关键语义归属，不以各域固定数量作为门禁。
 6. 核对全局 `toolset_version` 与每工具 `minimum_toolset_version` 的版本关系。
 7. 核对 `tasks.list/get/cancel` 的语义及 Dispatcher 代表性显式路由；验证运行中任务进度更新不会使稳定成员集合的分页游标失效。
 8. 获取 `ctest -N` 与 JSON 清单，区分 target 数、CTest case 数和源码顶层场景数。
@@ -132,7 +132,7 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 
 1. Debug configure，确认 `LITE_BUILD_TESTS=ON`、Qt 与 vcpkg 配置。
 2. 完整构建所有产品和测试目标。
-3. 运行 JSON Schema、codec、base64url cursor、Profile 与版本单元测试。
+3. 运行 JSON Schema、codec、base64url cursor、控制层级与版本单元测试。
 4. 运行 Access Policy、Custom、File Guard、global/background Admission、exposure 与版本兼容单元测试。
 5. 运行 Automation Core、显式 Dispatcher 路由、历史记录、revision、显式幂等、Task 与 document 回归。
 6. 使用固定 seed 运行路径、分页上下文与版本门槛边界语料。
@@ -146,7 +146,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 ### 执行
 
 1. 验证权威契约 ID 唯一、Schema 可通过 meta-schema 检查，Registry binding 与授权后的 Editor `tools/list` 集合分别等于契约源。
-2. 验证 Profile 集合逐级包含、L3 等于完整公共契约集合，并验证语义上固有的 L0 工具不进入 Custom 设置且不能被任何权限配置禁用。
+2. 验证控制层级集合逐级包含、L3 等于完整公共契约集合，并验证语义上固有的 L0 工具不进入 Custom 设置且不能被任何权限配置禁用。
 3. 按 Query、同步 Command、异步 Command 和特殊参数形状选取代表工具，验证 Registry JSON 映射与结果封装；不为每个工具生成一份同构 smoke 调用。
 4. Schema-invalid、权限关闭、host unavailable、错误优先级、revision 与通用失败封装在各自共享层验证一次；领域测试仅补充工具特有的拒绝条件。
 5. 由确定性语料覆盖各域独有的成功、no-op、validate-only、冲突、不可用、失败原子性和异步终态；真实产品会话按风险与可见行为选择代表路径，不设置逐工具场景配额。
@@ -174,7 +174,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 18. 验证拍号新增、替换和删除后的完整时间线投影使用宽整数校验；删除中间拍号会使后续
     拍号 tick 超出模型范围时，validate-only 与实际提交均原子拒绝。
 19. 对 settings.query 与设置更新的公共 allowlist、domain 过滤、候选/生效/重启信息、稀疏更新、持久化和失败回滚进行分形状代表覆盖；包搜索路径只允许查询，validate-only 只覆盖音频设备和计算设备更新，其他设置 update 必须拒绝该字段。
-20. 对 voices.list/describe 与 packages.list/describe 验证语言无关默认名称、当前 UI 显示名称、完整本地化表及本地化别名筛选；对 packages.list/describe/refresh 验证读取根内路径、有效搜索路径、application task 的成功/取消/部分失败，以及索引原子切换；验证领先刷新在提交门被拒绝时，并发等待调用重新扫描而不返回陈旧索引。
+20. 对 voices.list/describe 与 packages.list/describe 验证语言无关默认名称、当前 UI 显示名称、完整本地化表及本地化别名筛选；对 packages.list/describe/refresh 验证访问根内路径、有效搜索路径、application task 的成功/取消/部分失败，以及索引原子切换；验证领先刷新在提交门被拒绝时，并发等待调用重新扫描而不返回陈旧索引。
 21. 对 lyric_rules 验证稳定 ID 迁移、内置/自定义边界、CRUD、启停、分类内移动、非法规则回滚和 splitter→tagger 只读测试。
 22. 验证音频导入、重定位和路径确认的 SHA-512 与解码结果来自同一次读取形成的临时快照；后台
     任务不重复读取或哈希原路径，提交前只复核文档 generation、revision 和目标对象。分别验证每个
@@ -228,7 +228,7 @@ Registry、Editor 发现面与 Contract 集合关系精确；公共 Schema 全�
 
 1. 回归既有单实例命令和身份/服务名 golden test。
 2. 验证 discover 一次性快照与 watch 初始/后续完整快照。
-3. 验证状态机、endpoint ready 时机、Editor instance ID 和错误传播。
+3. 验证状态机、`server_ready` 与 endpoint 的同步时机、Editor instance ID 和错误传播。
 4. 验证分片/合并/非法/超限帧、timeout、写缓冲、慢 watcher 背压和数量上限。
 5. 验证多 watcher、异常断开、Editor restart、PID/endpoint 变化和资源清理。
 6. 验证 Connector 始终作为 Bootstrap 客户端，Editor Primary 所有权保持唯一。
@@ -253,11 +253,11 @@ Registry、Editor 发现面与 Contract 集合关系精确；公共 Schema 全�
 9. 验证双方全局 `toolset_version` 与逐工具 `minimum_toolset_version` 门槛；不运行 Schema
    方向性/子集/digest 兼容计算，同版本 Schema 差异直接使契约测试失败。
    Connector 只校验自身桥接工具 envelope，类型化工具和泛化 invoke 的业务 Schema 由 Editor MCP 校验。
-10. 验证各 Profile 的 downstream 集合等于相应 exposure 下可用的 Editor 工具与固定桥接工具之并集，且 Profile 逐级包含。
+10. 验证各控制层级的 downstream 集合等于相应 exposure 下可用的 Editor 工具与固定桥接工具之并集，且控制层级逐级包含。
 11. 验证 `application.request_exit/restart` 无论 preset、Custom 或 Connector exclude 都保留；Schema 只允许可选 `discard_changes`，且两项均可经类型化 wrapper 与泛化 invoke 调用。
 12. 在脏工程上不传 `discard_changes`，确认返回 `busy`、字段路径正确、Editor 保持运行且没有活动模态窗口；传 `true` 后确认工具结果先返回，再完成优雅退出或重启。
 13. 重启场景确认只产生一个新 Editor instance、复用原启动参数、Connector 自动重连；随后用默认策略关闭 clean 工程，确保无孤儿进程。
-14. 验证 ready burst 合并、尾随刷新、退避、manual reconnect、instance/endpoint 变化。
+14. 验证 `server_ready` burst 合并、尾随刷新、退避、manual reconnect、instance/endpoint 变化。
 
 ### 门禁
 
@@ -267,13 +267,13 @@ stdio 零污染；工具面、exposure 与兼容结果确定；旧握手结果�
 
 ### 执行
 
-1. Connector 先启动，再启动 Editor 并启用 MCP，观察自动接入。
-2. Editor 先 ready，再启动 Connector，验证首次 watch 到完整握手。
+1. Connector 先启动，再启动 Editor 并启用服务，观察从 `editor_starting` 到 `server_ready` 的自动接入。
+2. Editor 先进入 `server_ready`，再启动 Connector，验证首次 watch 到完整握手。
 3. 在 direct HTTP 与 Connector stdio 上复用 L0/L1/L2/L3 代表语料；契约集合关系由确定性组件测试覆盖，真实 Connector 会话按业务域、调用类型和风险选择代表路径，并覆盖所有桥接工具的独特行为。
 4. 在隔离工作区完成文档、格式、轨道、总线、剪辑、音频剪辑、声库、Speaker Mix、音符、参数曲线、时间线、历史记录、播放、导出、提取、推理与 Task 链路；GUI、设置、包信息和歌词规则域在同一真实进程候选中闭环。
 5. 运行两至八个 Connector，并发 Query、Command、Task 和 reconnect。
 6. 验证 revision conflict、全局 32 路上限、独立缓存与请求映射。
-7. 运行时切换 Profile/Custom/roots/port/enabled，验证两侧状态与调用结果。
+7. 运行时切换控制层级/Custom/roots/port/enabled，验证两侧状态与调用结果。
 8. Editor stop/restart 与 Connector crash/exit/slow-reader 场景后检查自动恢复与资源清理。
 
 ### 门禁
@@ -284,12 +284,12 @@ Editor direct 与 Connector 转接在结果、错误、历史记录、revision �
 
 ### Computer Use
 
-1. 从带图标的选项菜单“自动化”项进入设置页，核对面板中文翻译、enabled、端口、Profile、Custom、roots、status 和 endpoint。
+1. 从带图标的选项菜单“自动化”项进入设置页，核对“本地服务器”、无常驻说明的 enabled 卡片、端口、控制层级、Custom、统一访问根、status 和中文翻译，并确认不存在独立的“当前端点”卡片。
 2. Connector 先启动，在 GUI 启用 MCP，观察自动连接与状态更新。
-3. 切换 Profile/Custom，比较 GUI、Editor list、Connector status 和实际调用；在 Custom 下逐组核对 24 个领域卡片默认收起、展开/收起不改变权限、整组关闭/开启、启用计数和单项状态回读。
-4. 核对端口刷新按钮与输入框同一行且始终可用；首次配置生成非零端口后重启不变化，刷新、直接编辑、冲突恢复、disable/enable 的状态序列正确。
-5. 在 ready、disabled 和 error 状态分别复制 stdio 与 Streamable HTTP 配置；解析为单个 server entry，并确认不含外层 `mcpServers`。
-6. 核对读写根说明为自动化文件工具 allowlist，且页面不存在无动态内容的本机进程访问栏目；使用隔离工作区验证允许与拒绝。
+3. 切换控制层级/Custom，比较 GUI、Editor list、Connector status 和实际调用；在 Custom 下逐组核对 24 个领域卡片默认收起、展开/收起不改变权限、整组关闭/开启、启用计数和单项状态回读。
+4. 核对“随机更换”按钮与端口输入框同一行且始终可用，端口卡片无常驻说明文本；首次配置在 `49152–65535` 生成端口且重启不变化，随机更换、直接编辑、冲突恢复、disable/enable 的状态序列正确。
+5. 确认 stdio 与 Streamable HTTP 卡片不显示配置预览；在 `server_ready`、`server_disabled` 和 `error` 状态分别复制两种配置，并单独复制 Streamable HTTP endpoint；将配置解析为单个 server entry，确认不含外层 `mcpServers`。
+6. 核对单一访问根说明为同时授权读写的自动化文件工具 allowlist、卡片左侧文本顶部对齐，且页面不存在无动态内容的本机进程访问栏目；使用隔离工作区分别验证读取、写入、允许与拒绝。
 7. 通过 Connector 对轨道、总线、剪辑、音符、参数曲线、时间线、Speaker Mix、历史记录与播放逐域执行真实 mutation，观察 GUI 立即变化，并以对应 Query 核对同一状态。
 8. 对第 7 步各编辑域的 mutation 使用 GUI 与 MCP Undo/Redo；细粒度 Command、批量命令和三个持久循环命令的历史记录粒度均由确定性 CTest 覆盖。
 9. 对文档、格式、音频剪辑、声库、保存、导入、导出、提取、推理和异步任务逐域执行真实资格路径；环境缺少 codec、声音、模型或音频设备时保存结构化不可用事实，同时由确定性 CTest 覆盖可用分支。
@@ -352,7 +352,7 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 `implementation-report.md` 记录：
 
 - 176 + 6 工具与 24 个域；
-- Wire/Registry/Profile/Custom；
+- Wire/Registry/控制层级/Custom；
 - Editor MCP 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手与 QLocal；
 - Connector stdio/exposure/compatibility；
 - File Guard、Admission、设置、CLI 与生命周期；
@@ -364,7 +364,7 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 
 - 候选身份与环境摘要；
 - 实际命令、退出码和 Evidence ID；
-- 工具/域/协议/安全/兼容/Profile/Custom/Bootstrap/Connector/Editor/联调/GUI 结果；
+- 工具/域/协议/安全/兼容/控制层级/Custom/Bootstrap/Connector/Editor/联调/GUI 结果；
 - 失败与修复轨迹；
 - 一次完整 CTest；
 - 资格项、残余风险和 cleanup；

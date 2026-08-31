@@ -5,7 +5,7 @@
 二期形成了可由 Agent Host 使用的完整自动化链路：GUI Editor 内置 Streamable HTTP MCP Server，DS Connector Lite 以 stdio 向下游提供 MCP，并通过本机实例观察和 HTTP 与运行中的 Editor 建立连接。公共工具面按业务域组织，Editor 176 项、Connector 6 项，共 182 项。
 
 Editor 的 176 项工具分属 24 个业务域，类型统计为 **41 Q/S + 122 C/S + 13 C/A**。
-最低 Profile 分布为 L0 4 项、L1 85 项、L2 43 项、L3 44 项；累积可见数量分别为
+最低控制层级分布为 L0 4 项、L1 85 项、L2 43 项、L3 44 项；累积可见数量分别为
 4、89、132、176。公共工具集 `toolset_version` 与 182 项工具的
 `minimum_toolset_version` 均为 **1**。
 
@@ -15,7 +15,7 @@ Editor 的 176 项工具分属 24 个业务域，类型统计为 **41 Q/S + 122 
 
 当前实现把 GUI 与 MCP 视为同一业务模型的两个入口，边界遵循以下规则：
 
-- 公共能力先按状态所有者归入业务域，再映射到 Profile 和 Connector exposure；总线、时间线、历史记录和播放各自独立。
+- 公共能力先按状态所有者归入业务域，再映射到控制层级和 Connector exposure；总线、时间线、历史记录和播放各自独立。
 - 在相应开放层级内，GUI 可完成的原子操作具有对应 MCP 工具；MCP handler 复用同一 Model、Action、历史记录、Task 和文件后端，提交后由既有信号链立即反映到 GUI。
 - 历史记录是编辑工具的原子边界。能够整体撤销和重做的同类多对象操作可批量提交；不能共同撤销的属性使用独立工具。例如轨道、剪辑和总线的标量控制分别提交，已有音符的歌词、语言、长度和发音也分别提交。
 - 创建输入限制对象树深度。轨道创建只接收空轨道的名称和颜色；歌声剪辑创建只接收目标轨道、位置、长度和名称；音符是叶节点，可在创建时携带完整初始属性。
@@ -29,7 +29,7 @@ Editor 的 176 项工具分属 24 个业务域，类型统计为 **41 Q/S + 122 
 |---|---|---|
 | Wire Contract | `src/libs/AutomationWire` | 176 项公共定义、值域、严格 JSON Schema、游标、MCP codec、exposure 与工具集版本 |
 | Domain Facade | `src/app/Automation` | 类型化 Query/Command、显式 Dispatcher 路由、CommandCommitter、历史记录、revision、Task 与领域适配 |
-| Public Registry | `src/app/Automation/Public` | 176 项 binding、Profile/Custom、动态值发现、File Guard、Admission、输入校验与 handler 路由；输出契约由确定性测试验证 |
+| Public Registry | `src/app/Automation/Public` | 176 项 binding、控制层级/Custom、动态值发现、File Guard、Admission、输入校验与 handler 路由；输出契约由确定性测试验证 |
 | Editor MCP | `src/app/Automation/Mcp` | 双协议请求处理、loopback HTTP、运行时配置、启停与状态发布 |
 | Instance Bootstrap | `src/app/Bootstrap` | 单实例身份、`automation.discover/watch`、完整状态快照与广播 |
 | Connector | `src/connector` | QLocal watcher、HTTP upstream、stdio downstream、六项桥接工具、exposure、兼容缓存与重连 |
@@ -44,7 +44,7 @@ Editor 的 176 项工具分属 24 个业务域，类型统计为 **41 Q/S + 122 
 
 ```text
 contract / handler 查找
-  → Profile / Custom 执行期授权
+  → 控制层级 / Custom 执行期授权
   → input Schema
   → File Guard
   → playback/inference 专项并发校验
@@ -60,7 +60,7 @@ binding ID 与公共契约 ID 排序后做精确相等校验；完整性门禁�
 
 ## 4. 176 项域优先公共契约
 
-`src/libs/AutomationWire/PublicToolDefinitions.inc` 是 Editor 工具身份、域、最低 Profile、类型、
+`src/libs/AutomationWire/PublicToolDefinitions.inc` 是 Editor 工具身份、域、最低控制层级、类型、
 同步模式和逐工具 `minimum_toolset_version` 的单一来源。
 
 | 业务域 | category | 数量 |
@@ -97,12 +97,12 @@ binding ID 与公共契约 ID 排序后做精确相等校验；完整性门禁�
 
 - 封闭 input/output JSON Schema 和公共 enum codec；
 - MCP name、title、description、标准 annotations 与 `minimum_toolset_version`；
-- 执行所需的 Profile、host 和 file access 元数据；
+- 执行所需的控制层级、host 和 file access 元数据；
 - dynamic `value_sources` 及其上下文参数；
 - 唯一 Registry binding；输出 Schema 由确定性契约测试验证，运行时不逐次 assert。
 
 标准 MCP `tools/list` 提供运行时工具目录和完整 Schema，`application.get_status` 提供工具集版本、
-当前 Profile、host mode 及文档/窗口摘要。标准 MCP annotations 保持在工具 descriptor 中。
+当前控制层级、host mode 及文档/窗口摘要。标准 MCP annotations 保持在工具 descriptor 中。
 Cursor 对调用方透明地延续分页，内部只将 `context + snapshot + offset` 编码为 base64url 并校验
 上下文/快照，不使用密钥或 HMAC。
 
@@ -203,7 +203,7 @@ GUI 进阶控制按真实面板层级归入 `workspace`、`track_panel` 和 `cli
 
 设置工具采用 `settings.<domain>.update` 三段式命名，并以 `settings.query` 集中返回公开域的配置值、生效值、候选/范围、重启要求和不可用原因。八个 update 都是严格 allowlist 上的稀疏更新，只验证和提交调用方明确提供的字段；其中音频设备和计算设备更新开放 validate-only。所有设置更新失败时都不留下部分持久化或运行时状态，也不触发交互式错误对话框。UI 语言使用独立 `ui_language` 域；包搜索路径可查询但不能由 MCP 修改，自动化/MCP 自配置、开发者选项和其他未列入契约的设置也不向 MCP 暴露。
 
-`packages.list/describe` 从当前包索引提供受读取根约束的规范路径和公开元数据。默认 vendor、description、license 与按当前 UI 语言解析的 `display_*` 分开返回，详情同时提供完整本地化表；内嵌声库摘要沿用默认 `name` 与 `display_name` 语义，包本身没有独立名称字段。名称筛选覆盖包 ID、供应方及声库的全部本地化别名。File Guard 约束 MCP 显式提供及向调用方披露的路径；`packages.refresh` 不接收路径，只触发 Editor 按既有应用配置执行与 GUI 相同的扫描，因此不把当前 effective 搜索路径重新解释为 MCP 路径授权。公共接口不提供包搜索路径修改能力。刷新使用 application-scoped Task，在后台完成扫描后原子切换索引；并发调用可复用已提交的扫描结果，但如果领先扫描在提交门被拒绝，等待调用会重新取得刷新权并执行自己的扫描，不会把保留的旧索引误报为刷新成功。它不伪造文档身份，也不参与工程 revision 或历史记录。
+`packages.list/describe` 从当前包索引提供受访问根约束的规范路径和公开元数据。默认 vendor、description、license 与按当前 UI 语言解析的 `display_*` 分开返回，详情同时提供完整本地化表；内嵌声库摘要沿用默认 `name` 与 `display_name` 语义，包本身没有独立名称字段。名称筛选覆盖包 ID、供应方及声库的全部本地化别名。File Guard 约束 MCP 显式提供及向调用方披露的路径；`packages.refresh` 不接收路径，只触发 Editor 按既有应用配置执行与 GUI 相同的扫描，因此不把当前 effective 搜索路径重新解释为 MCP 路径授权。公共接口不提供包搜索路径修改能力。刷新使用 application-scoped Task，在后台完成扫描后原子切换索引；并发调用可复用已提交的扫描结果，但如果领先扫描在提交门被拒绝，等待调用会重新取得刷新权并执行自己的扫描，不会把保留的旧索引误报为刷新成功。它不伪造文档身份，也不参与工程 revision 或历史记录。
 
 `lyric_rules` 使用稳定 rule ID 管理 splitter 与 tagger 两类规则。自定义规则支持创建、稀疏更新、删除、启停和分类内移动；内置规则内容不可修改或删除，但可以独立启停。`lyric_rules.test` 只读运行 splitter→tagger 流水线，返回逐阶段结果，不改变规则、文档或应用状态。
 
@@ -226,15 +226,15 @@ GUI 进阶控制按真实面板层级归入 `workspace`、`track_panel` 和 `cli
 
 异步工具由 `AutomationTaskManager` 管理 Queued、Running、CancelRequested、Committing 和终态。Task 记录 operation、受理时的基准文档、创建者、进度、结果或错误；异步编辑在最终写回前复核 document generation、revision 和目标对象。`tasks.list` 的游标摘要只包含 scope、筛选条件、document generation 和有序 Task ID，因此运行中任务的进度、消息或状态更新不会阻断后续分页；筛选后成员变化仍会使游标失效。文件输入在公开请求边界完成授权，后台任务只消费一次复制并哈希形成的不可变快照，不反复读取、哈希或重新授权原路径。Pitch/MIDI 提取在后端启动前把快照摘要与剪辑已记录摘要比对，完成后复核目标剪辑和文档提交条件。MIDI 导出在准备和渲染期间保持 Running，只有紧邻最终文件发布时才进入不可取消的 Committing。音频导出把基准文档用于任务归属和 generation 隔离；同一 generation 内的普通编辑不使暂存输出失效。每个文档 generation 与应用级作用域的活动任务都不被清理，各自终态历史按完成顺序有界保留最近 128 项。Connector 在有副作用请求的结果事实不明确时返回 `outcome_unknown`，不自动重放 Command。
 
-## 7. Profile、Custom、File Guard 与 Admission
+## 7. 控制层级、Custom、File Guard 与 Admission
 
-`AutomationAccessPolicy` 分离 preset Profile 与 Custom operation 集合。Editor 的 `tools/list` 和 Registry 执行期 dispatch 读取同一策略；工具列表缓存不能替代每次调用时的授权检查。Connector exposure 只决定下游可见面，Editor 仍执行最终授权。
+`AutomationAccessPolicy` 分离 预设控制层级与 Custom operation 集合。Editor 的 `tools/list` 和 Registry 执行期 dispatch 读取同一策略；工具列表缓存不能替代每次调用时的授权检查。Connector exposure 只决定下游可见面，Editor 仍执行最终授权。
 
 `L3` 在产品文案中称为“进阶控制”（Advanced Control），表示在 L2 之上按明确范围增加部分 GUI 自动化操作与设置项更改，而非不受限制的完全控制；自动化/MCP 自身的配置和服务启停明确排除在外。应用优雅退出与重启属于独立的 L0 固有能力。
 
 L0 是不可禁用的固有工具层。Editor 的所有 preset 和 Custom 都始终包含 L0，Custom 设置页不显示这些工具，也不为其持久化开关。Connector 的 `l0` exposure 包含同一组 L0 Editor 工具；include 可以增加其他工具，但任何 `--exclude-tool` selector 都不能移除 L0。
 
-Allowed Read Folders 与 Allowed Write Folders 是自动化文件工具的规范路径 allowlist：前者约束打开、导入、检查和读取素材等操作，后者约束保存、导出等写操作。它们不表示本机进程权限，也不改变非文件工具的能力。`AutomationFileGuard` 还分离持久根与会话 grant，处理路径组件边界、大小写敏感目录、相对路径、相邻前缀、链接/重解析点和未创建输出的最近现存父目录。输入路径在公开请求边界授权；已经取得的不可变快照不因随后调整读根而失效，项目加载在任务开始时复核输入计划，最终文件发布则复核写入目标。
+Allowed Folders 是自动化文件工具统一的规范路径 allowlist，同一访问根约束打开、导入、检查和读取素材，也允许保存、导出等写操作。它不表示本机进程权限，也不改变非文件工具的能力。`AutomationFileGuard` 将持久访问根与按读写用途区分的会话 grant 分开维护，处理路径组件边界、大小写敏感目录、相对路径、相邻前缀、链接/重解析点和未创建输出的最近现存父目录。输入路径在公开请求边界授权；已经取得的不可变快照不因随后调整访问根而失效，项目加载在任务开始时复核输入计划，最终文件发布则复核写入目标。
 
 业务 Admission 只限制全局 32 个在途请求和 8 个后台 Task；HTTP Transport 同样只执行全局
 32 路硬上限。不设置 logical client、peer、domain 配额、令牌桶或公平排队。每个 Connector
@@ -256,15 +256,16 @@ Wire 和 Editor MCP 同时实现两套主协议：
 ## 9. QLocal Bootstrap 与 DS Connector Lite
 
 Editor 的单实例协议提供 `automation.discover` 和 `automation.watch`。长度前缀 JSON framing
-承载完整快照；watch 建立时立即返回当前状态，Editor 启用/禁用 MCP、监听器 ready、换端口、
+承载完整快照；watch 建立时立即返回当前状态，自动化服务器启用/禁用、进入 `server_ready`、换端口、
 报错或退出时广播新快照。Watcher 数量、帧尺寸、待写帧和累计字节均有界，慢读或异常断开只
-清理对应连接。
+清理对应连接。快照以协议无关的 `serverEnabled`、`serverEndpoint` 和 `editor_*` / `server_*`
+状态表达运行事实，不把该生命周期绑定到 MCP。
 
 Connector 可先于 Editor 启动。`BootstrapWatcher` 只作为 QLocal 客户端观察当前实例，使用实例
 身份与 handshake epoch 丢弃旧结果，并以有界退避重连。上游优先使用 2026-07-28
 `server/discover`，失败时进入 2025-11-25 initialize 流程，并接受服务端协商到 2025-06-18。
 协议建立后，Connector 完整分页读取 `tools/list`，再用一次 `application.get_status` 取得
-toolset version、Profile 和 host。
+toolset version、控制层级和 host。
 
 Connector 固定提供六个桥接工具：
 
@@ -304,36 +305,36 @@ MCP 帧，诊断写入 stderr。
 
 Automation 设置已进入选项对话框导航，并使用与其他选项页一致的主题图标。页面、运行状态和 24 个域的显示文本已补齐中文翻译，其中 `history` 显示为“历史记录”。Custom 工具不再使用平铺清单，而是按公共契约的领域建立独立卡片；固有的 L0 工具不进入 Custom 列表。每组默认收起，支持独立展开/收起、启用计数和整组启停。自定义工具集顶部可以将当前所选 L1、L2 或 L3 的完整工具范围同步到 Custom；选择 Custom 时同步按钮禁用。单工具开关仍直接写入同一 `customPermissions` 集合，组级操作与预设同步只更新这套既有权限，不引入第二套配置。
 
-持久设置的安全默认值为 MCP 关闭、L1、当前用户文档目录的读写根和非零控制端口。配置中缺少读写根字段时使用 Qt 提供的跨平台文档目录；已显式保存的空列表保持为空。配置中缺少有效端口时在动态私有范围生成一个端口，保存后后续启动继续使用该值；只有用户点击“刷新”或直接编辑才改变端口。页面不提供固定/随机下拉框，“刷新”按钮与端口输入框位于同一行并始终可操作。
+持久设置的安全默认值为 MCP 关闭、L1、当前用户文档目录这一统一访问根和非零控制端口。配置中缺少访问根字段时使用 Qt 提供的跨平台文档目录；已显式保存的空列表保持为空。配置中缺少有效端口时从动态/私有端口范围 `49152–65535` 生成一个端口，保存后后续启动继续使用该值；只有用户点击“随机更换”或直接编辑才改变端口，手工输入与 CLI 仍接受 `1–65535`。页面不提供固定/随机下拉框，“随机更换”按钮与端口输入框位于同一行并始终可操作，端口卡片不显示常驻说明。
 
-设置页始终生成两份可复制配置：
+设置页不显示配置预览，并始终提供两份可复制配置：
 
 - Connector stdio 配置包含 `type`、Connector command 与 exposure 参数；
-- Editor Streamable HTTP 配置包含 `type` 与基于当前生效端口或持久端口生成的 URL。
+- Editor Streamable HTTP 配置包含 `type` 与基于当前生效端口或持久端口生成的 URL，并可单独复制 endpoint。
 
-两份内容都是单个 server entry，不带外层 `mcpServers`。即使 MCP 处于 disabled、starting 或 error，文本框和复制按钮仍有稳定内容。页面展示真实的运行状态、当前 endpoint 和最近错误，不设置“本机进程访问”栏目；读写根说明明确其作用是自动化文件路径 allowlist。
+两份内容都是单个 server entry，不带外层 `mcpServers`。即使服务器处于 `server_disabled`、`server_starting` 或 `error`，复制按钮仍能生成稳定内容。“本地服务器”区域保留运行状态，仅在出现服务器错误时展示最近错误，不设置独立的“当前端点”卡片，“启用 MCP 服务器”下也不常驻展示 endpoint；被 CLI 覆盖的 enabled、端口和控制层级控件显示真实值并禁用编辑，在保留原说明的同时显示“已通过命令行参数覆盖并锁定”。页面不设置“本机进程访问”栏目。统一的“允许访问的文件夹”说明明确其作用是自动化文件路径 allowlist，左侧标题和说明相对路径编辑器顶部对齐。
 
 Editor CLI 支持：
 
 ```text
 --mcp | --no-mcp
 --control-port <1..65535>
---automation-profile l1|l2|l3|custom
+--control-level l1|l2|l3|custom
 ```
 
-CLI override 只影响本次运行，并在设置页显示来源，不改写持久设置。Connector CLI 支持 `--exposure-profile`、`--include-tool`、`--exclude-tool`、`--help` 和 `--version`。
+CLI override 只影响本次运行，并在设置页显示来源，不改写持久设置。Connector CLI 支持 `--control-level`、`--include-tool`、`--exclude-tool`、`--help` 和 `--version`。
 
 ## 11. 长期保护与验证承接
 
 当前测试代码对以下实现不变量建立了自动保护：
 
-- 公共 tool name 唯一，域、类型、Profile、Schema 和逐工具最低工具集版本合法；
+- 公共 tool name 唯一，域、类型、控制层级、Schema 和逐工具最低工具集版本合法；
 - Contract、Registry、Editor `tools/list` 与 Connector 已知描述来自同一权威集合；
 - Connector 桥接工具唯一，exposure 后的 downstream 等于可用 Editor 工具与桥接工具之并集；
 - 历史记录原子边界、创建深度、音符叶节点、轨道/剪辑 voice 和持久循环；
 - NoteTransfer 的音符与参数曲线深复制、局部锚点有界采样、GUI 剪贴板 round-trip 与无效几何拒绝；
 - MIDI headless 解析/生成、LibreSVIP 共享转换、文件授权与异步写回；
-- Profile/Custom、File Guard、全局 Admission、游标和版本兼容；
+- 控制层级/Custom、File Guard、全局 Admission、游标和版本兼容；
 - 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手、HTTP、QLocal、Connector stdio 和真实进程路径；
 - L0 退出/重启的 Schema、不可禁用策略、dirty 拒绝、显式丢弃、响应后关闭、重启换代与 Connector 自动重连；
 - 工作区、轨道面板和剪辑编辑器的 GUI 状态、选择、焦点、共享视口及无历史记录副作用；

@@ -32,7 +32,7 @@ Connector 桥接工具：6
 - Connector 桥接 tool name 唯一，并与固定定义一致。
 - Registry binding 与 Editor `tools/list` 分别等于相应授权后的公共契约集合；Connector 已知类型化描述来自同一契约源。
 - Connector downstream 等于当前 exposure 下可用的 Editor 工具与桥接工具之并集。
-- `master.*` 的 category 为 `bus`，钢琴与参数工具归入 `clip_editor`；其他域、Query/Command、同步模式与最低 Profile 元数据满足声明约束。
+- `master.*` 的 category 为 `bus`，钢琴与参数工具归入 `clip_editor`；其他域、Query/Command、同步模式与最低控制层级元数据满足声明约束。
 - 已移除的复合属性入口不出现在公共 ID、Schema、发现结果或 Dispatcher 路由中。
 
 ### 2.2 版本
@@ -75,11 +75,11 @@ Connector 桥接工具：6
 
 ### 3.2 动态值与首次调用
 
-- `application.get_status` 零参数返回 Editor、工具集版本、Profile、host 和当前 document/window 摘要。
-- `application.request_exit/restart` 在所有 Profile 与 Custom 中均可发现且不可禁用；输入只允许可选布尔字段 `discard_changes`，输出明确区分 exit/restart。
+- `application.get_status` 零参数返回 Editor、工具集版本、控制层级、host 和当前 document/window 摘要。
+- `application.request_exit/restart` 在所有控制层级与 Custom 中均可发现且不可禁用；输入只允许可选布尔字段 `discard_changes`，输出明确区分 exit/restart。
 - 脏工程默认返回 `busy + field_path=discard_changes` 并保持进程与 GUI 可操作；显式丢弃后优雅退出或重启。公共路径不得出现保存确认、忙碌提示或其他决策弹窗，GUI 路径仍保留原行为。
-- `value_sources` 指向可达查询，最低 Profile 与 host availability 合法。
-- voices、parameters、formats、exports、extract、inference、settings 与 file access 等领域查询覆盖所有公开动态候选，且在目标最低 Profile 下可达。
+- `value_sources` 指向可达查询，最低控制层级与 host availability 合法。
+- voices、parameters、formats、exports、extract、inference、settings 与 file access 等领域查询覆盖所有公开动态候选，且在目标最低控制层级下可达。
 - 目标隐藏、Custom 关闭、exposure 过滤和 host 能力变化时，领域查询与对应调用遵守各自授权结果。
 - 查询返回的候选值可直接用于对应命令；完整 SingerRef 能区分同 ID 的并存版本，speaker 候选可由 `voices.describe` 取得。
 - 动态数值范围同时验证最小值、最大值、step 与 unavailable reason。
@@ -92,7 +92,7 @@ Connector 桥接工具：6
 - 泛化 `editor.tools.list/search` 返回摘要，`editor.tools.describe` 才返回目标完整 descriptor；三者的名称、域、版本和可用性一致。
 - 排序确定；首页、中间页、末页、零/最大 limit、非法编码、过期/跨上下文 cursor 行为稳定。
 - Cursor 的 base64url payload 只绑定 context、snapshot 和 offset，不使用 HMAC 或认证密钥。
-- Profile/Custom 或实际工具目录更新后，新 snapshot 反映新可见集合；旧 cursor 不能跨快照使用。
+- 控制层级/Custom 或实际工具目录更新后，新 snapshot 反映新可见集合；旧 cursor 不能跨快照使用。
 - Task 游标绑定筛选后的稳定 Task ID 成员与顺序；运行中进度、消息或无筛选状态变化不影响下一页，筛选后成员变化仍使旧游标失效。
 
 ## 4. Editor 工具的域覆盖
@@ -121,7 +121,7 @@ Connector 桥接工具：6
 | 轨道面板 | 7 | 稀疏视口、reveal、自动翻页、有序选择、primary、活动区域与尽力键盘焦点 |
 | 剪辑编辑器 | 16 | 活动剪辑、共享时间视口、钢琴/参数显示、选择、工具和值域视口 |
 | 设置 | 10 | domain query、公开字段稀疏更新、立即/重启生效、无弹窗与回滚 |
-| 包信息 | 3 | 读取根内路径披露、详情、后台刷新、取消与索引原子切换 |
+| 包信息 | 3 | 访问根内路径披露、详情、后台刷新、取消与索引原子切换 |
 | 歌词规则 | 7 | 稳定 ID、CRUD、启停、分类内移动、非法规则与只读流水线测试 |
 
 共享的 Schema 拒绝、授权、错误封装、revision、Query 无副作用、Command 提交与 Task 状态机在其所有者层验证一次，不按工具或域复制相同矩阵。各域测试聚焦其独有的数据边界、历史记录粒度、失败原子性和异步写回条件；真实 Editor、Connector 与 GUI 则按调用类型、风险和可见行为选择代表路径。
@@ -181,15 +181,15 @@ Connector 桥接工具：6
 - MCP/Connector 断线后已接受任务仍可通过 `tasks.list/get/cancel` 观察和管理。
 - 结果未知场景通过 idempotency、revision 或 Task 查询确认，Connector 不重放有副作用请求。
 
-## 6. Profile、Custom 与 exposure
+## 6. 控制层级、Custom 与 exposure
 
 - L0 为语义上固有且不可禁用的集合；L1、L2、L3 逐级包含，L3 等于完整公共契约集合。
-- `selectedProfile` 与 `customPermissions` 独立持久化，preset 切换保持 Custom 内容。
+- `controlLevel` 与 `customPermissions` 独立持久化，preset 切换保持 Custom 内容。
 - Custom 的单项、领域分组、空集合、新 operation 安全默认和坏配置恢复覆盖；L0 不进入 Custom 列表且不能被其配置禁用。
 - 领域卡片默认收起；展开/收起不改变权限，标题启用数与单项状态一致，组级关闭/开启分别原子更新整组并持久化。
 - Editor `tools/list` 和执行期 Registry 使用同一策略。
-- 列表后改变 Profile/Custom 时，实际调用按最新策略判定。
-- Connector exposure profile `l0/l1/l2/l3`、include、exclude 和 selector 规范化覆盖；L0 profile 固有包含 L0 Editor 工具，exclude 不能移除。
+- 列表后改变控制层级/Custom 时，实际调用按最新策略判定。
+- Connector 控制层级 `l0/l1/l2/l3`、include、exclude 和 selector 规范化覆盖；L0 固有包含 L0 Editor 工具，exclude 不能移除。
 - `id:`、`category:`、`prefix:`、裸 ID、重复 selector、pending selector、非 L0 目标的 exclude 优先级和 L0 不可排除约束覆盖。
 - 同一 exposure 同时约束类型化工具与 `editor.tools.list/search/describe/invoke`。
 - Connector exposure 只塑造下游说明面，Editor 执行期策略仍是最终授权。
@@ -198,7 +198,7 @@ Connector 桥接工具：6
 
 ### 7.1 File Guard
 
-- 配置读根、写根、会话读/写 grant 和快照 round-trip。
+- 配置访问根、会话读/写 grant 和快照 round-trip；配置访问根对读写均生效。
 - 根本身、根内文件、相邻前缀、`..`、相对路径、drive-relative、UNC、大小写和混合分隔符。
 - symlink、junction、reparse point 与根边界的 canonical 判定。
 - 输出文件尚未创建时按最近存在父目录授权。
@@ -219,7 +219,7 @@ Connector 桥接工具：6
 - HTTP 层 global 32 硬上限；不设置 client、peer、domain 或 token bucket。
 - 正常握手和基线查询后，32 路同时请求全部进入；第 33 个在途请求稳定拒绝且不排队。
 - 成功、失败、取消、deadline、断线、disable 和 shutdown 都释放租约与计数。
-- 多 Connector 共享同一全局上限，客户端身份只用于归因，不改变 Profile、Task 可见性或配额。
+- 多 Connector 共享同一全局上限，客户端身份只用于归因，不改变控制层级、Task 可见性或配额。
 
 ## 8. MCP 双协议、兼容握手与 Editor HTTP
 
@@ -260,7 +260,7 @@ Connector 桥接工具：6
 
 - Editor 与 Connector 对产品身份、服务名和 framing 的 golden test。
 - 既有单实例命令回归，以及 discover 一次性快照、watch 初始快照和后续广播。
-- starting、disabled、starting-listener、ready、stopping、editor-stopping、error 的状态与 endpoint 不变量。
+- `editor_starting`、`server_disabled`、`server_starting`、`server_ready`、`server_stopping`、`editor_stopping`、`error` 的状态与 endpoint 不变量。
 - 分片帧、合并帧、零/超长帧、非法 JSON/UTF-8、未知 command 和 request ID。
 - watcher 数量、待写帧数、累计字节、慢读背压、异常断开和 timeout。
 - Editor instance ID、PID、endpoint 和版本变化触发 Connector epoch 切换。
@@ -282,7 +282,7 @@ Connector 桥接工具：6
 
 - Downstream 分别执行 2025-11-25 initialize 生命周期、2026-07-28 discover 生命周期，以及请求 2025-06-18 的兼容 initialize 生命周期。
 - Upstream 优先执行 2026-07-28 discover，并覆盖回退到 2025-11-25 初始化及服务端协商到 2025-06-18。
-- 握手成功后协议版本固定，`tools/list` 分页完整读取，随后只调用一次 `application.get_status` 取得全局工具集版本、Profile 与 host 摘要。
+- 握手成功后协议版本固定，`tools/list` 分页完整读取，随后只调用一次 `application.get_status` 取得全局工具集版本、控制层级与 host 摘要。
 - 重复 ready 合并、尾随刷新、有界指数退避、手动 reconnect 和目标变化覆盖。
 - instance/endpoint 改变后旧 request、工具目录、状态摘要、cursor 和兼容缓存失效。
 - Editor 未运行时持续报告 `editor_not_running`，不得被首包计时器延迟覆盖为
@@ -293,34 +293,34 @@ Connector 桥接工具：6
 - `connector.get_status` 各字段与 Bootstrap、HTTP、toolset compatibility 和 exposure 事实相等。
 - `connector.reconnect` 的并发与重复调用合并。
 - `editor.tools.list/search` 返回摘要，`describe` 返回完整 Schema，`invoke` 透传调用；四者对可用性、过滤和调用授权一致。
-- 各 Profile 的 downstream 集合等于相应 exposure 下可用的类型化 Editor wrapper 与固定桥接工具之并集，且随 Profile 逐级包含。
+- 各控制层级的 downstream 集合等于相应 exposure 下可用的类型化 Editor wrapper 与固定桥接工具之并集，且随控制层级逐级包含。
 - 双向全局 toolset/逐工具 minimum toolset 门槛覆盖；不执行 input/output Schema 子集证明或
   Schema digest 兼容计算。
 - Connector 只验证六个桥接工具 envelope；类型化工具和泛化 invoke 的业务 Schema 由 Editor MCP 验证。
 - 同版本 Schema 漂移由契约测试直接失败，不报告 `compatible_subset`；compatible、contract
-  incompatible、tool unavailable、profile blocked、host unavailable 分开报告。
+  incompatible、tool unavailable、control level blocked、host unavailable 分开报告。
 - upstream transport error、MCP error、invalid response、timeout、cancel 与 outcome unknown 分开报告。
 
 ## 11. 设置、CLI 与运行时生命周期
 
-- Automation 配置模型的 enabled、持久非零端口、Profile、Custom、读写根默认与 round-trip；端口首次生成后不随启动变化。
-- `--mcp`、`--no-mcp`、`--control-port`、`--automation-profile` 的合法与冲突组合。
+- Automation 配置模型的 enabled、持久非零端口、控制层级、Custom、统一访问根默认与 round-trip；自动生成端口位于 `49152–65535`，首次生成后不随启动变化。
+- `--mcp`、`--no-mcp`、`--control-port`、`--control-level` 的合法与冲突组合。
 - CLI override 优先级、运行期生效和持久设置保持。
-- Runtime enable、端口冲突、ready、disable、换端口、错误恢复和退出顺序。
-- Profile/Custom/roots 在运行中变化时，Editor list/dispatch 与 Connector 状态及时更新。
+- Runtime enable、端口冲突、`server_ready`、`server_disabled`、换端口、错误恢复和退出顺序。
+- 控制层级/Custom/roots 在运行中变化时，Editor list/dispatch 与 Connector 状态及时更新。
 - 选项菜单“自动化”项的图标与中文名称、面板完整中文翻译通过 Computer Use 验证。
 - Custom 工具按领域显示为可折叠卡片；逐组验证默认收起、展开/收起、启用计数、整组关闭/开启和单项状态回读。
-- 端口刷新按钮与 number box 同行且始终可用；不存在固定/随机下拉框，刷新或直接编辑后的值与持久化结果正确。
-- stdio 与 Streamable HTTP 配置在 ready/disabled/error 状态下始终可复制，复制对象不含外层 `mcpServers`。
-- 读写根帮助文本解释其为自动化文件路径 allowlist；设置页不出现无动态事实的本机进程访问栏目。
+- “本地服务器”区域不保留独立 endpoint 卡片，enabled 卡片下也不显示常驻 endpoint；“随机更换”按钮与 number box 同行且始终可用，端口卡片没有常驻说明文本；不存在固定/随机下拉框，随机更换或直接编辑后的值与持久化结果正确。
+- stdio 与 Streamable HTTP 卡片不展示配置预览；两种配置在 `server_ready`、`server_disabled` 和 `error` 状态下始终可复制，复制对象不含外层 `mcpServers`，Streamable HTTP endpoint 还可单独复制。
+- 单一访问根卡片的帮助文本解释其为同时约束读写的自动化文件路径 allowlist，左侧文本相对路径编辑器顶部对齐；设置页不出现无动态事实的本机进程访问栏目。
 - Automation 调用全过程监测模态对话框、主线程阻塞和 UI 假死。
 
 ## 12. 进程联调、多 Connector 与 GUI
 
 ### 12.1 进程联调
 
-- Connector 先启动，再经历 Editor 启动、MCP enable 和 ready。
-- Editor 先 ready，Connector 首次 watch 后完成协议、tools 目录和状态摘要握手。
+- Connector 先启动，再经历 `editor_starting`、服务启用和 `server_ready`。
+- Editor 先进入 `server_ready`，Connector 首次 watch 后完成协议、tools 目录和状态摘要握手。
 - Editor direct HTTP 与 Connector stdio 复用同一 L0/L1/L2/L3 业务语料并比对结果。
 - 在隔离配置下分别验证 clean 默认退出、dirty 默认拒绝、dirty 显式丢弃退出，以及重启后的新 instance ID、Connector 自动重连与最终优雅退出。
 - open/save/import/export、音频剪辑、推理、Task、播放与历史记录使用隔离工作区。
@@ -343,7 +343,7 @@ Connector 桥接工具：6
 
 - 权威公共契约、Registry、Editor 发现面与 Connector downstream 的集合关系成立，名称唯一且元数据合法。
 - 各业务域的独特语义具有确定性覆盖和真实代表路径；Connector 桥接工具的独特行为均经验证。
-- 两套 MCP 主协议、2025-06-18 兼容握手/会话、Editor HTTP、QLocal、Connector stdio、exposure、Profile/Custom、File Guard 和 Admission 全部完成。
+- 两套 MCP 主协议、2025-06-18 兼容握手/会话、Editor HTTP、QLocal、Connector stdio、exposure、控制层级/Custom、File Guard 和 Admission 全部完成。
 - Editor direct 与 Connector 路径的业务结果、错误、历史记录、revision 和 Task 语义一致。
 - 24 个 Editor 业务域均完成确定性覆盖和真实代表路径；可见 UI 域另有 GUI 证据，进程联调、真实资格与清理结果形成同一候选的证据。
 - 完整 Debug build 和一次全部 CTest 在同一候选、串行约束下完成；Qt 组件轮显式配置可用的

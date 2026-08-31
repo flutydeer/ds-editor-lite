@@ -174,7 +174,7 @@ MCP、Headless 宿主和多文档产品行为不在 Facade 层实现。GUI、内
 
 以下内容不属于 Automation Facade 层：多个真实 DocumentSession、DocumentRegistry、
 WindowRegistry、跨文档操作、多个真实窗口的生命周期、MCP/HTTP/JSON-RPC transport、权限
-profile、Headless bootstrap、独立 Core target，以及尚无真实后端的路线图/TODO 能力。
+控制层级、Headless bootstrap、独立 Core target，以及尚无真实后端的路线图/TODO 能力。
 
 这些边界不作为 skipped operation 混入 207 项能力面。增加真实能力时，应同时增加类型化
 handler、集中 OperationId、显式 Dispatcher 路径、Facade 路径和测试矩阵。

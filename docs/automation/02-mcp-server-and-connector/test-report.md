@@ -6,7 +6,7 @@
 共 **182** 项；Editor 工具分属 **24** 个业务域，类型统计为
 **41 Q/S + 122 C/S + 13 C/A**。
 
-最低 Profile 分布为 L0 4、L1 85、L2 43、L3 44，累积可见数量为
+最低控制层级分布为 L0 4、L1 85、L2 43、L3 44，累积可见数量为
 4、89、132、176。L0 downstream 为 4 个固有 Editor wrapper 加 6 个桥接工具，共 10 项；L2 downstream 为 132 个 Editor wrapper 加 6 个桥接工具，共 138 项；
 L3 downstream 为 176 个 Editor wrapper 加 6 个桥接工具，共 182 项。全局
 `toolset_version` 与每工具 `minimum_toolset_version` 均为 **1**。
@@ -37,7 +37,7 @@ plugin 路径；GUI 与 Connector 进程测试使用独立测试实例和隔离�
 
 - Editor 公共 Contract 的 ID 唯一；Registry binding、授权后的 Editor `tools/list` 与相应契约集合相等，Connector 已知类型化描述来自同一权威源；
 - Connector 固定桥接定义唯一，downstream 等于当前 exposure 下可用的 Editor 工具与桥接工具之并集；
-- 域、Query/Command 类型、同步模式、最低 Profile、`minimum_toolset_version` 和动态值来源满足声明约束；工具与域数量只作为候选快照记录，不作为固定测试门禁；
+- 域、Query/Command 类型、同步模式、最低控制层级、`minimum_toolset_version` 和动态值来源满足声明约束；工具与域数量只作为候选快照记录，不作为固定测试门禁；
 - `tracks.get` 返回轨道属性、统计、自有/有效 voice 与默认语言上下文，`clips.get` 对歌声剪辑
   返回 own/effective voice、继承来源和有效默认语言；公共集合不含
   `tracks.get_voice_context` 或 `clips.get_voice_context`；
@@ -47,11 +47,11 @@ plugin 路径；GUI 与 Connector 进程测试使用独立测试实例和隔离�
 - L0 的 `application.request_exit/restart` 只接受可选 `discard_changes`；dirty 默认拒绝并指向该字段，显式丢弃或 clean 工程返回动作明确的 accepted 结果；
 - 动态 `value_sources` 只服务显式发现；正常 invocation 不自动回查 provider；
 - 标准 MCP `tools/list` 提供工具目录和完整 Schema，`application.get_status` 提供全局工具集版本、
-  Profile、host 与当前文档/窗口摘要；
+  控制层级、host 与当前文档/窗口摘要；
 - Cursor 的 base64url payload 只绑定 context、snapshot 和 offset，不使用密钥或 HMAC。
 
 集合与契约实测结果：**通过**。当前候选快照为 Editor 176 项、Connector 6 项、总计 182 项；
-最低 Profile 累计数量为 4/89/132/176，内部能力集合为 207 个 Operation ID。集合正确性由单一
+最低控制层级累计数量为 4/89/132/176，内部能力集合为 207 个 Operation ID。集合正确性由单一
 契约源及其与 Registry、发现面和 downstream 的关系验证。Connector 工具集状态报告
 `compatible`，176 项 compatible、0 项 unavailable、0 项 incompatible。
 
@@ -65,7 +65,7 @@ AND editor toolset_version >= connector minimum_toolset_version
 ```
 
 系统不计算 Schema 方向性、Schema 子集、Schema digest 或 `compatible_subset`。同一工具集版本下
-Editor 与 Connector 的 Schema 不一致属于缺陷，由 MCP 输入校验和契约测试发现并修复；Profile、
+Editor 与 Connector 的 Schema 不一致属于缺陷，由 MCP 输入校验和契约测试发现并修复；控制层级、
 Custom、host availability 与契约版本分别报告。
 
 业务 Admission 只保留全局 32 个在途请求和 8 个后台 Task 容量，HTTP Transport 只执行全局
@@ -236,7 +236,7 @@ Task 分页回归在 application scope 的多页结果间推进运行中任务�
 游标摘要只绑定筛选条件与有序 Task ID，成员集合变化时仍保持失效保护。
 
 文档输入回归通过 open 代表路径确认共用的 plan revalidator 在任务开始时检查当前授权：即使未
-提供 plan digest，开始前撤销读根也会稳定返回 `permission_denied`；带 digest 时校验器返回与摘要
+提供 plan digest，开始前撤销访问根也会稳定返回 `permission_denied`；带 digest 时校验器返回与摘要
 一致的原始字节快照，后续加载不再读取原路径。open、import 和 import_batch 均接入该共用入口。
 格式检查回归使用超过 64 MiB 的稀疏工程文件，确认同步调用在解析和摘要前以
 `invalid_argument` 拒绝；MIDI 检查和 LibreSVIP 转换复用已经受限的单份字节快照。
@@ -277,7 +277,7 @@ Task 分页回归在 application scope 的多页结果间推进运行中任务�
 - [x] L3 契约集合、GUI 代表路径与 Connector 桥接工具的独特行为覆盖通过。
 - [x] 两套 MCP 主协议、2025-06-18 兼容路径、Editor HTTP、QLocal 与 Connector stdio 通过；
   2025-11-25 下游和 2026-07-28 上游真实握手成功。
-- [x] Profile/Custom、File Guard、global/background Admission、动态值、工具目录、exposure
+- [x] 控制层级/Custom、File Guard、global/background Admission、动态值、工具目录、exposure
   和版本兼容通过。
 - [x] 两个 L0 生命周期工具不可禁用或排除；dirty 默认拒绝、显式丢弃重启、Connector 自动重连与 clean 优雅退出通过，且不触发 GUI 决策弹窗。
 - [x] GUI 可见编辑结果、L3 区域激活、后台尽力焦点语义、播放、另存与无人值守关闭验收通过。

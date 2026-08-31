@@ -73,7 +73,7 @@ busy、不可取消、I/O 和内部错误，并携带 operation、字段、对�
 `OperationCatalog` / `OperationDescriptor` 注册表，也不在运行时重述 document、revision、
 History、file、host 或 safety 文档字段。
 
-一期内部入口不实现 Schema AST、schema digest、权限 profile 或 `QString + QVariantMap` 式
+一期内部入口不实现 Schema AST、schema digest、权限层级或 `QString + QVariantMap` 式
 泛化业务调用；公共 MCP 契约由 Wire 层单独维护。
 
 所有产品 operation ID 只在 `OperationIds.h` 定义一次，Facade、任务和测试均引用该符号表。

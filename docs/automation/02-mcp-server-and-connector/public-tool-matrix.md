@@ -13,9 +13,9 @@
 - `Q/S`：同步 Query。
 - `C/S`：同步 Command。
 - `C/A`：接受后返回任务句柄的异步 Command。
-- Profile 列表示工具契约声明的最低开放层级；L0 是固有层，始终参与发现与执行，不能通过 Profile、Custom 或 Connector exclude 禁用。
+- 控制层级列表示工具契约声明的最低开放层级；L0 是固有层，始终参与发现与执行，不能通过控制层级、Custom 或 Connector exclude 禁用。
 
-矩阵按被查询或修改的主状态所有者归域，不按 Profile 分组。编辑工具以可整体 Undo/Redo 的历史记录为原子边界；同类多对象可批量提交，不能共同撤销的属性保持独立。创建输入限制嵌套深度：轨道与歌声剪辑只创建空容器，音符作为叶节点可携带完整初始数据。
+矩阵按被查询或修改的主状态所有者归域，不按控制层级分组。编辑工具以可整体 Undo/Redo 的历史记录为原子边界；同类多对象可批量提交，不能共同撤销的属性保持独立。创建输入限制嵌套深度：轨道与歌声剪辑只创建空容器，音符作为叶节点可携带完整初始数据。
 
 ## 2. Editor 域汇总
 
@@ -51,13 +51,13 @@
 
 ### 3.1 应用（5）
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
 | `application.get_info` | L0 | Q/S | 返回产品名、版本、平台与构建身份 |
-| `application.get_status` | L0 | Q/S | Editor 实例、host、profile、工具集版本与当前 document/window 摘要 |
+| `application.get_status` | L0 | Q/S | Editor 实例、host、control level、工具集版本与当前 document/window 摘要 |
 | `application.request_exit` | L0 | C/S | 请求优雅退出；脏工程默认以 `busy` 拒绝，`discard_changes: true` 时无弹窗丢弃改动后退出 |
 | `application.request_restart` | L0 | C/S | 请求以当前可执行文件和参数优雅重启；未保存策略与退出相同，不开放任意进程启动 |
-| `application.get_file_access` | L2 | Q/S | 返回 canonical 读写根与会话授权事实 |
+| `application.get_file_access` | L2 | Q/S | 返回同时授权读写的 canonical 访问根与按用途区分的会话授权事实 |
 
 两个生命周期工具只接受可选布尔字段 `discard_changes`，默认 `false`；不提供 `force`、
 `validate_only` 或幂等键。成功响应先确认请求已接受，再由既有文档工作流完成关闭。公共调用在工程
@@ -66,7 +66,7 @@
 
 ### 3.2 文档与工程（8）
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
 | `documents.get` | L1 | Q/S | 文档状态、路径、dirty/savepoint、revision、工程长度及轨道/剪辑分类统计 |
 | `documents.list_recent` | L2 | Q/S | 从应用设置列出最近项目的路径、文件名与当前存在状态 |
@@ -79,14 +79,14 @@
 
 ### 3.3 格式（2）
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
 | `formats.list` | L2 | Q/S | 格式、扩展名、用途、可用性与 option Schema |
 | `formats.inspect` | L2 | Q/S | 64 MiB 内的有界快照、格式、来源、诊断与稳定 plan digest |
 
 ### 3.4 轨道（14）
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
 | `tracks.list` | L1 | Q/S | 有序轨道列表与分页 |
 | `tracks.get` | L1 | Q/S | 单轨属性、对象统计、自有/有效声音及默认语言上下文 |
@@ -107,7 +107,7 @@
 
 总线域在 descriptor 中使用 category `bus`，公开 operation ID 保持 `master.*`。
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
 | `master.get` | L1 | Q/S | Master gain/pan/mute/solo 与电平相关可用状态 |
 | `master.set_gain` | L1 | C/S | Master 增益单字段命令 |
@@ -117,7 +117,7 @@
 
 ### 3.6 剪辑（15）
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
 | `clips.list` | L1 | Q/S | 按轨道、类型、范围筛选并分页 |
 | `clips.get` | L1 | Q/S | 单个剪辑属性、稳定 ID；歌声剪辑同时返回继承、自有与有效声音上下文 |
@@ -137,7 +137,7 @@
 
 ### 3.7 音频剪辑（5）
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
 | `audio_clips.get` | L2 | Q/S | 路径状态、候选、hash 与音频元数据 |
 | `audio_clips.import` | L2 | C/A | 单文件读授权、解码与剪辑任务；创建前按完整请求幂等去重 |
@@ -147,7 +147,7 @@
 
 ### 3.8 声库（2）
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
 | `voices.list` | L1 | Q/S | 列出包含 package ID、package version 与 singer ID 的完整 SingerRef；`name` 保持语言无关默认文本，`display_name` 按 Editor 当前 UI 语言解析；筛选匹配 ID、默认名称与全部本地化名称，并支持分页 |
 | `voices.describe` | L1 | Q/S | 按完整 SingerRef 精确描述特定并存版本；Singer、Speaker 与 Language 均返回默认 `name`、当前 UI 的 `display_name` 和完整 `localized_names`，并包含 G2P、默认值与混合能力 |
@@ -157,7 +157,7 @@
 
 ### 3.9 Speaker Mix（13）
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
 | `speaker_mix.get` | L1 | Q/S | 轨道/剪辑目标的混合、关键帧及来源预设/脏状态快照 |
 | `speaker_mix.set_fixed` | L1 | C/S | 固定权重混合与归一化 |
@@ -175,7 +175,7 @@
 
 ### 3.10 音符、歌词、语言、发音与音素（19）
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
 | `notes.list` | L1 | Q/S | 有序音符快照与分页 |
 | `notes.search` | L1 | Q/S | 歌词查询、匹配模式与大小写/正则选项 |
@@ -199,7 +199,7 @@
 
 ### 3.11 参数曲线与锚点（12）
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
 | `parameters.get_capabilities` | L1 | Q/S | 参数层、范围、步长、曲线与插值能力 |
 | `parameters.get` | L1 | Q/S | 按可选半开时间范围和点数上限查询曲线；锚点完整保留，采样曲线确定性降采样并报告原始/返回点数 |
@@ -216,7 +216,7 @@
 
 ### 3.12 时间线（5）
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
 | `timeline.get` | L1 | Q/S | Tempo 与拍号的有序快照 |
 | `tempos.set` | L1 | C/S | 新增/替换 Tempo 与零点锚规则 |
@@ -226,7 +226,7 @@
 
 ### 3.13 历史记录（3）
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
 | `history.get_state` | L1 | Q/S | Undo/Redo 名称、能力与 savepoint |
 | `history.undo` | L1 | C/S | 显式历史记录导航与 revision |
@@ -234,7 +234,7 @@
 
 ### 3.14 播放（8）
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
 | `playback.get_state` | L2 | Q/S | 播放状态、位置、循环与当前可播放性 |
 | `playback.play` | L2 | C/S | 播放状态转换与能力检查 |
@@ -249,7 +249,7 @@
 
 ### 3.15 导出（6）
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
 | `exports.midi.get_capabilities` | L2 | Q/S | MIDI 来源、格式与 option Schema |
 | `exports.midi.preview` | L2 | Q/S | 目标计划、诊断与 plan digest |
@@ -260,7 +260,7 @@
 
 ### 3.16 提取（3）
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
 | `extract.get_capabilities` | L2 | Q/S | 音频来源、模型、语言、范围与 option Schema |
 | `extract.pitch.start` | L2 | C/A | 哈希音频快照、源身份复核、音高提取任务与目标剪辑写回 |
@@ -268,7 +268,7 @@
 
 ### 3.17 推理（4）
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
 | `inference.get_capabilities` | L2 | Q/S | scope、stage、provider、device 与 model |
 | `inference.get_status` | L2 | Q/S | 各阶段状态、原因与关联任务 |
@@ -277,7 +277,7 @@
 
 ### 3.18 异步任务（3）
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
 | `tasks.list` | L2 | Q/S | 按 document/application scope 筛选分页；进度更新不使稳定成员游标失效 |
 | `tasks.get` | L2 | Q/S | 按 scope 返回状态、进度、结果、错误与创建者归因 |
@@ -285,14 +285,14 @@
 
 ### 3.19 工作区布局（2）
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
 | `workspace.get_state` | L3 | Q/S | 返回主编辑面板可见性、布局与当前键盘焦点所属面板 |
 | `workspace.set_panel_visibility` | L3 | C/S | 稀疏更新轨道面板与剪辑编辑器可见性；至少保留一个主编辑面板 |
 
 ### 3.20 轨道面板（7）
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
 | `track_panel.get_state` | L3 | Q/S | 返回视口、自动翻页、当前轨道、有序剪辑选择与 primary item |
 | `track_panel.set_viewport` | L3 | C/S | 稀疏更新中心 tick、中心轨道索引与横纵缩放 |
@@ -306,7 +306,7 @@
 
 钢琴和参数子区域共享时间位置与横向缩放；钢琴另有音高纵向视口，参数另有值域纵向视口。焦点事实与选择归入各自面板/子区域，不建立平行的选择域。GUI Command 不要求文档 revision；显示和激活目标区域是成功条件，键盘焦点只作尽力获取。
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
 | `clip_editor.get_state` | L3 | Q/S | 返回活动剪辑、当前子区域、共享时间视口、自动翻页、钢琴与参数状态 |
 | `clip_editor.set_active_clip` | L3 | C/S | 设置活动歌声剪辑，或关闭当前活动剪辑 |
@@ -329,7 +329,7 @@
 
 设置工具只公开明确允许的应用选项，不公开自动化/MCP 自配置、开发者选项、窗口/动画/触控、文件缓存、MIDI、合成器、G2P 优先级、推理缓存、最近文件清理或未列出的设置。
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
 | `settings.query` | L3 | Q/S | 按可选 domain 返回配置值、生效值、候选/范围、重启要求与不可用原因 |
 | `settings.ui_language.update` | L3 | C/S | 稀疏更新 UI 语言并立即应用 |
@@ -341,23 +341,23 @@
 | `settings.render.update` | L3 | C/S | 稀疏更新采样步数、深度、Vocoder CPU、自动推理、前瞻与音高平滑 |
 | `settings.singer_session_retention.update` | L3 | C/S | 稀疏更新会话容量与空闲释放时间 |
 
-`settings.query` 可返回经读根投影的 configured/effective 包搜索路径，但 MCP 不提供修改能力。
+`settings.query` 可返回经访问根投影的 configured/effective 包搜索路径，但 MCP 不提供修改能力。
 
 ### 3.23 包信息（3）
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
-| `packages.list` | L3 | Q/S | 列出包 ID、版本、默认 `vendor`、当前 UI 的 `display_vendor`、受读取根约束的 canonical path 与含默认/显示名称的声库摘要；筛选匹配包 ID、供应方和声库的全部本地化名称 |
+| `packages.list` | L3 | Q/S | 列出包 ID、版本、默认 `vendor`、当前 UI 的 `display_vendor`、受访问根约束的 canonical path 与含默认/显示名称的声库摘要；筛选匹配包 ID、供应方和声库的全部本地化名称 |
 | `packages.describe` | L3 | Q/S | 返回指定包的默认值、当前 UI 显示值及 vendor/description/license 的完整本地化表，并返回声库明细；包模型没有独立可本地化名称，不伪造重复 package ID 的 `name` |
 | `packages.refresh` | L3 | C/A | 使用当前 effective 搜索路径后台扫描，完成后原子切换索引；前序提交被拒绝时等待调用重新扫描 |
 
 `packages.refresh` 创建 application-scoped Task；不伪造 `document_id`，也不参与工程 revision 或历史记录。
-它不接收路径，仅触发 Editor 按既有应用配置执行常规包扫描；MCP 读根约束包查询结果中的路径披露，
+它不接收路径，仅触发 Editor 按既有应用配置执行常规包扫描；MCP 访问根约束包查询结果中的路径披露，
 不重新授权 Editor 的内部资源访问。
 
 ### 3.24 歌词规则（7）
 
-| 工具 | Profile | 类型 | 契约要点 |
+| 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
 | `lyric_rules.list` | L3 | Q/S | 列出内置/自定义 splitter、tagger 的稳定 ID、内容、启用状态与分类顺序 |
 | `lyric_rules.create` | L3 | C/S | 创建自定义 splitter 或 tagger，不允许伪造内置规则 |
@@ -396,8 +396,8 @@ Connector bridge definitions
 176 + 6 = 182
 ```
 
-每个 Editor 工具必须具备唯一 operation ID、域、最低 profile、Query/Command、同步模式、严格
+每个 Editor 工具必须具备唯一 operation ID、域、最低控制层级、Query/Command、同步模式、严格
 input/output Schema、必要的 `value_sources`、标准 MCP annotations、
 `minimum_toolset_version` 和执行 binding。动态候选由 `value_sources` 指向同层级可达的领域查询，
-业务调用不自动回查 provider；每次调用在实际 dispatch 前重新执行 profile/Custom、输入 Schema、File Guard 与
+业务调用不自动回查 provider；每次调用在实际 dispatch 前重新执行控制层级/Custom、输入 Schema、File Guard 与
 Admission 检查。输出 Schema 由确定性契约测试覆盖，运行时不逐次 assert。

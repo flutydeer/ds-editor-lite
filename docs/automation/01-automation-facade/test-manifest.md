@@ -61,7 +61,7 @@
 | `TestAutomationL3ApplicationDomains` | 公开 L3 设置、包刷新与歌词规则所需的内部 Facade 行为 |
 | `TestAutomationAsyncFileDomains` | inference、audio、import/export/extract、文件失败和 Task 终态 |
 | `TestAudioAssetResolution` | 相对路径、source generation、解析/解码协议和晚到写回隔离 |
-| `TestAutomationFileGuard` | canonical path、读写根、大小写敏感目录和会话授权 |
+| `TestAutomationFileGuard` | canonical path、统一访问根、大小写敏感目录和会话授权 |
 | `TestAutomationAdmission` | global 32 与 background 8 两个准入上限及计数释放 |
 | `TestPianoRollNoteCommit` | GUI 音符插入/拆分的 created ID、revision 和失败无副作用 |
 
@@ -119,7 +119,7 @@
 | 显式幂等 | 仅 opt-in 工具进入键空间；重放、冲突、并发去重和失败释放 |
 | Task 竞态 | cancel/commit、重复完成、对象删除、revision 前进和 generation 换代 |
 | GUI 等价 | GUI 和自动化入口复用同一领域 Facade；可见状态在模型信号后同步 |
-| 文件边界 | canonical path、读写根、请求边界授权、不可变输入快照、发布前写授权和失败清理 |
+| 文件边界 | canonical path、统一访问根、请求边界授权、不可变输入快照、发布前写授权和失败清理 |
 | 路由边界 | `OperationIds::all()` 是能力来源；未知 ID 稳定失败，代表性 Query/Command 具有显式路由行为证据 |
 
 ## 6. 维护规则

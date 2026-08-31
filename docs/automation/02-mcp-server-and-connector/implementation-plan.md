@@ -21,7 +21,7 @@ Agent 会话可先于 Editor 启动。Connector 通过全局实例 Bootstrap 观
 
 ## 2. 域优先原则
 
-公共能力先按业务域建模，再映射到 Profile、MCP descriptor 和 Connector exposure。Editor 的 24 个域依次为：应用、文档与工程、格式、轨道、总线、剪辑、音频剪辑、声库、Speaker Mix、音符/歌词/语言/发音/音素、参数曲线与锚点、时间线、历史记录、播放、导出、提取、推理、异步任务、工作区布局、轨道面板、剪辑编辑器、设置、包信息、歌词规则。
+公共能力先按业务域建模，再映射到控制层级、MCP descriptor 和 Connector exposure。Editor 的 24 个域依次为：应用、文档与工程、格式、轨道、总线、剪辑、音频剪辑、声库、Speaker Mix、音符/歌词/语言/发音/音素、参数曲线与锚点、时间线、历史记录、播放、导出、提取、推理、异步任务、工作区布局、轨道面板、剪辑编辑器、设置、包信息、歌词规则。
 
 领域契约遵循以下规则：
 
@@ -75,7 +75,7 @@ Dispatcher 的幂等处理是显式 opt-in：只有调用方实际提供已获�
 Streamable HTTP / stdio
   → MCP framing、版本与元数据校验
   → 公共 operation descriptor 与 input Schema
-  → Profile / Custom Access Policy
+  → 控制层级 / Custom Access Policy
   → 必要的 File Guard 与 Admission Control
   → typed Wire Binding
   → typed Domain Facade / host adapter
@@ -96,16 +96,16 @@ invocation 不自动回查 provider，调用参数以目标 input Schema 和领�
 `AutomationWire` 集中维护：
 
 - stable MCP tool name、operation ID、域、标题与说明；
-- Query/Command、同步模式和最低 Profile；
+- Query/Command、同步模式和最低控制层级；
 - JSON Schema 2020-12 input/output Schema；
 - 公共 enum、值域、范围、集合上限与稳定 codec；
 - `value_sources` 及其上下文字段；
-- 执行所需的 Profile、host、file access 和标准 MCP annotations；
+- 执行所需的控制层级、host、file access 和标准 MCP annotations；
 - 全局 `toolset_version` 与每工具 `minimum_toolset_version`；
 - MCP 2025-11-25 与 2026-07-28 两套主协议，以及 2025-06-18 兼容握手的消息、结果塑形和 header codec；
 - exposure selector 与分页游标。
 
-Wire 字段使用 `snake_case`。业务 object 使用封闭 Schema；未知字段、未知枚举、非有限数字、越界整数、非法 ID、超限集合和非法分页游标在进入 Facade 前失败。表示默认值、自动选择、无过滤或分页首页的可选字段采用显式白名单：字符串空值与省略等义，具有“全部”语义的集合空值与省略等义；必填标识、路径、查询词和编辑值仍保持严格校验。动态候选由 `value_sources` 指向同层级可达的领域查询，并继承该查询自身的 Profile、Custom 和执行权限。
+Wire 字段使用 `snake_case`。业务 object 使用封闭 Schema；未知字段、未知枚举、非有限数字、越界整数、非法 ID、超限集合和非法分页游标在进入 Facade 前失败。表示默认值、自动选择、无过滤或分页首页的可选字段采用显式白名单：字符串空值与省略等义，具有“全部”语义的集合空值与省略等义；必填标识、路径、查询词和编辑值仍保持严格校验。动态候选由 `value_sources` 指向同层级可达的领域查询，并继承该查询自身的控制层级、Custom 和执行权限。
 
 ### 5.2 Binding Registry
 
@@ -113,9 +113,9 @@ Registry 从同一工具声明建立 176 个类型化 binding，并派生：
 
 - Editor `tools/list` 的确定顺序和 descriptor；
 - input 解码、执行 handler 与 output 编码；output Schema 由确定性契约测试验证；
-- Profile/Custom 的发现过滤与执行期授权；
+- 控制层级/Custom 的发现过滤与执行期授权；
 - Connector 构建时已知的类型化 Editor 工具描述；
-- 测试中的 ID、域、Profile、类型、Schema 和版本期望。
+- 测试中的 ID、域、控制层级、类型、Schema 和版本期望。
 
 注册门禁校验 MCP tool name 与 operation ID 唯一且一一对应、Schema 有效、value source 可达、
 binding 集合完整，以及工具描述与执行入口一致。执行时不再次访问 value source；同一版本下
@@ -138,7 +138,7 @@ Toast 或其他决策弹窗；显式允许丢弃后才进入既有优雅关闭�
 ## 6. 工具集版本与兼容
 
 标准 MCP `tools/list` 是运行时工具目录与完整 Schema 的事实来源；
-`application.get_status` 返回 Editor 的 `toolset_version`、当前 Profile、host mode 及文档/窗口摘要。
+`application.get_status` 返回 Editor 的 `toolset_version`、当前控制层级、host mode 及文档/窗口摘要。
 本期工具集维持 v1：`toolset_version = 1`，182 个工具各自只持有
 `minimum_toolset_version = 1`。
 
@@ -151,7 +151,7 @@ AND editor toolset_version >= connector minimum_toolset_version
 
 兼容判断不计算 Schema 方向性子集、Schema digest 或 `compatible_subset`。逐工具实际 Schema 仍以标准
 MCP `tools/list` 为事实来源，泛化调用按 Editor 当前 Schema 发送；同一工具集版本下的 Schema
-差异不是可协商兼容状态，而是应由 MCP 输入校验和契约测试修复的缺陷。Profile、Custom 和 host
+差异不是可协商兼容状态，而是应由 MCP 输入校验和契约测试修复的缺陷。控制层级、Custom 和 host
 availability 继续独立报告，不与契约版本混淆。
 
 分页对调用方仍表现为 opaque cursor；内部编码只把 `context + snapshot + offset` 序列化为
@@ -159,18 +159,18 @@ base64url，并在下一页校验上下文和快照。Task 分页的 snapshot �
 成员与顺序，不绑定进度、消息或其他可变状态；成员或顺序变化仍使旧游标失效。游标不携带密钥、
 不计算 HMAC，也不承担认证职责。
 
-## 7. Profile、Custom 与执行期授权
+## 7. 控制层级、Custom 与执行期授权
 
 配置模型分离为：
 
 ```text
-selectedProfile = l1 | l2 | l3 | custom
+controlLevel= l1 | l2 | l3 | custom
 customPermissions[stableOperationId] = enabled | disabled
 ```
 
 `L3` 的显示名称和能力含义统一为“进阶控制”（Advanced Control）：在 L2 之上仅增加经明确纳入的部分 GUI 自动化操作和设置项更改，不表示或承诺完全控制。自动化/MCP 自身的配置与服务启停不属于可由 MCP 修改的对象；应用的优雅退出和重启是独立的 L0 固有能力。
 
-L0 工具构成固有能力面：所有 preset 和 Custom 都始终包含，不能通过任何权限配置禁用，也不显示在 Custom 工具列表中。L1～L3 使用最低 Profile 的累积关系；Custom 只为非 L0 工具使用稳定 operation ID 的显式集合。切换 preset 保留 Custom 配置，切回 Custom 恢复先前选择；新增非 L0 operation 在无持久记录时采用安全默认。
+L0 工具构成固有能力面：所有 preset 和 Custom 都始终包含，不能通过任何权限配置禁用，也不显示在 Custom 工具列表中。L1～L3 使用最低控制层级的累积关系；Custom 只为非 L0 工具使用稳定 operation ID 的显式集合。切换 preset 保留 Custom 配置，切回 Custom 恢复先前选择；新增非 L0 operation 在无持久记录时采用安全默认。
 
 同一 `AutomationAccessPolicy` 同时控制：
 
@@ -223,7 +223,7 @@ Editor 与 Connector 共用稳定产品身份、应用级服务名和长度前�
 - `automation.discover`：返回当前完整快照；
 - `automation.watch`：立即发送完整快照，并在状态变化时广播新快照。
 
-快照表达 editor instance ID、应用版本/build、host mode、PID、MCP enabled、运行状态、endpoint 和错误。状态机覆盖启动、禁用、启动监听、ready、停止监听、Editor 退出和错误；`mcp_ready` 只在 HTTP endpoint 已接受请求时发布。
+快照表达 editor instance ID、应用版本/build、host mode、PID、server enabled、运行状态、endpoint 和错误；Wire 字段使用协议无关的 `serverEnabled` 与 `serverEndpoint`。状态机使用 `editor_starting`、`server_disabled`、`server_starting`、`server_ready`、`server_stopping`、`editor_stopping` 和 `error`；`server_ready` 只在当前自动化服务器 endpoint 已接受请求时发布。
 
 Watcher 具备最大连接数、最大帧、待写帧数、累计待写字节、读写 timeout、部分帧解析和异常断开清理。Connector 仅作为 `QLocalSocket` 客户端观察状态，使用 epoch/instance ID 丢弃旧 Editor 的晚到结果，并用有界退避与抖动重连。
 
@@ -235,7 +235,7 @@ Connector 是独立多实例进程：下游为 MCP stdio Server，上游为 Edit
 
 上游优先按 2026-07-28 发起 `server/discover`，失败后使用 2025-11-25
 `initialize/initialized`，并接受服务端协商到 2025-06-18 的 legacy 会话。协议握手成功后完整分页
-读取 `tools/list`，再调用一次 `application.get_status` 取得 toolset version、Profile 与 host 摘要；
+读取 `tools/list`，再调用一次 `application.get_status` 取得 toolset version、控制层级与 host 摘要；
 逐工具 Schema 和可用性以 `tools/list` 为事实来源，兼容性只计算全局版本与逐工具最低版本。
 Editor instance 或 endpoint 变化会切换 handshake epoch、取消旧请求、清除旧缓存并建立新连接。
 
@@ -257,14 +257,14 @@ editor.tools.invoke
 Connector 同时携带构建时已知的 176 个 Editor 类型化工具描述。进程启动时根据 exposure 生成固定 downstream 类型化工具集合：
 
 ```text
---exposure-profile l0|l1|l2|l3
+--control-level l0|l1|l2|l3
 --include-tool <selector>
 --exclude-tool <selector>
 ```
 
 Selector 支持 `id:`、`category:`、`prefix:`；L0 固有工具始终进入最终集合，不能被
 `--exclude-tool` 去除；其余工具由 preset 与 include 的并集再应用 exclude。相同 exposure 结果同时过滤类型化 wrapper 和泛化
-`list/search/describe/invoke`。Editor 上下线、Profile、工具目录和版本兼容变化更新状态缓存，
+`list/search/describe/invoke`。Editor 上下线、控制层级、工具目录和版本兼容变化更新状态缓存，
 downstream descriptor 在该 Connector 生命周期内保持稳定。
 
 ### 10.3 状态、错误与多 Connector
@@ -283,7 +283,7 @@ exposure 与 pending selector 事实。稳定错误区分 Editor 状态、上游
 
 ### 11.1 File Guard
 
-读根、写根、会话读授权和会话写授权分别维护。路径在调用文件后端前规范化为 canonical absolute path，并按访问目的处理：
+持久访问根同时授权读取和写入，会话读授权与会话写授权仍按用途分别维护。路径在调用文件后端前规范化为 canonical absolute path，并按访问目的处理：
 
 - 根目录边界、相邻前缀与大小写；
 - `..`、相对路径、drive-relative 与 UNC；
@@ -295,7 +295,7 @@ exposure 与 pending selector 事实。稳定错误区分 Editor 状态、上游
 
 File Guard 约束自动化调用显式提供的路径及向调用方披露的路径，不重新授权 Editor 按既有应用
 配置执行的内部资源访问。`packages.refresh` 不接收路径，只触发与 GUI 相同的既有 effective 搜索
-路径扫描；公共接口不提供包搜索路径修改能力，`settings.query` 与包查询结果仍按读根约束路径披露。
+路径扫描；公共接口不提供包搜索路径修改能力，`settings.query` 与包查询结果仍按访问根约束路径披露。
 
 `formats.inspect` 是同步查询，只读取一份有界文件快照；超过 64 MiB 的输入在解析前拒绝，MIDI
 解析、LibreSVIP 转换与摘要复用同一份快照，不对原路径重复执行无界读取。
@@ -319,21 +319,21 @@ client/peer/domain 配额、令牌桶或公平排队。超限请求立即得到�
 
 ## 12. 设置页、CLI 与运行时生命周期
 
-Automation 持久设置包含 MCP enabled、具体控制端口、selected Profile、Custom 权限、canonical 读写根。安全默认是 MCP 关闭、L1、持久化的非零本机端口和当前用户文档目录的读写根；缺少读写根字段时使用 Qt 提供的跨平台文档目录，显式空列表保持为空。自定义工具集支持从当前所选 L1、L2 或 L3 精确覆盖同步，选择 Custom 时禁用同步。端口只在配置首次建立时随机生成，随后保持不变，除非用户点击刷新或直接编辑。
+Automation 持久设置包含 MCP enabled、具体控制端口、`controlLevel`、Custom 权限和 canonical 访问根。一个访问根同时允许自动化文件工具在其中读取与写入。安全默认是 MCP 关闭、L1、持久化的非零本机端口和当前用户文档目录；缺少访问根字段时使用 Qt 提供的跨平台文档目录，显式空列表保持为空。自定义工具集支持从当前所选 L1、L2 或 L3 精确覆盖同步，选择 Custom 时禁用同步。端口只在配置首次建立时从动态/私有端口范围 `49152–65535` 随机生成，随后保持不变，除非用户点击“随机更换”或直接编辑；手工输入与 CLI 仍接受 `1–65535`。
 
 Editor CLI：
 
 ```text
 --mcp | --no-mcp
 --control-port <1..65535>
---automation-profile l1|l2|l3|custom
+--control-level l1|l2|l3|custom
 ```
 
-CLI override 只影响本次运行，优先于持久设置。选项菜单中的 Automation 入口具有现有菜单体系一致的图标，面板文字完整本地化。设置页同时展示持久值、生效值、覆盖来源、运行状态、endpoint 与错误，并提供 Profile、Custom、读写根和端口管理。Custom 工具按公共契约中的领域分别成组，且不显示固有的 L0 工具；组默认收起，可独立展开，并在标题中显示启用数/总数。组级开关可一次开启或关闭整组，单工具开关仍保持独立持久化，且折叠状态不改变权限。端口下拉模式不存在，刷新按钮与端口输入框始终可用并位于同一行。
+CLI override 只影响本次运行，优先于持久设置。被 CLI 覆盖的 enabled、端口和控制层级控件显示真实生效值并禁用编辑；原有说明继续显示，并追加“已通过命令行参数覆盖并锁定”，没有常驻说明的 enabled 与端口卡片只在被覆盖时显示该提示。选项菜单中的 Automation 入口具有现有菜单体系一致的图标，面板文字完整本地化。“本地服务器”区域另行展示运行状态，仅在出现服务器错误时展示最近错误，不设置“当前端点”卡片，也不在启用开关下常驻展示 endpoint。设置页提供控制层级、Custom、访问根和端口管理。Custom 工具按公共契约中的领域分别成组，且不显示固有的 L0 工具；组默认收起，可独立展开，并在标题中显示启用数/总数。组级开关可一次开启或关闭整组，单工具开关仍保持独立持久化，且折叠状态不改变权限。端口下拉模式不存在，“随机更换”按钮与端口输入框始终可用并位于同一行，端口卡片不附加常驻说明文本。
 
-设置页提供可随时复制的 Connector stdio 配置和 Editor Streamable HTTP 配置。复制内容是单个 server entry，不包含外层 `mcpServers`；即使 MCP 尚未 ready 也能根据持久配置生成稳定内容。读写根的帮助文字明确说明它们只是自动化文件工具的路径 allowlist，不表示本机进程权限；面板不展示无动态事实的“本机进程访问”栏目。
+设置页不展示配置预览，只提供可随时复制的 Connector stdio 配置和 Editor Streamable HTTP 配置；Streamable HTTP 还可单独复制 endpoint。配置复制内容是单个 server entry，不包含外层 `mcpServers`；即使自动化服务器尚未进入 `server_ready` 也能根据持久配置生成稳定内容。一个“允许访问的文件夹”卡片维护统一访问根，帮助文字明确它是自动化文件工具的路径 allowlist，不表示本机进程权限；左侧标题与说明相对路径编辑器顶部对齐。面板不展示无动态事实的“本机进程访问”栏目。
 
-运行时配置变化由 `EditorMcpController` 串行应用：先关闭 admission，再有序停止旧 listener，校验新配置，启动新 listener，最后发布 ready。禁用、换端口、端口冲突、根目录错误和退出都形成可观察状态；已接受的后台 Task 继续由 TaskManager 管理。
+运行时配置变化由 `EditorMcpController` 串行应用：先关闭 admission，再有序停止旧 listener，校验新配置，启动新 listener，最后发布 `server_ready`。禁用、换端口、端口冲突、根目录错误和退出都形成可观察状态；已接受的后台 Task 继续由 TaskManager 管理。
 
 ## 13. 实施顺序与阶段提交
 
@@ -341,7 +341,7 @@ CLI override 只影响本次运行，优先于持久设置。选项菜单中的 
 2. 冻结 176 + 6 工具矩阵、公共 enum、Schema 与版本不变量。
 3. 完成 Wire Contract、版本兼容与透明分页游标。
 4. 按 24 个域完成 176 个 Registry binding 和 host adapter。
-5. 完成 Profile/Custom、File Guard 与 Admission。
+5. 完成控制层级/Custom、File Guard 与 Admission。
 6. 完成 Editor 2025-11-25 与 2026-07-28 两套主协议，以及 2025-06-18 兼容握手生命周期。
 7. 完成 QLocal discover/watch 与状态机。
 8. 完成 Connector 上游、下游、桥接工具、exposure 与兼容缓存。
@@ -369,7 +369,7 @@ docs(automation): report phase two delivery
 - Editor 工具的域及总线、历史记录、GUI 子区域归属符合契约语义。
 - 发布前 `toolset_version = 1`，每工具 `minimum_toolset_version` 合法且不高于当前版本。
 - 权威 Editor 契约均具备严格 Schema 与 descriptor，Registry binding 集合与契约集合相等；共享不变量在所有者层验证一次，各域独特语义具有适用测试。
-- Editor MCP 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手、QLocal watch、Connector stdio/exposure/compatibility、Profile/Custom、File Guard、Admission、设置与 CLI 完成验证。
+- Editor MCP 2025-11-25 与 2026-07-28 两套主协议、2025-06-18 兼容握手、QLocal watch、Connector stdio/exposure/compatibility、控制层级/Custom、File Guard、Admission、设置与 CLI 完成验证。
 - Editor 直连与 Connector 转接保持业务结果、稳定错误、历史记录、revision 和 Task 语义等价。
 - 多 Connector、运行时换端口/启停、全局准入、退出和资源清理满足有界生命周期。
 - Debug 全目标构建与一次完整 CTest 在同一候选上完成，GUI 与真实进程联调形成新证据。
