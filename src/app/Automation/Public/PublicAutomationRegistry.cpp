@@ -1418,9 +1418,17 @@ namespace Automation {
         }
 
         QJsonObject encodeDocument(const DocumentSnapshotDto &snapshot,
-                                   const ProjectSnapshotDto &project) {
+                                   const ProjectSnapshotDto &project,
+                                   const AutomationFileGuard &fileGuard) {
+            QString path;
+            if (!snapshot.path.isEmpty()) {
+                const auto authorized =
+                    fileGuard.authorize(snapshot.path, FileAccessPurpose::Read);
+                if (authorized)
+                    path = authorized.get().canonicalPath;
+            }
             return {
-                {QStringLiteral("path"),          snapshot.path                                    },
+                {QStringLiteral("path"),          path                                             },
                 {QStringLiteral("project_name"),  snapshot.projectName                             },
                 {QStringLiteral("busy"),          snapshot.busy                                    },
                 {QStringLiteral("saved"),         snapshot.saved                                   },
@@ -2244,7 +2252,7 @@ namespace Automation {
                            return AutomationResult<QJsonObject>(project.getError());
                        return AutomationResult<QJsonObject>(
                            queryResult(result.get().document, QStringLiteral("snapshot"),
-                                       encodeDocument(result.get(), project.get())));
+                                       encodeDocument(result.get(), project.get(), m_fileGuard)));
                    });
         addBinding(ToolNames::documents_list_recent,
                    [this](const QJsonObject &, const PublicInvocationContext &) {
