@@ -1637,28 +1637,23 @@ namespace {
             for (auto index = 0; index < 64; ++index)
                 bootstrap.publish(ready);
             ok &= expect(
-                waitUntil([&] { return http.discoverCount >= 2 && readyRuntime(runtime, 4); },
-                          10000),
-                "duplicate ready snapshots must converge after one trailing refresh");
-            const auto unexpectedExtraHandshake =
-                waitUntil([&] { return http.discoverCount > 2; }, 700);
-            ok &= expect(
-                !unexpectedExtraHandshake && http.discoverCount == 2 && http.toolsListCount == 2 &&
-                    http.statusCallCount == 2 && http.requestIds.size() == 6 &&
-                    http.requestIds.size() < 20,
-                "a same-target ready burst must stay below the default client request budget");
-
-            http.discoverResponseDelayMs = 0;
+                waitUntil([&] { return http.discoverCount >= 2; }, 10000),
+                "duplicate ready snapshots must start one trailing refresh");
             http.exposeNotes = true;
-            const auto refreshCount = http.discoverCount;
             bootstrap.publish(ready);
             ok &= expect(waitUntil(
                              [&] {
-                                 return http.discoverCount == refreshCount + 1 &&
-                                        readyRuntime(runtime, 5);
+                                 return http.discoverCount >= 3 && readyRuntime(runtime, 5);
                              },
                              10000),
-                         "a later same-endpoint ready snapshot must still refresh new tools");
+                         "a snapshot received during the trailing refresh must also be applied");
+            const auto unexpectedExtraHandshake =
+                waitUntil([&] { return http.discoverCount > 3; }, 700);
+            ok &= expect(
+                !unexpectedExtraHandshake && http.discoverCount == 3 && http.toolsListCount == 3 &&
+                    http.statusCallCount == 3 && http.requestIds.size() == 9 &&
+                    http.requestIds.size() < 20,
+                "a same-target ready burst must stay below the default client request budget");
             runtime.stop();
         }
 

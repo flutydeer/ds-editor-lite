@@ -946,7 +946,6 @@ namespace DsConnector {
         m_handshakeRetryTimer->stop();
         m_handshakeTarget.reset();
         m_handshakeInProgress = false;
-        m_handshakeFollowUp = false;
         m_handshakeRefreshPending = false;
         m_handshakeRetryAttempt = 0;
         m_upstream->clearEndpoint(error);
@@ -972,20 +971,17 @@ namespace DsConnector {
             ++m_handshakeEpoch;
             m_handshakeRetryTimer->stop();
             m_handshakeInProgress = false;
-            m_handshakeFollowUp = false;
             m_handshakeRefreshPending = false;
             m_handshakeRetryAttempt = 0;
             m_upstream->clearEndpoint(QStringLiteral("editor_endpoint_changed"));
         }
         m_handshakeTarget = snapshot;
         if (m_handshakeInProgress) {
-            if (!m_handshakeFollowUp)
-                m_handshakeRefreshPending = true;
+            m_handshakeRefreshPending = true;
             return;
         }
         m_handshakeRetryAttempt = 0;
         m_handshakeInProgress = true;
-        m_handshakeFollowUp = false;
         startHandshakeAttempt();
     }
 
@@ -1146,13 +1142,11 @@ namespace DsConnector {
         m_handshakeInProgress = false;
         if (succeeded)
             m_handshakeRetryAttempt = 0;
-        const auto refresh = m_handshakeRefreshPending && !m_handshakeFollowUp;
+        const auto refresh = m_handshakeRefreshPending;
         m_handshakeRefreshPending = false;
-        m_handshakeFollowUp = false;
         if (!refresh || !m_handshakeTarget)
             return;
         m_handshakeInProgress = true;
-        m_handshakeFollowUp = true;
         startHandshakeAttempt();
     }
 

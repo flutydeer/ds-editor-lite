@@ -111,7 +111,6 @@ namespace DsConnector {
         QString m_editorInstanceId;
         std::optional<SingleInstanceAutomationSnapshot> m_handshakeTarget;
         bool m_handshakeInProgress = false;
-        bool m_handshakeFollowUp = false;
         bool m_handshakeRefreshPending = false;
         int m_handshakeRetryAttempt = 0;
         AutomationWire::OpaqueCursorCodec m_editorToolsCursorCodec;
