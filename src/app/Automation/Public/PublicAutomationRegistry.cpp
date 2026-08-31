@@ -1949,11 +1949,16 @@ namespace Automation {
                                      ? FileAccessPurpose::Write
                                      : FileAccessPurpose::Read;
             if (arguments.contains(QStringLiteral("path"))) {
-                auto authorized =
-                    guard.authorize(arguments.value(QStringLiteral("path")).toString(), purpose);
-                if (!authorized)
-                    return authorized.getError();
-                result.insert(QStringLiteral("path"), authorized.get().canonicalPath);
+                const auto path = arguments.value(QStringLiteral("path")).toString();
+                if (path.isEmpty() &&
+                    contract.operationId == OperationIds::audio_clips::confirm_path) {
+                    result.remove(QStringLiteral("path"));
+                } else {
+                    auto authorized = guard.authorize(path, purpose);
+                    if (!authorized)
+                        return authorized.getError();
+                    result.insert(QStringLiteral("path"), authorized.get().canonicalPath);
+                }
             }
             if (arguments.contains(QStringLiteral("items"))) {
                 QJsonArray items;
