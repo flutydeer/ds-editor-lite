@@ -365,10 +365,23 @@ namespace Automation {
                 if (!m_model)
                     return unavailable(QStringLiteral("The project model is unavailable"));
 
+                std::optional<AutomationError> firstValidationFailure;
+                bool hasValidItem = false;
                 for (const auto &item : std::as_const(m_request.items)) {
                     const auto validation = validateItem(item);
-                    if (!validation && m_request.failurePolicy == PublicBatchFailurePolicy::Atomic)
-                        return validation.getError();
+                    if (validation) {
+                        hasValidItem = true;
+                    } else {
+                        if (m_request.failurePolicy == PublicBatchFailurePolicy::Atomic)
+                            return validation.getError();
+                        if (!firstValidationFailure)
+                            firstValidationFailure = validation.getError();
+                    }
+                }
+                if (!hasValidItem) {
+                    return firstValidationFailure.value_or(AutomationError::invalidArgument(
+                        QStringLiteral("items"),
+                        QStringLiteral("No project import items were supplied")));
                 }
                 if (m_request.command.validateOnly)
                     return TaskAcceptedResult{{}, base.get(), true};
@@ -521,6 +534,8 @@ namespace Automation {
                     finish();
                     return;
                 }
+                if (!m_firstFailure)
+                    m_firstFailure = failure;
                 m_warnings.append(failure.message);
                 advance();
             }
@@ -535,6 +550,15 @@ namespace Automation {
             }
 
             void commit() {
+                if (m_loadedItems.isEmpty()) {
+                    auto failure = m_firstFailure.value_or(
+                        unavailable(QStringLiteral("No project item was loaded successfully")));
+                    failure.operationId = OperationIds::documents::import_batch;
+                    failure.taskId = m_taskId;
+                    m_runtime.automationTasks().fail(m_taskId, std::move(failure));
+                    finish();
+                    return;
+                }
                 BatchImportDraftDto batch;
                 batch.timeline = m_baseTimeline;
                 bool importedTempo = false;
@@ -605,6 +629,7 @@ namespace Automation {
             };
             Timeline m_baseTimeline;
             QList<LoadedItem> m_loadedItems;
+            std::optional<AutomationError> m_firstFailure;
             QStringList m_warnings;
             TaskId m_taskId;
             qsizetype m_index = 0;
