@@ -430,7 +430,7 @@ void MainMenuViewPrivate::updateClipEditorActionState() {
 
     actionSelectAll->setEnabled(noteCommandsEnabled && clipController->canSelectAll());
     actionDelete->setEnabled(supports(EditorInteraction::Command::DeleteSelection) &&
-                             hasSelectedNotes);
+                             (!noteCommandsEnabled || hasSelectedNotes));
     actionCut->setEnabled(supports(EditorInteraction::Command::Cut) && hasSelectedNotes);
     actionCopy->setEnabled(supports(EditorInteraction::Command::Copy) && hasSelectedNotes);
     actionOctaveUp->setEnabled(noteCommandsEnabled && hasSelectedNotes);
