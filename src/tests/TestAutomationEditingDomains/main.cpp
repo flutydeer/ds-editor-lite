@@ -1536,10 +1536,19 @@ namespace {
                 const auto invalidRange = runtime.parameters().replaceParameter(
                     commandContext(runtime, true), clipId, ParamInfo::Pitch, Param::Edited,
                     {overflow});
+                auto invalidAnchor = anchor;
+                invalidAnchor.nodes = {
+                    {0, 10, AnchorNode::Linear}
+                };
+                const auto invalidTopology = runtime.parameters().replaceParameter(
+                    commandContext(runtime, true), clipId, ParamInfo::Pitch, Param::Edited,
+                    {invalidAnchor});
                 suite.expect(isError(invalidStep, AutomationErrorCode::InvalidArgument) &&
                                  isError(invalidRange, AutomationErrorCode::InvalidArgument,
-                                         QStringLiteral("curves.values")),
-                             QStringLiteral("draw curve step and range must be valid"));
+                                         QStringLiteral("curves.values")) &&
+                                 isError(invalidTopology, AutomationErrorCode::InvalidArgument,
+                                         QStringLiteral("curves.nodes")),
+                             QStringLiteral("draw geometry and anchor topology must be valid"));
             });
 
         suite.run(Automation::OperationIds::parameters::draw, QStringLiteral("overflow-rejected"),

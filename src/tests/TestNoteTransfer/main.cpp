@@ -358,17 +358,24 @@ namespace {
         const auto before = runtime.documentVersion();
         const auto targetBefore =
             parameter(runtime, targetClip, ParamInfo::Pitch, Param::Edited);
+        auto previewContext = commandContext(runtime);
+        previewContext.validateOnly = true;
+        const auto preview = runtime.notes().duplicateNotes(previewContext, sourceClip, noteIds,
+                                                           targetClip, 100);
         const auto duplicate = runtime.notes().duplicateNotes(commandContext(runtime), sourceClip,
                                                               noteIds, targetClip, 100);
         const auto targetNotes =
             runtime.notes().getNotes(runtime.documentVersion().documentId, targetClip);
         const auto targetAfter =
             parameter(runtime, targetClip, ParamInfo::Pitch, Param::Edited);
-        expect(!duplicate &&
+        expect(!preview &&
+                   preview.getError().code == Automation::AutomationErrorCode::Unsupported &&
+                   !duplicate &&
                    duplicate.getError().code == Automation::AutomationErrorCode::Unsupported &&
                    runtime.documentVersion() == before && targetNotes && targetNotes.get().isEmpty() &&
                    sameShape(targetBefore, targetAfter),
-               QStringLiteral("an oversized retained curve tail must reject the whole transfer"));
+               QStringLiteral(
+                   "an oversized retained curve tail must reject validation and the transfer"));
     }
 
     void testOversizedSourceCurveIsRejected() {

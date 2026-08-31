@@ -506,17 +506,17 @@ namespace Automation {
                     QStringLiteral("Translated note position is outside the valid range"));
             }
         }
+        auto *targetClip = static_cast<SingingClip *>(target.get().clip);
+        const auto parameterReplacements =
+            mergeNoteTransferParameters(*targetClip, payload, targetStart);
+        if (!parameterReplacements)
+            return parameterReplacements.getError();
         if (validateOnly)
             return m_committer.preview(session, true,
                                        {
                                            {ObjectKind::Clip, targetClipId.value()}
             });
 
-        auto *targetClip = static_cast<SingingClip *>(target.get().clip);
-        const auto parameterReplacements =
-            mergeNoteTransferParameters(*targetClip, payload, targetStart);
-        if (!parameterReplacements)
-            return parameterReplacements.getError();
         std::vector<std::unique_ptr<Note>> ownedNotes;
         QList<Note *> rawNotes;
         QList<ObjectRef> affected;

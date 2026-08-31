@@ -259,7 +259,8 @@ namespace Automation {
                    interpolation == AnchorNode::None;
         }
 
-        AutomationResult<AutomationUnit> validateAnchorDrafts(const QList<AnchorInsertDto> &anchors,
+        template <typename AnchorDraft>
+        AutomationResult<AutomationUnit> validateAnchorDrafts(const QList<AnchorDraft> &anchors,
                                                               const QString &fieldPath,
                                                               const int minimumCount = 1) {
             if (anchors.size() < minimumCount) {
@@ -302,6 +303,29 @@ namespace Automation {
 
         bool rangesOverlap(const QPair<int, int> &left, const QPair<int, int> &right) {
             return left.first <= right.second && right.first <= left.second;
+        }
+
+        AutomationResult<AutomationUnit>
+            validateReplacementAnchorCurves(const QList<CurveDraftDto> &curves) {
+            QList<QPair<int, int>> ranges;
+            for (const auto &curve : curves) {
+                if (curve.type != CurveDraftDto::Type::Anchor)
+                    continue;
+                const auto validation =
+                    validateAnchorDrafts(curve.nodes, QStringLiteral("curves.nodes"), 2);
+                if (!validation)
+                    return validation.getError();
+                const auto range = anchorCurveRange(curve);
+                for (const auto &existing : ranges) {
+                    if (rangesOverlap(*range, existing)) {
+                        return AutomationError::invalidArgument(
+                            QStringLiteral("curves.nodes.position"),
+                            QStringLiteral("Anchor curves must not overlap"));
+                    }
+                }
+                ranges.append(*range);
+            }
+            return AutomationUnit{};
         }
 
         AutomationResult<AutomationUnit>
@@ -414,6 +438,9 @@ namespace Automation {
                             QStringLiteral("Draw curve range exceeds the supported timeline")));
                     }
                 }
+                const auto anchorValidation = validateReplacementAnchorCurves(curves);
+                if (!anchorValidation)
+                    return AutomationResult<MutationResult>(anchorValidation.getError());
                 if (!validCurveValues(name, curves)) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
                         QStringLiteral("curves"),
