@@ -261,6 +261,37 @@ namespace {
                "the parameter editor must expose only its implemented delete command");
         expect(!EditorInteraction::supportsCommand(Target::None, Command::DeleteSelection),
                "a non-editor target must not expose edit commands");
+
+        const auto supportsNoCommands = [](const EditorViewGlobal::PianoRollEditMode mode) {
+            return !EditorInteraction::supportsCommand(Target::PianoRoll, Command::Cut, mode) &&
+                   !EditorInteraction::supportsCommand(Target::PianoRoll, Command::Copy, mode) &&
+                   !EditorInteraction::supportsCommand(Target::PianoRoll, Command::Paste, mode) &&
+                   !EditorInteraction::supportsCommand(Target::PianoRoll, Command::SelectAll,
+                                                       mode) &&
+                   !EditorInteraction::supportsCommand(Target::PianoRoll,
+                                                       Command::DeleteSelection, mode);
+        };
+        expect(supportsNoCommands(EditorViewGlobal::DrawPitch) &&
+                   supportsNoCommands(EditorViewGlobal::ErasePitch) &&
+                   supportsNoCommands(EditorViewGlobal::BakePitch),
+               "pitch drawing, erasing, and baking must reject note edit commands");
+        expect(!EditorInteraction::supportsCommand(Target::PianoRoll, Command::Cut,
+                                                   EditorViewGlobal::EditPitchAnchor) &&
+                   !EditorInteraction::supportsCommand(Target::PianoRoll, Command::Copy,
+                                                       EditorViewGlobal::EditPitchAnchor) &&
+                   !EditorInteraction::supportsCommand(Target::PianoRoll, Command::Paste,
+                                                       EditorViewGlobal::EditPitchAnchor) &&
+                   !EditorInteraction::supportsCommand(Target::PianoRoll, Command::SelectAll,
+                                                       EditorViewGlobal::EditPitchAnchor) &&
+                   EditorInteraction::supportsCommand(Target::PianoRoll,
+                                                      Command::DeleteSelection,
+                                                      EditorViewGlobal::EditPitchAnchor),
+               "pitch anchor editing must expose only anchor deletion");
+        expect(EditorInteraction::supportsCommand(Target::PianoRoll, Command::SelectAll,
+                                                  EditorViewGlobal::Select) &&
+                   EditorInteraction::supportsCommand(Target::PianoRoll, Command::Paste,
+                                                      EditorViewGlobal::DrawNote),
+               "note edit modes must retain piano-roll edit commands");
     }
 
     void testForwardingAndSnapshots(EditorViewController *controller) {
