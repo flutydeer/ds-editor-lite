@@ -2120,6 +2120,49 @@ int main(int argc, char *argv[]) {
         access.update(AutomationWire::ControlLevel::L3);
         verifyAdvancedGuiBindings(registry, runtime, *publicEditingFixture);
 
+        Automation::CurveDraftDto rangedAnchor;
+        rangedAnchor.type = Automation::CurveDraftDto::Type::Anchor;
+        rangedAnchor.nodes = {
+            {0,    6000, AnchorNode::Linear },
+            {500,  6100, AnchorNode::Hermite},
+            {1000, 6200, AnchorNode::Linear },
+        };
+        const auto seededParameter = runtime.parameters().replaceParameter(
+            Automation::CommandContext{
+                .expected = runtime.documentVersion(),
+                .source = Automation::InvocationSource::Test,
+            },
+            publicEditingFixture->scalarClipId, ParamInfo::Pitch, Param::Edited, {rangedAnchor});
+        const auto rangedParameter = registry.invoke(
+            QStringLiteral("parameters.get"),
+            QJsonObject{
+                {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()},
+                {QStringLiteral("clip_id"), publicEditingFixture->scalarClipId.value()          },
+                {QStringLiteral("name"), QStringLiteral("pitch")                               },
+                {QStringLiteral("layer"), QStringLiteral("edited")                             },
+                {QStringLiteral("range"),
+                 QJsonObject{
+                     {QStringLiteral("start"), 400},
+                     {QStringLiteral("end"),   600},
+                 }                                                                              },
+        });
+        QJsonArray rangedNodes;
+        if (rangedParameter) {
+            const auto curves = rangedParameter.get()
+                                    .value(QStringLiteral("snapshot"))
+                                    .toObject()
+                                    .value(QStringLiteral("curves"))
+                                    .toArray();
+            if (curves.size() == 1)
+                rangedNodes = curves.first().toObject().value(QStringLiteral("nodes")).toArray();
+        }
+        expect(seededParameter && rangedParameter && rangedNodes.size() == 3 &&
+                   rangedNodes.first().toObject().value(QStringLiteral("position")).toInt() == 0 &&
+                   rangedNodes.last().toObject().value(QStringLiteral("position")).toInt() ==
+                       1000,
+               QStringLiteral("a ranged parameter query must preserve each intersecting anchor "
+                              "curve as a complete shape"));
+
         auto *longClip = fixture.model().findClipById(publicEditingFixture->scalarClipId.value());
         if (longClip) {
             longClip->setStart(1);

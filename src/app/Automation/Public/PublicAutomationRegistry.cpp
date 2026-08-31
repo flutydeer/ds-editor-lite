@@ -1750,11 +1750,18 @@ namespace Automation {
                 auto result = curve;
                 if (curve.type == CurveDraftDto::Type::Anchor) {
                     if (range) {
-                        result.nodes.removeIf([&range](const AnchorNodeDraftDto &node) {
-                            return node.position < range->first || node.position >= range->second;
-                        });
+                        if (curve.nodes.isEmpty())
+                            continue;
+                        auto curveStart = curve.nodes.constFirst().position;
+                        auto curveEnd = curveStart;
+                        for (const auto &node : curve.nodes) {
+                            curveStart = std::min(curveStart, node.position);
+                            curveEnd = std::max(curveEnd, node.position);
+                        }
+                        if (curveEnd < range->first || curveStart >= range->second)
+                            continue;
                     }
-                    if (result.nodes.isEmpty())
+                    if (curve.nodes.isEmpty())
                         continue;
                     sourcePointCount += result.nodes.size();
                     anchorPointCount += result.nodes.size();
