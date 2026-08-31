@@ -17,6 +17,7 @@
 #include <QThreadPool>
 
 #include <algorithm>
+#include <memory>
 
 namespace Automation {
     namespace {
@@ -209,8 +210,9 @@ namespace Automation {
         services.resolveDocumentVoices = [manager](AppModel *model, const bool apply) {
             return resolveDocumentVoices(manager, model, apply);
         };
+        const auto refreshThreadPool = std::make_shared<QThreadPool>();
         services.refreshPackages =
-            [manager = QPointer<PackageManager>(manager), effectiveSearchPaths](
+            [manager = QPointer<PackageManager>(manager), effectiveSearchPaths, refreshThreadPool](
                 PackageRefreshCommitGate commitGate,
                 PackageRefreshCompletion completion) -> AutomationResult<AutomationUnit> {
             if (!completion) {
@@ -221,9 +223,9 @@ namespace Automation {
             if (!manager)
                 return packageRefreshError({GetInstalledPackagesErrorType::Unknown,
                                             QStringLiteral("Package manager is unavailable")});
-            QThreadPool::globalInstance()->start([manager, effectiveSearchPaths,
-                                                  commitGate = std::move(commitGate),
-                                                  completion = std::move(completion)]() mutable {
+            refreshThreadPool->start([manager, effectiveSearchPaths,
+                                      commitGate = std::move(commitGate),
+                                      completion = std::move(completion)]() mutable {
                 if (!manager) {
                     deliverRefreshResult(
                         std::move(completion),

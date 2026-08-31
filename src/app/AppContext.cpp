@@ -422,6 +422,9 @@ AppContext::~AppContext() {
     SingletonRegistry::destroy(m_clipboardController);
     SingletonRegistry::destroy(m_audioDecodingController);
 
+    // Runtime-owned workers must stop before the services they use are destroyed.
+    m_coreRuntime.reset();
+
     // L3
     SingletonRegistry::destroy(m_inferEngine);
     SingletonRegistry::destroy(m_synthrtEngine);
@@ -431,7 +434,6 @@ AppContext::~AppContext() {
 
     // L1 (reverse)
     SingletonRegistry::destroy(m_packageManager);
-    m_coreRuntime.reset();
     SingletonRegistry::destroy(m_historyManager);
 
     // L0 (reverse)
