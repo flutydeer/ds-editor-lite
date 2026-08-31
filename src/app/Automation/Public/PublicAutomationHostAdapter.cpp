@@ -28,6 +28,7 @@
 #include <QHash>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QMutex>
 #include <QPointer>
 #include <QSaveFile>
 #include <QSet>
@@ -64,7 +65,40 @@ namespace Automation {
             QJsonObject formatData;
         };
 
-        AutomationResult<PreparedAudioPath> prepareAudioPath(const QString &path) {
+        struct AudioPathPreparationControl {
+            std::atomic_bool cancelRequested{false};
+            QMutex taskMutex;
+            Task *activeTask = nullptr;
+        };
+
+        void cancelAudioPathPreparation(
+            const std::shared_ptr<AudioPathPreparationControl> &control) {
+            control->cancelRequested.store(true, std::memory_order_release);
+            const QMutexLocker locker(&control->taskMutex);
+            if (control->activeTask)
+                control->activeTask->terminate();
+        }
+
+        bool runAudioPathPreparationTask(
+            Task &task, const std::shared_ptr<AudioPathPreparationControl> &control) {
+            {
+                const QMutexLocker locker(&control->taskMutex);
+                if (control->cancelRequested.load(std::memory_order_acquire))
+                    return false;
+                control->activeTask = &task;
+            }
+            static_cast<QRunnable *>(&task)->run();
+            {
+                const QMutexLocker locker(&control->taskMutex);
+                control->activeTask = nullptr;
+            }
+            return !control->cancelRequested.load(std::memory_order_acquire);
+        }
+
+        AutomationResult<PreparedAudioPath> prepareAudioPath(
+            const QString &path, const std::shared_ptr<AudioPathPreparationControl> &control) {
+            if (control->cancelRequested.load(std::memory_order_acquire))
+                return audioPathPreparationError(QStringLiteral("Audio preparation canceled"));
             std::unique_ptr<DecodeAudioTask> probe(AudioFilePreparer::createPrepareTask(path));
             if (!probe || !probe->io) {
                 return audioPathPreparationError(
@@ -83,7 +117,8 @@ namespace Automation {
             auto hashTask = std::make_unique<ComputeAudioHashTask>();
             hashTask->path = path;
             hashTask->snapshotPath = snapshotPath;
-            static_cast<QRunnable *>(hashTask.get())->run();
+            if (!runAudioPathPreparationTask(*hashTask, control))
+                return audioPathPreparationError(QStringLiteral("Audio preparation canceled"));
             if (!hashTask->success || hashTask->resultSha512.isEmpty()) {
                 return audioPathPreparationError(QStringLiteral("Failed to compute audio hash"));
             }
@@ -93,7 +128,8 @@ namespace Automation {
             if (!decodeTask || !decodeTask->io)
                 return audioPathPreparationError(
                     QStringLiteral("Failed to open the audio snapshot"));
-            static_cast<QRunnable *>(decodeTask.get())->run();
+            if (!runAudioPathPreparationTask(*decodeTask, control))
+                return audioPathPreparationError(QStringLiteral("Audio preparation canceled"));
             if (!decodeTask->success || decodeTask->terminated())
                 return audioPathPreparationError(QStringLiteral("Audio decoding failed"));
             return PreparedAudioPath{hashTask->resultSha512, workspace};
@@ -1142,6 +1178,11 @@ namespace Automation {
                 : QObject(parent), m_runtime(runtime), m_request(std::move(request)) {
             }
 
+            ~HeadlessAudioPathUpdateTask() override {
+                cancelAudioPathPreparation(m_preparationControl);
+                m_threadPool.waitForDone();
+            }
+
             AutomationResult<TaskAcceptedResult> prepare() {
                 auto base = validateBase(m_runtime, m_request.command);
                 if (!base)
@@ -1160,20 +1201,17 @@ namespace Automation {
                 const auto task = m_runtime.automationTasks().createTask(
                     operationId, base.get(),
                     ObjectRef{ObjectKind::Clip, m_request.clipId.value()},
-                    [guard = QPointer<HeadlessAudioPathUpdateTask>(this)] {
-                        if (guard)
-                            guard->m_cancelRequested.store(true, std::memory_order_release);
-                    },
+                    [control = m_preparationControl] { cancelAudioPathPreparation(control); },
                     m_request.command.clientId);
                 m_taskId = task.taskId;
                 m_request.command.taskId = m_taskId;
                 if (!m_runtime.automationTasks().markRunning(m_taskId))
                     return AutomationError::taskNotFound(m_taskId);
 
-                QThreadPool::globalInstance()->start(
+                m_threadPool.start(
                     [guard = QPointer<HeadlessAudioPathUpdateTask>(this),
-                     path = m_request.canonicalPath] {
-                        auto prepared = prepareAudioPath(path);
+                     path = m_request.canonicalPath, control = m_preparationControl] {
+                        auto prepared = prepareAudioPath(path, control);
                         if (!guard)
                             return;
                         QMetaObject::invokeMethod(
@@ -1215,7 +1253,7 @@ namespace Automation {
             }
 
             void finish(AutomationResult<PreparedAudioPath> prepared) {
-                if (m_cancelRequested.load(std::memory_order_acquire) ||
+                if (m_preparationControl->cancelRequested.load(std::memory_order_acquire) ||
                     m_runtime.automationTasks().isCancellationRequested(m_taskId)) {
                     m_runtime.automationTasks().cancel(m_taskId);
                     deleteLater();
@@ -1254,7 +1292,9 @@ namespace Automation {
             CoreRuntime &m_runtime;
             PublicAudioPathUpdateRequest m_request;
             TaskId m_taskId;
-            std::atomic_bool m_cancelRequested{false};
+            std::shared_ptr<AudioPathPreparationControl> m_preparationControl =
+                std::make_shared<AudioPathPreparationControl>();
+            QThreadPool m_threadPool;
         };
 
         AutomationResult<TaskAcceptedResult>
