@@ -69,11 +69,14 @@ public:
                                EditorInteraction::Target target);
     void unregisterInteractionArea(QObject *area);
     [[nodiscard]] EditorInteraction::Target activeEditTarget() const;
+    void syncPianoRollEditMode(EditorViewGlobal::PianoRollEditMode mode);
+    [[nodiscard]] bool supportsEditCommand(EditorInteraction::Command command) const;
     void requestEditCommand(EditorInteraction::Command command);
 
 signals:
     void activePanelChanged(AppGlobal::PanelType panel);
     void activeEditTargetChanged(EditorInteraction::Target target);
+    void editCommandCapabilitiesChanged();
     void editCommandRequested(EditorInteraction::Target target, EditorInteraction::Command command);
 
 private:
@@ -114,6 +117,7 @@ private:
     AppGlobal::PanelType m_activePanel = AppGlobal::TracksEditor;
     EditorInteraction::Target m_activeEditTarget = EditorInteraction::Target::Tracks;
     EditorInteraction::Target m_lastClipEditTarget = EditorInteraction::Target::PianoRoll;
+    EditorViewGlobal::PianoRollEditMode m_pianoRollEditMode = EditorViewGlobal::Select;
 };
 
 #endif // EDITORVIEWCONTROLLER_H

@@ -272,6 +272,7 @@ void PianoRollView::setDataContext(SingingClip *clip) const {
 
 void PianoRollView::onEditModeChanged(const PianoRollEditMode mode) const {
     m_editMode = mode;
+    editorViewController->syncPianoRollEditMode(mode);
     if (m_rhiView)
         m_rhiView->setEditMode(mode);
     else

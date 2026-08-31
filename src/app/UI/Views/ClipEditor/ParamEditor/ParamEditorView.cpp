@@ -77,6 +77,7 @@ ParamEditorView::ParamEditorView(QWidget *parent) : QWidget(parent) {
 
     m_emptyState = new QWidget(m_graphicsView->viewport());
     m_emptyState->setObjectName("speakerMixEmptyState");
+    m_emptyState->setAttribute(Qt::WA_NoMousePropagation);
     m_emptyState->setAttribute(Qt::WA_StyledBackground);
     m_emptyState->setVisible(false);
 

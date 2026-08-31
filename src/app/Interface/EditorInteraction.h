@@ -2,6 +2,7 @@
 #define EDITORINTERACTION_H
 
 #include "Global/AppGlobal.h"
+#include "Interface/EditorViewState.h"
 
 namespace EditorInteraction {
 
@@ -14,6 +15,17 @@ namespace EditorInteraction {
         if (target == Target::Parameters)
             return command == Command::DeleteSelection;
         return target == Target::Tracks || target == Target::PianoRoll;
+    }
+
+    [[nodiscard]] constexpr bool
+        supportsCommand(const Target target, const Command command,
+                        const EditorViewGlobal::PianoRollEditMode pianoRollEditMode) noexcept {
+        if (!supportsCommand(target, command))
+            return false;
+        if (target != Target::PianoRoll || !EditorViewGlobal::isPitchEditMode(pianoRollEditMode))
+            return true;
+        return pianoRollEditMode == EditorViewGlobal::EditPitchAnchor &&
+               command == Command::DeleteSelection;
     }
 
     [[nodiscard]] constexpr Target

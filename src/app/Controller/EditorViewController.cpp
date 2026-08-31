@@ -394,7 +394,23 @@ EditorInteraction::Target EditorViewController::activeEditTarget() const {
     return m_activeEditTarget;
 }
 
+void EditorViewController::syncPianoRollEditMode(
+    const EditorViewGlobal::PianoRollEditMode mode) {
+    if (m_pianoRollEditMode == mode)
+        return;
+    m_pianoRollEditMode = mode;
+    emit editCommandCapabilitiesChanged();
+}
+
+bool EditorViewController::supportsEditCommand(const EditorInteraction::Command command) const {
+    if (m_activeEditTarget == EditorInteraction::Target::PianoRoll)
+        return EditorInteraction::supportsCommand(m_activeEditTarget, command, m_pianoRollEditMode);
+    return EditorInteraction::supportsCommand(m_activeEditTarget, command);
+}
+
 void EditorViewController::requestEditCommand(const EditorInteraction::Command command) {
+    if (!supportsEditCommand(command))
+        return;
     emit editCommandRequested(m_activeEditTarget, command);
 }
 
