@@ -273,8 +273,9 @@ namespace {
         };
         expect(supportsNoCommands(EditorViewGlobal::DrawPitch) &&
                    supportsNoCommands(EditorViewGlobal::ErasePitch) &&
-                   supportsNoCommands(EditorViewGlobal::BakePitch),
-               "pitch drawing, erasing, and baking must reject note edit commands");
+                   supportsNoCommands(EditorViewGlobal::BakePitch) &&
+                   supportsNoCommands(EditorViewGlobal::ModulatePitch),
+               "pitch drawing, erasing, baking, and modulation must reject note edit commands");
         expect(!EditorInteraction::supportsCommand(Target::PianoRoll, Command::Cut,
                                                    EditorViewGlobal::EditPitchAnchor) &&
                    !EditorInteraction::supportsCommand(Target::PianoRoll, Command::Copy,
@@ -324,8 +325,17 @@ namespace {
         controller->requestEditCommand(EditorInteraction::Command::DeleteSelection);
         expect(commandCount == 1, "pitch drawing must not dispatch note edit commands");
 
-        controller->syncPianoRollEditMode(EditorViewGlobal::EditPitchAnchor);
+        controller->syncPianoRollEditMode(EditorViewGlobal::ModulatePitch);
         expect(capabilityChangeCount == 2 &&
+                   !controller->supportsEditCommand(EditorInteraction::Command::SelectAll) &&
+                   !controller->supportsEditCommand(EditorInteraction::Command::DeleteSelection),
+               "entering pitch modulation must publish disabled note command capabilities");
+        controller->requestEditCommand(EditorInteraction::Command::SelectAll);
+        controller->requestEditCommand(EditorInteraction::Command::DeleteSelection);
+        expect(commandCount == 1, "pitch modulation must not dispatch note edit commands");
+
+        controller->syncPianoRollEditMode(EditorViewGlobal::EditPitchAnchor);
+        expect(capabilityChangeCount == 3 &&
                    controller->supportsEditCommand(EditorInteraction::Command::DeleteSelection),
                "pitch anchor mode must publish anchor deletion capability");
         controller->requestEditCommand(EditorInteraction::Command::DeleteSelection);
