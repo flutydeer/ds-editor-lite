@@ -179,7 +179,8 @@ namespace {
         shape.beginSelection(0);
         ok &= expect(shape.finishSelection(15), "shape selection succeeds");
         ok &= expect(shape.beginTransform(), "shape transform starts");
-        ok &= expect(!shape.hasEffectiveChange(), "one hundred percent is a no-op");
+        ok &= expect(shape.hasEffectiveChange(),
+                     "one hundred percent can materialize Original as Edited");
         shape.updateTransform(100.0);
         auto preview = shape.buildEditedPreview();
         ok &= expect(valueAt(preview, 5) == 500, "zero percent shape produces endpoint line");
@@ -213,6 +214,15 @@ namespace {
         preview = scale.buildEditedPreview();
         ok &= expect(valueAt(preview, 15) == 1000, "scale clamps at visual upper bound");
         qDeleteAll(preview);
+
+        auto editedSource = curve(0, {250, 750});
+        Session unchanged;
+        unchanged.setSource({}, {&editedSource}, scaleConfig);
+        unchanged.beginSelection(0);
+        ok &= expect(unchanged.finishSelection(10), "edited-only selection succeeds");
+        ok &= expect(unchanged.beginTransform(), "edited-only transform starts");
+        ok &= expect(!unchanged.hasEffectiveChange(),
+                     "identical Edited output does not create a commit");
         return ok;
     }
 

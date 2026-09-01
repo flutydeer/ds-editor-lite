@@ -67,6 +67,16 @@ namespace {
             curve->setValues(values);
         }
     }
+
+    bool curvesEqual(const QList<DrawCurve *> &left, const QList<DrawCurve *> &right) {
+        if (left.size() != right.size())
+            return false;
+        for (int i = 0; i < left.size(); ++i) {
+            if (*left.at(i) != *right.at(i))
+                return false;
+        }
+        return true;
+    }
 }
 
 namespace CurveTransform {
@@ -261,12 +271,10 @@ namespace CurveTransform {
     bool Session::hasEffectiveChange() const {
         if (m_phase != Phase::Transforming || !m_bounds.isValid() || m_selectedComponent < 0)
             return false;
-        const auto &component = m_components.at(m_selectedComponent);
-        for (auto tick = m_bounds.c; tick < m_bounds.d; tick += SampleStep) {
-            if (transformedValueAt(tick) != component.valueAt(tick))
-                return true;
-        }
-        return false;
+        auto preview = buildEditedPreview();
+        const auto changed = !curvesEqual(m_editedSnapshot, preview);
+        qDeleteAll(preview);
+        return changed;
     }
 
     int Session::Component::endTick() const {
