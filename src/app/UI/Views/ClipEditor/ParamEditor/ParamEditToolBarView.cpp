@@ -56,18 +56,30 @@ ParamEditToolBarView::ParamEditToolBarView(QWidget *parent) : QWidget(parent) {
     retranslateUi();
 }
 
+void ParamEditToolBarView::setParameter(const ParamInfo::Name parameter) {
+    bool resetEditMode = false;
+    for (auto *button : m_editModeGroup->buttons()) {
+        const auto mode = static_cast<ParamEditorEditMode>(m_editModeGroup->id(button));
+        const bool visible = isParamEditorEditModeVisible(mode, parameter);
+        button->setVisible(visible);
+        resetEditMode = resetEditMode || (button->isChecked() && !visible);
+    }
+    if (resetEditMode)
+        m_btnDraw->setChecked(true);
+}
+
 ParamEditorEditMode ParamEditToolBarView::editMode() const {
     return static_cast<ParamEditorEditMode>(m_editModeGroup->checkedId());
 }
 
 bool ParamEditToolBarView::supportsEditMode(const ParamEditorEditMode mode) const {
     const auto *button = m_editModeGroup->button(static_cast<int>(mode));
-    return button && button->isEnabled();
+    return button && !button->isHidden();
 }
 
 bool ParamEditToolBarView::setEditMode(const ParamEditorEditMode mode) {
     auto *button = m_editModeGroup->button(static_cast<int>(mode));
-    if (!button || !button->isEnabled())
+    if (!button || button->isHidden())
         return false;
     button->setChecked(true);
     return true;

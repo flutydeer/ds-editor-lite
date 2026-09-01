@@ -50,6 +50,7 @@ private slots:
 
 private:
     void changeEvent(QEvent *event) override;
+    void refreshEditModeVisibility();
     void retranslateUi();
 
     SingingClip *m_clip = nullptr;
