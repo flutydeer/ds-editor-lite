@@ -281,18 +281,13 @@ namespace {
         shape.beginSelection(0);
         ok &= expect(shape.finishSelection(15), "out-of-range decibel selection succeeds");
         auto preview = shape.buildEditedPreview();
-        ok &= expect(valueAt(preview, 0) == -120000 && valueAt(preview, 10) == 12000,
-                     "one hundred percent preserves out-of-range source samples");
-        qDeleteAll(preview);
-        ok &= expect(shape.beginTransform(), "out-of-range decibel shape starts");
-        ok &= expect(!shape.hasEffectiveChange(),
-                     "one hundred percent out-of-range shape remains a no-op");
-        shape.updateTransform(100.0);
-        preview = shape.buildEditedPreview();
         ok &= expect(valueAt(preview, 0) == decibel.minimum &&
                          valueAt(preview, 10) == decibel.maximum,
                      "shape clamps out-of-range source and endpoint samples before mapping");
         qDeleteAll(preview);
+        ok &= expect(shape.beginTransform(), "out-of-range decibel shape starts");
+        ok &= expect(shape.hasEffectiveChange(),
+                     "neutral factor can commit normalization changes");
 
         TensionParamProperties tension;
         auto tensionSource = curve(0, {-12000, 12000, 0});
@@ -303,10 +298,6 @@ namespace {
         scale.setSource({&tensionSource}, {}, scaleConfig);
         scale.beginSelection(0);
         ok &= expect(scale.finishSelection(10), "out-of-range tension selection succeeds");
-        ok &= expect(scale.beginTransform(), "out-of-range tension scale starts");
-        ok &= expect(!scale.hasEffectiveChange(),
-                     "one hundred percent out-of-range scale remains a no-op");
-        scale.updateTransform(-100.0);
         preview = scale.buildEditedPreview();
         ok &= expect(valueAt(preview, 0) == tension.minimum &&
                          valueAt(preview, 5) == tension.maximum,

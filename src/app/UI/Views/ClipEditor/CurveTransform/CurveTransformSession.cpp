@@ -368,8 +368,6 @@ namespace CurveTransform {
         const auto &component = m_components.at(m_selectedComponent);
         const auto source = component.valueAt(tick);
         const auto lambda = factorAt(tick, m_bounds, m_factor);
-        if (lambda == 1.0)
-            return source;
         if (m_config.kind == Kind::ModulatePitch) {
             const auto baseline = m_config.pitchBaselineAtTick
                                       ? m_config.pitchBaselineAtTick(tick).value_or(source)
