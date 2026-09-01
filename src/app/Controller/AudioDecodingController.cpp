@@ -4,6 +4,7 @@
 #include <QTimer>
 
 #include <optional>
+#include <utility>
 
 #include <TalcsFormat/FormatManager.h>
 
@@ -18,7 +19,6 @@
 #include <lite/Tasking/TaskManager.h>
 #include "Tasks/DecodeAudioTask.h"
 #include "Tasks/ResolveAudioPathTask.h"
-#include <lite/GUI/Controls/Toast.h>
 
 namespace {
     Automation::CoreRuntime *automationRuntime() {
@@ -30,7 +30,7 @@ namespace {
         return {
             .expected = document,
             .validateOnly = validateOnly,
-            .source = Automation::InvocationSource::TrustedGui,
+            .source = Automation::InvocationSource::InternalAutomation,
         };
     }
 
@@ -56,6 +56,12 @@ AudioDecodingController::~AudioDecodingController() = default;
 
 LITE_SINGLETON_IMPLEMENT_INSTANCE(AudioDecodingController)
 
+void AudioDecodingController::setGuiServices(DocumentWorkflowController *workflow,
+                                             std::function<void(const QString &)> notifier) {
+    m_documentWorkflow = workflow;
+    m_notifier = std::move(notifier);
+}
+
 void AudioDecodingController::onModelChanged() {
     // Terminate all decoding tasks
     for (const auto task : m_tasks) {
@@ -79,10 +85,8 @@ void AudioDecodingController::onModelChanged() {
         }
     }
 
-    // Defer resolving and decoding until the current event loop iteration ends:
-    // in commitReplace, replaceProject (which emits modelChanged) runs before
-    // updateProjectIdentity, so documentWorkflowController->projectPath() is not yet updated at
-    // that point; projectPath only becomes available after commitReplace has fully completed
+    // Document identity is committed after the model replacement signal, so defer until the
+    // current event-loop iteration finishes before resolving project-relative audio paths.
     const auto modelChangeEpoch = ++m_modelChangeEpoch;
     QTimer::singleShot(0, this, [this, modelChangeEpoch] {
         if (modelChangeEpoch == m_modelChangeEpoch)
@@ -212,7 +216,7 @@ void AudioDecodingController::createAndStartResolveTask(AudioClip *clip) {
     resolveTask->relativeDir = resolveTask->assetSnapshot.pathInfo.relativeDir;
     resolveTask->fileName = QFileInfo(resolveTask->assetSnapshot.path).fileName();
     resolveTask->expectedSha512 = resolveTask->assetSnapshot.pathInfo.sha512;
-    const auto projectPath = documentWorkflowController->projectPath();
+    const auto projectPath = runtime->documentPath();
     resolveTask->projectDir =
         projectPath.isEmpty() ? QString{} : QFileInfo(projectPath).absolutePath();
     const auto automationTask = runtime->automationTasks().createTask(
@@ -231,7 +235,7 @@ void AudioDecodingController::createAndStartResolveTask(AudioClip *clip) {
 
 void AudioDecodingController::handleResolveTaskFinished(ResolveAudioPathTask *task) {
     if (DocumentTaskCompletion::deferCompletionWhileDocumentBusy(
-            automationRuntime(), documentWorkflowController, task, this,
+            automationRuntime(), m_documentWorkflow.data(), task, this,
             [this](ResolveAudioPathTask *deferredTask) {
                 handleResolveTaskFinished(deferredTask);
             }))
@@ -259,7 +263,7 @@ void AudioDecodingController::handleResolveTaskFinished(ResolveAudioPathTask *ta
         return;
     }
 
-    const auto currentProjectPath = documentWorkflowController->projectPath();
+    const auto currentProjectPath = runtime->documentPath();
     const auto currentProjectDir =
         currentProjectPath.isEmpty() ? QString{} : QFileInfo(currentProjectPath).absolutePath();
     auto *currentClip = currentGeneration ? appModel->findClipById(task->clipId) : nullptr;
@@ -386,8 +390,9 @@ void AudioDecodingController::finishResolveIfSessionDone() {
     if (m_missingClipIds.isEmpty() && m_unconfirmedClipIds.isEmpty() && m_autoRelocatedCount == 0)
         return;
 
-    if (m_missingClipIds.isEmpty() && m_unconfirmedClipIds.isEmpty())
-        Toast::show(tr("%L1 audio file(s) relocated automatically").arg(m_autoRelocatedCount));
+    if (m_missingClipIds.isEmpty() && m_unconfirmedClipIds.isEmpty() && m_notifier) {
+        m_notifier(tr("%L1 audio file(s) relocated automatically").arg(m_autoRelocatedCount));
+    }
 
     emit resolveSessionFinished(m_missingClipIds, m_unconfirmedClipIds, m_autoRelocatedCount);
     m_missingClipIds.clear();
@@ -442,7 +447,7 @@ void AudioDecodingController::resolveMissingClipsNear(const QString &filePath) {
 
 void AudioDecodingController::handleCascadeResolveTaskFinished(ResolveAudioPathTask *task) {
     if (DocumentTaskCompletion::deferCompletionWhileDocumentBusy(
-            automationRuntime(), documentWorkflowController, task, this,
+            automationRuntime(), m_documentWorkflow.data(), task, this,
             [this](ResolveAudioPathTask *deferredTask) {
                 handleCascadeResolveTaskFinished(deferredTask);
             }))
@@ -504,7 +509,7 @@ void AudioDecodingController::handleCascadeResolveTaskFinished(ResolveAudioPathT
 
 void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task) {
     if (DocumentTaskCompletion::deferCompletionWhileDocumentBusy(
-            automationRuntime(), documentWorkflowController, task, this,
+            automationRuntime(), m_documentWorkflow.data(), task, this,
             [this](DecodeAudioTask *deferredTask) { handleTaskFinished(deferredTask); }))
         return;
 
@@ -574,7 +579,8 @@ void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task) {
                 .message = task->errorMessage,
                 .operationId = Automation::OperationIds::audio_clips::apply_decode_cache,
             });
-        Toast::show(tr("Failed to open audio file: %1").arg(task->path));
+        if (m_notifier)
+            m_notifier(tr("Failed to open audio file: %1").arg(task->path));
 
         delete task;
         return;

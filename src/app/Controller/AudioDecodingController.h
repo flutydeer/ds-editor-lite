@@ -8,9 +8,13 @@
 #include <lite/ProjectModel/AppModel/Track.h>
 
 #include <QObject>
+#include <QPointer>
+
+#include <functional>
 
 class AudioClip;
 class DecodeAudioTask;
+class DocumentWorkflowController;
 class ResolveAudioPathTask;
 
 class AudioDecodingController final : public QObject {
@@ -23,6 +27,9 @@ private:
 public:
     LITE_SINGLETON_DECLARE_INSTANCE(AudioDecodingController)
     Q_DISABLE_COPY_MOVE(AudioDecodingController)
+
+    void setGuiServices(DocumentWorkflowController *workflow,
+                        std::function<void(const QString &)> notifier = {});
 
 public slots:
     void onModelChanged();
@@ -62,6 +69,8 @@ private:
     QList<int> m_unconfirmedClipIds;
     int m_autoRelocatedCount = 0;
     quint64 m_modelChangeEpoch = 0;
+    QPointer<DocumentWorkflowController> m_documentWorkflow;
+    std::function<void(const QString &)> m_notifier;
 
     void startDecodingOrResolving(AudioClip *clip, bool forceDecode);
     void createAndStartTask(AudioClip *clip);
