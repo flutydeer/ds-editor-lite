@@ -18,6 +18,7 @@
 #include <QThread>
 #include <QTimer>
 
+#include <stdexcept>
 #include <utility>
 
 namespace {
@@ -143,6 +144,13 @@ namespace {
         request.setRawHeader("Mcp-Method", method.toLatin1());
         if (!name.isEmpty())
             request.setRawHeader("Mcp-Name", Mcp::encodeHeaderValue(name).toLatin1());
+        return request;
+    }
+
+    QNetworkRequest nativeRequest(const QUrl &url) {
+        QNetworkRequest request(url);
+        request.setRawHeader("Content-Type", "application/json; charset=utf-8");
+        request.setRawHeader("Accept", "application/json");
         return request;
     }
 
@@ -506,9 +514,8 @@ int main(int argc, char *argv[]) {
                !compatibilityInitializePayload.contains(QStringLiteral("resultType")) &&
                !compatibilityInitializeResult.sessionId.isEmpty(),
            QStringLiteral("MCP 2025-06-18 initialize must echo the requested supported version"));
-    const auto compatibilityInitialized =
-        Mcp::makeRequest(QString::fromLatin1(Mcp::InitializedNotification), {},
-                         compatibilityContext);
+    const auto compatibilityInitialized = Mcp::makeRequest(
+        QString::fromLatin1(Mcp::InitializedNotification), {}, compatibilityContext);
     const auto compatibilityInitializedResult =
         send(manager,
              legacyRequest(endpoint, true, Mcp::CompatibilityProtocolVersion,
@@ -552,11 +559,10 @@ int main(int argc, char *argv[]) {
     const auto repeatedRetirement = send(manager, deleteSessionRequest, {}, HttpMethod::Delete);
     expect(retiredSession.status == 204 && repeatedRetirement.status == 404,
            QStringLiteral("DELETE /mcp must retire one known legacy session exactly once"));
-    const auto retiredSessionRequest =
-        send(manager,
-             legacyRequest(endpoint, true, Mcp::LegacyProtocolVersion,
-                           thirdInitializeResult.sessionId),
-             QJsonDocument(legacyPing).toJson(QJsonDocument::Compact));
+    const auto retiredSessionRequest = send(
+        manager,
+        legacyRequest(endpoint, true, Mcp::LegacyProtocolVersion, thirdInitializeResult.sessionId),
+        QJsonDocument(legacyPing).toJson(QJsonDocument::Compact));
     expect(retiredSessionRequest.status == 404,
            QStringLiteral("retired legacy sessions must not dispatch later requests"));
 
@@ -857,6 +863,275 @@ int main(int argc, char *argv[]) {
     expect(!server.isListening() && server.endpoint().isEmpty(),
            QStringLiteral("stopping the MCP server must release its endpoint"));
 
+    Automation::McpHttpLimits dualProtocolLimits;
+    dualProtocolLimits.maximumRequestBytes = 1024;
+    dualProtocolLimits.maximumJsonDepth = 16;
+    dualProtocolLimits.maximumJsonNodes = 128;
+    Automation::McpHttpServer dualProtocolServer(
+        &application,
+        Automation::McpHttpServer::RequestHandler(
+            [&](const Mcp::RequestEnvelope &request, const QString &) {
+                return Mcp::makeResultResponse(request.id, Mcp::makeDiscoverResult(serverInfo),
+                                               serverInfo, request.protocolVersion);
+            }),
+        Automation::McpHttpServer::NativeRequestHandler([](const QJsonValue &message,
+                                                           const QString &clientId) {
+            if (!message.isObject()) {
+                return QJsonObject{
+                    {QStringLiteral("jsonrpc"), QStringLiteral("2.0")       },
+                    {QStringLiteral("id"),      QJsonValue(QJsonValue::Null)},
+                    {QStringLiteral("error"),
+                     QJsonObject{
+                         {QStringLiteral("code"), -32600},
+                         {QStringLiteral("message"), QStringLiteral("Invalid Request")},
+                     }                                                      },
+                };
+            }
+            const auto request = message.toObject();
+            const auto method = request.value(QStringLiteral("method")).toString();
+            if (method == QStringLiteral("test.throw"))
+                throw std::runtime_error("native handler failure");
+            if (method == QStringLiteral("test.invalid_response")) {
+                return QJsonObject{
+                    {QStringLiteral("jsonrpc"), QStringLiteral("2.0")     },
+                    {QStringLiteral("id"),      QStringLiteral("wrong-id")},
+                    {QStringLiteral("result"),  QJsonObject{}             },
+                };
+            }
+            return QJsonObject{
+                {QStringLiteral("jsonrpc"), QStringLiteral("2.0")              },
+                {QStringLiteral("id"),      request.value(QStringLiteral("id"))},
+                {QStringLiteral("result"),
+                 QJsonObject{
+                     {QStringLiteral("params"), request.value(QStringLiteral("params")).toObject()},
+                     {QStringLiteral("client_id_present"), !clientId.isEmpty()},
+                 }                                                             },
+            };
+        }),
+        dualProtocolLimits);
+    QString dualProtocolError;
+    expect(dualProtocolServer.start(0, {.mcp = true, .native = true}, dualProtocolError),
+           QStringLiteral("the shared MCP/Native server must start: %1").arg(dualProtocolError));
+    expect(!dualProtocolServer.endpoint().isEmpty() &&
+               !dualProtocolServer.nativeEndpoint().isEmpty(),
+           QStringLiteral("both routes must share one listener when enabled"));
+
+    const auto nativeCall = QJsonObject{
+        {QStringLiteral("jsonrpc"), QStringLiteral("2.0")                       },
+        {QStringLiteral("id"),      7                                           },
+        {QStringLiteral("method"),  QStringLiteral("application.get_status")    },
+        {QStringLiteral("params"),  QJsonObject{{QStringLiteral("probe"), true}}},
+    };
+    const auto nativeResult =
+        send(manager, nativeRequest(QUrl(dualProtocolServer.nativeEndpoint())),
+             QJsonDocument(nativeCall).toJson(QJsonDocument::Compact));
+    const auto nativeResultBody = bodyObject(nativeResult);
+    expect(nativeResult.status == 200 &&
+               nativeResultBody.value(QStringLiteral("result"))
+                   .toObject()
+                   .value(QStringLiteral("params"))
+                   .toObject()
+                   .value(QStringLiteral("probe"))
+                   .toBool() &&
+               nativeResultBody.value(QStringLiteral("result"))
+                   .toObject()
+                   .value(QStringLiteral("client_id_present"))
+                   .toBool(),
+           QStringLiteral(
+               "Native requests must return direct JSON-RPC results on the shared listener"));
+    const auto malformedNative =
+        send(manager, nativeRequest(QUrl(dualProtocolServer.nativeEndpoint())), "{");
+    expect(malformedNative.status == 200 && jsonRpcErrorCode(malformedNative) == -32700,
+           QStringLiteral("malformed Native JSON must return a JSON-RPC parse error"));
+    const auto nativeBatch =
+        send(manager, nativeRequest(QUrl(dualProtocolServer.nativeEndpoint())), "[]");
+    expect(nativeBatch.status == 200 && jsonRpcErrorCode(nativeBatch) == -32600,
+           QStringLiteral("Native JSON-RPC batches must be rejected as Invalid Request"));
+    const auto nativeGet = send(manager, nativeRequest(QUrl(dualProtocolServer.nativeEndpoint())),
+                                {}, HttpMethod::Get);
+    expect(nativeGet.status == 405,
+           QStringLiteral("the Native endpoint must reject non-POST methods"));
+
+    auto rejectedAcceptRequest = nativeRequest(QUrl(dualProtocolServer.nativeEndpoint()));
+    rejectedAcceptRequest.setRawHeader("Accept", "*/*;q=1, application/json;q=0");
+    const auto rejectedNativeAccept =
+        send(manager, std::move(rejectedAcceptRequest),
+             QJsonDocument(nativeCall).toJson(QJsonDocument::Compact));
+    expect(rejectedNativeAccept.status == 406,
+           QStringLiteral("an exact application/json q=0 must override wildcard acceptance"));
+
+    auto rejectedNativeContentType = nativeRequest(QUrl(dualProtocolServer.nativeEndpoint()));
+    rejectedNativeContentType.setRawHeader("Content-Type", "text/plain");
+    const auto wrongNativeContentType =
+        send(manager, std::move(rejectedNativeContentType),
+             QJsonDocument(nativeCall).toJson(QJsonDocument::Compact));
+    expect(wrongNativeContentType.status == 415,
+           QStringLiteral("Native requests must require JSON content"));
+
+    const auto oversizedNativeRequest =
+        send(manager, nativeRequest(QUrl(dualProtocolServer.nativeEndpoint())),
+             QByteArray(dualProtocolLimits.maximumRequestBytes + 1, 'x'));
+    expect(oversizedNativeRequest.status == 413,
+           QStringLiteral("Native request bodies above the configured limit must be rejected"));
+
+    QJsonArray nativeNested;
+    for (int depth = 0; depth < 20; ++depth) {
+        QJsonArray wrapper;
+        wrapper.append(nativeNested);
+        nativeNested = std::move(wrapper);
+    }
+    auto deepNativeCall = nativeCall;
+    deepNativeCall.insert(QStringLiteral("params"), QJsonObject{
+                                                        {QStringLiteral("nested"), nativeNested}
+    });
+    const auto deepNativeResult =
+        send(manager, nativeRequest(QUrl(dualProtocolServer.nativeEndpoint())),
+             QJsonDocument(deepNativeCall).toJson(QJsonDocument::Compact));
+    expect(deepNativeResult.status == 200 && jsonRpcErrorCode(deepNativeResult) == -32600,
+           QStringLiteral("Native JSON depth must be bounded before dispatch"));
+
+    QJsonArray nativeNodes;
+    for (int index = 0; index < 140; ++index)
+        nativeNodes.append(index);
+    auto nodeHeavyNativeCall = nativeCall;
+    nodeHeavyNativeCall.insert(QStringLiteral("params"),
+                               QJsonObject{
+                                   {QStringLiteral("nodes"), nativeNodes}
+    });
+    const auto nodeHeavyNativeResult =
+        send(manager, nativeRequest(QUrl(dualProtocolServer.nativeEndpoint())),
+             QJsonDocument(nodeHeavyNativeCall).toJson(QJsonDocument::Compact));
+    expect(nodeHeavyNativeResult.status == 200 && jsonRpcErrorCode(nodeHeavyNativeResult) == -32600,
+           QStringLiteral("Native JSON node counts must be bounded before dispatch"));
+
+    auto exceptionalNativeCall = nativeCall;
+    exceptionalNativeCall.insert(QStringLiteral("id"), QStringLiteral("native-throw-id"));
+    exceptionalNativeCall.insert(QStringLiteral("method"), QStringLiteral("test.throw"));
+    const auto exceptionalNative =
+        send(manager, nativeRequest(QUrl(dualProtocolServer.nativeEndpoint())),
+             QJsonDocument(exceptionalNativeCall).toJson(QJsonDocument::Compact));
+    const auto exceptionalNativeBody = bodyObject(exceptionalNative);
+    expect(exceptionalNative.status == 200 && jsonRpcErrorCode(exceptionalNative) == -32603 &&
+               exceptionalNativeBody.value(QStringLiteral("id")).toString() ==
+                   QStringLiteral("native-throw-id"),
+           QStringLiteral("Native handler exceptions must preserve a valid request id"));
+
+    auto invalidNativeResponseCall = nativeCall;
+    invalidNativeResponseCall.insert(QStringLiteral("id"), QStringLiteral("native-invalid-id"));
+    invalidNativeResponseCall.insert(QStringLiteral("method"),
+                                     QStringLiteral("test.invalid_response"));
+    const auto invalidNativeResponse =
+        send(manager, nativeRequest(QUrl(dualProtocolServer.nativeEndpoint())),
+             QJsonDocument(invalidNativeResponseCall).toJson(QJsonDocument::Compact));
+    const auto invalidNativeResponseBody = bodyObject(invalidNativeResponse);
+    expect(invalidNativeResponse.status == 200 &&
+               jsonRpcErrorCode(invalidNativeResponse) == -32603 &&
+               invalidNativeResponseBody.value(QStringLiteral("id")).toString() ==
+                   QStringLiteral("native-invalid-id"),
+           QStringLiteral("invalid Native handler envelopes must fail closed with the request id"));
+
+    const auto dualMcpCall =
+        requestObject(QString::fromLatin1(Mcp::DiscoverMethod), QStringLiteral("dual-mcp"));
+    const auto dualMcpResult = send(
+        manager,
+        baseRequest(QUrl(dualProtocolServer.endpoint()), QString::fromLatin1(Mcp::DiscoverMethod)),
+        QJsonDocument(dualMcpCall).toJson(QJsonDocument::Compact));
+    expect(dualMcpResult.status == 200,
+           QStringLiteral("the MCP route must remain usable beside the Native route"));
+
+    const auto sharedPort = dualProtocolServer.port();
+    const auto sharedNativeEndpoint = dualProtocolServer.nativeEndpoint();
+    const auto sharedMcpEndpoint = dualProtocolServer.endpoint();
+    const auto dualLegacyInitialize =
+        Mcp::makeInitializeRequest(legacyContext, QStringLiteral("dual-route-init"));
+    const auto dualLegacyInitializeResult =
+        send(manager, legacyRequest(QUrl(sharedMcpEndpoint), false),
+             QJsonDocument(dualLegacyInitialize).toJson(QJsonDocument::Compact));
+    expect(dualLegacyInitializeResult.status == 200 &&
+               !dualLegacyInitializeResult.sessionId.isEmpty(),
+           QStringLiteral("the route-update fixture must establish a legacy MCP session"));
+    QString routeUpdateError;
+    expect(dualProtocolServer.setRoutes({.mcp = false, .native = true}, routeUpdateError),
+           QStringLiteral("the MCP route must be disabled without rebinding: %1")
+               .arg(routeUpdateError));
+    expect(dualProtocolServer.port() == sharedPort &&
+               dualProtocolServer.nativeEndpoint() == sharedNativeEndpoint &&
+               dualProtocolServer.endpoint().isEmpty(),
+           QStringLiteral("disabling MCP must preserve the Native listener and endpoint"));
+    const auto disabledMcp = send(
+        manager, baseRequest(QUrl(sharedMcpEndpoint), QString::fromLatin1(Mcp::DiscoverMethod)),
+        QJsonDocument(dualMcpCall).toJson(QJsonDocument::Compact));
+    expect(disabledMcp.status == 404 &&
+               bodyObject(disabledMcp)
+                       .value(QStringLiteral("error"))
+                       .toObject()
+                       .value(QStringLiteral("code")) == QStringLiteral("route_unavailable"),
+           QStringLiteral("a disabled MCP route must return a stable route-unavailable response"));
+    const auto nativeWhileMcpDisabled =
+        send(manager, nativeRequest(QUrl(sharedNativeEndpoint)),
+             QJsonDocument(nativeCall).toJson(QJsonDocument::Compact));
+    const auto nativeWhileMcpDisabledResult =
+        bodyObject(nativeWhileMcpDisabled).value(QStringLiteral("result")).toObject();
+    expect(nativeWhileMcpDisabled.status == 200 &&
+               nativeWhileMcpDisabledResult.value(QStringLiteral("params"))
+                   .toObject()
+                   .value(QStringLiteral("probe"))
+                   .toBool() &&
+               nativeWhileMcpDisabledResult.value(QStringLiteral("client_id_present")).toBool(),
+           QStringLiteral("Native requests must remain available while MCP is disabled"));
+
+    routeUpdateError.clear();
+    expect(dualProtocolServer.setRoutes({.mcp = true, .native = true}, routeUpdateError),
+           QStringLiteral("the MCP route must be re-enabled without rebinding: %1")
+               .arg(routeUpdateError));
+    expect(dualProtocolServer.port() == sharedPort &&
+               dualProtocolServer.nativeEndpoint() == sharedNativeEndpoint &&
+               dualProtocolServer.endpoint() == sharedMcpEndpoint,
+           QStringLiteral("re-enabling MCP must preserve both shared endpoints"));
+    const auto reenabledMcp = send(
+        manager, baseRequest(QUrl(sharedMcpEndpoint), QString::fromLatin1(Mcp::DiscoverMethod)),
+        QJsonDocument(dualMcpCall).toJson(QJsonDocument::Compact));
+    expect(reenabledMcp.status == 200,
+           QStringLiteral("the MCP route must accept requests after an in-place re-enable"));
+    const auto staleLegacySession =
+        send(manager,
+             legacyRequest(QUrl(sharedMcpEndpoint), true, Mcp::LegacyProtocolVersion,
+                           dualLegacyInitializeResult.sessionId),
+             QJsonDocument(legacyPing).toJson(QJsonDocument::Compact));
+    expect(staleLegacySession.status == 404,
+           QStringLiteral("disabling MCP must retire legacy sessions before a later re-enable"));
+    dualProtocolServer.stop();
+    expect(dualProtocolServer.endpoint().isEmpty() && dualProtocolServer.nativeEndpoint().isEmpty(),
+           QStringLiteral("stopping the shared listener must clear both endpoints"));
+
+    Automation::McpHttpLimits nativeResponseLimits;
+    nativeResponseLimits.maximumRequestBytes = 1024;
+    nativeResponseLimits.maximumResponseBytes = 1024;
+    Automation::McpHttpServer nativeResponseLimitServer(
+        &application, Automation::McpHttpServer::RequestHandler{},
+        Automation::McpHttpServer::NativeRequestHandler(
+            [](const QJsonValue &message, const QString &) {
+                return QJsonObject{
+                    {QStringLiteral("jsonrpc"), QStringLiteral("2.0")},
+                    {QStringLiteral("id"), message.toObject().value(QStringLiteral("id"))},
+                    {QStringLiteral("result"), QString(5000, QLatin1Char('x'))},
+                };
+            }),
+        nativeResponseLimits);
+    QString nativeResponseLimitError;
+    expect(nativeResponseLimitServer.start(0, {.native = true}, nativeResponseLimitError),
+           QStringLiteral("Native response-limit server must start: %1")
+               .arg(nativeResponseLimitError));
+    const auto oversizedNative =
+        send(manager, nativeRequest(QUrl(nativeResponseLimitServer.nativeEndpoint())),
+             QJsonDocument(nativeCall).toJson(QJsonDocument::Compact));
+    const auto oversizedNativeBody = bodyObject(oversizedNative);
+    expect(oversizedNative.status == 200 && jsonRpcErrorCode(oversizedNative) == -32603 &&
+               oversizedNativeBody.value(QStringLiteral("id")).toInt() == 7 &&
+               oversizedNative.body.size() <= nativeResponseLimits.maximumResponseBytes,
+           QStringLiteral("oversized Native results must become bounded correlated errors"));
+    nativeResponseLimitServer.stop();
+
     expect(server.start(0, error),
            QStringLiteral("the MCP server must support a clean restart: %1").arg(error));
     server.requestStop();
@@ -913,27 +1188,41 @@ int main(int argc, char *argv[]) {
             return Mcp::makeResultResponse(request.id, Mcp::makeDiscoverResult(serverInfo),
                                            serverInfo);
         },
+        [&](const QJsonValue &message, const QString &) {
+            globalEntered.release();
+            globalRelease.acquire();
+            globalDone.release();
+            return QJsonObject{
+                {QStringLiteral("jsonrpc"), QStringLiteral("2.0")                         },
+                {QStringLiteral("id"),      message.toObject().value(QStringLiteral("id"))},
+                {QStringLiteral("result"),  QJsonObject{}                                 },
+            };
+        },
         globalConcurrencyLimits);
     QString globalConcurrencyError;
-    expect(globalConcurrencyServer.start(0, globalConcurrencyError),
+    expect(globalConcurrencyServer.start(0, {.mcp = true, .native = true}, globalConcurrencyError),
            QStringLiteral("global-concurrency test server must start: %1")
                .arg(globalConcurrencyError));
     const QUrl globalConcurrencyEndpoint(globalConcurrencyServer.endpoint());
-    auto *globalPending = startRequest(
-        manager, baseRequest(globalConcurrencyEndpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
-        QJsonDocument(discover).toJson(QJsonDocument::Compact));
+    const QUrl globalConcurrencyNativeEndpoint(globalConcurrencyServer.nativeEndpoint());
+    auto *globalPending = startRequest(manager, nativeRequest(globalConcurrencyNativeEndpoint),
+                                       QJsonDocument(nativeCall).toJson(QJsonDocument::Compact));
     const auto globalHandlerEntered = acquireWhileProcessing(globalEntered, 2000);
     expect(globalHandlerEntered,
            QStringLiteral("the first global-concurrency request must reach the handler"));
-    const auto globalBusy = send(
-        manager, baseRequest(globalConcurrencyEndpoint, QString::fromLatin1(Mcp::ToolsListMethod)),
-        QJsonDocument(list).toJson(QJsonDocument::Compact), HttpMethod::Post, 2000);
-    expect(
-        !globalBusy.timedOut && globalBusy.status == 503,
-        QStringLiteral("a blocked handler must not block global admission on the server thread"));
+    const auto mcpGlobalBusy = send(
+        manager, baseRequest(globalConcurrencyEndpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
+        QJsonDocument(discover).toJson(QJsonDocument::Compact), HttpMethod::Post, 2000);
+    expect(!mcpGlobalBusy.timedOut && mcpGlobalBusy.status == 503,
+           QStringLiteral("MCP requests must observe Native-held global transport admission"));
+    const auto globalBusy =
+        send(manager, nativeRequest(globalConcurrencyNativeEndpoint),
+             QJsonDocument(nativeCall).toJson(QJsonDocument::Compact), HttpMethod::Post, 2000);
+    expect(!globalBusy.timedOut && globalBusy.status == 503,
+           QStringLiteral("MCP and Native routes must share the global transport admission limit"));
     const auto deadlineResult = finishRequest(globalPending, 2500);
     expect(!deadlineResult.timedOut && deadlineResult.status == 504,
-           QStringLiteral("transport deadlines must finish requests while main work continues"));
+           QStringLiteral("Native transport deadlines must finish requests while work continues"));
     globalConcurrencyServer.requestStop();
     expect(waitForStop(globalConcurrencyServer),
            QStringLiteral("listener shutdown must finish while a handler remains blocked"));
@@ -1064,13 +1353,13 @@ int main(int argc, char *argv[]) {
                       QJsonObject{
                           {QStringLiteral("name"),      QStringLiteral("mutating.test")},
                           {QStringLiteral("arguments"), QJsonObject{}                  },
-                      }),
+    }),
         QStringLiteral("modern-cancel-instance"));
-    auto *modernCanceledReply = startRequest(
-        cancellationRequestManager,
-        baseRequest(cancellationEndpoint, QString::fromLatin1(Mcp::ToolsCallMethod),
-                    QStringLiteral("mutating.test")),
-        QJsonDocument(modernCanceledCall).toJson(QJsonDocument::Compact));
+    auto *modernCanceledReply =
+        startRequest(cancellationRequestManager,
+                     baseRequest(cancellationEndpoint, QString::fromLatin1(Mcp::ToolsCallMethod),
+                                 QStringLiteral("mutating.test")),
+                     QJsonDocument(modernCanceledCall).toJson(QJsonDocument::Compact));
     admissionWait.restart();
     while (admissionWait.elapsed() < 100) {
         QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
@@ -1082,12 +1371,12 @@ int main(int argc, char *argv[]) {
             QJsonObject{
                 {QStringLiteral("requestId"), QStringLiteral("modern-cancel-before-dispatch")},
                 {QStringLiteral("reason"),    QStringLiteral("test cancellation")            },
-            }),
+    }),
         QStringLiteral("modern-cancel-instance"));
-    const auto modernCancellationResult = send(
-        cancellationNotificationManager,
-        baseRequest(cancellationEndpoint, QString::fromLatin1(Mcp::CancelledNotification)),
-        QJsonDocument(modernCancellationNotification).toJson(QJsonDocument::Compact));
+    const auto modernCancellationResult =
+        send(cancellationNotificationManager,
+             baseRequest(cancellationEndpoint, QString::fromLatin1(Mcp::CancelledNotification)),
+             QJsonDocument(modernCancellationNotification).toJson(QJsonDocument::Compact));
     const auto modernCanceledResult = finishRequest(modernCanceledReply, 2000);
     expect(modernCancellationResult.status == 202 && modernCancellationResult.body.isEmpty(),
            QStringLiteral("modern cancellation notifications must use a second HTTP connection"));

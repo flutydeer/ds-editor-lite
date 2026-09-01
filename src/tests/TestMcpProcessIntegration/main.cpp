@@ -327,6 +327,56 @@ namespace {
         return {};
     }
 
+    std::optional<QSet<QString>> directToolCatalog(DsConnector::UpstreamMcpClient &client,
+                                                   const int timeoutMilliseconds, QString &error) {
+        error.clear();
+        QSet<QString> names;
+        QString cursor;
+        for (int pageIndex = 0; pageIndex < 16; ++pageIndex) {
+            QJsonObject params;
+            if (!cursor.isEmpty())
+                params.insert(QStringLiteral("cursor"), cursor);
+            std::optional<DsConnector::UpstreamResult> response;
+            client.send(
+                QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod), std::move(params),
+                [&response](DsConnector::UpstreamResult result) { response = std::move(result); },
+                timeoutMilliseconds);
+            if (!waitUntil([&response] { return response.has_value(); },
+                           timeoutMilliseconds + 1000)) {
+                error = QStringLiteral("Direct editor tools/list timed out");
+                return std::nullopt;
+            }
+            if (!response->connectorError.isEmpty()) {
+                error = QStringLiteral("Direct editor tools/list transport error: %1 (%2)")
+                            .arg(response->connectorError, response->connectorErrorMessage);
+                return std::nullopt;
+            }
+            if (response->protocolError) {
+                error = QStringLiteral("Direct editor tools/list JSON-RPC error %1: %2")
+                            .arg(response->protocolError->code)
+                            .arg(response->protocolError->message);
+                return std::nullopt;
+            }
+            const auto tools = response->result.value(QStringLiteral("tools")).toArray();
+            for (const auto &tool : tools) {
+                const auto name = tool.toObject().value(QStringLiteral("name")).toString();
+                const auto issue = descriptorIssue(tool);
+                if (name.isEmpty() || !issue.isEmpty() || names.contains(name)) {
+                    error =
+                        QStringLiteral("Direct editor tools/list returned an invalid tool %1: %2")
+                            .arg(name, issue.isEmpty() ? QStringLiteral("duplicate name") : issue);
+                    return std::nullopt;
+                }
+                names.insert(name);
+            }
+            cursor = response->result.value(QStringLiteral("nextCursor")).toString();
+            if (cursor.isEmpty())
+                return names;
+        }
+        error = QStringLiteral("Direct editor tools/list pagination did not terminate");
+        return std::nullopt;
+    }
+
     QString upstreamToolsDiagnostic(const QString &endpoint) {
         DsConnector::UpstreamMcpClient client(QStringLiteral("process-test-diagnostic"),
                                               QStringLiteral("1"));
@@ -427,9 +477,8 @@ namespace {
         constexpr quint16 channels = 1;
         constexpr quint16 bitsPerSample = 16;
         constexpr quint32 sampleCount = 800;
-        const QByteArray samples(static_cast<qsizetype>(sampleCount * channels *
-                                                       (bitsPerSample / 8)),
-                                 '\0');
+        const QByteArray samples(
+            static_cast<qsizetype>(sampleCount * channels * (bitsPerSample / 8)), '\0');
         QFile file(path);
         if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate))
             return false;
@@ -478,7 +527,7 @@ namespace {
                                QJsonObject{
                                    {QStringLiteral("accessRoots"),
                                     QJsonArray{QDir::fromNativeSeparators(isolatedRoot.path())}},
-                               }},
+                               }                                                      },
         })
                 .toJson(QJsonDocument::Compact));
         seededConfig.close();
@@ -494,7 +543,9 @@ namespace {
         QProcess editor;
         QProcess connector;
         QProcess secondaryEditor;
+        QProcess headlessSecondaryEditor;
         const auto cleanup = qScopeGuard([&] {
+            stopProcess(headlessSecondaryEditor);
             stopProcess(secondaryEditor);
             connector.closeWriteChannel();
             if (!connector.waitForFinished(3000))
@@ -533,9 +584,9 @@ namespace {
                        editor.state() == QProcess::NotRunning;
             },
             45000);
-        const auto ready =
-            editorSettled && watcher.observation().snapshot &&
-            watcher.observation().snapshot->result.state == SingleInstanceAutomationState::ServerReady;
+        const auto ready = editorSettled && watcher.observation().snapshot &&
+                           watcher.observation().snapshot->result.state ==
+                               SingleInstanceAutomationState::ServerReady;
         if (!ready) {
             const auto &observation = watcher.observation();
             const auto snapshotState = observation.snapshot
@@ -580,11 +631,36 @@ namespace {
                             .arg(secondaryError));
         }
 
+        headlessSecondaryEditor.setProcessEnvironment(environment);
+        headlessSecondaryEditor.setWorkingDirectory(QFileInfo(editorPath).absolutePath());
+        headlessSecondaryEditor.setProcessChannelMode(QProcess::SeparateChannels);
+        headlessSecondaryEditor.start(editorPath, {QStringLiteral("--headless")});
+        if (!headlessSecondaryEditor.waitForStarted(10000) ||
+            !headlessSecondaryEditor.waitForFinished(10000)) {
+            return fail(QStringLiteral("Headless secondary did not forward activation and exit"));
+        }
+        const auto headlessSecondaryError =
+            QString::fromUtf8(headlessSecondaryEditor.readAllStandardError());
+        const auto &primaryAfterHeadless = watcher.observation().snapshot;
+        if (headlessSecondaryEditor.exitStatus() != QProcess::NormalExit ||
+            headlessSecondaryEditor.exitCode() != 0 || !primaryAfterHeadless ||
+            primaryAfterHeadless->primaryProcessId != editor.processId() ||
+            primaryAfterHeadless->result.editorInstanceId != editorInstanceId ||
+            primaryAfterHeadless->result.hostMode != QStringLiteral("gui") ||
+            primaryAfterHeadless->result.serverEndpoint != editorEndpoint ||
+            editor.state() != QProcess::Running) {
+            return fail(QStringLiteral("Headless secondary replaced or disturbed the GUI Primary; "
+                                       "secondary_exit_status=%1; secondary_exit_code=%2; "
+                                       "secondary_stderr=%3")
+                            .arg(static_cast<int>(headlessSecondaryEditor.exitStatus()))
+                            .arg(headlessSecondaryEditor.exitCode())
+                            .arg(headlessSecondaryError));
+        }
+
         connector.setProcessEnvironment(environment);
         connector.setWorkingDirectory(QFileInfo(connectorPath).absolutePath());
         connector.setProcessChannelMode(QProcess::SeparateChannels);
-        connector.start(connectorPath,
-                        {QStringLiteral("--control-level"), QStringLiteral("l3")});
+        connector.start(connectorPath, {QStringLiteral("--control-level"), QStringLiteral("l3")});
         if (!connector.waitForStarted(10000)) {
             return fail(
                 QStringLiteral("Connector failed to start: %1").arg(connector.errorString()));
@@ -774,6 +850,18 @@ namespace {
                     .arg(toolError));
         }
 
+        const auto directCatalog = directToolCatalog(directClient, 10000, toolError);
+        if (!directCatalog || directCatalog->size() != 176 ||
+            !directCatalog->contains(QStringLiteral("application.get_status")) ||
+            !directCatalog->contains(QStringLiteral("workspace.get_state")) ||
+            !directCatalog->contains(QStringLiteral("track_panel.get_state")) ||
+            !directCatalog->contains(QStringLiteral("clip_editor.get_state"))) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("Direct GUI Editor MCP exposed an invalid catalog: count=%1; %2")
+                    .arg(directCatalog ? directCatalog->size() : -1)
+                    .arg(toolError));
+        }
+
         const auto documents = lastEditorStatus.value(QStringLiteral("documents")).toArray();
         QJsonObject activeDocument;
         for (const auto &document : documents) {
@@ -791,6 +879,41 @@ namespace {
                 QStringLiteral(
                     "application.get_status did not provide a usable document version: %1")
                     .arg(compactJson(lastEditorStatus)));
+        }
+
+        const auto windows = lastEditorStatus.value(QStringLiteral("windows")).toArray();
+        const auto activeWindow = windows.size() == 1 ? windows.first().toObject() : QJsonObject{};
+        const auto windowId = activeWindow.value(QStringLiteral("window_id")).toString();
+        if (lastEditorStatus.value(QStringLiteral("host_mode")).toString() !=
+                QStringLiteral("gui") ||
+            windows.size() != 1 || QUuid::fromString(windowId).isNull() ||
+            activeWindow.value(QStringLiteral("document_id")).toString() != documentId) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("GUI application status did not expose exactly one real window: %1")
+                    .arg(compactJson(lastEditorStatus)));
+        }
+
+        const QJsonObject guiWindowArguments{
+            {QStringLiteral("window_id"), windowId}
+        };
+        const QJsonObject guiDocumentArguments{
+            {QStringLiteral("window_id"),   windowId  },
+            {QStringLiteral("document_id"), documentId},
+        };
+        const auto verifyGuiQuery = [&](const qint64 requestId, const QString &name,
+                                        const QJsonObject &arguments) {
+            const auto throughConnector =
+                connectorToolContent(connector, requestId, name, arguments, 10000, toolError);
+            if (!throughConnector)
+                return false;
+            const auto direct = directToolContent(directClient, name, arguments, 10000, toolError);
+            return direct && equivalentContent(name, *throughConnector, *direct, toolError);
+        };
+        if (!verifyGuiQuery(900, QStringLiteral("workspace.get_state"), guiWindowArguments) ||
+            !verifyGuiQuery(901, QStringLiteral("track_panel.get_state"), guiDocumentArguments) ||
+            !verifyGuiQuery(902, QStringLiteral("clip_editor.get_state"), guiDocumentArguments)) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("Representative GUI-only operation failed: %1").arg(toolError));
         }
 
         const QJsonObject documentArguments{
@@ -827,7 +950,7 @@ namespace {
         }
         const auto previous = mutation->value(QStringLiteral("previous")).toObject();
         const auto current = mutation->value(QStringLiteral("current")).toObject();
-        const auto currentRevision = current.value(QStringLiteral("revision")).toInteger(-1);
+        const auto insertedRevision = current.value(QStringLiteral("revision")).toInteger(-1);
         qint64 createdTrackId = -1;
         for (const auto &createdValue :
              mutation->value(QStringLiteral("created_objects")).toArray()) {
@@ -842,13 +965,78 @@ namespace {
         if (previous.value(QStringLiteral("document_id")).toString() != documentId ||
             previous.value(QStringLiteral("revision")).toInteger(-1) != initialRevision ||
             current.value(QStringLiteral("document_id")).toString() != documentId ||
-            currentRevision != initialRevision + 1 ||
+            insertedRevision != initialRevision + 1 ||
             !mutation->value(QStringLiteral("changed")).toBool() ||
             mutation->value(QStringLiteral("validated_only")).toBool() || createdTrackId < 0) {
             return failWithProcessDiagnostics(
                 QStringLiteral("tracks.insert returned an invalid mutation/revision result: %1")
                     .arg(compactJson(*mutation)));
         }
+
+        const auto undo =
+            connectorToolContent(connector, 1006, QStringLiteral("history.undo"),
+                                 QJsonObject{
+                                     {QStringLiteral("document_id"),       documentId      },
+                                     {QStringLiteral("expected_revision"), insertedRevision},
+        },
+                                 10000, toolError);
+        const auto undoneRevision = undo ? undo->value(QStringLiteral("current"))
+                                               .toObject()
+                                               .value(QStringLiteral("revision"))
+                                               .toInteger(-1)
+                                         : -1;
+        const auto documentAfterUndo = connectorToolContent(
+            connector, 1007, QStringLiteral("documents.get"), documentArguments, 10000, toolError);
+        const auto trackCountAfterUndo = documentAfterUndo
+                                             ? documentAfterUndo->value(QStringLiteral("snapshot"))
+                                                   .toObject()
+                                                   .value(QStringLiteral("statistics"))
+                                                   .toObject()
+                                                   .value(QStringLiteral("track_count"))
+                                                   .toInteger(-1)
+                                             : -1;
+        if (!undo || !undo->value(QStringLiteral("changed")).toBool() ||
+            undoneRevision != insertedRevision + 1 || !documentAfterUndo ||
+            trackCountAfterUndo !=
+                initialStatistics.value(QStringLiteral("track_count")).toInteger(-1)) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("history.undo did not restore the pre-insert document: %1; %2")
+                    .arg(undo ? compactJson(*undo) : toolError,
+                         documentAfterUndo ? compactJson(*documentAfterUndo) : toolError));
+        }
+
+        const auto redo =
+            connectorToolContent(connector, 1008, QStringLiteral("history.redo"),
+                                 QJsonObject{
+                                     {QStringLiteral("document_id"),       documentId    },
+                                     {QStringLiteral("expected_revision"), undoneRevision},
+        },
+                                 10000, toolError);
+        const auto redoneRevision = redo ? redo->value(QStringLiteral("current"))
+                                               .toObject()
+                                               .value(QStringLiteral("revision"))
+                                               .toInteger(-1)
+                                         : -1;
+        const auto documentAfterRedo = connectorToolContent(
+            connector, 1009, QStringLiteral("documents.get"), documentArguments, 10000, toolError);
+        const auto trackCountAfterRedo = documentAfterRedo
+                                             ? documentAfterRedo->value(QStringLiteral("snapshot"))
+                                                   .toObject()
+                                                   .value(QStringLiteral("statistics"))
+                                                   .toObject()
+                                                   .value(QStringLiteral("track_count"))
+                                                   .toInteger(-1)
+                                             : -1;
+        if (!redo || !redo->value(QStringLiteral("changed")).toBool() ||
+            redoneRevision != undoneRevision + 1 || !documentAfterRedo ||
+            trackCountAfterRedo !=
+                initialStatistics.value(QStringLiteral("track_count")).toInteger(-1) + 1) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("history.redo did not restore the inserted track: %1; %2")
+                    .arg(redo ? compactJson(*redo) : toolError,
+                         documentAfterRedo ? compactJson(*documentAfterRedo) : toolError));
+        }
+        const auto currentRevision = redoneRevision;
 
         const QJsonObject audioImportArguments{
             {QStringLiteral("document_id"),       documentId                        },
@@ -858,23 +1046,23 @@ namespace {
             {QStringLiteral("path"),              audioPath                         },
             {QStringLiteral("idempotency_key"),   QStringLiteral("audio-import-key")},
         };
-        const auto audioImport = connectorToolContent(connector, 1003,
-                                                      QStringLiteral("audio_clips.import"),
-                                                      audioImportArguments, 10000, toolError);
+        const auto audioImport =
+            connectorToolContent(connector, 1003, QStringLiteral("audio_clips.import"),
+                                 audioImportArguments, 10000, toolError);
         const auto audioImportTaskId =
             audioImport ? audioImport->value(QStringLiteral("task_id")).toString() : QString{};
         if (audioImportTaskId.isEmpty()) {
             return failWithProcessDiagnostics(
                 QStringLiteral("audio_clips.import did not start: %1").arg(toolError));
         }
-        const auto replayedAudioImport = connectorToolContent(
-            connector, 1004, QStringLiteral("audio_clips.import"), audioImportArguments, 10000,
-            toolError);
+        const auto replayedAudioImport =
+            connectorToolContent(connector, 1004, QStringLiteral("audio_clips.import"),
+                                 audioImportArguments, 10000, toolError);
         auto conflictingAudioImportArguments = audioImportArguments;
         conflictingAudioImportArguments.insert(QStringLiteral("start"), 1);
-        const auto conflictingAudioImport = connectorToolContent(
-            connector, 1005, QStringLiteral("audio_clips.import"),
-            conflictingAudioImportArguments, 10000, toolError);
+        const auto conflictingAudioImport =
+            connectorToolContent(connector, 1005, QStringLiteral("audio_clips.import"),
+                                 conflictingAudioImportArguments, 10000, toolError);
         if (!replayedAudioImport ||
             replayedAudioImport->value(QStringLiteral("task_id")).toString() != audioImportTaskId ||
             conflictingAudioImport ||
@@ -885,14 +1073,14 @@ namespace {
         }
         QJsonObject audioImportTask;
         for (qint64 attempt = 0; attempt < 100; ++attempt) {
-            const auto snapshot = connectorToolContent(
-                connector, 1100 + attempt, QStringLiteral("tasks.get"),
-                QJsonObject{
-                    {QStringLiteral("scope"),       QStringLiteral("document")},
-                    {QStringLiteral("document_id"), documentId                 },
-                    {QStringLiteral("task_id"),     audioImportTaskId           },
-                },
-                5000, toolError);
+            const auto snapshot =
+                connectorToolContent(connector, 1100 + attempt, QStringLiteral("tasks.get"),
+                                     QJsonObject{
+                                         {QStringLiteral("scope"),       QStringLiteral("document")},
+                                         {QStringLiteral("document_id"), documentId                },
+                                         {QStringLiteral("task_id"),     audioImportTaskId         },
+            },
+                                     5000, toolError);
             if (!snapshot) {
                 return failWithProcessDiagnostics(
                     QStringLiteral("Audio import task lookup failed: %1").arg(toolError));
@@ -925,13 +1113,13 @@ namespace {
                 break;
             }
         }
-        const auto importedAudio = connectorToolContent(
-            connector, 1200, QStringLiteral("audio_clips.get"),
-            QJsonObject{
-                {QStringLiteral("document_id"), documentId        },
-                {QStringLiteral("clip_id"),     createdAudioClipId},
-            },
-            5000, toolError);
+        const auto importedAudio =
+            connectorToolContent(connector, 1200, QStringLiteral("audio_clips.get"),
+                                 QJsonObject{
+                                     {QStringLiteral("document_id"), documentId        },
+                                     {QStringLiteral("clip_id"),     createdAudioClipId},
+        },
+                                 5000, toolError);
         if (audioCurrentRevision != currentRevision + 1 || createdAudioClipId < 0 ||
             !importedAudio ||
             !importedAudio->value(QStringLiteral("snapshot"))
@@ -986,6 +1174,74 @@ namespace {
                 QStringLiteral("Connector formats.list failed or returned an invalid payload: %1")
                     .arg(toolError));
         }
+
+        const auto playbackBefore =
+            connectorToolContent(connector, 1300, QStringLiteral("playback.get_state"),
+                                 documentArguments, 10000, toolError);
+        if (!playbackBefore || !playbackBefore->value(QStringLiteral("snapshot")).isObject()) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("Initial playback.get_state failed: %1").arg(toolError));
+        }
+        const auto playResponse = exchange(
+            connector, makeToolRequest(1301, QStringLiteral("playback.play"), documentArguments),
+            10000, exchangeError);
+        if (!playResponse || playResponse->contains(QStringLiteral("error")) ||
+            !playResponse->value(QStringLiteral("result")).isObject()) {
+            return failWithProcessDiagnostics(
+                QStringLiteral("playback.play returned an invalid MCP response: %1")
+                    .arg(playResponse ? compactJson(*playResponse) : exchangeError));
+        }
+        const auto playResult = playResponse->value(QStringLiteral("result")).toObject();
+        const auto playContent = playResult.value(QStringLiteral("structuredContent")).toObject();
+        if (playResult.value(QStringLiteral("isError")).toBool()) {
+            if (playContent.value(QStringLiteral("code")).toString() !=
+                    QStringLiteral("host_capability_unavailable") ||
+                playContent.value(QStringLiteral("operation_id")).toString() !=
+                    QStringLiteral("playback.play") ||
+                playContent.value(QStringLiteral("message")).toString() !=
+                    QStringLiteral("Playback device could not be started")) {
+                return failWithProcessDiagnostics(
+                    QStringLiteral("playback.play did not return the expected unavailable-device "
+                                   "error: %1")
+                        .arg(compactJson(*playResponse)));
+            }
+        } else {
+            if (playContent.value(QStringLiteral("playback"))
+                    .toObject()
+                    .value(QStringLiteral("state"))
+                    .toString() != QStringLiteral("playing")) {
+                return failWithProcessDiagnostics(
+                    QStringLiteral("playback.play did not enter playing state: %1")
+                        .arg(compactJson(*playResponse)));
+            }
+            const auto playbackDuring =
+                connectorToolContent(connector, 1302, QStringLiteral("playback.get_state"),
+                                     documentArguments, 10000, toolError);
+            if (!playbackDuring || !playbackDuring->value(QStringLiteral("snapshot")).isObject()) {
+                return failWithProcessDiagnostics(
+                    QStringLiteral("Playback state query after play failed: %1").arg(toolError));
+            }
+            const auto stopped =
+                connectorToolContent(connector, 1303, QStringLiteral("playback.stop"),
+                                     documentArguments, 10000, toolError);
+            const auto playbackAfter =
+                connectorToolContent(connector, 1304, QStringLiteral("playback.get_state"),
+                                     documentArguments, 10000, toolError);
+            if (!stopped ||
+                stopped->value(QStringLiteral("playback"))
+                        .toObject()
+                        .value(QStringLiteral("state"))
+                        .toString() != QStringLiteral("stopped") ||
+                !playbackAfter ||
+                playbackAfter->value(QStringLiteral("snapshot"))
+                        .toObject()
+                        .value(QStringLiteral("state"))
+                        .toString() != QStringLiteral("stopped")) {
+                return failWithProcessDiagnostics(
+                    QStringLiteral("playback play/get_state/stop loop failed: %1").arg(toolError));
+            }
+        }
+
         QProcess legacyConnector;
         const auto legacyConnectorCleanup = qScopeGuard([&legacyConnector] {
             legacyConnector.closeWriteChannel();
@@ -1179,21 +1435,19 @@ namespace {
                     .arg(rejectedExit ? compactJson(*rejectedExit) : exchangeError));
         }
 
-        const auto acceptedExitRequest = makeToolRequest(
-            30001, QStringLiteral("application.request_exit"),
-            QJsonObject{
-                {QStringLiteral("discard_changes"), true}
+        const auto acceptedExitRequest =
+            makeToolRequest(30001, QStringLiteral("application.request_exit"),
+                            QJsonObject{
+                                {QStringLiteral("discard_changes"), true}
         });
         if (!writeMessage(connector, acceptedExitRequest, exchangeError))
             return failWithProcessDiagnostics(exchangeError);
         connector.closeWriteChannel();
-        const auto acceptedExitResponse =
-            readResponse(connector, acceptedExitRequest.value(QStringLiteral("id")), 10000,
-                         exchangeError);
-        const auto acceptedExitResult = acceptedExitResponse
-                                            ? acceptedExitResponse->value(QStringLiteral("result"))
-                                                  .toObject()
-                                            : QJsonObject{};
+        const auto acceptedExitResponse = readResponse(
+            connector, acceptedExitRequest.value(QStringLiteral("id")), 10000, exchangeError);
+        const auto acceptedExitResult =
+            acceptedExitResponse ? acceptedExitResponse->value(QStringLiteral("result")).toObject()
+                                 : QJsonObject{};
         const auto acceptedExit =
             acceptedExitResult.value(QStringLiteral("structuredContent")).toObject();
         if (!acceptedExitResponse || acceptedExitResponse->contains(QStringLiteral("error")) ||

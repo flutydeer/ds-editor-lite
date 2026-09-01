@@ -720,7 +720,7 @@ namespace {
                          QStringLiteral("11111111-1111-4111-8111-111111111111")     },
                         {QStringLiteral("host_mode"),          QStringLiteral("gui")},
                         {QStringLiteral("control_level"),
-                         AutomationWire::controlLevelName(editorControlLevel)  },
+                         AutomationWire::controlLevelName(editorControlLevel)       },
                         {QStringLiteral("toolset_version"),    editorToolsetVersion },
                         {QStringLiteral("documents"),          QJsonArray{}         },
                         {QStringLiteral("windows"),            QJsonArray{}         },
@@ -1451,19 +1451,17 @@ namespace {
     bool verifyOfflineBootstrapError() {
         const auto serviceName = QStringLiteral("DsConnectorLite-No-Such-Bootstrap-%1")
                                      .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
-        DsConnector::BootstrapWatcher watcher(QStringLiteral("connector-test"),
-                                               QStringLiteral("1"), serviceName);
+        DsConnector::BootstrapWatcher watcher(QStringLiteral("connector-test"), QStringLiteral("1"),
+                                              serviceName);
         watcher.start();
 
-        bool ok = expect(waitUntil([&] {
-                             return watcher.observation().error ==
-                                    QStringLiteral("editor_not_running");
-                         }),
-                         "a missing editor must be reported as editor_not_running");
+        bool ok =
+            expect(waitUntil([&] {
+                       return watcher.observation().error == QStringLiteral("editor_not_running");
+                   }),
+                   "a missing editor must be reported as editor_not_running");
         const auto changedToTimeout = waitUntil(
-            [&] {
-                return watcher.observation().error == QStringLiteral("bootstrap_timeout");
-            },
+            [&] { return watcher.observation().error == QStringLiteral("bootstrap_timeout"); },
             4500);
         ok &= expect(!changedToTimeout &&
                          watcher.observation().error == QStringLiteral("editor_not_running"),
@@ -1502,11 +1500,12 @@ namespace {
         runtime.start();
 
         const QList<QPair<SingleInstanceAutomationState, QString>> states{
-            {SingleInstanceAutomationState::EditorStarting,    QStringLiteral("editor_starting")},
-            {SingleInstanceAutomationState::ServerDisabled, QStringLiteral("server_disabled")},
-            {SingleInstanceAutomationState::ServerStarting, QStringLiteral("server_starting")},
-            {SingleInstanceAutomationState::ServerStopping, QStringLiteral("server_stopping")},
-            {SingleInstanceAutomationState::Error,       QStringLiteral("editor_error")   },
+            {SingleInstanceAutomationState::EditorStarting, QStringLiteral("editor_starting")     },
+            {SingleInstanceAutomationState::ServerDisabled, QStringLiteral("server_disabled")     },
+            {SingleInstanceAutomationState::ServerStarting, QStringLiteral("server_starting")     },
+            {SingleInstanceAutomationState::ServerStopping, QStringLiteral("server_stopping")     },
+            {SingleInstanceAutomationState::EditorStopping, QStringLiteral("editor_not_connected")},
+            {SingleInstanceAutomationState::Error,          QStringLiteral("editor_error")        },
         };
         for (const auto &[state, expectedCode] : states) {
             SingleInstanceAutomationStatus status{
@@ -1636,17 +1635,14 @@ namespace {
                 "the initial delayed handshake must be in flight before the ready burst");
             for (auto index = 0; index < 64; ++index)
                 bootstrap.publish(ready);
-            ok &= expect(
-                waitUntil([&] { return http.discoverCount >= 2; }, 10000),
-                "duplicate ready snapshots must start one trailing refresh");
+            ok &= expect(waitUntil([&] { return http.discoverCount >= 2; }, 10000),
+                         "duplicate ready snapshots must start one trailing refresh");
             http.exposeNotes = true;
             bootstrap.publish(ready);
-            ok &= expect(waitUntil(
-                             [&] {
-                                 return http.discoverCount >= 3 && readyRuntime(runtime, 5);
-                             },
-                             10000),
-                         "a snapshot received during the trailing refresh must also be applied");
+            ok &= expect(
+                waitUntil([&] { return http.discoverCount >= 3 && readyRuntime(runtime, 5); },
+                          10000),
+                "a snapshot received during the trailing refresh must also be applied");
             const auto unexpectedExtraHandshake =
                 waitUntil([&] { return http.discoverCount > 3; }, 700);
             ok &= expect(
@@ -2951,7 +2947,99 @@ namespace {
                            !toolset.contains(QStringLiteral("editor_digest"));
                 },
                 10000),
-            "editor control-level refresh must preserve version-only compatibility without digests");
+            "editor control-level refresh must preserve version-only compatibility without "
+            "digests");
+        runtime.stop();
+        return ok;
+    }
+
+    bool verifyHeadlessHostAvailability() {
+        FakeHttpEditor http;
+        bool ok = expect(http.listen(), "headless availability fake editor must listen");
+        if (!ok)
+            return false;
+
+        const auto serviceName = QStringLiteral("DsConnectorLite-Headless-%1")
+                                     .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+        FakeBootstrap bootstrap(serviceName);
+        ok &= expect(bootstrap.listen(), "headless availability bootstrap must listen");
+        if (!ok)
+            return false;
+        bootstrap.publish(SingleInstanceAutomationStatus{
+            .state = SingleInstanceAutomationState::ServerReady,
+            .editorInstanceId = QStringLiteral("headless-availability-editor"),
+            .executablePath = QCoreApplication::applicationFilePath(),
+            .applicationVersion = QStringLiteral("test"),
+            .buildId = QStringLiteral("fake-build"),
+            .hostMode = QStringLiteral("headless"),
+            .serverEnabled = true,
+            .serverEndpoint = http.endpoint(),
+        });
+
+        DsConnector::ConnectorRuntime runtime(
+            DsConnector::ConnectorOptions{
+                .exposure =
+                    {
+                               .controlLevel = AutomationWire::ExposureLevel::L3,
+                               .includes =
+                            {
+                                QStringLiteral("id:notes.list"),
+                                QStringLiteral("id:track_panel.get_state"),
+                            }, },
+                .upstreamTimeoutMs = 2000,
+        },
+            serviceName);
+        runtime.start();
+        ok &= expect(waitUntil(
+                         [&] {
+                             return runtime.status()
+                                        .value(QStringLiteral("mcp"))
+                                        .toObject()
+                                        .value(QStringLiteral("connected"))
+                                        .toBool() &&
+                                    runtime.status()
+                                            .value(QStringLiteral("toolset"))
+                                            .toObject()
+                                            .value(QStringLiteral("compatibility")) ==
+                                        QStringLiteral("compatible");
+                         },
+                         10000),
+                     "headless availability connector must complete its handshake");
+
+        const auto describeCode = [&runtime](const QString &name) {
+            QString code;
+            runtime.callTool(QStringLiteral("editor.tools.describe"),
+                             QJsonObject{
+                                 {QStringLiteral("name"), name}
+            },
+                             [&code](const DsConnector::ToolCallOutcome &outcome) {
+                                 code = outcome.result.value(QStringLiteral("structuredContent"))
+                                            .toObject()
+                                            .value(QStringLiteral("code"))
+                                            .toString();
+                             });
+            return code;
+        };
+        ok &=
+            expect(describeCode(QStringLiteral("notes.list")) == QStringLiteral("tool_unavailable"),
+                   "a missing both-host tool must remain tool_unavailable in headless mode");
+        ok &= expect(describeCode(QStringLiteral("track_panel.get_state")) ==
+                         QStringLiteral("host_capability_unavailable"),
+                     "a missing GUI-only tool must report host_capability_unavailable");
+        const auto forwardedBeforeHostReject = http.calledTools.size();
+        QString typedHostCode;
+        runtime.callTool(QStringLiteral("track_panel.get_state"), {},
+                         [&typedHostCode](const DsConnector::ToolCallOutcome &outcome) {
+                             typedHostCode =
+                                 outcome.result.value(QStringLiteral("structuredContent"))
+                                     .toObject()
+                                     .value(QStringLiteral("code"))
+                                     .toString();
+                         });
+        ok &= expect(typedHostCode == QStringLiteral("host_capability_unavailable") &&
+                         http.calledTools.size() == forwardedBeforeHostReject,
+                     "a fixed GUI wrapper must reject the headless host without forwarding");
+
         runtime.stop();
         return ok;
     }
@@ -3679,8 +3767,10 @@ int main(int argc, char *argv[]) {
         ok &= verifyFakeEditorIntegration();
     if (only(QStringLiteral("forward")))
         ok &= verifyForwardCompatibleGenericTools();
-    if (only(QStringLiteral("compatibility")))
+    if (only(QStringLiteral("compatibility"))) {
         ok &= verifyCompatibilityVersions();
+        ok &= verifyHeadlessHostAvailability();
+    }
     if (only(QStringLiteral("headers")))
         ok &= verifyParameterHeaders();
     if (only(QStringLiteral("command")))

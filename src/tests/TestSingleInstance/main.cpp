@@ -305,6 +305,10 @@ namespace {
         if (!directory.isValid())
             return false;
 
+        SingleInstanceCoordinator headless(AppHostMode::Headless);
+        ok &= expect(headless.automationState().hostMode == QStringLiteral("headless"),
+                     "headless coordinator must publish its real host mode before listening");
+
         const auto serverName = uniqueServerName();
         SingleInstanceCoordinator primary(directory.path(), serverName);
         ok &= expect(primary.start() == SingleInstanceCoordinator::StartResult::Primary,
@@ -372,17 +376,18 @@ namespace {
         ready.serverEndpoint = QStringLiteral("http://127.0.0.1:52342/mcp");
         primary.updateAutomationState(ready);
         ok &= expect(firstWatcher.receiveSnapshot(firstSnapshot) &&
-                         firstSnapshot.result.state == SingleInstanceAutomationState::ServerStarting &&
+                         firstSnapshot.result.state ==
+                             SingleInstanceAutomationState::ServerStarting &&
                          firstWatcher.receiveSnapshot(firstSnapshot) &&
                          firstSnapshot.result.state == SingleInstanceAutomationState::ServerReady &&
                          firstSnapshot.result.serverEndpoint == ready.serverEndpoint,
                      "watch connection must preserve consecutive framed state updates");
-        ok &=
-            expect(secondWatcher.receiveSnapshot(secondSnapshot) &&
-                       secondSnapshot.result.state == SingleInstanceAutomationState::ServerStarting &&
-                       secondWatcher.receiveSnapshot(secondSnapshot) &&
-                       secondSnapshot.result.state == SingleInstanceAutomationState::ServerReady,
-                   "all watchers must preserve consecutive framed updates");
+        ok &= expect(secondWatcher.receiveSnapshot(secondSnapshot) &&
+                         secondSnapshot.result.state ==
+                             SingleInstanceAutomationState::ServerStarting &&
+                         secondWatcher.receiveSnapshot(secondSnapshot) &&
+                         secondSnapshot.result.state == SingleInstanceAutomationState::ServerReady,
+                     "all watchers must preserve consecutive framed updates");
 
         firstWatcher.socket.disconnectFromServer();
         ok &= expect(firstWatcher.waitForDisconnect(),
@@ -392,9 +397,10 @@ namespace {
         disabled.serverEnabled = false;
         disabled.serverEndpoint.clear();
         primary.updateAutomationState(disabled);
-        ok &= expect(secondWatcher.receiveSnapshot(secondSnapshot) &&
-                         secondSnapshot.result.state == SingleInstanceAutomationState::ServerDisabled,
-                     "remaining watchers must continue after another watcher disconnects");
+        ok &=
+            expect(secondWatcher.receiveSnapshot(secondSnapshot) &&
+                       secondSnapshot.result.state == SingleInstanceAutomationState::ServerDisabled,
+                   "remaining watchers must continue after another watcher disconnects");
 
         primary.shutdown();
         ok &=

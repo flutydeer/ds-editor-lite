@@ -53,6 +53,8 @@ int main(int argc, char *argv[]) {
     FakeResolver resolver(first, second);
     Automation::SingleWindowContext window;
     Automation::AutomationDispatcher dispatcher(resolver, window);
+    ok &= expect(window.windowId() && !window.windowId()->isNull(),
+                 "default single-window context must create a real window ID");
 
     const auto secondQuery = dispatcher.dispatchDocumentQuery<Automation::Revision>(
         QStringLiteral("test.query"), second.documentId(),
@@ -176,6 +178,43 @@ int main(int argc, char *argv[]) {
     ok &= expect(!invalidWindow && invalidWindow.getError().code ==
                                        Automation::AutomationErrorCode::HostCapabilityUnavailable,
                  "single-window context must reject an unrelated window ID");
+
+    Automation::SingleWindowContext headlessWindow(std::nullopt);
+    Automation::AutomationDispatcher headlessDispatcher(resolver, headlessWindow);
+    ok &= expect(!headlessWindow.windowId(),
+                 "headless window context must not create a null or sentinel window ID");
+    const Automation::SingleWindowContext nullWindow(Automation::WindowId{});
+    ok &= expect(!nullWindow.windowId(),
+                 "a null UUID must be canonicalized to an absent window capability");
+
+    int headlessGuiHandlerCalls = 0;
+    const auto headlessGuiQuery = headlessDispatcher.dispatchGuiDocumentQuery<int>(
+        QStringLiteral("test.gui_query"), Automation::DocumentId::create(),
+        Automation::WindowId::create(), [&headlessGuiHandlerCalls](Automation::DocumentSession &) {
+            ++headlessGuiHandlerCalls;
+            return Automation::AutomationResult<int>(1);
+        });
+    ok &= expect(!headlessGuiQuery &&
+                     headlessGuiQuery.getError().code ==
+                         Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+                     headlessGuiQuery.getError().operationId == QStringLiteral("test.gui_query") &&
+                     headlessGuiHandlerCalls == 0,
+                 "headless GUI routes must reject host capability before document routing");
+
+    int headlessApplicationHandlerCalls = 0;
+    const auto headlessApplicationCommand =
+        headlessDispatcher.dispatchApplicationCommand<Automation::ApplicationMutationResult>(
+            QStringLiteral("test.application_command"),
+            {.source = Automation::InvocationSource::Test},
+            [&headlessApplicationHandlerCalls](const bool validateOnly) {
+                ++headlessApplicationHandlerCalls;
+                return Automation::AutomationResult<Automation::ApplicationMutationResult>({
+                    .changed = true,
+                    .validatedOnly = validateOnly,
+                });
+            });
+    ok &= expect(headlessApplicationCommand && headlessApplicationHandlerCalls == 1,
+                 "headless application commands must not depend on window routing");
 
     return ok ? 0 : 1;
 }

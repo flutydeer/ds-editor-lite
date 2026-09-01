@@ -150,8 +150,8 @@ namespace {
             return std::all_of(subset.cbegin(), subset.cend(),
                                [&superset](const QString &id) { return superset.contains(id); });
         };
-        for (const auto level : {ControlLevel::L0, ControlLevel::L1, ControlLevel::L2,
-                                ControlLevel::L3}) {
+        for (const auto level :
+             {ControlLevel::L0, ControlLevel::L1, ControlLevel::L2, ControlLevel::L3}) {
             const auto selected = toolsForControlLevel(level);
             QSet<QString> selectedIds;
             for (const auto &tool : selected) {
@@ -734,28 +734,28 @@ namespace {
                             .contains(QStringLiteral("range"));
             });
         QJsonObject audioPreviewInput{
-            {QStringLiteral("document_id"),
-             QStringLiteral("00000000-0000-4000-8000-000000000001")},
+            {QStringLiteral("document_id"), QStringLiteral("00000000-0000-4000-8000-000000000001")},
         };
         audioPreviewInput.insert(QStringLiteral("path"), QStringLiteral("mix.wav"));
-        audioPreviewInput.insert(
-            QStringLiteral("options"),
-            QJsonObject{
-                {QStringLiteral("format"),       QStringLiteral("unknown")},
-                {QStringLiteral("sample_rate"),  44100                    },
-                {QStringLiteral("channel_mode"), QStringLiteral("stereo")},
-                {QStringLiteral("mixing_mode"),  QStringLiteral("mixed") },
-                {QStringLiteral("source"),       QStringLiteral("all")   },
-            });
+        audioPreviewInput.insert(QStringLiteral("options"),
+                                 QJsonObject{
+                                     {QStringLiteral("format"),       QStringLiteral("unknown")},
+                                     {QStringLiteral("sample_rate"),  44100                    },
+                                     {QStringLiteral("channel_mode"), QStringLiteral("stereo") },
+                                     {QStringLiteral("mixing_mode"),  QStringLiteral("mixed")  },
+                                     {QStringLiteral("source"),       QStringLiteral("all")    },
+        });
         auto supportedAudioPreviewInput = audioPreviewInput;
-        auto supportedOptions = supportedAudioPreviewInput.value(QStringLiteral("options")).toObject();
+        auto supportedOptions =
+            supportedAudioPreviewInput.value(QStringLiteral("options")).toObject();
         supportedOptions.insert(QStringLiteral("format"), QStringLiteral("wav"));
         supportedAudioPreviewInput.insert(QStringLiteral("options"), supportedOptions);
-        expect(audioBranches.size() == 2 && audioRangeAbsent &&
-                   validateJsonValue(supportedAudioPreviewInput, audioPreview->inputSchema).valid() &&
-                   !validateJsonValue(audioPreviewInput, audioPreview->inputSchema).valid(),
-               QStringLiteral("audio export options must use closed source branches and reject "
-                              "unknown formats"));
+        expect(
+            audioBranches.size() == 2 && audioRangeAbsent &&
+                validateJsonValue(supportedAudioPreviewInput, audioPreview->inputSchema).valid() &&
+                !validateJsonValue(audioPreviewInput, audioPreview->inputSchema).valid(),
+            QStringLiteral("audio export options must use closed source branches and reject "
+                           "unknown formats"));
 
         const auto destination =
             propertySchema(midiExtraction->inputSchema, QStringLiteral("destination"));
@@ -765,31 +765,29 @@ namespace {
         const auto maximumModelInteger = std::numeric_limits<int>::max();
         const auto overflowingModelInteger = static_cast<qint64>(maximumModelInteger) + 1;
         auto validMove = commandContext();
-        validMove.insert(
-            QStringLiteral("moves"),
-            QJsonArray{QJsonObject{
-                {QStringLiteral("clip_id"), 1},
-                {QStringLiteral("target_track_id"), 1},
-                {QStringLiteral("start"), maximumModelInteger},
-            }});
+        validMove.insert(QStringLiteral("moves"),
+                         QJsonArray{
+                             QJsonObject{
+                                         {QStringLiteral("clip_id"), 1},
+                                         {QStringLiteral("target_track_id"), 1},
+                                         {QStringLiteral("start"), maximumModelInteger},
+                                         }
+        });
         auto overflowingMove = validMove;
-        auto overflowingMoveItem = overflowingMove.value(QStringLiteral("moves"))
-                                       .toArray()
-                                       .first()
-                                       .toObject();
+        auto overflowingMoveItem =
+            overflowingMove.value(QStringLiteral("moves")).toArray().first().toObject();
         overflowingMoveItem.insert(QStringLiteral("start"), overflowingModelInteger);
         overflowingMove.insert(QStringLiteral("moves"), QJsonArray{overflowingMoveItem});
 
         auto validExtraction = commandContext();
         validExtraction.insert(QStringLiteral("source_audio_clip_id"), 1);
-        validExtraction.insert(
-            QStringLiteral("destination"),
-            QJsonObject{
-                {QStringLiteral("target_track_id"), 1},
-                {QStringLiteral("start"), maximumModelInteger},
-                {QStringLiteral("mode"), QStringLiteral("merge_into_clip")},
-                {QStringLiteral("target_clip_id"), 2},
-            });
+        validExtraction.insert(QStringLiteral("destination"),
+                               QJsonObject{
+                                   {QStringLiteral("target_track_id"), 1                                },
+                                   {QStringLiteral("start"),           maximumModelInteger              },
+                                   {QStringLiteral("mode"),            QStringLiteral("merge_into_clip")},
+                                   {QStringLiteral("target_clip_id"),  2                                },
+        });
         validExtraction.insert(QStringLiteral("options"), QJsonObject{});
         auto overflowingExtraction = validExtraction;
         auto overflowingDestination =
@@ -911,12 +909,15 @@ namespace {
     }
 
     void verifyAdvancedControlContracts() {
+        QSet<QString> guiOnly;
+        QSet<QString> both;
         for (const auto &tool : publicToolContracts()) {
-            if (tool.minimumControlLevel != ControlLevel::L3)
-                continue;
-            if (tool.operationId.startsWith(QStringLiteral("workspace.")) ||
+            const auto expectedGuiOnly =
+                tool.operationId.startsWith(QStringLiteral("workspace.")) ||
                 tool.operationId.startsWith(QStringLiteral("track_panel.")) ||
-                tool.operationId.startsWith(QStringLiteral("clip_editor."))) {
+                tool.operationId.startsWith(QStringLiteral("clip_editor."));
+            if (expectedGuiOnly) {
+                guiOnly.insert(tool.operationId);
                 expect(tool.hostAvailability == QStringLiteral("gui") &&
                            (tool.inputSchema.value(QStringLiteral("properties"))
                                 .toObject()
@@ -925,10 +926,37 @@ namespace {
                        tool.operationId +
                            QStringLiteral(" must be GUI-only and identify an explicit window"));
             } else {
+                both.insert(tool.operationId);
                 expect(tool.hostAvailability == QStringLiteral("both"),
                        tool.operationId + QStringLiteral(" must be available in both hosts"));
             }
+
+            const auto metadata = tool.toMcpToolJson()
+                                      .value(QStringLiteral("_meta"))
+                                      .toObject()
+                                      .value(QStringLiteral("org.openvpi.ds-editor-lite/tool"))
+                                      .toObject();
+            expect(metadata.value(QStringLiteral("host_availability")).toString() ==
+                       tool.hostAvailability,
+                   tool.operationId +
+                       QStringLiteral(" descriptor host metadata must match the contract"));
+            for (const auto &value : tool.valueSources) {
+                const auto source = value.toObject();
+                const auto sourceId = source.value(QStringLiteral("operation_id")).toString();
+                const auto *sourceContract = findPublicTool(sourceId);
+                expect(sourceContract &&
+                           source.value(QStringLiteral("host_availability")).toString() ==
+                               sourceContract->hostAvailability,
+                       tool.operationId +
+                           QStringLiteral(" value source host metadata must match ") + sourceId);
+            }
         }
+        expect(
+            publicToolContracts().size() == 176 && guiOnly.size() == 25 && both.size() == 151,
+            QStringLiteral("public host split must contain 25 GUI-only and 151 both-host tools"));
+        expect(
+            guiOnly.size() + both.size() == publicToolContracts().size(),
+            QStringLiteral("GUI-only and both-host contracts must partition the public toolset"));
 
         const auto *revealClips = findPublicTool(QStringLiteral("track_panel.reveal_clips"));
         bool hasTrackSource = false;
