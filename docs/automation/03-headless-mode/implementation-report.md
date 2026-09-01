@@ -11,11 +11,12 @@
 继续共用 PublicAutomationRegistry、Access Policy、File Guard、Admission、类型化 binding、
 Automation Facade、History、revision 与 Task 生命周期。
 
-测试源候选冻结于 `headless` 分支 commit `74915546`；其后的变更仅回填正式报告，不改变受测产品
-代码或测试。项目标准 Debug preset 在不指定 Target 的情况下完成默认 `all` 构建，最终串行 CTest
-通过 64/64、0 fail。最终构建、清单、全量执行与审计证据分别为
+测试源候选最终冻结于 `headless` 分支 commit `d0d64289`；其后的变更仅回填正式报告，不改变受测
+产品代码或测试。项目标准 Debug preset 在不指定 Target 的情况下完成默认 `all` 构建；审查修复后
+重新完成增量全目标构建与串行 CTest，结果为 64/64、0 fail。最终构建、清单、全量执行与审计证据
+分别为
 `E-P3-FINAL-BUILD-002`、`E-P3-CTEST-LIST-002`、`E-P3-CTEST-JSON-002`、
-`E-P3-CTEST-FULL-001` 和 `E-P3-FINAL-AUDIT-001`。
+`E-P3-CTEST-FULL-002`、`E-P3-REVIEW-001` 和 `E-P3-FINAL-AUDIT-002`。
 
 ## 2. 启动入口与 Host composition
 
@@ -174,7 +175,8 @@ QLocal Bootstrap 的 `server_*` 字段继续只描述 Connector 所需的 MCP ro
 
 - Settings adapter 对 ThemeManager 使用可选注入；Headless 主题设置只处理配置，并以既有
   availability 字段表达当前界面不可用；
-- AudioContext 在 QCore Host 的设备错误路径不创建 QMessageBox；
+- AudioContext 在 QCore Host 的设备错误路径只记录日志且不创建 QMessageBox，GUI Host 保留既有失败
+  对话框；
 - AudioDecoding 从 Runtime/DocumentSession 获取工程路径，GUI DocumentWorkflow/notifier 为可选
   注入，不再用 singleton fallback 或 Toast；
 - Playback 在不存在 `QGuiApplication::screen` 时使用稳定 60 Hz fallback；
@@ -201,10 +203,11 @@ QLocal Bootstrap 的 `server_*` 字段继续只描述 Connector 所需的 MCP ro
 测试控制优先使用确定性 CTest、命令行进程、HTTP/QLocal/窗口枚举、Editor MCP 与 Connector MCP。
 Computer Use 只在其他方式无法覆盖必要 GUI 断言时使用；本期最终执行次数为 0。
 
-最终标准 Debug 构建完成 configure 4.7 秒、generate 1.3 秒及 428 个构建步骤，退出码为 0。
-CTest 文本清单与 JSON 清单均为 64 项且测试可执行文件完整；最终串行执行 64/64、0 fail，耗时
-58.89 秒，退出码为 0。测试仅使用自动生成的 WAV/DSPX fixture，未访问或复制授权素材，因此原文件
-hash 不适用；最终资源清理和 Evidence 索引审计通过。
+最终标准 Debug 完整构建完成 configure 4.7 秒、generate 1.3 秒及 428 个构建步骤，退出码为 0；
+Codex 审查修复后又完成默认 `all` 增量构建。CTest 文本清单与 JSON 清单均为 64 项且测试可执行
+文件完整；最终候选串行执行 64/64、0 fail，耗时 60.90 秒，退出码为 0。测试仅使用自动生成的
+WAV/DSPX fixture，未访问或复制授权素材，因此原文件 hash 不适用；最终资源清理和 Evidence 索引
+审计通过。
 
 ## 11. 明确未交付范围
 
