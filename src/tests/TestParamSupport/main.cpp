@@ -1,4 +1,5 @@
 #include "Model/Utils/ParamUtils.h"
+#include "UI/Views/ClipEditor/ParamEditor/ParamEditorEditMode.h"
 #include "UI/Views/ClipEditor/ParamEditor/UnsupportedParameterPromptState.h"
 
 #include <QCoreApplication>
@@ -73,6 +74,34 @@ namespace {
         const auto unsupportedSinger = singerWithCapabilities(QStringList{"velocity"});
         ok &= expect(!paramUtils->isSupportedBySinger(ParamInfo::MouthOpening, unsupportedSinger),
                      "mouth opening is unavailable when the singer does not support it");
+        return ok;
+    }
+
+    bool testEditToolVisibilityFollowsParameterType() {
+        bool ok = true;
+        ok &= expect(isParamEditorEditModeVisible(ParamEditorEditMode::Bake,
+                                                  ParamInfo::Breathiness),
+                     "a variance-backed parameter shows the bake tool");
+        ok &= expect(!isParamEditorEditModeVisible(ParamEditorEditMode::Bake, ParamInfo::Gender),
+                     "gender does not show the bake tool");
+        ok &= expect(!isParamEditorEditModeVisible(ParamEditorEditMode::Bake, ParamInfo::Velocity),
+                     "velocity does not show the bake tool");
+        ok &= expect(isParamEditorEditModeVisible(ParamEditorEditMode::Shape,
+                                                  ParamInfo::Breathiness) &&
+                         isParamEditorEditModeVisible(ParamEditorEditMode::Scale,
+                                                      ParamInfo::MouthOpening),
+                     "transformable parameters show curve transform tools");
+        ok &= expect(!isParamEditorEditModeVisible(ParamEditorEditMode::Shape,
+                                                   ParamInfo::Gender) &&
+                         !isParamEditorEditModeVisible(ParamEditorEditMode::Scale,
+                                                       ParamInfo::Velocity),
+                     "offset parameters do not show curve transform tools");
+        ok &= expect(isParamEditorEditModeVisible(ParamEditorEditMode::Draw, ParamInfo::Velocity) &&
+                         isParamEditorEditModeVisible(ParamEditorEditMode::Erase,
+                                                      ParamInfo::Velocity) &&
+                         isParamEditorEditModeVisible(ParamEditorEditMode::Anchor,
+                                                      ParamInfo::Velocity),
+                     "parameter-independent tools remain visible");
         return ok;
     }
 
@@ -155,6 +184,7 @@ int main(int argc, char *argv[]) {
     bool ok = true;
     ok &= testSupportFollowsSynthesisPath();
     ok &= testVarianceBackedParameters();
+    ok &= testEditToolVisibilityFollowsParameterType();
     ok &= testUnknownCapabilitiesAreConservative();
     ok &= testKnownEmptyCapabilities();
     ok &= testIndependentCapabilitySources();

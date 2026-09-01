@@ -203,3 +203,20 @@ std::optional<int> DrawCurveEditUtils::generatedValueAt(const QList<DrawCurve *>
     }
     return std::nullopt;
 }
+
+DrawCurveEditUtils::GeneratedCurveSnapshot::~GeneratedCurveSnapshot() {
+    clear();
+}
+
+void DrawCurveEditUtils::GeneratedCurveSnapshot::capture(const QList<DrawCurve *> &curves) {
+    AppModelUtils::copyCurves(curves, m_curves);
+}
+
+void DrawCurveEditUtils::GeneratedCurveSnapshot::clear() {
+    qDeleteAll(m_curves);
+    m_curves.clear();
+}
+
+std::optional<int> DrawCurveEditUtils::GeneratedCurveSnapshot::valueAt(const int tick) const {
+    return generatedValueAt(m_curves, tick);
+}

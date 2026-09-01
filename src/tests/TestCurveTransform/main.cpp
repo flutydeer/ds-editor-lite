@@ -340,12 +340,12 @@ namespace {
         ok &= expect(valueAt(preview, 5) == 6400, "two hundred percent pitch doubles deviation");
         qDeleteAll(preview);
 
-        ok &= expect(ParamInfo::supportsCurveTransform(ParamInfo::Pitch),
-                     "pitch supports curve transforms");
-        ok &= expect(ParamInfo::supportsCurveTransform(ParamInfo::MouthOpening),
-                     "mouth opening supports curve transforms");
-        ok &= expect(!ParamInfo::supportsCurveTransform(ParamInfo::Gender),
-                     "offset parameter does not support transforms");
+        ok &= expect(ParamInfo::hasOriginalParam(ParamInfo::Pitch),
+                     "pitch has an original curve for transforms");
+        ok &= expect(ParamInfo::hasOriginalParam(ParamInfo::MouthOpening),
+                     "mouth opening has an original curve for transforms");
+        ok &= expect(!ParamInfo::hasOriginalParam(ParamInfo::Gender),
+                     "offset parameter has no original curve to transform");
         return ok;
     }
 

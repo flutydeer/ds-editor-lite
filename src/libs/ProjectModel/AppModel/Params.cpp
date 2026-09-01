@@ -103,20 +103,6 @@ bool ParamInfo::hasOriginalParam(const Name name) {
     }
 }
 
-bool ParamInfo::supportsCurveTransform(const Name name) {
-    switch (name) {
-        case Pitch:
-        case Breathiness:
-        case Voicing:
-        case Energy:
-        case Tension:
-        case MouthOpening:
-            return true;
-        default:
-            return false;
-    }
-}
-
 ParamInfo::ValueSpec ParamInfo::valueSpec(const Name name) {
     const ParamProperties *properties = nullptr;
     const ParamProperties defaults;

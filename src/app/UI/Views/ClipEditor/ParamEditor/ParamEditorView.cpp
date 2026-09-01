@@ -151,10 +151,8 @@ void ParamEditorView::executeEditCommand(const EditorInteraction::Command comman
 }
 
 void ParamEditorView::setDataContext(SingingClip *clip) {
-    if (m_clip) {
+    if (m_clip)
         disconnect(m_clip, &SingingClip::voiceContextChanged, this, nullptr);
-        disconnect(m_clip, &SingingClip::paramChanged, this, nullptr);
-    }
     m_clip = clip;
     m_graphicsView->setDataContext(clip);
     if (m_clip) {
@@ -162,11 +160,6 @@ void ParamEditorView::setDataContext(SingingClip *clip) {
                 [this](const VoiceContextChange &) {
                     refreshSpeakerMixToolBar();
                     refreshParameterSupportState();
-                });
-        connect(m_clip, &SingingClip::paramChanged, this,
-                [this](const ParamInfo::Name name, const Param::Type type) {
-                    if (name == m_foregroundParam && type == Param::Original)
-                        refreshParameterSupportState();
                 });
     }
     refreshSpeakerMixToolBar();
@@ -452,15 +445,6 @@ void ParamEditorView::refreshParameterSupportState() {
     const bool backgroundSupported = isSupported(m_backgroundParam);
     m_graphicsView->setForegroundBaseCurveVisible(foregroundSupported);
     m_graphicsView->setBackgroundBaseCurveVisible(backgroundSupported);
-
-    const auto *foreground = m_clip && ParamInfo::hasOriginalParam(m_foregroundParam)
-                                 ? m_clip->params.getParamByName(m_foregroundParam)
-                                 : nullptr;
-    const bool bakeEnabled = foregroundSupported && m_clip && !m_clip->singerInfo().isEmpty() &&
-                             foreground && !foreground->curves(Param::Original).isEmpty();
-    m_toolBar->setBakeEnabled(bakeEnabled);
-    m_toolBar->setTransformEnabled(foregroundSupported && m_clip &&
-                                   ParamInfo::supportsCurveTransform(m_foregroundParam));
 
     if (m_foregroundParam == ParamInfo::SpeakerMix)
         return;

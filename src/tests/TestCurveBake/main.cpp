@@ -113,8 +113,11 @@ namespace {
                     m_mouseDown = pointAt(*mouseEvent);
                     m_previous = m_mouseDown;
                     m_moved = false;
-                    if (m_tool != Tool::Eraser)
+                    if (m_tool != Tool::Eraser) {
                         m_stroke = DrawCurveEditUtils::beginStroke(m_preview, m_mouseDown);
+                        if (m_tool == Tool::Bake)
+                            m_bakeSource.capture(m_generated);
+                    }
                 }
                 return true;
             }
@@ -157,7 +160,7 @@ namespace {
                 const DrawCurveEditUtils::ValueProvider provider =
                     m_tool == Tool::Bake
                         ? DrawCurveEditUtils::ValueProvider([this](const int tick) {
-                              return DrawCurveEditUtils::generatedValueAt(m_generated, tick);
+                              return m_bakeSource.valueAt(tick);
                           })
                         : DrawCurveEditUtils::ValueProvider(
                               [previous = m_previous, current](const int tick) {
@@ -187,6 +190,7 @@ namespace {
         DrawCurveList m_preview;
         DrawCurveList m_persisted;
         DrawCurveEditUtils::StrokeState m_stroke;
+        DrawCurveEditUtils::GeneratedCurveSnapshot m_bakeSource;
         QPoint m_mouseDown;
         QPoint m_previous;
         bool m_pressed = false;
@@ -463,6 +467,44 @@ namespace {
         qDeleteAll(generated);
     }
 
+    void testEmptyGeneratedCurveIsNoOp(const Backend backend) {
+        const DrawCurveList generated;
+        const auto baked = runStroke(backend, Tool::Bake,
+                                     {
+                                         {0,  700},
+                                         {40, 720}
+        },
+                                     generated);
+        expect(!baked.commitAttempted && baked.preview.isEmpty() && baked.persisted.isEmpty(),
+               "baking without generated curves must be a no-op");
+    }
+
+    void testGeneratedSegmentWaitsForNextStroke(const Backend backend) {
+        DrawCurveList generated{curve(0, {100, 110, 120, 130})};
+        CurveStrokeEventProbe probe(backend, Tool::Bake, generated, {});
+        sendMouseEvent(probe, QEvent::MouseButtonPress, {20, 700}, Qt::LeftButton,
+                       Qt::LeftButton);
+        sendMouseEvent(probe, QEvent::MouseMove, {30, 710}, Qt::NoButton, Qt::LeftButton);
+        generated.append(curve(20, {200, 210, 220, 230, 240, 250}));
+        sendMouseEvent(probe, QEvent::MouseMove, {40, 720}, Qt::NoButton, Qt::LeftButton);
+        sendMouseEvent(probe, QEvent::MouseButtonRelease, {40, 720}, Qt::LeftButton,
+                       Qt::NoButton);
+
+        const auto currentStroke = probe.result();
+        expect(!currentStroke.commitAttempted && currentStroke.persisted.isEmpty(),
+               "a generated segment completing during a bake stroke must wait for the next stroke");
+
+        const auto nextStroke = runStroke(backend, Tool::Bake,
+                                          {
+                                              {20, 700},
+                                              {40, 720}
+        },
+                                          generated);
+        expect(nextStroke.commitAttempted && !nextStroke.persisted.isEmpty(),
+               "the next bake stroke must use the newly generated segment");
+        qDeleteAll(generated);
+    }
+
     void testUndoRedo(const Backend backend, const ParamInfo::Name paramName,
                       const DrawCurveList &generated) {
         const auto baked = runStroke(backend, Tool::Bake,
@@ -507,6 +549,8 @@ namespace {
             testImportedCurveGridAlignment(backend, generated);
             testEraserRangeRegression(backend, generated);
             testGeneratedGapsStaySeparate(backend);
+            testEmptyGeneratedCurveIsNoOp(backend);
+            testGeneratedSegmentWaitsForNextStroke(backend);
         }
     }
 }
