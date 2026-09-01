@@ -14,6 +14,7 @@ public:
     Automation::TaskId automationTaskId;
     Automation::AudioAssetSnapshotDto assetSnapshot;
     QString path;
+    QString snapshotPath;
     QString resultSha512;
     bool success = false;
 

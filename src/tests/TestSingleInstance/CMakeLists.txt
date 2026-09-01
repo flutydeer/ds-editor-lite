@@ -4,6 +4,7 @@ lite_add_test(${PROJECT_NAME}
     SOURCES
         main.cpp
         ../../app/Bootstrap/SingleInstanceCoordinator.cpp
+        ../../app/Bootstrap/SingleInstanceIdentity.cpp
         ../../app/Bootstrap/SingleInstanceProtocol.cpp
 )
 

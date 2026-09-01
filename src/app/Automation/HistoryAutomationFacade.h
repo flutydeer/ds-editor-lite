@@ -17,17 +17,13 @@ namespace Automation {
 
     class HistoryAutomationFacade final {
     public:
-        HistoryAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
-                                CommandCommitter &committer);
+        HistoryAutomationFacade(AutomationDispatcher &dispatcher, CommandCommitter &committer);
 
         AutomationResult<HistoryStateDto> getState(const DocumentId &documentId);
         AutomationResult<MutationResult> undo(const CommandContext &context);
         AutomationResult<MutationResult> redo(const CommandContext &context);
 
     private:
-        void registerOperations();
-
-        OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
         CommandCommitter &m_committer;
     };

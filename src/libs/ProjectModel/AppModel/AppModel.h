@@ -41,7 +41,7 @@ public:
     void setDefaultSingingLanguage(const QString &language);
     void setPaletteColorCount(int count);
     const QList<Track *> &tracks() const;
-    bool insertTrack(Track *track, qsizetype index);
+    bool insertTrack(Track *track, qsizetype index, bool resolveColorIndex = true);
     bool appendTrack(Track *track);
     // 轨道集合操作只修改数据；Action 在复合编辑完成后显式发布通知。
     // to 为移动完成后的最终下标，语义同 QList::move。

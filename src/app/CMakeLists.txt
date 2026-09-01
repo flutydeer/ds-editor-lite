@@ -6,8 +6,15 @@ else()
     file(GLOB_RECURSE _src CONFIGURE_DEPENDS *.h *.cpp)
 endif()
 
+if(MSVC)
+    set_source_files_properties(
+        Automation/Public/PublicAutomationRegistry.cpp
+        PROPERTIES COMPILE_OPTIONS "/bigobj"
+    )
+endif()
+
 find_package(Qt6 REQUIRED COMPONENTS
-    Core Widgets Network Concurrent StateMachine LinguistTools GuiPrivate ShaderTools
+    Core Widgets Network HttpServer Concurrent StateMachine LinguistTools GuiPrivate ShaderTools
 )
 find_package(OpenGL)
 find_package(QWindowKit CONFIG REQUIRED)
@@ -50,6 +57,7 @@ lite_add_application(${PROJECT_NAME}
         Core
         Widgets
         Network
+        HttpServer
         Concurrent
         StateMachine
     LINKS_PRIVATE
@@ -77,6 +85,7 @@ lite_add_application(${PROJECT_NAME}
         lite::ProjectConverters
         lite::Language
         lite::Tasking
+        lite::AutomationWire
         lite::GUI
         unofficial::tinyexpr::tinyexpr
         srt::synthrt

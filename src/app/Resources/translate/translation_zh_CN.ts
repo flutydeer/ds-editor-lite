@@ -68,6 +68,11 @@
         <translation>推理</translation>
     </message>
     <message>
+        <location filename="../../UI/Dialogs/Options/AppOptionsDialog.cpp" line="228"/>
+        <source>Automation</source>
+        <translation>自动化</translation>
+    </message>
+    <message>
         <location filename="../../UI/Dialogs/Options/AppOptionsDialog.cpp" line="205"/>
         <source>Appearance</source>
         <translation>外观</translation>
@@ -81,6 +86,397 @@
         <location filename="../../UI/Dialogs/Options/AppOptionsDialog.cpp" line="187"/>
         <source>Options</source>
         <translation>选项</translation>
+    </message>
+</context>
+<context>
+    <name>AutomationPage</name>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="45"/>
+        <source>Overridden and locked by a command-line argument</source>
+        <translation>已通过命令行参数覆盖并锁定</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="55"/>
+        <source>%1 (%2)</source>
+        <translation>%1（%2）</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="437"/>
+        <source>Determines which tools clients can access</source>
+        <translation>决定客户端可访问的工具范围</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="52"/>
+        <source>Application</source>
+        <translation>应用程序</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="54"/>
+        <source>Automation</source>
+        <translation>自动化</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="56"/>
+        <source>Documents</source>
+        <translation>文档</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="58"/>
+        <source>Project</source>
+        <translation>工程</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="60"/>
+        <source>Notes</source>
+        <translation>音符</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="62"/>
+        <source>Parameters</source>
+        <translation>参数</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="64"/>
+        <source>Timeline</source>
+        <translation>时间线</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="66"/>
+        <source>History</source>
+        <translation>历史记录</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="68"/>
+        <source>Voices</source>
+        <translation>声库</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="70"/>
+        <source>Tracks</source>
+        <translation>轨道</translation>
+    </message>
+    <message>
+        <source>Bus</source>
+        <translation>总线</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="72"/>
+        <source>Clips</source>
+        <translation>剪辑</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="74"/>
+        <source>Speaker Mix</source>
+        <translation>声线混合</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="76"/>
+        <source>Tempos</source>
+        <translation>速度</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="78"/>
+        <source>Time Signatures</source>
+        <translation>拍号</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="80"/>
+        <source>Master</source>
+        <translation>主控</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="82"/>
+        <source>Formats</source>
+        <translation>格式</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="84"/>
+        <source>Audio Clips</source>
+        <translation>音频剪辑</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="86"/>
+        <source>Exports</source>
+        <translation>导出</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="88"/>
+        <source>Extraction</source>
+        <translation>提取</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="90"/>
+        <source>Inference</source>
+        <translation>推理</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="92"/>
+        <source>Tasks</source>
+        <translation>任务</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="94"/>
+        <source>Playback</source>
+        <translation>播放</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="106"/>
+        <source>Workspace</source>
+        <translation>工作区布局</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="108"/>
+        <source>Track Panel</source>
+        <translation>轨道面板</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="110"/>
+        <source>Clip Editor</source>
+        <translation>剪辑编辑器</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="112"/>
+        <source>Settings</source>
+        <translation>设置</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="114"/>
+        <source>Packages</source>
+        <translation>包信息</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="116"/>
+        <source>Lyric Rules</source>
+        <translation>歌词规则</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="100"/>
+        <source>Editor starting</source>
+        <translation>编辑器正在启动</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="102"/>
+        <source>Server disabled</source>
+        <translation>服务器已禁用</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="104"/>
+        <source>Server starting</source>
+        <translation>服务器正在启动</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="106"/>
+        <source>Server ready</source>
+        <translation>服务器已就绪</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="108"/>
+        <source>Server stopping</source>
+        <translation>服务器正在停止</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="110"/>
+        <source>Editor stopping</source>
+        <translation>编辑器正在退出</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="112"/>
+        <source>Error</source>
+        <translation>错误</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="147"/>
+        <source>Not initialized</source>
+        <translation>尚未初始化</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="230"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="510"/>
+        <source>Limits MCP file access, such as opening, importing, saving, and exporting, to the listed folders</source>
+        <translation>将 MCP 的打开、导入、保存、导出等文件访问限制在所列文件夹内</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="201"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="209"/>
+        <source>Not saved because a folder is missing or invalid: %1</source>
+        <translation>文件夹不存在或无效，未保存：%1</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="241"/>
+        <source>L1 - Basic Editing</source>
+        <translation>L1 - 基础编辑</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="242"/>
+        <source>L2 - Complete Creation</source>
+        <translation>L2 - 完整创作</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="243"/>
+        <source>L3 - Advanced Control</source>
+        <translation>L3 - 进阶控制</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="244"/>
+        <source>Custom</source>
+        <translation>自定义</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="250"/>
+        <source>Local Server</source>
+        <translation>本地服务器</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="251"/>
+        <source>Enable MCP Server</source>
+        <translation>启用 MCP 服务器</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="258"/>
+        <source>Control Port</source>
+        <translation>控制端口</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="297"/>
+        <source>Randomize</source>
+        <translation>随机更换</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="265"/>
+        <source>Runtime Status</source>
+        <translation>运行状态</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="267"/>
+        <source>Last Error</source>
+        <translation>最近错误</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="313"/>
+        <source>Connection Configurations</source>
+        <translation>连接配置</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="331"/>
+        <source>Copy Configuration</source>
+        <translation>复制配置</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="345"/>
+        <source>STDIO configuration copied</source>
+        <translation>STDIO 配置已复制</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="348"/>
+        <source>STDIO Connector</source>
+        <translation>STDIO 连接器</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="349"/>
+        <source>Starts %1 and discovers this editor automatically</source>
+        <translation>启动 %1 自动发现本编辑器</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="355"/>
+        <source>Streamable HTTP configuration copied</source>
+        <translation>Streamable HTTP 配置已复制</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="354"/>
+        <source>Copy Endpoint</source>
+        <translation>复制端点</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="359"/>
+        <source>Endpoint copied</source>
+        <translation>端点已复制</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="358"/>
+        <source>Streamable HTTP</source>
+        <translation>Streamable HTTP</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="359"/>
+        <source>Connects directly to the editor&apos;s configured MCP endpoint</source>
+        <translation>直接连接编辑器配置的 MCP 端点</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="270"/>
+        <source>Control Level</source>
+        <translation>控制层级</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="272"/>
+        <source>Level</source>
+        <translation>层级</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="285"/>
+        <source>%1 (%L2/%L3 enabled)</source>
+        <translation>%1（已启用 %L2/%L3）</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="308"/>
+        <source>Custom Toolset</source>
+        <translation>自定义工具集</translation>
+    </message>
+    <message>
+        <source>Import Control Level</source>
+        <translation>导入控制层级</translation>
+    </message>
+    <message>
+        <source>%L1/%L2 enabled</source>
+        <translation>已启用 %L1/%L2</translation>
+    </message>
+    <message>
+        <source>Open toolset</source>
+        <translation>打开工具集</translation>
+    </message>
+    <message>
+        <source>Back to Access Control</source>
+        <translation>返回访问控制</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="310"/>
+        <source>No public tools available</source>
+        <translation>没有可用的公共工具</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="311"/>
+        <source>Public tools appear here when the automation manifest is ready</source>
+        <translation>自动化清单就绪后，公共工具将显示在此处</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="438"/>
+        <source>Expand tool group</source>
+        <translation>展开工具组</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="446"/>
+        <source>Collapse tool group</source>
+        <translation>折叠工具组</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="463"/>
+        <source>Enable or disable all tools in this group</source>
+        <translation>开启或关闭此组中的全部工具</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="328"/>
+        <source>File Access Permissions</source>
+        <translation>文件访问权限</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="330"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="340"/>
+        <source>Folders</source>
+        <translation>文件夹列表</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AutomationPage.cpp" line="535"/>
+        <source>Access Control</source>
+        <translation>访问控制</translation>
     </message>
 </context>
 <context>
@@ -3622,7 +4018,13 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     </message>
     <message>
         <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="814"/>
-        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="891"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="896"/>
+        <source>A&amp;utomation...</source>
+        <translation>自动化(&amp;U)...</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="818"/>
+        <location filename="../../UI/Views/MainTitleBar/MainMenuView.cpp" line="897"/>
         <source>&amp;Developer Options...</source>
         <translation>开发者选项(&amp;D)...</translation>
     </message>

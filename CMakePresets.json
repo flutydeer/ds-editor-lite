@@ -77,37 +77,41 @@
     {
       "name": "debug",
       "displayName": "Build Debug",
-      "description": "Build the Debug application target.",
+      "description": "Build the Debug editor and connector targets.",
       "configurePreset": "debug",
       "targets": [
-        "DsEditorLite"
+        "DsEditorLite",
+        "DsConnectorLite"
       ]
     },
     {
       "name": "release",
       "displayName": "Build Release",
-      "description": "Build the Release application target.",
+      "description": "Build the Release editor and connector targets.",
       "configurePreset": "release",
       "targets": [
-        "DsEditorLite"
+        "DsEditorLite",
+        "DsConnectorLite"
       ]
     },
     {
       "name": "package-dml-release",
       "displayName": "Build Package DML Release",
-      "description": "Build the Release application target for the Windows x64 DML installer.",
+      "description": "Build the Release editor and connector for the Windows x64 DML installer.",
       "configurePreset": "package-dml-release",
       "targets": [
-        "DsEditorLite"
+        "DsEditorLite",
+        "DsConnectorLite"
       ]
     },
     {
       "name": "package-dml-portable",
       "displayName": "Build Package DML Portable RelWithDebInfo",
-      "description": "Build the RelWithDebInfo application target for the Windows x64 DML portable zip.",
+      "description": "Build the RelWithDebInfo editor and connector for the Windows x64 DML portable zip.",
       "configurePreset": "package-dml-portable",
       "targets": [
-        "DsEditorLite"
+        "DsEditorLite",
+        "DsConnectorLite"
       ]
     }
   ]

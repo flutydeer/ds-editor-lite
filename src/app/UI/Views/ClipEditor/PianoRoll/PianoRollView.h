@@ -34,6 +34,9 @@ public:
     [[nodiscard]] PianoRollViewState viewState() const;
     bool centerAt(double tick, double keyIndex) const;
     bool setViewScale(double horizontalScale, double verticalScale) const;
+    bool setTimeViewport(double centerTick, double horizontalScale) const;
+    bool setPitchViewport(double centerKeyIndex, double verticalScale) const;
+    bool focusEditor();
     [[nodiscard]] HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const;
     bool revealFocus(const HistoryFocus &focus, bool animated = true) const;
     [[nodiscard]] double scaleX() const;

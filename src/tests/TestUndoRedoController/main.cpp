@@ -112,11 +112,23 @@ namespace {
             return true;
         }
 
+        bool setTrackPanelViewport(const TrackPanelViewState &) override {
+            return true;
+        }
+
         bool setEditorPanelVisibility(bool, bool) override {
             return true;
         }
 
         bool showBottomPanelPage(const QString &) override {
+            return true;
+        }
+
+        bool showEditorRegion(EditorViewGlobal::Region) override {
+            return true;
+        }
+
+        bool focusEditorRegion(EditorViewGlobal::Region) override {
             return true;
         }
 
@@ -128,7 +140,35 @@ namespace {
             return true;
         }
 
+        bool setClipEditorTimeViewport(double, double) override {
+            return true;
+        }
+
+        bool setPianoRollPitchViewport(double, double) override {
+            return true;
+        }
+
         bool setPianoRollEditMode(EditorViewGlobal::PianoRollEditMode) override {
+            return true;
+        }
+
+        bool setParameterForeground(ParamInfo::Name) override {
+            return true;
+        }
+
+        bool setParameterBackground(ParamInfo::Name) override {
+            return true;
+        }
+
+        bool swapParameters() override {
+            return true;
+        }
+
+        bool setParameterEditMode(EditorViewGlobal::ParameterEditMode) override {
+            return true;
+        }
+
+        bool setParameterValueViewport(double, double) override {
             return true;
         }
 

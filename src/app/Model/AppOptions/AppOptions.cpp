@@ -2,15 +2,15 @@
 
 #include "AppOptions.h"
 
+#include "Bootstrap/SingleInstanceIdentity.h"
+
 #include <lite/Support/JsonUtils.h>
 #include <lite/Support/Log.h>
 
-#include <QStandardPaths>
 #include <QDir>
 
 AppOptions::AppOptions(QObject *parent) : QObject(parent) {
-    const QDir configDir(
-        QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first());
+    const QDir configDir(SingleInstanceIdentity::defaultDataDirectory());
     if (!configDir.exists()) {
         if (configDir.mkpath("."))
             Log::d(CLASS_NAME, "Successfully created config directory");
@@ -28,6 +28,7 @@ AppOptions::AppOptions(QObject *parent) : QObject(parent) {
             m_g2pLanguageOption.load(obj.value(m_g2pLanguageOption.key()).toObject());
             m_fillLyricOption.load(obj.value(m_fillLyricOption.key()).toObject());
             m_inferenceOption.load(obj.value(m_inferenceOption.key()).toObject());
+            m_automationOption.load(obj.value(m_automationOption.key()).toObject());
             m_developerOption.load(obj.value(m_developerOption.key()).toObject());
             m_windowOption.load(obj.value(m_windowOption.key()).toObject());
         }
@@ -50,6 +51,7 @@ bool AppOptions::saveAndNotify(const AppOptionsGlobal::Option option) {
         {m_g2pLanguageOption.key(), m_g2pLanguageOption.value()},
         {m_fillLyricOption.key(),   m_fillLyricOption.value()  },
         {m_inferenceOption.key(),   m_inferenceOption.value()  },
+        {m_automationOption.key(),  m_automationOption.value() },
         {m_developerOption.key(),   m_developerOption.value()  },
         {m_windowOption.key(),      m_windowOption.value()     }
     };
@@ -85,6 +87,10 @@ FillLyricOption *AppOptions::fillLyric() {
 
 InferenceOption *AppOptions::inference() {
     return &m_inferenceOption;
+}
+
+AutomationOption *AppOptions::automation() {
+    return &m_automationOption;
 }
 
 DeveloperOption *AppOptions::developer() {

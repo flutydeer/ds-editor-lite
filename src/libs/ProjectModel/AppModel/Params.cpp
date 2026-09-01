@@ -1,6 +1,7 @@
 #include <lite/ProjectModel/AppModel/Params.h>
 
 #include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/ParamProperties.h>
 
 #include <QDebug>
 #include <QLoggingCategory>
@@ -114,4 +115,53 @@ bool ParamInfo::supportsCurveTransform(const Name name) {
         default:
             return false;
     }
+}
+
+ParamInfo::ValueSpec ParamInfo::valueSpec(const Name name) {
+    const ParamProperties *properties = nullptr;
+    const ParamProperties defaults;
+    const PitchParamProperties pitch;
+    const ExprParamProperties expressiveness;
+    const DecibelParamProperties decibels;
+    const TensionParamProperties tension;
+    const MouthOpeningParamProperties mouthOpening;
+    const GenderParamProperties gender;
+    const VelocityParamProperties velocity;
+    const ToneShiftParamProperties toneShift;
+    switch (name) {
+        case Pitch:
+            properties = &pitch;
+            break;
+        case Expressiveness:
+            properties = &expressiveness;
+            break;
+        case Energy:
+        case Breathiness:
+        case Voicing:
+            properties = &decibels;
+            break;
+        case Tension:
+            properties = &tension;
+            break;
+        case MouthOpening:
+            properties = &mouthOpening;
+            break;
+        case Gender:
+            properties = &gender;
+            break;
+        case Velocity:
+            properties = &velocity;
+            break;
+        case ToneShift:
+            properties = &toneShift;
+            break;
+        case SpeakerMix:
+        case Unknown:
+            properties = &defaults;
+            break;
+    }
+    return {.minimum = properties->minimum,
+            .maximum = properties->maximum,
+            .step = 1,
+            .unit = properties->unit};
 }

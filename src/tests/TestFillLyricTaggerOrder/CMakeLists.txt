@@ -4,6 +4,7 @@ lite_add_test(${PROJECT_NAME}
     SOURCES
         main.cpp
         ../../app/Model/AppOptions/Options/FillLyricOption.cpp
+        ../../app/Modules/FillLyric/Utils/LyricRuleAutomationUtils.cpp
         ../../app/Modules/FillLyric/Utils/TaggerRuleOrder.cpp
         ../../app/Modules/FillLyric/Utils/TextTagger.cpp
 )

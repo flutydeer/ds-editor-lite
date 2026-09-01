@@ -15,9 +15,11 @@
 
 #include <QFile>
 #include <QCoreApplication>
+#include <QSaveFile>
 
 #include <algorithm>
 #include <sstream>
+#include <utility>
 
 static QList<Note *> convertNotes(const std::vector<opendspx::Note> &arrNotes, const int offset,
                                   const QString &language, const QString &defaultLyric) {
@@ -81,27 +83,29 @@ static Track *convertTrack(const opendspx::Track &track, const QString &language
     return dsTrack;
 }
 
-static std::vector<opendspx::Note> encodeNotes(const OverlappableSerialList<Note> &notes) {
+static std::vector<opendspx::Note> encodeNotes(const OverlappableSerialList<Note> &notes,
+                                              const bool includeLyrics) {
     std::vector<opendspx::Note> arrNotes;
     for (const auto &note : notes) {
         opendspx::Note dsNote;
         dsNote.pos = note->globalStart();
         dsNote.length = note->length();
         dsNote.keyNum = note->keyIndex();
-        dsNote.lyric = note->lyric().toStdString();
+        if (includeLyrics)
+            dsNote.lyric = note->lyric().toStdString();
         arrNotes.push_back(dsNote);
     }
     return arrNotes;
 }
 
-static void encodeClips(const Track *dsTrack, opendspx::Track *track) {
+static void encodeClips(const Track *dsTrack, opendspx::Track *track, const bool includeLyrics) {
     for (const auto &clip : dsTrack->clips()) {
         if (clip->clipType() == Clip::Singing) {
             const auto singingClip = dynamic_cast<SingingClip *>(clip);
             auto singClip = std::make_shared<opendspx::SingingClip>();
             singClip->name = clip->name().toStdString();
             singClip->time = {clip->start(), clip->clipLen(), clip->clipStart(), clip->clipLen()};
-            singClip->notes = encodeNotes(singingClip->notes());
+            singClip->notes = encodeNotes(singingClip->notes(), includeLyrics);
             track->clips.push_back(singClip);
         } else if (clip->clipType() == Clip::Audio) {
             const auto audioClip = dynamic_cast<AudioClip *>(clip);
@@ -115,11 +119,12 @@ static void encodeClips(const Track *dsTrack, opendspx::Track *track) {
     }
 }
 
-static void encodeTracks(const AppModel *model, opendspx::Model &dspx) {
+static void encodeTracks(const AppModel *model, opendspx::Model &dspx,
+                         const bool includeLyrics) {
     for (const auto &dsTrack : model->tracks()) {
         opendspx::Track track;
         track.name = dsTrack->name().toStdString();
-        encodeClips(dsTrack, &track);
+        encodeClips(dsTrack, &track, includeLyrics);
         dspx.content.tracks.push_back(track);
     }
 }
@@ -249,18 +254,23 @@ MidiConverter::LoadStatus MidiConverter::loadInteractive(const QString &path, Ap
 }
 
 MidiParseData MidiFileParser::parse(const QString &path) {
-    MidiParseData result;
-    result.path = path;
-
     QFile midiFile(path);
     if (!midiFile.open(QIODevice::ReadOnly)) {
+        MidiParseData result;
+        result.path = path;
         result.errorMessage =
             QCoreApplication::translate("MidiConverter", "Failed to read MIDI file.\npath: %1")
                 .arg(path);
         return result;
     }
 
-    result.rawData = midiFile.readAll();
+    return parse(path, midiFile.readAll());
+}
+
+MidiParseData MidiFileParser::parse(const QString &path, QByteArray rawData) {
+    MidiParseData result;
+    result.path = path;
+    result.rawData = std::move(rawData);
     opendspx::MidiConverter converter;
     opendspx::MidiConverter::Error midiError;
     std::stringstream ss(result.rawData.toStdString(), std::ios::in);
@@ -373,15 +383,26 @@ MidiGenerationResult MidiTrackGenerator::generateTracks(MidiParseData &data,
 }
 
 bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) {
+    return save(path, model, errMsg, {});
+}
+
+bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg,
+                         const SaveOptions &options) {
     opendspx::Model dspx;
     opendspx::MidiConverter midiConverter;
 
-    for (const auto &tempo : model->timeline().tempos())
-        dspx.content.timeline.tempos.push_back({tempo.pos, tempo.value});
-    for (const auto &ts : model->timeline().timeSignatures())
-        dspx.content.timeline.timeSignatures.push_back({ts.barIndex, ts.numerator, ts.denominator});
+    if (options.includeTempo) {
+        for (const auto &tempo : model->timeline().tempos())
+            dspx.content.timeline.tempos.push_back({tempo.pos, tempo.value});
+    }
+    if (options.includeTimeSignatures) {
+        for (const auto &ts : model->timeline().timeSignatures()) {
+            dspx.content.timeline.timeSignatures.push_back(
+                {ts.barIndex, ts.numerator, ts.denominator});
+        }
+    }
 
-    encodeTracks(model, dspx);
+    encodeTracks(model, dspx, options.includeLyrics);
 
     auto midiMediate = midiConverter.convertDspxToIntermediate(dspx);
     std::stringstream ss(std::ios::out);
@@ -389,7 +410,8 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
 
     auto saveMidiToFile = [](const QByteArray &midi, const QString &filePath,
                              QString &msg) -> bool {
-        QFile file(filePath);
+        QSaveFile file(filePath);
+        file.setDirectWriteFallback(false);
         if (!file.open(QIODevice::WriteOnly)) {
             msg +=
                 QCoreApplication::translate("MidiConverter", "Failed to open file for writing: %1")
@@ -397,13 +419,22 @@ bool MidiConverter::save(const QString &path, AppModel *model, QString &errMsg) 
             return false;
         }
 
-        const qint64 written = file.write(midi);
-        file.close();
-
-        if (written != midi.size()) {
+        if (file.write(midi) != midi.size()) {
+            file.cancelWriting();
             msg +=
                 QCoreApplication::translate("MidiConverter", "Failed to write all data to file: %1")
                     .arg(filePath);
+            return false;
+        }
+        if (!file.flush()) {
+            file.cancelWriting();
+            msg += QCoreApplication::translate("MidiConverter", "Failed to flush file: %1")
+                       .arg(filePath);
+            return false;
+        }
+        if (!file.commit()) {
+            msg += QCoreApplication::translate("MidiConverter", "Failed to commit file: %1")
+                       .arg(filePath);
             return false;
         }
 

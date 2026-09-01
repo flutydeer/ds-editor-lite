@@ -50,19 +50,16 @@ namespace {
 
     PianoRollPastePreviewData makePreviewData(const NotesParamsInfo &info) {
         PianoRollPastePreviewData data;
-        if (info.selectedNotes.isEmpty())
+        if (info.payload.notes.isEmpty())
             return data;
 
-        auto minimumStart = info.selectedNotes.first()->localStart();
-        for (const auto *note : info.selectedNotes)
-            minimumStart = std::min(minimumStart, note->localStart());
+        const auto minimumStart = info.payload.sourceStart;
 
-        data.notes.reserve(info.selectedNotes.size());
-        for (const auto *note : info.selectedNotes) {
-            const auto pronunciation = note->pronunciation();
-            data.notes.append({note->localStart() - minimumStart, note->length(), note->keyIndex(),
-                               note->lyric(), pronunciation.result(), pronunciation.isEdited(),
-                               note->overlapped()});
+        data.notes.reserve(info.payload.notes.size());
+        for (const auto &note : info.payload.notes) {
+            data.notes.append({note.localStart - minimumStart, note.length, note.keyIndex,
+                               note.lyric, note.pronunciation.result(),
+                               note.pronunciation.isEdited(), false});
         }
         return data;
     }

@@ -11,8 +11,9 @@ void TrackActions::appendTracks(const QList<Track *> &tracks, AppModel *model) {
         addAction(AppendTrackAction::build(track, model));
 }
 
-void TrackActions::insertTrack(Track *track, const qsizetype index, AppModel *model) {
-    addAction(InsertTrackAction::build(track, index, model));
+void TrackActions::insertTrack(Track *track, const qsizetype index, AppModel *model,
+                               const bool resolveColorIndex) {
+    addAction(InsertTrackAction::build(track, index, model, resolveColorIndex));
 }
 
 void TrackActions::removeTracks(const QList<Track *> &tracks, AppModel *model) {

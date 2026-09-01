@@ -76,6 +76,10 @@ QString PackageInfo::vendor() const {
     return d->vendor;
 }
 
+QMap<QString, QString> PackageInfo::localizedVendor() const {
+    return d->localizedVendor;
+}
+
 QString PackageInfo::displayVendor(const QString &bcp47Locale) const {
     return lite::Support::lookupLocalizedText(d->localizedVendor, d->vendor, bcp47Locale);
 }
@@ -86,6 +90,10 @@ QString PackageInfo::displayVendor(const QStringList &bcp47Locales) const {
 
 QString PackageInfo::description() const {
     return d->description;
+}
+
+QMap<QString, QString> PackageInfo::localizedDescription() const {
+    return d->localizedDescription;
 }
 
 QString PackageInfo::displayDescription(const QString &bcp47Locale) const {
@@ -99,6 +107,10 @@ QString PackageInfo::displayDescription(const QStringList &bcp47Locales) const {
 
 QString PackageInfo::license() const {
     return d->license;
+}
+
+QMap<QString, QString> PackageInfo::localizedLicense() const {
+    return d->localizedLicense;
 }
 
 QString PackageInfo::displayLicense(const QString &bcp47Locale) const {

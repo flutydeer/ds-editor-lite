@@ -4,6 +4,7 @@
 #include "AudioExporter.h"
 #include "Automation/AutomationTypes.h"
 
+#include <QHash>
 #include <QSharedData>
 
 namespace talcs {
@@ -59,6 +60,7 @@ namespace Audio {
         void updateFileListAndWarnings();
 
         QStringList temporaryFileList;
+        QHash<QString, QString> pendingTemporaryFiles;
 
         talcs::DspxProjectAudioExporter *currentExporter = nullptr;
     };

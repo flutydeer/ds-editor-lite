@@ -70,6 +70,7 @@ namespace Automation {
         int position = 0;
         int value = 0;
         AnchorNode::InterpMode interpolation = AnchorNode::Hermite;
+        AnchorId id;
     };
 
     struct CurveDraftDto {
@@ -83,6 +84,7 @@ namespace Automation {
         int step = 5;
         QList<int> values;
         QList<AnchorNodeDraftDto> nodes;
+        CurveId id;
     };
 
     struct ParamCurvesDraftDto {
@@ -137,6 +139,7 @@ namespace Automation {
         QString clientRef;
         QString name;
         int colorIndex = 0;
+        bool resolveColorIndex = true;
         double gain = 0.0;
         double pan = 0.0;
         bool mute = false;

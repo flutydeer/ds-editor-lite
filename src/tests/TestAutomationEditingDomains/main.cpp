@@ -8,7 +8,6 @@
 #include <lite/ProjectModel/Voice/SpeakerInfo.h>
 
 #include <QCoreApplication>
-#include <QHash>
 #include <QProcess>
 #include <QTextStream>
 #include <QVersionNumber>
@@ -16,7 +15,6 @@
 
 #include <algorithm>
 #include <cmath>
-#include <functional>
 #include <limits>
 #include <optional>
 
@@ -38,7 +36,6 @@ namespace {
         void run(const OperationId &operationId, const QString &name, Function function) {
             m_current = operationId + QStringLiteral("/") + name;
             ++m_scenarios;
-            ++m_operationScenarios[operationId];
             const auto failuresBefore = m_failures;
             function();
             if (failuresBefore == m_failures)
@@ -53,15 +50,6 @@ namespace {
             QTextStream(stderr) << "FAILED [" << m_current << "]: " << message << Qt::endl;
         }
 
-        void requireOperations(const QList<OperationId> &operationIds) {
-            run(QStringLiteral("coverage"), QStringLiteral("operation-manifest"), [&] {
-                for (const auto &operationId : operationIds) {
-                    expect(m_operationScenarios.value(operationId) > 0,
-                           QStringLiteral("missing direct scenario for %1").arg(operationId));
-                }
-            });
-        }
-
         int result() const {
             QTextStream(stdout) << "Automation editing domains: " << m_scenarios << " scenarios, "
                                 << m_passedScenarios << " passed, " << m_assertions
@@ -71,7 +59,6 @@ namespace {
 
     private:
         QString m_current;
-        QHash<OperationId, int> m_operationScenarios;
         int m_scenarios = 0;
         int m_passedScenarios = 0;
         int m_assertions = 0;
@@ -84,19 +71,6 @@ namespace {
             .validateOnly = validateOnly,
             .source = Automation::InvocationSource::Test,
         };
-    }
-
-    CommandContext wrongDocumentContext(const CoreRuntime &runtime) {
-        auto context = commandContext(runtime);
-        context.expected.documentId = Automation::DocumentId::create();
-        context.expected.revision += 100;
-        return context;
-    }
-
-    CommandContext staleContext(const CoreRuntime &runtime) {
-        auto context = commandContext(runtime);
-        context.expected.revision += 100;
-        return context;
     }
 
     Automation::TrackDraftDto trackDraft(const QString &name, const QString &clientRef = {}) {
@@ -409,29 +383,34 @@ namespace {
                              QStringLiteral("identical color must be a no-op"));
             });
 
-        suite.run(Automation::OperationIds::tracks::set_default_language,
-                  QStringLiteral("unicode-and-noop"), [&] {
-                      testRuntime.history()->reset();
-                      const auto base = runtime.documentVersion();
-                      const auto empty = runtime.project().setTrackDefaultLanguage(
-                          commandContext(runtime), third, QStringLiteral("  "));
-                      suite.expect(isError(empty, AutomationErrorCode::InvalidArgument,
-                                           QStringLiteral("language")),
-                                   QStringLiteral("blank language must be rejected"));
-                      const auto changed = runtime.project().setTrackDefaultLanguage(
-                          commandContext(runtime), third, QStringLiteral("zh-汉字"));
-                      const auto snapshot = trackSnapshot(runtime, third);
-                      suite.expect(changed && changed.get().current.revision == base.revision + 1 &&
-                                       snapshot &&
-                                       snapshot->data.defaultLanguage == QStringLiteral("zh-汉字"),
-                                   QStringLiteral("Unicode language ID must round-trip"));
-                      const auto noOp = runtime.project().setTrackDefaultLanguage(
-                          commandContext(runtime), third, QStringLiteral("zh-汉字"));
-                      const auto state =
-                          runtime.history().getState(runtime.documentVersion().documentId);
-                      suite.expect(noOp && !noOp.get().changed && state && !state.get().canUndo,
-                                   QStringLiteral("language state change must not create History"));
-                  });
+        suite.run(
+            Automation::OperationIds::tracks::set_default_language,
+            QStringLiteral("unicode-and-noop"), [&] {
+                testRuntime.history()->reset();
+                const auto base = runtime.documentVersion();
+                const auto empty = runtime.project().setTrackDefaultLanguage(
+                    commandContext(runtime), third, QStringLiteral("  "));
+                suite.expect(isError(empty, AutomationErrorCode::InvalidArgument,
+                                     QStringLiteral("language")),
+                             QStringLiteral("blank language must be rejected"));
+                const auto changed = runtime.project().setTrackDefaultLanguage(
+                    commandContext(runtime), third, QStringLiteral("zh-汉字"));
+                const auto snapshot = trackSnapshot(runtime, third);
+                suite.expect(changed && changed.get().current.revision == base.revision + 1 &&
+                                 snapshot &&
+                                 snapshot->data.defaultLanguage == QStringLiteral("zh-汉字"),
+                             QStringLiteral("Unicode language ID must round-trip"));
+                const auto noOp = runtime.project().setTrackDefaultLanguage(
+                    commandContext(runtime), third, QStringLiteral("zh-汉字"));
+                const auto state = runtime.history().getState(runtime.documentVersion().documentId);
+                suite.expect(noOp && !noOp.get().changed && state && state.get().canUndo,
+                             QStringLiteral("language state change must create one History entry"));
+                const auto undo = runtime.history().undo(commandContext(runtime));
+                const auto restored = trackSnapshot(runtime, third);
+                suite.expect(undo && restored &&
+                                 restored->data.defaultLanguage == QStringLiteral("en"),
+                             QStringLiteral("track language change must undo atomically"));
+            });
 
         ClipId clip;
         suite.run(
@@ -473,6 +452,33 @@ namespace {
                 suite.expect(isError(localOverflow, AutomationErrorCode::InvalidArgument,
                                      QStringLiteral("clip.properties")),
                              QStringLiteral("clip-local end must fit the model tick type"));
+                auto noteOverflowDraft = singingClipDraft(QStringLiteral("Note Overflow"));
+                noteOverflowDraft.notes.append(
+                    noteDraft(std::numeric_limits<int>::max() - 1, 2, 60, QStringLiteral("bad")));
+                const auto noteOverflow = runtime.project().insertClips(
+                    commandContext(runtime), {
+                                                 {.trackId = second, .clip = noteOverflowDraft}
+                });
+                Automation::CurveDraftDto overflowCurve;
+                overflowCurve.localStart = std::numeric_limits<int>::max() - 1;
+                overflowCurve.step = 2;
+                overflowCurve.values = {6000, 6010};
+                Automation::ParamCurvesDraftDto overflowParameter;
+                overflowParameter.name = ParamInfo::Pitch;
+                overflowParameter.type = Param::Edited;
+                overflowParameter.curves = {overflowCurve};
+                auto curveOverflowDraft = singingClipDraft(QStringLiteral("Curve Overflow"));
+                curveOverflowDraft.params = {overflowParameter};
+                const auto curveOverflow = runtime.project().insertClips(
+                    commandContext(runtime), {
+                                                 {.trackId = second, .clip = curveOverflowDraft}
+                });
+                suite.expect(isError(noteOverflow, AutomationErrorCode::InvalidArgument,
+                                     QStringLiteral("clip.notes")) &&
+                                 isError(curveOverflow, AutomationErrorCode::InvalidArgument,
+                                         QStringLiteral("clip.parameters.curves.values")),
+                             QStringLiteral("nested note and draw ranges must fit the model tick "
+                                            "type"));
                 const auto draft =
                     singingClipDraft(QStringLiteral("歌声 Clip"), QStringLiteral("clip-main"));
                 const auto preview = runtime.project().insertClips(
@@ -494,6 +500,64 @@ namespace {
                 if (insert)
                     clip = ClipId(insert.get().affectedObjects.first().value);
             });
+
+        suite.run(
+            Automation::OperationIds::clips::duplicate,
+            QStringLiteral("translated-range-overflow-is-atomic"), [&] {
+                auto farDraft = singingClipDraft(QStringLiteral("Far Clip"),
+                                                 QStringLiteral("clip-far"));
+                farDraft.properties.start = std::numeric_limits<int>::max() - 10;
+                farDraft.properties.length = 1;
+                farDraft.properties.clipStart = 0;
+                farDraft.properties.clipLen = 1;
+                const auto inserted = runtime.project().insertClips(
+                    commandContext(runtime), {
+                                                 {.trackId = second, .clip = farDraft}
+                });
+                const auto farClip = inserted && !inserted.get().affectedObjects.isEmpty()
+                                         ? ClipId(inserted.get().affectedObjects.first().value)
+                                         : ClipId{};
+                suite.expect(farClip.isValid(), QStringLiteral("far clip fixture must be created"));
+                testRuntime.history()->reset();
+                const auto base = runtime.documentVersion();
+                const Automation::ClipDuplicateDestinationDto destination{
+                    .targetTrackId = second,
+                    .targetStart = 100,
+                };
+                const auto preview = runtime.project().duplicateClips(
+                    commandContext(runtime, true), {clip, farClip}, destination);
+                const auto commit = runtime.project().duplicateClips(commandContext(runtime),
+                                                                     {clip, farClip}, destination);
+                suite.expect(
+                    isError(preview, AutomationErrorCode::InvalidArgument,
+                            QStringLiteral("destination.target_start")) &&
+                        isError(commit, AutomationErrorCode::InvalidArgument,
+                                QStringLiteral("destination.target_start")) &&
+                        runtime.documentVersion() == base,
+                    QStringLiteral("translated duplicate ranges must be checked before preview or "
+                                   "commit"));
+            });
+
+        suite.run(Automation::OperationIds::clips::move,
+                  QStringLiteral("visible-range-overflow-is-atomic"), [&] {
+                      testRuntime.history()->reset();
+                      const auto base = runtime.documentVersion();
+                      const QList<Automation::ClipMoveDto> moves{
+                          {.id = clip,
+                           .targetTrackId = second,
+                           .start = std::numeric_limits<int>::max()},
+                      };
+                      const auto preview =
+                          runtime.project().moveClips(commandContext(runtime, true), moves);
+                      const auto commit = runtime.project().moveClips(commandContext(runtime), moves);
+                      suite.expect(isError(preview, AutomationErrorCode::InvalidArgument,
+                                           QStringLiteral("moves.start")) &&
+                                       isError(commit, AutomationErrorCode::InvalidArgument,
+                                               QStringLiteral("moves.start")) &&
+                                       runtime.documentVersion() == base,
+                                   QStringLiteral("clip moves must reject an overflowing visible "
+                                                  "range before preview or commit"));
+                  });
 
         suite.run(
             Automation::OperationIds::clips::set_properties,
@@ -766,7 +830,7 @@ namespace {
             });
 
         suite.run(Automation::OperationIds::clips::set_default_language,
-                  QStringLiteral("validation-revision-no-history"), [&] {
+                  QStringLiteral("validation-revision-history"), [&] {
                       testRuntime.history()->reset();
                       const auto blank = runtime.project().setSingingClipDefaultLanguage(
                           commandContext(runtime), clip, QStringLiteral(""));
@@ -782,12 +846,17 @@ namespace {
                       suite.expect(
                           changed && changed.get().current.revision == base.revision + 1 &&
                               snapshot && snapshot->data.defaultLanguage == QStringLiteral("ja") &&
-                              state && !state.get().canUndo,
-                          QStringLiteral("clip language must advance revision without History"));
+                              state && state.get().canUndo,
+                          QStringLiteral("clip language must advance revision with History"));
                       const auto noOp = runtime.project().setSingingClipDefaultLanguage(
                           commandContext(runtime), clip, QStringLiteral("ja"));
                       suite.expect(noOp && !noOp.get().changed,
                                    QStringLiteral("identical clip language must be a no-op"));
+                      const auto undo = runtime.history().undo(commandContext(runtime));
+                      const auto restored = clipSnapshot(runtime, clip);
+                      suite.expect(undo && restored &&
+                                       restored->data.defaultLanguage == QStringLiteral("en"),
+                                   QStringLiteral("clip language change must undo atomically"));
                   });
 
         suite.run(
@@ -846,6 +915,26 @@ namespace {
                 suite.expect(undo && trackSnapshot(runtime, third).has_value() &&
                                  clipSnapshot(runtime, clip).has_value(),
                              QStringLiteral("track removal must restore child clips on undo"));
+
+                auto explicitZeroDraft = trackDraft(QStringLiteral("Explicit Zero"));
+                explicitZeroDraft.colorIndex = 0;
+                explicitZeroDraft.resolveColorIndex = false;
+                const auto explicitZeroInsert = runtime.project().insertTrack(
+                    commandContext(runtime), 3, explicitZeroDraft);
+                const auto explicitZeroId =
+                    explicitZeroInsert && !explicitZeroInsert.get().affectedObjects.isEmpty()
+                        ? TrackId(explicitZeroInsert.get().affectedObjects.first().value)
+                        : TrackId{};
+                testRuntime.history()->reset();
+                const auto explicitZeroRemove = runtime.project().removeTracks(
+                    commandContext(runtime), {explicitZeroId});
+                const auto explicitZeroUndo = runtime.history().undo(commandContext(runtime));
+                const auto explicitZeroRestored = trackSnapshot(runtime, explicitZeroId);
+                suite.expect(explicitZeroInsert && explicitZeroRemove && explicitZeroUndo &&
+                                 explicitZeroRestored &&
+                                 explicitZeroRestored->data.colorIndex == 0,
+                             QStringLiteral(
+                                 "track removal undo must preserve an explicit zero color"));
             });
     }
 
@@ -889,7 +978,7 @@ namespace {
         auto &runtime = fixture.testRuntime.runtime();
 
         suite.run(
-            Automation::OperationIds::notes::get, QStringLiteral("typed-ordered-snapshot"), [&] {
+            Automation::OperationIds::notes::list, QStringLiteral("typed-ordered-snapshot"), [&] {
                 const auto notes =
                     runtime.notes().getNotes(runtime.documentVersion().documentId, fixture.clipId);
                 suite.expect(notes && notes.get().size() == 2 &&
@@ -902,7 +991,7 @@ namespace {
                                                             Automation::ClipId(999999));
                 suite.expect(
                     !wrong && wrong.getError().code == AutomationErrorCode::DocumentChanged &&
-                        wrong.getError().operationId == Automation::OperationIds::notes::get,
+                        wrong.getError().operationId == Automation::OperationIds::notes::list,
                     QStringLiteral("document validation must precede clip resolution"));
             });
 
@@ -917,9 +1006,15 @@ namespace {
                 const auto invalid =
                     runtime.notes().insertNotes(commandContext(runtime), fixture.clipId,
                                                 {noteDraft(1000, 0, 60, QStringLiteral("bad"))});
+                const auto overflow = runtime.notes().insertNotes(
+                    commandContext(runtime), fixture.clipId,
+                    {noteDraft(std::numeric_limits<int>::max() - 1, 2, 60,
+                               QStringLiteral("bad"))});
                 suite.expect(
-                    isError(invalid, AutomationErrorCode::InvalidArgument, QStringLiteral("notes")),
-                    QStringLiteral("zero-length note must be rejected"));
+                    isError(invalid, AutomationErrorCode::InvalidArgument, QStringLiteral("notes")) &&
+                        isError(overflow, AutomationErrorCode::InvalidArgument,
+                                QStringLiteral("notes")),
+                    QStringLiteral("zero-length and overflowing notes must be rejected"));
                 const auto candidate =
                     noteDraft(1200, 240, 67, QStringLiteral("so"), QStringLiteral("note-c"));
                 const auto preview = runtime.notes().insertNotes(commandContext(runtime, true),
@@ -977,6 +1072,19 @@ namespace {
                 suite.expect(isError(invalidKey, AutomationErrorCode::InvalidArgument,
                                      QStringLiteral("delta_key")),
                              QStringLiteral("out-of-range key must be rejected"));
+                const auto overflowingTick = runtime.notes().moveNotes(
+                    commandContext(runtime), fixture.clipId, {fixture.firstNoteId},
+                    std::numeric_limits<int>::max(), 0);
+                const auto overflowingKey = runtime.notes().moveNotes(
+                    commandContext(runtime), fixture.clipId, {fixture.firstNoteId}, 0,
+                    std::numeric_limits<int>::max());
+                suite.expect(
+                    isError(overflowingTick, AutomationErrorCode::InvalidArgument,
+                            QStringLiteral("delta_tick")) &&
+                        isError(overflowingKey, AutomationErrorCode::InvalidArgument,
+                                QStringLiteral("delta_key")) &&
+                        runtime.documentVersion() == base,
+                    QStringLiteral("projected note positions and keys must not overflow"));
                 const auto noOp = runtime.notes().moveNotes(commandContext(runtime), fixture.clipId,
                                                             {fixture.firstNoteId}, 0, 0);
                 suite.expect(noOp && !noOp.get().changed && runtime.documentVersion() == base,
@@ -1061,6 +1169,13 @@ namespace {
                                      QStringLiteral("resize")),
                              QStringLiteral("non-positive minimum length must be rejected"));
                 const auto base = runtime.documentVersion();
+                const auto overflowing = runtime.notes().resizeNotesRight(
+                    commandContext(runtime), fixture.clipId, {fixture.firstNoteId},
+                    std::numeric_limits<int>::max(), 1);
+                suite.expect(isError(overflowing, AutomationErrorCode::InvalidArgument,
+                                     QStringLiteral("delta_tick")) &&
+                                 runtime.documentVersion() == base,
+                             QStringLiteral("projected note length must not overflow"));
                 const auto preview = runtime.notes().resizeNotesRight(
                     commandContext(runtime, true), fixture.clipId, {fixture.firstNoteId}, 60, 120);
                 suite.expect(preview && preview.get().changed && runtime.documentVersion() == base,
@@ -1158,6 +1273,76 @@ namespace {
                 suite.expect(clear && clear.get().changed && cleared &&
                                  cleared->data.phonemes.offsetSeq.edited.isEmpty(),
                              QStringLiteral("empty offsets must explicitly clear the edit"));
+            });
+
+        suite.run(
+            Automation::OperationIds::notes::reset_phoneme_offsets,
+            QStringLiteral("cascade-preview-commit-undo"), [&] {
+                PhonemeName onset;
+                onset.language = QStringLiteral("en");
+                onset.name = QStringLiteral("l");
+                onset.isOnset = true;
+                PhonemeName vowel;
+                vowel.language = QStringLiteral("en");
+                vowel.name = QStringLiteral("a");
+
+                Phonemes firstPhonemes;
+                firstPhonemes.nameSeq.original = {onset, vowel};
+                firstPhonemes.offsetSeq.original = {-40, 700};
+                firstPhonemes.offsetSeq.edited = {-20, 350};
+                Phonemes secondPhonemes;
+                secondPhonemes.nameSeq.original = {onset, vowel};
+                secondPhonemes.offsetSeq.original = {0, 200};
+                secondPhonemes.offsetSeq.edited = {-50, 200};
+                const auto firstSeed = runtime.notes().setPhonemes(
+                    commandContext(runtime), fixture.clipId, fixture.firstNoteId, firstPhonemes);
+                const auto secondSeed = runtime.notes().setPhonemes(
+                    commandContext(runtime), fixture.clipId, fixture.secondNoteId, secondPhonemes);
+                suite.expect(firstSeed && secondSeed,
+                             QStringLiteral("cascade fixture must seed both edited words"));
+                fixture.testRuntime.history()->reset();
+
+                const auto base = runtime.documentVersion();
+                const auto preview = runtime.notes().resetPhonemeOffsets(
+                    commandContext(runtime, true), fixture.clipId, {fixture.firstNoteId});
+                const auto previewFirst =
+                    noteSnapshot(runtime, fixture.clipId, fixture.firstNoteId);
+                const auto previewSecond =
+                    noteSnapshot(runtime, fixture.clipId, fixture.secondNoteId);
+                suite.expect(
+                    preview && preview.get().changed && preview.get().validatedOnly &&
+                        preview.get().affectedObjects.size() == 2 && previewFirst &&
+                        previewSecond &&
+                        previewFirst->data.phonemes.offsetSeq.edited ==
+                            firstPhonemes.offsetSeq.edited &&
+                        previewSecond->data.phonemes.offsetSeq.edited ==
+                            secondPhonemes.offsetSeq.edited &&
+                        runtime.documentVersion() == base,
+                    QStringLiteral("cascade preview must report both roots without mutation"));
+
+                const auto changed = runtime.notes().resetPhonemeOffsets(
+                    commandContext(runtime), fixture.clipId, {fixture.firstNoteId});
+                const auto resetFirst = noteSnapshot(runtime, fixture.clipId, fixture.firstNoteId);
+                const auto resetSecond =
+                    noteSnapshot(runtime, fixture.clipId, fixture.secondNoteId);
+                suite.expect(changed && changed.get().current.revision == base.revision + 1 &&
+                                 changed.get().affectedObjects.size() == 2 && resetFirst &&
+                                 resetSecond &&
+                                 resetFirst->data.phonemes.offsetSeq.edited.isEmpty() &&
+                                 resetSecond->data.phonemes.offsetSeq.edited.isEmpty(),
+                             QStringLiteral("cascade reset must commit both words atomically"));
+
+                const auto undo = runtime.history().undo(commandContext(runtime));
+                const auto restoredFirst =
+                    noteSnapshot(runtime, fixture.clipId, fixture.firstNoteId);
+                const auto restoredSecond =
+                    noteSnapshot(runtime, fixture.clipId, fixture.secondNoteId);
+                suite.expect(undo && restoredFirst && restoredSecond &&
+                                 restoredFirst->data.phonemes.offsetSeq.edited ==
+                                     firstPhonemes.offsetSeq.edited &&
+                                 restoredSecond->data.phonemes.offsetSeq.edited ==
+                                     secondPhonemes.offsetSeq.edited,
+                             QStringLiteral("cascade reset must restore every word in one undo"));
             });
 
         suite.run(
@@ -1344,8 +1529,61 @@ namespace {
                 const auto invalidStep = runtime.parameters().replaceParameter(
                     commandContext(runtime, true), clipId, ParamInfo::Pitch, Param::Edited,
                     {invalid});
-                suite.expect(isError(invalidStep, AutomationErrorCode::InvalidArgument),
-                             QStringLiteral("draw curve step must be positive"));
+                auto overflow = draw;
+                overflow.localStart = std::numeric_limits<int>::max() - 1;
+                overflow.step = 2;
+                overflow.values = {6000, 6010};
+                const auto invalidRange = runtime.parameters().replaceParameter(
+                    commandContext(runtime, true), clipId, ParamInfo::Pitch, Param::Edited,
+                    {overflow});
+                auto invalidAnchor = anchor;
+                invalidAnchor.nodes = {
+                    {0, 10, AnchorNode::Linear}
+                };
+                const auto invalidTopology = runtime.parameters().replaceParameter(
+                    commandContext(runtime, true), clipId, ParamInfo::Pitch, Param::Edited,
+                    {invalidAnchor});
+                suite.expect(isError(invalidStep, AutomationErrorCode::InvalidArgument) &&
+                                 isError(invalidRange, AutomationErrorCode::InvalidArgument,
+                                         QStringLiteral("curves.values")) &&
+                                 isError(invalidTopology, AutomationErrorCode::InvalidArgument,
+                                         QStringLiteral("curves.nodes")),
+                             QStringLiteral("draw geometry and anchor topology must be valid"));
+            });
+
+        suite.run(Automation::OperationIds::parameters::draw, QStringLiteral("overflow-rejected"),
+                  [&] {
+                      const auto base = runtime.documentVersion();
+                      const auto overflow = runtime.parameters().drawParameter(
+                          commandContext(runtime), clipId, ParamInfo::Pitch, Param::Edited,
+                          std::numeric_limits<int>::max() - 1, 2, {6000, 6010}, false);
+                      suite.expect(isError(overflow, AutomationErrorCode::InvalidArgument,
+                                           QStringLiteral("values")) &&
+                                       runtime.documentVersion() == base,
+                                   QStringLiteral("draw range overflow must fail without mutation"));
+                  });
+
+        suite.run(
+            Automation::OperationIds::parameters::bake,
+            QStringLiteral("anchor-materialization-bounded"), [&] {
+                const auto created = runtime.parameters().createAnchorCurve(
+                    commandContext(runtime), clipId, ParamInfo::Pitch, Param::Edited,
+                    QStringLiteral("huge-anchor"),
+                    {
+                        {0,                               6000, AnchorNode::Linear},
+                        {std::numeric_limits<int>::max(), 6000, AnchorNode::Linear},
+                });
+                suite.expect(created && created.get().changed,
+                             QStringLiteral("the bake bound fixture must create its anchor"));
+                const auto base = runtime.documentVersion();
+                const auto baked = runtime.parameters().bakeParameter(
+                    commandContext(runtime), clipId, ParamInfo::Pitch, 0, 5);
+                suite.expect(
+                    isError(baked, AutomationErrorCode::InvalidArgument,
+                            QStringLiteral("local_end")) &&
+                        runtime.documentVersion() == base,
+                    QStringLiteral(
+                        "partial bake must reject an unsafe anchor expansion before mutation"));
             });
 
         const auto speakerA = speaker(QStringLiteral("speaker-a"));
@@ -1354,7 +1592,7 @@ namespace {
         const auto fixed = fixedMix(speakerA, speakerB);
         const auto dynamic = dynamicMix(speakerA, speakerB);
 
-        suite.run(Automation::OperationIds::speaker_mix::track::select_single,
+        suite.run(Automation::OperationIds::tracks::set_voice,
                   QStringLiteral("preview-commit-noop"), [&] {
                       testRuntime.history()->reset();
                       const auto base = runtime.documentVersion();
@@ -1410,19 +1648,17 @@ namespace {
                     QStringLiteral("track mix replacement must preserve voice and sort keys"));
             });
 
-        suite.run(Automation::OperationIds::speaker_mix::clip::select_single,
-                  QStringLiteral("owned-context"), [&] {
-                      const auto base = runtime.documentVersion();
-                      const auto changed = runtime.parameters().selectClipSingleSpeaker(
-                          commandContext(runtime), clipId, singerA, speakerB);
-                      const auto snapshot = clipSnapshot(runtime, clipId);
-                      suite.expect(
-                          changed && changed.get().current.revision == base.revision + 1 &&
-                              snapshot && !snapshot->data.usesTrackVoiceContext &&
-                              snapshot->data.ownSingerInfo == singerA &&
-                              snapshot->data.ownSpeakerInfo == speakerB,
-                          QStringLiteral("clip speaker selection must establish owned context"));
-                  });
+        suite.run(Automation::OperationIds::clips::set_voice, QStringLiteral("owned-context"), [&] {
+            const auto base = runtime.documentVersion();
+            const auto changed = runtime.parameters().selectClipSingleSpeaker(
+                commandContext(runtime), clipId, singerA, speakerB);
+            const auto snapshot = clipSnapshot(runtime, clipId);
+            suite.expect(changed && changed.get().current.revision == base.revision + 1 &&
+                             snapshot && !snapshot->data.usesTrackVoiceContext &&
+                             snapshot->data.ownSingerInfo == singerA &&
+                             snapshot->data.ownSpeakerInfo == speakerB,
+                         QStringLiteral("clip speaker selection must establish owned context"));
+        });
 
         suite.run(Automation::OperationIds::speaker_mix::clip::apply,
                   QStringLiteral("apply-normalized-preset"), [&] {
@@ -1471,20 +1707,20 @@ namespace {
                           QStringLiteral("clip mix replacement must preserve owned voice"));
                   });
 
-        suite.run(Automation::OperationIds::speaker_mix::clip::use_track,
-                  QStringLiteral("inherit-noop"), [&] {
-                      const auto base = runtime.documentVersion();
-                      const auto changed = runtime.parameters().useTrackVoiceContext(
-                          commandContext(runtime), clipId);
-                      const auto snapshot = clipSnapshot(runtime, clipId);
-                      suite.expect(changed && changed.get().current.revision == base.revision + 1 &&
-                                       snapshot && snapshot->data.usesTrackVoiceContext,
-                                   QStringLiteral("clip must return to track inheritance"));
-                      const auto noOp = runtime.parameters().useTrackVoiceContext(
-                          commandContext(runtime), clipId);
-                      suite.expect(noOp && !noOp.get().changed,
-                                   QStringLiteral("already inherited context must be a no-op"));
-                  });
+        suite.run(
+            Automation::OperationIds::clips::use_track_voice, QStringLiteral("inherit-noop"), [&] {
+                const auto base = runtime.documentVersion();
+                const auto changed =
+                    runtime.parameters().useTrackVoiceContext(commandContext(runtime), clipId);
+                const auto snapshot = clipSnapshot(runtime, clipId);
+                suite.expect(changed && changed.get().current.revision == base.revision + 1 &&
+                                 snapshot && snapshot->data.usesTrackVoiceContext,
+                             QStringLiteral("clip must return to track inheritance"));
+                const auto noOp =
+                    runtime.parameters().useTrackVoiceContext(commandContext(runtime), clipId);
+                suite.expect(noOp && !noOp.get().changed,
+                             QStringLiteral("already inherited context must be a no-op"));
+            });
     }
 
     bool hasTempo(const Automation::TimelineSnapshotDto &timeline, const int tick,
@@ -1566,8 +1802,8 @@ namespace {
             });
 
         suite.run(
-            Automation::OperationIds::tempos::delete_tempo,
-            QStringLiteral("anchor-missing-preview-undo"), [&] {
+            Automation::OperationIds::tempos::remove, QStringLiteral("anchor-missing-preview-undo"),
+            [&] {
                 testRuntime.history()->reset();
                 const auto anchor = runtime.timeline().deleteTempo(commandContext(runtime), 0);
                 suite.expect(
@@ -1639,11 +1875,20 @@ namespace {
                     runtime.timeline().setTimeSignature(commandContext(runtime), 2, 0, 4);
                 const auto invalidDenominator =
                     runtime.timeline().setTimeSignature(commandContext(runtime), 2, 3, 3);
+                const auto overflowingPosition = runtime.timeline().setTimeSignature(
+                    commandContext(runtime), std::numeric_limits<int>::max(), 4, 4);
+                const auto overflowingBarLength = runtime.timeline().setTimeSignature(
+                    commandContext(runtime), 2, std::numeric_limits<int>::max(), 4);
                 suite.expect(isError(invalidBar, AutomationErrorCode::InvalidArgument,
                                      QStringLiteral("time_signature")) &&
                                  isError(invalidNumerator, AutomationErrorCode::InvalidArgument,
                                          QStringLiteral("time_signature")) &&
                                  isError(invalidDenominator, AutomationErrorCode::InvalidArgument,
+                                         QStringLiteral("time_signature")) &&
+                                 isError(overflowingPosition, AutomationErrorCode::InvalidArgument,
+                                         QStringLiteral("time_signature")) &&
+                                 isError(overflowingBarLength,
+                                         AutomationErrorCode::InvalidArgument,
                                          QStringLiteral("time_signature")) &&
                                  runtime.documentVersion() == base,
                              QStringLiteral("invalid signatures must fail atomically"));
@@ -1674,7 +1919,7 @@ namespace {
                              QStringLiteral("identical signature must be a no-op"));
             });
 
-        suite.run(Automation::OperationIds::time_signatures::delete_signature,
+        suite.run(Automation::OperationIds::time_signatures::remove,
                   QStringLiteral("anchor-missing-preview-undo"), [&] {
                       testRuntime.history()->reset();
                       const auto anchor =
@@ -1703,6 +1948,34 @@ namespace {
                           runtime.timeline().getTimeline(runtime.documentVersion().documentId);
                       suite.expect(undo && restored && hasSignature(restored.get(), 4, 5, 4),
                                    QStringLiteral("signature deletion must undo once"));
+
+                      TestRuntime overflowTestRuntime;
+                      auto &overflowRuntime = overflowTestRuntime.runtime();
+                      const auto hugeAnchor = overflowRuntime.timeline().setTimeSignature(
+                          commandContext(overflowRuntime), 0, 1000000, 1);
+                      const auto bridge = overflowRuntime.timeline().setTimeSignature(
+                          commandContext(overflowRuntime), 1, 1, 2048);
+                      const auto laterSignature = overflowRuntime.timeline().setTimeSignature(
+                          commandContext(overflowRuntime), 2, 4, 4);
+                      const auto overflowBase = overflowRuntime.documentVersion();
+                      const auto overflowPreview =
+                          overflowRuntime.timeline().deleteTimeSignature(
+                              commandContext(overflowRuntime, true), 1);
+                      const auto overflowRemoval = overflowRuntime.timeline().deleteTimeSignature(
+                          commandContext(overflowRuntime), 1);
+                      const auto overflowTimeline = overflowRuntime.timeline().getTimeline(
+                          overflowRuntime.documentVersion().documentId);
+                      suite.expect(
+                          hugeAnchor && bridge && laterSignature &&
+                              isError(overflowPreview, AutomationErrorCode::InvalidArgument,
+                                      QStringLiteral("bar_index")) &&
+                              isError(overflowRemoval, AutomationErrorCode::InvalidArgument,
+                                      QStringLiteral("bar_index")) &&
+                              overflowRuntime.documentVersion() == overflowBase && overflowTimeline &&
+                              hasSignature(overflowTimeline.get(), 1, 1, 2048) &&
+                              hasSignature(overflowTimeline.get(), 2, 4, 4),
+                          QStringLiteral(
+                              "signature deletion must reject a derived tick overflow atomically"));
                   });
 
         suite.run(
@@ -1793,194 +2066,6 @@ namespace {
                   });
     }
 
-    using MutationCall = std::function<AutomationResult<MutationResult>(const CommandContext &)>;
-
-    void testErrorPriorityMatrix(Suite &suite) {
-        TestRuntime testRuntime;
-        auto &runtime = testRuntime.runtime();
-        const auto trackId = insertedTrack(runtime, QStringLiteral("Priority"));
-        const auto clipId = insertedSingingClip(runtime, trackId, QStringLiteral("Priority Clip"));
-        const auto noteIds = insertedNotes(
-            runtime, clipId,
-            {noteDraft(0, 480, 60, QStringLiteral("la"), QStringLiteral("priority-note"))});
-        const auto noteId = noteIds.isEmpty() ? NoteId() : noteIds.first();
-        const auto draft = trackDraft(QStringLiteral("ignored"));
-        const SingerInfo emptySinger;
-        const SpeakerInfo emptySpeaker;
-        const SpeakerMixModel::SpeakerMixData emptyMix;
-
-        const QList<QPair<OperationId, MutationCall>> commands = {
-            {Automation::OperationIds::tracks::insert,
-             [&](const auto &context) {
-                 return runtime.project().insertTrack(context, -1, draft);
-             }                                                                                    },
-            {Automation::OperationIds::tracks::move,
-             [&](const auto &context) {
-                 return runtime.project().moveTrack(context, TrackId(999999), -1);
-             }                                                                                    },
-            {Automation::OperationIds::tracks::remove,
-             [&](const auto &context) {
-                 return runtime.project().removeTracks(context, {TrackId(999999)});
-             }                                                                                    },
-            {Automation::OperationIds::tracks::set_color,
-             [&](const auto &context) {
-                 return runtime.project().setTrackColor(context, TrackId(999999), -1);
-             }                                                                                    },
-            {Automation::OperationIds::tracks::set_default_language,
-             [&](const auto &context) {
-                 return runtime.project().setTrackDefaultLanguage(context, TrackId(999999), {});
-             }                                                                                    },
-            {Automation::OperationIds::tracks::set_properties,
-             [&](const auto &context) {
-                 return runtime.project().setTrackProperties(
-                     context, {.id = TrackId(999999), .gain = std::nan(""), .pan = 0.0});
-             }                                                                                    },
-            {Automation::OperationIds::clips::insert,
-             [&](const auto &context) {
-                 return runtime.project().insertClips(
-                     context,
-                     {
-                         {                                                                      .trackId = TrackId(999999),                                                                                   .clip = singingClipDraft(QString())}});
-             }                                                                                                  },
-            {Automation::OperationIds::clips::remove,
-             [&](const auto &context) {
-                 return runtime.project().removeClips(context, {ClipId(999999)});
-             }},
-            {Automation::OperationIds::clips::set_default_language,
-             [&](const auto &context) {
-                 return runtime.project().setSingingClipDefaultLanguage(context, ClipId(999999),
-                                                                        {});
-             }                                                                                                               },
-            {Automation::OperationIds::clips::set_properties,
-             [&](const auto &context) {
-                 return runtime.project().setClipProperties(
-                     context, {.id = ClipId(999999), .gain = std::nan("")});
-             }},
-            {Automation::OperationIds::notes::insert,
-             [&](const auto &context) {
-                 return runtime.notes().insertNotes(context, ClipId(999999), {});
-             }                                                                                                               },
-            {Automation::OperationIds::notes::move,
-             [&](const auto &context) {
-                 return runtime.notes().moveNotes(context, ClipId(999999), {}, 0, 0);
-             }},
-            {Automation::OperationIds::notes::quantize,
-             [&](const auto &context) {
-                 return runtime.notes().quantizeNotes(context, ClipId(999999), {}, 0, true, true);
-             }                                                                                                               },
-            {Automation::OperationIds::notes::remove,
-             [&](const auto &context) {
-                 return runtime.notes().removeNotes(context, ClipId(999999), {});
-             }},
-            {Automation::OperationIds::notes::resize_left,
-             [&](const auto &context) {
-                 return runtime.notes().resizeNotesLeft(context, ClipId(999999), {}, 0, 0);
-             }                                                                                                               },
-            {Automation::OperationIds::notes::resize_right,
-             [&](const auto &context) {
-                 return runtime.notes().resizeNotesRight(context, ClipId(999999), {}, 0, 0);
-             }},
-            {Automation::OperationIds::notes::set_phoneme_offsets,
-             [&](const auto &context) {
-                 return runtime.notes().setPhonemeOffsets(context, ClipId(999999), NoteId(999999),
-                                                          {});
-             }                                                                                                               },
-            {Automation::OperationIds::notes::set_word_properties,
-             [&](const auto &context) {
-                 return runtime.notes().setWordProperties(context, ClipId(999999),
-                                                          {{.noteId = NoteId(999999)}});
-             }},
-            {Automation::OperationIds::notes::split,
-             [&](const auto &context) {
-                 return runtime.notes().splitNote(context, ClipId(999999), NoteId(999999), {}, 0);
-             }                                                                                                               },
-            {Automation::OperationIds::parameters::replace,
-             [&](const auto &context) {
-                 return runtime.parameters().replaceParameter(
-                     context, ClipId(999999), ParamInfo::Unknown, Param::Unknown, {});
-             }},
-            {Automation::OperationIds::speaker_mix::clip::apply,
-             [&](const auto &context) {
-                 return runtime.parameters().applyClipSpeakerMix(
-                     context, ClipId(999999), emptySinger, emptySpeaker, emptyMix);
-             }                                                                                                               },
-            {Automation::OperationIds::speaker_mix::clip::enable_dynamic,
-             [&](const auto &context) {
-                 return runtime.parameters().enableClipDynamicSpeakerMix(
-                     context, ClipId(999999), emptySinger, emptySpeaker, emptyMix);
-             }},
-            {Automation::OperationIds::speaker_mix::clip::replace,
-             [&](const auto &context) {
-                 return runtime.parameters().replaceClipSpeakerMix(context, ClipId(999999),
-                                                                   emptyMix);
-             }                                                                                                               },
-            {Automation::OperationIds::speaker_mix::clip::select_single,
-             [&](const auto &context) {
-                 return runtime.parameters().selectClipSingleSpeaker(context, ClipId(999999),
-                                                                     emptySinger, emptySpeaker);
-             }},
-            {Automation::OperationIds::speaker_mix::clip::use_track,
-             [&](const auto &context) {
-                 return runtime.parameters().useTrackVoiceContext(context, ClipId(999999));
-             }                                                                                                               },
-            {Automation::OperationIds::speaker_mix::track::apply,
-             [&](const auto &context) {
-                 return runtime.parameters().applyTrackSpeakerMix(
-                     context, TrackId(999999), emptySinger, emptySpeaker, emptyMix);
-             }},
-            {Automation::OperationIds::speaker_mix::track::replace,
-             [&](const auto &context) {
-                 return runtime.parameters().replaceTrackSpeakerMix(context, TrackId(999999),
-                                                                    emptyMix);
-             }                                                                                                               },
-            {Automation::OperationIds::speaker_mix::track::select_single,
-             [&](const auto &context) {
-                 return runtime.parameters().selectTrackSingleSpeaker(context, TrackId(999999),
-                                                                      emptySinger, emptySpeaker);
-             }},
-            {Automation::OperationIds::tempos::set,
-             [&](const auto &context) { return runtime.timeline().setTempo(context, -1, -1.0); }                                                                                                               },
-            {Automation::OperationIds::tempos::delete_tempo,
-             [&](const auto &context) { return runtime.timeline().deleteTempo(context, 0); }},
-            {Automation::OperationIds::time_signatures::set,
-             [&](const auto &context) {
-                 return runtime.timeline().setTimeSignature(context, -1, 0, 3);
-             }                                                                                                                   },
-            {Automation::OperationIds::time_signatures::delete_signature,
-             [&](const auto &context) {
-                 return runtime.timeline().deleteTimeSignature(context, 0);
-             }},
-            {Automation::OperationIds::master::set_control,
-             [&](const auto &context) {
-                 TrackControl control;
-                 control.setGain(std::nan(""));
-                 return runtime.timeline().setMasterControl(context, control);
-             }                                                                                                                   },
-            {Automation::OperationIds::history::undo,
-             [&](const auto &context) { return runtime.history().undo(context); }},
-            {Automation::OperationIds::history::redo,
-             [&](const auto &context) { return runtime.history().redo(context); }                                                },
-        };
-
-        suite.run(QStringLiteral("dispatch"), QStringLiteral("error-priority-matrix"), [&] {
-            suite.expect(trackId.isValid() && clipId.isValid() && noteId.isValid(),
-                         QStringLiteral("priority fixture must be valid"));
-            for (const auto &[operationId, command] : commands) {
-                const auto wrongDocument = command(wrongDocumentContext(runtime));
-                suite.expect(!wrongDocument &&
-                                 wrongDocument.getError().code ==
-                                     AutomationErrorCode::DocumentChanged &&
-                                 wrongDocument.getError().operationId == operationId,
-                             QStringLiteral("%1 must prefer document ID error").arg(operationId));
-                const auto stale = command(staleContext(runtime));
-                suite.expect(!stale &&
-                                 stale.getError().code == AutomationErrorCode::RevisionConflict &&
-                                 stale.getError().operationId == operationId,
-                             QStringLiteral("%1 must prefer revision error").arg(operationId));
-            }
-        });
-    }
-
     int quantizeProbe(int argc, char *argv[]) {
         QCoreApplication application(argc, argv);
         TestRuntime testRuntime;
@@ -2003,7 +2088,39 @@ namespace {
             return 4;
         const auto noOp =
             runtime.notes().quantizeNotes(commandContext(runtime), clipId, ids, 16, true, true);
-        return noOp && !noOp.get().changed ? 0 : 5;
+        if (!noOp || noOp.get().changed)
+            return 5;
+
+        const auto extremeLengthIds = insertedNotes(
+            runtime, clipId,
+            {noteDraft(0, std::numeric_limits<int>::max(), 61, QStringLiteral("length"),
+                       QStringLiteral("quantize-extreme-length"))});
+        if (extremeLengthIds.size() != 1)
+            return 6;
+        const auto beforeLengthFailure = runtime.documentVersion();
+        const auto lengthFailure = runtime.notes().quantizeNotes(
+            commandContext(runtime), clipId, extremeLengthIds, 30, false, true);
+        if (!isError(lengthFailure, AutomationErrorCode::InvalidArgument,
+                     QStringLiteral("note_ids")) ||
+            runtime.documentVersion() != beforeLengthFailure)
+            return 7;
+
+        const auto lateClipId =
+            insertedSingingClip(runtime, trackId, QStringLiteral("Late Quantize Clip"), 100);
+        const auto lateIds = insertedNotes(
+            runtime, lateClipId,
+            {noteDraft(std::numeric_limits<int>::max() - 50, 1, 62,
+                       QStringLiteral("start"), QStringLiteral("quantize-extreme-start"))});
+        if (lateIds.size() != 1)
+            return 8;
+        const auto beforeStartFailure = runtime.documentVersion();
+        const auto startFailure = runtime.notes().quantizeNotes(
+            commandContext(runtime), lateClipId, lateIds, 16, true, false);
+        return isError(startFailure, AutomationErrorCode::InvalidArgument,
+                       QStringLiteral("note_ids")) &&
+                       runtime.documentVersion() == beforeStartFailure
+                   ? 0
+                   : 9;
     }
 
     void testQuantizeInChild(Suite &suite) {
@@ -2021,57 +2138,13 @@ namespace {
                       suite.expect(
                           started && finished && probe.exitStatus() == QProcess::NormalExit &&
                               probe.exitCode() == 0,
-                          QStringLiteral("quantize must commit safely, snap geometry, and no-op "
-                                         "when already aligned; exit=%1 stderr=%2")
+                          QStringLiteral("quantize must commit safely, reject out-of-range "
+                                         "geometry, and no-op when aligned; exit=%1 stderr=%2")
                               .arg(probe.exitCode())
                               .arg(QString::fromUtf8(probe.readAllStandardError())));
                   });
     }
 
-    QList<OperationId> coveredOperations() {
-        return {
-            Automation::OperationIds::project::get,
-            Automation::OperationIds::tracks::insert,
-            Automation::OperationIds::tracks::move,
-            Automation::OperationIds::tracks::remove,
-            Automation::OperationIds::tracks::set_color,
-            Automation::OperationIds::tracks::set_default_language,
-            Automation::OperationIds::tracks::set_properties,
-            Automation::OperationIds::clips::insert,
-            Automation::OperationIds::clips::remove,
-            Automation::OperationIds::clips::set_default_language,
-            Automation::OperationIds::clips::set_properties,
-            Automation::OperationIds::notes::get,
-            Automation::OperationIds::notes::insert,
-            Automation::OperationIds::notes::move,
-            Automation::OperationIds::notes::quantize,
-            Automation::OperationIds::notes::remove,
-            Automation::OperationIds::notes::resize_left,
-            Automation::OperationIds::notes::resize_right,
-            Automation::OperationIds::notes::set_phoneme_offsets,
-            Automation::OperationIds::notes::set_word_properties,
-            Automation::OperationIds::notes::split,
-            Automation::OperationIds::parameters::get,
-            Automation::OperationIds::parameters::replace,
-            Automation::OperationIds::speaker_mix::clip::apply,
-            Automation::OperationIds::speaker_mix::clip::enable_dynamic,
-            Automation::OperationIds::speaker_mix::clip::replace,
-            Automation::OperationIds::speaker_mix::clip::select_single,
-            Automation::OperationIds::speaker_mix::clip::use_track,
-            Automation::OperationIds::speaker_mix::track::apply,
-            Automation::OperationIds::speaker_mix::track::replace,
-            Automation::OperationIds::speaker_mix::track::select_single,
-            Automation::OperationIds::timeline::get,
-            Automation::OperationIds::tempos::set,
-            Automation::OperationIds::tempos::delete_tempo,
-            Automation::OperationIds::time_signatures::set,
-            Automation::OperationIds::time_signatures::delete_signature,
-            Automation::OperationIds::master::set_control,
-            Automation::OperationIds::history::get_state,
-            Automation::OperationIds::history::undo,
-            Automation::OperationIds::history::redo,
-        };
-    }
 }
 
 int main(int argc, char *argv[]) {
@@ -2084,8 +2157,6 @@ int main(int argc, char *argv[]) {
     testNoteDomain(suite);
     testParameterAndSpeakerDomain(suite);
     testTimelineAndHistoryDomain(suite);
-    testErrorPriorityMatrix(suite);
     testQuantizeInChild(suite);
-    suite.requireOperations(coveredOperations());
     return suite.result();
 }

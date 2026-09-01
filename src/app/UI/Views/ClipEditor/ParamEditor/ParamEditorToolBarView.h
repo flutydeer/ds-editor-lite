@@ -25,6 +25,15 @@ public:
     void setSpeakerMixDynamicState(SpeakerMixDynamicUiState state);
     void setBakeEnabled(bool enabled);
     void setTransformEnabled(bool enabled);
+    [[nodiscard]] ParamInfo::Name foreground() const;
+    [[nodiscard]] ParamInfo::Name background() const;
+    [[nodiscard]] ParamEditorEditMode editMode() const;
+    [[nodiscard]] bool supportsEditMode(ParamEditorEditMode mode) const;
+    bool setForeground(ParamInfo::Name name);
+    bool setBackground(ParamInfo::Name name);
+    bool setParameterPair(ParamInfo::Name foreground, ParamInfo::Name background);
+    bool swapParameters();
+    bool setEditMode(ParamEditorEditMode mode);
 
 signals:
     void foregroundChanged(ParamInfo::Name name);
@@ -39,7 +48,7 @@ signals:
 private slots:
     void onForegroundSelectionChanged(int index);
     void onBackgroundSelectionChanged(int index);
-    void onSwap() const;
+    void onSwap();
 
 private:
     void changeEvent(QEvent *event) override;

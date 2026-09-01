@@ -31,6 +31,9 @@ double ParamProperties::valueToNormalized(const int value) const {
 }
 
 PitchParamProperties::PitchParamProperties() {
+    minimum = 0;
+    maximum = 12'700;
+    unit = "cent";
     showDivision = false;
     displayMode = DisplayMode::CurveOnly;
 }

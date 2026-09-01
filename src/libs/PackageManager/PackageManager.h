@@ -5,6 +5,7 @@
 
 #include <condition_variable>
 #include <cstdint>
+#include <functional>
 #include <mutex>
 
 #include <lite/PackageManager/Models/GetInstalledPackagesResult.h>
@@ -33,6 +34,7 @@ public:
 
 public:
     enum class ModuleStatus { Loading, Ready, Error };
+    using RefreshCommitGate = std::function<bool()>;
 
     // searchPaths: directories to scan for packages. Supplied by the app (from
     // its settings) so the library does not depend on AppOptions.
@@ -40,7 +42,7 @@ public:
 
     [[nodiscard]]
     Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
-        refreshInstalledPackages(const QStringList &searchPaths);
+        refreshInstalledPackages(const QStringList &searchPaths, RefreshCommitGate commitGate = {});
 
     GetInstalledPackagesResult installedPackages() const;
     PackageInfo findPackageByIdentifier(const SingerIdentifier &identifier) const;
@@ -59,6 +61,7 @@ private:
     mutable std::mutex m_refreshMutex;
     std::condition_variable m_refreshCompleted;
     bool m_refreshing = false;
+    bool m_lastRefreshCommitRejected = false;
     Expected<GetInstalledPackagesResult, GetInstalledPackagesError> m_lastRefreshResult;
     mutable QReadWriteLock m_resultRwLock;
     GetInstalledPackagesResult m_result;

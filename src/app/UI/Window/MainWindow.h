@@ -39,17 +39,25 @@ public:
     explicit MainWindow();
     ~MainWindow() override;
     void updateWindowTitle() override;
-    void quit() override;
-    void restart() override;
     [[nodiscard]] EditorViewState captureEditorViewState() const override;
     bool restoreEditorViewState(const EditorViewState &state) override;
     bool centerTrackPanelAt(double tick, double trackIndex) override;
     bool setTrackPanelScale(double horizontalScale, double verticalScale) override;
+    bool setTrackPanelViewport(const TrackPanelViewState &state) override;
     bool setEditorPanelVisibility(bool trackPanelVisible, bool bottomPanelVisible) override;
     bool showBottomPanelPage(const QString &pageId) override;
+    bool showEditorRegion(EditorViewGlobal::Region region) override;
+    bool focusEditorRegion(EditorViewGlobal::Region region) override;
     bool centerPianoRollAt(double tick, double keyIndex) override;
     bool setPianoRollScale(double horizontalScale, double verticalScale) override;
+    bool setClipEditorTimeViewport(double centerTick, double horizontalScale) override;
+    bool setPianoRollPitchViewport(double centerKeyIndex, double verticalScale) override;
     bool setPianoRollEditMode(EditorViewGlobal::PianoRollEditMode mode) override;
+    bool setParameterForeground(ParamInfo::Name name) override;
+    bool setParameterBackground(ParamInfo::Name name) override;
+    bool swapParameters() override;
+    bool setParameterEditMode(EditorViewGlobal::ParameterEditMode mode) override;
+    bool setParameterValueViewport(double centerRatio, double verticalScale) override;
     void refreshActiveClipTrackPresentation() override;
     void previewActiveClipTrackColor(int colorIndex) override;
     [[nodiscard]] HistoryFocusVisibility focusVisibility(const HistoryFocus &focus) const override;
@@ -90,6 +98,8 @@ private slots:
 
 private:
     bool navigateToFocus(const HistoryFocus &focus, bool animated);
+    [[nodiscard]] EditorViewGlobal::Region focusedEditorRegion() const;
+    [[nodiscard]] bool editorFocusControlBlocked() const;
     void updatePanelVisibilityState(bool trackPanelVisible, bool bottomPanelVisible);
     void closeEvent(QCloseEvent *event) override;
     bool eventFilter(QObject *watched, QEvent *event) override;

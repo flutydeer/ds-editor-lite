@@ -57,11 +57,17 @@ namespace Automation {
         InferParamCurve mouthOpening;
     };
 
+    struct InferencePieceTarget {
+        ClipId clipId;
+        PieceId pieceId;
+    };
+
     struct InferenceMutationRequest {
         InferenceMutationKind kind = InferenceMutationKind::ApplyPronunciations;
         ClipId clipId;
         PieceId pieceId;
         QList<PieceId> pieceIds;
+        QList<InferencePieceTarget> pieceTargets;
         QList<NoteId> noteIds;
         QList<InferencePronunciationDto> pronunciations;
         QList<InferencePhonemeNamesDto> phonemeNames;
@@ -101,19 +107,16 @@ namespace Automation {
 
     class InferenceAutomationFacade final {
     public:
-        InferenceAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
-                                  CommandCommitter &committer,
+        InferenceAutomationFacade(AutomationDispatcher &dispatcher, CommandCommitter &committer,
                                   InferenceRuntimeServices services = {});
 
         AutomationResult<InferenceMutationResultDto>
             applyMutation(const CommandContext &context, const InferenceMutationRequest &request);
 
         [[nodiscard]] static OperationId operationId(InferenceMutationKind kind);
+        [[nodiscard]] static QStringList supportedStages();
 
     private:
-        void registerOperations();
-
-        OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
         CommandCommitter &m_committer;
         InferenceRuntimeServices m_services;

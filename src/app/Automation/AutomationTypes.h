@@ -4,6 +4,7 @@
 #include <lite/ADT/Expected.h>
 
 #include <QByteArray>
+#include <QJsonValue>
 #include <QList>
 #include <QMetaType>
 #include <QString>
@@ -113,6 +114,7 @@ namespace Automation {
     enum class InvocationSource {
         TrustedGui,
         InternalAutomation,
+        PublicMcp,
         Test,
     };
 
@@ -121,24 +123,30 @@ namespace Automation {
         bool validateOnly = false;
         QString idempotencyKey;
         InvocationSource source = InvocationSource::TrustedGui;
+        QString clientId;
+        TaskId taskId;
     };
 
     struct GuiCommandContext {
         WindowId windowId;
         bool validateOnly = false;
         InvocationSource source = InvocationSource::TrustedGui;
+        QString clientId;
     };
 
     struct GuiDocumentCommandContext {
-        DocumentVersion expected;
+        DocumentId documentId;
+        std::optional<Revision> expectedRevision;
         WindowId windowId;
         bool validateOnly = false;
         InvocationSource source = InvocationSource::TrustedGui;
+        QString clientId;
     };
 
     struct ApplicationCommandContext {
         bool validateOnly = false;
         InvocationSource source = InvocationSource::TrustedGui;
+        QString clientId;
     };
 
     enum class ObjectKind {
@@ -166,6 +174,13 @@ namespace Automation {
         friend bool operator==(const CreatedObjectRef &, const CreatedObjectRef &) = default;
     };
 
+    struct ResolvedValue {
+        QString fieldPath;
+        QJsonValue value;
+
+        friend bool operator==(const ResolvedValue &, const ResolvedValue &) = default;
+    };
+
     enum class AutomationErrorCode {
         InvalidArgument,
         NotFound,
@@ -184,6 +199,8 @@ namespace Automation {
         OverwriteDenied,
         IoError,
         InferenceError,
+        PermissionDenied,
+        TooManyRequests,
         Unsupported,
         InternalError,
     };
@@ -231,6 +248,8 @@ namespace Automation {
         DocumentVersion current;
         QList<ObjectRef> affectedObjects;
         QList<CreatedObjectRef> createdObjects;
+        QList<ResolvedValue> resolvedValues;
+        QStringList presentationEffects;
         QStringList warnings;
         bool changed = false;
         bool validatedOnly = false;

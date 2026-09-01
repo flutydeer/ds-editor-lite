@@ -4,12 +4,14 @@
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 
-InsertTrackAction *InsertTrackAction::build(Track *track, const qsizetype index, AppModel *model) {
+InsertTrackAction *InsertTrackAction::build(Track *track, const qsizetype index, AppModel *model,
+                                            const bool resolveColorIndex) {
     const auto a = new InsertTrackAction;
     a->m_track = track;
     a->m_ownedTrack.reset(track);
     a->m_index = index;
     a->m_model = model;
+    a->m_resolveColorIndex = resolveColorIndex;
     return a;
 }
 
@@ -29,7 +31,7 @@ void InsertTrackAction::execute() {
         if (!audioClip->hasRealTimeAnchor())
             audioClip->syncTruthFromTicks(m_model->timeline());
     }
-    if (!m_model->insertTrack(m_track, m_index))
+    if (!m_model->insertTrack(m_track, m_index, m_resolveColorIndex))
         return;
     m_ownedTrack.release();
     m_model->notifyTrackChanged(AppModel::Insert, m_index, m_track);

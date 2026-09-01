@@ -1,6 +1,8 @@
 #ifndef PARAMEDITOREDITMODE_H
 #define PARAMEDITOREDITMODE_H
 
-enum class ParamEditorEditMode { Draw, Erase, Shape, Scale, Bake, Anchor };
+#include "Interface/EditorViewState.h"
+
+using ParamEditorEditMode = EditorViewGlobal::ParameterEditMode;
 
 #endif // PARAMEDITOREDITMODE_H

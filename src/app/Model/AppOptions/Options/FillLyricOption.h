@@ -9,6 +9,7 @@
 #include <QStringList>
 
 struct CustomSplitterRule {
+    QString ruleId;
     QString name;
     QStringList regexes;
     bool enabled = true;
@@ -30,6 +31,8 @@ struct CustomTaggerEntry {
 };
 
 struct CustomTaggerRule {
+    QString ruleId;
+    QString name;
     QString language;
     QList<CustomTaggerEntry> entries;
     bool enabled = true;
@@ -44,6 +47,7 @@ public:
     }
 
     void load(const QJsonObject &object) override;
+    void ensureStableRuleIds();
 
     bool baseVisible = true;
     bool extVisible = false;

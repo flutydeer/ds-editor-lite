@@ -1,6 +1,6 @@
 ---
 name: CMake Build
-description: 需要在 ds-editor-lite 中运行 CMake 构建或完整构建验证时使用。默认使用项目提供的 VS DevShell + CMake preset 脚本；不要使用 CLion MCP run configuration 代替构建。
+description: 需要在 ds-editor-lite 中构建 Editor、Connector 或执行完整 CMake 构建验证时使用。默认使用项目提供的 VS DevShell + CMake preset 脚本；不要使用 CLion MCP run configuration 代替构建。
 ---
 
 # CMake Build
@@ -9,10 +9,12 @@ description: 需要在 ds-editor-lite 中运行 CMake 构建或完整构建验�
 
 ## 使用原则
 
-- 不要使用 CLion MCP run configuration 做构建验证。run configuration 会启动 `DsEditorLite`，GUI 程序不退出时会持续阻塞 Agent。
-- 不要使用 `execute_run_configuration("DsEditorLite")` 代替 `cmake --build`。
+- 不要使用 CLion MCP run configuration 做构建验证。它会启动 `DsEditorLite` 或 `DsConnectorLite`，进程不退出时会持续阻塞 Agent。
+- 不要使用 `execute_run_configuration` 代替 `cmake --build`。
 - 不要手写 Visual Studio 安装路径，也不要使用带 `*` 的 VS DevShell 示例路径。
 - 使用项目脚本初始化 VS DevShell、Qt 环境变量，并执行 CMake preset。
+- 根据改动范围选择目标：Editor 改动构建 `DsEditorLite`，Connector 改动构建 `DsConnectorLite`，跨目标改动或交付前验证则不指定目标。
+- Windows 无法覆盖正在运行的可执行文件。构建 `DsConnectorLite` 前确认同一输出目录下没有正在使用的实例；若现有实例服务于其他会话，不要擅自终止，可先构建不受影响的目标并报告文件占用。
 
 ## 推荐命令
 
@@ -28,10 +30,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-c
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Build -Preset debug
 ```
 
-构建单个目标：
+仅构建 Editor：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Build -Preset debug -Target DsEditorLite
+```
+
+仅构建 Connector：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Build -Preset debug -Target DsConnectorLite
 ```
 
 ## 脚本行为

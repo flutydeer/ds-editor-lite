@@ -9,6 +9,7 @@
 #include <QTextStream>
 
 #include <cmath>
+#include <utility>
 
 namespace {
     Automation::CoreRuntime *g_runtime = nullptr;
@@ -40,6 +41,7 @@ namespace {
     bool validState(const EditorViewState &state) {
         const auto finite = [](const double value) { return std::isfinite(value); };
         return (state.layout.trackPanelVisible || state.layout.bottomPanelVisible) &&
+               (state.layout.pianoRollVisible || state.layout.parametersVisible) &&
                (state.layout.bottomPanelPageId == QStringLiteral("ClipEditor") ||
                 state.layout.bottomPanelPageId == QStringLiteral("MixConsole")) &&
                state.pianoRoll.editMode >= EditorViewGlobal::Select &&
@@ -98,6 +100,11 @@ namespace {
             return true;
         }
 
+        bool setTrackPanelViewport(const TrackPanelViewState &value) override {
+            state.trackPanel = value;
+            return true;
+        }
+
         bool setEditorPanelVisibility(const bool trackPanelVisible,
                                       const bool bottomPanelVisible) override {
             ++visibilityCallCount;
@@ -114,6 +121,41 @@ namespace {
             }
             state.layout.bottomPanelVisible = true;
             state.layout.bottomPanelPageId = pageId;
+            return true;
+        }
+
+        bool showEditorRegion(const EditorViewGlobal::Region region) override {
+            if (region != EditorViewGlobal::Region::PianoRoll &&
+                region != EditorViewGlobal::Region::Parameters) {
+                return false;
+            }
+            state.layout.bottomPanelVisible = true;
+            state.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
+            if (region == EditorViewGlobal::Region::PianoRoll)
+                state.layout.pianoRollVisible = true;
+            else
+                state.layout.parametersVisible = true;
+            state.layout.activeRegion = region;
+            state.layout.focusedRegion = region;
+            return true;
+        }
+
+        bool focusEditorRegion(const EditorViewGlobal::Region region) override {
+            if (region == EditorViewGlobal::Region::TrackPanel)
+                state.layout.trackPanelVisible = true;
+            else if (region == EditorViewGlobal::Region::PianoRoll ||
+                     region == EditorViewGlobal::Region::Parameters) {
+                state.layout.bottomPanelVisible = true;
+                state.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
+                if (region == EditorViewGlobal::Region::PianoRoll)
+                    state.layout.pianoRollVisible = true;
+                else
+                    state.layout.parametersVisible = true;
+            } else {
+                return false;
+            }
+            state.layout.activeRegion = region;
+            state.layout.focusedRegion = region;
             return true;
         }
 
@@ -135,10 +177,51 @@ namespace {
             return true;
         }
 
+        bool setClipEditorTimeViewport(const double centerTick,
+                                       const double horizontalScale) override {
+            state.pianoRoll.centerTick = centerTick;
+            state.pianoRoll.horizontalScale = horizontalScale;
+            return true;
+        }
+
+        bool setPianoRollPitchViewport(const double centerKeyIndex,
+                                       const double verticalScale) override {
+            state.pianoRoll.centerKeyIndex = centerKeyIndex;
+            state.pianoRoll.verticalScale = verticalScale;
+            return true;
+        }
+
         bool setPianoRollEditMode(const EditorViewGlobal::PianoRollEditMode mode) override {
             if (mode < EditorViewGlobal::Select || mode > EditorViewGlobal::ModulatePitch)
                 return false;
             state.pianoRoll.editMode = mode;
+            return true;
+        }
+
+        bool setParameterForeground(const ParamInfo::Name name) override {
+            state.parameters.foreground = name;
+            return true;
+        }
+
+        bool setParameterBackground(const ParamInfo::Name name) override {
+            state.parameters.background = name;
+            return true;
+        }
+
+        bool swapParameters() override {
+            std::swap(state.parameters.foreground, state.parameters.background);
+            return true;
+        }
+
+        bool setParameterEditMode(const EditorViewGlobal::ParameterEditMode mode) override {
+            state.parameters.editMode = mode;
+            return true;
+        }
+
+        bool setParameterValueViewport(const double centerRatio,
+                                       const double verticalScale) override {
+            state.parameters.centerRatio = centerRatio;
+            state.parameters.verticalScale = verticalScale;
             return true;
         }
 
@@ -420,6 +503,14 @@ namespace {
                "a snapshot hiding both main panels must be rejected");
         expect(view.state == beforeInvalidRestore,
                "a rejected visibility snapshot must not partially mutate the view");
+
+        auto allClipEditorRegionsHidden = restored;
+        allClipEditorRegionsHidden.layout.pianoRollVisible = false;
+        allClipEditorRegionsHidden.layout.parametersVisible = false;
+        expect(!controller->restoreState(allClipEditorRegionsHidden),
+               "a snapshot hiding both clip-editor regions must be rejected");
+        expect(view.state == beforeInvalidRestore,
+               "a rejected clip-editor visibility snapshot must not partially mutate the view");
 
         auto invalidScale = restored;
         invalidScale.pianoRoll.horizontalScale = 0;

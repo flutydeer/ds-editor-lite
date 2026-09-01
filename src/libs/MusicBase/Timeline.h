@@ -47,6 +47,8 @@ public:
     // --- time signature map (indexed by measure number) ---
     [[nodiscard]] const QList<TimeSignature> &timeSignatures() const;
     void setTimeSignatures(QList<TimeSignature> timeSignatures);
+    [[nodiscard]] static bool isTimeSignatureProjectionValid(
+        QList<TimeSignature> timeSignatures);
     // Inserts a point, or replaces the meter of an existing point at the same bar.
     void addTimeSignature(const TimeSignature &timeSignature);
     // Removes the point at exactly `barIndex`; refuses bar 0 and unknown positions.

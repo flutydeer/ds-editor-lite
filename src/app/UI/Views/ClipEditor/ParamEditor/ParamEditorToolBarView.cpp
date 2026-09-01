@@ -131,6 +131,80 @@ void ParamEditorToolBarView::setTransformEnabled(const bool enabled) {
     m_paramEditToolBar->setTransformEnabled(enabled);
 }
 
+ParamInfo::Name ParamEditorToolBarView::foreground() const {
+    return static_cast<ParamInfo::Name>(cbForegroundParam->currentIndex() + 1);
+}
+
+ParamInfo::Name ParamEditorToolBarView::background() const {
+    const auto index = cbBackgroundParam->currentIndex();
+    return index == 0 ? ParamInfo::Unknown : static_cast<ParamInfo::Name>(index);
+}
+
+ParamEditorEditMode ParamEditorToolBarView::editMode() const {
+    return m_paramEditToolBar->editMode();
+}
+
+bool ParamEditorToolBarView::supportsEditMode(const ParamEditorEditMode mode) const {
+    return m_paramEditToolBar->supportsEditMode(mode);
+}
+
+bool ParamEditorToolBarView::setForeground(const ParamInfo::Name name) {
+    if (name <= ParamInfo::Pitch || name >= ParamInfo::Unknown)
+        return false;
+    const auto index = static_cast<int>(name) - 1;
+    if (cbForegroundParam->currentIndex() == index)
+        return true;
+    cbForegroundParam->setCurrentIndex(index);
+    return cbForegroundParam->currentIndex() == index;
+}
+
+bool ParamEditorToolBarView::setBackground(const ParamInfo::Name name) {
+    if (name < ParamInfo::Expressiveness || name == ParamInfo::SpeakerMix ||
+        name > ParamInfo::Unknown)
+        return false;
+    const auto index = name == ParamInfo::Unknown ? 0 : static_cast<int>(name);
+    if (cbBackgroundParam->currentIndex() == index)
+        return true;
+    cbBackgroundParam->setCurrentIndex(index);
+    return cbBackgroundParam->currentIndex() == index;
+}
+
+bool ParamEditorToolBarView::setParameterPair(const ParamInfo::Name foregroundName,
+                                              const ParamInfo::Name backgroundName) {
+    if (foregroundName <= ParamInfo::Pitch || foregroundName >= ParamInfo::Unknown ||
+        backgroundName < ParamInfo::Expressiveness || backgroundName == ParamInfo::SpeakerMix ||
+        backgroundName > ParamInfo::Unknown) {
+        return false;
+    }
+    const auto foregroundIndex = static_cast<int>(foregroundName) - 1;
+    const auto backgroundIndex =
+        backgroundName == ParamInfo::Unknown ? 0 : static_cast<int>(backgroundName);
+    const QSignalBlocker foregroundBlocker(cbForegroundParam);
+    const QSignalBlocker backgroundBlocker(cbBackgroundParam);
+    cbForegroundParam->setCurrentIndex(foregroundIndex);
+    cbBackgroundParam->setCurrentIndex(backgroundIndex);
+    if (cbForegroundParam->currentIndex() != foregroundIndex ||
+        cbBackgroundParam->currentIndex() != backgroundIndex) {
+        return false;
+    }
+    setSpeakerMixMode(foregroundName == ParamInfo::SpeakerMix);
+    emit foregroundChanged(foregroundName);
+    emit backgroundChanged(backgroundName);
+    return true;
+}
+
+bool ParamEditorToolBarView::swapParameters() {
+    const auto foregroundName = foreground();
+    const auto backgroundName = background();
+    if (foregroundName == ParamInfo::SpeakerMix || backgroundName == ParamInfo::Unknown)
+        return false;
+    return setParameterPair(backgroundName, foregroundName);
+}
+
+bool ParamEditorToolBarView::setEditMode(const ParamEditorEditMode mode) {
+    return m_paramEditToolBar->setEditMode(mode);
+}
+
 void ParamEditorToolBarView::onForegroundSelectionChanged(const int index) {
     const auto name = static_cast<ParamInfo::Name>(index + 1);
     setSpeakerMixMode(name == ParamInfo::SpeakerMix);
@@ -145,16 +219,8 @@ void ParamEditorToolBarView::onBackgroundSelectionChanged(const int index) {
     emit backgroundChanged(static_cast<ParamInfo::Name>(index));
 }
 
-void ParamEditorToolBarView::onSwap() const {
-    const auto fgName = static_cast<ParamInfo::Name>(cbForegroundParam->currentIndex() + 1);
-    if (fgName == ParamInfo::SpeakerMix)
-        return;
-    const int bgIndex = cbBackgroundParam->currentIndex();
-    if (bgIndex == 0)
-        return; // Cannot swap with "None" background
-    const auto bgName = static_cast<ParamInfo::Name>(bgIndex);
-    cbForegroundParam->setCurrentIndex(static_cast<int>(bgName) - 1);
-    cbBackgroundParam->setCurrentIndex(static_cast<int>(fgName));
+void ParamEditorToolBarView::onSwap() {
+    swapParameters();
 }
 
 void ParamEditorToolBarView::changeEvent(QEvent *event) {

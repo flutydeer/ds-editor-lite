@@ -543,7 +543,7 @@ public:
         QList<int> resolvedIds;
         const auto bounds = focusSceneRect(focus, &resolvedIds);
         if (!resolvedIds.isEmpty()) {
-            return viewport.logicalVisibleSceneRect().intersects(bounds)
+            return viewport.logicalVisibleSceneRect().contains(bounds)
                        ? HistoryFocusVisibility::Visible
                        : HistoryFocusVisibility::ScrollRequired;
         }
@@ -551,11 +551,11 @@ public:
         const auto logical = viewport.logicalVisibleSceneRect();
         const auto visibleStartTick = clip->start() + viewport.sceneXToTick(logical.left());
         const auto visibleEndTick = clip->start() + viewport.sceneXToTick(logical.right());
-        const auto tickVisible = focus.tickEnd + tickOffset >= visibleStartTick &&
-                                 focus.tickStart + tickOffset <= visibleEndTick;
+        const auto tickVisible = focus.tickStart + tickOffset >= visibleStartTick &&
+                                 focus.tickEnd + tickOffset <= visibleEndTick;
         const auto topKey = 127.0 - viewport.sceneYToUnit(logical.top());
         const auto bottomKey = 127.0 - viewport.sceneYToUnit(logical.bottom());
-        const auto keyVisible = focus.valueEnd >= bottomKey && focus.valueStart <= topKey;
+        const auto keyVisible = focus.valueStart >= bottomKey && focus.valueEnd <= topKey;
         return tickVisible && keyVisible ? HistoryFocusVisibility::Visible
                                          : HistoryFocusVisibility::ScrollRequired;
     }
@@ -566,10 +566,29 @@ public:
         if (focus.containerId >= 0 && focus.containerId != clip->id())
             return false;
         wheel.stop();
-        QList<int> selected;
-        const auto bounds = focusSceneRect(focus, &selected);
-        syncNoteSelection(selected);
-        return ensureSceneRectVisible(bounds, 24.0, 24.0, animated);
+        auto bounds = focusSceneRect(focus);
+        if (!bounds.isValid() || bounds.isNull())
+            return false;
+        constexpr double margin = 24.0;
+        const auto viewportSize = viewport.viewportSize();
+        const auto availableWidth = std::max(1.0, viewportSize.width() - margin * 2.0);
+        const auto availableHeight = std::max(1.0, viewportSize.height() - margin * 2.0);
+        auto targetScaleX = horizontalScale();
+        auto targetScaleY = verticalScale();
+        if (bounds.width() > availableWidth)
+            targetScaleX *= availableWidth / bounds.width();
+        if (bounds.height() > availableHeight)
+            targetScaleY *= availableHeight / bounds.height();
+        targetScaleX = viewport.boundedScale(Qt::Horizontal, targetScaleX);
+        targetScaleY = viewport.boundedScale(Qt::Vertical, targetScaleY);
+        if (!viewport.setScale(targetScaleX, targetScaleY,
+                               QPointF(viewportSize.width() * 0.5, viewportSize.height() * 0.5))) {
+            return false;
+        }
+        bounds = focusSceneRect(focus);
+        if (!ensureSceneRectVisible(bounds, margin, margin, animated))
+            return false;
+        return viewport.logicalVisibleSceneRect().contains(bounds);
     }
 
     void horizontalScale(QWheelEvent *event) {

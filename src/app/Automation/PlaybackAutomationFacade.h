@@ -7,7 +7,6 @@
 #include <lite/ProjectModel/AppModel/LoopSettings.h>
 
 #include <functional>
-
 namespace Automation {
 
     enum class PlaybackState {
@@ -25,6 +24,7 @@ namespace Automation {
 
     struct PlaybackSnapshotDto : PlaybackHostSnapshot {
         DocumentVersion document;
+        bool playable = false;
     };
 
     struct PlaybackRuntimeServices {
@@ -40,8 +40,7 @@ namespace Automation {
 
     class PlaybackAutomationFacade final {
     public:
-        PlaybackAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
-                                 CommandCommitter &committer,
+        PlaybackAutomationFacade(AutomationDispatcher &dispatcher, CommandCommitter &committer,
                                  PlaybackRuntimeServices services = {});
 
         AutomationResult<PlaybackSnapshotDto> getPlayback(const DocumentId &documentId);
@@ -49,6 +48,7 @@ namespace Automation {
         AutomationResult<MutationResult> pause(const CommandContext &context);
         AutomationResult<MutationResult> stop(const CommandContext &context);
         AutomationResult<MutationResult> setPosition(const CommandContext &context, double tick);
+        AutomationResult<MutationResult> seek(const CommandContext &context, double tick);
         AutomationResult<MutationResult> setLastPosition(const CommandContext &context,
                                                          double tick);
         AutomationResult<MutationResult> setLoop(const CommandContext &context,
@@ -63,9 +63,7 @@ namespace Automation {
                                                   PlaybackState state);
         AutomationResult<MutationResult>
             commitLoop(DocumentSession &session, const LoopSettings &settings, bool validateOnly);
-        void registerOperations();
 
-        OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
         CommandCommitter &m_committer;
         PlaybackRuntimeServices m_services;

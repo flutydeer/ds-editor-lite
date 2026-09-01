@@ -29,7 +29,7 @@ void RemoveTrackAction::undo() {
     if (!m_ownedTrack)
         return;
     const auto track = m_ownedTrack.get();
-    if (!m_model->insertTrack(track, m_index))
+    if (!m_model->insertTrack(track, m_index, false))
         return;
     m_ownedTrack.release();
     m_model->notifyTrackChanged(AppModel::Insert, m_index, track);

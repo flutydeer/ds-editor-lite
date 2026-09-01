@@ -929,8 +929,8 @@ HistoryFocusVisibility PianoRollGraphicsView::focusVisibility(const HistoryFocus
                                              : itemBounds.united(item->sceneBoundingRect());
     }
     if (!itemBounds.isNull())
-        return logicalVisibleRect().intersects(itemBounds) ? HistoryFocusVisibility::Visible
-                                                           : HistoryFocusVisibility::ScrollRequired;
+        return logicalVisibleRect().contains(itemBounds) ? HistoryFocusVisibility::Visible
+                                                         : HistoryFocusVisibility::ScrollRequired;
 
     const auto globalStart =
         focus.ticksAreLocal ? d->m_clip->start() + focus.tickStart : focus.tickStart;
@@ -938,12 +938,12 @@ HistoryFocusVisibility PianoRollGraphicsView::focusVisibility(const HistoryFocus
     const auto logicalRect = logicalVisibleRect();
     const auto visibleStartTick = sceneXToTick(logicalRect.left()) + d->m_offset;
     const auto visibleEndTick = sceneXToTick(logicalRect.right()) + d->m_offset;
-    const auto tickVisible = globalEnd >= visibleStartTick && globalStart <= visibleEndTick;
+    const auto tickVisible = globalStart >= visibleStartTick && globalEnd <= visibleEndTick;
     const auto logicalTopKey =
         PianoRollCoord::sceneYToKeyIndexDouble(logicalRect.top(), scaleY() * noteHeight);
     const auto logicalBottomKey =
         PianoRollCoord::sceneYToKeyIndexDouble(logicalRect.bottom(), scaleY() * noteHeight);
-    const auto keyVisible = focus.valueEnd >= logicalBottomKey && focus.valueStart <= logicalTopKey;
+    const auto keyVisible = focus.valueStart >= logicalBottomKey && focus.valueEnd <= logicalTopKey;
     return tickVisible && keyVisible ? HistoryFocusVisibility::Visible
                                      : HistoryFocusVisibility::ScrollRequired;
 }
@@ -959,33 +959,46 @@ bool PianoRollGraphicsView::revealFocus(const HistoryFocus &focus, const bool an
         return false;
     }
 
-    QList<int> selectedIds;
-    QRectF itemBounds;
-    for (const auto id : focus.objectIds) {
-        if (const auto item = d->findNoteViewById(id)) {
-            selectedIds.append(id);
-            itemBounds = itemBounds.isNull() ? item->sceneBoundingRect()
-                                             : itemBounds.united(item->sceneBoundingRect());
+    const auto focusBounds = [this, d, &focus] {
+        QRectF bounds;
+        for (const auto id : focus.objectIds) {
+            if (const auto item = d->findNoteViewById(id)) {
+                bounds = bounds.isNull() ? item->sceneBoundingRect()
+                                         : bounds.united(item->sceneBoundingRect());
+            }
         }
-    }
-    clipController->selectNotes(selectedIds, true);
-    if (!itemBounds.isNull()) {
-        ensureSceneRectVisible(itemBounds, 24, 24, animated);
-        return true;
-    }
+        if (!bounds.isNull())
+            return bounds;
+        const auto localStart =
+            focus.ticksAreLocal ? focus.tickStart : focus.tickStart - d->m_clip->start();
+        const auto localEnd =
+            focus.ticksAreLocal ? focus.tickEnd : focus.tickEnd - d->m_clip->start();
+        const auto left = tickToSceneX(localStart);
+        const auto right = tickToSceneX(localEnd);
+        const auto keyHeight = scaleY() * noteHeight;
+        const auto top = PianoRollCoord::keyIndexToSceneY(focus.valueEnd, keyHeight);
+        const auto bottom =
+            PianoRollCoord::keyIndexToSceneY(focus.valueStart, keyHeight) + keyHeight;
+        return QRectF(left, top, qMax(1.0, right - left), qMax(keyHeight, bottom - top));
+    };
 
-    const auto localStart =
-        focus.ticksAreLocal ? focus.tickStart : focus.tickStart - d->m_clip->start();
-    const auto localEnd = focus.ticksAreLocal ? focus.tickEnd : focus.tickEnd - d->m_clip->start();
-    const auto left = tickToSceneX(localStart);
-    const auto right = tickToSceneX(localEnd);
-    const auto keyHeight = scaleY() * noteHeight;
-    const auto top = PianoRollCoord::keyIndexToSceneY(focus.valueEnd, keyHeight);
-    const auto bottom = PianoRollCoord::keyIndexToSceneY(focus.valueStart, keyHeight) + keyHeight;
-    ensureSceneRectVisible(
-        QRectF(left, top, qMax(1.0, right - left), qMax(keyHeight, bottom - top)), 24, 24,
-        animated);
-    return true;
+    auto bounds = focusBounds();
+    if (!bounds.isValid() || bounds.isNull())
+        return false;
+    constexpr int margin = 24;
+    const auto availableWidth = qMax(1, viewport()->width() - margin * 2);
+    const auto availableHeight = qMax(1, viewport()->height() - margin * 2);
+    auto targetScaleX = scaleX();
+    auto targetScaleY = scaleY();
+    if (bounds.width() > availableWidth)
+        targetScaleX *= availableWidth / bounds.width();
+    if (bounds.height() > availableHeight)
+        targetScaleY *= availableHeight / bounds.height();
+    if (!setViewportScale(targetScaleX, targetScaleY))
+        return false;
+    bounds = focusBounds();
+    ensureSceneRectVisible(bounds, margin, margin, animated);
+    return logicalVisibleRect().contains(bounds);
 }
 
 void PianoRollGraphicsView::discardAction() {

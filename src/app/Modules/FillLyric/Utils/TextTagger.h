@@ -52,7 +52,8 @@ namespace FillLyric {
         // Enable/disable built-in tagger configs by language name
         static void setBuiltinEnabled(const QMap<QString, bool> &enabledMap);
         // Set user custom tagger rules (replaces previous custom rules)
-        static void setCustomRules(const QList<CustomTaggerRule> &rules);
+        static QString validateCustomRules(const QList<CustomTaggerRule> &rules);
+        static bool setCustomRules(const QList<CustomTaggerRule> &rules);
         // Stable order keys keep built-in and custom rules distinct when they share a language.
         static void setRuleOrder(const QStringList &order);
         // Return list of built-in tagger language names
