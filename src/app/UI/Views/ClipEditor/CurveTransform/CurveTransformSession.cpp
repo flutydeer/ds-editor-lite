@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numeric>
 #include <utility>
 
 namespace {
@@ -76,6 +77,52 @@ namespace {
                 return false;
         }
         return true;
+    }
+
+    DrawCurve *mergeAdjacentCurves(const DrawCurve &left, const DrawCurve &right) {
+        if (left.localEndTick() != right.localStart())
+            return nullptr;
+        auto *result = new DrawCurve(left);
+        result->step = std::gcd(left.step, right.step);
+        QList<int> values;
+        values.reserve((right.localEndTick() - left.localStart()) / result->step);
+        for (auto tick = left.localStart(); tick < right.localEndTick(); tick += result->step) {
+            const auto &source = tick < right.localStart() ? left : right;
+            values.append(valueAt(source, tick).value());
+        }
+        result->setValues(values);
+        return result;
+    }
+
+    void coalesceIncompleteCurves(QList<DrawCurve *> &curves) {
+        for (int i = curves.size() - 1; i >= 0; --i) {
+            if (curves.at(i)->isEmpty())
+                delete curves.takeAt(i);
+        }
+        for (int i = 0; i < curves.size();) {
+            if (curves.at(i)->values().size() >= 2) {
+                ++i;
+                continue;
+            }
+            int leftIndex = -1;
+            if (i > 0 && curves.at(i - 1)->localEndTick() == curves.at(i)->localStart())
+                leftIndex = i - 1;
+            else if (i + 1 < curves.size() &&
+                     curves.at(i)->localEndTick() == curves.at(i + 1)->localStart())
+                leftIndex = i;
+            if (leftIndex < 0) {
+                ++i;
+                continue;
+            }
+            auto *left = curves.at(leftIndex);
+            auto *right = curves.at(leftIndex + 1);
+            auto *merged = mergeAdjacentCurves(*left, *right);
+            curves[leftIndex] = merged;
+            curves.removeAt(leftIndex + 1);
+            delete left;
+            delete right;
+            i = leftIndex;
+        }
     }
 }
 
@@ -265,6 +312,7 @@ namespace CurveTransform {
         std::sort(result.begin(), result.end(), [](const auto *left, const auto *right) {
             return left->localStart() < right->localStart();
         });
+        coalesceIncompleteCurves(result);
         return result;
     }
 

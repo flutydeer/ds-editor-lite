@@ -426,6 +426,35 @@ namespace {
         return ok;
     }
 
+    bool testSingleSampleEditedRemaindersArePreserved() {
+        using namespace CurveTransform;
+        bool ok = true;
+        MouthOpeningParamProperties properties;
+        auto edited = curve(0, {100, 200, 300, 400});
+
+        Config config;
+        config.kind = Kind::Scale;
+        config.properties = &properties;
+        Session session;
+        session.setSource({}, {&edited}, config);
+        session.beginSelection(5);
+        ok &= expect(session.finishSelection(15), "inner edited selection succeeds");
+        ok &= expect(session.beginTransform(), "inner edited transform starts");
+        ok &= expect(!session.hasEffectiveChange(),
+                     "neutral transform leaves existing Edited values unchanged");
+        session.updateTransform(100.0);
+        auto preview = session.buildEditedPreview();
+        ok &= expect(std::all_of(preview.cbegin(), preview.cend(), [](const auto *item) {
+                         return item->values().size() >= 2;
+                     }),
+                     "transform preview contains no incomplete draw curves");
+        ok &= expect(valueAt(preview, 0) == 100 && valueAt(preview, 5) == 0 &&
+                         valueAt(preview, 10) == 0 && valueAt(preview, 15) == 400,
+                     "single-sample edited remainders survive both transform edges");
+        qDeleteAll(preview);
+        return ok;
+    }
+
     bool testCompleteSampleIntervals() {
         using namespace CurveTransform;
         bool ok = true;
@@ -572,6 +601,7 @@ int main(int argc, char *argv[]) {
     ok &= testPitchAndEditedOnlySource();
     ok &= testNonSampleStepEditedCurve();
     ok &= testFineEditedSamplesOutsideTransformArePreserved();
+    ok &= testSingleSampleEditedRemaindersArePreserved();
     ok &= testIncompleteFineSampleCellIsExcluded();
     ok &= testMismatchedSamplePhasesAreAligned();
     ok &= testBasePitchRestKeys();
