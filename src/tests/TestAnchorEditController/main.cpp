@@ -384,27 +384,34 @@ namespace {
         qDeleteAll(existing);
     }
 
-    void testCompositionRejectsSinglePointDrawCurves() {
+    void testCompositionPreservesExistingSinglePointDrawCurves() {
         auto *anchor = makeCurve({
             {10, 20},
             {20, 40}
         });
-        auto *singlePoint = new DrawCurve;
-        singlePoint->setLocalStart(30);
-        singlePoint->setValues({60});
+        auto *existingSinglePoint = new DrawCurve;
+        existingSinglePoint->setLocalStart(30);
+        existingSinglePoint->setValues({60});
+        auto *newSinglePoint = new DrawCurve;
+        newSinglePoint->setLocalStart(35);
+        newSinglePoint->setValues({65});
         auto *draw = new DrawCurve;
         draw->setLocalStart(40);
         draw->setValues({70, 80});
 
-        auto result = AnchorEditor::replaceDrawCurves({anchor}, {singlePoint, draw});
-        expect(result.size() == 2 && result.first()->type() == Curve::Draw &&
-                   static_cast<DrawCurve *>(result.first())->values() == QList<int>({70, 80}) &&
+        auto result = AnchorEditor::replaceDrawCurves(
+            {anchor, existingSinglePoint}, {existingSinglePoint, newSinglePoint, draw});
+        expect(result.size() == 3 && result.at(0)->type() == Curve::Draw &&
+                   *static_cast<DrawCurve *>(result.at(0)) == *existingSinglePoint &&
+                   result.at(1)->type() == Curve::Draw &&
+                   static_cast<DrawCurve *>(result.at(1))->values() == QList<int>({70, 80}) &&
                    result.last()->type() == Curve::Anchor,
-               "draw replacement must reject single-point curves and preserve valid curves");
+               "draw replacement must preserve existing single points and reject new ones");
 
         qDeleteAll(result);
         delete draw;
-        delete singlePoint;
+        delete newSinglePoint;
+        delete existingSinglePoint;
         delete anchor;
     }
 
@@ -615,7 +622,7 @@ int main(int argc, char *argv[]) {
     testKeyboardCommands();
     testDeleteToOneRemovesWholeCurve();
     testCompositionPreservesOtherCurveKind();
-    testCompositionRejectsSinglePointDrawCurves();
+    testCompositionPreservesExistingSinglePointDrawCurves();
     testCompositionRejectsIncompleteAnchorCurves();
     testSelectionAndLastNodeMenu();
     testBoundaryClippingAndRejectedMutation();
