@@ -22,15 +22,18 @@ public:
                              QObject *parent = nullptr);
 
     void enqueue(const SingleInstanceRequest &request);
+    void waitUntilIdle();
 
 private:
     void dispatchNext();
     void taskFinished(const Automation::AutomationTaskSnapshot &snapshot);
+    void completeIdleWait();
 
     Automation::CoreRuntime &m_runtime;
     OpenDocument m_openDocument;
     QQueue<QString> m_paths;
     bool m_busy = false;
+    std::function<void()> m_idleCallback;
 };
 
 #endif // HEADLESSOPENREQUESTQUEUE_H

@@ -25,6 +25,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QElapsedTimer>
+#include <QEventLoop>
 #include <QMessageBox>
 #include <QTextStream>
 #include <QUuid>
@@ -177,6 +178,10 @@ int main(int argc, char *argv[]) {
             if (!saveWindow)
                 qWarning("Failed to save main-window placement");
         } else {
+            HeadlessOpenRequestQueue requestQueue(*appContext.m_coreRuntime,
+                                                  hostServices.openDocument);
+            requestQueue.enqueue(startupRequest);
+            requestQueue.waitUntilIdle();
             Automation::EditorMcpController mcpController(
                 *appContext.m_coreRuntime, *appContext.m_appOptions, coordinator, hostMode,
                 parsedArguments.automation, hostServices);
@@ -191,9 +196,6 @@ int main(int argc, char *argv[]) {
                 coordinator.shutdown();
                 return EXIT_FAILURE;
             }
-            HeadlessOpenRequestQueue requestQueue(*appContext.m_coreRuntime,
-                                                  hostServices.openDocument);
-            requestQueue.enqueue(startupRequest);
             coordinator.setRequestHandler([&requestQueue](const SingleInstanceRequest &request) {
                 requestQueue.enqueue(request);
             });

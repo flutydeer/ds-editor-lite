@@ -3,6 +3,7 @@
 #include "Automation/CoreRuntime.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowPathUtils.h"
 
+#include <QEventLoop>
 #include <QPointer>
 #include <QTimer>
 
@@ -19,6 +20,16 @@ void HeadlessOpenRequestQueue::enqueue(const SingleInstanceRequest &request) {
             m_paths.enqueue(DocumentWorkflowPathUtils::normalizedProjectPath(path));
     }
     QTimer::singleShot(0, this, [this] { dispatchNext(); });
+}
+
+void HeadlessOpenRequestQueue::waitUntilIdle() {
+    if (!m_busy && m_paths.isEmpty())
+        return;
+
+    QEventLoop loop;
+    m_idleCallback = [&loop] { loop.quit(); };
+    loop.exec();
+    m_idleCallback = {};
 }
 
 void HeadlessOpenRequestQueue::dispatchNext() {
@@ -71,6 +82,7 @@ void HeadlessOpenRequestQueue::dispatchNext() {
         }
         return;
     }
+    completeIdleWait();
 }
 
 void HeadlessOpenRequestQueue::taskFinished(const Automation::AutomationTaskSnapshot &snapshot) {
@@ -81,4 +93,10 @@ void HeadlessOpenRequestQueue::taskFinished(const Automation::AutomationTaskSnap
                    << (snapshot.error ? snapshot.error->message : QString());
     }
     QTimer::singleShot(0, this, [this] { dispatchNext(); });
+}
+
+void HeadlessOpenRequestQueue::completeIdleWait() {
+    auto callback = std::exchange(m_idleCallback, {});
+    if (callback)
+        callback();
 }

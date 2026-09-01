@@ -745,6 +745,26 @@ namespace {
                             .arg(redo ? compactJson(*redo) : exchangeError));
         }
 
+        const auto startupProjectPath =
+            isolatedRoot.filePath(QStringLiteral("headless-startup.dspx"));
+        const auto startupProjectSave = nativeExchange(
+            manager, nativeEndpoint,
+            nativeRequest(QStringLiteral("save-startup-project"),
+                          QStringLiteral("documents.save_as"),
+                          QJsonObject{
+                              {QStringLiteral("document_id"),       documentId                   },
+                              {QStringLiteral("expected_revision"), redoneRevision               },
+                              {QStringLiteral("path"),              startupProjectPath            },
+                              {QStringLiteral("overwrite_policy"),  QStringLiteral("overwrite")},
+        }),
+            exchangeError, 10000);
+        if (!startupProjectSave || startupProjectSave->contains(QStringLiteral("error")) ||
+            !QFileInfo::exists(startupProjectPath)) {
+            return fail(QStringLiteral("Could not prepare the startup-project fixture: %1")
+                            .arg(startupProjectSave ? compactJson(*startupProjectSave)
+                                                    : exchangeError));
+        }
+
         const auto guiOnly = nativeExchange(
             manager, nativeEndpoint,
             nativeRequest(QStringLiteral("gui-only"), QStringLiteral("track_panel.set_viewport"),
@@ -860,6 +880,10 @@ namespace {
         const auto mcpEndpoint = QStringLiteral("http://127.0.0.1:%1/mcp").arg(mcpPort);
         const QUrl combinedNativeEndpoint(
             QStringLiteral("http://127.0.0.1:%1/automation/v1").arg(mcpPort));
+        DsConnector::BootstrapWatcher mcpWatcher(QUuid::createUuid().toString(QUuid::WithoutBraces),
+                                                 QStringLiteral("1"), serviceName);
+        mcpWatcher.start();
+        const auto mcpWatcherCleanup = qScopeGuard([&mcpWatcher] { mcpWatcher.stop(); });
 
         restartWorkingDirectory =
             QDir(isolatedRoot.path()).filePath(QStringLiteral("restart-working-directory"));
@@ -869,6 +893,7 @@ namespace {
             QStringLiteral("--headless"),      QStringLiteral("--mcp"),
             QStringLiteral("--control-level"), QStringLiteral("l3"),
             QStringLiteral("--control-port"),  QString::number(mcpPort),
+            startupProjectPath,
         };
         mcpEditor.setProcessEnvironment(environment);
         mcpEditor.setWorkingDirectory(restartWorkingDirectory);
@@ -880,10 +905,6 @@ namespace {
         }
         restartSourceProcessId = mcpEditor.processId();
 
-        DsConnector::BootstrapWatcher mcpWatcher(QUuid::createUuid().toString(QUuid::WithoutBraces),
-                                                 QStringLiteral("1"), serviceName);
-        mcpWatcher.start();
-        const auto mcpWatcherCleanup = qScopeGuard([&mcpWatcher] { mcpWatcher.stop(); });
         const auto mcpBootstrapSettled = waitUntil(
             [&] {
                 return (mcpWatcher.observation().snapshot &&
@@ -998,6 +1019,28 @@ namespace {
             combinedDocument.value(QStringLiteral("document_id")).toString();
         const auto combinedRevision =
             combinedDocument.value(QStringLiteral("revision")).toInteger(-1);
+        const auto startupLoadedDocument = nativeExchange(
+            manager, combinedNativeEndpoint,
+            nativeRequest(QStringLiteral("startup-loaded-document"),
+                          QStringLiteral("documents.get"),
+                          QJsonObject{
+                              {QStringLiteral("document_id"), combinedDocumentId}
+        }),
+            exchangeError, 10000);
+        const auto startupLoadedSnapshot =
+            startupLoadedDocument
+                ? startupLoadedDocument->value(QStringLiteral("result"))
+                      .toObject()
+                      .value(QStringLiteral("snapshot"))
+                      .toObject()
+                : QJsonObject{};
+        if (!startupLoadedDocument || startupLoadedDocument->contains(QStringLiteral("error")) ||
+            QFileInfo(startupLoadedSnapshot.value(QStringLiteral("path")).toString())
+                    .canonicalFilePath() != QFileInfo(startupProjectPath).canonicalFilePath()) {
+            return fail(QStringLiteral("Headless readiness preceded the startup project: %1")
+                            .arg(startupLoadedDocument ? compactJson(*startupLoadedDocument)
+                                                       : exchangeError));
+        }
         const auto taskTrackInsertion = nativeExchange(
             manager, combinedNativeEndpoint,
             nativeRequest(QStringLiteral("task-track"), QStringLiteral("tracks.insert"),
@@ -1426,7 +1469,8 @@ namespace {
 
         QTextStream(stdout)
             << "Validated QCore-only headless Native workflow, Bootstrap state, no windows, "
-               "edit/undo/redo, async file tasks, restart, Primary competition, and MCP coexistence"
+               "startup-project readiness, edit/undo/redo, async file tasks, restart, Primary "
+               "competition, and MCP coexistence"
             << Qt::endl;
         return true;
     }
