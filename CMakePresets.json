@@ -77,8 +77,12 @@
     {
       "name": "debug",
       "displayName": "Build Debug",
-      "description": "Build all Debug targets, including the editor, connector, and tests.",
-      "configurePreset": "debug"
+      "description": "Build the Debug editor and connector targets.",
+      "configurePreset": "debug",
+      "targets": [
+        "DsEditorLite",
+        "DsConnectorLite"
+      ]
     },
     {
       "name": "release",
