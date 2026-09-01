@@ -1190,7 +1190,7 @@ public:
         pitchTransformMouseDown = true;
         pitchTransformDragStartViewportPos = viewportPosition;
         pitchTransform.beginSelection(qRound(localTickAt(viewportPosition)));
-        scheduleSnapshot();
+        applyPitchTransformPreview();
     }
 
     void mousePressPitchTransform(const QPointF &viewportPosition) {
