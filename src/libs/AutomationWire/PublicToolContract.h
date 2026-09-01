@@ -46,7 +46,7 @@ namespace AutomationWire {
         OperationKind kind = OperationKind::Query;
         SyncMode syncMode = SyncMode::Synchronous;
         FileAccess fileAccess = FileAccess::None;
-        QString hostAvailability = QStringLiteral("gui");
+        QString hostAvailability = QStringLiteral("both");
         QJsonObject inputSchema;
         QJsonObject outputSchema;
         QJsonArray valueSources;
@@ -57,6 +57,7 @@ namespace AutomationWire {
 
     const QList<ToolContract> &publicToolContracts();
     const ToolContract *findPublicTool(const QString &operationId);
+    bool isToolAvailableOnHost(const ToolContract &contract, const QString &hostMode);
     QStringList publicToolIds();
     QList<ToolContract> toolsForControlLevel(ControlLevel controlLevel,
                                              const QSet<QString> &customEnabled = {});
