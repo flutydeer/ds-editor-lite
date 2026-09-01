@@ -26,7 +26,7 @@ namespace Automation {
             return {
                 .windowId = guiWindowId(arguments),
                 .validateOnly = arguments.value(QStringLiteral("validate_only")).toBool(false),
-                .source = InvocationSource::PublicMcp,
+                .source = invocation.source,
                 .clientId = invocation.clientId,
             };
         }
@@ -38,7 +38,7 @@ namespace Automation {
                 .documentId = guiDocumentId(arguments),
                 .windowId = guiWindowId(arguments),
                 .validateOnly = arguments.value(QStringLiteral("validate_only")).toBool(false),
-                .source = InvocationSource::PublicMcp,
+                .source = invocation.source,
                 .clientId = invocation.clientId,
             };
         }

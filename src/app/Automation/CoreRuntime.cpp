@@ -26,9 +26,9 @@ namespace Automation {
         PackageRuntimeServices packageServices, InferenceRuntimeServices inferenceServices,
         FileRuntimeServices fileServices, AudioExportRuntimeServices audioExportServices,
         ExtractionRuntimeServices extractionServices,
-        ApplicationRuntimeServices applicationServices)
+        ApplicationRuntimeServices applicationServices, std::optional<WindowId> windowId)
         : m_session(model, historyManager), m_documentResolver(m_session),
-          m_dispatcher(m_documentResolver, m_windowContext),
+          m_windowContext(std::move(windowId)), m_dispatcher(m_documentResolver, m_windowContext),
           m_applicationFacade(m_dispatcher, std::move(applicationServices)),
           m_parameterFacade(m_dispatcher, m_committer, m_objectResolver),
           m_projectFacade(m_dispatcher, m_committer, m_objectResolver),
@@ -54,6 +54,10 @@ namespace Automation {
         return m_session.version();
     }
 
+    const QString &CoreRuntime::documentPath() const {
+        return m_session.path();
+    }
+
     bool CoreRuntime::documentBusy(const DocumentId &documentId) const {
         return documentId == m_session.documentId() && m_session.isBusy();
     }
@@ -71,7 +75,7 @@ namespace Automation {
         };
     }
 
-    const WindowId &CoreRuntime::windowId() const {
+    const std::optional<WindowId> &CoreRuntime::windowId() const {
         return m_windowContext.windowId();
     }
 

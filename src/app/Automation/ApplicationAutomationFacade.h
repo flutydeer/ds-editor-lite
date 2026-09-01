@@ -47,9 +47,9 @@ namespace Automation {
                                     ApplicationRuntimeServices services = {});
 
         AutomationResult<ApplicationInfoDto> getInfo();
-        AutomationResult<GuiMutationResult> requestTermination(const GuiCommandContext &context,
-                                                               ApplicationTerminationMode mode,
-                                                               bool discardChanges = false);
+        AutomationResult<ApplicationMutationResult>
+            requestTermination(const ApplicationCommandContext &context,
+                               ApplicationTerminationMode mode, bool discardChanges = false);
 
     private:
         AutomationDispatcher &m_dispatcher;
