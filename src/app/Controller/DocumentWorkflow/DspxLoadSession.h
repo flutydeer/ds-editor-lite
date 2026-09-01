@@ -15,7 +15,7 @@ class DspxLoadSession final : public ProjectLoadSessionBase {
 
 public:
     DspxLoadSession(QString filePath, quint64 requestId, IDocumentWorkflowUi *ui,
-                    QObject *parent = nullptr);
+                    bool allowWithoutPackageMetadata = false, QObject *parent = nullptr);
 
 private:
     void onStart() override;
@@ -27,6 +27,7 @@ private:
     void handlePackageStatus();
 
     IDocumentWorkflowUi *m_ui = nullptr;
+    bool m_allowWithoutPackageMetadata = false;
     QMetaObject::Connection m_packageConnection;
 };
 

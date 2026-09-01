@@ -2,9 +2,9 @@
 
 ## 1. 文档状态与口径
 
-本文是一期 Automation Facade 全量 Computer Use 回归的稳定执行清单，不是测试结果或
-排期记录。正式 `test-report.md` 采用 append-only 规则且已有 `R00` 及后续轮次；矩阵只定义
-可重复引用的场景组，任何实际尝试都不得回填或改写既有报告轮次。
+本文是一期 Automation Facade 全量 Computer Use 回归的稳定执行清单，不是测试结果或排期记录。
+正式结果写入 `test-report.md`；矩阵只定义可重复引用的场景组，原始尝试、失败和修复证据保存在
+仓库外私有归档。
 
 矩阵遵循 `test-outline.md` 和 `migration-matrix.md` 的一期边界：真实 GUI 负责验证用户
 入口、交互提交、可见状态与文件结果；内部 DTO、DocumentId、revision、History entry
@@ -220,7 +220,7 @@ buffer/sample-rate 的安全恢复。若某控件按已装备条件本应出现�
   gain/pan 文本随提交更新；删除/撤销/重做保持正确对象与顺序。
 - **恢复/清理**：Undo 到初始轨道状态，或放弃工作副本；Master 和轨道控制恢复基线。
 - **未能自动观察的限制**：gain/pan 精确浮点值、一次提交对应一次 History/revision 和
-  affected-object ID 需补充日志；仅 hover 预览明确不属于一期 Catalog 提交。
+  affected-object ID 需补充日志；仅 hover 预览明确不属于一期 Facade 提交。
 
 ### GUI-G05：歌声片段、跨轨移动、缩放与剪贴板
 
@@ -415,7 +415,7 @@ buffer/sample-rate 的安全恢复。若某控件按已装备条件本应出现�
 
 ### GUI-G16：General、界面语言、默认歌词与 Fill Lyric 基本设置持久化
 
-- **追踪**：`settings.get/update_general/update_fill_lyric`。
+- **追踪**：`settings.query/update_general/update_fill_lyric`。
 - **前置**：记录隔离配置中的初始 UI language、默认歌唱语言、默认歌词和模型工具路径；没有
   打开的系统文件夹窗口。`LIBRESVIP_CLI` 只在 `CAP-LIBRESVIP` 已装备时作为有效工具路径；
   未装备时只验证字段持久化，不宣称 LibreSVIP 可运行。
@@ -503,7 +503,7 @@ buffer/sample-rate 的安全恢复。若某控件按已装备条件本应出现�
 
 ### GUI-G19：包搜索路径、Package Manager 与声音解析
 
-- **追踪**：`packages.get_search_paths/set_search_paths/list/validate/resolve_document_voices`。
+- **追踪**：`packages.set_search_paths/list/validate/resolve_document_voices`。
 - **前置**：`package-good`、`package-bad` 均在 `RUN_ROOT`；记录 Package Manager 初始数量；
   工程已保存，允许专用实例重启。
 - **动作**：General 的 Package Search Paths 中添加 `package-good`、Unicode 别名/重复形式和
@@ -516,7 +516,7 @@ buffer/sample-rate 的安全恢复。若某控件按已装备条件本应出现�
 - **恢复/清理**：移除所有测试路径，重启确认包计数回到基线；关闭 Package Manager。
 - **未能自动观察的限制**：坏包可能不会进入可选择列表，其验证只能依靠扫描日志；当前
   Package Manager 的 `Install...` 按钮在源码中没有连接安装动作，不把点击它算作任何
-  Catalog operation 通过；文档版本复检与运行期 voice ID 需内部证据。
+  Automation operation 通过；文档版本复检与运行期 voice ID 需内部证据。
 
 ### GUI-G20：MIDI 导入与 LibreSVIP Open/Import（条件子场景）
 
@@ -582,7 +582,7 @@ buffer/sample-rate 的安全恢复。若某控件按已装备条件本应出现�
 ### GUI-G22：零缓存多唱轨/多 clip 真实推理、受控延迟撤销与提取
 
 - **追踪**：12 个 `inference.*`、`extract.pitch.start`、`extract.midi.start`、
-  `operations.get/list/cancel` 的真实环境资格。
+  `tasks.get/list/cancel` 的真实环境资格。
 - **前置**：`GUI-G00` 通过；为本子运行重新建立空 `TEST_CACHE`，Inference 页 Refresh 显示
   No cache files，文件系统也为零。记录 `CAP-INFER`、`CAP-AUDIO`、`CAP-INFER-DELAY`、
   `CAP-EXTRACT` 和 `CAP-LONG-ASYNC` 的独立资格；打开只读副本 `infer-multi.dspx`，确认至少两条歌声轨且
@@ -658,7 +658,7 @@ buffer/sample-rate 的安全恢复。若某控件按已装备条件本应出现�
 
 | 项目 | GUI 能证明什么 | 仍需的补证/处理 |
 |---|---|---|
-| 各域 `get`、Catalog descriptor | 当前窗口中的一部分呈现 | DTO 完整性、快照无副作用、未知 ID/WindowId 由确定性测试覆盖 |
+| 各域 `get`、Operation ID/路由 | 当前窗口中的一部分呈现 | DTO 完整性、快照无副作用、未知 ID/WindowId 由确定性测试覆盖 |
 | DocumentId、revision、idempotency | 标题、路径、内容和保存点变化 | ID 轮换、revision 次数、generation 由日志/契约测试覆盖 |
 | `playback.clear_loop` | toggle 只能启用/禁用并保留区域 | 当前无清零入口，只做契约测试，不记 GUI 通过 |
 | `editor.restore_view/get_state/get_capabilities` | 可手工改变 view | 当前无用户触发 restore DTO 的入口，只做 Facade 测试 |
@@ -666,7 +666,7 @@ buffer/sample-rate 的安全恢复。若某控件按已装备条件本应出现�
 | `settings.update_window` | 跨正常退出可见几何恢复 | 提交发生在事件循环退出后，需 `GUI-G24` 加日志补证 |
 | 音频片段 cache/hash/path-status | Unconfirmed/Resolved、Confirm、波形与重开结果 | `set_hash` 终态、SHA-512 与文档版本复检用脱敏日志/保存结构补证 |
 | 12 个 `inference.*` | 最终曲线、音素、波形及无闪回 | stage、revision 重基、目标复检用脱敏日志 |
-| `operations.get/list/cancel` | 任务框、取消与最终可见结果 | TaskId、状态机和终态保留用任务契约测试 |
+| `tasks.get/list/cancel` | 任务框、取消与最终可见结果 | TaskId、状态机和终态保留用任务契约测试 |
 | Package Manager `Install...` | 按钮存在 | 当前没有连接安装动作，不映射一期 package operation |
 | `exports.audio.*` | 无 | 受 GUI smoke skill 边界约束，禁止打开音频导出对话框 |
 
@@ -706,4 +706,4 @@ buffer/sample-rate 的安全恢复。若某控件按已装备条件本应出现�
 | 应用重启、退出与最终清理 | `GUI-G24` |
 
 所有未执行或未装备项都必须精确到子场景、能力编号和原因；禁止写“环境原因，整组跳过”。
-条件子场景未装备不降低 Catalog 的确定性测试分母，只作为真实环境资格单独统计。
+条件子场景未装备不降低内部 operation 的确定性测试分母，只作为真实环境资格单独统计。

@@ -18,6 +18,7 @@
 #include <QPainterPath>
 
 #include <algorithm>
+#include <cmath>
 
 CommonParamEditorView::CommonParamEditorView(const ParamProperties &properties)
     : m_properties(&properties) {
@@ -108,6 +109,39 @@ double CommonParamEditorView::sceneYForValue(const double value) const {
 
 double CommonParamEditorView::valueAtSceneY(const double y) const {
     return sceneYToValue(y);
+}
+
+std::pair<double, double> CommonParamEditorView::valueViewport() const {
+    return {m_properties->valueFromNormalized(m_valueViewportMinimum),
+            m_properties->valueFromNormalized(m_valueViewportMaximum)};
+}
+
+std::pair<double, double> CommonParamEditorView::normalizedValueViewport() const {
+    return {m_valueViewportMinimum, m_valueViewportMaximum};
+}
+
+bool CommonParamEditorView::setValueViewport(const double minimum, const double maximum) {
+    if (!std::isfinite(minimum) || !std::isfinite(maximum) || minimum >= maximum ||
+        minimum < m_properties->minimum || maximum > m_properties->maximum) {
+        return false;
+    }
+    return setNormalizedValueViewport(m_properties->valueToNormalized(qRound(minimum)),
+                                      m_properties->valueToNormalized(qRound(maximum)));
+}
+
+bool CommonParamEditorView::setNormalizedValueViewport(const double minimum, const double maximum) {
+    if (!std::isfinite(minimum) || !std::isfinite(maximum) || minimum < 0.0 || maximum > 1.0 ||
+        minimum >= maximum) {
+        return false;
+    }
+    if (qFuzzyCompare(m_valueViewportMinimum, minimum) &&
+        qFuzzyCompare(m_valueViewportMaximum, maximum)) {
+        return true;
+    }
+    m_valueViewportMinimum = minimum;
+    m_valueViewportMaximum = maximum;
+    update();
+    return true;
 }
 
 const QList<DrawCurve *> &CommonParamEditorView::originalCurves() const {
@@ -210,9 +244,9 @@ double CommonParamEditorView::valueToSceneY(const double value) const {
     const auto clippedValue =
         MathUtils::clip(finiteValue, m_properties->minimum, m_properties->maximum);
     const auto normalizedValue = m_properties->valueToNormalized(clippedValue);
-    const auto y = (1 - normalizedValue) * availableHeight + yMin;
-    const auto clippedY = MathUtils::clip(y, yMin, yMax);
-    return clippedY;
+    const auto viewportSpan = m_valueViewportMaximum - m_valueViewportMinimum;
+    const auto viewportValue = (normalizedValue - m_valueViewportMinimum) / viewportSpan;
+    return (1 - viewportValue) * availableHeight + yMin;
 }
 
 double CommonParamEditorView::sceneYToValue(const double y) const {
@@ -221,7 +255,9 @@ double CommonParamEditorView::sceneYToValue(const double y) const {
     const auto availableHeight = yMax - yMin;
     const auto value = 1 - (y - yMin) / availableHeight;
     const auto clippedValue = MathUtils::clip(value, 0, 1);
-    const auto scaledValue = m_properties->valueFromNormalized(clippedValue);
+    const auto normalizedValue =
+        m_valueViewportMinimum + clippedValue * (m_valueViewportMaximum - m_valueViewportMinimum);
+    const auto scaledValue = m_properties->valueFromNormalized(normalizedValue);
     return scaledValue;
 }
 

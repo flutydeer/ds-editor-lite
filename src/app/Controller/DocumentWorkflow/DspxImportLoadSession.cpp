@@ -6,8 +6,11 @@
 
 DspxImportLoadSession::DspxImportLoadSession(IProjectFormatHandler *formatHandler, QString filePath,
                                              const ProjectLoadPurpose purpose,
-                                             const quint64 requestId, QObject *parent)
-    : OpendspxImportLoadSession(formatHandler, std::move(filePath), purpose, requestId, parent) {
+                                             const quint64 requestId, const bool interactive,
+                                             const bool importTempo, const bool importTimeSignature,
+                                             QObject *parent)
+    : OpendspxImportLoadSession(formatHandler, std::move(filePath), purpose, requestId, interactive,
+                                importTempo, importTimeSignature, parent) {
 }
 
 Task *DspxImportLoadSession::createParseTask() {

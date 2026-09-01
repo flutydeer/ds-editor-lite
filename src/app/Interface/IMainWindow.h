@@ -6,8 +6,6 @@
 LITE_INTERFACE IMainWindow {
     I_DECL(IMainWindow)
     I_METHOD(void updateWindowTitle());
-    I_METHOD(void quit());
-    I_METHOD(void restart());
 };
 // END_INTERFACE
 #endif // IMAINWINDOW_H

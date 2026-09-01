@@ -2,6 +2,7 @@
 #define PARAMS_H
 
 #include <QList>
+#include <QString>
 
 #include <lite/ProjectModel/AppModel/Curve.h>
 
@@ -55,6 +56,13 @@ public:
         Unknown
     };
 
+    struct ValueSpec {
+        int minimum = 0;
+        int maximum = 1000;
+        int step = 1;
+        QString unit;
+    };
+
     explicit ParamInfo(SingingClip *clip);
 
     Param pitch;
@@ -71,6 +79,7 @@ public:
     Param *getParamByName(Name name);
     const Param *getParamByName(Name name) const;
     static bool hasOriginalParam(Name name);
+    static ValueSpec valueSpec(Name name);
 
 private:
     QPointer<SingingClip> m_clip;

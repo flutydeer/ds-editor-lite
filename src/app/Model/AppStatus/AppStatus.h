@@ -49,6 +49,8 @@ public:
     Property<int> activeClipId = -1;
     Property<QList<int>> selectedNotes;
     Property<QList<int>> selectedClips;
+    Property<int> primarySelectedNoteId = -1;
+    Property<int> primarySelectedClipId = -1;
     Property<EditObjectType> currentEditObject = EditObjectType::None;
     // Piano roll viewport (tick range x, keyIndex range y); null rect = invalid
     Property<QRectF> pianoRollVisibleRect;

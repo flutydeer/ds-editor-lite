@@ -6,7 +6,6 @@
 OptionsCardItem::OptionsCardItem(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
 
-
     m_lbTitle = new QLabel;
     m_lbTitle->setObjectName("title");
     m_lbTitle->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Preferred);
@@ -17,13 +16,13 @@ OptionsCardItem::OptionsCardItem(QWidget *parent) : QWidget(parent) {
     m_lbDesc->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
     m_lbDesc->setWordWrap(true);
 
-    const auto titleDescLayout = new QVBoxLayout;
-    titleDescLayout->addWidget(m_lbTitle);
-    titleDescLayout->addWidget(m_lbDesc);
-    titleDescLayout->setSpacing(2);
+    m_textLayout = new QVBoxLayout;
+    m_textLayout->addWidget(m_lbTitle);
+    m_textLayout->addWidget(m_lbDesc);
+    m_textLayout->setSpacing(2);
 
     m_mainLayout = new QHBoxLayout;
-    m_mainLayout->addLayout(titleDescLayout, 1);
+    m_mainLayout->addLayout(m_textLayout, 1);
     m_mainLayout->setContentsMargins(0, 3, 0, 3);
     setLayout(m_mainLayout);
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
@@ -34,8 +33,12 @@ void OptionsCardItem::setTitle(const QString &title) const {
 }
 
 void OptionsCardItem::setDescription(const QString &desc) const {
-    m_lbDesc->setVisible(true);
     m_lbDesc->setText(desc);
+    m_lbDesc->setVisible(!desc.isEmpty());
+}
+
+void OptionsCardItem::setTextAreaAlignment(const Qt::Alignment alignment) const {
+    m_mainLayout->setAlignment(m_textLayout, alignment);
 }
 
 void OptionsCardItem::addWidget(QWidget *widget) const {

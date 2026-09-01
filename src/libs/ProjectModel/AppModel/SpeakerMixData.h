@@ -2,6 +2,7 @@
 #define SPEAKERMIXDATA_H
 
 #include <lite/ProjectModel/Voice/SpeakerInfo.h>
+#include <lite/Core/IdGenerator.h>
 
 #include <QList>
 #include <QString>
@@ -21,6 +22,7 @@ namespace SpeakerMixModel {
     struct SpeakerMixKeyframe {
         int tick = 0;
         QVector<double> weights;
+        int id = IdGenerator::instance()->next();
 
         bool operator==(const SpeakerMixKeyframe &other) const;
         bool operator!=(const SpeakerMixKeyframe &other) const;

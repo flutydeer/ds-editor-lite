@@ -44,7 +44,9 @@ namespace {
 
     Automation::GuiDocumentCommandContext
         guiDocumentContext(const Automation::CoreRuntime &runtime) {
-        return {.expected = runtime.documentVersion(),
+        const auto version = runtime.documentVersion();
+        return {.documentId = version.documentId,
+                .expectedRevision = version.revision,
                 .windowId = runtime.windowId(),
                 .source = Automation::InvocationSource::TrustedGui};
     }

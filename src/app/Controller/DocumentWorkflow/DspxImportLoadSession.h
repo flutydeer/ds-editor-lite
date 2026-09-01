@@ -13,7 +13,9 @@ class DspxImportLoadSession final : public OpendspxImportLoadSession {
 
 public:
     DspxImportLoadSession(IProjectFormatHandler *formatHandler, QString filePath,
-                          ProjectLoadPurpose purpose, quint64 requestId, QObject *parent = nullptr);
+                          ProjectLoadPurpose purpose, quint64 requestId, bool interactive = true,
+                          bool importTempo = true, bool importTimeSignature = true,
+                          QObject *parent = nullptr);
 
 private:
     Task *createParseTask() override;

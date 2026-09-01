@@ -12,8 +12,10 @@
 
 #include <lite/GUI/Utils/IconUtils.h>
 #include <lite/GUI/Theme/ThemeManager.h>
+#include <lite/AutomationWire/PublicToolContract.h>
 
 #include "Pages/AppearancePage.h"
+#include "Pages/AutomationPage.h"
 #include "Pages/AudioPage.h"
 #include "Pages/DeveloperPage.h"
 #include "Pages/GeneralPage.h"
@@ -53,6 +55,10 @@ namespace {
 
 AppOptionsDialog::AppOptionsDialog(QWidget *parent, const bool standalone)
     : QWidget(parent), m_standalone(standalone) {
+    for (const auto &contract : AutomationWire::publicToolContracts()) {
+        if (contract.minimumControlLevel != AutomationWire::ControlLevel::L0)
+            m_automationCustomPermissionOperationIds.append(contract.operationId);
+    }
     setObjectName(QStringLiteral("AppOptionsDialog"));
     setFocusPolicy(Qt::ClickFocus);
 
@@ -156,6 +162,13 @@ IOptionPage *AppOptionsDialog::ensurePage(const int index) {
         case AppOptionsGlobal::Inference:
             page = new InferencePage;
             break;
+        case AppOptionsGlobal::Automation: {
+            auto *automationPage = new AutomationPage;
+            automationPage->setCustomPermissionOperationIds(
+                m_automationCustomPermissionOperationIds);
+            page = automationPage;
+            break;
+        }
         case AppOptionsGlobal::DeveloperOptions:
             page = new DeveloperPage;
             break;
@@ -171,6 +184,15 @@ IOptionPage *AppOptionsDialog::ensurePage(const int index) {
 void AppOptionsDialog::selectOption(const AppOptionsGlobal::Option option) {
     const auto pageIndex = option >= 1 ? option - 1 : 0; // Skip enum "All"
     m_tabList->setCurrentRow(pageIndex);
+}
+
+void AppOptionsDialog::setAutomationCustomPermissionOperationIds(QStringList operationIds) {
+    m_automationCustomPermissionOperationIds = std::move(operationIds);
+    const auto pageIndex = static_cast<int>(AppOptionsGlobal::Automation) - 1;
+    if (pageIndex < 0 || pageIndex >= m_pages.size())
+        return;
+    if (auto *page = qobject_cast<AutomationPage *>(m_pages.at(pageIndex)))
+        page->setCustomPermissionOperationIds(m_automationCustomPermissionOperationIds);
 }
 
 void AppOptionsDialog::changeEvent(QEvent *event) {
@@ -193,16 +215,18 @@ void AppOptionsDialog::retranslateUi() {
     // pageNames). Larger than the 16px menu versions so they read better in
     // the 160px sidebar; colors still follow theme tokens.
     static const char *const pageIconPaths[] = {
-        ":/svg/icons/settings_20_regular.svg",  // General
-        ":/svg/icons/speaker_2_20_regular.svg", // Audio
-        ":/svg/icons/midi_20_regular.svg",      // MIDI
-        ":/svg/icons/color_20_regular.svg",     // Appearance
-        ":/svg/icons/sparkle_20_regular.svg",   // Inference
-        ":/svg/icons/code_20_regular.svg",      // Developer Options
+        ":/svg/icons/settings_20_regular.svg",   // General
+        ":/svg/icons/speaker_2_20_regular.svg",  // Audio
+        ":/svg/icons/midi_20_regular.svg",       // MIDI
+        ":/svg/icons/color_20_regular.svg",      // Appearance
+        ":/svg/icons/sparkle_20_regular.svg",    // Inference
+        ":/svg/icons/flow_20_regular.svg",       // Automation
+        ":/svg/icons/code_20_regular.svg",       // Developer Options
     };
 
-    const QStringList pageNames = {tr("General"),    tr("Audio"),     tr("MIDI"),
-                                   tr("Appearance"), tr("Inference"), tr("Developer Options")};
+    const QStringList pageNames = {tr("General"),          tr("Audio"),     tr("MIDI"),
+                                   tr("Appearance"),       tr("Inference"), tr("Automation"),
+                                   tr("Developer Options")};
     const QSignalBlocker blocker(m_tabList);
     const auto currentRow = m_tabList->currentRow();
     if (m_tabList->count() != pageNames.size()) {

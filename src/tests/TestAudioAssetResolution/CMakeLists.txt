@@ -2,6 +2,7 @@ project(TestAudioAssetResolution)
 
 lite_add_test(${PROJECT_NAME}
     SOURCES
+        ../../app/Controller/Tasks/ComputeAudioHashTask.cpp
         ../../app/Controller/Tasks/ResolveAudioPathTask.cpp
         main.cpp
 )

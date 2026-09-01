@@ -1,13 +1,17 @@
 #include "FillLyricOption.h"
 
+#include "Modules/FillLyric/Utils/LyricRuleAutomationUtils.h"
+
 #include <lite/Support/JsonUtils.h>
 
 #include <QJsonArray>
+#include <QSet>
 
 // CustomSplitterRule serialization
 
 QJsonObject CustomSplitterRule::toJson() const {
     QJsonObject obj;
+    obj["ruleId"] = ruleId;
     obj["name"] = name;
     obj["regexes"] = QJsonArray::fromStringList(regexes);
     obj["enabled"] = enabled;
@@ -17,6 +21,7 @@ QJsonObject CustomSplitterRule::toJson() const {
 
 CustomSplitterRule CustomSplitterRule::fromJson(const QJsonObject &obj) {
     CustomSplitterRule rule;
+    rule.ruleId = obj["ruleId"].toString();
     rule.name = obj["name"].toString();
     rule.enabled = obj.value("enabled").toBool(true);
     rule.order = obj.value("order").toInt(0);
@@ -49,6 +54,8 @@ CustomTaggerEntry CustomTaggerEntry::fromJson(const QJsonObject &obj) {
 
 QJsonObject CustomTaggerRule::toJson() const {
     return QJsonObject{
+        {"ruleId",   ruleId                                 },
+        {"name",     name                                   },
         {"language", language                               },
         {"enabled",  enabled                                },
         {"tagger",   JsonUtils::serializeListToJson(entries)}
@@ -57,7 +64,11 @@ QJsonObject CustomTaggerRule::toJson() const {
 
 CustomTaggerRule CustomTaggerRule::fromJson(const QJsonObject &obj) {
     CustomTaggerRule rule;
+    rule.ruleId = obj["ruleId"].toString();
     rule.language = obj["language"].toString();
+    rule.name = obj["name"].toString();
+    if (rule.name.isEmpty())
+        rule.name = rule.language;
     rule.enabled = obj.value("enabled").toBool(true);
     rule.entries = JsonUtils::deserializeListFromJson<CustomTaggerEntry>(obj["tagger"].toArray());
     return rule;
@@ -116,9 +127,27 @@ void FillLyricOption::load(const QJsonObject &object) {
 
     if (object.contains("taggerOrder"))
         taggerOrder = JsonUtils::deserializeStringList(object["taggerOrder"].toArray());
+
+    ensureStableRuleIds();
+}
+
+void FillLyricOption::ensureStableRuleIds() {
+    QSet<QString> used;
+    const auto normalize = [&used](QString &ruleId) {
+        const auto valid = FillLyric::isAutomationRuleId(ruleId) &&
+                           !ruleId.startsWith(QStringLiteral("builtin-")) && !used.contains(ruleId);
+        if (!valid)
+            ruleId = FillLyric::createAutomationRuleId();
+        used.insert(ruleId);
+    };
+    for (auto &rule : customSplitterRules)
+        normalize(rule.ruleId);
+    for (auto &rule : customTaggerRules)
+        normalize(rule.ruleId);
 }
 
 void FillLyricOption::save(QJsonObject &object) {
+    ensureStableRuleIds();
     object["baseVisible"] = baseVisible;
     object["extVisible"] = extVisible;
 

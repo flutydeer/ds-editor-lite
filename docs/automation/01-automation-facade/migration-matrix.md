@@ -1,256 +1,77 @@
-# 一期 Automation Facade 迁移矩阵
+# Automation Facade 迁移矩阵
 
 ## 1. 口径
 
-本矩阵冻结一期已经接入的真实能力。Catalog 共 122 个 operation；每个条目都具备
-类型化 C++ handler，并由 `Automation/OperationIds.h` 集中定义。当前列出的
-测试是实现阶段保护测试；用户批准测试大纲后，才按每个 operation 的适用维度展开
-全量确定性测试。
+当前内部能力面包含 **207** 个集中 Operation ID。每项能力由类型化 C++ Facade、Dispatcher
+显式路由和真实 handler 承载；`OperationIds::all()` 是运行时能力集合的唯一来源。
 
-创建类 DTO 可携带请求内 `client_ref`；Facade 在实际分配对象 ID 后通过
-`MutationResult.createdObjects` 返回有序绑定。该元数据不写入 Model 或工程文件，
-`validate_only` 也不分配绑定。
+本矩阵记录产品入口如何收敛到领域 Facade，以及这些边界由哪些行为测试保护。它不复制
+`OperationIds.h` 为第二份精确 ID 清单，不维护 `OperationCatalog` 或 `OperationDescriptor`。
 
-以下路径均是生产适配入口。GUI 可以保留输入、绘制、hover、拖动预览和对话框，
-但最终业务提交由对应 Facade 完成。
+创建类 DTO 可以携带请求内 `client_ref`；Facade 在实际分配对象 ID 后通过
+`MutationResult.createdObjects` 返回有序绑定。该元数据不写入 Model 或工程文件，预检也不分配
+绑定。
 
-## 2. 入口、Handler 与保护测试
+GUI 可以保留输入、绘制、hover、拖动预览和对话框；最终业务提交由对应 Facade 完成。
 
-| 域 | 现有入口/适配器 | 唯一业务 Handler | 实现阶段保护 |
+## 2. 产品入口、领域 Facade 与保护行为
+
+| 域 | 产品入口/适配器 | 领域 Facade/运行时 | 关键保护行为 |
 |---|---|---|---|
-| 应用生命周期 | `AppController`、主菜单 | `ApplicationAutomationFacade` | info、WindowId、validate-only、退出/重启宿主调用 |
+| 应用生命周期 | `AppController`、主菜单 | `ApplicationAutomationFacade` | info、WindowId、类型化退出/重启宿主调用；二期公共绑定复用同一 Facade，并区分 GUI 保存询问与无人值守策略 |
 | 文档 | `DocumentWorkflowController` | `DocumentAutomationFacade` | generation 轮换、失败不替换、savepoint、revision、旧 ID |
-| 轨道/片段/音频片段 | `TrackController`、`AudioDecodingController`、`DocumentImportController` | `ProjectAutomationFacade` | 对象解析、no-op、批提交、音频异步写回版本校验 |
-| 音符/歌词/音素 | `ClipController`、音符交互 Controller | `NoteAutomationFacade` | 增删改、量化、拆分、词属性、音素偏移、单 History/revision |
-| 参数与 Speaker Mix | 参数编辑器、Clip 工具栏、Track 控件 | `ParameterAutomationFacade` | 参数替换、Clip/Track 声线继承、归一化、运行期 ID |
-| 时间线/Master | `AppController`、Tempo/拍号视图 | `TimelineAutomationFacade` | tempo、拍号锚点约束、Master、no-op、undo/redo |
+| 轨道/片段/音频素材 | `TrackController`、`AudioDecodingController`、导入器 | `ProjectAutomationFacade` 及公共编排 | 对象解析、浅层创建、no-op、批提交、声音上下文和音频晚到写回 |
+| 音符/歌词/音素 | `ClipController`、音符交互 Controller | `NoteAutomationFacade` | 增删改、量化、拆分、歌词/语言/发音/音素、单 History/revision |
+| 参数与 Speaker Mix | 参数编辑器、Clip 工具栏、Track 控件 | `ParameterAutomationFacade` | 有界查询、采样曲线、锚点、固定/动态混合和关键帧 |
+| 时间轴/Master | `AppController`、Tempo/拍号视图 | `TimelineAutomationFacade` | tempo、拍号锚点、Master 细粒度控制、no-op、Undo/Redo |
 | History | `UndoRedoController` | `HistoryAutomationFacade`、`CommandCommitter` | 空栈、单次 record/revision、focus 回放 |
-| 推理写回 | `InferenceAutomationBridge`、推理 adapter | `InferenceAutomationFacade` | stage 分类、base revision、对象复检、原子写回 |
+| 推理 | `InferenceAutomationBridge`、推理 adapter | `InferenceAutomationFacade` | capability/status/start、stage 分类、base revision、对象复检和原子写回 |
 | 提取任务 | Pitch/MIDI Extract Controller | `ExtractionAutomationFacade` | TaskId、取消、提交点、旧 generation 丢弃 |
-| 音频导出 | `AudioExporter` | `AudioExportAutomationFacade` | preview、start、cleanup、文件策略、任务状态 |
-| 文件格式/MIDI 导出 | `AppController`、格式注册表 | `FileAutomationFacade` | 格式快照、显式文档版本、宿主失败 |
-| 任务查询 | 音频导出及未来 adapter | `TaskAutomationFacade`、`AutomationTaskManager` | get/list/cancel、终态保留、generation 隔离 |
-| 播放与 loop | `PlaybackController`、播放栏、时间线 | `PlaybackAutomationFacade` | 状态/位置不增 revision；持久化 loop 单 History/revision |
-| 稳定 Editor 状态 | `EditorViewController`、Track/Clip Controller | `EditorAutomationFacade` | WindowId、显式 DocumentId、selection、reveal、量化、auto-page |
-| 设置/Recent/搜索路径 | 设置页、Audio、FillLyric、DocumentWorkflow | `SettingsAutomationFacade` | 分域快照、更新/no-op、持久化回调、路径归一化 |
+| 导出与格式 | 导出器、`AppController`、格式注册表 | `AudioExportAutomationFacade`、`FileAutomationFacade` | capabilities、inspect/preview/start、文件策略、任务和 cleanup |
+| Task | 各异步领域 | `TaskAutomationFacade`、`AutomationTaskManager` | list/get/cancel、终态保留、generation 隔离 |
+| 播放与 loop | `PlaybackController`、播放栏、时间线 | `PlaybackAutomationFacade` | 瞬时状态不增 revision；持久 loop 单 History/revision |
+| Editor GUI 状态 | `EditorViewController`、Track/Clip Controller | `EditorAutomationFacade` | WindowId、DocumentId、视口、选择、焦点和面板所有权 |
+| 设置/Recent/搜索路径 | 设置页、Audio、FillLyric、DocumentWorkflow | `SettingsAutomationFacade` | allowlist、稀疏更新、候选值、持久化回滚、路径规范化 |
 | Speaker Mix 预设 | `SpeakerMixPresetStore` | `PresetAutomationFacade` | list/save/delete、重复 ID、运行期元数据不入工程 |
-| 包 | 包管理器、`ProjectPackageResolver` | `PackageAutomationFacade` | list/validate/resolve、模块不可用和文档版本 |
+| 包 | 包管理器、`ProjectPackageResolver` | `PackageAutomationFacade` | list/refresh/validate/resolve、application task 和文档版本 |
 
-`TestAutomationArchitecture` 另以源码扫描守卫上述边界；`TestAutomationCore` 负责
-Dispatcher、Session、幂等、任务、集中 operation 注册表和各 Facade 的实现级契约。
+行为与编译期测试守卫上述边界；`TestAutomationCore` 负责 Dispatcher、Session、revision 与显式
+幂等的共享契约。领域、文件、并发和 GUI 测试只补充对应层独有的行为，不按 Operation 数量复制
+通用错误矩阵，也不依赖精确 Descriptor 镜像或源码文本扫描。
 
-## 3. Catalog operation 清单（122）
+## 3. 当前内部能力域（207）
 
-### application（3）
+| 域 | 数量 | 域 | 数量 |
+|---|---:|---|---:|
+| application | 3 | audio_clips | 9 |
+| clips | 17 | documents | 10 |
+| editor | 25 | exports | 7 |
+| extract | 3 | formats | 2 |
+| history | 3 | imports | 1 |
+| inference | 15 | master | 6 |
+| notes | 21 | packages | 5 |
+| parameters | 12 | playback | 10 |
+| project | 1 | recent_files | 4 |
+| settings | 9 | speaker_mix | 17 |
+| speaker_mix_presets | 3 | tasks | 3 |
+| tempos | 2 | time_signatures | 2 |
+| timeline | 1 | tracks | 16 |
+| **合计** | **207** |  |  |
 
-```text
-application.get_info
-application.request_exit
-application.request_restart
-```
+内部能力和公共 MCP 工具面不是同一集合。内部提交与兼容入口可以保留在 Facade 层而不公开；
+二期公共 Editor 工具为 176 项，其中退出和重启复用一期生命周期 Facade，另由 Connector 提供
+6 项桥接工具。
 
-### documents（5）
+## 4. 内部能力边界
 
-```text
-documents.commit_import
-documents.commit_new
-documents.commit_open
-documents.get
-documents.save
-```
+以下内容不属于当前内部能力集合：
 
-### project / tracks / clips / audio_clips / imports（18）
-
-```text
-project.get
-tracks.insert
-tracks.move
-tracks.remove
-tracks.set_color
-tracks.set_default_language
-tracks.set_properties
-clips.insert
-clips.remove
-clips.set_default_language
-clips.set_properties
-audio_clips.apply_decode_cache
-audio_clips.apply_resolved_path
-audio_clips.confirm_path
-audio_clips.relocate
-audio_clips.set_hash
-audio_clips.set_path_status
-imports.commit_batch
-```
-
-### notes（10）
-
-```text
-notes.get
-notes.insert
-notes.move
-notes.quantize
-notes.remove
-notes.resize_left
-notes.resize_right
-notes.set_phoneme_offsets
-notes.set_word_properties
-notes.split
-```
-
-### parameters / speaker_mix（10）
-
-```text
-parameters.get
-parameters.replace
-speaker_mix.clip.apply
-speaker_mix.clip.enable_dynamic
-speaker_mix.clip.replace
-speaker_mix.clip.select_single
-speaker_mix.clip.use_track
-speaker_mix.track.apply
-speaker_mix.track.replace
-speaker_mix.track.select_single
-```
-
-### timeline / tempos / time_signatures / master（6）
-
-```text
-timeline.get
-tempos.delete
-tempos.set
-time_signatures.delete
-time_signatures.set
-master.set_control
-```
-
-### history（3）
-
-```text
-history.get_state
-history.redo
-history.undo
-```
-
-### inference（12）
-
-```text
-inference.apply_acoustic
-inference.apply_duration
-inference.apply_phoneme_names
-inference.apply_pitch
-inference.apply_pronunciations
-inference.apply_variance
-inference.invalidate_clip
-inference.rebuild_original_params
-inference.refresh_param_input
-inference.refresh_speaker_mix
-inference.resegment_clip
-inference.reset_stage
-```
-
-### extract（2）
-
-```text
-extract.midi.start
-extract.pitch.start
-```
-
-### exports / formats（5）
-
-```text
-exports.audio.cleanup
-exports.audio.preview
-exports.audio.start
-exports.midi.start
-formats.list
-```
-
-### operations（3）
-
-```text
-operations.cancel
-operations.get
-operations.list
-```
-
-### playback（9）
-
-```text
-playback.clear_loop
-playback.get
-playback.pause
-playback.play
-playback.set_last_position
-playback.set_loop
-playback.set_loop_enabled
-playback.set_position
-playback.stop
-```
-
-### editor（15）
-
-```text
-editor.center_piano_roll
-editor.center_track_panel
-editor.get_capabilities
-editor.get_state
-editor.restore_view
-editor.reveal
-editor.set_active_clip
-editor.set_auto_page_turn
-editor.set_panel_visibility
-editor.set_piano_roll_edit_mode
-editor.set_piano_roll_scale
-editor.set_quantize
-editor.set_selection
-editor.set_track_panel_scale
-editor.show_bottom_panel_page
-```
-
-### settings / recent_files / package search paths（15）
-
-```text
-settings.get
-settings.update_appearance
-settings.update_audio
-settings.update_developer
-settings.update_fill_lyric
-settings.update_g2p_language
-settings.update_general
-settings.update_inference
-settings.update_window
-recent_files.add
-recent_files.clear
-recent_files.list
-recent_files.remove
-packages.get_search_paths
-packages.set_search_paths
-```
-
-### packages（3）
-
-```text
-packages.list
-packages.resolve_document_voices
-packages.validate
-```
-
-### speaker_mix_presets（3）
-
-```text
-speaker_mix_presets.delete
-speaker_mix_presets.list
-speaker_mix_presets.save
-```
-
-## 4. 明确不进入一期 Catalog
-
-- 多真实 Session、DocumentRegistry、`documents.list`、跨文档 batch/复制/拖放；
+- 多真实 Session、DocumentRegistry、跨文档 batch/复制/拖放；
 - 多窗口创建、关闭、绑定、切换及 WindowRegistry；
-- MCP、HTTP、JSON-RPC、权限 profile、Schema AST/digest 和 Headless bootstrap；
-- 音频导出中尚无后端的 loop/selected-range 等 TODO；
-- Issue 矩阵中仅规划、占位、无真实 handler 或当前 GUI 不可达的能力；
-- 被动绘制读取、hover、动画、拖动过程中的临时 preview。
+- 远程控制和任意进程启动；
+- 音频导出中尚无真实后端的 loop/selected-range 等占位能力；
+- 只有路线图/TODO、没有真实 handler 的能力；
+- 被动绘制读取、hover、动画和拖动过程中的临时 preview。
 
-这些项不以 skipped operation 混入一期通过率。未来补齐真实能力时，必须同时增加
-类型化 handler、集中 operation 注册、Catalog descriptor 和测试矩阵。
+新增真实能力时应同时增加类型化 handler、集中 Operation ID、显式 Dispatcher 路由和必要行为
+测试；不为尚不可达的计划项制造占位 operation。

@@ -29,11 +29,12 @@ namespace Automation {
 
     class DocumentAutomationFacade final {
     public:
-        DocumentAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
-                                 CommandCommitter &committer, AutomationTaskManager &tasks,
+        DocumentAutomationFacade(AutomationDispatcher &dispatcher, CommandCommitter &committer,
+                                 AutomationTaskManager &tasks,
                                  DocumentRuntimeServices services = {});
 
         AutomationResult<DocumentSnapshotDto> getDocument(const DocumentId &documentId);
+        static DocumentDraftDto newDocumentDraft(bool defaultTemplate);
         AutomationResult<MutationResult> commitNewDocument(const CommandContext &context,
                                                            const DocumentDraftDto &document);
         AutomationResult<MutationResult> commitOpenedDocument(const CommandContext &context,
@@ -46,16 +47,22 @@ namespace Automation {
                                                                 bool importTempo,
                                                                 bool importTimeSignature);
         AutomationResult<MutationResult> saveDocument(const CommandContext &context,
-                                                      const QString &path);
+                                                      const QString &path,
+                                                      bool allowOverwrite = true);
+        AutomationResult<MutationResult> saveDocumentAs(const CommandContext &context,
+                                                        const QString &path,
+                                                        bool allowOverwrite = true);
 
     private:
         AutomationResult<MutationResult>
             replaceDocument(const OperationId &operationId, const CommandContext &context,
                             const DocumentDraftDto &document, const QString &path,
                             const QString &projectName, bool savedBaseline);
-        void registerOperations();
+        AutomationResult<MutationResult> saveDocumentWithOperation(const OperationId &operationId,
+                                                                   const CommandContext &context,
+                                                                   const QString &path,
+                                                                   bool allowOverwrite);
 
-        OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
         CommandCommitter &m_committer;
         AutomationTaskManager &m_tasks;

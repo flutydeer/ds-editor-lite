@@ -72,7 +72,9 @@ namespace {
 
     Automation::GuiDocumentCommandContext
         guiDocumentContext(const Automation::CoreRuntime &runtime) {
-        return {.expected = runtime.documentVersion(),
+        const auto version = runtime.documentVersion();
+        return {.documentId = version.documentId,
+                .expectedRevision = version.revision,
                 .windowId = runtime.windowId(),
                 .source = Automation::InvocationSource::TrustedGui};
     }
@@ -140,25 +142,30 @@ void ClipController::setClip(Clip *clip) {
     emit hasSelectedNotesChanged(hasSelectedNotes());
 }
 
-void ClipController::copySelectedNotesWithParams() const {
+bool ClipController::copySelectedNotesWithParams() const {
     Q_D(const ClipController);
     const auto info = d->buildNoteParamsInfo();
-    if (info.selectedNotes.isEmpty())
-        return;
+    if (!info) {
+        qWarning() << "Failed to copy notes with parameters:" << info.getError().message;
+        return false;
+    }
+    if (info.get().payload.isEmpty())
+        return false;
 
-    const auto jObj = NotesParamsInfo::serializeToJson(info);
+    const auto jObj = NotesParamsInfo::serializeToJson(info.get());
     QJsonDocument jDoc(jObj);
     const auto array = jDoc.toJson(QJsonDocument::Compact);
 
     const auto data = new QMimeData;
     data->setData(ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams), array);
     QGuiApplication::clipboard()->setMimeData(data);
-    qDebug() << QString("Copied %1 notes").arg(info.selectedNotes.count());
+    qDebug() << QString("Copied %1 notes").arg(info.get().payload.notes.count());
+    return true;
 }
 
 void ClipController::cutSelectedNotesWithParams() {
-    copySelectedNotesWithParams();
-    onDeleteSelectedNotes();
+    if (copySelectedNotesWithParams())
+        onDeleteSelectedNotes();
 }
 
 void ClipController::pasteNotesWithParams(const NotesParamsInfo &info, int tick) {
@@ -170,8 +177,8 @@ void ClipController::pasteNotesWithParams(const NotesParamsInfo &info, int tick)
     if (!targetClip || targetClip->clipType() != Clip::Singing || !targetTrack)
         return;
 
-    const auto &srcNotes = info.selectedNotes;
-    if (srcNotes.isEmpty())
+    const auto &payload = info.payload;
+    if (payload.isEmpty())
         return;
 
     auto *singingClip = static_cast<SingingClip *>(targetClip);
@@ -179,28 +186,14 @@ void ClipController::pasteNotesWithParams(const NotesParamsInfo &info, int tick)
     const auto quantize = TimelineSnapUtils::quantizeToTicks(appStatus->pianoRollQuantize);
     const auto snappedTick = TimelineSnapUtils::snapNearest(tick, quantize, appModel->timeline());
 
-    int minStart = srcNotes.first()->localStart();
-    int maxEnd = minStart + srcNotes.first()->length();
-    for (const auto note : srcNotes) {
-        minStart = qMin(minStart, note->localStart());
-        maxEnd = qMax(maxEnd, note->localStart() + note->length());
-    }
-
     auto clipProperties = Clip::ClipCommonProperties(*singingClip);
     const auto pastePlan =
-        NotePasteUtils::plan(clipProperties, tick, snappedTick, {.start = minStart, .end = maxEnd});
+        NotePasteUtils::plan(clipProperties, tick, snappedTick,
+                             {.start = payload.sourceStart, .end = payload.sourceEnd});
 
-    QList<Automation::NoteDraftDto> newNotes;
-    for (const auto srcNote : srcNotes) {
-        if (!srcNote)
-            continue;
-        auto note = Automation::noteDraftDto(*srcNote);
-        note.localStart += pastePlan.offset;
-        newNotes.append(std::move(note));
-    }
-
-    const auto result = runtime->notes().insertNotes(
-        commandContext(*runtime), Automation::ClipId(singingClip->id()), newNotes);
+    const auto result =
+        runtime->notes().pasteNotes(commandContext(*runtime), Automation::ClipId(singingClip->id()),
+                                    pastePlan.localAnchor, payload);
     if (result && result.get().changed)
         revealInsertedNotes(singingClip, result.get());
     emit hasSelectedNotesChanged(hasSelectedNotes());
@@ -699,12 +692,14 @@ void ClipController::onSearchLyric(QWidget *parent) {
     searchDialog.exec();
 }
 
-NotesParamsInfo ClipControllerPrivate::buildNoteParamsInfo() const {
+Automation::AutomationResult<NotesParamsInfo> ClipControllerPrivate::buildNoteParamsInfo() const {
     const auto singingClip = static_cast<SingingClip *>(m_clip);
     auto notes = selectedNotesFromId(appStatus->selectedNotes, singingClip);
     NotesParamsInfo info;
-    for (const auto &note : notes)
-        info.selectedNotes.append(note);
+    const auto payload = Automation::captureNoteTransfer(*singingClip, notes);
+    if (!payload)
+        return payload.getError();
+    info.payload = payload.get();
     return info;
 }
 

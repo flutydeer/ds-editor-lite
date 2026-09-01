@@ -4,6 +4,7 @@
 #include "Automation/AudioExportAutomationAdapter.h"
 #include "Automation/CoreRuntime.h"
 #include "AudioContext.h"
+#include "AudioFilePublisher.h"
 #include "AudioExporter_p.h"
 #include "Controller/AppController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
@@ -19,10 +20,6 @@
 #include <QStandardPaths>
 #include <QHash>
 
-#ifdef Q_OS_WIN
-#  include <qt_windows.h>
-#endif
-
 #include <TalcsCore/TransportAudioSource.h>
 #include <TalcsCore/MixerAudioSource.h>
 #include <TalcsFormat/AudioFormatIO.h>
@@ -31,19 +28,6 @@
 #include <TalcsDspx/DspxTrackContext.h>
 
 #include <Modules/Audio/AudioSettings.h>
-
-namespace {
-    bool replaceFile(const QString &source, const QString &target) {
-#ifdef Q_OS_WIN
-        return MoveFileExW(reinterpret_cast<LPCWSTR>(source.utf16()),
-                           reinterpret_cast<LPCWSTR>(target.utf16()),
-                           MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH);
-#else
-        QFile::remove(target);
-        return QFile::rename(source, target);
-#endif
-    }
-}
 
 namespace Audio {
     using namespace Internal;
@@ -701,7 +685,7 @@ namespace Audio {
         const auto accepted = runtime->audioExports().start(
             {.expected = runtime->documentVersion(),
              .source = Automation::InvocationSource::TrustedGui},
-            Automation::toAutomationDto(config()), policy, std::move(observer));
+            Automation::toAutomationDto(config()), policy, std::move(observer), {}, {});
         if (!accepted) {
             setErrorString(accepted.getError().message);
             return R_Fail;
@@ -734,16 +718,16 @@ namespace Audio {
         }
     }
 
-    AudioExporter::Result AudioExporter::execInternal() {
+    AudioExporter::Result AudioExporter::execInternal(const bool deferPublish) {
         Q_D(AudioExporter);
 
         const auto config = this->config();
         const auto projectContext = d->projectContext();
-
         clearErrorString();
         QHash<QString, QString> temporaryFiles;
 
         d->temporaryFileList.clear();
+        d->pendingTemporaryFiles.clear();
 
         {
             // prepare AudioFormatIO for exporting
@@ -868,22 +852,27 @@ namespace Audio {
                 return R_Abort;
         }
 
+        d->pendingTemporaryFiles = std::move(temporaryFiles);
+        if (deferPublish)
+            return R_Ok;
+        return publishInternal(true);
+    }
+
+    AudioExporter::Result AudioExporter::publishInternal(const bool allowOverwrite) {
+        Q_D(AudioExporter);
+        const auto pendingTemporaryFiles = d->pendingTemporaryFiles;
+        d->pendingTemporaryFiles.clear();
         d->temporaryFileList.clear();
 
-        // rename temporary files
-        auto temporaryFileErrorString = tr("Cannot rename temporary files to target files");
-        bool failFlag = false;
-        for (auto it = temporaryFiles.constBegin(); it != temporaryFiles.constEnd(); ++it) {
-            if (!replaceFile(it.value(), it.key())) {
-                temporaryFileErrorString += "\n" + it.key();
-                setErrorString(temporaryFileErrorString);
-                failFlag = true;
-                d->temporaryFileList.append(it.value());
-            }
-        }
-        if (failFlag)
+        const auto publication = publishAudioFiles(pendingTemporaryFiles, allowOverwrite);
+        d->temporaryFileList = publication.remainingTemporaryFiles;
+        if (!publication.succeeded()) {
+            setErrorString(
+                tr("Cannot publish temporary audio file: %1").arg(publication.failedTarget));
             return R_Fail;
-
+        }
+        for (const auto &path : publication.remainingTemporaryFiles)
+            addWarning(tr("Cannot remove temporary audio export file: %1").arg(path));
         return R_Ok;
     }
 
@@ -905,6 +894,8 @@ namespace Audio {
         for (const auto &filename : d->temporaryFileList) {
             QFile::remove(filename);
         }
+        d->temporaryFileList.clear();
+        d->pendingTemporaryFiles.clear();
     }
 
     void AudioExporter::cancel(const bool isFail, const QString &message) {

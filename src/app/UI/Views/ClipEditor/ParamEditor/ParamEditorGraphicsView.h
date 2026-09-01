@@ -7,6 +7,8 @@
 #include <lite/ProjectModel/AppModel/Params.h>
 #include "UI/Views/Common/TimeGraphicsView.h"
 
+#include <utility>
+
 class ParamProperties;
 class SingingClip;
 class DrawCurve;
@@ -52,6 +54,8 @@ public:
     void commitAction() override;
     void setEditMode(ParamEditorEditMode mode);
     [[nodiscard]] ParamEditorEditMode editMode() const;
+    [[nodiscard]] std::pair<double, double> normalizedValueViewport() const;
+    bool setValueViewport(double centerRatio, double verticalScale);
     void setForegroundBaseCurveVisible(bool visible);
     void setBackgroundBaseCurveVisible(bool visible);
 

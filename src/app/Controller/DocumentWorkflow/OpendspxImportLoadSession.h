@@ -25,7 +25,8 @@ class OpendspxImportLoadSession : public ProjectLoadSessionBase {
 public:
     OpendspxImportLoadSession(IProjectFormatHandler *formatHandler, QString filePath,
                               ProjectLoadPurpose purpose, quint64 requestId,
-                              QObject *parent = nullptr);
+                              bool interactive = true, bool importTempo = true,
+                              bool importTimeSignature = true, QObject *parent = nullptr);
     ~OpendspxImportLoadSession() override;
 
 protected:
@@ -48,6 +49,9 @@ protected:
     IProjectFormatHandler *m_formatHandler = nullptr;
     ProjectLoadPurpose m_purpose = ProjectLoadPurpose::Import;
     std::unique_ptr<opendspx::Model> m_model;
+    bool m_interactive = true;
+    bool m_importTempo = true;
+    bool m_importTimeSignature = true;
 };
 
 #endif // DS_EDITOR_LITE_OPENDSPXIMPORTLOADSESSION_H

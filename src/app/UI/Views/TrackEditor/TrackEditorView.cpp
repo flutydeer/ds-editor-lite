@@ -34,6 +34,7 @@
 #include "UI/Views/Common/TimelineView.h"
 
 #include <QFileDialog>
+#include <QApplication>
 #include <QHBoxLayout>
 #include <QScrollBar>
 #include <QSignalBlocker>
@@ -498,6 +499,33 @@ bool TrackEditorView::setViewScale(double horizontalScale, double verticalScale)
     return centerAt(previousState.centerTick, previousState.centerTrackIndex);
 }
 
+bool TrackEditorView::setViewport(const TrackPanelViewState &state) const {
+    if (!std::isfinite(state.centerTick) || state.centerTick < 0.0 ||
+        !std::isfinite(state.centerTrackIndex) || state.centerTrackIndex < 0.0 ||
+        !std::isfinite(state.horizontalScale) || state.horizontalScale <= 0.0 ||
+        !std::isfinite(state.verticalScale) || state.verticalScale <= 0.0) {
+        return false;
+    }
+    const auto previous = viewState();
+    if (!setViewScale(state.horizontalScale, state.verticalScale))
+        return false;
+    if (centerAt(state.centerTick, state.centerTrackIndex))
+        return true;
+    setViewScale(previous.horizontalScale, previous.verticalScale);
+    centerAt(previous.centerTick, previous.centerTrackIndex);
+    return false;
+}
+
+bool TrackEditorView::focusEditor() {
+    auto *editor =
+        m_rhiView ? static_cast<QWidget *>(m_rhiView) : static_cast<QWidget *>(m_graphicsView);
+    if (!editor || !editor->isVisibleTo(window()))
+        return false;
+    editor->setFocus(Qt::OtherFocusReason);
+    auto *focused = QApplication::focusWidget();
+    return focused == editor || editor->isAncestorOf(focused);
+}
+
 int TrackEditorView::currentGridStep(int atTick) const {
     if (m_rhiView)
         return m_rhiView->snapStep(atTick);
@@ -517,7 +545,7 @@ HistoryFocusVisibility TrackEditorView::focusVisibility(const HistoryFocus &focu
                                              : itemBounds.united(item->sceneBoundingRect());
     }
     if (!itemBounds.isNull())
-        return m_graphicsView->logicalVisibleRect().intersects(itemBounds)
+        return m_graphicsView->logicalVisibleRect().contains(itemBounds)
                    ? HistoryFocusVisibility::Visible
                    : HistoryFocusVisibility::ScrollRequired;
 
@@ -527,11 +555,11 @@ HistoryFocusVisibility TrackEditorView::focusVisibility(const HistoryFocus &focu
     const auto visible = m_graphicsView->logicalVisibleRect();
     const auto left = m_graphicsView->sceneXForTick(focus.tickStart);
     const auto right = m_graphicsView->sceneXForTick(focus.tickEnd);
-    const auto tickVisible = right >= visible.left() && left <= visible.right();
+    const auto tickVisible = left >= visible.left() && right <= visible.right();
     const auto trackHeight = TracksEditorGlobal::trackHeight * m_graphicsView->scaleY();
     const auto trackTop = trackIndex * trackHeight;
     const auto trackBottom = trackTop + trackHeight;
-    return tickVisible && trackBottom >= visible.top() && trackTop <= visible.bottom()
+    return tickVisible && trackTop >= visible.top() && trackBottom <= visible.bottom()
                ? HistoryFocusVisibility::Visible
                : HistoryFocusVisibility::ScrollRequired;
 }
@@ -546,40 +574,47 @@ bool TrackEditorView::revealFocus(const HistoryFocus &focus, const bool animated
     if (focus.kind != HistoryFocusKind::TrackClips || !focus.isValid())
         return false;
 
-    m_tracksScene->clearSelection();
-    QList<int> selectedIds;
-    QRectF itemBounds;
-    for (const auto id : focus.objectIds) {
-        if (const auto item = findClipItemById(id)) {
-            item->setSelected(true);
-            selectedIds.append(id);
-            itemBounds = itemBounds.isNull() ? item->sceneBoundingRect()
-                                             : itemBounds.united(item->sceneBoundingRect());
+    const auto focusBounds = [this, &focus] {
+        QRectF bounds;
+        for (const auto id : focus.objectIds) {
+            if (const auto item = findClipItemById(id)) {
+                bounds = bounds.isNull() ? item->sceneBoundingRect()
+                                         : bounds.united(item->sceneBoundingRect());
+            }
         }
-    }
-    trackController->setSelectedClips(selectedIds);
-    if (!selectedIds.isEmpty())
-        trackController->setActiveClip(selectedIds.first());
+        if (!bounds.isNull())
+            return bounds;
 
-    if (!itemBounds.isNull()) {
-        m_graphicsView->ensureSceneRectVisible(itemBounds, 24, 24, animated);
-        return true;
-    }
+        int trackIndex = focus.trackIndex;
+        if (focus.trackId >= 0)
+            appModel->findTrackById(focus.trackId, trackIndex);
+        if (trackIndex < 0)
+            trackIndex = qRound((focus.valueStart + focus.valueEnd) / 2.0);
+        if (trackIndex < 0)
+            return QRectF();
+        const auto trackHeight = TracksEditorGlobal::trackHeight * m_graphicsView->scaleY();
+        const auto left = m_graphicsView->sceneXForTick(focus.tickStart);
+        const auto right = m_graphicsView->sceneXForTick(focus.tickEnd);
+        return QRectF(left, trackIndex * trackHeight, qMax(1.0, right - left), trackHeight);
+    };
 
-    int trackIndex = focus.trackIndex;
-    if (focus.trackId >= 0)
-        appModel->findTrackById(focus.trackId, trackIndex);
-    if (trackIndex < 0)
-        trackIndex = qRound((focus.valueStart + focus.valueEnd) / 2.0);
-    if (trackIndex < 0)
+    auto bounds = focusBounds();
+    if (!bounds.isValid() || bounds.isNull())
         return false;
-    const auto trackHeight = TracksEditorGlobal::trackHeight * m_graphicsView->scaleY();
-    const auto left = m_graphicsView->sceneXForTick(focus.tickStart);
-    const auto right = m_graphicsView->sceneXForTick(focus.tickEnd);
-    m_graphicsView->ensureSceneRectVisible(
-        QRectF(left, trackIndex * trackHeight, qMax(1.0, right - left), trackHeight), 24, 24,
-        animated);
-    return true;
+    constexpr int margin = 24;
+    const auto availableWidth = qMax(1, m_graphicsView->viewport()->width() - margin * 2);
+    const auto availableHeight = qMax(1, m_graphicsView->viewport()->height() - margin * 2);
+    auto targetScaleX = m_graphicsView->scaleX();
+    auto targetScaleY = m_graphicsView->scaleY();
+    if (bounds.width() > availableWidth)
+        targetScaleX *= availableWidth / bounds.width();
+    if (bounds.height() > availableHeight)
+        targetScaleY *= availableHeight / bounds.height();
+    if (!m_graphicsView->setViewportScale(targetScaleX, targetScaleY))
+        return false;
+    bounds = focusBounds();
+    m_graphicsView->ensureSceneRectVisible(bounds, margin, margin, animated);
+    return m_graphicsView->logicalVisibleRect().contains(bounds);
 }
 
 void TrackEditorView::onModelChanged() {

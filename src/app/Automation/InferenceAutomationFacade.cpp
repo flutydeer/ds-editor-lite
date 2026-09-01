@@ -31,13 +31,10 @@ namespace Automation {
         }
     }
 
-    InferenceAutomationFacade::InferenceAutomationFacade(OperationCatalog &catalog,
-                                                         AutomationDispatcher &dispatcher,
+    InferenceAutomationFacade::InferenceAutomationFacade(AutomationDispatcher &dispatcher,
                                                          CommandCommitter &committer,
                                                          InferenceRuntimeServices services)
-        : m_catalog(catalog), m_dispatcher(dispatcher), m_committer(committer),
-          m_services(std::move(services)) {
-        registerOperations();
+        : m_dispatcher(dispatcher), m_committer(committer), m_services(std::move(services)) {
     }
 
     AutomationResult<InferenceMutationResultDto>
@@ -45,8 +42,7 @@ namespace Automation {
                                                  const InferenceMutationRequest &request) {
         const auto operation = operationId(request.kind);
         return m_dispatcher.dispatchDocumentCommandResult<InferenceMutationResultDto>(
-            operation, context, {},
-            [this, request](DocumentSession &session, const bool validateOnly) {
+            operation, context, [this, request](DocumentSession &session, const bool validateOnly) {
                 if (!m_services.prepareMutation)
                     return AutomationResult<InferenceMutationResultDto>(unavailable());
                 auto prepared = m_services.prepareMutation(session.model(), request);
@@ -112,37 +108,13 @@ namespace Automation {
         Q_UNREACHABLE_RETURN({});
     }
 
-    void InferenceAutomationFacade::registerOperations() {
-        const auto add = [this](const InferenceMutationKind kind) {
-            const auto result = m_catalog.add({
-                .id = operationId(kind),
-                .category = QStringLiteral("inference"),
-                .kind = OperationKind::Command,
-                .syncMode = SyncMode::Synchronous,
-                .documentPolicy = DocumentPolicy::Write,
-                .revisionPolicy =
-                    canAdvanceRevision(kind) ? RevisionPolicy::Increment : RevisionPolicy::Check,
-                .historyPolicy = HistoryPolicy::None,
-                .fileAccess = FileAccessPolicy::None,
-                .hostAvailability = HostAvailability::Core,
-                .safety = SafetyClass::Reversible,
-                .exposure = ExposurePolicy::InternalOnly,
-                .idempotency = IdempotencyPolicy::Unsupported,
-            });
-            Q_ASSERT(result);
+    QStringList InferenceAutomationFacade::supportedStages() {
+        return {
+            QStringLiteral("duration"),
+            QStringLiteral("pitch"),
+            QStringLiteral("variance"),
+            QStringLiteral("acoustic"),
         };
-        add(InferenceMutationKind::ApplyPronunciations);
-        add(InferenceMutationKind::ApplyPhonemeNames);
-        add(InferenceMutationKind::ApplyDuration);
-        add(InferenceMutationKind::ApplyPitch);
-        add(InferenceMutationKind::ApplyVariance);
-        add(InferenceMutationKind::ApplyAcoustic);
-        add(InferenceMutationKind::ResetStage);
-        add(InferenceMutationKind::InvalidateClip);
-        add(InferenceMutationKind::ResegmentClip);
-        add(InferenceMutationKind::RefreshSpeakerMix);
-        add(InferenceMutationKind::RefreshParamInput);
-        add(InferenceMutationKind::RebuildOriginalParams);
     }
 
 } // namespace Automation

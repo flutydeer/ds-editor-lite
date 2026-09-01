@@ -51,10 +51,6 @@ public slots:
                            const QString &redoActionName);
 
 private:
-    friend class AppContext;
-
-    bool applyQuit();
-    bool applyRestart();
     Q_DECLARE_PRIVATE(AppController)
     // QScopedPointer<AppControllerPrivate> d_ptr;
     AppControllerPrivate *d_ptr;

@@ -61,12 +61,13 @@ namespace {
     }
 } // namespace
 
-OpendspxImportLoadSession::OpendspxImportLoadSession(IProjectFormatHandler *formatHandler,
-                                                     QString filePath,
-                                                     const ProjectLoadPurpose purpose,
-                                                     const quint64 requestId, QObject *parent)
+OpendspxImportLoadSession::OpendspxImportLoadSession(
+    IProjectFormatHandler *formatHandler, QString filePath, const ProjectLoadPurpose purpose,
+    const quint64 requestId, const bool interactive, const bool importTempo,
+    const bool importTimeSignature, QObject *parent)
     : ProjectLoadSessionBase(std::move(filePath), requestId, parent),
-      m_formatHandler(formatHandler), m_purpose(purpose) {
+      m_formatHandler(formatHandler), m_purpose(purpose), m_interactive(interactive),
+      m_importTempo(importTempo), m_importTimeSignature(importTimeSignature) {
 }
 
 OpendspxImportLoadSession::~OpendspxImportLoadSession() = default;
@@ -91,6 +92,18 @@ void OpendspxImportLoadSession::handleParseResult(Task *task) {
 }
 
 void OpendspxImportLoadSession::startConfiguration() {
+    if (!m_interactive) {
+        DspxUserInput input;
+        const auto infos = buildDspxTrackInfos(*m_model);
+        for (int index = 0; index < infos.size(); ++index) {
+            if (infos.at(index).selectedByDefault)
+                input.tracks.selectedTrackIndices.append(index);
+        }
+        input.timeline.importTempo = m_importTempo;
+        input.timeline.importTimeSignature = m_importTimeSignature;
+        materialize(input);
+        return;
+    }
     auto *dialog = new ProjectImportConfigDialog(Dialog::globalParent());
     dialog->setWindowTitle(tr("Configure Import"));
     auto *page = m_formatHandler->createConfigPage(dialog);

@@ -63,6 +63,23 @@ void ParamEditToolBarView::setBakeEnabled(const bool enabled) {
         m_btnDraw->setChecked(true);
 }
 
+ParamEditorEditMode ParamEditToolBarView::editMode() const {
+    return static_cast<ParamEditorEditMode>(m_editModeGroup->checkedId());
+}
+
+bool ParamEditToolBarView::supportsEditMode(const ParamEditorEditMode mode) const {
+    const auto *button = m_editModeGroup->button(static_cast<int>(mode));
+    return button && button->isEnabled();
+}
+
+bool ParamEditToolBarView::setEditMode(const ParamEditorEditMode mode) {
+    auto *button = m_editModeGroup->button(static_cast<int>(mode));
+    if (!button || !button->isEnabled())
+        return false;
+    button->setChecked(true);
+    return true;
+}
+
 void ParamEditToolBarView::changeEvent(QEvent *event) {
     QWidget::changeEvent(event);
     if (event->type() == QEvent::LanguageChange)

@@ -84,7 +84,7 @@ namespace Automation {
             };
         }
 
-        AudioExportBackendResult execute(const AudioExportObserver &observer) override {
+        AudioExportBackendResult waitUntilReady(const AudioExportObserver &observer) override {
             if (!m_audioContext) {
                 return {.state = AudioExportBackendState::Failed,
                         .errorMessage = QStringLiteral("Audio context is unavailable")};
@@ -153,6 +153,31 @@ namespace Automation {
             // null src in FutureAudioSource::open().
             QCoreApplication::processEvents();
 
+            return {.state = AudioExportBackendState::Succeeded};
+        }
+
+        AudioExportBackendResult execute(const AudioExportObserver &observer,
+                                         const bool deferPublish) override {
+            if (m_cancellationRequested.load(std::memory_order_acquire))
+                return {.state = AudioExportBackendState::Canceled};
+            if (!m_audioContext) {
+                return {.state = AudioExportBackendState::Failed,
+                        .errorMessage = QStringLiteral("Audio context is unavailable")};
+            }
+            QList<Track *> sourceTracks;
+            if (!resolveSourceTracks(sourceTracks)) {
+                return {.state = AudioExportBackendState::Failed,
+                        .errorMessage = QStringLiteral("Audio export sources changed")};
+            }
+            const auto inferenceStatus = m_audioContext->exportInferenceStatus(sourceTracks);
+            if (inferenceStatus != AudioContext::ExportInferenceStatus::Ready) {
+                return {
+                    .state = AudioExportBackendState::Failed,
+                    .errorMessage = inferenceStatus == AudioContext::ExportInferenceStatus::Failed
+                                        ? QStringLiteral("Inference failed")
+                                        : QStringLiteral("Inference is not ready"),
+                };
+            }
             const auto progressConnection = QObject::connect(
                 m_exporter.get(), &Audio::AudioExporter::progressChanged,
                 [callback = observer.progress](const double progress, const int sourceIndex) {
@@ -171,7 +196,7 @@ namespace Automation {
                     if (callback)
                         callback(message, sourceIndex);
                 });
-            const auto result = m_exporter->execInternal();
+            const auto result = m_exporter->execInternal(deferPublish);
             QObject::disconnect(progressConnection);
             QObject::disconnect(clippingConnection);
             QObject::disconnect(warningConnection);
@@ -186,6 +211,24 @@ namespace Automation {
             }
             return {.state = AudioExportBackendState::Failed,
                     .errorMessage = QStringLiteral("Unknown audio export result")};
+        }
+
+        AudioExportBackendResult publish(const AudioExportObserver &observer,
+                                         const bool allowOverwrite) override {
+            const auto warningConnection = QObject::connect(
+                m_exporter.get(), &Audio::AudioExporter::warningAdded,
+                [callback = observer.warning](const QString &message, const int sourceIndex) {
+                    if (callback)
+                        callback(message, sourceIndex);
+                });
+            const auto result = m_exporter->publishInternal(allowOverwrite);
+            QObject::disconnect(warningConnection);
+            if (result == Audio::AudioExporter::R_Ok)
+                return {.state = AudioExportBackendState::Succeeded};
+            return {.state = AudioExportBackendState::Failed,
+                    .errorMessage = m_exporter->errorString().isEmpty()
+                                        ? QStringLiteral("Audio export publication failed")
+                                        : m_exporter->errorString()};
         }
 
         void cancel() override {

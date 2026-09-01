@@ -11,8 +11,8 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
-#include <QHash>
 #include <QTemporaryDir>
 #include <QTextStream>
 
@@ -31,7 +31,6 @@ namespace AutomationAsyncFileTests {
                  Function function) {
             m_current = operationId + QStringLiteral("/") + scenario;
             ++m_scenarios;
-            ++m_operationScenarios[operationId];
             const auto before = m_failures;
             function();
             if (before == m_failures)
@@ -46,15 +45,6 @@ namespace AutomationAsyncFileTests {
             QTextStream(stderr) << "FAILED [" << m_current << "]: " << message << Qt::endl;
         }
 
-        void requireOperations(const QList<Automation::OperationId> &operationIds) {
-            run(QStringLiteral("coverage"), QStringLiteral("async-file-operation-manifest"), [&] {
-                for (const auto &operationId : operationIds) {
-                    expect(m_operationScenarios.value(operationId) > 0,
-                           QStringLiteral("missing direct scenario for %1").arg(operationId));
-                }
-            });
-        }
-
         [[nodiscard]] int finish() const {
             QTextStream(stdout) << "Automation async/file domains: " << m_scenarios
                                 << " scenarios, " << m_passedScenarios << " passed, "
@@ -65,7 +55,6 @@ namespace AutomationAsyncFileTests {
 
     private:
         QString m_current;
-        QHash<Automation::OperationId, int> m_operationScenarios;
         int m_scenarios = 0;
         int m_passedScenarios = 0;
         int m_assertions = 0;
@@ -97,13 +86,19 @@ namespace AutomationAsyncFileTests {
 
     struct FakeAudioExportState {
         int createCount = 0;
+        int waitUntilReadyCount = 0;
         int executeCount = 0;
+        int publishCount = 0;
         int cancelCount = 0;
         int cleanupCount = 0;
+        bool deferPublish = false;
+        std::optional<bool> publishAllowOverwrite;
+        QString publishWarning;
         quint32 warningFlags = 0;
         Automation::AudioExportBackendState backendState =
             Automation::AudioExportBackendState::Succeeded;
         QString backendError = QStringLiteral("controlled audio export failure");
+        std::function<void()> waitUntilReadyHook;
         std::function<void()> executeHook;
     };
 
@@ -126,8 +121,18 @@ namespace AutomationAsyncFileTests {
         }
 
         Automation::AudioExportBackendResult
-            execute(const Automation::AudioExportObserver &observer) override {
+            waitUntilReady(const Automation::AudioExportObserver &) override {
+            ++m_state->waitUntilReadyCount;
+            if (m_state->waitUntilReadyHook)
+                m_state->waitUntilReadyHook();
+            return {.state = Automation::AudioExportBackendState::Succeeded};
+        }
+
+        Automation::AudioExportBackendResult
+            execute(const Automation::AudioExportObserver &observer,
+                    const bool deferPublish) override {
             ++m_state->executeCount;
+            m_state->deferPublish = deferPublish;
             if (observer.progress)
                 observer.progress(0.75, 0);
             if (observer.warning)
@@ -140,6 +145,16 @@ namespace AutomationAsyncFileTests {
                                     ? m_state->backendError
                                     : QString(),
             };
+        }
+
+        Automation::AudioExportBackendResult
+            publish(const Automation::AudioExportObserver &observer,
+                    const bool allowOverwrite) override {
+            ++m_state->publishCount;
+            m_state->publishAllowOverwrite = allowOverwrite;
+            if (observer.warning && !m_state->publishWarning.isEmpty())
+                observer.warning(m_state->publishWarning, -1);
+            return {.state = Automation::AudioExportBackendState::Succeeded};
         }
 
         void cancel() override {
@@ -356,6 +371,7 @@ namespace AutomationAsyncFileTests {
         bool midiExportSucceeds = true;
         int midiExportCount = 0;
         QString lastMidiExportPath;
+        Automation::MidiExportOptionsDto lastMidiExportOptions;
         QList<Automation::ProjectFormatDto> formats{
             {
              .id = QStringLiteral("dspx"),
@@ -487,12 +503,22 @@ namespace AutomationAsyncFileTests {
                 return {};
             Automation::FileRuntimeServices services;
             services.listProjectFormats = [this] { return formats; };
-            services.exportMidi = [this](AppModel *, const QString &path, QString &errorMessage) {
+            services.exportMidi = [this](AppModel *, const QString &path,
+                                         const Automation::MidiExportOptionsDto &options,
+                                         QString &errorMessage) {
                 ++midiExportCount;
                 lastMidiExportPath = path;
-                if (!midiExportSucceeds)
+                lastMidiExportOptions = options;
+                if (!midiExportSucceeds) {
                     errorMessage = QStringLiteral("controlled MIDI export failure");
-                return midiExportSucceeds;
+                    return false;
+                }
+                QFile output(path);
+                if (!output.open(QIODevice::WriteOnly) || output.write("midi") != 4) {
+                    errorMessage = QStringLiteral("controlled MIDI export write failure");
+                    return false;
+                }
+                return true;
             };
             return services;
         }

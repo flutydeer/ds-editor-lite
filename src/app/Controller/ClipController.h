@@ -32,7 +32,7 @@ public:
 public:
     [[nodiscard]] Clip *clip();
     void setClip(Clip *clip);
-    void copySelectedNotesWithParams() const;
+    bool copySelectedNotesWithParams() const;
     void cutSelectedNotesWithParams();
     void pasteNotesWithParams(const NotesParamsInfo &info, int tick);
 

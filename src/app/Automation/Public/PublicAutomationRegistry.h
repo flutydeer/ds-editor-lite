@@ -1,0 +1,220 @@
+#ifndef PUBLICAUTOMATIONREGISTRY_H
+#define PUBLICAUTOMATIONREGISTRY_H
+
+#include "../AutomationTaskManager.h"
+#include "../AutomationTypes.h"
+#include "../ProjectAutomationDtos.h"
+#include "AutomationAccessPolicy.h"
+#include "AutomationFileGuard.h"
+#include "AdmissionController.h"
+
+#include <lite/AutomationWire/PublicToolContract.h>
+#include <lite/AutomationWire/PublicToolNames.h>
+#include <lite/AutomationWire/OpaqueCursorCodec.h>
+
+#include <QHash>
+#include <QByteArray>
+#include <QJsonArray>
+#include <QJsonObject>
+#include <QLatin1StringView>
+#include <QThreadPool>
+
+#include <atomic>
+#include <functional>
+#include <memory>
+#include <optional>
+
+namespace Automation {
+
+    class CoreRuntime;
+
+    enum class PublicUnsavedPolicy {
+        Reject,
+        Discard,
+    };
+
+    enum class PublicBatchFailurePolicy {
+        Atomic,
+        BestEffort,
+    };
+
+    struct PublicInvocationContext {
+        QString clientId;
+    };
+
+    using PublicProjectInputRevalidator =
+        std::function<AutomationResult<std::optional<QByteArray>>()>;
+
+    struct PublicDocumentOpenRequest {
+        CommandContext command;
+        QString canonicalPath;
+        QString formatId;
+        QString encoding;
+        bool importTempo = true;
+        bool importTimeSignature = true;
+        QString planDigest;
+        PublicProjectInputRevalidator revalidatePlan;
+        PublicUnsavedPolicy unsavedPolicy = PublicUnsavedPolicy::Reject;
+    };
+
+    struct PublicDocumentImportRequest {
+        CommandContext command;
+        QString canonicalPath;
+        QString formatId;
+        QString encoding;
+        bool importTempo = true;
+        bool importTimeSignature = true;
+        QString planDigest;
+        PublicProjectInputRevalidator revalidatePlan;
+        QString mergeMode;
+    };
+
+    struct PublicDocumentBatchImportItem {
+        QString canonicalPath;
+        QString formatId;
+        QJsonObject options;
+        QString planDigest;
+        PublicProjectInputRevalidator revalidatePlan;
+        std::optional<AutomationError> validationError;
+    };
+
+    struct PublicDocumentBatchImportRequest {
+        CommandContext command;
+        QList<PublicDocumentBatchImportItem> items;
+        PublicBatchFailurePolicy failurePolicy = PublicBatchFailurePolicy::Atomic;
+    };
+
+    struct PublicAudioClipProperties {
+        std::optional<QString> name;
+        std::optional<int> start;
+        std::optional<int> length;
+        std::optional<int> clipStart;
+        std::optional<int> clipLength;
+        std::optional<double> gain;
+        std::optional<bool> mute;
+    };
+
+    struct PublicAudioClipImportRequest {
+        CommandContext command;
+        TrackId trackId;
+        QString canonicalPath;
+        std::optional<PublicAudioClipProperties> properties;
+        QString clientRef;
+    };
+
+    struct PublicAudioClipBatchItem {
+        TrackId trackId;
+        QString canonicalPath;
+        std::optional<PublicAudioClipProperties> properties;
+        QString clientRef;
+        std::optional<AutomationError> validationError;
+    };
+
+    struct PublicAudioClipBatchImportRequest {
+        CommandContext command;
+        QList<PublicAudioClipBatchItem> items;
+        PublicBatchFailurePolicy failurePolicy = PublicBatchFailurePolicy::Atomic;
+    };
+
+    struct PublicInferenceStartRequest {
+        CommandContext command;
+        QJsonObject scope;
+        QStringList stages;
+        QJsonObject options;
+    };
+
+    struct PublicInferenceResetRequest {
+        CommandContext command;
+        QJsonObject scope;
+        QString stage;
+    };
+
+    enum class PublicAudioPathUpdateMode {
+        Relocate,
+        Confirm,
+    };
+
+    struct PublicAudioPathUpdateRequest {
+        CommandContext command;
+        ClipId clipId;
+        QString canonicalPath;
+        PublicAudioPathUpdateMode mode = PublicAudioPathUpdateMode::Relocate;
+    };
+
+    struct PublicAutomationHostServices {
+        QUuid editorInstanceId;
+        QString hostMode = QStringLiteral("gui");
+        std::function<QJsonArray()> documentStatus;
+        std::function<QJsonArray()> windowStatus;
+
+        std::function<AutomationResult<TaskAcceptedResult>(const PublicDocumentOpenRequest &)>
+            openDocument;
+        std::function<AutomationResult<TaskAcceptedResult>(const PublicDocumentImportRequest &)>
+            importDocument;
+        std::function<AutomationResult<TaskAcceptedResult>(
+            const PublicDocumentBatchImportRequest &)>
+            importDocuments;
+        std::function<AutomationResult<TaskAcceptedResult>(const PublicAudioClipImportRequest &)>
+            importAudioClip;
+        std::function<AutomationResult<TaskAcceptedResult>(
+            const PublicAudioClipBatchImportRequest &)>
+            importAudioClips;
+        std::function<AutomationResult<TaskAcceptedResult>(const PublicAudioPathUpdateRequest &)>
+            updateAudioClipPath;
+        std::function<AutomationResult<QJsonValue>(const DocumentId &)> audioExportCapabilities;
+        std::function<AutomationResult<QJsonValue>(const DocumentId &, ClipId)>
+            extractionCapabilities;
+        std::function<AutomationResult<QJsonValue>(const DocumentId &, const QJsonObject &)>
+            inferenceCapabilities;
+        std::function<AutomationResult<QJsonValue>(const DocumentId &, const QJsonObject &)>
+            inferenceStatus;
+        std::function<AutomationResult<TaskAcceptedResult>(const PublicInferenceStartRequest &)>
+            startInference;
+        std::function<AutomationResult<MutationResult>(const PublicInferenceResetRequest &)>
+            resetInferenceStage;
+    };
+
+    class PublicAutomationRegistry final {
+    public:
+        PublicAutomationRegistry(CoreRuntime &runtime, AutomationAccessPolicy &accessPolicy,
+                                 AutomationFileGuard &fileGuard,
+                                 AdmissionController &admissionController,
+                                 PublicAutomationHostServices hostServices = {});
+        ~PublicAutomationRegistry();
+
+        [[nodiscard]] const QList<AutomationWire::ToolContract> &contracts() const;
+        [[nodiscard]] QStringList bindingIds() const;
+        [[nodiscard]] QList<AutomationWire::ToolContract> enabledContracts() const;
+        [[nodiscard]] bool isComplete() const;
+
+        AutomationResult<QJsonObject> invoke(const QString &operationId,
+                                             const QJsonObject &arguments,
+                                             const PublicInvocationContext &context = {});
+
+    private:
+        struct LifetimeState {
+            std::atomic_bool active{true};
+        };
+
+        using Handler = std::function<AutomationResult<QJsonObject>(
+            const QJsonObject &, const PublicInvocationContext &)>;
+
+        void registerBindings();
+        void registerAdvancedGuiBindings();
+        void registerAdvancedApplicationBindings();
+        void addBinding(QLatin1StringView toolName, Handler handler);
+        CoreRuntime &m_runtime;
+        AutomationAccessPolicy &m_accessPolicy;
+        AutomationFileGuard &m_fileGuard;
+        AdmissionController &m_admissionController;
+        std::shared_ptr<LifetimeState> m_lifetimeState = std::make_shared<LifetimeState>();
+        PublicAutomationHostServices m_hostServices;
+        QHash<QString, Handler> m_handlers;
+        AutomationWire::OpaqueCursorCodec m_taskCursorCodec;
+        AutomationWire::OpaqueCursorCodec m_collectionCursorCodec;
+        QThreadPool m_exportThreadPool;
+    };
+
+} // namespace Automation
+
+#endif // PUBLICAUTOMATIONREGISTRY_H

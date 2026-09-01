@@ -4,6 +4,7 @@
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/AutomationWire/PublicConstants.h>
 
 #include <QCryptographicHash>
 #include <QDataStream>
@@ -26,12 +27,14 @@ namespace Automation {
 
         CurveDraftDto captureCurveDraft(const Curve &curve) {
             CurveDraftDto result;
+            result.id = CurveId(curve.id());
             result.localStart = curve.localStart();
             if (curve.type() == Curve::Anchor) {
                 result.type = CurveDraftDto::Type::Anchor;
                 const auto &anchor = static_cast<const AnchorCurve &>(curve);
                 for (const auto *node : anchor.nodes()) {
-                    result.nodes.append({node->pos(), node->value(), node->interpMode()});
+                    result.nodes.append(
+                        {node->pos(), node->value(), node->interpMode(), AnchorId(node->id())});
                 }
                 return result;
             }
@@ -45,17 +48,21 @@ namespace Automation {
 
         Curve *createCurve(const CurveDraftDto &draft) {
             if (draft.type == CurveDraftDto::Type::Anchor) {
-                auto *curve = new AnchorCurve;
+                auto *curve =
+                    draft.id.isValid() ? new AnchorCurve(draft.id.value()) : new AnchorCurve;
                 curve->setLocalStart(draft.localStart);
                 for (const auto &nodeDraft : draft.nodes) {
-                    auto *node = new AnchorNode(nodeDraft.position, nodeDraft.value);
+                    auto *node = nodeDraft.id.isValid()
+                                     ? new AnchorNode(nodeDraft.position, nodeDraft.value,
+                                                      nodeDraft.id.value())
+                                     : new AnchorNode(nodeDraft.position, nodeDraft.value);
                     node->setInterpMode(nodeDraft.interpolation);
                     curve->insertNode(node);
                 }
                 return curve;
             }
 
-            auto *curve = new DrawCurve;
+            auto *curve = draft.id.isValid() ? new DrawCurve(draft.id.value()) : new DrawCurve;
             curve->setLocalStart(draft.localStart);
             curve->step = draft.step;
             curve->setValues(draft.values);
@@ -252,6 +259,7 @@ namespace Automation {
                 addDouble(hash, weight);
             addInteger(hash, data.dynamicKeyframes.size());
             for (const auto &keyframe : data.dynamicKeyframes) {
+                addInteger(hash, keyframe.id);
                 addInteger(hash, keyframe.tick);
                 addInteger(hash, keyframe.weights.size());
                 for (const auto weight : keyframe.weights)
@@ -633,6 +641,7 @@ namespace Automation {
         addString(hash, draft.clientRef);
         addString(hash, draft.name);
         addInteger(hash, draft.colorIndex);
+        addInteger(hash, draft.resolveColorIndex);
         addDouble(hash, draft.gain);
         addDouble(hash, draft.pan);
         addInteger(hash, draft.mute);
@@ -737,8 +746,9 @@ namespace Automation {
             return validateUniqueClientRefs(clientRefs);
         }
         for (const auto &note : draft.notes) {
+            const auto noteEnd = static_cast<qint64>(note.localStart) + note.length;
             if (note.localStart < 0 || note.length <= 0 || note.keyIndex < 0 ||
-                note.keyIndex > 127) {
+                note.keyIndex > 127 || noteEnd > std::numeric_limits<int>::max()) {
                 return AutomationError::invalidArgument(
                     QStringLiteral("clip.notes"),
                     QStringLiteral("Note geometry or key is invalid"));
@@ -753,10 +763,19 @@ namespace Automation {
                     QStringLiteral("Parameter name or type is unsupported"));
             }
             for (const auto &curve : parameter.curves) {
-                if (curve.type == CurveDraftDto::Type::Draw && curve.step <= 0) {
-                    return AutomationError::invalidArgument(
-                        QStringLiteral("clip.parameters.curves.step"),
-                        QStringLiteral("Curve step must be positive"));
+                if (curve.type == CurveDraftDto::Type::Draw) {
+                    if (curve.step <= 0) {
+                        return AutomationError::invalidArgument(
+                            QStringLiteral("clip.parameters.curves.step"),
+                            QStringLiteral("Curve step must be positive"));
+                    }
+                    const auto curveEnd = static_cast<qint64>(curve.localStart) +
+                                          static_cast<qint64>(curve.step) * curve.values.size();
+                    if (curveEnd > std::numeric_limits<int>::max()) {
+                        return AutomationError::invalidArgument(
+                            QStringLiteral("clip.parameters.curves.values"),
+                            QStringLiteral("Draw curve range exceeds the supported timeline"));
+                    }
                 }
             }
         }
@@ -766,7 +785,8 @@ namespace Automation {
     }
 
     AutomationResult<AutomationUnit> validate(const TrackDraftDto &draft) {
-        if (!std::isfinite(draft.gain) || !std::isfinite(draft.pan) || draft.colorIndex < 0) {
+        if (!std::isfinite(draft.gain) || !std::isfinite(draft.pan) || draft.colorIndex < 0 ||
+            draft.colorIndex >= AutomationWire::TrackPaletteColorCount) {
             return AutomationError::invalidArgument(QStringLiteral("track"),
                                                     QStringLiteral("Track properties are invalid"));
         }
@@ -791,12 +811,10 @@ namespace Automation {
                                                         QStringLiteral("Tempo is invalid"));
             }
         }
-        for (const auto &signature : draft.timeline.timeSignatures()) {
-            if (signature.barIndex < 0 || signature.numerator <= 0 || signature.denominator <= 0) {
-                return AutomationError::invalidArgument(
-                    QStringLiteral("document.time_signatures"),
-                    QStringLiteral("Time signature is invalid"));
-            }
+        if (!Timeline::isTimeSignatureProjectionValid(draft.timeline.timeSignatures())) {
+            return AutomationError::invalidArgument(
+                QStringLiteral("document.time_signatures"),
+                QStringLiteral("Time signature is invalid or out of bounds"));
         }
         if (!std::isfinite(draft.masterControl.gain()) ||
             !std::isfinite(draft.masterControl.pan())) {

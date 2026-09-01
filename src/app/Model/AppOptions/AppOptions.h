@@ -5,6 +5,7 @@
 
 #include <lite/Core/Singleton.h>
 #include "Options/AppearanceOption.h"
+#include "Options/AutomationOption.h"
 #include "Options/AudioOption.h"
 #include "Options/DeveloperOption.h"
 #include "Options/G2pLanguageOption.h"
@@ -36,6 +37,7 @@ public:
     G2pLanguageOption *g2pLanguage();
     FillLyricOption *fillLyric();
     InferenceOption *inference();
+    AutomationOption *automation();
     DeveloperOption *developer();
     WindowOption *window();
 
@@ -49,6 +51,7 @@ private:
     G2pLanguageOption m_g2pLanguageOption;
     FillLyricOption m_fillLyricOption;
     InferenceOption m_inferenceOption;
+    AutomationOption m_automationOption;
     DeveloperOption m_developerOption;
     WindowOption m_windowOption;
 

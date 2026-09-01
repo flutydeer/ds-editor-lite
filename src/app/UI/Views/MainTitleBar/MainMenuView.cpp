@@ -808,6 +808,10 @@ Menu *MainMenuViewPrivate::buildOptionsMenu() {
     setMenuIcon(actionInferenceOptions, QStringLiteral(":/svg/icons/sparkle_16_regular.svg"));
     connect(actionInferenceOptions, &QAction::triggered, this,
             [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::Inference); });
+    actionAutomationOptions = new QAction(tr("A&utomation..."), this);
+    setMenuIcon(actionAutomationOptions, QStringLiteral(":/svg/icons/flow_16_regular.svg"));
+    connect(actionAutomationOptions, &QAction::triggered, this,
+            [this] { m_mainWindow->openAppOptions(AppOptionsGlobal::Option::Automation); });
     actionDeveloperOptions = new QAction(tr("&Developer Options..."), this);
     setMenuIcon(actionDeveloperOptions, QStringLiteral(":/svg/icons/code_16_regular.svg"));
     connect(actionDeveloperOptions, &QAction::triggered, this,
@@ -820,6 +824,7 @@ Menu *MainMenuViewPrivate::buildOptionsMenu() {
     menuOptions->addAction(actionAppearanceOptions);
     // menuOptions->addAction(actionLanguageOptions);
     menuOptions->addAction(actionInferenceOptions);
+    menuOptions->addAction(actionAutomationOptions);
     menuOptions->addSeparator();
     menuOptions->addAction(actionDeveloperOptions);
     return menuOptions;
@@ -885,6 +890,7 @@ void MainMenuViewPrivate::retranslateUi() {
     actionMidiSettings->setText(tr("&MIDI..."));
     actionAppearanceOptions->setText(tr("A&ppearance..."));
     actionInferenceOptions->setText(tr("&Inference..."));
+    actionAutomationOptions->setText(tr("A&utomation..."));
     actionDeveloperOptions->setText(tr("&Developer Options..."));
     actionCheckForUpdates->setText(tr("Check for updates"));
     actionAbout->setText(tr("About..."));

@@ -1,6 +1,8 @@
 #ifndef EDITORVIEWSTATE_H
 #define EDITORVIEWSTATE_H
 
+#include <lite/ProjectModel/AppModel/Params.h>
+
 #include <QString>
 
 namespace EditorViewGlobal {
@@ -15,6 +17,20 @@ namespace EditorViewGlobal {
         EditPitchAnchor,
         ErasePitch,
         BakePitch
+    };
+
+    enum class Region {
+        None,
+        TrackPanel,
+        PianoRoll,
+        Parameters,
+    };
+
+    enum class ParameterEditMode {
+        Draw,
+        Erase,
+        Bake,
+        Anchor,
     };
 
     [[nodiscard]] constexpr bool isPitchEditMode(const PianoRollEditMode mode) noexcept {
@@ -36,9 +52,23 @@ struct TrackPanelViewState {
 struct EditorLayoutState {
     bool trackPanelVisible = true;
     bool bottomPanelVisible = true;
+    bool pianoRollVisible = true;
+    bool parametersVisible = true;
     QString bottomPanelPageId = QStringLiteral("ClipEditor");
+    EditorViewGlobal::Region activeRegion = EditorViewGlobal::Region::TrackPanel;
+    EditorViewGlobal::Region focusedRegion = EditorViewGlobal::Region::None;
 
     bool operator==(const EditorLayoutState &) const = default;
+};
+
+struct ParameterEditorViewState {
+    ParamInfo::Name foreground = ParamInfo::Breathiness;
+    ParamInfo::Name background = ParamInfo::Tension;
+    EditorViewGlobal::ParameterEditMode editMode = EditorViewGlobal::ParameterEditMode::Draw;
+    double centerRatio = 0.5;
+    double verticalScale = 1.0;
+
+    bool operator==(const ParameterEditorViewState &) const = default;
 };
 
 struct PianoRollViewState {
@@ -55,6 +85,7 @@ struct EditorViewState {
     TrackPanelViewState trackPanel;
     EditorLayoutState layout;
     PianoRollViewState pianoRoll;
+    ParameterEditorViewState parameters;
 
     bool operator==(const EditorViewState &) const = default;
 };

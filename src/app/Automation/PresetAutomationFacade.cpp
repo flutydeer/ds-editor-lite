@@ -67,11 +67,9 @@ namespace Automation {
         }
     }
 
-    PresetAutomationFacade::PresetAutomationFacade(OperationCatalog &catalog,
-                                                   AutomationDispatcher &dispatcher,
+    PresetAutomationFacade::PresetAutomationFacade(AutomationDispatcher &dispatcher,
                                                    PresetRuntimeServices services)
-        : m_catalog(catalog), m_dispatcher(dispatcher), m_services(std::move(services)) {
-        registerOperations();
+        : m_dispatcher(dispatcher), m_services(std::move(services)) {
     }
 
     AutomationResult<QList<SpeakerMixPresetDto>> PresetAutomationFacade::getSpeakerMixPresets() {
@@ -170,45 +168,6 @@ namespace Automation {
                     .validatedOnly = validateOnly,
                 });
             });
-    }
-
-    void PresetAutomationFacade::registerOperations() {
-        const auto add = [this](OperationDescriptor descriptor) {
-            const auto result = m_catalog.add(std::move(descriptor));
-            Q_ASSERT(result);
-        };
-        add({
-            .id = OperationIds::speaker_mix_presets::list,
-            .category = QStringLiteral("speaker_mix_presets"),
-            .kind = OperationKind::Query,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::None,
-            .revisionPolicy = RevisionPolicy::None,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::None,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::ReadOnly,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
-        const auto addCommand = [&add](const OperationId &id) {
-            add({
-                .id = id,
-                .category = QStringLiteral("speaker_mix_presets"),
-                .kind = OperationKind::Command,
-                .syncMode = SyncMode::Synchronous,
-                .documentPolicy = DocumentPolicy::None,
-                .revisionPolicy = RevisionPolicy::None,
-                .historyPolicy = HistoryPolicy::None,
-                .fileAccess = FileAccessPolicy::Write,
-                .hostAvailability = HostAvailability::Core,
-                .safety = SafetyClass::Reversible,
-                .exposure = ExposurePolicy::InternalOnly,
-                .idempotency = IdempotencyPolicy::Unsupported,
-            });
-        };
-        addCommand(OperationIds::speaker_mix_presets::save);
-        addCommand(OperationIds::speaker_mix_presets::delete_preset);
     }
 
 } // namespace Automation

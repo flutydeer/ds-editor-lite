@@ -97,6 +97,37 @@ const QList<TimeSignature> &Timeline::timeSignatures() const {
     return m_timeSignatures;
 }
 
+bool Timeline::isTimeSignatureProjectionValid(QList<TimeSignature> timeSignatures) {
+    std::stable_sort(timeSignatures.begin(), timeSignatures.end(),
+                     [](const TimeSignature &left, const TimeSignature &right) {
+                         return left.barIndex < right.barIndex;
+                     });
+
+    qint64 tick = 0;
+    for (qsizetype index = 0; index < timeSignatures.size(); ++index) {
+        const auto &signature = timeSignatures.at(index);
+        if (signature.barIndex < 0 || !signature.isValid())
+            return false;
+        const auto ticksPerBar =
+            static_cast<qint64>(signature.ticksPerBeat()) * signature.numerator;
+        if (ticksPerBar <= 0 || ticksPerBar > std::numeric_limits<int>::max())
+            return false;
+
+        if (index == 0) {
+            tick = static_cast<qint64>(signature.barIndex) * ticksPerBar;
+        } else {
+            const auto &previous = timeSignatures.at(index - 1);
+            const auto previousTicksPerBar =
+                static_cast<qint64>(previous.ticksPerBeat()) * previous.numerator;
+            tick += (static_cast<qint64>(signature.barIndex) - previous.barIndex) *
+                    previousTicksPerBar;
+        }
+        if (tick > std::numeric_limits<int>::max())
+            return false;
+    }
+    return true;
+}
+
 void Timeline::setTimeSignatures(QList<TimeSignature> timeSignatures) {
     m_timeSignatures = std::move(timeSignatures);
     normalizeTimeSignatures();

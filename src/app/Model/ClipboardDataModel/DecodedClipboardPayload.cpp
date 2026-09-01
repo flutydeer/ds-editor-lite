@@ -20,14 +20,12 @@ DecodedNotesPayload::DecodedNotesPayload(const QJsonObject &object)
     : m_info(NotesParamsInfo::deserializeFromJson(object)) {
 }
 
-DecodedNotesPayload::~DecodedNotesPayload() {
-    qDeleteAll(m_info.selectedNotes);
-}
+DecodedNotesPayload::~DecodedNotesPayload() = default;
 
 const NotesParamsInfo &DecodedNotesPayload::info() const {
     return m_info;
 }
 
 bool DecodedNotesPayload::isEmpty() const {
-    return m_info.selectedNotes.isEmpty();
+    return m_info.payload.isEmpty();
 }

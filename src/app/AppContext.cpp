@@ -9,6 +9,7 @@
 #include "Automation/PackageAutomationAdapter.h"
 
 #include <lite/Core/SingletonRegistry.h>
+#include <lite/BuildInfo.h>
 
 // Business singletons — all headers included here
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -155,15 +156,21 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
                                       : std::optional<EditorViewState>();
     };
     editorServices.captureStableState = [this] {
+        const auto selectedClips = m_appStatus->selectedClips.get();
+        const auto selectedNotes = m_appStatus->selectedNotes.get();
         return Automation::EditorStableState{
             .selectedTrackIndex = m_appStatus->selectedTrackIndex,
             .activeClipId = m_appStatus->activeClipId,
-            .selectedClipIds = m_appStatus->selectedClips,
-            .selectedNoteIds = m_appStatus->selectedNotes,
+            .selectedClipIds = selectedClips,
+            .selectedNoteIds = selectedNotes,
+            .primaryClipId = m_appStatus->primarySelectedClipId,
+            .primaryNoteId = m_appStatus->primarySelectedNoteId,
             .pianoRollQuantize = m_appStatus->pianoRollQuantize,
             .pianoRollQuantizeEnabled = m_appStatus->pianoRollQuantizeEnabled,
             .trackAutoPageTurnEnabled = m_appStatus->trackAutoPageTurnEnabled,
             .pianoRollAutoPageTurnEnabled = m_appStatus->pianoRollAutoPageTurnEnabled,
+            .parameterEditInProgress =
+                m_appStatus->currentEditObject.get() == AppStatus::EditObjectType::Param,
         };
     };
     editorServices.restoreView = [this](const EditorViewState &state) {
@@ -177,12 +184,21 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
         return m_editorViewController &&
                m_editorViewController->applyTrackPanelScale(horizontal, vertical);
     };
+    editorServices.setTrackPanelViewport = [this](const TrackPanelViewState &state) {
+        return m_editorViewController && m_editorViewController->applyTrackPanelViewport(state);
+    };
     editorServices.setPanelVisibility = [this](const bool trackVisible, const bool bottomVisible) {
         return m_editorViewController &&
                m_editorViewController->applyPanelVisibility(trackVisible, bottomVisible);
     };
     editorServices.showBottomPanelPage = [this](const QString &pageId) {
         return m_editorViewController && m_editorViewController->applyBottomPanelPage(pageId);
+    };
+    editorServices.showRegion = [this](const EditorViewGlobal::Region region) {
+        return m_editorViewController && m_editorViewController->applyShowRegion(region);
+    };
+    editorServices.focusRegion = [this](const EditorViewGlobal::Region region) {
+        return m_editorViewController && m_editorViewController->applyFocusRegion(region);
     };
     editorServices.centerPianoRoll = [this](const double tick, const double keyIndex) {
         return m_editorViewController &&
@@ -192,27 +208,59 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
         return m_editorViewController &&
                m_editorViewController->applyPianoRollScale(horizontal, vertical);
     };
+    editorServices.setClipEditorTimeViewport = [this](const double centerTick,
+                                                      const double horizontalScale) {
+        return m_editorViewController &&
+               m_editorViewController->applyClipEditorTimeViewport(centerTick, horizontalScale);
+    };
+    editorServices.setPianoRollPitchViewport = [this](const double centerKeyIndex,
+                                                      const double verticalScale) {
+        return m_editorViewController &&
+               m_editorViewController->applyPianoRollPitchViewport(centerKeyIndex, verticalScale);
+    };
     editorServices.setPianoRollEditMode = [this](const EditorViewGlobal::PianoRollEditMode mode) {
         return m_editorViewController && m_editorViewController->applyPianoRollEditMode(mode);
+    };
+    editorServices.setParameterForeground = [this](const ParamInfo::Name name) {
+        return m_editorViewController && m_editorViewController->applyParameterForeground(name);
+    };
+    editorServices.setParameterBackground = [this](const ParamInfo::Name name) {
+        return m_editorViewController && m_editorViewController->applyParameterBackground(name);
+    };
+    editorServices.swapParameters = [this] {
+        return m_editorViewController && m_editorViewController->applySwapParameters();
+    };
+    editorServices.setParameterEditMode = [this](const EditorViewGlobal::ParameterEditMode mode) {
+        return m_editorViewController && m_editorViewController->applyParameterEditMode(mode);
+    };
+    editorServices.setParameterValueViewport = [this](const double centerRatio,
+                                                      const double verticalScale) {
+        return m_editorViewController &&
+               m_editorViewController->applyParameterValueViewport(centerRatio, verticalScale);
     };
     editorServices.setActiveClip = [this](const int clipId) {
         if (m_appStatus->activeClipId == clipId)
             return;
         m_appStatus->selectedNotes = QList<int>();
+        m_appStatus->primarySelectedNoteId = -1;
         m_appStatus->activeClipId = clipId;
     };
     editorServices.setSelectedTrackIndex = [this](const int trackIndex) {
         m_appStatus->selectedTrackIndex = trackIndex;
     };
-    editorServices.setSelectedClips = [this](const QList<int> &clipIds) {
+    editorServices.setSelectedClips = [this](const QList<int> &clipIds, const int primaryClipId) {
         m_appStatus->selectedClips = clipIds;
+        m_appStatus->primarySelectedClipId = primaryClipId;
     };
-    editorServices.setSelectedNotes = [this](const int clipId, const QList<int> &noteIds) {
+    editorServices.setSelectedNotes = [this](const int clipId, const QList<int> &noteIds,
+                                             const int primaryNoteId) {
         if (m_appStatus->activeClipId != clipId) {
             m_appStatus->selectedNotes = QList<int>();
+            m_appStatus->primarySelectedNoteId = -1;
             m_appStatus->activeClipId = clipId;
         }
         m_appStatus->selectedNotes = noteIds;
+        m_appStatus->primarySelectedNoteId = primaryNoteId;
     };
     editorServices.setPianoRollQuantize = [this](const int quantize, const bool enabled) {
         m_appStatus->pianoRollQuantize = quantize;
@@ -225,6 +273,10 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
         else
             m_appStatus->pianoRollAutoPageTurnEnabled = enabled;
     };
+    editorServices.focusVisibility = [this](const HistoryFocus &focus) {
+        return m_editorViewController ? m_editorViewController->focusVisibility(focus)
+                                      : HistoryFocusVisibility::Unavailable;
+    };
     editorServices.revealFocus = [this](const HistoryFocus &focus, const bool finalize) {
         return m_editorViewController && m_editorViewController->applyRevealFocus(focus, finalize);
     };
@@ -234,21 +286,39 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
             .name = QCoreApplication::applicationName(),
             .version = QCoreApplication::applicationVersion(),
             .platform = QSysInfo::prettyProductName(),
+            .buildId = QString::fromLatin1(LITE_GIT_LAST_COMMIT_HASH),
         };
     };
     applicationServices.requestTermination =
-        [this](const Automation::ApplicationTerminationMode mode) {
-            if (!m_appController)
-                return false;
-            return mode == Automation::ApplicationTerminationMode::Exit
-                       ? m_appController->applyQuit()
-                       : m_appController->applyRestart();
+        [this](const Automation::ApplicationTerminationMode mode,
+               const Automation::ApplicationTerminationSavePolicy savePolicy) {
+            if (!m_documentWorkflowController)
+                return Automation::ApplicationTerminationRequestResult::Unavailable;
+            const auto workflowMode = mode == Automation::ApplicationTerminationMode::Exit
+                                          ? TerminationMode::Exit
+                                          : TerminationMode::Restart;
+            const auto workflowPolicy =
+                savePolicy == Automation::ApplicationTerminationSavePolicy::Prompt
+                    ? TerminationSavePolicy::Prompt
+                    : savePolicy == Automation::ApplicationTerminationSavePolicy::Discard
+                          ? TerminationSavePolicy::Discard
+                          : TerminationSavePolicy::RejectUnsaved;
+            switch (m_documentWorkflowController->requestTermination(workflowMode,
+                                                                     workflowPolicy)) {
+                case TerminationRequestResult::Accepted:
+                    return Automation::ApplicationTerminationRequestResult::Accepted;
+                case TerminationRequestResult::Busy:
+                    return Automation::ApplicationTerminationRequestResult::Busy;
+                case TerminationRequestResult::UnsavedChanges:
+                    return Automation::ApplicationTerminationRequestResult::UnsavedChanges;
+            }
+            return Automation::ApplicationTerminationRequestResult::Unavailable;
         };
     m_coreRuntime = std::make_unique<Automation::CoreRuntime>(
         m_appModel, m_historyManager, std::move(documentServices), std::move(playbackServices),
         std::move(editorServices), Automation::createAppOptionsAutomationServices(m_appOptions),
         Automation::createAppOptionsPresetAutomationServices(m_appOptions),
-        Automation::createPackageAutomationServices(m_packageManager),
+        Automation::createPackageAutomationServices(m_packageManager, m_appOptions),
         Automation::createInferenceAutomationServices(), Automation::createFileAutomationServices(),
         Automation::createAudioExportAutomationServices(),
         Automation::createExtractionAutomationServices(m_appOptions, TaskManager::instance()),
@@ -352,6 +422,9 @@ AppContext::~AppContext() {
     SingletonRegistry::destroy(m_clipboardController);
     SingletonRegistry::destroy(m_audioDecodingController);
 
+    // Runtime-owned workers must stop before the services they use are destroyed.
+    m_coreRuntime.reset();
+
     // L3
     SingletonRegistry::destroy(m_inferEngine);
     SingletonRegistry::destroy(m_synthrtEngine);
@@ -361,7 +434,6 @@ AppContext::~AppContext() {
 
     // L1 (reverse)
     SingletonRegistry::destroy(m_packageManager);
-    m_coreRuntime.reset();
     SingletonRegistry::destroy(m_historyManager);
 
     // L0 (reverse)

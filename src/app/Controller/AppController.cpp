@@ -115,14 +115,6 @@ void AppController::quit() {
         Automation::ApplicationTerminationMode::Exit);
 }
 
-bool AppController::applyQuit() {
-    Q_D(AppController);
-    if (!d->m_mainWindow)
-        return false;
-    d->m_mainWindow->quit();
-    return true;
-}
-
 void AppController::restart() {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
     if (!runtime)
@@ -130,14 +122,6 @@ void AppController::restart() {
     runtime->application().requestTermination(
         {.windowId = runtime->windowId(), .source = Automation::InvocationSource::TrustedGui},
         Automation::ApplicationTerminationMode::Restart);
-}
-
-bool AppController::applyRestart() {
-    Q_D(AppController);
-    if (!d->m_mainWindow)
-        return false;
-    d->m_mainWindow->restart();
-    return true;
 }
 
 void AppControllerPrivate::initializeModules() {
