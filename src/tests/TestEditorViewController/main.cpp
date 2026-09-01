@@ -192,7 +192,7 @@ namespace {
         }
 
         bool setPianoRollEditMode(const EditorViewGlobal::PianoRollEditMode mode) override {
-            if (mode < EditorViewGlobal::Select || mode > EditorViewGlobal::ErasePitch)
+            if (mode < EditorViewGlobal::Select || mode > EditorViewGlobal::BakePitch)
                 return false;
             state.pianoRoll.editMode = mode;
             return true;
