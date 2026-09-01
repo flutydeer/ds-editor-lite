@@ -1,6 +1,7 @@
 #include "EditorMcpController.h"
 
 #include "Automation/EditorAutomationRuntimeStatus.h"
+#include "Automation/Native/NativeJsonRpcDispatcher.h"
 #include "McpHttpServer.h"
 #include "McpRequestDispatcher.h"
 #include "Automation/CoreRuntime.h"
@@ -13,9 +14,12 @@
 
 #include <QCoreApplication>
 #include <QJsonArray>
+#include <QTextStream>
 #include <QThread>
+#include <QTimer>
 #include <QUuid>
 
+#include <cstdlib>
 #include <utility>
 
 namespace Automation {
@@ -29,14 +33,22 @@ namespace Automation {
                 .websiteUrl = QString::fromLatin1(LiteProductMetadata::ProductUrl),
             };
         }
+
+        AutomationHttpRoutes desiredRoutes(const AppHostMode hostMode, const bool mcpEnabled) {
+            return {
+                .mcp = mcpEnabled,
+                .native = hostMode == AppHostMode::Headless,
+            };
+        }
     }
 
     EditorMcpController::EditorMcpController(CoreRuntime &runtime, AppOptions &options,
                                              SingleInstanceCoordinator &coordinator,
+                                             const AppHostMode hostMode,
                                              StartupArguments::AutomationOverrides overrides,
                                              PublicAutomationHostServices hostServices,
                                              QObject *parent)
-        : QObject(parent), m_options(options), m_coordinator(coordinator),
+        : QObject(parent), m_options(options), m_coordinator(coordinator), m_hostMode(hostMode),
           m_overrides(std::move(overrides)) {
         const auto instanceId = QUuid(m_coordinator.automationState().editorInstanceId);
         if (hostServices.editorInstanceId.isNull())
@@ -53,12 +65,17 @@ namespace Automation {
                 };
             };
         }
-        if (!hostServices.windowStatus) {
+        hostServices.hostMode = appHostModeName(m_hostMode);
+        if (!hostServices.windowStatus && m_hostMode == AppHostMode::Headless) {
+            hostServices.windowStatus = [] { return QJsonArray{}; };
+        } else if (!hostServices.windowStatus) {
             hostServices.windowStatus = [&runtime] {
                 const auto version = runtime.documentVersion();
+                if (!runtime.windowId())
+                    return QJsonArray{};
                 return QJsonArray{
                     QJsonObject{
-                                {QStringLiteral("window_id"), runtime.windowId().toString()},
+                                {QStringLiteral("window_id"), runtime.windowId()->toString()},
                                 {QStringLiteral("document_id"), version.documentId.toString()},
                                 {QStringLiteral("active"), true},
                                 }
@@ -69,6 +86,7 @@ namespace Automation {
         m_registry = std::make_unique<PublicAutomationRegistry>(
             runtime, m_accessPolicy, m_fileGuard, m_admissionController, std::move(hostServices));
         m_dispatcher = std::make_unique<McpRequestDispatcher>(*m_registry, editorServerInfo());
+        m_nativeDispatcher = std::make_unique<NativeJsonRpcDispatcher>(*m_registry);
         m_server = std::make_unique<McpHttpServer>(
             this,
             [this](const AutomationWire::Mcp::RequestEnvelope &request, const QString &clientId) {
@@ -88,6 +106,9 @@ namespace Automation {
                                      QStringLiteral("Editor automation thread is unavailable")});
                 }
                 return response;
+            },
+            [this](const QJsonValue &message, const QString &clientId) {
+                return m_nativeDispatcher->dispatch(message, clientId);
             });
 
         connect(m_server.get(), &McpHttpServer::stopped, this,
@@ -124,8 +145,16 @@ namespace Automation {
         return *m_registry;
     }
 
+    QString EditorMcpController::nativeEndpoint() const {
+        return m_server ? m_server->nativeEndpoint() : QString{};
+    }
+
+    QString EditorMcpController::errorString() const {
+        return m_lastError;
+    }
+
     void EditorMcpController::applyConfiguration() {
-        if (m_shuttingDown)
+        if (m_shuttingDown || m_fatalHeadlessFailure)
             return;
         m_effectiveConfig =
             StartupArguments::effectiveAutomationConfig(*m_options.automation(), m_overrides);
@@ -133,23 +162,41 @@ namespace Automation {
                               enabledCustomOperations(*m_options.automation()));
 
         const auto roots = m_fileGuard.setConfiguredRoots(m_options.automation()->accessRoots);
-        if (!m_effectiveConfig.mcpEnabled) {
+        const auto routes = desiredRoutes(m_hostMode, m_effectiveConfig.mcpEnabled);
+        if (!routes.mcp && !routes.native) {
             transitionAfterStop(PendingTransition::Disabled);
             return;
         }
         if (!m_registry->isComplete()) {
-            transitionAfterStop(PendingTransition::Error,
-                                QStringLiteral("Public automation registry is incomplete"));
+            handleConfigurationError(QStringLiteral("Public automation registry is incomplete"));
             return;
         }
         if (!roots) {
-            transitionAfterStop(PendingTransition::Error, roots.getError().message);
+            handleConfigurationError(roots.getError().message);
+            return;
+        }
+        if (m_effectiveConfig.controlPort == 0) {
+            handleConfigurationError(
+                QStringLiteral("Automation control port must be between 1 and 65535"));
             return;
         }
 
         if (m_server->isListening() && m_boundRequestedPort == m_effectiveConfig.controlPort) {
+            if (m_server->routes() != routes) {
+                QString error;
+                if (!m_server->setRoutes(routes, error)) {
+                    handleConfigurationError(error);
+                    return;
+                }
+            }
             m_admissionController.setAccepting(true);
-            publishStatus(SingleInstanceAutomationState::ServerReady, true, m_server->endpoint());
+            m_lastError.clear();
+            if (routes.mcp) {
+                publishStatus(SingleInstanceAutomationState::ServerReady, true,
+                              m_server->endpoint());
+            } else {
+                publishStatus(SingleInstanceAutomationState::ServerDisabled, false);
+            }
             return;
         }
         transitionAfterStop(PendingTransition::Start);
@@ -202,7 +249,8 @@ namespace Automation {
         m_pendingError = std::move(error);
         m_admissionController.setAccepting(false);
         if (m_server->isListening() || m_server->isStopping()) {
-            publishStatus(SingleInstanceAutomationState::ServerStopping, m_effectiveConfig.mcpEnabled);
+            publishStatus(SingleInstanceAutomationState::ServerStopping,
+                          m_effectiveConfig.mcpEnabled);
             m_server->requestStop();
             return;
         }
@@ -218,13 +266,16 @@ namespace Automation {
                 return;
             case PendingTransition::Disabled:
                 m_boundRequestedPort = 0;
+                m_lastError.clear();
                 publishStatus(SingleInstanceAutomationState::ServerDisabled, false);
                 return;
-            case PendingTransition::Error:
+            case PendingTransition::Error: {
                 m_boundRequestedPort = 0;
-                publishStatus(SingleInstanceAutomationState::Error, true, {},
-                              std::exchange(m_pendingError, QString{}));
+                m_lastError = std::exchange(m_pendingError, QString{});
+                publishStatus(SingleInstanceAutomationState::Error, m_effectiveConfig.mcpEnabled,
+                              {}, m_lastError);
                 return;
+            }
             case PendingTransition::Start:
                 startServer();
                 return;
@@ -232,16 +283,53 @@ namespace Automation {
     }
 
     void EditorMcpController::startServer() {
-        publishStatus(SingleInstanceAutomationState::ServerStarting, true);
+        const auto routes = desiredRoutes(m_hostMode, m_effectiveConfig.mcpEnabled);
+        if (routes.mcp)
+            publishStatus(SingleInstanceAutomationState::ServerStarting, true);
         QString error;
-        if (!m_server->start(m_effectiveConfig.controlPort, error)) {
+        if (!m_server->start(m_effectiveConfig.controlPort, routes, error)) {
             m_admissionController.setAccepting(false);
-            publishStatus(SingleInstanceAutomationState::Error, true, {}, error);
+            if (m_hostMode == AppHostMode::Headless && m_everStarted) {
+                failHeadlessRuntime(std::move(error));
+            } else {
+                m_lastError = error;
+                publishStatus(SingleInstanceAutomationState::Error, routes.mcp, {}, error);
+            }
             return;
         }
         m_boundRequestedPort = m_effectiveConfig.controlPort;
+        m_everStarted = true;
         m_admissionController.setAccepting(true);
-        publishStatus(SingleInstanceAutomationState::ServerReady, true, m_server->endpoint());
+        m_lastError.clear();
+        if (routes.mcp) {
+            publishStatus(SingleInstanceAutomationState::ServerReady, true, m_server->endpoint());
+        } else {
+            publishStatus(SingleInstanceAutomationState::ServerDisabled, false);
+        }
+    }
+
+    void EditorMcpController::handleConfigurationError(QString error) {
+        if (m_hostMode == AppHostMode::Headless && m_everStarted) {
+            failHeadlessRuntime(std::move(error));
+            return;
+        }
+        transitionAfterStop(PendingTransition::Error, std::move(error));
+    }
+
+    void EditorMcpController::failHeadlessRuntime(QString error) {
+        if (m_fatalHeadlessFailure)
+            return;
+        m_fatalHeadlessFailure = true;
+        m_pendingTransition = PendingTransition::None;
+        m_pendingError.clear();
+        m_admissionController.setAccepting(false);
+        m_lastError = std::move(error);
+        publishStatus(SingleInstanceAutomationState::Error, m_effectiveConfig.mcpEnabled, {},
+                      m_lastError);
+        QTextStream(stderr) << "Fatal headless automation error: " << m_lastError << Qt::endl;
+        if (auto *application = QCoreApplication::instance()) {
+            QTimer::singleShot(0, application, [] { QCoreApplication::exit(EXIT_FAILURE); });
+        }
     }
 
     void EditorMcpController::publishStatus(const SingleInstanceAutomationState state,
@@ -256,7 +344,7 @@ namespace Automation {
         status.state = state;
         status.applicationVersion = QString::fromLatin1(LiteProductMetadata::Version);
         status.buildId = QString::fromLatin1(LITE_GIT_LAST_COMMIT_HASH);
-        status.hostMode = QStringLiteral("gui");
+        status.hostMode = appHostModeName(m_hostMode);
         status.serverEnabled = enabled;
         status.serverEndpoint = std::move(endpoint);
         status.error = std::move(error);
