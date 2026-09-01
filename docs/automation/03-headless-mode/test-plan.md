@@ -172,7 +172,8 @@ Contract 重复、Host 集合不闭合、Registry 缺失、value source 不可�
 1. 以故意无效的 `QT_QPA_PLATFORM` 和隔离配置启动 Headless。
 2. 记录 Application 动态类型，确认根对象为 `QCoreApplication`。
 3. 通过对象审计确认 Core composition 完整，GuiContext 对象均未创建。
-4. 在 Native ready 前查询或记录首个默认文档建立时序。
+4. 验证默认文档在 Native ready 前建立；带位置工程启动时，首次 ready/status 必须对应打开后的
+   工程，不能暴露或允许修改过渡空白文档。
 5. 使用 Windows API 按 PID 枚举顶层窗口，覆盖启动、请求处理、文件/Task 和退出阶段。
 6. 执行主题设置、音频设备失败、AudioDecoding、Playback、translator 和 Restarter 专项。
 7. 检查 stderr、Qt plugin 加载、QObject 树和窗口快照，不得存在 GUI fallback。

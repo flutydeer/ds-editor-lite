@@ -11,12 +11,12 @@
 继续共用 PublicAutomationRegistry、Access Policy、File Guard、Admission、类型化 binding、
 Automation Facade、History、revision 与 Task 生命周期。
 
-测试源候选最终冻结于 `headless` 分支 commit `d852be21`；其后的变更仅回填正式报告，不改变受测
+测试源候选最终冻结于 `headless` 分支 commit `42a20353`；其后的变更仅回填正式报告，不改变受测
 产品代码或测试。项目 Debug build preset 的默认目标保持不变，正式候选通过项目脚本显式指定
 `-Target all` 完成全目标构建与串行 CTest，结果为 64/64、0 fail。最终构建、清单、全量执行与
-审计证据分别为 `E-P3-FINAL-BUILD-003`、`E-P3-CTEST-LIST-002`、
-`E-P3-CTEST-JSON-002`、`E-P3-CTEST-FULL-003`、`E-P3-REVIEW-001` 和
-`E-P3-FINAL-AUDIT-003`。
+审计证据分别为 `E-P3-FINAL-BUILD-004`、`E-P3-CTEST-LIST-002`、
+`E-P3-CTEST-JSON-002`、`E-P3-CTEST-FULL-004`、`E-P3-REVIEW-001`、
+`E-P3-REVIEW-002` 和 `E-P3-FINAL-AUDIT-004`。
 
 ## 2. 启动入口与 Host composition
 
@@ -46,7 +46,9 @@ Clipboard、Track、Clip、EditorView、UndoRedo、GUI 提取、ProjectStatus、
 DocumentWorkflow 等 GUI controller。Headless 不通过 singleton fallback 反向取得这些对象。
 
 Headless 在 Automation listener 对外可用前调用既有 Document Facade 默认 draft/commit 路径建立
-空白文档。GUI 保持 MainWindow 建立后的原初始化时序，避免改变视图接收初始模型信号的行为。
+空白文档；若启动参数包含位置工程，继续用同一 Headless open queue 等待其 Task 到达终态，再构造
+Automation Controller、开放 admission 并发布 Bootstrap 状态。GUI 保持 MainWindow 建立后的原
+初始化时序，避免改变视图接收初始模型信号的行为。
 
 ## 3. 文档、窗口与单实例身份
 
@@ -63,7 +65,8 @@ Headless 在 Automation listener 对外可用前调用既有 Document Facade 默
 
 GUI 与 Headless 继续使用同一产品单实例身份、Primary 锁和 QLocal 服务。Headless 外部工程请求由
 `HeadlessOpenRequestQueue` 串行转交既有无交互文档打开 binding，保持单文档替换和 Task 终态顺序，
-不创建 DocumentWorkflow 或第二套加载实现。
+不创建 DocumentWorkflow 或第二套加载实现。启动请求在 listener ready 前先排空；运行期转发请求
+继续异步串行执行。
 
 ## 4. 公共 Host capability 与错误边界
 
@@ -197,7 +200,7 @@ QLocal Bootstrap 的 `server_*` 字段继续只描述 Connector 所需的 MCP ro
 - optional WindowContext、Headless status 与 application lifecycle；
 - QLocal、Connector 错误迁移和 GUI/Headless 单实例身份；
 - 真实 Headless 进程的无效 GUI platform、零窗口、Native、可选 MCP、文件/Task、端口冲突、
-  clean/dirty/discard/restart 与资源清理；
+  启动工程 ready 顺序、clean/dirty/discard/restart 与资源清理；
 - GUI MCP 目录、真实 WindowId、代表 GUI-only operation、编辑、History、播放和保存回归。
 
 测试控制优先使用确定性 CTest、命令行进程、HTTP/QLocal/窗口枚举、Editor MCP 与 Connector MCP。
@@ -205,7 +208,7 @@ Computer Use 只在其他方式无法覆盖必要 GUI 断言时使用；本期�
 
 最终标准 Debug 构建通过项目脚本显式指定 `all`，退出码为 0，并保持 `CMakePresets.json` 与基线
 一致。CTest 文本清单与 JSON 清单均为 64 项且测试可执行文件完整；最终候选串行执行 64/64、
-0 fail，耗时 60.50 秒，退出码为 0。测试仅使用自动生成的 WAV/DSPX fixture，未访问或复制授权
+0 fail，耗时 60.39 秒，退出码为 0。测试仅使用自动生成的 WAV/DSPX fixture，未访问或复制授权
 素材，因此原文件 hash 不适用；最终资源清理和 Evidence 索引审计通过。
 
 ## 11. 明确未交付范围
