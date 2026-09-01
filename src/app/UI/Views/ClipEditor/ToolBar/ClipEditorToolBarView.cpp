@@ -299,10 +299,7 @@ PianoRollEditMode ClipEditorToolBarView::editMode() const {
 }
 
 bool ClipEditorToolBarView::supportsEditMode(const PianoRollEditMode mode) const {
-    Q_D(const ClipEditorToolBarView);
-    if (mode < Select || mode > BakePitch)
-        return false;
-    return mode != BakePitch || (d->m_btnPitchBake && d->m_btnPitchBake->isEnabled());
+    return mode >= Select && mode <= BakePitch;
 }
 
 bool ClipEditorToolBarView::setEditMode(const PianoRollEditMode mode) {
@@ -341,7 +338,7 @@ bool ClipEditorToolBarView::setEditMode(const PianoRollEditMode mode) {
             break;
     }
 
-    if (!button || (mode == BakePitch && !button->isEnabled()))
+    if (!button)
         return false;
     button->setChecked(true);
     return true;
@@ -484,15 +481,7 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
         connect(m_cbSinger, &TwoLevelComboBox::currentDataChanged, this,
                 &ClipEditorToolBarViewPrivate::onSingerEdited);
         connect(m_singingClip, &SingingClip::voiceContextChanged, this,
-                [this](const VoiceContextChange &) {
-                    refreshSingerComboPresentation();
-                    refreshPitchBakeAvailability();
-                });
-        connect(m_singingClip, &SingingClip::paramChanged, this,
-                [this](const ParamInfo::Name name, const Param::Type type) {
-                    if (name == ParamInfo::Pitch && type == Param::Original)
-                        refreshPitchBakeAvailability();
-                });
+                [this](const VoiceContextChange &) { refreshSingerComboPresentation(); });
 
         connect(m_cbClipLanguage, &LanguageComboBox::currentLanguageChanged, this,
                 &ClipEditorToolBarViewPrivate::onLanguageEdited);
@@ -503,7 +492,6 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
                    &ClipEditorToolBarViewPrivate::onSingerEdited);
         if (m_singingClip) {
             disconnect(m_singingClip, &SingingClip::voiceContextChanged, this, nullptr);
-            disconnect(m_singingClip, &SingingClip::paramChanged, this, nullptr);
             disconnect(m_singingClip, &SingingClip::defaultLanguageChanged, this,
                        &ClipEditorToolBarViewPrivate::onClipLanguageChanged);
         }
@@ -512,17 +500,6 @@ void ClipEditorToolBarViewPrivate::setPianoRollToolsEnabled(const bool on) const
                    &ClipEditorToolBarViewPrivate::onLanguageEdited);
         m_cbClipLanguage->setLanguages({}, QStringLiteral("unknown"));
     }
-    refreshPitchBakeAvailability();
-}
-
-void ClipEditorToolBarViewPrivate::refreshPitchBakeAvailability() const {
-    const auto *pitch = m_singingClip && !m_singingClip->singerInfo().isEmpty()
-                            ? m_singingClip->params.getParamByName(ParamInfo::Pitch)
-                            : nullptr;
-    const bool available = pitch && !pitch->curves(Param::Original).isEmpty();
-    m_btnPitchBake->setEnabled(available);
-    if (!available && m_btnPitchBake->isChecked())
-        m_btnPitchPencil->setChecked(true);
 }
 
 void ClipEditorToolBarViewPrivate::onSingerEdited() const {

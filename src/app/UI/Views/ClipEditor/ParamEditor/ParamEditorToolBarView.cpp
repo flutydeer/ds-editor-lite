@@ -107,6 +107,7 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     cbBackgroundParam->setCurrentIndex(appOptions->general()->defaultBackgroundParam);
     setSpeakerMixMode(static_cast<ParamInfo::Name>(cbForegroundParam->currentIndex() + 1) ==
                       ParamInfo::SpeakerMix);
+    refreshEditModeVisibility();
     retranslateUi();
 }
 
@@ -121,10 +122,6 @@ void ParamEditorToolBarView::setSpeakers(const QStringList &names, const QList<Q
 
 void ParamEditorToolBarView::setSpeakerMixDynamicState(const SpeakerMixDynamicUiState state) {
     m_speakerMixToolBar->setDynamicState(state);
-}
-
-void ParamEditorToolBarView::setBakeEnabled(const bool enabled) {
-    m_paramEditToolBar->setBakeEnabled(enabled);
 }
 
 ParamInfo::Name ParamEditorToolBarView::foreground() const {
@@ -184,6 +181,7 @@ bool ParamEditorToolBarView::setParameterPair(const ParamInfo::Name foregroundNa
         return false;
     }
     setSpeakerMixMode(foregroundName == ParamInfo::SpeakerMix);
+    refreshEditModeVisibility();
     emit foregroundChanged(foregroundName);
     emit backgroundChanged(backgroundName);
     return true;
@@ -204,6 +202,7 @@ bool ParamEditorToolBarView::setEditMode(const ParamEditorEditMode mode) {
 void ParamEditorToolBarView::onForegroundSelectionChanged(const int index) {
     const auto name = static_cast<ParamInfo::Name>(index + 1);
     setSpeakerMixMode(name == ParamInfo::SpeakerMix);
+    refreshEditModeVisibility();
     emit foregroundChanged(name);
 }
 
@@ -223,6 +222,10 @@ void ParamEditorToolBarView::changeEvent(QEvent *event) {
     QWidget::changeEvent(event);
     if (event->type() == QEvent::LanguageChange)
         retranslateUi();
+}
+
+void ParamEditorToolBarView::refreshEditModeVisibility() {
+    m_paramEditToolBar->setParameter(foreground());
 }
 
 void ParamEditorToolBarView::retranslateUi() {

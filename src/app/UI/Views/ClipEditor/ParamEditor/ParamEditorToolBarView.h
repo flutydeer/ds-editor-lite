@@ -23,7 +23,6 @@ public:
     void setSpeakerMixMode(bool on);
     void setSpeakers(const QStringList &names, const QList<QColor> &colors);
     void setSpeakerMixDynamicState(SpeakerMixDynamicUiState state);
-    void setBakeEnabled(bool enabled);
     [[nodiscard]] ParamInfo::Name foreground() const;
     [[nodiscard]] ParamInfo::Name background() const;
     [[nodiscard]] ParamEditorEditMode editMode() const;
@@ -51,6 +50,7 @@ private slots:
 
 private:
     void changeEvent(QEvent *event) override;
+    void refreshEditModeVisibility();
     void retranslateUi();
 
     SingingClip *m_clip = nullptr;

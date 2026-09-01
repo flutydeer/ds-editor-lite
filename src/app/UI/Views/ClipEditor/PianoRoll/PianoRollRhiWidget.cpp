@@ -1031,6 +1031,7 @@ public:
         qDeleteAll(pitchPreviewCurves);
         pitchPreviewCurves.clear();
         pitchDrawStroke = {};
+        pitchBakeSource.clear();
         mergedPitchCurveCache.invalidate();
     }
 
@@ -1077,6 +1078,10 @@ public:
             pitchDrawStroke =
                 DrawCurveEditUtils::beginStroke(pitchPreviewCurves, pitchMouseDownPos);
             pitchEditType = editMode == BakePitch ? PitchEditType::Bake : PitchEditType::Draw;
+            if (pitchEditType == PitchEditType::Bake) {
+                const auto original = AppModelUtils::getDrawCurves(pitch->curves(Param::Original));
+                pitchBakeSource.capture(original);
+            }
         }
 
         pitchEditSessionId = editSessionManager->beginTransaction(
@@ -1104,10 +1109,8 @@ public:
         } else {
             DrawCurveEditUtils::ValueProvider valueAtTick;
             if (pitchEditType == PitchEditType::Bake) {
-                const auto *pitch = clip->params.getParamByName(ParamInfo::Pitch);
-                const auto original = AppModelUtils::getDrawCurves(pitch->curves(Param::Original));
-                valueAtTick = [original](const int sampleTick) {
-                    return DrawCurveEditUtils::generatedValueAt(original, sampleTick);
+                valueAtTick = [this](const int sampleTick) {
+                    return pitchBakeSource.valueAt(sampleTick);
                 };
             } else {
                 valueAtTick = [previous = pitchPreviousPos, current](const int sampleTick) {
@@ -2435,6 +2438,7 @@ public:
     QPoint pitchPreviousPos;
     QList<DrawCurve *> pitchPreviewCurves;
     DrawCurveEditUtils::StrokeState pitchDrawStroke;
+    DrawCurveEditUtils::GeneratedCurveSnapshot pitchBakeSource;
     PitchDisplayStrategy::MergedCurveCache mergedPitchCurveCache;
     bool noteErasing = false;
     QList<int> erasedNoteIds;

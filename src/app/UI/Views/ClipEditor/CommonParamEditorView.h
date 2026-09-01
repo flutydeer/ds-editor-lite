@@ -87,6 +87,7 @@ private:
     QPoint m_mouseDownPos; // x: tick, y: value
     QPoint m_prevPos;
     DrawCurveEditUtils::StrokeState m_drawStroke;
+    DrawCurveEditUtils::GeneratedCurveSnapshot m_bakeSource;
     EditType m_editType = None;
     bool m_eraseMode = false;
     bool m_bakeMode = false;

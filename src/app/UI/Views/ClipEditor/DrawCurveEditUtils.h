@@ -13,6 +13,22 @@ class DrawCurve;
 namespace DrawCurveEditUtils {
     using ValueProvider = std::function<std::optional<int>(int)>;
 
+    class GeneratedCurveSnapshot {
+    public:
+        GeneratedCurveSnapshot() = default;
+        ~GeneratedCurveSnapshot();
+
+        GeneratedCurveSnapshot(const GeneratedCurveSnapshot &) = delete;
+        GeneratedCurveSnapshot &operator=(const GeneratedCurveSnapshot &) = delete;
+
+        void capture(const QList<DrawCurve *> &curves);
+        void clear();
+        [[nodiscard]] std::optional<int> valueAt(int tick) const;
+
+    private:
+        QList<DrawCurve *> m_curves;
+    };
+
     struct StrokeState {
         QPoint mouseDownPosition;
         DrawCurve *editingCurve = nullptr;
