@@ -29,14 +29,14 @@ namespace {
         return canonical.isEmpty() ? executable.absoluteFilePath() : canonical;
     }
 
-    SingleInstanceAutomationStatus initialAutomationStatus() {
+    SingleInstanceAutomationStatus initialAutomationStatus(const AppHostMode hostMode) {
         return {
             SingleInstanceAutomationState::EditorStarting,
             QUuid::createUuid().toString(QUuid::WithoutBraces),
             executablePath(),
             QCoreApplication::applicationVersion(),
             {},
-            QStringLiteral("gui"),
+            appHostModeName(hostMode),
             false,
             {},
             {},
@@ -310,7 +310,13 @@ SingleInstanceCoordinator::SingleInstanceCoordinator(QString dataDirectory, QStr
       m_dataDirectory(SingleInstanceIdentity::normalizeDataDirectory(dataDirectory)),
       m_serverName(serverName.isEmpty() ? SingleInstanceIdentity::serviceName(m_dataDirectory)
                                         : std::move(serverName)),
-      m_automationStatus(initialAutomationStatus()) {
+      m_automationStatus(initialAutomationStatus(AppHostMode::Gui)) {
+}
+
+SingleInstanceCoordinator::SingleInstanceCoordinator(const AppHostMode hostMode, QObject *parent)
+    : QObject(parent), m_dataDirectory(SingleInstanceIdentity::normalizeDataDirectory({})),
+      m_serverName(SingleInstanceIdentity::serviceName(m_dataDirectory)),
+      m_automationStatus(initialAutomationStatus(hostMode)) {
 }
 
 SingleInstanceCoordinator::~SingleInstanceCoordinator() {
@@ -446,8 +452,8 @@ void SingleInstanceCoordinator::updateAutomationState(
 }
 
 void SingleInstanceCoordinator::updateAutomationState(const SingleInstanceAutomationState state,
-                                                      const bool serverEnabled, QString serverEndpoint,
-                                                      QString error) {
+                                                      const bool serverEnabled,
+                                                      QString serverEndpoint, QString error) {
     auto status = automationState();
     status.state = state;
     status.serverEnabled = serverEnabled;

@@ -1,6 +1,7 @@
 #ifndef SINGLEINSTANCECOORDINATOR_H
 #define SINGLEINSTANCECOORDINATOR_H
 
+#include "AppHostMode.h"
 #include "SingleInstanceProtocol.h"
 
 #include <QMutex>
@@ -18,6 +19,7 @@ class SingleInstanceCoordinator final : public QObject {
 public:
     enum class StartResult { Primary, Secondary, Error };
 
+    explicit SingleInstanceCoordinator(AppHostMode hostMode, QObject *parent = nullptr);
     explicit SingleInstanceCoordinator(QString dataDirectory = {}, QString serverName = {},
                                        QObject *parent = nullptr);
     ~SingleInstanceCoordinator() override;

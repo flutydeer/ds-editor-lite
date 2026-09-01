@@ -36,6 +36,17 @@ namespace StartupArguments {
         return !error.has_value();
     }
 
+    AppHostMode preparseHostMode(const int argc, char *argv[]) {
+        for (int index = 1; index < argc; ++index) {
+            const auto argument = QString::fromLocal8Bit(argv[index]);
+            if (argument == QStringLiteral("--"))
+                break;
+            if (argument == QStringLiteral("--headless"))
+                return AppHostMode::Headless;
+        }
+        return AppHostMode::Gui;
+    }
+
     ParsedArguments parseArguments(const QStringList &arguments, const QString &workingDirectory) {
         ParsedArguments result;
         result.projectFilePaths.reserve(arguments.size());
@@ -58,6 +69,11 @@ namespace StartupArguments {
                         QStringLiteral("Options --mcp and --no-mcp cannot be used together."));
                 }
                 result.automation.mcpEnabled = true;
+                continue;
+            }
+
+            if (!positionalOnly && argument == QStringLiteral("--headless")) {
+                result.hostMode = AppHostMode::Headless;
                 continue;
             }
 
@@ -130,10 +146,10 @@ namespace StartupArguments {
                                     .arg(*value));
                 }
                 if (result.automation.controlLevel && *result.automation.controlLevel != *level) {
-                    return fail(std::move(result), ParseErrorCode::ConflictingOptions,
-                                QStringLiteral("--control-level"),
-                                QStringLiteral(
-                                    "Conflicting values were provided for --control-level."));
+                    return fail(
+                        std::move(result), ParseErrorCode::ConflictingOptions,
+                        QStringLiteral("--control-level"),
+                        QStringLiteral("Conflicting values were provided for --control-level."));
                 }
                 result.automation.controlLevel = *level;
                 continue;

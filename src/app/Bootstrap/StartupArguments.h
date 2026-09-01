@@ -1,6 +1,7 @@
 #ifndef STARTUPARGUMENTS_H
 #define STARTUPARGUMENTS_H
 
+#include "AppHostMode.h"
 #include "Model/AppOptions/Options/AutomationOption.h"
 
 #include <QStringList>
@@ -33,6 +34,7 @@ namespace StartupArguments {
     };
 
     struct ParsedArguments {
+        AppHostMode hostMode = AppHostMode::Gui;
         QStringList projectFilePaths;
         AutomationOverrides automation;
         std::optional<ParseError> error;
@@ -53,6 +55,10 @@ namespace StartupArguments {
         ConfigSource controlPortSource = ConfigSource::Persisted;
         ConfigSource controlLevelSource = ConfigSource::Persisted;
     };
+
+    // Performs the only parsing needed before constructing the Qt application. Arguments after
+    // `--` are positional and therefore cannot select the host mode.
+    [[nodiscard]] AppHostMode preparseHostMode(int argc, char *argv[]);
 
     // Parses arguments after the executable name.
     [[nodiscard]] ParsedArguments parseArguments(const QStringList &arguments,

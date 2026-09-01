@@ -5,6 +5,7 @@
 #include "Bootstrap/AppEnvironment.h"
 #include "Bootstrap/CrashHandler.h"
 #include "Bootstrap/ExternalOpenRequestQueue.h"
+#include "Bootstrap/HeadlessOpenRequestQueue.h"
 #include "Bootstrap/LoggingBootstrap.h"
 #include "Bootstrap/Restarter.h"
 #include "Bootstrap/SingleInstanceCoordinator.h"
@@ -21,6 +22,7 @@
 #include <lite/ProductMetadata.h>
 
 #include <QApplication>
+#include <QCoreApplication>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QMessageBox>
@@ -28,25 +30,36 @@
 #include <QUuid>
 
 #include <cstdlib>
+#include <memory>
 
 int main(int argc, char *argv[]) {
     QElapsedTimer mstimer;
     mstimer.start();
 
-    AppEnvironment::preInit();
-    QApplication a(argc, argv);
-    AppEnvironment::postInit();
+    const auto hostMode = StartupArguments::preparseHostMode(argc, argv);
+    AppEnvironment::preInit(hostMode);
+    std::unique_ptr<QCoreApplication> application;
+    if (hostMode == AppHostMode::Gui)
+        application = std::make_unique<QApplication>(argc, argv);
+    else
+        application = std::make_unique<QCoreApplication>(argc, argv);
+    AppEnvironment::postInit(hostMode);
     const auto parsedArguments = StartupArguments::parseApplicationArguments();
     if (!parsedArguments.isValid()) {
         QTextStream(stderr) << "Invalid startup argument " << parsedArguments.error->option << ": "
                             << parsedArguments.error->message << Qt::endl;
         return EXIT_FAILURE;
     }
+    if (parsedArguments.hostMode != hostMode) {
+        QTextStream(stderr) << "Startup host mode changed during full argument parsing" << Qt::endl;
+        return EXIT_FAILURE;
+    }
     const auto &startupPaths = parsedArguments.projectFilePaths;
     const auto nonInteractiveBootstrapErrors =
-        !parsedArguments.automation.isEmpty() ||
-        QApplication::platformName().compare(QStringLiteral("offscreen"), Qt::CaseInsensitive) ==
-            0 ||
+        hostMode == AppHostMode::Headless || !parsedArguments.automation.isEmpty() ||
+        (hostMode == AppHostMode::Gui &&
+         QApplication::platformName().compare(QStringLiteral("offscreen"), Qt::CaseInsensitive) ==
+             0) ||
         qEnvironmentVariable("QT_QPA_PLATFORM")
                 .compare(QStringLiteral("offscreen"), Qt::CaseInsensitive) == 0;
     const auto reportBootstrapError = [&](const QString &error) {
@@ -55,8 +68,13 @@ int main(int argc, char *argv[]) {
                                 << Qt::endl;
             return;
         }
-        QMessageBox::critical(nullptr, QString::fromLatin1(LiteProductMetadata::ProductName),
-                              error);
+        if (hostMode == AppHostMode::Gui) {
+            QMessageBox::critical(nullptr, QString::fromLatin1(LiteProductMetadata::ProductName),
+                                  error);
+        } else {
+            QTextStream(stderr) << LiteProductMetadata::ProductName << " bootstrap error: " << error
+                                << Qt::endl;
+        }
     };
     SingleInstanceRequest startupRequest{
         QUuid::createUuid().toString(QUuid::WithoutBraces),
@@ -66,7 +84,7 @@ int main(int argc, char *argv[]) {
     };
 
     int result = EXIT_FAILURE;
-    SingleInstanceCoordinator coordinator;
+    SingleInstanceCoordinator coordinator(hostMode);
     switch (coordinator.start()) {
         case SingleInstanceCoordinator::StartResult::Secondary: {
             if (!parsedArguments.automation.isEmpty()) {
@@ -95,55 +113,96 @@ int main(int argc, char *argv[]) {
         UiLanguageManager uiLanguageManager;
         uiLanguageManager.setPreference(options->general()->uiLanguage);
 
-        auto initialThemeId = qEnvironmentVariable("DS_EDITOR_THEME").trimmed();
-        if (initialThemeId.isEmpty())
-            initialThemeId = options->appearance()->themeId;
+        // Construct the common composition first. GUI-only singletons are created only in Gui.
+        AppContext appContext(std::move(options), hostMode);
 
-        // Construct AppContext — creates ALL business singletons in dependency order.
-        AppContext appContext(std::move(options));
-
-        if (!ThemeManager::instance()->initialize(initialThemeId)) {
-            const auto error = ThemeLoader::lastError();
-            const auto fallbackThemeId = ThemeIds::defaultThemeId();
-            qWarning("Failed to load initial theme '%s': %s", qPrintable(initialThemeId),
-                     qPrintable(error));
-            if (initialThemeId == fallbackThemeId ||
-                !ThemeManager::instance()->initialize(fallbackThemeId)) {
-                qFatal("Failed to load fallback theme '%s': %s", qPrintable(fallbackThemeId),
-                       qPrintable(ThemeLoader::lastError()));
+        if (hostMode == AppHostMode::Gui) {
+            auto initialThemeId = qEnvironmentVariable("DS_EDITOR_THEME").trimmed();
+            if (initialThemeId.isEmpty())
+                initialThemeId = appOptions->appearance()->themeId;
+            if (!ThemeManager::instance()->initialize(initialThemeId)) {
+                const auto error = ThemeLoader::lastError();
+                const auto fallbackThemeId = ThemeIds::defaultThemeId();
+                qWarning("Failed to load initial theme '%s': %s", qPrintable(initialThemeId),
+                         qPrintable(error));
+                if (initialThemeId == fallbackThemeId ||
+                    !ThemeManager::instance()->initialize(fallbackThemeId)) {
+                    qFatal("Failed to load fallback theme '%s': %s", qPrintable(fallbackThemeId),
+                           qPrintable(ThemeLoader::lastError()));
+                }
             }
         }
 
         packageManager->initialize(appOptions->general()->packageSearchPaths);
 
-        MainWindow w;
-        Automation::EditorMcpController mcpController(
-            *appContext.m_coreRuntime, *appContext.m_appOptions, coordinator,
-            parsedArguments.automation,
-            Automation::createPublicAutomationHostServices(
-                *appContext.m_coreRuntime, appContext.m_appModel, appContext.m_synthrtEngine));
-        WindowPlacement windowPlacement(w);
-        windowPlacement.restoreOrPlace(appOptions->window()->mainWindowGeometry());
-        ExternalOpenRequestQueue requestQueue(documentWorkflowController, &w);
-        requestQueue.enqueue(startupRequest);
-        coordinator.setRequestHandler([&requestQueue](const SingleInstanceRequest &request) {
-            requestQueue.enqueue(request);
-        });
-        w.show();
+        if (hostMode == AppHostMode::Headless) {
+            QString error;
+            if (!appContext.initializeDefaultDocument(&error)) {
+                reportBootstrapError(
+                    QStringLiteral("Failed to initialize the headless document: %1").arg(error));
+                coordinator.stopAcceptingRequests();
+                coordinator.shutdown();
+                return EXIT_FAILURE;
+            }
+        }
+
+        auto hostServices = Automation::createPublicAutomationHostServices(
+            *appContext.m_coreRuntime, appContext.m_appModel, appContext.m_synthrtEngine);
+
+        if (hostMode == AppHostMode::Gui) {
+            MainWindow w;
+            Automation::EditorMcpController mcpController(
+                *appContext.m_coreRuntime, *appContext.m_appOptions, coordinator, hostMode,
+                parsedArguments.automation, hostServices);
+            WindowPlacement windowPlacement(w);
+            windowPlacement.restoreOrPlace(appOptions->window()->mainWindowGeometry());
+            ExternalOpenRequestQueue requestQueue(documentWorkflowController, &w);
+            requestQueue.enqueue(startupRequest);
+            coordinator.setRequestHandler([&requestQueue](const SingleInstanceRequest &request) {
+                requestQueue.enqueue(request);
+            });
+            w.show();
 #if defined(WITH_DIRECT_MANIPULATION)
-        w.registerDirectManipulation();
+            w.registerDirectManipulation();
 #endif
 
-        const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
-        qInfo() << "App launched in" << time << "ms";
+            const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
+            qInfo() << "App launched in" << time << "ms";
 
-        CrashHandler crashHandler;
-        result = a.exec();
-        coordinator.stopAcceptingRequests();
-        const auto saveWindow = appContext.m_coreRuntime->settings().updateWindow(
-            {}, {.mainWindowGeometry = windowPlacement.saveGeometry()});
-        if (!saveWindow)
-            qWarning("Failed to save main-window placement");
+            CrashHandler crashHandler;
+            result = application->exec();
+            coordinator.stopAcceptingRequests();
+            const auto saveWindow = appContext.m_coreRuntime->settings().updateWindow(
+                {}, {.mainWindowGeometry = windowPlacement.saveGeometry()});
+            if (!saveWindow)
+                qWarning("Failed to save main-window placement");
+        } else {
+            Automation::EditorMcpController mcpController(
+                *appContext.m_coreRuntime, *appContext.m_appOptions, coordinator, hostMode,
+                parsedArguments.automation, hostServices);
+            if (mcpController.nativeEndpoint().isEmpty()) {
+                const auto error =
+                    mcpController.errorString().isEmpty()
+                        ? QStringLiteral("Native automation endpoint failed to start")
+                        : mcpController.errorString();
+                reportBootstrapError(error);
+                coordinator.stopAcceptingRequests();
+                mcpController.shutdown();
+                coordinator.shutdown();
+                return EXIT_FAILURE;
+            }
+            HeadlessOpenRequestQueue requestQueue(*appContext.m_coreRuntime,
+                                                  hostServices.openDocument);
+            requestQueue.enqueue(startupRequest);
+            coordinator.setRequestHandler([&requestQueue](const SingleInstanceRequest &request) {
+                requestQueue.enqueue(request);
+            });
+            const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
+            qInfo() << "Headless host launched in" << time << "ms";
+            CrashHandler crashHandler;
+            result = application->exec();
+            coordinator.stopAcceptingRequests();
+        }
     }
     coordinator.shutdown();
     return Restarter(QDir::currentPath()).restartOrExit(result);

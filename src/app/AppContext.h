@@ -1,6 +1,8 @@
 #ifndef APPCONTEXT_H
 #define APPCONTEXT_H
 
+#include "Bootstrap/AppHostMode.h"
+
 #include <memory>
 
 // Forward declarations — no heavy includes needed
@@ -50,8 +52,13 @@ public:
 
     // Public so main() can construct, but conceptually private to the app entry point.
     // Making it a friend of main() is not possible (main is a C runtime symbol).
-    explicit AppContext(std::unique_ptr<AppOptions> options);
+    explicit AppContext(std::unique_ptr<AppOptions> options,
+                        AppHostMode hostMode = AppHostMode::Gui);
     ~AppContext();
+
+    [[nodiscard]] AppHostMode hostMode() const;
+    [[nodiscard]] bool hasGui() const;
+    bool initializeDefaultDocument(QString *error = nullptr);
 
     // L0: Basic data models
     AppStatus *m_appStatus = nullptr;
@@ -71,23 +78,12 @@ public:
     SynthrtEngine *m_synthrtEngine = nullptr;
     InferEngine *m_inferEngine = nullptr;
 
-    // Level meter manager (depends on AppModel from L0)
-    LevelMeterManager *m_levelMeterManager = nullptr;
-
-    // L4: Controllers (no construction-time cross-deps)
+    // L4: Core controllers (no construction-time cross-deps)
     AudioDecodingController *m_audioDecodingController = nullptr;
-    ClipboardController *m_clipboardController = nullptr;
-    TrackController *m_trackController = nullptr;
-    ClipController *m_clipController = nullptr;
-    EditorViewController *m_editorViewController = nullptr;
-    UndoRedoController *m_undoRedoController = nullptr;
-    PitchExtractController *m_pitchExtractController = nullptr;
-    MidiExtractController *m_midiExtractController = nullptr;
     EditSessionManager *m_editSessionManager = nullptr;
 
-    // L5: Controllers with construction-time deps
+    // L5: Core controllers with construction-time deps
     PlaybackController *m_playbackController = nullptr;
-    ProjectStatusController *m_projectStatusController = nullptr;
     ProjectPackageResolver *m_projectPackageResolver = nullptr;
 
     // L6: Inference controller
@@ -96,17 +92,17 @@ public:
     // Audio system (existing, moved here)
     std::unique_ptr<AudioSystemContext> m_audio;
 
-#if defined(WITH_DIRECT_MANIPULATION)
-    std::unique_ptr<struct DirectManipulationHolder> m_directManip;
-#endif
-
-    // L7: Top-level controller (last constructed, first destructed)
-    AppController *m_appController = nullptr;
-
-    // L8: Document workflow depends on the top-level controller.
-    DocumentWorkflowController *m_documentWorkflowController = nullptr;
-
     static AppContext *s_self;
+
+private:
+    struct GuiContext;
+
+    void initializeCommonWiring();
+    [[nodiscard]] EditorViewController *guiEditorViewController() const;
+    [[nodiscard]] DocumentWorkflowController *guiDocumentWorkflowController() const;
+
+    AppHostMode m_hostMode;
+    std::unique_ptr<GuiContext> m_guiContext;
 };
 
 #endif // APPCONTEXT_H

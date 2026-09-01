@@ -12,6 +12,12 @@
 #include <utility>
 
 namespace {
+    const Automation::WindowId *guiWindowId(const Automation::CoreRuntime *runtime) {
+        if (!runtime || !runtime->windowId())
+            return nullptr;
+        return &*runtime->windowId();
+    }
+
     std::optional<Automation::EditorRevealDto> revealDto(const HistoryFocus &focus) {
         Automation::EditorRevealKind kind;
         if (focus.kind == HistoryFocusKind::TrackClips)
@@ -60,91 +66,99 @@ std::optional<EditorViewState> EditorViewController::captureState() const {
 
 bool EditorViewController::restoreState(const EditorViewState &state) const {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
-    return runtime &&
-           runtime->facade().restoreView({.windowId = runtime->windowId(),
-                                          .source = Automation::InvocationSource::TrustedGui},
-                                         state);
+    const auto *windowId = guiWindowId(runtime);
+    return windowId &&
+           runtime->facade().restoreView(
+               {.windowId = *windowId, .source = Automation::InvocationSource::TrustedGui}, state);
 }
 
 bool EditorViewController::centerTrackPanelAt(double tick, double trackIndex) const {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
-    return runtime &&
-           runtime->facade().centerTrackPanel({.windowId = runtime->windowId(),
-                                               .source = Automation::InvocationSource::TrustedGui},
-                                              tick, trackIndex);
+    const auto *windowId = guiWindowId(runtime);
+    return windowId &&
+           runtime->facade().centerTrackPanel(
+               {.windowId = *windowId, .source = Automation::InvocationSource::TrustedGui}, tick,
+               trackIndex);
 }
 
 bool EditorViewController::setTrackPanelScale(double horizontalScale, double verticalScale) const {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
-    return runtime && runtime->facade().setTrackPanelScale(
-                          {.windowId = runtime->windowId(),
-                           .source = Automation::InvocationSource::TrustedGui},
-                          horizontalScale, verticalScale);
+    const auto *windowId = guiWindowId(runtime);
+    return windowId &&
+           runtime->facade().setTrackPanelScale(
+               {.windowId = *windowId, .source = Automation::InvocationSource::TrustedGui},
+               horizontalScale, verticalScale);
 }
 
 bool EditorViewController::setPanelVisibility(bool trackPanelVisible,
                                               bool bottomPanelVisible) const {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
-    return runtime && runtime->facade().setPanelVisibility(
-                          {.windowId = runtime->windowId(),
-                           .source = Automation::InvocationSource::TrustedGui},
-                          trackPanelVisible, bottomPanelVisible);
+    const auto *windowId = guiWindowId(runtime);
+    return windowId &&
+           runtime->facade().setPanelVisibility(
+               {.windowId = *windowId, .source = Automation::InvocationSource::TrustedGui},
+               trackPanelVisible, bottomPanelVisible);
 }
 
 bool EditorViewController::showBottomPanelPage(const QString &pageId) const {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
-    return runtime && runtime->facade().showBottomPanelPage(
-                          {.windowId = runtime->windowId(),
-                           .source = Automation::InvocationSource::TrustedGui},
-                          pageId);
+    const auto *windowId = guiWindowId(runtime);
+    return windowId &&
+           runtime->facade().showBottomPanelPage(
+               {.windowId = *windowId, .source = Automation::InvocationSource::TrustedGui}, pageId);
 }
 
 bool EditorViewController::centerPianoRollAt(double tick, double keyIndex) const {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
-    return runtime &&
-           runtime->facade().centerPianoRoll({.windowId = runtime->windowId(),
-                                              .source = Automation::InvocationSource::TrustedGui},
-                                             tick, keyIndex);
+    const auto *windowId = guiWindowId(runtime);
+    return windowId &&
+           runtime->facade().centerPianoRoll(
+               {.windowId = *windowId, .source = Automation::InvocationSource::TrustedGui}, tick,
+               keyIndex);
 }
 
 bool EditorViewController::setPianoRollScale(double horizontalScale, double verticalScale) const {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
-    return runtime &&
-           runtime->facade().setPianoRollScale({.windowId = runtime->windowId(),
-                                                .source = Automation::InvocationSource::TrustedGui},
-                                               horizontalScale, verticalScale);
+    const auto *windowId = guiWindowId(runtime);
+    return windowId &&
+           runtime->facade().setPianoRollScale(
+               {.windowId = *windowId, .source = Automation::InvocationSource::TrustedGui},
+               horizontalScale, verticalScale);
 }
 
 bool EditorViewController::setPianoRollEditMode(EditorViewGlobal::PianoRollEditMode mode) const {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
-    return runtime && runtime->facade().setPianoRollEditMode(
-                          {.windowId = runtime->windowId(),
-                           .source = Automation::InvocationSource::TrustedGui},
-                          mode);
+    const auto *windowId = guiWindowId(runtime);
+    return windowId &&
+           runtime->facade().setPianoRollEditMode(
+               {.windowId = *windowId, .source = Automation::InvocationSource::TrustedGui}, mode);
 }
 
 bool EditorViewController::setPianoRollQuantize(const int quantize, const bool enabled) const {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
-    return runtime && runtime->facade().setPianoRollQuantize(
-                          {.windowId = runtime->windowId(),
-                           .source = Automation::InvocationSource::TrustedGui},
-                          quantize, enabled);
+    const auto *windowId = guiWindowId(runtime);
+    return windowId &&
+           runtime->facade().setPianoRollQuantize(
+               {.windowId = *windowId, .source = Automation::InvocationSource::TrustedGui},
+               quantize, enabled);
 }
 
 bool EditorViewController::setTrackAutoPageTurn(const bool enabled) const {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
-    return runtime &&
-           runtime->facade().setAutoPageTurn({.windowId = runtime->windowId(),
-                                              .source = Automation::InvocationSource::TrustedGui},
-                                             Automation::EditorAutoPageTarget::TrackPanel, enabled);
+    const auto *windowId = guiWindowId(runtime);
+    return windowId &&
+           runtime->facade().setAutoPageTurn(
+               {.windowId = *windowId, .source = Automation::InvocationSource::TrustedGui},
+               Automation::EditorAutoPageTarget::TrackPanel, enabled);
 }
 
 bool EditorViewController::setPianoRollAutoPageTurn(const bool enabled) const {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
-    return runtime &&
-           runtime->facade().setAutoPageTurn({.windowId = runtime->windowId(),
-                                              .source = Automation::InvocationSource::TrustedGui},
-                                             Automation::EditorAutoPageTarget::PianoRoll, enabled);
+    const auto *windowId = guiWindowId(runtime);
+    return windowId &&
+           runtime->facade().setAutoPageTurn(
+               {.windowId = *windowId, .source = Automation::InvocationSource::TrustedGui},
+               Automation::EditorAutoPageTarget::PianoRoll, enabled);
 }
 
 bool EditorViewController::applyRestoreState(const EditorViewState &state) const {
@@ -245,13 +259,14 @@ HistoryFocusVisibility EditorViewController::focusVisibility(const HistoryFocus 
 bool EditorViewController::revealFocus(const HistoryFocus &focus) const {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
     const auto target = revealDto(focus);
-    if (!runtime || !target)
+    const auto *windowId = guiWindowId(runtime);
+    if (!windowId || !target)
         return false;
     const auto version = runtime->documentVersion();
     return static_cast<bool>(
         runtime->facade().reveal({.documentId = version.documentId,
                                   .expectedRevision = version.revision,
-                                  .windowId = runtime->windowId(),
+                                  .windowId = *windowId,
                                   .source = Automation::InvocationSource::TrustedGui},
                                  *target, false));
 }
@@ -259,13 +274,14 @@ bool EditorViewController::revealFocus(const HistoryFocus &focus) const {
 bool EditorViewController::finalizeFocus(const HistoryFocus &focus) const {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
     const auto target = revealDto(focus);
-    if (!runtime || !target)
+    const auto *windowId = guiWindowId(runtime);
+    if (!windowId || !target)
         return false;
     const auto version = runtime->documentVersion();
     return static_cast<bool>(
         runtime->facade().reveal({.documentId = version.documentId,
                                   .expectedRevision = version.revision,
-                                  .windowId = runtime->windowId(),
+                                  .windowId = *windowId,
                                   .source = Automation::InvocationSource::TrustedGui},
                                  *target, true));
 }
@@ -394,8 +410,7 @@ EditorInteraction::Target EditorViewController::activeEditTarget() const {
     return m_activeEditTarget;
 }
 
-void EditorViewController::syncPianoRollEditMode(
-    const EditorViewGlobal::PianoRollEditMode mode) {
+void EditorViewController::syncPianoRollEditMode(const EditorViewGlobal::PianoRollEditMode mode) {
     if (m_pianoRollEditMode == mode)
         return;
     m_pianoRollEditMode = mode;
