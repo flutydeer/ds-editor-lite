@@ -4,10 +4,10 @@
 
 三期最终测试结论：**通过**。
 
-测试源候选为 `headless` 分支 commit `d0d64289`；其后的变更只回填正式报告，不改变受测产品代码
-或测试。该候选在项目标准 Debug 默认 `all` 完整构建基础上完成审查修复的增量全目标构建，并重新
-执行 64 项串行 CTest，结果为 64/64、0 fail。Headless QCore 资格、Native JSON-RPC、可选 MCP、
-Connector、GUI 回归、单实例、生命周期和资源清理均包含在同一候选验证链中。
+测试源候选为 `headless` 分支 commit `d852be21`；其后的变更只回填正式报告，不改变受测产品代码
+或测试。该候选保持项目 Debug build preset 的默认目标不变，通过项目脚本显式指定 `all` 完成
+全目标构建，并执行 64 项串行 CTest，结果为 64/64、0 fail。Headless QCore 资格、Native
+JSON-RPC、可选 MCP、Connector、GUI 回归、单实例、生命周期和资源清理均包含在同一候选验证链中。
 
 本报告不以 Native/MCP 对 151 项 operation 逐项重复调用作为结论依据。完整性由 Contract、Registry
 binding、Host 集合与各业务域测试证明；真实进程使用有区分度的代表语料验证协议和宿主行为。
@@ -17,21 +17,24 @@ binding、Host 集合与各业务域测试证明；真实进程使用有区分�
 | 项目 | 最终记录 |
 |---|---|
 | 分支 | `headless` |
-| 测试源候选 | `d0d64289` |
+| 测试源候选 | `d852be21` |
 | 平台 | Windows x64，build 10.0.26200.9168 |
 | 编译工具链 | Visual Studio 2026 18.9.0；MSVC 19.51.36256；toolset 14.51.36231；Windows SDK 10.0.26100.0 |
 | 依赖工具 | Qt 6.11.2；CMake 3.31.6-msvc6；Ninja 1.12.1 |
 | Debug configure/generate | configure 4.7 秒；generate 1.3 秒；退出码 0 |
-| Debug 默认 `all` 构建 | 不指定 Target，完整构建 428 个步骤；审查修复后增量全目标构建；退出码均为 0；`E-P3-FINAL-BUILD-002`、`E-P3-REVIEW-001` |
+| Debug 全目标构建 | 项目脚本显式 `-Target all`，退出码 0；preset 默认目标未修改；`E-P3-FINAL-BUILD-003` |
 | CTest 清单 | 文本与 JSON 清单均为 64 项，测试可执行文件完整；`E-P3-CTEST-LIST-002`、`E-P3-CTEST-JSON-002` |
-| 完整串行 CTest | 64/64、0 fail、60.90 秒、退出码 0；`E-P3-CTEST-FULL-002` |
-| 代表耗时 | `TestDsConnectorLite` 29.93 秒；GUI 真实进程 5.62 秒；Headless 真实进程 13.61 秒 |
+| 完整串行 CTest | 64/64、0 fail、60.50 秒、退出码 0；`E-P3-CTEST-FULL-003` |
+| 代表耗时 | `TestDsConnectorLite` 29.43 秒；GUI 真实进程 5.61 秒；Headless 真实进程 13.69 秒 |
 | Computer Use | 0 次 |
-| 最终审计与清理 | 通过；`E-P3-FINAL-AUDIT-002`、`E-P3-CLEANUP-001` |
+| 最终审计与清理 | 通过；`E-P3-FINAL-AUDIT-003`、`E-P3-CLEANUP-001` |
 
-正式候选使用项目标准 Debug preset wrapper，不指定单一 Target。最终清单与执行命令为：
+正式候选使用项目标准 Debug preset wrapper，并只在测试命令中显式指定 `all`：
 
 ```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File .agents/skills/scripts/run-cmake-preset.ps1 `
+  -Mode Build -Preset debug -Target all
 ctest --test-dir build/Debug -N
 ctest --test-dir build/Debug --show-only=json-v1
 ctest --test-dir build/Debug --output-on-failure -j 1
@@ -52,7 +55,7 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 
 专项测试确认 176/25/151 集合关系、唯一性、binding 完整性、value source metadata 和 Host gate
 顺序；Headless MCP 分页目录取得 151 个唯一 both operation。结果包含于
-`E-P3-CTEST-FULL-002`，协议代表证据为 `E-P3-HEADLESS-001`。
+`E-P3-CTEST-FULL-003`，协议代表证据为 `E-P3-HEADLESS-001`。
 
 ## 4. QCore composition、身份与零窗口
 
@@ -67,7 +70,7 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 - dirty 默认退出返回 `busy`，显式 discard 后先返回接受结果再退出。
 
 对应进程证据为 `E-P3-HEADLESS-001`；最终候选复验和退出后资源审计分别包含于
-`E-P3-CTEST-FULL-002`、`E-P3-FINAL-AUDIT-002` 与 `E-P3-CLEANUP-001`。
+`E-P3-CTEST-FULL-003`、`E-P3-FINAL-AUDIT-003` 与 `E-P3-CLEANUP-001`。
 
 ## 5. Native JSON-RPC 与 HTTP
 
@@ -82,7 +85,7 @@ Native 直连确认：
 - `automation.discover` 返回标准 `-32601 Method not found`；
 - dirty exit 与显式 discard exit 使用同一公共生命周期语义。
 
-对应代表证据为 `E-P3-NATIVE-001`，最终候选复验包含于 `E-P3-CTEST-FULL-002`。
+对应代表证据为 `E-P3-NATIVE-001`，最终候选复验包含于 `E-P3-CTEST-FULL-003`。
 
 ### 5.2 Envelope、限制与共享资源
 
@@ -92,7 +95,7 @@ Native 直连确认：
 独立性、MCP→MCP 及 MCP→Native 全局 admission、有序停止和错误响应 ID 保留。
 
 Host/Origin、Content-Type/Accept、body、JSON 深度/节点、响应体、deadline、安全响应头和 route 释放
-矩阵通过。组件证据为 `E-P3-HTTP-002`，最终串行复验为 `E-P3-CTEST-FULL-002`。
+矩阵通过。组件证据为 `E-P3-HTTP-002`，最终串行复验为 `E-P3-CTEST-FULL-003`。
 
 ## 6. 共享 listener、MCP 与 Bootstrap
 
@@ -108,7 +111,7 @@ Host/Origin、Content-Type/Accept、body、JSON 深度/节点、响应体、dead
 
 Connector 的固定桥接工具、实际 Headless 目录、GUI-only wrapper 错误、MCP disabled 状态以及
 `editor_not_running`/`editor_not_connected` 边界通过。该域最终结果包含于
-`E-P3-MCP-BOOTSTRAP-001` 与 `E-P3-CTEST-FULL-002`；`TestDsConnectorLite` 耗时 29.93 秒。
+`E-P3-MCP-BOOTSTRAP-001` 与 `E-P3-CTEST-FULL-003`；`TestDsConnectorLite` 耗时 29.43 秒。
 
 ## 7. 生命周期、单实例与进程并发
 
@@ -122,8 +125,8 @@ Connector 的固定桥接工具、实际 Headless 目录、GUI-only wrapper 错�
 - 端口冲突和运行期致命配置错误非零退出；
 - 测试结束后无测试拥有的孤儿进程、listener、QLocal、Primary、Task 或锁。
 
-Headless 真实进程域耗时 13.61 秒，GUI 真实进程域耗时 5.62 秒；最终执行与清理证据分别为
-`E-P3-PROCESS-001`、`E-P3-CTEST-FULL-002` 和 `E-P3-CLEANUP-001`。
+Headless 真实进程域耗时 13.69 秒，GUI 真实进程域耗时 5.61 秒；最终执行与清理证据分别为
+`E-P3-PROCESS-001`、`E-P3-CTEST-FULL-003` 和 `E-P3-CLEANUP-001`。
 
 ## 8. QCore 业务域资格
 
@@ -139,7 +142,7 @@ operation 做双协议逐项调用。真实进程和组件测试使用以下代�
 
 Native、MCP、Connector 与直接 Facade 的代表调用在结果、错误、revision、History 和 Task 生命周期
 上保持一致。代表语料与最终结果分别记录于 `E-P3-DOMAIN-001` 和
-`E-P3-CTEST-FULL-002`。
+`E-P3-CTEST-FULL-003`。
 
 ## 9. GUI 与 Connector 回归
 
@@ -156,16 +159,16 @@ GUI 回归遵循“确定性测试与进程检查 → Editor MCP/DS Connector Li
 - MCP 启停、重启、单实例和 Connector 自动重连未回退；
 - MCP 修改后的模型与 GUI 状态一致。
 
-GUI 真实进程域耗时 5.62 秒，Connector 测试耗时 29.93 秒，结果包含于
-`E-P3-GUI-001` 与 `E-P3-CTEST-FULL-002`。
+GUI 真实进程域耗时 5.61 秒，Connector 测试耗时 29.43 秒，结果包含于
+`E-P3-GUI-001` 与 `E-P3-CTEST-FULL-003`。
 
 ## 10. 缺陷与修复闭环
 
 | Failure ID | 根因与处理 | 闭环证据 |
 |---|---|---|
-| `E-P3-HTTP-001` | 共享 HTTP 改造中的 Qt HTTP response 所有权/API 使用问题；修复为唯一移动语义 | HTTP 组件复验 `E-P3-HTTP-002`，最终串行复验 `E-P3-CTEST-FULL-002` |
-| `E-P3-BUILD-004` | Debug preset 原先只构建 Editor/Connector，导致 CTest 测试可执行文件缺失；commit `74915546` 将 Debug preset 恢复为默认 `all` 构建 | 最终构建 `E-P3-FINAL-BUILD-002`、清单 `E-P3-CTEST-LIST-002`/`E-P3-CTEST-JSON-002`、全量 `E-P3-CTEST-FULL-002` |
-| `E-P3-REVIEW-001` | Codex 审查发现 GUI 音频设备失败反馈被一并移除，以及响应上限会随请求上限被静默抬高；分别以 Host 条件反馈和独立响应上限修复 | 专项 2/2 与最终串行 64/64；`E-P3-REVIEW-001`、`E-P3-CTEST-FULL-002` |
+| `E-P3-HTTP-001` | 共享 HTTP 改造中的 Qt HTTP response 所有权/API 使用问题；修复为唯一移动语义 | HTTP 组件复验 `E-P3-HTTP-002`，最终串行复验 `E-P3-CTEST-FULL-003` |
+| `E-P3-BUILD-004` | 首次测试命令误以为不指定 Target 会构建全部测试；最终不修改 preset，而在测试命令中显式指定 `all` | 最终构建 `E-P3-FINAL-BUILD-003`、清单 `E-P3-CTEST-LIST-002`/`E-P3-CTEST-JSON-002`、全量 `E-P3-CTEST-FULL-003` |
+| `E-P3-REVIEW-001` | Codex 审查发现 GUI 音频设备失败反馈被一并移除，以及响应上限会随请求上限被静默抬高；分别以 Host 条件反馈和独立响应上限修复 | 专项 2/2 与最终串行 64/64；`E-P3-REVIEW-001`、`E-P3-CTEST-FULL-003` |
 
 阶段提交链：
 
@@ -178,9 +181,10 @@ GUI 真实进程域耗时 5.62 秒，Connector 测试耗时 29.93 秒，结果�
 | `c5962c67` | `feat(automation): serve native json-rpc in headless mode` |
 | `6e88b271` | `fix(headless): remove hidden gui runtime dependencies` |
 | `2cbc9766` | `test(headless): cover qcore and native workflows` |
-| `74915546` | `fix(build): include debug tests in preset build` |
+| `74915546` | `fix(build): include debug tests in preset build`（中间调整，最终已恢复） |
 | `06c1a2e7` | `fix(audio): preserve gui device failure feedback` |
 | `d0d64289` | `fix(automation): honor configured response limit` |
+| `d852be21` | `fix(build): restore debug preset targets`（最终与基线一致） |
 
 首次失败证据、修复提交、最小复验、所属域复验和最终串行 CTest 已形成闭环；最终候选无未关闭的
 测试失败。
@@ -208,13 +212,14 @@ GUI 真实进程域耗时 5.62 秒，Connector 测试耗时 29.93 秒，结果�
 | `E-P3-DOMAIN-001` | 编辑、History、文件、音频、Task、设置和错误的代表语料 |
 | `E-P3-PROCESS-001` | QCore 零窗口、生命周期、端口冲突、单实例与进程清理 |
 | `E-P3-GUI-001` | GUI 176 项集合、GUI-only 代表操作与 Connector/MCP 回归 |
-| `E-P3-BUILD-004` | Debug preset 未构建测试目标的首次失败记录 |
-| `E-P3-FINAL-BUILD-002` | 最终标准 Debug 默认 `all` 构建 |
+| `E-P3-BUILD-004` | 测试命令未显式指定 `all` 导致目标缺失的首次记录 |
+| `E-P3-FINAL-BUILD-003` | 保持 preset 默认目标不变的 Debug 显式 `all` 构建 |
 | `E-P3-CTEST-LIST-002` | 最终 CTest 文本清单与可执行文件核对 |
 | `E-P3-CTEST-JSON-002` | 最终 CTest JSON 清单 |
-| `E-P3-CTEST-FULL-002` | 审查修复后最终串行 64 项完整执行 |
+| `E-P3-CTEST-FULL-003` | 审查修复后最终串行 64 项完整执行 |
 | `E-P3-REVIEW-001` | Codex 审查问题、修复提交与专项回归链 |
-| `E-P3-FINAL-AUDIT-002` | diff、错误码、进程与资源最终审计 |
+| `E-P3-SCOPE-001` | 恢复项目 preset 并将 `all` 限定到测试命令的范围修正 |
+| `E-P3-FINAL-AUDIT-003` | diff、错误码、进程与资源最终审计 |
 | `E-P3-CLEANUP-001` | 测试拥有资源 cleanup manifest |
 
 ## 12. 最终通过清单
@@ -227,7 +232,7 @@ GUI 真实进程域耗时 5.62 秒，Connector 测试耗时 29.93 秒，结果�
 - [x] Bootstrap、Connector、单实例、退出/重启和致命启动失败通过。
 - [x] 151 项 QCore 资格与真实文件/Task/业务代表路径通过。
 - [x] GUI MCP/Connector 回归通过，Computer Use 使用符合最小必要原则。
-- [x] Debug 默认 `all` 构建与一次最终串行完整 CTest 通过。
+- [x] Debug 显式 `all` 构建与一次最终串行完整 CTest 通过，preset 默认目标未修改。
 - [x] 授权素材原件未修改，测试拥有资源已清理，Evidence 索引完整。
 
 最终签署：**通过**。

@@ -11,12 +11,12 @@
 继续共用 PublicAutomationRegistry、Access Policy、File Guard、Admission、类型化 binding、
 Automation Facade、History、revision 与 Task 生命周期。
 
-测试源候选最终冻结于 `headless` 分支 commit `d0d64289`；其后的变更仅回填正式报告，不改变受测
-产品代码或测试。项目标准 Debug preset 在不指定 Target 的情况下完成默认 `all` 构建；审查修复后
-重新完成增量全目标构建与串行 CTest，结果为 64/64、0 fail。最终构建、清单、全量执行与审计证据
-分别为
-`E-P3-FINAL-BUILD-002`、`E-P3-CTEST-LIST-002`、`E-P3-CTEST-JSON-002`、
-`E-P3-CTEST-FULL-002`、`E-P3-REVIEW-001` 和 `E-P3-FINAL-AUDIT-002`。
+测试源候选最终冻结于 `headless` 分支 commit `d852be21`；其后的变更仅回填正式报告，不改变受测
+产品代码或测试。项目 Debug build preset 的默认目标保持不变，正式候选通过项目脚本显式指定
+`-Target all` 完成全目标构建与串行 CTest，结果为 64/64、0 fail。最终构建、清单、全量执行与
+审计证据分别为 `E-P3-FINAL-BUILD-003`、`E-P3-CTEST-LIST-002`、
+`E-P3-CTEST-JSON-002`、`E-P3-CTEST-FULL-003`、`E-P3-REVIEW-001` 和
+`E-P3-FINAL-AUDIT-003`。
 
 ## 2. 启动入口与 Host composition
 
@@ -203,11 +203,10 @@ QLocal Bootstrap 的 `server_*` 字段继续只描述 Connector 所需的 MCP ro
 测试控制优先使用确定性 CTest、命令行进程、HTTP/QLocal/窗口枚举、Editor MCP 与 Connector MCP。
 Computer Use 只在其他方式无法覆盖必要 GUI 断言时使用；本期最终执行次数为 0。
 
-最终标准 Debug 完整构建完成 configure 4.7 秒、generate 1.3 秒及 428 个构建步骤，退出码为 0；
-Codex 审查修复后又完成默认 `all` 增量构建。CTest 文本清单与 JSON 清单均为 64 项且测试可执行
-文件完整；最终候选串行执行 64/64、0 fail，耗时 60.90 秒，退出码为 0。测试仅使用自动生成的
-WAV/DSPX fixture，未访问或复制授权素材，因此原文件 hash 不适用；最终资源清理和 Evidence 索引
-审计通过。
+最终标准 Debug 构建通过项目脚本显式指定 `all`，退出码为 0，并保持 `CMakePresets.json` 与基线
+一致。CTest 文本清单与 JSON 清单均为 64 项且测试可执行文件完整；最终候选串行执行 64/64、
+0 fail，耗时 60.50 秒，退出码为 0。测试仅使用自动生成的 WAV/DSPX fixture，未访问或复制授权
+素材，因此原文件 hash 不适用；最终资源清理和 Evidence 索引审计通过。
 
 ## 11. 明确未交付范围
 

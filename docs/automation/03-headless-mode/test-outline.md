@@ -258,7 +258,8 @@ APPDATA/LOCALAPPDATA、访问根和端口，并只管理测试拥有的 PID/proc
 
 ## 14. 构建、CTest 与通过标准
 
-正式候选使用项目标准 DevShell/preset 脚本完成 Debug 全目标配置和构建，不指定单独 Target。随后：
+正式候选使用项目标准 DevShell/preset 脚本并显式指定 `all`，完成 Debug 全目标配置和构建，不修改
+项目 preset 的默认目标。随后：
 
 ```powershell
 ctest --test-dir build/Debug -N

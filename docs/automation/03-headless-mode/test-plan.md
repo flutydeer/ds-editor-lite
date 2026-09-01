@@ -113,10 +113,12 @@ work/
 powershell -NoProfile -ExecutionPolicy Bypass `
   -File .agents/skills/scripts/run-cmake-preset.ps1 `
   -Mode ConfigureAndBuild `
-  -Preset debug
+  -Preset debug `
+  -Target all
 ```
 
-完整候选不指定单独 Target，覆盖 Editor、Connector 和全部测试目标。构建完成后执行：
+完整候选显式构建 `all`，覆盖 Editor、Connector 和全部测试目标，同时保持项目 Debug build preset
+默认目标不变。构建完成后执行：
 
 ```powershell
 ctest --test-dir build/Debug -N
