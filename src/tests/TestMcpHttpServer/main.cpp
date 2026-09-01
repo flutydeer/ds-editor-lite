@@ -1105,7 +1105,7 @@ int main(int argc, char *argv[]) {
            QStringLiteral("stopping the shared listener must clear both endpoints"));
 
     Automation::McpHttpLimits nativeResponseLimits;
-    nativeResponseLimits.maximumRequestBytes = 1024;
+    nativeResponseLimits.maximumRequestBytes = 4096;
     nativeResponseLimits.maximumResponseBytes = 1024;
     Automation::McpHttpServer nativeResponseLimitServer(
         &application, Automation::McpHttpServer::RequestHandler{},
@@ -1114,7 +1114,7 @@ int main(int argc, char *argv[]) {
                 return QJsonObject{
                     {QStringLiteral("jsonrpc"), QStringLiteral("2.0")},
                     {QStringLiteral("id"), message.toObject().value(QStringLiteral("id"))},
-                    {QStringLiteral("result"), QString(5000, QLatin1Char('x'))},
+                    {QStringLiteral("result"), QString(2048, QLatin1Char('x'))},
                 };
             }),
         nativeResponseLimits);

@@ -1255,8 +1255,8 @@ namespace Automation {
           m_limits(std::move(limits)), m_handlerContext(handlerContext ? handlerContext : this) {
         m_limits.maximumRequestBytes =
             std::clamp<qsizetype>(m_limits.maximumRequestBytes, 1024, maximumTransportBodyBytes);
-        m_limits.maximumResponseBytes = std::max<qsizetype>(
-            {1024, m_limits.maximumResponseBytes, m_limits.maximumRequestBytes + 1024});
+        m_limits.maximumResponseBytes =
+            std::max<qsizetype>(1024, m_limits.maximumResponseBytes);
         m_limits.maximumJsonDepth = std::max(8, m_limits.maximumJsonDepth);
         m_limits.maximumJsonNodes = std::max<qsizetype>(128, m_limits.maximumJsonNodes);
         m_limits.maximumGlobalInFlight = std::max(1, m_limits.maximumGlobalInFlight);
