@@ -1289,6 +1289,10 @@ public:
         if (!pitchTransformMouseDown)
             return;
         const auto phase = pitchTransform.phase();
+        if ((phase == CurveTransform::Phase::Adjusting && pitchTransformBoundaryDragging) ||
+            phase == CurveTransform::Phase::Transforming) {
+            mouseMovePitchTransform(viewportPosition);
+        }
         pitchTransformMouseDown = false;
         if (phase == CurveTransform::Phase::Selecting) {
             pitchTransform.finishSelection(qRound(localTickAt(viewportPosition)));

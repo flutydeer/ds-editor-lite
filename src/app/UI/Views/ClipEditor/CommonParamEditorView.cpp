@@ -763,6 +763,10 @@ void CommonParamEditorView::curveTransformMouseReleaseEvent(QGraphicsSceneMouseE
     if (!m_mouseDown || event->button() != m_mouseDownButton)
         return;
     const auto phase = m_curveTransform.phase();
+    if ((phase == CurveTransform::Phase::Adjusting && m_transformBoundaryDragging) ||
+        phase == CurveTransform::Phase::Transforming) {
+        curveTransformMouseMoveEvent(event);
+    }
     m_mouseDown = false;
     m_mouseDownButton = Qt::NoButton;
     if (phase == CurveTransform::Phase::Selecting) {
