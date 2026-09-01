@@ -24,6 +24,7 @@
 #include <QCoreApplication>
 #include <QFile>
 #include <QJsonArray>
+#include <QSaveFile>
 
 #include <algorithm>
 
@@ -278,6 +279,7 @@ namespace {
             QJsonArray keyframes;
             for (const auto &keyframe : normalized.dynamicKeyframes) {
                 QJsonObject keyframeObj;
+                keyframeObj["id"] = keyframe.id;
                 keyframeObj["tick"] = keyframe.tick;
                 keyframeObj["weights"] = encodeWeights(keyframe.weights);
                 keyframes.append(keyframeObj);
@@ -399,6 +401,8 @@ namespace {
             for (const auto &keyframeValue : keyframesArray) {
                 const auto keyframeObj = keyframeValue.toObject();
                 SpeakerMixKeyframe keyframe;
+                if (const auto id = keyframeObj["id"].toInt(-1); id >= 0)
+                    keyframe.id = id;
                 keyframe.tick = keyframeObj["tick"].toInt();
                 const auto remapped = remapWeights(decodeWeights(keyframeObj["weights"].toArray()));
                 // 若 weights 长度不匹配则跳过该 keyframe（normalize 会处理空 keyframes）
@@ -1055,6 +1059,12 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
         timeSignatures.append(
             TimeSignature(signature.index, signature.numerator, signature.denominator));
     }
+    if (!Timeline::isTimeSignatureProjectionValid(timeSignatures)) {
+        errMsg = QCoreApplication::translate(
+            "DspxProjectConverter",
+            "Failed to load project file: timeline values are invalid.");
+        return false;
+    }
     model->setTimeline(Timeline(std::move(tempos), std::move(timeSignatures)));
     auto masterControl = TrackControl();
     masterControl.setGain(dspxModel.content.master.control.gain);
@@ -1360,7 +1370,8 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
             return false;
         }
 
-        QFile file(filePath);
+        QSaveFile file(filePath);
+        file.setDirectWriteFallback(false);
         if (!file.open(QIODevice::WriteOnly)) {
             msg += QCoreApplication::translate("DspxProjectConverter",
                                                "Failed to open file for writing: %1")
@@ -1370,12 +1381,21 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
 
         auto jsonData = QByteArray::fromStdString(ss.str());
 
-        const qint64 written = file.write(jsonData);
-        file.close();
-
-        if (written != jsonData.size()) {
+        if (file.write(jsonData) != jsonData.size()) {
+            file.cancelWriting();
             msg += QCoreApplication::translate("DspxProjectConverter",
                                                "Failed to write all data to file: %1")
+                       .arg(filePath);
+            return false;
+        }
+        if (!file.flush()) {
+            file.cancelWriting();
+            msg += QCoreApplication::translate("DspxProjectConverter", "Failed to flush file: %1")
+                       .arg(filePath);
+            return false;
+        }
+        if (!file.commit()) {
+            msg += QCoreApplication::translate("DspxProjectConverter", "Failed to commit file: %1")
                        .arg(filePath);
             return false;
         }

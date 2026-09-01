@@ -288,7 +288,7 @@ HistoryFocusVisibility TracksRhiWidget::focusVisibility(const HistoryFocus &focu
     }
     if (focusRect.isNull())
         return HistoryFocusVisibility::ContextSwitchRequired;
-    return m_viewport.logicalVisibleSceneRect().intersects(focusRect)
+    return m_viewport.logicalVisibleSceneRect().contains(focusRect)
                ? HistoryFocusVisibility::Visible
                : HistoryFocusVisibility::ScrollRequired;
 }
@@ -297,37 +297,57 @@ bool TracksRhiWidget::revealFocus(const HistoryFocus &focus, const bool animated
     if (!focus.isValid() || focus.kind != HistoryFocusKind::TrackClips)
         return false;
     m_wheelController->stop();
-    QList<int> selectedIds;
-    QRectF bounds;
-    for (const auto id : focus.objectIds) {
-        int trackIndex = -1;
-        if (const auto *clip = appModel->findClipById(id, trackIndex)) {
-            selectedIds.append(id);
-            const auto left = m_viewport.tickToSceneX(clip->start() + clip->clipStart());
-            const auto right =
-                m_viewport.tickToSceneX(clip->start() + clip->clipStart() + clip->clipLen());
-            const QRectF rect(left, m_viewport.unitToSceneY(trackIndex),
-                              std::max(1.0, right - left), trackHeight * scaleY());
-            bounds = bounds.isNull() ? rect : bounds.united(rect);
+    const auto focusBounds = [this, &focus] {
+        QRectF bounds;
+        for (const auto id : focus.objectIds) {
+            int trackIndex = -1;
+            if (const auto *clip = appModel->findClipById(id, trackIndex)) {
+                const auto left = m_viewport.tickToSceneX(clip->start() + clip->clipStart());
+                const auto right =
+                    m_viewport.tickToSceneX(clip->start() + clip->clipStart() + clip->clipLen());
+                const QRectF rect(left, m_viewport.unitToSceneY(trackIndex),
+                                  std::max(1.0, right - left), trackHeight * scaleY());
+                bounds = bounds.isNull() ? rect : bounds.united(rect);
+            }
         }
-    }
-    if (!selectedIds.isEmpty()) {
-        syncSelection(selectedIds);
-        trackController->setActiveClip(selectedIds.first());
-        return m_viewport.ensureVisible(bounds, 24.0, 24.0, animated);
-    }
-    int trackIndex = focus.trackIndex;
-    if (focus.trackId >= 0)
-        appModel->findTrackById(focus.trackId, trackIndex);
-    if (trackIndex < 0)
-        trackIndex = qRound((focus.valueStart + focus.valueEnd) * 0.5);
-    if (trackIndex < 0)
+        if (!bounds.isNull())
+            return bounds;
+        int trackIndex = focus.trackIndex;
+        if (focus.trackId >= 0)
+            appModel->findTrackById(focus.trackId, trackIndex);
+        if (trackIndex < 0)
+            trackIndex = qRound((focus.valueStart + focus.valueEnd) * 0.5);
+        if (trackIndex < 0)
+            return QRectF();
+        const auto left = m_viewport.tickToSceneX(focus.tickStart);
+        const auto right = m_viewport.tickToSceneX(focus.tickEnd);
+        return QRectF(left, m_viewport.unitToSceneY(trackIndex), std::max(1.0, right - left),
+                      trackHeight * scaleY());
+    };
+
+    auto bounds = focusBounds();
+    if (!bounds.isValid() || bounds.isNull())
         return false;
-    const auto left = m_viewport.tickToSceneX(focus.tickStart);
-    const auto right = m_viewport.tickToSceneX(focus.tickEnd);
-    return m_viewport.ensureVisible(QRectF(left, m_viewport.unitToSceneY(trackIndex),
-                                           std::max(1.0, right - left), trackHeight * scaleY()),
-                                    24.0, 24.0, animated);
+    constexpr double margin = 24.0;
+    const auto viewportSize = m_viewport.viewportSize();
+    const auto availableWidth = std::max(1.0, viewportSize.width() - margin * 2.0);
+    const auto availableHeight = std::max(1.0, viewportSize.height() - margin * 2.0);
+    auto targetScaleX = scaleX();
+    auto targetScaleY = scaleY();
+    if (bounds.width() > availableWidth)
+        targetScaleX *= availableWidth / bounds.width();
+    if (bounds.height() > availableHeight)
+        targetScaleY *= availableHeight / bounds.height();
+    targetScaleX = m_viewport.boundedScale(Qt::Horizontal, targetScaleX);
+    targetScaleY = m_viewport.boundedScale(Qt::Vertical, targetScaleY);
+    if (!m_viewport.setScale(targetScaleX, targetScaleY,
+                             QPointF(viewportSize.width() * 0.5, viewportSize.height() * 0.5))) {
+        return false;
+    }
+    bounds = focusBounds();
+    if (!m_viewport.ensureVisible(bounds, margin, margin, animated))
+        return false;
+    return m_viewport.logicalVisibleSceneRect().contains(bounds);
 }
 
 QRectF TracksRhiWidget::logicalVisibleRect() const {

@@ -8,6 +8,8 @@
 
 #include <QColor>
 
+#include <utility>
+
 class ParamProperties;
 class AnchorCurve;
 class QPainterPath;
@@ -32,6 +34,10 @@ public:
     [[nodiscard]] const QList<DrawCurve *> &editedCurves() const;
     [[nodiscard]] double sceneYForValue(double value) const;
     [[nodiscard]] double valueAtSceneY(double y) const;
+    [[nodiscard]] std::pair<double, double> valueViewport() const;
+    [[nodiscard]] std::pair<double, double> normalizedValueViewport() const;
+    bool setValueViewport(double minimum, double maximum);
+    bool setNormalizedValueViewport(double minimum, double maximum);
     void discardAction() override;
     void commitAction() override;
 
@@ -95,6 +101,8 @@ private:
     [[nodiscard]] double valueToItemY(double value) const;
     const int paddingTopBottom = 2;
     const ParamProperties *m_properties;
+    double m_valueViewportMinimum = 0.0;
+    double m_valueViewportMaximum = 1.0;
 
     // Base colors; per-layer alpha (foreground/background) is applied in paint()
     QColor m_graduateColor = {72, 75, 78};

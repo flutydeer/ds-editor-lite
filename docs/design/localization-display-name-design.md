@@ -20,7 +20,7 @@ synthrt 将声库元数据中的多语言文本收敛为单一类型 `srt::core:
 
 此前 ds-editor-lite 只把 `DisplayText` 拍扁成默认文本（`QString`），翻译全部丢弃，切语言不生效。
 
-**目标**：声库/歌手/声线/语言/包名等展示名携带全翻译，按当前 UI 语言（含 BCP 47 候选链）即时解析，且与 synthrt 的匹配语义逐例一致。
+**目标**：歌手、声线、语言以及包供应方、说明和许可等展示文本携带全翻译，按当前 UI 语言（含 BCP 47 候选链）即时解析，且与 synthrt 的匹配语义逐例一致。
 
 ## 数据流全景
 
@@ -40,6 +40,7 @@ UI 取词
   → 逐候选 IcuWrapper::bestMatch（ICU 归一化大小写/POSIX 分隔符，命中键按原样拼写精确取值）
         ▼
   歌手 combo / 轨道头 / 剪辑标题 / 语言 combo / 声库管理器 / 参数编辑器
+  MCP voices/packages：默认文本与当前 UI 显示文本分栏，详情保留完整翻译表
 ```
 
 序列化/剪贴板路径（`ClipsInfo`、`SpeakerMixPreset`）继续消费主字段 `name()`——即默认文本，符合"无语言上下文用 `.text()`"的契约，向后兼容。
@@ -103,6 +104,7 @@ Qt 实测（Qt 6.11.2）`QLocale("zh_CN")`：
 | `src/libs/PackageManager/Models/PackageInfo.{h,cpp}` | 新增 `localizedVendor/Description/License` + `display*` 重载 |
 | `src/libs/PackageManager/PackageManager.cpp` | `toLocalizedTextMap(const srt::core::DisplayText&)` 拷全翻译；构建各模型时 `setLocalized*` |
 | UI 消费点 | `SpeakerMixDisplayUtils`、`TwoLevelComboBox`、`LanguageComboBox`、`SpeakerMixDialog`、`Package{DetailsHeader,DetailsContent,ItemDelegate,FilterProxyModel}`、`ParamEditorView`/`SpeakerMixEditorView`、`{TrackEditor,TracksGraphics,TracksRhi}View` |
+| 自动化消费点 | `voices.list/describe` 与 `packages.list/describe` 复用相同匹配内核；默认文本保持稳定，`display_*` 跟随当前 UI 语言，详情输出模型中已缓存的完整翻译表 |
 
 模型 API 保持**主字段(默认文本) + 本地化表 + display(locale)** 的组合，`operator==`/拷贝构造同步本地化表（`SingerInfoData` 等），`isEmpty()` 语义不变。
 

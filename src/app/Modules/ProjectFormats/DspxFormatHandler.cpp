@@ -22,9 +22,11 @@ bool DspxFormatHandler::probe(const QByteArray &header) const {
 IProjectLoadSession *DspxFormatHandler::createSession(const ProjectLoadRequest &request,
                                                       IDocumentWorkflowUi *ui, QObject *parent) {
     if (request.purpose == ProjectLoadPurpose::Open)
-        return new DspxLoadSession(request.filePath, request.requestId, ui, parent);
+        return new DspxLoadSession(request.filePath, request.requestId, ui, !request.interactive,
+                                   parent);
     return new DspxImportLoadSession(this, request.filePath, request.purpose, request.requestId,
-                                     parent);
+                                     request.interactive, request.importTempo,
+                                     request.importTimeSignature, parent);
 }
 
 IProjectConfigPage *DspxFormatHandler::createConfigPage(QWidget *parent) {

@@ -6,6 +6,7 @@
 #include "SettingsAutomationFacade.h"
 
 #include <QHash>
+#include <QMutex>
 
 #include <functional>
 #include <memory>
@@ -42,6 +43,14 @@ namespace Automation {
                                const AudioExportPolicyDto &) = default;
     };
 
+    struct AudioExportCapabilitiesDto {
+        QStringList formats;
+        QList<int> sampleRates;
+        QStringList channelModes;
+        QStringList mixingModes;
+        QStringList sourceModes;
+    };
+
     enum class AudioExportBackendState {
         Succeeded,
         Failed,
@@ -67,7 +76,11 @@ namespace Automation {
         virtual ~IAudioExportJob() = default;
 
         [[nodiscard]] virtual AudioExportPreviewDto preview() const = 0;
-        virtual AudioExportBackendResult execute(const AudioExportObserver &observer) = 0;
+        virtual AudioExportBackendResult waitUntilReady(const AudioExportObserver &observer) = 0;
+        virtual AudioExportBackendResult execute(const AudioExportObserver &observer,
+                                                 bool deferPublish) = 0;
+        virtual AudioExportBackendResult publish(const AudioExportObserver &observer,
+                                                 bool allowOverwrite) = 0;
         virtual void cancel() = 0;
         virtual void cleanup() = 0;
     };
@@ -79,11 +92,13 @@ namespace Automation {
         std::function<void(std::function<void()>)> schedule;
     };
 
+    using AudioExportAccessRevalidator = std::function<AutomationResult<AutomationUnit>()>;
+    using AudioExportOutputAuthorizer =
+        std::function<AutomationResult<AutomationUnit>(const AudioExportPreviewDto &)>;
+
     class AudioExportAutomationFacade final {
     public:
-        AudioExportAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
-                                    IDocumentSessionResolver &documentResolver,
-                                    AutomationTaskManager &tasks,
+        AudioExportAutomationFacade(AutomationDispatcher &dispatcher, AutomationTaskManager &tasks,
                                     AudioExportRuntimeServices services = {});
 
         AutomationResult<AudioExportPreviewDto> preview(const DocumentId &documentId,
@@ -92,8 +107,21 @@ namespace Automation {
                                                    const AudioExportConfigDto &config,
                                                    const AudioExportPolicyDto &policy,
                                                    AudioExportObserver observer = {});
+        AutomationResult<TaskAcceptedResult> start(const CommandContext &context,
+                                                   const AudioExportConfigDto &config,
+                                                   const AudioExportPolicyDto &policy,
+                                                   AudioExportObserver observer,
+                                                   AudioExportAccessRevalidator reauthorize);
+        AutomationResult<TaskAcceptedResult> start(const CommandContext &context,
+                                                   const AudioExportConfigDto &config,
+                                                   const AudioExportPolicyDto &policy,
+                                                   AudioExportObserver observer,
+                                                   AudioExportOutputAuthorizer authorizeOutputs,
+                                                   AudioExportAccessRevalidator reauthorize);
         AutomationResult<ApplicationMutationResult> cleanup(const CommandContext &context,
                                                             const TaskId &taskId);
+
+        [[nodiscard]] static AudioExportCapabilitiesDto capabilities();
 
         void discardDocumentGeneration(const DocumentId &documentId);
 
@@ -101,18 +129,15 @@ namespace Automation {
         struct PendingJobState;
         struct JobRecord;
 
-        void registerOperations();
         void executeTask(const TaskId &taskId, DocumentVersion baseDocument,
-                         AudioExportObserver observer,
-                         const std::shared_ptr<PendingJobState> &state);
-        AutomationResult<std::reference_wrapper<DocumentSession>>
-            resolveDocumentGeneration(const DocumentVersion &version) const;
+                         AudioExportObserver observer, AudioExportAccessRevalidator reauthorize,
+                         const std::shared_ptr<PendingJobState> &state, bool allowOverwrite);
+        void removeJobRecord(const TaskId &taskId);
 
-        OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
-        IDocumentSessionResolver &m_documentResolver;
         AutomationTaskManager &m_tasks;
         AudioExportRuntimeServices m_services;
+        QMutex m_jobsMutex;
         QHash<TaskId, std::shared_ptr<JobRecord>> m_jobs;
     };
 

@@ -153,6 +153,125 @@ namespace {
                "unknown TaskId must fail consistently on query, cancel, and commit entry");
     }
 
+    void testApplicationTaskScope(Checks &checks) {
+        checks.scenario("application tasks remain independent from document generations");
+
+        Automation::AutomationTaskManager tasks;
+        const auto document = Automation::DocumentVersion{Automation::DocumentId::create(), 4};
+        int cancelCount = 0;
+        const auto canceledTask = tasks.createApplicationTask(
+            QStringLiteral("packages.refresh"), [&cancelCount] { ++cancelCount; },
+            QStringLiteral("test-client"));
+        EXPECT(checks,
+               canceledTask.scope == Automation::AutomationTaskScope::Application &&
+                   canceledTask.baseDocument.documentId.isNull() &&
+                   tasks.listApplication().size() == 1 && tasks.list(document.documentId).isEmpty(),
+               "application tasks must expose an explicit scope without a fake document");
+        EXPECT(checks,
+               !tasks.get(document.documentId, canceledTask.taskId) &&
+                   tasks.getApplication(canceledTask.taskId),
+               "document and application task lookup must remain scope-safe");
+        const auto firstCancel = tasks.requestCancelApplication(canceledTask.taskId);
+        const auto repeatedCancel = tasks.requestCancelApplication(canceledTask.taskId);
+        const auto canceledCommit = tasks.beginCommitting(canceledTask.taskId);
+        EXPECT(checks,
+               firstCancel && repeatedCancel && canceledCommit && !canceledCommit.get() &&
+                   cancelCount == 1 &&
+                   tasks.getApplication(canceledTask.taskId).get().state ==
+                       Automation::AutomationTaskState::Canceled,
+               "application cancellation must be idempotent and win before commit");
+
+        const auto succeededTask = tasks.createApplicationTask(QStringLiteral("packages.refresh"));
+        const auto running = tasks.markRunning(succeededTask.taskId);
+        const auto committing = tasks.beginCommitting(succeededTask.taskId);
+        EXPECT(checks,
+               running && committing && committing.get() &&
+                   tasks.succeedApplication(
+                       succeededTask.taskId,
+                       QJsonObject{
+                           {QStringLiteral("added"),   2},
+                           {QStringLiteral("removed"), 1}
+        }),
+               "application tasks must support one successful application result");
+        tasks.discardDocumentGeneration(document.documentId);
+        const auto succeeded = tasks.getApplication(succeededTask.taskId);
+        EXPECT(checks,
+               succeeded && succeeded.get().state == Automation::AutomationTaskState::Succeeded &&
+                   succeeded.get().applicationResult &&
+                   succeeded.get().applicationResult->value(QStringLiteral("added")).toInt() == 2,
+               "document generation cleanup must not discard application task results");
+
+        Automation::AutomationTaskManager retainedTasks;
+        const auto active = retainedTasks.createApplicationTask(QStringLiteral("packages.refresh"));
+        EXPECT(checks, retainedTasks.markRunning(active.taskId),
+               "the retained-history fixture must keep one active application task");
+        QList<Automation::TaskId> terminalIds;
+        for (qsizetype index = 0;
+             index <= Automation::AutomationTaskManager::MaximumRetainedApplicationTasks; ++index) {
+            const auto terminal =
+                retainedTasks.createApplicationTask(QStringLiteral("packages.refresh"));
+            terminalIds.append(terminal.taskId);
+            const auto enteredCommit = retainedTasks.beginCommitting(terminal.taskId);
+            EXPECT(checks,
+                   enteredCommit && enteredCommit.get() &&
+                       retainedTasks.succeedApplication(
+                           terminal.taskId,
+                           QJsonObject{
+                               {QStringLiteral("sequence"), static_cast<qint64>(index)}
+            }),
+                   "application history fixture tasks must reach a terminal state");
+        }
+        EXPECT(checks,
+               retainedTasks.listApplication().size() ==
+                       Automation::AutomationTaskManager::MaximumRetainedApplicationTasks + 1 &&
+                   !retainedTasks.getApplication(terminalIds.first()) &&
+                   retainedTasks.getApplication(terminalIds.last()) &&
+                   retainedTasks.getApplication(active.taskId),
+               "terminal application history must be bounded without evicting active tasks");
+    }
+
+    void testDocumentTaskRetention(Checks &checks) {
+        checks.scenario("document terminal task history remains bounded per generation");
+
+        Automation::AutomationTaskManager tasks;
+        const auto document = Automation::DocumentVersion{Automation::DocumentId::create(), 4};
+        const auto otherDocument = Automation::DocumentVersion{Automation::DocumentId::create(), 2};
+        const auto active = tasks.createTask(Automation::OperationIds::inference::start, document);
+        EXPECT(checks, tasks.markRunning(active.taskId),
+               "the document retention fixture must keep one active task");
+
+        const auto other = tasks.createTask(Automation::OperationIds::inference::start, otherDocument);
+        const auto otherCommit = tasks.beginCommitting(other.taskId);
+        EXPECT(checks,
+               otherCommit && otherCommit.get() &&
+                   tasks.succeed(other.taskId,
+                                 {.previous = otherDocument, .current = otherDocument}),
+               "a second document generation must retain its own terminal history");
+
+        QList<Automation::TaskId> terminalIds;
+        for (qsizetype index = 0;
+             index <= Automation::AutomationTaskManager::MaximumRetainedDocumentTasks; ++index) {
+            const auto terminal =
+                tasks.createTask(Automation::OperationIds::inference::start, document);
+            terminalIds.append(terminal.taskId);
+            const auto enteredCommit = tasks.beginCommitting(terminal.taskId);
+            EXPECT(checks,
+                   enteredCommit && enteredCommit.get() &&
+                       tasks.succeed(terminal.taskId,
+                                     {.previous = document, .current = document}),
+                   "document history fixture tasks must reach a terminal state");
+        }
+        EXPECT(checks,
+               tasks.list(document.documentId).size() ==
+                       Automation::AutomationTaskManager::MaximumRetainedDocumentTasks + 1 &&
+                   !tasks.get(document.documentId, terminalIds.first()) &&
+                   tasks.get(document.documentId, terminalIds.last()) &&
+                   tasks.get(document.documentId, active.taskId) &&
+                   tasks.get(otherDocument.documentId, other.taskId),
+               "terminal document history must be bounded per generation without evicting active "
+               "or unrelated tasks");
+    }
+
     struct CancelRaceOutcome {
         bool succeeded = false;
         Automation::AutomationTaskState state = Automation::AutomationTaskState::Queued;
@@ -300,8 +419,20 @@ namespace {
         Automation::DocumentSession session(nullptr, nullptr);
         Automation::AutomationTaskManager tasks;
         const auto oldVersion = session.version();
-        const auto task =
-            tasks.createTask(Automation::OperationIds::extract::pitch::start, oldVersion);
+        int cancelCallbacks = 0;
+        int unsuccessfulCallbacks = 0;
+        int terminalCallbacks = 0;
+        std::optional<Automation::AutomationTaskSnapshot> removedSnapshot;
+        const auto task = tasks.createTask(Automation::OperationIds::extract::pitch::start,
+                                           oldVersion, std::nullopt, [&] { ++cancelCallbacks; });
+        tasks.setUnsuccessfulCallback(task.taskId, [&](const auto &snapshot) {
+            ++unsuccessfulCallbacks;
+            removedSnapshot = snapshot;
+        });
+        tasks.setTerminalCallback(task.taskId, [&](const auto &snapshot) {
+            ++terminalCallbacks;
+            removedSnapshot = snapshot;
+        });
         const auto newVersion = session.replaceGeneration({}, {});
         EXPECT(checks, newVersion.documentId != oldVersion.documentId && newVersion.revision == 0,
                "replaceGeneration must rotate DocumentId and reset revision");
@@ -316,6 +447,25 @@ namespace {
                !discardedLookup &&
                    discardedLookup.getError().code == Automation::AutomationErrorCode::NotFound,
                "discarding a generation must remove its old TaskId records");
+        EXPECT(checks,
+               cancelCallbacks == 1 && unsuccessfulCallbacks == 1 && terminalCallbacks == 1 &&
+                   removedSnapshot &&
+                   removedSnapshot->state == Automation::AutomationTaskState::Canceled &&
+                   !removedSnapshot->cancelable,
+               "discarding a generation must terminalize removed work outside the task store");
+
+        const auto replacementTask = tasks.createTask(QStringLiteral("documents.open"), newVersion,
+                                                      std::nullopt, [&] { ++cancelCallbacks; });
+        tasks.setUnsuccessfulCallback(replacementTask.taskId,
+                                      [&](const auto &) { ++unsuccessfulCallbacks; });
+        tasks.setTerminalCallback(replacementTask.taskId,
+                                  [&](const auto &) { ++terminalCallbacks; });
+        const auto finalVersion = session.replaceGeneration({}, {});
+        tasks.replaceDocumentGeneration(newVersion.documentId, finalVersion);
+        EXPECT(checks,
+               cancelCallbacks == 2 && unsuccessfulCallbacks == 2 && terminalCallbacks == 2 &&
+                   tasks.size() == 0,
+               "replacing a generation must terminalize every non-preserved task exactly once");
     }
 
     // Extraction callbacks do not expose a production hook between their validation and commit
@@ -785,6 +935,8 @@ int main(int argc, char *argv[]) {
     Checks checks;
 
     testTaskManagerStateBoundaries(checks);
+    testApplicationTaskScope(checks);
+    testDocumentTaskRetention(checks);
     testCancelVersusCommitStress(checks);
     testDuplicateCompletionStress(checks);
     testSessionGenerationContract(checks);

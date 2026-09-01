@@ -2,10 +2,10 @@
 
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
 
-AnchorCurve::AnchorCurve(const AnchorCurve &other) : Curve() {
+AnchorCurve::AnchorCurve(const AnchorCurve &other) : Curve(other.id()) {
     setLocalStart(other.localStart());
     for (const auto *node : other.nodes().toList()) {
-        auto *copy = new AnchorNode(node->pos(), node->value());
+        auto *copy = new AnchorNode(node->pos(), node->value(), node->id());
         copy->setInterpMode(node->interpMode());
         insertNode(copy);
     }
@@ -56,9 +56,10 @@ std::tuple<qsizetype, qsizetype> AnchorNode::interval() const {
     return std::make_tuple(pos(), pos());
 }
 
-opendspx::Interpolator<double> AnchorCurve::createInterpolator(
-    const AnchorNode *n1, const AnchorNode *n2,
-    const AnchorNode *ref1, const AnchorNode *ref2) {
+opendspx::Interpolator<double> AnchorCurve::createInterpolator(const AnchorNode *n1,
+                                                               const AnchorNode *n2,
+                                                               const AnchorNode *ref1,
+                                                               const AnchorNode *ref2) {
     const double x1 = n1->pos();
     const double y1 = n1->value();
     const double x2 = n2->pos();
@@ -68,14 +69,14 @@ opendspx::Interpolator<double> AnchorCurve::createInterpolator(
         return opendspx::Interpolator<double>::createLinear(x1, y1, x2, y2);
 
     if (ref1 && ref2)
-        return opendspx::Interpolator<double>::create(
-            x1, y1, x2, y2, ref1->pos(), ref1->value(), ref2->pos(), ref2->value());
+        return opendspx::Interpolator<double>::create(x1, y1, x2, y2, ref1->pos(), ref1->value(),
+                                                      ref2->pos(), ref2->value());
     if (ref1)
-        return opendspx::Interpolator<double>::createWithRef1Only(
-            x1, y1, x2, y2, ref1->pos(), ref1->value());
+        return opendspx::Interpolator<double>::createWithRef1Only(x1, y1, x2, y2, ref1->pos(),
+                                                                  ref1->value());
     if (ref2)
-        return opendspx::Interpolator<double>::createWithRef2Only(
-            x1, y1, x2, y2, ref2->pos(), ref2->value());
+        return opendspx::Interpolator<double>::createWithRef2Only(x1, y1, x2, y2, ref2->pos(),
+                                                                  ref2->value());
     return opendspx::Interpolator<double>::createLinear(x1, y1, x2, y2);
 }
 
@@ -90,10 +91,8 @@ DrawCurve *AnchorCurve::toDrawCurve() const {
 
     QList<int> values;
     int segIdx = 0;
-    auto interp = createInterpolator(
-        nodeList[0], nodeList[1],
-        nullptr,
-        nodeList.size() > 2 ? nodeList[2] : nullptr);
+    auto interp = createInterpolator(nodeList[0], nodeList[1], nullptr,
+                                     nodeList.size() > 2 ? nodeList[2] : nullptr);
 
     for (int tick = startTick; tick <= endTick; tick += step) {
         while (segIdx < nodeList.size() - 2 && tick >= nodeList[segIdx + 1]->pos()) {

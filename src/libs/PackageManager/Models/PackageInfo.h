@@ -31,12 +31,15 @@ public:
     QString id() const;
     QVersionNumber version() const;
     QString vendor() const;
+    QMap<QString, QString> localizedVendor() const;
     [[nodiscard]] QString displayVendor(const QString &bcp47Locale) const;
     [[nodiscard]] QString displayVendor(const QStringList &bcp47Locales) const;
     QString description() const;
+    QMap<QString, QString> localizedDescription() const;
     [[nodiscard]] QString displayDescription(const QString &bcp47Locale) const;
     [[nodiscard]] QString displayDescription(const QStringList &bcp47Locales) const;
     QString license() const;
+    QMap<QString, QString> localizedLicense() const;
     [[nodiscard]] QString displayLicense(const QString &bcp47Locale) const;
     [[nodiscard]] QString displayLicense(const QStringList &bcp47Locales) const;
     QString readme() const;

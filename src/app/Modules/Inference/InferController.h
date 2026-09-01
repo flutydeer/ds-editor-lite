@@ -13,6 +13,7 @@ class InferPitchTask;
 class InferVarianceTask;
 class InferAcousticTask;
 class InferAcousticCacheProbeTask;
+class InferPiece;
 class Task;
 class Track;
 
@@ -42,6 +43,9 @@ public:
     void addInferAcousticCacheProbeTask(InferAcousticCacheProbeTask &task);
     void cancelInferAcousticCacheProbeTask(int taskId);
     bool finishCurrentInferAcousticCacheProbeTask(InferAcousticCacheProbeTask *task = nullptr);
+
+    void restartPieceInference(InferPiece &piece);
+    void cancelPieceInference(int pieceId);
 
     // Starts acoustic inference for all Pending pieces that belong to the given tracks
     // (empty list = all tracks). Idempotent: pipelines not awaiting acoustic inference

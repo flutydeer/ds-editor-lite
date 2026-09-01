@@ -27,6 +27,8 @@
 #include <QResizeEvent>
 #include <QVBoxLayout>
 
+#include <QApplication>
+
 using namespace SpeakerMixModel;
 
 namespace {
@@ -166,6 +168,53 @@ void ParamEditorView::setDataContext(SingingClip *clip) {
 
 ParamEditorGraphicsView *ParamEditorView::graphicsView() const {
     return m_graphicsView;
+}
+
+ParameterEditorViewState ParamEditorView::viewState() const {
+    const auto viewport = m_graphicsView->normalizedValueViewport();
+    const auto span = viewport.second - viewport.first;
+    return {
+        .foreground = m_foregroundParam,
+        .background = m_backgroundParam,
+        .editMode = m_toolBar->editMode(),
+        .centerRatio = (viewport.first + viewport.second) * 0.5,
+        .verticalScale = span > 0.0 ? 1.0 / span : 1.0,
+    };
+}
+
+bool ParamEditorView::hasDataContext() const {
+    return m_clip != nullptr;
+}
+
+bool ParamEditorView::setForegroundParameter(const ParamInfo::Name name) {
+    return m_toolBar->setForeground(name);
+}
+
+bool ParamEditorView::setBackgroundParameter(const ParamInfo::Name name) {
+    return m_toolBar->setBackground(name);
+}
+
+bool ParamEditorView::swapParameters() {
+    return m_toolBar->swapParameters();
+}
+
+bool ParamEditorView::setParameterEditMode(const EditorViewGlobal::ParameterEditMode mode) {
+    if (m_foregroundParam == ParamInfo::SpeakerMix || !m_toolBar->supportsEditMode(mode))
+        return false;
+    return m_toolBar->setEditMode(mode);
+}
+
+bool ParamEditorView::setValueViewport(const double centerRatio, const double verticalScale) {
+    return m_foregroundParam != ParamInfo::SpeakerMix &&
+           m_graphicsView->setValueViewport(centerRatio, verticalScale);
+}
+
+bool ParamEditorView::focusEditor() {
+    if (!m_clip || !isVisibleTo(window()))
+        return false;
+    m_graphicsView->setFocus(Qt::OtherFocusReason);
+    auto *focused = QApplication::focusWidget();
+    return focused == m_graphicsView || m_graphicsView->isAncestorOf(focused);
 }
 
 void ParamEditorView::changeEvent(QEvent *event) {

@@ -8,6 +8,8 @@
 #include <lite/MusicBase/TimeSignature.h>
 #include <lite/ProjectModel/AppModel/TrackControl.h>
 
+#include <functional>
+
 namespace Automation {
 
     struct TimelineSnapshotDto {
@@ -18,8 +20,7 @@ namespace Automation {
 
     class TimelineAutomationFacade final {
     public:
-        TimelineAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
-                                 CommandCommitter &committer);
+        TimelineAutomationFacade(AutomationDispatcher &dispatcher, CommandCommitter &committer);
 
         AutomationResult<TimelineSnapshotDto> getTimeline(const DocumentId &documentId);
         AutomationResult<MutationResult> setTempo(const CommandContext &context, int tick,
@@ -32,11 +33,20 @@ namespace Automation {
                                                              int barIndex);
         AutomationResult<MutationResult> setMasterControl(const CommandContext &context,
                                                           const TrackControl &control);
+        AutomationResult<TrackControl> getMaster(const DocumentId &documentId);
+        AutomationResult<MutationResult> setMasterGain(const CommandContext &context, double gain);
+        AutomationResult<MutationResult> setMasterPan(const CommandContext &context, double pan);
+        AutomationResult<MutationResult> setMasterMute(const CommandContext &context, bool mute);
+        AutomationResult<MutationResult> setMasterSolo(const CommandContext &context, bool solo);
 
     private:
-        void registerOperations();
+        AutomationResult<MutationResult> setMasterControl(const OperationId &operationId,
+                                                          const CommandContext &context,
+                                                          const TrackControl &control);
+        AutomationResult<MutationResult>
+            mutateMasterControl(const OperationId &operationId, const CommandContext &context,
+                                const std::function<void(TrackControl &)> &mutate);
 
-        OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
         CommandCommitter &m_committer;
     };

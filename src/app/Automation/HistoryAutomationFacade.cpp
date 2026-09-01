@@ -5,11 +5,9 @@
 
 namespace Automation {
 
-    HistoryAutomationFacade::HistoryAutomationFacade(OperationCatalog &catalog,
-                                                     AutomationDispatcher &dispatcher,
+    HistoryAutomationFacade::HistoryAutomationFacade(AutomationDispatcher &dispatcher,
                                                      CommandCommitter &committer)
-        : m_catalog(catalog), m_dispatcher(dispatcher), m_committer(committer) {
-        registerOperations();
+        : m_dispatcher(dispatcher), m_committer(committer) {
     }
 
     AutomationResult<HistoryStateDto>
@@ -37,7 +35,7 @@ namespace Automation {
 
     AutomationResult<MutationResult> HistoryAutomationFacade::undo(const CommandContext &context) {
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::history::undo, context, QByteArrayLiteral("undo"),
+            OperationIds::history::undo, context,
             [this](DocumentSession &session, const bool validateOnly) {
                 if (validateOnly && session.history())
                     return AutomationResult<MutationResult>(
@@ -48,51 +46,13 @@ namespace Automation {
 
     AutomationResult<MutationResult> HistoryAutomationFacade::redo(const CommandContext &context) {
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::history::redo, context, QByteArrayLiteral("redo"),
+            OperationIds::history::redo, context,
             [this](DocumentSession &session, const bool validateOnly) {
                 if (validateOnly && session.history())
                     return AutomationResult<MutationResult>(
                         m_committer.preview(session, session.history()->canRedo()));
                 return m_committer.redo(session);
             });
-    }
-
-    void HistoryAutomationFacade::registerOperations() {
-        const auto add = [this](OperationDescriptor descriptor) {
-            const auto result = m_catalog.add(std::move(descriptor));
-            Q_ASSERT(result);
-        };
-
-        add({
-            .id = OperationIds::history::get_state,
-            .category = QStringLiteral("history"),
-            .kind = OperationKind::Query,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::Read,
-            .revisionPolicy = RevisionPolicy::None,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::None,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::ReadOnly,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
-        for (const auto id : {OperationIds::history::redo, OperationIds::history::undo}) {
-            add({
-                .id = id,
-                .category = QStringLiteral("history"),
-                .kind = OperationKind::Command,
-                .syncMode = SyncMode::Synchronous,
-                .documentPolicy = DocumentPolicy::Write,
-                .revisionPolicy = RevisionPolicy::Increment,
-                .historyPolicy = HistoryPolicy::UndoRedo,
-                .fileAccess = FileAccessPolicy::None,
-                .hostAvailability = HostAvailability::Core,
-                .safety = SafetyClass::Reversible,
-                .exposure = ExposurePolicy::InternalOnly,
-                .idempotency = IdempotencyPolicy::DocumentGeneration,
-            });
-        }
     }
 
 } // namespace Automation

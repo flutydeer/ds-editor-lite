@@ -1,7 +1,6 @@
 #include "AudioExportAutomationFacade.h"
 #include "OperationIds.h"
 
-#include <QDataStream>
 #include <QDir>
 #include <QFileInfo>
 #include <QMutex>
@@ -19,14 +18,6 @@ namespace Automation {
             AutomationError error;
             error.code = AutomationErrorCode::ModuleNotReady;
             error.message = QStringLiteral("Audio export services are unavailable");
-            return error;
-        }
-
-        AutomationError unsupported(const QString &field, const QString &message) {
-            AutomationError error;
-            error.code = AutomationErrorCode::Unsupported;
-            error.fieldPath = field;
-            error.message = message;
             return error;
         }
 
@@ -91,9 +82,11 @@ namespace Automation {
                     QStringLiteral("Audio export source option is invalid"));
             }
             if (config.sourceOption == selectedSourceOption) {
-                return unsupported(
-                    QStringLiteral("config.source_option"),
-                    QStringLiteral("Selected-track audio export is not implemented"));
+                AutomationError error;
+                error.code = AutomationErrorCode::Unsupported;
+                error.fieldPath = QStringLiteral("config.source_option");
+                error.message = QStringLiteral("Selected-track audio export is unavailable");
+                return error;
             }
             if (config.timeRange < 0 || config.timeRange > 1) {
                 return AutomationError::invalidArgument(
@@ -101,8 +94,11 @@ namespace Automation {
                     QStringLiteral("Audio export time range is invalid"));
             }
             if (config.timeRange == loopSectionRange) {
-                return unsupported(QStringLiteral("config.time_range"),
-                                   QStringLiteral("Loop-section audio export is not implemented"));
+                AutomationError error;
+                error.code = AutomationErrorCode::Unsupported;
+                error.fieldPath = QStringLiteral("config.time_range");
+                error.message = QStringLiteral("Loop-section audio export is unavailable");
+                return error;
             }
             QSet<int> uniqueSources;
             for (const auto source : config.sources) {
@@ -196,21 +192,6 @@ namespace Automation {
             return AutomationUnit{};
         }
 
-        QByteArray fingerprint(const AudioExportConfigDto &config,
-                               const AudioExportPolicyDto &policy) {
-            QByteArray result;
-            QDataStream stream(&result, QIODevice::WriteOnly);
-            const auto formatOption = config.fileType >= 2 ? 0 : config.formatOption;
-            const auto sources = config.sourceOption == 0 ? QList<int>() : config.sources;
-            stream << config.fileName << config.fileDirectory << config.fileType << config.mono
-                   << formatOption << config.formatQuality << config.sampleRate
-                   << config.mixingOption << config.muteSoloEnabled << config.sourceOption
-                   << sources << config.timeRange << policy.allowNoFiles
-                   << policy.allowDuplicatePaths << policy.allowOverwrite
-                   << policy.allowUnrecognizedTemplate << policy.allowLossyFormat;
-            return result;
-        }
-
         bool terminal(const AutomationTaskState state) {
             return state == AutomationTaskState::Succeeded ||
                    state == AutomationTaskState::Failed || state == AutomationTaskState::Canceled;
@@ -220,17 +201,15 @@ namespace Automation {
     struct AudioExportAutomationFacade::PendingJobState {
         QMutex mutex;
         bool cancellationRequested = false;
-        bool cleanupRequested = false;
         bool cleanupClaimed = false;
         std::shared_ptr<IAudioExportJob> job;
 
-        void requestCancel(const bool cleanupAfterCancel = false) {
+        void requestCancel() {
             std::shared_ptr<IAudioExportJob> current;
             {
                 const QMutexLocker locker(&mutex);
                 const auto firstRequest = !cancellationRequested;
                 cancellationRequested = true;
-                cleanupRequested |= cleanupAfterCancel;
                 if (firstRequest)
                     current = job;
             }
@@ -245,14 +224,6 @@ namespace Automation {
             cleanupClaimed = true;
             return job;
         }
-
-        std::shared_ptr<IAudioExportJob> claimRequestedCleanup() {
-            const QMutexLocker locker(&mutex);
-            if (!cleanupRequested || cleanupClaimed || !job)
-                return {};
-            cleanupClaimed = true;
-            return job;
-        }
     };
 
     struct AudioExportAutomationFacade::JobRecord {
@@ -261,12 +232,21 @@ namespace Automation {
     };
 
     AudioExportAutomationFacade::AudioExportAutomationFacade(
-        OperationCatalog &catalog, AutomationDispatcher &dispatcher,
-        IDocumentSessionResolver &documentResolver, AutomationTaskManager &tasks,
+        AutomationDispatcher &dispatcher, AutomationTaskManager &tasks,
         AudioExportRuntimeServices services)
-        : m_catalog(catalog), m_dispatcher(dispatcher), m_documentResolver(documentResolver),
-          m_tasks(tasks), m_services(std::move(services)) {
-        registerOperations();
+        : m_dispatcher(dispatcher), m_tasks(tasks), m_services(std::move(services)) {
+    }
+
+    AudioExportCapabilitiesDto AudioExportAutomationFacade::capabilities() {
+        return {
+            .formats = {QStringLiteral("wav"), QStringLiteral("flac"), QStringLiteral("ogg"),
+                        QStringLiteral("mp3")},
+            .sampleRates = {44100, 48000},
+            .channelModes = {QStringLiteral("mono"), QStringLiteral("stereo")},
+            .mixingModes = {QStringLiteral("mixed"), QStringLiteral("separated"),
+                        QStringLiteral("separated_through_master")},
+            .sourceModes = {QStringLiteral("all"), QStringLiteral("custom")},
+        };
     }
 
     AutomationResult<AudioExportPreviewDto>
@@ -290,10 +270,24 @@ namespace Automation {
     AutomationResult<TaskAcceptedResult> AudioExportAutomationFacade::start(
         const CommandContext &context, const AudioExportConfigDto &config,
         const AudioExportPolicyDto &policy, AudioExportObserver observer) {
-        const auto requestFingerprint = fingerprint(config, policy);
+        return start(context, config, policy, std::move(observer), {}, {});
+    }
+
+    AutomationResult<TaskAcceptedResult> AudioExportAutomationFacade::start(
+        const CommandContext &context, const AudioExportConfigDto &config,
+        const AudioExportPolicyDto &policy, AudioExportObserver observer,
+        AudioExportAccessRevalidator reauthorize) {
+        return start(context, config, policy, std::move(observer), {}, std::move(reauthorize));
+    }
+
+    AutomationResult<TaskAcceptedResult> AudioExportAutomationFacade::start(
+        const CommandContext &context, const AudioExportConfigDto &config,
+        const AudioExportPolicyDto &policy, AudioExportObserver observer,
+        AudioExportOutputAuthorizer authorizeOutputs, AudioExportAccessRevalidator reauthorize) {
         return m_dispatcher.dispatchDocumentCommandResult<TaskAcceptedResult>(
-            OperationIds::exports::audio::start, context, requestFingerprint,
-            [this, context, requestFingerprint, config, policy, observer = std::move(observer)](
+            OperationIds::exports::audio::start, context,
+            [this, context, config, policy, observer = std::move(observer),
+             authorizeOutputs = std::move(authorizeOutputs), reauthorize = std::move(reauthorize)](
                 DocumentSession &session, const bool validateOnly) mutable {
                 const auto valid = validateConfig(config);
                 if (!valid)
@@ -303,9 +297,15 @@ namespace Automation {
                 auto validationJob = m_services.createJob(session.model(), session.path(), config);
                 if (!validationJob)
                     return AutomationResult<TaskAcceptedResult>(validationJob.getError());
-                const auto validPreview = validatePreview(validationJob.get()->preview(), policy);
+                const auto preview = validationJob.get()->preview();
+                const auto validPreview = validatePreview(preview, policy);
                 if (!validPreview)
                     return AutomationResult<TaskAcceptedResult>(validPreview.getError());
+                if (authorizeOutputs) {
+                    auto authorized = authorizeOutputs(preview);
+                    if (!authorized)
+                        return AutomationResult<TaskAcceptedResult>(authorized.getError());
+                }
                 if (validateOnly) {
                     return AutomationResult<TaskAcceptedResult>({
                         .document = session.version(),
@@ -323,30 +323,27 @@ namespace Automation {
                     [weak = std::weak_ptr<PendingJobState>(state)] {
                         if (const auto locked = weak.lock())
                             locked->requestCancel();
-                    });
+                    },
+                    context.clientId);
                 auto record = std::make_shared<JobRecord>();
                 record->baseDocument = session.version();
                 record->state = state;
-                m_jobs.insert(task.taskId, record);
+                {
+                    const QMutexLocker locker(&m_jobsMutex);
+                    m_jobs.insert(task.taskId, record);
+                }
 
                 const TaskAcceptedResult accepted{
                     .taskId = task.taskId,
                     .document = session.version(),
                 };
-                if (!context.idempotencyKey.isEmpty()) {
-                    const auto bound = m_tasks.setUnsuccessfulCallback(
-                        task.taskId, [this, context, requestFingerprint,
-                                      accepted](const AutomationTaskSnapshot &) {
-                            m_dispatcher.releaseDocumentIdempotency(
-                                OperationIds::exports::audio::start, context, requestFingerprint,
-                                accepted);
-                        });
-                    Q_ASSERT(bound);
-                }
 
                 auto execute = [this, taskId = task.taskId, base = session.version(),
-                                observer = std::move(observer), state]() mutable {
-                    executeTask(taskId, base, std::move(observer), state);
+                                observer = std::move(observer),
+                                reauthorize = std::move(reauthorize), state,
+                                allowOverwrite = policy.allowOverwrite]() mutable {
+                    executeTask(taskId, base, std::move(observer), std::move(reauthorize), state,
+                                allowOverwrite);
                 };
                 if (m_services.schedule)
                     m_services.schedule(execute);
@@ -359,7 +356,7 @@ namespace Automation {
     AutomationResult<ApplicationMutationResult>
         AudioExportAutomationFacade::cleanup(const CommandContext &context, const TaskId &taskId) {
         return m_dispatcher.dispatchDocumentCommandResult<ApplicationMutationResult>(
-            OperationIds::exports::audio::cleanup, context, taskId.toString().toUtf8(),
+            OperationIds::exports::audio::cleanup, context,
             [this, taskId](DocumentSession &session, const bool validateOnly) {
                 const auto task = m_tasks.get(session.documentId(), taskId);
                 if (!task)
@@ -371,17 +368,21 @@ namespace Automation {
                     error.message = QStringLiteral("Audio export is still running");
                     return AutomationResult<ApplicationMutationResult>(std::move(error));
                 }
-                const auto found = m_jobs.constFind(taskId);
-                if (found == m_jobs.cend()) {
+                std::shared_ptr<JobRecord> record;
+                {
+                    const QMutexLocker locker(&m_jobsMutex);
+                    record = m_jobs.value(taskId);
+                }
+                if (!record) {
                     return AutomationResult<ApplicationMutationResult>({
                         .validatedOnly = validateOnly,
                     });
                 }
                 if (!validateOnly) {
-                    const auto job = (*found)->state->claimCleanup();
+                    const auto job = record->state->claimCleanup();
                     if (job)
                         job->cleanup();
-                    m_jobs.remove(taskId);
+                    removeJobRecord(taskId);
                 }
                 return AutomationResult<ApplicationMutationResult>({
                     .changed = true,
@@ -393,7 +394,9 @@ namespace Automation {
     void AudioExportAutomationFacade::executeTask(const TaskId &taskId,
                                                   const DocumentVersion baseDocument,
                                                   AudioExportObserver observer,
-                                                  const std::shared_ptr<PendingJobState> &state) {
+                                                  AudioExportAccessRevalidator reauthorize,
+                                                  const std::shared_ptr<PendingJobState> &state,
+                                                  const bool allowOverwrite) {
         std::shared_ptr<IAudioExportJob> job;
         bool cancelBeforeRun = false;
         {
@@ -403,34 +406,26 @@ namespace Automation {
         }
         if (!job) {
             m_tasks.fail(taskId, taskError(unavailable(), taskId));
+            removeJobRecord(taskId);
             return;
         }
         const auto cleanup = [state] {
             if (const auto current = state->claimCleanup())
                 current->cleanup();
         };
-        const auto cleanupIfRequested = [state] {
-            if (const auto current = state->claimRequestedCleanup())
-                current->cleanup();
-        };
         if (cancelBeforeRun || m_tasks.isCancellationRequested(taskId)) {
             if (!cancelBeforeRun)
                 job->cancel();
             m_tasks.cancel(taskId);
-            cleanupIfRequested();
-            return;
-        }
-        auto resolved = resolveDocumentGeneration(baseDocument);
-        if (!resolved) {
-            cleanupIfRequested();
-            m_tasks.fail(taskId, taskError(resolved.getError(), taskId));
+            cleanup();
+            removeJobRecord(taskId);
             return;
         }
         if (!m_tasks.markRunning(taskId)) {
-            cleanupIfRequested();
+            cleanup();
+            removeJobRecord(taskId);
             return;
         }
-
         QStringList warnings;
         AudioExportObserver taskObserver;
         taskObserver.progress = [this, taskId, callback = std::move(observer.progress)](
@@ -470,11 +465,32 @@ namespace Automation {
                 callback(message, sourceIndex);
         };
 
-        const auto result = job->execute(taskObserver);
+        const auto readiness = job->waitUntilReady(taskObserver);
+        if (readiness.state == AudioExportBackendState::Canceled ||
+            m_tasks.isCancellationRequested(taskId)) {
+            m_tasks.cancel(taskId);
+            cleanup();
+            removeJobRecord(taskId);
+            return;
+        }
+        if (readiness.state == AudioExportBackendState::Failed) {
+            AutomationError error;
+            error.code = AutomationErrorCode::IoError;
+            error.taskId = taskId;
+            error.message = readiness.errorMessage.isEmpty()
+                                ? QStringLiteral("Audio export preparation failed")
+                                : readiness.errorMessage;
+            m_tasks.fail(taskId, std::move(error));
+            cleanup();
+            removeJobRecord(taskId);
+            return;
+        }
+        const auto result = job->execute(taskObserver, true);
         if (result.state == AudioExportBackendState::Canceled ||
             m_tasks.isCancellationRequested(taskId)) {
             m_tasks.cancel(taskId);
-            cleanupIfRequested();
+            cleanup();
+            removeJobRecord(taskId);
             return;
         }
         if (result.state == AudioExportBackendState::Failed) {
@@ -484,108 +500,72 @@ namespace Automation {
             error.message = result.errorMessage.isEmpty() ? QStringLiteral("Audio export failed")
                                                           : result.errorMessage;
             m_tasks.fail(taskId, std::move(error));
-            cleanupIfRequested();
-            return;
-        }
-
-        resolved = resolveDocumentGeneration(baseDocument);
-        if (!resolved) {
             cleanup();
-            m_tasks.fail(taskId, taskError(resolved.getError(), taskId));
+            removeJobRecord(taskId);
             return;
         }
-        const auto currentDocument = resolved.get().get().version();
+        if (reauthorize) {
+            auto authorized = reauthorize();
+            if (!authorized) {
+                m_tasks.fail(taskId, taskError(authorized.getError(), taskId));
+                cleanup();
+                removeJobRecord(taskId);
+                return;
+            }
+        }
         const auto committing = m_tasks.beginCommitting(taskId);
         if (!committing || !committing.get()) {
             cleanup();
+            removeJobRecord(taskId);
+            return;
+        }
+        const auto published = job->publish(taskObserver, allowOverwrite);
+        if (published.state != AudioExportBackendState::Succeeded) {
+            AutomationError error;
+            error.code = AutomationErrorCode::IoError;
+            error.taskId = taskId;
+            error.message = published.errorMessage.isEmpty()
+                                ? QStringLiteral("Audio export publication failed")
+                                : published.errorMessage;
+            m_tasks.fail(taskId, std::move(error));
+            cleanup();
+            removeJobRecord(taskId);
             return;
         }
         MutationResult mutation;
-        mutation.previous = currentDocument;
-        mutation.current = currentDocument;
+        mutation.previous = baseDocument;
+        mutation.current = baseDocument;
         mutation.warnings = std::move(warnings);
         if (!m_tasks.succeed(taskId, std::move(mutation)))
-            cleanupIfRequested();
+            cleanup();
+        removeJobRecord(taskId);
     }
 
-    AutomationResult<std::reference_wrapper<DocumentSession>>
-        AudioExportAutomationFacade::resolveDocumentGeneration(
-            const DocumentVersion &version) const {
-        auto resolved = m_documentResolver.resolveDocument(version.documentId);
-        if (!resolved)
-            return resolved.getError();
-        auto &session = resolved.get().get();
-        if (session.lifecycleState() != DocumentLifecycleState::Active)
-            return AutomationError::documentBusy(session.documentId());
-        const auto rebased = rebaseTaskVersionWithinGeneration(version, session.version());
-        if (!rebased)
-            return rebased.getError();
-        return std::ref(session);
+    void AudioExportAutomationFacade::removeJobRecord(const TaskId &taskId) {
+        const QMutexLocker locker(&m_jobsMutex);
+        m_jobs.remove(taskId);
     }
 
     void AudioExportAutomationFacade::discardDocumentGeneration(const DocumentId &documentId) {
-        for (auto it = m_jobs.begin(); it != m_jobs.end();) {
-            if ((*it)->baseDocument.documentId != documentId) {
-                ++it;
-                continue;
+        QList<std::shared_ptr<JobRecord>> removed;
+        {
+            const QMutexLocker locker(&m_jobsMutex);
+            for (auto it = m_jobs.begin(); it != m_jobs.end();) {
+                const auto record = it.value();
+                if (!record || !record->state) {
+                    it = m_jobs.erase(it);
+                    continue;
+                }
+                if (record->baseDocument.documentId != documentId) {
+                    ++it;
+                    continue;
+                }
+                removed.append(record);
+                it = m_jobs.erase(it);
             }
-            (*it)->state->requestCancel(true);
-            const auto task = m_tasks.get(documentId, it.key());
-            if (task && terminal(task.get().state)) {
-                if (const auto job = (*it)->state->claimCleanup())
-                    job->cleanup();
-            }
-            it = m_jobs.erase(it);
         }
-    }
-
-    void AudioExportAutomationFacade::registerOperations() {
-        const auto add = [this](OperationDescriptor descriptor) {
-            const auto result = m_catalog.add(std::move(descriptor));
-            Q_ASSERT(result);
-        };
-        add({
-            .id = OperationIds::exports::audio::preview,
-            .category = QStringLiteral("exports"),
-            .kind = OperationKind::Query,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::Read,
-            .revisionPolicy = RevisionPolicy::None,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::Read,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::ReadOnly,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
-        add({
-            .id = OperationIds::exports::audio::start,
-            .category = QStringLiteral("exports"),
-            .kind = OperationKind::Command,
-            .syncMode = SyncMode::Asynchronous,
-            .documentPolicy = DocumentPolicy::Read,
-            .revisionPolicy = RevisionPolicy::Check,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::Write,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::FileSystem,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::DocumentGeneration,
-        });
-        add({
-            .id = OperationIds::exports::audio::cleanup,
-            .category = QStringLiteral("exports"),
-            .kind = OperationKind::Command,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::Read,
-            .revisionPolicy = RevisionPolicy::Check,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::Write,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::FileSystem,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
+        for (const auto &record : std::as_const(removed))
+            record->state->requestCancel();
     }
 
 } // namespace Automation

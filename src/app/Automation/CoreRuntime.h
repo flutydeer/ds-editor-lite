@@ -48,8 +48,6 @@ namespace Automation {
 
         EditorAutomationFacade &facade();
         const EditorAutomationFacade &facade() const;
-        OperationCatalog &catalog();
-        const OperationCatalog &catalog() const;
         AutomationDispatcher &dispatcher();
         ApplicationAutomationFacade &application();
         AudioExportAutomationFacade &audioExports();
@@ -75,7 +73,6 @@ namespace Automation {
         DocumentSession m_session;
         SingleDocumentSessionResolver m_documentResolver;
         SingleWindowContext m_windowContext;
-        OperationCatalog m_catalog;
         AutomationDispatcher m_dispatcher;
         CommandCommitter m_committer;
         DocumentObjectResolver m_objectResolver;
@@ -83,6 +80,7 @@ namespace Automation {
         ApplicationAutomationFacade m_applicationFacade;
         ParameterAutomationFacade m_parameterFacade;
         ProjectAutomationFacade m_projectFacade;
+        NoteAutomationFacade m_noteFacade;
         AudioExportAutomationFacade m_audioExportFacade;
         ExtractionAutomationFacade m_extractionFacade;
         DocumentAutomationFacade m_documentFacade;
@@ -90,7 +88,6 @@ namespace Automation {
         FileAutomationFacade m_fileFacade;
         HistoryAutomationFacade m_historyFacade;
         InferenceAutomationFacade m_inferenceFacade;
-        NoteAutomationFacade m_noteFacade;
         PackageAutomationFacade m_packageFacade;
         PlaybackAutomationFacade m_playbackFacade;
         PresetAutomationFacade m_presetFacade;

@@ -11,7 +11,6 @@ add_library(AutomationTestSupport STATIC
     ../../app/Automation/AudioExportAutomationFacade.cpp
     ../../app/Automation/AutomationTypes.cpp
     ../../app/Automation/AutomationTaskManager.cpp
-    ../../app/Automation/OperationCatalog.cpp
     ../../app/Automation/IdempotencyStore.cpp
     ../../app/Automation/DocumentSession.cpp
     ../../app/Automation/DocumentSessionResolver.cpp
@@ -26,6 +25,7 @@ add_library(AutomationTestSupport STATIC
     ../../app/Automation/HistoryAutomationFacade.cpp
     ../../app/Automation/InferenceAutomationFacade.cpp
     ../../app/Automation/NoteAutomationFacade.cpp
+    ../../app/Automation/NoteTransfer.cpp
     ../../app/Automation/PackageAutomationFacade.cpp
     ../../app/Automation/ParameterAutomationFacade.cpp
     ../../app/Automation/PlaybackAutomationFacade.cpp
@@ -45,6 +45,10 @@ add_library(AutomationTestSupport STATIC
     ../../app/Controller/Actions/AppModel/TimeSignature/EditTimeSignaturesAction.cpp
     ../../app/Controller/Actions/AppModel/TimeSignature/TimeSignatureActions.cpp
     ../../app/Model/AppModel/SingingClipPhonemeNormalizer.cpp
+    ../../app/Model/ClipboardDataModel/NotesParamsInfo.cpp
+    ../../app/Modules/FillLyric/Utils/LyricRuleAutomationUtils.cpp
+    ../../app/Modules/FillLyric/Utils/TaggerRuleOrder.cpp
+    ../../app/UI/Views/TrackEditor/AudioClipDragState.cpp
     ${_automation_edit_action_sources}
 )
 
@@ -56,6 +60,7 @@ target_include_directories(AutomationTestSupport PUBLIC
 )
 
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
+find_package(re2 CONFIG REQUIRED)
 
 target_link_libraries(AutomationTestSupport PUBLIC
     lite::ADT
@@ -63,4 +68,5 @@ target_link_libraries(AutomationTestSupport PUBLIC
     lite::MusicBase
     lite::ProjectModel
     Qt${QT_VERSION_MAJOR}::Core
+    re2::re2
 )

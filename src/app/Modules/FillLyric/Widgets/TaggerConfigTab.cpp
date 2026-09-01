@@ -170,7 +170,12 @@ namespace FillLyric {
             return;
         auto &rule = m_rules[m_currentIndex];
         if (!rule.builtin) {
+            const auto previous = rule.customRule;
             auto collected = m_detailPanel->collectCustomRule();
+            collected.ruleId = previous.ruleId;
+            collected.name = previous.name.isEmpty() || previous.name == previous.language
+                                 ? collected.language
+                                 : previous.name;
             collected.enabled = rule.enabled;
             rule.customRule = collected;
             rule.name = collected.language;
@@ -184,6 +189,7 @@ namespace FillLyric {
         item.name = "cmn";
         item.builtin = false;
         item.enabled = true;
+        item.customRule.name = "cmn";
         item.customRule.language = "cmn";
         item.customRule.enabled = true;
         m_rules.append(item);
@@ -279,6 +285,8 @@ namespace FillLyric {
                 settings.builtinTaggerEnabled[rule.name] = rule.enabled;
             } else {
                 Automation::TaggerRuleDto converted{
+                    .ruleId = rule.customRule.ruleId,
+                    .name = rule.customRule.name,
                     .language = rule.customRule.language,
                     .enabled = rule.enabled,
                 };

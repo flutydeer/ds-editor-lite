@@ -76,8 +76,10 @@ namespace {
 
     Automation::GuiDocumentCommandContext guiDocumentContext(const Automation::CoreRuntime &runtime,
                                                              const bool validateOnly = false) {
+        const auto version = runtime.documentVersion();
         return {
-            .expected = runtime.documentVersion(),
+            .documentId = version.documentId,
+            .expectedRevision = version.revision,
             .windowId = runtime.windowId(),
             .validateOnly = validateOnly,
             .source = Automation::InvocationSource::Test,
@@ -194,6 +196,7 @@ namespace {
             .name = QStringLiteral("DS Editor Lite"),
             .version = QStringLiteral("test-version"),
             .platform = QStringLiteral("test-platform"),
+            .buildId = QStringLiteral("test-build"),
         };
         bool terminationSucceeds = true;
         int terminationCalls = 0;
@@ -314,14 +317,17 @@ namespace {
                 ++editorStableApplyCalls;
                 editorStable.selectedTrackIndex = index;
             };
-            services.setSelectedClips = [this](const QList<int> &ids) {
+            services.setSelectedClips = [this](const QList<int> &ids, const int primaryId) {
                 ++editorStableApplyCalls;
                 editorStable.selectedClipIds = ids;
+                editorStable.primaryClipId = primaryId;
             };
-            services.setSelectedNotes = [this](const int clipId, const QList<int> &ids) {
+            services.setSelectedNotes = [this](const int clipId, const QList<int> &ids,
+                                               const int primaryId) {
                 ++editorStableApplyCalls;
                 editorStable.activeClipId = clipId;
                 editorStable.selectedNoteIds = ids;
+                editorStable.primaryNoteId = primaryId;
             };
             services.setPianoRollQuantize = [this](const int quantize, const bool enabled) {
                 ++editorStableApplyCalls;
@@ -335,9 +341,28 @@ namespace {
                 else
                     editorStable.pianoRollAutoPageTurnEnabled = enabled;
             };
-            services.revealFocus = [this](const HistoryFocus &, const bool) {
+            services.focusVisibility = [](const HistoryFocus &) {
+                return HistoryFocusVisibility::ScrollRequired;
+            };
+            services.revealFocus = [this](const HistoryFocus &focus, const bool) {
                 ++revealCalls;
-                return editorRevealSucceeds;
+                if (!editorRevealSucceeds)
+                    return false;
+                if (focus.kind == HistoryFocusKind::TrackClips) {
+                    editorView.layout.trackPanelVisible = true;
+                    editorView.layout.activeRegion = EditorViewGlobal::Region::TrackPanel;
+                    editorView.layout.focusedRegion = EditorViewGlobal::Region::TrackPanel;
+                    editorView.trackPanel.centerTick = (focus.tickStart + focus.tickEnd) * 0.5;
+                } else {
+                    editorView.layout.bottomPanelVisible = true;
+                    editorView.layout.bottomPanelPageId = QStringLiteral("ClipEditor");
+                    editorView.layout.pianoRollVisible = true;
+                    editorView.layout.activeRegion = EditorViewGlobal::Region::PianoRoll;
+                    editorView.layout.focusedRegion = EditorViewGlobal::Region::PianoRoll;
+                    editorView.pianoRoll.centerTick = (focus.tickStart + focus.tickEnd) * 0.5;
+                    editorStable.activeClipId = focus.containerId;
+                }
+                return true;
             };
             return services;
         }
@@ -424,10 +449,12 @@ namespace {
         Automation::ApplicationRuntimeServices applicationServices() {
             Automation::ApplicationRuntimeServices services;
             services.info = [this] { return applicationInfo; };
-            services.requestTermination = [this](const auto mode) {
+            services.requestTermination = [this](const auto mode, const auto) {
                 ++terminationCalls;
                 lastTerminationMode = mode;
-                return terminationSucceeds;
+                return terminationSucceeds
+                           ? Automation::ApplicationTerminationRequestResult::Accepted
+                           : Automation::ApplicationTerminationRequestResult::Unavailable;
             };
             return services;
         }
@@ -578,7 +605,7 @@ namespace {
         log.scenario(QStringLiteral("PLAY-Q-DOCUMENT-ISOLATION"));
         const auto wrongDocument = runtime.playback().getPlayback(Automation::DocumentId::create());
         log.expectError(wrongDocument, Automation::AutomationErrorCode::DocumentChanged,
-                        Automation::OperationIds::playback::get,
+                        Automation::OperationIds::playback::get_state,
                         QStringLiteral("playback query must reject another document"));
 
         log.scenario(QStringLiteral("PLAY-C-STATE-VALIDATE-NOOP"));
@@ -901,8 +928,8 @@ namespace {
         const auto capabilities = runtime.facade().getEditorCapabilities();
         log.expect(capabilities && capabilities.get().maxConcurrentDocuments == 1 &&
                        capabilities.get().maxConcurrentWindows == 1 &&
-                       capabilities.get().operationIds == runtime.catalog().operationIds(),
-                   QStringLiteral("capabilities must expose the single-session host and catalog"));
+                       capabilities.get().operationIds == Automation::OperationIds::all(),
+                   QStringLiteral("capabilities must expose the single-session operation surface"));
 
         log.scenario(QStringLiteral("EDITOR-SETUP-OBJECTS"));
         const auto objects = createEditorObjects(harness, log);
@@ -1002,13 +1029,13 @@ namespace {
 
         log.scenario(QStringLiteral("EDITOR-C-SELECTION-ERROR-PRIORITY"));
         auto wrongDocumentContext = context;
-        wrongDocumentContext.expected.documentId = Automation::DocumentId::create();
-        wrongDocumentContext.expected.revision += 100;
+        wrongDocumentContext.documentId = Automation::DocumentId::create();
+        wrongDocumentContext.expectedRevision = runtime.documentVersion().revision + 100;
         wrongDocumentContext.windowId = Automation::WindowId::create();
         const auto wrongDocumentSelection =
             runtime.facade().setActiveClip(wrongDocumentContext, Automation::ClipId(999999));
         auto staleContext = context;
-        ++staleContext.expected.revision;
+        ++*staleContext.expectedRevision;
         staleContext.windowId = Automation::WindowId::create();
         const auto staleSelection =
             runtime.facade().setActiveClip(staleContext, Automation::ClipId(999999));
@@ -1215,6 +1242,7 @@ namespace {
                     .regexes = {QStringLiteral("[,，]")},
                 });
                 value.customTaggerRules.append({
+                    .name = QStringLiteral("unicode-tagger"),
                     .language = QStringLiteral("cmn"),
                     .entries = {{
                         .type = QStringLiteral("regex"),
@@ -1359,11 +1387,6 @@ namespace {
         RuntimeHarness harness;
         auto &runtime = harness.core();
 
-        log.scenario(QStringLiteral("PACKAGE-PATH-Q-EMPTY"));
-        const auto initial = runtime.settings().getPackageSearchPaths();
-        log.expect(initial && initial.get().isEmpty(),
-                   QStringLiteral("package path query must preserve an empty list"));
-
         log.scenario(QStringLiteral("PACKAGE-PATH-C-NORMALIZE"));
         const QStringList input{
             QStringLiteral(" packages/../voices/主声库 "),
@@ -1378,11 +1401,11 @@ namespace {
         const auto noOp = runtime.settings().setPackageSearchPaths(
             applicationContext(),
             {QStringLiteral("voices/主声库"), QStringLiteral("voices/secondary")});
-        const auto result = runtime.settings().getPackageSearchPaths();
         log.expect(preview && preview.get().validatedOnly && preview.get().changed && committed &&
-                       committed.get().changed && noOp && !noOp.get().changed && result &&
-                       result.get() == QStringList{QStringLiteral("voices/主声库"),
-                                                   QStringLiteral("voices/secondary")},
+                       committed.get().changed && noOp && !noOp.get().changed &&
+                       harness.settings.general.packageSearchPaths ==
+                           QStringList{QStringLiteral("voices/主声库"),
+                                       QStringLiteral("voices/secondary")},
                    QStringLiteral("package paths must normalize, deduplicate and preserve order"));
 
         log.scenario(QStringLiteral("PACKAGE-PATH-C-PERSISTENCE-FAILURE"));
@@ -1392,7 +1415,9 @@ namespace {
         log.expectError(failed, Automation::AutomationErrorCode::IoError,
                         Automation::OperationIds::packages::set_search_paths,
                         QStringLiteral("package path persistence failure must be reported"));
-        log.expect(harness.settings.general.packageSearchPaths == result.get(),
+        log.expect(harness.settings.general.packageSearchPaths ==
+                       QStringList{QStringLiteral("voices/主声库"),
+                                   QStringLiteral("voices/secondary")},
                    QStringLiteral("failed package path write must preserve stored paths"));
     }
 
@@ -1643,7 +1668,7 @@ namespace {
         const auto loop =
             runtime.playback().setLoop(commandContext(runtime), LoopSettings(false, 0, 480));
         log.expectError(playback, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::playback::get,
+                        Automation::OperationIds::playback::get_state,
                         QStringLiteral("missing playback snapshot host must be explicit"));
         log.expectError(play, Automation::AutomationErrorCode::HostCapabilityUnavailable,
                         Automation::OperationIds::playback::play,
@@ -1674,9 +1699,8 @@ namespace {
         const auto updateGeneral =
             runtime.settings().updateGeneral(applicationContext(), validSettings().general);
         const auto recent = runtime.settings().getRecentProjectFiles();
-        const auto paths = runtime.settings().getPackageSearchPaths();
         log.expectError(settings, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::settings::get,
+                        Automation::OperationIds::settings::query,
                         QStringLiteral("missing settings snapshot host must be explicit"));
         log.expectError(updateGeneral, Automation::AutomationErrorCode::HostCapabilityUnavailable,
                         Automation::OperationIds::settings::update_general,
@@ -1684,10 +1708,6 @@ namespace {
         log.expectError(recent, Automation::AutomationErrorCode::HostCapabilityUnavailable,
                         Automation::OperationIds::recent_files::list,
                         QStringLiteral("missing recent-file host must be explicit"));
-        log.expectError(paths, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::packages::get_search_paths,
-                        QStringLiteral("missing package-path host must be explicit"));
-
         log.scenario(QStringLiteral("HOST-PACKAGES-UNAVAILABLE"));
         const auto packages = runtime.packages().getInstalledPackages();
         const auto validation = runtime.packages().validatePackage(QStringLiteral("package.dspk"));

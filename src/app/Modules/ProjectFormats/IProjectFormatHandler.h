@@ -25,6 +25,10 @@ struct ProjectLoadRequest {
     QString filePath;
     ProjectLoadPurpose purpose = ProjectLoadPurpose::Open;
     quint64 requestId = 0;
+    bool interactive = true;
+    QByteArray encoding;
+    bool importTempo = true;
+    bool importTimeSignature = true;
 };
 
 // A project file format backend: describes itself, probes file headers, and

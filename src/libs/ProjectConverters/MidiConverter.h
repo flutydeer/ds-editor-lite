@@ -52,11 +52,19 @@ public:
         bool importTimeSignature = false;
     };
 
+    struct SaveOptions {
+        bool includeTempo = true;
+        bool includeTimeSignatures = true;
+        bool includeLyrics = true;
+    };
+
     explicit MidiConverter();
     bool load(const QString &path, AppModel *model, QString &errMsg, ImportMode mode) override;
     LoadStatus loadInteractive(const QString &path, AppModel *model, QString &errMsg,
                                ImportMode mode, LoadOptions &options);
     bool save(const QString &path, AppModel *model, QString &errMsg) override;
+    bool save(const QString &path, AppModel *model, QString &errMsg,
+              const SaveOptions &options);
 
 protected:
     // Present the interactive import choice. The base implementation offers no
@@ -105,6 +113,7 @@ struct MidiParseData {
 class MidiFileParser {
 public:
     static MidiParseData parse(const QString &path);
+    static MidiParseData parse(const QString &path, QByteArray rawData);
 };
 
 // Tracks generated from parsed MIDI data, ready to be committed. Generation

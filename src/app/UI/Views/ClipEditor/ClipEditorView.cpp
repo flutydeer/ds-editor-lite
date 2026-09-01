@@ -13,6 +13,7 @@
 #include "PianoRoll/PianoRollView.h"
 #include "ToolBar/ClipEditorToolBarView.h"
 
+#include <QApplication>
 #include <QLabel>
 #include <QEvent>
 #include <QRectF>
@@ -79,6 +80,31 @@ PianoRollViewState ClipEditorView::viewState() const {
     return state;
 }
 
+ParameterEditorViewState ClipEditorView::parameterViewState() const {
+    return m_pianoRollEditorView->paramEditorView()->viewState();
+}
+
+EditorViewGlobal::Region ClipEditorView::focusedRegion() const {
+    auto *focused = QApplication::focusWidget();
+    if (!focused)
+        return EditorViewGlobal::Region::None;
+    auto *piano = m_pianoRollEditorView->pianoRollView();
+    if (focused == piano || piano->isAncestorOf(focused))
+        return EditorViewGlobal::Region::PianoRoll;
+    auto *parameters = m_pianoRollEditorView->paramEditorView();
+    if (focused == parameters || parameters->isAncestorOf(focused))
+        return EditorViewGlobal::Region::Parameters;
+    return EditorViewGlobal::Region::None;
+}
+
+bool ClipEditorView::regionVisible(const EditorViewGlobal::Region region) const {
+    return m_pianoRollEditorView->regionVisible(region);
+}
+
+bool ClipEditorView::hasActiveSingingClip() const {
+    return m_hasActiveClip && !m_pianoRollEditorView->isHidden();
+}
+
 bool ClipEditorView::supportsEditMode(const EditorViewGlobal::PianoRollEditMode mode) const {
     return m_toolbarView->supportsEditMode(mode);
 }
@@ -96,8 +122,55 @@ bool ClipEditorView::setViewScale(const double horizontalScale, const double ver
     return centerAt(previousState.centerTick, previousState.centerKeyIndex);
 }
 
+bool ClipEditorView::setTimeViewport(const double centerTick, const double horizontalScale) const {
+    return m_pianoRollEditorView->pianoRollView()->setTimeViewport(centerTick, horizontalScale);
+}
+
+bool ClipEditorView::setPitchViewport(const double centerKeyIndex,
+                                      const double verticalScale) const {
+    return m_pianoRollEditorView->pianoRollView()->setPitchViewport(centerKeyIndex, verticalScale);
+}
+
 bool ClipEditorView::setEditMode(const EditorViewGlobal::PianoRollEditMode mode) {
     return m_toolbarView->setEditMode(mode);
+}
+
+bool ClipEditorView::setRegionVisibility(const bool pianoRollVisible,
+                                         const bool parametersVisible) const {
+    return m_pianoRollEditorView->setRegionVisibility(pianoRollVisible, parametersVisible);
+}
+
+bool ClipEditorView::showRegion(const EditorViewGlobal::Region region) const {
+    return hasActiveSingingClip() && m_pianoRollEditorView->showRegion(region);
+}
+
+bool ClipEditorView::focusRegion(const EditorViewGlobal::Region region) const {
+    return hasActiveSingingClip() && m_pianoRollEditorView->focusRegion(region);
+}
+
+bool ClipEditorView::setParameterForeground(const ParamInfo::Name name) const {
+    return hasActiveSingingClip() &&
+           m_pianoRollEditorView->paramEditorView()->setForegroundParameter(name);
+}
+
+bool ClipEditorView::setParameterBackground(const ParamInfo::Name name) const {
+    return hasActiveSingingClip() &&
+           m_pianoRollEditorView->paramEditorView()->setBackgroundParameter(name);
+}
+
+bool ClipEditorView::swapParameters() const {
+    return hasActiveSingingClip() && m_pianoRollEditorView->paramEditorView()->swapParameters();
+}
+
+bool ClipEditorView::setParameterEditMode(const EditorViewGlobal::ParameterEditMode mode) const {
+    return hasActiveSingingClip() &&
+           m_pianoRollEditorView->paramEditorView()->setParameterEditMode(mode);
+}
+
+bool ClipEditorView::setParameterValueViewport(const double centerRatio,
+                                               const double verticalScale) const {
+    return hasActiveSingingClip() &&
+           m_pianoRollEditorView->paramEditorView()->setValueViewport(centerRatio, verticalScale);
 }
 
 HistoryFocusVisibility ClipEditorView::focusVisibility(const HistoryFocus &focus) const {

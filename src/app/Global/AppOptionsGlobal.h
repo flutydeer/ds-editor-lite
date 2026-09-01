@@ -9,6 +9,7 @@ namespace AppOptionsGlobal {
         Midi,
         Appearance,
         Inference,
+        Automation,
         DeveloperOptions,
 
         // Hidden options

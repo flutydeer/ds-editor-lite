@@ -4,6 +4,7 @@
 #include <QWidget>
 
 class QHBoxLayout;
+class QVBoxLayout;
 class QCheckBox;
 class QLabel;
 
@@ -14,11 +15,13 @@ public:
 
     void setTitle(const QString &title) const;
     void setDescription(const QString &desc) const;
+    void setTextAreaAlignment(Qt::Alignment alignment) const;
     void addWidget(QWidget *widget) const;
     void removeWidget(QWidget *widget) const;
 
 private:
     QHBoxLayout *m_mainLayout;
+    QVBoxLayout *m_textLayout;
     QLabel *m_lbTitle;
     QLabel *m_lbDesc;
 };

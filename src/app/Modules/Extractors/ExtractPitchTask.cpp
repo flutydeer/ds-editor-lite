@@ -19,7 +19,9 @@
 ExtractPitchTask::ExtractPitchTask(Input input) : ExtractTask(std::move(input)) {
     TaskStatus status;
     status.title = tr("Extract Pitch");
-    status.message = tr("Pending infer: %1").arg(m_input.audioPath);
+    status.message = tr("Pending infer: %1")
+                         .arg(m_input.displayAudioPath.isEmpty() ? m_input.audioPath
+                                                                : m_input.displayAudioPath);
     setStatus(status);
 }
 
@@ -120,7 +122,9 @@ void ExtractPitchTask::runTask() {
 
     // 2. Run inference
     newStatus = status();
-    newStatus.message = tr("Running inference: %1").arg(m_input.audioPath);
+    newStatus.message = tr("Running inference: %1")
+                            .arg(m_input.displayAudioPath.isEmpty() ? m_input.audioPath
+                                                                   : m_input.displayAudioPath);
     newStatus.isIndetermine = false;
     newStatus.maximum = 100;
     newStatus.progress = 0;

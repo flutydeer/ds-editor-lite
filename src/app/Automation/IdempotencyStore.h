@@ -4,6 +4,7 @@
 #include "AutomationTypes.h"
 
 #include <QHash>
+#include <QList>
 #include <QMutex>
 
 #include <any>
@@ -15,6 +16,8 @@ namespace Automation {
 
     class IdempotencyStore final {
     public:
+        static constexpr qsizetype MaximumRetainedKeys = 256;
+
         template <typename T>
         AutomationResult<std::optional<T>> replay(const OperationId &operationId,
                                                   const QString &key,
@@ -70,6 +73,7 @@ namespace Automation {
                                         pending->resultType == std::type_index(typeid(T)) &&
                                         pending->matches(std::any(result));
                 m_pendingReleases.erase(pending);
+                m_pendingReleaseOrder.removeAll(key);
                 if (suppressed)
                     return AutomationUnit{};
             }
@@ -95,6 +99,9 @@ namespace Automation {
             entry.resultType = std::type_index(typeid(T));
             entry.result = std::move(result);
             m_entries.insert(key, std::move(entry));
+            m_entryOrder.append(key);
+            while (m_entryOrder.size() > MaximumRetainedKeys)
+                m_entries.remove(m_entryOrder.takeFirst());
             return AutomationUnit{};
         }
 
@@ -115,6 +122,7 @@ namespace Automation {
                 if (!cached || *cached != result)
                     return false;
                 m_entries.erase(it);
+                m_entryOrder.removeAll(key);
                 return true;
             }
 
@@ -127,6 +135,10 @@ namespace Automation {
                 return value && *value == expected;
             };
             m_pendingReleases.insert(key, std::move(pending));
+            m_pendingReleaseOrder.removeAll(key);
+            m_pendingReleaseOrder.append(key);
+            while (m_pendingReleaseOrder.size() > MaximumRetainedKeys)
+                m_pendingReleases.remove(m_pendingReleaseOrder.takeFirst());
             return true;
         }
 
@@ -150,7 +162,9 @@ namespace Automation {
 
         mutable QMutex m_mutex;
         QHash<QString, Entry> m_entries;
+        QList<QString> m_entryOrder;
         QHash<QString, PendingRelease> m_pendingReleases;
+        QList<QString> m_pendingReleaseOrder;
     };
 
 } // namespace Automation

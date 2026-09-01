@@ -2,6 +2,7 @@
 #include "Automation/OperationIds.h"
 #include "Automation/ProjectAutomationDtos.h"
 #include "Controller/Actions/AppModel/Clip/EditAudioClipPathAction.h"
+#include "Controller/Tasks/ComputeAudioHashTask.h"
 #include "Controller/Tasks/ResolveAudioPathTask.h"
 
 #include <lite/History/HistoryManager.h>
@@ -72,6 +73,45 @@ namespace {
         pool.setMaxThreadCount(1);
         pool.start(&task);
         return pool.waitForDone(5000);
+    }
+
+    [[nodiscard]] bool runHashTask(ComputeAudioHashTask &task) {
+        QThreadPool pool;
+        pool.setMaxThreadCount(1);
+        pool.start(&task);
+        return pool.waitForDone(5000);
+    }
+
+    void testHashSnapshot(Checks &checks, const QString &root) {
+        checks.scenario("audio hash and snapshot share one byte stream");
+        const QByteArray original("audio-snapshot-original");
+        const auto source = QDir(root).filePath(QStringLiteral("snapshot-source.wav"));
+        const auto snapshot = QDir(root).filePath(QStringLiteral("snapshot-copy.wav"));
+        EXPECT(checks, writeFixture(root, QStringLiteral("snapshot-source.wav"), original),
+               "the snapshot source must be created");
+
+        ComputeAudioHashTask task;
+        task.path = source;
+        task.snapshotPath = snapshot;
+        EXPECT(checks, runHashTask(task), "the hash-and-snapshot task must finish");
+        EXPECT(checks,
+               writeFixture(root, QStringLiteral("snapshot-source.wav"),
+                            QByteArray("audio-snapshot-replacement")),
+               "the source must remain independently writable after snapshotting");
+        QFile snapshotFile(snapshot);
+        EXPECT(checks, snapshotFile.open(QIODevice::ReadOnly),
+               "the completed snapshot must be readable");
+        const auto snapshotBytes = snapshotFile.readAll();
+        ComputeAudioHashTask liveVerification;
+        liveVerification.path = source;
+        EXPECT(checks, runHashTask(liveVerification),
+               "the replaced live source must remain hashable");
+        EXPECT(checks,
+               task.success && snapshotBytes == original &&
+                   task.resultSha512 == sha512(snapshotBytes) && liveVerification.success &&
+                   liveVerification.resultSha512 != task.resultSha512,
+               "the digest and immutable snapshot must represent the same bytes while a final live "
+               "digest detects source replacement");
     }
 
     class CurrentDirectoryGuard final {
@@ -618,9 +658,9 @@ namespace {
         const auto strict = runtime.project().applyAudioDecodeCache(
             staleRevisionContext, fixture.audioClipId(), taskAsset, staleInfo);
         EXPECT(checks,
-               !strict &&
-                   strict.getError().code == Automation::AutomationErrorCode::RevisionConflict,
-               "the dispatcher must keep strict revision validation for direct facade calls");
+               isStaleAssetError(strict, Automation::OperationIds::audio_clips::apply_decode_cache),
+               "a derived writeback must honor its revision-free contract while rejecting the "
+               "stale asset snapshot");
 
         const auto rebasedContext = runtime.derivedWritebackContext(taskVersion, false);
         const auto staleCache =
@@ -1266,6 +1306,7 @@ int main(int argc, char *argv[]) {
         testHashMismatch(checks, fixtures.path());
         testCurrentDirectoryDecoy(checks, fixtures.path());
         testDirectoryCandidateRejected(checks, fixtures.path());
+        testHashSnapshot(checks, fixtures.path());
     }
     testDerivedAudioWritebacks(checks);
     testSamePathSourceReplacement(checks);

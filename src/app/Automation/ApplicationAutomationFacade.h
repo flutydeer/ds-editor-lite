@@ -12,32 +12,46 @@ namespace Automation {
         Restart,
     };
 
+    enum class ApplicationTerminationSavePolicy {
+        Prompt,
+        RejectUnsaved,
+        Discard,
+    };
+
+    enum class ApplicationTerminationRequestResult {
+        Accepted,
+        Busy,
+        UnsavedChanges,
+        Unavailable,
+    };
+
     struct ApplicationInfoDto {
         QString name;
         QString version;
         QString platform;
+        QString buildId;
 
         friend bool operator==(const ApplicationInfoDto &, const ApplicationInfoDto &) = default;
     };
 
     struct ApplicationRuntimeServices {
         std::function<ApplicationInfoDto()> info;
-        std::function<bool(ApplicationTerminationMode)> requestTermination;
+        std::function<ApplicationTerminationRequestResult(ApplicationTerminationMode,
+                                                          ApplicationTerminationSavePolicy)>
+            requestTermination;
     };
 
     class ApplicationAutomationFacade final {
     public:
-        ApplicationAutomationFacade(OperationCatalog &catalog, AutomationDispatcher &dispatcher,
+        ApplicationAutomationFacade(AutomationDispatcher &dispatcher,
                                     ApplicationRuntimeServices services = {});
 
         AutomationResult<ApplicationInfoDto> getInfo();
         AutomationResult<GuiMutationResult> requestTermination(const GuiCommandContext &context,
-                                                               ApplicationTerminationMode mode);
+                                                               ApplicationTerminationMode mode,
+                                                               bool discardChanges = false);
 
     private:
-        void registerOperations();
-
-        OperationCatalog &m_catalog;
         AutomationDispatcher &m_dispatcher;
         ApplicationRuntimeServices m_services;
     };

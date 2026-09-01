@@ -4,10 +4,12 @@
 #include "PackageAutomationFacade.h"
 
 class PackageManager;
+class AppOptions;
 
 namespace Automation {
 
-    PackageRuntimeServices createPackageAutomationServices(PackageManager *manager);
+    PackageRuntimeServices createPackageAutomationServices(PackageManager *manager,
+                                                           AppOptions *options = nullptr);
 
 } // namespace Automation
 

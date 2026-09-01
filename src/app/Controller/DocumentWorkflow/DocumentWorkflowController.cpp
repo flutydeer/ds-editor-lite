@@ -101,16 +101,26 @@ void DocumentWorkflowController::requestSaveAs() {
     begin(DocumentOperation::SaveAs);
 }
 
-void DocumentWorkflowController::requestTermination(const TerminationMode mode) {
+TerminationRequestResult
+    DocumentWorkflowController::requestTermination(const TerminationMode mode,
+                                                   const TerminationSavePolicy savePolicy) {
     if (m_busy) {
+        if (savePolicy != TerminationSavePolicy::Prompt)
+            return TerminationRequestResult::Busy;
         if (m_session) {
             m_terminationAfterCancellation = mode;
             closeProgressDialog();
             emit cancelSessionRequested();
         } else {
             rejectBusyRequest();
+            return TerminationRequestResult::Busy;
         }
-        return;
+        return TerminationRequestResult::Accepted;
+    }
+
+    if (savePolicy == TerminationSavePolicy::RejectUnsaved &&
+        !historyManager->isOnSavePoint()) {
+        return TerminationRequestResult::UnsavedChanges;
     }
 
     m_pending = {};
@@ -120,9 +130,11 @@ void DocumentWorkflowController::requestTermination(const TerminationMode mode) 
         runtime->setDocumentBusy(m_pending.baseDocument.documentId, true);
     }
     m_pending.termination = mode;
+    m_skipSaveGuard = savePolicy != TerminationSavePolicy::Prompt;
     m_busy = true;
     emit busyChanged(true);
     emit beginRequested();
+    return TerminationRequestResult::Accepted;
 }
 
 void DocumentWorkflowController::cancelCurrentOperation() {

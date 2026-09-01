@@ -60,19 +60,16 @@ namespace Automation {
         };
     }
 
-    PlaybackAutomationFacade::PlaybackAutomationFacade(OperationCatalog &catalog,
-                                                       AutomationDispatcher &dispatcher,
+    PlaybackAutomationFacade::PlaybackAutomationFacade(AutomationDispatcher &dispatcher,
                                                        CommandCommitter &committer,
                                                        PlaybackRuntimeServices services)
-        : m_catalog(catalog), m_dispatcher(dispatcher), m_committer(committer),
-          m_services(std::move(services)) {
-        registerOperations();
+        : m_dispatcher(dispatcher), m_committer(committer), m_services(std::move(services)) {
     }
 
     AutomationResult<PlaybackSnapshotDto>
         PlaybackAutomationFacade::getPlayback(const DocumentId &documentId) {
         return m_dispatcher.dispatchDocumentQuery<PlaybackSnapshotDto>(
-            OperationIds::playback::get, documentId, [this](DocumentSession &session) {
+            OperationIds::playback::get_state, documentId, [this](DocumentSession &session) {
                 if (!m_services.snapshot)
                     return AutomationResult<PlaybackSnapshotDto>(
                         unavailable(QStringLiteral("Playback host is unavailable")));
@@ -83,6 +80,7 @@ namespace Automation {
                 result.lastPosition = host.lastPosition;
                 result.loop = host.loop;
                 result.document = session.version();
+                result.playable = m_services.canStart && m_services.canStart();
                 return AutomationResult<PlaybackSnapshotDto>(std::move(result));
             });
     }
@@ -103,8 +101,7 @@ namespace Automation {
     AutomationResult<MutationResult> PlaybackAutomationFacade::setState(
         const OperationId &operationId, const CommandContext &context, const PlaybackState state) {
         return m_dispatcher.dispatchDocumentCommand(
-            operationId, context, QByteArray::number(static_cast<int>(state)),
-            [this, state](DocumentSession &session, const bool validateOnly) {
+            operationId, context, [this, state](DocumentSession &session, const bool validateOnly) {
                 if (!m_services.snapshot)
                     return AutomationResult<MutationResult>(
                         unavailable(QStringLiteral("Playback host is unavailable")));
@@ -144,7 +141,7 @@ namespace Automation {
     AutomationResult<MutationResult>
         PlaybackAutomationFacade::setPosition(const CommandContext &context, const double tick) {
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::playback::set_position, context, QByteArray::number(tick, 'g', 17),
+            OperationIds::playback::set_position, context,
             [this, tick](DocumentSession &session, const bool validateOnly) {
                 if (!std::isfinite(tick) || tick < 0.0) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
@@ -161,11 +158,37 @@ namespace Automation {
             });
     }
 
+    AutomationResult<MutationResult> PlaybackAutomationFacade::seek(const CommandContext &context,
+                                                                    const double tick) {
+        return m_dispatcher.dispatchDocumentCommand(
+            OperationIds::playback::seek, context,
+            [this, tick](DocumentSession &session, const bool validateOnly) {
+                if (!std::isfinite(tick) || tick < 0.0) {
+                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
+                        QStringLiteral("position"),
+                        QStringLiteral("Playback position is invalid")));
+                }
+                if (!m_services.snapshot || !m_services.setPosition ||
+                    !m_services.setLastPosition) {
+                    return AutomationResult<MutationResult>(
+                        unavailable(QStringLiteral("Playback host is unavailable")));
+                }
+                const auto current = m_services.snapshot();
+                const bool changed = current.position != tick || current.lastPosition != tick;
+                if (!validateOnly && changed) {
+                    m_services.setPosition(tick);
+                    m_services.setLastPosition(tick);
+                }
+                return AutomationResult<MutationResult>(
+                    hostMutation(session, changed, validateOnly));
+            });
+    }
+
     AutomationResult<MutationResult>
         PlaybackAutomationFacade::setLastPosition(const CommandContext &context,
                                                   const double tick) {
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::playback::set_last_position, context, QByteArray::number(tick, 'g', 17),
+            OperationIds::playback::set_last_position, context,
             [this, tick](DocumentSession &session, const bool validateOnly) {
                 if (!std::isfinite(tick) || tick < 0.0) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
@@ -186,11 +209,8 @@ namespace Automation {
     AutomationResult<MutationResult>
         PlaybackAutomationFacade::setLoop(const CommandContext &context,
                                           const LoopSettings &settings) {
-        const auto fingerprint = QByteArray::number(settings.enabled) + ':' +
-                                 QByteArray::number(settings.start) + ':' +
-                                 QByteArray::number(settings.length);
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::playback::set_loop, context, fingerprint,
+            OperationIds::playback::set_loop, context,
             [this, settings](DocumentSession &session, const bool validateOnly) {
                 if (settings.start < 0 || settings.length < 0 ||
                     (settings.enabled && settings.length == 0)) {
@@ -205,7 +225,7 @@ namespace Automation {
         PlaybackAutomationFacade::setLoopEnabled(const CommandContext &context,
                                                  const bool enabled) {
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::playback::set_loop_enabled, context, QByteArray::number(enabled),
+            OperationIds::playback::set_loop_enabled, context,
             [this, enabled](DocumentSession &session, const bool validateOnly) {
                 if (!m_services.snapshot || !m_services.setLoop)
                     return AutomationResult<MutationResult>(
@@ -224,7 +244,7 @@ namespace Automation {
     AutomationResult<MutationResult>
         PlaybackAutomationFacade::clearLoop(const CommandContext &context) {
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::playback::clear_loop, context, {},
+            OperationIds::playback::clear_loop, context,
             [this](DocumentSession &session, const bool validateOnly) {
                 if (!m_services.snapshot || !m_services.setLoop)
                     return AutomationResult<MutationResult>(
@@ -248,52 +268,6 @@ namespace Automation {
         auto actions =
             std::make_unique<SetLoopSettingsActions>(previous, settings, m_services.setLoop);
         return m_committer.commit(session, std::move(actions));
-    }
-
-    void PlaybackAutomationFacade::registerOperations() {
-        const auto add = [this](OperationDescriptor descriptor) {
-            const auto result = m_catalog.add(std::move(descriptor));
-            Q_ASSERT(result);
-        };
-        add({
-            .id = OperationIds::playback::get,
-            .category = QStringLiteral("playback"),
-            .kind = OperationKind::Query,
-            .syncMode = SyncMode::Synchronous,
-            .documentPolicy = DocumentPolicy::Read,
-            .revisionPolicy = RevisionPolicy::None,
-            .historyPolicy = HistoryPolicy::None,
-            .fileAccess = FileAccessPolicy::None,
-            .hostAvailability = HostAvailability::Core,
-            .safety = SafetyClass::ReadOnly,
-            .exposure = ExposurePolicy::InternalOnly,
-            .idempotency = IdempotencyPolicy::Unsupported,
-        });
-        const auto addCommand = [&add](const OperationId &id, const bool persistent = false) {
-            add({
-                .id = id,
-                .category = QStringLiteral("playback"),
-                .kind = OperationKind::Command,
-                .syncMode = SyncMode::Synchronous,
-                .documentPolicy = persistent ? DocumentPolicy::Write : DocumentPolicy::Read,
-                .revisionPolicy = persistent ? RevisionPolicy::Increment : RevisionPolicy::Check,
-                .historyPolicy = persistent ? HistoryPolicy::Record : HistoryPolicy::None,
-                .fileAccess = FileAccessPolicy::None,
-                .hostAvailability = HostAvailability::Core,
-                .safety = SafetyClass::Reversible,
-                .exposure = ExposurePolicy::InternalOnly,
-                .idempotency = persistent ? IdempotencyPolicy::DocumentGeneration
-                                          : IdempotencyPolicy::Unsupported,
-            });
-        };
-        addCommand(OperationIds::playback::pause);
-        addCommand(OperationIds::playback::clear_loop, true);
-        addCommand(OperationIds::playback::play);
-        addCommand(OperationIds::playback::set_loop, true);
-        addCommand(OperationIds::playback::set_loop_enabled, true);
-        addCommand(OperationIds::playback::set_last_position);
-        addCommand(OperationIds::playback::set_position);
-        addCommand(OperationIds::playback::stop);
     }
 
 } // namespace Automation
