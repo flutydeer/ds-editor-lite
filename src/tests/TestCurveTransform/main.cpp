@@ -267,6 +267,42 @@ namespace {
         return ok;
     }
 
+    bool testOutOfRangeParamSamples() {
+        using namespace CurveTransform;
+        bool ok = true;
+
+        DecibelParamProperties decibel;
+        auto decibelSource = curve(0, {-120000, -48000, 12000, -24000});
+        Config shapeConfig;
+        shapeConfig.kind = Kind::Shape;
+        shapeConfig.properties = &decibel;
+        Session shape;
+        shape.setSource({&decibelSource}, {}, shapeConfig);
+        shape.beginSelection(0);
+        ok &= expect(shape.finishSelection(15), "out-of-range decibel selection succeeds");
+        auto preview = shape.buildEditedPreview();
+        ok &= expect(valueAt(preview, 0) == decibel.minimum &&
+                         valueAt(preview, 10) == decibel.maximum,
+                     "shape clamps out-of-range source and endpoint samples before mapping");
+        qDeleteAll(preview);
+
+        TensionParamProperties tension;
+        auto tensionSource = curve(0, {-12000, 12000, 0});
+        Config scaleConfig;
+        scaleConfig.kind = Kind::Scale;
+        scaleConfig.properties = &tension;
+        Session scale;
+        scale.setSource({&tensionSource}, {}, scaleConfig);
+        scale.beginSelection(0);
+        ok &= expect(scale.finishSelection(10), "out-of-range tension selection succeeds");
+        preview = scale.buildEditedPreview();
+        ok &= expect(valueAt(preview, 0) == tension.minimum &&
+                         valueAt(preview, 5) == tension.maximum,
+                     "scale clamps out-of-range source samples before mapping");
+        qDeleteAll(preview);
+        return ok;
+    }
+
     bool testPitchAndEditedOnlySource() {
         using namespace CurveTransform;
         bool ok = true;
@@ -519,6 +555,7 @@ int main(int argc, char *argv[]) {
     ok &= testShouldersAndBoundaries();
     ok &= testShapeAndScale();
     ok &= testScaleMappingsAndSessionPhases();
+    ok &= testOutOfRangeParamSamples();
     ok &= testPitchAndEditedOnlySource();
     ok &= testNonSampleStepEditedCurve();
     ok &= testFineEditedSamplesOutsideTransformArePreserved();

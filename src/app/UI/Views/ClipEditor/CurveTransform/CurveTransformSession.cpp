@@ -378,23 +378,27 @@ namespace CurveTransform {
 
         if (!m_config.properties)
             return source;
-        const auto normalized = m_config.properties->valueToNormalized(source);
+        const auto *properties = m_config.properties;
+        const auto normalizedValueAt = [&component, properties](const int sampleTick) {
+            const auto value = std::clamp(component.valueAt(sampleTick), properties->minimum,
+                                          properties->maximum);
+            return properties->valueToNormalized(value);
+        };
+        const auto normalized = normalizedValueAt(tick);
         double result = normalized;
         if (m_config.kind == Kind::Scale) {
             result = lambda * normalized;
         } else {
             const auto targetEndTick = m_bounds.b - SampleStep;
-            const auto aValue =
-                m_config.properties->valueToNormalized(component.valueAt(m_bounds.a));
-            const auto bValue =
-                m_config.properties->valueToNormalized(component.valueAt(targetEndTick));
+            const auto aValue = normalizedValueAt(m_bounds.a);
+            const auto bValue = normalizedValueAt(targetEndTick);
             const auto line = aValue + (bValue - aValue) * static_cast<double>(tick - m_bounds.a) /
                                            (targetEndTick - m_bounds.a);
             result = line + lambda * (normalized - line);
         }
         result = std::clamp(result, 0.0, 1.0);
-        return std::clamp(qRound(m_config.properties->valueFromNormalizedDouble(result)),
-                          m_config.properties->minimum, m_config.properties->maximum);
+        return std::clamp(qRound(properties->valueFromNormalizedDouble(result)),
+                          properties->minimum, properties->maximum);
     }
 
     void Session::resetInteraction() {
