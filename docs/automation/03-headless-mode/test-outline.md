@@ -63,6 +63,8 @@ Contract、Registry binding、Host 分类、MCP 实际发现与 Connector 实际
 - CLI override 只作用于当前运行，不改写持久设置。
 - 既有位置工程参数、多个 open request、`activate/openProjects`、单实例转发顺序与单文档替换
   行为在 GUI/Headless 保持一致。
+- 已有 Primary 时，Headless Secondary 成功转发、退出码保持 0，并在 `stderr` 明确提示未启动新
+  Headless 实例；不得因 Primary 的 Host mode 不同而拒绝转发。
 
 ## 4. QCore composition 与无 GUI 资格
 
