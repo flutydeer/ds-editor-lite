@@ -12,16 +12,26 @@ namespace Automation {
     AutomationResult<DocumentVersion>
         AutomationDispatcher::validateDocumentCommand(const CommandContext &context) {
         return runSerialized([&]() -> AutomationResult<DocumentVersion> {
-            auto validated = resolveDocumentCommand(context, true);
+            auto validated = resolveDocumentCommand(context);
             if (!validated)
                 return validated.getError();
             const auto &session = validated.get().get();
+            if (context.source == InvocationSource::PublicMcp && session.isBusy())
+                return AutomationError::documentBusy(session.documentId());
             if (session.revision() != context.expected.revision) {
                 return AutomationError::revisionConflict(
                     session.documentId(), context.expected.revision, session.revision());
             }
             return session.version();
         });
+    }
+
+    AutomationResult<DocumentVersion>
+        AutomationDispatcher::admitDocumentTask(CommandContext &context) {
+        auto validated = validateDocumentCommand(context);
+        if (validated && context.source == InvocationSource::PublicMcp)
+            context.source = InvocationSource::PublicMcpContinuation;
+        return validated;
     }
 
     AutomationResult<MutationResult>
@@ -54,18 +64,13 @@ namespace Automation {
     }
 
     AutomationResult<std::reference_wrapper<DocumentSession>>
-        AutomationDispatcher::resolveDocumentCommand(const CommandContext &context,
-                                                     const bool rejectPublicWhileBusy) {
+        AutomationDispatcher::resolveDocumentCommand(const CommandContext &context) {
         auto resolved = m_documentResolver.resolveDocument(context.expected.documentId);
         if (!resolved)
             return resolved.getError();
         auto &session = resolved.get().get();
         if (session.lifecycleState() != DocumentLifecycleState::Active)
             return AutomationError::documentBusy(session.documentId());
-        if (rejectPublicWhileBusy && context.source == InvocationSource::PublicMcp &&
-            session.isBusy()) {
-            return AutomationError::documentBusy(session.documentId());
-        }
         return std::ref(session);
     }
 

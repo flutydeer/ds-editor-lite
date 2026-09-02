@@ -135,9 +135,9 @@ namespace Automation {
             return PreparedAudioPath{hashTask->resultSha512, workspace};
         }
 
-        AutomationResult<DocumentVersion> validateBase(CoreRuntime &runtime,
-                                                       const CommandContext &context) {
-            return runtime.dispatcher().validateDocumentCommand(context);
+        AutomationResult<DocumentVersion> admitTaskBase(CoreRuntime &runtime,
+                                                        CommandContext &context) {
+            return runtime.dispatcher().admitDocumentTask(context);
         }
 
         AutomationError projectLoadError(const ProjectOperationError &source,
@@ -192,7 +192,7 @@ namespace Automation {
             }
 
             AutomationResult<TaskAcceptedResult> prepare() {
-                auto base = validateBase(m_runtime, m_command);
+                auto base = admitTaskBase(m_runtime, m_command);
                 if (!base)
                     return base.getError();
                 auto *handler = projectFormatRegistry->resolveByPath(m_path);
@@ -387,7 +387,7 @@ namespace Automation {
             }
 
             AutomationResult<TaskAcceptedResult> prepare() {
-                auto base = validateBase(m_runtime, m_request.command);
+                auto base = admitTaskBase(m_runtime, m_request.command);
                 if (!base)
                     return base.getError();
                 if (!m_model)
@@ -745,7 +745,7 @@ namespace Automation {
             }
 
             AutomationResult<TaskAcceptedResult> prepare() {
-                auto base = validateBase(m_runtime, m_command);
+                auto base = admitTaskBase(m_runtime, m_command);
                 if (!base)
                     return base.getError();
                 if (!m_model || m_entries.isEmpty()) {
@@ -1176,7 +1176,7 @@ namespace Automation {
             }
 
             AutomationResult<TaskAcceptedResult> prepare() {
-                auto base = validateBase(m_runtime, m_request.command);
+                auto base = admitTaskBase(m_runtime, m_request.command);
                 if (!base)
                     return base.getError();
                 if (m_request.canonicalPath.isEmpty()) {
@@ -1735,7 +1735,7 @@ namespace Automation {
         };
 
         AutomationResult<TaskAcceptedResult> HeadlessInferenceTask::prepare() {
-            auto base = validateBase(m_runtime, m_request.command);
+            auto base = admitTaskBase(m_runtime, m_request.command);
             if (!base)
                 return base.getError();
 

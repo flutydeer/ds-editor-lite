@@ -39,7 +39,9 @@ MCP、Headless 宿主和多文档产品行为不在 Facade 层实现。GUI、内
   工程名和 History savepoint。
 - 公共 MCP 持久文档写操作继续严格使用调用方提供的 `expected_revision`，不自动重定位；GUI 文档
   工作流 busy 时拒绝新的公共 MCP 持久写操作，但查询、任务取消、瞬时播放控制、可信 GUI 提交和
-  内部派生写回仍可进入统一 Facade。瞬时播放控制不修改持久文档，任务取消沿用 Task 状态契约。
+  内部派生写回仍可进入统一 Facade。已在 busy 前通过准入的异步任务可继续按原 generation/revision
+  契约完成，已提交幂等请求的重放先于 busy 拒绝。瞬时播放控制不修改持久文档，任务取消沿用 Task
+  状态契约。
 - Import、编辑、Undo、Redo 仅在实际改变时增加 revision。
 - Session 替换后，旧 DocumentId、旧对象 ID、排队命令和晚到异步写回不能进入新工程。
 

@@ -115,6 +115,7 @@ namespace Automation {
         TrustedGui,
         InternalAutomation,
         PublicMcp,
+        PublicMcpContinuation,
         Test,
     };
 

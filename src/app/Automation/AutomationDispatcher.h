@@ -24,6 +24,7 @@ namespace Automation {
 
         AutomationResult<DocumentVersion>
             validateDocumentCommand(const CommandContext &context);
+        AutomationResult<DocumentVersion> admitDocumentTask(CommandContext &context);
 
         template <typename T, typename Handler>
         AutomationResult<T> dispatchApplicationQuery(const OperationId &operationId,
@@ -233,7 +234,7 @@ namespace Automation {
                                                               const bool rejectPublicWhileBusy,
                                                               Handler &&handler) {
             return runSerialized([&]() -> AutomationResult<T> {
-                auto validated = resolveDocumentCommand(context, rejectPublicWhileBusy);
+                auto validated = resolveDocumentCommand(context);
                 if (!validated)
                     return decorateError(validated.getError(), operationId);
                 auto &session = validated.get().get();
@@ -248,6 +249,12 @@ namespace Automation {
                         return decorateError(replay.getError(), operationId);
                     if (replay.get())
                         return *replay.get();
+                }
+
+                if (rejectPublicWhileBusy && context.source == InvocationSource::PublicMcp &&
+                    session.isBusy()) {
+                    return decorateError(AutomationError::documentBusy(session.documentId()),
+                                         operationId);
                 }
 
                 if (checkRevision && session.revision() != context.expected.revision) {
@@ -272,7 +279,7 @@ namespace Automation {
         }
 
         AutomationResult<std::reference_wrapper<DocumentSession>>
-            resolveDocumentCommand(const CommandContext &context, bool rejectPublicWhileBusy);
+            resolveDocumentCommand(const CommandContext &context);
 
         template <typename T>
         static AutomationResult<T> decorateHandlerResult(AutomationResult<T> result,
