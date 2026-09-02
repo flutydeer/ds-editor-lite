@@ -235,6 +235,8 @@ namespace Automation {
         }
 
     private:
+        [[nodiscard]] static bool requiresPublicBusyAdmission(InvocationSource source);
+
         template <typename T, typename Handler>
         AutomationResult<T> dispatchDocumentCommandResultImpl(const OperationId &operationId,
                                                               const CommandContext &context,
@@ -260,7 +262,7 @@ namespace Automation {
                         return *replay.get();
                 }
 
-                if (rejectPublicWhileBusy && context.source == InvocationSource::PublicMcp &&
+                if (rejectPublicWhileBusy && requiresPublicBusyAdmission(context.source) &&
                     session.isBusy()) {
                     return decorateError(AutomationError::documentBusy(session.documentId()),
                                          operationId);

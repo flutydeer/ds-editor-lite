@@ -195,7 +195,7 @@ int main(int argc, char *argv[]) {
         });
     ok &= expect(
         admittedTaskBase &&
-            admittedTaskCommand.source == Automation::InvocationSource::PublicMcpContinuation &&
+            admittedTaskCommand.source == Automation::InvocationSource::PublicTaskContinuation &&
             admittedTaskCompletion && !staleTaskCompletion &&
             staleTaskCompletion.getError().code ==
                 Automation::AutomationErrorCode::RevisionConflict &&
@@ -222,6 +222,28 @@ int main(int argc, char *argv[]) {
                      stalePublicValidation.getError().code ==
                          Automation::AutomationErrorCode::RevisionConflict,
                  "public async admission must share the dispatcher revision contract");
+
+    auto jsonRpcTaskCommand = publicCommand;
+    jsonRpcTaskCommand.expected = first.version();
+    jsonRpcTaskCommand.validateOnly = true;
+    jsonRpcTaskCommand.source = Automation::InvocationSource::PublicJsonRpc;
+    const auto jsonRpcTaskBase = dispatcher.admitDocumentTask(jsonRpcTaskCommand);
+    first.setBusy(true);
+    const auto jsonRpcTaskCompletion = dispatcher.dispatchDocumentCommand(
+        QStringLiteral("test.json_rpc_task.complete"), jsonRpcTaskCommand,
+        [](Automation::DocumentSession &session, const bool validateOnly) {
+            return commit(session, validateOnly);
+        });
+    auto jsonRpcCommand = jsonRpcTaskCommand;
+    jsonRpcCommand.source = Automation::InvocationSource::PublicJsonRpc;
+    const auto jsonRpcBusy = dispatcher.validateDocumentCommand(jsonRpcCommand);
+    first.setBusy(false);
+    ok &= expect(
+        jsonRpcTaskBase &&
+            jsonRpcTaskCommand.source == Automation::InvocationSource::PublicTaskContinuation &&
+            jsonRpcTaskCompletion && !jsonRpcBusy &&
+            jsonRpcBusy.getError().code == Automation::AutomationErrorCode::Busy,
+        "MCP and JSON-RPC tasks must share public busy admission and continuation semantics");
 
     auto unsupportedKey = command;
     unsupportedKey.expected = first.version();

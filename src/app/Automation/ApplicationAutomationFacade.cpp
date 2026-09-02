@@ -28,6 +28,7 @@ namespace Automation {
                 case InvocationSource::InternalAutomation:
                 case InvocationSource::PublicMcp:
                 case InvocationSource::PublicJsonRpc:
+                case InvocationSource::PublicTaskContinuation:
                 case InvocationSource::Test:
                     return discardChanges ? ApplicationTerminationSavePolicy::Discard
                                           : ApplicationTerminationSavePolicy::RejectUnsaved;

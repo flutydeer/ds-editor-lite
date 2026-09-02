@@ -9,6 +9,11 @@ namespace Automation {
         : m_documentResolver(documentResolver), m_windowContext(windowContext) {
     }
 
+    bool AutomationDispatcher::requiresPublicBusyAdmission(const InvocationSource source) {
+        return source == InvocationSource::PublicMcp ||
+               source == InvocationSource::PublicJsonRpc;
+    }
+
     AutomationResult<DocumentVersion>
         AutomationDispatcher::validateDocumentCommand(const CommandContext &context) {
         return runSerialized([&]() -> AutomationResult<DocumentVersion> {
@@ -16,7 +21,7 @@ namespace Automation {
             if (!validated)
                 return validated.getError();
             const auto &session = validated.get().get();
-            if (context.source == InvocationSource::PublicMcp && session.isBusy())
+            if (requiresPublicBusyAdmission(context.source) && session.isBusy())
                 return AutomationError::documentBusy(session.documentId());
             if (session.revision() != context.expected.revision) {
                 return AutomationError::revisionConflict(
@@ -29,8 +34,8 @@ namespace Automation {
     AutomationResult<DocumentVersion>
         AutomationDispatcher::admitDocumentTask(CommandContext &context) {
         auto validated = validateDocumentCommand(context);
-        if (validated && context.source == InvocationSource::PublicMcp)
-            context.source = InvocationSource::PublicMcpContinuation;
+        if (validated && requiresPublicBusyAdmission(context.source))
+            context.source = InvocationSource::PublicTaskContinuation;
         return validated;
     }
 

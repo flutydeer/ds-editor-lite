@@ -116,7 +116,7 @@ namespace Automation {
         InternalAutomation,
         PublicMcp,
         PublicJsonRpc,
-        PublicMcpContinuation,
+        PublicTaskContinuation,
         Test,
     };
 
