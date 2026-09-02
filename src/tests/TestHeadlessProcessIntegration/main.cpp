@@ -33,6 +33,8 @@
 #include <QTimer>
 #include <QUuid>
 
+#include <array>
+#include <cerrno>
 #include <functional>
 #include <optional>
 #include <utility>
@@ -42,6 +44,9 @@
 #  include <shellapi.h>
 #  include <tlhelp32.h>
 #  include <winternl.h>
+#else
+#  include <signal.h>
+#  include <unistd.h>
 #endif
 
 namespace {
@@ -387,6 +392,41 @@ namespace {
             return -1;
         return probe.count;
     }
+
+    bool sendConsoleControlEvent(const qint64 processId, const DWORD eventType, QString &error) {
+        DWORD consoleProcesses[2];
+        const auto hadConsole = GetConsoleProcessList(consoleProcesses, 2) != 0;
+        if (hadConsole && !FreeConsole()) {
+            error = QStringLiteral("Could not detach the test console: Windows error %1")
+                        .arg(GetLastError());
+            return false;
+        }
+
+        if (!AttachConsole(static_cast<DWORD>(processId))) {
+            const auto errorNumber = GetLastError();
+            if (hadConsole)
+                AttachConsole(ATTACH_PARENT_PROCESS);
+            error = QStringLiteral("Could not attach the child console: Windows error %1")
+                        .arg(errorNumber);
+            return false;
+        }
+
+        const auto sent = GenerateConsoleCtrlEvent(eventType, static_cast<DWORD>(processId));
+        const auto sendError = sent ? ERROR_SUCCESS : GetLastError();
+        const auto detached = FreeConsole();
+        const auto detachError = detached ? ERROR_SUCCESS : GetLastError();
+        const auto restored = !hadConsole || AttachConsole(ATTACH_PARENT_PROCESS);
+        const auto restoreError = restored ? ERROR_SUCCESS : GetLastError();
+        if (!sent || !detached || !restored) {
+            error = QStringLiteral("Could not deliver CTRL_BREAK_EVENT: send=%1, detach=%2, "
+                                   "restore=%3")
+                        .arg(sendError)
+                        .arg(detachError)
+                        .arg(restoreError);
+            return false;
+        }
+        return true;
+    }
 #else
     struct ProcessSnapshot {
         QString executablePath;
@@ -485,6 +525,7 @@ namespace {
         const auto serviceName = SingleInstanceIdentity::serviceName(editorDataDirectory);
 
         QProcess editor;
+        QProcess signalEditor;
         QProcess conflictingEditor;
         QProcess mcpEditor;
         QProcess competitionHeadless;
@@ -498,6 +539,7 @@ namespace {
             stopProcess(competitionHeadless);
             stopProcess(mcpEditor);
             stopProcess(conflictingEditor);
+            stopProcess(signalEditor);
             stopProcess(editor);
             if (restartedProcessId == 0 && !restartWorkingDirectory.isEmpty()) {
                 restartedProcessId = findOwnedProcess(editorPath, restartWorkingDirectory,
@@ -835,6 +877,150 @@ namespace {
             !waitUntil([&] { return !localServiceAvailable(serviceName); }, 5000)) {
             return fail(
                 QStringLiteral("Graceful headless exit left a listener or Primary service"));
+        }
+
+#ifdef Q_OS_WIN
+        struct TerminationSignalCase {
+            DWORD value;
+            QString name;
+        };
+        const std::array terminationSignals{
+            TerminationSignalCase{CTRL_BREAK_EVENT, QStringLiteral("CTRL_BREAK_EVENT")},
+        };
+        signalEditor.setCreateProcessArgumentsModifier(
+            [](QProcess::CreateProcessArguments *arguments) {
+                arguments->flags |= CREATE_NEW_PROCESS_GROUP | CREATE_NEW_CONSOLE;
+                arguments->startupInfo->dwFlags |= STARTF_USESHOWWINDOW;
+                arguments->startupInfo->wShowWindow = SW_HIDE;
+            });
+#else
+        struct TerminationSignalCase {
+            int value;
+            QString name;
+        };
+        const std::array terminationSignals{
+            TerminationSignalCase{SIGINT, QStringLiteral("SIGINT")},
+            TerminationSignalCase{SIGTERM, QStringLiteral("SIGTERM")},
+        };
+#endif
+        signalEditor.setProcessEnvironment(environment);
+        signalEditor.setWorkingDirectory(QFileInfo(editorPath).absolutePath());
+        signalEditor.setProcessChannelMode(QProcess::SeparateChannels);
+        for (const auto &terminationSignal : terminationSignals) {
+            QTcpServer signalPortProbe;
+            if (!signalPortProbe.listen(QHostAddress(QStringLiteral("127.0.0.1")), 0)) {
+                return fail(QStringLiteral("Could not allocate the %1 control port: %2")
+                                .arg(terminationSignal.name, signalPortProbe.errorString()));
+            }
+            const auto signalPort = signalPortProbe.serverPort();
+            signalPortProbe.close();
+            const QUrl signalEndpoint(
+                QStringLiteral("http://127.0.0.1:%1/automation/v1").arg(signalPort));
+
+            signalEditor.start(
+                editorPath, {QStringLiteral("--headless"), QStringLiteral("--no-mcp"),
+                             QStringLiteral("--control-level"), QStringLiteral("l3"),
+                             QStringLiteral("--control-port"), QString::number(signalPort)});
+            if (!signalEditor.waitForStarted(10000)) {
+                return fail(QStringLiteral("%1 headless editor failed to start: %2")
+                                .arg(terminationSignal.name, signalEditor.errorString()));
+            }
+
+            QString signalExchangeError;
+            std::optional<QJsonObject> signalStatusResponse;
+            const auto signalReady = waitUntil(
+                [&] {
+                    if (signalEditor.state() == QProcess::NotRunning)
+                        return true;
+                    const auto response = nativeExchange(
+                        manager, signalEndpoint,
+                        nativeRequest(QStringLiteral("signal-status"),
+                                      QStringLiteral("application.get_status")),
+                        signalExchangeError, 500);
+                    if (!response || !response->value(QStringLiteral("result")).isObject())
+                        return false;
+                    signalStatusResponse = response;
+                    return true;
+                },
+                45000);
+            if (!signalReady || !signalStatusResponse) {
+                return fail(QStringLiteral("%1 headless endpoint did not become ready: %2; %3")
+                                .arg(terminationSignal.name, signalExchangeError,
+                                     processDiagnostics(signalEditor, appDataRoot, signalPort)));
+            }
+            const auto signalDocuments = signalStatusResponse->value(QStringLiteral("result"))
+                                             .toObject()
+                                             .value(QStringLiteral("documents"))
+                                             .toArray();
+            if (signalDocuments.size() != 1) {
+                return fail(QStringLiteral("%1 status did not expose one document")
+                                .arg(terminationSignal.name));
+            }
+            const auto signalDocument = signalDocuments.first().toObject();
+            const auto signalDocumentId =
+                signalDocument.value(QStringLiteral("document_id")).toString();
+            const auto signalRevision =
+                signalDocument.value(QStringLiteral("revision")).toInteger(-1);
+            const auto signalDirtyInsertion = nativeExchange(
+                manager, signalEndpoint,
+                nativeRequest(QStringLiteral("signal-dirty-insert"),
+                              QStringLiteral("tracks.insert"),
+                              QJsonObject{
+                                  {QStringLiteral("document_id"), signalDocumentId},
+                                  {QStringLiteral("expected_revision"), signalRevision},
+                                  {QStringLiteral("index"), 0},
+                                  {QStringLiteral("tracks"),
+                                   QJsonArray{QJsonObject{
+                                       {QStringLiteral("client_ref"),
+                                        QStringLiteral("signal-dirty-track")},
+                                       {QStringLiteral("name"), QStringLiteral("Signal Track")},
+                                       {QStringLiteral("color_index"), 0},
+                                   }}},
+                }),
+                signalExchangeError);
+            if (signalDocumentId.isEmpty() || signalRevision < 0 || !signalDirtyInsertion ||
+                signalDirtyInsertion->contains(QStringLiteral("error")) ||
+                !signalDirtyInsertion->value(QStringLiteral("result"))
+                     .toObject()
+                     .value(QStringLiteral("changed"))
+                     .toBool()) {
+                return fail(QStringLiteral("Could not make the %1 document dirty: %2")
+                                .arg(terminationSignal.name,
+                                     signalDirtyInsertion ? compactJson(*signalDirtyInsertion)
+                                                          : signalExchangeError));
+            }
+
+#ifdef Q_OS_WIN
+            QString sendError;
+            if (!sendConsoleControlEvent(signalEditor.processId(), terminationSignal.value,
+                                         sendError)) {
+                return fail(QStringLiteral("Could not send %1: %2")
+                                .arg(terminationSignal.name, sendError));
+            }
+#else
+            if (::kill(static_cast<pid_t>(signalEditor.processId()), terminationSignal.value) == -1) {
+                return fail(QStringLiteral("Could not send %1: errno %2")
+                                .arg(terminationSignal.name)
+                                .arg(errno));
+            }
+#endif
+            if (!signalEditor.waitForFinished(15000) ||
+                signalEditor.exitStatus() != QProcess::NormalExit || signalEditor.exitCode() != 0) {
+                return fail(QStringLiteral("%1 did not cause a clean headless exit: %2")
+                                .arg(terminationSignal.name,
+                                     processDiagnostics(signalEditor, appDataRoot, signalPort)));
+            }
+            const auto signalOutput = QString::fromUtf8(signalEditor.readAllStandardOutput()) +
+                                      QString::fromUtf8(signalEditor.readAllStandardError());
+            if (!signalOutput.contains(terminationSignal.name)) {
+                return fail(QStringLiteral("%1 graceful-exit log was not observed: %2")
+                                .arg(terminationSignal.name, signalOutput));
+            }
+            if (!waitUntil([&] { return !tcpListenerAvailable(signalPort); }, 5000) ||
+                !waitUntil([&] { return !localServiceAvailable(serviceName); }, 5000)) {
+                return fail(QStringLiteral("%1 exit left a listener or Primary service")
+                                .arg(terminationSignal.name));
+            }
         }
 
         QTcpServer conflictOwner;
@@ -1470,7 +1656,7 @@ namespace {
         QTextStream(stdout)
             << "Validated QCore-only headless Native workflow, Bootstrap state, no windows, "
                "startup-project readiness, edit/undo/redo, async file tasks, restart, Primary "
-               "competition, and MCP coexistence"
+               "competition, console termination, and MCP coexistence"
             << Qt::endl;
         return true;
     }
