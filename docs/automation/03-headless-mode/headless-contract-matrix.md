@@ -87,6 +87,11 @@ H(headless, policy)= policy(B)
 `available=false`、模块未安装、无设备或无模型是运行时能力事实，不改变 operation 的
 `host_availability=both`，也不能被误报为 Host capability 缺失。
 
+Headless 控制台终止信号不属于公共集合 `P`，也不产生新的 Contract/Registry binding。它是宿主级
+本机进程控制入口，在 Qt 主线程以 `InternalAutomation` 调用现有 application Facade，并固定采用
+discard exit。因而它绕过公共 Policy/File Guard，但与 `application.request_exit` 共用 busy 判断、
+退出调度和资源清理；任何状态或结果仍不生成 WindowId。GUI Host 不安装此入口。
+
 ## 5. Window 与 Document 身份
 
 | 场景 | `document_id` | `window_id` |
@@ -162,4 +167,5 @@ Native 不提供工具目录。`automation.discover` 不属于 `P`，在 Native 
 7. Headless status 为一个真实 document、零 windows，返回结构不含伪造 WindowId。
 8. `tool_unavailable`、`host_capability_unavailable`、`permission_denied` 与 Editor 连接错误不混淆。
 9. 代码、Wire 响应、Connector 状态和对外 descriptor 不再产生 `host_unavailable`。
-10. Native、MCP、Connector 与直接 Facade 的代表业务错误保留同一 AutomationError code/details。
+10. Headless 控制台终止复用 application Facade，GUI 不安装 handler，且不改变 `P/G/B` 集合。
+11. Native、MCP、Connector 与直接 Facade 的代表业务错误保留同一 AutomationError code/details。

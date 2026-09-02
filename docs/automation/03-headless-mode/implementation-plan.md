@@ -194,6 +194,31 @@ Headless 对涉及用户交互的既有路径注入无弹窗宿主适配器。�
 
 GUI 菜单、窗口关闭和其他用户发起路径继续使用现有交互式 Prompt 语义。
 
+### 5.3 Headless 控制台终止
+
+仅 Headless 在默认文档建立后、处理启动工程队列前安装内部
+`HeadlessTerminationHandler`；GUI 启动路径不创建或注册该组件。控制台事件在 Qt 主线程复用
+`ApplicationAutomationFacade::requestTermination`，固定使用 `Exit`、`discard_changes=true`、
+`InternalAutomation` 和 `client_id=console-signal`，不新增 CLI、配置项或公开 operation。
+
+| 平台输入 | 系统事件 | Headless 行为 |
+|---|---|---|
+| Windows 前台 `Ctrl+C` | `CTRL_C_EVENT` | 优雅退出 |
+| Windows `Ctrl+Break` | `CTRL_BREAK_EVENT` | 优雅退出 |
+| Linux/macOS 前台 `Ctrl+C` | `SIGINT` | 优雅退出 |
+| Linux/macOS `kill <pid>` 或常规容器 stop | `SIGTERM` | 优雅退出 |
+
+Windows 原始 handler 只通知 auto-reset event，由 `QWinEventNotifier` 将事件送回主线程；Unix 使用
+`sigaction` 和 non-blocking、close-on-exec `socketpair`，原始 signal handler 只执行
+async-signal-safe `write()` 并保留 `errno`。RAII stop 会移除 Windows handler 或恢复原 POSIX
+signal action。接受退出后吞掉重复事件，不实现第二次中断强退；若当前文档 busy，记录 warning、保持
+运行并允许稍后重试。
+
+该入口是本机进程控制能力，不经过 Registry、control level 或 File Guard；业务判断、退出码和
+listener、QLocal、Task、音频及 Runtime 清理仍由既有 Facade 和事件循环负责。没有前台控制台的
+进程继续使用 `application.request_exit`。`CTRL_CLOSE_EVENT`、注销/关机、`SIGKILL`、
+`TerminateProcess` 与 IDE 强制 Stop 不承诺优雅清理。
+
 ## 6. Host capability 与统一错误
 
 ### 6.1 公共 Host 元数据
@@ -333,9 +358,10 @@ Registry、访问根或端口绑定失败属于致命启动错误：写入 stder
 5. 泛化 Automation HTTP Controller/Server，实现 `/automation/v1` codec 与 dispatcher。
 6. 保持 MCP route、QLocal Bootstrap、单实例和 Connector 语义，并完成错误名迁移。
 7. 清除 Settings、Audio、Playback、translator、Restarter 与文件任务中的隐藏 GUI 依赖。
-8. 增加单元、组件和精简真实进程测试，完成 Native/MCP/Connector/Facade 等价回归。
-9. 完成 GUI 回归、完整 Debug 构建和同一候选的一次串行全量 CTest。
-10. 回填实现报告、测试报告、failure ledger 与匿名 Evidence 索引。
+8. 增加 Headless 控制台终止桥，并使其复用 application Facade 生命周期。
+9. 增加单元、组件和精简真实进程测试，完成 Native/MCP/Connector/Facade 等价回归。
+10. 完成 GUI 回归、完整 Debug 构建和同一候选的一次串行全量 CTest。
+11. 回填实现报告、测试报告、failure ledger 与匿名 Evidence 索引。
 
 ## 11. 实现与验收门禁
 
@@ -348,6 +374,8 @@ Registry、访问根或端口绑定失败属于致命启动错误：写入 stder
 - Native、MCP、Connector 与直接 Facade 的代表语料在业务结果、错误、revision、History 和
   Task 上等价。
 - GUI/Headless 共享单实例身份，位置参数、文档替换、Connector Bootstrap 和 GUI MCP 不回退。
+- Headless 的 `Ctrl+C`/`Ctrl+Break` 与 POSIX `SIGINT`/`SIGTERM` 使用和显式 discard exit 相同的
+  Facade 与清理顺序；GUI 不注册控制台终止处理器。
 - Headless 启动致命错误非零退出，全部测试拥有的 listener、QLocal、Task、锁和进程可清理。
 - Debug 全目标构建、正式进程资格、GUI 回归和同一最终候选的一次完整串行 CTest 完成。
 - 六份正式文档与仓库外私有证据归档形成可追溯闭环。

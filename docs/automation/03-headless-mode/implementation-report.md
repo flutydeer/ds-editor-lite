@@ -11,12 +11,12 @@
 继续共用 PublicAutomationRegistry、Access Policy、File Guard、Admission、类型化 binding、
 Automation Facade、History、revision 与 Task 生命周期。
 
-测试源候选最终冻结于 `headless` 分支 commit `42a20353`；其后的变更仅回填正式报告，不改变受测
+测试源候选最终冻结于 `headless` 分支 commit `a36a3f56`；其后的变更仅回填正式报告，不改变受测
 产品代码或测试。项目 Debug build preset 的默认目标保持不变，正式候选通过项目脚本显式指定
 `-Target all` 完成全目标构建与串行 CTest，结果为 64/64、0 fail。最终构建、清单、全量执行与
-审计证据分别为 `E-P3-FINAL-BUILD-004`、`E-P3-CTEST-LIST-002`、
-`E-P3-CTEST-JSON-002`、`E-P3-CTEST-FULL-004`、`E-P3-REVIEW-001`、
-`E-P3-REVIEW-002` 和 `E-P3-FINAL-AUDIT-004`。
+审计证据分别为 `E-P3-FINAL-BUILD-005`、`E-P3-CTEST-LIST-003`、
+`E-P3-CTEST-JSON-003`、`E-P3-CTEST-FULL-005`、`E-P3-SIGNAL-PROCESS-001`、
+`E-P3-SIGNAL-PTY-001` 和 `E-P3-FINAL-AUDIT-005`。
 
 ## 2. 启动入口与 Host composition
 
@@ -122,6 +122,18 @@ Connector 的旧 `host_unavailable` 输出已迁移到 `host_capability_unavaila
 生命周期调用来源增加 `PublicJsonRpc`，因而 Native 与 MCP 使用完全相同的 dirty/accept 语义和
 错误编码。
 
+Headless 还在默认文档建立后安装内部 RAII `HeadlessTerminationHandler`。Windows 通过
+`SetConsoleCtrlHandler` 接收 `CTRL_C_EVENT`/`CTRL_BREAK_EVENT`，原始 handler 只唤醒 auto-reset
+event，再由 `QWinEventNotifier` 转入 Qt 主线程；Unix 通过 `sigaction` 接收 `SIGINT`/`SIGTERM`，
+用 non-blocking、close-on-exec `socketpair` 和 `QSocketNotifier` 完成同样的线程切换，signal handler
+只执行 `write()` 并保留 `errno`。
+
+主线程固定以 `InternalAutomation`、`client_id=console-signal`、`Exit` 和 discard 调用同一
+application Facade。接受后锁定 terminating 并合并后续事件；busy 拒绝时保持运行、记录 warning 并
+允许重试。handler 在 Automation/Runtime 拆除前停止并恢复平台处理状态。GUI 分支不创建该组件；
+本次没有增加 CLI、配置、Registry operation 或协议方法，也不处理 Close/Logoff/Shutdown、强杀和
+第二次中断强退。
+
 ## 6. Native JSON-RPC v1
 
 `NativeJsonRpcDispatcher` 将 JSON-RPC `method` 直接映射为公共 operation ID，并以
@@ -200,7 +212,7 @@ QLocal Bootstrap 的 `server_*` 字段继续只描述 Connector 所需的 MCP ro
 - optional WindowContext、Headless status 与 application lifecycle；
 - QLocal、Connector 错误迁移和 GUI/Headless 单实例身份；
 - 真实 Headless 进程的无效 GUI platform、零窗口、Native、可选 MCP、文件/Task、端口冲突、
-  启动工程 ready 顺序、clean/dirty/discard/restart 与资源清理；
+  启动工程 ready 顺序、clean/dirty/discard、平台控制台终止、restart 与资源清理；
 - GUI MCP 目录、真实 WindowId、代表 GUI-only operation、编辑、History、播放和保存回归。
 
 测试控制优先使用确定性 CTest、命令行进程、HTTP/QLocal/窗口枚举、Editor MCP 与 Connector MCP。
@@ -208,8 +220,10 @@ Computer Use 只在其他方式无法覆盖必要 GUI 断言时使用；本期�
 
 最终标准 Debug 构建通过项目脚本显式指定 `all`，退出码为 0，并保持 `CMakePresets.json` 与基线
 一致。CTest 文本清单与 JSON 清单均为 64 项且测试可执行文件完整；最终候选串行执行 64/64、
-0 fail，耗时 60.39 秒，退出码为 0。测试仅使用自动生成的 WAV/DSPX fixture，未访问或复制授权
-素材，因此原文件 hash 不适用；最终资源清理和 Evidence 索引审计通过。
+0 fail，耗时 64.57 秒，退出码为 0。Windows 进程 fixture 定向发送 `CTRL_BREAK_EVENT`，真实前台
+PTY 发送 `Ctrl+C`；两者均先制造 dirty document，再验证 Editor 正常退出码 0 和资源释放。Unix
+进程测试在对应平台条件编译为 `SIGINT`、`SIGTERM` 两轮。测试仅使用自动生成的 WAV/DSPX
+fixture，未访问或复制授权素材，因此原文件 hash 不适用；最终资源清理和 Evidence 索引审计通过。
 
 ## 11. 明确未交付范围
 

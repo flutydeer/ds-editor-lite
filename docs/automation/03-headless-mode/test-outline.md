@@ -186,6 +186,10 @@ Contract、Registry binding、Host 分类、MCP 实际发现与 Connector 实际
 - dirty 文档传 `discard_changes: true` 后先返回接受结果，再退出。
 - restart 复用当前 exe、原参数和工作目录，产生新的 instance ID。
 - Headless restart 后仍为 QCore Host，Native 固定可用，MCP 开关保持当前启动语义。
+- Windows `CTRL_C_EVENT`/`CTRL_BREAK_EVENT` 与 Unix `SIGINT`/`SIGTERM` 在 Qt 主线程请求固定 discard
+  exit，脏文档也正常退出且退出码为 0。
+- 接受控制台终止后重复信号被合并；busy 拒绝时进程保持可用并允许后续信号重试。
+- GUI 不注册 Headless 控制台 handler；无前台控制台时仍使用公开退出 operation。
 - GUI 菜单/窗口关闭继续使用交互式保存 Prompt；公共调用仍无弹窗。
 - exit/restart 不重复派发，不留下孤儿 Editor/Connector、listener、QLocal、锁或 Task。
 
@@ -228,7 +232,10 @@ APPDATA/LOCALAPPDATA、访问根和端口，并只管理测试拥有的 PID/proc
 10. GUI/Headless 竞争同一 Primary。
 11. 端口冲突导致 Headless 非零退出。
 12. clean/dirty/discard/restart 生命周期闭环。
-13. 最终无 listener、QLocal、Task、锁或进程残留。
+13. Windows 独立控制台进程组用 `CTRL_BREAK_EVENT`，Unix 分别用 `SIGINT`、`SIGTERM`，验证脏文档
+    discard exit、退出码 0 与资源释放。
+14. Windows 前台 PTY 发送实际 `Ctrl+C`，不使用 Computer Use。
+15. 最终无 listener、QLocal、Task、锁或进程残留。
 
 每个 timeout/crash 场景使用 watchdog，先保存日志、进程、端口和窗口快照，再精确结束测试拥有的
 进程；不使用宽泛进程名终止用户进程。
@@ -276,6 +283,7 @@ CTest 数量以本轮配置结果为准。失败必须保存首次证据，修�
 - Host Contract/Registry/value source 集合关系成立，25/151 候选差集无未解释漂移。
 - Headless 确为 QCore、零 GUI 对象、零窗口，并具有一个真实文档。
 - Native 固定 route、可选 MCP route、共享业务门禁及致命启动失败语义满足契约。
+- Headless 控制台事件和公开 discard exit 复用同一生命周期，GUI 启动路径不受影响。
 - Native JSON-RPC envelope、错误映射、安全限制和无 discover/catalog 边界完整。
 - QCore 业务资格、真实进程代表路径、Connector 与 GUI 回归形成同一候选证据。
 - 完整 Debug build 与一次最终串行全量 CTest 完成，所有测试拥有的资源和产物受控清理。

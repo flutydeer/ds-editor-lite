@@ -292,6 +292,10 @@ Native route 生命周期与 MCP enable 状态分离；Bootstrap 的 `server_*` 
 11. clean exit。
 12. dirty 默认 busy、无模态窗口，随后 discard exit。
 13. restart 的新 instance ID、原参数/工作目录与最终无孤儿进程。
+14. Windows 以独立、隐藏 console process group 定向发送 `CTRL_BREAK_EVENT`；Unix 分别发送
+    `SIGINT` 与 `SIGTERM`。每次先用 Native 制造 dirty document，再断言正常退出码 0 和完整清理。
+15. Windows 前台 PTY 另发送一次实际 `Ctrl+C`，记录信号日志、Editor 退出码和资源快照；不使用
+    Computer Use。
 
 并发专项覆盖：
 
@@ -360,7 +364,7 @@ ctest --test-dir build/Debug --output-on-failure -j 1
 5. 运行所属测试域。
 6. 涉及公共协议时运行 Native + MCP + Connector 等价回归。
 7. 涉及 GUI/Host composition 时运行 Headless 无窗口资格与 GUI 回归。
-8. 涉及生命周期时重做 clean/dirty/discard/restart 和资源清理。
+8. 涉及生命周期时重做 clean/dirty/discard/console signal/restart 和资源清理。
 9. 使用独立 `fix(scope): summary` 提交修复。
 10. 在同一新候选上重新完成 Debug build 与一次完整串行 CTest。
 
@@ -390,6 +394,7 @@ GUI 对象泄漏、伪造 WindowId、Host gate 越权、文件越权、数据损
 - Headless 为真实 QCore、零 GUI 对象/窗口、一个真实文档；
 - 151 项候选 both 集合具有 Contract/binding/QCore 资格，25 项 GUI-only 差集准确；
 - Native 固定可用，MCP 可独立启停并共用 Registry/Facade 生命周期；
+- Headless 控制台终止与公开 discard exit 等价，GUI 不注册对应 handler；
 - 身份、错误、History、revision、Task、单实例和 Connector 语义不回退；
 - GUI 回归、Debug 全目标构建和一次最终串行 CTest 形成同一候选证据；
 - 六份正式文档和私有归档完整、匿名、可追溯。
