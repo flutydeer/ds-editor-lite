@@ -58,10 +58,22 @@ namespace Automation {
         return documentId == m_session.documentId() && m_session.isBusy();
     }
 
+    AutomationResult<CommandContext> CoreRuntime::documentWorkflowCommitContext(
+        const DocumentVersion &generationAnchor) const {
+        const auto rebased =
+            rebaseDocumentVersionWithinGeneration(generationAnchor, documentVersion());
+        if (!rebased)
+            return rebased.getError();
+        return CommandContext{
+            .expected = rebased.get(),
+            .source = InvocationSource::TrustedGui,
+        };
+    }
+
     AutomationResult<CommandContext>
         CoreRuntime::derivedWritebackContext(const DocumentVersion &taskVersion,
                                              const bool validateOnly) const {
-        const auto rebased = rebaseTaskVersionWithinGeneration(taskVersion, documentVersion());
+        const auto rebased = rebaseDocumentVersionWithinGeneration(taskVersion, documentVersion());
         if (!rebased)
             return rebased.getError();
         return CommandContext{
