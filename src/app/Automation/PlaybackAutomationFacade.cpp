@@ -100,7 +100,7 @@ namespace Automation {
 
     AutomationResult<MutationResult> PlaybackAutomationFacade::setState(
         const OperationId &operationId, const CommandContext &context, const PlaybackState state) {
-        return m_dispatcher.dispatchDocumentCommand(
+        return m_dispatcher.dispatchDocumentControlCommand(
             operationId, context, [this, state](DocumentSession &session, const bool validateOnly) {
                 if (!m_services.snapshot)
                     return AutomationResult<MutationResult>(
@@ -140,7 +140,7 @@ namespace Automation {
 
     AutomationResult<MutationResult>
         PlaybackAutomationFacade::setPosition(const CommandContext &context, const double tick) {
-        return m_dispatcher.dispatchDocumentCommand(
+        return m_dispatcher.dispatchDocumentControlCommand(
             OperationIds::playback::set_position, context,
             [this, tick](DocumentSession &session, const bool validateOnly) {
                 if (!std::isfinite(tick) || tick < 0.0) {
@@ -160,7 +160,7 @@ namespace Automation {
 
     AutomationResult<MutationResult> PlaybackAutomationFacade::seek(const CommandContext &context,
                                                                     const double tick) {
-        return m_dispatcher.dispatchDocumentCommand(
+        return m_dispatcher.dispatchDocumentControlCommand(
             OperationIds::playback::seek, context,
             [this, tick](DocumentSession &session, const bool validateOnly) {
                 if (!std::isfinite(tick) || tick < 0.0) {
@@ -187,7 +187,7 @@ namespace Automation {
     AutomationResult<MutationResult>
         PlaybackAutomationFacade::setLastPosition(const CommandContext &context,
                                                   const double tick) {
-        return m_dispatcher.dispatchDocumentCommand(
+        return m_dispatcher.dispatchDocumentControlCommand(
             OperationIds::playback::set_last_position, context,
             [this, tick](DocumentSession &session, const bool validateOnly) {
                 if (!std::isfinite(tick) || tick < 0.0) {

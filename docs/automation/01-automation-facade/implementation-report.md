@@ -37,8 +37,9 @@ MCP、Headless 宿主和多文档产品行为不在 Facade 层实现。GUI、内
 - GUI Save/Save As 在用户完成最后一次确认后立即解析同代当前 revision 并保存该状态；保存失败重试
   会重新解析，且绝不跨 DocumentId 换代。保存本身不轮换 DocumentId 和 revision，只更新路径、
   工程名和 History savepoint。
-- 公共 MCP 文档写操作继续严格使用调用方提供的 `expected_revision`，不自动重定位；GUI 文档工作流
-  busy 时拒绝新的公共 MCP 写操作，但查询、可信 GUI 提交和内部派生写回仍可进入统一 Facade。
+- 公共 MCP 持久文档写操作继续严格使用调用方提供的 `expected_revision`，不自动重定位；GUI 文档
+  工作流 busy 时拒绝新的公共 MCP 持久写操作，但查询、任务取消、瞬时播放控制、可信 GUI 提交和
+  内部派生写回仍可进入统一 Facade。瞬时播放控制不修改持久文档，任务取消沿用 Task 状态契约。
 - Import、编辑、Undo、Redo 仅在实际改变时增加 revision。
 - Session 替换后，旧 DocumentId、旧对象 ID、排队命令和晚到异步写回不能进入新工程。
 

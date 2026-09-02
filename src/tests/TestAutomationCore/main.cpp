@@ -139,6 +139,26 @@ int main(int argc, char *argv[]) {
             ++publicHandlerCalls;
             return commit(session, validateOnly);
         });
+    auto publicControl = publicCommand;
+    publicControl.expected = first.version();
+    publicControl.validateOnly = true;
+    const auto allowedControl = dispatcher.dispatchDocumentControlCommand(
+        QStringLiteral("test.control"), publicControl,
+        [](Automation::DocumentSession &session, const bool validateOnly) {
+            return commit(session, validateOnly);
+        });
+    ++publicControl.expected.revision;
+    const auto staleControl = dispatcher.dispatchDocumentControlCommand(
+        QStringLiteral("test.control"), publicControl,
+        [](Automation::DocumentSession &session, const bool validateOnly) {
+            return commit(session, validateOnly);
+        });
+    const auto allowedCancellation =
+        dispatcher.dispatchDocumentControlCommandResultWithoutRevisionCheck<Automation::Revision>(
+            QStringLiteral("test.cancel"), publicControl,
+            [](Automation::DocumentSession &session, const bool) {
+                return Automation::AutomationResult<Automation::Revision>(session.revision());
+            });
     auto trustedCommand = publicCommand;
     trustedCommand.expected = first.version();
     trustedCommand.validateOnly = true;
@@ -155,17 +175,17 @@ int main(int argc, char *argv[]) {
         [](Automation::DocumentSession &session, const bool validateOnly) {
             return commit(session, validateOnly);
         });
-    ok &= expect(queryWhileBusy && queryWhileBusy.get() == first.revision() &&
-                     !publicValidationBusy &&
-                     publicValidationBusy.getError().code ==
-                         Automation::AutomationErrorCode::Busy &&
-                     !publicBusy &&
-                     publicBusy.getError().code == Automation::AutomationErrorCode::Busy &&
-                     !stalePublicBusy &&
-                     stalePublicBusy.getError().code == Automation::AutomationErrorCode::Busy &&
-                     publicHandlerCalls == 0 && trustedPreview && internalPreview,
-                 "workflow busy must reject public commands while allowing queries and trusted "
-                 "work");
+    ok &= expect(
+        queryWhileBusy && queryWhileBusy.get() == first.revision() && !publicValidationBusy &&
+            publicValidationBusy.getError().code == Automation::AutomationErrorCode::Busy &&
+            !publicBusy && publicBusy.getError().code == Automation::AutomationErrorCode::Busy &&
+            !stalePublicBusy &&
+            stalePublicBusy.getError().code == Automation::AutomationErrorCode::Busy &&
+            publicHandlerCalls == 0 && allowedControl && !staleControl &&
+            staleControl.getError().code == Automation::AutomationErrorCode::RevisionConflict &&
+            allowedCancellation && trustedPreview && internalPreview,
+        "workflow busy must reject public mutations while allowing document controls, "
+        "queries, and trusted work");
     first.setBusy(false);
     publicCommand.expected = first.version();
     const auto publicValidation = dispatcher.validateDocumentCommand(publicCommand);
