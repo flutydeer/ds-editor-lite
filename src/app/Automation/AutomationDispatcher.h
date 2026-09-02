@@ -217,6 +217,9 @@ namespace Automation {
                 if (session.lifecycleState() != DocumentLifecycleState::Active)
                     return decorateError(AutomationError::documentBusy(session.documentId()),
                                          operationId);
+                if (context.source == InvocationSource::PublicMcp && session.isBusy())
+                    return decorateError(AutomationError::documentBusy(session.documentId()),
+                                         operationId);
 
                 QByteArray fingerprint;
                 if (!context.validateOnly && !context.idempotencyKey.isEmpty()) {

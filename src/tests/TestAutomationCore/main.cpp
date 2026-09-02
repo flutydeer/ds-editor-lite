@@ -116,6 +116,52 @@ int main(int argc, char *argv[]) {
                      staleHandlerCalls == 0,
                  "stale revisions must be rejected before entering the handler");
 
+    first.setBusy(true);
+    const auto queryWhileBusy = dispatcher.dispatchDocumentQuery<Automation::Revision>(
+        QStringLiteral("test.query"), first.documentId(), [](Automation::DocumentSession &session) {
+            return Automation::AutomationResult<Automation::Revision>(session.revision());
+        });
+    auto publicCommand = command;
+    publicCommand.expected = first.version();
+    publicCommand.source = Automation::InvocationSource::PublicMcp;
+    int publicHandlerCalls = 0;
+    const auto publicBusy = dispatcher.dispatchDocumentCommand(
+        QStringLiteral("test.command"), publicCommand,
+        [&publicHandlerCalls](Automation::DocumentSession &session, const bool validateOnly) {
+            ++publicHandlerCalls;
+            return commit(session, validateOnly);
+        });
+    ++publicCommand.expected.revision;
+    const auto stalePublicBusy = dispatcher.dispatchDocumentCommand(
+        QStringLiteral("test.command"), publicCommand,
+        [&publicHandlerCalls](Automation::DocumentSession &session, const bool validateOnly) {
+            ++publicHandlerCalls;
+            return commit(session, validateOnly);
+        });
+    auto trustedCommand = publicCommand;
+    trustedCommand.expected = first.version();
+    trustedCommand.validateOnly = true;
+    trustedCommand.source = Automation::InvocationSource::TrustedGui;
+    const auto trustedPreview = dispatcher.dispatchDocumentCommand(
+        QStringLiteral("test.command"), trustedCommand,
+        [](Automation::DocumentSession &session, const bool validateOnly) {
+            return commit(session, validateOnly);
+        });
+    auto internalCommand = trustedCommand;
+    internalCommand.source = Automation::InvocationSource::InternalAutomation;
+    const auto internalPreview = dispatcher.dispatchDocumentCommand(
+        QStringLiteral("test.command"), internalCommand,
+        [](Automation::DocumentSession &session, const bool validateOnly) {
+            return commit(session, validateOnly);
+        });
+    ok &= expect(queryWhileBusy && queryWhileBusy.get() == first.revision() && !publicBusy &&
+                     publicBusy.getError().code == Automation::AutomationErrorCode::Busy &&
+                     !stalePublicBusy &&
+                     stalePublicBusy.getError().code == Automation::AutomationErrorCode::Busy &&
+                     publicHandlerCalls == 0 && trustedPreview && internalPreview,
+                 "workflow busy must reject public commands while allowing queries and trusted work");
+    first.setBusy(false);
+
     auto unsupportedKey = command;
     unsupportedKey.expected = first.version();
     unsupportedKey.idempotencyKey = QStringLiteral("unsupported-key");
