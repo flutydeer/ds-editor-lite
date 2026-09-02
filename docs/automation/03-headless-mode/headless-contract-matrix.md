@@ -93,8 +93,9 @@ discard exit。因而它绕过公共 Policy/File Guard，但与 `application.req
 退出调度和资源清理；任何状态或结果仍不生成 WindowId。GUI Host 不安装此入口。
 
 单实例 `OpenProjects` 同样不增加公共 operation。Headless 在首次 Automation ready 前必须将位置参数
-及此前已确认的 QLocal 转发请求送入同一串行 open queue，并等待其 Task 终态；ready 后的转发继续按
-运行期队列处理。该时序不改变 DocumentId、revision 或单文档替换契约。
+及最终屏障前已确认的 QLocal 转发请求送入同一串行 open queue，并等待其 Task 终态。屏障原子暂停
+open/activate dispatch；屏障后的请求暂存且不 ACK，ready 后再作为运行期请求恢复。该时序不改变
+DocumentId、revision 或单文档替换契约。
 
 ## 5. Window 与 Document 身份
 

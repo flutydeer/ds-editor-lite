@@ -99,7 +99,8 @@ docs(automation): report phase three delivery
 - Qt Application 创建后仍由唯一的 `StartupArguments` 完成全部 CLI 校验；
 - 既有位置工程参数、`activate/openProjects` 解析、单实例转发、队列顺序和单文档替换语义不变；
 - Headless 在 Automation Controller 构造前安装单实例请求处理器，并以 IPC worker 屏障收齐已确认
-  的转发请求；位置工程与这些启动期转发工程均由同一 open queue 到达终态后才发布 ready。
+  的转发请求；最终屏障原子暂停新的 open/activate dispatch，位置工程与屏障前请求由同一 open
+  queue 到达终态后才发布 ready。屏障后的请求暂存且不 ACK，ready 后再恢复为运行期请求。
 
 最终 CLI 保持：
 

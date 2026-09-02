@@ -176,9 +176,11 @@ Contract 重复、Host 集合不闭合、Registry 缺失、value source 不可�
    工程，不能暴露或允许修改过渡空白文档。
 5. 在 Primary 服务建立后、Automation ready 前发送单实例 `OpenProjects`，确认 ACK 请求经 IPC
    worker 屏障送达同一 open queue、Task 终态先于 ready，首次 status 对应最后转发工程。
-6. 使用 Windows API 按 PID 枚举顶层窗口，覆盖启动、请求处理、文件/Task 和退出阶段。
-7. 执行主题设置、音频设备失败、AudioDecoding、Playback、translator 和 Restarter 专项。
-8. 检查 stderr、Qt plugin 加载、QObject 树和窗口快照，不得存在 GUI fallback。
+6. 在最终屏障暂停期间另发 open/activate，请求必须保持未 ACK；Controller ready 后恢复 ACK 和既有
+   handler 投递，证明屏障与 admission/readiness 之间不存在确认窗口。
+7. 使用 Windows API 按 PID 枚举顶层窗口，覆盖启动、请求处理、文件/Task 和退出阶段。
+8. 执行主题设置、音频设备失败、AudioDecoding、Playback、translator 和 Restarter 专项。
+9. 检查 stderr、Qt plugin 加载、QObject 树和窗口快照，不得存在 GUI fallback。
 
 ### 门禁
 
@@ -304,7 +306,7 @@ Native route 生命周期与 MCP enable 状态分离；Bootstrap 的 `server_*` 
 - Native 与 MCP 混合全局在途上限；
 - 并发 revision conflict 和 Task 容量；
 - shutdown/disable/断开与计数释放；
-- 单实例转发的位置工程请求、ACK-to-main 屏障、ready 顺序与运行期队列顺序；
+- 单实例转发的位置工程请求、ACK-to-main 屏障、原子暂停/恢复、ready 顺序与运行期队列顺序；
 - restart/instance epoch 变化后的旧请求、旧目录和 Task 隔离。
 
 每个场景结束都执行局部 cleanup；阶段结束执行完整 listener、QLocal、Task、Primary、锁、临时根和

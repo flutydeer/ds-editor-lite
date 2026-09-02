@@ -77,6 +77,8 @@ Contract、Registry binding、Host 分类、MCP 实际发现与 Connector 实际
 - Headless listener ready 前通过 Document Facade 默认 draft/commit 创建一个空白文档；存在位置工程
   参数或此前已确认的单实例转发工程时，同一 open queue 必须先等其 Task 终态，首次 ready/status
   不得暴露默认空白文档或较早的过渡工程。
+- 最终转发屏障到 ready 之间新到达的 open/activate 请求保持连接但不 ACK；ready 后恢复并按运行期
+  队列处理，不能重新打开启动期竞态窗口。
 - GUI 仍在 MainWindow 创建后的既有时序初始化文档，视图可收到初始模型信号。
 
 ### 4.2 隐藏 GUI 依赖

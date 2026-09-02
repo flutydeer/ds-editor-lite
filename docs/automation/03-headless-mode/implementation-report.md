@@ -11,12 +11,12 @@
 继续共用 PublicAutomationRegistry、Access Policy、File Guard、Admission、类型化 binding、
 Automation Facade、History、revision 与 Task 生命周期。
 
-测试源候选最终冻结于 `headless` 分支 commit `14bd71c6`；其后的变更仅回填正式报告，不改变受测
+测试源候选最终冻结于 `headless` 分支 commit `5ad8eab9`；其后的变更仅回填正式报告，不改变受测
 产品代码或测试。项目 Debug build preset 的默认目标保持不变，正式候选通过项目脚本显式指定
 `-Target all` 完成全目标构建与串行 CTest，结果为 64/64、0 fail。最终构建、清单、全量执行与
-审计证据分别为 `E-P3-FINAL-BUILD-006`、`E-P3-CTEST-LIST-004`、
-`E-P3-CTEST-JSON-004`、`E-P3-CTEST-FULL-006`、`E-P3-SIGNAL-PROCESS-001`、
-`E-P3-SIGNAL-PTY-001` 和 `E-P3-FINAL-AUDIT-006`。
+审计证据分别为 `E-P3-FINAL-BUILD-007`、`E-P3-CTEST-LIST-005`、
+`E-P3-CTEST-JSON-005`、`E-P3-CTEST-FULL-007`、`E-P3-SIGNAL-PROCESS-001`、
+`E-P3-SIGNAL-PTY-001` 和 `E-P3-FINAL-AUDIT-007`。
 
 ## 2. 启动入口与 Host composition
 
@@ -66,8 +66,10 @@ Automation Controller、开放 admission 并发布 Bootstrap 状态。GUI 保持
 GUI 与 Headless 继续使用同一产品单实例身份、Primary 锁和 QLocal 服务。Headless 外部工程请求由
 `HeadlessOpenRequestQueue` 串行转交既有无交互文档打开 binding，保持单文档替换和 Task 终态顺序，
 不创建 DocumentWorkflow 或第二套加载实现。位置启动请求先入队，随后在 Controller 构造前安装
-请求处理器；IPC worker 屏障把此前已确认但尚未投递主线程的请求收齐，open queue 循环等待全部启动
-工作到达终态后才允许 listener ready。边界后的运行期转发请求继续异步串行执行。
+请求处理器；IPC worker 最终屏障把此前已确认但尚未投递主线程的请求收齐，并原子暂停后续
+open/activate dispatch。open queue 等待屏障前工作到达终态后才构造 Controller；屏障期间到达的请求
+保持连接但不 ACK，listener ready 后恢复为运行期异步串行请求。因此屏障与 readiness 之间不存在
+新的确认窗口。
 
 ## 4. 公共 Host capability 与错误边界
 
@@ -221,7 +223,7 @@ Computer Use 只在其他方式无法覆盖必要 GUI 断言时使用；本期�
 
 最终标准 Debug 构建通过项目脚本显式指定 `all`，退出码为 0，并保持 `CMakePresets.json` 与基线
 一致。CTest 文本清单与 JSON 清单均为 64 项且测试可执行文件完整；最终候选串行执行 64/64、
-0 fail，耗时 63.54 秒，退出码为 0。Windows 进程 fixture 定向发送 `CTRL_BREAK_EVENT`，真实前台
+0 fail，耗时 63.66 秒，退出码为 0。Windows 进程 fixture 定向发送 `CTRL_BREAK_EVENT`，真实前台
 PTY 发送 `Ctrl+C`；两者均先制造 dirty document，再验证 Editor 正常退出码 0 和资源释放。Unix
 进程测试在对应平台条件编译为 `SIGINT`、`SIGTERM` 两轮。测试仅使用自动生成的 WAV/DSPX
 fixture，未访问或复制授权素材，因此原文件 hash 不适用；最终资源清理和 Evidence 索引审计通过。
