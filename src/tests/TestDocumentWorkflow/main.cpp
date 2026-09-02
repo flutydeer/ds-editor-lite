@@ -1,4 +1,5 @@
 #include "Controller/DocumentWorkflow/DocumentWorkflowPathUtils.h"
+#include "Controller/DocumentWorkflow/DocumentWorkflowRevisionGuard.h"
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/History/ActionSequence.h>
 #include "AppContext.h"
@@ -134,6 +135,29 @@ namespace {
                      "existing DSPX project path must remain unchanged");
         return ok;
     }
+
+    bool verifyRevisionGuard() {
+        DocumentWorkflowRevisionGuard guard;
+        const Automation::DocumentVersion original{Automation::DocumentId::create(), 194};
+        const Automation::DocumentVersion advanced{original.documentId, 225};
+        const Automation::DocumentVersion replacement{Automation::DocumentId::create(), 0};
+
+        bool ok = true;
+        ok &= expect(!guard.ensureApproved(original, false),
+                     "an unconfirmed dirty revision must not permit replacement");
+        ok &= expect(guard.ensureApproved(original, true),
+                     "a saved revision must permit replacement");
+        ok &= expect(guard.ensureApproved(original, false),
+                     "the approved revision must remain valid while unchanged");
+        ok &= expect(!guard.ensureApproved(advanced, false),
+                     "a later dirty revision must require confirmation again");
+        guard.approve(advanced);
+        ok &= expect(guard.approves(advanced),
+                     "explicit confirmation must approve the current revision");
+        ok &= expect(!guard.approves(replacement),
+                     "approval must never carry into another generation");
+        return ok;
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -201,6 +225,7 @@ int main(int argc, char *argv[]) {
     ok &= expect(verifyGuardedBranch(true), "true guard must select the true target state");
     ok &= expect(verifyGuardedBranch(false), "false guard must select the false target state");
     ok &= verifySuggestedSavePaths();
+    ok &= verifyRevisionGuard();
 
     return ok ? 0 : 1;
 }

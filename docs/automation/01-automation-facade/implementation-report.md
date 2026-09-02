@@ -31,8 +31,9 @@ MCP、Headless 宿主和多文档产品行为不在 Facade 层实现。GUI、内
 ### 3.1 文档生命周期
 
 - 应用启动时建立 untitled Session，revision 为 0。
-- New/Open 在旧文档外准备结果，提交点确认旧 DocumentId 未换代并使用当时的当前 revision；成功后
-  轮换 DocumentId、清空 History 与 generation 状态并把 revision 置 0。
+- New/Open 在旧文档外准备结果，提交点确认旧 DocumentId 未换代，且当前 revision 已被最后一次
+  保存或丢弃决定覆盖；准备期间 revision 再次推进时重新进入未保存保护，不静默丢弃新增修改。成功
+  后轮换 DocumentId、清空 History 与 generation 状态并把 revision 置 0。
 - New/Open 失败或取消不改变旧 Model、History、路径、loop、幂等缓存或任务记录。
 - GUI Save/Save As 在用户完成最后一次确认后立即解析同代当前 revision 并保存该状态；保存失败重试
   会重新解析，且绝不跨 DocumentId 换代。保存本身不轮换 DocumentId 和 revision，只更新路径、
