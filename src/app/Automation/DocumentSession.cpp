@@ -61,7 +61,7 @@ namespace Automation {
         m_path = std::move(path);
         m_projectName = std::move(projectName);
         m_lifecycleState = DocumentLifecycleState::Active;
-        m_busy = false;
+        // 工作流 busy 由外层操作持有，文档换代时必须保留。
         m_idempotencyStore.clear();
         return version();
     }

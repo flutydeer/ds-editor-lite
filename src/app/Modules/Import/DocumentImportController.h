@@ -52,7 +52,7 @@ private:
     void showMessageDialog(const QString &title, const QString &message) const;
 
     QStringList m_pendingPaths;
-    Automation::DocumentVersion m_baseDocument;
+    Automation::DocumentVersion m_generationAnchor;
     QList<PreparedImportItem> m_prepared;
     DecodeAudioTask *m_currentTask = nullptr;
     std::optional<FileImportDropTarget> m_target;

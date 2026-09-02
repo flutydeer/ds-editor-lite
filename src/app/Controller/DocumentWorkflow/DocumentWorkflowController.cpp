@@ -5,6 +5,7 @@
 #include "IProjectLoadSession.h"
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
+#include "Automation/OperationIds.h"
 #include "Automation/ProjectAutomationDtos.h"
 #include "Controller/EditorViewController.h"
 #include "Controller/TrackController.h"
@@ -20,6 +21,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QLoggingCategory>
 #include <QStandardPaths>
 #include <QState>
 #include <QStateMachine>
@@ -27,6 +29,8 @@
 
 #include <algorithm>
 #include <utility>
+
+Q_LOGGING_CATEGORY(logDocumentWorkflow, "document.workflow")
 
 namespace {
     void addGuardedTransition(QState *source, QObject *sender, const char *signal,
@@ -40,11 +44,30 @@ namespace {
         return AppContext::instance<Automation::CoreRuntime>();
     }
 
-    Automation::CommandContext commandContext(const Automation::DocumentVersion &document) {
-        return {
-            .expected = document,
-            .source = Automation::InvocationSource::TrustedGui,
+    Automation::AutomationResult<Automation::CommandContext> workflowCommitContext(
+        Automation::CoreRuntime *runtime, const Automation::DocumentVersion &generationAnchor) {
+        if (runtime)
+            return runtime->documentWorkflowCommitContext(generationAnchor);
+        return Automation::AutomationError{
+            .code = Automation::AutomationErrorCode::InternalError,
+            .message = QStringLiteral("Automation runtime is unavailable"),
         };
+    }
+
+    void logWorkflowFailure(const quint64 requestId, const QLatin1StringView fallbackOperation,
+                            const Automation::AutomationError &error) {
+        const auto operation =
+            error.operationId.isEmpty() ? fallbackOperation.toString() : error.operationId;
+        const auto expectedRevision = error.expectedRevision
+                                          ? QString::number(*error.expectedRevision)
+                                          : QStringLiteral("n/a");
+        const auto actualRevision = error.actualRevision ? QString::number(*error.actualRevision)
+                                                         : QStringLiteral("n/a");
+        qCWarning(logDocumentWorkflow).nospace()
+            << "commit_failed operation='" << operation << "' request_id=" << requestId
+            << " error_code='" << Automation::errorCodeName(error.code)
+            << "' expected_revision=" << expectedRevision
+            << " actual_revision=" << actualRevision;
     }
 }
 
@@ -73,8 +96,10 @@ void DocumentWorkflowController::initializeNewDocument() {
     newModel.newProject();
     const auto data = newModel.takeProjectData();
     const auto draft = Automation::documentDraftDto(data, LoopSettings());
-    const auto result =
-        runtime->documents().commitNewDocument(commandContext(runtime->documentVersion()), draft);
+    const auto context = runtime->documentWorkflowCommitContext(runtime->documentVersion());
+    if (!context)
+        return;
+    const auto result = runtime->documents().commitNewDocument(context.get(), draft);
     if (!result)
         return;
     emit documentIdentityChanged();
@@ -126,8 +151,8 @@ TerminationRequestResult
     m_pending = {};
     m_pending.requestId = ++m_nextRequestId;
     if (auto *runtime = automationRuntime()) {
-        m_pending.baseDocument = runtime->documentVersion();
-        runtime->setDocumentBusy(m_pending.baseDocument.documentId, true);
+        m_pending.generationAnchor = runtime->documentVersion();
+        runtime->setDocumentBusy(m_pending.generationAnchor.documentId, true);
     }
     m_pending.termination = mode;
     m_skipSaveGuard = savePolicy != TerminationSavePolicy::Prompt;
@@ -232,9 +257,16 @@ void DocumentWorkflowController::initializeStateMachine() {
     addGuardedTransition(m_validatingState, this, SIGNAL(validationCompleted()), m_failedState,
                          [this] { return m_validationResult == ValidationResult::Fail; });
 
-    addGuardedTransition(
-        m_awaitingSaveDecisionState, this, SIGNAL(saveDecisionCompleted()), m_savingState,
-        [this] { return m_saveDecisionResult == SaveDecisionResult::SaveWithPath; });
+    addGuardedTransition(m_awaitingSaveDecisionState, this, SIGNAL(saveDecisionCompleted()),
+                         m_validatingState, [this] {
+                             return m_saveDecisionResult == SaveDecisionResult::SaveWithPath &&
+                                    m_saveResult == SaveResult::SucceededAndResume;
+                         });
+    addGuardedTransition(m_awaitingSaveDecisionState, this, SIGNAL(saveDecisionCompleted()),
+                         m_awaitingSaveDecisionState, [this] {
+                             return m_saveDecisionResult == SaveDecisionResult::SaveWithPath &&
+                                    m_saveResult == SaveResult::FailedAndResume;
+                         });
     addGuardedTransition(
         m_awaitingSaveDecisionState, this, SIGNAL(saveDecisionCompleted()), m_awaitingSavePathState,
         [this] { return m_saveDecisionResult == SaveDecisionResult::SaveWithoutPath; });
@@ -246,8 +278,25 @@ void DocumentWorkflowController::initializeStateMachine() {
                          [this] { return m_saveDecisionResult == SaveDecisionResult::Cancel; });
 
     addGuardedTransition(m_awaitingSavePathState, this, SIGNAL(savePathSelectionCompleted()),
-                         m_savingState,
-                         [this] { return m_savePathResult == SavePathResult::Selected; });
+                         m_validatingState, [this] {
+                             return m_savePathResult == SavePathResult::Selected &&
+                                    m_saveResult == SaveResult::SucceededAndResume;
+                         });
+    addGuardedTransition(m_awaitingSavePathState, this, SIGNAL(savePathSelectionCompleted()),
+                         m_idleState, [this] {
+                             return m_savePathResult == SavePathResult::Selected &&
+                                    m_saveResult == SaveResult::SucceededAndFinish;
+                         });
+    addGuardedTransition(m_awaitingSavePathState, this, SIGNAL(savePathSelectionCompleted()),
+                         m_awaitingSaveDecisionState, [this] {
+                             return m_savePathResult == SavePathResult::Selected &&
+                                    m_saveResult == SaveResult::FailedAndResume;
+                         });
+    addGuardedTransition(m_awaitingSavePathState, this, SIGNAL(savePathSelectionCompleted()),
+                         m_failedState, [this] {
+                             return m_savePathResult == SavePathResult::Selected &&
+                                    m_saveResult == SaveResult::Failed;
+                         });
     addGuardedTransition(m_awaitingSavePathState, this, SIGNAL(savePathSelectionCompleted()),
                          m_idleState,
                          [this] { return m_savePathResult == SavePathResult::Canceled; });
@@ -282,6 +331,8 @@ void DocumentWorkflowController::initializeStateMachine() {
 
     m_committingState->addTransition(this, &DocumentWorkflowController::commitFinished,
                                      m_idleState);
+    m_committingState->addTransition(
+        this, &DocumentWorkflowController::commitRevalidationRequired, m_validatingState);
     m_committingState->addTransition(this, &DocumentWorkflowController::operationFailed,
                                      m_failedState);
     m_failedState->addTransition(this, &DocumentWorkflowController::failureHandled, m_idleState);
@@ -318,8 +369,8 @@ void DocumentWorkflowController::begin(const DocumentOperation operation, const 
     m_pending = {};
     m_pending.requestId = ++m_nextRequestId;
     if (auto *runtime = automationRuntime()) {
-        m_pending.baseDocument = runtime->documentVersion();
-        runtime->setDocumentBusy(m_pending.baseDocument.documentId, true);
+        m_pending.generationAnchor = runtime->documentVersion();
+        runtime->setDocumentBusy(m_pending.generationAnchor.documentId, true);
     }
     m_pending.operation = operation;
     m_pending.filePath = filePath;
@@ -329,8 +380,9 @@ void DocumentWorkflowController::begin(const DocumentOperation operation, const 
 }
 
 void DocumentWorkflowController::validatePendingRequest() {
-    if (m_pending.operation == DocumentOperation::Open ||
-        m_pending.operation == DocumentOperation::Import) {
+    const bool hasPreparedProject = !std::holds_alternative<std::monostate>(m_prepared);
+    if (!hasPreparedProject && (m_pending.operation == DocumentOperation::Open ||
+                                m_pending.operation == DocumentOperation::Import)) {
         if (!QFile::exists(m_pending.filePath)) {
             m_error = {tr("File not found"), tr("File does not exist: %1").arg(m_pending.filePath)};
             m_validationResult = ValidationResult::Fail;
@@ -357,11 +409,32 @@ void DocumentWorkflowController::validatePendingRequest() {
     const bool needsGuard = m_pending.termination.has_value() ||
                             m_pending.operation == DocumentOperation::New ||
                             m_pending.operation == DocumentOperation::Open;
-    if (needsGuard && !m_skipSaveGuard && !historyManager->isOnSavePoint()) {
-        m_resumeAfterSave = true;
-        m_validationResult = ValidationResult::AwaitSaveDecision;
-        emit validationCompleted();
-        return;
+    if (needsGuard && !m_skipSaveGuard) {
+        auto *runtime = automationRuntime();
+        const auto context = workflowCommitContext(runtime, m_pending.generationAnchor);
+        if (!context) {
+            auto operationId = Automation::OperationIds::documents::commit_open;
+            if (m_pending.operation == DocumentOperation::New)
+                operationId = Automation::OperationIds::documents::commit_new;
+            else if (m_pending.termination == TerminationMode::Exit)
+                operationId = Automation::OperationIds::application::request_exit;
+            else if (m_pending.termination == TerminationMode::Restart)
+                operationId = Automation::OperationIds::application::request_restart;
+            logWorkflowFailure(m_pending.requestId, operationId, context.getError());
+            m_error = {tr("Failed to apply project"), context.getError().message};
+            m_validationResult = ValidationResult::Fail;
+            emit validationCompleted();
+            return;
+        }
+
+        const auto current = context.get().expected;
+        if (!m_pending.revisionGuard.ensureApproved(current,
+                                                    historyManager->isOnSavePoint())) {
+            m_resumeAfterSave = true;
+            m_validationResult = ValidationResult::AwaitSaveDecision;
+            emit validationCompleted();
+            return;
+        }
     }
 
     m_skipSaveGuard = false;
@@ -380,7 +453,10 @@ void DocumentWorkflowController::validatePendingRequest() {
         m_resumeAfterSave = false;
         m_validationResult = ValidationResult::AwaitSavePath;
     } else if (m_pending.operation == DocumentOperation::New) {
-        prepareNewProject();
+        if (std::holds_alternative<std::monostate>(m_prepared))
+            prepareNewProject();
+        m_validationResult = ValidationResult::Commit;
+    } else if (!std::holds_alternative<std::monostate>(m_prepared)) {
         m_validationResult = ValidationResult::Commit;
     } else {
         m_validationResult = ValidationResult::StartSession;
@@ -401,10 +477,16 @@ void DocumentWorkflowController::askSaveDecision() {
             else {
                 m_savePath = projectPath();
                 m_saveDecisionResult = SaveDecisionResult::SaveWithPath;
+                attemptSave();
             }
             break;
         case SaveDecision::Discard:
-            m_skipSaveGuard = true;
+            if (auto *runtime = automationRuntime()) {
+                const auto context =
+                    workflowCommitContext(runtime, m_pending.generationAnchor);
+                if (context)
+                    m_pending.revisionGuard.approve(context.get().expected);
+            }
             m_saveDecisionResult = SaveDecisionResult::Discard;
             break;
         case SaveDecision::Cancel:
@@ -422,29 +504,32 @@ void DocumentWorkflowController::askSavePath() {
     }
     m_savePath = m_ui->chooseDocumentSavePath(suggestedSavePath());
     m_savePathResult = m_savePath.isEmpty() ? SavePathResult::Canceled : SavePathResult::Selected;
+    if (m_savePathResult == SavePathResult::Selected)
+        attemptSave();
     emit savePathSelectionCompleted();
 }
 
-void DocumentWorkflowController::performSave() {
+void DocumentWorkflowController::attemptSave() {
     auto *runtime = automationRuntime();
-    const auto result =
-        runtime
-            ? runtime->documents().saveDocument(commandContext(m_pending.baseDocument), m_savePath)
-            : Automation::AutomationResult<Automation::MutationResult>(Automation::AutomationError{
-                  .code = Automation::AutomationErrorCode::InternalError,
-                  .message = QStringLiteral("Automation runtime is unavailable"),
-              });
+    const auto context = workflowCommitContext(runtime, m_pending.generationAnchor);
+    const auto result = context
+                            ? runtime->documents().saveDocument(context.get(), m_savePath)
+                            : Automation::AutomationResult<Automation::MutationResult>(
+                                  context.getError());
     if (result) {
+        if (m_resumeAfterSave)
+            m_pending.revisionGuard.approve(context.get().expected);
         emit documentIdentityChanged();
         m_lastProjectFolder = QFileInfo(m_savePath).dir().path();
         addRecentProjectFile(m_savePath);
         if (m_resumeAfterSave) {
-            m_skipSaveGuard = true;
             m_saveResult = SaveResult::SucceededAndResume;
         } else {
             m_saveResult = SaveResult::SucceededAndFinish;
         }
     } else {
+        logWorkflowFailure(m_pending.requestId, Automation::OperationIds::documents::save,
+                           result.getError());
         m_error = {tr("Failed to save project"), result.getError().message};
         if (m_resumeAfterSave && m_ui)
             m_ui->showDocumentWorkflowError(m_error);
@@ -453,6 +538,10 @@ void DocumentWorkflowController::performSave() {
         else
             m_saveResult = SaveResult::Failed;
     }
+}
+
+void DocumentWorkflowController::performSave() {
+    attemptSave();
     emit saveCompleted();
 }
 
@@ -496,6 +585,27 @@ void DocumentWorkflowController::startSession() {
 }
 
 void DocumentWorkflowController::commitPreparedProject() {
+    auto *runtime = automationRuntime();
+    const auto context = workflowCommitContext(runtime, m_pending.generationAnchor);
+    auto operationId = Automation::OperationIds::documents::commit_open;
+    if (std::holds_alternative<AppendProjectPayload>(m_prepared))
+        operationId = Automation::OperationIds::documents::commit_import;
+    else if (m_pending.operation == DocumentOperation::New)
+        operationId = Automation::OperationIds::documents::commit_new;
+    if (!context) {
+        logWorkflowFailure(m_pending.requestId, operationId, context.getError());
+        m_error = {tr("Failed to apply project"), context.getError().message};
+        emit operationFailed();
+        return;
+    }
+
+    if (std::holds_alternative<ReplaceProjectPayload>(m_prepared) &&
+        !m_pending.revisionGuard.approves(context.get().expected)) {
+        closeProgressDialog();
+        emit commitRevalidationRequired();
+        return;
+    }
+
     if (m_progressDialog) {
         m_progressDialog->setCancellationEnabled(false);
         m_progressDialog->setMessage(tr("Applying project..."));
@@ -504,9 +614,9 @@ void DocumentWorkflowController::commitPreparedProject() {
 
     bool committed = false;
     if (auto payload = std::get_if<ReplaceProjectPayload>(&m_prepared)) {
-        committed = commitReplace(std::move(*payload));
+        committed = commitReplace(std::move(*payload), context.get());
     } else if (auto payload = std::get_if<AppendProjectPayload>(&m_prepared)) {
-        committed = commitAppend(std::move(*payload));
+        committed = commitAppend(std::move(*payload), context.get());
     } else {
         m_error = {tr("Failed to apply project"), tr("The prepared project is empty.")};
     }
@@ -518,7 +628,7 @@ void DocumentWorkflowController::commitPreparedProject() {
 
 void DocumentWorkflowController::enterIdle() {
     if (auto *runtime = automationRuntime())
-        runtime->setDocumentBusy(m_pending.baseDocument.documentId, false);
+        runtime->setDocumentBusy(m_pending.generationAnchor.documentId, false);
     closeProgressDialog();
     cleanSession();
     m_pending = {};
@@ -593,10 +703,10 @@ void DocumentWorkflowController::handleSessionCanceled(IProjectLoadSession *sess
     if (session != m_session || session->requestId() != m_pending.requestId)
         return;
     if (m_terminationAfterCancellation) {
-        const auto baseDocument = m_pending.baseDocument;
+        const auto generationAnchor = m_pending.generationAnchor;
         m_pending = {};
         m_pending.requestId = ++m_nextRequestId;
-        m_pending.baseDocument = baseDocument;
+        m_pending.generationAnchor = generationAnchor;
         m_pending.termination = *m_terminationAfterCancellation;
         m_terminationAfterCancellation.reset();
         m_skipSaveGuard = false;
@@ -614,26 +724,26 @@ void DocumentWorkflowController::prepareNewProject() {
     m_prepared = std::move(payload);
 }
 
-bool DocumentWorkflowController::commitReplace(ReplaceProjectPayload &&payload) {
+bool DocumentWorkflowController::commitReplace(ReplaceProjectPayload &&payload,
+                                               const Automation::CommandContext &context) {
     auto *runtime = automationRuntime();
-    if (!runtime) {
-        m_error = {tr("Failed to apply project"), tr("Automation runtime is unavailable.")};
-        return false;
-    }
     const bool isNew = m_pending.operation == DocumentOperation::New;
+    const auto operationId = isNew ? Automation::OperationIds::documents::commit_new
+                                   : Automation::OperationIds::documents::commit_open;
     const bool saved = isNew || payload.sourceKind == ProjectSourceKind::Native;
     const auto draft = Automation::documentDraftDto(payload.model, payload.loopSettings);
     Automation::AutomationResult<Automation::MutationResult> result =
         isNew
-            ? runtime->documents().commitNewDocument(commandContext(m_pending.baseDocument), draft)
+            ? runtime->documents().commitNewDocument(context, draft)
             : runtime->documents().commitOpenedDocument(
-                  commandContext(m_pending.baseDocument), draft,
+                  context, draft,
                   payload.sourceKind == ProjectSourceKind::Native ? payload.sourcePath : QString(),
                   payload.sourceKind == ProjectSourceKind::Native
                       ? QFileInfo(payload.sourcePath).fileName()
                       : payload.displayName,
                   saved);
     if (!result) {
+        logWorkflowFailure(m_pending.requestId, operationId, result.getError());
         m_error = {tr("Failed to apply project"), result.getError().message};
         return false;
     }
@@ -647,19 +757,17 @@ bool DocumentWorkflowController::commitReplace(ReplaceProjectPayload &&payload) 
     return true;
 }
 
-bool DocumentWorkflowController::commitAppend(AppendProjectPayload &&payload) {
+bool DocumentWorkflowController::commitAppend(AppendProjectPayload &&payload,
+                                              const Automation::CommandContext &context) {
     auto *runtime = automationRuntime();
-    if (!runtime) {
-        m_error = {tr("Failed to apply project"), tr("Automation runtime is unavailable.")};
-        return false;
-    }
     auto draft = Automation::documentDraftDto(payload.model);
     for (auto &track : draft.tracks)
         track.colorIndex = 0;
     const auto result = runtime->documents().commitImportedDocument(
-        commandContext(m_pending.baseDocument), draft, payload.importTempo,
-        payload.importTimeSignature);
+        context, draft, payload.importTempo, payload.importTimeSignature);
     if (!result) {
+        logWorkflowFailure(m_pending.requestId, Automation::OperationIds::documents::commit_import,
+                           result.getError());
         m_error = {tr("Failed to apply project"), result.getError().message};
         return false;
     }

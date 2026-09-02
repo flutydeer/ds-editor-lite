@@ -45,6 +45,8 @@ namespace Automation {
         [[nodiscard]] const QString &documentPath() const;
         [[nodiscard]] bool documentBusy(const DocumentId &documentId) const;
         [[nodiscard]] AutomationResult<CommandContext>
+            documentWorkflowCommitContext(const DocumentVersion &generationAnchor) const;
+        [[nodiscard]] AutomationResult<CommandContext>
             derivedWritebackContext(const DocumentVersion &taskVersion, bool validateOnly) const;
         [[nodiscard]] const std::optional<WindowId> &windowId() const;
 
@@ -73,6 +75,8 @@ namespace Automation {
 
     private:
         DocumentSession m_session;
+        // 工作流租约由启动它的 generation 持有，换代后仍由该 generation 释放。
+        DocumentId m_documentBusyOwner;
         SingleDocumentSessionResolver m_documentResolver;
         SingleWindowContext m_windowContext;
         AutomationDispatcher m_dispatcher;

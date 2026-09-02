@@ -116,7 +116,7 @@ void DocumentImportController::requestImport(const QStringList &paths,
 
 void DocumentImportController::startPreparation() {
     if (auto *runtime = automationRuntime())
-        m_baseDocument = runtime->documentVersion();
+        m_generationAnchor = runtime->documentVersion();
     m_prepared.clear();
     m_successCount = 0;
     m_canceled = false;
@@ -199,12 +199,17 @@ void DocumentImportController::onAllPrepared() {
 }
 
 void DocumentImportController::commitBatch() {
-    auto *model = appModel;
     auto *runtime = automationRuntime();
     if (!runtime) {
         m_failedMessages.append(tr("Automation runtime is unavailable"));
         return;
     }
+    const auto context = runtime->documentWorkflowCommitContext(m_generationAnchor);
+    if (!context) {
+        m_failedMessages.append(tr("Batch commit failed: %1").arg(context.getError().message));
+        return;
+    }
+    auto *model = appModel;
     const auto language = appOptions->general()->defaultSingingLanguage;
     const auto defaultLyric = appOptions->general()->defaultLyricForLanguage(language);
 
@@ -303,11 +308,7 @@ void DocumentImportController::commitBatch() {
 
     if (batch.items.isEmpty())
         return;
-    Automation::CommandContext context{
-        .expected = m_baseDocument,
-        .source = Automation::InvocationSource::TrustedGui,
-    };
-    const auto result = runtime->project().commitBatchImport(context, batch);
+    const auto result = runtime->project().commitBatchImport(context.get(), batch);
     if (!result) {
         m_successCount = 0;
         m_failedMessages.append(tr("Batch commit failed: %1").arg(result.getError().message));

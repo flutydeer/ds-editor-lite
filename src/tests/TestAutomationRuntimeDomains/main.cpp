@@ -789,6 +789,31 @@ namespace {
             unsupportedKey, Automation::AutomationErrorCode::InvalidArgument,
             Automation::OperationIds::playback::pause,
             QStringLiteral("ephemeral playback state must reject document idempotency"));
+
+        log.scenario(QStringLiteral("PLAY-C-WORKFLOW-BUSY"));
+        auto publicControl = commandContext(runtime);
+        publicControl.source = Automation::InvocationSource::PublicMcp;
+        runtime.setDocumentBusy(publicControl.expected.documentId, true);
+        harness.playback.state = Automation::PlaybackState::Playing;
+        const auto pauseWhileBusy = runtime.playback().pause(publicControl);
+        const auto seekWhileBusy = runtime.playback().seek(publicControl, 1440.0);
+        const auto loopWhileBusy =
+            runtime.playback().setLoop(publicControl, LoopSettings(false, 480, 960));
+        ++publicControl.expected.revision;
+        const auto staleSeekWhileBusy = runtime.playback().seek(publicControl, 1920.0);
+        runtime.setDocumentBusy(publicControl.expected.documentId, false);
+        log.expect(pauseWhileBusy && pauseWhileBusy.get().changed &&
+                       harness.playback.state == Automation::PlaybackState::Paused &&
+                       harness.pauseCalls == 2 && seekWhileBusy && seekWhileBusy.get().changed &&
+                       harness.playback.position == 1440.0 &&
+                       harness.playback.lastPosition == 1440.0,
+                   QStringLiteral("workflow busy must keep transient playback control available"));
+        log.expectError(loopWhileBusy, Automation::AutomationErrorCode::Busy,
+                        Automation::OperationIds::playback::set_loop,
+                        QStringLiteral("workflow busy must reject persistent playback changes"));
+        log.expectError(staleSeekWhileBusy, Automation::AutomationErrorCode::RevisionConflict,
+                        Automation::OperationIds::playback::seek,
+                        QStringLiteral("transient playback control must still validate revision"));
     }
 
     using GuiResult = Automation::AutomationResult<Automation::GuiMutationResult>;

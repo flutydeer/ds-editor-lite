@@ -116,10 +116,10 @@ namespace Automation {
     }
 
     AutomationResult<DocumentVersion>
-        rebaseTaskVersionWithinGeneration(const DocumentVersion &taskVersion,
-                                          const DocumentVersion &currentVersion) {
-        if (taskVersion.documentId != currentVersion.documentId)
-            return AutomationError::documentChanged(taskVersion.documentId,
+        rebaseDocumentVersionWithinGeneration(const DocumentVersion &generationAnchor,
+                                              const DocumentVersion &currentVersion) {
+        if (generationAnchor.documentId != currentVersion.documentId)
+            return AutomationError::documentChanged(generationAnchor.documentId,
                                                     currentVersion.documentId);
         return currentVersion;
     }
