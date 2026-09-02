@@ -12,8 +12,10 @@
 #include <lite/ProjectModel/Utils/AppModelUtils.h>
 #include <lite/Support/MathUtils.h>
 
+#include <QCursor>
 #include <QElapsedTimer>
 #include <QFontMetrics>
+#include <QGraphicsSceneHoverEvent>
 #include <QGraphicsSceneMouseEvent>
 #include <QKeyEvent>
 #include <QPainter>
@@ -25,6 +27,7 @@
 CommonParamEditorView::CommonParamEditorView(const ParamProperties &properties)
     : m_properties(&properties) {
     // setBackgroundColor(Qt::transparent);
+    setAcceptHoverEvents(true);
     setPixelsPerQuarterNote(ClipEditorGlobal::pixelsPerQuarterNote);
 }
 
@@ -121,6 +124,7 @@ void CommonParamEditorView::setCurveTransformMode(
     } else {
         m_curveTransform.clear();
     }
+    unsetCursor();
     update();
 }
 
@@ -549,6 +553,20 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
     update();
 }
 
+void CommonParamEditorView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
+    if (m_curveTransformKind) {
+        updateCurveTransformCursor(event->pos());
+        event->accept();
+        return;
+    }
+    TimeOverlayView::hoverMoveEvent(event);
+}
+
+void CommonParamEditorView::hoverLeaveEvent(QGraphicsSceneHoverEvent *event) {
+    unsetCursor();
+    TimeOverlayView::hoverLeaveEvent(event);
+}
+
 void CommonParamEditorView::mouseReleaseEvent(QGraphicsSceneMouseEvent *event) {
     if (m_curveTransformKind) {
         curveTransformMouseReleaseEvent(event);
@@ -619,12 +637,10 @@ bool CommonParamEditorView::cancelCurveTransform(const bool notifyDiscard) {
     const auto wasTransforming = m_curveTransform.phase() == CurveTransform::Phase::Transforming;
     m_curveTransform.cancel();
     applyCurveTransformPreview();
-    m_transformBoundaryDragging = false;
-    m_transformBoundaryResolved = false;
-    m_transformBoundaryInitialIndex = -1;
-    m_transformBoundary = CurveTransform::Boundary::None;
+    resetCurveTransformBoundaryDrag();
     m_mouseDown = false;
     m_mouseDownButton = Qt::NoButton;
+    setCursor(Qt::ArrowCursor);
     if (notifyDiscard && wasTransforming)
         emit editDiscarded();
     return true;
@@ -642,12 +658,10 @@ void CommonParamEditorView::finishCurveTransform() {
         m_curveTransform.cancel();
         applyCurveTransformPreview();
     }
-    m_transformBoundaryDragging = false;
-    m_transformBoundaryResolved = false;
-    m_transformBoundaryInitialIndex = -1;
-    m_transformBoundary = CurveTransform::Boundary::None;
+    resetCurveTransformBoundaryDrag();
     m_mouseDown = false;
     m_mouseDownButton = Qt::NoButton;
+    setCursor(Qt::ArrowCursor);
     update();
     if (changed)
         emit editCommitted();
@@ -678,30 +692,8 @@ void CommonParamEditorView::curveTransformMousePressEvent(QGraphicsSceneMouseEve
     if (phase != CurveTransform::Phase::Adjusting)
         return;
 
-    if (curveTransformFactorHandleRect().contains(event->pos())) {
-        if (!m_curveTransform.beginTransform())
-            return;
-        m_mouseDown = true;
-        m_mouseDownButton = event->button();
-        m_transformDragStartItemPos = event->pos();
-        m_transformDragStartScenePos = event->scenePos();
-        emit editStarted();
-        event->accept();
-        update();
-        return;
-    }
-
     const auto positions = curveTransformBoundaryPositions();
-    constexpr double hitRadius = 5.0;
-    int nearestIndex = -1;
-    double nearestDistance = hitRadius + 1.0;
-    for (int i = 0; i < positions.size(); ++i) {
-        const auto distance = std::abs(event->pos().x() - positions.at(i));
-        if (distance <= hitRadius && distance < nearestDistance) {
-            nearestIndex = i;
-            nearestDistance = distance;
-        }
-    }
+    const auto nearestIndex = curveTransformBoundaryIndexAt(event->pos().x());
     if (nearestIndex >= 0) {
         m_mouseDown = true;
         m_mouseDownButton = event->button();
@@ -718,9 +710,26 @@ void CommonParamEditorView::curveTransformMousePressEvent(QGraphicsSceneMouseEve
                 ++overlapCount;
         }
         m_transformBoundaryResolved = overlapCount == 1;
-        if (m_transformBoundaryResolved)
+        if (m_transformBoundaryResolved) {
             m_transformBoundary = curveTransformBoundaryAt(nearestIndex);
+            m_curveTransform.beginBoundaryDrag(m_transformBoundary);
+        }
+        setCursor(Qt::SizeHorCursor);
         event->accept();
+        return;
+    }
+
+    if (curveTransformVerticalDragAreaContains(event->pos())) {
+        if (!m_curveTransform.beginTransform())
+            return;
+        m_mouseDown = true;
+        m_mouseDownButton = event->button();
+        m_transformDragStartItemPos = event->pos();
+        m_transformDragStartScenePos = event->scenePos();
+        setCursor(Qt::SizeVerCursor);
+        emit editStarted();
+        event->accept();
+        update();
         return;
     }
 
@@ -750,15 +759,17 @@ void CommonParamEditorView::curveTransformMouseMoveEvent(QGraphicsSceneMouseEven
                 m_transformBoundaryStartPositions, m_transformBoundaryInitialIndex, delta);
             m_transformBoundary = curveTransformBoundaryAt(resolved);
             m_transformBoundaryResolved = true;
+            m_curveTransform.beginBoundaryDrag(m_transformBoundary);
         }
-        m_curveTransform.setBoundary(m_transformBoundary,
-                                     qRound(sceneXToTick(event->scenePos().x())));
+        m_curveTransform.updateBoundaryDrag(qRound(sceneXToTick(event->scenePos().x())));
+        setCursor(Qt::SizeHorCursor);
         applyCurveTransformPreview();
         return;
     }
     if (phase == CurveTransform::Phase::Transforming) {
         const auto delta = event->scenePos().y() - m_transformDragStartScenePos.y();
         m_curveTransform.updateTransform(delta);
+        setCursor(Qt::SizeVerCursor);
         applyCurveTransformPreview();
     }
 }
@@ -777,15 +788,39 @@ void CommonParamEditorView::curveTransformMouseReleaseEvent(QGraphicsSceneMouseE
         m_curveTransform.finishSelection(qRound(sceneXToTick(event->scenePos().x())));
         applyCurveTransformPreview();
     } else if (phase == CurveTransform::Phase::Adjusting && m_transformBoundaryDragging) {
-        m_transformBoundaryDragging = false;
-        m_transformBoundaryResolved = false;
-        m_transformBoundaryInitialIndex = -1;
-        m_transformBoundary = CurveTransform::Boundary::None;
+        resetCurveTransformBoundaryDrag();
         update();
     } else if (phase == CurveTransform::Phase::Transforming) {
         finishCurveTransform();
     }
+    updateCurveTransformCursor(event->pos());
     event->accept();
+}
+
+void CommonParamEditorView::resetCurveTransformBoundaryDrag() {
+    m_curveTransform.endBoundaryDrag();
+    m_transformBoundaryDragging = false;
+    m_transformBoundaryResolved = false;
+    m_transformBoundaryInitialIndex = -1;
+    m_transformBoundary = CurveTransform::Boundary::None;
+}
+
+void CommonParamEditorView::updateCurveTransformCursor(const QPointF &itemPos) {
+    if (!m_curveTransformKind || m_curveTransform.phase() == CurveTransform::Phase::Idle ||
+        m_curveTransform.phase() == CurveTransform::Phase::Selecting) {
+        setCursor(Qt::ArrowCursor);
+        return;
+    }
+    if (m_curveTransform.phase() == CurveTransform::Phase::Transforming) {
+        setCursor(Qt::SizeVerCursor);
+        return;
+    }
+    if (m_transformBoundaryDragging || curveTransformBoundaryIndexAt(itemPos.x()) >= 0) {
+        setCursor(Qt::SizeHorCursor);
+        return;
+    }
+    setCursor(curveTransformVerticalDragAreaContains(itemPos) ? Qt::SizeVerCursor
+                                                              : Qt::ArrowCursor);
 }
 
 QRectF CommonParamEditorView::curveTransformFactorHandleRect() const {
@@ -815,6 +850,40 @@ CurveTransform::Boundary CommonParamEditorView::curveTransformBoundaryAt(const i
         default:
             return CurveTransform::Boundary::None;
     }
+}
+
+int CommonParamEditorView::curveTransformBoundaryIndexAt(const double itemX) const {
+    if (m_curveTransform.phase() != CurveTransform::Phase::Adjusting ||
+        !m_curveTransform.bounds().isValid()) {
+        return -1;
+    }
+    const auto positions = curveTransformBoundaryPositions();
+    constexpr double hitRadius = 5.0;
+    int nearestIndex = -1;
+    double nearestDistance = hitRadius + 1.0;
+    for (int i = 0; i < positions.size(); ++i) {
+        const auto distance = std::abs(itemX - positions.at(i));
+        if (distance <= hitRadius && distance < nearestDistance) {
+            nearestIndex = i;
+            nearestDistance = distance;
+        }
+    }
+    return nearestIndex;
+}
+
+bool CommonParamEditorView::curveTransformVerticalDragAreaContains(const QPointF &itemPos) const {
+    if (m_curveTransform.phase() != CurveTransform::Phase::Adjusting ||
+        !m_curveTransform.bounds().isValid()) {
+        return false;
+    }
+    if (curveTransformFactorHandleRect().contains(itemPos))
+        return true;
+    const auto &bounds = m_curveTransform.bounds();
+    const auto left = tickToItemX(bounds.a);
+    const auto right = tickToItemX(bounds.b);
+    return QRectF(QPointF(left, rect().top()), QPointF(right, rect().bottom()))
+        .normalized()
+        .contains(itemPos);
 }
 
 void CommonParamEditorView::drawCurveTransformOverlay(QPainter *painter) const {

@@ -258,20 +258,41 @@ namespace CurveTransform {
         return true;
     }
 
-    bool Session::setBoundary(const Boundary boundary, const int tick) {
-        if (m_phase != Phase::Adjusting || m_selectedComponent < 0)
+    bool Session::beginBoundaryDrag(const Boundary boundary) {
+        if (m_phase != Phase::Adjusting || m_selectedComponent < 0 || boundary == Boundary::None)
             return false;
+        m_draggedBoundary = boundary;
+        if (boundary == Boundary::A)
+            m_boundaryDragShoulderWidth = m_bounds.a - m_bounds.c;
+        else if (boundary == Boundary::B)
+            m_boundaryDragShoulderWidth = m_bounds.d - m_bounds.b;
+        else
+            m_boundaryDragShoulderWidth = 0;
+        return true;
+    }
+
+    bool Session::updateBoundaryDrag(const int tick) {
+        if (m_phase != Phase::Adjusting || m_selectedComponent < 0 ||
+            m_draggedBoundary == Boundary::None) {
+            return false;
+        }
         const auto aligned = alignedNearest(tick);
         const auto before = m_bounds;
-        switch (boundary) {
+        switch (m_draggedBoundary) {
             case Boundary::C:
                 m_bounds.c = std::clamp(aligned, m_bounds.componentStart, m_bounds.a);
                 break;
             case Boundary::A:
-                m_bounds.a = std::clamp(aligned, m_bounds.c, m_bounds.b - 2 * SampleStep);
+                m_bounds.a =
+                    std::clamp(aligned, m_bounds.componentStart, m_bounds.b - 2 * SampleStep);
+                m_bounds.c =
+                    std::max(m_bounds.componentStart, m_bounds.a - m_boundaryDragShoulderWidth);
                 break;
             case Boundary::B:
-                m_bounds.b = std::clamp(aligned, m_bounds.a + 2 * SampleStep, m_bounds.d);
+                m_bounds.b =
+                    std::clamp(aligned, m_bounds.a + 2 * SampleStep, m_bounds.componentEnd);
+                m_bounds.d =
+                    std::min(m_bounds.componentEnd, m_bounds.b + m_boundaryDragShoulderWidth);
                 break;
             case Boundary::D:
                 m_bounds.d = std::clamp(aligned, m_bounds.b, m_bounds.componentEnd);
@@ -283,9 +304,15 @@ namespace CurveTransform {
                before.d != m_bounds.d;
     }
 
+    void Session::endBoundaryDrag() {
+        m_draggedBoundary = Boundary::None;
+        m_boundaryDragShoulderWidth = 0;
+    }
+
     bool Session::beginTransform() {
         if (m_phase != Phase::Adjusting || !m_bounds.isValid())
             return false;
+        endBoundaryDrag();
         m_phase = Phase::Transforming;
         m_factor = 1.0;
         return true;
@@ -462,6 +489,7 @@ namespace CurveTransform {
         m_bounds = {};
         m_selectionStartTick = 0;
         m_selectedComponent = -1;
+        endBoundaryDrag();
         m_factor = 1.0;
     }
 }

@@ -16,6 +16,7 @@ class ParamProperties;
 class AnchorCurve;
 class QPainterPath;
 class QPen;
+class QGraphicsSceneHoverEvent;
 
 class CommonParamEditorView : public TimeOverlayView, public IAtomicAction {
     Q_OBJECT
@@ -80,6 +81,8 @@ private:
     void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
     void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
     void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
+    void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
+    void hoverLeaveEvent(QGraphicsSceneHoverEvent *event) override;
     bool sceneEvent(QEvent *event) override;
     void updateRectAndPos() override;
     bool cancelEditState();
@@ -93,9 +96,13 @@ private:
     void curveTransformMousePressEvent(QGraphicsSceneMouseEvent *event);
     void curveTransformMouseMoveEvent(QGraphicsSceneMouseEvent *event);
     void curveTransformMouseReleaseEvent(QGraphicsSceneMouseEvent *event);
+    void resetCurveTransformBoundaryDrag();
+    void updateCurveTransformCursor(const QPointF &itemPos);
     [[nodiscard]] QRectF curveTransformFactorHandleRect() const;
     [[nodiscard]] QVector<double> curveTransformBoundaryPositions() const;
     [[nodiscard]] CurveTransform::Boundary curveTransformBoundaryAt(int index) const;
+    [[nodiscard]] int curveTransformBoundaryIndexAt(double itemX) const;
+    [[nodiscard]] bool curveTransformVerticalDragAreaContains(const QPointF &itemPos) const;
     bool m_showDebugInfo = false;
 
     enum EditType { Draw, Erase, Bake, None };

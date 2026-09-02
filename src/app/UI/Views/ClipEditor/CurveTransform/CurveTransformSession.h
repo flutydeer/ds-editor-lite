@@ -67,7 +67,9 @@ namespace CurveTransform {
         bool updateSelection(int tick);
         bool finishSelection(int tick);
 
-        bool setBoundary(Boundary boundary, int tick);
+        bool beginBoundaryDrag(Boundary boundary);
+        bool updateBoundaryDrag(int tick);
+        void endBoundaryDrag();
         bool beginTransform();
         void updateTransform(double verticalLogicalPixelDelta);
 
@@ -100,6 +102,8 @@ namespace CurveTransform {
         Bounds m_bounds;
         int m_selectionStartTick = 0;
         int m_selectedComponent = -1;
+        Boundary m_draggedBoundary = Boundary::None;
+        int m_boundaryDragShoulderWidth = 0;
         double m_factor = 1.0;
     };
 }

@@ -131,14 +131,40 @@ namespace {
         ok &= expect(session.finishSelection(600), "wide selection succeeds");
         ok &= expect(session.bounds().c == 140 && session.bounds().d == 660,
                      "default shoulders use a fixed 60 ms length");
-        ok &= expect(session.setBoundary(Boundary::C, 0),
+        ok &= expect(session.beginBoundaryDrag(Boundary::A), "left target boundary drag starts");
+        ok &= expect(session.updateBoundaryDrag(20),
+                     "left target boundary can approach the component start");
+        ok &= expect(session.bounds().a == 20 && session.bounds().c == 0,
+                     "left shoulder is temporarily shortened at the component start");
+        ok &= expect(session.updateBoundaryDrag(200),
+                     "left target boundary can move away from the component start");
+        ok &= expect(session.bounds().a == 200 && session.bounds().c == 140,
+                     "left shoulder restores its drag-start width after moving back");
+        session.endBoundaryDrag();
+        ok &= expect(session.beginBoundaryDrag(Boundary::B), "right target boundary drag starts");
+        ok &= expect(session.updateBoundaryDrag(800),
+                     "right target boundary can approach the component end");
+        ok &= expect(session.bounds().b == 800 && session.bounds().d == 805,
+                     "right shoulder is temporarily shortened at the component end");
+        ok &= expect(session.updateBoundaryDrag(600),
+                     "right target boundary can move away from the component end");
+        ok &= expect(session.bounds().b == 600 && session.bounds().d == 660,
+                     "right shoulder restores its drag-start width after moving back");
+        session.endBoundaryDrag();
+        ok &= expect(session.beginBoundaryDrag(Boundary::C) && session.updateBoundaryDrag(0),
                      "left shoulder can expand past the default length");
-        ok &= expect(session.setBoundary(Boundary::D, 800),
+        session.endBoundaryDrag();
+        ok &= expect(session.beginBoundaryDrag(Boundary::D) && session.updateBoundaryDrag(800),
                      "right shoulder can expand past the default length");
+        session.endBoundaryDrag();
         ok &= expect(session.bounds().c == 0 && session.bounds().d == 800,
                      "expanded shoulders clamp to component");
-        session.setBoundary(Boundary::A, 900);
-        session.setBoundary(Boundary::B, -100);
+        session.beginBoundaryDrag(Boundary::A);
+        session.updateBoundaryDrag(900);
+        session.endBoundaryDrag();
+        session.beginBoundaryDrag(Boundary::B);
+        session.updateBoundaryDrag(-100);
+        session.endBoundaryDrag();
         ok &= expect(session.bounds().a + 2 * SampleStep == session.bounds().b,
                      "minimum target retains two samples");
 
@@ -200,8 +226,12 @@ namespace {
         scale.setSource({&scaleSource}, {}, scaleConfig);
         scale.beginSelection(10);
         ok &= expect(scale.finishSelection(20), "scale selection succeeds");
-        scale.setBoundary(Boundary::C, 0);
-        scale.setBoundary(Boundary::D, 30);
+        scale.beginBoundaryDrag(Boundary::C);
+        scale.updateBoundaryDrag(0);
+        scale.endBoundaryDrag();
+        scale.beginBoundaryDrag(Boundary::D);
+        scale.updateBoundaryDrag(30);
+        scale.endBoundaryDrag();
         ok &= expect(scale.beginTransform(), "scale transform starts");
         scale.updateTransform(100.0);
         preview = scale.buildEditedPreview();
@@ -242,7 +272,9 @@ namespace {
         ok &= expect(dbScale.finishSelection(10), "decibel scale selection succeeds");
         ok &= expect(dbScale.phase() == Phase::Adjusting,
                      "selection release enters boundary adjustment");
-        dbScale.setBoundary(Boundary::C, 0);
+        dbScale.beginBoundaryDrag(Boundary::C);
+        dbScale.updateBoundaryDrag(0);
+        dbScale.endBoundaryDrag();
         ok &= expect(dbScale.phase() == Phase::Adjusting,
                      "boundary adjustment remains in the second phase");
         ok &= expect(dbScale.beginTransform(), "factor press enters final transform phase");

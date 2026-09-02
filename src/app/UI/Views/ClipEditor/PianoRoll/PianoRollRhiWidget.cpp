@@ -758,6 +758,10 @@ public:
     }
 
     void updateNoteCursor(const QPointF &viewportPosition) const {
+        if (pitchTransformEnabled()) {
+            updatePitchTransformCursor(viewportPosition);
+            return;
+        }
         if (!noteEditingEnabled()) {
             q->setCursor(Qt::ArrowCursor);
             return;
@@ -1084,6 +1088,60 @@ public:
                 pitchTransformViewportX(bounds.b), pitchTransformViewportX(bounds.d)};
     }
 
+    [[nodiscard]] int pitchTransformBoundaryIndexAt(const double viewportX) const {
+        if (pitchTransform.phase() != CurveTransform::Phase::Adjusting ||
+            !pitchTransform.bounds().isValid()) {
+            return -1;
+        }
+        const auto positions = pitchTransformBoundaryPositions();
+        constexpr double hitRadius = 5.0;
+        int nearestIndex = -1;
+        double nearestDistance = hitRadius + 1.0;
+        for (int i = 0; i < positions.size(); ++i) {
+            const auto distance = std::abs(viewportX - positions.at(i));
+            if (distance <= hitRadius && distance < nearestDistance) {
+                nearestIndex = i;
+                nearestDistance = distance;
+            }
+        }
+        return nearestIndex;
+    }
+
+    [[nodiscard]] bool pitchTransformVerticalDragAreaContains(
+        const QPointF &viewportPosition) const {
+        if (pitchTransform.phase() != CurveTransform::Phase::Adjusting ||
+            !pitchTransform.bounds().isValid()) {
+            return false;
+        }
+        if (pitchTransformFactorHandleRect().contains(viewportPosition))
+            return true;
+        const auto &bounds = pitchTransform.bounds();
+        const auto left = pitchTransformViewportX(bounds.a);
+        const auto right = pitchTransformViewportX(bounds.b);
+        return QRectF(QPointF(left, 0.0), QPointF(right, q->height()))
+            .normalized()
+            .contains(viewportPosition);
+    }
+
+    void updatePitchTransformCursor(const QPointF &viewportPosition) const {
+        if (!pitchTransformEnabled() || pitchTransform.phase() == CurveTransform::Phase::Idle ||
+            pitchTransform.phase() == CurveTransform::Phase::Selecting) {
+            q->setCursor(Qt::ArrowCursor);
+            return;
+        }
+        if (pitchTransform.phase() == CurveTransform::Phase::Transforming) {
+            q->setCursor(Qt::SizeVerCursor);
+            return;
+        }
+        if (pitchTransformBoundaryDragging ||
+            pitchTransformBoundaryIndexAt(viewportPosition.x()) >= 0) {
+            q->setCursor(Qt::SizeHorCursor);
+            return;
+        }
+        q->setCursor(pitchTransformVerticalDragAreaContains(viewportPosition) ? Qt::SizeVerCursor
+                                                                             : Qt::ArrowCursor);
+    }
+
     [[nodiscard]] static CurveTransform::Boundary pitchTransformBoundaryAt(const int index) {
         switch (index) {
             case 0:
@@ -1100,6 +1158,7 @@ public:
     }
 
     void resetPitchTransformDrag() {
+        pitchTransform.endBoundaryDrag();
         pitchTransformBoundaryDragging = false;
         pitchTransformBoundaryResolved = false;
         pitchTransformBoundaryInitialIndex = -1;
@@ -1152,6 +1211,7 @@ public:
         resetPitchTransformDrag();
         if (wasTransforming)
             finishPitchEdit(EditSessionEndReason::Discard);
+        q->setCursor(Qt::ArrowCursor);
         if (update)
             scheduleSnapshot();
     }
@@ -1203,32 +1263,8 @@ public:
         if (phase != CurveTransform::Phase::Adjusting)
             return;
 
-        if (pitchTransformFactorHandleRect().contains(viewportPosition)) {
-            if (!pitchTransform.beginTransform())
-                return;
-            if (!beginPitchTransformEditSession()) {
-                pitchTransform.cancel();
-                clearPitchPreview();
-                scheduleSnapshot();
-                return;
-            }
-            pitchTransformMouseDown = true;
-            pitchTransformDragStartViewportPos = viewportPosition;
-            scheduleSnapshot();
-            return;
-        }
-
         const auto positions = pitchTransformBoundaryPositions();
-        constexpr double hitRadius = 5.0;
-        int nearestIndex = -1;
-        double nearestDistance = hitRadius + 1.0;
-        for (int i = 0; i < positions.size(); ++i) {
-            const auto distance = std::abs(viewportPosition.x() - positions.at(i));
-            if (distance <= hitRadius && distance < nearestDistance) {
-                nearestIndex = i;
-                nearestDistance = distance;
-            }
-        }
+        const auto nearestIndex = pitchTransformBoundaryIndexAt(viewportPosition.x());
         if (nearestIndex >= 0) {
             pitchTransformMouseDown = true;
             pitchTransformBoundaryDragging = true;
@@ -1242,8 +1278,27 @@ public:
                     ++overlapCount;
             }
             pitchTransformBoundaryResolved = overlapCount == 1;
-            if (pitchTransformBoundaryResolved)
+            if (pitchTransformBoundaryResolved) {
                 pitchTransformBoundary = pitchTransformBoundaryAt(nearestIndex);
+                pitchTransform.beginBoundaryDrag(pitchTransformBoundary);
+            }
+            q->setCursor(Qt::SizeHorCursor);
+            return;
+        }
+
+        if (pitchTransformVerticalDragAreaContains(viewportPosition)) {
+            if (!pitchTransform.beginTransform())
+                return;
+            if (!beginPitchTransformEditSession()) {
+                pitchTransform.cancel();
+                clearPitchPreview();
+                scheduleSnapshot();
+                return;
+            }
+            pitchTransformMouseDown = true;
+            pitchTransformDragStartViewportPos = viewportPosition;
+            q->setCursor(Qt::SizeVerCursor);
+            scheduleSnapshot();
             return;
         }
 
@@ -1273,15 +1328,17 @@ public:
                                                        pitchTransformBoundaryInitialIndex, delta);
                 pitchTransformBoundary = pitchTransformBoundaryAt(resolved);
                 pitchTransformBoundaryResolved = true;
+                pitchTransform.beginBoundaryDrag(pitchTransformBoundary);
             }
-            pitchTransform.setBoundary(pitchTransformBoundary,
-                                       qRound(localTickAt(viewportPosition)));
+            pitchTransform.updateBoundaryDrag(qRound(localTickAt(viewportPosition)));
+            q->setCursor(Qt::SizeHorCursor);
             applyPitchTransformPreview();
             return;
         }
         if (phase == CurveTransform::Phase::Transforming) {
             pitchTransform.updateTransform(viewportPosition.y() -
                                            pitchTransformDragStartViewportPos.y());
+            q->setCursor(Qt::SizeVerCursor);
             applyPitchTransformPreview();
         }
     }
@@ -1304,6 +1361,7 @@ public:
         } else if (phase == CurveTransform::Phase::Transforming) {
             finishPitchTransform();
         }
+        updatePitchTransformCursor(viewportPosition);
     }
 
     void finishPitchEdit(const EditSessionEndReason reason) {
