@@ -125,6 +125,7 @@ int main(int argc, char *argv[]) {
     publicCommand.expected = first.version();
     publicCommand.source = Automation::InvocationSource::PublicMcp;
     int publicHandlerCalls = 0;
+    const auto publicValidationBusy = dispatcher.validateDocumentCommand(publicCommand);
     const auto publicBusy = dispatcher.dispatchDocumentCommand(
         QStringLiteral("test.command"), publicCommand,
         [&publicHandlerCalls](Automation::DocumentSession &session, const bool validateOnly) {
@@ -154,13 +155,27 @@ int main(int argc, char *argv[]) {
         [](Automation::DocumentSession &session, const bool validateOnly) {
             return commit(session, validateOnly);
         });
-    ok &= expect(queryWhileBusy && queryWhileBusy.get() == first.revision() && !publicBusy &&
+    ok &= expect(queryWhileBusy && queryWhileBusy.get() == first.revision() &&
+                     !publicValidationBusy &&
+                     publicValidationBusy.getError().code ==
+                         Automation::AutomationErrorCode::Busy &&
+                     !publicBusy &&
                      publicBusy.getError().code == Automation::AutomationErrorCode::Busy &&
                      !stalePublicBusy &&
                      stalePublicBusy.getError().code == Automation::AutomationErrorCode::Busy &&
                      publicHandlerCalls == 0 && trustedPreview && internalPreview,
-                 "workflow busy must reject public commands while allowing queries and trusted work");
+                 "workflow busy must reject public commands while allowing queries and trusted "
+                 "work");
     first.setBusy(false);
+    publicCommand.expected = first.version();
+    const auto publicValidation = dispatcher.validateDocumentCommand(publicCommand);
+    ++publicCommand.expected.revision;
+    const auto stalePublicValidation = dispatcher.validateDocumentCommand(publicCommand);
+    ok &= expect(publicValidation && publicValidation.get() == first.version() &&
+                     !stalePublicValidation &&
+                     stalePublicValidation.getError().code ==
+                         Automation::AutomationErrorCode::RevisionConflict,
+                 "public async admission must share the dispatcher revision contract");
 
     auto unsupportedKey = command;
     unsupportedKey.expected = first.version();

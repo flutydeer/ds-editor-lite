@@ -9,6 +9,21 @@ namespace Automation {
         : m_documentResolver(documentResolver), m_windowContext(windowContext) {
     }
 
+    AutomationResult<DocumentVersion>
+        AutomationDispatcher::validateDocumentCommand(const CommandContext &context) {
+        return runSerialized([&]() -> AutomationResult<DocumentVersion> {
+            auto validated = resolveDocumentCommand(context);
+            if (!validated)
+                return validated.getError();
+            const auto &session = validated.get().get();
+            if (session.revision() != context.expected.revision) {
+                return AutomationError::revisionConflict(
+                    session.documentId(), context.expected.revision, session.revision());
+            }
+            return session.version();
+        });
+    }
+
     AutomationResult<MutationResult>
         AutomationDispatcher::dispatchDocumentCommand(const OperationId &operationId,
                                                       const CommandContext &context,
@@ -22,6 +37,19 @@ namespace Automation {
             const DocumentCommandHandler &handler) {
         return dispatchDocumentCommandResultWithoutRevisionCheck<MutationResult>(operationId,
                                                                                  context, handler);
+    }
+
+    AutomationResult<std::reference_wrapper<DocumentSession>>
+        AutomationDispatcher::resolveDocumentCommand(const CommandContext &context) {
+        auto resolved = m_documentResolver.resolveDocument(context.expected.documentId);
+        if (!resolved)
+            return resolved.getError();
+        auto &session = resolved.get().get();
+        if (session.lifecycleState() != DocumentLifecycleState::Active)
+            return AutomationError::documentBusy(session.documentId());
+        if (context.source == InvocationSource::PublicMcp && session.isBusy())
+            return AutomationError::documentBusy(session.documentId());
+        return std::ref(session);
     }
 
     AutomationResult<MutationResult> AutomationDispatcher::dispatchIdempotentDocumentCommand(

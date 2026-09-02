@@ -22,6 +22,9 @@ namespace Automation {
         AutomationDispatcher(IDocumentSessionResolver &documentResolver,
                              SingleWindowContext &windowContext);
 
+        AutomationResult<DocumentVersion>
+            validateDocumentCommand(const CommandContext &context);
+
         template <typename T, typename Handler>
         AutomationResult<T> dispatchApplicationQuery(const OperationId &operationId,
                                                      Handler &&handler) {
@@ -210,16 +213,10 @@ namespace Automation {
                                                               const bool checkRevision,
                                                               Handler &&handler) {
             return runSerialized([&]() -> AutomationResult<T> {
-                auto resolved = m_documentResolver.resolveDocument(context.expected.documentId);
-                if (!resolved)
-                    return decorateError(resolved.getError(), operationId);
-                auto &session = resolved.get().get();
-                if (session.lifecycleState() != DocumentLifecycleState::Active)
-                    return decorateError(AutomationError::documentBusy(session.documentId()),
-                                         operationId);
-                if (context.source == InvocationSource::PublicMcp && session.isBusy())
-                    return decorateError(AutomationError::documentBusy(session.documentId()),
-                                         operationId);
+                auto validated = resolveDocumentCommand(context);
+                if (!validated)
+                    return decorateError(validated.getError(), operationId);
+                auto &session = validated.get().get();
 
                 QByteArray fingerprint;
                 if (!context.validateOnly && !context.idempotencyKey.isEmpty()) {
@@ -253,6 +250,9 @@ namespace Automation {
                 return result;
             });
         }
+
+        AutomationResult<std::reference_wrapper<DocumentSession>>
+            resolveDocumentCommand(const CommandContext &context);
 
         template <typename T>
         static AutomationResult<T> decorateHandlerResult(AutomationResult<T> result,

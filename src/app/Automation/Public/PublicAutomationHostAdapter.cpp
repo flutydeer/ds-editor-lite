@@ -137,15 +137,7 @@ namespace Automation {
 
         AutomationResult<DocumentVersion> validateBase(CoreRuntime &runtime,
                                                        const CommandContext &context) {
-            auto document = runtime.documents().getDocument(context.expected.documentId);
-            if (!document)
-                return document.getError();
-            if (document.get().document.revision != context.expected.revision) {
-                return AutomationError::revisionConflict(context.expected.documentId,
-                                                         context.expected.revision,
-                                                         document.get().document.revision);
-            }
-            return document.get().document;
+            return runtime.dispatcher().validateDocumentCommand(context);
         }
 
         AutomationError projectLoadError(const ProjectOperationError &source,
