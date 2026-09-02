@@ -224,12 +224,9 @@ int main(int argc, char *argv[]) {
             coordinator.setRequestHandler([&requestQueue](const SingleInstanceRequest &request) {
                 requestQueue.enqueue(request);
             });
-            for (;;) {
-                requestQueue.waitUntilIdle();
-                coordinator.flushAcknowledgedRequests();
-                if (requestQueue.isIdle())
-                    break;
-            }
+            requestQueue.waitUntilIdle();
+            coordinator.pauseRequestDispatchAndFlush();
+            requestQueue.waitUntilIdle();
             if (headlessTerminationAccepted) {
                 headlessTerminationHandler->stop();
                 coordinator.stopAcceptingRequests();
@@ -250,6 +247,7 @@ int main(int argc, char *argv[]) {
                     coordinator.shutdown();
                     return EXIT_FAILURE;
                 }
+                coordinator.resumeRequestDispatch();
                 const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
                 qInfo() << "Headless host launched in" << time << "ms";
                 CrashHandler crashHandler;

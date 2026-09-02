@@ -573,18 +573,43 @@ namespace {
         QList<SingleInstanceRequest> received;
         primary.setRequestHandler(
             [&received](const SingleInstanceRequest &request) { received.append(request); });
-        primary.flushAcknowledgedRequests();
+        primary.pauseRequestDispatchAndFlush();
         ok &= expect(received.size() == 1 &&
                          received.first().requestId == firstRequest.requestId,
                      "acknowledged request before handler setup must be flushed deterministically");
+        primary.resumeRequestDispatch();
 
         const auto secondRequest = openRequest({QDir(directory.path()).filePath("second.dspx")});
         error.clear();
         ok &= expect(secondary.forwardRequest(secondRequest, error),
                      "request after handler setup must be acknowledged");
-        primary.flushAcknowledgedRequests();
+        primary.pauseRequestDispatchAndFlush();
         ok &= expect(received.size() == 2 && received.last().requestId == secondRequest.requestId,
                      "acknowledged request after handler setup must be flushed deterministically");
+        primary.resumeRequestDispatch();
+
+        primary.pauseRequestDispatchAndFlush();
+        const auto deferredRequest =
+            openRequest({QDir(directory.path()).filePath("deferred.dspx")});
+        FramedClient deferredClient;
+        ok &= expect(deferredClient.connectTo(serverName) && deferredClient.send(deferredRequest),
+                     "request client must connect while dispatch is paused");
+        QByteArray deferredPayload;
+        QString deferredError;
+        ok &= expect(!deferredClient.receive(deferredPayload, deferredError, 100),
+                     "request accepted after the barrier must not be acknowledged while paused");
+        primary.resumeRequestDispatch();
+        SingleInstanceResponse deferredResponse;
+        ok &= expect(deferredClient.receive(deferredPayload, deferredError) &&
+                         SingleInstanceProtocol::decodeResponse(deferredPayload, deferredResponse,
+                                                                deferredError) &&
+                         deferredResponse.accepted &&
+                         deferredResponse.requestId == deferredRequest.requestId,
+                     "paused request must be acknowledged after dispatch resumes");
+        primary.pauseRequestDispatchAndFlush();
+        ok &= expect(received.size() == 3 && received.last().requestId == deferredRequest.requestId,
+                     "resumed request must reach the installed handler");
+        primary.resumeRequestDispatch();
 
         SingleInstanceRequest activateRequest;
         activateRequest.requestId = QUuid::createUuid().toString(QUuid::WithoutBraces);
@@ -592,12 +617,13 @@ namespace {
         error.clear();
         ok &= expect(secondary.forwardRequest(activateRequest, error),
                      "legacy activate request must remain supported");
-        primary.flushAcknowledgedRequests();
-        ok &= expect(received.size() == 3 &&
+        primary.pauseRequestDispatchAndFlush();
+        ok &= expect(received.size() == 4 &&
                          received.last().requestId == activateRequest.requestId &&
                          received.last().command == SingleInstanceCommand::Activate &&
                          received.last().paths.isEmpty(),
                      "legacy activate request must retain its v1 behavior");
+        primary.resumeRequestDispatch();
 
         primary.shutdown();
         SingleInstanceCoordinator replacement(directory.path(), serverName);

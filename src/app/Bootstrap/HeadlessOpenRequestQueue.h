@@ -23,7 +23,6 @@ public:
 
     void enqueue(const SingleInstanceRequest &request);
     void waitUntilIdle();
-    [[nodiscard]] bool isIdle() const;
 
 private:
     void dispatchNext();
