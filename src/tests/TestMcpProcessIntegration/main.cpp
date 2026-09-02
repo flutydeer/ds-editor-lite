@@ -643,7 +643,10 @@ namespace {
             QString::fromUtf8(headlessSecondaryEditor.readAllStandardError());
         const auto &primaryAfterHeadless = watcher.observation().snapshot;
         if (headlessSecondaryEditor.exitStatus() != QProcess::NormalExit ||
-            headlessSecondaryEditor.exitCode() != 0 || !primaryAfterHeadless ||
+            headlessSecondaryEditor.exitCode() != 0 ||
+            !headlessSecondaryError.contains(
+                QStringLiteral("no new Headless instance was started")) ||
+            !primaryAfterHeadless ||
             primaryAfterHeadless->primaryProcessId != editor.processId() ||
             primaryAfterHeadless->result.editorInstanceId != editorInstanceId ||
             primaryAfterHeadless->result.hostMode != QStringLiteral("gui") ||

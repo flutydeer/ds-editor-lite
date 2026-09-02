@@ -96,8 +96,16 @@ int main(int argc, char *argv[]) {
                 return EXIT_FAILURE;
             }
             QString error;
-            if (coordinator.forwardRequest(startupRequest, error))
+            if (coordinator.forwardRequest(startupRequest, error)) {
+                if (hostMode == AppHostMode::Headless) {
+                    QTextStream(stderr)
+                        << LiteProductMetadata::ProductName
+                        << ": another editor instance is already running; the request was "
+                           "forwarded and no new Headless instance was started."
+                        << Qt::endl;
+                }
                 return EXIT_SUCCESS;
+            }
             reportBootstrapError(error);
             return EXIT_FAILURE;
         }
