@@ -1,3 +1,4 @@
+#include <Bootstrap/SingleInstanceCoordinator.h>
 #include <Bootstrap/SingleInstanceIdentity.h>
 #include <BootstrapWatcher.h>
 #include <UpstreamMcpClient.h>
@@ -806,6 +807,11 @@ namespace {
                             .arg(startupProjectSave ? compactJson(*startupProjectSave)
                                                     : exchangeError));
         }
+        const auto forwardedStartupProjectPath =
+            isolatedRoot.filePath(QStringLiteral("headless-forwarded-startup.dspx"));
+        if (!QFile::copy(startupProjectPath, forwardedStartupProjectPath)) {
+            return fail(QStringLiteral("Could not prepare the forwarded startup-project fixture"));
+        }
 
         const auto guiOnly = nativeExchange(
             manager, nativeEndpoint,
@@ -1090,6 +1096,18 @@ namespace {
                             .arg(mcpEditor.errorString()));
         }
         restartSourceProcessId = mcpEditor.processId();
+        QString forwardError;
+        SingleInstanceCoordinator forwardingClient(editorDataDirectory, serviceName);
+        const SingleInstanceRequest forwardedStartupRequest{
+            QUuid::createUuid().toString(QUuid::WithoutBraces),
+            SingleInstanceCommand::OpenProjects,
+            {forwardedStartupProjectPath},
+        };
+        if (!forwardingClient.forwardRequest(forwardedStartupRequest, forwardError)) {
+            return fail(QStringLiteral("Could not forward a project during headless startup: %1; %2")
+                            .arg(forwardError,
+                                 processDiagnostics(mcpEditor, appDataRoot, mcpPort)));
+        }
 
         const auto mcpBootstrapSettled = waitUntil(
             [&] {
@@ -1222,8 +1240,9 @@ namespace {
                 : QJsonObject{};
         if (!startupLoadedDocument || startupLoadedDocument->contains(QStringLiteral("error")) ||
             QFileInfo(startupLoadedSnapshot.value(QStringLiteral("path")).toString())
-                    .canonicalFilePath() != QFileInfo(startupProjectPath).canonicalFilePath()) {
-            return fail(QStringLiteral("Headless readiness preceded the startup project: %1")
+                    .canonicalFilePath() !=
+                QFileInfo(forwardedStartupProjectPath).canonicalFilePath()) {
+            return fail(QStringLiteral("Headless readiness preceded a forwarded startup project: %1")
                             .arg(startupLoadedDocument ? compactJson(*startupLoadedDocument)
                                                        : exchangeError));
         }

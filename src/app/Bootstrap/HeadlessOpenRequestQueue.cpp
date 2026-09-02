@@ -32,6 +32,10 @@ void HeadlessOpenRequestQueue::waitUntilIdle() {
     m_idleCallback = {};
 }
 
+bool HeadlessOpenRequestQueue::isIdle() const {
+    return !m_busy && m_paths.isEmpty();
+}
+
 void HeadlessOpenRequestQueue::dispatchNext() {
     if (m_busy || !m_openDocument)
         return;

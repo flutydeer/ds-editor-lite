@@ -573,17 +573,18 @@ namespace {
         QList<SingleInstanceRequest> received;
         primary.setRequestHandler(
             [&received](const SingleInstanceRequest &request) { received.append(request); });
-        ok &= expect(waitUntil([&] { return received.size() == 1; }) &&
+        primary.flushAcknowledgedRequests();
+        ok &= expect(received.size() == 1 &&
                          received.first().requestId == firstRequest.requestId,
-                     "request received before UI setup must be retained");
+                     "acknowledged request before handler setup must be flushed deterministically");
 
         const auto secondRequest = openRequest({QDir(directory.path()).filePath("second.dspx")});
         error.clear();
         ok &= expect(secondary.forwardRequest(secondRequest, error),
                      "request after handler setup must be acknowledged");
-        ok &= expect(waitUntil([&] { return received.size() == 2; }) &&
-                         received.last().requestId == secondRequest.requestId,
-                     "request after UI setup must reach the handler");
+        primary.flushAcknowledgedRequests();
+        ok &= expect(received.size() == 2 && received.last().requestId == secondRequest.requestId,
+                     "acknowledged request after handler setup must be flushed deterministically");
 
         SingleInstanceRequest activateRequest;
         activateRequest.requestId = QUuid::createUuid().toString(QUuid::WithoutBraces);
@@ -591,7 +592,8 @@ namespace {
         error.clear();
         ok &= expect(secondary.forwardRequest(activateRequest, error),
                      "legacy activate request must remain supported");
-        ok &= expect(waitUntil([&] { return received.size() == 3; }) &&
+        primary.flushAcknowledgedRequests();
+        ok &= expect(received.size() == 3 &&
                          received.last().requestId == activateRequest.requestId &&
                          received.last().command == SingleInstanceCommand::Activate &&
                          received.last().paths.isEmpty(),

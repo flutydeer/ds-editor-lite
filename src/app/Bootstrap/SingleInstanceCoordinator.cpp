@@ -5,6 +5,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QElapsedTimer>
+#include <QEvent>
 #include <QFileInfo>
 #include <QLocalServer>
 #include <QLocalSocket>
@@ -439,6 +440,15 @@ void SingleInstanceCoordinator::setRequestHandler(
     m_pendingRequests.clear();
     for (const auto &request : pending)
         m_requestHandler(request);
+}
+
+void SingleInstanceCoordinator::flushAcknowledgedRequests() {
+    if (!m_worker || !m_ipcThread)
+        return;
+
+    Q_ASSERT(QThread::currentThread() == thread());
+    QMetaObject::invokeMethod(m_worker, [] {}, Qt::BlockingQueuedConnection);
+    QCoreApplication::sendPostedEvents(this, QEvent::MetaCall);
 }
 
 void SingleInstanceCoordinator::updateAutomationState(

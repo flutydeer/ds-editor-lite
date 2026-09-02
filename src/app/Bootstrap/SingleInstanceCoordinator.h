@@ -29,6 +29,7 @@ public:
     StartResult start();
     bool forwardRequest(const SingleInstanceRequest &request, QString &error);
     void setRequestHandler(std::function<void(const SingleInstanceRequest &)> handler);
+    void flushAcknowledgedRequests();
     void updateAutomationState(const SingleInstanceAutomationStatus &status);
     void updateAutomationState(SingleInstanceAutomationState state, bool serverEnabled,
                                QString serverEndpoint = {}, QString error = {});
