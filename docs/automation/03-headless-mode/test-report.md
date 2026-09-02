@@ -133,8 +133,9 @@ Connector 的固定桥接工具、实际 Headless 目录、GUI-only wrapper 错�
   application Facade 生命周期；
 - restart 复用当前 executable、参数和工作目录，并建立新的运行实例；
 - GUI 已为 Primary 时 Headless 不成为第二 Primary，反向场景相同；
-- GUI Primary 下 Headless Secondary 仍按既有语义成功转发并以 0 退出，Primary 保持 GUI；其
-  `stderr` 明确提示请求已转发且未启动新的 Headless 实例；
+- GUI Primary 下仅带 `--headless` 的 Secondary 仍按既有语义成功转发并以 0 退出，Primary 保持
+  GUI；其 `stderr` 明确提示请求已转发且未启动新的 Headless 实例；携带 `--control-port` 的
+  Secondary 继续因启动配置不可应用而报错且非零退出；
 - 启动位置工程和最终屏障前已确认的转发工程均先到达 Task 终态；屏障期间的新请求延迟 ACK 至
   ready 后，运行期位置工程请求保持单文档替换与队列顺序；
 - 端口冲突和运行期致命配置错误非零退出；

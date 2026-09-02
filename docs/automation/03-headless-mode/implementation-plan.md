@@ -98,8 +98,9 @@ docs(automation): report phase three delivery
 - 重复、冲突、缺值、非法端口和非法控制层级等完整规则不在预解析器中复制；
 - Qt Application 创建后仍由唯一的 `StartupArguments` 完成全部 CLI 校验；
 - 既有位置工程参数、`activate/openProjects` 解析、单实例转发、队列顺序和单文档替换语义不变；
-- Host mode 只决定取得 Primary 后采用的 composition；Headless 作为 Secondary 时仍按既有语义向
-  当前 Primary 转发并以成功状态退出，仅向 `stderr` 提示未启动新的 Headless 实例；
+- Host mode 只决定取得 Primary 后采用的 composition；未携带不可转发 Automation override 的
+  Headless Secondary 仍按既有语义向当前 Primary 转发并以成功状态退出，仅向 `stderr` 提示未启动
+  新的 Headless 实例；`--control-port` 等启动配置仍沿用既有拒绝语义；
 - Headless 在 Automation Controller 构造前安装单实例请求处理器，并以 IPC worker 屏障收齐已确认
   的转发请求；最终屏障原子暂停新的 open/activate dispatch，位置工程与屏障前请求由同一 open
   queue 到达终态后才发布 ready。屏障后的请求暂存且不 ACK，ready 后再恢复为运行期请求。

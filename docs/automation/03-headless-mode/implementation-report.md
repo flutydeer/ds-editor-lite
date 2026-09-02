@@ -71,9 +71,10 @@ open/activate dispatch。open queue 等待屏障前工作到达终态后才构�
 保持连接但不 ACK，listener ready 后恢复为运行期异步串行请求。因此屏障与 readiness 之间不存在
 新的确认窗口。
 
-Host mode 只在进程取得 Primary 后选择 composition。已有任意模式的 Primary 时，Headless
-Secondary 与 GUI Secondary 一样转发 `Activate/OpenProjects` 并沿用原退出结果；转发成功后额外向
-`stderr` 提示本次没有启动新的 Headless 实例，不将 Host mode 差异解释为启动失败。
+Host mode 只在进程取得 Primary 后选择 composition。已有任意模式的 Primary 且未携带不可转发的
+Automation override 时，Headless Secondary 与 GUI Secondary 一样转发 `Activate/OpenProjects`
+并沿用原退出结果；转发成功后额外向 `stderr` 提示本次没有启动新的 Headless 实例，不将 Host mode
+差异解释为启动失败。`--control-port` 等只能作用于新 Primary 的配置仍按既有规则报错。
 
 ## 4. 公共 Host capability 与错误边界
 
