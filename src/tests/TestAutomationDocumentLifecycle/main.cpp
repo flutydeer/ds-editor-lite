@@ -389,6 +389,42 @@ namespace {
             "reject the old generation");
     }
 
+    void testWorkflowBusyLeaseAcrossReplacement(TestRun &test) {
+        constexpr auto scenario = "AFC-DOC-LIFECYCLE-WORKFLOW-BUSY";
+        LifecycleFixture fixture;
+        auto &runtime = fixture.runtime;
+        const auto original = runtime.documentVersion();
+        auto continuation = commandContext(runtime);
+        continuation.source = Automation::InvocationSource::PublicMcp;
+        const auto admitted = runtime.dispatcher().admitDocumentTask(continuation);
+        const bool acquired = runtime.setDocumentBusy(original.documentId, true);
+        const auto replacement = runtime.documents().commitOpenedDocument(
+            continuation,
+            makeDocumentDraft(QStringLiteral("Busy Replacement"),
+                              QStringLiteral("busy-replacement")),
+            QStringLiteral("fixtures/busy-replacement.dspx"),
+            QStringLiteral("busy-replacement.dspx"), true);
+        const auto current = runtime.documentVersion();
+        const bool busyAfterReplacement = runtime.documentBusy(current.documentId);
+
+        Automation::CommandContext publicMutation{
+            .expected = current,
+            .source = Automation::InvocationSource::PublicMcp,
+        };
+        const auto blocked = runtime.timeline().setTempo(publicMutation, 960, 131.0);
+        const bool released = runtime.setDocumentBusy(original.documentId, false);
+        const auto committed = runtime.timeline().setTempo(publicMutation, 960, 131.0);
+
+        test.expect(
+            admitted && acquired && replacement && current.documentId != original.documentId &&
+                busyAfterReplacement && released && !runtime.documentBusy(current.documentId) &&
+                !blocked && blocked.getError().code == Automation::AutomationErrorCode::Busy &&
+                committed,
+            scenario,
+            "workflow busy must cross task-driven replacement, reject new public mutations, and "
+            "remain releasable by its original generation");
+    }
+
     void testFailureAndCancellationRollback(TestRun &test) {
         constexpr auto scenario = "AFC-DOC-LIFECYCLE-005";
         LifecycleFixture fixture;
@@ -822,6 +858,7 @@ int main(int argc, char *argv[]) {
 
     testInitialUntitledSession(test);
     testNewOpenAndImport(test);
+    testWorkflowBusyLeaseAcrossReplacement(test);
     testFailureAndCancellationRollback(test);
     testSaveAndSaveAs(test);
     testGenerationCleanup(test);
