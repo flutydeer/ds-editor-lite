@@ -6,6 +6,7 @@
 #include "Bootstrap/CrashHandler.h"
 #include "Bootstrap/ExternalOpenRequestQueue.h"
 #include "Bootstrap/HeadlessOpenRequestQueue.h"
+#include "Bootstrap/HeadlessTerminationHandler.h"
 #include "Bootstrap/LoggingBootstrap.h"
 #include "Bootstrap/Restarter.h"
 #include "Bootstrap/SingleInstanceCoordinator.h"
@@ -147,6 +148,45 @@ int main(int argc, char *argv[]) {
             }
         }
 
+        std::unique_ptr<HeadlessTerminationHandler> headlessTerminationHandler;
+        bool headlessTerminationAccepted = false;
+        if (hostMode == AppHostMode::Headless) {
+            headlessTerminationHandler = std::make_unique<HeadlessTerminationHandler>();
+            QString error;
+            if (!headlessTerminationHandler->start(
+                    [&](const HeadlessTerminationSignal signal) {
+                        const auto signalName = headlessTerminationSignalName(signal);
+                        qInfo().noquote()
+                            << QStringLiteral("Received %1; requesting graceful headless exit")
+                                   .arg(signalName);
+                        const auto termination =
+                            appContext.m_coreRuntime->application().requestTermination(
+                                {
+                                    .source = Automation::InvocationSource::InternalAutomation,
+                                    .clientId = QStringLiteral("console-signal"),
+                                },
+                                Automation::ApplicationTerminationMode::Exit, true);
+                        if (!termination) {
+                            const auto &terminationError = termination.getError();
+                            qWarning().noquote()
+                                << QStringLiteral("Graceful headless exit after %1 was rejected: "
+                                                  "%2 (%3)")
+                                       .arg(signalName, terminationError.message,
+                                            Automation::errorCodeName(terminationError.code));
+                            return false;
+                        }
+                        headlessTerminationAccepted = true;
+                        return true;
+                    },
+                    error)) {
+                reportBootstrapError(
+                    QStringLiteral("Failed to install headless termination handling: %1").arg(error));
+                coordinator.stopAcceptingRequests();
+                coordinator.shutdown();
+                return EXIT_FAILURE;
+            }
+        }
+
         auto hostServices = Automation::createPublicAutomationHostServices(
             *appContext.m_coreRuntime, appContext.m_appModel, appContext.m_synthrtEngine);
 
@@ -182,28 +222,36 @@ int main(int argc, char *argv[]) {
                                                   hostServices.openDocument);
             requestQueue.enqueue(startupRequest);
             requestQueue.waitUntilIdle();
-            Automation::EditorMcpController mcpController(
-                *appContext.m_coreRuntime, *appContext.m_appOptions, coordinator, hostMode,
-                parsedArguments.automation, hostServices);
-            if (mcpController.nativeEndpoint().isEmpty()) {
-                const auto error =
-                    mcpController.errorString().isEmpty()
-                        ? QStringLiteral("Native automation endpoint failed to start")
-                        : mcpController.errorString();
-                reportBootstrapError(error);
+            if (headlessTerminationAccepted) {
+                headlessTerminationHandler->stop();
                 coordinator.stopAcceptingRequests();
-                mcpController.shutdown();
-                coordinator.shutdown();
-                return EXIT_FAILURE;
+                result = EXIT_SUCCESS;
+            } else {
+                Automation::EditorMcpController mcpController(
+                    *appContext.m_coreRuntime, *appContext.m_appOptions, coordinator, hostMode,
+                    parsedArguments.automation, hostServices);
+                if (mcpController.nativeEndpoint().isEmpty()) {
+                    const auto error =
+                        mcpController.errorString().isEmpty()
+                            ? QStringLiteral("Native automation endpoint failed to start")
+                            : mcpController.errorString();
+                    reportBootstrapError(error);
+                    headlessTerminationHandler->stop();
+                    coordinator.stopAcceptingRequests();
+                    mcpController.shutdown();
+                    coordinator.shutdown();
+                    return EXIT_FAILURE;
+                }
+                coordinator.setRequestHandler([&requestQueue](const SingleInstanceRequest &request) {
+                    requestQueue.enqueue(request);
+                });
+                const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
+                qInfo() << "Headless host launched in" << time << "ms";
+                CrashHandler crashHandler;
+                result = application->exec();
+                headlessTerminationHandler->stop();
+                coordinator.stopAcceptingRequests();
             }
-            coordinator.setRequestHandler([&requestQueue](const SingleInstanceRequest &request) {
-                requestQueue.enqueue(request);
-            });
-            const auto time = static_cast<double>(mstimer.nsecsElapsed()) / 1000000.0;
-            qInfo() << "Headless host launched in" << time << "ms";
-            CrashHandler crashHandler;
-            result = application->exec();
-            coordinator.stopAcceptingRequests();
         }
     }
     coordinator.shutdown();
