@@ -9,11 +9,50 @@ namespace Automation {
         : m_documentResolver(documentResolver), m_windowContext(windowContext) {
     }
 
+    AutomationResult<DocumentVersion>
+        AutomationDispatcher::validateDocumentCommand(const CommandContext &context) {
+        return runSerialized([&]() -> AutomationResult<DocumentVersion> {
+            auto validated = resolveDocumentCommand(context);
+            if (!validated)
+                return validated.getError();
+            const auto &session = validated.get().get();
+            if (context.source == InvocationSource::PublicMcp && session.isBusy())
+                return AutomationError::documentBusy(session.documentId());
+            if (session.revision() != context.expected.revision) {
+                return AutomationError::revisionConflict(
+                    session.documentId(), context.expected.revision, session.revision());
+            }
+            return session.version();
+        });
+    }
+
+    AutomationResult<DocumentVersion>
+        AutomationDispatcher::admitDocumentTask(CommandContext &context) {
+        auto validated = validateDocumentCommand(context);
+        if (validated && context.source == InvocationSource::PublicMcp)
+            context.source = InvocationSource::PublicMcpContinuation;
+        return validated;
+    }
+
     AutomationResult<MutationResult>
         AutomationDispatcher::dispatchDocumentCommand(const OperationId &operationId,
                                                       const CommandContext &context,
                                                       const DocumentCommandHandler &handler) {
         return dispatchDocumentCommandResult<MutationResult>(operationId, context, handler);
+    }
+
+    AutomationResult<MutationResult> AutomationDispatcher::dispatchDocumentControlCommand(
+        const OperationId &operationId, const CommandContext &context,
+        const DocumentCommandHandler &handler) {
+        if (!context.idempotencyKey.isEmpty()) {
+            return decorateError(
+                AutomationError::invalidArgument(
+                    QStringLiteral("idempotency_key"),
+                    QStringLiteral("Operation does not support document idempotency")),
+                operationId);
+        }
+        return dispatchDocumentCommandResultImpl<MutationResult>(operationId, context, nullptr,
+                                                                 true, false, handler);
     }
 
     AutomationResult<MutationResult>
@@ -22,6 +61,17 @@ namespace Automation {
             const DocumentCommandHandler &handler) {
         return dispatchDocumentCommandResultWithoutRevisionCheck<MutationResult>(operationId,
                                                                                  context, handler);
+    }
+
+    AutomationResult<std::reference_wrapper<DocumentSession>>
+        AutomationDispatcher::resolveDocumentCommand(const CommandContext &context) {
+        auto resolved = m_documentResolver.resolveDocument(context.expected.documentId);
+        if (!resolved)
+            return resolved.getError();
+        auto &session = resolved.get().get();
+        if (session.lifecycleState() != DocumentLifecycleState::Active)
+            return AutomationError::documentBusy(session.documentId());
+        return std::ref(session);
     }
 
     AutomationResult<MutationResult> AutomationDispatcher::dispatchIdempotentDocumentCommand(

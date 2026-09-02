@@ -100,6 +100,40 @@ namespace {
                           "ordinary dispatch must reject a key and otherwise bypass the cache"));
     }
 
+    bool completedReplayPrecedesWorkflowBusyAdmission() {
+        AutomationTestSupport::TestRuntime fixture;
+        auto &runtime = fixture.runtime();
+        auto context =
+            commandContext(runtime, QStringLiteral("d0d00000-0000-4000-8000-000000000008"));
+        context.source = Automation::InvocationSource::PublicMcp;
+        int executions = 0;
+        const auto handler = countedHandler(executions);
+        const auto first = runtime.dispatcher().dispatchIdempotentDocumentCommand(
+            Automation::OperationIds::tracks::insert, context, QByteArrayLiteral("alpha"), handler);
+
+        runtime.setDocumentBusy(context.expected.documentId, true);
+        const auto replay = runtime.dispatcher().dispatchIdempotentDocumentCommand(
+            Automation::OperationIds::tracks::insert, context, QByteArrayLiteral("alpha"), handler);
+        const auto conflict = runtime.dispatcher().dispatchIdempotentDocumentCommand(
+            Automation::OperationIds::tracks::insert, context, QByteArrayLiteral("beta"), handler);
+        auto newContext =
+            commandContext(runtime, QStringLiteral("d0d00000-0000-4000-8000-000000000009"));
+        newContext.source = Automation::InvocationSource::PublicMcp;
+        const auto blocked = runtime.dispatcher().dispatchIdempotentDocumentCommand(
+            Automation::OperationIds::tracks::insert, newContext, QByteArrayLiteral("alpha"),
+            handler);
+        runtime.setDocumentBusy(context.expected.documentId, false);
+
+        return expect(
+                   first && replay && replay.get() == first.get() && executions == 1,
+                   QStringLiteral("completed replay must remain available while workflow busy")) &&
+               expect(!conflict && conflict.getError().code ==
+                                       Automation::AutomationErrorCode::IdempotencyConflict,
+                      QStringLiteral("claimed key conflicts must precede workflow busy")) &&
+               expect(!blocked && blocked.getError().code == Automation::AutomationErrorCode::Busy,
+                      QStringLiteral("workflow busy must still reject a new idempotent mutation"));
+    }
+
     bool concurrentReplayExecutesOnce() {
         constexpr int LaneCount = 8;
         AutomationTestSupport::TestRuntime fixture;
@@ -296,6 +330,7 @@ int main(int argc, char *argv[]) {
     QCoreApplication application(argc, argv);
     bool ok = true;
     ok &= serialReplayAndExplicitOptIn();
+    ok &= completedReplayPrecedesWorkflowBusyAdmission();
     ok &= concurrentReplayExecutesOnce();
     ok &= unsuccessfulAttemptsDoNotClaimKeys();
     ok &= documentsAndGenerationsHaveIndependentKeySpaces();

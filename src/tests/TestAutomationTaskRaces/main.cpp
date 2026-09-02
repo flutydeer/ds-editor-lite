@@ -605,6 +605,27 @@ namespace {
                        stableCancel.get().state == Automation::AutomationTaskState::Succeeded,
                    "cancel-after-success must return the stable successful snapshot");
         }
+
+        checks.scenario("public task cancellation while document workflow is busy");
+        {
+            AutomationTestSupport::TestRuntime fixture;
+            auto &runtime = fixture.runtime();
+            const auto base = runtime.documentVersion();
+            int cancelCallbackCount = 0;
+            const auto task = runtime.automationTasks().createTask(
+                Automation::OperationIds::extract::pitch::start, base, std::nullopt,
+                [&cancelCallbackCount] { ++cancelCallbackCount; });
+            const bool running = runtime.automationTasks().markRunning(task.taskId);
+            const bool busy = runtime.setDocumentBusy(base.documentId, true);
+            const auto canceled = runtime.tasks().cancelTask(
+                {.expected = base, .source = Automation::InvocationSource::PublicMcp}, task.taskId);
+            runtime.setDocumentBusy(base.documentId, false);
+            EXPECT(checks,
+                   running && busy && canceled &&
+                       canceled.get().state == Automation::AutomationTaskState::CancelRequested &&
+                       cancelCallbackCount == 1,
+                   "workflow busy must not prevent a public client from canceling its task");
+        }
     }
 
     void testCommittingGenerationReplacement(Checks &checks) {

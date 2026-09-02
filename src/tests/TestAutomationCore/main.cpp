@@ -116,6 +116,111 @@ int main(int argc, char *argv[]) {
                      staleHandlerCalls == 0,
                  "stale revisions must be rejected before entering the handler");
 
+    auto admittedTaskCommand = command;
+    admittedTaskCommand.expected = first.version();
+    admittedTaskCommand.source = Automation::InvocationSource::PublicMcp;
+    const auto admittedTaskBase = dispatcher.admitDocumentTask(admittedTaskCommand);
+    first.setBusy(true);
+    const auto admittedTaskCompletion = dispatcher.dispatchDocumentCommand(
+        QStringLiteral("test.task.complete"), admittedTaskCommand,
+        [](Automation::DocumentSession &session, const bool validateOnly) {
+            return commit(session, validateOnly);
+        });
+    const auto staleTaskCompletion = dispatcher.dispatchDocumentCommand(
+        QStringLiteral("test.task.complete"), admittedTaskCommand,
+        [](Automation::DocumentSession &session, const bool validateOnly) {
+            return commit(session, validateOnly);
+        });
+    const auto queryWhileBusy = dispatcher.dispatchDocumentQuery<Automation::Revision>(
+        QStringLiteral("test.query"), first.documentId(), [](Automation::DocumentSession &session) {
+            return Automation::AutomationResult<Automation::Revision>(session.revision());
+        });
+    auto publicCommand = command;
+    publicCommand.expected = first.version();
+    publicCommand.source = Automation::InvocationSource::PublicMcp;
+    int publicHandlerCalls = 0;
+    const auto publicValidationBusy = dispatcher.validateDocumentCommand(publicCommand);
+    auto rejectedTaskCommand = publicCommand;
+    const auto rejectedTaskAdmission = dispatcher.admitDocumentTask(rejectedTaskCommand);
+    const auto publicBusy = dispatcher.dispatchDocumentCommand(
+        QStringLiteral("test.command"), publicCommand,
+        [&publicHandlerCalls](Automation::DocumentSession &session, const bool validateOnly) {
+            ++publicHandlerCalls;
+            return commit(session, validateOnly);
+        });
+    ++publicCommand.expected.revision;
+    const auto stalePublicBusy = dispatcher.dispatchDocumentCommand(
+        QStringLiteral("test.command"), publicCommand,
+        [&publicHandlerCalls](Automation::DocumentSession &session, const bool validateOnly) {
+            ++publicHandlerCalls;
+            return commit(session, validateOnly);
+        });
+    auto publicControl = publicCommand;
+    publicControl.expected = first.version();
+    publicControl.validateOnly = true;
+    const auto allowedControl = dispatcher.dispatchDocumentControlCommand(
+        QStringLiteral("test.control"), publicControl,
+        [](Automation::DocumentSession &session, const bool validateOnly) {
+            return commit(session, validateOnly);
+        });
+    ++publicControl.expected.revision;
+    const auto staleControl = dispatcher.dispatchDocumentControlCommand(
+        QStringLiteral("test.control"), publicControl,
+        [](Automation::DocumentSession &session, const bool validateOnly) {
+            return commit(session, validateOnly);
+        });
+    const auto allowedCancellation =
+        dispatcher.dispatchDocumentControlCommandResultWithoutRevisionCheck<Automation::Revision>(
+            QStringLiteral("test.cancel"), publicControl,
+            [](Automation::DocumentSession &session, const bool) {
+                return Automation::AutomationResult<Automation::Revision>(session.revision());
+            });
+    auto trustedCommand = publicCommand;
+    trustedCommand.expected = first.version();
+    trustedCommand.validateOnly = true;
+    trustedCommand.source = Automation::InvocationSource::TrustedGui;
+    const auto trustedPreview = dispatcher.dispatchDocumentCommand(
+        QStringLiteral("test.command"), trustedCommand,
+        [](Automation::DocumentSession &session, const bool validateOnly) {
+            return commit(session, validateOnly);
+        });
+    auto internalCommand = trustedCommand;
+    internalCommand.source = Automation::InvocationSource::InternalAutomation;
+    const auto internalPreview = dispatcher.dispatchDocumentCommand(
+        QStringLiteral("test.command"), internalCommand,
+        [](Automation::DocumentSession &session, const bool validateOnly) {
+            return commit(session, validateOnly);
+        });
+    ok &= expect(
+        admittedTaskBase &&
+            admittedTaskCommand.source == Automation::InvocationSource::PublicMcpContinuation &&
+            admittedTaskCompletion && !staleTaskCompletion &&
+            staleTaskCompletion.getError().code ==
+                Automation::AutomationErrorCode::RevisionConflict &&
+            queryWhileBusy && queryWhileBusy.get() == first.revision() && !publicValidationBusy &&
+            publicValidationBusy.getError().code == Automation::AutomationErrorCode::Busy &&
+            !rejectedTaskAdmission &&
+            rejectedTaskAdmission.getError().code == Automation::AutomationErrorCode::Busy &&
+            rejectedTaskCommand.source == Automation::InvocationSource::PublicMcp &&
+            !publicBusy && publicBusy.getError().code == Automation::AutomationErrorCode::Busy &&
+            !stalePublicBusy &&
+            stalePublicBusy.getError().code == Automation::AutomationErrorCode::Busy &&
+            publicHandlerCalls == 0 && allowedControl && !staleControl &&
+            staleControl.getError().code == Automation::AutomationErrorCode::RevisionConflict &&
+            allowedCancellation && trustedPreview && internalPreview,
+        "workflow busy must reject new public mutations while allowing admitted tasks, document "
+        "controls, queries, and trusted work");
+    first.setBusy(false);
+    publicCommand.expected = first.version();
+    const auto publicValidation = dispatcher.validateDocumentCommand(publicCommand);
+    ++publicCommand.expected.revision;
+    const auto stalePublicValidation = dispatcher.validateDocumentCommand(publicCommand);
+    ok &= expect(publicValidation && publicValidation.get() == first.version() &&
+                     !stalePublicValidation &&
+                     stalePublicValidation.getError().code ==
+                         Automation::AutomationErrorCode::RevisionConflict,
+                 "public async admission must share the dispatcher revision contract");
+
     auto unsupportedKey = command;
     unsupportedKey.expected = first.version();
     unsupportedKey.idempotencyKey = QStringLiteral("unsupported-key");

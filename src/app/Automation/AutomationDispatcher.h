@@ -22,6 +22,10 @@ namespace Automation {
         AutomationDispatcher(IDocumentSessionResolver &documentResolver,
                              SingleWindowContext &windowContext);
 
+        AutomationResult<DocumentVersion>
+            validateDocumentCommand(const CommandContext &context);
+        AutomationResult<DocumentVersion> admitDocumentTask(CommandContext &context);
+
         template <typename T, typename Handler>
         AutomationResult<T> dispatchApplicationQuery(const OperationId &operationId,
                                                      Handler &&handler) {
@@ -140,6 +144,11 @@ namespace Automation {
                                     const DocumentCommandHandler &handler);
 
         AutomationResult<MutationResult>
+            dispatchDocumentControlCommand(const OperationId &operationId,
+                                           const CommandContext &context,
+                                           const DocumentCommandHandler &handler);
+
+        AutomationResult<MutationResult>
             dispatchDocumentCommandWithoutRevisionCheck(const OperationId &operationId,
                                                         const CommandContext &context,
                                                         const DocumentCommandHandler &handler);
@@ -176,7 +185,7 @@ namespace Automation {
                         QStringLiteral("Operation does not support document idempotency")),
                     operationId);
             }
-            return dispatchDocumentCommandResultImpl<T>(operationId, context, nullptr, true,
+            return dispatchDocumentCommandResultImpl<T>(operationId, context, nullptr, true, true,
                                                         std::forward<Handler>(handler));
         }
 
@@ -190,7 +199,21 @@ namespace Automation {
                         QStringLiteral("Operation does not support document idempotency")),
                     operationId);
             }
-            return dispatchDocumentCommandResultImpl<T>(operationId, context, nullptr, false,
+            return dispatchDocumentCommandResultImpl<T>(operationId, context, nullptr, false, true,
+                                                        std::forward<Handler>(handler));
+        }
+
+        template <typename T, typename Handler>
+        AutomationResult<T> dispatchDocumentControlCommandResultWithoutRevisionCheck(
+            const OperationId &operationId, const CommandContext &context, Handler &&handler) {
+            if (!context.idempotencyKey.isEmpty()) {
+                return decorateError(
+                    AutomationError::invalidArgument(
+                        QStringLiteral("idempotency_key"),
+                        QStringLiteral("Operation does not support document idempotency")),
+                    operationId);
+            }
+            return dispatchDocumentCommandResultImpl<T>(operationId, context, nullptr, false, false,
                                                         std::forward<Handler>(handler));
         }
 
@@ -199,7 +222,7 @@ namespace Automation {
             const OperationId &operationId, const CommandContext &context,
             const QByteArray &requestFingerprint, Handler &&handler) {
             return dispatchDocumentCommandResultImpl<T>(operationId, context, &requestFingerprint,
-                                                        true, std::forward<Handler>(handler));
+                                                        true, true, std::forward<Handler>(handler));
         }
 
     private:
@@ -208,15 +231,13 @@ namespace Automation {
                                                               const CommandContext &context,
                                                               const QByteArray *requestFingerprint,
                                                               const bool checkRevision,
+                                                              const bool rejectPublicWhileBusy,
                                                               Handler &&handler) {
             return runSerialized([&]() -> AutomationResult<T> {
-                auto resolved = m_documentResolver.resolveDocument(context.expected.documentId);
-                if (!resolved)
-                    return decorateError(resolved.getError(), operationId);
-                auto &session = resolved.get().get();
-                if (session.lifecycleState() != DocumentLifecycleState::Active)
-                    return decorateError(AutomationError::documentBusy(session.documentId()),
-                                         operationId);
+                auto validated = resolveDocumentCommand(context);
+                if (!validated)
+                    return decorateError(validated.getError(), operationId);
+                auto &session = validated.get().get();
 
                 QByteArray fingerprint;
                 if (!context.validateOnly && !context.idempotencyKey.isEmpty()) {
@@ -228,6 +249,12 @@ namespace Automation {
                         return decorateError(replay.getError(), operationId);
                     if (replay.get())
                         return *replay.get();
+                }
+
+                if (rejectPublicWhileBusy && context.source == InvocationSource::PublicMcp &&
+                    session.isBusy()) {
+                    return decorateError(AutomationError::documentBusy(session.documentId()),
+                                         operationId);
                 }
 
                 if (checkRevision && session.revision() != context.expected.revision) {
@@ -250,6 +277,9 @@ namespace Automation {
                 return result;
             });
         }
+
+        AutomationResult<std::reference_wrapper<DocumentSession>>
+            resolveDocumentCommand(const CommandContext &context);
 
         template <typename T>
         static AutomationResult<T> decorateHandlerResult(AutomationResult<T> result,

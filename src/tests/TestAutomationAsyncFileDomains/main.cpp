@@ -190,7 +190,7 @@ namespace {
             const auto sharedBase = runtime.documentVersion();
             const auto first =
                 runtime.inference().applyMutation(RuntimeHarness::contextFor(sharedBase), request);
-            const auto rebased = Automation::rebaseTaskVersionWithinGeneration(
+            const auto rebased = Automation::rebaseDocumentVersionWithinGeneration(
                 sharedBase, runtime.documentVersion());
             auto siblingRequest = request;
             siblingRequest.kind = Automation::InferenceMutationKind::ApplyVariance;
@@ -206,10 +206,19 @@ namespace {
 
             const auto staleGeneration =
                 Automation::DocumentVersion{Automation::DocumentId::create(), sharedBase.revision};
-            const auto rejectedRebase = Automation::rebaseTaskVersionWithinGeneration(
+            const auto workflowContext = runtime.documentWorkflowCommitContext(sharedBase);
+            const auto rejectedRebase = Automation::rebaseDocumentVersionWithinGeneration(
                 staleGeneration, runtime.documentVersion());
-            suite.expect(isError(rejectedRebase, Automation::AutomationErrorCode::DocumentChanged),
-                         QStringLiteral("sibling rebasing must never cross a document generation"));
+            const auto rejectedWorkflowContext =
+                runtime.documentWorkflowCommitContext(staleGeneration);
+            suite.expect(
+                workflowContext && workflowContext.get().expected == runtime.documentVersion() &&
+                    workflowContext.get().source == Automation::InvocationSource::TrustedGui &&
+                    isError(rejectedRebase, Automation::AutomationErrorCode::DocumentChanged) &&
+                    isError(rejectedWorkflowContext,
+                            Automation::AutomationErrorCode::DocumentChanged),
+                QStringLiteral(
+                    "same-generation workflows must use the current revision without crossing generations"));
 
             const auto staleContext = RuntimeHarness::contextFor(runtime.documentVersion());
             const auto preparesBeforeReplacement = harness.inferencePrepareCount;

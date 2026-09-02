@@ -58,10 +58,22 @@ namespace Automation {
         return documentId == m_session.documentId() && m_session.isBusy();
     }
 
+    AutomationResult<CommandContext> CoreRuntime::documentWorkflowCommitContext(
+        const DocumentVersion &generationAnchor) const {
+        const auto rebased =
+            rebaseDocumentVersionWithinGeneration(generationAnchor, documentVersion());
+        if (!rebased)
+            return rebased.getError();
+        return CommandContext{
+            .expected = rebased.get(),
+            .source = InvocationSource::TrustedGui,
+        };
+    }
+
     AutomationResult<CommandContext>
         CoreRuntime::derivedWritebackContext(const DocumentVersion &taskVersion,
                                              const bool validateOnly) const {
-        const auto rebased = rebaseTaskVersionWithinGeneration(taskVersion, documentVersion());
+        const auto rebased = rebaseDocumentVersionWithinGeneration(taskVersion, documentVersion());
         if (!rebased)
             return rebased.getError();
         return CommandContext{
@@ -156,9 +168,19 @@ namespace Automation {
     }
 
     bool CoreRuntime::setDocumentBusy(const DocumentId &documentId, const bool busy) {
-        if (documentId != m_session.documentId())
+        if (busy) {
+            if (documentId != m_session.documentId() ||
+                (!m_documentBusyOwner.isNull() && m_documentBusyOwner != documentId)) {
+                return false;
+            }
+            m_documentBusyOwner = documentId;
+            m_session.setBusy(true);
+            return true;
+        }
+        if (documentId != m_documentBusyOwner)
             return false;
-        m_session.setBusy(busy);
+        m_documentBusyOwner = {};
+        m_session.setBusy(false);
         return true;
     }
 
