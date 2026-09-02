@@ -53,6 +53,7 @@ namespace {
         int saveCalls = 0;
         QString lastSavePath;
         QString lateSaveTarget;
+        QByteArray lastSavedModel;
         QList<Automation::DocumentId> replacementNotifications;
     };
 
@@ -61,13 +62,15 @@ namespace {
         services.applyLoopSettings = [&host](const LoopSettings &settings) {
             host.loopSettings = settings;
         };
-        services.saveProject = [&host](const QString &path, AppModel *, QString &errorMessage) {
+        services.saveProject = [&host](const QString &path, AppModel *model,
+                                       QString &errorMessage) {
             ++host.saveCalls;
             host.lastSavePath = path;
             if (!host.saveSucceeds) {
                 errorMessage = QStringLiteral("controlled save failure");
                 return false;
             }
+            host.lastSavedModel = QJsonDocument(model->serialize()).toJson(QJsonDocument::Compact);
             QFile staged(path);
             if (!staged.open(QIODevice::WriteOnly) || staged.write("project") != 7) {
                 errorMessage = QStringLiteral("controlled staging failure");
@@ -510,22 +513,39 @@ namespace {
         const auto dirtyVersion = runtime.documentVersion();
         const auto dirtySnapshot = runtime.documents().getDocument(dirtyVersion.documentId);
         const auto firstPath = directory.filePath(QStringLiteral("first-save-as.dspx"));
-        const auto saveAs = runtime.documents().saveDocument(commandContext(runtime), firstPath);
+        const auto revisionDuringSaveDialog = runtime.timeline().setTempo(
+            commandContext(runtime), 960, 128.0);
+        const auto confirmedVersion = runtime.documentVersion();
+        const auto saveContext = runtime.documentWorkflowCommitContext(dirtyVersion);
+        const auto saveAs =
+            saveContext
+                ? runtime.documents().saveDocument(saveContext.get(), firstPath)
+                : Automation::AutomationResult<Automation::MutationResult>(saveContext.getError());
         const auto afterSaveAs = runtime.documents().getDocument(dirtyVersion.documentId);
+        const auto modelAtConfirmation =
+            QJsonDocument(fixture.model.serialize()).toJson(QJsonDocument::Compact);
 
         test.expect(committedNew && imported && dirtySnapshot && !dirtySnapshot.get().saved &&
-                        saveAs && runtime.documentVersion() == dirtyVersion &&
+                        revisionDuringSaveDialog && saveContext && saveAs &&
+                        runtime.documentVersion() == confirmedVersion &&
                         fixture.host.saveCalls == 1 && afterSaveAs &&
                         afterSaveAs.get().path == firstPath &&
                         afterSaveAs.get().projectName == QStringLiteral("first-save-as.dspx") &&
-                        afterSaveAs.get().saved,
-                    scenario, "save-as must preserve identity/revision and set path/savepoint");
+                        afterSaveAs.get().saved &&
+                        fixture.host.lastSavedModel == modelAtConfirmation,
+                    scenario,
+                    "save-as must commit the current same-generation state after path "
+                    "confirmation");
 
-        const auto edited = runtime.timeline().setTempo(commandContext(runtime), 960, 128.0);
+        const auto savedModel = fixture.host.lastSavedModel;
+        const auto edited = runtime.timeline().setTempo(commandContext(runtime), 1920, 132.0);
         const auto versionBeforeSave = runtime.documentVersion();
+        const auto modelAfterConfirmation =
+            QJsonDocument(fixture.model.serialize()).toJson(QJsonDocument::Compact);
         const auto save = runtime.documents().saveDocument(commandContext(runtime), firstPath);
         const auto afterSave = runtime.documents().getDocument(versionBeforeSave.documentId);
-        test.expect(edited && save && runtime.documentVersion() == versionBeforeSave &&
+        test.expect(edited && savedModel != modelAfterConfirmation && save &&
+                        runtime.documentVersion() == versionBeforeSave &&
                         fixture.host.saveCalls == 2 && afterSave &&
                         afterSave.get().path == firstPath && afterSave.get().saved,
                     scenario,

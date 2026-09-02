@@ -92,7 +92,7 @@ private:
 
     struct PendingRequest {
         quint64 requestId = 0;
-        Automation::DocumentVersion baseDocument;
+        Automation::DocumentVersion generationAnchor;
         std::optional<DocumentOperation> operation;
         std::optional<TerminationMode> termination;
         QString filePath;
@@ -103,6 +103,7 @@ private:
     void validatePendingRequest();
     void askSaveDecision();
     void askSavePath();
+    void attemptSave();
     void performSave();
     void createSession();
     void startSession();
