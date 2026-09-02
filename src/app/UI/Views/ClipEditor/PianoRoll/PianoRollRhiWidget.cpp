@@ -1133,6 +1133,10 @@ public:
             q->setCursor(Qt::SizeVerCursor);
             return;
         }
+        if (pitchTransformFactorHandleRect().contains(viewportPosition)) {
+            q->setCursor(Qt::SizeVerCursor);
+            return;
+        }
         if (pitchTransformBoundaryDragging ||
             pitchTransformBoundaryIndexAt(viewportPosition.x()) >= 0) {
             q->setCursor(Qt::SizeHorCursor);
@@ -1262,6 +1266,22 @@ public:
         }
         if (phase != CurveTransform::Phase::Adjusting)
             return;
+
+        if (pitchTransformFactorHandleRect().contains(viewportPosition)) {
+            if (!pitchTransform.beginTransform())
+                return;
+            if (!beginPitchTransformEditSession()) {
+                pitchTransform.cancel();
+                clearPitchPreview();
+                scheduleSnapshot();
+                return;
+            }
+            pitchTransformMouseDown = true;
+            pitchTransformDragStartViewportPos = viewportPosition;
+            q->setCursor(Qt::SizeVerCursor);
+            scheduleSnapshot();
+            return;
+        }
 
         const auto positions = pitchTransformBoundaryPositions();
         const auto nearestIndex = pitchTransformBoundaryIndexAt(viewportPosition.x());

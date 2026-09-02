@@ -692,6 +692,20 @@ void CommonParamEditorView::curveTransformMousePressEvent(QGraphicsSceneMouseEve
     if (phase != CurveTransform::Phase::Adjusting)
         return;
 
+    if (curveTransformFactorHandleRect().contains(event->pos())) {
+        if (!m_curveTransform.beginTransform())
+            return;
+        m_mouseDown = true;
+        m_mouseDownButton = event->button();
+        m_transformDragStartItemPos = event->pos();
+        m_transformDragStartScenePos = event->scenePos();
+        setCursor(Qt::SizeVerCursor);
+        emit editStarted();
+        event->accept();
+        update();
+        return;
+    }
+
     const auto positions = curveTransformBoundaryPositions();
     const auto nearestIndex = curveTransformBoundaryIndexAt(event->pos().x());
     if (nearestIndex >= 0) {
@@ -812,6 +826,10 @@ void CommonParamEditorView::updateCurveTransformCursor(const QPointF &itemPos) {
         return;
     }
     if (m_curveTransform.phase() == CurveTransform::Phase::Transforming) {
+        setCursor(Qt::SizeVerCursor);
+        return;
+    }
+    if (curveTransformFactorHandleRect().contains(itemPos)) {
         setCursor(Qt::SizeVerCursor);
         return;
     }
