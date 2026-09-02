@@ -75,7 +75,8 @@ Contract、Registry binding、Host 分类、MCP 实际发现与 Connector 实际
 - GuiContext、ThemeManager、MainWindow、QWindowKit、GUI Controller、Clipboard、LevelMeter、
   Widget view/controller 和 GUI 提取控制器均不创建。
 - Headless listener ready 前通过 Document Facade 默认 draft/commit 创建一个空白文档；存在位置工程
-  参数时，同一 open queue 必须先等其 Task 终态，首次 ready/status 不得暴露默认空白文档。
+  参数或此前已确认的单实例转发工程时，同一 open queue 必须先等其 Task 终态，首次 ready/status
+  不得暴露默认空白文档或较早的过渡工程。
 - GUI 仍在 MainWindow 创建后的既有时序初始化文档，视图可收到初始模型信号。
 
 ### 4.2 隐藏 GUI 依赖
