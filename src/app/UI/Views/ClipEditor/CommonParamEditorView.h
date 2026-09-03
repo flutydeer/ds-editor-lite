@@ -2,18 +2,21 @@
 #define PITCHEDITORGRAPHICSITEM_H
 
 #include "Interface/IAtomicAction.h"
+#include "UI/Views/ClipEditor/CurveTransform/CurveTransformSession.h"
 #include "UI/Views/ClipEditor/DrawCurveEditUtils.h"
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
 #include "UI/Views/Common/TimeOverlayView.h"
 
 #include <QColor>
 
+#include <optional>
 #include <utility>
 
 class ParamProperties;
 class AnchorCurve;
 class QPainterPath;
 class QPen;
+class QGraphicsSceneHoverEvent;
 
 class CommonParamEditorView : public TimeOverlayView, public IAtomicAction {
     Q_OBJECT
@@ -30,6 +33,10 @@ public:
     void cancelEdit();
     void setEraseMode(bool on);
     void setBakeMode(bool on);
+    void setCurveTransformMode(std::optional<CurveTransform::Kind> kind,
+                               std::function<double(int)> tickToMilliseconds = {},
+                               QList<CurveTransform::Interval> partitions = {},
+                               std::function<std::optional<double>(int)> pitchBaselineAtTick = {});
     void setBaseCurveVisible(bool visible);
     [[nodiscard]] const QList<DrawCurve *> &editedCurves() const;
     [[nodiscard]] double sceneYForValue(double value) const;
@@ -66,6 +73,7 @@ protected:
                                QWidget *widget);
     [[nodiscard]] const QList<DrawCurve *> &originalCurves() const;
     void drawCurveBorder(QPainter *painter, const QList<DrawCurve *> &curves) const;
+    void drawCurveTransformOverlay(QPainter *painter) const;
     [[nodiscard]] QColor resolvedEditedCurveColor() const;
 
 private:
@@ -73,11 +81,28 @@ private:
     void mousePressEvent(QGraphicsSceneMouseEvent *event) override;
     void mouseMoveEvent(QGraphicsSceneMouseEvent *event) override;
     void mouseReleaseEvent(QGraphicsSceneMouseEvent *event) override;
+    void hoverMoveEvent(QGraphicsSceneHoverEvent *event) override;
+    void hoverLeaveEvent(QGraphicsSceneHoverEvent *event) override;
+    bool sceneEvent(QEvent *event) override;
     void updateRectAndPos() override;
     bool cancelEditState();
     void drawCurvePolygon(QPainter *painter, const QList<DrawCurve *> &curves) const;
     void drawEditedCurveBorders(QPainter *painter, const QPen &pen) const;
     [[nodiscard]] QPainterPath anchorCoveragePath() const;
+    void reloadCurveTransformSource();
+    void applyCurveTransformPreview();
+    bool cancelCurveTransform(bool notifyDiscard);
+    void finishCurveTransform();
+    void curveTransformMousePressEvent(QGraphicsSceneMouseEvent *event);
+    void curveTransformMouseMoveEvent(QGraphicsSceneMouseEvent *event);
+    void curveTransformMouseReleaseEvent(QGraphicsSceneMouseEvent *event);
+    void resetCurveTransformBoundaryDrag();
+    void updateCurveTransformCursor(const QPointF &itemPos);
+    [[nodiscard]] QRectF curveTransformFactorHandleRect() const;
+    [[nodiscard]] QVector<double> curveTransformBoundaryPositions() const;
+    [[nodiscard]] CurveTransform::Boundary curveTransformBoundaryAt(int index) const;
+    [[nodiscard]] int curveTransformBoundaryIndexAt(double itemX) const;
+    [[nodiscard]] bool curveTransformVerticalDragAreaContains(const QPointF &itemPos) const;
     bool m_showDebugInfo = false;
 
     enum EditType { Draw, Erase, Bake, None };
@@ -97,6 +122,17 @@ private:
     QList<DrawCurve *> m_anchorCurvesEdited;
     QList<DrawCurve *> m_drawCurvesOriginal;
     QList<DrawCurve *> m_drawCurvesEditedBak;
+
+    std::optional<CurveTransform::Kind> m_curveTransformKind;
+    CurveTransform::Config m_curveTransformConfig;
+    CurveTransform::Session m_curveTransform;
+    bool m_transformBoundaryDragging = false;
+    bool m_transformBoundaryResolved = false;
+    int m_transformBoundaryInitialIndex = -1;
+    CurveTransform::Boundary m_transformBoundary = CurveTransform::Boundary::None;
+    QPointF m_transformDragStartItemPos;
+    QPointF m_transformDragStartScenePos;
+    QVector<double> m_transformBoundaryStartPositions;
 
     [[nodiscard]] double valueToItemY(double value) const;
     const int paddingTopBottom = 2;

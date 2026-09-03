@@ -18,8 +18,11 @@
 #include "UI/Views/ClipEditor/AnchorEditor/AnchorEditController.h"
 #include "UI/Views/ClipEditor/AnchorEditor/AnchorEditUtils.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
+#include "UI/Views/ClipEditor/CurveTransform/CurveTransformSession.h"
+#include "UI/Views/ClipEditor/CurveTransform/PitchCurveTransformContext.h"
 #include "UI/Views/ClipEditor/CurveRenderUtils.h"
 #include "UI/Views/ClipEditor/DrawCurveEditUtils.h"
+#include "UI/Utils/OverlappingHandleResolver.h"
 #include "UI/Views/Common/AutoPageTurnUtils.h"
 #include "UI/Views/Common/EdgeAutoScroller.h"
 #include "UI/Views/Common/EditorItemGeometry.h"
@@ -310,6 +313,9 @@ public:
         appStatus->pianoRollNoteErasePreview = {};
         finishInlineEditing();
         cancelPitchEdit();
+        cancelPitchTransform();
+        pitchTransform.clear();
+        pitchTransformContext.clear();
         anchorController.cancel();
         clearSplitPreview();
         clearPastePreview();
@@ -323,6 +329,11 @@ public:
         if (clip) {
             QObject::connect(clip, &SingingClip::noteChanged, q, [this] {
                 hideLyricToolTip();
+                if (pitchTransformEnabled()) {
+                    cancelPitchTransform();
+                    pitchTransformContext.invalidate();
+                    reloadPitchTransformSource();
+                }
                 scheduleSnapshot();
             });
             QObject::connect(clip, &SingingClip::paramChanged, q,
@@ -330,17 +341,28 @@ public:
                                  if (name == ParamInfo::Pitch) {
                                      mergedPitchCurveCache.invalidate();
                                      loadAnchorCurvesFromModel();
+                                     if (pitchTransformEnabled() && !pitchTransformCommitting) {
+                                         cancelPitchTransform();
+                                         pitchTransformContext.invalidate();
+                                         reloadPitchTransformSource();
+                                     }
                                      scheduleSnapshot();
                                  }
                              });
             QObject::connect(clip, &SingingClip::propertyChanged, q, [this] {
                 viewport.setContentTickRange(0.0, effectiveSceneLength());
+                if (pitchTransformEnabled()) {
+                    cancelPitchTransform();
+                    pitchTransformContext.invalidate();
+                    reloadPitchTransformSource();
+                }
                 q->notifyViewportChanged();
                 scheduleSnapshot();
             });
         }
         loadAnchorCurvesFromModel();
         anchorController.setEditActive(editMode == EditPitchAnchor);
+        reloadPitchTransformSource();
         viewportPositionPending = clip && !q->isVisible();
         if (clip && !viewportPositionPending)
             initializeCamera();
@@ -736,6 +758,10 @@ public:
     }
 
     void updateNoteCursor(const QPointF &viewportPosition) const {
+        if (pitchTransformEnabled()) {
+            updatePitchTransformCursor(viewportPosition);
+            return;
+        }
         if (!noteEditingEnabled()) {
             q->setCursor(Qt::ArrowCursor);
             return;
@@ -1033,6 +1059,329 @@ public:
         pitchDrawStroke = {};
         pitchBakeSource.clear();
         mergedPitchCurveCache.invalidate();
+    }
+
+    [[nodiscard]] bool pitchTransformEnabled() const {
+        return editMode == ModulatePitch;
+    }
+
+    [[nodiscard]] bool pitchTransformActive() const {
+        return pitchTransform.phase() != CurveTransform::Phase::Idle;
+    }
+
+    [[nodiscard]] double pitchTransformViewportX(const int tick) const {
+        return viewport.tickToSceneX(tick) - horizontalOffset();
+    }
+
+    [[nodiscard]] QRectF pitchTransformFactorHandleRect() const {
+        const auto &bounds = pitchTransform.bounds();
+        constexpr double width = 54.0;
+        constexpr double height = 24.0;
+        const auto center =
+            (pitchTransformViewportX(bounds.a) + pitchTransformViewportX(bounds.b)) * 0.5;
+        return {center - width * 0.5, 8.0, width, height};
+    }
+
+    [[nodiscard]] QVector<double> pitchTransformBoundaryPositions() const {
+        const auto &bounds = pitchTransform.bounds();
+        return {pitchTransformViewportX(bounds.c), pitchTransformViewportX(bounds.a),
+                pitchTransformViewportX(bounds.b), pitchTransformViewportX(bounds.d)};
+    }
+
+    [[nodiscard]] int pitchTransformBoundaryIndexAt(const double viewportX) const {
+        if (pitchTransform.phase() != CurveTransform::Phase::Adjusting ||
+            !pitchTransform.bounds().isValid()) {
+            return -1;
+        }
+        const auto positions = pitchTransformBoundaryPositions();
+        constexpr double hitRadius = 5.0;
+        int nearestIndex = -1;
+        double nearestDistance = hitRadius + 1.0;
+        for (int i = 0; i < positions.size(); ++i) {
+            const auto distance = std::abs(viewportX - positions.at(i));
+            if (distance <= hitRadius && distance < nearestDistance) {
+                nearestIndex = i;
+                nearestDistance = distance;
+            }
+        }
+        return nearestIndex;
+    }
+
+    [[nodiscard]] bool pitchTransformVerticalDragAreaContains(
+        const QPointF &viewportPosition) const {
+        if (pitchTransform.phase() != CurveTransform::Phase::Adjusting ||
+            !pitchTransform.bounds().isValid()) {
+            return false;
+        }
+        if (pitchTransformFactorHandleRect().contains(viewportPosition))
+            return true;
+        const auto &bounds = pitchTransform.bounds();
+        const auto left = pitchTransformViewportX(bounds.a);
+        const auto right = pitchTransformViewportX(bounds.b);
+        return QRectF(QPointF(left, 0.0), QPointF(right, q->height()))
+            .normalized()
+            .contains(viewportPosition);
+    }
+
+    void updatePitchTransformCursor(const QPointF &viewportPosition) const {
+        if (!pitchTransformEnabled() || pitchTransform.phase() == CurveTransform::Phase::Idle ||
+            pitchTransform.phase() == CurveTransform::Phase::Selecting) {
+            q->setCursor(Qt::ArrowCursor);
+            return;
+        }
+        if (pitchTransform.phase() == CurveTransform::Phase::Transforming) {
+            q->setCursor(Qt::SizeVerCursor);
+            return;
+        }
+        if (pitchTransformFactorHandleRect().contains(viewportPosition)) {
+            q->setCursor(Qt::SizeVerCursor);
+            return;
+        }
+        if (pitchTransformBoundaryDragging ||
+            pitchTransformBoundaryIndexAt(viewportPosition.x()) >= 0) {
+            q->setCursor(Qt::SizeHorCursor);
+            return;
+        }
+        q->setCursor(pitchTransformVerticalDragAreaContains(viewportPosition) ? Qt::SizeVerCursor
+                                                                             : Qt::ArrowCursor);
+    }
+
+    [[nodiscard]] static CurveTransform::Boundary pitchTransformBoundaryAt(const int index) {
+        switch (index) {
+            case 0:
+                return CurveTransform::Boundary::C;
+            case 1:
+                return CurveTransform::Boundary::A;
+            case 2:
+                return CurveTransform::Boundary::B;
+            case 3:
+                return CurveTransform::Boundary::D;
+            default:
+                return CurveTransform::Boundary::None;
+        }
+    }
+
+    void resetPitchTransformDrag() {
+        pitchTransform.endBoundaryDrag();
+        pitchTransformBoundaryDragging = false;
+        pitchTransformBoundaryResolved = false;
+        pitchTransformBoundaryInitialIndex = -1;
+        pitchTransformBoundary = CurveTransform::Boundary::None;
+        pitchTransformMouseDown = false;
+    }
+
+    void reloadPitchTransformSource() {
+        if (!clip || !pitchTransformEnabled()) {
+            pitchTransform.clear();
+            pitchTransformContext.clear();
+            return;
+        }
+        const auto *pitch = clip->params.getParamByName(ParamInfo::Pitch);
+        if (!pitch) {
+            pitchTransform.clear();
+            pitchTransformContext.clear();
+            return;
+        }
+
+        pitchTransformContext.rebuild(clip);
+        CurveTransform::Config config;
+        config.kind = CurveTransform::Kind::ModulatePitch;
+        config.partitions = pitchTransformContext.partitions();
+        const auto clipStart = clip->start();
+        config.tickToMilliseconds = [clipStart](const int localTick) {
+            return appModel->tickToMs(clipStart + localTick);
+        };
+        config.pitchBaselineAtTick = [this](const int localTick) {
+            return pitchTransformContext.baselineAtTick(localTick);
+        };
+        pitchTransform.setSource(AppModelUtils::getDrawCurves(pitch->curves(Param::Original)),
+                                 AppModelUtils::getDrawCurves(pitch->curves(Param::Edited)),
+                                 std::move(config));
+    }
+
+    void applyPitchTransformPreview() {
+        auto preview = pitchTransform.buildEditedPreview();
+        clearPitchPreview();
+        pitchPreviewCurves = std::move(preview);
+        scheduleSnapshot();
+    }
+
+    void cancelPitchTransform(const bool update = true) {
+        if (!pitchTransformActive())
+            return;
+        const auto wasTransforming = pitchTransform.phase() == CurveTransform::Phase::Transforming;
+        pitchTransform.cancel();
+        clearPitchPreview();
+        resetPitchTransformDrag();
+        if (wasTransforming)
+            finishPitchEdit(EditSessionEndReason::Discard);
+        q->setCursor(Qt::ArrowCursor);
+        if (update)
+            scheduleSnapshot();
+    }
+
+    bool beginPitchTransformEditSession() {
+        pitchEditSessionId = editSessionManager->beginTransaction(
+            AppStatus::EditObjectType::Param, clip->id(), {}, {}, {}, {ParamInfo::Pitch});
+        if (pitchEditSessionId == 0)
+            return false;
+        appStatus->currentEditObject = AppStatus::EditObjectType::Param;
+        return true;
+    }
+
+    void finishPitchTransform() {
+        if (pitchTransform.phase() != CurveTransform::Phase::Transforming)
+            return;
+        const auto changed = pitchTransform.hasEffectiveChange();
+        if (changed) {
+            pitchTransformCommitting = true;
+            PianoRollGraphicsViewHelper::editPitch(pitchPreviewCurves);
+            pitchTransformCommitting = false;
+        }
+        pitchTransform.cancel();
+        clearPitchPreview();
+        resetPitchTransformDrag();
+        finishPitchEdit(changed ? EditSessionEndReason::Commit : EditSessionEndReason::Discard);
+        pitchTransformContext.invalidate();
+        reloadPitchTransformSource();
+        scheduleSnapshot();
+    }
+
+    void beginPitchTransformSelection(const QPointF &viewportPosition) {
+        if (!pitchTransform.hasSource())
+            reloadPitchTransformSource();
+        if (!pitchTransform.hasSource())
+            return;
+        pitchTransformMouseDown = true;
+        pitchTransformDragStartViewportPos = viewportPosition;
+        pitchTransform.beginSelection(qRound(localTickAt(viewportPosition)));
+        applyPitchTransformPreview();
+    }
+
+    void mousePressPitchTransform(const QPointF &viewportPosition) {
+        const auto phase = pitchTransform.phase();
+        if (phase == CurveTransform::Phase::Idle) {
+            beginPitchTransformSelection(viewportPosition);
+            return;
+        }
+        if (phase != CurveTransform::Phase::Adjusting)
+            return;
+
+        if (pitchTransformFactorHandleRect().contains(viewportPosition)) {
+            if (!pitchTransform.beginTransform())
+                return;
+            if (!beginPitchTransformEditSession()) {
+                pitchTransform.cancel();
+                clearPitchPreview();
+                scheduleSnapshot();
+                return;
+            }
+            pitchTransformMouseDown = true;
+            pitchTransformDragStartViewportPos = viewportPosition;
+            q->setCursor(Qt::SizeVerCursor);
+            scheduleSnapshot();
+            return;
+        }
+
+        const auto positions = pitchTransformBoundaryPositions();
+        const auto nearestIndex = pitchTransformBoundaryIndexAt(viewportPosition.x());
+        if (nearestIndex >= 0) {
+            pitchTransformMouseDown = true;
+            pitchTransformBoundaryDragging = true;
+            pitchTransformBoundaryInitialIndex = nearestIndex;
+            pitchTransformBoundaryStartPositions = positions;
+            pitchTransformDragStartViewportPos = viewportPosition;
+            const auto position = positions.at(nearestIndex);
+            auto overlapCount = 0;
+            for (const auto candidate : positions) {
+                if (qFuzzyCompare(candidate + 1.0, position + 1.0))
+                    ++overlapCount;
+            }
+            pitchTransformBoundaryResolved = overlapCount == 1;
+            if (pitchTransformBoundaryResolved) {
+                pitchTransformBoundary = pitchTransformBoundaryAt(nearestIndex);
+                pitchTransform.beginBoundaryDrag(pitchTransformBoundary);
+            }
+            q->setCursor(Qt::SizeHorCursor);
+            return;
+        }
+
+        if (pitchTransformVerticalDragAreaContains(viewportPosition)) {
+            if (!pitchTransform.beginTransform())
+                return;
+            if (!beginPitchTransformEditSession()) {
+                pitchTransform.cancel();
+                clearPitchPreview();
+                scheduleSnapshot();
+                return;
+            }
+            pitchTransformMouseDown = true;
+            pitchTransformDragStartViewportPos = viewportPosition;
+            q->setCursor(Qt::SizeVerCursor);
+            scheduleSnapshot();
+            return;
+        }
+
+        const auto &bounds = pitchTransform.bounds();
+        const auto x = viewportPosition.x();
+        if (x < pitchTransformViewportX(bounds.c) || x > pitchTransformViewportX(bounds.d))
+            cancelPitchTransform();
+    }
+
+    void mouseMovePitchTransform(const QPointF &viewportPosition) {
+        if (!pitchTransformMouseDown)
+            return;
+        const auto phase = pitchTransform.phase();
+        if (phase == CurveTransform::Phase::Selecting) {
+            pitchTransform.updateSelection(qRound(localTickAt(viewportPosition)));
+            applyPitchTransformPreview();
+            return;
+        }
+        if (phase == CurveTransform::Phase::Adjusting && pitchTransformBoundaryDragging) {
+            const auto delta = viewportPosition.x() - pitchTransformDragStartViewportPos.x();
+            if (!pitchTransformBoundaryResolved) {
+                constexpr double dragThreshold = 3.0;
+                if (std::abs(delta) <= dragThreshold)
+                    return;
+                const auto resolved =
+                    OverlappingHandleResolver::resolve(pitchTransformBoundaryStartPositions,
+                                                       pitchTransformBoundaryInitialIndex, delta);
+                pitchTransformBoundary = pitchTransformBoundaryAt(resolved);
+                pitchTransformBoundaryResolved = true;
+                pitchTransform.beginBoundaryDrag(pitchTransformBoundary);
+            }
+            pitchTransform.updateBoundaryDrag(qRound(localTickAt(viewportPosition)));
+            q->setCursor(Qt::SizeHorCursor);
+            applyPitchTransformPreview();
+            return;
+        }
+        if (phase == CurveTransform::Phase::Transforming) {
+            pitchTransform.updateTransform(viewportPosition.y() -
+                                           pitchTransformDragStartViewportPos.y());
+            q->setCursor(Qt::SizeVerCursor);
+            applyPitchTransformPreview();
+        }
+    }
+
+    void mouseReleasePitchTransform(const QPointF &viewportPosition) {
+        if (!pitchTransformMouseDown)
+            return;
+        const auto phase = pitchTransform.phase();
+        if ((phase == CurveTransform::Phase::Adjusting && pitchTransformBoundaryDragging) ||
+            phase == CurveTransform::Phase::Transforming) {
+            mouseMovePitchTransform(viewportPosition);
+        }
+        pitchTransformMouseDown = false;
+        if (phase == CurveTransform::Phase::Selecting) {
+            pitchTransform.finishSelection(qRound(localTickAt(viewportPosition)));
+            applyPitchTransformPreview();
+        } else if (phase == CurveTransform::Phase::Adjusting && pitchTransformBoundaryDragging) {
+            resetPitchTransformDrag();
+            scheduleSnapshot();
+        } else if (phase == CurveTransform::Phase::Transforming) {
+            finishPitchTransform();
+        }
+        updatePitchTransformCursor(viewportPosition);
     }
 
     void finishPitchEdit(const EditSessionEndReason reason) {
@@ -1334,6 +1683,8 @@ public:
         wheel.stop();
         viewport.stopAnimation();
         if (event->button() != Qt::LeftButton) {
+            if (pitchTransformEnabled() && event->button() == Qt::RightButton)
+                cancelPitchTransform();
             if (!EditorViewGlobal::isPitchEditMode(editMode))
                 updateContextNoteSelection(noteContextTargetAt(event->position()).note);
             return;
@@ -1343,6 +1694,10 @@ public:
         discardNoteInteraction();
         if (editMode == EditPitchAnchor) {
             mousePressAnchor(event);
+            return;
+        }
+        if (pitchTransformEnabled()) {
+            mousePressPitchTransform(event->position());
             return;
         }
         if (editMode == DrawPitch || editMode == ErasePitch || editMode == BakePitch) {
@@ -1428,6 +1783,10 @@ public:
             updateSplitPreview(event->position());
             return;
         }
+        if (pitchTransformEnabled()) {
+            mouseMovePitchTransform(event->position());
+            return;
+        }
         if (pitchEditing) {
             updatePitchEdit(event->position());
             return;
@@ -1474,6 +1833,10 @@ public:
             return;
         if (editMode == EditPitchAnchor) {
             mouseReleaseAnchor(event);
+            return;
+        }
+        if (pitchTransformEnabled()) {
+            mouseReleasePitchTransform(event->position());
             return;
         }
         if (pitchEditing) {
@@ -1965,7 +2328,7 @@ private:
         if (!pitch)
             return;
         const auto original = AppModelUtils::getDrawCurves(pitch->curves(Param::Original));
-        const auto edited = pitchEditing
+        const auto edited = pitchEditing || pitchTransformActive()
                                 ? pitchPreviewCurves
                                 : AppModelUtils::getDrawCurves(pitch->curves(Param::Edited));
         const auto anchorCoverage = PitchDisplayStrategy::anchorCoverage(anchorOverlayState());
@@ -1998,6 +2361,62 @@ private:
             appendPitchLayer(*curves, localStart, localEnd, color, layer.hiddenCoverage,
                              layer.dashedCoverage);
         }
+        appendPitchTransformOverlay();
+    }
+
+    void appendPitchTransformOverlay() {
+        if (!pitchTransformEnabled() || !pitchTransformActive() ||
+            !pitchTransform.bounds().isValid()) {
+            return;
+        }
+
+        const auto &bounds = pitchTransform.bounds();
+        const auto c = bounds.c * pixelsPerTick();
+        const auto a = bounds.a * pixelsPerTick();
+        const auto b = bounds.b * pixelsPerTick();
+        const auto d = bounds.d * pixelsPerTick();
+        const auto top = verticalOffset();
+        const auto height = q->height();
+        auto color = q->paramEditedCurveColor();
+
+        auto shoulderColor = color;
+        shoulderColor.setAlpha(28);
+        auto targetColor = color;
+        targetColor.setAlpha(54);
+        appendLogicalRect(QRectF(c, top, a - c, height), shoulderColor);
+        appendLogicalRect(QRectF(a, top, b - a, height), targetColor);
+        appendLogicalRect(QRectF(b, top, d - b, height), shoulderColor);
+
+        auto boundaryColor = color;
+        boundaryColor.setAlpha(210);
+        for (const auto x : {c, a, b, d})
+            appendPixelAlignedVerticalLine(x, top, top + height, boundaryColor);
+
+        if (pitchTransform.phase() != CurveTransform::Phase::Adjusting &&
+            pitchTransform.phase() != CurveTransform::Phase::Transforming) {
+            return;
+        }
+
+        const auto viewportHandle = pitchTransformFactorHandleRect();
+        const QRectF sceneHandle(viewportHandle.translated(horizontalOffset(), verticalOffset()));
+        const QRectF physicalHandle(sceneHandle.topLeft() * dpr, sceneHandle.size() * dpr);
+        auto handleFill = color;
+        handleFill.setAlpha(230);
+        EditorRhiGeometry::appendRoundedRect(vertices, physicalHandle, 4.0 * dpr, handleFill);
+        EditorRhiGeometry::appendRoundedRectStroke(vertices, physicalHandle, 4.0 * dpr, dpr,
+                                                   Qt::black, 0.5);
+
+        const auto text = QString::number(qRound(pitchTransform.factor() * 100.0)) + "%";
+        const auto font = q->font();
+        const QFontMetricsF metrics(font);
+        const auto textWidth = metrics.horizontalAdvance(text) * dpr;
+        const auto textHeight = metrics.height() * dpr;
+        const QPointF textPosition(physicalHandle.center().x() - textWidth * 0.5,
+                                   physicalHandle.center().y() - textHeight * 0.5);
+        const auto span =
+            glyphAtlas.appendText(text, font, textPosition, Qt::black, physicalHandle, dpr,
+                                  physicalCameraOffset(), q->physicalWindowOffset());
+        drawList.appendTexture(span, vertices.size());
     }
 
     QVector<QPointF> pitchCurvePoints(const DrawCurve &curve, const double localStart,
@@ -2440,6 +2859,16 @@ public:
     DrawCurveEditUtils::StrokeState pitchDrawStroke;
     DrawCurveEditUtils::GeneratedCurveSnapshot pitchBakeSource;
     PitchDisplayStrategy::MergedCurveCache mergedPitchCurveCache;
+    CurveTransform::Session pitchTransform;
+    CurveTransform::PitchContext pitchTransformContext;
+    bool pitchTransformMouseDown = false;
+    bool pitchTransformBoundaryDragging = false;
+    bool pitchTransformBoundaryResolved = false;
+    bool pitchTransformCommitting = false;
+    int pitchTransformBoundaryInitialIndex = -1;
+    CurveTransform::Boundary pitchTransformBoundary = CurveTransform::Boundary::None;
+    QPointF pitchTransformDragStartViewportPos;
+    QVector<double> pitchTransformBoundaryStartPositions;
     bool noteErasing = false;
     QList<int> erasedNoteIds;
     quint64 noteEraseSessionId = 0;
@@ -2503,6 +2932,11 @@ PianoRollRhiWidget::PianoRollRhiWidget(QWidget *parent)
     });
     d->noteSelection.synchronize(appStatus->selectedNotes.get());
     connect(appModel, &AppModel::timelineChanged, this, [this] {
+        if (d->pitchTransformEnabled()) {
+            d->cancelPitchTransform();
+            d->pitchTransformContext.invalidate();
+            d->reloadPitchTransformSource();
+        }
         d->updateAutoPageTurnAvailability();
         d->scheduleSnapshot();
     });
@@ -2512,6 +2946,7 @@ PianoRollRhiWidget::~PianoRollRhiWidget() {
     d->discardNoteInteraction();
     d->finishNoteErase(EditSessionEndReason::Discard);
     d->cancelPitchEdit(false);
+    d->cancelPitchTransform(false);
     d->anchorController.cancel();
 }
 
@@ -2584,6 +3019,7 @@ void PianoRollRhiWidget::setEditMode(const PianoRollEditMode mode) {
         d->finishNoteErase(EditSessionEndReason::Discard);
         d->finishInlineEditing();
         d->cancelPitchEdit();
+        d->cancelPitchTransform();
         if (d->editMode == EditPitchAnchor)
             d->anchorController.setEditActive(false);
         if (d->editMode == SplitNote)
@@ -2594,6 +3030,8 @@ void PianoRollRhiWidget::setEditMode(const PianoRollEditMode mode) {
         }
     }
     d->editMode = mode;
+    if (mode == ModulatePitch)
+        d->reloadPitchTransformSource();
     d->scheduleSnapshot();
 }
 
@@ -2650,8 +3088,13 @@ bool PianoRollRhiWidget::event(QEvent *event) {
         d->discardNoteInteraction();
         d->finishNoteErase(EditSessionEndReason::Discard);
         d->cancelPitchEdit();
+        d->cancelPitchTransform();
         if (d->editMode == EditPitchAnchor)
             d->anchorController.cancel();
+    }
+    if (event->type() == QEvent::UngrabMouse &&
+        d->pitchTransform.phase() == CurveTransform::Phase::Transforming) {
+        d->cancelPitchTransform();
     }
     if (d->clip && event->type() == QEvent::NativeGesture &&
         d->wheel.handleNativeGesture(static_cast<QNativeGestureEvent *>(event))) {
@@ -2665,6 +3108,7 @@ void PianoRollRhiWidget::hideEvent(QHideEvent *event) {
     d->disarmEdgeAutoScroll();
     d->discardNoteInteraction();
     d->finishNoteErase(EditSessionEndReason::Discard);
+    d->cancelPitchTransform();
     EditorRhiWidget::hideEvent(event);
     d->updateAutoPageTurnAvailability();
 }
@@ -2743,6 +3187,11 @@ void PianoRollRhiWidget::keyPressEvent(QKeyEvent *event) {
         return;
     }
     if (event->key() == Qt::Key_Escape) {
+        if (d->pitchTransformActive()) {
+            d->cancelPitchTransform();
+            event->accept();
+            return;
+        }
         if (d->noteErasing) {
             d->finishNoteErase(EditSessionEndReason::Discard);
             event->accept();
@@ -2780,6 +3229,8 @@ void PianoRollRhiWidget::contextMenuEvent(QContextMenuEvent *event) {
         return;
 
     if (EditorViewGlobal::isPitchEditMode(d->editMode) && d->editMode != EditPitchAnchor) {
+        if (d->pitchTransformEnabled())
+            d->cancelPitchTransform();
         event->accept();
         return;
     }

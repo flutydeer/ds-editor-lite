@@ -1491,19 +1491,19 @@ Reset them?</source>
     <name>ClipEditorToolBarView</name>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="64"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="680"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="701"/>
         <source>Clip Name</source>
         <translation>剪辑名称</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="78"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="681"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="702"/>
         <source>Clip Singer</source>
         <translation>剪辑歌手</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="85"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="683"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="704"/>
         <source>(Scanning packages...)</source>
         <translation>(正在扫描包...)</translation>
     </message>
@@ -1514,25 +1514,25 @@ Reset them?</source>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="126"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="687"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="708"/>
         <source>Piano Roll Quantize</source>
         <translation>钢琴卷帘量化</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="150"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="700"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="721"/>
         <source>Select</source>
         <translation>选择</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="153"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="701"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="722"/>
         <source>Interval Select</source>
         <translation>区间选择</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="155"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="703"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="724"/>
         <source>Drag in the blank: Draw a new note
 Drag on a note: Edit the note</source>
         <translation>在空白处拖动：绘制新音符
@@ -1540,37 +1540,37 @@ Drag on a note: Edit the note</source>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="157"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="702"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="723"/>
         <source>Draw Note</source>
         <translation>绘制音符</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="159"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="705"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="726"/>
         <source>Erase Note</source>
         <translation>擦除音符</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="161"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="706"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="727"/>
         <source>Split Note</source>
         <translation>分割音符</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="162"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="707"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="728"/>
         <source>Split note at quantize line</source>
         <translation>在量化线处分割音符</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="164"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="708"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="729"/>
         <source>Pitch Anchor</source>
         <translation>音高锚点</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="165"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="710"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="731"/>
         <source>Left drag: Draw
 Right drag: Erase</source>
         <translation>左键拖动：绘制
@@ -1578,36 +1578,47 @@ Right drag: Erase</source>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="168"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="709"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="730"/>
         <source>Draw Pitch</source>
         <translation>绘制音高</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="170"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="711"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="732"/>
         <source>Erase Pitch</source>
         <translation>擦除音高</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="174"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="712"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="733"/>
         <source>Bake Pitch</source>
         <translation>固化音高</translation>
     </message>
     <message>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="737"/>
+        <source>Modulate pitch deviations from the smoothed note pitch curve</source>
+        <translation>调制相对于平滑音符基准曲线的音高偏差</translation>
+    </message>
+    <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="172"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="713"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="734"/>
         <source>Bake automatic pitch inference results into the edited pitch curve</source>
         <translation>将自动音高推理结果固化到已编辑音高曲线</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="115"/>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="686"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="707"/>
         <source>Clip Default Language</source>
         <translation>剪辑默认语种</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="177"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="176"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="736"/>
+        <source>Modulate Pitch</source>
+        <translation>调制音高</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="179"/>
         <source>Auto Page Turn</source>
         <translation>自动翻页</translation>
     </message>
@@ -1615,12 +1626,12 @@ Right drag: Erase</source>
 <context>
     <name>ClipEditorToolBarViewPrivate</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="612"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="633"/>
         <source>Manage mix presets...</source>
         <translation>管理混合预设...</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="634"/>
+        <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="655"/>
         <source>Preset speakers are unavailable</source>
         <translation>预设声线不可用</translation>
     </message>
@@ -4884,22 +4895,32 @@ type: %L1</source>
 <context>
     <name>ParamEditToolBarView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditToolBarView.cpp" line="73"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditToolBarView.cpp" line="90"/>
         <source>Draw</source>
         <translation>绘制</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditToolBarView.cpp" line="74"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditToolBarView.cpp" line="91"/>
         <source>Erase</source>
         <translation>擦除</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditToolBarView.cpp" line="75"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditToolBarView.cpp" line="92"/>
+        <source>Shape</source>
+        <translation>整形</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditToolBarView.cpp" line="93"/>
+        <source>Scale</source>
+        <translation>缩放</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditToolBarView.cpp" line="94"/>
         <source>Bake</source>
         <translation>固化</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditToolBarView.cpp" line="76"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditToolBarView.cpp" line="95"/>
         <source>Anchor</source>
         <translation>锚点</translation>
     </message>
@@ -4907,17 +4928,17 @@ type: %L1</source>
 <context>
     <name>ParamEditorGraphicsView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.cpp" line="590"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.cpp" line="615"/>
         <source>Linear</source>
         <translation>线性</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.cpp" line="597"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.cpp" line="622"/>
         <source>Hermite</source>
         <translation>Hermite</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.cpp" line="610"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.cpp" line="635"/>
         <source>&amp;Delete</source>
         <translation>删除(&amp;D)</translation>
     </message>
@@ -4926,25 +4947,25 @@ type: %L1</source>
     <name>ParamEditorToolBarView</name>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorToolBarView.cpp" line="24"/>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorToolBarView.cpp" line="163"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorToolBarView.cpp" line="167"/>
         <source>Foreground</source>
         <translation>前景</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorToolBarView.cpp" line="39"/>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorToolBarView.cpp" line="165"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorToolBarView.cpp" line="169"/>
         <source>Swap</source>
         <translation>交换</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorToolBarView.cpp" line="47"/>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorToolBarView.cpp" line="164"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorToolBarView.cpp" line="168"/>
         <source>Background</source>
         <translation>背景</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorToolBarView.cpp" line="53"/>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorToolBarView.cpp" line="177"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorToolBarView.cpp" line="181"/>
         <source>(None)</source>
         <translation>(无)</translation>
     </message>
@@ -5009,12 +5030,12 @@ type: %L1</source>
         <translation>从当前固定声线混合创建第一个关键帧。</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="423"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="425"/>
         <source>The selected singer does not support this parameter.</source>
         <translation>当前选择的歌手不支持此参数</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="423"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorView.cpp" line="425"/>
         <source>Edit Anyway</source>
         <translation>仍然编辑</translation>
     </message>

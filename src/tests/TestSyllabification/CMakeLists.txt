@@ -3,8 +3,10 @@ project(TestSyllabification)
 lite_add_test(${PROJECT_NAME}
     SOURCES
         main.cpp
+        ../../app/Modules/Inference/Models/GenericInferModel.cpp
         ../../app/Modules/Inference/Models/InferInputNote.cpp
         ../../app/Modules/Inference/Tasks/Syllabification.cpp
+        ../../app/Modules/Inference/Utils/InferTaskHelper.cpp
         ../../app/Model/AppModel/SingingClipPhonemeNormalizer.cpp
 )
 
