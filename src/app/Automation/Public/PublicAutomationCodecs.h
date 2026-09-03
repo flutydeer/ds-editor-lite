@@ -49,6 +49,37 @@ namespace Automation {
         return {};
     }
 
+    inline QJsonObject encodePublicAutomationError(const AutomationError &error) {
+        QJsonObject result{
+            {QStringLiteral("code"),    errorCodeName(error.code)},
+            {QStringLiteral("message"), error.message            },
+        };
+        if (!error.operationId.isEmpty())
+            result.insert(QStringLiteral("operation_id"), error.operationId);
+        if (!error.fieldPath.isEmpty())
+            result.insert(QStringLiteral("field_path"), error.fieldPath);
+        if (error.object) {
+            result.insert(QStringLiteral("object"),
+                          QJsonObject{
+                              {QStringLiteral("kind"), encodePublicObjectKind(error.object->kind)},
+                              {QStringLiteral("id"),   error.object->value                       },
+            });
+        }
+        if (error.taskId)
+            result.insert(QStringLiteral("task_id"), error.taskId->toString());
+        if (error.documentId)
+            result.insert(QStringLiteral("document_id"), error.documentId->toString());
+        if (error.expectedRevision) {
+            result.insert(QStringLiteral("expected_revision"),
+                          static_cast<qint64>(*error.expectedRevision));
+        }
+        if (error.actualRevision) {
+            result.insert(QStringLiteral("actual_revision"),
+                          static_cast<qint64>(*error.actualRevision));
+        }
+        return result;
+    }
+
     inline QString resolvePublicDisplayText(const QString &defaultText,
                                             const QMap<QString, QString> &localized) {
         return lite::Support::lookupLocalizedText(localized, defaultText,

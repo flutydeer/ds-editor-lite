@@ -19,6 +19,22 @@ namespace Automation {
             error.fieldPath = std::move(fieldPath);
             return error;
         }
+
+        ApplicationTerminationSavePolicy terminationSavePolicy(const InvocationSource source,
+                                                               const bool discardChanges) {
+            switch (source) {
+                case InvocationSource::TrustedGui:
+                    return ApplicationTerminationSavePolicy::Prompt;
+                case InvocationSource::InternalAutomation:
+                case InvocationSource::PublicMcp:
+                case InvocationSource::PublicJsonRpc:
+                case InvocationSource::PublicTaskContinuation:
+                case InvocationSource::Test:
+                    return discardChanges ? ApplicationTerminationSavePolicy::Discard
+                                          : ApplicationTerminationSavePolicy::RejectUnsaved;
+            }
+            Q_UNREACHABLE_RETURN(ApplicationTerminationSavePolicy::RejectUnsaved);
+        }
     }
 
     ApplicationAutomationFacade::ApplicationAutomationFacade(AutomationDispatcher &dispatcher,
@@ -35,8 +51,8 @@ namespace Automation {
             });
     }
 
-    AutomationResult<GuiMutationResult>
-        ApplicationAutomationFacade::requestTermination(const GuiCommandContext &context,
+    AutomationResult<ApplicationMutationResult>
+        ApplicationAutomationFacade::requestTermination(const ApplicationCommandContext &context,
                                                         const ApplicationTerminationMode mode,
                                                         const bool discardChanges) {
         if (mode != ApplicationTerminationMode::Exit &&
@@ -47,33 +63,29 @@ namespace Automation {
         const auto operationId = mode == ApplicationTerminationMode::Exit
                                      ? OperationIds::application::request_exit
                                      : OperationIds::application::request_restart;
-        return m_dispatcher.dispatchGuiCommand<GuiMutationResult>(
+        return m_dispatcher.dispatchApplicationCommand<ApplicationMutationResult>(
             operationId, context, [this, context, mode, discardChanges](const bool validateOnly) {
                 if (!m_services.requestTermination)
-                    return AutomationResult<GuiMutationResult>(unavailable());
+                    return AutomationResult<ApplicationMutationResult>(unavailable());
                 if (!validateOnly) {
-                    const auto savePolicy =
-                        context.source == InvocationSource::TrustedGui
-                            ? ApplicationTerminationSavePolicy::Prompt
-                            : discardChanges ? ApplicationTerminationSavePolicy::Discard
-                                             : ApplicationTerminationSavePolicy::RejectUnsaved;
+                    const auto savePolicy = terminationSavePolicy(context.source, discardChanges);
                     switch (m_services.requestTermination(mode, savePolicy)) {
                         case ApplicationTerminationRequestResult::Accepted:
                             break;
                         case ApplicationTerminationRequestResult::Busy:
-                            return AutomationResult<GuiMutationResult>(busy(
+                            return AutomationResult<ApplicationMutationResult>(busy(
                                 QStringLiteral("The editor is busy and cannot terminate now")));
                         case ApplicationTerminationRequestResult::UnsavedChanges:
-                            return AutomationResult<GuiMutationResult>(busy(
-                                QStringLiteral("The current document has unsaved changes; set "
-                                               "discard_changes to true to terminate without saving"),
-                                QStringLiteral("discard_changes")));
+                            return AutomationResult<ApplicationMutationResult>(
+                                busy(QStringLiteral(
+                                         "The current document has unsaved changes; set "
+                                         "discard_changes to true to terminate without saving"),
+                                     QStringLiteral("discard_changes")));
                         case ApplicationTerminationRequestResult::Unavailable:
-                            return AutomationResult<GuiMutationResult>(unavailable());
+                            return AutomationResult<ApplicationMutationResult>(unavailable());
                     }
                 }
-                return AutomationResult<GuiMutationResult>({
-                    .windowId = context.windowId,
+                return AutomationResult<ApplicationMutationResult>({
                     .changed = true,
                     .validatedOnly = validateOnly,
                 });

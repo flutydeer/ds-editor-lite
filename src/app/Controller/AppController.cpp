@@ -3,24 +3,9 @@
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
 #include "AppController_p.h"
-#include "AudioDecodingController.h"
-#include "ClipController.h"
-#include "ProjectPackageResolver.h"
-#include "ProjectStatusController.h"
-#include "TrackController.h"
 #include "Interface/IMainWindow.h"
-#include <lite/ProjectModel/AppModel/Track.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Utils/FontManager.h"
-#include "Global/AppGlobal.h"
-#include "Model/AppStatus/AppStatus.h"
-#include <lite/PackageManager/PackageManager.h>
-#include "Modules/Audio/AudioContext.h"
-#include "Modules/Audio/subsystem/MidiSystem.h"
-#include "Modules/Inference/InferController.h"
-#include "Modules/Inference/InferEngine.h"
-#include <lite/Tasking/TaskManager.h>
-#include "Tasks/DecodeAudioTask.h"
 #include <lite/GUI/Theme/ThemeManager.h>
 
 AppController::AppController(QObject *parent)
@@ -110,26 +95,19 @@ void AppController::quit() {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
     if (!runtime)
         return;
-    runtime->application().requestTermination(
-        {.windowId = runtime->windowId(), .source = Automation::InvocationSource::TrustedGui},
-        Automation::ApplicationTerminationMode::Exit);
+    runtime->application().requestTermination({.source = Automation::InvocationSource::TrustedGui},
+                                              Automation::ApplicationTerminationMode::Exit);
 }
 
 void AppController::restart() {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
     if (!runtime)
         return;
-    runtime->application().requestTermination(
-        {.windowId = runtime->windowId(), .source = Automation::InvocationSource::TrustedGui},
-        Automation::ApplicationTerminationMode::Restart);
+    runtime->application().requestTermination({.source = Automation::InvocationSource::TrustedGui},
+                                              Automation::ApplicationTerminationMode::Restart);
 }
 
 void AppControllerPrivate::initializeModules() {
-    InferEngine::instance();
-    ProjectPackageResolver::instance();
-    InferController::instance();
-    ProjectStatusController::instance();
-
     // Read appearance settings and push them into the theme system, which no
     // longer depends on AppOptions.
     const auto pushAppearance = [] {
@@ -145,39 +123,4 @@ void AppControllerPrivate::initializeModules() {
                 if (option == AppOptionsGlobal::All || option == AppOptionsGlobal::Appearance)
                     pushAppearance();
             });
-
-    // Push app-provided new-track defaults into the model, which no longer
-    // reaches into AppOptions / the app-wide color palette itself.
-    appModel->setPaletteColorCount(AppGlobal::paletteColorCount);
-    const auto pushModelDefaults = [] {
-        appModel->setDefaultSingingLanguage(appOptions->general()->defaultSingingLanguage);
-    };
-    pushModelDefaults();
-    connect(appOptions, &AppOptions::optionsChanged, appModel,
-            [pushModelDefaults](AppOptionsGlobal::Option option) {
-                if (option == AppOptionsGlobal::All || option == AppOptionsGlobal::General)
-                    pushModelDefaults();
-            });
-
-    // Map the package library's own scan-lifecycle signal onto AppStatus, which
-    // the library no longer references directly.
-    connect(packageManager, &PackageManager::moduleStatusChanged, appStatus,
-            [](PackageManager::ModuleStatus status) {
-                appStatus->packageModuleStatus = [status] {
-                    switch (status) {
-                        case PackageManager::ModuleStatus::Loading:
-                            return AppStatus::ModuleStatus::Loading;
-                        case PackageManager::ModuleStatus::Ready:
-                            return AppStatus::ModuleStatus::Ready;
-                        case PackageManager::ModuleStatus::Error:
-                            return AppStatus::ModuleStatus::Error;
-                    }
-                    return AppStatus::ModuleStatus::Unknown;
-                }();
-            });
-
-    connect(appModel, &AppModel::modelChanged, audioDecodingController,
-            &AudioDecodingController::onModelChanged);
-    connect(appModel, &AppModel::trackChanged, audioDecodingController,
-            &AudioDecodingController::onTrackChanged);
 }

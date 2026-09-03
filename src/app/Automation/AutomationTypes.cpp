@@ -16,6 +16,8 @@ namespace Automation {
                 return QStringLiteral("revision_conflict");
             case AutomationErrorCode::IdempotencyConflict:
                 return QStringLiteral("idempotency_conflict");
+            case AutomationErrorCode::ToolUnavailable:
+                return QStringLiteral("tool_unavailable");
             case AutomationErrorCode::OperationUnavailable:
                 return QStringLiteral("operation_unavailable");
             case AutomationErrorCode::HostCapabilityUnavailable:

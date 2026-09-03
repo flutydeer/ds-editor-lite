@@ -1,16 +1,18 @@
 #ifndef APPENVIRONMENT_H
 #define APPENVIRONMENT_H
 
-// Application-wide Qt environment setup split around QApplication construction.
+#include "AppHostMode.h"
+
+// Application-wide Qt environment setup split around QCoreApplication construction.
 namespace AppEnvironment {
 
-    // Must be called BEFORE the QApplication object is constructed:
-    // message handler, env vars, HighDPI policy, platform attributes.
-    void preInit();
+    // Must be called before the selected Qt application object is constructed. GUI-only platform
+    // attributes are skipped for the QCore host.
+    void preInit(AppHostMode hostMode);
 
-    // Must be called AFTER the QApplication object is constructed:
-    // app metadata, UI effects, style, color scheme, widget defaults, fonts.
-    void postInit();
+    // Must be called after the selected Qt application object is constructed. Common metadata is
+    // installed for both hosts; styles, fonts, and widget defaults are GUI-only.
+    void postInit(AppHostMode hostMode);
 
 } // namespace AppEnvironment
 

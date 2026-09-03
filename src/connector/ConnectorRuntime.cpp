@@ -389,7 +389,7 @@ namespace DsConnector {
                     {QStringLiteral("title"),                   stringSchema()  },
                     {QStringLiteral("description"),             stringSchema()  },
                     {QStringLiteral("category"),                stringSchema()  },
-                    {QStringLiteral("minimum_control_level"),         stringSchema()  },
+                    {QStringLiteral("minimum_control_level"),   stringSchema()  },
                     {QStringLiteral("minimum_toolset_version"), integerSchema(1)},
                     {QStringLiteral("availability"),            stringSchema()  },
                     {QStringLiteral("annotations"),             annotations     },
@@ -530,7 +530,8 @@ namespace DsConnector {
                        QStringLiteral("minimum_toolset_version"));
             synthesize(QStringLiteral("category"), QStringLiteral("category"),
                        QStringLiteral("category"));
-            synthesize(QStringLiteral("minimum_control_level"), QStringLiteral("minimumControlLevel"),
+            synthesize(QStringLiteral("minimum_control_level"),
+                       QStringLiteral("minimumControlLevel"),
                        QStringLiteral("minimum_control_level"));
             synthesize(QStringLiteral("kind"), QStringLiteral("kind"), QStringLiteral("kind"));
             synthesize(QStringLiteral("sync_mode"), QStringLiteral("syncMode"),
@@ -1063,9 +1064,9 @@ namespace DsConnector {
              AutomationWire::Mcp::ImplementationInfo{
                  .name = QString::fromLatin1(LiteProductMetadata::ConnectorProductName),
                  .version = m_version,
-                 .description = QStringLiteral("Local %1 MCP stdio connector (%2)")
-                                    .arg(QString::fromLatin1(LiteProductMetadata::ProductName),
-                                         m_instanceId),
+                 .description =
+                     QStringLiteral("Local %1 MCP stdio connector (%2)")
+                         .arg(QString::fromLatin1(LiteProductMetadata::ProductName), m_instanceId),
              }
                  .toJson()                                                  },
         };
@@ -1312,9 +1313,9 @@ namespace DsConnector {
             return;
         }
         m_editorContract = {
-            {QStringLiteral("toolset_version"), version },
+            {QStringLiteral("toolset_version"), version     },
             {QStringLiteral("control_level"),   controlLevel},
-            {QStringLiteral("host_mode"),       hostMode},
+            {QStringLiteral("host_mode"),       hostMode    },
         };
         rebuildToolCaches();
 
@@ -1361,18 +1362,18 @@ namespace DsConnector {
     }
 
     QString ConnectorRuntime::actualAvailabilityCode(const QJsonObject &tool) const {
-        const auto availability = tool.value(QStringLiteral("availability")).toString();
-        if (!availability.isEmpty() && availability != QStringLiteral("available") &&
-            availability != QStringLiteral("compatible")) {
-            return availability;
-        }
         const auto hostAvailability = toolMetadataValue(tool, QStringLiteral("hostAvailability"),
                                                         QStringLiteral("host_availability"))
                                           .toString();
         const auto &observation = m_bootstrap->observation();
         if (!hostAvailability.isEmpty() && hostAvailability != QStringLiteral("both") &&
             observation.snapshot && hostAvailability != observation.snapshot->result.hostMode) {
-            return QStringLiteral("host_unavailable");
+            return QStringLiteral("host_capability_unavailable");
+        }
+        const auto availability = tool.value(QStringLiteral("availability")).toString();
+        if (!availability.isEmpty() && availability != QStringLiteral("available") &&
+            availability != QStringLiteral("compatible")) {
+            return availability;
         }
         return {};
     }
@@ -1421,6 +1422,11 @@ namespace DsConnector {
             const auto unavailable = editorUnavailableCode();
             if (!unavailable.isEmpty())
                 return unavailable;
+            const auto &observation = m_bootstrap->observation();
+            if (observation.snapshot && !AutomationWire::isToolAvailableOnHost(
+                                            tool, observation.snapshot->result.hostMode)) {
+                return QStringLiteral("host_capability_unavailable");
+            }
             const auto controlLevel = AutomationWire::controlLevelFromName(
                 m_editorContract.value(QStringLiteral("control_level")).toString());
             if (controlLevel &&
@@ -1428,12 +1434,12 @@ namespace DsConnector {
                  !AutomationWire::presetIncludes(*controlLevel, tool.minimumControlLevel))) {
                 return QStringLiteral("control_level_blocked");
             }
-            const auto &observation = m_bootstrap->observation();
-            if (observation.snapshot &&
-                observation.snapshot->result.hostMode == QStringLiteral("headless")) {
-                return QStringLiteral("host_unavailable");
-            }
             return QStringLiteral("tool_unavailable");
+        }
+        const auto &observation = m_bootstrap->observation();
+        if (observation.snapshot &&
+            !AutomationWire::isToolAvailableOnHost(tool, observation.snapshot->result.hostMode)) {
+            return QStringLiteral("host_capability_unavailable");
         }
         const auto availability = editorTool.value(QStringLiteral("availability")).toString();
         if (!availability.isEmpty() && availability != QStringLiteral("available") &&
@@ -1443,10 +1449,9 @@ namespace DsConnector {
             toolMetadataValue(editorTool, QStringLiteral("hostAvailability"),
                               QStringLiteral("host_availability"))
                 .toString();
-        const auto &observation = m_bootstrap->observation();
         if (!hostAvailability.isEmpty() && hostAvailability != QStringLiteral("both") &&
             observation.snapshot && hostAvailability != observation.snapshot->result.hostMode) {
-            return QStringLiteral("host_unavailable");
+            return QStringLiteral("host_capability_unavailable");
         }
 
         const auto editorToolsetVersion = jsonInteger(

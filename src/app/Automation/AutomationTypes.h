@@ -115,7 +115,8 @@ namespace Automation {
         TrustedGui,
         InternalAutomation,
         PublicMcp,
-        PublicMcpContinuation,
+        PublicJsonRpc,
+        PublicTaskContinuation,
         Test,
     };
 
@@ -189,6 +190,7 @@ namespace Automation {
         DocumentChanged,
         RevisionConflict,
         IdempotencyConflict,
+        ToolUnavailable,
         OperationUnavailable,
         HostCapabilityUnavailable,
         ModuleNotReady,

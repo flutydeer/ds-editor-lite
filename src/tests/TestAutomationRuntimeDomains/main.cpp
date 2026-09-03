@@ -67,8 +67,9 @@ namespace {
 
     Automation::GuiCommandContext guiContext(const Automation::CoreRuntime &runtime,
                                              const bool validateOnly = false) {
+        Q_ASSERT(runtime.windowId());
         return {
-            .windowId = runtime.windowId(),
+            .windowId = *runtime.windowId(),
             .validateOnly = validateOnly,
             .source = Automation::InvocationSource::Test,
         };
@@ -76,11 +77,12 @@ namespace {
 
     Automation::GuiDocumentCommandContext guiDocumentContext(const Automation::CoreRuntime &runtime,
                                                              const bool validateOnly = false) {
+        Q_ASSERT(runtime.windowId());
         const auto version = runtime.documentVersion();
         return {
             .documentId = version.documentId,
             .expectedRevision = version.revision,
-            .windowId = runtime.windowId(),
+            .windowId = *runtime.windowId(),
             .validateOnly = validateOnly,
             .source = Automation::InvocationSource::Test,
         };
@@ -116,7 +118,9 @@ namespace {
 
     class RuntimeHarness final {
     public:
-        RuntimeHarness() : history(HistoryManager::instance()), settings(validSettings()) {
+        explicit RuntimeHarness(
+            std::optional<Automation::WindowId> windowId = Automation::WindowId::create())
+            : history(HistoryManager::instance()), settings(validSettings()) {
             history->reset();
             packages.append({
                 .id = QStringLiteral("voice.package"),
@@ -139,7 +143,7 @@ namespace {
                 editorServices(), settingsServices(), presetServices(), packageServices(),
                 Automation::InferenceRuntimeServices{}, Automation::FileRuntimeServices{},
                 Automation::AudioExportRuntimeServices{}, Automation::ExtractionRuntimeServices{},
-                applicationServices());
+                applicationServices(), std::move(windowId));
         }
 
         ~RuntimeHarness() {
@@ -198,10 +202,13 @@ namespace {
             .platform = QStringLiteral("test-platform"),
             .buildId = QStringLiteral("test-build"),
         };
-        bool terminationSucceeds = true;
+        Automation::ApplicationTerminationRequestResult terminationResult =
+            Automation::ApplicationTerminationRequestResult::Accepted;
         int terminationCalls = 0;
         Automation::ApplicationTerminationMode lastTerminationMode =
             Automation::ApplicationTerminationMode::Exit;
+        Automation::ApplicationTerminationSavePolicy lastTerminationSavePolicy =
+            Automation::ApplicationTerminationSavePolicy::RejectUnsaved;
 
     private:
         Automation::PlaybackRuntimeServices playbackServices() {
@@ -449,12 +456,11 @@ namespace {
         Automation::ApplicationRuntimeServices applicationServices() {
             Automation::ApplicationRuntimeServices services;
             services.info = [this] { return applicationInfo; };
-            services.requestTermination = [this](const auto mode, const auto) {
+            services.requestTermination = [this](const auto mode, const auto savePolicy) {
                 ++terminationCalls;
                 lastTerminationMode = mode;
-                return terminationSucceeds
-                           ? Automation::ApplicationTerminationRequestResult::Accepted
-                           : Automation::ApplicationTerminationRequestResult::Unavailable;
+                lastTerminationSavePolicy = savePolicy;
+                return terminationResult;
             };
             return services;
         }
@@ -538,54 +544,81 @@ namespace {
 
         log.scenario(QStringLiteral("APP-C-EXIT-VALIDATE"));
         const auto exitPreview = runtime.application().requestTermination(
-            guiContext(runtime, true), Automation::ApplicationTerminationMode::Exit);
+            applicationContext(true), Automation::ApplicationTerminationMode::Exit);
         log.expect(exitPreview && exitPreview.get().changed && exitPreview.get().validatedOnly &&
                        harness.terminationCalls == 0,
                    QStringLiteral("termination preview must not call the host"));
 
         log.scenario(QStringLiteral("APP-C-EXIT-COMMIT"));
         const auto exit = runtime.application().requestTermination(
-            guiContext(runtime), Automation::ApplicationTerminationMode::Exit);
+            applicationContext(), Automation::ApplicationTerminationMode::Exit);
         log.expect(exit && exit.get().changed && !exit.get().validatedOnly &&
                        harness.terminationCalls == 1 &&
-                       harness.lastTerminationMode == Automation::ApplicationTerminationMode::Exit,
+                       harness.lastTerminationMode ==
+                           Automation::ApplicationTerminationMode::Exit &&
+                       harness.lastTerminationSavePolicy ==
+                           Automation::ApplicationTerminationSavePolicy::RejectUnsaved,
                    QStringLiteral("exit must be mediated exactly once by the host"));
 
         log.scenario(QStringLiteral("APP-C-RESTART-COMMIT"));
         const auto restart = runtime.application().requestTermination(
-            guiContext(runtime), Automation::ApplicationTerminationMode::Restart);
+            applicationContext(), Automation::ApplicationTerminationMode::Restart, true);
         log.expect(restart && harness.terminationCalls == 2 &&
                        harness.lastTerminationMode ==
-                           Automation::ApplicationTerminationMode::Restart,
-                   QStringLiteral("restart must preserve its distinct termination mode"));
+                           Automation::ApplicationTerminationMode::Restart &&
+                       harness.lastTerminationSavePolicy ==
+                           Automation::ApplicationTerminationSavePolicy::Discard,
+                   QStringLiteral("restart must preserve its mode and explicit discard policy"));
 
         log.scenario(QStringLiteral("APP-C-HOST-REJECT"));
-        harness.terminationSucceeds = false;
+        harness.terminationResult = Automation::ApplicationTerminationRequestResult::Unavailable;
         const auto rejected = runtime.application().requestTermination(
-            guiContext(runtime), Automation::ApplicationTerminationMode::Exit);
+            applicationContext(), Automation::ApplicationTerminationMode::Exit);
         log.expectError(rejected, Automation::AutomationErrorCode::HostCapabilityUnavailable,
                         Automation::OperationIds::application::request_exit,
                         QStringLiteral("host rejection must be a stable capability error"));
 
-        log.scenario(QStringLiteral("APP-C-WINDOW-ISOLATION"));
-        auto unknownWindow = guiContext(runtime);
-        unknownWindow.windowId = Automation::WindowId::create();
-        const auto unknown = runtime.application().requestTermination(
-            unknownWindow, Automation::ApplicationTerminationMode::Restart);
-        log.expectError(unknown, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::application::request_restart,
-                        QStringLiteral("unknown window must be rejected before the host callback"));
-        log.expect(harness.terminationCalls == 3,
-                   QStringLiteral("unknown window must not invoke termination"));
+        log.scenario(QStringLiteral("APP-C-UNSAVED-CHANGES"));
+        harness.terminationResult = Automation::ApplicationTerminationRequestResult::UnsavedChanges;
+        const auto unsaved = runtime.application().requestTermination(
+            applicationContext(), Automation::ApplicationTerminationMode::Exit);
+        log.expectError(unsaved, Automation::AutomationErrorCode::Busy,
+                        Automation::OperationIds::application::request_exit,
+                        QStringLiteral("unsaved automation exit must be rejected as busy"));
+        log.expect(!unsaved && unsaved.getError().fieldPath == QStringLiteral("discard_changes"),
+                   QStringLiteral("unsaved rejection must identify discard_changes"));
+
+        log.scenario(QStringLiteral("APP-C-GUI-PROMPT-POLICY"));
+        harness.terminationResult = Automation::ApplicationTerminationRequestResult::Accepted;
+        const auto guiExit = runtime.application().requestTermination(
+            {.source = Automation::InvocationSource::TrustedGui},
+            Automation::ApplicationTerminationMode::Exit);
+        log.expect(guiExit && harness.lastTerminationSavePolicy ==
+                                  Automation::ApplicationTerminationSavePolicy::Prompt,
+                   QStringLiteral("trusted GUI termination must retain interactive prompt policy"));
 
         log.scenario(QStringLiteral("APP-C-INVALID-MODE-PRIORITY"));
         const auto invalidMode = runtime.application().requestTermination(
-            unknownWindow, static_cast<Automation::ApplicationTerminationMode>(99));
+            applicationContext(), static_cast<Automation::ApplicationTerminationMode>(99));
         log.expect(!invalidMode &&
                        invalidMode.getError().code ==
                            Automation::AutomationErrorCode::InvalidArgument &&
                        invalidMode.getError().operationId.isEmpty(),
-                   QStringLiteral("invalid mode is rejected before operation and window routing"));
+                   QStringLiteral("invalid mode is rejected before operation routing"));
+
+        log.scenario(QStringLiteral("APP-C-HEADLESS-NO-WINDOW"));
+        RuntimeHarness headlessHarness(std::nullopt);
+        auto &headlessRuntime = headlessHarness.core();
+        const auto headlessExit = headlessRuntime.application().requestTermination(
+            applicationContext(), Automation::ApplicationTerminationMode::Exit);
+        const auto headlessGui = headlessRuntime.facade().getEditorState(
+            headlessRuntime.documentVersion().documentId, Automation::WindowId::create());
+        log.expect(!headlessRuntime.windowId() && headlessExit &&
+                       headlessHarness.terminationCalls == 1,
+                   QStringLiteral("headless runtime lifecycle must not require a window ID"));
+        log.expectError(headlessGui, Automation::AutomationErrorCode::HostCapabilityUnavailable,
+                        Automation::OperationIds::editor::get_state,
+                        QStringLiteral("headless runtime must reject GUI routes by capability"));
     }
 
     void testPlaybackHostState(TestLog &log) {
@@ -1017,9 +1050,9 @@ namespace {
         log.scenario(QStringLiteral("EDITOR-Q-STATE-SNAPSHOT"));
         harness.editorView.pianoRoll.centerTick = 640.0;
         runtime.setDocumentBusy(version.documentId, true);
-        const auto state = runtime.facade().getEditorState(version.documentId, runtime.windowId());
+        const auto state = runtime.facade().getEditorState(version.documentId, *runtime.windowId());
         log.expect(state && state.get().document == version &&
-                       state.get().windowId == runtime.windowId() && state.get().documentBusy &&
+                       state.get().windowId == *runtime.windowId() && state.get().documentBusy &&
                        state.get().view && state.get().view->pianoRoll.centerTick == 640.0 &&
                        state.get().selection.selectedTrackId == objects->trackId &&
                        state.get().selection.activeClipId == objects->clipId &&
@@ -1034,7 +1067,7 @@ namespace {
         log.scenario(QStringLiteral("EDITOR-Q-OPTIONAL-VIEW"));
         harness.editorViewAvailable = false;
         const auto noViewState =
-            runtime.facade().getEditorState(version.documentId, runtime.windowId());
+            runtime.facade().getEditorState(version.documentId, *runtime.windowId());
         log.expect(
             noViewState && !noViewState.get().view,
             QStringLiteral("state query must remain available when no view snapshot exists"));
@@ -1440,10 +1473,10 @@ namespace {
         log.expectError(failed, Automation::AutomationErrorCode::IoError,
                         Automation::OperationIds::packages::set_search_paths,
                         QStringLiteral("package path persistence failure must be reported"));
-        log.expect(harness.settings.general.packageSearchPaths ==
-                       QStringList{QStringLiteral("voices/主声库"),
-                                   QStringLiteral("voices/secondary")},
-                   QStringLiteral("failed package path write must preserve stored paths"));
+        log.expect(
+            harness.settings.general.packageSearchPaths ==
+                QStringList{QStringLiteral("voices/主声库"), QStringLiteral("voices/secondary")},
+            QStringLiteral("failed package path write must preserve stored paths"));
     }
 
     void testPackages(TestLog &log) {
@@ -1678,7 +1711,7 @@ namespace {
         log.scenario(QStringLiteral("HOST-APPLICATION-UNAVAILABLE"));
         const auto info = runtime.application().getInfo();
         const auto exit = runtime.application().requestTermination(
-            guiContext(runtime), Automation::ApplicationTerminationMode::Exit);
+            applicationContext(), Automation::ApplicationTerminationMode::Exit);
         log.expectError(info, Automation::AutomationErrorCode::HostCapabilityUnavailable,
                         Automation::OperationIds::application::get_info,
                         QStringLiteral("missing application info host must be explicit"));
@@ -1707,7 +1740,7 @@ namespace {
 
         log.scenario(QStringLiteral("HOST-EDITOR-UNAVAILABLE"));
         const auto state = runtime.facade().getEditorState(runtime.documentVersion().documentId,
-                                                           runtime.windowId());
+                                                           *runtime.windowId());
         const auto center = runtime.facade().centerPianoRoll(guiContext(runtime), 120.0, 60.0);
         const auto quantize = runtime.facade().setPianoRollQuantize(guiContext(runtime), 16, true);
         log.expect(state && !state.get().view,

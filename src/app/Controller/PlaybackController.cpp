@@ -8,6 +8,7 @@
 #include <lite/GUI/Controls/Toast.h>
 #include "Global/AppGlobal.h"
 
+#include <QCoreApplication>
 #include <QGuiApplication>
 #include <QScreen>
 #include <QWindow>
@@ -227,9 +228,13 @@ void PlaybackController::requestVisualPositionUpdate() {
 
 void PlaybackController::updateVisualPositionTimerInterval() {
     Q_D(PlaybackController);
-    const auto *window = QGuiApplication::focusWindow();
-    const auto *screen = window ? window->screen() : QGuiApplication::primaryScreen();
-    auto refreshRate = screen ? screen->refreshRate() : 60.0;
+    auto refreshRate = 60.0;
+    if (qobject_cast<QGuiApplication *>(QCoreApplication::instance())) {
+        const auto *window = QGuiApplication::focusWindow();
+        const auto *screen = window ? window->screen() : QGuiApplication::primaryScreen();
+        if (screen)
+            refreshRate = screen->refreshRate();
+    }
     if (!std::isfinite(refreshRate) || refreshRate <= 0.0)
         refreshRate = 60.0;
     const auto interval =

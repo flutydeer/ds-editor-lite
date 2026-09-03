@@ -8,6 +8,7 @@
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
+#include <QApplication>
 #include <QMessageBox>
 #include <QFile>
 #include <QFileInfo>
@@ -354,7 +355,10 @@ bool AudioContext::ensurePlaybackDeviceStarted() const {
         (device->isStarted() || device->start(outputContext->playback()))) {
         return true;
     }
-    QMessageBox::critical(nullptr, {}, tr("Cannot open audio device!"));
+    if (qobject_cast<QApplication *>(QCoreApplication::instance()))
+        QMessageBox::critical(nullptr, {}, tr("Cannot open audio device!"));
+    else
+        qWarning("Cannot open audio device");
     return false;
 }
 

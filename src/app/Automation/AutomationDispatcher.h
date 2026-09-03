@@ -78,6 +78,11 @@ namespace Automation {
                                                      const DocumentId &documentId,
                                                      const WindowId &windowId, Handler &&handler) {
             return runSerialized([&]() -> AutomationResult<T> {
+                if (!m_windowContext.windowId()) {
+                    const auto validated = m_windowContext.validateWindow(windowId);
+                    return decorateError(validated.getError(), operationId);
+                }
+
                 auto resolved = m_documentResolver.resolveDocument(documentId);
                 if (!resolved)
                     return decorateError(resolved.getError(), operationId);
@@ -114,6 +119,11 @@ namespace Automation {
                                                        const GuiDocumentCommandContext &context,
                                                        Handler &&handler) {
             return runSerialized([&]() -> AutomationResult<T> {
+                if (!m_windowContext.windowId()) {
+                    const auto validated = m_windowContext.validateWindow(context.windowId);
+                    return decorateError(validated.getError(), operationId);
+                }
+
                 auto resolved = m_documentResolver.resolveDocument(context.documentId);
                 if (!resolved)
                     return decorateError(resolved.getError(), operationId);
@@ -123,9 +133,8 @@ namespace Automation {
                                          operationId);
                 if (context.expectedRevision && session.revision() != *context.expectedRevision) {
                     return decorateError(
-                        AutomationError::revisionConflict(session.documentId(),
-                                                          *context.expectedRevision,
-                                                          session.revision()),
+                        AutomationError::revisionConflict(
+                            session.documentId(), *context.expectedRevision, session.revision()),
                         operationId);
                 }
 
@@ -226,6 +235,8 @@ namespace Automation {
         }
 
     private:
+        [[nodiscard]] static bool requiresPublicBusyAdmission(InvocationSource source);
+
         template <typename T, typename Handler>
         AutomationResult<T> dispatchDocumentCommandResultImpl(const OperationId &operationId,
                                                               const CommandContext &context,
@@ -251,7 +262,7 @@ namespace Automation {
                         return *replay.get();
                 }
 
-                if (rejectPublicWhileBusy && context.source == InvocationSource::PublicMcp &&
+                if (rejectPublicWhileBusy && requiresPublicBusyAdmission(context.source) &&
                     session.isBusy()) {
                     return decorateError(AutomationError::documentBusy(session.documentId()),
                                          operationId);
