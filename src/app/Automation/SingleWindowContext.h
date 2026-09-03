@@ -8,13 +8,14 @@ namespace Automation {
     class SingleWindowContext final {
     public:
         SingleWindowContext();
+        explicit SingleWindowContext(std::optional<WindowId> windowId);
 
-        [[nodiscard]] const WindowId &windowId() const;
+        [[nodiscard]] const std::optional<WindowId> &windowId() const;
         [[nodiscard]] AutomationResult<AutomationUnit>
             validateWindow(const WindowId &requested) const;
 
     private:
-        WindowId m_windowId;
+        std::optional<WindowId> m_windowId;
     };
 
 } // namespace Automation

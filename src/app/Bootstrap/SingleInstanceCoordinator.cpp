@@ -5,10 +5,12 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QElapsedTimer>
+#include <QEvent>
 #include <QFileInfo>
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QLockFile>
+#include <QPointer>
 #include <QQueue>
 #include <QSet>
 #include <QThread>
@@ -29,14 +31,14 @@ namespace {
         return canonical.isEmpty() ? executable.absoluteFilePath() : canonical;
     }
 
-    SingleInstanceAutomationStatus initialAutomationStatus() {
+    SingleInstanceAutomationStatus initialAutomationStatus(const AppHostMode hostMode) {
         return {
             SingleInstanceAutomationState::EditorStarting,
             QUuid::createUuid().toString(QUuid::WithoutBraces),
             executablePath(),
             QCoreApplication::applicationVersion(),
             {},
-            QStringLiteral("gui"),
+            appHostModeName(hostMode),
             false,
             {},
             {},
@@ -105,6 +107,22 @@ public:
             }
         }
         m_watchers.clear();
+        m_deferredRequests.clear();
+    }
+
+    void pauseRequestDispatch() {
+        m_requestDispatchPaused = true;
+    }
+
+    void resumeRequestDispatch() {
+        if (!m_requestDispatchPaused)
+            return;
+        m_requestDispatchPaused = false;
+        while (!m_deferredRequests.isEmpty()) {
+            const auto pending = m_deferredRequests.dequeue();
+            if (pending.socket && m_connections.contains(pending.socket))
+                dispatchApplicationRequest(pending.socket, pending.request);
+        }
     }
 
 private:
@@ -116,6 +134,11 @@ private:
         QTimer *initialReadTimer = nullptr;
         bool initialized = false;
         bool closeWhenDrained = false;
+    };
+
+    struct DeferredRequest {
+        QPointer<QLocalSocket> socket;
+        SingleInstanceRequest request;
     };
 
     void acceptConnections() {
@@ -190,15 +213,11 @@ private:
         switch (request.command) {
             case SingleInstanceCommand::Activate:
             case SingleInstanceCommand::OpenProjects:
-                sendResponse(socket,
-                             {request.requestId, true, {}, QCoreApplication::applicationPid()},
-                             true);
-                QMetaObject::invokeMethod(
-                    m_coordinator,
-                    [coordinator = m_coordinator, request] {
-                        coordinator->receiveRequest(request);
-                    },
-                    Qt::QueuedConnection);
+                if (m_requestDispatchPaused) {
+                    m_deferredRequests.enqueue({socket, request});
+                    return;
+                }
+                dispatchApplicationRequest(socket, request);
                 return;
             case SingleInstanceCommand::AutomationDiscover:
                 sendAutomationSnapshot(socket, request.requestId, true);
@@ -212,6 +231,14 @@ private:
                 sendAutomationSnapshot(socket, request.requestId, false);
                 return;
         }
+    }
+
+    void dispatchApplicationRequest(QLocalSocket *socket, const SingleInstanceRequest &request) {
+        sendResponse(socket, {request.requestId, true, {}, QCoreApplication::applicationPid()}, true);
+        QMetaObject::invokeMethod(
+            m_coordinator,
+            [coordinator = m_coordinator, request] { coordinator->receiveRequest(request); },
+            Qt::QueuedConnection);
     }
 
     void reject(QLocalSocket *socket, const QString &requestId, const QString &error) {
@@ -300,7 +327,9 @@ private:
     QLocalServer *m_server = nullptr;
     QHash<QLocalSocket *, ConnectionState> m_connections;
     QSet<QLocalSocket *> m_watchers;
+    QQueue<DeferredRequest> m_deferredRequests;
     SingleInstanceAutomationStatus m_automationStatus;
+    bool m_requestDispatchPaused = false;
     bool m_stopping = false;
 };
 
@@ -310,7 +339,13 @@ SingleInstanceCoordinator::SingleInstanceCoordinator(QString dataDirectory, QStr
       m_dataDirectory(SingleInstanceIdentity::normalizeDataDirectory(dataDirectory)),
       m_serverName(serverName.isEmpty() ? SingleInstanceIdentity::serviceName(m_dataDirectory)
                                         : std::move(serverName)),
-      m_automationStatus(initialAutomationStatus()) {
+      m_automationStatus(initialAutomationStatus(AppHostMode::Gui)) {
+}
+
+SingleInstanceCoordinator::SingleInstanceCoordinator(const AppHostMode hostMode, QObject *parent)
+    : QObject(parent), m_dataDirectory(SingleInstanceIdentity::normalizeDataDirectory({})),
+      m_serverName(SingleInstanceIdentity::serviceName(m_dataDirectory)),
+      m_automationStatus(initialAutomationStatus(hostMode)) {
 }
 
 SingleInstanceCoordinator::~SingleInstanceCoordinator() {
@@ -435,6 +470,25 @@ void SingleInstanceCoordinator::setRequestHandler(
         m_requestHandler(request);
 }
 
+void SingleInstanceCoordinator::pauseRequestDispatchAndFlush() {
+    if (!m_worker || !m_ipcThread)
+        return;
+
+    Q_ASSERT(QThread::currentThread() == thread());
+    QMetaObject::invokeMethod(
+        m_worker, [this] { m_worker->pauseRequestDispatch(); }, Qt::BlockingQueuedConnection);
+    QCoreApplication::sendPostedEvents(this, QEvent::MetaCall);
+}
+
+void SingleInstanceCoordinator::resumeRequestDispatch() {
+    if (!m_worker || !m_ipcThread)
+        return;
+
+    Q_ASSERT(QThread::currentThread() == thread());
+    QMetaObject::invokeMethod(
+        m_worker, [this] { m_worker->resumeRequestDispatch(); }, Qt::BlockingQueuedConnection);
+}
+
 void SingleInstanceCoordinator::updateAutomationState(
     const SingleInstanceAutomationStatus &status) {
     if (QThread::currentThread() != thread()) {
@@ -446,8 +500,8 @@ void SingleInstanceCoordinator::updateAutomationState(
 }
 
 void SingleInstanceCoordinator::updateAutomationState(const SingleInstanceAutomationState state,
-                                                      const bool serverEnabled, QString serverEndpoint,
-                                                      QString error) {
+                                                      const bool serverEnabled,
+                                                      QString serverEndpoint, QString error) {
     auto status = automationState();
     status.state = state;
     status.serverEnabled = serverEnabled;

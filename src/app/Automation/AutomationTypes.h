@@ -115,6 +115,8 @@ namespace Automation {
         TrustedGui,
         InternalAutomation,
         PublicMcp,
+        PublicJsonRpc,
+        PublicTaskContinuation,
         Test,
     };
 
@@ -188,6 +190,7 @@ namespace Automation {
         DocumentChanged,
         RevisionConflict,
         IdempotencyConflict,
+        ToolUnavailable,
         OperationUnavailable,
         HostCapabilityUnavailable,
         ModuleNotReady,
@@ -234,10 +237,10 @@ namespace Automation {
     template <typename T>
     using AutomationResult = Expected<T, AutomationError>;
 
-    // Rebased task results still require an immutable target snapshot check at the write boundary.
+    // Stale work rebased within a generation still requires target-specific validation at commit.
     [[nodiscard]] AutomationResult<DocumentVersion>
-        rebaseTaskVersionWithinGeneration(const DocumentVersion &taskVersion,
-                                          const DocumentVersion &currentVersion);
+        rebaseDocumentVersionWithinGeneration(const DocumentVersion &generationAnchor,
+                                              const DocumentVersion &currentVersion);
 
     struct AutomationUnit {
         friend bool operator==(const AutomationUnit &, const AutomationUnit &) = default;

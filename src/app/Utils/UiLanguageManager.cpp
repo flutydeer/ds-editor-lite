@@ -1,6 +1,6 @@
 #include "UiLanguageManager.h"
 
-#include <QApplication>
+#include <QCoreApplication>
 #include <QLibraryInfo>
 
 UiLanguageManager *UiLanguageManager::s_instance = nullptr;
@@ -53,10 +53,10 @@ void UiLanguageManager::setPreference(const QString &preference) {
         }
         m_effectiveLanguageId = SimplifiedChinese;
         if (!m_qtBaseTranslator.isEmpty())
-            qApp->installTranslator(&m_qtBaseTranslator);
+            QCoreApplication::installTranslator(&m_qtBaseTranslator);
         if (!m_qtTranslator.isEmpty())
-            qApp->installTranslator(&m_qtTranslator);
-        qApp->installTranslator(&m_appTranslator);
+            QCoreApplication::installTranslator(&m_qtTranslator);
+        QCoreApplication::installTranslator(&m_appTranslator);
     } else {
         m_effectiveLanguageId = English;
         removeTranslators();
@@ -97,11 +97,11 @@ QStringList UiLanguageManager::currentBcp47Candidates() {
 }
 
 void UiLanguageManager::removeTranslators() {
-    if (!qApp)
+    if (!QCoreApplication::instance())
         return;
-    qApp->removeTranslator(&m_appTranslator);
-    qApp->removeTranslator(&m_qtTranslator);
-    qApp->removeTranslator(&m_qtBaseTranslator);
+    QCoreApplication::removeTranslator(&m_appTranslator);
+    QCoreApplication::removeTranslator(&m_qtTranslator);
+    QCoreApplication::removeTranslator(&m_qtBaseTranslator);
 }
 
 bool UiLanguageManager::loadChineseTranslators() {

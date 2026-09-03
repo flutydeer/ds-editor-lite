@@ -31,10 +31,18 @@ MCP、Headless 宿主和多文档产品行为不在 Facade 层实现。GUI、内
 ### 3.1 文档生命周期
 
 - 应用启动时建立 untitled Session，revision 为 0。
-- New/Open 在旧文档外准备结果，提交点再次校验旧 document/revision；成功后轮换 DocumentId、
-  清空 History 与 generation 状态并把 revision 置 0。
+- New/Open 在旧文档外准备结果，提交点确认旧 DocumentId 未换代，且当前 revision 已被最后一次
+  保存或丢弃决定覆盖；准备期间 revision 再次推进时重新进入未保存保护，不静默丢弃新增修改。成功
+  后轮换 DocumentId、清空 History 与 generation 状态并把 revision 置 0。
 - New/Open 失败或取消不改变旧 Model、History、路径、loop、幂等缓存或任务记录。
-- Save/Save As 不轮换 DocumentId 和 revision，只更新路径、工程名和 History savepoint。
+- GUI Save/Save As 在用户完成最后一次确认后立即解析同代当前 revision 并保存该状态；保存失败重试
+  会重新解析，且绝不跨 DocumentId 换代。保存本身不轮换 DocumentId 和 revision，只更新路径、
+  工程名和 History savepoint。
+- 公共 MCP 持久文档写操作继续严格使用调用方提供的 `expected_revision`，不自动重定位；GUI 文档
+  工作流 busy 时拒绝新的公共 MCP 持久写操作，但查询、任务取消、瞬时播放控制、可信 GUI 提交和
+  内部派生写回仍可进入统一 Facade。已在 busy 前通过准入的异步任务可继续按原 generation/revision
+  契约完成；工作流 busy 租约由开始时的 generation 持有并跨文档换代保持，直到原工作流释放。已
+  提交幂等请求的重放先于 busy 拒绝。瞬时播放控制不修改持久文档，任务取消沿用 Task 状态契约。
 - Import、编辑、Undo、Redo 仅在实际改变时增加 revision。
 - Session 替换后，旧 DocumentId、旧对象 ID、排队命令和晚到异步写回不能进入新工程。
 

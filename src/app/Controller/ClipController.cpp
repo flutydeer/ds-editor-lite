@@ -72,10 +72,11 @@ namespace {
 
     Automation::GuiDocumentCommandContext
         guiDocumentContext(const Automation::CoreRuntime &runtime) {
+        Q_ASSERT(runtime.windowId());
         const auto version = runtime.documentVersion();
         return {.documentId = version.documentId,
                 .expectedRevision = version.revision,
-                .windowId = runtime.windowId(),
+                .windowId = *runtime.windowId(),
                 .source = Automation::InvocationSource::TrustedGui};
     }
 

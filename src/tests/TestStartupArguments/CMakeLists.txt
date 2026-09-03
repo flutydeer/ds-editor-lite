@@ -5,6 +5,7 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
 lite_add_test(${PROJECT_NAME}
     SOURCES
         main.cpp
+        ../../app/Bootstrap/AppHostMode.cpp
         ../../app/Bootstrap/StartupArguments.cpp
         ../../app/Model/AppOptions/Options/AutomationOption.cpp
 )

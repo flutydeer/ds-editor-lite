@@ -305,6 +305,10 @@ namespace {
         if (!directory.isValid())
             return false;
 
+        SingleInstanceCoordinator headless(AppHostMode::Headless);
+        ok &= expect(headless.automationState().hostMode == QStringLiteral("headless"),
+                     "headless coordinator must publish its real host mode before listening");
+
         const auto serverName = uniqueServerName();
         SingleInstanceCoordinator primary(directory.path(), serverName);
         ok &= expect(primary.start() == SingleInstanceCoordinator::StartResult::Primary,
@@ -372,17 +376,18 @@ namespace {
         ready.serverEndpoint = QStringLiteral("http://127.0.0.1:52342/mcp");
         primary.updateAutomationState(ready);
         ok &= expect(firstWatcher.receiveSnapshot(firstSnapshot) &&
-                         firstSnapshot.result.state == SingleInstanceAutomationState::ServerStarting &&
+                         firstSnapshot.result.state ==
+                             SingleInstanceAutomationState::ServerStarting &&
                          firstWatcher.receiveSnapshot(firstSnapshot) &&
                          firstSnapshot.result.state == SingleInstanceAutomationState::ServerReady &&
                          firstSnapshot.result.serverEndpoint == ready.serverEndpoint,
                      "watch connection must preserve consecutive framed state updates");
-        ok &=
-            expect(secondWatcher.receiveSnapshot(secondSnapshot) &&
-                       secondSnapshot.result.state == SingleInstanceAutomationState::ServerStarting &&
-                       secondWatcher.receiveSnapshot(secondSnapshot) &&
-                       secondSnapshot.result.state == SingleInstanceAutomationState::ServerReady,
-                   "all watchers must preserve consecutive framed updates");
+        ok &= expect(secondWatcher.receiveSnapshot(secondSnapshot) &&
+                         secondSnapshot.result.state ==
+                             SingleInstanceAutomationState::ServerStarting &&
+                         secondWatcher.receiveSnapshot(secondSnapshot) &&
+                         secondSnapshot.result.state == SingleInstanceAutomationState::ServerReady,
+                     "all watchers must preserve consecutive framed updates");
 
         firstWatcher.socket.disconnectFromServer();
         ok &= expect(firstWatcher.waitForDisconnect(),
@@ -392,9 +397,10 @@ namespace {
         disabled.serverEnabled = false;
         disabled.serverEndpoint.clear();
         primary.updateAutomationState(disabled);
-        ok &= expect(secondWatcher.receiveSnapshot(secondSnapshot) &&
-                         secondSnapshot.result.state == SingleInstanceAutomationState::ServerDisabled,
-                     "remaining watchers must continue after another watcher disconnects");
+        ok &=
+            expect(secondWatcher.receiveSnapshot(secondSnapshot) &&
+                       secondSnapshot.result.state == SingleInstanceAutomationState::ServerDisabled,
+                   "remaining watchers must continue after another watcher disconnects");
 
         primary.shutdown();
         ok &=
@@ -567,17 +573,43 @@ namespace {
         QList<SingleInstanceRequest> received;
         primary.setRequestHandler(
             [&received](const SingleInstanceRequest &request) { received.append(request); });
-        ok &= expect(waitUntil([&] { return received.size() == 1; }) &&
+        primary.pauseRequestDispatchAndFlush();
+        ok &= expect(received.size() == 1 &&
                          received.first().requestId == firstRequest.requestId,
-                     "request received before UI setup must be retained");
+                     "acknowledged request before handler setup must be flushed deterministically");
+        primary.resumeRequestDispatch();
 
         const auto secondRequest = openRequest({QDir(directory.path()).filePath("second.dspx")});
         error.clear();
         ok &= expect(secondary.forwardRequest(secondRequest, error),
                      "request after handler setup must be acknowledged");
-        ok &= expect(waitUntil([&] { return received.size() == 2; }) &&
-                         received.last().requestId == secondRequest.requestId,
-                     "request after UI setup must reach the handler");
+        primary.pauseRequestDispatchAndFlush();
+        ok &= expect(received.size() == 2 && received.last().requestId == secondRequest.requestId,
+                     "acknowledged request after handler setup must be flushed deterministically");
+        primary.resumeRequestDispatch();
+
+        primary.pauseRequestDispatchAndFlush();
+        const auto deferredRequest =
+            openRequest({QDir(directory.path()).filePath("deferred.dspx")});
+        FramedClient deferredClient;
+        ok &= expect(deferredClient.connectTo(serverName) && deferredClient.send(deferredRequest),
+                     "request client must connect while dispatch is paused");
+        QByteArray deferredPayload;
+        QString deferredError;
+        ok &= expect(!deferredClient.receive(deferredPayload, deferredError, 100),
+                     "request accepted after the barrier must not be acknowledged while paused");
+        primary.resumeRequestDispatch();
+        SingleInstanceResponse deferredResponse;
+        ok &= expect(deferredClient.receive(deferredPayload, deferredError) &&
+                         SingleInstanceProtocol::decodeResponse(deferredPayload, deferredResponse,
+                                                                deferredError) &&
+                         deferredResponse.accepted &&
+                         deferredResponse.requestId == deferredRequest.requestId,
+                     "paused request must be acknowledged after dispatch resumes");
+        primary.pauseRequestDispatchAndFlush();
+        ok &= expect(received.size() == 3 && received.last().requestId == deferredRequest.requestId,
+                     "resumed request must reach the installed handler");
+        primary.resumeRequestDispatch();
 
         SingleInstanceRequest activateRequest;
         activateRequest.requestId = QUuid::createUuid().toString(QUuid::WithoutBraces);
@@ -585,11 +617,13 @@ namespace {
         error.clear();
         ok &= expect(secondary.forwardRequest(activateRequest, error),
                      "legacy activate request must remain supported");
-        ok &= expect(waitUntil([&] { return received.size() == 3; }) &&
+        primary.pauseRequestDispatchAndFlush();
+        ok &= expect(received.size() == 4 &&
                          received.last().requestId == activateRequest.requestId &&
                          received.last().command == SingleInstanceCommand::Activate &&
                          received.last().paths.isEmpty(),
                      "legacy activate request must retain its v1 behavior");
+        primary.resumeRequestDispatch();
 
         primary.shutdown();
         SingleInstanceCoordinator replacement(directory.path(), serverName);

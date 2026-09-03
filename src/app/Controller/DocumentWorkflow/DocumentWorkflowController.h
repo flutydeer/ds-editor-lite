@@ -4,6 +4,7 @@
 #define documentWorkflowController DocumentWorkflowController::instance()
 
 #include "Automation/AutomationTypes.h"
+#include "DocumentWorkflowRevisionGuard.h"
 #include "ProjectLoadTypes.h"
 #include <lite/Core/Singleton.h>
 
@@ -73,6 +74,7 @@ signals:
     void sessionFailedEvent();
     void sessionCanceledEvent();
     void cancelSessionRequested();
+    void commitRevalidationRequired();
     void commitFinished();
     void failureHandled();
 
@@ -92,7 +94,8 @@ private:
 
     struct PendingRequest {
         quint64 requestId = 0;
-        Automation::DocumentVersion baseDocument;
+        Automation::DocumentVersion generationAnchor;
+        DocumentWorkflowRevisionGuard revisionGuard;
         std::optional<DocumentOperation> operation;
         std::optional<TerminationMode> termination;
         QString filePath;
@@ -103,6 +106,7 @@ private:
     void validatePendingRequest();
     void askSaveDecision();
     void askSavePath();
+    void attemptSave();
     void performSave();
     void createSession();
     void startSession();
@@ -116,8 +120,10 @@ private:
     void handleSessionFailed(IProjectLoadSession *session, const ProjectOperationError &error);
     void handleSessionCanceled(IProjectLoadSession *session);
     void prepareNewProject();
-    bool commitReplace(ReplaceProjectPayload &&payload);
-    bool commitAppend(AppendProjectPayload &&payload);
+    bool commitReplace(ReplaceProjectPayload &&payload,
+                       const Automation::CommandContext &context);
+    bool commitAppend(AppendProjectPayload &&payload,
+                      const Automation::CommandContext &context);
     void activateFirstClip(const QList<Track *> &preferredTracks = {});
     void addRecentProjectFile(const QString &path);
     QString suggestedSavePath() const;

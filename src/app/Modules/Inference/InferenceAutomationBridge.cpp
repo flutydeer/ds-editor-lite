@@ -33,8 +33,8 @@ namespace InferenceAutomationBridge {
     Automation::AutomationResult<Automation::InferenceMutationResultDto>
         executeAfterGate(const Automation::DocumentVersion &taskVersion,
                          const Automation::InferenceMutationRequest &request) {
-        const auto commitVersion =
-            Automation::rebaseTaskVersionWithinGeneration(taskVersion, currentDocumentVersion());
+        const auto commitVersion = Automation::rebaseDocumentVersionWithinGeneration(
+            taskVersion, currentDocumentVersion());
         if (!commitVersion)
             return commitVersion.getError();
         return execute(commitVersion.get(), request);

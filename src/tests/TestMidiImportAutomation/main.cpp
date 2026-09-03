@@ -14,6 +14,8 @@
 #include <QTemporaryDir>
 #include <QTextStream>
 
+#include <utility>
+
 namespace {
     class Suite final {
     public:
@@ -279,6 +281,62 @@ namespace {
 
         history->reset();
     }
+
+    void testPreparedBatchCommitBoundaries(Suite &suite) {
+        AppModel destination;
+        destination.newProject();
+        auto *history = HistoryManager::instance();
+        history->reset(HistoryManager::ResetState::Saved);
+        Automation::CoreRuntime runtime(&destination, history);
+
+        auto parsed = makeParsedMidi();
+        auto generated = generateSelectedTrack(parsed);
+        auto draft = makeImportDraft(generated);
+        Automation::BatchImportDraftDto batch;
+        batch.timeline = destination.timeline();
+        Automation::BatchImportItemDraftDto item;
+        item.newTrack = std::move(draft.tracks.first());
+        item.clips = std::move(item.newTrack.clips);
+        item.newTrack.clips.clear();
+        batch.items.append(std::move(item));
+
+        suite.run(QStringLiteral("prepared-batch-rebases-after-options-confirmation"), [&] {
+            const auto generationAnchor = runtime.documentVersion();
+            const auto interveningEdit =
+                runtime.timeline().setTempo(context(runtime), 960, 132.0);
+            const auto confirmedVersion = runtime.documentVersion();
+            batch.timeline = destination.timeline();
+            const auto commitContext =
+                runtime.documentWorkflowCommitContext(generationAnchor);
+            const auto committed =
+                commitContext
+                    ? runtime.project().commitBatchImport(commitContext.get(), batch)
+                    : Automation::AutomationResult<Automation::MutationResult>(
+                          commitContext.getError());
+            suite.expect(interveningEdit && commitContext &&
+                             commitContext.get().expected == confirmedVersion && committed &&
+                             committed.get().previous == confirmedVersion &&
+                             committed.get().current.revision == confirmedVersion.revision + 1,
+                         QStringLiteral("confirmed imports must commit against the current "
+                                        "same-generation document"));
+        });
+
+        suite.run(QStringLiteral("deleted-target-rejects-batch-atomically"), [&] {
+            auto missingTarget = batch;
+            missingTarget.timeline = destination.timeline();
+            missingTarget.items.first().existingTrackId = Automation::TrackId(999999);
+            const auto before = runtime.documentVersion();
+            const auto rejected =
+                runtime.project().commitBatchImport(context(runtime), missingTarget);
+            suite.expect(!rejected &&
+                             rejected.getError().code ==
+                                 Automation::AutomationErrorCode::NotFound &&
+                             runtime.documentVersion() == before,
+                         QStringLiteral("a deleted destination track must reject the whole batch"));
+        });
+
+        history->reset();
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -287,5 +345,6 @@ int main(int argc, char *argv[]) {
     testBatchPreparationFailures(suite);
     testSelectionAndGeometry(suite);
     testFacadeCommitUndoRedo(suite);
+    testPreparedBatchCommitBoundaries(suite);
     return suite.finish();
 }

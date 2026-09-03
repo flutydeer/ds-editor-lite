@@ -34,7 +34,7 @@ namespace Automation {
     AutomationResult<AutomationTaskSnapshot>
         TaskAutomationFacade::cancelTask(const CommandContext &context, const TaskId &taskId) {
         return m_dispatcher
-            .dispatchDocumentCommandResultWithoutRevisionCheck<AutomationTaskSnapshot>(
+            .dispatchDocumentControlCommandResultWithoutRevisionCheck<AutomationTaskSnapshot>(
                 OperationIds::tasks::cancel, context,
                 [this, taskId](DocumentSession &session, const bool validateOnly) {
                     if (!validateOnly)

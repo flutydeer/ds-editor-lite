@@ -2,6 +2,8 @@
 #include "Automation/Public/AutomationAccessPolicy.h"
 #include "Automation/Public/AutomationFileGuard.h"
 #include "Automation/Public/PublicAutomationRegistry.h"
+#include "Automation/Mcp/McpRequestDispatcher.h"
+#include "Automation/Native/NativeJsonRpcDispatcher.h"
 #include "Automation/OperationIds.h"
 #include "TestRuntime.h"
 #include "Utils/UiLanguageManager.h"
@@ -50,6 +52,7 @@ namespace {
 
     struct ProjectInputTestControl {
         Automation::PublicProjectInputRevalidator revalidateOpen;
+        Automation::InvocationSource invocationSource = Automation::InvocationSource::PublicMcp;
     };
 
     struct AudioPathUpdateTestControl {
@@ -63,6 +66,32 @@ namespace {
         ++failures;
     }
 
+    QJsonObject nativeRequest(const QJsonValue &id, const QString &method,
+                              const std::optional<QJsonValue> &params = std::nullopt) {
+        QJsonObject request{
+            {QStringLiteral("jsonrpc"), QStringLiteral("2.0")},
+            {QStringLiteral("id"),      id                   },
+            {QStringLiteral("method"),  method               },
+        };
+        if (params)
+            request.insert(QStringLiteral("params"), *params);
+        return request;
+    }
+
+    int nativeErrorCode(const QJsonObject &response) {
+        return response.value(QStringLiteral("error"))
+            .toObject()
+            .value(QStringLiteral("code"))
+            .toInt();
+    }
+
+    QJsonObject nativeErrorData(const QJsonObject &response) {
+        return response.value(QStringLiteral("error"))
+            .toObject()
+            .value(QStringLiteral("data"))
+            .toObject();
+    }
+
     void reportFailure(const QString &operationId,
                        const Automation::AutomationResult<QJsonObject> &result) {
         if (result)
@@ -73,7 +102,8 @@ namespace {
                             << ", " << failure.message << Qt::endl;
     }
 
-    template <typename Predicate> bool waitUntil(Predicate &&predicate, const int timeoutMs = 2000) {
+    template <typename Predicate>
+    bool waitUntil(Predicate &&predicate, const int timeoutMs = 2000) {
         QElapsedTimer timer;
         timer.start();
         while (!predicate()) {
@@ -111,6 +141,7 @@ namespace {
                 [projectInputControl](const Automation::PublicDocumentOpenRequest &request)
                 -> Automation::AutomationResult<Automation::TaskAcceptedResult> {
                 projectInputControl->revalidateOpen = request.revalidatePlan;
+                projectInputControl->invocationSource = request.command.source;
                 return Automation::AutomationError::invalidArgument(
                     QStringLiteral("test"), QStringLiteral("Test host captured the open request"));
             };
@@ -197,12 +228,10 @@ namespace {
         file.close();
 
         const auto document = runtime.documentVersion();
-        const auto arguments = mergeCommandArguments(
-            document,
-            {
-                {QStringLiteral("clip_id"), 42  },
-                {QStringLiteral("path"),    path},
-            });
+        const auto arguments = mergeCommandArguments(document, {
+                                                                   {QStringLiteral("clip_id"), 42  },
+                                                                   {QStringLiteral("path"),    path},
+        });
         const auto relocated =
             invokeSchemaValid(registry, QStringLiteral("audio_clips.relocate"), arguments,
                               QStringLiteral("audio path relocation routing"));
@@ -225,12 +254,16 @@ namespace {
                                    Automation::CoreRuntime &runtime,
                                    const PublicEditingFixture &fixture) {
         const auto before = runtime.documentVersion();
+        const auto &windowId = runtime.windowId();
+        expect(windowId.has_value(), QStringLiteral("GUI binding fixture must have a window"));
+        if (!windowId)
+            return;
         const QJsonObject window{
-            {QStringLiteral("window_id"), runtime.windowId().toString()},
+            {QStringLiteral("window_id"), windowId->toString()},
         };
         const QJsonObject document{
-            {QStringLiteral("window_id"),   runtime.windowId().toString()},
-            {QStringLiteral("document_id"), before.documentId.toString() },
+            {QStringLiteral("window_id"),   windowId->toString()        },
+            {QStringLiteral("document_id"), before.documentId.toString()},
         };
         const auto with = [](QJsonObject base, const QJsonObject &fields) {
             for (auto it = fields.constBegin(); it != fields.constEnd(); ++it)
@@ -592,11 +625,11 @@ namespace {
         bool localizedPackageProjection = localizedPackageItems.size() == 2;
         for (const auto &item : localizedPackageItems) {
             const auto object = item.toObject();
-            localizedPackageProjection &= !object.contains(QStringLiteral("name")) &&
-                                          object.value(QStringLiteral("vendor")) ==
-                                              QStringLiteral("Registry Vendor") &&
-                                          object.value(QStringLiteral("display_vendor")) ==
-                                              QStringLiteral("Localized Registry Vendor");
+            localizedPackageProjection &=
+                !object.contains(QStringLiteral("name")) &&
+                object.value(QStringLiteral("vendor")) == QStringLiteral("Registry Vendor") &&
+                object.value(QStringLiteral("display_vendor")) ==
+                    QStringLiteral("Localized Registry Vendor");
         }
         expect(localizedPackageProjection,
                QStringLiteral("packages.list must search localized vendors without a fake name"));
@@ -623,10 +656,9 @@ namespace {
                            .toObject()
                            .value(QStringLiteral("version")) == QStringLiteral("1.0"),
                QStringLiteral("packages.describe must accept an explicit installed version"));
-        const auto versionedPackageSnapshot = versionedPackage
-                                                  ? versionedPackage->value(QStringLiteral("package"))
-                                                        .toObject()
-                                                  : QJsonObject{};
+        const auto versionedPackageSnapshot =
+            versionedPackage ? versionedPackage->value(QStringLiteral("package")).toObject()
+                             : QJsonObject{};
         expect(versionedPackageSnapshot.value(QStringLiteral("vendor")) ==
                        QStringLiteral("Registry Vendor") &&
                    versionedPackageSnapshot.value(QStringLiteral("display_vendor")) ==
@@ -651,7 +683,8 @@ namespace {
                            .toObject()
                            .value(QStringLiteral("en")) ==
                        QStringLiteral("Localized Registry License"),
-               QStringLiteral("packages.describe must expose default, display, and localized metadata"));
+               QStringLiteral(
+                   "packages.describe must expose default, display, and localized metadata"));
         const auto unknownPackage =
             registry.invoke(QStringLiteral("packages.describe"),
                             QJsonObject{
@@ -921,11 +954,11 @@ namespace {
             return registry.invoke(
                 QStringLiteral("exports.midi.start"),
                 QJsonObject{
-                    {QStringLiteral("document_id"), document.documentId.toString()},
-                    {QStringLiteral("path"), QDir(directoryPath).absoluteFilePath(fileName)},
-                    {QStringLiteral("options"), QJsonObject{}},
-                    {QStringLiteral("overwrite_policy"), QStringLiteral("reject")},
-                },
+                    {QStringLiteral("document_id"),      document.documentId.toString()                },
+                    {QStringLiteral("path"),             QDir(directoryPath).absoluteFilePath(fileName)},
+                    {QStringLiteral("options"),          QJsonObject{}                                 },
+                    {QStringLiteral("overwrite_policy"), QStringLiteral("reject")                      },
+            },
                 {.clientId = QStringLiteral("midi-publication-gate")});
         };
 
@@ -955,12 +988,13 @@ namespace {
                 runtime.automationTasks().get(document.documentId, canceledTaskId);
             return snapshot && snapshot.get().state == Automation::AutomationTaskState::Canceled;
         });
-        const auto canceledSnapshot = runtime.automationTasks().get(document.documentId, canceledTaskId);
-        expect(cancellationAccepted && canceledWorkerFinished && canceledSnapshot &&
-                   canceledSnapshot.get().state == Automation::AutomationTaskState::Canceled &&
-                   !QFileInfo::exists(canceledPath),
-               QStringLiteral(
-                   "MIDI cancellation during rendering must win before final publication"));
+        const auto canceledSnapshot =
+            runtime.automationTasks().get(document.documentId, canceledTaskId);
+        expect(
+            cancellationAccepted && canceledWorkerFinished && canceledSnapshot &&
+                canceledSnapshot.get().state == Automation::AutomationTaskState::Canceled &&
+                !QFileInfo::exists(canceledPath),
+            QStringLiteral("MIDI cancellation during rendering must win before final publication"));
 
         const auto discardedPath =
             QDir(directoryPath).absoluteFilePath(QStringLiteral("discarded.mid"));
@@ -993,28 +1027,29 @@ namespace {
                                          const QString &directoryPath, const int &saveCount) {
         const auto path =
             QDir(directoryPath).absoluteFilePath(QStringLiteral("current-document.dspx"));
-        const auto savedAs = registry.invoke(
-            QStringLiteral("documents.save_as"),
-            mergeCommandArguments(
-                runtime.documentVersion(),
-                QJsonObject{
-                    {QStringLiteral("path"),             path                       },
-                    {QStringLiteral("overwrite_policy"), QStringLiteral("overwrite")},
-                }));
+        const auto savedAs =
+            registry.invoke(QStringLiteral("documents.save_as"),
+                            mergeCommandArguments(runtime.documentVersion(),
+                                                  QJsonObject{
+                                                      {QStringLiteral("path"),             path},
+                                                      {QStringLiteral("overwrite_policy"),
+                                                       QStringLiteral("overwrite")             },
+        }));
         reportFailure(QStringLiteral("documents.save_as"), savedAs);
 
         QFile external(path);
-        const auto replaced = savedAs && external.open(QIODevice::WriteOnly | QIODevice::Truncate) &&
+        const auto replaced = savedAs &&
+                              external.open(QIODevice::WriteOnly | QIODevice::Truncate) &&
                               external.write("external") == 8;
         external.close();
         const auto savesBeforeReject = saveCount;
-        const auto rejected = registry.invoke(
-            QStringLiteral("documents.save"),
-            mergeCommandArguments(
-                runtime.documentVersion(),
-                QJsonObject{
-                    {QStringLiteral("overwrite_policy"), QStringLiteral("reject")}
-                }));
+        const auto rejected =
+            registry.invoke(QStringLiteral("documents.save"),
+                            mergeCommandArguments(runtime.documentVersion(),
+                                                  QJsonObject{
+                                                      {QStringLiteral("overwrite_policy"),
+                                                       QStringLiteral("reject")}
+        }));
         QFile preserved(path);
         const auto preservedReadable = preserved.open(QIODevice::ReadOnly);
         const auto preservedContents = preserved.readAll();
@@ -1025,15 +1060,16 @@ namespace {
                    preservedContents == QByteArrayLiteral("external"),
                QStringLiteral("documents.save must preserve an explicit reject overwrite policy"));
 
-        const auto defaultSaved = registry.invoke(
-            QStringLiteral("documents.save"), commandArguments(runtime.documentVersion()));
+        const auto defaultSaved = registry.invoke(QStringLiteral("documents.save"),
+                                                  commandArguments(runtime.documentVersion()));
         reportFailure(QStringLiteral("documents.save"), defaultSaved);
         QFile overwritten(path);
         const auto overwrittenReadable = overwritten.open(QIODevice::ReadOnly);
         const auto overwrittenContents = overwritten.readAll();
-        expect(defaultSaved && saveCount == savesBeforeReject + 1 && overwrittenReadable &&
-                   overwrittenContents == QByteArrayLiteral("registry-save"),
-               QStringLiteral("documents.save must retain overwrite as the omitted-policy default"));
+        expect(
+            defaultSaved && saveCount == savesBeforeReject + 1 && overwrittenReadable &&
+                overwrittenContents == QByteArrayLiteral("registry-save"),
+            QStringLiteral("documents.save must retain overwrite as the omitted-policy default"));
     }
 
     void verifyProjectInputGuards(Automation::PublicAutomationRegistry &registry,
@@ -1047,58 +1083,60 @@ namespace {
         project.close();
         expect(projectCreated, QStringLiteral("delayed open fixture must be created"));
 
-        const auto opened = registry.invoke(
-            QStringLiteral("documents.open"),
-            QJsonObject{
-                {QStringLiteral("path"),           projectPath             },
-                {QStringLiteral("unsaved_policy"), QStringLiteral("reject")},
-            });
-        expect(!opened && bool(control.revalidateOpen),
-               QStringLiteral("open without plan_digest must retain a start-time revalidator"));
+        const auto opened =
+            registry.invoke(QStringLiteral("documents.open"),
+                            QJsonObject{
+                                {QStringLiteral("path"),           projectPath             },
+                                {QStringLiteral("unsaved_policy"), QStringLiteral("reject")},
+        },
+                            {.clientId = QStringLiteral("project-input"),
+                             .source = Automation::InvocationSource::PublicJsonRpc});
+        expect(!opened && bool(control.revalidateOpen) &&
+                   control.invocationSource == Automation::InvocationSource::PublicJsonRpc,
+               QStringLiteral("open must retain its revalidator and invocation source"));
 
         const auto revokedRoot = QDir(directoryPath).absoluteFilePath(QStringLiteral("revoked"));
         expect(QDir().mkpath(revokedRoot) && bool(fileGuard.setConfiguredRoots({revokedRoot})),
                QStringLiteral("access root must be replaceable before delayed open starts"));
         if (control.revalidateOpen) {
             const auto revalidated = control.revalidateOpen();
-            expect(!revalidated &&
-                       revalidated.getError().code ==
-                           Automation::AutomationErrorCode::PermissionDenied &&
-                       revalidated.getError().fieldPath == QStringLiteral("path"),
-                   QStringLiteral(
-                       "delayed open must observe revoked read access without a digest"));
+            expect(
+                !revalidated &&
+                    revalidated.getError().code ==
+                        Automation::AutomationErrorCode::PermissionDenied &&
+                    revalidated.getError().fieldPath == QStringLiteral("path"),
+                QStringLiteral("delayed open must observe revoked read access without a digest"));
         }
         expect(bool(fileGuard.setConfiguredRoots({directoryPath})),
                QStringLiteral("project input roots must be restored"));
 
         const auto plannedPath =
             QDir(directoryPath).absoluteFilePath(QStringLiteral("planned-open.mid"));
-        const auto plannedBytes = QByteArray::fromHex(
-            "4d546864000000060000000101e04d54726b0000000400ff2f00");
+        const auto plannedBytes =
+            QByteArray::fromHex("4d546864000000060000000101e04d54726b0000000400ff2f00");
         QFile plannedProject(plannedPath);
         const bool plannedProjectCreated =
             plannedProject.open(QIODevice::WriteOnly | QIODevice::Truncate) &&
             plannedProject.write(plannedBytes) == plannedBytes.size();
         plannedProject.close();
-        expect(plannedProjectCreated,
-               QStringLiteral("project snapshot fixture must be created"));
-        const auto plan = registry.invoke(
-            QStringLiteral("formats.inspect"),
-            QJsonObject{
-                {QStringLiteral("path"),    plannedPath         },
-                {QStringLiteral("purpose"), QStringLiteral("open")},
-            });
+        expect(plannedProjectCreated, QStringLiteral("project snapshot fixture must be created"));
+        const auto plan = registry.invoke(QStringLiteral("formats.inspect"),
+                                          QJsonObject{
+                                              {QStringLiteral("path"),    plannedPath           },
+                                              {QStringLiteral("purpose"), QStringLiteral("open")},
+        });
         reportFailure(QStringLiteral("formats.inspect"), plan);
         expect(bool(plan), QStringLiteral("project snapshot fixture must produce an open plan"));
         if (plan) {
             control.revalidateOpen = {};
-            const auto plannedOpen = registry.invoke(
-                QStringLiteral("documents.open"),
-                QJsonObject{
-                    {QStringLiteral("path"),           plannedPath                                     },
-                    {QStringLiteral("plan_digest"),    plan.get().value(QStringLiteral("plan_digest"))},
-                    {QStringLiteral("unsaved_policy"), QStringLiteral("reject")                        },
-                });
+            const auto plannedOpen =
+                registry.invoke(QStringLiteral("documents.open"),
+                                QJsonObject{
+                                    {QStringLiteral("path"),           plannedPath             },
+                                    {QStringLiteral("plan_digest"),
+                                     plan.get().value(QStringLiteral("plan_digest"))           },
+                                    {QStringLiteral("unsaved_policy"), QStringLiteral("reject")},
+            });
             expect(!plannedOpen && bool(control.revalidateOpen),
                    QStringLiteral("planned open must retain its input snapshot revalidator"));
             if (control.revalidateOpen) {
@@ -1109,14 +1147,17 @@ namespace {
                 auto replacementBytes = plannedBytes;
                 replacementBytes[13] = static_cast<char>(0xdf);
                 QFile replacement(plannedPath);
-                const bool replaced = replacement.open(QIODevice::WriteOnly | QIODevice::Truncate) &&
-                                      replacement.write(replacementBytes) == replacementBytes.size();
+                const bool replaced =
+                    replacement.open(QIODevice::WriteOnly | QIODevice::Truncate) &&
+                    replacement.write(replacementBytes) == replacementBytes.size();
                 replacement.close();
                 const auto stale = control.revalidateOpen();
                 expect(replaced && !stale &&
-                           stale.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+                           stale.getError().code ==
+                               Automation::AutomationErrorCode::InvalidArgument &&
                            stale.getError().fieldPath == QStringLiteral("plan_digest"),
-                       QStringLiteral("planned open must reject source bytes changed after inspection"));
+                       QStringLiteral(
+                           "planned open must reject source bytes changed after inspection"));
             }
         }
 
@@ -1128,12 +1169,12 @@ namespace {
             oversized.resize(AutomationWire::MaximumFormatInspectionBytes + 1);
         oversized.close();
         expect(oversizedCreated, QStringLiteral("oversized inspection fixture must be created"));
-        const auto inspected = registry.invoke(
-            QStringLiteral("formats.inspect"),
-            QJsonObject{
-                {QStringLiteral("path"),    oversizedPath         },
-                {QStringLiteral("purpose"), QStringLiteral("open")},
-            });
+        const auto inspected =
+            registry.invoke(QStringLiteral("formats.inspect"),
+                            QJsonObject{
+                                {QStringLiteral("path"),    oversizedPath         },
+                                {QStringLiteral("purpose"), QStringLiteral("open")},
+        });
         expect(!inspected &&
                    inspected.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
                    inspected.getError().fieldPath == QStringLiteral("path"),
@@ -1170,15 +1211,15 @@ namespace {
         fixture.trackId = Automation::TrackId(trackIds.first());
         const auto versionBeforeOverflow = runtime.documentVersion();
         auto overflowInput = commandArguments(versionBeforeOverflow);
-        overflowInput.insert(
-            QStringLiteral("clips"),
-            QJsonArray{
-                QJsonObject{
-                    {QStringLiteral("track_id"), fixture.trackId.value()},
-                    {QStringLiteral("start"),    std::numeric_limits<int>::max()},
-                },
+        overflowInput.insert(QStringLiteral("clips"),
+                             QJsonArray{
+                                 QJsonObject{
+                                             {QStringLiteral("track_id"), fixture.trackId.value()},
+                                             {QStringLiteral("start"), std::numeric_limits<int>::max()},
+                                             },
         });
-        const auto rejectedOverflow = registry.invoke(QStringLiteral("clips.insert"), overflowInput);
+        const auto rejectedOverflow =
+            registry.invoke(QStringLiteral("clips.insert"), overflowInput);
         expect(!rejectedOverflow &&
                    rejectedOverflow.getError().code ==
                        Automation::AutomationErrorCode::InvalidArgument &&
@@ -1336,17 +1377,18 @@ namespace {
                 {QStringLiteral("query"), QStringLiteral("Localized Registry Singer V2")}
         },
             QStringLiteral("localized voices.list"));
-        const auto localizedVoiceItems = localizedVoices
-                                             ? localizedVoices->value(QStringLiteral("singers")).toArray()
-                                             : QJsonArray{};
+        const auto localizedVoiceItems =
+            localizedVoices ? localizedVoices->value(QStringLiteral("singers")).toArray()
+                            : QJsonArray{};
         const auto localizedVoice = localizedVoiceItems.size() == 1
                                         ? localizedVoiceItems.first().toObject()
                                         : QJsonObject{};
-        expect(localizedVoiceItems.size() == 1 &&
-                   localizedVoice.value(QStringLiteral("name")) == sameIdNewerSinger.name() &&
-                   localizedVoice.value(QStringLiteral("display_name")) ==
-                       QStringLiteral("Localized Registry Singer V2"),
-               QStringLiteral("voices.list must search localized aliases and preserve default names"));
+        expect(
+            localizedVoiceItems.size() == 1 &&
+                localizedVoice.value(QStringLiteral("name")) == sameIdNewerSinger.name() &&
+                localizedVoice.value(QStringLiteral("display_name")) ==
+                    QStringLiteral("Localized Registry Singer V2"),
+            QStringLiteral("voices.list must search localized aliases and preserve default names"));
 
         const auto exactVoice = voiceSelection(sameIdNewerSinger, sameIdNewerSpeaker);
         const auto described = invokeSchemaValid(
@@ -1384,16 +1426,14 @@ namespace {
                            .toObject()
                            .value(QStringLiteral("localized_names"))
                            .toObject()
-                           .value(QStringLiteral("en")) ==
-                       QStringLiteral("Localized Speaker V2") &&
+                           .value(QStringLiteral("en")) == QStringLiteral("Localized Speaker V2") &&
                    describedSnapshot.value(QStringLiteral("languages"))
                            .toArray()
                            .first()
                            .toObject()
                            .value(QStringLiteral("localized_names"))
                            .toObject()
-                           .value(QStringLiteral("en")) ==
-                       QStringLiteral("Localized Japanese"),
+                           .value(QStringLiteral("en")) == QStringLiteral("Localized Japanese"),
                QStringLiteral("voices.describe must resolve the requested package version"));
 
         invokeChangedOnce(registry, runtime, QStringLiteral("tracks.set_voice"),
@@ -1462,6 +1502,304 @@ namespace {
                            .value(QStringLiteral("speaker_id")) == sameIdNewerSpeaker.id(),
                QStringLiteral("Speaker Mix must preserve the requested package version"));
     }
+
+    void verifyHostCapabilityAndNativeJsonRpc(Automation::CoreRuntime &runtime,
+                                              const QString &directoryPath) {
+        Automation::AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
+        Automation::AutomationFileGuard fileGuard;
+        expect(bool(fileGuard.setConfiguredRoots({directoryPath})),
+               QStringLiteral("native JSON-RPC file root must configure"));
+        Automation::AdmissionController admission;
+        auto invocationSource = Automation::InvocationSource::PublicMcp;
+        QString invocationClientId;
+        Automation::PublicAutomationHostServices services;
+        services.hostMode = QStringLiteral("headless");
+        services.windowStatus = [] {
+            return QJsonArray{
+                QJsonObject{{QStringLiteral("window_id"), QStringLiteral("must-not-be-exposed")}}};
+        };
+        services.openDocument = [&invocationSource, &invocationClientId](
+                                    const Automation::PublicDocumentOpenRequest &request)
+            -> Automation::AutomationResult<Automation::TaskAcceptedResult> {
+            invocationSource = request.command.source;
+            invocationClientId = request.command.clientId;
+            Automation::AutomationError error;
+            error.code = Automation::AutomationErrorCode::Busy;
+            error.message = QStringLiteral("Native source capture stopped the open request");
+            return error;
+        };
+        Automation::PublicAutomationRegistry registry(runtime, access, fileGuard, admission,
+                                                      std::move(services));
+        Automation::NativeJsonRpcDispatcher native(registry);
+
+        const auto enabled = registry.enabledContracts();
+        expect(enabled.size() == 151 && std::all_of(enabled.cbegin(), enabled.cend(),
+                                                    [](const auto &contract) {
+                                                        return contract.hostAvailability ==
+                                                               QStringLiteral("both");
+                                                    }),
+               QStringLiteral("headless registry must expose exactly the 151 both-host tools"));
+
+        Automation::McpRequestDispatcher mcp(registry,
+                                             {
+                                                 .name = QStringLiteral("Headless Contract Test"),
+                                                 .version = QStringLiteral("1"),
+                                             });
+        QSet<QString> listedToolIds;
+        qsizetype listedToolCount = 0;
+        bool toolsListValid = true;
+        QString cursor;
+        for (int page = 0; page < 3; ++page) {
+            AutomationWire::Mcp::RequestEnvelope request{
+                .id = QStringLiteral("headless-tools-%1").arg(page),
+                .method = QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod),
+                .params = cursor.isEmpty() ? QJsonObject{}
+                                           : QJsonObject{{QStringLiteral("cursor"), cursor}},
+                .protocolVersion = QString::fromLatin1(AutomationWire::Mcp::ProtocolVersion),
+            };
+            const auto response = mcp.dispatch(request, QStringLiteral("headless-tools"));
+            toolsListValid &= !response.contains(QStringLiteral("error"));
+            const auto result = response.value(QStringLiteral("result")).toObject();
+            const auto tools = result.value(QStringLiteral("tools")).toArray();
+            listedToolCount += tools.size();
+            for (const auto &value : tools) {
+                const auto tool = value.toObject();
+                listedToolIds.insert(tool.value(QStringLiteral("name")).toString());
+                const auto metadata = tool.value(QStringLiteral("_meta"))
+                                          .toObject()
+                                          .value(QStringLiteral("org.openvpi.ds-editor-lite/tool"))
+                                          .toObject();
+                toolsListValid &=
+                    metadata.value(QStringLiteral("host_availability")) == QStringLiteral("both");
+            }
+            cursor = result.value(QStringLiteral("nextCursor")).toString();
+            if (cursor.isEmpty())
+                break;
+        }
+        expect(toolsListValid && cursor.isEmpty() && listedToolCount == 151 &&
+                   listedToolIds.size() == 151,
+               QStringLiteral("headless MCP tools/list must expose exactly 151 unique tools"));
+
+        const auto guiOnly = registry.invoke(QStringLiteral("track_panel.set_viewport"), {});
+        expect(!guiOnly &&
+                   guiOnly.getError().code ==
+                       Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+                   guiOnly.getError().operationId == QStringLiteral("track_panel.set_viewport"),
+               QStringLiteral("headless host gate must reject GUI tools before schema validation"));
+
+        access.update(AutomationWire::ControlLevel::L1);
+        const auto deniedBeforeSchema = registry.invoke(QStringLiteral("formats.inspect"), {});
+        expect(
+            !deniedBeforeSchema && deniedBeforeSchema.getError().code ==
+                                       Automation::AutomationErrorCode::PermissionDenied,
+            QStringLiteral("control policy must reject supported tools before schema validation"));
+
+        const auto unknown = registry.invoke(QStringLiteral("automation.discover"), {});
+        expect(!unknown &&
+                   unknown.getError().code == Automation::AutomationErrorCode::ToolUnavailable &&
+                   unknown.getError().operationId == QStringLiteral("automation.discover"),
+               QStringLiteral("unknown public operations must report tool_unavailable"));
+
+        const auto status = registry.invoke(QStringLiteral("application.get_status"), {});
+        expect(status &&
+                   status.get().value(QStringLiteral("host_mode")) == QStringLiteral("headless") &&
+                   status.get().value(QStringLiteral("documents")).toArray().size() == 1 &&
+                   status.get().value(QStringLiteral("windows")).toArray().isEmpty(),
+               QStringLiteral("headless status must expose one document and no synthetic window"));
+
+        access.update(AutomationWire::ControlLevel::L3);
+        const auto nativeStatus =
+            native.dispatch(nativeRequest(QStringLiteral("native-status"),
+                                          QStringLiteral("application.get_status")),
+                            QStringLiteral("native-client"));
+        const auto nativeStatusResult = nativeStatus.value(QStringLiteral("result")).toObject();
+        expect(
+            nativeStatus.value(QStringLiteral("jsonrpc")) == QStringLiteral("2.0") &&
+                nativeStatus.value(QStringLiteral("id")) == QStringLiteral("native-status") &&
+                !nativeStatus.contains(QStringLiteral("error")) &&
+                nativeStatusResult.value(QStringLiteral("host_mode")) ==
+                    QStringLiteral("headless") &&
+                nativeStatusResult.value(QStringLiteral("documents")).toArray().size() == 1 &&
+                nativeStatusResult.value(QStringLiteral("windows")).toArray().isEmpty() &&
+                !nativeStatusResult.contains(QStringLiteral("structuredContent")),
+            QStringLiteral("native status must accept omitted params and return the raw result"));
+
+        const QList<QJsonValue> validIds{
+            QJsonValue(QStringLiteral("string-id")),
+            QJsonValue(0),
+            QJsonValue(static_cast<qint64>(9007199254740991LL)),
+            QJsonValue(static_cast<qint64>(-9007199254740991LL)),
+        };
+        for (const auto &id : validIds) {
+            const auto response = native.dispatch(
+                nativeRequest(id, QStringLiteral("application.get_info"), QJsonObject{}),
+                QStringLiteral("valid-id"));
+            expect(!response.contains(QStringLiteral("error")) &&
+                       response.value(QStringLiteral("id")) == id,
+                   QStringLiteral("native JSON-RPC must preserve string and safe integer ids"));
+        }
+
+        auto notification =
+            nativeRequest(QStringLiteral("removed"), QStringLiteral("application.get_info"));
+        notification.remove(QStringLiteral("id"));
+        const auto notificationResponse =
+            native.dispatch(notification, QStringLiteral("notification"));
+        expect(nativeErrorCode(notificationResponse) == -32600 &&
+                   notificationResponse.value(QStringLiteral("id")).isNull(),
+               QStringLiteral("native JSON-RPC notifications must be Invalid Request"));
+
+        const QList<QJsonValue> invalidIds{
+            QJsonValue(QJsonValue::Null),
+            QJsonValue(true),
+            QJsonValue(1.5),
+            QJsonValue(static_cast<qint64>(9007199254740992LL)),
+            QJsonValue(static_cast<qint64>(-9007199254740992LL)),
+            QJsonObject{},
+            QJsonArray{},
+        };
+        for (const auto &id : invalidIds) {
+            const auto response =
+                native.dispatch(nativeRequest(id, QStringLiteral("application.get_info")),
+                                QStringLiteral("invalid-id"));
+            expect(nativeErrorCode(response) == -32600 &&
+                       response.value(QStringLiteral("id")).isNull(),
+                   QStringLiteral("invalid native JSON-RPC ids must produce Invalid Request"));
+        }
+
+        const QList<QJsonValue> nonObjectRequests{
+            QJsonValue(QJsonValue::Null),
+            QJsonValue(QStringLiteral("request")),
+            QJsonArray{nativeRequest(1, QStringLiteral("application.get_info"))},
+        };
+        for (const auto &request : nonObjectRequests) {
+            const auto response = native.dispatch(request, QStringLiteral("non-object"));
+            expect(nativeErrorCode(response) == -32600 &&
+                       response.value(QStringLiteral("id")).isNull(),
+                   QStringLiteral("non-object and Batch native requests must be Invalid Request"));
+        }
+        expect(nativeErrorCode(Automation::NativeJsonRpcDispatcher::parseError()) == -32700,
+               QStringLiteral("native malformed JSON must use the standard Parse error"));
+
+        auto missingVersion = nativeRequest(QStringLiteral("missing-version"),
+                                            QStringLiteral("application.get_info"));
+        missingVersion.remove(QStringLiteral("jsonrpc"));
+        auto wrongVersion =
+            nativeRequest(QStringLiteral("wrong-version"), QStringLiteral("application.get_info"));
+        wrongVersion.insert(QStringLiteral("jsonrpc"), QStringLiteral("1.0"));
+        auto unexpectedField = nativeRequest(QStringLiteral("unexpected-field"),
+                                             QStringLiteral("application.get_info"));
+        unexpectedField.insert(QStringLiteral("extra"), true);
+        for (const auto &request : {missingVersion, wrongVersion, unexpectedField}) {
+            const auto response = native.dispatch(request, QStringLiteral("invalid-envelope"));
+            expect(nativeErrorCode(response) == -32600 &&
+                       response.value(QStringLiteral("id")) == request.value(QStringLiteral("id")),
+                   QStringLiteral("invalid native envelope fields must produce Invalid Request"));
+        }
+
+        for (const auto &method :
+             {QJsonValue(QJsonValue::Null), QJsonValue(42), QJsonValue(QString{})}) {
+            auto request = nativeRequest(QStringLiteral("invalid-method"),
+                                         QStringLiteral("application.get_info"));
+            request.insert(QStringLiteral("method"), method);
+            const auto response = native.dispatch(request, QStringLiteral("invalid-method"));
+            expect(nativeErrorCode(response) == -32600 &&
+                       response.value(QStringLiteral("id")) == QStringLiteral("invalid-method"),
+                   QStringLiteral("native method must be a non-empty string"));
+        }
+
+        for (const auto &method :
+             {QStringLiteral("automation.discover"), QStringLiteral("unknown.operation")}) {
+            const auto response = native.dispatch(nativeRequest(QStringLiteral("unknown"), method),
+                                                  QStringLiteral("unknown-method"));
+            expect(nativeErrorCode(response) == -32601 &&
+                       nativeErrorData(response).value(QStringLiteral("method")) == method,
+                   QStringLiteral("native unknown methods must use Method not found"));
+        }
+
+        for (const auto &params :
+             {QJsonValue(QJsonValue::Null), QJsonValue(QStringLiteral("params")),
+              QJsonValue(QJsonArray{})}) {
+            const auto response =
+                native.dispatch(nativeRequest(QStringLiteral("invalid-params"),
+                                              QStringLiteral("application.get_info"), params),
+                                QStringLiteral("invalid-params"));
+            expect(nativeErrorCode(response) == -32602 &&
+                       nativeErrorData(response).value(QStringLiteral("field_path")) ==
+                           QStringLiteral("params"),
+                   QStringLiteral("non-object native params must use Invalid params with data"));
+        }
+
+        const auto schemaError = native.dispatch(
+            nativeRequest(QStringLiteral("schema"), QStringLiteral("formats.inspect"),
+                          QJsonObject{
+                              {QStringLiteral("path"),    42                    },
+                              {QStringLiteral("purpose"), QStringLiteral("open")},
+        }),
+            QStringLiteral("schema"));
+        const auto schemaData = nativeErrorData(schemaError);
+        expect(nativeErrorCode(schemaError) == -32602 &&
+                   schemaData.value(QStringLiteral("code")) == QStringLiteral("invalid_argument") &&
+                   schemaData.value(QStringLiteral("operation_id")) ==
+                       QStringLiteral("formats.inspect") &&
+                   schemaData.value(QStringLiteral("field_path")) == QStringLiteral("/path"),
+               QStringLiteral("native schema failures must include stable automation error data"));
+
+        access.update(AutomationWire::ControlLevel::L1);
+        const auto guiHostError = native.dispatch(
+            nativeRequest(QStringLiteral("gui-host"), QStringLiteral("track_panel.set_viewport"),
+                          QJsonObject{}),
+            QStringLiteral("gui-host"));
+        const auto guiHostData = nativeErrorData(guiHostError);
+        expect(
+            nativeErrorCode(guiHostError) == -32000 &&
+                guiHostData.value(QStringLiteral("code")) ==
+                    QStringLiteral("host_capability_unavailable") &&
+                guiHostData.value(QStringLiteral("operation_id")) ==
+                    QStringLiteral("track_panel.set_viewport") &&
+                !guiHostData.contains(QStringLiteral("field_path")),
+            QStringLiteral("native headless Host gate must run before window schema validation"));
+
+        const auto permissionError = native.dispatch(
+            nativeRequest(QStringLiteral("permission"), QStringLiteral("formats.list")),
+            QStringLiteral("permission"));
+        expect(nativeErrorCode(permissionError) == -32000 &&
+                   nativeErrorData(permissionError).value(QStringLiteral("code")) ==
+                       QStringLiteral("permission_denied"),
+               QStringLiteral("native policy failures must preserve permission_denied"));
+
+        const auto businessError = native.dispatch(
+            nativeRequest(QStringLiteral("business"), QStringLiteral("documents.get"),
+                          QJsonObject{
+                              {QStringLiteral("document_id"),
+                               QStringLiteral("00000000-0000-4000-8000-000000000099")}
+        }),
+            QStringLiteral("business"));
+        expect(nativeErrorCode(businessError) == -32000 &&
+                   nativeErrorData(businessError).value(QStringLiteral("code")) ==
+                       QStringLiteral("document_changed"),
+               QStringLiteral("native business failures must preserve AutomationError data"));
+
+        access.update(AutomationWire::ControlLevel::L3);
+        const auto openPath =
+            QDir(directoryPath).absoluteFilePath(QStringLiteral("native-source.dspx"));
+        QFile openFile(openPath);
+        const auto openFileCreated =
+            openFile.open(QIODevice::WriteOnly | QIODevice::Truncate) && openFile.write("{}") == 2;
+        openFile.close();
+        const auto sourceError = native.dispatch(
+            nativeRequest(QStringLiteral("source"), QStringLiteral("documents.open"),
+                          QJsonObject{
+                              {QStringLiteral("path"),           openPath                },
+                              {QStringLiteral("unsaved_policy"), QStringLiteral("reject")},
+        }),
+            QStringLiteral("native-source"));
+        expect(openFileCreated && nativeErrorCode(sourceError) == -32000 &&
+                   nativeErrorData(sourceError).value(QStringLiteral("code")) ==
+                       QStringLiteral("busy") &&
+                   invocationSource == Automation::InvocationSource::PublicJsonRpc &&
+                   invocationClientId == QStringLiteral("native-source"),
+               QStringLiteral("native commands must propagate PublicJsonRpc source and client id"));
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -1477,35 +1815,40 @@ int main(int argc, char *argv[]) {
     registrySpeakerB.setMixable(true);
     registrySpeakerV2.setMixable(true);
     registrySpeakerV2B.setMixable(true);
-    registrySpeakerA.setLocalizedNames(
-        {{QStringLiteral("en"), QStringLiteral("Localized Speaker A")}});
-    registrySpeakerV2.setLocalizedNames(
-        {{QStringLiteral("en"), QStringLiteral("Localized Speaker V2")}});
+    registrySpeakerA.setLocalizedNames({
+        {QStringLiteral("en"), QStringLiteral("Localized Speaker A")}
+    });
+    registrySpeakerV2.setLocalizedNames({
+        {QStringLiteral("en"), QStringLiteral("Localized Speaker V2")}
+    });
     auto registryLanguageEn = LanguageInfo(QStringLiteral("en"), QStringLiteral("English"),
                                            QStringLiteral("registry-g2p"));
-    registryLanguageEn.setLocalizedNames(
-        {{QStringLiteral("en"), QStringLiteral("Localized English")}});
+    registryLanguageEn.setLocalizedNames({
+        {QStringLiteral("en"), QStringLiteral("Localized English")}
+    });
     auto registryLanguageZh = LanguageInfo(QStringLiteral("zh"), QStringLiteral("Chinese"),
                                            QStringLiteral("registry-g2p"));
     auto registryLanguageJa = LanguageInfo(QStringLiteral("ja"), QStringLiteral("Japanese"),
                                            QStringLiteral("registry-g2p"));
-    registryLanguageJa.setLocalizedNames(
-        {{QStringLiteral("en"), QStringLiteral("Localized Japanese")}});
-    auto registrySinger = SingerInfo({QStringLiteral("registry-singer"),
-                                      QStringLiteral("registry-package"), QVersionNumber(1, 0)},
-                                     QStringLiteral("Registry Singer"),
-                                     {registrySpeakerA, registrySpeakerB},
-                                     {registryLanguageEn, registryLanguageZh},
-                                     QStringLiteral("en"));
-    registrySinger.setLocalizedNames(
-        {{QStringLiteral("en"), QStringLiteral("Localized Registry Singer")}});
-    auto registrySingerV2 = SingerInfo(
-        {QStringLiteral("registry-singer"), QStringLiteral("registry-package"),
-         QVersionNumber(2, 0)},
-        QStringLiteral("Registry Singer V2"), {registrySpeakerV2, registrySpeakerV2B},
-        {registryLanguageJa}, QStringLiteral("ja"));
-    registrySingerV2.setLocalizedNames(
-        {{QStringLiteral("en"), QStringLiteral("Localized Registry Singer V2")}});
+    registryLanguageJa.setLocalizedNames({
+        {QStringLiteral("en"), QStringLiteral("Localized Japanese")}
+    });
+    auto registrySinger =
+        SingerInfo({QStringLiteral("registry-singer"), QStringLiteral("registry-package"),
+                    QVersionNumber(1, 0)},
+                   QStringLiteral("Registry Singer"), {registrySpeakerA, registrySpeakerB},
+                   {registryLanguageEn, registryLanguageZh}, QStringLiteral("en"));
+    registrySinger.setLocalizedNames({
+        {QStringLiteral("en"), QStringLiteral("Localized Registry Singer")}
+    });
+    auto registrySingerV2 =
+        SingerInfo({QStringLiteral("registry-singer"), QStringLiteral("registry-package"),
+                    QVersionNumber(2, 0)},
+                   QStringLiteral("Registry Singer V2"), {registrySpeakerV2, registrySpeakerV2B},
+                   {registryLanguageJa}, QStringLiteral("ja"));
+    registrySingerV2.setLocalizedNames({
+        {QStringLiteral("en"), QStringLiteral("Localized Registry Singer V2")}
+    });
     QTemporaryDir privatePackageDirectory;
     expect(privatePackageDirectory.isValid(),
            QStringLiteral("private package fixture directory must be available"));
@@ -1514,13 +1857,16 @@ int main(int argc, char *argv[]) {
     registryPackage.version = QVersionNumber(1, 0);
     registryPackage.vendor = QStringLiteral("Registry Vendor");
     registryPackage.localizedVendor = {
-        {QStringLiteral("en"), QStringLiteral("Localized Registry Vendor")}};
+        {QStringLiteral("en"), QStringLiteral("Localized Registry Vendor")}
+    };
     registryPackage.description = QStringLiteral("Registry Description");
     registryPackage.localizedDescription = {
-        {QStringLiteral("en"), QStringLiteral("Localized Registry Description")}};
+        {QStringLiteral("en"), QStringLiteral("Localized Registry Description")}
+    };
     registryPackage.license = QStringLiteral("Registry License");
     registryPackage.localizedLicense = {
-        {QStringLiteral("en"), QStringLiteral("Localized Registry License")}};
+        {QStringLiteral("en"), QStringLiteral("Localized Registry License")}
+    };
     registryPackage.path = privatePackageDirectory.path();
     registryPackage.singers.append({
         .singerId = QStringLiteral("registry-singer"),
@@ -1972,19 +2318,19 @@ int main(int argc, char *argv[]) {
     fileServices.listProjectFormats = [] {
         return QList<Automation::ProjectFormatDto>{
             {
-                .id = QStringLiteral("dspx"),
-                .displayName = QStringLiteral("DSPX"),
-                .extensions = {QStringLiteral("*.dspx")},
-                .canOpen = true,
-                .canImport = true,
-            },
+             .id = QStringLiteral("dspx"),
+             .displayName = QStringLiteral("DSPX"),
+             .extensions = {QStringLiteral("*.dspx")},
+             .canOpen = true,
+             .canImport = true,
+             },
             {
-                .id = QStringLiteral("midi"),
-                .displayName = QStringLiteral("MIDI"),
-                .extensions = {QStringLiteral("*.mid"), QStringLiteral("*.midi")},
-                .canOpen = true,
-                .canImport = true,
-            },
+             .id = QStringLiteral("midi"),
+             .displayName = QStringLiteral("MIDI"),
+             .extensions = {QStringLiteral("*.mid"), QStringLiteral("*.midi")},
+             .canOpen = true,
+             .canImport = true,
+             },
         };
     };
     fileServices.exportMidi = [midiExportControl](AppModel *, const QString &path,
@@ -2002,21 +2348,22 @@ int main(int argc, char *argv[]) {
 
     int documentSaveCount = 0;
     Automation::DocumentRuntimeServices documentServices;
-    documentServices.saveProject =
-        [&documentSaveCount](const QString &path, AppModel *, QString &error) {
-            QFile file(path);
-            if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate) ||
-                file.write("registry-save") != 13) {
-                error = QStringLiteral("Registry save fixture could not be written");
-                return false;
-            }
-            ++documentSaveCount;
-            return true;
-        };
+    documentServices.saveProject = [&documentSaveCount](const QString &path, AppModel *,
+                                                        QString &error) {
+        QFile file(path);
+        if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate) ||
+            file.write("registry-save") != 13) {
+            error = QStringLiteral("Registry save fixture could not be written");
+            return false;
+        }
+        ++documentSaveCount;
+        return true;
+    };
 
     AutomationTestSupport::TestRuntime fixture(
         std::move(editorServices), std::move(documentServices), std::move(fileServices), {},
-        std::move(packageServices), {}, std::move(applicationServices), std::move(settingsServices));
+        std::move(packageServices), {}, std::move(applicationServices),
+        std::move(settingsServices));
     fixture.model().newProject();
     auto &runtime = fixture.runtime();
 
@@ -2031,9 +2378,9 @@ int main(int argc, char *argv[]) {
     limits.maximumGlobalInFlight = 8;
     limits.maximumBackgroundTasks = 1;
     Automation::AdmissionController admission(limits);
-    Automation::PublicAutomationRegistry registry(runtime, access, fileGuard, admission,
-                                                  hostServices(runtime, &projectInputControl,
-                                                               &audioPathUpdateControl));
+    Automation::PublicAutomationRegistry registry(
+        runtime, access, fileGuard, admission,
+        hostServices(runtime, &projectInputControl, &audioPathUpdateControl));
 
     verifyAudioPathUpdateRouting(registry, runtime, directory.path(), audioPathUpdateControl);
     verifyProjectInputGuards(registry, fileGuard, directory.path(), projectInputControl);
@@ -2056,7 +2403,10 @@ int main(int argc, char *argv[]) {
                    applicationInfo.get().value(QStringLiteral("version")).toString(),
            QStringLiteral("application.get_info must expose the host build identifier"));
 
-    const auto exitRequest = registry.invoke(QStringLiteral("application.request_exit"), {});
+    const auto exitRequest =
+        registry.invoke(QStringLiteral("application.request_exit"), {},
+                        {.clientId = QStringLiteral("json-rpc-lifecycle"),
+                         .source = Automation::InvocationSource::PublicJsonRpc});
     expect(exitRequest && exitRequest.get().value(QStringLiteral("accepted")).toBool() &&
                exitRequest.get().value(QStringLiteral("action")).toString() ==
                    QStringLiteral("exit") &&
@@ -2155,14 +2505,14 @@ int main(int argc, char *argv[]) {
             QStringLiteral("parameters.get"),
             QJsonObject{
                 {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()},
-                {QStringLiteral("clip_id"), publicEditingFixture->scalarClipId.value()          },
-                {QStringLiteral("name"), QStringLiteral("pitch")                               },
-                {QStringLiteral("layer"), QStringLiteral("edited")                             },
+                {QStringLiteral("clip_id"),     publicEditingFixture->scalarClipId.value()     },
+                {QStringLiteral("name"),        QStringLiteral("pitch")                        },
+                {QStringLiteral("layer"),       QStringLiteral("edited")                       },
                 {QStringLiteral("range"),
                  QJsonObject{
                      {QStringLiteral("start"), 400},
-                     {QStringLiteral("end"),   600},
-                 }                                                                              },
+                     {QStringLiteral("end"), 600},
+                 }                                                                             },
         });
         QJsonArray rangedNodes;
         if (rangedParameter) {
@@ -2176,8 +2526,7 @@ int main(int argc, char *argv[]) {
         }
         expect(seededParameter && rangedParameter && rangedNodes.size() == 3 &&
                    rangedNodes.first().toObject().value(QStringLiteral("position")).toInt() == 0 &&
-                   rangedNodes.last().toObject().value(QStringLiteral("position")).toInt() ==
-                       1000,
+                   rangedNodes.last().toObject().value(QStringLiteral("position")).toInt() == 1000,
                QStringLiteral("a ranged parameter query must preserve each intersecting anchor "
                               "curve as a complete shape"));
 
@@ -2193,8 +2542,8 @@ int main(int argc, char *argv[]) {
                 {QStringLiteral("range"),
                  QJsonObject{
                      {QStringLiteral("start"), std::numeric_limits<int>::max() - 1},
-                     {QStringLiteral("end"),   std::numeric_limits<int>::max()    },
-                 }                                                                          },
+                     {QStringLiteral("end"), std::numeric_limits<int>::max()},
+                 }                                                                             },
         });
         bool containsLongClip = false;
         if (rangedClips) {
@@ -2207,5 +2556,6 @@ int main(int argc, char *argv[]) {
                QStringLiteral("clip range filtering must use widened end arithmetic"));
     }
 
+    verifyHostCapabilityAndNativeJsonRpc(runtime, directory.path());
     return failures == 0 ? 0 : 1;
 }

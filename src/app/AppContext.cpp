@@ -42,12 +42,16 @@
 #include "Modules/Audio/subsystem/MidiSystem.h"
 #include "Modules/Audio/subsystem/OutputSystem.h"
 #include "Modules/Audio/utils/DeviceTester.h"
+#include <lite/GUI/Controls/Toast.h>
 #include "UI/Controls/LevelMeterManager.h"
+#include "Global/AppGlobal.h"
 
 #include <QCoreApplication>
 #include <QMetaObject>
+#include <QObject>
 #include <QSysInfo>
 #include <QThread>
+#include <QTimer>
 
 #if defined(WITH_DIRECT_MANIPULATION)
 #  include <QWDMHCore/DirectManipulationSystem.h>
@@ -72,9 +76,27 @@ struct DirectManipulationHolder {
 };
 #endif
 
+struct AppContext::GuiContext {
+    LevelMeterManager *levelMeterInstance = nullptr;
+    ClipboardController *clipboardInstance = nullptr;
+    TrackController *trackInstance = nullptr;
+    ClipController *clipInstance = nullptr;
+    EditorViewController *editorViewInstance = nullptr;
+    UndoRedoController *undoRedoInstance = nullptr;
+    PitchExtractController *pitchExtractInstance = nullptr;
+    MidiExtractController *midiExtractInstance = nullptr;
+    ProjectStatusController *projectStatusInstance = nullptr;
+    AppController *appInstance = nullptr;
+    DocumentWorkflowController *documentWorkflowInstance = nullptr;
+#if defined(WITH_DIRECT_MANIPULATION)
+    std::unique_ptr<DirectManipulationHolder> directManip;
+#endif
+};
+
 AppContext *AppContext::s_self = nullptr;
 
-AppContext::AppContext(std::unique_ptr<AppOptions> options) {
+AppContext::AppContext(std::unique_ptr<AppOptions> options, const AppHostMode hostMode)
+    : m_hostMode(hostMode) {
     s_self = this;
 
     // SingletonRegistry::create constructs each service (bypassing its private ctor via
@@ -152,8 +174,8 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
     };
     Automation::EditorRuntimeServices editorServices;
     editorServices.captureView = [this] {
-        return m_editorViewController ? m_editorViewController->captureState()
-                                      : std::optional<EditorViewState>();
+        auto *controller = guiEditorViewController();
+        return controller ? controller->captureState() : std::optional<EditorViewState>();
     };
     editorServices.captureStableState = [this] {
         const auto selectedClips = m_appStatus->selectedClips.get();
@@ -174,69 +196,79 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
         };
     };
     editorServices.restoreView = [this](const EditorViewState &state) {
-        return m_editorViewController && m_editorViewController->applyRestoreState(state);
+        auto *controller = guiEditorViewController();
+        return controller && controller->applyRestoreState(state);
     };
     editorServices.centerTrackPanel = [this](const double tick, const double trackIndex) {
-        return m_editorViewController &&
-               m_editorViewController->applyCenterTrackPanelAt(tick, trackIndex);
+        auto *controller = guiEditorViewController();
+        return controller && controller->applyCenterTrackPanelAt(tick, trackIndex);
     };
     editorServices.setTrackPanelScale = [this](const double horizontal, const double vertical) {
-        return m_editorViewController &&
-               m_editorViewController->applyTrackPanelScale(horizontal, vertical);
+        auto *controller = guiEditorViewController();
+        return controller && controller->applyTrackPanelScale(horizontal, vertical);
     };
     editorServices.setTrackPanelViewport = [this](const TrackPanelViewState &state) {
-        return m_editorViewController && m_editorViewController->applyTrackPanelViewport(state);
+        auto *controller = guiEditorViewController();
+        return controller && controller->applyTrackPanelViewport(state);
     };
     editorServices.setPanelVisibility = [this](const bool trackVisible, const bool bottomVisible) {
-        return m_editorViewController &&
-               m_editorViewController->applyPanelVisibility(trackVisible, bottomVisible);
+        auto *controller = guiEditorViewController();
+        return controller && controller->applyPanelVisibility(trackVisible, bottomVisible);
     };
     editorServices.showBottomPanelPage = [this](const QString &pageId) {
-        return m_editorViewController && m_editorViewController->applyBottomPanelPage(pageId);
+        auto *controller = guiEditorViewController();
+        return controller && controller->applyBottomPanelPage(pageId);
     };
     editorServices.showRegion = [this](const EditorViewGlobal::Region region) {
-        return m_editorViewController && m_editorViewController->applyShowRegion(region);
+        auto *controller = guiEditorViewController();
+        return controller && controller->applyShowRegion(region);
     };
     editorServices.focusRegion = [this](const EditorViewGlobal::Region region) {
-        return m_editorViewController && m_editorViewController->applyFocusRegion(region);
+        auto *controller = guiEditorViewController();
+        return controller && controller->applyFocusRegion(region);
     };
     editorServices.centerPianoRoll = [this](const double tick, const double keyIndex) {
-        return m_editorViewController &&
-               m_editorViewController->applyCenterPianoRollAt(tick, keyIndex);
+        auto *controller = guiEditorViewController();
+        return controller && controller->applyCenterPianoRollAt(tick, keyIndex);
     };
     editorServices.setPianoRollScale = [this](const double horizontal, const double vertical) {
-        return m_editorViewController &&
-               m_editorViewController->applyPianoRollScale(horizontal, vertical);
+        auto *controller = guiEditorViewController();
+        return controller && controller->applyPianoRollScale(horizontal, vertical);
     };
     editorServices.setClipEditorTimeViewport = [this](const double centerTick,
                                                       const double horizontalScale) {
-        return m_editorViewController &&
-               m_editorViewController->applyClipEditorTimeViewport(centerTick, horizontalScale);
+        auto *controller = guiEditorViewController();
+        return controller && controller->applyClipEditorTimeViewport(centerTick, horizontalScale);
     };
     editorServices.setPianoRollPitchViewport = [this](const double centerKeyIndex,
                                                       const double verticalScale) {
-        return m_editorViewController &&
-               m_editorViewController->applyPianoRollPitchViewport(centerKeyIndex, verticalScale);
+        auto *controller = guiEditorViewController();
+        return controller && controller->applyPianoRollPitchViewport(centerKeyIndex, verticalScale);
     };
     editorServices.setPianoRollEditMode = [this](const EditorViewGlobal::PianoRollEditMode mode) {
-        return m_editorViewController && m_editorViewController->applyPianoRollEditMode(mode);
+        auto *controller = guiEditorViewController();
+        return controller && controller->applyPianoRollEditMode(mode);
     };
     editorServices.setParameterForeground = [this](const ParamInfo::Name name) {
-        return m_editorViewController && m_editorViewController->applyParameterForeground(name);
+        auto *controller = guiEditorViewController();
+        return controller && controller->applyParameterForeground(name);
     };
     editorServices.setParameterBackground = [this](const ParamInfo::Name name) {
-        return m_editorViewController && m_editorViewController->applyParameterBackground(name);
+        auto *controller = guiEditorViewController();
+        return controller && controller->applyParameterBackground(name);
     };
     editorServices.swapParameters = [this] {
-        return m_editorViewController && m_editorViewController->applySwapParameters();
+        auto *controller = guiEditorViewController();
+        return controller && controller->applySwapParameters();
     };
     editorServices.setParameterEditMode = [this](const EditorViewGlobal::ParameterEditMode mode) {
-        return m_editorViewController && m_editorViewController->applyParameterEditMode(mode);
+        auto *controller = guiEditorViewController();
+        return controller && controller->applyParameterEditMode(mode);
     };
     editorServices.setParameterValueViewport = [this](const double centerRatio,
                                                       const double verticalScale) {
-        return m_editorViewController &&
-               m_editorViewController->applyParameterValueViewport(centerRatio, verticalScale);
+        auto *controller = guiEditorViewController();
+        return controller && controller->applyParameterValueViewport(centerRatio, verticalScale);
     };
     editorServices.setActiveClip = [this](const int clipId) {
         if (m_appStatus->activeClipId == clipId)
@@ -274,11 +306,13 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
             m_appStatus->pianoRollAutoPageTurnEnabled = enabled;
     };
     editorServices.focusVisibility = [this](const HistoryFocus &focus) {
-        return m_editorViewController ? m_editorViewController->focusVisibility(focus)
-                                      : HistoryFocusVisibility::Unavailable;
+        auto *controller = guiEditorViewController();
+        return controller ? controller->focusVisibility(focus)
+                          : HistoryFocusVisibility::Unavailable;
     };
     editorServices.revealFocus = [this](const HistoryFocus &focus, const bool finalize) {
-        return m_editorViewController && m_editorViewController->applyRevealFocus(focus, finalize);
+        auto *controller = guiEditorViewController();
+        return controller && controller->applyRevealFocus(focus, finalize);
     };
     Automation::ApplicationRuntimeServices applicationServices;
     applicationServices.info = [] {
@@ -292,27 +326,46 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
     applicationServices.requestTermination =
         [this](const Automation::ApplicationTerminationMode mode,
                const Automation::ApplicationTerminationSavePolicy savePolicy) {
-            if (!m_documentWorkflowController)
-                return Automation::ApplicationTerminationRequestResult::Unavailable;
-            const auto workflowMode = mode == Automation::ApplicationTerminationMode::Exit
-                                          ? TerminationMode::Exit
-                                          : TerminationMode::Restart;
-            const auto workflowPolicy =
-                savePolicy == Automation::ApplicationTerminationSavePolicy::Prompt
-                    ? TerminationSavePolicy::Prompt
+            auto *workflow = guiDocumentWorkflowController();
+            if (workflow) {
+                const auto workflowMode = mode == Automation::ApplicationTerminationMode::Exit
+                                              ? TerminationMode::Exit
+                                              : TerminationMode::Restart;
+                const auto workflowPolicy =
+                    savePolicy == Automation::ApplicationTerminationSavePolicy::Prompt
+                        ? TerminationSavePolicy::Prompt
                     : savePolicy == Automation::ApplicationTerminationSavePolicy::Discard
-                          ? TerminationSavePolicy::Discard
-                          : TerminationSavePolicy::RejectUnsaved;
-            switch (m_documentWorkflowController->requestTermination(workflowMode,
-                                                                     workflowPolicy)) {
-                case TerminationRequestResult::Accepted:
-                    return Automation::ApplicationTerminationRequestResult::Accepted;
-                case TerminationRequestResult::Busy:
-                    return Automation::ApplicationTerminationRequestResult::Busy;
-                case TerminationRequestResult::UnsavedChanges:
-                    return Automation::ApplicationTerminationRequestResult::UnsavedChanges;
+                        ? TerminationSavePolicy::Discard
+                        : TerminationSavePolicy::RejectUnsaved;
+                switch (workflow->requestTermination(workflowMode, workflowPolicy)) {
+                    case TerminationRequestResult::Accepted:
+                        return Automation::ApplicationTerminationRequestResult::Accepted;
+                    case TerminationRequestResult::Busy:
+                        return Automation::ApplicationTerminationRequestResult::Busy;
+                    case TerminationRequestResult::UnsavedChanges:
+                        return Automation::ApplicationTerminationRequestResult::UnsavedChanges;
+                }
+                return Automation::ApplicationTerminationRequestResult::Unavailable;
             }
-            return Automation::ApplicationTerminationRequestResult::Unavailable;
+
+            if (!m_coreRuntime || !QCoreApplication::instance())
+                return Automation::ApplicationTerminationRequestResult::Unavailable;
+            const auto document = m_coreRuntime->documentVersion();
+            if (m_coreRuntime->documentBusy(document.documentId))
+                return Automation::ApplicationTerminationRequestResult::Busy;
+            if (savePolicy != Automation::ApplicationTerminationSavePolicy::Discard &&
+                !m_historyManager->isOnSavePoint()) {
+                return Automation::ApplicationTerminationRequestResult::UnsavedChanges;
+            }
+
+            auto *application = QCoreApplication::instance();
+            const auto restart = mode == Automation::ApplicationTerminationMode::Restart;
+            QTimer::singleShot(0, application, [application, restart] {
+                if (restart)
+                    application->setProperty("restart", true);
+                application->quit();
+            });
+            return Automation::ApplicationTerminationRequestResult::Accepted;
         };
     m_coreRuntime = std::make_unique<Automation::CoreRuntime>(
         m_appModel, m_historyManager, std::move(documentServices), std::move(playbackServices),
@@ -322,34 +375,26 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
         Automation::createInferenceAutomationServices(), Automation::createFileAutomationServices(),
         Automation::createAudioExportAutomationServices(),
         Automation::createExtractionAutomationServices(m_appOptions, TaskManager::instance()),
-        std::move(applicationServices));
+        std::move(applicationServices),
+        m_hostMode == AppHostMode::Gui
+            ? std::optional<Automation::WindowId>(Automation::WindowId::create())
+            : std::nullopt);
 
     // L3: Runtime host must outlive the inference facade.
     m_synthrtEngine = SingletonRegistry::create<SynthrtEngine>();
     m_inferEngine = SingletonRegistry::create<InferEngine>();
     m_inferEngine->startInitialization();
 
-    // Level meter manager (depends on AppModel from L0)
-    m_levelMeterManager = SingletonRegistry::create<LevelMeterManager>(m_appModel);
-
-    // L4: Controllers (no construction-time cross-deps)
+    // L4: Core controllers (no construction-time cross-deps)
     m_audioDecodingController = SingletonRegistry::create<AudioDecodingController>();
-    m_clipboardController = SingletonRegistry::create<ClipboardController>();
-    m_trackController = SingletonRegistry::create<TrackController>();
-    m_clipController = SingletonRegistry::create<ClipController>();
-    m_editorViewController = SingletonRegistry::create<EditorViewController>();
-    m_undoRedoController = SingletonRegistry::create<UndoRedoController>();
-    m_pitchExtractController = SingletonRegistry::create<PitchExtractController>();
-    m_midiExtractController = SingletonRegistry::create<MidiExtractController>();
     m_editSessionManager = SingletonRegistry::create<EditSessionManager>();
 
-    // L5: Controllers with construction-time deps
+    // L5: Core controllers with construction-time deps
     m_playbackController = SingletonRegistry::create<PlaybackController>();
     m_playbackController->setLoopPreviewHandler(
         [status = m_appStatus](const LoopSettings &settings) {
             status->loopSettings.set(settings);
         });
-    m_projectStatusController = SingletonRegistry::create<ProjectStatusController>();
     // ProjectPackageResolver connects to AppModel + PackageManager + AppStatus
     m_projectPackageResolver = SingletonRegistry::create<ProjectPackageResolver>();
 
@@ -359,24 +404,106 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options) {
     // Audio system (replaces old AudioSystemContext)
     m_audio = std::make_unique<AudioSystemContext>();
 
-#if defined(WITH_DIRECT_MANIPULATION)
-    m_directManip = std::make_unique<DirectManipulationHolder>();
-#endif
+    initializeCommonWiring();
 
-    // L7: AppController (constructs last, destructs first)
-    // Its constructor calls initializeModules() which triggers instance() calls
-    // to InferEngine, ProjectPackageResolver, InferController, etc.
-    // — all already constructed above, so instance() will return valid pointers.
-    m_appController = SingletonRegistry::create<AppController>();
-    m_documentWorkflowController = SingletonRegistry::create<DocumentWorkflowController>();
+    if (m_hostMode == AppHostMode::Gui) {
+        m_guiContext = std::make_unique<GuiContext>();
+
+        // GUI composition is deliberately created only after every core service is available.
+        m_guiContext->levelMeterInstance = SingletonRegistry::create<LevelMeterManager>(m_appModel);
+        m_guiContext->clipboardInstance = SingletonRegistry::create<ClipboardController>();
+        m_guiContext->trackInstance = SingletonRegistry::create<TrackController>();
+        m_guiContext->clipInstance = SingletonRegistry::create<ClipController>();
+        m_guiContext->editorViewInstance = SingletonRegistry::create<EditorViewController>();
+        m_guiContext->undoRedoInstance = SingletonRegistry::create<UndoRedoController>();
+        m_guiContext->pitchExtractInstance = SingletonRegistry::create<PitchExtractController>();
+        m_guiContext->midiExtractInstance = SingletonRegistry::create<MidiExtractController>();
+        m_guiContext->projectStatusInstance = SingletonRegistry::create<ProjectStatusController>();
+#if defined(WITH_DIRECT_MANIPULATION)
+        m_guiContext->directManip = std::make_unique<DirectManipulationHolder>();
+#endif
+        m_guiContext->appInstance = SingletonRegistry::create<AppController>();
+        m_guiContext->documentWorkflowInstance =
+            SingletonRegistry::create<DocumentWorkflowController>();
+        m_audioDecodingController->setGuiServices(
+            m_guiContext->documentWorkflowInstance,
+            [](const QString &message) { Toast::show(message); });
+    }
+}
+
+AppHostMode AppContext::hostMode() const {
+    return m_hostMode;
+}
+
+bool AppContext::hasGui() const {
+    return m_guiContext != nullptr;
+}
+
+bool AppContext::initializeDefaultDocument(QString *error) {
+    const auto draft = Automation::DocumentAutomationFacade::newDocumentDraft(true);
+    const auto result = m_coreRuntime->documents().commitNewDocument(
+        {.expected = m_coreRuntime->documentVersion(),
+         .source = Automation::InvocationSource::InternalAutomation},
+        draft);
+    if (result)
+        return true;
+    if (error)
+        *error = result.getError().message;
+    return false;
+}
+
+void AppContext::initializeCommonWiring() {
+    // Push app-provided new-track defaults into the model for both GUI and QCore hosts.
+    m_appModel->setPaletteColorCount(AppGlobal::paletteColorCount);
+    const auto pushModelDefaults = [model = m_appModel, options = m_appOptions] {
+        model->setDefaultSingingLanguage(options->general()->defaultSingingLanguage);
+    };
+    pushModelDefaults();
+    QObject::connect(m_appOptions, &AppOptions::optionsChanged, m_appModel,
+                     [pushModelDefaults](const AppOptionsGlobal::Option option) {
+                         if (option == AppOptionsGlobal::All || option == AppOptionsGlobal::General)
+                             pushModelDefaults();
+                     });
+
+    // Map the package library lifecycle onto AppStatus without involving GUI composition.
+    QObject::connect(m_packageManager, &PackageManager::moduleStatusChanged, m_appStatus,
+                     [status = m_appStatus](const PackageManager::ModuleStatus moduleStatus) {
+                         status->packageModuleStatus = [moduleStatus] {
+                             switch (moduleStatus) {
+                                 case PackageManager::ModuleStatus::Loading:
+                                     return AppStatus::ModuleStatus::Loading;
+                                 case PackageManager::ModuleStatus::Ready:
+                                     return AppStatus::ModuleStatus::Ready;
+                                 case PackageManager::ModuleStatus::Error:
+                                     return AppStatus::ModuleStatus::Error;
+                             }
+                             return AppStatus::ModuleStatus::Unknown;
+                         }();
+                     });
+
+    QObject::connect(m_appModel, &AppModel::modelChanged, m_audioDecodingController,
+                     &AudioDecodingController::onModelChanged);
+    QObject::connect(m_appModel, &AppModel::trackChanged, m_audioDecodingController,
+                     &AudioDecodingController::onTrackChanged);
+}
+
+EditorViewController *AppContext::guiEditorViewController() const {
+    return m_guiContext ? m_guiContext->editorViewInstance : nullptr;
+}
+
+DocumentWorkflowController *AppContext::guiDocumentWorkflowController() const {
+    return m_guiContext ? m_guiContext->documentWorkflowInstance : nullptr;
 }
 
 AppContext::~AppContext() {
-    // Reverse order of construction.
-    SingletonRegistry::destroy(m_documentWorkflowController);
+    // Reverse order of construction. GUI services are absent in the QCore host.
+    if (m_guiContext) {
+        m_audioDecodingController->setGuiServices(nullptr);
+        SingletonRegistry::destroy(m_guiContext->documentWorkflowInstance);
 
-    // L7: AppController dies while MainWindow is still on the stack.
-    SingletonRegistry::destroy(m_appController);
+        // GUI controllers outlive MainWindow teardown and are released before core services.
+        SingletonRegistry::destroy(m_guiContext->appInstance);
+    }
 
     // Runtime users must finish before controllers and the runtime host are destroyed.
     const auto appThread = QCoreApplication::instance()->thread();
@@ -400,7 +527,8 @@ AppContext::~AppContext() {
     m_audio.reset();
 
 #if defined(WITH_DIRECT_MANIPULATION)
-    m_directManip.reset();
+    if (m_guiContext)
+        m_guiContext->directManip.reset();
 #endif
 
     // L6
@@ -408,18 +536,21 @@ AppContext::~AppContext() {
 
     // L5 (reverse)
     SingletonRegistry::destroy(m_projectPackageResolver);
-    SingletonRegistry::destroy(m_projectStatusController);
+    if (m_guiContext)
+        SingletonRegistry::destroy(m_guiContext->projectStatusInstance);
     SingletonRegistry::destroy(m_playbackController);
 
     // L4 (reverse)
     SingletonRegistry::destroy(m_editSessionManager);
-    SingletonRegistry::destroy(m_midiExtractController);
-    SingletonRegistry::destroy(m_pitchExtractController);
-    SingletonRegistry::destroy(m_undoRedoController);
-    SingletonRegistry::destroy(m_editorViewController);
-    SingletonRegistry::destroy(m_clipController);
-    SingletonRegistry::destroy(m_trackController);
-    SingletonRegistry::destroy(m_clipboardController);
+    if (m_guiContext) {
+        SingletonRegistry::destroy(m_guiContext->midiExtractInstance);
+        SingletonRegistry::destroy(m_guiContext->pitchExtractInstance);
+        SingletonRegistry::destroy(m_guiContext->undoRedoInstance);
+        SingletonRegistry::destroy(m_guiContext->editorViewInstance);
+        SingletonRegistry::destroy(m_guiContext->clipInstance);
+        SingletonRegistry::destroy(m_guiContext->trackInstance);
+        SingletonRegistry::destroy(m_guiContext->clipboardInstance);
+    }
     SingletonRegistry::destroy(m_audioDecodingController);
 
     // Runtime-owned workers must stop before the services they use are destroyed.
@@ -430,7 +561,9 @@ AppContext::~AppContext() {
     SingletonRegistry::destroy(m_synthrtEngine);
 
     // Level meter manager (depends on AppModel, must die before L0)
-    SingletonRegistry::destroy(m_levelMeterManager);
+    if (m_guiContext)
+        SingletonRegistry::destroy(m_guiContext->levelMeterInstance);
+    m_guiContext.reset();
 
     // L1 (reverse)
     SingletonRegistry::destroy(m_packageManager);
@@ -500,37 +633,37 @@ AudioDecodingController *AppContext::instance() {
 
 template <>
 ClipboardController *AppContext::instance() {
-    return s_self ? s_self->m_clipboardController : nullptr;
+    return s_self && s_self->m_guiContext ? s_self->m_guiContext->clipboardInstance : nullptr;
 }
 
 template <>
 TrackController *AppContext::instance() {
-    return s_self ? s_self->m_trackController : nullptr;
+    return s_self && s_self->m_guiContext ? s_self->m_guiContext->trackInstance : nullptr;
 }
 
 template <>
 ClipController *AppContext::instance() {
-    return s_self ? s_self->m_clipController : nullptr;
+    return s_self && s_self->m_guiContext ? s_self->m_guiContext->clipInstance : nullptr;
 }
 
 template <>
 EditorViewController *AppContext::instance() {
-    return s_self ? s_self->m_editorViewController : nullptr;
+    return s_self && s_self->m_guiContext ? s_self->m_guiContext->editorViewInstance : nullptr;
 }
 
 template <>
 UndoRedoController *AppContext::instance() {
-    return s_self ? s_self->m_undoRedoController : nullptr;
+    return s_self && s_self->m_guiContext ? s_self->m_guiContext->undoRedoInstance : nullptr;
 }
 
 template <>
 PitchExtractController *AppContext::instance() {
-    return s_self ? s_self->m_pitchExtractController : nullptr;
+    return s_self && s_self->m_guiContext ? s_self->m_guiContext->pitchExtractInstance : nullptr;
 }
 
 template <>
 MidiExtractController *AppContext::instance() {
-    return s_self ? s_self->m_midiExtractController : nullptr;
+    return s_self && s_self->m_guiContext ? s_self->m_guiContext->midiExtractInstance : nullptr;
 }
 
 template <>
@@ -545,7 +678,7 @@ PlaybackController *AppContext::instance() {
 
 template <>
 ProjectStatusController *AppContext::instance() {
-    return s_self ? s_self->m_projectStatusController : nullptr;
+    return s_self && s_self->m_guiContext ? s_self->m_guiContext->projectStatusInstance : nullptr;
 }
 
 template <>
@@ -560,17 +693,18 @@ InferController *AppContext::instance() {
 
 template <>
 AppController *AppContext::instance() {
-    return s_self ? s_self->m_appController : nullptr;
+    return s_self && s_self->m_guiContext ? s_self->m_guiContext->appInstance : nullptr;
 }
 
 template <>
 DocumentWorkflowController *AppContext::instance() {
-    return s_self ? s_self->m_documentWorkflowController : nullptr;
+    return s_self && s_self->m_guiContext ? s_self->m_guiContext->documentWorkflowInstance
+                                          : nullptr;
 }
 
 template <>
 LevelMeterManager *AppContext::instance() {
-    return s_self ? s_self->m_levelMeterManager : nullptr;
+    return s_self && s_self->m_guiContext ? s_self->m_guiContext->levelMeterInstance : nullptr;
 }
 
 template <>

@@ -16,6 +16,8 @@ namespace Automation {
                 return QStringLiteral("revision_conflict");
             case AutomationErrorCode::IdempotencyConflict:
                 return QStringLiteral("idempotency_conflict");
+            case AutomationErrorCode::ToolUnavailable:
+                return QStringLiteral("tool_unavailable");
             case AutomationErrorCode::OperationUnavailable:
                 return QStringLiteral("operation_unavailable");
             case AutomationErrorCode::HostCapabilityUnavailable:
@@ -114,10 +116,10 @@ namespace Automation {
     }
 
     AutomationResult<DocumentVersion>
-        rebaseTaskVersionWithinGeneration(const DocumentVersion &taskVersion,
-                                          const DocumentVersion &currentVersion) {
-        if (taskVersion.documentId != currentVersion.documentId)
-            return AutomationError::documentChanged(taskVersion.documentId,
+        rebaseDocumentVersionWithinGeneration(const DocumentVersion &generationAnchor,
+                                              const DocumentVersion &currentVersion) {
+        if (generationAnchor.documentId != currentVersion.documentId)
+            return AutomationError::documentChanged(generationAnchor.documentId,
                                                     currentVersion.documentId);
         return currentVersion;
     }

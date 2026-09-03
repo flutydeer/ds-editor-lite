@@ -4,6 +4,7 @@ lite_add_test(${PROJECT_NAME}
     SOURCES
         main.cpp
         ../../app/Automation/Mcp/McpRequestDispatcher.cpp
+        ../../app/Automation/Native/NativeJsonRpcDispatcher.cpp
         ../../app/Automation/Public/AdmissionController.cpp
         ../../app/Automation/Public/AutomationAccessPolicy.cpp
         ../../app/Automation/Public/AutomationFileGuard.cpp

@@ -2,16 +2,30 @@
 
 namespace Automation {
 
-    SingleWindowContext::SingleWindowContext() : m_windowId(WindowId::create()) {
+    SingleWindowContext::SingleWindowContext() : SingleWindowContext(WindowId::create()) {
     }
 
-    const WindowId &SingleWindowContext::windowId() const {
+    SingleWindowContext::SingleWindowContext(std::optional<WindowId> windowId)
+        : m_windowId(std::move(windowId)) {
+        if (m_windowId && m_windowId->isNull())
+            m_windowId.reset();
+    }
+
+    const std::optional<WindowId> &SingleWindowContext::windowId() const {
         return m_windowId;
     }
 
     AutomationResult<AutomationUnit>
         SingleWindowContext::validateWindow(const WindowId &requested) const {
-        if (requested == m_windowId)
+        if (!m_windowId) {
+            AutomationError error;
+            error.code = AutomationErrorCode::HostCapabilityUnavailable;
+            error.fieldPath = QStringLiteral("window_id");
+            error.message = QStringLiteral("This host does not provide a window");
+            return error;
+        }
+
+        if (requested == *m_windowId)
             return AutomationUnit{};
 
         AutomationError error;

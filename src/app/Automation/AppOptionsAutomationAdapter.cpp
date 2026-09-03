@@ -19,6 +19,8 @@
 #include <TalcsDevice/AudioDriver.h>
 #include <TalcsDevice/AudioDriverManager.h>
 
+#include <QCoreApplication>
+#include <QGuiApplication>
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QSet>
@@ -30,6 +32,10 @@
 namespace Automation {
     namespace {
         constexpr int kSpeakerMixPresetSchemaVersion = 1;
+
+        bool hasGuiApplication() {
+            return qobject_cast<QGuiApplication *>(QCoreApplication::instance()) != nullptr;
+        }
 
         GeneralSettingsDto captureGeneral(AppOptions *options) {
             const auto *value = options->general();
@@ -729,15 +735,21 @@ namespace Automation {
                 .languageCandidates = std::move(languageCandidates),
             };
             auto effectiveTheme = effectiveSettings.appearance.themeId;
-            if (auto *themeManager = ThemeManager::instance();
-                !themeManager->currentThemeId().isEmpty())
-                effectiveTheme = themeManager->currentThemeId();
+            if (hasGuiApplication()) {
+                if (auto *themeManager = ThemeManager::instance();
+                    !themeManager->currentThemeId().isEmpty()) {
+                    effectiveTheme = themeManager->currentThemeId();
+                }
+            }
             result.theme = ThemePublicSettingsDto{
                 .configured = configured.appearance.themeId,
                 .effective = effectiveTheme,
                 .candidates = {settingsCandidate(ThemeIds::systemThemePreferenceId()),
                                settingsCandidate(ThemeIds::lightThemePreferenceId()),
                                settingsCandidate(ThemeIds::darkThemePreferenceId())},
+                .unavailableReason = hasGuiApplication()
+                                         ? QString{}
+                                         : QStringLiteral("Theme UI is unavailable in this host"),
             };
             result.audioDevice = AudioDevicePublicSettingsDto{
                 .configured = publicAudioValue(configured.audio),
@@ -1177,7 +1189,7 @@ namespace Automation {
         };
         services.applyTheme = [options, effectiveSettings](const AppearanceSettingsDto &value) {
             const auto previous = captureAppearance(options);
-            auto *manager = ThemeManager::instance();
+            auto *manager = hasGuiApplication() ? ThemeManager::instance() : nullptr;
             if (manager && value.themeId != previous.themeId &&
                 !manager->applyThemePreference(value.themeId)) {
                 return AutomationResult<AutomationUnit>(runtimeApplyError(

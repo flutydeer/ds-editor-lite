@@ -40,6 +40,7 @@ namespace Automation {
 
     struct PublicInvocationContext {
         QString clientId;
+        InvocationSource source = InvocationSource::PublicMcp;
     };
 
     using PublicProjectInputRevalidator =
