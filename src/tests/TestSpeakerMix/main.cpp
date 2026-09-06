@@ -1,6 +1,7 @@
 #include <lite/ProjectModel/AppModel/SpeakerMixData.h>
 #include <lite/MusicBase/Timeline.h>
 #include <lite/ProjectModel/InferenceData/InferSpeakerMix.h>
+#include "UI/Utils/OverlappingHandleResolver.h"
 #include "UI/Utils/SpeakerMixUtils.h"
 
 #include <QCoreApplication>
@@ -87,6 +88,14 @@ namespace {
 
     bool testOverlappingSplitResolution() {
         bool ok = true;
+
+        const QVector<double> positions{10.0, 10.0, 10.0, 20.0};
+        ok &= expect(OverlappingHandleResolver::resolve(positions, 1, -4.0) == 0,
+                     "generic resolver chooses the leftmost overlapping handle");
+        ok &= expect(OverlappingHandleResolver::resolve(positions, 1, 4.0) == 2,
+                     "generic resolver chooses the rightmost overlapping handle");
+        ok &= expect(OverlappingHandleResolver::resolve(positions, 3, -4.0) == 3,
+                     "generic resolver keeps a separate handle");
 
         const QVector<double> leadingZeros{0.0, 0.0, 0.4, 0.6};
         ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(leadingZeros, 0, 0.1) == 1,

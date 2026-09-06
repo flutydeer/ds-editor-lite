@@ -21,6 +21,7 @@ public:
     bool hasUnit() const;
     virtual QString valueToString(int value, bool withUnit, int precision = 3) const;
     virtual int valueFromNormalized(double normalized) const;
+    virtual double valueFromNormalizedDouble(double normalized) const;
     virtual double valueToNormalized(int value) const;
     explicit ParamProperties();
     virtual ~ParamProperties() = default;
@@ -39,14 +40,14 @@ public:
 class DecibelParamProperties final : public ParamProperties {
 public:
     explicit DecibelParamProperties();
-    int valueFromNormalized(double normalized) const override;
+    double valueFromNormalizedDouble(double normalized) const override;
     double valueToNormalized(int value) const override;
 };
 
 class TensionParamProperties final : public ParamProperties {
 public:
     explicit TensionParamProperties();
-    int valueFromNormalized(double normalized) const override;
+    double valueFromNormalizedDouble(double normalized) const override;
     double valueToNormalized(int value) const override;
 };
 

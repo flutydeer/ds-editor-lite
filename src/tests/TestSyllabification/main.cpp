@@ -1,5 +1,8 @@
 #include "Modules/Inference/Models/InferInputNote.h"
+#include "Modules/Inference/Models/InferInputBase.h"
+#include "Modules/Inference/Models/GenericInferModel.h"
 #include "Modules/Inference/Tasks/Syllabification.h"
+#include "Modules/Inference/Utils/InferTaskHelper.h"
 #include "Model/AppModel/SingingClipPhonemeNormalizer.h"
 
 #include <lite/MusicBase/Timeline.h>
@@ -143,6 +146,19 @@ namespace {
         expect(stored.at(0) == rootPhonemes.offsetSeq.edited && stored.at(1).isEmpty() &&
                    stored.at(2).isEmpty(),
                "detached syllabification notes do not merge offsets into the root");
+    }
+
+    void testBuildWordsRejectsPendingOffsets() {
+        Note note;
+        configureNote(note, 0, "word");
+        Phonemes phonemes;
+        phonemes.nameSeq.edited = {phone("w", true), phone("er", false)};
+        note.setPhonemes(phonemes);
+
+        InferInputBase input;
+        input.notes = {InferInputNote(note)};
+        expect(InferTaskHelper::buildWords(input, true).isEmpty(),
+               "word construction waits for phoneme offsets to match phoneme names");
     }
 
     void testEditingEligibility() {
@@ -376,6 +392,7 @@ int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
     testRanges();
     testStorageAndInferenceRoundTrip();
+    testBuildWordsRejectsPendingOffsets();
     testDetachedSyllabificationNotesStayOrphaned();
     testEditingEligibility();
     testRelativeTimingChangeInvalidatesEditedOffsets();

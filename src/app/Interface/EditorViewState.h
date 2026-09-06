@@ -16,7 +16,8 @@ namespace EditorViewGlobal {
         DrawPitch,
         EditPitchAnchor,
         ErasePitch,
-        BakePitch
+        BakePitch,
+        ModulatePitch
     };
 
     enum class Region {
@@ -30,12 +31,14 @@ namespace EditorViewGlobal {
         Draw,
         Erase,
         Bake,
+        Shape,
+        Scale,
         Anchor,
     };
 
     [[nodiscard]] constexpr bool isPitchEditMode(const PianoRollEditMode mode) noexcept {
         return mode == DrawPitch || mode == EditPitchAnchor || mode == ErasePitch ||
-               mode == BakePitch;
+               mode == BakePitch || mode == ModulatePitch;
     }
 
 } // namespace EditorViewGlobal

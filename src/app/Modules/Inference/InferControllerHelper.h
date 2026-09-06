@@ -19,6 +19,7 @@ class InferPiece;
 class Note;
 class SingingClip;
 class InferInputNote;
+class InferInputBase;
 class Timeline;
 
 using DurInput = InferDurationTask::InferDurInput;
@@ -38,6 +39,7 @@ namespace InferControllerHelper {
     };
 
     QList<InferInputNote> buildInferInputNotes(const QList<Note *> &notes);
+    InferInputBase buildInferBaseInput(const InferPiece &piece, const SingerIdentifier &identifier);
     DurInput buildInferDurInput(const InferPiece &piece, const SingerIdentifier &identifier);
     PitchInput buildInferPitchInput(const InferPiece &piece, const SingerIdentifier &identifier);
     VarianceInput buildInferVarianceInput(const InferPiece &piece,

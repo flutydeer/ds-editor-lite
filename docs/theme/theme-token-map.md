@@ -197,6 +197,13 @@ Mute/Solo 可覆盖 checked 色相；未覆盖的状态继续使用通用矩阵�
 | `editor.selection.fill` | 编辑器框选填充 |
 | `editor.splitLine` | 切分/破坏性编辑预览线 |
 | `editor.trackHover` | 轨道列表行悬停填充 |
+| `editor.transform.boundary` | 参数/音高变换工具边界线（默认态） |
+| `editor.transform.boundaryHover` | 变换边界线悬停态 |
+| `editor.transform.shoulderFill` | 变换选区两端 shoulder 区填充 |
+| `editor.transform.targetFill` | 变换选区中段 target 区填充 |
+| `editor.transform.handleFill` | 变换百分比手柄填充 |
+| `editor.transform.handleBorder` | 变换百分比手柄描边 |
+| `editor.transform.handleText` | 变换手柄百分比文字 |
 | `piano.key.white` | 左侧钢琴白键 |
 | `piano.key.black` | 左侧钢琴黑键 |
 | `piano.key.divider` | 钢琴键分隔线 |

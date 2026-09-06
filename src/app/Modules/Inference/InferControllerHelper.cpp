@@ -129,6 +129,13 @@ namespace InferControllerHelper {
         return list;
     }
 
+    InferInputBase buildInferBaseInput(const InferPiece &piece,
+                                       const SingerIdentifier &identifier) {
+        InferInputBase input;
+        populateBaseInput(input, piece, identifier);
+        return input;
+    }
+
     DurInput buildInferDurInput(const InferPiece &piece, const SingerIdentifier &identifier) {
         DurInput input;
         populateBaseInput(input, piece, identifier);

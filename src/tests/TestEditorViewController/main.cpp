@@ -45,7 +45,7 @@ namespace {
                (state.layout.bottomPanelPageId == QStringLiteral("ClipEditor") ||
                 state.layout.bottomPanelPageId == QStringLiteral("MixConsole")) &&
                state.pianoRoll.editMode >= EditorViewGlobal::Select &&
-               state.pianoRoll.editMode <= EditorViewGlobal::ErasePitch &&
+               state.pianoRoll.editMode <= EditorViewGlobal::ModulatePitch &&
                finite(state.trackPanel.centerTick) && finite(state.trackPanel.centerTrackIndex) &&
                finite(state.trackPanel.horizontalScale) && finite(state.trackPanel.verticalScale) &&
                state.trackPanel.horizontalScale > 0 && state.trackPanel.verticalScale > 0 &&
@@ -192,7 +192,7 @@ namespace {
         }
 
         bool setPianoRollEditMode(const EditorViewGlobal::PianoRollEditMode mode) override {
-            if (mode < EditorViewGlobal::Select || mode > EditorViewGlobal::BakePitch)
+            if (mode < EditorViewGlobal::Select || mode > EditorViewGlobal::ModulatePitch)
                 return false;
             state.pianoRoll.editMode = mode;
             return true;
@@ -356,8 +356,9 @@ namespace {
         };
         expect(supportsNoCommands(EditorViewGlobal::DrawPitch) &&
                    supportsNoCommands(EditorViewGlobal::ErasePitch) &&
-                   supportsNoCommands(EditorViewGlobal::BakePitch),
-               "pitch drawing, erasing, and baking must reject note edit commands");
+                   supportsNoCommands(EditorViewGlobal::BakePitch) &&
+                   supportsNoCommands(EditorViewGlobal::ModulatePitch),
+               "pitch drawing, erasing, baking, and modulation must reject note edit commands");
         expect(!EditorInteraction::supportsCommand(Target::PianoRoll, Command::Cut,
                                                    EditorViewGlobal::EditPitchAnchor) &&
                    !EditorInteraction::supportsCommand(Target::PianoRoll, Command::Copy,
@@ -407,8 +408,17 @@ namespace {
         controller->requestEditCommand(EditorInteraction::Command::DeleteSelection);
         expect(commandCount == 1, "pitch drawing must not dispatch note edit commands");
 
-        controller->syncPianoRollEditMode(EditorViewGlobal::EditPitchAnchor);
+        controller->syncPianoRollEditMode(EditorViewGlobal::ModulatePitch);
         expect(capabilityChangeCount == 2 &&
+                   !controller->supportsEditCommand(EditorInteraction::Command::SelectAll) &&
+                   !controller->supportsEditCommand(EditorInteraction::Command::DeleteSelection),
+               "entering pitch modulation must publish disabled note command capabilities");
+        controller->requestEditCommand(EditorInteraction::Command::SelectAll);
+        controller->requestEditCommand(EditorInteraction::Command::DeleteSelection);
+        expect(commandCount == 1, "pitch modulation must not dispatch note edit commands");
+
+        controller->syncPianoRollEditMode(EditorViewGlobal::EditPitchAnchor);
+        expect(capabilityChangeCount == 3 &&
                    controller->supportsEditCommand(EditorInteraction::Command::DeleteSelection),
                "pitch anchor mode must publish anchor deletion capability");
         controller->requestEditCommand(EditorInteraction::Command::DeleteSelection);
@@ -440,7 +450,7 @@ namespace {
                "stable bottom page IDs must be forwarded");
         expect(controller->centerPianoRollAt(1440, 72.5), "piano-roll centering must be forwarded");
         expect(controller->setPianoRollScale(1.25, 2.25), "piano-roll scaling must be forwarded");
-        expect(controller->setPianoRollEditMode(EditorViewGlobal::ErasePitch),
+        expect(controller->setPianoRollEditMode(EditorViewGlobal::ModulatePitch),
                "tool switching must be forwarded");
         controller->refreshActiveClipTrackPresentation();
         controller->previewActiveClipTrackColor(7);
@@ -467,7 +477,7 @@ namespace {
                "piano-roll semantic center must reach the view");
         expect(view.state.pianoRoll.horizontalScale == 1.25 &&
                    view.state.pianoRoll.verticalScale == 2.25 &&
-                   view.state.pianoRoll.editMode == EditorViewGlobal::ErasePitch,
+                   view.state.pianoRoll.editMode == EditorViewGlobal::ModulatePitch,
                "piano-roll scale and tool must reach the view");
         expect(view.refreshCount == 1 && view.previewCount == 1 && view.previewColorIndex == 7,
                "track presentation operations must be forwarded");

@@ -124,6 +124,7 @@ private:
     void publishAnchors(const QList<AnchorCurve *> &curves);
     void finishAnchorEditSession(AnchorEditor::EditFinishReason reason);
     void onAnchorStateChanged();
+    void refreshCurveTransformMode();
 
     bool m_debugMode = false;
     bool m_speakerMixMode = false;

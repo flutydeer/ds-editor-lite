@@ -86,6 +86,16 @@ namespace {
                      "gender does not show the bake tool");
         ok &= expect(!isParamEditorEditModeVisible(ParamEditorEditMode::Bake, ParamInfo::Velocity),
                      "velocity does not show the bake tool");
+        ok &= expect(isParamEditorEditModeVisible(ParamEditorEditMode::Shape,
+                                                  ParamInfo::Breathiness) &&
+                         isParamEditorEditModeVisible(ParamEditorEditMode::Scale,
+                                                      ParamInfo::MouthOpening),
+                     "transformable parameters show curve transform tools");
+        ok &= expect(!isParamEditorEditModeVisible(ParamEditorEditMode::Shape,
+                                                   ParamInfo::Gender) &&
+                         !isParamEditorEditModeVisible(ParamEditorEditMode::Scale,
+                                                       ParamInfo::Velocity),
+                     "offset parameters do not show curve transform tools");
         ok &= expect(isParamEditorEditModeVisible(ParamEditorEditMode::Draw, ParamInfo::Velocity) &&
                          isParamEditorEditModeVisible(ParamEditorEditMode::Erase,
                                                       ParamInfo::Velocity) &&

@@ -7,6 +7,7 @@ lite_add_test(${PROJECT_NAME}
         ../../libs/ProjectModel/InferenceData/InferSpeakerMix.cpp
         ../../libs/ProjectModel/Voice/SpeakerInfo.cpp
         ../../app/UI/Utils/SpeakerMixUtils.cpp
+        ../../app/UI/Utils/OverlappingHandleResolver.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

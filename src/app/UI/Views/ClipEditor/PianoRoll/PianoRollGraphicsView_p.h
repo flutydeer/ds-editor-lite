@@ -2,6 +2,7 @@
 #define PIANOROLLGRAPHICSVIEW_P_H
 
 #include "NoteLyricToolTipController.h"
+#include "UI/Views/ClipEditor/CurveTransform/PitchCurveTransformContext.h"
 
 #include <lite/ProjectModel/AppModel/Params.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
@@ -52,6 +53,7 @@ public:
     PitchEditorView *m_pitchEditor = nullptr;
     bool m_pitchEditSessionActive = false;
     quint64 m_pitchEditSessionId = 0;
+    CurveTransform::PitchContext m_pitchTransformContext;
     AnchorOverlayView *m_anchorEditor = nullptr;
     ClipRangeOverlay *m_clipRangeOverlay = nullptr;
     // Applied to the lazily-created SplitLineIndicator on each tool activation
@@ -82,7 +84,7 @@ public:
 
     void updatePitch(Param::Type paramType, const Param &param) const;
 
-    void setPitchEditMode(bool on, bool isErase, bool isBake = false);
+    void setPitchEditMode(bool on, bool isErase, bool isBake = false, bool isScale = false);
     [[nodiscard]] NoteView *noteViewAt(const QPoint &pos);
     [[nodiscard]] PronunciationView *pronViewAt(const QPoint &pos);
     [[nodiscard]] NoteView *findNoteViewById(int id) const;

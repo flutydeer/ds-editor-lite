@@ -4,6 +4,20 @@
 #include <lite/ProjectModel/AppModel/Curve.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
 
+namespace {
+    bool isExistingSinglePointDrawCurve(const DrawCurve &replacement,
+                                        const QList<Curve *> &existing) {
+        for (const auto *curve : existing) {
+            if (!curve || curve->type() != Curve::Draw)
+                continue;
+            const auto *draw = static_cast<const DrawCurve *>(curve);
+            if (draw->values().size() == 1 && *draw == replacement)
+                return true;
+        }
+        return false;
+    }
+}
+
 bool AnchorEditor::isCompleteAnchorCurve(const AnchorCurve *curve) {
     return curve && curve->nodes().toList().size() >= 2;
 }
@@ -26,8 +40,10 @@ QList<Curve *> AnchorEditor::replaceDrawCurves(const QList<Curve *> &existing,
                                                const QList<DrawCurve *> &replacementDrawCurves) {
     QList<Curve *> result;
     for (const auto *curve : replacementDrawCurves) {
-        if (curve && curve->values().size() >= 2)
+        if (curve && (curve->values().size() >= 2 ||
+                      isExistingSinglePointDrawCurve(*curve, existing))) {
             result.append(new DrawCurve(*curve));
+        }
     }
     for (const auto *curve : existing) {
         if (curve && curve->type() == Curve::Anchor) {

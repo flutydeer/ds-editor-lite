@@ -151,6 +151,8 @@
         <file>svg/icons/eraser_24_filled.svg</file>
         <file>svg/icons/beam_24_filled.svg</file>
         <file>svg/icons/draw_shape_24_filled.svg</file>
+        <file>svg/icons/param_shape_24_filled.svg</file>
+        <file>svg/icons/param_scale_24_filled.svg</file>
         <file>svg/icons/brush_24_filled.svg</file>
         <file>svg/icons/paint_brush_arrow_down_24_filled.svg</file>
 
@@ -158,6 +160,7 @@
         <file>svg/icons/pitch_edit_24_filled.svg</file>
         <file>svg/icons/pitch_anchor_24_filled.svg</file>
         <file>svg/icons/pitch_erase_24_filled.svg</file>
+        <file>svg/icons/pitch_modulation_24_filled.svg</file>
         <file>svg/icons/pitch_brush.svg</file>
         <file>svg/icons/pitch_vibrato_24_filled.svg</file>
         <file>svg/icons/pitch_freeze_24_filled.svg</file>
