@@ -36,6 +36,14 @@ namespace InferCacheUtils {
     // 已登记的缓存文件绝对路径集合（进程级，主线程调用）
     QSet<QString> registeredCacheFiles();
 
+    // Clear the registered set (main thread only). Called when the document is
+    // replaced: the old document's undo history is reset and its infer pipelines
+    // destroyed, so every pre-replace registration is stale and must be dropped,
+    // otherwise the previous project's cache files would be retained forever by
+    // later cleanups. Files still referenced by the new project stay protected
+    // via the model scan in collectActiveCacheFiles().
+    void clearRegisteredCacheFiles();
+
     // 收集当前工程活跃缓存文件绝对路径（必须主线程调用，访问 appModel）：
     // = 登记集合 ∪ 当前工程 Success 片段引用集合
     QSet<QString> collectActiveCacheFiles();

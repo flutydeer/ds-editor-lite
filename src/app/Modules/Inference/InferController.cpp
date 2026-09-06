@@ -449,6 +449,13 @@ void InferControllerPrivate::handleModelChanged() {
         delete pipeline;
     m_inferPipelines.clear();
     m_retryAllScheduled = false;
+    // Registered cache paths from the replaced document are stale: its undo
+    // history was reset and its pipelines destroyed above, so no finish callback
+    // can re-register them. Without this, cache cleanup keeps retaining the
+    // previous project's cache files until the process exits. Files still used
+    // by the new project remain protected by the model scan in
+    // collectActiveCacheFiles().
+    InferCacheUtils::clearRegisteredCacheFiles();
 }
 
 void InferControllerPrivate::handleTempoChanged() {

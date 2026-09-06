@@ -63,6 +63,10 @@ namespace InferCacheUtils {
         return registeredFiles();
     }
 
+    void clearRegisteredCacheFiles() {
+        registeredFiles().clear();
+    }
+
     QSet<QString> collectActiveCacheFiles() {
         QSet<QString> active = registeredCacheFiles();
         for (const auto *track : appModel->tracks()) {

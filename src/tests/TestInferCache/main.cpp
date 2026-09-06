@@ -58,11 +58,45 @@ namespace {
         ok &= expect(second.deletedCount == 0, "second clean deletes nothing");
         return ok;
     }
+
+    bool testClearRegisteredFiles() {
+        bool ok = true;
+        // The registry is process-global; start from a clean state regardless of
+        // what previous test cases registered
+        InferCacheUtils::clearRegisteredCacheFiles();
+
+        QTemporaryDir dir;
+        ok &= expect(dir.isValid(), "temporary dir is valid");
+        const char *fileName = "infer-variance-output-dddddddddddddddddddddddddddddddddddddddd.json";
+        QFile f(dir.filePath(fileName));
+        ok &= expect(f.open(QIODevice::WriteOnly), "cache file created");
+        f.write(QByteArray(120, 'x'));
+        f.close();
+
+        InferCacheUtils::registerCacheFile(dir.filePath(fileName));
+        const auto before =
+            InferCacheUtils::cleanCache(dir.path(), InferCacheUtils::registeredCacheFiles());
+        ok &= expect(before.retainedActiveCount == 1 && before.deletedCount == 0,
+                     "registered file retained while the registry holds it");
+
+        InferCacheUtils::clearRegisteredCacheFiles();
+        ok &= expect(InferCacheUtils::registeredCacheFiles().isEmpty(),
+                     "registry empty after clearRegisteredCacheFiles");
+
+        // Same scenario as replacing the document: stale registrations must no
+        // longer keep the previous project's cache file alive
+        const auto after =
+            InferCacheUtils::cleanCache(dir.path(), InferCacheUtils::registeredCacheFiles());
+        ok &= expect(after.deletedCount == 1, "file deleted after registry clear");
+        ok &= expect(!QFile::exists(dir.filePath(fileName)), "file removed from disk after clear");
+        return ok;
+    }
 } // namespace
 
 int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
     bool ok = true;
     ok &= testScanAndClean();
+    ok &= testClearRegisteredFiles();
     return ok ? 0 : 1;
 }
