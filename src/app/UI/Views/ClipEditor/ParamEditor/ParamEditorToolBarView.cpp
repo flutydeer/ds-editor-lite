@@ -70,6 +70,11 @@ ParamEditorToolBarView::ParamEditorToolBarView(QWidget *parent) : QWidget(parent
     lbBackgroundParam->setMaximumHeight(ClipEditorGlobal::paramEditorToolControlHeight);
     cbBackgroundParam->setFixedHeight(ClipEditorGlobal::paramEditorToolControlHeight);
 
+    // The default size adjust policy only fits the width to contents on first show,
+    // which leaves stale widths after items are rebuilt on language change
+    cbForegroundParam->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+    cbBackgroundParam->setSizeAdjustPolicy(QComboBox::AdjustToContents);
+
     const auto layout = new QHBoxLayout();
     layout->addSpacing(64);
     layout->addWidget(lbForegroundParam);
