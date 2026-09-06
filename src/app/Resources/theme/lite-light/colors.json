@@ -188,6 +188,13 @@
         "editor.selectedBorder": "{text.secondary}",
         "editor.splitLine": "{feedback.errorStrong}",
         "editor.trackHover": "{neutral.black04}",
+        "editor.transform.boundary": "{neutral.400}",
+        "editor.transform.boundaryHover": "{accent.400}",
+        "editor.transform.shoulderFill": "{accent.alpha10}",
+        "editor.transform.targetFill": "{accent.alpha10}",
+        "editor.transform.handleFill": "{neutral.white63}",
+        "editor.transform.handleBorder": "{neutral.black06}",
+        "editor.transform.handleText": "{text.accent}",
 
         "piano.key.white": "{neutral.0}",
         "piano.key.black": "{neutral.700}",

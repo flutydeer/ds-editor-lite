@@ -14,6 +14,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Utils/AppColorPalette.h"
+#include <lite/GUI/Theme/ThemeManager.h>
 #include "UI/Utils/ITimelinePainter.h"
 #include "UI/Views/ClipEditor/AnchorEditor/AnchorEditController.h"
 #include "UI/Views/ClipEditor/AnchorEditor/AnchorEditUtils.h"
@@ -757,7 +758,7 @@ public:
         return Interaction::Move;
     }
 
-    void updateNoteCursor(const QPointF &viewportPosition) const {
+    void updateNoteCursor(const QPointF &viewportPosition) {
         if (pitchTransformEnabled()) {
             updatePitchTransformCursor(viewportPosition);
             return;
@@ -1123,27 +1124,39 @@ public:
             .contains(viewportPosition);
     }
 
-    void updatePitchTransformCursor(const QPointF &viewportPosition) const {
+    void updatePitchTransformCursor(const QPointF &viewportPosition) {
         if (!pitchTransformEnabled() || pitchTransform.phase() == CurveTransform::Phase::Idle ||
             pitchTransform.phase() == CurveTransform::Phase::Selecting) {
+            setPitchTransformHover(-1);
             q->setCursor(Qt::ArrowCursor);
             return;
         }
         if (pitchTransform.phase() == CurveTransform::Phase::Transforming) {
+            setPitchTransformHover(-1);
             q->setCursor(Qt::SizeVerCursor);
             return;
         }
         if (pitchTransformFactorHandleRect().contains(viewportPosition)) {
+            setPitchTransformHover(-1);
             q->setCursor(Qt::SizeVerCursor);
             return;
         }
-        if (pitchTransformBoundaryDragging ||
-            pitchTransformBoundaryIndexAt(viewportPosition.x()) >= 0) {
+        const auto boundaryIndex = pitchTransformBoundaryIndexAt(viewportPosition.x());
+        if (pitchTransformBoundaryDragging || boundaryIndex >= 0) {
+            setPitchTransformHover(boundaryIndex);
             q->setCursor(Qt::SizeHorCursor);
             return;
         }
+        setPitchTransformHover(-1);
         q->setCursor(pitchTransformVerticalDragAreaContains(viewportPosition) ? Qt::SizeVerCursor
                                                                              : Qt::ArrowCursor);
+    }
+
+    void setPitchTransformHover(const int boundaryIndex) {
+        if (pitchTransformHoveredBoundary == boundaryIndex)
+            return;
+        pitchTransformHoveredBoundary = boundaryIndex;
+        scheduleSnapshot();
     }
 
     [[nodiscard]] static CurveTransform::Boundary pitchTransformBoundaryAt(const int index) {
@@ -1168,6 +1181,7 @@ public:
         pitchTransformBoundaryInitialIndex = -1;
         pitchTransformBoundary = CurveTransform::Boundary::None;
         pitchTransformMouseDown = false;
+        setPitchTransformHover(-1);
     }
 
     void reloadPitchTransformSource() {
@@ -2059,9 +2073,10 @@ private:
     }
 
     void appendPixelAlignedVerticalLine(const double x, const double top, const double bottom,
-                                        const QColor &color) {
+                                        const QColor &color, const double logicalWidth = 1.0) {
         EditorRhiGeometry::appendAntialiasedVerticalLine(vertices, x * dpr, top * dpr, bottom * dpr,
-                                                         dpr, color, horizontalOffset() * dpr);
+                                                         logicalWidth * dpr, color,
+                                                         horizontalOffset() * dpr);
     }
 
     void appendPixelAlignedHorizontalLine(const double y, const double left, const double right,
@@ -2377,20 +2392,27 @@ private:
         const auto d = bounds.d * pixelsPerTick();
         const auto top = verticalOffset();
         const auto height = q->height();
-        auto color = q->paramEditedCurveColor();
+        const auto semanticColor = [](const char *name) {
+            return ThemeManager::instance()->semanticColor(QString::fromLatin1(name));
+        };
 
-        auto shoulderColor = color;
-        shoulderColor.setAlpha(28);
-        auto targetColor = color;
-        targetColor.setAlpha(54);
+        const auto shoulderColor = semanticColor("editor.transform.shoulderFill");
+        const auto targetColor = semanticColor("editor.transform.targetFill");
         appendLogicalRect(QRectF(c, top, a - c, height), shoulderColor);
         appendLogicalRect(QRectF(a, top, b - a, height), targetColor);
         appendLogicalRect(QRectF(b, top, d - b, height), shoulderColor);
 
-        auto boundaryColor = color;
-        boundaryColor.setAlpha(210);
-        for (const auto x : {c, a, b, d})
-            appendPixelAlignedVerticalLine(x, top, top + height, boundaryColor);
+        constexpr double boundaryLineWidth = 1.5;
+        const auto boundaryColor = semanticColor("editor.transform.boundary");
+        const auto boundaryHoverColor = semanticColor("editor.transform.boundaryHover");
+        int boundaryIndex = 0;
+        for (const auto x : {c, a, b, d}) {
+            appendPixelAlignedVerticalLine(
+                x, top, top + height,
+                boundaryIndex == pitchTransformHoveredBoundary ? boundaryHoverColor : boundaryColor,
+                boundaryLineWidth);
+            ++boundaryIndex;
+        }
 
         if (pitchTransform.phase() != CurveTransform::Phase::Adjusting &&
             pitchTransform.phase() != CurveTransform::Phase::Transforming) {
@@ -2400,11 +2422,12 @@ private:
         const auto viewportHandle = pitchTransformFactorHandleRect();
         const QRectF sceneHandle(viewportHandle.translated(horizontalOffset(), verticalOffset()));
         const QRectF physicalHandle(sceneHandle.topLeft() * dpr, sceneHandle.size() * dpr);
-        auto handleFill = color;
-        handleFill.setAlpha(230);
-        EditorRhiGeometry::appendRoundedRect(vertices, physicalHandle, 4.0 * dpr, handleFill);
-        EditorRhiGeometry::appendRoundedRectStroke(vertices, physicalHandle, 4.0 * dpr, dpr,
-                                                   Qt::black, 0.5);
+        EditorRhiGeometry::appendRoundedRect(vertices, physicalHandle, 4.0 * dpr,
+                                             semanticColor("editor.transform.handleFill"));
+        EditorRhiGeometry::appendRoundedRectStroke(vertices, physicalHandle, 4.0 * dpr,
+                                                   boundaryLineWidth * dpr,
+                                                   semanticColor("editor.transform.handleBorder"),
+                                                   0.5);
 
         const auto text = QString::number(qRound(pitchTransform.factor() * 100.0)) + "%";
         const auto font = q->font();
@@ -2414,7 +2437,8 @@ private:
         const QPointF textPosition(physicalHandle.center().x() - textWidth * 0.5,
                                    physicalHandle.center().y() - textHeight * 0.5);
         const auto span =
-            glyphAtlas.appendText(text, font, textPosition, Qt::black, physicalHandle, dpr,
+            glyphAtlas.appendText(text, font, textPosition,
+                                  semanticColor("editor.transform.handleText"), physicalHandle, dpr,
                                   physicalCameraOffset(), q->physicalWindowOffset());
         drawList.appendTexture(span, vertices.size());
     }
@@ -2869,6 +2893,7 @@ public:
     CurveTransform::Boundary pitchTransformBoundary = CurveTransform::Boundary::None;
     QPointF pitchTransformDragStartViewportPos;
     QVector<double> pitchTransformBoundaryStartPositions;
+    int pitchTransformHoveredBoundary = -1;
     bool noteErasing = false;
     QList<int> erasedNoteIds;
     quint64 noteEraseSessionId = 0;
@@ -3211,6 +3236,7 @@ void PianoRollRhiWidget::keyPressEvent(QKeyEvent *event) {
 
 void PianoRollRhiWidget::leaveEvent(QEvent *event) {
     unsetCursor();
+    d->setPitchTransformHover(-1);
     d->hideLyricToolTip();
     if (d->hoveredKey >= 0) {
         d->hoveredKey = -1;

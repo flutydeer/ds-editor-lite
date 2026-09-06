@@ -9,6 +9,7 @@
 #include "UI/Views/Common/TimeGraphicsScene.h"
 #include "UI/Views/ClipEditor/PianoRoll/NoteView.h"
 #include "UI/Utils/AppColorPalette.h"
+#include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/ProjectModel/Utils/AppModelUtils.h>
 #include <lite/Support/MathUtils.h>
 
@@ -563,6 +564,7 @@ void CommonParamEditorView::hoverMoveEvent(QGraphicsSceneHoverEvent *event) {
 }
 
 void CommonParamEditorView::hoverLeaveEvent(QGraphicsSceneHoverEvent *event) {
+    setCurveTransformHover(-1);
     unsetCursor();
     TimeOverlayView::hoverLeaveEvent(event);
 }
@@ -641,6 +643,7 @@ bool CommonParamEditorView::cancelCurveTransform(const bool notifyDiscard) {
     m_mouseDown = false;
     m_mouseDownButton = Qt::NoButton;
     setCursor(Qt::ArrowCursor);
+    setCurveTransformHover(-1);
     if (notifyDiscard && wasTransforming)
         emit editDiscarded();
     return true;
@@ -662,6 +665,7 @@ void CommonParamEditorView::finishCurveTransform() {
     m_mouseDown = false;
     m_mouseDownButton = Qt::NoButton;
     setCursor(Qt::ArrowCursor);
+    setCurveTransformHover(-1);
     update();
     if (changed)
         emit editCommitted();
@@ -822,23 +826,36 @@ void CommonParamEditorView::resetCurveTransformBoundaryDrag() {
 void CommonParamEditorView::updateCurveTransformCursor(const QPointF &itemPos) {
     if (!m_curveTransformKind || m_curveTransform.phase() == CurveTransform::Phase::Idle ||
         m_curveTransform.phase() == CurveTransform::Phase::Selecting) {
+        setCurveTransformHover(-1);
         setCursor(Qt::ArrowCursor);
         return;
     }
     if (m_curveTransform.phase() == CurveTransform::Phase::Transforming) {
+        setCurveTransformHover(-1);
         setCursor(Qt::SizeVerCursor);
         return;
     }
     if (curveTransformFactorHandleRect().contains(itemPos)) {
+        setCurveTransformHover(-1);
         setCursor(Qt::SizeVerCursor);
         return;
     }
-    if (m_transformBoundaryDragging || curveTransformBoundaryIndexAt(itemPos.x()) >= 0) {
+    const auto boundaryIndex = curveTransformBoundaryIndexAt(itemPos.x());
+    if (m_transformBoundaryDragging || boundaryIndex >= 0) {
+        setCurveTransformHover(boundaryIndex);
         setCursor(Qt::SizeHorCursor);
         return;
     }
+    setCurveTransformHover(-1);
     setCursor(curveTransformVerticalDragAreaContains(itemPos) ? Qt::SizeVerCursor
                                                               : Qt::ArrowCursor);
+}
+
+void CommonParamEditorView::setCurveTransformHover(const int boundaryIndex) {
+    if (m_curveTransformHoveredBoundary == boundaryIndex)
+        return;
+    m_curveTransformHoveredBoundary = boundaryIndex;
+    update();
 }
 
 QRectF CommonParamEditorView::curveTransformFactorHandleRect() const {
@@ -916,34 +933,38 @@ void CommonParamEditorView::drawCurveTransformOverlay(QPainter *painter) const {
     const auto d = tickToItemX(bounds.d);
     const auto top = rect().top();
     const auto height = rect().height();
-    auto color = resolvedEditedCurveColor();
+    const auto semanticColor = [](const char *name) {
+        return ThemeManager::instance()->semanticColor(QString::fromLatin1(name));
+    };
 
     painter->save();
     painter->setClipRect(rect());
-    auto shoulderColor = color;
-    shoulderColor.setAlpha(28);
-    auto targetColor = color;
-    targetColor.setAlpha(54);
+    const auto shoulderColor = semanticColor("editor.transform.shoulderFill");
+    const auto targetColor = semanticColor("editor.transform.targetFill");
     painter->fillRect(QRectF(c, top, a - c, height), shoulderColor);
     painter->fillRect(QRectF(a, top, b - a, height), targetColor);
     painter->fillRect(QRectF(b, top, d - b, height), shoulderColor);
 
-    auto boundaryColor = color;
-    boundaryColor.setAlpha(210);
-    QPen boundaryPen(boundaryColor, 1.0);
-    painter->setPen(boundaryPen);
-    for (const auto x : {c, a, b, d})
+    constexpr double boundaryPenWidth = 1.5;
+    const auto boundaryColor = semanticColor("editor.transform.boundary");
+    const auto boundaryHoverColor = semanticColor("editor.transform.boundaryHover");
+    QPen boundaryPen(boundaryColor, boundaryPenWidth);
+    int boundaryIndex = 0;
+    for (const auto x : {c, a, b, d}) {
+        boundaryPen.setColor(boundaryIndex == m_curveTransformHoveredBoundary ? boundaryHoverColor
+                                                                             : boundaryColor);
+        painter->setPen(boundaryPen);
         painter->drawLine(QPointF(x, top), QPointF(x, top + height));
+        ++boundaryIndex;
+    }
 
     if (m_curveTransform.phase() == CurveTransform::Phase::Adjusting ||
         m_curveTransform.phase() == CurveTransform::Phase::Transforming) {
         const auto handle = curveTransformFactorHandleRect();
-        auto handleFill = color;
-        handleFill.setAlpha(230);
-        painter->setBrush(handleFill);
-        painter->setPen(QPen(Qt::black, 1.0));
+        painter->setBrush(semanticColor("editor.transform.handleFill"));
+        painter->setPen(QPen(semanticColor("editor.transform.handleBorder"), boundaryPenWidth));
         painter->drawRoundedRect(handle, 4.0, 4.0);
-        painter->setPen(Qt::black);
+        painter->setPen(semanticColor("editor.transform.handleText"));
         painter->drawText(handle, Qt::AlignCenter,
                           QString::number(qRound(m_curveTransform.factor() * 100.0)) + "%");
     }

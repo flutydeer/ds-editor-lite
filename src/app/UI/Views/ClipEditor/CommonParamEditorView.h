@@ -98,6 +98,7 @@ private:
     void curveTransformMouseReleaseEvent(QGraphicsSceneMouseEvent *event);
     void resetCurveTransformBoundaryDrag();
     void updateCurveTransformCursor(const QPointF &itemPos);
+    void setCurveTransformHover(int boundaryIndex);
     [[nodiscard]] QRectF curveTransformFactorHandleRect() const;
     [[nodiscard]] QVector<double> curveTransformBoundaryPositions() const;
     [[nodiscard]] CurveTransform::Boundary curveTransformBoundaryAt(int index) const;
@@ -133,6 +134,7 @@ private:
     QPointF m_transformDragStartItemPos;
     QPointF m_transformDragStartScenePos;
     QVector<double> m_transformBoundaryStartPositions;
+    int m_curveTransformHoveredBoundary = -1;
 
     [[nodiscard]] double valueToItemY(double value) const;
     const int paddingTopBottom = 2;
