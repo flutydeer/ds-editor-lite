@@ -103,7 +103,17 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
     connect(transport(), &talcs::TransportAudioSource::positionAboutToChange, this,
             [this](const qint64 positionSample) {
                 m_transportPositionFlag = false;
-                playbackController->setPosition(sampleToTick(positionSample));
+                // While the hold pins the engine at the start, clamp the over-the-block
+                // position report (emitted before the hold engaged) back to the start
+                // point. The window spans a few blocks to tolerate startup bursts; far
+                // moves (seeking during the wait) pass through unchanged
+                const qint64 reported =
+                    m_snapToStartSample && positionSample >= m_transportStartSample &&
+                            positionSample - m_transportStartSample <=
+                                4 * transport()->bufferSize()
+                        ? m_transportStartSample
+                        : positionSample;
+                playbackController->setPosition(sampleToTick(reported));
                 m_transportPositionFlag = true;
             });
 
@@ -120,7 +130,26 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
             });
 
     connect(transport(), &talcs::TransportAudioSource::bufferingCounterChanged, this,
-            [this](const int counter) { playbackController->setEngineBuffering(counter > 0); });
+            [this](const int counter) {
+                // When playback starts, the engine consumes one audio block before the
+                // synthesis wait freezes it, and the advanced position gets reported.
+                // Never roll the transport position back while held: setPosition
+                // propagates setNextReadPosition through the graph, making series
+                // re-evaluate buffering and even release an already-zeroed counter
+                // (debug assertion). So when the hold engages within one block of the
+                // start, only flag it to clamp the over-the-block reports for display;
+                // once buffering releases, the engine resumes from the held position
+                // and the skipped block is the silence heard during the wait
+                if (counter > 0) {
+                    if (m_transportStartSample >= 0 &&
+                        playbackController->position() <=
+                            sampleToTick(m_transportStartSample + transport()->bufferSize()))
+                        m_snapToStartSample = true;
+                } else {
+                    m_snapToStartSample = false;
+                }
+                playbackController->setEngineBuffering(counter > 0);
+            });
 
     connect(playbackController, &PlaybackController::playbackStatusChanged, this,
             &AudioContext::handlePlaybackStatusChanged);
@@ -342,6 +371,8 @@ void AudioContext::handlePlaybackStatusChanged(const PlaybackStatus status) {
                         playbackController->setPosition(loopSettings.start);
                 }
             }
+            m_transportStartSample = transport()->position();
+            m_snapToStartSample = false;
             transport()->play();
             break;
         case Paused:

@@ -72,7 +72,8 @@ void PlaybackController::setEngineBuffering(const bool buffering) {
     if (d->m_playbackStatus != Playing)
         return;
     if (buffering) {
-        // 引擎等待合成时真实位置已冻结，视觉播放头吸附到该位置并停止外推
+        // The engine position is frozen while waiting for synthesis; snap the
+        // visual playhead to it and stop extrapolating
         d->m_visualPositionTimer.stop();
         d->m_visualPositionClock.invalidate();
         emit visualPositionChanged(d->m_position);
@@ -103,7 +104,8 @@ bool PlaybackController::applyPlay() {
         return false;
     d->m_playbackStatus = Playing;
     d->m_visualPositionAnchor = d->m_position;
-    // 引擎已在等待合成时 bufferingCounter 不会再次发射，需主动保持外推冻结
+    // While the engine is already waiting for synthesis, bufferingCounter won't
+    // fire again; keep the extrapolation frozen proactively
     if (d->m_engineBuffering) {
         d->m_visualPositionClock.invalidate();
     } else {
@@ -161,7 +163,8 @@ void PlaybackController::applyPosition(const double tick) {
     d->m_visualPositionAnchor = tick;
     d->m_visualPositionClock.restart();
     emit positionChanged(tick);
-    // 等待合成期间外推定时器已停止，位置变化需直接同步给播放头
+    // The extrapolation timer is stopped while waiting for synthesis; sync
+    // position changes to the playhead directly
     if (d->m_playbackStatus != Playing || d->m_engineBuffering)
         emit visualPositionChanged(tick);
 }

@@ -91,6 +91,15 @@ private:
     int m_levelMeterRampLength = 128;
 
     bool m_transportPositionFlag = true;
+    // Sample position where the transport was last told to play. When playback
+    // stalls (waiting for synthesis) right after starting, the engine still
+    // consumes one audio block before the hold engages and then resumes from
+    // that held position once buffering releases. The engine position is left
+    // untouched (rolling it back makes the series re-evaluate buffering and
+    // desyncs the transport counter); m_snapToStartSample merely clamps the
+    // over-the-block position reports to the start for display while held
+    qint64 m_transportStartSample = -1;
+    bool m_snapToStartSample = false;
 
     void handlePlaybackStatusChanged(PlaybackStatus status);
     void handlePlaybackPositionChanged(double positionTick) const;
