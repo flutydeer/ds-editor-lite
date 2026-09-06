@@ -357,3 +357,10 @@ ClipEditorToolBarView {
     qproperty-iconOnColor: ${accent.default};
     qproperty-iconOnDisabledColor: ${accent.muted};
 }
+
+ParamEditToolBarView {
+    qproperty-iconColor: ${icon.primary};
+    qproperty-iconDisabledColor: ${icon.disabled};
+    qproperty-iconOnColor: ${accent.default};
+    qproperty-iconOnDisabledColor: ${accent.muted};
+}

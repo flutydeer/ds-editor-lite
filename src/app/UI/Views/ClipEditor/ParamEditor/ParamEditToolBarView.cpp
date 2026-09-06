@@ -9,14 +9,13 @@
 #include <QHBoxLayout>
 
 ParamEditToolBarView::ParamEditToolBarView(QWidget *parent) : QWidget(parent) {
-    const auto createEditModeButton = [](const char *objectName, const QString &iconPath) {
+    const auto createEditModeButton = [this](const char *objectName, const QString &iconPath) {
         auto *button = new Button;
         button->setObjectName(QString::fromLatin1(objectName));
         button->setCheckable(true);
         button->setFixedSize(24, 24);
         button->setIconSize({16, 16});
-        button->setIcon(
-            IconUtils::createTintedSvgIcon(iconPath, {16, 16}, IconUtils::defaultActionPalette()));
+        m_tintedButtons.append({button, iconPath});
         return button;
     };
 
@@ -32,6 +31,7 @@ ParamEditToolBarView::ParamEditToolBarView(QWidget *parent) : QWidget(parent) {
                                       QStringLiteral(":/svg/icons/param_scale_24_filled.svg"));
     m_btnAnchor = createEditModeButton("btnParamAnchor",
                                        QStringLiteral(":/svg/icons/pitch_anchor_24_filled.svg"));
+    rebuildIcons();
 
     m_editModeGroup = new QButtonGroup(this);
     m_editModeGroup->setExclusive(true);
@@ -106,4 +106,59 @@ void ParamEditToolBarView::retranslateUi() {
     m_btnScale->setToolTip(tr("Scale"));
     m_btnBake->setToolTip(tr("Bake"));
     m_btnAnchor->setToolTip(tr("Anchor"));
+}
+
+void ParamEditToolBarView::rebuildIcons() {
+    const QSize iconSize(16, 16);
+    IconUtils::SvgIconToggleColorPalette palette;
+    palette.off.normal = m_iconColor;
+    palette.off.disabled = m_iconDisabledColor;
+    palette.on.normal = m_iconOnColor;
+    palette.on.disabled = m_iconOnDisabledColor;
+    for (const auto &[btn, svgPath] : m_tintedButtons)
+        btn->setIcon(IconUtils::createTintedSvgIcon(svgPath, iconSize, palette));
+}
+
+QColor ParamEditToolBarView::iconColor() const {
+    return m_iconColor;
+}
+
+void ParamEditToolBarView::setIconColor(const QColor &color) {
+    if (m_iconColor == color)
+        return;
+    m_iconColor = color;
+    rebuildIcons();
+}
+
+QColor ParamEditToolBarView::iconDisabledColor() const {
+    return m_iconDisabledColor;
+}
+
+void ParamEditToolBarView::setIconDisabledColor(const QColor &color) {
+    if (m_iconDisabledColor == color)
+        return;
+    m_iconDisabledColor = color;
+    rebuildIcons();
+}
+
+QColor ParamEditToolBarView::iconOnColor() const {
+    return m_iconOnColor;
+}
+
+void ParamEditToolBarView::setIconOnColor(const QColor &color) {
+    if (m_iconOnColor == color)
+        return;
+    m_iconOnColor = color;
+    rebuildIcons();
+}
+
+QColor ParamEditToolBarView::iconOnDisabledColor() const {
+    return m_iconOnDisabledColor;
+}
+
+void ParamEditToolBarView::setIconOnDisabledColor(const QColor &color) {
+    if (m_iconOnDisabledColor == color)
+        return;
+    m_iconOnDisabledColor = color;
+    rebuildIcons();
 }
