@@ -79,6 +79,7 @@ private:
     int m_tempoEditTick = 0;
     int m_tick = 0;
     PlaybackStatus m_status = Stopped;
+    bool m_engineBuffering = false;
 
     int m_contentHeight = 28;
     QSize m_iconSize = QSize(16, 16);
@@ -99,6 +100,7 @@ private:
     void updatePlaybackControlView();
     void updateLoopButtonView();
     void updateAutoPageTurnButtonView();
+    void updatePlayButtonTooltip();
 };
 
 #endif // PLAYBACKVIEW_H

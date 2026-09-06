@@ -34,12 +34,14 @@ public:
     [[nodiscard]] double position() const;
     [[nodiscard]] double lastPosition() const;
     void setPlaybackStartGuard(std::function<bool()> guard);
+    void setEngineBuffering(bool buffering);
 
 signals:
     void positionChanged(double tick);
     void visualPositionChanged(double tick);
     void lastPositionChanged(double tick);
     void playbackStatusChanged(PlaybackStatus status);
+    void engineBufferingChanged(bool buffering);
 
 public slots:
     void play();

@@ -63,6 +63,27 @@ void PlaybackController::setPlaybackStartGuard(std::function<bool()> guard) {
     d->m_playbackStartGuard = std::move(guard);
 }
 
+void PlaybackController::setEngineBuffering(const bool buffering) {
+    Q_D(PlaybackController);
+    if (d->m_engineBuffering == buffering)
+        return;
+    d->m_engineBuffering = buffering;
+    emit engineBufferingChanged(buffering);
+    if (d->m_playbackStatus != Playing)
+        return;
+    if (buffering) {
+        // 引擎等待合成时真实位置已冻结，视觉播放头吸附到该位置并停止外推
+        d->m_visualPositionTimer.stop();
+        d->m_visualPositionClock.invalidate();
+        emit visualPositionChanged(d->m_position);
+    } else {
+        d->m_visualPositionAnchor = d->m_position;
+        d->m_visualPositionClock.restart();
+        updateVisualPositionTimerInterval();
+        d->m_visualPositionTimer.start();
+    }
+}
+
 void PlaybackController::play() {
     auto *runtime = AppContext::instance<Automation::CoreRuntime>();
     if (!runtime)
@@ -82,10 +103,16 @@ bool PlaybackController::applyPlay() {
         return false;
     d->m_playbackStatus = Playing;
     d->m_visualPositionAnchor = d->m_position;
-    d->m_visualPositionClock.restart();
+    // 引擎已在等待合成时 bufferingCounter 不会再次发射，需主动保持外推冻结
+    if (d->m_engineBuffering) {
+        d->m_visualPositionClock.invalidate();
+    } else {
+        d->m_visualPositionClock.restart();
+    }
     emit playbackStatusChanged(Playing);
     updateVisualPositionTimerInterval();
-    d->m_visualPositionTimer.start();
+    if (!d->m_engineBuffering)
+        d->m_visualPositionTimer.start();
     emit visualPositionChanged(d->m_position);
     return true;
 }
@@ -134,7 +161,8 @@ void PlaybackController::applyPosition(const double tick) {
     d->m_visualPositionAnchor = tick;
     d->m_visualPositionClock.restart();
     emit positionChanged(tick);
-    if (d->m_playbackStatus != Playing)
+    // 等待合成期间外推定时器已停止，位置变化需直接同步给播放头
+    if (d->m_playbackStatus != Playing || d->m_engineBuffering)
         emit visualPositionChanged(tick);
 }
 

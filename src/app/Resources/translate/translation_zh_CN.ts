@@ -5322,14 +5322,25 @@ type: %L1</source>
 <context>
     <name>PlaybackView</name>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="127"/>
-        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="401"/>
+        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="105"/>
+        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="412"/>
+        <source>Play</source>
+        <translation>播放</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="412"/>
+        <source>Waiting for synthesis</source>
+        <translation>等待合成</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="128"/>
+        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="403"/>
         <source>Loop</source>
         <translation>循环</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="162"/>
-        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="402"/>
+        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="163"/>
+        <location filename="../../UI/Views/MainTitleBar/PlaybackView.cpp" line="404"/>
         <source>Auto Page Turn</source>
         <translation>自动翻页</translation>
     </message>

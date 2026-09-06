@@ -10,6 +10,7 @@
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/GUI/Controls/InlineEditLabel.h>
+#include <lite/GUI/Controls/ToolTipFilter.h>
 #include <lite/GUI/Utils/IconUtils.h>
 #include "Utils/FontManager.h"
 #include "TempoComboBox.h"
@@ -99,6 +100,8 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
                                        m_actionIconColor, m_actionIconDisabledColor,
                                        playAccentColor()));
     m_btnPlay->setCheckable(true);
+    m_btnPlay->installEventFilter(new ToolTipFilter(m_btnPlay));
+    updatePlayButtonTooltip();
 
     m_btnPlayPause = new QPushButton(this);
     connect(m_btnPlayPause, &QPushButton::pressed, this, [this] {
@@ -274,6 +277,11 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
             &PlaybackView::onPlaybackStatusChanged);
     connect(playbackController, &PlaybackController::positionChanged, this,
             &PlaybackView::onPositionChanged);
+    connect(playbackController, &PlaybackController::engineBufferingChanged, this,
+            [this](const bool buffering) {
+                m_engineBuffering = buffering;
+                updatePlayButtonTooltip();
+            });
     connect(appModel, &AppModel::modelChanged, this, &PlaybackView::updateView);
     connect(appModel, &AppModel::timelineChanged, this, &PlaybackView::onTimelineChanged);
     connect(appStatus, &AppStatus::loopSettingsChanged, this, [this] { updateLoopButtonView(); });
@@ -376,6 +384,10 @@ void PlaybackView::updatePlaybackControlView() {
     }
 }
 
+void PlaybackView::updatePlayButtonTooltip() {
+    m_btnPlay->setToolTip(m_engineBuffering ? tr("Waiting for synthesis") : tr("Play"));
+}
+
 void PlaybackView::updateLoopButtonView() {
     const bool enabled = appStatus->loopSettings.get().enabled;
     m_btnLoop->setChecked(enabled);
@@ -400,6 +412,7 @@ void PlaybackView::changeEvent(QEvent *event) {
     if (event->type() == QEvent::LanguageChange) {
         m_btnLoop->setToolTip(tr("Loop"));
         m_btnAutoPageTurn->setToolTip(tr("Auto Page Turn"));
+        updatePlayButtonTooltip();
     }
 }
 

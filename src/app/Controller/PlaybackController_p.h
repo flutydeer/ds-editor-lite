@@ -21,6 +21,7 @@ public:
     double m_lastPlayPosition = 0;
     double m_sampleRate = 48000;
     PlaybackStatus m_playbackStatus = Stopped;
+    bool m_engineBuffering = false;
     double m_visualPositionAnchor = 0;
     QElapsedTimer m_visualPositionClock;
     QChronoTimer m_visualPositionTimer;

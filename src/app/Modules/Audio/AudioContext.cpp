@@ -119,6 +119,9 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
                 }
             });
 
+    connect(transport(), &talcs::TransportAudioSource::bufferingCounterChanged, this,
+            [this](const int counter) { playbackController->setEngineBuffering(counter > 0); });
+
     connect(playbackController, &PlaybackController::playbackStatusChanged, this,
             &AudioContext::handlePlaybackStatusChanged);
     connect(playbackController, &PlaybackController::positionChanged, this,
