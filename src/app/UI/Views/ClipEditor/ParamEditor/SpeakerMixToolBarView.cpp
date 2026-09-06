@@ -44,6 +44,9 @@ SpeakerMixToolBarView::SpeakerMixToolBarView(QWidget *parent) : QWidget(parent) 
 
     layout->setSpacing(4);
     layout->setContentsMargins(0, 0, 0, 0);
+    // Keep contents at natural size packed left; otherwise the legend spreads
+    // out when the dynamic mix buttons are hidden and the window is wide
+    layout->setAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 
     setLayout(layout);
 
