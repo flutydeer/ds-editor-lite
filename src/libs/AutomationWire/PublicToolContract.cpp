@@ -554,9 +554,7 @@ namespace AutomationWire {
                 if (name == QStringLiteral("local_start") || name == QStringLiteral("local_end") ||
                     name == QStringLiteral("transition_start") ||
                     name == QStringLiteral("transition_end")) {
-                    auto boundary = nonNegativeModelIntegerSchema();
-                    boundary.insert(QStringLiteral("multipleOf"), 5);
-                    return boundary;
+                    return nonNegativeModelIntegerSchema();
                 }
                 if (name == QStringLiteral("name")) {
                     return JsonSchema::string({QStringLiteral("energy"),
@@ -4073,26 +4071,21 @@ namespace AutomationWire {
                     } else {
                         description = QStringLiteral("Scale normalized parameter values. ");
                     }
-                    return description +
-                           QStringLiteral(
-                               "Apply factor 0..2 to merged original and edited sampled curves and "
-                               "write "
-                               "only Edited, retaining anchors. factor 1 may still populate Edited "
-                               "from Original or normalize source values. local_start/local_end "
-                               "form a "
-                               "clip-local "
-                               "half-open range of at least 10 ticks; all boundaries use the "
-                               "non-negative "
-                               "5-tick grid. Clamp to the first touched continuous segment from "
-                               "left to "
-                               "right; pitch also respects inference-piece boundaries. Optional "
-                               "transition_start/transition_end clamp to that segment; defaults "
-                               "use 60ms "
-                               "shoulders. resolved_values always reports the four actual "
-                               "boundaries, even "
-                               "when changed is false. The outer interval is the processing range, "
-                               "not a "
-                               "claim that every sample changed. Commits one History step.");
+                    description += QStringLiteral(
+                        "Apply factor 0..2 to merged original and edited sampled curves and write "
+                        "only Edited, retaining anchors. factor 1 may still populate Edited from "
+                        "Original or normalize source values. All boundaries accept non-negative "
+                        "integer ticks. local_start/local_end form a clip-local half-open range; "
+                        "align both upward to the 5-tick grid and clamp to the first touched "
+                        "continuous segment from left to right. Pitch also respects "
+                        "inference-piece "
+                        "boundaries. The resolved main range must span at least 10 ticks. Optional "
+                        "transition_start/transition_end snap to the nearest 5-tick grid point and "
+                        "clamp to that segment; defaults choose grid-aligned shoulders of at most "
+                        "60ms. resolved_values always reports the four actual boundaries, even "
+                        "when changed is false. The outer interval is the processing range, not a "
+                        "claim that every sample changed. Commits one History step.");
+                    return description;
                 }
                 return QStringLiteral(
                            "Apply %1 to the Edited parameter layer through the shared parameter "

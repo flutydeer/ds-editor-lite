@@ -1147,18 +1147,13 @@ namespace Automation {
                     return AutomationError::invalidArgument(
                         QStringLiteral("factor"), QStringLiteral("Factor must be between 0 and 2"));
                 }
-                const auto onGrid = [](const int tick) {
-                    return tick >= 0 && tick % CurveTransform::SampleStep == 0;
-                };
-                if (!onGrid(transform.localStart) || !onGrid(transform.localEnd) ||
-                    qint64(transform.localEnd) - transform.localStart <
-                        2 * CurveTransform::SampleStep ||
-                    (transform.transitionStart && !onGrid(*transform.transitionStart)) ||
-                    (transform.transitionEnd && !onGrid(*transform.transitionEnd))) {
+                if (transform.localStart < 0 || transform.localEnd <= transform.localStart ||
+                    (transform.transitionStart && *transform.transitionStart < 0) ||
+                    (transform.transitionEnd && *transform.transitionEnd < 0)) {
                     return AutomationError::invalidArgument(
                         QStringLiteral("local_end"),
-                        QStringLiteral("Transform boundaries must use the non-negative 5-tick "
-                                       "grid, with a main range of at least 10 ticks"));
+                        QStringLiteral("Transform boundaries must be non-negative ticks, "
+                                       "with an ordered non-empty main range"));
                 }
                 for (const auto &curves : {original, edited}) {
                     for (const auto *curve : curves) {

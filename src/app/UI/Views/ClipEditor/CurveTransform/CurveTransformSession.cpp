@@ -262,10 +262,8 @@ namespace CurveTransform {
                               const std::optional<int> transitionStart,
                               const std::optional<int> transitionEnd) {
         resetInteraction();
-        const auto onGrid = [](const int tick) { return tick >= 0 && tick % SampleStep == 0; };
-        if (!onGrid(startTick) || !onGrid(endTick) || endTick <= startTick ||
-            (transitionStart && !onGrid(*transitionStart)) ||
-            (transitionEnd && !onGrid(*transitionEnd))) {
+        if (startTick < 0 || endTick <= startTick || (transitionStart && *transitionStart < 0) ||
+            (transitionEnd && *transitionEnd < 0)) {
             return false;
         }
         beginSelection(startTick);
@@ -273,10 +271,16 @@ namespace CurveTransform {
             resetInteraction();
             return false;
         }
-        m_bounds.c =
-            std::clamp(transitionStart.value_or(m_bounds.c), m_bounds.componentStart, m_bounds.a);
-        m_bounds.d =
-            std::clamp(transitionEnd.value_or(m_bounds.d), m_bounds.b, m_bounds.componentEnd);
+        if (transitionStart) {
+            beginBoundaryDrag(Boundary::C);
+            updateBoundaryDrag(*transitionStart);
+            endBoundaryDrag();
+        }
+        if (transitionEnd) {
+            beginBoundaryDrag(Boundary::D);
+            updateBoundaryDrag(*transitionEnd);
+            endBoundaryDrag();
+        }
         return true;
     }
 
@@ -425,8 +429,8 @@ namespace CurveTransform {
         }
         const auto &component = m_components.at(m_selectedComponent);
         const auto [rawStart, rawEnd] = std::minmax(m_selectionStartTick, tick);
-        const auto a = std::max(component.startTick, alignedAtOrAfter(rawStart));
-        const auto b = std::min(component.endTick(), alignedAtOrAfter(rawEnd));
+        const auto a = alignedAtOrAfter(std::max(component.startTick, rawStart));
+        const auto b = alignedAtOrAfter(std::min(component.endTick(), rawEnd));
         if (b - a < 2 * SampleStep) {
             m_bounds = {};
             m_selectedComponent = -1;

@@ -226,9 +226,11 @@
 调制、整形和缩放复用 GUI 的曲线变换会话，以原始与编辑采样曲线的合并结果为输入，保留锚点曲线。
 整形、缩放的 `name` 支持 `energy`、`breathiness`、`voicing`、`tension`、`mouth_opening`。
 三者均接受 `factor`（0～2）、半开区间 `local_start` / `local_end`，以及可选过渡边界
-`transition_start` / `transition_end`；所有边界使用非负 5 tick 网格，主区间至少 10 tick。
+`transition_start` / `transition_end`；调用方可传入任意非负整数 tick。
+主区间端点按 GUI 选区规则向上对齐到 5 tick 网格，可选过渡端点取最近的 5 tick 格点。
 选择跨越边界时，从左向右取第一个触及的连续采样分段并 clamp 到该段；调制同时遵守推理分段边界。
-过渡区间同样 clamp 到该段，缺省使用 GUI 的 60 ms 过渡。
+对齐并 clamp 后的主区间至少包含两个采样点（10 tick）。过渡区间同样 clamp 到该段，
+缺省在 5 tick 网格上选取不超过 60 ms 的最宽过渡，因此缺省外端点也落在格点上。
 响应的 `resolved_values` 始终返回 `/local_start`、`/local_end`、`/transition_start`、
 `/transition_end` 四个实际边界，包括 `changed: false` 的情况。外层区间表示参与处理的范围，
 其中每个采样点是否发生变化取决于源曲线和变换；`changed` 表示整体是否产生实际修改。

@@ -1494,7 +1494,7 @@ namespace {
                                                       Param::Edited, {first, second});
                 testRuntime.history()->reset();
                 const Automation::ParameterTransformDto request{
-                    0, 100, kind == Kind::Scale ? 0.5 : 0.0, 0, 100};
+                    1, 99, kind == Kind::Scale ? 0.5 : 0.0, 1, 99};
                 const auto applied = runtime.parameters().transformParameter(
                     commandContext(runtime), clipId, name, kind, request);
                 const auto snapshot = [&] {
