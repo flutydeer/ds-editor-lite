@@ -866,8 +866,10 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
         params.breathiness = std::move(decodeSingingParam(dspxParams_["breathiness"], clip));
         params.voicing = std::move(decodeSingingParam(dspxParams_["voicing"], clip));
         params.tension = std::move(decodeSingingParam(dspxParams_["tension"], clip));
+        params.mouthOpening = std::move(decodeSingingParam(dspxParams_["mouthOpening"], clip));
         params.gender = std::move(decodeSingingParam(dspxParams_["gender"], clip));
         params.velocity = std::move(decodeSingingParam(dspxParams_["velocity"], clip));
+        params.toneShift = std::move(decodeSingingParam(dspxParams_["toneShift"], clip));
         return params;
     };
 
@@ -1158,8 +1160,10 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
         encodeSingingParam(dsParams.breathiness, params["breathiness"]);
         encodeSingingParam(dsParams.voicing, params["voicing"]);
         encodeSingingParam(dsParams.tension, params["tension"]);
+        encodeSingingParam(dsParams.mouthOpening, params["mouthOpening"]);
         encodeSingingParam(dsParams.gender, params["gender"]);
         encodeSingingParam(dsParams.velocity, params["velocity"]);
+        encodeSingingParam(dsParams.toneShift, params["toneShift"]);
     };
 
 
