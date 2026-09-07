@@ -119,6 +119,40 @@ namespace {
         return ok;
     }
 
+    bool testExplicitRange() {
+        using namespace CurveTransform;
+        bool ok = true;
+        auto source = curve(0, QList<int>(40, 400));
+        MouthOpeningParamProperties properties;
+        Config config;
+        config.kind = Kind::Scale;
+        config.properties = &properties;
+        config.tickToMilliseconds = [](const int tick) { return double(tick); };
+        config.partitions = {{0, 95}, {100, 195}};
+        Session session;
+        session.setSource({&source}, {}, config);
+        ok &= expect(session.selectRange(80, std::numeric_limits<int>::max()) &&
+                         session.bounds().a == 80 && session.bounds().b == 100,
+                     "explicit range clamps to the first touched pitch partition");
+        ok &= expect(session.selectRange(40, 60, 20, 110) && session.bounds().d == 100,
+                     "explicit shoulder clamps to the selected component");
+        ok &= expect(session.selectRange(40, 60), "explicit range accepts default shoulders");
+        ok &= expect(session.bounds().c == 0 && session.bounds().d == 100,
+                     "default shoulders stop at the component boundaries");
+        ok &= expect(session.selectRange(39, 48) && session.bounds().a == 40 &&
+                         session.bounds().b == 50,
+                     "minimum selection width is checked after alignment");
+        ok &= expect(session.selectRange(36, 59, 18, 81) && session.beginTransform() &&
+                         session.setFactor(0.5),
+                     "off-grid range and shoulders use the shared GUI alignment");
+        auto preview = session.buildEditedPreview();
+        ok &= expect(valueAt(preview, 20) == 400 && valueAt(preview, 30) == 300 &&
+                         valueAt(preview, 40) == 200 && valueAt(preview, 70) == 300,
+                     "explicit transform applies the shared smooth shoulders");
+        qDeleteAll(preview);
+        return ok;
+    }
+
     bool testShouldersAndBoundaries() {
         using namespace CurveTransform;
         bool ok = true;
@@ -182,12 +216,12 @@ namespace {
                          session.bounds().d == session.bounds().componentEnd,
                      "default shoulders clamp to short component boundaries");
 
-        config.tickToMilliseconds = [](const int tick) { return tick * 2.0; };
+        config.tickToMilliseconds = [](const int tick) { return tick * 2.3; };
         session.setSource({&source}, {}, config);
         session.beginSelection(200);
         ok &= expect(session.finishSelection(600), "tempo-aware shoulder selection succeeds");
-        ok &= expect(session.bounds().c == 170 && session.bounds().d == 630,
-                     "default shoulder cap is converted through the timeline");
+        ok &= expect(session.bounds().c == 175 && session.bounds().d == 625,
+                     "default shoulders stay on the grid within the time cap");
         return ok;
     }
 
@@ -625,6 +659,7 @@ int main(int argc, char *argv[]) {
     bool ok = true;
     ok &= testMappings();
     ok &= testSelectionDirectionAndPartitions();
+    ok &= testExplicitRange();
     ok &= testCompleteSampleIntervals();
     ok &= testShouldersAndBoundaries();
     ok &= testShapeAndScale();

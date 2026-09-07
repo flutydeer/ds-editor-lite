@@ -1533,12 +1533,12 @@ namespace {
         Automation::NativeJsonRpcDispatcher native(registry);
 
         const auto enabled = registry.enabledContracts();
-        expect(enabled.size() == 151 && std::all_of(enabled.cbegin(), enabled.cend(),
+        expect(enabled.size() == 154 && std::all_of(enabled.cbegin(), enabled.cend(),
                                                     [](const auto &contract) {
                                                         return contract.hostAvailability ==
                                                                QStringLiteral("both");
                                                     }),
-               QStringLiteral("headless registry must expose exactly the 151 both-host tools"));
+               QStringLiteral("headless registry must expose exactly the 154 both-host tools"));
 
         Automation::McpRequestDispatcher mcp(registry,
                                              {
@@ -1576,9 +1576,9 @@ namespace {
             if (cursor.isEmpty())
                 break;
         }
-        expect(toolsListValid && cursor.isEmpty() && listedToolCount == 151 &&
-                   listedToolIds.size() == 151,
-               QStringLiteral("headless MCP tools/list must expose exactly 151 unique tools"));
+        expect(toolsListValid && cursor.isEmpty() && listedToolCount == 154 &&
+                   listedToolIds.size() == 154,
+               QStringLiteral("headless MCP tools/list must expose exactly 154 unique tools"));
 
         const auto guiOnly = registry.invoke(QStringLiteral("track_panel.set_viewport"), {});
         expect(!guiOnly &&

@@ -136,6 +136,9 @@ namespace Automation::OperationIds {
     X(packages, set_search_paths, "packages.set_search_paths")                                     \
     X(packages, validate, "packages.validate")                                                     \
     X(parameters, trace, "parameters.trace")                                                       \
+    X(parameters, modulate, "parameters.modulate")                                                 \
+    X(parameters, shape, "parameters.shape")                                                       \
+    X(parameters, scale, "parameters.scale")                                                       \
     X(parameters, create_anchor_curve, "parameters.create_anchor_curve")                           \
     X(parameters, draw, "parameters.draw")                                                         \
     X(parameters, erase, "parameters.erase")                                                       \

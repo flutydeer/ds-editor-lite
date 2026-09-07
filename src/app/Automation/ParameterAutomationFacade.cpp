@@ -3,6 +3,8 @@
 
 #include "Controller/Actions/AppModel/Param/ParamsActions.h"
 #include "Controller/Actions/AppModel/SpeakerMix/SpeakerMixActions.h"
+#include "UI/Views/ClipEditor/AnchorEditor/AnchorEditUtils.h"
+#include "UI/Views/ClipEditor/DrawCurveEditUtils.h"
 
 #include <lite/AutomationWire/PublicConstants.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
@@ -14,6 +16,7 @@
 #include <QHash>
 #include <QJsonDocument>
 #include <QSet>
+#include <QScopeGuard>
 
 #include <memory>
 #include <algorithm>
@@ -78,67 +81,21 @@ namespace Automation {
             return false;
         }
 
-        void clearCurveIdentity(CurveDraftDto &curve) {
-            curve.id = {};
-            for (auto &node : curve.nodes)
-                node.id = {};
-        }
-
-        DrawCurve *freshDrawCurve(const CurveDraftDto &draft) {
-            if (draft.type == CurveDraftDto::Type::Draw) {
-                auto *result = new DrawCurve;
-                result->Curve::setLocalStart(draft.localStart);
-                result->step = draft.step;
-                result->setValues(draft.values);
-                return result;
-            }
-            const auto curve = buildCurve(draft);
-            return static_cast<const AnchorCurve *>(curve.get())->toDrawCurve();
-        }
-
-        std::optional<qint64> drawMaterializationPointCount(const CurveDraftDto &draft) {
-            if (draft.type == CurveDraftDto::Type::Draw) {
-                if (draft.step <= 0 || draft.localStart < 0)
-                    return std::nullopt;
-                const auto end = static_cast<qint64>(draft.localStart) +
-                                 static_cast<qint64>(draft.step) * draft.values.size();
-                if (end > std::numeric_limits<int>::max())
-                    return std::nullopt;
-                return draft.values.size();
-            }
-            if (draft.nodes.size() < 2)
-                return 0;
-
-            const auto first = static_cast<qint64>(draft.nodes.constFirst().position);
-            const auto last = static_cast<qint64>(draft.nodes.constLast().position);
-            if (first < 0 || last < first)
-                return std::nullopt;
+        bool reserveDrawMaterialization(const QList<DrawCurve *> &curves, qint64 &reservedPoints) {
             constexpr qint64 step = 5;
-            const auto start = first / step * step;
-            const auto count = (last - start) / step + 1;
-            if (start + step * count > std::numeric_limits<int>::max())
-                return std::nullopt;
-            return count;
-        }
-
-        bool reserveTraceMaterialization(const CurveDraftDto &draft, qint64 &reservedPoints) {
-            const auto count = drawMaterializationPointCount(draft);
-            if (!count || *count > AutomationWire::MaximumCurveSampleItems - reservedPoints)
-                return false;
-            reservedPoints += *count;
-            return true;
-        }
-
-        void retainDrawRange(QList<DrawCurve *> &curves, const int localStart, const int localEnd) {
-            if (localStart > 0)
-                AppModelUtils::eraseDrawCurveRange(curves, 0, localStart);
-            int maximumEnd = localEnd;
             for (const auto *curve : curves) {
-                if (curve)
-                    maximumEnd = std::max(maximumEnd, curve->localEndTick());
+                if (curve->step <= 0 || curve->localStart() < 0)
+                    return false;
+                const auto span = qint64(curve->step) * curve->values().size();
+                const auto end = qint64(curve->localStart()) + span;
+                if (end > std::numeric_limits<int>::max() - step)
+                    return false;
+                const auto count = std::max<qint64>(curve->values().size(), (span + step - 1) / step);
+                if (count > AutomationWire::MaximumCurveSampleItems - reservedPoints)
+                    return false;
+                reservedPoints += count;
             }
-            if (maximumEnd > localEnd)
-                AppModelUtils::eraseDrawCurveRange(curves, localEnd, maximumEnd);
+            return true;
         }
 
         QByteArray parameterMutationFingerprint(const QByteArray &operationTag, const ClipId clipId,
@@ -375,8 +332,10 @@ namespace Automation {
 
     ParameterAutomationFacade::ParameterAutomationFacade(AutomationDispatcher &dispatcher,
                                                          CommandCommitter &committer,
-                                                         DocumentObjectResolver &objects)
-        : m_dispatcher(dispatcher), m_committer(committer), m_objects(objects) {
+                                                         DocumentObjectResolver &objects,
+                                                         ParameterRuntimeServices services)
+        : m_dispatcher(dispatcher), m_committer(committer), m_objects(objects),
+          m_services(std::move(services)) {
     }
 
     AutomationResult<ParameterSnapshotDto>
@@ -1069,129 +1028,190 @@ namespace Automation {
             });
     }
 
-    AutomationResult<MutationResult> ParameterAutomationFacade::traceParameter(
-        const CommandContext &context, const ClipId clipId, const ParamInfo::Name name,
-        const std::optional<int> localStart, const std::optional<int> localEnd) {
-        const int rangeStart = localStart.value_or(-1);
-        const int rangeEnd = localEnd.value_or(-1);
-        auto isolatedContext = context;
-        if (!isolatedContext.idempotencyKey.isEmpty()) {
-            isolatedContext.idempotencyKey =
-                QStringLiteral("trace:") + isolatedContext.idempotencyKey;
-        }
+    AutomationResult<MutationResult> ParameterAutomationFacade::mutateDrawParameter(
+        const OperationId &operationId, const CommandContext &context, const ClipId clipId,
+        const ParamInfo::Name name, DrawCurveMutation mutation) {
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::parameters::trace, isolatedContext,
-            [this, clipId, name, localStart, localEnd](DocumentSession &session,
-                                                       const bool validateOnly) {
+            operationId, context,
+            [this, clipId, name, mutation = std::move(mutation)](
+                DocumentSession &session, const bool validateOnly) -> AutomationResult<MutationResult> {
                 auto resolved = m_objects.singingClip(session, clipId);
                 if (!resolved)
-                    return AutomationResult<MutationResult>(resolved.getError());
-                if (!supportedParameter(name, Param::Edited)) {
-                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
-                        QStringLiteral("name"), QStringLiteral("Parameter is unsupported")));
-                }
-                if (localStart.has_value() != localEnd.has_value() ||
-                    (localStart && (*localStart < 0 || *localEnd <= *localStart))) {
-                    return AutomationResult<MutationResult>(AutomationError::invalidArgument(
-                        QStringLiteral("local_end"),
-                        QStringLiteral(
-                            "Trace range must provide an ordered non-negative interval")));
+                    return resolved.getError();
+                if (!supportedParameter(name, Param::Edited) || !ParamInfo::hasOriginalParam(name)) {
+                    return AutomationError::invalidArgument(
+                        QStringLiteral("name"), QStringLiteral("Parameter has no original curve"));
                 }
                 auto *clip = static_cast<SingingClip *>(resolved.get().clip);
                 const auto *param = clip->params.getParamByName(name);
-                QList<CurveDraftDto> original;
-                QList<CurveDraftDto> edited;
-                for (const auto *curve : param->curves(Param::Original))
-                    original.append(curveDraftDto(*curve));
+                const auto original = AppModelUtils::getDrawCurves(param->curves(Param::Original));
+                const auto edited = AppModelUtils::getDrawCurves(param->curves(Param::Edited));
+                qint64 materializedPoints = 0;
+                if (!reserveDrawMaterialization(original, materializedPoints) ||
+                    !reserveDrawMaterialization(edited, materializedPoints)) {
+                    return AutomationError::invalidArgument(
+                        QStringLiteral("local_end"),
+                        QStringLiteral("Curve resampling exceeds the supported point or tick limit"));
+                }
+                QList<DrawCurve *> preview;
+                AppModelUtils::copyCurves(edited, preview);
+                const auto deletePreview = qScopeGuard([&] { qDeleteAll(preview); });
+                auto mutated = mutation(*clip, original, preview);
+                if (!mutated)
+                    return mutated.getError();
+                const auto affected = QList<ObjectRef>{{ObjectKind::Clip, clipId.value()}};
+                if (!mutated.get())
+                    return validateOnly ? m_committer.preview(session, false, affected)
+                                        : m_committer.unchanged(session);
+
+                const auto replacement =
+                    AnchorEditor::replaceDrawCurves(param->curves(Param::Edited), preview);
+                const auto deleteReplacement = qScopeGuard([&] { qDeleteAll(replacement); });
+                QList<CurveDraftDto> before;
+                QList<CurveDraftDto> after;
                 for (const auto *curve : param->curves(Param::Edited))
-                    edited.append(curveDraftDto(*curve));
-
-                QList<CurveDraftDto> replacement;
-                if (!localStart) {
-                    replacement = original;
-                    for (auto &curve : replacement)
-                        clearCurveIdentity(curve);
-                } else {
-                    qint64 materializedPoints = 0;
-                    for (const auto &draft : edited) {
-                        if (draft.type == CurveDraftDto::Type::Anchor) {
-                            const int anchorEnd = draft.nodes.isEmpty()
-                                                      ? draft.localStart
-                                                      : draft.nodes.constLast().position;
-                            if (anchorEnd <= *localStart || draft.localStart >= *localEnd)
-                                continue;
-                        }
-                        if (!reserveTraceMaterialization(draft, materializedPoints)) {
-                            return AutomationResult<MutationResult>(
-                                AutomationError::invalidArgument(
-                                    QStringLiteral("local_end"),
-                                    QStringLiteral("Trace curve materialization exceeds the "
-                                                   "supported point limit")));
-                        }
-                    }
-                    for (const auto &draft : original) {
-                        if (!reserveTraceMaterialization(draft, materializedPoints)) {
-                            return AutomationResult<MutationResult>(
-                                AutomationError::invalidArgument(
-                                    QStringLiteral("local_end"),
-                                    QStringLiteral("Trace curve materialization exceeds the "
-                                                   "supported point limit")));
-                        }
-                    }
-
-                    QList<DrawCurve *> editedDraws;
-                    for (const auto &draft : edited) {
-                        if (draft.type == CurveDraftDto::Type::Anchor) {
-                            const int anchorEnd = draft.nodes.isEmpty()
-                                                      ? draft.localStart
-                                                      : draft.nodes.constLast().position;
-                            if (anchorEnd <= *localStart || draft.localStart >= *localEnd) {
-                                replacement.append(draft);
-                                continue;
-                            }
-                        }
-                        if (auto *draw = freshDrawCurve(draft))
-                            editedDraws.append(draw);
-                    }
-                    AppModelUtils::eraseDrawCurveRange(editedDraws, *localStart, *localEnd);
-
-                    QList<DrawCurve *> tracedDraws;
-                    for (const auto &draft : original) {
-                        if (auto *draw = freshDrawCurve(draft))
-                            tracedDraws.append(draw);
-                    }
-                    retainDrawRange(tracedDraws, *localStart, *localEnd);
-                    auto merged = AppModelUtils::mergeCurves(editedDraws, tracedDraws);
-                    for (const auto *curve : merged)
-                        replacement.append(curveDraftDto(*curve));
-                    qDeleteAll(editedDraws);
-                    qDeleteAll(tracedDraws);
-                    qDeleteAll(merged);
-                }
-                QCryptographicHash originalHash(QCryptographicHash::Sha256);
-                QCryptographicHash editedHash(QCryptographicHash::Sha256);
-                hashCurveShapes(originalHash, replacement);
-                hashCurveShapes(editedHash, edited);
-                const bool changed = originalHash.result() != editedHash.result();
-                const auto affected = QList<ObjectRef>{
-                    {ObjectKind::Clip, clipId.value()}
-                };
+                    before.append(curveDraftDto(*curve));
+                for (const auto *curve : replacement)
+                    after.append(curveDraftDto(*curve));
+                QCryptographicHash beforeHash(QCryptographicHash::Sha256);
+                QCryptographicHash afterHash(QCryptographicHash::Sha256);
+                hashCurveShapes(beforeHash, before);
+                hashCurveShapes(afterHash, after);
+                const bool changed = beforeHash.result() != afterHash.result();
                 if (validateOnly)
-                    return AutomationResult<MutationResult>(
-                        m_committer.preview(session, changed, affected));
+                    return m_committer.preview(session, changed, affected);
                 if (!changed)
-                    return AutomationResult<MutationResult>(m_committer.unchanged(session));
-                std::vector<std::unique_ptr<Curve>> owned;
-                QList<Curve *> raw;
-                for (const auto &draft : replacement) {
-                    auto curve = buildCurve(draft);
-                    raw.append(curve.get());
-                    owned.push_back(std::move(curve));
-                }
+                    return m_committer.unchanged(session);
                 auto actions = std::make_unique<ParamsActions>();
-                actions->replaceParam(name, Param::Edited, raw, clip);
+                actions->replaceParam(name, Param::Edited, replacement, clip);
                 return m_committer.commit(session, std::move(actions), affected);
             });
+    }
+
+    AutomationResult<MutationResult> ParameterAutomationFacade::traceParameter(
+        const CommandContext &context, const ClipId clipId, const ParamInfo::Name name,
+        const std::optional<int> localStart, const std::optional<int> localEnd) {
+        return mutateDrawParameter(
+            OperationIds::parameters::trace, context, clipId, name,
+            [localStart, localEnd](SingingClip &, const QList<DrawCurve *> &original,
+                                   QList<DrawCurve *> &edited) -> AutomationResult<bool> {
+                if (localStart.has_value() != localEnd.has_value() ||
+                    (localStart && (*localStart < 0 || *localEnd <= *localStart))) {
+                    return AutomationError::invalidArgument(
+                        QStringLiteral("local_end"),
+                        QStringLiteral("Trace range must provide an ordered non-negative interval"));
+                }
+                DrawCurveEditUtils::GeneratedCurveSnapshot source;
+                source.capture(original);
+                bool applied = false;
+                for (const auto *curve : original) {
+                    const auto first = std::max(curve->localStart(), localStart.value_or(0));
+                    if (first >= curve->localEndTick())
+                        continue;
+                    const auto start = (first + 4) / 5 * 5;
+                    const auto end = std::min(curve->localEndTick(),
+                                              localEnd.value_or(curve->localEndTick()));
+                    if (start >= end)
+                        continue;
+                    const QPoint from(start, 0);
+                    auto stroke = DrawCurveEditUtils::beginStroke(edited, from);
+                    applied |= DrawCurveEditUtils::updateStroke(
+                        edited, stroke, from, QPoint(end, 0),
+                        [&source](const int tick) { return source.valueAt(tick); });
+                }
+                return applied;
+            });
+    }
+
+    AutomationResult<MutationResult> ParameterAutomationFacade::transformParameter(
+        const CommandContext &context, const ClipId clipId, const ParamInfo::Name name,
+        const CurveTransform::Kind kind, const ParameterTransformDto &transform) {
+        const auto &operationId =
+            kind == CurveTransform::Kind::ModulatePitch ? OperationIds::parameters::modulate
+            : kind == CurveTransform::Kind::Shape       ? OperationIds::parameters::shape
+                                                        : OperationIds::parameters::scale;
+        QList<ResolvedValue> resolvedValues;
+        auto result = mutateDrawParameter(
+            operationId, context, clipId, name,
+            [this, name, kind, transform,
+             &resolvedValues](SingingClip &clip, const QList<DrawCurve *> &original,
+                              QList<DrawCurve *> &edited) -> AutomationResult<bool> {
+                if ((kind == CurveTransform::Kind::ModulatePitch) != (name == ParamInfo::Pitch)) {
+                    return AutomationError::invalidArgument(
+                        QStringLiteral("name"),
+                        QStringLiteral("Modulation supports pitch; shape and scale support "
+                                       "variance parameters"));
+                }
+                if (!std::isfinite(transform.factor) || transform.factor < 0.0 ||
+                    transform.factor > 2.0) {
+                    return AutomationError::invalidArgument(
+                        QStringLiteral("factor"), QStringLiteral("Factor must be between 0 and 2"));
+                }
+                if (transform.localStart < 0 || transform.localEnd <= transform.localStart ||
+                    (transform.transitionStart && *transform.transitionStart < 0) ||
+                    (transform.transitionEnd && *transform.transitionEnd < 0)) {
+                    return AutomationError::invalidArgument(
+                        QStringLiteral("local_end"),
+                        QStringLiteral("Transform boundaries must be non-negative ticks, "
+                                       "with an ordered non-empty main range"));
+                }
+                for (const auto &curves : {original, edited}) {
+                    for (const auto *curve : curves) {
+                        if (qint64(clip.start()) + curve->localEndTick() >
+                            std::numeric_limits<int>::max()) {
+                            return AutomationError::invalidArgument(
+                                QStringLiteral("local_end"),
+                                QStringLiteral("Curve exceeds the global timeline limit"));
+                        }
+                    }
+                }
+                if (!m_services.prepareTransform) {
+                    return AutomationError{
+                        AutomationErrorCode::HostCapabilityUnavailable,
+                        QStringLiteral("Curve transform context is unavailable")};
+                }
+                auto config = m_services.prepareTransform(&clip, name, kind);
+                if (!config)
+                    return config.getError();
+                CurveTransform::Session session;
+                session.setSource(original, edited, config.get());
+                if (!session.selectRange(transform.localStart, transform.localEnd,
+                                         transform.transitionStart, transform.transitionEnd)) {
+                    return AutomationError{
+                        AutomationErrorCode::OperationUnavailable,
+                        QStringLiteral("The selected range has no complete curve segment")};
+                }
+                const auto &bounds = session.bounds();
+                if (kind == CurveTransform::Kind::ModulatePitch) {
+                    for (auto tick = bounds.c; tick < bounds.d;
+                         tick += CurveTransform::SampleStep) {
+                        const auto baseline = config.get().pitchBaselineAtTick
+                                                  ? config.get().pitchBaselineAtTick(tick)
+                                                  : std::nullopt;
+                        if (!baseline || !std::isfinite(*baseline)) {
+                            return AutomationError{
+                                AutomationErrorCode::OperationUnavailable,
+                                QStringLiteral(
+                                    "Pitch modulation requires a valid note pitch baseline")};
+                        }
+                    }
+                }
+                resolvedValues = {
+                    {QStringLiteral("/local_start"),      bounds.a},
+                    {QStringLiteral("/local_end"),        bounds.b},
+                    {QStringLiteral("/transition_start"), bounds.c},
+                    {QStringLiteral("/transition_end"),   bounds.d},
+                };
+                session.beginTransform();
+                session.setFactor(transform.factor);
+                auto preview = session.buildEditedPreview();
+                qDeleteAll(edited);
+                edited = std::move(preview);
+                return true;
+            });
+        if (result)
+            result.get().resolvedValues = std::move(resolvedValues);
+        return result;
     }
 
     AutomationResult<MutationResult> ParameterAutomationFacade::replaceClipSpeakerMix(

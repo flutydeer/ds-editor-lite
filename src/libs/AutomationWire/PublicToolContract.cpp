@@ -541,7 +541,22 @@ namespace AutomationWire {
             return persistentPlaybackOperations().contains(id);
         }
 
+        bool isCurveTransformOperation(const QString &id) {
+            return id == PublicToolNames::parameters_modulate ||
+                   id == PublicToolNames::parameters_shape ||
+                   id == PublicToolNames::parameters_scale;
+        }
+
         QJsonObject inputFieldSchema(const QString &id, const QString &name) {
+            if (isCurveTransformOperation(id)) {
+                if (name == QStringLiteral("factor"))
+                    return JsonSchema::number(0.0, 2.0);
+                if (name == QStringLiteral("local_start") || name == QStringLiteral("local_end") ||
+                    name == QStringLiteral("transition_start") ||
+                    name == QStringLiteral("transition_end")) {
+                    return nonNegativeModelIntegerSchema();
+                }
+            }
             if (name == QStringLiteral("document_id") ||
                 name == QStringLiteral("current_document_id") ||
                 name == QStringLiteral("task_id")) {
@@ -609,8 +624,17 @@ namespace AutomationWire {
                 name == QStringLiteral("discard_changes")) {
                 return JsonSchema::boolean();
             }
-            if (name == QStringLiteral("name") && id.startsWith(QStringLiteral("parameters.")))
+            if (name == QStringLiteral("name") && id.startsWith(QStringLiteral("parameters."))) {
+                if (id == PublicToolNames::parameters_trace || isCurveTransformOperation(id)) {
+                    QStringList names{QStringLiteral("energy"), QStringLiteral("breathiness"),
+                                      QStringLiteral("voicing"), QStringLiteral("tension"),
+                                      QStringLiteral("mouth_opening")};
+                    if (id == PublicToolNames::parameters_trace)
+                        names.prepend(QStringLiteral("pitch"));
+                    return JsonSchema::string(names);
+                }
                 return parameterNameSchema();
+            }
             if (name == QStringLiteral("idempotency_key"))
                 return JsonSchema::string({}, 0, MaximumIdempotencyKeyLength);
             if (name == QStringLiteral("cursor") ||
@@ -936,6 +960,9 @@ namespace AutomationWire {
                 PublicToolNames::parameters_draw,
                 PublicToolNames::parameters_erase,
                 PublicToolNames::parameters_trace,
+                PublicToolNames::parameters_modulate,
+                PublicToolNames::parameters_shape,
+                PublicToolNames::parameters_scale,
                 PublicToolNames::parameters_create_anchor_curve,
                 PublicToolNames::parameters_insert_anchors,
                 PublicToolNames::parameters_merge_anchor_curves,
@@ -1127,34 +1154,40 @@ namespace AutomationWire {
                 {PublicToolNames::parameters_get,
                  {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("layer")}                           },
                 {PublicToolNames::parameters_replace,
-                 {QStringLiteral("clip_id"), QStringLiteral("name"),
-                  QStringLiteral("curves")}                                                                             },
+                 {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("curves")}                          },
                 {PublicToolNames::parameters_draw,
-                 {QStringLiteral("clip_id"), QStringLiteral("name"),
-                  QStringLiteral("local_start"), QStringLiteral("step"), QStringLiteral("values")}                      },
+                 {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("local_start"),
+                  QStringLiteral("step"), QStringLiteral("values")}                                                     },
                 {PublicToolNames::parameters_erase,
-                 {QStringLiteral("clip_id"), QStringLiteral("name"),
-                  QStringLiteral("local_start"), QStringLiteral("local_end")}                                           },
+                 {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("local_start"),
+                  QStringLiteral("local_end")}                                                                          },
                 {PublicToolNames::parameters_trace,
                  {QStringLiteral("clip_id"), QStringLiteral("name")}                                                    },
+                {PublicToolNames::parameters_modulate,
+                 {QStringLiteral("clip_id"), QStringLiteral("local_start"),
+                  QStringLiteral("local_end"), QStringLiteral("factor")}                                                },
+                {PublicToolNames::parameters_shape,
+                 {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("local_start"),
+                  QStringLiteral("local_end"), QStringLiteral("factor")}                                                },
+                {PublicToolNames::parameters_scale,
+                 {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("local_start"),
+                  QStringLiteral("local_end"), QStringLiteral("factor")}                                                },
                 {PublicToolNames::parameters_create_anchor_curve,
-                 {QStringLiteral("clip_id"), QStringLiteral("name"),
-                  QStringLiteral("client_ref"), QStringLiteral("anchors")}                                              },
+                 {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("client_ref"),
+                  QStringLiteral("anchors")}                                                                            },
                 {PublicToolNames::parameters_insert_anchors,
-                 {QStringLiteral("clip_id"), QStringLiteral("name"),
-                  QStringLiteral("curve_id"), QStringLiteral("anchors")}                                                },
+                 {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("curve_id"),
+                  QStringLiteral("anchors")}                                                                            },
                 {PublicToolNames::parameters_merge_anchor_curves,
                  {QStringLiteral("clip_id"), QStringLiteral("name"),
                   QStringLiteral("target_curve_id"), QStringLiteral("source_curve_id")}                                 },
                 {PublicToolNames::parameters_move_anchors,
-                 {QStringLiteral("clip_id"), QStringLiteral("name"),
-                  QStringLiteral("moves")}                                                                              },
+                 {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("moves")}                           },
                 {PublicToolNames::parameters_remove_anchors,
-                 {QStringLiteral("clip_id"), QStringLiteral("name"),
-                  QStringLiteral("anchor_ids")}                                                                         },
+                 {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("anchor_ids")}                      },
                 {PublicToolNames::parameters_set_anchor_interpolation,
-                 {QStringLiteral("clip_id"), QStringLiteral("name"),
-                  QStringLiteral("anchor_ids"), QStringLiteral("interpolation")}                                        },
+                 {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("anchor_ids"),
+                  QStringLiteral("interpolation")}                                                                      },
                 {PublicToolNames::tempos_set,                          {QStringLiteral("tick"), QStringLiteral("tempo")}},
                 {PublicToolNames::tempos_remove,                       {QStringLiteral("tick")}                         },
                 {PublicToolNames::time_signatures_set,
@@ -1228,6 +1261,12 @@ namespace AutomationWire {
                 {PublicToolNames::parameters_draw,              {QStringLiteral("merge_mode")}                     },
                 {PublicToolNames::parameters_trace,
                  {QStringLiteral("local_start"), QStringLiteral("local_end")}                                      },
+                {PublicToolNames::parameters_modulate,
+                 {QStringLiteral("transition_start"), QStringLiteral("transition_end")}                            },
+                {PublicToolNames::parameters_shape,
+                 {QStringLiteral("transition_start"), QStringLiteral("transition_end")}                            },
+                {PublicToolNames::parameters_scale,
+                 {QStringLiteral("transition_start"), QStringLiteral("transition_end")}                            },
                 {PublicToolNames::inference_start,              {QStringLiteral("stages")}                         },
                 {PublicToolNames::tasks_list,
                  {QStringLiteral("state"), QStringLiteral("kind"), QStringLiteral("cursor"),
@@ -3835,6 +3874,8 @@ namespace AutomationWire {
         }
 
         QString humanTitle(const QString &operationId) {
+            if (operationId == PublicToolNames::parameters_modulate)
+                return QStringLiteral("Modulate pitch");
             auto result = operationId;
             result.replace(u'.', u' ');
             result.replace(u'_', u' ');
@@ -4009,9 +4050,50 @@ namespace AutomationWire {
                     .arg(action);
             }
             if (category == QStringLiteral("parameters")) {
+                if (operationId == PublicToolNames::parameters_trace) {
+                    return QStringLiteral(
+                        "Trace original sampled curves into Edited, optionally within a clip-local "
+                        "half-open tick range. As in the GUI, overlapping Edited curves on a "
+                        "nonstandard sample grid are resampled as whole curves to the 5-tick grid, "
+                        "including portions outside the stroke range. Original-data gaps retain "
+                        "existing edited values on that grid. Preserve anchor curves. Without "
+                        "original sampled data this is a no-op. Commits one History step.");
+                }
+                if (isCurveTransformOperation(operationId)) {
+                    QString description;
+                    if (operationId == PublicToolNames::parameters_modulate) {
+                        description = QStringLiteral(
+                            "Modulate pitch deviations from the smoothed note pitch baseline. "
+                            "Build the baseline from the clip's existing note pitches and phoneme "
+                            "timings. Return operation_unavailable if those data cannot provide a "
+                            "usable baseline for the selected range. ");
+                    } else if (operationId == PublicToolNames::parameters_shape) {
+                        description = QStringLiteral(
+                            "Shape normalized parameter deviations from the line through the "
+                            "selected endpoints. ");
+                    } else {
+                        description = QStringLiteral("Scale normalized parameter values. ");
+                    }
+                    description += QStringLiteral(
+                        "Apply factor 0..2 to merged original and edited sampled curves and write "
+                        "only Edited, retaining anchors. factor 1 may still populate Edited from "
+                        "Original or normalize source values. All boundaries accept non-negative "
+                        "integer ticks. local_start/local_end form a clip-local half-open range; "
+                        "align both upward to the 5-tick grid and clamp to the first touched "
+                        "continuous segment from left to right. Pitch also respects "
+                        "inference-piece "
+                        "boundaries. The resolved main range must span at least 10 ticks. Optional "
+                        "transition_start/transition_end snap to the nearest 5-tick grid point and "
+                        "clamp to that segment; defaults choose grid-aligned shoulders of at most "
+                        "60ms. resolved_values always reports the four actual boundaries, even "
+                        "when changed is false. The outer interval is the processing range, not a "
+                        "claim that every sample changed. Commits one History step.");
+                    return description;
+                }
                 return QStringLiteral(
                            "Apply %1 to the Edited parameter layer through the shared parameter "
-                           "domain facade. Only Edited curves can be modified. The editor validates "
+                           "domain facade. Only Edited curves can be modified. The editor "
+                           "validates "
                            "the expected revision and commits one atomic History entry.")
                     .arg(action);
             }
@@ -4088,7 +4170,8 @@ namespace AutomationWire {
             }
             if (id.startsWith(QStringLiteral("parameters.")) &&
                 id != PublicToolNames::parameters_get &&
-                id != PublicToolNames::parameters_get_capabilities) {
+                id != PublicToolNames::parameters_get_capabilities &&
+                id != PublicToolNames::parameters_modulate) {
                 add(QStringLiteral("/name"), PublicToolNames::parameters_get_capabilities,
                     {QStringLiteral("/document_id"), QStringLiteral("/clip_id")});
                 if (id == PublicToolNames::parameters_replace) {

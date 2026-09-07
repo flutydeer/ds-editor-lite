@@ -128,7 +128,7 @@ namespace {
 
 namespace CurveTransform {
     bool Bounds::isValid() const {
-        return componentStart <= c && c <= a && a + 2 * SampleStep <= b && b <= d &&
+        return componentStart <= c && c <= a && qint64(a) + 2 * SampleStep <= b && b <= d &&
                d <= componentEnd;
     }
 
@@ -258,6 +258,32 @@ namespace CurveTransform {
         return true;
     }
 
+    bool Session::selectRange(const int startTick, const int endTick,
+                              const std::optional<int> transitionStart,
+                              const std::optional<int> transitionEnd) {
+        resetInteraction();
+        if (startTick < 0 || endTick <= startTick || (transitionStart && *transitionStart < 0) ||
+            (transitionEnd && *transitionEnd < 0)) {
+            return false;
+        }
+        beginSelection(startTick);
+        if (!finishSelection(endTick)) {
+            resetInteraction();
+            return false;
+        }
+        if (transitionStart) {
+            beginBoundaryDrag(Boundary::C);
+            updateBoundaryDrag(*transitionStart);
+            endBoundaryDrag();
+        }
+        if (transitionEnd) {
+            beginBoundaryDrag(Boundary::D);
+            updateBoundaryDrag(*transitionEnd);
+            endBoundaryDrag();
+        }
+        return true;
+    }
+
     bool Session::beginBoundaryDrag(const Boundary boundary) {
         if (m_phase != Phase::Adjusting || m_selectedComponent < 0 || boundary == Boundary::None)
             return false;
@@ -318,10 +344,15 @@ namespace CurveTransform {
         return true;
     }
 
+    bool Session::setFactor(const double factor) {
+        if (m_phase != Phase::Transforming || !std::isfinite(factor) || factor < 0.0 || factor > 2.0)
+            return false;
+        m_factor = factor;
+        return true;
+    }
+
     void Session::updateTransform(const double verticalLogicalPixelDelta) {
-        if (m_phase != Phase::Transforming)
-            return;
-        m_factor = std::clamp(1.0 - verticalLogicalPixelDelta / 100.0, 0.0, 2.0);
+        setFactor(std::clamp(1.0 - verticalLogicalPixelDelta / 100.0, 0.0, 2.0));
     }
 
     QList<DrawCurve *> Session::buildEditedPreview() const {
@@ -398,8 +429,8 @@ namespace CurveTransform {
         }
         const auto &component = m_components.at(m_selectedComponent);
         const auto [rawStart, rawEnd] = std::minmax(m_selectionStartTick, tick);
-        const auto a = std::max(component.startTick, alignedAtOrAfter(rawStart));
-        const auto b = std::min(component.endTick(), alignedAtOrAfter(rawEnd));
+        const auto a = alignedAtOrAfter(std::max(component.startTick, rawStart));
+        const auto b = alignedAtOrAfter(std::min(component.endTick(), rawEnd));
         if (b - a < 2 * SampleStep) {
             m_bounds = {};
             m_selectedComponent = -1;

@@ -952,8 +952,8 @@ namespace {
             }
         }
         expect(
-            publicToolContracts().size() == 176 && guiOnly.size() == 25 && both.size() == 151,
-            QStringLiteral("public host split must contain 25 GUI-only and 151 both-host tools"));
+            publicToolContracts().size() == 179 && guiOnly.size() == 25 && both.size() == 154,
+            QStringLiteral("public host split must contain 25 GUI-only and 154 both-host tools"));
         expect(
             guiOnly.size() + both.size() == publicToolContracts().size(),
             QStringLiteral("GUI-only and both-host contracts must partition the public toolset"));

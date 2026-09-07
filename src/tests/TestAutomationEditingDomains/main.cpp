@@ -4,6 +4,7 @@
 
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/SpeakerMixData.h>
+#include <lite/ProjectModel/AppModel/ParamProperties.h>
 #include <lite/ProjectModel/Voice/SingerInfo.h>
 #include <lite/ProjectModel/Voice/SpeakerInfo.h>
 
@@ -1456,6 +1457,84 @@ namespace {
         return data;
     }
 
+    void testCurveTransforms(Suite &suite) {
+        using CurveTransform::Kind;
+        const MouthOpeningParamProperties properties;
+        for (const auto kind : {Kind::Shape, Kind::Scale, Kind::ModulatePitch}) {
+            const auto name =
+                kind == Kind::ModulatePitch ? ParamInfo::Pitch : ParamInfo::MouthOpening;
+            Automation::ParameterRuntimeServices services;
+            services.prepareTransform =
+                [&properties](SingingClip *, ParamInfo::Name,
+                              const Kind kind) -> AutomationResult<CurveTransform::Config> {
+                CurveTransform::Config config;
+                config.kind = kind;
+                config.properties = &properties;
+                config.tickToMilliseconds = [](const int tick) { return double(tick); };
+                config.pitchBaselineAtTick = [](int) { return std::optional<double>(6000.0); };
+                return config;
+            };
+            TestRuntime testRuntime({}, {}, {}, {}, {}, {}, {}, {}, {}, std::move(services));
+            auto &runtime = testRuntime.runtime();
+            const auto trackId = insertedTrack(runtime, QStringLiteral("Curves"));
+            const auto clipId = insertedSingingClip(runtime, trackId, QStringLiteral("Curve Clip"));
+            const auto &operation =
+                kind == Kind::ModulatePitch ? Automation::OperationIds::parameters::modulate
+                : kind == Kind::Shape       ? Automation::OperationIds::parameters::shape
+                                            : Automation::OperationIds::parameters::scale;
+            suite.run(operation, QStringLiteral("clamped-range-result-and-undo"), [&] {
+                Automation::CurveDraftDto first;
+                first.type = Automation::CurveDraftDto::Type::Draw;
+                first.localStart = 20;
+                first.values = kind == Kind::ModulatePitch ? QList<int>{6100, 6500, 6200}
+                                                           : QList<int>{100, 900, 500};
+                auto second = first;
+                second.localStart = 60;
+                runtime.parameters().replaceParameter(commandContext(runtime), clipId, name,
+                                                      Param::Edited, {first, second});
+                testRuntime.history()->reset();
+                const Automation::ParameterTransformDto request{
+                    1, 99, kind == Kind::Scale ? 0.5 : 0.0, 1, 99};
+                const auto applied = runtime.parameters().transformParameter(
+                    commandContext(runtime), clipId, name, kind, request);
+                const auto snapshot = [&] {
+                    return runtime.parameters()
+                        .getParameter(runtime.documentVersion().documentId, clipId, name,
+                                      Param::Edited)
+                        .get()
+                        .curves;
+                };
+                const auto expected = kind == Kind::ModulatePitch ? QList<int>{6000, 6000, 6000}
+                                      : kind == Kind::Shape       ? QList<int>{100, 300, 500}
+                                                                  : QList<int>{50, 450, 250};
+                const QList<Automation::ResolvedValue> bounds{
+                    {QStringLiteral("/local_start"),      20},
+                    {QStringLiteral("/local_end"),        35},
+                    {QStringLiteral("/transition_start"), 20},
+                    {QStringLiteral("/transition_end"),   35},
+                };
+                suite.expect(
+                    applied && applied.get().changed && applied.get().resolvedValues == bounds &&
+                        snapshot().first().values == expected &&
+                        snapshot().last().values == second.values,
+                    QStringLiteral(
+                        "transform must report its clamped range and preserve the next segment"));
+                const auto undo = runtime.history().undo(commandContext(runtime));
+                suite.expect(undo && snapshot().first().values == first.values,
+                             QStringLiteral("one undo must restore the transform source"));
+                const auto redo = runtime.history().redo(commandContext(runtime));
+                suite.expect(redo && snapshot().first().values == expected,
+                             QStringLiteral("one redo must restore the transform result"));
+                auto unchanged = request;
+                unchanged.factor = 1.0;
+                const auto noOp = runtime.parameters().transformParameter(
+                    commandContext(runtime), clipId, name, kind, unchanged);
+                suite.expect(noOp && !noOp.get().changed && noOp.get().resolvedValues == bounds,
+                             QStringLiteral("a no-op must still report the actual selected range"));
+            });
+        }
+    }
+
     void testParameterAndSpeakerDomain(Suite &suite) {
         TestRuntime testRuntime;
         auto &runtime = testRuntime.runtime();
@@ -1565,7 +1644,7 @@ namespace {
 
         suite.run(
             Automation::OperationIds::parameters::trace,
-            QStringLiteral("anchor-materialization-bounded"), [&] {
+            QStringLiteral("preserve-gaps-and-anchors"), [&] {
                 const auto created = runtime.parameters().createAnchorCurve(
                     commandContext(runtime), clipId, ParamInfo::Pitch, Param::Edited,
                     QStringLiteral("huge-anchor"),
@@ -1578,12 +1657,56 @@ namespace {
                 const auto base = runtime.documentVersion();
                 const auto traced = runtime.parameters().traceParameter(
                     commandContext(runtime), clipId, ParamInfo::Pitch, 0, 5);
-                suite.expect(
-                    isError(traced, AutomationErrorCode::InvalidArgument,
-                            QStringLiteral("local_end")) &&
-                        runtime.documentVersion() == base,
-                    QStringLiteral(
-                        "partial trace must reject an unsafe anchor expansion before mutation"));
+                suite.expect(traced && !traced.get().changed && runtime.documentVersion() == base,
+                             QStringLiteral("trace without original data must preserve anchors"));
+
+                auto before = runtime.parameters().getParameter(
+                    base.documentId, clipId, ParamInfo::Pitch, Param::Edited).get().curves;
+                Automation::CurveDraftDto draw;
+                draw.type = Automation::CurveDraftDto::Type::Draw;
+                draw.localStart = 0;
+                draw.step = 5;
+                draw.values = QList<int>(8, 6000);
+                before.prepend(draw);
+                runtime.parameters().replaceParameter(commandContext(runtime), clipId,
+                                                       ParamInfo::Pitch, Param::Edited, before);
+                auto first = draw;
+                first.values = {6100, 6110};
+                auto second = first;
+                second.localStart = 20;
+                second.values = {6200, 6210};
+                runtime.parameters().replaceParameter(commandContext(runtime), clipId,
+                                                       ParamInfo::Pitch, Param::Original,
+                                                       {first, second});
+                const auto beforeTrace = runtime.documentVersion();
+                const auto applied = runtime.parameters().traceParameter(
+                    commandContext(runtime), clipId, ParamInfo::Pitch, 0, 30);
+                const auto snapshot = [&] {
+                    return runtime.parameters().getParameter(
+                        runtime.documentVersion().documentId, clipId, ParamInfo::Pitch,
+                        Param::Edited).get().curves;
+                };
+                const auto after = snapshot();
+                suite.expect(applied && applied.get().changed &&
+                                 applied.get().current.revision == beforeTrace.revision + 1 &&
+                                 after.size() == 2 &&
+                                 after.first().values == QList<int>{6100, 6110, 6000, 6000,
+                                                                   6200, 6210, 6000, 6000} &&
+                                 after.last().id == before.last().id &&
+                                 after.last().nodes.size() == 2 &&
+                                 after.last().nodes.last().position == std::numeric_limits<int>::max(),
+                             QStringLiteral("trace must preserve holes, outside samples and anchors"));
+                const auto undo = runtime.history().undo(commandContext(runtime));
+                suite.expect(undo && snapshot().first().values == draw.values,
+                             QStringLiteral("one undo must restore the complete trace edit"));
+                const auto redo = runtime.history().redo(commandContext(runtime));
+                suite.expect(redo && snapshot().first().values == after.first().values &&
+                                 snapshot().last().id == after.last().id,
+                             QStringLiteral("one redo must restore the traced curves"));
+                const auto noOp = runtime.parameters().traceParameter(
+                    commandContext(runtime), clipId, ParamInfo::Pitch, 0, 30);
+                suite.expect(noOp && !noOp.get().changed,
+                             QStringLiteral("repeating trace must not add an undo step"));
             });
 
         const auto speakerA = speaker(QStringLiteral("speaker-a"));
@@ -2156,6 +2279,7 @@ int main(int argc, char *argv[]) {
     testProjectDomain(suite);
     testNoteDomain(suite);
     testParameterAndSpeakerDomain(suite);
+    testCurveTransforms(suite);
     testTimelineAndHistoryDomain(suite);
     testQuantizeInChild(suite);
     return suite.result();

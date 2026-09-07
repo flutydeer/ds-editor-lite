@@ -3009,6 +3009,32 @@ namespace Automation {
                         ? std::optional<int>(arguments.value(QStringLiteral("local_end")).toInt())
                         : std::nullopt));
             });
+        for (const auto &[id, kind] : {
+                 std::pair{ToolNames::parameters_modulate, CurveTransform::Kind::ModulatePitch},
+                 std::pair{ToolNames::parameters_shape,    CurveTransform::Kind::Shape        },
+                 std::pair{ToolNames::parameters_scale,    CurveTransform::Kind::Scale        },
+        }) {
+            addBinding(id, [this, kind](const QJsonObject &arguments,
+                                        const PublicInvocationContext &invocation) {
+                ParameterTransformDto transform;
+                transform.localStart = arguments.value(QStringLiteral("local_start")).toInt();
+                transform.localEnd = arguments.value(QStringLiteral("local_end")).toInt();
+                transform.factor = arguments.value(QStringLiteral("factor")).toDouble();
+                if (arguments.contains(QStringLiteral("transition_start")))
+                    transform.transitionStart =
+                        arguments.value(QStringLiteral("transition_start")).toInt();
+                if (arguments.contains(QStringLiteral("transition_end")))
+                    transform.transitionEnd =
+                        arguments.value(QStringLiteral("transition_end")).toInt();
+                return mutationResult(m_runtime.parameters().transformParameter(
+                    commandContext(arguments, invocation),
+                    ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
+                    kind == CurveTransform::Kind::ModulatePitch
+                        ? ParamInfo::Pitch
+                        : parameterName(arguments.value(QStringLiteral("name")).toString()),
+                    kind, transform));
+            });
+        }
         addBinding(ToolNames::tracks_set_voice, [this](const QJsonObject &arguments,
                                                        const PublicInvocationContext &invocation) {
             auto voice = resolveVoiceSelection(m_runtime,

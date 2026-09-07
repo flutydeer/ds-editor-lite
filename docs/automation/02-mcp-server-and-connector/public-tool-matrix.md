@@ -2,7 +2,7 @@
 
 ## 1. 冻结口径
 
-二期工具面按业务域组织。Editor 提供 **176** 个公共工具，DS Connector Lite 提供 **6** 个桥接工具，合计 **182** 个。MCP tool name 是跨 Contract、Registry、Editor 与 Connector 的稳定身份，不使用依赖表内顺序的编号。
+二期工具面按业务域组织。Editor 提供 **179** 个公共工具，DS Connector Lite 提供 **6** 个桥接工具，合计 **185** 个。MCP tool name 是跨 Contract、Registry、Editor 与 Connector 的稳定身份，不使用依赖表内顺序的编号。
 
 公共工具集维持 v1：`toolset_version = 1`。每个工具只声明自己的
 `minimum_toolset_version`，当前均为 1；兼容性只由这两个版本字段决定。Schema 不一致属于
@@ -31,7 +31,7 @@
 | 声库 | 2 | 可用声库发现与描述 |
 | Speaker Mix | 13 | 固定/动态混合、关键帧与预设 |
 | 音符、歌词、语言、发音与音素 | 19 | 叶节点创建、几何、歌词、语言、发音和音素 |
-| 参数曲线与锚点 | 12 | 有界曲线查询、采样和显式锚点曲线编辑 |
+| 参数曲线与锚点 | 15 | 有界曲线查询、采样变换和显式锚点曲线编辑 |
 | 时间线 | 5 | Tempo 与拍号 |
 | 历史记录 | 3 | 历史记录状态、Undo、Redo |
 | 播放 | 8 | 播放状态、定位与循环 |
@@ -45,7 +45,7 @@
 | 设置 | 9 | 允许公开的应用设置查询、稀疏更新、候选值与生效状态 |
 | 包信息 | 3 | 已安装包查询、详情与异步刷新 |
 | 歌词规则 | 7 | splitter/tagger 规则管理与只读流水线测试 |
-| **Editor 合计** | **176** | **41 Q/S + 122 C/S + 13 C/A** |
+| **Editor 合计** | **179** | **41 Q/S + 125 C/S + 13 C/A** |
 
 ## 3. Editor 公共工具
 
@@ -197,7 +197,7 @@
 | `notes.reset_phonemes` | L1 | C/S | 恢复自动音素与边界 |
 | `notes.fill_lyrics` | L1 | C/S | 批量歌词填充与分词/语言选项 |
 
-### 3.11 参数曲线与锚点（12）
+### 3.11 参数曲线与锚点（15）
 
 | 工具 | 控制层级 | 类型 | 契约要点 |
 |---|---|---|---|
@@ -206,7 +206,10 @@
 | `parameters.replace` | L1 | C/S | Edited 层的完整曲线替换 |
 | `parameters.draw` | L1 | C/S | 局部采样绘制与 merge mode |
 | `parameters.erase` | L1 | C/S | 局部区间擦除 |
-| `parameters.trace` | L1 | C/S | 原始曲线描摹与可选区间；局部描摹在锚点采样前执行点数与时间轴上界预检 |
+| `parameters.trace` | L1 | C/S | 原始采样曲线描摹与可选区间；保留原始数据空洞中的编辑值及完整锚点曲线，无原始采样数据时不修改 |
+| `parameters.modulate` | L1 | C/S | 固定处理 pitch，不接受 `name`；用已有音符音高与音素时序构建平滑基线并调节音高偏差，无法构建可用基线时返回 `operation_unavailable` |
+| `parameters.shape` | L1 | C/S | 相对于所选区间端点连线，在归一化值域中调节参数偏差 |
+| `parameters.scale` | L1 | C/S | 在归一化值域中缩放参数值 |
 | `parameters.create_anchor_curve` | L1 | C/S | 以至少两个初始锚点显式创建一条不重叠曲线并返回稳定 ID |
 | `parameters.insert_anchors` | L1 | C/S | 向显式 `curve_id` 批量插入锚点，不隐式创建或合并曲线 |
 | `parameters.move_anchors` | L1 | C/S | 批量稳定 ID 移动位置和值；不得隐式跨曲线合并或制造重叠 |
@@ -216,6 +219,24 @@
 
 参数曲线编辑工具统一只写入 `Edited`，不接受 `layer` 参数；MCP 与无头模式共用此约束。
 `parameters.get` 仍通过 `layer` 选择查询层，`parameters.get_capabilities` 的 `layers` 表示可查询层。
+
+描摹与 GUI 绘制共用笔画语义：接触非标准采样网格的 Edited 曲线时，会将整条相交曲线重采样为
+5 tick 网格，因此局部描摹也可能改变笔画区间外的采样表示及插值。原始数据空洞保留重采样后网格上的编辑值。
+
+调制、整形和缩放复用 GUI 的曲线变换会话，以原始与编辑采样曲线的合并结果为输入，保留锚点曲线。
+整形、缩放的 `name` 支持 `energy`、`breathiness`、`voicing`、`tension`、`mouth_opening`。
+描摹支持这五种参数及 `pitch`，与 GUI 中具有 Original 曲线的参数范围一致。
+三者均接受 `factor`（0～2）、半开区间 `local_start` / `local_end`，以及可选过渡边界
+`transition_start` / `transition_end`；调用方可传入任意非负整数 tick。
+主区间端点按 GUI 选区规则向上对齐到 5 tick 网格，可选过渡端点取最近的 5 tick 格点。
+选择跨越边界时，从左向右取第一个触及的连续采样分段并 clamp 到该段；调制同时遵守推理分段边界。
+对齐并 clamp 后的主区间至少包含两个采样点（10 tick）。过渡区间同样 clamp 到该段，
+缺省在 5 tick 网格上选取不超过 60 ms 的最宽过渡，因此缺省外端点也落在格点上。
+响应的 `resolved_values` 始终返回 `/local_start`、`/local_end`、`/transition_start`、
+`/transition_end` 四个实际边界，包括 `changed: false` 的情况。外层区间表示参与处理的范围，
+其中每个采样点是否发生变化取决于源曲线和变换；`changed` 表示整体是否产生实际修改。
+`factor = 1` 是中性变换，但仍可能将 Original 固化到 Edited，或对源值执行 GUI 的值域归一化；
+这些 Edited 层的实际变化仍会创建历史记录。只有最终 Edited 数据不变时才返回 `changed: false`。
 
 ### 3.12 时间线（5）
 
@@ -396,7 +417,7 @@ Editor PublicToolDefinitions
 Connector bridge definitions
 = Connector downstream 固定桥接工具 names
 
-176 + 6 = 182
+179 + 6 = 185
 ```
 
 每个 Editor 工具必须具备唯一 operation ID、域、最低控制层级、Query/Command、同步模式、严格
