@@ -39,7 +39,8 @@ namespace Automation {
                     AudioExportRuntimeServices audioExportServices = {},
                     ExtractionRuntimeServices extractionServices = {},
                     ApplicationRuntimeServices applicationServices = {},
-                    std::optional<WindowId> windowId = WindowId::create());
+                    std::optional<WindowId> windowId = WindowId::create(),
+                    ParameterRuntimeServices parameterServices = {});
 
         [[nodiscard]] DocumentVersion documentVersion() const;
         [[nodiscard]] const QString &documentPath() const;

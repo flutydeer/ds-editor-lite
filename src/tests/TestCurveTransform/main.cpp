@@ -131,10 +131,11 @@ namespace {
         config.partitions = {{0, 95}, {100, 195}};
         Session session;
         session.setSource({&source}, {}, config);
-        ok &= expect(!session.selectRange(80, 120) && session.phase() == Phase::Idle,
-                     "explicit range must not silently truncate at a pitch partition");
-        ok &= expect(!session.selectRange(40, 60, 20, 110),
-                     "explicit shoulder must stay in the selected component");
+        ok &= expect(session.selectRange(80, 120) && session.bounds().a == 80 &&
+                         session.bounds().b == 100,
+                     "explicit range clamps to the first touched pitch partition");
+        ok &= expect(session.selectRange(40, 60, 20, 110) && session.bounds().d == 100,
+                     "explicit shoulder clamps to the selected component");
         ok &= expect(session.selectRange(40, 60), "explicit range accepts default shoulders");
         ok &= expect(session.bounds().c == 0 && session.bounds().d == 100,
                      "default shoulders stop at the component boundaries");

@@ -332,8 +332,10 @@ namespace Automation {
 
     ParameterAutomationFacade::ParameterAutomationFacade(AutomationDispatcher &dispatcher,
                                                          CommandCommitter &committer,
-                                                         DocumentObjectResolver &objects)
-        : m_dispatcher(dispatcher), m_committer(committer), m_objects(objects) {
+                                                         DocumentObjectResolver &objects,
+                                                         ParameterRuntimeServices services)
+        : m_dispatcher(dispatcher), m_committer(committer), m_objects(objects),
+          m_services(std::move(services)) {
     }
 
     AutomationResult<ParameterSnapshotDto>
@@ -1119,6 +1121,102 @@ namespace Automation {
                 }
                 return applied;
             });
+    }
+
+    AutomationResult<MutationResult> ParameterAutomationFacade::transformParameter(
+        const CommandContext &context, const ClipId clipId, const ParamInfo::Name name,
+        const CurveTransform::Kind kind, const ParameterTransformDto &transform) {
+        const auto &operationId =
+            kind == CurveTransform::Kind::ModulatePitch ? OperationIds::parameters::modulate
+            : kind == CurveTransform::Kind::Shape       ? OperationIds::parameters::shape
+                                                        : OperationIds::parameters::scale;
+        QList<ResolvedValue> resolvedValues;
+        auto result = mutateDrawParameter(
+            operationId, context, clipId, name,
+            [this, name, kind, transform,
+             &resolvedValues](SingingClip &clip, const QList<DrawCurve *> &original,
+                              QList<DrawCurve *> &edited) -> AutomationResult<bool> {
+                if ((kind == CurveTransform::Kind::ModulatePitch) != (name == ParamInfo::Pitch)) {
+                    return AutomationError::invalidArgument(
+                        QStringLiteral("name"),
+                        QStringLiteral("Modulation supports pitch; shape and scale support "
+                                       "variance parameters"));
+                }
+                if (!std::isfinite(transform.factor) || transform.factor < 0.0 ||
+                    transform.factor > 2.0) {
+                    return AutomationError::invalidArgument(
+                        QStringLiteral("factor"), QStringLiteral("Factor must be between 0 and 2"));
+                }
+                const auto onGrid = [](const int tick) {
+                    return tick >= 0 && tick % CurveTransform::SampleStep == 0;
+                };
+                if (!onGrid(transform.localStart) || !onGrid(transform.localEnd) ||
+                    qint64(transform.localEnd) - transform.localStart <
+                        2 * CurveTransform::SampleStep ||
+                    (transform.transitionStart && !onGrid(*transform.transitionStart)) ||
+                    (transform.transitionEnd && !onGrid(*transform.transitionEnd))) {
+                    return AutomationError::invalidArgument(
+                        QStringLiteral("local_end"),
+                        QStringLiteral("Transform boundaries must use the non-negative 5-tick "
+                                       "grid, with a main range of at least 10 ticks"));
+                }
+                for (const auto &curves : {original, edited}) {
+                    for (const auto *curve : curves) {
+                        if (qint64(clip.start()) + curve->localEndTick() >
+                            std::numeric_limits<int>::max()) {
+                            return AutomationError::invalidArgument(
+                                QStringLiteral("local_end"),
+                                QStringLiteral("Curve exceeds the global timeline limit"));
+                        }
+                    }
+                }
+                if (!m_services.prepareTransform) {
+                    return AutomationError{
+                        AutomationErrorCode::HostCapabilityUnavailable,
+                        QStringLiteral("Curve transform context is unavailable")};
+                }
+                auto config = m_services.prepareTransform(&clip, name, kind);
+                if (!config)
+                    return config.getError();
+                CurveTransform::Session session;
+                session.setSource(original, edited, config.get());
+                if (!session.selectRange(transform.localStart, transform.localEnd,
+                                         transform.transitionStart, transform.transitionEnd)) {
+                    return AutomationError{
+                        AutomationErrorCode::OperationUnavailable,
+                        QStringLiteral("The selected range has no complete curve segment")};
+                }
+                const auto &bounds = session.bounds();
+                if (kind == CurveTransform::Kind::ModulatePitch) {
+                    for (auto tick = bounds.c; tick < bounds.d;
+                         tick += CurveTransform::SampleStep) {
+                        const auto baseline = config.get().pitchBaselineAtTick
+                                                  ? config.get().pitchBaselineAtTick(tick)
+                                                  : std::nullopt;
+                        if (!baseline || !std::isfinite(*baseline)) {
+                            return AutomationError{
+                                AutomationErrorCode::OperationUnavailable,
+                                QStringLiteral(
+                                    "Pitch modulation requires a valid note pitch baseline")};
+                        }
+                    }
+                }
+                resolvedValues = {
+                    {QStringLiteral("/local_start"),      bounds.a},
+                    {QStringLiteral("/local_end"),        bounds.b},
+                    {QStringLiteral("/transition_start"), bounds.c},
+                    {QStringLiteral("/transition_end"),   bounds.d},
+                };
+                session.beginTransform();
+                session.setFactor(transform.factor);
+                auto preview = session.buildEditedPreview();
+                qDeleteAll(edited);
+                edited = std::move(preview);
+                return true;
+            });
+        if (result)
+            result.get().resolvedValues = std::move(resolvedValues);
+        return result;
     }
 
     AutomationResult<MutationResult> ParameterAutomationFacade::replaceClipSpeakerMix(

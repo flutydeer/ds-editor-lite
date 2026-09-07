@@ -88,13 +88,15 @@ namespace AutomationTestSupport {
                              Automation::PlaybackRuntimeServices playbackServices = {},
                              Automation::ApplicationRuntimeServices applicationServices = {},
                              Automation::SettingsRuntimeServices settingsServices = {},
-                             Automation::PresetRuntimeServices presetServices = {})
+                             Automation::PresetRuntimeServices presetServices = {},
+                             Automation::ParameterRuntimeServices parameterServices = {})
             : m_history(resetHistory()),
               m_runtime(&m_model, m_history, std::move(documentServices),
                         std::move(playbackServices), std::move(editorServices),
                         std::move(settingsServices), std::move(presetServices),
                         std::move(packageServices), {}, std::move(fileServices),
-                        std::move(audioExportServices), {}, std::move(applicationServices)) {
+                        std::move(audioExportServices), {}, std::move(applicationServices),
+                        Automation::WindowId::create(), std::move(parameterServices)) {
         }
 
         ~TestRuntime() {

@@ -205,6 +205,12 @@ AUTOMATION_WIRE_PUBLIC_TOOL(parameters_erase, "parameters.erase", "parameters", 
                             Synchronous, 1, NonDestructive, Idempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(parameters_trace, "parameters.trace", "parameters", L1, Command,
                             Synchronous, 1, NonDestructive, Idempotent, ClosedWorld)
+AUTOMATION_WIRE_PUBLIC_TOOL(parameters_modulate, "parameters.modulate", "parameters", L1, Command,
+                            Synchronous, 1, NonDestructive, Idempotent, ClosedWorld)
+AUTOMATION_WIRE_PUBLIC_TOOL(parameters_shape, "parameters.shape", "parameters", L1, Command,
+                            Synchronous, 1, NonDestructive, Idempotent, ClosedWorld)
+AUTOMATION_WIRE_PUBLIC_TOOL(parameters_scale, "parameters.scale", "parameters", L1, Command,
+                            Synchronous, 1, NonDestructive, Idempotent, ClosedWorld)
 AUTOMATION_WIRE_PUBLIC_TOOL(parameters_create_anchor_curve, "parameters.create_anchor_curve",
                             "parameters", L1, Command, Synchronous, 1, NonDestructive, Idempotent,
                             ClosedWorld)

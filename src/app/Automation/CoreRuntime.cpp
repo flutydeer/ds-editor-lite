@@ -26,11 +26,13 @@ namespace Automation {
         PackageRuntimeServices packageServices, InferenceRuntimeServices inferenceServices,
         FileRuntimeServices fileServices, AudioExportRuntimeServices audioExportServices,
         ExtractionRuntimeServices extractionServices,
-        ApplicationRuntimeServices applicationServices, std::optional<WindowId> windowId)
+        ApplicationRuntimeServices applicationServices, std::optional<WindowId> windowId,
+        ParameterRuntimeServices parameterServices)
         : m_session(model, historyManager), m_documentResolver(m_session),
           m_windowContext(std::move(windowId)), m_dispatcher(m_documentResolver, m_windowContext),
           m_applicationFacade(m_dispatcher, std::move(applicationServices)),
-          m_parameterFacade(m_dispatcher, m_committer, m_objectResolver),
+          m_parameterFacade(m_dispatcher, m_committer, m_objectResolver,
+                            std::move(parameterServices)),
           m_projectFacade(m_dispatcher, m_committer, m_objectResolver),
           m_noteFacade(m_dispatcher, m_committer, m_objectResolver),
           m_audioExportFacade(m_dispatcher, m_taskManager, std::move(audioExportServices)),

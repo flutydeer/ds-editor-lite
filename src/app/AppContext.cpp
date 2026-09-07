@@ -7,6 +7,7 @@
 #include "Automation/ExtractionAutomationAdapter.h"
 #include "Automation/InferenceAutomationAdapter.h"
 #include "Automation/PackageAutomationAdapter.h"
+#include "Automation/ParameterAutomationAdapter.h"
 
 #include <lite/Core/SingletonRegistry.h>
 #include <lite/BuildInfo.h>
@@ -378,7 +379,8 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options, const AppHostMode ho
         std::move(applicationServices),
         m_hostMode == AppHostMode::Gui
             ? std::optional<Automation::WindowId>(Automation::WindowId::create())
-            : std::nullopt);
+            : std::nullopt,
+        Automation::createParameterAutomationServices());
 
     // L3: Runtime host must outlive the inference facade.
     m_synthrtEngine = SingletonRegistry::create<SynthrtEngine>();

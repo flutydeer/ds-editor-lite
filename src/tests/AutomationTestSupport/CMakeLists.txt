@@ -50,6 +50,7 @@ add_library(AutomationTestSupport STATIC
     ../../app/Modules/FillLyric/Utils/TaggerRuleOrder.cpp
     ../../app/UI/Views/TrackEditor/AudioClipDragState.cpp
     ../../app/UI/Views/ClipEditor/DrawCurveEditUtils.cpp
+    ../../app/UI/Views/ClipEditor/CurveTransform/CurveTransformSession.cpp
     ../../app/UI/Views/ClipEditor/AnchorEditor/AnchorEditUtils.cpp
     ${_automation_edit_action_sources}
 )

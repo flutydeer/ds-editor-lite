@@ -5,6 +5,7 @@
 #include "CommandCommitter.h"
 #include "DocumentObjectResolver.h"
 #include "ProjectAutomationDtos.h"
+#include "UI/Views/ClipEditor/CurveTransform/CurveTransformSession.h"
 
 #include <lite/ProjectModel/AppModel/EffectiveVoiceContext.h>
 
@@ -68,10 +69,25 @@ namespace Automation {
         int value = 0;
     };
 
+    struct ParameterTransformDto {
+        int localStart = 0;
+        int localEnd = 0;
+        double factor = 1.0;
+        std::optional<int> transitionStart;
+        std::optional<int> transitionEnd;
+    };
+
+    struct ParameterRuntimeServices {
+        std::function<AutomationResult<CurveTransform::Config>(SingingClip *, ParamInfo::Name,
+                                                               CurveTransform::Kind)>
+            prepareTransform;
+    };
+
     class ParameterAutomationFacade final {
     public:
         ParameterAutomationFacade(AutomationDispatcher &dispatcher, CommandCommitter &committer,
-                                  DocumentObjectResolver &objects);
+                                  DocumentObjectResolver &objects,
+                                  ParameterRuntimeServices services = {});
 
         AutomationResult<ParameterSnapshotDto> getParameter(const DocumentId &documentId,
                                                             ClipId clipId, ParamInfo::Name name,
@@ -130,6 +146,10 @@ namespace Automation {
             traceParameter(const CommandContext &context, ClipId clipId, ParamInfo::Name name,
                            std::optional<int> localStart = std::nullopt,
                            std::optional<int> localEnd = std::nullopt);
+        AutomationResult<MutationResult> transformParameter(const CommandContext &context,
+                                                            ClipId clipId, ParamInfo::Name name,
+                                                            CurveTransform::Kind kind,
+                                                            const ParameterTransformDto &transform);
 
         AutomationResult<MutationResult>
             replaceClipSpeakerMix(const CommandContext &context, ClipId clipId,
@@ -238,6 +258,7 @@ namespace Automation {
         AutomationDispatcher &m_dispatcher;
         CommandCommitter &m_committer;
         DocumentObjectResolver &m_objects;
+        ParameterRuntimeServices m_services;
     };
 
 } // namespace Automation

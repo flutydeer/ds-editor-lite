@@ -269,16 +269,14 @@ namespace CurveTransform {
             return false;
         }
         beginSelection(startTick);
-        if (!finishSelection(endTick) || m_bounds.a != startTick || m_bounds.b != endTick) {
+        if (!finishSelection(endTick)) {
             resetInteraction();
             return false;
         }
-        m_bounds.c = transitionStart.value_or(m_bounds.c);
-        m_bounds.d = transitionEnd.value_or(m_bounds.d);
-        if (!m_bounds.isValid()) {
-            resetInteraction();
-            return false;
-        }
+        m_bounds.c =
+            std::clamp(transitionStart.value_or(m_bounds.c), m_bounds.componentStart, m_bounds.a);
+        m_bounds.d =
+            std::clamp(transitionEnd.value_or(m_bounds.d), m_bounds.b, m_bounds.componentEnd);
         return true;
     }
 
