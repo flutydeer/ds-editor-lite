@@ -225,6 +225,7 @@
 
 调制、整形和缩放复用 GUI 的曲线变换会话，以原始与编辑采样曲线的合并结果为输入，保留锚点曲线。
 整形、缩放的 `name` 支持 `energy`、`breathiness`、`voicing`、`tension`、`mouth_opening`。
+描摹支持这五种参数及 `pitch`，与 GUI 中具有 Original 曲线的参数范围一致。
 三者均接受 `factor`（0～2）、半开区间 `local_start` / `local_end`，以及可选过渡边界
 `transition_start` / `transition_end`；调用方可传入任意非负整数 tick。
 主区间端点按 GUI 选区规则向上对齐到 5 tick 网格，可选过渡端点取最近的 5 tick 格点。

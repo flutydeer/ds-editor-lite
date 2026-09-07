@@ -556,12 +556,6 @@ namespace AutomationWire {
                     name == QStringLiteral("transition_end")) {
                     return nonNegativeModelIntegerSchema();
                 }
-                if (name == QStringLiteral("name")) {
-                    return JsonSchema::string({QStringLiteral("energy"),
-                                               QStringLiteral("breathiness"),
-                                               QStringLiteral("voicing"), QStringLiteral("tension"),
-                                               QStringLiteral("mouth_opening")});
-                }
             }
             if (name == QStringLiteral("document_id") ||
                 name == QStringLiteral("current_document_id") ||
@@ -630,8 +624,17 @@ namespace AutomationWire {
                 name == QStringLiteral("discard_changes")) {
                 return JsonSchema::boolean();
             }
-            if (name == QStringLiteral("name") && id.startsWith(QStringLiteral("parameters.")))
+            if (name == QStringLiteral("name") && id.startsWith(QStringLiteral("parameters."))) {
+                if (id == PublicToolNames::parameters_trace || isCurveTransformOperation(id)) {
+                    QStringList names{QStringLiteral("energy"), QStringLiteral("breathiness"),
+                                      QStringLiteral("voicing"), QStringLiteral("tension"),
+                                      QStringLiteral("mouth_opening")};
+                    if (id == PublicToolNames::parameters_trace)
+                        names.prepend(QStringLiteral("pitch"));
+                    return JsonSchema::string(names);
+                }
                 return parameterNameSchema();
+            }
             if (name == QStringLiteral("idempotency_key"))
                 return JsonSchema::string({}, 0, MaximumIdempotencyKeyLength);
             if (name == QStringLiteral("cursor") ||
