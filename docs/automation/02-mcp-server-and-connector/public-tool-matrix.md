@@ -220,6 +220,9 @@
 参数曲线编辑工具统一只写入 `Edited`，不接受 `layer` 参数；MCP 与无头模式共用此约束。
 `parameters.get` 仍通过 `layer` 选择查询层，`parameters.get_capabilities` 的 `layers` 表示可查询层。
 
+描摹与 GUI 绘制共用笔画语义：接触非标准采样网格的 Edited 曲线时，会将整条相交曲线重采样为
+5 tick 网格，因此局部描摹也可能改变笔画区间外的采样表示及插值。原始数据空洞保留重采样后网格上的编辑值。
+
 调制、整形和缩放复用 GUI 的曲线变换会话，以原始与编辑采样曲线的合并结果为输入，保留锚点曲线。
 整形、缩放的 `name` 支持 `energy`、`breathiness`、`voicing`、`tension`、`mouth_opening`。
 三者均接受 `factor`（0～2）、半开区间 `local_start` / `local_end`，以及可选过渡边界
@@ -229,6 +232,8 @@
 响应的 `resolved_values` 始终返回 `/local_start`、`/local_end`、`/transition_start`、
 `/transition_end` 四个实际边界，包括 `changed: false` 的情况。外层区间表示参与处理的范围，
 其中每个采样点是否发生变化取决于源曲线和变换；`changed` 表示整体是否产生实际修改。
+`factor = 1` 是中性变换，但仍可能将 Original 固化到 Edited，或对源值执行 GUI 的值域归一化；
+这些 Edited 层的实际变化仍会创建历史记录。只有最终 Edited 数据不变时才返回 `changed: false`。
 
 ### 3.12 时间线（5）
 

@@ -4050,9 +4050,11 @@ namespace AutomationWire {
                 if (operationId == PublicToolNames::parameters_trace) {
                     return QStringLiteral(
                         "Trace original sampled curves into Edited, optionally within a clip-local "
-                        "half-open tick range. Preserve edited samples in original-data gaps and "
-                        "retain anchor curves. Without original data this is a no-op. Commits one "
-                        "History step.");
+                        "half-open tick range. As in the GUI, overlapping Edited curves on a "
+                        "nonstandard sample grid are resampled as whole curves to the 5-tick grid, "
+                        "including portions outside the stroke range. Original-data gaps retain "
+                        "existing edited values on that grid. Preserve anchor curves. Without "
+                        "original sampled data this is a no-op. Commits one History step.");
                 }
                 if (isCurveTransformOperation(operationId)) {
                     QString description;
@@ -4073,7 +4075,9 @@ namespace AutomationWire {
                            QStringLiteral(
                                "Apply factor 0..2 to merged original and edited sampled curves and "
                                "write "
-                               "only Edited, retaining anchors. local_start/local_end form a "
+                               "only Edited, retaining anchors. factor 1 may still populate Edited "
+                               "from Original or normalize source values. local_start/local_end "
+                               "form a "
                                "clip-local "
                                "half-open range of at least 10 ticks; all boundaries use the "
                                "non-negative "
@@ -4090,7 +4094,8 @@ namespace AutomationWire {
                 }
                 return QStringLiteral(
                            "Apply %1 to the Edited parameter layer through the shared parameter "
-                           "domain facade. Only Edited curves can be modified. The editor validates "
+                           "domain facade. Only Edited curves can be modified. The editor "
+                           "validates "
                            "the expected revision and commits one atomic History entry.")
                     .arg(action);
             }
