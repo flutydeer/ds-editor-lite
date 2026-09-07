@@ -72,6 +72,7 @@ namespace Automation {
                 .animationTimeScale = value->animationTimeScale,
                 .themeId = value->themeId,
                 .uiFontFamily = value->uiFontFamily,
+                .showGhostNotes = value->showGhostNotes,
             };
         }
 
@@ -83,6 +84,7 @@ namespace Automation {
             target->animationTimeScale = value.animationTimeScale;
             target->themeId = value.themeId;
             target->uiFontFamily = value.uiFontFamily;
+            target->showGhostNotes = value.showGhostNotes;
         }
 
         InferenceSettingsDto captureInference(AppOptions *options) {

@@ -1,5 +1,6 @@
 #include "PianoRollRhiWidget.h"
 
+#include "GhostNoteSource.h"
 #include "NoteView.h"
 #include "NoteEditUtils.h"
 #include "NoteLyricPresentation.h"
@@ -234,6 +235,8 @@ public:
             [this] { scheduleSnapshot(); },
         });
         anchorController.setAlwaysVisible(true);
+        QObject::connect(&ghostNotes, &GhostNoteSource::changed, q,
+                         [this] { scheduleSnapshot(); });
     }
 
     ~Private() {
@@ -361,6 +364,7 @@ public:
                 scheduleSnapshot();
             });
         }
+        ghostNotes.setHostClip(clip);
         loadAnchorCurvesFromModel();
         anchorController.setEditActive(editMode == EditPitchAnchor);
         reloadPitchTransformSource();
@@ -1968,6 +1972,7 @@ public:
 
             appendBackground(localStart, localEnd, sceneTop, sceneBottom);
             appendTimeline(localStart, localEnd, sceneTop, sceneBottom);
+            appendGhostNotes(localStart, localEnd);
             appendNotes(localStart, localEnd);
             appendPastePreview(localStart, localEnd);
             appendPitch(localStart, localEnd);
@@ -2201,6 +2206,41 @@ private:
             pronunciation, pronunciationFont, pronunciationRect.topLeft(), pronunciationColor,
             pronunciationRect, dpr, physicalCameraOffset(), q->physicalWindowOffset());
         drawList.appendTexture(pronunciationSpan, vertices.size());
+    }
+
+    // 其他轨道的参考音符：行内居中的矮条，只画不响应交互。
+    // 画在 appendNotes() 之前，靠绘制顺序压在当前 clip 的音符之下。
+    void appendGhostNotes(const double localStart, const double localEnd) {
+        const auto &ghosts = ghostNotes.notes();
+        if (!ghostNotes.enabled() || ghosts.isEmpty())
+            return;
+        const auto rowHeight = noteHeight * verticalScale();
+        const auto barHeight =
+            std::max(GhostNoteStyle::minHeight, rowHeight * GhostNoteStyle::heightRatio);
+        const auto offset = clip->start();
+        const auto sceneTop = verticalOffset();
+        const auto sceneBottom = verticalOffset() + q->height();
+        // 音符有长度，起点可能落在可见区间左侧，故从 localStart - maxLength 开始扫
+        const auto scanFrom = localStart + offset - ghostNotes.maxLength();
+        const auto first = std::lower_bound(ghosts.begin(), ghosts.end(), scanFrom,
+                                            [](const GhostNote &note, const double tick) {
+                                                return note.globalStart < tick;
+                                            });
+        for (auto it = first; it != ghosts.end(); ++it) {
+            const auto &ghost = *it;
+            const auto ghostStart = ghost.globalStart - offset;
+            if (ghostStart > localEnd)
+                break; // 已按 globalStart 升序
+            if (ghostStart + ghost.length < localStart)
+                continue;
+            const auto top = viewport.unitToSceneY(127 - ghost.keyIndex) +
+                             (rowHeight - barHeight) * 0.5;
+            if (top + barHeight < sceneTop || top > sceneBottom)
+                continue;
+            appendLogicalRect(QRectF(viewport.tickToSceneX(ghostStart), top,
+                                     std::max(1.0, ghost.length * pixelsPerTick()), barHeight),
+                              GhostNoteStyle::fillColor(ghost.colorIndex));
+        }
     }
 
     void appendNotes(const double localStart, const double localEnd) {
@@ -2899,6 +2939,7 @@ public:
     quint64 noteEraseSessionId = 0;
     AnchorEditor::AnchorEditController anchorController;
     quint64 anchorEditSessionId = 0;
+    GhostNoteSource ghostNotes;
     EditorViewportController viewport;
     EditorWheelController wheel;
     double playbackPosition = 0.0;

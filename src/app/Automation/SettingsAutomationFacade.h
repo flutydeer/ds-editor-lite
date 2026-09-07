@@ -33,6 +33,7 @@ namespace Automation {
         double animationTimeScale = 1.0;
         QString themeId;
         QString uiFontFamily;
+        bool showGhostNotes = true;
 
         friend bool operator==(const AppearanceSettingsDto &,
                                const AppearanceSettingsDto &) = default;

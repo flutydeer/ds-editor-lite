@@ -27,6 +27,7 @@ private:
     ComboBox *m_cbxInterfaceFont;
     SwitchButton *m_swAnimationEnabled;
     LineEdit *m_leAnimationTimeScale;
+    SwitchButton *m_swShowGhostNotes;
 #if defined(WITH_DIRECT_MANIPULATION)
     SwitchButton *m_swEnableDirectManipulation;
 #endif

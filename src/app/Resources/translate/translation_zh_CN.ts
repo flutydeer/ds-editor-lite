@@ -562,6 +562,21 @@
         <translation>启用动画</translation>
     </message>
     <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="154"/>
+        <source>Piano Roll</source>
+        <translation>钢琴卷帘</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="155"/>
+        <source>Show notes from other tracks</source>
+        <translation>显示其他轨道的音符</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="156"/>
+        <source>Displayed as thin bars for reference only</source>
+        <translation>以矮条显示，仅供参考</translation>
+    </message>
+    <message>
         <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="151"/>
         <source>Touch</source>
         <translation>触摸</translation>
