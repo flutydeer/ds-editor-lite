@@ -121,7 +121,7 @@ namespace Automation {
             return count;
         }
 
-        bool reserveBakeMaterialization(const CurveDraftDto &draft, qint64 &reservedPoints) {
+        bool reserveTraceMaterialization(const CurveDraftDto &draft, qint64 &reservedPoints) {
             const auto count = drawMaterializationPointCount(draft);
             if (!count || *count > AutomationWire::MaximumCurveSampleItems - reservedPoints)
                 return false;
@@ -1069,7 +1069,7 @@ namespace Automation {
             });
     }
 
-    AutomationResult<MutationResult> ParameterAutomationFacade::bakeParameter(
+    AutomationResult<MutationResult> ParameterAutomationFacade::traceParameter(
         const CommandContext &context, const ClipId clipId, const ParamInfo::Name name,
         const std::optional<int> localStart, const std::optional<int> localEnd) {
         const int rangeStart = localStart.value_or(-1);
@@ -1077,10 +1077,10 @@ namespace Automation {
         auto isolatedContext = context;
         if (!isolatedContext.idempotencyKey.isEmpty()) {
             isolatedContext.idempotencyKey =
-                QStringLiteral("bake:") + isolatedContext.idempotencyKey;
+                QStringLiteral("trace:") + isolatedContext.idempotencyKey;
         }
         return m_dispatcher.dispatchDocumentCommand(
-            OperationIds::parameters::bake, isolatedContext,
+            OperationIds::parameters::trace, isolatedContext,
             [this, clipId, name, localStart, localEnd](DocumentSession &session,
                                                        const bool validateOnly) {
                 auto resolved = m_objects.singingClip(session, clipId);
@@ -1095,7 +1095,7 @@ namespace Automation {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
                         QStringLiteral("local_end"),
                         QStringLiteral(
-                            "Bake range must provide an ordered non-negative interval")));
+                            "Trace range must provide an ordered non-negative interval")));
                 }
                 auto *clip = static_cast<SingingClip *>(resolved.get().clip);
                 const auto *param = clip->params.getParamByName(name);
@@ -1121,20 +1121,20 @@ namespace Automation {
                             if (anchorEnd <= *localStart || draft.localStart >= *localEnd)
                                 continue;
                         }
-                        if (!reserveBakeMaterialization(draft, materializedPoints)) {
+                        if (!reserveTraceMaterialization(draft, materializedPoints)) {
                             return AutomationResult<MutationResult>(
                                 AutomationError::invalidArgument(
                                     QStringLiteral("local_end"),
-                                    QStringLiteral("Bake curve materialization exceeds the "
+                                    QStringLiteral("Trace curve materialization exceeds the "
                                                    "supported point limit")));
                         }
                     }
                     for (const auto &draft : original) {
-                        if (!reserveBakeMaterialization(draft, materializedPoints)) {
+                        if (!reserveTraceMaterialization(draft, materializedPoints)) {
                             return AutomationResult<MutationResult>(
                                 AutomationError::invalidArgument(
                                     QStringLiteral("local_end"),
-                                    QStringLiteral("Bake curve materialization exceeds the "
+                                    QStringLiteral("Trace curve materialization exceeds the "
                                                    "supported point limit")));
                         }
                     }
@@ -1155,17 +1155,17 @@ namespace Automation {
                     }
                     AppModelUtils::eraseDrawCurveRange(editedDraws, *localStart, *localEnd);
 
-                    QList<DrawCurve *> bakedDraws;
+                    QList<DrawCurve *> tracedDraws;
                     for (const auto &draft : original) {
                         if (auto *draw = freshDrawCurve(draft))
-                            bakedDraws.append(draw);
+                            tracedDraws.append(draw);
                     }
-                    retainDrawRange(bakedDraws, *localStart, *localEnd);
-                    auto merged = AppModelUtils::mergeCurves(editedDraws, bakedDraws);
+                    retainDrawRange(tracedDraws, *localStart, *localEnd);
+                    auto merged = AppModelUtils::mergeCurves(editedDraws, tracedDraws);
                     for (const auto *curve : merged)
                         replacement.append(curveDraftDto(*curve));
                     qDeleteAll(editedDraws);
-                    qDeleteAll(bakedDraws);
+                    qDeleteAll(tracedDraws);
                     qDeleteAll(merged);
                 }
                 QCryptographicHash originalHash(QCryptographicHash::Sha256);

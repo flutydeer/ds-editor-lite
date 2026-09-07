@@ -287,22 +287,22 @@ buffer/sample-rate 的安全恢复。若某控件按已装备条件本应出现�
   未装备，Splitter/Tagger/Test 仍须执行。音素 offset 精确值、自动推理写回与手工 edited
   值优先级需 DTO 补证；GUI 只验证规则引擎的可见输入、校验、顺序和输出。
 
-### GUI-G08：参数曲线、锚点、擦除、Bake 与不支持参数
+### GUI-G08：参数曲线、锚点、擦除、Trace 与不支持参数
 
 - **追踪**：`parameters.get/replace`；推理原始参数与 edited 参数的边界。
 - **前置**：激活有真实声库、原始推理曲线可见的歌声片段；选择该声库明确支持的非 Pitch
   参数。
 - **动作**：用 Draw 单次拖动写入一段曲线；用右键拖动或 Erase 工具擦除一段；切 Anchor
   模式新增、移动、删除锚点并在可用时切换 Linear/Hermite；交换前景/背景参数；对具有
-  Original 曲线的参数执行 Bake；再选择声库不支持的参数，观察提示并点击 Edit Anyway；
+  Original 曲线的参数执行 Trace；再选择声库不支持的参数，观察提示并点击 Edit Anyway；
   每类提交做一次 Undo/Redo，最后保存重开。
 - **可观察断言**：曲线仅在目标区间改变，Escape/取消中的预览不提交；锚点及插值形态可见；
-  Bake 始终可选；没有 Original 曲线的区间不产生编辑或 Undo 项，有 Original 曲线的区间生成
+  Trace 始终可选；没有 Original 曲线的区间不产生编辑或 Undo 项，有 Original 曲线的区间生成
   可编辑结果；单次拖动固定使用按下时的 Original 快照，拖动中完成的新分段从下一笔生效；
   不支持参数先显示明确提示，确认后才允许编辑；Undo/Redo 和保存重开保持曲线结果。
 - **恢复/清理**：Undo 或放弃工作副本；恢复前景/背景选择；F12。
 - **未能自动观察的限制**：曲线采样点、step 边界、空曲线规范化和一次 gesture 的精确
-  replacement DTO 不能从像素图完整验证；Bake/Original 依赖声库与推理环境。
+  replacement DTO 不能从像素图完整验证；Trace/Original 依赖声库与推理环境。
 
 ### GUI-G09：轨道/片段歌手继承、单 speaker 与固定 Speaker Mix
 

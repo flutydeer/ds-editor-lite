@@ -121,7 +121,7 @@ namespace Automation {
                 QStringLiteral("draw_pitch"),
                 QStringLiteral("edit_pitch_anchor"),
                 QStringLiteral("erase_pitch"),
-                QStringLiteral("bake_pitch"),
+                QStringLiteral("trace_pitch"),
             };
             const auto index = static_cast<qsizetype>(mode);
             return index >= 0 && index < names.size() ? names.at(index) : QStringLiteral("select");
@@ -137,7 +137,7 @@ namespace Automation {
                 QStringLiteral("draw_pitch"),
                 QStringLiteral("edit_pitch_anchor"),
                 QStringLiteral("erase_pitch"),
-                QStringLiteral("bake_pitch"),
+                QStringLiteral("trace_pitch"),
             };
             const auto index = names.indexOf(name);
             return index < 0 ? EditorViewGlobal::Select
@@ -150,8 +150,8 @@ namespace Automation {
                     return QStringLiteral("draw");
                 case EditorViewGlobal::ParameterEditMode::Erase:
                     return QStringLiteral("erase");
-                case EditorViewGlobal::ParameterEditMode::Bake:
-                    return QStringLiteral("bake");
+                case EditorViewGlobal::ParameterEditMode::Trace:
+                    return QStringLiteral("trace");
                 case EditorViewGlobal::ParameterEditMode::Anchor:
                     return QStringLiteral("anchor");
             }
@@ -161,8 +161,8 @@ namespace Automation {
         EditorViewGlobal::ParameterEditMode parameterEditMode(const QString &name) {
             if (name == QStringLiteral("erase"))
                 return EditorViewGlobal::ParameterEditMode::Erase;
-            if (name == QStringLiteral("bake"))
-                return EditorViewGlobal::ParameterEditMode::Bake;
+            if (name == QStringLiteral("trace"))
+                return EditorViewGlobal::ParameterEditMode::Trace;
             if (name == QStringLiteral("anchor"))
                 return EditorViewGlobal::ParameterEditMode::Anchor;
             return EditorViewGlobal::ParameterEditMode::Draw;

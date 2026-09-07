@@ -1,4 +1,4 @@
-project(TestCurveBake)
+project(TestCurveTrace)
 
 lite_add_test(${PROJECT_NAME}
     SOURCES

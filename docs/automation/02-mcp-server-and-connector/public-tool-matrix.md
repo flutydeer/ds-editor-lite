@@ -206,7 +206,7 @@
 | `parameters.replace` | L1 | C/S | 指定参数层的完整曲线替换 |
 | `parameters.draw` | L1 | C/S | 局部采样绘制与 merge mode |
 | `parameters.erase` | L1 | C/S | 局部区间擦除 |
-| `parameters.bake` | L1 | C/S | 原始曲线烘焙与可选区间；局部烘焙在锚点采样前执行点数与时间轴上界预检 |
+| `parameters.trace` | L1 | C/S | 原始曲线描摹与可选区间；局部描摹在锚点采样前执行点数与时间轴上界预检 |
 | `parameters.create_anchor_curve` | L1 | C/S | 以至少两个初始锚点显式创建一条不重叠曲线并返回稳定 ID |
 | `parameters.insert_anchors` | L1 | C/S | 向显式 `curve_id` 批量插入锚点，不隐式创建或合并曲线 |
 | `parameters.move_anchors` | L1 | C/S | 批量稳定 ID 移动位置和值；不得隐式跨曲线合并或制造重叠 |
@@ -322,7 +322,7 @@
 | `clip_editor.parameters.set_foreground` | L3 | C/S | 设置前景参数 |
 | `clip_editor.parameters.set_background` | L3 | C/S | 设置背景参数或 none |
 | `clip_editor.parameters.swap` | L3 | C/S | 原子交换前景与背景；不可交换时不产生部分变化 |
-| `clip_editor.parameters.set_tool` | L3 | C/S | 设置绘制、擦除、烘焙或锚点等受支持工具 |
+| `clip_editor.parameters.set_tool` | L3 | C/S | 设置绘制、擦除、描摹或锚点等受支持工具 |
 | `clip_editor.parameters.set_value_viewport` | L3 | C/S | 稀疏更新归一化值域中心与纵向缩放，不改变共享时间视口 |
 
 ### 3.22 设置（9）

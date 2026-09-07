@@ -79,7 +79,7 @@ namespace {
     }
 
     enum class Backend { GraphicsView, Rhi };
-    enum class Tool { Pencil, Eraser, Bake };
+    enum class Tool { Pencil, Eraser, Trace };
 
     struct StrokeResult {
         bool commitAttempted = false;
@@ -115,8 +115,8 @@ namespace {
                     m_moved = false;
                     if (m_tool != Tool::Eraser) {
                         m_stroke = DrawCurveEditUtils::beginStroke(m_preview, m_mouseDown);
-                        if (m_tool == Tool::Bake)
-                            m_bakeSource.capture(m_generated);
+                        if (m_tool == Tool::Trace)
+                            m_traceSource.capture(m_generated);
                     }
                 }
                 return true;
@@ -158,9 +158,9 @@ namespace {
                 changed = AppModelUtils::eraseDrawCurveRange(m_preview, startTick, endTick);
             } else {
                 const DrawCurveEditUtils::ValueProvider provider =
-                    m_tool == Tool::Bake
+                    m_tool == Tool::Trace
                         ? DrawCurveEditUtils::ValueProvider([this](const int tick) {
-                              return m_bakeSource.valueAt(tick);
+                              return m_traceSource.valueAt(tick);
                           })
                         : DrawCurveEditUtils::ValueProvider(
                               [previous = m_previous, current](const int tick) {
@@ -190,7 +190,7 @@ namespace {
         DrawCurveList m_preview;
         DrawCurveList m_persisted;
         DrawCurveEditUtils::StrokeState m_stroke;
-        DrawCurveEditUtils::GeneratedCurveSnapshot m_bakeSource;
+        DrawCurveEditUtils::GeneratedCurveSnapshot m_traceSource;
         QPoint m_mouseDown;
         QPoint m_previous;
         bool m_pressed = false;
@@ -221,38 +221,38 @@ namespace {
         return probe.result();
     }
 
-    void expectPencilBakeAlignment(const Backend backend, const QList<QPoint> &eventPoints,
+    void expectPencilTraceAlignment(const Backend backend, const QList<QPoint> &eventPoints,
                                    const DrawCurveList &generated,
                                    const DrawCurveList &initial = {}) {
         const auto pencil = runStroke(backend, Tool::Pencil, eventPoints, generated, initial);
-        const auto bake = runStroke(backend, Tool::Bake, eventPoints, generated, initial);
+        const auto trace = runStroke(backend, Tool::Trace, eventPoints, generated, initial);
 
-        expect(pencil.commitAttempted == bake.commitAttempted,
-               "pencil and bake must make the same commit decision");
-        expect(hasSameShape(pencil.preview, bake.preview),
-               "pencil and bake previews must have identical curve shape");
-        expect(hasSameShape(pencil.persisted, bake.persisted),
-               "pencil and bake commits must have identical curve shape");
-        expect(hasStandardGrid(bake.preview) && hasStandardGrid(bake.persisted),
-               "new baked curves must stay on the standard five-tick grid");
+        expect(pencil.commitAttempted == trace.commitAttempted,
+               "pencil and trace must make the same commit decision");
+        expect(hasSameShape(pencil.preview, trace.preview),
+               "pencil and trace previews must have identical curve shape");
+        expect(hasSameShape(pencil.persisted, trace.persisted),
+               "pencil and trace commits must have identical curve shape");
+        expect(hasStandardGrid(trace.preview) && hasStandardGrid(trace.persisted),
+               "new traced curves must stay on the standard five-tick grid");
     }
 
     void testSingleClickAndOneSampleInterval(const Backend backend,
                                              const DrawCurveList &generated) {
-        const auto click = runStroke(backend, Tool::Bake,
+        const auto click = runStroke(backend, Tool::Trace,
                                      {
                                          {10, 700}
         },
                                      generated);
         expect(!click.commitAttempted && click.preview.isEmpty() && click.persisted.isEmpty(),
-               "a single bake point must not be committed");
-        expectPencilBakeAlignment(backend,
+               "a single trace point must not be committed");
+        expectPencilTraceAlignment(backend,
                                   {
                                       {10, 700}
         },
                                   generated);
 
-        const auto oneSample = runStroke(backend, Tool::Bake,
+        const auto oneSample = runStroke(backend, Tool::Trace,
                                          {
                                              {0, 700},
                                              {5, 710}
@@ -260,8 +260,8 @@ namespace {
                                          generated);
         expect(oneSample.commitAttempted && oneSample.preview.size() == 1 &&
                    oneSample.preview.first().values.size() == 1 && oneSample.persisted.isEmpty(),
-               "a one-sample bake interval must be filtered by the normal pencil commit path");
-        expectPencilBakeAlignment(backend,
+               "a one-sample trace interval must be filtered by the normal pencil commit path");
+        expectPencilTraceAlignment(backend,
                                   {
                                       {0, 700},
                                       {5, 710}
@@ -275,10 +275,10 @@ namespace {
             {{10, 700}, {5, 720} }
         };
         for (const auto &stroke : strokes) {
-            const auto bake = runStroke(backend, Tool::Bake, stroke, generated);
-            expect(bake.persisted.size() == 1 && bake.persisted.first().values.size() == 2,
-                   "the shortest valid bake stroke must persist exactly like pencil");
-            expectPencilBakeAlignment(backend, stroke, generated);
+            const auto trace = runStroke(backend, Tool::Trace, stroke, generated);
+            expect(trace.persisted.size() == 1 && trace.persisted.first().values.size() == 2,
+                   "the shortest valid trace stroke must persist exactly like pencil");
+            expectPencilTraceAlignment(backend, stroke, generated);
         }
     }
 
@@ -288,18 +288,18 @@ namespace {
             {35,  760},
             {100, 820}
         };
-        const auto bake = runStroke(backend, Tool::Bake, sparseStroke, generated);
-        expect(bake.persisted.size() == 1 && bake.persisted.first().start == 0 &&
-                   bake.persisted.first().end == 100 && bake.persisted.first().values.size() == 20,
-               "sparse bake mouse events must be interpolated without gaps");
-        expectPencilBakeAlignment(backend, sparseStroke, generated);
+        const auto trace = runStroke(backend, Tool::Trace, sparseStroke, generated);
+        expect(trace.persisted.size() == 1 && trace.persisted.first().start == 0 &&
+                   trace.persisted.first().end == 100 && trace.persisted.first().values.size() == 20,
+               "sparse trace mouse events must be interpolated without gaps");
+        expectPencilTraceAlignment(backend, sparseStroke, generated);
 
         QList<QPoint> denseStroke;
         for (int tick = 0; tick <= 100; tick += 5)
             denseStroke.append({tick, 700 + tick});
-        const auto dense = runStroke(backend, Tool::Bake, denseStroke, generated);
-        expect(hasSameShape(bake.persisted, dense.persisted),
-               "sparse and dense bake events must produce the same five-tick shape");
+        const auto dense = runStroke(backend, Tool::Trace, denseStroke, generated);
+        expect(hasSameShape(trace.persisted, dense.persisted),
+               "sparse and dense trace events must produce the same five-tick shape");
 
         DrawCurveList committed;
         for (const auto &item : dense.persisted) {
@@ -310,7 +310,7 @@ namespace {
         const auto inferenceInput = AppModelUtils::getResultCurve(*generated.first(), committed);
         expect(inferenceInput.step == DrawCurve().step &&
                    inferenceInput.values().size() == generated.first()->values().size(),
-               "dense bake commits must merge into the generated curve without QList assertions");
+               "dense trace commits must merge into the generated curve without QList assertions");
         qDeleteAll(committed);
     }
 
@@ -321,17 +321,17 @@ namespace {
             {55, 760},
             {85, 820}
         };
-        const auto bake = runStroke(backend, Tool::Bake, stroke, generated, initial);
+        const auto trace = runStroke(backend, Tool::Trace, stroke, generated, initial);
         const auto pencil = runStroke(backend, Tool::Pencil, stroke, generated, initial);
 
-        expect(hasSameShape(pencil.preview, bake.preview) &&
-                   hasSameShape(pencil.persisted, bake.persisted),
+        expect(hasSameShape(pencil.preview, trace.preview) &&
+                   hasSameShape(pencil.persisted, trace.persisted),
                "overwriting an existing curve must share pencil range and merge semantics");
-        expect(bake.persisted.size() == 1 && bake.persisted.first().start == 0 &&
-                   bake.persisted.first().end == 120 && bake.persisted.first().step == 5,
-               "bake overwrite must preserve the standard existing curve shape");
-        expect(bake.persisted != pencil.persisted,
-               "bake and pencil must differ only in the values supplied to the shared path");
+        expect(trace.persisted.size() == 1 && trace.persisted.first().start == 0 &&
+                   trace.persisted.first().end == 120 && trace.persisted.first().step == 5,
+               "trace overwrite must preserve the standard existing curve shape");
+        expect(trace.persisted != pencil.persisted,
+               "trace and pencil must differ only in the values supplied to the shared path");
         qDeleteAll(initial);
     }
 
@@ -344,22 +344,22 @@ namespace {
             {10, 720}
         };
         const auto pencil = runStroke(backend, Tool::Pencil, stroke, generated, initial);
-        const auto bake = runStroke(backend, Tool::Bake, stroke, generated, initial);
+        const auto trace = runStroke(backend, Tool::Trace, stroke, generated, initial);
 
-        expect(hasSameShape(pencil.persisted, bake.persisted) && bake.persisted.size() == 1 &&
-                   bake.persisted.first().step == DrawCurve().step,
-               "pencil and bake must normalize an imported curve to the standard grid");
-        if (bake.persisted.size() == 1) {
-            const auto &values = bake.persisted.first().values;
+        expect(hasSameShape(pencil.persisted, trace.persisted) && trace.persisted.size() == 1 &&
+                   trace.persisted.first().step == DrawCurve().step,
+               "pencil and trace must normalize an imported curve to the standard grid");
+        if (trace.persisted.size() == 1) {
+            const auto &values = trace.persisted.first().values;
             const auto generatedAt5 = DrawCurveEditUtils::generatedValueAt(generated, 5);
             expect(values.size() == 6 && values.at(0) == 321 && values.at(2) == 321,
                    "editing an imported curve must preserve samples outside the stroke");
             expect(generatedAt5 && values.at(1) == *generatedAt5,
-                   "bake samples must use the standard five-tick phase");
+                   "trace samples must use the standard five-tick phase");
         }
 
         DrawCurveList committed;
-        for (const auto &item : bake.persisted) {
+        for (const auto &item : trace.persisted) {
             auto *restored = curve(item.start, item.values);
             restored->step = item.step;
             committed.append(restored);
@@ -380,13 +380,13 @@ namespace {
         };
         const auto crossingPencil =
             runStroke(backend, Tool::Pencil, crossingStroke, generated, crossedInitial);
-        const auto crossingBake =
-            runStroke(backend, Tool::Bake, crossingStroke, generated, crossedInitial);
-        expect(hasSameShape(crossingPencil.persisted, crossingBake.persisted) &&
-                   crossingBake.persisted.size() == 1 &&
-                   crossingBake.persisted.first().step == DrawCurve().step &&
-                   crossingBake.persisted.first().start == 0 &&
-                   crossingBake.persisted.first().end == 50,
+        const auto crossingTrace =
+            runStroke(backend, Tool::Trace, crossingStroke, generated, crossedInitial);
+        expect(hasSameShape(crossingPencil.persisted, crossingTrace.persisted) &&
+                   crossingTrace.persisted.size() == 1 &&
+                   crossingTrace.persisted.first().step == DrawCurve().step &&
+                   crossingTrace.persisted.first().start == 0 &&
+                   crossingTrace.persisted.first().end == 50,
                "crossing an imported grid must use the shared pencil normalization path");
         qDeleteAll(crossedInitial);
 
@@ -401,15 +401,15 @@ namespace {
         };
         const auto adjacentPencil =
             runStroke(backend, Tool::Pencil, backwardCrossingStroke, generated, adjacentInitial);
-        const auto adjacentBake =
-            runStroke(backend, Tool::Bake, backwardCrossingStroke, generated, adjacentInitial);
-        expect(hasSameShape(adjacentPencil.persisted, adjacentBake.persisted) &&
-                   adjacentBake.persisted.size() == 1 &&
-                   adjacentBake.persisted.first().start == 0 &&
-                   adjacentBake.persisted.first().end == 50 &&
-                   adjacentBake.persisted.first().step == DrawCurve().step &&
-                   adjacentBake.persisted.first().values.first() == 111 &&
-                   adjacentBake.persisted.first().values.last() == 321,
+        const auto adjacentTrace =
+            runStroke(backend, Tool::Trace, backwardCrossingStroke, generated, adjacentInitial);
+        expect(hasSameShape(adjacentPencil.persisted, adjacentTrace.persisted) &&
+                   adjacentTrace.persisted.size() == 1 &&
+                   adjacentTrace.persisted.first().start == 0 &&
+                   adjacentTrace.persisted.first().end == 50 &&
+                   adjacentTrace.persisted.first().step == DrawCurve().step &&
+                   adjacentTrace.persisted.first().values.first() == 111 &&
+                   adjacentTrace.persisted.first().values.last() == 321,
                "crossing adjacent legacy grids must preserve untouched prefixes and tails");
         qDeleteAll(adjacentInitial);
     }
@@ -436,52 +436,52 @@ namespace {
                  QList<QPoint>{{0, 700},  {30, 720}},
                  QList<QPoint>{{30, 700}, {0, 720} }
         }) {
-            const auto baked = runStroke(backend, Tool::Bake, stroke, generated);
-            expect(baked.persisted.size() == 2 && hasStandardGrid(baked.persisted) &&
-                       baked.persisted.first().start == 0 && baked.persisted.first().end == 10 &&
-                       baked.persisted.last().start == 20 && baked.persisted.last().end == 30,
-                   "bake must use the shared pencil path separately across generated gaps");
+            const auto traced = runStroke(backend, Tool::Trace, stroke, generated);
+            expect(traced.persisted.size() == 2 && hasStandardGrid(traced.persisted) &&
+                       traced.persisted.first().start == 0 && traced.persisted.first().end == 10 &&
+                       traced.persisted.last().start == 20 && traced.persisted.last().end == 30,
+                   "trace must use the shared pencil path separately across generated gaps");
         }
 
-        const auto gapOnly = runStroke(backend, Tool::Bake,
+        const auto gapOnly = runStroke(backend, Tool::Trace,
                                        {
                                            {10, 700},
                                            {20, 720}
         },
                                        generated);
         expect(!gapOnly.commitAttempted && gapOnly.preview.isEmpty() && gapOnly.persisted.isEmpty(),
-               "a bake stroke entirely inside a generated gap must not commit");
+               "a trace stroke entirely inside a generated gap must not commit");
 
         auto *legacyEdited = curve(10, QList<int>(4, 321));
         legacyEdited->step = 3;
         DrawCurveList legacyInitial{legacyEdited};
-        const auto legacyGapOnly = runStroke(backend, Tool::Bake,
+        const auto legacyGapOnly = runStroke(backend, Tool::Trace,
                                              {
                                                  {10, 700},
                                                  {20, 720}
         },
                                              generated, legacyInitial);
         expect(!legacyGapOnly.commitAttempted && legacyGapOnly.preview == snapshot(legacyInitial),
-               "a no-op bake stroke must not normalize or commit untouched legacy curves");
+               "a no-op trace stroke must not normalize or commit untouched legacy curves");
         qDeleteAll(legacyInitial);
         qDeleteAll(generated);
     }
 
     void testEmptyGeneratedCurveIsNoOp(const Backend backend) {
         const DrawCurveList generated;
-        const auto baked = runStroke(backend, Tool::Bake,
+        const auto traced = runStroke(backend, Tool::Trace,
                                      {
                                          {0,  700},
                                          {40, 720}
         },
                                      generated);
-        expect(!baked.commitAttempted && baked.preview.isEmpty() && baked.persisted.isEmpty(),
-               "baking without generated curves must be a no-op");
+        expect(!traced.commitAttempted && traced.preview.isEmpty() && traced.persisted.isEmpty(),
+               "tracing without generated curves must be a no-op");
     }
 
     void testGeneratedSegmentWaitsForNextStroke(const Backend backend) {
         DrawCurveList generated{curve(0, {100, 110, 120, 130})};
-        CurveStrokeEventProbe probe(backend, Tool::Bake, generated, {});
+        CurveStrokeEventProbe probe(backend, Tool::Trace, generated, {});
         sendMouseEvent(probe, QEvent::MouseButtonPress, {20, 700}, Qt::LeftButton,
                        Qt::LeftButton);
         sendMouseEvent(probe, QEvent::MouseMove, {30, 710}, Qt::NoButton, Qt::LeftButton);
@@ -492,50 +492,50 @@ namespace {
 
         const auto currentStroke = probe.result();
         expect(!currentStroke.commitAttempted && currentStroke.persisted.isEmpty(),
-               "a generated segment completing during a bake stroke must wait for the next stroke");
+               "a generated segment completing during a trace stroke must wait for the next stroke");
 
-        const auto nextStroke = runStroke(backend, Tool::Bake,
+        const auto nextStroke = runStroke(backend, Tool::Trace,
                                           {
                                               {20, 700},
                                               {40, 720}
         },
                                           generated);
         expect(nextStroke.commitAttempted && !nextStroke.persisted.isEmpty(),
-               "the next bake stroke must use the newly generated segment");
+               "the next trace stroke must use the newly generated segment");
         qDeleteAll(generated);
     }
 
     void testUndoRedo(const Backend backend, const ParamInfo::Name paramName,
                       const DrawCurveList &generated) {
-        const auto baked = runStroke(backend, Tool::Bake,
+        const auto traced = runStroke(backend, Tool::Trace,
                                      {
                                          {0,   700},
                                          {35,  760},
                                          {100, 820}
         },
                                      generated);
-        expect(!baked.persisted.isEmpty(), "undo/redo setup must produce a persisted bake curve");
+        expect(!traced.persisted.isEmpty(), "undo/redo setup must produce a persisted trace curve");
 
         SingingClip clip;
         auto *oldCurve = curve(0, QList<int>(20, 111));
         clip.params.getParamByName(paramName)->setCurves(Param::Edited, {oldCurve}, &clip);
 
         QList<Curve *> replacement;
-        for (const auto &item : baked.persisted)
+        for (const auto &item : traced.persisted)
             replacement.append(curve(item.start, item.values));
         ReplaceParamAction action(paramName, Param::Edited, replacement, &clip);
         qDeleteAll(replacement);
 
         action.execute();
         const auto after = snapshot(clip.params.getParamByName(paramName)->curves(Param::Edited));
-        expect(after == baked.persisted, "executing a bake action must store the baked curves");
+        expect(after == traced.persisted, "executing a trace action must store the traced curves");
         action.undo();
         const auto undone = snapshot(clip.params.getParamByName(paramName)->curves(Param::Edited));
         expect(undone.size() == 1 && undone.first().values == QList<int>(20, 111),
-               "undo must restore the pre-bake edited curve");
+               "undo must restore the pre-trace edited curve");
         action.execute();
         expect(snapshot(clip.params.getParamByName(paramName)->curves(Param::Edited)) == after,
-               "redo must restore the same five-tick baked curve");
+               "redo must restore the same five-tick traced curve");
 
         delete oldCurve;
     }

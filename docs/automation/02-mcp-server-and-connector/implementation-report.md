@@ -187,7 +187,7 @@ LibreSVIP 转换抽取为共享 `LibreSVIPConverter`。GUI 转换 Task 与自动
 
 公开工具不再暴露聚合对象树式的 `project.get`。`documents.get` 在既有文档状态上增加工程长度、轨道总数与空轨/纯歌声/纯音频/混合轨分类，以及剪辑总数与歌声/音频分类统计；对象详情继续由轨道和剪辑域分页查询。L2 的 `documents.list_recent` 只读取应用最近项目记录并报告路径、文件名和存在状态，不打开文件、不切换文档。
 
-`parameters.get` 接受可选半开时间范围和 `max_points`。锚点曲线始终完整返回，点数上限不足以容纳稳定锚点身份时明确失败；采样曲线使用确定性步长降采样，并返回原始点数、实际点数和 `downsampled`。局部 `parameters.bake` 在把锚点转换为采样曲线前以 64 位整数计算总点数和可表示终点，超过公共曲线点数上限或无法落入模型时间轴时在分配与提交前拒绝。锚点拓扑操作也改为显式边界：`create_anchor_curve` 创建至少含两个锚点且不重叠的新曲线，`insert_anchors` 只写指定既有曲线，`merge_anchor_curves` 只显式合并相邻且不重叠的完整曲线；移动锚点不会隐式跨曲线合并。
+`parameters.get` 接受可选半开时间范围和 `max_points`。锚点曲线始终完整返回，点数上限不足以容纳稳定锚点身份时明确失败；采样曲线使用确定性步长降采样，并返回原始点数、实际点数和 `downsampled`。局部 `parameters.trace` 在把锚点转换为采样曲线前以 64 位整数计算总点数和可表示终点，超过公共曲线点数上限或无法落入模型时间轴时在分配与提交前拒绝。锚点拓扑操作也改为显式边界：`create_anchor_curve` 创建至少含两个锚点且不重叠的新曲线，`insert_anchors` 只写指定既有曲线，`merge_anchor_curves` 只显式合并相邻且不重叠的完整曲线；移动锚点不会隐式跨曲线合并。
 
 Speaker Mix 预设并入 `speaker_mix` 域并开放在 L2。`presets.list/save/delete` 管理应用级预设，不改变文档 revision 或 History；`presets.apply` 把预设值作为一条文档历史记录应用到轨道或剪辑。查询快照携带可空来源预设和 dirty 标记，后续直接编辑混合会保留来源身份并标记已偏离预设。
 

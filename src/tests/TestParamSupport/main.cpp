@@ -69,7 +69,7 @@ namespace {
         ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::MouthOpening, singer),
                      "mouth opening support follows the singer capability");
         ok &= expect(!ParamInfo::hasOriginalParam(ParamInfo::Velocity),
-                     "a singer-supported parameter without a variance curve cannot be baked");
+                     "a singer-supported parameter without a variance curve cannot be traced");
 
         const auto unsupportedSinger = singerWithCapabilities(QStringList{"velocity"});
         ok &= expect(!paramUtils->isSupportedBySinger(ParamInfo::MouthOpening, unsupportedSinger),
@@ -79,13 +79,13 @@ namespace {
 
     bool testEditToolVisibilityFollowsParameterType() {
         bool ok = true;
-        ok &= expect(isParamEditorEditModeVisible(ParamEditorEditMode::Bake,
+        ok &= expect(isParamEditorEditModeVisible(ParamEditorEditMode::Trace,
                                                   ParamInfo::Breathiness),
-                     "a variance-backed parameter shows the bake tool");
-        ok &= expect(!isParamEditorEditModeVisible(ParamEditorEditMode::Bake, ParamInfo::Gender),
-                     "gender does not show the bake tool");
-        ok &= expect(!isParamEditorEditModeVisible(ParamEditorEditMode::Bake, ParamInfo::Velocity),
-                     "velocity does not show the bake tool");
+                     "a variance-backed parameter shows the trace tool");
+        ok &= expect(!isParamEditorEditModeVisible(ParamEditorEditMode::Trace, ParamInfo::Gender),
+                     "gender does not show the trace tool");
+        ok &= expect(!isParamEditorEditModeVisible(ParamEditorEditMode::Trace, ParamInfo::Velocity),
+                     "velocity does not show the trace tool");
         ok &= expect(isParamEditorEditModeVisible(ParamEditorEditMode::Shape,
                                                   ParamInfo::Breathiness) &&
                          isParamEditorEditModeVisible(ParamEditorEditMode::Scale,

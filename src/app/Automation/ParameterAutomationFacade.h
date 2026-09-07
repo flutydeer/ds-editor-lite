@@ -126,10 +126,10 @@ namespace Automation {
         AutomationResult<MutationResult> setAnchorInterpolations(
             const CommandContext &context, ClipId clipId, ParamInfo::Name name, Param::Type type,
             QList<AnchorId> anchorIds, AnchorNode::InterpMode interpolation);
-        AutomationResult<MutationResult> bakeParameter(const CommandContext &context, ClipId clipId,
-                                                       ParamInfo::Name name,
-                                                       std::optional<int> localStart = std::nullopt,
-                                                       std::optional<int> localEnd = std::nullopt);
+        AutomationResult<MutationResult>
+            traceParameter(const CommandContext &context, ClipId clipId, ParamInfo::Name name,
+                           std::optional<int> localStart = std::nullopt,
+                           std::optional<int> localEnd = std::nullopt);
 
         AutomationResult<MutationResult>
             replaceClipSpeakerMix(const CommandContext &context, ClipId clipId,

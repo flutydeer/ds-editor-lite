@@ -1564,7 +1564,7 @@ namespace {
                   });
 
         suite.run(
-            Automation::OperationIds::parameters::bake,
+            Automation::OperationIds::parameters::trace,
             QStringLiteral("anchor-materialization-bounded"), [&] {
                 const auto created = runtime.parameters().createAnchorCurve(
                     commandContext(runtime), clipId, ParamInfo::Pitch, Param::Edited,
@@ -1574,16 +1574,16 @@ namespace {
                         {std::numeric_limits<int>::max(), 6000, AnchorNode::Linear},
                 });
                 suite.expect(created && created.get().changed,
-                             QStringLiteral("the bake bound fixture must create its anchor"));
+                             QStringLiteral("the trace bound fixture must create its anchor"));
                 const auto base = runtime.documentVersion();
-                const auto baked = runtime.parameters().bakeParameter(
+                const auto traced = runtime.parameters().traceParameter(
                     commandContext(runtime), clipId, ParamInfo::Pitch, 0, 5);
                 suite.expect(
-                    isError(baked, AutomationErrorCode::InvalidArgument,
+                    isError(traced, AutomationErrorCode::InvalidArgument,
                             QStringLiteral("local_end")) &&
                         runtime.documentVersion() == base,
                     QStringLiteral(
-                        "partial bake must reject an unsafe anchor expansion before mutation"));
+                        "partial trace must reject an unsafe anchor expansion before mutation"));
             });
 
         const auto speakerA = speaker(QStringLiteral("speaker-a"));
