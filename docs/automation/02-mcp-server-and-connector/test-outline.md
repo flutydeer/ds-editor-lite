@@ -109,7 +109,7 @@ Connector 桥接工具：6
 | 声库 | 2 | 可用 singer/speaker/language/G2P/mix 能力，以及含 package version 的稳定引用和同 ID 并存版本精确解析；L1/L2 不依赖包信息域 |
 | Speaker Mix | 13 | fixed/dynamic/bypass、权重归一化、关键帧稳定 ID、应用级预设与文档级应用 |
 | 音符、歌词、语言、发音与音素 | 19 | 查询/搜索/叶节点创建/duplicate/几何、歌词、语言、发音、音素与填充 |
-| 参数曲线与锚点 | 12 | capability、有界查询、draw/anchor、replace/draw/erase/bake 与显式曲线拓扑操作 |
+| 参数曲线与锚点 | 12 | capability、有界查询、draw/anchor、replace/draw/erase/trace 与显式曲线拓扑操作 |
 | 时间线 | 5 | Tempo/拍号排序、零点锚、拍号增删后的派生位置上界、单条历史记录 |
 | 历史记录 | 3 | 状态、Undo/Redo、分支与 savepoint |
 | 播放 | 8 | 瞬时目标状态的幂等/no-op；持久 loop 的历史记录、revision、Undo/Redo 与并发检查 |
@@ -155,7 +155,7 @@ Connector 桥接工具：6
 - `playback.set_loop`、`set_loop_enabled` 与 `clear_loop` 修改工程持久状态，各自产生一条可撤销、可重做的历史记录；瞬时播放命令不进入历史记录，播放头在调用间变化不造成冲突，重复目标调用返回 no-op。
 - Speaker Mix 预设 save/delete 不改变文档 revision 或 History；apply 只形成一条文档历史记录，后续直接编辑将来源标记为 dirty。
 - 创建、插入和合并锚点曲线分别形成单条历史记录；非法重叠、非相邻合并和跨曲线移动在提交前失败。
-- 局部 `parameters.bake` 在锚点采样前以宽整数预检总点数和终点；极端跨度在分配和提交前稳定拒绝，文档版本不变。
+- 局部 `parameters.trace` 在锚点采样前以宽整数预检总点数和终点；极端跨度在分配和提交前稳定拒绝，文档版本不变。
 - 音符 duplicate/剪贴板转移面对延伸至模型 tick 上界的锚点曲线时，只采样与所选音符相交的局部区间；返回点数受公共上限约束，操作仍形成单条历史记录。
 
 ### 5.3 异步 Command 与 Task

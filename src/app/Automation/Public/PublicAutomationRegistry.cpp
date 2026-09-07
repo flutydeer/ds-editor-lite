@@ -2995,19 +2995,20 @@ namespace Automation {
                     objectIds<AnchorId>(arguments.value(QStringLiteral("anchor_ids")).toArray()),
                     interpolation(arguments.value(QStringLiteral("interpolation")).toString())));
             });
-        addBinding(ToolNames::parameters_bake, [this](const QJsonObject &arguments,
-                                                      const PublicInvocationContext &invocation) {
-            return mutationResult(m_runtime.parameters().bakeParameter(
-                commandContext(arguments, invocation),
-                ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
-                parameterName(arguments.value(QStringLiteral("name")).toString()),
-                arguments.contains(QStringLiteral("local_start"))
-                    ? std::optional<int>(arguments.value(QStringLiteral("local_start")).toInt())
-                    : std::nullopt,
-                arguments.contains(QStringLiteral("local_end"))
-                    ? std::optional<int>(arguments.value(QStringLiteral("local_end")).toInt())
-                    : std::nullopt));
-        });
+        addBinding(
+            ToolNames::parameters_trace,
+            [this](const QJsonObject &arguments, const PublicInvocationContext &invocation) {
+                return mutationResult(m_runtime.parameters().traceParameter(
+                    commandContext(arguments, invocation),
+                    ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
+                    parameterName(arguments.value(QStringLiteral("name")).toString()),
+                    arguments.contains(QStringLiteral("local_start"))
+                        ? std::optional<int>(arguments.value(QStringLiteral("local_start")).toInt())
+                        : std::nullopt,
+                    arguments.contains(QStringLiteral("local_end"))
+                        ? std::optional<int>(arguments.value(QStringLiteral("local_end")).toInt())
+                        : std::nullopt));
+            });
         addBinding(ToolNames::tracks_set_voice, [this](const QJsonObject &arguments,
                                                        const PublicInvocationContext &invocation) {
             auto voice = resolveVoiceSelection(m_runtime,

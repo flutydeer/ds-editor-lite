@@ -168,7 +168,7 @@ Configure/build 零错误；生成物可复现；受影响回归和二期纯单�
 12. 验证零 speaker 声库可用完整 SingerRef 设置到轨道/剪辑；单 speaker 自动解析，多 speaker 候选可由 `voices.describe` 查询，缺少选择时稳定拒绝；构造 package ID 与 singer ID 相同、package version 不同的两个并存版本，在 L2 明确拒绝 `packages.*` 的前提下验证 list、describe、轨道/剪辑设置、Speaker Mix/预设和回读均按版本精确闭环。
 13. 验证 `documents.get` 的工程长度、轨道/剪辑总数和分类统计；验证 `documents.list_recent` 只读取应用设置且不修改当前文档。
 14. 验证 `parameters.get` 的半开范围、默认/显式点数上限、采样曲线确定性降采样，以及锚点曲线在上限不足时明确失败而不丢失稳定 ID。
-15. 验证 `parameters.create_anchor_curve`、显式 `insert_anchors`、跨曲线移动拒绝和 `merge_anchor_curves` 的相邻/重叠规则及逐步 Undo/Redo；验证局部 `parameters.bake` 在采样前拒绝超限或无法表示的锚点展开，且不推进文档版本；验证音符 duplicate 面对延伸至模型 tick 上界的锚点曲线时只采样所选音符交集，并受公共点数上限约束。
+15. 验证 `parameters.create_anchor_curve`、显式 `insert_anchors`、跨曲线移动拒绝和 `merge_anchor_curves` 的相邻/重叠规则及逐步 Undo/Redo；验证局部 `parameters.trace` 在采样前拒绝超限或无法表示的锚点展开，且不推进文档版本；验证音符 duplicate 面对延伸至模型 tick 上界的锚点曲线时只采样所选音符交集，并受公共点数上限约束。
 16. 验证 Speaker Mix 预设 list/save/delete 的应用级无文档副作用，apply 的单条 History，以及来源预设 dirty 状态。
 17. 对 workspace、track_panel、clip_editor 的布局、焦点事实、共享/独立视口、选择顺序与 primary 各选代表路径验证真实 QWidget 状态；确认 revision/history 不变，且 Editor 在后台无法取得键盘焦点时已完成的显示、选择和定位不被误报为失败，也不出现模态窗口。
 18. 验证拍号新增、替换和删除后的完整时间线投影使用宽整数校验；删除中间拍号会使后续
