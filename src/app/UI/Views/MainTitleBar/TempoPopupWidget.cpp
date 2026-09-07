@@ -19,7 +19,7 @@ namespace {
 
 TempoPopupWidget::TempoPopupWidget(QWidget *parent) : QFrame(parent) {
     setObjectName("tempoPopup");
-    setWindowFlags(Qt::Popup | Qt::FramelessWindowHint);
+    setWindowFlags(Qt::Popup | Qt::NoDropShadowWindowHint);
     // Keep this popup opaque: WA_TranslucentBackground plus DWM frame effects on the same
     // window can freeze the compositor system-wide. Corner rounding comes from DWM on
     // Windows 11 and stays square elsewhere.
