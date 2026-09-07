@@ -1127,33 +1127,33 @@ namespace AutomationWire {
                 {PublicToolNames::parameters_get,
                  {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("layer")}                           },
                 {PublicToolNames::parameters_replace,
-                 {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("layer"),
+                 {QStringLiteral("clip_id"), QStringLiteral("name"),
                   QStringLiteral("curves")}                                                                             },
                 {PublicToolNames::parameters_draw,
-                 {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("layer"),
+                 {QStringLiteral("clip_id"), QStringLiteral("name"),
                   QStringLiteral("local_start"), QStringLiteral("step"), QStringLiteral("values")}                      },
                 {PublicToolNames::parameters_erase,
-                 {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("layer"),
+                 {QStringLiteral("clip_id"), QStringLiteral("name"),
                   QStringLiteral("local_start"), QStringLiteral("local_end")}                                           },
                 {PublicToolNames::parameters_trace,
                  {QStringLiteral("clip_id"), QStringLiteral("name")}                                                    },
                 {PublicToolNames::parameters_create_anchor_curve,
-                 {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("layer"),
+                 {QStringLiteral("clip_id"), QStringLiteral("name"),
                   QStringLiteral("client_ref"), QStringLiteral("anchors")}                                              },
                 {PublicToolNames::parameters_insert_anchors,
-                 {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("layer"),
+                 {QStringLiteral("clip_id"), QStringLiteral("name"),
                   QStringLiteral("curve_id"), QStringLiteral("anchors")}                                                },
                 {PublicToolNames::parameters_merge_anchor_curves,
-                 {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("layer"),
+                 {QStringLiteral("clip_id"), QStringLiteral("name"),
                   QStringLiteral("target_curve_id"), QStringLiteral("source_curve_id")}                                 },
                 {PublicToolNames::parameters_move_anchors,
-                 {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("layer"),
+                 {QStringLiteral("clip_id"), QStringLiteral("name"),
                   QStringLiteral("moves")}                                                                              },
                 {PublicToolNames::parameters_remove_anchors,
-                 {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("layer"),
+                 {QStringLiteral("clip_id"), QStringLiteral("name"),
                   QStringLiteral("anchor_ids")}                                                                         },
                 {PublicToolNames::parameters_set_anchor_interpolation,
-                 {QStringLiteral("clip_id"), QStringLiteral("name"), QStringLiteral("layer"),
+                 {QStringLiteral("clip_id"), QStringLiteral("name"),
                   QStringLiteral("anchor_ids"), QStringLiteral("interpolation")}                                        },
                 {PublicToolNames::tempos_set,                          {QStringLiteral("tick"), QStringLiteral("tempo")}},
                 {PublicToolNames::tempos_remove,                       {QStringLiteral("tick")}                         },
@@ -4008,6 +4008,13 @@ namespace AutomationWire {
                            "the final domain commit is performed atomically.")
                     .arg(action);
             }
+            if (category == QStringLiteral("parameters")) {
+                return QStringLiteral(
+                           "Apply %1 to the Edited parameter layer through the shared parameter "
+                           "domain facade. Only Edited curves can be modified. The editor validates "
+                           "the expected revision and commits one atomic History entry.")
+                    .arg(action);
+            }
             return QStringLiteral(
                        "Apply the GUI-equivalent %1 action through the shared %2 domain facade. "
                        "The editor resolves GUI defaults, validates the expected revision, and "
@@ -4084,56 +4091,51 @@ namespace AutomationWire {
                 id != PublicToolNames::parameters_get_capabilities) {
                 add(QStringLiteral("/name"), PublicToolNames::parameters_get_capabilities,
                     {QStringLiteral("/document_id"), QStringLiteral("/clip_id")});
-                if (id != PublicToolNames::parameters_trace) {
-                    add(QStringLiteral("/layer"), PublicToolNames::parameters_get_capabilities,
-                        {QStringLiteral("/document_id"), QStringLiteral("/clip_id"),
-                         QStringLiteral("/name")});
-                }
                 if (id == PublicToolNames::parameters_replace) {
                     add(QStringLiteral("/curves/*/type"),
                         PublicToolNames::parameters_get_capabilities,
                         {QStringLiteral("/document_id"), QStringLiteral("/clip_id"),
-                         QStringLiteral("/name"), QStringLiteral("/layer")});
+                         QStringLiteral("/name")});
                     add(QStringLiteral("/curves/*/nodes/*/interpolation"),
                         PublicToolNames::parameters_get_capabilities,
                         {QStringLiteral("/document_id"), QStringLiteral("/clip_id"),
-                         QStringLiteral("/name"), QStringLiteral("/layer")});
+                         QStringLiteral("/name")});
                     add(QStringLiteral("/curves/*/values/*"),
                         PublicToolNames::parameters_get_capabilities,
                         {QStringLiteral("/document_id"), QStringLiteral("/clip_id"),
-                         QStringLiteral("/name"), QStringLiteral("/layer")});
+                         QStringLiteral("/name")});
                     add(QStringLiteral("/curves/*/nodes/*/value"),
                         PublicToolNames::parameters_get_capabilities,
                         {QStringLiteral("/document_id"), QStringLiteral("/clip_id"),
-                         QStringLiteral("/name"), QStringLiteral("/layer")});
+                         QStringLiteral("/name")});
                 }
                 if (id == PublicToolNames::parameters_draw) {
                     add(QStringLiteral("/values/*"), PublicToolNames::parameters_get_capabilities,
                         {QStringLiteral("/document_id"), QStringLiteral("/clip_id"),
-                         QStringLiteral("/name"), QStringLiteral("/layer")});
+                         QStringLiteral("/name")});
                 }
                 if (id == PublicToolNames::parameters_insert_anchors ||
                     id == PublicToolNames::parameters_create_anchor_curve) {
                     add(QStringLiteral("/anchors/*/value"),
                         PublicToolNames::parameters_get_capabilities,
                         {QStringLiteral("/document_id"), QStringLiteral("/clip_id"),
-                         QStringLiteral("/name"), QStringLiteral("/layer")});
+                         QStringLiteral("/name")});
                     add(QStringLiteral("/anchors/*/interpolation"),
                         PublicToolNames::parameters_get_capabilities,
                         {QStringLiteral("/document_id"), QStringLiteral("/clip_id"),
-                         QStringLiteral("/name"), QStringLiteral("/layer")});
+                         QStringLiteral("/name")});
                 }
                 if (id == PublicToolNames::parameters_move_anchors) {
                     add(QStringLiteral("/moves/*/value"),
                         PublicToolNames::parameters_get_capabilities,
                         {QStringLiteral("/document_id"), QStringLiteral("/clip_id"),
-                         QStringLiteral("/name"), QStringLiteral("/layer")});
+                         QStringLiteral("/name")});
                 }
                 if (id == PublicToolNames::parameters_set_anchor_interpolation) {
                     add(QStringLiteral("/interpolation"),
                         PublicToolNames::parameters_get_capabilities,
                         {QStringLiteral("/document_id"), QStringLiteral("/clip_id"),
-                         QStringLiteral("/name"), QStringLiteral("/layer")});
+                         QStringLiteral("/name")});
                 }
             }
             if (id == PublicToolNames::speaker_mix_set_fixed) {
