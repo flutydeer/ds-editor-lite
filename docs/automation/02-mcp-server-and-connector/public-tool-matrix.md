@@ -203,7 +203,7 @@
 |---|---|---|---|
 | `parameters.get_capabilities` | L1 | Q/S | 参数层、范围、步长、曲线与插值能力 |
 | `parameters.get` | L1 | Q/S | 按可选半开时间范围和点数上限查询曲线；锚点完整保留，采样曲线确定性降采样并报告原始/返回点数 |
-| `parameters.replace` | L1 | C/S | 指定参数层的完整曲线替换 |
+| `parameters.replace` | L1 | C/S | Edited 层的完整曲线替换 |
 | `parameters.draw` | L1 | C/S | 局部采样绘制与 merge mode |
 | `parameters.erase` | L1 | C/S | 局部区间擦除 |
 | `parameters.trace` | L1 | C/S | 原始曲线描摹与可选区间；局部描摹在锚点采样前执行点数与时间轴上界预检 |
@@ -212,7 +212,10 @@
 | `parameters.move_anchors` | L1 | C/S | 批量稳定 ID 移动位置和值；不得隐式跨曲线合并或制造重叠 |
 | `parameters.remove_anchors` | L1 | C/S | 批量稳定 ID 删除 |
 | `parameters.set_anchor_interpolation` | L1 | C/S | 批量锚点插值更新 |
-| `parameters.merge_anchor_curves` | L1 | C/S | 显式合并同一参数层内相邻且不重叠的完整锚点曲线 |
+| `parameters.merge_anchor_curves` | L1 | C/S | 显式合并 Edited 层内相邻且不重叠的完整锚点曲线 |
+
+参数曲线编辑工具统一只写入 `Edited`，不接受 `layer` 参数；MCP 与无头模式共用此约束。
+`parameters.get` 仍通过 `layer` 选择查询层，`parameters.get_capabilities` 的 `layers` 表示可查询层。
 
 ### 3.12 时间线（5）
 

@@ -2884,7 +2884,7 @@ namespace Automation {
                            commandContext(arguments, invocation),
                            ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                            parameterName(arguments.value(QStringLiteral("name")).toString()),
-                           parameterType(arguments.value(QStringLiteral("layer")).toString()),
+                           Param::Edited,
                            curves));
                    });
         addBinding(ToolNames::parameters_draw,
@@ -2896,7 +2896,7 @@ namespace Automation {
                            commandContext(arguments, invocation),
                            ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                            parameterName(arguments.value(QStringLiteral("name")).toString()),
-                           parameterType(arguments.value(QStringLiteral("layer")).toString()),
+                           Param::Edited,
                            arguments.value(QStringLiteral("local_start")).toInt(),
                            arguments.value(QStringLiteral("step")).toInt(), std::move(values),
                            arguments.value(QStringLiteral("merge_mode")).toString() ==
@@ -2908,7 +2908,7 @@ namespace Automation {
                            commandContext(arguments, invocation),
                            ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                            parameterName(arguments.value(QStringLiteral("name")).toString()),
-                           parameterType(arguments.value(QStringLiteral("layer")).toString()),
+                           Param::Edited,
                            arguments.value(QStringLiteral("local_start")).toInt(),
                            arguments.value(QStringLiteral("local_end")).toInt()));
                    });
@@ -2927,7 +2927,7 @@ namespace Automation {
                     commandContext(arguments, invocation),
                     ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                     parameterName(arguments.value(QStringLiteral("name")).toString()),
-                    parameterType(arguments.value(QStringLiteral("layer")).toString()),
+                    Param::Edited,
                     CurveId(arguments.value(QStringLiteral("curve_id")).toInt()), anchors));
             });
         addBinding(
@@ -2945,7 +2945,7 @@ namespace Automation {
                     commandContext(arguments, invocation),
                     ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                     parameterName(arguments.value(QStringLiteral("name")).toString()),
-                    parameterType(arguments.value(QStringLiteral("layer")).toString()),
+                    Param::Edited,
                     arguments.value(QStringLiteral("client_ref")).toString(), anchors));
             });
         addBinding(ToolNames::parameters_merge_anchor_curves,
@@ -2954,7 +2954,7 @@ namespace Automation {
                            commandContext(arguments, invocation),
                            ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                            parameterName(arguments.value(QStringLiteral("name")).toString()),
-                           parameterType(arguments.value(QStringLiteral("layer")).toString()),
+                           Param::Edited,
                            CurveId(arguments.value(QStringLiteral("target_curve_id")).toInt()),
                            CurveId(arguments.value(QStringLiteral("source_curve_id")).toInt())));
                    });
@@ -2972,7 +2972,7 @@ namespace Automation {
                     commandContext(arguments, invocation),
                     ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                     parameterName(arguments.value(QStringLiteral("name")).toString()),
-                    parameterType(arguments.value(QStringLiteral("layer")).toString()), moves));
+                    Param::Edited, moves));
             });
         addBinding(
             ToolNames::parameters_remove_anchors,
@@ -2981,7 +2981,7 @@ namespace Automation {
                     commandContext(arguments, invocation),
                     ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                     parameterName(arguments.value(QStringLiteral("name")).toString()),
-                    parameterType(arguments.value(QStringLiteral("layer")).toString()),
+                    Param::Edited,
                     objectIds<AnchorId>(arguments.value(QStringLiteral("anchor_ids")).toArray())));
             });
         addBinding(
@@ -2991,7 +2991,7 @@ namespace Automation {
                     commandContext(arguments, invocation),
                     ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                     parameterName(arguments.value(QStringLiteral("name")).toString()),
-                    parameterType(arguments.value(QStringLiteral("layer")).toString()),
+                    Param::Edited,
                     objectIds<AnchorId>(arguments.value(QStringLiteral("anchor_ids")).toArray()),
                     interpolation(arguments.value(QStringLiteral("interpolation")).toString())));
             });

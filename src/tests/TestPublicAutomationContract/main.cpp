@@ -691,6 +691,30 @@ namespace {
         if (!get || !create || !insert || !merge)
             return;
         const auto getProperties = get->inputSchema.value(QStringLiteral("properties")).toObject();
+        expect(requiredFields(get->inputSchema).contains(QStringLiteral("layer")) &&
+                   propertySchema(get->inputSchema, QStringLiteral("layer"))
+                           .value(QStringLiteral("enum"))
+                           .toArray() == QJsonArray{QStringLiteral("original"),
+                                                    QStringLiteral("edited"),
+                                                    QStringLiteral("envelope")},
+               QStringLiteral("parameter reads must retain explicit layer selection"));
+        for (const auto &tool : publicToolContracts()) {
+            if (tool.category != QStringLiteral("parameters") ||
+                tool.kind != OperationKind::Command)
+                continue;
+            expect(propertySchema(tool.inputSchema, QStringLiteral("layer")).isEmpty() &&
+                       !requiredFields(tool.inputSchema).contains(QStringLiteral("layer")) &&
+                       hasStrictObjectRoot(tool.inputSchema),
+                   tool.operationId + QStringLiteral(" must not accept a layer argument"));
+            for (const auto &value : tool.valueSources) {
+                const auto source = value.toObject();
+                expect(source.value(QStringLiteral("field_path")) != QStringLiteral("/layer") &&
+                           !source.value(QStringLiteral("context_fields"))
+                                .toArray()
+                                .contains(QStringLiteral("/layer")),
+                       tool.operationId + QStringLiteral(" must not advertise layer selection"));
+            }
+        }
         const auto getSnapshot = resolveSchema(
             propertySchema(get->outputSchema, QStringLiteral("snapshot")), get->outputSchema);
         const auto getSnapshotProperties =
