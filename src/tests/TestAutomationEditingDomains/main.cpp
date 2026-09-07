@@ -1565,7 +1565,7 @@ namespace {
 
         suite.run(
             Automation::OperationIds::parameters::trace,
-            QStringLiteral("anchor-materialization-bounded"), [&] {
+            QStringLiteral("preserve-gaps-and-anchors"), [&] {
                 const auto created = runtime.parameters().createAnchorCurve(
                     commandContext(runtime), clipId, ParamInfo::Pitch, Param::Edited,
                     QStringLiteral("huge-anchor"),
@@ -1578,12 +1578,56 @@ namespace {
                 const auto base = runtime.documentVersion();
                 const auto traced = runtime.parameters().traceParameter(
                     commandContext(runtime), clipId, ParamInfo::Pitch, 0, 5);
-                suite.expect(
-                    isError(traced, AutomationErrorCode::InvalidArgument,
-                            QStringLiteral("local_end")) &&
-                        runtime.documentVersion() == base,
-                    QStringLiteral(
-                        "partial trace must reject an unsafe anchor expansion before mutation"));
+                suite.expect(traced && !traced.get().changed && runtime.documentVersion() == base,
+                             QStringLiteral("trace without original data must preserve anchors"));
+
+                auto before = runtime.parameters().getParameter(
+                    base.documentId, clipId, ParamInfo::Pitch, Param::Edited).get().curves;
+                Automation::CurveDraftDto draw;
+                draw.type = Automation::CurveDraftDto::Type::Draw;
+                draw.localStart = 0;
+                draw.step = 5;
+                draw.values = QList<int>(8, 6000);
+                before.prepend(draw);
+                runtime.parameters().replaceParameter(commandContext(runtime), clipId,
+                                                       ParamInfo::Pitch, Param::Edited, before);
+                auto first = draw;
+                first.values = {6100, 6110};
+                auto second = first;
+                second.localStart = 20;
+                second.values = {6200, 6210};
+                runtime.parameters().replaceParameter(commandContext(runtime), clipId,
+                                                       ParamInfo::Pitch, Param::Original,
+                                                       {first, second});
+                const auto beforeTrace = runtime.documentVersion();
+                const auto applied = runtime.parameters().traceParameter(
+                    commandContext(runtime), clipId, ParamInfo::Pitch, 0, 30);
+                const auto snapshot = [&] {
+                    return runtime.parameters().getParameter(
+                        runtime.documentVersion().documentId, clipId, ParamInfo::Pitch,
+                        Param::Edited).get().curves;
+                };
+                const auto after = snapshot();
+                suite.expect(applied && applied.get().changed &&
+                                 applied.get().current.revision == beforeTrace.revision + 1 &&
+                                 after.size() == 2 &&
+                                 after.first().values == QList<int>{6100, 6110, 6000, 6000,
+                                                                   6200, 6210, 6000, 6000} &&
+                                 after.last().id == before.last().id &&
+                                 after.last().nodes.size() == 2 &&
+                                 after.last().nodes.last().position == std::numeric_limits<int>::max(),
+                             QStringLiteral("trace must preserve holes, outside samples and anchors"));
+                const auto undo = runtime.history().undo(commandContext(runtime));
+                suite.expect(undo && snapshot().first().values == draw.values,
+                             QStringLiteral("one undo must restore the complete trace edit"));
+                const auto redo = runtime.history().redo(commandContext(runtime));
+                suite.expect(redo && snapshot().first().values == after.first().values &&
+                                 snapshot().last().id == after.last().id,
+                             QStringLiteral("one redo must restore the traced curves"));
+                const auto noOp = runtime.parameters().traceParameter(
+                    commandContext(runtime), clipId, ParamInfo::Pitch, 0, 30);
+                suite.expect(noOp && !noOp.get().changed,
+                             QStringLiteral("repeating trace must not add an undo step"));
             });
 
         const auto speakerA = speaker(QStringLiteral("speaker-a"));

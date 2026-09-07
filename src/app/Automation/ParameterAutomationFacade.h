@@ -201,6 +201,11 @@ namespace Automation {
                                 const SingerInfo &singerInfo, const SpeakerInfo &speakerInfo,
                                 const SpeakerMixModel::SpeakerMixData &data);
         using CurveMutation = std::function<AutomationResult<bool>(QList<CurveDraftDto> &curves)>;
+        using DrawCurveMutation = std::function<AutomationResult<bool>(
+            SingingClip &clip, const QList<DrawCurve *> &original, QList<DrawCurve *> &edited)>;
+        AutomationResult<MutationResult> mutateDrawParameter(
+            const OperationId &operationId, const CommandContext &context, ClipId clipId,
+            ParamInfo::Name name, DrawCurveMutation mutation);
         AutomationResult<MutationResult> mutateParameter(const OperationId &operationId,
                                                          const CommandContext &context,
                                                          ClipId clipId, ParamInfo::Name name,
