@@ -167,6 +167,12 @@ namespace {
             QStringLiteral("phoneme.waveform"),
             QStringLiteral("speakerMix.track"),
             QStringLiteral("speakerMix.emptyState.fill"),
+            QStringLiteral("speakerMix.plot.keyframeLine"),
+            QStringLiteral("speakerMix.plot.keyframeLineHover"),
+            QStringLiteral("speakerMix.plot.bypassedText"),
+            QStringLiteral("speakerMix.plot.selectedDot"),
+            QStringLiteral("speakerMix.plot.selectionBorder"),
+            QStringLiteral("speakerMix.plot.selectionFill"),
             QStringLiteral("mix.fader.trackInactive"),
             QStringLiteral("button.mute.checkedHover.fill"),
             QStringLiteral("button.solo.checkedPressed.fill"),
@@ -195,6 +201,17 @@ namespace {
                 success &= expect(colors->tokens.contains(token),
                                   QStringLiteral("bundled colors.json missing required token"),
                                   themeId + QStringLiteral(": ") + token);
+            }
+
+            // Per-speaker plot colors are indexed by the app color palette order (12 entries).
+            for (int i = 0; i < 12; ++i) {
+                for (const auto &prefix : {QStringLiteral("speakerMix.plot.fill"),
+                                           QStringLiteral("speakerMix.plot.line")}) {
+                    const auto token = prefix + QString::number(i);
+                    success &= expect(colors->tokens.contains(token),
+                                      QStringLiteral("bundled colors.json missing required token"),
+                                      themeId + QStringLiteral(": ") + token);
+                }
             }
         }
         return success;

@@ -197,20 +197,6 @@ QColor AppColorPalette::paramLine(int index) const {
     return baseColor(index);
 }
 
-QColor AppColorPalette::speakerMixParamFill(int index) const {
-    auto lch = ColorUtils::srgbToOkLCH(baseColor(index));
-    lch.L = 0.4;
-    lch.C = 0.05;
-    return ColorUtils::oklchToSRGB(lch);
-}
-
-QColor AppColorPalette::speakerMixDotFill(int index) const {
-    auto lch = ColorUtils::srgbToOkLCH(baseColor(index));
-    lch.L = 0.55;
-    lch.C = 0.05;
-    return ColorUtils::oklchToSRGB(lch);
-}
-
 QColor AppColorPalette::keyHighlight(int index) const {
     return baseColor(index);
 }

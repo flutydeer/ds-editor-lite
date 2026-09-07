@@ -53,6 +53,7 @@ SpeakerMixEditorView::SpeakerMixEditorView() {
 
     connect(ThemeManager::instance(), &ThemeManager::themeChanged, this,
             [this] { refreshThemeColors(); });
+    refreshThemeColors();
     if (const auto *langMgr = UiLanguageManager::instance()) {
         connect(langMgr, &UiLanguageManager::languageChanged, this,
                 [this] { syncWorkingFromCommitted(); });
@@ -153,61 +154,6 @@ double SpeakerMixEditorView::nextKeyframeTick(double currentTick) const {
     return -1;
 }
 
-QColor SpeakerMixEditorView::textColor() const {
-    return m_textColor;
-}
-
-void SpeakerMixEditorView::setTextColor(const QColor &color) {
-    if (m_textColor == color)
-        return;
-    m_textColor = color;
-    update();
-}
-
-QColor SpeakerMixEditorView::keyframeLineColor() const {
-    return m_keyframeLineColor;
-}
-
-void SpeakerMixEditorView::setKeyframeLineColor(const QColor &color) {
-    if (m_keyframeLineColor == color)
-        return;
-    m_keyframeLineColor = color;
-    update();
-}
-
-QColor SpeakerMixEditorView::selectedDotColor() const {
-    return m_selectedDotColor;
-}
-
-void SpeakerMixEditorView::setSelectedDotColor(const QColor &color) {
-    if (m_selectedDotColor == color)
-        return;
-    m_selectedDotColor = color;
-    update();
-}
-
-QColor SpeakerMixEditorView::selectionBorderColor() const {
-    return m_selectionBorderColor;
-}
-
-void SpeakerMixEditorView::setSelectionBorderColor(const QColor &color) {
-    if (m_selectionBorderColor == color)
-        return;
-    m_selectionBorderColor = color;
-    update();
-}
-
-QColor SpeakerMixEditorView::selectionFillColor() const {
-    return m_selectionFillColor;
-}
-
-void SpeakerMixEditorView::setSelectionFillColor(const QColor &color) {
-    if (m_selectionFillColor == color)
-        return;
-    m_selectionFillColor = color;
-    update();
-}
-
 void SpeakerMixEditorView::paint(QPainter *painter, const QStyleOptionGraphicsItem *option,
                                  QWidget *widget) {
     Q_UNUSED(option)
@@ -221,9 +167,7 @@ void SpeakerMixEditorView::paint(QPainter *painter, const QStyleOptionGraphicsIt
     drawKeyframeDots(painter);
     drawSelectionRect(painter);
     if (m_dynamicBypassed) {
-        QColor bypassedTextColor = m_textColor;
-        bypassedTextColor.setAlpha(180);
-        painter->setPen(bypassedTextColor);
+        painter->setPen(m_textColor);
         painter->drawText(QRectF(8, 4, rect().width() - 16, 20), Qt::AlignRight | Qt::AlignTop,
                           tr("Bypassed"));
     }
@@ -518,9 +462,7 @@ void SpeakerMixEditorView::drawStackedArea(QPainter *painter) const {
 
     painter->setBrush(Qt::NoBrush);
     for (int i = 0; i < n; i++) {
-        QColor borderColor = m_speakers[i].color;
-        borderColor.setAlpha(220);
-        painter->setPen(QPen(borderColor, 1.5));
+        painter->setPen(QPen(m_speakers[i].lineColor, 1.5));
         painter->drawPath(borderPaths[i]);
     }
 }
@@ -542,23 +484,19 @@ void SpeakerMixEditorView::drawKeyframeDots(QPainter *painter) const {
                                   m_state.selectedKeyframeIndices.contains(kfIndex);
 
         if (kf.tick != 0) {
-            QColor keyFrameColor = m_keyframeLineColor;
-            keyFrameColor.setAlpha(kfIndex == m_state.hoveredKeyframeIndex ? 160 : 80);
-            painter->setPen(QPen(keyFrameColor, 1.5));
+            const bool hovered = kfIndex == m_state.hoveredKeyframeIndex;
+            painter->setPen(QPen(hovered ? m_keyframeLineHoverColor : m_keyframeLineColor, 1.5));
             painter->drawLine(QPointF(localX, areaTop), QPointF(localX, areaTop + areaHeight));
         }
 
         const auto weights = interpolateWeights(kf.tick);
         const auto drawDot = [&](const int speakerIndex, const QPointF &center, const bool selected,
                                  const bool clipInnerBottom = false) {
-            QColor centerColor = selected ? m_selectedDotColor : m_speakers[speakerIndex].color;
-            centerColor.setAlpha(selected ? 255 : 220);
-
             painter->setPen(Qt::NoPen);
             painter->setBrush(m_speakers[speakerIndex].fillColor);
             painter->drawEllipse(center, kDotRadius, kDotRadius);
 
-            painter->setBrush(centerColor);
+            painter->setBrush(selected ? m_selectedDotColor : m_speakers[speakerIndex].lineColor);
             painter->drawEllipse(center, kInnerDotRadius, kInnerDotRadius);
         };
 
@@ -933,8 +871,19 @@ void SpeakerMixEditorView::refreshThemeColors() {
             SpeakerMixColorResolver::colorsForSpeaker(speaker.id(), m_referenceSpeakers, i);
         m_speakers[i].color = colors.accent;
         m_speakers[i].fillColor = colors.areaFill;
-        m_speakers[i].dotFillColor = colors.dotFill;
+        m_speakers[i].lineColor = colors.line;
     }
+
+    const auto semanticColor = [](const char *name) {
+        return ThemeManager::instance()->semanticColor(QString::fromLatin1(name));
+    };
+    m_textColor = semanticColor("speakerMix.plot.bypassedText");
+    m_keyframeLineColor = semanticColor("speakerMix.plot.keyframeLine");
+    m_keyframeLineHoverColor = semanticColor("speakerMix.plot.keyframeLineHover");
+    m_selectedDotColor = semanticColor("speakerMix.plot.selectedDot");
+    m_selectionBorderColor = semanticColor("speakerMix.plot.selectionBorder");
+    m_selectionFillColor = semanticColor("speakerMix.plot.selectionFill");
+
     update();
     emit speakerColorsChanged();
 }
@@ -953,7 +902,7 @@ void SpeakerMixEditorView::syncWorkingFromCommitted() {
             name = speaker.id();
         const auto colors =
             SpeakerMixColorResolver::colorsForSpeaker(speaker.id(), m_referenceSpeakers, i);
-        m_speakers.append({name, colors.accent, colors.areaFill, colors.dotFill});
+        m_speakers.append({name, colors.accent, colors.areaFill, colors.line});
     }
 
     m_dynamicBypassed = SpeakerMixModel::isDynamicMixBypassed(m_committedData);

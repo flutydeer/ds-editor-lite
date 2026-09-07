@@ -44,8 +44,6 @@ public:
     QColor paramFillBottom(int index) const;
     QColor paramFillFlat(int index) const;
     QColor paramLine(int index) const;
-    QColor speakerMixParamFill(int index) const;
-    QColor speakerMixDotFill(int index) const;
 
     QColor keyHighlight(int index) const;
 

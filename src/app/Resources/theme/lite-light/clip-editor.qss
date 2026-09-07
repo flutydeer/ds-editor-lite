@@ -213,11 +213,6 @@ ParamEditorGraphicsView {
     qproperty-anchorSelectedColor: ${curve.anchorSelected};
     qproperty-anchorCurveColor: ${curve.anchor};
     qproperty-anchorPreviewColor: ${curve.anchorSelected};
-    qproperty-speakerMixTextColor: ${curve.anchor};
-    qproperty-speakerMixKeyframeLineColor: ${curve.anchor};
-    qproperty-speakerMixSelectedDotColor: ${curve.edited};
-    qproperty-speakerMixSelectionBorderColor: ${editor.selection.border};
-    qproperty-speakerMixSelectionFillColor: ${editor.selection.fill};
 }
 
 PhonemeView {

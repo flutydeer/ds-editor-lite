@@ -255,11 +255,9 @@
 | paramOriginalCurveColor | `${curve.original}` |
 | paramEditedCurveColor | `${curve.edited}` |
 | paramBackgroundLayerColor | `${editor.canvasAlternate}` |
-| speakerMixTextColor | `${curve.anchor}` |
-| speakerMixKeyframeLineColor | `${curve.anchor}` |
-| speakerMixSelectedDotColor ※ | `${curve.edited}` |
-| speakerMixSelectionBorderColor | `${editor.selection.border}` |
-| speakerMixSelectionFillColor | `${editor.selection.fill}` |
+
+> Speaker Mix 绘图区颜色已迁移为主题 token `speakerMix.plot.*`（绘制代码直接读
+> `ThemeManager::semanticColor`），不再经 qproperty 桥，见 theme-token-map.md。
 
 ### PhonemeView
 | 属性 | lite-dark 值 |

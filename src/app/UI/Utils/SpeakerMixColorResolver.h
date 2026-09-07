@@ -10,7 +10,7 @@
 struct SpeakerMixColorSet {
     QColor accent;
     QColor areaFill;
-    QColor dotFill;
+    QColor line;
 };
 
 namespace SpeakerMixColorResolver {

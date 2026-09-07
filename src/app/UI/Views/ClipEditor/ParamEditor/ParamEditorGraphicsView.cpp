@@ -176,46 +176,6 @@ void ParamEditorGraphicsView::setAnchorPreviewColor(const QColor &color) {
     m_anchorOverlay->setAnchorPreviewColor(color);
 }
 
-QColor ParamEditorGraphicsView::speakerMixTextColor() const {
-    return m_speakerMixView->textColor();
-}
-
-void ParamEditorGraphicsView::setSpeakerMixTextColor(const QColor &color) {
-    m_speakerMixView->setTextColor(color);
-}
-
-QColor ParamEditorGraphicsView::speakerMixKeyframeLineColor() const {
-    return m_speakerMixView->keyframeLineColor();
-}
-
-void ParamEditorGraphicsView::setSpeakerMixKeyframeLineColor(const QColor &color) {
-    m_speakerMixView->setKeyframeLineColor(color);
-}
-
-QColor ParamEditorGraphicsView::speakerMixSelectedDotColor() const {
-    return m_speakerMixView->selectedDotColor();
-}
-
-void ParamEditorGraphicsView::setSpeakerMixSelectedDotColor(const QColor &color) {
-    m_speakerMixView->setSelectedDotColor(color);
-}
-
-QColor ParamEditorGraphicsView::speakerMixSelectionBorderColor() const {
-    return m_speakerMixView->selectionBorderColor();
-}
-
-void ParamEditorGraphicsView::setSpeakerMixSelectionBorderColor(const QColor &color) {
-    m_speakerMixView->setSelectionBorderColor(color);
-}
-
-QColor ParamEditorGraphicsView::speakerMixSelectionFillColor() const {
-    return m_speakerMixView->selectionFillColor();
-}
-
-void ParamEditorGraphicsView::setSpeakerMixSelectionFillColor(const QColor &color) {
-    m_speakerMixView->setSelectionFillColor(color);
-}
-
 void ParamEditorGraphicsView::discardAction() {
     if (m_speakerMixMode)
         return;

@@ -33,15 +33,6 @@ class ParamEditorGraphicsView final : public TimeGraphicsView, public IAtomicAct
     Q_PROPERTY(QColor anchorSelectedColor READ anchorSelectedColor WRITE setAnchorSelectedColor)
     Q_PROPERTY(QColor anchorCurveColor READ anchorCurveColor WRITE setAnchorCurveColor)
     Q_PROPERTY(QColor anchorPreviewColor READ anchorPreviewColor WRITE setAnchorPreviewColor)
-    Q_PROPERTY(QColor speakerMixTextColor READ speakerMixTextColor WRITE setSpeakerMixTextColor)
-    Q_PROPERTY(QColor speakerMixKeyframeLineColor READ speakerMixKeyframeLineColor WRITE
-                   setSpeakerMixKeyframeLineColor)
-    Q_PROPERTY(QColor speakerMixSelectedDotColor READ speakerMixSelectedDotColor WRITE
-                   setSpeakerMixSelectedDotColor)
-    Q_PROPERTY(QColor speakerMixSelectionBorderColor READ speakerMixSelectionBorderColor WRITE
-                   setSpeakerMixSelectionBorderColor)
-    Q_PROPERTY(QColor speakerMixSelectionFillColor READ speakerMixSelectionFillColor WRITE
-                   setSpeakerMixSelectionFillColor)
 
 public:
     explicit ParamEditorGraphicsView(ParamEditorGraphicsScene *scene,
@@ -107,16 +98,6 @@ private:
     void setAnchorCurveColor(const QColor &color);
     [[nodiscard]] QColor anchorPreviewColor() const;
     void setAnchorPreviewColor(const QColor &color);
-    [[nodiscard]] QColor speakerMixTextColor() const;
-    void setSpeakerMixTextColor(const QColor &color);
-    [[nodiscard]] QColor speakerMixKeyframeLineColor() const;
-    void setSpeakerMixKeyframeLineColor(const QColor &color);
-    [[nodiscard]] QColor speakerMixSelectedDotColor() const;
-    void setSpeakerMixSelectedDotColor(const QColor &color);
-    [[nodiscard]] QColor speakerMixSelectionBorderColor() const;
-    void setSpeakerMixSelectionBorderColor(const QColor &color);
-    [[nodiscard]] QColor speakerMixSelectionFillColor() const;
-    void setSpeakerMixSelectionFillColor(const QColor &color);
 
     static QList<DrawCurve *> getDrawCurves(const QList<Curve *> &curves);
     static QList<AnchorCurve *> getAnchorCurves(const QList<Curve *> &curves);

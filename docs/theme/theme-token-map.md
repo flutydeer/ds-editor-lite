@@ -1,6 +1,6 @@
 # 主题语义 Token Map（初稿）
 
-> 版本：v1 基线，已完成第一轮协同审查和 Phase 3 迁移。当前共 **162 个 semantic token**。
+> 版本：v1 基线，已完成第一轮协同审查和 Phase 3 迁移。当前共 **192 个 semantic token**。
 >
 > 本稿确定职责和状态接口。`lite-dark/colors.json` 中的值主要来自现有视觉基线，新增状态使用
 > 临近颜色占位，均不代表最终配色已经定稿。
@@ -279,6 +279,14 @@ Mute/Solo 可覆盖 checked 色相；未覆盖的状态继续使用通用矩阵�
 | `speakerMix.dividerDragging` | 拖动中的分隔线 |
 | `speakerMix.emptyState.fill` | 说话人混合编辑器空状态遮罩 |
 | `speakerMix.emptyState.text` | 说话人混合编辑器空状态文本 |
+| `speakerMix.plot.fill0`–`fill11` | 参数面板声线混合堆叠面积填充与关键帧外圈点（按调色板索引） |
+| `speakerMix.plot.line0`–`line11` | 声线混合面积描边与关键帧内点（按调色板索引，透明度烤入值） |
+| `speakerMix.plot.keyframeLine` | 声线混合关键帧竖线 |
+| `speakerMix.plot.keyframeLineHover` | 声线混合关键帧竖线（悬停） |
+| `speakerMix.plot.bypassedText` | 声线混合 Bypassed 角标文本 |
+| `speakerMix.plot.selectedDot` | 声线混合选中关键帧点内芯 |
+| `speakerMix.plot.selectionBorder` | 声线混合框选边界线 |
+| `speakerMix.plot.selectionFill` | 声线混合框选填充 |
 | `mix.fader.trackInactive` | 增益推子未激活轨道 |
 | `mix.fader.thumbFill` | 增益推子手柄填充 |
 | `mix.fader.thumbBorder` | 增益推子手柄描边（浅色主题中性灰勾边；深色主题透明保持无描边） |
