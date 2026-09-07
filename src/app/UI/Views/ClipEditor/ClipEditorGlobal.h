@@ -22,7 +22,7 @@ namespace ClipEditorGlobal {
     inline constexpr auto DrawPitch = EditorViewGlobal::DrawPitch;
     inline constexpr auto EditPitchAnchor = EditorViewGlobal::EditPitchAnchor;
     inline constexpr auto ErasePitch = EditorViewGlobal::ErasePitch;
-    inline constexpr auto BakePitch = EditorViewGlobal::BakePitch;
+    inline constexpr auto TracePitch = EditorViewGlobal::TracePitch;
     inline constexpr auto ModulatePitch = EditorViewGlobal::ModulatePitch;
 }
 

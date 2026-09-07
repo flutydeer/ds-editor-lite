@@ -12,7 +12,7 @@ using ParamEditorEditMode = EditorViewGlobal::ParameterEditMode;
         case ParamEditorEditMode::Erase:
         case ParamEditorEditMode::Anchor:
             return true;
-        case ParamEditorEditMode::Bake:
+        case ParamEditorEditMode::Trace:
         case ParamEditorEditMode::Shape:
         case ParamEditorEditMode::Scale:
             return ParamInfo::hasOriginalParam(parameter);

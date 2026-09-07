@@ -356,9 +356,9 @@ namespace {
         };
         expect(supportsNoCommands(EditorViewGlobal::DrawPitch) &&
                    supportsNoCommands(EditorViewGlobal::ErasePitch) &&
-                   supportsNoCommands(EditorViewGlobal::BakePitch) &&
+                   supportsNoCommands(EditorViewGlobal::TracePitch) &&
                    supportsNoCommands(EditorViewGlobal::ModulatePitch),
-               "pitch drawing, erasing, baking, and modulation must reject note edit commands");
+               "pitch drawing, erasing, tracing, and modulation must reject note edit commands");
         expect(!EditorInteraction::supportsCommand(Target::PianoRoll, Command::Cut,
                                                    EditorViewGlobal::EditPitchAnchor) &&
                    !EditorInteraction::supportsCommand(Target::PianoRoll, Command::Copy,

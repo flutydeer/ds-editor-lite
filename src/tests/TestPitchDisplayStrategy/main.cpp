@@ -33,8 +33,8 @@ namespace {
                "drawing mode must use the draw pitch presentation");
         expect(PitchDisplayStrategy::displayModeForEditMode(ErasePitch) == PitchDisplayMode::Draw,
                "erase mode must use the draw pitch presentation");
-        expect(PitchDisplayStrategy::displayModeForEditMode(BakePitch) == PitchDisplayMode::Draw,
-               "bake mode must use the draw pitch presentation");
+        expect(PitchDisplayStrategy::displayModeForEditMode(TracePitch) == PitchDisplayMode::Draw,
+               "trace mode must use the draw pitch presentation");
         expect(PitchDisplayStrategy::displayModeForEditMode(ModulatePitch) == PitchDisplayMode::Draw,
                "modulation mode must use the draw pitch presentation");
         expect(PitchDisplayStrategy::displayModeForEditMode(EditPitchAnchor) ==
@@ -52,7 +52,7 @@ namespace {
         expect(isPitchEditMode(DrawPitch), "pitch drawing mode must edit pitch");
         expect(isPitchEditMode(EditPitchAnchor), "pitch anchor mode must edit pitch");
         expect(isPitchEditMode(ErasePitch), "pitch erase mode must edit pitch");
-        expect(isPitchEditMode(BakePitch), "pitch bake mode must edit pitch");
+        expect(isPitchEditMode(TracePitch), "pitch trace mode must edit pitch");
         expect(isPitchEditMode(ModulatePitch), "pitch modulation mode must edit pitch");
     }
 

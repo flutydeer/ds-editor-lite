@@ -1157,7 +1157,7 @@ void PianoRollGraphicsView::setEditMode(const PianoRollEditMode mode) {
     } else if (mode == ErasePitch) {
         setDragBehavior(DragBehavior::None);
         d->setPitchEditMode(true, true);
-    } else if (mode == BakePitch) {
+    } else if (mode == TracePitch) {
         setDragBehavior(DragBehavior::None);
         d->setPitchEditMode(true, false, true);
     } else if (mode == ModulatePitch) {
@@ -1485,7 +1485,7 @@ void PianoRollGraphicsViewPrivate::updateNoteWord(const Note *note) const {
 }
 
 void PianoRollGraphicsViewPrivate::setPitchEditMode(const bool on, const bool isErase,
-                                                    const bool isBake, const bool isScale) {
+                                                    const bool isTrace, const bool isScale) {
     Q_Q(PianoRollGraphicsView);
     if (on)
         q->setCursor(Qt::ArrowCursor);
@@ -1495,7 +1495,7 @@ void PianoRollGraphicsViewPrivate::setPitchEditMode(const bool on, const bool is
         note->setEditingPitch(on);
     m_pitchEditor->setTransparentMouseEvents(!on);
     m_pitchEditor->setEraseMode(isErase);
-    m_pitchEditor->setBakeMode(isBake);
+    m_pitchEditor->setTraceMode(isTrace);
     if (isScale && m_clip) {
         m_pitchTransformContext.rebuild(m_clip);
         m_pitchEditor->setCurveTransformMode(

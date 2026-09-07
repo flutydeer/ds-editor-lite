@@ -32,7 +32,7 @@ public:
     void clearParams();
     void cancelEdit();
     void setEraseMode(bool on);
-    void setBakeMode(bool on);
+    void setTraceMode(bool on);
     void setCurveTransformMode(std::optional<CurveTransform::Kind> kind,
                                std::function<double(int)> tickToMilliseconds = {},
                                QList<CurveTransform::Interval> partitions = {},
@@ -106,17 +106,17 @@ private:
     [[nodiscard]] bool curveTransformVerticalDragAreaContains(const QPointF &itemPos) const;
     bool m_showDebugInfo = false;
 
-    enum EditType { Draw, Erase, Bake, None };
+    enum EditType { Draw, Erase, Trace, None };
 
     bool m_mouseDown = false;
     Qt::MouseButton m_mouseDownButton = Qt::NoButton;
     QPoint m_mouseDownPos; // x: tick, y: value
     QPoint m_prevPos;
     DrawCurveEditUtils::StrokeState m_drawStroke;
-    DrawCurveEditUtils::GeneratedCurveSnapshot m_bakeSource;
+    DrawCurveEditUtils::GeneratedCurveSnapshot m_traceSource;
     EditType m_editType = None;
     bool m_eraseMode = false;
-    bool m_bakeMode = false;
+    bool m_traceMode = false;
     bool m_baseCurveVisible = true;
     bool m_mouseMoved = false;
     QList<DrawCurve *> m_drawCurvesEdited;

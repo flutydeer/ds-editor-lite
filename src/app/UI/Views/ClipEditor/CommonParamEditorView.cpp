@@ -97,12 +97,12 @@ void CommonParamEditorView::cancelEdit() {
 void CommonParamEditorView::setEraseMode(const bool on) {
     m_eraseMode = on;
     if (on)
-        m_bakeMode = false;
+        m_traceMode = false;
     update();
 }
 
-void CommonParamEditorView::setBakeMode(const bool on) {
-    m_bakeMode = on;
+void CommonParamEditorView::setTraceMode(const bool on) {
+    m_traceMode = on;
     if (on)
         m_eraseMode = false;
     update();
@@ -271,7 +271,7 @@ void CommonParamEditorView::commitAction() {
     }
 
     m_drawStroke = {};
-    m_bakeSource.clear();
+    m_traceSource.clear();
     m_editType = None;
     m_mouseMoved = false;
     cancelRequested = false;
@@ -502,12 +502,12 @@ void CommonParamEditorView::mousePressEvent(QGraphicsSceneMouseEvent *event) {
             m_editType = Erase;
         } else {
             m_drawStroke = DrawCurveEditUtils::beginStroke(m_drawCurvesEdited, m_mouseDownPos);
-            m_editType = m_bakeMode ? Bake : Draw;
-            if (m_editType == Bake)
-                m_bakeSource.capture(m_drawCurvesOriginal);
+            m_editType = m_traceMode ? Trace : Draw;
+            if (m_editType == Trace)
+                m_traceSource.capture(m_drawCurvesOriginal);
         }
     } else if (event->button() == Qt::RightButton) {
-        m_editType = m_eraseMode || m_bakeMode ? None : Erase;
+        m_editType = m_eraseMode || m_traceMode ? None : Erase;
     } else {
         m_editType = None;
     }
@@ -536,9 +536,9 @@ void CommonParamEditorView::mouseMoveEvent(QGraphicsSceneMouseEvent *event) {
         changed = AppModelUtils::eraseDrawCurveRange(m_drawCurvesEdited, startTick, endTick);
     } else {
         const DrawCurveEditUtils::ValueProvider valueAtTick =
-            m_editType == Bake
+            m_editType == Trace
                 ? DrawCurveEditUtils::ValueProvider([this](const int sampleTick) {
-                      return m_bakeSource.valueAt(sampleTick);
+                      return m_traceSource.valueAt(sampleTick);
                   })
                 : DrawCurveEditUtils::ValueProvider(
                       [previous = m_prevPos, current = curPos](const int sampleTick) {
@@ -609,7 +609,7 @@ bool CommonParamEditorView::cancelEditState() {
     }
 
     m_drawStroke = {};
-    m_bakeSource.clear();
+    m_traceSource.clear();
     m_editType = None;
     m_mouseMoved = false;
     cancelRequested = true;

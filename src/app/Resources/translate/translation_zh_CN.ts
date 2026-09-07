@@ -1591,8 +1591,8 @@ Right drag: Erase</source>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="174"/>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="733"/>
-        <source>Bake Pitch</source>
-        <translation>固化音高</translation>
+        <source>Trace Pitch</source>
+        <translation>描摹音高</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="737"/>
@@ -1602,8 +1602,8 @@ Right drag: Erase</source>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="172"/>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="734"/>
-        <source>Bake automatic pitch inference results into the edited pitch curve</source>
-        <translation>将自动音高推理结果固化到已编辑音高曲线</translation>
+        <source>Trace automatic pitch inference results onto the edited pitch curve</source>
+        <translation>将自动音高推理结果描摹到已编辑音高曲线</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.cpp" line="115"/>
@@ -4916,8 +4916,8 @@ type: %L1</source>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditToolBarView.cpp" line="94"/>
-        <source>Bake</source>
-        <translation>固化</translation>
+        <source>Trace</source>
+        <translation>描摹</translation>
     </message>
     <message>
         <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditToolBarView.cpp" line="95"/>

@@ -1058,7 +1058,7 @@ public:
         qDeleteAll(pitchPreviewCurves);
         pitchPreviewCurves.clear();
         pitchDrawStroke = {};
-        pitchBakeSource.clear();
+        pitchTraceSource.clear();
         mergedPitchCurveCache.invalidate();
     }
 
@@ -1440,10 +1440,10 @@ public:
         } else {
             pitchDrawStroke =
                 DrawCurveEditUtils::beginStroke(pitchPreviewCurves, pitchMouseDownPos);
-            pitchEditType = editMode == BakePitch ? PitchEditType::Bake : PitchEditType::Draw;
-            if (pitchEditType == PitchEditType::Bake) {
+            pitchEditType = editMode == TracePitch ? PitchEditType::Trace : PitchEditType::Draw;
+            if (pitchEditType == PitchEditType::Trace) {
                 const auto original = AppModelUtils::getDrawCurves(pitch->curves(Param::Original));
-                pitchBakeSource.capture(original);
+                pitchTraceSource.capture(original);
             }
         }
 
@@ -1471,9 +1471,9 @@ public:
             changed = AppModelUtils::eraseDrawCurveRange(pitchPreviewCurves, startTick, endTick);
         } else {
             DrawCurveEditUtils::ValueProvider valueAtTick;
-            if (pitchEditType == PitchEditType::Bake) {
+            if (pitchEditType == PitchEditType::Trace) {
                 valueAtTick = [this](const int sampleTick) {
-                    return pitchBakeSource.valueAt(sampleTick);
+                    return pitchTraceSource.valueAt(sampleTick);
                 };
             } else {
                 valueAtTick = [previous = pitchPreviousPos, current](const int sampleTick) {
@@ -1714,7 +1714,7 @@ public:
             mousePressPitchTransform(event->position());
             return;
         }
-        if (editMode == DrawPitch || editMode == ErasePitch || editMode == BakePitch) {
+        if (editMode == DrawPitch || editMode == ErasePitch || editMode == TracePitch) {
             beginPitchEdit(event->position());
             return;
         }
@@ -2872,7 +2872,7 @@ public:
     QPointF rubberBandEnd;
     QList<int> rubberBandBaseSelection;
     QList<PastePreviewNote> pastePreviewNotes;
-    enum class PitchEditType { None, Draw, Erase, Bake };
+    enum class PitchEditType { None, Draw, Erase, Trace };
     PitchEditType pitchEditType = PitchEditType::None;
     bool pitchEditing = false;
     bool pitchMouseMoved = false;
@@ -2881,7 +2881,7 @@ public:
     QPoint pitchPreviousPos;
     QList<DrawCurve *> pitchPreviewCurves;
     DrawCurveEditUtils::StrokeState pitchDrawStroke;
-    DrawCurveEditUtils::GeneratedCurveSnapshot pitchBakeSource;
+    DrawCurveEditUtils::GeneratedCurveSnapshot pitchTraceSource;
     PitchDisplayStrategy::MergedCurveCache mergedPitchCurveCache;
     CurveTransform::Session pitchTransform;
     CurveTransform::PitchContext pitchTransformContext;

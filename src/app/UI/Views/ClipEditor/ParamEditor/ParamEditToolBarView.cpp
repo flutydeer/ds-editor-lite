@@ -23,8 +23,8 @@ ParamEditToolBarView::ParamEditToolBarView(QWidget *parent) : QWidget(parent) {
         createEditModeButton("btnParamDraw", QStringLiteral(":/svg/icons/edit_24_filled.svg"));
     m_btnErase =
         createEditModeButton("btnParamErase", QStringLiteral(":/svg/icons/eraser_24_filled.svg"));
-    m_btnBake =
-        createEditModeButton("btnParamBake", QStringLiteral(":/svg/icons/brush_24_filled.svg"));
+    m_btnTrace =
+        createEditModeButton("btnParamTrace", QStringLiteral(":/svg/icons/brush_24_filled.svg"));
     m_btnShape = createEditModeButton("btnParamShape",
                                       QStringLiteral(":/svg/icons/param_shape_24_filled.svg"));
     m_btnScale = createEditModeButton("btnParamScale",
@@ -37,7 +37,7 @@ ParamEditToolBarView::ParamEditToolBarView(QWidget *parent) : QWidget(parent) {
     m_editModeGroup->setExclusive(true);
     m_editModeGroup->addButton(m_btnDraw, static_cast<int>(ParamEditorEditMode::Draw));
     m_editModeGroup->addButton(m_btnErase, static_cast<int>(ParamEditorEditMode::Erase));
-    m_editModeGroup->addButton(m_btnBake, static_cast<int>(ParamEditorEditMode::Bake));
+    m_editModeGroup->addButton(m_btnTrace, static_cast<int>(ParamEditorEditMode::Trace));
     m_editModeGroup->addButton(m_btnShape, static_cast<int>(ParamEditorEditMode::Shape));
     m_editModeGroup->addButton(m_btnScale, static_cast<int>(ParamEditorEditMode::Scale));
     m_editModeGroup->addButton(m_btnAnchor, static_cast<int>(ParamEditorEditMode::Anchor));
@@ -46,7 +46,7 @@ ParamEditToolBarView::ParamEditToolBarView(QWidget *parent) : QWidget(parent) {
     auto *layout = new QHBoxLayout;
     layout->addWidget(m_btnDraw);
     layout->addWidget(m_btnErase);
-    layout->addWidget(m_btnBake);
+    layout->addWidget(m_btnTrace);
     layout->addWidget(m_btnShape);
     layout->addWidget(m_btnScale);
     layout->addWidget(m_btnAnchor);
@@ -104,7 +104,7 @@ void ParamEditToolBarView::retranslateUi() {
     m_btnErase->setToolTip(tr("Erase"));
     m_btnShape->setToolTip(tr("Shape"));
     m_btnScale->setToolTip(tr("Scale"));
-    m_btnBake->setToolTip(tr("Bake"));
+    m_btnTrace->setToolTip(tr("Trace"));
     m_btnAnchor->setToolTip(tr("Anchor"));
 }
 

@@ -2711,7 +2711,7 @@ namespace AutomationWire {
                               QStringLiteral("draw_note"), QStringLiteral("erase_note"),
                               QStringLiteral("split_note"), QStringLiteral("draw_pitch"),
                               QStringLiteral("edit_pitch_anchor"), QStringLiteral("erase_pitch"),
-                              QStringLiteral("bake_pitch")})}
+                              QStringLiteral("trace_pitch")})}
                 },
                     {QStringLiteral("mode")});
             }
@@ -2757,7 +2757,7 @@ namespace AutomationWire {
                     {
                         {QStringLiteral("tool"),
                          JsonSchema::string({QStringLiteral("draw"), QStringLiteral("erase"),
-                                             QStringLiteral("bake"), QStringLiteral("anchor")})}
+                                             QStringLiteral("trace"), QStringLiteral("anchor")})}
                 },
                     {QStringLiteral("tool")});
             }
@@ -2942,13 +2942,13 @@ namespace AutomationWire {
                 QStringLiteral("draw_pitch"),
                 QStringLiteral("edit_pitch_anchor"),
                 QStringLiteral("erase_pitch"),
-                QStringLiteral("bake_pitch"),
+                QStringLiteral("trace_pitch"),
             });
         }
 
         QJsonObject parameterEditToolSchema() {
             return JsonSchema::string({QStringLiteral("draw"), QStringLiteral("erase"),
-                                       QStringLiteral("bake"), QStringLiteral("anchor")});
+                                       QStringLiteral("trace"), QStringLiteral("anchor")});
         }
 
         QJsonObject trackViewportSchema() {
