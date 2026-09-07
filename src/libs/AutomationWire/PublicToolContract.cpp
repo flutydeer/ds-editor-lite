@@ -554,7 +554,9 @@ namespace AutomationWire {
                 if (name == QStringLiteral("local_start") || name == QStringLiteral("local_end") ||
                     name == QStringLiteral("transition_start") ||
                     name == QStringLiteral("transition_end")) {
-                    return nonNegativeModelIntegerSchema();
+                    auto boundary = nonNegativeModelIntegerSchema();
+                    boundary.insert(QStringLiteral("multipleOf"), 5);
+                    return boundary;
                 }
                 if (name == QStringLiteral("name")) {
                     return JsonSchema::string({QStringLiteral("energy"),
