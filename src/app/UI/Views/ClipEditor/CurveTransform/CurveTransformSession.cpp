@@ -128,7 +128,7 @@ namespace {
 
 namespace CurveTransform {
     bool Bounds::isValid() const {
-        return componentStart <= c && c <= a && a + 2 * SampleStep <= b && b <= d &&
+        return componentStart <= c && c <= a && qint64(a) + 2 * SampleStep <= b && b <= d &&
                d <= componentEnd;
     }
 
@@ -258,6 +258,30 @@ namespace CurveTransform {
         return true;
     }
 
+    bool Session::selectRange(const int startTick, const int endTick,
+                              const std::optional<int> transitionStart,
+                              const std::optional<int> transitionEnd) {
+        resetInteraction();
+        const auto onGrid = [](const int tick) { return tick >= 0 && tick % SampleStep == 0; };
+        if (!onGrid(startTick) || !onGrid(endTick) || endTick <= startTick ||
+            (transitionStart && !onGrid(*transitionStart)) ||
+            (transitionEnd && !onGrid(*transitionEnd))) {
+            return false;
+        }
+        beginSelection(startTick);
+        if (!finishSelection(endTick) || m_bounds.a != startTick || m_bounds.b != endTick) {
+            resetInteraction();
+            return false;
+        }
+        m_bounds.c = transitionStart.value_or(m_bounds.c);
+        m_bounds.d = transitionEnd.value_or(m_bounds.d);
+        if (!m_bounds.isValid()) {
+            resetInteraction();
+            return false;
+        }
+        return true;
+    }
+
     bool Session::beginBoundaryDrag(const Boundary boundary) {
         if (m_phase != Phase::Adjusting || m_selectedComponent < 0 || boundary == Boundary::None)
             return false;
@@ -318,10 +342,15 @@ namespace CurveTransform {
         return true;
     }
 
+    bool Session::setFactor(const double factor) {
+        if (m_phase != Phase::Transforming || !std::isfinite(factor) || factor < 0.0 || factor > 2.0)
+            return false;
+        m_factor = factor;
+        return true;
+    }
+
     void Session::updateTransform(const double verticalLogicalPixelDelta) {
-        if (m_phase != Phase::Transforming)
-            return;
-        m_factor = std::clamp(1.0 - verticalLogicalPixelDelta / 100.0, 0.0, 2.0);
+        setFactor(std::clamp(1.0 - verticalLogicalPixelDelta / 100.0, 0.0, 2.0));
     }
 
     QList<DrawCurve *> Session::buildEditedPreview() const {

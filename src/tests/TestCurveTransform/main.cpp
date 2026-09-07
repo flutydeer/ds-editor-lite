@@ -119,6 +119,36 @@ namespace {
         return ok;
     }
 
+    bool testExplicitRange() {
+        using namespace CurveTransform;
+        bool ok = true;
+        auto source = curve(0, QList<int>(40, 400));
+        MouthOpeningParamProperties properties;
+        Config config;
+        config.kind = Kind::Scale;
+        config.properties = &properties;
+        config.tickToMilliseconds = [](const int tick) { return double(tick); };
+        config.partitions = {{0, 95}, {100, 195}};
+        Session session;
+        session.setSource({&source}, {}, config);
+        ok &= expect(!session.selectRange(80, 120) && session.phase() == Phase::Idle,
+                     "explicit range must not silently truncate at a pitch partition");
+        ok &= expect(!session.selectRange(40, 60, 20, 110),
+                     "explicit shoulder must stay in the selected component");
+        ok &= expect(session.selectRange(40, 60), "explicit range accepts default shoulders");
+        ok &= expect(session.bounds().c == 0 && session.bounds().d == 100,
+                     "default shoulders stop at the component boundaries");
+        ok &= expect(session.selectRange(40, 60, 20, 80) && session.beginTransform() &&
+                         session.setFactor(0.5),
+                     "explicit range and factor start the shared transform");
+        auto preview = session.buildEditedPreview();
+        ok &= expect(valueAt(preview, 20) == 400 && valueAt(preview, 30) == 300 &&
+                         valueAt(preview, 40) == 200 && valueAt(preview, 70) == 300,
+                     "explicit transform applies the shared smooth shoulders");
+        qDeleteAll(preview);
+        return ok;
+    }
+
     bool testShouldersAndBoundaries() {
         using namespace CurveTransform;
         bool ok = true;
@@ -625,6 +655,7 @@ int main(int argc, char *argv[]) {
     bool ok = true;
     ok &= testMappings();
     ok &= testSelectionDirectionAndPartitions();
+    ok &= testExplicitRange();
     ok &= testCompleteSampleIntervals();
     ok &= testShouldersAndBoundaries();
     ok &= testShapeAndScale();

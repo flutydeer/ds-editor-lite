@@ -66,11 +66,15 @@ namespace CurveTransform {
         void beginSelection(int tick);
         bool updateSelection(int tick);
         bool finishSelection(int tick);
+        bool selectRange(int startTick, int endTick,
+                         std::optional<int> transitionStart = std::nullopt,
+                         std::optional<int> transitionEnd = std::nullopt);
 
         bool beginBoundaryDrag(Boundary boundary);
         bool updateBoundaryDrag(int tick);
         void endBoundaryDrag();
         bool beginTransform();
+        bool setFactor(double factor);
         void updateTransform(double verticalLogicalPixelDelta);
 
         [[nodiscard]] QList<DrawCurve *> buildEditedPreview() const;
