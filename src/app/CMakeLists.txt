@@ -40,6 +40,17 @@ endif()
 
 find_path(INTERVAL_TREE_INCLUDE_DIRS "interval-tree/interval_tree.hpp" REQUIRED)
 
+add_subdirectory(Automation)
+get_target_property(_automation_sources EditorAutomationCore SOURCES)
+foreach(_source IN LISTS _automation_sources)
+    get_filename_component(_absolute "${_source}" ABSOLUTE
+        BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Automation")
+    list(REMOVE_ITEM _src "${_absolute}")
+    # QObject headers must belong to the same target as their implementation.
+    string(REGEX REPLACE "\\.cpp$" ".h" _header "${_absolute}")
+    list(REMOVE_ITEM _src "${_header}")
+endforeach()
+
 lite_add_application(${PROJECT_NAME}
     QT_AUTOGEN
     SOURCES
@@ -61,6 +72,7 @@ lite_add_application(${PROJECT_NAME}
         Concurrent
         StateMachine
     LINKS_PRIVATE
+        EditorAutomationCore
         Qt6::GuiPrivate
         ${_platform_links}
         talcs::Core

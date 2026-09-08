@@ -2,7 +2,7 @@
   "version": 3,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 21,
+    "minor": 24,
     "patch": 0
   },
   "configurePresets": [
@@ -75,6 +75,12 @@
   ],
   "buildPresets": [
     {
+      "name": "tests",
+      "displayName": "Build editor, connector and tests",
+      "configurePreset": "debug",
+      "targets": ["DsEditorLite", "DsConnectorLite", "lite_tests"]
+    },
+    {
       "name": "debug",
       "displayName": "Build Debug",
       "description": "Build the Debug editor and connector targets.",
@@ -113,6 +119,21 @@
         "DsEditorLite",
         "DsConnectorLite"
       ]
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "ci",
+      "configurePreset": "debug",
+      "filter": { "include": { "label": "^ci$" } },
+      "output": { "outputOnFailure": true },
+      "execution": { "jobs": 2, "noTestsAction": "error" }
+    },
+    {
+      "name": "local",
+      "configurePreset": "debug",
+      "output": { "outputOnFailure": true },
+      "execution": { "jobs": 2, "noTestsAction": "error" }
     }
   ]
 }

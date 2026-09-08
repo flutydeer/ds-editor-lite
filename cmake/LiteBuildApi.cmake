@@ -7,6 +7,49 @@ function(lite_add_test _target)
         NO_INSTALL
         ${ARGN}
     )
+    target_link_libraries(${_target} PRIVATE Qt6::Test)
+    target_include_directories(${_target} PRIVATE "${LITE_SOURCE_DIR}/src/tests")
+    add_dependencies(lite_tests ${_target})
+endfunction()
+
+function(lite_register_test _target)
+    cmake_parse_arguments(TEST "GUI;NATIVE_GUI" "CATEGORY;TIMEOUT;RESOURCE_LOCK" "ARGS" ${ARGN})
+    if(NOT TEST_CATEGORY)
+        message(FATAL_ERROR "${_target}: a test category is required")
+    endif()
+    if(NOT TEST_TIMEOUT)
+        set(TEST_TIMEOUT 60)
+    endif()
+    add_test(NAME ${_target} COMMAND $<TARGET_FILE:${_target}> ${TEST_ARGS})
+    set(_labels ${TEST_CATEGORY})
+    set(_locks ${TEST_RESOURCE_LOCK})
+    if(TEST_NATIVE_GUI)
+        list(APPEND _labels native)
+        list(APPEND _locks desktop)
+    else()
+        list(APPEND _labels ci)
+    endif()
+    set_tests_properties(${_target} PROPERTIES
+        LABELS "${_labels}"
+        TIMEOUT ${TEST_TIMEOUT}
+        WORKING_DIRECTORY "$<TARGET_FILE_DIR:${_target}>"
+    )
+    if(_locks)
+        set_tests_properties(${_target} PROPERTIES RESOURCE_LOCK "${_locks}")
+    endif()
+    if(TEST_GUI AND NOT TEST_NATIVE_GUI)
+        set_property(TEST ${_target} APPEND PROPERTY ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    endif()
+    if(TEST_GUI OR TEST_NATIVE_GUI)
+        set_property(TEST ${_target} APPEND PROPERTY ENVIRONMENT
+            "QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:Qt6::QOffscreenIntegrationPlugin>")
+    endif()
+    if(WIN32)
+        set_property(TEST ${_target} APPEND PROPERTY ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
+            "PATH=path_list_prepend:${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin"
+            "PATH=path_list_prepend:${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/$<$<CONFIG:Debug>:debug/>bin")
+    endif()
 endfunction()
 
 function(lite_add_tool _target)
