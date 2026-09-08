@@ -2,6 +2,7 @@
 
 #include "Model/AppOptions/AppOptions.h"
 #include "UI/Utils/AppColorPalette.h"
+#include "UI/Views/Common/EditorItemGeometry.h"
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Note.h>
@@ -16,6 +17,16 @@ QColor GhostNoteStyle::fillColor(const int colorIndex) {
     auto color = AppColorPalette::instance()->noteBackground(colorIndex);
     color.setAlphaF(color.alphaF() * opacity);
     return color;
+}
+
+QRectF GhostNoteStyle::barRect(const double left, const double right, const double top,
+                               const double height) {
+    constexpr auto inset = EditorItemGeometry::noteBorderWidth * 0.5;
+    // Too narrow to afford the gap: fall back to noteMinimumVisualWidth rather than
+    // painting nothing at all
+    const auto width = std::max<double>(EditorItemGeometry::noteMinimumVisualWidth,
+                                        right - left - inset * 2.0);
+    return {(left + right - width) * 0.5, top, width, height};
 }
 
 GhostNoteSource::GhostNoteSource(QObject *parent) : QObject(parent) {
@@ -68,7 +79,8 @@ void GhostNoteSource::rebuild() {
     }
     rebuildConnections();
 
-    // 宿主轨道解析失败时退化为只排除 host clip 本身，避免整轨消失或自我重复
+    // If the host track cannot be resolved, fall back to excluding just the host clip so
+    // that no track disappears and the host's own notes are not duplicated
     Track *hostTrack = nullptr;
     appModel->findClipById(m_hostClip->id(), hostTrack);
 
@@ -114,7 +126,7 @@ void GhostNoteSource::rebuildConnections() {
 void GhostNoteSource::clearConnections() {
     if (!m_connectionsBuilt)
         return;
-    // 关闭开关后不再监听模型，避免无谓的遍历开销
+    // Once the option is off, stop watching the model so nothing is traversed for nothing
     for (const auto *track : appModel->tracks()) {
         disconnect(track, nullptr, this, nullptr);
         for (const auto *clip : track->clips())

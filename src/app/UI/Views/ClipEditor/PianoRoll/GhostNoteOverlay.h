@@ -4,17 +4,18 @@
 #include "GhostNoteSource.h"
 #include "UI/Views/Common/TimeOverlayView.h"
 
-// 用单个跟随视口的 overlay 绘制其他轨道的音符（矮条），而不是逐音符建 item ——
-// 工程里其他轨道的音符可能上万，逐个建 QGraphicsItem 会拖垮场景与命中测试。
+// Paints the other tracks' notes as thin bars from a single viewport-following overlay
+// rather than one item per note. A project can hold tens of thousands of notes on the other
+// tracks, and one QGraphicsItem each would bog down the scene and its hit testing.
 class GhostNoteOverlay final : public TimeOverlayView {
     Q_OBJECT
 
 public:
     GhostNoteOverlay();
 
-    // 只持有指针，源对象的存活期由持有方（PianoRollGraphicsViewPrivate）保证
+    // Only the pointer is held; PianoRollGraphicsViewPrivate owns the source's lifetime
     void setSource(const GhostNoteSource *source);
-    // 当前 clip 的 start()，场景 X 原点
+    // The current clip's start(), which is the scene X origin
     void setOffset(int offset);
 
 protected:

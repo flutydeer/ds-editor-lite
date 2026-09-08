@@ -21,7 +21,7 @@
 | 基类（Legacy） | `TimeOverlayView`（已提供 `startTick()`/`endTick()`/`tickToItemX()` 且自动跟随视口） |
 | 范围 | 其他**轨道**上的 singing clip，同轨道的其他 clip 不画 |
 | 配色 | 按各自轨道 `colorIndex` 取 `AppColorPalette::noteBackground(ci)` 并降 alpha，不引入新主题 token |
-| 位置 | 矮条在所在琴键行内**垂直居中** |
+| 位置 | 矮条在所在琴键行内**垂直居中**，横向内缩量与普通音符边框半宽一致，相邻矮条不粘连 |
 | 交互 | Legacy `setTransparentMouseEvents(true)` 完全穿透。RHI 侧本就只是绘制批次，命中测试只认 `clip->notes()`。不画歌词/发音 |
 | z 序 | Legacy `-0.5`（时间网格 `-1` 之上、音符 `0` 之下）。RHI 靠绘制顺序（画家算法） |
 | 选项 | `AppearanceOption::showGhostNotes`，默认 `true`，热生效无需重启 |
@@ -177,7 +177,7 @@ void setOffset(int offset);                         // = clip->start()
 - `painter->setPen(Qt::NoPen)`，关闭抗锯齿（与 `NoteView::drawRectOnly()` 一致）
 - 行高 `h = noteHeight * scaleY()`，条高 `barH = std::max(GhostNoteStyle::minHeight, h * GhostNoteStyle::heightRatio)`
 - Y：`sceneY = (127 - keyIndex) * h`，再 `sceneYToItemY(sceneY) + (h - barH) / 2`（行内居中，照 `PianoRollBackground.cpp:31-33` 的映射写法）
-- X：`tickToItemX(globalStart - m_offset)`，宽度 `tickToItemX(...+length) - x`，最小 1px
+- X：左右边界都由 `tickToItemX()` 求出后交给 `GhostNoteStyle::barRect()`，横向内缩普通音符边框半宽，避免同音高首尾相接的两个音符连成一条
 - 颜色 `GhostNoteStyle::fillColor(colorIndex)`
 - `painter->fillRect(...)`
 

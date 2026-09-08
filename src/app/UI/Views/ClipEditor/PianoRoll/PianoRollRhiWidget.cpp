@@ -2208,8 +2208,9 @@ private:
         drawList.appendTexture(pronunciationSpan, vertices.size());
     }
 
-    // 其他轨道的参考音符：行内居中的矮条，只画不响应交互。
-    // 画在 appendNotes() 之前，靠绘制顺序压在当前 clip 的音符之下。
+    // Reference notes from the other tracks: thin bars centered in their key row, painted
+    // only, never interactive. Emitted before appendNotes() so the draw order keeps them
+    // underneath the current clip's notes.
     void appendGhostNotes(const double localStart, const double localEnd) {
         const auto &ghosts = ghostNotes.notes();
         if (!ghostNotes.enabled() || ghosts.isEmpty())
@@ -2220,7 +2221,8 @@ private:
         const auto offset = clip->start();
         const auto sceneTop = verticalOffset();
         const auto sceneBottom = verticalOffset() + q->height();
-        // 音符有长度，起点可能落在可见区间左侧，故从 localStart - maxLength 开始扫
+        // Notes have length, so one starting left of the visible range can still reach
+        // into it. Begin the scan at localStart - maxLength.
         const auto scanFrom = localStart + offset - ghostNotes.maxLength();
         const auto first = std::lower_bound(ghosts.begin(), ghosts.end(), scanFrom,
                                             [](const GhostNote &note, const double tick) {
@@ -2230,15 +2232,16 @@ private:
             const auto &ghost = *it;
             const auto ghostStart = ghost.globalStart - offset;
             if (ghostStart > localEnd)
-                break; // 已按 globalStart 升序
+                break; // the list is sorted by globalStart
             if (ghostStart + ghost.length < localStart)
                 continue;
             const auto top = viewport.unitToSceneY(127 - ghost.keyIndex) +
                              (rowHeight - barHeight) * 0.5;
             if (top + barHeight < sceneTop || top > sceneBottom)
                 continue;
-            appendLogicalRect(QRectF(viewport.tickToSceneX(ghostStart), top,
-                                     std::max(1.0, ghost.length * pixelsPerTick()), barHeight),
+            const auto left = viewport.tickToSceneX(ghostStart);
+            const auto right = viewport.tickToSceneX(ghostStart + ghost.length);
+            appendLogicalRect(GhostNoteStyle::barRect(left, right, top, barHeight),
                               GhostNoteStyle::fillColor(ghost.colorIndex));
         }
     }

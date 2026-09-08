@@ -126,7 +126,7 @@ PianoRollGraphicsView::PianoRollGraphicsView(PianoRollGraphicsScene *scene, QWid
 
     d->m_ghostSource = new GhostNoteSource(d);
     d->m_ghostOverlay = new GhostNoteOverlay;
-    // 时间网格（-1）之上、音符（0）之下
+    // Above the time grid (-1) and below the notes (0)
     d->m_ghostOverlay->setZValue(-0.5);
     d->m_ghostOverlay->setSource(d->m_ghostSource);
     d->m_ghostOverlay->setVisible(false);

@@ -49,7 +49,8 @@ void GhostNoteOverlay::paint(QPainter *painter, const QStyleOptionGraphicsItem *
                                     rowHeight * GhostNoteStyle::heightRatio);
     const auto visibleStart = startTick() + m_offset;
     const auto visibleEnd = endTick() + m_offset;
-    // 音符有长度，起点可能落在可见区间左侧，故从 visibleStart - maxLength 开始扫
+    // Notes have length, so one starting left of the visible range can still reach into
+    // it. Begin the scan at visibleStart - maxLength.
     const auto scanFrom = visibleStart - m_source->maxLength();
     const auto first =
         std::lower_bound(ghosts.begin(), ghosts.end(), scanFrom,
@@ -68,7 +69,7 @@ void GhostNoteOverlay::paint(QPainter *painter, const QStyleOptionGraphicsItem *
             continue;
         const auto left = tickToItemX(it->globalStart - m_offset);
         const auto right = tickToItemX(it->globalStart + it->length - m_offset);
-        painter->fillRect(QRectF(left, top, std::max(1.0, right - left), barHeight),
+        painter->fillRect(GhostNoteStyle::barRect(left, right, top, barHeight),
                           GhostNoteStyle::fillColor(it->colorIndex));
     }
 }
