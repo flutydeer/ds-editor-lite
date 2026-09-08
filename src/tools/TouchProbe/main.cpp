@@ -28,6 +28,7 @@
 #include <QContextMenuEvent>
 #include <QDateTime>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QFile>
 #include <QHash>
 #include <QPair>
@@ -59,6 +60,9 @@ namespace {
 
     constexpr int maximumTrailPoints = 400;
     constexpr int maximumHudLines = 22;
+    // A trail with no explicit end (hover, wheel, native gestures) is cut here
+    // so that two separate movements never get joined by a straight line.
+    constexpr qint64 strokeBreakMs = 300;
 
     enum class DeviceKind { Mouse, SynthesizedMouse, Touch, Pen, Wheel, Gesture };
 
@@ -81,14 +85,19 @@ namespace {
     }
 
     QColor deviceKindColor(const DeviceKind kind, const int pointId) {
+        // One shade per touch point id so two fingers never share a trail
+        // color, all kept inside the green family so that a finger is never
+        // mistaken for the blue mouse, the red pen or the yellow wheel.
+        static const QColor touchColors[] = {
+            {60, 220, 120}, {0, 205, 190}, {150, 230, 60}, {0, 225, 255}, {120, 235, 165},
+        };
         switch (kind) {
             case DeviceKind::Mouse:
                 return {90, 150, 255};
             case DeviceKind::SynthesizedMouse:
                 return {150, 150, 150};
             case DeviceKind::Touch:
-                // One hue per point id so two fingers never share a trail color.
-                return QColor::fromHsv((70 + pointId * 47) % 360, 200, 235);
+                return touchColors[std::abs(pointId) % std::size(touchColors)];
             case DeviceKind::Pen:
                 return {255, 90, 90};
             case DeviceKind::Wheel:
@@ -139,7 +148,18 @@ namespace {
     struct Trail {
         DeviceKind kind = DeviceKind::Mouse;
         int pointId = 0;
-        QList<QPointF> points;
+        // One entry per stroke. A finger lifting and landing somewhere else
+        // must not be drawn as one continuous line.
+        QList<QList<QPointF>> strokes;
+        bool open = false;
+        qint64 lastAppendMs = 0;
+
+        [[nodiscard]] qsizetype pointCount() const {
+            qsizetype count = 0;
+            for (const auto &stroke : strokes)
+                count += stroke.size();
+            return count;
+        }
     };
 
     class ProbeCanvas final : public QWidget {
@@ -150,6 +170,7 @@ namespace {
             setTabletTracking(true);
             setFocusPolicy(Qt::StrongFocus);
             setAutoFillBackground(false);
+            m_clock.start();
 
             const auto directory =
                 QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
@@ -227,6 +248,8 @@ namespace {
 
         void mouseReleaseEvent(QMouseEvent *event) override {
             recordMouse(event, QStringLiteral("release"));
+            endStroke(DeviceKind::Mouse, -1);
+            endStroke(DeviceKind::SynthesizedMouse, -4);
         }
 
         void tabletEvent(QTabletEvent *event) override {
@@ -240,6 +263,9 @@ namespace {
                     .arg(event->position().x(), 0, 'f', 1)
                     .arg(event->position().y(), 0, 'f', 1)
                     .arg(static_cast<int>(event->buttons())));
+            if (event->type() == QEvent::TabletRelease ||
+                event->type() == QEvent::TabletLeaveProximity)
+                endStroke(kind, -2);
             // Deliberately left unaccepted: that is how the editor gets the
             // stylus as ordinary mouse input.
             event->ignore();
@@ -266,7 +292,7 @@ namespace {
             painter.setRenderHint(QPainter::Antialiasing);
 
             for (const auto &trail : m_trails) {
-                if (trail.points.size() < 2)
+                if (trail.strokes.isEmpty())
                     continue;
                 QPen pen(deviceKindColor(trail.kind, trail.pointId));
                 pen.setWidthF(trail.kind == DeviceKind::Pen ? 3.0 : 2.0);
@@ -275,12 +301,19 @@ namespace {
                     pen.setWidthF(2.0);
                 }
                 painter.setPen(pen);
-                QPainterPath path(trail.points.first());
-                for (qsizetype i = 1; i < trail.points.size(); ++i)
-                    path.lineTo(trail.points.at(i));
-                painter.drawPath(path);
+                for (const auto &stroke : trail.strokes) {
+                    if (stroke.size() < 2) {
+                        if (stroke.size() == 1)
+                            painter.drawPoint(stroke.first());
+                        continue;
+                    }
+                    QPainterPath path(stroke.first());
+                    for (qsizetype i = 1; i < stroke.size(); ++i)
+                        path.lineTo(stroke.at(i));
+                    painter.drawPath(path);
+                }
                 painter.setBrush(pen.color());
-                painter.drawEllipse(trail.points.last(), 5.0, 5.0);
+                painter.drawEllipse(trail.strokes.last().last(), 5.0, 5.0);
                 painter.setBrush(Qt::NoBrush);
             }
 
@@ -347,10 +380,11 @@ namespace {
         void recordTouch(QTouchEvent *event) {
             m_activePoints = 0;
             for (const auto &point : event->points()) {
-                if (point.state() != QEventPoint::State::Released)
-                    ++m_activePoints;
-                if (point.state() == QEventPoint::State::Released)
+                if (point.state() == QEventPoint::State::Released) {
+                    endStroke(DeviceKind::Touch, point.id());
                     continue;
+                }
+                ++m_activePoints;
                 appendPoint(DeviceKind::Touch, point.id(), point.position());
             }
             log(QStringLiteral("touch    %1 dev=%2 points=%3 [%4]")
@@ -404,9 +438,27 @@ namespace {
             auto &trail = m_trails[key];
             trail.kind = kind;
             trail.pointId = pointId;
-            trail.points.append(position);
-            while (trail.points.size() > maximumTrailPoints)
-                trail.points.removeFirst();
+            const auto elapsed = m_clock.elapsed();
+            if (!trail.open || trail.strokes.isEmpty() ||
+                elapsed - trail.lastAppendMs > strokeBreakMs) {
+                trail.strokes.append(QList<QPointF>());
+                trail.open = true;
+            }
+            trail.strokes.last().append(position);
+            trail.lastAppendMs = elapsed;
+            while (trail.pointCount() > maximumTrailPoints && !trail.strokes.isEmpty()) {
+                trail.strokes.first().removeFirst();
+                if (trail.strokes.first().isEmpty())
+                    trail.strokes.removeFirst();
+            }
+        }
+
+        // The pointer left the surface: whatever comes next starts a new stroke.
+        void endStroke(const DeviceKind kind, const int pointId) {
+            const auto key = QPair<int, int>(static_cast<int>(kind), pointId);
+            const auto iterator = m_trails.find(key);
+            if (iterator != m_trails.end())
+                iterator->open = false;
         }
 
         void log(const QString &line) {
@@ -451,6 +503,7 @@ namespace {
         QStringList m_hud;
         int m_activePoints = 0;
         bool m_swallowSynthesizedMouse = false;
+        QElapsedTimer m_clock;
         QFile m_logFile;
     };
 
