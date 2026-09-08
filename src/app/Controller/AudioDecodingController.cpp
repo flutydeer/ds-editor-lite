@@ -2,6 +2,7 @@
 
 #include <QFileInfo>
 #include <QTimer>
+#include <QScopedValueRollback>
 
 #include <optional>
 #include <utility>
@@ -23,6 +24,12 @@
 namespace {
     Automation::CoreRuntime *automationRuntime() {
         return AppContext::instance<Automation::CoreRuntime>();
+    }
+
+    bool interactiveAudioCheck() {
+        auto *runtime = automationRuntime();
+        return runtime && runtime->dispatcher().currentInvocationSource() ==
+                              Automation::InvocationSource::TrustedGui;
     }
 
     Automation::CommandContext commandContext(const Automation::DocumentVersion &document,
@@ -88,18 +95,19 @@ void AudioDecodingController::onModelChanged() {
     // Document identity is committed after the model replacement signal, so defer until the
     // current event-loop iteration finishes before resolving project-relative audio paths.
     const auto modelChangeEpoch = ++m_modelChangeEpoch;
-    QTimer::singleShot(0, this, [this, modelChangeEpoch] {
+    const auto interactive = interactiveAudioCheck();
+    QTimer::singleShot(0, this, [this, modelChangeEpoch, interactive] {
         if (modelChangeEpoch == m_modelChangeEpoch)
-            startDecodingAndResolving();
+            startDecodingAndResolving(interactive);
     });
 }
 
-void AudioDecodingController::startDecodingAndResolving() {
+void AudioDecodingController::startDecodingAndResolving(const bool interactive) {
     for (const auto track : appModel->tracks()) {
         for (const auto clip : track->clips()) {
             if (clip->clipType() != Clip::Audio)
                 continue;
-            startDecodingOrResolving(static_cast<AudioClip *>(clip), true);
+            startDecodingOrResolving(static_cast<AudioClip *>(clip), true, interactive);
         }
     }
 }
@@ -114,7 +122,7 @@ void AudioDecodingController::onTrackChanged(const AppModel::TrackChangeType typ
                 continue;
             auto *audioClip = static_cast<AudioClip *>(clip);
             connectClip(audioClip);
-            startDecodingOrResolving(audioClip, false);
+            startDecodingOrResolving(audioClip, false, interactiveAudioCheck());
         }
     } else if (type == AppModel::Remove) {
         disconnect(track, nullptr, this, nullptr);
@@ -131,7 +139,7 @@ void AudioDecodingController::onClipChanged(const Track::ClipChangeType type, Cl
         if (clip->clipType() == Clip::Audio) {
             const auto audioClip = static_cast<AudioClip *>(clip);
             connectClip(audioClip);
-            startDecodingOrResolving(audioClip, false);
+            startDecodingOrResolving(audioClip, false, interactiveAudioCheck());
         }
     } else if (type == Track::Removed) {
         if (clip->clipType() == Clip::Audio) {
@@ -148,25 +156,29 @@ void AudioDecodingController::connectClip(AudioClip *clip) {
         auto *runtime = automationRuntime();
         if (!runtime)
             return;
-        startDecodingOrResolving(clip, true);
+        const auto interactive = m_sourceChangeContext.clip == clip
+                                     ? m_sourceChangeContext.interactive
+                                     : interactiveAudioCheck();
+        startDecodingOrResolving(clip, true, interactive);
     });
 }
 
-void AudioDecodingController::startDecodingOrResolving(AudioClip *clip, const bool forceDecode) {
+void AudioDecodingController::startDecodingOrResolving(AudioClip *clip, const bool forceDecode,
+                                                       const bool interactive) {
     auto *runtime = automationRuntime();
     if (!runtime)
         return;
     if (isLoadableAudioPath(clip->path())) {
         if (forceDecode || clip->audioInfo().peakCache.isEmpty() ||
             clip->pathStatus() != AudioClip::PathStatus::Normal)
-            createAndStartTask(clip);
+            createAndStartTask(clip, interactive);
         return;
     }
     m_pendingResolveCount++;
-    createAndStartResolveTask(clip);
+    createAndStartResolveTask(clip, interactive);
 }
 
-void AudioDecodingController::createAndStartTask(AudioClip *clip) {
+void AudioDecodingController::createAndStartTask(AudioClip *clip, const bool interactive) {
     auto *runtime = automationRuntime();
     if (!runtime)
         return;
@@ -196,12 +208,12 @@ void AudioDecodingController::createAndStartTask(AudioClip *clip) {
 
     m_tasks.append(decodeTask);
     connect(decodeTask, &Task::finished, this,
-            [decodeTask, this] { handleTaskFinished(decodeTask); });
+            [decodeTask, this, interactive] { handleTaskFinished(decodeTask, interactive); });
     taskManager->addTask(decodeTask);
     taskManager->startTask(decodeTask);
 }
 
-void AudioDecodingController::createAndStartResolveTask(AudioClip *clip) {
+void AudioDecodingController::createAndStartResolveTask(AudioClip *clip, const bool interactive) {
     auto *runtime = automationRuntime();
     if (!runtime)
         return;
@@ -227,17 +239,19 @@ void AudioDecodingController::createAndStartResolveTask(AudioClip *clip) {
     runtime->automationTasks().markRunning(automationTask.taskId);
 
     m_resolveTasks.append(resolveTask);
-    connect(resolveTask, &Task::finished, this,
-            [resolveTask, this] { handleResolveTaskFinished(resolveTask); });
+    connect(resolveTask, &Task::finished, this, [resolveTask, this, interactive] {
+        handleResolveTaskFinished(resolveTask, interactive);
+    });
     taskManager->addTask(resolveTask);
     taskManager->startTask(resolveTask);
 }
 
-void AudioDecodingController::handleResolveTaskFinished(ResolveAudioPathTask *task) {
+void AudioDecodingController::handleResolveTaskFinished(ResolveAudioPathTask *task,
+                                                        const bool interactive) {
     if (DocumentTaskCompletion::deferCompletionWhileDocumentBusy(
             automationRuntime(), m_documentWorkflow.data(), task, this,
-            [this](ResolveAudioPathTask *deferredTask) {
-                handleResolveTaskFinished(deferredTask);
+            [this, interactive](ResolveAudioPathTask *deferredTask) {
+                handleResolveTaskFinished(deferredTask, interactive);
             }))
         return;
 
@@ -285,7 +299,7 @@ void AudioDecodingController::handleResolveTaskFinished(ResolveAudioPathTask *ta
         if (currentAsset &&
             currentAsset->sourceGeneration == task->assetSnapshot.sourceGeneration &&
             currentAsset->path == task->assetSnapshot.path)
-            startDecodingOrResolving(currentAudioClip, true);
+            startDecodingOrResolving(currentAudioClip, true, interactive);
         delete task;
         finishResolveIfSessionDone();
         return;
@@ -339,6 +353,8 @@ void AudioDecodingController::handleResolveTaskFinished(ResolveAudioPathTask *ta
         return;
     }
     context.validateOnly = false;
+    const QScopedValueRollback sourceChangeScope(
+        m_sourceChangeContext, SourceChangeContext{currentAudioClip, interactive});
     Automation::AutomationResult<Automation::MutationResult> result(Automation::AutomationError{
         .code = Automation::AutomationErrorCode::InternalError,
         .message = QStringLiteral("Audio path resolution did not produce a result"),
@@ -368,7 +384,7 @@ void AudioDecodingController::handleResolveTaskFinished(ResolveAudioPathTask *ta
                 audioPathNotFound(Automation::OperationIds::audio_clips::apply_resolved_path));
         else
             runtime->automationTasks().succeed(task->automationTaskId, result.get());
-        if (currentGeneration) {
+        if (currentGeneration && interactive) {
             if (task->result == ResolveAudioPathTask::Result::HitUnconfirmed)
                 m_unconfirmedClipIds.append(task->clipId);
             else if (task->result == ResolveAudioPathTask::Result::Miss)
@@ -402,6 +418,7 @@ void AudioDecodingController::finishResolveIfSessionDone() {
 
 void AudioDecodingController::resolveMissingClipsNear(const QString &filePath) {
     const auto candidateDir = QFileInfo(filePath).absolutePath();
+    const auto interactive = interactiveAudioCheck();
     auto *runtime = automationRuntime();
     if (candidateDir.isEmpty() || !runtime)
         return;
@@ -437,19 +454,21 @@ void AudioDecodingController::resolveMissingClipsNear(const QString &filePath) {
             runtime->automationTasks().markRunning(automationTask.taskId);
 
             m_resolveTasks.append(resolveTask);
-            connect(resolveTask, &Task::finished, this,
-                    [resolveTask, this] { handleCascadeResolveTaskFinished(resolveTask); });
+            connect(resolveTask, &Task::finished, this, [resolveTask, this, interactive] {
+                handleCascadeResolveTaskFinished(resolveTask, interactive);
+            });
             taskManager->addTask(resolveTask);
             taskManager->startTask(resolveTask);
         }
     }
 }
 
-void AudioDecodingController::handleCascadeResolveTaskFinished(ResolveAudioPathTask *task) {
+void AudioDecodingController::handleCascadeResolveTaskFinished(ResolveAudioPathTask *task,
+                                                               const bool interactive) {
     if (DocumentTaskCompletion::deferCompletionWhileDocumentBusy(
             automationRuntime(), m_documentWorkflow.data(), task, this,
-            [this](ResolveAudioPathTask *deferredTask) {
-                handleCascadeResolveTaskFinished(deferredTask);
+            [this, interactive](ResolveAudioPathTask *deferredTask) {
+                handleCascadeResolveTaskFinished(deferredTask, interactive);
             }))
         return;
 
@@ -495,6 +514,10 @@ void AudioDecodingController::handleCascadeResolveTaskFinished(ResolveAudioPathT
         return;
     }
     context.validateOnly = false;
+    const QScopedValueRollback sourceChangeScope(
+        m_sourceChangeContext,
+        SourceChangeContext{qobject_cast<AudioClip *>(appModel->findClipById(task->clipId)),
+                            interactive});
     const auto result = runtime->project().applyResolvedAudioPath(
         context, Automation::ClipId(task->clipId), task->assetSnapshot, task->resolvedPath,
         AudioClip::PathStatus::Normal);
@@ -507,10 +530,12 @@ void AudioDecodingController::handleCascadeResolveTaskFinished(ResolveAudioPathT
     delete task;
 }
 
-void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task) {
+void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task, const bool interactive) {
     if (DocumentTaskCompletion::deferCompletionWhileDocumentBusy(
             automationRuntime(), m_documentWorkflow.data(), task, this,
-            [this](DecodeAudioTask *deferredTask) { handleTaskFinished(deferredTask); }))
+            [this, interactive](DecodeAudioTask *deferredTask) {
+                handleTaskFinished(deferredTask, interactive);
+            }))
         return;
 
     const auto terminate = task->terminated();
@@ -579,7 +604,7 @@ void AudioDecodingController::handleTaskFinished(DecodeAudioTask *task) {
                 .message = task->errorMessage,
                 .operationId = Automation::OperationIds::audio_clips::apply_decode_cache,
             });
-        if (m_notifier)
+        if (interactive && m_notifier)
             m_notifier(tr("Failed to open audio file: %1").arg(task->path));
 
         delete task;

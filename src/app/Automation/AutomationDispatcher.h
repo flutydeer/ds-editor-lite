@@ -7,6 +7,7 @@
 #include <QCoreApplication>
 #include <QMetaObject>
 #include <QThread>
+#include <QScopedValueRollback>
 
 #include <functional>
 #include <optional>
@@ -22,9 +23,13 @@ namespace Automation {
         AutomationDispatcher(IDocumentSessionResolver &documentResolver,
                              SingleWindowContext &windowContext);
 
-        AutomationResult<DocumentVersion>
-            validateDocumentCommand(const CommandContext &context);
+        AutomationResult<DocumentVersion> validateDocumentCommand(const CommandContext &context);
         AutomationResult<DocumentVersion> admitDocumentTask(CommandContext &context);
+
+        // 模型信号的同步接收者可捕获此来源，供后续异步任务使用。
+        [[nodiscard]] InvocationSource currentInvocationSource() const {
+            return m_invocationSource;
+        }
 
         template <typename T, typename Handler>
         AutomationResult<T> dispatchApplicationQuery(const OperationId &operationId,
@@ -39,6 +44,7 @@ namespace Automation {
                                                        const ApplicationCommandContext &context,
                                                        Handler &&handler) {
             return runSerialized([&]() -> AutomationResult<T> {
+                const QScopedValueRollback sourceScope(m_invocationSource, context.source);
                 auto result = std::forward<Handler>(handler)(context.validateOnly);
                 if (!result)
                     return decorateError(result.getError(), operationId);
@@ -107,6 +113,7 @@ namespace Automation {
                 const auto validated = m_windowContext.validateWindow(context.windowId);
                 if (!validated)
                     return decorateError(validated.getError(), operationId);
+                const QScopedValueRollback sourceScope(m_invocationSource, context.source);
                 auto result = std::forward<Handler>(handler)(context.validateOnly);
                 if (!result)
                     return decorateError(result.getError(), operationId);
@@ -141,6 +148,7 @@ namespace Automation {
                 const auto validated = m_windowContext.validateWindow(context.windowId);
                 if (!validated)
                     return decorateError(validated.getError(), operationId);
+                const QScopedValueRollback sourceScope(m_invocationSource, context.source);
                 auto result = std::forward<Handler>(handler)(session, context.validateOnly);
                 if (!result)
                     return decorateError(result.getError(), operationId);
@@ -275,6 +283,7 @@ namespace Automation {
                         operationId);
                 }
 
+                const QScopedValueRollback sourceScope(m_invocationSource, context.source);
                 auto result = std::forward<Handler>(handler)(session, context.validateOnly);
                 if (!result)
                     return decorateError(result.getError(), operationId);
@@ -321,6 +330,7 @@ namespace Automation {
 
         IDocumentSessionResolver &m_documentResolver;
         SingleWindowContext &m_windowContext;
+        InvocationSource m_invocationSource = InvocationSource::TrustedGui;
     };
 
 } // namespace Automation
