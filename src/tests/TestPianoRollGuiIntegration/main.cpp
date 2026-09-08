@@ -3,6 +3,9 @@
 #include "Bootstrap/AppDataPaths.h"
 #include "Bootstrap/AppEnvironment.h"
 #include "Controller/ClipController.h"
+#include "Controller/ClipboardController.h"
+#include "Controller/PlaybackController.h"
+#include "Global/ControllerGlobal.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
@@ -21,8 +24,10 @@
 
 #include <QtTest/QTest>
 #include <QApplication>
+#include <QClipboard>
 #include <QDir>
 #include <QMouseEvent>
+#include <QMimeData>
 #include <QTemporaryDir>
 
 #include <memory>
@@ -58,6 +63,14 @@ private slots:
         QVERIFY(QApplication::activeModalWidget() == nullptr);
         QVERIFY2(ThemeManager::instance()->initialize(ThemeIds::defaultThemeId()),
                  qPrintable(ThemeLoader::lastError()));
+        savedClipboard = std::make_unique<QMimeData>();
+        if (const auto *mime = QApplication::clipboard()->mimeData()) {
+            for (const auto &format : mime->formats())
+                savedClipboard->setData(format, mime->data(format));
+        }
+    }
+
+    void init() {
         QString error;
         QVERIFY2(context->initializeDefaultDocument(&error), qPrintable(error));
 
@@ -68,7 +81,7 @@ private slots:
         const auto insertedTrack = runtime.project().insertTrack(commandContext(), 0, track);
         QVERIFY(insertedTrack);
         QCOMPARE(insertedTrack.get().affectedObjects.size(), 1);
-        const Automation::TrackId trackId(insertedTrack.get().affectedObjects.first().value);
+        trackId = Automation::TrackId(insertedTrack.get().affectedObjects.first().value);
 
         Automation::ClipDraftDto clip;
         clip.type = Automation::ClipDraftDto::Type::Singing;
@@ -104,6 +117,92 @@ private slots:
         view->setViewportCenterAt(1920, 60, false);
         QCoreApplication::processEvents();
         historyManager->reset();
+    }
+
+    void copyPasteUsesTheActiveClipAndPlaybackPosition() {
+        auto &runtime = *context->m_coreRuntime;
+        const auto sourceId = insertSelectedNote();
+        QVERIFY(sourceId >= 0);
+        Automation::ClipDraftDto clip;
+        clip.type = Automation::ClipDraftDto::Type::Singing;
+        clip.properties.length = 3840;
+        clip.properties.clipLen = 3840;
+        clip.defaultLanguage = QStringLiteral("eng");
+        const auto inserted = runtime.project().insertClips(
+            commandContext(), {
+                                  {.trackId = trackId, .clip = clip}
+        });
+        QVERIFY(inserted);
+        auto *target = dynamic_cast<SingingClip *>(
+            context->m_appModel->findClipById(inserted.get().affectedObjects.first().value));
+        QVERIFY(target);
+        historyManager->reset();
+        const auto beforeCopy = runtime.documentVersion();
+        clipboardController->copy();
+        QVERIFY(QApplication::clipboard()->mimeData()->hasFormat(
+            ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams)));
+        QCOMPARE(runtime.documentVersion(), beforeCopy);
+        QVERIFY(!historyManager->canUndo());
+
+        appStatus->activeClipId = target->id();
+        playbackController->setPosition(1200);
+        const auto beforePaste = runtime.documentVersion();
+        clipboardController->paste();
+        QCOMPARE(target->notes().count(), 1);
+        QCOMPARE(singingClip->notes().count(), 1);
+        const auto *pasted = *target->notes().begin();
+        QCOMPARE(pasted->localStart(), 1200);
+        QCOMPARE(pasted->length(), 240);
+        QCOMPARE(pasted->keyIndex(), 62);
+        QCOMPARE(pasted->lyric(), QStringLiteral("hello"));
+        QCOMPARE(runtime.documentVersion().revision, beforePaste.revision + 1);
+        QVERIFY(historyManager->canUndo());
+        QVERIFY(runtime.history().undo(commandContext()));
+        QCOMPARE(target->notes().count(), 0);
+        QVERIFY(singingClip->findNoteById(sourceId));
+        QVERIFY(!historyManager->canUndo());
+    }
+
+    void cutCopiesThenRemovesSelectionAsOneUndoStep() {
+        auto &runtime = *context->m_coreRuntime;
+        const auto noteId = insertSelectedNote();
+        QVERIFY(noteId >= 0);
+        historyManager->reset();
+        const auto before = runtime.documentVersion();
+        clipboardController->cut();
+        QCOMPARE(singingClip->notes().count(), 0);
+        QVERIFY(appStatus->selectedNotes.get().isEmpty());
+        QVERIFY(QApplication::clipboard()->mimeData()->hasFormat(
+            ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams)));
+        QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+        QVERIFY(runtime.history().undo(commandContext()));
+        QVERIFY(singingClip->findNoteById(noteId));
+        QCOMPARE(sceneNoteCount(noteId), 1);
+        QVERIFY(!historyManager->canUndo());
+    }
+
+    void invalidClipboardDoesNotEdit_data() {
+        QTest::addColumn<QString>("format");
+        QTest::addColumn<QByteArray>("bytes");
+        const auto notes = ControllerGlobal::ElemMimeType.at(ControllerGlobal::NoteWithParams);
+        QTest::newRow("unrelated-text") << QStringLiteral("text/plain") << QByteArray("hello");
+        QTest::newRow("malformed-note-json") << notes << QByteArray("{broken");
+        QTest::newRow("empty-note-payload") << notes << QByteArray("{}");
+    }
+
+    void invalidClipboardDoesNotEdit() {
+        QFETCH(QString, format);
+        QFETCH(QByteArray, bytes);
+        auto &runtime = *context->m_coreRuntime;
+        auto mime = std::make_unique<QMimeData>();
+        mime->setData(format, bytes);
+        QApplication::clipboard()->setMimeData(mime.release());
+        const auto before = runtime.documentVersion();
+        clipboardController->paste();
+        QCOMPARE(singingClip->notes().count(), 0);
+        QCOMPARE(runtime.documentVersion(), before);
+        QVERIFY(!historyManager->canUndo());
+        QCOMPARE(sceneNoteCount(-1), 0);
     }
 
     void drawingCommitsOnceAndUndoRedoUpdatesTheScene() {
@@ -178,15 +277,20 @@ private slots:
         QVERIFY(!historyManager->canRedo());
     }
 
-    void cleanupTestCase() {
+    void cleanup() {
         if (view) {
             view->setDataContext(nullptr);
             view.reset();
         }
         scene.reset();
+        clipController->setClip(nullptr);
+        singingClip = nullptr;
+    }
+
+    void cleanupTestCase() {
+        if (savedClipboard)
+            QApplication::clipboard()->setMimeData(savedClipboard.release());
         if (context) {
-            clipController->setClip(nullptr);
-            singingClip = nullptr;
             context.reset();
         }
         if (dataRootInstalled) {
@@ -198,6 +302,22 @@ private slots:
     }
 
 private:
+    int insertSelectedNote() {
+        Automation::NoteDraftDto note;
+        note.localStart = 480;
+        note.length = 240;
+        note.keyIndex = 62;
+        note.lyric = QStringLiteral("hello");
+        note.language = QStringLiteral("eng");
+        const auto inserted = context->m_coreRuntime->notes().insertNotes(
+            commandContext(), Automation::ClipId(singingClip->id()), {note});
+        if (!inserted || inserted.get().affectedObjects.isEmpty())
+            return -1;
+        const auto id = inserted.get().affectedObjects.first().value;
+        appStatus->selectedNotes = QList<int>{id};
+        return id;
+    }
+
     Automation::CommandContext commandContext() const {
         return {.expected = context->m_coreRuntime->documentVersion(),
                 .source = Automation::InvocationSource::Test};
@@ -226,6 +346,8 @@ private:
     std::unique_ptr<PianoRollGraphicsScene> scene;
     std::unique_ptr<PianoRollGraphicsView> view;
     SingingClip *singingClip = nullptr;
+    Automation::TrackId trackId;
+    std::unique_ptr<QMimeData> savedClipboard;
 };
 
 QTEST_MAIN(PianoRollGuiIntegrationTests)

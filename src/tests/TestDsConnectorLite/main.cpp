@@ -951,6 +951,82 @@ namespace {
         QTcpServer m_server;
     };
 
+    class ConnectedEditorFixture final {
+    public:
+        FakeHttpEditor http;
+        const QString serviceName = QStringLiteral("DsConnectorLite-Test-%1")
+                                        .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+        FakeBootstrap bootstrap{serviceName};
+        SingleInstanceAutomationStatus ready;
+        DsConnector::ConnectorOptions options{
+            .exposure = {.controlLevel = AutomationWire::ExposureLevel::L0,
+                         .includes = {QStringLiteral("id:application.get_info"),
+                                      QStringLiteral("id:application.get_status"),
+                                      QStringLiteral("id:notes.list")}},
+            .upstreamTimeoutMs = 2000,
+        };
+        DsConnector::ConnectorRuntime runtime{options, serviceName};
+        QQueue<QByteArray> responses;
+        DsConnector::DownstreamMcpServer server{&runtime};
+        const AutomationWire::Mcp::RequestContext context = clientContext();
+
+        ConnectedEditorFixture() {
+            QObject::connect(&server, &DsConnector::DownstreamMcpServer::responseLine, &server,
+                             [this](const QByteArray &line) { responses.enqueue(line); });
+        }
+
+        ~ConnectedEditorFixture() {
+            runtime.stop();
+        }
+
+        bool start() {
+            if (!http.listen() || !bootstrap.listen())
+                return false;
+            http.exposeFilteredTool = true;
+            ready = {
+                .state = SingleInstanceAutomationState::ServerReady,
+                .editorInstanceId = QUuid::createUuid().toString(QUuid::WithoutBraces),
+                .executablePath = QCoreApplication::applicationFilePath(),
+                .applicationVersion = QStringLiteral("test"),
+                .buildId = QStringLiteral("fake-build"),
+                .hostMode = QStringLiteral("gui"),
+                .serverEnabled = true,
+                .serverEndpoint = http.endpoint(),
+            };
+            bootstrap.publish(ready);
+            runtime.start();
+            return waitUntil(
+                [this] {
+                    const auto status = runtime.status();
+                    return status.value(QStringLiteral("mcp"))
+                               .toObject()
+                               .value(QStringLiteral("connected"))
+                               .toBool() &&
+                           status.value(QStringLiteral("toolset"))
+                                   .toObject()
+                                   .value(QStringLiteral("compatibility")) ==
+                               QStringLiteral("compatible");
+                },
+                10000);
+        }
+
+        void sendTool(const QString &id, const QString &name, const QJsonObject &arguments = {}) {
+            server.processLine(
+                QJsonDocument(AutomationWire::Mcp::makeRequest(
+                                  QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
+                                  {
+                                      {QStringLiteral("name"),      name     },
+                                      {QStringLiteral("arguments"), arguments}
+            },
+                                  context, id))
+                    .toJson(QJsonDocument::Compact));
+        }
+
+        std::optional<QJsonObject> response(const QString &id, int timeoutMs = 5000) {
+            return takeResponseById(responses, id, timeoutMs);
+        }
+    };
+
     class TestDsConnectorLite final : public QObject {
         Q_OBJECT
 
@@ -966,7 +1042,19 @@ namespace {
         void unavailableEditorStates();
         void bootstrapCorrelation();
         void handshakeCoordination();
-        void fakeEditorIntegration();
+        void connectedIdentity();
+        void forwardedCalls_data();
+        void forwardedCalls();
+        void genericDiscovery();
+        void genericExposure_data();
+        void genericExposure();
+        void duplicateRequestAndCancellation();
+        void upstreamResponses_data();
+        void upstreamResponses();
+        void editorPolicyRefresh();
+        void schemaRefreshKeepsVersionCompatibility();
+        void backpressureAndCancellation();
+        void upstreamDisabledKeepsDownstreamTools();
         void forwardCompatibleGenericTools();
         void compatibilityVersions();
         void headlessHostAvailability();
@@ -1807,72 +1895,16 @@ namespace {
         }
     }
 
-    void TestDsConnectorLite::fakeEditorIntegration() {
-        FakeHttpEditor http;
-        expect(http.listen(), "fake editor HTTP endpoint must listen");
-        if (QTest::currentTestFailed())
-            return;
-        http.exposeFilteredTool = true;
-
-        const auto serviceName = QStringLiteral("DsConnectorLite-Test-%1")
-                                     .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
-        FakeBootstrap bootstrap(serviceName);
-        expect(bootstrap.listen(), "fake editor bootstrap endpoint must listen");
-        if (QTest::currentTestFailed())
-            return;
-
-        SingleInstanceAutomationStatus ready{
-            .state = SingleInstanceAutomationState::ServerReady,
-            .editorInstanceId = QUuid::createUuid().toString(QUuid::WithoutBraces),
-            .executablePath = QCoreApplication::applicationFilePath(),
-            .applicationVersion = QStringLiteral("test"),
-            .buildId = QStringLiteral("fake-build"),
-            .hostMode = QStringLiteral("gui"),
-            .serverEnabled = true,
-            .serverEndpoint = http.endpoint(),
-        };
-        bootstrap.publish(ready);
-
-        DsConnector::ConnectorOptions options{
-            .exposure =
-                {
-                           .controlLevel = AutomationWire::ExposureLevel::L0,
-                           .includes =
-                        {
-                            QStringLiteral("id:application.get_info"),
-                            QStringLiteral("id:application.get_status"),
-                            QStringLiteral("id:notes.list"),
-                        }, },
-            .upstreamTimeoutMs = 2000,
-        };
-        DsConnector::ConnectorRuntime runtime(options, serviceName);
-        runtime.start();
-        const auto handshakeReady = waitUntil(
-            [&] {
-                const auto status = runtime.status();
-                return status.value(QStringLiteral("mcp"))
-                           .toObject()
-                           .value(QStringLiteral("connected"))
-                           .toBool() &&
-                       status.value(QStringLiteral("exposure"))
-                               .toObject()
-                               .value(QStringLiteral("generic_target_count"))
-                               .toInt() == 4 &&
-                       status.value(QStringLiteral("toolset"))
-                               .toObject()
-                               .value(QStringLiteral("compatibility"))
-                               .toString() != QStringLiteral("not_loaded") &&
-                       status.value(QStringLiteral("toolset"))
-                               .toObject()
-                               .value(QStringLiteral("compatibility"))
-                               .toString() != QStringLiteral("refreshing");
-            },
-            10000);
-        if (!handshakeReady)
-            QTextStream(stderr) << QJsonDocument(runtime.status()).toJson(QJsonDocument::Compact)
-                                << Qt::endl;
-        expect(handshakeReady,
-               "connector must discover/watch and complete the fake editor MCP handshake");
+    void TestDsConnectorLite::connectedIdentity() {
+        ConnectedEditorFixture fixture;
+        QVERIFY(fixture.start());
+        auto &http = fixture.http;
+        auto &bootstrap = fixture.bootstrap;
+        auto &runtime = fixture.runtime;
+        auto &server = fixture.server;
+        auto &responses = fixture.responses;
+        const auto &context = fixture.context;
+        const auto &ready = fixture.ready;
         const auto connectedStatus = runtime.status();
         expect(bootstrap.validWatchRequest && http.headersValid,
                "bootstrap watch identity and modern HTTP MCP headers must be valid");
@@ -1889,94 +1921,61 @@ namespace {
             QTextStream(stderr) << "Observed compatibility: " << toolsetCompatibility << Qt::endl;
         expect(toolsetCompatibility == QStringLiteral("compatible"),
                "connector status must report version-compatible contracts");
+    }
 
-        DsConnector::DownstreamMcpServer server(&runtime);
-        QQueue<QByteArray> responses;
-        QObject::connect(&server, &DsConnector::DownstreamMcpServer::responseLine, &server,
-                         [&responses](const QByteArray &line) { responses.enqueue(line); });
-        const auto context = clientContext();
-        server.processLine(
-            QJsonDocument(AutomationWire::Mcp::makeRequest(
-                              QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
-                              QJsonObject{
-                                  {QStringLiteral("name"),      QStringLiteral("application.get_info")},
-                                  {QStringLiteral("arguments"), QJsonObject{}                         }
-        },
-                              context, QStringLiteral("downstream-call-id")))
-                .toJson(QJsonDocument::Compact));
-        expect(waitUntil([&] { return !responses.isEmpty(); }),
-               "typed downstream call must complete through fake editor HTTP");
-        if (!responses.isEmpty()) {
-            const auto response = QJsonDocument::fromJson(responses.dequeue()).object();
-            const auto structured = response.value(QStringLiteral("result"))
-                                        .toObject()
-                                        .value(QStringLiteral("structuredContent"))
-                                        .toObject();
-            expect(response.value(QStringLiteral("id")).toString() ==
-                           QStringLiteral("downstream-call-id") &&
-                       structured.value(QStringLiteral("name")).toString() ==
-                           QStringLiteral("DS Editor Lite"),
-                   "connector must restore the downstream ID and preserve structured result");
+    void TestDsConnectorLite::forwardedCalls_data() {
+        QTest::addColumn<QString>("tool");
+        QTest::addColumn<QJsonObject>("arguments");
+        QTest::newRow("typed-query") << QStringLiteral("application.get_info") << QJsonObject{};
+        QTest::newRow("intrinsic-lifecycle") << QStringLiteral("application.request_restart")
+                                             << QJsonObject{
+                                                    {QStringLiteral("discard_changes"), true}
+        };
+        QTest::newRow("generic-query")
+            << QStringLiteral("editor.tools.invoke")
+            << QJsonObject{
+                   {QStringLiteral("name"),      QStringLiteral("application.get_info")},
+                   {QStringLiteral("arguments"), QJsonObject{}                         }
+        };
+    }
+
+    void TestDsConnectorLite::forwardedCalls() {
+        QFETCH(QString, tool);
+        QFETCH(QJsonObject, arguments);
+        ConnectedEditorFixture fixture;
+        QVERIFY(fixture.start());
+        const QString id = QStringLiteral("downstream-request");
+        fixture.sendTool(id, tool, arguments);
+        const auto response = fixture.response(id);
+        QVERIFY(response);
+        QCOMPARE(response->value(QStringLiteral("id")).toString(), id);
+        const auto result = response->value(QStringLiteral("result")).toObject();
+        QVERIFY(!result.value(QStringLiteral("isError")).toBool());
+        const auto content = result.value(QStringLiteral("structuredContent")).toObject();
+        if (tool == QStringLiteral("application.request_restart")) {
+            QVERIFY(content.value(QStringLiteral("accepted")).toBool());
+            QCOMPARE(content.value(QStringLiteral("action")).toString(), QStringLiteral("restart"));
+            QVERIFY(content.value(QStringLiteral("discard_changes")).toBool());
+            QVERIFY(fixture.http.calledTools.contains(tool));
+        } else {
+            QCOMPARE(content.value(QStringLiteral("name")).toString(),
+                     QStringLiteral("DS Editor Lite"));
         }
-        expect(std::none_of(http.requestIds.constBegin(), http.requestIds.constEnd(),
-                            [](const QJsonValue &id) {
-                                return id.toString() == QStringLiteral("downstream-call-id");
-                            }),
-               "connector must allocate independent upstream request IDs");
+        QVERIFY(std::none_of(
+            fixture.http.requestIds.cbegin(), fixture.http.requestIds.cend(),
+            [&](const QJsonValue &upstreamId) { return upstreamId.toString() == id; }));
+    }
 
-        server.processLine(
-            QJsonDocument(
-                AutomationWire::Mcp::makeRequest(
-                    QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
-                    QJsonObject{
-                        {QStringLiteral("name"),      QStringLiteral("application.request_restart")},
-                        {QStringLiteral("arguments"),
-                         QJsonObject{{QStringLiteral("discard_changes"), true}}                    },
-        },
-                    context, QStringLiteral("downstream-restart-id")))
-                .toJson(QJsonDocument::Compact));
-        expect(waitUntil([&] { return !responses.isEmpty(); }),
-               "intrinsic lifecycle calls must complete through fake editor HTTP");
-        if (!responses.isEmpty()) {
-            const auto response = QJsonDocument::fromJson(responses.dequeue()).object();
-            const auto structured = response.value(QStringLiteral("result"))
-                                        .toObject()
-                                        .value(QStringLiteral("structuredContent"))
-                                        .toObject();
-            expect(response.value(QStringLiteral("id")) ==
-                           QStringLiteral("downstream-restart-id") &&
-                       structured.value(QStringLiteral("accepted")).toBool() &&
-                       structured.value(QStringLiteral("action")) == QStringLiteral("restart") &&
-                       structured.value(QStringLiteral("discard_changes")).toBool() &&
-                       http.calledTools.contains(QStringLiteral("application.request_restart")),
-                   "connector must preserve lifecycle arguments and structured results");
-        }
-
-        server.processLine(
-            QJsonDocument(
-                AutomationWire::Mcp::makeRequest(
-                    QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
-                    QJsonObject{
-                        {QStringLiteral("name"),      QStringLiteral("editor.tools.invoke")},
-                        {QStringLiteral("arguments"),
-                         QJsonObject{
-                             {QStringLiteral("name"), QStringLiteral("application.get_info")},
-                             {QStringLiteral("arguments"), QJsonObject{}},
-                         }                                                                 },
-        },
-                    context, QStringLiteral("generic-call-id")))
-                .toJson(QJsonDocument::Compact));
-        expect(waitUntil([&] { return !responses.isEmpty(); }),
-               "generic invoke must use the same permitted editor target");
-        if (!responses.isEmpty()) {
-            const auto response = QJsonDocument::fromJson(responses.dequeue()).object();
-            expect(!response.value(QStringLiteral("result"))
-                        .toObject()
-                        .value(QStringLiteral("isError"))
-                        .toBool(),
-                   "generic invoke must succeed for an exposure-permitted target");
-        }
-
+    void TestDsConnectorLite::genericDiscovery() {
+        ConnectedEditorFixture fixture;
+        QVERIFY(fixture.start());
+        auto &http = fixture.http;
+        auto &bootstrap = fixture.bootstrap;
+        auto &runtime = fixture.runtime;
+        auto &server = fixture.server;
+        auto &responses = fixture.responses;
+        const auto &context = fixture.context;
+        const auto &ready = fixture.ready;
         server.processLine(
             QJsonDocument(AutomationWire::Mcp::makeRequest(
                               QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
@@ -2062,88 +2061,53 @@ namespace {
         } else {
             expect(false, "versioned generic describe must return a result");
         }
+    }
 
-        server.processLine(
-            QJsonDocument(
-                AutomationWire::Mcp::makeRequest(
-                    QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
-                    QJsonObject{
-                        {QStringLiteral("name"),      QStringLiteral("editor.tools.search")     },
-                        {QStringLiteral("arguments"),
-                         QJsonObject{{QStringLiteral("query"), QStringLiteral("documents.get")}}},
-        },
-                    context, QStringLiteral("filtered-search")))
-                .toJson(QJsonDocument::Compact));
-        if (!responses.isEmpty()) {
-            const auto tools = QJsonDocument::fromJson(responses.dequeue())
-                                   .object()
-                                   .value(QStringLiteral("result"))
-                                   .toObject()
-                                   .value(QStringLiteral("structuredContent"))
-                                   .toObject()
-                                   .value(QStringLiteral("tools"))
-                                   .toArray();
-            expect(tools.isEmpty(),
-                   "generic search must not reveal exposure-filtered editor targets");
-        } else {
-            expect(false, "filtered generic search must return a result");
-        }
+    void TestDsConnectorLite::genericExposure_data() {
+        QTest::addColumn<QString>("action");
+        QTest::newRow("search") << QStringLiteral("search");
+        QTest::newRow("describe") << QStringLiteral("describe");
+        QTest::newRow("invoke") << QStringLiteral("invoke");
+    }
 
-        server.processLine(
-            QJsonDocument(
-                AutomationWire::Mcp::makeRequest(
-                    QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
-                    QJsonObject{
-                        {QStringLiteral("name"),      QStringLiteral("editor.tools.describe")  },
-                        {QStringLiteral("arguments"),
-                         QJsonObject{{QStringLiteral("name"), QStringLiteral("documents.get")}}},
-        },
-                    context, QStringLiteral("filtered-describe")))
-                .toJson(QJsonDocument::Compact));
-        if (!responses.isEmpty()) {
-            const auto code = QJsonDocument::fromJson(responses.dequeue())
-                                  .object()
-                                  .value(QStringLiteral("result"))
-                                  .toObject()
-                                  .value(QStringLiteral("structuredContent"))
-                                  .toObject()
-                                  .value(QStringLiteral("code"))
-                                  .toString();
-            expect(code == QStringLiteral("connector_tool_filtered"),
-                   "generic describe must not bypass connector exposure");
-        } else {
-            expect(false, "filtered generic describe must return a result");
-        }
+    void TestDsConnectorLite::genericExposure() {
+        QFETCH(QString, action);
+        ConnectedEditorFixture fixture;
+        QVERIFY(fixture.start());
+        const QString filtered = QStringLiteral("documents.get");
+        QJsonObject arguments{
+            {action == QStringLiteral("search") ? QStringLiteral("query") : QStringLiteral("name"),
+             filtered}
+        };
+        if (action == QStringLiteral("invoke"))
+            arguments.insert(QStringLiteral("arguments"), QJsonObject{});
+        fixture.sendTool(QStringLiteral("filtered"), QStringLiteral("editor.tools.") + action,
+                         arguments);
+        const auto response = fixture.response(QStringLiteral("filtered"));
+        QVERIFY(response);
+        const auto content = response->value(QStringLiteral("result"))
+                                 .toObject()
+                                 .value(QStringLiteral("structuredContent"))
+                                 .toObject();
+        if (action == QStringLiteral("search"))
+            QVERIFY(content.value(QStringLiteral("tools")).toArray().isEmpty());
+        else
+            QCOMPARE(content.value(QStringLiteral("code")).toString(),
+                     QStringLiteral("connector_tool_filtered"));
+        QVERIFY(!fixture.http.calledTools.contains(filtered));
+    }
 
-        server.processLine(
-            QJsonDocument(AutomationWire::Mcp::makeRequest(
-                              QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
-                              QJsonObject{
-                                  {QStringLiteral("name"),      QStringLiteral("editor.tools.invoke")},
-                                  {QStringLiteral("arguments"),
-                                   QJsonObject{
-                                       {QStringLiteral("name"), QStringLiteral("documents.get")},
-                                       {QStringLiteral("arguments"), QJsonObject{}},
-                                   }                                                                 },
-        },
-                              context, QStringLiteral("filtered-invoke")))
-                .toJson(QJsonDocument::Compact));
-        if (!responses.isEmpty()) {
-            const auto code = QJsonDocument::fromJson(responses.dequeue())
-                                  .object()
-                                  .value(QStringLiteral("result"))
-                                  .toObject()
-                                  .value(QStringLiteral("structuredContent"))
-                                  .toObject()
-                                  .value(QStringLiteral("code"))
-                                  .toString();
-            expect(code == QStringLiteral("connector_tool_filtered") &&
-                       !http.calledTools.contains(QStringLiteral("documents.get")),
-                   "generic invoke must not bypass connector exposure");
-        } else {
-            expect(false, "filtered generic invoke must return a result");
-        }
-
+    void TestDsConnectorLite::duplicateRequestAndCancellation() {
+        ConnectedEditorFixture fixture;
+        QVERIFY(fixture.start());
+        auto &http = fixture.http;
+        auto &bootstrap = fixture.bootstrap;
+        auto &runtime = fixture.runtime;
+        auto &server = fixture.server;
+        auto &responses = fixture.responses;
+        const auto &context = fixture.context;
+        const auto &ready = fixture.ready;
+        const auto callsBefore = http.calledTools.count(QStringLiteral("application.get_info"));
         http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::Hold;
         const auto heldRequest = AutomationWire::Mcp::makeRequest(
             QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
@@ -2162,7 +2126,8 @@ namespace {
                                                .toInt() == AutomationWire::Mcp::InvalidRequest,
                "duplicate in-flight downstream request IDs must be rejected");
         expect(waitUntil([&] {
-                   return http.calledTools.count(QStringLiteral("application.get_info")) >= 3;
+                   return http.calledTools.count(QStringLiteral("application.get_info")) >
+                          callsBefore;
                }),
                "cancellation test request must reach the fake editor");
         server.processLine(
@@ -2196,126 +2161,73 @@ namespace {
                 .toJson(QJsonDocument::Compact));
         expect(responses.isEmpty(),
                "cancelling an already completed request must not emit another response");
+    }
 
-        const auto sendApplication = [&](const QString &id) {
-            server.processLine(
-                QJsonDocument(
-                    AutomationWire::Mcp::makeRequest(
-                        QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
-                        QJsonObject{
-                            {QStringLiteral("name"),      QStringLiteral("application.get_info")},
-                            {QStringLiteral("arguments"), QJsonObject{}                         }
-            },
-                        context, id))
-                    .toJson(QJsonDocument::Compact));
+    void TestDsConnectorLite::upstreamResponses_data() {
+        using Mode = FakeHttpEditor::ApplicationResponseMode;
+        QTest::addColumn<int>("mode");
+        QTest::addColumn<QString>("field");
+        QTest::addColumn<QString>("expected");
+        QTest::addColumn<int>("protocolError");
+        const auto add = [](const char *name, Mode mode, const char *field, const char *expected,
+                            int protocolError = 0) {
+            QTest::newRow(name) << int(mode) << QString::fromLatin1(field)
+                                << QString::fromLatin1(expected) << protocolError;
         };
+        add("sse", Mode::Sse, "name", "DS Editor Lite");
+        add("business-error", Mode::BusinessError, "code", "fake_business_error");
+        add("protocol-error", Mode::ProtocolError, "", "", AutomationWire::Mcp::InvalidParams);
+        add("editor-owns-output-validation", Mode::InvalidOutput, "leaked_secret", "must-not-pass");
+        add("redirect", Mode::Redirect, "code", "upstream_redirect_rejected");
+        add("timeout", Mode::Hold, "code", "upstream_timeout");
+        add("oversized-response", Mode::Oversized, "message", "upstream_response_too_large");
+    }
 
-        http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::Sse;
-        sendApplication(QStringLiteral("sse-call"));
-        expect(waitUntil([&] { return !responses.isEmpty(); }),
-               "CRLF multi-event and multi-data-line SSE must complete");
-        if (!responses.isEmpty()) {
-            const auto response = QJsonDocument::fromJson(responses.dequeue()).object();
-            expect(response.value(QStringLiteral("id")) == QStringLiteral("sse-call") &&
-                       !response.value(QStringLiteral("result"))
-                            .toObject()
-                            .value(QStringLiteral("isError"))
-                            .toBool(),
-                   "SSE transport must preserve the original downstream request ID");
+    void TestDsConnectorLite::upstreamResponses() {
+        QFETCH(int, mode);
+        QFETCH(QString, field);
+        QFETCH(QString, expected);
+        QFETCH(int, protocolError);
+        ConnectedEditorFixture fixture;
+        QVERIFY(fixture.start());
+        fixture.http.applicationResponseMode =
+            static_cast<FakeHttpEditor::ApplicationResponseMode>(mode);
+        const QString id = QStringLiteral("response-case");
+        fixture.sendTool(id, QStringLiteral("application.get_info"));
+        const auto response = fixture.response(id, 10000);
+        QVERIFY(response);
+        QCOMPARE(response->value(QStringLiteral("id")).toString(), id);
+        if (protocolError) {
+            QCOMPARE(response->value(QStringLiteral("error"))
+                         .toObject()
+                         .value(QStringLiteral("code"))
+                         .toInt(),
+                     protocolError);
+            return;
         }
+        const auto result = response->value(QStringLiteral("result")).toObject();
+        const auto content = result.value(QStringLiteral("structuredContent")).toObject();
+        QCOMPARE(content.value(field).toString(), expected);
+        if (mode == int(FakeHttpEditor::ApplicationResponseMode::BusinessError))
+            QVERIFY(result.value(QStringLiteral("isError")).toBool());
+        if (mode == int(FakeHttpEditor::ApplicationResponseMode::Sse) ||
+            mode == int(FakeHttpEditor::ApplicationResponseMode::InvalidOutput))
+            QVERIFY(!result.value(QStringLiteral("isError")).toBool());
+        if (mode == int(FakeHttpEditor::ApplicationResponseMode::Hold))
+            QCOMPARE(content.value(QStringLiteral("message")).toString(),
+                     QStringLiteral("upstream_timeout"));
+    }
 
-        http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::BusinessError;
-        sendApplication(QStringLiteral("business-error"));
-        expect(waitUntil([&] { return !responses.isEmpty(); }),
-               "business CallToolResult errors must complete");
-        if (!responses.isEmpty()) {
-            const auto result = QJsonDocument::fromJson(responses.dequeue())
-                                    .object()
-                                    .value(QStringLiteral("result"))
-                                    .toObject();
-            expect(result.value(QStringLiteral("isError")).toBool() &&
-                       result.value(QStringLiteral("structuredContent"))
-                               .toObject()
-                               .value(QStringLiteral("code")) ==
-                           QStringLiteral("fake_business_error"),
-                   "business CallToolResult errors must pass through unchanged");
-        }
-
-        http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::ProtocolError;
-        sendApplication(QStringLiteral("protocol-error"));
-        expect(waitUntil([&] { return !responses.isEmpty(); }),
-               "upstream JSON-RPC errors must complete");
-        if (!responses.isEmpty()) {
-            const auto response = QJsonDocument::fromJson(responses.dequeue()).object();
-            expect(response.value(QStringLiteral("id")) == QStringLiteral("protocol-error") &&
-                       response.value(QStringLiteral("error"))
-                               .toObject()
-                               .value(QStringLiteral("code"))
-                               .toInt() == AutomationWire::Mcp::InvalidParams,
-                   "upstream JSON-RPC errors must map to the original downstream ID");
-        }
-
-        http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::InvalidOutput;
-        sendApplication(QStringLiteral("invalid-output"));
-        const auto invalidOutput =
-            takeResponseById(responses, QStringLiteral("invalid-output"), 5000);
-        expect(invalidOutput.has_value(),
-               "an upstream output-schema violation must complete downstream");
-        if (invalidOutput) {
-            const auto result = invalidOutput->value(QStringLiteral("result")).toObject();
-            const auto structured = result.value(QStringLiteral("structuredContent")).toObject();
-            expect(!result.value(QStringLiteral("isError")).toBool() &&
-                       structured.value(QStringLiteral("leaked_secret")) ==
-                           QStringLiteral("must-not-pass"),
-                   "typed proxying must leave business output validation to the editor");
-        }
-
-        http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::Redirect;
-        sendApplication(QStringLiteral("redirect-call"));
-        const auto redirect = takeResponseById(responses, QStringLiteral("redirect-call"), 5000);
-        expect(redirect.has_value() && redirect->value(QStringLiteral("result"))
-                                               .toObject()
-                                               .value(QStringLiteral("structuredContent"))
-                                               .toObject()
-                                               .value(QStringLiteral("code")) ==
-                                           QStringLiteral("upstream_redirect_rejected"),
-               "HTTP redirects must be rejected even when their body resembles JSON-RPC");
-
-        http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::Hold;
-        sendApplication(QStringLiteral("timeout-call"));
-        expect(waitUntil([&] { return !responses.isEmpty(); }, 5000),
-               "upstream timeout must complete under the test watchdog");
-        if (!responses.isEmpty()) {
-            const auto structured = QJsonDocument::fromJson(responses.dequeue())
-                                        .object()
-                                        .value(QStringLiteral("result"))
-                                        .toObject()
-                                        .value(QStringLiteral("structuredContent"))
-                                        .toObject();
-            expect(structured.value(QStringLiteral("code")) == QStringLiteral("upstream_timeout") &&
-                       structured.value(QStringLiteral("message")) ==
-                           QStringLiteral("upstream_timeout"),
-                   "query timeout must preserve the stable upstream_timeout code");
-        }
-        http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::Success;
-
-        http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::Oversized;
-        sendApplication(QStringLiteral("oversized-call"));
-        expect(waitUntil([&] { return !responses.isEmpty(); }, 10000),
-               "oversized upstream response must be aborted incrementally");
-        if (!responses.isEmpty()) {
-            const auto structured = QJsonDocument::fromJson(responses.dequeue())
-                                        .object()
-                                        .value(QStringLiteral("result"))
-                                        .toObject()
-                                        .value(QStringLiteral("structuredContent"))
-                                        .toObject();
-            expect(structured.value(QStringLiteral("message")) ==
-                       QStringLiteral("upstream_response_too_large"),
-                   "upstream body hard limit must report upstream_response_too_large");
-        }
-        http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::Success;
-
+    void TestDsConnectorLite::editorPolicyRefresh() {
+        ConnectedEditorFixture fixture;
+        QVERIFY(fixture.start());
+        auto &http = fixture.http;
+        auto &bootstrap = fixture.bootstrap;
+        auto &runtime = fixture.runtime;
+        auto &server = fixture.server;
+        auto &responses = fixture.responses;
+        const auto &context = fixture.context;
+        const auto &ready = fixture.ready;
         const auto fixedToolCount = runtime.downstreamTools().size();
         const auto policyRefreshCount = http.toolsListCount;
         http.applicationAvailability = QStringLiteral("control_level_disabled");
@@ -2415,6 +2327,19 @@ namespace {
         } else {
             expect(false, "editor-policy-rejected generic invoke must return a result");
         }
+    }
+
+    void TestDsConnectorLite::schemaRefreshKeepsVersionCompatibility() {
+        ConnectedEditorFixture fixture;
+        QVERIFY(fixture.start());
+        auto &http = fixture.http;
+        auto &bootstrap = fixture.bootstrap;
+        auto &runtime = fixture.runtime;
+        auto &server = fixture.server;
+        auto &responses = fixture.responses;
+        const auto &context = fixture.context;
+        const auto &ready = fixture.ready;
+        const auto fixedToolCount = runtime.downstreamTools().size();
         http.applicationAvailability.clear();
         http.exposeNotes = true;
         http.applicationSchemaVariant = true;
@@ -2492,7 +2417,21 @@ namespace {
                                .value(QStringLiteral("name")) == QStringLiteral("DS Editor Lite"),
                    "generic proxying must leave business output validation to the editor");
         }
+    }
 
+    void TestDsConnectorLite::backpressureAndCancellation() {
+        ConnectedEditorFixture fixture;
+        QVERIFY(fixture.start());
+        auto &http = fixture.http;
+        auto &bootstrap = fixture.bootstrap;
+        auto &runtime = fixture.runtime;
+        auto &server = fixture.server;
+        auto &responses = fixture.responses;
+        const auto &context = fixture.context;
+        const auto &ready = fixture.ready;
+        const auto sendApplication = [&](const QString &id) {
+            fixture.sendTool(id, QStringLiteral("application.get_info"));
+        };
         http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::Hold;
         QStringList saturatedRequestIds;
         for (auto index = 0; index < 32; ++index) {
@@ -2548,7 +2487,19 @@ namespace {
                    10000),
                "cancelling the saturated downstream calls must release every slot");
         http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::Success;
+    }
 
+    void TestDsConnectorLite::upstreamDisabledKeepsDownstreamTools() {
+        ConnectedEditorFixture fixture;
+        QVERIFY(fixture.start());
+        auto &http = fixture.http;
+        auto &bootstrap = fixture.bootstrap;
+        auto &runtime = fixture.runtime;
+        auto &server = fixture.server;
+        auto &responses = fixture.responses;
+        const auto &context = fixture.context;
+        const auto &ready = fixture.ready;
+        const auto fixedToolCount = runtime.downstreamTools().size();
         auto disabled = ready;
         disabled.state = SingleInstanceAutomationState::ServerDisabled;
         disabled.serverEnabled = false;
