@@ -56,6 +56,8 @@ private slots:
         owner.show();
         owner.activateWindow();
         canvas->setFocus();
+        QTRY_COMPARE(QApplication::activeWindow(), &owner);
+        QTRY_VERIFY(canvas->hasFocus());
         QTRY_VERIFY(shortcut->isEnabled());
         QTest::keyClick(canvas, Qt::Key_Delete);
         QTRY_COMPARE(activations, 1);
@@ -95,9 +97,11 @@ private slots:
             [&](const QWidget *candidate) { return candidate == &owner || candidate == &panel; },
             &owner, [&] { ++activations; });
         connect(button, &QPushButton::clicked, &owner, [&] { ++clicks; });
+        owner.show();
         window->show();
         window->activateWindow();
         button->setFocus();
+        QTRY_COMPARE(QApplication::activeWindow(), window);
         QTRY_VERIFY(button->hasFocus());
         QTest::keyClick(button, Qt::Key_Space);
         QTRY_COMPARE(activations, 1);

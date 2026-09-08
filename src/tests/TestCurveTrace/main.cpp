@@ -153,11 +153,11 @@ namespace {
                                      generated);
         expect(!click.changed && click.preview.isEmpty() && click.replacement.isEmpty(),
                "a single trace point must not be committed");
-        expectPencilTraceAlignment(backend,
-                                   {
-                                       {10, 700}
+        expectPencilTraceAlignment(
+            {
+                {10, 700}
         },
-                                   generated);
+            generated);
 
         const auto oneSample = runStroke(Tool::Trace,
                                          {
@@ -168,12 +168,12 @@ namespace {
         expect(oneSample.changed && oneSample.preview.size() == 1 &&
                    oneSample.preview.first().values.size() == 1 && oneSample.replacement.isEmpty(),
                "a one-sample trace interval must be filtered by the normal pencil commit path");
-        expectPencilTraceAlignment(backend,
-                                   {
-                                       {0, 700},
-                                       {5, 710}
+        expectPencilTraceAlignment(
+            {
+                {0, 700},
+                {5, 710}
         },
-                                   generated);
+            generated);
     }
 
     void testShortestValidStrokes(const DrawCurveList &generated) {

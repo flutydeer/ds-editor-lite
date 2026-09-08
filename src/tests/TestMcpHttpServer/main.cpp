@@ -877,7 +877,7 @@ void TestMcpHttpServer::nativeMcpRouteLifecycle() {
     const Mcp::RequestContext legacyContext{
         .protocolVersion = QString::fromLatin1(Mcp::LegacyProtocolVersion),
         .clientCapabilities = {},
-        .clientInfo = {.name = QStringLiteral("legacy-http-client"),
+        .clientInfo = Mcp::ImplementationInfo{.name = QStringLiteral("legacy-http-client"),
                                .version = QStringLiteral("1.0")},
     };
     const auto legacyPing = Mcp::makeRequest(QString::fromLatin1(Mcp::PingMethod), {},
@@ -1160,7 +1160,7 @@ void TestMcpHttpServer::deadlinesAndCrossConnectionCancellation() {
     const Mcp::RequestContext legacyContext{
         .protocolVersion = QString::fromLatin1(Mcp::LegacyProtocolVersion),
         .clientCapabilities = {},
-        .clientInfo = {.name = QStringLiteral("legacy-http-client"),
+        .clientInfo = Mcp::ImplementationInfo{.name = QStringLiteral("legacy-http-client"),
                                .version = QStringLiteral("1.0")},
     };
     const auto legacyPing = Mcp::makeRequest(QString::fromLatin1(Mcp::PingMethod), {},
