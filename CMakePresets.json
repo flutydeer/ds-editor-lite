@@ -7,6 +7,12 @@
   },
   "configurePresets": [
     {
+      "name": "tests",
+      "displayName": "Isolated Debug tests",
+      "inherits": "debug",
+      "binaryDir": "${sourceDir}/build/Tests"
+    },
+    {
       "name": "debug",
       "displayName": "Debug",
       "description": "Configure a Debug build with tests enabled.",
@@ -77,7 +83,7 @@
     {
       "name": "tests",
       "displayName": "Build editor, connector and tests",
-      "configurePreset": "debug",
+      "configurePreset": "tests",
       "targets": ["DsEditorLite", "DsConnectorLite", "lite_tests"]
     },
     {
@@ -124,14 +130,14 @@
   "testPresets": [
     {
       "name": "ci",
-      "configurePreset": "debug",
+      "configurePreset": "tests",
       "filter": { "include": { "label": "^ci$" } },
       "output": { "outputOnFailure": true },
       "execution": { "jobs": 2, "noTestsAction": "error" }
     },
     {
       "name": "local",
-      "configurePreset": "debug",
+      "configurePreset": "tests",
       "output": { "outputOnFailure": true },
       "execution": { "jobs": 2, "noTestsAction": "error" }
     }

@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("Configure", "Build", "ConfigureAndBuild")]
+    [ValidateSet("Configure", "Build", "ConfigureAndBuild", "Dependencies")]
     [string] $Mode = "Build",
 
     [string] $Preset = "debug",
@@ -111,6 +111,9 @@ if ($Target) {
 }
 
 switch ($Mode) {
+    "Dependencies" {
+        Invoke-CMakeCommand $vcvars $repoRoot $resolvedQtDir ".\vcpkg\vcpkg.exe install --x-manifest-root=scripts/vcpkg-manifest --x-install-root=vcpkg/installed --triplet=x64-windows"
+    }
     "Configure" {
         Invoke-CMakeCommand $vcvars $repoRoot $resolvedQtDir $configureCommand
     }

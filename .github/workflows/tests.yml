@@ -50,7 +50,7 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: build/ci/vcpkg-cache
-          key: linux-qt${{ env.QT_VERSION }}-${{ hashFiles('scripts/ci/bootstrap-linux.sh', 'scripts/vcpkg-manifest/**', 'scripts/vcpkg/ports/**', 'scripts/vcpkg/triplets/**') }}
+          key: linux-qt${{ env.QT_VERSION }}-${{ hashFiles('scripts/ci/bootstrap-linux.sh', 'scripts/vcpkg-manifest/**', 'scripts/vcpkg-overrides/**', 'scripts/vcpkg/ports/**', 'scripts/vcpkg/triplets/**') }}
       - name: Build dependencies
         run: bash scripts/ci/bootstrap-linux.sh 2>&1 | tee build/test-results/dependencies.log
       - name: Save dependency packages
@@ -73,7 +73,7 @@ jobs:
           } > build/test-results/environment.txt
       - name: Configure
         run: |
-          cmake --preset debug -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
+          cmake --preset tests -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
             -DQt6_DIR="$QT_ROOT_DIR/lib/cmake/Qt6" \
             -DVCPKG_TARGET_TRIPLET=x64-linux \
             2>&1 | tee build/test-results/configure.log
@@ -90,8 +90,8 @@ jobs:
           name: linux-test-results-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             build/test-results
-            build/Debug/Testing/Temporary
-            build/Debug/CMakeFiles/CMakeConfigureLog.yaml
+            build/Tests/Testing/Temporary
+            build/Tests/CMakeFiles/CMakeConfigureLog.yaml
             vcpkg/buildtrees/**/*.log
           if-no-files-found: ignore
           retention-days: 14
