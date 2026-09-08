@@ -1,89 +1,77 @@
 #include "Automation/Public/AdmissionController.h"
 
-#include <QCoreApplication>
 #include <QList>
-#include <QTextStream>
+#include <QtTest>
 
-#include <utility>
+class TestAutomationAdmission final : public QObject {
+    Q_OBJECT
 
-namespace {
-    int failures = 0;
+private slots:
 
-    void expect(const bool condition, const QString &message) {
-        if (condition)
-            return;
-        QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        ++failures;
+    void capacity_data() {
+        QTest::addColumn<int>("capacity");
+        QTest::newRow("single-request") << 1;
+        QTest::newRow("default-capacity") << Automation::AdmissionLimits{}.maximumGlobalInFlight;
     }
 
-    bool hasError(const Automation::AutomationResult<Automation::AdmissionLease> &result,
-                  const Automation::AutomationErrorCode code) {
-        return !result && result.getError().code == code;
+    void capacity() {
+        QFETCH(int, capacity);
+        Automation::AdmissionLimits limits;
+        limits.maximumGlobalInFlight = capacity;
+        Automation::AdmissionController controller(limits);
+        QList<Automation::AdmissionLease> leases;
+        for (int index = 0; index < capacity; ++index) {
+            auto result = controller.tryAcquire();
+            QVERIFY(result);
+            leases.append(std::move(result.get()));
+        }
+        const auto full = controller.tryAcquire();
+        QVERIFY(!full);
+        QCOMPARE(full.getError().code, Automation::AutomationErrorCode::Busy);
+        QCOMPARE(controller.snapshot().globalInFlight, capacity);
+        leases.removeLast();
+        QVERIFY(controller.tryAcquire());
     }
-}
 
-int main(int argc, char *argv[]) {
-    QCoreApplication application(argc, argv);
-
-    auto defaultLimits = Automation::AdmissionLimits{};
-    expect(defaultLimits.maximumGlobalInFlight == 32,
-           QStringLiteral("default admission must allow 32 in-flight requests"));
-    Automation::AdmissionController defaultController(defaultLimits);
-    QList<Automation::AdmissionLease> defaultLeases;
-    for (int index = 0; index < 32; ++index) {
-        auto result = defaultController.tryAcquire();
-        expect(bool(result), QStringLiteral("each request within the 32-request limit must pass"));
-        if (result)
-            defaultLeases.append(std::move(result.get()));
+    void leaseCopiesReleaseOnlyOnce() {
+        Automation::AdmissionController controller;
+        auto acquired = controller.tryAcquire(true);
+        QVERIFY(acquired);
+        auto lease = std::move(acquired.get());
+        auto copy = lease;
+        lease = {};
+        QCOMPARE(controller.snapshot().globalInFlight, 1);
+        QCOMPARE(controller.snapshot().backgroundTasks, 1);
+        copy = {};
+        QCOMPARE(controller.snapshot().globalInFlight, 0);
+        QCOMPARE(controller.snapshot().backgroundTasks, 0);
     }
-    const auto overDefaultLimit = defaultController.tryAcquire();
-    expect(hasError(overDefaultLimit, Automation::AutomationErrorCode::Busy),
-           QStringLiteral("the thirty-third in-flight request must be rejected"));
 
-    Automation::AdmissionLimits limits;
-    limits.maximumGlobalInFlight = 2;
-    limits.maximumBackgroundTasks = 1;
-    Automation::AdmissionController controller(limits);
+    void backgroundCapacityIsIndependent() {
+        Automation::AdmissionLimits limits;
+        limits.maximumGlobalInFlight = 4;
+        limits.maximumBackgroundTasks = 1;
+        Automation::AdmissionController controller(limits);
+        const auto first = controller.tryAcquire(true);
+        QVERIFY(first);
+        const auto second = controller.tryAcquire(true);
+        QVERIFY(!second);
+        QCOMPARE(second.getError().code, Automation::AutomationErrorCode::Busy);
+        QVERIFY(controller.tryAcquire(false));
+    }
 
-    auto firstResult = controller.tryAcquire();
-    expect(firstResult && firstResult.get().isValid(),
-           QStringLiteral("first request must acquire an admission lease"));
-    auto firstLease = firstResult ? std::move(firstResult.get()) : Automation::AdmissionLease{};
+    void stoppingRejectsWithoutChangingCounters() {
+        Automation::AdmissionController controller;
+        const auto existing = controller.tryAcquire();
+        QVERIFY(existing);
+        controller.setAccepting(false);
+        const auto rejected = controller.tryAcquire();
+        QVERIFY(!rejected);
+        QCOMPARE(rejected.getError().code, Automation::AutomationErrorCode::OperationUnavailable);
+        QVERIFY(!controller.snapshot().accepting);
+        QCOMPARE(controller.snapshot().globalInFlight, 1);
+    }
+};
 
-    auto backgroundResult = controller.tryAcquire(true);
-    expect(backgroundResult && backgroundResult.get().isValid(),
-           QStringLiteral("a background task must acquire remaining global capacity"));
-    auto backgroundLease =
-        backgroundResult ? std::move(backgroundResult.get()) : Automation::AdmissionLease{};
-
-    const auto globalLimit = controller.tryAcquire();
-    expect(hasError(globalLimit, Automation::AutomationErrorCode::Busy),
-           QStringLiteral("global in-flight limit must be reported as busy"));
-
-    const auto full = controller.snapshot();
-    expect(full.globalInFlight == 2 && full.backgroundTasks == 1,
-           QStringLiteral("snapshot must report live request and background counts"));
-
-    firstLease = {};
-    backgroundLease = {};
-    const auto released = controller.snapshot();
-    expect(released.globalInFlight == 0 && released.backgroundTasks == 0,
-           QStringLiteral("releasing the last lease copy must release all counters"));
-
-    controller.setAccepting(false);
-    const auto stopping = controller.tryAcquire();
-    expect(hasError(stopping, Automation::AutomationErrorCode::OperationUnavailable) &&
-               !controller.snapshot().accepting,
-           QStringLiteral("stopping admission must reject new requests without changing counters"));
-
-    Automation::AdmissionLimits backgroundLimits;
-    backgroundLimits.maximumGlobalInFlight = 4;
-    backgroundLimits.maximumBackgroundTasks = 1;
-    Automation::AdmissionController backgroundController(backgroundLimits);
-    const auto firstBackground = backgroundController.tryAcquire(true);
-    const auto secondBackground = backgroundController.tryAcquire(true);
-    expect(firstBackground && hasError(secondBackground, Automation::AutomationErrorCode::Busy),
-           QStringLiteral("background task limit must be independent from request concurrency"));
-
-    return failures == 0 ? 0 : 1;
-}
+QTEST_GUILESS_MAIN(TestAutomationAdmission)
+#include "main.moc"

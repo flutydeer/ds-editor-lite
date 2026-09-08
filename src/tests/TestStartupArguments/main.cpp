@@ -1,210 +1,129 @@
 #include "Bootstrap/StartupArguments.h"
 
-#include <QCoreApplication>
-#include <QDebug>
 #include <QDir>
 #include <QTemporaryDir>
+#include <QtTest>
 
-namespace {
+class TestStartupArguments final : public QObject {
+    Q_OBJECT
 
-    bool expect(const bool condition, const QString &message) {
-        if (condition)
-            return true;
-        qCritical().noquote() << message;
-        return false;
+private slots:
+
+    void invalidArguments_data() {
+        using Error = StartupArguments::ParseErrorCode;
+        QTest::addColumn<QStringList>("arguments");
+        QTest::addColumn<int>("error");
+        QTest::newRow("random-port")
+            << QStringList{"--control-port", "random"} << int(Error::InvalidValue);
+        QTest::newRow("zero-port")
+            << QStringList{"--control-port", "0"} << int(Error::InvalidValue);
+        QTest::newRow("overflow-port")
+            << QStringList{"--control-port", "65536"} << int(Error::InvalidValue);
+        QTest::newRow("negative-port")
+            << QStringList{"--control-port", "-1"} << int(Error::InvalidValue);
+        QTest::newRow("uppercase-level")
+            << QStringList{"--control-level", "L2"} << int(Error::InvalidValue);
+        QTest::newRow("missing-port") << QStringList{"--control-port"} << int(Error::MissingValue);
+        QTest::newRow("flag-as-value")
+            << QStringList{"--control-level", "--mcp"} << int(Error::MissingValue);
+        QTest::newRow("conflicting-mcp")
+            << QStringList{"--mcp", "--no-mcp"} << int(Error::ConflictingOptions);
+        QTest::newRow("conflicting-port") << QStringList{"--control-port=1", "--control-port=2"}
+                                          << int(Error::ConflictingOptions);
+        QTest::newRow("conflicting-level")
+            << QStringList{"--control-level=l1", "--control-level=l2"}
+            << int(Error::ConflictingOptions);
+        QTest::newRow("unknown-option") << QStringList{"--unknown"} << int(Error::UnknownOption);
     }
 
-    bool testValidArguments(const QString &workingDirectory) {
+    void invalidArguments() {
+        QFETCH(QStringList, arguments);
+        QFETCH(int, error);
+        const auto parsed = StartupArguments::parseArguments(arguments);
+        QVERIFY(!parsed.isValid());
+        QVERIFY(parsed.error);
+        QCOMPARE(int(parsed.error->code), error);
+    }
+
+    void validPort_data() {
+        QTest::addColumn<int>("port");
+        QTest::newRow("lower-bound") << 1;
+        QTest::newRow("upper-bound") << 65535;
+    }
+
+    void validPort() {
+        QFETCH(int, port);
         const auto parsed = StartupArguments::parseArguments(
-            {QStringLiteral("--headless"), QStringLiteral("--mcp"),
-             QStringLiteral("--control-port=65535"), QStringLiteral("--control-level"),
-             QStringLiteral("custom"), QStringLiteral("song.dspx")},
-            workingDirectory);
-        bool success = expect(parsed.isValid(), QStringLiteral("valid arguments should parse"));
-        success &= expect(parsed.hostMode == AppHostMode::Headless,
-                          QStringLiteral("--headless should select the QCore host"));
-        success &= expect(parsed.automation.mcpEnabled == true,
-                          QStringLiteral("--mcp should enable the runtime override"));
-        success &= expect(parsed.automation.controlPort == 65535,
-                          QStringLiteral("control port should parse at its upper bound"));
-        success &= expect(parsed.automation.controlLevel == AutomationOption::ControlLevel::Custom,
-                          QStringLiteral("Custom control level should parse"));
-        success &= expect(
-            parsed.projectFilePaths ==
-                QStringList{QDir::cleanPath(QDir(workingDirectory).absoluteFilePath("song.dspx"))},
-            QStringLiteral("automation flags and their values must not become project paths"));
-        return success;
+            {QStringLiteral("--control-port=%1").arg(port), "--control-level=l3"});
+        QVERIFY(parsed.isValid());
+        QCOMPARE(parsed.automation.controlPort, std::optional<quint16>(port));
+        QCOMPARE(parsed.automation.controlLevel, std::optional(AutomationOption::ControlLevel::L3));
     }
 
-    bool testPortAndControlLevelBounds() {
-        bool success = true;
-        auto parsed =
-            StartupArguments::parseArguments({QStringLiteral("--control-port"), QStringLiteral("1"),
-                                              QStringLiteral("--control-level=l3")});
-        success &= expect(parsed.isValid() && parsed.automation.controlPort == 1 &&
-                              parsed.automation.controlLevel == AutomationOption::ControlLevel::L3,
-                          QStringLiteral("the minimum port and L3 should be accepted"));
-
-        parsed = StartupArguments::parseArguments(
-            {QStringLiteral("--control-port"), QStringLiteral("random")});
-        success &= expect(!parsed.isValid() &&
-                              parsed.error->code == StartupArguments::ParseErrorCode::InvalidValue,
-                          QStringLiteral("the removed Random mode should fail clearly"));
-
-        parsed = StartupArguments::parseArguments(
-            {QStringLiteral("--control-port"), QStringLiteral("0")});
-        success &= expect(!parsed.isValid() &&
-                              parsed.error->code == StartupArguments::ParseErrorCode::InvalidValue,
-                          QStringLiteral("port 0 should no longer represent Random mode"));
-
-        parsed = StartupArguments::parseArguments(
-            {QStringLiteral("--control-port"), QStringLiteral("65536")});
-        success &= expect(!parsed.isValid() &&
-                              parsed.error->code == StartupArguments::ParseErrorCode::InvalidValue,
-                          QStringLiteral("ports above 65535 should fail clearly"));
-
-        parsed = StartupArguments::parseArguments(
-            {QStringLiteral("--control-port"), QStringLiteral("-1")});
-        success &= expect(!parsed.isValid() &&
-                              parsed.error->code == StartupArguments::ParseErrorCode::InvalidValue,
-                          QStringLiteral("negative ports should fail clearly"));
-
-        parsed = StartupArguments::parseArguments(
-            {QStringLiteral("--control-level"), QStringLiteral("L2")});
-        success &=
-            expect(!parsed.isValid() &&
-                       parsed.error->code == StartupArguments::ParseErrorCode::InvalidValue,
-                   QStringLiteral("control level values should use the documented lowercase form"));
-        return success;
+    void flagsDoNotBecomeProjectPaths() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const auto parsed =
+            StartupArguments::parseArguments({"--headless", "--mcp", "--control-port=65535",
+                                              "--control-level", "custom", "song.dspx"},
+                                             directory.path());
+        QVERIFY(parsed.isValid());
+        QCOMPARE(parsed.hostMode, AppHostMode::Headless);
+        QCOMPARE(parsed.automation.mcpEnabled, std::optional(true));
+        QCOMPARE(parsed.automation.controlLevel,
+                 std::optional(AutomationOption::ControlLevel::Custom));
+        QCOMPARE(parsed.projectFilePaths, QStringList{directory.filePath("song.dspx")});
     }
 
-    bool testMissingAndConflictingOptions() {
-        bool success = true;
-        auto parsed = StartupArguments::parseArguments({QStringLiteral("--control-port")});
-        success &=
-            expect(!parsed.isValid() &&
-                       parsed.error->code == StartupArguments::ParseErrorCode::MissingValue &&
-                       parsed.error->option == QStringLiteral("--control-port"),
-                   QStringLiteral("missing control port should identify its option"));
-
-        parsed = StartupArguments::parseArguments(
-            {QStringLiteral("--control-level"), QStringLiteral("--mcp")});
-        success &= expect(!parsed.isValid() &&
-                              parsed.error->code == StartupArguments::ParseErrorCode::MissingValue,
-                          QStringLiteral("a following flag is not a control level value"));
-
-        parsed =
-            StartupArguments::parseArguments({QStringLiteral("--mcp"), QStringLiteral("--no-mcp")});
-        success &=
-            expect(!parsed.isValid() &&
-                       parsed.error->code == StartupArguments::ParseErrorCode::ConflictingOptions,
-                   QStringLiteral("--mcp and --no-mcp should conflict"));
-
-        parsed = StartupArguments::parseArguments(
-            {QStringLiteral("--control-port=1"), QStringLiteral("--control-port=2")});
-        success &=
-            expect(!parsed.isValid() &&
-                       parsed.error->code == StartupArguments::ParseErrorCode::ConflictingOptions,
-                   QStringLiteral("different repeated ports should conflict"));
-
-        parsed = StartupArguments::parseArguments(
-            {QStringLiteral("--control-port=18231"), QStringLiteral("--control-port=18231")});
-        success &= expect(parsed.isValid() && parsed.automation.controlPort == 18231,
-                          QStringLiteral("repeating the same concrete port should be accepted"));
-
-        parsed = StartupArguments::parseArguments(
-            {QStringLiteral("--control-level=l1"), QStringLiteral("--control-level=l2")});
-        success &=
-            expect(!parsed.isValid() &&
-                       parsed.error->code == StartupArguments::ParseErrorCode::ConflictingOptions,
-                   QStringLiteral("different repeated control levels should conflict"));
-        return success;
-    }
-
-    bool testUnknownOptionAndDelimiter(const QString &workingDirectory) {
-        auto parsed = StartupArguments::parseArguments({QStringLiteral("--unknown")});
-        bool success =
-            expect(!parsed.isValid() &&
-                       parsed.error->code == StartupArguments::ParseErrorCode::UnknownOption,
-                   QStringLiteral("unknown options should fail clearly"));
-
-        parsed = StartupArguments::parseArguments(
-            {QStringLiteral("--"), QStringLiteral("--headless")}, workingDirectory);
-        success &=
-            expect(parsed.isValid() && parsed.automation.isEmpty() &&
-                       parsed.hostMode == AppHostMode::Gui && parsed.projectFilePaths.size() == 1 &&
-                       parsed.projectFilePaths.constFirst() ==
-                           QDir::cleanPath(QDir(workingDirectory).absoluteFilePath("--headless")),
-                   QStringLiteral("the delimiter should allow dash-prefixed project paths"));
-        return success;
-    }
-
-    bool testHostModePreparse() {
+    void delimiterAndPreparseAgree() {
         char executable[] = "editor";
         char headless[] = "--headless";
         char delimiter[] = "--";
-        char project[] = "project.dspx";
-
-        char *headlessArguments[] = {executable, headless, project};
-        bool success = expect(StartupArguments::preparseHostMode(3, headlessArguments) ==
-                                  AppHostMode::Headless,
-                              QStringLiteral("raw argv preparse should detect --headless"));
-
+        char *headlessArguments[] = {executable, headless};
+        QCOMPARE(StartupArguments::preparseHostMode(2, headlessArguments), AppHostMode::Headless);
         char *positionalArguments[] = {executable, delimiter, headless};
-        success &=
-            expect(StartupArguments::preparseHostMode(3, positionalArguments) == AppHostMode::Gui,
-                   QStringLiteral("raw argv preparse must respect the -- delimiter"));
-
-        const auto duplicate = StartupArguments::parseArguments(
-            {QStringLiteral("--headless"), QStringLiteral("--headless")});
-        success &= expect(duplicate.isValid() && duplicate.hostMode == AppHostMode::Headless,
-                          QStringLiteral("repeating --headless should be idempotent"));
-        return success;
+        QCOMPARE(StartupArguments::preparseHostMode(3, positionalArguments), AppHostMode::Gui);
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const auto parsed =
+            StartupArguments::parseArguments({"--", "--headless"}, directory.path());
+        QVERIFY(parsed.isValid());
+        QVERIFY(parsed.automation.isEmpty());
+        QCOMPARE(parsed.hostMode, AppHostMode::Gui);
+        QCOMPARE(parsed.projectFilePaths, QStringList{directory.filePath("--headless")});
     }
 
-    bool testEffectiveConfigDoesNotMutatePersistence() {
+    void identicalOptionsCanRepeat() {
+        const auto parsed = StartupArguments::parseArguments(
+            {"--headless", "--headless", "--control-port=18231", "--control-port=18231"});
+        QVERIFY(parsed.isValid());
+        QCOMPARE(parsed.hostMode, AppHostMode::Headless);
+        QCOMPARE(parsed.automation.controlPort, std::optional<quint16>(18231));
+    }
+
+    void runtimeOverridesDoNotMutatePersistence() {
         AutomationOption persisted;
         persisted.mcpEnabled = false;
         persisted.controlPort = 1234;
         persisted.controlLevel = AutomationOption::ControlLevel::L1;
         persisted.setCustomPermissionEnabled(QStringLiteral("notes.list"), true);
-
         StartupArguments::AutomationOverrides overrides;
         overrides.mcpEnabled = true;
         overrides.controlPort = 4321;
         overrides.controlLevel = AutomationOption::ControlLevel::Custom;
         const auto effective = StartupArguments::effectiveAutomationConfig(persisted, overrides);
-
-        bool success = expect(effective.mcpEnabled && overrides.controlPort &&
-                                  effective.controlPort == *overrides.controlPort &&
-                                  effective.controlLevel == AutomationOption::ControlLevel::Custom,
-                              QStringLiteral("CLI values should win in the effective config"));
-        success &=
-            expect(effective.mcpEnabledSource == StartupArguments::ConfigSource::CommandLine &&
-                       effective.controlPortSource == StartupArguments::ConfigSource::CommandLine &&
-                       effective.controlLevelSource == StartupArguments::ConfigSource::CommandLine,
-                   QStringLiteral("effective config should expose command-line sources"));
-        success &= expect(!persisted.mcpEnabled && persisted.controlPort == 1234 &&
-                              persisted.controlLevel == AutomationOption::ControlLevel::L1 &&
-                              persisted.customPermissionEnabled(QStringLiteral("notes.list")),
-                          QStringLiteral("resolving CLI overrides must not modify saved settings"));
-        return success;
+        QVERIFY(effective.mcpEnabled);
+        QCOMPARE(effective.controlPort, quint16(4321));
+        QCOMPARE(effective.controlLevel, AutomationOption::ControlLevel::Custom);
+        QCOMPARE(effective.mcpEnabledSource, StartupArguments::ConfigSource::CommandLine);
+        QCOMPARE(effective.controlPortSource, StartupArguments::ConfigSource::CommandLine);
+        QCOMPARE(effective.controlLevelSource, StartupArguments::ConfigSource::CommandLine);
+        QVERIFY(!persisted.mcpEnabled);
+        QCOMPARE(persisted.controlPort, quint16(1234));
+        QCOMPARE(persisted.controlLevel, AutomationOption::ControlLevel::L1);
+        QVERIFY(persisted.customPermissionEnabled(QStringLiteral("notes.list")));
     }
+};
 
-} // namespace
-
-int main(int argc, char *argv[]) {
-    QCoreApplication application(argc, argv);
-    QTemporaryDir workingDirectory;
-    if (!expect(workingDirectory.isValid(), QStringLiteral("temporary directory should exist")))
-        return 1;
-
-    bool success = true;
-    success &= testValidArguments(workingDirectory.path());
-    success &= testPortAndControlLevelBounds();
-    success &= testMissingAndConflictingOptions();
-    success &= testUnknownOptionAndDelimiter(workingDirectory.path());
-    success &= testHostModePreparse();
-    success &= testEffectiveConfigDoesNotMutatePersistence();
-    return success ? 0 : 1;
-}
+QTEST_GUILESS_MAIN(TestStartupArguments)
+#include "main.moc"

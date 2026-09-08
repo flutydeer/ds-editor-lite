@@ -7,6 +7,9 @@
 #include <lite/ProductMetadata.h>
 
 #include <QCoreApplication>
+#include <QtTest>
+#include "../TestSupport/ProcessFixture.h"
+#include <lite/AutomationWire/PublicToolContract.h>
 #include <QDataStream>
 #include <QDir>
 #include <QElapsedTimer>
@@ -33,19 +36,13 @@
 #include <utility>
 
 namespace {
-    bool fail(const QString &message) {
-        QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        return false;
-    }
+    using TestSupport::ProcessFixture;
+    using TestSupport::stopProcess;
+    using TestSupport::waitUntil;
 
-    bool waitUntil(const std::function<bool()> &predicate, const int timeoutMilliseconds) {
-        QElapsedTimer timer;
-        timer.start();
-        while (!predicate() && timer.elapsed() < timeoutMilliseconds) {
-            QCoreApplication::processEvents(QEventLoop::AllEvents, 50);
-            QThread::msleep(10);
-        }
-        return predicate();
+    bool fail(const QString &message) {
+        QTest::qFail(qPrintable(message), __FILE__, __LINE__);
+        return false;
     }
 
     QJsonObject requestMeta() {
@@ -110,6 +107,7 @@ namespace {
     bool writeMessage(QProcess &process, const QJsonObject &message, QString &error) {
         error.clear();
         auto bytes = QJsonDocument(message).toJson(QJsonDocument::Compact);
+        TestSupport::recordProcessMessage(process, "sent", bytes);
         bytes.append('\n');
         if (process.write(bytes) != bytes.size() ||
             (process.bytesToWrite() > 0 && !process.waitForBytesWritten(5000))) {
@@ -130,6 +128,7 @@ namespace {
                 continue;
             }
             const auto line = process.readLine().trimmed();
+            TestSupport::recordProcessMessage(process, "received", line);
             QJsonParseError parseError;
             const auto document = QJsonDocument::fromJson(line, &parseError);
             if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
@@ -699,58 +698,16 @@ namespace {
             .arg(content.value(QStringLiteral("documents")).toArray().size());
     }
 
-    void stopProcess(QProcess &process) {
-        if (process.state() == QProcess::NotRunning)
-            return;
-        process.terminate();
-        if (!process.waitForFinished(5000)) {
-            process.kill();
-            process.waitForFinished(5000);
-        }
-    }
-
-    bool writeWaveFixture(const QString &path) {
-        constexpr quint32 sampleRate = 8000;
-        constexpr quint16 channels = 1;
-        constexpr quint16 bitsPerSample = 16;
-        constexpr quint32 sampleCount = 800;
-        const QByteArray samples(
-            static_cast<qsizetype>(sampleCount * channels * (bitsPerSample / 8)), '\0');
-        QFile file(path);
-        if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate))
-            return false;
-        QDataStream stream(&file);
-        stream.setByteOrder(QDataStream::LittleEndian);
-        stream.writeRawData("RIFF", 4);
-        stream << quint32(36 + samples.size());
-        stream.writeRawData("WAVEfmt ", 8);
-        stream << quint32(16) << quint16(1) << channels << sampleRate
-               << quint32(sampleRate * channels * (bitsPerSample / 8))
-               << quint16(channels * (bitsPerSample / 8)) << bitsPerSample;
-        stream.writeRawData("data", 4);
-        stream << quint32(samples.size());
-        stream.writeRawData(samples.constData(), samples.size());
-        return stream.status() == QDataStream::Ok;
-    }
-
     bool runIntegration(const QString &editorPath, const QString &connectorPath) {
-        QTemporaryDir isolatedRoot;
+        ProcessFixture isolatedRoot(QStringLiteral("TestMcpProcessIntegration"));
         if (!isolatedRoot.isValid()) {
             return fail(QStringLiteral("Could not create an isolated process-test data root"));
         }
-        const auto appDataRoot = QDir(isolatedRoot.path()).filePath(QStringLiteral("Roaming"));
-        const auto localDataRoot = QDir(isolatedRoot.path()).filePath(QStringLiteral("Local"));
-        QDir().mkpath(appDataRoot);
-        QDir().mkpath(localDataRoot);
-        const auto editorDataDirectory =
-            QDir(appDataRoot)
-                .filePath(QStringLiteral("%1/%2").arg(
-                    QString::fromLatin1(LiteProductMetadata::Publisher),
-                    QString::fromLatin1(LiteProductMetadata::ProductName)));
-        if (!QDir().mkpath(editorDataDirectory))
-            return fail(QStringLiteral("Could not create the isolated editor data directory"));
+        const auto appDataRoot = isolatedRoot.path();
+        const auto editorDataDirectory = isolatedRoot.dataDirectory();
+
         const auto audioPath = isolatedRoot.filePath(QStringLiteral("import-fixture.wav"));
-        if (!writeWaveFixture(audioPath))
+        if (!ProcessFixture::writeWaveFixture(audioPath))
             return fail(QStringLiteral("Could not create the audio import fixture"));
         QFile seededConfig(QDir(editorDataDirectory).filePath(QStringLiteral("appConfig.json")));
         if (!seededConfig.open(QIODevice::WriteOnly | QIODevice::Truncate))
@@ -770,17 +727,16 @@ namespace {
         seededConfig.close();
         const auto serviceName = SingleInstanceIdentity::serviceName(editorDataDirectory);
 
-        auto environment = QProcessEnvironment::systemEnvironment();
-        environment.insert(QStringLiteral("APPDATA"), appDataRoot);
-        environment.insert(QStringLiteral("LOCALAPPDATA"), localDataRoot);
+        auto environment = isolatedRoot.environment();
         environment.insert(QStringLiteral("QT_QPA_PLATFORM"), QStringLiteral("offscreen"));
         environment.insert(QStringLiteral("QT_OPENGL"), QStringLiteral("software"));
         environment.insert(QStringLiteral("QT_LOGGING_TO_CONSOLE"), QStringLiteral("1"));
 
-        QProcess editor;
-        QProcess connector;
-        QProcess secondaryEditor;
-        QProcess headlessSecondaryEditor;
+        auto &editor = isolatedRoot.process(QStringLiteral("editor"));
+        auto &connector = isolatedRoot.process(QStringLiteral("connector"));
+        auto &secondaryEditor = isolatedRoot.process(QStringLiteral("secondaryEditor"));
+        auto &headlessSecondaryEditor =
+            isolatedRoot.process(QStringLiteral("headlessSecondaryEditor"));
         const auto cleanup = qScopeGuard([&] {
             stopProcess(headlessSecondaryEditor);
             stopProcess(secondaryEditor);
@@ -843,8 +799,8 @@ namespace {
                     .arg(static_cast<int>(editor.state()))
                     .arg(static_cast<int>(editor.exitStatus()))
                     .arg(editor.exitCode())
-                    .arg(QString::fromUtf8(editor.readAllStandardOutput()),
-                         QString::fromUtf8(editor.readAllStandardError())));
+                    .arg(QString::fromUtf8(TestSupport::readProcessStdout(editor)),
+                         QString::fromUtf8(TestSupport::readProcessStderr(editor))));
         }
         const auto editorInstanceId = watcher.observation().snapshot->result.editorInstanceId;
         const auto editorEndpoint = watcher.observation().snapshot->result.serverEndpoint;
@@ -856,7 +812,8 @@ namespace {
         if (!secondaryEditor.waitForStarted(10000) || !secondaryEditor.waitForFinished(10000)) {
             return fail(QStringLiteral("Secondary editor with automation overrides did not exit"));
         }
-        const auto secondaryError = QString::fromUtf8(secondaryEditor.readAllStandardError());
+        const auto secondaryError =
+            QString::fromUtf8(TestSupport::readProcessStderr(secondaryEditor));
         if (secondaryEditor.exitStatus() != QProcess::NormalExit ||
             secondaryEditor.exitCode() == 0 ||
             !secondaryError.contains(
@@ -877,14 +834,13 @@ namespace {
             return fail(QStringLiteral("Headless secondary did not forward activation and exit"));
         }
         const auto headlessSecondaryError =
-            QString::fromUtf8(headlessSecondaryEditor.readAllStandardError());
+            QString::fromUtf8(TestSupport::readProcessStderr(headlessSecondaryEditor));
         const auto &primaryAfterHeadless = watcher.observation().snapshot;
         if (headlessSecondaryEditor.exitStatus() != QProcess::NormalExit ||
             headlessSecondaryEditor.exitCode() != 0 ||
             !headlessSecondaryError.contains(
                 QStringLiteral("no new Headless instance was started")) ||
-            !primaryAfterHeadless ||
-            primaryAfterHeadless->primaryProcessId != editor.processId() ||
+            !primaryAfterHeadless || primaryAfterHeadless->primaryProcessId != editor.processId() ||
             primaryAfterHeadless->result.editorInstanceId != editorInstanceId ||
             primaryAfterHeadless->result.hostMode != QStringLiteral("gui") ||
             primaryAfterHeadless->result.serverEndpoint != editorEndpoint ||
@@ -947,8 +903,8 @@ namespace {
                                 QJsonDocument(lastConnectorStatus).toJson(QJsonDocument::Compact)))
                             .arg(upstreamToolsDiagnostic(editorEndpoint),
                                  upstreamStatusDiagnostic(editorEndpoint),
-                                 QString::fromUtf8(connector.readAllStandardError()),
-                                 QString::fromUtf8(editor.readAllStandardError())));
+                                 QString::fromUtf8(TestSupport::readProcessStderr(connector)),
+                                 QString::fromUtf8(TestSupport::readProcessStderr(editor))));
         }
 
         const auto settingsBefore = connectorToolContent(
@@ -1066,8 +1022,8 @@ namespace {
                     .arg(message, appDataRoot, editorEndpoint)
                     .arg(static_cast<int>(connector.state()))
                     .arg(static_cast<int>(editor.state()))
-                    .arg(QString::fromUtf8(connector.readAllStandardError()),
-                         QString::fromUtf8(editor.readAllStandardError())));
+                    .arg(QString::fromUtf8(TestSupport::readProcessStderr(connector)),
+                         QString::fromUtf8(TestSupport::readProcessStderr(editor))));
         };
 
         DsConnector::UpstreamMcpClient directClient(QStringLiteral("process-test-direct"),
@@ -1091,11 +1047,10 @@ namespace {
         }
 
         const auto directCatalog = directToolCatalog(directClient, 10000, toolError);
-        if (!directCatalog || directCatalog->size() != 179 ||
-            !directCatalog->contains(QStringLiteral("application.get_status")) ||
-            !directCatalog->contains(QStringLiteral("workspace.get_state")) ||
-            !directCatalog->contains(QStringLiteral("track_panel.get_state")) ||
-            !directCatalog->contains(QStringLiteral("clip_editor.get_state"))) {
+        QSet<QString> declaredTools;
+        for (const auto &contract : AutomationWire::publicToolContracts())
+            declaredTools.insert(contract.operationId);
+        if (!directCatalog || *directCatalog != declaredTools) {
             return failWithProcessDiagnostics(
                 QStringLiteral("Direct GUI Editor MCP exposed an invalid catalog: count=%1; %2")
                     .arg(directCatalog ? directCatalog->size() : -1)
@@ -1482,7 +1437,7 @@ namespace {
             }
         }
 
-        QProcess legacyConnector;
+        auto &legacyConnector = isolatedRoot.process(QStringLiteral("legacyConnector"));
         const auto legacyConnectorCleanup = qScopeGuard([&legacyConnector] {
             legacyConnector.closeWriteChannel();
             if (!legacyConnector.waitForFinished(3000))
@@ -1714,11 +1669,27 @@ namespace {
     }
 }
 
+class TestMcpProcessIntegration final : public QObject {
+    Q_OBJECT
+public:
+    QString editorPath;
+    QString connectorPath;
+private slots:
+
+    void editingAndLifecycle() {
+        QVERIFY(runIntegration(editorPath, connectorPath));
+    }
+};
+
 int main(int argc, char *argv[]) {
     QCoreApplication application(argc, argv);
-    if (application.arguments().size() != 3) {
-        QTextStream(stderr) << "FAILED: Expected editor and connector executable paths" << Qt::endl;
+    TestMcpProcessIntegration test;
+    auto arguments = application.arguments();
+    if (arguments.size() < 3)
         return 2;
-    }
-    return runIntegration(application.arguments().at(1), application.arguments().at(2)) ? 0 : 1;
+    test.editorPath = arguments.takeAt(1);
+    test.connectorPath = arguments.takeAt(1);
+    return QTest::qExec(&test, arguments);
 }
+
+#include "main.moc"

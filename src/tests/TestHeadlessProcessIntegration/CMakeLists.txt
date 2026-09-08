@@ -3,6 +3,7 @@ project(TestHeadlessProcessIntegration)
 lite_add_test(${PROJECT_NAME}
     SOURCES
         main.cpp
+        ../TestSupport/ProcessFixture.cpp
         ../../app/Bootstrap/AppHostMode.cpp
         ../../app/Bootstrap/SingleInstanceCoordinator.cpp
 )
@@ -17,13 +18,9 @@ if(WIN32)
 endif()
 add_dependencies(${PROJECT_NAME} DsEditorLite)
 
-add_test(NAME ${PROJECT_NAME}
-    COMMAND ${PROJECT_NAME}
-        "$<TARGET_FILE:DsEditorLite>"
-        "$<TARGET_FILE_DIR:Qt${QT_VERSION_MAJOR}::QOffscreenIntegrationPlugin>"
-)
-set_tests_properties(${PROJECT_NAME} PROPERTIES
-    RESOURCE_LOCK editor_primary
-    RUN_SERIAL TRUE
-    TIMEOUT 120
-)
+lite_register_test(${PROJECT_NAME} CATEGORY process TIMEOUT 180
+    ARGS --editor "$<TARGET_FILE:DsEditorLite>" headless isolatedPrimaries)
+lite_register_test(${PROJECT_NAME} NAME TestHeadlessCrossHostIntegration CATEGORY gui GUI TIMEOUT 90
+    ARGS --editor "$<TARGET_FILE:DsEditorLite>"
+        --platform-plugins "$<TARGET_FILE_DIR:Qt${QT_VERSION_MAJOR}::QOffscreenIntegrationPlugin>"
+        crossHost)

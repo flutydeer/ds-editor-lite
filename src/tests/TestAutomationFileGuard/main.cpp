@@ -1,123 +1,122 @@
 #include "Automation/Public/AutomationFileGuard.h"
 
-#include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QTemporaryDir>
-#include <QTextStream>
+#include <QtTest>
 
-namespace {
-    int failures = 0;
+#include <memory>
 
-    void expect(const bool condition, const QString &message) {
-        if (condition)
-            return;
-        QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        ++failures;
-    }
+class TestAutomationFileGuard final : public QObject {
+    Q_OBJECT
 
-    bool createFile(const QString &path) {
+private:
+    std::unique_ptr<QTemporaryDir> temporary;
+    std::unique_ptr<Automation::AutomationFileGuard> guard;
+    QString readRoot;
+    QString writeRoot;
+    QString outsideRoot;
+
+    static bool createFile(const QString &path) {
         QFile file(path);
         return file.open(QIODevice::WriteOnly) && file.write("fixture") == 7;
     }
 
-    bool hasError(const Automation::AutomationResult<Automation::AuthorizedPath> &result,
-                  const Automation::AutomationErrorCode code) {
-        return !result && result.getError().code == code;
+private slots:
+
+    void init() {
+        temporary = std::make_unique<QTemporaryDir>();
+        QVERIFY(temporary->isValid());
+        readRoot = temporary->filePath("read");
+        writeRoot = temporary->filePath("write");
+        outsideRoot = temporary->filePath("read-other");
+        QVERIFY(QDir().mkpath(readRoot));
+        QVERIFY(QDir().mkpath(writeRoot));
+        QVERIFY(QDir().mkpath(outsideRoot));
+        QVERIFY(createFile(readRoot + "/song.dspx"));
+        QVERIFY(createFile(outsideRoot + "/outside.dspx"));
+        QVERIFY(createFile(outsideRoot + "/neighbor.dspx"));
+        guard = std::make_unique<Automation::AutomationFileGuard>();
+        QVERIFY(guard->setConfiguredRoots({readRoot, writeRoot}));
     }
-}
 
-int main(int argc, char *argv[]) {
-    QCoreApplication application(argc, argv);
-    QTemporaryDir temporary;
-    expect(temporary.isValid(), QStringLiteral("temporary root must be available"));
-    if (!temporary.isValid())
-        return 1;
+    void cleanup() {
+        guard.reset();
+        temporary.reset();
+    }
 
-    const auto readRoot = QDir(temporary.path()).filePath(QStringLiteral("read"));
-    const auto writeRoot = QDir(temporary.path()).filePath(QStringLiteral("write"));
-    const auto siblingRoot = QDir(temporary.path()).filePath(QStringLiteral("read-other"));
-    expect(QDir().mkpath(readRoot) && QDir().mkpath(writeRoot) && QDir().mkpath(siblingRoot),
-           QStringLiteral("fixture directories must be created"));
-
-    const auto readable = QDir(readRoot).filePath(QStringLiteral("song.dspx"));
-    const auto sibling = QDir(siblingRoot).filePath(QStringLiteral("outside.dspx"));
-    const auto siblingNeighbor = QDir(siblingRoot).filePath(QStringLiteral("neighbor.dspx"));
-    expect(createFile(readable) && createFile(sibling) && createFile(siblingNeighbor),
-           QStringLiteral("fixture files must be created"));
-
-    Automation::AutomationFileGuard guard;
-    const auto configured = guard.setConfiguredRoots({readRoot, writeRoot});
-    expect(configured.isPresent(), QStringLiteral("valid canonical roots must be accepted"));
-
-    const auto allowedRead = guard.authorize(readable, Automation::FileAccessPurpose::Read);
-    expect(allowedRead && QFileInfo(allowedRead.get().canonicalPath).canonicalFilePath() ==
-                              QFileInfo(readable).canonicalFilePath(),
-           QStringLiteral("existing file below a read root must be authorized canonically"));
+    void existingReadUsesCanonicalPath() {
+        const auto path = readRoot + "/song.dspx";
+        const auto result = guard->authorize(path, Automation::FileAccessPurpose::Read);
+        QVERIFY(result);
+        QCOMPARE(QFileInfo(result.get().canonicalPath).canonicalFilePath(),
+                 QFileInfo(path).canonicalFilePath());
 #ifdef Q_OS_WIN
-    expect(guard.authorize(readable.toUpper(), Automation::FileAccessPurpose::Read).isPresent(),
-           QStringLiteral("Windows path aliases must resolve through filesystem identity"));
+        QVERIFY(guard->authorize(path.toUpper(), Automation::FileAccessPurpose::Read));
 #endif
+    }
 
-    const auto missingRead = guard.authorize(
-        QDir(readRoot).filePath(QStringLiteral("missing.dspx")),
-        Automation::FileAccessPurpose::Read);
-    expect(hasError(missingRead, Automation::AutomationErrorCode::FileNotFound),
-           QStringLiteral("missing read target must remain file_not_found"));
+    void rejectedRead_data() {
+        QTest::addColumn<QString>("relativePath");
+        QTest::addColumn<int>("error");
+        QTest::newRow("missing") << QString("read/missing.dspx")
+                                 << int(Automation::AutomationErrorCode::FileNotFound);
+        QTest::newRow("same-prefix-sibling")
+            << QString("read-other/outside.dspx")
+            << int(Automation::AutomationErrorCode::PermissionDenied);
+        QTest::newRow("parent-traversal") << QString("read/../read-other/outside.dspx")
+                                          << int(Automation::AutomationErrorCode::PermissionDenied);
+    }
 
-    const auto siblingRead = guard.authorize(sibling, Automation::FileAccessPurpose::Read);
-    expect(hasError(siblingRead, Automation::AutomationErrorCode::PermissionDenied),
-           QStringLiteral("same-prefix sibling directory must not match a configured root"));
+    void rejectedRead() {
+        QFETCH(QString, relativePath);
+        QFETCH(int, error);
+        const auto result = guard->authorize(temporary->filePath(relativePath),
+                                             Automation::FileAccessPurpose::Read);
+        QVERIFY(!result);
+        QCOMPARE(int(result.getError().code), error);
+    }
 
-    const auto traversedRead = guard.authorize(
-        QDir(readRoot).filePath(QStringLiteral("../read-other/outside.dspx")),
-        Automation::FileAccessPurpose::Read);
-    expect(hasError(traversedRead, Automation::AutomationErrorCode::PermissionDenied),
-           QStringLiteral("parent traversal must be checked after canonicalization"));
+    void nonexistentWriteUsesExistingParent() {
+        const auto result = guard->authorize(writeRoot + "/nested/render.wav",
+                                             Automation::FileAccessPurpose::Write);
+        QVERIFY(result);
+        QVERIFY(
+            result.get().canonicalPath.endsWith("/write/nested/render.wav", Qt::CaseInsensitive));
+        QVERIFY(guard->authorize(readRoot + "/render.wav", Automation::FileAccessPurpose::Write));
+    }
 
-    const auto output = QDir(writeRoot).filePath(QStringLiteral("nested/render.wav"));
-    const auto allowedWrite = guard.authorize(output, Automation::FileAccessPurpose::Write);
-    expect(allowedWrite && allowedWrite.get().canonicalPath.endsWith(
-                               QStringLiteral("/write/nested/render.wav"), Qt::CaseInsensitive),
-           QStringLiteral("nonexistent output must canonicalize from its nearest existing parent"));
+    void revocationIsObservedAtReauthorization() {
+        const auto result =
+            guard->authorize(writeRoot + "/render.wav", Automation::FileAccessPurpose::Write);
+        QVERIFY(result);
+        QVERIFY(guard->reauthorize(result.get()));
+        QVERIFY(guard->setConfiguredRoots({readRoot, outsideRoot}));
+        const auto revoked = guard->reauthorize(result.get());
+        QVERIFY(!revoked);
+        QCOMPARE(revoked.getError().code, Automation::AutomationErrorCode::PermissionDenied);
+    }
 
-    const auto directOutput = QDir(writeRoot).filePath(QStringLiteral("render.wav"));
-    const auto authorizedDirectWrite =
-        guard.authorize(directOutput, Automation::FileAccessPurpose::Write);
-    expect(authorizedDirectWrite && guard.reauthorize(authorizedDirectWrite.get()),
-           QStringLiteral("an unchanged authorized target must pass reauthorization"));
-    expect(guard.setConfiguredRoots({readRoot, siblingRoot}).isPresent(),
-           QStringLiteral("replacement access roots must be accepted"));
-    const auto revokedWrite = guard.reauthorize(authorizedDirectWrite.get());
-    expect(hasError(revokedWrite, Automation::AutomationErrorCode::PermissionDenied),
-           QStringLiteral("reauthorization must observe access policy changes"));
-    expect(guard.setConfiguredRoots({readRoot, writeRoot}).isPresent(),
-           QStringLiteral("original access roots must be restorable"));
+    void fileGrantDoesNotGrantItsDirectory() {
+        const auto path = outsideRoot + "/outside.dspx";
+        QVERIFY(guard->addSessionGrant(path, Automation::FileAccessPurpose::Read));
+        QVERIFY(guard->authorize(path, Automation::FileAccessPurpose::Read));
+        const auto neighbor =
+            guard->authorize(outsideRoot + "/neighbor.dspx", Automation::FileAccessPurpose::Read);
+        QVERIFY(!neighbor);
+        QCOMPARE(neighbor.getError().code, Automation::AutomationErrorCode::PermissionDenied);
+        const auto snapshot = guard->snapshot();
+        QCOMPARE(snapshot.accessRoots.size(), 2);
+        QCOMPARE(snapshot.sessionReadGrants.size(), 1);
+        QVERIFY(snapshot.sessionWriteGrants.isEmpty());
+    }
 
-    const auto sharedRootWrite = guard.authorize(
-        QDir(readRoot).filePath(QStringLiteral("render.wav")),
-        Automation::FileAccessPurpose::Write);
-    expect(sharedRootWrite.isPresent(),
-           QStringLiteral("configured access roots must allow both reads and writes"));
+    void relativePathIsInvalid() {
+        const auto result = guard->authorize("relative.dspx", Automation::FileAccessPurpose::Read);
+        QVERIFY(!result);
+        QCOMPARE(result.getError().code, Automation::AutomationErrorCode::InvalidArgument);
+    }
+};
 
-    const auto grant = guard.addSessionGrant(sibling, Automation::FileAccessPurpose::Read);
-    const auto grantedRead = guard.authorize(sibling, Automation::FileAccessPurpose::Read);
-    const auto ungrantedNeighbor =
-        guard.authorize(siblingNeighbor, Automation::FileAccessPurpose::Read);
-    expect(grant && grantedRead &&
-               hasError(ungrantedNeighbor, Automation::AutomationErrorCode::PermissionDenied),
-           QStringLiteral("an exact session file grant must not widen into a directory grant"));
-
-    const auto relative = guard.authorize(QStringLiteral("relative.dspx"),
-                                          Automation::FileAccessPurpose::Read);
-    expect(hasError(relative, Automation::AutomationErrorCode::InvalidArgument),
-           QStringLiteral("relative paths must be rejected before policy matching"));
-
-    const auto snapshot = guard.snapshot();
-    expect(snapshot.accessRoots.size() == 2 &&
-               snapshot.sessionReadGrants.size() == 1 &&
-               snapshot.sessionWriteGrants.isEmpty(),
-           QStringLiteral("file access snapshot must report configured roots and session grants"));
-
-    return failures == 0 ? 0 : 1;
-}
+QTEST_GUILESS_MAIN(TestAutomationFileGuard)
+#include "main.moc"

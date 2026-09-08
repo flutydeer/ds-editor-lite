@@ -14,6 +14,8 @@
 #include <lite/ProjectModel/AppModel/Clip.h>
 
 #include <QCoreApplication>
+#include <QtTest>
+#include "../TestSupport/TestAssertions.h"
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
@@ -34,7 +36,7 @@
 #include <utility>
 
 namespace {
-    int failures = 0;
+    using TestSupport::expect;
 
     struct PackageRefreshTestControl {
         QString privatePath;
@@ -58,13 +60,6 @@ namespace {
     struct AudioPathUpdateTestControl {
         QList<Automation::PublicAudioPathUpdateRequest> requests;
     };
-
-    void expect(const bool condition, const QString &message) {
-        if (condition)
-            return;
-        QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        ++failures;
-    }
 
     QJsonObject nativeRequest(const QJsonValue &id, const QString &method,
                               const std::optional<QJsonValue> &params = std::nullopt) {
@@ -1533,12 +1528,11 @@ namespace {
         Automation::NativeJsonRpcDispatcher native(registry);
 
         const auto enabled = registry.enabledContracts();
-        expect(enabled.size() == 154 && std::all_of(enabled.cbegin(), enabled.cend(),
-                                                    [](const auto &contract) {
-                                                        return contract.hostAvailability ==
-                                                               QStringLiteral("both");
-                                                    }),
-               QStringLiteral("headless registry must expose exactly the 154 both-host tools"));
+        expect(std::all_of(enabled.cbegin(), enabled.cend(),
+                           [](const auto &contract) {
+                               return contract.hostAvailability == QStringLiteral("both");
+                           }),
+               QStringLiteral("headless registry must expose only both-host tools"));
 
         Automation::McpRequestDispatcher mcp(registry,
                                              {
@@ -1549,7 +1543,7 @@ namespace {
         qsizetype listedToolCount = 0;
         bool toolsListValid = true;
         QString cursor;
-        for (int page = 0; page < 3; ++page) {
+        for (qsizetype page = 0; page <= enabled.size(); ++page) {
             AutomationWire::Mcp::RequestEnvelope request{
                 .id = QStringLiteral("headless-tools-%1").arg(page),
                 .method = QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod),
@@ -1576,9 +1570,18 @@ namespace {
             if (cursor.isEmpty())
                 break;
         }
-        expect(toolsListValid && cursor.isEmpty() && listedToolCount == 154 &&
-                   listedToolIds.size() == 154,
-               QStringLiteral("headless MCP tools/list must expose exactly 154 unique tools"));
+        QSet<QString> expectedHeadlessIds;
+        for (const auto &contract : AutomationWire::publicToolContracts()) {
+            if (contract.hostAvailability == QStringLiteral("both"))
+                expectedHeadlessIds.insert(contract.operationId);
+        }
+        QSet<QString> enabledIds;
+        for (const auto &contract : enabled)
+            enabledIds.insert(contract.operationId);
+        expect(enabledIds == expectedHeadlessIds && toolsListValid && cursor.isEmpty() &&
+                   listedToolCount == listedToolIds.size() && listedToolIds == expectedHeadlessIds,
+               QStringLiteral(
+                   "headless Registry and MCP discovery must match the eligible contracts"));
 
         const auto guiOnly = registry.invoke(QStringLiteral("track_panel.set_viewport"), {});
         expect(!guiOnly &&
@@ -1802,8 +1805,35 @@ namespace {
     }
 }
 
-int main(int argc, char *argv[]) {
-    QCoreApplication application(argc, argv);
+class TestPublicAutomationRegistry final : public QObject {
+    Q_OBJECT
+private slots:
+
+    void routing_data() {
+        QTest::addColumn<QString>("scenario");
+        QTest::newRow("audioPathRouting") << QStringLiteral("audioPathRouting");
+        QTest::newRow("projectInputGuards") << QStringLiteral("projectInputGuards");
+        QTest::newRow("midiPublicationGate") << QStringLiteral("midiPublicationGate");
+        QTest::newRow("savePolicy") << QStringLiteral("savePolicy");
+        QTest::newRow("advancedApplication") << QStringLiteral("advancedApplication");
+        QTest::newRow("packageRefreshLifetime") << QStringLiteral("packageRefreshLifetime");
+        QTest::newRow("applicationLifecycle") << QStringLiteral("applicationLifecycle");
+        QTest::newRow("bindingAndPolicy") << QStringLiteral("bindingAndPolicy");
+        QTest::newRow("voiceAndSpeakerMix") << QStringLiteral("voiceAndSpeakerMix");
+        QTest::newRow("guiBindings") << QStringLiteral("guiBindings");
+        QTest::newRow("boundedQueries") << QStringLiteral("boundedQueries");
+        QTest::newRow("headlessAndNative") << QStringLiteral("headlessAndNative");
+    }
+
+    void routing();
+    void rejectedInputs_data();
+    void rejectedInputs();
+    void sharedEditingScenario_data();
+    void sharedEditingScenario();
+};
+
+void TestPublicAutomationRegistry::routing() {
+    QFETCH(QString, scenario);
     UiLanguageManager uiLanguageManager;
     auto registrySpeakerA = SpeakerInfo(QStringLiteral("speaker-a"), QStringLiteral("Speaker A"));
     auto registrySpeakerB = SpeakerInfo(QStringLiteral("speaker-b"), QStringLiteral("Speaker B"));
@@ -2382,102 +2412,128 @@ int main(int argc, char *argv[]) {
         runtime, access, fileGuard, admission,
         hostServices(runtime, &projectInputControl, &audioPathUpdateControl));
 
-    verifyAudioPathUpdateRouting(registry, runtime, directory.path(), audioPathUpdateControl);
-    verifyProjectInputGuards(registry, fileGuard, directory.path(), projectInputControl);
-    verifyMidiExportPublicationGate(registry, runtime, directory.path(), *midiExportControl);
-    verifyCurrentDocumentSavePolicy(registry, runtime, directory.path(), documentSaveCount);
+    if (scenario == QStringLiteral("audioPathRouting")) {
+        verifyAudioPathUpdateRouting(registry, runtime, directory.path(), audioPathUpdateControl);
+        return;
+    }
+    if (scenario == QStringLiteral("projectInputGuards")) {
+        verifyProjectInputGuards(registry, fileGuard, directory.path(), projectInputControl);
+        return;
+    }
+    if (scenario == QStringLiteral("midiPublicationGate")) {
+        verifyMidiExportPublicationGate(registry, runtime, directory.path(), *midiExportControl);
+        return;
+    }
+    if (scenario == QStringLiteral("savePolicy")) {
+        verifyCurrentDocumentSavePolicy(registry, runtime, directory.path(), documentSaveCount);
+        return;
+    }
+    if (scenario == QStringLiteral("advancedApplication")) {
+        verifyAdvancedApplicationBindings(registry, runtime, builtinLyricRuleId, customLyricRuleId,
+                                          *packageRefreshControl);
+        return;
+    }
+    if (scenario == QStringLiteral("packageRefreshLifetime")) {
+        verifyPackageRefreshLifetime(runtime, access, fileGuard, admission, *packageRefreshControl);
+        return;
+    }
+    if (scenario == QStringLiteral("headlessAndNative")) {
+        verifyHostCapabilityAndNativeJsonRpc(runtime, directory.path());
+        return;
+    }
+    if (scenario == QStringLiteral("applicationLifecycle")) {
+        const auto applicationInfo = registry.invoke(QStringLiteral("application.get_info"), {});
+        expect(applicationInfo &&
+                   applicationInfo.get().value(QStringLiteral("build_id")).toString() ==
+                       QStringLiteral("registry-build-id") &&
+                   applicationInfo.get().value(QStringLiteral("build_id")).toString() !=
+                       applicationInfo.get().value(QStringLiteral("version")).toString(),
+               QStringLiteral("application.get_info must expose the host build identifier"));
 
-    const auto settingsBeforeAdvancedBindings = *settingsSnapshot;
-    const auto lyricRulesBeforeAdvancedBindings = *lyricRules;
-    verifyAdvancedApplicationBindings(registry, runtime, builtinLyricRuleId, customLyricRuleId,
-                                      *packageRefreshControl);
-    *settingsSnapshot = settingsBeforeAdvancedBindings;
-    *lyricRules = lyricRulesBeforeAdvancedBindings;
-    verifyPackageRefreshLifetime(runtime, access, fileGuard, admission, *packageRefreshControl);
+        const auto exitRequest =
+            registry.invoke(QStringLiteral("application.request_exit"), {},
+                            {.clientId = QStringLiteral("json-rpc-lifecycle"),
+                             .source = Automation::InvocationSource::PublicJsonRpc});
+        expect(
+            exitRequest && exitRequest.get().value(QStringLiteral("accepted")).toBool() &&
+                exitRequest.get().value(QStringLiteral("action")).toString() ==
+                    QStringLiteral("exit") &&
+                !exitRequest.get().value(QStringLiteral("discard_changes")).toBool() &&
+                *terminationCalls == 1 &&
+                *lastTerminationMode == Automation::ApplicationTerminationMode::Exit &&
+                *lastTerminationSavePolicy ==
+                    Automation::ApplicationTerminationSavePolicy::RejectUnsaved,
+            QStringLiteral("application.request_exit must request non-interactive graceful exit"));
 
-    const auto applicationInfo = registry.invoke(QStringLiteral("application.get_info"), {});
-    expect(applicationInfo &&
-               applicationInfo.get().value(QStringLiteral("build_id")).toString() ==
-                   QStringLiteral("registry-build-id") &&
-               applicationInfo.get().value(QStringLiteral("build_id")).toString() !=
-                   applicationInfo.get().value(QStringLiteral("version")).toString(),
-           QStringLiteral("application.get_info must expose the host build identifier"));
+        *terminationResult = Automation::ApplicationTerminationRequestResult::UnsavedChanges;
+        const auto rejectedRestart =
+            registry.invoke(QStringLiteral("application.request_restart"), {});
+        expect(!rejectedRestart &&
+                   rejectedRestart.getError().code == Automation::AutomationErrorCode::Busy &&
+                   rejectedRestart.getError().fieldPath == QStringLiteral("discard_changes") &&
+                   *terminationCalls == 2 &&
+                   *lastTerminationSavePolicy ==
+                       Automation::ApplicationTerminationSavePolicy::RejectUnsaved,
+               QStringLiteral("lifecycle requests must reject unsaved changes without prompting"));
 
-    const auto exitRequest =
-        registry.invoke(QStringLiteral("application.request_exit"), {},
-                        {.clientId = QStringLiteral("json-rpc-lifecycle"),
-                         .source = Automation::InvocationSource::PublicJsonRpc});
-    expect(exitRequest && exitRequest.get().value(QStringLiteral("accepted")).toBool() &&
-               exitRequest.get().value(QStringLiteral("action")).toString() ==
-                   QStringLiteral("exit") &&
-               !exitRequest.get().value(QStringLiteral("discard_changes")).toBool() &&
-               *terminationCalls == 1 &&
-               *lastTerminationMode == Automation::ApplicationTerminationMode::Exit &&
-               *lastTerminationSavePolicy ==
-                   Automation::ApplicationTerminationSavePolicy::RejectUnsaved,
-           QStringLiteral("application.request_exit must request non-interactive graceful exit"));
+        *terminationResult = Automation::ApplicationTerminationRequestResult::Accepted;
+        const auto restartRequest = registry.invoke(QStringLiteral("application.request_restart"),
+                                                    QJsonObject{
+                                                        {QStringLiteral("discard_changes"), true}
+        });
+        expect(restartRequest &&
+                   restartRequest.get().value(QStringLiteral("action")).toString() ==
+                       QStringLiteral("restart") &&
+                   restartRequest.get().value(QStringLiteral("discard_changes")).toBool() &&
+                   *terminationCalls == 3 &&
+                   *lastTerminationMode == Automation::ApplicationTerminationMode::Restart &&
+                   *lastTerminationSavePolicy ==
+                       Automation::ApplicationTerminationSavePolicy::Discard,
+               QStringLiteral("discard_changes must opt into a non-interactive graceful restart"));
 
-    *terminationResult = Automation::ApplicationTerminationRequestResult::UnsavedChanges;
-    const auto rejectedRestart = registry.invoke(QStringLiteral("application.request_restart"), {});
-    expect(!rejectedRestart &&
-               rejectedRestart.getError().code == Automation::AutomationErrorCode::Busy &&
-               rejectedRestart.getError().fieldPath == QStringLiteral("discard_changes") &&
-               *terminationCalls == 2 &&
-               *lastTerminationSavePolicy ==
-                   Automation::ApplicationTerminationSavePolicy::RejectUnsaved,
-           QStringLiteral("lifecycle requests must reject unsaved changes without prompting"));
+        return;
+    }
+    if (scenario == QStringLiteral("bindingAndPolicy")) {
+        auto expectedIds = AutomationWire::publicToolIds();
+        auto bindingIds = registry.bindingIds();
+        std::sort(expectedIds.begin(), expectedIds.end());
+        expect(bindingIds == expectedIds && registry.isComplete(),
+               QStringLiteral("every declared editor contract must have exactly one binding"));
 
-    *terminationResult = Automation::ApplicationTerminationRequestResult::Accepted;
-    const auto restartRequest = registry.invoke(QStringLiteral("application.request_restart"),
-                                                QJsonObject{
-                                                    {QStringLiteral("discard_changes"), true}
-    });
-    expect(restartRequest &&
-               restartRequest.get().value(QStringLiteral("action")).toString() ==
-                   QStringLiteral("restart") &&
-               restartRequest.get().value(QStringLiteral("discard_changes")).toBool() &&
-               *terminationCalls == 3 &&
-               *lastTerminationMode == Automation::ApplicationTerminationMode::Restart &&
-               *lastTerminationSavePolicy == Automation::ApplicationTerminationSavePolicy::Discard,
-           QStringLiteral("discard_changes must opt into a non-interactive graceful restart"));
+        const auto status = registry.invoke(QStringLiteral("application.get_status"), {},
+                                            {.clientId = QStringLiteral("status")});
+        expect(status && status.get().value(QStringLiteral("documents")).toArray().size() == 1 &&
+                   status.get().value(QStringLiteral("windows")).toArray().size() == 1,
+               QStringLiteral("single-document host status must truncate documents and windows"));
 
-    auto expectedIds = AutomationWire::publicToolIds();
-    auto bindingIds = registry.bindingIds();
-    std::sort(expectedIds.begin(), expectedIds.end());
-    expect(bindingIds == expectedIds && registry.isComplete(),
-           QStringLiteral("every declared editor contract must have exactly one binding"));
+        const auto strictInput = registry.invoke(QStringLiteral("application.get_file_access"),
+                                                 QJsonObject{
+                                                     {QStringLiteral("unexpected"), true}
+        },
+                                                 {.clientId = QStringLiteral("strict-schema")});
+        expect(!strictInput &&
+                   strictInput.getError().code == Automation::AutomationErrorCode::InvalidArgument,
+               QStringLiteral("strict input schemas must reject additional properties"));
 
-    const auto status = registry.invoke(QStringLiteral("application.get_status"), {},
-                                        {.clientId = QStringLiteral("status")});
-    expect(status && status.get().value(QStringLiteral("documents")).toArray().size() == 1 &&
-               status.get().value(QStringLiteral("windows")).toArray().size() == 1,
-           QStringLiteral("single-document host status must truncate documents and windows"));
+        access.update(AutomationWire::ControlLevel::L1);
+        const auto denied = registry.invoke(QStringLiteral("formats.list"), {},
+                                            {.clientId = QStringLiteral("permission")});
+        expect(!denied &&
+                   denied.getError().code == Automation::AutomationErrorCode::PermissionDenied,
+               QStringLiteral("L1 must deny an L2 tool"));
+        access.update(AutomationWire::ControlLevel::Custom, {QStringLiteral("documents.get")});
+        expect(
+            access.isAllowed(QStringLiteral("application.get_status")) &&
+                access.isAllowed(QStringLiteral("documents.get")) &&
+                !access.isAllowed(QStringLiteral("tracks.set_color")),
+            QStringLiteral("custom control level must retain L0 and only explicit business tools"));
+        access.update(AutomationWire::ControlLevel::L3);
 
-    const auto strictInput = registry.invoke(QStringLiteral("application.get_file_access"),
-                                             QJsonObject{
-                                                 {QStringLiteral("unexpected"), true}
-    },
-                                             {.clientId = QStringLiteral("strict-schema")});
-    expect(!strictInput &&
-               strictInput.getError().code == Automation::AutomationErrorCode::InvalidArgument,
-           QStringLiteral("strict input schemas must reject additional properties"));
-
-    access.update(AutomationWire::ControlLevel::L1);
-    const auto denied = registry.invoke(QStringLiteral("formats.list"), {},
-                                        {.clientId = QStringLiteral("permission")});
-    expect(!denied && denied.getError().code == Automation::AutomationErrorCode::PermissionDenied,
-           QStringLiteral("L1 must deny an L2 tool"));
-    access.update(AutomationWire::ControlLevel::Custom, {QStringLiteral("documents.get")});
-    expect(access.isAllowed(QStringLiteral("application.get_status")) &&
-               access.isAllowed(QStringLiteral("documents.get")) &&
-               !access.isAllowed(QStringLiteral("tracks.set_color")),
-           QStringLiteral("custom control level must retain L0 and only explicit business tools"));
-    access.update(AutomationWire::ControlLevel::L3);
-
+        return;
+    }
     const auto publicEditingFixture = createPublicEditingFixture(registry, runtime);
-    expect(publicEditingFixture.has_value(),
-           QStringLiteral("representative public editing fixture must be created"));
-    if (publicEditingFixture) {
+    QVERIFY(publicEditingFixture.has_value());
+    if (scenario == QStringLiteral("voiceAndSpeakerMix")) {
         access.update(AutomationWire::ControlLevel::L2);
         const auto deniedPackageLookup = registry.invoke(QStringLiteral("packages.list"), {});
         expect(!deniedPackageLookup && deniedPackageLookup.getError().code ==
@@ -2486,76 +2542,246 @@ int main(int argc, char *argv[]) {
         verifyPublicVoiceAndSpeakerMix(registry, runtime, *publicEditingFixture, registrySinger,
                                        registrySingerV2, registrySpeakerV2, registrySpeakerV2B);
         access.update(AutomationWire::ControlLevel::L3);
-        verifyAdvancedGuiBindings(registry, runtime, *publicEditingFixture);
-
-        Automation::CurveDraftDto rangedAnchor;
-        rangedAnchor.type = Automation::CurveDraftDto::Type::Anchor;
-        rangedAnchor.nodes = {
-            {0,    6000, AnchorNode::Linear },
-            {500,  6100, AnchorNode::Hermite},
-            {1000, 6200, AnchorNode::Linear },
-        };
-        const auto seededParameter = runtime.parameters().replaceParameter(
-            Automation::CommandContext{
-                .expected = runtime.documentVersion(),
-                .source = Automation::InvocationSource::Test,
-            },
-            publicEditingFixture->scalarClipId, ParamInfo::Pitch, Param::Edited, {rangedAnchor});
-        const auto rangedParameter = registry.invoke(
-            QStringLiteral("parameters.get"),
-            QJsonObject{
-                {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()},
-                {QStringLiteral("clip_id"),     publicEditingFixture->scalarClipId.value()     },
-                {QStringLiteral("name"),        QStringLiteral("pitch")                        },
-                {QStringLiteral("layer"),       QStringLiteral("edited")                       },
-                {QStringLiteral("range"),
-                 QJsonObject{
-                     {QStringLiteral("start"), 400},
-                     {QStringLiteral("end"), 600},
-                 }                                                                             },
-        });
-        QJsonArray rangedNodes;
-        if (rangedParameter) {
-            const auto curves = rangedParameter.get()
-                                    .value(QStringLiteral("snapshot"))
-                                    .toObject()
-                                    .value(QStringLiteral("curves"))
-                                    .toArray();
-            if (curves.size() == 1)
-                rangedNodes = curves.first().toObject().value(QStringLiteral("nodes")).toArray();
-        }
-        expect(seededParameter && rangedParameter && rangedNodes.size() == 3 &&
-                   rangedNodes.first().toObject().value(QStringLiteral("position")).toInt() == 0 &&
-                   rangedNodes.last().toObject().value(QStringLiteral("position")).toInt() == 1000,
-               QStringLiteral("a ranged parameter query must preserve each intersecting anchor "
-                              "curve as a complete shape"));
-
-        auto *longClip = fixture.model().findClipById(publicEditingFixture->scalarClipId.value());
-        if (longClip) {
-            longClip->setStart(1);
-            longClip->setLength(std::numeric_limits<int>::max());
-        }
-        const auto rangedClips = registry.invoke(
-            QStringLiteral("clips.list"),
-            QJsonObject{
-                {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()},
-                {QStringLiteral("range"),
-                 QJsonObject{
-                     {QStringLiteral("start"), std::numeric_limits<int>::max() - 1},
-                     {QStringLiteral("end"), std::numeric_limits<int>::max()},
-                 }                                                                             },
-        });
-        bool containsLongClip = false;
-        if (rangedClips) {
-            for (const auto &value : rangedClips.get().value(QStringLiteral("clips")).toArray()) {
-                containsLongClip |= value.toObject().value(QStringLiteral("clip_id")).toInt() ==
-                                    publicEditingFixture->scalarClipId.value();
-            }
-        }
-        expect(longClip && rangedClips && containsLongClip,
-               QStringLiteral("clip range filtering must use widened end arithmetic"));
+        return;
     }
+    if (scenario == QStringLiteral("guiBindings")) {
+        verifyAdvancedGuiBindings(registry, runtime, *publicEditingFixture);
+        return;
+    }
+    Automation::CurveDraftDto rangedAnchor;
+    rangedAnchor.type = Automation::CurveDraftDto::Type::Anchor;
+    rangedAnchor.nodes = {
+        {0,    6000, AnchorNode::Linear },
+        {500,  6100, AnchorNode::Hermite},
+        {1000, 6200, AnchorNode::Linear },
+    };
+    const auto seededParameter = runtime.parameters().replaceParameter(
+        Automation::CommandContext{
+            .expected = runtime.documentVersion(),
+            .source = Automation::InvocationSource::Test,
+        },
+        publicEditingFixture->scalarClipId, ParamInfo::Pitch, Param::Edited, {rangedAnchor});
+    const auto rangedParameter = registry.invoke(
+        QStringLiteral("parameters.get"),
+        QJsonObject{
+            {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()},
+            {QStringLiteral("clip_id"),     publicEditingFixture->scalarClipId.value()     },
+            {QStringLiteral("name"),        QStringLiteral("pitch")                        },
+            {QStringLiteral("layer"),       QStringLiteral("edited")                       },
+            {QStringLiteral("range"),
+             QJsonObject{
+                 {QStringLiteral("start"), 400},
+                 {QStringLiteral("end"), 600},
+             }                                                                             },
+    });
+    QJsonArray rangedNodes;
+    if (rangedParameter) {
+        const auto curves = rangedParameter.get()
+                                .value(QStringLiteral("snapshot"))
+                                .toObject()
+                                .value(QStringLiteral("curves"))
+                                .toArray();
+        if (curves.size() == 1)
+            rangedNodes = curves.first().toObject().value(QStringLiteral("nodes")).toArray();
+    }
+    expect(seededParameter && rangedParameter && rangedNodes.size() == 3 &&
+               rangedNodes.first().toObject().value(QStringLiteral("position")).toInt() == 0 &&
+               rangedNodes.last().toObject().value(QStringLiteral("position")).toInt() == 1000,
+           QStringLiteral("a ranged parameter query must preserve each intersecting anchor "
+                          "curve as a complete shape"));
 
-    verifyHostCapabilityAndNativeJsonRpc(runtime, directory.path());
-    return failures == 0 ? 0 : 1;
+    auto *longClip = fixture.model().findClipById(publicEditingFixture->scalarClipId.value());
+    if (longClip) {
+        longClip->setStart(1);
+        longClip->setLength(std::numeric_limits<int>::max());
+    }
+    const auto rangedClips = registry.invoke(
+        QStringLiteral("clips.list"),
+        QJsonObject{
+            {QStringLiteral("document_id"), runtime.documentVersion().documentId.toString()},
+            {QStringLiteral("range"),
+             QJsonObject{
+                 {QStringLiteral("start"), std::numeric_limits<int>::max() - 1},
+                 {QStringLiteral("end"), std::numeric_limits<int>::max()},
+             }                                                                             },
+    });
+    bool containsLongClip = false;
+    if (rangedClips) {
+        for (const auto &value : rangedClips.get().value(QStringLiteral("clips")).toArray()) {
+            containsLongClip |= value.toObject().value(QStringLiteral("clip_id")).toInt() ==
+                                publicEditingFixture->scalarClipId.value();
+        }
+    }
+    expect(longClip && rangedClips && containsLongClip,
+           QStringLiteral("clip range filtering must use widened end arithmetic"));
 }
+
+void TestPublicAutomationRegistry::rejectedInputs_data() {
+    QTest::addColumn<QString>("operation");
+    QTest::addColumn<QJsonObject>("arguments");
+    QTest::addColumn<bool>("documentContext");
+    QTest::newRow("track-cannot-inject-clips")
+        << QStringLiteral("tracks.insert")
+        << QJsonObject{{"index", 0}, {"tracks", QJsonArray{QJsonObject{{"clips", QJsonArray{}}}}}}
+        << true;
+    QTest::newRow("clip-cannot-inject-notes")
+        << QStringLiteral("clips.insert")
+        << QJsonObject{{"clips", QJsonArray{QJsonObject{
+            {"track_id", 1}, {"start", 0}, {"notes", QJsonArray{}}}}}}
+        << true;
+    QTest::newRow("oversized-idempotency-key")
+        << QStringLiteral("tracks.insert")
+        << QJsonObject{{"index", 0}, {"tracks", QJsonArray{QJsonObject{}}},
+                       {"idempotency_key", QString(AutomationWire::MaximumIdempotencyKeyLength + 1, u'k')}}
+        << true;
+    QTest::newRow("public-rename-does-not-advertise-preview")
+        << QStringLiteral("tracks.rename")
+        << QJsonObject{{"track_id", 1}, {"name", "After"}, {"validate_only", true}} << true;
+    QTest::newRow("replacement-idempotency-is-unsupported")
+        << QStringLiteral("documents.new")
+        << QJsonObject{{"unsaved_policy", "discard"}, {"idempotency_key", "unsupported"}} << false;
+    QTest::newRow("exit-rejects-string-boolean")
+        << QStringLiteral("application.request_exit")
+        << QJsonObject{{"discard_changes", "true"}} << false;
+}
+
+void TestPublicAutomationRegistry::rejectedInputs() {
+    QFETCH(QString, operation);
+    QFETCH(QJsonObject, arguments);
+    QFETCH(bool, documentContext);
+    AutomationTestSupport::TestRuntime fixture;
+    fixture.model().newProject();
+    auto &runtime = fixture.runtime();
+    const auto before = runtime.documentVersion();
+    const auto projectBefore = runtime.project().getProject(before.documentId);
+    const auto historyBefore = runtime.history().getState(before.documentId);
+    QVERIFY(projectBefore);
+    QVERIFY(historyBefore);
+    if (documentContext)
+        arguments = mergeCommandArguments(before, arguments);
+    Automation::AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
+    Automation::AutomationFileGuard fileGuard;
+    Automation::AdmissionController admission;
+    Automation::PublicAutomationRegistry registry(runtime, access, fileGuard, admission);
+    const auto result = registry.invoke(operation, arguments);
+    QVERIFY(!result);
+    QCOMPARE(result.getError().code, Automation::AutomationErrorCode::InvalidArgument);
+    QCOMPARE(runtime.documentVersion().revision, before.revision);
+    QCOMPARE(runtime.documentVersion().documentId, before.documentId);
+    const auto projectAfter = runtime.project().getProject(before.documentId);
+    const auto historyAfter = runtime.history().getState(before.documentId);
+    QVERIFY(projectAfter);
+    QVERIFY(historyAfter);
+    QCOMPARE(projectAfter.get().tracks.size(), projectBefore.get().tracks.size());
+    QCOMPARE(historyAfter.get().canUndo, historyBefore.get().canUndo);
+    QCOMPARE(historyAfter.get().canRedo, historyBefore.get().canRedo);
+}
+
+void TestPublicAutomationRegistry::sharedEditingScenario_data() {
+    QTest::addColumn<QString>("adapter");
+    for (const auto *name : {"facade", "registry", "native", "mcp"})
+        QTest::newRow(name) << QString::fromLatin1(name);
+}
+
+void TestPublicAutomationRegistry::sharedEditingScenario() {
+    QFETCH(QString, adapter);
+    AutomationTestSupport::TestRuntime fixture;
+    fixture.model().newProject();
+    auto &runtime = fixture.runtime();
+    Automation::TrackDraftDto draft;
+    draft.name = QStringLiteral("Before");
+    draft.gain = 1.0;
+    draft.defaultLanguage = QStringLiteral("unknown");
+    const auto inserted = runtime.project().insertTrack(
+        {.expected = runtime.documentVersion(), .source = Automation::InvocationSource::Test}, 0,
+        draft);
+    QVERIFY(inserted);
+    QVERIFY(!inserted.get().affectedObjects.isEmpty());
+    const Automation::TrackId trackId(inserted.get().affectedObjects.first().value);
+    const auto initial = runtime.documentVersion();
+    Automation::AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
+    Automation::AutomationFileGuard fileGuard;
+    Automation::AdmissionController admission;
+    Automation::PublicAutomationRegistry registry(runtime, access, fileGuard, admission);
+    Automation::NativeJsonRpcDispatcher native(registry);
+    Automation::McpRequestDispatcher mcp(
+        registry,
+        {.name = QStringLiteral("Shared Editing Scenario"), .version = QStringLiteral("1")});
+
+    // 同一份业务过程共享输入和状态断言，适配器只负责调用与解包。
+    const auto execute = [&](const QString &operation, const Automation::DocumentVersion &version,
+                             const bool validateOnly) -> QString {
+        if (adapter == QStringLiteral("facade")) {
+            Automation::CommandContext context{.expected = version,
+                                               .validateOnly = validateOnly,
+                                               .source = Automation::InvocationSource::Test};
+            const auto result =
+                operation == QStringLiteral("tracks.rename")
+                    ? runtime.project().renameTrack(context, trackId, QStringLiteral("After"))
+                    : runtime.history().undo(context);
+            return result ? QString{} : Automation::errorCodeName(result.getError().code);
+        }
+        auto arguments = commandArguments(version);
+        if (operation == QStringLiteral("tracks.rename")) {
+            arguments.insert(QStringLiteral("track_id"), trackId.value());
+            arguments.insert(QStringLiteral("name"), QStringLiteral("After"));
+        }
+        if (adapter == QStringLiteral("registry")) {
+            const auto result = registry.invoke(operation, arguments);
+            return result ? QString{} : Automation::errorCodeName(result.getError().code);
+        }
+        if (adapter == QStringLiteral("native")) {
+            const auto response =
+                native.dispatch(nativeRequest(QStringLiteral("shared"), operation, arguments),
+                                QStringLiteral("shared"));
+            if (!response.contains(QStringLiteral("error")))
+                return {};
+            return nativeErrorData(response).value(QStringLiteral("code")).toString();
+        }
+        AutomationWire::Mcp::RequestEnvelope request{
+            .id = QStringLiteral("shared"),
+            .method = QString::fromLatin1(AutomationWire::Mcp::ToolsCallMethod),
+            .params = {{QStringLiteral("name"), operation},
+                       {QStringLiteral("arguments"), arguments}},
+            .protocolVersion = QString::fromLatin1(AutomationWire::Mcp::ProtocolVersion),
+            .name = operation,
+        };
+        const auto response = mcp.dispatch(request, QStringLiteral("shared"));
+        if (response.contains(QStringLiteral("error")))
+            return QStringLiteral("protocol_error");
+        const auto result = response.value(QStringLiteral("result")).toObject();
+        return result.value(QStringLiteral("isError")).toBool()
+                   ? result.value(QStringLiteral("structuredContent"))
+                         .toObject()
+                         .value(QStringLiteral("code"))
+                         .toString()
+                   : QString{};
+    };
+    const auto trackName = [&]() -> QString {
+        const auto project = runtime.project().getProject(runtime.documentVersion().documentId);
+        if (!project)
+            return {};
+        for (const auto &track : project.get().tracks) {
+            if (track.id == trackId)
+                return track.data.name;
+        }
+        return {};
+    };
+
+    if (adapter == QStringLiteral("facade")) {
+        QCOMPARE(execute(QStringLiteral("tracks.rename"), initial, true), QString{});
+        QCOMPARE(runtime.documentVersion().revision, initial.revision);
+        QCOMPARE(trackName(), QStringLiteral("Before"));
+    }
+    QCOMPARE(execute(QStringLiteral("tracks.rename"), initial, false), QString{});
+    QCOMPARE(runtime.documentVersion().revision, initial.revision + 1);
+    QCOMPARE(trackName(), QStringLiteral("After"));
+    QCOMPARE(execute(QStringLiteral("tracks.rename"), initial, false),
+             QStringLiteral("revision_conflict"));
+    QCOMPARE(trackName(), QStringLiteral("After"));
+    QCOMPARE(execute(QStringLiteral("history.undo"), runtime.documentVersion(), false), QString{});
+    QCOMPARE(trackName(), QStringLiteral("Before"));
+}
+
+QTEST_GUILESS_MAIN(TestPublicAutomationRegistry)
+#include "main.moc"

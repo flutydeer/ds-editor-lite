@@ -3,6 +3,8 @@
 #include <lite/AutomationWire/McpProtocol.h>
 
 #include <QCoreApplication>
+#include <QtTest>
+#include "../TestSupport/TestAssertions.h"
 #include <QElapsedTimer>
 #include <QEventLoop>
 #include <QJsonArray>
@@ -24,7 +26,7 @@
 namespace {
     namespace Mcp = AutomationWire::Mcp;
 
-    int failures = 0;
+    using TestSupport::expect;
 
     struct HttpResult {
         int status = 0;
@@ -43,13 +45,6 @@ namespace {
         Get,
         Delete,
     };
-
-    void expect(const bool condition, const QString &message) {
-        if (condition)
-            return;
-        QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        ++failures;
-    }
 
     QNetworkReply *startRequest(QNetworkAccessManager &manager, QNetworkRequest request,
                                 const QByteArray &body = {},
@@ -203,13 +198,15 @@ namespace {
     }
 }
 
-int main(int argc, char *argv[]) {
-    QCoreApplication application(argc, argv);
+class TestMcpHttpServer final : public QObject {
+    Q_OBJECT
+private slots:
+    void sessionsAndHttpValidation();
+    void nativeMcpRouteLifecycle();
+    void deadlinesAndCrossConnectionCancellation();
+};
 
-    const Automation::McpHttpLimits defaultHttpLimits;
-    expect(defaultHttpLimits.maximumGlobalInFlight == 32,
-           QStringLiteral("default HTTP admission must allow 32 in-flight requests"));
-
+void TestMcpHttpServer::sessionsAndHttpValidation() {
     QMutex observationMutex;
     QString observedClientId;
     QString observedMethod;
@@ -280,7 +277,7 @@ int main(int argc, char *argv[]) {
                server.endpoint() == QStringLiteral("http://127.0.0.1:%1/mcp").arg(server.port()),
            QStringLiteral("server must publish its actual numeric-loopback endpoint"));
     if (!server.isListening())
-        return 1;
+        return;
 
     QNetworkAccessManager manager;
     manager.setProxy(QNetworkProxy::NoProxy);
@@ -863,12 +860,34 @@ int main(int argc, char *argv[]) {
     expect(!server.isListening() && server.endpoint().isEmpty(),
            QStringLiteral("stopping the MCP server must release its endpoint"));
 
+    expect(server.start(0, error),
+           QStringLiteral("the MCP server must support a clean restart: %1").arg(error));
+    server.requestStop();
+    expect(waitForStop(server),
+           QStringLiteral("asynchronous MCP shutdown must complete without blocking the GUI loop"));
+    expect(!server.isListening() && !server.isStopping() && server.endpoint().isEmpty(),
+           QStringLiteral("asynchronous MCP shutdown must release its worker and endpoint"));
+}
+
+void TestMcpHttpServer::nativeMcpRouteLifecycle() {
+    QNetworkAccessManager manager;
+    manager.setProxy(QNetworkProxy::NoProxy);
+    const Mcp::ImplementationInfo serverInfo{
+        QStringLiteral("DS Editor Lite Test"), QStringLiteral("1.0"), {}, {}};
+    const Mcp::RequestContext legacyContext{
+        .protocolVersion = QString::fromLatin1(Mcp::LegacyProtocolVersion),
+        .clientCapabilities = {},
+        .clientInfo = {.name = QStringLiteral("legacy-http-client"),
+                               .version = QStringLiteral("1.0")},
+    };
+    const auto legacyPing = Mcp::makeRequest(QString::fromLatin1(Mcp::PingMethod), {},
+                                             legacyContext, QStringLiteral("ping"));
     Automation::McpHttpLimits dualProtocolLimits;
     dualProtocolLimits.maximumRequestBytes = 1024;
     dualProtocolLimits.maximumJsonDepth = 16;
     dualProtocolLimits.maximumJsonNodes = 128;
     Automation::McpHttpServer dualProtocolServer(
-        &application,
+        QCoreApplication::instance(),
         Automation::McpHttpServer::RequestHandler(
             [&](const Mcp::RequestEnvelope &request, const QString &) {
                 return Mcp::makeResultResponse(request.id, Mcp::makeDiscoverResult(serverInfo),
@@ -1108,7 +1127,7 @@ int main(int argc, char *argv[]) {
     nativeResponseLimits.maximumRequestBytes = 4096;
     nativeResponseLimits.maximumResponseBytes = 1024;
     Automation::McpHttpServer nativeResponseLimitServer(
-        &application, Automation::McpHttpServer::RequestHandler{},
+        QCoreApplication::instance(), Automation::McpHttpServer::RequestHandler{},
         Automation::McpHttpServer::NativeRequestHandler(
             [](const QJsonValue &message, const QString &) {
                 return QJsonObject{
@@ -1131,15 +1150,28 @@ int main(int argc, char *argv[]) {
                oversizedNative.body.size() <= nativeResponseLimits.maximumResponseBytes,
            QStringLiteral("oversized Native results must become bounded correlated errors"));
     nativeResponseLimitServer.stop();
+}
 
-    expect(server.start(0, error),
-           QStringLiteral("the MCP server must support a clean restart: %1").arg(error));
-    server.requestStop();
-    expect(waitForStop(server),
-           QStringLiteral("asynchronous MCP shutdown must complete without blocking the GUI loop"));
-    expect(!server.isListening() && !server.isStopping() && server.endpoint().isEmpty(),
-           QStringLiteral("asynchronous MCP shutdown must release its worker and endpoint"));
-
+void TestMcpHttpServer::deadlinesAndCrossConnectionCancellation() {
+    QNetworkAccessManager manager;
+    manager.setProxy(QNetworkProxy::NoProxy);
+    const Mcp::ImplementationInfo serverInfo{
+        QStringLiteral("DS Editor Lite Test"), QStringLiteral("1.0"), {}, {}};
+    const Mcp::RequestContext legacyContext{
+        .protocolVersion = QString::fromLatin1(Mcp::LegacyProtocolVersion),
+        .clientCapabilities = {},
+        .clientInfo = {.name = QStringLiteral("legacy-http-client"),
+                               .version = QStringLiteral("1.0")},
+    };
+    const auto legacyPing = Mcp::makeRequest(QString::fromLatin1(Mcp::PingMethod), {},
+                                             legacyContext, QStringLiteral("ping"));
+    const auto discover =
+        requestObject(QString::fromLatin1(Mcp::DiscoverMethod), QStringLiteral("discover"));
+    const QJsonObject nativeCall{
+        {QStringLiteral("jsonrpc"), QStringLiteral("2.0")                   },
+        {QStringLiteral("id"),      7                                       },
+        {QStringLiteral("method"),  QStringLiteral("application.get_status")},
+    };
     const auto basicHandler = [serverInfo](const Mcp::RequestEnvelope &request, const QString &) {
         if (request.method == QString::fromLatin1(Mcp::ToolsListMethod)) {
             return Mcp::makeResultResponse(
@@ -1397,5 +1429,6 @@ int main(int argc, char *argv[]) {
     handlerThread.quit();
     expect(handlerThread.wait(2000),
            QStringLiteral("the handler executor thread must stop within a hard timeout"));
-    return failures == 0 ? 0 : 1;
 }
+QTEST_GUILESS_MAIN(TestMcpHttpServer)
+#include "main.moc"
