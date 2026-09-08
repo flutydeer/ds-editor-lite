@@ -43,7 +43,7 @@ jobs:
         uses: jurplel/install-qt-action@v4
         with:
           version: ${{ env.QT_VERSION }}
-          modules: 'qt5compat qtshadertools qtstatemachine qthttpserver'
+          modules: 'qt5compat qtshadertools qtscxml qthttpserver'
           cache: true
       - name: Restore dependency packages
         id: packages

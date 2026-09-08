@@ -12,6 +12,7 @@
 
 | 症状 | 根因 | 修复提交 | 验证结果与证据 |
 |---|---|---|---|
+| Qt 安装在测试前失败 | 安装器的 State Machines 包名是 `qtscxml`，并非 CMake 组件名 `qtstatemachine` | 后续 CI 修复提交 | 首次运行 [34265782992](https://github.com/flutydeer/ds-editor-lite/actions/runs/34265782992)；修复后重新触发 |
 
 仅记录有意义的失败及闭环，同一根因合并；原始日志留在 Actions artifacts 或本地产物目录。
 
