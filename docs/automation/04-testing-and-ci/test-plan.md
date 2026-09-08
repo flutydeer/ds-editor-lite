@@ -8,6 +8,25 @@
 
 Windows 使用项目 VS DevShell/preset wrapper。Linux 使用同一 CMake 工程和固定依赖，不依赖开发机 PATH。所有测试启用 `LITE_BUILD_TESTS`，构建完整产品和测试聚合目标。
 
+专用 `tests` configure/build preset 使用 `build/Tests`，避免与 IDE 的 `build/Debug` 自动配置共享生成文件。Windows 入口：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Dependencies -Preset tests
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode ConfigureAndBuild -Preset tests
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Test -Preset local
+```
+
+Linux 已准备 Qt 与系统开发依赖后：
+
+```bash
+bash scripts/ci/bootstrap-linux.sh
+cmake --preset tests -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" -DVCPKG_TARGET_TRIPLET=x64-linux
+cmake --build --preset tests
+ctest --preset ci
+```
+
+本地结果写到 `build/test-results`。`local` 选择本机全部注册测试，`ci` 只选择通用与 offscreen 集合；单组可用 CTest 的 `-L`/`-R`，具体函数可直接给 Qt Test 程序传函数名。
+
 执行时记录 commit、系统、编译器、Qt、CMake、Ninja、vcpkg 与子模块版本。正式候选的命令及结果在测试报告中记录。
 
 ## 3. 运行条件
@@ -21,6 +40,8 @@ Windows 使用项目 VS DevShell/preset wrapper。Linux 使用同一 CMake 工�
 | 平台特有行为 | Linux 对应项 | 当前平台对应项 |
 
 不以 Linux CI 集合代替本地完整入口。资源不足和平台不适用必须明确，不计作通过。
+
+真实声库用例为 `TestHeadlessResources`：设置 `DSEL_TEST_VOICEBANK_ROOT`、`DSEL_TEST_LANGUAGE`、`DSEL_TEST_LYRIC`，多音源时再指定 `DSEL_TEST_SINGER_ID`。用例固定 CPU，创建短音符，完成推理及 WAV 导出并检查可解码、有限样本和非零能量。未设置声库根时明确跳过；配置后的失败为失败，不自动扫描个人声库。
 
 ## 4. 隔离与清理
 

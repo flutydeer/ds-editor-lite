@@ -125,7 +125,7 @@ namespace TestSupport {
         environment.insert(QStringLiteral("DSEL_TEST_DATA_ROOT"), path());
         environment.insert(QStringLiteral("APPDATA"), path());
         environment.insert(QStringLiteral("LOCALAPPDATA"), filePath(QStringLiteral("Local")));
-        environment.insert(QStringLiteral("QT_LOGGING_TO_CONSOLE"), QStringLiteral("1"));
+        environment.insert(QStringLiteral("QT_FORCE_STDERR_LOGGING"), QStringLiteral("1"));
         return environment;
     }
 

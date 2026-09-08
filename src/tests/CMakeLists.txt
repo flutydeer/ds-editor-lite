@@ -1,5 +1,8 @@
 find_package(Qt6 REQUIRED COMPONENTS Test)
 add_custom_target(lite_tests)
+if(TARGET IcuWrapperTests)
+    add_dependencies(lite_tests IcuWrapperTests)
+endif()
 include_directories(${LITE_BUILD_INCLUDE_DIR})
 
 add_subdirectory(AutomationTestSupport)

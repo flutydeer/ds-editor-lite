@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("Configure", "Build", "ConfigureAndBuild", "Dependencies")]
+    [ValidateSet("Configure", "Build", "ConfigureAndBuild", "Dependencies", "Test")]
     [string] $Mode = "Build",
 
     [string] $Preset = "debug",
@@ -111,6 +111,12 @@ if ($Target) {
 }
 
 switch ($Mode) {
+    "Test" {
+        $resultsDir = Join-Path $repoRoot "build\test-results"
+        New-Item -ItemType Directory -Force -Path $resultsDir | Out-Null
+        $testCommand = "ctest --preset $Preset --output-junit `"$resultsDir\$Preset.xml`" --output-log `"$resultsDir\$Preset.log`""
+        Invoke-CMakeCommand $vcvars $repoRoot $resolvedQtDir $testCommand
+    }
     "Dependencies" {
         Invoke-CMakeCommand $vcvars $repoRoot $resolvedQtDir ".\vcpkg\vcpkg.exe install --x-manifest-root=scripts/vcpkg-manifest --x-install-root=vcpkg/installed --triplet=x64-windows"
     }

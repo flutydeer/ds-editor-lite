@@ -185,6 +185,7 @@ endif()
 qt_add_translations(
     TARGETS EditorRuntime
     SOURCE_TARGETS
+        ${PROJECT_NAME}
         EditorRuntime
         EditorAutomationCore
         Core

@@ -59,7 +59,11 @@ if(BUILD_TESTING AND (NOT DEFINED LITE_BUILD_TESTS OR LITE_BUILD_TESTS))
     add_executable(IcuWrapperTests tests/IcuWrapperTests.cpp)
     set_target_properties(IcuWrapperTests PROPERTIES AUTOMOC ON)
     target_link_libraries(IcuWrapperTests PRIVATE IcuWrapper::IcuWrapper Qt6::Test)
-    add_test(NAME IcuWrapperTests COMMAND IcuWrapperTests)
+    if(COMMAND lite_register_test)
+        lite_register_test(IcuWrapperTests CATEGORY unit)
+    else()
+        add_test(NAME IcuWrapperTests COMMAND IcuWrapperTests)
+    endif()
 endif()
 
 install(TARGETS IcuWrapper

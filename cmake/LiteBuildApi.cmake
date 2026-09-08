@@ -38,6 +38,7 @@ function(lite_register_test _target)
         LABELS "${_labels}"
         TIMEOUT ${TEST_TIMEOUT}
         WORKING_DIRECTORY "$<TARGET_FILE_DIR:${_target}>"
+        ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     )
     if(_locks)
         set_tests_properties(${TEST_NAME} PROPERTIES RESOURCE_LOCK "${_locks}")
