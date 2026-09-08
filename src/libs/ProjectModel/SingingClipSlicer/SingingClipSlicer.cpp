@@ -3,8 +3,43 @@
 #include <lite/ProjectModel/SingingClipSlicer/SingingClipSlicerGlobal.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/MusicBase/Timeline.h>
+#include <lite/ProjectModel/Utils/Syllabification.h>
 
 #include <QDebug>
+
+#include <algorithm>
+
+namespace {
+    bool hasUnassignedSyllabificationNotes(const NoteList &notes) {
+        int rootIndex = 0;
+        while (rootIndex < notes.size()) {
+            const auto root = notes.at(rootIndex);
+            if (root->isSyllabification())
+                return true;
+
+            QStringList lyrics{root->lyric()};
+            auto wordEndTick = root->localStart() + root->length();
+            int end = rootIndex + 1;
+            for (; end < notes.size(); ++end) {
+                const auto note = notes.at(end);
+                if ((!note->isSlur() && !note->isSyllabification()) ||
+                    note->localStart() > wordEndTick)
+                    break;
+                lyrics.append(note->lyric());
+                wordEndTick = std::max(wordEndTick, note->localStart() + note->length());
+            }
+
+            const auto ranges =
+                Syllabification::phonemeRangesForNotes(lyrics, root->phonemeNameSeq().result());
+            for (int i = 1; i < lyrics.size(); ++i) {
+                if (Note::isSyllabificationLyric(lyrics.at(i)) && ranges.at(i).count == 0)
+                    return true;
+            }
+            rootIndex = end;
+        }
+        return false;
+    }
+}
 
 SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &source) {
     // Slice options
@@ -144,9 +179,9 @@ SliceResult SingingClipSlicer::slice(const Timeline &timeline, const NoteList &s
                 }
             }
 
-            // Skip the segment if the complete phrase has missing phoneme info
-            // or if the first note is a slur or orphan syllabification note
-            if (hasMissingPhonemeInfo || firstNoteIsInvalid) {
+            // Skip phrases with missing phonemes or unassigned continuation notes.
+            if (hasMissingPhonemeInfo || firstNoteIsInvalid ||
+                hasUnassignedSyllabificationNotes(buffer)) {
                 buffer.clear();
                 continue;
             }
