@@ -15,6 +15,7 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QSemaphore>
+#include <QScopeGuard>
 #include <QTcpSocket>
 #include <QTextStream>
 #include <QThread>
@@ -196,93 +197,213 @@ namespace {
             .value(QStringLiteral("code"))
             .toInt();
     }
+
+    class McpServerFixture final {
+    public:
+        QMutex observationMutex;
+        QString observedClientId;
+        QString observedMethod;
+        const Mcp::ImplementationInfo serverInfo{QStringLiteral("DS Editor Lite Test"),
+                                                 QStringLiteral("1.0"),
+                                                 {},
+                                                 {}};
+        Automation::McpHttpLimits limits = [] {
+            Automation::McpHttpLimits value;
+            value.maximumRequestBytes = 1024;
+            value.maximumResponseBytes = 4096;
+            value.maximumJsonNodes = 128;
+            value.maximumLegacySessions = 2;
+            return value;
+        }();
+        Automation::McpHttpServer server;
+        QNetworkAccessManager manager;
+        QString error;
+
+        McpServerFixture()
+            : server(
+                  [this](const Mcp::RequestEnvelope &request, const QString &clientId) {
+                      {
+                          const QMutexLocker locker(&observationMutex);
+                          observedClientId = clientId;
+                          observedMethod = request.method;
+                      }
+                      if (request.method == QString::fromLatin1(Mcp::InitializeMethod)) {
+                          return Mcp::makeResultResponse(
+                              request.id,
+                              Mcp::makeInitializeResult(request.protocolVersion, serverInfo), {},
+                              request.protocolVersion);
+                      }
+                      if (request.method == QString::fromLatin1(Mcp::PingMethod)) {
+                          return Mcp::makeResultResponse(request.id, {}, serverInfo,
+                                                         request.protocolVersion);
+                      }
+                      if (request.method == QString::fromLatin1(Mcp::DiscoverMethod)) {
+                          return Mcp::makeResultResponse(request.id,
+                                                         Mcp::makeDiscoverResult(serverInfo),
+                                                         serverInfo, request.protocolVersion);
+                      }
+                      if (request.method == QString::fromLatin1(Mcp::ToolsListMethod)) {
+                          return Mcp::makeResultResponse(
+                              request.id,
+                              Mcp::makeToolsListResult({}, {}, 0, QStringLiteral("private"),
+                                                       serverInfo, request.protocolVersion),
+                              serverInfo, request.protocolVersion);
+                      }
+                      if (request.name == QStringLiteral("invalid.response"))
+                          return QJsonObject{};
+                      if (request.name == QStringLiteral("large.response")) {
+                          return Mcp::makeResultResponse(
+                              request.id,
+                              Mcp::makeToolCallResult(
+                                  QJsonObject{
+                                      {QStringLiteral("payload"), QString(5000, u'x')}
+                          },
+                                  false, {}, {}, request.protocolVersion),
+                              serverInfo, request.protocolVersion);
+                      }
+                      return Mcp::makeResultResponse(request.id,
+                                                     Mcp::makeToolCallResult(
+                                                         QJsonObject{
+                                                             {QStringLiteral("ok"), true}
+                      },
+                                                         false, QStringLiteral("ok"), serverInfo,
+                                                         request.protocolVersion),
+                                                     serverInfo, request.protocolVersion);
+                  },
+                  limits) {
+            manager.setProxy(QNetworkProxy::NoProxy);
+        }
+
+        bool start() {
+            return server.start(0, error);
+        }
+
+        QUrl endpoint() const {
+            return QUrl(server.endpoint());
+        }
+    };
+
+    class NativeServerFixture final {
+    public:
+        const Mcp::ImplementationInfo serverInfo{QStringLiteral("DS Editor Lite Test"),
+                                                 QStringLiteral("1.0"),
+                                                 {},
+                                                 {}};
+        Automation::McpHttpLimits limits = [] {
+            Automation::McpHttpLimits value;
+            value.maximumRequestBytes = 1024;
+            value.maximumJsonDepth = 16;
+            value.maximumJsonNodes = 128;
+            return value;
+        }();
+        Automation::McpHttpServer server;
+        QNetworkAccessManager manager;
+        QString error;
+
+        NativeServerFixture()
+            : server(
+                  QCoreApplication::instance(),
+                  Automation::McpHttpServer::RequestHandler(
+                      [this](const Mcp::RequestEnvelope &request, const QString &) {
+                          return Mcp::makeResultResponse(request.id,
+                                                         Mcp::makeDiscoverResult(serverInfo),
+                                                         serverInfo, request.protocolVersion);
+                      }),
+                  Automation::McpHttpServer::NativeRequestHandler([](const QJsonValue &message,
+                                                                     const QString &clientId) {
+                      if (!message.isObject()) {
+                          return QJsonObject{
+                              {QStringLiteral("jsonrpc"), QStringLiteral("2.0")       },
+                              {QStringLiteral("id"),      QJsonValue(QJsonValue::Null)},
+                              {QStringLiteral("error"),
+                               QJsonObject{
+                                   {QStringLiteral("code"), -32600},
+                                   {QStringLiteral("message"), QStringLiteral("Invalid Request")},
+                               }                                                      },
+                          };
+                      }
+                      const auto request = message.toObject();
+                      const auto method = request.value(QStringLiteral("method")).toString();
+                      if (method == QStringLiteral("test.throw"))
+                          throw std::runtime_error("native handler failure");
+                      if (method == QStringLiteral("test.invalid_response")) {
+                          return QJsonObject{
+                              {QStringLiteral("jsonrpc"), QStringLiteral("2.0")     },
+                              {QStringLiteral("id"),      QStringLiteral("wrong-id")},
+                              {QStringLiteral("result"),  QJsonObject{}             },
+                          };
+                      }
+                      return QJsonObject{
+                          {QStringLiteral("jsonrpc"), QStringLiteral("2.0")              },
+                          {QStringLiteral("id"),      request.value(QStringLiteral("id"))},
+                          {QStringLiteral("result"),
+                           QJsonObject{
+                               {QStringLiteral("params"),
+                                request.value(QStringLiteral("params")).toObject()},
+                               {QStringLiteral("client_id_present"), !clientId.isEmpty()},
+                           }                                                             },
+                      };
+                  }),
+                  limits) {
+            manager.setProxy(QNetworkProxy::NoProxy);
+        }
+
+        bool start() {
+            return server.start(0, {.mcp = true, .native = true}, error);
+        }
+    };
+
+    class HandlerThreadFixture final {
+    public:
+        QThread thread;
+        QObject context;
+
+        HandlerThreadFixture() {
+            context.moveToThread(&thread);
+            thread.start();
+        }
+
+        ~HandlerThreadFixture() {
+            QMetaObject::invokeMethod(
+                &context, [&] { context.moveToThread(QCoreApplication::instance()->thread()); },
+                Qt::BlockingQueuedConnection);
+            thread.quit();
+            expect(thread.wait(2000),
+                   QStringLiteral("handler executor must stop within its timeout"));
+        }
+    };
 }
 
 class TestMcpHttpServer final : public QObject {
     Q_OBJECT
 private slots:
-    void sessionsAndHttpValidation();
+    void modernClientIdentity();
+    void legacySessionLifecycle();
+    void httpAdmission_data();
+    void httpAdmission();
+    void emptyOriginRejected();
+    void transportMetadataRouting();
+    void jsonAndRequestLimits();
+    void handlerResponseLimits();
+    void listenerLifecycle();
+    void nativeRequestValidation();
     void nativeMcpRouteLifecycle();
-    void deadlinesAndCrossConnectionCancellation();
+    void nativeResponseLimit();
+    void defaultRequestDeadline();
+    void sharedAdmissionAndDeadline();
+    void crossConnectionCancellation_data();
+    void crossConnectionCancellation();
 };
 
-void TestMcpHttpServer::sessionsAndHttpValidation() {
-    QMutex observationMutex;
-    QString observedClientId;
-    QString observedMethod;
-    const Mcp::ImplementationInfo serverInfo{
-        QStringLiteral("DS Editor Lite Test"),
-        QStringLiteral("1.0"),
-        {},
-        {},
-    };
-    Automation::McpHttpLimits limits;
-    limits.maximumRequestBytes = 1024;
-    limits.maximumResponseBytes = 4096;
-    limits.maximumJsonNodes = 128;
-    limits.maximumLegacySessions = 2;
-    Automation::McpHttpServer server(
-        [&](const Mcp::RequestEnvelope &request, const QString &clientId) {
-            {
-                const QMutexLocker locker(&observationMutex);
-                observedClientId = clientId;
-                observedMethod = request.method;
-            }
-            if (request.method == QString::fromLatin1(Mcp::InitializeMethod)) {
-                return Mcp::makeResultResponse(
-                    request.id, Mcp::makeInitializeResult(request.protocolVersion, serverInfo), {},
-                    request.protocolVersion);
-            }
-            if (request.method == QString::fromLatin1(Mcp::PingMethod)) {
-                return Mcp::makeResultResponse(request.id, {}, serverInfo, request.protocolVersion);
-            }
-            if (request.method == QString::fromLatin1(Mcp::DiscoverMethod)) {
-                return Mcp::makeResultResponse(request.id, Mcp::makeDiscoverResult(serverInfo),
-                                               serverInfo, request.protocolVersion);
-            }
-            if (request.method == QString::fromLatin1(Mcp::ToolsListMethod)) {
-                return Mcp::makeResultResponse(
-                    request.id,
-                    Mcp::makeToolsListResult({}, {}, 0, QStringLiteral("private"), serverInfo,
-                                             request.protocolVersion),
-                    serverInfo, request.protocolVersion);
-            }
-            if (request.name == QStringLiteral("invalid.response"))
-                return QJsonObject{};
-            if (request.name == QStringLiteral("large.response")) {
-                return Mcp::makeResultResponse(
-                    request.id,
-                    Mcp::makeToolCallResult(
-                        QJsonObject{
-                            {QStringLiteral("payload"), QString(5000, u'x')}
-                },
-                        false, {}, {}, request.protocolVersion),
-                    serverInfo, request.protocolVersion);
-            }
-            return Mcp::makeResultResponse(request.id,
-                                           Mcp::makeToolCallResult(
-                                               QJsonObject{
-                                                   {QStringLiteral("ok"), true}
-            },
-                                               false, QStringLiteral("ok"), serverInfo,
-                                               request.protocolVersion),
-                                           serverInfo, request.protocolVersion);
-        },
-        limits);
-
-    QString error;
-    expect(server.start(0, error),
-           QStringLiteral("ephemeral loopback MCP server must start: %1").arg(error));
-    expect(server.isListening() && server.port() != 0 &&
-               server.endpoint() == QStringLiteral("http://127.0.0.1:%1/mcp").arg(server.port()),
-           QStringLiteral("server must publish its actual numeric-loopback endpoint"));
-    if (!server.isListening())
-        return;
-
-    QNetworkAccessManager manager;
-    manager.setProxy(QNetworkProxy::NoProxy);
-    const QUrl endpoint(server.endpoint());
-
+void TestMcpHttpServer::modernClientIdentity() {
+    McpServerFixture fixture;
+    QVERIFY2(fixture.start(), qPrintable(fixture.error));
+    auto &server = fixture.server;
+    auto &manager = fixture.manager;
+    const auto endpoint = fixture.endpoint();
+    auto &observationMutex = fixture.observationMutex;
+    auto &observedClientId = fixture.observedClientId;
+    auto &observedMethod = fixture.observedMethod;
     const auto discover =
         withConnectorInstanceId(requestObject(QString::fromLatin1(Mcp::DiscoverMethod), 1),
                                 QStringLiteral("connector-test-instance"));
@@ -360,7 +481,17 @@ void TestMcpHttpServer::sessionsAndHttpValidation() {
     expect(distinctDirectResult.status == 200 && !distinctDirectClient.isEmpty() &&
                distinctDirectClient != directClientA,
            QStringLiteral("different modern client implementations must have distinct identities"));
+}
 
+void TestMcpHttpServer::legacySessionLifecycle() {
+    McpServerFixture fixture;
+    QVERIFY2(fixture.start(), qPrintable(fixture.error));
+    auto &server = fixture.server;
+    auto &manager = fixture.manager;
+    const auto endpoint = fixture.endpoint();
+    auto &observationMutex = fixture.observationMutex;
+    auto &observedClientId = fixture.observedClientId;
+    auto &observedMethod = fixture.observedMethod;
     const Mcp::RequestContext legacyContext{
         .protocolVersion = QString::fromLatin1(Mcp::LegacyProtocolVersion),
         .clientCapabilities = QJsonObject{                                           },
@@ -582,76 +713,77 @@ void TestMcpHttpServer::sessionsAndHttpValidation() {
         expect(observedMethod == QStringLiteral("unchanged"),
                QStringLiteral("notifications must not enter the request handler"));
     }
+}
 
-    auto getRequest = baseRequest(endpoint, QString::fromLatin1(Mcp::DiscoverMethod));
-    const auto getResult = send(manager, getRequest, {}, HttpMethod::Get);
-    expect(getResult.status == 405,
-           QStringLiteral("GET /mcp must be rejected without a legacy stream"));
-    const auto deleteResult = send(manager, getRequest, {}, HttpMethod::Delete);
-    expect(deleteResult.status == 400,
-           QStringLiteral("DELETE /mcp must require a legacy session identifier"));
+void TestMcpHttpServer::httpAdmission_data() {
+    QTest::addColumn<QByteArray>("header");
+    QTest::addColumn<QByteArray>("value");
+    QTest::addColumn<int>("method");
+    QTest::addColumn<int>("status");
+    const auto add = [](const char *name, const QByteArray &header, const QByteArray &value,
+                        HttpMethod method, int status) {
+        QTest::newRow(name) << header << value << int(method) << status;
+    };
+    add("get-without-stream", {}, {}, HttpMethod::Get, 405);
+    add("delete-without-session", {}, {}, HttpMethod::Delete, 400);
+    add("foreign-origin", "Origin", "https://example.com", HttpMethod::Post, 403);
+    add("origin-before-method", "Origin", "https://example.com", HttpMethod::Get, 403);
+    add("local-origin", "Origin", "http://localhost:$PORT", HttpMethod::Post, 200);
+    add("wrong-authority", "Host", "localhost:$PORT", HttpMethod::Post, 403);
+    add("missing-event-stream", "Accept", "application/json", HttpMethod::Post, 406);
+    add("wildcard", "Accept", "*/*", HttpMethod::Post, 406);
+    add("zero-quality", "Accept", "application/json;q=0, text/event-stream; q=0.0",
+        HttpMethod::Post, 406);
+    add("non-json-content", "Content-Type", "text/plain", HttpMethod::Post, 415);
+}
 
-    auto originRequest = baseRequest(endpoint, QString::fromLatin1(Mcp::DiscoverMethod));
-    originRequest.setRawHeader("Origin", "https://example.com");
-    const auto foreignOrigin =
-        send(manager, originRequest, QJsonDocument(discover).toJson(QJsonDocument::Compact));
-    expect(foreignOrigin.status == 403,
-           QStringLiteral("non-local browser Origin must be forbidden"));
-    const auto foreignOriginGet = send(manager, originRequest, {}, HttpMethod::Get);
-    expect(foreignOriginGet.status == 403,
-           QStringLiteral("Origin validation must run before HTTP method rejection"));
-    const auto emptyOriginStatus = rawHttpStatus(
+void TestMcpHttpServer::httpAdmission() {
+    QFETCH(QByteArray, header);
+    QFETCH(QByteArray, value);
+    QFETCH(int, method);
+    QFETCH(int, status);
+    McpServerFixture fixture;
+    QVERIFY2(fixture.start(), qPrintable(fixture.error));
+    auto &server = fixture.server;
+    auto &manager = fixture.manager;
+    const auto endpoint = fixture.endpoint();
+    const auto discover =
+        requestObject(QString::fromLatin1(Mcp::DiscoverMethod), QStringLiteral("discover"));
+    auto request = baseRequest(endpoint, QString::fromLatin1(Mcp::DiscoverMethod));
+    value.replace("$PORT", QByteArray::number(server.port()));
+    if (!header.isEmpty())
+        request.setRawHeader(header, value);
+    const auto result =
+        send(manager, request, QJsonDocument(discover).toJson(QJsonDocument::Compact),
+             static_cast<HttpMethod>(method));
+    QCOMPARE(result.status, status);
+    if (status != 200) {
+        const QMutexLocker locker(&fixture.observationMutex);
+        QVERIFY(fixture.observedMethod.isEmpty());
+    }
+}
+
+void TestMcpHttpServer::emptyOriginRejected() {
+    McpServerFixture fixture;
+    QVERIFY2(fixture.start(), qPrintable(fixture.error));
+    auto &server = fixture.server;
+    auto &manager = fixture.manager;
+    const auto endpoint = fixture.endpoint();
+    const auto status = rawHttpStatus(
         server.port(), QByteArrayLiteral("GET /mcp HTTP/1.1\r\nHost: 127.0.0.1:") +
                            QByteArray::number(server.port()) +
                            QByteArrayLiteral("\r\nOrigin:\r\nConnection: close\r\n\r\n"));
-    expect(emptyOriginStatus == 403,
-           QStringLiteral("a present but empty Origin header must be forbidden"));
+    QCOMPARE(status, 403);
+}
 
-    auto localOriginRequest = baseRequest(endpoint, QString::fromLatin1(Mcp::DiscoverMethod));
-    localOriginRequest.setRawHeader(
-        "Origin", QStringLiteral("http://localhost:%1").arg(server.port()).toLatin1());
-    const auto localOrigin =
-        send(manager, localOriginRequest, QJsonDocument(discover).toJson(QJsonDocument::Compact));
-    expect(localOrigin.status == 200,
-           QStringLiteral("an exact localhost Origin on the bound port must be accepted"));
-
-    auto wrongHostRequest = baseRequest(endpoint, QString::fromLatin1(Mcp::DiscoverMethod));
-    wrongHostRequest.setRawHeader("Host",
-                                  QStringLiteral("localhost:%1").arg(server.port()).toLatin1());
-    const auto wrongHost =
-        send(manager, wrongHostRequest, QJsonDocument(discover).toJson(QJsonDocument::Compact));
-    expect(wrongHost.status == 403,
-           QStringLiteral("Host must remain the published numeric-loopback authority"));
-
-    auto mediaRequest = baseRequest(endpoint, QString::fromLatin1(Mcp::DiscoverMethod));
-    mediaRequest.setRawHeader("Accept", "application/json");
-    const auto missingEventStream =
-        send(manager, mediaRequest, QJsonDocument(discover).toJson(QJsonDocument::Compact));
-    expect(missingEventStream.status == 406,
-           QStringLiteral("Accept without text/event-stream must be rejected"));
-
-    auto wildcardAcceptRequest = baseRequest(endpoint, QString::fromLatin1(Mcp::DiscoverMethod));
-    wildcardAcceptRequest.setRawHeader("Accept", "*/*");
-    const auto wildcardAccept = send(manager, wildcardAcceptRequest,
-                                     QJsonDocument(discover).toJson(QJsonDocument::Compact));
-    expect(wildcardAccept.status == 406,
-           QStringLiteral("Accept wildcard must not replace the two required MCP media types"));
-
-    auto zeroQualityAcceptRequest = baseRequest(endpoint, QString::fromLatin1(Mcp::DiscoverMethod));
-    zeroQualityAcceptRequest.setRawHeader("Accept",
-                                          "application/json;q=0, text/event-stream; q=0.0");
-    const auto zeroQualityAccept = send(manager, zeroQualityAcceptRequest,
-                                        QJsonDocument(discover).toJson(QJsonDocument::Compact));
-    expect(zeroQualityAccept.status == 406,
-           QStringLiteral("Accept media types with q=0 must not count as accepted"));
-
-    auto contentTypeRequest = baseRequest(endpoint, QString::fromLatin1(Mcp::DiscoverMethod));
-    contentTypeRequest.setRawHeader("Content-Type", "text/plain");
-    const auto wrongContentType =
-        send(manager, contentTypeRequest, QJsonDocument(discover).toJson(QJsonDocument::Compact));
-    expect(wrongContentType.status == 415,
-           QStringLiteral("non-JSON request content must be rejected"));
-
+void TestMcpHttpServer::transportMetadataRouting() {
+    McpServerFixture fixture;
+    QVERIFY2(fixture.start(), qPrintable(fixture.error));
+    auto &server = fixture.server;
+    auto &manager = fixture.manager;
+    const auto endpoint = fixture.endpoint();
+    const auto discover =
+        requestObject(QString::fromLatin1(Mcp::DiscoverMethod), QStringLiteral("discover"));
     auto missingHeaderRequest = baseRequest(endpoint, QString::fromLatin1(Mcp::DiscoverMethod));
     missingHeaderRequest.setRawHeader("MCP-Protocol-Version", QByteArray{});
     const auto missingProtocolHeader =
@@ -743,7 +875,16 @@ void TestMcpHttpServer::sessionsAndHttpValidation() {
                                    QJsonDocument(unicodeCall).toJson(QJsonDocument::Compact));
     expect(nameMismatch.status == 400 && jsonRpcErrorCode(nameMismatch) == Mcp::HeaderMismatch,
            QStringLiteral("Mcp-Name mismatches must return -32020"));
+}
 
+void TestMcpHttpServer::jsonAndRequestLimits() {
+    McpServerFixture fixture;
+    QVERIFY2(fixture.start(), qPrintable(fixture.error));
+    auto &server = fixture.server;
+    auto &manager = fixture.manager;
+    const auto endpoint = fixture.endpoint();
+    const auto discover =
+        requestObject(QString::fromLatin1(Mcp::DiscoverMethod), QStringLiteral("discover"));
     const auto batch =
         send(manager, baseRequest(endpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
              QByteArrayLiteral("[]"));
@@ -820,7 +961,14 @@ void TestMcpHttpServer::sessionsAndHttpValidation() {
                .arg(transportTooLarge.status)
                .arg(static_cast<int>(transportTooLarge.networkError))
                .arg(transportTooLarge.timedOut));
+}
 
+void TestMcpHttpServer::handlerResponseLimits() {
+    McpServerFixture fixture;
+    QVERIFY2(fixture.start(), qPrintable(fixture.error));
+    auto &server = fixture.server;
+    auto &manager = fixture.manager;
+    const auto endpoint = fixture.endpoint();
     const auto invalidResponseCall =
         requestObject(QString::fromLatin1(Mcp::ToolsCallMethod), QStringLiteral("invalid-response"),
                       QJsonObject{
@@ -848,7 +996,14 @@ void TestMcpHttpServer::sessionsAndHttpValidation() {
              QJsonDocument(largeResponseCall).toJson(QJsonDocument::Compact));
     expect(largeResponse.status == 500 && jsonRpcErrorCode(largeResponse) == Mcp::InternalError,
            QStringLiteral("responses above the configured limit must fail closed"));
+}
 
+void TestMcpHttpServer::listenerLifecycle() {
+    McpServerFixture fixture;
+    QVERIFY2(fixture.start(), qPrintable(fixture.error));
+    auto &server = fixture.server;
+    auto &manager = fixture.manager;
+    const auto endpoint = fixture.endpoint();
     Automation::McpHttpServer conflictingServer(
         [](const Mcp::RequestEnvelope &, const QString &) { return QJsonObject{}; });
     QString conflictError;
@@ -860,8 +1015,8 @@ void TestMcpHttpServer::sessionsAndHttpValidation() {
     expect(!server.isListening() && server.endpoint().isEmpty(),
            QStringLiteral("stopping the MCP server must release its endpoint"));
 
-    expect(server.start(0, error),
-           QStringLiteral("the MCP server must support a clean restart: %1").arg(error));
+    expect(server.start(0, fixture.error),
+           QStringLiteral("the MCP server must support a clean restart: %1").arg(fixture.error));
     server.requestStop();
     expect(waitForStop(server),
            QStringLiteral("asynchronous MCP shutdown must complete without blocking the GUI loop"));
@@ -869,72 +1024,12 @@ void TestMcpHttpServer::sessionsAndHttpValidation() {
            QStringLiteral("asynchronous MCP shutdown must release its worker and endpoint"));
 }
 
-void TestMcpHttpServer::nativeMcpRouteLifecycle() {
-    QNetworkAccessManager manager;
-    manager.setProxy(QNetworkProxy::NoProxy);
-    const Mcp::ImplementationInfo serverInfo{
-        QStringLiteral("DS Editor Lite Test"), QStringLiteral("1.0"), {}, {}};
-    const Mcp::RequestContext legacyContext{
-        .protocolVersion = QString::fromLatin1(Mcp::LegacyProtocolVersion),
-        .clientCapabilities = {},
-        .clientInfo = Mcp::ImplementationInfo{.name = QStringLiteral("legacy-http-client"),
-                               .version = QStringLiteral("1.0")},
-    };
-    const auto legacyPing = Mcp::makeRequest(QString::fromLatin1(Mcp::PingMethod), {},
-                                             legacyContext, QStringLiteral("ping"));
-    Automation::McpHttpLimits dualProtocolLimits;
-    dualProtocolLimits.maximumRequestBytes = 1024;
-    dualProtocolLimits.maximumJsonDepth = 16;
-    dualProtocolLimits.maximumJsonNodes = 128;
-    Automation::McpHttpServer dualProtocolServer(
-        QCoreApplication::instance(),
-        Automation::McpHttpServer::RequestHandler(
-            [&](const Mcp::RequestEnvelope &request, const QString &) {
-                return Mcp::makeResultResponse(request.id, Mcp::makeDiscoverResult(serverInfo),
-                                               serverInfo, request.protocolVersion);
-            }),
-        Automation::McpHttpServer::NativeRequestHandler([](const QJsonValue &message,
-                                                           const QString &clientId) {
-            if (!message.isObject()) {
-                return QJsonObject{
-                    {QStringLiteral("jsonrpc"), QStringLiteral("2.0")       },
-                    {QStringLiteral("id"),      QJsonValue(QJsonValue::Null)},
-                    {QStringLiteral("error"),
-                     QJsonObject{
-                         {QStringLiteral("code"), -32600},
-                         {QStringLiteral("message"), QStringLiteral("Invalid Request")},
-                     }                                                      },
-                };
-            }
-            const auto request = message.toObject();
-            const auto method = request.value(QStringLiteral("method")).toString();
-            if (method == QStringLiteral("test.throw"))
-                throw std::runtime_error("native handler failure");
-            if (method == QStringLiteral("test.invalid_response")) {
-                return QJsonObject{
-                    {QStringLiteral("jsonrpc"), QStringLiteral("2.0")     },
-                    {QStringLiteral("id"),      QStringLiteral("wrong-id")},
-                    {QStringLiteral("result"),  QJsonObject{}             },
-                };
-            }
-            return QJsonObject{
-                {QStringLiteral("jsonrpc"), QStringLiteral("2.0")              },
-                {QStringLiteral("id"),      request.value(QStringLiteral("id"))},
-                {QStringLiteral("result"),
-                 QJsonObject{
-                     {QStringLiteral("params"), request.value(QStringLiteral("params")).toObject()},
-                     {QStringLiteral("client_id_present"), !clientId.isEmpty()},
-                 }                                                             },
-            };
-        }),
-        dualProtocolLimits);
-    QString dualProtocolError;
-    expect(dualProtocolServer.start(0, {.mcp = true, .native = true}, dualProtocolError),
-           QStringLiteral("the shared MCP/Native server must start: %1").arg(dualProtocolError));
-    expect(!dualProtocolServer.endpoint().isEmpty() &&
-               !dualProtocolServer.nativeEndpoint().isEmpty(),
-           QStringLiteral("both routes must share one listener when enabled"));
-
+void TestMcpHttpServer::nativeRequestValidation() {
+    NativeServerFixture fixture;
+    QVERIFY2(fixture.start(), qPrintable(fixture.error));
+    auto &dualProtocolServer = fixture.server;
+    const auto &dualProtocolLimits = fixture.limits;
+    auto &manager = fixture.manager;
     const auto nativeCall = QJsonObject{
         {QStringLiteral("jsonrpc"), QStringLiteral("2.0")                       },
         {QStringLiteral("id"),      7                                           },
@@ -1057,7 +1152,30 @@ void TestMcpHttpServer::nativeMcpRouteLifecycle() {
         QJsonDocument(dualMcpCall).toJson(QJsonDocument::Compact));
     expect(dualMcpResult.status == 200,
            QStringLiteral("the MCP route must remain usable beside the Native route"));
+}
 
+void TestMcpHttpServer::nativeMcpRouteLifecycle() {
+    NativeServerFixture fixture;
+    QVERIFY2(fixture.start(), qPrintable(fixture.error));
+    auto &dualProtocolServer = fixture.server;
+    const auto &dualProtocolLimits = fixture.limits;
+    auto &manager = fixture.manager;
+    const Mcp::RequestContext legacyContext{
+        .protocolVersion = QString::fromLatin1(Mcp::LegacyProtocolVersion),
+        .clientCapabilities = {},
+        .clientInfo = Mcp::ImplementationInfo{.name = QStringLiteral("legacy-http-client"),
+                               .version = QStringLiteral("1.0")},
+    };
+    const auto legacyPing = Mcp::makeRequest(QString::fromLatin1(Mcp::PingMethod), {},
+                                             legacyContext, QStringLiteral("ping"));
+    const auto nativeCall = QJsonObject{
+        {QStringLiteral("jsonrpc"), QStringLiteral("2.0")                       },
+        {QStringLiteral("id"),      7                                           },
+        {QStringLiteral("method"),  QStringLiteral("application.get_status")    },
+        {QStringLiteral("params"),  QJsonObject{{QStringLiteral("probe"), true}}},
+    };
+    const auto dualMcpCall =
+        requestObject(QString::fromLatin1(Mcp::DiscoverMethod), QStringLiteral("dual-mcp"));
     const auto sharedPort = dualProtocolServer.port();
     const auto sharedNativeEndpoint = dualProtocolServer.nativeEndpoint();
     const auto sharedMcpEndpoint = dualProtocolServer.endpoint();
@@ -1122,7 +1240,17 @@ void TestMcpHttpServer::nativeMcpRouteLifecycle() {
     dualProtocolServer.stop();
     expect(dualProtocolServer.endpoint().isEmpty() && dualProtocolServer.nativeEndpoint().isEmpty(),
            QStringLiteral("stopping the shared listener must clear both endpoints"));
+}
 
+void TestMcpHttpServer::nativeResponseLimit() {
+    QNetworkAccessManager manager;
+    manager.setProxy(QNetworkProxy::NoProxy);
+    const auto nativeCall = QJsonObject{
+        {QStringLiteral("jsonrpc"), QStringLiteral("2.0")                       },
+        {QStringLiteral("id"),      7                                           },
+        {QStringLiteral("method"),  QStringLiteral("application.get_status")    },
+        {QStringLiteral("params"),  QJsonObject{{QStringLiteral("probe"), true}}},
+    };
     Automation::McpHttpLimits nativeResponseLimits;
     nativeResponseLimits.maximumRequestBytes = 4096;
     nativeResponseLimits.maximumResponseBytes = 1024;
@@ -1152,26 +1280,13 @@ void TestMcpHttpServer::nativeMcpRouteLifecycle() {
     nativeResponseLimitServer.stop();
 }
 
-void TestMcpHttpServer::deadlinesAndCrossConnectionCancellation() {
+void TestMcpHttpServer::defaultRequestDeadline() {
     QNetworkAccessManager manager;
     manager.setProxy(QNetworkProxy::NoProxy);
     const Mcp::ImplementationInfo serverInfo{
         QStringLiteral("DS Editor Lite Test"), QStringLiteral("1.0"), {}, {}};
-    const Mcp::RequestContext legacyContext{
-        .protocolVersion = QString::fromLatin1(Mcp::LegacyProtocolVersion),
-        .clientCapabilities = {},
-        .clientInfo = Mcp::ImplementationInfo{.name = QStringLiteral("legacy-http-client"),
-                               .version = QStringLiteral("1.0")},
-    };
-    const auto legacyPing = Mcp::makeRequest(QString::fromLatin1(Mcp::PingMethod), {},
-                                             legacyContext, QStringLiteral("ping"));
     const auto discover =
         requestObject(QString::fromLatin1(Mcp::DiscoverMethod), QStringLiteral("discover"));
-    const QJsonObject nativeCall{
-        {QStringLiteral("jsonrpc"), QStringLiteral("2.0")                   },
-        {QStringLiteral("id"),      7                                       },
-        {QStringLiteral("method"),  QStringLiteral("application.get_status")},
-    };
     const auto basicHandler = [serverInfo](const Mcp::RequestEnvelope &request, const QString &) {
         if (request.method == QString::fromLatin1(Mcp::ToolsListMethod)) {
             return Mcp::makeResultResponse(
@@ -1199,12 +1314,23 @@ void TestMcpHttpServer::deadlinesAndCrossConnectionCancellation() {
     expect(!defaultDeadline.timedOut && defaultDeadline.status == 200,
            QStringLiteral("the no-limits constructor must apply server-side default deadlines"));
     defaultLimitsServer.stop();
+}
 
-    QThread handlerThread;
-    QObject handlerContext;
-    handlerContext.moveToThread(&handlerThread);
-    handlerThread.start();
-
+void TestMcpHttpServer::sharedAdmissionAndDeadline() {
+    QNetworkAccessManager manager;
+    manager.setProxy(QNetworkProxy::NoProxy);
+    const Mcp::ImplementationInfo serverInfo{
+        QStringLiteral("DS Editor Lite Test"), QStringLiteral("1.0"), {}, {}};
+    const auto discover =
+        requestObject(QString::fromLatin1(Mcp::DiscoverMethod), QStringLiteral("discover"));
+    const auto nativeCall = QJsonObject{
+        {QStringLiteral("jsonrpc"), QStringLiteral("2.0")                       },
+        {QStringLiteral("id"),      7                                           },
+        {QStringLiteral("method"),  QStringLiteral("application.get_status")    },
+        {QStringLiteral("params"),  QJsonObject{{QStringLiteral("probe"), true}}},
+    };
+    HandlerThreadFixture executor;
+    auto &handlerContext = executor.context;
     QSemaphore globalEntered;
     QSemaphore globalRelease;
     QSemaphore globalDone;
@@ -1263,7 +1389,22 @@ void TestMcpHttpServer::deadlinesAndCrossConnectionCancellation() {
         expect(acquireWhileProcessing(globalDone, 2000),
                QStringLiteral("the timed-out handler must finish after its gate is released"));
     }
+}
 
+void TestMcpHttpServer::crossConnectionCancellation_data() {
+    QTest::addColumn<bool>("legacy");
+    QTest::newRow("modern") << false;
+    QTest::newRow("legacy") << true;
+}
+
+void TestMcpHttpServer::crossConnectionCancellation() {
+    QFETCH(bool, legacy);
+    QNetworkAccessManager manager;
+    manager.setProxy(QNetworkProxy::NoProxy);
+    const Mcp::ImplementationInfo serverInfo{
+        QStringLiteral("DS Editor Lite Test"), QStringLiteral("1.0"), {}, {}};
+    HandlerThreadFixture executor;
+    auto &handlerContext = executor.context;
     QSemaphore cancellationContextEntered;
     QSemaphore cancellationContextRelease;
     QSemaphore canceledHandlerEntered;
@@ -1296,24 +1437,36 @@ void TestMcpHttpServer::deadlinesAndCrossConnectionCancellation() {
     QNetworkAccessManager cancellationNotificationManager;
     cancellationRequestManager.setProxy(QNetworkProxy::NoProxy);
     cancellationNotificationManager.setProxy(QNetworkProxy::NoProxy);
-    const auto cancellationInitialize =
-        Mcp::makeInitializeRequest(legacyContext, QStringLiteral("cancel-init"));
-    const auto cancellationInitializeResult =
-        send(cancellationRequestManager, legacyRequest(cancellationEndpoint, false),
-             QJsonDocument(cancellationInitialize).toJson(QJsonDocument::Compact));
-    expect(cancellationInitializeResult.status == 200 &&
-               !cancellationInitializeResult.sessionId.isEmpty(),
-           QStringLiteral("the cancellation fixture must establish a legacy HTTP session"));
-    const auto cancellationInitialized =
-        Mcp::makeRequest(QString::fromLatin1(Mcp::InitializedNotification), {}, legacyContext);
-    const auto cancellationInitializedResult =
-        send(cancellationRequestManager,
-             legacyRequest(cancellationEndpoint, true, Mcp::LegacyProtocolVersion,
-                           cancellationInitializeResult.sessionId),
-             QJsonDocument(cancellationInitialized).toJson(QJsonDocument::Compact));
-    expect(cancellationInitializedResult.status == 202 &&
-               cancellationInitializedResult.body.isEmpty(),
-           QStringLiteral("the cancellation fixture must complete its legacy HTTP handshake"));
+
+    const Mcp::RequestContext legacyContext{
+        .protocolVersion = QString::fromLatin1(Mcp::LegacyProtocolVersion),
+        .clientCapabilities = {},
+        .clientInfo = Mcp::ImplementationInfo{.name = QStringLiteral("legacy-http-client"),
+                               .version = QStringLiteral("1.0")},
+    };
+    QByteArray sessionId;
+    if (legacy) {
+        const auto initialized = send(
+            cancellationRequestManager, legacyRequest(cancellationEndpoint, false),
+            QJsonDocument(Mcp::makeInitializeRequest(legacyContext, QStringLiteral("cancel-init")))
+                .toJson(QJsonDocument::Compact));
+        QCOMPARE(initialized.status, 200);
+        QVERIFY(!initialized.sessionId.isEmpty());
+        sessionId = initialized.sessionId;
+        const auto ready =
+            send(cancellationRequestManager,
+                 legacyRequest(cancellationEndpoint, true, Mcp::LegacyProtocolVersion, sessionId),
+                 QJsonDocument(Mcp::makeRequest(QString::fromLatin1(Mcp::InitializedNotification),
+                                                {}, legacyContext))
+                     .toJson(QJsonDocument::Compact));
+        QCOMPARE(ready.status, 202);
+    }
+
+    bool gateReleased = false;
+    const auto releaseGate = qScopeGuard([&] {
+        if (!gateReleased)
+            cancellationContextRelease.release();
+    });
     QMetaObject::invokeMethod(
         &handlerContext,
         [&] {
@@ -1321,114 +1474,50 @@ void TestMcpHttpServer::deadlinesAndCrossConnectionCancellation() {
             cancellationContextRelease.acquire();
         },
         Qt::QueuedConnection);
-    const auto cancellationContextBlocked =
-        acquireWhileProcessing(cancellationContextEntered, 2000);
-    expect(cancellationContextBlocked,
-           QStringLiteral("the cancellation fixture must block the handler executor"));
-
-    const auto canceledCall =
-        Mcp::makeRequest(QString::fromLatin1(Mcp::ToolsCallMethod),
-                         QJsonObject{
-                             {QStringLiteral("name"),      QStringLiteral("mutating.test")},
-                             {QStringLiteral("arguments"), QJsonObject{}                  },
-    },
-                         legacyContext, QStringLiteral("cancel-before-dispatch"));
-    auto *canceledReply =
-        startRequest(cancellationRequestManager,
-                     legacyRequest(cancellationEndpoint, true, Mcp::LegacyProtocolVersion,
-                                   cancellationInitializeResult.sessionId),
-                     QJsonDocument(canceledCall).toJson(QJsonDocument::Compact));
-    QElapsedTimer admissionWait;
-    admissionWait.start();
-    while (admissionWait.elapsed() < 100) {
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
-        QThread::msleep(1);
-    }
-    const auto cancellationNotification = Mcp::makeRequest(
-        QString::fromLatin1(Mcp::CancelledNotification),
-        QJsonObject{
-            {QStringLiteral("requestId"), QStringLiteral("cancel-before-dispatch")},
-            {QStringLiteral("reason"),    QStringLiteral("test cancellation")     },
-    },
-        legacyContext);
-    const auto cancellationResult =
-        send(cancellationNotificationManager,
-             legacyRequest(cancellationEndpoint, true, Mcp::LegacyProtocolVersion,
-                           cancellationInitializeResult.sessionId),
-             QJsonDocument(cancellationNotification).toJson(QJsonDocument::Compact));
-    const auto canceledResult = finishRequest(canceledReply, 2000);
-    expect(cancellationResult.status == 202 && cancellationResult.body.isEmpty(),
-           QStringLiteral("cancellation notifications must bypass a full request admission limit"));
-    expect(canceledResult.status == 204 && canceledResult.body.isEmpty(),
-           QStringLiteral("a canceled queued request must close without a JSON-RPC response"));
-
+    QVERIFY(acquireWhileProcessing(cancellationContextEntered, 2000));
+    const QString requestId = QStringLiteral("cancel-before-dispatch");
+    const QJsonObject params{
+        {QStringLiteral("name"),      QStringLiteral("mutating.test")},
+        {QStringLiteral("arguments"), QJsonObject{}                  }
+    };
+    const auto request =
+        legacy ? Mcp::makeRequest(QString::fromLatin1(Mcp::ToolsCallMethod), params, legacyContext,
+                                  requestId)
+               : withConnectorInstanceId(
+                     requestObject(QString::fromLatin1(Mcp::ToolsCallMethod), requestId, params),
+                     QStringLiteral("cancel-instance"));
+    const auto requestHeaders =
+        legacy ? legacyRequest(cancellationEndpoint, true, Mcp::LegacyProtocolVersion, sessionId)
+               : baseRequest(cancellationEndpoint, QString::fromLatin1(Mcp::ToolsCallMethod),
+                             QStringLiteral("mutating.test"));
+    auto *reply = startRequest(cancellationRequestManager, requestHeaders,
+                               QJsonDocument(request).toJson(QJsonDocument::Compact));
+    QTest::qWait(100);
+    const QJsonObject cancellationParams{
+        {QStringLiteral("requestId"), requestId                          },
+        {QStringLiteral("reason"),    QStringLiteral("test cancellation")}
+    };
+    const auto notification =
+        legacy ? Mcp::makeRequest(QString::fromLatin1(Mcp::CancelledNotification),
+                                  cancellationParams, legacyContext)
+               : withConnectorInstanceId(
+                     requestObject(QString::fromLatin1(Mcp::CancelledNotification),
+                                   QJsonValue(QJsonValue::Undefined), cancellationParams),
+                     QStringLiteral("cancel-instance"));
+    const auto notificationHeaders =
+        legacy ? legacyRequest(cancellationEndpoint, true, Mcp::LegacyProtocolVersion, sessionId)
+               : baseRequest(cancellationEndpoint, QString::fromLatin1(Mcp::CancelledNotification));
+    const auto canceled = send(cancellationNotificationManager, notificationHeaders,
+                               QJsonDocument(notification).toJson(QJsonDocument::Compact));
+    const auto result = finishRequest(reply, 2000);
+    QCOMPARE(canceled.status, 202);
+    QVERIFY(canceled.body.isEmpty());
+    QCOMPARE(result.status, 204);
+    QVERIFY(result.body.isEmpty());
     cancellationContextRelease.release();
-    if (cancellationContextBlocked) {
-        expect(!canceledHandlerEntered.tryAcquire(1, 250),
-               QStringLiteral("a canceled queued request must not enter the editor handler"));
-    }
-
-    QMetaObject::invokeMethod(
-        &handlerContext,
-        [&] {
-            cancellationContextEntered.release();
-            cancellationContextRelease.acquire();
-        },
-        Qt::QueuedConnection);
-    const auto modernCancellationContextBlocked =
-        acquireWhileProcessing(cancellationContextEntered, 2000);
-    expect(modernCancellationContextBlocked,
-           QStringLiteral("the modern cancellation fixture must block the handler executor"));
-    const auto modernCanceledCall = withConnectorInstanceId(
-        requestObject(QString::fromLatin1(Mcp::ToolsCallMethod),
-                      QStringLiteral("modern-cancel-before-dispatch"),
-                      QJsonObject{
-                          {QStringLiteral("name"),      QStringLiteral("mutating.test")},
-                          {QStringLiteral("arguments"), QJsonObject{}                  },
-    }),
-        QStringLiteral("modern-cancel-instance"));
-    auto *modernCanceledReply =
-        startRequest(cancellationRequestManager,
-                     baseRequest(cancellationEndpoint, QString::fromLatin1(Mcp::ToolsCallMethod),
-                                 QStringLiteral("mutating.test")),
-                     QJsonDocument(modernCanceledCall).toJson(QJsonDocument::Compact));
-    admissionWait.restart();
-    while (admissionWait.elapsed() < 100) {
-        QCoreApplication::processEvents(QEventLoop::AllEvents, 5);
-        QThread::msleep(1);
-    }
-    const auto modernCancellationNotification = withConnectorInstanceId(
-        requestObject(
-            QString::fromLatin1(Mcp::CancelledNotification), QJsonValue(QJsonValue::Undefined),
-            QJsonObject{
-                {QStringLiteral("requestId"), QStringLiteral("modern-cancel-before-dispatch")},
-                {QStringLiteral("reason"),    QStringLiteral("test cancellation")            },
-    }),
-        QStringLiteral("modern-cancel-instance"));
-    const auto modernCancellationResult =
-        send(cancellationNotificationManager,
-             baseRequest(cancellationEndpoint, QString::fromLatin1(Mcp::CancelledNotification)),
-             QJsonDocument(modernCancellationNotification).toJson(QJsonDocument::Compact));
-    const auto modernCanceledResult = finishRequest(modernCanceledReply, 2000);
-    expect(modernCancellationResult.status == 202 && modernCancellationResult.body.isEmpty(),
-           QStringLiteral("modern cancellation notifications must use a second HTTP connection"));
-    expect(modernCanceledResult.status == 204 && modernCanceledResult.body.isEmpty(),
-           QStringLiteral("modern cross-connection cancellation must close the queued request"));
-
-    cancellationContextRelease.release();
-    if (modernCancellationContextBlocked) {
-        expect(!canceledHandlerEntered.tryAcquire(1, 250),
-               QStringLiteral("a modern cross-connection cancellation must prevent dispatch"));
-    }
+    gateReleased = true;
+    QVERIFY(!canceledHandlerEntered.tryAcquire(1, 250));
     cancellationServer.stop();
-
-    QMetaObject::invokeMethod(
-        &handlerContext,
-        [&] { handlerContext.moveToThread(QCoreApplication::instance()->thread()); },
-        Qt::BlockingQueuedConnection);
-    handlerThread.quit();
-    expect(handlerThread.wait(2000),
-           QStringLiteral("the handler executor thread must stop within a hard timeout"));
 }
 QTEST_GUILESS_MAIN(TestMcpHttpServer)
 #include "main.moc"

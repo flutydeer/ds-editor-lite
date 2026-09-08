@@ -25,6 +25,40 @@ namespace {
     bool closeTo(const double left, const double right) {
         return std::abs(left - right) < 0.0001;
     }
+
+    struct AudioDragFixture {
+        static constexpr double trimStartMs = 500.0;
+        static constexpr double playLengthMs = 2500.0;
+        static constexpr double materialLengthMs = 5000.0;
+        static constexpr int visibleStartTick = 4700;
+        static constexpr int grabTick = 5100;
+
+        Timeline timeline{
+            {{0, 120.0}, {4800, 60.0}, {9600, 150.0}}
+        };
+        AudioClip::TickCaches caches = AudioClip::deriveTickCaches(
+            trimStartMs, playLengthMs, materialLengthMs, visibleStartTick, timeline);
+
+        Clip::ClipCommonProperties properties() const {
+            Clip::ClipCommonProperties result;
+            result.start = caches.start;
+            result.clipStart = caches.clipStart;
+            result.clipLen = caches.clipLen;
+            result.length = caches.length;
+            return result;
+        }
+
+        AudioClipDragState begin() const {
+            return AudioClipDragState::begin(trimStartMs, playLengthMs, materialLengthMs,
+                                             visibleStartTick, grabTick, timeline);
+        }
+
+        int rightTick() const {
+            return visibleStartTick + caches.clipLen;
+        }
+    };
+
+
 }
 
 class TrackEditorInteractionsTests final : public QObject {
@@ -240,101 +274,76 @@ private slots:
             "piano-roll edits must not leak into inactive clip previews");
     }
 
-    void audioDragAcrossTempoChanges() {
-        const Timeline timeline({
-            {0,    120.0},
-            {4800, 60.0 },
-            {9600, 150.0}
-        });
-        constexpr std::array gridSteps{60, 120, 240};
-        constexpr double trimStartMs = 500.0;
-        constexpr double playLengthMs = 2500.0;
-        constexpr double materialLengthMs = 5000.0;
-        constexpr int visibleStartTick = 4700;
-        constexpr int grabTick = 5100;
-        const auto initialCaches = AudioClip::deriveTickCaches(
-            trimStartMs, playLengthMs, materialLengthMs, visibleStartTick, timeline);
-        Clip::ClipCommonProperties draggedAudio;
-        draggedAudio.start = initialCaches.start;
-        draggedAudio.clipStart = initialCaches.clipStart;
-        draggedAudio.clipLen = initialCaches.clipLen;
-        draggedAudio.length = initialCaches.length;
+    void audioMovePreservesRealTimeWindow() {
+        const AudioDragFixture fixture;
+        auto properties = fixture.properties();
+        auto state = fixture.begin();
+        const auto visibleStart = state.visibleStartForCursor(10500, fixture.timeline);
+        state.moveTo(visibleStart, properties, fixture.timeline);
+        QCOMPARE(properties.start + properties.clipStart, visibleStart);
+        state.writeTruth(properties);
+        QVERIFY(closeTo(properties.trimStartMs, fixture.trimStartMs));
+        QVERIFY(closeTo(properties.playLengthMs, fixture.playLengthMs));
+        QVERIFY(closeTo(properties.materialLengthMs, fixture.materialLengthMs));
+    }
 
-        auto moveState = AudioClipDragState::begin(trimStartMs, playLengthMs, materialLengthMs,
-                                                   visibleStartTick, grabTick, timeline);
-        constexpr int cursorTick = 10500;
-        const auto movedVisibleStart = moveState.visibleStartForCursor(cursorTick, timeline);
-        moveState.moveTo(movedVisibleStart, draggedAudio, timeline);
-        QVERIFY2((draggedAudio.start + draggedAudio.clipStart == movedVisibleStart),
-                 "audio move must preserve the cursor's realtime grab offset across tempo changes");
-        moveState.writeTruth(draggedAudio);
-        QVERIFY2((closeTo(draggedAudio.trimStartMs, trimStartMs) &&
-                  closeTo(draggedAudio.playLengthMs, playLengthMs) &&
-                  closeTo(draggedAudio.materialLengthMs, materialLengthMs)),
-                 "audio move must preserve all realtime truth values");
-
-        auto leftState = AudioClipDragState::begin(trimStartMs, playLengthMs, materialLengthMs,
-                                                   visibleStartTick, grabTick, timeline);
-        draggedAudio.start = initialCaches.start;
-        draggedAudio.clipStart = initialCaches.clipStart;
-        draggedAudio.clipLen = initialCaches.clipLen;
-        draggedAudio.length = initialCaches.length;
+    void audioLeftTrimPreservesMaterialOriginAndRightEdge() {
+        const AudioDragFixture fixture;
+        auto properties = fixture.properties();
+        auto state = fixture.begin();
         constexpr int newLeftTick = 5200;
-        QVERIFY2((leftState.resizeLeftTo(newLeftTick, visibleStartTick + initialCaches.clipLen, 1,
-                                         draggedAudio, timeline)),
-                 "audio left trim must accept an edge before the original right edge");
-        leftState.writeTruth(draggedAudio);
-        const double materialStartMs = timeline.tickToMs(visibleStartTick) - trimStartMs;
-        const double originalEndMs = timeline.tickToMs(visibleStartTick) + playLengthMs;
-        QVERIFY2(
-            (closeTo(draggedAudio.trimStartMs, timeline.tickToMs(newLeftTick) - materialStartMs)),
-            "audio left trim must keep the material origin fixed in realtime");
-        QVERIFY2(
-            (closeTo(draggedAudio.playLengthMs, originalEndMs - timeline.tickToMs(newLeftTick))),
-            "audio left trim must keep the original right edge fixed in realtime");
+        QVERIFY(
+            state.resizeLeftTo(newLeftTick, fixture.rightTick(), 1, properties, fixture.timeline));
+        state.writeTruth(properties);
+        const auto materialStart =
+            fixture.timeline.tickToMs(fixture.visibleStartTick) - fixture.trimStartMs;
+        const auto originalEnd =
+            fixture.timeline.tickToMs(fixture.visibleStartTick) + fixture.playLengthMs;
+        QVERIFY(closeTo(properties.trimStartMs,
+                        fixture.timeline.tickToMs(newLeftTick) - materialStart));
+        QVERIFY(
+            closeTo(properties.playLengthMs, originalEnd - fixture.timeline.tickToMs(newLeftTick)));
+    }
 
-        auto rightState = AudioClipDragState::begin(trimStartMs, playLengthMs, materialLengthMs,
-                                                    visibleStartTick, grabTick, timeline);
-        draggedAudio.start = initialCaches.start;
-        draggedAudio.clipStart = initialCaches.clipStart;
-        draggedAudio.clipLen = initialCaches.clipLen;
-        draggedAudio.length = initialCaches.length;
-        const auto beyondMaterialTick =
-            qRound(timeline.msToTick(materialStartMs + materialLengthMs + 1000.0));
-        QVERIFY2((rightState.resizeRightTo(beyondMaterialTick, visibleStartTick, 1, draggedAudio,
-                                           timeline)),
-                 "audio right trim must accept an edge beyond the material boundary");
-        rightState.writeTruth(draggedAudio);
-        QVERIFY2((closeTo(draggedAudio.playLengthMs, materialLengthMs - trimStartMs)),
-                 "audio right trim must stop at the material boundary in realtime");
+    void audioRightTrimStopsAtMaterialBoundary() {
+        const AudioDragFixture fixture;
+        auto properties = fixture.properties();
+        auto state = fixture.begin();
+        const auto materialStart =
+            fixture.timeline.tickToMs(fixture.visibleStartTick) - fixture.trimStartMs;
+        const auto beyondMaterial =
+            qRound(fixture.timeline.msToTick(materialStart + fixture.materialLengthMs + 1000.0));
+        QVERIFY(state.resizeRightTo(beyondMaterial, fixture.visibleStartTick, 1, properties,
+                                    fixture.timeline));
+        state.writeTruth(properties);
+        QVERIFY(closeTo(properties.playLengthMs, fixture.materialLengthMs - fixture.trimStartMs));
+    }
 
-        const auto originalRightTick = visibleStartTick + initialCaches.clipLen;
-        for (const auto gridStep : gridSteps) {
-            auto crossedState = AudioClipDragState::begin(
-                trimStartMs, playLengthMs, materialLengthMs, visibleStartTick, grabTick, timeline);
-            Clip::ClipCommonProperties crossedProperties;
-            crossedProperties.start = initialCaches.start;
-            crossedProperties.clipStart = initialCaches.clipStart;
-            crossedProperties.clipLen = initialCaches.clipLen;
-            crossedProperties.length = initialCaches.length;
-            QVERIFY2(
-                (crossedState.resizeRightTo(visibleStartTick - 1000, visibleStartTick, gridStep,
-                                            crossedProperties, timeline) &&
-                 crossedProperties.clipLen == gridStep),
-                "audio right resize crossing the opposite edge must use the supplied grid step");
-
-            auto crossedLeftState = AudioClipDragState::begin(
-                trimStartMs, playLengthMs, materialLengthMs, visibleStartTick, grabTick, timeline);
-            crossedProperties.start = initialCaches.start;
-            crossedProperties.clipStart = initialCaches.clipStart;
-            crossedProperties.clipLen = initialCaches.clipLen;
-            crossedProperties.length = initialCaches.length;
-            QVERIFY2(
-                (crossedLeftState.resizeLeftTo(originalRightTick + 1000, originalRightTick,
-                                               gridStep, crossedProperties, timeline) &&
-                 crossedProperties.clipLen == gridStep),
-                "audio left resize crossing the opposite edge must use the supplied grid step");
+    void audioResizeAcrossOppositeEdge_data() {
+        QTest::addColumn<bool>("leftEdge");
+        QTest::addColumn<int>("gridStep");
+        for (const auto gridStep : {60, 120, 240}) {
+            const auto leftName = QByteArrayLiteral("left-") + QByteArray::number(gridStep);
+            const auto rightName = QByteArrayLiteral("right-") + QByteArray::number(gridStep);
+            QTest::newRow(leftName.constData()) << true << gridStep;
+            QTest::newRow(rightName.constData()) << false << gridStep;
         }
+    }
+
+    void audioResizeAcrossOppositeEdge() {
+        QFETCH(bool, leftEdge);
+        QFETCH(int, gridStep);
+        const AudioDragFixture fixture;
+        auto properties = fixture.properties();
+        auto state = fixture.begin();
+        const bool accepted =
+            leftEdge
+                ? state.resizeLeftTo(fixture.rightTick() + 1000, fixture.rightTick(), gridStep,
+                                     properties, fixture.timeline)
+                : state.resizeRightTo(fixture.visibleStartTick - 1000, fixture.visibleStartTick,
+                                      gridStep, properties, fixture.timeline);
+        QVERIFY(accepted);
+        QCOMPARE(properties.clipLen, gridStep);
     }
 };
 
