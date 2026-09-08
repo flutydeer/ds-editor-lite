@@ -1,0 +1,97 @@
+name: Tests
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      QT_VERSION: '6.11.2'
+      CMAKE_BUILD_PARALLEL_LEVEL: '2'
+      VCPKG_MAX_CONCURRENCY: '2'
+      VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/build/ci/vcpkg-cache,readwrite'
+      DSEL_TEST_ARTIFACTS: '${{ github.workspace }}/build/test-results/sandboxes'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+      - name: System dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build patchelf pkg-config autoconf automake libtool \
+            libasound2-dev libpulse-dev libudev-dev libgl1-mesa-dev libegl1-mesa-dev \
+            libx11-dev libxext-dev libxrandr-dev libxi-dev libxcursor-dev \
+            libxinerama-dev libxkbcommon-dev libxkbcommon-x11-dev libxcb-cursor0 \
+            libfontconfig1-dev libfreetype6-dev libdbus-1-dev libssl-dev
+          mkdir -p build/test-results build/ci/vcpkg-cache
+      - name: Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          modules: 'qt5compat qtshadertools qtstatemachine qthttpserver'
+          cache: true
+      - name: Restore dependency packages
+        id: packages
+        uses: actions/cache/restore@v6
+        with:
+          path: build/ci/vcpkg-cache
+          key: linux-qt${{ env.QT_VERSION }}-${{ hashFiles('scripts/ci/bootstrap-linux.sh', 'scripts/vcpkg-manifest/**', 'scripts/vcpkg/ports/**', 'scripts/vcpkg/triplets/**') }}
+      - name: Build dependencies
+        run: bash scripts/ci/bootstrap-linux.sh 2>&1 | tee build/test-results/dependencies.log
+      - name: Save dependency packages
+        if: steps.packages.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: build/ci/vcpkg-cache
+          key: ${{ steps.packages.outputs.cache-primary-key }}
+      - name: Environment
+        run: |
+          {
+            git rev-parse HEAD
+            git submodule status
+            git -C vcpkg rev-parse HEAD
+            uname -a
+            c++ --version
+            cmake --version
+            ninja --version
+            "$QT_ROOT_DIR/bin/qtpaths" --qt-version
+          } > build/test-results/environment.txt
+      - name: Configure
+        run: |
+          cmake --preset debug -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
+            -DQt6_DIR="$QT_ROOT_DIR/lib/cmake/Qt6" \
+            -DVCPKG_TARGET_TRIPLET=x64-linux \
+            2>&1 | tee build/test-results/configure.log
+      - name: Build editor, connector and tests
+        run: cmake --build --preset tests 2>&1 | tee build/test-results/build.log
+      - name: Test
+        run: |
+          ctest --preset ci --output-junit "$PWD/build/test-results/junit.xml" \
+            2>&1 | tee build/test-results/ctest.log
+      - name: Test diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: linux-test-results-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            build/test-results
+            build/Debug/Testing/Temporary
+            build/Debug/CMakeFiles/CMakeConfigureLog.yaml
+            vcpkg/buildtrees/**/*.log
+          if-no-files-found: ignore
+          retention-days: 14
