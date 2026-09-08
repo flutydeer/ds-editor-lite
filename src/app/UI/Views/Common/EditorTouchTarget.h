@@ -14,9 +14,6 @@ public:
         // Hand the drag to the existing mouse state machine unchanged. The
         // active tool decides what happens (rubber band, draw curve, erase...).
         SyntheticMouse,
-        // No explicit tool is selected, so a blank-area drag directly creates
-        // content: the view switches to its touch-effective tool for the drag.
-        DirectManipulation,
         // Blank area is empty canvas — dragging it scrolls the viewport.
         Pan,
     };
@@ -35,12 +32,6 @@ public:
     // Is there an editable object (note, clip, anchor...) under the point?
     [[nodiscard]] virtual bool touchHitsContent(const QPointF &viewportPosition) const = 0;
     [[nodiscard]] virtual BlankDragAction touchBlankDragAction() const = 0;
-
-    // Enter/leave the touch-effective tool for a DirectManipulation drag.
-    virtual void beginTouchDirectManipulation() {
-    }
-    virtual void endTouchDirectManipulation() {
-    }
 
     // Abort whatever the synthetic pointer stream started, without committing.
     // Called when a second finger turns the gesture into navigation.

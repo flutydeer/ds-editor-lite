@@ -2966,8 +2966,6 @@ public:
     EditorViewportController viewport;
     EditorWheelController wheel;
     EditorTouchController *touchController = nullptr;
-    // Edit mode to restore once a touch direct manipulation drag is over.
-    std::optional<PianoRollEditMode> touchPreviousEditMode;
     // Last known pointer position in widget coordinates. Timer-driven auto
     // scroll must read this instead of QCursor::pos(), which does not follow a
     // finger across the glass.
@@ -3135,30 +3133,13 @@ bool PianoRollRhiWidget::touchHitsContent(const QPointF &viewportPosition) const
 }
 
 EditorTouchTarget::BlankDragAction PianoRollRhiWidget::touchBlankDragAction() const {
-    if (!d->clip)
+    // An explicitly picked tool always wins: draw, erase, split, interval
+    // select and every pitch tool keep meaning exactly what they mean with a
+    // mouse. Plain Select owns no blank canvas, so a finger scrolls there, and
+    // creating a note needs the draw tool just like it does with a mouse.
+    if (!d->clip || d->editMode == Select)
         return BlankDragAction::Pan;
-    // An explicitly picked tool always wins: erase, split, interval select and
-    // every pitch tool keep meaning exactly what they mean with a mouse.
-    if (d->editMode != Select)
-        return BlankDragAction::SyntheticMouse;
-    // Plain Select with a finger: dragging blank canvas writes a note, because
-    // rubber band selection is reachable through a long press instead.
-    return BlankDragAction::DirectManipulation;
-}
-
-void PianoRollRhiWidget::beginTouchDirectManipulation() {
-    if (d->touchPreviousEditMode.has_value())
-        return;
-    d->touchPreviousEditMode = d->editMode;
-    setEditMode(DrawNote);
-}
-
-void PianoRollRhiWidget::endTouchDirectManipulation() {
-    if (!d->touchPreviousEditMode.has_value())
-        return;
-    const auto mode = *d->touchPreviousEditMode;
-    d->touchPreviousEditMode.reset();
-    setEditMode(mode);
+    return BlankDragAction::SyntheticMouse;
 }
 
 void PianoRollRhiWidget::cancelTouchPointerInteraction() {

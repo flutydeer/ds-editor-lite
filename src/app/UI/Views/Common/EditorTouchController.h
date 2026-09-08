@@ -30,6 +30,13 @@ class QWidget;
 // makes Qt synthesize the mouse events for us (with the stylus device and
 // Qt::MouseEventNotSynthesized, see QGuiApplicationPrivate::processTabletEvent).
 //
+// The long press context menu is left to the platform wherever the platform
+// has one. Windows draws its own press-and-hold feedback and raises the menu
+// when the finger leaves the glass, and matching that timing by hand is not
+// worth it: our own menu would open mid-hold and then be closed by the right
+// button press Windows emits on release. A fallback posts the menu ourselves
+// only when no platform menu shows up.
+//
 // The controller also has to *swallow* foreign pointer events. Accepting a
 // QTouchEvent stops Qt from synthesizing mouse events, but it does nothing
 // about the ones the operating system generates on its own: Windows promotes
@@ -64,7 +71,8 @@ private:
     // controller (the OS, or Qt's own fallback synthesis) and must not reach
     // the interaction layer.
     bool swallowForeignMouseEvent(QMouseEvent *event);
-    bool swallowForeignContextMenu(QContextMenuEvent *event);
+    void armContextMenuFallback(const QPointF &position);
+    void cancelContextMenuFallback();
     void dispatch(const EditorTouchGesture::Events &events);
     void onSingleBegin(const EditorTouchGesture::Event &event);
     void onSingleMove(const EditorTouchGesture::Event &event);
@@ -95,10 +103,10 @@ private:
     QElapsedTimer m_clock;
     QTimer *m_longPressTimer;
     QTimer *m_inertiaTimer;
+    QTimer *m_contextMenuFallbackTimer;
 
     // Single-finger stream state.
     bool m_syntheticStreamActive = false;
-    bool m_directManipulationActive = false;
     bool m_panStreamActive = false;
     QPointF m_lastStreamPosition;
     QPointF m_panVelocity;
@@ -106,9 +114,10 @@ private:
 
     QPointF m_inertiaVelocity;
     qint64 m_inertiaTimestamp = 0;
-    // When the last touch point was seen, used to recognize the context menu
-    // Windows raises from a press and hold.
-    qint64 m_lastTouchTimestamp = 0;
+    // Where a consumed long press happened, kept until the platform delivers
+    // its own context menu or the fallback timer gives up waiting.
+    QPointF m_pendingContextMenuPosition;
+    bool m_contextMenuPending = false;
 };
 
 #endif // EDITORTOUCHCONTROLLER_H

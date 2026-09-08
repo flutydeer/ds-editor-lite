@@ -275,30 +275,11 @@ bool PianoRollGraphicsView::touchHitsContent(const QPointF &viewportPosition) co
 
 EditorTouchTarget::BlankDragAction PianoRollGraphicsView::touchBlankDragAction() const {
     Q_D(const PianoRollGraphicsView);
-    if (!d->m_clip)
+    // Mirrors the RHI backend: an explicit tool always wins, plain Select
+    // scrolls the blank canvas, and creating a note needs the draw tool.
+    if (!d->m_clip || d->m_editMode == Select)
         return BlankDragAction::Pan;
-    // Mirrors the RHI backend: an explicit tool always wins, and plain Select
-    // turns a blank-area finger drag into note drawing because rubber band
-    // selection is reachable through a long press.
-    if (d->m_editMode != Select)
-        return BlankDragAction::SyntheticMouse;
-    return BlankDragAction::DirectManipulation;
-}
-
-void PianoRollGraphicsView::beginTouchDirectManipulation() {
-    Q_D(PianoRollGraphicsView);
-    if (m_touchPreviousEditMode.has_value())
-        return;
-    m_touchPreviousEditMode = d->m_editMode;
-    setEditMode(DrawNote);
-}
-
-void PianoRollGraphicsView::endTouchDirectManipulation() {
-    if (!m_touchPreviousEditMode.has_value())
-        return;
-    const auto mode = *m_touchPreviousEditMode;
-    m_touchPreviousEditMode.reset();
-    setEditMode(mode);
+    return BlankDragAction::SyntheticMouse;
 }
 
 void PianoRollGraphicsView::cancelTouchPointerInteraction() {

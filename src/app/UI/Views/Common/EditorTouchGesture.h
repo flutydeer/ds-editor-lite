@@ -108,6 +108,11 @@ public:
     Events pressed(int id, const QPointF &position, qint64 timestampMs);
     Events moved(int id, const QPointF &position, qint64 timestampMs);
     Events released(int id, const QPointF &position, qint64 timestampMs);
+    // Drop every point the platform no longer reports, and fall back to Idle
+    // once the glass is empty. Call once per touch event with the ids that are
+    // still down: an event Qt never delivered (a lost release, a grab change)
+    // would otherwise leave the machine stuck forever.
+    Events syncActivePoints(const QList<int> &activeIds);
     // Emit the accumulated two-finger delta. Call once per touch event, after
     // every point it carries has been fed in: computing pan and pinch from a
     // half-applied event would make one finger's motion look like a zoom.

@@ -304,6 +304,98 @@ private slots:
         QCOMPARE(gesture.phase(), Gesture::Phase::Idle);
     }
 
+    // A long press that the caller consumed (it opened a context menu) leaves
+    // the finger resting on the glass. A second finger must still be able to
+    // start navigation, otherwise two-finger zoom is dead until the whole hand
+    // is lifted.
+    void aConsumedLongPressDoesNotBlockNavigation() {
+        Gesture gesture;
+        gesture.pressed(1, {100, 100}, 0);
+        const auto deadline = gesture.longPressDeadline();
+        gesture.longPressTimeout(deadline);
+        gesture.confirmLongPress(false, deadline);
+        QCOMPARE(gesture.phase(), Gesture::Phase::Settling);
+
+        const auto events = gesture.pressed(2, {300, 100}, deadline + 200);
+        QCOMPARE(static_cast<int>(events.size()), 1);
+        QCOMPARE(events.at(0).type, Type::NavigationBegin);
+        QCOMPARE(gesture.phase(), Gesture::Phase::Navigation);
+
+        gesture.moved(1, {50, 100}, deadline + 216);
+        gesture.moved(2, {350, 100}, deadline + 216);
+        const auto update = gesture.flushNavigation(deadline + 216);
+        QCOMPARE(static_cast<int>(update.size()), 1);
+        QVERIFY(std::abs(update.at(0).horizontalFactor - 1.5) < 1e-9);
+    }
+
+    // Putting a finger back down after a two-finger gesture resumes navigation
+    // rather than waiting for the leftover finger to be lifted first.
+    void aFingerReturningAfterNavigationResumesNavigation() {
+        Gesture gesture;
+        gesture.pressed(1, {100, 100}, 0);
+        gesture.pressed(2, {300, 100}, 0);
+        gesture.released(1, {100, 100}, 40);
+        QCOMPARE(gesture.phase(), Gesture::Phase::Settling);
+
+        const auto events = gesture.pressed(3, {100, 100}, 80);
+        QCOMPARE(static_cast<int>(events.size()), 1);
+        QCOMPARE(events.at(0).type, Type::NavigationBegin);
+    }
+
+    // A single leftover finger still must not start an edit on its own.
+    void aSingleFingerCannotRestartFromSettling() {
+        Gesture gesture;
+        gesture.pressed(1, {100, 100}, 0);
+        gesture.pressed(2, {300, 100}, 0);
+        gesture.released(1, {100, 100}, 40);
+        gesture.released(2, {300, 100}, 60);
+        QCOMPARE(gesture.phase(), Gesture::Phase::Idle);
+
+        // Same sequence but with the leftover finger still down.
+        Gesture other;
+        other.pressed(1, {100, 100}, 0);
+        other.pressed(2, {300, 100}, 0);
+        other.released(1, {100, 100}, 40);
+        QVERIFY(other.moved(2, {400, 100}, 60).isEmpty());
+        QCOMPARE(other.phase(), Gesture::Phase::Settling);
+    }
+
+    // A release Qt never delivered would otherwise wedge the machine forever.
+    void syncingActivePointsRecoversFromALostRelease() {
+        Gesture gesture;
+        gesture.pressed(1, {100, 100}, 0);
+        gesture.pressed(2, {300, 100}, 0);
+        QCOMPARE(gesture.phase(), Gesture::Phase::Navigation);
+
+        // The platform reports an empty set without ever sending the releases.
+        const auto events = gesture.syncActivePoints({});
+        QVERIFY(contains(events, Type::NavigationEnd));
+        QCOMPARE(gesture.phase(), Gesture::Phase::Idle);
+        QCOMPARE(gesture.activePointCount(), 0);
+
+        // And the next gesture works normally.
+        gesture.pressed(3, {100, 100}, 200);
+        QCOMPARE(gesture.phase(), Gesture::Phase::Pending);
+    }
+
+    void syncingActivePointsCancelsALostSingleStream() {
+        Gesture gesture;
+        gesture.pressed(1, {100, 100}, 0);
+        gesture.moved(1, {200, 100}, 20);
+        const auto events = gesture.syncActivePoints({});
+        QVERIFY(contains(events, Type::SingleCancel));
+        QCOMPARE(gesture.phase(), Gesture::Phase::Idle);
+    }
+
+    void syncingActivePointsKeepsPointsThatAreStillDown() {
+        Gesture gesture;
+        gesture.pressed(1, {100, 100}, 0);
+        gesture.pressed(2, {300, 100}, 0);
+        QVERIFY(gesture.syncActivePoints({1, 2}).isEmpty());
+        QCOMPARE(gesture.phase(), Gesture::Phase::Navigation);
+        QCOMPARE(gesture.activePointCount(), 2);
+    }
+
     void cancelUndoesAnInFlightDrag() {
         Gesture gesture;
         gesture.pressed(1, {100, 100}, 0);

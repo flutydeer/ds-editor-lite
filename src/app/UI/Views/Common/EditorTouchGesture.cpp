@@ -76,8 +76,24 @@ EditorTouchGesture::Events EditorTouchGesture::pressed(const int id, const QPoin
         m_points[indexOf(id)].position = position;
 
     Events events;
-    if (m_phase == Phase::Settling || m_phase == Phase::Navigation)
-        return events; // extra fingers never restart a gesture
+    if (m_phase == Phase::Navigation)
+        return events; // a third finger never disturbs a running gesture
+
+    if (m_phase == Phase::Settling) {
+        // A spent gesture must not let the leftover finger start an edit, but
+        // two fingers on the glass always mean navigation. Without this a
+        // consumed long press, or a finger left over from the previous pinch,
+        // would block every following two-finger gesture until the hand is
+        // lifted completely.
+        if (m_points.size() < 2)
+            return events;
+        beginNavigation(timestampMs);
+        Event begin;
+        begin.type = Event::Type::NavigationBegin;
+        begin.anchor = m_navigationCentroid;
+        events.append(begin);
+        return events;
+    }
 
     if (m_points.size() == 1) {
         m_phase = Phase::Pending;
@@ -162,6 +178,40 @@ EditorTouchGesture::Events EditorTouchGesture::moved(const int id, const QPointF
         case Phase::Settling:
             break;
     }
+    return events;
+}
+
+EditorTouchGesture::Events EditorTouchGesture::syncActivePoints(const QList<int> &activeIds) {
+    Events events;
+    for (qsizetype i = m_points.size() - 1; i >= 0; --i) {
+        if (!activeIds.contains(m_points.at(i).id))
+            m_points.removeAt(i);
+    }
+    if (!m_points.isEmpty())
+        return events;
+    // Nothing is on the glass any more. Whatever the phase thinks it is doing,
+    // it cannot be doing it, and leaving it stuck would deafen every following
+    // gesture.
+    switch (m_phase) {
+        case Phase::Single: {
+            Event cancel;
+            cancel.type = Event::Type::SingleCancel;
+            cancel.position = m_lastPosition;
+            events.append(cancel);
+            break;
+        }
+        case Phase::Navigation: {
+            Event end;
+            end.type = Event::Type::NavigationEnd;
+            end.anchor = m_navigationCentroid;
+            events.append(end);
+            break;
+        }
+        default:
+            break;
+    }
+    resetToIdle();
+    m_phase = Phase::Idle;
     return events;
 }
 

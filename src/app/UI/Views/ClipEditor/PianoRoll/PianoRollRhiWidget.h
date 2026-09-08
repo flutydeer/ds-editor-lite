@@ -126,8 +126,6 @@ protected:
                              const QPointF &anchor) override;
     [[nodiscard]] bool touchHitsContent(const QPointF &viewportPosition) const override;
     [[nodiscard]] BlankDragAction touchBlankDragAction() const override;
-    void beginTouchDirectManipulation() override;
-    void endTouchDirectManipulation() override;
     void cancelTouchPointerInteraction() override;
 
 private:

@@ -7,6 +7,7 @@
 #include <QApplication>
 #include <QContextMenuEvent>
 #include <QCoreApplication>
+#include <QList>
 #include <QMouseEvent>
 #include <QTimer>
 #include <QTouchEvent>
@@ -22,17 +23,18 @@ namespace {
     constexpr double inertiaStopSpeed = 20.0;
     // Weight kept on the previous estimate when tracking a single-finger pan.
     constexpr double panVelocitySmoothing = 0.55;
-    // How long after the last touch point a mouse-reason context menu is still
-    // assumed to be the platform's press-and-hold emulation. Windows raises it
-    // around 500 ms, a little after our own long press has already fired.
-    constexpr qint64 foreignContextMenuGraceMs = 1500;
+    // How long to wait for the platform's own press-and-hold context menu
+    // before posting one ourselves. Windows delivers it within a millisecond
+    // of the touch ending, so on Windows the fallback never fires.
+    constexpr int contextMenuFallbackMs = 400;
 }
 
 EditorTouchController::EditorTouchController(EditorTouchTarget *target, QWidget *widget,
                                              QWidget *eventTarget, QObject *parent)
     : QObject(parent ? parent : widget), m_target(target), m_widget(widget),
       m_eventTarget(eventTarget ? eventTarget : widget),
-      m_longPressTimer(new QTimer(this)), m_inertiaTimer(new QTimer(this)) {
+      m_longPressTimer(new QTimer(this)), m_inertiaTimer(new QTimer(this)),
+      m_contextMenuFallbackTimer(new QTimer(this)) {
     m_clock.start();
 
     m_longPressTimer->setSingleShot(true);
@@ -41,6 +43,15 @@ EditorTouchController::EditorTouchController(EditorTouchTarget *target, QWidget 
 
     m_inertiaTimer->setInterval(inertiaIntervalMs);
     connect(m_inertiaTimer, &QTimer::timeout, this, &EditorTouchController::onInertiaFrame);
+
+    m_contextMenuFallbackTimer->setSingleShot(true);
+    m_contextMenuFallbackTimer->setInterval(contextMenuFallbackMs);
+    connect(m_contextMenuFallbackTimer, &QTimer::timeout, this, [this] {
+        if (!m_contextMenuPending)
+            return;
+        m_contextMenuPending = false;
+        postContextMenu(m_pendingContextMenuPosition);
+    });
 }
 
 EditorTouchController::~EditorTouchController() {
@@ -79,7 +90,10 @@ bool EditorTouchController::handleEvent(QEvent *event) {
         case QEvent::MouseMove:
             return swallowForeignMouseEvent(static_cast<QMouseEvent *>(event));
         case QEvent::ContextMenu:
-            return swallowForeignContextMenu(static_cast<QContextMenuEvent *>(event));
+            // The platform beat us to it, which is the good case: it brings the
+            // native press-and-hold feedback and the native timing.
+            cancelContextMenuFallback();
+            return false;
         default:
             return false;
     }
@@ -97,17 +111,14 @@ bool EditorTouchController::swallowForeignMouseEvent(QMouseEvent *event) {
     return true;
 }
 
-bool EditorTouchController::swallowForeignContextMenu(QContextMenuEvent *event) {
-    if (!m_target || !isEnabled())
-        return false;
-    // Our own long press posts the menu with the Other reason, and a keyboard
-    // menu key must always get through.
-    if (event->reason() != QContextMenuEvent::Mouse)
-        return false;
-    if (!isGestureActive() && now() - m_lastTouchTimestamp > foreignContextMenuGraceMs)
-        return false;
-    event->accept();
-    return true;
+void EditorTouchController::armContextMenuFallback(const QPointF &position) {
+    m_pendingContextMenuPosition = position;
+    m_contextMenuPending = true;
+}
+
+void EditorTouchController::cancelContextMenuFallback() {
+    m_contextMenuPending = false;
+    m_contextMenuFallbackTimer->stop();
 }
 
 bool EditorTouchController::handleTouchEvent(QTouchEvent *event) {
@@ -124,7 +135,6 @@ bool EditorTouchController::handleTouchEvent(QTouchEvent *event) {
 
     m_device = event->pointingDevice();
     const auto timestamp = now();
-    m_lastTouchTimestamp = timestamp;
     for (const auto &point : event->points()) {
         const auto position = point.position();
         switch (point.state()) {
@@ -144,10 +154,22 @@ bool EditorTouchController::handleTouchEvent(QTouchEvent *event) {
     }
     dispatch(m_gesture.flushNavigation(timestamp));
 
+    QList<int> activeIds;
+    for (const auto &point : event->points()) {
+        if (point.state() != QEventPoint::State::Released)
+            activeIds.append(point.id());
+    }
+    dispatch(m_gesture.syncActivePoints(activeIds));
+
     if (m_gesture.longPressDeadline() != 0)
         armLongPressTimer();
     else
         disarmLongPressTimer();
+
+    // The press-and-hold menu belongs to the release, so only start waiting for
+    // the platform's once every finger has left the glass.
+    if (m_contextMenuPending && activeIds.isEmpty() && !m_contextMenuFallbackTimer->isActive())
+        m_contextMenuFallbackTimer->start();
 
     event->accept();
     return true;
@@ -223,10 +245,6 @@ void EditorTouchController::onSingleBegin(const EditorTouchGesture::Event &event
         m_panStreamActive = true;
         return;
     }
-    if (action == EditorTouchTarget::BlankDragAction::DirectManipulation) {
-        m_target->beginTouchDirectManipulation();
-        m_directManipulationActive = true;
-    }
 
     m_syntheticStreamActive = true;
     EditorPointer::beginTouchStream();
@@ -280,10 +298,6 @@ void EditorTouchController::onSingleCancel() {
 }
 
 void EditorTouchController::finishStream() {
-    if (m_directManipulationActive) {
-        m_target->endTouchDirectManipulation();
-        m_directManipulationActive = false;
-    }
     if (m_syntheticStreamActive) {
         m_syntheticStreamActive = false;
         EditorPointer::endTouchStream();
@@ -292,7 +306,12 @@ void EditorTouchController::finishStream() {
 
 void EditorTouchController::onLongPress(const EditorTouchGesture::Event &event) {
     if (m_target->touchHitsContent(event.position)) {
-        postContextMenu(event.position);
+        // The finger is spent: it must not drag the object it is resting on.
+        // The menu itself is left to the platform, so that the press-and-hold
+        // feedback and the open-on-release timing match every other Windows
+        // surface. The fallback below only runs where the platform has no such
+        // gesture of its own.
+        armContextMenuFallback(event.position);
         dispatch(m_gesture.confirmLongPress(false, now()));
         return;
     }
@@ -364,6 +383,7 @@ void EditorTouchController::onInertiaFrame() {
 void EditorTouchController::cancel() {
     disarmLongPressTimer();
     stopInertia();
+    cancelContextMenuFallback();
     const auto events = m_gesture.cancelled();
     for (const auto &event : events) {
         if (event.type == EditorTouchGesture::Event::Type::SingleCancel)
