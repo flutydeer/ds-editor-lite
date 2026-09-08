@@ -418,7 +418,7 @@ namespace {
             if (info.previous.documentId != info.current.document.documentId) {
                 const auto oldDocument = runtime.documents().getDocument(info.previous.documentId);
                 test.expect(!oldDocument && oldDocument.getError().code ==
-                                               Automation::AutomationErrorCode::DocumentChanged,
+                                                Automation::AutomationErrorCode::DocumentChanged,
                             scenario, "the previous generation must be retired before completion");
             }
         };
@@ -429,7 +429,8 @@ namespace {
             value.clientId = QStringLiteral("document-observer-client");
             return value;
         };
-        const auto draft = makeDocumentDraft(QStringLiteral("Observer"), QStringLiteral("observer"));
+        const auto draft =
+            makeDocumentDraft(QStringLiteral("Observer"), QStringLiteral("observer"));
         const auto initial = runtime.documentVersion();
         const auto created = runtime.documents().commitNewDocument(context(), draft);
         test.expect(created && fixture.host.commits.size() == 1 &&
@@ -482,7 +483,8 @@ namespace {
         const auto previewSave = runtime.documents().saveDocumentAs(
             previewContext, directory.filePath(QStringLiteral("preview.dspx")), false);
         test.expect(previewNew && previewOpen && previewSave && fixture.host.commits.size() == 4 &&
-                        runtime.documentVersion() == versionBeforeSave && savePointNotifications == 2,
+                        runtime.documentVersion() == versionBeforeSave &&
+                        savePointNotifications == 2,
                     scenario, "validation must not emit completion or savepoint notifications");
     }
 
@@ -495,6 +497,12 @@ namespace {
         continuation.source = Automation::InvocationSource::PublicMcp;
         const auto admitted = runtime.dispatcher().admitDocumentTask(continuation);
         const bool acquired = runtime.setDocumentBusy(original.documentId, true);
+        bool notifiedWhileBusy = false;
+        fixture.host.onCommit = [&](const Automation::DocumentCommitInfo &info) {
+            notifiedWhileBusy = info.current.busy &&
+                                runtime.documentBusy(info.current.document.documentId) &&
+                                info.source == continuation.source;
+        };
         const auto replacement = runtime.documents().commitOpenedDocument(
             continuation,
             makeDocumentDraft(QStringLiteral("Busy Replacement"),
@@ -514,9 +522,9 @@ namespace {
 
         test.expect(
             admitted && acquired && replacement && current.documentId != original.documentId &&
-                busyAfterReplacement && released && !runtime.documentBusy(current.documentId) &&
-                !blocked && blocked.getError().code == Automation::AutomationErrorCode::Busy &&
-                committed,
+                notifiedWhileBusy && busyAfterReplacement && released &&
+                !runtime.documentBusy(current.documentId) && !blocked &&
+                blocked.getError().code == Automation::AutomationErrorCode::Busy && committed,
             scenario,
             "workflow busy must cross task-driven replacement, reject new public mutations, and "
             "remain releasable by its original generation");

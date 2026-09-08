@@ -63,15 +63,16 @@ namespace Automation {
     AutomationResult<MutationResult>
         DocumentAutomationFacade::commitNewDocument(const CommandContext &context,
                                                     const DocumentDraftDto &document) {
-        return replaceDocument(OperationIds::documents::commit_new, context, document, {}, {},
-                               true, {});
+        return replaceDocument(OperationIds::documents::commit_new, context, document, {}, {}, true,
+                               {});
     }
 
     AutomationResult<MutationResult> DocumentAutomationFacade::commitOpenedDocument(
         const CommandContext &context, const DocumentDraftDto &document, const QString &path,
         const QString &projectName, const bool savedBaseline, const QString &sourcePath) {
         return replaceDocument(OperationIds::documents::commit_open, context, document, path,
-                               projectName, savedBaseline, sourcePath.isEmpty() ? path : sourcePath);
+                               projectName, savedBaseline,
+                               sourcePath.isEmpty() ? path : sourcePath);
     }
 
     AutomationResult<MutationResult> DocumentAutomationFacade::replaceDocument(

@@ -48,12 +48,10 @@ namespace Automation {
         static DocumentDraftDto newDocumentDraft(bool defaultTemplate);
         AutomationResult<MutationResult> commitNewDocument(const CommandContext &context,
                                                            const DocumentDraftDto &document);
-        AutomationResult<MutationResult> commitOpenedDocument(const CommandContext &context,
-                                                              const DocumentDraftDto &document,
-                                                              const QString &path,
-                                                              const QString &projectName,
-                                                              bool savedBaseline,
-                                                              const QString &sourcePath = {});
+        AutomationResult<MutationResult>
+            commitOpenedDocument(const CommandContext &context, const DocumentDraftDto &document,
+                                 const QString &path, const QString &projectName,
+                                 bool savedBaseline, const QString &sourcePath = {});
         AutomationResult<MutationResult> commitImportedDocument(const CommandContext &context,
                                                                 const DocumentDraftDto &document,
                                                                 bool importTempo,

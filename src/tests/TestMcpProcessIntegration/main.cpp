@@ -278,6 +278,243 @@ namespace {
         return false;
     }
 
+    bool verifyDocumentLifecycle(QProcess &connector, const QString &directory,
+                                 const qint64 audioTrackId) {
+        qint64 requestId = 20000;
+        QString error;
+        QJsonObject document;
+        QString windowId;
+        const auto call = [&](const QString &name, const QJsonObject &arguments = {}) {
+            auto result =
+                connectorToolContent(connector, requestId++, name, arguments, 10000, error);
+            if (!result)
+                fail(QStringLiteral("Lifecycle %1 failed: %2").arg(name, error));
+            return result;
+        };
+        const auto refresh = [&] {
+            const auto status = call(QStringLiteral("application.get_status"));
+            if (!status)
+                return false;
+            document = status->value(QStringLiteral("documents")).toArray().first().toObject();
+            windowId = status->value(QStringLiteral("windows"))
+                           .toArray()
+                           .first()
+                           .toObject()
+                           .value(QStringLiteral("window_id"))
+                           .toString();
+            return !document.value(QStringLiteral("document_id")).toString().isEmpty();
+        };
+        const auto arguments = [&] {
+            return QJsonObject{
+                {QStringLiteral("document_id"),       document.value("document_id")},
+                {QStringLiteral("expected_revision"), document.value("revision")   }
+            };
+        };
+        const auto snapshot = [&] {
+            return call(QStringLiteral("documents.get"),
+                        {
+                            {QStringLiteral("document_id"), document.value("document_id")}
+            });
+        };
+        const auto checkDocument = [&](const QString &path, const bool dirty) {
+            const auto result = snapshot();
+            const auto state = result ? result->value("snapshot").toObject() : QJsonObject{};
+            return result && state.value("path").toString() == path &&
+                   state.value("dirty").toBool() == dirty &&
+                   state.value("saved").toBool() != dirty &&
+                   state.value("lifecycle").toString() == QStringLiteral("active");
+        };
+        const auto activeClip = [&] {
+            return call(QStringLiteral("clip_editor.get_state"),
+                        {
+                            {QStringLiteral("document_id"), document.value("document_id")},
+                            {QStringLiteral("window_id"),   windowId                     }
+            });
+        };
+        const auto checkActiveClip = [&](const bool singing) {
+            const auto editor = activeClip();
+            if (!editor)
+                return false;
+            const auto id = editor->value("active_clip_id");
+            if (!singing)
+                return id.isNull();
+            const auto clips =
+                call(QStringLiteral("clips.list"),
+                     {
+                         {QStringLiteral("document_id"), document.value("document_id")},
+                         {QStringLiteral("type"),        QStringLiteral("singing")    }
+            });
+            const auto items = clips ? clips->value("clips").toArray() : QJsonArray{};
+            return !items.isEmpty() && id == items.first().toObject().value("clip_id");
+        };
+        const auto saveAs = [&](const QString &path) {
+            if (!refresh())
+                return false;
+            const auto before = activeClip();
+            auto input = arguments();
+            input.insert(QStringLiteral("path"), path);
+            input.insert(QStringLiteral("overwrite_policy"), QStringLiteral("reject"));
+            const auto saved = call(QStringLiteral("documents.save_as"), input);
+            const auto after = activeClip();
+            return saved && before && after && checkDocument(path, false) &&
+                   before->value("active_clip_id") == after->value("active_clip_id");
+        };
+        const auto create = [&](const QString &preset) {
+            if (!refresh())
+                return false;
+            const auto result =
+                call(QStringLiteral("documents.new"),
+                     {
+                         {QStringLiteral("current_document_id"), document.value("document_id")},
+                         {QStringLiteral("expected_revision"),   document.value("revision")   },
+                         {QStringLiteral("unsaved_policy"),      QStringLiteral("discard")    },
+                         {QStringLiteral("template"),            preset                       }
+            });
+            return result && refresh() && checkDocument({}, false);
+        };
+        const auto open = [&](const QString &path) {
+            if (!refresh())
+                return false;
+            const auto previous = document.value("document_id");
+            const auto started =
+                call(QStringLiteral("documents.open"),
+                     {
+                         {QStringLiteral("current_document_id"), previous                  },
+                         {QStringLiteral("expected_revision"),   document.value("revision")},
+                         {QStringLiteral("unsaved_policy"),      QStringLiteral("reject")  },
+                         {QStringLiteral("path"),                path                      }
+            });
+            if (!started)
+                return false;
+            const auto taskId = started->value("task_id").toString();
+            for (int attempt = 0; attempt < 100; ++attempt) {
+                if (!refresh())
+                    return false;
+                const auto task = connectorToolContent(
+                    connector, requestId++, QStringLiteral("tasks.get"),
+                    {
+                        {QStringLiteral("scope"),       QStringLiteral("document")   },
+                        {QStringLiteral("document_id"), document.value("document_id")},
+                        {QStringLiteral("task_id"),     taskId                       }
+                },
+                    5000, error);
+                if (!task) {
+                    if (error.contains(QStringLiteral("document_changed")))
+                        continue;
+                    return fail(error);
+                }
+                const auto state = task->value("state").toString();
+                if (state == QStringLiteral("succeeded"))
+                    return document.value("document_id") != previous;
+                if (state == QStringLiteral("failed") || state == QStringLiteral("canceled"))
+                    return fail(
+                        QStringLiteral("Lifecycle open task failed: %1").arg(compactJson(*task)));
+                QThread::msleep(50);
+            }
+            return fail(QStringLiteral("Lifecycle open task timed out"));
+        };
+
+        if (!refresh())
+            return false;
+        const auto tracks =
+            call(QStringLiteral("tracks.list"),
+                 {
+                     {QStringLiteral("document_id"), document.value("document_id")}
+        });
+        if (!tracks)
+            return false;
+        for (const auto &track : tracks->value("tracks").toArray()) {
+            const auto id = track.toObject().value("track_id").toInteger();
+            if (id == audioTrackId)
+                continue;
+            if (!refresh())
+                return false;
+            auto input = arguments();
+            input.insert(QStringLiteral("track_ids"), QJsonArray{id});
+            if (!call(QStringLiteral("tracks.remove"), input))
+                return false;
+        }
+        const auto audioProject = QDir(directory).filePath(QStringLiteral("audio-only.dspx"));
+        const auto firstPath = QDir(directory).filePath(QStringLiteral("生命周期甲.dspx"));
+        const auto secondPath = QDir(directory).filePath(QStringLiteral("生命周期乙.dspx"));
+        if (!saveAs(audioProject) || !create(QStringLiteral("default")) || !checkActiveClip(true) ||
+            !saveAs(firstPath) || !saveAs(secondPath)) {
+            return fail(
+                QStringLiteral("Lifecycle new/save-as did not preserve document or selection"));
+        }
+        const auto recent = call(QStringLiteral("documents.list_recent"));
+        const auto projects = recent ? recent->value("projects").toArray() : QJsonArray{};
+        if (projects.size() < 2 || projects.at(0).toObject().value("path") != secondPath ||
+            projects.at(1).toObject().value("path") != firstPath) {
+            return fail(
+                QStringLiteral("Lifecycle save-as did not update recent projects in order"));
+        }
+        if (!create(QStringLiteral("empty")) || !checkActiveClip(false) || !open(firstPath) ||
+            !checkDocument(firstPath, false) || !checkActiveClip(true)) {
+            return fail(
+                QStringLiteral("Lifecycle open did not restore its document and first clip"));
+        }
+        const auto reopenedRecent = call(QStringLiteral("documents.list_recent"));
+        if (!reopenedRecent ||
+            reopenedRecent->value("projects").toArray().size() != projects.size() ||
+            reopenedRecent->value("projects").toArray().first().toObject().value("path") !=
+                firstPath) {
+            return fail(
+                QStringLiteral("Lifecycle open must promote, not duplicate, its recent path"));
+        }
+
+        const auto openedTracks =
+            call(QStringLiteral("tracks.list"),
+                 {
+                     {QStringLiteral("document_id"), document.value("document_id")}
+        });
+        if (!openedTracks || !refresh())
+            return false;
+        auto renameInput = arguments();
+        renameInput.insert(
+            QStringLiteral("track_id"),
+            openedTracks->value("tracks").toArray().first().toObject().value("track_id"));
+        renameInput.insert(QStringLiteral("name"), QStringLiteral("Lifecycle edited"));
+        const auto selectedBeforeSave = activeClip();
+        if (!call(QStringLiteral("tracks.rename"), renameInput) || !refresh() ||
+            !checkDocument(firstPath, true) ||
+            !call(QStringLiteral("documents.save"), arguments()) ||
+            !checkDocument(firstPath, false)) {
+            return fail(QStringLiteral("Lifecycle save did not clear the dirty state"));
+        }
+        const auto selectedAfterSave = activeClip();
+        if (!selectedBeforeSave || !selectedAfterSave ||
+            selectedBeforeSave->value("active_clip_id") !=
+                selectedAfterSave->value("active_clip_id") ||
+            !open(audioProject) || !checkDocument(audioProject, false) || !checkActiveClip(false)) {
+            return fail(QStringLiteral("Lifecycle audio-only open retained a stale active clip"));
+        }
+
+        QFile midi(QDir(directory).filePath(QStringLiteral("来源.mid")));
+        if (!midi.open(QIODevice::WriteOnly))
+            return fail(QStringLiteral("Could not create lifecycle MIDI fixture"));
+        midi.write(QByteArray::fromHex("4d546864000000060000000101e04d54726b0000001400ff510307a1200"
+                                       "0903c648360803c0000ff2f00"));
+        midi.close();
+        const auto recentBeforeForeign = call(QStringLiteral("documents.list_recent"));
+        if (!open(midi.fileName()) || !checkDocument({}, true) || !checkActiveClip(true))
+            return fail(
+                QStringLiteral("Foreign open must be unsaved and activate its singing clip"));
+        const auto foreign = snapshot();
+        const auto recentAfterForeign = call(QStringLiteral("documents.list_recent"));
+        if (!foreign ||
+            foreign->value("snapshot").toObject().value("project_name") !=
+                QFileInfo(midi.fileName()).completeBaseName() ||
+            !recentBeforeForeign || !recentAfterForeign ||
+            *recentBeforeForeign != *recentAfterForeign) {
+            return fail(QStringLiteral("Foreign lifecycle identity/recent mismatch: %1; %2; %3")
+                            .arg(foreign ? compactJson(*foreign) : error,
+                                 recentBeforeForeign ? compactJson(*recentBeforeForeign) : error,
+                                 recentAfterForeign ? compactJson(*recentAfterForeign) : error));
+        }
+        return true;
+    }
+
     QString schemaIssue(const QJsonValue &schema) {
         const auto validation = AutomationWire::checkJsonSchema(schema);
         if (validation.valid())
@@ -854,7 +1091,7 @@ namespace {
         }
 
         const auto directCatalog = directToolCatalog(directClient, 10000, toolError);
-        if (!directCatalog || directCatalog->size() != 176 ||
+        if (!directCatalog || directCatalog->size() != 179 ||
             !directCatalog->contains(QStringLiteral("application.get_status")) ||
             !directCatalog->contains(QStringLiteral("workspace.get_state")) ||
             !directCatalog->contains(QStringLiteral("track_panel.get_state")) ||
@@ -1418,6 +1655,9 @@ namespace {
                 QStringLiteral("Direct Editor MCP 2025-11-25 tools/call failed: %1")
                     .arg(toolError));
         }
+
+        if (!verifyDocumentLifecycle(connector, isolatedRoot.path(), createdTrackId))
+            return failWithProcessDiagnostics(QStringLiteral("Document lifecycle checks failed"));
 
         const auto rejectedExit = exchange(
             connector,

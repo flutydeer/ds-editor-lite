@@ -8,8 +8,8 @@ DSPX 异步读取、Package metadata 等前置工作的历史背景见
 
 ## 背景与目标
 
-DS Editor Lite 的 New、Open、Import、Save、Save As、Close、Restart 工作流统一为一个外层文档状态机，
-格式内部加载统一为 Session 协议；在此之上接入 DSPX Import 与经 LibreSVIP 桥接的外部歌声工程格式
+DS Editor Lite 的 GUI 文档请求由外层状态机处理保存保护和交互，MCP / JSON-RPC 使用显式参数与任务。
+两者共享格式 Session、文档提交和提交后的收尾；在此之上接入 DSPX Import 与经 LibreSVIP 桥接的外部歌声工程格式
 （SVP、USTX、VSQX、VSPX 等）。
 
 整个设计分为两层：
@@ -17,16 +17,21 @@ DS Editor Lite 的 New、Open、Import、Save、Save As、Close、Restart 工作
 ```mermaid
 flowchart TD
     UI["菜单 / 最近工程 / 拖放 / 启动参数"] --> Outer["DocumentWorkflowController\n外层文档状态机"]
+    API["MCP / JSON-RPC"] --> Adapter["PublicAutomationHostAdapter\n无交互任务"]
     Outer --> Session["IProjectLoadSession\n格式内部加载会话"]
+    Adapter --> Session
+    Outer --> Committer
+    Adapter --> Committer
     Session --> Prepared["PreparedProject\nReplace / Append payload"]
-    Prepared --> Committer["统一提交器"]
+    Prepared --> Committer["DocumentAutomationFacade\n共享提交"]
     Committer --> Model["AppModel / History / 文档身份"]
+    Committer --> Completed["afterCommit\n最近工程 / 默认目录 / 标题 / 活动片段"]
 
     Session -. "扩展" .-> Registry["ProjectFormatRegistry"]
     Registry -.-> Wizard["配置页 / 轨道选择"]
 ```
 
-- 外层状态机负责当前文档生命周期、保存保护、并发拒绝、终止和统一提交。
+- GUI 外层状态机负责保存保护、并发拒绝和终止交互，自动化入口负责显式策略与任务受理。
 - 内层 Session 负责格式解析、格式专用配置、进度、取消和错误报告。
 - 外层只接收 `ready / failed / canceled` 和 `PreparedProject`，不理解 MIDI 通道、编码或歌手映射。
 - Session 和 Converter 不得修改当前文档、历史、路径或最近工程。
@@ -91,8 +96,20 @@ using PreparedProject =
 ### 统一提交
 
 Replace 顺序：Session 物化完成 → Committing（禁用取消）→ 清理旧历史 → `AppModel::replaceProject()` →
-设置 loop → 更新路径/名称/最近工程/最后目录 → 重置 Saved / Unsaved 历史基线 → 激活首个 Clip。
+设置 loop → 重置 Saved / Unsaved 历史基线 → 更新文档身份与路径并恢复 Active → 切换任务归属 →
+`DocumentRuntimeServices::afterCommit`。
 历史基线在 `modelChanged` 后再次建立（现有 UI 初始化可能产生模型 Action，避免误显示未保存圆点）。
+
+`DocumentCommitInfo` 包含操作类型、前后身份、最终文档快照、原始来源路径和调用来源。
+回调接收者可同步查询完整的新状态；失败、取消和预验证不会触发回调。异步打开在回调完成后才标记成功，
+但工作流 busy 租约仍由原持有者释放。保存/另存为先完成文件写入，再更新路径与名称、设置保存点并通知，
+因此保存点的观察者也能立即读到新的路径。
+
+`AppContext` 统一更新最近 DSPX，并将完成信息交给 GUI 工作流控制器处理最后目录、标题和活动片段。
+原始来源路径与加载临时副本、未保存文档的空身份路径分开传递。GUI 和自动化入口不再各自重复收尾；
+派生的设置和界面命令保留 `InvocationSource` 与客户端身份，避免将无交互请求变成 GUI 请求。
+Headless 不创建 GUI 控制器。GUI 在文档替换后激活首个歌声片段，空工程和纯音频工程清除旧活动片段；
+保存不改变选择。标题从单次有效快照读取名称、路径和保存状态，替换中查询不可用时保留原显示。
 
 文档身份规则：
 
