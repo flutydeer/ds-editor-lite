@@ -23,6 +23,18 @@ namespace Automation {
             error.message = message;
             return error;
         }
+
+        DocumentSnapshotDto documentSnapshot(const DocumentSession &session) {
+            const auto *history = session.history();
+            return {
+                .document = session.version(),
+                .path = session.path(),
+                .projectName = session.projectName(),
+                .lifecycle = session.lifecycleState(),
+                .busy = session.isBusy(),
+                .saved = !history || history->isOnSavePoint(),
+            };
+        }
     }
 
     DocumentAutomationFacade::DocumentAutomationFacade(AutomationDispatcher &dispatcher,
@@ -37,15 +49,7 @@ namespace Automation {
         DocumentAutomationFacade::getDocument(const DocumentId &documentId) {
         return m_dispatcher.dispatchDocumentQuery<DocumentSnapshotDto>(
             OperationIds::documents::get, documentId, [](DocumentSession &session) {
-                auto *history = session.history();
-                return AutomationResult<DocumentSnapshotDto>({
-                    .document = session.version(),
-                    .path = session.path(),
-                    .projectName = session.projectName(),
-                    .lifecycle = session.lifecycleState(),
-                    .busy = session.isBusy(),
-                    .saved = !history || history->isOnSavePoint(),
-                });
+                return AutomationResult<DocumentSnapshotDto>(documentSnapshot(session));
             });
     }
 
@@ -60,24 +64,24 @@ namespace Automation {
         DocumentAutomationFacade::commitNewDocument(const CommandContext &context,
                                                     const DocumentDraftDto &document) {
         return replaceDocument(OperationIds::documents::commit_new, context, document, {}, {},
-                               true);
+                               true, {});
     }
 
     AutomationResult<MutationResult> DocumentAutomationFacade::commitOpenedDocument(
         const CommandContext &context, const DocumentDraftDto &document, const QString &path,
-        const QString &projectName, const bool savedBaseline) {
+        const QString &projectName, const bool savedBaseline, const QString &sourcePath) {
         return replaceDocument(OperationIds::documents::commit_open, context, document, path,
-                               projectName, savedBaseline);
+                               projectName, savedBaseline, sourcePath.isEmpty() ? path : sourcePath);
     }
 
     AutomationResult<MutationResult> DocumentAutomationFacade::replaceDocument(
         const OperationId &operationId, const CommandContext &context,
         const DocumentDraftDto &document, const QString &path, const QString &projectName,
-        const bool savedBaseline) {
+        const bool savedBaseline, const QString &sourcePath) {
         return m_dispatcher.dispatchDocumentCommand(
             operationId, context,
-            [this, document, path, projectName, savedBaseline,
-             taskId = context.taskId](DocumentSession &session, const bool validateOnly) {
+            [this, operationId, context, document, path, projectName, savedBaseline,
+             sourcePath](DocumentSession &session, const bool validateOnly) {
                 auto validation = validate(document);
                 if (!validation)
                     return AutomationResult<MutationResult>(validation.getError());
@@ -110,10 +114,11 @@ namespace Automation {
                                              : HistoryManager::ResetState::Unsaved);
                 result.current = session.replaceGeneration(path, projectName);
                 m_tasks.replaceDocumentGeneration(result.previous.documentId, result.current,
-                                                  taskId);
+                                                  context.taskId);
                 result.changed = true;
                 result.createdObjects = std::move(createdObjects);
                 result.presentationEffects.append(QStringLiteral("active_document_changed"));
+                notifyCommitted(operationId, context, result, session, sourcePath);
                 return AutomationResult<MutationResult>(std::move(result));
             });
     }
@@ -176,7 +181,8 @@ namespace Automation {
         const bool allowOverwrite) {
         return m_dispatcher.dispatchDocumentCommand(
             operationId, context,
-            [this, path, allowOverwrite](DocumentSession &session, const bool validateOnly) {
+            [this, operationId, context, path, allowOverwrite](DocumentSession &session,
+                                                               const bool validateOnly) {
                 if (path.trimmed().isEmpty()) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
                         QStringLiteral("path"), QStringLiteral("Save path is empty")));
@@ -243,11 +249,27 @@ namespace Automation {
                 }
                 if (!allowOverwrite)
                     removeStaging.dismiss();
+                session.setPathAndProjectName(path, QFileInfo(path).fileName());
                 if (auto *history = session.history())
                     history->setSavePoint();
-                session.setPathAndProjectName(path, QFileInfo(path).fileName());
+                notifyCommitted(operationId, context, result, session, path);
                 return AutomationResult<MutationResult>(std::move(result));
             });
+    }
+
+    void DocumentAutomationFacade::notifyCommitted(const OperationId &operationId,
+                                                   const CommandContext &context,
+                                                   const MutationResult &result,
+                                                   const DocumentSession &session,
+                                                   const QString &sourcePath) const {
+        if (m_services.afterCommit) {
+            m_services.afterCommit({.operationId = operationId,
+                                    .previous = result.previous,
+                                    .current = documentSnapshot(session),
+                                    .sourcePath = sourcePath,
+                                    .source = context.source,
+                                    .clientId = context.clientId});
+        }
     }
 
 } // namespace Automation

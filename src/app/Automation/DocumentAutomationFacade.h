@@ -12,12 +12,6 @@ class AppModel;
 
 namespace Automation {
 
-    struct DocumentRuntimeServices {
-        std::function<void(const LoopSettings &)> applyLoopSettings;
-        std::function<bool(const QString &, AppModel *, QString &)> saveProject;
-        std::function<void(const DocumentId &)> beforeReplaceGeneration;
-    };
-
     struct DocumentSnapshotDto {
         DocumentVersion document;
         QString path;
@@ -25,6 +19,23 @@ namespace Automation {
         DocumentLifecycleState lifecycle = DocumentLifecycleState::Active;
         bool busy = false;
         bool saved = true;
+    };
+
+    struct DocumentCommitInfo {
+        OperationId operationId;
+        DocumentVersion previous;
+        DocumentSnapshotDto current;
+        QString sourcePath;
+        InvocationSource source = InvocationSource::TrustedGui;
+        QString clientId;
+    };
+
+    struct DocumentRuntimeServices {
+        std::function<void(const LoopSettings &)> applyLoopSettings;
+        std::function<bool(const QString &, AppModel *, QString &)> saveProject;
+        std::function<void(const DocumentId &)> beforeReplaceGeneration;
+        // 此时文档已恢复 Active，接收者可同步查询完整的提交状态。
+        std::function<void(const DocumentCommitInfo &)> afterCommit;
     };
 
     class DocumentAutomationFacade final {
@@ -41,7 +52,8 @@ namespace Automation {
                                                               const DocumentDraftDto &document,
                                                               const QString &path,
                                                               const QString &projectName,
-                                                              bool savedBaseline);
+                                                              bool savedBaseline,
+                                                              const QString &sourcePath = {});
         AutomationResult<MutationResult> commitImportedDocument(const CommandContext &context,
                                                                 const DocumentDraftDto &document,
                                                                 bool importTempo,
@@ -57,11 +69,15 @@ namespace Automation {
         AutomationResult<MutationResult>
             replaceDocument(const OperationId &operationId, const CommandContext &context,
                             const DocumentDraftDto &document, const QString &path,
-                            const QString &projectName, bool savedBaseline);
+                            const QString &projectName, bool savedBaseline,
+                            const QString &sourcePath);
         AutomationResult<MutationResult> saveDocumentWithOperation(const OperationId &operationId,
                                                                    const CommandContext &context,
                                                                    const QString &path,
                                                                    bool allowOverwrite);
+        void notifyCommitted(const OperationId &operationId, const CommandContext &context,
+                             const MutationResult &result, const DocumentSession &session,
+                             const QString &sourcePath) const;
 
         AutomationDispatcher &m_dispatcher;
         CommandCommitter &m_committer;
