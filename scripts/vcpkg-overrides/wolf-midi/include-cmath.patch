@@ -1,0 +1,11 @@
+diff --git a/src/MidiFile.cpp b/src/MidiFile.cpp
+--- a/src/MidiFile.cpp
++++ b/src/MidiFile.cpp
+@@ -6,6 +6,7 @@
+ #include <algorithm>
+ #include <wolf-midi/MidiFile.h>
+ 
++#include <cmath>
+ #include <cstdint>
+ #include <cstring>
+ #include <fstream>
