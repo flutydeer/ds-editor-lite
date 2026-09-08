@@ -15,6 +15,7 @@
 #include <QtTest>
 
 #include <memory>
+#include <cstddef>
 
 template <>
 AppStatus *AppContext::instance<AppStatus>() {
@@ -145,6 +146,52 @@ private slots:
         QCOMPARE(historyManager->redoActionName(), QStringLiteral("Translated action"));
         QCoreApplication::removeTranslator(&translator);
         QCOMPARE(historyManager->redoActionName(), QStringLiteral("Translatable action"));
+    }
+
+    void discardedSavedBranchCannotBecomeCleanThroughAddressReuse() {
+        class ReusedSequence final : public ActionSequence {
+        public:
+            using ActionSequence::addAction;
+
+            // A later history entry may legally reuse the address of a discarded saved entry.
+            void *operator new(std::size_t) {
+                alignas(ReusedSequence) static std::byte storage[sizeof(ReusedSequence)];
+                return storage;
+            }
+
+            void operator delete(void *) noexcept {
+            }
+        };
+
+        const auto counts = std::make_shared<ActionCounts>();
+        const auto record = [&](auto *sequence) {
+            sequence->addAction(new CountingAction(counts));
+            sequence->execute();
+            historyManager->record(sequence);
+        };
+        record(new ReusedSequence);
+        historyManager->setSavePoint();
+        QVERIFY(historyManager->isOnSavePoint());
+        historyManager->undo();
+        QVERIFY(!historyManager->isOnSavePoint());
+
+        record(new TestActionSequence);
+        QCOMPARE(counts->destroyed, 1);
+        QVERIFY(!historyManager->canRedo());
+        QVERIFY(!historyManager->isOnSavePoint());
+        record(new ReusedSequence);
+        QVERIFY(!historyManager->isOnSavePoint());
+
+        historyManager->undo();
+        QVERIFY(!historyManager->isOnSavePoint());
+        historyManager->undo();
+        QVERIFY(!historyManager->isOnSavePoint());
+        historyManager->redo();
+        QVERIFY(!historyManager->isOnSavePoint());
+        historyManager->redo();
+        QVERIFY(!historyManager->isOnSavePoint());
+        historyManager->setSavePoint();
+        QVERIFY(historyManager->isOnSavePoint());
     }
 
     void guardedTransition_data() {
