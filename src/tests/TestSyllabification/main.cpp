@@ -8,6 +8,8 @@
 #include <lite/MusicBase/Timeline.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/SingingClipSlicer/SingingClipSlicer.h>
+#include <lite/ProjectModel/InferenceData/InferPiece.h>
 
 #include <QCoreApplication>
 #include <QTextStream>
@@ -63,6 +65,92 @@ namespace {
         const auto single = Syllabification::phonemeRangesForNotes({"international+"}, phones);
         expect(single.at(0).count == phones.size(),
                "a word without syllabification notes retains every phoneme on its root");
+    }
+
+    void testSlicerSyllableAssignment() {
+        const auto check = [](const QStringList &lyrics, const QList<PhonemeName> &rootPhones,
+                              const bool accepted) {
+            QList<Note *> notes;
+            for (int i = 0; i < lyrics.size(); ++i) {
+                auto *note = new Note;
+                configureNote(*note, 960 + i * 480, lyrics.at(i));
+                if (!note->isSlur() && !note->isSyllabification())
+                    note->setPhonemeNameSeq(Note::Original,
+                                           i == 0 ? rootPhones
+                                                  : QList{phone("dh", false), phone("eh", true)});
+                notes.append(note);
+            }
+            SingingClip clip(notes);
+            const auto segments = SingingClipSlicer::slice(Timeline{}, notes).segments;
+            if (accepted != !segments.isEmpty()) {
+                QTextStream(stderr) << "Unexpected syllable assignment validity: "
+                                    << lyrics.join(' ') << Qt::endl;
+                ++failures;
+            }
+        };
+
+        const QList mono{phone("hh", false), phone("ay", true)};
+        const QList disyllabic{phone("hh", false), phone("eh", true), phone("l", false),
+                              phone("ow", true)};
+        check({QString::fromUtf8("你"), "+", QString::fromUtf8("好")},
+              {phone("n", false), phone("i", true)}, false);
+        check({"hi", "+", "there"}, mono, false);
+        check({"hi", "+"}, mono, false);
+        check({"hi", "++", "there"}, mono, false);
+        check({"hi", "-", "+", "there"}, mono, false);
+        check({"hello+", "+", "there"}, disyllabic, false);
+        check({"hello", "+", "+", "there"}, disyllabic, false);
+        check({"hi", "-", "there"}, mono, true);
+        check({"hello", "+", "there"}, disyllabic, true);
+        check({"hello", "-", "+", "there"}, disyllabic, true);
+        check({"hello", "++", "there"}, disyllabic, true);
+        check({"international+", "-", "+", "++", "there"}, internationalPhones(), true);
+        check({"international", "+", "there"}, internationalPhones(), true);
+    }
+
+    void testSlicerAssignmentRecovery() {
+        auto *root = new Note;
+        configureNote(*root, 960, "hello");
+        root->setPhonemeNameSeq(Note::Original,
+                               {phone("hh", false), phone("eh", true), phone("ow", true)});
+        auto *continuation = new Note;
+        configureNote(*continuation, 1440, "+");
+        auto *nextRoot = new Note;
+        configureNote(*nextRoot, 1920, "there");
+        nextRoot->setPhonemeNameSeq(Note::Original, {phone("dh", false), phone("eh", true)});
+        SingingClip clip({root, continuation, nextRoot});
+        const Timeline timeline;
+        clip.reSegment(timeline);
+        expect(clip.pieces().size() == 1, "a valid syllable assignment creates an inference piece");
+
+        root->setPhonemeNameSeq(Note::Edited, {phone("hh", false), phone("ay", true)});
+        const auto invalidated = clip.reSegment(timeline);
+        expect(clip.pieces().isEmpty() && invalidated.removedPieceIds.size() == 1,
+               "edited phonemes that exhaust syllables remove the existing inference piece");
+
+        root->setPhonemeNameSeq(Note::Edited, {});
+        clip.reSegment(timeline);
+        expect(clip.pieces().size() == 1, "resetting phonemes restores a valid assignment");
+
+        continuation->setLocalStart(1500);
+        continuation->setLength(420);
+        clip.reSegment(timeline);
+        expect(clip.pieces().isEmpty(), "a detached assignment note cannot borrow root syllables");
+        continuation->setLocalStart(1440);
+        continuation->setLength(480);
+        clip.reSegment(timeline);
+        expect(clip.pieces().size() == 1, "reconnecting an assignment note restores inference");
+
+        root->setPhonemeNameSeq(Note::Edited, {phone("hh", false), phone("ay", true)});
+        continuation->setLyric("-");
+        clip.reSegment(timeline);
+        expect(clip.pieces().size() == 1, "replacing an exhausted assignment with a slur is valid");
+
+        continuation->setLyric("+");
+        nextRoot->setLocalStart(4800);
+        clip.reSegment(timeline);
+        expect(clip.pieces().size() == 1 && clip.pieces().first()->notes == QList{nextRoot},
+               "an invalid assignment does not suppress a separate valid phrase");
     }
 
     void testStorageAndInferenceRoundTrip() {
@@ -391,6 +479,8 @@ namespace {
 int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
     testRanges();
+    testSlicerSyllableAssignment();
+    testSlicerAssignmentRecovery();
     testStorageAndInferenceRoundTrip();
     testBuildWordsRejectsPendingOffsets();
     testDetachedSyllabificationNotesStayOrphaned();
