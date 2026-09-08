@@ -33,6 +33,7 @@
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/install",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "LITE_BUILD_TESTS": "OFF",
+        "LITE_ENABLE_FILE_LOG": "ON",
         "QT_NO_PRIVATE_MODULE_WARNING": "ON"
       }
     },
