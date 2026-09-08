@@ -6,7 +6,7 @@
 
 ## 2. 测试结构与生产复用
 
-测试统一采用 Qt Test 的 slot 和 data row，CTest 负责六类标签、超时、运行环境及结果。`lite_tests` 聚合测试构建；`tests` build preset 同时构建 Editor、Connector 与全部测试，补上此前独立于 `src/tests` 的 ICU wrapper 测试。一个测试程序默认对应一条 CTest 注册；Headless 的跨 Host 场景因需要 GUI 平台单独注册。
+测试统一采用 Qt Test 的 slot 和 data row，CTest 负责六类标签、超时、运行环境及结果。`lite_tests` 聚合测试构建；`tests` build preset 同时构建 Editor、Connector 与全部测试，补上此前独立于 `src/tests` 的 ICU wrapper 测试。一个测试程序默认对应一条 CTest 注册；Headless 的跨 Host 场景因需要 GUI 平台单独注册。该程序用两个简单 Qt Test 类区分运行条件，CTest 只选择模式，不维护具体函数名单。
 
 `EditorAutomationCore` 从原测试支持目标中提取生产的模型、编辑服务和 Facade 实现，供应用和测试共享。`AutomationTestSupport` 只承接测试 fixture 的使用入口。`EditorRuntime` 对象库承接主程序之外的应用实现、Qt 资源、翻译和界面依赖；Editor 与钢琴窗集成测试链接同一实现，避免在测试中重造编辑器。
 

@@ -1801,7 +1801,6 @@ class TestHeadlessProcessIntegration final : public QObject {
     Q_OBJECT
 public:
     QString editorPath;
-    QString platformPluginDirectory;
 private slots:
 
     void nativeEditingAndFiles() {
@@ -1898,6 +1897,14 @@ private slots:
         QVERIFY(!secondId.isEmpty());
         QVERIFY(firstId != secondId);
     }
+};
+
+class TestHeadlessCrossHostIntegration final : public QObject {
+    Q_OBJECT
+public:
+    QString editorPath;
+    QString platformPluginDirectory;
+private slots:
 
     void crossHost() {
         QVERIFY(!platformPluginDirectory.isEmpty());
@@ -1907,25 +1914,38 @@ private slots:
 
 int main(int argc, char *argv[]) {
     QCoreApplication application(argc, argv);
-    TestHeadlessProcessIntegration test;
+    QString editorPath;
+    QString platformPluginDirectory;
+    bool crossHost = false;
     auto arguments = application.arguments();
     for (qsizetype index = 1; index < arguments.size();) {
-        if (arguments[index] == QStringLiteral("--editor") ||
-            arguments[index] == QStringLiteral("--platform-plugins")) {
+        if (arguments[index] == QStringLiteral("--cross-host")) {
+            crossHost = true;
+            arguments.removeAt(index);
+        } else if (arguments[index] == QStringLiteral("--editor") ||
+                   arguments[index] == QStringLiteral("--platform-plugins")) {
             if (index + 1 >= arguments.size())
                 return 2;
             const auto option = arguments.takeAt(index);
             const auto value = arguments.takeAt(index);
             if (option == QStringLiteral("--editor"))
-                test.editorPath = value;
+                editorPath = value;
             else
-                test.platformPluginDirectory = value;
+                platformPluginDirectory = value;
         } else {
             ++index;
         }
     }
-    if (test.editorPath.isEmpty())
+    if (editorPath.isEmpty())
         return 2;
+    if (crossHost) {
+        TestHeadlessCrossHostIntegration test;
+        test.editorPath = editorPath;
+        test.platformPluginDirectory = platformPluginDirectory;
+        return QTest::qExec(&test, arguments);
+    }
+    TestHeadlessProcessIntegration test;
+    test.editorPath = editorPath;
     return QTest::qExec(&test, arguments);
 }
 
