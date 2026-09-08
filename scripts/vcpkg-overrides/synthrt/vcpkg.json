@@ -1,0 +1,46 @@
+{
+  "name": "synthrt",
+  "version": "0.1.0.14",
+  "port-version": 13,
+  "description": "SVS Synthesis Runtime Library",
+  "homepage": "https://github.com/diffscope/synthrt",
+  "license": "Apache-2.0",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    },
+    "qmsetup",
+    "stduuid",
+    "stdcorelib",
+    "bit7z",
+    "blake3",
+    "sparsepp",
+    "syscmdline",
+    "re2",
+    "cpp-pinyin",
+    "luajit",
+    "libsndfile",
+    "ffmpeg-builds",
+    "nlohmann-json",
+    "onnxruntime-builds"
+  ],
+  "features": {
+    "cuda12": {
+      "description": "Enable CUDA 12.x support",
+      "dependencies": [
+        {
+          "name": "onnxruntime-builds",
+          "features": [
+            "cuda12"
+          ]
+        }
+      ],
+      "supports": "x64 & (windows | linux)"
+    }
+  }
+}

@@ -1,0 +1,11 @@
+diff --git a/domains/ds-infer/lib/ModelRegistry.cpp b/domains/ds-infer/lib/ModelRegistry.cpp
+--- a/domains/ds-infer/lib/ModelRegistry.cpp
++++ b/domains/ds-infer/lib/ModelRegistry.cpp
+@@ -1,6 +1,7 @@
+ #include "ModelRegistry.h"
+ 
+ #include <map>
++#include <mutex>
+ #include <shared_mutex>
+ #include <utility>
+ #include <vector>

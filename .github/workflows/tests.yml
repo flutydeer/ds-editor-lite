@@ -54,7 +54,9 @@ jobs:
         with:
           path: build/ci/vcpkg-cache
           key: linux-qt${{ env.QT_VERSION }}-${{ hashFiles('scripts/ci/bootstrap-linux.sh', 'scripts/vcpkg-manifest/**', 'scripts/vcpkg-overrides/**', 'scripts/vcpkg/ports/**', 'scripts/vcpkg/triplets/**') }}
+          restore-keys: linux-qt${{ env.QT_VERSION }}-
       - name: Build dependencies
+        id: dependencies
         run: bash scripts/ci/bootstrap-linux.sh 2>&1 | tee build/test-results/dependencies.log
       - name: Save dependency packages
         if: steps.packages.outputs.cache-hit != 'true'
@@ -62,6 +64,12 @@ jobs:
         with:
           path: build/ci/vcpkg-cache
           key: ${{ steps.packages.outputs.cache-primary-key }}
+      - name: Preserve completed packages after dependency failure
+        if: failure() && steps.dependencies.outcome == 'failure'
+        uses: actions/cache/save@v6
+        with:
+          path: build/ci/vcpkg-cache
+          key: ${{ steps.packages.outputs.cache-primary-key }}-partial-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Environment
         run: |
           {
