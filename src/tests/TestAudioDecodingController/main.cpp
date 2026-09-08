@@ -46,6 +46,8 @@ bool AudioContext::willStartCallback(AudioExporter *) {
 void AudioContext::willFinishCallback(AudioExporter *) {
 }
 
+DocumentWorkflowController::~DocumentWorkflowController() = default;
+
 bool DocumentWorkflowController::busy() const {
     return false;
 }
