@@ -2708,7 +2708,7 @@ void TestPublicAutomationRegistry::sharedEditingScenario() {
         registry,
         {.name = QStringLiteral("Shared Editing Scenario"), .version = QStringLiteral("1")});
 
-    // 同一份业务过程共享输入和状态断言，适配器只负责调用与解包。
+    // Share business inputs and state assertions; adapters only invoke and unwrap results.
     const auto execute = [&](const QString &operation, const Automation::DocumentVersion &version,
                              const bool validateOnly) -> QString {
         if (adapter == QStringLiteral("facade")) {

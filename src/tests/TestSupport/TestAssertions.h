@@ -6,7 +6,7 @@
 #include <source_location>
 
 namespace TestSupport {
-    // 非 void 场景助手仍将错误交给 QtTest，位置保留为调用点。
+    // Non-void scenario helpers report QtTest failures at the original call site.
     inline bool expect(const bool condition, const char *message,
                        const std::source_location location = std::source_location::current()) {
         return QTest::qVerify(condition, "scenario expectation", message, location.file_name(),
