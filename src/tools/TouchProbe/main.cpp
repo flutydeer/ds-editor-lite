@@ -9,15 +9,23 @@
 //   2. Does a stylus produce QTabletEvent, a mouse event, or both?
 //   3. What exactly does Direct Manipulation swallow once it is registered?
 //
+// Accepting a QTouchEvent stops Qt's own touch to mouse synthesis but not the
+// operating system's: Windows promotes the primary touch point to legacy mouse
+// messages regardless. The "swallow synthesized mouse" switch applies the same
+// rule the editor uses (drop everything whose source is not
+// Qt::MouseEventNotSynthesized) so the effect can be seen side by side.
+//
 // Trails are colored per device: mouse blue, touch green (one hue per point
 // id), pen red, wheel and native gestures yellow. Synthesized mouse events are
 // drawn as a grey dashed trail, which makes an unexpected synthesis obvious at
 // a glance.
 //
-// Keys: C clear, D toggle Direct Manipulation, F fullscreen, Esc quit.
+// Keys: C clear, D toggle Direct Manipulation, S toggle swallowing, F
+// fullscreen, Esc quit.
 
 #include <QApplication>
 #include <QCheckBox>
+#include <QContextMenuEvent>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
@@ -159,6 +167,18 @@ namespace {
             update();
         }
 
+        void setSwallowSynthesizedMouse(const bool on) {
+            m_swallowSynthesizedMouse = on;
+            log(QStringLiteral("--- swallow synthesized mouse: %1")
+                    .arg(on ? QStringLiteral("on") : QStringLiteral("off")));
+            update();
+        }
+
+        void logExternal(const QString &line) {
+            log(line);
+            update();
+        }
+
         [[nodiscard]] QString logPath() const {
             return m_logFile.fileName();
         }
@@ -179,6 +199,18 @@ namespace {
                 case QEvent::NativeGesture:
                     recordGesture(static_cast<QNativeGestureEvent *>(event));
                     return true;
+                case QEvent::ContextMenu: {
+                    // Windows turns a touch press and hold into a right click,
+                    // which reaches the application as a context menu on top of
+                    // whatever the long press already did.
+                    const auto *menuEvent = static_cast<QContextMenuEvent *>(event);
+                    log(QStringLiteral("menu     reason=%1 pos=(%2,%3)")
+                            .arg(contextMenuReasonName(menuEvent->reason()))
+                            .arg(menuEvent->pos().x())
+                            .arg(menuEvent->pos().y()));
+                    update();
+                    return true;
+                }
                 default:
                     break;
             }
@@ -284,16 +316,32 @@ namespace {
 
         void recordMouse(QMouseEvent *event, const QString &action) {
             const auto synthesized = event->source() != Qt::MouseEventNotSynthesized;
-            const auto kind = synthesized ? DeviceKind::SynthesizedMouse : DeviceKind::Mouse;
-            appendPoint(kind, synthesized ? -4 : -1, event->position());
-            log(QStringLiteral("mouse    %1 dev=%2 source=%3 pos=(%4,%5) buttons=%6")
+            const auto swallowed = synthesized && m_swallowSynthesizedMouse;
+            if (!swallowed) {
+                const auto kind = synthesized ? DeviceKind::SynthesizedMouse : DeviceKind::Mouse;
+                appendPoint(kind, synthesized ? -4 : -1, event->position());
+            }
+            log(QStringLiteral("mouse    %1 dev=%2 source=%3 pos=(%4,%5) buttons=%6%7")
                     .arg(action, deviceTypeName(event->pointingDevice()),
                          mouseSourceName(event->source()))
                     .arg(event->position().x(), 0, 'f', 1)
                     .arg(event->position().y(), 0, 'f', 1)
-                    .arg(static_cast<int>(event->buttons())));
+                    .arg(static_cast<int>(event->buttons()))
+                    .arg(swallowed ? QStringLiteral(" SWALLOWED") : QString()));
             event->accept();
             update();
+        }
+
+        static QString contextMenuReasonName(const QContextMenuEvent::Reason reason) {
+            switch (reason) {
+                case QContextMenuEvent::Mouse:
+                    return QStringLiteral("Mouse");
+                case QContextMenuEvent::Keyboard:
+                    return QStringLiteral("Keyboard");
+                case QContextMenuEvent::Other:
+                    return QStringLiteral("Other");
+            }
+            return QStringLiteral("?");
         }
 
         void recordTouch(QTouchEvent *event) {
@@ -385,9 +433,11 @@ namespace {
             painter.setPen(QColor(220, 220, 220));
 
             const auto header =
-                QStringLiteral("active touch points: %1    dpr: %2    C clear / D toggle DM")
+                QStringLiteral("touch points: %1    dpr: %2    swallow synth mouse: %3    "
+                               "C clear / D toggle DM / S toggle swallow")
                     .arg(m_activePoints)
-                    .arg(devicePixelRatioF(), 0, 'f', 2);
+                    .arg(devicePixelRatioF(), 0, 'f', 2)
+                    .arg(m_swallowSynthesizedMouse ? QStringLiteral("on") : QStringLiteral("off"));
             painter.drawText(QPointF(panel.left() + 8, panel.top() + 16), header);
 
             double y = panel.top() + 34;
@@ -400,6 +450,7 @@ namespace {
         QHash<QPair<int, int>, Trail> m_trails;
         QStringList m_hud;
         int m_activePoints = 0;
+        bool m_swallowSynthesizedMouse = false;
         QFile m_logFile;
     };
 
@@ -424,6 +475,14 @@ namespace {
 #endif
             updateDirectManipulationButton();
 
+            m_swallowButton = new QPushButton(this);
+            m_swallowButton->setCheckable(true);
+            connect(m_swallowButton, &QPushButton::toggled, this, [this](const bool on) {
+                m_canvas->setSwallowSynthesizedMouse(on);
+                updateSwallowButton();
+            });
+            updateSwallowButton();
+
             m_statusLabel = new QLabel(this);
             m_statusLabel->setText(m_canvas->logPath());
             m_statusLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
@@ -431,6 +490,7 @@ namespace {
             auto *controls = new QHBoxLayout;
             controls->addWidget(clearButton);
             controls->addWidget(m_directManipulationButton);
+            controls->addWidget(m_swallowButton);
             controls->addWidget(m_statusLabel, 1);
 
             auto *layout = new QVBoxLayout(this);
@@ -449,6 +509,9 @@ namespace {
                     return;
                 case Qt::Key_D:
                     m_directManipulationButton->toggle();
+                    return;
+                case Qt::Key_S:
+                    m_swallowButton->toggle();
                     return;
                 case Qt::Key_F:
                     isFullScreen() ? showNormal() : showFullScreen();
@@ -477,9 +540,18 @@ namespace {
             } else {
                 System::unregisterWindow(handle);
             }
+            m_canvas->logExternal(QStringLiteral("--- direct manipulation: %1")
+                                      .arg(enabled ? QStringLiteral("registered Touchpad|Wheel")
+                                                   : QStringLiteral("unregistered")));
             updateDirectManipulationButton();
         }
 #endif
+
+        void updateSwallowButton() {
+            m_swallowButton->setText(m_swallowButton->isChecked()
+                                         ? QStringLiteral("Swallow synth mouse: on (S)")
+                                         : QStringLiteral("Swallow synth mouse: off (S)"));
+        }
 
         void updateDirectManipulationButton() {
 #if defined(WITH_DIRECT_MANIPULATION)
@@ -495,6 +567,7 @@ namespace {
 
         ProbeCanvas *m_canvas = nullptr;
         QPushButton *m_directManipulationButton = nullptr;
+        QPushButton *m_swallowButton = nullptr;
         QLabel *m_statusLabel = nullptr;
     };
 

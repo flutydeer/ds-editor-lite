@@ -8,7 +8,7 @@
 
 | 输入设备 | 处理路径 |
 | --- | --- |
-| 触摸（手指） | `EditorTouchController` 手势层，见下文 |
+| 触摸（手指） | `EditorTouchController` 手势层，见下文。平台自行合成的鼠标事件会被吞掉 |
 | 触控笔 | 不做特殊处理。控件不接受 `QTabletEvent`，由 Qt 合成鼠标事件，走既有鼠标逻辑 |
 | 精密触控板、滚轮 | Windows DirectManipulation（QWDMH），行为不变 |
 | 鼠标 | 既有逻辑，完全不变 |
@@ -20,6 +20,24 @@
 现在统一走 `MainWindow.cpp` 里的 `registerScopedDirectManipulation()`，设备掩码收缩为 `Touchpad | Wheel`，手势配置保持与原重载一致（`TranslationX | TranslationY | Scaling | TranslationInertia | ScalingInertia`）。触控板的平滑滚动和捏合缩放不受影响，触摸和笔则重新可见。
 
 设置项文案同步改为触控板语义，见第五节。
+
+### 必须吞掉平台合成的鼠标事件
+
+接受 `QTouchEvent` 只能挡住 Qt 自己的触摸转鼠标合成，挡不住操作系统的。Windows 会把主触点提升为传统鼠标消息，`QWindowsPointerHandler::translateMouseEvent()` 原样转发，只打上 `Qt::MouseEventSynthesizedBySystem` 标记。真机日志证实了这一点：单指拖动同时产生完整的 `QTouchEvent` 流和一份 `mouse press/move/release dev=TouchScreen source=BySystem`。
+
+后果有两层。单指编辑会跑两遍，一遍来自手势层的合成事件，一遍来自系统。更糟的是双指和三指导航时，被提升的主触点仍在驱动交互层，于是一边缩放一边拖动内容。
+
+因此 `EditorTouchController::handleEvent()` 除了触摸事件，还要拦截鼠标事件并吞掉 `source() != Qt::MouseEventNotSynthesized` 的那些。判据成立是因为三类需要放行的事件都是 `NotSynthesized`：
+
+- 手势层自己发的合成事件（`QMouseEvent` 构造时不传 source，默认 `NotSynthesized`）
+- 真实鼠标
+- 触控笔（`QGuiApplicationPrivate::processTabletEvent()` 从未被接受的 tablet 事件合成鼠标时显式用 `Qt::MouseEventNotSynthesized`，平台自己的笔转鼠标消息则被 `translateMouseEvent()` 无条件丢弃）
+
+只在开启多点触控手势的编辑器控件内吞。应用其余部分照旧收系统合成的鼠标事件，因此按钮、菜单、轨道列表的触摸操作和长按右键都不受影响。
+
+Qt 平台插件另有 `-platform windows:nomousefromtouch` 可以全局关掉系统合成，没有采用：它会连带干掉整个应用的触摸长按转右键，代价比收益大。
+
+Windows 的长按转右键还会额外送一个 `QContextMenuEvent`（`reason() == Mouse`），与手势层自己投递的菜单撞车。控件内在触摸活跃期间及其后一段宽限时间里吞掉 `reason() == Mouse` 的菜单事件，手势层自己投递的用 `Other`，键盘菜单键用 `Keyboard`，两者都放行。
 
 ## 二、分层结构
 
@@ -130,7 +148,9 @@ EditorPointerUtils      "这是手指还是鼠标"的共享判定
 
 轨迹按设备着色，鼠标蓝、触摸绿（每个触点 id 独立色相）、笔红、滚轮与原生手势黄。**合成鼠标画成灰色虚线**，意外的合成一眼可见。HUD 显示最近事件与当前触点数，全量日志写到 `AppDataLocation/touch-probe.log`。
 
-按键：`C` 清屏，`D` 切换 DirectManipulation（用与应用完全相同的 `Touchpad | Wheel` 配置），`F` 全屏，`Esc` 退出。
+按键：`C` 清屏，`D` 切换 DirectManipulation（用与应用完全相同的 `Touchpad | Wheel` 配置），`S` 切换吞掉合成鼠标（用与编辑器完全相同的判据），`F` 全屏，`Esc` 退出。开关 `S` 可以直接看出吞与不吞的差别，被吞的事件在日志里标 `SWALLOWED`，轨迹上不再出现灰色虚线。
+
+探针也记录 `QContextMenuEvent` 及其 reason，用来确认长按是否引发了平台的右键模拟。
 
 构建目标 `TouchProbe`，产物在 `build/Debug/out/bin/`。
 
@@ -141,6 +161,7 @@ EditorPointerUtils      "这是手指还是鼠标"的共享判定
 ## 八、已知限制
 
 - 歌词内联编辑依赖 Windows 触摸键盘，本方案不介入。
+- 触控笔在编辑器里同时产生 `QTabletEvent` 和鼠标事件。控件不处理前者，因此没有重复处理，但笔压和倾角目前没有被利用。
 - `PhonemeView`、标尺、钢琴键盘没有开启 `WA_AcceptTouchEvents`，走 Qt 默认的触摸转鼠标合成。这些视图的悬停提示在触摸下不会出现，属于无 hover 的正常降级。
 - DirectManipulation 的设备类型收缩改变了触控板路径的注册参数，触控板用户需要回归确认平滑滚动与捏合仍然正常。
 - 双指以上（三指及更多）不识别，多余的手指会被忽略直到全部抬起。

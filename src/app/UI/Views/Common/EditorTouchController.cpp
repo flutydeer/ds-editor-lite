@@ -22,6 +22,10 @@ namespace {
     constexpr double inertiaStopSpeed = 20.0;
     // Weight kept on the previous estimate when tracking a single-finger pan.
     constexpr double panVelocitySmoothing = 0.55;
+    // How long after the last touch point a mouse-reason context menu is still
+    // assumed to be the platform's press-and-hold emulation. Windows raises it
+    // around 500 ms, a little after our own long press has already fired.
+    constexpr qint64 foreignContextMenuGraceMs = 1500;
 }
 
 EditorTouchController::EditorTouchController(EditorTouchTarget *target, QWidget *widget,
@@ -69,9 +73,41 @@ bool EditorTouchController::handleEvent(QEvent *event) {
             cancel();
             event->accept();
             return true;
+        case QEvent::MouseButtonPress:
+        case QEvent::MouseButtonRelease:
+        case QEvent::MouseButtonDblClick:
+        case QEvent::MouseMove:
+            return swallowForeignMouseEvent(static_cast<QMouseEvent *>(event));
+        case QEvent::ContextMenu:
+            return swallowForeignContextMenu(static_cast<QContextMenuEvent *>(event));
         default:
             return false;
     }
+}
+
+bool EditorTouchController::swallowForeignMouseEvent(QMouseEvent *event) {
+    if (!m_target || !isEnabled())
+        return false;
+    // Our own synthetic events, a real mouse and a stylus all report
+    // Qt::MouseEventNotSynthesized. Anything else was made from a touch we are
+    // already handling ourselves, so it is a duplicate.
+    if (event->source() == Qt::MouseEventNotSynthesized)
+        return false;
+    event->accept();
+    return true;
+}
+
+bool EditorTouchController::swallowForeignContextMenu(QContextMenuEvent *event) {
+    if (!m_target || !isEnabled())
+        return false;
+    // Our own long press posts the menu with the Other reason, and a keyboard
+    // menu key must always get through.
+    if (event->reason() != QContextMenuEvent::Mouse)
+        return false;
+    if (!isGestureActive() && now() - m_lastTouchTimestamp > foreignContextMenuGraceMs)
+        return false;
+    event->accept();
+    return true;
 }
 
 bool EditorTouchController::handleTouchEvent(QTouchEvent *event) {
@@ -88,6 +124,7 @@ bool EditorTouchController::handleTouchEvent(QTouchEvent *event) {
 
     m_device = event->pointingDevice();
     const auto timestamp = now();
+    m_lastTouchTimestamp = timestamp;
     for (const auto &point : event->points()) {
         const auto position = point.position();
         switch (point.state()) {

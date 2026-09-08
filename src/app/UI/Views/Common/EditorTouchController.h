@@ -10,6 +10,8 @@
 #include <QPointF>
 #include <QPointer>
 
+class QContextMenuEvent;
+class QMouseEvent;
 class QPointingDevice;
 class QTimer;
 class QTouchEvent;
@@ -25,7 +27,16 @@ class QWidget;
 //
 // Pen input is deliberately not handled here. A stylus is a mouse as far as
 // this application is concerned, and letting the tablet events fall through
-// makes Qt synthesize the mouse events for us.
+// makes Qt synthesize the mouse events for us (with the stylus device and
+// Qt::MouseEventNotSynthesized, see QGuiApplicationPrivate::processTabletEvent).
+//
+// The controller also has to *swallow* foreign pointer events. Accepting a
+// QTouchEvent stops Qt from synthesizing mouse events, but it does nothing
+// about the ones the operating system generates on its own: Windows promotes
+// the primary touch point to legacy mouse messages, which Qt forwards tagged
+// Qt::MouseEventSynthesizedBySystem. Without swallowing them every finger drag
+// runs twice, and even a two-finger gesture drags content because the promoted
+// primary point keeps driving the interaction layer.
 class EditorTouchController final : public QObject {
     Q_OBJECT
 
@@ -49,6 +60,11 @@ public:
 
 private:
     bool handleTouchEvent(QTouchEvent *event);
+    // True when the event was produced from touch by someone other than this
+    // controller (the OS, or Qt's own fallback synthesis) and must not reach
+    // the interaction layer.
+    bool swallowForeignMouseEvent(QMouseEvent *event);
+    bool swallowForeignContextMenu(QContextMenuEvent *event);
     void dispatch(const EditorTouchGesture::Events &events);
     void onSingleBegin(const EditorTouchGesture::Event &event);
     void onSingleMove(const EditorTouchGesture::Event &event);
@@ -90,6 +106,9 @@ private:
 
     QPointF m_inertiaVelocity;
     qint64 m_inertiaTimestamp = 0;
+    // When the last touch point was seen, used to recognize the context menu
+    // Windows raises from a press and hold.
+    qint64 m_lastTouchTimestamp = 0;
 };
 
 #endif // EDITORTOUCHCONTROLLER_H
