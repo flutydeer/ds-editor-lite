@@ -234,7 +234,8 @@ private:
     }
 
     void dispatchApplicationRequest(QLocalSocket *socket, const SingleInstanceRequest &request) {
-        sendResponse(socket, {request.requestId, true, {}, QCoreApplication::applicationPid()}, true);
+        sendResponse(socket, {request.requestId, true, {}, QCoreApplication::applicationPid()},
+                     true);
         QMetaObject::invokeMethod(
             m_coordinator,
             [coordinator = m_coordinator, request] { coordinator->receiveRequest(request); },
@@ -416,9 +417,15 @@ bool SingleInstanceCoordinator::forwardRequest(const SingleInstanceRequest &requ
 
     const auto message =
         SingleInstanceProtocol::frame(SingleInstanceProtocol::encodeRequest(request));
-    if (socket.write(message) != message.size() ||
-        !socket.waitForBytesWritten(
-            qMax(1, connectionTimeoutMs - static_cast<int>(timer.elapsed())))) {
+    // The pipe may finish writing before the wait; the ACK below still confirms delivery.
+    const auto written = socket.write(message);
+    bool writeCompleted = true;
+    if (written == message.size() && socket.bytesToWrite() > 0) {
+        const auto waited = socket.waitForBytesWritten(
+            qMax(1, connectionTimeoutMs - static_cast<int>(timer.elapsed())));
+        writeCompleted = waited || socket.bytesToWrite() == 0;
+    }
+    if (written != message.size() || !writeCompleted) {
         error = tr("Failed to send the request to the running instance");
         return false;
     }
