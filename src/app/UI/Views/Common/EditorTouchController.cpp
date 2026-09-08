@@ -1,6 +1,7 @@
 #include "EditorTouchController.h"
 
 #include "EditorPointerUtils.h"
+#include "EditorTouchProbe.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppOptions/Options/AppearanceOption.h"
 #include "Model/AppOptions/Options/DeveloperOption.h"
@@ -115,6 +116,9 @@ EditorTouchController::EditorTouchController(EditorTouchTarget *target, QWidget 
       m_longPressTimer(new QTimer(this)), m_inertiaTimer(new QTimer(this)),
       m_contextMenuFallbackTimer(new QTimer(this)) {
     m_clock.start();
+    // The interesting failure is one where touch stops reaching this widget, so
+    // the probe has to watch from above it. Installed once, inert while off.
+    EditorTouchProbe::install();
 
     m_longPressTimer->setSingleShot(true);
     connect(m_longPressTimer, &QTimer::timeout, this,
