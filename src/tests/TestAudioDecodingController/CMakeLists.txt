@@ -8,6 +8,7 @@ lite_add_test(${PROJECT_NAME}
         ../../app/Controller/DocumentWorkflow/DocumentWorkflowPathUtils.cpp
         ../../app/Controller/Tasks/DecodeAudioTask.cpp
         ../../app/Controller/Tasks/ResolveAudioPathTask.cpp
+        ../../app/Modules/Audio/AudioContext.h
 )
 
 set_target_properties(${PROJECT_NAME} PROPERTIES AUTOMOC ON)

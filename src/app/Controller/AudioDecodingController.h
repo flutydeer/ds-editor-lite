@@ -72,6 +72,14 @@ private:
     QPointer<DocumentWorkflowController> m_documentWorkflow;
     std::function<void(const QString &)> m_notifier;
 
+    // 路径回写同步触发 sourceChanged，后续任务沿用原检查的交互策略。
+    struct SourceChangeContext {
+        QPointer<AudioClip> clip;
+        bool interactive = false;
+    };
+
+    SourceChangeContext m_sourceChangeContext;
+
     void startDecodingOrResolving(AudioClip *clip, bool forceDecode, bool interactive);
     void createAndStartTask(AudioClip *clip, bool interactive);
     void createAndStartResolveTask(AudioClip *clip, bool interactive);
@@ -79,7 +87,7 @@ private:
     void startDecodingAndResolving(bool interactive);
     void handleTaskFinished(DecodeAudioTask *task, bool interactive);
     void handleResolveTaskFinished(ResolveAudioPathTask *task, bool interactive);
-    void handleCascadeResolveTaskFinished(ResolveAudioPathTask *task);
+    void handleCascadeResolveTaskFinished(ResolveAudioPathTask *task, bool interactive);
     void finishResolveIfSessionDone();
     void terminateTaskByClipId(int clipId);
     void terminateTasksByTrackId(int trackId);

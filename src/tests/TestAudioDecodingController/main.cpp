@@ -11,6 +11,12 @@
 #include <QTemporaryDir>
 #include <QTextStream>
 #include <QThread>
+#include <QFile>
+#include <QCryptographicHash>
+
+#include <TalcsFormat/FormatManager.h>
+
+#include <algorithm>
 
 namespace {
     Automation::CoreRuntime *g_runtime = nullptr;
@@ -21,9 +27,22 @@ Automation::CoreRuntime *AppContext::instance<Automation::CoreRuntime>() {
     return g_runtime;
 }
 
+AudioContext::AudioContext(QObject *parent) : talcs::DspxProjectContext(parent) {
+    setFormatManager(new talcs::FormatManager(this));
+}
+
+AudioContext::~AudioContext() = default;
+
 AudioContext *AudioContext::instance() {
-    qFatal("Missing-audio fixtures must not request an audio decoder");
-    return nullptr;
+    static AudioContext context;
+    return &context;
+}
+
+bool AudioContext::willStartCallback(AudioExporter *) {
+    return false;
+}
+
+void AudioContext::willFinishCallback(AudioExporter *) {
 }
 
 bool DocumentWorkflowController::busy() const {
@@ -72,6 +91,8 @@ namespace {
             g_runtime = &runtime();
             SingletonRegistry::add(&state.model());
             controller = SingletonRegistry::create<AudioDecodingController>();
+            controller->setGuiServices(
+                nullptr, [this](const QString &message) { messages.append(message); });
             QObject::connect(&state.model(), &AppModel::modelChanged, controller,
                              &AudioDecodingController::onModelChanged);
             QObject::connect(&state.model(), &AppModel::trackChanged, controller,
@@ -101,14 +122,19 @@ namespace {
         }
 
         AutomationResult<MutationResult> open(const InvocationSource source) {
+            return openDocument(
+                missingAudioDocument(directory.filePath(QStringLiteral("missing.wav"))), source);
+        }
+
+        AutomationResult<MutationResult> openDocument(const DocumentDraftDto &document,
+                                                      const InvocationSource source) {
             auto context = command(source);
             const auto admitted = runtime().dispatcher().admitDocumentTask(context);
             if (!admitted)
                 return admitted.getError();
             return runtime().documents().commitOpenedDocument(
-                context, missingAudioDocument(directory.filePath(QStringLiteral("missing.wav"))),
-                directory.filePath(QStringLiteral("project.dspx")), QStringLiteral("project"),
-                true);
+                context, document, directory.filePath(QStringLiteral("project.dspx")),
+                QStringLiteral("project"), true);
         }
 
         AudioClip *firstAudioClip() {
@@ -119,6 +145,7 @@ namespace {
         QTemporaryDir directory;
         AudioDecodingController *controller = nullptr;
         QList<QList<int>> notifications;
+        QStringList messages;
     };
 
     bool testOpenSources() {
@@ -201,6 +228,56 @@ namespace {
                      "a resolution restarted after a path change must remain non-interactive");
         return ok;
     }
+
+    bool testRelocatedDecodeNotification() {
+        enum class ResolutionCase { Candidate, Verified, Cascade };
+        bool ok = true;
+        for (const auto source : {InvocationSource::TrustedGui, InvocationSource::PublicMcp}) {
+            for (const auto resolution :
+                 {ResolutionCase::Candidate, ResolutionCase::Verified, ResolutionCase::Cascade}) {
+                Fixture fixture;
+                const QByteArray bytes("invalid audio content");
+                const auto relocated = fixture.directory.filePath(QStringLiteral("invalid.wav"));
+                const auto writeCandidate = [&] {
+                    QFile file(relocated);
+                    return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
+                };
+                if (resolution != ResolutionCase::Cascade && !writeCandidate())
+                    return expect(false, "the undecodable candidate must be created");
+                auto document = missingAudioDocument(
+                    fixture.directory.filePath(QStringLiteral("gone/invalid.wav")));
+                if (resolution != ResolutionCase::Candidate) {
+                    document.tracks.first().clips.first().audioPathInfo.sha512 =
+                        QString::fromLatin1(
+                            QCryptographicHash::hash(bytes, QCryptographicHash::Sha512).toHex());
+                }
+                const auto opened = fixture.openDocument(document, source);
+                ok &= expect(bool(opened), "the relocation fixture must open");
+                ok &= drainTasks();
+                if (resolution == ResolutionCase::Cascade) {
+                    if (!writeCandidate())
+                        return expect(false, "the cascade candidate must be created");
+                    const auto cascade =
+                        fixture.runtime().dispatcher().dispatchApplicationCommand<int>(
+                            QStringLiteral("test.cascade"), {.source = source},
+                            [&](bool) -> AutomationResult<int> {
+                                fixture.controller->resolveMissingClipsNear(relocated);
+                                return 0;
+                            });
+                    ok &= expect(bool(cascade), "cascade resolution must start");
+                    ok &= drainTasks();
+                }
+                ok &= expect(fixture.firstAudioClip()->path() == relocated,
+                             "the candidate must be adopted before decoding");
+                const bool reported = std::any_of(
+                    fixture.messages.cbegin(), fixture.messages.cend(),
+                    [&](const QString &message) { return message.contains(relocated); });
+                ok &= expect(reported == (source == InvocationSource::TrustedGui),
+                             "decode failures after resolver writeback must retain GUI origin");
+            }
+        }
+        return ok;
+    }
 }
 
 int main(int argc, char *argv[]) {
@@ -209,5 +286,6 @@ int main(int argc, char *argv[]) {
     ok &= testReplacementBeforeDeferredStart();
     ok &= testMixedImportSources();
     ok &= testResolutionRetryPreservesSource();
+    ok &= testRelocatedDecodeNotification();
     return ok ? 0 : 1;
 }
