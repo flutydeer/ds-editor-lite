@@ -71,6 +71,14 @@ private:
     // controller (the OS, or Qt's own fallback synthesis) and must not reach
     // the interaction layer.
     bool swallowForeignMouseEvent(QMouseEvent *event);
+    // Decides whether a context menu may reach the widget. Only a long press
+    // that we resolved into a menu is allowed through while touch owns the
+    // interaction.
+    bool filterContextMenuEvent(QContextMenuEvent *event);
+    // Is a context menu arriving right now attributable to a touch gesture of
+    // ours? True during a gesture and for a short grace period after it, which
+    // is when the platform raises its own press-and-hold menu.
+    [[nodiscard]] bool touchOwnsContextMenu() const;
     void armContextMenuFallback(const QPointF &position);
     void cancelContextMenuFallback();
     void dispatch(const EditorTouchGesture::Events &events);
@@ -107,6 +115,12 @@ private:
 
     // Single-finger stream state.
     bool m_syntheticStreamActive = false;
+    // A held press over blank canvas becomes a rubber band, but only once the
+    // finger actually travels. Until then the synthetic press is held back, so
+    // that a press and hold which never moves stays a context menu instead of
+    // silently clearing the selection with a zero-sized rubber band.
+    bool m_pressDeferred = false;
+    QPointF m_deferredPressPosition;
     bool m_panStreamActive = false;
     QPointF m_lastStreamPosition;
     QPointF m_panVelocity;
@@ -115,9 +129,14 @@ private:
     QPointF m_inertiaVelocity;
     qint64 m_inertiaTimestamp = 0;
     // Where a consumed long press happened, kept until the platform delivers
-    // its own context menu or the fallback timer gives up waiting.
+    // its own context menu or the fallback timer posts ours.
     QPointF m_pendingContextMenuPosition;
-    bool m_contextMenuPending = false;
+    // A long press resolved into "open a menu here", so the next context menu
+    // event is ours and must be let through.
+    bool m_contextMenuExpected = false;
+    // When the last touch event arrived, so that a context menu can be traced
+    // back to a finger even after the gesture has ended.
+    qint64 m_lastTouchActivityMs = -1;
 };
 
 #endif // EDITORTOUCHCONTROLLER_H

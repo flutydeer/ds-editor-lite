@@ -27,6 +27,11 @@ namespace {
     // before posting one ourselves. Windows delivers it within a millisecond
     // of the touch ending, so on Windows the fallback never fires.
     constexpr int contextMenuFallbackMs = 400;
+    // How long after the last touch event a context menu still counts as
+    // coming from that gesture. The platform's press-and-hold menu lands
+    // within a millisecond of the finger leaving, so this only has to outlast
+    // message queue jitter.
+    constexpr int contextMenuOwnershipMs = 600;
 }
 
 EditorTouchController::EditorTouchController(EditorTouchTarget *target, QWidget *widget,
@@ -47,9 +52,10 @@ EditorTouchController::EditorTouchController(EditorTouchTarget *target, QWidget 
     m_contextMenuFallbackTimer->setSingleShot(true);
     m_contextMenuFallbackTimer->setInterval(contextMenuFallbackMs);
     connect(m_contextMenuFallbackTimer, &QTimer::timeout, this, [this] {
-        if (!m_contextMenuPending)
+        if (!m_contextMenuExpected)
             return;
-        m_contextMenuPending = false;
+        // The expectation stays armed: the event we are about to post comes
+        // back through filterContextMenuEvent(), which is what clears it.
         postContextMenu(m_pendingContextMenuPosition);
     });
 }
@@ -90,10 +96,7 @@ bool EditorTouchController::handleEvent(QEvent *event) {
         case QEvent::MouseMove:
             return swallowForeignMouseEvent(static_cast<QMouseEvent *>(event));
         case QEvent::ContextMenu:
-            // The platform beat us to it, which is the good case: it brings the
-            // native press-and-hold feedback and the native timing.
-            cancelContextMenuFallback();
-            return false;
+            return filterContextMenuEvent(static_cast<QContextMenuEvent *>(event));
         default:
             return false;
     }
@@ -111,13 +114,47 @@ bool EditorTouchController::swallowForeignMouseEvent(QMouseEvent *event) {
     return true;
 }
 
+bool EditorTouchController::touchOwnsContextMenu() const {
+    if (isGestureActive() || m_syntheticStreamActive || m_panStreamActive)
+        return true;
+    if (m_lastTouchActivityMs < 0)
+        return false;
+    return now() - m_lastTouchActivityMs < contextMenuOwnershipMs;
+}
+
+bool EditorTouchController::filterContextMenuEvent(QContextMenuEvent *event) {
+    if (!m_target || !isEnabled())
+        return false;
+    if (m_contextMenuExpected) {
+        // Either the platform beat us to it, which is the good case because it
+        // brings the native press-and-hold feedback and the native timing, or
+        // this is the one the fallback timer posted. Both are ours.
+        cancelContextMenuFallback();
+        // A menu runs a nested event loop and grabs the pointer, so anything
+        // still in flight would never see its release.
+        if (m_syntheticStreamActive || m_panStreamActive)
+            onSingleCancel();
+        return false;
+    }
+    if (!touchOwnsContextMenu())
+        return false;
+    // Windows raises its press-and-hold menu on release no matter what we did
+    // with the same finger in the meantime. On blank canvas a held press is a
+    // rubber band here, not a menu, so this one has to go: letting it through
+    // pops a menu on top of the selection the finger just made, and the popup
+    // grab can swallow the touch release that would have ended the rubber
+    // band.
+    event->accept();
+    return true;
+}
+
 void EditorTouchController::armContextMenuFallback(const QPointF &position) {
     m_pendingContextMenuPosition = position;
-    m_contextMenuPending = true;
+    m_contextMenuExpected = true;
 }
 
 void EditorTouchController::cancelContextMenuFallback() {
-    m_contextMenuPending = false;
+    m_contextMenuExpected = false;
     m_contextMenuFallbackTimer->stop();
 }
 
@@ -135,6 +172,12 @@ bool EditorTouchController::handleTouchEvent(QTouchEvent *event) {
 
     m_device = event->pointingDevice();
     const auto timestamp = now();
+    m_lastTouchActivityMs = timestamp;
+    // A brand new gesture inherits nothing: an expectation left over from a
+    // long press whose menu never arrived would otherwise let this gesture's
+    // platform menu through.
+    if (m_gesture.phase() == EditorTouchGesture::Phase::Idle)
+        cancelContextMenuFallback();
     for (const auto &point : event->points()) {
         const auto position = point.position();
         switch (point.state()) {
@@ -168,7 +211,7 @@ bool EditorTouchController::handleTouchEvent(QTouchEvent *event) {
 
     // The press-and-hold menu belongs to the release, so only start waiting for
     // the platform's once every finger has left the glass.
-    if (m_contextMenuPending && activeIds.isEmpty() && !m_contextMenuFallbackTimer->isActive())
+    if (m_contextMenuExpected && activeIds.isEmpty() && !m_contextMenuFallbackTimer->isActive())
         m_contextMenuFallbackTimer->start();
 
     event->accept();
@@ -254,6 +297,20 @@ void EditorTouchController::onSingleBegin(const EditorTouchGesture::Event &event
 
     m_syntheticStreamActive = true;
     EditorPointer::beginTouchStream();
+
+    // A held press only ever reaches here over blank canvas, because a long
+    // press on an object is consumed without a stream. Where that blank canvas
+    // is navigation territory the same hold has to serve two gestures: move
+    // and it is a rubber band, stay put and it is the platform's press and
+    // hold menu. Holding the press back until the finger travels keeps both,
+    // and stops a motionless hold from clearing the selection on the way.
+    if (event.fromLongPress &&
+        m_target->touchBlankDragAction() == EditorTouchTarget::BlankDragAction::Pan) {
+        m_pressDeferred = true;
+        m_deferredPressPosition = event.position;
+        return;
+    }
+
     sendSyntheticMouse(QEvent::MouseButtonPress, event.position, Qt::LeftButton, Qt::LeftButton);
     if (event.doubleTap) {
         sendSyntheticMouse(QEvent::MouseButtonDblClick, event.position, Qt::LeftButton,
@@ -262,6 +319,19 @@ void EditorTouchController::onSingleBegin(const EditorTouchGesture::Event &event
 }
 
 void EditorTouchController::onSingleMove(const EditorTouchGesture::Event &event) {
+    if (m_pressDeferred) {
+        const auto travel = event.position - m_deferredPressPosition;
+        if (std::hypot(travel.x(), travel.y()) <= m_gesture.config().longPressSlopPx) {
+            m_lastStreamPosition = event.position;
+            return;
+        }
+        // The hold turned into a drag after all. Press where the finger was
+        // held, so the rubber band is anchored there and not where it crossed
+        // the threshold.
+        m_pressDeferred = false;
+        sendSyntheticMouse(QEvent::MouseButtonPress, m_deferredPressPosition, Qt::LeftButton,
+                           Qt::LeftButton);
+    }
     const auto delta = event.position - m_lastStreamPosition;
     if (m_panStreamActive) {
         const auto timestamp = now();
@@ -282,6 +352,14 @@ void EditorTouchController::onSingleMove(const EditorTouchGesture::Event &event)
 }
 
 void EditorTouchController::onSingleEnd(const EditorTouchGesture::Event &event) {
+    if (m_pressDeferred) {
+        // Held over blank canvas and never travelled, so nothing was ever
+        // pressed. Let the menu happen and leave the selection alone.
+        m_pressDeferred = false;
+        armContextMenuFallback(m_deferredPressPosition);
+        finishStream();
+        return;
+    }
     if (m_panStreamActive) {
         m_panStreamActive = false;
         startInertia(m_panVelocity);
@@ -296,6 +374,11 @@ void EditorTouchController::onSingleEnd(const EditorTouchGesture::Event &event) 
 void EditorTouchController::onSingleCancel() {
     if (m_panStreamActive) {
         m_panStreamActive = false;
+        return;
+    }
+    if (m_pressDeferred) {
+        m_pressDeferred = false;
+        finishStream();
         return;
     }
     if (m_syntheticStreamActive)
@@ -397,7 +480,9 @@ void EditorTouchController::cancel() {
     }
     m_panStreamActive = false;
     if (m_syntheticStreamActive) {
-        m_target->cancelTouchPointerInteraction();
+        if (!m_pressDeferred)
+            m_target->cancelTouchPointerInteraction();
+        m_pressDeferred = false;
         finishStream();
     }
 }
