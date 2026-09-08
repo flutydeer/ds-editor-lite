@@ -33,7 +33,8 @@ jobs:
       - name: System dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build patchelf pkg-config autoconf automake libtool \
+          sudo apt-get install -y ninja-build patchelf pkg-config autoconf autoconf-archive \
+            automake libtool libltdl-dev \
             libasound2-dev libpulse-dev libudev-dev libgl1-mesa-dev libegl1-mesa-dev \
             libx11-dev libxext-dev libxrandr-dev libxi-dev libxcursor-dev \
             libxinerama-dev libxkbcommon-dev libxkbcommon-x11-dev libxcb-cursor0 \
