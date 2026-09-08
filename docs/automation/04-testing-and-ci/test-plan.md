@@ -57,6 +57,25 @@ ctest --preset ci
 
 不能依靠无限重跑、删除有效断言、沉默跳过或无依据加大超时获得绿色状态。
 
-## 6. 验收与审查
+## 6. 覆盖率与缺口分析
+
+Linux CI 的 Debug 构建启用 `LITE_TEST_COVERAGE=ON`，通过 GCC/gcov 和 gcovr 8.6 统计应用、内部库和 Connector 的行覆盖与分支覆盖。测试代码、第三方代码及生成文件不进入分母；编译器生成的异常清理分支和无源码分支不作为补测目标。未在 Linux 编译的平台实现也不在本次数字内，必须结合功能矩阵检查，不能当作已经覆盖。
+
+本地 GCC 环境可以在上述 configure 命令追加 `-DLITE_TEST_COVERAGE=ON`，运行测试后执行：
+
+```bash
+python3 -m venv build/ci/coverage-env
+build/ci/coverage-env/bin/pip install gcovr==8.6
+mkdir -p build/test-results/coverage
+build/ci/coverage-env/bin/gcovr --config scripts/ci/gcovr.cfg \
+  --html-nested build/test-results/coverage/index.html \
+  --json-summary build/test-results/coverage/summary.json --print-summary
+```
+
+Windows MSVC 常规测试不需要 gcovr。每次独立采样应使用干净的覆盖构建目录，或先删除该目录内旧 `.gcda`，避免累计历史执行结果。CI 每次重新构建，不缓存 CMake 构建目录。
+
+结合 HTML 未执行行、目录汇总及功能矩阵判断缺口：优先未测的编辑结果、失败回滚、配置生效、文件发布和实际交互。数值低并不自动要求补测；设备/模型依赖、平台专属、主观观感及不可达的防御路径需说明范围。没有百分比门槛，不对 Schema、工具清单、无语义 getter 或历史 bug 数量设指标。覆盖率用于发现遗漏，不代替有意义的断言。[gcovr 统计口径](https://gcovr.com/en/stable/faq.html)。
+
+## 7. 验收与审查
 
 Linux 全集合、Windows 本地通用/进程/适用 GUI 验证完成，报告和实现一致后 ready。约五分钟后检查审查；真实问题修复、验证、回复并 resolve。ready 后代码或构建配置变化须 `@codex review`。最终当前版本 CI 和 bot 明确认可同时成立才完成。

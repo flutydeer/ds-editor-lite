@@ -13,6 +13,7 @@ project(lite
 # Build Options
 # ----------------------------------
 option(LITE_BUILD_TESTS "Build test targets" OFF)
+option(LITE_TEST_COVERAGE "Instrument the test build for GCC/gcov coverage" OFF)
 option(LITE_ENABLE_BREAKPAD "Enable breakpad for crash reporting" OFF)
 option(LITE_ENABLE_FILE_LOG "Enable file logging (used by packaged builds)" OFF)
 # Default is DML-only; opt in to CUDA per invocation with -D LITE_ENABLE_CUDA=ON
@@ -73,6 +74,14 @@ qm_init_directories()
 if(LITE_BUILD_TESTS)
     enable_testing()
     add_compile_definitions(LITE_TEST_DATA_ROOT)
+endif()
+
+if(LITE_TEST_COVERAGE)
+    if(NOT LITE_BUILD_TESTS OR NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        message(FATAL_ERROR "LITE_TEST_COVERAGE requires LITE_BUILD_TESTS and GCC")
+    endif()
+    add_compile_options(--coverage -fprofile-abs-path -fprofile-update=atomic)
+    add_link_options(--coverage)
 endif()
 
 # ----------------------------------

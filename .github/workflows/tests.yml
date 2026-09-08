@@ -34,12 +34,14 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ninja-build patchelf pkg-config autoconf autoconf-archive \
-            automake libtool libltdl-dev \
+            automake libtool libltdl-dev python3-venv \
             libasound2-dev libpulse-dev libudev-dev libgl1-mesa-dev libegl1-mesa-dev \
             libx11-dev libxext-dev libxrandr-dev libxi-dev libxcursor-dev \
             libxinerama-dev libxkbcommon-dev libxkbcommon-x11-dev libxcb-cursor0 \
             libfontconfig1-dev libfreetype6-dev libdbus-1-dev libssl-dev
           mkdir -p build/test-results build/ci/vcpkg-cache
+          python3 -m venv build/ci/coverage-env
+          build/ci/coverage-env/bin/pip install gcovr==8.6
       - name: Qt
         uses: jurplel/install-qt-action@v4
         with:
@@ -77,13 +79,25 @@ jobs:
           cmake --preset tests -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
             -DQt6_DIR="$QT_ROOT_DIR/lib/cmake/Qt6" \
             -DVCPKG_TARGET_TRIPLET=x64-linux \
+            -DLITE_TEST_COVERAGE=ON \
             2>&1 | tee build/test-results/configure.log
       - name: Build editor, connector and tests
+        id: build
         run: cmake --build --preset tests 2>&1 | tee build/test-results/build.log
       - name: Test
         run: |
           ctest --preset ci --output-junit "$PWD/build/test-results/junit.xml" \
             2>&1 | tee build/test-results/ctest.log
+      - name: Coverage
+        if: always() && steps.build.outcome == 'success'
+        run: |
+          mkdir -p build/test-results/coverage
+          build/ci/coverage-env/bin/gcovr --config scripts/ci/gcovr.cfg \
+            --html-nested build/test-results/coverage/index.html \
+            --json build/test-results/coverage/coverage.json \
+            --json-summary build/test-results/coverage/summary.json \
+            --txt build/test-results/coverage/lines.txt \
+            --print-summary 2>&1 | tee build/test-results/coverage.log
       - name: Test diagnostics
         if: always()
         uses: actions/upload-artifact@v7
