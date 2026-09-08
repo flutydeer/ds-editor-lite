@@ -142,8 +142,15 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
     lastPlayPosPen.setColor(m_lastPlayPosIndicatorColor);
     lastPlayPosPen.setStyle(Qt::DashLine);
     m_sceneLastPlayPosIndicator->setPen(lastPlayPosPen);
-    if (showLastPlaybackPosition)
+    if (showLastPlaybackPosition) {
         m_scene->addTimeIndicator(m_sceneLastPlayPosIndicator);
+        m_sceneLastPlayPosIndicator->setVisible(playbackController->playbackStatus() !=
+                                                PlaybackGlobal::Stopped);
+        connect(playbackController, &PlaybackController::playbackStatusChanged, this,
+                [this](const PlaybackGlobal::PlaybackStatus status) {
+                    m_sceneLastPlayPosIndicator->setVisible(status != PlaybackGlobal::Stopped);
+                });
+    }
 
     setScene(m_scene);
     setEnsureSceneFillViewX(true);
