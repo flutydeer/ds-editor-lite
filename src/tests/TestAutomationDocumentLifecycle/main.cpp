@@ -55,6 +55,8 @@ namespace {
         QString lateSaveTarget;
         QByteArray lastSavedModel;
         QList<Automation::DocumentId> replacementNotifications;
+        QList<Automation::DocumentCommitInfo> commits;
+        std::function<void(const Automation::DocumentCommitInfo &)> onCommit;
     };
 
     Automation::DocumentRuntimeServices documentServices(DocumentHostState &host) {
@@ -89,6 +91,11 @@ namespace {
         };
         services.beforeReplaceGeneration = [&host](const Automation::DocumentId &documentId) {
             host.replacementNotifications.append(documentId);
+        };
+        services.afterCommit = [&host](const Automation::DocumentCommitInfo &info) {
+            host.commits.append(info);
+            if (host.onCommit)
+                host.onCommit(info);
         };
         return services;
     }
@@ -186,6 +193,7 @@ namespace {
         LoopSettings loopSettings;
         qsizetype idempotencyRecords = 0;
         int replacementNotifications = 0;
+        qsizetype commitNotifications = 0;
     };
 
     std::optional<StateDigest> captureState(LifecycleFixture &fixture) {
@@ -224,6 +232,7 @@ namespace {
         result.loopSettings = fixture.host.loopSettings;
         result.idempotencyRecords = idempotencyRecords.get();
         result.replacementNotifications = fixture.host.replacementNotifications.size();
+        result.commitNotifications = fixture.host.commits.size();
         return result;
     }
 
@@ -248,7 +257,8 @@ namespace {
                left.tasks == right.tasks && left.objectAddresses == right.objectAddresses &&
                left.loopSettings == right.loopSettings &&
                left.idempotencyRecords == right.idempotencyRecords &&
-               left.replacementNotifications == right.replacementNotifications;
+               left.replacementNotifications == right.replacementNotifications &&
+               left.commitNotifications == right.commitNotifications;
     }
 
     enum class PreparationOutcome {
@@ -389,6 +399,95 @@ namespace {
             "reject the old generation");
     }
 
+    void testCommitObservers(TestRun &test) {
+        constexpr auto scenario = "document-commit-observers";
+        LifecycleFixture fixture;
+        auto &runtime = fixture.runtime;
+        QTemporaryDir directory;
+        fixture.host.onCommit = [&](const Automation::DocumentCommitInfo &info) {
+            const auto document = runtime.documents().getDocument(info.current.document.documentId);
+            const auto history = runtime.history().getState(info.current.document.documentId);
+            test.expect(document && history && sameDocument(document.get(), info.current) &&
+                            info.current.document == runtime.documentVersion() &&
+                            info.current.lifecycle == Automation::DocumentLifecycleState::Active &&
+                            info.current.saved == history.get().onSavePoint,
+                        scenario, "completion observers must read the coherent committed state");
+            test.expect(runtime.dispatcher().currentInvocationSource() == info.source &&
+                            info.clientId == QStringLiteral("document-observer-client"),
+                        scenario, "completion must retain the initiating invocation source/client");
+            if (info.previous.documentId != info.current.document.documentId) {
+                const auto oldDocument = runtime.documents().getDocument(info.previous.documentId);
+                test.expect(!oldDocument && oldDocument.getError().code ==
+                                                Automation::AutomationErrorCode::DocumentChanged,
+                            scenario, "the previous generation must be retired before completion");
+            }
+        };
+
+        auto context = [&] {
+            auto value = commandContext(runtime);
+            value.source = Automation::InvocationSource::PublicMcp;
+            value.clientId = QStringLiteral("document-observer-client");
+            return value;
+        };
+        const auto draft =
+            makeDocumentDraft(QStringLiteral("Observer"), QStringLiteral("observer"));
+        const auto initial = runtime.documentVersion();
+        const auto created = runtime.documents().commitNewDocument(context(), draft);
+        test.expect(created && fixture.host.commits.size() == 1 &&
+                        fixture.host.commits.last().operationId ==
+                            Automation::OperationIds::documents::commit_new &&
+                        fixture.host.commits.last().previous == initial &&
+                        fixture.host.commits.last().sourcePath.isEmpty(),
+                    scenario, "new must publish exactly one completion for its new generation");
+
+        const auto sourcePath = directory.filePath(QStringLiteral("original.mid"));
+        const auto opened = runtime.documents().commitOpenedDocument(
+            context(), draft, {}, QStringLiteral("original.mid"), false, sourcePath);
+        test.expect(opened && fixture.host.commits.size() == 2 &&
+                        fixture.host.commits.last().operationId ==
+                            Automation::OperationIds::documents::commit_open &&
+                        fixture.host.commits.last().sourcePath == sourcePath &&
+                        fixture.host.commits.last().current.path.isEmpty() &&
+                        !fixture.host.commits.last().current.saved,
+                    scenario, "non-native open must retain its original source and dirty baseline");
+
+        const auto savedPath = directory.filePath(QStringLiteral("observer-save-as.dspx"));
+        QObject saveObserver;
+        int savePointNotifications = 0;
+        QObject::connect(fixture.history, &HistoryManager::savePointChanged, &saveObserver, [&] {
+            ++savePointNotifications;
+            const auto document =
+                runtime.documents().getDocument(runtime.documentVersion().documentId);
+            test.expect(document && document.get().path == savedPath && document.get().saved &&
+                            document.get().projectName == QStringLiteral("observer-save-as.dspx"),
+                        scenario, "savepoint observers must already see the new save-as identity");
+        });
+        const auto versionBeforeSave = runtime.documentVersion();
+        const auto saved = runtime.documents().saveDocumentAs(context(), savedPath, false);
+        const auto resaved = runtime.documents().saveDocument(context(), savedPath);
+        test.expect(saved && resaved && fixture.host.commits.size() == 4 &&
+                        fixture.host.commits.at(2).operationId ==
+                            Automation::OperationIds::documents::save_as &&
+                        fixture.host.commits.last().operationId ==
+                            Automation::OperationIds::documents::save &&
+                        fixture.host.commits.last().sourcePath == savedPath &&
+                        runtime.documentVersion() == versionBeforeSave &&
+                        savePointNotifications == 2,
+                    scenario, "save/save-as must each notify once without advancing the revision");
+
+        auto previewContext = context();
+        previewContext.validateOnly = true;
+        const auto previewNew = runtime.documents().commitNewDocument(previewContext, draft);
+        const auto previewOpen = runtime.documents().commitOpenedDocument(
+            previewContext, draft, sourcePath, QStringLiteral("preview.dspx"), true);
+        const auto previewSave = runtime.documents().saveDocumentAs(
+            previewContext, directory.filePath(QStringLiteral("preview.dspx")), false);
+        test.expect(previewNew && previewOpen && previewSave && fixture.host.commits.size() == 4 &&
+                        runtime.documentVersion() == versionBeforeSave &&
+                        savePointNotifications == 2,
+                    scenario, "validation must not emit completion or savepoint notifications");
+    }
+
     void testWorkflowBusyLeaseAcrossReplacement(TestRun &test) {
         constexpr auto scenario = "AFC-DOC-LIFECYCLE-WORKFLOW-BUSY";
         LifecycleFixture fixture;
@@ -398,6 +497,12 @@ namespace {
         continuation.source = Automation::InvocationSource::PublicMcp;
         const auto admitted = runtime.dispatcher().admitDocumentTask(continuation);
         const bool acquired = runtime.setDocumentBusy(original.documentId, true);
+        bool notifiedWhileBusy = false;
+        fixture.host.onCommit = [&](const Automation::DocumentCommitInfo &info) {
+            notifiedWhileBusy = info.current.busy &&
+                                runtime.documentBusy(info.current.document.documentId) &&
+                                info.source == continuation.source;
+        };
         const auto replacement = runtime.documents().commitOpenedDocument(
             continuation,
             makeDocumentDraft(QStringLiteral("Busy Replacement"),
@@ -417,9 +522,9 @@ namespace {
 
         test.expect(
             admitted && acquired && replacement && current.documentId != original.documentId &&
-                busyAfterReplacement && released && !runtime.documentBusy(current.documentId) &&
-                !blocked && blocked.getError().code == Automation::AutomationErrorCode::Busy &&
-                committed,
+                notifiedWhileBusy && busyAfterReplacement && released &&
+                !runtime.documentBusy(current.documentId) && !blocked &&
+                blocked.getError().code == Automation::AutomationErrorCode::Busy && committed,
             scenario,
             "workflow busy must cross task-driven replacement, reject new public mutations, and "
             "remain releasable by its original generation");
@@ -858,6 +963,7 @@ int main(int argc, char *argv[]) {
 
     testInitialUntitledSession(test);
     testNewOpenAndImport(test);
+    testCommitObservers(test);
     testWorkflowBusyLeaseAcrossReplacement(test);
     testFailureAndCancellationRollback(test);
     testSaveAndSaveAs(test);

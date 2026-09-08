@@ -267,18 +267,14 @@ void MainWindow::updatePanelDetachEnabled() {
 }
 
 void MainWindow::updateWindowTitle() {
-    auto projectName = documentWorkflowController->projectName();
-    auto saved = historyManager->isOnSavePoint();
-    auto appName = qApp->applicationDisplayName();
-    if (projectName.isNull() || projectName.isEmpty())
-        setWindowTitle(appName);
-    else {
-        auto projectPath = documentWorkflowController->projectPath();
-        auto displayName =
-            projectPath.isEmpty() ? projectName : QFileInfo(projectPath).completeBaseName();
-        auto indicator = saved ? "" : "● ";
-        setWindowTitle(indicator + displayName);
-    }
+    const auto document = documentWorkflowController->documentSnapshot();
+    if (!document)
+        return;
+    const auto displayName =
+        !document->path.isEmpty()         ? QFileInfo(document->path).completeBaseName()
+        : document->projectName.isEmpty() ? DocumentWorkflowController::tr("New Project")
+                                          : document->projectName;
+    setWindowTitle((document->saved ? QString() : QStringLiteral("● ")) + displayName);
     updateShutdownBlockReason();
 }
 

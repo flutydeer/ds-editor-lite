@@ -29,6 +29,7 @@
 #include "Modules/ProjectConverters/DspxProjectConverterUi.h"
 #include "Controller/AppController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
+#include "Controller/DocumentWorkflow/DocumentWorkflowPathUtils.h"
 #include "Controller/AudioDecodingController.h"
 #include "Controller/ClipboardController.h"
 #include "Controller/TrackController.h"
@@ -48,6 +49,7 @@
 #include "Global/AppGlobal.h"
 
 #include <QCoreApplication>
+#include <QFileInfo>
 #include <QMetaObject>
 #include <QObject>
 #include <QSysInfo>
@@ -126,6 +128,23 @@ AppContext::AppContext(std::unique_ptr<AppOptions> options, const AppHostMode ho
     documentServices.saveProject = [this](const QString &path, AppModel *model, QString &error) {
         DspxProjectConverterUi converter(m_appStatus->loopSettings);
         return converter.save(path, model, error);
+    };
+    documentServices.afterCommit = [this](const Automation::DocumentCommitInfo &info) {
+        bool recentFilesChanged = false;
+        if (!info.current.path.isEmpty() &&
+            QFileInfo(info.current.path)
+                    .suffix()
+                    .compare(QStringLiteral("dspx"), Qt::CaseInsensitive) == 0) {
+            const auto recent = m_coreRuntime->settings().addRecentProjectFile(
+                {.source = info.source, .clientId = info.clientId},
+                DocumentWorkflowPathUtils::normalizedProjectPath(info.current.path));
+            if (recent)
+                recentFilesChanged = recent.get().changed;
+            else
+                qWarning() << "Failed to update recent projects:" << recent.getError().message;
+        }
+        if (auto *workflow = guiDocumentWorkflowController())
+            workflow->handleDocumentCommitted(info, recentFilesChanged);
     };
     Automation::PlaybackRuntimeServices playbackServices;
     playbackServices.snapshot = [this] {

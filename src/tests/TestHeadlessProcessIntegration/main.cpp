@@ -1210,10 +1210,10 @@ namespace {
             if (pageIndex == 15)
                 return fail(QStringLiteral("Headless MCP tools/list pagination did not terminate"));
         }
-        if (toolNames.size() != 151 ||
+        if (toolNames.size() != 154 ||
             !toolNames.contains(QStringLiteral("application.get_status")) ||
             toolNames.contains(QStringLiteral("track_panel.get_state"))) {
-            return fail(QStringLiteral("Headless MCP exposed %1 tools instead of the qualified 151")
+            return fail(QStringLiteral("Headless MCP exposed %1 tools instead of the qualified 154")
                             .arg(toolNames.size()));
         }
 

@@ -4,6 +4,7 @@
 #define documentWorkflowController DocumentWorkflowController::instance()
 
 #include "Automation/AutomationTypes.h"
+#include "Automation/DocumentAutomationFacade.h"
 #include "DocumentWorkflowRevisionGuard.h"
 #include "ProjectLoadTypes.h"
 #include <lite/Core/Singleton.h>
@@ -38,6 +39,8 @@ public:
 
     void setUi(IDocumentWorkflowUi *ui);
     void initializeNewDocument();
+    void handleDocumentCommitted(const Automation::DocumentCommitInfo &info,
+                                 bool recentFilesChanged);
 
     void requestNew();
     void requestOpen(const QString &path);
@@ -50,6 +53,7 @@ public:
     void cancelCurrentOperation();
 
     [[nodiscard]] bool busy() const;
+    [[nodiscard]] std::optional<Automation::DocumentSnapshotDto> documentSnapshot() const;
     [[nodiscard]] QString projectPath() const;
     [[nodiscard]] QString projectName() const;
     [[nodiscard]] QString lastProjectFolder() const;
@@ -124,8 +128,10 @@ private:
                        const Automation::CommandContext &context);
     bool commitAppend(AppendProjectPayload &&payload,
                       const Automation::CommandContext &context);
-    void activateFirstClip(const QList<Track *> &preferredTracks = {});
-    void addRecentProjectFile(const QString &path);
+    void activateFirstClip(
+        const QList<Track *> &preferredTracks = {},
+        Automation::InvocationSource source = Automation::InvocationSource::TrustedGui,
+        const QString &clientId = {}, bool clearIfMissing = false);
     QString suggestedSavePath() const;
     void rejectBusyRequest();
 
