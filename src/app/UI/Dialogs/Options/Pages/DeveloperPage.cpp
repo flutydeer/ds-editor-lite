@@ -27,6 +27,7 @@ void DeveloperPage::modifyOption() {
     settings.showLogWindow = m_swShowLogWindow->value();
     settings.showTimelineDebugInfo = m_swShowTimelineDebugInfo->value();
     settings.showClipDebugInfo = m_swShowClipDebugInfo->value();
+    settings.logTouchEvents = m_swLogTouchEvents->value();
     settings.enablePanelDetach = m_swEnablePanelDetach->value();
     settings.enableEmbeddedOptionsDialog = m_swEnableEmbeddedOptionsDialog->value();
     settings.editorRenderBackend =
@@ -52,6 +53,9 @@ QWidget *DeveloperPage::createContentWidget() {
 
     m_swShowClipDebugInfo = new SwitchButton(option->showClipDebugInfo);
     connect(m_swShowClipDebugInfo, &SwitchButton::toggled, this, &DeveloperPage::modifyOption);
+
+    m_swLogTouchEvents = new SwitchButton(option->logTouchEvents);
+    connect(m_swLogTouchEvents, &SwitchButton::toggled, this, &DeveloperPage::modifyOption);
 
     m_swEnablePanelDetach = new SwitchButton(option->enablePanelDetach);
     connect(m_swEnablePanelDetach, &SwitchButton::toggled, this, &DeveloperPage::modifyOption);
@@ -97,6 +101,11 @@ QWidget *DeveloperPage::createContentWidget() {
     diagnosticsCard->addItem(tr("Show clip debug info"),
                              tr("Display clip ID and detailed time info on track clips"),
                              m_swShowClipDebugInfo);
+    diagnosticsCard->addItem(
+        tr("Log touch events"),
+        tr("Record every touch event the editor receives, with point states and gesture phase. "
+           "Filter the log window by the EditorTouchController tag"),
+        m_swLogTouchEvents);
 
     const auto experimentalCard = new OptionListCard(tr("Experimental"));
     experimentalCard->addItem(

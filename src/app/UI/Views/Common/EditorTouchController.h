@@ -9,6 +9,7 @@
 #include <QObject>
 #include <QPointF>
 #include <QPointer>
+#include <QStringList>
 
 class QContextMenuEvent;
 class QMouseEvent;
@@ -64,6 +65,10 @@ public:
     // The multi-touch gesture master switch (Appearance options). When off,
     // touch events are left alone and Qt synthesizes plain mouse events.
     [[nodiscard]] static bool isEnabled();
+
+    // The touch event probe (Developer options). Every line it writes carries
+    // the EditorTouchController tag, which is what the log window filters by.
+    [[nodiscard]] static bool isProbeEnabled();
 
 private:
     bool handleTouchEvent(QTouchEvent *event);
@@ -137,6 +142,10 @@ private:
     // When the last touch event arrived, so that a context menu can be traced
     // back to a finger even after the gesture has ended.
     qint64 m_lastTouchActivityMs = -1;
+
+    // Probe scratch state, only touched while the developer option is on.
+    bool m_probeActive = false;
+    QStringList m_probeEmitted;
 };
 
 #endif // EDITORTOUCHCONTROLLER_H

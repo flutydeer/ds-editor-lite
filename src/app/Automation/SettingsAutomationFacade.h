@@ -68,6 +68,7 @@ namespace Automation {
         bool showLogWindow = false;
         bool showTimelineDebugInfo = false;
         bool showClipDebugInfo = false;
+        bool logTouchEvents = false;
         bool enablePanelDetach = false;
         bool enableEmbeddedOptionsDialog = false;
         EditorRenderBackend editorRenderBackend = EditorRenderBackend::Legacy;

@@ -130,6 +130,7 @@ namespace Automation {
                 .showLogWindow = value->showLogWindow,
                 .showTimelineDebugInfo = value->showTimelineDebugInfo,
                 .showClipDebugInfo = value->showClipDebugInfo,
+                .logTouchEvents = value->logTouchEvents,
                 .enablePanelDetach = value->enablePanelDetach,
                 .enableEmbeddedOptionsDialog = value->enableEmbeddedOptionsDialog,
                 .editorRenderBackend = value->editorRenderBackend ==
@@ -145,6 +146,7 @@ namespace Automation {
             target->showLogWindow = value.showLogWindow;
             target->showTimelineDebugInfo = value.showTimelineDebugInfo;
             target->showClipDebugInfo = value.showClipDebugInfo;
+            target->logTouchEvents = value.logTouchEvents;
             target->enablePanelDetach = value.enablePanelDetach;
             target->enableEmbeddedOptionsDialog = value.enableEmbeddedOptionsDialog;
             target->editorRenderBackend =

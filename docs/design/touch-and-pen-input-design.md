@@ -137,6 +137,20 @@ EditorPointerUtils      "这是手指还是鼠标"的共享判定
 
 **每个触摸事件都用平台上报的触点集合校准一次内部状态**（`syncActivePoints()`）。Qt 漏送一次 release（丢失的抬起、抓取转移）本来会让状态机永久卡住，校准让它在触点归零时无条件回到 `Idle`。
 
+### 状态机不能有死角
+
+双指导航有两处会彻底卡死，表现都是手指还在屏幕上但视图纹丝不动，要整只手抬起来重来。
+
+**一、多余的手指落下之后，原来那两根抬起一根。** 第三根手指（休息的拇指、手掌边缘）不打断进行中的手势，但它会进入触点表。等原来的一对里有一根抬起时，导航结束，剩下两根手指让状态落到 `Settling`，而 `Settling` 只认新的按下，不认移动。于是屏幕上明明有两根手指，却什么都不会发生。
+
+改法是导航结束时如果还剩至少两根手指，就地把手势交接给它们，重新 `beginNavigation()`。交接的那一次 `NavigationEnd` 不带速度，免得交接顺手甩出一段惯性。剩一根手指时照旧落到 `Settling`，单根手指本来就不是导航。
+
+**二、手势中途丢状态，手指却没离开。** `TouchCancel`、指针捕获转移、送给别的控件的按下，都会让状态机清空触点表。此后这些手指报上来的是 `Updated` 而不是 `Pressed`，而 `moved()` 只认识自己见过的 id，于是这几根手指到抬起为止一直是死的。
+
+改法是**收养**：控件收到任何一个不是 `Released` 而状态机又不认识的触点时，先按一次 `pressed(..., adopted = true)` 把它接管过来，再照常处理。`adopted` 标记只影响两件事——不触发长按，不参与双击——因为这根手指已经在屏幕上待了多久无从得知。双指的场景里，收养第二根手指会直接触发 `NavigationBegin`，导航在下一个事件就恢复了。
+
+这两条都有单测（`liftingOneOfThreeFingersHandsNavigationToTheRest`、`anUnknownFingerIsAdoptedInsteadOfIgnored`）。
+
 **平移抬手带惯性**。惯性只作用于平移，不作用于缩放。速度用指数平滑估计，衰减是帧率无关的 `exp(-decay * dt)`，低于阈值即停止。单指平移空白（轨道编排区）同样带惯性。
 
 ### 长按菜单交给平台
@@ -215,11 +229,26 @@ HUD 显示最近事件与当前触点数，全量日志写到 `AppDataLocation/t
 
 构建目标 `TouchProbe`，产物在 `build/Debug/out/bin/`。
 
-## 七、测试
+## 七、触摸事件探针（应用内）
 
-`src/tests/TestTouchGestures/` 覆盖 `EditorTouchGesture` 的全部判定，不需要触摸硬件：分流规则、点按与双击、长按两种走向、第二指中止、双指平移不漏缩放、逐点更新不产生伪捏合、两轴锁定与锁定保持、惯性速度估计。
+`src/tools/TouchProbe/` 回答的是"平台送来了什么"，应用内还需要一个回答"手势层怎么处理的"的探针。开发者设置页的 **Log touch events** 打开后，`EditorTouchController` 会为每个触摸事件写一行：
 
-## 八、已知限制
+```
+touch update [0:hold(412,233) 1:move(688,240)] nav->nav tracked=2 out=[NavUpdate]
+touch update [0:move(400,233) 1:move(700,240)] nav->settling tracked=2 out=[NavEnd,NavBegin,NavUpdate]
+```
+
+字段依次是事件类型、每个触点的 id 与状态与坐标、手势阶段的前后变化、状态机当前跟踪的触点数、这一轮吐出的意图。触点被收养时行尾会多一段 `adopted=[1]`。
+
+另外几种不在触摸事件里发生、但足以解释卡死的时刻也各占一行：`TouchCancel`、被吞掉或被放行的上下文菜单、被吞掉的合成鼠标按下与抬起、控件主动 `cancel()`。
+
+日志窗口按 tag 过滤，这些行的 tag 是 **`EditorTouchController`**（本项目的 tag 取自源文件名）。开关默认关闭，写的是 Debug 级别。
+
+## 八、测试
+
+`src/tests/TestTouchGestures/` 覆盖 `EditorTouchGesture` 的全部判定，不需要触摸硬件：分流规则、点按与双击、长按两种走向、第二指中止、双指平移不漏缩放、逐点更新不产生伪捏合、两轴锁定与锁定保持、惯性速度估计、三指抬一指的导航交接、丢状态后的触点收养。
+
+## 九、已知限制
 
 - 歌词内联编辑依赖 Windows 触摸键盘，本方案不介入。
 - 触控笔在编辑器里同时产生 `QTabletEvent` 和鼠标事件。控件不处理前者，因此没有重复处理，但笔压和倾角目前没有被利用。

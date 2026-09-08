@@ -396,6 +396,78 @@ private slots:
         QCOMPARE(gesture.activePointCount(), 2);
     }
 
+    // A stray third contact, a resting thumb for instance, joins the gesture
+    // without disturbing it. When one of the original pair then lifts, the two
+    // fingers still on the glass have to keep navigating: leaving them in
+    // Settling makes two-finger pan and zoom freeze until the whole hand comes
+    // off, which is the shape of the "two fingers get stuck" report.
+    void liftingOneOfThreeFingersHandsNavigationToTheRest() {
+        Gesture gesture;
+        gesture.pressed(1, {100, 100}, 0);
+        gesture.pressed(2, {300, 100}, 0);
+        gesture.pressed(3, {500, 100}, 20);
+        QCOMPARE(gesture.phase(), Gesture::Phase::Navigation);
+        QCOMPARE(gesture.activePointCount(), 3);
+
+        const auto events = gesture.released(1, {100, 100}, 40);
+        QVERIFY(contains(events, Type::NavigationEnd));
+        QVERIFY(contains(events, Type::NavigationBegin));
+        QCOMPARE(gesture.phase(), Gesture::Phase::Navigation);
+
+        // The hand over must not fling the viewport on the way.
+        QCOMPARE(events.at(indexOf(events, Type::NavigationEnd)).velocity, QPointF(0, 0));
+
+        gesture.moved(2, {280, 100}, 56);
+        gesture.moved(3, {520, 100}, 56);
+        const auto update = gesture.flushNavigation(56);
+        QCOMPARE(static_cast<int>(update.size()), 1);
+        QCOMPARE(update.at(0).type, Type::NavigationUpdate);
+    }
+
+    // Losing only one of the two navigation fingers still ends the gesture,
+    // because a single finger is not navigation.
+    void liftingOneOfTwoFingersEndsNavigation() {
+        Gesture gesture;
+        gesture.pressed(1, {100, 100}, 0);
+        gesture.pressed(2, {300, 100}, 0);
+        const auto events = gesture.released(1, {100, 100}, 40);
+        QVERIFY(contains(events, Type::NavigationEnd));
+        QVERIFY(!contains(events, Type::NavigationBegin));
+        QCOMPARE(gesture.phase(), Gesture::Phase::Settling);
+    }
+
+    // Fingers that are still on the glass after the machine lost its state (a
+    // touch cancel, a pointer capture change) must be picked up again from
+    // their next move. Ignoring unknown ids leaves them dead until the hand is
+    // lifted, which is how a cancelled pinch used to freeze the viewport.
+    void anUnknownFingerIsAdoptedInsteadOfIgnored() {
+        Gesture gesture;
+        gesture.pressed(1, {100, 100}, 0);
+        gesture.pressed(2, {300, 100}, 0);
+        gesture.cancelled();
+        QCOMPARE(gesture.phase(), Gesture::Phase::Idle);
+        QVERIFY(!gesture.tracksPoint(1));
+
+        gesture.pressed(1, {110, 100}, 40, true);
+        const auto events = gesture.pressed(2, {290, 100}, 40, true);
+        QVERIFY(contains(events, Type::NavigationBegin));
+        QCOMPARE(gesture.phase(), Gesture::Phase::Navigation);
+
+        gesture.moved(1, {120, 100}, 56);
+        gesture.moved(2, {280, 100}, 56);
+        QCOMPARE(static_cast<int>(gesture.flushNavigation(56).size()), 1);
+    }
+
+    // An adopted finger has been down for an unknown time, so it must not arm
+    // the long press: the menu would pop under a finger that is only resting.
+    void anAdoptedFingerNeverArmsTheLongPress() {
+        Gesture gesture;
+        gesture.pressed(1, {100, 100}, 0, true);
+        QCOMPARE(gesture.phase(), Gesture::Phase::Pending);
+        QCOMPARE(gesture.longPressDeadline(), qint64(0));
+        QVERIFY(gesture.longPressTimeout(1000).isEmpty());
+    }
+
     void cancelUndoesAnInFlightDrag() {
         Gesture gesture;
         gesture.pressed(1, {100, 100}, 0);

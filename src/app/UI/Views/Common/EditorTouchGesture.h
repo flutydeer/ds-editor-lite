@@ -104,8 +104,16 @@ public:
     // True while a synthetic pointer stream is being driven by this gesture.
     [[nodiscard]] bool hasSingleStream() const;
     [[nodiscard]] QPointF lastPosition() const;
+    // Is this point one the machine already knows about? Callers use it to
+    // spot fingers that are on the glass but were never handed over, which is
+    // what happens after a touch cancel or a grab change.
+    [[nodiscard]] bool tracksPoint(int id) const;
 
-    Events pressed(int id, const QPointF &position, qint64 timestampMs);
+    // `adopted` marks a point the caller picked up mid-stream rather than one
+    // that was really just pressed. Such a finger has been down for an unknown
+    // time already, so it must not arm the long press or complete a double
+    // tap, but it still counts towards navigation.
+    Events pressed(int id, const QPointF &position, qint64 timestampMs, bool adopted = false);
     Events moved(int id, const QPointF &position, qint64 timestampMs);
     Events released(int id, const QPointF &position, qint64 timestampMs);
     // Drop every point the platform no longer reports, and fall back to Idle

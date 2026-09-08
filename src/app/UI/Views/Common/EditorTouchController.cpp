@@ -3,6 +3,7 @@
 #include "EditorPointerUtils.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppOptions/Options/AppearanceOption.h"
+#include "Model/AppOptions/Options/DeveloperOption.h"
 
 #include <QApplication>
 #include <QContextMenuEvent>
@@ -32,6 +33,79 @@ namespace {
     // within a millisecond of the finger leaving, so this only has to outlast
     // message queue jitter.
     constexpr int contextMenuOwnershipMs = 600;
+
+    // --- Touch event probe ---------------------------------------------------
+    // Off unless the developer option is on. Every line lands under the
+    // EditorTouchController tag, which is what the log window filters by.
+    const char *pointStateName(const QEventPoint::State state) {
+        switch (state) {
+            case QEventPoint::State::Pressed:
+                return "down";
+            case QEventPoint::State::Updated:
+                return "move";
+            case QEventPoint::State::Stationary:
+                return "hold";
+            case QEventPoint::State::Released:
+                return "up";
+            default:
+                return "?";
+        }
+    }
+
+    const char *touchEventName(const QEvent::Type type) {
+        switch (type) {
+            case QEvent::TouchBegin:
+                return "begin";
+            case QEvent::TouchUpdate:
+                return "update";
+            case QEvent::TouchEnd:
+                return "end";
+            case QEvent::TouchCancel:
+                return "cancel";
+            default:
+                return "?";
+        }
+    }
+
+    const char *phaseName(const EditorTouchGesture::Phase phase) {
+        switch (phase) {
+            case EditorTouchGesture::Phase::Idle:
+                return "idle";
+            case EditorTouchGesture::Phase::Pending:
+                return "pending";
+            case EditorTouchGesture::Phase::LongPressPending:
+                return "longpress?";
+            case EditorTouchGesture::Phase::Single:
+                return "single";
+            case EditorTouchGesture::Phase::Navigation:
+                return "nav";
+            case EditorTouchGesture::Phase::Settling:
+                return "settling";
+        }
+        return "?";
+    }
+
+    const char *gestureEventName(const EditorTouchGesture::Event::Type type) {
+        switch (type) {
+            case EditorTouchGesture::Event::Type::SingleBegin:
+                return "SingleBegin";
+            case EditorTouchGesture::Event::Type::SingleMove:
+                return "SingleMove";
+            case EditorTouchGesture::Event::Type::SingleEnd:
+                return "SingleEnd";
+            case EditorTouchGesture::Event::Type::SingleCancel:
+                return "SingleCancel";
+            case EditorTouchGesture::Event::Type::LongPress:
+                return "LongPress";
+            case EditorTouchGesture::Event::Type::NavigationBegin:
+                return "NavBegin";
+            case EditorTouchGesture::Event::Type::NavigationUpdate:
+                return "NavUpdate";
+            case EditorTouchGesture::Event::Type::NavigationEnd:
+                return "NavEnd";
+        }
+        return "?";
+    }
 }
 
 EditorTouchController::EditorTouchController(EditorTouchTarget *target, QWidget *widget,
@@ -70,6 +144,10 @@ bool EditorTouchController::isEnabled() {
     return appOptions->appearance()->enableTouchGestures;
 }
 
+bool EditorTouchController::isProbeEnabled() {
+    return appOptions->developer()->logTouchEvents;
+}
+
 bool EditorTouchController::isGestureActive() const {
     return m_gesture.phase() != EditorTouchGesture::Phase::Idle;
 }
@@ -85,6 +163,13 @@ bool EditorTouchController::handleEvent(QEvent *event) {
         case QEvent::TouchEnd:
             return handleTouchEvent(static_cast<QTouchEvent *>(event));
         case QEvent::TouchCancel:
+            // Worth a line of its own: the platform taking the touch grab away
+            // mid-gesture is the classic way for fingers to end up on the glass
+            // with nothing tracking them.
+            if (isProbeEnabled())
+                qDebug().noquote() << QStringLiteral("touch cancel (phase was %1, tracked=%2)")
+                                          .arg(QLatin1String(phaseName(m_gesture.phase())))
+                                          .arg(m_gesture.activePointCount());
             if (!isGestureActive())
                 return false;
             cancel();
@@ -110,6 +195,13 @@ bool EditorTouchController::swallowForeignMouseEvent(QMouseEvent *event) {
     // already handling ourselves, so it is a duplicate.
     if (event->source() == Qt::MouseEventNotSynthesized)
         return false;
+    if (isProbeEnabled() && event->type() != QEvent::MouseMove) {
+        qDebug().noquote() << QStringLiteral("swallowed synthesized mouse %1 buttons=%2")
+                                  .arg(event->type() == QEvent::MouseButtonRelease
+                                           ? QStringLiteral("release")
+                                           : QStringLiteral("press"))
+                                  .arg(static_cast<int>(event->buttons()));
+    }
     event->accept();
     return true;
 }
@@ -129,6 +221,8 @@ bool EditorTouchController::filterContextMenuEvent(QContextMenuEvent *event) {
         // Either the platform beat us to it, which is the good case because it
         // brings the native press-and-hold feedback and the native timing, or
         // this is the one the fallback timer posted. Both are ours.
+        if (isProbeEnabled())
+            qDebug().noquote() << QStringLiteral("context menu passed through (expected)");
         cancelContextMenuFallback();
         // A menu runs a nested event loop and grabs the pointer, so anything
         // still in flight would never see its release.
@@ -136,8 +230,16 @@ bool EditorTouchController::filterContextMenuEvent(QContextMenuEvent *event) {
             onSingleCancel();
         return false;
     }
-    if (!touchOwnsContextMenu())
+    if (!touchOwnsContextMenu()) {
+        if (isProbeEnabled())
+            qDebug().noquote() << QStringLiteral("context menu passed through (not from touch)");
         return false;
+    }
+    if (isProbeEnabled())
+        qDebug().noquote() << QStringLiteral("context menu swallowed (phase %1, %2 ms since touch)")
+                                  .arg(QLatin1String(phaseName(m_gesture.phase())))
+                                  .arg(m_lastTouchActivityMs < 0 ? -1
+                                                                 : now() - m_lastTouchActivityMs);
     // Windows raises its press-and-hold menu on release no matter what we did
     // with the same finger in the meantime. On blank canvas a held press is a
     // rubber band here, not a menu, so this one has to go: letting it through
@@ -173,6 +275,21 @@ bool EditorTouchController::handleTouchEvent(QTouchEvent *event) {
     m_device = event->pointingDevice();
     const auto timestamp = now();
     m_lastTouchActivityMs = timestamp;
+
+    m_probeActive = isProbeEnabled();
+    QStringList probePoints;
+    QStringList probeAdopted;
+    const auto probePhaseBefore = m_gesture.phase();
+    if (m_probeActive) {
+        m_probeEmitted.clear();
+        for (const auto &point : event->points()) {
+            probePoints.append(QStringLiteral("%1:%2(%3,%4)")
+                                   .arg(point.id())
+                                   .arg(QLatin1String(pointStateName(point.state())))
+                                   .arg(qRound(point.position().x()))
+                                   .arg(qRound(point.position().y())));
+        }
+    }
     // A brand new gesture inherits nothing: an expectation left over from a
     // long press whose menu never arrived would otherwise let this gesture's
     // platform menu through.
@@ -180,7 +297,20 @@ bool EditorTouchController::handleTouchEvent(QTouchEvent *event) {
         cancelContextMenuFallback();
     for (const auto &point : event->points()) {
         const auto position = point.position();
-        switch (point.state()) {
+        const auto state = point.state();
+        // A finger that is on the glass but unknown to the machine has to be
+        // picked up, not ignored. moved() only answers to ids it has seen, so
+        // anything that desynchronized the two, a touch cancel, a pointer
+        // capture change, a press that went to another widget, would otherwise
+        // leave that finger dead until the whole hand is lifted.
+        if (state != QEventPoint::State::Pressed && state != QEventPoint::State::Unknown &&
+            state != QEventPoint::State::Released && !m_gesture.tracksPoint(point.id())) {
+            if (m_probeActive)
+                probeAdopted.append(QString::number(point.id()));
+            dispatch(m_gesture.pressed(point.id(), position, timestamp, true));
+        }
+
+        switch (state) {
             case QEventPoint::State::Pressed:
                 dispatch(m_gesture.pressed(point.id(), position, timestamp));
                 break;
@@ -214,6 +344,20 @@ bool EditorTouchController::handleTouchEvent(QTouchEvent *event) {
     if (m_contextMenuExpected && activeIds.isEmpty() && !m_contextMenuFallbackTimer->isActive())
         m_contextMenuFallbackTimer->start();
 
+    if (m_probeActive) {
+        qDebug().noquote()
+            << QStringLiteral("touch %1 [%2] %3->%4 tracked=%5 out=[%6]%7")
+                   .arg(QLatin1String(touchEventName(event->type())), probePoints.join(u' '),
+                        QLatin1String(phaseName(probePhaseBefore)),
+                        QLatin1String(phaseName(m_gesture.phase())))
+                   .arg(m_gesture.activePointCount())
+                   .arg(m_probeEmitted.join(u','),
+                        probeAdopted.isEmpty()
+                            ? QString()
+                            : QStringLiteral(" adopted=[%1]").arg(probeAdopted.join(u',')));
+        m_probeActive = false;
+    }
+
     event->accept();
     return true;
 }
@@ -232,6 +376,10 @@ void EditorTouchController::disarmLongPressTimer() {
 }
 
 void EditorTouchController::dispatch(const EditorTouchGesture::Events &events) {
+    if (m_probeActive) {
+        for (const auto &event : events)
+            m_probeEmitted.append(QLatin1String(gestureEventName(event.type)));
+    }
     for (const auto &event : events) {
         switch (event.type) {
             case EditorTouchGesture::Event::Type::SingleBegin:
@@ -470,6 +618,9 @@ void EditorTouchController::onInertiaFrame() {
 }
 
 void EditorTouchController::cancel() {
+    if (isProbeEnabled() && isGestureActive())
+        qDebug().noquote() << QStringLiteral("gesture cancelled by the widget (phase %1)")
+                                  .arg(QLatin1String(phaseName(m_gesture.phase())));
     disarmLongPressTimer();
     stopInertia();
     cancelContextMenuFallback();

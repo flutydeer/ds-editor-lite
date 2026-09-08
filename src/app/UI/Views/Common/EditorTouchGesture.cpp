@@ -31,6 +31,10 @@ int EditorTouchGesture::activePointCount() const {
     return static_cast<int>(m_points.size());
 }
 
+bool EditorTouchGesture::tracksPoint(const int id) const {
+    return indexOf(id) >= 0;
+}
+
 bool EditorTouchGesture::hasSingleStream() const {
     return m_phase == Phase::Single;
 }
@@ -69,7 +73,8 @@ void EditorTouchGesture::resetToIdle() {
 }
 
 EditorTouchGesture::Events EditorTouchGesture::pressed(const int id, const QPointF &position,
-                                                       const qint64 timestampMs) {
+                                                       const qint64 timestampMs,
+                                                       const bool adopted) {
     if (indexOf(id) < 0)
         m_points.append({id, position});
     else
@@ -101,9 +106,9 @@ EditorTouchGesture::Events EditorTouchGesture::pressed(const int id, const QPoin
         m_pressPosition = position;
         m_lastPosition = position;
         m_pressTimestamp = timestampMs;
-        m_longPressEligible = true;
+        m_longPressEligible = !adopted;
         m_fromLongPress = false;
-        m_pendingDoubleTap = m_lastTapTimestamp != 0 &&
+        m_pendingDoubleTap = !adopted && m_lastTapTimestamp != 0 &&
                              timestampMs - m_lastTapTimestamp <= m_config.doubleTapMaxMs &&
                              distance(position, m_lastTapPosition) <= m_config.doubleTapSlopPx;
         return events;
@@ -273,14 +278,27 @@ EditorTouchGesture::Events EditorTouchGesture::released(const int id, const QPoi
         case Phase::Navigation: {
             if (id != m_navigationIds[0] && id != m_navigationIds[1])
                 break;
+            // Two fingers left on the glass are still navigation, so the
+            // gesture is handed over to them instead of dying. Without this a
+            // stray third contact, a resting thumb for instance, turns the
+            // next lift into a dead Settling that ignores both remaining
+            // fingers until the whole hand comes off.
+            const auto handOver = m_points.size() >= 2;
             Event end;
             end.type = Event::Type::NavigationEnd;
             end.anchor = m_navigationCentroid;
             const auto speed = std::hypot(m_navigationVelocity.x(), m_navigationVelocity.y());
-            if (speed >= m_config.inertiaMinVelocityPxPerSec)
+            if (!handOver && speed >= m_config.inertiaMinVelocityPxPerSec)
                 end.velocity = m_navigationVelocity;
             events.append(end);
             resetToIdle();
+            if (handOver) {
+                beginNavigation(timestampMs);
+                Event begin;
+                begin.type = Event::Type::NavigationBegin;
+                begin.anchor = m_navigationCentroid;
+                events.append(begin);
+            }
             break;
         }
         case Phase::Idle:

@@ -17,6 +17,7 @@ public:
     LITE_OPTION_ITEM(bool, showLogWindow, false)
     LITE_OPTION_ITEM(bool, showTimelineDebugInfo, false)
     LITE_OPTION_ITEM(bool, showClipDebugInfo, false)
+    LITE_OPTION_ITEM(bool, logTouchEvents, false)
     LITE_OPTION_ITEM(bool, enablePanelDetach, false)
     LITE_OPTION_ITEM(bool, enableEmbeddedOptionsDialog, false)
 
