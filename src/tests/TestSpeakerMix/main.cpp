@@ -5,6 +5,7 @@
 #include "UI/Utils/SpeakerMixUtils.h"
 
 #include <QCoreApplication>
+#include <QtTest/QTest>
 #include <QTextStream>
 
 #include <cmath>
@@ -116,8 +117,9 @@ namespace {
                      "positive drag chooses last of three leading overlapping splits");
 
         const QVector<double> threeTrailingZeros{0.4, 0.6, 0.0, 0.0, 0.0};
-        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(threeTrailingZeros, 2, -0.1) == 1,
-                     "negative drag chooses first of three trailing overlapping splits");
+        ok &=
+            expect(SpeakerMixUtils::resolveOverlappingSplitIndex(threeTrailingZeros, 2, -0.1) == 1,
+                   "negative drag chooses first of three trailing overlapping splits");
         ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(threeTrailingZeros, 2, 0.1) == 3,
                      "positive drag chooses last of three trailing overlapping splits");
 
@@ -211,9 +213,9 @@ namespace {
 
         auto bypassedWithoutFixedWeights = dynamicMixData();
         bypassedWithoutFixedWeights.dynamicBypassed = true;
-        ok &= expectVectorNear(normalizeSpeakerMixData(bypassedWithoutFixedWeights).fixedWeights,
-                               {0.0},
-                               "bypassed dynamic mix gets fixed weights from first keyframe");
+        ok &=
+            expectVectorNear(normalizeSpeakerMixData(bypassedWithoutFixedWeights).fixedWeights,
+                             {0.0}, "bypassed dynamic mix gets fixed weights from first keyframe");
 
         auto legacyBypass = fixedMixData();
         legacyBypass.dynamicKeyframes = {
@@ -291,8 +293,7 @@ namespace {
 
         const auto timeline = timeline120Bpm();
         const auto dynamic = dynamicMixData();
-        const auto mix =
-            dynamicSpeakerMixFromData(dynamic, "fallback", 0, 960, 0, timeline, 0.5);
+        const auto mix = dynamicSpeakerMixFromData(dynamic, "fallback", 0, 960, 0, timeline, 0.5);
 
         ok &= expect(mix.sources.size() == 2, "dynamic inference keeps two sources");
         ok &= expect(mix.sources.at(0).speaker == "spk-a" && mix.sources.at(1).speaker == "spk-b",
@@ -333,20 +334,35 @@ namespace {
     }
 }
 
-int main(int argc, char *argv[]) {
-    QCoreApplication app(argc, argv);
+class SpeakerMixTests final : public QObject {
+    Q_OBJECT
 
-    bool ok = true;
-    ok &= testWeightConversions();
-    ok &= testOverlappingSplitResolution();
-    ok &= testNormalizeSpeakerMixData();
-    ok &= testDynamicStatePredicates();
-    ok &= testStaticAndFixedInferenceMix();
-    ok &= testDynamicInferenceMix();
+private slots:
 
-    if (!ok)
-        return 1;
+    void weightConversions() {
+        QVERIFY(testWeightConversions());
+    }
 
-    QTextStream(stdout) << "TestSpeakerMix passed" << Qt::endl;
-    return 0;
-}
+    void overlappingSplitResolution() {
+        QVERIFY(testOverlappingSplitResolution());
+    }
+
+    void normalizeSpeakerMixData() {
+        QVERIFY(testNormalizeSpeakerMixData());
+    }
+
+    void dynamicStatePredicates() {
+        QVERIFY(testDynamicStatePredicates());
+    }
+
+    void staticAndFixedInferenceMix() {
+        QVERIFY(testStaticAndFixedInferenceMix());
+    }
+
+    void dynamicInferenceMix() {
+        QVERIFY(testDynamicInferenceMix());
+    }
+};
+
+QTEST_GUILESS_MAIN(SpeakerMixTests)
+#include "main.moc"

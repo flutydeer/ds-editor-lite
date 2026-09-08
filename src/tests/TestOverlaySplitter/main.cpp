@@ -1,13 +1,11 @@
 #include <lite/GUI/Controls/OverlaySplitter.h>
 
-#include <QApplication>
+#include <QtTest/QTest>
+#include <QMouseEvent>
+#include <QPointer>
 #include <QResizeEvent>
-#include <QTextStream>
 
 namespace {
-
-    int g_failures = 0;
-
     class ResizeProbe final : public QWidget {
     public:
         int zeroHeightResizeCount = 0;
@@ -19,87 +17,93 @@ namespace {
                 ++zeroHeightResizeCount;
         }
     };
-
-    bool expect(const bool condition, const char *message) {
-        if (condition)
-            return true;
-        QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        ++g_failures;
-        return false;
-    }
-
-    SplitterOverlayGrip *findGrip(QWidget *parent) {
-        const auto grips =
-            parent->findChildren<SplitterOverlayGrip *>(QString(), Qt::FindDirectChildrenOnly);
-        expect(grips.size() <= 1, "a host must not contain duplicate overlay grips");
-        return grips.value(0);
-    }
-
-    void processVisibilityEvents() {
-        QCoreApplication::sendPostedEvents();
-        QCoreApplication::processEvents();
-    }
-
-} // namespace
-
-int main(int argc, char *argv[]) {
-    QApplication application(argc, argv);
-
-    QWidget firstHost;
-    firstHost.setAttribute(Qt::WA_DontShowOnScreen);
-    firstHost.resize(640, 480);
-    firstHost.show();
-
-    auto *splitter = new OverlaySplitter(Qt::Vertical, &firstHost);
-    splitter->setGeometry(firstHost.rect());
-    splitter->addWidget(new QWidget);
-    auto *collapsiblePane = new ResizeProbe;
-    splitter->addWidget(collapsiblePane);
-    splitter->show();
-    processVisibilityEvents();
-
-    auto *grip = findGrip(&firstHost);
-    expect(grip, "showing a two-pane splitter must create its overlay grip");
-    expect(grip && grip->isVisible(), "the grip must be visible with the splitter");
-
-    splitter->setSizes({1, 0});
-    processVisibilityEvents();
-    expect(collapsiblePane->height() == 0 && collapsiblePane->zeroHeightResizeCount > 0,
-           "collapsing a pane must expose its zero-height resize transition");
-    splitter->setSizes({1, 1});
-    processVisibilityEvents();
-
-    splitter->hide();
-    processVisibilityEvents();
-    expect(grip && !grip->isVisible(), "hiding the splitter must hide its sibling grip");
-
-    splitter->show();
-    processVisibilityEvents();
-    expect(grip && grip->isVisible(), "showing the splitter again must restore its grip");
-
-    QWidget secondHost;
-    secondHost.setAttribute(Qt::WA_DontShowOnScreen);
-    secondHost.resize(640, 480);
-    secondHost.show();
-    splitter->setParent(&secondHost);
-    splitter->setGeometry(secondHost.rect());
-    splitter->show();
-    processVisibilityEvents();
-
-    expect(findGrip(&firstHost) == nullptr, "reparenting must remove the grip from the old host");
-    expect(findGrip(&secondHost) == grip,
-           "reparenting must move the existing grip to the new host");
-    expect(grip && grip->isVisible(), "the reparented grip must follow splitter visibility");
-
-    delete splitter;
-    processVisibilityEvents();
-    expect(findGrip(&secondHost) == nullptr,
-           "destroying the splitter must destroy its sibling grip");
-
-    if (g_failures == 0) {
-        QTextStream(stdout) << "All OverlaySplitter tests passed" << Qt::endl;
-        return 0;
-    }
-    QTextStream(stderr) << g_failures << " test(s) failed" << Qt::endl;
-    return 1;
 }
+
+class OverlaySplitterTests final : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void visibilityAndCollapsedPane() {
+        QWidget host;
+        host.resize(640, 480);
+        auto *splitter = new OverlaySplitter(Qt::Vertical, &host);
+        splitter->setGeometry(host.rect());
+        splitter->addWidget(new QWidget);
+        auto *pane = new ResizeProbe;
+        splitter->addWidget(pane);
+        host.show();
+        QTRY_VERIFY(host.findChild<SplitterOverlayGrip *>());
+        auto *grip = host.findChild<SplitterOverlayGrip *>();
+        QTRY_VERIFY(grip->isVisible());
+        splitter->setSizes({1, 0});
+        QTRY_COMPARE(pane->height(), 0);
+        QVERIFY(pane->zeroHeightResizeCount > 0);
+        splitter->hide();
+        QTRY_VERIFY(!grip->isVisible());
+        splitter->show();
+        QTRY_VERIFY(grip->isVisible());
+    }
+
+    void reparentAndDestructionKeepGripOwnership() {
+        QWidget firstHost;
+        firstHost.resize(640, 480);
+        auto *splitter = new OverlaySplitter(Qt::Vertical, &firstHost);
+        splitter->setGeometry(firstHost.rect());
+        splitter->addWidget(new QWidget);
+        splitter->addWidget(new QWidget);
+        firstHost.show();
+        QTRY_VERIFY(firstHost.findChild<SplitterOverlayGrip *>());
+        QPointer<SplitterOverlayGrip> grip = firstHost.findChild<SplitterOverlayGrip *>();
+
+        QWidget secondHost;
+        secondHost.resize(640, 480);
+        secondHost.show();
+        splitter->setParent(&secondHost);
+        splitter->setGeometry(secondHost.rect());
+        splitter->show();
+        QTRY_VERIFY(grip && grip->isVisible());
+        QVERIFY(!firstHost.findChild<SplitterOverlayGrip *>());
+        QCOMPARE(secondHost.findChild<SplitterOverlayGrip *>(), grip.data());
+        delete splitter;
+        QVERIFY(grip.isNull());
+    }
+
+    void dragGrip_data() {
+        QTest::addColumn<int>("orientation");
+        QTest::newRow("horizontal") << int(Qt::Horizontal);
+        QTest::newRow("vertical") << int(Qt::Vertical);
+    }
+
+    void dragGrip() {
+        QFETCH(int, orientation);
+        QWidget host;
+        host.resize(640, 480);
+        auto *splitter = new OverlaySplitter(Qt::Orientation(orientation), &host);
+        splitter->setGeometry(host.rect());
+        splitter->addWidget(new QWidget);
+        splitter->addWidget(new QWidget);
+        host.show();
+        QTRY_VERIFY(host.findChild<SplitterOverlayGrip *>());
+        auto *grip = host.findChild<SplitterOverlayGrip *>();
+        QTRY_VERIFY(grip->isVisible());
+        const auto before = splitter->sizes();
+        QCOMPARE(before.size(), 2);
+        const auto press = grip->rect().center();
+        const auto global = grip->mapToGlobal(press);
+        const auto movement = orientation == Qt::Horizontal ? QPoint(40, 0) : QPoint(0, 40);
+        QTest::mousePress(grip, Qt::LeftButton, Qt::NoModifier, press);
+        QMouseEvent move(QEvent::MouseMove, QPointF(press + movement), QPointF(global + movement),
+                         Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(grip, &move);
+        QTest::mouseRelease(grip, Qt::LeftButton);
+        QTRY_VERIFY(splitter->sizes().first() > before.first());
+        QVERIFY(splitter->sizes().last() < before.last());
+        const auto released = splitter->sizes();
+        QApplication::sendEvent(grip, &move);
+        QCOMPARE(splitter->sizes(), released);
+    }
+};
+
+QTEST_MAIN(OverlaySplitterTests)
+#include "main.moc"

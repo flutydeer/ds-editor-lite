@@ -2,100 +2,81 @@
 #include "Utils/ApplicationLocale.h"
 #include "Utils/UiLanguageManager.h"
 
-#include <QCoreApplication>
+#include <QtTest/QTest>
+#include <QSignalSpy>
 #include <QJsonObject>
 
-namespace {
+class UiLanguageTests final : public QObject {
+    Q_OBJECT
 
-    bool expectEqual(const QString &actual, const QString &expected, const char *scenario) {
-        if (actual == expected)
-            return true;
-        qCritical() << scenario << "expected" << expected << "but got" << actual;
-        return false;
+private slots:
+
+    void effectiveLanguage_data() {
+        QTest::addColumn<QString>("preference");
+        QTest::addColumn<QLocale>("systemLocale");
+        QTest::addColumn<QString>("expected");
+        QTest::newRow("simplified-system")
+            << UiLanguageManager::System << QLocale(QLocale::Chinese, QLocale::China)
+            << UiLanguageManager::SimplifiedChinese;
+        QTest::newRow("traditional-system")
+            << UiLanguageManager::System << QLocale(QLocale::Chinese, QLocale::Taiwan)
+            << UiLanguageManager::SimplifiedChinese;
+        QTest::newRow("hong-kong-system")
+            << UiLanguageManager::System << QLocale(QLocale::Chinese, QLocale::HongKong)
+            << UiLanguageManager::SimplifiedChinese;
+        QTest::newRow("unsupported-system")
+            << UiLanguageManager::System << QLocale(QLocale::German, QLocale::Germany)
+            << UiLanguageManager::English;
+        QTest::newRow("explicit-english")
+            << UiLanguageManager::English << QLocale(QLocale::Chinese, QLocale::China)
+            << UiLanguageManager::English;
+        QTest::newRow("explicit-chinese") << UiLanguageManager::SimplifiedChinese
+                                          << QLocale(QLocale::English, QLocale::UnitedStates)
+                                          << UiLanguageManager::SimplifiedChinese;
+        QTest::newRow("invalid-preference")
+            << QStringLiteral("invalid") << QLocale(QLocale::Chinese, QLocale::China)
+            << UiLanguageManager::SimplifiedChinese;
     }
 
-    bool expectTrue(const bool actual, const char *scenario) {
-        if (actual)
-            return true;
-        qCritical() << scenario << "expected true";
-        return false;
+    void effectiveLanguage() {
+        QFETCH(QString, preference);
+        QFETCH(QLocale, systemLocale);
+        QFETCH(QString, expected);
+        QCOMPARE(UiLanguageManager::resolveEffectiveLanguageId(preference, systemLocale), expected);
     }
 
-}
-
-int main(int argc, char *argv[]) {
-    QCoreApplication application(argc, argv);
-    bool success = true;
-
-    success &=
-        expectEqual(UiLanguageManager::resolveEffectiveLanguageId(
-                        UiLanguageManager::System, QLocale(QLocale::Chinese, QLocale::China)),
-                    UiLanguageManager::SimplifiedChinese, "Simplified Chinese system locale");
-    success &=
-        expectEqual(UiLanguageManager::resolveEffectiveLanguageId(
-                        UiLanguageManager::System, QLocale(QLocale::Chinese, QLocale::Taiwan)),
-                    UiLanguageManager::SimplifiedChinese, "Traditional Chinese system locale");
-    success &=
-        expectEqual(UiLanguageManager::resolveEffectiveLanguageId(
-                        UiLanguageManager::System, QLocale(QLocale::Chinese, QLocale::HongKong)),
-                    UiLanguageManager::SimplifiedChinese, "Hong Kong Chinese system locale");
-    success &=
-        expectEqual(UiLanguageManager::resolveEffectiveLanguageId(
-                        UiLanguageManager::System, QLocale(QLocale::German, QLocale::Germany)),
-                    UiLanguageManager::English, "Unsupported system locale");
-    success &=
-        expectEqual(UiLanguageManager::resolveEffectiveLanguageId(
-                        UiLanguageManager::English, QLocale(QLocale::Chinese, QLocale::China)),
-                    UiLanguageManager::English, "Explicit English preference");
-    success &= expectEqual(
-        UiLanguageManager::resolveEffectiveLanguageId(
-            UiLanguageManager::SimplifiedChinese, QLocale(QLocale::English, QLocale::UnitedStates)),
-        UiLanguageManager::SimplifiedChinese, "Explicit Chinese preference");
-    success &=
-        expectEqual(UiLanguageManager::resolveEffectiveLanguageId(
-                        QStringLiteral("invalid"), QLocale(QLocale::Chinese, QLocale::China)),
-                    UiLanguageManager::SimplifiedChinese, "Invalid preference fallback");
-
-    auto sourceLocale = QLocale(QLocale::French, QLocale::France);
-    sourceLocale.setNumberOptions(QLocale::RejectGroupSeparator);
-    const auto configuredLocale = ApplicationLocale::configuredLocale(sourceLocale);
-    success &= expectEqual(configuredLocale.name(), sourceLocale.name(), "System locale retained");
-    success &= expectEqual(configuredLocale.toString(1234), QStringLiteral("1234"),
-                           "Integer grouping omitted");
-    success &= expectEqual(configuredLocale.toString(12.5, 'f', 1), QStringLiteral("12,5"),
-                           "Locale decimal separator retained");
-    success &= expectTrue(
-        configuredLocale.numberOptions().testFlag(QLocale::OmitGroupSeparator),
-        "OmitGroupSeparator enabled");
-    success &= expectTrue(configuredLocale.numberOptions().testFlag(QLocale::RejectGroupSeparator),
-                          "Existing number option retained");
-
-    GeneralOption option;
-    option.load(QJsonObject{
-        {QStringLiteral("uiLanguage"), QStringLiteral("invalid")}
-    });
-    success &=
-        expectEqual(option.uiLanguage, UiLanguageManager::System, "Invalid persisted preference");
-
-    option.uiLanguage = UiLanguageManager::English;
-    success &= expectEqual(option.value().value(QStringLiteral("uiLanguage")).toString(),
-                           UiLanguageManager::English, "Preference serialization");
-
-    UiLanguageManager languageManager;
-    int languageChangedCount = 0;
-    QObject::connect(&languageManager, &UiLanguageManager::languageChanged,
-                     [&languageChangedCount] { ++languageChangedCount; });
-    languageManager.setPreference(UiLanguageManager::English);
-    languageManager.setPreference(UiLanguageManager::English);
-    success &= expectEqual(languageManager.preference(), UiLanguageManager::English,
-                           "Equivalent preference update");
-    success &= expectEqual(languageManager.effectiveLanguageId(), UiLanguageManager::English,
-                           "Equivalent effective language");
-    if (languageChangedCount != 0) {
-        qCritical() << "Equivalent language preference emitted" << languageChangedCount
-                    << "languageChanged signals";
-        success = false;
+    void numberFormattingPreservesDecimalSeparator() {
+        auto source = QLocale(QLocale::French, QLocale::France);
+        source.setNumberOptions(QLocale::RejectGroupSeparator);
+        const auto locale = ApplicationLocale::configuredLocale(source);
+        QCOMPARE(locale.name(), source.name());
+        QCOMPARE(locale.toString(1234), QStringLiteral("1234"));
+        QCOMPARE(locale.toString(12.5, 'f', 1), QStringLiteral("12,5"));
+        QVERIFY(locale.numberOptions().testFlag(QLocale::OmitGroupSeparator));
+        QVERIFY(locale.numberOptions().testFlag(QLocale::RejectGroupSeparator));
     }
 
-    return success ? 0 : 1;
-}
+    void preferencePersistence() {
+        GeneralOption option;
+        option.load(QJsonObject{
+            {QStringLiteral("uiLanguage"), QStringLiteral("invalid")}
+        });
+        QCOMPARE(option.uiLanguage, UiLanguageManager::System);
+        option.uiLanguage = UiLanguageManager::English;
+        QCOMPARE(option.value().value(QStringLiteral("uiLanguage")).toString(),
+                 UiLanguageManager::English);
+    }
+
+    void equivalentPreferenceDoesNotNotify() {
+        UiLanguageManager manager;
+        manager.setPreference(UiLanguageManager::English);
+        QSignalSpy changed(&manager, &UiLanguageManager::languageChanged);
+        manager.setPreference(UiLanguageManager::English);
+        QCOMPARE(manager.preference(), UiLanguageManager::English);
+        QCOMPARE(manager.effectiveLanguageId(), UiLanguageManager::English);
+        QVERIFY(changed.isEmpty());
+    }
+};
+
+QTEST_GUILESS_MAIN(UiLanguageTests)
+#include "main.moc"

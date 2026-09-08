@@ -6,6 +6,7 @@
 #include <lite/ProjectModel/AppModel/Params.h>
 
 #include <QCoreApplication>
+#include <QtTest/QTest>
 #include <QTextStream>
 
 #include <algorithm>
@@ -128,7 +129,10 @@ namespace {
         config.kind = Kind::Scale;
         config.properties = &properties;
         config.tickToMilliseconds = [](const int tick) { return double(tick); };
-        config.partitions = {{0, 95}, {100, 195}};
+        config.partitions = {
+            {0,   95 },
+            {100, 195}
+        };
         Session session;
         session.setSource({&source}, {}, config);
         ok &= expect(session.selectRange(80, std::numeric_limits<int>::max()) &&
@@ -362,8 +366,7 @@ namespace {
                      "shape clamps out-of-range source and endpoint samples before mapping");
         qDeleteAll(preview);
         ok &= expect(shape.beginTransform(), "out-of-range decibel shape starts");
-        ok &= expect(shape.hasEffectiveChange(),
-                     "neutral factor can commit normalization changes");
+        ok &= expect(shape.hasEffectiveChange(), "neutral factor can commit normalization changes");
 
         TensionParamProperties tension;
         auto tensionSource = curve(0, {-12000, 12000, 0});
@@ -375,9 +378,9 @@ namespace {
         scale.beginSelection(0);
         ok &= expect(scale.finishSelection(10), "out-of-range tension selection succeeds");
         preview = scale.buildEditedPreview();
-        ok &= expect(valueAt(preview, 0) == tension.minimum &&
-                         valueAt(preview, 5) == tension.maximum,
-                     "scale clamps out-of-range source samples before mapping");
+        ok &=
+            expect(valueAt(preview, 0) == tension.minimum && valueAt(preview, 5) == tension.maximum,
+                   "scale clamps out-of-range source samples before mapping");
         qDeleteAll(preview);
         return ok;
     }
@@ -481,12 +484,14 @@ namespace {
                          valueAt(preview, 22) == 620 && valueAt(preview, 23) == 630 &&
                          valueAt(preview, 24) == 640,
                      "fine samples immediately after the transformed range are preserved");
-        ok &= expect(std::any_of(preview.cbegin(), preview.cend(), [](const auto *item) {
-                         return item->step == 1 && item->localStart() == 0;
-                     }) &&
-                         std::any_of(preview.cbegin(), preview.cend(), [](const auto *item) {
-                             return item->step == 1 && item->localStart() == 20;
-                         }),
+        ok &= expect(std::any_of(preview.cbegin(), preview.cend(),
+                                 [](const auto *item) {
+                                     return item->step == 1 && item->localStart() == 0;
+                                 }) &&
+                         std::any_of(preview.cbegin(), preview.cend(),
+                                     [](const auto *item) {
+                                         return item->step == 1 && item->localStart() == 20;
+                                     }),
                      "half-open replacement retains the untouched fine-resolution suffix");
         qDeleteAll(preview);
         return ok;
@@ -510,9 +515,8 @@ namespace {
                      "neutral transform leaves existing Edited values unchanged");
         session.updateTransform(100.0);
         auto preview = session.buildEditedPreview();
-        ok &= expect(std::all_of(preview.cbegin(), preview.cend(), [](const auto *item) {
-                         return item->values().size() >= 2;
-                     }),
+        ok &= expect(std::all_of(preview.cbegin(), preview.cend(),
+                                 [](const auto *item) { return item->values().size() >= 2; }),
                      "transform preview contains no incomplete draw curves");
         ok &= expect(valueAt(preview, 0) == 100 && valueAt(preview, 5) == 0 &&
                          valueAt(preview, 10) == 0 && valueAt(preview, 15) == 400,
@@ -654,26 +658,71 @@ namespace {
     }
 }
 
-int main(int argc, char *argv[]) {
-    QCoreApplication app(argc, argv);
-    bool ok = true;
-    ok &= testMappings();
-    ok &= testSelectionDirectionAndPartitions();
-    ok &= testExplicitRange();
-    ok &= testCompleteSampleIntervals();
-    ok &= testShouldersAndBoundaries();
-    ok &= testShapeAndScale();
-    ok &= testScaleMappingsAndSessionPhases();
-    ok &= testOutOfRangeParamSamples();
-    ok &= testPitchAndEditedOnlySource();
-    ok &= testNonSampleStepEditedCurve();
-    ok &= testFineEditedSamplesOutsideTransformArePreserved();
-    ok &= testSingleSampleEditedRemaindersArePreserved();
-    ok &= testIncompleteFineSampleCellIsExcluded();
-    ok &= testMismatchedSamplePhasesAreAligned();
-    ok &= testBasePitchRestKeys();
-    if (!ok)
-        return 1;
-    QTextStream(stdout) << "TestCurveTransform passed" << Qt::endl;
-    return 0;
-}
+class CurveTransformTests final : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void mappings() {
+        QVERIFY(testMappings());
+    }
+
+    void selectionDirectionAndPartitions() {
+        QVERIFY(testSelectionDirectionAndPartitions());
+    }
+
+    void explicitRange() {
+        QVERIFY(testExplicitRange());
+    }
+
+    void shouldersAndBoundaries() {
+        QVERIFY(testShouldersAndBoundaries());
+    }
+
+    void shapeAndScale() {
+        QVERIFY(testShapeAndScale());
+    }
+
+    void scaleMappingsAndSessionPhases() {
+        QVERIFY(testScaleMappingsAndSessionPhases());
+    }
+
+    void outOfRangeParamSamples() {
+        QVERIFY(testOutOfRangeParamSamples());
+    }
+
+    void pitchAndEditedOnlySource() {
+        QVERIFY(testPitchAndEditedOnlySource());
+    }
+
+    void nonSampleStepEditedCurve() {
+        QVERIFY(testNonSampleStepEditedCurve());
+    }
+
+    void fineEditedSamplesOutsideTransformArePreserved() {
+        QVERIFY(testFineEditedSamplesOutsideTransformArePreserved());
+    }
+
+    void singleSampleEditedRemaindersArePreserved() {
+        QVERIFY(testSingleSampleEditedRemaindersArePreserved());
+    }
+
+    void completeSampleIntervals() {
+        QVERIFY(testCompleteSampleIntervals());
+    }
+
+    void incompleteFineSampleCellIsExcluded() {
+        QVERIFY(testIncompleteFineSampleCellIsExcluded());
+    }
+
+    void mismatchedSamplePhasesAreAligned() {
+        QVERIFY(testMismatchedSamplePhasesAreAligned());
+    }
+
+    void basePitchRestKeys() {
+        QVERIFY(testBasePitchRestKeys());
+    }
+};
+
+QTEST_GUILESS_MAIN(CurveTransformTests)
+#include "main.moc"

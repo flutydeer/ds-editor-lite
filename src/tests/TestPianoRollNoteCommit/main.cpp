@@ -1,3 +1,4 @@
+#include <QtTest/QTest>
 #include "Controller/PianoRollNoteCommit.h"
 #include "TestRuntime.h"
 
@@ -7,16 +8,10 @@
 #include <optional>
 
 namespace {
-    int failures = 0;
-    int assertions = 0;
 
-    void expect(const bool condition, const char *message) {
-        ++assertions;
-        if (condition)
-            return;
-        ++failures;
-        QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-    }
+
+
+
 
     Automation::CommandContext commandContext(const Automation::CoreRuntime &runtime) {
         return {
@@ -91,69 +86,97 @@ namespace {
     }
 }
 
-int main(int argc, char *argv[]) {
-    QCoreApplication app(argc, argv);
-    AutomationTestSupport::TestRuntime testRuntime;
-    auto &runtime = testRuntime.runtime();
-    const auto fixture = createFixture(runtime);
-    expect(fixture.has_value(), "fixture must create a singing clip through the Facade");
-    if (!fixture)
-        return 1;
+class PianoRollNoteCommitTests final : public QObject {
+    Q_OBJECT
 
-    const auto beforeInsert = runtime.documentVersion();
-    const auto inserted = PianoRollNoteCommit::insert(runtime, fixture->clipId,
-                                                      noteDraft(0, 480, QStringLiteral("la")));
-    const auto insertedSnapshot =
-        inserted ? findNote(runtime, fixture->clipId, *inserted) : std::nullopt;
-    expect(inserted.has_value() && inserted->isValid(),
-           "GUI insert adapter must return the Facade-created NoteId");
-    expect(insertedSnapshot && insertedSnapshot->data.localStart == 0 &&
-               insertedSnapshot->data.length == 480 && insertedSnapshot->data.clientRef.isEmpty(),
-           "returned insert id must resolve to the committed note without persisting client_ref");
-    expect(runtime.documentVersion().revision == beforeInsert.revision + 1,
-           "successful GUI insert must advance exactly one revision");
+private slots:
 
-    const auto beforeInvalidInsert = runtime.documentVersion();
-    const auto countBeforeInvalidInsert = noteCount(runtime, fixture->clipId);
-    const auto invalidInsert = PianoRollNoteCommit::insert(
-        runtime, fixture->clipId, noteDraft(480, 0, QStringLiteral("invalid")));
-    expect(!invalidInsert && runtime.documentVersion() == beforeInvalidInsert &&
-               noteCount(runtime, fixture->clipId) == countBeforeInvalidInsert,
-           "rejected GUI insert must return no id and leave document state unchanged");
+    void insertReturnsCommittedNote() {
+        AutomationTestSupport::TestRuntime testRuntime;
+        auto &runtime = testRuntime.runtime();
+        const auto fixture = createFixture(runtime);
+        QVERIFY(fixture.has_value());
+        const auto beforeInsert = runtime.documentVersion();
+        const auto inserted = PianoRollNoteCommit::insert(runtime, fixture->clipId,
+                                                          noteDraft(0, 480, QStringLiteral("la")));
+        const auto insertedSnapshot =
+            inserted ? findNote(runtime, fixture->clipId, *inserted) : std::nullopt;
+        QVERIFY2((inserted.has_value() && inserted->isValid()),
+                 "GUI insert adapter must return the Facade-created NoteId");
+        QVERIFY2(
+            (insertedSnapshot && insertedSnapshot->data.localStart == 0 &&
+             insertedSnapshot->data.length == 480 && insertedSnapshot->data.clientRef.isEmpty()),
+            "returned insert id must resolve to the committed note without persisting client_ref");
+        QVERIFY2((runtime.documentVersion().revision == beforeInsert.revision + 1),
+                 "successful GUI insert must advance exactly one revision");
+    }
 
-    const auto missingClipInsert = PianoRollNoteCommit::insert(
-        runtime, Automation::ClipId(999999), noteDraft(480, 240, QStringLiteral("missing")));
-    expect(!missingClipInsert && runtime.documentVersion() == beforeInvalidInsert,
-           "missing target clip must return no id without advancing revision");
+    void rejectedInsertPreservesDocument() {
+        AutomationTestSupport::TestRuntime testRuntime;
+        auto &runtime = testRuntime.runtime();
+        const auto fixture = createFixture(runtime);
+        QVERIFY(fixture.has_value());
+        const auto beforeInvalidInsert = runtime.documentVersion();
+        const auto countBeforeInvalidInsert = noteCount(runtime, fixture->clipId);
+        const auto invalidInsert = PianoRollNoteCommit::insert(
+            runtime, fixture->clipId, noteDraft(480, 0, QStringLiteral("invalid")));
+        QVERIFY2((!invalidInsert && runtime.documentVersion() == beforeInvalidInsert &&
+                  noteCount(runtime, fixture->clipId) == countBeforeInvalidInsert),
+                 "rejected GUI insert must return no id and leave document state unchanged");
 
-    const auto beforeSplit = runtime.documentVersion();
-    const auto childDraft = noteDraft(240, 240, QStringLiteral("-"));
-    const auto child =
-        PianoRollNoteCommit::split(runtime, fixture->clipId, *inserted, childDraft, 240);
-    const auto originalAfterSplit = findNote(runtime, fixture->clipId, *inserted);
-    const auto childAfterSplit = child ? findNote(runtime, fixture->clipId, *child) : std::nullopt;
-    expect(child && child->isValid() && *child != *inserted,
-           "GUI split adapter must return a distinct Facade-created child NoteId");
-    expect(originalAfterSplit && originalAfterSplit->data.length == 240 && childAfterSplit &&
-               childAfterSplit->data.localStart == 240 && childAfterSplit->data.length == 240 &&
-               childAfterSplit->data.clientRef.isEmpty(),
-           "split result ids must resolve to the shortened original and committed child");
-    expect(runtime.documentVersion().revision == beforeSplit.revision + 1 &&
-               noteCount(runtime, fixture->clipId) == 2,
-           "successful GUI split must commit once and add exactly one note");
+        const auto missingClipInsert = PianoRollNoteCommit::insert(
+            runtime, Automation::ClipId(999999), noteDraft(480, 240, QStringLiteral("missing")));
+        QVERIFY2((!missingClipInsert && runtime.documentVersion() == beforeInvalidInsert),
+                 "missing target clip must return no id without advancing revision");
+    }
 
-    const auto beforeInvalidSplit = runtime.documentVersion();
-    const auto countBeforeInvalidSplit = noteCount(runtime, fixture->clipId);
-    const auto invalidSplit = PianoRollNoteCommit::split(
-        runtime, fixture->clipId, *inserted, noteDraft(120, 120, QStringLiteral("-")), 0);
-    const auto missingNoteSplit =
-        PianoRollNoteCommit::split(runtime, fixture->clipId, Automation::NoteId(999999),
-                                   noteDraft(480, 120, QStringLiteral("-")), 120);
-    expect(!invalidSplit && !missingNoteSplit && runtime.documentVersion() == beforeInvalidSplit &&
-               noteCount(runtime, fixture->clipId) == countBeforeInvalidSplit,
-           "rejected GUI splits must return no id and preserve model and revision");
+    void splitReturnsCommittedChild() {
+        AutomationTestSupport::TestRuntime testRuntime;
+        auto &runtime = testRuntime.runtime();
+        const auto fixture = createFixture(runtime);
+        QVERIFY(fixture.has_value());
+        const auto inserted = PianoRollNoteCommit::insert(runtime, fixture->clipId,
+                                                          noteDraft(0, 480, QStringLiteral("la")));
+        QVERIFY(inserted.has_value());
+        const auto beforeSplit = runtime.documentVersion();
+        const auto childDraft = noteDraft(240, 240, QStringLiteral("-"));
+        const auto child =
+            PianoRollNoteCommit::split(runtime, fixture->clipId, *inserted, childDraft, 240);
+        const auto originalAfterSplit = findNote(runtime, fixture->clipId, *inserted);
+        const auto childAfterSplit =
+            child ? findNote(runtime, fixture->clipId, *child) : std::nullopt;
+        QVERIFY2((child && child->isValid() && *child != *inserted),
+                 "GUI split adapter must return a distinct Facade-created child NoteId");
+        QVERIFY2((originalAfterSplit && originalAfterSplit->data.length == 240 && childAfterSplit &&
+                  childAfterSplit->data.localStart == 240 && childAfterSplit->data.length == 240 &&
+                  childAfterSplit->data.clientRef.isEmpty()),
+                 "split result ids must resolve to the shortened original and committed child");
+        QVERIFY2((runtime.documentVersion().revision == beforeSplit.revision + 1 &&
+                  noteCount(runtime, fixture->clipId) == 2),
+                 "successful GUI split must commit once and add exactly one note");
+    }
 
-    QTextStream(stdout) << "Piano-roll note commit: " << assertions << " assertions, " << failures
-                        << " failures" << Qt::endl;
-    return failures == 0 ? 0 : 1;
-}
+    void rejectedSplitPreservesDocument() {
+        AutomationTestSupport::TestRuntime testRuntime;
+        auto &runtime = testRuntime.runtime();
+        const auto fixture = createFixture(runtime);
+        QVERIFY(fixture.has_value());
+        const auto inserted = PianoRollNoteCommit::insert(runtime, fixture->clipId,
+                                                          noteDraft(0, 480, QStringLiteral("la")));
+        QVERIFY(inserted.has_value());
+        const auto beforeInvalidSplit = runtime.documentVersion();
+        const auto countBeforeInvalidSplit = noteCount(runtime, fixture->clipId);
+        const auto invalidSplit = PianoRollNoteCommit::split(
+            runtime, fixture->clipId, *inserted, noteDraft(120, 120, QStringLiteral("-")), 0);
+        const auto missingNoteSplit =
+            PianoRollNoteCommit::split(runtime, fixture->clipId, Automation::NoteId(999999),
+                                       noteDraft(480, 120, QStringLiteral("-")), 120);
+        QVERIFY2((!invalidSplit && !missingNoteSplit &&
+                  runtime.documentVersion() == beforeInvalidSplit &&
+                  noteCount(runtime, fixture->clipId) == countBeforeInvalidSplit),
+                 "rejected GUI splits must return no id and preserve model and revision");
+    }
+};
+
+QTEST_GUILESS_MAIN(PianoRollNoteCommitTests)
+#include "main.moc"

@@ -3,6 +3,7 @@
 #include "UI/Views/ClipEditor/ParamEditor/UnsupportedParameterPromptState.h"
 
 #include <QCoreApplication>
+#include <QtTest/QTest>
 #include <QTextStream>
 
 #include <optional>
@@ -16,10 +17,9 @@ namespace {
         return false;
     }
 
-    SingerInfo singerWithCapabilities(
-        std::optional<QStringList> acousticParameters = std::nullopt,
-        std::optional<bool> pitchUsesExpressiveness = std::nullopt,
-        std::optional<bool> vocoderPitchControllable = std::nullopt) {
+    SingerInfo singerWithCapabilities(std::optional<QStringList> acousticParameters = std::nullopt,
+                                      std::optional<bool> pitchUsesExpressiveness = std::nullopt,
+                                      std::optional<bool> vocoderPitchControllable = std::nullopt) {
         SingerInfo singer({"singer", "package", QVersionNumber(1, 0)}, "Test Singer");
         SingerCapabilitySummary capability;
         capability.acousticParameters = std::move(acousticParameters);
@@ -30,8 +30,8 @@ namespace {
     }
 
     bool testSupportFollowsSynthesisPath() {
-        const auto singer = singerWithCapabilities(
-            QStringList{"breathiness", "voicing", "velocity"}, true, true);
+        const auto singer =
+            singerWithCapabilities(QStringList{"breathiness", "voicing", "velocity"}, true, true);
         bool ok = true;
         ok &= expect(paramUtils->isSupportedBySinger(ParamInfo::Pitch, singer),
                      "pitch directly controls acoustic f0");
@@ -60,7 +60,6 @@ namespace {
         return ok;
     }
 
-
     bool testVarianceBackedParameters() {
         const auto singer = singerWithCapabilities(QStringList{"mouth_opening", "velocity"});
         bool ok = true;
@@ -79,29 +78,26 @@ namespace {
 
     bool testEditToolVisibilityFollowsParameterType() {
         bool ok = true;
-        ok &= expect(isParamEditorEditModeVisible(ParamEditorEditMode::Trace,
-                                                  ParamInfo::Breathiness),
-                     "a variance-backed parameter shows the trace tool");
+        ok &=
+            expect(isParamEditorEditModeVisible(ParamEditorEditMode::Trace, ParamInfo::Breathiness),
+                   "a variance-backed parameter shows the trace tool");
         ok &= expect(!isParamEditorEditModeVisible(ParamEditorEditMode::Trace, ParamInfo::Gender),
                      "gender does not show the trace tool");
         ok &= expect(!isParamEditorEditModeVisible(ParamEditorEditMode::Trace, ParamInfo::Velocity),
                      "velocity does not show the trace tool");
-        ok &= expect(isParamEditorEditModeVisible(ParamEditorEditMode::Shape,
-                                                  ParamInfo::Breathiness) &&
-                         isParamEditorEditModeVisible(ParamEditorEditMode::Scale,
-                                                      ParamInfo::MouthOpening),
-                     "transformable parameters show curve transform tools");
-        ok &= expect(!isParamEditorEditModeVisible(ParamEditorEditMode::Shape,
-                                                   ParamInfo::Gender) &&
-                         !isParamEditorEditModeVisible(ParamEditorEditMode::Scale,
-                                                       ParamInfo::Velocity),
-                     "offset parameters do not show curve transform tools");
-        ok &= expect(isParamEditorEditModeVisible(ParamEditorEditMode::Draw, ParamInfo::Velocity) &&
-                         isParamEditorEditModeVisible(ParamEditorEditMode::Erase,
-                                                      ParamInfo::Velocity) &&
-                         isParamEditorEditModeVisible(ParamEditorEditMode::Anchor,
-                                                      ParamInfo::Velocity),
-                     "parameter-independent tools remain visible");
+        ok &= expect(
+            isParamEditorEditModeVisible(ParamEditorEditMode::Shape, ParamInfo::Breathiness) &&
+                isParamEditorEditModeVisible(ParamEditorEditMode::Scale, ParamInfo::MouthOpening),
+            "transformable parameters show curve transform tools");
+        ok &= expect(
+            !isParamEditorEditModeVisible(ParamEditorEditMode::Shape, ParamInfo::Gender) &&
+                !isParamEditorEditModeVisible(ParamEditorEditMode::Scale, ParamInfo::Velocity),
+            "offset parameters do not show curve transform tools");
+        ok &= expect(
+            isParamEditorEditModeVisible(ParamEditorEditMode::Draw, ParamInfo::Velocity) &&
+                isParamEditorEditModeVisible(ParamEditorEditMode::Erase, ParamInfo::Velocity) &&
+                isParamEditorEditModeVisible(ParamEditorEditMode::Anchor, ParamInfo::Velocity),
+            "parameter-independent tools remain visible");
         return ok;
     }
 
@@ -137,8 +133,8 @@ namespace {
     }
 
     bool testIndependentCapabilitySources() {
-        const auto disabled = singerWithCapabilities(
-            QStringList{"expressiveness", "tone_shift"}, false, false);
+        const auto disabled =
+            singerWithCapabilities(QStringList{"expressiveness", "tone_shift"}, false, false);
         const auto enabled = singerWithCapabilities(QStringList{}, true, true);
         bool ok = true;
         ok &= expect(!paramUtils->isSupportedBySinger(ParamInfo::Expressiveness, disabled),
@@ -179,15 +175,39 @@ namespace {
     }
 }
 
-int main(int argc, char *argv[]) {
-    QCoreApplication app(argc, argv);
-    bool ok = true;
-    ok &= testSupportFollowsSynthesisPath();
-    ok &= testVarianceBackedParameters();
-    ok &= testEditToolVisibilityFollowsParameterType();
-    ok &= testUnknownCapabilitiesAreConservative();
-    ok &= testKnownEmptyCapabilities();
-    ok &= testIndependentCapabilitySources();
-    ok &= testPromptStateResetsForEveryProjectOpen();
-    return ok ? 0 : 1;
-}
+class ParamSupportTests final : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void supportFollowsSynthesisPath() {
+        QVERIFY(testSupportFollowsSynthesisPath());
+    }
+
+    void varianceBackedParameters() {
+        QVERIFY(testVarianceBackedParameters());
+    }
+
+    void editToolVisibilityFollowsParameterType() {
+        QVERIFY(testEditToolVisibilityFollowsParameterType());
+    }
+
+    void unknownCapabilitiesAreConservative() {
+        QVERIFY(testUnknownCapabilitiesAreConservative());
+    }
+
+    void knownEmptyCapabilities() {
+        QVERIFY(testKnownEmptyCapabilities());
+    }
+
+    void independentCapabilitySources() {
+        QVERIFY(testIndependentCapabilitySources());
+    }
+
+    void promptStateResetsForEveryProjectOpen() {
+        QVERIFY(testPromptStateResetsForEveryProjectOpen());
+    }
+};
+
+QTEST_GUILESS_MAIN(ParamSupportTests)
+#include "main.moc"

@@ -12,16 +12,17 @@
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 
 #include <QCoreApplication>
+#include <QtTest/QTest>
 #include <QTextStream>
 
 namespace {
-    int failures = 0;
+
 
     void expect(const bool condition, const char *message) {
         if (condition)
             return;
         QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        ++failures;
+        QTest::qFail(message, __FILE__, __LINE__);
     }
 
     PhonemeName phone(const char *name, const bool onset) {
@@ -76,22 +77,23 @@ namespace {
                 configureNote(*note, 960 + i * 480, lyrics.at(i));
                 if (!note->isSlur() && !note->isSyllabification())
                     note->setPhonemeNameSeq(Note::Original,
-                                           i == 0 ? rootPhones
-                                                  : QList{phone("dh", false), phone("eh", true)});
+                                            i == 0 ? rootPhones
+                                                   : QList{phone("dh", false), phone("eh", true)});
                 notes.append(note);
             }
             SingingClip clip(notes);
             const auto segments = SingingClipSlicer::slice(Timeline{}, notes).segments;
             if (accepted != !segments.isEmpty()) {
-                QTextStream(stderr) << "Unexpected syllable assignment validity: "
-                                    << lyrics.join(' ') << Qt::endl;
-                ++failures;
+                QTextStream(stderr)
+                    << "Unexpected syllable assignment validity: " << lyrics.join(' ') << Qt::endl;
+                QFAIL(qPrintable(QStringLiteral("Unexpected syllable assignment: ") +
+                                 lyrics.join(' ')));
             }
         };
 
         const QList mono{phone("hh", false), phone("ay", true)};
         const QList disyllabic{phone("hh", false), phone("eh", true), phone("l", false),
-                              phone("ow", true)};
+                               phone("ow", true)};
         check({QString::fromUtf8("你"), "+", QString::fromUtf8("好")},
               {phone("n", false), phone("i", true)}, false);
         check({"hi", "+", "there"}, mono, false);
@@ -112,7 +114,7 @@ namespace {
         auto *root = new Note;
         configureNote(*root, 960, "hello");
         root->setPhonemeNameSeq(Note::Original,
-                               {phone("hh", false), phone("eh", true), phone("ow", true)});
+                                {phone("hh", false), phone("eh", true), phone("ow", true)});
         auto *continuation = new Note;
         configureNote(*continuation, 1440, "+");
         auto *nextRoot = new Note;
@@ -476,25 +478,75 @@ namespace {
     }
 }
 
-int main(int argc, char *argv[]) {
-    QCoreApplication app(argc, argv);
-    testRanges();
-    testSlicerSyllableAssignment();
-    testSlicerAssignmentRecovery();
-    testStorageAndInferenceRoundTrip();
-    testBuildWordsRejectsPendingOffsets();
-    testDetachedSyllabificationNotesStayOrphaned();
-    testEditingEligibility();
-    testRelativeTimingChangeInvalidatesEditedOffsets();
-    testTempoAwareWordState();
-    testCascadeResetClosure();
-    testCascadeResetStopsWithoutOverlap();
-    testCascadeResetOnlyEdited();
-    testCascadeResetMultiStep();
-    testCascadeResetStopsAtGap();
-    testCascadeResetWordEndThroughMembers();
-    testCascadeResetSkippedWithoutBaseline();
-    if (failures == 0)
-        QTextStream(stdout) << "All Syllabification tests passed" << Qt::endl;
-    return failures == 0 ? 0 : 1;
-}
+class SyllabificationTests final : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void ranges() {
+        testRanges();
+    }
+
+    void slicerSyllableAssignment() {
+        testSlicerSyllableAssignment();
+    }
+
+    void slicerAssignmentRecovery() {
+        testSlicerAssignmentRecovery();
+    }
+
+    void storageAndInferenceRoundTrip() {
+        testStorageAndInferenceRoundTrip();
+    }
+
+    void detachedSyllabificationNotesStayOrphaned() {
+        testDetachedSyllabificationNotesStayOrphaned();
+    }
+
+    void buildWordsRejectsPendingOffsets() {
+        testBuildWordsRejectsPendingOffsets();
+    }
+
+    void editingEligibility() {
+        testEditingEligibility();
+    }
+
+    void relativeTimingChangeInvalidatesEditedOffsets() {
+        testRelativeTimingChangeInvalidatesEditedOffsets();
+    }
+
+    void tempoAwareWordState() {
+        testTempoAwareWordState();
+    }
+
+    void cascadeResetClosure() {
+        testCascadeResetClosure();
+    }
+
+    void cascadeResetStopsWithoutOverlap() {
+        testCascadeResetStopsWithoutOverlap();
+    }
+
+    void cascadeResetOnlyEdited() {
+        testCascadeResetOnlyEdited();
+    }
+
+    void cascadeResetMultiStep() {
+        testCascadeResetMultiStep();
+    }
+
+    void cascadeResetStopsAtGap() {
+        testCascadeResetStopsAtGap();
+    }
+
+    void cascadeResetWordEndThroughMembers() {
+        testCascadeResetWordEndThroughMembers();
+    }
+
+    void cascadeResetSkippedWithoutBaseline() {
+        testCascadeResetSkippedWithoutBaseline();
+    }
+};
+
+QTEST_GUILESS_MAIN(SyllabificationTests)
+#include "main.moc"

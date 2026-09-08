@@ -1,3 +1,4 @@
+#include <QtTest/QTest>
 #include "Modules/Inference/SingerSessionCache.h"
 
 #include <chrono>
@@ -266,10 +267,31 @@ namespace {
     }
 }
 
-int main() {
-    return testRetainsOnlySelectedSingers() && testLatestRetainedIdentifiers() &&
-                   testActiveCallerAndStaleReplacement() && testLeastRecentlyUsedEviction() &&
-                   testIdleEvictionAndActiveReuse()
-               ? 0
-               : 1;
-}
+class SingerSessionCacheTests final : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void retainsOnlySelectedSingers() {
+        QVERIFY(testRetainsOnlySelectedSingers());
+    }
+
+    void latestRetainedIdentifiers() {
+        QVERIFY(testLatestRetainedIdentifiers());
+    }
+
+    void activeCallerAndStaleReplacement() {
+        QVERIFY(testActiveCallerAndStaleReplacement());
+    }
+
+    void leastRecentlyUsedEviction() {
+        QVERIFY(testLeastRecentlyUsedEviction());
+    }
+
+    void idleEvictionAndActiveReuse() {
+        QVERIFY(testIdleEvictionAndActiveReuse());
+    }
+};
+
+QTEST_APPLESS_MAIN(SingerSessionCacheTests)
+#include "main.moc"

@@ -1,3 +1,5 @@
+#include <QtTest/QTest>
+#include <memory>
 #include "Controller/EditorViewController.h"
 #include "Interface/IEditorView.h"
 #include "AppContext.h"
@@ -28,13 +30,12 @@ Automation::CoreRuntime *AppContext::instance<Automation::CoreRuntime>() {
 
 namespace {
 
-    int g_failures = 0;
 
     bool expect(const bool condition, const char *message) {
         if (condition)
             return true;
         QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        ++g_failures;
+        QTest::qFail(message, __FILE__, __LINE__);
         return false;
     }
 
@@ -351,8 +352,8 @@ namespace {
                    !EditorInteraction::supportsCommand(Target::PianoRoll, Command::Paste, mode) &&
                    !EditorInteraction::supportsCommand(Target::PianoRoll, Command::SelectAll,
                                                        mode) &&
-                   !EditorInteraction::supportsCommand(Target::PianoRoll,
-                                                       Command::DeleteSelection, mode);
+                   !EditorInteraction::supportsCommand(Target::PianoRoll, Command::DeleteSelection,
+                                                       mode);
         };
         expect(supportsNoCommands(EditorViewGlobal::DrawPitch) &&
                    supportsNoCommands(EditorViewGlobal::ErasePitch) &&
@@ -367,8 +368,7 @@ namespace {
                                                        EditorViewGlobal::EditPitchAnchor) &&
                    !EditorInteraction::supportsCommand(Target::PianoRoll, Command::SelectAll,
                                                        EditorViewGlobal::EditPitchAnchor) &&
-                   EditorInteraction::supportsCommand(Target::PianoRoll,
-                                                      Command::DeleteSelection,
+                   EditorInteraction::supportsCommand(Target::PianoRoll, Command::DeleteSelection,
                                                       EditorViewGlobal::EditPitchAnchor),
                "pitch anchor editing must expose only anchor deletion");
         expect(EditorInteraction::supportsCommand(Target::PianoRoll, Command::SelectAll,
@@ -391,7 +391,7 @@ namespace {
         const auto commandConnection = QObject::connect(
             controller, &EditorViewController::editCommandRequested,
             [&commandCount, &requestedCommand](EditorInteraction::Target,
-                                                const EditorInteraction::Command command) {
+                                               const EditorInteraction::Command command) {
                 ++commandCount;
                 requestedCommand = command;
             });
@@ -422,8 +422,7 @@ namespace {
                    controller->supportsEditCommand(EditorInteraction::Command::DeleteSelection),
                "pitch anchor mode must publish anchor deletion capability");
         controller->requestEditCommand(EditorInteraction::Command::DeleteSelection);
-        expect(commandCount == 2 &&
-                   requestedCommand == EditorInteraction::Command::DeleteSelection,
+        expect(commandCount == 2 && requestedCommand == EditorInteraction::Command::DeleteSelection,
                "pitch anchor mode must dispatch anchor deletion");
 
         controller->syncPianoRollEditMode(EditorViewGlobal::Select);
@@ -740,27 +739,55 @@ namespace {
 
 } // namespace
 
-int main(int argc, char *argv[]) {
-    QCoreApplication application(argc, argv);
-    AutomationTestSupport::TestRuntime testRuntime(
-        AutomationTestSupport::editorServices(&g_editorHost));
-    g_runtime = &testRuntime.runtime();
-    auto *controller = editorViewController;
+class EditorViewControllerTests final : public QObject {
+    Q_OBJECT
 
-    testNoView(controller);
-    testCommandCapabilities();
-    testModeAwareCommandRouting(controller);
-    testForwardingAndSnapshots(controller);
-    testActivePanels(controller);
-    testInteractionRouting(controller);
-    testPanelVisibilityRouting(controller);
+private slots:
 
-    bindEditorView(controller, nullptr);
-    g_runtime = nullptr;
-    if (g_failures == 0) {
-        QTextStream(stdout) << "All EditorViewController tests passed" << Qt::endl;
-        return 0;
+    void init() {
+        runtime = std::make_unique<AutomationTestSupport::TestRuntime>(
+            AutomationTestSupport::editorServices(&g_editorHost));
+        g_runtime = &runtime->runtime();
     }
-    QTextStream(stderr) << g_failures << " test(s) failed" << Qt::endl;
-    return 1;
-}
+
+    void cleanup() {
+        bindEditorView(editorViewController, nullptr);
+        g_runtime = nullptr;
+        runtime.reset();
+    }
+
+    void noView() {
+        testNoView(editorViewController);
+    }
+
+    void commandCapabilities() {
+        testCommandCapabilities();
+    }
+
+    void modeAwareCommandRouting() {
+        testModeAwareCommandRouting(editorViewController);
+    }
+
+    void forwardingAndSnapshots() {
+        testForwardingAndSnapshots(editorViewController);
+    }
+
+    void activePanels() {
+        testActivePanels(editorViewController);
+    }
+
+    void interactionRouting() {
+        testInteractionRouting(editorViewController);
+    }
+
+    void panelVisibilityRouting() {
+        testPanelVisibilityRouting(editorViewController);
+    }
+
+
+private:
+    std::unique_ptr<AutomationTestSupport::TestRuntime> runtime;
+};
+
+QTEST_GUILESS_MAIN(EditorViewControllerTests)
+#include "main.moc"

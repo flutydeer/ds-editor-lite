@@ -1,3 +1,4 @@
+#include <QtTest/QTest>
 #include "Model/AppOptions/Options/FillLyricOption.h"
 #include "Modules/FillLyric/Utils/LyricRuleAutomationUtils.h"
 #include "Modules/FillLyric/Utils/TaggerRuleOrder.h"
@@ -224,20 +225,32 @@ namespace {
     }
 }
 
-int main(int argc, char **argv) {
-    QCoreApplication app(argc, argv);
+class FillLyricTaggerOrderTests final : public QObject {
+    Q_OBJECT
 
-    QTemporaryDir tempDir;
-    bool ok = expect(tempDir.isValid(), QStringLiteral("temporary directory should be available"));
-    const auto configDir = QDir(tempDir.path()).filePath(QStringLiteral("tagger"));
-    ok &= expect(QDir().mkpath(configDir),
-                 QStringLiteral("tagger config directory should be created"));
-    ok &= expect(writeBuiltinRule(configDir),
-                 QStringLiteral("builtin tagger fixture should be written"));
-    ok &= testStableOrderPersistence();
-    ok &= testLegacyOrderMigration();
-    ok &= testStableAutomationRuleIdMigration();
-    ok &= testRuntimeOrder(configDir);
+private slots:
 
-    return ok ? 0 : 1;
-}
+    void stableOrderPersistence() {
+        QVERIFY(testStableOrderPersistence());
+    }
+
+    void legacyOrderMigration() {
+        QVERIFY(testLegacyOrderMigration());
+    }
+
+    void stableAutomationRuleIdMigration() {
+        QVERIFY(testStableAutomationRuleIdMigration());
+    }
+
+    void runtimeOrder() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const auto configDir = QDir(directory.path()).filePath(QStringLiteral("tagger"));
+        QVERIFY(QDir().mkpath(configDir));
+        QVERIFY(writeBuiltinRule(configDir));
+        QVERIFY(testRuntimeOrder(configDir));
+    }
+};
+
+QTEST_GUILESS_MAIN(FillLyricTaggerOrderTests)
+#include "main.moc"

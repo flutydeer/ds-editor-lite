@@ -1,3 +1,4 @@
+#include <QtTest/QTest>
 #include "UI/Dialogs/Base/DialogTitleBar.h"
 
 #include <lite/GUI/Animation/IAnimatable.h>
@@ -15,13 +16,12 @@
 
 namespace {
 
-    int g_failures = 0;
 
     bool expect(const bool condition, const char *message) {
         if (condition)
             return true;
         QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        ++g_failures;
+        QTest::qFail(message, __FILE__, __LINE__);
         return false;
     }
 
@@ -157,20 +157,35 @@ namespace {
 
 } // namespace
 
-int main(int argc, char *argv[]) {
-    QApplication application(argc, argv);
+class AnimationSettingsTests final : public QObject {
+    Q_OBJECT
 
-    testEffectiveDurationPolicy();
-    testDialogTitleBarRuntimeUpdate();
-    testProgressAndTapTempoLevels();
-    testToolTipImmediateCompletion();
-    testToolTipAnchorScreenClamping();
+private slots:
 
-    ThemeManager::instance()->setAnimationSettings(true, 1.0);
-    if (g_failures == 0) {
-        QTextStream(stdout) << "All animation settings tests passed" << Qt::endl;
-        return 0;
+    void cleanup() {
+        ThemeManager::instance()->setAnimationSettings(true, 1.0);
     }
-    QTextStream(stderr) << g_failures << " test(s) failed" << Qt::endl;
-    return 1;
-}
+
+    void effectiveDurationPolicy() {
+        testEffectiveDurationPolicy();
+    }
+
+    void dialogTitleBarRuntimeUpdate() {
+        testDialogTitleBarRuntimeUpdate();
+    }
+
+    void progressAndTapTempoLevels() {
+        testProgressAndTapTempoLevels();
+    }
+
+    void toolTipImmediateCompletion() {
+        testToolTipImmediateCompletion();
+    }
+
+    void toolTipAnchorScreenClamping() {
+        testToolTipAnchorScreenClamping();
+    }
+};
+
+QTEST_MAIN(AnimationSettingsTests)
+#include "main.moc"

@@ -1,3 +1,4 @@
+#include <QtTest/QTest>
 #include "Model/AppOptions/Options/InferenceOption.h"
 
 #include <QCoreApplication>
@@ -142,32 +143,49 @@ namespace {
                           QStringLiteral("playback lookahead should be loaded"));
 
         const auto saved = option.value();
-        success &= expect(
-            saved.value(QStringLiteral("playbackLookaheadSeconds")).toDouble() == 12.0,
-            QStringLiteral("playback lookahead should be persisted"));
+        success &=
+            expect(saved.value(QStringLiteral("playbackLookaheadSeconds")).toDouble() == 12.0,
+                   QStringLiteral("playback lookahead should be persisted"));
 
         InferenceOption reloaded;
         reloaded.load(saved);
-        success &= expect(
-            reloaded.playbackLookaheadSeconds == 12.0,
-            QStringLiteral("playback lookahead should survive a save-load round trip"));
+        success &=
+            expect(reloaded.playbackLookaheadSeconds == 12.0,
+                   QStringLiteral("playback lookahead should survive a save-load round trip"));
         return success;
     }
 
 } // namespace
 
-int main(int argc, char *argv[]) {
-    QCoreApplication application(argc, argv);
-    QTemporaryDir cacheDirectory;
-    if (!expect(cacheDirectory.isValid(),
-                QStringLiteral("temporary cache directory should exist"))) {
-        return 1;
+class InferenceOptionTests final : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void supportedProviders() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        QVERIFY(testSupportedProviders(directory.path()));
     }
 
-    bool success = true;
-    success &= testSupportedProviders(cacheDirectory.path());
-    success &= testCudaProvider(cacheDirectory.path());
-    success &= testSingerSessionCacheSettings(cacheDirectory.path());
-    success &= testPlaybackLookaheadPersistence(cacheDirectory.path());
-    return success ? 0 : 1;
-}
+    void cudaProvider() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        QVERIFY(testCudaProvider(directory.path()));
+    }
+
+    void singerSessionCacheSettings() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        QVERIFY(testSingerSessionCacheSettings(directory.path()));
+    }
+
+    void playbackLookaheadPersistence() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        QVERIFY(testPlaybackLookaheadPersistence(directory.path()));
+    }
+};
+
+QTEST_GUILESS_MAIN(InferenceOptionTests)
+#include "main.moc"

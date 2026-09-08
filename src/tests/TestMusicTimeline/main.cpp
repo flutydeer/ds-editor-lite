@@ -4,6 +4,7 @@
 #include <lite/MusicBase/TimelineSnapUtils.h>
 
 #include <QCoreApplication>
+#include <QtTest/QTest>
 
 #include <cmath>
 #include <cstdio>
@@ -74,8 +75,8 @@ namespace {
                 {19200, 127.3}
         },
             {TimeSignature(0, 4, 4), TimeSignature(4, 4, 4), TimeSignature(12, 4, 4)});
-        for (const double tick : {0.0, 1.5, 9599.0, 9600.0, 9601.0, 19199.5, 19200.0, 19201.0,
-                                  50000.25, -100.0}) {
+        for (const double tick :
+             {0.0, 1.5, 9599.0, 9600.0, 9601.0, 19199.5, 19200.0, 19201.0, 50000.25, -100.0}) {
             ok &= expectNear(multi.tickToMs(tick), single.tickToMs(tick),
                              "degenerate tickToMs equals single point");
             const auto ms = single.tickToMs(tick);
@@ -146,10 +147,11 @@ namespace {
 
     // 4/4 for bars 0..3, 3/4 for bars 4..7, 6/8 from bar 8 on.
     Timeline threeMeterTimeline() {
-        return Timeline({
-                            {0, 120.0}
+        return Timeline(
+            {
+                {0, 120.0}
         },
-                        {TimeSignature(0, 4, 4), TimeSignature(4, 3, 4), TimeSignature(8, 6, 8)});
+            {TimeSignature(0, 4, 4), TimeSignature(4, 3, 4), TimeSignature(8, 6, 8)});
     }
 
     bool testBarTickMapping() {
@@ -206,11 +208,12 @@ namespace {
 
     bool testZeroPointInvariant() {
         bool ok = true;
-        Timeline timeline({
-            {0,    120.0},
-            {1920, 60.0 }
+        Timeline timeline(
+            {
+                {0,    120.0},
+                {1920, 60.0 }
         },
-                          {TimeSignature(0, 4, 4), TimeSignature(4, 3, 4)});
+            {TimeSignature(0, 4, 4), TimeSignature(4, 3, 4)});
         ok &= expect(!timeline.removeTempoAt(0), "tempo point at tick 0 is not removable");
         ok &= expect(!timeline.removeTimeSignatureAt(0), "signature at bar 0 is not removable");
         ok &= expect(timeline.tempos().size() == 2, "tempo list intact after refused removal");
@@ -283,10 +286,11 @@ namespace {
         }
         // All power-of-two denominators up to 128 (and denominator 1).
         for (const int denominator : {1, 2, 4, 8, 16, 32, 64, 128}) {
-            const Timeline timeline({
-                                        {0, 120.0}
+            const Timeline timeline(
+                {
+                    {0, 120.0}
             },
-                                    {TimeSignature(0, 3, denominator)});
+                {TimeSignature(0, 3, denominator)});
             const int barTicks = 3 * (MusicTime::ticksPerWholeNote / denominator);
             ok &= expect(timeline.barToTick(5) == 5 * barTicks, "barToTick for denominator");
             for (const int tick : {0, barTicks - 1, barTicks, barTicks + 1, 10 * barTicks + 7}) {
@@ -352,7 +356,8 @@ namespace {
         parsed = MusicTime::fromString(QStringLiteral("3"), &parseOk);
         ok &= expect(parseOk && parsed == MusicTime(2, 0, 0), "fromString defaults beat and tick");
         parsed = MusicTime::fromString(QStringLiteral("2：3：120"), &parseOk);
-        ok &= expect(parseOk && parsed == MusicTime(1, 2, 120), "fromString accepts full-width colons");
+        ok &= expect(parseOk && parsed == MusicTime(1, 2, 120),
+                     "fromString accepts full-width colons");
         MusicTime::fromString(QStringLiteral("abc"), &parseOk);
         ok &= expect(!parseOk, "fromString rejects garbage");
         MusicTime::fromString(QStringLiteral(""), &parseOk);
@@ -367,24 +372,55 @@ namespace {
     }
 }
 
-int main(int argc, char *argv[]) {
-    QCoreApplication app(argc, argv);
-    bool ok = true;
+class MusicTimelineTests final : public QObject {
+    Q_OBJECT
 
-    ok &= testSinglePointMatchesLegacyConverter();
-    ok &= testDegenerateEquivalence();
-    ok &= testTickMsRoundTrip();
-    ok &= testTempoQueries();
-    ok &= testBarTickMapping();
-    ok &= testTickTimeRoundTrip();
-    ok &= testZeroPointInvariant();
-    ok &= testMutationApi();
-    ok &= testExtremeValues();
-    ok &= testBarAnchoredSnapping();
-    ok &= testMusicTimeStrings();
+private slots:
 
-    if (!ok)
-        return 1;
-    std::printf("TestMusicTimeline passed\n");
-    return 0;
-}
+    void singlePointMatchesLegacyConverter() {
+        QVERIFY(testSinglePointMatchesLegacyConverter());
+    }
+
+    void degenerateEquivalence() {
+        QVERIFY(testDegenerateEquivalence());
+    }
+
+    void tickMsRoundTrip() {
+        QVERIFY(testTickMsRoundTrip());
+    }
+
+    void tempoQueries() {
+        QVERIFY(testTempoQueries());
+    }
+
+    void barTickMapping() {
+        QVERIFY(testBarTickMapping());
+    }
+
+    void tickTimeRoundTrip() {
+        QVERIFY(testTickTimeRoundTrip());
+    }
+
+    void zeroPointInvariant() {
+        QVERIFY(testZeroPointInvariant());
+    }
+
+    void mutationApi() {
+        QVERIFY(testMutationApi());
+    }
+
+    void extremeValues() {
+        QVERIFY(testExtremeValues());
+    }
+
+    void barAnchoredSnapping() {
+        QVERIFY(testBarAnchoredSnapping());
+    }
+
+    void musicTimeStrings() {
+        QVERIFY(testMusicTimeStrings());
+    }
+};
+
+QTEST_GUILESS_MAIN(MusicTimelineTests)
+#include "main.moc"

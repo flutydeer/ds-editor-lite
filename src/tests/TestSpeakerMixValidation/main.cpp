@@ -17,6 +17,7 @@
 #include <lite/ProjectModel/Voice/SpeakerInfo.h>
 
 #include <QCoreApplication>
+#include <QtTest/QTest>
 #include <QTextStream>
 
 #include <cmath>
@@ -159,8 +160,8 @@ namespace {
 
         const auto &c = info.capability();
         ok &= expect(c.has_value(), "B2: capability has value");
-        ok &= expect(c->mixableSpeakers == QStringList{"S1", "S2"},
-                     "B2: mixableSpeakers populated");
+        ok &=
+            expect(c->mixableSpeakers == QStringList{"S1", "S2"}, "B2: mixableSpeakers populated");
         ok &= expect(c->speakerConsistency == 1, "B2: speakerConsistency Degraded");
         ok &= expect(c->speakerWarnings == QStringList{"w1"}, "B2: speakerWarnings");
         ok &= expect(c->acousticParameters.value_or(QStringList()) ==
@@ -181,7 +182,8 @@ namespace {
         ok &= expect(SingerCapabilitySummary::consistencyText(1) == "Degraded", "B3: 1=Degraded");
         ok &= expect(SingerCapabilitySummary::consistencyText(2) == "Inconsistent",
                      "B3: 2=Inconsistent");
-        ok &= expect(SingerCapabilitySummary::consistencyText(99) == "Unknown", "B3: invalid=Unknown");
+        ok &= expect(SingerCapabilitySummary::consistencyText(99) == "Unknown",
+                     "B3: invalid=Unknown");
         return ok;
     }
 
@@ -297,7 +299,8 @@ namespace {
         info.setResolutionState(ResolutionState::Resolved);
         // capability left as nullopt
         const auto result = SpeakerMixValidator::validate("S1", {}, info);
-        ok &= expect(result.status == SpeakerMixValidator::Status::Ok, "#8: status Ok (conservative)");
+        ok &= expect(result.status == SpeakerMixValidator::Status::Ok,
+                     "#8: status Ok (conservative)");
         ok &= expect(result.primarySpeaker == "S1", "#8: primary S1");
         return ok;
     }
@@ -320,7 +323,8 @@ namespace {
         SingerInfo info(makeIdentifier("S1"), "Empty", {}, {}, "zh");
         info.setResolutionState(ResolutionState::Resolved);
         const auto result = SpeakerMixValidator::validate({}, {}, info);
-        ok &= expect(result.status == SpeakerMixValidator::Status::Ok, "#10: status Ok (conservative)");
+        ok &= expect(result.status == SpeakerMixValidator::Status::Ok,
+                     "#10: status Ok (conservative)");
         // primary empty, host UI should prompt user
         ok &= expect(result.primarySpeaker.isEmpty(), "#10: primary empty");
         return ok;
@@ -374,8 +378,8 @@ namespace {
         mix.sources = {src1, src2, src3};
 
         const auto result = SpeakerMixValidator::validate("S1", mix, singer);
-        ok &= expect(result.status == SpeakerMixValidator::Status::Degraded,
-                     "#13: status Degraded");
+        ok &=
+            expect(result.status == SpeakerMixValidator::Status::Degraded, "#13: status Degraded");
         ok &= expect(result.droppedSpeakers == QStringList{"S3"}, "#13: dropped S3");
         ok &= expect(result.sanitizedMix.sources.size() == 2, "#13: 2 sources after filter");
         // After renormalization, frame 0: 0.6/(0.6+0.3) = 0.667, 0.3/0.9 = 0.333
@@ -415,45 +419,95 @@ namespace {
     }
 } // namespace
 
-int main(int argc, char *argv[]) {
-    QCoreApplication app(argc, argv);
+class SpeakerMixValidationTests final : public QObject {
+    Q_OBJECT
 
-    int failed = 0;
-    auto run = [&](bool (*test)(), const char *name) {
-        if (!test()) {
-            ++failed;
-            QTextStream(stderr) << "  in: " << name << Qt::endl;
-        }
-    };
+private slots:
 
-    run(testSpeakerInfoDefaults, "testSpeakerInfoDefaults");
-    run(testSpeakerInfoToneRange, "testSpeakerInfoToneRange");
-    run(testSpeakerInfoMixable, "testSpeakerInfoMixable");
-    run(testSpeakerInfoEquality, "testSpeakerInfoEquality");
-
-    run(testSingerInfoCapabilityDefault, "testSingerInfoCapabilityDefault");
-    run(testSingerInfoCapabilitySet, "testSingerInfoCapabilitySet");
-    run(testConsistencyText, "testConsistencyText");
-
-    run(testValidateCase1_OkSingle, "testValidateCase1_OkSingle");
-    run(testValidateCase2_OkMulti, "testValidateCase2_OkMulti");
-    run(testValidateCase3_DegradedPartial, "testValidateCase3_DegradedPartial");
-    run(testValidateCase4_InvalidAllDropped, "testValidateCase4_InvalidAllDropped");
-    run(testValidateCase5_SpeakerDropped, "testValidateCase5_SpeakerDropped");
-    run(testValidateCase6_AllInvalid, "testValidateCase6_AllInvalid");
-    run(testValidateCase7_EmptyMixableInconsistent, "testValidateCase7_EmptyMixableInconsistent");
-    run(testValidateCase8_PureG2P, "testValidateCase8_PureG2P");
-    run(testValidateCase9_LegacyEmpty, "testValidateCase9_LegacyEmpty");
-    run(testValidateCase10_AllEmpty, "testValidateCase10_AllEmpty");
-    run(testValidateCase11_PendingSinger, "testValidateCase11_PendingSinger");
-    run(testValidateCase12_MissingSinger, "testValidateCase12_MissingSinger");
-    run(testValidateCase13_RenormalizeMultiFrame, "testValidateCase13_RenormalizeMultiFrame");
-    run(testValidateCase14_FallbackRepicked, "testValidateCase14_FallbackRepicked");
-
-    if (failed == 0) {
-        QTextStream(stderr) << "All tests passed." << Qt::endl;
-        return 0;
+    void speakerInfoDefaults() {
+        QVERIFY(testSpeakerInfoDefaults());
     }
-    QTextStream(stderr) << failed << " test(s) failed." << Qt::endl;
-    return 1;
-}
+
+    void speakerInfoToneRange() {
+        QVERIFY(testSpeakerInfoToneRange());
+    }
+
+    void speakerInfoMixable() {
+        QVERIFY(testSpeakerInfoMixable());
+    }
+
+    void speakerInfoEquality() {
+        QVERIFY(testSpeakerInfoEquality());
+    }
+
+    void singerInfoCapabilityDefault() {
+        QVERIFY(testSingerInfoCapabilityDefault());
+    }
+
+    void singerInfoCapabilitySet() {
+        QVERIFY(testSingerInfoCapabilitySet());
+    }
+
+    void consistencyText() {
+        QVERIFY(testConsistencyText());
+    }
+
+    void validateCase1_OkSingle() {
+        QVERIFY(testValidateCase1_OkSingle());
+    }
+
+    void validateCase2_OkMulti() {
+        QVERIFY(testValidateCase2_OkMulti());
+    }
+
+    void validateCase3_DegradedPartial() {
+        QVERIFY(testValidateCase3_DegradedPartial());
+    }
+
+    void validateCase4_InvalidAllDropped() {
+        QVERIFY(testValidateCase4_InvalidAllDropped());
+    }
+
+    void validateCase5_SpeakerDropped() {
+        QVERIFY(testValidateCase5_SpeakerDropped());
+    }
+
+    void validateCase6_AllInvalid() {
+        QVERIFY(testValidateCase6_AllInvalid());
+    }
+
+    void validateCase7_EmptyMixableInconsistent() {
+        QVERIFY(testValidateCase7_EmptyMixableInconsistent());
+    }
+
+    void validateCase8_PureG2P() {
+        QVERIFY(testValidateCase8_PureG2P());
+    }
+
+    void validateCase9_LegacyEmpty() {
+        QVERIFY(testValidateCase9_LegacyEmpty());
+    }
+
+    void validateCase10_AllEmpty() {
+        QVERIFY(testValidateCase10_AllEmpty());
+    }
+
+    void validateCase11_PendingSinger() {
+        QVERIFY(testValidateCase11_PendingSinger());
+    }
+
+    void validateCase12_MissingSinger() {
+        QVERIFY(testValidateCase12_MissingSinger());
+    }
+
+    void validateCase13_RenormalizeMultiFrame() {
+        QVERIFY(testValidateCase13_RenormalizeMultiFrame());
+    }
+
+    void validateCase14_FallbackRepicked() {
+        QVERIFY(testValidateCase14_FallbackRepicked());
+    }
+};
+
+QTEST_GUILESS_MAIN(SpeakerMixValidationTests)
+#include "main.moc"

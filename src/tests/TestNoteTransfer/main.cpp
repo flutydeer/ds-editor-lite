@@ -6,6 +6,7 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <QCoreApplication>
+#include <QtTest/QTest>
 #include <QJsonDocument>
 #include <QTextStream>
 
@@ -21,12 +22,10 @@ namespace {
     using Automation::TrackId;
     using AutomationTestSupport::TestRuntime;
 
-    int failures = 0;
-
     void expect(const bool condition, const QString &message) {
         if (condition)
             return;
-        ++failures;
+        QTest::qFail(qPrintable(message), __FILE__, __LINE__);
         QTextStream(stderr) << "FAILED: " << message << Qt::endl;
     }
 
@@ -90,8 +89,8 @@ namespace {
     TrackId insertTrack(CoreRuntime &runtime, const QString &name) {
         const auto project = runtime.project().getProject(runtime.documentVersion().documentId);
         const auto index = project ? project.get().tracks.size() : 0;
-        const auto result = runtime.project().insertTrack(commandContext(runtime), index,
-                                                          trackDraft(name));
+        const auto result =
+            runtime.project().insertTrack(commandContext(runtime), index, trackDraft(name));
         return result && !result.get().affectedObjects.isEmpty()
                    ? TrackId(result.get().affectedObjects.first().value)
                    : TrackId{};
@@ -99,17 +98,19 @@ namespace {
 
     ClipId insertClip(CoreRuntime &runtime, const TrackId trackId, const QString &name) {
         const auto result = runtime.project().insertClips(
-            commandContext(runtime), {{.trackId = trackId, .clip = clipDraft(name)}});
+            commandContext(runtime), {
+                                         {.trackId = trackId, .clip = clipDraft(name)}
+        });
         return result && !result.get().affectedObjects.isEmpty()
                    ? ClipId(result.get().affectedObjects.first().value)
                    : ClipId{};
     }
 
     QList<NoteId> insertNotes(CoreRuntime &runtime, const ClipId clipId) {
-        const auto result = runtime.notes().insertNotes(
-            commandContext(runtime), clipId,
-            {noteDraft(100, 100, 60, QStringLiteral("a")),
-             noteDraft(300, 200, 62, QStringLiteral("b"))});
+        const auto result =
+            runtime.notes().insertNotes(commandContext(runtime), clipId,
+                                        {noteDraft(100, 100, 60, QStringLiteral("a")),
+                                         noteDraft(300, 200, 62, QStringLiteral("b"))});
         QList<NoteId> ids;
         if (result) {
             for (const auto &object : result.get().affectedObjects)
@@ -119,8 +120,7 @@ namespace {
     }
 
     Automation::ParameterSnapshotDto parameter(CoreRuntime &runtime, const ClipId clipId,
-                                                const ParamInfo::Name name,
-                                                const Param::Type type) {
+                                               const ParamInfo::Name name, const Param::Type type) {
         const auto result = runtime.parameters().getParameter(runtime.documentVersion().documentId,
                                                               clipId, name, type);
         expect(static_cast<bool>(result), QStringLiteral("parameter query must succeed"));
@@ -171,7 +171,7 @@ namespace {
         Track *track = nullptr;
         auto *clip = testRuntime.model().findClipById(id.value(), track);
         return clip && clip->clipType() == Clip::Singing ? static_cast<SingingClip *>(clip)
-                                                        : nullptr;
+                                                         : nullptr;
     }
 
     void replace(CoreRuntime &runtime, const ClipId clipId, const ParamInfo::Name name,
@@ -201,22 +201,30 @@ namespace {
         replace(runtime, sourceClip, ParamInfo::Energy, Param::Envelope,
                 {draw(100, 100, {-1000, -2000, -3000, -4000})});
         replace(runtime, sourceClip, ParamInfo::Gender, Param::Edited,
-                {anchor({{150, -100}, {350, 100}})});
+                {
+                    anchor({{150, -100}, {350, 100}}
+                    )
+        });
         replace(runtime, sourceClip, ParamInfo::Tension, Param::Edited,
-                {anchor({{50, -500}, {250, 500}, {550, -500}})});
+                {
+                    anchor({{50, -500}, {250, 500}, {550, -500}}
+                    )
+        });
         replace(runtime, sourceClip, ParamInfo::Breathiness, Param::Edited,
-                {anchor({{0, 0}, {std::numeric_limits<int>::max(), 0}})});
+                {
+                    anchor({{0, 0}, {std::numeric_limits<int>::max(), 0}}
+                    )
+        });
 
         replace(runtime, targetClip, ParamInfo::Pitch, Param::Edited,
                 {draw(0, 100,
-                      {5000, 5001, 5002, 5003, 5004, 5005, 5006, 5007, 5008, 5009, 5010,
-                       5011})});
+                      {5000, 5001, 5002, 5003, 5004, 5005, 5006, 5007, 5008, 5009, 5010, 5011})});
         replace(runtime, targetClip, ParamInfo::Pitch, Param::Original,
                 {draw(0, 100, {8000, 8001, 8002, 8003})});
         replace(runtime, targetClip, ParamInfo::Energy, Param::Envelope,
                 {draw(0, 100,
-                      {-5000, -5001, -5002, -5003, -5004, -5005, -5006, -5007, -5008,
-                       -5009, -5010, -5011})});
+                      {-5000, -5001, -5002, -5003, -5004, -5005, -5006, -5007, -5008, -5009, -5010,
+                       -5011})});
 
         const auto pitchBefore = parameter(runtime, targetClip, ParamInfo::Pitch, Param::Edited);
         const auto originalBefore =
@@ -232,8 +240,8 @@ namespace {
         expect(duplicate && duplicate.get().createdObjects.size() == 2,
                QStringLiteral("duplicate must report both created notes"));
 
-        const auto targetNotes = runtime.notes().getNotes(runtime.documentVersion().documentId,
-                                                          targetClip);
+        const auto targetNotes =
+            runtime.notes().getNotes(runtime.documentVersion().documentId, targetClip);
         expect(targetNotes && targetNotes.get().size() == 2 &&
                    targetNotes.get().at(0).data.localStart == 603 &&
                    targetNotes.get().at(1).data.localStart == 803,
@@ -252,8 +260,7 @@ namespace {
                QStringLiteral("inference-generated Original parameters must not be copied"));
         const auto energyAfter = parameter(runtime, targetClip, ParamInfo::Energy, Param::Envelope);
         expect(drawValueAt(energyAfter, 500) == -5005 && drawValueAt(energyAfter, 1100) == -5011 &&
-                   drawValueAt(energyAfter, 603) == -1000 &&
-                   drawValueAt(energyAfter, 903) == -4000,
+                   drawValueAt(energyAfter, 603) == -1000 && drawValueAt(energyAfter, 903) == -4000,
                QStringLiteral("Envelope must copy while preserving its target exterior"));
 
         const auto genderAfter = parameter(runtime, targetClip, ParamInfo::Gender, Param::Edited);
@@ -278,8 +285,8 @@ namespace {
         const auto undo = runtime.history().undo(commandContext(runtime));
         expect(undo && undo.get().changed,
                QStringLiteral("one undo must revert the complete duplicate"));
-        const auto notesAfterUndo = runtime.notes().getNotes(runtime.documentVersion().documentId,
-                                                             targetClip);
+        const auto notesAfterUndo =
+            runtime.notes().getNotes(runtime.documentVersion().documentId, targetClip);
         expect(notesAfterUndo && notesAfterUndo.get().isEmpty(),
                QStringLiteral("undo must remove all duplicated notes"));
         expect(sameShape(pitchBefore,
@@ -291,8 +298,8 @@ namespace {
         const auto redo = runtime.history().redo(commandContext(runtime));
         expect(redo && redo.get().changed,
                QStringLiteral("one redo must restore the complete duplicate"));
-        const auto notesAfterRedo = runtime.notes().getNotes(runtime.documentVersion().documentId,
-                                                             targetClip);
+        const auto notesAfterRedo =
+            runtime.notes().getNotes(runtime.documentVersion().documentId, targetClip);
         expect(notesAfterRedo && notesAfterRedo.get().size() == 2 &&
                    drawValueAt(parameter(runtime, targetClip, ParamInfo::Pitch, Param::Edited),
                                603) == 6100,
@@ -332,13 +339,14 @@ namespace {
 
             const auto paste = runtime.notes().pasteNotes(commandContext(runtime), guiTargetClip,
                                                           1203, decoded.payload);
-            const auto pastedNotes = runtime.notes().getNotes(
-                runtime.documentVersion().documentId, guiTargetClip);
-            expect(paste && paste.get().changed && pastedNotes && pastedNotes.get().size() == 2 &&
-                       pastedNotes.get().first().data.localStart == 1203 &&
-                       drawValueAt(parameter(runtime, guiTargetClip, ParamInfo::Pitch, Param::Edited),
-                                   1203) == 6100,
-                   QStringLiteral("GUI payload paste must use the same note-and-parameter commit"));
+            const auto pastedNotes =
+                runtime.notes().getNotes(runtime.documentVersion().documentId, guiTargetClip);
+            expect(
+                paste && paste.get().changed && pastedNotes && pastedNotes.get().size() == 2 &&
+                    pastedNotes.get().first().data.localStart == 1203 &&
+                    drawValueAt(parameter(runtime, guiTargetClip, ParamInfo::Pitch, Param::Edited),
+                                1203) == 6100,
+                QStringLiteral("GUI payload paste must use the same note-and-parameter commit"));
         }
     }
 
@@ -353,27 +361,28 @@ namespace {
         replace(runtime, sourceClip, ParamInfo::Pitch, Param::Edited,
                 {draw(100, 100, {6000, 6100, 6200, 6300})});
         replace(runtime, targetClip, ParamInfo::Pitch, Param::Edited,
-                {anchor({{0, 5000}, {1000000, 7000}})});
+                {
+                    anchor({{0, 5000}, {1000000, 7000}}
+                    )
+        });
 
         const auto before = runtime.documentVersion();
-        const auto targetBefore =
-            parameter(runtime, targetClip, ParamInfo::Pitch, Param::Edited);
+        const auto targetBefore = parameter(runtime, targetClip, ParamInfo::Pitch, Param::Edited);
         auto previewContext = commandContext(runtime);
         previewContext.validateOnly = true;
-        const auto preview = runtime.notes().duplicateNotes(previewContext, sourceClip, noteIds,
-                                                           targetClip, 100);
+        const auto preview =
+            runtime.notes().duplicateNotes(previewContext, sourceClip, noteIds, targetClip, 100);
         const auto duplicate = runtime.notes().duplicateNotes(commandContext(runtime), sourceClip,
                                                               noteIds, targetClip, 100);
         const auto targetNotes =
             runtime.notes().getNotes(runtime.documentVersion().documentId, targetClip);
-        const auto targetAfter =
-            parameter(runtime, targetClip, ParamInfo::Pitch, Param::Edited);
+        const auto targetAfter = parameter(runtime, targetClip, ParamInfo::Pitch, Param::Edited);
         expect(!preview &&
                    preview.getError().code == Automation::AutomationErrorCode::Unsupported &&
                    !duplicate &&
                    duplicate.getError().code == Automation::AutomationErrorCode::Unsupported &&
-                   runtime.documentVersion() == before && targetNotes && targetNotes.get().isEmpty() &&
-                   sameShape(targetBefore, targetAfter),
+                   runtime.documentVersion() == before && targetNotes &&
+                   targetNotes.get().isEmpty() && sameShape(targetBefore, targetAfter),
                QStringLiteral(
                    "an oversized retained curve tail must reject validation and the transfer"));
     }
@@ -387,39 +396,57 @@ namespace {
         longClip.properties.length = 400000;
         longClip.properties.clipLen = 400000;
         const auto sourceClipResult = runtime.project().insertClips(
-            commandContext(runtime), {{.trackId = sourceTrack, .clip = longClip}});
+            commandContext(runtime), {
+                                         {.trackId = sourceTrack, .clip = longClip}
+        });
         const auto sourceClip =
             sourceClipResult && !sourceClipResult.get().affectedObjects.isEmpty()
                 ? ClipId(sourceClipResult.get().affectedObjects.first().value)
                 : ClipId{};
         const auto targetClip = insertClip(runtime, targetTrack, QStringLiteral("Target Clip"));
-        const auto inserted = runtime.notes().insertNotes(
-            commandContext(runtime), sourceClip,
-            {noteDraft(100, 399800, 60, QStringLiteral("long"))});
+        const auto inserted =
+            runtime.notes().insertNotes(commandContext(runtime), sourceClip,
+                                        {noteDraft(100, 399800, 60, QStringLiteral("long"))});
         const auto noteId = inserted && !inserted.get().affectedObjects.isEmpty()
                                 ? NoteId(inserted.get().affectedObjects.first().value)
                                 : NoteId{};
         replace(runtime, sourceClip, ParamInfo::Pitch, Param::Edited,
-                {anchor({{0, 5000}, {400000, 7000}})});
+                {
+                    anchor({{0, 5000}, {400000, 7000}}
+                    )
+        });
 
         const auto before = runtime.documentVersion();
-        const auto duplicate = runtime.notes().duplicateNotes(
-            commandContext(runtime), sourceClip, {noteId}, targetClip, 0);
+        const auto duplicate = runtime.notes().duplicateNotes(commandContext(runtime), sourceClip,
+                                                              {noteId}, targetClip, 0);
         const auto targetNotes =
             runtime.notes().getNotes(runtime.documentVersion().documentId, targetClip);
         expect(!duplicate &&
                    duplicate.getError().code == Automation::AutomationErrorCode::Unsupported &&
-                   runtime.documentVersion() == before && targetNotes && targetNotes.get().isEmpty(),
+                   runtime.documentVersion() == before && targetNotes &&
+                   targetNotes.get().isEmpty(),
                QStringLiteral("an oversized source curve must reject the whole transfer"));
     }
 
 } // namespace
 
-int main(int argc, char **argv) {
-    QCoreApplication application(argc, argv);
-    testDuplicateWithParameters();
-    testOversizedTargetTailIsRejected();
-    testOversizedSourceCurveIsRejected();
-    QTextStream(stdout) << "Note transfer: " << (failures == 0 ? "PASS" : "FAIL") << Qt::endl;
-    return failures == 0 ? 0 : 1;
-}
+class NoteTransferTests final : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void duplicateWithParameters() {
+        testDuplicateWithParameters();
+    }
+
+    void oversizedTargetTailIsRejected() {
+        testOversizedTargetTailIsRejected();
+    }
+
+    void oversizedSourceCurveIsRejected() {
+        testOversizedSourceCurveIsRejected();
+    }
+};
+
+QTEST_GUILESS_MAIN(NoteTransferTests)
+#include "main.moc"

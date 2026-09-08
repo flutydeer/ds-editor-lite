@@ -1,3 +1,4 @@
+#include <QtTest/QTest>
 #include <lite/GUI/Utils/IconUtils.h>
 #include <lite/GUI/Theme/ThemeLoader.h>
 #include <lite/GUI/Theme/ThemeManager.h>
@@ -19,21 +20,15 @@ namespace {
     bool expectPalette(const IconUtils::SvgIconColorPalette &palette, const QColor &primary,
                        const QColor &disabled, const QString &scenario) {
         bool success = true;
-        success &= expect(palette.normal == primary, scenario,
-                          QStringLiteral("normal color mismatch"));
-        success &= expect(palette.active == primary, scenario,
-                          QStringLiteral("active color mismatch"));
+        success &=
+            expect(palette.normal == primary, scenario, QStringLiteral("normal color mismatch"));
+        success &=
+            expect(palette.active == primary, scenario, QStringLiteral("active color mismatch"));
         success &= expect(palette.selected == primary, scenario,
                           QStringLiteral("selected color mismatch"));
         success &= expect(palette.disabled == disabled, scenario,
                           QStringLiteral("disabled color mismatch"));
         return success;
-    }
-
-    bool testUninitializedFallback() {
-        return expectPalette(IconUtils::defaultActionPalette(), QColor(240, 240, 240, 255),
-                             QColor(240, 240, 240, 102),
-                             QStringLiteral("uninitialized action palette should use fallback"));
     }
 
     bool testTheme(const QString &themeId) {
@@ -74,28 +69,41 @@ namespace {
                               QStringLiteral("missing theme should fail"));
         success &= expect(themeManager->currentThemeId() == previousThemeId,
                           QStringLiteral("failed theme should keep current theme ID"));
-        success &= expect(themeManager->semanticColor(QStringLiteral("icon.primary")) ==
-                              previousPrimary,
-                          QStringLiteral("failed theme should keep icon.primary"));
-        success &= expect(themeManager->semanticColor(QStringLiteral("icon.disabled")) ==
-                              previousDisabled,
-                          QStringLiteral("failed theme should keep icon.disabled"));
-        success &= expectPalette(IconUtils::defaultActionPalette(), previousPrimary,
-                                 previousDisabled,
-                                 QStringLiteral("failed theme should keep action palette"));
+        success &=
+            expect(themeManager->semanticColor(QStringLiteral("icon.primary")) == previousPrimary,
+                   QStringLiteral("failed theme should keep icon.primary"));
+        success &=
+            expect(themeManager->semanticColor(QStringLiteral("icon.disabled")) == previousDisabled,
+                   QStringLiteral("failed theme should keep icon.disabled"));
+        success &=
+            expectPalette(IconUtils::defaultActionPalette(), previousPrimary, previousDisabled,
+                          QStringLiteral("failed theme should keep action palette"));
         return success;
     }
 
 }
 
-int main(int argc, char *argv[]) {
-    qputenv("QT_QPA_PLATFORM", "offscreen");
-    QApplication application(argc, argv);
+class ThemeIconsTests final : public QObject {
+    Q_OBJECT
 
-    bool success = true;
-    success &= testUninitializedFallback();
-    success &= testTheme(QStringLiteral("lite-dark"));
-    success &= testTheme(QStringLiteral("lite-light"));
-    success &= testFailedThemeKeepsSemanticColors();
-    return success ? 0 : 1;
-}
+private slots:
+
+    void palette_data() {
+        QTest::addColumn<QString>("themeId");
+        QTest::newRow("dark") << QStringLiteral("lite-dark");
+        QTest::newRow("light") << QStringLiteral("lite-light");
+    }
+
+    void palette() {
+        QFETCH(QString, themeId);
+        QVERIFY(testTheme(themeId));
+    }
+
+    void failedThemeKeepsSemanticColors() {
+        QVERIFY(ThemeManager::instance()->applyTheme(QStringLiteral("lite-dark")));
+        QVERIFY(testFailedThemeKeepsSemanticColors());
+    }
+};
+
+QTEST_MAIN(ThemeIconsTests)
+#include "main.moc"

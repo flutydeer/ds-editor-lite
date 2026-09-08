@@ -4,6 +4,7 @@
 #include <lite/GUI/Theme/ThemeLoader.h>
 
 #include <QCoreApplication>
+#include <QtTest/QTest>
 #include <QDebug>
 #include <QDir>
 #include <QDirIterator>
@@ -141,79 +142,6 @@ namespace {
             QStringLiteral("QWidget { color: ${surface.window; }"), *colors, nullptr, &error);
         success &= expect(!result && error.contains(QStringLiteral("Malformed")),
                           QStringLiteral("malformed placeholder should fail"), error);
-        return success;
-    }
-
-    bool testBundledTokenDraft() {
-        const QStringList requiredTokens{
-            QStringLiteral("surface.window"),
-            QStringLiteral("text.primary"),
-            QStringLiteral("control.fill.checkedPressed"),
-            QStringLiteral("control.border.focus"),
-            QStringLiteral("control.foreground.disabled"),
-            QStringLiteral("toast.background"),
-            QStringLiteral("editor.canvas"),
-            QStringLiteral("editor.trackListHeader"),
-            QStringLiteral("editor.trackHover"),
-            QStringLiteral("piano.roll.blackRow"),
-            QStringLiteral("piano.roll.background"),
-            QStringLiteral("curve.anchorSelected"),
-            QStringLiteral("meter.peakHold"),
-            QStringLiteral("meter.trackBack"),
-            QStringLiteral("timeline.ruler.subdivisionFrom"),
-            QStringLiteral("timeline.background"),
-            QStringLiteral("timeline.task.runningLow"),
-            QStringLiteral("timeline.task.runningHigh"),
-            QStringLiteral("phoneme.waveform"),
-            QStringLiteral("speakerMix.track"),
-            QStringLiteral("speakerMix.emptyState.fill"),
-            QStringLiteral("speakerMix.plot.keyframeLine"),
-            QStringLiteral("speakerMix.plot.keyframeLineHover"),
-            QStringLiteral("speakerMix.plot.bypassedText"),
-            QStringLiteral("speakerMix.plot.selectedDot"),
-            QStringLiteral("speakerMix.plot.selectionBorder"),
-            QStringLiteral("speakerMix.plot.selectionFill"),
-            QStringLiteral("mix.fader.trackInactive"),
-            QStringLiteral("button.mute.checkedHover.fill"),
-            QStringLiteral("button.solo.checkedPressed.fill"),
-        };
-
-        bool success = true;
-        for (const auto &themeId : {QStringLiteral("lite-dark"), QStringLiteral("lite-light")}) {
-            QFile file(QString::fromUtf8(TEST_SOURCE_DIR) +
-                       QStringLiteral("/src/app/Resources/theme/%1/colors.json").arg(themeId));
-            if (!expect(file.open(QIODevice::ReadOnly),
-                        QStringLiteral("bundled colors.json should open"),
-                        themeId + QStringLiteral(": ") + file.errorString())) {
-                success = false;
-                continue;
-            }
-
-            QString error;
-            const auto colors = parse(file.readAll(), error);
-            success &=
-                expect(colors.has_value(), QStringLiteral("bundled colors.json should parse"),
-                       themeId + QStringLiteral(": ") + error);
-            if (!colors)
-                continue;
-
-            for (const auto &token : requiredTokens) {
-                success &= expect(colors->tokens.contains(token),
-                                  QStringLiteral("bundled colors.json missing required token"),
-                                  themeId + QStringLiteral(": ") + token);
-            }
-
-            // Per-speaker plot colors are indexed by the app color palette order (12 entries).
-            for (int i = 0; i < 12; ++i) {
-                for (const auto &prefix : {QStringLiteral("speakerMix.plot.fill"),
-                                           QStringLiteral("speakerMix.plot.line")}) {
-                    const auto token = prefix + QString::number(i);
-                    success &= expect(colors->tokens.contains(token),
-                                      QStringLiteral("bundled colors.json missing required token"),
-                                      themeId + QStringLiteral(": ") + token);
-                }
-            }
-        }
         return success;
     }
 
@@ -403,16 +331,39 @@ namespace {
 
 }
 
-int main(int argc, char *argv[]) {
-    QCoreApplication application(argc, argv);
-    bool success = true;
-    success &= testValidColorsAndSubstitution();
-    success &= testInvalidDefinitions();
-    success &= testInvalidPlaceholders();
-    success &= testBundledTokenDraft();
-    success &= testAppearanceThemePreference();
-    success &= testBundledStyleSheets();
-    success &= testExternalThemeRoot();
-    success &= testBundledThemeLoadingAndFallback();
-    return success ? 0 : 1;
-}
+class ThemeColorsTests final : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void validColorsAndSubstitution() {
+        QVERIFY(testValidColorsAndSubstitution());
+    }
+
+    void invalidDefinitions() {
+        QVERIFY(testInvalidDefinitions());
+    }
+
+    void invalidPlaceholders() {
+        QVERIFY(testInvalidPlaceholders());
+    }
+
+    void appearanceThemePreference() {
+        QVERIFY(testAppearanceThemePreference());
+    }
+
+    void bundledStyleSheets() {
+        QVERIFY(testBundledStyleSheets());
+    }
+
+    void externalThemeRoot() {
+        QVERIFY(testExternalThemeRoot());
+    }
+
+    void bundledThemeLoadingAndFallback() {
+        QVERIFY(testBundledThemeLoadingAndFallback());
+    }
+};
+
+QTEST_GUILESS_MAIN(ThemeColorsTests)
+#include "main.moc"

@@ -6,17 +6,18 @@
 #include <lite/ProjectModel/Utils/AppModelUtils.h>
 
 #include <QCoreApplication>
+#include <QtTest/QTest>
 #include <QStringList>
 #include <QTextStream>
 
 namespace {
-    int failures = 0;
+
 
     void expect(const bool condition, const char *message) {
         if (condition)
             return;
         QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        ++failures;
+        QTest::qFail(message, __FILE__, __LINE__);
     }
 
     AnchorCurve *makeCurve(std::initializer_list<QPoint> points) {
@@ -110,7 +111,8 @@ namespace {
         controller.doubleClickAt({100, 800}, Qt::LeftButton);
         expect(controller.curves().size() == 1, "the provisional anchor must remain visible");
         controller.exitEditing();
-        expect(controller.curves().isEmpty(), "Escape-style exit must remove the provisional anchor");
+        expect(controller.curves().isEmpty(),
+               "Escape-style exit must remove the provisional anchor");
         expect(begins == 1 && publishes == 0 && discards == 1,
                "discarding a provisional anchor must not publish history");
 
@@ -399,8 +401,8 @@ namespace {
         draw->setLocalStart(40);
         draw->setValues({70, 80});
 
-        auto result = AnchorEditor::replaceDrawCurves(
-            {anchor, existingSinglePoint}, {existingSinglePoint, newSinglePoint, draw});
+        auto result = AnchorEditor::replaceDrawCurves({anchor, existingSinglePoint},
+                                                      {existingSinglePoint, newSinglePoint, draw});
         expect(result.size() == 3 && result.at(0)->type() == Curve::Draw &&
                    *static_cast<DrawCurve *>(result.at(0)) == *existingSinglePoint &&
                    result.at(1)->type() == Curve::Draw &&
@@ -536,8 +538,7 @@ namespace {
         expect(mergeController.state().showMergePreview,
                "adjacent endpoint must offer merge preview");
         mergeController.pressAt({400, 400}, Qt::LeftButton);
-        expect(mergeController.curves().size() == 1,
-               "endpoint merge must combine adjacent curves");
+        expect(mergeController.curves().size() == 1, "endpoint merge must combine adjacent curves");
         delete left;
         delete right;
     }
@@ -610,27 +611,83 @@ namespace {
     }
 }
 
-int main(int argc, char *argv[]) {
-    QCoreApplication application(argc, argv);
-    testLoadOwnsCopies();
-    testCreateAndPublishingReentry();
-    testProvisionalAnchorExitDiscardsWithoutPublishing();
-    testCreateClearsOverlappingPreview();
-    testSwitchingAwayFromProvisionalAllowsCommit();
-    testDragCancelRestoresSnapshot();
-    testSelectionDeleteAndInterpolation();
-    testKeyboardCommands();
-    testDeleteToOneRemovesWholeCurve();
-    testCompositionPreservesOtherCurveKind();
-    testCompositionPreservesExistingSinglePointDrawCurves();
-    testCompositionRejectsIncompleteAnchorCurves();
-    testSelectionAndLastNodeMenu();
-    testBoundaryClippingAndRejectedMutation();
-    testTransferAndMerge();
-    testCallbackOrder();
-    testAnchorSamplesOverrideDrawOnlyInTheirInterval();
-    testAnchorSamplingDoesNotExtrapolateBeforeFirstNode();
-    if (failures == 0)
-        QTextStream(stdout) << "TestAnchorEditController passed" << Qt::endl;
-    return failures == 0 ? 0 : 1;
-}
+class AnchorEditControllerTests final : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void loadOwnsCopies() {
+        testLoadOwnsCopies();
+    }
+
+    void createAndPublishingReentry() {
+        testCreateAndPublishingReentry();
+    }
+
+    void provisionalAnchorExitDiscardsWithoutPublishing() {
+        testProvisionalAnchorExitDiscardsWithoutPublishing();
+    }
+
+    void createClearsOverlappingPreview() {
+        testCreateClearsOverlappingPreview();
+    }
+
+    void dragCancelRestoresSnapshot() {
+        testDragCancelRestoresSnapshot();
+    }
+
+    void selectionDeleteAndInterpolation() {
+        testSelectionDeleteAndInterpolation();
+    }
+
+    void switchingAwayFromProvisionalAllowsCommit() {
+        testSwitchingAwayFromProvisionalAllowsCommit();
+    }
+
+    void deleteToOneRemovesWholeCurve() {
+        testDeleteToOneRemovesWholeCurve();
+    }
+
+    void keyboardCommands() {
+        testKeyboardCommands();
+    }
+
+    void compositionPreservesOtherCurveKind() {
+        testCompositionPreservesOtherCurveKind();
+    }
+
+    void compositionPreservesExistingSinglePointDrawCurves() {
+        testCompositionPreservesExistingSinglePointDrawCurves();
+    }
+
+    void compositionRejectsIncompleteAnchorCurves() {
+        testCompositionRejectsIncompleteAnchorCurves();
+    }
+
+    void selectionAndLastNodeMenu() {
+        testSelectionAndLastNodeMenu();
+    }
+
+    void boundaryClippingAndRejectedMutation() {
+        testBoundaryClippingAndRejectedMutation();
+    }
+
+    void transferAndMerge() {
+        testTransferAndMerge();
+    }
+
+    void callbackOrder() {
+        testCallbackOrder();
+    }
+
+    void anchorSamplesOverrideDrawOnlyInTheirInterval() {
+        testAnchorSamplesOverrideDrawOnlyInTheirInterval();
+    }
+
+    void anchorSamplingDoesNotExtrapolateBeforeFirstNode() {
+        testAnchorSamplingDoesNotExtrapolateBeforeFirstNode();
+    }
+};
+
+QTEST_GUILESS_MAIN(AnchorEditControllerTests)
+#include "main.moc"

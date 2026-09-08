@@ -22,4 +22,4 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         lite::ProjectModel
 )
 
-add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
+lite_register_test(${PROJECT_NAME} CATEGORY gui)

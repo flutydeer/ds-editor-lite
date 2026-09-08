@@ -1,32 +1,24 @@
 #include "UI/Views/Common/EditorShortcutUtils.h"
 #include "UI/Views/Common/EditorMenuPreviewGuard.h"
 
-#include <QApplication>
+#include <QtTest/QTest>
 #include <QDialog>
-#include <QEvent>
 #include <QLineEdit>
 #include <QMenu>
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSpinBox>
 #include <QTextEdit>
-#include <QTextStream>
 #include <QVBoxLayout>
-#include <QtTest/QTest>
 
 namespace {
-
-    int failures = 0;
-
     class SpaceOverrideButton final : public QPushButton {
     protected:
         bool event(QEvent *event) override {
-            if (event->type() == QEvent::ShortcutOverride) {
-                const auto *keyEvent = static_cast<QKeyEvent *>(event);
-                if (keyEvent->key() == Qt::Key_Space) {
-                    event->accept();
-                    return true;
-                }
+            if (event->type() == QEvent::ShortcutOverride &&
+                static_cast<QKeyEvent *>(event)->key() == Qt::Key_Space) {
+                event->accept();
+                return true;
             }
             return QPushButton::event(event);
         }
@@ -34,179 +26,169 @@ namespace {
 
     class SpaceKeyWidget final : public QWidget {
     public:
-        int spacePressCount = 0;
+        int presses = 0;
 
     protected:
         void keyPressEvent(QKeyEvent *event) override {
             if (event->key() == Qt::Key_Space)
-                ++spacePressCount;
+                ++presses;
             QWidget::keyPressEvent(event);
         }
     };
+}
 
-    void expect(const bool condition, const char *message) {
-        if (condition)
-            return;
-        QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        ++failures;
+class EditorShortcutsTests final : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void editingFocusProtectsTextInput() {
+        QWidget owner;
+        auto *layout = new QVBoxLayout(&owner);
+        auto *canvas = new QWidget;
+        canvas->setFocusPolicy(Qt::StrongFocus);
+        auto *lineEdit = new QLineEdit;
+        layout->addWidget(canvas);
+        layout->addWidget(lineEdit);
+        int activations = 0;
+        auto *shortcut =
+            EditorShortcutUtils::add(&owner, QKeySequence::Delete, &owner, [&] { ++activations; });
+        owner.show();
+        owner.activateWindow();
+        canvas->setFocus();
+        QTRY_VERIFY(shortcut->isEnabled());
+        QTest::keyClick(canvas, Qt::Key_Delete);
+        QTRY_COMPARE(activations, 1);
+        lineEdit->setText(QStringLiteral("ab"));
+        lineEdit->setCursorPosition(0);
+        lineEdit->setFocus();
+        QTRY_VERIFY(!shortcut->isEnabled());
+        QTest::keyClick(lineEdit, Qt::Key_Delete);
+        QCOMPARE(lineEdit->text(), QStringLiteral("b"));
+        QCOMPARE(activations, 1);
+        QTextEdit richText;
+        QPlainTextEdit plainText;
+        QSpinBox number;
+        QVERIFY(EditorShortcutUtils::isTextInput(&richText));
+        QVERIFY(EditorShortcutUtils::isTextInput(&plainText));
+        QVERIFY(EditorShortcutUtils::isTextInput(&number));
     }
 
-} // namespace
+    void applicationShortcutOverridesTools_data() {
+        QTest::addColumn<bool>("detached");
+        QTest::newRow("owner") << false;
+        QTest::newRow("detached-panel") << true;
+    }
 
-int main(int argc, char *argv[]) {
-    QApplication application(argc, argv);
+    void applicationShortcutOverridesTools() {
+        QFETCH(bool, detached);
+        QWidget owner;
+        QWidget panel;
+        auto *window = detached ? &panel : &owner;
+        auto *layout = new QVBoxLayout(window);
+        auto *button = new SpaceOverrideButton;
+        layout->addWidget(button);
+        int activations = 0;
+        int clicks = 0;
+        EditorShortcutUtils::addApplication(
+            &owner, QKeySequence(Qt::Key_Space),
+            [&](const QWidget *candidate) { return candidate == &owner || candidate == &panel; },
+            &owner, [&] { ++activations; });
+        connect(button, &QPushButton::clicked, &owner, [&] { ++clicks; });
+        window->show();
+        window->activateWindow();
+        button->setFocus();
+        QTRY_VERIFY(button->hasFocus());
+        QTest::keyClick(button, Qt::Key_Space);
+        QTRY_COMPARE(activations, 1);
+        QCOMPARE(clicks, 0);
+    }
 
-    QWidget owner;
-    auto *layout = new QVBoxLayout(&owner);
-    auto *canvas = new QWidget(&owner);
-    auto *lineEdit = new QLineEdit(&owner);
-    auto *dockedToolButton = new SpaceOverrideButton;
-    layout->addWidget(canvas);
-    layout->addWidget(lineEdit);
-    layout->addWidget(dockedToolButton);
-    owner.show();
+    void applicationShortcutPreservesTextInput() {
+        QWidget owner;
+        auto *layout = new QVBoxLayout(&owner);
+        auto *edit = new QLineEdit;
+        layout->addWidget(edit);
+        int activations = 0;
+        EditorShortcutUtils::addApplication(
+            &owner, QKeySequence(Qt::Key_Space),
+            [&](const QWidget *window) { return window == &owner; }, &owner,
+            [&] { ++activations; });
+        owner.show();
+        owner.activateWindow();
+        edit->setFocus();
+        QTRY_VERIFY(edit->hasFocus());
+        QTest::keyClick(edit, Qt::Key_Space);
+        QCOMPARE(edit->text(), QStringLiteral(" "));
+        QCOMPARE(activations, 0);
+    }
 
-    int activationCount = 0;
-    auto *shortcut = EditorShortcutUtils::add(&owner, QKeySequence::Delete, &owner,
-                                              [&activationCount] { ++activationCount; });
+    void applicationShortcutPreservesOtherWindows_data() {
+        QTest::addColumn<int>("kind");
+        QTest::newRow("unrelated") << 0;
+        QTest::newRow("dialog") << 1;
+        QTest::newRow("popup") << 2;
+    }
 
-    canvas->setFocus();
-    application.processEvents();
-    expect(shortcut->isEnabled(), "editor shortcut must be enabled for canvas focus");
+    void applicationShortcutPreservesOtherWindows() {
+        QFETCH(int, kind);
+        QWidget owner;
+        QWidget unrelated;
+        QDialog dialog(&owner);
+        QWidget popup(nullptr, Qt::Popup);
+        QWidget *window = kind == 0 ? &unrelated : kind == 1 ? &dialog : &popup;
+        auto *layout = new QVBoxLayout(window);
+        auto *control = new SpaceKeyWidget;
+        control->setFocusPolicy(Qt::StrongFocus);
+        layout->addWidget(control);
+        int activations = 0;
+        EditorShortcutUtils::addApplication(
+            &owner, QKeySequence(Qt::Key_Space),
+            [&](const QWidget *candidate) { return candidate == &owner; }, &owner,
+            [&] { ++activations; });
+        owner.show();
+        window->show();
+        window->activateWindow();
+        control->setFocus();
+        QTRY_VERIFY(control->hasFocus());
+        QTest::keyClick(control, Qt::Key_Space);
+        QCOMPARE(activations, 0);
+        QCOMPARE(control->presses, 1);
+    }
 
-    lineEdit->setFocus();
-    application.processEvents();
-    expect(!shortcut->isEnabled(), "editor shortcut must not intercept QLineEdit input");
-    expect(EditorShortcutUtils::isTextInput(new QTextEdit(&owner)),
-           "QTextEdit must be recognized as text input");
-    expect(EditorShortcutUtils::isTextInput(new QPlainTextEdit(&owner)),
-           "QPlainTextEdit must be recognized as text input");
-    expect(EditorShortcutUtils::isTextInput(new QSpinBox(&owner)),
-           "QAbstractSpinBox subclasses must be recognized as text input");
-    expect(activationCount == 0, "focus changes must not activate editor commands");
+    void disablingShortcutRestoresButtonInput() {
+        QWidget owner;
+        auto *layout = new QVBoxLayout(&owner);
+        auto *button = new SpaceOverrideButton;
+        layout->addWidget(button);
+        int activations = 0;
+        int clicks = 0;
+        auto *shortcut = EditorShortcutUtils::addApplication(
+            &owner, QKeySequence(Qt::Key_Space),
+            [&](const QWidget *window) { return window == &owner; }, &owner,
+            [&] { ++activations; });
+        connect(button, &QPushButton::clicked, &owner, [&] { ++clicks; });
+        shortcut->setEnabled(false);
+        owner.show();
+        owner.activateWindow();
+        button->setFocus();
+        QTRY_VERIFY(button->hasFocus());
+        QTest::keyClick(button, Qt::Key_Space);
+        QTRY_COMPARE(clicks, 1);
+        QCOMPARE(activations, 0);
+    }
 
-    QWidget detachedWindow;
-    auto *detachedLayout = new QVBoxLayout(&detachedWindow);
-    auto *toolButton = new SpaceOverrideButton;
-    auto *detachedLineEdit = new QLineEdit;
-    detachedLayout->addWidget(toolButton);
-    detachedLayout->addWidget(detachedLineEdit);
-    detachedWindow.show();
+    void leavingMenuClearsPastePreview() {
+        QMenu menu;
+        auto *paste = menu.addAction(QStringLiteral("Paste"));
+        menu.addAction(QStringLiteral("Other"));
+        int cleared = 0;
+        new EditorMenuPreviewGuard(&menu, paste, [&] { ++cleared; });
+        QEvent leave(QEvent::Leave);
+        QApplication::sendEvent(&menu, &leave);
+        QCOMPARE(cleared, 1);
+    }
+};
 
-    int applicationActivationCount = 0;
-    int toolClickCount = 0;
-    auto *applicationShortcut = EditorShortcutUtils::addApplication(
-        &owner, QKeySequence(Qt::Key_Space),
-        [&owner, &detachedWindow](const QWidget *window) {
-            return window == &owner || window == &detachedWindow;
-        },
-        &owner, [&applicationActivationCount] { ++applicationActivationCount; });
-    QObject::connect(dockedToolButton, &QPushButton::clicked, &owner,
-                     [&toolClickCount] { ++toolClickCount; });
-    QObject::connect(toolButton, &QPushButton::clicked, &owner,
-                     [&toolClickCount] { ++toolClickCount; });
-
-    owner.activateWindow();
-    dockedToolButton->setFocus();
-    application.processEvents();
-    QTest::keyClick(dockedToolButton, Qt::Key_Space);
-    application.processEvents();
-    expect(applicationActivationCount == 1,
-           "application shortcut must override focused tools in its owner window");
-    expect(toolClickCount == 0, "space playback shortcut must not click a docked tool");
-
-    detachedWindow.activateWindow();
-    toolButton->setFocus();
-    application.processEvents();
-    QTest::keyClick(toolButton, Qt::Key_Space);
-    application.processEvents();
-    expect(applicationActivationCount == 2,
-           "application shortcut must override focused tools in a detached window");
-    expect(toolClickCount == 0, "space playback shortcut must not click a detached tool");
-
-    detachedLineEdit->setFocus();
-    application.processEvents();
-    QTest::keyClick(detachedLineEdit, Qt::Key_Space);
-    application.processEvents();
-    expect(detachedLineEdit->text() == QStringLiteral(" "),
-           "application shortcut must preserve space in text input");
-    expect(applicationActivationCount == 2,
-           "application shortcut must stay disabled while editing text");
-
-    QWidget unrelatedWindow;
-    auto *unrelatedLayout = new QVBoxLayout(&unrelatedWindow);
-    auto *unrelatedControl = new SpaceKeyWidget;
-    unrelatedControl->setFocusPolicy(Qt::StrongFocus);
-    unrelatedLayout->addWidget(unrelatedControl);
-    unrelatedWindow.show();
-    unrelatedWindow.activateWindow();
-    unrelatedControl->setFocus();
-    application.processEvents();
-    QTest::keyClick(unrelatedControl, Qt::Key_Space);
-    application.processEvents();
-    expect(applicationActivationCount == 2,
-           "application shortcut must preserve unrelated window key handling");
-    expect(unrelatedControl->spacePressCount == 1,
-           "unrelated window controls must receive their own space key press");
-    unrelatedWindow.close();
-    application.processEvents();
-
-    applicationShortcut->setEnabled(false);
-    owner.activateWindow();
-    dockedToolButton->setFocus();
-    application.processEvents();
-    QTest::keyClick(dockedToolButton, Qt::Key_Space);
-    application.processEvents();
-    expect(applicationActivationCount == 2,
-           "disabled application shortcut must preserve embedded panel input");
-    expect(toolClickCount == 1,
-           "disabled application shortcut must allow embedded panel controls to handle space");
-    applicationShortcut->setEnabled(true);
-
-    QDialog dialog(&owner);
-    auto *dialogLayout = new QVBoxLayout(&dialog);
-    auto *dialogControl = new SpaceKeyWidget;
-    dialogControl->setFocusPolicy(Qt::StrongFocus);
-    dialogLayout->addWidget(dialogControl);
-    dialog.show();
-    dialog.activateWindow();
-    dialogControl->setFocus();
-    application.processEvents();
-    QTest::keyClick(dialogControl, Qt::Key_Space);
-    application.processEvents();
-    expect(applicationActivationCount == 2,
-           "application shortcut must preserve dialog key handling");
-    expect(dialogControl->spacePressCount == 1,
-           "dialog controls must receive their own space key press");
-    dialog.close();
-    application.processEvents();
-
-    QWidget popup(nullptr, Qt::Popup);
-    auto *popupLayout = new QVBoxLayout(&popup);
-    auto *popupControl = new SpaceKeyWidget;
-    popupControl->setFocusPolicy(Qt::StrongFocus);
-    popupLayout->addWidget(popupControl);
-    popup.show();
-    popup.activateWindow();
-    popupControl->setFocus();
-    application.processEvents();
-    QTest::keyClick(popupControl, Qt::Key_Space);
-    application.processEvents();
-    expect(applicationActivationCount == 2,
-           "application shortcut must preserve popup key handling");
-    expect(popupControl->spacePressCount == 1,
-           "popup controls must receive their own space key press");
-    popup.close();
-    application.processEvents();
-
-    QMenu menu;
-    auto *pasteAction = menu.addAction(QStringLiteral("Paste"));
-    menu.addAction(QStringLiteral("Other"));
-    int previewClearCount = 0;
-    new EditorMenuPreviewGuard(&menu, pasteAction, [&previewClearCount] { ++previewClearCount; });
-    QEvent leaveEvent(QEvent::Leave);
-    QApplication::sendEvent(&menu, &leaveEvent);
-    expect(previewClearCount == 1, "leaving a menu must clear its paste preview");
-
-    return failures == 0 ? 0 : 1;
-}
+QTEST_MAIN(EditorShortcutsTests)
+#include "main.moc"

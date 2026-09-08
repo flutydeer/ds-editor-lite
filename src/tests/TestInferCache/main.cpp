@@ -2,6 +2,7 @@
 
 #include <QByteArray>
 #include <QCoreApplication>
+#include <QtTest/QTest>
 #include <QFile>
 #include <QTextStream>
 #include <QTemporaryDir>
@@ -67,7 +68,8 @@ namespace {
 
         QTemporaryDir dir;
         ok &= expect(dir.isValid(), "temporary dir is valid");
-        const char *fileName = "infer-variance-output-dddddddddddddddddddddddddddddddddddddddd.json";
+        const char *fileName =
+            "infer-variance-output-dddddddddddddddddddddddddddddddddddddddd.json";
         QFile f(dir.filePath(fileName));
         ok &= expect(f.open(QIODevice::WriteOnly), "cache file created");
         f.write(QByteArray(120, 'x'));
@@ -93,10 +95,19 @@ namespace {
     }
 } // namespace
 
-int main(int argc, char *argv[]) {
-    QCoreApplication app(argc, argv);
-    bool ok = true;
-    ok &= testScanAndClean();
-    ok &= testClearRegisteredFiles();
-    return ok ? 0 : 1;
-}
+class InferCacheTests final : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void scanAndClean() {
+        QVERIFY(testScanAndClean());
+    }
+
+    void clearRegisteredFiles() {
+        QVERIFY(testClearRegisteredFiles());
+    }
+};
+
+QTEST_GUILESS_MAIN(InferCacheTests)
+#include "main.moc"

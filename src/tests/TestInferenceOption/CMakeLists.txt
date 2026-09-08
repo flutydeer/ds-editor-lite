@@ -17,7 +17,7 @@ function(add_inference_option_test target)
         Qt${QT_VERSION_MAJOR}::Core
     )
 
-    add_test(NAME ${target} COMMAND ${target})
+    lite_register_test(${target} CATEGORY unit)
 endfunction()
 
 add_inference_option_test(TestInferenceOptionDml)

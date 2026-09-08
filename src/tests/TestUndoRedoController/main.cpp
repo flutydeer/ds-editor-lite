@@ -1,3 +1,5 @@
+#include <QtTest/QTest>
+#include <memory>
 #include "Controller/EditorViewController.h"
 #include "Controller/UndoRedoController.h"
 #include "AppContext.h"
@@ -42,13 +44,12 @@ Automation::CoreRuntime *AppContext::instance<Automation::CoreRuntime>() {
 
 namespace {
 
-    int g_failures = 0;
 
     bool expect(const bool condition, const char *message) {
         if (condition)
             return true;
         QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        ++g_failures;
+        QTest::qFail(message, __FILE__, __LINE__);
         return false;
     }
 
@@ -336,31 +337,62 @@ namespace {
 
 } // namespace
 
-int main(int argc, char *argv[]) {
-    QCoreApplication application(argc, argv);
-    FakeEditorView view;
-    g_editorHost = &view;
-    AutomationTestSupport::TestRuntime testRuntime(
-        AutomationTestSupport::editorServices(&g_editorHost));
-    g_runtime = &testRuntime.runtime();
-    editorViewController->setView(&view);
+class UndoRedoControllerTests final : public QObject {
+    Q_OBJECT
 
-    testVisibleExecutesImmediately(view);
-    testScrollRequiredExecutesOnSecondRequest(view);
-    testRedoUsesTwoPhases(view);
-    testContextSwitchExecutesOnSecondRequest(view);
-    testDirectionChangeClearsPending(view);
-    testHistoryChangeInvalidatesPending(view);
-    testFallbacksAndEditGuard(view);
+private slots:
 
-    editorViewController->setView(nullptr);
-    g_editorHost = nullptr;
-    g_runtime = nullptr;
-    historyManager->reset();
-    if (g_failures == 0) {
-        QTextStream(stdout) << "All UndoRedoController tests passed" << Qt::endl;
-        return 0;
+    void init() {
+        view = std::make_unique<FakeEditorView>();
+        g_editorHost = view.get();
+        runtime = std::make_unique<AutomationTestSupport::TestRuntime>(
+            AutomationTestSupport::editorServices(&g_editorHost));
+        g_runtime = &runtime->runtime();
+        editorViewController->setView(view.get());
     }
-    QTextStream(stderr) << g_failures << " test(s) failed" << Qt::endl;
-    return 1;
-}
+
+    void cleanup() {
+        editorViewController->setView(nullptr);
+        g_editorHost = nullptr;
+        g_runtime = nullptr;
+        runtime.reset();
+        view.reset();
+        historyManager->reset();
+    }
+
+    void visibleExecutesImmediately() {
+        testVisibleExecutesImmediately(*view);
+    }
+
+    void scrollRequiredExecutesOnSecondRequest() {
+        testScrollRequiredExecutesOnSecondRequest(*view);
+    }
+
+    void redoUsesTwoPhases() {
+        testRedoUsesTwoPhases(*view);
+    }
+
+    void contextSwitchExecutesOnSecondRequest() {
+        testContextSwitchExecutesOnSecondRequest(*view);
+    }
+
+    void directionChangeClearsPending() {
+        testDirectionChangeClearsPending(*view);
+    }
+
+    void historyChangeInvalidatesPending() {
+        testHistoryChangeInvalidatesPending(*view);
+    }
+
+    void fallbacksAndEditGuard() {
+        testFallbacksAndEditGuard(*view);
+    }
+
+
+private:
+    std::unique_ptr<FakeEditorView> view;
+    std::unique_ptr<AutomationTestSupport::TestRuntime> runtime;
+};
+
+QTEST_GUILESS_MAIN(UndoRedoControllerTests)
+#include "main.moc"

@@ -1,114 +1,70 @@
 #include <lite/Support/LocalizedTextUtils.h>
 
-#include <QMap>
-#include <QString>
-#include <QStringList>
-#include <QDebug>
+#include <QtTest/QTest>
 
-namespace {
-    int g_failures = 0;
+using LocalizedNames = QMap<QString, QString>;
 
-    void expect(bool ok, const char *what) {
-        if (!ok) {
-            ++g_failures;
-            qWarning() << "FAIL:" << what;
-        } else {
-            qInfo() << "ok:" << what;
-        }
+class LocalizedTextTests final : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void lookup_data() {
+        QTest::addColumn<LocalizedNames>("names");
+        QTest::addColumn<QStringList>("candidates");
+        QTest::addColumn<QString>("expected");
+        const LocalizedNames names{
+            {QStringLiteral("ja"),      QStringLiteral("Japanese")   },
+            {QStringLiteral("zh-Hans"), QStringLiteral("Simplified") },
+            {QStringLiteral("zh-Hant"), QStringLiteral("Traditional")}
+        };
+        QTest::newRow("script-candidate-chain")
+            << names << QStringList{"zh-Hans-CN", "zh-CN", "zh-Hans", "zh"}
+            << QStringLiteral("Simplified");
+        QTest::newRow("single-script-candidate")
+            << names << QStringList{"zh-Hans-CN"} << QStringLiteral("Simplified");
+        QTest::newRow("default-for-unsupported-language")
+            << names << QStringList{"en-US", "en"} << QStringLiteral("Default");
+        QTest::newRow("region-falls-back-to-language")
+            << names << QStringList{"ja-JP", "ja"} << QStringLiteral("Japanese");
+        QTest::newRow("region-does-not-imply-script")
+            << LocalizedNames{{"zh-Hant", "Traditional"}} << QStringList{"zh-TW"}
+            << QStringLiteral("Default");
+        QTest::newRow("script-does-not-imply-region")
+            << LocalizedNames{{"zh-TW", "Taiwan"}} << QStringList{"zh-Hant"}
+            << QStringLiteral("Default");
+        QTest::newRow("case-insensitive")
+            << LocalizedNames{{"Zh-Cn", "Chinese"}} << QStringList{"zh-cn"}
+            << QStringLiteral("Chinese");
+        QTest::newRow("legacy-posix-tag")
+            << LocalizedNames{{"zh_CN", "Chinese"}} << QStringList{"zh-CN"}
+            << QStringLiteral("Chinese");
+        QTest::newRow("legacy-posix-candidate-chain")
+            << LocalizedNames{{"zh_CN", "Chinese"}}
+            << QStringList{"zh-Hans-CN", "zh-CN", "zh-Hans", "zh"}
+            << QStringLiteral("Chinese");
+        QTest::newRow("empty-candidates") << names << QStringList{} << QStringLiteral("Default");
+        QTest::newRow("empty-table")
+            << LocalizedNames{} << QStringList{"zh"} << QStringLiteral("Default");
     }
 
-    void expectText(const QMap<QString, QString> &localized, const QString &defaultText,
-                    const QStringList &candidates, const QString &expected, const char *what) {
-        const auto actual = lite::Support::lookupLocalizedText(localized, defaultText, candidates);
-        expect(actual == expected, what);
-        if (actual != expected)
-            qWarning() << "   expected" << expected << "got" << actual;
+    void lookup() {
+        QFETCH(LocalizedNames, names);
+        QFETCH(QStringList, candidates);
+        QFETCH(QString, expected);
+        QCOMPARE(lite::Support::lookupLocalizedText(names, QStringLiteral("Default"), candidates),
+                 expected);
     }
 
-    void expectTextSingle(const QMap<QString, QString> &localized, const QString &defaultText,
-                          const QString &lazyTag, const QString &expected, const char *what) {
-        const auto actual = lite::Support::lookupLocalizedText(localized, defaultText, lazyTag);
-        expect(actual == expected, what);
-        if (actual != expected)
-            qWarning() << "   expected" << expected << "got" << actual;
+    void singleTagOverload() {
+        const LocalizedNames names{
+            {QStringLiteral("zh_CN"), QStringLiteral("绮萱")}
+        };
+        QCOMPARE(lite::Support::lookupLocalizedText(names, QStringLiteral("Qixuan"),
+                                                    QStringLiteral("zh_CN")),
+                 QStringLiteral("绮萱"));
     }
-}
+};
 
-int main(int argc, char **argv) {
-    (void) argc;
-    (void) argv;
-
-    // junninghua-style data (valid BCP 47 keys).
-    const QMap<QString, QString> sungNames{
-        {QStringLiteral("ja"),      QStringLiteral("ろこ音凝華")},
-        {QStringLiteral("zh-Hans"), QStringLiteral("君凝华")                  },
-        {QStringLiteral("zh-Hant"), QStringLiteral("君凝華")                  }
-    };
-    const QString defaultName(QStringLiteral("Jun Ninghua"));
-
-    // Full Qt-style candidate chain must reach zh-Hans.
-    expectText(sungNames, defaultName,
-               {QStringLiteral("zh-Hans-CN"), QStringLiteral("zh-CN"), QStringLiteral("zh-Hans"),
-                QStringLiteral("zh")},
-               QStringLiteral("君凝华"), "zh-Hans-CN candidate hits zh-Hans key");
-    // The first candidate alone (most complete uiLanguages entry) also works.
-    expectText(sungNames, defaultName, {QStringLiteral("zh-Hans-CN")},
-               QStringLiteral("君凝华"), "single zh-Hans-CN candidate hits zh-Hans");
-    // English UI falls back to default.
-    expectText(sungNames, defaultName,
-               {QStringLiteral("en-US"), QStringLiteral("en-International"), QStringLiteral("en")},
-               defaultName, "English UI falls back to default text");
-    // Japanese candidate hits the ja key.
-    expectText(sungNames, defaultName, {QStringLiteral("ja-JP"), QStringLiteral("ja")},
-               QStringLiteral("ろこ音凝華"), "ja-JP hits ja key");
-    // Script subtags do not cross-match via region truncation (zh-Hant request
-    // must not hit a zh-TW key, and vice versa).
-    const QMap<QString, QString> hantOnly{
-        {QStringLiteral("zh-Hant"), QStringLiteral("華-name")}
-    };
-    expectText(hantOnly, QStringLiteral("def"), {QStringLiteral("zh-TW")}, QStringLiteral("def"),
-               "zh-TW request does not hit zh-Hant key");
-    const QMap<QString, QString> twOnly{
-        {QStringLiteral("zh-TW"), QStringLiteral("tw-name")}
-    };
-    expectText(twOnly, QStringLiteral("def"), {QStringLiteral("zh-Hant")}, QStringLiteral("def"),
-               "zh-Hant request does not hit zh-TW key");
-
-    // Case-insensitive matching (ICU normalization).
-    const QMap<QString, QString> mixed{
-        {QStringLiteral("EN"),    QStringLiteral("EN-name")},
-        {QStringLiteral("Zh-Cn"), QStringLiteral("cn-name")}
-    };
-    expectText(mixed, QString(), {QStringLiteral("zh-cn")}, QStringLiteral("cn-name"),
-               "case-insensitive tag match");
-
-    // POSIX-style keys match after normalization and keep their original
-    // spelling for the exact map fetch (ds-spec 2.4: keys are opaque, the
-    // frontend owns matching; legacy packages resume showing translations).
-    const QMap<QString, QString> posix{
-        {QStringLiteral("zh_CN"), QStringLiteral("绮萱")}
-    };
-    expectText(posix, QStringLiteral("Qixuan"), {QStringLiteral("zh-CN")}, QStringLiteral("绮萱"),
-               "POSIX key zh_CN hits zh-CN request");
-    expectText(posix, QStringLiteral("Qixuan"),
-               {QStringLiteral("zh-Hans-CN"), QStringLiteral("zh-CN"), QStringLiteral("zh-Hans"),
-                QStringLiteral("zh")},
-               QStringLiteral("绮萱"), "candidate chain hits POSIX key");
-
-    // Empty candidates / empty table.
-    expectText(sungNames, defaultName, {}, defaultName, "empty candidates -> default");
-    expectText({}, defaultName, {QStringLiteral("zh")}, defaultName, "empty table -> default");
-
-    // Single-tag overload agrees with the list overload.
-    expectTextSingle(sungNames, defaultName, QStringLiteral("zh-Hant"),
-                     QStringLiteral("君凝華"), "single-tag overload zh-Hant");
-    expectTextSingle(posix, QStringLiteral("Qixuan"), QStringLiteral("zh_CN"),
-                     QStringLiteral("绮萱"), "single-tag overload hits POSIX key");
-
-    if (g_failures == 0) {
-        qInfo() << "TestLocalizedText: ALL PASSED";
-        return 0;
-    }
-    qInfo() << "TestLocalizedText:" << g_failures << "FAILURE(S)";
-    return 1;
-}
+QTEST_APPLESS_MAIN(LocalizedTextTests)
+#include "main.moc"

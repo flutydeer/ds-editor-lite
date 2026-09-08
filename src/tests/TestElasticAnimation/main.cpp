@@ -1,26 +1,44 @@
-#include "AnimationView.h"
+#include <lite/GUI/Animation/ElasticAnimator.h>
 
-#include <QApplication>
-#include <QStyleFactory>
-#include <QMainWindow>
+#include <QtTest/QTest>
+#include <QSignalSpy>
 
-int main(int argc, char *argv[]) {
-    QApplication a(argc, argv);
+class ElasticAnimationTests final : public QObject {
+    Q_OBJECT
 
-    auto style = QStyleFactory::create("fusion");
-    QApplication::setStyle(style);
+private slots:
 
-    auto f = QFont();
-    f.setHintingPreference(QFont::PreferNoHinting);
-    f.setPointSize(11);
-    QApplication::setFont(f);
+    void reachesTarget_data() {
+        QTest::addColumn<QPointF>("target");
+        QTest::newRow("positive") << QPointF(100, 50);
+        QTest::newRow("negative") << QPointF(-80, -20);
+    }
 
-    auto mainWidget = new AnimationView;
+    void reachesTarget() {
+        QFETCH(QPointF, target);
+        ElasticAnimator animator;
+        animator.setSmoothness(0.1);
+        animator.setResponsiveness(0.2);
+        QSignalSpy updates(&animator, &ElasticAnimator::positionUpdated);
+        animator.setTarget(target);
+        QTRY_COMPARE_WITH_TIMEOUT(animator.position(), target, 5000);
+        QCOMPARE(animator.velocity(), QPointF());
+        QVERIFY(!updates.isEmpty());
+        QCOMPARE(updates.last().at(0).toPointF(), target);
+    }
 
-    QMainWindow w;
-    w.setCentralWidget(mainWidget);
-    w.resize(1280, 720);
-    w.show();
+    void replacingTargetChangesDestination() {
+        ElasticAnimator animator;
+        animator.setSmoothness(0.1);
+        animator.setResponsiveness(0.2);
+        animator.setTarget(QPointF(100, 50));
+        QTRY_VERIFY(animator.position() != QPointF());
+        const QPointF replacement(-20, 60);
+        animator.setTarget(replacement);
+        QTRY_COMPARE_WITH_TIMEOUT(animator.position(), replacement, 5000);
+        QCOMPARE(animator.velocity(), QPointF());
+    }
+};
 
-    return QApplication::exec();
-}
+QTEST_GUILESS_MAIN(ElasticAnimationTests)
+#include "main.moc"

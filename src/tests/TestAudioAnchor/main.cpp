@@ -2,6 +2,7 @@
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 
 #include <QCoreApplication>
+#include <QtTest/QTest>
 
 #include <cmath>
 #include <cstdio>
@@ -104,18 +105,12 @@ namespace {
     bool testRoundTripIdentity() {
         bool ok = true;
         const Timeline maps[] = {
-            Timeline({
-                {0, 120.0}
-            }),
-            Timeline({
-                {0,    120.0},
-                {4800, 60.0 }
-            }),
-            Timeline({
-                {0,    90.0 },
-                {1920, 180.0},
-                {7680, 33.34}
-            }),
+            Timeline({{0, 120.0}}
+            ),
+            Timeline({{0, 120.0}, {4800, 60.0}}
+            ),
+            Timeline({{0, 90.0}, {1920, 180.0}, {7680, 33.34}}
+            ),
         };
         for (const auto &timeline : maps) {
             for (const int p : {0, 1920, 4799, 4800, 4801, 9000}) {
@@ -171,6 +166,7 @@ namespace {
             {0,    120.0},
             {4800, 60.0 }
         });
+
         // Visible start inside the 60 BPM segment, trim and window crossing values
         const struct {
             int p;
@@ -183,6 +179,7 @@ namespace {
             {4000, 0.0,    2000.0}, // window crosses the tempo point
             {0,    0.0,    1000.0},
         };
+
         for (const auto &c : cases) {
             const auto clip = new AudioClip;
             clip->setStart(c.p);
@@ -205,8 +202,7 @@ namespace {
             ok &= expect(triplet.start + triplet.clipStart == c.p,
                          "start' + clipStart' equals the visible start tick");
             // len = convertTime(P + clipLen') - convertTime(P) must equal playLength
-            const double lenMs =
-                timeline.tickToMs(c.p + triplet.clipLen) - timeline.tickToMs(c.p);
+            const double lenMs = timeline.tickToMs(c.p + triplet.clipLen) - timeline.tickToMs(c.p);
             const double halfTickEndMs = 0.5 * (timeline.tickToMs(c.p + triplet.clipLen + 1) -
                                                 timeline.tickToMs(c.p + triplet.clipLen));
             ok &= expectNear(lenMs, c.playMs, "converted clip length equals the play length",
@@ -305,6 +301,7 @@ namespace {
             {4800, 60.0 },
             {9600, 150.0},
         });
+
         const struct {
             double trimMs;
             double playMs;
@@ -316,6 +313,7 @@ namespace {
             {5000.0, 2500.0, 9000.0, 9600 }, // trim spans two segments, start on a point
             {250.0,  3000.0, 3250.0, 12000}, // window ends exactly at the material end
         };
+
         for (const auto &c : cases) {
             const auto caches = AudioClip::deriveTickCaches(c.trimMs, c.playMs, c.materialMs,
                                                             c.visibleStart, timeline);
@@ -349,20 +347,39 @@ namespace {
     }
 }
 
-int main(int argc, char *argv[]) {
-    QCoreApplication app(argc, argv);
+class AudioAnchorTests final : public QObject {
+    Q_OBJECT
 
-    bool ok = true;
-    ok &= testDegenerateEquivalence();
-    ok &= testRoundTripIdentity();
-    ok &= testRealTempoChange();
-    ok &= testCompensationProperty();
-    ok &= testPropertiesRoundTrip();
-    ok &= testMovePreservesTruth();
-    ok &= testDragPreviewMatchesCommit();
+private slots:
 
-    if (!ok)
-        return 1;
-    std::printf("TestAudioAnchor passed\n");
-    return 0;
-}
+    void degenerateEquivalence() {
+        QVERIFY(testDegenerateEquivalence());
+    }
+
+    void roundTripIdentity() {
+        QVERIFY(testRoundTripIdentity());
+    }
+
+    void realTempoChange() {
+        QVERIFY(testRealTempoChange());
+    }
+
+    void compensationProperty() {
+        QVERIFY(testCompensationProperty());
+    }
+
+    void propertiesRoundTrip() {
+        QVERIFY(testPropertiesRoundTrip());
+    }
+
+    void movePreservesTruth() {
+        QVERIFY(testMovePreservesTruth());
+    }
+
+    void dragPreviewMatchesCommit() {
+        QVERIFY(testDragPreviewMatchesCommit());
+    }
+};
+
+QTEST_GUILESS_MAIN(AudioAnchorTests)
+#include "main.moc"

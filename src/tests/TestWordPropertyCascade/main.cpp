@@ -4,16 +4,17 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <QCoreApplication>
+#include <QtTest/QTest>
 #include <QTextStream>
 
 namespace {
-    int failures = 0;
+
 
     void expect(const bool condition, const char *message) {
         if (condition)
             return;
         QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        ++failures;
+        QTest::qFail(message, __FILE__, __LINE__);
     }
 
     PhonemeName phone(const char *name, const bool onset = false) {
@@ -146,11 +147,9 @@ namespace {
 
     void testEqualFillLyricReplacementsArePreserved() {
         const auto oldPhonemes = phonemes("l", "a", "k", "a");
-        auto *revisedNote =
-            makeNote(QStringLiteral("la"), QStringLiteral("custom"), oldPhonemes);
+        auto *revisedNote = makeNote(QStringLiteral("la"), QStringLiteral("custom"), oldPhonemes);
         revisedNote->setPronCandidates({QStringLiteral("shared")});
-        auto *unrevisedNote =
-            makeNote(QStringLiteral("la"), QStringLiteral("custom"), oldPhonemes);
+        auto *unrevisedNote = makeNote(QStringLiteral("la"), QStringLiteral("custom"), oldPhonemes);
         unrevisedNote->setLocalStart(480);
         unrevisedNote->setPronCandidates({QStringLiteral("shared")});
         SingingClip clip({revisedNote, unrevisedNote});
@@ -160,7 +159,10 @@ namespace {
         auto unrevised = Note::WordProperties::fromNote(*unrevisedNote);
         unrevised.lyric = QStringLiteral("mi");
         EditNoteWordPropertiesAction action(
-            {revisedNote, unrevisedNote}, {revised, unrevised}, &clip,
+            {
+                revisedNote, unrevisedNote
+        },
+            {revised, unrevised}, &clip,
             {{.replacePronunciation = true, .replacePronCandidates = true},
              {.replacePronCandidates = true}});
         action.execute();
@@ -171,20 +173,36 @@ namespace {
         expect(unrevisedNote->pronunciation().edited.isEmpty() &&
                    unrevisedNote->pronCandidates() == unrevised.pronCandidates,
                "fill lyric must reset an unrevised pronunciation for each changed note");
-        expect(phonemesEmpty(revisedNote->phonemes()) &&
-                   phonemesEmpty(unrevisedNote->phonemes()),
+        expect(phonemesEmpty(revisedNote->phonemes()) && phonemesEmpty(unrevisedNote->phonemes()),
                "fill lyric must reset phonemes for every changed lyric");
     }
 }
 
-int main(int argc, char *argv[]) {
-    QCoreApplication application(argc, argv);
-    testLyricChangeResetsPronunciationAndPhonemes();
-    testPronunciationChangeResetsPhonemes();
-    testUnchangedUpperPropertiesPreservePhonemes();
-    testEquivalentPronunciationPreservesPhonemes();
-    testEqualFillLyricReplacementsArePreserved();
-    if (failures == 0)
-        QTextStream(stdout) << "All word property cascade tests passed" << Qt::endl;
-    return failures == 0 ? 0 : 1;
-}
+class WordPropertyCascadeTests final : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void lyricChangeResetsPronunciationAndPhonemes() {
+        testLyricChangeResetsPronunciationAndPhonemes();
+    }
+
+    void pronunciationChangeResetsPhonemes() {
+        testPronunciationChangeResetsPhonemes();
+    }
+
+    void unchangedUpperPropertiesPreservePhonemes() {
+        testUnchangedUpperPropertiesPreservePhonemes();
+    }
+
+    void equivalentPronunciationPreservesPhonemes() {
+        testEquivalentPronunciationPreservesPhonemes();
+    }
+
+    void equalFillLyricReplacementsArePreserved() {
+        testEqualFillLyricReplacementsArePreserved();
+    }
+};
+
+QTEST_GUILESS_MAIN(WordPropertyCascadeTests)
+#include "main.moc"

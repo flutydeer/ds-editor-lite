@@ -10,6 +10,7 @@
 #include "Modules/Inference/Utils/PitchRouting.h"
 
 #include <QCoreApplication>
+#include <QtTest/QTest>
 #include <QTextStream>
 
 #include <cmath>
@@ -275,25 +276,55 @@ bool testConvertInputWordsSpeakerMix() {
     return ok;
 }
 
-int main(int argc, char *argv[]) {
-    QCoreApplication app(argc, argv);
+class InputConversionTests final : public QObject {
+    Q_OBJECT
 
-    bool ok = true;
-    ok &= testEffectiveSpeakerMixForPieceNonEmpty();
-    ok &= testEffectiveSpeakerMixForPieceEmpty();
-    ok &= testConvertInputWordsSpeakerNotFound();
-    ok &= testConvertInputWordsEmptyMapping();
-    ok &= testConvertInputSpeakersNotFound();
-    ok &= testConvertInputSpeakersEmptyMapping();
-    ok &= testConvertInputParamsRetakeSet();
-    ok &= testConvertInputParamsRetakeEmpty();
-    ok &= testVocoderPitchStaysHostOnlyAndAffectsCacheKey();
-    ok &= testConvertInputWordsTonePassthrough();
-    ok &= testConvertInputWordsSpeakerMix();
+private slots:
 
-    if (!ok)
-        return 1;
+    void effectiveSpeakerMixForPieceNonEmpty() {
+        QVERIFY(testEffectiveSpeakerMixForPieceNonEmpty());
+    }
 
-    QTextStream(stdout) << "TestInputConversion passed" << Qt::endl;
-    return 0;
-}
+    void effectiveSpeakerMixForPieceEmpty() {
+        QVERIFY(testEffectiveSpeakerMixForPieceEmpty());
+    }
+
+    void convertInputWordsSpeakerNotFound() {
+        QVERIFY(testConvertInputWordsSpeakerNotFound());
+    }
+
+    void convertInputWordsEmptyMapping() {
+        QVERIFY(testConvertInputWordsEmptyMapping());
+    }
+
+    void convertInputSpeakersNotFound() {
+        QVERIFY(testConvertInputSpeakersNotFound());
+    }
+
+    void convertInputSpeakersEmptyMapping() {
+        QVERIFY(testConvertInputSpeakersEmptyMapping());
+    }
+
+    void convertInputParamsRetakeSet() {
+        QVERIFY(testConvertInputParamsRetakeSet());
+    }
+
+    void convertInputParamsRetakeEmpty() {
+        QVERIFY(testConvertInputParamsRetakeEmpty());
+    }
+
+    void vocoderPitchStaysHostOnlyAndAffectsCacheKey() {
+        QVERIFY(testVocoderPitchStaysHostOnlyAndAffectsCacheKey());
+    }
+
+    void convertInputWordsTonePassthrough() {
+        QVERIFY(testConvertInputWordsTonePassthrough());
+    }
+
+    void convertInputWordsSpeakerMix() {
+        QVERIFY(testConvertInputWordsSpeakerMix());
+    }
+};
+
+QTEST_GUILESS_MAIN(InputConversionTests)
+#include "main.moc"

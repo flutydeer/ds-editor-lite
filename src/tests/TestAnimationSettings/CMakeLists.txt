@@ -18,5 +18,4 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         lite::GUI
 )
 
-add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
-set_tests_properties(${PROJECT_NAME} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=windows")
+lite_register_test(${PROJECT_NAME} CATEGORY gui NATIVE_GUI)

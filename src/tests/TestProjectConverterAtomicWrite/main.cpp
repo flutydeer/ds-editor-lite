@@ -7,6 +7,7 @@
 #include "Modules/Audio/AudioFilePublisher.h"
 
 #include <QCoreApplication>
+#include <QtTest/QTest>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -21,13 +22,13 @@
 #endif
 
 namespace {
-    int failures = 0;
+
 
     void expect(const bool condition, const QString &message) {
         if (condition)
             return;
         QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        ++failures;
+        QTest::qFail(qPrintable(message), __FILE__, __LINE__);
     }
 
     bool writeFile(const QString &path, const QByteArray &data) {
@@ -44,9 +45,8 @@ namespace {
     }
 
     QStringList directoryEntries(const QString &path) {
-        return QDir(path).entryList(QDir::AllEntries | QDir::Hidden | QDir::System |
-                                        QDir::NoDotAndDotDot,
-                                    QDir::Name);
+        return QDir(path).entryList(
+            QDir::AllEntries | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot, QDir::Name);
     }
 
 #ifdef Q_OS_WIN
@@ -157,14 +157,18 @@ namespace {
         QTemporaryDir directory;
         const auto target = directory.filePath(QStringLiteral("audio.wav"));
         const auto temporary = directory.filePath(QStringLiteral("audio.exporting"));
-        const auto fixtureReady =
-            directory.isValid() && writeFile(target, QByteArrayLiteral("original")) &&
-            writeFile(temporary, QByteArrayLiteral("replacement"));
+        const auto fixtureReady = directory.isValid() &&
+                                  writeFile(target, QByteArrayLiteral("original")) &&
+                                  writeFile(temporary, QByteArrayLiteral("replacement"));
         expect(fixtureReady, QStringLiteral("audio publication fixtures must be created"));
         if (!fixtureReady)
             return;
 
-        const auto result = Audio::Internal::publishAudioFiles({{target, temporary}}, true);
+        const auto result = Audio::Internal::publishAudioFiles(
+            {
+                {target, temporary}
+        },
+            true);
         expect(result.succeeded() && readFile(target) == QByteArrayLiteral("replacement") &&
                    !QFileInfo::exists(temporary),
                QStringLiteral("overwrite publication must replace the target atomically"));
@@ -174,14 +178,19 @@ namespace {
         QTemporaryDir directory;
         const auto target = directory.filePath(QStringLiteral("audio.wav"));
         const auto temporary = directory.filePath(QStringLiteral("audio.exporting"));
-        const auto fixtureReady =
-            directory.isValid() && writeFile(target, QByteArrayLiteral("external")) &&
-            writeFile(temporary, QByteArrayLiteral("replacement"));
-        expect(fixtureReady, QStringLiteral("reject-mode audio publication fixtures must be created"));
+        const auto fixtureReady = directory.isValid() &&
+                                  writeFile(target, QByteArrayLiteral("external")) &&
+                                  writeFile(temporary, QByteArrayLiteral("replacement"));
+        expect(fixtureReady,
+               QStringLiteral("reject-mode audio publication fixtures must be created"));
         if (!fixtureReady)
             return;
 
-        const auto result = Audio::Internal::publishAudioFiles({{target, temporary}}, false);
+        const auto result = Audio::Internal::publishAudioFiles(
+            {
+                {target, temporary}
+        },
+            false);
         expect(!result.succeeded() && result.failedTarget == target &&
                    readFile(target) == QByteArrayLiteral("external") &&
                    QFileInfo::exists(temporary),
@@ -189,14 +198,31 @@ namespace {
     }
 }
 
-int main(int argc, char *argv[]) {
-    QCoreApplication application(argc, argv);
-    testDspxAtomicWrite();
-    testDspxTimeSignatureProjectionValidation();
-    testMidiAtomicWrite();
-    testAudioPublicationOverwrite();
-    testAudioPublicationNoClobber();
-    if (failures == 0)
-        QTextStream(stdout) << "Validated atomic DSPX, MIDI, and audio replacement" << Qt::endl;
-    return failures == 0 ? 0 : 1;
-}
+class ProjectConverterAtomicWriteTests final : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void dspxAtomicWrite() {
+        testDspxAtomicWrite();
+    }
+
+    void midiAtomicWrite() {
+        testMidiAtomicWrite();
+    }
+
+    void dspxTimeSignatureProjectionValidation() {
+        testDspxTimeSignatureProjectionValidation();
+    }
+
+    void audioPublicationOverwrite() {
+        testAudioPublicationOverwrite();
+    }
+
+    void audioPublicationNoClobber() {
+        testAudioPublicationNoClobber();
+    }
+};
+
+QTEST_GUILESS_MAIN(ProjectConverterAtomicWriteTests)
+#include "main.moc"

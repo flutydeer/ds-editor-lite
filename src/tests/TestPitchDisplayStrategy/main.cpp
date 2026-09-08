@@ -6,16 +6,17 @@
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
 
 #include <QCoreApplication>
+#include <QtTest/QTest>
 #include <QTextStream>
 
 namespace {
-    int failures = 0;
+
 
     void expect(const bool condition, const char *message) {
         if (condition)
             return;
         QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        ++failures;
+        QTest::qFail(message, __FILE__, __LINE__);
     }
 
     AnchorCurve *makeAnchorCurve(const std::initializer_list<int> ticks) {
@@ -35,7 +36,8 @@ namespace {
                "erase mode must use the draw pitch presentation");
         expect(PitchDisplayStrategy::displayModeForEditMode(TracePitch) == PitchDisplayMode::Draw,
                "trace mode must use the draw pitch presentation");
-        expect(PitchDisplayStrategy::displayModeForEditMode(ModulatePitch) == PitchDisplayMode::Draw,
+        expect(PitchDisplayStrategy::displayModeForEditMode(ModulatePitch) ==
+                   PitchDisplayMode::Draw,
                "modulation mode must use the draw pitch presentation");
         expect(PitchDisplayStrategy::displayModeForEditMode(EditPitchAnchor) ==
                    PitchDisplayMode::Anchor,
@@ -153,13 +155,35 @@ namespace {
     }
 }
 
-int main(int argc, char *argv[]) {
-    QCoreApplication app(argc, argv);
-    testDisplayModeMapping();
-    testPitchEditModeClassification();
-    testDisplayLayers();
-    testAnchorCoverage();
-    testCurveSampling();
-    testMergedCurveCache();
-    return failures == 0 ? 0 : 1;
-}
+class PitchDisplayStrategyTests final : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void displayModeMapping() {
+        testDisplayModeMapping();
+    }
+
+    void pitchEditModeClassification() {
+        testPitchEditModeClassification();
+    }
+
+    void displayLayers() {
+        testDisplayLayers();
+    }
+
+    void anchorCoverage() {
+        testAnchorCoverage();
+    }
+
+    void curveSampling() {
+        testCurveSampling();
+    }
+
+    void mergedCurveCache() {
+        testMergedCurveCache();
+    }
+};
+
+QTEST_GUILESS_MAIN(PitchDisplayStrategyTests)
+#include "main.moc"
