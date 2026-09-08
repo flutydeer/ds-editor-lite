@@ -176,11 +176,13 @@ void ParamEditorGraphicsView::setAnchorPreviewColor(const QColor &color) {
     m_anchorOverlay->setAnchorPreviewColor(color);
 }
 
-bool ParamEditorGraphicsView::touchHitsContent(const QPointF &viewportPosition) const {
+EditorTouchTarget::ContentHit
+    ParamEditorGraphicsView::touchContentAt(const QPointF &viewportPosition) const {
     Q_UNUSED(viewportPosition)
     // Curves are painted, not selectable items, so there is nothing a long
-    // press could grab. Everything routes through the armed tool instead.
-    return false;
+    // press could grab and nothing a finger could select. Everything routes
+    // through the armed tool instead.
+    return ContentHit::None;
 }
 
 EditorTouchTarget::BlankDragAction ParamEditorGraphicsView::touchBlankDragAction() const {

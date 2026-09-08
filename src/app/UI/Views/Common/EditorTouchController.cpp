@@ -234,12 +234,18 @@ void EditorTouchController::onSingleBegin(const EditorTouchGesture::Event &event
 
     // A held press always means "select", never "create": it is the gesture
     // that reaches rubber band / interval selection when the plain drag is
-    // already taken by direct manipulation.
+    // already taken by scrolling.
     // A tap always goes straight to the interaction layer: it must select or
     // deselect, never create content and never scroll.
     auto action = EditorTouchTarget::BlankDragAction::SyntheticMouse;
-    if (!event.tap && !event.fromLongPress && !m_target->touchHitsContent(event.position))
-        action = m_target->touchBlankDragAction();
+    if (!event.tap && !event.fromLongPress) {
+        // Only a plain drag has to pick a side, and it may move content just
+        // when the finger has already selected it. Over anything else the drag
+        // does what it does over blank canvas, so a finger resting on a note it
+        // never selected still scrolls instead of dragging that note away.
+        if (m_target->touchContentAt(event.position) != EditorTouchTarget::ContentHit::Selected)
+            action = m_target->touchBlankDragAction();
+    }
 
     if (action == EditorTouchTarget::BlankDragAction::Pan) {
         m_panStreamActive = true;

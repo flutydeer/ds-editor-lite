@@ -108,7 +108,7 @@ protected:
                                Qt::KeyboardModifiers modifiers) override;
 
     // --- EditorTouchTarget ---
-    [[nodiscard]] bool touchHitsContent(const QPointF &viewportPosition) const override;
+    [[nodiscard]] ContentHit touchContentAt(const QPointF &viewportPosition) const override;
     [[nodiscard]] BlankDragAction touchBlankDragAction() const override;
     void cancelTouchPointerInteraction() override;
 

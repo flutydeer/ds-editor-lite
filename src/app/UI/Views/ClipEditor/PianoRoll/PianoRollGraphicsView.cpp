@@ -267,10 +267,24 @@ bool PianoRollGraphicsView::event(QEvent *event) {
     return TimeGraphicsView::event(event);
 }
 
-bool PianoRollGraphicsView::touchHitsContent(const QPointF &viewportPosition) const {
+EditorTouchTarget::ContentHit
+    PianoRollGraphicsView::touchContentAt(const QPointF &viewportPosition) const {
     auto *d = const_cast<PianoRollGraphicsViewPrivate *>(d_func());
     const auto position = viewportPosition.toPoint();
-    return d->noteViewAt(position) != nullptr || d->pronViewAt(position) != nullptr;
+    auto *noteView = d->noteViewAt(position);
+    if (!noteView) {
+        // A pronunciation label belongs to its note, so it selects and drags
+        // together with it.
+        if (const auto *pronView = d->pronViewAt(position))
+            noteView = d->findNoteViewById(pronView->id());
+    }
+    if (!noteView)
+        return ContentHit::None;
+    // Mirrors the RHI backend: an explicit tool owns the note it lands on,
+    // plain Select makes a finger select the note before it may drag it.
+    if (d->m_editMode != Select)
+        return ContentHit::Selected;
+    return noteView->isSelected() ? ContentHit::Selected : ContentHit::Unselected;
 }
 
 EditorTouchTarget::BlankDragAction PianoRollGraphicsView::touchBlankDragAction() const {

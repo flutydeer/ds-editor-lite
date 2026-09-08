@@ -578,15 +578,19 @@ void TimeGraphicsView::zoomTouchViewportBy(const double horizontalFactor,
     }
 }
 
-bool TimeGraphicsView::touchHitsContent(const QPointF &viewportPosition) const {
+EditorTouchTarget::ContentHit
+    TimeGraphicsView::touchContentAt(const QPointF &viewportPosition) const {
     // Notes, clips and anchors are selectable; grid, rulers and indicators are
-    // not, which is exactly the distinction a finger needs here.
+    // not, which is exactly the distinction a finger needs here. The topmost
+    // selectable item wins, and its own selection state decides whether a
+    // finger may drag it or has to select it first.
     const auto hits = items(viewportPosition.toPoint());
     for (const auto *item : hits) {
-        if (item->flags().testFlag(QGraphicsItem::ItemIsSelectable))
-            return true;
+        if (!item->flags().testFlag(QGraphicsItem::ItemIsSelectable))
+            continue;
+        return item->isSelected() ? ContentHit::Selected : ContentHit::Unselected;
     }
-    return false;
+    return ContentHit::None;
 }
 
 EditorTouchTarget::BlankDragAction TimeGraphicsView::touchBlankDragAction() const {

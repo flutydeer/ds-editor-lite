@@ -130,7 +130,7 @@ protected:
     void panTouchViewportBy(const QPointF &deltaPixels) override;
     void zoomTouchViewportBy(double horizontalFactor, double verticalFactor,
                              const QPointF &anchor) override;
-    [[nodiscard]] bool touchHitsContent(const QPointF &viewportPosition) const override;
+    [[nodiscard]] ContentHit touchContentAt(const QPointF &viewportPosition) const override;
     [[nodiscard]] BlankDragAction touchBlankDragAction() const override;
     void cancelTouchPointerInteraction() override;
 

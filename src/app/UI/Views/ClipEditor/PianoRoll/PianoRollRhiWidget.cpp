@@ -3125,11 +3125,23 @@ void PianoRollRhiWidget::zoomTouchViewportBy(const double horizontalFactor,
     d->viewport.setScale(horizontal, vertical, anchor);
 }
 
-bool PianoRollRhiWidget::touchHitsContent(const QPointF &viewportPosition) const {
+EditorTouchTarget::ContentHit
+    PianoRollRhiWidget::touchContentAt(const QPointF &viewportPosition) const {
     if (!d->clip)
-        return false;
-    return d->noteAt(viewportPosition) != nullptr ||
-           d->pronunciationAt(viewportPosition) != nullptr;
+        return ContentHit::None;
+    const auto *note = d->pronunciationAt(viewportPosition);
+    if (!note)
+        note = d->noteAt(viewportPosition);
+    if (!note)
+        return ContentHit::None;
+    // An explicitly picked tool owns every note it can reach, the same way it
+    // owns the blank canvas. Only plain Select makes a finger select a note
+    // before it may move or resize it, which is what keeps a scrolling finger
+    // from dragging whatever note it happened to land on.
+    if (d->editMode != Select)
+        return ContentHit::Selected;
+    return appStatus->selectedNotes.get().contains(note->id()) ? ContentHit::Selected
+                                                               : ContentHit::Unselected;
 }
 
 EditorTouchTarget::BlankDragAction PianoRollRhiWidget::touchBlankDragAction() const {

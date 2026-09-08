@@ -572,8 +572,14 @@ void TracksRhiWidget::zoomTouchViewportBy(const double horizontalFactor,
     m_viewport.setScale(horizontal, vertical, anchor);
 }
 
-bool TracksRhiWidget::touchHitsContent(const QPointF &viewportPosition) const {
-    return hitTest(viewportPosition) != nullptr;
+EditorTouchTarget::ContentHit
+    TracksRhiWidget::touchContentAt(const QPointF &viewportPosition) const {
+    const auto *hit = hitTest(viewportPosition);
+    if (!hit)
+        return ContentHit::None;
+    // A finger has to select a clip before it can move or resize it, so that
+    // dragging across the arrangement scrolls instead of shuffling clips.
+    return hit->selected ? ContentHit::Selected : ContentHit::Unselected;
 }
 
 EditorTouchTarget::BlankDragAction TracksRhiWidget::touchBlankDragAction() const {

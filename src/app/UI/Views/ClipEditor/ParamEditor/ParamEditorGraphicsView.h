@@ -75,7 +75,7 @@ private:
     // --- EditorTouchTarget ---
     // The parameter editor is always tool driven: whatever the toolbar has
     // armed (draw, erase, trace, shape...) is what a finger drag does.
-    [[nodiscard]] bool touchHitsContent(const QPointF &viewportPosition) const override;
+    [[nodiscard]] ContentHit touchContentAt(const QPointF &viewportPosition) const override;
     [[nodiscard]] BlankDragAction touchBlankDragAction() const override;
     void cancelTouchPointerInteraction() override;
 
