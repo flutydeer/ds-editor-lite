@@ -52,7 +52,7 @@ signals:
     // row)
     void clipRelocated(int clipId, const QString &newPath);
 
-    // Emitted when all path resolution after project load has finished.
+    // Emitted for interactive requests when all path resolution has finished.
     // missingClipIds / unconfirmedClipIds are clips that need a user decision;
     // autoRelocatedCount is the number of clips relocated automatically (hash verified)
     void resolveSessionFinished(const QList<int> &missingClipIds,
@@ -72,13 +72,13 @@ private:
     QPointer<DocumentWorkflowController> m_documentWorkflow;
     std::function<void(const QString &)> m_notifier;
 
-    void startDecodingOrResolving(AudioClip *clip, bool forceDecode);
-    void createAndStartTask(AudioClip *clip);
-    void createAndStartResolveTask(AudioClip *clip);
+    void startDecodingOrResolving(AudioClip *clip, bool forceDecode, bool interactive);
+    void createAndStartTask(AudioClip *clip, bool interactive);
+    void createAndStartResolveTask(AudioClip *clip, bool interactive);
     void connectClip(AudioClip *clip);
-    void startDecodingAndResolving();
-    void handleTaskFinished(DecodeAudioTask *task);
-    void handleResolveTaskFinished(ResolveAudioPathTask *task);
+    void startDecodingAndResolving(bool interactive);
+    void handleTaskFinished(DecodeAudioTask *task, bool interactive);
+    void handleResolveTaskFinished(ResolveAudioPathTask *task, bool interactive);
     void handleCascadeResolveTaskFinished(ResolveAudioPathTask *task);
     void finishResolveIfSessionDone();
     void terminateTaskByClipId(int clipId);
