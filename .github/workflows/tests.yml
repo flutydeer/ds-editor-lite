@@ -19,7 +19,6 @@ jobs:
     timeout-minutes: 120
     env:
       QT_VERSION: '6.11.2'
-      CMAKE_BUILD_PARALLEL_LEVEL: '2'
       VCPKG_MAX_CONCURRENCY: '2'
       VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/build/ci/vcpkg-cache,readwrite'
       DSEL_TEST_ARTIFACTS: '${{ github.workspace }}/build/test-results/sandboxes'
@@ -72,11 +71,14 @@ jobs:
           key: ${{ steps.packages.outputs.cache-primary-key }}-partial-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Environment
         run: |
+          echo "CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)" >> "$GITHUB_ENV"
           {
             git rev-parse HEAD
             git submodule status
             git -C vcpkg rev-parse HEAD
             uname -a
+            nproc
+            free -h
             c++ --version
             cmake --version
             ninja --version
