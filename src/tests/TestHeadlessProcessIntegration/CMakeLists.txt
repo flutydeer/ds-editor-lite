@@ -19,7 +19,8 @@ endif()
 add_dependencies(${PROJECT_NAME} DsEditorLite)
 
 lite_register_test(${PROJECT_NAME} CATEGORY process TIMEOUT 180
-    ARGS --editor "$<TARGET_FILE:DsEditorLite>" headless isolatedPrimaries)
+    ARGS --editor "$<TARGET_FILE:DsEditorLite>"
+        nativeEditingAndFiles isolatedPrimaries consoleTermination occupiedPort restart)
 lite_register_test(${PROJECT_NAME} NAME TestHeadlessCrossHostIntegration CATEGORY gui GUI TIMEOUT 90
     ARGS --editor "$<TARGET_FILE:DsEditorLite>"
         --platform-plugins "$<TARGET_FILE_DIR:Qt${QT_VERSION_MAJOR}::QOffscreenIntegrationPlugin>"

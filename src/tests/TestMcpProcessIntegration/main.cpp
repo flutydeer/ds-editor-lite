@@ -698,214 +698,251 @@ namespace {
             .arg(content.value(QStringLiteral("documents")).toArray().size());
     }
 
-    bool runIntegration(const QString &editorPath, const QString &connectorPath) {
-        ProcessFixture isolatedRoot(QStringLiteral("TestMcpProcessIntegration"));
-        if (!isolatedRoot.isValid()) {
-            return fail(QStringLiteral("Could not create an isolated process-test data root"));
-        }
-        const auto appDataRoot = isolatedRoot.path();
-        const auto editorDataDirectory = isolatedRoot.dataDirectory();
+    class EditorConnectorFixture final {
+    public:
+        const QString editorPath;
+        const QString connectorPath;
+        ProcessFixture storage;
+        const QString appDataRoot = storage.path();
+        const QString editorDataDirectory = storage.dataDirectory();
+        const QString configPath =
+            QDir(editorDataDirectory).filePath(QStringLiteral("appConfig.json"));
+        const QString serviceName = SingleInstanceIdentity::serviceName(editorDataDirectory);
+        const QString audioPath = storage.filePath(QStringLiteral("import-fixture.wav"));
+        QProcessEnvironment environment;
+        QProcess &editor = storage.process(QStringLiteral("editor"));
+        QProcess &connector = storage.process(QStringLiteral("connector"));
+        DsConnector::BootstrapWatcher watcher{QUuid::createUuid().toString(QUuid::WithoutBraces),
+                                              QStringLiteral("1"), serviceName};
+        QString editorInstanceId;
+        QString editorEndpoint;
+        QString error;
+        QJsonObject lastEditorStatus;
 
-        const auto audioPath = isolatedRoot.filePath(QStringLiteral("import-fixture.wav"));
-        if (!ProcessFixture::writeWaveFixture(audioPath))
-            return fail(QStringLiteral("Could not create the audio import fixture"));
-        QFile seededConfig(QDir(editorDataDirectory).filePath(QStringLiteral("appConfig.json")));
-        if (!seededConfig.open(QIODevice::WriteOnly | QIODevice::Truncate))
-            return fail(QStringLiteral("Could not seed the isolated editor configuration"));
-        seededConfig.write(
-            QJsonDocument(QJsonObject{
-                              {QStringLiteral("audio"),
-                               QJsonObject{{QStringLiteral("deviceName"),
-                                            QStringLiteral("configured-only-device")}}},
-                              {QStringLiteral("automation"),
-                               QJsonObject{
-                                   {QStringLiteral("accessRoots"),
-                                    QJsonArray{QDir::fromNativeSeparators(isolatedRoot.path())}},
-                               }                                                      },
-        })
-                .toJson(QJsonDocument::Compact));
-        seededConfig.close();
-        const auto serviceName = SingleInstanceIdentity::serviceName(editorDataDirectory);
-
-        auto environment = isolatedRoot.environment();
-        environment.insert(QStringLiteral("QT_QPA_PLATFORM"), QStringLiteral("offscreen"));
-        environment.insert(QStringLiteral("QT_OPENGL"), QStringLiteral("software"));
-        environment.insert(QStringLiteral("QT_LOGGING_TO_CONSOLE"), QStringLiteral("1"));
-
-        auto &editor = isolatedRoot.process(QStringLiteral("editor"));
-        auto &connector = isolatedRoot.process(QStringLiteral("connector"));
-        auto &secondaryEditor = isolatedRoot.process(QStringLiteral("secondaryEditor"));
-        auto &headlessSecondaryEditor =
-            isolatedRoot.process(QStringLiteral("headlessSecondaryEditor"));
-        const auto cleanup = qScopeGuard([&] {
-            stopProcess(headlessSecondaryEditor);
-            stopProcess(secondaryEditor);
-            connector.closeWriteChannel();
-            if (!connector.waitForFinished(3000))
-                stopProcess(connector);
-            stopProcess(editor);
-        });
-
-        editor.setProcessEnvironment(environment);
-        editor.setWorkingDirectory(QFileInfo(editorPath).absolutePath());
-        editor.setProcessChannelMode(QProcess::SeparateChannels);
-
-        QTcpServer portProbe;
-        if (!portProbe.listen(QHostAddress::LocalHost, 0)) {
-            return fail(QStringLiteral("Could not allocate an isolated editor control port: %1")
-                            .arg(portProbe.errorString()));
-        }
-        const auto controlPort = portProbe.serverPort();
-        portProbe.close();
-
-        editor.start(editorPath, {QStringLiteral("--mcp"), QStringLiteral("--control-level"),
-                                  QStringLiteral("l3"), QStringLiteral("--control-port"),
-                                  QString::number(controlPort)});
-        if (!editor.waitForStarted(10000)) {
-            return fail(QStringLiteral("Editor failed to start: %1").arg(editor.errorString()));
+        EditorConnectorFixture(const QString &editor, const QString &connector, const QString &name)
+            : editorPath(editor), connectorPath(connector), storage(name) {
         }
 
-        DsConnector::BootstrapWatcher watcher(QUuid::createUuid().toString(QUuid::WithoutBraces),
-                                              QStringLiteral("1"), serviceName);
-        watcher.start();
-        const auto watcherCleanup = qScopeGuard([&watcher] { watcher.stop(); });
-        const auto editorSettled = waitUntil(
-            [&] {
-                const auto &observation = watcher.observation();
-                return observation.snapshot && observation.snapshot->result.state ==
-                                                   SingleInstanceAutomationState::ServerReady ||
-                       editor.state() == QProcess::NotRunning;
-            },
-            45000);
-        const auto ready = editorSettled && watcher.observation().snapshot &&
-                           watcher.observation().snapshot->result.state ==
-                               SingleInstanceAutomationState::ServerReady;
-        if (!ready) {
-            const auto &observation = watcher.observation();
-            const auto snapshotState = observation.snapshot
-                                           ? SingleInstanceProtocol::automationStateName(
-                                                 observation.snapshot->result.state)
-                                           : QStringLiteral("none");
-            const auto snapshotError =
-                observation.snapshot ? observation.snapshot->result.error : QString{};
-            return fail(
-                QStringLiteral("Editor did not publish server_ready; appdata=%1; service=%2; "
-                               "bootstrap=%3; connected=%4; snapshot_state=%5; "
-                               "snapshot_error=%6; process_state=%7; exit_status=%8; "
-                               "exit_code=%9; stdout=%10; stderr=%11")
-                    .arg(appDataRoot, serviceName, observation.error,
-                         observation.connected ? QStringLiteral("true") : QStringLiteral("false"),
-                         snapshotState, snapshotError)
-                    .arg(static_cast<int>(editor.state()))
-                    .arg(static_cast<int>(editor.exitStatus()))
-                    .arg(editor.exitCode())
-                    .arg(QString::fromUtf8(TestSupport::readProcessStdout(editor)),
-                         QString::fromUtf8(TestSupport::readProcessStderr(editor))));
-        }
-        const auto editorInstanceId = watcher.observation().snapshot->result.editorInstanceId;
-        const auto editorEndpoint = watcher.observation().snapshot->result.serverEndpoint;
-
-        secondaryEditor.setProcessEnvironment(environment);
-        secondaryEditor.setWorkingDirectory(QFileInfo(editorPath).absolutePath());
-        secondaryEditor.setProcessChannelMode(QProcess::SeparateChannels);
-        secondaryEditor.start(editorPath, {QStringLiteral("--no-mcp")});
-        if (!secondaryEditor.waitForStarted(10000) || !secondaryEditor.waitForFinished(10000)) {
-            return fail(QStringLiteral("Secondary editor with automation overrides did not exit"));
-        }
-        const auto secondaryError =
-            QString::fromUtf8(TestSupport::readProcessStderr(secondaryEditor));
-        if (secondaryEditor.exitStatus() != QProcess::NormalExit ||
-            secondaryEditor.exitCode() == 0 ||
-            !secondaryError.contains(
-                QStringLiteral("Automation command-line options cannot be applied"))) {
-            return fail(QStringLiteral("Secondary editor did not reject automation overrides; "
-                                       "exit_status=%1; exit_code=%2; stderr=%3")
-                            .arg(static_cast<int>(secondaryEditor.exitStatus()))
-                            .arg(secondaryEditor.exitCode())
-                            .arg(secondaryError));
-        }
-
-        headlessSecondaryEditor.setProcessEnvironment(environment);
-        headlessSecondaryEditor.setWorkingDirectory(QFileInfo(editorPath).absolutePath());
-        headlessSecondaryEditor.setProcessChannelMode(QProcess::SeparateChannels);
-        headlessSecondaryEditor.start(editorPath, {QStringLiteral("--headless")});
-        if (!headlessSecondaryEditor.waitForStarted(10000) ||
-            !headlessSecondaryEditor.waitForFinished(10000)) {
-            return fail(QStringLiteral("Headless secondary did not forward activation and exit"));
-        }
-        const auto headlessSecondaryError =
-            QString::fromUtf8(TestSupport::readProcessStderr(headlessSecondaryEditor));
-        const auto &primaryAfterHeadless = watcher.observation().snapshot;
-        if (headlessSecondaryEditor.exitStatus() != QProcess::NormalExit ||
-            headlessSecondaryEditor.exitCode() != 0 ||
-            !headlessSecondaryError.contains(
-                QStringLiteral("no new Headless instance was started")) ||
-            !primaryAfterHeadless || primaryAfterHeadless->primaryProcessId != editor.processId() ||
-            primaryAfterHeadless->result.editorInstanceId != editorInstanceId ||
-            primaryAfterHeadless->result.hostMode != QStringLiteral("gui") ||
-            primaryAfterHeadless->result.serverEndpoint != editorEndpoint ||
-            editor.state() != QProcess::Running) {
-            return fail(QStringLiteral("Headless secondary replaced or disturbed the GUI Primary; "
-                                       "secondary_exit_status=%1; secondary_exit_code=%2; "
-                                       "secondary_stderr=%3")
-                            .arg(static_cast<int>(headlessSecondaryEditor.exitStatus()))
-                            .arg(headlessSecondaryEditor.exitCode())
-                            .arg(headlessSecondaryError));
-        }
-
-        connector.setProcessEnvironment(environment);
-        connector.setWorkingDirectory(QFileInfo(connectorPath).absolutePath());
-        connector.setProcessChannelMode(QProcess::SeparateChannels);
-        connector.start(connectorPath, {QStringLiteral("--control-level"), QStringLiteral("l3")});
-        if (!connector.waitForStarted(10000)) {
-            return fail(
-                QStringLiteral("Connector failed to start: %1").arg(connector.errorString()));
-        }
-
-        QString exchangeError;
-        auto discover = exchange(
-            connector, makeRequest(1, QString::fromLatin1(AutomationWire::Mcp::DiscoverMethod)),
-            10000, exchangeError);
-        if (!discover || discover->contains(QStringLiteral("error"))) {
-            return fail(QStringLiteral("Connector discover failed: %1").arg(exchangeError));
-        }
-
-        bool connectorReady = false;
-        QJsonObject lastConnectorStatus;
-        for (qint64 attempt = 0; attempt < 100 && !connectorReady; ++attempt) {
-            auto status = exchange(
-                connector, makeToolRequest(10 + attempt, QStringLiteral("connector.get_status")),
-                5000, exchangeError);
-            if (!status) {
-                return fail(exchangeError);
+        ~EditorConnectorFixture() {
+            watcher.stop();
+            if (connector.state() != QProcess::NotRunning) {
+                connector.closeWriteChannel();
+                if (!connector.waitForFinished(3000))
+                    stopProcess(connector);
             }
-            const auto content = structuredContent(*status).toObject();
-            lastConnectorStatus = content;
-            const auto toolsetCompatibility = content.value(QStringLiteral("toolset"))
-                                                  .toObject()
-                                                  .value(QStringLiteral("compatibility"))
-                                                  .toString();
-            connectorReady = content.value(QStringLiteral("mcp"))
-                                 .toObject()
-                                 .value(QStringLiteral("connected"))
-                                 .toBool() &&
-                             toolsetCompatibility == QStringLiteral("compatible");
-            if (!connectorReady)
-                QThread::msleep(100);
+            stopProcess(editor);
         }
-        if (!connectorReady) {
-            return fail(QStringLiteral("Connector did not complete the upstream editor handshake; "
-                                       "bootstrap_snapshot_sequence=%1; status=%2; "
-                                       "upstream_tools=%3; upstream_status=%4; "
-                                       "connector_stderr=%5; editor_stderr=%6")
-                            .arg(watcher.observation().snapshotSequence)
-                            .arg(QString::fromUtf8(
-                                QJsonDocument(lastConnectorStatus).toJson(QJsonDocument::Compact)))
-                            .arg(upstreamToolsDiagnostic(editorEndpoint),
-                                 upstreamStatusDiagnostic(editorEndpoint),
-                                 QString::fromUtf8(TestSupport::readProcessStderr(connector)),
-                                 QString::fromUtf8(TestSupport::readProcessStderr(editor))));
+
+        bool start() {
+            if (!storage.isValid() || !ProcessFixture::writeWaveFixture(audioPath) ||
+                !storage.writeConfig({
+                    {QStringLiteral("audio"),
+                     QJsonObject{
+                         {QStringLiteral("deviceName"), QStringLiteral("configured-only-device")}}},
+                    {QStringLiteral("automation"),
+                     QJsonObject{{QStringLiteral("accessRoots"), QJsonArray{storage.path()}}}     }
+            }))
+                return fail(QStringLiteral("Could not prepare editor/connector sandbox"));
+            environment = storage.environment();
+            environment.insert(QStringLiteral("QT_QPA_PLATFORM"), QStringLiteral("offscreen"));
+            environment.insert(QStringLiteral("QT_OPENGL"), QStringLiteral("software"));
+            QTcpServer reservation;
+            if (!reservation.listen(QHostAddress::LocalHost, 0))
+                return fail(reservation.errorString());
+            const auto port = reservation.serverPort();
+            reservation.close();
+            editor.setProcessEnvironment(environment);
+            editor.setWorkingDirectory(QFileInfo(editorPath).absolutePath());
+            editor.start(editorPath, {QStringLiteral("--mcp"), QStringLiteral("--control-level"),
+                                      QStringLiteral("l3"), QStringLiteral("--control-port"),
+                                      QString::number(port)});
+            if (!editor.waitForStarted(10000))
+                return fail(editor.errorString());
+            watcher.start();
+            if (!waitUntil(
+                    [&] {
+                        return (watcher.observation().snapshot &&
+                                watcher.observation().snapshot->result.state ==
+                                    SingleInstanceAutomationState::ServerReady) ||
+                               editor.state() == QProcess::NotRunning;
+                    },
+                    45000) ||
+                !watcher.observation().snapshot ||
+                watcher.observation().snapshot->result.state !=
+                    SingleInstanceAutomationState::ServerReady)
+                return fail(QStringLiteral("Editor did not become ready: %1")
+                                .arg(watcher.observation().error));
+            editorInstanceId = watcher.observation().snapshot->result.editorInstanceId;
+            editorEndpoint = watcher.observation().snapshot->result.serverEndpoint;
+            connector.setProcessEnvironment(environment);
+            connector.setWorkingDirectory(QFileInfo(connectorPath).absolutePath());
+            connector.start(connectorPath,
+                            {QStringLiteral("--control-level"), QStringLiteral("l3")});
+            if (!connector.waitForStarted(10000))
+                return fail(connector.errorString());
+            const auto discover = exchange(
+                connector, makeRequest(1, QString::fromLatin1(AutomationWire::Mcp::DiscoverMethod)),
+                10000, error);
+            if (!discover || discover->contains(QStringLiteral("error")))
+                return fail(QStringLiteral("Connector discovery failed: %1").arg(error));
+            bool connected = false;
+            for (qint64 attempt = 0; attempt < 100 && !connected; ++attempt) {
+                const auto response =
+                    exchange(connector,
+                             makeToolRequest(10 + attempt, QStringLiteral("connector.get_status")),
+                             5000, error);
+                if (!response)
+                    return fail(error);
+                const auto status = structuredContent(*response).toObject();
+                connected =
+                    status.value(QStringLiteral("mcp"))
+                        .toObject()
+                        .value(QStringLiteral("connected"))
+                        .toBool() &&
+                    status.value(QStringLiteral("toolset"))
+                            .toObject()
+                            .value(QStringLiteral("compatibility")) == QStringLiteral("compatible");
+                if (!connected)
+                    QTest::qWait(100);
+            }
+            if (!connected)
+                return fail(QStringLiteral("Connector did not finish its editor handshake"));
+            return refreshStatus();
         }
+
+        bool refreshStatus() {
+            const auto status = connectorToolContent(
+                connector, 200, QStringLiteral("application.get_status"), {}, 10000, error);
+            if (!status ||
+                status->value(QStringLiteral("editor_instance_id")).toString() !=
+                    editorInstanceId ||
+                status->value(QStringLiteral("documents")).toArray().isEmpty())
+                return fail(QStringLiteral("Editor status did not preserve bootstrap identity: %1")
+                                .arg(error));
+            lastEditorStatus = *status;
+            return true;
+        }
+
+        std::optional<qint64> seedTrack(const bool audio) {
+            if (!refreshStatus())
+                return std::nullopt;
+            const auto document =
+                lastEditorStatus.value(QStringLiteral("documents")).toArray().first().toObject();
+            const auto inserted = connectorToolContent(
+                connector, 201, QStringLiteral("tracks.insert"),
+                {
+                    {QStringLiteral("document_id"),       document.value(QStringLiteral("document_id"))},
+                    {QStringLiteral("expected_revision"),
+                     document.value(QStringLiteral("revision"))                                        },
+                    {QStringLiteral("index"),             0                                            },
+                    {QStringLiteral("tracks"),
+                     QJsonArray{QJsonObject{
+                         {QStringLiteral("client_ref"), QStringLiteral("fixture-track")},
+                         {QStringLiteral("name"), QStringLiteral("Fixture Track")}}}                   }
+            },
+                10000, error);
+            if (!inserted) {
+                fail(QStringLiteral("Could not seed a track: %1").arg(error));
+                return std::nullopt;
+            }
+            qint64 trackId = -1;
+            for (const auto &value : inserted->value(QStringLiteral("created_objects")).toArray()) {
+                const auto created = value.toObject();
+                const auto object = created.value(QStringLiteral("object")).toObject();
+                if (created.value(QStringLiteral("client_ref")) ==
+                        QStringLiteral("fixture-track") &&
+                    object.value(QStringLiteral("kind")) == QStringLiteral("track"))
+                    trackId = object.value(QStringLiteral("id")).toInteger(-1);
+            }
+            if (trackId < 0) {
+                fail(QStringLiteral("Track insertion omitted the fixture client reference: %1")
+                         .arg(compactJson(*inserted)));
+                return std::nullopt;
+            }
+            if (!refreshStatus())
+                return std::nullopt;
+            if (!audio)
+                return trackId;
+            const auto current =
+                lastEditorStatus.value(QStringLiteral("documents")).toArray().first().toObject();
+            const auto imported = connectorToolContent(
+                connector, 202, QStringLiteral("audio_clips.import"),
+                {
+                    {QStringLiteral("document_id"),       current.value(QStringLiteral("document_id"))},
+                    {QStringLiteral("expected_revision"),
+                     current.value(QStringLiteral("revision"))                                        },
+                    {QStringLiteral("track_id"),          trackId                                     },
+                    {QStringLiteral("path"),              audioPath                                   },
+                    {QStringLiteral("start"),             0                                           }
+            },
+                10000, error);
+            if (!imported) {
+                fail(QStringLiteral("Could not import audio fixture: %1").arg(error));
+                return std::nullopt;
+            }
+            const auto taskId = imported->value(QStringLiteral("task_id")).toString();
+            for (qint64 attempt = 0; attempt < 100; ++attempt) {
+                const auto task =
+                    connectorToolContent(connector, 300 + attempt, QStringLiteral("tasks.get"),
+                                         {
+                                             {QStringLiteral("scope"),       QStringLiteral("document")},
+                                             {QStringLiteral("document_id"),
+                                              current.value(QStringLiteral("document_id"))             },
+                                             {QStringLiteral("task_id"),     taskId                    }
+                },
+                                         5000, error);
+                if (!task)
+                    break;
+                const auto state = task->value(QStringLiteral("state")).toString();
+                if (state == QStringLiteral("succeeded"))
+                    return trackId;
+                if (state == QStringLiteral("failed") || state == QStringLiteral("canceled"))
+                    break;
+                QTest::qWait(50);
+            }
+            fail(QStringLiteral("Audio fixture task did not succeed: %1").arg(error));
+            return std::nullopt;
+        }
+
+        bool shutdown() {
+            const auto result =
+                connectorToolContent(connector, 39999, QStringLiteral("application.request_exit"),
+                                     {
+                                         {QStringLiteral("discard_changes"), true}
+            },
+                                     10000, error);
+            return (result && editor.waitForFinished(15000) &&
+                    editor.exitStatus() == QProcess::NormalExit && editor.exitCode() == 0) ||
+                   fail(QStringLiteral("Editor fixture did not exit cleanly: %1").arg(error));
+        }
+    };
+
+    bool runEditingWorkflow(const QString &editorPath, const QString &connectorPath) {
+        EditorConnectorFixture fixture(editorPath, connectorPath,
+                                       QStringLiteral("mcp-editing-workflow"));
+        if (!fixture.start())
+            return false;
+        auto &isolatedRoot = fixture.storage;
+        auto &editor = fixture.editor;
+        auto &connector = fixture.connector;
+        auto &watcher = fixture.watcher;
+        const auto &environment = fixture.environment;
+        const auto &appDataRoot = fixture.appDataRoot;
+        const auto &editorInstanceId = fixture.editorInstanceId;
+        const auto &editorEndpoint = fixture.editorEndpoint;
+        auto &exchangeError = fixture.error;
+        const auto &lastEditorStatus = fixture.lastEditorStatus;
+        const auto &audioPath = fixture.audioPath;
+        const auto failWithProcessDiagnostics = [&](const QString &message) {
+            return fail(
+                QStringLiteral("%1; appdata=%2; endpoint=%3; connector_state=%4; editor_state=%5; "
+                               "connector_stderr=%6; editor_stderr=%7")
+                    .arg(message, appDataRoot, editorEndpoint)
+                    .arg(static_cast<int>(connector.state()))
+                    .arg(static_cast<int>(editor.state()))
+                    .arg(QString::fromUtf8(TestSupport::readProcessStderr(connector)),
+                         QString::fromUtf8(TestSupport::readProcessStderr(editor))));
+        };
 
         const auto settingsBefore = connectorToolContent(
             connector, 210, QStringLiteral("settings.query"),
@@ -926,7 +963,7 @@ namespace {
             return fail(
                 QStringLiteral("Editor did not preserve the seeded configured audio device: %1; "
                                "configured=%2; config=%3")
-                    .arg(exchangeError, compactJson(configuredBefore), seededConfig.fileName()));
+                    .arg(exchangeError, compactJson(configuredBefore), fixture.configPath));
         }
         const auto sparseAudioUpdate =
             connectorToolContent(connector, 211, QStringLiteral("settings.audio_device.update"),
@@ -975,56 +1012,6 @@ namespace {
             return fail(
                 QStringLiteral("Connector did not publish the required bridge and L3 tools"));
         }
-
-        QJsonObject lastEditorStatus;
-        QJsonObject lastEditorStatusResponse;
-        bool editorStatusReady = false;
-        for (qint64 attempt = 0; attempt < 100 && !editorStatusReady; ++attempt) {
-            auto editorStatus = exchange(
-                connector, makeToolRequest(101 + attempt, QStringLiteral("application.get_status")),
-                5000, exchangeError);
-            if (!editorStatus) {
-                return fail(QStringLiteral("application.get_status failed: %1").arg(exchangeError));
-            }
-            lastEditorStatusResponse = *editorStatus;
-            if (editorStatus->contains(QStringLiteral("error")) ||
-                editorStatus->value(QStringLiteral("result"))
-                    .toObject()
-                    .value(QStringLiteral("isError"))
-                    .toBool()) {
-                return fail(QStringLiteral("application.get_status returned an error: %1")
-                                .arg(QString::fromUtf8(
-                                    QJsonDocument(*editorStatus).toJson(QJsonDocument::Compact))));
-            }
-            lastEditorStatus = structuredContent(*editorStatus).toObject();
-            editorStatusReady =
-                lastEditorStatus.value(QStringLiteral("editor_instance_id")).toString() ==
-                    editorInstanceId &&
-                !lastEditorStatus.value(QStringLiteral("documents")).toArray().isEmpty();
-            if (!editorStatusReady)
-                QThread::msleep(100);
-        }
-        if (!editorStatusReady) {
-            return fail(
-                QStringLiteral("Editor status did not preserve bootstrap identity and document "
-                               "discovery; expected_editor_instance_id=%1; status=%2; response=%3")
-                    .arg(editorInstanceId,
-                         QString::fromUtf8(
-                             QJsonDocument(lastEditorStatus).toJson(QJsonDocument::Compact)),
-                         QString::fromUtf8(QJsonDocument(lastEditorStatusResponse)
-                                               .toJson(QJsonDocument::Compact))));
-        }
-
-        const auto failWithProcessDiagnostics = [&](const QString &message) {
-            return fail(
-                QStringLiteral("%1; appdata=%2; endpoint=%3; connector_state=%4; editor_state=%5; "
-                               "connector_stderr=%6; editor_stderr=%7")
-                    .arg(message, appDataRoot, editorEndpoint)
-                    .arg(static_cast<int>(connector.state()))
-                    .arg(static_cast<int>(editor.state()))
-                    .arg(QString::fromUtf8(TestSupport::readProcessStderr(connector)),
-                         QString::fromUtf8(TestSupport::readProcessStderr(editor))));
-        };
 
         DsConnector::UpstreamMcpClient directClient(QStringLiteral("process-test-direct"),
                                                     QStringLiteral("1"));
@@ -1437,6 +1424,127 @@ namespace {
             }
         }
 
+        return fixture.shutdown();
+    }
+
+    bool runSecondaryStartup(const QString &editorPath, const QString &connectorPath) {
+        EditorConnectorFixture fixture(editorPath, connectorPath,
+                                       QStringLiteral("mcp-secondary-startup"));
+        if (!fixture.start())
+            return false;
+        auto &isolatedRoot = fixture.storage;
+        auto &editor = fixture.editor;
+        auto &connector = fixture.connector;
+        auto &watcher = fixture.watcher;
+        const auto &environment = fixture.environment;
+        const auto &appDataRoot = fixture.appDataRoot;
+        const auto &editorInstanceId = fixture.editorInstanceId;
+        const auto &editorEndpoint = fixture.editorEndpoint;
+        auto &exchangeError = fixture.error;
+        const auto &lastEditorStatus = fixture.lastEditorStatus;
+        const auto &audioPath = fixture.audioPath;
+        const auto failWithProcessDiagnostics = [&](const QString &message) {
+            return fail(
+                QStringLiteral("%1; appdata=%2; endpoint=%3; connector_state=%4; editor_state=%5; "
+                               "connector_stderr=%6; editor_stderr=%7")
+                    .arg(message, appDataRoot, editorEndpoint)
+                    .arg(static_cast<int>(connector.state()))
+                    .arg(static_cast<int>(editor.state()))
+                    .arg(QString::fromUtf8(TestSupport::readProcessStderr(connector)),
+                         QString::fromUtf8(TestSupport::readProcessStderr(editor))));
+        };
+
+        auto &secondaryEditor = isolatedRoot.process(QStringLiteral("gui-secondary"));
+        auto &headlessSecondaryEditor = isolatedRoot.process(QStringLiteral("headless-secondary"));
+        secondaryEditor.setProcessEnvironment(environment);
+        secondaryEditor.setWorkingDirectory(QFileInfo(editorPath).absolutePath());
+        secondaryEditor.setProcessChannelMode(QProcess::SeparateChannels);
+        secondaryEditor.start(editorPath, {QStringLiteral("--no-mcp")});
+        if (!secondaryEditor.waitForStarted(10000) || !secondaryEditor.waitForFinished(10000)) {
+            return fail(QStringLiteral("Secondary editor with automation overrides did not exit"));
+        }
+        const auto secondaryError =
+            QString::fromUtf8(TestSupport::readProcessStderr(secondaryEditor));
+        if (secondaryEditor.exitStatus() != QProcess::NormalExit ||
+            secondaryEditor.exitCode() == 0 ||
+            !secondaryError.contains(
+                QStringLiteral("Automation command-line options cannot be applied"))) {
+            return fail(QStringLiteral("Secondary editor did not reject automation overrides; "
+                                       "exit_status=%1; exit_code=%2; stderr=%3")
+                            .arg(static_cast<int>(secondaryEditor.exitStatus()))
+                            .arg(secondaryEditor.exitCode())
+                            .arg(secondaryError));
+        }
+
+        headlessSecondaryEditor.setProcessEnvironment(environment);
+        headlessSecondaryEditor.setWorkingDirectory(QFileInfo(editorPath).absolutePath());
+        headlessSecondaryEditor.setProcessChannelMode(QProcess::SeparateChannels);
+        headlessSecondaryEditor.start(editorPath, {QStringLiteral("--headless")});
+        if (!headlessSecondaryEditor.waitForStarted(10000) ||
+            !headlessSecondaryEditor.waitForFinished(10000)) {
+            return fail(QStringLiteral("Headless secondary did not forward activation and exit"));
+        }
+        const auto headlessSecondaryError =
+            QString::fromUtf8(TestSupport::readProcessStderr(headlessSecondaryEditor));
+        const auto &primaryAfterHeadless = watcher.observation().snapshot;
+        if (headlessSecondaryEditor.exitStatus() != QProcess::NormalExit ||
+            headlessSecondaryEditor.exitCode() != 0 ||
+            !headlessSecondaryError.contains(
+                QStringLiteral("no new Headless instance was started")) ||
+            !primaryAfterHeadless || primaryAfterHeadless->primaryProcessId != editor.processId() ||
+            primaryAfterHeadless->result.editorInstanceId != editorInstanceId ||
+            primaryAfterHeadless->result.hostMode != QStringLiteral("gui") ||
+            primaryAfterHeadless->result.serverEndpoint != editorEndpoint ||
+            editor.state() != QProcess::Running) {
+            return fail(QStringLiteral("Headless secondary replaced or disturbed the GUI Primary; "
+                                       "secondary_exit_status=%1; secondary_exit_code=%2; "
+                                       "secondary_stderr=%3")
+                            .arg(static_cast<int>(headlessSecondaryEditor.exitStatus()))
+                            .arg(headlessSecondaryEditor.exitCode())
+                            .arg(headlessSecondaryError));
+        }
+
+        return fixture.shutdown();
+    }
+
+    bool runLegacyConnector(const QString &editorPath, const QString &connectorPath) {
+        EditorConnectorFixture fixture(editorPath, connectorPath,
+                                       QStringLiteral("mcp-legacy-connector"));
+        if (!fixture.start())
+            return false;
+        auto &isolatedRoot = fixture.storage;
+        auto &editor = fixture.editor;
+        auto &connector = fixture.connector;
+        auto &watcher = fixture.watcher;
+        const auto &environment = fixture.environment;
+        const auto &appDataRoot = fixture.appDataRoot;
+        const auto &editorInstanceId = fixture.editorInstanceId;
+        const auto &editorEndpoint = fixture.editorEndpoint;
+        auto &exchangeError = fixture.error;
+        const auto &lastEditorStatus = fixture.lastEditorStatus;
+        const auto &audioPath = fixture.audioPath;
+        const auto failWithProcessDiagnostics = [&](const QString &message) {
+            return fail(
+                QStringLiteral("%1; appdata=%2; endpoint=%3; connector_state=%4; editor_state=%5; "
+                               "connector_stderr=%6; editor_stderr=%7")
+                    .arg(message, appDataRoot, editorEndpoint)
+                    .arg(static_cast<int>(connector.state()))
+                    .arg(static_cast<int>(editor.state()))
+                    .arg(QString::fromUtf8(TestSupport::readProcessStderr(connector)),
+                         QString::fromUtf8(TestSupport::readProcessStderr(editor))));
+        };
+
+        QSet<QString> toolNames;
+        const auto modernTools = exchange(
+            connector, makeRequest(100, QString::fromLatin1(AutomationWire::Mcp::ToolsListMethod)),
+            10000, exchangeError);
+        if (!modernTools || modernTools->contains(QStringLiteral("error")))
+            return failWithProcessDiagnostics(QStringLiteral("Modern baseline tools/list failed"));
+        for (const auto &tool : modernTools->value(QStringLiteral("result"))
+                                    .toObject()
+                                    .value(QStringLiteral("tools"))
+                                    .toArray())
+            toolNames.insert(tool.toObject().value(QStringLiteral("name")).toString());
         auto &legacyConnector = isolatedRoot.process(QStringLiteral("legacyConnector"));
         const auto legacyConnectorCleanup = qScopeGuard([&legacyConnector] {
             legacyConnector.closeWriteChannel();
@@ -1542,6 +1650,39 @@ namespace {
                     .arg(legacyTools ? compactJson(*legacyTools) : exchangeError));
         }
 
+        return fixture.shutdown();
+    }
+
+    bool runLegacyEditor(const QString &editorPath, const QString &connectorPath) {
+        EditorConnectorFixture fixture(editorPath, connectorPath,
+                                       QStringLiteral("mcp-legacy-editor"));
+        if (!fixture.start())
+            return false;
+        auto &isolatedRoot = fixture.storage;
+        auto &editor = fixture.editor;
+        auto &connector = fixture.connector;
+        auto &watcher = fixture.watcher;
+        const auto &environment = fixture.environment;
+        const auto &appDataRoot = fixture.appDataRoot;
+        const auto &editorInstanceId = fixture.editorInstanceId;
+        const auto &editorEndpoint = fixture.editorEndpoint;
+        auto &exchangeError = fixture.error;
+        const auto &lastEditorStatus = fixture.lastEditorStatus;
+        const auto &audioPath = fixture.audioPath;
+        const auto failWithProcessDiagnostics = [&](const QString &message) {
+            return fail(
+                QStringLiteral("%1; appdata=%2; endpoint=%3; connector_state=%4; editor_state=%5; "
+                               "connector_stderr=%6; editor_stderr=%7")
+                    .arg(message, appDataRoot, editorEndpoint)
+                    .arg(static_cast<int>(connector.state()))
+                    .arg(static_cast<int>(editor.state()))
+                    .arg(QString::fromUtf8(TestSupport::readProcessStderr(connector)),
+                         QString::fromUtf8(TestSupport::readProcessStderr(editor))));
+        };
+
+        const auto legacyContext = legacyRequestContext();
+        QString directEndpointError;
+        QString toolError;
         DsConnector::UpstreamMcpClient legacyDirectClient(
             QStringLiteral("process-test-direct-legacy"), QStringLiteral("1"));
         if (!legacyDirectClient.setEndpoint(editorEndpoint, &directEndpointError) ||
@@ -1611,9 +1752,72 @@ namespace {
                     .arg(toolError));
         }
 
-        if (!verifyDocumentLifecycle(connector, isolatedRoot.path(), createdTrackId))
-            return failWithProcessDiagnostics(QStringLiteral("Document lifecycle checks failed"));
+        return fixture.shutdown();
+    }
 
+    bool runDocumentLifecycle(const QString &editorPath, const QString &connectorPath) {
+        EditorConnectorFixture fixture(editorPath, connectorPath,
+                                       QStringLiteral("mcp-document-lifecycle"));
+        if (!fixture.start())
+            return false;
+        auto &isolatedRoot = fixture.storage;
+        auto &editor = fixture.editor;
+        auto &connector = fixture.connector;
+        auto &watcher = fixture.watcher;
+        const auto &environment = fixture.environment;
+        const auto &appDataRoot = fixture.appDataRoot;
+        const auto &editorInstanceId = fixture.editorInstanceId;
+        const auto &editorEndpoint = fixture.editorEndpoint;
+        auto &exchangeError = fixture.error;
+        const auto &lastEditorStatus = fixture.lastEditorStatus;
+        const auto &audioPath = fixture.audioPath;
+        const auto failWithProcessDiagnostics = [&](const QString &message) {
+            return fail(
+                QStringLiteral("%1; appdata=%2; endpoint=%3; connector_state=%4; editor_state=%5; "
+                               "connector_stderr=%6; editor_stderr=%7")
+                    .arg(message, appDataRoot, editorEndpoint)
+                    .arg(static_cast<int>(connector.state()))
+                    .arg(static_cast<int>(editor.state()))
+                    .arg(QString::fromUtf8(TestSupport::readProcessStderr(connector)),
+                         QString::fromUtf8(TestSupport::readProcessStderr(editor))));
+        };
+
+        const auto audioTrackId = fixture.seedTrack(true);
+        if (!audioTrackId ||
+            !verifyDocumentLifecycle(connector, isolatedRoot.path(), *audioTrackId))
+            return failWithProcessDiagnostics(QStringLiteral("Document lifecycle checks failed"));
+        return fixture.shutdown();
+    }
+
+    bool runGracefulExit(const QString &editorPath, const QString &connectorPath) {
+        EditorConnectorFixture fixture(editorPath, connectorPath,
+                                       QStringLiteral("mcp-graceful-exit"));
+        if (!fixture.start())
+            return false;
+        auto &isolatedRoot = fixture.storage;
+        auto &editor = fixture.editor;
+        auto &connector = fixture.connector;
+        auto &watcher = fixture.watcher;
+        const auto &environment = fixture.environment;
+        const auto &appDataRoot = fixture.appDataRoot;
+        const auto &editorInstanceId = fixture.editorInstanceId;
+        const auto &editorEndpoint = fixture.editorEndpoint;
+        auto &exchangeError = fixture.error;
+        const auto &lastEditorStatus = fixture.lastEditorStatus;
+        const auto &audioPath = fixture.audioPath;
+        const auto failWithProcessDiagnostics = [&](const QString &message) {
+            return fail(
+                QStringLiteral("%1; appdata=%2; endpoint=%3; connector_state=%4; editor_state=%5; "
+                               "connector_stderr=%6; editor_stderr=%7")
+                    .arg(message, appDataRoot, editorEndpoint)
+                    .arg(static_cast<int>(connector.state()))
+                    .arg(static_cast<int>(editor.state()))
+                    .arg(QString::fromUtf8(TestSupport::readProcessStderr(connector)),
+                         QString::fromUtf8(TestSupport::readProcessStderr(editor))));
+        };
+
+        if (!fixture.seedTrack(false))
+            return failWithProcessDiagnostics(QStringLiteral("Could not make the document dirty"));
         const auto rejectedExit = exchange(
             connector,
             makeToolRequest(30000, QStringLiteral("application.request_exit"), QJsonObject{}),
@@ -1660,13 +1864,9 @@ namespace {
                                               : exchangeError));
         }
 
-        QTextStream(stdout)
-            << "Validated real editor + connector MCP 2025-06-18/2025-11-25/2026-07-28 process "
-               "integration, representative operations, the complete L3 surface, direct-editor "
-               "equivalence, and non-interactive graceful exit"
-            << Qt::endl;
         return true;
     }
+
 }
 
 class TestMcpProcessIntegration final : public QObject {
@@ -1676,8 +1876,28 @@ public:
     QString connectorPath;
 private slots:
 
-    void editingAndLifecycle() {
-        QVERIFY(runIntegration(editorPath, connectorPath));
+    void editingWorkflow() {
+        QVERIFY(runEditingWorkflow(editorPath, connectorPath));
+    }
+
+    void secondaryStartup() {
+        QVERIFY(runSecondaryStartup(editorPath, connectorPath));
+    }
+
+    void legacyConnector() {
+        QVERIFY(runLegacyConnector(editorPath, connectorPath));
+    }
+
+    void legacyEditor() {
+        QVERIFY(runLegacyEditor(editorPath, connectorPath));
+    }
+
+    void documentLifecycle() {
+        QVERIFY(runDocumentLifecycle(editorPath, connectorPath));
+    }
+
+    void gracefulExit() {
+        QVERIFY(runGracefulExit(editorPath, connectorPath));
     }
 };
 
