@@ -10,7 +10,7 @@ Qt Test 负责用例、断言、数据驱动与 Qt 事件；CTest 负责程序�
 
 - 初始基线：`a8fac646`，分支：`test-ci`，目标：`main`。
 - 所有改动使用同一分支与一个 PR；基础设施、领域、协议、GUI 和 CI 修复按可审阅阶段提交。
-- 提交采用 Conventional Commits；代码注释只解释最终实现的必要约束。
+- 提交采用 Conventional Commits；新增及修改的代码注释使用英文，只解释最终实现的必要约束；阶段文档使用中文。
 - 早期创建 Draft PR，以 `pull_request` 实际运行分支内 workflow，不要求先合并。
 
 ## 3. 结构调整
