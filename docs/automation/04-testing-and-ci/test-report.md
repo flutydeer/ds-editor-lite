@@ -6,7 +6,7 @@
 
 ## 2. 候选与执行摘要
 
-Windows 受测提交 `8a525d39`，Qt 6.11.2、Visual Studio 2026 18.9 / MSVC 14.51，synthrt 项目补丁已同步。使用 `tests` preset 完整构建 Editor、Connector 和 `lite_tests`。`ctest --preset local` 共注册 70 项，69 项通过，`TestHeadlessResources` 因未设置声库而跳过，耗时 56.35 秒。日志与 JUnit 位于本地 `build/test-results/local.log`、`local.xml`。
+Windows 受测提交 `8a525d39`，Qt 6.11.2、Visual Studio 2026 18.9 / MSVC 14.51，synthrt 项目补丁已同步。使用 `tests` preset 完整构建 Editor、Connector 和 `lite_tests`。`ctest --preset local` 共注册 70 项，69 项通过，`TestHeadlessResources` 因未设置声库而跳过，耗时 56.35 秒。构建日志、环境、运行日志和 JUnit 已归档到本地 `build/test-results/windows-8a525d39/`，避免后续运行覆盖证据。
 
 | 类别 | 已执行程序/注册项 | 当前结果 |
 |---|---:|---|
@@ -28,6 +28,7 @@ Windows 受测提交 `8a525d39`，Qt 6.11.2、Visual Studio 2026 18.9 / MSVC 14.
 | libxcrypt 的 autotools 配置失败 | runner 缺少 `autoconf-archive` 和 `libltdl-dev` | `1c8758c1` | [34267466480](https://github.com/flutydeer/ds-editor-lite/actions/runs/34267466480)，新运行复验中 |
 | synthrt 在第 51/55 个依赖失败 | 锁定源码使用 `std::unique_lock` 却未包含 `<mutex>` | `5ad98ef3` | [34269205282](https://github.com/flutydeer/ds-editor-lite/actions/runs/34269205282)，前 50 项含 libxcrypt 已通过 |
 | Qt HttpServer 配置失败 | Qt 6.11.2 HttpServer 依赖 WebSockets，独立 Qt 下载没有自动补齐该模块 | 显式安装 `qtwebsockets` | [34271852483](https://github.com/flutydeer/ds-editor-lite/actions/runs/34271852483)，全部依赖已通过并保存缓存，失败点进入应用 configure |
+| Connector 在 GCC 编译失败 | `QUrl = {}` 在 QUrl/QString 赋值重载间存在歧义 | 改为明确的 `clear()` | [34274326884](https://github.com/flutydeer/ds-editor-lite/actions/runs/34274326884)，已验证依赖缓存命中及 configure 通过；后续用 Ninja `-k 0` 收集独立目标错误，仍保留失败退出码 |
 | Windows 首轮 CTest 缺测试程序且无 Qt Test 细节 | ICU wrapper 原有测试未进入聚合目标；无控制台时 Qt Test 文本日志进入 Windows debugger | 将 wrapper 纳入统一注册/构建；测试环境强制捕获日志 | 首轮 69 项有 2 项失败：wrapper 未运行、快捷键用例失败；随后定向复验 |
 | 快捷键场景没有触发 | Qt 的 widget shortcut 要求 owner 可见，旧 fixture 只调用业务操作，未建立真实焦点环境 | `3344a8a5` | 定向 11 个 Qt Test 结果通过，随后 Windows 全量通过 |
 | 新编辑分支可能误判为已保存 | 丢弃 redo 分支时保存点仍引用已销毁条目，后续分配复用地址即错误匹配 | `aa1bf5c8` | 新用例先复现，修后 DocumentWorkflow 17 项和 ProjectConverterAtomicWrite 8 项 Qt Test 结果全部通过 |

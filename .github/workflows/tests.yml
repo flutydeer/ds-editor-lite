@@ -91,7 +91,7 @@ jobs:
             2>&1 | tee build/test-results/configure.log
       - name: Build editor, connector and tests
         id: build
-        run: cmake --build --preset tests 2>&1 | tee build/test-results/build.log
+        run: cmake --build --preset tests -- -k 0 2>&1 | tee build/test-results/build.log
       - name: Test
         run: |
           ctest --preset ci --output-junit "$PWD/build/test-results/junit.xml" \

@@ -32,7 +32,7 @@ CMake 最低版本统一为 3.24，以支持测试 preset 和环境路径修改�
 
 一个 Ubuntu 24.04 job 按环境、依赖、配置、完整构建、测试、覆盖率和产物收集执行。Qt 固定 6.11.2，上游 vcpkg 固定 revision，manifest/overlay 的版本来自仓库。Qt 和 vcpkg 包可缓存，不缓存 CMake 构建目录。依赖失败时用独立的 partial key 保留已成功构建的包；后续由 vcpkg ABI 判断哪些包可复用，成功后的完整 key 不受 partial key 占用。每次 PR 更新实际触发 Actions，失败后仍收集日志；调试根因与运行链接集中在[测试报告](test-report.md)。
 
-GCC/gcov 对 Debug 测试构建插桩，gcovr 汇总 `src/app`、`src/libs`、`src/tools` 的行和分支覆盖。报告排除测试、第三方和生成文件，不设百分比门槛；按功能域查看未执行行为，决定必要补测。原生平台和设备未运行范围单独记录。
+GCC/gcov 对 Debug 测试构建插桩，gcovr 汇总 `src/app`、`src/connector`、`src/libs`、`src/tools` 的行和分支覆盖。报告排除测试、第三方和生成文件，不设百分比门槛；按功能域查看未执行行为，决定必要补测。原生平台和设备未运行范围单独记录。
 
 ## 5. 设计取舍及偏差
 
