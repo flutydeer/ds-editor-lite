@@ -15,7 +15,12 @@ public:
 #else
     bool useNativeFrame = false;
 #endif
+    // Precision touchpad and wheel handling through Windows DirectManipulation.
+    // Touch and pen are deliberately outside its scope, see enableTouchGestures.
     bool enableDirectManipulation = true;
+    // Multi-touch gestures (single-finger editing, two-finger pan and pinch) in
+    // the piano roll, the parameter editor and the arrangement view.
+    bool enableTouchGestures = true;
     // themeId is stored as an opaque persisted string; the theme system owns
     // the vocabulary and converts at the boundary. Animation is a plain on/off
     // toggle; a missing or unparseable value defaults to enabled.
@@ -34,6 +39,7 @@ protected:
 private:
     const QString useNativeFrameKey = "useNativeFrame";
     const QString enableDirectManipulationKey = "enableDirectManipulation";
+    const QString enableTouchGesturesKey = "enableTouchGestures";
     const QString animationEnabledKey = "animationEnabled";
     const QString animationTimeScaleKey = "animationTimeScale";
     const QString themeIdKey = "themeId";

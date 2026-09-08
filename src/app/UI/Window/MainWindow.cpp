@@ -64,7 +64,26 @@
 #include <utility>
 
 #if defined(WITH_DIRECT_MANIPULATION)
+#  include <QWindow>
+
 #  include <QWDMHCore/DirectManipulationSystem.h>
+
+namespace {
+    // Direct Manipulation is scoped to the indirect pointing devices only.
+    // Registering it for everything makes it swallow the native touch and pen
+    // messages window-wide, so Qt never sees a QTouchEvent and the whole touch
+    // gesture layer (EditorTouchController) stays dead. Touchpad and wheel keep
+    // the smooth panning and pinch-to-zoom it was added for.
+    void registerScopedDirectManipulation(QWindow *window) {
+        using System = QWDMH::DirectManipulationSystem;
+        if (!window)
+            return;
+        System::registerWindow(window,
+                               System::TranslationX | System::TranslationY | System::Scaling |
+                                   System::TranslationInertia | System::ScalingInertia,
+                               System::Touchpad | System::Wheel);
+    }
+}
 #endif
 
 MainWindow::MainWindow() {
@@ -881,7 +900,7 @@ void MainWindow::detachBottomPanel() {
 
 #if defined(WITH_DIRECT_MANIPULATION)
     if (appOptions->appearance()->enableDirectManipulation) {
-        QWDMH::DirectManipulationSystem::registerWindow(m_bottomPanelView->windowHandle());
+        registerScopedDirectManipulation(m_bottomPanelView->windowHandle());
     }
 #endif
 }
@@ -980,7 +999,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 #if defined(WITH_DIRECT_MANIPULATION)
 void MainWindow::registerDirectManipulation() {
     if (!m_isDirectManipulationRegistered) {
-        QWDMH::DirectManipulationSystem::registerWindow(windowHandle());
+        registerScopedDirectManipulation(windowHandle());
         m_isDirectManipulationRegistered = true;
     }
 }

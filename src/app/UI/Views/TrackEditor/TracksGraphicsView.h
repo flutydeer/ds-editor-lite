@@ -67,6 +67,11 @@ private:
     void mouseReleaseEvent(QMouseEvent *event) override;
     void mouseDoubleClickEvent(QMouseEvent *event) override;
     void contextMenuEvent(QContextMenuEvent *event) override;
+
+    // --- EditorTouchTarget ---
+    [[nodiscard]] BlankDragAction touchBlankDragAction() const override;
+    void cancelTouchPointerInteraction() override;
+
     void dragEnterEvent(QDragEnterEvent *event) override;
     void dragMoveEvent(QDragMoveEvent *event) override;
     void dragLeaveEvent(QDragLeaveEvent *event) override;

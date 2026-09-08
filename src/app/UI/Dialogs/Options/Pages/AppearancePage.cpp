@@ -35,6 +35,7 @@ void AppearancePage::modifyOption() {
         return;
     auto settings = snapshot.get().appearance;
     settings.useNativeFrame = m_swUseNativeFrame->value();
+    settings.enableTouchGestures = m_swEnableTouchGestures->value();
 #if defined(WITH_DIRECT_MANIPULATION)
     settings.enableDirectManipulation = m_swEnableDirectManipulation->value();
 #endif
@@ -155,12 +156,19 @@ QWidget *AppearancePage::createContentWidget() {
     pianoRollCard->addItem(tr("Show notes from other tracks"),
                            tr("Displayed as thin bars for reference only"), m_swShowGhostNotes);
 
-#if defined(WITH_DIRECT_MANIPULATION)
     const auto touchCard = new OptionListCard(tr("Touch"));
+    m_swEnableTouchGestures = new SwitchButton(option->enableTouchGestures);
+    connect(m_swEnableTouchGestures, &SwitchButton::toggled, this, &AppearancePage::modifyOption);
+    touchCard->addItem(tr("Multi-touch gestures"),
+                       tr("One finger edits, two fingers pan and zoom the editors"),
+                       m_swEnableTouchGestures);
+#if defined(WITH_DIRECT_MANIPULATION)
     m_swEnableDirectManipulation = new SwitchButton(option->enableDirectManipulation);
     connect(m_swEnableDirectManipulation, &SwitchButton::toggled, this,
             &AppearancePage::modifyOption);
-    touchCard->addItem(tr("Enable Direct Manipulation"), m_swEnableDirectManipulation);
+    touchCard->addItem(tr("Precision touchpad and wheel scrolling"),
+                       tr("Handled by Windows Direct Manipulation. Touch and pen are unaffected"),
+                       m_swEnableDirectManipulation);
 #endif
 
     const auto mainLayout = new QVBoxLayout;
@@ -169,9 +177,7 @@ QWidget *AppearancePage::createContentWidget() {
     mainLayout->addWidget(windowCard);
     mainLayout->addWidget(animationCard);
     mainLayout->addWidget(pianoRollCard);
-#if defined(WITH_DIRECT_MANIPULATION)
     mainLayout->addWidget(touchCard);
-#endif
     mainLayout->addStretch();
     mainLayout->setContentsMargins({});
     widget->setLayout(mainLayout);

@@ -72,6 +72,13 @@ private slots:
     void showAnchorContextMenu(QPointF scenePos, QPoint screenPos);
 
 private:
+    // --- EditorTouchTarget ---
+    // The parameter editor is always tool driven: whatever the toolbar has
+    // armed (draw, erase, trace, shape...) is what a finger drag does.
+    [[nodiscard]] bool touchHitsContent(const QPointF &viewportPosition) const override;
+    [[nodiscard]] BlankDragAction touchBlankDragAction() const override;
+    void cancelTouchPointerInteraction() override;
+
     bool event(QEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
     void onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,

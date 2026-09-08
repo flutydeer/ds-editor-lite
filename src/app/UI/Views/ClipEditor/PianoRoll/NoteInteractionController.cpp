@@ -3,6 +3,7 @@
 #include "PianoRollGraphicsView.h"
 #include "NoteView.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
+#include "UI/Views/Common/EditorPointerUtils.h"
 #include "UI/Views/Common/EditorResizeUtils.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Controller/ClipController.h"
@@ -59,7 +60,7 @@ void NoteInteractionController::prepareForEditingNotes(const QMouseEvent *event,
     const auto rPos = noteItem->mapFromScene(scenePos);
     const auto rx = rPos.x();
     const auto edge = EditorResizeUtils::horizontalEdgeAt(rx, noteItem->rect().width(),
-                                                          AppGlobal::resizeTolerance);
+                                                          EditorPointer::resizeTolerance());
     if (edge == EditorResizeUtils::HorizontalEdge::Left) {
         m_mouseMoveBehavior = ResizeLeft;
     } else if (edge == EditorResizeUtils::HorizontalEdge::Right) {

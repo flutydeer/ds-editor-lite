@@ -9,6 +9,7 @@
 #include "TracksGraphicsScene.h"
 #include "UI/Views/Common/EditorGlyphAtlas.h"
 #include "UI/Views/Common/EditorRhiWidget.h"
+#include "UI/Views/Common/EditorTouchTarget.h"
 #include "UI/Views/Common/EditorViewportController.h"
 #include "UI/Views/Common/EdgeAutoScroller.h"
 
@@ -30,13 +31,16 @@ class QHideEvent;
 class QKeyEvent;
 class QMouseEvent;
 class EditorRhiScrollBarController;
+class EditorTouchController;
 class EditorWheelController;
 enum class EditSessionEndReason;
 class QResizeEvent;
 class QShowEvent;
 class QWheelEvent;
 
-class TracksRhiWidget final : public EditorRhiWidget, public ITrackPastePreviewHost {
+class TracksRhiWidget final : public EditorRhiWidget,
+                              public ITrackPastePreviewHost,
+                              public EditorTouchTarget {
     Q_OBJECT
     Q_PROPERTY(QColor backgroundColor READ backgroundColor WRITE setBackgroundColor)
     Q_PROPERTY(QColor barLineColor READ barLineColor WRITE setBarLineColor)
@@ -122,6 +126,15 @@ protected:
     void leaveEvent(QEvent *event) override;
     void onRhiReady() override;
     void onDevicePixelRatioChanged() override;
+
+    // --- EditorTouchTarget ---
+    void stopTouchViewportAnimation() override;
+    void panTouchViewportBy(const QPointF &deltaPixels) override;
+    void zoomTouchViewportBy(double horizontalFactor, double verticalFactor,
+                             const QPointF &anchor) override;
+    [[nodiscard]] bool touchHitsContent(const QPointF &viewportPosition) const override;
+    [[nodiscard]] BlankDragAction touchBlankDragAction() const override;
+    void cancelTouchPointerInteraction() override;
 
 private:
     enum class DragMode { None, Move, ResizeLeft, ResizeRight, RectSelect };
@@ -232,6 +245,11 @@ private:
 
     EditorViewportController m_viewport;
     std::unique_ptr<EditorWheelController> m_wheelController;
+    EditorTouchController *m_touchController = nullptr;
+    // Last known pointer position in widget coordinates. Timer-driven auto
+    // scroll must read this instead of QCursor::pos(), which does not move
+    // with a finger.
+    QPointF m_lastPointerPosition;
     EditorGlyphAtlas m_glyphAtlas;
     EditorRhiScrollBarController *m_scrollBars = nullptr;
     QHash<int, std::shared_ptr<AudioWaveformSampler>> m_audioWaveformSamplers;

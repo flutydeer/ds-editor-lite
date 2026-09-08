@@ -20,6 +20,7 @@
 #include <lite/GUI/Controls/AccentButton.h>
 #include "UI/Utils/SpeakerMixDisplayUtils.h"
 #include "Utils/UiLanguageManager.h"
+#include "UI/Views/Common/EditorPointerUtils.h"
 #include "UI/Views/Common/EditorResizeUtils.h"
 #include <lite/MusicBase/TimelineSnapUtils.h>
 
@@ -330,6 +331,18 @@ void TracksGraphicsView::mouseDoubleClickEvent(QMouseEvent *event) {
     TimeGraphicsView::mouseDoubleClickEvent(event);
 }
 
+EditorTouchTarget::BlankDragAction TracksGraphicsView::touchBlankDragAction() const {
+    // Empty canvas in the arrangement view carries nothing to create, so a
+    // plain finger drag there scrolls. Rubber band selection stays reachable
+    // through a long press.
+    return BlankDragAction::Pan;
+}
+
+void TracksGraphicsView::cancelTouchPointerInteraction() {
+    discardAction();
+    TimeGraphicsView::cancelTouchPointerInteraction();
+}
+
 void TracksGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
     const auto scenePos = mapToScene(event->pos());
     const auto trackIndex = m_scene->trackIndexAt(scenePos.y());
@@ -629,7 +642,7 @@ void TracksGraphicsView::prepareForMovingOrResizingClip(const QMouseEvent *event
     const auto rPos = clipItem->mapFromScene(scenePos);
     const auto rx = rPos.x();
     const auto edge = EditorResizeUtils::horizontalEdgeAt(rx, clipItem->rect().width(),
-                                                          AppGlobal::resizeTolerance);
+                                                          EditorPointer::resizeTolerance());
     if (edge == EditorResizeUtils::HorizontalEdge::Left) {
         m_mouseMoveBehavior = ResizeLeft;
         applyClipSelection({clipItem->id()});

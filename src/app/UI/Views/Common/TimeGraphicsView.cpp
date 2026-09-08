@@ -14,6 +14,8 @@
 #include "TimeGraphicsScene.h"
 #include "TimeGridView.h"
 #include "TimeIndicatorView.h"
+#include "EditorPointerUtils.h"
+#include "EditorTouchController.h"
 #include "EditorWheelController.h"
 #include "Controller/PlaybackController.h"
 #include "UI/Views/Common/AutoPageTurnUtils.h"
@@ -28,6 +30,9 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
     setRenderHint(QPainter::Antialiasing);
     setViewportUpdateMode(QGraphicsView::MinimalViewportUpdate);
     setAttribute(Qt::WA_AcceptTouchEvents);
+    // Touch is delivered to the scroll area's viewport, not to the view itself,
+    // so the attribute has to be on both.
+    viewport()->setAttribute(Qt::WA_AcceptTouchEvents);
     setAttribute(Qt::WA_Hover);
     setMinimumHeight(150);
     setAcceptDrops(true);
@@ -124,6 +129,10 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
             &TimeGraphicsView::notifyVisibleRectChanged);
     connect(verticalScrollBar(), &QScrollBar::valueChanged, this,
             &TimeGraphicsView::notifyVisibleRectChanged);
+
+    // Synthetic mouse events go to the viewport, the same widget QGraphicsView
+    // itself reads them from.
+    m_touchController = new EditorTouchController(this, this, viewport());
 
     initializeAnimation();
     updateAnimationDuration();
@@ -374,6 +383,12 @@ void TimeGraphicsView::dragLeaveEvent(QDragLeaveEvent *event) {
     event->ignore();
 }
 
+bool TimeGraphicsView::viewportEvent(QEvent *event) {
+    if (m_touchController->handleEvent(event))
+        return true;
+    return QGraphicsView::viewportEvent(event);
+}
+
 bool TimeGraphicsView::event(QEvent *event) {
     if (event->type() == QEvent::NativeGesture) {
         const auto *gestureEvent = static_cast<QNativeGestureEvent *>(event);
@@ -425,6 +440,7 @@ void TimeGraphicsView::resizeEvent(QResizeEvent *event) {
 }
 
 void TimeGraphicsView::mousePressEvent(QMouseEvent *event) {
+    m_lastPointerPosition = event->pos();
     stopViewportAnimations();
 
     const auto isSelect = m_dragBehavior == DragBehavior::RectSelect ||
@@ -448,6 +464,7 @@ void TimeGraphicsView::mousePressEvent(QMouseEvent *event) {
 }
 
 void TimeGraphicsView::mouseMoveEvent(QMouseEvent *event) {
+    m_lastPointerPosition = event->pos();
     if (m_isDraggingContent) {
         updateRubberBandSelection(mapToScene(event->pos()));
     }
@@ -468,6 +485,7 @@ void TimeGraphicsView::updateRubberBandSelection(const QPointF &scenePos) {
 }
 
 void TimeGraphicsView::mouseReleaseEvent(QMouseEvent *event) {
+    m_lastPointerPosition = event->pos();
     if (m_isDraggingContent) {
         if (m_rubberBandAdded)
             scene()->removeCommonItem(&m_rubberBand);
@@ -483,6 +501,7 @@ void TimeGraphicsView::showEvent(QShowEvent *event) {
 }
 
 void TimeGraphicsView::hideEvent(QHideEvent *event) {
+    m_touchController->cancel();
     QGraphicsView::hideEvent(event);
     updateAutoPageTurnAvailability();
 }
@@ -522,6 +541,71 @@ double TimeGraphicsView::boundedScale(const Qt::Orientation orientation,
             minimum = std::max(minimum, viewport()->height() / unscaledHeight);
     }
     return std::clamp(requested, std::min(minimum, m_scaleYMax), m_scaleYMax);
+}
+
+QPoint TimeGraphicsView::lastPointerPosition() const {
+    return m_lastPointerPosition;
+}
+
+void TimeGraphicsView::stopTouchViewportAnimation() {
+    stopViewportAnimations();
+    m_wheelInput.stop();
+    m_touchPanRemainder = {};
+}
+
+void TimeGraphicsView::panTouchViewportBy(const QPointF &deltaPixels) {
+    // The content follows the finger, so the scroll bars move the other way.
+    // Scroll bar values are integral, hence the carried remainder.
+    m_touchPanRemainder -= deltaPixels;
+    const auto stepX = qRound(m_touchPanRemainder.x());
+    const auto stepY = qRound(m_touchPanRemainder.y());
+    m_touchPanRemainder -= QPointF(stepX, stepY);
+    if (stepX != 0)
+        setHorizontalBarValue(horizontalBarValue() + stepX);
+    if (stepY != 0)
+        setVerticalBarValue(verticalBarValue() + stepY);
+}
+
+void TimeGraphicsView::zoomTouchViewportBy(const double horizontalFactor,
+                                           const double verticalFactor, const QPointF &anchor) {
+    if (horizontalFactor != 1.0) {
+        const auto value = boundedScale(Qt::Horizontal, scaleX() * horizontalFactor);
+        setScaleAt(Qt::Horizontal, value, anchor.x());
+    }
+    if (verticalFactor != 1.0) {
+        const auto value = boundedScale(Qt::Vertical, scaleY() * verticalFactor);
+        setScaleAt(Qt::Vertical, value, anchor.y());
+    }
+}
+
+bool TimeGraphicsView::touchHitsContent(const QPointF &viewportPosition) const {
+    // Notes, clips and anchors are selectable; grid, rulers and indicators are
+    // not, which is exactly the distinction a finger needs here.
+    const auto hits = items(viewportPosition.toPoint());
+    for (const auto *item : hits) {
+        if (item->flags().testFlag(QGraphicsItem::ItemIsSelectable))
+            return true;
+    }
+    return false;
+}
+
+EditorTouchTarget::BlankDragAction TimeGraphicsView::touchBlankDragAction() const {
+    // An armed selection tool owns the blank area; anything else leaves it as
+    // empty canvas that scrolls under the finger.
+    if (m_dragBehavior == DragBehavior::RectSelect ||
+        m_dragBehavior == DragBehavior::IntervalSelect)
+        return BlankDragAction::SyntheticMouse;
+    return BlankDragAction::Pan;
+}
+
+void TimeGraphicsView::cancelTouchPointerInteraction() {
+    if (m_isDraggingContent) {
+        if (m_rubberBandAdded && scene())
+            scene()->removeCommonItem(&m_rubberBand);
+        m_rubberBandAdded = false;
+        m_isDraggingContent = false;
+    }
+    disarmEdgeAutoScroll();
 }
 
 void TimeGraphicsView::setScaleAt(const Qt::Orientation orientation, const double value,
@@ -646,7 +730,7 @@ void TimeGraphicsView::updateAutoPageTurnAvailability() {
 }
 
 void TimeGraphicsView::armEdgeAutoScroll(Qt::Orientations axes) {
-    const auto pointerPos = viewport()->mapFromGlobal(QCursor::pos());
+    const auto pointerPos = m_lastPointerPosition;
     if (!m_edgeAutoScroller.isDragArmed()) {
         armEdgeAutoScroll(axes, pointerPos);
         return;
@@ -685,13 +769,12 @@ void TimeGraphicsView::updateEdgeAutoScrollState(const QPoint &viewportPos) {
 void TimeGraphicsView::onEdgeAutoScrollTimerFrame(double dtMs) {
     // Safety net: stop if the mouse button was released without us seeing the
     // event (e.g. release outside the window swallowed by a popup).
-    if (!m_edgeAutoScroller.isDragArmed() || QGuiApplication::mouseButtons() == Qt::NoButton ||
-        !isVisible()) {
+    if (!m_edgeAutoScroller.isDragArmed() || !EditorPointer::isPointerPressed() || !isVisible()) {
         disarmEdgeAutoScroll();
         return;
     }
 
-    const auto pointerPos = QPointF(viewport()->mapFromGlobal(QCursor::pos()));
+    const auto pointerPos = QPointF(m_lastPointerPosition);
     const QRectF vpRect(QPointF(0, 0), viewport()->size());
 
     const auto step = m_edgeAutoScroller.computeDragStep(pointerPos, vpRect, dtMs);

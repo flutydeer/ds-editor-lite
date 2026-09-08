@@ -68,6 +68,7 @@ namespace Automation {
             return {
                 .useNativeFrame = value->useNativeFrame,
                 .enableDirectManipulation = value->enableDirectManipulation,
+                .enableTouchGestures = value->enableTouchGestures,
                 .animationEnabled = value->animationEnabled,
                 .animationTimeScale = value->animationTimeScale,
                 .themeId = value->themeId,
@@ -80,6 +81,7 @@ namespace Automation {
             auto *target = options->appearance();
             target->useNativeFrame = value.useNativeFrame;
             target->enableDirectManipulation = value.enableDirectManipulation;
+            target->enableTouchGestures = value.enableTouchGestures;
             target->animationEnabled = value.animationEnabled;
             target->animationTimeScale = value.animationTimeScale;
             target->themeId = value.themeId;

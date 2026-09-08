@@ -16,6 +16,7 @@
 #include "PianoRollSelectionModel.h"
 #include "PianoRollGraphicsView_p.h"
 #include "UI/Views/ClipEditor/AnchorEditor/AnchorOverlayView.h"
+#include "UI/Views/Common/EditorPointerUtils.h"
 #include "UI/Views/Common/EditorResizeUtils.h"
 #include "PitchEditorView.h"
 #include "PronunciationView.h"
@@ -264,6 +265,45 @@ bool PianoRollGraphicsView::event(QEvent *event) {
     else if (event->type() == QEvent::HoverMove)
         d->onHoverMove(dynamic_cast<QHoverEvent *>(event));
     return TimeGraphicsView::event(event);
+}
+
+bool PianoRollGraphicsView::touchHitsContent(const QPointF &viewportPosition) const {
+    auto *d = const_cast<PianoRollGraphicsViewPrivate *>(d_func());
+    const auto position = viewportPosition.toPoint();
+    return d->noteViewAt(position) != nullptr || d->pronViewAt(position) != nullptr;
+}
+
+EditorTouchTarget::BlankDragAction PianoRollGraphicsView::touchBlankDragAction() const {
+    Q_D(const PianoRollGraphicsView);
+    if (!d->m_clip)
+        return BlankDragAction::Pan;
+    // Mirrors the RHI backend: an explicit tool always wins, and plain Select
+    // turns a blank-area finger drag into note drawing because rubber band
+    // selection is reachable through a long press.
+    if (d->m_editMode != Select)
+        return BlankDragAction::SyntheticMouse;
+    return BlankDragAction::DirectManipulation;
+}
+
+void PianoRollGraphicsView::beginTouchDirectManipulation() {
+    Q_D(PianoRollGraphicsView);
+    if (m_touchPreviousEditMode.has_value())
+        return;
+    m_touchPreviousEditMode = d->m_editMode;
+    setEditMode(DrawNote);
+}
+
+void PianoRollGraphicsView::endTouchDirectManipulation() {
+    if (!m_touchPreviousEditMode.has_value())
+        return;
+    const auto mode = *m_touchPreviousEditMode;
+    m_touchPreviousEditMode.reset();
+    setEditMode(mode);
+}
+
+void PianoRollGraphicsView::cancelTouchPointerInteraction() {
+    discardAction();
+    TimeGraphicsView::cancelTouchPointerInteraction();
 }
 
 void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
@@ -1654,7 +1694,7 @@ void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
     const auto rPos = noteView->mapFromScene(scenePos);
     const auto rx = rPos.x();
     const auto edge = EditorResizeUtils::horizontalEdgeAt(rx, noteView->rect().width(),
-                                                          AppGlobal::resizeTolerance);
+                                                          EditorPointer::resizeTolerance());
     q->setCursor(edge == EditorResizeUtils::HorizontalEdge::None ? Qt::ArrowCursor
                                                                  : Qt::SizeHorCursor);
 }

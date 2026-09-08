@@ -8,6 +8,8 @@
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
 
+#include <optional>
+
 class SingingClip;
 class DrawCurve;
 class Note;
@@ -107,8 +109,17 @@ protected:
     void onEdgeAutoScrollFrame(const QPoint &clampedViewportPos,
                                Qt::KeyboardModifiers modifiers) override;
 
+    // --- EditorTouchTarget ---
+    [[nodiscard]] bool touchHitsContent(const QPointF &viewportPosition) const override;
+    [[nodiscard]] BlankDragAction touchBlankDragAction() const override;
+    void beginTouchDirectManipulation() override;
+    void endTouchDirectManipulation() override;
+    void cancelTouchPointerInteraction() override;
+
 private:
     int m_noteFontPixelSize = 13;
+    // Edit mode to restore once a touch direct manipulation drag is over.
+    std::optional<PianoRollEditMode> m_touchPreviousEditMode;
 
     void updateNoteDragAt(const QPoint &viewportPos, Qt::KeyboardModifiers modifiers);
     // 发布拖动中音符的实时几何到 AppStatus（轨道侧缩略图预览用）

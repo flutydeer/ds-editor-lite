@@ -1,0 +1,515 @@
+// TouchProbe — 输入探针
+//
+// A standalone diagnostic window that visualizes every pointer event the
+// platform delivers, so the touch/pen behaviour of a real machine can be
+// checked before trusting it in the editor. It answers three questions the
+// desktop application cannot answer on its own:
+//
+//   1. Does touch reach Qt as QTouchEvent, or only as synthesized mouse input?
+//   2. Does a stylus produce QTabletEvent, a mouse event, or both?
+//   3. What exactly does Direct Manipulation swallow once it is registered?
+//
+// Trails are colored per device: mouse blue, touch green (one hue per point
+// id), pen red, wheel and native gestures yellow. Synthesized mouse events are
+// drawn as a grey dashed trail, which makes an unexpected synthesis obvious at
+// a glance.
+//
+// Keys: C clear, D toggle Direct Manipulation, F fullscreen, Esc quit.
+
+#include <QApplication>
+#include <QCheckBox>
+#include <QDateTime>
+#include <QDir>
+#include <QFile>
+#include <QHash>
+#include <QPair>
+#include <QStringList>
+#include <QHBoxLayout>
+#include <QKeyEvent>
+#include <QLabel>
+#include <QMouseEvent>
+#include <QNativeGestureEvent>
+#include <QPainter>
+#include <QPainterPath>
+#include <QPushButton>
+#include <QStandardPaths>
+#include <QTabletEvent>
+#include <QTextStream>
+#include <QTouchEvent>
+#include <QVBoxLayout>
+#include <QWheelEvent>
+#include <QWidget>
+#include <QWindow>
+
+#include <algorithm>
+
+#if defined(WITH_DIRECT_MANIPULATION)
+#  include <QWDMHCore/DirectManipulationSystem.h>
+#endif
+
+namespace {
+
+    constexpr int maximumTrailPoints = 400;
+    constexpr int maximumHudLines = 22;
+
+    enum class DeviceKind { Mouse, SynthesizedMouse, Touch, Pen, Wheel, Gesture };
+
+    QString deviceKindName(const DeviceKind kind) {
+        switch (kind) {
+            case DeviceKind::Mouse:
+                return QStringLiteral("mouse");
+            case DeviceKind::SynthesizedMouse:
+                return QStringLiteral("mouse(synth)");
+            case DeviceKind::Touch:
+                return QStringLiteral("touch");
+            case DeviceKind::Pen:
+                return QStringLiteral("pen");
+            case DeviceKind::Wheel:
+                return QStringLiteral("wheel");
+            case DeviceKind::Gesture:
+                return QStringLiteral("gesture");
+        }
+        return QStringLiteral("?");
+    }
+
+    QColor deviceKindColor(const DeviceKind kind, const int pointId) {
+        switch (kind) {
+            case DeviceKind::Mouse:
+                return {90, 150, 255};
+            case DeviceKind::SynthesizedMouse:
+                return {150, 150, 150};
+            case DeviceKind::Touch:
+                // One hue per point id so two fingers never share a trail color.
+                return QColor::fromHsv((70 + pointId * 47) % 360, 200, 235);
+            case DeviceKind::Pen:
+                return {255, 90, 90};
+            case DeviceKind::Wheel:
+            case DeviceKind::Gesture:
+                return {235, 210, 80};
+        }
+        return Qt::white;
+    }
+
+    QString deviceTypeName(const QInputDevice *device) {
+        if (!device)
+            return QStringLiteral("null");
+        switch (device->type()) {
+            case QInputDevice::DeviceType::Mouse:
+                return QStringLiteral("Mouse");
+            case QInputDevice::DeviceType::TouchScreen:
+                return QStringLiteral("TouchScreen");
+            case QInputDevice::DeviceType::TouchPad:
+                return QStringLiteral("TouchPad");
+            case QInputDevice::DeviceType::Stylus:
+                return QStringLiteral("Stylus");
+            case QInputDevice::DeviceType::Airbrush:
+                return QStringLiteral("Airbrush");
+            case QInputDevice::DeviceType::Puck:
+                return QStringLiteral("Puck");
+            case QInputDevice::DeviceType::Keyboard:
+                return QStringLiteral("Keyboard");
+            default:
+                break;
+        }
+        return QStringLiteral("Unknown");
+    }
+
+    QString mouseSourceName(const Qt::MouseEventSource source) {
+        switch (source) {
+            case Qt::MouseEventNotSynthesized:
+                return QStringLiteral("NotSynthesized");
+            case Qt::MouseEventSynthesizedBySystem:
+                return QStringLiteral("BySystem");
+            case Qt::MouseEventSynthesizedByQt:
+                return QStringLiteral("ByQt");
+            case Qt::MouseEventSynthesizedByApplication:
+                return QStringLiteral("ByApplication");
+        }
+        return QStringLiteral("?");
+    }
+
+    struct Trail {
+        DeviceKind kind = DeviceKind::Mouse;
+        int pointId = 0;
+        QList<QPointF> points;
+    };
+
+    class ProbeCanvas final : public QWidget {
+    public:
+        explicit ProbeCanvas(QWidget *parent = nullptr) : QWidget(parent) {
+            setAttribute(Qt::WA_AcceptTouchEvents);
+            setMouseTracking(true);
+            setTabletTracking(true);
+            setFocusPolicy(Qt::StrongFocus);
+            setAutoFillBackground(false);
+
+            const auto directory =
+                QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+            QDir().mkpath(directory);
+            m_logFile.setFileName(directory + QStringLiteral("/touch-probe.log"));
+            if (!m_logFile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Append))
+                qWarning("TouchProbe: cannot open the log file, HUD only");
+            log(QStringLiteral("--- session started, log at %1").arg(m_logFile.fileName()));
+        }
+
+        void clear() {
+            m_trails.clear();
+            m_hud.clear();
+            m_activePoints = 0;
+            update();
+        }
+
+        [[nodiscard]] QString logPath() const {
+            return m_logFile.fileName();
+        }
+
+    protected:
+        bool event(QEvent *event) override {
+            switch (event->type()) {
+                case QEvent::TouchBegin:
+                case QEvent::TouchUpdate:
+                case QEvent::TouchEnd:
+                case QEvent::TouchCancel:
+                    recordTouch(static_cast<QTouchEvent *>(event));
+                    // Accepting TouchBegin suppresses Qt's own mouse synthesis,
+                    // which is the whole point: an extra grey trail after this
+                    // means the synthesis came from the platform, not from Qt.
+                    event->accept();
+                    return true;
+                case QEvent::NativeGesture:
+                    recordGesture(static_cast<QNativeGestureEvent *>(event));
+                    return true;
+                default:
+                    break;
+            }
+            return QWidget::event(event);
+        }
+
+        void mousePressEvent(QMouseEvent *event) override {
+            recordMouse(event, QStringLiteral("press"));
+        }
+
+        void mouseMoveEvent(QMouseEvent *event) override {
+            recordMouse(event, QStringLiteral("move"));
+        }
+
+        void mouseReleaseEvent(QMouseEvent *event) override {
+            recordMouse(event, QStringLiteral("release"));
+        }
+
+        void tabletEvent(QTabletEvent *event) override {
+            const auto kind = DeviceKind::Pen;
+            appendPoint(kind, -2, event->position());
+            log(QStringLiteral("tablet   %1 dev=%2 pressure=%3 tilt=(%4,%5) pos=(%6,%7) buttons=%8")
+                    .arg(tabletActionName(event->type()), deviceTypeName(event->device()))
+                    .arg(event->pressure(), 0, 'f', 2)
+                    .arg(event->xTilt())
+                    .arg(event->yTilt())
+                    .arg(event->position().x(), 0, 'f', 1)
+                    .arg(event->position().y(), 0, 'f', 1)
+                    .arg(static_cast<int>(event->buttons())));
+            // Deliberately left unaccepted: that is how the editor gets the
+            // stylus as ordinary mouse input.
+            event->ignore();
+            update();
+        }
+
+        void wheelEvent(QWheelEvent *event) override {
+            appendPoint(DeviceKind::Wheel, -3, event->position());
+            log(QStringLiteral("wheel    dev=%1 angle=(%2,%3) pixel=(%4,%5) phase=%6 inverted=%7")
+                    .arg(deviceTypeName(event->device()))
+                    .arg(event->angleDelta().x())
+                    .arg(event->angleDelta().y())
+                    .arg(event->pixelDelta().x())
+                    .arg(event->pixelDelta().y())
+                    .arg(static_cast<int>(event->phase()))
+                    .arg(event->inverted()));
+            event->accept();
+            update();
+        }
+
+        void paintEvent(QPaintEvent *) override {
+            QPainter painter(this);
+            painter.fillRect(rect(), QColor(24, 26, 30));
+            painter.setRenderHint(QPainter::Antialiasing);
+
+            for (const auto &trail : m_trails) {
+                if (trail.points.size() < 2)
+                    continue;
+                QPen pen(deviceKindColor(trail.kind, trail.pointId));
+                pen.setWidthF(trail.kind == DeviceKind::Pen ? 3.0 : 2.0);
+                if (trail.kind == DeviceKind::SynthesizedMouse) {
+                    pen.setStyle(Qt::DashLine);
+                    pen.setWidthF(2.0);
+                }
+                painter.setPen(pen);
+                QPainterPath path(trail.points.first());
+                for (qsizetype i = 1; i < trail.points.size(); ++i)
+                    path.lineTo(trail.points.at(i));
+                painter.drawPath(path);
+                painter.setBrush(pen.color());
+                painter.drawEllipse(trail.points.last(), 5.0, 5.0);
+                painter.setBrush(Qt::NoBrush);
+            }
+
+            paintHud(painter);
+        }
+
+        void keyPressEvent(QKeyEvent *event) override {
+            if (event->key() == Qt::Key_C) {
+                clear();
+                return;
+            }
+            QWidget::keyPressEvent(event);
+        }
+
+    private:
+        static QString tabletActionName(const QEvent::Type type) {
+            switch (type) {
+                case QEvent::TabletPress:
+                    return QStringLiteral("press");
+                case QEvent::TabletMove:
+                    return QStringLiteral("move");
+                case QEvent::TabletRelease:
+                    return QStringLiteral("release");
+                case QEvent::TabletEnterProximity:
+                    return QStringLiteral("enter");
+                case QEvent::TabletLeaveProximity:
+                    return QStringLiteral("leave");
+                default:
+                    break;
+            }
+            return QStringLiteral("?");
+        }
+
+        void recordMouse(QMouseEvent *event, const QString &action) {
+            const auto synthesized = event->source() != Qt::MouseEventNotSynthesized;
+            const auto kind = synthesized ? DeviceKind::SynthesizedMouse : DeviceKind::Mouse;
+            appendPoint(kind, synthesized ? -4 : -1, event->position());
+            log(QStringLiteral("mouse    %1 dev=%2 source=%3 pos=(%4,%5) buttons=%6")
+                    .arg(action, deviceTypeName(event->pointingDevice()),
+                         mouseSourceName(event->source()))
+                    .arg(event->position().x(), 0, 'f', 1)
+                    .arg(event->position().y(), 0, 'f', 1)
+                    .arg(static_cast<int>(event->buttons())));
+            event->accept();
+            update();
+        }
+
+        void recordTouch(QTouchEvent *event) {
+            m_activePoints = 0;
+            for (const auto &point : event->points()) {
+                if (point.state() != QEventPoint::State::Released)
+                    ++m_activePoints;
+                if (point.state() == QEventPoint::State::Released)
+                    continue;
+                appendPoint(DeviceKind::Touch, point.id(), point.position());
+            }
+            log(QStringLiteral("touch    %1 dev=%2 points=%3 [%4]")
+                    .arg(touchActionName(event->type()), deviceTypeName(event->pointingDevice()))
+                    .arg(event->points().size())
+                    .arg(describePoints(event)));
+            update();
+        }
+
+        void recordGesture(const QNativeGestureEvent *event) {
+            appendPoint(DeviceKind::Gesture, -5, event->position());
+            log(QStringLiteral("gesture  type=%1 value=%2 dev=%3 pos=(%4,%5)")
+                    .arg(static_cast<int>(event->gestureType()))
+                    .arg(event->value(), 0, 'f', 4)
+                    .arg(deviceTypeName(event->device()))
+                    .arg(event->position().x(), 0, 'f', 1)
+                    .arg(event->position().y(), 0, 'f', 1));
+            update();
+        }
+
+        static QString touchActionName(const QEvent::Type type) {
+            switch (type) {
+                case QEvent::TouchBegin:
+                    return QStringLiteral("begin  ");
+                case QEvent::TouchUpdate:
+                    return QStringLiteral("update ");
+                case QEvent::TouchEnd:
+                    return QStringLiteral("end    ");
+                case QEvent::TouchCancel:
+                    return QStringLiteral("cancel ");
+                default:
+                    break;
+            }
+            return QStringLiteral("?");
+        }
+
+        static QString describePoints(const QTouchEvent *event) {
+            QStringList parts;
+            for (const auto &point : event->points()) {
+                parts.append(QStringLiteral("#%1:%2 (%3,%4)")
+                                 .arg(point.id())
+                                 .arg(static_cast<int>(point.state()))
+                                 .arg(point.position().x(), 0, 'f', 0)
+                                 .arg(point.position().y(), 0, 'f', 0));
+            }
+            return parts.join(QStringLiteral(", "));
+        }
+
+        void appendPoint(const DeviceKind kind, const int pointId, const QPointF &position) {
+            const auto key = QPair<int, int>(static_cast<int>(kind), pointId);
+            auto &trail = m_trails[key];
+            trail.kind = kind;
+            trail.pointId = pointId;
+            trail.points.append(position);
+            while (trail.points.size() > maximumTrailPoints)
+                trail.points.removeFirst();
+        }
+
+        void log(const QString &line) {
+            const auto stamped = QStringLiteral("%1 %2").arg(
+                QDateTime::currentDateTime().toString(QStringLiteral("hh:mm:ss.zzz")), line);
+            m_hud.append(stamped);
+            while (m_hud.size() > maximumHudLines)
+                m_hud.removeFirst();
+            if (m_logFile.isOpen()) {
+                QTextStream stream(&m_logFile);
+                stream << stamped << '\n';
+            }
+        }
+
+        void paintHud(QPainter &painter) const {
+            QFont font(QStringLiteral("Consolas"));
+            font.setStyleHint(QFont::Monospace);
+            font.setPixelSize(12);
+            painter.setFont(font);
+
+            const QRectF panel(8, 8, std::min(760.0, width() - 16.0),
+                               24.0 + maximumHudLines * 14.0);
+            painter.fillRect(panel, QColor(0, 0, 0, 170));
+            painter.setPen(QColor(220, 220, 220));
+
+            const auto header =
+                QStringLiteral("active touch points: %1    dpr: %2    C clear / D toggle DM")
+                    .arg(m_activePoints)
+                    .arg(devicePixelRatioF(), 0, 'f', 2);
+            painter.drawText(QPointF(panel.left() + 8, panel.top() + 16), header);
+
+            double y = panel.top() + 34;
+            for (const auto &line : m_hud) {
+                painter.drawText(QPointF(panel.left() + 8, y), line);
+                y += 14.0;
+            }
+        }
+
+        QHash<QPair<int, int>, Trail> m_trails;
+        QStringList m_hud;
+        int m_activePoints = 0;
+        QFile m_logFile;
+    };
+
+    class ProbeWindow final : public QWidget {
+    public:
+        ProbeWindow() {
+            setWindowTitle(QStringLiteral("TouchProbe — pointer input probe"));
+            resize(1200, 800);
+
+            m_canvas = new ProbeCanvas(this);
+
+            auto *clearButton = new QPushButton(QStringLiteral("Clear (C)"), this);
+            connect(clearButton, &QPushButton::clicked, m_canvas, &ProbeCanvas::clear);
+
+            m_directManipulationButton = new QPushButton(this);
+            m_directManipulationButton->setCheckable(true);
+#if defined(WITH_DIRECT_MANIPULATION)
+            connect(m_directManipulationButton, &QPushButton::toggled, this,
+                    &ProbeWindow::setDirectManipulationEnabled);
+#else
+            m_directManipulationButton->setEnabled(false);
+#endif
+            updateDirectManipulationButton();
+
+            m_statusLabel = new QLabel(this);
+            m_statusLabel->setText(m_canvas->logPath());
+            m_statusLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+
+            auto *controls = new QHBoxLayout;
+            controls->addWidget(clearButton);
+            controls->addWidget(m_directManipulationButton);
+            controls->addWidget(m_statusLabel, 1);
+
+            auto *layout = new QVBoxLayout(this);
+            layout->addLayout(controls);
+            layout->addWidget(m_canvas, 1);
+        }
+
+    protected:
+        void keyPressEvent(QKeyEvent *event) override {
+            switch (event->key()) {
+                case Qt::Key_Escape:
+                    close();
+                    return;
+                case Qt::Key_C:
+                    m_canvas->clear();
+                    return;
+                case Qt::Key_D:
+                    m_directManipulationButton->toggle();
+                    return;
+                case Qt::Key_F:
+                    isFullScreen() ? showNormal() : showFullScreen();
+                    return;
+                default:
+                    break;
+            }
+            QWidget::keyPressEvent(event);
+        }
+
+    private:
+#if defined(WITH_DIRECT_MANIPULATION)
+        void setDirectManipulationEnabled(const bool enabled) {
+            using System = QWDMH::DirectManipulationSystem;
+            auto *handle = windowHandle();
+            if (!handle)
+                return;
+            if (enabled) {
+                // The exact configuration the application registers: touchpad
+                // and wheel only, so touch and pen stay visible to Qt.
+                System::registerWindow(handle,
+                                       System::TranslationX | System::TranslationY |
+                                           System::Scaling | System::TranslationInertia |
+                                           System::ScalingInertia,
+                                       System::Touchpad | System::Wheel);
+            } else {
+                System::unregisterWindow(handle);
+            }
+            updateDirectManipulationButton();
+        }
+#endif
+
+        void updateDirectManipulationButton() {
+#if defined(WITH_DIRECT_MANIPULATION)
+            m_directManipulationButton->setText(
+                m_directManipulationButton->isChecked()
+                    ? QStringLiteral("Direct Manipulation: on, Touchpad|Wheel (D)")
+                    : QStringLiteral("Direct Manipulation: off (D)"));
+#else
+            m_directManipulationButton->setText(
+                QStringLiteral("Direct Manipulation: unavailable in this build"));
+#endif
+        }
+
+        ProbeCanvas *m_canvas = nullptr;
+        QPushButton *m_directManipulationButton = nullptr;
+        QLabel *m_statusLabel = nullptr;
+    };
+
+}
+
+int main(int argc, char *argv[]) {
+    QApplication application(argc, argv);
+    QCoreApplication::setApplicationName(QStringLiteral("TouchProbe"));
+
+#if defined(WITH_DIRECT_MANIPULATION)
+    // The system object must outlive every registered window.
+    QWDMH::DirectManipulationSystem system;
+#endif
+
+    ProbeWindow window;
+    window.show();
+    return QApplication::exec();
+}

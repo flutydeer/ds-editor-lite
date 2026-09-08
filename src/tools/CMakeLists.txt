@@ -1,1 +1,2 @@
 add_subdirectory(LitePalette)
+add_subdirectory(TouchProbe)

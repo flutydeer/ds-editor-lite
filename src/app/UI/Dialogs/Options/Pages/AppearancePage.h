@@ -28,6 +28,7 @@ private:
     SwitchButton *m_swAnimationEnabled;
     LineEdit *m_leAnimationTimeScale;
     SwitchButton *m_swShowGhostNotes;
+    SwitchButton *m_swEnableTouchGestures;
 #if defined(WITH_DIRECT_MANIPULATION)
     SwitchButton *m_swEnableDirectManipulation;
 #endif

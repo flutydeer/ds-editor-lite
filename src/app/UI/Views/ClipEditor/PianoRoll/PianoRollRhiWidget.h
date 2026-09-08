@@ -5,6 +5,7 @@
 #include "PianoRollContextMenuController.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/Common/EditorRhiWidget.h"
+#include "UI/Views/Common/EditorTouchTarget.h"
 
 #include <lite/History/HistoryFocus.h>
 
@@ -22,7 +23,8 @@ class SingingClip;
 
 class PianoRollRhiWidget final : public EditorRhiWidget,
                                  public IPianoRollPastePreviewHost,
-                                 public IAnchorCommandHost {
+                                 public IAnchorCommandHost,
+                                 public EditorTouchTarget {
     Q_OBJECT
     Q_PROPERTY(int noteFontPixelSize READ noteFontPixelSize WRITE setNoteFontPixelSize)
     Q_PROPERTY(QColor whiteKeyColor READ whiteKeyColor WRITE setWhiteKeyColor)
@@ -116,6 +118,17 @@ protected:
     void contextMenuEvent(QContextMenuEvent *event) override;
     void onRhiReady() override;
     void onDevicePixelRatioChanged() override;
+
+    // --- EditorTouchTarget ---
+    void stopTouchViewportAnimation() override;
+    void panTouchViewportBy(const QPointF &deltaPixels) override;
+    void zoomTouchViewportBy(double horizontalFactor, double verticalFactor,
+                             const QPointF &anchor) override;
+    [[nodiscard]] bool touchHitsContent(const QPointF &viewportPosition) const override;
+    [[nodiscard]] BlankDragAction touchBlankDragAction() const override;
+    void beginTouchDirectManipulation() override;
+    void endTouchDirectManipulation() override;
+    void cancelTouchPointerInteraction() override;
 
 private:
     class Private;

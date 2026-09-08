@@ -32,7 +32,9 @@
 #include "UI/Views/Common/EditorResizeUtils.h"
 #include "UI/Views/Common/EditorRhiGeometry.h"
 #include "UI/Views/Common/EditorGlyphAtlas.h"
+#include "UI/Views/Common/EditorPointerUtils.h"
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
+#include "UI/Views/Common/EditorTouchController.h"
 #include "UI/Views/Common/EditorViewportController.h"
 #include "UI/Views/Common/EditorWheelController.h"
 #include "Modules/Inference/EditSessionManager.h"
@@ -70,6 +72,7 @@
 #include <functional>
 #include <climits>
 #include <numbers>
+#include <optional>
 #include <utility>
 
 using namespace ClipEditorGlobal;
@@ -676,13 +679,13 @@ public:
     }
 
     void onEdgeAutoScrollFrame(const double dtMs) {
-        if (!edgeAutoScroller.isDragArmed() || QGuiApplication::mouseButtons() == Qt::NoButton ||
+        if (!edgeAutoScroller.isDragArmed() || !EditorPointer::isPointerPressed() ||
             !q->isVisible()) {
             disarmEdgeAutoScroll();
             return;
         }
 
-        const QPointF pointerPosition(q->mapFromGlobal(QCursor::pos()));
+        const auto pointerPosition = lastPointerPosition;
         const QRectF viewportRect(QPointF(), q->size());
         const auto step = edgeAutoScroller.computeDragStep(pointerPosition, viewportRect, dtMs);
         if (step.x() > 0 &&
@@ -754,7 +757,7 @@ public:
         const auto rect = noteViewportRect(note);
         const auto relativeX = viewportPosition.x() - rect.left();
         const auto edge = EditorResizeUtils::horizontalEdgeAt(relativeX, rect.width(),
-                                                              AppGlobal::resizeTolerance);
+                                                              EditorPointer::resizeTolerance());
         if (edge == EditorResizeUtils::HorizontalEdge::Left)
             return Interaction::ResizeLeft;
         if (edge == EditorResizeUtils::HorizontalEdge::Right)
@@ -1655,6 +1658,23 @@ public:
         appStatus->pianoRollNoteEditPreview = {};
         resetNoteInteraction();
         finishNoteEditSession(EditSessionEndReason::Discard);
+        scheduleSnapshot();
+    }
+
+    // Everything that must be undone when a pointer interaction is torn down
+    // without a release: window deactivation, or a second finger promoting the
+    // gesture to navigation.
+    void abortPointerInteractions() {
+        hideLyricToolTip();
+        disarmEdgeAutoScroll();
+        discardNoteInteraction();
+        finishNoteErase(EditSessionEndReason::Discard);
+        cancelPitchEdit();
+        cancelPitchTransform();
+        if (editMode == EditPitchAnchor)
+            anchorController.cancel();
+        interaction = Interaction::None;
+        interactionNoteId = -1;
         scheduleSnapshot();
     }
 
@@ -2945,6 +2965,13 @@ public:
     GhostNoteSource ghostNotes;
     EditorViewportController viewport;
     EditorWheelController wheel;
+    EditorTouchController *touchController = nullptr;
+    // Edit mode to restore once a touch direct manipulation drag is over.
+    std::optional<PianoRollEditMode> touchPreviousEditMode;
+    // Last known pointer position in widget coordinates. Timer-driven auto
+    // scroll must read this instead of QCursor::pos(), which does not follow a
+    // finger across the glass.
+    QPointF lastPointerPosition;
     double playbackPosition = 0.0;
     double lastPlaybackPosition = 0.0;
     bool autoPageTurn = true;
@@ -2988,6 +3015,8 @@ PianoRollRhiWidget::PianoRollRhiWidget(QWidget *parent)
     : EditorRhiWidget(QStringLiteral("PianoRollRhi"), parent), d(std::make_unique<Private>(this)) {
     setObjectName(QStringLiteral("PianoRollRhiWidget"));
     setMouseTracking(true);
+    setAttribute(Qt::WA_AcceptTouchEvents);
+    d->touchController = new EditorTouchController(this, this);
     d->initializeScrollBars();
     d->initializeInlineEditor();
     d->initializeLyricToolTip();
@@ -3079,6 +3108,63 @@ bool PianoRollRhiWidget::revealFocus(const HistoryFocus &focus, const bool anima
     return d->revealFocus(focus, animated);
 }
 
+void PianoRollRhiWidget::stopTouchViewportAnimation() {
+    d->wheel.stop();
+    d->viewport.stopAnimation();
+}
+
+void PianoRollRhiWidget::panTouchViewportBy(const QPointF &deltaPixels) {
+    // The content follows the finger, so the scroll offset moves the other way.
+    d->viewport.scrollBy(-deltaPixels);
+}
+
+void PianoRollRhiWidget::zoomTouchViewportBy(const double horizontalFactor,
+                                             const double verticalFactor, const QPointF &anchor) {
+    const auto horizontal =
+        d->viewport.boundedScale(Qt::Horizontal, d->viewport.horizontalScale() * horizontalFactor);
+    const auto vertical =
+        d->viewport.boundedScale(Qt::Vertical, d->viewport.verticalScale() * verticalFactor);
+    d->viewport.setScale(horizontal, vertical, anchor);
+}
+
+bool PianoRollRhiWidget::touchHitsContent(const QPointF &viewportPosition) const {
+    if (!d->clip)
+        return false;
+    return d->noteAt(viewportPosition) != nullptr ||
+           d->pronunciationAt(viewportPosition) != nullptr;
+}
+
+EditorTouchTarget::BlankDragAction PianoRollRhiWidget::touchBlankDragAction() const {
+    if (!d->clip)
+        return BlankDragAction::Pan;
+    // An explicitly picked tool always wins: erase, split, interval select and
+    // every pitch tool keep meaning exactly what they mean with a mouse.
+    if (d->editMode != Select)
+        return BlankDragAction::SyntheticMouse;
+    // Plain Select with a finger: dragging blank canvas writes a note, because
+    // rubber band selection is reachable through a long press instead.
+    return BlankDragAction::DirectManipulation;
+}
+
+void PianoRollRhiWidget::beginTouchDirectManipulation() {
+    if (d->touchPreviousEditMode.has_value())
+        return;
+    d->touchPreviousEditMode = d->editMode;
+    setEditMode(DrawNote);
+}
+
+void PianoRollRhiWidget::endTouchDirectManipulation() {
+    if (!d->touchPreviousEditMode.has_value())
+        return;
+    const auto mode = *d->touchPreviousEditMode;
+    d->touchPreviousEditMode.reset();
+    setEditMode(mode);
+}
+
+void PianoRollRhiWidget::cancelTouchPointerInteraction() {
+    d->abortPointerInteractions();
+}
+
 void PianoRollRhiWidget::setEditMode(const PianoRollEditMode mode) {
     d->hideLyricToolTip();
     if (d->editMode != mode) {
@@ -3144,6 +3230,8 @@ void PianoRollRhiWidget::showEvent(QShowEvent *event) {
 }
 
 bool PianoRollRhiWidget::event(QEvent *event) {
+    if (d->touchController->handleEvent(event))
+        return true;
     if (d->clip && d->editMode == EditPitchAnchor && event->type() == QEvent::ShortcutOverride) {
         const auto key = static_cast<QKeyEvent *>(event)->key();
         if (AnchorEditor::AnchorEditController::handlesKey(key)) {
@@ -3152,14 +3240,8 @@ bool PianoRollRhiWidget::event(QEvent *event) {
         }
     }
     if (event->type() == QEvent::WindowDeactivate) {
-        d->hideLyricToolTip();
-        d->disarmEdgeAutoScroll();
-        d->discardNoteInteraction();
-        d->finishNoteErase(EditSessionEndReason::Discard);
-        d->cancelPitchEdit();
-        d->cancelPitchTransform();
-        if (d->editMode == EditPitchAnchor)
-            d->anchorController.cancel();
+        d->touchController->cancel();
+        d->abortPointerInteractions();
     }
     if (event->type() == QEvent::UngrabMouse &&
         d->pitchTransform.phase() == CurveTransform::Phase::Transforming) {
@@ -3173,6 +3255,7 @@ bool PianoRollRhiWidget::event(QEvent *event) {
 }
 
 void PianoRollRhiWidget::hideEvent(QHideEvent *event) {
+    d->touchController->cancel();
     d->hideLyricToolTip();
     d->disarmEdgeAutoScroll();
     d->discardNoteInteraction();
@@ -3194,6 +3277,7 @@ void PianoRollRhiWidget::wheelEvent(QWheelEvent *event) {
 }
 
 void PianoRollRhiWidget::mousePressEvent(QMouseEvent *event) {
+    d->lastPointerPosition = event->position();
     d->wheel.stop();
     setFocus(Qt::MouseFocusReason);
     if (event->button() == Qt::LeftButton)
@@ -3203,18 +3287,21 @@ void PianoRollRhiWidget::mousePressEvent(QMouseEvent *event) {
 }
 
 void PianoRollRhiWidget::mouseMoveEvent(QMouseEvent *event) {
+    d->lastPointerPosition = event->position();
     d->mouseMove(event);
     d->updateEdgeAutoScrollState(event->position());
     event->accept();
 }
 
 void PianoRollRhiWidget::mouseReleaseEvent(QMouseEvent *event) {
+    d->lastPointerPosition = event->position();
     d->mouseRelease(event);
     d->disarmEdgeAutoScroll();
     event->accept();
 }
 
 void PianoRollRhiWidget::mouseDoubleClickEvent(QMouseEvent *event) {
+    d->lastPointerPosition = event->position();
     d->hideLyricToolTip();
     if (d->clip && d->editMode == EditPitchAnchor && event->button() == Qt::LeftButton) {
         setFocus(Qt::MouseFocusReason);

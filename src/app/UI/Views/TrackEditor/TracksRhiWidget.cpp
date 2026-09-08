@@ -19,7 +19,9 @@
 #include "UI/Views/Common/AutoPageTurnUtils.h"
 #include "UI/Views/Common/EditorItemGeometry.h"
 #include "UI/Views/Common/EditorResizeUtils.h"
+#include "UI/Views/Common/EditorPointerUtils.h"
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
+#include "UI/Views/Common/EditorTouchController.h"
 #include "UI/Views/Common/EditorWheelController.h"
 
 #include <lite/MusicBase/TimelineSnapUtils.h>
@@ -146,6 +148,7 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
     setObjectName(QStringLiteral("TracksRhiWidget"));
     setMouseTracking(true);
     setAcceptDrops(true);
+    setAttribute(Qt::WA_AcceptTouchEvents);
     m_viewport.setPixelsPerQuarterNote(pixelsPerQuarterNote);
     m_viewport.setScaleBounds(0.0001, 10000.0, 0.575, 8.0);
     m_viewport.setEnsureContentFillsViewport(true, false);
@@ -154,6 +157,7 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
     // One extra unit for the virtual append slot at the bottom of the canvas
     m_viewport.setVerticalContent(appModel->tracks().size() + 1, trackHeight);
     m_wheelController = std::make_unique<EditorWheelController>(&m_viewport, this);
+    m_touchController = new EditorTouchController(this, this);
 
     m_scrollBars = new EditorRhiScrollBarController(this, this);
     connect(m_scrollBars, &EditorRhiScrollBarController::offsetChangeRequested, this,
@@ -453,8 +457,12 @@ void TracksRhiWidget::resizeEvent(QResizeEvent *event) {
 }
 
 bool TracksRhiWidget::event(QEvent *event) {
-    if (event->type() == QEvent::WindowDeactivate)
+    if (m_touchController->handleEvent(event))
+        return true;
+    if (event->type() == QEvent::WindowDeactivate) {
+        m_touchController->cancel();
         discardDrag();
+    }
     if (event->type() == QEvent::LanguageChange)
         scheduleSnapshot(); // rebuild clip snapshots with the new display language
     if (event->type() == QEvent::NativeGesture &&
@@ -470,6 +478,7 @@ void TracksRhiWidget::showEvent(QShowEvent *event) {
 }
 
 void TracksRhiWidget::hideEvent(QHideEvent *event) {
+    m_touchController->cancel();
     if (m_dragMode != DragMode::None)
         discardDrag();
     else
@@ -486,6 +495,7 @@ void TracksRhiWidget::wheelEvent(QWheelEvent *event) {
 }
 
 void TracksRhiWidget::mousePressEvent(QMouseEvent *event) {
+    m_lastPointerPosition = event->position();
     m_wheelController->stop();
     setFocus(Qt::MouseFocusReason);
     m_viewport.stopAnimation();
@@ -516,6 +526,7 @@ void TracksRhiWidget::mousePressEvent(QMouseEvent *event) {
 }
 
 void TracksRhiWidget::mouseMoveEvent(QMouseEvent *event) {
+    m_lastPointerPosition = event->position();
     if (m_dragMode == DragMode::RectSelect) {
         updateRubberBandSelection(event->position());
     } else if (m_dragMode != DragMode::None) {
@@ -528,6 +539,7 @@ void TracksRhiWidget::mouseMoveEvent(QMouseEvent *event) {
 }
 
 void TracksRhiWidget::mouseReleaseEvent(QMouseEvent *event) {
+    m_lastPointerPosition = event->position();
     if (event->button() == Qt::LeftButton) {
         if (m_dragMode == DragMode::RectSelect) {
             m_dragMode = DragMode::None;
@@ -539,6 +551,46 @@ void TracksRhiWidget::mouseReleaseEvent(QMouseEvent *event) {
         scheduleSnapshot();
     }
     event->accept();
+}
+
+void TracksRhiWidget::stopTouchViewportAnimation() {
+    m_wheelController->stop();
+    m_viewport.stopAnimation();
+}
+
+void TracksRhiWidget::panTouchViewportBy(const QPointF &deltaPixels) {
+    // The content follows the finger, so the scroll offset moves the other way.
+    m_viewport.scrollBy(-deltaPixels);
+}
+
+void TracksRhiWidget::zoomTouchViewportBy(const double horizontalFactor,
+                                          const double verticalFactor, const QPointF &anchor) {
+    const auto horizontal =
+        m_viewport.boundedScale(Qt::Horizontal, m_viewport.horizontalScale() * horizontalFactor);
+    const auto vertical =
+        m_viewport.boundedScale(Qt::Vertical, m_viewport.verticalScale() * verticalFactor);
+    m_viewport.setScale(horizontal, vertical, anchor);
+}
+
+bool TracksRhiWidget::touchHitsContent(const QPointF &viewportPosition) const {
+    return hitTest(viewportPosition) != nullptr;
+}
+
+EditorTouchTarget::BlankDragAction TracksRhiWidget::touchBlankDragAction() const {
+    // Empty canvas in the arrangement view carries nothing to create, so a
+    // plain finger drag there scrolls. Rubber band selection stays reachable
+    // through a long press.
+    return BlankDragAction::Pan;
+}
+
+void TracksRhiWidget::cancelTouchPointerInteraction() {
+    if (m_dragMode == DragMode::RectSelect)
+        m_dragMode = DragMode::None;
+    else if (m_dragMode != DragMode::None)
+        discardDrag();
+    disarmDragAutoScroll();
+    setSceneLengthExtension(0);
+    scheduleSnapshot();
 }
 
 void TracksRhiWidget::updateRubberBandSelection(const QPointF &position) {
@@ -589,13 +641,12 @@ void TracksRhiWidget::updateDragAutoScrollState(const QPointF &pointerPosition) 
 }
 
 void TracksRhiWidget::onDragAutoScrollFrame(const double dtMs) {
-    if (!m_edgeAutoScroller.isDragArmed() || QGuiApplication::mouseButtons() == Qt::NoButton ||
-        !isVisible()) {
+    if (!m_edgeAutoScroller.isDragArmed() || !EditorPointer::isPointerPressed() || !isVisible()) {
         disarmDragAutoScroll();
         return;
     }
 
-    const QPointF pointerPosition(mapFromGlobal(QCursor::pos()));
+    const auto pointerPosition = m_lastPointerPosition;
     const QRectF viewportRect(QPointF(), size());
     const auto step = m_edgeAutoScroller.computeDragStep(pointerPosition, viewportRect, dtMs);
     if (step.x() > 0 && (m_dragMode == DragMode::Move || m_dragMode == DragMode::ResizeRight)) {
@@ -1420,7 +1471,7 @@ void TracksRhiWidget::beginClipDrag(const ClipSnapshot &clip, const QMouseEvent 
         return;
     const auto physicalScene = m_viewport.viewportToScene(event->position()) * devicePixelRatioF();
     const auto relativeX = physicalScene.x() - clip.modelPhysicalRect.left();
-    const auto tolerance = AppGlobal::resizeTolerance * devicePixelRatioF();
+    const auto tolerance = EditorPointer::resizeTolerance() * devicePixelRatioF();
     const auto edge =
         EditorResizeUtils::horizontalEdgeAt(relativeX, clip.modelPhysicalRect.width(), tolerance);
     if (edge == EditorResizeUtils::HorizontalEdge::Left)
@@ -1605,7 +1656,7 @@ void TracksRhiWidget::updateCursor(const QPointF &position) {
     }
     const auto physical = m_viewport.viewportToScene(position).x() * devicePixelRatioF();
     const auto relative = physical - clip->modelPhysicalRect.left();
-    const auto tolerance = AppGlobal::resizeTolerance * devicePixelRatioF();
+    const auto tolerance = EditorPointer::resizeTolerance() * devicePixelRatioF();
     const auto edge =
         EditorResizeUtils::horizontalEdgeAt(relative, clip->modelPhysicalRect.width(), tolerance);
     setCursor(edge == EditorResizeUtils::HorizontalEdge::None ? Qt::ArrowCursor

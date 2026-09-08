@@ -29,6 +29,7 @@ namespace Automation {
     struct AppearanceSettingsDto {
         bool useNativeFrame = false;
         bool enableDirectManipulation = true;
+        bool enableTouchGestures = true;
         bool animationEnabled = true;
         double animationTimeScale = 1.0;
         QString themeId;
