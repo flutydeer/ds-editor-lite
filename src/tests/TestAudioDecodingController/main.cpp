@@ -7,6 +7,7 @@
 #include <lite/Tasking/TaskManager.h>
 
 #include <QCoreApplication>
+#include <QtTest>
 #include <QElapsedTimer>
 #include <QTemporaryDir>
 #include <QTextStream>
@@ -53,9 +54,7 @@ namespace {
     using namespace Automation;
 
     bool expect(const bool condition, const char *message) {
-        if (!condition)
-            QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        return condition;
+        return QTest::qVerify(condition, "task completion", message, __FILE__, __LINE__);
     }
 
     bool drainTasks() {
@@ -148,62 +147,74 @@ namespace {
         QStringList messages;
     };
 
-    bool testOpenSources() {
-        Fixture fixture;
-        bool ok = expect(fixture.directory.isValid(), "fixture directory must exist");
-        for (const auto source :
-             {InvocationSource::PublicMcp, InvocationSource::PublicJsonRpc,
-              InvocationSource::InternalAutomation, InvocationSource::TrustedGui}) {
-            fixture.notifications.clear();
-            const auto opened = fixture.open(source);
-            ok &= expect(bool(opened), "project open must commit");
-            ok &= drainTasks();
-            ok &= expect(fixture.firstAudioClip()->pathStatus() == AudioClip::PathStatus::Missing,
-                         "all callers must receive the missing audio status");
-            ok &= expect(fixture.notifications.size() == (source == InvocationSource::TrustedGui),
-                         "only an interactive open may request the resource dialog");
-            ok &= expect(fixture.runtime().documentVersion().revision == 0 &&
-                             fixture.state.history()->isOnSavePoint(),
-                         "resource checks must preserve revision and save point");
-        }
-        return ok;
+}
+
+class TestAudioDecodingController final : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void openSources_data() {
+        QTest::addColumn<int>("invocationSource");
+        QTest::newRow("mcp") << int(InvocationSource::PublicMcp);
+        QTest::newRow("json-rpc") << int(InvocationSource::PublicJsonRpc);
+        QTest::newRow("internal") << int(InvocationSource::InternalAutomation);
+        QTest::newRow("gui") << int(InvocationSource::TrustedGui);
     }
 
-    bool testReplacementBeforeDeferredStart() {
+    void openSources() {
+        QFETCH(int, invocationSource);
+        const auto source = static_cast<InvocationSource>(invocationSource);
+
+        Fixture fixture;
+        QVERIFY2((fixture.directory.isValid()), "fixture directory must exist");
+
+        fixture.notifications.clear();
+        const auto opened = fixture.open(source);
+        QVERIFY2((bool(opened)), "project open must commit");
+        QVERIFY(drainTasks());
+        QVERIFY2((fixture.firstAudioClip()->pathStatus() == AudioClip::PathStatus::Missing),
+                 "all callers must receive the missing audio status");
+        QVERIFY2((fixture.notifications.size() == (source == InvocationSource::TrustedGui)),
+                 "only an interactive open may request the resource dialog");
+        QVERIFY2((fixture.runtime().documentVersion().revision == 0 &&
+                  fixture.state.history()->isOnSavePoint()),
+                 "resource checks must preserve revision and save point");
+    }
+
+    void replacementBeforeDeferredStart() {
         Fixture fixture;
         const auto guiOpen = fixture.open(InvocationSource::TrustedGui);
         const auto publicOpen = fixture.open(InvocationSource::PublicMcp);
-        bool ok = expect(guiOpen && publicOpen, "both replacement requests must commit");
-        ok &= drainTasks();
-        ok &= expect(fixture.notifications.isEmpty() &&
-                         fixture.firstAudioClip()->pathStatus() == AudioClip::PathStatus::Missing,
-                     "a superseded GUI load must not prompt for the new automation document");
-        return ok;
+        QVERIFY2((guiOpen && publicOpen), "both replacement requests must commit");
+        QVERIFY(drainTasks());
+        QVERIFY2((fixture.notifications.isEmpty() &&
+                  fixture.firstAudioClip()->pathStatus() == AudioClip::PathStatus::Missing),
+                 "a superseded GUI load must not prompt for the new automation document");
     }
 
-    bool testMixedImportSources() {
+    void mixedImportSources() {
         Fixture fixture;
         const auto opened = fixture.open(InvocationSource::PublicMcp);
-        bool ok = expect(bool(opened), "the import target must open");
-        ok &= drainTasks();
+        QVERIFY2((bool(opened)), "the import target must open");
+        QVERIFY(drainTasks());
         for (const auto source : {InvocationSource::PublicJsonRpc, InvocationSource::TrustedGui}) {
             const auto imported = fixture.runtime().documents().commitImportedDocument(
                 fixture.command(source),
                 missingAudioDocument(fixture.directory.filePath(QStringLiteral("imported.wav"))),
                 false, false);
-            ok &= expect(bool(imported), "both imports must commit");
+            QVERIFY2((bool(imported)), "both imports must commit");
         }
         auto *guiClip = *fixture.state.model().tracks().last()->clips().begin();
-        ok &= drainTasks();
-        ok &= expect(fixture.notifications == QList<QList<int>>{{guiClip->id()}},
-                     "overlapping GUI and automation checks must only prompt for the GUI clip");
-        return ok;
+        QVERIFY(drainTasks());
+        QVERIFY2((fixture.notifications == QList<QList<int>>{{guiClip->id()}}),
+                 "overlapping GUI and automation checks must only prompt for the GUI clip");
     }
 
-    bool testResolutionRetryPreservesSource() {
+    void resolutionRetryPreservesSource() {
         Fixture fixture;
         const auto opened = fixture.open(InvocationSource::PublicMcp);
-        bool ok = expect(bool(opened), "the retry fixture must open");
+        QVERIFY2((bool(opened)), "the retry fixture must open");
         const auto connection = QObject::connect(
             taskManager, &TaskManager::taskChanged, fixture.controller,
             [&](TaskManager::TaskChangeType type, Task *, qsizetype) {
@@ -219,19 +230,18 @@ namespace {
                             QStringLiteral("moved project"));
                         return MutationResult{.previous = previous, .current = previous};
                     });
-                ok &= expect(bool(updated), "project path change must commit");
+                QVERIFY2((bool(updated)), "project path change must commit");
             });
-        ok &= drainTasks();
+        QVERIFY(drainTasks());
         QObject::disconnect(connection);
-        ok &= expect(fixture.notifications.isEmpty() &&
-                         fixture.firstAudioClip()->pathStatus() == AudioClip::PathStatus::Missing,
-                     "a resolution restarted after a path change must remain non-interactive");
-        return ok;
+        QVERIFY2((fixture.notifications.isEmpty() &&
+                  fixture.firstAudioClip()->pathStatus() == AudioClip::PathStatus::Missing),
+                 "a resolution restarted after a path change must remain non-interactive");
     }
 
-    bool testRelocatedDecodeNotification() {
+    void relocatedDecodeNotification() {
         enum class ResolutionCase { Candidate, Verified, Cascade };
-        bool ok = true;
+
         for (const auto source : {InvocationSource::TrustedGui, InvocationSource::PublicMcp}) {
             for (const auto resolution :
                  {ResolutionCase::Candidate, ResolutionCase::Verified, ResolutionCase::Cascade}) {
@@ -243,7 +253,7 @@ namespace {
                     return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size();
                 };
                 if (resolution != ResolutionCase::Cascade && !writeCandidate())
-                    return expect(false, "the undecodable candidate must be created");
+                    QVERIFY2((false), "the undecodable candidate must be created");
                 auto document = missingAudioDocument(
                     fixture.directory.filePath(QStringLiteral("gone/invalid.wav")));
                 if (resolution != ResolutionCase::Candidate) {
@@ -252,11 +262,11 @@ namespace {
                             QCryptographicHash::hash(bytes, QCryptographicHash::Sha512).toHex());
                 }
                 const auto opened = fixture.openDocument(document, source);
-                ok &= expect(bool(opened), "the relocation fixture must open");
-                ok &= drainTasks();
+                QVERIFY2((bool(opened)), "the relocation fixture must open");
+                QVERIFY(drainTasks());
                 if (resolution == ResolutionCase::Cascade) {
                     if (!writeCandidate())
-                        return expect(false, "the cascade candidate must be created");
+                        QVERIFY2((false), "the cascade candidate must be created");
                     const auto cascade =
                         fixture.runtime().dispatcher().dispatchApplicationCommand<int>(
                             QStringLiteral("test.cascade"), {.source = source},
@@ -264,28 +274,20 @@ namespace {
                                 fixture.controller->resolveMissingClipsNear(relocated);
                                 return 0;
                             });
-                    ok &= expect(bool(cascade), "cascade resolution must start");
-                    ok &= drainTasks();
+                    QVERIFY2((bool(cascade)), "cascade resolution must start");
+                    QVERIFY(drainTasks());
                 }
-                ok &= expect(fixture.firstAudioClip()->path() == relocated,
-                             "the candidate must be adopted before decoding");
+                QVERIFY2((fixture.firstAudioClip()->path() == relocated),
+                         "the candidate must be adopted before decoding");
                 const bool reported = std::any_of(
                     fixture.messages.cbegin(), fixture.messages.cend(),
                     [&](const QString &message) { return message.contains(relocated); });
-                ok &= expect(reported == (source == InvocationSource::TrustedGui),
-                             "decode failures after resolver writeback must retain GUI origin");
+                QVERIFY2((reported == (source == InvocationSource::TrustedGui)),
+                         "decode failures after resolver writeback must retain GUI origin");
             }
         }
-        return ok;
     }
-}
+};
 
-int main(int argc, char *argv[]) {
-    QCoreApplication application(argc, argv);
-    bool ok = testOpenSources();
-    ok &= testReplacementBeforeDeferredStart();
-    ok &= testMixedImportSources();
-    ok &= testResolutionRetryPreservesSource();
-    ok &= testRelocatedDecodeNotification();
-    return ok ? 0 : 1;
-}
+QTEST_GUILESS_MAIN(TestAudioDecodingController)
+#include "main.moc"

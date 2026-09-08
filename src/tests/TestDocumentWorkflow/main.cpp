@@ -8,10 +8,13 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QScopeGuard>
 #include <QState>
 #include <QStateMachine>
-#include <QTextStream>
 #include <QTranslator>
+#include <QtTest>
+
+#include <memory>
 
 template <>
 AppStatus *AppContext::instance<AppStatus>() {
@@ -24,35 +27,32 @@ HistoryManager *AppContext::instance<HistoryManager>() {
 }
 
 namespace {
-    bool expect(const bool condition, const char *message) {
-        if (condition)
-            return true;
-        QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        return false;
-    }
+    struct ActionCounts {
+        int executed = 0;
+        int undone = 0;
+        int destroyed = 0;
+    };
 
     class CountingAction final : public IAction {
     public:
-        CountingAction(int &executeCount, int &undoCount, int &destroyCount)
-            : m_executeCount(executeCount), m_undoCount(undoCount), m_destroyCount(destroyCount) {
+        explicit CountingAction(std::shared_ptr<ActionCounts> counts)
+            : m_counts(std::move(counts)) {
         }
 
         ~CountingAction() override {
-            ++m_destroyCount;
+            ++m_counts->destroyed;
         }
 
         void execute() override {
-            ++m_executeCount;
+            ++m_counts->executed;
         }
 
         void undo() override {
-            ++m_undoCount;
+            ++m_counts->undone;
         }
 
     private:
-        int &m_executeCount;
-        int &m_undoCount;
-        int &m_destroyCount;
+        std::shared_ptr<ActionCounts> m_counts;
     };
 
     class TestActionSequence final : public ActionSequence {
@@ -75,159 +75,164 @@ namespace {
 
     class TransitionEmitter final : public QObject {
         Q_OBJECT
-
     signals:
         void proceed();
     };
+}
 
-    bool verifyGuardedBranch(const bool condition) {
+class TestDocumentWorkflow final : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void init() {
+        historyManager->reset(HistoryManager::ResetState::Saved);
+    }
+
+    void cleanup() {
+        historyManager->reset(HistoryManager::ResetState::Saved);
+    }
+
+    void savePointBaseline() {
+        QVERIFY(historyManager->isOnSavePoint());
+        historyManager->reset(HistoryManager::ResetState::Unsaved);
+        QVERIFY(!historyManager->isOnSavePoint());
+        QVERIFY(!historyManager->canUndo());
+        historyManager->setSavePoint();
+        QVERIFY(historyManager->isOnSavePoint());
+    }
+
+    void importSequenceUndoRedoAndOwnership() {
+        const auto counts = std::make_shared<ActionCounts>();
+        auto sequence = new TestActionSequence;
+        sequence->setName(QStringLiteral("Import MIDI"));
+        sequence->addAction(new CountingAction(counts));
+        sequence->execute();
+        historyManager->record(sequence);
+        QCOMPARE(counts->executed, 1);
+        QVERIFY(historyManager->canUndo());
+        QCOMPARE(historyManager->undoActionName(), QStringLiteral("Import MIDI"));
+        QVERIFY(!historyManager->isOnSavePoint());
+
+        historyManager->undo();
+        QCOMPARE(counts->undone, 1);
+        QVERIFY(!historyManager->canUndo());
+        QVERIFY(historyManager->canRedo());
+        QVERIFY(historyManager->isOnSavePoint());
+        historyManager->redo();
+        QCOMPARE(counts->executed, 2);
+        QVERIFY(historyManager->canUndo());
+        QVERIFY(!historyManager->canRedo());
+        historyManager->reset(HistoryManager::ResetState::Saved);
+        QCOMPARE(counts->destroyed, 1);
+        QVERIFY(historyManager->isOnSavePoint());
+    }
+
+    void historyNamesFollowTranslator() {
+        const auto counts = std::make_shared<ActionCounts>();
+        auto sequence = new TestActionSequence;
+        sequence->setTranslatableName(
+            "TestActionSequence", QT_TRANSLATE_NOOP("TestActionSequence", "Translatable action"));
+        sequence->addAction(new CountingAction(counts));
+        historyManager->record(sequence);
+        QCOMPARE(historyManager->undoActionName(), QStringLiteral("Translatable action"));
+        TestTranslator translator;
+        QCoreApplication::installTranslator(&translator);
+        const auto removeTranslator =
+            qScopeGuard([&] { QCoreApplication::removeTranslator(&translator); });
+        QCOMPARE(historyManager->undoActionName(), QStringLiteral("Translated action"));
+        historyManager->undo();
+        QCOMPARE(historyManager->redoActionName(), QStringLiteral("Translated action"));
+        QCoreApplication::removeTranslator(&translator);
+        QCOMPARE(historyManager->redoActionName(), QStringLiteral("Translatable action"));
+    }
+
+    void guardedTransition_data() {
+        QTest::addColumn<bool>("condition");
+        QTest::newRow("condition-true") << true;
+        QTest::newRow("condition-false") << false;
+    }
+
+    void guardedTransition() {
+        QFETCH(bool, condition);
         QStateMachine machine;
-        const auto initial = new QState;
-        const auto whenTrue = new QState;
-        const auto whenFalse = new QState;
-        machine.addState(initial);
-        machine.addState(whenTrue);
-        machine.addState(whenFalse);
+        auto initial = new QState(&machine);
+        auto whenTrue = new QState(&machine);
+        auto whenFalse = new QState(&machine);
         machine.setInitialState(initial);
-
         TransitionEmitter emitter;
-        const auto trueTransition = new ConditionalTransition(&emitter, SIGNAL(proceed()),
-                                                              [condition] { return condition; });
+        auto trueTransition = new ConditionalTransition(&emitter, SIGNAL(proceed()),
+                                                        [condition] { return condition; });
         trueTransition->setTargetState(whenTrue);
         initial->addTransition(trueTransition);
-        const auto falseTransition = new ConditionalTransition(&emitter, SIGNAL(proceed()),
-                                                               [condition] { return !condition; });
+        auto falseTransition = new ConditionalTransition(&emitter, SIGNAL(proceed()),
+                                                         [condition] { return !condition; });
         falseTransition->setTargetState(whenFalse);
         initial->addTransition(falseTransition);
-
         machine.start();
-        QCoreApplication::processEvents();
+        QTRY_VERIFY(initial->active());
         emit emitter.proceed();
-        QCoreApplication::processEvents();
-        return condition ? whenTrue->active() : whenFalse->active();
+        QTRY_VERIFY(condition ? whenTrue->active() : whenFalse->active());
+        QVERIFY(condition ? !whenFalse->active() : !whenTrue->active());
     }
 
-    bool verifySuggestedSavePaths() {
-        const auto sourceFolder = QDir::cleanPath(QDir::tempPath() + "/midi-source");
-        bool ok = true;
-        ok &= expect(DocumentWorkflowPathUtils::suggestedSavePath({}, sourceFolder,
-                                                                  QStringLiteral("test")) ==
-                         QDir(sourceFolder).filePath(QStringLiteral("test.dspx")),
-                     "MIDI save path must replace the source extension with .dspx");
-        ok &= expect(DocumentWorkflowPathUtils::suggestedSavePath({}, sourceFolder,
-                                                                  QStringLiteral("song.v1")) ==
-                         QDir(sourceFolder).filePath(QStringLiteral("song.v1.dspx")),
-                     "MIDI save path must preserve every part of a multi-dot base name");
-        ok &= expect(DocumentWorkflowPathUtils::suggestedSavePath(
-                         {}, sourceFolder, QStringLiteral("New Project")) ==
-                         QDir(sourceFolder).filePath(QStringLiteral("New Project.dspx")),
-                     "new project save path must include a .dspx file name");
-        ok &= expect(DocumentWorkflowPathUtils::suggestedSavePath(
-                         {}, sourceFolder, QStringLiteral("draft.dspx")) ==
-                         QDir(sourceFolder).filePath(QStringLiteral("draft.dspx")),
-                     "suggested save path must not duplicate an existing .dspx extension");
-
-        const auto existingProject =
-            QDir(sourceFolder).filePath(QStringLiteral("existing.project.dspx"));
-        ok &= expect(DocumentWorkflowPathUtils::suggestedSavePath(
-                         existingProject, QStringLiteral("ignored"), QStringLiteral("ignored")) ==
-                         existingProject,
-                     "existing DSPX project path must remain unchanged");
-        return ok;
+    void suggestedSavePath_data() {
+        QTest::addColumn<QString>("name");
+        QTest::addColumn<QString>("expected");
+        QTest::newRow("plain") << QStringLiteral("test") << QStringLiteral("test.dspx");
+        QTest::newRow("multiple-dots")
+            << QStringLiteral("song.v1") << QStringLiteral("song.v1.dspx");
+        QTest::newRow("spaces") << QStringLiteral("New Project")
+                                << QStringLiteral("New Project.dspx");
+        QTest::newRow("existing-suffix")
+            << QStringLiteral("draft.dspx") << QStringLiteral("draft.dspx");
+        QTest::newRow("uppercase-suffix")
+            << QStringLiteral("draft.DSPX") << QStringLiteral("draft.DSPX");
+        QTest::newRow("unicode") << QStringLiteral("未命名作品")
+                                 << QStringLiteral("未命名作品.dspx");
     }
 
-    bool verifyRevisionGuard() {
+    void suggestedSavePath() {
+        QFETCH(QString, name);
+        QFETCH(QString, expected);
+        const auto folder = QDir::tempPath();
+        QCOMPARE(DocumentWorkflowPathUtils::suggestedSavePath({}, folder, name),
+                 QDir(folder).filePath(expected));
+    }
+
+    void existingSavePathIsPreserved() {
+        const auto existing =
+            QDir(QDir::tempPath()).filePath(QStringLiteral("existing.project.dspx"));
+        QCOMPARE(DocumentWorkflowPathUtils::suggestedSavePath(existing, QStringLiteral("ignored"),
+                                                              QStringLiteral("ignored")),
+                 existing);
+    }
+
+    void projectPathCaseSensitivity() {
+        const auto upper = QDir(QDir::tempPath()).filePath(QStringLiteral("Song.dspx"));
+        const auto lower = QDir(QDir::tempPath()).filePath(QStringLiteral("song.dspx"));
+#ifdef Q_OS_WIN
+        QVERIFY(DocumentWorkflowPathUtils::projectPathsEqual(upper, lower));
+#else
+        QVERIFY(!DocumentWorkflowPathUtils::projectPathsEqual(upper, lower));
+#endif
+        QVERIFY(DocumentWorkflowPathUtils::projectPathsEqual(upper, upper));
+    }
+
+    void dirtyRevisionMustBeApprovedAgain() {
         DocumentWorkflowRevisionGuard guard;
         const Automation::DocumentVersion original{Automation::DocumentId::create(), 194};
         const Automation::DocumentVersion advanced{original.documentId, 225};
-        const Automation::DocumentVersion replacement{Automation::DocumentId::create(), 0};
-
-        bool ok = true;
-        ok &= expect(!guard.ensureApproved(original, false),
-                     "an unconfirmed dirty revision must not permit replacement");
-        ok &= expect(guard.ensureApproved(original, true),
-                     "a saved revision must permit replacement");
-        ok &= expect(guard.ensureApproved(original, false),
-                     "the approved revision must remain valid while unchanged");
-        ok &= expect(!guard.ensureApproved(advanced, false),
-                     "a later dirty revision must require confirmation again");
+        QVERIFY(!guard.ensureApproved(original, false));
+        QVERIFY(guard.ensureApproved(original, true));
+        QVERIFY(guard.ensureApproved(original, false));
+        QVERIFY(!guard.ensureApproved(advanced, false));
         guard.approve(advanced);
-        ok &= expect(guard.approves(advanced),
-                     "explicit confirmation must approve the current revision");
-        ok &= expect(!guard.approves(replacement),
-                     "approval must never carry into another generation");
-        return ok;
+        QVERIFY(guard.approves(advanced));
+        QVERIFY(!guard.approves(original));
+        QVERIFY(!guard.approves({Automation::DocumentId::create(), advanced.revision}));
     }
-}
+};
 
-int main(int argc, char *argv[]) {
-    QCoreApplication application(argc, argv);
-    auto manager = historyManager;
-    bool ok = true;
-
-    manager->reset(HistoryManager::ResetState::Saved);
-    ok &= expect(manager->isOnSavePoint(), "saved reset must establish a saved baseline");
-
-    manager->reset(HistoryManager::ResetState::Unsaved);
-    ok &= expect(!manager->isOnSavePoint(), "unsaved reset must remain dirty with empty history");
-    manager->setSavePoint();
-    ok &= expect(manager->isOnSavePoint(), "setSavePoint must clear the unsaved baseline");
-
-    int executeCount = 0;
-    int undoCount = 0;
-    int destroyCount = 0;
-    auto sequence = new TestActionSequence;
-    sequence->setName(QStringLiteral("Import MIDI"));
-    sequence->addAction(new CountingAction(executeCount, undoCount, destroyCount));
-    sequence->execute();
-    manager->record(sequence);
-
-    ok &= expect(executeCount == 1, "the import sequence must execute once before recording");
-    ok &= expect(manager->canUndo(), "recorded import must be undoable");
-    ok &= expect(manager->undoActionName() == QStringLiteral("Import MIDI"),
-                 "the import sequence must keep its user-facing name");
-    ok &= expect(!manager->isOnSavePoint(), "recording import must make the document dirty");
-
-    manager->undo();
-    ok &= expect(undoCount == 1, "one undo must undo the complete import sequence once");
-    ok &= expect(!manager->canUndo() && manager->canRedo(),
-                 "undo must transfer the complete import sequence to redo");
-    ok &= expect(manager->isOnSavePoint(), "undo must return to the saved baseline");
-
-    manager->redo();
-    ok &= expect(executeCount == 2, "one redo must restore the complete import sequence once");
-    ok &= expect(manager->canUndo() && !manager->canRedo(),
-                 "redo must transfer the complete import sequence back to undo");
-
-    manager->reset(HistoryManager::ResetState::Saved);
-    auto translatableSequence = new TestActionSequence;
-    translatableSequence->setTranslatableName(
-        "TestActionSequence", QT_TRANSLATE_NOOP("TestActionSequence", "Translatable action"));
-    translatableSequence->addAction(new CountingAction(executeCount, undoCount, destroyCount));
-    manager->record(translatableSequence);
-    ok &= expect(manager->undoActionName() == QStringLiteral("Translatable action"),
-                 "history name must use source text without a translator");
-
-    TestTranslator translator;
-    application.installTranslator(&translator);
-    ok &= expect(manager->undoActionName() == QStringLiteral("Translated action"),
-                 "undo name must resolve using the current translator");
-    manager->undo();
-    ok &= expect(manager->redoActionName() == QStringLiteral("Translated action"),
-                 "redo name must resolve using the current translator");
-    application.removeTranslator(&translator);
-    ok &= expect(manager->redoActionName() == QStringLiteral("Translatable action"),
-                 "history name must return to source text after removing the translator");
-
-    manager->reset(HistoryManager::ResetState::Saved);
-    ok &= expect(destroyCount == 2, "history reset must release every action it owns exactly once");
-    ok &= expect(manager->isOnSavePoint(), "saved reset after import must be clean");
-    ok &= expect(verifyGuardedBranch(true), "true guard must select the true target state");
-    ok &= expect(verifyGuardedBranch(false), "false guard must select the false target state");
-    ok &= verifySuggestedSavePaths();
-    ok &= verifyRevisionGuard();
-
-    return ok ? 0 : 1;
-}
-
+QTEST_GUILESS_MAIN(TestDocumentWorkflow)
 #include "main.moc"

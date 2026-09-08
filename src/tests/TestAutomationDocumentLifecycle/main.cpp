@@ -10,6 +10,7 @@
 #include <lite/ProjectModel/AppModel/Track.h>
 
 #include <QCoreApplication>
+#include <QtTest>
 #include <QDataStream>
 #include <QFile>
 #include <QIODevice>
@@ -24,28 +25,7 @@
 #include <utility>
 
 namespace {
-    class TestRun final {
-    public:
-        void expect(const bool condition, const char *scenario, const char *message) {
-            ++m_assertions;
-            if (condition)
-                return;
-            m_ok = false;
-            QTextStream(stderr) << "FAILED [" << scenario << "]: " << message << Qt::endl;
-        }
 
-        [[nodiscard]] bool ok() const {
-            return m_ok;
-        }
-
-        [[nodiscard]] int assertions() const {
-            return m_assertions;
-        }
-
-    private:
-        bool m_ok = true;
-        int m_assertions = 0;
-    };
 
     struct DocumentHostState {
         LoopSettings loopSettings;
@@ -282,26 +262,45 @@ namespace {
         int commitCount = 0;
     };
 
-    void testInitialUntitledSession(TestRun &test) {
+    struct GenerationObjectIndex {
+        Automation::DocumentId oldDocument;
+        Automation::DocumentId currentDocument;
+        int collidingObjectId = -1;
+
+        [[nodiscard]] bool contains(const Automation::DocumentId &documentId,
+                                    const int objectId) const {
+            return objectId == collidingObjectId &&
+                   (documentId == oldDocument || documentId == currentDocument);
+        }
+    };
+
+
+}
+
+class TestAutomationDocumentLifecycle final : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void initialUntitledSession() {
         constexpr auto scenario = "AFC-DOC-LIFECYCLE-001";
         AutomationTestSupport::TestRuntime fixture;
         auto &runtime = fixture.runtime();
         const auto version = runtime.documentVersion();
         const auto document = runtime.documents().getDocument(version.documentId);
 
-        test.expect(!version.documentId.isNull(), scenario,
-                    "the initial untitled session must have a non-null document ID");
-        test.expect(version.revision == 0, scenario,
-                    "the initial untitled session must start at revision zero");
-        test.expect(document && document.get().document == version &&
-                        document.get().path.isEmpty() && document.get().projectName.isEmpty() &&
-                        document.get().lifecycle == Automation::DocumentLifecycleState::Active &&
-                        !document.get().busy && document.get().saved,
-                    scenario,
-                    "the initial document snapshot must be a clean active untitled session");
+        QVERIFY2((!version.documentId.isNull()),
+                 "the initial untitled session must have a non-null document ID");
+        QVERIFY2((version.revision == 0),
+                 "the initial untitled session must start at revision zero");
+        QVERIFY2((document && document.get().document == version && document.get().path.isEmpty() &&
+                  document.get().projectName.isEmpty() &&
+                  document.get().lifecycle == Automation::DocumentLifecycleState::Active &&
+                  !document.get().busy && document.get().saved),
+                 "the initial document snapshot must be a clean active untitled session");
     }
 
-    void testNewOpenAndImport(TestRun &test) {
+    void newOpenAndImport() {
         LifecycleFixture fixture;
         auto &runtime = fixture.runtime;
 
@@ -315,19 +314,17 @@ namespace {
         const auto newSnapshot = runtime.documents().getDocument(afterNew.documentId);
         const auto newHistory = runtime.history().getState(afterNew.documentId);
 
-        test.expect(committedNew && committedNew.get().changed &&
-                        committedNew.get().previous == initial &&
-                        committedNew.get().current == afterNew && !afterNew.documentId.isNull() &&
-                        afterNew.documentId != initial.documentId && afterNew.revision == 0 &&
-                        !committedNew.get().createdObjects.isEmpty(),
-                    "AFC-DOC-LIFECYCLE-002",
-                    "commit-new must atomically rotate identity, reset revision, and bind objects");
-        test.expect(newSnapshot && newSnapshot.get().path.isEmpty() &&
-                        newSnapshot.get().projectName.isEmpty() && newSnapshot.get().saved &&
-                        newHistory && !newHistory.get().canUndo && !newHistory.get().canRedo &&
-                        newHistory.get().onSavePoint && fixture.host.loopSettings == newLoop,
-                    "AFC-DOC-LIFECYCLE-002",
-                    "commit-new must establish a clean untitled baseline and apply loop state");
+        QVERIFY2((committedNew && committedNew.get().changed &&
+                  committedNew.get().previous == initial &&
+                  committedNew.get().current == afterNew && !afterNew.documentId.isNull() &&
+                  afterNew.documentId != initial.documentId && afterNew.revision == 0 &&
+                  !committedNew.get().createdObjects.isEmpty()),
+                 "commit-new must atomically rotate identity, reset revision, and bind objects");
+        QVERIFY2((newSnapshot && newSnapshot.get().path.isEmpty() &&
+                  newSnapshot.get().projectName.isEmpty() && newSnapshot.get().saved &&
+                  newHistory && !newHistory.get().canUndo && !newHistory.get().canRedo &&
+                  newHistory.get().onSavePoint && fixture.host.loopSettings == newLoop),
+                 "commit-new must establish a clean untitled baseline and apply loop state");
 
         auto emptyImport =
             makeDocumentDraft(QStringLiteral("unused"), QStringLiteral("empty-import"));
@@ -335,10 +332,9 @@ namespace {
         const auto beforeEmptyImport = runtime.documentVersion();
         const auto noOpImport = runtime.documents().commitImportedDocument(
             commandContext(runtime), emptyImport, false, false);
-        test.expect(noOpImport && !noOpImport.get().changed &&
-                        runtime.documentVersion() == beforeEmptyImport,
-                    "AFC-DOC-LIFECYCLE-003",
-                    "an empty import must be a no-op without a revision or History entry");
+        QVERIFY2((noOpImport && !noOpImport.get().changed &&
+                  runtime.documentVersion() == beforeEmptyImport),
+                 "an empty import must be a no-op without a revision or History entry");
 
         const auto importedDocument = makeDocumentDraft(QStringLiteral("Imported Lifecycle Track"),
                                                         QStringLiteral("import-lifecycle"));
@@ -348,13 +344,12 @@ namespace {
         const auto afterImport = runtime.documentVersion();
         const auto importHistory = runtime.history().getState(afterImport.documentId);
         const auto importedProject = runtime.project().getProject(afterImport.documentId);
-        test.expect(committedImport && committedImport.get().changed &&
-                        afterImport.documentId == beforeImport.documentId &&
-                        afterImport.revision == beforeImport.revision + 1 && importHistory &&
-                        importHistory.get().canUndo && !importHistory.get().onSavePoint &&
-                        importedProject && importedProject.get().tracks.size() == 2,
-                    "AFC-DOC-LIFECYCLE-003",
-                    "commit-import must retain identity and create one History/revision change");
+        QVERIFY2((committedImport && committedImport.get().changed &&
+                  afterImport.documentId == beforeImport.documentId &&
+                  afterImport.revision == beforeImport.revision + 1 && importHistory &&
+                  importHistory.get().canUndo && !importHistory.get().onSavePoint &&
+                  importedProject && importedProject.get().tracks.size() == 2),
+                 "commit-import must retain identity and create one History/revision change");
 
         const LoopSettings openedLoop(true, 480, 1440);
         auto openedDocument = makeDocumentDraft(QStringLiteral("Opened Lifecycle Track"),
@@ -373,33 +368,31 @@ namespace {
         const auto openedProject = runtime.project().getProject(afterOpen.documentId);
         const auto staleSnapshot = runtime.documents().getDocument(afterImport.documentId);
 
-        test.expect(committedOpen && committedOpen.get().changed &&
-                        committedOpen.get().previous == afterImport &&
-                        committedOpen.get().current == afterOpen &&
-                        afterOpen.documentId != afterImport.documentId && afterOpen.revision == 0,
-                    "AFC-DOC-LIFECYCLE-004",
-                    "commit-open must rotate the document generation and reset revision");
-        test.expect(
-            openSnapshot && openSnapshot.get().path == openedPath &&
-                openSnapshot.get().projectName == QStringLiteral("opened-lifecycle.dspx") &&
-                openSnapshot.get().saved && openHistory && !openHistory.get().canUndo &&
-                !openHistory.get().canRedo && openHistory.get().onSavePoint && openedProject &&
-                openedProject.get().tracks.size() == 1 &&
-                openedProject.get().tracks.first().clips.size() == 1 &&
-                openedProject.get().tracks.first().clips.first().data.properties.length ==
-                    legacyProperties.length &&
-                openedProject.get().tracks.first().clips.first().data.properties.clipStart ==
-                    legacyProperties.clipStart &&
-                openedProject.get().tracks.first().clips.first().data.properties.clipLen ==
-                    legacyProperties.clipLen &&
-                fixture.host.loopSettings == openedLoop && !staleSnapshot &&
-                staleSnapshot.getError().code == Automation::AutomationErrorCode::DocumentChanged,
-            "AFC-DOC-LIFECYCLE-004",
+        QVERIFY2((committedOpen && committedOpen.get().changed &&
+                  committedOpen.get().previous == afterImport &&
+                  committedOpen.get().current == afterOpen &&
+                  afterOpen.documentId != afterImport.documentId && afterOpen.revision == 0),
+                 "commit-open must rotate the document generation and reset revision");
+        QVERIFY2(
+            (openSnapshot && openSnapshot.get().path == openedPath &&
+             openSnapshot.get().projectName == QStringLiteral("opened-lifecycle.dspx") &&
+             openSnapshot.get().saved && openHistory && !openHistory.get().canUndo &&
+             !openHistory.get().canRedo && openHistory.get().onSavePoint && openedProject &&
+             openedProject.get().tracks.size() == 1 &&
+             openedProject.get().tracks.first().clips.size() == 1 &&
+             openedProject.get().tracks.first().clips.first().data.properties.length ==
+                 legacyProperties.length &&
+             openedProject.get().tracks.first().clips.first().data.properties.clipStart ==
+                 legacyProperties.clipStart &&
+             openedProject.get().tracks.first().clips.first().data.properties.clipLen ==
+                 legacyProperties.clipLen &&
+             fixture.host.loopSettings == openedLoop && !staleSnapshot &&
+             staleSnapshot.getError().code == Automation::AutomationErrorCode::DocumentChanged),
             "commit-open must preserve legacy clip geometry, publish its savepoint, and "
             "reject the old generation");
     }
 
-    void testCommitObservers(TestRun &test) {
+    void commitObservers() {
         constexpr auto scenario = "document-commit-observers";
         LifecycleFixture fixture;
         auto &runtime = fixture.runtime;
@@ -407,19 +400,19 @@ namespace {
         fixture.host.onCommit = [&](const Automation::DocumentCommitInfo &info) {
             const auto document = runtime.documents().getDocument(info.current.document.documentId);
             const auto history = runtime.history().getState(info.current.document.documentId);
-            test.expect(document && history && sameDocument(document.get(), info.current) &&
-                            info.current.document == runtime.documentVersion() &&
-                            info.current.lifecycle == Automation::DocumentLifecycleState::Active &&
-                            info.current.saved == history.get().onSavePoint,
-                        scenario, "completion observers must read the coherent committed state");
-            test.expect(runtime.dispatcher().currentInvocationSource() == info.source &&
-                            info.clientId == QStringLiteral("document-observer-client"),
-                        scenario, "completion must retain the initiating invocation source/client");
+            QVERIFY2((document && history && sameDocument(document.get(), info.current) &&
+                      info.current.document == runtime.documentVersion() &&
+                      info.current.lifecycle == Automation::DocumentLifecycleState::Active &&
+                      info.current.saved == history.get().onSavePoint),
+                     "completion observers must read the coherent committed state");
+            QVERIFY2((runtime.dispatcher().currentInvocationSource() == info.source &&
+                      info.clientId == QStringLiteral("document-observer-client")),
+                     "completion must retain the initiating invocation source/client");
             if (info.previous.documentId != info.current.document.documentId) {
                 const auto oldDocument = runtime.documents().getDocument(info.previous.documentId);
-                test.expect(!oldDocument && oldDocument.getError().code ==
-                                                Automation::AutomationErrorCode::DocumentChanged,
-                            scenario, "the previous generation must be retired before completion");
+                QVERIFY2((!oldDocument && oldDocument.getError().code ==
+                                              Automation::AutomationErrorCode::DocumentChanged),
+                         "the previous generation must be retired before completion");
             }
         };
 
@@ -433,23 +426,23 @@ namespace {
             makeDocumentDraft(QStringLiteral("Observer"), QStringLiteral("observer"));
         const auto initial = runtime.documentVersion();
         const auto created = runtime.documents().commitNewDocument(context(), draft);
-        test.expect(created && fixture.host.commits.size() == 1 &&
-                        fixture.host.commits.last().operationId ==
-                            Automation::OperationIds::documents::commit_new &&
-                        fixture.host.commits.last().previous == initial &&
-                        fixture.host.commits.last().sourcePath.isEmpty(),
-                    scenario, "new must publish exactly one completion for its new generation");
+        QVERIFY2((created && fixture.host.commits.size() == 1 &&
+                  fixture.host.commits.last().operationId ==
+                      Automation::OperationIds::documents::commit_new &&
+                  fixture.host.commits.last().previous == initial &&
+                  fixture.host.commits.last().sourcePath.isEmpty()),
+                 "new must publish exactly one completion for its new generation");
 
         const auto sourcePath = directory.filePath(QStringLiteral("original.mid"));
         const auto opened = runtime.documents().commitOpenedDocument(
             context(), draft, {}, QStringLiteral("original.mid"), false, sourcePath);
-        test.expect(opened && fixture.host.commits.size() == 2 &&
-                        fixture.host.commits.last().operationId ==
-                            Automation::OperationIds::documents::commit_open &&
-                        fixture.host.commits.last().sourcePath == sourcePath &&
-                        fixture.host.commits.last().current.path.isEmpty() &&
-                        !fixture.host.commits.last().current.saved,
-                    scenario, "non-native open must retain its original source and dirty baseline");
+        QVERIFY2((opened && fixture.host.commits.size() == 2 &&
+                  fixture.host.commits.last().operationId ==
+                      Automation::OperationIds::documents::commit_open &&
+                  fixture.host.commits.last().sourcePath == sourcePath &&
+                  fixture.host.commits.last().current.path.isEmpty() &&
+                  !fixture.host.commits.last().current.saved),
+                 "non-native open must retain its original source and dirty baseline");
 
         const auto savedPath = directory.filePath(QStringLiteral("observer-save-as.dspx"));
         QObject saveObserver;
@@ -458,22 +451,21 @@ namespace {
             ++savePointNotifications;
             const auto document =
                 runtime.documents().getDocument(runtime.documentVersion().documentId);
-            test.expect(document && document.get().path == savedPath && document.get().saved &&
-                            document.get().projectName == QStringLiteral("observer-save-as.dspx"),
-                        scenario, "savepoint observers must already see the new save-as identity");
+            QVERIFY2((document && document.get().path == savedPath && document.get().saved &&
+                      document.get().projectName == QStringLiteral("observer-save-as.dspx")),
+                     "savepoint observers must already see the new save-as identity");
         });
         const auto versionBeforeSave = runtime.documentVersion();
         const auto saved = runtime.documents().saveDocumentAs(context(), savedPath, false);
         const auto resaved = runtime.documents().saveDocument(context(), savedPath);
-        test.expect(saved && resaved && fixture.host.commits.size() == 4 &&
-                        fixture.host.commits.at(2).operationId ==
-                            Automation::OperationIds::documents::save_as &&
-                        fixture.host.commits.last().operationId ==
-                            Automation::OperationIds::documents::save &&
-                        fixture.host.commits.last().sourcePath == savedPath &&
-                        runtime.documentVersion() == versionBeforeSave &&
-                        savePointNotifications == 2,
-                    scenario, "save/save-as must each notify once without advancing the revision");
+        QVERIFY2(
+            (saved && resaved && fixture.host.commits.size() == 4 &&
+             fixture.host.commits.at(2).operationId ==
+                 Automation::OperationIds::documents::save_as &&
+             fixture.host.commits.last().operationId == Automation::OperationIds::documents::save &&
+             fixture.host.commits.last().sourcePath == savedPath &&
+             runtime.documentVersion() == versionBeforeSave && savePointNotifications == 2),
+            "save/save-as must each notify once without advancing the revision");
 
         auto previewContext = context();
         previewContext.validateOnly = true;
@@ -482,13 +474,12 @@ namespace {
             previewContext, draft, sourcePath, QStringLiteral("preview.dspx"), true);
         const auto previewSave = runtime.documents().saveDocumentAs(
             previewContext, directory.filePath(QStringLiteral("preview.dspx")), false);
-        test.expect(previewNew && previewOpen && previewSave && fixture.host.commits.size() == 4 &&
-                        runtime.documentVersion() == versionBeforeSave &&
-                        savePointNotifications == 2,
-                    scenario, "validation must not emit completion or savepoint notifications");
+        QVERIFY2((previewNew && previewOpen && previewSave && fixture.host.commits.size() == 4 &&
+                  runtime.documentVersion() == versionBeforeSave && savePointNotifications == 2),
+                 "validation must not emit completion or savepoint notifications");
     }
 
-    void testWorkflowBusyLeaseAcrossReplacement(TestRun &test) {
+    void workflowBusyLeaseAcrossReplacement() {
         constexpr auto scenario = "AFC-DOC-LIFECYCLE-WORKFLOW-BUSY";
         LifecycleFixture fixture;
         auto &runtime = fixture.runtime;
@@ -520,17 +511,16 @@ namespace {
         const bool released = runtime.setDocumentBusy(original.documentId, false);
         const auto committed = runtime.timeline().setTempo(publicMutation, 960, 131.0);
 
-        test.expect(
-            admitted && acquired && replacement && current.documentId != original.documentId &&
-                notifiedWhileBusy && busyAfterReplacement && released &&
-                !runtime.documentBusy(current.documentId) && !blocked &&
-                blocked.getError().code == Automation::AutomationErrorCode::Busy && committed,
-            scenario,
+        QVERIFY2(
+            (admitted && acquired && replacement && current.documentId != original.documentId &&
+             notifiedWhileBusy && busyAfterReplacement && released &&
+             !runtime.documentBusy(current.documentId) && !blocked &&
+             blocked.getError().code == Automation::AutomationErrorCode::Busy && committed),
             "workflow busy must cross task-driven replacement, reject new public mutations, and "
             "remain releasable by its original generation");
     }
 
-    void testFailureAndCancellationRollback(TestRun &test) {
+    void failureAndCancellationRollback() {
         constexpr auto scenario = "AFC-DOC-LIFECYCLE-005";
         LifecycleFixture fixture;
         auto &runtime = fixture.runtime;
@@ -541,8 +531,8 @@ namespace {
             QStringLiteral("Rollback Baseline"), QStringLiteral("rollback-baseline"), baselineLoop);
         const auto committedBaseline =
             runtime.documents().commitNewDocument(commandContext(runtime), baselineDocument);
-        test.expect(bool(committedBaseline), scenario,
-                    "the rollback fixture must establish its baseline generation");
+        QVERIFY2((bool(committedBaseline)),
+                 "the rollback fixture must establish its baseline generation");
 
         const auto savedBaseline = runtime.documents().saveDocument(
             commandContext(runtime), directory.filePath(QStringLiteral("rollback-baseline.dspx")));
@@ -562,9 +552,8 @@ namespace {
             std::nullopt, [&taskCancelCount] { ++taskCancelCount; });
         runtime.automationTasks().markRunning(task.taskId);
         const auto beforeFailure = captureState(fixture);
-        test.expect(savedBaseline && imported && insertedTrack && beforeFailure.has_value(),
-                    scenario,
-                    "the rollback fixture must contain path, History, idempotency, and task state");
+        QVERIFY2((savedBaseline && imported && insertedTrack && beforeFailure.has_value()),
+                 "the rollback fixture must contain path, History, idempotency, and task state");
 
         auto invalidDocument = makeDocumentDraft(QStringLiteral("Invalid Replacement"),
                                                  QStringLiteral("invalid-replacement"));
@@ -573,28 +562,26 @@ namespace {
             commandContext(runtime), invalidDocument, QStringLiteral("fixtures/invalid.dspx"),
             QStringLiteral("invalid.dspx"), true);
         const auto afterValidationFailure = captureState(fixture);
-        test.expect(!invalidReplacement &&
-                        invalidReplacement.getError().code ==
-                            Automation::AutomationErrorCode::InvalidArgument &&
-                        invalidReplacement.getError().operationId ==
-                            Automation::OperationIds::documents::commit_open &&
-                        beforeFailure && afterValidationFailure &&
-                        sameState(*beforeFailure, *afterValidationFailure),
-                    scenario,
-                    "replacement validation failure must preserve the complete active generation");
+        QVERIFY2((!invalidReplacement &&
+                  invalidReplacement.getError().code ==
+                      Automation::AutomationErrorCode::InvalidArgument &&
+                  invalidReplacement.getError().operationId ==
+                      Automation::OperationIds::documents::commit_open &&
+                  beforeFailure && afterValidationFailure &&
+                  sameState(*beforeFailure, *afterValidationFailure)),
+                 "replacement validation failure must preserve the complete active generation");
 
         auto unsupportedContext = commandContext(runtime, QStringLiteral("replace-key"));
         const auto unsupportedReplacement = runtime.documents().commitNewDocument(
             unsupportedContext, makeDocumentDraft(QStringLiteral("Rejected Replacement"),
                                                   QStringLiteral("rejected-replacement")));
         const auto afterUnsupportedRequest = captureState(fixture);
-        test.expect(!unsupportedReplacement &&
-                        unsupportedReplacement.getError().code ==
-                            Automation::AutomationErrorCode::InvalidArgument &&
-                        beforeFailure && afterUnsupportedRequest &&
-                        sameState(*beforeFailure, *afterUnsupportedRequest),
-                    scenario,
-                    "a rejected replacement request must not disturb any generation-owned state");
+        QVERIFY2((!unsupportedReplacement &&
+                  unsupportedReplacement.getError().code ==
+                      Automation::AutomationErrorCode::InvalidArgument &&
+                  beforeFailure && afterUnsupportedRequest &&
+                  sameState(*beforeFailure, *afterUnsupportedRequest)),
+                 "a rejected replacement request must not disturb any generation-owned state");
 
         ControlledPreparationGate gate;
         int forwardedCommits = 0;
@@ -603,13 +590,12 @@ namespace {
         const auto afterPreparationFailure = captureState(fixture);
         const bool deliveredCancellation = gate.deliver(PreparationOutcome::Canceled, wouldCommit);
         const auto afterCancellation = captureState(fixture);
-        test.expect(!deliveredFailure && !deliveredCancellation && gate.completionCount == 2 &&
-                        gate.commitCount == 0 && forwardedCommits == 0 && beforeFailure &&
-                        afterPreparationFailure && afterCancellation &&
-                        sameState(*beforeFailure, *afterPreparationFailure) &&
-                        sameState(*beforeFailure, *afterCancellation),
-                    scenario,
-                    "host parse failure and user cancellation must stop before the commit point");
+        QVERIFY2((!deliveredFailure && !deliveredCancellation && gate.completionCount == 2 &&
+                  gate.commitCount == 0 && forwardedCommits == 0 && beforeFailure &&
+                  afterPreparationFailure && afterCancellation &&
+                  sameState(*beforeFailure, *afterPreparationFailure) &&
+                  sameState(*beforeFailure, *afterCancellation)),
+                 "host parse failure and user cancellation must stop before the commit point");
 
         const auto preparedAgainst = runtime.documentVersion();
         const auto interveningEdit =
@@ -625,19 +611,18 @@ namespace {
                               QStringLiteral("stale-prepared")),
             QStringLiteral("fixtures/stale.dspx"), QStringLiteral("stale.dspx"), true);
         const auto afterRevisionFailure = captureState(fixture);
-        test.expect(interveningEdit && !staleCommit &&
-                        staleCommit.getError().code ==
-                            Automation::AutomationErrorCode::RevisionConflict &&
-                        beforeRevisionFailure && afterRevisionFailure &&
-                        sameState(*beforeRevisionFailure, *afterRevisionFailure),
-                    "AFC-DOC-LIFECYCLE-006",
-                    "a prepared replacement with a stale base revision must roll back completely");
+        QVERIFY2(
+            (interveningEdit && !staleCommit &&
+             staleCommit.getError().code == Automation::AutomationErrorCode::RevisionConflict &&
+             beforeRevisionFailure && afterRevisionFailure &&
+             sameState(*beforeRevisionFailure, *afterRevisionFailure)),
+            "a prepared replacement with a stale base revision must roll back completely");
 
-        test.expect(taskCancelCount == 0, "AFC-DOC-LIFECYCLE-006",
-                    "failed/canceled replacement attempts must preserve the active task state");
+        QVERIFY2((taskCancelCount == 0),
+                 "failed/canceled replacement attempts must preserve the active task state");
     }
 
-    void testSaveAndSaveAs(TestRun &test) {
+    void saveAndSaveAs() {
         constexpr auto scenario = "AFC-DOC-LIFECYCLE-007";
         LifecycleFixture fixture;
         auto &runtime = fixture.runtime;
@@ -654,8 +639,8 @@ namespace {
         const auto dirtyVersion = runtime.documentVersion();
         const auto dirtySnapshot = runtime.documents().getDocument(dirtyVersion.documentId);
         const auto firstPath = directory.filePath(QStringLiteral("first-save-as.dspx"));
-        const auto revisionDuringSaveDialog = runtime.timeline().setTempo(
-            commandContext(runtime), 960, 128.0);
+        const auto revisionDuringSaveDialog =
+            runtime.timeline().setTempo(commandContext(runtime), 960, 128.0);
         const auto confirmedVersion = runtime.documentVersion();
         const auto saveContext = runtime.documentWorkflowCommitContext(dirtyVersion);
         const auto saveAs =
@@ -666,17 +651,14 @@ namespace {
         const auto modelAtConfirmation =
             QJsonDocument(fixture.model.serialize()).toJson(QJsonDocument::Compact);
 
-        test.expect(committedNew && imported && dirtySnapshot && !dirtySnapshot.get().saved &&
-                        revisionDuringSaveDialog && saveContext && saveAs &&
-                        runtime.documentVersion() == confirmedVersion &&
-                        fixture.host.saveCalls == 1 && afterSaveAs &&
-                        afterSaveAs.get().path == firstPath &&
-                        afterSaveAs.get().projectName == QStringLiteral("first-save-as.dspx") &&
-                        afterSaveAs.get().saved &&
-                        fixture.host.lastSavedModel == modelAtConfirmation,
-                    scenario,
-                    "save-as must commit the current same-generation state after path "
-                    "confirmation");
+        QVERIFY2((committedNew && imported && dirtySnapshot && !dirtySnapshot.get().saved &&
+                  revisionDuringSaveDialog && saveContext && saveAs &&
+                  runtime.documentVersion() == confirmedVersion && fixture.host.saveCalls == 1 &&
+                  afterSaveAs && afterSaveAs.get().path == firstPath &&
+                  afterSaveAs.get().projectName == QStringLiteral("first-save-as.dspx") &&
+                  afterSaveAs.get().saved && fixture.host.lastSavedModel == modelAtConfirmation),
+                 "save-as must commit the current same-generation state after path "
+                 "confirmation");
 
         const auto savedModel = fixture.host.lastSavedModel;
         const auto edited = runtime.timeline().setTempo(commandContext(runtime), 1920, 132.0);
@@ -685,13 +667,11 @@ namespace {
             QJsonDocument(fixture.model.serialize()).toJson(QJsonDocument::Compact);
         const auto save = runtime.documents().saveDocument(commandContext(runtime), firstPath);
         const auto afterSave = runtime.documents().getDocument(versionBeforeSave.documentId);
-        test.expect(edited && savedModel != modelAfterConfirmation && save &&
-                        runtime.documentVersion() == versionBeforeSave &&
-                        fixture.host.saveCalls == 2 && afterSave &&
-                        afterSave.get().path == firstPath && afterSave.get().saved,
-                    scenario,
-                    "saving an existing path must preserve identity/revision and advance "
-                    "savepoint only");
+        QVERIFY2((edited && savedModel != modelAfterConfirmation && save &&
+                  runtime.documentVersion() == versionBeforeSave && fixture.host.saveCalls == 2 &&
+                  afterSave && afterSave.get().path == firstPath && afterSave.get().saved),
+                 "saving an existing path must preserve identity/revision and advance "
+                 "savepoint only");
 
         const auto editedAgain = runtime.timeline().setTempo(commandContext(runtime), 1920, 136.0);
         const auto beforeFailedSave = captureState(fixture);
@@ -701,24 +681,23 @@ namespace {
         const auto failedSave =
             runtime.documents().saveDocument(commandContext(runtime), failedPath);
         const auto afterFailedSave = captureState(fixture);
-        test.expect(
-            editedAgain && !failedSave &&
-                failedSave.getError().code == Automation::AutomationErrorCode::IoError &&
-                failedSave.getError().operationId == Automation::OperationIds::documents::save &&
-                beforeFailedSave && afterFailedSave &&
-                sameState(*beforeFailedSave, *afterFailedSave),
-            scenario, "save I/O failure must leave document, path, and savepoint unchanged");
+        QVERIFY2((editedAgain && !failedSave &&
+                  failedSave.getError().code == Automation::AutomationErrorCode::IoError &&
+                  failedSave.getError().operationId == Automation::OperationIds::documents::save &&
+                  beforeFailedSave && afterFailedSave &&
+                  sameState(*beforeFailedSave, *afterFailedSave)),
+                 "save I/O failure must leave document, path, and savepoint unchanged");
 
         fixture.host.saveSucceeds = true;
         const auto retriedSave =
             runtime.documents().saveDocument(commandContext(runtime), failedPath);
         const auto afterRetry = runtime.documents().getDocument(failedVersion.documentId);
-        test.expect(retriedSave && runtime.documentVersion() == failedVersion &&
-                        fixture.host.saveCalls == 4 && afterRetry &&
-                        afterRetry.get().path == failedPath &&
-                        afterRetry.get().projectName == QStringLiteral("failed-save-as.dspx") &&
-                        afterRetry.get().saved,
-                    scenario, "a failed save must be safely retryable");
+        QVERIFY2((retriedSave && runtime.documentVersion() == failedVersion &&
+                  fixture.host.saveCalls == 4 && afterRetry &&
+                  afterRetry.get().path == failedPath &&
+                  afterRetry.get().projectName == QStringLiteral("failed-save-as.dspx") &&
+                  afterRetry.get().saved),
+                 "a failed save must be safely retryable");
 
         const auto exclusivePath = directory.filePath(QStringLiteral("exclusive-save-as.dspx"));
         const auto exclusiveSave =
@@ -726,8 +705,8 @@ namespace {
         QFile exclusiveTarget(exclusivePath);
         const auto exclusiveReadable = exclusiveTarget.open(QIODevice::ReadOnly);
         const auto exclusiveContents = exclusiveTarget.readAll();
-        test.expect(exclusiveSave && exclusiveReadable && exclusiveContents == "project", scenario,
-                    "reject-overwrite save-as must publish a completed staging file once");
+        QVERIFY2((exclusiveSave && exclusiveReadable && exclusiveContents == "project"),
+                 "reject-overwrite save-as must publish a completed staging file once");
 
         const auto racedPath = directory.filePath(QStringLiteral("raced-save-as.dspx"));
         fixture.host.lateSaveTarget = racedPath;
@@ -739,16 +718,14 @@ namespace {
         QFile racedTarget(racedPath);
         const auto racedReadable = racedTarget.open(QIODevice::ReadOnly);
         const auto racedContents = racedTarget.readAll();
-        test.expect(
-            !racedSave &&
-                racedSave.getError().code == Automation::AutomationErrorCode::OverwriteDenied &&
-                racedReadable && racedContents == "external" && beforeRace && afterRace &&
-                sameState(*beforeRace, *afterRace),
-            scenario,
-            "reject-overwrite save-as must not replace a target created during serialization");
+        QVERIFY2((!racedSave &&
+                  racedSave.getError().code == Automation::AutomationErrorCode::OverwriteDenied &&
+                  racedReadable && racedContents == "external" && beforeRace && afterRace &&
+                  sameState(*beforeRace, *afterRace)),
+                 "reject-overwrite save-as must not replace a target created during serialization");
     }
 
-    void testGenerationCleanup(TestRun &test) {
+    void generationCleanup() {
         constexpr auto scenario = "AFC-DOC-LIFECYCLE-008";
         LifecycleFixture fixture;
         auto &runtime = fixture.runtime;
@@ -808,55 +785,38 @@ namespace {
         const auto oldTaskFromNewGeneration =
             runtime.tasks().getTask(newVersion.documentId, runningTask.taskId);
 
-        test.expect(committedNew && firstImport && firstInsert && secondImport && undo &&
-                        historyBefore && historyBefore.get().canUndo && historyBefore.get().canRedo,
-                    scenario,
-                    "the cleanup fixture must contain both History branches before replacement");
-        test.expect(replacement && newVersion.documentId != oldVersion.documentId &&
-                        newVersion.revision == 0 && historyAfter && !historyAfter.get().canUndo &&
-                        !historyAfter.get().canRedo && historyAfter.get().onSavePoint &&
-                        idempotencyAfter && idempotencyAfter.get() == 0 &&
-                        runtime.automationTasks().size() == 0 && runningTaskCancelCount == 1 &&
-                        fixture.host.replacementNotifications.size() == notificationCount + 1 &&
-                        fixture.host.replacementNotifications.last() == oldVersion.documentId,
-                    scenario,
-                    "successful replacement must clear History, idempotency, and task generation "
-                    "state");
-        test.expect(!oldDocument &&
-                        oldDocument.getError().code ==
-                            Automation::AutomationErrorCode::DocumentChanged &&
-                        !oldTaskFromOldGeneration &&
-                        oldTaskFromOldGeneration.getError().code ==
-                            Automation::AutomationErrorCode::DocumentChanged &&
-                        !oldTaskFromNewGeneration &&
-                        oldTaskFromNewGeneration.getError().code ==
-                            Automation::AutomationErrorCode::NotFound,
-                    scenario,
-                    "old document/task identities must not be observable from the new generation");
+        QVERIFY2((committedNew && firstImport && firstInsert && secondImport && undo &&
+                  historyBefore && historyBefore.get().canUndo && historyBefore.get().canRedo),
+                 "the cleanup fixture must contain both History branches before replacement");
+        QVERIFY2((replacement && newVersion.documentId != oldVersion.documentId &&
+                  newVersion.revision == 0 && historyAfter && !historyAfter.get().canUndo &&
+                  !historyAfter.get().canRedo && historyAfter.get().onSavePoint &&
+                  idempotencyAfter && idempotencyAfter.get() == 0 &&
+                  runtime.automationTasks().size() == 0 && runningTaskCancelCount == 1 &&
+                  fixture.host.replacementNotifications.size() == notificationCount + 1 &&
+                  fixture.host.replacementNotifications.last() == oldVersion.documentId),
+                 "successful replacement must clear History, idempotency, and task generation "
+                 "state");
+        QVERIFY2(
+            (!oldDocument &&
+             oldDocument.getError().code == Automation::AutomationErrorCode::DocumentChanged &&
+             !oldTaskFromOldGeneration &&
+             oldTaskFromOldGeneration.getError().code ==
+                 Automation::AutomationErrorCode::DocumentChanged &&
+             !oldTaskFromNewGeneration &&
+             oldTaskFromNewGeneration.getError().code == Automation::AutomationErrorCode::NotFound),
+            "old document/task identities must not be observable from the new generation");
 
         const auto reusedKey = runtime.project().insertTrack(
             commandContext(runtime, QStringLiteral("generation-key")), 0, idempotentTrack);
-        test.expect(reusedKey && reusedKey.get().changed &&
-                        runtime.documentVersion().documentId == newVersion.documentId &&
-                        runtime.documentVersion().revision == 1,
-                    scenario,
-                    "an idempotency key from the old generation must be reusable after "
-                    "replacement");
+        QVERIFY2((reusedKey && reusedKey.get().changed &&
+                  runtime.documentVersion().documentId == newVersion.documentId &&
+                  runtime.documentVersion().revision == 1),
+                 "an idempotency key from the old generation must be reusable after "
+                 "replacement");
     }
 
-    struct GenerationObjectIndex {
-        Automation::DocumentId oldDocument;
-        Automation::DocumentId currentDocument;
-        int collidingObjectId = -1;
-
-        [[nodiscard]] bool contains(const Automation::DocumentId &documentId,
-                                    const int objectId) const {
-            return objectId == collidingObjectId &&
-                   (documentId == oldDocument || documentId == currentDocument);
-        }
-    };
-
-    void testOldIdCollisionAndErrorPriority(TestRun &test) {
+    void oldIdCollisionAndErrorPriority() {
         constexpr auto collisionScenario = "AFC-DOC-LIFECYCLE-009";
         Automation::DocumentSession currentSession(nullptr, nullptr);
         Automation::SingleDocumentSessionResolver resolver(currentSession);
@@ -884,15 +844,13 @@ namespace {
                 result.current = session.version();
                 return Automation::AutomationResult<Automation::MutationResult>(result);
             });
-        test.expect(
-            index.contains(oldDocument, 37) && index.contains(currentSession.documentId(), 37) &&
-                !collision &&
-                collision.getError().code == Automation::AutomationErrorCode::DocumentChanged &&
-                collision.getError().operationId == Automation::OperationIds::tracks::set_color &&
-                !objectLookupAttempted,
-            collisionScenario,
-            "DocumentId must reject a stale generation before a colliding integer "
-            "object ID");
+        QVERIFY2((index.contains(oldDocument, 37) &&
+                  index.contains(currentSession.documentId(), 37) && !collision &&
+                  collision.getError().code == Automation::AutomationErrorCode::DocumentChanged &&
+                  collision.getError().operationId == Automation::OperationIds::tracks::set_color &&
+                  !objectLookupAttempted),
+                 "DocumentId must reject a stale generation before a colliding integer "
+                 "object ID");
 
         constexpr auto priorityScenario = "AFC-DOC-LIFECYCLE-010";
         LifecycleFixture fixture;
@@ -909,9 +867,9 @@ namespace {
             QStringLiteral("priority-current.dspx"), true);
         const auto currentVersion = runtime.documentVersion();
         const auto currentProject = runtime.project().getProject(currentVersion.documentId);
-        test.expect(committedNew && replacement && currentProject &&
-                        !currentProject.get().tracks.isEmpty(),
-                    priorityScenario, "the error-priority fixture must have a current track");
+        QVERIFY2((committedNew && replacement && currentProject &&
+                  !currentProject.get().tracks.isEmpty()),
+                 "the error-priority fixture must have a current track");
         if (!currentProject || currentProject.get().tracks.isEmpty())
             return;
 
@@ -935,42 +893,25 @@ namespace {
         const auto domainError =
             runtime.project().setTrackColor(commandContext(runtime), currentTrackId, -1);
 
-        test.expect(
-            !documentError &&
-                documentError.getError().code == Automation::AutomationErrorCode::DocumentChanged &&
-                !revisionError &&
-                revisionError.getError().code ==
-                    Automation::AutomationErrorCode::RevisionConflict &&
-                !objectError &&
-                objectError.getError().code == Automation::AutomationErrorCode::NotFound &&
-                !domainError &&
-                domainError.getError().code == Automation::AutomationErrorCode::InvalidArgument,
-            priorityScenario,
+        QVERIFY2(
+            (!documentError &&
+             documentError.getError().code == Automation::AutomationErrorCode::DocumentChanged &&
+             !revisionError &&
+             revisionError.getError().code == Automation::AutomationErrorCode::RevisionConflict &&
+             !objectError &&
+             objectError.getError().code == Automation::AutomationErrorCode::NotFound &&
+             !domainError &&
+             domainError.getError().code == Automation::AutomationErrorCode::InvalidArgument),
             "errors must be ordered as document, revision, object, then domain validation");
-        test.expect(
-            documentError.getError().operationId == Automation::OperationIds::tracks::set_color &&
-                revisionError.getError().operationId ==
-                    Automation::OperationIds::tracks::set_color &&
-                objectError.getError().operationId == Automation::OperationIds::tracks::set_color &&
-                domainError.getError().operationId == Automation::OperationIds::tracks::set_color,
-            priorityScenario, "every prioritized error must retain the centralized operation ID");
+        QVERIFY2(
+            (documentError.getError().operationId == Automation::OperationIds::tracks::set_color &&
+             revisionError.getError().operationId == Automation::OperationIds::tracks::set_color &&
+             objectError.getError().operationId == Automation::OperationIds::tracks::set_color &&
+             domainError.getError().operationId == Automation::OperationIds::tracks::set_color),
+            "every prioritized error must retain the centralized operation ID");
     }
-}
+};
 
-int main(int argc, char *argv[]) {
-    QCoreApplication application(argc, argv);
-    TestRun test;
+QTEST_GUILESS_MAIN(TestAutomationDocumentLifecycle)
 
-    testInitialUntitledSession(test);
-    testNewOpenAndImport(test);
-    testCommitObservers(test);
-    testWorkflowBusyLeaseAcrossReplacement(test);
-    testFailureAndCancellationRollback(test);
-    testSaveAndSaveAs(test);
-    testGenerationCleanup(test);
-    testOldIdCollisionAndErrorPriority(test);
-
-    QTextStream(stdout) << "TestAutomationDocumentLifecycle: " << test.assertions() << " assertions"
-                        << Qt::endl;
-    return test.ok() ? 0 : 1;
-}
+#include "main.moc"

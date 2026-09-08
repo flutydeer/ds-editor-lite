@@ -7,6 +7,7 @@
 #include <lite/ProjectModel/AppModel/AppModel.h>
 
 #include <QCoreApplication>
+#include <QtTest>
 #include <QDir>
 #include <QTextStream>
 
@@ -17,44 +18,7 @@
 #include <optional>
 
 namespace {
-    class TestLog final {
-    public:
-        void scenario(const QString &id) {
-            ++m_scenarios;
-            m_currentScenario = id;
-        }
 
-        bool expect(const bool condition, const QString &message) {
-            ++m_assertions;
-            if (condition)
-                return true;
-            ++m_failures;
-            QTextStream(stderr) << "FAILED [" << m_currentScenario << "]: " << message << Qt::endl;
-            return false;
-        }
-
-        template <typename T>
-        bool expectError(const Automation::AutomationResult<T> &result,
-                         const Automation::AutomationErrorCode code,
-                         const Automation::OperationId &operationId, const QString &message) {
-            return expect(!result && result.getError().code == code &&
-                              result.getError().operationId == operationId,
-                          message);
-        }
-
-        int finish() const {
-            QTextStream(stdout) << "Automation runtime domain coverage: " << m_scenarios
-                                << " scenarios, " << m_assertions << " assertions, " << m_failures
-                                << " failures" << Qt::endl;
-            return m_failures == 0 ? 0 : 1;
-        }
-
-    private:
-        QString m_currentScenario;
-        int m_scenarios = 0;
-        int m_assertions = 0;
-        int m_failures = 0;
-    };
 
     Automation::CommandContext commandContext(const Automation::CoreRuntime &runtime,
                                               const bool validateOnly = false) {
@@ -476,7 +440,7 @@ namespace {
         Automation::NoteId noteId;
     };
 
-    std::optional<EditorObjects> createEditorObjects(RuntimeHarness &harness, TestLog &log) {
+    std::optional<EditorObjects> createEditorObjects(RuntimeHarness &harness) {
         Automation::TrackDraftDto track;
         track.clientRef = QStringLiteral("runtime-track");
         track.name = QStringLiteral("Runtime Track");
@@ -505,7 +469,7 @@ namespace {
 
         const auto inserted =
             harness.core().project().insertTrack(commandContext(harness.core()), 0, track);
-        if (!log.expect(bool(inserted), QStringLiteral("editor object fixture must be created")))
+        if (!inserted)
             return std::nullopt;
 
         EditorObjects objects;
@@ -524,296 +488,10 @@ namespace {
                     break;
             }
         }
-        if (!log.expect(objects.trackId.isValid() && objects.clipId.isValid() &&
-                            objects.noteId.isValid(),
-                        QStringLiteral("editor fixture must expose all strong IDs"))) {
+        if (!objects.trackId.isValid() || !objects.clipId.isValid() || !objects.noteId.isValid())
             return std::nullopt;
-        }
         harness.resetHistory();
         return objects;
-    }
-
-    void testApplicationLifecycle(TestLog &log) {
-        RuntimeHarness harness;
-        auto &runtime = harness.core();
-
-        log.scenario(QStringLiteral("APP-Q-INFO-SNAPSHOT"));
-        const auto info = runtime.application().getInfo();
-        log.expect(info && info.get() == harness.applicationInfo,
-                   QStringLiteral("application info must be returned as an owned snapshot"));
-
-        log.scenario(QStringLiteral("APP-C-EXIT-VALIDATE"));
-        const auto exitPreview = runtime.application().requestTermination(
-            applicationContext(true), Automation::ApplicationTerminationMode::Exit);
-        log.expect(exitPreview && exitPreview.get().changed && exitPreview.get().validatedOnly &&
-                       harness.terminationCalls == 0,
-                   QStringLiteral("termination preview must not call the host"));
-
-        log.scenario(QStringLiteral("APP-C-EXIT-COMMIT"));
-        const auto exit = runtime.application().requestTermination(
-            applicationContext(), Automation::ApplicationTerminationMode::Exit);
-        log.expect(exit && exit.get().changed && !exit.get().validatedOnly &&
-                       harness.terminationCalls == 1 &&
-                       harness.lastTerminationMode ==
-                           Automation::ApplicationTerminationMode::Exit &&
-                       harness.lastTerminationSavePolicy ==
-                           Automation::ApplicationTerminationSavePolicy::RejectUnsaved,
-                   QStringLiteral("exit must be mediated exactly once by the host"));
-
-        log.scenario(QStringLiteral("APP-C-RESTART-COMMIT"));
-        const auto restart = runtime.application().requestTermination(
-            applicationContext(), Automation::ApplicationTerminationMode::Restart, true);
-        log.expect(restart && harness.terminationCalls == 2 &&
-                       harness.lastTerminationMode ==
-                           Automation::ApplicationTerminationMode::Restart &&
-                       harness.lastTerminationSavePolicy ==
-                           Automation::ApplicationTerminationSavePolicy::Discard,
-                   QStringLiteral("restart must preserve its mode and explicit discard policy"));
-
-        log.scenario(QStringLiteral("APP-C-HOST-REJECT"));
-        harness.terminationResult = Automation::ApplicationTerminationRequestResult::Unavailable;
-        const auto rejected = runtime.application().requestTermination(
-            applicationContext(), Automation::ApplicationTerminationMode::Exit);
-        log.expectError(rejected, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::application::request_exit,
-                        QStringLiteral("host rejection must be a stable capability error"));
-
-        log.scenario(QStringLiteral("APP-C-UNSAVED-CHANGES"));
-        harness.terminationResult = Automation::ApplicationTerminationRequestResult::UnsavedChanges;
-        const auto unsaved = runtime.application().requestTermination(
-            applicationContext(), Automation::ApplicationTerminationMode::Exit);
-        log.expectError(unsaved, Automation::AutomationErrorCode::Busy,
-                        Automation::OperationIds::application::request_exit,
-                        QStringLiteral("unsaved automation exit must be rejected as busy"));
-        log.expect(!unsaved && unsaved.getError().fieldPath == QStringLiteral("discard_changes"),
-                   QStringLiteral("unsaved rejection must identify discard_changes"));
-
-        log.scenario(QStringLiteral("APP-C-GUI-PROMPT-POLICY"));
-        harness.terminationResult = Automation::ApplicationTerminationRequestResult::Accepted;
-        const auto guiExit = runtime.application().requestTermination(
-            {.source = Automation::InvocationSource::TrustedGui},
-            Automation::ApplicationTerminationMode::Exit);
-        log.expect(guiExit && harness.lastTerminationSavePolicy ==
-                                  Automation::ApplicationTerminationSavePolicy::Prompt,
-                   QStringLiteral("trusted GUI termination must retain interactive prompt policy"));
-
-        log.scenario(QStringLiteral("APP-C-INVALID-MODE-PRIORITY"));
-        const auto invalidMode = runtime.application().requestTermination(
-            applicationContext(), static_cast<Automation::ApplicationTerminationMode>(99));
-        log.expect(!invalidMode &&
-                       invalidMode.getError().code ==
-                           Automation::AutomationErrorCode::InvalidArgument &&
-                       invalidMode.getError().operationId.isEmpty(),
-                   QStringLiteral("invalid mode is rejected before operation routing"));
-
-        log.scenario(QStringLiteral("APP-C-HEADLESS-NO-WINDOW"));
-        RuntimeHarness headlessHarness(std::nullopt);
-        auto &headlessRuntime = headlessHarness.core();
-        const auto headlessExit = headlessRuntime.application().requestTermination(
-            applicationContext(), Automation::ApplicationTerminationMode::Exit);
-        const auto headlessGui = headlessRuntime.facade().getEditorState(
-            headlessRuntime.documentVersion().documentId, Automation::WindowId::create());
-        log.expect(!headlessRuntime.windowId() && headlessExit &&
-                       headlessHarness.terminationCalls == 1,
-                   QStringLiteral("headless runtime lifecycle must not require a window ID"));
-        log.expectError(headlessGui, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::editor::get_state,
-                        QStringLiteral("headless runtime must reject GUI routes by capability"));
-    }
-
-    void testPlaybackHostState(TestLog &log) {
-        RuntimeHarness harness;
-        auto &runtime = harness.core();
-        const auto initialVersion = runtime.documentVersion();
-
-        log.scenario(QStringLiteral("PLAY-Q-SNAPSHOT"));
-        harness.playback.position = 120.0;
-        harness.playback.lastPosition = 80.0;
-        const auto snapshot = runtime.playback().getPlayback(initialVersion.documentId);
-        log.expect(snapshot && snapshot.get().document == initialVersion &&
-                       snapshot.get().position == 120.0 && snapshot.get().lastPosition == 80.0 &&
-                       snapshot.get().state == Automation::PlaybackState::Stopped,
-                   QStringLiteral("playback query must preserve host values and document version"));
-
-        log.scenario(QStringLiteral("PLAY-Q-DOCUMENT-ISOLATION"));
-        const auto wrongDocument = runtime.playback().getPlayback(Automation::DocumentId::create());
-        log.expectError(wrongDocument, Automation::AutomationErrorCode::DocumentChanged,
-                        Automation::OperationIds::playback::get_state,
-                        QStringLiteral("playback query must reject another document"));
-
-        log.scenario(QStringLiteral("PLAY-C-STATE-VALIDATE-NOOP"));
-        const auto playPreview = runtime.playback().play(commandContext(runtime, true));
-        log.expect(
-            playPreview && playPreview.get().changed && playPreview.get().validatedOnly &&
-                harness.playCalls == 0 && runtime.documentVersion() == initialVersion,
-            QStringLiteral("play preview must predict without host or revision side effects"));
-        const auto play = runtime.playback().play(commandContext(runtime));
-        const auto playNoOp = runtime.playback().play(commandContext(runtime));
-        log.expect(play && play.get().changed && playNoOp && !playNoOp.get().changed &&
-                       harness.playCalls == 1 && runtime.documentVersion() == initialVersion,
-                   QStringLiteral("play must call once and repeated play must be a no-op"));
-
-        log.scenario(QStringLiteral("PLAY-C-PAUSE-STOP-NOOP"));
-        const auto pause = runtime.playback().pause(commandContext(runtime));
-        const auto pauseNoOp = runtime.playback().pause(commandContext(runtime));
-        const auto stop = runtime.playback().stop(commandContext(runtime));
-        const auto stopNoOp = runtime.playback().stop(commandContext(runtime));
-        log.expect(pause && pause.get().changed && pauseNoOp && !pauseNoOp.get().changed && stop &&
-                       stop.get().changed && stopNoOp && !stopNoOp.get().changed &&
-                       harness.pauseCalls == 1 && harness.stopCalls == 1 &&
-                       runtime.documentVersion() == initialVersion,
-                   QStringLiteral("pause and stop must each suppress repeated host calls"));
-
-        log.scenario(QStringLiteral("PLAY-C-BUSY"));
-        harness.playbackCanStart = false;
-        const auto busy = runtime.playback().play(commandContext(runtime));
-        log.expectError(busy, Automation::AutomationErrorCode::Busy,
-                        Automation::OperationIds::playback::play,
-                        QStringLiteral("an active editor gesture must block playback start"));
-        log.expect(harness.playCalls == 1,
-                   QStringLiteral("busy playback must not call the device"));
-
-        log.scenario(QStringLiteral("PLAY-C-DEVICE-FAILURE"));
-        harness.playbackCanStart = true;
-        harness.playbackPlaySucceeds = false;
-        const auto failedStart = runtime.playback().play(commandContext(runtime));
-        log.expectError(
-            failedStart, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-            Automation::OperationIds::playback::play,
-            QStringLiteral("device start failure must be reported without state change"));
-        log.expect(harness.playback.state == Automation::PlaybackState::Stopped &&
-                       runtime.documentVersion() == initialVersion,
-                   QStringLiteral("failed playback start must keep state and revision"));
-
-        log.scenario(QStringLiteral("PLAY-C-POSITION"));
-        const auto positionPreview =
-            runtime.playback().setPosition(commandContext(runtime, true), 960.0);
-        const auto position = runtime.playback().setPosition(commandContext(runtime), 960.0);
-        const auto positionNoOp = runtime.playback().setPosition(commandContext(runtime), 960.0);
-        log.expect(positionPreview && positionPreview.get().validatedOnly &&
-                       positionPreview.get().changed && position && position.get().changed &&
-                       positionNoOp && !positionNoOp.get().changed &&
-                       harness.playback.position == 960.0 && harness.positionCalls == 1 &&
-                       runtime.documentVersion() == initialVersion,
-                   QStringLiteral("position must support preview, commit and no-op"));
-
-        log.scenario(QStringLiteral("PLAY-C-POSITION-BOUNDARIES"));
-        const auto negativePosition = runtime.playback().setPosition(commandContext(runtime), -1.0);
-        const auto nanPosition = runtime.playback().setPosition(
-            commandContext(runtime), std::numeric_limits<double>::quiet_NaN());
-        const auto infinitePosition = runtime.playback().setPosition(
-            commandContext(runtime), std::numeric_limits<double>::infinity());
-        log.expectError(negativePosition, Automation::AutomationErrorCode::InvalidArgument,
-                        Automation::OperationIds::playback::set_position,
-                        QStringLiteral("negative playback position must be rejected"));
-        log.expectError(nanPosition, Automation::AutomationErrorCode::InvalidArgument,
-                        Automation::OperationIds::playback::set_position,
-                        QStringLiteral("NaN playback position must be rejected"));
-        log.expectError(infinitePosition, Automation::AutomationErrorCode::InvalidArgument,
-                        Automation::OperationIds::playback::set_position,
-                        QStringLiteral("infinite playback position must be rejected"));
-
-        log.scenario(QStringLiteral("PLAY-C-LAST-POSITION"));
-        const auto lastPreview =
-            runtime.playback().setLastPosition(commandContext(runtime, true), 480.0);
-        const auto last = runtime.playback().setLastPosition(commandContext(runtime), 480.0);
-        const auto lastNoOp = runtime.playback().setLastPosition(commandContext(runtime), 480.0);
-        const auto invalidLast = runtime.playback().setLastPosition(commandContext(runtime), -0.01);
-        log.expect(lastPreview && lastPreview.get().validatedOnly && last && last.get().changed &&
-                       lastNoOp && !lastNoOp.get().changed && harness.lastPositionCalls == 1 &&
-                       harness.playback.lastPosition == 480.0,
-                   QStringLiteral("last position must support preview, commit and no-op"));
-        log.expectError(invalidLast, Automation::AutomationErrorCode::InvalidArgument,
-                        Automation::OperationIds::playback::set_last_position,
-                        QStringLiteral("negative last position must be rejected"));
-
-        log.scenario(QStringLiteral("PLAY-C-LOOP-REVISION"));
-        const auto loopBase = runtime.documentVersion();
-        const LoopSettings range(false, 480, 960);
-        const auto loopPreview = runtime.playback().setLoop(commandContext(runtime, true), range);
-        const auto loopSet = runtime.playback().setLoop(commandContext(runtime), range);
-        const auto loopNoOp = runtime.playback().setLoop(commandContext(runtime), range);
-        log.expect(loopPreview && loopPreview.get().validatedOnly && loopPreview.get().changed &&
-                       loopPreview.get().current.revision == loopBase.revision + 1 && loopSet &&
-                       loopSet.get().changed && loopNoOp && !loopNoOp.get().changed &&
-                       runtime.documentVersion().revision == loopBase.revision + 1 &&
-                       harness.loopCalls == 1,
-                   QStringLiteral("loop range must record one revision and suppress no-op"));
-
-        log.scenario(QStringLiteral("PLAY-C-LOOP-ENABLE-CLEAR"));
-        const auto enable = runtime.playback().setLoopEnabled(commandContext(runtime), true);
-        const auto enableNoOp = runtime.playback().setLoopEnabled(commandContext(runtime), true);
-        const auto clear = runtime.playback().clearLoop(commandContext(runtime));
-        const auto clearNoOp = runtime.playback().clearLoop(commandContext(runtime));
-        log.expect(enable && enable.get().changed && enableNoOp && !enableNoOp.get().changed &&
-                       clear && clear.get().changed && clearNoOp && !clearNoOp.get().changed &&
-                       harness.playback.loop == LoopSettings() && harness.loopCalls == 3 &&
-                       runtime.documentVersion().revision == loopBase.revision + 3,
-                   QStringLiteral("enable and clear must each commit at most once"));
-
-        log.scenario(QStringLiteral("PLAY-C-LOOP-VALIDATION"));
-        const auto enableEmpty = runtime.playback().setLoopEnabled(commandContext(runtime), true);
-        const auto zeroEnabled =
-            runtime.playback().setLoop(commandContext(runtime), LoopSettings(true, 0, 0));
-        const auto negativeRange =
-            runtime.playback().setLoop(commandContext(runtime), LoopSettings(false, -1, 20));
-        log.expectError(enableEmpty, Automation::AutomationErrorCode::InvalidArgument,
-                        Automation::OperationIds::playback::set_loop_enabled,
-                        QStringLiteral("empty loop cannot be enabled"));
-        log.expectError(zeroEnabled, Automation::AutomationErrorCode::InvalidArgument,
-                        Automation::OperationIds::playback::set_loop,
-                        QStringLiteral("enabled zero-length loop must be rejected"));
-        log.expectError(negativeRange, Automation::AutomationErrorCode::InvalidArgument,
-                        Automation::OperationIds::playback::set_loop,
-                        QStringLiteral("negative loop range must be rejected"));
-
-        log.scenario(QStringLiteral("PLAY-C-ERROR-PRIORITY"));
-        auto stale = commandContext(runtime);
-        ++stale.expected.revision;
-        const auto staleInvalid = runtime.playback().setLoop(stale, LoopSettings(true, 0, 0));
-        auto replaced = stale;
-        replaced.expected.documentId = Automation::DocumentId::create();
-        const auto replacedInvalid = runtime.playback().setLoop(replaced, LoopSettings(true, 0, 0));
-        log.expectError(staleInvalid, Automation::AutomationErrorCode::RevisionConflict,
-                        Automation::OperationIds::playback::set_loop,
-                        QStringLiteral("revision must be checked before loop validation"));
-        log.expectError(replacedInvalid, Automation::AutomationErrorCode::DocumentChanged,
-                        Automation::OperationIds::playback::set_loop,
-                        QStringLiteral("document must be checked before revision and loop"));
-
-        log.scenario(QStringLiteral("PLAY-C-IDEMPOTENCY-UNSUPPORTED"));
-        auto keyed = commandContext(runtime);
-        keyed.idempotencyKey = QStringLiteral("playback-state-key");
-        const auto unsupportedKey = runtime.playback().pause(keyed);
-        log.expectError(
-            unsupportedKey, Automation::AutomationErrorCode::InvalidArgument,
-            Automation::OperationIds::playback::pause,
-            QStringLiteral("ephemeral playback state must reject document idempotency"));
-
-        log.scenario(QStringLiteral("PLAY-C-WORKFLOW-BUSY"));
-        auto publicControl = commandContext(runtime);
-        publicControl.source = Automation::InvocationSource::PublicMcp;
-        runtime.setDocumentBusy(publicControl.expected.documentId, true);
-        harness.playback.state = Automation::PlaybackState::Playing;
-        const auto pauseWhileBusy = runtime.playback().pause(publicControl);
-        const auto seekWhileBusy = runtime.playback().seek(publicControl, 1440.0);
-        const auto loopWhileBusy =
-            runtime.playback().setLoop(publicControl, LoopSettings(false, 480, 960));
-        ++publicControl.expected.revision;
-        const auto staleSeekWhileBusy = runtime.playback().seek(publicControl, 1920.0);
-        runtime.setDocumentBusy(publicControl.expected.documentId, false);
-        log.expect(pauseWhileBusy && pauseWhileBusy.get().changed &&
-                       harness.playback.state == Automation::PlaybackState::Paused &&
-                       harness.pauseCalls == 2 && seekWhileBusy && seekWhileBusy.get().changed &&
-                       harness.playback.position == 1440.0 &&
-                       harness.playback.lastPosition == 1440.0,
-                   QStringLiteral("workflow busy must keep transient playback control available"));
-        log.expectError(loopWhileBusy, Automation::AutomationErrorCode::Busy,
-                        Automation::OperationIds::playback::set_loop,
-                        QStringLiteral("workflow busy must reject persistent playback changes"));
-        log.expectError(staleSeekWhileBusy, Automation::AutomationErrorCode::RevisionConflict,
-                        Automation::OperationIds::playback::seek,
-                        QStringLiteral("transient playback control must still validate revision"));
     }
 
     using GuiResult = Automation::AutomationResult<Automation::GuiMutationResult>;
@@ -930,72 +608,483 @@ namespace {
         };
     }
 
-    void testEditorViewCommands(TestLog &log) {
-        for (const auto &testCase : viewCommandCases()) {
-            RuntimeHarness harness;
-            auto &runtime = harness.core();
-            log.scenario(testCase.scenarioId);
+    template <typename T, typename Getter, typename Update, typename Mutate>
+    void exerciseSettingsCategory(RuntimeHarness &harness, const QString &scenarioId,
+                                  const Automation::OperationId &operationId, Getter getter,
+                                  Update update, Mutate mutate,
+                                  const std::function<void(T &)> &invalidate,
+                                  const std::function<void(T &)> &mutateFailure) {
+        qInfo(qPrintable(scenarioId));
+        const auto original = getter(harness.settings);
+        const auto attemptsBefore = harness.settingsWriteAttempts;
+        const auto writesBefore = harness.settingsWrites;
+        const auto noOp = update(applicationContext(), original);
 
-            const auto preview = testCase.invoke(harness, guiContext(runtime, true));
-            const auto committed = testCase.invoke(harness, guiContext(runtime));
-            const auto noOp = testCase.invoke(harness, guiContext(runtime));
-            log.expect(preview && preview.get().changed && preview.get().validatedOnly &&
-                           committed && committed.get().changed && noOp && !noOp.get().changed &&
-                           harness.editorApplyCalls == 1,
-                       QStringLiteral("view command must preview, commit once, and detect no-op"));
+        auto target = original;
+        mutate(target);
+        const auto preview = update(applicationContext(true), target);
+        const auto committed = update(applicationContext(), target);
+        const auto duplicate = update(applicationContext(), target);
+        QVERIFY2((noOp && !noOp.get().changed && preview && preview.get().validatedOnly &&
+                  preview.get().changed && committed && committed.get().changed && duplicate &&
+                  !duplicate.get().changed && getter(harness.settings) == target &&
+                  harness.settingsWriteAttempts == attemptsBefore + 1 &&
+                  harness.settingsWrites == writesBefore + 1),
+                 qPrintable(QStringLiteral(
+                     "settings category must support no-op, preview and one commit")));
 
-            auto unknownWindow = guiContext(runtime);
-            unknownWindow.windowId = Automation::WindowId::create();
-            const auto unknown = testCase.invoke(harness, unknownWindow);
-            log.expectError(unknown, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                            testCase.operationId,
-                            QStringLiteral("view command must reject an unknown window"));
-            log.expect(harness.editorApplyCalls == 1,
-                       QStringLiteral("unknown window must not reach the view host"));
-
-            const auto invalid = testCase.invalid(harness, guiContext(runtime));
-            log.expect(!invalid && invalid.getError().code ==
-                                       Automation::AutomationErrorCode::InvalidArgument,
-                       QStringLiteral("view command must reject its invalid input"));
-
-            harness.editorView = EditorViewState{};
-            harness.editorApplySucceeds = false;
-            const auto rejected = testCase.invoke(harness, guiContext(runtime));
-            log.expectError(rejected, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                            testCase.operationId,
-                            QStringLiteral("view host rejection must remain a stable error"));
-            log.expect(harness.editorView == EditorViewState{},
-                       QStringLiteral("view host rejection must not partially mutate state"));
+        if (invalidate) {
+            auto invalidValue = target;
+            invalidate(invalidValue);
+            const auto invalid = update(applicationContext(), invalidValue);
+            QVERIFY2((!invalid &&
+                      invalid.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+                      invalid.getError().operationId == operationId),
+                     qPrintable(QStringLiteral("invalid settings value must be rejected")));
+            QVERIFY2((getter(harness.settings) == target),
+                     qPrintable(QStringLiteral("invalid settings value must not mutate storage")));
         }
 
-        RuntimeHarness harness;
-        auto &runtime = harness.core();
-        log.scenario(QStringLiteral("EDITOR-C-VIEW-HOST-UNAVAILABLE"));
-        harness.editorViewAvailable = false;
-        const auto unavailable = runtime.facade().centerPianoRoll(guiContext(runtime), 120.0, 60.0);
-        log.expectError(unavailable, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::editor::center_piano_roll,
-                        QStringLiteral("missing captured view must reject view mutation"));
+        auto failingValue = target;
+        mutateFailure(failingValue);
+        harness.settingsApplySucceeds = false;
+        const auto failed = update(applicationContext(), failingValue);
+        harness.settingsApplySucceeds = true;
+        QVERIFY2((!failed && failed.getError().code == Automation::AutomationErrorCode::IoError &&
+                  failed.getError().operationId == operationId),
+                 qPrintable(QStringLiteral("settings persistence failure must be reported")));
+        QVERIFY2(
+            (getter(harness.settings) == target && harness.settingsWrites == writesBefore + 1),
+            qPrintable(QStringLiteral("failed settings persistence must not alter the snapshot")));
     }
 
-    void testEditorStateAndSelection(TestLog &log) {
+    Automation::SpeakerMixPresetDto validPreset(const QString &name = QStringLiteral("Lead")) {
+        return {
+            .name = name,
+            .packageId = QStringLiteral("voice.package"),
+            .singerId = QStringLiteral("singer"),
+            .packageVersion = QVersionNumber(2, 1),
+            .sources =
+                {
+                          {.speakerId = QStringLiteral("speaker-a"),
+                     .speakerName = QStringLiteral("Speaker A")},
+                          {.speakerId = QStringLiteral("speaker-b"),
+                     .speakerName = QStringLiteral("Speaker B")},
+                          },
+            .fixedWeights = {0.75                                     },
+        };
+    }
+
+}
+
+class TestAutomationRuntimeDomains final : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void applicationLifecycle() {
         RuntimeHarness harness;
         auto &runtime = harness.core();
 
-        log.scenario(QStringLiteral("EDITOR-Q-CAPABILITIES"));
-        const auto capabilities = runtime.facade().getEditorCapabilities();
-        log.expect(capabilities && capabilities.get().maxConcurrentDocuments == 1 &&
-                       capabilities.get().maxConcurrentWindows == 1 &&
-                       capabilities.get().operationIds == Automation::OperationIds::all(),
-                   QStringLiteral("capabilities must expose the single-session operation surface"));
+        qInfo(qPrintable(QStringLiteral("APP-Q-INFO-SNAPSHOT")));
+        const auto info = runtime.application().getInfo();
+        QVERIFY2(
+            (info && info.get() == harness.applicationInfo),
+            qPrintable(QStringLiteral("application info must be returned as an owned snapshot")));
 
-        log.scenario(QStringLiteral("EDITOR-SETUP-OBJECTS"));
-        const auto objects = createEditorObjects(harness, log);
-        if (!objects)
-            return;
+        qInfo(qPrintable(QStringLiteral("APP-C-EXIT-VALIDATE")));
+        const auto exitPreview = runtime.application().requestTermination(
+            applicationContext(true), Automation::ApplicationTerminationMode::Exit);
+        QVERIFY2((exitPreview && exitPreview.get().changed && exitPreview.get().validatedOnly &&
+                  harness.terminationCalls == 0),
+                 qPrintable(QStringLiteral("termination preview must not call the host")));
+
+        qInfo(qPrintable(QStringLiteral("APP-C-EXIT-COMMIT")));
+        const auto exit = runtime.application().requestTermination(
+            applicationContext(), Automation::ApplicationTerminationMode::Exit);
+        QVERIFY2((exit && exit.get().changed && !exit.get().validatedOnly &&
+                  harness.terminationCalls == 1 &&
+                  harness.lastTerminationMode == Automation::ApplicationTerminationMode::Exit &&
+                  harness.lastTerminationSavePolicy ==
+                      Automation::ApplicationTerminationSavePolicy::RejectUnsaved),
+                 qPrintable(QStringLiteral("exit must be mediated exactly once by the host")));
+
+        qInfo(qPrintable(QStringLiteral("APP-C-RESTART-COMMIT")));
+        const auto restart = runtime.application().requestTermination(
+            applicationContext(), Automation::ApplicationTerminationMode::Restart, true);
+        QVERIFY2((restart && harness.terminationCalls == 2 &&
+                  harness.lastTerminationMode == Automation::ApplicationTerminationMode::Restart &&
+                  harness.lastTerminationSavePolicy ==
+                      Automation::ApplicationTerminationSavePolicy::Discard),
+                 qPrintable(
+                     QStringLiteral("restart must preserve its mode and explicit discard policy")));
+
+        qInfo(qPrintable(QStringLiteral("APP-C-HOST-REJECT")));
+        harness.terminationResult = Automation::ApplicationTerminationRequestResult::Unavailable;
+        const auto rejected = runtime.application().requestTermination(
+            applicationContext(), Automation::ApplicationTerminationMode::Exit);
+        QVERIFY2((!rejected &&
+                  rejected.getError().code ==
+                      Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+                  rejected.getError().operationId ==
+                      Automation::OperationIds::application::request_exit),
+                 qPrintable(QStringLiteral("host rejection must be a stable capability error")));
+
+        qInfo(qPrintable(QStringLiteral("APP-C-UNSAVED-CHANGES")));
+        harness.terminationResult = Automation::ApplicationTerminationRequestResult::UnsavedChanges;
+        const auto unsaved = runtime.application().requestTermination(
+            applicationContext(), Automation::ApplicationTerminationMode::Exit);
+        QVERIFY2(
+            (!unsaved && unsaved.getError().code == Automation::AutomationErrorCode::Busy &&
+             unsaved.getError().operationId == Automation::OperationIds::application::request_exit),
+            qPrintable(QStringLiteral("unsaved automation exit must be rejected as busy")));
+        QVERIFY2((!unsaved && unsaved.getError().fieldPath == QStringLiteral("discard_changes")),
+                 qPrintable(QStringLiteral("unsaved rejection must identify discard_changes")));
+
+        qInfo(qPrintable(QStringLiteral("APP-C-GUI-PROMPT-POLICY")));
+        harness.terminationResult = Automation::ApplicationTerminationRequestResult::Accepted;
+        const auto guiExit = runtime.application().requestTermination(
+            {.source = Automation::InvocationSource::TrustedGui},
+            Automation::ApplicationTerminationMode::Exit);
+        QVERIFY2((guiExit && harness.lastTerminationSavePolicy ==
+                                 Automation::ApplicationTerminationSavePolicy::Prompt),
+                 qPrintable(QStringLiteral(
+                     "trusted GUI termination must retain interactive prompt policy")));
+
+        qInfo(qPrintable(QStringLiteral("APP-C-INVALID-MODE-PRIORITY")));
+        const auto invalidMode = runtime.application().requestTermination(
+            applicationContext(), static_cast<Automation::ApplicationTerminationMode>(99));
+        QVERIFY2((!invalidMode &&
+                  invalidMode.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+                  invalidMode.getError().operationId.isEmpty()),
+                 qPrintable(QStringLiteral("invalid mode is rejected before operation routing")));
+
+        qInfo(qPrintable(QStringLiteral("APP-C-HEADLESS-NO-WINDOW")));
+        RuntimeHarness headlessHarness(std::nullopt);
+        auto &headlessRuntime = headlessHarness.core();
+        const auto headlessExit = headlessRuntime.application().requestTermination(
+            applicationContext(), Automation::ApplicationTerminationMode::Exit);
+        const auto headlessGui = headlessRuntime.facade().getEditorState(
+            headlessRuntime.documentVersion().documentId, Automation::WindowId::create());
+        QVERIFY2(
+            (!headlessRuntime.windowId() && headlessExit && headlessHarness.terminationCalls == 1),
+            qPrintable(QStringLiteral("headless runtime lifecycle must not require a window ID")));
+        QVERIFY2(
+            (!headlessGui &&
+             headlessGui.getError().code ==
+                 Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+             headlessGui.getError().operationId == Automation::OperationIds::editor::get_state),
+            qPrintable(QStringLiteral("headless runtime must reject GUI routes by capability")));
+    }
+
+    void playbackHostState() {
+        RuntimeHarness harness;
+        auto &runtime = harness.core();
+        const auto initialVersion = runtime.documentVersion();
+
+        qInfo(qPrintable(QStringLiteral("PLAY-Q-SNAPSHOT")));
+        harness.playback.position = 120.0;
+        harness.playback.lastPosition = 80.0;
+        const auto snapshot = runtime.playback().getPlayback(initialVersion.documentId);
+        QVERIFY2((snapshot && snapshot.get().document == initialVersion &&
+                  snapshot.get().position == 120.0 && snapshot.get().lastPosition == 80.0 &&
+                  snapshot.get().state == Automation::PlaybackState::Stopped),
+                 qPrintable(QStringLiteral(
+                     "playback query must preserve host values and document version")));
+
+        qInfo(qPrintable(QStringLiteral("PLAY-Q-DOCUMENT-ISOLATION")));
+        const auto wrongDocument = runtime.playback().getPlayback(Automation::DocumentId::create());
+        QVERIFY2(
+            (!wrongDocument &&
+             wrongDocument.getError().code == Automation::AutomationErrorCode::DocumentChanged &&
+             wrongDocument.getError().operationId == Automation::OperationIds::playback::get_state),
+            qPrintable(QStringLiteral("playback query must reject another document")));
+
+        qInfo(qPrintable(QStringLiteral("PLAY-C-STATE-VALIDATE-NOOP")));
+        const auto playPreview = runtime.playback().play(commandContext(runtime, true));
+        QVERIFY2((playPreview && playPreview.get().changed && playPreview.get().validatedOnly &&
+                  harness.playCalls == 0 && runtime.documentVersion() == initialVersion),
+                 qPrintable(QStringLiteral(
+                     "play preview must predict without host or revision side effects")));
+        const auto play = runtime.playback().play(commandContext(runtime));
+        const auto playNoOp = runtime.playback().play(commandContext(runtime));
+        QVERIFY2(
+            (play && play.get().changed && playNoOp && !playNoOp.get().changed &&
+             harness.playCalls == 1 && runtime.documentVersion() == initialVersion),
+            qPrintable(QStringLiteral("play must call once and repeated play must be a no-op")));
+
+        qInfo(qPrintable(QStringLiteral("PLAY-C-PAUSE-STOP-NOOP")));
+        const auto pause = runtime.playback().pause(commandContext(runtime));
+        const auto pauseNoOp = runtime.playback().pause(commandContext(runtime));
+        const auto stop = runtime.playback().stop(commandContext(runtime));
+        const auto stopNoOp = runtime.playback().stop(commandContext(runtime));
+        QVERIFY2(
+            (pause && pause.get().changed && pauseNoOp && !pauseNoOp.get().changed && stop &&
+             stop.get().changed && stopNoOp && !stopNoOp.get().changed && harness.pauseCalls == 1 &&
+             harness.stopCalls == 1 && runtime.documentVersion() == initialVersion),
+            qPrintable(QStringLiteral("pause and stop must each suppress repeated host calls")));
+
+        qInfo(qPrintable(QStringLiteral("PLAY-C-BUSY")));
+        harness.playbackCanStart = false;
+        const auto busy = runtime.playback().play(commandContext(runtime));
+        QVERIFY2((!busy && busy.getError().code == Automation::AutomationErrorCode::Busy &&
+                  busy.getError().operationId == Automation::OperationIds::playback::play),
+                 qPrintable(QStringLiteral("an active editor gesture must block playback start")));
+        QVERIFY2((harness.playCalls == 1),
+                 qPrintable(QStringLiteral("busy playback must not call the device")));
+
+        qInfo(qPrintable(QStringLiteral("PLAY-C-DEVICE-FAILURE")));
+        harness.playbackCanStart = true;
+        harness.playbackPlaySucceeds = false;
+        const auto failedStart = runtime.playback().play(commandContext(runtime));
+        QVERIFY2((!failedStart &&
+                  failedStart.getError().code ==
+                      Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+                  failedStart.getError().operationId == Automation::OperationIds::playback::play),
+                 qPrintable(
+                     QStringLiteral("device start failure must be reported without state change")));
+        QVERIFY2((harness.playback.state == Automation::PlaybackState::Stopped &&
+                  runtime.documentVersion() == initialVersion),
+                 qPrintable(QStringLiteral("failed playback start must keep state and revision")));
+
+        qInfo(qPrintable(QStringLiteral("PLAY-C-POSITION")));
+        const auto positionPreview =
+            runtime.playback().setPosition(commandContext(runtime, true), 960.0);
+        const auto position = runtime.playback().setPosition(commandContext(runtime), 960.0);
+        const auto positionNoOp = runtime.playback().setPosition(commandContext(runtime), 960.0);
+        QVERIFY2((positionPreview && positionPreview.get().validatedOnly &&
+                  positionPreview.get().changed && position && position.get().changed &&
+                  positionNoOp && !positionNoOp.get().changed &&
+                  harness.playback.position == 960.0 && harness.positionCalls == 1 &&
+                  runtime.documentVersion() == initialVersion),
+                 qPrintable(QStringLiteral("position must support preview, commit and no-op")));
+
+        qInfo(qPrintable(QStringLiteral("PLAY-C-POSITION-BOUNDARIES")));
+        const auto negativePosition = runtime.playback().setPosition(commandContext(runtime), -1.0);
+        const auto nanPosition = runtime.playback().setPosition(
+            commandContext(runtime), std::numeric_limits<double>::quiet_NaN());
+        const auto infinitePosition = runtime.playback().setPosition(
+            commandContext(runtime), std::numeric_limits<double>::infinity());
+        QVERIFY2(
+            (!negativePosition &&
+             negativePosition.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+             negativePosition.getError().operationId ==
+                 Automation::OperationIds::playback::set_position),
+            qPrintable(QStringLiteral("negative playback position must be rejected")));
+        QVERIFY2((!nanPosition &&
+                  nanPosition.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+                  nanPosition.getError().operationId ==
+                      Automation::OperationIds::playback::set_position),
+                 qPrintable(QStringLiteral("NaN playback position must be rejected")));
+        QVERIFY2(
+            (!infinitePosition &&
+             infinitePosition.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+             infinitePosition.getError().operationId ==
+                 Automation::OperationIds::playback::set_position),
+            qPrintable(QStringLiteral("infinite playback position must be rejected")));
+
+        qInfo(qPrintable(QStringLiteral("PLAY-C-LAST-POSITION")));
+        const auto lastPreview =
+            runtime.playback().setLastPosition(commandContext(runtime, true), 480.0);
+        const auto last = runtime.playback().setLastPosition(commandContext(runtime), 480.0);
+        const auto lastNoOp = runtime.playback().setLastPosition(commandContext(runtime), 480.0);
+        const auto invalidLast = runtime.playback().setLastPosition(commandContext(runtime), -0.01);
+        QVERIFY2(
+            (lastPreview && lastPreview.get().validatedOnly && last && last.get().changed &&
+             lastNoOp && !lastNoOp.get().changed && harness.lastPositionCalls == 1 &&
+             harness.playback.lastPosition == 480.0),
+            qPrintable(QStringLiteral("last position must support preview, commit and no-op")));
+        QVERIFY2((!invalidLast &&
+                  invalidLast.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+                  invalidLast.getError().operationId ==
+                      Automation::OperationIds::playback::set_last_position),
+                 qPrintable(QStringLiteral("negative last position must be rejected")));
+
+        qInfo(qPrintable(QStringLiteral("PLAY-C-LOOP-REVISION")));
+        const auto loopBase = runtime.documentVersion();
+        const LoopSettings range(false, 480, 960);
+        const auto loopPreview = runtime.playback().setLoop(commandContext(runtime, true), range);
+        const auto loopSet = runtime.playback().setLoop(commandContext(runtime), range);
+        const auto loopNoOp = runtime.playback().setLoop(commandContext(runtime), range);
+        QVERIFY2(
+            (loopPreview && loopPreview.get().validatedOnly && loopPreview.get().changed &&
+             loopPreview.get().current.revision == loopBase.revision + 1 && loopSet &&
+             loopSet.get().changed && loopNoOp && !loopNoOp.get().changed &&
+             runtime.documentVersion().revision == loopBase.revision + 1 && harness.loopCalls == 1),
+            qPrintable(QStringLiteral("loop range must record one revision and suppress no-op")));
+
+        qInfo(qPrintable(QStringLiteral("PLAY-C-LOOP-ENABLE-CLEAR")));
+        const auto enable = runtime.playback().setLoopEnabled(commandContext(runtime), true);
+        const auto enableNoOp = runtime.playback().setLoopEnabled(commandContext(runtime), true);
+        const auto clear = runtime.playback().clearLoop(commandContext(runtime));
+        const auto clearNoOp = runtime.playback().clearLoop(commandContext(runtime));
+        QVERIFY2((enable && enable.get().changed && enableNoOp && !enableNoOp.get().changed &&
+                  clear && clear.get().changed && clearNoOp && !clearNoOp.get().changed &&
+                  harness.playback.loop == LoopSettings() && harness.loopCalls == 3 &&
+                  runtime.documentVersion().revision == loopBase.revision + 3),
+                 qPrintable(QStringLiteral("enable and clear must each commit at most once")));
+
+        qInfo(qPrintable(QStringLiteral("PLAY-C-LOOP-VALIDATION")));
+        const auto enableEmpty = runtime.playback().setLoopEnabled(commandContext(runtime), true);
+        const auto zeroEnabled =
+            runtime.playback().setLoop(commandContext(runtime), LoopSettings(true, 0, 0));
+        const auto negativeRange =
+            runtime.playback().setLoop(commandContext(runtime), LoopSettings(false, -1, 20));
+        QVERIFY2((!enableEmpty &&
+                  enableEmpty.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+                  enableEmpty.getError().operationId ==
+                      Automation::OperationIds::playback::set_loop_enabled),
+                 qPrintable(QStringLiteral("empty loop cannot be enabled")));
+        QVERIFY2(
+            (!zeroEnabled &&
+             zeroEnabled.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+             zeroEnabled.getError().operationId == Automation::OperationIds::playback::set_loop),
+            qPrintable(QStringLiteral("enabled zero-length loop must be rejected")));
+        QVERIFY2(
+            (!negativeRange &&
+             negativeRange.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+             negativeRange.getError().operationId == Automation::OperationIds::playback::set_loop),
+            qPrintable(QStringLiteral("negative loop range must be rejected")));
+
+        qInfo(qPrintable(QStringLiteral("PLAY-C-ERROR-PRIORITY")));
+        auto stale = commandContext(runtime);
+        ++stale.expected.revision;
+        const auto staleInvalid = runtime.playback().setLoop(stale, LoopSettings(true, 0, 0));
+        auto replaced = stale;
+        replaced.expected.documentId = Automation::DocumentId::create();
+        const auto replacedInvalid = runtime.playback().setLoop(replaced, LoopSettings(true, 0, 0));
+        QVERIFY2(
+            (!staleInvalid &&
+             staleInvalid.getError().code == Automation::AutomationErrorCode::RevisionConflict &&
+             staleInvalid.getError().operationId == Automation::OperationIds::playback::set_loop),
+            qPrintable(QStringLiteral("revision must be checked before loop validation")));
+        QVERIFY2(
+            (!replacedInvalid &&
+             replacedInvalid.getError().code == Automation::AutomationErrorCode::DocumentChanged &&
+             replacedInvalid.getError().operationId ==
+                 Automation::OperationIds::playback::set_loop),
+            qPrintable(QStringLiteral("document must be checked before revision and loop")));
+
+        qInfo(qPrintable(QStringLiteral("PLAY-C-IDEMPOTENCY-UNSUPPORTED")));
+        auto keyed = commandContext(runtime);
+        keyed.idempotencyKey = QStringLiteral("playback-state-key");
+        const auto unsupportedKey = runtime.playback().pause(keyed);
+        QVERIFY2(
+            (!unsupportedKey &&
+             unsupportedKey.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+             unsupportedKey.getError().operationId == Automation::OperationIds::playback::pause),
+            qPrintable(
+                QStringLiteral("ephemeral playback state must reject document idempotency")));
+
+        qInfo(qPrintable(QStringLiteral("PLAY-C-WORKFLOW-BUSY")));
+        auto publicControl = commandContext(runtime);
+        publicControl.source = Automation::InvocationSource::PublicMcp;
+        runtime.setDocumentBusy(publicControl.expected.documentId, true);
+        harness.playback.state = Automation::PlaybackState::Playing;
+        const auto pauseWhileBusy = runtime.playback().pause(publicControl);
+        const auto seekWhileBusy = runtime.playback().seek(publicControl, 1440.0);
+        const auto loopWhileBusy =
+            runtime.playback().setLoop(publicControl, LoopSettings(false, 480, 960));
+        ++publicControl.expected.revision;
+        const auto staleSeekWhileBusy = runtime.playback().seek(publicControl, 1920.0);
+        runtime.setDocumentBusy(publicControl.expected.documentId, false);
+        QVERIFY2((pauseWhileBusy && pauseWhileBusy.get().changed &&
+                  harness.playback.state == Automation::PlaybackState::Paused &&
+                  harness.pauseCalls == 2 && seekWhileBusy && seekWhileBusy.get().changed &&
+                  harness.playback.position == 1440.0 && harness.playback.lastPosition == 1440.0),
+                 qPrintable(QStringLiteral(
+                     "workflow busy must keep transient playback control available")));
+        QVERIFY2(
+            (!loopWhileBusy &&
+             loopWhileBusy.getError().code == Automation::AutomationErrorCode::Busy &&
+             loopWhileBusy.getError().operationId == Automation::OperationIds::playback::set_loop),
+            qPrintable(QStringLiteral("workflow busy must reject persistent playback changes")));
+        QVERIFY2(
+            (!staleSeekWhileBusy &&
+             staleSeekWhileBusy.getError().code ==
+                 Automation::AutomationErrorCode::RevisionConflict &&
+             staleSeekWhileBusy.getError().operationId == Automation::OperationIds::playback::seek),
+            qPrintable(QStringLiteral("transient playback control must still validate revision")));
+    }
+
+    void editorViewCommands_data() {
+        QTest::addColumn<int>("caseIndex");
+        const auto cases = viewCommandCases();
+        for (int index = 0; index < cases.size(); ++index)
+            QTest::newRow(qPrintable(cases.at(index).scenarioId)) << index;
+    }
+
+    void editorViewCommands() {
+        QFETCH(int, caseIndex);
+        const auto testCase = viewCommandCases().at(caseIndex);
+
+
+        RuntimeHarness harness;
+        auto &runtime = harness.core();
+        qInfo(qPrintable(testCase.scenarioId));
+
+        const auto preview = testCase.invoke(harness, guiContext(runtime, true));
+        const auto committed = testCase.invoke(harness, guiContext(runtime));
+        const auto noOp = testCase.invoke(harness, guiContext(runtime));
+        QVERIFY2(
+            (preview && preview.get().changed && preview.get().validatedOnly && committed &&
+             committed.get().changed && noOp && !noOp.get().changed &&
+             harness.editorApplyCalls == 1),
+            qPrintable(QStringLiteral("view command must preview, commit once, and detect no-op")));
+
+        auto unknownWindow = guiContext(runtime);
+        unknownWindow.windowId = Automation::WindowId::create();
+        const auto unknown = testCase.invoke(harness, unknownWindow);
+        QVERIFY2((!unknown &&
+                  unknown.getError().code ==
+                      Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+                  unknown.getError().operationId == testCase.operationId),
+                 qPrintable(QStringLiteral("view command must reject an unknown window")));
+        QVERIFY2((harness.editorApplyCalls == 1),
+                 qPrintable(QStringLiteral("unknown window must not reach the view host")));
+
+        const auto invalid = testCase.invalid(harness, guiContext(runtime));
+        QVERIFY2((!invalid &&
+                  invalid.getError().code == Automation::AutomationErrorCode::InvalidArgument),
+                 qPrintable(QStringLiteral("view command must reject its invalid input")));
+
+        harness.editorView = EditorViewState{};
+        harness.editorApplySucceeds = false;
+        const auto rejected = testCase.invoke(harness, guiContext(runtime));
+        QVERIFY2((!rejected &&
+                  rejected.getError().code ==
+                      Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+                  rejected.getError().operationId == testCase.operationId),
+                 qPrintable(QStringLiteral("view host rejection must remain a stable error")));
+        QVERIFY2((harness.editorView == EditorViewState{}),
+                 qPrintable(QStringLiteral("view host rejection must not partially mutate state")));
+    }
+
+    void unavailableEditorView() {
+
+        RuntimeHarness harness;
+        auto &runtime = harness.core();
+        qInfo(qPrintable(QStringLiteral("EDITOR-C-VIEW-HOST-UNAVAILABLE")));
+        harness.editorViewAvailable = false;
+        const auto unavailable = runtime.facade().centerPianoRoll(guiContext(runtime), 120.0, 60.0);
+        QVERIFY2((!unavailable &&
+                  unavailable.getError().code ==
+                      Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+                  unavailable.getError().operationId ==
+                      Automation::OperationIds::editor::center_piano_roll),
+                 qPrintable(QStringLiteral("missing captured view must reject view mutation")));
+    }
+
+    void editorStateAndSelection() {
+        RuntimeHarness harness;
+        auto &runtime = harness.core();
+
+        qInfo(qPrintable(QStringLiteral("EDITOR-SETUP-OBJECTS")));
+        const auto objects = createEditorObjects(harness);
+        QVERIFY2(objects.has_value(), "editor objects must be created");
         const auto version = runtime.documentVersion();
 
-        log.scenario(QStringLiteral("EDITOR-C-QUANTIZE"));
+        qInfo(qPrintable(QStringLiteral("EDITOR-C-QUANTIZE")));
         const auto quantizePreview =
             runtime.facade().setPianoRollQuantize(guiContext(runtime, true), 24, false);
         const auto quantize = runtime.facade().setPianoRollQuantize(guiContext(runtime), 24, false);
@@ -1003,15 +1092,16 @@ namespace {
             runtime.facade().setPianoRollQuantize(guiContext(runtime), 24, false);
         const auto invalidQuantize =
             runtime.facade().setPianoRollQuantize(guiContext(runtime), 7, true);
-        log.expect(quantizePreview && quantizePreview.get().validatedOnly && quantize &&
-                       quantize.get().changed && quantizeNoOp && !quantizeNoOp.get().changed &&
-                       harness.editorStableApplyCalls == 1 && runtime.documentVersion() == version,
-                   QStringLiteral("quantize must preview, commit, no-op and preserve revision"));
-        log.expect(!invalidQuantize && invalidQuantize.getError().code ==
-                                           Automation::AutomationErrorCode::InvalidArgument,
-                   QStringLiteral("quantize must divide whole-note ticks"));
+        QVERIFY2((quantizePreview && quantizePreview.get().validatedOnly && quantize &&
+                  quantize.get().changed && quantizeNoOp && !quantizeNoOp.get().changed &&
+                  harness.editorStableApplyCalls == 1 && runtime.documentVersion() == version),
+                 qPrintable(
+                     QStringLiteral("quantize must preview, commit, no-op and preserve revision")));
+        QVERIFY2((!invalidQuantize && invalidQuantize.getError().code ==
+                                          Automation::AutomationErrorCode::InvalidArgument),
+                 qPrintable(QStringLiteral("quantize must divide whole-note ticks")));
 
-        log.scenario(QStringLiteral("EDITOR-C-AUTO-PAGE"));
+        qInfo(qPrintable(QStringLiteral("EDITOR-C-AUTO-PAGE")));
         const auto autoPagePreview = runtime.facade().setAutoPageTurn(
             guiContext(runtime, true), Automation::EditorAutoPageTarget::TrackPanel, false);
         const auto autoPage = runtime.facade().setAutoPageTurn(
@@ -1020,15 +1110,16 @@ namespace {
             guiContext(runtime), Automation::EditorAutoPageTarget::TrackPanel, false);
         const auto invalidTarget = runtime.facade().setAutoPageTurn(
             guiContext(runtime), static_cast<Automation::EditorAutoPageTarget>(99), false);
-        log.expect(autoPagePreview && autoPagePreview.get().validatedOnly && autoPage &&
-                       autoPage.get().changed && autoPageNoOp && !autoPageNoOp.get().changed &&
-                       harness.editorStableApplyCalls == 2,
-                   QStringLiteral("auto-page must preview, commit once and detect no-op"));
-        log.expect(!invalidTarget && invalidTarget.getError().code ==
-                                         Automation::AutomationErrorCode::InvalidArgument,
-                   QStringLiteral("unknown auto-page target must be rejected"));
+        QVERIFY2(
+            (autoPagePreview && autoPagePreview.get().validatedOnly && autoPage &&
+             autoPage.get().changed && autoPageNoOp && !autoPageNoOp.get().changed &&
+             harness.editorStableApplyCalls == 2),
+            qPrintable(QStringLiteral("auto-page must preview, commit once and detect no-op")));
+        QVERIFY2((!invalidTarget && invalidTarget.getError().code ==
+                                        Automation::AutomationErrorCode::InvalidArgument),
+                 qPrintable(QStringLiteral("unknown auto-page target must be rejected")));
 
-        log.scenario(QStringLiteral("EDITOR-C-SELECTION-ROUNDTRIP"));
+        qInfo(qPrintable(QStringLiteral("EDITOR-C-SELECTION-ROUNDTRIP")));
         auto context = guiDocumentContext(runtime);
         const auto selectTrack = runtime.facade().setSelectedTrack(context, objects->trackId);
         const auto selectClip = runtime.facade().setActiveClip(context, objects->clipId);
@@ -1038,54 +1129,59 @@ namespace {
             context, objects->clipId, {objects->noteId, objects->noteId});
         const auto selectNotesNoOp = runtime.facade().setSelectedNotes(
             context, objects->clipId, {objects->noteId, objects->noteId});
-        log.expect(
-            selectTrack && selectClip && selectClips && selectNotes && selectNotesNoOp &&
-                !selectNotesNoOp.get().changed && harness.editorStable.selectedTrackIndex == 0 &&
-                harness.editorStable.activeClipId == objects->clipId.value() &&
-                harness.editorStable.selectedClipIds == QList<int>{objects->clipId.value()} &&
-                harness.editorStable.selectedNoteIds == QList<int>{objects->noteId.value()} &&
-                runtime.documentVersion() == version,
-            QStringLiteral("selection must normalize IDs and not mutate the document"));
+        QVERIFY2(
+            (selectTrack && selectClip && selectClips && selectNotes && selectNotesNoOp &&
+             !selectNotesNoOp.get().changed && harness.editorStable.selectedTrackIndex == 0 &&
+             harness.editorStable.activeClipId == objects->clipId.value() &&
+             harness.editorStable.selectedClipIds == QList<int>{objects->clipId.value()} &&
+             harness.editorStable.selectedNoteIds == QList<int>{objects->noteId.value()} &&
+             runtime.documentVersion() == version),
+            qPrintable(QStringLiteral("selection must normalize IDs and not mutate the document")));
 
-        log.scenario(QStringLiteral("EDITOR-Q-STATE-SNAPSHOT"));
+        qInfo(qPrintable(QStringLiteral("EDITOR-Q-STATE-SNAPSHOT")));
         harness.editorView.pianoRoll.centerTick = 640.0;
         runtime.setDocumentBusy(version.documentId, true);
         const auto state = runtime.facade().getEditorState(version.documentId, *runtime.windowId());
-        log.expect(state && state.get().document == version &&
-                       state.get().windowId == *runtime.windowId() && state.get().documentBusy &&
-                       state.get().view && state.get().view->pianoRoll.centerTick == 640.0 &&
-                       state.get().selection.selectedTrackId == objects->trackId &&
-                       state.get().selection.activeClipId == objects->clipId &&
-                       state.get().selection.selectedClipIds ==
-                           QList<Automation::ClipId>{objects->clipId} &&
-                       state.get().selection.selectedNoteIds ==
-                           QList<Automation::NoteId>{objects->noteId} &&
-                       state.get().pianoRollQuantize == 24 && !state.get().trackAutoPageTurnEnabled,
-                   QStringLiteral("editor state must combine session, view and stable selection"));
+        QVERIFY2(
+            (state && state.get().document == version &&
+             state.get().windowId == *runtime.windowId() && state.get().documentBusy &&
+             state.get().view && state.get().view->pianoRoll.centerTick == 640.0 &&
+             state.get().selection.selectedTrackId == objects->trackId &&
+             state.get().selection.activeClipId == objects->clipId &&
+             state.get().selection.selectedClipIds == QList<Automation::ClipId>{objects->clipId} &&
+             state.get().selection.selectedNoteIds == QList<Automation::NoteId>{objects->noteId} &&
+             state.get().pianoRollQuantize == 24 && !state.get().trackAutoPageTurnEnabled),
+            qPrintable(
+                QStringLiteral("editor state must combine session, view and stable selection")));
         runtime.setDocumentBusy(version.documentId, false);
 
-        log.scenario(QStringLiteral("EDITOR-Q-OPTIONAL-VIEW"));
+        qInfo(qPrintable(QStringLiteral("EDITOR-Q-OPTIONAL-VIEW")));
         harness.editorViewAvailable = false;
         const auto noViewState =
             runtime.facade().getEditorState(version.documentId, *runtime.windowId());
-        log.expect(
-            noViewState && !noViewState.get().view,
-            QStringLiteral("state query must remain available when no view snapshot exists"));
+        QVERIFY2((noViewState && !noViewState.get().view),
+                 qPrintable(QStringLiteral(
+                     "state query must remain available when no view snapshot exists")));
         harness.editorViewAvailable = true;
 
-        log.scenario(QStringLiteral("EDITOR-Q-ID-ISOLATION"));
+        qInfo(qPrintable(QStringLiteral("EDITOR-Q-ID-ISOLATION")));
         const auto wrongDocument = runtime.facade().getEditorState(Automation::DocumentId::create(),
                                                                    Automation::WindowId::create());
         const auto wrongWindow =
             runtime.facade().getEditorState(version.documentId, Automation::WindowId::create());
-        log.expectError(wrongDocument, Automation::AutomationErrorCode::DocumentChanged,
-                        Automation::OperationIds::editor::get_state,
-                        QStringLiteral("document must be resolved before window for state query"));
-        log.expectError(wrongWindow, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::editor::get_state,
-                        QStringLiteral("state query must reject unknown window"));
+        QVERIFY2(
+            (!wrongDocument &&
+             wrongDocument.getError().code == Automation::AutomationErrorCode::DocumentChanged &&
+             wrongDocument.getError().operationId == Automation::OperationIds::editor::get_state),
+            qPrintable(QStringLiteral("document must be resolved before window for state query")));
+        QVERIFY2(
+            (!wrongWindow &&
+             wrongWindow.getError().code ==
+                 Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+             wrongWindow.getError().operationId == Automation::OperationIds::editor::get_state),
+            qPrintable(QStringLiteral("state query must reject unknown window")));
 
-        log.scenario(QStringLiteral("EDITOR-C-SELECTION-ERROR-PRIORITY"));
+        qInfo(qPrintable(QStringLiteral("EDITOR-C-SELECTION-ERROR-PRIORITY")));
         auto wrongDocumentContext = context;
         wrongDocumentContext.documentId = Automation::DocumentId::create();
         wrongDocumentContext.expectedRevision = runtime.documentVersion().revision + 100;
@@ -1103,21 +1199,31 @@ namespace {
             runtime.facade().setActiveClip(wrongWindowContext, Automation::ClipId(999999));
         const auto missingClip =
             runtime.facade().setActiveClip(context, Automation::ClipId(999999));
-        log.expectError(wrongDocumentSelection, Automation::AutomationErrorCode::DocumentChanged,
-                        Automation::OperationIds::editor::set_active_clip,
-                        QStringLiteral("document must win over revision, window and object"));
-        log.expectError(staleSelection, Automation::AutomationErrorCode::RevisionConflict,
-                        Automation::OperationIds::editor::set_active_clip,
-                        QStringLiteral("revision must win over window and object"));
-        log.expectError(wrongWindowSelection,
-                        Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::editor::set_active_clip,
-                        QStringLiteral("window must win over object resolution"));
-        log.expectError(missingClip, Automation::AutomationErrorCode::NotFound,
-                        Automation::OperationIds::editor::set_active_clip,
-                        QStringLiteral("valid routing must reach object resolution"));
+        QVERIFY2((!wrongDocumentSelection &&
+                  wrongDocumentSelection.getError().code ==
+                      Automation::AutomationErrorCode::DocumentChanged &&
+                  wrongDocumentSelection.getError().operationId ==
+                      Automation::OperationIds::editor::set_active_clip),
+                 qPrintable(QStringLiteral("document must win over revision, window and object")));
+        QVERIFY2(
+            (!staleSelection &&
+             staleSelection.getError().code == Automation::AutomationErrorCode::RevisionConflict &&
+             staleSelection.getError().operationId ==
+                 Automation::OperationIds::editor::set_active_clip),
+            qPrintable(QStringLiteral("revision must win over window and object")));
+        QVERIFY2((!wrongWindowSelection &&
+                  wrongWindowSelection.getError().code ==
+                      Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+                  wrongWindowSelection.getError().operationId ==
+                      Automation::OperationIds::editor::set_active_clip),
+                 qPrintable(QStringLiteral("window must win over object resolution")));
+        QVERIFY2((!missingClip &&
+                  missingClip.getError().code == Automation::AutomationErrorCode::NotFound &&
+                  missingClip.getError().operationId ==
+                      Automation::OperationIds::editor::set_active_clip),
+                 qPrintable(QStringLiteral("valid routing must reach object resolution")));
 
-        log.scenario(QStringLiteral("EDITOR-C-REVEAL"));
+        qInfo(qPrintable(QStringLiteral("EDITOR-C-REVEAL")));
         Automation::EditorRevealDto target{
             .kind = Automation::EditorRevealKind::PianoRollNotes,
             .objectIds = {objects->noteId.value()},
@@ -1131,19 +1237,20 @@ namespace {
         const auto revealPreview =
             runtime.facade().reveal(guiDocumentContext(runtime, true), target, false);
         const auto reveal = runtime.facade().reveal(context, target, true);
-        log.expect(revealPreview && revealPreview.get().validatedOnly && reveal &&
-                       reveal.get().changed && harness.revealCalls == 1 &&
-                       runtime.documentVersion() == version,
-                   QStringLiteral("reveal must validate without host action and then apply once"));
+        QVERIFY2(
+            (revealPreview && revealPreview.get().validatedOnly && reveal && reveal.get().changed &&
+             harness.revealCalls == 1 && runtime.documentVersion() == version),
+            qPrintable(
+                QStringLiteral("reveal must validate without host action and then apply once")));
 
-        log.scenario(QStringLiteral("EDITOR-C-REVEAL-FALLBACK"));
+        qInfo(qPrintable(QStringLiteral("EDITOR-C-REVEAL-FALLBACK")));
         target.objectIds = {999999};
         target.allowRangeFallback = true;
         const auto fallback = runtime.facade().reveal(context, target);
-        log.expect(fallback && harness.revealCalls == 2,
-                   QStringLiteral("range fallback must tolerate a deleted note ID"));
+        QVERIFY2((fallback && harness.revealCalls == 2),
+                 qPrintable(QStringLiteral("range fallback must tolerate a deleted note ID")));
 
-        log.scenario(QStringLiteral("EDITOR-C-REVEAL-FAILURES"));
+        qInfo(qPrintable(QStringLiteral("EDITOR-C-REVEAL-FAILURES")));
         target.allowRangeFallback = false;
         const auto missingNote = runtime.facade().reveal(context, target);
         target.objectIds = {objects->noteId.value()};
@@ -1154,73 +1261,34 @@ namespace {
         target.tickEnd = 480.0;
         harness.editorRevealSucceeds = false;
         const auto hostRejected = runtime.facade().reveal(context, target);
-        log.expectError(missingNote, Automation::AutomationErrorCode::NotFound,
-                        Automation::OperationIds::editor::reveal,
-                        QStringLiteral("reveal must reject a missing note without fallback"));
-        log.expectError(invalidRange, Automation::AutomationErrorCode::InvalidArgument,
-                        Automation::OperationIds::editor::reveal,
-                        QStringLiteral("reveal must reject an inverted range"));
-        log.expectError(hostRejected, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::editor::reveal,
-                        QStringLiteral("reveal host rejection must be stable"));
+        QVERIFY2((!missingNote &&
+                  missingNote.getError().code == Automation::AutomationErrorCode::NotFound &&
+                  missingNote.getError().operationId == Automation::OperationIds::editor::reveal),
+                 qPrintable(QStringLiteral("reveal must reject a missing note without fallback")));
+        QVERIFY2(
+            (!invalidRange &&
+             invalidRange.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+             invalidRange.getError().operationId == Automation::OperationIds::editor::reveal),
+            qPrintable(QStringLiteral("reveal must reject an inverted range")));
+        QVERIFY2((!hostRejected &&
+                  hostRejected.getError().code ==
+                      Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+                  hostRejected.getError().operationId == Automation::OperationIds::editor::reveal),
+                 qPrintable(QStringLiteral("reveal host rejection must be stable")));
     }
 
-    template <typename T, typename Getter, typename Update, typename Mutate>
-    void exerciseSettingsCategory(TestLog &log, RuntimeHarness &harness, const QString &scenarioId,
-                                  const Automation::OperationId &operationId, Getter getter,
-                                  Update update, Mutate mutate,
-                                  const std::function<void(T &)> &invalidate,
-                                  const std::function<void(T &)> &mutateFailure) {
-        log.scenario(scenarioId);
-        const auto original = getter(harness.settings);
-        const auto attemptsBefore = harness.settingsWriteAttempts;
-        const auto writesBefore = harness.settingsWrites;
-        const auto noOp = update(applicationContext(), original);
-
-        auto target = original;
-        mutate(target);
-        const auto preview = update(applicationContext(true), target);
-        const auto committed = update(applicationContext(), target);
-        const auto duplicate = update(applicationContext(), target);
-        log.expect(noOp && !noOp.get().changed && preview && preview.get().validatedOnly &&
-                       preview.get().changed && committed && committed.get().changed && duplicate &&
-                       !duplicate.get().changed && getter(harness.settings) == target &&
-                       harness.settingsWriteAttempts == attemptsBefore + 1 &&
-                       harness.settingsWrites == writesBefore + 1,
-                   QStringLiteral("settings category must support no-op, preview and one commit"));
-
-        if (invalidate) {
-            auto invalidValue = target;
-            invalidate(invalidValue);
-            const auto invalid = update(applicationContext(), invalidValue);
-            log.expectError(invalid, Automation::AutomationErrorCode::InvalidArgument, operationId,
-                            QStringLiteral("invalid settings value must be rejected"));
-            log.expect(getter(harness.settings) == target,
-                       QStringLiteral("invalid settings value must not mutate storage"));
-        }
-
-        auto failingValue = target;
-        mutateFailure(failingValue);
-        harness.settingsApplySucceeds = false;
-        const auto failed = update(applicationContext(), failingValue);
-        harness.settingsApplySucceeds = true;
-        log.expectError(failed, Automation::AutomationErrorCode::IoError, operationId,
-                        QStringLiteral("settings persistence failure must be reported"));
-        log.expect(getter(harness.settings) == target && harness.settingsWrites == writesBefore + 1,
-                   QStringLiteral("failed settings persistence must not alter the snapshot"));
+    void settingsQuerySnapshot() {
+        RuntimeHarness harness;
+        const auto snapshot = harness.core().settings().getSettings();
+        QVERIFY(snapshot);
+        QVERIFY(snapshot.get() == harness.settings);
     }
 
-    void testSettingsDomains(TestLog &log) {
+    void generalSettings() {
         RuntimeHarness harness;
         auto &runtime = harness.core();
-
-        log.scenario(QStringLiteral("SETTINGS-Q-SNAPSHOT"));
-        const auto snapshot = runtime.settings().getSettings();
-        log.expect(snapshot && snapshot.get() == harness.settings,
-                   QStringLiteral("settings query must return all eight domains exactly"));
-
         exerciseSettingsCategory<Automation::GeneralSettingsDto>(
-            log, harness, QStringLiteral("SETTINGS-C-GENERAL"),
+            harness, QStringLiteral("SETTINGS-C-GENERAL"),
             Automation::OperationIds::settings::update_general,
             [](const auto &all) { return all.general; },
             [&runtime](const auto &context, const auto &value) {
@@ -1229,9 +1297,16 @@ namespace {
             [](auto &value) { value.gameDirectory = QStringLiteral("game-data"); },
             [](auto &value) { value.uiLanguage = QStringLiteral("unsupported"); },
             [](auto &value) { value.pitchModelPath = QStringLiteral("model.bin"); });
+        const auto snapshot = runtime.settings().getSettings();
+        QVERIFY(snapshot);
+        QVERIFY(snapshot.get() == harness.settings);
+    }
 
+    void appearanceSettings() {
+        RuntimeHarness harness;
+        auto &runtime = harness.core();
         exerciseSettingsCategory<Automation::AppearanceSettingsDto>(
-            log, harness, QStringLiteral("SETTINGS-C-APPEARANCE"),
+            harness, QStringLiteral("SETTINGS-C-APPEARANCE"),
             Automation::OperationIds::settings::update_appearance,
             [](const auto &all) { return all.appearance; },
             [&runtime](const auto &context, const auto &value) {
@@ -1243,9 +1318,16 @@ namespace {
             },
             [](auto &value) { value.animationTimeScale = 0.0; },
             [](auto &value) { value.uiFontFamily = QStringLiteral("Test Font"); });
+        const auto snapshot = runtime.settings().getSettings();
+        QVERIFY(snapshot);
+        QVERIFY(snapshot.get() == harness.settings);
+    }
 
+    void inferenceSettings() {
+        RuntimeHarness harness;
+        auto &runtime = harness.core();
         exerciseSettingsCategory<Automation::InferenceSettingsDto>(
-            log, harness, QStringLiteral("SETTINGS-C-INFERENCE"),
+            harness, QStringLiteral("SETTINGS-C-INFERENCE"),
             Automation::OperationIds::settings::update_inference,
             [](const auto &all) { return all.inference; },
             [&runtime](const auto &context, const auto &value) {
@@ -1257,9 +1339,16 @@ namespace {
             },
             [](auto &value) { value.executionProvider = QStringLiteral("UnknownProvider"); },
             [](auto &value) { value.cacheDirectory = QStringLiteral("other-cache"); });
+        const auto snapshot = runtime.settings().getSettings();
+        QVERIFY(snapshot);
+        QVERIFY(snapshot.get() == harness.settings);
+    }
 
+    void developerSettings() {
+        RuntimeHarness harness;
+        auto &runtime = harness.core();
         exerciseSettingsCategory<Automation::DeveloperSettingsDto>(
-            log, harness, QStringLiteral("SETTINGS-C-DEVELOPER"),
+            harness, QStringLiteral("SETTINGS-C-DEVELOPER"),
             Automation::OperationIds::settings::update_developer,
             [](const auto &all) { return all.developer; },
             [&runtime](const auto &context, const auto &value) {
@@ -1270,9 +1359,16 @@ namespace {
                 value.editorRenderBackend = static_cast<Automation::EditorRenderBackend>(99);
             },
             [](auto &value) { value.showLogWindow = true; });
+        const auto snapshot = runtime.settings().getSettings();
+        QVERIFY(snapshot);
+        QVERIFY(snapshot.get() == harness.settings);
+    }
 
+    void g2pLanguageSettings() {
+        RuntimeHarness harness;
+        auto &runtime = harness.core();
         exerciseSettingsCategory<Automation::G2pLanguageSettingsDto>(
-            log, harness, QStringLiteral("SETTINGS-C-G2P"),
+            harness, QStringLiteral("SETTINGS-C-G2P"),
             Automation::OperationIds::settings::update_g2p_language,
             [](const auto &all) { return all.g2pLanguage; },
             [&runtime](const auto &context, const auto &value) {
@@ -1285,9 +1381,16 @@ namespace {
                 value.languageOrder = {QStringLiteral("cmn"), QStringLiteral("cmn")};
             },
             [](auto &value) { value.languageOrder.append(QStringLiteral("jpn")); });
+        const auto snapshot = runtime.settings().getSettings();
+        QVERIFY(snapshot);
+        QVERIFY(snapshot.get() == harness.settings);
+    }
 
+    void fillLyricSettings() {
+        RuntimeHarness harness;
+        auto &runtime = harness.core();
         exerciseSettingsCategory<Automation::FillLyricSettingsDto>(
-            log, harness, QStringLiteral("SETTINGS-C-FILL-LYRIC"),
+            harness, QStringLiteral("SETTINGS-C-FILL-LYRIC"),
             Automation::OperationIds::settings::update_fill_lyric,
             [](const auto &all) { return all.fillLyric; },
             [&runtime](const auto &context, const auto &value) {
@@ -1311,9 +1414,16 @@ namespace {
             },
             [](auto &value) { value.textEditFontSize = 0.0; },
             [](auto &value) { value.extensionVisible = true; });
+        const auto snapshot = runtime.settings().getSettings();
+        QVERIFY(snapshot);
+        QVERIFY(snapshot.get() == harness.settings);
+    }
 
+    void windowSettings() {
+        RuntimeHarness harness;
+        auto &runtime = harness.core();
         exerciseSettingsCategory<Automation::WindowSettingsDto>(
-            log, harness, QStringLiteral("SETTINGS-C-WINDOW"),
+            harness, QStringLiteral("SETTINGS-C-WINDOW"),
             Automation::OperationIds::settings::update_window,
             [](const auto &all) { return all.window; },
             [&runtime](const auto &context, const auto &value) {
@@ -1321,9 +1431,16 @@ namespace {
             },
             [](auto &value) { value.mainWindowGeometry = QByteArrayLiteral("geometry-one"); }, {},
             [](auto &value) { value.mainWindowGeometry = QByteArrayLiteral("geometry-two"); });
+        const auto snapshot = runtime.settings().getSettings();
+        QVERIFY(snapshot);
+        QVERIFY(snapshot.get() == harness.settings);
+    }
 
+    void audioSettings() {
+        RuntimeHarness harness;
+        auto &runtime = harness.core();
         exerciseSettingsCategory<Automation::AudioSettingsDto>(
-            log, harness, QStringLiteral("SETTINGS-C-AUDIO"),
+            harness, QStringLiteral("SETTINGS-C-AUDIO"),
             Automation::OperationIds::settings::update_audio,
             [](const auto &all) { return all.audio; },
             [&runtime](const auto &context, const auto &value) {
@@ -1335,13 +1452,24 @@ namespace {
             },
             [](auto &value) { value.devicePan = 2.0; },
             [](auto &value) { value.vstEditorPort = 28083; });
+        const auto snapshot = runtime.settings().getSettings();
+        QVERIFY(snapshot);
+        QVERIFY(snapshot.get() == harness.settings);
+    }
 
-        log.scenario(QStringLiteral("SETTINGS-Q-UPDATED-SNAPSHOT"));
-        const auto updated = runtime.settings().getSettings();
-        log.expect(updated && updated.get() == harness.settings,
-                   QStringLiteral("settings query must reflect committed Unicode-rich values"));
-
-        log.scenario(QStringLiteral("SETTINGS-C-LYRIC-RULE-VALIDATION"));
+    void invalidLyricRulesDoNotPersist() {
+        RuntimeHarness harness;
+        auto &runtime = harness.core();
+        auto settings = harness.settings.fillLyric;
+        settings.customSplitterRules.append(
+            {.name = QStringLiteral("splitter"), .regexes = {QStringLiteral("[,，]")}});
+        settings.customTaggerRules.append({.name = QStringLiteral("tagger"),
+                                           .language = QStringLiteral("cmn"),
+                                           .entries = {{.type = QStringLiteral("regex"),
+                                                        .value = {QStringLiteral("^la$")},
+                                                        .tag = QStringLiteral("tag")}}});
+        QVERIFY(runtime.settings().updateFillLyric(applicationContext(), settings));
+        qInfo(qPrintable(QStringLiteral("SETTINGS-C-LYRIC-RULE-VALIDATION")));
         const auto writesBefore = harness.settingsWrites;
         auto duplicateSplitter = harness.settings.fillLyric;
         duplicateSplitter.customSplitterRules.append(duplicateSplitter.customSplitterRules.first());
@@ -1356,96 +1484,109 @@ namespace {
             runtime.settings().updateFillLyric(applicationContext(), duplicateTagger);
         const auto rejectedEntry =
             runtime.settings().updateFillLyric(applicationContext(), invalidTagger);
-        log.expectError(rejectedSplitter, Automation::AutomationErrorCode::InvalidArgument,
-                        Automation::OperationIds::settings::update_fill_lyric,
-                        QStringLiteral("duplicate lyric splitter names must be rejected"));
-        log.expectError(rejectedTagger, Automation::AutomationErrorCode::InvalidArgument,
-                        Automation::OperationIds::settings::update_fill_lyric,
-                        QStringLiteral("duplicate lyric tagger languages must be rejected"));
-        log.expectError(rejectedEntry, Automation::AutomationErrorCode::InvalidArgument,
-                        Automation::OperationIds::settings::update_fill_lyric,
-                        QStringLiteral("unsupported lyric tagger entry type must be rejected"));
-        log.expect(harness.settingsWrites == writesBefore,
-                   QStringLiteral("invalid lyric rules must not reach persistence"));
+        QVERIFY2(
+            (!rejectedSplitter &&
+             rejectedSplitter.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+             rejectedSplitter.getError().operationId ==
+                 Automation::OperationIds::settings::update_fill_lyric),
+            qPrintable(QStringLiteral("duplicate lyric splitter names must be rejected")));
+        QVERIFY2(
+            (!rejectedTagger &&
+             rejectedTagger.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+             rejectedTagger.getError().operationId ==
+                 Automation::OperationIds::settings::update_fill_lyric),
+            qPrintable(QStringLiteral("duplicate lyric tagger languages must be rejected")));
+        QVERIFY2(
+            (!rejectedEntry &&
+             rejectedEntry.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+             rejectedEntry.getError().operationId ==
+                 Automation::OperationIds::settings::update_fill_lyric),
+            qPrintable(QStringLiteral("unsupported lyric tagger entry type must be rejected")));
+        QVERIFY2((harness.settingsWrites == writesBefore),
+                 qPrintable(QStringLiteral("invalid lyric rules must not reach persistence")));
     }
 
-    void testRecentFiles(TestLog &log) {
+    void recentFiles() {
         RuntimeHarness harness;
         auto &runtime = harness.core();
 
-        log.scenario(QStringLiteral("RECENT-Q-EMPTY"));
+        qInfo(qPrintable(QStringLiteral("RECENT-Q-EMPTY")));
         const auto initial = runtime.settings().getRecentProjectFiles();
-        log.expect(initial && initial.get().isEmpty(),
-                   QStringLiteral("recent file query must preserve an empty list"));
+        QVERIFY2((initial && initial.get().isEmpty()),
+                 qPrintable(QStringLiteral("recent file query must preserve an empty list")));
 
-        log.scenario(QStringLiteral("RECENT-C-ADD-NORMALIZE"));
+        qInfo(qPrintable(QStringLiteral("RECENT-C-ADD-NORMALIZE")));
         const auto add = runtime.settings().addRecentProjectFile(
             applicationContext(), QStringLiteral(" projects/../projects/歌曲.dspx "));
         const auto duplicate = runtime.settings().addRecentProjectFile(
             applicationContext(), QStringLiteral("projects/歌曲.dspx"));
         const auto added = runtime.settings().getRecentProjectFiles();
-        log.expect(add && add.get().changed && duplicate && !duplicate.get().changed && added &&
-                       added.get() == QStringList{QStringLiteral("projects/歌曲.dspx")},
-                   QStringLiteral("recent add must trim, clean and deduplicate paths"));
+        QVERIFY2((add && add.get().changed && duplicate && !duplicate.get().changed && added &&
+                  added.get() == QStringList{QStringLiteral("projects/歌曲.dspx")}),
+                 qPrintable(QStringLiteral("recent add must trim, clean and deduplicate paths")));
 
-        log.scenario(QStringLiteral("RECENT-C-MAXIMUM-ORDER"));
+        qInfo(qPrintable(QStringLiteral("RECENT-C-MAXIMUM-ORDER")));
         for (int index = 0; index < 12; ++index) {
             const auto result = runtime.settings().addRecentProjectFile(
                 applicationContext(), QStringLiteral("projects/song-%1.dspx").arg(index));
-            log.expect(bool(result), QStringLiteral("bulk recent-file setup must succeed"));
+            QVERIFY2((bool(result)),
+                     qPrintable(QStringLiteral("bulk recent-file setup must succeed")));
         }
         const auto capped = runtime.settings().getRecentProjectFiles();
-        log.expect(capped && capped.get().size() == 10 &&
-                       capped.get().first() == QStringLiteral("projects/song-11.dspx") &&
-                       capped.get().last() == QStringLiteral("projects/song-2.dspx"),
-                   QStringLiteral("recent files must keep the ten newest entries in order"));
+        QVERIFY2(
+            (capped && capped.get().size() == 10 &&
+             capped.get().first() == QStringLiteral("projects/song-11.dspx") &&
+             capped.get().last() == QStringLiteral("projects/song-2.dspx")),
+            qPrintable(QStringLiteral("recent files must keep the ten newest entries in order")));
 
-        log.scenario(QStringLiteral("RECENT-C-REMOVE"));
+        qInfo(qPrintable(QStringLiteral("RECENT-C-REMOVE")));
         const auto remove = runtime.settings().removeRecentProjectFile(
             applicationContext(), QStringLiteral(" projects/song-7.dspx "));
         const auto removeNoOp = runtime.settings().removeRecentProjectFile(
             applicationContext(), QStringLiteral("projects/missing.dspx"));
-        log.expect(remove && remove.get().changed && removeNoOp && !removeNoOp.get().changed,
-                   QStringLiteral("recent remove must normalize and no-op for a missing path"));
+        QVERIFY2((remove && remove.get().changed && removeNoOp && !removeNoOp.get().changed),
+                 qPrintable(
+                     QStringLiteral("recent remove must normalize and no-op for a missing path")));
 
-        log.scenario(QStringLiteral("RECENT-C-CLEAR"));
+        qInfo(qPrintable(QStringLiteral("RECENT-C-CLEAR")));
         const auto clearPreview =
             runtime.settings().clearRecentProjectFiles(applicationContext(true));
         const auto clear = runtime.settings().clearRecentProjectFiles(applicationContext());
         const auto clearNoOp = runtime.settings().clearRecentProjectFiles(applicationContext());
-        log.expect(clearPreview && clearPreview.get().validatedOnly && clearPreview.get().changed &&
-                       clear && clear.get().changed && clearNoOp && !clearNoOp.get().changed &&
-                       harness.settings.general.recentProjectFiles.isEmpty(),
-                   QStringLiteral("recent clear must preview, commit once and detect empty no-op"));
+        QVERIFY2((clearPreview && clearPreview.get().validatedOnly && clearPreview.get().changed &&
+                  clear && clear.get().changed && clearNoOp && !clearNoOp.get().changed &&
+                  harness.settings.general.recentProjectFiles.isEmpty()),
+                 qPrintable(QStringLiteral(
+                     "recent clear must preview, commit once and detect empty no-op")));
 
-        log.scenario(QStringLiteral("RECENT-C-INVALID-PATH"));
+        qInfo(qPrintable(QStringLiteral("RECENT-C-INVALID-PATH")));
         const auto invalidAdd =
             runtime.settings().addRecentProjectFile(applicationContext(), QStringLiteral(" "));
         const auto invalidRemove =
             runtime.settings().removeRecentProjectFile(applicationContext(), QStringLiteral(" "));
-        log.expect(
-            !invalidAdd &&
-                invalidAdd.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
-                !invalidRemove &&
-                invalidRemove.getError().code == Automation::AutomationErrorCode::InvalidArgument,
-            QStringLiteral("empty recent paths must be rejected without persistence"));
+        QVERIFY2(
+            (!invalidAdd &&
+             invalidAdd.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+             !invalidRemove &&
+             invalidRemove.getError().code == Automation::AutomationErrorCode::InvalidArgument),
+            qPrintable(QStringLiteral("empty recent paths must be rejected without persistence")));
 
-        log.scenario(QStringLiteral("RECENT-C-PERSISTENCE-FAILURE"));
+        qInfo(qPrintable(QStringLiteral("RECENT-C-PERSISTENCE-FAILURE")));
         harness.settingsApplySucceeds = false;
         const auto failed = runtime.settings().addRecentProjectFile(
             applicationContext(), QStringLiteral("projects/failure.dspx"));
-        log.expectError(failed, Automation::AutomationErrorCode::IoError,
-                        Automation::OperationIds::recent_files::add,
-                        QStringLiteral("recent-file persistence failure must be stable"));
-        log.expect(harness.settings.general.recentProjectFiles.isEmpty(),
-                   QStringLiteral("failed recent add must not alter stored files"));
+        QVERIFY2((!failed && failed.getError().code == Automation::AutomationErrorCode::IoError &&
+                  failed.getError().operationId == Automation::OperationIds::recent_files::add),
+                 qPrintable(QStringLiteral("recent-file persistence failure must be stable")));
+        QVERIFY2((harness.settings.general.recentProjectFiles.isEmpty()),
+                 qPrintable(QStringLiteral("failed recent add must not alter stored files")));
     }
 
-    void testPackageSearchPaths(TestLog &log) {
+    void packageSearchPaths() {
         RuntimeHarness harness;
         auto &runtime = harness.core();
 
-        log.scenario(QStringLiteral("PACKAGE-PATH-C-NORMALIZE"));
+        qInfo(qPrintable(QStringLiteral("PACKAGE-PATH-C-NORMALIZE")));
         const QStringList input{
             QStringLiteral(" packages/../voices/主声库 "),
             QStringLiteral("voices/主声库"),
@@ -1459,174 +1600,177 @@ namespace {
         const auto noOp = runtime.settings().setPackageSearchPaths(
             applicationContext(),
             {QStringLiteral("voices/主声库"), QStringLiteral("voices/secondary")});
-        log.expect(preview && preview.get().validatedOnly && preview.get().changed && committed &&
-                       committed.get().changed && noOp && !noOp.get().changed &&
-                       harness.settings.general.packageSearchPaths ==
-                           QStringList{QStringLiteral("voices/主声库"),
-                                       QStringLiteral("voices/secondary")},
-                   QStringLiteral("package paths must normalize, deduplicate and preserve order"));
+        QVERIFY2(
+            (preview && preview.get().validatedOnly && preview.get().changed && committed &&
+             committed.get().changed && noOp && !noOp.get().changed &&
+             harness.settings.general.packageSearchPaths ==
+                 QStringList{QStringLiteral("voices/主声库"), QStringLiteral("voices/secondary")}),
+            qPrintable(
+                QStringLiteral("package paths must normalize, deduplicate and preserve order")));
 
-        log.scenario(QStringLiteral("PACKAGE-PATH-C-PERSISTENCE-FAILURE"));
+        qInfo(qPrintable(QStringLiteral("PACKAGE-PATH-C-PERSISTENCE-FAILURE")));
         harness.settingsApplySucceeds = false;
         const auto failed = runtime.settings().setPackageSearchPaths(
             applicationContext(), {QStringLiteral("voices/failure")});
-        log.expectError(failed, Automation::AutomationErrorCode::IoError,
-                        Automation::OperationIds::packages::set_search_paths,
-                        QStringLiteral("package path persistence failure must be reported"));
-        log.expect(
-            harness.settings.general.packageSearchPaths ==
-                QStringList{QStringLiteral("voices/主声库"), QStringLiteral("voices/secondary")},
-            QStringLiteral("failed package path write must preserve stored paths"));
+        QVERIFY2(
+            (!failed && failed.getError().code == Automation::AutomationErrorCode::IoError &&
+             failed.getError().operationId == Automation::OperationIds::packages::set_search_paths),
+            qPrintable(QStringLiteral("package path persistence failure must be reported")));
+        QVERIFY2(
+            (harness.settings.general.packageSearchPaths ==
+             QStringList{QStringLiteral("voices/主声库"), QStringLiteral("voices/secondary")}),
+            qPrintable(QStringLiteral("failed package path write must preserve stored paths")));
     }
 
-    void testPackages(TestLog &log) {
+    void packages() {
         RuntimeHarness harness;
         auto &runtime = harness.core();
 
-        log.scenario(QStringLiteral("PACKAGES-Q-LIST-SNAPSHOT"));
+        qInfo(qPrintable(QStringLiteral("PACKAGES-Q-LIST-SNAPSHOT")));
         const auto installed = runtime.packages().getInstalledPackages();
         const auto expected = harness.packages;
         harness.packages.clear();
-        log.expect(installed && installed.get() == expected &&
-                       installed.get().first().singers.size() == 1,
-                   QStringLiteral("installed package query must return a detached typed snapshot"));
+        QVERIFY2((installed && installed.get() == expected &&
+                  installed.get().first().singers.size() == 1),
+                 qPrintable(QStringLiteral(
+                     "installed package query must return a detached typed snapshot")));
 
-        log.scenario(QStringLiteral("PACKAGES-Q-VALIDATE"));
+        qInfo(qPrintable(QStringLiteral("PACKAGES-Q-VALIDATE")));
         const auto validated =
             runtime.packages().validatePackage(QStringLiteral("packages/candidate.dspk"));
-        log.expect(validated && !validated.get().hasErrors && validated.get().items.size() == 1 &&
-                       harness.packageValidationCalls == 1 &&
-                       harness.lastValidatedPackagePath ==
-                           QStringLiteral("packages/candidate.dspk"),
-                   QStringLiteral("package validation must preserve the backend report"));
+        QVERIFY2((validated && !validated.get().hasErrors && validated.get().items.size() == 1 &&
+                  harness.packageValidationCalls == 1 &&
+                  harness.lastValidatedPackagePath == QStringLiteral("packages/candidate.dspk")),
+                 qPrintable(QStringLiteral("package validation must preserve the backend report")));
 
-        log.scenario(QStringLiteral("PACKAGES-Q-VALIDATE-FAILURES"));
+        qInfo(qPrintable(QStringLiteral("PACKAGES-Q-VALIDATE-FAILURES")));
         const auto empty = runtime.packages().validatePackage(QStringLiteral(" "));
         harness.packageValidationSucceeds = false;
         const auto backendFailure =
             runtime.packages().validatePackage(QStringLiteral("packages/broken.dspk"));
-        log.expectError(empty, Automation::AutomationErrorCode::InvalidArgument,
-                        Automation::OperationIds::packages::validate,
-                        QStringLiteral("empty package path must be rejected"));
-        log.expectError(backendFailure, Automation::AutomationErrorCode::IoError,
-                        Automation::OperationIds::packages::validate,
-                        QStringLiteral("package validator failure must retain its error"));
+        QVERIFY2((!empty &&
+                  empty.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+                  empty.getError().operationId == Automation::OperationIds::packages::validate),
+                 qPrintable(QStringLiteral("empty package path must be rejected")));
+        QVERIFY2(
+            (!backendFailure &&
+             backendFailure.getError().code == Automation::AutomationErrorCode::IoError &&
+             backendFailure.getError().operationId == Automation::OperationIds::packages::validate),
+            qPrintable(QStringLiteral("package validator failure must retain its error")));
 
-        log.scenario(QStringLiteral("PACKAGES-C-RESOLVE-PREVIEW"));
+        qInfo(qPrintable(QStringLiteral("PACKAGES-C-RESOLVE-PREVIEW")));
         const auto version = runtime.documentVersion();
         const auto preview =
             runtime.packages().resolveDocumentVoices(commandContext(runtime, true));
         const auto applied = runtime.packages().resolveDocumentVoices(commandContext(runtime));
-        log.expect(preview && preview.get().validatedOnly && preview.get().changed && applied &&
-                       applied.get().changed && harness.packageResolvePreviewCalls == 1 &&
-                       harness.packageResolveApplyCalls == 1 &&
-                       runtime.documentVersion() == version,
-                   QStringLiteral("voice resolution must preview/apply without document revision"));
+        QVERIFY2((preview && preview.get().validatedOnly && preview.get().changed && applied &&
+                  applied.get().changed && harness.packageResolvePreviewCalls == 1 &&
+                  harness.packageResolveApplyCalls == 1 && runtime.documentVersion() == version),
+                 qPrintable(QStringLiteral(
+                     "voice resolution must preview/apply without document revision")));
 
-        log.scenario(QStringLiteral("PACKAGES-C-RESOLVE-NOOP"));
+        qInfo(qPrintable(QStringLiteral("PACKAGES-C-RESOLVE-NOOP")));
         harness.packageResolveCount = 0;
         const auto noOp = runtime.packages().resolveDocumentVoices(commandContext(runtime));
-        log.expect(noOp && !noOp.get().changed && harness.packageResolveApplyCalls == 2 &&
-                       runtime.documentVersion() == version,
-                   QStringLiteral("zero resolved voices must be a successful no-op"));
+        QVERIFY2((noOp && !noOp.get().changed && harness.packageResolveApplyCalls == 2 &&
+                  runtime.documentVersion() == version),
+                 qPrintable(QStringLiteral("zero resolved voices must be a successful no-op")));
 
-        log.scenario(QStringLiteral("PACKAGES-C-RESOLVE-ERROR-PRIORITY"));
+        qInfo(qPrintable(QStringLiteral("PACKAGES-C-RESOLVE-ERROR-PRIORITY")));
         auto stale = commandContext(runtime);
         ++stale.expected.revision;
         const auto staleResult = runtime.packages().resolveDocumentVoices(stale);
         auto replaced = stale;
         replaced.expected.documentId = Automation::DocumentId::create();
         const auto replacedResult = runtime.packages().resolveDocumentVoices(replaced);
-        log.expectError(staleResult, Automation::AutomationErrorCode::RevisionConflict,
-                        Automation::OperationIds::packages::resolve_document_voices,
-                        QStringLiteral("voice resolution must check revision before its service"));
-        log.expectError(replacedResult, Automation::AutomationErrorCode::DocumentChanged,
-                        Automation::OperationIds::packages::resolve_document_voices,
-                        QStringLiteral("voice resolution must check document before revision"));
-        log.expect(harness.packageResolveApplyCalls == 2,
-                   QStringLiteral("routing failures must not call voice resolution"));
+        QVERIFY2(
+            (!staleResult &&
+             staleResult.getError().code == Automation::AutomationErrorCode::RevisionConflict &&
+             staleResult.getError().operationId ==
+                 Automation::OperationIds::packages::resolve_document_voices),
+            qPrintable(QStringLiteral("voice resolution must check revision before its service")));
+        QVERIFY2(
+            (!replacedResult &&
+             replacedResult.getError().code == Automation::AutomationErrorCode::DocumentChanged &&
+             replacedResult.getError().operationId ==
+                 Automation::OperationIds::packages::resolve_document_voices),
+            qPrintable(QStringLiteral("voice resolution must check document before revision")));
+        QVERIFY2((harness.packageResolveApplyCalls == 2),
+                 qPrintable(QStringLiteral("routing failures must not call voice resolution")));
 
-        log.scenario(QStringLiteral("PACKAGES-C-RESOLVE-IDEMPOTENCY"));
+        qInfo(qPrintable(QStringLiteral("PACKAGES-C-RESOLVE-IDEMPOTENCY")));
         auto keyed = commandContext(runtime);
         keyed.idempotencyKey = QStringLiteral("package-resolve-key");
         const auto unsupportedKey = runtime.packages().resolveDocumentVoices(keyed);
-        log.expectError(unsupportedKey, Automation::AutomationErrorCode::InvalidArgument,
-                        Automation::OperationIds::packages::resolve_document_voices,
-                        QStringLiteral("cache-only voice resolution must reject idempotency keys"));
+        QVERIFY2(
+            (!unsupportedKey &&
+             unsupportedKey.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+             unsupportedKey.getError().operationId ==
+                 Automation::OperationIds::packages::resolve_document_voices),
+            qPrintable(QStringLiteral("cache-only voice resolution must reject idempotency keys")));
     }
 
-    Automation::SpeakerMixPresetDto validPreset(const QString &name = QStringLiteral("Lead")) {
-        return {
-            .name = name,
-            .packageId = QStringLiteral("voice.package"),
-            .singerId = QStringLiteral("singer"),
-            .packageVersion = QVersionNumber(2, 1),
-            .sources =
-                {
-                          {.speakerId = QStringLiteral("speaker-a"),
-                     .speakerName = QStringLiteral("Speaker A")},
-                          {.speakerId = QStringLiteral("speaker-b"),
-                     .speakerName = QStringLiteral("Speaker B")},
-                          },
-            .fixedWeights = {0.75                                     },
-        };
-    }
-
-    void testSpeakerMixPresets(TestLog &log) {
+    void speakerMixPresets() {
         RuntimeHarness harness;
         auto &runtime = harness.core();
         const auto version = runtime.documentVersion();
 
-        log.scenario(QStringLiteral("PRESETS-Q-EMPTY"));
+        qInfo(qPrintable(QStringLiteral("PRESETS-Q-EMPTY")));
         const auto initial = runtime.presets().getSpeakerMixPresets();
-        log.expect(initial && initial.get().isEmpty(),
-                   QStringLiteral("preset query must preserve an empty collection"));
+        QVERIFY2((initial && initial.get().isEmpty()),
+                 qPrintable(QStringLiteral("preset query must preserve an empty collection")));
 
-        log.scenario(QStringLiteral("PRESETS-C-SAVE-PREVIEW"));
+        qInfo(qPrintable(QStringLiteral("PRESETS-C-SAVE-PREVIEW")));
         const auto preview = runtime.presets().saveSpeakerMixPreset(
             applicationContext(true), validPreset(QStringLiteral("主唱")));
-        log.expect(preview && preview.get().id.isEmpty() && !preview.get().createdAt.isValid() &&
-                       !preview.get().updatedAt.isValid() && harness.presetWriteAttempts == 0 &&
-                       harness.presets.isEmpty(),
-                   QStringLiteral("preset preview must not allocate IDs, timestamps or storage"));
+        QVERIFY2((preview && preview.get().id.isEmpty() && !preview.get().createdAt.isValid() &&
+                  !preview.get().updatedAt.isValid() && harness.presetWriteAttempts == 0 &&
+                  harness.presets.isEmpty()),
+                 qPrintable(QStringLiteral(
+                     "preset preview must not allocate IDs, timestamps or storage")));
 
-        log.scenario(QStringLiteral("PRESETS-C-SAVE-COMMIT"));
+        qInfo(qPrintable(QStringLiteral("PRESETS-C-SAVE-COMMIT")));
         const auto saved = runtime.presets().saveSpeakerMixPreset(
             applicationContext(), validPreset(QStringLiteral("主唱")));
-        log.expect(saved && !saved.get().id.isEmpty() && saved.get().createdAt.isValid() &&
-                       saved.get().updatedAt.isValid() &&
-                       harness.presets == QList<Automation::SpeakerMixPresetDto>{saved.get()} &&
-                       harness.presetWrites == 1 && runtime.documentVersion() == version,
-                   QStringLiteral("preset save must allocate metadata and persist atomically"));
+        QVERIFY2((saved && !saved.get().id.isEmpty() && saved.get().createdAt.isValid() &&
+                  saved.get().updatedAt.isValid() &&
+                  harness.presets == QList<Automation::SpeakerMixPresetDto>{saved.get()} &&
+                  harness.presetWrites == 1 && runtime.documentVersion() == version),
+                 qPrintable(
+                     QStringLiteral("preset save must allocate metadata and persist atomically")));
 
-        log.scenario(QStringLiteral("PRESETS-Q-SNAPSHOT"));
+        qInfo(qPrintable(QStringLiteral("PRESETS-Q-SNAPSHOT")));
         const auto listed = runtime.presets().getSpeakerMixPresets();
         harness.presets.first().name = QStringLiteral("mutated-after-query");
-        log.expect(listed && listed.get() == QList<Automation::SpeakerMixPresetDto>{saved.get()},
-                   QStringLiteral("preset list must be an owned snapshot"));
+        QVERIFY2((listed && listed.get() == QList<Automation::SpeakerMixPresetDto>{saved.get()}),
+                 qPrintable(QStringLiteral("preset list must be an owned snapshot")));
         harness.presets = listed.get();
 
-        log.scenario(QStringLiteral("PRESETS-C-UPDATE"));
+        qInfo(qPrintable(QStringLiteral("PRESETS-C-UPDATE")));
         auto update = saved.get();
         update.name = QStringLiteral("主唱更新");
         update.fixedWeights = {0.6};
         const auto updated = runtime.presets().saveSpeakerMixPreset(applicationContext(), update);
-        log.expect(updated && updated.get().id == saved.get().id &&
-                       updated.get().createdAt == saved.get().createdAt &&
-                       updated.get().name == QStringLiteral("主唱更新") &&
-                       harness.presets == QList<Automation::SpeakerMixPresetDto>{updated.get()} &&
-                       harness.presetWrites == 2,
-                   QStringLiteral("preset update must preserve identity and creation time"));
+        QVERIFY2(
+            (updated && updated.get().id == saved.get().id &&
+             updated.get().createdAt == saved.get().createdAt &&
+             updated.get().name == QStringLiteral("主唱更新") &&
+             harness.presets == QList<Automation::SpeakerMixPresetDto>{updated.get()} &&
+             harness.presetWrites == 2),
+            qPrintable(QStringLiteral("preset update must preserve identity and creation time")));
 
-        log.scenario(QStringLiteral("PRESETS-C-DUPLICATE-NAME"));
+        qInfo(qPrintable(QStringLiteral("PRESETS-C-DUPLICATE-NAME")));
         auto duplicate = validPreset(QStringLiteral("主唱更新"));
         const auto duplicateResult =
             runtime.presets().saveSpeakerMixPreset(applicationContext(), duplicate);
-        log.expectError(duplicateResult, Automation::AutomationErrorCode::InvalidArgument,
-                        Automation::OperationIds::speaker_mix_presets::save,
-                        QStringLiteral("same-singer duplicate preset name must be rejected"));
+        QVERIFY2(
+            (!duplicateResult &&
+             duplicateResult.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+             duplicateResult.getError().operationId ==
+                 Automation::OperationIds::speaker_mix_presets::save),
+            qPrintable(QStringLiteral("same-singer duplicate preset name must be rejected")));
 
-        log.scenario(QStringLiteral("PRESETS-C-VALIDATION"));
+        qInfo(qPrintable(QStringLiteral("PRESETS-C-VALIDATION")));
         auto emptyName = validPreset();
         emptyName.name.clear();
         auto mismatched = validPreset();
@@ -1643,42 +1787,54 @@ namespace {
             runtime.presets().saveSpeakerMixPreset(applicationContext(), emptySpeaker);
         const auto invalidWeight =
             runtime.presets().saveSpeakerMixPreset(applicationContext(), nonFinite);
-        log.expectError(invalidName, Automation::AutomationErrorCode::InvalidArgument,
-                        Automation::OperationIds::speaker_mix_presets::save,
-                        QStringLiteral("preset identity fields must be required"));
-        log.expectError(invalidSize, Automation::AutomationErrorCode::InvalidArgument,
-                        Automation::OperationIds::speaker_mix_presets::save,
-                        QStringLiteral("preset sources and weights must align"));
-        log.expectError(invalidSpeaker, Automation::AutomationErrorCode::InvalidArgument,
-                        Automation::OperationIds::speaker_mix_presets::save,
-                        QStringLiteral("preset speaker ID must be required"));
-        log.expectError(invalidWeight, Automation::AutomationErrorCode::InvalidArgument,
-                        Automation::OperationIds::speaker_mix_presets::save,
-                        QStringLiteral("preset weight must be finite"));
+        QVERIFY2((!invalidName &&
+                  invalidName.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+                  invalidName.getError().operationId ==
+                      Automation::OperationIds::speaker_mix_presets::save),
+                 qPrintable(QStringLiteral("preset identity fields must be required")));
+        QVERIFY2((!invalidSize &&
+                  invalidSize.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+                  invalidSize.getError().operationId ==
+                      Automation::OperationIds::speaker_mix_presets::save),
+                 qPrintable(QStringLiteral("preset sources and weights must align")));
+        QVERIFY2(
+            (!invalidSpeaker &&
+             invalidSpeaker.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+             invalidSpeaker.getError().operationId ==
+                 Automation::OperationIds::speaker_mix_presets::save),
+            qPrintable(QStringLiteral("preset speaker ID must be required")));
+        QVERIFY2(
+            (!invalidWeight &&
+             invalidWeight.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+             invalidWeight.getError().operationId ==
+                 Automation::OperationIds::speaker_mix_presets::save),
+            qPrintable(QStringLiteral("preset weight must be finite")));
 
-        log.scenario(QStringLiteral("PRESETS-C-PERSISTENCE-FAILURE"));
+        qInfo(qPrintable(QStringLiteral("PRESETS-C-PERSISTENCE-FAILURE")));
         auto failedUpdate = updated.get();
         failedUpdate.name = QStringLiteral("failed update");
         harness.presetApplySucceeds = false;
         const auto failed =
             runtime.presets().saveSpeakerMixPreset(applicationContext(), failedUpdate);
         harness.presetApplySucceeds = true;
-        log.expectError(failed, Automation::AutomationErrorCode::IoError,
-                        Automation::OperationIds::speaker_mix_presets::save,
-                        QStringLiteral("preset save failure must be reported"));
-        log.expect(harness.presets == QList<Automation::SpeakerMixPresetDto>{updated.get()} &&
-                       harness.presetWrites == 2,
-                   QStringLiteral("failed preset save must preserve storage"));
+        QVERIFY2(
+            (!failed && failed.getError().code == Automation::AutomationErrorCode::IoError &&
+             failed.getError().operationId == Automation::OperationIds::speaker_mix_presets::save),
+            qPrintable(QStringLiteral("preset save failure must be reported")));
+        QVERIFY2((harness.presets == QList<Automation::SpeakerMixPresetDto>{updated.get()} &&
+                  harness.presetWrites == 2),
+                 qPrintable(QStringLiteral("failed preset save must preserve storage")));
 
-        log.scenario(QStringLiteral("PRESETS-C-DELETE"));
+        qInfo(qPrintable(QStringLiteral("PRESETS-C-DELETE")));
         const auto deleteMissing = runtime.presets().deleteSpeakerMixPreset(
             applicationContext(), QStringLiteral("missing"));
         const auto deletePreview =
             runtime.presets().deleteSpeakerMixPreset(applicationContext(true), updated.get().id);
-        log.expect(deleteMissing && !deleteMissing.get().changed && deletePreview &&
-                       deletePreview.get().changed && deletePreview.get().validatedOnly &&
-                       harness.presets == QList<Automation::SpeakerMixPresetDto>{updated.get()},
-                   QStringLiteral("preset delete must no-op for missing and preview existing"));
+        QVERIFY2((deleteMissing && !deleteMissing.get().changed && deletePreview &&
+                  deletePreview.get().changed && deletePreview.get().validatedOnly &&
+                  harness.presets == QList<Automation::SpeakerMixPresetDto>{updated.get()}),
+                 qPrintable(
+                     QStringLiteral("preset delete must no-op for missing and preview existing")));
 
         harness.presetApplySucceeds = false;
         const auto deleteFailed =
@@ -1688,128 +1844,157 @@ namespace {
             runtime.presets().deleteSpeakerMixPreset(applicationContext(), updated.get().id);
         const auto deletedAgain =
             runtime.presets().deleteSpeakerMixPreset(applicationContext(), updated.get().id);
-        log.expectError(deleteFailed, Automation::AutomationErrorCode::IoError,
-                        Automation::OperationIds::speaker_mix_presets::delete_preset,
-                        QStringLiteral("preset delete persistence failure must be stable"));
-        log.expect(deleted && deleted.get().changed && deletedAgain &&
-                       !deletedAgain.get().changed && harness.presets.isEmpty() &&
-                       runtime.documentVersion() == version,
-                   QStringLiteral("preset delete must commit once and preserve document version"));
+        QVERIFY2((!deleteFailed &&
+                  deleteFailed.getError().code == Automation::AutomationErrorCode::IoError &&
+                  deleteFailed.getError().operationId ==
+                      Automation::OperationIds::speaker_mix_presets::delete_preset),
+                 qPrintable(QStringLiteral("preset delete persistence failure must be stable")));
+        QVERIFY2((deleted && deleted.get().changed && deletedAgain && !deletedAgain.get().changed &&
+                  harness.presets.isEmpty() && runtime.documentVersion() == version),
+                 qPrintable(QStringLiteral(
+                     "preset delete must commit once and preserve document version")));
 
-        log.scenario(QStringLiteral("PRESETS-C-DELETE-INVALID"));
+        qInfo(qPrintable(QStringLiteral("PRESETS-C-DELETE-INVALID")));
         const auto invalidDelete =
             runtime.presets().deleteSpeakerMixPreset(applicationContext(), QStringLiteral(" "));
-        log.expect(!invalidDelete && invalidDelete.getError().code ==
-                                         Automation::AutomationErrorCode::InvalidArgument,
-                   QStringLiteral("empty preset ID must be rejected"));
+        QVERIFY2((!invalidDelete && invalidDelete.getError().code ==
+                                        Automation::AutomationErrorCode::InvalidArgument),
+                 qPrintable(QStringLiteral("empty preset ID must be rejected")));
     }
 
-    void testUnavailableHostCapabilities(TestLog &log) {
+    void unavailableHostCapabilities() {
         AutomationTestSupport::TestRuntime fixture;
         auto &runtime = fixture.runtime();
 
-        log.scenario(QStringLiteral("HOST-APPLICATION-UNAVAILABLE"));
+        qInfo(qPrintable(QStringLiteral("HOST-APPLICATION-UNAVAILABLE")));
         const auto info = runtime.application().getInfo();
         const auto exit = runtime.application().requestTermination(
             applicationContext(), Automation::ApplicationTerminationMode::Exit);
-        log.expectError(info, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::application::get_info,
-                        QStringLiteral("missing application info host must be explicit"));
-        log.expectError(exit, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::application::request_exit,
-                        QStringLiteral("missing lifecycle host must be explicit"));
+        QVERIFY2(
+            (!info &&
+             info.getError().code == Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+             info.getError().operationId == Automation::OperationIds::application::get_info),
+            qPrintable(QStringLiteral("missing application info host must be explicit")));
+        QVERIFY2(
+            (!exit &&
+             exit.getError().code == Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+             exit.getError().operationId == Automation::OperationIds::application::request_exit),
+            qPrintable(QStringLiteral("missing lifecycle host must be explicit")));
 
-        log.scenario(QStringLiteral("HOST-PLAYBACK-UNAVAILABLE"));
+        qInfo(qPrintable(QStringLiteral("HOST-PLAYBACK-UNAVAILABLE")));
         const auto playback = runtime.playback().getPlayback(runtime.documentVersion().documentId);
         const auto play = runtime.playback().play(commandContext(runtime));
         const auto position = runtime.playback().setPosition(commandContext(runtime), 120.0);
         const auto loop =
             runtime.playback().setLoop(commandContext(runtime), LoopSettings(false, 0, 480));
-        log.expectError(playback, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::playback::get_state,
-                        QStringLiteral("missing playback snapshot host must be explicit"));
-        log.expectError(play, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::playback::play,
-                        QStringLiteral("missing playback state host must be explicit"));
-        log.expectError(position, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::playback::set_position,
-                        QStringLiteral("missing playback position host must be explicit"));
-        log.expectError(loop, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::playback::set_loop,
-                        QStringLiteral("missing playback loop host must be explicit"));
+        QVERIFY2((!playback &&
+                  playback.getError().code ==
+                      Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+                  playback.getError().operationId == Automation::OperationIds::playback::get_state),
+                 qPrintable(QStringLiteral("missing playback snapshot host must be explicit")));
+        QVERIFY2(
+            (!play &&
+             play.getError().code == Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+             play.getError().operationId == Automation::OperationIds::playback::play),
+            qPrintable(QStringLiteral("missing playback state host must be explicit")));
+        QVERIFY2(
+            (!position &&
+             position.getError().code ==
+                 Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+             position.getError().operationId == Automation::OperationIds::playback::set_position),
+            qPrintable(QStringLiteral("missing playback position host must be explicit")));
+        QVERIFY2(
+            (!loop &&
+             loop.getError().code == Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+             loop.getError().operationId == Automation::OperationIds::playback::set_loop),
+            qPrintable(QStringLiteral("missing playback loop host must be explicit")));
 
-        log.scenario(QStringLiteral("HOST-EDITOR-UNAVAILABLE"));
+        qInfo(qPrintable(QStringLiteral("HOST-EDITOR-UNAVAILABLE")));
         const auto state = runtime.facade().getEditorState(runtime.documentVersion().documentId,
                                                            *runtime.windowId());
         const auto center = runtime.facade().centerPianoRoll(guiContext(runtime), 120.0, 60.0);
         const auto quantize = runtime.facade().setPianoRollQuantize(guiContext(runtime), 16, true);
-        log.expect(state && !state.get().view,
-                   QStringLiteral("editor state remains queryable without an attached view"));
-        log.expectError(center, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::editor::center_piano_roll,
-                        QStringLiteral("missing editor view host must be explicit"));
-        log.expectError(quantize, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::editor::set_quantize,
-                        QStringLiteral("missing stable editor host must be explicit"));
+        QVERIFY2(
+            (state && !state.get().view),
+            qPrintable(QStringLiteral("editor state remains queryable without an attached view")));
+        QVERIFY2(
+            (!center &&
+             center.getError().code == Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+             center.getError().operationId == Automation::OperationIds::editor::center_piano_roll),
+            qPrintable(QStringLiteral("missing editor view host must be explicit")));
+        QVERIFY2(
+            (!quantize &&
+             quantize.getError().code ==
+                 Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+             quantize.getError().operationId == Automation::OperationIds::editor::set_quantize),
+            qPrintable(QStringLiteral("missing stable editor host must be explicit")));
 
-        log.scenario(QStringLiteral("HOST-SETTINGS-UNAVAILABLE"));
+        qInfo(qPrintable(QStringLiteral("HOST-SETTINGS-UNAVAILABLE")));
         const auto settings = runtime.settings().getSettings();
         const auto updateGeneral =
             runtime.settings().updateGeneral(applicationContext(), validSettings().general);
         const auto recent = runtime.settings().getRecentProjectFiles();
-        log.expectError(settings, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::settings::query,
-                        QStringLiteral("missing settings snapshot host must be explicit"));
-        log.expectError(updateGeneral, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::settings::update_general,
-                        QStringLiteral("missing settings persistence host must be explicit"));
-        log.expectError(recent, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::recent_files::list,
-                        QStringLiteral("missing recent-file host must be explicit"));
-        log.scenario(QStringLiteral("HOST-PACKAGES-UNAVAILABLE"));
+        QVERIFY2((!settings &&
+                  settings.getError().code ==
+                      Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+                  settings.getError().operationId == Automation::OperationIds::settings::query),
+                 qPrintable(QStringLiteral("missing settings snapshot host must be explicit")));
+        QVERIFY2((!updateGeneral &&
+                  updateGeneral.getError().code ==
+                      Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+                  updateGeneral.getError().operationId ==
+                      Automation::OperationIds::settings::update_general),
+                 qPrintable(QStringLiteral("missing settings persistence host must be explicit")));
+        QVERIFY2(
+            (!recent &&
+             recent.getError().code == Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+             recent.getError().operationId == Automation::OperationIds::recent_files::list),
+            qPrintable(QStringLiteral("missing recent-file host must be explicit")));
+        qInfo(qPrintable(QStringLiteral("HOST-PACKAGES-UNAVAILABLE")));
         const auto packages = runtime.packages().getInstalledPackages();
         const auto validation = runtime.packages().validatePackage(QStringLiteral("package.dspk"));
         const auto resolve = runtime.packages().resolveDocumentVoices(commandContext(runtime));
-        log.expectError(packages, Automation::AutomationErrorCode::ModuleNotReady,
-                        Automation::OperationIds::packages::list,
-                        QStringLiteral("missing package registry must be explicit"));
-        log.expectError(validation, Automation::AutomationErrorCode::ModuleNotReady,
-                        Automation::OperationIds::packages::validate,
-                        QStringLiteral("missing package validator must be explicit"));
-        log.expectError(resolve, Automation::AutomationErrorCode::ModuleNotReady,
-                        Automation::OperationIds::packages::resolve_document_voices,
-                        QStringLiteral("missing voice resolver must be explicit"));
+        QVERIFY2((!packages &&
+                  packages.getError().code == Automation::AutomationErrorCode::ModuleNotReady &&
+                  packages.getError().operationId == Automation::OperationIds::packages::list),
+                 qPrintable(QStringLiteral("missing package registry must be explicit")));
+        QVERIFY2(
+            (!validation &&
+             validation.getError().code == Automation::AutomationErrorCode::ModuleNotReady &&
+             validation.getError().operationId == Automation::OperationIds::packages::validate),
+            qPrintable(QStringLiteral("missing package validator must be explicit")));
+        QVERIFY2((!resolve &&
+                  resolve.getError().code == Automation::AutomationErrorCode::ModuleNotReady &&
+                  resolve.getError().operationId ==
+                      Automation::OperationIds::packages::resolve_document_voices),
+                 qPrintable(QStringLiteral("missing voice resolver must be explicit")));
 
-        log.scenario(QStringLiteral("HOST-PRESETS-UNAVAILABLE"));
+        qInfo(qPrintable(QStringLiteral("HOST-PRESETS-UNAVAILABLE")));
         const auto presets = runtime.presets().getSpeakerMixPresets();
         const auto save =
             runtime.presets().saveSpeakerMixPreset(applicationContext(), validPreset());
         const auto remove = runtime.presets().deleteSpeakerMixPreset(applicationContext(),
                                                                      QStringLiteral("preset"));
-        log.expectError(presets, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::speaker_mix_presets::list,
-                        QStringLiteral("missing preset list host must be explicit"));
-        log.expectError(save, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::speaker_mix_presets::save,
-                        QStringLiteral("missing preset save host must be explicit"));
-        log.expectError(remove, Automation::AutomationErrorCode::HostCapabilityUnavailable,
-                        Automation::OperationIds::speaker_mix_presets::delete_preset,
-                        QStringLiteral("missing preset delete host must be explicit"));
+        QVERIFY2(
+            (!presets &&
+             presets.getError().code ==
+                 Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+             presets.getError().operationId == Automation::OperationIds::speaker_mix_presets::list),
+            qPrintable(QStringLiteral("missing preset list host must be explicit")));
+        QVERIFY2(
+            (!save &&
+             save.getError().code == Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+             save.getError().operationId == Automation::OperationIds::speaker_mix_presets::save),
+            qPrintable(QStringLiteral("missing preset save host must be explicit")));
+        QVERIFY2(
+            (!remove &&
+             remove.getError().code == Automation::AutomationErrorCode::HostCapabilityUnavailable &&
+             remove.getError().operationId ==
+                 Automation::OperationIds::speaker_mix_presets::delete_preset),
+            qPrintable(QStringLiteral("missing preset delete host must be explicit")));
     }
-}
+};
 
-int main(int argc, char *argv[]) {
-    QCoreApplication application(argc, argv);
-    TestLog log;
-    testApplicationLifecycle(log);
-    testPlaybackHostState(log);
-    testEditorViewCommands(log);
-    testEditorStateAndSelection(log);
-    testSettingsDomains(log);
-    testRecentFiles(log);
-    testPackageSearchPaths(log);
-    testPackages(log);
-    testSpeakerMixPresets(log);
-    testUnavailableHostCapabilities(log);
-    return log.finish();
-}
+QTEST_GUILESS_MAIN(TestAutomationRuntimeDomains)
+
+#include "main.moc"

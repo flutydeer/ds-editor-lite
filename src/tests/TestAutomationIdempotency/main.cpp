@@ -5,6 +5,7 @@
 #include "TestRuntime.h"
 
 #include <QCoreApplication>
+#include <QtTest>
 #include <QEventLoop>
 #include <QMetaObject>
 #include <QTextStream>
@@ -17,13 +18,6 @@
 
 namespace {
     using MutationResult = Automation::AutomationResult<Automation::MutationResult>;
-
-    bool expect(const bool condition, const QString &message) {
-        if (condition)
-            return true;
-        QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        return false;
-    }
 
     Automation::CommandContext commandContext(const Automation::DocumentVersion &version,
                                               const QString &idempotencyKey = {},
@@ -59,7 +53,34 @@ namespace {
         };
     }
 
-    bool serialReplayAndExplicitOptIn() {
+    class TwoDocumentResolver final : public Automation::IDocumentSessionResolver {
+    public:
+        TwoDocumentResolver(Automation::DocumentSession &first, Automation::DocumentSession &second)
+            : m_first(first), m_second(second) {
+        }
+
+        Automation::AutomationResult<std::reference_wrapper<Automation::DocumentSession>>
+            resolveDocument(const Automation::DocumentId &documentId) override {
+            if (documentId == m_first.documentId())
+                return std::ref(m_first);
+            if (documentId == m_second.documentId())
+                return std::ref(m_second);
+            return Automation::AutomationError::documentChanged(documentId, m_first.documentId());
+        }
+
+    private:
+        Automation::DocumentSession &m_first;
+        Automation::DocumentSession &m_second;
+    };
+
+}
+
+class TestAutomationIdempotency final : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void serialReplayAndExplicitOptIn() {
         AutomationTestSupport::TestRuntime fixture;
         auto &runtime = fixture.runtime();
         const auto context =
@@ -88,19 +109,19 @@ namespace {
                    result.getError().code == Automation::AutomationErrorCode::IdempotencyConflict &&
                    result.getError().fieldPath == QStringLiteral("idempotency_key");
         };
-        return expect(first && replay && first.get() == replay.get() && executions == 1,
-                      QStringLiteral("opt-in replay must execute once")) &&
-               expect(isConflict(changedInput) && isConflict(changedOperation),
-                      QStringLiteral("a claimed key must reject changed input or operation")) &&
-               expect(!unsupported &&
-                          unsupported.getError().code ==
-                              Automation::AutomationErrorCode::InvalidArgument &&
-                          ordinaryExecutions == 1 && ordinary,
-                      QStringLiteral(
-                          "ordinary dispatch must reject a key and otherwise bypass the cache"));
+        QVERIFY2((first && replay && first.get() == replay.get() && executions == 1),
+                 qPrintable(QStringLiteral("opt-in replay must execute once")));
+        QVERIFY2(
+            (isConflict(changedInput) && isConflict(changedOperation)),
+            qPrintable(QStringLiteral("a claimed key must reject changed input or operation")));
+        QVERIFY2((!unsupported &&
+                  unsupported.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+                  ordinaryExecutions == 1 && ordinary),
+                 qPrintable(QStringLiteral(
+                     "ordinary dispatch must reject a key and otherwise bypass the cache")));
     }
 
-    bool completedReplayPrecedesWorkflowBusyAdmission() {
+    void completedReplayPrecedesWorkflowBusyAdmission() {
         AutomationTestSupport::TestRuntime fixture;
         auto &runtime = fixture.runtime();
         auto context =
@@ -124,17 +145,18 @@ namespace {
             handler);
         runtime.setDocumentBusy(context.expected.documentId, false);
 
-        return expect(
-                   first && replay && replay.get() == first.get() && executions == 1,
-                   QStringLiteral("completed replay must remain available while workflow busy")) &&
-               expect(!conflict && conflict.getError().code ==
-                                       Automation::AutomationErrorCode::IdempotencyConflict,
-                      QStringLiteral("claimed key conflicts must precede workflow busy")) &&
-               expect(!blocked && blocked.getError().code == Automation::AutomationErrorCode::Busy,
-                      QStringLiteral("workflow busy must still reject a new idempotent mutation"));
+        QVERIFY2((first && replay && replay.get() == first.get() && executions == 1),
+                 qPrintable(
+                     QStringLiteral("completed replay must remain available while workflow busy")));
+        QVERIFY2((!conflict &&
+                  conflict.getError().code == Automation::AutomationErrorCode::IdempotencyConflict),
+                 qPrintable(QStringLiteral("claimed key conflicts must precede workflow busy")));
+        QVERIFY2((!blocked && blocked.getError().code == Automation::AutomationErrorCode::Busy),
+                 qPrintable(
+                     QStringLiteral("workflow busy must still reject a new idempotent mutation")));
     }
 
-    bool concurrentReplayExecutesOnce() {
+    void concurrentReplayExecutesOnce() {
         constexpr int LaneCount = 8;
         AutomationTestSupport::TestRuntime fixture;
         auto &runtime = fixture.runtime();
@@ -175,12 +197,13 @@ namespace {
             for (const auto &result : results)
                 sameResult &= result && *result && result->get() == expected;
         }
-        return expect(sameResult && executions.load(std::memory_order_relaxed) == 1 &&
-                          runtime.documentVersion().revision == 1,
-                      QStringLiteral("concurrent opt-in replays must serialize to one execution"));
+        QVERIFY2((sameResult && executions.load(std::memory_order_relaxed) == 1 &&
+                  runtime.documentVersion().revision == 1),
+                 qPrintable(
+                     QStringLiteral("concurrent opt-in replays must serialize to one execution")));
     }
 
-    bool unsuccessfulAttemptsDoNotClaimKeys() {
+    void unsuccessfulAttemptsDoNotClaimKeys() {
         AutomationTestSupport::TestRuntime fixture;
         auto &runtime = fixture.runtime();
         int executions = 0;
@@ -214,33 +237,13 @@ namespace {
             Automation::OperationIds::tracks::insert, commandContext(runtime, failedKey),
             QByteArrayLiteral("retry"), succeeding);
 
-        return expect(preview && preview.get().validatedOnly && committed && executions == 2,
-                      QStringLiteral("validate-only must not claim its key")) &&
-               expect(!failed && retried && attempts == 2,
-                      QStringLiteral("a failed handler must not claim its key"));
+        QVERIFY2((preview && preview.get().validatedOnly && committed && executions == 2),
+                 qPrintable(QStringLiteral("validate-only must not claim its key")));
+        QVERIFY2((!failed && retried && attempts == 2),
+                 qPrintable(QStringLiteral("a failed handler must not claim its key")));
     }
 
-    class TwoDocumentResolver final : public Automation::IDocumentSessionResolver {
-    public:
-        TwoDocumentResolver(Automation::DocumentSession &first, Automation::DocumentSession &second)
-            : m_first(first), m_second(second) {
-        }
-
-        Automation::AutomationResult<std::reference_wrapper<Automation::DocumentSession>>
-            resolveDocument(const Automation::DocumentId &documentId) override {
-            if (documentId == m_first.documentId())
-                return std::ref(m_first);
-            if (documentId == m_second.documentId())
-                return std::ref(m_second);
-            return Automation::AutomationError::documentChanged(documentId, m_first.documentId());
-        }
-
-    private:
-        Automation::DocumentSession &m_first;
-        Automation::DocumentSession &m_second;
-    };
-
-    bool documentsAndGenerationsHaveIndependentKeySpaces() {
+    void documentsAndGenerationsHaveIndependentKeySpaces() {
         Automation::DocumentSession first(nullptr, nullptr);
         Automation::DocumentSession second(nullptr, nullptr);
         TwoDocumentResolver resolver(first, second);
@@ -261,12 +264,13 @@ namespace {
             Automation::OperationIds::tracks::insert, commandContext(first.version(), key),
             QByteArrayLiteral("shared"), handler);
 
-        return expect(firstResult && secondResult && reused && executions == 3 &&
-                          first.revision() == 1 && second.revision() == 1,
-                      QStringLiteral("document and generation boundaries must isolate keys"));
+        QVERIFY2(
+            (firstResult && secondResult && reused && executions == 3 && first.revision() == 1 &&
+             second.revision() == 1),
+            qPrintable(QStringLiteral("document and generation boundaries must isolate keys")));
     }
 
-    bool facadeWiringUsesOptInOnly() {
+    void facadeWiringUsesOptInOnly() {
         AutomationTestSupport::TestRuntime fixture;
         auto &runtime = fixture.runtime();
         Automation::TrackDraftDto draft;
@@ -281,7 +285,7 @@ namespace {
         changedDraft.name = QStringLiteral("Track B");
         const auto conflict = runtime.project().insertTrack(context, 0, changedDraft);
         if (!first || first.get().affectedObjects.isEmpty())
-            return expect(false, QStringLiteral("track insertion fixture must succeed"));
+            QVERIFY2((false), qPrintable(QStringLiteral("track insertion fixture must succeed")));
 
         const Automation::TrackId trackId(first.get().affectedObjects.first().value);
         const auto keyedRename = runtime.project().renameTrack(
@@ -290,19 +294,17 @@ namespace {
         const auto rename = runtime.project().renameTrack(commandContext(runtime), trackId,
                                                           QStringLiteral("Renamed"));
 
-        return expect(replay && replay.get() == first.get() && !conflict &&
-                          conflict.getError().code ==
-                              Automation::AutomationErrorCode::IdempotencyConflict,
-                      QStringLiteral("the retained track creator must opt in to replay")) &&
-               expect(!keyedRename &&
-                          keyedRename.getError().code ==
-                              Automation::AutomationErrorCode::InvalidArgument &&
-                          rename && rename.get().changed,
-                      QStringLiteral(
-                          "ordinary edits must reject keys and remain callable without one"));
+        QVERIFY2((replay && replay.get() == first.get() && !conflict &&
+                  conflict.getError().code == Automation::AutomationErrorCode::IdempotencyConflict),
+                 qPrintable(QStringLiteral("the retained track creator must opt in to replay")));
+        QVERIFY2((!keyedRename &&
+                  keyedRename.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+                  rename && rename.get().changed),
+                 qPrintable(QStringLiteral(
+                     "ordinary edits must reject keys and remain callable without one")));
     }
 
-    bool retentionIsBounded() {
+    void retentionIsBounded() {
         Automation::IdempotencyStore store;
         const auto operationId = Automation::OperationIds::tracks::insert;
         for (qsizetype index = 0; index <= Automation::IdempotencyStore::MaximumRetainedKeys;
@@ -310,31 +312,22 @@ namespace {
             const auto key = QString::number(index);
             const auto stored = store.store(operationId, key, QByteArrayLiteral("request"), index);
             if (!stored)
-                return expect(false, QStringLiteral("bounded cache fixture must store entries"));
+                QVERIFY2((false),
+                         qPrintable(QStringLiteral("bounded cache fixture must store entries")));
         }
 
-        const auto oldest = store.replay<qsizetype>(operationId, QStringLiteral("0"),
-                                                    QByteArrayLiteral("request"));
-        const auto newestKey =
-            QString::number(Automation::IdempotencyStore::MaximumRetainedKeys);
+        const auto oldest =
+            store.replay<qsizetype>(operationId, QStringLiteral("0"), QByteArrayLiteral("request"));
+        const auto newestKey = QString::number(Automation::IdempotencyStore::MaximumRetainedKeys);
         const auto newest =
             store.replay<qsizetype>(operationId, newestKey, QByteArrayLiteral("request"));
-        return expect(store.size() == Automation::IdempotencyStore::MaximumRetainedKeys && oldest &&
-                          !oldest.get() && newest && newest.get() &&
-                          *newest.get() == Automation::IdempotencyStore::MaximumRetainedKeys,
-                      QStringLiteral("idempotency retention must evict the oldest completed key"));
+        QVERIFY2((store.size() == Automation::IdempotencyStore::MaximumRetainedKeys && oldest &&
+                  !oldest.get() && newest && newest.get() &&
+                  *newest.get() == Automation::IdempotencyStore::MaximumRetainedKeys),
+                 qPrintable(
+                     QStringLiteral("idempotency retention must evict the oldest completed key")));
     }
-}
+};
 
-int main(int argc, char *argv[]) {
-    QCoreApplication application(argc, argv);
-    bool ok = true;
-    ok &= serialReplayAndExplicitOptIn();
-    ok &= completedReplayPrecedesWorkflowBusyAdmission();
-    ok &= concurrentReplayExecutesOnce();
-    ok &= unsuccessfulAttemptsDoNotClaimKeys();
-    ok &= documentsAndGenerationsHaveIndependentKeySpaces();
-    ok &= facadeWiringUsesOptInOnly();
-    ok &= retentionIsBounded();
-    return ok ? 0 : 1;
-}
+QTEST_GUILESS_MAIN(TestAutomationIdempotency)
+#include "main.moc"

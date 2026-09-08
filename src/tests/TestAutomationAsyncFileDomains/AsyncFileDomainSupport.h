@@ -24,42 +24,7 @@
 
 namespace AutomationAsyncFileTests {
 
-    class Suite final {
-    public:
-        template <typename Function>
-        void run(const Automation::OperationId &operationId, const QString &scenario,
-                 Function function) {
-            m_current = operationId + QStringLiteral("/") + scenario;
-            ++m_scenarios;
-            const auto before = m_failures;
-            function();
-            if (before == m_failures)
-                ++m_passedScenarios;
-        }
 
-        void expect(const bool condition, const QString &message) {
-            ++m_assertions;
-            if (condition)
-                return;
-            ++m_failures;
-            QTextStream(stderr) << "FAILED [" << m_current << "]: " << message << Qt::endl;
-        }
-
-        [[nodiscard]] int finish() const {
-            QTextStream(stdout) << "Automation async/file domains: " << m_scenarios
-                                << " scenarios, " << m_passedScenarios << " passed, "
-                                << m_assertions << " assertions, " << m_failures << " failures"
-                                << Qt::endl;
-            return m_failures == 0 ? 0 : 1;
-        }
-
-    private:
-        QString m_current;
-        int m_scenarios = 0;
-        int m_passedScenarios = 0;
-        int m_assertions = 0;
-        int m_failures = 0;
-    };
 
     class ManualScheduler final {
     public:

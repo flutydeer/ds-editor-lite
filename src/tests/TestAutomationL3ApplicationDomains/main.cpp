@@ -4,20 +4,13 @@
 #include "Modules/FillLyric/Utils/TaggerRuleOrder.h"
 
 #include <QCoreApplication>
+#include <QtTest>
 #include <QDebug>
 #include <QSet>
 
 #include <algorithm>
 
 namespace {
-    int failures = 0;
-
-    void check(const bool condition, const QString &message) {
-        if (condition)
-            return;
-        qCritical().noquote() << message;
-        ++failures;
-    }
 
     Automation::ApplicationCommandContext applicationContext(const bool validateOnly = false) {
         return {
@@ -145,6 +138,10 @@ namespace {
         int settingsWrites = 0;
         int lyricWrites = 0;
         int refreshStarts = 0;
+        int lyricTestCalls = 0;
+        QString lastLyricTestText;
+        int lyricValidationCalls = 0;
+        std::optional<Automation::AutomationError> lyricValidationError;
         bool settingsApplySucceeds = true;
 
         template <typename T, typename Member>
@@ -177,23 +174,18 @@ namespace {
                 ++lyricWrites;
                 return true;
             };
-            services.validateFillLyricRuntime = [](const Automation::FillLyricSettingsDto &value) {
-                for (const auto &rule : value.customTaggerRules) {
-                    for (const auto &entry : rule.entries) {
-                        if (entry.type == QStringLiteral("dict") &&
-                            entry.value.contains(QStringLiteral("missing-dictionary.txt"))) {
-                            return Automation::AutomationResult<Automation::AutomationUnit>(
-                                Automation::AutomationError::invalidArgument(
-                                    QStringLiteral("entries.value"),
-                                    QStringLiteral("Tagger dictionary was not found")));
-                        }
-                    }
-                }
+            services.validateFillLyricRuntime = [this](const Automation::FillLyricSettingsDto &) {
+                ++lyricValidationCalls;
+                if (lyricValidationError)
+                    return Automation::AutomationResult<Automation::AutomationUnit>(
+                        *lyricValidationError);
                 return Automation::AutomationResult<Automation::AutomationUnit>(
                     Automation::AutomationUnit{});
             };
             services.lyricRules = [this] { return ::lyricRules(settings.fillLyric); };
-            services.testLyricRules = [](const QString &text) {
+            services.testLyricRules = [this](const QString &text) {
+                ++lyricTestCalls;
+                lastLyricTestText = text;
                 return Automation::AutomationResult<Automation::LyricRuleTestResultDto>({
                     .splitTokens = {text},
                     .taggedTokens = {{.lyric = text,
@@ -226,7 +218,18 @@ namespace {
         }
     };
 
-    void testPublicSettings(Automation::CoreRuntime &runtime, Harness &harness) {
+}
+
+class TestAutomationL3ApplicationDomains final : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void publicSettings() {
+        Harness harness;
+        AutomationTestSupport::TestRuntime fixture({}, {}, {}, {}, harness.packageServices(), {},
+                                                   {}, harness.settingsServices());
+        auto &runtime = fixture.runtime();
         const auto version = runtime.documentVersion();
         const auto projected = runtime.settings().queryPublicSettings(
             {QStringLiteral("package_search_paths")},
@@ -235,23 +238,26 @@ namespace {
                     return path;
                 return std::nullopt;
             });
-        check(projected && projected.get().packageSearchPaths &&
+        QVERIFY2((projected && projected.get().packageSearchPaths &&
                   projected.get().packageSearchPaths->configured ==
-                      QStringList{QStringLiteral("C:/allowed/voices")},
-              QStringLiteral("settings.query must filter package paths through the projection"));
+                      QStringList{QStringLiteral("C:/allowed/voices")}),
+                 qPrintable(QStringLiteral(
+                     "settings.query must filter package paths through the projection")));
         const auto unknown =
             runtime.settings().queryPublicSettings({QStringLiteral("not_a_public_domain")});
-        check(!unknown &&
-                  unknown.getError().code == Automation::AutomationErrorCode::InvalidArgument,
-              QStringLiteral("settings.query must reject domains outside the explicit allowlist"));
+        QVERIFY2((!unknown &&
+                  unknown.getError().code == Automation::AutomationErrorCode::InvalidArgument),
+                 qPrintable(QStringLiteral(
+                     "settings.query must reject domains outside the explicit allowlist")));
 
         const auto writesBeforePreview = harness.settingsWrites;
         const auto preview = runtime.settings().updateUiLanguage(
             applicationContext(true), {.uiLanguage = QStringLiteral("en_US")});
-        check(preview && preview.get().validatedOnly && preview.get().changed &&
+        QVERIFY2((preview && preview.get().validatedOnly && preview.get().changed &&
                   harness.settingsWrites == writesBeforePreview &&
-                  harness.settings.general.uiLanguage == QStringLiteral("system"),
-              QStringLiteral("settings validate_only must not persist or change effective state"));
+                  harness.settings.general.uiLanguage == QStringLiteral("system")),
+                 qPrintable(QStringLiteral(
+                     "settings validate_only must not persist or change effective state")));
 
         const auto ui = runtime.settings().updateUiLanguage(
             applicationContext(), {.uiLanguage = QStringLiteral("en_US")});
@@ -271,30 +277,38 @@ namespace {
             applicationContext(), {.samplingSteps = 32, .runVocoderOnCpu = true});
         const auto retention = runtime.settings().updateSingerSessionRetention(
             applicationContext(), {.capacity = 2, .idleTimeoutSeconds = 120});
-        check(ui && singing && theme && audio && playback && compute && render && retention,
-              QStringLiteral("all public settings update domains must accept valid sparse updates"));
-        check(compute.get().restartRequired &&
-                  compute.get().restartRequiredFields.contains(
-                      QStringLiteral("execution_provider")) &&
-                  render.get().restartRequired,
-              QStringLiteral("restart-only settings must report precise restart fields"));
-        check(runtime.documentVersion() == version,
-              QStringLiteral("application settings must not change document revision"));
+        QVERIFY2((ui && singing && theme && audio && playback && compute && render && retention),
+                 qPrintable(QStringLiteral(
+                     "all public settings update domains must accept valid sparse updates")));
+        QVERIFY2(
+            (compute.get().restartRequired &&
+             compute.get().restartRequiredFields.contains(QStringLiteral("execution_provider")) &&
+             render.get().restartRequired),
+            qPrintable(QStringLiteral("restart-only settings must report precise restart fields")));
+        QVERIFY2(
+            (runtime.documentVersion() == version),
+            qPrintable(QStringLiteral("application settings must not change document revision")));
 
         const auto beforeFailure = harness.settings;
         harness.settingsApplySucceeds = false;
         const auto failed = runtime.settings().updateTheme(applicationContext(),
                                                            {.themeId = QStringLiteral("light")});
         harness.settingsApplySucceeds = true;
-        check(!failed && failed.getError().code == Automation::AutomationErrorCode::IoError &&
-                  harness.settings == beforeFailure,
-              QStringLiteral("settings persistence failure must roll back atomically"));
+        QVERIFY2(
+            (!failed && failed.getError().code == Automation::AutomationErrorCode::IoError &&
+             harness.settings == beforeFailure),
+            qPrintable(QStringLiteral("settings persistence failure must roll back atomically")));
     }
 
-    void testLyricRules(Automation::CoreRuntime &runtime, Harness &harness) {
+    void lyricRules() {
+        Harness harness;
+        AutomationTestSupport::TestRuntime fixture({}, {}, {}, {}, harness.packageServices(), {},
+                                                   {}, harness.settingsServices());
+        auto &runtime = fixture.runtime();
         const auto initial = runtime.settings().listLyricRules();
-        check(initial && initial.get().size() == 1 && initial.get().first().builtin,
-              QStringLiteral("lyric_rules.list must include built-in rules with stable IDs"));
+        QVERIFY2((initial && initial.get().size() == 1 && initial.get().first().builtin),
+                 qPrintable(QStringLiteral(
+                     "lyric_rules.list must include built-in rules with stable IDs")));
 
         const Automation::LyricRuleDraftDto draft{
             .kind = Automation::LyricRuleKind::Splitter,
@@ -305,13 +319,15 @@ namespace {
         };
         const auto writesBefore = harness.lyricWrites;
         const auto preview = runtime.settings().createLyricRule(applicationContext(true), draft);
-        check(preview && preview.get().validatedOnly && preview.get().rule.order == 0 &&
-                  harness.lyricWrites == writesBefore,
-              QStringLiteral("lyric rule create preview must be ordered and side-effect free"));
+        QVERIFY2((preview && preview.get().validatedOnly && preview.get().rule.order == 0 &&
+                  harness.lyricWrites == writesBefore),
+                 qPrintable(QStringLiteral(
+                     "lyric rule create preview must be ordered and side-effect free")));
         const auto created = runtime.settings().createLyricRule(applicationContext(), draft);
-        check(created && created.get().changed && !created.get().rule.ruleId.isEmpty() &&
-                  harness.lyricWrites == writesBefore + 1,
-              QStringLiteral("lyric rule create must persist once and return the created rule"));
+        QVERIFY2((created && created.get().changed && !created.get().rule.ruleId.isEmpty() &&
+                  harness.lyricWrites == writesBefore + 1),
+                 qPrintable(QStringLiteral(
+                     "lyric rule create must persist once and return the created rule")));
         if (!created)
             return;
         const auto ruleId = created.get().rule.ruleId;
@@ -319,38 +335,47 @@ namespace {
         const auto beforeInvalid = harness.settings.fillLyric;
         const auto wrongKind = runtime.settings().updateLyricRule(
             applicationContext(), ruleId, {.language = QStringLiteral("cmn")});
-        check(!wrongKind &&
+        QVERIFY2((!wrongKind &&
                   wrongKind.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
-                  harness.settings.fillLyric == beforeInvalid,
-              QStringLiteral("splitter updates must reject tagger-only fields atomically"));
+                  harness.settings.fillLyric == beforeInvalid),
+                 qPrintable(
+                     QStringLiteral("splitter updates must reject tagger-only fields atomically")));
         const auto invalid = runtime.settings().updateLyricRule(
             applicationContext(), ruleId, {.regexes = QStringList{QStringLiteral("(")}});
-        check(!invalid &&
+        QVERIFY2((!invalid &&
                   invalid.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
-                  harness.settings.fillLyric == beforeInvalid,
-              QStringLiteral("invalid lyric regex must fail atomically before persistence"));
+                  harness.settings.fillLyric == beforeInvalid),
+                 qPrintable(QStringLiteral(
+                     "invalid lyric regex must fail atomically before persistence")));
         const auto renamed = runtime.settings().updateLyricRule(
             applicationContext(), ruleId, {.name = QStringLiteral("punctuation-v2")});
         const auto disabled =
             runtime.settings().setLyricRuleEnabled(applicationContext(), ruleId, false);
         const auto moved = runtime.settings().moveLyricRule(applicationContext(), ruleId, 1);
-        check(renamed && renamed.get().rule.name == QStringLiteral("punctuation-v2") && disabled &&
-                  !disabled.get().rule.enabled && moved && moved.get().rule.order == 1,
-              QStringLiteral("lyric rule update, enable and move must return the effective rule"));
+        QVERIFY2((renamed && renamed.get().rule.name == QStringLiteral("punctuation-v2") &&
+                  disabled && !disabled.get().rule.enabled && moved && moved.get().rule.order == 1),
+                 qPrintable(QStringLiteral(
+                     "lyric rule update, enable and move must return the effective rule")));
 
         const auto builtinUpdate =
             runtime.settings().updateLyricRule(applicationContext(), initial.get().first().ruleId,
                                                {.name = QStringLiteral("forbidden")});
-        check(!builtinUpdate &&
-                  builtinUpdate.getError().code == Automation::AutomationErrorCode::InvalidArgument,
-              QStringLiteral("built-in lyric rule content must be immutable"));
+        QVERIFY2((!builtinUpdate && builtinUpdate.getError().code ==
+                                        Automation::AutomationErrorCode::InvalidArgument),
+                 qPrintable(QStringLiteral("built-in lyric rule content must be immutable")));
+        const auto settingsBeforeTest = harness.settings;
+        const auto writesBeforeTest = harness.lyricWrites;
         const auto tested = runtime.settings().testLyricRules(QStringLiteral("一闪一闪"));
-        check(tested && tested.get().splitTokens == QStringList{QStringLiteral("一闪一闪")},
-              QStringLiteral("lyric_rules.test must use the live pipeline without persistence"));
+        QVERIFY(tested);
+        QCOMPARE(harness.lyricTestCalls, 1);
+        QCOMPARE(harness.lastLyricTestText, QStringLiteral("一闪一闪"));
+        QCOMPARE(tested.get().splitTokens, QStringList{QStringLiteral("一闪一闪")});
+        QVERIFY(harness.settings == settingsBeforeTest);
+        QCOMPARE(harness.lyricWrites, writesBeforeTest);
         const auto removed = runtime.settings().deleteLyricRule(applicationContext(), ruleId);
-        check(removed && removed.get().ruleId == ruleId &&
-                  runtime.settings().listLyricRules().get().size() == 1,
-              QStringLiteral("lyric rule delete must return the removed stable ID"));
+        QVERIFY2((removed && removed.get().ruleId == ruleId &&
+                  runtime.settings().listLyricRules().get().size() == 1),
+                 qPrintable(QStringLiteral("lyric rule delete must return the removed stable ID")));
 
         const Automation::LyricRuleDraftDto taggerDraft{
             .kind = Automation::LyricRuleKind::Tagger,
@@ -363,28 +388,31 @@ namespace {
             }},
         };
         const auto tagger = runtime.settings().createLyricRule(applicationContext(), taggerDraft);
-        check(tagger && tagger.get().rule.name == QStringLiteral("latin-words") &&
-                  harness.settings.fillLyric.customTaggerRules.size() == 1 &&
-                  harness.settings.fillLyric.customTaggerRules.first().name ==
-                      QStringLiteral("latin-words"),
-              QStringLiteral("tagger rule names must be preserved by the settings DTO"));
+        QVERIFY2(
+            (tagger && tagger.get().rule.name == QStringLiteral("latin-words") &&
+             harness.settings.fillLyric.customTaggerRules.size() == 1 &&
+             harness.settings.fillLyric.customTaggerRules.first().name ==
+                 QStringLiteral("latin-words")),
+            qPrintable(QStringLiteral("tagger rule names must be preserved by the settings DTO")));
         if (!tagger)
             return;
         const auto taggerId = tagger.get().rule.ruleId;
         const auto beforeWrongTaggerField = harness.settings.fillLyric;
         const auto wrongTaggerField = runtime.settings().updateLyricRule(
             applicationContext(), taggerId, {.regexes = QStringList{QStringLiteral("([a-z]+)")}});
-        check(!wrongTaggerField &&
-                  wrongTaggerField.getError().code ==
-                      Automation::AutomationErrorCode::InvalidArgument &&
-                  harness.settings.fillLyric == beforeWrongTaggerField,
-              QStringLiteral("tagger updates must reject splitter-only fields atomically"));
+        QVERIFY2(
+            (!wrongTaggerField &&
+             wrongTaggerField.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+             harness.settings.fillLyric == beforeWrongTaggerField),
+            qPrintable(
+                QStringLiteral("tagger updates must reject splitter-only fields atomically")));
         const auto renamedTagger = runtime.settings().updateLyricRule(
             applicationContext(), taggerId, {.name = QStringLiteral("latin-words-v2")});
-        check(renamedTagger && renamedTagger.get().rule.name == QStringLiteral("latin-words-v2") &&
+        QVERIFY2((renamedTagger &&
+                  renamedTagger.get().rule.name == QStringLiteral("latin-words-v2") &&
                   harness.settings.fillLyric.customTaggerRules.first().name ==
-                      QStringLiteral("latin-words-v2"),
-              QStringLiteral("tagger name updates must persist and round-trip"));
+                      QStringLiteral("latin-words-v2")),
+                 qPrintable(QStringLiteral("tagger name updates must persist and round-trip")));
 
         auto missingDictionaryDraft = taggerDraft;
         missingDictionaryDraft.name = QStringLiteral("missing-dict");
@@ -398,47 +426,63 @@ namespace {
         };
         const auto beforeMissingDictionary = harness.settings.fillLyric;
         const auto writesBeforeMissingDictionary = harness.lyricWrites;
+        const auto validationsBeforeFailure = harness.lyricValidationCalls;
+        harness.lyricValidationError = Automation::AutomationError::invalidArgument(
+            QStringLiteral("entries.value"), QStringLiteral("Tagger dictionary was not found"));
         const auto missingDictionary =
             runtime.settings().createLyricRule(applicationContext(), missingDictionaryDraft);
-        check(!missingDictionary &&
+        QVERIFY2((!missingDictionary &&
                   missingDictionary.getError().code ==
                       Automation::AutomationErrorCode::InvalidArgument &&
                   harness.settings.fillLyric == beforeMissingDictionary &&
-                  harness.lyricWrites == writesBeforeMissingDictionary,
-              QStringLiteral("runtime-invalid tagger dictionaries must fail before persistence"));
+                  harness.lyricWrites == writesBeforeMissingDictionary),
+                 qPrintable(QStringLiteral(
+                     "host-rejected tagger dictionaries must fail before persistence")));
+
+        QCOMPARE(harness.lyricValidationCalls, validationsBeforeFailure + 1);
+        harness.lyricValidationError.reset();
 
         const auto removedTagger =
             runtime.settings().deleteLyricRule(applicationContext(), taggerId);
-        check(removedTagger && runtime.settings().listLyricRules().get().size() == 1,
-              QStringLiteral("custom tagger rules must remain deletable after updates"));
+        QVERIFY2(
+            (removedTagger && runtime.settings().listLyricRules().get().size() == 1),
+            qPrintable(QStringLiteral("custom tagger rules must remain deletable after updates")));
     }
 
-    void testPackages(Automation::CoreRuntime &runtime, Harness &harness) {
+    void packages() {
+        Harness harness;
+        AutomationTestSupport::TestRuntime fixture({}, {}, {}, {}, harness.packageServices(), {},
+                                                   {}, harness.settingsServices());
+        auto &runtime = fixture.runtime();
         const auto projection = [](const QString &path) -> std::optional<QString> {
             if (path.startsWith(QStringLiteral("C:/allowed")))
                 return path;
             return std::nullopt;
         };
         const auto packages = runtime.packages().getInstalledPackages(projection);
-        check(packages && packages.get().size() == 2 && packages.get().first().path.isEmpty() &&
-                  !packages.get().last().path.isEmpty(),
-              QStringLiteral("packages.list must omit paths outside allowed read roots"));
+        QVERIFY2(
+            (packages && packages.get().size() == 2 && packages.get().first().path.isEmpty() &&
+             !packages.get().last().path.isEmpty()),
+            qPrintable(QStringLiteral("packages.list must omit paths outside allowed read roots")));
         const auto described =
             runtime.packages().describePackage(QStringLiteral("voice.package"), projection);
-        check(described && described.get().version == QVersionNumber(2, 0),
-              QStringLiteral("packages.describe must deterministically select the newest version"));
+        QVERIFY2((described && described.get().version == QVersionNumber(2, 0)),
+                 qPrintable(QStringLiteral(
+                     "packages.describe must deterministically select the newest version")));
         const auto describedVersion = runtime.packages().describePackage(
             QStringLiteral("voice.package"), QStringLiteral("1.0"), projection);
-        check(describedVersion && describedVersion.get().version == QVersionNumber(1, 0) &&
-                  describedVersion.get().path.isEmpty(),
-              QStringLiteral("packages.describe must select and project an explicit version"));
+        QVERIFY2((describedVersion && describedVersion.get().version == QVersionNumber(1, 0) &&
+                  describedVersion.get().path.isEmpty()),
+                 qPrintable(QStringLiteral(
+                     "packages.describe must select and project an explicit version")));
         const auto invalidVersion = runtime.packages().describePackage(
             QStringLiteral("voice.package"), QStringLiteral("1..0"), projection);
-        check(!invalidVersion &&
-                  invalidVersion.getError().code ==
-                      Automation::AutomationErrorCode::InvalidArgument &&
-                  invalidVersion.getError().fieldPath == QStringLiteral("version"),
-              QStringLiteral("packages.describe must reject malformed explicit versions"));
+        QVERIFY2(
+            (!invalidVersion &&
+             invalidVersion.getError().code == Automation::AutomationErrorCode::InvalidArgument &&
+             invalidVersion.getError().fieldPath == QStringLiteral("version")),
+            qPrintable(
+                QStringLiteral("packages.describe must reject malformed explicit versions")));
 
         bool previewCompleted = false;
         const auto preview = runtime.packages().refreshPackages(
@@ -448,8 +492,9 @@ namespace {
                     result && result.get().packages == 2 && result.get().added.isEmpty();
             },
             projection);
-        check(preview && previewCompleted && harness.refreshStarts == 0,
-              QStringLiteral("packages.refresh validate_only must not start a filesystem scan"));
+        QVERIFY2((preview && previewCompleted && harness.refreshStarts == 0),
+                 qPrintable(QStringLiteral(
+                     "packages.refresh validate_only must not start a filesystem scan")));
 
         bool refreshCompleted = false;
         const auto refreshed = runtime.packages().refreshPackages(
@@ -461,19 +506,12 @@ namespace {
                     result.get().failures.first().path.isEmpty();
             },
             projection);
-        check(refreshed && refreshCompleted && harness.refreshStarts == 1,
-              QStringLiteral("packages.refresh must start once and project failure paths"));
+        QVERIFY2((refreshed && refreshCompleted && harness.refreshStarts == 1),
+                 qPrintable(
+                     QStringLiteral("packages.refresh must start once and project failure paths")));
     }
-}
+};
 
-int main(int argc, char **argv) {
-    QCoreApplication application(argc, argv);
-    Harness harness;
-    AutomationTestSupport::TestRuntime testRuntime({}, {}, {}, {}, harness.packageServices(), {},
-                                                   {}, harness.settingsServices());
-    auto &runtime = testRuntime.runtime();
-    testPublicSettings(runtime, harness);
-    testLyricRules(runtime, harness);
-    testPackages(runtime, harness);
-    return failures == 0 ? 0 : 1;
-}
+QTEST_GUILESS_MAIN(TestAutomationL3ApplicationDomains)
+
+#include "main.moc"
