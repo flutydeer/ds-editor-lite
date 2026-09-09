@@ -10,6 +10,7 @@
 #include <synthrt/Core/Support/Logging.h>
 
 #include <QCoreApplication>
+#include <QScopeGuard>
 
 #include "Utils/DmlGpuUtils.h"
 #include <lite/Support/Log.h>
@@ -138,6 +139,9 @@ bool InferEngine::isAboutToQuit() const noexcept {
 
 bool InferEngine::initialize(QString &error) {
     QWriteLocker lock(&m_engineRwLock);
+    const auto finishAttempt = qScopeGuard([] {
+        SynthrtEngine::instance().completeInitializationAttempt();
+    });
     if (m_disposed) {
         error = "Application is about to quit.";
         return false;

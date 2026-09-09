@@ -9,10 +9,12 @@
 #include "Modules/Inference/EditSessionManager.h"
 #include "Modules/Inference/InferController.h"
 #include "Modules/Inference/InferControllerHelper.h"
+#include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/InferPipeline.h"
 #include "Modules/Inference/States/UpdateVarianceState.h"
 #include "Modules/Inference/States/PlaybackReadyState.h"
 #include "Modules/Inference/Utils/InferenceApplyGate.h"
+#include "Modules/Inference/Utils/CudaGpuUtils.h"
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Note.h>
@@ -20,6 +22,8 @@
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include <lite/Tasking/TaskManager.h>
+#include <lite/PackageManager/PackageManager.h>
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 #include "../TestSupport/ProcessFixture.h"
 
 #include <TalcsDevice/AbstractOutputContext.h>
@@ -43,6 +47,41 @@
 
 namespace {
     using InferenceApplyGate::Decision;
+
+    int unavailableInferenceProvider(int argc, char **argv) {
+        QCoreApplication application(argc, argv);
+        AppEnvironment::postInit(AppHostMode::Headless);
+        auto options = std::make_unique<AppOptions>();
+        options->general()->packageSearchPaths.clear();
+        options->inference()->autoStartInfer = false;
+        // Reject the device prerequisite before the shared inference runtime starts.
+        options->inference()->executionProvider = QStringLiteral("CUDA");
+        CudaGpuUtils::setNvidiaSmiPath(
+            QDir(AppDataPaths::testRoot()).filePath(QStringLiteral("missing-nvidia-smi")));
+        AppContext context(std::move(options), AppHostMode::Headless);
+        packageManager->initialize({});
+        if (!TestSupport::waitUntil(
+                [] { return appStatus->inferEngineEnvStatus == AppStatus::ModuleStatus::Error; },
+                5000)) {
+            qCritical("The unavailable provider did not report initialization failure");
+            return 1;
+        }
+        if (SynthrtEngine::instance().runtimeInitialized() ||
+            !SynthrtEngine::instance().initializationDone()) {
+            qCritical("Rejected device prerequisites must finish the initialization attempt");
+            return 2;
+        }
+        if (!TestSupport::waitUntil(
+                [] {
+                    return taskManager->tasks().isEmpty() &&
+                           appStatus->packageModuleStatus == AppStatus::ModuleStatus::Error;
+                },
+                5000)) {
+            qCritical("Package discovery must fail without waiting for an unavailable runtime");
+            return 3;
+        }
+        return 0;
+    }
 
     void addInferenceStages() {
         QTest::addColumn<QString>("stage");
@@ -152,6 +191,21 @@ private slots:
 
     void changedTargetInputDropsResult_data() {
         addInferenceStages();
+    }
+
+    void failedInferenceInitializationReleasesPackageWaiters() {
+        TestSupport::ProcessFixture fixture(QStringLiteral("unavailable-inference-provider"));
+        QVERIFY(fixture.isValid());
+        auto &process = fixture.process(QStringLiteral("application"));
+        process.start(QCoreApplication::applicationFilePath(),
+                      {QStringLiteral("--unavailable-inference-provider")});
+        QVERIFY2(process.waitForStarted(5000), qPrintable(process.errorString()));
+        const auto finished = process.waitForFinished(10000);
+        const auto diagnostics = QString::fromUtf8(TestSupport::readProcessStdout(process)) +
+                                 QString::fromUtf8(TestSupport::readProcessStderr(process));
+        QVERIFY2(finished, qPrintable(diagnostics));
+        QCOMPARE(process.exitStatus(), QProcess::NormalExit);
+        QVERIFY2(process.exitCode() == 0, qPrintable(diagnostics));
     }
 
     void changedTargetInputDropsResult() {
@@ -542,5 +596,12 @@ private:
     Note *note = nullptr;
 };
 
-QTEST_GUILESS_MAIN(ApplicationWorkflowTests)
+int main(int argc, char **argv) {
+    if (argc > 1 &&
+        QString::fromLocal8Bit(argv[1]) == QStringLiteral("--unavailable-inference-provider"))
+        return unavailableInferenceProvider(argc, argv);
+    QCoreApplication application(argc, argv);
+    ApplicationWorkflowTests tests;
+    return QTest::qExec(&tests, argc, argv);
+}
 #include "tst_application_workflows.moc"
