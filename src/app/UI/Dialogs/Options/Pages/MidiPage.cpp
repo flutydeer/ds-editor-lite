@@ -144,7 +144,7 @@ QWidget *MidiPage::createContentWidget() {
 
     auto ms = AudioSystem::midiSystem();
 
-    const auto deviceList = talcs::MidiInputDevice::devices();
+    const auto deviceList = MidiSystem::availableDevices();
     if (!ms->device()) {
         m_deviceComboBox->addItem(tr("(Not working)"), -1);
     }

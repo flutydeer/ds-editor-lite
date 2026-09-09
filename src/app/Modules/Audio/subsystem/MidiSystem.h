@@ -4,6 +4,7 @@
 #include <memory>
 
 #include <QObject>
+#include <QStringList>
 
 namespace talcs {
 
@@ -21,6 +22,7 @@ public:
     ~MidiSystem() override;
 
     bool initialize();
+    static QStringList availableDevices();
     talcs::MidiInputDevice *device() const;
     bool setDevice(int deviceIndex);
     talcs::MidiMessageIntegrator *integrator() const;
