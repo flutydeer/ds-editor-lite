@@ -3,6 +3,9 @@
 #include "Bootstrap/AppDataPaths.h"
 #include "Bootstrap/AppEnvironment.h"
 #include "Model/AppOptions/AppOptions.h"
+#include "Modules/Audio/AudioContext.h"
+#include "Modules/Audio/AudioSystem.h"
+#include "Modules/Audio/subsystem/OutputSystem.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "Modules/Inference/InferControllerHelper.h"
 #include "Modules/Inference/Utils/InferenceApplyGate.h"
@@ -12,11 +15,19 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
+#include "../TestSupport/ProcessFixture.h"
+
+#include <TalcsDevice/AbstractOutputContext.h>
+#include <TalcsDevice/AudioDevice.h>
+#include <TalcsFormat/AudioFormatIO.h>
+#include <TalcsCore/MixerAudioSource.h>
 
 #include <QtTest/QTest>
 #include <QCoreApplication>
 #include <QDir>
 #include <QTemporaryDir>
+#include <QFile>
+#include <QScopeGuard>
 
 #include <memory>
 
@@ -79,7 +90,7 @@ namespace {
     }
 }
 
-class InferenceWorkflowTests final : public QObject {
+class ApplicationWorkflowTests final : public QObject {
     Q_OBJECT
 
 private slots:
@@ -99,11 +110,13 @@ private slots:
         options->inference()->autoStartInfer = false;
         options->inference()->executionProvider = QStringLiteral("CPU");
         options->inference()->cacheDirectory = dataRoot.filePath(QStringLiteral("cache"));
-        options->audio()->obj.insert(QStringLiteral("driverName"),
-                                     QStringLiteral("inference-test-no-audio-driver"));
-        options->audio()->obj.insert(QStringLiteral("deviceName"),
-                                     QStringLiteral("inference-test-no-audio-device"));
         context = std::make_unique<AppContext>(std::move(options), AppHostMode::Headless);
+        if (auto *device = AudioSystem::outputSystem()->context()->device()) {
+            device->stop();
+            device->close();
+            QVERIFY(!device->isOpen());
+        }
+        AudioContext::instance()->preMixer()->close();
     }
 
     void init() {
@@ -266,6 +279,77 @@ private slots:
         QVERIFY(resolution.dropReason.isEmpty());
     }
 
+    void offlineExportRestoresMixerState_data() {
+        QTest::addColumn<bool>("initiallyOpen");
+        QTest::newRow("closed-mixer") << false;
+        QTest::newRow("open-mixer") << true;
+    }
+
+    void offlineExportRestoresMixerState() {
+        QFETCH(bool, initiallyOpen);
+        QTemporaryDir files;
+        QVERIFY(files.isValid());
+        const auto source = files.filePath(QStringLiteral("source.wav"));
+        QVERIFY(TestSupport::ProcessFixture::writeWaveFixture(source));
+        auto document = Automation::DocumentAutomationFacade::newDocumentDraft(false);
+        Automation::ClipDraftDto audio;
+        audio.type = Automation::ClipDraftDto::Type::Audio;
+        audio.properties.name = QStringLiteral("Audio");
+        audio.properties.length = 96;
+        audio.properties.clipLen = 96;
+        audio.audioPath = source;
+        audio.audioInfo.sampleRate = 8000;
+        audio.audioInfo.channels = 1;
+        audio.audioInfo.frames = 800;
+        Automation::TrackDraftDto track;
+        track.name = QStringLiteral("Audio");
+        track.clips = {audio};
+        document.tracks = {track};
+        QVERIFY(runtime().documents().commitNewDocument(commandContext(), document));
+        auto *mixer = AudioContext::instance()->preMixer();
+        mixer->close();
+        const auto closeMixer = qScopeGuard([mixer] { mixer->close(); });
+        if (initiallyOpen)
+            QVERIFY(mixer->open(512, 48000));
+        QCOMPARE(mixer->isOpen(), initiallyOpen);
+
+        Automation::AudioExportConfigDto config;
+        config.fileName = QStringLiteral("render.wav");
+        config.fileDirectory = files.path();
+        config.sampleRate = 44100;
+        config.mono = true;
+        const auto accepted = runtime().audioExports().start(commandContext(), config, {});
+        QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
+        const auto terminal = [&] {
+            const auto task = runtime().tasks().getTask(accepted.get().document.documentId,
+                                                        accepted.get().taskId);
+            if (!task)
+                return false;
+            const auto state = task.get().state;
+            return state == Automation::AutomationTaskState::Succeeded ||
+                   state == Automation::AutomationTaskState::Failed ||
+                   state == Automation::AutomationTaskState::Canceled;
+        };
+        QTRY_VERIFY_WITH_TIMEOUT(terminal(), 10000);
+        const auto task =
+            runtime().tasks().getTask(accepted.get().document.documentId, accepted.get().taskId);
+        QVERIFY(task);
+        QVERIFY2(task.get().state == Automation::AutomationTaskState::Succeeded,
+                 qPrintable(task.get().error ? task.get().error->message
+                                             : QStringLiteral("Audio export did not succeed")));
+        QCOMPARE(mixer->isOpen(), initiallyOpen);
+        QCOMPARE(mixer->bufferSize(), initiallyOpen ? qint64{512} : qint64{0});
+        QCOMPARE(mixer->sampleRate(), initiallyOpen ? 48000.0 : 0.0);
+        QFile output(files.filePath(QStringLiteral("render.wav")));
+        QVERIFY(output.open(QIODevice::ReadOnly));
+        talcs::AudioFormatIO decoder(&output);
+        QVERIFY2(decoder.open(talcs::AbstractAudioFormatIO::Read),
+                 qPrintable(decoder.errorString()));
+        QCOMPARE(decoder.sampleRate(), 44100.0);
+        QCOMPARE(decoder.channelCount(), 1);
+        QVERIFY(decoder.length() > 0);
+    }
+
     void cleanup() {
         if (context)
             editSessionManager->clear();
@@ -306,5 +390,5 @@ private:
     Note *note = nullptr;
 };
 
-QTEST_GUILESS_MAIN(InferenceWorkflowTests)
+QTEST_GUILESS_MAIN(ApplicationWorkflowTests)
 #include "main.moc"

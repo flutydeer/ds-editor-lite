@@ -800,14 +800,19 @@ namespace Audio {
 
             // deal with audio components
             projectContext->transport()->pause();
+            const auto mixerWasOpen = projectContext->preMixer()->isOpen();
             const auto currentBufferSize = projectContext->preMixer()->bufferSize();
             const auto currentSampleRate = projectContext->preMixer()->sampleRate();
-            auto reopenMixer = [projectContext, currentBufferSize, currentSampleRate,
-                                this](void *) {
+            auto restoreMixer = [projectContext, mixerWasOpen, currentBufferSize, currentSampleRate,
+                                 this](void *) {
+                if (!mixerWasOpen) {
+                    projectContext->preMixer()->close();
+                    return;
+                }
                 if (!projectContext->preMixer()->open(currentBufferSize, currentSampleRate))
                     addWarning(tr("Cannot reopen audio after exported"));
             };
-            std::unique_ptr<void, decltype(reopenMixer)> _2(this, reopenMixer);
+            std::unique_ptr<void, decltype(restoreMixer)> _2(this, restoreMixer);
             if (!projectContext->preMixer()->open(
                     1024,
                     config.formatSampleRate())) { // TODO let user configure buffer size in settings
@@ -823,9 +828,8 @@ namespace Audio {
                 }
             };
             std::unique_ptr<void, decltype(callFinish)> _3(this, callFinish);
-            // Note: order of destruction: call AudioExporterListener::willFinish after mixer
-            // reopened
-            std::unique_ptr<void, decltype(reopenMixer)> _4 = std::move(_2);
+            // Restore the original mixer state before notifying listeners.
+            std::unique_ptr<void, decltype(restoreMixer)> _4 = std::move(_2);
             for (const auto listener : m_listeners) {
                 if (!listener->willStartCallback(this))
                     return R_Fail;

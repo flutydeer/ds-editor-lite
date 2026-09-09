@@ -121,4 +121,5 @@ jobs:
             build/Tests/CMakeFiles/CMakeConfigureLog.yaml
             vcpkg/buildtrees/**/*.log
           if-no-files-found: ignore
+          include-hidden-files: true
           retention-days: 14
