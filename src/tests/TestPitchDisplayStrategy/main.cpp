@@ -7,17 +7,12 @@
 
 #include <QCoreApplication>
 #include <QtTest/QTest>
-#include <QTextStream>
+#include "../TestSupport/TestAssertions.h"
 
 namespace {
 
 
-    void expect(const bool condition, const char *message) {
-        if (condition)
-            return;
-        QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        QTest::qFail(message, __FILE__, __LINE__);
-    }
+    using TestSupport::expect;
 
     AnchorCurve *makeAnchorCurve(const std::initializer_list<int> ticks) {
         auto *curve = new AnchorCurve;

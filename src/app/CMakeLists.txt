@@ -51,6 +51,14 @@ foreach(_source IN LISTS _automation_sources)
     list(REMOVE_ITEM _src "${_header}")
 endforeach()
 
+add_subdirectory(Modules/Inference)
+get_target_property(_inference_sources EditorInferenceCore SOURCES)
+foreach(_source IN LISTS _inference_sources)
+    get_filename_component(_absolute "${_source}" ABSOLUTE
+        BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Modules/Inference")
+    list(REMOVE_ITEM _src "${_absolute}")
+endforeach()
+
 list(REMOVE_ITEM _src "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
 add_library(EditorRuntime OBJECT ${_src} Resources/lite_res.qrc)
 set_target_properties(EditorRuntime PROPERTIES AUTOMOC ON AUTOUIC ON AUTORCC ON)
@@ -66,6 +74,7 @@ target_link_libraries(EditorRuntime PUBLIC
         Qt6::Concurrent
         Qt6::StateMachine
         EditorAutomationCore
+        EditorInferenceCore
         Qt6::GuiPrivate
         ${_platform_links}
         talcs::Core
@@ -146,8 +155,8 @@ qm_add_win_rc_enhanced(${PROJECT_NAME}
     ORIGINAL_FILENAME "${LITE_EXECUTABLE_BASENAME}.exe"
 )
 
-# Enable Edit and Continue for MSVC Debug builds.
-if(MSVC)
+# Edit and Continue is incompatible with native static coverage instrumentation.
+if(MSVC AND NOT LITE_TEST_COVERAGE)
     qm_configure_target(EditorRuntime
         CCFLAGS $<$<CONFIG:Debug>:/ZI>
     )
@@ -188,6 +197,7 @@ qt_add_translations(
         ${PROJECT_NAME}
         EditorRuntime
         EditorAutomationCore
+        EditorInferenceCore
         Core
         Support
         MusicBase

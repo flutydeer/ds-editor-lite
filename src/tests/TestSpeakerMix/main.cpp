@@ -6,34 +6,25 @@
 
 #include <QCoreApplication>
 #include <QtTest/QTest>
-#include <QTextStream>
 
 #include <cmath>
 
 namespace {
     constexpr double kTolerance = 1e-9;
 
-    bool expect(const bool condition, const char *message) {
-        if (condition)
-            return true;
-        QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        return false;
-    }
-
-    bool expectNear(const double actual, const double expected, const char *message) {
-        return expect(std::abs(actual - expected) <= kTolerance, message);
-    }
-
-    bool expectVectorNear(const QVector<double> &actual, const QVector<double> &expected,
-                          const char *message) {
-        if (!expect(actual.size() == expected.size(), message))
+    bool compareVectorNear(const QVector<double> &actual, const QVector<double> &expected,
+                           const char *file, const int line) {
+        if (!QTest::qCompare(actual.size(), expected.size(), "actual.size()", "expected.size()",
+                             file, line))
             return false;
-        for (int i = 0; i < actual.size(); ++i) {
-            if (std::abs(actual.at(i) - expected.at(i)) > kTolerance) {
-                QTextStream(stderr) << "FAILED: " << message << " at index " << i << " actual "
-                                    << actual.at(i) << " expected " << expected.at(i) << Qt::endl;
+        for (qsizetype index = 0; index < actual.size(); ++index) {
+            const auto detail = QStringLiteral("index=%1 actual=%2 expected=%3")
+                                    .arg(index)
+                                    .arg(actual[index], 0, 'g', 17)
+                                    .arg(expected[index], 0, 'g', 17);
+            if (!QTest::qVerify(std::abs(actual[index] - expected[index]) <= kTolerance,
+                                "weights are within tolerance", qPrintable(detail), file, line))
                 return false;
-            }
         }
         return true;
     }
@@ -66,272 +57,6 @@ namespace {
         return Timeline();
     }
 
-    bool testWeightConversions() {
-        using namespace SpeakerMixModel;
-
-        bool ok = true;
-        ok &= expectVectorNear(normalizeSpeakerMixFullWeights({-1.0, 2.0, 1.0}, 3), {0.0, 0.5, 0.5},
-                               "full weights clamp and normalize");
-        ok &= expectVectorNear(normalizeSpeakerMixFullWeights({0.0, 0.0, 0.0}, 3),
-                               {1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0},
-                               "zero full weights become equal weights");
-        ok &= expect(normalizeSpeakerMixFullWeights({1.0}, 0).isEmpty(),
-                     "non-positive source count returns empty weights");
-        ok &= expectVectorNear(explicitWeightsFromFullWeights({2.0, 1.0, 1.0}),
-                               {1.0 / 3.0, 1.0 / 3.0},
-                               "explicit weights drop normalized implicit last source");
-        ok &= expectVectorNear(fullWeightsFromExplicitWeights({0.2, 0.3}), {0.2, 0.3, 0.5},
-                               "full weights append implicit remainder");
-        ok &= expectVectorNear(fullWeightsFromExplicitWeights({0.8, 0.8}), {0.5, 0.5, 0.0},
-                               "overflow explicit weights normalize with zero remainder");
-        return ok;
-    }
-
-    bool testOverlappingSplitResolution() {
-        bool ok = true;
-
-        const QVector<double> positions{10.0, 10.0, 10.0, 20.0};
-        ok &= expect(OverlappingHandleResolver::resolve(positions, 1, -4.0) == 0,
-                     "generic resolver chooses the leftmost overlapping handle");
-        ok &= expect(OverlappingHandleResolver::resolve(positions, 1, 4.0) == 2,
-                     "generic resolver chooses the rightmost overlapping handle");
-        ok &= expect(OverlappingHandleResolver::resolve(positions, 3, -4.0) == 3,
-                     "generic resolver keeps a separate handle");
-
-        const QVector<double> leadingZeros{0.0, 0.0, 0.4, 0.6};
-        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(leadingZeros, 0, 0.1) == 1,
-                     "positive drag chooses last leading overlapping split");
-        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(leadingZeros, 1, -0.1) == 0,
-                     "negative drag chooses first leading overlapping split");
-
-        const QVector<double> trailingZeros{0.4, 0.6, 0.0, 0.0};
-        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(trailingZeros, 2, -0.1) == 1,
-                     "negative drag chooses first trailing overlapping split");
-        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(trailingZeros, 1, 0.1) == 2,
-                     "positive drag chooses last trailing overlapping split");
-
-        const QVector<double> threeLeadingZeros{0.0, 0.0, 0.0, 0.4, 0.6};
-        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(threeLeadingZeros, 1, -0.1) == 0,
-                     "negative drag chooses first of three leading overlapping splits");
-        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(threeLeadingZeros, 1, 0.1) == 2,
-                     "positive drag chooses last of three leading overlapping splits");
-
-        const QVector<double> threeTrailingZeros{0.4, 0.6, 0.0, 0.0, 0.0};
-        ok &=
-            expect(SpeakerMixUtils::resolveOverlappingSplitIndex(threeTrailingZeros, 2, -0.1) == 1,
-                   "negative drag chooses first of three trailing overlapping splits");
-        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(threeTrailingZeros, 2, 0.1) == 3,
-                     "positive drag chooses last of three trailing overlapping splits");
-
-        const QVector<double> interiorZeros{0.2, 0.0, 0.0, 0.0, 0.8};
-        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(interiorZeros, 2, -0.1) == 0,
-                     "negative drag chooses first of four interior overlapping splits");
-        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(interiorZeros, 2, 0.1) == 3,
-                     "positive drag chooses last of four interior overlapping splits");
-
-        const QVector<double> separateSplits{0.2, 0.3, 0.5};
-        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(separateSplits, 1, -0.1) == 1,
-                     "separate split keeps its index");
-        ok &= expect(SpeakerMixUtils::resolveOverlappingSplitIndex(separateSplits, 1, 0.0) == 1,
-                     "stationary drag keeps its index");
-
-        return ok;
-    }
-
-    bool testNormalizeSpeakerMixData() {
-        using namespace SpeakerMixModel;
-
-        bool ok = true;
-
-        auto fixed = fixedMixData();
-        fixed.fixedWeights = {2.0, 1.0};
-        fixed.dynamicKeyframes = {
-            {240, {2.0, 1.0}}
-        };
-        fixed.sourcePresetId = " preset ";
-        fixed.sourcePresetName = " name ";
-        const auto normalizedFixed = normalizeSpeakerMixData(fixed);
-        ok &= expect(normalizedFixed.mode == SingerSourceMode::FixedMix,
-                     "valid fixed mix remains fixed");
-        ok &= expectVectorNear(normalizedFixed.fixedWeights, {0.5, 0.5}, "fixed weights normalize");
-        ok &= expect(normalizedFixed.dynamicKeyframes.isEmpty(),
-                     "fixed mix does not carry dynamic automation");
-        ok &= expect(normalizedFixed.sourcePresetId == "preset" &&
-                         normalizedFixed.sourcePresetName == "name",
-                     "preset metadata is trimmed");
-
-        auto noPreset = fixedMixData();
-        noPreset.sourcePresetName = "stale";
-        noPreset.sourcePresetDirty = true;
-        const auto normalizedNoPreset = normalizeSpeakerMixData(noPreset);
-        ok &= expect(normalizedNoPreset.sourcePresetName.isEmpty() &&
-                         !normalizedNoPreset.sourcePresetDirty,
-                     "preset name and dirty flag clear when preset id is empty");
-
-        auto invalidFixed = fixedMixData();
-        invalidFixed.fixedWeights = {0.5};
-        ok &= expect(normalizeSpeakerMixData(invalidFixed).mode == SingerSourceMode::Single,
-                     "fixed mix with wrong weight count falls back to single");
-
-        auto emptySource = fixedMixData();
-        emptySource.sources[1] = source("");
-        ok &= expect(normalizeSpeakerMixData(emptySource).mode == SingerSourceMode::Single,
-                     "mix with empty speaker falls back to single");
-
-        auto dynamic = dynamicMixData();
-        const auto normalizedDynamic = normalizeSpeakerMixData(dynamic);
-        ok &= expect(normalizedDynamic.mode == SingerSourceMode::DynamicMix,
-                     "valid dynamic mix remains dynamic");
-        ok &= expect(normalizedDynamic.dynamicKeyframes.first().tick == 0 &&
-                         normalizedDynamic.dynamicKeyframes.last().tick == 960,
-                     "dynamic keyframes are sorted");
-
-        auto invalidDynamic = dynamicMixData();
-        invalidDynamic.dynamicKeyframes.first().weights = {0.2, 0.3};
-        ok &= expect(normalizeSpeakerMixData(invalidDynamic).mode == SingerSourceMode::Single,
-                     "dynamic mix with wrong keyframe weight count falls back to single");
-
-        return ok;
-    }
-
-    bool testDynamicStatePredicates() {
-        using namespace SpeakerMixModel;
-
-        bool ok = true;
-
-        const auto dynamic = dynamicMixData();
-        ok &= expect(hasDynamicMixAutomation(dynamic), "dynamic mix reports automation");
-        ok &= expect(isDynamicMixActive(dynamic), "dynamic mix reports active");
-        ok &= expect(!isDynamicMixBypassed(dynamic), "dynamic mix is not bypassed");
-
-        auto bypassed = dynamicMixData();
-        bypassed.dynamicBypassed = true;
-        bypassed.fixedWeights = {0.1};
-        ok &= expect(hasDynamicMixAutomation(bypassed), "bypassed dynamic mix reports automation");
-        ok &= expect(!isDynamicMixActive(bypassed), "bypassed dynamic mix is not active");
-        ok &= expect(isDynamicMixBypassed(bypassed), "bypassed dynamic mix reports bypassed");
-
-        auto bypassedWithoutFixedWeights = dynamicMixData();
-        bypassedWithoutFixedWeights.dynamicBypassed = true;
-        ok &=
-            expectVectorNear(normalizeSpeakerMixData(bypassedWithoutFixedWeights).fixedWeights,
-                             {0.0}, "bypassed dynamic mix gets fixed weights from first keyframe");
-
-        auto legacyBypass = fixedMixData();
-        legacyBypass.dynamicKeyframes = {
-            {0, {0.1, 0.2}}
-        };
-        ok &= expect(!hasDynamicMixAutomation(legacyBypass),
-                     "fixed mix with keyframes no longer means bypassed dynamic mix");
-        ok &= expect(!isDynamicMixBypassed(legacyBypass),
-                     "legacy fixed keyframe combination is not bypassed");
-
-        auto invalid = fixedMixData();
-        invalid.dynamicKeyframes = {
-            {0, {0.1}}
-        };
-        ok &= expect(!hasDynamicMixAutomation(invalid),
-                     "invalid inactive keyframes are not reported as automation");
-
-        return ok;
-    }
-
-    bool testStaticAndFixedInferenceMix() {
-        using namespace InferSpeakerMixModel;
-
-        bool ok = true;
-
-        ok &= expect(staticSpeakerMix("").isEmpty(), "empty static speaker mix is empty");
-
-        const auto single = staticSpeakerMix("spk-a");
-        ok &= expect(single.fallbackSpeaker == "spk-a", "static mix fallback is speaker");
-        ok &= expect(single.sources.size() == 1, "static mix has one source");
-        ok &= expect(single.sources.first().speaker == "spk-a", "static mix source speaker");
-        ok &=
-            expectVectorNear(single.sources.first().proportions, {1.0}, "static mix source weight");
-
-        SpeakerMixModel::SpeakerMixData singleMode;
-        ok &=
-            expect(fixedSpeakerMixFromData(singleMode, "fallback") == staticSpeakerMix("fallback"),
-                   "single mode fixed inference uses fallback");
-
-        auto fixed = fixedMixData();
-        fixed.fixedWeights = {0.2, 0.7};
-        const auto mix = fixedSpeakerMixFromData(fixed, "fallback");
-        ok &= expect(mix.sources.size() == 3, "fixed inference keeps all sources");
-        ok &= expect(mix.sources.at(0).speaker == "spk-a" && mix.sources.at(1).speaker == "spk-b" &&
-                         mix.sources.at(2).speaker == "spk-c",
-                     "fixed inference maps speaker ids");
-        ok &= expectVectorNear(mix.sources.at(0).proportions, {0.2},
-                               "fixed inference first source weight");
-        ok &= expectVectorNear(mix.sources.at(1).proportions, {0.7},
-                               "fixed inference second source weight");
-        ok &= expectVectorNear(mix.sources.at(2).proportions, {0.1},
-                               "fixed inference implicit source weight");
-        ok &= expect(mix.fallbackSpeaker == "spk-b",
-                     "fixed inference fallback chooses highest average weight");
-
-        auto invalid = fixedMixData();
-        invalid.sources[0] = source("");
-        ok &= expect(fixedSpeakerMixFromData(invalid, "fallback") == staticSpeakerMix("fallback"),
-                     "invalid fixed inference falls back to static speaker");
-
-        const InferSpeakerMix same = mix;
-        auto changed = mix;
-        changed.sources[0].proportions[0] = 0.25;
-        ok &= expect(mix.signature() == same.signature(), "same inference mix signature is stable");
-        ok &= expect(mix.signature() != changed.signature(),
-                     "changed inference mix signature changes");
-
-        return ok;
-    }
-
-    bool testDynamicInferenceMix() {
-        using namespace InferSpeakerMixModel;
-
-        bool ok = true;
-
-        const auto timeline = timeline120Bpm();
-        const auto dynamic = dynamicMixData();
-        const auto mix = dynamicSpeakerMixFromData(dynamic, "fallback", 0, 960, 0, timeline, 0.5);
-
-        ok &= expect(mix.sources.size() == 2, "dynamic inference keeps two sources");
-        ok &= expect(mix.sources.at(0).speaker == "spk-a" && mix.sources.at(1).speaker == "spk-b",
-                     "dynamic inference maps speaker ids");
-        ok &= expectNear(mix.sources.at(0).interval, 0.5, "dynamic inference interval");
-        ok &= expectVectorNear(mix.sources.at(0).proportions, {0.0, 0.5},
-                               "dynamic inference interpolates first source");
-        ok &= expectVectorNear(mix.sources.at(1).proportions, {1.0, 0.5},
-                               "dynamic inference interpolates implicit source");
-        ok &= expect(mix.fallbackSpeaker == "spk-b",
-                     "dynamic inference fallback chooses highest average source");
-
-        const auto fixedFallback = fixedSpeakerMixFromData(dynamic, "fallback");
-        ok &= expect(dynamicSpeakerMixFromData(dynamic, "fallback", 960, 0, 0, timeline, 0.5) ==
-                         fixedFallback,
-                     "dynamic inference with invalid range falls back to fixed");
-        ok &= expect(dynamicSpeakerMixFromData(dynamic, "fallback", 0, 960, 0, timeline, 0.0) ==
-                         fixedFallback,
-                     "dynamic inference with invalid interval falls back to fixed");
-
-        ok &= expect(effectiveSpeakerMixFromData(dynamic, "fallback", 0, 960, 0, timeline, 0.5) ==
-                         mix,
-                     "effective inference uses dynamic mix when active");
-
-        const auto shiftedMix =
-            effectiveSpeakerMixFromData(dynamic, "fallback", 1920, 2880, 1920, timeline, 0.5);
-        ok &= expect(shiftedMix == mix,
-                     "dynamic inference samples clip-local keyframes for shifted clips");
-
-        auto bypassed = dynamicMixData();
-        bypassed.dynamicBypassed = true;
-        bypassed.fixedWeights = {0.1};
-        ok &= expect(effectiveSpeakerMixFromData(bypassed, "fallback", 0, 960, 0, timeline, 0.5) ==
-                         fixedSpeakerMixFromData(bypassed, "fallback"),
-                     "effective inference uses fixed mix when dynamic is bypassed");
-
-        return ok;
-    }
 }
 
 class SpeakerMixTests final : public QObject {
@@ -340,27 +65,224 @@ class SpeakerMixTests final : public QObject {
 private slots:
 
     void weightConversions() {
-        QVERIFY(testWeightConversions());
+        using namespace SpeakerMixModel;
+
+        if (!compareVectorNear(normalizeSpeakerMixFullWeights({-1.0, 2.0, 1.0}, 3), {0.0, 0.5, 0.5},
+                               __FILE__, __LINE__))
+            return;
+        if (!compareVectorNear(normalizeSpeakerMixFullWeights({0.0, 0.0, 0.0}, 3),
+                               {1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0}, __FILE__, __LINE__))
+            return;
+        QVERIFY2(normalizeSpeakerMixFullWeights({1.0}, 0).isEmpty(),
+                 "non-positive source count returns empty weights");
+        if (!compareVectorNear(explicitWeightsFromFullWeights({2.0, 1.0, 1.0}),
+                               {1.0 / 3.0, 1.0 / 3.0}, __FILE__, __LINE__))
+            return;
+        if (!compareVectorNear(fullWeightsFromExplicitWeights({0.2, 0.3}), {0.2, 0.3, 0.5},
+                               __FILE__, __LINE__))
+            return;
+        if (!compareVectorNear(fullWeightsFromExplicitWeights({0.8, 0.8}), {0.5, 0.5, 0.0},
+                               __FILE__, __LINE__))
+            return;
     }
 
     void overlappingSplitResolution() {
-        QVERIFY(testOverlappingSplitResolution());
+
+        const QVector<double> positions{10.0, 10.0, 10.0, 20.0};
+        QCOMPARE(OverlappingHandleResolver::resolve(positions, 1, -4.0), 0);
+        QCOMPARE(OverlappingHandleResolver::resolve(positions, 1, 4.0), 2);
+        QCOMPARE(OverlappingHandleResolver::resolve(positions, 3, -4.0), 3);
+
+        const QVector<double> leadingZeros{0.0, 0.0, 0.4, 0.6};
+        QCOMPARE(SpeakerMixUtils::resolveOverlappingSplitIndex(leadingZeros, 0, 0.1), 1);
+        QCOMPARE(SpeakerMixUtils::resolveOverlappingSplitIndex(leadingZeros, 1, -0.1), 0);
+
+        const QVector<double> trailingZeros{0.4, 0.6, 0.0, 0.0};
+        QCOMPARE(SpeakerMixUtils::resolveOverlappingSplitIndex(trailingZeros, 2, -0.1), 1);
+        QCOMPARE(SpeakerMixUtils::resolveOverlappingSplitIndex(trailingZeros, 1, 0.1), 2);
+
+        const QVector<double> threeLeadingZeros{0.0, 0.0, 0.0, 0.4, 0.6};
+        QCOMPARE(SpeakerMixUtils::resolveOverlappingSplitIndex(threeLeadingZeros, 1, -0.1), 0);
+        QCOMPARE(SpeakerMixUtils::resolveOverlappingSplitIndex(threeLeadingZeros, 1, 0.1), 2);
+
+        const QVector<double> threeTrailingZeros{0.4, 0.6, 0.0, 0.0, 0.0};
+        QCOMPARE(SpeakerMixUtils::resolveOverlappingSplitIndex(threeTrailingZeros, 2, -0.1), 1);
+        QCOMPARE(SpeakerMixUtils::resolveOverlappingSplitIndex(threeTrailingZeros, 2, 0.1), 3);
+
+        const QVector<double> interiorZeros{0.2, 0.0, 0.0, 0.0, 0.8};
+        QCOMPARE(SpeakerMixUtils::resolveOverlappingSplitIndex(interiorZeros, 2, -0.1), 0);
+        QCOMPARE(SpeakerMixUtils::resolveOverlappingSplitIndex(interiorZeros, 2, 0.1), 3);
+
+        const QVector<double> separateSplits{0.2, 0.3, 0.5};
+        QCOMPARE(SpeakerMixUtils::resolveOverlappingSplitIndex(separateSplits, 1, -0.1), 1);
+        QCOMPARE(SpeakerMixUtils::resolveOverlappingSplitIndex(separateSplits, 1, 0.0), 1);
     }
 
     void normalizeSpeakerMixData() {
-        QVERIFY(testNormalizeSpeakerMixData());
+        using namespace SpeakerMixModel;
+
+
+        auto fixed = fixedMixData();
+        fixed.fixedWeights = {2.0, 1.0};
+        fixed.dynamicKeyframes = {
+            {240, {2.0, 1.0}}
+        };
+        fixed.sourcePresetId = " preset ";
+        fixed.sourcePresetName = " name ";
+        const auto normalizedFixed = SpeakerMixModel::normalizeSpeakerMixData(fixed);
+        QCOMPARE(normalizedFixed.mode, SingerSourceMode::FixedMix);
+        if (!compareVectorNear(normalizedFixed.fixedWeights, {0.5, 0.5}, __FILE__, __LINE__))
+            return;
+        QVERIFY2(normalizedFixed.dynamicKeyframes.isEmpty(),
+                 "fixed mix does not carry dynamic automation");
+        QCOMPARE(normalizedFixed.sourcePresetId, "preset");
+        QCOMPARE(normalizedFixed.sourcePresetName, "name");
+
+        auto noPreset = fixedMixData();
+        noPreset.sourcePresetName = "stale";
+        noPreset.sourcePresetDirty = true;
+        const auto normalizedNoPreset = SpeakerMixModel::normalizeSpeakerMixData(noPreset);
+        QVERIFY2(normalizedNoPreset.sourcePresetName.isEmpty(),
+                 "preset name and dirty flag clear when preset id is empty");
+        QVERIFY2(!normalizedNoPreset.sourcePresetDirty,
+                 "preset name and dirty flag clear when preset id is empty");
+
+        auto invalidFixed = fixedMixData();
+        invalidFixed.fixedWeights = {0.5};
+        QCOMPARE(SpeakerMixModel::normalizeSpeakerMixData(invalidFixed).mode, SingerSourceMode::Single);
+
+        auto emptySource = fixedMixData();
+        emptySource.sources[1] = source("");
+        QCOMPARE(SpeakerMixModel::normalizeSpeakerMixData(emptySource).mode, SingerSourceMode::Single);
+
+        auto dynamic = dynamicMixData();
+        const auto normalizedDynamic = SpeakerMixModel::normalizeSpeakerMixData(dynamic);
+        QCOMPARE(normalizedDynamic.mode, SingerSourceMode::DynamicMix);
+        QCOMPARE(normalizedDynamic.dynamicKeyframes.first().tick, 0);
+        QCOMPARE(normalizedDynamic.dynamicKeyframes.last().tick, 960);
+
+        auto invalidDynamic = dynamicMixData();
+        invalidDynamic.dynamicKeyframes.first().weights = {0.2, 0.3};
+        QCOMPARE(SpeakerMixModel::normalizeSpeakerMixData(invalidDynamic).mode, SingerSourceMode::Single);
     }
 
     void dynamicStatePredicates() {
-        QVERIFY(testDynamicStatePredicates());
+        using namespace SpeakerMixModel;
+
+
+        const auto dynamic = dynamicMixData();
+        QVERIFY2(hasDynamicMixAutomation(dynamic), "dynamic mix reports automation");
+        QVERIFY2(isDynamicMixActive(dynamic), "dynamic mix reports active");
+        QVERIFY2(!isDynamicMixBypassed(dynamic), "dynamic mix is not bypassed");
+
+        auto bypassed = dynamicMixData();
+        bypassed.dynamicBypassed = true;
+        bypassed.fixedWeights = {0.1};
+        QVERIFY2(hasDynamicMixAutomation(bypassed), "bypassed dynamic mix reports automation");
+        QVERIFY2(!isDynamicMixActive(bypassed), "bypassed dynamic mix is not active");
+        QVERIFY2(isDynamicMixBypassed(bypassed), "bypassed dynamic mix reports bypassed");
+
+        auto bypassedWithoutFixedWeights = dynamicMixData();
+        bypassedWithoutFixedWeights.dynamicBypassed = true;
+        if (!compareVectorNear(SpeakerMixModel::normalizeSpeakerMixData(bypassedWithoutFixedWeights).fixedWeights,
+                               {0.0}, __FILE__, __LINE__))
+            return;
+
+        auto legacyBypass = fixedMixData();
+        legacyBypass.dynamicKeyframes = {
+            {0, {0.1, 0.2}}
+        };
+        QVERIFY2(!hasDynamicMixAutomation(legacyBypass),
+                 "fixed mix with keyframes no longer means bypassed dynamic mix");
+        QVERIFY2(!isDynamicMixBypassed(legacyBypass),
+                 "legacy fixed keyframe combination is not bypassed");
+
+        auto invalid = fixedMixData();
+        invalid.dynamicKeyframes = {
+            {0, {0.1}}
+        };
+        QVERIFY2(!hasDynamicMixAutomation(invalid),
+                 "invalid inactive keyframes are not reported as automation");
     }
 
     void staticAndFixedInferenceMix() {
-        QVERIFY(testStaticAndFixedInferenceMix());
+        using namespace InferSpeakerMixModel;
+
+
+        QVERIFY2(staticSpeakerMix("").isEmpty(), "empty static speaker mix is empty");
+
+        const auto single = staticSpeakerMix("spk-a");
+        QCOMPARE(single.fallbackSpeaker, "spk-a");
+        QCOMPARE(single.sources.size(), 1);
+        QCOMPARE(single.sources.first().speaker, "spk-a");
+        if (!compareVectorNear(single.sources.first().proportions, {1.0}, __FILE__, __LINE__))
+            return;
+
+        SpeakerMixModel::SpeakerMixData singleMode;
+        QCOMPARE(fixedSpeakerMixFromData(singleMode, "fallback"), staticSpeakerMix("fallback"));
+
+        auto fixed = fixedMixData();
+        fixed.fixedWeights = {0.2, 0.7};
+        const auto mix = fixedSpeakerMixFromData(fixed, "fallback");
+        QCOMPARE(mix.sources.size(), 3);
+        QCOMPARE(mix.sources.at(0).speaker, "spk-a");
+        QCOMPARE(mix.sources.at(1).speaker, "spk-b");
+        QCOMPARE(mix.sources.at(2).speaker, "spk-c");
+        if (!compareVectorNear(mix.sources.at(0).proportions, {0.2}, __FILE__, __LINE__))
+            return;
+        if (!compareVectorNear(mix.sources.at(1).proportions, {0.7}, __FILE__, __LINE__))
+            return;
+        if (!compareVectorNear(mix.sources.at(2).proportions, {0.1}, __FILE__, __LINE__))
+            return;
+        QCOMPARE(mix.fallbackSpeaker, "spk-b");
+
+        auto invalid = fixedMixData();
+        invalid.sources[0] = source("");
+        QCOMPARE(fixedSpeakerMixFromData(invalid, "fallback"), staticSpeakerMix("fallback"));
+
+        const InferSpeakerMix same = mix;
+        auto changed = mix;
+        changed.sources[0].proportions[0] = 0.25;
+        QCOMPARE(mix.signature(), same.signature());
+        QVERIFY2(mix.signature() != changed.signature(), "changed inference mix signature changes");
     }
 
     void dynamicInferenceMix() {
-        QVERIFY(testDynamicInferenceMix());
+        using namespace InferSpeakerMixModel;
+
+
+        const auto timeline = timeline120Bpm();
+        const auto dynamic = dynamicMixData();
+        const auto mix = dynamicSpeakerMixFromData(dynamic, "fallback", 0, 960, 0, timeline, 0.5);
+
+        QCOMPARE(mix.sources.size(), 2);
+        QCOMPARE(mix.sources.at(0).speaker, "spk-a");
+        QCOMPARE(mix.sources.at(1).speaker, "spk-b");
+        QVERIFY2(std::abs((mix.sources.at(0).interval) - (0.5)) <= kTolerance,
+                 "dynamic inference interval");
+        if (!compareVectorNear(mix.sources.at(0).proportions, {0.0, 0.5}, __FILE__, __LINE__))
+            return;
+        if (!compareVectorNear(mix.sources.at(1).proportions, {1.0, 0.5}, __FILE__, __LINE__))
+            return;
+        QCOMPARE(mix.fallbackSpeaker, "spk-b");
+
+        const auto fixedFallback = fixedSpeakerMixFromData(dynamic, "fallback");
+        QCOMPARE(dynamicSpeakerMixFromData(dynamic, "fallback", 960, 0, 0, timeline, 0.5),
+                 fixedFallback);
+        QCOMPARE(dynamicSpeakerMixFromData(dynamic, "fallback", 0, 960, 0, timeline, 0.0),
+                 fixedFallback);
+
+        QCOMPARE(effectiveSpeakerMixFromData(dynamic, "fallback", 0, 960, 0, timeline, 0.5), mix);
+
+        const auto shiftedMix =
+            effectiveSpeakerMixFromData(dynamic, "fallback", 1920, 2880, 1920, timeline, 0.5);
+        QCOMPARE(shiftedMix, mix);
+
+        auto bypassed = dynamicMixData();
+        bypassed.dynamicBypassed = true;
+        bypassed.fixedWeights = {0.1};
+        QCOMPARE(effectiveSpeakerMixFromData(bypassed, "fallback", 0, 960, 0, timeline, 0.5),
+                 fixedSpeakerMixFromData(bypassed, "fallback"));
     }
 };
 

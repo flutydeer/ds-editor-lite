@@ -1,4 +1,4 @@
-project(TestThemeIcons)
+project(TestTheme)
 
 lite_add_test(${PROJECT_NAME}
         SOURCES
@@ -11,6 +11,10 @@ lite_add_test(${PROJECT_NAME}
 
 target_include_directories(${PROJECT_NAME} PRIVATE
         ../../app
+)
+
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+        TEST_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
 )
 
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Gui Widgets Svg)

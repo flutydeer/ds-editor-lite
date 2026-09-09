@@ -4,36 +4,32 @@
 #include <QCoreApplication>
 #include <QtTest/QTest>
 #include <QFile>
-#include <QTextStream>
 #include <QTemporaryDir>
 
-namespace {
-    bool expect(const bool condition, const char *message) {
-        if (condition)
-            return true;
-        QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        return false;
-    }
+class InferCacheTests final : public QObject {
+    Q_OBJECT
 
-    bool testScanAndClean() {
-        bool ok = true;
+private slots:
+
+    void scanAndClean() {
         QTemporaryDir dir;
-        ok &= expect(dir.isValid(), "temporary dir is valid");
+        QVERIFY2(dir.isValid(), "temporary dir is valid");
 
         const auto writeFile = [&dir](const char *name, int size) {
             QFile f(dir.filePath(name));
-            if (!f.open(QIODevice::WriteOnly))
-                return;
-            f.write(QByteArray(size, 'x'));
+            return f.open(QIODevice::WriteOnly) && f.write(QByteArray(size, 'x')) == size;
         };
-        writeFile("infer-acoustic-output-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wav", 1000);
-        writeFile("infer-acoustic-input-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.json", 200);
-        writeFile("infer-duration-output-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.json", 300);
-        writeFile("unrelated.txt", 999);
+        QVERIFY(
+            writeFile("infer-acoustic-output-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wav", 1000));
+        QVERIFY(
+            writeFile("infer-acoustic-input-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.json", 200));
+        QVERIFY(
+            writeFile("infer-duration-output-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.json", 300));
+        QVERIFY(writeFile("unrelated.txt", 999));
 
         const auto stats = InferCacheUtils::scanCache(dir.path());
-        ok &= expect(stats.files.size() == 3, "scan finds 3 cache files");
-        ok &= expect(stats.totalBytes == 1500, "scan total bytes");
+        QCOMPARE(stats.files.size(), 3);
+        QCOMPARE(stats.totalBytes, 1500);
 
         InferCacheUtils::registerCacheFile(
             dir.filePath("infer-acoustic-output-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wav"));
@@ -42,70 +38,53 @@ namespace {
 
         const auto result =
             InferCacheUtils::cleanCache(dir.path(), InferCacheUtils::registeredCacheFiles());
-        ok &= expect(result.deletedCount == 1, "one file deleted");
-        ok &= expect(result.deletedBytes == 300, "deleted bytes");
-        ok &= expect(result.retainedActiveCount == 2, "two files retained as active");
-        ok &= expect(!QFile::exists(dir.filePath(
-                         "infer-duration-output-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.json")),
-                     "duration output removed");
-        ok &= expect(QFile::exists(dir.filePath(
-                         "infer-acoustic-output-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wav")),
-                     "registered wav kept");
-        ok &= expect(QFile::exists(dir.filePath("unrelated.txt")), "unrelated file untouched");
+        QCOMPARE(result.deletedCount, 1);
+        QCOMPARE(result.deletedBytes, 300);
+        QCOMPARE(result.retainedActiveCount, 2);
+        QVERIFY2(!QFile::exists(dir.filePath(
+                     "infer-duration-output-bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb.json")),
+                 "duration output removed");
+        QVERIFY2(QFile::exists(dir.filePath(
+                     "infer-acoustic-output-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.wav")),
+                 "registered wav kept");
+        QVERIFY2(QFile::exists(dir.filePath("unrelated.txt")), "unrelated file untouched");
 
-        // 第二次清理：登记集合仍在 → 不再有可删文件
+        // Active registrations protect the remaining files during subsequent cleanup.
         const auto second =
             InferCacheUtils::cleanCache(dir.path(), InferCacheUtils::registeredCacheFiles());
-        ok &= expect(second.deletedCount == 0, "second clean deletes nothing");
-        return ok;
+        QCOMPARE(second.deletedCount, 0);
     }
 
-    bool testClearRegisteredFiles() {
-        bool ok = true;
+    void clearRegisteredFiles() {
         // The registry is process-global; start from a clean state regardless of
         // what previous test cases registered
         InferCacheUtils::clearRegisteredCacheFiles();
 
         QTemporaryDir dir;
-        ok &= expect(dir.isValid(), "temporary dir is valid");
+        QVERIFY2(dir.isValid(), "temporary dir is valid");
         const char *fileName =
             "infer-variance-output-dddddddddddddddddddddddddddddddddddddddd.json";
         QFile f(dir.filePath(fileName));
-        ok &= expect(f.open(QIODevice::WriteOnly), "cache file created");
-        f.write(QByteArray(120, 'x'));
+        QVERIFY2(f.open(QIODevice::WriteOnly), "cache file created");
+        QCOMPARE(f.write(QByteArray(120, 'x')), qint64{120});
         f.close();
 
         InferCacheUtils::registerCacheFile(dir.filePath(fileName));
         const auto before =
             InferCacheUtils::cleanCache(dir.path(), InferCacheUtils::registeredCacheFiles());
-        ok &= expect(before.retainedActiveCount == 1 && before.deletedCount == 0,
-                     "registered file retained while the registry holds it");
+        QCOMPARE(before.retainedActiveCount, 1);
+        QCOMPARE(before.deletedCount, 0);
 
         InferCacheUtils::clearRegisteredCacheFiles();
-        ok &= expect(InferCacheUtils::registeredCacheFiles().isEmpty(),
-                     "registry empty after clearRegisteredCacheFiles");
+        QVERIFY2(InferCacheUtils::registeredCacheFiles().isEmpty(),
+                 "registry empty after clearRegisteredCacheFiles");
 
         // Same scenario as replacing the document: stale registrations must no
         // longer keep the previous project's cache file alive
         const auto after =
             InferCacheUtils::cleanCache(dir.path(), InferCacheUtils::registeredCacheFiles());
-        ok &= expect(after.deletedCount == 1, "file deleted after registry clear");
-        ok &= expect(!QFile::exists(dir.filePath(fileName)), "file removed from disk after clear");
-        return ok;
-    }
-} // namespace
-
-class InferCacheTests final : public QObject {
-    Q_OBJECT
-
-private slots:
-
-    void scanAndClean() {
-        QVERIFY(testScanAndClean());
-    }
-
-    void clearRegisteredFiles() {
-        QVERIFY(testClearRegisteredFiles());
+        QCOMPARE(after.deletedCount, 1);
+        QVERIFY2(!QFile::exists(dir.filePath(fileName)), "file removed from disk after clear");
     }
 };
 

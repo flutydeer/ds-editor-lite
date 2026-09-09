@@ -12,17 +12,10 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTemporaryDir>
-#include <QTextStream>
 
 #include <filesystem>
 
 namespace {
-    bool expect(const bool condition, const QString &message) {
-        if (condition)
-            return true;
-        QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        return false;
-    }
 
     std::filesystem::path filesystemPath(const QString &path) {
 #ifdef Q_OS_WIN
@@ -77,13 +70,21 @@ namespace {
         return result;
     }
 
-    bool expectTag(const QString &expected) {
-        const auto result = FillLyric::TextTagger::tag({"same"});
-        return expect(result.size() == 1 && QString::fromStdString(result.front().tag) == expected,
-                      QStringLiteral("runtime winner should be %1").arg(expected));
+    QStringList runtimeTags() {
+        QStringList tags;
+        for (const auto &result : FillLyric::TextTagger::tag({"same"}))
+            tags.append(QString::fromStdString(result.tag));
+        return tags;
     }
 
-    bool testStableOrderPersistence() {
+}
+
+class LyricRuleTests final : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void stableOrderPersistence() {
         using namespace FillLyric;
 
         const QList<TaggerRuleIdentity> available{
@@ -103,20 +104,14 @@ namespace {
         reopened.load(saved.value());
         const auto resolved = TaggerRuleOrder::resolve(reopened.taggerOrder, available);
 
-        bool ok = true;
-        ok &= expect(reopened.customTaggerRules.size() == 1 &&
-                         reopened.customTaggerRules.front().name == QStringLiteral("custom-cmn") &&
-                         reopened.customTaggerRules.front().language == QStringLiteral("cmn"),
-                     QStringLiteral("custom rule name and language should survive option reopen"));
-        ok &= expect(reopened.taggerOrder == customFirst,
-                     QStringLiteral("source-qualified order keys should survive option reopen"));
-        ok &= expect(
-            resolved == QList<int>{1, 0},
-            QStringLiteral("reopened custom rule should remain before same-language builtin"));
-        return ok;
+        QCOMPARE(reopened.customTaggerRules.size(), 1);
+        QCOMPARE(reopened.customTaggerRules.front().name, QStringLiteral("custom-cmn"));
+        QCOMPARE(reopened.customTaggerRules.front().language, QStringLiteral("cmn"));
+        QCOMPARE(reopened.taggerOrder, customFirst);
+        QCOMPARE(resolved, (QList<int>{1, 0}));
     }
 
-    bool testLegacyOrderMigration() {
+    void legacyOrderMigration() {
         using namespace FillLyric;
 
         const QList<TaggerRuleIdentity> available{
@@ -127,20 +122,14 @@ namespace {
         const auto resolved = TaggerRuleOrder::resolve(legacy, available);
         const auto migrated = TaggerRuleOrder::canonicalize(legacy, available);
 
-        bool ok = true;
-        ok &= expect(
-            resolved == QList<int>{0, 1},
-            QStringLiteral("legacy duplicate language entries should retain both rule sources"));
-        ok &= expect(migrated ==
-                         QStringList{
-                             TaggerRuleOrder::key(available.at(0)),
-                             TaggerRuleOrder::key(available.at(1)),
-                         },
-                     QStringLiteral("legacy order should canonicalize to source-qualified keys"));
-        return ok;
+        QCOMPARE(resolved, (QList<int>{0, 1}));
+        QCOMPARE(migrated, (QStringList{
+                               TaggerRuleOrder::key(available.at(0)),
+                               TaggerRuleOrder::key(available.at(1)),
+                           }));
     }
 
-    bool testStableAutomationRuleIdMigration() {
+    void stableAutomationRuleIdMigration() {
         const QJsonObject legacy{
             {QStringLiteral("customSplitterRules"),
              QJsonArray{QJsonObject{
@@ -160,33 +149,39 @@ namespace {
         };
         FillLyricOption migrated;
         migrated.load(legacy);
+        QCOMPARE(migrated.customSplitterRules.size(), 1);
+        QCOMPARE(migrated.customTaggerRules.size(), 1);
         const auto splitterId = migrated.customSplitterRules.front().ruleId;
         const auto taggerId = migrated.customTaggerRules.front().ruleId;
 
         FillLyricOption reopened;
         reopened.load(migrated.value());
-        bool ok = true;
-        ok &= expect(FillLyric::isAutomationRuleId(splitterId) &&
-                         FillLyric::isAutomationRuleId(taggerId) && splitterId != taggerId,
-                     QStringLiteral("legacy custom rules should receive unique stable IDs"));
-        ok &= expect(reopened.customSplitterRules.front().ruleId == splitterId &&
-                         reopened.customTaggerRules.front().ruleId == taggerId,
-                     QStringLiteral("migrated custom rule IDs should survive persistence"));
-        ok &=
-            expect(migrated.customTaggerRules.front().name == QStringLiteral("legacy-language") &&
-                       reopened.customTaggerRules.front().name == QStringLiteral("legacy-language"),
-                   QStringLiteral("legacy tagger names should migrate and survive persistence"));
+        QCOMPARE(reopened.customSplitterRules.size(), 1);
+        QCOMPARE(reopened.customTaggerRules.size(), 1);
+        QVERIFY2(FillLyric::isAutomationRuleId(splitterId),
+                 "legacy custom rules should receive unique stable IDs");
+        QVERIFY2(FillLyric::isAutomationRuleId(taggerId),
+                 "legacy custom rules should receive unique stable IDs");
+        QVERIFY2(splitterId != taggerId, "legacy custom rules should receive unique stable IDs");
+        QCOMPARE(reopened.customSplitterRules.front().ruleId, splitterId);
+        QCOMPARE(reopened.customTaggerRules.front().ruleId, taggerId);
+        QCOMPARE(migrated.customTaggerRules.front().name, QStringLiteral("legacy-language"));
+        QCOMPARE(reopened.customTaggerRules.front().name, QStringLiteral("legacy-language"));
         const auto builtinId = FillLyric::builtinAutomationRuleId(QStringLiteral("splitter"),
                                                                   QStringLiteral("builtin"));
-        ok &= expect(builtinId == FillLyric::builtinAutomationRuleId(QStringLiteral("splitter"),
-                                                                     QStringLiteral("builtin")) &&
-                         builtinId != FillLyric::builtinAutomationRuleId(QStringLiteral("splitter"),
-                                                                         QStringLiteral("other")),
-                     QStringLiteral("built-in rule IDs should be deterministic per kind and key"));
-        return ok;
+        QCOMPARE(builtinId, FillLyric::builtinAutomationRuleId(QStringLiteral("splitter"),
+                                                               QStringLiteral("builtin")));
+        QVERIFY2(builtinId != FillLyric::builtinAutomationRuleId(QStringLiteral("splitter"),
+                                                                 QStringLiteral("other")),
+                 "built-in rule IDs should be deterministic per kind and key");
     }
 
-    bool testRuntimeOrder(const QString &configDir) {
+    void runtimeOrder() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        const auto configDir = QDir(directory.path()).filePath(QStringLiteral("tagger"));
+        QVERIFY(QDir().mkpath(configDir));
+        QVERIFY(writeBuiltinRule(configDir));
         using namespace FillLyric;
 
         const TaggerRuleIdentity builtin{
@@ -199,31 +194,34 @@ namespace {
         };
         const QList<CustomTaggerRule> customRules{customCmnRule()};
 
-        bool ok = true;
-        ok &= expect(TextTagger::init(filesystemPath(configDir), filesystemPath(configDir)),
-                     QStringLiteral("tagger test config should initialize"));
-        ok &= expect(TextTagger::setCustomRules(customRules),
-                     QStringLiteral("valid custom tagger rules should be installed"));
+        QVERIFY2(TextTagger::init(filesystemPath(configDir), filesystemPath(configDir)),
+                 "tagger test config should initialize");
+        QVERIFY2(TextTagger::setCustomRules(customRules),
+                 "valid custom tagger rules should be installed");
         TextTagger::setRuleOrder({TaggerRuleOrder::key(custom), TaggerRuleOrder::key(builtin)});
         const auto customFirstInfo = TextTagger::ruleInfoList();
-        ok &= expect(customFirstInfo.size() == 2 && !customFirstInfo.at(0).builtin &&
-                         customFirstInfo.at(1).builtin,
-                     QStringLiteral("runtime order should distinguish custom from builtin"));
-        ok &= expectTag(QStringLiteral("custom"));
+        QCOMPARE(customFirstInfo.size(), 2);
+        QVERIFY2(!customFirstInfo.at(0).builtin,
+                 "runtime order should distinguish custom from builtin");
+        QVERIFY2(customFirstInfo.at(1).builtin,
+                 "runtime order should distinguish custom from builtin");
+        QCOMPARE(runtimeTags(), (QStringList{QStringLiteral("custom")}));
 
         TextTagger::setRuleOrder({TaggerRuleOrder::key(builtin), TaggerRuleOrder::key(custom)});
-        ok &= expectTag(QStringLiteral("builtin"));
+        QCOMPARE(runtimeTags(), (QStringList{QStringLiteral("builtin")}));
 
-        ok &= expect(TextTagger::init(filesystemPath(configDir), filesystemPath(configDir)),
-                     QStringLiteral("tagger should reinitialize for legacy migration"));
-        ok &= expect(TextTagger::setCustomRules(customRules),
-                     QStringLiteral("custom tagger rules should reinstall after initialization"));
+        QVERIFY2(TextTagger::init(filesystemPath(configDir), filesystemPath(configDir)),
+                 "tagger should reinitialize for legacy migration");
+        QVERIFY2(TextTagger::setCustomRules(customRules),
+                 "custom tagger rules should reinstall after initialization");
         TextTagger::setRuleOrder({QStringLiteral("cmn"), QStringLiteral("cmn")});
         const auto legacyInfo = TextTagger::ruleInfoList();
-        ok &=
-            expect(legacyInfo.size() == 2 && legacyInfo.at(0).builtin && !legacyInfo.at(1).builtin,
-                   QStringLiteral("legacy runtime order should retain both same-language rules"));
-        ok &= expectTag(QStringLiteral("builtin"));
+        QCOMPARE(legacyInfo.size(), 2);
+        QVERIFY2(legacyInfo.at(0).builtin,
+                 "legacy runtime order should retain both same-language rules");
+        QVERIFY2(!legacyInfo.at(1).builtin,
+                 "legacy runtime order should retain both same-language rules");
+        QCOMPARE(runtimeTags(), (QStringList{QStringLiteral("builtin")}));
 
         TextTagger::setRuleOrder({TaggerRuleOrder::key(custom), TaggerRuleOrder::key(builtin)});
         auto invalidRule = customCmnRule();
@@ -234,42 +232,15 @@ namespace {
              .tag = QStringLiteral("invalid"),
              }
         };
-        ok &= expect(!TextTagger::setCustomRules({invalidRule}),
-                     QStringLiteral("missing custom dictionaries must reject the whole update"));
+        QVERIFY2(!TextTagger::setCustomRules({invalidRule}),
+                 "missing custom dictionaries must reject the whole update");
         const auto afterRejectedUpdate = TextTagger::ruleInfoList();
-        ok &= expect(
-            afterRejectedUpdate.size() == 2 && !afterRejectedUpdate.at(0).builtin &&
-                afterRejectedUpdate.at(0).entries.front().tag == QStringLiteral("custom"),
-            QStringLiteral("rejected custom rules must preserve the previous runtime rules"));
-        ok &= expectTag(QStringLiteral("custom"));
-        return ok;
-    }
-}
-
-class LyricRuleTests final : public QObject {
-    Q_OBJECT
-
-private slots:
-
-    void stableOrderPersistence() {
-        QVERIFY(testStableOrderPersistence());
-    }
-
-    void legacyOrderMigration() {
-        QVERIFY(testLegacyOrderMigration());
-    }
-
-    void stableAutomationRuleIdMigration() {
-        QVERIFY(testStableAutomationRuleIdMigration());
-    }
-
-    void runtimeOrder() {
-        QTemporaryDir directory;
-        QVERIFY(directory.isValid());
-        const auto configDir = QDir(directory.path()).filePath(QStringLiteral("tagger"));
-        QVERIFY(QDir().mkpath(configDir));
-        QVERIFY(writeBuiltinRule(configDir));
-        QVERIFY(testRuntimeOrder(configDir));
+        QCOMPARE(afterRejectedUpdate.size(), 2);
+        QVERIFY2(!afterRejectedUpdate.at(0).builtin,
+                 "rejected custom rules must preserve the previous runtime rules");
+        QCOMPARE(afterRejectedUpdate.at(0).entries.size(), 1);
+        QCOMPARE(afterRejectedUpdate.at(0).entries.front().tag, QStringLiteral("custom"));
+        QCOMPARE(runtimeTags(), (QStringList{QStringLiteral("custom")}));
     }
 
     void splitterPreservesMixedLanguageText() {

@@ -5,23 +5,20 @@
 #include <QtTest/QTest>
 
 #include <cmath>
-#include <cstdio>
+#include <memory>
+#include "../TestSupport/TestAssertions.h"
 
 namespace {
-    bool expect(const bool condition, const char *message) {
-        if (condition)
-            return true;
-        std::fprintf(stderr, "FAILED: %s\n", message);
-        return false;
-    }
 
     bool expectNear(const double actual, const double expected, const char *message,
-                    const double epsilon = 1e-6) {
-        if (std::abs(actual - expected) <= epsilon)
-            return true;
-        std::fprintf(stderr, "FAILED: %s (actual %.12f, expected %.12f)\n", message, actual,
-                     expected);
-        return false;
+                    const double epsilon = 1e-6,
+                    const std::source_location location = std::source_location::current()) {
+        return TestSupport::expect(std::abs(actual - expected) <= epsilon,
+                                   QStringLiteral("%1 (actual %2, expected %3)")
+                                       .arg(QString::fromUtf8(message))
+                                       .arg(actual, 0, 'g', 17)
+                                       .arg(expected, 0, 'g', 17),
+                                   location);
     }
 
     struct Ticks {
@@ -58,9 +55,9 @@ namespace {
         return {visibleStart - compClipStart, compClipStart, compClipLen};
     }
 
-    AudioClip *makeClip(const int start, const int clipStart, const int clipLen, const int length,
-                        const Timeline &timeline) {
-        const auto clip = new AudioClip;
+    std::unique_ptr<AudioClip> makeClip(const int start, const int clipStart, const int clipLen,
+                                        const int length, const Timeline &timeline) {
+        auto clip = std::make_unique<AudioClip>();
         clip->setStart(start);
         clip->setClipStart(clipStart);
         clip->setClipLen(clipLen);
@@ -69,10 +66,16 @@ namespace {
         return clip;
     }
 
+}
+
+class AudioAnchorTests final : public QObject {
+    Q_OBJECT
+
+private slots:
+
     // Any multi-point timeline whose points share one value must behave exactly
     // like the single-point timeline.
-    bool testDegenerateEquivalence() {
-        bool ok = true;
+    void degenerateEquivalence() {
         const Timeline single({
             {0, 120.0}
         });
@@ -85,25 +88,22 @@ namespace {
         for (const int p : positions) {
             const auto clip = makeClip(p, 240, 960, 1920, single);
             const Ticks before = ticksOf(*clip);
-            ok &= expect(!clip->updateTicksFromTruth(degenerate),
-                         "degenerate timeline leaves tick caches unchanged");
-            ok &= expect(sameTicks(before, ticksOf(*clip)),
-                         "degenerate timeline: tick caches identical");
+            QVERIFY2((!clip->updateTicksFromTruth(degenerate)),
+                     "degenerate timeline leaves tick caches unchanged");
+            QVERIFY2((sameTicks(before, ticksOf(*clip))),
+                     "degenerate timeline: tick caches identical");
             const auto tripletSingle = tripletFor(*clip, single);
             const auto tripletDegenerate = tripletFor(*clip, degenerate);
-            ok &= expect(tripletSingle.start == tripletDegenerate.start &&
-                             tripletSingle.clipStart == tripletDegenerate.clipStart &&
-                             tripletSingle.clipLen == tripletDegenerate.clipLen,
-                         "degenerate timeline: compensation triplet identical");
-            delete clip;
+            QVERIFY2((tripletSingle.start == tripletDegenerate.start &&
+                      tripletSingle.clipStart == tripletDegenerate.clipStart &&
+                      tripletSingle.clipLen == tripletDegenerate.clipLen),
+                     "degenerate timeline: compensation triplet identical");
         }
-        return ok;
     }
 
     // sync + update under the same timeline must be a no-op, including across
     // tempo change points.
-    bool testRoundTripIdentity() {
-        bool ok = true;
+    void roundTripIdentity() {
         const Timeline maps[] = {
             Timeline({{0, 120.0}}
             ),
@@ -116,20 +116,17 @@ namespace {
             for (const int p : {0, 1920, 4799, 4800, 4801, 9000}) {
                 const auto clip = makeClip(p, 480, 1920, 4800, timeline);
                 const Ticks before = ticksOf(*clip);
-                ok &= expect(!clip->updateTicksFromTruth(timeline),
-                             "same-timeline round trip changes nothing");
-                ok &= expect(sameTicks(before, ticksOf(*clip)),
-                             "same-timeline round trip: ticks identical");
-                delete clip;
+                QVERIFY2((!clip->updateTicksFromTruth(timeline)),
+                         "same-timeline round trip changes nothing");
+                QVERIFY2((sameTicks(before, ticksOf(*clip))),
+                         "same-timeline round trip: ticks identical");
             }
         }
-        return ok;
     }
 
     // A real tempo change keeps the visible start tick and the realtime truth,
     // and rescales the tick caches.
-    bool testRealTempoChange() {
-        bool ok = true;
+    void realTempoChange() {
         const Timeline at120({
             {0, 120.0}
         });
@@ -140,28 +137,24 @@ namespace {
         const auto clip = makeClip(4800, 0, 960, 960, at120);
         const double trim = clip->trimStartMs();
         const double playLen = clip->playLengthMs();
-        ok &= expectNear(playLen, 1000.0, "960 ticks at 120 BPM is 1000 ms");
+        QVERIFY(expectNear(playLen, 1000.0, "960 ticks at 120 BPM is 1000 ms"));
 
-        ok &= expect(clip->updateTicksFromTruth(at60), "tempo change reports tick changes");
-        ok &= expect(clip->start() + clip->clipStart() == 4800,
-                     "visible start tick is invariant across tempo changes");
-        ok &= expectNear(clip->trimStartMs(), trim, "trim is invariant across tempo changes");
-        ok &= expectNear(clip->playLengthMs(), playLen,
-                         "play length is invariant across tempo changes");
+        QVERIFY2((clip->updateTicksFromTruth(at60)), "tempo change reports tick changes");
+        QCOMPARE((clip->start() + clip->clipStart()), (4800));
+        QVERIFY(expectNear(clip->trimStartMs(), trim, "trim is invariant across tempo changes"));
+        QVERIFY(expectNear(clip->playLengthMs(), playLen,
+                           "play length is invariant across tempo changes"));
         // 1000 ms at 60 BPM = 480 ticks
-        ok &= expect(clip->clipLen() == 480, "1000 ms at 60 BPM derives 480 ticks");
+        QCOMPARE((clip->clipLen()), (480));
 
         // And back: caches restore exactly
-        ok &= expect(clip->updateTicksFromTruth(at120), "reverting the tempo changes ticks back");
-        ok &= expect(clip->clipLen() == 960, "reverting the tempo restores the tick caches");
-        delete clip;
-        return ok;
+        QVERIFY2((clip->updateTicksFromTruth(at120)), "reverting the tempo changes ticks back");
+        QCOMPARE((clip->clipLen()), (960));
     }
 
     // The triplet must cancel talcs' absolute conversion of clipStart: converting
     // the compensated values through the map yields the intended realtime values.
-    bool testCompensationProperty() {
-        bool ok = true;
+    void compensationProperty() {
         const Timeline timeline({
             {0,    120.0},
             {4800, 60.0 }
@@ -181,40 +174,36 @@ namespace {
         };
 
         for (const auto &c : cases) {
-            const auto clip = new AudioClip;
+            const auto clip = std::make_unique<AudioClip>();
             clip->setStart(c.p);
             clip->setClipStart(0);
             clip->setClipLen(1);
             clip->setLength(1);
             clip->setRealTimeAnchor(c.trimMs, c.playMs, c.trimMs + c.playMs);
             clip->updateTicksFromTruth(timeline);
-            ok &= expect(clip->start() + clip->clipStart() == c.p,
-                         "updateTicksFromTruth keeps the visible start");
+            QCOMPARE((clip->start() + clip->clipStart()), (c.p));
 
             const auto triplet = tripletFor(*clip, timeline);
             // Half a tick of tolerance: the talcs interface is integer ticks
             const double halfTickMs = 0.5 * (timeline.tickToMs(triplet.clipStart + 1) -
                                              timeline.tickToMs(triplet.clipStart));
             // readOffset = convertTime(clipStart') must equal the trim
-            ok &= expectNear(timeline.tickToMs(triplet.clipStart), c.trimMs,
-                             "convertTime(clipStart') equals the material trim", halfTickMs + 1e-9);
+            QVERIFY(expectNear(timeline.tickToMs(triplet.clipStart), c.trimMs,
+                               "convertTime(clipStart') equals the material trim",
+                               halfTickMs + 1e-9));
             // start' + clipStart' = P exactly
-            ok &= expect(triplet.start + triplet.clipStart == c.p,
-                         "start' + clipStart' equals the visible start tick");
+            QCOMPARE((triplet.start + triplet.clipStart), (c.p));
             // len = convertTime(P + clipLen') - convertTime(P) must equal playLength
             const double lenMs = timeline.tickToMs(c.p + triplet.clipLen) - timeline.tickToMs(c.p);
             const double halfTickEndMs = 0.5 * (timeline.tickToMs(c.p + triplet.clipLen + 1) -
                                                 timeline.tickToMs(c.p + triplet.clipLen));
-            ok &= expectNear(lenMs, c.playMs, "converted clip length equals the play length",
-                             halfTickEndMs + 1e-9);
-            delete clip;
+            QVERIFY(expectNear(lenMs, c.playMs, "converted clip length equals the play length",
+                               halfTickEndMs + 1e-9));
         }
-        return ok;
     }
 
     // Properties round trip used by the undo actions.
-    bool testPropertiesRoundTrip() {
-        bool ok = true;
+    void propertiesRoundTrip() {
         const Timeline timeline({
             {0,    120.0},
             {4800, 60.0 }
@@ -226,30 +215,27 @@ namespace {
         args.clipLen = clip->clipLen();
         args.length = clip->length();
         AudioClip::deriveTruthForProperties(args, timeline);
-        ok &= expectNear(args.trimStartMs, clip->trimStartMs(),
-                         "deriveTruthForProperties matches syncTruthFromTicks");
-        ok &= expectNear(args.playLengthMs, clip->playLengthMs(),
-                         "deriveTruthForProperties play length matches");
+        QVERIFY(expectNear(args.trimStartMs, clip->trimStartMs(),
+                           "deriveTruthForProperties matches syncTruthFromTicks"));
+        QVERIFY(expectNear(args.playLengthMs, clip->playLengthMs(),
+                           "deriveTruthForProperties play length matches"));
 
         const Ticks before = ticksOf(*clip);
         clip->applyRealTimeAnchorFromProperties(args, timeline);
-        ok &= expect(sameTicks(before, ticksOf(*clip)),
-                     "applying properties under the same timeline is a no-op");
-        delete clip;
-        return ok;
+        QVERIFY2((sameTicks(before, ticksOf(*clip))),
+                 "applying properties under the same timeline is a no-op");
     }
 
     // A pure move across a tempo boundary must keep the realtime window; only
     // the components the tick edit changed may be re-derived.
-    bool testMovePreservesTruth() {
-        bool ok = true;
+    void movePreservesTruth() {
         const Timeline timeline({
             {0,    120.0},
             {9600, 60.0 }
         });
         // Trimmed clip in the 120 BPM region: 4800 ticks of trim = 5000 ms
         const auto clip = makeClip(0, 4800, 4800, 9600, timeline);
-        ok &= expectNear(clip->trimStartMs(), 5000.0, "trim under 120 BPM is 5000 ms");
+        QVERIFY(expectNear(clip->trimStartMs(), 5000.0, "trim under 120 BPM is 5000 ms"));
 
         // Simulate the drag commit: only start changes (pure move into 60 BPM)
         Clip::ClipCommonProperties oldArgs;
@@ -268,12 +254,12 @@ namespace {
         newArgs.materialLengthMs = -1;
         AudioClip::deriveTruthForProperties(newArgs, timeline);
         AudioClip::preserveUnchangedTruth(newArgs, oldArgs);
-        ok &= expectNear(newArgs.trimStartMs, oldArgs.trimStartMs,
-                         "pure move keeps the material trim");
-        ok &= expectNear(newArgs.playLengthMs, oldArgs.playLengthMs,
-                         "pure move keeps the play length");
-        ok &= expectNear(newArgs.materialLengthMs, oldArgs.materialLengthMs,
-                         "the material duration is never re-derived by an edit");
+        QVERIFY(expectNear(newArgs.trimStartMs, oldArgs.trimStartMs,
+                           "pure move keeps the material trim"));
+        QVERIFY(expectNear(newArgs.playLengthMs, oldArgs.playLengthMs,
+                           "pure move keeps the play length"));
+        QVERIFY(expectNear(newArgs.materialLengthMs, oldArgs.materialLengthMs,
+                           "the material duration is never re-derived by an edit"));
 
         // A right trim redefines the play length but keeps the trim
         auto trimArgs = oldArgs;
@@ -283,19 +269,16 @@ namespace {
         trimArgs.materialLengthMs = -1;
         AudioClip::deriveTruthForProperties(trimArgs, timeline);
         AudioClip::preserveUnchangedTruth(trimArgs, oldArgs);
-        ok &= expectNear(trimArgs.trimStartMs, oldArgs.trimStartMs,
-                         "right trim keeps the material trim");
-        ok &= expect(std::abs(trimArgs.playLengthMs - oldArgs.playLengthMs) > 1.0,
-                     "right trim redefines the play length");
-        delete clip;
-        return ok;
+        QVERIFY(expectNear(trimArgs.trimStartMs, oldArgs.trimStartMs,
+                           "right trim keeps the material trim"));
+        QVERIFY2((std::abs(trimArgs.playLengthMs - oldArgs.playLengthMs) > 1.0),
+                 "right trim redefines the play length");
     }
 
     // The drag preview derives the tick caches from the gesture's ms truth;
     // committing the same truth through the action path must reproduce them
     // exactly (no jump on mouse release).
-    bool testDragPreviewMatchesCommit() {
-        bool ok = true;
+    void dragPreviewMatchesCommit() {
         const Timeline timeline({
             {0,    120.0},
             {4800, 60.0 },
@@ -317,10 +300,9 @@ namespace {
         for (const auto &c : cases) {
             const auto caches = AudioClip::deriveTickCaches(c.trimMs, c.playMs, c.materialMs,
                                                             c.visibleStart, timeline);
-            ok &= expect(caches.start + caches.clipStart == c.visibleStart,
-                         "preview keeps the visible start tick");
+            QCOMPARE((caches.start + caches.clipStart), (c.visibleStart));
 
-            const auto clip = new AudioClip;
+            const auto clip = std::make_unique<AudioClip>();
             clip->setStart(caches.start);
             clip->setClipStart(caches.clipStart);
             clip->setClipLen(caches.clipLen);
@@ -334,50 +316,14 @@ namespace {
             args.playLengthMs = c.playMs;
             args.materialLengthMs = c.materialMs;
             clip->applyRealTimeAnchorFromProperties(args, timeline);
-            ok &= expect(clip->start() == caches.start && clip->clipStart() == caches.clipStart &&
-                             clip->clipLen() == caches.clipLen && clip->length() == caches.length,
-                         "committing the gesture truth reproduces the preview ticks");
-            ok &= expectNear(clip->trimStartMs(), c.trimMs,
-                             "the committed trim is the gesture value, not a re-derivation");
-            ok &= expectNear(clip->playLengthMs(), c.playMs,
-                             "the committed play length is the gesture value");
-            delete clip;
+            QVERIFY2((clip->start() == caches.start && clip->clipStart() == caches.clipStart &&
+                      clip->clipLen() == caches.clipLen && clip->length() == caches.length),
+                     "committing the gesture truth reproduces the preview ticks");
+            QVERIFY(expectNear(clip->trimStartMs(), c.trimMs,
+                               "the committed trim is the gesture value, not a re-derivation"));
+            QVERIFY(expectNear(clip->playLengthMs(), c.playMs,
+                               "the committed play length is the gesture value"));
         }
-        return ok;
-    }
-}
-
-class AudioAnchorTests final : public QObject {
-    Q_OBJECT
-
-private slots:
-
-    void degenerateEquivalence() {
-        QVERIFY(testDegenerateEquivalence());
-    }
-
-    void roundTripIdentity() {
-        QVERIFY(testRoundTripIdentity());
-    }
-
-    void realTempoChange() {
-        QVERIFY(testRealTempoChange());
-    }
-
-    void compensationProperty() {
-        QVERIFY(testCompensationProperty());
-    }
-
-    void propertiesRoundTrip() {
-        QVERIFY(testPropertiesRoundTrip());
-    }
-
-    void movePreservesTruth() {
-        QVERIFY(testMovePreservesTruth());
-    }
-
-    void dragPreviewMatchesCommit() {
-        QVERIFY(testDragPreviewMatchesCommit());
     }
 };
 

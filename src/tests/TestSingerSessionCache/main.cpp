@@ -4,16 +4,7 @@
 #include <chrono>
 #include <memory>
 
-#include <QTextStream>
-
 namespace {
-    bool expect(bool condition, const char *message) {
-        if (condition) {
-            return true;
-        }
-        QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        return false;
-    }
 
     struct FakeHandle {
         explicit FakeHandle(int &destroyedCount) : destroyedCount(destroyedCount) {
@@ -63,9 +54,15 @@ namespace {
         return identifier;
     }
 
-    bool testRetainsOnlySelectedSingers() {
+}
+
+class SingerSessionCacheTests final : public QObject {
+    Q_OBJECT
+
+private slots:
+
+    void retainsOnlySelectedSingers() {
         FakeClock::reset();
-        bool ok = true;
         int creationCount = 0;
         int destroyedCount = 0;
         FakeCache cache;
@@ -83,11 +80,11 @@ namespace {
             const auto first = cache.acquire(firstIdentifier, createHandle);
             firstWeak = first;
         }
-        ok &= expect(!firstWeak.expired(), "cache retains the handle after the caller releases it");
+        QVERIFY2(!firstWeak.expired(), "cache retains the handle after the caller releases it");
 
         auto reused = cache.acquire(firstIdentifier, createHandle);
-        ok &= expect(reused == firstWeak.lock(), "a non-stale handle is reused");
-        ok &= expect(creationCount == 1, "reuse does not create another handle");
+        QCOMPARE(reused, firstWeak.lock());
+        QCOMPARE(creationCount, 1);
         reused.reset();
 
         auto second = cache.acquire(secondIdentifier, createHandle);
@@ -95,26 +92,25 @@ namespace {
         second.reset();
 
         auto releaseResult = cache.retainOnly({secondIdentifier});
-        ok &= expect(releaseResult.released == 1 && releaseResult.handles.size() == 1,
-                     "retention update transfers one released resident handle");
-        ok &= expect(!firstWeak.expired(), "transferred handle remains alive for deferred release");
+        QCOMPARE(releaseResult.released, 1);
+        QCOMPARE(releaseResult.handles.size(), 1);
+        QVERIFY2(!firstWeak.expired(), "transferred handle remains alive for deferred release");
         releaseResult.handles.clear();
-        ok &= expect(firstWeak.expired(), "a deselected singer handle is released");
-        ok &= expect(!secondWeak.expired(), "a selected singer handle remains cached");
+        QVERIFY2(firstWeak.expired(), "a deselected singer handle is released");
+        QVERIFY2(!secondWeak.expired(), "a selected singer handle remains cached");
 
         auto uncached = cache.acquire(firstIdentifier, createHandle);
         const auto uncachedWeak = std::weak_ptr<FakeHandle>(uncached);
         uncached.reset();
-        ok &= expect(uncachedWeak.expired(), "a deselected singer cannot re-enter the cache");
+        QVERIFY2(uncachedWeak.expired(), "a deselected singer cannot re-enter the cache");
 
         cache.clear();
-        ok &= expect(secondWeak.expired(), "clearing releases the remaining cached handle");
-        ok &= expect(creationCount == 3, "only the expected handles are created");
-        ok &= expect(destroyedCount == 3, "all selected and uncached handles are destroyed once");
-        return ok;
+        QVERIFY2(secondWeak.expired(), "clearing releases the remaining cached handle");
+        QCOMPARE(creationCount, 3);
+        QCOMPARE(destroyedCount, 3);
     }
 
-    bool testLatestRetainedIdentifiers() {
+    void latestRetainedIdentifiers() {
         FakeCache cache;
         const auto firstIdentifier = makeIdentifier(QStringLiteral("first"));
         const auto secondIdentifier = makeIdentifier(QStringLiteral("second"));
@@ -123,13 +119,11 @@ namespace {
         cache.retainOnly({secondIdentifier});
         cache.retainOnly({firstIdentifier});
 
-        return expect(cache.retainedIdentifiers() == QSet{firstIdentifier},
-                      "asynchronous cleanup observes the latest singer selection");
+        QCOMPARE(cache.retainedIdentifiers(), QSet{firstIdentifier});
     }
 
-    bool testActiveCallerAndStaleReplacement() {
+    void activeCallerAndStaleReplacement() {
         FakeClock::reset();
-        bool ok = true;
         int creationCount = 0;
         int destroyedCount = 0;
         FakeCache cache;
@@ -145,27 +139,24 @@ namespace {
         active->stale = true;
         const auto staleWeak = std::weak_ptr<FakeHandle>(active);
         auto replacement = cache.acquire(identifier, createHandle);
-        ok &= expect(replacement != active, "a stale handle is replaced");
-        ok &= expect(creationCount == 2, "stale replacement creates exactly one handle");
+        QVERIFY2(replacement != active, "a stale handle is replaced");
+        QCOMPARE(creationCount, 2);
         active.reset();
-        ok &= expect(staleWeak.expired(), "the displaced stale handle is released");
+        QVERIFY2(staleWeak.expired(), "the displaced stale handle is released");
 
         const auto replacementWeak = std::weak_ptr<FakeHandle>(replacement);
         auto releaseResult = cache.retainOnly({});
-        ok &= expect(releaseResult.released == 1 && releaseResult.handles.size() == 1,
-                     "retention update transfers an active deselected resident handle");
+        QCOMPARE(releaseResult.released, 1);
+        QCOMPARE(releaseResult.handles.size(), 1);
         releaseResult.handles.clear();
-        ok &= expect(!replacementWeak.expired(), "an active caller survives cache eviction");
+        QVERIFY2(!replacementWeak.expired(), "an active caller survives cache eviction");
         replacement.reset();
-        ok &=
-            expect(replacementWeak.expired(), "an evicted handle releases after its caller exits");
-        ok &= expect(destroyedCount == 2, "all handles are destroyed exactly once");
-        return ok;
+        QVERIFY2(replacementWeak.expired(), "an evicted handle releases after its caller exits");
+        QCOMPARE(destroyedCount, 2);
     }
 
-    bool testLeastRecentlyUsedEviction() {
+    void leastRecentlyUsedEviction() {
         FakeClock::reset();
-        bool ok = true;
         int creationCount = 0;
         int destroyedCount = 0;
         FakeCache cache;
@@ -195,30 +186,30 @@ namespace {
         touched.reset();
 
         auto result = cache.evict(0, std::chrono::milliseconds::zero());
-        ok &= expect(result.capacity == 0 && !firstWeak.expired() && !secondWeak.expired() &&
-                         !thirdWeak.expired(),
-                     "unlimited capacity preserves all resident handles");
+        QCOMPARE(result.capacity, 0);
+        QVERIFY2(!firstWeak.expired(), "unlimited capacity preserves all resident handles");
+        QVERIFY2(!secondWeak.expired(), "unlimited capacity preserves all resident handles");
+        QVERIFY2(!thirdWeak.expired(), "unlimited capacity preserves all resident handles");
 
         result = cache.evict(2, std::chrono::milliseconds::zero());
-        ok &= expect(result.capacity == 1 && result.idle == 0 && result.handles.size() == 1,
-                     "capacity scan transfers one LRU handle for deferred release");
-        ok &= expect(!secondWeak.expired(), "transferred LRU handle remains alive until released");
+        QCOMPARE(result.capacity, 1);
+        QCOMPARE(result.idle, 0);
+        QCOMPARE(result.handles.size(), 1);
+        QVERIFY2(!secondWeak.expired(), "transferred LRU handle remains alive until released");
         result.handles.clear();
-        ok &= expect(!firstWeak.expired(), "recently reused handle remains cached");
-        ok &= expect(secondWeak.expired(), "least recently used handle is released");
-        ok &= expect(!thirdWeak.expired(), "newer handle remains cached");
-        ok &= expect(creationCount == 3, "LRU scan does not create handles");
+        QVERIFY2(!firstWeak.expired(), "recently reused handle remains cached");
+        QVERIFY2(secondWeak.expired(), "least recently used handle is released");
+        QVERIFY2(!thirdWeak.expired(), "newer handle remains cached");
+        QCOMPARE(creationCount, 3);
 
         cache.clear();
-        ok &= expect(firstWeak.expired() && thirdWeak.expired(),
-                     "clearing releases the remaining LRU entries");
-        ok &= expect(destroyedCount == 3, "all LRU handles are destroyed exactly once");
-        return ok;
+        QVERIFY2(firstWeak.expired(), "clearing releases the remaining LRU entries");
+        QVERIFY2(thirdWeak.expired(), "clearing releases the remaining LRU entries");
+        QCOMPARE(destroyedCount, 3);
     }
 
-    bool testIdleEvictionAndActiveReuse() {
+    void idleEvictionAndActiveReuse() {
         FakeClock::reset();
-        bool ok = true;
         int creationCount = 0;
         int destroyedCount = 0;
         FakeCache cache;
@@ -235,61 +226,35 @@ namespace {
         handle.reset();
         FakeClock::advance(std::chrono::milliseconds(59));
         auto result = cache.evict(8, std::chrono::milliseconds(60));
-        ok &= expect(result.idle == 0 && !weak.expired(),
-                     "handle remains resident before the idle timeout");
+        QCOMPARE(result.idle, 0);
+        QVERIFY2(!weak.expired(), "handle remains resident before the idle timeout");
 
         FakeClock::advance(std::chrono::milliseconds(1));
         result = cache.evict(8, std::chrono::milliseconds(60));
-        ok &= expect(result.idle == 1 && result.handles.size() == 1 && !weak.expired(),
-                     "idle scan transfers the expired handle for deferred release");
+        QCOMPARE(result.idle, 1);
+        QCOMPARE(result.handles.size(), 1);
+        QVERIFY2(!weak.expired(), "idle scan transfers the expired handle for deferred release");
         result.handles.clear();
-        ok &= expect(result.idle == 1 && weak.expired(), "idle handle is released at the timeout");
+        QCOMPARE(result.idle, 1);
+        QVERIFY2(weak.expired(), "idle handle is released at the timeout");
 
         auto active = cache.acquire(identifier, createHandle);
         const auto activeWeak = std::weak_ptr<FakeHandle>(active);
         FakeClock::advance(std::chrono::milliseconds(60));
         result = cache.evict(8, std::chrono::milliseconds(60));
-        ok &= expect(result.handles.size() == 1,
-                     "active idle handle is transferred for deferred release");
+        QCOMPARE(result.handles.size(), 1);
         result.handles.clear();
-        ok &= expect(result.idle == 1 && !activeWeak.expired(),
-                     "an active caller survives idle eviction");
+        QCOMPARE(result.idle, 1);
+        QVERIFY2(!activeWeak.expired(), "an active caller survives idle eviction");
         auto reused = cache.acquire(identifier, createHandle);
-        ok &= expect(reused == active, "an active evicted handle is promoted instead of recreated");
-        ok &= expect(creationCount == 2, "idle promotion avoids duplicate handle creation");
+        QCOMPARE(reused, active);
+        QCOMPARE(creationCount, 2);
 
         active.reset();
         reused.reset();
         cache.clear();
-        ok &= expect(activeWeak.expired(), "promoted handle releases when the cache is cleared");
-        ok &= expect(destroyedCount == 2, "all idle-test handles are destroyed exactly once");
-        return ok;
-    }
-}
-
-class SingerSessionCacheTests final : public QObject {
-    Q_OBJECT
-
-private slots:
-
-    void retainsOnlySelectedSingers() {
-        QVERIFY(testRetainsOnlySelectedSingers());
-    }
-
-    void latestRetainedIdentifiers() {
-        QVERIFY(testLatestRetainedIdentifiers());
-    }
-
-    void activeCallerAndStaleReplacement() {
-        QVERIFY(testActiveCallerAndStaleReplacement());
-    }
-
-    void leastRecentlyUsedEviction() {
-        QVERIFY(testLeastRecentlyUsedEviction());
-    }
-
-    void idleEvictionAndActiveReuse() {
-        QVERIFY(testIdleEvictionAndActiveReuse());
+        QVERIFY2(activeWeak.expired(), "promoted handle releases when the cache is cleared");
+        QCOMPARE(destroyedCount, 2);
     }
 };
 

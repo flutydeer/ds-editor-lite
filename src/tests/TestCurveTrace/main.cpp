@@ -9,19 +9,14 @@
 
 #include <QCoreApplication>
 #include <QtTest/QTest>
+#include "../TestSupport/TestAssertions.h"
 #include <QScopeGuard>
-#include <QTextStream>
 
 #include <algorithm>
 
 namespace {
 
-    void expect(const bool condition, const char *message) {
-        if (condition)
-            return;
-        QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        QTest::qFail(message, __FILE__, __LINE__);
-    }
+    using TestSupport::expect;
 
     DrawCurve *curve(const int start, const QList<int> &values) {
         auto *result = new DrawCurve;

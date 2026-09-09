@@ -10,9 +10,9 @@
 
 #include <QCoreApplication>
 #include <QtTest/QTest>
+#include "../TestSupport/TestAssertions.h"
 #include <QJsonDocument>
 #include <QScopeGuard>
-#include <QTextStream>
 
 #include <limits>
 #include <optional>
@@ -26,12 +26,7 @@ namespace {
     using Automation::TrackId;
     using AutomationTestSupport::TestRuntime;
 
-    void expect(const bool condition, const QString &message) {
-        if (condition)
-            return;
-        QTest::qFail(qPrintable(message), __FILE__, __LINE__);
-        QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-    }
+    using TestSupport::expect;
 
     CommandContext commandContext(const CoreRuntime &runtime) {
         return {

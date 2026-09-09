@@ -13,17 +13,13 @@
 
 #include <QCoreApplication>
 #include <QtTest/QTest>
+#include "../TestSupport/TestAssertions.h"
 #include <QTextStream>
 
 namespace {
 
 
-    void expect(const bool condition, const char *message) {
-        if (condition)
-            return;
-        QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        QTest::qFail(message, __FILE__, __LINE__);
-    }
+    using TestSupport::expect;
 
     PhonemeName phone(const char *name, const bool onset) {
         PhonemeName result;

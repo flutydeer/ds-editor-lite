@@ -13,11 +13,11 @@
 
 #include <QCoreApplication>
 #include <QtTest/QTest>
+#include "../TestSupport/TestAssertions.h"
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QTemporaryDir>
-#include <QTextStream>
 
 #include <functional>
 #include <limits>
@@ -29,12 +29,7 @@
 namespace {
 
 
-    void expect(const bool condition, const QString &message) {
-        if (condition)
-            return;
-        QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        QTest::qFail(qPrintable(message), __FILE__, __LINE__);
-    }
+    using TestSupport::expect;
 
     bool writeFile(const QString &path, const QByteArray &data) {
         QFile file(path);

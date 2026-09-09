@@ -1,10 +1,15 @@
 #include <QtTest/QTest>
 #include <memory>
 #include "Controller/EditorViewController.h"
+#include "Controller/UndoRedoController.h"
+#include "Model/AppStatus/AppStatus.h"
+#include <lite/History/ActionSequence.h>
 #include "Interface/IEditorView.h"
 #include "AppContext.h"
 #include "Interface/IPanel.h"
 #include "TestRuntime.h"
+#include <lite/History/HistoryManager.h>
+#include "../TestSupport/TestAssertions.h"
 
 #include <QCoreApplication>
 #include <QEvent>
@@ -24,6 +29,21 @@ EditorViewController *AppContext::instance<EditorViewController>() {
 }
 
 template <>
+UndoRedoController *AppContext::instance<UndoRedoController>() {
+    return nullptr;
+}
+
+template <>
+HistoryManager *AppContext::instance<HistoryManager>() {
+    return nullptr;
+}
+
+template <>
+AppStatus *AppContext::instance<AppStatus>() {
+    return nullptr;
+}
+
+template <>
 Automation::CoreRuntime *AppContext::instance<Automation::CoreRuntime>() {
     return g_runtime;
 }
@@ -31,13 +51,7 @@ Automation::CoreRuntime *AppContext::instance<Automation::CoreRuntime>() {
 namespace {
 
 
-    bool expect(const bool condition, const char *message) {
-        if (condition)
-            return true;
-        QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        QTest::qFail(message, __FILE__, __LINE__);
-        return false;
-    }
+    using TestSupport::expect;
 
     bool validState(const EditorViewState &state) {
         const auto finite = [](const double value) { return std::isfinite(value); };
@@ -65,6 +79,7 @@ namespace {
         int previewCount = 0;
         int previewColorIndex = -1;
         HistoryFocusVisibility nextFocusVisibility = HistoryFocusVisibility::Visible;
+        bool revealResult = true;
         int focusVisibilityCount = 0;
         int revealFocusCount = 0;
         int finalizeFocusCount = 0;
@@ -244,7 +259,7 @@ namespace {
         bool revealFocus(const HistoryFocus &focus) override {
             Q_UNUSED(focus);
             ++revealFocusCount;
-            return true;
+            return revealResult;
         }
 
         bool finalizeFocus(const HistoryFocus &focus) override {
@@ -737,23 +752,200 @@ namespace {
         controller->setActivePanel(AppGlobal::TracksEditor);
     }
 
+    class CounterAction final : public IAction {
+    public:
+        explicit CounterAction(int *value) : m_value(value) {
+        }
+
+        void execute() override {
+            ++*m_value;
+        }
+
+        void undo() override {
+            --*m_value;
+        }
+
+    private:
+        int *m_value;
+    };
+
+    class TestSequence final : public ActionSequence {
+    public:
+        TestSequence(int *value, const bool withFocus) {
+            addAction(new CounterAction(value));
+            setName(QStringLiteral("Test action"));
+            if (withFocus) {
+                HistoryFocus focus;
+                focus.kind = HistoryFocusKind::TrackClips;
+                focus.objectIds = {42};
+                focus.tickStart = 100;
+                focus.tickEnd = 200;
+                focus.valueStart = 1;
+                focus.valueEnd = 1;
+                setFocusTransition({focus, focus});
+            }
+        }
+    };
+
+    void reset(FakeEditorView &view) {
+        historyManager->reset();
+        appStatus->currentEditObject = AppStatus::EditObjectType::None;
+        view.nextFocusVisibility = HistoryFocusVisibility::Visible;
+        view.revealResult = true;
+        view.focusVisibilityCount = 0;
+        view.revealFocusCount = 0;
+        view.finalizeFocusCount = 0;
+        view.clearFocusPreviewCount = 0;
+    }
+
+    TestSequence *recordAction(int &value, const bool withFocus = true) {
+        auto *sequence = new TestSequence(&value, withFocus);
+        sequence->execute();
+        historyManager->record(sequence);
+        return sequence;
+    }
+
+    void testVisibleExecutesImmediately(FakeEditorView &view) {
+        reset(view);
+        int value = 0;
+        const auto sequence = recordAction(value);
+        expect(sequence->historyId() != 0, "record must assign a stable history ID");
+        undoRedoController->requestUndo();
+        expect(value == 0, "visible focus must undo immediately");
+        expect(view.revealFocusCount == 0 && view.finalizeFocusCount == 1,
+               "visible focus must skip preview and finalize the result");
+    }
+
+    void testScrollRequiredExecutesOnSecondRequest(FakeEditorView &view) {
+        reset(view);
+        int value = 0;
+        recordAction(value);
+        view.nextFocusVisibility = HistoryFocusVisibility::ScrollRequired;
+        undoRedoController->requestUndo();
+        expect(value == 1 && historyManager->canUndo(),
+               "first hidden request must not mutate the model or stack");
+        expect(view.revealFocusCount == 1, "first hidden request must reveal the focus");
+
+        undoRedoController->requestUndo();
+        expect(value == 0 && historyManager->canRedo(),
+               "second matching request must execute while scrolling is still in progress");
+        expect(view.revealFocusCount == 1 && view.finalizeFocusCount == 1 && view.clearFocusPreviewCount == 1,
+               "executing a pending request must clear preview and finalize focus");
+    }
+
+    void testRedoUsesTwoPhases(FakeEditorView &view) {
+        reset(view);
+        int value = 0;
+        recordAction(value);
+        undoRedoController->requestUndo();
+        expect(value == 0 && historyManager->canRedo(), "test setup must create a redo entry");
+
+        view.nextFocusVisibility = HistoryFocusVisibility::ScrollRequired;
+        undoRedoController->requestRedo();
+        expect(value == 0 && view.revealFocusCount == 1,
+               "first hidden redo request must only reveal the before focus");
+        undoRedoController->requestRedo();
+        expect(value == 1 && view.finalizeFocusCount == 2,
+               "second matching redo request must execute before scrolling completes");
+    }
+
+    void testContextSwitchExecutesOnSecondRequest(FakeEditorView &view) {
+        reset(view);
+        int value = 0;
+        recordAction(value);
+        view.nextFocusVisibility = HistoryFocusVisibility::ContextSwitchRequired;
+        undoRedoController->requestUndo();
+        expect(value == 1 && view.revealFocusCount == 1,
+               "first context-switch request must only navigate");
+
+        undoRedoController->requestUndo();
+        expect(value == 0 && view.revealFocusCount == 1 && view.finalizeFocusCount == 1,
+               "second context-switch request must execute without navigating again");
+    }
+
+    void testDirectionChangeClearsPending(FakeEditorView &view) {
+        reset(view);
+        int value = 0;
+        recordAction(value);
+        view.nextFocusVisibility = HistoryFocusVisibility::ScrollRequired;
+        undoRedoController->requestUndo();
+        undoRedoController->requestRedo();
+        expect(view.clearFocusPreviewCount == 1, "changing direction must clear pending navigation");
+        view.nextFocusVisibility = HistoryFocusVisibility::Visible;
+        undoRedoController->requestUndo();
+        expect(value == 0, "request after direction change must be evaluated afresh");
+    }
+
+    void testHistoryChangeInvalidatesPending(FakeEditorView &view) {
+        reset(view);
+        int value = 0;
+        recordAction(value);
+        view.nextFocusVisibility = HistoryFocusVisibility::ScrollRequired;
+        undoRedoController->requestUndo();
+        recordAction(value);
+        expect(view.clearFocusPreviewCount == 1, "recording a new entry must invalidate pending navigation");
+        view.nextFocusVisibility = HistoryFocusVisibility::Visible;
+        undoRedoController->requestUndo();
+        expect(value == 1,
+               "the new stack top must execute instead of the previously pending entry");
+    }
+
+    void testFallbacksAndEditGuard(FakeEditorView &view) {
+        reset(view);
+        int value = 0;
+        recordAction(value, false);
+        undoRedoController->requestUndo();
+        expect(value == 0, "history without focus metadata must remain one-step undo");
+
+        reset(view);
+        value = 0;
+        recordAction(value);
+        view.nextFocusVisibility = HistoryFocusVisibility::Unavailable;
+        undoRedoController->requestUndo();
+        expect(value == 0, "unavailable focus navigation must fall back to direct undo");
+
+        reset(view);
+        value = 0;
+        recordAction(value);
+        view.nextFocusVisibility = HistoryFocusVisibility::ScrollRequired;
+        view.revealResult = false;
+        undoRedoController->requestUndo();
+        expect(value == 0, "failed focus navigation must not block undo");
+
+        reset(view);
+        value = 0;
+        recordAction(value);
+        view.nextFocusVisibility = HistoryFocusVisibility::ContextSwitchRequired;
+        appStatus->currentEditObject = AppStatus::EditObjectType::Note;
+        undoRedoController->requestUndo();
+        expect(value == 1 && view.revealFocusCount == 0,
+               "an active edit transaction must neither navigate nor execute");
+        appStatus->currentEditObject = AppStatus::EditObjectType::None;
+    }
+
 } // namespace
 
-class EditorViewControllerTests final : public QObject {
+class EditorControllerTests final : public QObject {
     Q_OBJECT
 
 private slots:
 
     void init() {
+        view = std::make_unique<FakeEditorView>();
+        g_editorHost = view.get();
         runtime = std::make_unique<AutomationTestSupport::TestRuntime>(
             AutomationTestSupport::editorServices(&g_editorHost));
         g_runtime = &runtime->runtime();
+        editorViewController->setView(view.get());
+        appStatus->currentEditObject = AppStatus::EditObjectType::None;
     }
 
     void cleanup() {
         bindEditorView(editorViewController, nullptr);
         g_runtime = nullptr;
         runtime.reset();
+        view.reset();
+        historyManager->reset();
     }
 
     void noView() {
@@ -785,9 +977,38 @@ private slots:
     }
 
 
+    void visibleExecutesImmediately() {
+        testVisibleExecutesImmediately(*view);
+    }
+
+    void scrollRequiredExecutesOnSecondRequest() {
+        testScrollRequiredExecutesOnSecondRequest(*view);
+    }
+
+    void redoUsesTwoPhases() {
+        testRedoUsesTwoPhases(*view);
+    }
+
+    void contextSwitchExecutesOnSecondRequest() {
+        testContextSwitchExecutesOnSecondRequest(*view);
+    }
+
+    void directionChangeClearsPending() {
+        testDirectionChangeClearsPending(*view);
+    }
+
+    void historyChangeInvalidatesPending() {
+        testHistoryChangeInvalidatesPending(*view);
+    }
+
+    void fallbacksAndEditGuard() {
+        testFallbacksAndEditGuard(*view);
+    }
+
 private:
+    std::unique_ptr<FakeEditorView> view;
     std::unique_ptr<AutomationTestSupport::TestRuntime> runtime;
 };
 
-QTEST_GUILESS_MAIN(EditorViewControllerTests)
+QTEST_GUILESS_MAIN(EditorControllerTests)
 #include "main.moc"

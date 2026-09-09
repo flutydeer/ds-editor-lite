@@ -1,4 +1,5 @@
 #include <QtTest/QTest>
+#include "../TestSupport/TestAssertions.h"
 #include "UI/Dialogs/Base/DialogTitleBar.h"
 
 #include <lite/GUI/Animation/IAnimatable.h>
@@ -11,19 +12,12 @@
 #include <QApplication>
 #include <QGraphicsOpacityEffect>
 #include <QScreen>
-#include <QTextStream>
 #include <QVariantAnimation>
 
 namespace {
 
 
-    bool expect(const bool condition, const char *message) {
-        if (condition)
-            return true;
-        QTextStream(stderr) << "FAILED: " << message << Qt::endl;
-        QTest::qFail(message, __FILE__, __LINE__);
-        return false;
-    }
+    using TestSupport::expect;
 
     class AnimationProbe final : public IAnimatable {
     public:
