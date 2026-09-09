@@ -46,15 +46,19 @@ Windows wrapper 将本地结果写到 `build/test-results`；直接 CTest 可加
 
 原生桌面用例包括 `TestAnimationSettings` 和 `TestOverlaySplitter`，由 local preset 自动执行；具体集合以 CTest 的 `native` 标签为准。可用 offscreen 的 GUI 组件不需要声库或音频设备。
 
-真实声库用例为 `TestHeadlessResources`：设置 `DSEL_TEST_VOICEBANK_ROOT`、`DSEL_TEST_LANGUAGE`、`DSEL_TEST_LYRIC`，多音源时再指定 `DSEL_TEST_SINGER_ID`。用例固定 CPU，创建短音符，完成推理及 WAV 导出并检查可解码、有限样本和非零能量。未设置声库根时明确跳过；配置后的失败为失败，不自动扫描个人声库。
+真实声库用例为 `TestHeadlessResources`：设置 `DSEL_TEST_VOICEBANK_ROOT`、`DSEL_TEST_LANGUAGE`、`DSEL_TEST_LYRIC`，多音源时再指定 `DSEL_TEST_SINGER_ID`。用例固定 CPU、关闭自动推理，创建带显式语言的短音符；通过可观察的模型目标就绪条件等待 G2P/分段，再手动启动推理并等待任务成功终态，随后导出 WAV，检查可解码、有限样本和非零能量。无需播放设备。未设置声库根时明确跳过；配置后的失败为失败，不自动扫描个人声库。
 
-`TestApplicationWorkflows` 属于通用 workflow 集合，共用隔离的 Headless AppContext。推理用例构造实际任务快照并调用完成门控，关闭自动推理且不调度这些任务；离线导出用例验证混音器原先打开或关闭两种状态的恢复。fixture 关闭自己持有的音频设备，通用用例不依赖声库输出或物理设备；实际模型执行由上述资源用例负责。
+`TestApplicationWorkflows` 属于通用 workflow 集合，共用隔离的 Headless AppContext。结果门控用例构造未调度的实际任务快照；队列重启回归则受控暂停真实 duration worker，验证旧任务取消清理和替换任务终态，并通过生产状态组件检查手动声学许可及完成后恢复策略。离线导出用例验证混音器原先打开或关闭两种状态的恢复。fixture 关闭自己持有的音频设备，通用用例不依赖声库输出或物理设备；实际模型执行由上述资源用例负责。
 
 `TestHeadlessProcessIntegration::audioImportAndWaveExport` 使用生成的小型 WAV，经过实际 Editor 导入和导出任务，再用 libsndfile 解码验证；归入通用进程集合，不需要配置声库或音频设备。
+
+`TestApplicationGui` 共用应用与数据隔离环境，钢琴窗、轨道、参数曲线和导出配置分别在所属源文件中建立实际控件。按测试程序或 slot 定向执行即可，不另设 GUI 通用 runner；原生桌面条件和实验后端范围见[测试大纲](test-outline.md)。
 
 ## 4. 隔离与清理
 
 每个进程 fixture 使用独立配置和数据根、访问根及临时素材；单实例服务名从实际数据根派生。只管理测试创建的进程。成功清理，失败保留沙箱位置、stdout/stderr 与退出事实。等待有截止时间，任务竞态优先受控触发，保留必要资源锁。
+
+CTest 注册同时由程序超时派生 `QTEST_FUNCTION_TIMEOUT`，避免 Qt Test 默认的五分钟 watchdog 在较长资源工作流完成内部失败处理前直接终止进程。任务自身的截止时间仍然有效；不通过延长推理等待来处理卡住的队列。
 
 重启场景的源进程将 stdout/stderr 写入沙箱内文件，使脱离原 QProcess 生命周期的替代进程继承有效输出目标；仍检查新进程身份、参数、服务就绪和退出。
 
@@ -86,6 +90,20 @@ build/ci/coverage-env/bin/gcovr --config scripts/ci/gcovr.cfg \
 ```
 
 Windows MSVC 常规测试不需要 gcovr。每次独立采样应使用干净的覆盖构建目录，或先删除该目录内旧 `.gcda`，避免累计历史执行结果。CI 每次重新构建，不缓存 CMake 构建目录。
+
+Windows 原生覆盖率使用 Visual Studio 的 `Microsoft.CodeCoverage.Console.exe`。先通过标准 wrapper 构建独立 `coverage` preset；该构建提供 `/PROFILE` 和调试符号，并关闭 Edit and Continue。采集时使用静态插桩，避免启动阶段的动态插桩干扰进程测试超时。在可调用 CTest 的开发者终端中执行，`$collector` 指向所安装 Visual Studio 的覆盖率工具：
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode ConfigureAndBuild -Preset coverage
+python scripts/tests/collect-msvc-coverage.py --collector $collector --output build/test-results/msvc-baseline -- -LE resources
+
+$env:DSEL_TEST_VOICEBANK_ROOT = "C:/Voicebanks/Example"
+$env:DSEL_TEST_LANGUAGE = "cmn"
+$env:DSEL_TEST_LYRIC = "la"
+python scripts/tests/collect-msvc-coverage.py --collector $collector --output build/test-results/msvc-full
+```
+
+声库路径、语言和歌词须与本机资源匹配，多音源时同样指定 `DSEL_TEST_SINGER_ID`。CTest 未在 PATH 时可用 `--ctest` 提供路径。每轮使用新的输出目录；脚本保留原始 `.coverage`、Cobertura、源码行去重 CSV、JUnit 和完整测试日志，并传播执行失败。比较无资源与全量集合时使用同一构建，按源码行并集合并各程序中的重复记录，检查分母和实际执行结果。Microsoft 原生报告不提供与 GCC 对等的分支覆盖，不采用其占位的分支百分比。
 
 CI 同时保存 HTML、JSON、文本及 gcovr 原生逐文件 CSV，并将 `files.csv` 输出到 workflow 文本日志。大型 artifact 下载受阻时，可直接从该轮日志读取逐文件行/分支统计，仍以同一受测版本为准；这些是本期测试产物，不生成或自动改写阶段文档。
 
