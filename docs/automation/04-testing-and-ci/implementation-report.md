@@ -20,7 +20,7 @@
 
 纯实验入口 AnchoredCurve、NewStyle、OpenGLWidget、ParamEdit、StateMachine、InsertTable、Cascader 已移除。ElasticAnimation 改为直接验证生产 ElasticAnimator，SingerMenuDisplay 合并入 TwoLevelComboBox；有效回归的具体去向见[覆盖矩阵](test-coverage-matrix.md)。
 
-首次 Linux coverage 指出了整片段剪贴板、歌词拆分和推理完成门控未执行，以及已有音符交互覆盖不足。本轮新增 `TestInferenceWorkflow`，将 `TestFillLyricTaggerOrder` 按共同职责改名为 `TestLyricRules`，并扩展现有 NoteTransfer 和 GUI 目标。整片段参数遗漏与歌词空匹配重复文字修复、生产源码共享已提交为 `16d4ffa9`。三个领域/工作流目标通过 Windows 工作树定向验证；该工作树还包含待提交运行时修复，完整候选及 Linux 结果仍待验证。
+首次 Linux coverage 指出了整片段剪贴板、歌词拆分和推理完成门控未执行，以及已有音符交互覆盖不足。本轮新增 `TestInferenceWorkflow`，将 `TestFillLyricTaggerOrder` 按共同职责改名为 `TestLyricRules`，并扩展现有 NoteTransfer 和 GUI 目标。整片段参数遗漏与歌词空匹配重复文字修复、生产源码共享已提交为 `16d4ffa9`。新增领域、工作流和 GUI 用例均已通过 Windows 全量及后续 Linux 执行。
 
 ## 3. 跨平台基础设施
 
@@ -30,7 +30,9 @@ CMake 最低版本统一为 3.24，以支持测试 preset 和环境路径修改�
 
 `ProcessFixture` 为每个场景创建临时数据根、配置、访问根及素材，只管理自身启动的进程。成功自动清理，失败保留进程参数、退出码、协议与 stdout/stderr。应用的配置、日志、缓存和单实例身份复用统一数据路径；`DSEL_TEST_DATA_ROOT` 仅在测试构建生效，不增加产品 CLI 或公开自动化工具。
 
-Linux 首次完整执行暴露了 stdio 测试硬编码 `.exe`、公开播放失败弹出模态对话框和重启替代进程未就绪。当前改动通过 CMake target 提供可执行路径，只允许 TrustedGui 调用弹出设备错误提示，并为重启保留独立输出文件。复查同时补齐非 Windows 的替代进程存活/所有权/清理实现。播放及 GUI 补测提交为 `607fc7e9`，跨平台进程修复提交为 `3cb55146`；Linux 结果待验证。
+Linux 首次完整执行暴露了 stdio 测试硬编码 `.exe`、公开播放失败弹出模态对话框和重启替代进程未就绪。改动通过 CMake target 提供可执行路径，只允许 TrustedGui 调用弹出设备错误提示，并为重启保留独立输出文件。复查同时补齐非 Windows 的替代进程存活/所有权/清理实现。播放及 GUI 补测提交为 `607fc7e9`，跨平台进程修复提交为 `3cb55146`；后续 Linux MCP、Headless 及 GUI 用例通过。stdio 阻塞接收端由 `bf72a3bb` 改为跨平台替身，已在 Linux 通过。
+
+空缓存轮次另外出现跨 Host 退出请求在响应返回前连接关闭。受控大响应回归在 Windows 复现 HTTP worker 直接销毁 socket 丢失响应的问题；`aa673b5a` 改为有序断开并在全部连接共享的 2 秒上限内排空，再释放服务器。修后 HTTP、MCP 进程、Headless 及跨 Host 定向通过，原响应断言保留；Linux 验证继续执行。
 
 新增资源用例通过显式配置声库完成实际 CPU 推理和 WAV 导出，检查输出可解码、样本有限且有能量。未提供资源明确跳过；配置后失败按失败处理。当前还没有真实声库运行结果，不能据此宣称模型或音频设备通过。
 
@@ -42,7 +44,9 @@ Linux 首次完整执行暴露了 stdio 测试硬编码 `.exe`、公开播放失
 
 GCC/gcov 对 Debug 测试构建插桩，gcovr 汇总 `src/app`、`src/connector`、`src/libs`、`src/tools` 的行和分支覆盖。报告排除测试、第三方和生成文件，不设百分比门槛；按功能域查看未执行行为，决定必要补测。原生平台和设备未运行范围单独记录。
 
-已取得首轮真实覆盖率，来源为 PR head `59aa9cd0` 的失败候选：完整 Linux 构建成功，67 项测试中 64 项通过、3 项失败。采样数值和各域缺口集中在[测试报告](test-report.md)，不将该轮统计或当前补测代码作为最终通过证据。
+已取得真实覆盖率：首轮 PR head `59aa9cd0` 为 64/67 项通过，补测后 `6407433f` 为 67/68 项通过，空缓存 `bf72a3bb` 同为 67/68 项通过但失败转为跨 Host 退出响应。各轮均完成完整 Linux 构建及 coverage。行覆盖由 46.9% 升至 48.8%，分支覆盖由 38.3% 升至 40.0%，四处重点缺口均获得实际执行证据。准确分母、文件变化及未执行范围集中在[测试报告](test-report.md)，仍需在全部通过的候选完成最终验证。
+
+`bf72a3bb` 的空缓存运行完成 Qt 下载、全部 vcpkg 依赖源码构建、完整应用/测试构建及 coverage，并保存新的 Qt 和 vcpkg 缓存。该轮测试仍有一项失败，因此只确认冷依赖路径成功，不将整个空缓存验收记为通过。
 
 ## 5. 设计取舍及偏差
 
@@ -56,4 +60,4 @@ GCC/gcov 对 Debug 测试构建插桩，gcovr 汇总 `src/app`、`src/connector`
 
 ## 6. 遗留与验收状态
 
-Windows `3cb55146` 完整构建通过，71 项 CTest 中 70 项通过、1 项声库资源测试明确跳过，耗时 56.63 秒；新增 InferenceWorkflow、歌词、剪贴板和 GUI 场景均纳入全量执行。此前 `59aa9cd0` 的 Linux 完整构建及首次覆盖率采样完成，仍有 3 项测试失败。当前候选的 Linux、空缓存/命中缓存验证和完整覆盖率待执行。PR 保持 Draft，尚未进入最终 bot 审查。
+Windows `f73d6c9c` 完整构建通过，71 项 CTest 中 70 项通过、1 项声库资源测试明确跳过，耗时 57.38 秒。退出响应丢失已完成受控修前失败与修后通过验证，正常读取和不读取客户端场景均通过。最终候选的 Linux 完整空缓存及正常缓存命中验证继续执行；此前冷依赖路径和完整构建通过，但测试发现的退出竞争仍需以新候选确认。PR 保持 Draft，尚未进入最终 bot 审查。
