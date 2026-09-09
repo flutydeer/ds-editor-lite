@@ -35,7 +35,6 @@
 #include <Modules/Audio/AudioSystem.h>
 #include <Modules/Audio/subsystem/OutputSystem.h>
 #include <Modules/Audio/AudioSettings.h>
-#include <Modules/Audio/TrackSynthesizer.h>
 
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/AppModel/LoopSettings.h>
@@ -254,9 +253,6 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
 
 AudioContext::~AudioContext() {
     playbackController->setPlaybackStartGuard({});
-    for (const auto trackSynthesizer : m_trackSynthDict.values()) {
-        delete trackSynthesizer;
-    }
     m_instance = nullptr;
 }
 
