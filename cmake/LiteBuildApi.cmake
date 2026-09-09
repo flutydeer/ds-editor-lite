@@ -200,7 +200,6 @@ function(lite_deploy_application _target)
                     "$<TARGET_BUNDLE_CONTENT_DIR:${_target}>/Frameworks/ffmpeg-builds"
                 COMMAND bash "${LITE_SOURCE_DIR}/scripts/deploy_macos.sh"
                     "${_deploy_tool}" "$<TARGET_BUNDLE_DIR:${_target}>"
-                    "$<TARGET_FILE_DIR:FFmpeg::avcodec>/ffmpeg-builds"
                 COMMENT "Deploy and sign macOS runtime dependencies"
                 VERBATIM
             )
