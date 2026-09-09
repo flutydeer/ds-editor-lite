@@ -737,6 +737,11 @@ namespace {
         bool start() {
             if (!storage.isValid() || !ProcessFixture::writeWaveFixture(audioPath) ||
                 !storage.writeConfig({
+                    {QStringLiteral("general"),
+                     QJsonObject{{QStringLiteral("packageSearchPaths"), QJsonArray{}}}            },
+                    {QStringLiteral("inference"),
+                     QJsonObject{{QStringLiteral("executionProvider"), QStringLiteral("CPU")},
+                                 {QStringLiteral("autoStartInfer"), false}}                       },
                     {QStringLiteral("audio"),
                      QJsonObject{
                          {QStringLiteral("deviceName"), QStringLiteral("configured-only-device")}}},

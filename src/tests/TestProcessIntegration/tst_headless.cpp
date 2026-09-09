@@ -519,6 +519,11 @@ namespace {
             if (!storage.isValid())
                 return fail(QStringLiteral("Could not create the headless-test sandbox"));
             if (!storage.writeConfig({
+                    {QStringLiteral("general"),
+                     QJsonObject{{QStringLiteral("packageSearchPaths"), QJsonArray{}}}       },
+                    {QStringLiteral("inference"),
+                     QJsonObject{{QStringLiteral("executionProvider"), QStringLiteral("CPU")},
+                                 {QStringLiteral("autoStartInfer"), false}}                  },
                     {QStringLiteral("automation"),
                      QJsonObject{{QStringLiteral("accessRoots"), QJsonArray{storage.path()}}}}
             }))
@@ -2085,8 +2090,15 @@ void ProcessIntegrationTests::isolatedPrimaries() {
     ProcessFixture second(QStringLiteral("headless-second-primary"));
     QVERIFY(first.isValid());
     QVERIFY(second.isValid());
-    QVERIFY(first.writeConfig({}));
-    QVERIFY(second.writeConfig({}));
+    const QJsonObject configuration{
+        {QStringLiteral("general"),
+         QJsonObject{{QStringLiteral("packageSearchPaths"), QJsonArray{}}}},
+        {QStringLiteral("inference"),
+         QJsonObject{{QStringLiteral("executionProvider"), QStringLiteral("CPU")},
+                     {QStringLiteral("autoStartInfer"), false}}           },
+    };
+    QVERIFY(first.writeConfig(configuration));
+    QVERIFY(second.writeConfig(configuration));
     QTcpServer firstReservation;
     QTcpServer secondReservation;
     QVERIFY(firstReservation.listen(QHostAddress::LocalHost, 0));
