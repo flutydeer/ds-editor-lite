@@ -58,6 +58,7 @@ private slots:
     void resizingANotePreviewsAndCommitsItsBoundary();
     void speakerMixSelectionAndDrag_data();
     void speakerMixSelectionAndDrag();
+    void speakerMixPresetsFollowSaveSelectAndDeleteInputs();
     void cleanup();
     void cleanupTestCase();
 
