@@ -60,6 +60,7 @@
   },
   "vcpkg-configuration": {
     "overlay-ports": [
+      "../vcpkg-project/ports",
       "../vcpkg/ports"
     ],
     "overlay-triplets": [
