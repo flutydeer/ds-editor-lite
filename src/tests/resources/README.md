@@ -6,7 +6,8 @@
 
 - 歌手：`fixture`；声线：`clear`、`soft`，具有不同的四维 embedding。
 - 语言：`cmn`、`eng`；默认歌词：`la`。
-- 私有 ChainG2P 字典将中文 `la` 转为 `la`，英语 `la` 转为 `l aa`；S2P 分别通过
+- 私有 ChainG2P 字典将中文 `la` 或 `啦` 转为 `la`，英语 `la` 转为 `l aa`；中文默认
+  用例使用 `啦` 验证 UTF-8 输入。S2P 分别通过
   字典和直接音素路径得到 `l a`、`l aa`，使用包内的小型起音规则和音素表。
 - Duration、Pitch、Variance、Acoustic、Vocoder 均有可执行的 ONNX 图，三个预测阶段
   使用各自的语言编码器。张量的音素、音符、帧和采样点长度随实际输入变化。

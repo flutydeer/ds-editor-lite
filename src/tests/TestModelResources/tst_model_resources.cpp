@@ -32,6 +32,7 @@ namespace {
         bool call(const QString &operation, const QJsonObject &arguments, QJsonObject &result,
                   int timeoutMs = 5000) {
             error.clear();
+            errorCode.clear();
             result = {};
             const auto id = QString::number(++sequence);
             const auto request = TestSupport::nativeRequest(id, operation, arguments);
@@ -50,6 +51,12 @@ namespace {
             TestSupport::recordProcessMessage(editor, "response", bytes);
             if (response->contains(QStringLiteral("error")) ||
                 !response->value(QStringLiteral("result")).isObject()) {
+                errorCode = response->value(QStringLiteral("error"))
+                                .toObject()
+                                .value(QStringLiteral("data"))
+                                .toObject()
+                                .value(QStringLiteral("code"))
+                                .toString();
                 error = operation + QStringLiteral(": ") + QString::fromUtf8(bytes);
                 return false;
             }
@@ -73,22 +80,30 @@ namespace {
         }
 
         bool mutate(const QString &operation, QJsonObject arguments, QJsonObject &result) {
-            QJsonObject current;
-            if (!call(QStringLiteral("documents.get"),
-                      {
-                          {QStringLiteral("document_id"), documentId}
-            },
-                      current))
-                return false;
-            const auto document = current.value(QStringLiteral("document")).toObject();
-            if (!document.value(QStringLiteral("revision")).isDouble()) {
-                error = QStringLiteral("documents.get did not return a revision");
-                return false;
+            for (int attempt = 0; attempt < 4; ++attempt) {
+                QJsonObject current;
+                if (!call(QStringLiteral("documents.get"),
+                          {
+                              {QStringLiteral("document_id"), documentId}
+                },
+                          current))
+                    return false;
+                const auto document = current.value(QStringLiteral("document")).toObject();
+                if (!document.value(QStringLiteral("revision")).isDouble()) {
+                    error = QStringLiteral("documents.get did not return a revision");
+                    return false;
+                }
+                arguments.insert(QStringLiteral("document_id"), documentId);
+                arguments.insert(QStringLiteral("expected_revision"),
+                                 document.value(QStringLiteral("revision")));
+                if (call(operation, arguments, result))
+                    return true;
+                // Background inference may commit between requests. A rejected precondition
+                // guarantees that this command was not applied; other failures are not retried.
+                if (errorCode != QStringLiteral("revision_conflict"))
+                    return false;
             }
-            arguments.insert(QStringLiteral("document_id"), documentId);
-            arguments.insert(QStringLiteral("expected_revision"),
-                             document.value(QStringLiteral("revision")));
-            return call(operation, arguments, result);
+            return false;
         }
 
         bool waitForInferenceModel(const QJsonObject &scope) {
@@ -159,6 +174,7 @@ namespace {
         QProcess &editor;
         QUrl endpoint;
         QNetworkAccessManager manager;
+        QString errorCode;
         int sequence = 0;
     };
 
@@ -227,7 +243,7 @@ private slots:
         QTest::addColumn<QString>("speakerId");
         if (TestSupport::usingBundledVoicebank()) {
             QTest::newRow("mandarin-clear")
-                << QStringLiteral("cmn") << QStringLiteral("la") << QStringLiteral("clear");
+                << QStringLiteral("cmn") << QStringLiteral("啦") << QStringLiteral("clear");
             QTest::newRow("english-soft")
                 << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("soft");
         } else {
