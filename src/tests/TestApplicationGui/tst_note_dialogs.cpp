@@ -5,6 +5,7 @@
 #include "Controller/AppController.h"
 #include "Controller/ClipController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
+#include "Controller/TrackController.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Dialogs/Note/PhonemeEditorDialog.h"
@@ -227,6 +228,7 @@ void ApplicationGuiTests::lyricSearchNavigatesTheActualEditorAndHandlesNoMatches
     const auto clearWindow = qScopeGuard([&] {
         documentWorkflowController->setUi(nullptr);
         appController->setMainWindow(nullptr);
+        trackController->setParentWidget(nullptr);
         Dialog::setGlobalContext(nullptr);
         Toast::setGlobalContext(nullptr);
     });

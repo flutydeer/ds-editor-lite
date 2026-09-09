@@ -59,6 +59,8 @@ private slots:
     void speakerMixSelectionAndDrag_data();
     void speakerMixSelectionAndDrag();
     void speakerMixPresetsFollowSaveSelectAndDeleteInputs();
+    void packageSearchShowsTheSelectedPackageDetails();
+    void missingAudioResourceRelinkCanBeCanceledAndCommitted();
     void cleanup();
     void cleanupTestCase();
 

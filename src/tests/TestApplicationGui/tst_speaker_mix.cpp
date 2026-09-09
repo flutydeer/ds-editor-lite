@@ -14,6 +14,7 @@
 #include <QJsonArray>
 #include <QSignalSpy>
 #include <QApplication>
+#include <QAbstractItemView>
 #include <QComboBox>
 #include <QInputDialog>
 #include <QLineEdit>
@@ -208,12 +209,14 @@ void ApplicationGuiTests::speakerMixPresetsFollowSaveSelectAndDeleteInputs() {
     QTRY_VERIFY(presets->isVisible());
     QCOMPARE(presets->currentData().toString(), savedId);
     QTest::mouseClick(presets, Qt::LeftButton);
-    QTest::keyClick(presets, Qt::Key_Home);
-    QTest::keyClick(presets, Qt::Key_Return);
+    QTRY_VERIFY(presets->view()->isVisible());
+    QTest::keyClick(presets->view(), Qt::Key_Home);
+    QTest::keyClick(presets->view(), Qt::Key_Return);
     QCOMPARE(presets->currentIndex(), 0);
     QTest::mouseClick(presets, Qt::LeftButton);
-    QTest::keyClick(presets, Qt::Key_End);
-    QTest::keyClick(presets, Qt::Key_Return);
+    QTRY_VERIFY(presets->view()->isVisible());
+    QTest::keyClick(presets->view(), Qt::Key_End);
+    QTest::keyClick(presets->view(), Qt::Key_Return);
     QCOMPARE(presets->currentData().toString(), savedId);
     QCOMPARE(list->getLabels().size(), 3);
     QCOMPARE(list->getValues(), QVector<int>({34, 33, 33}));
