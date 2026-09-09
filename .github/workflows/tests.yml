@@ -106,8 +106,10 @@ jobs:
             --html-nested build/test-results/coverage/index.html \
             --json build/test-results/coverage/coverage.json \
             --json-summary build/test-results/coverage/summary.json \
+            --csv build/test-results/coverage/files.csv \
             --txt build/test-results/coverage/lines.txt \
             --print-summary 2>&1 | tee build/test-results/coverage.log
+          cat build/test-results/coverage/files.csv
       - name: Test diagnostics
         if: always()
         uses: actions/upload-artifact@v7
