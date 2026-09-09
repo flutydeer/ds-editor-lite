@@ -35,6 +35,10 @@ private slots:
     void drawingCommitsOnceAndUndoRedoUpdatesTheScene();
     void draggingExistingNoteCommitsOrCancels_data();
     void draggingExistingNoteCommitsOrCancels();
+    void trackClipDragCommitsOrCancels_data();
+    void trackClipDragCommitsOrCancels();
+    void parameterStrokeCommitsOnceAndUndoRestoresView();
+    void escapeCancelsParameterStrokeWithoutChangingDocument();
     void exportFormatUpdatesFileNamePreview();
     void exportSourcesAndMixingUpdateFilePlan();
     void canceledExportConfigurationDoesNotPersist();

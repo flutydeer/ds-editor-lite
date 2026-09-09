@@ -4,6 +4,8 @@ lite_add_test(${PROJECT_NAME} SOURCES
     main.cpp
     ApplicationGuiTests.h
     PianoRoll.cpp
+    TrackEditing.cpp
+    ParameterEditing.cpp
     AudioExport.cpp
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE EditorRuntime)
