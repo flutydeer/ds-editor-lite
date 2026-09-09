@@ -16,6 +16,7 @@ private slots:
     void progressAndTapTempoLevels();
     void toolTipImmediateCompletion();
     void toolTipAnchorScreenClamping();
+    void rhiNoteDrawingCommitsAndUndoUpdatesInteraction();
 };
 
 #endif
