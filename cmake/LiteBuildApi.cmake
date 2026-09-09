@@ -137,6 +137,15 @@ function(lite_deploy_application _target)
             COMMENT "Deploy Qt"
         )
     elseif(_deploy_tool AND APPLE)
+        find_package(ffmpeg-builds CONFIG REQUIRED)
+        # macdeployqt does not copy FFmpeg's private @loader_path dependencies.
+        add_custom_command(TARGET ${_target} POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_directory
+                "$<TARGET_FILE_DIR:FFmpeg::avcodec>/ffmpeg-builds"
+                "$<TARGET_BUNDLE_CONTENT_DIR:${_target}>/Frameworks/ffmpeg-builds"
+            COMMENT "Deploy FFmpeg private libraries"
+            VERBATIM
+        )
         add_custom_command(TARGET ${_target} POST_BUILD
             COMMAND "${_deploy_tool}"
                 "$<TARGET_BUNDLE_DIR:${_target}>"
