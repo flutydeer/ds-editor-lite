@@ -52,7 +52,7 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: build/ci/vcpkg-cache
-          key: linux-qt${{ env.QT_VERSION }}-${{ hashFiles('scripts/ci/bootstrap-linux.sh', 'scripts/vcpkg-manifest/**', 'scripts/vcpkg-overrides/**', 'scripts/vcpkg/ports/**', 'scripts/vcpkg/triplets/**') }}
+          key: linux-qt${{ env.QT_VERSION }}-${{ hashFiles('scripts/ci/bootstrap-linux.sh', 'scripts/vcpkg-manifest/**', 'scripts/vcpkg/ports/**', 'scripts/vcpkg/triplets/**') }}
           restore-keys: linux-qt${{ env.QT_VERSION }}-
       - name: Build dependencies
         id: dependencies
