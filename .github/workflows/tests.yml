@@ -77,12 +77,16 @@ jobs:
           aqtsource: ${{ runner.os == 'Windows' && 'git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b' || '' }}
           modules: 'qt5compat qtshadertools qtscxml qthttpserver qtwebsockets'
           cache: true
+      - name: Dependency cache environment
+        id: cache-environment
+        run: printf 'image=%s-%s\n' "${ImageOS:?}" "${ImageVersion:?}" >> "$GITHUB_OUTPUT"
       - name: Restore dependency packages
         id: packages
         uses: actions/cache/restore@v6
         with:
           path: build/ci/vcpkg-cache
-          key: ${{ runner.os == 'Linux' && 'linux' || matrix.triplet }}-qt${{ env.QT_VERSION }}-${{ hashFiles('scripts/ci/bootstrap-vcpkg.py', 'scripts/vcpkg-manifest/**', 'scripts/vcpkg/ports/**', 'scripts/vcpkg/triplets/**') }}
+          # Image changes can require new compiler or SDK ABIs even with an unchanged manifest.
+          key: ${{ runner.os == 'Linux' && 'linux' || matrix.triplet }}-qt${{ env.QT_VERSION }}-${{ steps.cache-environment.outputs.image }}-${{ hashFiles('scripts/ci/bootstrap-vcpkg.py', 'scripts/vcpkg-manifest/**', 'scripts/vcpkg/ports/**', 'scripts/vcpkg/triplets/**') }}
           restore-keys: ${{ runner.os == 'Linux' && 'linux' || matrix.triplet }}-qt${{ env.QT_VERSION }}-
       - name: Build dependencies
         id: dependencies
