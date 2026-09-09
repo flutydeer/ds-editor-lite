@@ -160,7 +160,14 @@ void NativeDesktopTests::rhiNoteDrawingCommitsAndUndoUpdatesInteraction() {
     QTRY_VERIFY(submitted.size() > beforeCommitFrame || !backendError.isEmpty());
     QVERIFY2(backendError.isEmpty(), qPrintable(backendError));
     canvas.setEditMode(ClipEditorGlobal::Select);
-    QVERIFY(runtime.facade().setSelectedNotes(command(), Automation::ClipId(clip->id()), {}));
+    QVERIFY(runtime.windowId());
+    const Automation::GuiDocumentCommandContext selectionContext{
+        .documentId = runtime.documentVersion().documentId,
+        .expectedRevision = runtime.documentVersion().revision,
+        .windowId = *runtime.windowId(),
+        .source = Automation::InvocationSource::Test};
+    QVERIFY(
+        runtime.facade().setSelectedNotes(selectionContext, Automation::ClipId(clip->id()), {}));
     QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, pointForTick(720));
     QCOMPARE(appStatus->selectedNotes.get(), QList<int>{noteId});
 
