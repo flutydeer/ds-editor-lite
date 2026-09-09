@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <atomic>
 #include <barrier>
+#include <memory>
 #include <thread>
 
 namespace {
@@ -74,6 +75,15 @@ void AutomationRuntimeTests::taskManagerStateBoundaries() {
     QVERIFY2((tasks.markRunning(task.taskId) && !tasks.markRunning(task.taskId)),
              "Queued must enter Running exactly once");
 
+    auto canceledResources = std::make_shared<int>(0);
+    const std::weak_ptr<int> canceledResourcesLifetime = canceledResources;
+    QVERIFY(tasks.setUnsuccessfulCallback(
+        task.taskId, [canceledResources](const auto &) { ++*canceledResources; }));
+    QVERIFY(tasks.setTerminalCallback(
+        task.taskId, [canceledResources](const auto &) { ++*canceledResources; }));
+    canceledResources.reset();
+    QVERIFY(!canceledResourcesLifetime.expired());
+
     const auto firstCancel = tasks.requestCancel(base.documentId, task.taskId);
     const auto repeatedCancel = tasks.requestCancel(base.documentId, task.taskId);
     QVERIFY2((firstCancel && repeatedCancel &&
@@ -88,6 +98,8 @@ void AutomationRuntimeTests::taskManagerStateBoundaries() {
               canceled.get().state == Automation::AutomationTaskState::Canceled &&
               !canceled.get().cancelable && isTerminal(canceled.get().state)),
              "CancelRequested must beat beginCommitting and end as Canceled");
+    QVERIFY2(canceledResourcesLifetime.expired(),
+             "retained canceled task history must release completion callback resources");
     QVERIFY2((!tasks.cancel(task.taskId) &&
               !tasks.fail(task.taskId, Automation::AutomationError{}) &&
               !tasks.succeed(task.taskId, successfulMutation(base))),
@@ -155,6 +167,14 @@ void AutomationRuntimeTests::applicationTaskScope() {
              "application cancellation must be idempotent and win before commit");
 
     const auto succeededTask = tasks.createApplicationTask(QStringLiteral("packages.refresh"));
+    auto succeededResources = std::make_shared<int>(0);
+    const std::weak_ptr<int> succeededResourcesLifetime = succeededResources;
+    QVERIFY(tasks.setUnsuccessfulCallback(
+        succeededTask.taskId, [succeededResources](const auto &) { ++*succeededResources; }));
+    QVERIFY(tasks.setTerminalCallback(
+        succeededTask.taskId, [succeededResources](const auto &) { ++*succeededResources; }));
+    succeededResources.reset();
+    QVERIFY(!succeededResourcesLifetime.expired());
     const auto running = tasks.markRunning(succeededTask.taskId);
     const auto committing = tasks.beginCommitting(succeededTask.taskId);
     QVERIFY2((running && committing && committing.get() &&
@@ -165,6 +185,8 @@ void AutomationRuntimeTests::applicationTaskScope() {
                       {QStringLiteral("removed"), 1}
     })),
              "application tasks must support one successful application result");
+    QVERIFY2(succeededResourcesLifetime.expired(),
+             "retained successful task history must release completion callback resources");
     tasks.discardDocumentGeneration(document.documentId);
     const auto succeeded = tasks.getApplication(succeededTask.taskId);
     QVERIFY2((succeeded && succeeded.get().state == Automation::AutomationTaskState::Succeeded &&

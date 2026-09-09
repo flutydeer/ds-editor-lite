@@ -501,6 +501,7 @@ namespace {
 
     void verifyAdvancedApplicationBindings(Automation::PublicAutomationRegistry &registry,
                                            Automation::CoreRuntime &runtime,
+                                           Automation::AdmissionController &admission,
                                            const QString &builtinLyricRuleId,
                                            const QString &customLyricRuleId,
                                            PackageRefreshTestControl &refreshControl) {
@@ -698,8 +699,9 @@ namespace {
                QStringLiteral("package refresh must reject unsupported validate-only input"));
         const auto refresh = invokeSchemaValid(registry, QStringLiteral("packages.refresh"), {},
                                                QStringLiteral("package refresh"));
-        const auto taskId =
-            refresh ? refresh->value(QStringLiteral("task_id")).toString() : QString();
+        if (!refresh)
+            return;
+        const auto taskId = refresh->value(QStringLiteral("task_id")).toString();
         const QJsonObject applicationTask{
             {QStringLiteral("scope"),   QStringLiteral("application")},
             {QStringLiteral("task_id"), taskId                       },
@@ -782,9 +784,10 @@ namespace {
         const auto cancelableRefresh =
             invokeSchemaValid(registry, QStringLiteral("packages.refresh"), {},
                               QStringLiteral("cancelable package refresh"));
+        if (!cancelableRefresh)
+            return;
         const auto cancelableTaskId =
-            cancelableRefresh ? cancelableRefresh->value(QStringLiteral("task_id")).toString()
-                              : QString();
+            cancelableRefresh->value(QStringLiteral("task_id")).toString();
         const QJsonObject cancelableTask{
             {QStringLiteral("scope"),   QStringLiteral("application")},
             {QStringLiteral("task_id"), cancelableTaskId             },
@@ -807,15 +810,16 @@ namespace {
                    !canceledTask->contains(QStringLiteral("application_result")),
                QStringLiteral(
                    "packages.refresh cancellation must close its commit gate before publication"));
+        QCOMPARE(admission.snapshot().backgroundTasks, 0);
 
         refreshControl.failNext = true;
         const auto failedRefresh = invokeSchemaValid(registry, QStringLiteral("packages.refresh"),
                                                      {}, QStringLiteral("failed package refresh"));
+        if (!failedRefresh)
+            return;
         const QJsonObject failedTaskInput{
-            {QStringLiteral("scope"),   QStringLiteral("application")},
-            {QStringLiteral("task_id"),
-             failedRefresh ? failedRefresh->value(QStringLiteral("task_id")).toString()
-                           : QString()                               },
+            {QStringLiteral("scope"),   QStringLiteral("application")                          },
+            {QStringLiteral("task_id"), failedRefresh->value(QStringLiteral("task_id")).toString()},
         };
         const auto failedTask =
             invokeSchemaValid(registry, QStringLiteral("tasks.get"), failedTaskInput,
@@ -943,6 +947,7 @@ namespace {
 
     void verifyMidiExportPublicationGate(Automation::PublicAutomationRegistry &registry,
                                          Automation::CoreRuntime &runtime,
+                                         Automation::AdmissionController &admission,
                                          const QString &directoryPath,
                                          MidiExportTestControl &control) {
         const auto document = runtime.documentVersion();
@@ -982,12 +987,15 @@ namespace {
         const bool canceledWorkerFinished = waitUntil([&] {
             const auto snapshot =
                 runtime.automationTasks().get(document.documentId, canceledTaskId);
-            return snapshot && snapshot.get().state == Automation::AutomationTaskState::Canceled;
+            return snapshot && snapshot.get().state == Automation::AutomationTaskState::Canceled &&
+                   admission.snapshot().backgroundTasks == 0;
         });
+        QVERIFY2(canceledWorkerFinished,
+                 "MIDI cancellation must finish terminal callbacks and release admission");
         const auto canceledSnapshot =
             runtime.automationTasks().get(document.documentId, canceledTaskId);
         expect(
-            cancellationAccepted && canceledWorkerFinished && canceledSnapshot &&
+            cancellationAccepted && canceledSnapshot &&
                 canceledSnapshot.get().state == Automation::AutomationTaskState::Canceled &&
                 !QFileInfo::exists(canceledPath),
             QStringLiteral("MIDI cancellation during rendering must win before final publication"));
@@ -2411,7 +2419,8 @@ void AutomationProtocolTests::routing() {
         return;
     }
     if (scenario == QStringLiteral("midiPublicationGate")) {
-        verifyMidiExportPublicationGate(registry, runtime, directory.path(), *midiExportControl);
+        verifyMidiExportPublicationGate(registry, runtime, admission, directory.path(),
+                                       *midiExportControl);
         return;
     }
     if (scenario == QStringLiteral("savePolicy")) {
@@ -2419,8 +2428,8 @@ void AutomationProtocolTests::routing() {
         return;
     }
     if (scenario == QStringLiteral("advancedApplication")) {
-        verifyAdvancedApplicationBindings(registry, runtime, builtinLyricRuleId, customLyricRuleId,
-                                          *packageRefreshControl);
+        verifyAdvancedApplicationBindings(registry, runtime, admission, builtinLyricRuleId,
+                                          customLyricRuleId, *packageRefreshControl);
         return;
     }
     if (scenario == QStringLiteral("packageRefreshLifetime")) {
