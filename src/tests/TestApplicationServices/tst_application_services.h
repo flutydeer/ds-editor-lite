@@ -1,0 +1,72 @@
+#pragma once
+
+#include <QObject>
+
+class ApplicationServicesTests final : public QObject {
+    Q_OBJECT
+
+private slots:
+    void applicationInfoSnapshot();
+    void terminationPreviewAndPolicies();
+    void terminationHostErrors();
+    void headlessHostCapabilities();
+    void unavailableApplicationHost();
+    void unavailablePlaybackHost();
+    void unavailableEditorHost();
+    void unavailableSettingsHost();
+    void unavailablePackagesHost();
+    void unavailablePresetsHost();
+    void playbackSnapshotAndDocumentIdentity();
+    void playbackTransitionsAreTransient();
+    void playbackStartFailuresPreserveState();
+    void playbackPositionsPreviewAndCommit();
+    void playbackLoopMutationsAndValidation();
+    void playbackCommandGuards();
+    void playbackControlsDuringDocumentWorkflow();
+    void editorPreferencesPreserveDocument();
+    void editorSelectionAndSnapshots();
+    void editorSelectionRoutingErrors();
+    void editorRevealAndRangeFallback();
+    void lyricRuleSnapshotAndPreview();
+    void lyricRuleCreation_data();
+    void lyricRuleCreation();
+    void lyricRuleRename_data();
+    void lyricRuleRename();
+    void lyricRuleEnableAndOrder();
+    void invalidLyricRuleEdits_data();
+    void invalidLyricRuleEdits();
+    void lyricRuleDeletion_data();
+    void lyricRuleDeletion();
+    void lyricRuleHostValidationFailure();
+    void lyricRuleTestDelegatesWithoutMutation();
+    void settingsPathProjection();
+    void sparseSettingsUpdatesPreserveOtherValues();
+    void sparseSettingsPreviewAndFailure();
+    void packageVersionAndPathProjection();
+    void packageRefreshPreviewAndResultProjection();
+    void editorViewCommands_data();
+    void editorViewCommands();
+    void unavailableEditorView();
+    void settingsQuerySnapshot();
+    void generalSettings();
+    void appearanceSettings();
+    void inferenceSettings();
+    void developerSettings();
+    void g2pLanguageSettings();
+    void fillLyricSettings();
+    void windowSettings();
+    void audioSettings();
+    void recentFiles();
+    void invalidLyricRulesDoNotPersist();
+    void packageSearchPaths();
+    void packages();
+    void speakerMixPresets();
+    void inferenceMatrix_data();
+    void inferenceMatrix();
+    void inferenceValidationBoundaries();
+    void audioClipDomain();
+    void documentAndImportDomains();
+    void formatsAndMidiExport();
+    void audioExportAndTaskList();
+    void extractionDomains();
+};

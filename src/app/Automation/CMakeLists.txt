@@ -10,6 +10,8 @@ add_library(EditorAutomationCore STATIC
     ApplicationAutomationFacade.cpp
     AudioExportAutomationFacade.cpp
     AutomationTypes.cpp
+    Public/AdmissionController.cpp
+    Public/AutomationFileGuard.cpp
     AutomationTaskManager.cpp
     IdempotencyStore.cpp
     DocumentSession.cpp
@@ -45,6 +47,7 @@ add_library(EditorAutomationCore STATIC
     ../Controller/Actions/AppModel/TimeSignature/EditTimeSignaturesAction.cpp
     ../Controller/Actions/AppModel/TimeSignature/TimeSignatureActions.cpp
     ../Model/AppModel/SingingClipPhonemeNormalizer.cpp
+    ../Model/Utils/ParamUtils.cpp
     ../Model/ClipboardDataModel/ClipsInfo.cpp
     ../Model/ClipboardDataModel/NotesParamsInfo.cpp
     ../Model/ClipboardDataModel/ParameterCurvesJson.cpp
@@ -57,6 +60,12 @@ add_library(EditorAutomationCore STATIC
     ../UI/Views/ClipEditor/DrawCurveEditUtils.cpp
     ../UI/Views/ClipEditor/CurveTransform/CurveTransformSession.cpp
     ../UI/Views/ClipEditor/AnchorEditor/AnchorEditUtils.cpp
+    ../UI/Views/ClipEditor/AnchorEditor/AnchorEditController.cpp
+    ../UI/Views/ClipEditor/CurveRenderUtils.cpp
+    ../UI/Views/ClipEditor/PianoRoll/PitchDisplayStrategy.cpp
+    ../Controller/PianoRollNoteCommit.cpp
+    ../UI/Utils/OverlappingHandleResolver.cpp
+    ../UI/Utils/SpeakerMixUtils.cpp
     ${_edit_action_sources}
 )
 set_target_properties(EditorAutomationCore PROPERTIES AUTOMOC ON)

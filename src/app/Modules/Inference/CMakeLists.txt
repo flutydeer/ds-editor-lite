@@ -2,6 +2,12 @@ add_library(EditorInferenceCore STATIC
     Tasks/InferTaskCommon.cpp
     Models/GenericInferModel.cpp
     Models/SpeakerMixValidator.cpp
+    Models/InferInputNote.cpp
+    Tasks/Syllabification.cpp
+    Utils/InferTaskHelper.cpp
+    Utils/PitchRouting.cpp
+    Utils/BasePitchCurve.cpp
+    Utils/InferCacheUtils.cpp
 )
 target_include_directories(EditorInferenceCore PUBLIC "${PROJECT_SOURCE_DIR}")
 target_compile_features(EditorInferenceCore PUBLIC cxx_std_20)

@@ -1,0 +1,76 @@
+#pragma once
+
+#include <QObject>
+
+class ParametersTests final : public QObject {
+    Q_OBJECT
+
+private slots:
+    void paramResampleInterpolatesAndClampsEndpoints();
+    void paramResampleTempoAwareFrames();
+    void paramResampleToneShiftPreservesUnvoicedSamples();
+    void paramResampleVocoderPitchInterpolation();
+    void paramSupportSupportFollowsSynthesisPath();
+    void paramSupportVarianceBackedParameters();
+    void paramSupportEditToolVisibilityFollowsParameterType();
+    void paramSupportUnknownCapabilitiesAreConservative();
+    void paramSupportKnownEmptyCapabilities();
+    void paramSupportIndependentCapabilitySources();
+    void paramSupportPromptStateResetsForEveryProjectOpen();
+    void curveTraceSingleClickAndOneSampleInterval_data();
+    void curveTraceSingleClickAndOneSampleInterval();
+    void curveTraceShortestValidStrokes_data();
+    void curveTraceShortestValidStrokes();
+    void curveTraceSparseFastStroke_data();
+    void curveTraceSparseFastStroke();
+    void curveTraceExistingCurveOverwrite_data();
+    void curveTraceExistingCurveOverwrite();
+    void curveTraceImportedCurveGridAlignment_data();
+    void curveTraceImportedCurveGridAlignment();
+    void curveTraceEraserRangeRegression_data();
+    void curveTraceEraserRangeRegression();
+    void curveTraceGeneratedGapsStaySeparate();
+    void curveTraceEmptyGeneratedCurveIsNoOp();
+    void curveTraceGeneratedSegmentWaitsForNextStroke();
+    void curveTraceUndoRedo_data();
+    void curveTraceUndoRedo();
+    void curveTransformMappings();
+    void curveTransformSelectionDirectionAndPartitions();
+    void curveTransformExplicitRange();
+    void curveTransformShouldersAndBoundaries();
+    void curveTransformShapeAndScale();
+    void curveTransformScaleMappingsAndSessionPhases();
+    void curveTransformOutOfRangeParamSamples();
+    void curveTransformPitchAndEditedOnlySource();
+    void curveTransformNonSampleStepEditedCurve();
+    void curveTransformFineEditedSamplesOutsideTransformArePreserved();
+    void curveTransformSingleSampleEditedRemaindersArePreserved();
+    void curveTransformCompleteSampleIntervals();
+    void curveTransformIncompleteFineSampleCellIsExcluded();
+    void curveTransformMismatchedSamplePhasesAreAligned();
+    void curveTransformBasePitchRestKeys();
+    void anchorEditControllerLoadOwnsCopies();
+    void anchorEditControllerCreateAndPublishingReentry();
+    void anchorEditControllerProvisionalAnchorExitDiscardsWithoutPublishing();
+    void anchorEditControllerCreateClearsOverlappingPreview();
+    void anchorEditControllerDragCancelRestoresSnapshot();
+    void anchorEditControllerSelectionDeleteAndInterpolation();
+    void anchorEditControllerSwitchingAwayFromProvisionalAllowsCommit();
+    void anchorEditControllerDeleteToOneRemovesWholeCurve();
+    void anchorEditControllerKeyboardCommands();
+    void anchorEditControllerCompositionPreservesOtherCurveKind();
+    void anchorEditControllerCompositionPreservesExistingSinglePointDrawCurves();
+    void anchorEditControllerCompositionRejectsIncompleteAnchorCurves();
+    void anchorEditControllerSelectionAndLastNodeMenu();
+    void anchorEditControllerBoundaryClippingAndRejectedMutation();
+    void anchorEditControllerTransferAndMerge();
+    void anchorEditControllerCallbackOrder();
+    void anchorEditControllerAnchorSamplesOverrideDrawOnlyInTheirInterval();
+    void anchorEditControllerAnchorSamplingDoesNotExtrapolateBeforeFirstNode();
+    void pitchDisplayStrategyDisplayModeMapping();
+    void pitchDisplayStrategyPitchEditModeClassification();
+    void pitchDisplayStrategyDisplayLayers();
+    void pitchDisplayStrategyAnchorCoverage();
+    void pitchDisplayStrategyCurveSampling();
+    void pitchDisplayStrategyMergedCurveCache();
+};

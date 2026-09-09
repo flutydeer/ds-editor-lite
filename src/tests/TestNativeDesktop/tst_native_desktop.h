@@ -1,0 +1,21 @@
+#ifndef NATIVEDESKTOPTESTS_H
+#define NATIVEDESKTOPTESTS_H
+
+#include <QObject>
+
+class NativeDesktopTests final : public QObject {
+    Q_OBJECT
+
+private slots:
+    void visibilityAndCollapsedPane();
+    void reparentAndDestructionKeepGripOwnership();
+    void dragGrip_data();
+    void dragGrip();
+    void effectiveDurationPolicy();
+    void dialogTitleBarRuntimeUpdate();
+    void progressAndTapTempoLevels();
+    void toolTipImmediateCompletion();
+    void toolTipAnchorScreenClamping();
+};
+
+#endif

@@ -11,11 +11,17 @@
 
 #include <QApplication>
 #include <QCoreApplication>
+#include <QResource>
 #include <QStyleFactory>
+
+static void initializeResources() {
+    Q_INIT_RESOURCE(lite_res);
+}
 
 namespace AppEnvironment {
 
     void preInit(const AppHostMode hostMode) {
+        initializeResources();
         ApplicationLocale::initialize();
 
         // output log to file

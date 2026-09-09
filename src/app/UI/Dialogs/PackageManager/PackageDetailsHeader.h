@@ -1,9 +1,9 @@
 #ifndef DS_EDITOR_LITE_PACKAGEDETAILSHEADER_H
 #define DS_EDITOR_LITE_PACKAGEDETAILSHEADER_H
 
+#include <lite/PackageManager/Models/PackageInfo.h>
 #include <QWidget>
 
-class PackageInfo;
 class Button;
 class QLabel;
 

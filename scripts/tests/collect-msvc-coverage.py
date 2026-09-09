@@ -2,6 +2,7 @@
 
 import argparse
 import csv
+import json
 import os
 from pathlib import Path
 import re
@@ -68,7 +69,26 @@ def main():
     coverage = ET.SubElement(config, "CodeCoverage")
     modules = ET.SubElement(coverage, "ModulePaths")
     include = ET.SubElement(modules, "Include")
-    ET.SubElement(include, "ModulePath").text = path_pattern(build) + r"[\\/].*\.exe$"
+    discovered = subprocess.check_output(
+        [args.ctest, "--test-dir", str(build), "--show-only=json-v1"],
+        cwd=repo, encoding="utf-8")
+    executables = set()
+    for test in json.loads(discovered)["tests"]:
+        for argument in test.get("command", []):
+            executable = Path(argument)
+            if executable.suffix.lower() != ".exe" or not executable.is_file():
+                continue
+            executable = executable.resolve()
+            try:
+                executable.relative_to(build)
+            except ValueError:
+                continue
+            executables.add(executable)
+    if not executables:
+        raise RuntimeError("No built test executables were found in the selected CTest configuration")
+    # CTest commands also identify the Editor/Connector children. Obsolete build outputs are excluded.
+    for executable in sorted(executables):
+        ET.SubElement(include, "ModulePath").text = "^" + path_pattern(executable) + "$"
     directories = ET.SubElement(modules, "IncludeDirectories")
     ET.SubElement(directories, "Directory", Recursive="false").text = str(build / "out/bin")
     sources = ET.SubElement(ET.SubElement(coverage, "Sources"), "Include")

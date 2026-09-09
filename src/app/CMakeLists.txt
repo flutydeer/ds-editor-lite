@@ -41,26 +41,25 @@ endif()
 find_path(INTERVAL_TREE_INCLUDE_DIRS "interval-tree/interval_tree.hpp" REQUIRED)
 
 add_subdirectory(Automation)
-get_target_property(_automation_sources EditorAutomationCore SOURCES)
-foreach(_source IN LISTS _automation_sources)
-    get_filename_component(_absolute "${_source}" ABSOLUTE
-        BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Automation")
-    list(REMOVE_ITEM _src "${_absolute}")
-    # QObject headers must belong to the same target as their implementation.
-    string(REGEX REPLACE "\\.cpp$" ".h" _header "${_absolute}")
-    list(REMOVE_ITEM _src "${_header}")
-endforeach()
-
 add_subdirectory(Modules/Inference)
-get_target_property(_inference_sources EditorInferenceCore SOURCES)
-foreach(_source IN LISTS _inference_sources)
-    get_filename_component(_absolute "${_source}" ABSOLUTE
-        BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/Modules/Inference")
-    list(REMOVE_ITEM _src "${_absolute}")
+add_subdirectory(Model/AppOptions)
+add_subdirectory(UI)
+foreach(_component IN ITEMS
+        EditorAutomationCore EditorInferenceCore EditorPreferencesCore EditorGuiCore)
+    get_target_property(_component_sources ${_component} SOURCES)
+    get_target_property(_component_directory ${_component} SOURCE_DIR)
+    foreach(_source IN LISTS _component_sources)
+        get_filename_component(_absolute "${_source}" ABSOLUTE
+            BASE_DIR "${_component_directory}")
+        list(REMOVE_ITEM _src "${_absolute}")
+        # QObject headers must belong to the same target as their implementation.
+        string(REGEX REPLACE "\\.cpp$" ".h" _header "${_absolute}")
+        list(REMOVE_ITEM _src "${_header}")
+    endforeach()
 endforeach()
 
 list(REMOVE_ITEM _src "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
-add_library(EditorRuntime OBJECT ${_src} Resources/lite_res.qrc)
+add_library(EditorRuntime OBJECT ${_src})
 set_target_properties(EditorRuntime PROPERTIES AUTOMOC ON AUTOUIC ON AUTORCC ON)
 target_include_directories(EditorRuntime PUBLIC
     "${CMAKE_CURRENT_SOURCE_DIR}" "${LITE_BUILD_INCLUDE_DIR}" ${INTERVAL_TREE_INCLUDE_DIRS})
@@ -75,6 +74,8 @@ target_link_libraries(EditorRuntime PUBLIC
         Qt6::StateMachine
         EditorAutomationCore
         EditorInferenceCore
+        EditorPreferencesCore
+        EditorGuiCore
         Qt6::GuiPrivate
         ${_platform_links}
         talcs::Core
@@ -198,6 +199,8 @@ qt_add_translations(
         EditorRuntime
         EditorAutomationCore
         EditorInferenceCore
+        EditorPreferencesCore
+        EditorGuiCore
         Core
         Support
         MusicBase
