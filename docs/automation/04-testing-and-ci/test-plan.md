@@ -77,6 +77,8 @@ Windows wrapper 将本地结果写到 `build/test-results`；直接 CTest 可加
 
 ## 4. 隔离与清理
 
+macOS 的 ApplicationWorkflows、AudioAssets 和 ApplicationGui 自动使用所构建 Editor bundle 的插件及 Frameworks，共用 fixture 保证 CTest 和直接运行行为一致。内部插件路径覆盖仅在测试构建中生效，不需要手工设置；目录缺失或插件加载失败均按失败处理。
+
 每个进程 fixture 使用独立配置和数据根、访问根及临时素材；单实例服务名从实际数据根派生。只管理测试创建的进程。成功清理，失败保留沙箱位置、stdout/stderr 与退出事实。等待有截止时间，任务竞态优先受控触发，保留必要资源锁。
 
 CTest 注册同时由程序超时派生 `QTEST_FUNCTION_TIMEOUT`，避免 Qt Test 默认的五分钟 watchdog 在较长资源工作流完成内部失败处理前直接终止进程。任务自身的截止时间仍然有效；不通过延长推理等待来处理卡住的队列。
