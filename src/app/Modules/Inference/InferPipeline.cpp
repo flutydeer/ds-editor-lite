@@ -42,6 +42,9 @@ int InferPipeline::clipId() const {
 }
 
 void InferPipeline::run() {
+    // Observers must not mistake a previous result for completion while startup is queued.
+    m_piece.acousticInferStatus = Pending;
+    m_piece.state = QStringLiteral("Duration.Pending");
     stateMachine.start();
 }
 

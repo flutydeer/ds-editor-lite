@@ -1,5 +1,5 @@
 #include "tst_native_desktop.h"
-#include "../TestSupport/RuntimePluginFixture.h"
+#include "../TestSupport/RuntimeResourcesFixture.h"
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
@@ -46,7 +46,7 @@ void NativeDesktopTests::rhiNoteDrawingCommitsAndUndoUpdatesInteraction() {
             qputenv("DSEL_TEST_PLUGIN_ROOT", previousPlugins);
     });
     qputenv("DSEL_TEST_DATA_ROOT", directory.path().toUtf8());
-    QVERIFY(TestSupport::useApplicationPluginRoot());
+    QVERIFY(TestSupport::initializeApplicationResources());
     AppEnvironment::postInit(AppHostMode::Gui);
     QApplication::setQuitOnLastWindowClosed(false);
     auto options = std::make_unique<AppOptions>();

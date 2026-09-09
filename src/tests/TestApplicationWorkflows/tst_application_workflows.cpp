@@ -32,7 +32,7 @@
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 #include "../TestSupport/ProcessFixture.h"
-#include "../TestSupport/RuntimePluginFixture.h"
+#include "../TestSupport/RuntimeResourcesFixture.h"
 
 #include <TalcsDevice/AbstractOutputContext.h>
 #include <TalcsDevice/AudioDevice.h>
@@ -152,7 +152,7 @@ void ApplicationWorkflowTests::initTestCase() {
     previousDataRoot = qgetenv("DSEL_TEST_DATA_ROOT");
     qputenv("DSEL_TEST_DATA_ROOT", dataRoot.path().toUtf8());
     dataRootInstalled = true;
-    QVERIFY(TestSupport::useApplicationPluginRoot());
+    QVERIFY(TestSupport::initializeApplicationResources());
     QCOMPARE(AppDataPaths::testRoot(), QDir::cleanPath(dataRoot.path()));
     AppEnvironment::postInit(AppHostMode::Headless);
 
@@ -252,8 +252,9 @@ void ApplicationWorkflowTests::lyricRulesUseTheProductionRuntimeAndPersistence()
     auto &settings = runtime().settings();
     Automation::LyricRuleDraftDto draft;
     draft.kind = Automation::LyricRuleKind::Tagger;
-    draft.name = QStringLiteral("Fixture English");
-    draft.language = QStringLiteral("eng");
+    draft.name = QStringLiteral("Fixture language override");
+    draft.language = QStringLiteral("cmn");
+    draft.position = 0;
     draft.entries = {
         {.type = QStringLiteral("array"),
          .value = {QStringLiteral("fixtureword")},
@@ -267,10 +268,14 @@ void ApplicationWorkflowTests::lyricRulesUseTheProductionRuntimeAndPersistence()
     QVERIFY(preview);
     QCOMPARE(preview.get().taggedTokens.size(), 1);
     QCOMPARE(preview.get().taggedTokens.first().lyric, QStringLiteral("fixtureword"));
-    QCOMPARE(preview.get().taggedTokens.first().language, QStringLiteral("eng"));
+    QCOMPARE(preview.get().taggedTokens.first().language, QStringLiteral("cmn"));
 
     QVERIFY(settings.updateLyricRule({}, id, {.name = QStringLiteral("Renamed rule")}));
     QVERIFY(settings.setLyricRuleEnabled({}, id, false));
+    const auto disabledPreview = settings.testLyricRules(QStringLiteral("fixtureword"));
+    QVERIFY(disabledPreview);
+    QCOMPARE(disabledPreview.get().taggedTokens.size(), 1);
+    QCOMPARE(disabledPreview.get().taggedTokens.first().language, QStringLiteral("eng"));
     AppOptions reopened;
     const auto rules = Automation::createAppOptionsAutomationServices(&reopened).lyricRules();
     const auto it = std::find_if(rules.cbegin(), rules.cend(),
@@ -600,7 +605,10 @@ void ApplicationWorkflowTests::restartInferenceReleasesReplacedTask() {
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
     });
 
+    targetPiece->state = QStringLiteral("Ready");
     inferController->restartPieceInference(*targetPiece);
+    QCOMPARE(targetPiece->state.get(), QStringLiteral("Duration.Pending"));
+    QCOMPARE(targetPiece->acousticInferStatus.get(), Pending);
     QTRY_VERIFY_WITH_TIMEOUT(workerEntered.available() == 1, 5000);
     QVERIFY(firstTask);
     QVERIFY(firstTask->started());

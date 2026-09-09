@@ -2,6 +2,7 @@
 
 #include "Modules/FillLyric/Utils/LrcTools/LrcDecoder.h"
 #include "Modules/FillLyric/Utils/SplitLyric.h"
+#include "Modules/FillLyric/Utils/TextTagger.h"
 
 #include <QFile>
 #include <QTemporaryDir>
@@ -94,6 +95,10 @@ void LyricsTests::lrcFailedReloadClearsPreviousDocument() {
 
 void LyricsTests::lyricSplittingModesPreserveLines() {
     using FillLyric::LyricSplitter;
+    QTemporaryDir rules;
+    QVERIFY(rules.isValid());
+    const auto rulePath = std::filesystem::path(rules.path().toStdU16String());
+    QVERIFY(FillLyric::TextTagger::init(rulePath, rulePath));
     QCOMPARE(lyrics(LyricSplitter::splitByChar(QStringLiteral("你 好\r\n\n世界\n"),
                                                {
     })),
