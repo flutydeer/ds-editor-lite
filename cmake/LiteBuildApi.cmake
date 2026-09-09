@@ -121,8 +121,7 @@ function(lite_deploy_application _target)
         set(_install_copy_args SKIP_INSTALL)
     endif()
 
-    # Deploy the Qt runtime first: on macOS the plugins copied below must land inside a
-    # bundle macdeployqt has already processed.
+    # Windows stages Qt separately from the inference plugins below.
     if(_deploy_tool AND WIN32)
         add_custom_command(TARGET ${_target} POST_BUILD
             COMMAND "${_deploy_tool}"
@@ -135,28 +134,6 @@ function(lite_deploy_application _target)
                 --pdb # Also deploy the Qt modules' .pdb files
                 "$<TARGET_FILE:${_target}>"
             COMMENT "Deploy Qt"
-        )
-    elseif(_deploy_tool AND APPLE)
-        find_package(ffmpeg-builds CONFIG REQUIRED)
-        # macdeployqt does not copy FFmpeg's private @loader_path dependencies.
-        add_custom_command(TARGET ${_target} POST_BUILD
-            COMMAND "${CMAKE_COMMAND}" -E copy_directory
-                "$<TARGET_FILE_DIR:FFmpeg::avcodec>/ffmpeg-builds"
-                "$<TARGET_BUNDLE_CONTENT_DIR:${_target}>/Frameworks/ffmpeg-builds"
-            COMMENT "Deploy FFmpeg private libraries"
-            VERBATIM
-        )
-        add_custom_command(TARGET ${_target} POST_BUILD
-            COMMAND "${_deploy_tool}"
-                "$<TARGET_BUNDLE_DIR:${_target}>"
-                -verbose=0
-                -always-overwrite
-            COMMENT "Deploy Qt"
-        )
-        add_custom_command(TARGET ${_target} POST_BUILD
-            COMMAND bash ${LITE_SOURCE_DIR}/scripts/fix_macos_dylib_paths.sh
-                "$<TARGET_BUNDLE_DIR:${_target}>" "1"
-            COMMENT "Fix dylib paths"
         )
     endif()
 
@@ -214,6 +191,20 @@ function(lite_deploy_application _target)
             DESTINATION $<TARGET_BUNDLE_CONTENT_DIR:${_target}>/PlugIns/srt-g2p/G2pPackages
             ${_install_copy_args}
         )
+        if(_deploy_tool)
+            find_package(ffmpeg-builds CONFIG REQUIRED)
+            # Stage every plugin before Qt resolves dependencies and signs the bundle.
+            add_custom_command(TARGET ${_target} POST_BUILD
+                COMMAND "${CMAKE_COMMAND}" -E copy_directory
+                    "$<TARGET_FILE_DIR:FFmpeg::avcodec>/ffmpeg-builds"
+                    "$<TARGET_BUNDLE_CONTENT_DIR:${_target}>/Frameworks/ffmpeg-builds"
+                COMMAND bash "${LITE_SOURCE_DIR}/scripts/deploy_macos.sh"
+                    "${_deploy_tool}" "$<TARGET_BUNDLE_DIR:${_target}>"
+                    "$<TARGET_FILE_DIR:FFmpeg::avcodec>/ffmpeg-builds"
+                COMMENT "Deploy and sign macOS runtime dependencies"
+                VERBATIM
+            )
+        endif()
     elseif(UNIX)
         qm_add_copy_command(${_target}
             SOURCES $<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins/
