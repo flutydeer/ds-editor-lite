@@ -228,6 +228,9 @@ namespace {
                                          const SpeakerInfo &fallback) {
         if (fallback.isEmpty())
             return {};
+        // An unavailable package cannot invalidate the sources stored in the project.
+        if (singerInfo.resolutionState() != ResolutionState::Resolved)
+            return fallback;
         for (const auto &speaker : singerInfo.speakers()) {
             if (speaker.id() == fallback.id())
                 return speaker;
