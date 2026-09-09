@@ -32,6 +32,7 @@
 | DSPX 编辑内容往返 | workflow | 原文件测试多检查空工程、JSON 头或对象存在，未核对编辑内容 | 补真实 save/load 的乐句、发音、参数、声线混合、tempo/meter 保真 | DocumentIO | 通用 |
 | 任务竞态、幂等及异步服务 | workflow/domain | 已有受控调度和晚到回调，入口按历史功能拆散 | 运行时状态/准入/幂等归入 AutomationRuntime；文件、导出和提取服务的受控提交边界归入 ApplicationServices | AutomationRuntime、ApplicationServices | 通用 |
 | 终态任务历史与后台许可释放 | workflow/domain | macOS 的移动后回调可能继续捕获许可，导致任务结束后新请求仍 Busy | 转移完成回调时显式清空源；在既有生命周期中验证终态历史可查询、回调资源已释放，并检查取消后的实际准入 | AutomationRuntime、AutomationProtocol | 通用；macOS 实际复现 |
+| 推理初始化失败后的包扫描与退出 | workflow/process | Windows 无 GPU 早退未通知共享运行时，包任务等待会话并阻塞退出 | 复用已有 Provider/设备查询配置在独立子进程中制造真实失败，检查任务错误和正常析构；统一完成与关闭通知。普通进程 fixture 显式选择 CPU | ApplicationWorkflows::failedInferenceInitializationReleasesPackageWaiters、ProcessIntegration | 通用；失败复现不要求实际 GPU |
 | 音频资产解析、来源换代和解码通知 | workflow | 路径/哈希与解码控制分散，解码测试替写 AudioContext、DocumentWorkflowController 等生产方法 | 合并 AudioAssets；保留临时素材及来源/文档换代回归，解码使用真实 Headless AppContext 和生产接线，每例清理文档、任务与通知 | AudioAssets | 通用；无需播放设备 |
 | 推理结果与当前文档、输入及编辑会话匹配 | workflow | 首次采样中 InferenceApplyGate 未执行；输入转换测试不能代替完成门控 | 新增真实任务快照到门控的 Apply/Drop/Defer 行为，覆盖四阶段输入变化、文档/对象消失、无关 revision 变化和编辑冲突 | ApplicationWorkflows | 通用；无需模型输出 |
 | 运行中重新推理与任务队列释放 | workflow | 真实声库执行暴露旧流水线销毁后完成回调消失，替换任务停留在队列 | 受控暂停真实 duration worker 后重启，检查替换任务终态及清理；先取消所属片段任务再销毁旧流水线，复用已有安全取消路径 | ApplicationWorkflows::restartInferenceReleasesReplacedTask、ModelResources | 受控回归通用；完整输出需声库 |
