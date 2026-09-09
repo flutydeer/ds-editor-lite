@@ -43,9 +43,13 @@ ctest --preset ci
 
 真实声库用例为 `TestHeadlessResources`：设置 `DSEL_TEST_VOICEBANK_ROOT`、`DSEL_TEST_LANGUAGE`、`DSEL_TEST_LYRIC`，多音源时再指定 `DSEL_TEST_SINGER_ID`。用例固定 CPU，创建短音符，完成推理及 WAV 导出并检查可解码、有限样本和非零能量。未设置声库根时明确跳过；配置后的失败为失败，不自动扫描个人声库。
 
+`TestInferenceWorkflow` 属于通用 workflow 集合：使用隔离的 Headless AppContext，构造实际推理任务快照并调用完成门控，关闭自动推理且不调度这些任务，不依赖声库输出或设备。它验证结果是否仍适用于当前编辑状态；实际模型执行由上述资源用例负责。
+
 ## 4. 隔离与清理
 
 每个进程 fixture 使用独立配置和数据根、访问根及临时素材；单实例服务名从实际数据根派生。只管理测试创建的进程。成功清理，失败保留沙箱位置、stdout/stderr 与退出事实。等待有截止时间，任务竞态优先受控触发，保留必要资源锁。
+
+重启场景的源进程将 stdout/stderr 写入沙箱内文件，使脱离原 QProcess 生命周期的替代进程继承有效输出目标；仍检查新进程身份、参数、服务就绪和退出。
 
 ## 5. CI 引导与失败复验
 
@@ -73,6 +77,8 @@ build/ci/coverage-env/bin/gcovr --config scripts/ci/gcovr.cfg \
 ```
 
 Windows MSVC 常规测试不需要 gcovr。每次独立采样应使用干净的覆盖构建目录，或先删除该目录内旧 `.gcda`，避免累计历史执行结果。CI 每次重新构建，不缓存 CMake 构建目录。
+
+采样记录 PR head、Actions 实际 checkout SHA、执行集合和失败项。构建成功但测试失败时得到的报告可用于发现遗漏；最终候选另行完整运行，不能把失败轮次的覆盖率和后续未执行补测合并成通过结论。
 
 结合 HTML 未执行行、目录汇总及功能矩阵判断缺口：优先未测的编辑结果、失败回滚、配置生效、文件发布和实际交互。数值低并不自动要求补测；设备/模型依赖、平台专属、主观观感及不可达的防御路径需说明范围。没有百分比门槛，不对 Schema、工具清单、无语义 getter 或历史 bug 数量设指标。覆盖率用于发现遗漏，不代替有意义的断言。[gcovr 统计口径](https://gcovr.com/en/stable/faq.html)。
 
