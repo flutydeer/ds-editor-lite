@@ -1197,6 +1197,8 @@ void InferControllerPrivate::createPipeline(InferPiece &piece, bool acousticInfe
     if (!duplicatePipelines.isEmpty())
         cancelPieceRelatedTasks(piece.id());
     for (const auto pipeline : duplicatePipelines) {
+        // Stop queued state transitions before a replacement can reset the shared piece.
+        pipeline->stop();
         m_inferPipelines.removeOne(pipeline);
         pipeline->deleteLater();
     }

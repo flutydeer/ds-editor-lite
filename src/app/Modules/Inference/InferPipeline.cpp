@@ -45,6 +45,10 @@ void InferPipeline::run() {
     stateMachine.start();
 }
 
+void InferPipeline::stop() {
+    stateMachine.stop();
+}
+
 bool InferPipeline::shouldStartAcousticInference() const {
     return m_acousticInferenceRequested || appOptions->inference()->autoStartInfer ||
            playbackController->playbackStatus() == PlaybackStatus::Playing;

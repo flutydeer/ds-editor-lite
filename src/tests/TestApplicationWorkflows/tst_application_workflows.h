@@ -51,6 +51,7 @@ private slots:
     void editSessionControlsResultDeferral();
 
     void restartInferenceReleasesReplacedTask();
+    void restartInferenceReleasesReplacedTask_data();
 
     void offlineExportRestoresMixerState_data();
 

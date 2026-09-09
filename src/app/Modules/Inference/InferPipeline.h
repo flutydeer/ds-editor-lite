@@ -37,6 +37,7 @@ public:
     [[nodiscard]] int pieceId() const;
     [[nodiscard]] int clipId() const;
     void run();
+    void stop();
     [[nodiscard]] bool shouldStartAcousticInference() const;
     void clearAcousticInferenceRequest();
     [[nodiscard]] InferPiece &piece() const;

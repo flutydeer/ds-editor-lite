@@ -496,7 +496,14 @@ void ApplicationWorkflowTests::editSessionControlsResultDeferral() {
     QVERIFY(resolution.dropReason.isEmpty());
 }
 
+void ApplicationWorkflowTests::restartInferenceReleasesReplacedTask_data() {
+    QTest::addColumn<bool>("completionQueued");
+    QTest::newRow("running-worker") << false;
+    QTest::newRow("completion-queued") << true;
+}
+
 void ApplicationWorkflowTests::restartInferenceReleasesReplacedTask() {
+    QFETCH(bool, completionQueued);
     const QPointer<SingingClip> targetClip(clip);
     QTRY_COMPARE_WITH_TIMEOUT(appStatus->languageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
                               10000);
@@ -530,11 +537,19 @@ void ApplicationWorkflowTests::restartInferenceReleasesReplacedTask() {
     QSemaphore workerEntered;
     QSemaphore releaseWorker;
     std::atomic_bool paused = false;
+    std::atomic_bool replacementPaused = false;
     QObject observations;
     QPointer<InferDurationTask> firstTask;
     int firstTaskId = -1;
     int replacementTaskId = -1;
     bool replacementFinished = false;
+    bool replacementRequested = false;
+    bool staleError = false;
+    connect(targetPiece, &InferPiece::stateChanged, &observations, [&](const QString &state) {
+        if (replacementRequested && !replacementFinished &&
+            state.endsWith(QStringLiteral(".Error")))
+            staleError = true;
+    });
     connect(taskManager, &TaskManager::taskChanged, &observations,
             [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
                 auto *duration = qobject_cast<InferDurationTask *>(task);
@@ -554,8 +569,25 @@ void ApplicationWorkflowTests::restartInferenceReleasesReplacedTask() {
                             }
                         },
                         Qt::DirectConnection);
+                    if (completionQueued) {
+                        // The state receiver queues its transition before this observer restarts
+                        // it.
+                        connect(duration, &Task::finished, &observations, [&] {
+                            replacementRequested = true;
+                            inferController->restartPieceInference(*targetPiece);
+                        });
+                    }
                 } else {
                     replacementTaskId = duration->id();
+                    if (completionQueued) {
+                        connect(
+                            duration, &Task::statusUpdated, &observations,
+                            [&](const TaskStatus &) {
+                                if (!replacementPaused.exchange(true))
+                                    releaseWorker.acquire();
+                            },
+                            Qt::DirectConnection);
+                    }
                     connect(duration, &Task::finished, &observations,
                             [&] { replacementFinished = true; });
                 }
@@ -578,8 +610,14 @@ void ApplicationWorkflowTests::restartInferenceReleasesReplacedTask() {
         targetPiece->findChild<InferPipeline *>(Qt::FindDirectChildrenOnly);
     QVERIFY(firstPipeline);
 
-    inferController->restartPieceInference(*targetPiece);
+    if (completionQueued) {
+        releaseWorker.release();
+    } else {
+        replacementRequested = true;
+        inferController->restartPieceInference(*targetPiece);
+    }
     QTRY_VERIFY_WITH_TIMEOUT(firstPipeline.isNull() && replacementTaskId >= 0, 5000);
+    QVERIFY2(!staleError, "A replaced pipeline must not publish its queued failure to the piece");
     QVERIFY(targetPiece);
     const QPointer<InferPipeline> replacementPipeline =
         targetPiece->findChild<InferPipeline *>(Qt::FindDirectChildrenOnly);
@@ -607,6 +645,7 @@ void ApplicationWorkflowTests::restartInferenceReleasesReplacedTask() {
     QTRY_VERIFY_WITH_TIMEOUT(
         targetPiece && targetPiece->state.get() == QStringLiteral("Duration.Error"), 5000);
     QCOMPARE(targetPiece->acousticInferStatus.get(), Failed);
+    QVERIFY2(!staleError, "Only the replacement task may publish its terminal state");
 }
 
 void ApplicationWorkflowTests::cleanup() {
