@@ -14,14 +14,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  linux-tests:
-    runs-on: ubuntu-24.04
+  tests:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux x64
+            runner: ubuntu-24.04
+            triplet: x64-linux
+            qt-arch: linux_gcc_64
+            jobs: 4
+          - name: Windows x64
+            runner: windows-2025-vs2026
+            triplet: x64-windows
+            qt-arch: win64_msvc2022_64
+            jobs: 4
+          - name: macOS arm64
+            runner: macos-15
+            triplet: arm64-osx
+            qt-arch: clang_64
+            jobs: 2
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
     env:
       QT_VERSION: '6.11.2'
+      CMAKE_BUILD_PARALLEL_LEVEL: ${{ matrix.jobs }}
       VCPKG_MAX_CONCURRENCY: '2'
       VCPKG_BINARY_SOURCES: 'clear;files,${{ github.workspace }}/build/ci/vcpkg-cache,readwrite'
       DSEL_TEST_ARTIFACTS: '${{ github.workspace }}/build/test-results/sandboxes'
+      HOMEBREW_NO_AUTO_UPDATE: '1'
     defaults:
       run:
         shell: bash
@@ -29,7 +51,10 @@ jobs:
       - uses: actions/checkout@v7
         with:
           submodules: recursive
-      - name: System dependencies
+      - name: Prepare diagnostics
+        run: mkdir -p build/test-results build/ci/vcpkg-cache
+      - name: Linux dependencies
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update
           sudo apt-get install -y ninja-build patchelf pkg-config autoconf autoconf-archive \
@@ -38,13 +63,16 @@ jobs:
             libx11-dev libxext-dev libxrandr-dev libxi-dev libxcursor-dev \
             libxinerama-dev libxkbcommon-dev libxkbcommon-x11-dev libxcb-cursor0 \
             libfontconfig1-dev libfreetype6-dev libdbus-1-dev libssl-dev libicu-dev
-          mkdir -p build/test-results build/ci/vcpkg-cache
           python3 -m venv build/ci/coverage-env
           build/ci/coverage-env/bin/pip install gcovr==8.6
+      - name: macOS dependencies
+        if: runner.os == 'macOS'
+        run: brew install autoconf automake autoconf-archive libtool ninja pkg-config
       - name: Qt
         uses: jurplel/install-qt-action@v4
         with:
           version: ${{ env.QT_VERSION }}
+          arch: ${{ matrix.qt-arch }}
           modules: 'qt5compat qtshadertools qtscxml qthttpserver qtwebsockets'
           cache: true
       - name: Restore dependency packages
@@ -52,11 +80,13 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: build/ci/vcpkg-cache
-          key: linux-qt${{ env.QT_VERSION }}-${{ hashFiles('scripts/ci/bootstrap-linux.sh', 'scripts/vcpkg-manifest/**', 'scripts/vcpkg/ports/**', 'scripts/vcpkg/triplets/**') }}
-          restore-keys: linux-qt${{ env.QT_VERSION }}-
+          key: ${{ matrix.triplet }}-qt${{ env.QT_VERSION }}-${{ hashFiles('scripts/ci/bootstrap-vcpkg.py', 'scripts/vcpkg-manifest/**', 'scripts/vcpkg/ports/**', 'scripts/vcpkg/triplets/**') }}
+          restore-keys: |
+            ${{ matrix.triplet }}-qt${{ env.QT_VERSION }}-
+            ${{ runner.os == 'Linux' && format('linux-qt{0}-', env.QT_VERSION) || 'no-legacy-cache' }}
       - name: Build dependencies
         id: dependencies
-        run: bash scripts/ci/bootstrap-linux.sh 2>&1 | tee build/test-results/dependencies.log
+        run: python scripts/ci/bootstrap-vcpkg.py --triplet '${{ matrix.triplet }}' 2>&1 | tee build/test-results/dependencies.log
       - name: Save dependency packages
         if: steps.packages.outputs.cache-hit != 'true'
         uses: actions/cache/save@v6
@@ -71,35 +101,50 @@ jobs:
           key: ${{ steps.packages.outputs.cache-primary-key }}-partial-${{ github.run_id }}-${{ github.run_attempt }}
       - name: Environment
         run: |
-          echo "CMAKE_BUILD_PARALLEL_LEVEL=$(nproc)" >> "$GITHUB_ENV"
           {
             git rev-parse HEAD
             git submodule status
             git -C vcpkg rev-parse HEAD
-            uname -a
-            nproc
-            free -h
-            c++ --version
+            python -c "import platform; print(platform.platform(), platform.machine())"
             cmake --version
             ninja --version
             "$QT_ROOT_DIR/bin/qtpaths" --qt-version
           } > build/test-results/environment.txt
       - name: Configure
+        if: runner.os != 'Windows'
         run: |
+          platform_args=()
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            platform_args+=(-DLITE_TEST_COVERAGE=ON)
+          else
+            platform_args+=(-DCMAKE_OSX_ARCHITECTURES=arm64)
+          fi
           cmake --preset tests -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
             -DQt6_DIR="$QT_ROOT_DIR/lib/cmake/Qt6" \
-            -DVCPKG_TARGET_TRIPLET=x64-linux \
-            -DLITE_TEST_COVERAGE=ON \
+            -DVCPKG_TARGET_TRIPLET='${{ matrix.triplet }}' "${platform_args[@]}" \
             2>&1 | tee build/test-results/configure.log
+      - name: Configure Windows
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Configure -Preset tests -QtDir "$env:QT_ROOT_DIR" 2>&1 | Tee-Object build/test-results/configure.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build editor, connector and tests
         id: build
+        if: runner.os != 'Windows'
         run: cmake --build --preset tests -- -k 0 2>&1 | tee build/test-results/build.log
+      - name: Build Windows editor, connector and tests
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Build -Preset tests -QtDir "$env:QT_ROOT_DIR" 2>&1 | Tee-Object build/test-results/build.log
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Test
         run: |
           ctest --preset ci --output-junit "$PWD/build/test-results/junit.xml" \
             2>&1 | tee build/test-results/ctest.log
       - name: Coverage
-        if: always() && steps.build.outcome == 'success'
+        if: always() && runner.os == 'Linux' && steps.build.outcome == 'success'
         run: |
           mkdir -p build/test-results/coverage
           build/ci/coverage-env/bin/gcovr --config scripts/ci/gcovr.cfg \
@@ -114,7 +159,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: linux-test-results-${{ github.run_id }}-${{ github.run_attempt }}
+          name: ${{ matrix.triplet }}-test-results-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             build/test-results
             build/Tests/Testing/Temporary
