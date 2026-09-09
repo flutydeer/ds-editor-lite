@@ -73,7 +73,7 @@ public:
     void createAndRunGetPronTask(const SingingClip &clip);
     void createAndRunGetPhoneTask(const SingingClip &clip);
 
-    void createPipeline(InferPiece &piece);
+    void createPipeline(InferPiece &piece, bool acousticInferenceRequested = false);
     void handlePipelineDropped(InferPipeline *pipeline, const QString &reason);
 
     void reset();

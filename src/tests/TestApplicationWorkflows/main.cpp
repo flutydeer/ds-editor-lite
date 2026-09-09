@@ -7,7 +7,11 @@
 #include "Modules/Audio/AudioSystem.h"
 #include "Modules/Audio/subsystem/OutputSystem.h"
 #include "Modules/Inference/EditSessionManager.h"
+#include "Modules/Inference/InferController.h"
 #include "Modules/Inference/InferControllerHelper.h"
+#include "Modules/Inference/InferPipeline.h"
+#include "Modules/Inference/States/UpdateVarianceState.h"
+#include "Modules/Inference/States/PlaybackReadyState.h"
 #include "Modules/Inference/Utils/InferenceApplyGate.h"
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -15,6 +19,7 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
+#include <lite/Tasking/TaskManager.h>
 #include "../TestSupport/ProcessFixture.h"
 
 #include <TalcsDevice/AbstractOutputContext.h>
@@ -23,13 +28,18 @@
 #include <TalcsCore/MixerAudioSource.h>
 
 #include <QtTest/QTest>
+#include <QSignalSpy>
 #include <QCoreApplication>
 #include <QDir>
 #include <QTemporaryDir>
 #include <QFile>
 #include <QScopeGuard>
+#include <QSemaphore>
+#include <QSignalBlocker>
+#include <QPointer>
 
 #include <memory>
+#include <atomic>
 
 namespace {
     using InferenceApplyGate::Decision;
@@ -279,6 +289,120 @@ private slots:
         QVERIFY(resolution.dropReason.isEmpty());
     }
 
+    void restartInferenceReleasesReplacedTask() {
+        const QPointer<SingingClip> targetClip(clip);
+        QTRY_COMPARE_WITH_TIMEOUT(appStatus->languageModuleStatus.get(),
+                                  AppStatus::ModuleStatus::Ready, 10000);
+        QTRY_COMPARE_WITH_TIMEOUT(appStatus->inferEngineEnvStatus.get(),
+                                  AppStatus::ModuleStatus::Ready, 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(
+            appStatus->packageModuleStatus.get() != AppStatus::ModuleStatus::Loading, 10000);
+        const auto packageStatus = appStatus->packageModuleStatus.get();
+        const auto restorePackageStatus =
+            qScopeGuard([packageStatus] { appStatus->packageModuleStatus = packageStatus; });
+        // Supply package availability without installing a singer or loading its models.
+        appStatus->packageModuleStatus = AppStatus::ModuleStatus::Ready;
+        // Finish startup retries while the document still has no selected singer.
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+        QVERIFY(targetClip);
+        {
+            const QSignalBlocker blockVoiceNotification(targetClip);
+            const SingerInfo singer(SingerIdentifier{QStringLiteral("missing-singer"),
+                                                     QStringLiteral("workflow-test"),
+                                                     QVersionNumber(1, 0, 0)});
+            targetClip->setOwnSingerAndSpeaker(singer, {});
+            targetClip->removeAllPieces();
+            targetClip->reSegment(context->m_appModel->timeline());
+        }
+        QCOMPARE(targetClip->pieces().size(), 1);
+        const QPointer<InferPiece> targetPiece(targetClip->pieces().first());
+        const auto targetPieceId = targetPiece->id();
+        piece = targetPiece.data();
+
+        QSemaphore workerEntered;
+        QSemaphore releaseWorker;
+        std::atomic_bool paused = false;
+        QObject observations;
+        QPointer<InferDurationTask> firstTask;
+        int firstTaskId = -1;
+        int replacementTaskId = -1;
+        bool replacementFinished = false;
+        connect(taskManager, &TaskManager::taskChanged, &observations,
+                [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
+                    auto *duration = qobject_cast<InferDurationTask *>(task);
+                    if (change != TaskManager::Added || !duration ||
+                        duration->pieceId() != targetPieceId)
+                        return;
+                    if (firstTaskId < 0) {
+                        firstTask = duration;
+                        firstTaskId = duration->id();
+                        // Pause the real worker before it requests the external singer session.
+                        connect(
+                            duration, &Task::statusUpdated, &observations,
+                            [&](const TaskStatus &) {
+                                if (!paused.exchange(true)) {
+                                    workerEntered.release();
+                                    releaseWorker.acquire();
+                                }
+                            },
+                            Qt::DirectConnection);
+                    } else {
+                        replacementTaskId = duration->id();
+                        connect(duration, &Task::finished, &observations,
+                                [&] { replacementFinished = true; });
+                    }
+                });
+        const auto drainTasks = qScopeGuard([&] {
+            releaseWorker.release();
+            inferController->cancelPieceInference(targetPieceId);
+            QThreadPool::globalInstance()->waitForDone();
+            QCoreApplication::processEvents();
+            QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        });
+
+        inferController->restartPieceInference(*targetPiece);
+        QTRY_VERIFY_WITH_TIMEOUT(workerEntered.available() == 1, 5000);
+        QVERIFY(firstTask);
+        QVERIFY(firstTask->started());
+        QVERIFY(!firstTask->stopped());
+        QVERIFY(targetPiece);
+        const QPointer<InferPipeline> firstPipeline =
+            targetPiece->findChild<InferPipeline *>(Qt::FindDirectChildrenOnly);
+        QVERIFY(firstPipeline);
+
+        inferController->restartPieceInference(*targetPiece);
+        QTRY_VERIFY_WITH_TIMEOUT(firstPipeline.isNull() && replacementTaskId >= 0, 5000);
+        QVERIFY(targetPiece);
+        const QPointer<InferPipeline> replacementPipeline =
+            targetPiece->findChild<InferPipeline *>(Qt::FindDirectChildrenOnly);
+        QVERIFY(replacementPipeline);
+        QPointer<InferPipeline> backgroundPipeline = new InferPipeline(*targetPiece);
+        const auto removeBackgroundPipeline =
+            qScopeGuard([&] { delete backgroundPipeline.data(); });
+        enum class AcousticPermitPhase { Background, Requested, Completed };
+        for (const auto phase : {AcousticPermitPhase::Background, AcousticPermitPhase::Requested,
+                                 AcousticPermitPhase::Completed}) {
+            auto *subject = phase == AcousticPermitPhase::Background ? backgroundPipeline.data()
+                                                                     : replacementPipeline.data();
+            QVERIFY(targetPiece);
+            QVERIFY(subject);
+            verifyAcousticGate(*subject, phase == AcousticPermitPhase::Requested,
+                               phase == AcousticPermitPhase::Completed);
+            if (QTest::currentTestFailed())
+                return;
+        }
+        releaseWorker.release();
+        QTRY_VERIFY_WITH_TIMEOUT(replacementFinished, 5000);
+        QTRY_VERIFY_WITH_TIMEOUT(!taskManager->findTaskById(firstTaskId) &&
+                                     !taskManager->findTaskById(replacementTaskId),
+                                 5000);
+        // An unavailable singer must fail the replacement normally instead of leaving it queued.
+        QTRY_VERIFY_WITH_TIMEOUT(
+            targetPiece && targetPiece->state.get() == QStringLiteral("Duration.Error"), 5000);
+        QCOMPARE(targetPiece->acousticInferStatus.get(), Failed);
+    }
+
     void offlineExportRestoresMixerState_data() {
         QTest::addColumn<bool>("initiallyOpen");
         QTest::newRow("closed-mixer") << false;
@@ -370,6 +494,34 @@ private slots:
     }
 
 private:
+    void verifyAcousticGate(InferPipeline &pipeline, bool immediateExpected, bool completeFirst) {
+        const QPointer<InferPiece> targetPiece(&pipeline.piece());
+        const QPointer<InferPipeline> targetPipeline(&pipeline);
+        if (completeFirst) {
+            QStateMachine readyMachine;
+            auto *ready = new PlaybackReadyState(pipeline);
+            readyMachine.addState(ready);
+            readyMachine.setInitialState(ready);
+            readyMachine.start();
+            QTRY_VERIFY(targetPiece && targetPiece->state.get() == QStringLiteral("Ready"));
+        }
+        QVERIFY(targetPiece);
+        QVERIFY(targetPipeline);
+        // Exercise the production acoustic gate with a completed variance snapshot.
+        pipeline.setApplyContext(captureTask(QStringLiteral("variance"), *targetPiece));
+        QStateMachine gateMachine;
+        auto *variance = new UpdateVarianceState(pipeline);
+        gateMachine.addState(variance);
+        gateMachine.setInitialState(variance);
+        QSignalSpy immediate(variance, &UpdateVarianceState::updateSuccessWithImmediateInference);
+        QSignalSpy lazy(variance, &UpdateVarianceState::updateSuccessWithLazyInference);
+        gateMachine.start();
+        QTRY_VERIFY(immediate.count() + lazy.count() == 1);
+        QCOMPARE(immediate.count(), immediateExpected ? 1 : 0);
+        QCOMPARE(lazy.count(), immediateExpected ? 0 : 1);
+        QVERIFY(!context->m_appOptions->inference()->autoStartInfer);
+    }
+
     Automation::CoreRuntime &runtime() {
         return *context->m_coreRuntime;
     }

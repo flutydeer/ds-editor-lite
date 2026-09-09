@@ -32,11 +32,13 @@ class InferPipeline : public QObject {
     Q_OBJECT
 
 public:
-    explicit InferPipeline(InferPiece &piece);
+    explicit InferPipeline(InferPiece &piece, bool acousticInferenceRequested = false);
     ~InferPipeline() override;
     [[nodiscard]] int pieceId() const;
     [[nodiscard]] int clipId() const;
     void run();
+    [[nodiscard]] bool shouldStartAcousticInference() const;
+    void clearAcousticInferenceRequest();
     [[nodiscard]] InferPiece &piece() const;
     void notifyDropped(const QString &reason);
 
@@ -114,6 +116,7 @@ private:
     void initPlaybackReadyTransitions();
 
     InferPiece &m_piece;
+    bool m_acousticInferenceRequested = false;
 
     QStateMachine stateMachine;
     QFinalState *finalState{};

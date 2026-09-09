@@ -1,18 +1,16 @@
 #include "../TestSupport/ProcessFixture.h"
+#include "../TestSupport/NativeRpc.h"
 
 #include <QCoreApplication>
 #include <QDir>
 #include <QElapsedTimer>
-#include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
+#include <QNetworkProxy>
 #include <QTcpServer>
-#include <QTimer>
 #include <QtTest>
 
 #include <sndfile.h>
@@ -25,6 +23,7 @@ namespace {
     class NativeClient final {
     public:
         NativeClient(QProcess &editor, const QUrl &endpoint) : editor(editor), endpoint(endpoint) {
+            manager.setProxy(QNetworkProxy::NoProxy);
         }
 
         bool call(const QString &operation, const QJsonObject &arguments, QJsonObject &result,
@@ -32,54 +31,26 @@ namespace {
             error.clear();
             result = {};
             const auto id = QString::number(++sequence);
-            const auto requestBytes =
-                QJsonDocument(QJsonObject{
-                                  {QStringLiteral("jsonrpc"), QStringLiteral("2.0")},
-                                  {QStringLiteral("id"),      id                   },
-                                  {QStringLiteral("method"),  operation            },
-                                  {QStringLiteral("params"),  arguments            },
-            })
-                    .toJson(QJsonDocument::Compact);
+            const auto request = TestSupport::nativeRequest(id, operation, arguments);
+            const auto requestBytes = QJsonDocument(request).toJson(QJsonDocument::Compact);
             TestSupport::recordProcessMessage(editor, "request", requestBytes);
-            QNetworkRequest request(endpoint);
-            request.setHeader(QNetworkRequest::ContentTypeHeader,
-                              QStringLiteral("application/json"));
-            auto *reply = manager.post(request, requestBytes);
-            QEventLoop loop;
-            QTimer timeout;
-            timeout.setSingleShot(true);
-            QObject::connect(reply, &QNetworkReply::finished, &loop, &QEventLoop::quit);
-            QObject::connect(&timeout, &QTimer::timeout, &loop, &QEventLoop::quit);
-            timeout.start(timeoutMs);
-            loop.exec();
-            const bool finished = reply->isFinished();
-            if (!finished)
-                reply->abort();
-            const auto bytes = reply->readAll();
-            const auto status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-            const auto networkError = reply->errorString();
-            reply->deleteLater();
-            TestSupport::recordProcessMessage(editor, "response", bytes);
+            const auto response =
+                TestSupport::nativeExchange(manager, endpoint, request, error, timeoutMs);
             TestSupport::readProcessStdout(editor);
             TestSupport::readProcessStderr(editor);
-            if (!finished || status != 200) {
-                error = QStringLiteral("%1: HTTP %2, %3, response=%4")
-                            .arg(operation)
-                            .arg(status)
-                            .arg(networkError, QString::fromUtf8(bytes));
+            if (!response) {
+                error = operation + QStringLiteral(": ") + error;
+                TestSupport::recordProcessMessage(editor, "failure", error.toUtf8());
                 return false;
             }
-            QJsonParseError parseError;
-            const auto parsed = QJsonDocument::fromJson(bytes, &parseError);
-            const auto response = parsed.object();
-            if (parseError.error != QJsonParseError::NoError || !parsed.isObject() ||
-                response.value(QStringLiteral("id")).toString() != id ||
-                response.contains(QStringLiteral("error")) ||
-                !response.value(QStringLiteral("result")).isObject()) {
+            const auto bytes = QJsonDocument(*response).toJson(QJsonDocument::Compact);
+            TestSupport::recordProcessMessage(editor, "response", bytes);
+            if (response->contains(QStringLiteral("error")) ||
+                !response->value(QStringLiteral("result")).isObject()) {
                 error = operation + QStringLiteral(": ") + QString::fromUtf8(bytes);
                 return false;
             }
-            result = response.value(QStringLiteral("result")).toObject();
+            result = response->value(QStringLiteral("result")).toObject();
             return true;
         }
 
@@ -117,6 +88,32 @@ namespace {
             return call(operation, arguments, result);
         }
 
+        bool waitForInferenceModel(const QJsonObject &scope) {
+            QElapsedTimer deadline;
+            deadline.start();
+            QJsonObject capabilities;
+            // G2P and segmentation complete asynchronously after note insertion.
+            while (deadline.elapsed() < 60000 && editor.state() != QProcess::NotRunning) {
+                if (!call(QStringLiteral("inference.get_capabilities"),
+                          {
+                              {QStringLiteral("document_id"), documentId},
+                              {QStringLiteral("scope"),       scope     }
+                },
+                          capabilities))
+                    return false;
+                if (!capabilities.value(QStringLiteral("capabilities"))
+                         .toObject()
+                         .value(QStringLiteral("models"))
+                         .toArray()
+                         .isEmpty())
+                    return true;
+                QTest::qWait(100);
+            }
+            error = QStringLiteral("The inserted note did not become an inference target: ") +
+                    QString::fromUtf8(QJsonDocument(capabilities).toJson(QJsonDocument::Compact));
+            return false;
+        }
+
         bool waitForTask(const QJsonObject &accepted, bool applicationScope, int timeoutMs) {
             const auto taskId = accepted.value(QStringLiteral("task_id")).toString();
             if (taskId.isEmpty()) {
@@ -125,11 +122,11 @@ namespace {
                 return false;
             }
             QJsonObject arguments{
-                {QStringLiteral("task_id"), taskId}
+                {QStringLiteral("task_id"), taskId                                            },
+                {QStringLiteral("scope"),
+                 applicationScope ? QStringLiteral("application") : QStringLiteral("document")}
             };
-            if (applicationScope)
-                arguments.insert(QStringLiteral("scope"), QStringLiteral("application"));
-            else
+            if (!applicationScope)
                 arguments.insert(QStringLiteral("document_id"), documentId);
             QElapsedTimer deadline;
             deadline.start();
@@ -334,40 +331,38 @@ private slots:
                  qPrintable(client.error));
         const auto clipId = createdId(result, QStringLiteral("clip"));
         QVERIFY(clipId > 0);
-        QVERIFY2(
-            client.mutate(QStringLiteral("notes.insert"),
-                          {
-                              {QStringLiteral("clip_id"), clipId                                                 },
-                              {QStringLiteral("notes"),   QJsonArray{QJsonObject{
-                                                            {QStringLiteral("local_start"), 0},
-                                                            {QStringLiteral("length"), 960},
-                                                            {QStringLiteral("key_index"), 60},
-                                                            {QStringLiteral("lyric"), lyric},
-                                                            {QStringLiteral("language"), language},
-                                                        }}},
+        QVERIFY2(client.mutate(
+                     QStringLiteral("notes.insert"),
+                     {
+                         {QStringLiteral("clip_id"), clipId},
+                         {QStringLiteral("notes"),
+                          QJsonArray{QJsonObject{
+                              {QStringLiteral("local_start"), 0},
+                              {QStringLiteral("length"), 960},
+                              {QStringLiteral("key_index"), 60},
+                              {QStringLiteral("lyric"), lyric},
+                              {QStringLiteral("language"),
+                               QJsonObject{{QStringLiteral("mode"), QStringLiteral("explicit")},
+                                           {QStringLiteral("language_id"), language}}},
+                          }}                               },
         },
-                          result),
-            qPrintable(client.error));
+                     result),
+                 qPrintable(client.error));
 
         const QJsonObject scope{
             {QStringLiteral("kind"),     QStringLiteral("clip")},
             {QStringLiteral("clip_ids"), QJsonArray{clipId}    }
         };
-        QVERIFY2(client.call(QStringLiteral("inference.get_capabilities"),
-                             {
-                                 {QStringLiteral("document_id"), client.documentId},
-                                 {QStringLiteral("scope"),       scope            },
+        QVERIFY2(client.waitForInferenceModel(scope), qPrintable(client.error));
+        QVERIFY2(
+            client.mutate(QStringLiteral("inference.start"),
+                          {
+                              {QStringLiteral("scope"),   scope                                   },
+                              {QStringLiteral("options"),
+                               QJsonObject{{QStringLiteral("provider_id"), QStringLiteral("CPU")}}},
         },
-                             result),
-                 qPrintable(client.error));
-        QVERIFY2(client.mutate(QStringLiteral("inference.start"),
-                               {
-                                   {QStringLiteral("scope"),   scope        },
-                         {QStringLiteral("options"),
-                          QJsonObject{{QStringLiteral("provider_id"), QStringLiteral("CPU")}}},
-        },
-                               result),
-                 qPrintable(client.error));
+                          result),
+            qPrintable(client.error));
         QVERIFY2(client.waitForTask(result, false, 300000), qPrintable(client.error));
 
         const auto output = fixture.filePath(QStringLiteral("render.wav"));
