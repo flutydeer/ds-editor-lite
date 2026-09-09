@@ -46,7 +46,7 @@ Windows wrapper 将本地结果写到 `build/test-results`；直接 CTest 可加
 
 真实声库用例为 `TestHeadlessResources`：设置 `DSEL_TEST_VOICEBANK_ROOT`、`DSEL_TEST_LANGUAGE`、`DSEL_TEST_LYRIC`，多音源时再指定 `DSEL_TEST_SINGER_ID`。用例固定 CPU，创建短音符，完成推理及 WAV 导出并检查可解码、有限样本和非零能量。未设置声库根时明确跳过；配置后的失败为失败，不自动扫描个人声库。
 
-`TestInferenceWorkflow` 属于通用 workflow 集合：使用隔离的 Headless AppContext，构造实际推理任务快照并调用完成门控，关闭自动推理且不调度这些任务，不依赖声库输出或设备。它验证结果是否仍适用于当前编辑状态；实际模型执行由上述资源用例负责。
+`TestApplicationWorkflows` 属于通用 workflow 集合，共用隔离的 Headless AppContext。推理用例构造实际任务快照并调用完成门控，关闭自动推理且不调度这些任务；离线导出用例验证混音器原先打开或关闭两种状态的恢复。fixture 关闭自己持有的音频设备，通用用例不依赖声库输出或物理设备；实际模型执行由上述资源用例负责。
 
 `TestHeadlessProcessIntegration::audioImportAndWaveExport` 使用生成的小型 WAV，经过实际 Editor 导入和导出任务，再用 libsndfile 解码验证；归入通用进程集合，不需要配置声库或音频设备。
 

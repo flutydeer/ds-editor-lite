@@ -20,9 +20,10 @@
 | GUI Host 无设备时的公开播放失败 | process/gui | Linux 实际 MCP 调用超时；无设备时错误弹窗阻塞调用 | 仅 TrustedGui 调用显示设备错误弹窗；公开调用检查失败、状态不变及后续查询；GUI fixture 关闭自身设备确定性验证无弹窗 | McpProcessIntegration、PianoRollGuiIntegration | offscreen |
 | 文档生命周期、文件转换与发布 | workflow | 已有保存/换代/原子写回，执行边界不统一 | 保留真实文件回归；补保存扩展名/Unicode/大小写与过期确认；独立 fixture | AutomationDocumentLifecycle、DocumentWorkflow、MidiImportAutomation、ProjectConverterAtomicWrite | 通用/GUI |
 | 普通音频片段导入及 WAV 导出 | workflow/process | AudioExporter 首次复查仅覆盖 6 / 650 行，普通导出缺少真实执行 | 在现有进程目标补生成小 WAV、导入并等待任务完成、实际导出、解码检查采样率/声道/时长/有限非零内容及文档不变 | HeadlessProcessIntegration::audioImportAndWaveExport | 通用；无需声库/设备 |
+| 离线导出后的混音器状态恢复 | workflow | 实际 Linux 导出流程在恢复初始关闭的混音器时调用 open(0,0)，触发重采样比率断言 | 复用 Headless AppContext 测试目标，新增原先打开/关闭两行回归；按原 isOpen 恢复 open/close，已打开时保留原缓冲及采样率 | ApplicationWorkflows::offlineExportRestoresMixerState | 通用；fixture 关闭自身设备 |
 | DSPX 编辑内容往返 | workflow | 原文件测试多检查空工程、JSON 头或对象存在，未核对编辑内容 | 补真实 save/load 的乐句、发音、参数、声线混合、tempo/meter 保真 | ProjectConverterAtomicWrite | 通用 |
 | 任务竞态、幂等及音频资产 | workflow/domain | 已有受控调度和晚到回调 | 提取复用、拆独立状态转换 | AutomationTaskRaces、AutomationIdempotency、AutomationAsyncFileDomains、AudioAssetResolution、AudioDecodingController | 通用 |
-| 推理结果与当前文档、输入及编辑会话匹配 | workflow | 首次采样中 InferenceApplyGate 未执行；输入转换测试不能代替完成门控 | 新增真实任务快照到门控的 Apply/Drop/Defer 行为，覆盖四阶段输入变化、文档/对象消失、无关 revision 变化和编辑冲突 | InferenceWorkflow | 通用；无需模型输出 |
+| 推理结果与当前文档、输入及编辑会话匹配 | workflow | 首次采样中 InferenceApplyGate 未执行；输入转换测试不能代替完成门控 | 新增真实任务快照到门控的 Apply/Drop/Defer 行为，覆盖四阶段输入变化、文档/对象消失、无关 revision 变化和编辑冲突 | ApplicationWorkflows | 通用；无需模型输出 |
 | 权限、路径、分页、准入 | protocol | 已有真实边界验证 | 保留实际拒绝和副作用断言 | AutomationFileGuard、AutomationAdmission、AutomationCursor | 通用/平台 |
 | 公共接口及协议转换 | protocol | 数量和 Schema 镜像与行为测试混合 | 删除 Contract 镜像程序；真实无效输入归入 Registry 并检查无副作用；共享场景比较四种调用路径 | PublicAutomationRegistry、AutomationWire、McpHttpServer | 通用 |
 | Connector 生命周期与 stdio | protocol/process | 长入口及手工子集分派；可执行后缀和阻塞接收端依赖 Windows | 拆可定位用例，保留真实流行为；CMake 提供可执行路径，测试自身提供跨平台接收端；大帧验证不依赖工具总数 | DsConnectorLite | 通用 |
@@ -42,4 +43,4 @@ AnchoredCurve、NewStyle、OpenGLWidget、ParamEdit、InsertTable、StateMachine
 
 上述行为已归入对应领域和现有 GUI 目标，并取得实际执行证据；CI 另外发现的退出响应竞争归入协议生命周期。原生渲染、声库/设备及主观观感按运行条件记录，不为降低未执行行数扩展像素基线或模型矩阵。
 
-目标划分同时按职责复查：无窗口视口与 GUI 滚动条分开注册，HTTP/Connector 和进程长场景按独立行为拆分；LyricRules 承接歌词规则的共同职责，InferenceWorkflow 承接与输入转换不同的完成时序职责。
+目标划分同时按职责复查：无窗口视口与 GUI 滚动条分开注册，HTTP/Connector 和进程长场景按独立行为拆分；LyricRules 承接歌词规则的共同职责，ApplicationWorkflows 复用 Headless AppContext，承接推理完成门控和离线导出等应用工作流。

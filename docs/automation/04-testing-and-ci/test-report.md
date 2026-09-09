@@ -2,17 +2,21 @@
 
 ## 1. 当前结论
 
-`b0d97a98` 的 Windows 完整构建和本地验证通过：71 项中 70 项通过、1 项资源测试跳过，686 个行为/数据行通过。此前 Linux `153a359d` 的完整空缓存及同 SHA 缓存命中运行均 68 项全部通过，coverage 成功。包含普通音频导出补测和 CSV 输出的新候选继续执行完整 Linux CI；PR 审查尚未开始。初始源码基线：`a8fac646`。
+`50dc53a0` 在 overlay `110ca6bb` 下完成 Windows 全量验证：70 项通过、1 项资源跳过，688 个行为/数据行通过；Linux 同一候选的完整冷/暖缓存运行均 68 项通过。两轮行覆盖均为 49.3%，分支覆盖均为 40.4%，普通音频导出及混音器状态恢复已实际通过。审查状态以本报告第 6 节和 PR 为准。初始源码基线：`a8fac646`。
 
 ## 2. 候选与执行摘要
 
 ### 2.1. 已验证候选
 
-Windows 受测代码提交 `b0d97a98`，Qt 6.11.2、Visual Studio 2026 18.9 / MSVC 14.51。使用 `tests` preset 完整构建 Editor、Connector 和 `lite_tests`，`ctest --preset local` 71 项中 70 项通过，`TestHeadlessResources` 因未设置声库而跳过，耗时 58.92 秒。完整 LastTest 记录 686 个行为/数据行通过及 1 项资源跳过，不计 init/cleanup；构建、JUnit、环境和完整日志归档于 `build/test-results/windows-b0d97a98/`。
+Windows 受测代码提交 `50dc53a0598af69c7b86e59474f535b51d7706f7`，Qt 6.11.2、Visual Studio 2026 18.9 / MSVC 14.51。overlay 为 `110ca6bb`，安装 wolf-midi 1.0.2#1、synthrt 0.1.0.15#1、stdcorelib 0.2.1.0#3。使用 `tests` preset 完整构建 Editor、Connector 和 `lite_tests`，`ctest --preset local` 71 项中 70 项通过，`TestHeadlessResources` 因未设置声库而跳过，耗时 59.34 秒。完整 LastTest 记录 688 个行为/数据行通过及 1 项资源跳过，不计 init/cleanup；依赖、构建、JUnit、环境和完整日志归档于 `build/test-results/windows-50dc53a0/`。
 
-Linux [Actions 34310458032 attempt 1](https://github.com/flutydeer/ds-editor-lite/actions/runs/34310458032/attempts/1) 对应 PR head `153a359d778b4a6fdc6ef33e54bf5be53069bc49`，该提交仅在上述受测代码上追加文档；实际 checkout 的 PR 合并提交为 `366714225902c404c69da6c82fc2f70b9bb8d2c7`。Ubuntu 24.04 x64、GCC 13.3.0、Qt 6.11.2、CMake 3.31.6、Ninja 1.13.2，runner 4 CPU、约 15 GiB 内存。Qt 和 vcpkg 均未命中缓存，依赖源码构建、完整产品/测试构建、68 项测试和 coverage 全部通过；CTest 耗时 29.90 秒。同一 head/checkout 的 [attempt 2](https://github.com/flutydeer/ds-editor-lite/actions/runs/34310458032/attempts/2) 正常命中缓存，完整构建、68 项测试和 coverage 全部通过，CTest 耗时 35.72 秒。
+此前 `b0d97a98` 使用 overlay `f2aff642` 和当时的项目覆盖端口，Windows 全量结果为 70 项通过、1 项资源跳过，58.92 秒、686 个行为/数据行通过，产物归档于 `build/test-results/windows-b0d97a98/`。该历史记录与上述新依赖环境分开保存。
 
-| 类别 | Windows local | Linux ci |
+Linux [Actions 34319269165 attempt 1](https://github.com/flutydeer/ds-editor-lite/actions/runs/34319269165/attempts/1) 对应相同 PR head `50dc53a0598af69c7b86e59474f535b51d7706f7`，实际 checkout 的合并提交为 `ad9a185016ff73f05a44abf5a021050ff3e45efc`。Ubuntu 24.04 x64、GCC 13.3.0、Qt 6.11.2、CMake 3.31.6、Ninja 1.13.2，runner 4 CPU、约 15 GiB 内存。Qt 和 vcpkg 均未命中缓存，依赖源码构建、完整产品/测试构建、68 项测试和 coverage 全部通过；CTest 耗时 35.42 秒。完整 workflow 日志保存于 `build/actions-34319269165-1-workflow.log`，从其原生输出提取的 CSV 为 `build/actions-34319269165-1-files.csv`。
+
+同一 head、checkout 和环境的 [attempt 2](https://github.com/flutydeer/ds-editor-lite/actions/runs/34319269165/attempts/2) 命中 Qt/vcpkg 缓存，完整构建、68 项测试及 coverage 均通过，CTest 耗时 33.62 秒。日志及提取的原生 CSV 分别保存于 `build/actions-34319269165-2-workflow.log`、`build/actions-34319269165-2-files.csv`。
+
+| 类别 | Windows local（50dc53a0） | Linux ci（50dc53a0，冷/暖均通过） |
 |---|---|---|
 | 基础数据与算法（unit） | 19 项通过 | 19 项通过 |
 | 编辑与应用状态（domain） | 13 项通过 | 13 项通过 |
@@ -31,6 +35,10 @@ Linux [Actions 34310458032 attempt 1](https://github.com/flutydeer/ds-editor-lit
 
 空缓存 [Actions 34306312498](https://github.com/flutydeer/ds-editor-lite/actions/runs/34306312498) 的 PR head 为 `bf72a3bb`，实际 checkout 为 `5e6572f6412c711c5d03a626aad97a95d5649857`，环境版本与前两轮相同。Qt、全部 vcpkg 依赖源码构建、完整应用/测试构建及 coverage 通过，CTest 耗时 36.57 秒。unit 19、domain 13、workflow 7、protocol 9、process 2 全部通过；gui 18 项中 17 项通过，仅 `TestHeadlessCrossHostIntegration::crossHost` 的退出请求收到 `Connection closed`。该轮整体失败；完整产物已校验并归档于 `build/actions-34306312498/`。
 
+较早候选 `153a359d` 在 `f73d6c9c` 代码上追加文档，尚不包含普通音频导出用例和 CSV。其 [34310458032 attempt 1](https://github.com/flutydeer/ds-editor-lite/actions/runs/34310458032/attempts/1) 的实际 checkout 为 `366714225902c404c69da6c82fc2f70b9bb8d2c7`，旧依赖冷/暖两轮均 68 项通过，分别为 29.90 秒、35.72 秒。具体缓存证据见第 4 节。
+
+新依赖首轮 [34316222856](https://github.com/flutydeer/ds-editor-lite/actions/runs/34316222856) 对应 `3a79cc51`，实际 checkout 为 `427b0ca2caf439821fa45c1f77122475d9c992d8`，overlay 为 `110ca6bb`。完整构建和 coverage 成功，CTest 67/68 项通过、34.79 秒，唯一失败为普通音频导出。完整 artifact 已校验并归档于 `build/actions-34316222856/`，workflow 日志为 `build/actions-34316222856-workflow.log`。
+
 领域补测/生产共享提交为 `16d4ffa9`，GUI/播放修复为 `607fc7e9`，跨平台进程修复为 `3cb55146`。定向验证后，在 `3cb55146` 完成 Windows 完整构建及 local 全量执行：70 项通过、1 项声库资源跳过，56.63 秒，产物归档于 `build/test-results/windows-3cb55146/`。
 
 `3cb55146` 的完整 `LastTest.log` 另记录 Qt Test 行为/数据行：unit 156、domain 145、workflow 89、protocol 131、process 11、gui 151，共 683 项通过，资源用例 1 项跳过；不计 `initTestCase`/`cleanupTestCase`。这是本轮执行统计，不作为后续必须保持的数量约束。CTest JUnit 对通过用例的输出默认截断，逐例核对使用已归档的 `build/test-results/windows-3cb55146/LastTest.log`；Linux 对应完整日志由 Actions artifacts 保存。
@@ -39,7 +47,11 @@ Linux [Actions 34310458032 attempt 1](https://github.com/flutydeer/ds-editor-lit
 
 退出响应受控大响应回归在旧逻辑上失败，`aa673b5a` 修复后正常读取场景通过，`f73d6c9c` 再补不读取客户端仍可停止的场景；这一过程没有放宽跨进程退出响应断言。完整 Windows 结果见上方已验证候选。
 
-新增普通音频导出用例 `755c4e77` 在 Windows Headless 目标通过，整组耗时 33.06 秒，随后纳入上述完整 Windows 验证。`b0d97a98` 增加原生 CSV 覆盖率输出，等待新候选 Linux 运行确认；依赖仍为此前已验证的 wolf-midi 项目补丁和原 overlay 版本，缓存路径不变。
+新增普通音频导出用例 `755c4e77` 在 Windows Headless 目标通过，整组耗时 33.06 秒，随后纳入上述完整 Windows 验证。`b0d97a98` 增加的原生 CSV 已在新依赖 Linux 运行中成功输出。
+
+新依赖下的修前 Windows 候选 `47cb2f84` 完整构建及 local 通过：70 项通过、1 项资源跳过，59.34 秒、686 个行为/数据行通过，归档于 `build/test-results/windows-47cb2f84/`。
+
+`50dc53a0` 修复导出后的混音器状态恢复并将工作流目标统一为 ApplicationWorkflows。Windows 定向执行该目标及 HeadlessProcessIntegration 均通过（33.56 秒），明确包含 `closed-mixer`、`open-mixer` 和 `audioImportAndWaveExport` 通过，随后完成上方 688 个行为/数据行的全量验证。修前/修后定向日志集中于 `build/test-results/offline-export/`。
 
 ## 3. CI 调试与缺陷修复
 
@@ -64,6 +76,7 @@ Linux [Actions 34310458032 attempt 1](https://github.com/flutydeer/ds-editor-lit
 | 新编辑分支可能误判为已保存 | 丢弃 redo 分支时保存点仍引用已销毁条目，后续分配复用地址即错误匹配 | `aa1bf5c8` | 新用例先复现，修后 DocumentWorkflow 17 项和 ProjectConverterAtomicWrite 8 项 Qt Test 结果全部通过 |
 | 拆分后的 MCP 文档/退出 fixture 提前失败 | fixture 没有声明 `client_ref`，却依赖该映射取得新轨道 ID | `8ccd041f` | 补齐真实调用所需的标识，文档和退出断言恢复执行；定向 MCP 8 项通过 |
 | 次实例报告转发发送失败 | `waitForBytesWritten` 在同步排空或管道关闭时可返回 false，无条件等待误判发送状态 | `8a525d39` | 依据 Qt 6.11.2 实现检查等待前后未发送字节，最终仍验证 ACK；定向 MCP 8 项、SingleInstance 8 项通过。未捕获瞬时 pending/available 数值，不将推断写成观测事实 |
+| Linux 普通音频导出流程连接关闭 | 导出完成后恢复原先关闭的 premixer 时无条件 open(0,0)，触发 `AudioResampler` 的 `ratio > 0.0` 断言，Editor CrashExit、退出码 6 | `50dc53a0` | [34316222856](https://github.com/flutydeer/ds-editor-lite/actions/runs/34316222856) 首次失败；Windows closed-mixer 在修前同样复现。按初始 isOpen 恢复后，定向、Windows 全量及 [新 Linux 冷运行](https://github.com/flutydeer/ds-editor-lite/actions/runs/34319269165/attempts/1) 全部通过。`build/test-results/offline-export/` 保存 before-fix/after-fix 及完整 LastTest 日志 |
 
 仅记录有意义的失败及闭环，同一根因合并；原始日志留在 Actions artifacts 或本地产物目录。
 
@@ -75,7 +88,13 @@ Linux CI、Windows 本地、原生桌面及资源依赖用例分别记录。未�
 
 已验证候选 `153a359d` 的[空缓存运行](https://github.com/flutydeer/ds-editor-lite/actions/runs/34310458032/attempts/1)已完整通过。完整 workflow 日志明确记录 Qt `Automatic cache miss`、vcpkg 精确键及回退键均未命中；全部 55 个依赖从源码安装约 19 分钟完成，随后完整构建、68 项测试及 coverage 通过，并生成新的 Qt/vcpkg 缓存。证据归档于 `build/actions-34310458032-1-workflow.log`；这一结果依据实际日志，未以删除缓存动作代替冷路径验证。
 
-同一 SHA 的 [attempt 2](https://github.com/flutydeer/ds-editor-lite/actions/runs/34310458032/attempts/2) 明确记录 Qt 自动命中、vcpkg 精确键恢复成功，55 个包在 4.6 秒内恢复；install 仍执行并成功，完整构建、68 项测试和 coverage 全部通过。证据归档于 `build/actions-34310458032-2-workflow.log`。两轮完整成功已经验证当前依赖的冷/暖路径；后续仅补音频工作流用例，依赖声明与缓存路径不变，仍需在新提交上完整执行测试。
+同一 SHA 的 [attempt 2](https://github.com/flutydeer/ds-editor-lite/actions/runs/34310458032/attempts/2) 明确记录 Qt 自动命中、vcpkg 精确键恢复成功，55 个包在 4.6 秒内恢复；install 仍执行并成功，完整构建、68 项测试和 coverage 全部通过。证据归档于 `build/actions-34310458032-2-workflow.log`。两轮完整成功验证的是 `153a359d` 当时的依赖及缓存路径。
+
+`3a79cc51` 将 overlay 从 `f2aff642` 更新到 `110ca6bb`，直接使用上游 wolf-midi 1.0.2#1（`2097d1d9`）、synthrt 0.1.0.15#1（`0e3940dc`），并带入 stdcorelib 端口更新。项目不再注册临时覆盖端口，失效的 CI 哈希引用也已移除。Windows `47cb2f84` 重建与全量测试已通过。Linux 新运行从旧键 `06713d49…` 回退恢复 48 个包（3.1 秒），其余 7 个包从源码构建，wolf-midi/synthrt 新版本构建成功，并保存新键 `b98e610e…`；完整应用构建也通过。该轮仍有音频导出失败，缓存升级路径成功不等于整体验收通过，旧冷/暖结果继续作为历史证据保留。
+
+修复候选 `50dc53a0` 的 [34319269165 attempt 1](https://github.com/flutydeer/ds-editor-lite/actions/runs/34319269165/attempts/1) 已完成新依赖冷验证：Qt 明确 cache miss，vcpkg 精确键和回退键均未命中，0 包恢复，全部 55 个依赖源码安装约 23 分钟成功，随后完整构建、68 项测试和 coverage 通过。该结果来自实际 workflow 日志，不以此前仅清除 PR #187 缓存的动作代替验证。
+
+同一 SHA 的 [attempt 2](https://github.com/flutydeer/ds-editor-lite/actions/runs/34319269165/attempts/2) 记录 Qt Automatic cache hit、vcpkg 精确键 `e2060edf…` 命中，55 个包在 4.2 秒恢复；install 成功（125 ms），随后完整构建、68 项测试和 coverage 全部通过。两轮成功完成当前依赖及候选的冷/暖验收。
 
 此前 `bf72a3bb` 的 [34306312498](https://github.com/flutydeer/ds-editor-lite/actions/runs/34306312498) 也完成冷依赖及构建，但因退出响应问题失败，仅作为调试记录，不作为空缓存验收通过依据。
 
@@ -115,37 +134,61 @@ Linux CI、Windows 本地、原生桌面及资源依赖用例分别记录。未�
 | 实测缺口 | 产品风险与本轮处置 | 当前验证状态 |
 |---|---|---|
 | ClipsInfo 0 / 250 行 | 整片段剪贴板遗漏参数；复用曲线编码，补 Original/Edited/Envelope、音符范围外及无音符曲线，跨轨粘贴保留发音/声线并一次撤销。GUI 控制器入口同时补测 | NoteTransfer 与 GUI 入口在 Windows、Linux 通过 |
-| InferenceApplyGate 0 / 189 行 | 旧输入转换用例没有进入结果门控；新增真实任务快照的 Apply/Drop/Defer，检查四阶段输入变化、文档/片段消失、无关 revision 变化和冲突编辑 | 新增 InferenceWorkflow，Windows、Linux 通过 |
+| InferenceApplyGate 0 / 189 行 | 旧输入转换用例没有进入结果门控；新增真实任务快照的 Apply/Drop/Defer，检查四阶段输入变化、文档/片段消失、无关 revision 变化和冲突编辑 | 门控用例在 Windows、Linux 通过，现保留于 ApplicationWorkflows |
 | TextSplitter 0 / 178 行 | 规则生效和文字保真遗漏；补混合文字、启用/优先级及空匹配，修复 `(a*)` 对 `a中` 产生重复前缀的实现 | FillLyricTaggerOrder 改名为 LyricRules，Windows、Linux 通过 |
 | NoteInteractionController 8 / 112 行 | 绘制新音符不能覆盖已有音符拖动；扩展真实鼠标拖动提交及 Escape 取消，核对预览、场景、模型和撤销 | GUI 目标在 Windows、Linux 通过 |
 
-上述缺口由源码及覆盖产物确认；新增测试已完成 Windows 和 Linux 验证，但没有修复前的实际失败运行记录，不把源码分析写成已执行的回归复现。InferenceWorkflow 使用真实 Headless AppContext 和未调度的任务快照，验证完成门控，不依赖实际声库输出。当前重构还把歌词和剪贴板生产源码收敛到共享 target，消除重复编译；新目标构建发现的 SynthrtEngine 提取模块依赖已补在库自身。
+上述缺口由源码及覆盖产物确认；表中门控、剪贴板、歌词和交互用例已完成 Windows 和 Linux 验证，没有修前失败运行记录的项目不记作实际回归复现。ApplicationWorkflows 的门控部分使用真实 Headless AppContext 和未调度的任务快照，不依赖实际声库输出；离线导出状态恢复另有 Windows 修前失败及 Windows/Linux 修后通过证据。歌词和剪贴板生产源码已收敛到共享 target；新目标构建发现的 SynthrtEngine 提取模块依赖已补在库自身。
 
 ### 5.3. 补测后的实测变化
 
-`6407433f` 对应的第二轮采样为 **行 49,920 / 102,350（48.8%），分支 47,283 / 118,191（40.0%）**。完整产物位于 `build/actions-34304622902/build/test-results/coverage/`。与首轮相比，多执行了 1,890 行和 2,033 个分支；同时生产共享和修复改变了源码分母，因此以各轮实际分母分别统计。
+下表比较首次 `59aa9cd0` 与修复候选 `50dc53a0` 成功冷运行的重点文件。后者整体为 **行 50,508 / 102,379（49.3%），分支 47,729 / 118,232（40.4%）**。源码重构和修复改变了部分分母，各轮分别统计，未累计历史执行数据。
 
-| 重点生产实现 | 首轮行覆盖 | 补测后行覆盖 | 首轮分支覆盖 | 补测后分支覆盖 |
+| 重点生产实现 | 首轮行覆盖 | 50dc53a0 行覆盖 | 首轮分支覆盖 | 50dc53a0 分支覆盖 |
 |---|---:|---:|---:|---:|
 | ClipsInfo | 0 / 250（0%） | 239 / 281（85.1%） | 0 / 580（0%） | 460 / 620（74.2%） |
 | InferenceApplyGate | 0 / 189（0%） | 149 / 189（78.8%） | 0 / 337（0%） | 203 / 337（60.2%） |
 | TextSplitter | 0 / 178（0%） | 140 / 177（79.1%） | 0 / 201（0%） | 137 / 205（66.8%） |
 | NoteInteractionController | 8 / 112（7.1%） | 57 / 112（50.9%） | 0 / 68（0%） | 46 / 68（67.6%） |
 | 新提取的 ParameterCurvesJson | 原属其他文件 | 84 / 91（92.3%） | 原属其他文件 | 100 / 122（82.0%） |
+| AudioExporter | 6 / 650（0.9%） | 243 / 654（37.2%） | 0 / 633（0%） | 144 / 637（22.6%） |
 
-新增用例确实进入原先缺失的产品行为：整片段参数往返、推理完成门控、歌词拆分及已有音符拖动/取消均在 Linux 通过。目录层面，app/Model 行覆盖由 60.1% 升至 74.0%，app/Modules 由 15.3% 升至 21.3%；具体已执行行仍以原始 HTML/JSON 为准。
+新增用例确实进入原先缺失的产品行为：整片段参数往返、推理完成门控、歌词拆分、已有音符拖动/取消及纯音频导出均在 Linux 通过。目录层面，app/Model 行覆盖由 60.1% 升至 74.0%，app/Modules 由 15.3% 升至 23.8%；具体已执行行以对应原始产物为准。
 
-后续失败的空缓存 `bf72a3bb` 采样为行 49,936 / 102,350（48.8%），分支 47,299 / 118,191（40.0%），以上五个重点文件的覆盖数与第二轮一致。产物位于 `build/actions-34306312498/build/test-results/coverage/`。
+阶段采样 `6407433f` 为行 49,920 / 102,350（48.8%）、分支 47,283 / 118,191（40.0%），完整产物位于 `build/actions-34304622902/build/test-results/coverage/`。这些历史数据用于说明补测选择，不替代最新成功运行。
+
+后续失败的空缓存 `bf72a3bb` 采样为行 49,936 / 102,350（48.8%），分支 47,299 / 118,191（40.0%），上表前五项的覆盖数与第二轮一致。产物位于 `build/actions-34306312498/build/test-results/coverage/`。
 
 退出响应修复后的全绿冷候选 `153a359d` 采样为 **行 49,961 / 102,375（48.8%），分支 47,336 / 118,228（40.0%）**，来自 [34310458032 attempt 1](https://github.com/flutydeer/ds-editor-lite/actions/runs/34310458032/attempts/1) 的成功 coverage 步骤。测试集合完整通过后重新采样，未将历史失败轮次数据累加进本轮结果。
 
 同一 SHA 的成功暖缓存采样为 **行 49,967 / 102,375（48.8%），分支 47,341 / 118,228（40.0%）**，来源为 attempt 2；两轮分别统计，不将微小的运行路径差异解释为新增功能覆盖。
 
-48.8% 是已编译生产源码的行覆盖，不是已完成产品功能的比例。未覆盖部分既有原生渲染、设备/模型和交互对话框，也有普通产品工作流：复查发现 AudioExporter 仅触达少量初始化代码，因此补充了使用现场生成小 WAV 的纯音频导出闭环，无需声库。Windows 已通过，后续 Linux 重新采样确认覆盖变化。
+49.3% 是已编译生产源码的行覆盖，不是已完成产品功能的比例。未覆盖部分既有原生渲染、设备/模型和交互对话框，也有普通产品工作流；因此没有把低覆盖一概归为资源问题。AudioExporter 曾仅触达少量初始化代码，补入无需声库的小 WAV 导入/导出闭环后，在 Windows 和 Linux 均通过并取得实测覆盖增量。
 
-`TestHeadlessProcessIntegration::audioImportAndWaveExport` 生成短音频，执行真实导入与 WAV 导出任务、等待成功终态，并解码检查格式、时长、有限非零样本及文档版本不变。首轮时长差异来自 fixture 用 `SFM_RDWR` 打开已有素材后追加样本，实际导出正确；补 `sf_seek` 定位首帧后整组通过，保留原 2 ms 容差，没有修改生产导出逻辑。该用例不计入前述 `153a359d` 的结果。
+`TestHeadlessProcessIntegration::audioImportAndWaveExport` 生成短音频，执行真实导入与 WAV 导出任务、等待成功终态，并解码检查格式、时长、有限非零样本及文档版本不变。首轮时长差异来自 fixture 用 `SFM_RDWR` 打开已有素材后追加样本；补 `sf_seek` 定位首帧后通过，保留原 2 ms 容差。之后发现的混音器恢复缺陷按第 3 节修复，完整流程现已在 Windows/Linux 通过。
 
-为获取新候选的逐文件统计，workflow 已在 `b0d97a98` 增加 gcovr `files.csv` 并输出到文本日志。下一轮按原生 CSV 核对 AudioExporter 和其他重要目录的实际覆盖；历史 HTML/JSON 仍保留。该改动仅增加测试诊断输出，不建立文档生成机制。
+workflow 在 `b0d97a98` 增加的 gcovr `files.csv` 已完整输出，并随 artifact 保存。该改动仅增加测试诊断输出，不建立文档生成机制。
+
+### 5.4. 新依赖成功冷运行的目录汇总
+
+最新目录数据来自 `50dc53a0` 的 [34319269165 attempt 1](https://github.com/flutydeer/ds-editor-lite/actions/runs/34319269165/attempts/1)。完整 workflow 中的原生 CSV 已提取为 `build/actions-34319269165-1-files.csv`，884 个文件条目的总数与该轮 coverage 汇总一致。本轮逐文件分析依据这两份完整保存的文本产物。
+
+同一候选暖运行独立采样为 **行 50,506 / 102,379（49.3%），分支 47,725 / 118,232（40.4%）**；AudioExporter 与冷运行相同，仍为 243 / 654 行、144 / 637 分支。两轮分别保留实际计数，不合并历史执行数据。
+
+| 主要生产目录 | 已覆盖/总行数 | 行覆盖 | 已覆盖/总分支数 | 分支覆盖 |
+|---|---:|---:|---:|---:|
+| app/Automation | 13,799 / 23,369 | 59.0% | 13,361 / 28,965 | 46.1% |
+| app/Controller | 2,866 / 5,001 | 57.3% | 2,176 / 5,001 | 43.5% |
+| app/Model | 1,252 / 1,693 | 74.0% | 1,770 / 2,525 | 70.1% |
+| app/Modules | 3,131 / 13,170 | 23.8% | 2,935 / 14,234 | 20.6% |
+| app/UI | 11,460 / 32,406 | 35.4% | 8,538 / 33,148 | 25.8% |
+| connector | 2,279 / 2,634 | 86.5% | 2,615 / 4,172 | 62.7% |
+| libs/AutomationWire | 4,821 / 5,291 | 91.1% | 9,000 / 14,715 | 61.2% |
+| libs/GUI | 2,549 / 6,308 | 40.4% | 1,731 / 4,894 | 35.4% |
+| libs/History | 140 / 144 | 97.2% | 101 / 121 | 83.5% |
+| libs/ProjectModel | 2,369 / 3,148 | 75.3% | 1,656 / 2,607 | 63.5% |
+
+此前失败候选 `3a79cc51` 的 CSV/JSON 为行 49,957 / 102,375（48.8%）、分支 47,335 / 118,228（40.0%），两者总数一致，完整归档于 `build/actions-34316222856/build/test-results/coverage/`。当时 AudioExporter 仍仅 6 / 650 行；该失败轮次没有作为导出行为通过或覆盖增量的验收依据。
 
 其余低覆盖路径按[覆盖矩阵](test-coverage-matrix.md)标明职责和运行条件；不把它们一概视为不需测试，也不为追求百分比扩展像素基线、设备组合或无语义 getter 测试。实际 CI 发现的退出响应竞态已归入协议生命周期并完成修复及 Linux 验证。
 
