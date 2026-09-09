@@ -1,6 +1,9 @@
 #include "Automation/NoteTransfer.h"
+#include "Model/ClipboardDataModel/ClipsInfo.h"
 #include "Model/ClipboardDataModel/NotesParamsInfo.h"
 #include "TestRuntime.h"
+
+#include <lite/ProjectModel/AppModel/Track.h>
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
@@ -8,6 +11,7 @@
 #include <QCoreApplication>
 #include <QtTest/QTest>
 #include <QJsonDocument>
+#include <QScopeGuard>
 #include <QTextStream>
 
 #include <limits>
@@ -434,6 +438,155 @@ class NoteTransferTests final : public QObject {
     Q_OBJECT
 
 private slots:
+
+    void wholeClipParameterRoundTrip_data() {
+        QTest::addColumn<int>("layer");
+        QTest::addColumn<bool>("hasNotes");
+        QTest::newRow("edited-curves-beyond-notes") << int(Param::Edited) << true;
+        QTest::newRow("original-curves-without-notes") << int(Param::Original) << false;
+        QTest::newRow("envelope-curves") << int(Param::Envelope) << true;
+    }
+
+    void wholeClipParameterRoundTrip() {
+        QFETCH(int, layer);
+        QFETCH(bool, hasNotes);
+        auto draft = clipDraft(QStringLiteral("Whole phrase"));
+        if (hasNotes)
+            draft.notes = {noteDraft(240, 120, 64, QStringLiteral("phrase"))};
+        auto anchored = anchor({
+            {0,   6400},
+            {480, 6500}
+        });
+        anchored.localStart = 720;
+        anchored.nodes.first().interpolation = AnchorNode::Cubic;
+        const auto type = static_cast<Param::Type>(layer);
+        draft.params = {
+            {.name = ParamInfo::Pitch,
+             .type = type,
+             .curves = {draw(0, 120, {6400, 6420, 6380}), anchored}}
+        };
+        const auto source = Automation::buildClip(draft, nullptr, Timeline{});
+        const ClipsInfo copied{{source.get()}, {0}};
+        const auto bytes = QJsonDocument(ClipsInfo::serializeToJson(copied)).toJson();
+        const auto decoded =
+            ClipsInfo::deserializeFromJson(QJsonDocument::fromJson(bytes).object());
+        const auto cleanup = qScopeGuard([&] { qDeleteAll(decoded.clips); });
+        QCOMPARE(decoded.clips.size(), 1);
+        const auto restored = Automation::clipDraftDto(*decoded.clips.first());
+        QCOMPARE(restored.notes.size(), draft.notes.size());
+        QCOMPARE(restored.params.size(), 1);
+        QCOMPARE(restored.params.first().name, ParamInfo::Pitch);
+        QCOMPARE(restored.params.first().type, type);
+        QVERIFY(sameShape({.curves = draft.params.first().curves},
+                          {.curves = restored.params.first().curves}));
+    }
+
+    void wholeClipsPasteAcrossTracksAsOneEdit() {
+        TestRuntime testRuntime;
+        auto &runtime = testRuntime.runtime();
+        for (const auto &name :
+             {QStringLiteral("Harmony"), QStringLiteral("Gap"), QStringLiteral("Lead")})
+            QVERIFY(insertTrack(runtime, name).isValid());
+        const auto tracks = testRuntime.model().tracks();
+        const SpeakerInfo soft(QStringLiteral("soft"), QStringLiteral("Soft"));
+        const SpeakerInfo strong(QStringLiteral("strong"), QStringLiteral("Strong"));
+        const SingerInfo singer(
+            {QStringLiteral("voice"), QStringLiteral("clipboard-fixture"), QVersionNumber(1, 2)},
+            QStringLiteral("Fixture voice"), {soft, strong});
+        tracks.first()->setSingerAndSpeakerInfo(singer, strong);
+
+        auto lead = clipDraft(QStringLiteral("Lead phrase"));
+        lead.properties.start = 1440;
+        lead.properties.clipStart = 120;
+        lead.properties.clipLen = 2400;
+        lead.notes = {noteDraft(240, 480, 64, QStringLiteral("世界"))};
+        lead.notes.first().pronunciation = {QStringLiteral("world"), QStringLiteral("werld")};
+        lead.params = {
+            {.name = ParamInfo::Pitch,
+             .type = Param::Edited,
+             .curves = {draw(0, 120, {6400, 6420, 6380})}    },
+            {.name = ParamInfo::Energy,
+             .type = Param::Envelope,
+             .curves = {anchor({{120, -1000}, {960, -3000}})}}
+        };
+        lead.usesTrackVoiceContext = false;
+        lead.ownSingerInfo = singer;
+        lead.ownSpeakerInfo = soft;
+        lead.ownSpeakerMixData.mode = SpeakerMixModel::SingerSourceMode::DynamicMix;
+        lead.ownSpeakerMixData.sources = {{soft}, {strong}};
+        lead.ownSpeakerMixData.fixedWeights = {0.25};
+        lead.ownSpeakerMixData.dynamicKeyframes = {
+            {0,   {0.25}},
+            {480, {0.8} }
+        };
+        auto harmony = clipDraft(QStringLiteral("Harmony phrase"));
+        harmony.properties.start = 480;
+        harmony.notes = {noteDraft(120, 480, 60, QStringLiteral("ah"))};
+        const auto leadModel = Automation::buildClip(lead, nullptr, Timeline{});
+        const auto harmonyModel = Automation::buildClip(harmony, nullptr, Timeline{});
+        const ClipsInfo copied{
+            {leadModel.get(), harmonyModel.get()},
+            {0,               -2                }
+        };
+        const auto bytes = QJsonDocument(ClipsInfo::serializeToJson(copied)).toJson();
+        const auto decoded =
+            ClipsInfo::deserializeFromJson(QJsonDocument::fromJson(bytes).object());
+        const auto cleanup = qScopeGuard([&] { qDeleteAll(decoded.clips); });
+
+        const auto before = runtime.documentVersion();
+        const auto previousUndo = testRuntime.history()->nextUndoEntry();
+        const auto result = runtime.project().insertClips(commandContext(runtime),
+                                                          decoded.preparePaste(tracks, 4800, 2));
+        QVERIFY(result);
+        QVERIFY(result.get().changed);
+        QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+        QCOMPARE(tracks.at(0)->clips().count(), 1);
+        QCOMPARE(tracks.at(1)->clips().count(), 0);
+        QCOMPARE(tracks.at(2)->clips().count(), 1);
+        const auto *pastedLead = dynamic_cast<SingingClip *>(*tracks.at(2)->clips().begin());
+        const auto *pastedHarmony = dynamic_cast<SingingClip *>(*tracks.at(0)->clips().begin());
+        QVERIFY(pastedLead);
+        QVERIFY(pastedHarmony);
+        QCOMPARE(pastedHarmony->start(), 4800);
+        QCOMPARE(pastedLead->start(), 5760);
+        QCOMPARE(pastedLead->clipStart(), 120);
+        QCOMPARE(pastedLead->clipLen(), 2400);
+        const auto restored = Automation::clipDraftDto(*pastedLead);
+        QCOMPARE(restored.notes.size(), 1);
+        QCOMPARE(restored.notes.first().localStart, 240);
+        QCOMPARE(restored.notes.first().length, 480);
+        QCOMPARE(restored.notes.first().keyIndex, 64);
+        QCOMPARE(restored.notes.first().lyric, QStringLiteral("世界"));
+        QCOMPARE(restored.notes.first().pronunciation.edited, QStringLiteral("werld"));
+        QCOMPARE(restored.params.size(), lead.params.size());
+        for (qsizetype i = 0; i < lead.params.size(); ++i) {
+            QCOMPARE(restored.params.at(i).name, lead.params.at(i).name);
+            QCOMPARE(restored.params.at(i).type, lead.params.at(i).type);
+            QVERIFY(sameShape({.curves = lead.params.at(i).curves},
+                              {.curves = restored.params.at(i).curves}));
+        }
+        QVERIFY(!pastedLead->usesTrackVoiceContext());
+        QVERIFY(pastedLead->singerIdentifier() == singer.identifier());
+        QCOMPARE(pastedLead->speakerId(), soft.id());
+        QCOMPARE(pastedLead->ownSpeakerMixData().mode,
+                 SpeakerMixModel::SingerSourceMode::DynamicMix);
+        QCOMPARE(pastedLead->ownSpeakerMixData().sources, lead.ownSpeakerMixData.sources);
+        QCOMPARE(pastedLead->ownSpeakerMixData().fixedWeights, QVector<double>{0.25});
+        const auto keyframes = pastedLead->ownSpeakerMixData().dynamicKeyframes;
+        QCOMPARE(keyframes.size(), 2);
+        QCOMPARE(keyframes.at(1).tick, 480);
+        QCOMPARE(keyframes.at(1).weights, QVector<double>{0.8});
+        QVERIFY(pastedHarmony->usesTrackVoiceContext());
+        QVERIFY(pastedHarmony->singerIdentifier() == singer.identifier());
+        QCOMPARE(pastedHarmony->speakerId(), strong.id());
+
+        const auto undone = runtime.history().undo(commandContext(runtime));
+        QVERIFY(undone);
+        QVERIFY(undone.get().changed);
+        QCOMPARE(testRuntime.history()->nextUndoEntry(), previousUndo);
+        for (const auto *track : tracks)
+            QCOMPARE(track->clips().count(), 0);
+    }
 
     void duplicateWithParameters() {
         testDuplicateWithParameters();

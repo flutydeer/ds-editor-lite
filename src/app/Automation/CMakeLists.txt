@@ -45,9 +45,14 @@ add_library(EditorAutomationCore STATIC
     ../Controller/Actions/AppModel/TimeSignature/EditTimeSignaturesAction.cpp
     ../Controller/Actions/AppModel/TimeSignature/TimeSignatureActions.cpp
     ../Model/AppModel/SingingClipPhonemeNormalizer.cpp
+    ../Model/ClipboardDataModel/ClipsInfo.cpp
     ../Model/ClipboardDataModel/NotesParamsInfo.cpp
+    ../Model/ClipboardDataModel/ParameterCurvesJson.cpp
+    ../Model/AppOptions/Options/FillLyricOption.cpp
     ../Modules/FillLyric/Utils/LyricRuleAutomationUtils.cpp
     ../Modules/FillLyric/Utils/TaggerRuleOrder.cpp
+    ../Modules/FillLyric/Utils/TextSplitter.cpp
+    ../Modules/FillLyric/Utils/TextTagger.cpp
     ../UI/Views/TrackEditor/AudioClipDragState.cpp
     ../UI/Views/ClipEditor/DrawCurveEditUtils.cpp
     ../UI/Views/ClipEditor/CurveTransform/CurveTransformSession.cpp
@@ -63,4 +68,5 @@ target_include_directories(EditorAutomationCore PUBLIC
 )
 target_link_libraries(EditorAutomationCore PUBLIC
     lite::ADT lite::History lite::MusicBase lite::ProjectModel Qt6::Core re2::re2
+    PRIVATE lite::PackageManager
 )

@@ -12,9 +12,6 @@ lite_add_test(${PROJECT_NAME}
         ../../app/Automation/Public/PublicAutomationRegistryAdvancedApplication.cpp
         ../../app/Automation/Public/PublicAutomationRegistryAdvancedGui.cpp
         ../../app/Modules/FillLyric/Utils/SplitLyric.cpp
-        ../../app/Modules/FillLyric/Utils/TaggerRuleOrder.cpp
-        ../../app/Modules/FillLyric/Utils/TextSplitter.cpp
-        ../../app/Modules/FillLyric/Utils/TextTagger.cpp
         ../../app/Utils/UiLanguageManager.cpp
 )
 

@@ -337,33 +337,11 @@ void TrackController::cutSelectedClips() {
 }
 
 void TrackController::pasteClips(const ClipsInfo &info, int tick, int trackIndex) {
-    const auto &srcClips = info.clips;
     auto *runtime = automationRuntime();
-    if (!runtime || srcClips.isEmpty())
+    if (!runtime)
         return;
 
-    if (trackIndex < 0 || trackIndex >= appModel->tracks().count())
-        return;
-
-    int minStart = srcClips.first()->start();
-    for (const auto clip : srcClips)
-        minStart = qMin(minStart, clip->start());
-    const auto offset = tick - minStart;
-
-    QList<Automation::ClipInsertDto> inserts;
-
-    for (int i = 0; i < srcClips.count(); i++) {
-        const auto srcClip = srcClips.at(i);
-        if (!srcClip)
-            continue;
-        int targetTrackIndex = trackIndex + info.trackIndexOffsets.value(i, 0);
-        targetTrackIndex = qBound(0, targetTrackIndex, appModel->tracks().count() - 1);
-        auto draft = Automation::clipDraftDto(*srcClip);
-        draft.properties.start += offset;
-        const auto target = appModel->tracks().at(targetTrackIndex);
-        inserts.append({Automation::TrackId(target->id()), std::move(draft)});
-    }
-
+    const auto inserts = info.preparePaste(appModel->tracks(), tick, trackIndex);
     if (inserts.isEmpty())
         return;
     runtime->project().insertClips(commandContext(*runtime), inserts);

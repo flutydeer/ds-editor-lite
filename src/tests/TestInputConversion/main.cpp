@@ -70,12 +70,6 @@ namespace {
     // After the v3 fix, Duration uses the same speaker-mix path as other stages,
     // so effectiveSpeakerMixForPiece must return the piece's non-empty mix
     // (rather than forcing a single static speaker).
-    // Note: shouldCheckSpeakerMixSignature (InferenceApplyGate.cpp) is a private
-    // free function in an anonymous namespace and cannot be unit-tested directly.
-    // Its post-fix behaviour -- returning true solely based on
-    // !context.speakerMixSignature.isEmpty() with no Duration special-case --
-    // is exercised end-to-end through effectiveSpeakerMixForPiece being called
-    // uniformly for all stages including Duration.
     bool testEffectiveSpeakerMixForPieceNonEmpty() {
         bool ok = true;
         InferPiece piece(nullptr);

@@ -2,12 +2,14 @@
 #include "Model/AppOptions/Options/FillLyricOption.h"
 #include "Modules/FillLyric/Utils/LyricRuleAutomationUtils.h"
 #include "Modules/FillLyric/Utils/TaggerRuleOrder.h"
+#include "Modules/FillLyric/Utils/TextSplitter.h"
 #include "Modules/FillLyric/Utils/TextTagger.h"
 
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QJsonObject>
 #include <QTemporaryDir>
 #include <QTextStream>
@@ -54,6 +56,25 @@ namespace {
                 "tag": "builtin"
             }]
         })") > 0;
+    }
+
+    bool writeSplitterRule(const QString &directory, const QString &name,
+                           const QStringList &patterns) {
+        QFile file(QDir(directory).filePath(name + QStringLiteral(".json")));
+        const auto bytes =
+            QJsonDocument(QJsonObject{
+                              {QStringLiteral("regexes"), QJsonArray::fromStringList(patterns)}
+        })
+                .toJson();
+        return file.open(QIODevice::WriteOnly | QIODevice::Truncate) &&
+               file.write(bytes) == bytes.size();
+    }
+
+    QStringList splitText(const QString &text) {
+        QStringList result;
+        for (const auto &part : FillLyric::TextSplitter::split(text.toUtf8().toStdString()))
+            result.append(QString::fromUtf8(part.data(), static_cast<qsizetype>(part.size())));
+        return result;
     }
 
     bool expectTag(const QString &expected) {
@@ -225,7 +246,7 @@ namespace {
     }
 }
 
-class FillLyricTaggerOrderTests final : public QObject {
+class LyricRuleTests final : public QObject {
     Q_OBJECT
 
 private slots:
@@ -250,7 +271,101 @@ private slots:
         QVERIFY(writeBuiltinRule(configDir));
         QVERIFY(testRuntimeOrder(configDir));
     }
+
+    void splitterPreservesMixedLanguageText() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        QVERIFY(writeSplitterRule(directory.path(), QStringLiteral("mixed"),
+                                  {QStringLiteral("([\\p{Han}])"), QStringLiteral("([A-Za-z]+)")}));
+        QVERIFY(FillLyric::TextSplitter::init(filesystemPath(directory.path())));
+        const auto input = QStringLiteral("你好 hello🙂カナ");
+        const QStringList expected{QStringLiteral("你"), QStringLiteral("好"), QStringLiteral(" "),
+                                   QStringLiteral("hello"), QStringLiteral("🙂カナ")};
+        const auto result = splitText(input);
+        QCOMPARE(result, expected);
+        QCOMPARE(result.join(QString{}), input);
+    }
+
+    void splitterEnabledRules_data() {
+        QTest::addColumn<bool>("builtinEnabled");
+        QTest::addColumn<bool>("customEnabled");
+        QTest::addColumn<QStringList>("expected");
+        QTest::newRow("both-enabled") << true << true
+                                      << QStringList{QStringLiteral("中"), QStringLiteral("甲"),
+                                                     QStringLiteral("a"), QStringLiteral("b")};
+        QTest::newRow("builtin-only")
+            << true << false
+            << QStringList{QStringLiteral("中"), QStringLiteral("甲"), QStringLiteral("ab")};
+        QTest::newRow("custom-only")
+            << false << true
+            << QStringList{QStringLiteral("中甲"), QStringLiteral("a"), QStringLiteral("b")};
+        QTest::newRow("both-disabled") << false << false << QStringList{QStringLiteral("中甲ab")};
+    }
+
+    void splitterEnabledRules() {
+        QFETCH(bool, builtinEnabled);
+        QFETCH(bool, customEnabled);
+        QFETCH(QStringList, expected);
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        QVERIFY(writeSplitterRule(directory.path(), QStringLiteral("han"),
+                                  {QStringLiteral("([\\p{Han}])")}));
+        QVERIFY(FillLyric::TextSplitter::init(filesystemPath(directory.path())));
+        FillLyric::TextSplitter::setBuiltinEnabled({
+            {QStringLiteral("han"), builtinEnabled}
+        });
+        CustomSplitterRule custom;
+        custom.name = QStringLiteral("latin");
+        custom.regexes = {QStringLiteral("(a)")};
+        custom.enabled = customEnabled;
+        FillLyric::TextSplitter::setCustomRules({custom});
+        const auto input = QStringLiteral("中甲ab");
+        const auto result = splitText(input);
+        QCOMPARE(result, expected);
+        QCOMPARE(result.join(QString{}), input);
+    }
+
+    void splitterRulePriority_data() {
+        QTest::addColumn<QStringList>("order");
+        QTest::addColumn<QStringList>("expected");
+        QTest::newRow("builtin-first")
+            << QStringList{QStringLiteral("pair"), QStringLiteral("tail")}
+            << QStringList{QStringLiteral("ab"), QStringLiteral("c")};
+        QTest::newRow("custom-first") << QStringList{QStringLiteral("tail"), QStringLiteral("pair")}
+                                      << QStringList{QStringLiteral("a"), QStringLiteral("bc")};
+    }
+
+    void splitterRulePriority() {
+        QFETCH(QStringList, order);
+        QFETCH(QStringList, expected);
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        QVERIFY(
+            writeSplitterRule(directory.path(), QStringLiteral("pair"), {QStringLiteral("(ab)")}));
+        QVERIFY(FillLyric::TextSplitter::init(filesystemPath(directory.path())));
+        CustomSplitterRule custom;
+        custom.name = QStringLiteral("tail");
+        custom.regexes = {QStringLiteral("(bc)")};
+        FillLyric::TextSplitter::setCustomRules({custom});
+        FillLyric::TextSplitter::setRuleOrder(order);
+        const auto input = QStringLiteral("abc");
+        const auto result = splitText(input);
+        QCOMPARE(result, expected);
+        QCOMPARE(result.join(QString{}), input);
+    }
+
+    void splitterEmptyMatchDoesNotDuplicateText() {
+        QTemporaryDir directory;
+        QVERIFY(directory.isValid());
+        QVERIFY(writeSplitterRule(directory.path(), QStringLiteral("empty-after-prefix"),
+                                  {QStringLiteral("(a*)")}));
+        QVERIFY(FillLyric::TextSplitter::init(filesystemPath(directory.path())));
+        const auto input = QStringLiteral("a中");
+        const auto result = splitText(input);
+        QCOMPARE(result, QStringList{input});
+        QCOMPARE(result.join(QString{}), input);
+    }
 };
 
-QTEST_GUILESS_MAIN(FillLyricTaggerOrderTests)
+QTEST_GUILESS_MAIN(LyricRuleTests)
 #include "main.moc"
