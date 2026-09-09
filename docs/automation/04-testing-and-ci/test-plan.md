@@ -16,6 +16,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-c
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Test -Preset local
 ```
 
+`-Mode Test` 省略 `-Preset` 时默认使用 `local`；显式指定的测试 preset（如 `ci`）保持用户选择。其他模式省略 `-Preset` 时仍默认使用 `debug`。
+
 Linux 本地已准备 Qt 与系统开发依赖后，将 `QT_ROOT_DIR` 指向实际 Qt 安装目录。Qt 需包含 Core5Compat、ShaderTools、StateMachine、HttpServer 和 WebSockets 等项目依赖；版本、Ubuntu 开发包与 vcpkg 引导以[workflow](../../../.github/workflows/tests.yml)和[bootstrap-linux.sh](../../../scripts/ci/bootstrap-linux.sh)为准。本地有桌面环境时：
 
 ```bash

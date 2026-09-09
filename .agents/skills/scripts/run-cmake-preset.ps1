@@ -11,6 +11,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+if ($Mode -eq "Test" -and !$PSBoundParameters.ContainsKey("Preset")) {
+    $Preset = "local"
+}
+
 function Find-VisualStudio {
     $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
     if (Test-Path $vswhere) {
