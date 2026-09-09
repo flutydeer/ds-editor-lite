@@ -1,8 +1,11 @@
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
+#include "Automation/AppOptionsAutomationAdapter.h"
+#include "Automation/Public/PublicAutomationHostAdapter.h"
 #include "Bootstrap/AppDataPaths.h"
 #include "Bootstrap/AppEnvironment.h"
 #include "Model/AppOptions/AppOptions.h"
+#include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Audio/AudioSystem.h"
 #include "Modules/Audio/subsystem/OutputSystem.h"
@@ -22,6 +25,8 @@
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include <lite/Tasking/TaskManager.h>
+#include <lite/ProjectConverters/DspxProjectConverter.h>
+#include <lite/ProjectConverters/MidiConverter.h>
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 #include "../TestSupport/ProcessFixture.h"
@@ -193,6 +198,157 @@ private slots:
 
     void changedTargetInputDropsResult_data() {
         addInferenceStages();
+    }
+
+    void speakerMixPresetPersistsThroughTheProductionStore() {
+        using Store = SpeakerMixPresetStore;
+        const SpeakerInfo clear("clear", "Clear");
+        const SpeakerInfo soft("soft", "Soft");
+        const SingerInfo singer({"fixture", "ci-fixture", QVersionNumber(1, 0, 0)}, "Fixture",
+                                {clear, soft});
+        SpeakerMixPreset draft;
+        draft.name = QStringLiteral("Mixed voice");
+        draft.packageId = singer.identifier().packageId;
+        draft.singerId = singer.identifier().singerId;
+        draft.packageVersion = singer.identifier().packageVersion;
+        draft.sources = {{clear}, {soft}};
+        draft.fixedWeights = {0.3};
+        const auto saved = Store::savePreset(draft);
+        QVERIFY(saved);
+        const auto cleanup = qScopeGuard([&] { Store::deletePreset(saved->id); });
+        QVERIFY(!saved->id.isEmpty());
+        QVERIFY(Store::findPreset(saved->id));
+        QVERIFY(Store::presetNameExists(singer, draft.name));
+        QVERIFY(!Store::presetNameExists(singer, draft.name, saved->id));
+        const auto data = Store::speakerMixDataFromPreset(*saved, singer);
+        QCOMPARE(data.sources.size(), 2);
+        QCOMPARE(data.fixedWeights, QVector<double>{0.3});
+        QVERIFY(Store::speakerMixDataMatchesPreset(*saved, singer, data));
+        QVERIFY(Store::sourcePresetForData(singer, data));
+        auto edited = data;
+        edited.fixedWeights = {0.7};
+        QVERIFY(!Store::speakerMixDataMatchesPreset(*saved, singer, edited));
+
+        auto renamed = *saved;
+        renamed.name = QStringLiteral("Soft blend");
+        renamed.fixedWeights = {0.1};
+        QVERIFY(Store::savePreset(renamed));
+        QVERIFY(!Store::findPresetByName(singer, draft.name));
+        QVERIFY(Store::findPresetByName(singer, renamed.name));
+        AppOptions reopened;
+        const auto services = Automation::createAppOptionsPresetAutomationServices(&reopened);
+        const auto persisted = services.speakerMixPresets();
+        const auto it = std::find_if(persisted.cbegin(), persisted.cend(),
+                                     [&](const auto &preset) { return preset.id == saved->id; });
+        QVERIFY(it != persisted.cend());
+        QCOMPARE(it->name, renamed.name);
+        QCOMPARE(it->fixedWeights, QVector<double>{0.1});
+        QVERIFY(Store::deletePreset(saved->id));
+        QVERIFY(!Store::findPreset(saved->id));
+        AppOptions afterDeletion;
+        const auto remaining = Automation::createAppOptionsPresetAutomationServices(&afterDeletion)
+                                   .speakerMixPresets();
+        QVERIFY(std::none_of(remaining.cbegin(), remaining.cend(),
+                             [&](const auto &preset) { return preset.id == saved->id; }));
+    }
+
+    void lyricRulesUseTheProductionRuntimeAndPersistence() {
+        auto &settings = runtime().settings();
+        Automation::LyricRuleDraftDto draft;
+        draft.kind = Automation::LyricRuleKind::Tagger;
+        draft.name = QStringLiteral("Fixture English");
+        draft.language = QStringLiteral("eng");
+        draft.entries = {
+            {.type = QStringLiteral("array"),
+             .value = {QStringLiteral("fixtureword")},
+             .tag = QStringLiteral("word")}
+        };
+        const auto created = settings.createLyricRule({}, draft);
+        QVERIFY2(created, qPrintable(created ? QString{} : created.getError().message));
+        const auto id = created.get().rule.ruleId;
+        const auto cleanup = qScopeGuard([&] { settings.deleteLyricRule({}, id); });
+        const auto preview = settings.testLyricRules(QStringLiteral("fixtureword"));
+        QVERIFY(preview);
+        QCOMPARE(preview.get().taggedTokens.size(), 1);
+        QCOMPARE(preview.get().taggedTokens.first().lyric, QStringLiteral("fixtureword"));
+        QCOMPARE(preview.get().taggedTokens.first().language, QStringLiteral("eng"));
+
+        QVERIFY(settings.updateLyricRule({}, id, {.name = QStringLiteral("Renamed rule")}));
+        QVERIFY(settings.setLyricRuleEnabled({}, id, false));
+        AppOptions reopened;
+        const auto rules = Automation::createAppOptionsAutomationServices(&reopened).lyricRules();
+        const auto it = std::find_if(rules.cbegin(), rules.cend(),
+                                     [&](const auto &rule) { return rule.ruleId == id; });
+        QVERIFY(it != rules.cend());
+        QCOMPARE(it->name, QStringLiteral("Renamed rule"));
+        QVERIFY(!it->enabled);
+        QVERIFY(settings.deleteLyricRule({}, id));
+        const auto remaining = settings.listLyricRules();
+        QVERIFY(remaining);
+        QVERIFY(std::none_of(remaining.get().cbegin(), remaining.get().cend(),
+                             [&](const auto &rule) { return rule.ruleId == id; }));
+    }
+
+    void projectBatchImportUsesRealLoaders_data() {
+        QTest::addColumn<bool>("invalidItem");
+        QTest::addColumn<bool>("bestEffort");
+        QTest::newRow("midi-and-dspx") << false << false;
+        QTest::newRow("atomic-failure") << true << false;
+        QTest::newRow("best-effort") << true << true;
+    }
+
+    void projectBatchImportUsesRealLoaders() {
+        QFETCH(bool, invalidItem);
+        QFETCH(bool, bestEffort);
+        QTemporaryDir files;
+        QVERIFY(files.isValid());
+        const auto dspx = files.filePath(QStringLiteral("source.dspx"));
+        const auto midi = files.filePath(QStringLiteral("source.mid"));
+        QString error;
+        DspxProjectConverter dspxConverter;
+        MidiConverter midiConverter;
+        QVERIFY2(dspxConverter.save(dspx, context->m_appModel, error), qPrintable(error));
+        QVERIFY2(midiConverter.save(midi, context->m_appModel, error), qPrintable(error));
+        if (invalidItem) {
+            QFile broken(midi);
+            QVERIFY(broken.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            QCOMPARE(broken.write("invalid midi"), qint64(12));
+        }
+        const auto before = runtime().documentVersion();
+        const auto initialTrackCount = context->m_appModel->tracks().size();
+        Automation::PublicDocumentBatchImportRequest request;
+        request.command = commandContext();
+        request.failurePolicy = bestEffort ? Automation::PublicBatchFailurePolicy::BestEffort
+                                           : Automation::PublicBatchFailurePolicy::Atomic;
+        request.items = {
+            {.canonicalPath = dspx, .formatId = QStringLiteral("dspx")},
+            {.canonicalPath = midi, .formatId = QStringLiteral("midi")}
+        };
+        const auto services = Automation::createPublicAutomationHostServices(
+            runtime(), context->m_appModel, &SynthrtEngine::instance());
+        const auto accepted = services.importDocuments(request);
+        QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
+        const auto task = [&] {
+            return runtime().tasks().getTask(before.documentId, accepted.get().taskId);
+        };
+        QTRY_VERIFY_WITH_TIMEOUT(
+            task() && (task().get().state == Automation::AutomationTaskState::Succeeded ||
+                       task().get().state == Automation::AutomationTaskState::Failed),
+            10000);
+        if (invalidItem && !bestEffort) {
+            QCOMPARE(task().get().state, Automation::AutomationTaskState::Failed);
+            QCOMPARE(runtime().documentVersion(), before);
+            QCOMPARE(context->m_appModel->tracks().size(), initialTrackCount);
+        } else {
+            const auto terminal = task().get();
+            QVERIFY2(terminal.state == Automation::AutomationTaskState::Succeeded,
+                     qPrintable(terminal.error ? terminal.error->message : QString{}));
+            QVERIFY(context->m_appModel->tracks().size() > initialTrackCount);
+            QCOMPARE(runtime().documentVersion().revision, before.revision + 1);
+            QVERIFY(runtime().history().undo(commandContext()));
+            QCOMPARE(context->m_appModel->tracks().size(), initialTrackCount);
+            QCOMPARE(context->m_appModel->tracks().first()->name(), QStringLiteral("Target"));
+        }
     }
 
     void failedInferenceInitializationReleasesPackageWaiters() {
@@ -606,4 +762,5 @@ int main(int argc, char **argv) {
     ApplicationWorkflowTests tests;
     return QTest::qExec(&tests, argc, argv);
 }
+
 #include "tst_application_workflows.moc"

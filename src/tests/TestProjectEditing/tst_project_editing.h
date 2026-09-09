@@ -6,6 +6,13 @@ class ProjectEditingTests final : public QObject {
     Q_OBJECT
 
 private slots:
+    void batchAnchorsCommitAndUndoTogether();
+    void adjacentAnchorCurvesMergeWithoutLosingNodes();
+    void dynamicSpeakerKeyframesEditAndUndo();
+    void batchTrackOrderAndClipTrimming();
+    void noteSearch_data();
+    void noteSearch();
+    void splitAtPreservesPhraseAndUndo();
     void trackEditing();
     void singingClipEditing();
     void legacyAudioClipEditing();

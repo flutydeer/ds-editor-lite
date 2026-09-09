@@ -323,6 +323,281 @@ namespace {
 
 }
 
+void ProjectEditingTests::batchAnchorsCommitAndUndoTogether() {
+    TestRuntime testRuntime;
+    auto &runtime = testRuntime.runtime();
+    auto &parameters = runtime.parameters();
+    const auto track = insertedTrack(runtime, "Curves");
+    const auto clip = insertedSingingClip(runtime, track, "Pitch");
+    QVERIFY(parameters.createAnchorCurve(
+        commandContext(runtime), clip, ParamInfo::Pitch, Param::Edited, "curve",
+        {
+            {0,   6000, AnchorNode::Linear},
+            {960, 6400, AnchorNode::Linear}
+    }));
+    const auto snapshot = [&] {
+        return parameters
+            .getParameter(runtime.documentVersion().documentId, clip, ParamInfo::Pitch,
+                          Param::Edited)
+            .get()
+            .curves.first();
+    };
+    const auto initial = snapshot();
+    const auto curve = initial.id;
+    testRuntime.history()->reset();
+    const auto before = runtime.documentVersion();
+    QVERIFY(parameters.insertAnchors(
+        commandContext(runtime), clip, ParamInfo::Pitch, Param::Edited, curve,
+        {
+            {720, 6300, AnchorNode::Hermite},
+            {240, 6100, AnchorNode::Linear }
+    }));
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    auto nodes = snapshot().nodes;
+    QCOMPARE(nodes.size(), 4);
+    QCOMPARE(nodes.at(1).position, 240);
+    QCOMPARE(nodes.at(2).position, 720);
+    const auto first = nodes.at(1).id;
+    const auto second = nodes.at(2).id;
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(snapshot().nodes.size(), 2);
+    QVERIFY(runtime.history().redo(commandContext(runtime)));
+    QCOMPARE(snapshot().nodes.at(1).id, first);
+
+    const auto inserted = runtime.documentVersion();
+    const auto rejected =
+        parameters.moveAnchors(commandContext(runtime), clip, ParamInfo::Pitch, Param::Edited,
+                               {
+                                   {first,  300, 6200},
+                                   {second, 300, 6500}
+    });
+    QVERIFY(!rejected);
+    QCOMPARE(runtime.documentVersion(), inserted);
+    QCOMPARE(snapshot().nodes.at(1).position, 240);
+    QVERIFY(parameters.moveAnchors(commandContext(runtime), clip, ParamInfo::Pitch, Param::Edited,
+                                   {
+                                       {first,  360, 6200},
+                                       {second, 840, 6500}
+    }));
+    nodes = snapshot().nodes;
+    QCOMPARE(nodes.at(1).position, 360);
+    QCOMPARE(nodes.at(1).value, 6200);
+    QCOMPARE(nodes.at(2).position, 840);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(snapshot().nodes.at(1).position, 240);
+    QCOMPARE(snapshot().nodes.at(2).position, 720);
+
+    QVERIFY(parameters.setAnchorInterpolations(commandContext(runtime), clip, ParamInfo::Pitch,
+                                               Param::Edited, {first, second}, AnchorNode::Linear));
+    QCOMPARE(snapshot().nodes.at(2).interpolation, AnchorNode::Linear);
+    QVERIFY(parameters.removeAnchors(commandContext(runtime), clip, ParamInfo::Pitch, Param::Edited,
+                                     {first, second}));
+    QCOMPARE(snapshot().nodes.size(), 2);
+    QCOMPARE(snapshot().nodes.first().value, 6000);
+    QCOMPARE(snapshot().nodes.last().value, 6400);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(snapshot().nodes.size(), 4);
+}
+
+void ProjectEditingTests::adjacentAnchorCurvesMergeWithoutLosingNodes() {
+    TestRuntime testRuntime;
+    auto &runtime = testRuntime.runtime();
+    auto &parameters = runtime.parameters();
+    const auto clip = insertedSingingClip(runtime, insertedTrack(runtime, "Curves"), "Pitch");
+    QVERIFY(parameters.createAnchorCurve(
+        commandContext(runtime), clip, ParamInfo::Pitch, Param::Edited, "left",
+        {
+            {0,   6000, AnchorNode::Linear },
+            {240, 6200, AnchorNode::Hermite}
+    }));
+    QVERIFY(parameters.createAnchorCurve(
+        commandContext(runtime), clip, ParamInfo::Pitch, Param::Edited, "right",
+        {
+            {480, 6400, AnchorNode::Linear },
+            {720, 6300, AnchorNode::Hermite}
+    }));
+    const auto curves = [&] {
+        return parameters
+            .getParameter(runtime.documentVersion().documentId, clip, ParamInfo::Pitch,
+                          Param::Edited)
+            .get()
+            .curves;
+    };
+    const auto before = curves();
+    QCOMPARE(before.size(), 2);
+    testRuntime.history()->reset();
+    QVERIFY(parameters.mergeAnchorCurves(commandContext(runtime), clip, ParamInfo::Pitch,
+                                         Param::Edited, before.first().id, before.last().id));
+    QCOMPARE(curves().size(), 1);
+    const auto merged = curves().first();
+    QCOMPARE(merged.id, before.first().id);
+    QCOMPARE(merged.nodes.size(), 4);
+    QCOMPARE(merged.nodes.at(2).position, 480);
+    QCOMPARE(merged.nodes.at(2).value, 6400);
+    QCOMPARE(merged.nodes.last().interpolation, AnchorNode::Hermite);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(curves().size(), 2);
+    QCOMPARE(curves().last().id, before.last().id);
+    QVERIFY(runtime.history().redo(commandContext(runtime)));
+    QCOMPARE(curves().first().nodes.size(), 4);
+}
+
+void ProjectEditingTests::dynamicSpeakerKeyframesEditAndUndo() {
+    TestRuntime testRuntime;
+    auto &runtime = testRuntime.runtime();
+    auto &parameters = runtime.parameters();
+    const auto clip = insertedSingingClip(runtime, insertedTrack(runtime, "Voice"), "Mix");
+    const auto soft = speaker("soft");
+    const auto strong = speaker("strong");
+    QVERIFY(parameters.enableClipDynamicSpeakerMix(commandContext(runtime), clip,
+                                                   singer("fixture", {soft, strong}), soft,
+                                                   dynamicMix(soft, strong)));
+    const auto mix = [&] { return clipSnapshot(runtime, clip)->data.ownSpeakerMixData; };
+    testRuntime.history()->reset();
+    QVERIFY(parameters.insertSpeakerMixKeyframe(commandContext(runtime), clip, 480));
+    auto frames = mix().dynamicKeyframes;
+    QCOMPARE(frames.size(), 3);
+    QCOMPARE(frames.at(1).tick, 480);
+    QCOMPARE(frames.at(1).weights, QVector<double>{0.5});
+    const auto middle = Automation::SpeakerMixKeyframeId(frames.at(1).id);
+    const auto last = Automation::SpeakerMixKeyframeId(frames.last().id);
+    QVERIFY(parameters.setSpeakerMixKeyframeWeights(commandContext(runtime), clip, middle,
+                                                    {0.25, 0.75}));
+    QCOMPARE(mix().dynamicKeyframes.at(1).weights, QVector<double>{0.25});
+    const auto version = runtime.documentVersion();
+    QVERIFY(!parameters.moveSpeakerMixKeyframes(commandContext(runtime), clip,
+                                                {
+                                                    {middle, 720},
+                                                    {last,   720}
+    }));
+    QCOMPARE(runtime.documentVersion(), version);
+    QCOMPARE(mix().dynamicKeyframes.at(1).tick, 480);
+    QVERIFY(parameters.moveSpeakerMixKeyframes(commandContext(runtime), clip,
+                                               {
+                                                   {middle, 600 },
+                                                   {last,   1200}
+    }));
+    QCOMPARE(mix().dynamicKeyframes.at(1).tick, 600);
+    QCOMPARE(mix().dynamicKeyframes.last().tick, 1200);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(mix().dynamicKeyframes.at(1).tick, 480);
+    QCOMPARE(mix().dynamicKeyframes.last().tick, 960);
+    QVERIFY(parameters.removeSpeakerMixKeyframes(commandContext(runtime), clip, {middle, last}));
+    QCOMPARE(mix().dynamicKeyframes.size(), 1);
+    QCOMPARE(mix().dynamicKeyframes.first().tick, 0);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(mix().dynamicKeyframes.size(), 3);
+    QVERIFY(parameters.setClipDynamicSpeakerMixBypassed(commandContext(runtime), clip, true));
+    QVERIFY(mix().dynamicBypassed);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QVERIFY(!mix().dynamicBypassed);
+}
+
+void ProjectEditingTests::batchTrackOrderAndClipTrimming() {
+    TestRuntime testRuntime;
+    auto &runtime = testRuntime.runtime();
+    const auto first = insertedTrack(runtime, "A");
+    const auto second = insertedTrack(runtime, "B");
+    const auto third = insertedTrack(runtime, "C");
+    const auto fourth = insertedTrack(runtime, "D");
+    const auto clip = insertedSingingClip(runtime, second, "Phrase", 480);
+    const auto notes = insertedNotes(runtime, clip, {noteDraft(120, 480, 60, "la")});
+    QCOMPARE(notes.size(), 1);
+    const auto order = [&] {
+        QList<TrackId> result;
+        const auto project = runtime.project().getProject(runtime.documentVersion().documentId);
+        for (const auto &track : project.get().tracks)
+            result.append(track.id);
+        return result;
+    };
+    testRuntime.history()->reset();
+    QVERIFY(runtime.project().moveTracks(commandContext(runtime), {third, first}, 2));
+    QCOMPARE(order(), (QList<TrackId>{second, fourth, first, third}));
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(order(), (QList<TrackId>{first, second, third, fourth}));
+    const auto timing = clipSnapshot(runtime, clip)->data.properties;
+    QVERIFY(runtime.project().resizeClipLeft(commandContext(runtime), clip, 720));
+    const auto trimmed = clipSnapshot(runtime, clip)->data.properties;
+    QCOMPARE(trimmed.start + trimmed.clipStart, 720);
+    QCOMPARE(trimmed.start + trimmed.clipStart + trimmed.clipLen,
+             timing.start + timing.clipStart + timing.clipLen);
+    QCOMPARE(noteSnapshot(runtime, clip, notes.first())->data.localStart, 120);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QVERIFY(sameClipTiming(clipSnapshot(runtime, clip)->data.properties, timing));
+    QVERIFY(runtime.project().resizeClipRight(commandContext(runtime), clip, 2400));
+    const auto right = clipSnapshot(runtime, clip)->data.properties;
+    QCOMPARE(right.start + right.clipStart + right.clipLen, 2400);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QVERIFY(sameClipTiming(clipSnapshot(runtime, clip)->data.properties, timing));
+}
+
+void ProjectEditingTests::noteSearch_data() {
+    QTest::addColumn<QString>("query");
+    QTest::addColumn<QString>("mode");
+    QTest::addColumn<bool>("caseSensitive");
+    QTest::addColumn<bool>("regex");
+    QTest::addColumn<QStringList>("expected");
+    QTest::newRow("case-insensitive") << QStringLiteral("la") << QStringLiteral("exact") << false
+                                      << false << QStringList{"La", "la"};
+    QTest::newRow("prefix") << QStringLiteral("la") << QStringLiteral("starts_with") << true
+                            << false << QStringList{"la", "lala"};
+    QTest::newRow("contains") << QStringLiteral("a") << QStringLiteral("contains") << true << false
+                              << QStringList{"La", "la", "lala"};
+    QTest::newRow("expression") << QStringLiteral("l(a)+") << QStringLiteral("exact") << false
+                                << true << QStringList{"La", "la"};
+    QTest::newRow("no-match") << QStringLiteral("missing") << QStringLiteral("contains") << false
+                              << false << QStringList{};
+}
+
+void ProjectEditingTests::noteSearch() {
+    QFETCH(QString, query);
+    QFETCH(QString, mode);
+    QFETCH(bool, caseSensitive);
+    QFETCH(bool, regex);
+    QFETCH(QStringList, expected);
+    TestRuntime testRuntime;
+    auto &runtime = testRuntime.runtime();
+    const auto clip = insertedSingingClip(runtime, insertedTrack(runtime, "Lyrics"), "Phrase");
+    QCOMPARE(insertedNotes(runtime, clip,
+                           {noteDraft(0, 120, 60, "La"), noteDraft(120, 120, 60, "la"),
+                            noteDraft(240, 120, 60, "lala"), noteDraft(360, 120, 60, "mi")})
+                 .size(),
+             4);
+    const auto before = runtime.documentVersion();
+    const auto result =
+        runtime.notes().searchNotes(before.documentId, clip, query, mode, caseSensitive, regex);
+    QVERIFY(result);
+    QStringList found;
+    for (const auto &match : result.get())
+        found.append(match.lyric);
+    QCOMPARE(found, expected);
+    QCOMPARE(runtime.documentVersion(), before);
+}
+
+void ProjectEditingTests::splitAtPreservesPhraseAndUndo() {
+    NoteFixture fixture;
+    auto &runtime = fixture.testRuntime.runtime();
+    const auto before = noteSnapshot(runtime, fixture.clipId, fixture.firstNoteId)->data;
+    const auto split = before.localStart + 120;
+    fixture.testRuntime.history()->reset();
+    QVERIFY(runtime.notes().splitNoteAt(commandContext(runtime), fixture.clipId,
+                                        fixture.firstNoteId, split));
+    const auto result =
+        runtime.notes().getNotes(runtime.documentVersion().documentId, fixture.clipId);
+    QVERIFY(result);
+    QCOMPARE(result.get().size(), 3);
+    QCOMPARE(result.get().at(0).data.length, 120);
+    QCOMPARE(result.get().at(1).data.localStart, split);
+    QCOMPARE(result.get().at(1).data.length, before.length - 120);
+    QCOMPARE(result.get().at(1).data.keyIndex, before.keyIndex);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(noteSnapshot(runtime, fixture.clipId, fixture.firstNoteId)->data.length,
+             before.length);
+    QCOMPARE(
+        runtime.notes().getNotes(runtime.documentVersion().documentId, fixture.clipId).get().size(),
+        2);
+}
+
 void ProjectEditingTests::trackEditing() {
     TestRuntime testRuntime;
     auto &runtime = testRuntime.runtime();

@@ -245,6 +245,19 @@ void DocumentIOTests::dspxRoundTripPreservesEditedPhrase() {
     note->setLyric(QStringLiteral("世界"));
     note->setLanguage(QStringLiteral("eng"));
     note->setPronunciation(Pronunciation(QStringLiteral("world"), QStringLiteral("werld")));
+    Phonemes phonemes;
+    PhonemeName onset;
+    onset.language = QStringLiteral("eng");
+    onset.name = QStringLiteral("w");
+    onset.isOnset = true;
+    PhonemeName vowel;
+    vowel.language = QStringLiteral("eng");
+    vowel.name = QStringLiteral("er");
+    phonemes.nameSeq.original = {onset, vowel};
+    phonemes.nameSeq.edited = {vowel};
+    phonemes.offsetSeq.original = {-40, 0};
+    phonemes.offsetSeq.edited = {20};
+    note->setPhonemes(phonemes);
     clip->insertNote(note);
 
     auto *draw = new DrawCurve;
@@ -268,11 +281,20 @@ void DocumentIOTests::dspxRoundTripPreservesEditedPhrase() {
     mix.mode = SpeakerMixModel::SingerSourceMode::DynamicMix;
     mix.sources = {{soft}, {strong}};
     mix.fixedWeights = {0.25};
+    mix.dynamicBypassed = true;
+    mix.sourcePresetId = QStringLiteral("saved-blend");
+    mix.sourcePresetName = QStringLiteral("Saved blend");
+    mix.sourcePresetDirty = true;
     mix.dynamicKeyframes = {
         {0,   {0.25}},
         {480, {0.8} }
     };
     clip->setOwnVoiceContext(singer, soft, mix);
+    auto trackMix = mix;
+    trackMix.mode = SpeakerMixModel::SingerSourceMode::FixedMix;
+    trackMix.dynamicKeyframes.clear();
+    trackMix.dynamicBypassed = false;
+    track->setVoiceContext(singer, soft, trackMix);
 
     DspxProjectConverter converter;
     QString error;
@@ -283,6 +305,10 @@ void DocumentIOTests::dspxRoundTripPreservesEditedPhrase() {
     QCOMPARE(reopened.tracks().size(), 1);
     const auto *restoredTrack = reopened.tracks().first();
     QCOMPARE(restoredTrack->name(), track->name());
+    QCOMPARE(restoredTrack->singerInfo().identifier(), singer.identifier());
+    QCOMPARE(restoredTrack->speakerMixData().mode, SpeakerMixModel::SingerSourceMode::FixedMix);
+    QCOMPARE(restoredTrack->speakerMixData().fixedWeights, QVector<double>{0.25});
+    QCOMPARE(restoredTrack->speakerMixData().sources.last().speaker.id(), strong.id());
     QCOMPARE(restoredTrack->clips().count(), 1);
     const auto *restoredClip = dynamic_cast<const SingingClip *>(*restoredTrack->clips().begin());
     QVERIFY(restoredClip);
@@ -296,6 +322,10 @@ void DocumentIOTests::dspxRoundTripPreservesEditedPhrase() {
     QCOMPARE(restoredNote->keyIndex(), 64);
     QCOMPARE(restoredNote->lyric(), QStringLiteral("世界"));
     QCOMPARE(restoredNote->pronunciation().edited, QStringLiteral("werld"));
+    QCOMPARE(restoredNote->phonemes().nameSeq.original, phonemes.nameSeq.original);
+    QCOMPARE(restoredNote->phonemes().nameSeq.edited, phonemes.nameSeq.edited);
+    QCOMPARE(restoredNote->phonemes().offsetSeq.original, phonemes.offsetSeq.original);
+    QCOMPARE(restoredNote->phonemes().offsetSeq.edited, phonemes.offsetSeq.edited);
 
     const auto &curves = restoredClip->params.pitch.curves(Param::Edited);
     QCOMPARE(curves.size(), 2);
@@ -318,6 +348,10 @@ void DocumentIOTests::dspxRoundTripPreservesEditedPhrase() {
     QVERIFY(restoredClip->ownSingerInfo().identifier() == singer.identifier());
     const auto restoredMix = restoredClip->ownSpeakerMixData();
     QCOMPARE(restoredMix.mode, SpeakerMixModel::SingerSourceMode::DynamicMix);
+    QVERIFY(restoredMix.dynamicBypassed);
+    QCOMPARE(restoredMix.sourcePresetId, mix.sourcePresetId);
+    QCOMPARE(restoredMix.sourcePresetName, mix.sourcePresetName);
+    QVERIFY(restoredMix.sourcePresetDirty);
     QCOMPARE(restoredMix.sources.size(), 2);
     QCOMPARE(restoredMix.sources.first().speaker.id(), soft.id());
     QCOMPARE(restoredMix.sources.last().speaker.id(), strong.id());
