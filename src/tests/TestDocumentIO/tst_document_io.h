@@ -31,6 +31,7 @@ private slots:
     void midiAtomicWrite();
     void dspxTimeSignatureProjectionValidation();
     void dspxRoundTripPreservesEditedPhrase();
+    void dspxRoundTripPreservesEditedPhrase_data();
     void audioPublicationOverwrite();
     void audioPublicationNoClobber();
     void batchPreparationFailures();

@@ -33,6 +33,16 @@ namespace {
 
     using TestSupport::expect;
 
+    class SingerMetadataConverter final : public DspxProjectConverter {
+    public:
+        SingerInfo availableSinger;
+
+    protected:
+        SingerInfo resolveSinger(const SingerIdentifier &identifier) const override {
+            return availableSinger.identifier() == identifier ? availableSinger : SingerInfo{};
+        }
+    };
+
     bool writeFile(const QString &path, const QByteArray &data) {
         QFile file(path);
         return file.open(QIODevice::WriteOnly | QIODevice::Truncate) &&
@@ -212,7 +222,14 @@ void DocumentIOTests::dspxTimeSignatureProjectionValidation() {
     testDspxTimeSignatureProjectionValidation();
 }
 
+void DocumentIOTests::dspxRoundTripPreservesEditedPhrase_data() {
+    QTest::addColumn<bool>("removedLastSource");
+    QTest::newRow("unavailable-package-preserves-content") << false;
+    QTest::newRow("resolved-package-retains-remaining-ratio") << true;
+}
+
 void DocumentIOTests::dspxRoundTripPreservesEditedPhrase() {
+    QFETCH(bool, removedLastSource);
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     const auto path = directory.filePath(QStringLiteral("edited-phrase.dspx"));
@@ -274,9 +291,12 @@ void DocumentIOTests::dspxRoundTripPreservesEditedPhrase() {
 
     const SpeakerInfo soft(QStringLiteral("soft"), QStringLiteral("Soft"));
     const SpeakerInfo strong(QStringLiteral("strong"), QStringLiteral("Strong"));
+    const SpeakerInfo air(QStringLiteral("air"), QStringLiteral("Air"));
     const SingerInfo singer(
         {QStringLiteral("voice"), QStringLiteral("fixture-package"), QVersionNumber(1, 2)},
-        QStringLiteral("Fixture voice"), {soft, strong});
+        QStringLiteral("Fixture voice"),
+        removedLastSource ? QList<SpeakerInfo>{soft, strong, air}
+                          : QList<SpeakerInfo>{soft, strong});
     SpeakerMixModel::SpeakerMixData mix;
     mix.mode = SpeakerMixModel::SingerSourceMode::DynamicMix;
     mix.sources = {{soft}, {strong}};
@@ -294,9 +314,18 @@ void DocumentIOTests::dspxRoundTripPreservesEditedPhrase() {
     trackMix.mode = SpeakerMixModel::SingerSourceMode::FixedMix;
     trackMix.dynamicKeyframes.clear();
     trackMix.dynamicBypassed = false;
+    if (removedLastSource) {
+        trackMix.sources.append({air});
+        trackMix.fixedWeights = {0.2, 0.3};
+    }
     track->setVoiceContext(singer, soft, trackMix);
 
-    DspxProjectConverter converter;
+    SingerMetadataConverter converter;
+    if (removedLastSource) {
+        converter.availableSinger = singer;
+        converter.availableSinger.setSpeakers({soft, strong});
+        converter.availableSinger.setResolutionState(ResolutionState::Resolved);
+    }
     QString error;
     QVERIFY2(converter.save(path, &original, error), qPrintable(error));
     AppModel reopened;
@@ -307,7 +336,15 @@ void DocumentIOTests::dspxRoundTripPreservesEditedPhrase() {
     QCOMPARE(restoredTrack->name(), track->name());
     QCOMPARE(restoredTrack->singerInfo().identifier(), singer.identifier());
     QCOMPARE(restoredTrack->speakerMixData().mode, SpeakerMixModel::SingerSourceMode::FixedMix);
-    QCOMPARE(restoredTrack->speakerMixData().fixedWeights, QVector<double>{0.25});
+    const auto expectedWeights = removedLastSource ? QVector<double>{0.4} : QVector<double>{0.25};
+    QCOMPARE(restoredTrack->speakerMixData().fixedWeights, expectedWeights);
+    QCOMPARE(restoredTrack->speakerMixData().sources.size(), 2);
+    if (removedLastSource) {
+        QCOMPARE(restoredTrack->singerInfo().resolutionState(), ResolutionState::Resolved);
+        QCOMPARE(SpeakerMixModel::fullWeightsFromExplicitWeights(
+                     restoredTrack->speakerMixData().fixedWeights),
+                 (QVector<double>{0.4, 0.6}));
+    }
     QCOMPARE(restoredTrack->speakerMixData().sources.last().speaker.id(), strong.id());
     QCOMPARE(restoredTrack->clips().count(), 1);
     const auto *restoredClip = dynamic_cast<const SingingClip *>(*restoredTrack->clips().begin());
@@ -360,6 +397,15 @@ void DocumentIOTests::dspxRoundTripPreservesEditedPhrase() {
     QCOMPARE(restoredMix.dynamicKeyframes.last().tick, 480);
     QCOMPARE(restoredMix.dynamicKeyframes.first().weights, QVector<double>({0.25}));
     QCOMPARE(restoredMix.dynamicKeyframes.last().weights, QVector<double>({0.8}));
+
+    if (removedLastSource) {
+        const auto filteredPath = directory.filePath(QStringLiteral("filtered-phrase.dspx"));
+        QVERIFY2(converter.save(filteredPath, &reopened, error), qPrintable(error));
+        AppModel filteredAgain;
+        QVERIFY2(converter.load(filteredPath, &filteredAgain, error, ImportMode::NewProject),
+                 qPrintable(error));
+        QCOMPARE(filteredAgain.tracks().first()->speakerMixData().fixedWeights, expectedWeights);
+    }
 }
 
 void DocumentIOTests::audioPublicationOverwrite() {
