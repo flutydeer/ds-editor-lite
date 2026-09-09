@@ -13,5 +13,3 @@ add_dependencies(${PROJECT_NAME} DsEditorLite)
 lite_register_test(${PROJECT_NAME} CATEGORY workflow RESOURCE_TEST TIMEOUT 600
     ARGS --editor "$<TARGET_FILE:DsEditorLite>"
 )
-set_tests_properties(${PROJECT_NAME} PROPERTIES
-    SKIP_REGULAR_EXPRESSION "Set DSEL_TEST_VOICEBANK_ROOT")

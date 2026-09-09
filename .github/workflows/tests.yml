@@ -87,7 +87,9 @@ jobs:
           path: build/ci/vcpkg-cache
           # Image changes can require new compiler or SDK ABIs even with an unchanged manifest.
           key: ${{ runner.os == 'Linux' && 'linux' || matrix.triplet }}-qt${{ env.QT_VERSION }}-${{ steps.cache-environment.outputs.image }}-${{ hashFiles('scripts/ci/bootstrap-vcpkg.py', 'scripts/vcpkg-manifest/**', 'scripts/vcpkg-project/ports/**', 'scripts/vcpkg/ports/**', 'scripts/vcpkg/triplets/**') }}
-          restore-keys: ${{ runner.os == 'Linux' && 'linux' || matrix.triplet }}-qt${{ env.QT_VERSION }}-
+          restore-keys: |
+            ${{ runner.os == 'Linux' && 'linux' || matrix.triplet }}-qt${{ env.QT_VERSION }}-${{ steps.cache-environment.outputs.image }}-
+            ${{ runner.os == 'Linux' && 'linux' || matrix.triplet }}-qt${{ env.QT_VERSION }}-
       - name: Build dependencies
         id: dependencies
         run: python scripts/ci/bootstrap-vcpkg.py --triplet '${{ matrix.triplet }}' 2>&1 | tee build/test-results/dependencies.log

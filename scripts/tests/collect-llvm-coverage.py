@@ -57,6 +57,8 @@ def main():
     llvm_cov = args.llvm_cov or find_tool("llvm-cov")
     llvm_profdata = args.llvm_profdata or find_tool("llvm-profdata")
     executables = test_executables(args.ctest, build, repo)
+    (output / "objects.txt").write_text(
+        "".join(str(path) + "\n" for path in executables), encoding="utf-8")
     environment = os.environ.copy()
     environment["LLVM_PROFILE_FILE"] = str(profile_dir / "%p-%m.profraw")
     extra = args.ctest_args[1:] if args.ctest_args[:1] == ["--"] else args.ctest_args
@@ -77,8 +79,12 @@ def main():
     objects.extend("-object=" + str(path) for path in executables[1:])
     report = output / "coverage.lcov"
     with report.open("w", encoding="utf-8") as stream:
-        subprocess.run([llvm_cov, "export", "-format=lcov", *objects],
-                       stdout=stream, check=True)
+        exported = subprocess.run([llvm_cov, "export", "-dump", "-format=lcov", *objects],
+                                  stdout=stream, stderr=subprocess.PIPE)
+    (output / "llvm-export-diagnostics.log").write_bytes(exported.stderr)
+    sys.stderr.buffer.write(exported.stderr)
+    sys.stderr.buffer.flush()
+    exported.check_returncode()
     files = read_lcov(report, repo)
     sources = [str(repo / path) for path in sorted(files)]
     with (output / "llvm-summary.txt").open("w", encoding="utf-8") as stream:
