@@ -49,6 +49,7 @@
 #include <QSemaphore>
 #include <QSignalBlocker>
 #include <QPointer>
+#include <QTimer>
 
 #include <memory>
 #include <atomic>
@@ -507,8 +508,8 @@ void ApplicationWorkflowTests::restartInferenceReleasesReplacedTask_data() {
     QTest::newRow("completion-queued") << true;
 }
 
-void ApplicationWorkflowTests::restartInferenceReleasesReplacedTask() {
-    QFETCH(bool, completionQueued);
+void ApplicationWorkflowTests::prepareInferenceTarget(
+    AppStatus::ModuleStatus &previousPackageStatus) {
     const QPointer<SingingClip> targetClip(clip);
     QTRY_COMPARE_WITH_TIMEOUT(appStatus->languageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
                               10000);
@@ -516,9 +517,7 @@ void ApplicationWorkflowTests::restartInferenceReleasesReplacedTask() {
                               10000);
     QTRY_VERIFY_WITH_TIMEOUT(
         appStatus->packageModuleStatus.get() != AppStatus::ModuleStatus::Loading, 10000);
-    const auto packageStatus = appStatus->packageModuleStatus.get();
-    const auto restorePackageStatus =
-        qScopeGuard([packageStatus] { appStatus->packageModuleStatus = packageStatus; });
+    previousPackageStatus = appStatus->packageModuleStatus.get();
     // Supply package availability without installing a singer or loading its models.
     appStatus->packageModuleStatus = AppStatus::ModuleStatus::Ready;
     // Finish startup retries while the document still has no selected singer.
@@ -535,9 +534,19 @@ void ApplicationWorkflowTests::restartInferenceReleasesReplacedTask() {
         targetClip->reSegment(context->m_appModel->timeline());
     }
     QCOMPARE(targetClip->pieces().size(), 1);
-    const QPointer<InferPiece> targetPiece(targetClip->pieces().first());
+    piece = targetClip->pieces().first();
+}
+
+void ApplicationWorkflowTests::restartInferenceReleasesReplacedTask() {
+    QFETCH(bool, completionQueued);
+    auto packageStatus = appStatus->packageModuleStatus.get();
+    const auto restorePackageStatus =
+        qScopeGuard([&packageStatus] { appStatus->packageModuleStatus = packageStatus; });
+    prepareInferenceTarget(packageStatus);
+    if (QTest::currentTestFailed())
+        return;
+    const QPointer<InferPiece> targetPiece(piece);
     const auto targetPieceId = targetPiece->id();
-    piece = targetPiece.data();
 
     QSemaphore workerEntered;
     QSemaphore releaseWorker;
@@ -654,6 +663,89 @@ void ApplicationWorkflowTests::restartInferenceReleasesReplacedTask() {
         targetPiece && targetPiece->state.get() == QStringLiteral("Duration.Error"), 5000);
     QCOMPARE(targetPiece->acousticInferStatus.get(), Failed);
     QVERIFY2(!staleError, "Only the replacement task may publish its terminal state");
+}
+
+void ApplicationWorkflowTests::publicInferenceStartsBeforeQueuedDocumentChanges() {
+    auto packageStatus = appStatus->packageModuleStatus.get();
+    const auto restorePackageStatus =
+        qScopeGuard([&packageStatus] { appStatus->packageModuleStatus = packageStatus; });
+    prepareInferenceTarget(packageStatus);
+    if (QTest::currentTestFailed())
+        return;
+    const auto targetPieceId = piece->id();
+    const auto services = Automation::createPublicAutomationHostServices(
+        runtime(), context->m_appModel, &SynthrtEngine::instance());
+    Automation::PublicInferenceStartRequest request;
+    request.command = commandContext();
+    request.command.source = Automation::InvocationSource::PublicJsonRpc;
+    request.scope = {
+        {QStringLiteral("kind"),     QStringLiteral("clip")},
+        {QStringLiteral("clip_ids"), QJsonArray{clip->id()}}
+    };
+
+    QVERIFY(runtime().project().renameTrack(commandContext(), trackId,
+                                            QStringLiteral("Edited before admission")));
+    const auto rejected = services.startInference(request);
+    QVERIFY(!rejected);
+    QCOMPARE(rejected.getError().code, Automation::AutomationErrorCode::RevisionConflict);
+
+    QObject observations;
+    QSemaphore workerEntered;
+    QSemaphore releaseWorker;
+    std::atomic_bool paused = false;
+    connect(taskManager, &TaskManager::taskChanged, &observations,
+            [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
+                auto *duration = qobject_cast<InferDurationTask *>(task);
+                if (change != TaskManager::Added || !duration ||
+                    duration->pieceId() != targetPieceId)
+                    return;
+                connect(
+                    duration, &Task::statusUpdated, &observations,
+                    [&](const TaskStatus &) {
+                        if (!paused.exchange(true)) {
+                            workerEntered.release();
+                            releaseWorker.acquire();
+                        }
+                    },
+                    Qt::DirectConnection);
+            });
+    const auto drainTasks = qScopeGuard([&] {
+        releaseWorker.release();
+        inferController->cancelPieceInference(targetPieceId);
+        QThreadPool::globalInstance()->waitForDone();
+        QCoreApplication::processEvents();
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    });
+
+    bool queuedEditApplied = false;
+    QTimer::singleShot(0, &observations, [&] {
+        queuedEditApplied = bool(runtime().project().renameTrack(
+            commandContext(), trackId, QStringLiteral("Edited while inference starts")));
+    });
+    request.command.expected = runtime().documentVersion();
+    const auto accepted = services.startInference(request);
+    QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
+    const auto snapshot = [&] {
+        return runtime().tasks().getTask(accepted.get().document.documentId, accepted.get().taskId);
+    };
+    const auto taskFailed = [&] {
+        const auto task = snapshot();
+        return !task || task.get().state == Automation::AutomationTaskState::Failed;
+    };
+    QTRY_VERIFY_WITH_TIMEOUT(queuedEditApplied && (workerEntered.available() == 1 || taskFailed()),
+                             5000);
+    const auto running = snapshot();
+    QVERIFY(running);
+    QCOMPARE(running.get().state, Automation::AutomationTaskState::Running);
+    QCOMPARE(workerEntered.available(), 1);
+    QVERIFY(runtime().documentVersion().revision > accepted.get().document.revision);
+
+    const auto canceled = runtime().automationTasks().requestCancel(
+        accepted.get().document.documentId, accepted.get().taskId);
+    QVERIFY(canceled);
+    const auto terminal = snapshot();
+    QVERIFY(terminal);
+    QCOMPARE(terminal.get().state, Automation::AutomationTaskState::Canceled);
 }
 
 void ApplicationWorkflowTests::cleanup() {

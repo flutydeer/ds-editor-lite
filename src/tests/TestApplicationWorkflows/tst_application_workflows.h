@@ -2,6 +2,7 @@
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
+#include "Model/AppStatus/AppStatus.h"
 
 #include <QObject>
 #include <QTemporaryDir>
@@ -53,6 +54,8 @@ private slots:
     void restartInferenceReleasesReplacedTask();
     void restartInferenceReleasesReplacedTask_data();
 
+    void publicInferenceStartsBeforeQueuedDocumentChanges();
+
     void offlineExportRestoresMixerState_data();
 
     void offlineExportRestoresMixerState();
@@ -62,6 +65,8 @@ private slots:
     void cleanupTestCase();
 
 private:
+    void prepareInferenceTarget(AppStatus::ModuleStatus &previousPackageStatus);
+
     void verifyAcousticGate(InferPipeline &pipeline, bool immediateExpected, bool completeFirst);
 
     Automation::CoreRuntime &runtime();

@@ -1837,10 +1837,9 @@ namespace Automation {
                         QStringLiteral("scope")));
                 });
             }
-            QTimer::singleShot(0, this, [weak] {
-                if (weak)
-                    weak->start();
-            });
+            // Reset and enqueue in the admission turn, before unrelated completions can advance
+            // the document revision. The state machine still runs inference asynchronously.
+            start();
             return TaskAcceptedResult{m_taskId, base.get(), false};
         }
 
