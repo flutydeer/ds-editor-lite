@@ -56,6 +56,8 @@ add_library(EditorAutomationCore STATIC
     ../Modules/FillLyric/Utils/TaggerRuleOrder.cpp
     ../Modules/FillLyric/Utils/TextSplitter.cpp
     ../Modules/FillLyric/Utils/TextTagger.cpp
+    ../Modules/FillLyric/Utils/SplitLyric.cpp
+    ../Modules/FillLyric/Utils/LrcTools/LrcDecoder.cpp
     ../UI/Views/TrackEditor/AudioClipDragState.cpp
     ../UI/Views/ClipEditor/DrawCurveEditUtils.cpp
     ../UI/Views/ClipEditor/CurveTransform/CurveTransformSession.cpp

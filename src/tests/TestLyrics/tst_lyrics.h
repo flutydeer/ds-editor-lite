@@ -6,6 +6,11 @@ class LyricsTests final : public QObject {
     Q_OBJECT
 
 private slots:
+    void lrcTimestamps_data();
+    void lrcTimestamps();
+    void lrcMetadataRepeatedLinesAndSeeking();
+    void lrcFailedReloadClearsPreviousDocument();
+    void lyricSplittingModesPreserveLines();
     void lyricRulesStableOrderPersistence();
     void lyricRulesLegacyOrderMigration();
     void lyricRulesStableAutomationRuleIdMigration();

@@ -4,6 +4,7 @@ lite_add_test(${PROJECT_NAME} SOURCES
     test_main.cpp
     tst_lyrics.h
     tst_lyric_rules.cpp
+    tst_lyric_input.cpp
     tst_syllabification.cpp
     tst_word_property_cascade.cpp
 )
