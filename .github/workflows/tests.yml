@@ -21,17 +21,17 @@ jobs:
       matrix:
         include:
           - name: Linux x64
-            runner: ubuntu-24.04
+            runner: ubuntu-latest
             triplet: x64-linux
             qt-arch: linux_gcc_64
             jobs: 4
           - name: Windows x64
-            runner: windows-2025-vs2026
+            runner: windows-latest
             triplet: x64-windows
             qt-arch: win64_msvc2022_64
             jobs: 4
           - name: macOS arm64
-            runner: macos-15
+            runner: macos-latest
             triplet: arm64-osx
             qt-arch: clang_64
             jobs: 2
@@ -58,7 +58,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ninja-build patchelf pkg-config autoconf autoconf-archive \
-            automake libtool libltdl-dev python3-venv \
+            automake libtool libltdl-dev python3-venv xvfb xauth \
             libasound2-dev libpulse-dev libudev-dev libgl1-mesa-dev libegl1-mesa-dev \
             libx11-dev libxext-dev libxrandr-dev libxi-dev libxcursor-dev \
             libxinerama-dev libxkbcommon-dev libxkbcommon-x11-dev libxcb-cursor0 \
@@ -114,12 +114,10 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           platform_args=()
-          if [[ "$RUNNER_OS" == Linux ]]; then
-            platform_args+=(-DLITE_TEST_COVERAGE=ON)
-          else
+          if [[ "$RUNNER_OS" == macOS ]]; then
             platform_args+=(-DCMAKE_OSX_ARCHITECTURES=arm64)
           fi
-          cmake --preset tests -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
+          cmake --preset coverage -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
             -DQt6_DIR="$QT_ROOT_DIR/lib/cmake/Qt6" \
             -DVCPKG_TARGET_TRIPLET='${{ matrix.triplet }}' "${platform_args[@]}" \
             2>&1 | tee build/test-results/configure.log
@@ -127,23 +125,36 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Configure -Preset tests -QtDir "$env:QT_ROOT_DIR" 2>&1 | Tee-Object build/test-results/configure.log
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Configure -Preset coverage -QtDir "$env:QT_ROOT_DIR" 2>&1 | Tee-Object build/test-results/configure.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build editor, connector and tests
         id: build
         if: runner.os != 'Windows'
-        run: cmake --build --preset tests -- -k 0 2>&1 | tee build/test-results/build.log
+        run: cmake --build --preset coverage -- -k 0 2>&1 | tee build/test-results/build.log
       - name: Build Windows editor, connector and tests
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Build -Preset tests -QtDir "$env:QT_ROOT_DIR" 2>&1 | Tee-Object build/test-results/build.log
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Build -Preset coverage -QtDir "$env:QT_ROOT_DIR" 2>&1 | Tee-Object build/test-results/build.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Test
+      - name: Linux tests
+        if: runner.os == 'Linux'
         run: |
-          ctest --preset ci --output-junit "$PWD/build/test-results/junit.xml" \
+          xvfb-run -a ctest --preset ci-coverage --output-junit "$PWD/build/test-results/junit.xml" \
             2>&1 | tee build/test-results/ctest.log
-      - name: Coverage
+      - name: Windows tests and coverage
+        if: runner.os == 'Windows'
+        run: |
+          python scripts/tests/collect-msvc-coverage.py --build-dir build/Coverage \
+            --output build/test-results/coverage -- --preset ci-coverage \
+            2>&1 | tee build/test-results/coverage.log
+      - name: macOS tests and coverage
+        if: runner.os == 'macOS'
+        run: |
+          python scripts/tests/collect-llvm-coverage.py --build-dir build/Coverage \
+            --output build/test-results/coverage -- --preset ci-coverage \
+            2>&1 | tee build/test-results/coverage.log
+      - name: Linux coverage
         if: always() && runner.os == 'Linux' && steps.build.outcome == 'success'
         run: |
           mkdir -p build/test-results/coverage
@@ -162,8 +173,8 @@ jobs:
           name: ${{ matrix.triplet }}-test-results-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             build/test-results
-            build/Tests/Testing/Temporary
-            build/Tests/CMakeFiles/CMakeConfigureLog.yaml
+            build/Coverage/Testing/Temporary
+            build/Coverage/CMakeFiles/CMakeConfigureLog.yaml
             vcpkg/buildtrees/**/*.log
           if-no-files-found: ignore
           include-hidden-files: true
