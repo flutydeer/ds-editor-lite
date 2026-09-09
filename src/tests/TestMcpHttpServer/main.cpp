@@ -386,6 +386,7 @@ private slots:
     void jsonAndRequestLimits();
     void handlerResponseLimits();
     void listenerLifecycle();
+    void responseSurvivesShutdown_data();
     void responseSurvivesShutdown();
     void nativeRequestValidation();
     void nativeMcpRouteLifecycle();
@@ -1025,7 +1026,14 @@ void TestMcpHttpServer::listenerLifecycle() {
            QStringLiteral("asynchronous MCP shutdown must release its worker and endpoint"));
 }
 
+void TestMcpHttpServer::responseSurvivesShutdown_data() {
+    QTest::addColumn<bool>("consumeResponse");
+    QTest::newRow("reading-peer") << true;
+    QTest::newRow("stalled-peer") << false;
+}
+
 void TestMcpHttpServer::responseSurvivesShutdown() {
+    QFETCH(bool, consumeResponse);
     const QString payload(6 * 1024 * 1024, u'x');
     Automation::McpHttpServer server(this, {}, [&](const QJsonValue &message, const QString &) {
         QTimer::singleShot(0, this, [&] { server.requestStop(); });
@@ -1047,6 +1055,16 @@ void TestMcpHttpServer::responseSurvivesShutdown() {
     auto *reply = startRequest(manager, nativeRequest(QUrl(server.nativeEndpoint())),
                                QJsonDocument(request).toJson(QJsonDocument::Compact));
     reply->setReadBufferSize(4096);
+    if (!consumeResponse) {
+        const auto stopped = waitForStop(server, 5000);
+        const auto buffered = reply->bytesAvailable();
+        reply->abort();
+        reply->deleteLater();
+        QVERIFY2(stopped, "An unread response must not prevent bounded server shutdown");
+        QVERIFY(buffered > 0);
+        QVERIFY(!server.isListening() && !server.isStopping() && server.nativeEndpoint().isEmpty());
+        return;
+    }
     QByteArray received;
     const auto readConnection =
         connect(reply, &QNetworkReply::readyRead, this, [&] { received.append(reply->readAll()); });
