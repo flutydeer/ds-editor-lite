@@ -386,6 +386,7 @@ private slots:
     void jsonAndRequestLimits();
     void handlerResponseLimits();
     void listenerLifecycle();
+    void responseSurvivesShutdown();
     void nativeRequestValidation();
     void nativeMcpRouteLifecycle();
     void nativeResponseLimit();
@@ -1022,6 +1023,49 @@ void TestMcpHttpServer::listenerLifecycle() {
            QStringLiteral("asynchronous MCP shutdown must complete without blocking the GUI loop"));
     expect(!server.isListening() && !server.isStopping() && server.endpoint().isEmpty(),
            QStringLiteral("asynchronous MCP shutdown must release its worker and endpoint"));
+}
+
+void TestMcpHttpServer::responseSurvivesShutdown() {
+    const QString payload(6 * 1024 * 1024, u'x');
+    Automation::McpHttpServer server(this, {}, [&](const QJsonValue &message, const QString &) {
+        QTimer::singleShot(0, this, [&] { server.requestStop(); });
+        return QJsonObject{
+            {QStringLiteral("jsonrpc"), QStringLiteral("2.0")                            },
+            {QStringLiteral("id"),      message.toObject().value(QStringLiteral("id"))   },
+            {QStringLiteral("result"),  QJsonObject{{QStringLiteral("payload"), payload}}},
+        };
+    });
+    QString error;
+    QVERIFY2(server.start(0, {.native = true}, error), qPrintable(error));
+    QNetworkAccessManager manager;
+    manager.setProxy(QNetworkProxy::NoProxy);
+    const QJsonObject request{
+        {QStringLiteral("jsonrpc"), QStringLiteral("2.0")      },
+        {QStringLiteral("id"),      1                          },
+        {QStringLiteral("method"),  QStringLiteral("test.exit")},
+    };
+    auto *reply = startRequest(manager, nativeRequest(QUrl(server.nativeEndpoint())),
+                               QJsonDocument(request).toJson(QJsonDocument::Compact));
+    reply->setReadBufferSize(4096);
+    QByteArray received;
+    const auto readConnection =
+        connect(reply, &QNetworkReply::readyRead, this, [&] { received.append(reply->readAll()); });
+    const auto result = finishRequest(reply, 10000);
+    disconnect(readConnection);
+    received.append(result.body);
+    QVERIFY(!result.timedOut);
+    QCOMPARE(result.networkError, QNetworkReply::NoError);
+    QCOMPARE(result.status, 200);
+    QJsonParseError parseError;
+    const auto response = QJsonDocument::fromJson(received, &parseError).object();
+    QCOMPARE(parseError.error, QJsonParseError::NoError);
+    QCOMPARE(response.value(QStringLiteral("id")).toInt(), 1);
+    QVERIFY2(response.value(QStringLiteral("result"))
+                     .toObject()
+                     .value(QStringLiteral("payload"))
+                     .toString() == payload,
+             "Shutdown must deliver the complete response payload");
+    QVERIFY(waitForStop(server));
 }
 
 void TestMcpHttpServer::nativeRequestValidation() {
