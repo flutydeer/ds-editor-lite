@@ -37,7 +37,7 @@ jobs:
             libasound2-dev libpulse-dev libudev-dev libgl1-mesa-dev libegl1-mesa-dev \
             libx11-dev libxext-dev libxrandr-dev libxi-dev libxcursor-dev \
             libxinerama-dev libxkbcommon-dev libxkbcommon-x11-dev libxcb-cursor0 \
-            libfontconfig1-dev libfreetype6-dev libdbus-1-dev libssl-dev
+            libfontconfig1-dev libfreetype6-dev libdbus-1-dev libssl-dev libicu-dev
           mkdir -p build/test-results build/ci/vcpkg-cache
           python3 -m venv build/ci/coverage-env
           build/ci/coverage-env/bin/pip install gcovr==8.6

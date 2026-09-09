@@ -43,6 +43,13 @@
 #include <optional>
 #include <utility>
 
+#ifdef Q_OS_MACOS
+#  include <cstring>
+#  include <libproc.h>
+#  include <sys/proc.h>
+#  include <sys/sysctl.h>
+#endif
+
 #ifdef Q_OS_WIN
 #  include <qt_windows.h>
 #  include <shellapi.h>
@@ -398,28 +405,142 @@ namespace {
         QStringList arguments;
     };
 
-    std::optional<ProcessSnapshot> processSnapshot(qint64) {
-        return std::nullopt;
+    QString normalizedPath(const QString &path) {
+        const auto canonical = QFileInfo(path).canonicalFilePath();
+        return canonical.isEmpty() ? QDir::cleanPath(QFileInfo(path).absoluteFilePath())
+                                   : canonical;
     }
 
-    bool processMatches(const ProcessSnapshot &, const QString &, const QString &,
-                        const QStringList &) {
+    std::optional<ProcessSnapshot> processSnapshot(const qint64 processId) {
+#  ifdef Q_OS_LINUX
+        const auto root = QStringLiteral("/proc/%1/").arg(processId);
+        const auto executable = QFileInfo(root + QStringLiteral("exe")).symLinkTarget();
+        const auto directory = QFileInfo(root + QStringLiteral("cwd")).symLinkTarget();
+        QFile commandLine(root + QStringLiteral("cmdline"));
+        if (executable.isEmpty() || directory.isEmpty() || !commandLine.open(QIODevice::ReadOnly))
+            return std::nullopt;
+        auto bytes = commandLine.readAll();
+        if (bytes.isEmpty() || !bytes.endsWith('\0'))
+            return std::nullopt;
+        bytes.chop(1);
+        QStringList arguments;
+        for (const auto &argument : bytes.split('\0'))
+            arguments.append(QFile::decodeName(argument));
+        return ProcessSnapshot{executable, directory, arguments};
+#  elif defined(Q_OS_MACOS)
+        char executable[PROC_PIDPATHINFO_MAXSIZE]{};
+        proc_vnodepathinfo paths{};
+        if (proc_pidpath(static_cast<int>(processId), executable, sizeof(executable)) <= 0 ||
+            proc_pidinfo(static_cast<int>(processId), PROC_PIDVNODEPATHINFO, 0, &paths,
+                         sizeof(paths)) != sizeof(paths))
+            return std::nullopt;
+        int maximumSize = 0;
+        size_t size = sizeof(maximumSize);
+        int sizeQuery[]{CTL_KERN, KERN_ARGMAX};
+        if (sysctl(sizeQuery, 2, &maximumSize, &size, nullptr, 0) != 0 || maximumSize <= 0)
+            return std::nullopt;
+        QByteArray bytes(maximumSize, '\0');
+        size = static_cast<size_t>(bytes.size());
+        int argumentsQuery[]{CTL_KERN, KERN_PROCARGS2, static_cast<int>(processId)};
+        if (sysctl(argumentsQuery, 3, bytes.data(), &size, nullptr, 0) != 0 || size < sizeof(int))
+            return std::nullopt;
+        bytes.resize(static_cast<qsizetype>(size));
+        int count = 0;
+        std::memcpy(&count, bytes.constData(), sizeof(count));
+        auto offset = bytes.indexOf('\0', sizeof(count));
+        if (count <= 0 || offset < 0)
+            return std::nullopt;
+        // KERN_PROCARGS2 places the executable path and padding before argv.
+        while (offset < bytes.size() && bytes[offset] == '\0')
+            ++offset;
+        QStringList arguments;
+        for (int index = 0; index < count; ++index) {
+            const auto end = bytes.indexOf('\0', offset);
+            if (end < 0)
+                return std::nullopt;
+            arguments.append(QFile::decodeName(bytes.mid(offset, end - offset)));
+            offset = end + 1;
+        }
+        return ProcessSnapshot{QFile::decodeName(executable),
+                               QFile::decodeName(paths.pvi_cdir.vip_path), arguments};
+#  else
+        return std::nullopt;
+#  endif
+    }
+
+    bool processMatches(const ProcessSnapshot &snapshot, const QString &executablePath,
+                        const QString &workingDirectory, const QStringList &arguments) {
+        return normalizedPath(snapshot.executablePath) == normalizedPath(executablePath) &&
+               normalizedPath(snapshot.currentDirectory) == normalizedPath(workingDirectory) &&
+               snapshot.arguments.mid(1) == arguments;
+    }
+
+    bool processIsRunning(const qint64 processId) {
+        if (processId <= 0 || (::kill(static_cast<pid_t>(processId), 0) != 0 && errno != EPERM))
+            return false;
+#  ifdef Q_OS_LINUX
+        QFile status(QStringLiteral("/proc/%1/stat").arg(processId));
+        if (status.open(QIODevice::ReadOnly)) {
+            const auto bytes = status.readAll();
+            const auto stateOffset = bytes.lastIndexOf(')') + 2;
+            if (stateOffset >= 2 && stateOffset < bytes.size())
+                return bytes[stateOffset] != 'Z' && bytes[stateOffset] != 'X';
+        }
+#  elif defined(Q_OS_MACOS)
+        proc_bsdinfo status{};
+        if (proc_pidinfo(static_cast<int>(processId), PROC_PIDTBSDINFO, 0, &status,
+                         sizeof(status)) == sizeof(status))
+            return status.pbi_status != SZOMB;
+#  endif
         return true;
     }
 
-    bool processIsRunning(qint64) {
-        return false;
-    }
-
-    qint64 findOwnedProcess(const QString &, const QString &, const QStringList &, qint64) {
+    qint64 findOwnedProcess(const QString &executablePath, const QString &workingDirectory,
+                            const QStringList &arguments, const qint64 excludedProcessId) {
+        QList<qint64> processIds;
+#  ifdef Q_OS_LINUX
+        const auto entries =
+            QDir(QStringLiteral("/proc")).entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+        for (const auto &entry : entries) {
+            bool numeric = false;
+            const auto processId = entry.toLongLong(&numeric);
+            if (numeric)
+                processIds.append(processId);
+        }
+#  elif defined(Q_OS_MACOS)
+        const auto requiredSize = proc_listpids(PROC_UID_ONLY, getuid(), nullptr, 0);
+        if (requiredSize <= 0)
+            return 0;
+        QList<pid_t> identifiers(requiredSize / sizeof(pid_t) + 32);
+        const auto size = proc_listpids(PROC_UID_ONLY, getuid(), identifiers.data(),
+                                        static_cast<int>(identifiers.size() * sizeof(pid_t)));
+        for (int index = 0; index < size / static_cast<int>(sizeof(pid_t)); ++index)
+            processIds.append(identifiers[index]);
+#  endif
+        for (const auto processId : processIds) {
+            if (processId <= 0 || processId == excludedProcessId)
+                continue;
+            const auto snapshot = processSnapshot(processId);
+            if (snapshot && processMatches(*snapshot, executablePath, workingDirectory, arguments))
+                return processId;
+        }
         return 0;
     }
 
-    void terminateOwnedProcess(qint64, const QString &, const QString &, const QStringList &) {
-    }
-
-    int topLevelWindowCount(qint64) {
-        return 0;
+    void terminateOwnedProcess(const qint64 processId, const QString &executablePath,
+                               const QString &workingDirectory, const QStringList &arguments) {
+        const auto owned = [&] {
+            const auto snapshot = processSnapshot(processId);
+            return snapshot &&
+                   processMatches(*snapshot, executablePath, workingDirectory, arguments);
+        };
+        if (!owned())
+            return;
+        ::kill(static_cast<pid_t>(processId), SIGTERM);
+        if (!waitUntil([&] { return !processIsRunning(processId); }, 5000) && owned()) {
+            ::kill(static_cast<pid_t>(processId), SIGKILL);
+            waitUntil([&] { return !processIsRunning(processId); }, 5000);
+        }
     }
 #endif
 
@@ -672,12 +793,14 @@ namespace {
             return fail(QStringLiteral("Headless --no-mcp bootstrap state was incorrect"));
         }
 
+#ifdef Q_OS_WIN
         const auto windowCount = topLevelWindowCount(editor.processId());
         if (windowCount != 0) {
             return fail(QStringLiteral("Headless process exposed %1 top-level windows; %2")
                             .arg(windowCount)
                             .arg(processDiagnostics(editor, appDataRoot, controlPort)));
         }
+#endif
 
         const auto getDocument = [&](const QString &requestId) {
             return nativeExchange(manager, nativeEndpoint,
@@ -1527,6 +1650,13 @@ namespace {
         if (!fixture.seedProject(startupProjectPath))
             return false;
         auto &mcpEditor = isolatedRoot.process(QStringLiteral("restart-source"));
+        // The detached replacement must not inherit pipes owned by the retiring QProcess.
+        mcpEditor.setStandardOutputFile(
+            isolatedRoot.filePath(QStringLiteral("logs/restart-source.stdout.log")),
+            QIODevice::Append);
+        mcpEditor.setStandardErrorFile(
+            isolatedRoot.filePath(QStringLiteral("logs/restart-source.stderr.log")),
+            QIODevice::Append);
         const auto mcpPort = controlPort;
         const auto combinedNativeEndpoint = nativeEndpoint;
         const auto restartWorkingDirectory =
@@ -1569,13 +1699,11 @@ namespace {
         const auto mcpBootstrap = mcpWatcher.observation().snapshot->result;
         const auto originalMcpInstanceId = mcpBootstrap.editorInstanceId;
         const auto originalProcessSnapshot = processSnapshot(restartSourceProcessId);
-#ifdef Q_OS_WIN
         if (!originalProcessSnapshot ||
             !processMatches(*originalProcessSnapshot, editorPath, restartWorkingDirectory,
                             restartArguments)) {
             return fail(QStringLiteral("Could not verify the original restart process parameters"));
         }
-#endif
         const auto restartResponse = nativeExchange(
             manager, combinedNativeEndpoint,
             nativeRequest(QStringLiteral("restart"), QStringLiteral("application.request_restart"),
@@ -1618,7 +1746,6 @@ namespace {
                             .arg(mcpWatcher.observation().error));
         }
         const auto restartedSnapshot = processSnapshot(restartedProcessId);
-#ifdef Q_OS_WIN
         if (!restartedSnapshot || !originalProcessSnapshot ||
             !processMatches(*restartedSnapshot, editorPath, restartWorkingDirectory,
                             restartArguments) ||
@@ -1628,7 +1755,6 @@ namespace {
             return fail(
                 QStringLiteral("Restarted process did not preserve executable, args, or cwd"));
         }
-#endif
 
         const auto restartedStatusResponse =
             nativeExchange(manager, combinedNativeEndpoint,
@@ -1829,6 +1955,9 @@ private slots:
     }
 
     void restart() {
+#if !defined(Q_OS_WIN) && !defined(Q_OS_LINUX) && !defined(Q_OS_MACOS)
+        QSKIP("Restart process inspection is available on Windows, Linux, and macOS");
+#endif
         QVERIFY(runRestart(editorPath));
     }
 

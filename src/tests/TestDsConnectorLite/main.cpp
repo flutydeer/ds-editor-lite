@@ -3406,8 +3406,7 @@ namespace {
     }
 
     void TestDsConnectorLite::stdioFraming() {
-        const auto executable =
-            QCoreApplication::applicationDirPath() + QStringLiteral("/DsConnectorLite.exe");
+        const auto executable = QString::fromUtf8(TEST_CONNECTOR_EXECUTABLE_PATH);
         expect(QFile::exists(executable), "connector executable must exist for stdio E2E");
         if (QTest::currentTestFailed())
             return;

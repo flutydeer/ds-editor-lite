@@ -9,4 +9,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     lite::DsConnectorCore
 )
 add_dependencies(${PROJECT_NAME} DsConnectorLite)
+target_compile_definitions(${PROJECT_NAME} PRIVATE
+    TEST_CONNECTOR_EXECUTABLE_PATH="$<TARGET_FILE:DsConnectorLite>")
 lite_register_test(${PROJECT_NAME} CATEGORY protocol TIMEOUT 90)
