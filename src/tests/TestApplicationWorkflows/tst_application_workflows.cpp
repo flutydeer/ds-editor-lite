@@ -25,6 +25,7 @@
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 #include "../TestSupport/ProcessFixture.h"
+#include "../TestSupport/RuntimePluginFixture.h"
 
 #include <TalcsDevice/AbstractOutputContext.h>
 #include <TalcsDevice/AudioDevice.h>
@@ -149,6 +150,7 @@ private slots:
         previousDataRoot = qgetenv("DSEL_TEST_DATA_ROOT");
         qputenv("DSEL_TEST_DATA_ROOT", dataRoot.path().toUtf8());
         dataRootInstalled = true;
+        QVERIFY(TestSupport::useApplicationPluginRoot());
         QCOMPARE(AppDataPaths::testRoot(), QDir::cleanPath(dataRoot.path()));
         AppEnvironment::postInit(AppHostMode::Headless);
 

@@ -9,6 +9,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Audio/AudioSystem.h"
 #include "Modules/Audio/subsystem/OutputSystem.h"
+#include "../TestSupport/RuntimePluginFixture.h"
 
 #include <lite/Tasking/TaskManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -147,6 +148,7 @@ void AudioAssetsTests::initTestCase() {
     QVERIFY(applicationData->isValid());
     previousDataRoot = qgetenv("DSEL_TEST_DATA_ROOT");
     qputenv("DSEL_TEST_DATA_ROOT", applicationData->path().toUtf8());
+    QVERIFY(TestSupport::useApplicationPluginRoot());
     AppEnvironment::postInit(AppHostMode::Headless);
     auto options = std::make_unique<AppOptions>();
     options->general()->packageSearchPaths.clear();

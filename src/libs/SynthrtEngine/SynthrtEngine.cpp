@@ -281,6 +281,12 @@ void SynthrtEngine::shutdown() noexcept {
 
 fs::path SynthrtEngine::pluginRoot() {
 #if defined(Q_OS_MAC)
+#  if defined(LITE_TEST_DATA_ROOT)
+    // Standalone test hosts use plugins deployed in the actual application bundle.
+    const auto testRoot = qEnvironmentVariable("DSEL_TEST_PLUGIN_ROOT");
+    if (!testRoot.isEmpty() && QDir::isAbsolutePath(testRoot))
+        return StringUtils::qstr_to_path(testRoot);
+#  endif
     return MacOSUtils::getMainBundlePath() / "Contents/PlugIns";
 #elif defined(Q_OS_WIN)
     return stdc::system::application_directory() / "plugins";

@@ -10,6 +10,7 @@
 #include "Modules/Audio/subsystem/OutputSystem.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsScene.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
+#include "../TestSupport/RuntimePluginFixture.h"
 
 #include <lite/GUI/Theme/ThemeIds.h>
 #include <lite/GUI/Theme/ThemeLoader.h>
@@ -34,6 +35,7 @@ void ApplicationGuiTests::initTestCase() {
     previousDataRoot = qgetenv("DSEL_TEST_DATA_ROOT");
     qputenv("DSEL_TEST_DATA_ROOT", dataRoot.path().toUtf8());
     dataRootInstalled = true;
+    QVERIFY(TestSupport::useApplicationPluginRoot());
     QCOMPARE(AppDataPaths::testRoot(), QDir::cleanPath(dataRoot.path()));
     QApplication::setQuitOnLastWindowClosed(false);
     AppEnvironment::postInit(AppHostMode::Gui);

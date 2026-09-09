@@ -3,4 +3,10 @@ project(TestApplicationWorkflows)
 lite_add_test(${PROJECT_NAME} SOURCES tst_application_workflows.cpp ../TestSupport/ProcessFixture.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE EditorRuntime)
 add_dependencies(${PROJECT_NAME} DsEditorLite)
+if(APPLE)
+    set_target_properties(${PROJECT_NAME} PROPERTIES
+        BUILD_RPATH "$<TARGET_BUNDLE_DIR:DsEditorLite>/Contents/Frameworks")
+    target_compile_definitions(${PROJECT_NAME} PRIVATE
+        LITE_TEST_APPLICATION_PLUGIN_ROOT="$<TARGET_BUNDLE_DIR:DsEditorLite>/Contents/PlugIns")
+endif()
 lite_register_test(${PROJECT_NAME} CATEGORY workflow TIMEOUT 90)
