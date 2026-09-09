@@ -13,7 +13,7 @@ project(lite
 # Build Options
 # ----------------------------------
 option(LITE_BUILD_TESTS "Build test targets" OFF)
-option(LITE_TEST_COVERAGE "Instrument the test build for GCC/gcov coverage" OFF)
+option(LITE_TEST_COVERAGE "Enable coverage collection for the test build" OFF)
 option(LITE_ENABLE_BREAKPAD "Enable breakpad for crash reporting" OFF)
 option(LITE_ENABLE_FILE_LOG "Enable file logging (used by packaged builds)" OFF)
 # Default is DML-only; opt in to CUDA per invocation with -D LITE_ENABLE_CUDA=ON
@@ -77,11 +77,19 @@ if(LITE_BUILD_TESTS)
 endif()
 
 if(LITE_TEST_COVERAGE)
-    if(NOT LITE_BUILD_TESTS OR NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        message(FATAL_ERROR "LITE_TEST_COVERAGE requires LITE_BUILD_TESTS and GCC")
+    if(NOT LITE_BUILD_TESTS)
+        message(FATAL_ERROR "LITE_TEST_COVERAGE requires LITE_BUILD_TESTS")
     endif()
-    add_compile_options(--coverage -fprofile-abs-path -fprofile-update=atomic)
-    add_link_options(--coverage)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        add_compile_options(--coverage -fprofile-abs-path -fprofile-update=atomic)
+        add_link_options(--coverage)
+    elseif(MSVC)
+        # Native static instrumentation needs full debug symbols and non-incremental linking.
+        add_compile_options(/Zi)
+        add_link_options(/DEBUG /PROFILE)
+    else()
+        message(FATAL_ERROR "LITE_TEST_COVERAGE supports GCC and MSVC")
+    endif()
 endif()
 
 # ----------------------------------

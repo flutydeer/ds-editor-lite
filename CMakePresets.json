@@ -7,6 +7,13 @@
   },
   "configurePresets": [
     {
+      "name": "coverage",
+      "displayName": "Isolated Debug coverage",
+      "inherits": "tests",
+      "binaryDir": "${sourceDir}/build/Coverage",
+      "cacheVariables": { "LITE_TEST_COVERAGE": "ON" }
+    },
+    {
       "name": "tests",
       "displayName": "Isolated Debug tests",
       "inherits": "debug",
@@ -81,6 +88,11 @@
   ],
   "buildPresets": [
     {
+      "name": "coverage",
+      "inherits": "tests",
+      "configurePreset": "coverage"
+    },
+    {
       "name": "tests",
       "displayName": "Build editor, connector and tests",
       "configurePreset": "tests",
@@ -128,6 +140,11 @@
     }
   ],
   "testPresets": [
+    {
+      "name": "coverage",
+      "inherits": "local",
+      "configurePreset": "coverage"
+    },
     {
       "name": "ci",
       "configurePreset": "tests",

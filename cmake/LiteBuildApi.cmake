@@ -34,11 +34,13 @@ function(lite_register_test _target)
     else()
         list(APPEND _labels ci)
     endif()
+    # Keep Qt Test's watchdog from aborting long resource workflows before their own deadline.
+    math(EXPR _function_timeout_ms "${TEST_TIMEOUT} * 1000")
     set_tests_properties(${TEST_NAME} PROPERTIES
         LABELS "${_labels}"
         TIMEOUT ${TEST_TIMEOUT}
         WORKING_DIRECTORY "$<TARGET_FILE_DIR:${_target}>"
-        ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+        ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QTEST_FUNCTION_TIMEOUT=${_function_timeout_ms}"
     )
     if(_locks)
         set_tests_properties(${TEST_NAME} PROPERTIES RESOURCE_LOCK "${_locks}")
