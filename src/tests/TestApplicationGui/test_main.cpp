@@ -17,6 +17,7 @@
 #include <lite/GUI/Theme/ThemeLoader.h>
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/History/HistoryManager.h>
+#include <lite/PackageManager/PackageManager.h>
 #include <TalcsDevice/AudioDevice.h>
 
 #include <QtTest/QTest>
@@ -64,6 +65,9 @@ void ApplicationGuiTests::initTestCase() {
     QVERIFY(QApplication::activeModalWidget() == nullptr);
     QVERIFY2(ThemeManager::instance()->initialize(ThemeIds::defaultThemeId()),
              qPrintable(ThemeLoader::lastError()));
+    packageManager->initialize(context->m_appOptions->general()->packageSearchPaths);
+    QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
+                              10000);
     savedClipboard = std::make_unique<QMimeData>();
     if (const auto *mime = QApplication::clipboard()->mimeData()) {
         for (const auto &format : mime->formats())

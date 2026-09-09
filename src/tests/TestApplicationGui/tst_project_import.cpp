@@ -21,6 +21,8 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QScopeGuard>
+#include <QStyle>
+#include <QStyleOptionButton>
 #include <QTextEdit>
 #include <QTimer>
 #include <QTreeView>
@@ -104,7 +106,12 @@ namespace {
         QCOMPARE(all->checkState(), Qt::PartiallyChecked);
         QVERIFY(tempo->isChecked());
         QVERIFY(signature->isChecked());
-        QTest::mouseClick(tempo, Qt::LeftButton);
+        QStyleOptionButton option;
+        option.initFrom(tempo);
+        const auto indicator =
+            tempo->style()->subElementRect(QStyle::SE_CheckBoxIndicator, &option, tempo);
+        QTest::mouseClick(tempo, Qt::LeftButton, Qt::NoModifier, indicator.center());
+        QVERIFY(!tempo->isChecked());
         const auto input = page->collectInput();
         QCOMPARE(input.tracks.selectedTrackIndices, QList<int>{selected.row()});
         QVERIFY(!input.timeline.importTempo);

@@ -13,6 +13,8 @@
 #include "UI/Dialogs/Note/PhonemeNameListWidget.h"
 #include "UI/Dialogs/Search/SearchDialog.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
+#include "UI/Views/ClipEditor/PianoRoll/PianoRollCoord.h"
+#include "UI/Views/ClipEditor/PianoRoll/PianoRollView.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
 #include "UI/Window/MainWindow.h"
 
@@ -83,6 +85,18 @@ void ApplicationGuiTests::phonemeDialogValidatesCommitsAndResetsThroughTheNoteMe
     QCOMPARE(singingClip->notes().count(), 1);
     auto *note = *singingClip->notes().begin();
     appStatus->selectedNotes = QList<int>{note->id()};
+    view->hide();
+    PianoRollView pianoRoll;
+    pianoRoll.setDataContext(singingClip);
+    const auto detachPianoRoll = qScopeGuard([&] { pianoRoll.setDataContext(nullptr); });
+    pianoRoll.resize(900, 600);
+    pianoRoll.show();
+    pianoRoll.activateWindow();
+    QVERIFY(pianoRoll.setViewScale(1.0, 1.0));
+    QVERIFY(pianoRoll.centerAt(1920, 60));
+    auto *canvas = pianoRoll.findChild<PianoRollGraphicsView *>();
+    QVERIFY(canvas);
+    QTRY_VERIFY(canvas->isVisible());
     historyManager->reset();
     const auto before = runtime.documentVersion();
     QPointer<PhonemeEditorDialog> dialog;
@@ -91,7 +105,7 @@ void ApplicationGuiTests::phonemeDialogValidatesCommitsAndResetsThroughTheNoteMe
         bool selected = false;
         QTimer chooseAction;
         chooseAction.setSingleShot(true);
-        connect(&chooseAction, &QTimer::timeout, view.get(), [&] {
+        connect(&chooseAction, &QTimer::timeout, &pianoRoll, [&] {
             auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
             QVERIFY(menu);
             const auto closeOnFailure = qScopeGuard([&] {
@@ -109,11 +123,13 @@ void ApplicationGuiTests::phonemeDialogValidatesCommitsAndResetsThroughTheNoteMe
                               menu->actionGeometry(edit).center());
             selected = true;
         });
-        const auto point = pointFor(720, 62);
+        const auto point = canvas->mapFromScene(QPointF(
+            canvas->tickToSceneX(720), PianoRollCoord::keyIndexToCenterY(
+                                           62, ClipEditorGlobal::noteHeight * canvas->scaleY())));
         QContextMenuEvent event(QContextMenuEvent::Mouse, point,
-                                view->viewport()->mapToGlobal(point));
+                                canvas->viewport()->mapToGlobal(point));
         chooseAction.start(0);
-        QApplication::sendEvent(view->viewport(), &event);
+        QApplication::sendEvent(canvas->viewport(), &event);
         chooseAction.stop();
         QVERIFY(selected);
         dialog = qobject_cast<PhonemeEditorDialog *>(QApplication::activeModalWidget());
@@ -195,6 +211,21 @@ void ApplicationGuiTests::phonemeDialogValidatesCommitsAndResetsThroughTheNoteMe
 }
 
 void ApplicationGuiTests::lyricSearchNavigatesTheActualEditorAndHandlesNoMatches() {
+    const auto nativeFrame = appOptions->appearance()->useNativeFrame;
+    appOptions->appearance()->useNativeFrame = true;
+    const auto restoreFrame =
+        qScopeGuard([&] { appOptions->appearance()->useNativeFrame = nativeFrame; });
+    MainWindow window;
+    const auto clearWindow = qScopeGuard([&] {
+        documentWorkflowController->setUi(nullptr);
+        appController->setMainWindow(nullptr);
+        trackController->setParentWidget(nullptr);
+        Dialog::setGlobalContext(nullptr);
+        Toast::setGlobalContext(nullptr);
+    });
+    window.resize(1100, 800);
+    window.show();
+    window.activateWindow();
     createPianoRoll();
     if (QTest::currentTestFailed())
         return;
@@ -220,21 +251,6 @@ void ApplicationGuiTests::lyricSearchNavigatesTheActualEditorAndHandlesNoMatches
             expected.append(note->id());
     }
     QCOMPARE(expected.size(), 2);
-    const auto nativeFrame = appOptions->appearance()->useNativeFrame;
-    appOptions->appearance()->useNativeFrame = true;
-    const auto restoreFrame =
-        qScopeGuard([&] { appOptions->appearance()->useNativeFrame = nativeFrame; });
-    MainWindow window;
-    const auto clearWindow = qScopeGuard([&] {
-        documentWorkflowController->setUi(nullptr);
-        appController->setMainWindow(nullptr);
-        trackController->setParentWidget(nullptr);
-        Dialog::setGlobalContext(nullptr);
-        Toast::setGlobalContext(nullptr);
-    });
-    window.resize(1100, 800);
-    window.show();
-    window.activateWindow();
     QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));
     auto *editor = window.findChild<ClipEditorView *>();
     QVERIFY(editor);

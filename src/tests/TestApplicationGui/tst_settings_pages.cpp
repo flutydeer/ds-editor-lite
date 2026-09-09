@@ -69,7 +69,9 @@ namespace {
         replaceText(editor, path);
         if (QTest::currentTestFailed())
             return;
+        QSignalSpy changed(paths, &PathEditor::pathsChanged);
         QTest::keyClick(editor, Qt::Key_Return);
+        QTRY_VERIFY(!changed.isEmpty());
     }
 
     void readSavedOptions(QJsonObject &options) {
@@ -164,6 +166,7 @@ void ApplicationGuiTests::automationAccessInputsPersistAndRejectMissingFolders()
     appOptions->automation()->accessRoots = {initialRoot};
     appOptions->automation()->controlLevel = AutomationOption::ControlLevel::L1;
     QVERIFY(appOptions->saveAndNotify(AppOptionsGlobal::Automation));
+    const auto canonicalInitialRoot = QFileInfo(initialRoot).canonicalFilePath();
 
     {
         AppOptionsDialog panel;
@@ -191,7 +194,7 @@ void ApplicationGuiTests::automationAccessInputsPersistAndRejectMissingFolders()
         editAccessRoot(paths, missingRoot);
         if (QTest::currentTestFailed())
             return;
-        QCOMPARE(appOptions->automation()->accessRoots, QStringList{initialRoot});
+        QCOMPARE(appOptions->automation()->accessRoots, QStringList{canonicalInitialRoot});
         QCOMPARE(paths->paths(), QStringList{missingRoot});
         bool warningVisible = false;
         for (const auto *label : page->findChildren<QLabel *>())
