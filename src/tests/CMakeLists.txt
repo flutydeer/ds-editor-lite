@@ -29,3 +29,11 @@ add_subdirectory(TestApplicationGui)
 add_subdirectory(TestNativeDesktop)
 add_subdirectory(TestProcessIntegration)
 add_subdirectory(TestModelResources)
+
+set(_voicebank_directory "${CMAKE_CURRENT_BINARY_DIR}/resources")
+file(ARCHIVE_EXTRACT INPUT "${CMAKE_CURRENT_SOURCE_DIR}/resources/voicebank-fixture.zip"
+    DESTINATION "${_voicebank_directory}")
+foreach(_resource_test IN ITEMS TestModelResources TestApplicationGui)
+    target_compile_definitions(${_resource_test} PRIVATE
+        LITE_TEST_VOICEBANK_ROOT="${_voicebank_directory}/ci-fixture@1.0.0")
+endforeach()

@@ -1,13 +1,16 @@
 #include "../TestSupport/ProcessFixture.h"
 #include "../TestSupport/NativeRpc.h"
+#include "../TestSupport/VoicebankFixture.h"
 
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QMap>
 #include <QNetworkAccessManager>
 #include <QNetworkProxy>
 #include <QTcpServer>
@@ -170,6 +173,44 @@ namespace {
         }
         return 0;
     }
+
+    struct DecodedAudio {
+        SF_INFO info{};
+        QByteArray pcm;
+        double energy = 0;
+        QString error;
+    };
+
+    DecodedAudio decodeAudio(const QString &path) {
+        DecodedAudio decoded;
+#ifdef Q_OS_WIN
+        auto *opened =
+            sf_wchar_open(reinterpret_cast<const wchar_t *>(path.utf16()), SFM_READ, &decoded.info);
+#else
+        auto *opened = sf_open(QFile::encodeName(path).constData(), SFM_READ, &decoded.info);
+#endif
+        const std::unique_ptr<SNDFILE, decltype(&sf_close)> audio(opened, sf_close);
+        if (!audio) {
+            decoded.error = QString::fromUtf8(sf_strerror(nullptr));
+            return decoded;
+        }
+        std::array<float, 4096> samples;
+        while (const auto count = sf_read_float(audio.get(), samples.data(), samples.size())) {
+            for (sf_count_t index = 0; index < count; ++index) {
+                const auto sample = samples[static_cast<size_t>(index)];
+                if (!std::isfinite(sample)) {
+                    decoded.error = QStringLiteral("Exported PCM contains a non-finite sample");
+                    return decoded;
+                }
+                decoded.energy += double(sample) * sample;
+            }
+            decoded.pcm.append(reinterpret_cast<const char *>(samples.data()),
+                               count * sizeof(float));
+        }
+        if (sf_error(audio.get()) != SF_ERR_NO_ERROR)
+            decoded.error = QString::fromUtf8(sf_strerror(audio.get()));
+        return decoded;
+    }
 }
 
 class TestModelResources final : public QObject {
@@ -180,13 +221,26 @@ public:
 
 private slots:
 
+    void voicebankInferenceAndWaveExport_data() {
+        QTest::addColumn<QString>("language");
+        QTest::addColumn<QString>("lyric");
+        QTest::addColumn<QString>("speakerId");
+        if (TestSupport::usingBundledVoicebank()) {
+            QTest::newRow("mandarin-clear")
+                << QStringLiteral("cmn") << QStringLiteral("la") << QStringLiteral("clear");
+            QTest::newRow("english-soft")
+                << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("soft");
+        } else {
+            QTest::newRow("configured-voicebank")
+                << TestSupport::fixtureLanguage() << TestSupport::fixtureLyric() << QString();
+        }
+    }
+
     void voicebankInferenceAndWaveExport() {
-        const auto configuredRoot = qEnvironmentVariable("DSEL_TEST_VOICEBANK_ROOT");
-        if (configuredRoot.isEmpty())
-            QSKIP("Set DSEL_TEST_VOICEBANK_ROOT, DSEL_TEST_LANGUAGE and DSEL_TEST_LYRIC to run the "
-                  "real CPU voicebank workflow");
-        const auto language = qEnvironmentVariable("DSEL_TEST_LANGUAGE");
-        const auto lyric = qEnvironmentVariable("DSEL_TEST_LYRIC");
+        QFETCH(QString, language);
+        QFETCH(QString, lyric);
+        QFETCH(QString, speakerId);
+        const auto configuredRoot = TestSupport::voicebankRoot();
         QVERIFY2(!language.isEmpty(),
                  "DSEL_TEST_LANGUAGE is required when a voicebank is configured");
         QVERIFY2(!lyric.isEmpty(), "DSEL_TEST_LYRIC is required when a voicebank is configured");
@@ -233,7 +287,9 @@ private slots:
                  qPrintable(client.error));
         QVERIFY2(client.waitForTask(result, true, 60000), qPrintable(client.error));
 
-        const auto requestedSinger = qEnvironmentVariable("DSEL_TEST_SINGER_ID");
+        const auto requestedSinger = TestSupport::fixtureSingerId();
+        QVERIFY2(!requestedSinger.isEmpty(),
+                 "DSEL_TEST_SINGER_ID is required when a voicebank is configured");
         QList<QJsonObject> candidates;
         QString cursor;
         do {
@@ -280,7 +336,9 @@ private slots:
                  "The configured language must be supported by the singer and have a ready G2P");
         QJsonValue speaker(QJsonValue::Null);
         const auto defaultSpeaker =
-            voiceSnapshot.value(QStringLiteral("default_speaker_id")).toString();
+            speakerId.isEmpty()
+                ? voiceSnapshot.value(QStringLiteral("default_speaker_id")).toString()
+                : speakerId;
         if (!defaultSpeaker.isEmpty())
             speaker = QJsonObject{
                 {QStringLiteral("speaker_id"), defaultSpeaker}
@@ -354,6 +412,31 @@ private slots:
             {QStringLiteral("clip_ids"), QJsonArray{clipId}    }
         };
         QVERIFY2(client.waitForInferenceModel(scope), qPrintable(client.error));
+        if (TestSupport::usingBundledVoicebank()) {
+            QVERIFY2(client.call(QStringLiteral("notes.list"),
+                                 {
+                                     {QStringLiteral("document_id"), client.documentId},
+                                     {QStringLiteral("clip_id"),     clipId           }
+            },
+                                 result),
+                     qPrintable(client.error));
+            const auto notes = result.value(QStringLiteral("notes")).toArray();
+            QCOMPARE(notes.size(), 1);
+            const auto note = notes.first().toObject();
+            QCOMPARE(note.value(QStringLiteral("pronunciation"))
+                         .toObject()
+                         .value(QStringLiteral("value"))
+                         .toString(),
+                     language == QStringLiteral("cmn") ? QStringLiteral("la")
+                                                       : QStringLiteral("l aa"));
+            const auto phonemes = note.value(QStringLiteral("phonemes")).toArray();
+            QCOMPARE(phonemes.size(), 2);
+            QCOMPARE(phonemes.first().toObject().value(QStringLiteral("symbol")).toString(),
+                     QStringLiteral("l"));
+            QCOMPARE(phonemes.last().toObject().value(QStringLiteral("symbol")).toString(),
+                     language == QStringLiteral("cmn") ? QStringLiteral("a")
+                                                       : QStringLiteral("aa"));
+        }
         QVERIFY2(
             client.mutate(QStringLiteral("inference.start"),
                           {
@@ -391,32 +474,85 @@ private slots:
                  qPrintable(client.error));
         QVERIFY2(client.waitForTask(result, false, 120000), qPrintable(client.error));
 
-        SF_INFO info{};
-#ifdef Q_OS_WIN
-        auto *opened =
-            sf_wchar_open(reinterpret_cast<const wchar_t *>(output.utf16()), SFM_READ, &info);
-#else
-        auto *opened = sf_open(QFile::encodeName(output).constData(), SFM_READ, &info);
-#endif
-        const std::unique_ptr<SNDFILE, decltype(&sf_close)> audio(opened, sf_close);
-        QVERIFY2(audio != nullptr, sf_strerror(nullptr));
-        QVERIFY(info.frames > 0);
-        QCOMPARE(info.samplerate, 44100);
-        QCOMPARE(info.channels, 1);
-        std::array<float, 4096> samples;
-        double energy = 0;
-        sf_count_t total = 0;
-        while (const auto count = sf_read_float(audio.get(), samples.data(), samples.size())) {
-            for (sf_count_t index = 0; index < count; ++index) {
-                const auto sample = samples[static_cast<size_t>(index)];
-                QVERIFY(std::isfinite(sample));
-                energy += double(sample) * sample;
-            }
-            total += count;
+        const auto firstAudio = decodeAudio(output);
+        QVERIFY2(firstAudio.error.isEmpty(), qPrintable(firstAudio.error));
+        QVERIFY(firstAudio.info.frames > 0);
+        QCOMPARE(firstAudio.info.samplerate, 44100);
+        QCOMPARE(firstAudio.info.channels, 1);
+        QCOMPARE(firstAudio.pcm.size(), firstAudio.info.frames * qint64(sizeof(float)));
+        QVERIFY2(firstAudio.energy > 0,
+                 "Successful synthesis and export must produce non-silent audio");
+
+        if (TestSupport::usingBundledVoicebank() && language == QStringLiteral("cmn")) {
+            const QDir cache(fixture.filePath(QStringLiteral("cache")));
+            const auto cachedAudio = cache.entryList({QStringLiteral("*.wav")}, QDir::Files);
+            QVERIFY(!cachedAudio.isEmpty());
+            QMap<QString, QDateTime> initialWrites;
+            for (const auto &name : cachedAudio)
+                initialWrites.insert(name, QFileInfo(cache.filePath(name)).lastModified());
+            const auto inferAndExport = [&](const QString &name) {
+                if (!client.waitForInferenceModel(scope) ||
+                    !client.mutate(
+                        QStringLiteral("inference.start"),
+                        {
+                            {QStringLiteral("scope"),   scope                                   },
+                            {QStringLiteral("options"),
+                             QJsonObject{{QStringLiteral("provider_id"), QStringLiteral("CPU")}}}
+                },
+                        result) ||
+                    !client.waitForTask(result, false, 300000))
+                    return false;
+                exportArguments.insert(QStringLiteral("path"), fixture.filePath(name));
+                return client.call(QStringLiteral("exports.audio.start"), exportArguments,
+                                   result) &&
+                       client.waitForTask(result, false, 120000);
+            };
+
+            QVERIFY2(inferAndExport(QStringLiteral("repeat.wav")), qPrintable(client.error));
+            const auto repeatedAudio = decodeAudio(fixture.filePath(QStringLiteral("repeat.wav")));
+            QVERIFY2(repeatedAudio.error.isEmpty(), qPrintable(repeatedAudio.error));
+            QCOMPARE(repeatedAudio.pcm, firstAudio.pcm);
+            QCOMPARE(cache.entryList({QStringLiteral("*.wav")}, QDir::Files), cachedAudio);
+            for (auto it = initialWrites.cbegin(); it != initialWrites.cend(); ++it)
+                QCOMPARE(QFileInfo(cache.filePath(it.key())).lastModified(), it.value());
+
+            QVERIFY2(client.mutate(QStringLiteral("tracks.set_voice"),
+                                   {
+                                       {QStringLiteral("track_id"), trackId                 },
+                                       {QStringLiteral("voice"),
+                                        QJsonObject{{QStringLiteral("singer"), singer},
+                                                    {QStringLiteral("speaker"),
+                                                     QJsonObject{{QStringLiteral("speaker_id"),
+                                                                  QStringLiteral("soft")}}}}}
+            },
+                                   result),
+                     qPrintable(client.error));
+            QVERIFY2(inferAndExport(QStringLiteral("soft.wav")), qPrintable(client.error));
+            const auto softAudio = decodeAudio(fixture.filePath(QStringLiteral("soft.wav")));
+            QVERIFY2(softAudio.error.isEmpty(), qPrintable(softAudio.error));
+            QCOMPARE(softAudio.info.frames, firstAudio.info.frames);
+            QVERIFY(softAudio.energy > 0);
+            QVERIFY(softAudio.pcm != firstAudio.pcm);
+            const auto changedSpeakerCache =
+                cache.entryList({QStringLiteral("*.wav")}, QDir::Files);
+            QVERIFY(changedSpeakerCache != cachedAudio);
+
+            QVERIFY2(
+                client.mutate(QStringLiteral("tempos.set"),
+                              {
+                                  {QStringLiteral("tick"),  0    },
+                                  {QStringLiteral("tempo"), 240.0}
+            },
+                              result),
+                qPrintable(client.error));
+            QVERIFY2(inferAndExport(QStringLiteral("faster.wav")), qPrintable(client.error));
+            const auto fasterAudio = decodeAudio(fixture.filePath(QStringLiteral("faster.wav")));
+            QVERIFY2(fasterAudio.error.isEmpty(), qPrintable(fasterAudio.error));
+            QVERIFY(fasterAudio.info.frames > 0);
+            QVERIFY(fasterAudio.info.frames < softAudio.info.frames);
+            QVERIFY(fasterAudio.energy > 0);
+            QVERIFY(cache.entryList({QStringLiteral("*.wav")}, QDir::Files) != changedSpeakerCache);
         }
-        QCOMPARE(sf_error(audio.get()), SF_ERR_NO_ERROR);
-        QCOMPARE(total, info.frames);
-        QVERIFY2(energy > 0, "Successful synthesis and export must produce non-silent audio");
         QVERIFY2(client.call(QStringLiteral("application.request_exit"),
                              {
                                  {QStringLiteral("discard_changes"), true}
