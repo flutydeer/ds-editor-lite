@@ -18,6 +18,7 @@
 #include <QTimer>
 #include <QWheelEvent>
 #include <QWidget>
+#include <QPointingDevice>
 
 #include <algorithm>
 
@@ -255,10 +256,17 @@ void EditorInteractionTests::horizontalAndShiftGestures() {
 }
 
 void EditorInteractionTests::fractionalAndReversedWheelMotion() {
+    // macOS distinguishes continuous input by the event device, not angle magnitude.
+    const QPointingDevice touchpad(
+        QStringLiteral("Test touchpad"), 1, QInputDevice::DeviceType::TouchPad,
+        QPointingDevice::PointerType::Finger,
+        QInputDevice::Capability::Position | QInputDevice::Capability::PixelScroll, 1, 0);
     QWheelEvent fineWheelDown(QPointF(10, 10), QPointF(10, 10), {}, QPoint(0, -1), Qt::NoButton,
-                              Qt::NoModifier, Qt::ScrollUpdate, false);
+                              Qt::NoModifier, Qt::ScrollUpdate, false, Qt::MouseEventNotSynthesized,
+                              &touchpad);
     QWheelEvent fineWheelUp(QPointF(10, 10), QPointF(10, 10), {}, QPoint(0, 1), Qt::NoButton,
-                            Qt::NoModifier, Qt::ScrollUpdate, false);
+                            Qt::NoModifier, Qt::ScrollUpdate, false, Qt::MouseEventNotSynthesized,
+                            &touchpad);
     WheelInputController fineDownScroll;
     WheelInputController fineUpScroll;
     fineDownScroll.setAnimationEnabled(false);
@@ -273,8 +281,8 @@ void EditorInteractionTests::fractionalAndReversedWheelMotion() {
         fineUpScroll.handleWheel(&fineWheelUp, WheelInputController::Action::VerticalScroll,
                                  Qt::Vertical);
     }
-    QVERIFY2((fineDownOffset - 100 == 100 - fineUpOffset && fineDownOffset > 100),
-             "fine angle deltas must accumulate symmetrically in both directions");
+    QCOMPARE(fineDownOffset, 101.0);
+    QCOMPARE(fineUpOffset, 99.0);
 
     WheelInputController reversingScroll;
     reversingScroll.setAnimationEnabled(false);
@@ -283,11 +291,11 @@ void EditorInteractionTests::fractionalAndReversedWheelMotion() {
     for (int i = 0; i < 2; ++i)
         reversingScroll.handleWheel(&fineWheelDown, WheelInputController::Action::VerticalScroll,
                                     Qt::Vertical);
+    QCOMPARE(reversingOffset, 100.0);
     for (int i = 0; i < 4; ++i)
         reversingScroll.handleWheel(&fineWheelUp, WheelInputController::Action::VerticalScroll,
                                     Qt::Vertical);
-    QVERIFY2((reversingOffset == 99),
-             "reversing a fine wheel gesture must discard the opposite-direction remainder");
+    QCOMPARE(reversingOffset, 99.0);
 }
 
 void EditorInteractionTests::pendingWheelTargetsRespectBounds() {

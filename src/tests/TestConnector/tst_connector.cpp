@@ -38,6 +38,10 @@ namespace {
 
     using TestSupport::expect;
 
+    QString uniqueBootstrapServiceName() {
+        return QStringLiteral("dsc-%1").arg(QUuid::createUuid().toString(QUuid::Id128));
+    }
+
     QSet<QString> toolNames(const QJsonArray &tools) {
         QSet<QString> result;
         for (const auto &entry : tools)
@@ -179,7 +183,12 @@ namespace {
         }
 
         bool listen() {
-            return m_server.listen(m_serviceName);
+            if (m_server.listen(m_serviceName))
+                return true;
+            qWarning().noquote() << "Bootstrap socket listen failed:" << m_serviceName
+                                 << "temporary directory:" << QDir::tempPath()
+                                 << "error:" << m_server.errorString();
+            return false;
         }
 
         qsizetype watcherCount() const {
@@ -954,8 +963,7 @@ namespace {
     class ConnectedEditorFixture final {
     public:
         FakeHttpEditor http;
-        const QString serviceName = QStringLiteral("DsConnectorLite-Test-%1")
-                                        .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+        const QString serviceName = uniqueBootstrapServiceName();
         FakeBootstrap bootstrap{serviceName};
         SingleInstanceAutomationStatus ready;
         DsConnector::ConnectorOptions options{
@@ -1538,8 +1546,7 @@ namespace {
     }
 
     void TestConnector::offlineBootstrapError() {
-        const auto serviceName = QStringLiteral("DsConnectorLite-No-Such-Bootstrap-%1")
-                                     .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+        const auto serviceName = uniqueBootstrapServiceName();
         DsConnector::BootstrapWatcher watcher(QStringLiteral("connector-test"), QStringLiteral("1"),
                                               serviceName);
         watcher.start();
@@ -1558,8 +1565,7 @@ namespace {
     }
 
     void TestConnector::unavailableEditorStates() {
-        const auto serviceName = QStringLiteral("DsConnectorLite-State-Test-%1")
-                                     .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+        const auto serviceName = uniqueBootstrapServiceName();
         FakeBootstrap bootstrap(serviceName);
         expect(bootstrap.listen(), "state fake bootstrap endpoint must listen");
         if (QTest::currentTestFailed())
@@ -1624,8 +1630,7 @@ namespace {
     }
 
     void TestConnector::bootstrapCorrelation() {
-        const auto serviceName = QStringLiteral("DsConnectorLite-Correlation-%1")
-                                     .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+        const auto serviceName = uniqueBootstrapServiceName();
         FakeBootstrap bootstrap(serviceName);
         expect(bootstrap.listen(), "correlation fake bootstrap must listen");
         if (QTest::currentTestFailed())
@@ -1702,8 +1707,7 @@ namespace {
             if (QTest::currentTestFailed())
                 return;
             http.discoverResponseDelayMs = 300;
-            const auto serviceName = QStringLiteral("DsConnectorLite-Handshake-Coalescing-%1")
-                                         .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+            const auto serviceName = uniqueBootstrapServiceName();
             FakeBootstrap bootstrap(serviceName);
             expect(bootstrap.listen(), "handshake-coalescing bootstrap must listen");
             if (QTest::currentTestFailed())
@@ -1740,8 +1744,7 @@ namespace {
             if (QTest::currentTestFailed())
                 return;
             http.discoverRateLimitFailuresRemaining = 1;
-            const auto serviceName = QStringLiteral("DsConnectorLite-Handshake-Retry-%1")
-                                         .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+            const auto serviceName = uniqueBootstrapServiceName();
             FakeBootstrap bootstrap(serviceName);
             expect(bootstrap.listen(), "handshake-retry bootstrap must listen");
             if (QTest::currentTestFailed())
@@ -1791,8 +1794,7 @@ namespace {
             expect(http.listen(), "legacy-only fake editor must listen");
             if (QTest::currentTestFailed())
                 return;
-            const auto serviceName = QStringLiteral("DsConnectorLite-Legacy-Handshake-%1")
-                                         .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+            const auto serviceName = uniqueBootstrapServiceName();
             FakeBootstrap bootstrap(serviceName);
             expect(bootstrap.listen(), "legacy-only bootstrap must listen");
             if (QTest::currentTestFailed())
@@ -2519,8 +2521,7 @@ namespace {
             return;
         http.exposeForwardCompatibleTools = true;
 
-        const auto serviceName = QStringLiteral("DsConnectorLite-Forward-%1")
-                                     .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+        const auto serviceName = uniqueBootstrapServiceName();
         FakeBootstrap bootstrap(serviceName);
         expect(bootstrap.listen(), "forward-compatible bootstrap must listen");
         if (QTest::currentTestFailed())
@@ -2736,8 +2737,7 @@ namespace {
         http.applicationMinimumToolsetVersion = 1;
         http.exposeNotes = true;
 
-        const auto serviceName = QStringLiteral("DsConnectorLite-Compatibility-%1")
-                                     .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+        const auto serviceName = uniqueBootstrapServiceName();
         FakeBootstrap bootstrap(serviceName);
         expect(bootstrap.listen(), "compatibility fake bootstrap must listen");
         if (QTest::currentTestFailed())
@@ -2883,8 +2883,7 @@ namespace {
         if (QTest::currentTestFailed())
             return;
 
-        const auto serviceName = QStringLiteral("DsConnectorLite-Headless-%1")
-                                     .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+        const auto serviceName = uniqueBootstrapServiceName();
         FakeBootstrap bootstrap(serviceName);
         expect(bootstrap.listen(), "headless availability bootstrap must listen");
         if (QTest::currentTestFailed())
@@ -2974,8 +2973,7 @@ namespace {
         http.annotatedApplicationHeaders = true;
         http.exposeInvalidAnnotatedTool = true;
 
-        const auto serviceName = QStringLiteral("DsConnectorLite-Headers-%1")
-                                     .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+        const auto serviceName = uniqueBootstrapServiceName();
         FakeBootstrap bootstrap(serviceName);
         expect(bootstrap.listen(), "parameter-header bootstrap must listen");
         if (QTest::currentTestFailed())
@@ -3083,8 +3081,7 @@ namespace {
         if (QTest::currentTestFailed())
             return;
         http.exposeCommandTool = true;
-        const auto serviceName = QStringLiteral("DsConnectorLite-Command-%1")
-                                     .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+        const auto serviceName = uniqueBootstrapServiceName();
         FakeBootstrap bootstrap(serviceName);
         expect(bootstrap.listen(), "command-transport bootstrap must listen");
         if (QTest::currentTestFailed())
@@ -3219,8 +3216,7 @@ namespace {
         http.pageSize = 2;
         const auto lastToolName = QStringLiteral("fake.tool.002");
 
-        const auto serviceName = QStringLiteral("DsConnectorLite-Pagination-%1")
-                                     .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+        const auto serviceName = uniqueBootstrapServiceName();
         FakeBootstrap bootstrap(serviceName);
         QVERIFY2(bootstrap.listen(), "pagination fake bootstrap must listen");
         SingleInstanceAutomationStatus ready{
@@ -3351,8 +3347,7 @@ namespace {
         expect(http.listen(), "concurrent fake editor must listen");
         if (QTest::currentTestFailed())
             return;
-        const auto serviceName = QStringLiteral("DsConnectorLite-Concurrent-%1")
-                                     .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+        const auto serviceName = uniqueBootstrapServiceName();
         FakeBootstrap bootstrap(serviceName);
         expect(bootstrap.listen(), "concurrent fake bootstrap must listen");
         if (QTest::currentTestFailed())
