@@ -193,6 +193,9 @@ function(lite_deploy_application _target)
         )
         if(_deploy_tool)
             find_package(ffmpeg-builds CONFIG REQUIRED)
+            # Resolve versioned private library IDs without modifying prebuilt Mach-O headers.
+            set_property(TARGET ${_target} APPEND PROPERTY BUILD_RPATH
+                "@executable_path/../Frameworks/ffmpeg-builds")
             # Stage every plugin before Qt resolves dependencies and signs the bundle.
             add_custom_command(TARGET ${_target} POST_BUILD
                 COMMAND "${CMAKE_COMMAND}" -E copy_directory
