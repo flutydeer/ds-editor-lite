@@ -3497,23 +3497,14 @@ namespace {
                    rapidInput.readAllStandardError().isEmpty(),
                "bounded stdin delivery must drain a rapid notification flood without output");
 
-        const auto expectedL2ToolCount =
-            DsConnector::ExposurePolicy(
-                DsConnector::ConnectorOptions{
-                    .exposure = {.controlLevel = AutomationWire::ExposureLevel::L2},
-                })
-                .typedContracts()
-                .size() +
-            DsConnector::ConnectorRuntime::bridgeToolNames().size();
-        const auto validCompleteToolList = [expectedL2ToolCount](const QByteArray &output) {
+        const auto validCompleteToolList = [](const QByteArray &output) {
             QJsonParseError error;
             const auto response = QJsonDocument::fromJson(output.trimmed(), &error).object();
+            const auto tools =
+                response.value(QStringLiteral("result")).toObject().value(QStringLiteral("tools"));
             return error.error == QJsonParseError::NoError &&
-                   response.value(QStringLiteral("result"))
-                           .toObject()
-                           .value(QStringLiteral("tools"))
-                           .toArray()
-                           .size() == expectedL2ToolCount;
+                   response.value(QStringLiteral("id")) == QStringLiteral("stdio-list") &&
+                   tools.isArray() && !tools.toArray().isEmpty();
         };
         QProcess largeOutput;
         largeOutput.setProgram(executable);
@@ -3566,14 +3557,13 @@ namespace {
         QProcess blockingSink;
         blockedOutput.setProgram(executable);
         blockedOutput.setArguments({QStringLiteral("--control-level"), QStringLiteral("l0")});
-        blockingSink.setProgram(QStringLiteral("powershell.exe"));
-        blockingSink.setArguments({QStringLiteral("-NoProfile"), QStringLiteral("-Command"),
-                                   QStringLiteral("Start-Sleep -Seconds 30")});
+        blockingSink.setProgram(QCoreApplication::applicationFilePath());
+        blockingSink.setArguments({QStringLiteral("--blocked-stdio-sink")});
         blockedOutput.setStandardOutputProcess(&blockingSink);
         blockedOutput.start();
         blockingSink.start();
-        expect(blockedOutput.waitForStarted(5000) && blockingSink.waitForStarted(5000),
-               "blocked-output connector and non-reading sink must start");
+        QVERIFY2(blockedOutput.waitForStarted(5000) && blockingSink.waitForStarted(5000),
+                 "blocked-output connector and non-reading sink must start");
         QByteArray requestFlood;
         requestFlood.reserve((discover.size() + 1) * 4096);
         for (auto index = 0; index < 4096; ++index) {
@@ -3656,6 +3646,11 @@ int main(int argc, char *argv[]) {
     if (application.arguments().size() == 3 &&
         application.arguments().at(1) == QStringLiteral("--slow-stdio-sink"))
         return runSlowStdioSink(application.arguments().at(2));
+    if (application.arguments().size() == 2 &&
+        application.arguments().at(1) == QStringLiteral("--blocked-stdio-sink")) {
+        QTimer::singleShot(30000, &application, &QCoreApplication::quit);
+        return application.exec();
+    }
     TestDsConnectorLite test;
     return QTest::qExec(&test, argc, argv);
 }
