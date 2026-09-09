@@ -24,6 +24,7 @@
 #include <QClipboard>
 #include <QMouseEvent>
 #include <QMimeData>
+#include <QScopeGuard>
 
 void ApplicationGuiTests::createPianoRoll() {
     auto &runtime = *context->m_coreRuntime;
@@ -395,6 +396,61 @@ int ApplicationGuiTests::insertSelectedNote() {
     const auto id = inserted.get().affectedObjects.first().value;
     appStatus->selectedNotes = QList<int>{id};
     return id;
+}
+
+void ApplicationGuiTests::resizingANotePreviewsAndCommitsItsBoundary() {
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    const auto id = insertSelectedNote();
+    QVERIFY(id >= 0);
+    view->setEditMode(ClipEditorGlobal::Select);
+    historyManager->reset();
+    auto &runtime = *context->m_coreRuntime;
+    const auto before = runtime.documentVersion();
+    const auto *note = singingClip->findNoteById(id);
+    const auto *item = sceneNote(id);
+    QVERIFY(note);
+    QVERIFY(item);
+    const auto bounds = item->sceneBoundingRect();
+    const auto press = view->mapFromScene(QPointF(bounds.right() - 2, bounds.center().y()));
+    const auto delta = view->tickToSceneX(240) - view->tickToSceneX(0);
+    const auto release = press + QPoint(qRound(delta), 0);
+    QVERIFY(view->viewport()->rect().contains(press));
+    QVERIFY(view->viewport()->rect().contains(release));
+    QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, press);
+    const auto releaseOnFailure = qScopeGuard([&] {
+        if (editSessionManager->hasActiveTransaction()) {
+            QTest::keyClick(view.get(), Qt::Key_Escape);
+            QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, release);
+        }
+    });
+    QMouseEvent move(QEvent::MouseMove, QPointF(release),
+                     QPointF(view->viewport()->mapToGlobal(release)), Qt::NoButton, Qt::LeftButton,
+                     Qt::NoModifier);
+    QApplication::sendEvent(view->viewport(), &move);
+    QTRY_COMPARE(appStatus->pianoRollNoteEditPreview.get().size(), 1);
+    const auto preview = appStatus->pianoRollNoteEditPreview.get().first();
+    QCOMPARE(preview.rStart, 480);
+    QCOMPARE(preview.length, 480);
+    QCOMPARE(preview.keyIndex, 62);
+    QCOMPARE(note->length(), 240);
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+    QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, release);
+    QCOMPARE(note->localStart(), 480);
+    QCOMPARE(note->length(), 480);
+    QCOMPARE(note->keyIndex(), 62);
+    QVERIFY(appStatus->pianoRollNoteEditPreview.get().isEmpty());
+    QCOMPARE(sceneNote(id)->length(), 480);
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    historyManager->undo();
+    QCOMPARE(note->length(), 240);
+    QCOMPARE(sceneNote(id)->length(), 240);
+    QVERIFY(!historyManager->canUndo());
+    historyManager->redo();
+    QCOMPARE(note->length(), 480);
+    QCOMPARE(sceneNote(id)->length(), 480);
 }
 
 QPoint ApplicationGuiTests::pointFor(int tick, int key) const {

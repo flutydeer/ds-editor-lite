@@ -10,6 +10,8 @@ lite_add_test(${PROJECT_NAME} SOURCES
     tst_settings_pages.cpp
     tst_project_import.cpp
     tst_fill_lyric.cpp
+    tst_note_dialogs.cpp
+    tst_dynamic_mix.cpp
     tst_speaker_mix.cpp
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE EditorRuntime)

@@ -511,7 +511,7 @@ void ProjectEditingTests::batchTrackOrderAndClipTrimming() {
         return result;
     };
     testRuntime.history()->reset();
-    QVERIFY(runtime.project().moveTracks(commandContext(runtime), {third, first}, 2));
+    QVERIFY(runtime.project().moveTracks(commandContext(runtime), {third, first}, 4));
     QCOMPARE(order(), (QList<TrackId>{second, fourth, first, third}));
     QVERIFY(runtime.history().undo(commandContext(runtime)));
     QCOMPARE(order(), (QList<TrackId>{first, second, third, fourth}));

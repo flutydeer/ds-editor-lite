@@ -100,8 +100,10 @@ namespace {
         const auto cells = preview->cellLists().first()->m_cells;
         QCOMPARE(cells.size(), 2);
         QCOMPARE(cells.first()->lyric(), lyric);
-        QVERIFY2(!cells.first()->syllable().isEmpty(),
-                 "Preview must use the real language service");
+        QVERIFY(!cells.first()->syllable().isEmpty());
+        QVERIFY2(!cells.first()->note()->g2pId.isEmpty() &&
+                     cells.first()->note()->g2pId != QLatin1String(kUnknownG2pId),
+                 "Preview must contain a successful language-service result");
 
         bool edited = false;
         auto *second = cells.at(1);

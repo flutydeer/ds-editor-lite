@@ -2,11 +2,13 @@
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
 #include "Controller/TrackController.h"
+#include "Controller/PlaybackController.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "UI/Views/TrackEditor/GraphicsItem/AbstractClipView.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
 #include "UI/Views/TrackEditor/TracksGraphicsView.h"
+#include "UI/Views/Common/TimelineView.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -137,4 +139,67 @@ void ApplicationGuiTests::trackClipDragCommitsOrCancels() {
     QCOMPARE(runtime.documentVersion().revision, before.revision + 2);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(historyManager->canRedo());
+}
+
+void ApplicationGuiTests::timelineGesturesSeekAndCommitLoopEdits() {
+    auto &runtime = *context->m_coreRuntime;
+    const LoopSettings original(true, 480, 960);
+    QVERIFY(runtime.playback().setLoop(commandContext(), original));
+    historyManager->reset();
+    TimelineView ruler;
+    ruler.resize(960, 40);
+    ruler.setTimeRange(0, 3840);
+    ruler.setQuantize(16);
+    ruler.setCanEditLoop(true);
+    ruler.show();
+    ruler.activateWindow();
+    QTRY_VERIFY(ruler.isVisible());
+    const auto finishPendingEdit =
+        qScopeGuard([&] { playbackController->commitLoopSettingsEdit(original); });
+    const auto point = [&](const int tick, const int y) {
+        return QPoint(qRound(tick * ruler.width() / 3840.0), y);
+    };
+    const auto moveWithLeftButton = [&](const QPoint &position) {
+        QMouseEvent move(QEvent::MouseMove, QPointF(position), QPointF(ruler.mapToGlobal(position)),
+                         Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(&ruler, &move);
+    };
+    const auto before = runtime.documentVersion();
+    QTest::mouseClick(&ruler, Qt::LeftButton, Qt::NoModifier, point(960, ruler.height() - 6));
+    QCOMPARE(playbackController->position(), 960.0);
+    QCOMPARE(playbackController->lastPosition(), 960.0);
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+
+    const LoopSettings moved(true, 960, 960);
+    QTest::mousePress(&ruler, Qt::LeftButton, Qt::NoModifier, point(960, 5));
+    moveWithLeftButton(point(1440, 5));
+    QCOMPARE(appStatus->loopSettings.get(), moved);
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+    QTest::mouseRelease(&ruler, Qt::LeftButton, Qt::NoModifier, point(1440, 5));
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    QCOMPARE(appStatus->loopSettings.get(), moved);
+    QVERIFY(historyManager->canUndo());
+
+    const auto afterMove = runtime.documentVersion();
+    const auto *undoEntry = historyManager->nextUndoEntry();
+    QTest::mouseClick(&ruler, Qt::LeftButton, Qt::NoModifier, point(1440, 5));
+    QCOMPARE(runtime.documentVersion(), afterMove);
+    QCOMPARE(historyManager->nextUndoEntry(), undoEntry);
+
+    QTest::mousePress(&ruler, Qt::LeftButton, Qt::NoModifier, point(moved.end(), 5));
+    moveWithLeftButton(point(2400, 5));
+    QCOMPARE(appStatus->loopSettings.get(), LoopSettings(true, 960, 1440));
+    QCOMPARE(runtime.documentVersion(), afterMove);
+    QTest::mouseRelease(&ruler, Qt::LeftButton, Qt::NoModifier, point(2400, 5));
+    QCOMPARE(runtime.documentVersion().revision, afterMove.revision + 1);
+    const auto playback = runtime.playback().getPlayback(runtime.documentVersion().documentId);
+    QVERIFY(playback);
+    QCOMPARE(playback.get().loop, LoopSettings(true, 960, 1440));
+    historyManager->undo();
+    QCOMPARE(appStatus->loopSettings.get(), moved);
+    historyManager->undo();
+    QCOMPARE(appStatus->loopSettings.get(), original);
+    QVERIFY(!historyManager->canUndo());
 }

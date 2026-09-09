@@ -51,6 +51,11 @@ private slots:
     void fillLyricPreviewCommitsOrCancels_data();
     void fillLyricPreviewCommitsOrCancels();
     void lyricRuleEditingChangesThePreviewAndPersists();
+    void phonemeDialogValidatesCommitsAndResetsThroughTheNoteMenu();
+    void lyricSearchNavigatesTheActualEditorAndHandlesNoMatches();
+    void dynamicSpeakerMixGesturesPreserveIdentityAndUndo();
+    void timelineGesturesSeekAndCommitLoopEdits();
+    void resizingANotePreviewsAndCommitsItsBoundary();
     void speakerMixSelectionAndDrag_data();
     void speakerMixSelectionAndDrag();
     void cleanup();
