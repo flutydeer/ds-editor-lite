@@ -8,10 +8,12 @@ lite_add_test(${PROJECT_NAME}
         ../../app/Bootstrap/SingleInstanceCoordinator.cpp
 )
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Network)
+find_package(SndFile CONFIG REQUIRED)
 target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt${QT_VERSION_MAJOR}::Core
     Qt${QT_VERSION_MAJOR}::Network
     lite::DsConnectorCore
+    SndFile::sndfile
 )
 if(WIN32)
     target_link_libraries(${PROJECT_NAME} PRIVATE shell32 user32)

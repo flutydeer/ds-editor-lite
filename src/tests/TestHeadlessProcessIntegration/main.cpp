@@ -37,9 +37,14 @@
 #include <QTimer>
 #include <QUuid>
 
+#include <sndfile.h>
+
 #include <array>
 #include <cerrno>
+#include <cmath>
 #include <functional>
+#include <memory>
+#include <numbers>
 #include <optional>
 #include <utility>
 
@@ -1931,6 +1936,193 @@ private slots:
 
     void nativeEditingAndFiles() {
         QVERIFY(runNativeWorkflow(editorPath));
+    }
+
+    void audioImportAndWaveExport() {
+        HeadlessProcessFixture fixture(editorPath, QStringLiteral("headless-audio-export"));
+        QVERIFY(fixture.prepare());
+        QVERIFY(fixture.storage.writeConfig({
+            {QStringLiteral("general"),
+             QJsonObject{{QStringLiteral("packageSearchPaths"), QJsonArray{}}}               },
+            {QStringLiteral("inference"),
+             QJsonObject{{QStringLiteral("executionProvider"), QStringLiteral("CPU")},
+                         {QStringLiteral("autoStartInfer"), false}}                          },
+            {QStringLiteral("automation"),
+             QJsonObject{{QStringLiteral("accessRoots"), QJsonArray{fixture.storage.path()}}}},
+        }));
+        using AudioFile = std::unique_ptr<SNDFILE, decltype(&sf_close)>;
+        const auto openAudio = [](const QString &path, const int mode, SF_INFO &info) {
+#ifdef Q_OS_WIN
+            return AudioFile(
+                sf_wchar_open(reinterpret_cast<const wchar_t *>(path.utf16()), mode, &info),
+                sf_close);
+#else
+            return AudioFile(sf_open(QFile::encodeName(path).constData(), mode, &info), sf_close);
+#endif
+        };
+        SF_INFO inputInfo{};
+        auto input = openAudio(fixture.audioPath, SFM_RDWR, inputInfo);
+        QVERIFY2(input != nullptr, sf_strerror(nullptr));
+        QCOMPARE(sf_seek(input.get(), 0, SEEK_SET), sf_count_t{0});
+        QVector<float> inputSamples(inputInfo.frames);
+        for (qsizetype index = 0; index < inputSamples.size(); ++index)
+            inputSamples[index] =
+                0.25f * std::sin(2.0 * std::numbers::pi * 400.0 * index / inputInfo.samplerate);
+        QCOMPARE(sf_write_float(input.get(), inputSamples.constData(), inputSamples.size()),
+                 inputInfo.frames);
+        input.reset();
+        const auto inputDuration = double(inputInfo.frames) / inputInfo.samplerate;
+
+        auto &editor = fixture.storage.process(QStringLiteral("editor"));
+        QVERIFY(fixture.start(editor, {QStringLiteral("--headless"), QStringLiteral("--no-mcp"),
+                                       QStringLiteral("--control-level"), QStringLiteral("l3"),
+                                       QStringLiteral("--control-port"),
+                                       QString::number(fixture.controlPort)}));
+        QVERIFY(fixture.waitForStatus(editor, fixture.nativeEndpoint));
+        int sequence = 0;
+        const auto call = [&](const QString &operation,
+                              const QJsonObject &arguments) -> std::optional<QJsonObject> {
+            const auto request = nativeRequest(QString::number(++sequence), operation, arguments);
+            TestSupport::recordProcessMessage(
+                editor, "request", QJsonDocument(request).toJson(QJsonDocument::Compact));
+            const auto response = nativeExchange(fixture.manager, fixture.nativeEndpoint, request,
+                                                 fixture.error, 10000);
+            if (!response)
+                return std::nullopt;
+            TestSupport::recordProcessMessage(
+                editor, "response", QJsonDocument(*response).toJson(QJsonDocument::Compact));
+            if (response->contains(QStringLiteral("error")) ||
+                !response->value(QStringLiteral("result")).isObject()) {
+                fixture.error = compactJson(*response);
+                return std::nullopt;
+            }
+            return response->value(QStringLiteral("result")).toObject();
+        };
+        const auto created =
+            call(QStringLiteral("documents.new"),
+                 {
+                     {QStringLiteral("template"),       QStringLiteral("empty")  },
+                     {QStringLiteral("unsaved_policy"), QStringLiteral("discard")}
+        });
+        QVERIFY2(created, qPrintable(fixture.error));
+        const auto version = created->value(QStringLiteral("current")).toObject();
+        const auto documentId = version.value(QStringLiteral("document_id"));
+        const auto track = call(
+            QStringLiteral("tracks.insert"),
+            {
+                {QStringLiteral("document_id"),       documentId                               },
+                {QStringLiteral("expected_revision"), version.value(QStringLiteral("revision"))},
+                {QStringLiteral("index"),             0                                        },
+                {QStringLiteral("tracks"),
+                 QJsonArray{
+                     QJsonObject{{QStringLiteral("client_ref"), QStringLiteral("audio")},
+                                 {QStringLiteral("name"), QStringLiteral("Audio export")}}}    }
+        });
+        QVERIFY2(track, qPrintable(fixture.error));
+        QJsonValue trackId;
+        for (const auto &value : track->value(QStringLiteral("created_objects")).toArray()) {
+            const auto binding = value.toObject();
+            if (binding.value(QStringLiteral("client_ref")) == QStringLiteral("audio"))
+                trackId =
+                    binding.value(QStringLiteral("object")).toObject().value(QStringLiteral("id"));
+        }
+        QVERIFY(trackId.isDouble());
+        const auto waitForTask = [&](const QJsonObject &accepted) -> std::optional<QJsonObject> {
+            const auto taskId = accepted.value(QStringLiteral("task_id"));
+            if (!taskId.isString() || taskId.toString().isEmpty()) {
+                fixture.error =
+                    QStringLiteral("Operation did not create a task: ") + compactJson(accepted);
+                return std::nullopt;
+            }
+            QElapsedTimer deadline;
+            deadline.start();
+            while (deadline.elapsed() < 30000 && editor.state() != QProcess::NotRunning) {
+                const auto task = call(QStringLiteral("tasks.get"),
+                                       {
+                                           {QStringLiteral("scope"),       QStringLiteral("document")},
+                                           {QStringLiteral("document_id"), documentId                },
+                                           {QStringLiteral("task_id"),     taskId                    }
+                });
+                if (!task)
+                    return std::nullopt;
+                const auto state = task->value(QStringLiteral("state")).toString();
+                if (state == QStringLiteral("succeeded"))
+                    return task;
+                if (state == QStringLiteral("failed") || state == QStringLiteral("canceled")) {
+                    fixture.error = compactJson(*task);
+                    return std::nullopt;
+                }
+                QTest::qWait(20);
+            }
+            fixture.error = QStringLiteral("Audio workflow task did not finish");
+            return std::nullopt;
+        };
+        const auto imported =
+            call(QStringLiteral("audio_clips.import"),
+                 {
+                     {QStringLiteral("document_id"),       documentId                                                                                      },
+                     {QStringLiteral("expected_revision"), track->value(QStringLiteral("current"))
+                                                               .toObject()
+                                                               .value(QStringLiteral("revision"))},
+                     {QStringLiteral("track_id"),          trackId                                                                                         },
+                     {QStringLiteral("start"),             0                                                                                               },
+                     {QStringLiteral("path"),              fixture.audioPath                                                                               }
+        });
+        QVERIFY2(imported, qPrintable(fixture.error));
+        QVERIFY2(waitForTask(*imported), qPrintable(fixture.error));
+        const QJsonObject documentArguments{
+            {QStringLiteral("document_id"), documentId}
+        };
+        const auto beforeExport = call(QStringLiteral("documents.get"), documentArguments);
+        QVERIFY2(beforeExport, qPrintable(fixture.error));
+        const auto outputPath = fixture.storage.filePath(QStringLiteral("mix.wav"));
+        const auto exported =
+            call(QStringLiteral("exports.audio.start"),
+                 {
+                     {QStringLiteral("document_id"),      documentId                },
+                     {QStringLiteral("path"),             outputPath                },
+                     {QStringLiteral("overwrite_policy"), QStringLiteral("reject")  },
+                     {QStringLiteral("options"),
+                      QJsonObject{{QStringLiteral("format"), QStringLiteral("wav")},
+                                  {QStringLiteral("sample_rate"), 44100},
+                                  {QStringLiteral("channel_mode"), QStringLiteral("mono")},
+                                  {QStringLiteral("mixing_mode"), QStringLiteral("mixed")},
+                                  {QStringLiteral("source"), QStringLiteral("all")}}}
+        });
+        QVERIFY2(exported, qPrintable(fixture.error));
+        QVERIFY2(waitForTask(*exported), qPrintable(fixture.error));
+
+        SF_INFO outputInfo{};
+        auto output = openAudio(outputPath, SFM_READ, outputInfo);
+        QVERIFY2(output != nullptr, sf_strerror(nullptr));
+        QCOMPARE(outputInfo.samplerate, 44100);
+        QCOMPARE(outputInfo.channels, 1);
+        const auto outputDuration = double(outputInfo.frames) / outputInfo.samplerate;
+        // Clip endpoints are quantized to project ticks before rendering.
+        QVERIFY2(std::abs(outputDuration - inputDuration) < 0.002,
+                 qPrintable(QStringLiteral("Export duration %1s differs from source duration %2s")
+                                .arg(outputDuration, 0, 'f', 6)
+                                .arg(inputDuration, 0, 'f', 6)));
+        std::array<float, 4096> samples{};
+        double energy = 0;
+        sf_count_t total = 0;
+        while (const auto count = sf_read_float(output.get(), samples.data(), samples.size())) {
+            for (sf_count_t index = 0; index < count; ++index) {
+                const auto sample = samples[static_cast<size_t>(index)];
+                QVERIFY(std::isfinite(sample));
+                energy += double(sample) * sample;
+            }
+            total += count;
+        }
+        QCOMPARE(sf_error(output.get()), SF_ERR_NO_ERROR);
+        QCOMPARE(total, outputInfo.frames);
+        QVERIFY2(energy > 0.001 * total, "Audio-only export must preserve audible source content");
+        output.reset();
+        const auto afterExport = call(QStringLiteral("documents.get"), documentArguments);
+        QVERIFY2(afterExport, qPrintable(fixture.error));
+        QCOMPARE(afterExport->value(QStringLiteral("document")),
+                 beforeExport->value(QStringLiteral("document")));
+        QVERIFY(fixture.exit(editor, fixture.nativeEndpoint, true));
     }
 
     void consoleTermination_data() {
