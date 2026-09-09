@@ -68,17 +68,18 @@
 - 主题、菜单与组件动画归入 GuiComponents；编辑视图、Undo/Redo、视口、滚动和输入组件归入 EditorInteraction。原生窗口布局与动画设置归入 NativeDesktop，绘制几何、字形和波形归入 EditorRendering；保留各自可定位的行为用例。
 - ApplicationGui 共用真实应用 GUI 环境，钢琴窗、轨道、参数曲线和音频导出配置交互分源文件。轨道片段拖动及参数绘制验证预览、提交、Escape 取消和撤销恢复；导出对话框通过键盘/鼠标改变格式、采样率、轨道和混音方式，检查文件预览、文件计划与取消后配置恢复。实际文件导出由工作流/进程测试验证。
 - 设置页通过侧栏与真实输入验证即时保存、配置落盘和重开；声线混合通过标签选择与权重分隔线拖动验证确认结果、取消后重开及预设/文档不被意外修改。
+- 声线预设通过保存、选择、修改后标记、删除与取消验证界面接线；包管理检查搜索和所选包详情，缺失音频检查实际文件选择、取消、重定位、解码与撤销重做。
 - GUI Host 的公开播放调用在无设备时返回失败，不弹出阻塞自动化调用的模态对话框；直接 GUI 操作仍保留必要提示。
 
-能在 offscreen 验证的组件进入三平台 CI；窗口系统和实际图形设备相关场景在相应平台原生桌面执行。主观观感与听感为补充，不建立跨平台像素基线。
+普通组件通过 Qt Test 真实鼠标、键盘和控件事件进入三平台 CI；offscreen 承载填词、导入、设置和编辑视图，原生窗口布局在 Linux Xvfb、Windows/macOS 桌面执行。主观观感与听感为补充，不建立跨平台像素基线。
 
-默认钢琴窗及轨道编辑器使用 Legacy/QGraphicsView；实验 RHI 后端需在开发者设置中显式启用并重启。现有真实输入测试验证默认路径，RHI 几何和字形组件测试不等于完整后端交互或绘制验证，本期不扩展该实验后端的设备及像素基线。
+默认钢琴窗及轨道编辑器使用 Legacy/QGraphicsView；实验 RHI 后端需在开发者设置中显式启用并重启。`NativeDesktop` 使用真实 `PianoRollRhiWidget` 和 Qt 的 Null 后端，验证鼠标预览、提交、撤销重做、实际命中及帧提交。Null 执行 CPU 渲染准备和命令路径，不验证 GPU shader 的像素结果；不建立设备或截图矩阵。Qt offscreen 不支持 RHI，该用例使用原生窗口环境。
 
 ## 8. 资源与平台边界
 
-普通测试用临时小素材及受控服务。真实声库和模型须明确提供；资源用例通过实际 Editor、Native 请求、CPU 推理及 WAV 解码验证装配，不要求播放设备。GPU 和实际设备播放另需相应资源；未提供报告未执行，提供后失败不能记为跳过。平台不适用、未执行和通过分开表达。执行方式见[测试计划](test-plan.md)，实现去向见[覆盖矩阵](test-coverage-matrix.md)。
+普通测试用临时小素材及受控服务。仓库内置多语言、多声线的最小测试声库，默认用于完整填词和 CPU 推理工作流；通过真实包加载、语言处理、阶段执行及 WAV 解码验证装配，不要求播放设备。真实声库可以显式覆盖默认资源，用于模型兼容性等额外验证。GAME/RMVPE 模型暂不在本期覆盖；GPU 和实际设备播放另需相应资源。平台不适用、未执行和通过分开表达，显式资源执行失败不能记为跳过。执行方式见[测试计划](test-plan.md)，实现去向见[覆盖矩阵](test-coverage-matrix.md)。
 
-覆盖率同时用于本地和 CI。独立 `coverage` preset 隔离插桩构建；Linux 报告 GCC 行/分支，Windows 原生静态插桩报告按源码行跨模块 OR 去重后的行覆盖。含实际声库的本地执行与无声库 Linux CI 分别分析，比较具体功能缺口，不直接比较总百分比，也不报告 MSVC 采集器不支持的分支覆盖率。
+覆盖率同时用于本地和三平台 CI。独立 `coverage` preset 隔离插桩构建；Linux 使用 GCC/gcovr，Windows 使用 MSVC 原生静态插桩，macOS 使用 LLVM 源码插桩。原生汇总按源码行跨模块 OR 去重；分别分析编译器、平台和资源条件下的功能缺口，不直接比较总百分比，不报告 MSVC 采集器不支持的分支覆盖率。
 
 ## 9. 套件职责与程序划分
 
@@ -105,11 +106,11 @@
 | TestConnector | Connector 连接、重连、stdio 分帧、背压、超时与结果不明确 | protocol/process；真实 Connector |
 | TestBootstrap | 启动参数、Host 模式、单实例身份与传输 | protocol/process；当前平台 |
 | TestProcessIntegration | 真实 Editor/Connector 启动、跨 Host、编辑/文件闭环、退出/重启和信号 | process；通用/offscreen/平台 |
-| TestModelResources | 显式声库的 CPU 完整手动推理和 WAV 导出解码 | workflow；资源配置后执行 |
+| TestModelResources | 内置或显式声库的 CPU 推理、语言和声线接线、缓存/失效与 WAV 导出 | workflow；默认内置资源 |
 | TestGuiComponents | 主题颜色/图标、二级菜单、组件动画 | gui；offscreen |
 | TestNativeDesktop | 原生分隔布局、窗口动画设置 | gui；原生桌面 |
 | TestEditorInteraction | 控制器、视口、边缘滚动、钢琴窗/轨道输入、滚动条及快捷键 | gui/domain；通用/offscreen |
 | TestEditorRendering | 字形图集、RHI 几何、波形绘制计算 | gui/unit；offscreen；不代表完整 RHI 后端 |
-| TestApplicationGui | 真实应用钢琴窗、轨道、参数、剪贴板、导出配置、外观设置、声线混合及失败恢复 | gui；共用隔离应用环境 |
+| TestApplicationGui | 真实应用编辑、剪贴板、填词、导入导出配置、设置、声线及预设、音素与搜索、包和音频资源工作流 | gui；offscreen；共用隔离应用环境 |
 
 两个 Provider 程序在 `src/tests/TestInferenceProvider` 共用用例和构建定义。六类测试是行为职责标签，同一程序可承载关联职责，不要求程序划分与类别一一对应。当前三平台 CI 使用 Qt 6.11.2；Linux、Windows、macOS 的实际验证结论分别由验收报告和运行产物给出。

@@ -46,8 +46,8 @@
 | 退出响应和有界停止 | protocol/process | 实际退出竞争暴露未发送响应被销毁；原停止测试仅覆盖空闲与处理超时 | 先排空响应再释放连接，全部连接共用截止时间；验证完整大响应和不读取客户端的有界停止，保留跨进程响应及退出断言 | AutomationProtocol、ProcessIntegration | 通用/GUI |
 | 钢琴窗、轨道编辑、快捷键和视口 | gui/domain | 既有几何/事件回归，部分仅测算法；首次采样显示已有音符交互不足；编辑视图与撤销控制分散 | 补实际钢琴窗绘制/提交/撤销、已有音符拖动提交与 Escape 取消；快捷键建立真实可见 owner 与焦点；控制器、视口、输入与滚动统一归入 EditorInteraction，生产应用完整接线留在 ApplicationGui | ApplicationGui、EditorInteraction、ProjectEditing | 通用/offscreen/原生 |
 | 布局、动画、主题和渲染 | gui/unit | Qt 平台有硬编码，混有实验 demo；颜色/图标目标共用主题职责 | 分隔条和菜单通过真实事件验证；动画直接调用生产组件；主题与菜单归入 GuiComponents，原生布局归入 NativeDesktop，绘制组件归入 EditorRendering；删除主题 token 镜像和固定几何数量 | NativeDesktop、GuiComponents、EditorRendering、EditorInteraction、Parameters | 通用/offscreen/原生 |
-| 声库推理及音频导出装配 | workflow | 普通测试使用受控服务，资源客户端曾偏离实际协议，并缺少异步分段准备条件 | 与常规 Headless 共用 Native 传输，使用显式语言与任务 scope，按模型目标就绪条件等待 G2P/分段；保留实际 CPU 手动推理和 WAV 解码、有限非零样本检查，资源运行结果由报告与产物记录 | ModelResources | 显式声库、语言、歌词；无需播放设备 |
-| 实验 RHI 编辑后端 | gui | 几何与字形组件已有覆盖，完整 RHI 控件交互、渲染及失败回退未实际验证 | 区别于默认 Legacy 真实输入路径记录范围；本期保留基础组件测试，不扩展实验后端的设备或像素基线 | EditorRendering；完整后端无用例 | 显式启用实验选项；实际绘制依赖图形后端 |
+| 声库推理及音频导出装配 | workflow | 普通测试使用受控服务，资源客户端曾偏离实际协议，并缺少异步分段准备条件 | 与常规 Headless 共用 Native 传输，使用明确语言与任务 scope，按模型目标就绪条件等待 G2P/分段；保留实际 CPU 手动推理和 WAV 解码、有限非零样本检查，资源运行结果由报告与产物记录 | ModelResources | 默认内置声库，也可显式配置；无需播放设备 |
+| 实验 RHI 编辑后端 | gui | 几何与字形不能替代真实控件；补代表性输入路径 | 真实 RHI 钢琴窗使用 Null 后端，检查预览不提交、一次编辑、命中、撤销重做及帧提交；不作为 GPU 像素验证 | EditorRendering、NativeDesktop::rhiNoteDrawingCommitsAndUndoUpdatesInteraction | 原生窗口；Linux Xvfb；无需物理 GPU |
 
 ## 3. 目标收敛与历史入口去向
 
@@ -71,7 +71,7 @@
 | DsConnectorLite 测试 | Connector | 真实 Connector、连接与 stdio 行为 |
 | StartupArguments、SingleInstance | Bootstrap | 参数与单实例身份、协议及平台行为 |
 | HeadlessProcessIntegration、McpProcessIntegration、跨 Host 进程场景 | ProcessIntegration | 共用进程与数据隔离设施，按入口及平台条件保留行为 |
-| HeadlessResources | ModelResources | 显式声库和 CPU 模型执行，独立资源条件 |
+| HeadlessResources | ModelResources | 默认内置声库和 CPU 模型执行，可显式覆盖资源 |
 | Theme（原 ThemeColors/ThemeIcons）、TwoLevelComboBox、ElasticAnimation | GuiComponents | 主题、菜单和组件动画；SingerMenuDisplay 的有效行为继续保留 |
 | OverlaySplitter、AnimationSettings | NativeDesktop | 需要原生窗口系统的布局与动画设置 |
 | EditorControllers（原 EditorViewController/UndoRedoController）、EditorViewportController、EdgeAutoScroll、PianoRollInteractions、TrackEditorInteractions、ScrollBarInterplay、EditorShortcuts | EditorInteraction | 控制器、视口、输入、焦点与滚动按组件分文件 |
@@ -92,6 +92,28 @@ GCC/gcovr 采样发现整片段剪贴板、推理完成门控、歌词拆分未�
 
 上述行为归入对应领域和共用 GUI 目标；CI 另外发现的退出响应竞争归入协议生命周期。实际执行结论见测试报告，原始覆盖明细留在产物。原生渲染、声库/设备及主观观感按运行条件记录，不为降低未执行行数扩展像素基线或模型矩阵。
 
-使用独立 `coverage` preset 隔离完整插桩构建。Linux GCC/gcovr 提供行/分支统计；Windows MSVC 以 `/PROFILE` 和原生静态插桩采集，由 `scripts/tests/collect-msvc-coverage.py` 按源码文件与行号跨模块 OR 去重，提供行覆盖及逐文件明细，不使用采集格式中的占位分支值。
+使用独立 `coverage` preset 隔离完整插桩构建。Linux GCC/gcovr 提供行/分支统计；Windows MSVC 以 `/PROFILE` 和原生静态插桩采集；macOS 使用 LLVM 源码插桩。Windows/LLVM 共用生产源码过滤及逐行 OR 去重逻辑，提供行覆盖及逐文件明细，不使用 MSVC 采集格式中的占位分支值。
 
-CI 扩展到 Ubuntu 24.04 x64、Windows 2025 / VS 2026 x64、macOS 15 arm64，统一 Qt 6.11.2；各平台结果分别验收。覆盖率仍采用 Linux GCC/gcovr 与 Windows 本地原生采集。不同平台编译进来的源码、编译器插桩及资源集合会影响分母，不能直接以总百分比判断覆盖增减。以功能缺口和逐文件未执行路径决定补测，将本地资源执行带来的推理/合成/导出覆盖与无资源集合区分记录。
+CI 使用 Linux x64、Windows x64、macOS arm64 的 `latest` runner，统一 Qt 6.11.2；各平台结果分别验收。三个平台均采集覆盖率，并使用内置测试声库执行完整资源流程。不同平台编译进来的源码、编译器插桩及资源集合会影响分母，不能直接以总百分比判断覆盖增减。以功能缺口和逐文件未执行路径决定补测，外部真实声库执行的附加结果单独说明。
+
+## 6. 普通工作流与内置资源补测
+
+以下补测承接覆盖率中发现的正常行为缺口，继续使用既有程序；实际通过结果与统计由测试报告及产物给出。
+
+| 功能域 / 关键行为 | 类别 | 原有缺口与本期处置 | 测试引用 | 运行条件 |
+|---|---|---|---|---|
+| 批量锚点、曲线合并、动态声线关键帧 | domain | 单点与整体替换不能覆盖批量命令；补插入、移动、删除、插值/权重及一次撤销，冲突失败不落半成品 | ProjectEditing::batchAnchorsCommitAndUndoTogether、adjacentAnchorCurvesMergeWithoutLosingNodes、dynamicSpeakerKeyframesEditAndUndo | 通用 |
+| 批量轨道顺序、片段裁边、音符搜索与切分 | domain | 补正常编辑结果、原音符保持、无匹配及撤销；搜索用少量有语义的数据行 | ProjectEditing::batchTrackOrderAndClipTrimming、noteSearch、splitAtPreservesPhraseAndUndo | 通用 |
+| LRC 与填词分行 | unit | 补秒/小数时间、重复标签、元数据、定位、重新加载和分隔模式；修复时间换算与失败残留状态 | Lyrics::lrcTimestamps、lrcMetadataRepeatedLinesAndSeeking、lrcFailedReloadClearsPreviousDocument、lyricSplittingModesPreserveLines | 通用 |
+| DSPX 声线及音素往返 | workflow | 扩展已有完整乐句场景，验证轨道固定混合、片段动态混合/旁路/预设来源，以及原始与编辑音素/偏移 | DocumentIO::dspxRoundTripPreservesEditedPhrase | 通用 |
+| 实际批量文件导入 | workflow | 以真实 MIDI/DSPX 经过生产 Host Adapter 和加载器，验证一次提交、失败回滚和允许部分成功的策略 | ApplicationWorkflows::projectBatchImportUsesRealLoaders | 通用 |
+| 预设和歌词规则的生产持久化 | workflow | 旧服务替身不能验证 AppOptions Adapter/Store；补创建、更新、重开、删除及规则的实际语言结果 | ApplicationWorkflows::speakerMixPresetPersistsThroughTheProductionStore、lyricRulesUseTheProductionRuntimeAndPersistence | 隔离配置 |
+| 设置、缓存清理及交互导入 | gui | 使用实际页面和输入，验证访问根、推理选项、缓存确认、轨道/时间线选择、预览、取消及撤销 | ApplicationGui 的 tst_settings_pages.cpp、tst_project_import.cpp | offscreen；临时文件 |
+| 填词预览、编辑与规则 | gui | 实际声库参与歌词转换，经过真实控件拆分、修改预览、导入音符、取消及撤销；规则编辑验证实际预览和保存 | ApplicationGui 的 tst_fill_lyric.cpp | offscreen；默认内置声库 |
+| 音素、搜索、动态声线与编辑边界 | gui | 真实对话框和输入验证音素确认/取消/重置、搜索定位、动态关键帧增改及取消、音符缩放和时间尺循环操作；修复动态编辑读取/提交时丢失关键帧身份 | ApplicationGui 的 tst_note_dialogs.cpp、tst_dynamic_mix.cpp、tst_piano_roll.cpp、tst_track_editing.cpp | offscreen；隔离实际应用 |
+| 音频输出及循环播放回调 | workflow | 生成短素材检查全工程时长、混音、静音、自定义来源及 WAV/FLAC；受控实际回调检查循环回绕和缓冲等待/恢复。循环区导出尚未实现，不在测试中补建 | ApplicationWorkflows 的 tst_audio_workflows.cpp | 通用；不需要播放设备 |
+| 多语种、多声线及推理重算 | workflow/process | 内置微型计算图走正常包、语言、推理和导出路径，明确检查实际音素；验证缓存复用、切换声线和 BPM 后的输出变化 | ModelResources::voicebankInferenceAndWaveExport | CPU；默认内置声库，可显式换真实资源 |
+| 声线预设 GUI 生命周期 | gui | 实际保存/取消、下拉选择、修改后 dirty 标记和删除/取消；持久化业务规则由应用工作流承担 | ApplicationGui::speakerMixPresetsFollowSaveSelectAndDeleteInputs | offscreen；临时配置 |
+| 包查找与详情、缺失音频重定位 | gui | 搜索已加载包、选择详情及无匹配恢复；缺失音频经 Qt 文件选择取消或重定位后真实解码，验证状态和撤销重做 | ApplicationGui 的 tst_resources.cpp | offscreen；默认内置包、临时 WAV |
+
+本次还移除无产品实例化入口的旧 G2P/伪声设置页和 `TrackSynthesizer` 及其空容器引用。清理改变统计分母，报告中与新增测试命中的贡献分开说明，不通过排除仍有效的生产文件提高比例。

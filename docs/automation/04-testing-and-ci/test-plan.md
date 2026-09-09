@@ -10,9 +10,9 @@ Windows 使用项目 VS DevShell/preset wrapper；Linux 和 macOS 使用同一 C
 
 | 平台 | runner / 架构 | triplet |
 |---|---|---|
-| Linux | `ubuntu-24.04` / x64 | `x64-linux` |
-| Windows | `windows-2025-vs2026` / x64 | `x64-windows` |
-| macOS | `macos-15` / arm64 | `arm64-osx` |
+| Linux | `ubuntu-latest` / x64 | `x64-linux` |
+| Windows | `windows-latest` / x64 | `x64-windows` |
+| macOS | `macos-latest` / arm64 | `arm64-osx` |
 
 专用 `tests` configure/build preset 使用 `build/Tests`，避免与 IDE 的 `build/Debug` 自动配置共享生成文件。Windows 入口：
 
@@ -45,7 +45,7 @@ cmake --build --preset tests
 ctest --preset local
 ```
 
-Windows wrapper 将本地结果写到 `build/test-results`；直接 CTest 可加 `--output-junit` 指定报告路径，完整逐例输出位于 `build/Tests/Testing/Temporary/LastTest.log`。`local` 选择本机全部注册测试，`ci` 只选择通用与 offscreen 集合，适用于 CI 或没有桌面的本地执行；单组可用 CTest 的 `-L`/`-R`，具体函数可直接给 Qt Test 程序传函数名。
+Windows wrapper 将本地结果写到 `build/test-results`；直接 CTest 可加 `--output-junit` 指定报告路径，完整逐例输出位于构建目录的 `Testing/Temporary/LastTest.log`。`local` 选择本机全部注册测试，`ci` 包含通用、GUI 与内置声库集合，`ci-coverage` 在独立覆盖构建中执行同一集合。无桌面 Linux 使用 `xvfb-run -a` 包装 CTest；单组可用 CTest 的 `-L`/`-R`，具体函数可直接给 Qt Test 程序传函数名。
 
 程序划分见[测试大纲的套件表](test-outline.md#9-套件职责与程序划分)。每个程序只有一个 Qt Test 类及一次执行入口，用例文件为 `tst_<snake_case>.cpp`。多文件套件由 `test_main.cpp` 启动、`tst_<domain>.h` 声明测试类；单文件套件可在 `tst_` 文件中保留 `QTEST_MAIN` 或自定义入口，fixture 辅助使用语义名称。定向执行选择程序或 slot，不新增与源码平行的用例清单。两个 Provider 编译变体均须构建和执行，其用例不要求 CUDA 设备。
 
@@ -57,15 +57,18 @@ Windows wrapper 将本地结果写到 `build/test-results`；直接 CTest 可加
 |---|---|---|
 | 通用、无窗口 | 执行 | 所有支持平台 |
 | offscreen 组件 | 执行 | 原生或 offscreen |
-| 原生桌面 | 不执行 | 当前平台 |
-| 模型、声库、设备 | 不执行 | 显式配置后 |
+| 原生窗口布局 | 执行；Linux 使用 Xvfb | 当前平台桌面 |
+| 内置测试声库 | 执行 | 默认执行 |
+| 外部真实声库、GPU、设备 | 不作为默认资源 | 显式配置后 |
 | 平台特有行为 | 各矩阵平台对应项 | 当前平台对应项 |
 
 不以 CI 集合代替本地完整入口。资源不足和平台不适用必须明确，不计作通过。
 
-原生桌面用例归入 `TestNativeDesktop`，由 local preset 在适用平台执行；具体集合以 CTest 的 `native` 标签为准。`TestGuiComponents`、`TestEditorInteraction`、`TestEditorRendering` 和 `TestApplicationGui` 中可用 offscreen 的组件不需要声库或音频设备。
+原生桌面用例归入 `TestNativeDesktop`，由 `native` 标签标识，纳入三平台 CI。`TestGuiComponents`、`TestEditorInteraction`、`TestEditorRendering` 和 `TestApplicationGui` 使用 offscreen；普通组件无需播放设备，完整填词流程使用内置声库。
 
-真实声库用例为 `TestModelResources`：设置 `DSEL_TEST_VOICEBANK_ROOT`、`DSEL_TEST_LANGUAGE`、`DSEL_TEST_LYRIC`，多音源时再指定 `DSEL_TEST_SINGER_ID`。用例固定 CPU、关闭自动推理，创建带显式语言的短音符；通过可观察的模型目标就绪条件等待 G2P/分段，再手动启动推理并等待任务成功终态，随后导出 WAV，检查可解码、有限样本和非零能量。无需播放设备。未设置声库根时明确跳过；配置后的失败为失败，不自动扫描个人声库。
+`TestModelResources` 和 `TestApplicationGui` 默认使用 [voicebank-fixture.zip](../../../src/tests/resources/voicebank-fixture.zip)，CMake 解压到当前构建目录；无需安装 Python 或训练框架。测试包具有独立的 `ci-fixture` 身份、中英文资源和两条声线。用例固定 CPU，检查实际 G2P/音素、完整推理与有效 WAV，以及缓存复用、声线和 BPM 变化后的重算。普通 CI 不需真实训练权重或播放设备。
+
+验证外部真实声库时设置 `DSEL_TEST_VOICEBANK_ROOT`、`DSEL_TEST_LANGUAGE`、`DSEL_TEST_LYRIC`，并按该资源配置 `DSEL_TEST_SINGER_ID`。显式资源优先于内置包；加载或执行失败报告失败，不自动扫描个人声库，也不回退内置资源。GAME/RMVPE 模型不在本期扩展范围。
 
 `TestApplicationWorkflows` 属于通用 workflow 集合，共用隔离的 Headless AppContext。结果门控用例构造未调度的实际任务快照；队列重启回归则受控暂停真实 duration worker，验证旧任务取消清理和替换任务终态，并通过生产状态组件检查手动声学许可及完成后恢复策略。离线导出用例验证混音器原先打开或关闭两种状态的恢复。fixture 关闭自己持有的音频设备，通用用例不依赖声库输出或物理设备；实际模型执行由上述资源用例负责。
 
@@ -77,7 +80,7 @@ Windows wrapper 将本地结果写到 `build/test-results`；直接 CTest 可加
 
 ## 4. 隔离与清理
 
-macOS 的 ApplicationWorkflows、AudioAssets 和 ApplicationGui 自动使用所构建 Editor bundle 的插件及 Frameworks，共用 fixture 保证 CTest 和直接运行行为一致。内部插件路径覆盖仅在测试构建中生效，不需要手工设置；目录缺失或插件加载失败均按失败处理。
+ApplicationWorkflows、AudioAssets、ApplicationGui 和 NativeDesktop 的实际运行时用例共用 `RuntimeResourcesFixture`，从所构建 Editor 目录初始化内置歌词规则；macOS 同时使用该 bundle 的插件及 Frameworks。CTest 和直接运行使用相同初始化，不依赖测试可执行文件恰好位于产品资源旁边。内部路径覆盖仅在测试构建中生效；目录缺失、规则为空或插件加载失败均按失败处理。
 
 每个进程 fixture 使用独立配置和数据根、访问根及临时素材；单实例服务名从实际数据根派生。只管理测试创建的进程。成功清理，失败保留沙箱位置、stdout/stderr 与退出事实。等待有截止时间，任务竞态优先受控触发，保留必要资源锁。
 
@@ -96,11 +99,13 @@ CTest 注册同时由程序超时派生 `QTEST_FUNCTION_TIMEOUT`，避免 Qt Tes
 
 不能依靠无限重跑、删除有效断言、沉默跳过或无依据加大超时获得绿色状态。
 
+vcpkg 精确缓存键包含 runner 镜像身份，避免 latest 镜像升级后重新构建的 ABI 包无法保存。回退缓存仅提供候选包，install 负责判断是否可用；依赖准备时间与实际复用包数以日志为准。Windows 静态插桩可能先于 CTest 持续较长时间，采集器日志同步输出到 job，区分插桩、测试执行及报告导出阶段。
+
 ## 6. 覆盖率与缺口分析
 
 Linux CI 的 Debug 构建启用 `LITE_TEST_COVERAGE=ON`，通过 GCC/gcov 和 gcovr 8.6 统计应用、内部库和 Connector 的行覆盖与分支覆盖。测试代码、第三方代码及生成文件不进入分母；编译器生成的异常清理分支和无源码分支不作为补测目标。未在 Linux 编译的平台实现也不在本次数字内，必须结合功能矩阵检查，不能当作已经覆盖。
 
-本地 GCC 环境可以在上述 configure 命令追加 `-DLITE_TEST_COVERAGE=ON`，运行测试后执行：
+本地 GCC 环境使用 `coverage` configure/build preset，运行该构建中的测试后执行：
 
 ```bash
 python3 -m venv build/ci/coverage-env
@@ -112,23 +117,31 @@ build/ci/coverage-env/bin/gcovr --config scripts/ci/gcovr.cfg \
   --csv build/test-results/coverage/files.csv --print-summary
 ```
 
-Windows MSVC 常规测试不需要 gcovr。GCC 每次独立采样应使用干净的覆盖构建目录，或先删除该目录内旧 `.gcda`，避免累计历史执行结果。CI 每次重新构建，不缓存 CMake 构建目录。macOS CI 本期验证构建和测试，不将其结果混入 Linux 覆盖率。
+Windows MSVC 常规测试不需要 gcovr。GCC 每次独立采样应使用干净的覆盖构建目录，或先删除该目录内旧 `.gcda`，避免累计历史执行结果。CI 每次重新构建，不缓存 CMake 构建目录。三平台分别统计，不将结果混合为一个比例。
 
-Windows 原生覆盖率使用 Visual Studio 的 `Microsoft.CodeCoverage.Console.exe`。先通过标准 wrapper 构建独立 `coverage` preset；该构建提供 `/PROFILE` 和调试符号，并关闭 Edit and Continue。采集时使用静态插桩，避免启动阶段的动态插桩干扰进程测试超时。在可调用 CTest 的开发者终端中执行，`$collector` 指向所安装 Visual Studio 的覆盖率工具：
+Windows 原生覆盖率使用 Visual Studio 的 `Microsoft.CodeCoverage.Console.exe`。先通过标准 wrapper 构建独立 `coverage` preset；该构建提供 `/PROFILE` 和调试符号，并关闭 Edit and Continue。采集时使用静态插桩；脚本自动查找已安装工具，也可用 `--collector` 指定路径。在可调用 CTest 的开发者终端中执行：
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode ConfigureAndBuild -Preset coverage
-python scripts/tests/collect-msvc-coverage.py --collector $collector --output build/test-results/msvc-baseline -- -LE resources
+python scripts/tests/collect-msvc-coverage.py --output build/test-results/msvc-full -- --preset ci-coverage
 
 $env:DSEL_TEST_VOICEBANK_ROOT = "C:/Voicebanks/Example"
 $env:DSEL_TEST_LANGUAGE = "cmn"
 $env:DSEL_TEST_LYRIC = "la"
-python scripts/tests/collect-msvc-coverage.py --collector $collector --output build/test-results/msvc-full
+python scripts/tests/collect-msvc-coverage.py --output build/test-results/msvc-external -- --preset ci-coverage
 ```
 
 声库路径、语言和歌词须与本机资源匹配，多音源时同样指定 `DSEL_TEST_SINGER_ID`。CTest 未在 PATH 时可用 `--ctest` 提供路径。每轮使用新的输出目录；脚本保留原始 `.coverage`、Cobertura、源码行去重 CSV、JUnit 和完整测试日志，并传播执行失败。比较无资源与全量集合时使用同一构建，按源码行并集合并各程序中的重复记录，检查分母和实际执行结果。Microsoft 原生报告不提供与 GCC 对等的分支覆盖，不采用其占位的分支百分比。
 
-Linux CI 保存 HTML、JSON、文本及 gcovr 原生逐文件 CSV，并将 `files.csv` 输出到 workflow 文本日志；三个平台分别保存环境、依赖/构建日志、JUnit 和失败素材。大型 artifact 下载受阻时，可从该轮日志读取逐文件统计，仍以同一受测版本为准；这些是本期测试产物，不生成或自动改写阶段文档。
+macOS 在同一个 `coverage` 构建后执行：
+
+```bash
+python3 scripts/tests/collect-llvm-coverage.py --output build/test-results/llvm-full -- --preset ci-coverage
+```
+
+脚本通过 `xcrun` 选择与编译器配套的 LLVM 工具，为各进程/模块隔离 profile，再生成合并 profile、LCOV、HTML、源码行去重 CSV 和原生分支汇总。Windows 与 LLVM 的公共源码过滤及行汇总共用 `coverage_support.py`，不重复实现统计规则。
+
+Linux CI 保存 HTML、JSON、文本及 gcovr 原生逐文件 CSV；三个平台分别保存覆盖率、环境、依赖/构建日志、JUnit 和失败素材。每个平台的数字以对应产物为准；这些是本期测试产物，不生成或自动改写阶段文档。
 
 采样产物记录实际受测代码、执行集合和失败项，详细关联由 PR 和 Actions 保留。构建成功但测试失败时得到的报告可用于发现遗漏；最终候选另行完整运行，不能把失败轮次的覆盖率和后续未执行补测合并成通过结论。阶段文档保留统计口径和缺口处置，不维护每轮覆盖率数值。
 
