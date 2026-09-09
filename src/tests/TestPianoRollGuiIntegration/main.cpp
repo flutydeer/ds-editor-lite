@@ -5,9 +5,12 @@
 #include "Controller/ClipController.h"
 #include "Controller/ClipboardController.h"
 #include "Controller/PlaybackController.h"
+#include "Controller/TrackController.h"
 #include "Global/ControllerGlobal.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Modules/Audio/AudioSystem.h"
+#include "Modules/Audio/subsystem/OutputSystem.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "UI/Views/ClipEditor/PianoRoll/NoteView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollCoord.h"
@@ -21,14 +24,18 @@
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/Track.h>
+#include <TalcsDevice/AudioDevice.h>
 
 #include <QtTest/QTest>
 #include <QApplication>
 #include <QClipboard>
 #include <QDir>
+#include <QDialog>
 #include <QMouseEvent>
 #include <QMimeData>
 #include <QTemporaryDir>
+#include <QTimer>
 
 #include <memory>
 
@@ -54,12 +61,14 @@ private slots:
         options->inference()->executionProvider = QStringLiteral("CPU");
         options->inference()->cacheDirectory = dataRoot.filePath(QStringLiteral("cache"));
         options->appearance()->animationEnabled = false;
-        // This gesture does not use playback; an absent device must not prevent editing.
-        options->audio()->obj.insert(QStringLiteral("driverName"),
-                                     QStringLiteral("gui-test-no-audio-driver"));
-        options->audio()->obj.insert(QStringLiteral("deviceName"),
-                                     QStringLiteral("gui-test-no-audio-device"));
         context = std::make_unique<AppContext>(std::move(options), AppHostMode::Gui);
+        // Close the fixture-owned stream so playback failure is independent of host devices.
+        if (auto *device = AudioSystem::outputSystem()->context()->device()) {
+            device->stop();
+            device->close();
+            QVERIFY(!device->isOpen());
+            QVERIFY(!device->isStarted());
+        }
         QVERIFY(QApplication::activeModalWidget() == nullptr);
         QVERIFY2(ThemeManager::instance()->initialize(ThemeIds::defaultThemeId()),
                  qPrintable(ThemeLoader::lastError()));
@@ -181,6 +190,96 @@ private slots:
         QVERIFY(!historyManager->canUndo());
     }
 
+    void wholeClipClipboardUsesSelectedTrackAndPreservesCurves() {
+        auto &runtime = *context->m_coreRuntime;
+        const auto sourceNoteId = insertSelectedNote();
+        QVERIFY(sourceNoteId >= 0);
+        Automation::CurveDraftDto curve;
+        curve.type = Automation::CurveDraftDto::Type::Draw;
+        curve.localStart = 0;
+        curve.step = 120;
+        curve.values = {6200, 6250, 6150};
+        QVERIFY(runtime.parameters().replaceParameter(commandContext(),
+                                                      Automation::ClipId(singingClip->id()),
+                                                      ParamInfo::Pitch, Param::Edited, {curve}));
+        Automation::TrackDraftDto draft;
+        draft.name = QStringLiteral("Clipboard destination");
+        draft.defaultLanguage = QStringLiteral("eng");
+        const auto inserted = runtime.project().insertTrack(
+            commandContext(), context->m_appModel->tracks().size(), draft);
+        QVERIFY(inserted);
+        auto *targetTrack = context->m_appModel->tracks().last();
+        QVERIFY(targetTrack->id() != trackId.value());
+        trackController->setSelectedClips({singingClip->id()});
+        historyManager->reset();
+        const auto beforeCopy = runtime.documentVersion();
+        trackController->copySelectedClips();
+        QVERIFY(QApplication::clipboard()->mimeData()->hasFormat(
+            ControllerGlobal::ElemMimeType.at(ControllerGlobal::Clip)));
+        QCOMPARE(runtime.documentVersion(), beforeCopy);
+        QVERIFY(!historyManager->canUndo());
+
+        trackController->setSelectedTrackIndex(context->m_appModel->tracks().size() - 1);
+        playbackController->setPosition(1200);
+        const auto beforePaste = runtime.documentVersion();
+        clipboardController->paste();
+        QCOMPARE(targetTrack->clips().count(), 1);
+        const auto *pasted = dynamic_cast<SingingClip *>(*targetTrack->clips().begin());
+        QVERIFY(pasted);
+        QCOMPARE(pasted->start(), 1200);
+        QCOMPARE(pasted->notes().count(), 1);
+        QCOMPARE((*pasted->notes().begin())->localStart(), 480);
+        QCOMPARE((*pasted->notes().begin())->lyric(), QStringLiteral("hello"));
+        const auto parameter = runtime.parameters().getParameter(
+            runtime.documentVersion().documentId, Automation::ClipId(pasted->id()),
+            ParamInfo::Pitch, Param::Edited);
+        QVERIFY(parameter);
+        QCOMPARE(parameter.get().curves.size(), 1);
+        QCOMPARE(parameter.get().curves.first().localStart, curve.localStart);
+        QCOMPARE(parameter.get().curves.first().step, curve.step);
+        QCOMPARE(parameter.get().curves.first().values, curve.values);
+        QCOMPARE(runtime.documentVersion().revision, beforePaste.revision + 1);
+        QVERIFY(runtime.history().undo(commandContext()));
+        QCOMPARE(targetTrack->clips().count(), 0);
+        QVERIFY(singingClip->findNoteById(sourceNoteId));
+        QCOMPARE(sceneNoteCount(sourceNoteId), 1);
+        QVERIFY(!historyManager->canUndo());
+    }
+
+    void publicPlaybackDeviceFailureDoesNotOpenAModalDialog() {
+        auto &runtime = *context->m_coreRuntime;
+        const auto *device = AudioSystem::outputSystem()->context()->device();
+        QVERIFY(!device || !device->isOpen());
+        const auto before = runtime.playback().getPlayback(runtime.documentVersion().documentId);
+        QVERIFY(before);
+        QVERIFY(before.get().playable);
+        QCOMPARE(before.get().state, Automation::PlaybackState::Stopped);
+        bool dialogShown = false;
+        QTimer dismissUnexpectedDialog;
+        connect(&dismissUnexpectedDialog, &QTimer::timeout, this, [&] {
+            if (auto *dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget())) {
+                dialogShown = true;
+                dialog->reject();
+            }
+        });
+        dismissUnexpectedDialog.start(10);
+        auto command = commandContext();
+        command.source = Automation::InvocationSource::PublicMcp;
+        const auto result = runtime.playback().play(command);
+        dismissUnexpectedDialog.stop();
+        QVERIFY(!dialogShown);
+        QVERIFY(!result);
+        QCOMPARE(result.getError().code,
+                 Automation::AutomationErrorCode::HostCapabilityUnavailable);
+        const auto after = runtime.playback().getPlayback(runtime.documentVersion().documentId);
+        QVERIFY(after);
+        QCOMPARE(after.get().state, before.get().state);
+        QCOMPARE(after.get().position, before.get().position);
+        QCOMPARE(after.get().lastPosition, before.get().lastPosition);
+        QCOMPARE(after.get().document, before.get().document);
+        QVERIFY(!historyManager->canUndo());
+    }
+
     void invalidClipboardDoesNotEdit_data() {
         QTest::addColumn<QString>("format");
         QTest::addColumn<QByteArray>("bytes");
@@ -277,6 +376,84 @@ private slots:
         QVERIFY(!historyManager->canRedo());
     }
 
+    void draggingExistingNoteCommitsOrCancels_data() {
+        QTest::addColumn<bool>("cancel");
+        QTest::newRow("release-commits") << false;
+        QTest::newRow("escape-cancels") << true;
+    }
+
+    void draggingExistingNoteCommitsOrCancels() {
+        QFETCH(bool, cancel);
+        auto &runtime = *context->m_coreRuntime;
+        const auto noteId = insertSelectedNote();
+        QVERIFY(noteId >= 0);
+        view->setEditMode(ClipEditorGlobal::Select);
+        historyManager->reset();
+        const auto before = runtime.documentVersion();
+        const auto *item = sceneNote(noteId);
+        QVERIFY(item);
+        const auto originalPosition = item->scenePos();
+        const auto press = pointFor(600, 62);
+        const auto release = pointFor(1080, 64);
+        QVERIFY(view->viewport()->rect().contains(press));
+        QVERIFY(view->viewport()->rect().contains(release));
+        QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, press);
+        QMouseEvent move(QEvent::MouseMove, QPointF(release),
+                         QPointF(view->viewport()->mapToGlobal(release)), Qt::NoButton,
+                         Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(view->viewport(), &move);
+        QTRY_COMPARE(appStatus->pianoRollNoteEditPreview.get().size(), 1);
+        const auto preview = appStatus->pianoRollNoteEditPreview.get().first();
+        QCOMPARE(preview.rStart, 960);
+        QCOMPARE(preview.length, 240);
+        QCOMPARE(preview.keyIndex, 64);
+        QCOMPARE(item->startOffset(), 480);
+        QCOMPARE(item->keyOffset(), 2);
+        QVERIFY(item->scenePos() != originalPosition);
+        QCOMPARE(singingClip->findNoteById(noteId)->localStart(), 480);
+        QCOMPARE(singingClip->findNoteById(noteId)->keyIndex(), 62);
+        QCOMPARE(runtime.documentVersion(), before);
+        QVERIFY(!historyManager->canUndo());
+        QVERIFY(editSessionManager->hasActiveTransaction());
+
+        if (cancel)
+            QTest::keyClick(view.get(), Qt::Key_Escape);
+        QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, release);
+        QVERIFY(appStatus->pianoRollNoteEditPreview.get().isEmpty());
+        QVERIFY(!editSessionManager->hasActiveTransaction());
+        QCOMPARE(appStatus->currentEditObject.get(), AppStatus::EditObjectType::None);
+        QCOMPARE(sceneNoteCount(noteId), 1);
+        item = sceneNote(noteId);
+        QVERIFY(item);
+        QCOMPARE(item->startOffset(), 0);
+        QCOMPARE(item->keyOffset(), 0);
+        const auto *note = singingClip->findNoteById(noteId);
+        QVERIFY(note);
+        QCOMPARE(note->localStart(), cancel ? 480 : 960);
+        QCOMPARE(note->keyIndex(), cancel ? 62 : 64);
+        QCOMPARE(item->rStart(), note->localStart());
+        QCOMPARE(item->keyIndex(), note->keyIndex());
+        if (cancel) {
+            QCOMPARE(runtime.documentVersion(), before);
+            QCOMPARE(item->scenePos(), originalPosition);
+            QVERIFY(!historyManager->canUndo());
+            return;
+        }
+        QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+        QVERIFY(runtime.history().undo(commandContext()));
+        QCOMPARE(singingClip->findNoteById(noteId)->localStart(), 480);
+        QCOMPARE(singingClip->findNoteById(noteId)->keyIndex(), 62);
+        QVERIFY(sceneNote(noteId));
+        QCOMPARE(sceneNote(noteId)->scenePos(), originalPosition);
+        QVERIFY(!historyManager->canUndo());
+        QVERIFY(runtime.history().redo(commandContext()));
+        QCOMPARE(singingClip->findNoteById(noteId)->localStart(), 960);
+        QCOMPARE(singingClip->findNoteById(noteId)->keyIndex(), 64);
+        QVERIFY(sceneNote(noteId));
+        QCOMPARE(sceneNote(noteId)->rStart(), 960);
+        QCOMPARE(sceneNote(noteId)->keyIndex(), 64);
+    }
+
     void cleanup() {
         if (view) {
             view->setDataContext(nullptr);
@@ -337,6 +514,15 @@ private:
                 ++count;
         }
         return count;
+    }
+
+    const NoteView *sceneNote(int id) const {
+        for (const auto *item : scene->items()) {
+            const auto *note = dynamic_cast<const NoteView *>(item);
+            if (note && note->id() == id)
+                return note;
+        }
+        return nullptr;
     }
 
     QTemporaryDir dataRoot;

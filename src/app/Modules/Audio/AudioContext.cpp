@@ -389,7 +389,10 @@ bool AudioContext::ensurePlaybackDeviceStarted() const {
         (device->isStarted() || device->start(outputContext->playback()))) {
         return true;
     }
-    if (qobject_cast<QApplication *>(QCoreApplication::instance()))
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    const bool interactive = runtime && runtime->dispatcher().currentInvocationSource() ==
+                                           Automation::InvocationSource::TrustedGui;
+    if (interactive && qobject_cast<QApplication *>(QCoreApplication::instance()))
         QMessageBox::critical(nullptr, {}, tr("Cannot open audio device!"));
     else
         qWarning("Cannot open audio device");

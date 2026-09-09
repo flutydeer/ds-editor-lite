@@ -1387,6 +1387,23 @@ namespace {
                                    "error: %1")
                         .arg(compactJson(*playResponse)));
             }
+            const auto playbackAfterFailure =
+                connectorToolContent(connector, 1302, QStringLiteral("playback.get_state"),
+                                     documentArguments, 10000, toolError);
+            if (!playbackAfterFailure ||
+                playbackAfterFailure->value(QStringLiteral("document")) !=
+                    playbackBefore->value(QStringLiteral("document")) ||
+                playbackAfterFailure->value(QStringLiteral("snapshot"))
+                        .toObject()
+                        .value(QStringLiteral("state")) !=
+                    playbackBefore->value(QStringLiteral("snapshot"))
+                        .toObject()
+                        .value(QStringLiteral("state"))) {
+                return failWithProcessDiagnostics(
+                    QStringLiteral("Unavailable audio must leave playback unchanged and the "
+                                   "automation service responsive: %1")
+                        .arg(toolError));
+            }
         } else {
             if (playContent.value(QStringLiteral("playback"))
                     .toObject()
