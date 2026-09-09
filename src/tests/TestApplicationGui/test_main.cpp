@@ -11,6 +11,7 @@
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsScene.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
 #include "../TestSupport/RuntimePluginFixture.h"
+#include "../TestSupport/VoicebankFixture.h"
 
 #include <lite/GUI/Theme/ThemeIds.h>
 #include <lite/GUI/Theme/ThemeLoader.h>
@@ -23,6 +24,7 @@
 #include <QClipboard>
 #include <QDir>
 #include <QDialog>
+#include <QFileInfo>
 #include <QMimeData>
 #include <QTemporaryDir>
 #include <QTimer>
@@ -42,7 +44,10 @@ void ApplicationGuiTests::initTestCase() {
 
     auto options = std::make_unique<AppOptions>();
     QVERIFY(QDir::cleanPath(options->configPath()).startsWith(dataRoot.path() + '/'));
-    options->general()->packageSearchPaths.clear();
+    const auto voicebankRoot = TestSupport::voicebankRoot();
+    QVERIFY2(QDir::isAbsolutePath(voicebankRoot) && QFileInfo(voicebankRoot).isDir(),
+             qPrintable(QStringLiteral("Voicebank fixture is unavailable: %1").arg(voicebankRoot)));
+    options->general()->packageSearchPaths = {voicebankRoot};
     options->general()->defaultSingingLanguage = QStringLiteral("eng");
     options->inference()->autoStartInfer = false;
     options->inference()->executionProvider = QStringLiteral("CPU");

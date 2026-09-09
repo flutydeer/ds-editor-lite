@@ -43,6 +43,14 @@ private slots:
     void exportSourcesAndMixingUpdateFilePlan();
     void canceledExportConfigurationDoesNotPersist();
     void appearanceInputsPersistAcrossReopening();
+    void automationAccessInputsPersistAndRejectMissingFolders();
+    void inferenceInputsPersistAcrossReopening();
+    void cacheCleanupRequiresConfirmationAndRefreshesThePage();
+    void interactiveProjectImportRespectsSelectionAndCancellation_data();
+    void interactiveProjectImportRespectsSelectionAndCancellation();
+    void fillLyricPreviewCommitsOrCancels_data();
+    void fillLyricPreviewCommitsOrCancels();
+    void lyricRuleEditingChangesThePreviewAndPersists();
     void speakerMixSelectionAndDrag_data();
     void speakerMixSelectionAndDrag();
     void cleanup();
@@ -51,6 +59,7 @@ private slots:
 private:
     void createPianoRoll();
     void createExportTracks();
+    void createLyricSelection();
     int insertSelectedNote();
     Automation::CommandContext commandContext() const;
     QPoint pointFor(int tick, int key) const;
