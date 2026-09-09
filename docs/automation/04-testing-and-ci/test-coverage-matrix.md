@@ -2,7 +2,7 @@
 
 ## 1. 口径
 
-本表按产品能力记录覆盖、缺口及历史用例去向。引用为 `src/tests/Test<名称>` 的程序目录；精确执行结果和行/分支覆盖率见[test-report.md](test-report.md)。矩阵不维护工具清单、Schema 镜像或断言数量指标。
+本表按产品能力记录覆盖、缺口及历史用例去向。引用为 `src/tests/Test<名称>` 的程序目录；本期验收结论见[test-report.md](test-report.md)，逐例结果和覆盖率数值查看测试产物。矩阵不维护工具清单、Schema 镜像或断言数量指标，不随每次提交刷新运行结果。
 
 ## 2. 产品行为
 
@@ -19,7 +19,7 @@
 | 应用运行状态、设置、播放、包与规则 | domain/workflow | 服务替身和场景混在大入口 | 按状态所有者拆分 | AutomationRuntimeDomains、AutomationL3ApplicationDomains、AutomationOption | 通用 |
 | GUI Host 无设备时的公开播放失败 | process/gui | Linux 实际 MCP 调用超时；无设备时错误弹窗阻塞调用 | 仅 TrustedGui 调用显示设备错误弹窗；公开调用检查失败、状态不变及后续查询；GUI fixture 关闭自身设备确定性验证无弹窗 | McpProcessIntegration、PianoRollGuiIntegration | offscreen |
 | 文档生命周期、文件转换与发布 | workflow | 已有保存/换代/原子写回，执行边界不统一 | 保留真实文件回归；补保存扩展名/Unicode/大小写与过期确认；独立 fixture | AutomationDocumentLifecycle、DocumentWorkflow、MidiImportAutomation、ProjectConverterAtomicWrite | 通用/GUI |
-| 普通音频片段导入及 WAV 导出 | workflow/process | AudioExporter 首次复查仅覆盖 6 / 650 行，普通导出缺少真实执行 | 在现有进程目标补生成小 WAV、导入并等待任务完成、实际导出、解码检查采样率/声道/时长/有限非零内容及文档不变 | HeadlessProcessIntegration::audioImportAndWaveExport | 通用；无需声库/设备 |
+| 普通音频片段导入及 WAV 导出 | workflow/process | AudioExporter 此前只触达初始化代码，普通导出缺少真实执行 | 在现有进程目标补生成小 WAV、导入并等待任务完成、实际导出、解码检查采样率/声道/时长/有限非零内容及文档不变 | HeadlessProcessIntegration::audioImportAndWaveExport | 通用；无需声库/设备 |
 | 离线导出后的混音器状态恢复 | workflow | 实际 Linux 导出流程在恢复初始关闭的混音器时调用 open(0,0)，触发重采样比率断言 | 复用 Headless AppContext 测试目标，新增原先打开/关闭两行回归；按原 isOpen 恢复 open/close，已打开时保留原缓冲及采样率 | ApplicationWorkflows::offlineExportRestoresMixerState | 通用；fixture 关闭自身设备 |
 | DSPX 编辑内容往返 | workflow | 原文件测试多检查空工程、JSON 头或对象存在，未核对编辑内容 | 补真实 save/load 的乐句、发音、参数、声线混合、tempo/meter 保真 | ProjectConverterAtomicWrite | 通用 |
 | 任务竞态、幂等及音频资产 | workflow/domain | 已有受控调度和晚到回调 | 提取复用、拆独立状态转换 | AutomationTaskRaces、AutomationIdempotency、AutomationAsyncFileDomains、AudioAssetResolution、AudioDecodingController | 通用 |
@@ -39,7 +39,7 @@ AnchoredCurve、NewStyle、OpenGLWidget、ParamEdit、InsertTable、StateMachine
 
 ## 4. 覆盖率驱动的补测
 
-首次 GCC/gcovr 采样发现整片段剪贴板、推理完成门控、歌词拆分未执行，以及已有音符交互覆盖不足。完整口径、分母、目录汇总及后续覆盖变化集中在[测试报告](test-report.md)。
+GCC/gcovr 采样发现整片段剪贴板、推理完成门控、歌词拆分未执行，以及已有音符交互覆盖不足。统计口径与补测依据见[测试报告](test-report.md)；逐文件明细、分母和覆盖数值由每次 coverage 产物提供。
 
 上述行为已归入对应领域和现有 GUI 目标，并取得实际执行证据；CI 另外发现的退出响应竞争归入协议生命周期。原生渲染、声库/设备及主观观感按运行条件记录，不为降低未执行行数扩展像素基线或模型矩阵。
 

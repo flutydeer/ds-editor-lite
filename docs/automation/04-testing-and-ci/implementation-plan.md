@@ -6,9 +6,9 @@
 
 Qt Test 负责用例、断言、数据驱动与 Qt 事件；CTest 负责程序级调度、标签、环境、超时及资源锁。选型依据是职责，不是旧测试的数量。禁止工具总数、Schema 镜像、逐字段复述及跨层重复业务矩阵。
 
-## 2. 实施基线与提交
+## 2. 分支与提交
 
-- 初始基线：`a8fac646`，分支：`test-ci`，目标：`main`。
+- 实施开始时基于 `main` 建立 `test-ci`，通过一个 PR 交付。
 - 所有改动使用同一分支与一个 PR；基础设施、领域、协议、GUI 和 CI 修复按可审阅阶段提交。
 - 提交采用 Conventional Commits；新增及修改的代码注释使用英文，只解释最终实现的必要约束；阶段文档使用中文。
 - 早期创建 Draft PR，以 `pull_request` 实际运行分支内 workflow，不要求先合并。
@@ -34,17 +34,19 @@ Linux x64 Debug 在一个 job 中分步骤构建完整 Editor、Connector 和测
 
 失败先区分下载/依赖、编译链接、运行时加载、行为断言、超时及隔离；修复后先定向复验，再在新提交上完整执行。旧 run 的重跑不验证新代码。最终验证空缓存与正常缓存路径，不缓存整个构建树。
 
-完整构建成功后，即使测试失败也收集 coverage，供定位缺口；这类采样标注受测提交和失败项，不能作为最终候选通过证据。稳定候选重新完整采样，覆盖范围与[功能矩阵](test-coverage-matrix.md)一起验收。
+完整构建成功后，即使测试失败也收集 coverage，供定位缺口；执行版本和失败项由运行日志、测试产物及 PR 保留，不能把失败采样作为通过证据。稳定候选重新完整采样，覆盖范围与[功能矩阵](test-coverage-matrix.md)一起验收。
 
 ## 6. 交付与审查
 
 测试实现、Linux CI 与 Windows 验证完成后提交两份报告并 mark ready。首次 ready 自动审查；此后的代码/构建配置修改推送后发布 `@codex review`。真实问题修复、验证、回复并 resolve；误报说明理由。
 
-仅当前受审版本的 CI 通过，并获得 bot thumbs-up 或明确无问题结论，才完成目标。最终认可保留在 PR 和交付答复，不为抄回报告另造提交。
+受审代码完成相应验证，并获得 bot thumbs-up 或明确无问题结论，才完成目标。仅修改文档且不影响构建或测试时，无需重新执行或等待 CI。最终认可保留在 PR 和交付答复，不为抄回报告另造提交。
 
 ## 7. 文档职责
 
-本目录六份临时阶段文档沿用前三期组织：实施计划、测试大纲、执行计划、覆盖矩阵、[实现报告](implementation-report.md)及[测试报告](test-report.md)。原始日志留在本地产物和 Actions artifacts，不入 Git；不建设长期同步或文档生成机制。
+本目录六份临时阶段文档沿用前三期组织：实施计划、测试大纲、执行计划、覆盖矩阵、[实现报告](implementation-report.md)及[测试报告](test-report.md)。文档说明本期设计、执行方式和验收结论，时效至少保持到本期发布；只在这些事实变化时更新，不随每次提交或 CI 运行刷新。
+
+具体提交号、运行 ID、逐轮结果和原始日志留在 PR、本地产物及 Actions artifacts，不写入阶段文档。不建设长期同步或文档生成机制。
 
 | 文档 | 职责 |
 |---|---|
@@ -53,4 +55,4 @@ Linux x64 Debug 在一个 job 中分步骤构建完整 Editor、Connector 和测
 | [test-plan.md](test-plan.md) | 构建、执行、资源配置、CI 调试及验收入口 |
 | [test-coverage-matrix.md](test-coverage-matrix.md) | 产品行为的测试归属、缺口处置及历史入口去向 |
 | [implementation-report.md](implementation-report.md) | 最终交付结构、重构、取舍及未覆盖范围 |
-| [test-report.md](test-report.md) | 受测版本、实测 coverage、平台/缓存结果和缺陷闭环 |
+| [test-report.md](test-report.md) | 本期验收结论、覆盖缺口、平台/资源边界及实质缺陷闭环 |

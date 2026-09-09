@@ -2,7 +2,7 @@
 
 ## 1. 执行顺序
 
-先验证环境和完整构建，再运行 unit、domain、workflow、protocol、process、gui。具体程序由 CTest 标签选择；Qt Test 函数可直接定向运行。覆盖要求见[大纲](test-outline.md)，实际结果仅写入[报告](test-report.md)。
+先验证环境和完整构建，再运行 unit、domain、workflow、protocol、process、gui。具体程序由 CTest 标签选择；Qt Test 函数可直接定向运行。覆盖要求见[大纲](test-outline.md)，本期验收结论见[报告](test-report.md)，逐轮执行结果保留在测试产物和 PR 中。
 
 ## 2. 环境与构建
 
@@ -16,7 +16,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-c
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Test -Preset local
 ```
 
-Linux 本地已准备 Qt 与系统开发依赖后，将 `QT_ROOT_DIR` 指向实际 Qt 安装目录。当前验证版本为 Qt 6.11.2，模块包括 Core5Compat、ShaderTools、StateMachine、HttpServer 和 WebSockets；Ubuntu 开发包与固定 vcpkg 引导见[workflow](../../../.github/workflows/tests.yml)和[bootstrap-linux.sh](../../../scripts/ci/bootstrap-linux.sh)。本地有桌面环境时：
+Linux 本地已准备 Qt 与系统开发依赖后，将 `QT_ROOT_DIR` 指向实际 Qt 安装目录。Qt 需包含 Core5Compat、ShaderTools、StateMachine、HttpServer 和 WebSockets 等项目依赖；版本、Ubuntu 开发包与 vcpkg 引导以[workflow](../../../.github/workflows/tests.yml)和[bootstrap-linux.sh](../../../scripts/ci/bootstrap-linux.sh)为准。本地有桌面环境时：
 
 ```bash
 bash scripts/ci/bootstrap-linux.sh
@@ -28,7 +28,7 @@ ctest --preset local
 
 Windows wrapper 将本地结果写到 `build/test-results`；直接 CTest 可加 `--output-junit` 指定报告路径，完整逐例输出位于 `build/Tests/Testing/Temporary/LastTest.log`。`local` 选择本机全部注册测试，`ci` 只选择通用与 offscreen 集合，适用于 CI 或没有桌面的本地执行；单组可用 CTest 的 `-L`/`-R`，具体函数可直接给 Qt Test 程序传函数名。
 
-执行时记录 commit、系统、编译器、Qt、CMake、Ninja、vcpkg 与子模块版本。正式候选的命令及结果在测试报告中记录。
+执行产物记录源码版本、系统、编译器、Qt、CMake、Ninja、vcpkg 与子模块版本，用于重现问题。阶段文档不复制这些逐轮元数据，也不要求每次提交后更新报告。
 
 ## 3. 运行条件
 
@@ -42,7 +42,7 @@ Windows wrapper 将本地结果写到 `build/test-results`；直接 CTest 可加
 
 不以 Linux CI 集合代替本地完整入口。资源不足和平台不适用必须明确，不计作通过。
 
-当前需要原生桌面的两个目标是 `TestAnimationSettings` 和 `TestOverlaySplitter`；它们仍由 local preset 自动执行。其余 GUI 组件使用 offscreen，不需要声库或音频设备。
+原生桌面用例包括 `TestAnimationSettings` 和 `TestOverlaySplitter`，由 local preset 自动执行；具体集合以 CTest 的 `native` 标签为准。可用 offscreen 的 GUI 组件不需要声库或音频设备。
 
 真实声库用例为 `TestHeadlessResources`：设置 `DSEL_TEST_VOICEBANK_ROOT`、`DSEL_TEST_LANGUAGE`、`DSEL_TEST_LYRIC`，多音源时再指定 `DSEL_TEST_SINGER_ID`。用例固定 CPU，创建短音符，完成推理及 WAV 导出并检查可解码、有限样本和非零能量。未设置声库根时明确跳过；配置后的失败为失败，不自动扫描个人声库。
 
@@ -61,8 +61,9 @@ Windows wrapper 将本地结果写到 `build/test-results`；直接 CTest 可加
 1. Draft PR 触发真实 Actions；逐步打通依赖、配置、全构建及各测试组。
 2. 查首个根因：依赖、编译、动态库/插件、断言、超时或共享状态污染。
 3. 修复对应实现，在可复现环境单跑失败用例和所属组。
-4. 提交、推送新代码，恢复完整规定集合；旧 run 重跑仅诊断旧 SHA。
-5. 最终候选先清除本 PR 对应的 Qt/vcpkg 缓存，完整运行成功后在同一 SHA 重跑，核对缓存实际命中和完整集合通过。只在变更影响相应路径时重复验证；不清除其他 PR 的缓存。
+4. 提交、推送新代码，恢复完整规定集合；重跑旧执行只能验证原代码版本。
+5. 验证冷缓存时先清除本 PR 对应的 Qt/vcpkg 缓存，完整运行成功后用相同代码验证缓存实际命中和完整集合通过。只在变更影响相应路径时重复验证；不清除其他 PR 的缓存。
+6. 仅修改不影响构建或测试的文档时，无需重新执行或等待 CI；运行证据继续使用对应代码版本的已有结果。
 
 不能依靠无限重跑、删除有效断言、沉默跳过或无依据加大超时获得绿色状态。
 
@@ -86,10 +87,10 @@ Windows MSVC 常规测试不需要 gcovr。每次独立采样应使用干净的�
 
 CI 同时保存 HTML、JSON、文本及 gcovr 原生逐文件 CSV，并将 `files.csv` 输出到 workflow 文本日志。大型 artifact 下载受阻时，可直接从该轮日志读取逐文件行/分支统计，仍以同一受测版本为准；这些是本期测试产物，不生成或自动改写阶段文档。
 
-采样记录 PR head、Actions 实际 checkout SHA、执行集合和失败项。构建成功但测试失败时得到的报告可用于发现遗漏；最终候选另行完整运行，不能把失败轮次的覆盖率和后续未执行补测合并成通过结论。
+采样产物记录实际受测代码、执行集合和失败项，详细关联由 PR 和 Actions 保留。构建成功但测试失败时得到的报告可用于发现遗漏；最终候选另行完整运行，不能把失败轮次的覆盖率和后续未执行补测合并成通过结论。阶段文档保留统计口径和缺口处置，不维护每轮覆盖率数值。
 
 结合 HTML 未执行行、目录汇总及功能矩阵判断缺口：优先未测的编辑结果、失败回滚、配置生效、文件发布和实际交互。数值低并不自动要求补测；设备/模型依赖、平台专属、主观观感及不可达的防御路径需说明范围。没有百分比门槛，不对 Schema、工具清单、无语义 getter 或历史 bug 数量设指标。覆盖率用于发现遗漏，不代替有意义的断言。[gcovr 统计口径](https://gcovr.com/en/stable/faq.html)。
 
 ## 7. 验收与审查
 
-Linux 全集合、Windows 本地通用/进程/适用 GUI 验证完成，报告和实现一致后 ready。约五分钟后检查审查；真实问题修复、验证、回复并 resolve。ready 后代码或构建配置变化须 `@codex review`。最终当前版本 CI 和 bot 明确认可同时成立才完成。
+Linux 全集合、Windows 本地通用/进程/适用 GUI 验证完成，报告和实现一致后 ready；文档更新不要求重复等待已验证代码的 CI。约五分钟后检查审查；真实问题修复、验证、回复并 resolve。ready 后代码或构建配置变化须 `@codex review`。最终受审代码的相应验证和 bot 明确认可同时成立才完成。
