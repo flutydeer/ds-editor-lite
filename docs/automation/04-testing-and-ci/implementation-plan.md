@@ -17,7 +17,7 @@ Qt Test 负责用例、断言、数据驱动与 Qt 事件；CTest 负责程序�
 
 1. 以产品能力建立[覆盖矩阵](test-coverage-matrix.md)，识别已有覆盖和缺口。
 2. 将手写入口拆为独立 Qt Test 场景；普通测试、GUI 与资源依赖条件分别管理。
-3. 让产品与测试共用自动化核心生产 target，测试支持层只保留 fixture、替身与辅助设施。
+3. 产品与领域测试共用 `EditorAutomationCore`，真实 GUI/推理完成工作流复用 `EditorRuntime`；测试支持层只保留 fixture、替身与辅助设施。
 4. 提取进程沙箱，统一数据目录、配置、临时素材、超时与子进程所有权。
 5. Qt 平台、路径和终止信号按当前系统适配，不把 CI 的 Linux 环境写成测试前提。
 6. 对整个测试树复查目标职责和用例划分，再结合 Linux 行/分支覆盖率确认重要遗漏；补测应验证产品行为，不追求百分比或分支穷举。覆盖率结果及补测依据集中写入[测试报告](test-report.md)。
@@ -30,7 +30,7 @@ Qt Test 负责用例、断言、数据驱动与 Qt 事件；CTest 负责程序�
 
 ## 5. CI 落地与调试
 
-Linux x64 Debug 构建完整 Editor、Connector 和测试，依次打通依赖、构建、通用、协议、进程与 offscreen 测试。记录实际环境和失败日志，不以 workflow 已提交作为完成。
+Linux x64 Debug 在一个 job 中分步骤构建完整 Editor、Connector 和测试，按依赖、配置/构建、通用、协议/进程、offscreen 的顺序引导调试，最终执行完整 `ci` 集合。workflow 对面向 main 的 PR 和 main push 触发。记录实际环境和失败日志，不以 workflow 已提交作为完成。
 
 失败先区分下载/依赖、编译链接、运行时加载、行为断言、超时及隔离；修复后先定向复验，再在新提交上完整执行。旧 run 的重跑不验证新代码。最终验证空缓存与正常缓存路径，不缓存整个构建树。
 
@@ -45,3 +45,12 @@ Linux x64 Debug 构建完整 Editor、Connector 和测试，依次打通依赖�
 ## 7. 文档职责
 
 本目录六份临时阶段文档沿用前三期组织：实施计划、测试大纲、执行计划、覆盖矩阵、[实现报告](implementation-report.md)及[测试报告](test-report.md)。原始日志留在本地产物和 Actions artifacts，不入 Git；不建设长期同步或文档生成机制。
+
+| 文档 | 职责 |
+|---|---|
+| implementation-plan.md | 目标、架构、实施和审查原则 |
+| [test-outline.md](test-outline.md) | 六类测试的内容与边界 |
+| [test-plan.md](test-plan.md) | 构建、执行、资源配置、CI 调试及验收入口 |
+| [test-coverage-matrix.md](test-coverage-matrix.md) | 产品行为的测试归属、缺口处置及历史入口去向 |
+| [implementation-report.md](implementation-report.md) | 最终交付结构、重构、取舍及未覆盖范围 |
+| [test-report.md](test-report.md) | 受测版本、实测 coverage、平台/缓存结果和缺陷闭环 |

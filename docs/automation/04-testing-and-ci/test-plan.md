@@ -16,16 +16,17 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-c
 powershell -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Test -Preset local
 ```
 
-Linux 已准备 Qt 与系统开发依赖后：
+Linux 本地已准备 Qt 与系统开发依赖后，将 `QT_ROOT_DIR` 指向实际 Qt 安装目录。当前验证版本为 Qt 6.11.2，模块包括 Core5Compat、ShaderTools、StateMachine、HttpServer 和 WebSockets；Ubuntu 开发包与固定 vcpkg 引导见[workflow](../../../.github/workflows/tests.yml)和[bootstrap-linux.sh](../../../scripts/ci/bootstrap-linux.sh)。本地有桌面环境时：
 
 ```bash
 bash scripts/ci/bootstrap-linux.sh
-cmake --preset tests -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" -DVCPKG_TARGET_TRIPLET=x64-linux
+cmake --preset tests -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
+  -DQt6_DIR="$QT_ROOT_DIR/lib/cmake/Qt6" -DVCPKG_TARGET_TRIPLET=x64-linux
 cmake --build --preset tests
-ctest --preset ci
+ctest --preset local
 ```
 
-本地结果写到 `build/test-results`。`local` 选择本机全部注册测试，`ci` 只选择通用与 offscreen 集合；单组可用 CTest 的 `-L`/`-R`，具体函数可直接给 Qt Test 程序传函数名。
+Windows wrapper 将本地结果写到 `build/test-results`；直接 CTest 可加 `--output-junit` 指定报告路径，完整逐例输出位于 `build/Tests/Testing/Temporary/LastTest.log`。`local` 选择本机全部注册测试，`ci` 只选择通用与 offscreen 集合，适用于 CI 或没有桌面的本地执行；单组可用 CTest 的 `-L`/`-R`，具体函数可直接给 Qt Test 程序传函数名。
 
 执行时记录 commit、系统、编译器、Qt、CMake、Ninja、vcpkg 与子模块版本。正式候选的命令及结果在测试报告中记录。
 
@@ -41,9 +42,13 @@ ctest --preset ci
 
 不以 Linux CI 集合代替本地完整入口。资源不足和平台不适用必须明确，不计作通过。
 
+当前需要原生桌面的两个目标是 `TestAnimationSettings` 和 `TestOverlaySplitter`；它们仍由 local preset 自动执行。其余 GUI 组件使用 offscreen，不需要声库或音频设备。
+
 真实声库用例为 `TestHeadlessResources`：设置 `DSEL_TEST_VOICEBANK_ROOT`、`DSEL_TEST_LANGUAGE`、`DSEL_TEST_LYRIC`，多音源时再指定 `DSEL_TEST_SINGER_ID`。用例固定 CPU，创建短音符，完成推理及 WAV 导出并检查可解码、有限样本和非零能量。未设置声库根时明确跳过；配置后的失败为失败，不自动扫描个人声库。
 
 `TestInferenceWorkflow` 属于通用 workflow 集合：使用隔离的 Headless AppContext，构造实际推理任务快照并调用完成门控，关闭自动推理且不调度这些任务，不依赖声库输出或设备。它验证结果是否仍适用于当前编辑状态；实际模型执行由上述资源用例负责。
+
+`TestHeadlessProcessIntegration::audioImportAndWaveExport` 使用生成的小型 WAV，经过实际 Editor 导入和导出任务，再用 libsndfile 解码验证；归入通用进程集合，不需要配置声库或音频设备。
 
 ## 4. 隔离与清理
 
@@ -57,7 +62,7 @@ ctest --preset ci
 2. 查首个根因：依赖、编译、动态库/插件、断言、超时或共享状态污染。
 3. 修复对应实现，在可复现环境单跑失败用例和所属组。
 4. 提交、推送新代码，恢复完整规定集合；旧 run 重跑仅诊断旧 SHA。
-5. 最终分别验证空缓存及正常命中；仅依赖或缓存规则变化时重验相关路径。
+5. 最终候选先清除本 PR 对应的 Qt/vcpkg 缓存，完整运行成功后在同一 SHA 重跑，核对缓存实际命中和完整集合通过。只在变更影响相应路径时重复验证；不清除其他 PR 的缓存。
 
 不能依靠无限重跑、删除有效断言、沉默跳过或无依据加大超时获得绿色状态。
 
@@ -73,10 +78,13 @@ build/ci/coverage-env/bin/pip install gcovr==8.6
 mkdir -p build/test-results/coverage
 build/ci/coverage-env/bin/gcovr --config scripts/ci/gcovr.cfg \
   --html-nested build/test-results/coverage/index.html \
-  --json-summary build/test-results/coverage/summary.json --print-summary
+  --json-summary build/test-results/coverage/summary.json \
+  --csv build/test-results/coverage/files.csv --print-summary
 ```
 
 Windows MSVC 常规测试不需要 gcovr。每次独立采样应使用干净的覆盖构建目录，或先删除该目录内旧 `.gcda`，避免累计历史执行结果。CI 每次重新构建，不缓存 CMake 构建目录。
+
+CI 同时保存 HTML、JSON、文本及 gcovr 原生逐文件 CSV，并将 `files.csv` 输出到 workflow 文本日志。大型 artifact 下载受阻时，可直接从该轮日志读取逐文件行/分支统计，仍以同一受测版本为准；这些是本期测试产物，不生成或自动改写阶段文档。
 
 采样记录 PR head、Actions 实际 checkout SHA、执行集合和失败项。构建成功但测试失败时得到的报告可用于发现遗漏；最终候选另行完整运行，不能把失败轮次的覆盖率和后续未执行补测合并成通过结论。
 
