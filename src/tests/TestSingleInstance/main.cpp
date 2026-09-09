@@ -79,7 +79,16 @@ namespace {
         bool send(const SingleInstanceRequest &request, const int timeoutMs = 1000) {
             const auto message =
                 SingleInstanceProtocol::frame(SingleInstanceProtocol::encodeRequest(request));
-            return socket.write(message) == message.size() && socket.waitForBytesWritten(timeoutMs);
+            return sendFrame(message, timeoutMs);
+        }
+
+        bool sendFrame(const QByteArray &message, const int timeoutMs = 1000) {
+            if (socket.write(message) != message.size())
+                return false;
+            // A completed write need not produce another bytesWritten event to wait for.
+            if (socket.bytesToWrite() > 0 && !socket.waitForBytesWritten(timeoutMs))
+                return socket.bytesToWrite() == 0;
+            return true;
         }
 
         bool receive(QByteArray &payload, QString &error, const int timeoutMs = 1000) {
@@ -490,8 +499,7 @@ namespace {
         QString error;
         SingleInstanceResponse response;
         expect(unsupportedClient.connectTo(serverName) &&
-                   unsupportedClient.socket.write(unsupportedFrame) == unsupportedFrame.size() &&
-                   unsupportedClient.socket.waitForBytesWritten(1000) &&
+                   unsupportedClient.sendFrame(unsupportedFrame) &&
                    unsupportedClient.receive(responsePayload, error) &&
                    SingleInstanceProtocol::decodeResponse(responsePayload, response, error) &&
                    !response.accepted && response.requestId == unsupported.requestId,
@@ -533,10 +541,23 @@ namespace {
         const auto replacementRequest =
             automationRequest(SingleInstanceCommand::AutomationDiscover);
         SingleInstanceAutomationSnapshot snapshot;
-        expect(replacement.connectTo(serverName) && replacement.send(replacementRequest) &&
-                   replacement.receiveSnapshot(snapshot) &&
-                   snapshot.requestId == replacementRequest.requestId,
-               "timed-out bootstrap clients must release capacity for valid requests");
+        const auto replacementDiagnostic = [&] {
+            return QStringLiteral("state=%1 pending=%2 available=%3 socket_error=%4")
+                .arg(int(replacement.socket.state()))
+                .arg(replacement.socket.bytesToWrite())
+                .arg(replacement.socket.bytesAvailable())
+                .arg(replacement.socket.errorString());
+        };
+        const auto connected = replacement.connectTo(serverName);
+        QVERIFY2(connected, qPrintable(replacementDiagnostic()));
+        const auto sent = replacement.send(replacementRequest);
+        QVERIFY2(sent, qPrintable(replacementDiagnostic()));
+        const auto received = replacement.receive(responsePayload, error);
+        QVERIFY2(received, qPrintable(error + QStringLiteral("; ") + replacementDiagnostic()));
+        const auto decoded =
+            SingleInstanceProtocol::decodeAutomationSnapshot(responsePayload, snapshot, error);
+        QVERIFY2(decoded, qPrintable(error));
+        QCOMPARE(snapshot.requestId, replacementRequest.requestId);
 
         primary.shutdown();
     }
