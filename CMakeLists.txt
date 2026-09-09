@@ -9,6 +9,12 @@ project(lite
     HOMEPAGE_URL "${LITE_PRODUCT_URL}"
 )
 
+if(APPLE)
+    enable_language(OBJCXX)
+    set(CMAKE_OBJCXX_STANDARD 20)
+    set(CMAKE_OBJCXX_STANDARD_REQUIRED ON)
+endif()
+
 # ----------------------------------
 # Build Options
 # ----------------------------------

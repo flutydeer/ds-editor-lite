@@ -73,6 +73,8 @@ jobs:
         with:
           version: ${{ env.QT_VERSION }}
           arch: ${{ matrix.qt-arch }}
+          # Qt 6.11 changed the Windows repository layout after aqt 3.3 was released.
+          aqtsource: ${{ runner.os == 'Windows' && 'git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b' || '' }}
           modules: 'qt5compat qtshadertools qtscxml qthttpserver qtwebsockets'
           cache: true
       - name: Restore dependency packages
@@ -80,10 +82,8 @@ jobs:
         uses: actions/cache/restore@v6
         with:
           path: build/ci/vcpkg-cache
-          key: ${{ matrix.triplet }}-qt${{ env.QT_VERSION }}-${{ hashFiles('scripts/ci/bootstrap-vcpkg.py', 'scripts/vcpkg-manifest/**', 'scripts/vcpkg/ports/**', 'scripts/vcpkg/triplets/**') }}
-          restore-keys: |
-            ${{ matrix.triplet }}-qt${{ env.QT_VERSION }}-
-            ${{ runner.os == 'Linux' && format('linux-qt{0}-', env.QT_VERSION) || 'no-legacy-cache' }}
+          key: ${{ runner.os == 'Linux' && 'linux' || matrix.triplet }}-qt${{ env.QT_VERSION }}-${{ hashFiles('scripts/ci/bootstrap-vcpkg.py', 'scripts/vcpkg-manifest/**', 'scripts/vcpkg/ports/**', 'scripts/vcpkg/triplets/**') }}
+          restore-keys: ${{ runner.os == 'Linux' && 'linux' || matrix.triplet }}-qt${{ env.QT_VERSION }}-
       - name: Build dependencies
         id: dependencies
         run: python scripts/ci/bootstrap-vcpkg.py --triplet '${{ matrix.triplet }}' 2>&1 | tee build/test-results/dependencies.log
