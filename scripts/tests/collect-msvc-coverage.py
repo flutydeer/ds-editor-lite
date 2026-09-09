@@ -10,7 +10,7 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 
-from coverage_support import production_path, test_executables, write_line_summary
+from coverage_support import production_path, run_logged, test_executables, write_line_summary
 
 
 def path_pattern(path):
@@ -94,17 +94,16 @@ def main():
                "--no-tests=error",
                "--output-junit", str(output / "junit.xml"), *extra]
     started_ns = time.time_ns()
-    with (output / "tests.log").open("wb") as log:
-        result = subprocess.run(command, cwd=repo, stdout=log, stderr=subprocess.STDOUT)
+    exit_code = run_logged(command, repo, output / "tests.log")
     last_test = build / "Testing/Temporary/LastTest.log"
     if ((output / "junit.xml").is_file() and last_test.is_file()
             and last_test.stat().st_mtime_ns >= started_ns):
         shutil.copyfile(last_test, output / "LastTest.log")
     subprocess.run([collector, "merge", str(output / "result.coverage"), "--output",
                     str(output / "coverage.xml"), "--output-format", "cobertura"], check=True)
-    summarize(output / "coverage.xml", repo, output, result.returncode)
-    print(f"CTest/collector exit code: {result.returncode}; diagnostics: {output}")
-    return result.returncode
+    summarize(output / "coverage.xml", repo, output, exit_code)
+    print(f"CTest/collector exit code: {exit_code}; diagnostics: {output}")
+    return exit_code
 
 
 if __name__ == "__main__":

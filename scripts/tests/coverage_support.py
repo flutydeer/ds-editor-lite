@@ -4,6 +4,7 @@ import csv
 import json
 from pathlib import Path
 import subprocess
+import sys
 
 
 def production_path(filename, repo):
@@ -41,6 +42,18 @@ def test_executables(ctest, build, repo):
     if not executables:
         raise RuntimeError("No built test executables were found in the CTest configuration")
     return sorted(executables)
+
+
+def run_logged(command, repo, log_path, environment=None):
+    with log_path.open("wb") as log, subprocess.Popen(
+            command, cwd=repo, env=environment, stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT) as process:
+        for chunk in iter(lambda: process.stdout.read1(65536), b""):
+            log.write(chunk)
+            log.flush()
+            sys.stdout.buffer.write(chunk)
+            sys.stdout.buffer.flush()
+        return process.wait()
 
 
 def write_line_summary(files, output, exit_code, branch_note):

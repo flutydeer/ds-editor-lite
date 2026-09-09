@@ -8,7 +8,7 @@ import subprocess
 import sys
 import time
 
-from coverage_support import production_path, test_executables, write_line_summary
+from coverage_support import production_path, run_logged, test_executables, write_line_summary
 
 
 def find_tool(name):
@@ -63,9 +63,7 @@ def main():
     command = [args.ctest, "--test-dir", str(build), "--parallel", "2", "--output-on-failure",
                "--no-tests=error", "--output-junit", str(output / "junit.xml"), *extra]
     started_ns = time.time_ns()
-    with (output / "tests.log").open("wb") as log:
-        result = subprocess.run(command, cwd=repo, env=environment,
-                                stdout=log, stderr=subprocess.STDOUT)
+    exit_code = run_logged(command, repo, output / "tests.log", environment)
     last_test = build / "Testing/Temporary/LastTest.log"
     if last_test.is_file() and last_test.stat().st_mtime_ns >= started_ns:
         shutil.copyfile(last_test, output / "LastTest.log")
@@ -87,10 +85,10 @@ def main():
         subprocess.run([llvm_cov, "report", *objects, *sources], stdout=stream, check=True)
     subprocess.run([llvm_cov, "show", *objects, *sources, "-format=html",
                     "-output-dir=" + str(output / "html")], check=True)
-    write_line_summary(files, output, result.returncode,
+    write_line_summary(files, output, exit_code,
                        "LLVM branch coverage is recorded in llvm-summary.txt and coverage.lcov.")
-    print(f"CTest exit code: {result.returncode}; diagnostics: {output}")
-    return result.returncode
+    print(f"CTest exit code: {exit_code}; diagnostics: {output}")
+    return exit_code
 
 
 if __name__ == "__main__":
