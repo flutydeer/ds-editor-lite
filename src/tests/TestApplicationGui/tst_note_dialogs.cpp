@@ -79,7 +79,7 @@ void ApplicationGuiTests::phonemeDialogValidatesCommitsAndResetsThroughTheNoteMe
     const auto inserted = runtime.notes().insertNotes(
         commandContext(), Automation::ClipId(singingClip->id()), {draft});
     QVERIFY(inserted);
-    QCOMPARE(singingClip->notes().size(), 1);
+    QCOMPARE(singingClip->notes().count(), 1);
     auto *note = *singingClip->notes().begin();
     appStatus->selectedNotes = QList<int>{note->id()};
     historyManager->reset();

@@ -80,8 +80,8 @@ void NativeDesktopTests::rhiNoteDrawingCommitsAndUndoUpdatesInteraction() {
     trackDraft.clips.append(clipDraft);
     QVERIFY(runtime.project().insertTrack(command(), 0, trackDraft));
     auto *track = context.m_appModel->tracks().first();
-    QCOMPARE(track->clips().size(), 1);
-    auto *clip = dynamic_cast<SingingClip *>(track->clips().first());
+    QCOMPARE(track->clips().count(), 1);
+    auto *clip = dynamic_cast<SingingClip *>(*track->clips().begin());
     QVERIFY(clip);
     clipController->setClip(clip);
     appStatus->activeClipId = clip->id();
@@ -134,7 +134,7 @@ void NativeDesktopTests::rhiNoteDrawingCommitsAndUndoUpdatesInteraction() {
     QCOMPARE(preview.rStart, 480);
     QCOMPARE(preview.length, 480);
     QCOMPARE(preview.keyIndex, 60);
-    QVERIFY(clip->notes().isEmpty());
+    QCOMPARE(clip->notes().count(), 0);
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(editSessionManager->hasActiveTransaction());
@@ -143,7 +143,7 @@ void NativeDesktopTests::rhiNoteDrawingCommitsAndUndoUpdatesInteraction() {
 
     const auto beforeCommitFrame = submitted.size();
     QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
-    QCOMPARE(clip->notes().size(), 1);
+    QCOMPARE(clip->notes().count(), 1);
     const auto *note = *clip->notes().begin();
     const auto noteId = note->id();
     QCOMPARE(note->localStart(), 480);
@@ -166,7 +166,7 @@ void NativeDesktopTests::rhiNoteDrawingCommitsAndUndoUpdatesInteraction() {
 
     const auto beforeUndoFrame = submitted.size();
     QVERIFY(runtime.history().undo(command()));
-    QVERIFY(clip->notes().isEmpty());
+    QCOMPARE(clip->notes().count(), 0);
     QVERIFY(!historyManager->canUndo());
     QTRY_VERIFY(submitted.size() > beforeUndoFrame || !backendError.isEmpty());
     QVERIFY2(backendError.isEmpty(), qPrintable(backendError));

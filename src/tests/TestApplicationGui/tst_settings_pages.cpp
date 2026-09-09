@@ -60,8 +60,10 @@ namespace {
     void editAccessRoot(PathEditor *paths, const QString &path) {
         auto *list = paths->listWidget();
         QVERIFY(list->count() > 0);
-        QTest::mouseDClick(list->viewport(), Qt::LeftButton, Qt::NoModifier,
-                           list->visualItemRect(list->item(0)).center());
+        const auto position = list->visualItemRect(list->item(0)).center();
+        QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, position);
+        QTest::mouseDClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, position);
+        QTest::mouseRelease(list->viewport(), Qt::LeftButton, Qt::NoModifier, position);
         QTRY_VERIFY(list->findChild<QLineEdit *>());
         auto *editor = list->findChild<QLineEdit *>();
         replaceText(editor, path);

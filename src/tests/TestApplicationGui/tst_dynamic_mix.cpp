@@ -13,6 +13,7 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <QApplication>
+#include <QAbstractItemView>
 #include <QMouseEvent>
 #include <QScopeGuard>
 #include <QSignalSpy>
@@ -74,8 +75,11 @@ void ApplicationGuiTests::dynamicSpeakerMixGesturesPreserveIdentityAndUndo() {
     QSignalSpy commits(mix, &SpeakerMixEditorView::speakerMixEdited);
 
     const auto point = [&](const int tick, const double heightRatio) {
+        const auto visible = graphics->visibleRect();
+        const auto ratio =
+            (tick - graphics->startTick()) / (graphics->endTick() - graphics->startTick());
         const auto y = mix->mapToScene(QPointF(0, mix->rect().height() * heightRatio)).y();
-        return graphics->mapFromScene(QPointF(graphics->tickToSceneX(tick), y));
+        return graphics->mapFromScene(QPointF(visible.left() + ratio * visible.width(), y));
     };
     const auto dragTo = [&](const QPoint &position) {
         QMouseEvent move(QEvent::MouseMove, QPointF(position),
@@ -85,7 +89,9 @@ void ApplicationGuiTests::dynamicSpeakerMixGesturesPreserveIdentityAndUndo() {
     };
     const auto addPoint = point(480, 0.5);
     QVERIFY(graphics->viewport()->rect().contains(addPoint));
+    QTest::mouseClick(graphics->viewport(), Qt::LeftButton, Qt::NoModifier, addPoint);
     QTest::mouseDClick(graphics->viewport(), Qt::LeftButton, Qt::NoModifier, addPoint);
+    QTest::mouseRelease(graphics->viewport(), Qt::LeftButton, Qt::NoModifier, addPoint);
     QCOMPARE(commits.size(), 1);
     const auto afterAdd = singingClip->speakerMixData();
     QCOMPARE(afterAdd.dynamicKeyframes.size(), 2);

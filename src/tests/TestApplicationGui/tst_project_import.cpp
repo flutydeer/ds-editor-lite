@@ -213,10 +213,10 @@ void ApplicationGuiTests::interactiveProjectImportRespectsSelectionAndCancellati
         QCOMPARE(appModel->tracks().at(index), originalTracks.at(index));
     const auto *track = appModel->tracks().last();
     QCOMPARE(track->name(), QStringLiteral("Imported lead"));
-    QCOMPARE(track->clips().size(), 1);
-    const auto *clip = dynamic_cast<const SingingClip *>(track->clips().first());
+    QCOMPARE(track->clips().count(), 1);
+    const auto *clip = dynamic_cast<const SingingClip *>(*track->clips().begin());
     QVERIFY(clip);
-    QCOMPARE(clip->notes().size(), 1);
+    QCOMPARE(clip->notes().count(), 1);
     const auto *note = *clip->notes().begin();
     QCOMPARE(note->lyric(), QStringLiteral("你好"));
     QCOMPARE(note->globalStart(), 240);

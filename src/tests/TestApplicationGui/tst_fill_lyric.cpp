@@ -130,8 +130,10 @@ namespace {
             QTest::keyClick(editor, Qt::Key_Return);
             edited = true;
         });
+        QTest::mouseClick(preview->viewport(), Qt::LeftButton, Qt::NoModifier, position);
         editPreview.start(0);
         QTest::mouseDClick(preview->viewport(), Qt::LeftButton, Qt::NoModifier, position);
+        QTest::mouseRelease(preview->viewport(), Qt::LeftButton, Qt::NoModifier, position);
         editPreview.stop();
         QVERIFY(edited);
         QCOMPARE(second->lyric(), QStringLiteral("-"));
@@ -211,7 +213,7 @@ void ApplicationGuiTests::createLyricSelection() {
     const auto inserted =
         runtime.notes().insertNotes(commandContext(), Automation::ClipId(singingClip->id()), notes);
     QVERIFY(inserted);
-    QCOMPARE(singingClip->notes().size(), 3);
+    QCOMPARE(singingClip->notes().count(), 3);
     QList<int> selected;
     for (const auto *note : singingClip->notes()) {
         if (selected.size() < 2)
@@ -273,7 +275,7 @@ void ApplicationGuiTests::fillLyricPreviewCommitsOrCancels() {
     QVERIFY(interacted);
     if (QTest::currentTestFailed())
         return;
-    QCOMPARE(singingClip->notes().size(), 3);
+    QCOMPARE(singingClip->notes().count(), 3);
     for (const auto *note : singingClip->notes()) {
         const auto expected = accept && note->id() == selected.at(1) ? QStringLiteral("-")
                                                                      : TestSupport::fixtureLyric();
