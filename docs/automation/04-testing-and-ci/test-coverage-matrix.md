@@ -39,6 +39,7 @@
 | 关闭自动推理后的手动完整推理 | workflow | 手动请求未携带声学许可，停止播放时停在 Acoustic.Awaiting | 为目标流水线保留本次请求许可，声学缓存探测与 variance 更新共用准入判断，Ready 或取消时清除；验证后台等待、手动放行及完成后恢复原策略 | ApplicationWorkflows、ModelResources | 受控状态验证通用；完整模型输出需声库 |
 | 权限、路径、分页、准入 | protocol | 已有真实边界验证，分页游标独立目标与 Wire 职责重叠 | 保留实际拒绝和副作用断言；准入/文件授权归入 AutomationRuntime，Cursor/Wire 归入 AutomationProtocol | AutomationRuntime、AutomationProtocol | 通用/平台 |
 | 公共接口及协议转换 | protocol | 数量和 Schema 镜像与行为测试混合 | 删除 Contract 镜像程序；真实无效输入归入 Registry 并检查无副作用；共享场景比较四种调用路径 | AutomationProtocol | 通用 |
+| GUI 编辑模式设置与查询 | protocol | 参数 Shape/Scale 和音高调制未接入公开转换，实际状态被回报成默认模式，设置请求被拒绝 | 补齐输入/输出模式与转换；既有接口场景验证到达服务的枚举、状态读回及工程版本不变 | AutomationProtocol::routing(guiBindings) | 通用 |
 | Connector 生命周期与 stdio | protocol/process | 长入口及手工子集分派；可执行后缀和阻塞接收端依赖 Windows | 拆可定位用例，保留真实流行为；CMake 提供可执行路径，测试自身提供跨平台接收端；大帧验证不依赖工具总数 | Connector | 通用 |
 | Connector 分页缓存与离线调用 | protocol | 缓存与本地调用混入无 SLA 的循环次数和速度门槛 | 检查查询不额外请求上游、快照变化引发刷新，以及删除/保留工具和离线状态的实际结果；保留协议自身截止时间 | Connector | 通用 |
 | Editor 启动、服务、单实例和退出 | process | Windows 数据根假设；Headless 混入 GUI 场景；Linux 替代进程未就绪且存活/所有权/清理实现缺失 | 跨平台沙箱，共用进程设施，分运行条件；重启输出改为沙箱文件，补跨平台替代进程管理 | ProcessIntegration、Bootstrap | 通用/GUI/平台 |

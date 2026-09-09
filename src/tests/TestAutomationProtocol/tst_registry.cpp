@@ -248,7 +248,8 @@ namespace {
 
     void verifyAdvancedGuiBindings(Automation::PublicAutomationRegistry &registry,
                                    Automation::CoreRuntime &runtime,
-                                   const PublicEditingFixture &fixture) {
+                                   const PublicEditingFixture &fixture,
+                                   const EditorViewState &viewState) {
         const auto before = runtime.documentVersion();
         const auto &windowId = runtime.windowId();
         expect(windowId.has_value(), QStringLiteral("GUI binding fixture must have a window"));
@@ -398,12 +399,28 @@ namespace {
                      {QStringLiteral("note_ids"), QJsonArray{fixture.noteIds.first().value()}}
         }),
             QStringLiteral("clip_editor.piano.reveal_notes"));
-        invokeSchemaValid(registry, QStringLiteral("clip_editor.piano.set_edit_mode"),
-                          with(document,
-                               {
-                                   {QStringLiteral("mode"), QStringLiteral("draw_note")}
-        }),
-                          QStringLiteral("clip_editor.piano.set_edit_mode"));
+        for (const auto &[name, mode] : {
+                 std::pair{QStringLiteral("draw_note"),      EditorViewGlobal::DrawNote     },
+                 std::pair{QStringLiteral("modulate_pitch"), EditorViewGlobal::ModulatePitch}
+        }) {
+            const auto changed =
+                invokeSchemaValid(registry, QStringLiteral("clip_editor.piano.set_edit_mode"),
+                                  with(document,
+                                       {
+                                           {QStringLiteral("mode"), name}
+            }),
+                                  QStringLiteral("piano edit mode: %1").arg(name));
+            QVERIFY(changed);
+            QCOMPARE(viewState.pianoRoll.editMode, mode);
+            const auto state = invokeSchemaValid(registry, QStringLiteral("clip_editor.get_state"),
+                                                 document, QStringLiteral("piano mode readback"));
+            QVERIFY(state);
+            QCOMPARE(state->value(QStringLiteral("piano"))
+                         .toObject()
+                         .value(QStringLiteral("edit_mode"))
+                         .toString(),
+                     name);
+        }
         invokeSchemaValid(
             registry, QStringLiteral("clip_editor.piano.set_quantize"),
             with(document,
@@ -480,12 +497,31 @@ namespace {
                    "parameter GUI schemas must reject unsupported foreground/background values"));
         invokeSchemaValid(registry, QStringLiteral("clip_editor.parameters.swap"), document,
                           QStringLiteral("clip_editor.parameters.swap"));
-        invokeSchemaValid(registry, QStringLiteral("clip_editor.parameters.set_tool"),
-                          with(document,
-                               {
-                                   {QStringLiteral("tool"), QStringLiteral("anchor")}
-        }),
-                          QStringLiteral("clip_editor.parameters.set_tool"));
+        using ParameterMode = EditorViewGlobal::ParameterEditMode;
+        for (const auto &[name, mode] : {
+                 std::pair{QStringLiteral("shape"),  ParameterMode::Shape },
+                 std::pair{QStringLiteral("scale"),  ParameterMode::Scale },
+                 std::pair{QStringLiteral("anchor"), ParameterMode::Anchor}
+        }) {
+            const auto changed =
+                invokeSchemaValid(registry, QStringLiteral("clip_editor.parameters.set_tool"),
+                                  with(document,
+                                       {
+                                           {QStringLiteral("tool"), name}
+            }),
+                                  QStringLiteral("parameter edit tool: %1").arg(name));
+            QVERIFY(changed);
+            QCOMPARE(viewState.parameters.editMode, mode);
+            const auto state =
+                invokeSchemaValid(registry, QStringLiteral("clip_editor.get_state"), document,
+                                  QStringLiteral("parameter tool readback"));
+            QVERIFY(state);
+            QCOMPARE(state->value(QStringLiteral("parameters"))
+                         .toObject()
+                         .value(QStringLiteral("tool"))
+                         .toString(),
+                     name);
+        }
         invokeSchemaValid(registry, QStringLiteral("clip_editor.parameters.set_value_viewport"),
                           with(document,
                                {
@@ -2544,7 +2580,7 @@ void AutomationProtocolTests::routing() {
         return;
     }
     if (scenario == QStringLiteral("guiBindings")) {
-        verifyAdvancedGuiBindings(registry, runtime, *publicEditingFixture);
+        verifyAdvancedGuiBindings(registry, runtime, *publicEditingFixture, *editorViewState);
         return;
     }
     Automation::CurveDraftDto rangedAnchor;
