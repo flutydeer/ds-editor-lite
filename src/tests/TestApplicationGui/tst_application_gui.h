@@ -90,6 +90,12 @@ private slots:
     void pitchModulationUsesTheInferredNoteBaselineAndCanBeUndone();
     void pianoContextMenuPastePreservesRelativeNotesAndManualWords();
     void pianoNoteDragContinuesDuringEdgeScrollingAndStopsOnFinish();
+    void lyricGridSelectionDeletesOnlyChosenWords_data();
+    void lyricGridSelectionDeletesOnlyChosenWords();
+    void lyricGridMovesSelectedLinesTogether_data();
+    void lyricGridMovesSelectedLinesTogether();
+    void lyricGridSplitKeepsTheNewLineEditable();
+    void lyricGridMenusInsertAndClearWords();
     void cleanup();
     void cleanupTestCase();
 

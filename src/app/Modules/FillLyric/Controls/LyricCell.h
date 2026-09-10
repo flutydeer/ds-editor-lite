@@ -83,6 +83,8 @@ namespace FillLyric {
                    QWidget *widget) override;
 
     private:
+        friend class CellList;
+
         void updateLyricRect();
 
         qreal lyricWidth() const;
@@ -98,7 +100,6 @@ namespace FillLyric {
 
         QRect m_lRect;
         QRect m_sRect;
-        CellQss *m_qss;
         QList<LyricCell *> *m_cells;
 
         LangNote *m_note;
