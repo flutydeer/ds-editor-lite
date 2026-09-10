@@ -143,6 +143,13 @@ jobs:
         run: |
           powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Build -Preset coverage -QtDir "$env:QT_ROOT_DIR" 2>&1 | Tee-Object build/test-results/build.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Windows GUI and workflow tests
+        if: runner.os == 'Windows'
+        run: |
+          mkdir -p build/test-results/windows-checks
+          ctest --preset ci-coverage -R '^(TestApplicationGui|TestApplicationWorkflows)$' \
+            --output-junit "$PWD/build/test-results/windows-checks/junit.xml" \
+            2>&1 | tee build/test-results/windows-checks/tests.log
       - name: Linux tests
         if: runner.os == 'Linux'
         run: |
