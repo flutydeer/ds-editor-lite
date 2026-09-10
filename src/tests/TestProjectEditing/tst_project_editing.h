@@ -7,6 +7,9 @@ class ProjectEditingTests final : public QObject {
 
 private slots:
     void batchAnchorsCommitAndUndoTogether();
+    void anchorCreationRetriesKeepTheCommittedIdentity();
+    void rejectedAnchorBatchPreservesEveryCurve_data();
+    void rejectedAnchorBatchPreservesEveryCurve();
     void adjacentAnchorCurvesMergeWithoutLosingNodes();
     void dynamicSpeakerKeyframesEditAndUndo();
     void batchTrackOrderAndClipTrimming();

@@ -401,6 +401,143 @@ void ProjectEditingTests::batchAnchorsCommitAndUndoTogether() {
     QCOMPARE(snapshot().nodes.size(), 4);
 }
 
+void ProjectEditingTests::anchorCreationRetriesKeepTheCommittedIdentity() {
+    TestRuntime fixture;
+    auto &runtime = fixture.runtime();
+    auto &parameters = runtime.parameters();
+    const auto clip = insertedSingingClip(runtime, insertedTrack(runtime, "Curves"), "Pitch");
+    const QList<Automation::AnchorInsertDto> anchors{
+        {0,   6000, AnchorNode::Linear },
+        {480, 6400, AnchorNode::Hermite}
+    };
+    fixture.history()->reset();
+    auto request = commandContext(runtime, true);
+    request.idempotencyKey = QStringLiteral("create-phrase-pitch");
+    const auto preview = parameters.createAnchorCurve(request, clip, ParamInfo::Pitch,
+                                                      Param::Edited, "phrase", anchors);
+    QVERIFY(preview && preview.get().validatedOnly && preview.get().changed);
+    QVERIFY(preview.get().createdObjects.isEmpty());
+    QCOMPARE(runtime.documentVersion(), request.expected);
+    request.validateOnly = false;
+    const auto created = parameters.createAnchorCurve(request, clip, ParamInfo::Pitch,
+                                                      Param::Edited, "phrase", anchors);
+    QVERIFY(created && created.get().changed);
+    QCOMPARE(created.get().createdObjects.size(), 1);
+    QCOMPARE(created.get().createdObjects.first().clientRef, QStringLiteral("phrase"));
+    const auto snapshot = parameters.getParameter(runtime.documentVersion().documentId, clip,
+                                                  ParamInfo::Pitch, Param::Edited);
+    QVERIFY(snapshot);
+    QCOMPARE(snapshot.get().curves.size(), 1);
+    const auto identity = snapshot.get().curves.first().id;
+    QCOMPARE(created.get().createdObjects.first().object.value, identity.value());
+    const auto committed = runtime.documentVersion();
+    const auto *undo = fixture.history()->nextUndoEntry();
+    const auto retry = parameters.createAnchorCurve(request, clip, ParamInfo::Pitch, Param::Edited,
+                                                    "phrase", anchors);
+    QVERIFY(retry);
+    QCOMPARE(retry.get().createdObjects.first().object,
+             created.get().createdObjects.first().object);
+    QCOMPARE(runtime.documentVersion(), committed);
+    QCOMPARE(fixture.history()->nextUndoEntry(), undo);
+    auto different = anchors;
+    different.last().value = 6500;
+    const auto changedPayload = parameters.createAnchorCurve(request, clip, ParamInfo::Pitch,
+                                                             Param::Edited, "phrase", different);
+    QVERIFY(isError(changedPayload, AutomationErrorCode::IdempotencyConflict));
+    const auto changedDestination = parameters.createAnchorCurve(
+        request, clip, ParamInfo::Pitch, Param::Envelope, "phrase", anchors);
+    QVERIFY(isError(changedDestination, AutomationErrorCode::IdempotencyConflict));
+    QCOMPARE(runtime.documentVersion(), committed);
+    QCOMPARE(fixture.history()->nextUndoEntry(), undo);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    const auto empty = parameters.getParameter(runtime.documentVersion().documentId, clip,
+                                               ParamInfo::Pitch, Param::Edited);
+    QVERIFY(empty && empty.get().curves.isEmpty());
+    QVERIFY(!fixture.history()->canUndo());
+    QVERIFY(runtime.history().redo(commandContext(runtime)));
+    QCOMPARE(parameters
+                 .getParameter(runtime.documentVersion().documentId, clip, ParamInfo::Pitch,
+                               Param::Edited)
+                 .get()
+                 .curves.first()
+                 .id,
+             identity);
+}
+
+void ProjectEditingTests::rejectedAnchorBatchPreservesEveryCurve_data() {
+    QTest::addColumn<QString>("operation");
+    QTest::newRow("moving-across-another-curve") << QStringLiteral("move");
+    QTest::newRow("inserting-across-another-curve") << QStringLiteral("insert");
+    QTest::newRow("removing-a-stale-batch-target") << QStringLiteral("remove");
+    QTest::newRow("interpolating-a-stale-batch-target") << QStringLiteral("interpolation");
+}
+
+void ProjectEditingTests::rejectedAnchorBatchPreservesEveryCurve() {
+    QFETCH(QString, operation);
+    TestRuntime fixture;
+    auto &runtime = fixture.runtime();
+    auto &parameters = runtime.parameters();
+    const auto clip = insertedSingingClip(runtime, insertedTrack(runtime, "Curves"), "Pitch");
+    QVERIFY(parameters.createAnchorCurve(commandContext(runtime), clip, ParamInfo::Pitch,
+                                         Param::Edited, "left",
+                                         {
+                                             {0,   6000, AnchorNode::Linear},
+                                             {240, 6100, AnchorNode::Linear},
+                                             {480, 6200, AnchorNode::Linear}
+    }));
+    QVERIFY(parameters.createAnchorCurve(
+        commandContext(runtime), clip, ParamInfo::Pitch, Param::Edited, "right",
+        {
+            {720, 6300, AnchorNode::Linear},
+            {960, 6400, AnchorNode::Linear}
+    }));
+    const auto curves = parameters.getParameter(runtime.documentVersion().documentId, clip,
+                                                ParamInfo::Pitch, Param::Edited);
+    QVERIFY(curves && curves.get().curves.size() == 2);
+    const auto first = curves.get().curves.first();
+    const auto stale = first.nodes.at(1).id;
+    QVERIFY(parameters.removeAnchor(commandContext(runtime), clip, ParamInfo::Pitch, Param::Edited,
+                                    stale));
+    fixture.history()->reset();
+    const auto before = runtime.documentVersion();
+    const auto model = fixture.model().serialize();
+    const auto rejected = [&] {
+        if (operation == QStringLiteral("move"))
+            return parameters.moveAnchors(
+                commandContext(runtime), clip, ParamInfo::Pitch, Param::Edited,
+                {
+                    {first.nodes.first().id, 120, 6100},
+                    {first.nodes.last().id,  840, 6500}
+            });
+        if (operation == QStringLiteral("insert"))
+            return parameters.insertAnchors(
+                commandContext(runtime), clip, ParamInfo::Pitch, Param::Edited, first.id,
+                {
+                    {240, 6100, AnchorNode::Hermite},
+                    {840, 6500, AnchorNode::Hermite}
+            });
+        if (operation == QStringLiteral("remove"))
+            return parameters.removeAnchors(commandContext(runtime), clip, ParamInfo::Pitch,
+                                            Param::Edited, {first.nodes.first().id, stale});
+        return parameters.setAnchorInterpolations(commandContext(runtime), clip, ParamInfo::Pitch,
+                                                  Param::Edited, {first.nodes.first().id, stale},
+                                                  AnchorNode::Hermite);
+    }();
+    QVERIFY(!rejected);
+    QCOMPARE(rejected.getError().code,
+             operation == QStringLiteral("move") || operation == QStringLiteral("insert")
+                 ? AutomationErrorCode::InvalidArgument
+                 : AutomationErrorCode::NotFound);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(fixture.model().serialize(), model);
+    QVERIFY(!fixture.history()->canUndo());
+    const auto after =
+        parameters.getParameter(before.documentId, clip, ParamInfo::Pitch, Param::Edited);
+    QVERIFY(after);
+    QCOMPARE(after.get().curves.first().nodes.first().id, first.nodes.first().id);
+    QCOMPARE(after.get().curves.last().id, curves.get().curves.last().id);
+}
+
 void ProjectEditingTests::adjacentAnchorCurvesMergeWithoutLosingNodes() {
     TestRuntime testRuntime;
     auto &runtime = testRuntime.runtime();
