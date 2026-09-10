@@ -10,7 +10,15 @@
       ]
     },
     "qbreakpad",
-    "rtmidi",
+    {
+      "name": "rtmidi",
+      "features": [
+        {
+          "name": "alsa",
+          "platform": "linux"
+        }
+      ]
+    },
     "interval-tree",
     "cpp-pinyin",
     "cpp-kana",

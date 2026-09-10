@@ -83,7 +83,7 @@ Qt Test 的行为/数据行与 CTest 程序注册分别报告，数量不作为�
 
 ### 4.1. 平台和资源边界
 
-Linux x64、Windows x64 和 macOS arm64 CI 分别完整构建 Editor、Connector 与测试，执行通用、协议、进程、GUI 及内置资源集合，并采集对应平台覆盖率。普通控件使用 offscreen；原生桌面集合在 Linux 使用 Xvfb，在 Windows/macOS 使用原生桌面。Windows 本地使用项目标准开发环境与构建/测试 preset，通用测试不以 CI 身份作为启用条件。
+Linux x64、Windows x64 和 macOS arm64 CI 分别完整构建 Editor、Connector 与测试，执行通用、协议、进程、GUI 及内置资源集合，并采集对应平台覆盖率。普通控件使用 offscreen；原生桌面集合在 Linux 使用 Xvfb，在 Windows/macOS 使用原生桌面。Windows 本地使用项目标准开发环境与构建/测试 preset，通用测试不以 CI 身份作为启用条件。Linux 的 RtMidi 在 manifest 中显式请求 ALSA；三平台依赖解析确认仅 Linux 引入该特性和依赖。
 
 默认资源为仓库内置 `voicebank-fixture.zip`，由 CMake 解压。包采用自有身份、中英文小词典、两条人工声线和微型确定性 ONNX 图，经生产 G2P/S2P、Duration/Pitch/Variance/Acoustic/Vocoder 完成实际推理。中文用例使用 `啦` 验证 UTF-8 转换，英语用例使用 `la`；检查生成发音与音素、非静音 WAV、缓存复用，以及声线和 BPM 变化后的重算。素材不包含真实声库权重，运行测试不需要训练框架。
 
