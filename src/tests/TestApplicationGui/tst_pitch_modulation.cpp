@@ -38,15 +38,16 @@ void ApplicationGuiTests::pitchModulationUsesTheInferredNoteBaselineAndCanBeUndo
     QVERIFY(runtime.parameters().replaceParameter(commandContext(),
                                                   Automation::ClipId(singingClip->id()),
                                                   ParamInfo::Pitch, Param::Edited, {draft}));
+    const auto inferenceSettled = [&] {
+        return std::all_of(singingClip->pieces().cbegin(), singingClip->pieces().cend(),
+                           [](const InferPiece *piece) {
+                               return piece->state == QStringLiteral("Acoustic.Awaiting") ||
+                                      piece->state == QStringLiteral("Ready");
+                           }) &&
+               taskManager->tasks().isEmpty();
+    };
     QCoreApplication::processEvents();
-    QTRY_VERIFY_WITH_TIMEOUT(
-        std::all_of(singingClip->pieces().cbegin(), singingClip->pieces().cend(),
-                    [](const InferPiece *piece) {
-                        return piece->state == QStringLiteral("Acoustic.Awaiting") ||
-                               piece->state == QStringLiteral("Ready");
-                    }) &&
-            taskManager->tasks().isEmpty(),
-        15000);
+    QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(), 15000);
 
     auto *parameter = singingClip->params.getParamByName(ParamInfo::Pitch);
     QVERIFY(parameter);
@@ -109,6 +110,11 @@ void ApplicationGuiTests::pitchModulationUsesTheInferredNoteBaselineAndCanBeUndo
     };
     QSignalSpy committed(editor, &CommonParamEditorView::editCommitted);
     QSignalSpy discarded(editor, &CommonParamEditorView::editDiscarded);
+    QObject commitObserver;
+    auto userCommitVersion = before;
+    // The production connection commits before editCommitted releases pending inference results.
+    connect(editor, &CommonParamEditorView::editCompleted, &commitObserver,
+            [&] { userCommitVersion = runtime.documentVersion(); });
     selectRange();
     if (QTest::currentTestFailed())
         return;
@@ -140,11 +146,13 @@ void ApplicationGuiTests::pitchModulationUsesTheInferredNoteBaselineAndCanBeUndo
     moveWithLeftButton(release);
     QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, release);
     QCOMPARE(committed.count(), 1);
+    QCOMPARE(userCommitVersion.documentId, before.documentId);
+    QCOMPARE(userCommitVersion.revision, before.revision + 1);
     QVERIFY(!editSessionManager->hasActiveTransaction());
+    QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(), 15000);
     QCOMPARE(valueAt(parameter->curves(Param::Edited), 720), 6000);
     QCOMPARE(valueAt(parameter->curves(Param::Edited), 240), 6200);
     QCOMPARE(valueAt(parameter->curves(Param::Edited), 1195), 6200);
-    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
     QVERIFY(historyManager->canUndo());
 
     QVERIFY(runtime.history().undo(commandContext()));

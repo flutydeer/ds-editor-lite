@@ -110,7 +110,9 @@ void ApplicationGuiTests::trackContextMenuPastePreviewCancelsAndMatchesCommitted
         });
         const auto globalPosition = canvas->viewport()->mapToGlobal(position);
         QCursor::setPos(globalPosition);
-        QCoreApplication::processEvents();
+        // Cursor warping can be a no-op after a synthetic popup move; also update Qt's input
+        // position.
+        QTest::mouseMove(editor.windowHandle(), editor.mapFromGlobal(globalPosition));
         QContextMenuEvent event(QContextMenuEvent::Mouse, position, globalPosition);
         action.start(0);
         QApplication::sendEvent(canvas->viewport(), &event);
