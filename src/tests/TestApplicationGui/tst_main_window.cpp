@@ -6,6 +6,7 @@
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/TrackController.h"
 #include "Controller/ClipController.h"
+#include "Controller/UndoRedoController.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Import/DocumentImportController.h"
@@ -32,6 +33,7 @@
 #include <lite/GUI/Controls/SwitchButton.h>
 #include <lite/GUI/Controls/Toast.h>
 #include <lite/History/HistoryManager.h>
+#include <lite/History/ActionSequence.h>
 #include <lite/ProjectConverters/DspxProjectConverter.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
@@ -375,6 +377,100 @@ void ApplicationGuiTests::mainMenuOctaveEditsFollowThePianoSelection() {
     QCOMPARE(notes.first()->keyIndex(), first.keyIndex);
     QCOMPARE(notes.last()->keyIndex(), second.keyIndex);
     QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::undoShortcutRevealsTheTrackEditBeforeChangingIt_data() {
+    QTest::addColumn<bool>("hiddenPanel");
+    QTest::newRow("offscreen-clip") << false;
+    QTest::newRow("hidden-track-panel") << true;
+}
+
+void ApplicationGuiTests::undoShortcutRevealsTheTrackEditBeforeChangingIt() {
+    QFETCH(bool, hiddenPanel);
+    MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    view->hide();
+    auto &window = *host.window;
+    window.activateWindow();
+    QTRY_VERIFY(window.isActiveWindow());
+    auto *tracks = window.findChild<TrackEditorView *>();
+    auto *canvas = window.findChild<TracksGraphicsView *>();
+    auto *editor = window.findChild<ClipEditorView *>();
+    QVERIFY(tracks && canvas && editor);
+    canvas->setAnimationEnabled(false);
+    editor->onActiveClipChanged(singingClip->id());
+    QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));
+    QTRY_VERIFY(editor->hasActiveSingingClip() && editor->isVisible());
+    QVERIFY(window.setTrackPanelScale(1.0, 1.0));
+    QVERIFY(window.centerTrackPanelAt(1920, 0));
+    QVERIFY(window.focusEditorRegion(EditorViewGlobal::Region::PianoRoll));
+    historyManager->reset();
+    auto &runtime = *context->m_coreRuntime;
+    const auto clipId = Automation::ClipId(singingClip->id());
+    QVERIFY(runtime.project().moveClips(commandContext(), {
+                                                              {clipId, trackId, 24000}
+    }));
+    const auto *entry = historyManager->nextUndoEntry();
+    QVERIFY(entry && entry->focusTransition());
+    const auto focus = *entry->focusTransition();
+    QVERIFY(window.centerTrackPanelAt(1920, 0));
+    if (hiddenPanel)
+        QVERIFY(window.setEditorPanelVisibility(false, true));
+    QTRY_COMPARE(window.focusVisibility(focus.after),
+                 hiddenPanel ? HistoryFocusVisibility::ContextSwitchRequired
+                             : HistoryFocusVisibility::ScrollRequired);
+    const auto beforeUndo = runtime.documentVersion();
+    QVERIFY(runtime.windowId());
+    auto *menuBar = window.findChild<MainMenuView *>();
+    QVERIFY(menuBar);
+    QAction *undoAction = nullptr;
+    for (auto *menuAction : menuBar->actions()) {
+        if (auto *menu = menuAction->menu()) {
+            for (auto *action : menu->actions()) {
+                if (action->shortcut() == QKeySequence(QStringLiteral("Ctrl+Z")))
+                    undoAction = action;
+            }
+        }
+    }
+    QVERIFY(undoAction && undoAction->isEnabled());
+    QSignalSpy undoTriggered(undoAction, &QAction::triggered);
+    QSignalSpy navigation(undoRedoController, &UndoRedoController::focusNavigationRequested);
+    auto *input = QApplication::focusWidget();
+    QVERIFY(input);
+    QTest::keySequence(input, QKeySequence(QStringLiteral("Ctrl+Z")));
+    QCOMPARE(undoTriggered.size(), 1);
+    QCOMPARE(singingClip->start(), 24000);
+    QTRY_COMPARE(navigation.size(), 1);
+    QVERIFY(!appStatus->trackPanelCollapsed);
+    QCOMPARE(singingClip->start(), 24000);
+    QCOMPARE(runtime.documentVersion(), beforeUndo);
+    QCOMPARE(historyManager->nextUndoEntry(), entry);
+    QTRY_COMPARE(window.focusVisibility(focus.after), HistoryFocusVisibility::Visible);
+    auto *item = tracks->findClipItemById(singingClip->id());
+    QVERIFY(item);
+    QVERIFY(canvas->logicalVisibleRect().contains(item->mapRectToScene(item->rect())));
+    input = QApplication::focusWidget();
+    QVERIFY(input && (input == tracks || tracks->isAncestorOf(input)));
+    QTest::keySequence(input, QKeySequence(QStringLiteral("Ctrl+Z")));
+    QTRY_COMPARE(singingClip->start(), 0);
+    QCOMPARE(navigation.size(), 1);
+    QCOMPARE(runtime.documentVersion().revision, beforeUndo.revision + 1);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(historyManager->canRedo());
+    QTRY_COMPARE(window.focusVisibility(focus.before), HistoryFocusVisibility::Visible);
+    input = QApplication::focusWidget();
+    QVERIFY(input);
+    QTest::keySequence(input, QKeySequence(QStringLiteral("Ctrl+Y")));
+    QTRY_COMPARE(singingClip->start(), 24000);
+    QCOMPARE(navigation.size(), 1);
+    QTRY_COMPARE(window.focusVisibility(focus.after), HistoryFocusVisibility::Visible);
+    QVERIFY(historyManager->canUndo());
+    QVERIFY(!historyManager->canRedo());
 }
 
 void ApplicationGuiTests::panelButtonsAndClipDoubleClickRestoreTheEditorView() {

@@ -90,6 +90,8 @@ private slots:
     void projectDropCanCancelThenOpenTheDocument();
     void mixedFileDropRejectsAtomicallyAndAllowsTheNextImport();
     void detachedBottomPanelReattachesWithItsEditingContext();
+    void undoShortcutRevealsTheTrackEditBeforeChangingIt_data();
+    void undoShortcutRevealsTheTrackEditBeforeChangingIt();
     void embeddedSettingsSuspendAndRestoreBackgroundInteraction();
     void logWindowFiltersLiveMessagesAndCopiesDisplayedOrder();
     void newDocumentHonorsTheSaveDecision_data();
