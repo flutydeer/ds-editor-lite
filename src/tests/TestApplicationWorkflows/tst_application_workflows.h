@@ -40,6 +40,7 @@ private slots:
     void projectBatchImportUsesRealLoaders_data();
 
     void projectBatchImportUsesRealLoaders();
+    void publicSingleProjectImportUsesThePreparedPlanAndKeepsTheDocument();
 
     void audioBatchFailurePolicy_data();
 

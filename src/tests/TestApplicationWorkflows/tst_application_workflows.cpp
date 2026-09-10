@@ -27,6 +27,7 @@
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include <lite/Tasking/TaskManager.h>
+#include <lite/History/HistoryManager.h>
 #include <lite/ProjectConverters/DspxProjectConverter.h>
 #include <lite/ProjectConverters/MidiConverter.h>
 #include <lite/PackageManager/PackageManager.h>
@@ -358,6 +359,103 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
         QCOMPARE(context->m_appModel->tracks().size(), initialTrackCount);
         QCOMPARE(context->m_appModel->tracks().first()->name(), QStringLiteral("Target"));
     }
+}
+
+void ApplicationWorkflowTests::publicSingleProjectImportUsesThePreparedPlanAndKeepsTheDocument() {
+    QTemporaryDir files;
+    QVERIFY(files.isValid());
+    AppModel source;
+    source.setTimeline(Timeline(
+        {
+            {0, 87.0}
+    },
+        {{0, 6, 8}}));
+    auto *sourceTrack = new Track;
+    sourceTrack->setName(QStringLiteral("Imported lead"));
+    auto *sourceClip = new SingingClip;
+    sourceClip->setStart(1920);
+    sourceClip->setLength(1920);
+    sourceClip->setClipLen(1920);
+    auto *sourceNote = new Note(sourceClip);
+    sourceNote->setLocalStart(240);
+    sourceNote->setLength(120);
+    sourceNote->setKeyIndex(72);
+    sourceNote->setLyric(QStringLiteral("你好"));
+    sourceNote->setLanguage(QStringLiteral("cmn"));
+    sourceClip->insertNote(sourceNote);
+    sourceTrack->insertClip(sourceClip);
+    QVERIFY(source.appendTrack(sourceTrack));
+    const auto path = files.filePath(QStringLiteral("待导入.dspx"));
+    DspxProjectConverter converter;
+    QString error;
+    QVERIFY2(converter.save(path, &source, error), qPrintable(error));
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    historyManager->reset();
+    const auto before = runtime().documentVersion();
+    const auto beforeModel = context->m_appModel->serialize();
+    const auto originalTracks = context->m_appModel->tracks();
+    Automation::AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
+    Automation::AutomationFileGuard fileGuard;
+    Automation::AdmissionController admission;
+    QVERIFY(fileGuard.setConfiguredRoots({files.path()}));
+    Automation::PublicAutomationRegistry registry(
+        runtime(), access, fileGuard, admission,
+        Automation::createPublicAutomationHostServices(runtime(), context->m_appModel,
+                                                       &SynthrtEngine::instance()));
+    const auto inspected = registry.invoke(
+        QStringLiteral("formats.inspect"),
+        {
+            {QStringLiteral("path"),    path                    },
+            {QStringLiteral("purpose"), QStringLiteral("import")}
+    });
+    QVERIFY2(inspected, qPrintable(inspected ? QString() : inspected.getError().message));
+    const auto digest = inspected.get().value(QStringLiteral("plan_digest")).toString();
+    QVERIFY(!digest.isEmpty());
+    QCOMPARE(runtime().documentVersion(), before);
+    QCOMPARE(context->m_appModel->serialize(), beforeModel);
+    const auto accepted = registry.invoke(
+        QStringLiteral("documents.import"),
+        {
+            {QStringLiteral("document_id"),       before.documentId.toString()        },
+            {QStringLiteral("expected_revision"), static_cast<qint64>(before.revision)},
+            {QStringLiteral("path"),              path                                },
+            {QStringLiteral("options"),           QJsonObject{}                       },
+            {QStringLiteral("plan_digest"),       digest                              }
+    },
+        {.clientId = QStringLiteral("project-import-client"),
+         .source = Automation::InvocationSource::PublicJsonRpc});
+    QVERIFY2(accepted, qPrintable(accepted ? QString() : accepted.getError().message));
+    const auto id =
+        Automation::TaskId::fromString(accepted.get().value(QStringLiteral("task_id")).toString());
+    QVERIFY(!id.isNull());
+    const auto task = [&] { return runtime().tasks().getTask(before.documentId, id); };
+    QTRY_VERIFY_WITH_TIMEOUT(
+        task() && (task().get().state == Automation::AutomationTaskState::Succeeded ||
+                   task().get().state == Automation::AutomationTaskState::Failed),
+        10000);
+    const auto terminal = task().get();
+    QVERIFY2(terminal.state == Automation::AutomationTaskState::Succeeded,
+             qPrintable(terminal.error ? terminal.error->message : QString()));
+    QCOMPARE(runtime().documentVersion().documentId, before.documentId);
+    const auto tracks = context->m_appModel->tracks();
+    QCOMPARE(tracks.size(), originalTracks.size() + 1);
+    for (int index = 0; index < originalTracks.size(); ++index)
+        QCOMPARE(tracks.at(index), originalTracks.at(index));
+    const auto *importedTrack = tracks.last();
+    QCOMPARE(importedTrack->name(), sourceTrack->name());
+    QCOMPARE(importedTrack->clips().count(), 1);
+    const auto *importedClip = qobject_cast<SingingClip *>(*importedTrack->clips().begin());
+    QVERIFY(importedClip);
+    QCOMPARE(importedClip->start(), sourceClip->start());
+    QCOMPARE(importedClip->notes().count(), 1);
+    const auto *importedNote = *importedClip->notes().begin();
+    QCOMPARE(importedNote->localStart(), sourceNote->localStart());
+    QCOMPARE(importedNote->keyIndex(), sourceNote->keyIndex());
+    QCOMPARE(importedNote->lyric(), sourceNote->lyric());
+    QVERIFY(runtime().history().undo(commandContext()));
+    QCOMPARE(context->m_appModel->serialize(), beforeModel);
+    QVERIFY(!historyManager->canUndo());
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
 }
 
 void ApplicationWorkflowTests::failedInferenceInitializationReleasesPackageWaiters() {
