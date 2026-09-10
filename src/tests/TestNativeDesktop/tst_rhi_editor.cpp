@@ -69,8 +69,8 @@ namespace {
                     .source = Automation::InvocationSource::Test};
         }
 
-        void initialize(const QStringList &packageSearchPaths = {}) {
-            QVERIFY2(app.initialize(true, packageSearchPaths), qPrintable(app.error));
+        void initialize() {
+            QVERIFY2(app.initialize(), qPrintable(app.error));
             Automation::NoteDraftDto note;
             note.localStart = 480;
             note.length = 480;
@@ -156,7 +156,7 @@ namespace {
             QVERIFY2(backendError.isEmpty(), qPrintable(backendError));
         }
 
-        GuiAppFixture app;
+        GuiDocumentFixture app;
         SingingClip *clip = nullptr;
         int noteId = -1;
         int secondNoteId = -1;
@@ -169,7 +169,7 @@ namespace {
 void NativeDesktopTests::rhiNoteDrawingCommitsAndUndoUpdatesInteraction() {
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
-    GuiAppFixture fixture;
+    GuiDocumentFixture fixture;
     QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
     auto &context = *fixture.context;
     auto &runtime = *context.m_coreRuntime;
@@ -923,7 +923,7 @@ void NativeDesktopTests::rhiMultiNoteSelectionAndMoveCommitAtomically() {
 void NativeDesktopTests::rhiPianoMenuPasteAndVisibilityUseTheFullEditor() {
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
-    GuiAppFixture fixture;
+    GuiDocumentFixture fixture;
     QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
     auto &runtime = *fixture.context->m_coreRuntime;
     const auto command = [&] {
@@ -1077,7 +1077,7 @@ void NativeDesktopTests::rhiPitchModulationUsesTheInferredBaseline() {
     QVERIFY2(QFileInfo(root).isAbsolute() && QFileInfo(root).isDir(), qPrintable(root));
     QVERIFY(!TestSupport::fixtureLanguage().isEmpty() && !TestSupport::fixtureLyric().isEmpty());
     ExistingRhiNoteFixture fixture;
-    fixture.initialize({root});
+    fixture.initialize();
     if (QTest::currentTestFailed())
         return;
     packageManager->initialize({root});

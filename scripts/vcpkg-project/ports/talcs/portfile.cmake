@@ -8,6 +8,7 @@ vcpkg_from_github(
         fix-buffering-mode-position.patch
         fix-clip-series-read-serialization.patch
         fix-sdl-driver-startup-lifetime.patch
+        fix-asio-com-lifetime.patch
 )
 
 vcpkg_from_github(

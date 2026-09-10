@@ -2,12 +2,20 @@
 #define NATIVEDESKTOPTESTS_H
 
 #include <QObject>
+#include <memory>
+
+class GuiAppFixture;
 
 class NativeDesktopTests final : public QObject {
     Q_OBJECT
 
+public:
+    NativeDesktopTests();
+    ~NativeDesktopTests() override;
+
 private slots:
     void initTestCase();
+    void cleanupTestCase();
     void visibilityAndCollapsedPane();
     void reparentAndDestructionKeepGripOwnership();
     void dragGrip_data();
@@ -41,6 +49,9 @@ private slots:
     void audioDriverStartupCanBeCanceled_data();
     void audioDriverStartupCanBeCanceled();
     void configuredMidiLoopbackFeedsLiveSynthesizer();
+
+private:
+    std::unique_ptr<GuiAppFixture> application;
 };
 
 #endif

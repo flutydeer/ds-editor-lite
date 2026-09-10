@@ -23,6 +23,8 @@
 #include <rtmidi/RtMidi.h>
 
 #include <QPointer>
+#include <QProcess>
+#include <QProcessEnvironment>
 #include <QScopeGuard>
 #include <QThread>
 #include <QtTest/QTest>
@@ -54,7 +56,7 @@ namespace {
 }
 
 void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
-    GuiAppFixture fixture;
+    GuiDocumentFixture fixture;
     QVERIFY2(fixture.initialize(false), qPrintable(fixture.error));
     auto *output = AudioSystem::outputSystem();
     auto *deviceContext = output->outputContext();
@@ -161,11 +163,33 @@ void NativeDesktopTests::audioDriverStartupCanBeCanceled_data() {
 void NativeDesktopTests::audioDriverStartupCanBeCanceled() {
     QFETCH(bool, deliverStartup);
     QFETCH(bool, destroyDriver);
+    if (!qEnvironmentVariableIsSet("DSEL_TEST_GUI_LIFECYCLE")) {
+        if (!AudioSystem::outputSystem()->outputContext()->driver())
+            QSKIP("No audio output backend is available");
+        // The process-wide G2P runtime cannot be restarted after application teardown.
+        QProcess child;
+        auto environment = QProcessEnvironment::systemEnvironment();
+        environment.insert(QStringLiteral("DSEL_TEST_GUI_LIFECYCLE"), QStringLiteral("1"));
+        child.setProcessEnvironment(environment);
+        child.setProcessChannelMode(QProcess::MergedChannels);
+        const auto testCase =
+            QStringLiteral("%1:%2").arg(QString::fromLatin1(QTest::currentTestFunction()),
+                                        QString::fromLatin1(QTest::currentDataTag()));
+        child.start(QCoreApplication::applicationFilePath(), {testCase, QStringLiteral("-v1")});
+        QVERIFY2(child.waitForStarted(), qPrintable(child.errorString()));
+        const auto completed = child.waitForFinished(20000);
+        const auto output = child.readAll();
+        QVERIFY2(completed, output.constData());
+        QVERIFY2(child.exitStatus() == QProcess::NormalExit && child.exitCode() == 0,
+                 qPrintable(QStringLiteral("Child exit code %1:\n%2")
+                                .arg(child.exitCode())
+                                .arg(QString::fromUtf8(output))));
+        return;
+    }
     GuiAppFixture fixture;
     QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
     auto *driver = AudioSystem::outputSystem()->outputContext()->driver();
-    if (!driver)
-        QSKIP("No audio output backend is available");
+    QVERIFY2(driver, "The enumerated audio backend failed to initialize in the child process");
     QVERIFY(driver->isInitialized());
     if (deliverStartup)
         QCoreApplication::sendPostedEvents(driver, QEvent::MetaCall);
@@ -191,7 +215,7 @@ void NativeDesktopTests::configuredMidiLoopbackFeedsLiveSynthesizer() {
         QSKIP("Set DSEL_TEST_MIDI_INPUT and DSEL_TEST_MIDI_OUTPUT to a dedicated loopback route");
     QVERIFY2(!inputName.isEmpty() && !outputName.isEmpty(),
              "Both MIDI loopback port names are required");
-    GuiAppFixture fixture;
+    GuiDocumentFixture fixture;
     QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
     const auto inputNames = MidiSystem::availableDevices();
     const auto inputIndex = inputNames.indexOf(inputName);

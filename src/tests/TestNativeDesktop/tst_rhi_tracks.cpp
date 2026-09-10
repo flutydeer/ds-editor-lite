@@ -43,7 +43,7 @@
 
 namespace {
     struct TrackFixture {
-        GuiAppFixture application;
+        GuiDocumentFixture application;
         std::unique_ptr<QWidget> host;
         QPointer<TracksRhiWidget> canvas;
         int clipId = -1;

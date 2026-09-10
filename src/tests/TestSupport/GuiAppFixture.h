@@ -84,3 +84,36 @@ private:
     const QByteArray previousPlugins = qgetenv("DSEL_TEST_PLUGIN_ROOT");
     const bool previousQuitOnClose = QApplication::quitOnLastWindowClosed();
 };
+
+class GuiDocumentFixture final {
+public:
+    ~GuiDocumentFixture() {
+        if (!context)
+            return;
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 15000);
+        QVERIFY2(context->initializeDefaultDocument(&error), qPrintable(error));
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 15000);
+    }
+
+    bool initialize(bool closeOutput = true) {
+        context = AppContext::s_self;
+        if (!context || !directory.isValid()) {
+            error = QStringLiteral("The suite application or document sandbox is unavailable");
+            return false;
+        }
+        if (auto *device = AudioSystem::outputSystem()->context()->device()) {
+            if (closeOutput) {
+                device->stop();
+                device->close();
+            } else if (!AudioSystem::outputSystem()->setDevice(device->name())) {
+                error = QStringLiteral("Cannot reopen the application audio device");
+                return false;
+            }
+        }
+        return context->initializeDefaultDocument(&error);
+    }
+
+    QTemporaryDir directory;
+    QString error;
+    AppContext *context = nullptr;
+};

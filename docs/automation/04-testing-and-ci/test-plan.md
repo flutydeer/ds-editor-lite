@@ -95,7 +95,7 @@ Windows wrapper 将本地结果写到 `build/test-results`；直接 CTest 可加
 
 完整窗口用例先完成窗口初始化，再准备受测工程；通知连接绑定实际接收者，局部控件正常析构并清理其外部引用。RHI 场景同样执行私有子控件释放过程，不能通过遗留窗口、跳过析构或屏蔽事件规避生命周期失败。
 
-EditorInteraction 由 CTest 设置 `QT_QPA_PLATFORM=minimal:enable_fonts` 和 Fusion，真实 QDrag 经鼠标移动与释放进入 Qt 拖放循环，Escape 走取消路径；不向私有状态注入拖放结果。该套件与 NativeDesktop 共用 GuiAppFixture 的真实应用接线和隔离目录。Qt offscreen 直接忽略 QDrag，因此 ApplicationGui 的后端选择不能代替完整拖放验证。
+EditorInteraction 由 CTest 设置 `QT_QPA_PLATFORM=minimal:enable_fonts` 和 Fusion，真实 QDrag 经鼠标移动与释放进入 Qt 拖放循环，Escape 走取消路径；不向私有状态注入拖放结果。该套件与 NativeDesktop 各自使用进程级 GuiAppFixture 和逐用例 GuiDocumentFixture，重建文档并清理素材；G2P 单例不跨应用销毁后重新使用。启动/销毁用例自行在独立子进程执行，父进程检查退出码，失败输出进入测试日志，直接选择 Qt Test slot 的入口保持一致。Qt offscreen 直接忽略 QDrag，因此 ApplicationGui 的后端选择不能代替完整拖放验证。
 
 ## 4. 隔离与清理
 

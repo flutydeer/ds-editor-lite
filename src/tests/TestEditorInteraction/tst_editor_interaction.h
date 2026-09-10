@@ -2,12 +2,20 @@
 #define EDITORINTERACTIONTESTS_H
 
 #include <QObject>
+#include <memory>
+
+class GuiAppFixture;
 
 class EditorInteractionTests final : public QObject {
     Q_OBJECT
 
+public:
+    EditorInteractionTests();
+    ~EditorInteractionTests() override;
+
 private slots:
     void initTestCase();
+    void cleanupTestCase();
     void noView();
     void commandCapabilities();
     void modeAwareCommandRouting();
@@ -84,6 +92,9 @@ private slots:
     void trackListDragReordersOrCancels();
     void lyricRuleDragPreservesEditsAndChangesPriority_data();
     void lyricRuleDragPreservesEditsAndChangesPriority();
+
+private:
+    std::unique_ptr<GuiAppFixture> application;
 };
 
 #endif

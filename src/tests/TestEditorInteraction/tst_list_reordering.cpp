@@ -92,7 +92,7 @@ void EditorInteractionTests::trackListDragReordersOrCancels_data() {
 void EditorInteractionTests::trackListDragReordersOrCancels() {
     QFETCH(int, from);
     QFETCH(bool, cancel);
-    GuiAppFixture fixture;
+    GuiDocumentFixture fixture;
     QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
     auto &context = fixture.context;
     auto &runtime = *context->m_coreRuntime;
@@ -200,7 +200,7 @@ void EditorInteractionTests::lyricRuleDragPreservesEditsAndChangesPriority_data(
 
 void EditorInteractionTests::lyricRuleDragPreservesEditsAndChangesPriority() {
     QFETCH(bool, tagger);
-    GuiAppFixture fixture;
+    GuiDocumentFixture fixture;
     QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
     auto &runtime = *fixture.context->m_coreRuntime;
     const auto snapshot = runtime.settings().getSettings();

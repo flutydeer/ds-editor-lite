@@ -360,7 +360,7 @@ namespace {
             }
         }
 
-        GuiAppFixture app;
+        GuiDocumentFixture app;
         std::unique_ptr<FakeEditorView> view;
     };
 }

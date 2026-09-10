@@ -143,7 +143,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 轨道菜单与音频文件选择 | gui/workflow | 新建轨道/片段、剪切和删除的撤销链；实际文件选择确认/取消、Unicode 路径解码及一次提交 | ApplicationGui 的 tst_track_menus.cpp | offscreen；临时 WAV |
 | 动态声线编辑与导航 | gui | 区间/菜单删除和首帧保护；旁路、恢复、停止/取消及撤销后的控件状态；非零片段起点下关键帧导航的播放位置和视口 | ApplicationGui 的 tst_dynamic_mix.cpp | offscreen；声线元数据；无需设备 |
 | 音频并发与有损导出 | workflow | 普通/Future 片段读取期间范围更新须等待，修改后 PCM 正确；MP3/Ogg 经实际编码解码验证有限非零采样、时长与格式 | ApplicationWorkflows 的 tst_audio_workflows.cpp | 通用；受控读源；无需设备 |
-| 音频驱动延迟启动与释放 | workflow/native | 停止或销毁发生在延迟启动前，或与线程启动相邻时，不再执行悬空回调或丢失停止请求 | NativeDesktop::audioDriverStartupCanBeCanceled | 可用音频后端；逐例条件跳过 |
+| 音频驱动延迟启动与释放 | workflow/native | 停止或销毁发生在延迟启动前，或与线程启动相邻时，不再执行悬空回调或丢失停止请求；独立进程退出验证未初始化的 ASIO 驱动不会释放其他组件的 COM 环境 | NativeDesktop::audioDriverStartupCanBeCanceled | 可用音频后端；逐例条件跳过；同一程序的独立子进程 |
 | RHI 音高调制与音频时间锚定 | gui/workflow | 真实声库给出推理片段基线，检查局部调制、取消及单次撤销；双声道 WAV 实际解码后经鼠标裁边和跨轨移动，保留毫秒锚定、材料长度及命中 | NativeDesktop::rhiPitchModulationUsesTheInferredBaseline、rhiAudioClipTrimAndMovePreserveTimeAnchors | 原生窗口；调制默认内置声库；音频无需播放设备 |
 | 锚点事务的重试与整批拒绝 | edit | 创建预览后提交和重试保持同一曲线身份，改变输入或目标拒绝复用请求；插入/移动跨曲线重叠，以及删除/插值批次包含已删除锚点时，所有曲线、版本及历史保持不变 | ProjectEditing::anchorCreationRetriesKeepTheCommittedIdentity、rejectedAnchorBatchPreservesEveryCurve | 通用；无需声库 |
 | 实际推理的参数依赖和声线变化 | workflow | 表达力度、音高和 gender 分别重算所属下游阶段，保留时长及无关片段；固定混合更新已有分段，同声线跨轨移动保留分段，继承另一声线时重建；撤销恢复输入和声线 | ApplicationWorkflows 的 tst_clip_inference.cpp | 默认内置声库；混合及不同声线场景需要至少两条声线 |
@@ -151,6 +151,6 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 保存决策期间的音频完成回写 | workflow | 用受控调度暂停真实解码任务，在生产文档状态机等待保存决策时释放；完成结果保持托管且不写入忙文档，取消新建后应用波形，放弃原工程后丢弃旧结果，保留对应历史边界 | AudioAssets::decodeCompletionWaitsForTheSaveDecision | 通用；小 WAV；仅保存提示回答使用替身 |
 | RHI 钢琴窗的完整编辑与选区 | gui | 完整 PianoRollView 的菜单粘贴保留手动读音，悬停预览及取消不改文档，提交可撤销；音域定位、焦点恢复、隐藏/显示同步视口状态。框选、区间选择与成组拖动检查批量提交和取消；调制拖动两端选区边界和倍率手柄，分别检查核心区、过渡区及范围外样本 | NativeDesktop::rhiPianoMenuPasteAndVisibilityUseTheFullEditor、rhiMultiNoteSelectionAndMoveCommitAtomically、rhiPitchModulationUsesTheInferredBaseline | 原生窗口；Null RHI；调制默认内置声库 |
 | DSPX 音素互操作与 MIDI 导出 | workflow | 外部标准音素修改/清除优先于旧私有快照，兼容旧 workspace 音素；实际 MIDI 文件保留跨片段及裁剪后的音符时间、音高和 Unicode 文本，按选项保留或省略歌词、速度和拍号，源模型不变 | DocumentIO::dspxPhonemeInterchangeRespectsExternalChanges、midiExportPreservesProjectTimingAndOptionalMetadata | 通用；小型临时文件 |
-| 初始化期间关闭与任务回收 | workflow/native | 立即销毁引擎不能丢失已完成初始化任务的清理；正常 fixture 保留控制器直到完成通知已处理，后续用例无残留任务 | NativeDesktop::audioDriverStartupCanBeCanceled；GuiAppFixture | GUI 运行时；驱动子场景按后端条件执行 |
+| 初始化期间关闭与任务回收 | workflow/native | 立即销毁引擎不能丢失已完成初始化任务的清理；普通用例复用进程级应用、重建文档并等待任务完成，G2P 不进入销毁后的降级状态 | NativeDesktop::audioDriverStartupCanBeCanceled；GuiAppFixture、GuiDocumentFixture | GUI 运行时；驱动子场景按后端条件执行 |
 
 本次还移除无产品实例化入口的旧 G2P/伪声设置页和 `TrackSynthesizer` 及其空容器引用。清理改变统计分母，报告中与新增测试命中的贡献分开说明，不通过排除仍有效的生产文件提高比例。
