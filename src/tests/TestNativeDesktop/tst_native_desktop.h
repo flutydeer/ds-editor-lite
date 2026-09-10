@@ -19,6 +19,7 @@ private slots:
     void toolTipAnchorScreenClamping();
     void rhiNoteDrawingCommitsAndUndoUpdatesInteraction();
     void rhiNoteMoveCanBeCanceledAndThenCommitted();
+    void rhiMultiNoteSelectionAndMoveCommitAtomically();
     void rhiNoteResizeUndoRestoresTheHitRegion();
     void rhiNoteEraseStrokeCancelsAndCommitsAtomically();
     void rhiInlineTextEditingNavigatesCancelsAndUndoes();
@@ -26,6 +27,7 @@ private slots:
     void rhiPitchStrokePreviewsCancelAndCommit();
     void rhiNoteSplittingSnapsAndUndoRestoresThePhrase();
     void rhiContextMenuTargetsRespectPronunciationAndSelection();
+    void rhiPianoMenuPasteAndVisibilityUseTheFullEditor();
     void rhiPitchModulationUsesTheInferredBaseline();
     void rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor();
     void rhiClipDragCommitsAcrossTracksAndUndoRestoresView();

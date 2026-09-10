@@ -149,6 +149,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 实际推理的参数依赖和声线变化 | workflow | 表达力度、音高和 gender 分别重算所属下游阶段，保留时长及无关片段；固定混合更新已有分段，同声线跨轨移动保留分段，继承另一声线时重建；撤销恢复输入和声线 | ApplicationWorkflows 的 tst_clip_inference.cpp | 默认内置声库；混合及不同声线场景需要至少两条声线 |
 | RHI 轨道与完整编辑器接线 | gui/workflow | 完整 TrackEditorView 使用 Null RHI 画布，菜单粘贴预览/取消/提交、框选、焦点定位、双击新建和文件拖入现有/追加轨道均经实际 Qt 事件验证，并检查轨道控件及撤销 | NativeDesktop::rhiTrackMenuPasteAndSelectionUseTheFullEditor、rhiTrackFileDropImportsAtTheChosenSlot | 原生窗口；生成小 WAV；无需播放设备 |
 | 保存决策期间的音频完成回写 | workflow | 用受控调度暂停真实解码任务，在生产文档状态机等待保存决策时释放；完成结果保持托管且不写入忙文档，取消新建后应用波形，放弃原工程后丢弃旧结果，保留对应历史边界 | AudioAssets::decodeCompletionWaitsForTheSaveDecision | 通用；小 WAV；仅保存提示回答使用替身 |
+| RHI 钢琴窗的完整编辑与选区 | gui | 完整 PianoRollView 的菜单粘贴保留手动读音，悬停预览及取消不改文档，提交可撤销；音域定位、焦点恢复、隐藏/显示同步视口状态。框选、区间选择与成组拖动检查批量提交和取消；调制拖动两端选区边界和倍率手柄，分别检查核心区、过渡区及范围外样本 | NativeDesktop::rhiPianoMenuPasteAndVisibilityUseTheFullEditor、rhiMultiNoteSelectionAndMoveCommitAtomically、rhiPitchModulationUsesTheInferredBaseline | 原生窗口；Null RHI；调制默认内置声库 |
 | 初始化期间关闭与任务回收 | workflow/native | 立即销毁引擎不能丢失已完成初始化任务的清理；正常 fixture 保留控制器直到完成通知已处理，后续用例无残留任务 | NativeDesktop::audioDriverStartupCanBeCanceled；GuiAppFixture | GUI 运行时；驱动子场景按后端条件执行 |
 
 本次还移除无产品实例化入口的旧 G2P/伪声设置页和 `TrackSynthesizer` 及其空容器引用。清理改变统计分母，报告中与新增测试命中的贡献分开说明，不通过排除仍有效的生产文件提高比例。
