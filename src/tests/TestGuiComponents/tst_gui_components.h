@@ -25,6 +25,8 @@ private slots:
     void reachesTarget_data();
     void reachesTarget();
     void replacingTargetChangesDestination();
+    void toastContextLifetime_data();
+    void toastContextLifetime();
     void seekBarTrackingControlsWhenDraggedValuesCommit_data();
     void seekBarTrackingControlsWhenDraggedValuesCommit();
     void seekBarKeyboardStepsClampAndDoubleClickResets();
