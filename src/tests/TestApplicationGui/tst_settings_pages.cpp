@@ -64,8 +64,9 @@ namespace {
         QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, position);
         QTest::mouseDClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, position);
         QTest::mouseRelease(list->viewport(), Qt::LeftButton, Qt::NoModifier, position);
-        QTRY_VERIFY(list->findChild<QLineEdit *>());
-        auto *editor = list->findChild<QLineEdit *>();
+        QLineEdit *editor = nullptr;
+        QTRY_VERIFY((editor = qobject_cast<QLineEdit *>(QApplication::focusWidget())) &&
+                    list->isAncestorOf(editor));
         replaceText(editor, path);
         if (QTest::currentTestFailed())
             return;

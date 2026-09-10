@@ -22,6 +22,8 @@
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/InferenceData/InferPiece.h>
+#include <lite/Tasking/TaskManager.h>
 
 #include <QApplication>
 #include <QClipboard>
@@ -40,6 +42,8 @@
 #include <QTimer>
 #include <QtTest/QTest>
 
+#include <algorithm>
+
 namespace {
     QPushButton *buttonWithText(QWidget *parent, const QString &text) {
         for (auto *button : parent->findChildren<QPushButton *>()) {
@@ -52,6 +56,8 @@ namespace {
     template <typename Editor>
     void typeText(Editor *editor, const QString &text) {
         QVERIFY(editor);
+        QTRY_VERIFY2(editor->isVisible(), qPrintable(editor->objectName()));
+        QVERIFY2(editor->isEnabled(), qPrintable(editor->objectName()));
         QWidget *clickTarget = editor;
         if (auto *scrollArea = qobject_cast<QAbstractScrollArea *>(editor))
             clickTarget = scrollArea->viewport();
@@ -154,6 +160,7 @@ namespace {
         QTest::mouseClick(tabs->tabBar(), Qt::LeftButton, Qt::NoModifier,
                           tabs->tabBar()->tabRect(selected).center());
         QCOMPARE(tabs->currentIndex(), selected);
+        QCoreApplication::processEvents();
     }
 
     void runRulePreview(LyricDialog &dialog, QString &output) {
@@ -220,6 +227,15 @@ void ApplicationGuiTests::createLyricSelection() {
             selected.append(note->id());
     }
     appStatus->selectedNotes = selected;
+    QTRY_VERIFY_WITH_TIMEOUT(
+        !singingClip->pieces().isEmpty() &&
+            std::all_of(singingClip->pieces().cbegin(), singingClip->pieces().cend(),
+                        [](const InferPiece *piece) {
+                            return piece->state == QStringLiteral("Acoustic.Awaiting") ||
+                                   piece->state == QStringLiteral("Ready");
+                        }) &&
+            taskManager->tasks().isEmpty(),
+        15000);
     historyManager->reset();
 }
 
@@ -319,6 +335,7 @@ void ApplicationGuiTests::lyricRuleEditingChangesThePreviewAndPersists() {
         dialog.show();
         dialog.activateWindow();
         QTRY_VERIFY(dialog.isVisible());
+        QTRY_VERIFY(dialog.isActiveWindow());
         QString baseline;
         runRulePreview(dialog, baseline);
         if (QTest::currentTestFailed())

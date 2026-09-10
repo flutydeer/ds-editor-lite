@@ -123,7 +123,14 @@ namespace {
         auto *preview = page->findChild<QTextEdit *>();
         QVERIFY(encoding);
         QVERIFY(preview);
-        const auto utf8Index = encoding->findData(QByteArrayLiteral("UTF-8"));
+        int utf8Index = -1;
+        for (int index = 0; index < encoding->count(); ++index) {
+            if (encoding->itemData(index).toByteArray().compare(QByteArrayLiteral("UTF-8"),
+                                                                Qt::CaseInsensitive) == 0) {
+                utf8Index = index;
+                break;
+            }
+        }
         QVERIFY(utf8Index >= 0);
         QTest::mouseClick(encoding, Qt::LeftButton);
         QTRY_VERIFY(encoding->view()->isVisible());
@@ -131,7 +138,7 @@ namespace {
         for (int index = 0; index < utf8Index; ++index)
             QTest::keyClick(encoding->view(), Qt::Key_Down);
         QTest::keyClick(encoding->view(), Qt::Key_Return);
-        QCOMPARE(page->selectedCodec(), QByteArrayLiteral("UTF-8"));
+        QCOMPARE(page->selectedCodec().toUpper(), QByteArrayLiteral("UTF-8"));
         QVERIFY(preview->isReadOnly());
         QCOMPARE(preview->toPlainText().trimmed(), QStringLiteral("你好"));
     }
