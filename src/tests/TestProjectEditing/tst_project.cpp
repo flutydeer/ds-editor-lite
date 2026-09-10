@@ -2014,6 +2014,143 @@ void ProjectEditingTests::parameterEditing() {
     };
 }
 
+void ProjectEditingTests::drawAndErasePreserveOtherParameterCurves_data() {
+    QTest::addColumn<bool>("overlay");
+    QTest::newRow("overlay-existing-samples") << true;
+    QTest::newRow("replace-a-range") << false;
+}
+
+void ProjectEditingTests::drawAndErasePreserveOtherParameterCurves() {
+    QFETCH(bool, overlay);
+    TestRuntime fixture;
+    auto &runtime = fixture.runtime();
+    auto &parameters = runtime.parameters();
+    const auto clip = insertedSingingClip(runtime, insertedTrack(runtime, "Curves"), "Pitch");
+    Automation::CurveDraftDto draw;
+    draw.type = Automation::CurveDraftDto::Type::Draw;
+    draw.step = 5;
+    draw.values = {6000, 6010, 6020, 6030, 6040, 6050, 6060, 6070};
+    Automation::CurveDraftDto anchor;
+    anchor.type = Automation::CurveDraftDto::Type::Anchor;
+    anchor.nodes = {
+        {100, 6000, AnchorNode::Linear },
+        {200, 6100, AnchorNode::Hermite}
+    };
+    QVERIFY(parameters.replaceParameter(commandContext(runtime), clip, ParamInfo::Pitch,
+                                        Param::Edited, {draw, anchor}));
+    const auto curves = [&] {
+        return parameters
+            .getParameter(runtime.documentVersion().documentId, clip, ParamInfo::Pitch,
+                          Param::Edited)
+            .get()
+            .curves;
+    };
+    const auto draws = [&] {
+        auto result = curves();
+        result.removeIf(
+            [](const auto &curve) { return curve.type != Automation::CurveDraftDto::Type::Draw; });
+        return result;
+    };
+    const auto original = curves();
+    const auto originalAnchor = original.last();
+    fixture.history()->reset();
+    const auto before = runtime.documentVersion();
+    const auto preview =
+        parameters.drawParameter(commandContext(runtime, true), clip, ParamInfo::Pitch,
+                                 Param::Edited, 10, 5, {6200, 6210, 6220, 6230}, overlay);
+    QVERIFY(preview && preview.get().changed && preview.get().validatedOnly);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(draws().first().values, draw.values);
+    QVERIFY(!fixture.history()->canUndo());
+    const auto applied =
+        parameters.drawParameter(commandContext(runtime), clip, ParamInfo::Pitch, Param::Edited, 10,
+                                 5, {6200, 6210, 6220, 6230}, overlay);
+    QVERIFY(applied && applied.get().changed);
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    const auto drawn = draws();
+    if (overlay) {
+        QCOMPARE(drawn.size(), 1);
+        QCOMPARE(drawn.first().localStart, 0);
+        QCOMPARE(drawn.first().values,
+                 (QList<int>{6000, 6010, 6200, 6210, 6220, 6230, 6060, 6070}));
+    } else {
+        QCOMPARE(drawn.size(), 3);
+        QCOMPARE(drawn.at(0).values, (QList<int>{6000, 6010}));
+        QCOMPARE(drawn.at(1).localStart, 10);
+        QCOMPARE(drawn.at(1).values, (QList<int>{6200, 6210, 6220, 6230}));
+        QCOMPARE(drawn.at(2).localStart, 30);
+        QCOMPARE(drawn.at(2).values, (QList<int>{6060, 6070}));
+    }
+    const auto beforeErase = runtime.documentVersion();
+    const auto erasePreview = parameters.eraseParameter(commandContext(runtime, true), clip,
+                                                        ParamInfo::Pitch, Param::Edited, 10, 30);
+    QVERIFY(erasePreview && erasePreview.get().changed && erasePreview.get().validatedOnly);
+    QCOMPARE(runtime.documentVersion(), beforeErase);
+    QCOMPARE(draws().size(), drawn.size());
+    const auto erased = parameters.eraseParameter(commandContext(runtime), clip, ParamInfo::Pitch,
+                                                  Param::Edited, 10, 30);
+    QVERIFY(erased && erased.get().changed);
+    QCOMPARE(runtime.documentVersion().revision, beforeErase.revision + 1);
+    const auto remaining = draws();
+    QCOMPARE(remaining.size(), 2);
+    QCOMPARE(remaining.first().localStart, 0);
+    QCOMPARE(remaining.first().values, (QList<int>{6000, 6010}));
+    QCOMPARE(remaining.last().localStart, 30);
+    QCOMPARE(remaining.last().values, (QList<int>{6060, 6070}));
+    const auto afterErase = curves();
+    const auto preserved = std::find_if(afterErase.cbegin(), afterErase.cend(),
+                                        [&](const auto &c) { return c.id == originalAnchor.id; });
+    QVERIFY(preserved != afterErase.cend());
+    QCOMPARE(preserved->nodes.size(), originalAnchor.nodes.size());
+    QCOMPARE(preserved->nodes.first().id, originalAnchor.nodes.first().id);
+    QCOMPARE(preserved->nodes.last().value, originalAnchor.nodes.last().value);
+    const auto *undoEntry = fixture.history()->nextUndoEntry();
+    const auto emptyErase = parameters.eraseParameter(commandContext(runtime), clip,
+                                                      ParamInfo::Pitch, Param::Edited, 50, 80);
+    QVERIFY(emptyErase && !emptyErase.get().changed);
+    QCOMPARE(fixture.history()->nextUndoEntry(), undoEntry);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(draws().size(), drawn.size());
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(draws().first().values, draw.values);
+    QVERIFY(!fixture.history()->canUndo());
+    QVERIFY(runtime.history().redo(commandContext(runtime)));
+    QVERIFY(runtime.history().redo(commandContext(runtime)));
+    QCOMPARE(draws().last().values, remaining.last().values);
+}
+
+void ProjectEditingTests::nonAdjacentAnchorMergePreservesDocument() {
+    TestRuntime fixture;
+    auto &runtime = fixture.runtime();
+    auto &parameters = runtime.parameters();
+    const auto clip = insertedSingingClip(runtime, insertedTrack(runtime, "Curves"), "Pitch");
+    for (int start : {0, 480, 960}) {
+        QVERIFY(parameters.createAnchorCurve(
+            commandContext(runtime), clip, ParamInfo::Pitch, Param::Edited,
+            QStringLiteral("segment-%1").arg(start),
+            {
+                {start,       6000, AnchorNode::Linear },
+                {start + 240, 6200, AnchorNode::Hermite}
+        }));
+    }
+    const auto curves = parameters.getParameter(runtime.documentVersion().documentId, clip,
+                                                ParamInfo::Pitch, Param::Edited);
+    QVERIFY(curves);
+    QCOMPARE(curves.get().curves.size(), 3);
+    fixture.history()->reset();
+    const auto before = runtime.documentVersion();
+    const auto model = fixture.model().serialize();
+    const auto result =
+        parameters.mergeAnchorCurves(commandContext(runtime), clip, ParamInfo::Pitch, Param::Edited,
+                                     curves.get().curves.first().id, curves.get().curves.last().id);
+    QVERIFY(!result);
+    QCOMPARE(result.getError().code, AutomationErrorCode::InvalidArgument);
+    QCOMPARE(result.getError().fieldPath, QStringLiteral("source_curve_id"));
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(fixture.model().serialize(), model);
+    QVERIFY(!fixture.history()->canUndo());
+}
+
 void ProjectEditingTests::speakerMixEditing() {
     TestRuntime testRuntime;
     auto &runtime = testRuntime.runtime();

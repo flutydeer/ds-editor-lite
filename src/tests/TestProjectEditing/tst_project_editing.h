@@ -30,6 +30,9 @@ private slots:
     void curveTransforms_data();
     void curveTransforms();
     void parameterEditing();
+    void drawAndErasePreserveOtherParameterCurves_data();
+    void drawAndErasePreserveOtherParameterCurves();
+    void nonAdjacentAnchorMergePreservesDocument();
     void speakerMixEditing();
     void timelineAndHistoryDomain();
     void quantizeInChild();
