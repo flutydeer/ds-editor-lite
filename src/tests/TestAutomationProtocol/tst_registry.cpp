@@ -1075,7 +1075,8 @@ namespace {
         const auto plan = preview.get().value(QStringLiteral("plan")).toObject();
         QCOMPARE(plan.value(QStringLiteral("track_ids")).toArray(), tracks);
         QCOMPARE(plan.value(QStringLiteral("clip_ids")).toArray(), selectedClips);
-        QCOMPARE(plan.value(QStringLiteral("targets")).toArray(), QJsonArray{path});
+        QCOMPARE(plan.value(QStringLiteral("targets")).toArray(),
+                 QJsonArray{QFileInfo(path).canonicalFilePath()});
         QCOMPARE(plan.value(QStringLiteral("include_tempo")).toBool(), false);
         QCOMPARE(plan.value(QStringLiteral("include_time_signatures")).toBool(), true);
         QCOMPARE(plan.value(QStringLiteral("include_lyrics")).toBool(), false);
