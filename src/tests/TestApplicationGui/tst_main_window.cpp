@@ -5,14 +5,17 @@
 #include "Automation/CoreRuntime.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/TrackController.h"
+#include "Controller/ClipController.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Import/DocumentImportController.h"
 #include "UI/Dialogs/Base/MessageDialog.h"
 #include "UI/Dialogs/Options/AppOptionsDialog.h"
+#include "UI/Dialogs/Note/QuantizeDialog.h"
 #include "UI/Views/BottomPanelView.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
+#include "UI/Views/ClipEditor/PianoRoll/PianoRollCoord.h"
 #include "UI/Views/Common/TabPanelTitleBar.h"
 #include "UI/Views/MainTitleBar/MainMenuView.h"
 #include "UI/Views/MixConsole/MixConsoleView.h"
@@ -25,6 +28,7 @@
 #include "UI/Window/MainWindow.h"
 
 #include <lite/GUI/Controls/Button.h>
+#include <lite/GUI/Controls/AccentButton.h>
 #include <lite/GUI/Controls/SwitchButton.h>
 #include <lite/GUI/Controls/Toast.h>
 #include <lite/History/HistoryManager.h>
@@ -37,6 +41,8 @@
 #include <lite/Tasking/TaskManager.h>
 
 #include <QApplication>
+#include <QCheckBox>
+#include <QComboBox>
 #include <QCloseEvent>
 #include <QDragEnterEvent>
 #include <QDropEvent>
@@ -137,32 +143,36 @@ namespace {
         QTest::mouseClick(button, Qt::LeftButton);
     }
 
-    void openAppearanceFromMenu(MainWindow &window) {
+    void clickMainMenuAction(MainWindow &window, const char *text) {
         auto *bar = window.findChild<MainMenuView *>();
         QVERIFY(bar);
-        QMenu *options = nullptr;
-        QAction *appearance = nullptr;
+        QMenu *owner = nullptr;
+        QAction *choice = nullptr;
         for (auto *menuAction : bar->actions()) {
             if (auto *menu = menuAction->menu()) {
                 for (auto *action : menu->actions()) {
                     if (action->text() ==
-                        QCoreApplication::translate("MainMenuViewPrivate", "A&ppearance...")) {
-                        options = menu;
-                        appearance = action;
+                        QCoreApplication::translate("MainMenuViewPrivate", text)) {
+                        owner = menu;
+                        choice = action;
                     }
                 }
             }
         }
-        QVERIFY(options);
-        QVERIFY(appearance);
-        QVERIFY(appearance->isEnabled());
+        QVERIFY(owner);
+        QVERIFY(choice);
+        QVERIFY(choice->isEnabled());
         QTest::mouseClick(bar, Qt::LeftButton, Qt::NoModifier,
-                          bar->actionGeometry(options->menuAction()).center());
-        QTRY_VERIFY(options->isVisible());
-        const auto closeMenu = qScopeGuard([&] { options->close(); });
-        QTest::mouseClick(options, Qt::LeftButton, Qt::NoModifier,
-                          options->actionGeometry(appearance).center());
-        QTRY_VERIFY(!options->isVisible());
+                          bar->actionGeometry(owner->menuAction()).center());
+        QTRY_VERIFY(owner->isVisible());
+        const auto closeMenu = qScopeGuard([&] { owner->close(); });
+        QTest::mouseClick(owner, Qt::LeftButton, Qt::NoModifier,
+                          owner->actionGeometry(choice).center());
+        QTRY_VERIFY(!owner->isVisible());
+    }
+
+    void openAppearanceFromMenu(MainWindow &window) {
+        clickMainMenuAction(window, "A&ppearance...");
     }
 
     void clickPanelTab(BottomPanelView &panel, const QString &name) {
@@ -175,6 +185,196 @@ namespace {
         QVERIFY(index >= 0);
         QTest::mouseClick(tabs, Qt::LeftButton, Qt::NoModifier, tabs->tabRect(index).center());
     }
+}
+
+void ApplicationGuiTests::mainMenuQuantizationUsesTheChosenScopeAndOptions_data() {
+    QTest::addColumn<bool>("selectFirst");
+    QTest::addColumn<bool>("quantizeStart");
+    QTest::addColumn<bool>("accept");
+    QTest::newRow("selected-starts") << true << true << true;
+    QTest::newRow("all-lengths") << false << false << true;
+    QTest::newRow("cancel") << true << true << false;
+}
+
+void ApplicationGuiTests::mainMenuQuantizationUsesTheChosenScopeAndOptions() {
+    QFETCH(bool, selectFirst);
+    QFETCH(bool, quantizeStart);
+    QFETCH(bool, accept);
+    MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    view->hide();
+    Automation::NoteDraftDto first;
+    first.localStart = 73;
+    first.length = 170;
+    first.keyIndex = 60;
+    first.lyric = QStringLiteral("first");
+    first.language = QStringLiteral("eng");
+    auto second = first;
+    second.localStart = 650;
+    second.length = 190;
+    second.keyIndex = 64;
+    second.lyric = QStringLiteral("second");
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.notes().insertNotes(commandContext(), Automation::ClipId(singingClip->id()),
+                                        {first, second}));
+    const auto notes = singingClip->notes().toList();
+    QCOMPARE(notes.size(), 2);
+    auto &window = *host.window;
+    window.activateWindow();
+    QTRY_VERIFY(window.isActiveWindow());
+    QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));
+    auto *editor = window.findChild<ClipEditorView *>();
+    QVERIFY(editor);
+    editor->onActiveClipChanged(singingClip->id());
+    QTRY_VERIFY(editor->hasActiveSingingClip() && editor->isVisible());
+    QVERIFY(window.setPianoRollScale(1.0, 1.0));
+    QVERIFY(window.centerPianoRollAt(1920, 62));
+    QVERIFY(window.focusEditorRegion(EditorViewGlobal::Region::PianoRoll));
+    auto *canvas = editor->findChild<PianoRollGraphicsView *>();
+    QVERIFY(canvas);
+    QTRY_VERIFY(canvas->isVisible());
+    canvas->setEditMode(ClipEditorGlobal::Select);
+    if (selectFirst) {
+        const auto position = canvas->mapFromScene(QPointF(
+            canvas->tickToSceneX(150), PianoRollCoord::keyIndexToCenterY(
+                                           60, ClipEditorGlobal::noteHeight * canvas->scaleY())));
+        QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, position);
+    }
+    QCOMPARE(appStatus->selectedNotes.get(),
+             selectFirst ? QList<int>{notes.first()->id()} : QList<int>{});
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    bool answered = false;
+    QTimer answer;
+    answer.setInterval(10);
+    connect(&answer, &QTimer::timeout, &window, [&] {
+        auto *dialog = qobject_cast<QuantizeDialog *>(QApplication::activeModalWidget());
+        if (!dialog)
+            return;
+        answer.stop();
+        const auto close = qScopeGuard([&] {
+            if (dialog->isVisible())
+                dialog->reject();
+        });
+        auto *grid = dialog->findChild<QComboBox *>();
+        QVERIFY(grid);
+        QCOMPARE(grid->currentText(), QStringLiteral("1/16"));
+        const auto eighth = grid->findText(QStringLiteral("1/8"));
+        QVERIFY(eighth >= 0);
+        grid->setFocus();
+        QTest::keyClick(grid, Qt::Key_Home);
+        for (int index = 0; index < eighth; ++index)
+            QTest::keyClick(grid, Qt::Key_Down);
+        QCOMPARE(grid->currentText(), QStringLiteral("1/8"));
+        QCheckBox *start = nullptr;
+        QCheckBox *length = nullptr;
+        for (auto *box : dialog->findChildren<QCheckBox *>()) {
+            if (box->text() == QuantizeDialog::tr("Quantize start position"))
+                start = box;
+            if (box->text() == QuantizeDialog::tr("Quantize length"))
+                length = box;
+        }
+        QVERIFY(start && length);
+        QVERIFY(start->isChecked() && length->isChecked());
+        auto *unchecked = quantizeStart ? length : start;
+        unchecked->setFocus();
+        QTest::keyClick(unchecked, Qt::Key_Space);
+        QCOMPARE(start->isChecked(), quantizeStart);
+        QCOMPARE(length->isChecked(), !quantizeStart);
+        QCOMPARE(runtime.documentVersion(), before);
+        answered = true;
+        QTest::mouseClick(accept ? static_cast<QWidget *>(dialog->okButton())
+                                 : static_cast<QWidget *>(dialog->cancelButton()),
+                          Qt::LeftButton);
+    });
+    answer.start();
+    clickMainMenuAction(window, "Quantize...");
+    answer.stop();
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(answered);
+    if (accept) {
+        QCOMPARE(notes.first()->localStart(), quantizeStart ? 0 : first.localStart);
+        QCOMPARE(notes.first()->length(), quantizeStart ? first.length : 240);
+        QCOMPARE(notes.last()->localStart(), second.localStart);
+        QCOMPARE(notes.last()->length(), selectFirst ? second.length : 240);
+        QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+        QVERIFY(runtime.history().undo(commandContext()));
+    } else {
+        QCOMPARE(runtime.documentVersion(), before);
+    }
+    QCOMPARE(notes.first()->localStart(), first.localStart);
+    QCOMPARE(notes.first()->length(), first.length);
+    QCOMPARE(notes.last()->localStart(), second.localStart);
+    QCOMPARE(notes.last()->length(), second.length);
+    QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::mainMenuOctaveEditsFollowThePianoSelection() {
+    MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    view->hide();
+    Automation::NoteDraftDto first;
+    first.localStart = 480;
+    first.length = 480;
+    first.keyIndex = 60;
+    first.lyric = QStringLiteral("first");
+    auto second = first;
+    second.localStart = 1200;
+    second.keyIndex = 64;
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.notes().insertNotes(commandContext(), Automation::ClipId(singingClip->id()),
+                                        {first, second}));
+    const auto notes = singingClip->notes().toList();
+    QCOMPARE(notes.size(), 2);
+    auto &window = *host.window;
+    window.activateWindow();
+    QTRY_VERIFY(window.isActiveWindow());
+    QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));
+    auto *editor = window.findChild<ClipEditorView *>();
+    QVERIFY(editor);
+    editor->onActiveClipChanged(singingClip->id());
+    QTRY_VERIFY(editor->hasActiveSingingClip() && editor->isVisible());
+    QVERIFY(window.focusEditorRegion(EditorViewGlobal::Region::PianoRoll));
+    QCoreApplication::processEvents();
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    clickMainMenuAction(window, "Select &all");
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(appStatus->selectedNotes.get().size(), 2);
+    QVERIFY(appStatus->selectedNotes.get().contains(notes.first()->id()));
+    QVERIFY(appStatus->selectedNotes.get().contains(notes.last()->id()));
+    QCOMPARE(runtime.documentVersion(), before);
+    clickMainMenuAction(window, "Move an octave up");
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(notes.first()->keyIndex(), 72);
+    QCOMPARE(notes.last()->keyIndex(), 76);
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    clickMainMenuAction(window, "Move an octave down");
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(notes.first()->keyIndex(), first.keyIndex);
+    QCOMPARE(notes.last()->keyIndex(), second.keyIndex);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(notes.first()->keyIndex(), 72);
+    QCOMPARE(notes.last()->keyIndex(), 76);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(notes.first()->keyIndex(), first.keyIndex);
+    QCOMPARE(notes.last()->keyIndex(), second.keyIndex);
+    QVERIFY(!historyManager->canUndo());
 }
 
 void ApplicationGuiTests::panelButtonsAndClipDoubleClickRestoreTheEditorView() {

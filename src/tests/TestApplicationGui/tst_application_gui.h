@@ -67,6 +67,8 @@ private slots:
     void phonemeDialogValidatesCommitsAndResetsThroughTheNoteMenu();
     void phonemeDurationResetConfirmsAdjacentChanges_data();
     void phonemeDurationResetConfirmsAdjacentChanges();
+    void noteLanguageMenuChangesOnlyTheSelectedWords_data();
+    void noteLanguageMenuChangesOnlyTheSelectedWords();
     void lyricSearchNavigatesTheActualEditorAndHandlesNoMatches();
     void dynamicSpeakerMixGesturesPreserveIdentityAndUndo();
     void dynamicSpeakerMixRangeDeletionAndContextMenu();
@@ -74,6 +76,7 @@ private slots:
     void dynamicSpeakerMixNavigationUsesProjectTime();
     void dynamicSpeakerMixBypassAndStopFollowToolbarInputs();
     void timelineGesturesSeekAndCommitLoopEdits();
+    void resizingANotePreviewsAndCommitsItsBoundary_data();
     void resizingANotePreviewsAndCommitsItsBoundary();
     void speakerMixSelectionAndDrag_data();
     void speakerMixSelectionAndDrag();
@@ -81,6 +84,9 @@ private slots:
     void packageSearchShowsTheSelectedPackageDetails();
     void missingAudioResourceRelinkCanBeCanceledAndCommitted();
     void panelButtonsAndClipDoubleClickRestoreTheEditorView();
+    void mainMenuQuantizationUsesTheChosenScopeAndOptions_data();
+    void mainMenuQuantizationUsesTheChosenScopeAndOptions();
+    void mainMenuOctaveEditsFollowThePianoSelection();
     void projectDropCanCancelThenOpenTheDocument();
     void mixedFileDropRejectsAtomicallyAndAllowsTheNextImport();
     void detachedBottomPanelReattachesWithItsEditingContext();

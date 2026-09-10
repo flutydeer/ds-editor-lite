@@ -71,6 +71,133 @@ namespace {
     }
 }
 
+void ApplicationGuiTests::noteLanguageMenuChangesOnlyTheSelectedWords_data() {
+    QTest::addColumn<int>("choice");
+    QTest::newRow("explicit-language") << 0;
+    QTest::newRow("follow-singer") << 1;
+    QTest::newRow("unknown-language") << 2;
+}
+
+void ApplicationGuiTests::noteLanguageMenuChangesOnlyTheSelectedWords() {
+    QFETCH(int, choice);
+    createLyricSelection();
+    if (QTest::currentTestFailed())
+        return;
+    const auto notes = singingClip->notes().toList();
+    QCOMPARE(notes.size(), 3);
+    const auto originalLanguage = notes.first()->language();
+    QString selectedLanguage;
+    if (choice == 0) {
+        for (const auto &language : singingClip->singerInfo().languages()) {
+            if (language.id() != originalLanguage) {
+                selectedLanguage = language.id();
+                break;
+            }
+        }
+        if (selectedLanguage.isEmpty())
+            QSKIP("The configured voicebank has no second language");
+    } else if (choice == 2) {
+        selectedLanguage = QStringLiteral("unknown");
+    }
+    auto &runtime = *context->m_coreRuntime;
+    const auto clipId = Automation::ClipId(singingClip->id());
+    const auto manualPronunciation = notes.first()->pronunciation().result();
+    QVERIFY(!manualPronunciation.isEmpty());
+    QVERIFY(runtime.notes().setPronunciation(commandContext(), clipId,
+                                             Automation::NoteId(notes.first()->id()), false,
+                                             manualPronunciation));
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    QCOMPARE(notes.first()->pronunciation().edited, manualPronunciation);
+    const auto untouched = notes.last()->serialize();
+    const auto firstLyric = notes.first()->lyric();
+    const auto secondLyric = notes.at(1)->lyric();
+    view->hide();
+    PianoRollView piano;
+    piano.setDataContext(singingClip);
+    const auto detach = qScopeGuard([&] { piano.setDataContext(nullptr); });
+    piano.resize(1000, 600);
+    piano.show();
+    piano.activateWindow();
+    QVERIFY(piano.setViewScale(1.0, 1.0));
+    QVERIFY(piano.centerAt(1920, 60));
+    piano.onEditModeChanged(ClipEditorGlobal::Select);
+    auto *canvas = piano.findChild<PianoRollGraphicsView *>();
+    QVERIFY(canvas);
+    QTRY_VERIFY(canvas->isVisible());
+    const auto pointAt = [&](int tick) {
+        return canvas->mapFromScene(QPointF(
+            canvas->tickToSceneX(tick), PianoRollCoord::keyIndexToCenterY(
+                                            60, ClipEditorGlobal::noteHeight * canvas->scaleY())));
+    };
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, pointAt(240));
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::ControlModifier, pointAt(720));
+    QCOMPARE(appStatus->selectedNotes.get().size(), 2);
+    QVERIFY(appStatus->selectedNotes.get().contains(notes.first()->id()));
+    QVERIFY(appStatus->selectedNotes.get().contains(notes.at(1)->id()));
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    bool chosen = false;
+    QTimer choose;
+    choose.setSingleShot(true);
+    connect(&choose, &QTimer::timeout, &piano, [&] {
+        auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+        QVERIFY(menu);
+        const auto close = qScopeGuard([&] { menu->close(); });
+        QMenu *languages = nullptr;
+        for (auto *action : menu->actions()) {
+            if (action->text() == PianoRollContextMenuController::tr("Language"))
+                languages = action->menu();
+        }
+        QVERIFY(languages);
+        const auto closeLanguages = qScopeGuard([&] { languages->close(); });
+        QString text = selectedLanguage;
+        if (choice == 1)
+            text = PianoRollContextMenuController::tr("Follow singer");
+        else if (choice == 2)
+            text = PianoRollContextMenuController::tr("Unknown");
+        else if (selectedLanguage == singingClip->singerInfo().defaultLanguage())
+            text += PianoRollContextMenuController::tr(" (default)");
+        QAction *target = nullptr;
+        for (auto *action : languages->actions()) {
+            if (action->text() == text)
+                target = action;
+        }
+        QVERIFY(target);
+        QVERIFY(target->isEnabled());
+        QVERIFY(!target->isChecked());
+        QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier,
+                          menu->actionGeometry(languages->menuAction()).center());
+        QTRY_VERIFY(languages->isVisible());
+        QTest::mouseClick(languages, Qt::LeftButton, Qt::NoModifier,
+                          languages->actionGeometry(target).center());
+        chosen = true;
+    });
+    const auto point = pointAt(240);
+    QContextMenuEvent event(QContextMenuEvent::Mouse, point,
+                            canvas->viewport()->mapToGlobal(point));
+    choose.start(0);
+    QApplication::sendEvent(canvas->viewport(), &event);
+    choose.stop();
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(chosen);
+    QCOMPARE(notes.first()->language(), selectedLanguage);
+    QCOMPARE(notes.at(1)->language(), selectedLanguage);
+    QCOMPARE(notes.first()->lyric(), firstLyric);
+    QCOMPARE(notes.at(1)->lyric(), secondLyric);
+    QVERIFY(notes.first()->pronunciation().edited.isEmpty());
+    QCOMPARE(notes.last()->serialize(), untouched);
+    // Language tasks also update derived pronunciations; the user edit has one undo entry.
+    QVERIFY(runtime.documentVersion().revision > before.revision);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(notes.first()->language(), originalLanguage);
+    QCOMPARE(notes.at(1)->language(), originalLanguage);
+    QCOMPARE(notes.first()->pronunciation().edited, manualPronunciation);
+    QCOMPARE(notes.last()->serialize(), untouched);
+    QVERIFY(!historyManager->canUndo());
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+}
+
 void ApplicationGuiTests::phonemeDurationResetConfirmsAdjacentChanges_data() {
     QTest::addColumn<bool>("accept");
     QTest::addColumn<bool>("selectBoth");

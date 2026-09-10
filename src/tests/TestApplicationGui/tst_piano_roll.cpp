@@ -564,7 +564,17 @@ void ApplicationGuiTests::inlinePronunciationCommitsAndCancels() {
     QCOMPARE(note->pronunciation().edited, QStringLiteral("m aa"));
 }
 
+void ApplicationGuiTests::resizingANotePreviewsAndCommitsItsBoundary_data() {
+    QTest::addColumn<bool>("leftEdge");
+    QTest::addColumn<bool>("cancel");
+    QTest::newRow("extend-right") << false << false;
+    QTest::newRow("extend-left") << true << false;
+    QTest::newRow("cancel-left") << true << true;
+}
+
 void ApplicationGuiTests::resizingANotePreviewsAndCommitsItsBoundary() {
+    QFETCH(bool, leftEdge);
+    QFETCH(bool, cancel);
     createPianoRoll();
     if (QTest::currentTestFailed())
         return;
@@ -579,9 +589,10 @@ void ApplicationGuiTests::resizingANotePreviewsAndCommitsItsBoundary() {
     QVERIFY(note);
     QVERIFY(item);
     const auto bounds = item->sceneBoundingRect();
-    const auto press = view->mapFromScene(QPointF(bounds.right() - 2, bounds.center().y()));
+    const auto press = view->mapFromScene(
+        QPointF(leftEdge ? bounds.left() + 2 : bounds.right() - 2, bounds.center().y()));
     const auto delta = view->tickToSceneX(240) - view->tickToSceneX(0);
-    const auto release = press + QPoint(qRound(delta), 0);
+    const auto release = press + QPoint(qRound(leftEdge ? -delta : delta), 0);
     QVERIFY(view->viewport()->rect().contains(press));
     QVERIFY(view->viewport()->rect().contains(release));
     QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, press);
@@ -597,24 +608,38 @@ void ApplicationGuiTests::resizingANotePreviewsAndCommitsItsBoundary() {
     QApplication::sendEvent(view->viewport(), &move);
     QTRY_COMPARE(appStatus->pianoRollNoteEditPreview.get().size(), 1);
     const auto preview = appStatus->pianoRollNoteEditPreview.get().first();
-    QCOMPARE(preview.rStart, 480);
+    const auto expectedStart = leftEdge ? 240 : 480;
+    QCOMPARE(preview.rStart, expectedStart);
     QCOMPARE(preview.length, 480);
     QCOMPARE(preview.keyIndex, 62);
     QCOMPARE(note->length(), 240);
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
+    if (cancel)
+        QTest::keyClick(view.get(), Qt::Key_Escape);
     QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, release);
-    QCOMPARE(note->localStart(), 480);
+    if (cancel) {
+        QCOMPARE(note->localStart(), 480);
+        QCOMPARE(note->length(), 240);
+        QCOMPARE(sceneNote(id)->length(), 240);
+        QVERIFY(appStatus->pianoRollNoteEditPreview.get().isEmpty());
+        QCOMPARE(runtime.documentVersion(), before);
+        QVERIFY(!historyManager->canUndo());
+        return;
+    }
+    QCOMPARE(note->localStart(), expectedStart);
     QCOMPARE(note->length(), 480);
     QCOMPARE(note->keyIndex(), 62);
     QVERIFY(appStatus->pianoRollNoteEditPreview.get().isEmpty());
     QCOMPARE(sceneNote(id)->length(), 480);
     QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
     historyManager->undo();
+    QCOMPARE(note->localStart(), 480);
     QCOMPARE(note->length(), 240);
     QCOMPARE(sceneNote(id)->length(), 240);
     QVERIFY(!historyManager->canUndo());
     historyManager->redo();
+    QCOMPARE(note->localStart(), expectedStart);
     QCOMPARE(note->length(), 480);
     QCOMPARE(sceneNote(id)->length(), 480);
 }
