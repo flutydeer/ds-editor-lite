@@ -2,7 +2,7 @@
 
 ## 1. 验收结论与证据
 
-本期验收范围包括六类测试、Linux/Windows/macOS 完整产品构建、普通与原生 GUI 场景，以及默认内置声库的实际推理和导出。三平台均具备覆盖率采集入口。基础集合已取得三平台 CI 通过证据；Windows 本地另曾以实际 Qixuan 声库完成 CPU 手动推理、声码器与 WAV 导出。后续增加的领域、GUI、音频和内置资源用例按扩展后的集合重新验收，不沿用较早结果作为其通过依据。
+本期验收范围包括六类测试、Linux/Windows/macOS 完整产品构建、普通与原生 GUI 场景，以及默认内置声库的实际推理和导出。CI 的覆盖率验收仅为 Linux 独立 Coverage 步骤；Windows/macOS 使用普通 Debug 构建执行全部适用测试，不要求原生或 LLVM 采集。建设中已取得的三平台测试及专项覆盖证据继续保留；Windows 本地另曾以实际 Qixuan 声库完成 CPU 手动推理、声码器与 WAV 导出。扩展后的测试集合及最终 CI 方式仍须取得对应完整执行结果，不沿用较早结果作为其通过依据。
 
 本报告保留本期验收结论、实质问题及验证边界，适用至本期发布。具体受测版本、环境版本、用例数量、耗时、逐例结果和原始日志以 [PR #187](https://github.com/flutydeer/ds-editor-lite/pull/187) 关联的 [Actions](https://github.com/flutydeer/ds-editor-lite/actions/workflows/tests.yml) 及产物为准，不在文档维护逐提交状态。执行入口见[测试计划](test-plan.md)，功能与测试对应关系见[覆盖矩阵](test-coverage-matrix.md)。
 
@@ -83,7 +83,7 @@ Qt Test 的行为/数据行与 CTest 程序注册分别报告，数量不作为�
 
 ### 4.1. 平台和资源边界
 
-Linux x64、Windows x64 和 macOS arm64 CI 分别完整构建 Editor、Connector 与测试，执行通用、协议、进程、GUI 及内置资源集合，并采集对应平台覆盖率。普通控件使用 offscreen；原生桌面集合在 Linux 使用 Xvfb，在 Windows/macOS 使用原生桌面。Windows 本地使用项目标准开发环境与构建/测试 preset，通用测试不以 CI 身份作为启用条件。Linux 的 RtMidi 在 manifest 中显式请求 ALSA；三平台依赖解析确认仅 Linux 引入该特性和依赖。
+Linux x64、Windows x64 和 macOS arm64 CI 分别完整构建 Editor、Connector 与测试，执行通用、协议、进程、GUI 及内置资源集合。Linux 使用独立覆盖构建，Tests 之后由 Coverage 步骤读取执行数据生成报告；Windows/macOS 使用 `build/Tests` 中的普通 Debug 构建执行全部适用测试。普通控件使用 offscreen；原生桌面集合在 Linux 使用 Xvfb，在 Windows/macOS 使用原生桌面。Windows 本地使用项目标准开发环境与构建/测试 preset，常规测试不要求覆盖率工具，也不以 CI 身份作为启用条件。Linux 的 RtMidi 在 manifest 中显式请求 ALSA；三平台依赖解析确认仅 Linux 引入该特性和依赖。
 
 默认资源为仓库内置 `voicebank-fixture.zip`，由 CMake 解压。包采用自有身份、中英文小词典、两条人工声线和微型确定性 ONNX 图，经生产 G2P/S2P、Duration/Pitch/Variance/Acoustic/Vocoder 完成实际推理。中文用例使用 `啦` 验证 UTF-8 转换，英语用例使用 `la`；检查生成发音与音素、非静音 WAV、缓存复用，以及声线和 BPM 变化后的重算。素材不包含真实声库权重，运行测试不需要训练框架。
 
@@ -93,7 +93,7 @@ ZIP 纳入 CMake 的重新配置依赖，复用构建目录时更新资源会触
 
 本地既有整套验证与后续扩展分别记账。Visual Studio 2026 自动更新期间未完成的产品构建不记为通过；Talcs 的独立修前/修后验证使用完整的 Visual Studio 2022 安装和隔离依赖构建，不替代 Editor、Connector 及全套测试的标准构建验证。
 
-Windows 实际执行中，前置静态插桩耗时显著高于测试运行，并已观察到插桩正常完成后测试自身失败的情况。按采集日志分别核对插桩完成、CTest 退出及报告生成，不能把长时间没有 CTest 输出直接认定为测试挂起，也不能把测试崩溃计作采集器故障。CI 整体 job 预算覆盖构建、插桩和报告阶段，单个测试及任务超时不因此放宽；最终结果仍须同时满足采集成功和规定测试通过。
+建设中的 Windows 专项采样显示，前置静态插桩耗时显著高于测试运行，也存在插桩正常完成后测试自身失败的情况。原日志及结果继续有效，分析时分别核对插桩完成、CTest 退出及报告生成。最终 Windows/macOS CI 采用普通 Debug 全量测试；原生和 LLVM 采集器保留为按需本地工具。单个测试及任务超时不因采集耗时放宽，CI 最终结果按三平台全部适用测试及 Linux Coverage 步骤验收。
 
 完整构建验证采用 Debug 测试配置，不代替 Release 安装包验收。测试成功清理自身沙箱；失败保留进程日志、退出状态和必要素材，包括隐藏导出暂存文件。
 
@@ -111,17 +111,17 @@ Windows 实际执行中，前置静态插桩耗时显著高于测试运行，并
 | macOS 暖缓存 | 实际命中本平台缓存，仍执行 install，再完成完整产品部署与规定测试 | 暖路径通过 |
 | Linux 依赖升级 | 从旧缓存回退恢复兼容包，变化的依赖重新构建并形成新缓存；更新后的依赖再完成完整验证 | 升级后的复用与重建路径通过 |
 
-缓存键关联 runner 镜像、Qt、依赖声明、共享端口及项目覆盖端口，实际复用由 vcpkg ABI 判断。缓存不决定依赖版本，也不跳过 install；清除缓存或出现命中提示本身均不作为完整验收依据。依赖升级及 Talcs 项目补丁必须经过实际依赖核对和完整测试。Windows 覆盖采集在本地与 CI 使用相同机制；macOS 部署与签名属于完整构建步骤，不以插件复制成功替代进程测试通过。
+缓存键关联 runner 镜像、Qt、依赖声明、共享端口及项目覆盖端口，实际复用由 vcpkg ABI 判断。缓存不决定依赖版本，也不跳过 install；清除缓存或出现命中提示本身均不作为完整验收依据。依赖升级及项目补丁必须经过实际依赖核对和完整测试。当前 CI 的缓存验收对应 Linux 覆盖构建及 Windows/macOS 普通 Debug 构建；macOS 部署与签名属于完整构建步骤，不以插件复制成功替代进程测试通过。
 
 ## 5. 覆盖率与补测选择
 
 ### 5.1. 统计口径
 
-Linux 使用 GCC/gcov 和 gcovr 对已编译的项目生产源码采样，覆盖应用、Connector、内部库及参与构建的工具代码，排除测试、第三方、生成代码和非目标编译器分支。Linux 未编译的平台实现不在分母内。
+Linux CI 使用 GCC/gcov 和 gcovr 对已编译的项目生产源码采样，在独立 Coverage 步骤生成报告，覆盖应用、Connector、内部库及参与构建的工具代码，排除测试、第三方、生成代码和非目标编译器分支。报告复用 Tests 步骤的数据；Linux 未编译的平台实现不在分母内。
 
-Windows 使用独立 `coverage` 构建及 Visual Studio 原生静态插桩，包含测试启动的 Editor/Connector。macOS 使用 Clang/LLVM 源码插桩，按进程和模块写出 profile，生成 LCOV、HTML、逐文件 CSV 及原生分支汇总。采集器从 CTest 元数据发现当前可执行程序，排除重组前遗留文件；按生产源码文件和行号合并各程序/模块命中，不重复计算副本。Microsoft 导出格式中的占位分支比例不作为分支覆盖率。
+按需本地或专项采样时，Windows 使用独立 `coverage` 构建及 Visual Studio 原生静态插桩，包含测试启动的 Editor/Connector；macOS 使用 Clang/LLVM 源码插桩，按进程和模块写出 profile，生成 LCOV、HTML、逐文件 CSV 及原生分支汇总。这两种采集器继续保留，不属于最终 Windows/macOS CI 的规定步骤。采集器从 CTest 元数据发现当前可执行程序，排除重组前遗留文件；按生产源码文件和行号合并各程序/模块命中，不重复计算副本。Microsoft 导出格式中的占位分支比例不作为分支覆盖率。
 
-三平台默认采样均包含内置声库。Windows 本地真实声库采样单独标明资源条件；不同编译器、平台和资源集合的百分比不直接比较。删除已经没有产品接线的旧设置页及 TrackSynthesizer 所引起的分母变化，不计为新增行为命中。
+Linux CI 测试与覆盖采样包含内置声库，Windows/macOS 普通测试同样执行内置资源流程。本地专项采样记录各自的资源条件，Windows 已有真实声库采样单独保留；不同编译器、平台和资源集合的百分比不直接比较。删除已经没有产品接线的旧设置页及 TrackSynthesizer 所引起的分母变化，不计为新增行为命中。
 
 测试执行成功与采集成功分别核对。失败轮次只用于诊断；LLVM 报告 mapping/profile hash 不匹配时，保留标准错误、对象列表及原始 profile，必要的逐函数诊断与正式 LCOV 分开保存，不能通过忽略警告使遗漏函数悄然退出分母。正式导出不用会向标准输出写调试文本的 `-dump`；详细数值和该类诊断的处理证据留在 PR 与产物。
 
@@ -173,6 +173,6 @@ Windows 使用独立 `coverage` 构建及 Visual Studio 原生静态插桩，包
 
 ## 6. 审查与发布完成依据
 
-最终完成依据为规定测试和实际 CI 通过、真实审查问题已修复并完成回复与解决，以及 Codex bot 对受审版本给出 thumbs-up 或明确未发现问题。代码或构建/测试配置在审查后变化时按执行计划复验并重新请求审查。
+最终完成依据为三平台全部适用测试及 Linux 独立 Coverage 步骤通过、真实审查问题已修复并完成回复与解决，以及 Codex bot 对受审版本给出 thumbs-up 或明确未发现问题。Windows/macOS 按需本地采集不作为每次 CI 的必需步骤。代码或构建/测试配置在审查后变化时按执行计划复验并重新请求审查。
 
 动态审查状态、问题处理记录和最终认可统一保留在 [PR #187](https://github.com/flutydeer/ds-editor-lite/pull/187)。文档不静态记录“等待 ready”或某轮审查状态，也不为复制最终 reaction 产生后续提交。

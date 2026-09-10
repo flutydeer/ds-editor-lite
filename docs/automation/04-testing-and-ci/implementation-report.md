@@ -2,7 +2,7 @@
 
 ## 1. 交付概况
 
-本期交付测试体系的职责重组、重要行为补测及跨平台基础设施。Linux、Windows 和 macOS CI 构建完整 Editor、Connector 与测试，执行普通、GUI 和内置声库流程，并分别采集覆盖率。验证范围与实际结果见[测试报告](test-report.md)，详细执行证据和审查结论统一保留在 [PR #187](https://github.com/flutydeer/ds-editor-lite/pull/187)。
+本期交付测试体系的职责重组、重要行为补测及跨平台基础设施。Linux、Windows 和 macOS CI 构建完整 Editor、Connector 与测试，执行普通、GUI 和内置声库流程。覆盖率仅在 Linux CI 的独立 Coverage 步骤生成；Windows/macOS 使用普通 Debug 构建执行全部适用测试，本地原生及 LLVM 采集入口继续保留。验证范围与实际结果见[测试报告](test-report.md)，详细执行证据和审查结论统一保留在 [PR #187](https://github.com/flutydeer/ds-editor-lite/pull/187)。
 
 本报告记录本期交付设计及验收事实，适用至本期发布。逐次用例数量、执行耗时、依赖具体版本和运行结果由源码及 CI 产物承载，不在报告中维护逐提交快照。
 
@@ -111,21 +111,21 @@ macOS 部署先放齐插件、语言资源及 FFmpeg 私有依赖。歌词配置
 
 常规 Headless 与声库测试共用 Native HTTP 请求、超时及响应校验，补齐实际协议要求的响应类型协商；资源用例提供显式语言和任务作用域，并等待异步 G2P/分段完成后再启动手动推理。共同传输路径在无声库测试中也执行，避免资源客户端独自偏离接口要求。
 
-## 5. 三平台 CI 与覆盖率
+## 5. CI 与覆盖率采集
 
-CI 使用 Linux x64、Windows x64 和 macOS arm64 矩阵，runner 均采用 latest；每个平台分段完成环境、依赖、配置、完整覆盖构建、测试和产物收集。面向 `main` 的 PR 更新及 `main` 推送触发验证；Qt、vcpkg 和依赖版本由 workflow、manifest 及 overlay 声明。统一依赖引导脚本按 triplet 执行，Windows 构建复用项目 DevShell wrapper。各平台独立保留结果，构建或测试失败均传播失败退出码并收集诊断材料。普通 GUI 使用 offscreen，原生桌面集合在 Linux 使用 Xvfb，在 Windows/macOS 使用原生桌面。
+CI 使用 Linux x64、Windows x64 和 macOS arm64 矩阵，runner 均采用 latest；每个平台分段完成环境、依赖、配置、完整构建、测试和产物收集。Linux 使用 `coverage` preset 和 `build/Coverage`，测试后由独立 Coverage 步骤生成报告；Windows/macOS 使用普通 Debug `tests` preset 和 `build/Tests`，不运行覆盖率采集器。面向 `main` 的 PR 更新及 `main` 推送触发验证；Qt、vcpkg 和依赖版本由 workflow、manifest 及 overlay 声明。统一依赖引导脚本按 triplet 执行，Windows 构建复用项目 DevShell wrapper。各平台独立保留结果，构建或测试失败均传播失败退出码并收集诊断材料。普通 GUI 使用 offscreen，原生桌面集合在 Linux 使用 Xvfb，在 Windows/macOS 使用原生桌面。
 
 缓存限于 Qt 和 vcpkg 包，不复用整个 CMake 构建目录。vcpkg 缓存键关联 runner 镜像、Qt 和依赖声明，回退缓存仅提供候选包；每轮仍执行 install，由 ABI 决定复用或重建。镜像升级后的新 ABI 包可以写入新键，避免旧键精确命中阻止保存。失败构建使用独立 partial key 保存已完成包，完整成功缓存使用独立键。缓存哈希包含共享端口和项目覆盖端口，Talcs 补丁变化同样触发实际依赖核对；此前 wolf-midi 的临时覆盖已经在上游修复后移除。
 
 Qt 和 vcpkg 缓存按平台及 triplet 隔离。验收分别核对依赖缓存未命中的完整安装路径，以及实际命中后仍执行 install、完整构建和规定测试的路径；Linux 另有依赖升级时复用兼容包并重建变化依赖的证据。逐平台结论见[测试报告](test-report.md#42-缓存路径)，不以删除缓存或命中提示代替完整执行结果。
 
-GCC/gcov 插桩由显式选项启用，gcovr 统计项目生产源码的行与分支覆盖，排除测试、第三方及生成文件，不设百分比门槛。HTML、JSON、CSV、JUnit、完整测试日志和环境信息进入 CI 产物；逐文件 CSV 同时输出到日志，便于直接定位缺口。失败素材包含测试产物范围内的隐藏暂存文件。
+Linux GCC/gcov 插桩由显式选项启用，独立 Coverage 步骤使用测试已产生的数据，gcovr 统计项目生产源码的行与分支覆盖，排除测试、第三方及生成文件，不设百分比门槛，也不为生成报告重复执行测试。HTML、JSON、CSV 进入 Linux CI 产物；逐文件 CSV 同时输出到日志，便于直接定位缺口。三平台均保留 JUnit、完整测试日志和环境信息，失败素材包含测试产物范围内的隐藏暂存文件。
 
-Windows 使用独立 `coverage` preset 和 Visual Studio 原生静态插桩，构建时提供 PDB 与 `/PROFILE`，关闭与其不兼容的 Edit and Continue。采集器在执行前插桩，覆盖 Editor/Connector 子进程并恢复原二进制；项目脚本按源码文件和行合并多个程序中的重复统计。Windows 与 Linux 的编译代码、行映射不同，分别报告，不直接把百分比差值视为新增覆盖；Microsoft 输出中的占位分支比例不作为分支覆盖率。
+Windows 按需本地分析保留独立 `coverage` preset 和 Visual Studio 原生静态插桩，构建时提供 PDB 与 `/PROFILE`，关闭与其不兼容的 Edit and Continue。采集器在执行前插桩，覆盖 Editor/Connector 子进程并恢复原二进制；项目脚本按源码文件和行合并多个程序中的重复统计。Windows 与 Linux 的编译代码、行映射不同，分别报告，不直接把百分比差值视为新增覆盖；Microsoft 输出中的占位分支比例不作为分支覆盖率。
 
-Windows 的实际采集耗时主要来自大型原生程序的静态插桩。CI job 为完整构建、插桩和报告导出保留相应预算，测试程序和异步任务自身的截止时间保持独立；不通过放宽单项测试超时处理采集前置阶段的耗时。
+建设中的 Windows 专项采样表明，实际采集耗时主要来自大型原生程序的静态插桩，相关证据继续保留。最终 Windows CI 采用普通 Debug 全量测试，不要求 Microsoft 覆盖率收集器；需要进一步分析时再运行本地采集。测试程序和异步任务自身的截止时间保持独立。
 
-macOS 使用 LLVM 源码插桩，按进程及模块输出原始 profile，再合并为 HTML、LCOV、逐文件 CSV 和原生分支汇总。Windows/LLVM 共用生产源码过滤、CTest 程序发现和源码行去重逻辑；两者的测试输出同时进入日志文件及 job，保留实际退出码。三平台覆盖集合均包含内置资源和 GUI，具体计数由产物承载。
+macOS 按需本地分析保留 LLVM 源码插桩入口，按进程及模块输出原始 profile，再合并为 HTML、LCOV、逐文件 CSV 和原生分支汇总；最终 macOS CI 使用普通 Debug 全量测试，不进行 LLVM 插桩。Windows/LLVM 共用生产源码过滤、CTest 程序发现和源码行去重逻辑，保留测试输出与实际退出码。建设中已取得的跨平台专项采样仍可用于分析缺口，其运行条件和计数由相应产物承载。
 
 LLVM 正式 LCOV 导出不再启用 `-dump`：该诊断选项会把调试文本写入标准输出，与 LCOV 数据混合并导致解码失败。采集保留标准错误、输入对象清单和原始 profile，先前的逐函数诊断独立留在产物中；不通过忽略无效字节修补报告，也不把报告输出污染误记为原始覆盖数据丢失。
 

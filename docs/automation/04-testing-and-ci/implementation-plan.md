@@ -21,7 +21,7 @@ Qt Test 负责用例、断言、数据驱动与 Qt 事件；CTest 负责程序�
 4. 提取进程沙箱，统一数据目录、配置、临时素材、超时与子进程所有权。
 5. Qt 平台、路径和终止信号按当前系统适配，不把 CI 的 Linux 环境写成测试前提。
 6. 对整个测试树统一整理为基础、参数、歌词、声线推理、配置、自动化运行时、编辑、应用服务、文档、音频资产、协议、进程及 GUI 等职责套件。当前结构形成 25 个程序，包含独立编译的推理 Provider 变体及 ICU 包装器；该数量是职责和运行条件划分的结果，不作为后续验收指标。完整职责见[测试大纲](test-outline.md)，历史入口迁移见[覆盖矩阵](test-coverage-matrix.md)。
-7. 结合三平台覆盖率确认重要遗漏，优先补填词、导入、设置、声线与音素等普通 GUI 工作流，以及批量编辑、真实应用适配和推理状态变化；补测验证产品行为，不追求百分比或分支穷举。GAME/RMVPE 提取模型本期不扩展。
+7. 结合 Linux CI 覆盖率及本地、专项采样确认重要遗漏，优先补填词、导入、设置、声线与音素等普通 GUI 工作流，以及批量编辑、真实应用适配和推理状态变化；补测验证产品行为，不追求百分比或分支穷举。GAME/RMVPE 提取模型本期不扩展。
 8. 仓库提供独立身份的最小测试声库 ZIP，支持多语种、多声线，通过正常生产加载器和执行器运行自制的确定性计算图。输入输出满足真实阶段要求，输出音频无需具有歌声品质；不添加测试声库专用产品分支。生成代码暂放 `build`，不复制真实声库权重、主体信息或词典。
 9. 将旧布尔场景函数及外层包装迁为直接 Qt Test slot；值比较输出实际与期望值，共享辅助断言保留调用位置。维持原有输入、严格相等或容差语义，并处理提前失败时的对象及环境清理。
 
@@ -41,27 +41,27 @@ Qt Test 负责用例、断言、数据驱动与 Qt 事件；CTest 负责程序�
 
 workflow 对面向 main 的 PR 和 main push 触发，使用矩阵分别构建完整 Editor、Connector 和测试；各平台使用 Qt 6.11.2 和 Debug 配置。
 
-| 平台 | runner | vcpkg triplet | 覆盖率 |
+| 平台 | runner | vcpkg triplet | CI 构建与验证 |
 |---|---|---|---|
-| Linux x64 | `ubuntu-latest` | `x64-linux` | GCC/gcovr 行与分支 |
-| Windows x64 | `windows-latest` | `x64-windows` | MSVC 原生静态插桩行覆盖 |
-| macOS arm64 | `macos-latest` | `arm64-osx` | LLVM 源码覆盖 |
+| Linux x64 | `ubuntu-latest` | `x64-linux` | `coverage` Debug 构建、全部测试、独立 Coverage 步骤生成 GCC/gcovr 行与分支报告 |
+| Windows x64 | `windows-latest` | `x64-windows` | 普通 Debug `tests` 构建、全部测试 |
+| macOS arm64 | `macos-latest` | `arm64-osx` | 普通 Debug `tests` 构建、全部测试 |
 
-每个平台按依赖、配置/完整构建、通用、协议/进程、GUI 和内置声库工作流的顺序引导调试，最终使用 `coverage` 构建及 `ci-coverage` 测试入口。普通 Qt GUI 采用 offscreen；原生窗口布局测试在 Linux 的 Xvfb 和 Windows/macOS 的桌面环境运行。`scripts/ci/bootstrap-vcpkg.py` 统一处理三个 triplet 的固定依赖引导；`bootstrap-linux.sh` 只委托 Linux 参数，不维护第二套安装实现。Windows 配置与构建复用 VS DevShell wrapper。
+每个平台按依赖、配置/完整构建、通用、协议/进程、GUI 和内置声库工作流的顺序引导调试。Linux 使用 `coverage` 构建及 `ci-coverage` 测试入口；Windows/macOS 使用 `tests` 构建及 `ci` 测试入口，执行相同职责的全部适用测试。普通 Qt GUI 采用 offscreen；原生窗口布局测试在 Linux 的 Xvfb 和 Windows/macOS 的桌面环境运行。`scripts/ci/bootstrap-vcpkg.py` 统一处理三个 triplet 的固定依赖引导；`bootstrap-linux.sh` 只委托 Linux 参数，不维护第二套安装实现。Windows 配置与构建复用 VS DevShell wrapper。
 
 失败先区分下载/依赖、编译链接、运行时加载、行为断言、超时及隔离；检查平台专有路径、动态库、插件与进程行为，修复后先定向复验，再在新提交上完整执行。各矩阵项独立保留结果，某个平台通过不替代其他平台验证。旧 run 的重跑不验证新代码。最终验证各依赖路径的空缓存与正常缓存命中，不缓存整个构建树。
 
-三个平台完整构建后均采集覆盖率并保留诊断产物；失败轮次的可用报告用于定位缺口。执行版本和失败项由运行日志、测试产物及 PR 保留，不能把失败采样作为通过证据。
+三个平台完整构建后均执行全部测试并保留诊断产物。覆盖率仅在 Linux CI 的独立 Coverage 步骤生成，使用前一测试步骤产生的数据，不为统计重复运行测试；Windows/macOS CI 不启用原生或 LLVM 插桩，也不要求覆盖率采集工具。失败轮次的可用报告用于定位缺口，不能作为通过证据。执行版本和失败项由运行日志、测试产物及 PR 保留。
 
 依赖缓存按平台、triplet、runner 镜像、Qt 和依赖声明建立精确键，回退前缀允许取回候选包；每轮仍由 vcpkg install 核对 ABI。runner 镜像更新后产生新键，使重新构建的包能够保存，不把旧缓存的精确命中误当作本轮全部依赖可复用。
 
 ## 6. 覆盖率采集与解释
 
-提供独立 `coverage` preset，在 `build/Coverage` 构建完整应用与测试，避免插桩产物污染普通测试构建。Linux 使用 GCC/gcovr 统计行和分支；Windows MSVC 使用完整调试信息及 `/PROFILE` 链接，通过 `scripts/tests/collect-msvc-coverage.py` 调用原生静态插桩收集器，包含测试拉起的应用进程。
+提供独立 `coverage` preset，在 `build/Coverage` 构建完整应用与测试，避免插桩产物污染普通 `build/Tests` 构建。Linux CI 使用 GCC/gcovr 统计行和分支。Windows 按需本地分析时，使用完整调试信息及 `/PROFILE` 链接，通过保留的 `scripts/tests/collect-msvc-coverage.py` 调用原生静态插桩收集器，包含测试拉起的应用进程。
 
 统计范围为本项目生产源码，排除测试、第三方及生成代码。Windows 按源码文件和行号对多个程序/模块的命中取 OR 后去重，不把同一行在不同测试程序中的副本重复计入分母；该采集器不提供可与 GCC 对比的分支统计，不把其导出格式中的占位分支值当作覆盖率。
 
-macOS 使用编译器的源码插桩、`llvm-profdata` 和 `llvm-cov`，包含测试程序和实际 Editor/Connector 子进程。三平台分别提供生产源码的汇总和逐文件明细，不混合百分比。
+macOS 按需本地分析时，使用 `coverage` 构建和保留的 LLVM 采集脚本，包含测试程序和实际 Editor/Connector 子进程。建设中取得的跨平台专项覆盖证据继续保留；不同平台或采样条件分别提供生产源码汇总和逐文件明细，不混合百分比，不要求每次 CI 都重新采集这些专项结果。
 
 内置测试声库在 CMake 配置时解压到构建目录，本地和 CI 默认可执行。显式配置真实声库时覆盖默认资源，并检查所需歌手、语言和歌词；配置错误必须失败。资源客户端共用真实协议、加载、G2P/S2P、推理及音频输出路径。真实声库仍用于真实模型兼容性、质量和性能验证。覆盖贡献按功能路径分析，不直接比较不同平台、编译器和资源集合的总百分比；精确采样结果保留在产物。
 
