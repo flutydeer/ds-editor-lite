@@ -31,7 +31,10 @@ add_subdirectory(TestProcessIntegration)
 add_subdirectory(TestModelResources)
 
 set(_voicebank_directory "${CMAKE_CURRENT_BINARY_DIR}/resources")
-file(ARCHIVE_EXTRACT INPUT "${CMAKE_CURRENT_SOURCE_DIR}/resources/voicebank-fixture.zip"
+set(_voicebank_archive "${CMAKE_CURRENT_SOURCE_DIR}/resources/voicebank-fixture.zip")
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_voicebank_archive}")
+file(REMOVE_RECURSE "${_voicebank_directory}/ci-fixture@1.0.0")
+file(ARCHIVE_EXTRACT INPUT "${_voicebank_archive}"
     DESTINATION "${_voicebank_directory}")
 foreach(_resource_test IN ITEMS TestModelResources TestApplicationGui)
     target_compile_definitions(${_resource_test} PRIVATE
