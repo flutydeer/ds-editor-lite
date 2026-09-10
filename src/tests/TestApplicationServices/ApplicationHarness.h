@@ -258,6 +258,7 @@ namespace ApplicationTest {
                 ++editorApplyCalls;
                 if (!editorApplySucceeds)
                     return false;
+                editorView.layout.bottomPanelVisible = true;
                 editorView.layout.bottomPanelPageId = pageId;
                 return true;
             };
