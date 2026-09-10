@@ -5,6 +5,7 @@ lite_add_test(${PROJECT_NAME} SOURCES
     tst_audio_assets.h
     tst_decoding.cpp
     tst_resolution.cpp
+    tst_waveform_sampling.cpp
     test_main.cpp
 )
 target_include_directories(${PROJECT_NAME} PRIVATE ../../app)
