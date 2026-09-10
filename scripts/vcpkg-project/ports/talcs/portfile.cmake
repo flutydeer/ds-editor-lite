@@ -3,7 +3,9 @@ vcpkg_from_github(
     REPO CrSjimo/talcs
     REF v0.1.0
     SHA512 d56df12cd3a3c859c991838c18680e2537a5c7b63b5dc63b451325ce668ed8c3fdcf8563eddd292993ea531a8720094211de0a88d28f89227e86da7ecd47c681
-    PATCHES fix-loop-position.patch
+    PATCHES
+        fix-loop-position.patch
+        fix-buffering-mode-position.patch
 )
 
 vcpkg_from_github(
