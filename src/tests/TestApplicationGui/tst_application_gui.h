@@ -84,6 +84,9 @@ private slots:
     void settingsSynthPreviewKeepsEnvelopeDurationsAcrossSampleRates();
     void audioPageInputsPersistWithoutPlayback();
     void midiPageSynthInputsPersistWithoutPlayback();
+    void trackHeaderInputsCommitAndUndo();
+    void trackColorMenuPreviewsAndCommits_data();
+    void trackColorMenuPreviewsAndCommits();
     void cleanup();
     void cleanupTestCase();
 
