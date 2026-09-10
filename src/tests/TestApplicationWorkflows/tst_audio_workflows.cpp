@@ -8,8 +8,12 @@
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/Tasking/TaskManager.h>
 
 #include <TalcsCore/AudioBuffer.h>
+#include <TalcsCore/AudioSourceClipSeries.h>
+#include <TalcsCore/FutureAudioSource.h>
+#include <TalcsCore/FutureAudioSourceClipSeries.h>
 #include <TalcsCore/MixerAudioSource.h>
 #include <TalcsCore/TransportAudioSource.h>
 #include <TalcsFormat/AudioFormatIO.h>
@@ -17,13 +21,46 @@
 #include <QFile>
 #include <QDir>
 #include <QScopeGuard>
+#include <QSemaphore>
 #include <QtTest>
 
 #include <algorithm>
 #include <cmath>
 #include <numeric>
+#include <numbers>
+#include <thread>
 
 namespace {
+    class ControlledAudioRead final : public talcs::PositionableAudioSource {
+    public:
+        explicit ControlledAudioRead(float value, QSemaphore *entered = nullptr,
+                                     QSemaphore *resume = nullptr)
+            : m_value(value), m_entered(entered), m_resume(resume) {
+        }
+
+        qint64 length() const override {
+            return 64;
+        }
+
+    protected:
+        qint64 processReading(const talcs::AudioSourceReadData &data) override {
+            if (m_entered) {
+                m_entered->release();
+                m_resume->acquire();
+                m_entered = nullptr;
+            }
+            for (int channel = 0; channel < data.buffer->channelCount(); ++channel)
+                std::fill_n(data.buffer->writePointerTo(channel, data.startPos), data.length,
+                            m_value);
+            return data.length;
+        }
+
+    private:
+        float m_value;
+        QSemaphore *m_entered;
+        QSemaphore *m_resume;
+    };
+
     bool writeAudio(const QString &path, const QVector<float> &samples) {
         QFile file(path);
         if (!file.open(QIODevice::WriteOnly))
@@ -50,6 +87,74 @@ namespace {
         track.name = name;
         track.clips = {clip};
         return track;
+    }
+}
+
+void ApplicationWorkflowTests::audioClipRangeChangesWaitForActiveReads_data() {
+    QTest::addColumn<bool>("futureSources");
+    QTest::newRow("audio-file-series") << false;
+    QTest::newRow("inference-result-series") << true;
+}
+
+void ApplicationWorkflowTests::audioClipRangeChangesWaitForActiveReads() {
+    QFETCH(bool, futureSources);
+    QSemaphore readEntered;
+    QSemaphore resumeRead;
+    QSemaphore changeStarted;
+    QSemaphore changeFinished;
+    ControlledAudioRead playing(0.25f, &readEntered, &resumeRead);
+    ControlledAudioRead moved(0.5f);
+    const auto verifyRangeChange = [&](auto &series, auto *firstSource, auto *secondSource) {
+        series.insertClip(firstSource, 0, 0, 8);
+        const auto changingClip = series.insertClip(secondSource, 64, 0, 8);
+        QVERIFY(series.open(8, 48000));
+        talcs::AudioBuffer buffer(1, 8);
+        qint64 frames = 0;
+        bool changed = false;
+        std::thread changer;
+        std::thread reader([&] { frames = series.read({&buffer, 0, 8}); });
+        const auto finishThreads = qScopeGuard([&] {
+            resumeRead.release();
+            if (reader.joinable())
+                reader.join();
+            if (changer.joinable())
+                changer.join();
+        });
+        QVERIFY(readEntered.tryAcquire(1, 3000));
+        changer = std::thread([&] {
+            changeStarted.release();
+            changed = series.setClipRange(changingClip, 128, 8);
+            changeFinished.release();
+        });
+        QVERIFY(changeStarted.tryAcquire(1, 3000));
+        const bool changedDuringRead = changeFinished.tryAcquire(1, 100);
+        resumeRead.release();
+        reader.join();
+        changer.join();
+        QVERIFY2(!changedDuringRead,
+                 "The clip index changed while an audio read was traversing it");
+        QVERIFY(changed);
+        QCOMPARE(frames, qint64{8});
+        for (int sample = 0; sample < 8; ++sample)
+            QCOMPARE(buffer.sampleAt(0, sample), 0.25f);
+        series.setNextReadPosition(128);
+        QCOMPARE(series.read({&buffer, 0, 8}), qint64{8});
+        for (int sample = 0; sample < 8; ++sample)
+            QCOMPARE(buffer.sampleAt(0, sample), 0.5f);
+    };
+    if (futureSources) {
+        talcs::FutureAudioSource first(QtFuture::makeReadyValueFuture(
+            static_cast<talcs::PositionableAudioSource *>(&playing)));
+        talcs::FutureAudioSource second(
+            QtFuture::makeReadyValueFuture(static_cast<talcs::PositionableAudioSource *>(&moved)));
+        QTRY_COMPARE(first.source(), static_cast<talcs::PositionableAudioSource *>(&playing));
+        QTRY_COMPARE(second.source(), static_cast<talcs::PositionableAudioSource *>(&moved));
+        talcs::FutureAudioSourceClipSeries series;
+        series.setReadMode(talcs::FutureAudioSourceClipSeries::Skip);
+        verifyRangeChange(series, &first, &second);
+    } else {
+        talcs::AudioSourceClipSeries series;
+        verifyRangeChange(series, &playing, &moved);
     }
 }
 
@@ -141,6 +246,73 @@ void ApplicationWorkflowTests::audioExportRespectsRangeMixAndMute() {
     QCOMPARE(compressed.size(), muted.size());
     for (qsizetype i = 0; i < compressed.size(); ++i)
         QVERIFY(std::abs(compressed.at(i) - muted.at(i)) <= 1.0f / 8388608.0f);
+}
+
+void ApplicationWorkflowTests::lossyAudioExportsProduceReadableFiles_data() {
+    QTest::addColumn<int>("fileType");
+    QTest::addColumn<int>("majorFormat");
+    QTest::addColumn<QString>("extension");
+    QTest::newRow("vorbis") << int(Audio::AudioExporterConfig::FT_OggVorbis)
+                            << int(talcs::AudioFormatIO::OGG) << QStringLiteral("ogg");
+    QTest::newRow("mp3") << int(Audio::AudioExporterConfig::FT_Mp3)
+                         << int(talcs::AudioFormatIO::MPEG) << QStringLiteral("mp3");
+}
+
+void ApplicationWorkflowTests::lossyAudioExportsProduceReadableFiles() {
+    QFETCH(int, fileType);
+    QFETCH(int, majorFormat);
+    QFETCH(QString, extension);
+    QTemporaryDir files;
+    QVERIFY(files.isValid());
+    QVector<float> samples(48000);
+    for (int index = 0; index < samples.size(); ++index)
+        samples[index] = float(0.25 * std::sin(2 * std::numbers::pi * 440 * index / 48000.0));
+    const auto input = files.filePath(QStringLiteral("source.wav"));
+    QVERIFY(writeAudio(input, samples));
+    auto document = Automation::DocumentAutomationFacade::newDocumentDraft(false);
+    document.tracks = {audioTrack(QStringLiteral("Tone"), input)};
+    QVERIFY(runtime().documents().commitNewDocument(commandContext(), document));
+    QVERIFY(runtime().timeline().setTempo(commandContext(), 0, 120));
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    const auto before = runtime().documentVersion();
+    const auto original = context->m_appModel->serialize();
+    Automation::AudioExportConfigDto config;
+    config.fileDirectory = files.path();
+    config.fileName = QStringLiteral("encoded.") + extension;
+    config.fileType = static_cast<Audio::AudioExporterConfig::FileType>(fileType);
+    config.sampleRate = 48000;
+    config.mono = true;
+    const Automation::AudioExportPolicyDto policy{.allowLossyFormat = true};
+    const auto accepted = runtime().audioExports().start(commandContext(), config, policy);
+    QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
+    const auto terminal = [&] {
+        const auto task = runtime().tasks().getTask(before.documentId, accepted.get().taskId);
+        return task && (task.get().state == Automation::AutomationTaskState::Succeeded ||
+                        task.get().state == Automation::AutomationTaskState::Failed ||
+                        task.get().state == Automation::AutomationTaskState::Canceled);
+    };
+    QTRY_VERIFY_WITH_TIMEOUT(terminal(), 10000);
+    const auto task = runtime().tasks().getTask(before.documentId, accepted.get().taskId);
+    QVERIFY(task);
+    QVERIFY2(task.get().state == Automation::AutomationTaskState::Succeeded,
+             qPrintable(task.get().error ? task.get().error->message : QString{}));
+    QFile file(files.filePath(config.fileName));
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    talcs::AudioFormatIO decoder(&file);
+    QVERIFY2(decoder.open(talcs::AbstractAudioFormatIO::Read), qPrintable(decoder.errorString()));
+    QCOMPARE(decoder.majorFormat(), static_cast<talcs::AudioFormatIO::MajorFormat>(majorFormat));
+    QCOMPARE(decoder.sampleRate(), 48000.0);
+    QCOMPARE(decoder.channelCount(), 1);
+    const auto duration = double(decoder.length()) / decoder.sampleRate();
+    QVERIFY(duration >= 0.95 && duration < 1.1);
+    samples.resize(decoder.length());
+    QCOMPARE(decoder.read(samples.data(), samples.size()), qint64(samples.size()));
+    QVERIFY(std::all_of(samples.cbegin(), samples.cend(),
+                        [](float sample) { return std::isfinite(sample); }));
+    QVERIFY(std::any_of(samples.cbegin(), samples.cend(),
+                        [](float sample) { return std::abs(sample) > 0.05f; }));
+    QCOMPARE(runtime().documentVersion(), before);
+    QCOMPARE(context->m_appModel->serialize(), original);
 }
 
 void ApplicationWorkflowTests::controlledPlaybackLoopsAndBuffers() {

@@ -6,6 +6,8 @@ vcpkg_from_github(
     PATCHES
         fix-loop-position.patch
         fix-buffering-mode-position.patch
+        fix-clip-series-read-serialization.patch
+        fix-sdl-driver-startup-lifetime.patch
 )
 
 vcpkg_from_github(

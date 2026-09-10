@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../TestSupport/RuntimeResourcesFixture.h"
+#include "RuntimeResourcesFixture.h"
 
 #include "AppContext.h"
 #include "Bootstrap/AppEnvironment.h"
@@ -18,9 +18,9 @@
 
 #include <memory>
 
-class NativeAppFixture final {
+class GuiAppFixture final {
 public:
-    ~NativeAppFixture() {
+    ~GuiAppFixture() {
         context.reset();
         restoreVariable("DSEL_TEST_DATA_ROOT", previousRoot);
         restoreVariable("DSEL_TEST_PLUGIN_ROOT", previousPlugins);

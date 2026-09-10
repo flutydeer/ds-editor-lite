@@ -24,6 +24,8 @@ private slots:
     void rhiClipResizeCommitsOrCancels_data();
     void rhiClipResizeCommitsOrCancels();
     void availableAudioDeviceRunsPublicPlayback();
+    void audioDriverStartupCanBeCanceled_data();
+    void audioDriverStartupCanBeCanceled();
     void configuredMidiLoopbackFeedsLiveSynthesizer();
 };
 

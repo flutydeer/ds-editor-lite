@@ -1,5 +1,5 @@
 #include "tst_native_desktop.h"
-#include "NativeAppFixture.h"
+#include "../TestSupport/GuiAppFixture.h"
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
@@ -120,7 +120,7 @@ namespace {
             QVERIFY2(backendError.isEmpty(), qPrintable(backendError));
         }
 
-        NativeAppFixture app;
+        GuiAppFixture app;
         SingingClip *clip = nullptr;
         int noteId = -1;
         std::unique_ptr<PianoRollRhiWidget> canvas;
@@ -132,7 +132,7 @@ namespace {
 void NativeDesktopTests::rhiNoteDrawingCommitsAndUndoUpdatesInteraction() {
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
-    NativeAppFixture fixture;
+    GuiAppFixture fixture;
     QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
     auto &context = *fixture.context;
     auto &runtime = *context.m_coreRuntime;

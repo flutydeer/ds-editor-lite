@@ -1,5 +1,5 @@
 #include "tst_native_desktop.h"
-#include "NativeAppFixture.h"
+#include "../TestSupport/GuiAppFixture.h"
 
 #include "Automation/CoreRuntime.h"
 #include "Controller/PlaybackController.h"
@@ -25,6 +25,7 @@
 #include <QFile>
 #include <QPointer>
 #include <QScopeGuard>
+#include <QThread>
 #include <QtTest/QTest>
 
 #include <algorithm>
@@ -54,7 +55,7 @@ namespace {
 }
 
 void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
-    NativeAppFixture fixture;
+    GuiAppFixture fixture;
     QVERIFY2(fixture.initialize(false), qPrintable(fixture.error));
     auto *output = AudioSystem::outputSystem();
     auto *deviceContext = output->outputContext();
@@ -160,6 +161,39 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
     QCOMPARE(runtime.documentVersion(), before);
 }
 
+void NativeDesktopTests::audioDriverStartupCanBeCanceled_data() {
+    QTest::addColumn<bool>("deliverStartup");
+    QTest::addColumn<bool>("destroyDriver");
+    QTest::newRow("finalize-before-startup") << false << false;
+    QTest::newRow("destroy-before-startup") << false << true;
+    QTest::newRow("finalize-during-startup") << true << false;
+}
+
+void NativeDesktopTests::audioDriverStartupCanBeCanceled() {
+    QFETCH(bool, deliverStartup);
+    QFETCH(bool, destroyDriver);
+    GuiAppFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
+    auto *driver = AudioSystem::outputSystem()->outputContext()->driver();
+    if (!driver)
+        QSKIP("No audio output backend is available");
+    QVERIFY(driver->isInitialized());
+    if (deliverStartup)
+        QCoreApplication::sendPostedEvents(driver, QEvent::MetaCall);
+    if (destroyDriver) {
+        QPointer<talcs::AudioDriver> observed(driver);
+        fixture.context.reset();
+        QVERIFY(observed.isNull());
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+    } else {
+        driver->finalize();
+        QCoreApplication::sendPostedEvents(driver, QEvent::MetaCall);
+        QVERIFY(!driver->isInitialized());
+        for (auto *thread : driver->findChildren<QThread *>())
+            QVERIFY(!thread->isRunning());
+    }
+}
+
 void NativeDesktopTests::configuredMidiLoopbackFeedsLiveSynthesizer() {
     const auto inputName = qEnvironmentVariable("DSEL_TEST_MIDI_INPUT");
     const auto outputName = qEnvironmentVariable("DSEL_TEST_MIDI_OUTPUT");
@@ -167,7 +201,7 @@ void NativeDesktopTests::configuredMidiLoopbackFeedsLiveSynthesizer() {
         QSKIP("Set DSEL_TEST_MIDI_INPUT and DSEL_TEST_MIDI_OUTPUT to a dedicated loopback route");
     QVERIFY2(!inputName.isEmpty() && !outputName.isEmpty(),
              "Both MIDI loopback port names are required");
-    NativeAppFixture fixture;
+    GuiAppFixture fixture;
     QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
     const auto inputNames = MidiSystem::availableDevices();
     const auto inputIndex = inputNames.indexOf(inputName);

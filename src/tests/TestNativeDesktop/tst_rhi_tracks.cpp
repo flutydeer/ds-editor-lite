@@ -1,5 +1,5 @@
 #include "tst_native_desktop.h"
-#include "NativeAppFixture.h"
+#include "../TestSupport/GuiAppFixture.h"
 
 #include "Automation/CoreRuntime.h"
 #include "Controller/ClipController.h"
@@ -22,7 +22,7 @@
 
 namespace {
     struct TrackFixture {
-        NativeAppFixture application;
+        GuiAppFixture application;
         std::unique_ptr<TracksRhiWidget> canvas;
         int clipId = -1;
         int firstTrackId = -1;
