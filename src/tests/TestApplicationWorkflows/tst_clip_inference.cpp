@@ -79,6 +79,9 @@ void ApplicationWorkflowTests::clipInferenceResultsRespectEditSession() {
     const auto targetNoteId = targetNote->id();
     QVERIFY(targetNote->pronunciation().original.isEmpty());
     QVERIFY(targetNote->phonemes().nameSeq.original.isEmpty());
+    // Drain insertion-triggered startup while the clip still has no singer.
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
 
     quint64 editSessionId = 0;
     int observedTaskId = -1;
