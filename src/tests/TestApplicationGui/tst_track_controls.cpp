@@ -137,6 +137,7 @@ void ApplicationGuiTests::trackColorMenuPreviewsAndCommits() {
         QTRY_VERIFY(colors->isVisible());
         auto *swatch = colors->findChild<TrackColorSwatchWidget *>();
         QVERIFY(swatch);
+        QTest::mouseMove(swatch, QPoint(0, 0));
         QSignalSpy previews(swatch, &TrackColorSwatchWidget::colorIndexHovered);
         const auto column = originalColor == 1 ? 2 : 1;
         const QPoint point(swatch->width() * (column * 2 + 1) / 8, swatch->height() / 6);
