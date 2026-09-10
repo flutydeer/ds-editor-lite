@@ -24,19 +24,22 @@ jobs:
             runner: ubuntu-latest
             triplet: x64-linux
             qt-arch: linux_gcc_64
+            preset: coverage
             jobs: 4
           - name: Windows x64
             runner: windows-latest
             triplet: x64-windows
             qt-arch: win64_msvc2022_64
+            preset: tests
             jobs: 4
           - name: macOS arm64
             runner: macos-latest
             triplet: arm64-osx
             qt-arch: clang_64
+            preset: tests
             jobs: 2
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: ${{ matrix.triplet == 'x64-windows' && 180 || 120 }}
+    timeout-minutes: 120
     env:
       QT_VERSION: '6.11.2'
       CMAKE_BUILD_PARALLEL_LEVEL: ${{ matrix.jobs }}
@@ -123,7 +126,7 @@ jobs:
           if [[ "$RUNNER_OS" == macOS ]]; then
             platform_args+=(-DCMAKE_OSX_ARCHITECTURES=arm64)
           fi
-          cmake --preset coverage -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
+          cmake --preset '${{ matrix.preset }}' -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
             -DQt6_DIR="$QT_ROOT_DIR/lib/cmake/Qt6" \
             -DVCPKG_TARGET_TRIPLET='${{ matrix.triplet }}' "${platform_args[@]}" \
             2>&1 | tee build/test-results/configure.log
@@ -131,35 +134,28 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Configure -Preset coverage -QtDir "$env:QT_ROOT_DIR" 2>&1 | Tee-Object build/test-results/configure.log
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Configure -Preset '${{ matrix.preset }}' -QtDir "$env:QT_ROOT_DIR" 2>&1 | Tee-Object build/test-results/configure.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Build editor, connector and tests
         id: build
         if: runner.os != 'Windows'
-        run: cmake --build --preset coverage -- -k 0 2>&1 | tee build/test-results/build.log
+        run: cmake --build --preset '${{ matrix.preset }}' -- -k 0 2>&1 | tee build/test-results/build.log
       - name: Build Windows editor, connector and tests
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Build -Preset coverage -QtDir "$env:QT_ROOT_DIR" 2>&1 | Tee-Object build/test-results/build.log
+          powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Build -Preset '${{ matrix.preset }}' -QtDir "$env:QT_ROOT_DIR" 2>&1 | Tee-Object build/test-results/build.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Linux tests
         if: runner.os == 'Linux'
         run: |
           xvfb-run -a ctest --preset ci-coverage --output-junit "$PWD/build/test-results/junit.xml" \
             2>&1 | tee build/test-results/ctest.log
-      - name: Windows tests and coverage
-        if: runner.os == 'Windows'
+      - name: Windows and macOS tests
+        if: runner.os != 'Linux'
         run: |
-          python scripts/tests/collect-msvc-coverage.py --build-dir build/Coverage \
-            --output build/test-results/coverage -- --preset ci-coverage \
-            2>&1 | tee build/test-results/coverage.log
-      - name: macOS tests and coverage
-        if: runner.os == 'macOS'
-        run: |
-          python scripts/tests/collect-llvm-coverage.py --build-dir build/Coverage \
-            --output build/test-results/coverage -- --preset ci-coverage \
-            2>&1 | tee build/test-results/coverage.log
+          ctest --preset ci --output-junit "$PWD/build/test-results/junit.xml" \
+            2>&1 | tee build/test-results/ctest.log
       - name: Linux coverage
         if: always() && runner.os == 'Linux' && steps.build.outcome == 'success'
         run: |
@@ -183,8 +179,8 @@ jobs:
           name: ${{ matrix.triplet }}-test-results-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             build/test-results
-            build/Coverage/Testing/Temporary
-            build/Coverage/CMakeFiles/CMakeConfigureLog.yaml
+            build/*/Testing/Temporary
+            build/*/CMakeFiles/CMakeConfigureLog.yaml
             vcpkg/buildtrees/**/*.log
           if-no-files-found: ignore
           include-hidden-files: true
