@@ -82,6 +82,8 @@ private slots:
     void pianoKeyboardGlissandoAndHideReleasePressedNotes();
     void trackContextMenuPastePreviewCancelsAndMatchesCommittedClip();
     void settingsSynthPreviewKeepsEnvelopeDurationsAcrossSampleRates();
+    void audioPageInputsPersistWithoutPlayback();
+    void midiPageSynthInputsPersistWithoutPlayback();
     void cleanup();
     void cleanupTestCase();
 
