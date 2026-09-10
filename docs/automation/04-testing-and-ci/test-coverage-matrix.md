@@ -154,5 +154,6 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 初始化期间关闭与任务回收 | workflow/native | 立即销毁引擎不能丢失已完成初始化任务的清理；普通用例复用进程级应用、重建文档并等待任务完成，G2P 不进入销毁后的降级状态 | NativeDesktop::audioDriverStartupCanBeCanceled；GuiAppFixture、GuiDocumentFixture | GUI 运行时；驱动子场景按后端条件执行 |
 | 音符创建与跨片段复制的请求重试 | domain | 创建音符返回稳定 clientRef/对象身份；复制与剪贴板粘贴连同参数曲线仅提交一次；同键改动手工读音、选区、内容或目标位置被拒绝，原结果及撤销边界不变 | ProjectEditing::insertingNotesCanRetryWithStableCreatedIdentities、transferringNotesCanRetryWithoutDuplicatingEdits | 通用；直接领域调用 |
 | 钢琴窗锚点创建、框选与合并 | gui | 完整 Graphics View 编辑器验证单锚点与连线预览尚未提交、Escape 取消、补足曲线后提交；框选成组拖动、插值/删除菜单、跨曲线连接均检查模型、预览绘制变化和一次撤销 | ApplicationGui::pitchAnchorCreationPreviewsBeforeCommitting、pitchAnchorRangeEditsUseTheViewAndMenu、pitchAnchorMergePreviewCommitsAndUndoes | offscreen；真实控件事件；无声库和设备要求 |
+| 播放窗口中的声学推理调度 | workflow | 内置声库形成当前、临近、已播放及远处片段；当前片段优先，暂停撤回排队任务并保留运行任务，继续及跳转后仅新窗口内任务启动，受控 PCM 回调推进播放 | ApplicationWorkflows::playbackWindowPrioritizesAndSuspendsAcousticInference | 默认内置声库；受控真实任务；无需音频设备 |
 
 本次还移除无产品实例化入口的旧 G2P/伪声设置页和 `TrackSynthesizer` 及其空容器引用。清理改变统计分母，报告中与新增测试命中的贡献分开说明，不通过排除仍有效的生产文件提高比例。

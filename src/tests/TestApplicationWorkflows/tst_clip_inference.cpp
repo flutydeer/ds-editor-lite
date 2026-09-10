@@ -7,6 +7,10 @@
 #include "Modules/Inference/Tasks/GetPhonemeNameTask.h"
 #include "Modules/Inference/Tasks/GetPronunciationTask.h"
 #include "../TestSupport/VoicebankFixture.h"
+#include "Controller/PlaybackController.h"
+#include "Model/AppOptions/AppOptions.h"
+#include "Modules/Audio/AudioContext.h"
+#include "Modules/Inference/Tasks/InferAcousticTask.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/PackageManager/PackageManager.h>
@@ -16,14 +20,20 @@
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include <lite/Tasking/TaskManager.h>
+#include <TalcsCore/AudioBuffer.h>
+#include <TalcsCore/MixerAudioSource.h>
+#include <TalcsCore/TransportAudioSource.h>
 
 #include <QPointer>
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTimer>
+#include <QSemaphore>
+#include <QThreadPool>
 #include <QtTest>
 
 #include <algorithm>
+#include <atomic>
 
 namespace {
     bool inferenceSettled(const SingingClip *clip) {
@@ -142,6 +152,159 @@ void ApplicationWorkflowTests::editingParametersRestartsOnlyDependentInference()
                              15000);
     QCOMPARE(*target->getInputCurve(name), inputBefore);
     QVERIFY(!HistoryManager::instance()->canUndo());
+}
+
+void ApplicationWorkflowTests::playbackWindowPrioritizesAndSuspendsAcousticInference() {
+    QTemporaryDir cache;
+    QVERIFY(cache.isValid());
+    auto *audio = AudioContext::instance();
+    const auto previousCache = appOptions->inference()->cacheDirectory;
+    const auto previousLookahead = appOptions->inference()->playbackLookaheadSeconds;
+    const auto previousReadAhead = audio->bufferingReadAheadSize();
+    const auto restore = qScopeGuard([&] {
+        audio->preMixer()->close();
+        audio->setBufferingReadAheadSize(previousReadAhead);
+        playbackController->setPlaybackStartGuard([] { return false; });
+        appOptions->inference()->cacheDirectory = previousCache;
+        appOptions->inference()->playbackLookaheadSeconds = previousLookahead;
+    });
+    appOptions->inference()->cacheDirectory = cache.path();
+    appOptions->inference()->playbackLookaheadSeconds = 1.0;
+    audio->setBufferingReadAheadSize(0);
+    QSemaphore entered;
+    QSemaphore release;
+    std::atomic_bool blocked = false;
+    const auto drain = qScopeGuard([&] {
+        release.release();
+        runtime().playback().stop(commandContext());
+        QVERIFY(runtime().documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+        QThreadPool::globalInstance()->waitForDone();
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    });
+    prepareVoicebankTarget();
+    if (QTest::currentTestFailed())
+        return;
+    const auto singer = clip->singerInfo();
+    const auto speaker = clip->speakerInfo();
+    QVERIFY(runtime().project().patchClipProperties(
+        commandContext(), {.id = Automation::ClipId(clip->id()), .start = 2400}));
+    QVERIFY(runtime().project().patchClipProperties(
+        commandContext(), {.id = Automation::ClipId(otherClip->id()), .start = 3360}));
+    const auto otherNote = *otherClip->notes().begin();
+    QVERIFY(
+        runtime().notes().patchWordProperties(commandContext(), Automation::ClipId(otherClip->id()),
+                                              {
+                                                  {.noteId = Automation::NoteId(otherNote->id()),
+                                                   .lyric = TestSupport::fixtureLyric(),
+                                                   .language = TestSupport::fixtureLanguage(),
+                                                   .pronunciation = Pronunciation{},
+                                                   .pronunciationCandidates = QStringList{},
+                                                   .phonemes = Phonemes{}}
+    }));
+    QVERIFY(runtime().notes().moveNotes(commandContext(), Automation::ClipId(otherClip->id()),
+                                        {Automation::NoteId(otherNote->id())}, 0, 4));
+    QVERIFY(runtime().parameters().selectClipSingleSpeaker(
+        commandContext(), Automation::ClipId(otherClip->id()), singer, speaker));
+    QList<QPointer<SingingClip>> outside;
+    for (const auto [start, key] : {qMakePair(0, 55), qMakePair(9600, 67)}) {
+        Automation::NoteDraftDto word;
+        word.localStart = 480;
+        word.length = 480;
+        word.keyIndex = key;
+        word.lyric = TestSupport::fixtureLyric();
+        word.language = TestSupport::fixtureLanguage();
+        Automation::ClipDraftDto draft;
+        draft.type = Automation::ClipDraftDto::Type::Singing;
+        draft.properties.start = start;
+        draft.properties.length = 1920;
+        draft.properties.clipLen = 1920;
+        draft.notes = {word};
+        const auto inserted = runtime().project().insertClips(
+            commandContext(), {
+                                  {.trackId = trackId, .clip = draft}
+        });
+        QVERIFY(inserted && !inserted.get().affectedObjects.isEmpty());
+        auto *added = dynamic_cast<SingingClip *>(
+            context->m_appModel->findClipById(inserted.get().affectedObjects.first().value));
+        QVERIFY(added);
+        outside.append(added);
+        QVERIFY(runtime().parameters().selectClipSingleSpeaker(
+            commandContext(), Automation::ClipId(added->id()), singer, speaker));
+    }
+    const QList<QPointer<SingingClip>> targets{clip, otherClip, outside.first(), outside.last()};
+    QTRY_VERIFY_WITH_TIMEOUT(std::all_of(targets.cbegin(), targets.cend(),
+                                         [](const auto &target) {
+                                             return target && target->pieces().size() == 1 &&
+                                                    target->pieces().first()->state ==
+                                                        QStringLiteral("Acoustic.Awaiting");
+                                         }) &&
+                                 taskManager->tasks().isEmpty(),
+                             15000);
+    const QPointer<InferPiece> currentPiece(clip->pieces().first());
+    const QPointer<InferPiece> nextPiece(otherClip->pieces().first());
+    const QPointer<InferPiece> pastPiece(outside.first()->pieces().first());
+    const QPointer<InferPiece> farPiece(outside.last()->pieces().first());
+    QPointer<InferAcousticTask> currentWorker;
+    QPointer<InferAcousticTask> queuedWorker;
+    QSet<int> registeredPieces;
+    QObject observations;
+    connect(taskManager, &TaskManager::taskChanged, &observations,
+            [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
+                auto *acoustic = qobject_cast<InferAcousticTask *>(task);
+                if (change != TaskManager::Added || !acoustic)
+                    return;
+                registeredPieces.insert(acoustic->pieceId());
+                if (acoustic->pieceId() == nextPiece->id())
+                    queuedWorker = acoustic;
+                if (acoustic->pieceId() != currentPiece->id())
+                    return;
+                currentWorker = acoustic;
+                connect(
+                    acoustic, &Task::statusUpdated, &observations,
+                    [&](const TaskStatus &) {
+                        if (!blocked.exchange(true)) {
+                            entered.release();
+                            release.acquire();
+                        }
+                    },
+                    Qt::DirectConnection);
+            });
+    QVERIFY(audio->preMixer()->open(256, 48000));
+    // The test supplies audio callbacks while retaining the production playback scheduler.
+    playbackController->setPlaybackStartGuard([] { return true; });
+    QVERIFY(runtime().playback().setPosition(commandContext(), 3000));
+    QVERIFY(runtime().playback().play(commandContext()));
+    QTRY_COMPARE_WITH_TIMEOUT(entered.available(), 1, 5000);
+    QTRY_VERIFY_WITH_TIMEOUT(queuedWorker, 5000);
+    QVERIFY(currentWorker && currentWorker->started());
+    QVERIFY(!queuedWorker->started());
+    QVERIFY(!registeredPieces.contains(pastPiece->id()));
+    QVERIFY(!registeredPieces.contains(farPiece->id()));
+    QVERIFY(runtime().playback().pause(commandContext()));
+    QTRY_VERIFY(nextPiece->state == QStringLiteral("Acoustic.Awaiting") && !queuedWorker);
+    QVERIFY(currentWorker && !currentWorker->terminated());
+    release.release();
+    QTRY_VERIFY_WITH_TIMEOUT(
+        currentPiece->state == QStringLiteral("Ready") && taskManager->tasks().isEmpty(), 15000);
+    QCOMPARE(nextPiece->state.get(), QStringLiteral("Acoustic.Awaiting"));
+    QCOMPARE(pastPiece->state.get(), QStringLiteral("Acoustic.Awaiting"));
+    QCOMPARE(farPiece->state.get(), QStringLiteral("Acoustic.Awaiting"));
+    QVERIFY(runtime().playback().setPosition(commandContext(), 3840));
+    QVERIFY(runtime().playback().play(commandContext()));
+    QTRY_VERIFY_WITH_TIMEOUT(
+        nextPiece->state == QStringLiteral("Ready") && taskManager->tasks().isEmpty(), 15000);
+    QCOMPARE(farPiece->state.get(), QStringLiteral("Acoustic.Awaiting"));
+    QTRY_COMPARE(audio->transport()->bufferingCounter(), 0);
+    talcs::AudioBuffer buffer(2, 256);
+    const auto position = audio->transport()->position();
+    QCOMPARE(audio->preMixer()->read(&buffer), qint64{256});
+    QVERIFY(audio->transport()->position() > position);
+    QVERIFY(runtime().playback().setPosition(commandContext(), 10080));
+    QTRY_VERIFY_WITH_TIMEOUT(
+        farPiece->state == QStringLiteral("Ready") && taskManager->tasks().isEmpty(), 15000);
+    QCOMPARE(pastPiece->state.get(), QStringLiteral("Acoustic.Awaiting"));
+    QVERIFY(!registeredPieces.contains(pastPiece->id()));
 }
 
 void ApplicationWorkflowTests::changingSpeakerMixRefreshesExistingInference() {
