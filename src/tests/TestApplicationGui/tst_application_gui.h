@@ -69,6 +69,9 @@ private slots:
     void speakerMixPresetsFollowSaveSelectAndDeleteInputs();
     void packageSearchShowsTheSelectedPackageDetails();
     void missingAudioResourceRelinkCanBeCanceledAndCommitted();
+    void panelButtonsAndClipDoubleClickRestoreTheEditorView();
+    void detachedBottomPanelReattachesWithItsEditingContext();
+    void embeddedSettingsSuspendAndRestoreBackgroundInteraction();
     void cleanup();
     void cleanupTestCase();
 
