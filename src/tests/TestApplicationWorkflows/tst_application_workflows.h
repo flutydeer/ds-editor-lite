@@ -35,6 +35,12 @@ private slots:
 
     void projectBatchImportUsesRealLoaders();
 
+    void audioBatchFailurePolicy_data();
+
+    void audioBatchFailurePolicy();
+
+    void audioBatchCancellationReleasesRetry();
+
     void failedInferenceInitializationReleasesPackageWaiters();
 
     void changedTargetInputDropsResult();

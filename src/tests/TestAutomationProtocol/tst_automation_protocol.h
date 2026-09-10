@@ -20,6 +20,12 @@ private slots:
     void malformedCursor();
     void routing_data();
     void routing();
+    void batchImportRouting_data();
+    void batchImportRouting();
+    void batchImportPlanRevalidation();
+    void fillLyricsOptions_data();
+    void fillLyricsOptions();
+    void fillLyricsUnavailableLanguage();
     void rejectedInputs_data();
     void rejectedInputs();
     void sharedEditingScenario_data();
