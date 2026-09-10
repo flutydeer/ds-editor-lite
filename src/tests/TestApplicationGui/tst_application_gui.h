@@ -62,6 +62,10 @@ private slots:
     void phonemeDialogValidatesCommitsAndResetsThroughTheNoteMenu();
     void lyricSearchNavigatesTheActualEditorAndHandlesNoMatches();
     void dynamicSpeakerMixGesturesPreserveIdentityAndUndo();
+    void dynamicSpeakerMixRangeDeletionAndContextMenu();
+    void dynamicSpeakerMixNavigationUsesProjectTime_data();
+    void dynamicSpeakerMixNavigationUsesProjectTime();
+    void dynamicSpeakerMixBypassAndStopFollowToolbarInputs();
     void timelineGesturesSeekAndCommitLoopEdits();
     void resizingANotePreviewsAndCommitsItsBoundary();
     void speakerMixSelectionAndDrag_data();
