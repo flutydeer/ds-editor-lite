@@ -3,6 +3,7 @@
 #include "Automation/OperationIds.h"
 #include "Automation/ProjectAutomationDtos.h"
 #include "TestRuntime.h"
+#include "../TestSupport/TestAssertions.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/SpeakerMixData.h>
@@ -579,6 +580,109 @@ void ProjectEditingTests::adjacentAnchorCurvesMergeWithoutLosingNodes() {
     QCOMPARE(curves().last().id, before.last().id);
     QVERIFY(runtime.history().redo(commandContext(runtime)));
     QCOMPARE(curves().first().nodes.size(), 4);
+}
+
+void ProjectEditingTests::speakerMixModeTransitionsPreserveTrackInheritance() {
+    TestRuntime fixture;
+    auto &runtime = fixture.runtime();
+    auto &parameters = runtime.parameters();
+    const auto track = insertedTrack(runtime, QStringLiteral("Voice"));
+    const auto clip = insertedSingingClip(runtime, track, QStringLiteral("Inherited mix"));
+    const auto soft = speaker(QStringLiteral("soft"));
+    const auto strong = speaker(QStringLiteral("strong"));
+    const auto voice = singer(QStringLiteral("fixture"), {soft, strong});
+    SpeakerMixModel::SpeakerMixData fixed;
+    fixed.mode = SpeakerMixModel::SingerSourceMode::FixedMix;
+    fixed.sources = {{soft}, {strong}};
+    fixed.fixedWeights = {0.35};
+    const Automation::SpeakerMixTargetDto trackTarget{Automation::SpeakerMixTargetKind::Track,
+                                                      track.value()};
+    const Automation::SpeakerMixTargetDto clipTarget{Automation::SpeakerMixTargetKind::Clip,
+                                                     clip.value()};
+    const auto read = [&](const Automation::SpeakerMixTargetDto target) {
+        auto result = parameters.getSpeakerMix(runtime.documentVersion().documentId, target);
+        TestSupport::expect(static_cast<bool>(result),
+                            QStringLiteral("The current voice context must resolve"));
+        return result ? result.get() : Automation::SpeakerMixSnapshotDto{};
+    };
+    const auto before = runtime.documentVersion();
+    const auto preview = parameters.setFixedSpeakerMix(commandContext(runtime, true), trackTarget,
+                                                       voice, soft, fixed);
+    QVERIFY(preview && preview.get().validatedOnly && preview.get().changed);
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(read(trackTarget).singer.isEmpty());
+    QVERIFY(
+        parameters.setFixedSpeakerMix(commandContext(runtime), trackTarget, voice, soft, fixed));
+    QCOMPARE(read(trackTarget).mix.fixedWeights, fixed.fixedWeights);
+    QVERIFY(read(clipTarget).inherited);
+    QCOMPARE(read(clipTarget).singer.identifier(), voice.identifier());
+    QCOMPARE(read(clipTarget).mix.fixedWeights, fixed.fixedWeights);
+    const auto fixedVersion = runtime.documentVersion();
+    const auto unchangedTrack =
+        parameters.setFixedSpeakerMix(commandContext(runtime), trackTarget, voice, soft, fixed);
+    QVERIFY(unchangedTrack && !unchangedTrack.get().changed);
+    QCOMPARE(runtime.documentVersion(), fixedVersion);
+    fixture.history()->reset();
+    QVERIFY(parameters.enableClipDynamicSpeakerMix(commandContext(runtime), clip));
+    auto dynamic = read(clipTarget);
+    QVERIFY(!dynamic.inherited);
+    QCOMPARE(dynamic.mix.mode, SpeakerMixModel::SingerSourceMode::DynamicMix);
+    QCOMPARE(dynamic.mix.dynamicKeyframes.size(), 1);
+    QCOMPARE(dynamic.mix.dynamicKeyframes.first().tick, 0);
+    QCOMPARE(dynamic.mix.dynamicKeyframes.first().weights, fixed.fixedWeights);
+    QCOMPARE(read(trackTarget).mix.mode, SpeakerMixModel::SingerSourceMode::FixedMix);
+    const auto unchangedDynamic =
+        parameters.enableClipDynamicSpeakerMix(commandContext(runtime), clip);
+    QVERIFY(unchangedDynamic && !unchangedDynamic.get().changed);
+    auto insert = commandContext(runtime);
+    insert.idempotencyKey = QStringLiteral("add-blend-change");
+    QVERIFY(parameters.insertSpeakerMixKeyframe(insert, clip, 480, QVector<double>{0.8}));
+    dynamic = read(clipTarget);
+    QCOMPARE(dynamic.mix.dynamicKeyframes.size(), 2);
+    const auto keyframeId = dynamic.mix.dynamicKeyframes.last().id;
+    const auto insertedVersion = runtime.documentVersion();
+    const auto *undo = fixture.history()->nextUndoEntry();
+    QVERIFY(parameters.insertSpeakerMixKeyframe(insert, clip, 480, QVector<double>{0.8}));
+    QCOMPARE(runtime.documentVersion(), insertedVersion);
+    QCOMPARE(fixture.history()->nextUndoEntry(), undo);
+    QCOMPARE(read(clipTarget).mix.dynamicKeyframes.last().id, keyframeId);
+    const auto conflictingRetry =
+        parameters.insertSpeakerMixKeyframe(insert, clip, 720, QVector<double>{0.8});
+    QVERIFY(isError(conflictingRetry, AutomationErrorCode::IdempotencyConflict));
+    const auto invalidFixed = parameters.setFixedSpeakerMix(commandContext(runtime), clipTarget,
+                                                            voice, soft, dynamic.mix);
+    QVERIFY(isError(invalidFixed, AutomationErrorCode::InvalidArgument));
+    QCOMPARE(runtime.documentVersion(), insertedVersion);
+    QVERIFY(parameters.disableClipDynamicSpeakerMix(commandContext(runtime), clip));
+    const auto restoredFixed = read(clipTarget);
+    QVERIFY(!restoredFixed.inherited);
+    QCOMPARE(restoredFixed.mix.mode, SpeakerMixModel::SingerSourceMode::FixedMix);
+    QCOMPARE(restoredFixed.mix.fixedWeights, fixed.fixedWeights);
+    QVERIFY(restoredFixed.mix.dynamicKeyframes.isEmpty());
+    const auto unchangedFixed =
+        parameters.disableClipDynamicSpeakerMix(commandContext(runtime), clip);
+    QVERIFY(unchangedFixed && !unchangedFixed.get().changed);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(read(clipTarget).mix.dynamicKeyframes.last().id, keyframeId);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(read(clipTarget).mix.dynamicKeyframes.size(), 1);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QVERIFY(read(clipTarget).inherited);
+    QCOMPARE(read(clipTarget).mix.fixedWeights, fixed.fixedWeights);
+    QVERIFY(!fixture.history()->canUndo());
+    auto overrideMix = fixed;
+    overrideMix.fixedWeights = {0.75};
+    QVERIFY(parameters.setFixedSpeakerMix(commandContext(runtime), clipTarget, voice, soft,
+                                          overrideMix));
+    QVERIFY(!read(clipTarget).inherited);
+    QCOMPARE(read(clipTarget).mix.fixedWeights, overrideMix.fixedWeights);
+    QCOMPARE(read(trackTarget).mix.fixedWeights, fixed.fixedWeights);
+    const auto unchangedOverride = parameters.setFixedSpeakerMix(
+        commandContext(runtime), clipTarget, voice, soft, overrideMix);
+    QVERIFY(unchangedOverride && !unchangedOverride.get().changed);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QVERIFY(read(clipTarget).inherited);
+    QVERIFY(!fixture.history()->canUndo());
 }
 
 void ProjectEditingTests::dynamicSpeakerKeyframesEditAndUndo() {

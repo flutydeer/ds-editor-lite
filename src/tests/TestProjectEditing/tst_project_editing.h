@@ -12,6 +12,7 @@ private slots:
     void rejectedAnchorBatchPreservesEveryCurve();
     void adjacentAnchorCurvesMergeWithoutLosingNodes();
     void dynamicSpeakerKeyframesEditAndUndo();
+    void speakerMixModeTransitionsPreserveTrackInheritance();
     void batchTrackOrderAndClipTrimming();
     void noteSearch_data();
     void noteSearch();

@@ -158,5 +158,6 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 外部 DSPX 标准声源混合 | workflow | 无 DS 私有 workspace 的嵌套固定/动态混合展开权重并合并同一声线；已安装声库使用真实元数据，未安装时保留待解析引用；保存重开保留声线与关键帧 | DocumentIO::dspxStandardSingerSourcesLoadNestedMixes | 通用；临时文件；元数据解析替身 |
 | 固定声线列表排序与来源替换 | gui | 实际 QDrag 前后保持每条声线的非均分比例，取消保持原顺序；下拉框替换声线保留比例、同步标签并禁用已占用来源；接受后重开保留自定义混合 | EditorInteraction::speakerMixDragKeepsWeightsWithTheirSources、speakerMixSourceChoicePreservesWeightsAndUpdatesTags | minimal；真实控件与拖放循环 |
 | 音素时长重置的相邻词确认 | gui | 从真实音符菜单发起重置，未选中邻词将受影响时展示名称并等待决定；取消不改任何音符，确认后一起重置且一次撤销恢复；已选中全部受影响音符时直接执行 | ApplicationGui::phonemeDurationResetConfirmsAdjacentChanges | offscreen；临时文档；无需声库或设备 |
+| 固定/动态声线模式与轨道继承 | domain | 公开领域入口验证轨道固定混合、片段继承、动态首帧初始化、关键帧重试及冲突、停用后固定值恢复；重复设置不产生新历史，撤销恢复继承，片段独立混合不改变轨道 | ProjectEditing::speakerMixModeTransitionsPreserveTrackInheritance | 通用；声线元数据；无需模型或设备 |
 
 本次还移除无产品实例化入口的旧 G2P/伪声设置页和 `TrackSynthesizer` 及其空容器引用。清理改变统计分母，报告中与新增测试命中的贡献分开说明，不通过排除仍有效的生产文件提高比例。
