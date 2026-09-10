@@ -20,6 +20,7 @@ class ApplicationWorkflowTests final : public QObject {
 private slots:
     void audioExportRespectsRangeMixAndMute();
     void controlledPlaybackLoopsAndBuffers();
+    void customExportPresetPersistsAndProducesIntegerWave();
 
     void initTestCase();
 
