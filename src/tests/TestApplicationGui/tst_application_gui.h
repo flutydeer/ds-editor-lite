@@ -77,6 +77,8 @@ private slots:
     void newDocumentHonorsTheSaveDecision();
     void taggerRuleInputsApplyPersistAndReopen();
     void invalidTaggerRegexPreservesAppliedRules();
+    void movingLyricsBackwardUsesTheSelectedWordRange_data();
+    void movingLyricsBackwardUsesTheSelectedWordRange();
     void cleanup();
     void cleanupTestCase();
 

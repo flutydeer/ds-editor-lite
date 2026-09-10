@@ -444,3 +444,119 @@ void ApplicationGuiTests::phonemeWaveformsLoadAndDiscardResultsAfterChangingClip
     QCOMPARE(context->m_coreRuntime->documentVersion(), before);
     QVERIFY(!editSessionManager->hasActiveTransaction());
 }
+
+void ApplicationGuiTests::movingLyricsBackwardUsesTheSelectedWordRange_data() {
+    QTest::addColumn<bool>("contiguous");
+    QTest::newRow("shift-complete-word-bundles") << true;
+    QTest::newRow("noncontiguous-selection-is-disabled") << false;
+}
+
+void ApplicationGuiTests::movingLyricsBackwardUsesTheSelectedWordRange() {
+    QFETCH(bool, contiguous);
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    QList<Automation::NoteDraftDto> drafts;
+    for (int index = 0; index < 5; ++index) {
+        Automation::NoteDraftDto draft;
+        draft.localStart = index * 480;
+        draft.length = 480;
+        draft.keyIndex = 60;
+        draft.lyric = QStringLiteral("word-%1").arg(index);
+        draft.language = index % 2 == 0 ? QStringLiteral("cmn") : QStringLiteral("eng");
+        draft.pronunciation.original = QStringLiteral("original-%1").arg(index);
+        draft.pronunciation.edited = QStringLiteral("edited-%1").arg(index);
+        draft.pronunciationCandidates = {QStringLiteral("candidate-%1").arg(index)};
+        PhonemeName consonant;
+        consonant.language = draft.language;
+        consonant.name = QStringLiteral("l");
+        PhonemeName vowel;
+        vowel.language = draft.language;
+        vowel.name = QStringLiteral("a");
+        vowel.isOnset = true;
+        draft.phonemes.nameSeq.original = {consonant, vowel};
+        consonant.name = QStringLiteral("m");
+        draft.phonemes.nameSeq.edited = {consonant, vowel};
+        draft.phonemes.offsetSeq.original = {0, 80};
+        draft.phonemes.offsetSeq.edited = {0, 60};
+        drafts.append(draft);
+    }
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.notes().insertNotes(commandContext(), Automation::ClipId(singingClip->id()),
+                                        drafts));
+    const auto notes = singingClip->notes().toList();
+    QCOMPARE(notes.size(), 5);
+    view->hide();
+    PianoRollView pianoRoll;
+    pianoRoll.setDataContext(singingClip);
+    const auto detach = qScopeGuard([&] { pianoRoll.setDataContext(nullptr); });
+    pianoRoll.resize(960, 600);
+    pianoRoll.show();
+    pianoRoll.activateWindow();
+    QVERIFY(pianoRoll.setViewScale(1.0, 1.0));
+    QVERIFY(pianoRoll.centerAt(1920, 60));
+    auto *canvas = pianoRoll.findChild<PianoRollGraphicsView *>();
+    QVERIFY(canvas);
+    QTRY_VERIFY(pianoRoll.isActiveWindow());
+    appStatus->selectedNotes = QList<int>{notes.at(contiguous ? 2 : 3)->id(), notes.at(1)->id()};
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    const auto beforeModel = context->m_appModel->serialize();
+    bool inspectedMenu = false;
+    QTimer chooseAction;
+    chooseAction.setSingleShot(true);
+    connect(&chooseAction, &QTimer::timeout, &pianoRoll, [&] {
+        auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+        QVERIFY(menu);
+        const auto close = qScopeGuard([&] { menu->close(); });
+        QAction *shift = nullptr;
+        for (auto *action : menu->actions()) {
+            if (action->text() == PianoRollContextMenuController::tr("Move Lyrics Backward"))
+                shift = action;
+        }
+        QVERIFY(shift);
+        QCOMPARE(shift->isEnabled(), contiguous);
+        inspectedMenu = true;
+        if (contiguous)
+            QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier,
+                              menu->actionGeometry(shift).center());
+    });
+    const auto point = canvas->mapFromScene(QPointF(
+        canvas->tickToSceneX(720),
+        PianoRollCoord::keyIndexToCenterY(60, ClipEditorGlobal::noteHeight * canvas->scaleY())));
+    QContextMenuEvent event(QContextMenuEvent::Mouse, point,
+                            canvas->viewport()->mapToGlobal(point));
+    chooseAction.start(0);
+    QApplication::sendEvent(canvas->viewport(), &event);
+    chooseAction.stop();
+    QVERIFY(inspectedMenu);
+    if (!contiguous) {
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(context->m_appModel->serialize(), beforeModel);
+        QVERIFY(!historyManager->canUndo());
+        return;
+    }
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    QCOMPARE(notes.first()->lyric(), drafts.first().lyric);
+    QCOMPARE(notes.first()->phonemes().nameSeq.edited, drafts.first().phonemes.nameSeq.edited);
+    QCOMPARE(notes.at(1)->lyric(), QStringLiteral("-"));
+    QCOMPARE(notes.at(2)->lyric(), QStringLiteral("-"));
+    for (int index = 1; index < notes.size(); ++index) {
+        const auto *note = notes.at(index);
+        QVERIFY(!note->phonemeNameSeq().isEdited());
+        QVERIFY(!note->phonemeOffsetSeq().isEdited());
+        if (index >= 3) {
+            const auto &source = drafts.at(index - 2);
+            QCOMPARE(note->lyric(), source.lyric);
+            QCOMPARE(note->language(), source.language);
+            QCOMPARE(note->pronunciation().original, source.pronunciation.original);
+            QCOMPARE(note->pronunciation().edited, source.pronunciation.edited);
+            QCOMPARE(note->pronCandidates(), source.pronunciationCandidates);
+        }
+    }
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(context->m_appModel->serialize(), beforeModel);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(runtime.history().redo(commandContext()));
+    QCOMPARE(notes.last()->lyric(), drafts.at(2).lyric);
+}
