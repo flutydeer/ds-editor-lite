@@ -88,6 +88,8 @@ private slots:
     void trackColorMenuPreviewsAndCommits_data();
     void trackColorMenuPreviewsAndCommits();
     void pitchModulationUsesTheInferredNoteBaselineAndCanBeUndone();
+    void pianoContextMenuPastePreservesRelativeNotesAndManualWords();
+    void pianoNoteDragContinuesDuringEdgeScrollingAndStopsOnFinish();
     void cleanup();
     void cleanupTestCase();
 

@@ -24,6 +24,7 @@ lite_add_test(${PROJECT_NAME} SOURCES
     tst_audio_midi_settings.cpp
     tst_track_controls.cpp
     tst_pitch_modulation.cpp
+    tst_piano_clipboard_scroll.cpp
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE EditorRuntime)
 add_dependencies(${PROJECT_NAME} DsEditorLite)
