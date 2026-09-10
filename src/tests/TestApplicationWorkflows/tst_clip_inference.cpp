@@ -1,6 +1,9 @@
 #include "tst_application_workflows.h"
 
 #include "Modules/Inference/EditSessionManager.h"
+#include "Modules/Inference/InferController.h"
+#include "Modules/Inference/InferControllerHelper.h"
+#include "Modules/Inference/Tasks/InferAcousticCacheProbeTask.h"
 #include "Modules/Inference/Tasks/GetPhonemeNameTask.h"
 #include "Modules/Inference/Tasks/GetPronunciationTask.h"
 #include "../TestSupport/VoicebankFixture.h"
@@ -16,10 +19,218 @@
 
 #include <QPointer>
 #include <QScopeGuard>
+#include <QSignalSpy>
 #include <QTimer>
 #include <QtTest>
 
 #include <algorithm>
+
+namespace {
+    bool inferenceSettled(const SingingClip *clip) {
+        return clip && !clip->pieces().isEmpty() &&
+               std::all_of(clip->pieces().cbegin(), clip->pieces().cend(),
+                           [](const InferPiece *piece) {
+                               return piece->state == QStringLiteral("Acoustic.Awaiting") ||
+                                      piece->state == QStringLiteral("Ready");
+                           }) &&
+               taskManager->tasks().isEmpty();
+    }
+}
+
+void ApplicationWorkflowTests::prepareVoicebankTarget() {
+    QTRY_COMPARE_WITH_TIMEOUT(appStatus->languageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
+                              10000);
+    QTRY_COMPARE_WITH_TIMEOUT(appStatus->inferEngineEnvStatus.get(), AppStatus::ModuleStatus::Ready,
+                              10000);
+    QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
+                              10000);
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    SingerInfo singer;
+    for (const auto &package : packageManager->installedPackages().successfulPackages) {
+        for (const auto &candidate : package.singers()) {
+            if (candidate.singerId() == TestSupport::fixtureSingerId())
+                singer = candidate;
+        }
+    }
+    QVERIFY2(!singer.isEmpty(), "The configured fixture singer must be installed");
+    QVERIFY(!singer.speakers().isEmpty());
+    Automation::NoteWordPatchDto word;
+    word.noteId = Automation::NoteId(note->id());
+    word.lyric = TestSupport::fixtureLyric();
+    word.language = TestSupport::fixtureLanguage();
+    word.pronunciation = Pronunciation{};
+    word.pronunciationCandidates = QStringList{};
+    word.phonemes = Phonemes{};
+    QVERIFY(runtime().notes().patchWordProperties(commandContext(), Automation::ClipId(clip->id()),
+                                                  {word}));
+    QVERIFY(runtime().parameters().selectClipSingleSpeaker(
+        commandContext(), Automation::ClipId(clip->id()), singer, singer.speakers().first()));
+    QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(clip), 15000);
+    QCOMPARE(clip->pieces().size(), 1);
+    piece = clip->pieces().first();
+}
+
+void ApplicationWorkflowTests::editingParametersRestartsOnlyDependentInference_data() {
+    QTest::addColumn<ParamInfo::Name>("name");
+    QTest::addColumn<int>("value");
+    QTest::newRow("expressiveness-recomputes-pitch-and-variance")
+        << ParamInfo::Expressiveness << 500;
+    QTest::newRow("pitch-recomputes-variance") << ParamInfo::Pitch << 6300;
+    QTest::newRow("gender-preserves-pitch-and-variance") << ParamInfo::Gender << 500;
+}
+
+void ApplicationWorkflowTests::editingParametersRestartsOnlyDependentInference() {
+    QFETCH(ParamInfo::Name, name);
+    QFETCH(int, value);
+    prepareVoicebankTarget();
+    if (QTest::currentTestFailed())
+        return;
+    const auto releaseResults = qScopeGuard([&] {
+        QVERIFY(runtime().documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    });
+    const QPointer<InferPiece> target(piece);
+    inferController->startPendingAcousticInference();
+    QTRY_VERIFY_WITH_TIMEOUT(target && target->state == QStringLiteral("Ready") &&
+                                 taskManager->tasks().isEmpty(),
+                             15000);
+    const auto inputBefore = *target->getInputCurve(name);
+    const auto samplesBefore = inputBefore.mid(720);
+    QVERIFY(!samplesBefore.isEmpty());
+    if (samplesBefore.first() == value)
+        value += 100;
+    const auto offsetsBefore = note->phonemes().offsetSeq.original;
+    const auto otherBefore = otherClip->params.getParamByName(name)->curves(Param::Edited);
+    HistoryManager::instance()->reset();
+    QSet<QString> stages;
+    QObject observations;
+    connect(taskManager, &TaskManager::taskChanged, &observations,
+            [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
+                if (change != TaskManager::Added || !target)
+                    return;
+                if (const auto *item = qobject_cast<InferDurationTask *>(task);
+                    item && item->pieceId() == target->id())
+                    stages.insert(QStringLiteral("duration"));
+                if (const auto *item = qobject_cast<InferPitchTask *>(task);
+                    item && item->pieceId() == target->id())
+                    stages.insert(QStringLiteral("pitch"));
+                if (const auto *item = qobject_cast<InferVarianceTask *>(task);
+                    item && item->pieceId() == target->id())
+                    stages.insert(QStringLiteral("variance"));
+                if (const auto *item = qobject_cast<InferAcousticCacheProbeTask *>(task);
+                    item && item->pieceId() == target->id())
+                    stages.insert(QStringLiteral("cache"));
+            });
+    const auto changed =
+        runtime().parameters().drawParameter(commandContext(), Automation::ClipId(clip->id()), name,
+                                             Param::Edited, 480, 5, QList<int>(97, value), false);
+    QVERIFY(changed && changed.get().changed);
+    QTRY_VERIFY_WITH_TIMEOUT(stages.contains(QStringLiteral("cache")) && inferenceSettled(clip),
+                             15000);
+    QCOMPARE(clip->pieces().first(), target.data());
+    QCOMPARE(target->getInputCurve(name)->mid(720).first(), value);
+    QCOMPARE(note->phonemes().offsetSeq.original, offsetsBefore);
+    QCOMPARE(otherClip->params.getParamByName(name)->curves(Param::Edited), otherBefore);
+    QVERIFY(!stages.contains(QStringLiteral("duration")));
+    QCOMPARE(stages.contains(QStringLiteral("pitch")), name == ParamInfo::Expressiveness);
+    QCOMPARE(stages.contains(QStringLiteral("variance")), name != ParamInfo::Gender);
+    stages.clear();
+    QVERIFY(runtime().history().undo(commandContext()));
+    QTRY_VERIFY_WITH_TIMEOUT(stages.contains(QStringLiteral("cache")) && inferenceSettled(clip),
+                             15000);
+    QCOMPARE(*target->getInputCurve(name), inputBefore);
+    QVERIFY(!HistoryManager::instance()->canUndo());
+}
+
+void ApplicationWorkflowTests::changingSpeakerMixRefreshesExistingInference() {
+    prepareVoicebankTarget();
+    if (QTest::currentTestFailed())
+        return;
+    const auto singer = clip->singerInfo();
+    if (singer.speakers().size() < 2)
+        QSKIP("The configured voicebank needs two speakers for mixing");
+    const QPointer<InferPiece> target(piece);
+    const auto originalMix = target->speakerMix;
+    const auto offsets = note->phonemes().offsetSeq.original;
+    SpeakerMixModel::SpeakerMixData mix;
+    mix.mode = SpeakerMixModel::SingerSourceMode::FixedMix;
+    mix.sources = {{singer.speakers().at(0)}, {singer.speakers().at(1)}};
+    mix.fixedWeights = {0.25};
+    HistoryManager::instance()->reset();
+    QSignalSpy states(target, &InferPiece::stateChanged);
+    const auto changed = runtime().parameters().replaceClipSpeakerMix(
+        commandContext(), Automation::ClipId(clip->id()), mix);
+    QVERIFY(changed && changed.get().changed);
+    QTRY_VERIFY_WITH_TIMEOUT(!states.isEmpty() && inferenceSettled(clip), 15000);
+    QCOMPARE(clip->pieces().first(), target.data());
+    QCOMPARE(target->speakerMix.sources.size(), 2);
+    QCOMPARE(target->speakerMix.sources.first().speaker, singer.speakers().first().id());
+    QCOMPARE(target->speakerMix.sources.first().proportions.first(), 0.25);
+    QCOMPARE(target->speakerMix.sources.last().proportions.first(), 0.75);
+    QCOMPARE(note->phonemes().offsetSeq.original, offsets);
+    states.clear();
+    QVERIFY(runtime().history().undo(commandContext()));
+    QTRY_VERIFY_WITH_TIMEOUT(!states.isEmpty() && inferenceSettled(clip), 15000);
+    QCOMPARE(clip->pieces().first(), target.data());
+    QCOMPARE(target->speakerMix, originalMix);
+    QVERIFY(!HistoryManager::instance()->canUndo());
+}
+
+void ApplicationWorkflowTests::movingInheritedVoiceReusesOrRebuildsInference_data() {
+    QTest::addColumn<bool>("differentSpeaker");
+    QTest::newRow("same-voice-preserves-existing-piece") << false;
+    QTest::newRow("different-voice-rebuilds-piece") << true;
+}
+
+void ApplicationWorkflowTests::movingInheritedVoiceReusesOrRebuildsInference() {
+    QFETCH(bool, differentSpeaker);
+    prepareVoicebankTarget();
+    if (QTest::currentTestFailed())
+        return;
+    const auto singer = clip->singerInfo();
+    if (differentSpeaker && singer.speakers().size() < 2)
+        QSKIP("The configured voicebank needs two speakers for voice changes");
+    const auto firstSpeaker = singer.speakers().first();
+    const auto nextSpeaker = singer.speakers().at(differentSpeaker ? 1 : 0);
+    const auto secondTrack = Automation::TrackId(context->m_appModel->tracks().last()->id());
+    QVERIFY(
+        runtime().project().removeClips(commandContext(), {Automation::ClipId(otherClip->id())}));
+    otherClip = nullptr;
+    QVERIFY(runtime().parameters().selectTrackSingleSpeaker(commandContext(), trackId, singer,
+                                                            firstSpeaker));
+    QVERIFY(runtime().parameters().selectTrackSingleSpeaker(commandContext(), secondTrack, singer,
+                                                            nextSpeaker));
+    QVERIFY(runtime().parameters().useTrackVoiceContext(commandContext(),
+                                                        Automation::ClipId(clip->id())));
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+    QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(clip), 15000);
+    const QPointer<InferPiece> before(clip->pieces().first());
+    const auto oldStart = clip->start();
+    HistoryManager::instance()->reset();
+    QVERIFY(runtime().project().moveClips(
+        commandContext(), {
+                              {Automation::ClipId(clip->id()), secondTrack, oldStart}
+    }));
+    QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(clip), 15000);
+    QCOMPARE(clip->speakerInfo(), nextSpeaker);
+    QCOMPARE(clip->pieces().first()->speaker, nextSpeaker.id());
+    if (differentSpeaker)
+        QVERIFY(!before);
+    else
+        QCOMPARE(clip->pieces().first(), before.data());
+    const QPointer<InferPiece> moved(clip->pieces().first());
+    QVERIFY(runtime().history().undo(commandContext()));
+    QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(clip), 15000);
+    QCOMPARE(clip->speakerInfo(), firstSpeaker);
+    QCOMPARE(clip->pieces().first()->speaker, firstSpeaker.id());
+    if (differentSpeaker)
+        QVERIFY(!moved);
+    else
+        QCOMPARE(clip->pieces().first(), before.data());
+    QVERIFY(!HistoryManager::instance()->canUndo());
+}
 
 void ApplicationWorkflowTests::clipInferenceResultsRespectEditSession_data() {
     QTest::addColumn<bool>("phonemeStage");

@@ -51,6 +51,11 @@ private slots:
     void clipInferenceResultsRespectEditSession_data();
 
     void clipInferenceResultsRespectEditSession();
+    void editingParametersRestartsOnlyDependentInference_data();
+    void editingParametersRestartsOnlyDependentInference();
+    void changingSpeakerMixRefreshesExistingInference();
+    void movingInheritedVoiceReusesOrRebuildsInference_data();
+    void movingInheritedVoiceReusesOrRebuildsInference();
 
     void failedInferenceInitializationReleasesPackageWaiters();
 
@@ -84,6 +89,7 @@ private slots:
 
 private:
     void prepareInferenceTarget(AppStatus::ModuleStatus &previousPackageStatus);
+    void prepareVoicebankTarget();
 
     void verifyAcousticGate(InferPipeline &pipeline, bool immediateExpected, bool completeFirst);
 
