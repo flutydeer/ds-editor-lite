@@ -79,7 +79,7 @@ Windows wrapper 将本地结果写到 `build/test-results`；直接 CTest 可加
 
 音频场景使用静音 WAV，验证生产设备重开、缓冲配置及落盘、真实回调推进和公开播放/暂停/停止，完成后恢复自身配置。MIDI 场景发送专用通道的 note-on/off，验证实际输入及生产合成器输出后归零，并清理自己打开的端口；不要求扬声器发声。跳过的是缺少条件的具体 Qt Test 用例，不是整个原生桌面程序。Null RHI 钢琴窗和轨道场景不需要物理 GPU，但需要可用原生窗口环境；offscreen 不适用时明确跳过，实际后端或帧提交失败不能跳过。
 
-`TestModelResources`、`TestApplicationGui` 和 `TestApplicationWorkflows` 默认使用同一 [voicebank-fixture.zip](../../../src/tests/resources/voicebank-fixture.zip)，CMake 解压到当前构建目录；无需安装 Python 或训练框架。测试包具有独立的 `ci-fixture` 身份、中英文资源和两条声线。资源程序检查完整推理、有效 WAV、缓存和重算，应用工作流检查真实读音/音素结果暂存与应用，GUI 使用语言及波形结果；均固定 CPU。普通 CI 不需真实训练权重或播放设备。
+`TestModelResources`、`TestApplicationGui`、`TestApplicationWorkflows` 和 NativeDesktop 的音高调制用例默认使用同一 [voicebank-fixture.zip](../../../src/tests/resources/voicebank-fixture.zip)，CMake 解压到当前构建目录；无需安装 Python 或训练框架。测试包具有独立的 `ci-fixture` 身份、中英文资源和两条声线。资源程序检查完整推理、有效 WAV、缓存和重算，应用工作流检查真实读音/音素结果暂存与应用，GUI 使用语言、基准音高及波形结果；均固定 CPU。普通 CI 不需真实训练权重或播放设备。
 
 验证外部真实声库时设置 `DSEL_TEST_VOICEBANK_ROOT`、`DSEL_TEST_LANGUAGE`、`DSEL_TEST_LYRIC`，并按该资源配置 `DSEL_TEST_SINGER_ID`。显式资源优先于内置包；加载或执行失败报告失败，不自动扫描个人声库，也不回退内置资源。GAME/RMVPE 模型不在本期扩展范围。
 

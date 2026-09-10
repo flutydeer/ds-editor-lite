@@ -1,5 +1,6 @@
 #include "tst_native_desktop.h"
 #include "../TestSupport/GuiAppFixture.h"
+#include "../TestSupport/WaveFixture.h"
 
 #include "Automation/CoreRuntime.h"
 #include "Controller/ClipController.h"
@@ -13,12 +14,17 @@
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/Tasking/TaskManager.h>
 
 #include <QMouseEvent>
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QtTest/QTest>
+
+#include <cmath>
+#include <numbers>
 
 namespace {
     struct TrackFixture {
@@ -29,6 +35,11 @@ namespace {
         int secondTrackId = -1;
 
         ~TrackFixture() {
+            if (canvas) {
+                QTest::keyClick(canvas.get(), Qt::Key_Escape);
+                QTest::mouseRelease(canvas.get(), Qt::LeftButton, Qt::NoModifier,
+                                    canvas->rect().center());
+            }
             canvas.reset();
             if (application.context) {
                 clipController->setClip(nullptr);
@@ -45,7 +56,7 @@ namespace {
                     .source = Automation::InvocationSource::Test};
         }
 
-        bool initialize() {
+        bool initialize(const QString &audioPath = {}) {
             if (!application.initialize())
                 return false;
             auto document = Automation::DocumentAutomationFacade::newDocumentDraft(false);
@@ -55,6 +66,13 @@ namespace {
             clip.properties.length = 1920;
             clip.properties.clipLen = 960;
             clip.defaultLanguage = QStringLiteral("eng");
+            if (!audioPath.isEmpty()) {
+                clip.type = Automation::ClipDraftDto::Type::Audio;
+                clip.audioPath = audioPath;
+                clip.properties.trimStartMs = 0;
+                clip.properties.playLengthMs = 1000;
+                clip.properties.materialLengthMs = 1000;
+            }
             Automation::TrackDraftDto first;
             first.name = QStringLiteral("Source");
             first.clips.append(clip);
@@ -222,5 +240,93 @@ void NativeDesktopTests::rhiClipResizeCommitsOrCancels() {
     QCOMPARE(fixture.clip()->clipStart(), 0);
     QCOMPARE(fixture.clip()->clipLen(), 960);
     QVERIFY(!editSessionManager->hasActiveTransaction());
+    QVERIFY(failed.isEmpty());
+}
+
+void NativeDesktopTests::rhiAudioClipTrimAndMovePreserveTimeAnchors() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    TrackFixture fixture;
+    QVERIFY(fixture.application.directory.isValid());
+    const auto path = fixture.application.directory.filePath(QStringLiteral("stereo.wav"));
+    QVector<float> samples(48000 * 2);
+    for (int frame = 0; frame < 48000; ++frame) {
+        const auto phase = 2.0 * std::numbers::pi * 440 * frame / 48000;
+        samples[frame * 2] = 0.2f * static_cast<float>(std::sin(phase));
+        samples[frame * 2 + 1] = 0.1f * static_cast<float>(std::cos(phase));
+    }
+    QVERIFY(TestSupport::writeWave(path, samples, 2));
+    QVERIFY2(fixture.initialize(path), qPrintable(fixture.application.error));
+    auto &canvas = *fixture.canvas;
+    auto *audio = dynamic_cast<AudioClip *>(fixture.clip());
+    QVERIFY(audio);
+    QTRY_VERIFY(audio->audioInfo().frames == 48000 && !audio->audioInfo().peakCache.isEmpty() &&
+                taskManager->tasks().isEmpty());
+    QVERIFY(audio->hasRealTimeAnchor());
+    QCOMPARE(audio->trimStartMs(), 0.0);
+    QCOMPARE(audio->playLengthMs(), 1000.0);
+    QCOMPARE(audio->materialLengthMs(), 1000.0);
+    QCOMPARE(audio->start() + audio->clipStart(), 480);
+    QCOMPARE(audio->clipLen(), 960);
+    QString backendError;
+    connect(&canvas, &EditorRhiWidget::backendFailed, &canvas,
+            [&](const QString &reason) { backendError = reason; });
+    QSignalSpy frames(&canvas, &QRhiWidget::frameSubmitted);
+    QSignalSpy failed(&canvas, &QRhiWidget::renderFailed);
+    canvas.update();
+    QTRY_VERIFY(!frames.isEmpty() || !backendError.isEmpty());
+    QVERIFY2(backendError.isEmpty(), qPrintable(backendError));
+    QTRY_VERIFY(canvas.isActiveWindow());
+    historyManager->reset();
+    const auto before = fixture.runtime().documentVersion();
+    const auto press = fixture.point(481, 0);
+    const auto release = fixture.point(721, 0);
+    QTest::mousePress(&canvas, Qt::LeftButton, Qt::AltModifier, press);
+    moveWithButton(canvas, release, Qt::AltModifier);
+    QVERIFY(editSessionManager->hasActiveTransaction());
+    QCOMPARE(audio->trimStartMs(), 0.0);
+    QCOMPARE(audio->playLengthMs(), 1000.0);
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::AltModifier, release);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QCOMPARE(audio->trimStartMs(), 250.0);
+    QCOMPARE(audio->playLengthMs(), 750.0);
+    QCOMPARE(audio->materialLengthMs(), 1000.0);
+    QCOMPARE(audio->start() + audio->clipStart(), 720);
+    QCOMPARE(audio->start() + audio->clipStart() + audio->clipLen(), 1440);
+    QCOMPARE(fixture.runtime().documentVersion().revision, before.revision + 1);
+    historyManager->undo();
+    audio = dynamic_cast<AudioClip *>(fixture.clip());
+    QVERIFY(audio);
+    QCOMPARE(audio->trimStartMs(), 0.0);
+    QCOMPARE(audio->playLengthMs(), 1000.0);
+    QCOMPARE(audio->start() + audio->clipStart(), 480);
+    QVERIFY(!historyManager->canUndo());
+
+    const auto moveFrom = fixture.point(960, 0);
+    const auto moveTo = fixture.point(1440, 1);
+    QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, moveFrom);
+    moveWithButton(canvas, moveTo);
+    const auto beforeMoveFrame = frames.size();
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, moveTo);
+    QCOMPARE(fixture.trackOfClip(), 1);
+    audio = dynamic_cast<AudioClip *>(fixture.clip());
+    QVERIFY(audio);
+    QCOMPARE(audio->start() + audio->clipStart(), 960);
+    QCOMPARE(audio->trimStartMs(), 0.0);
+    QCOMPARE(audio->playLengthMs(), 1000.0);
+    QCOMPARE(audio->materialLengthMs(), 1000.0);
+    QCOMPARE(audio->path(), path);
+    QTRY_VERIFY(frames.size() > beforeMoveFrame || !backendError.isEmpty());
+    QVERIFY2(backendError.isEmpty(), qPrintable(backendError));
+    const auto beforeUndoFrame = frames.size();
+    historyManager->undo();
+    QCOMPARE(fixture.trackOfClip(), 0);
+    QCOMPARE(fixture.clip()->start() + fixture.clip()->clipStart(), 480);
+    QVERIFY(!historyManager->canUndo());
+    QTRY_VERIFY(frames.size() > beforeUndoFrame || !backendError.isEmpty());
+    QVERIFY2(backendError.isEmpty(), qPrintable(backendError));
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, fixture.point(960, 0));
+    QCOMPARE(appStatus->selectedClips.get(), QList<int>{fixture.clipId});
     QVERIFY(failed.isEmpty());
 }

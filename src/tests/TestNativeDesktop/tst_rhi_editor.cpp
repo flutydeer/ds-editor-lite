@@ -1,5 +1,6 @@
 #include "tst_native_desktop.h"
 #include "../TestSupport/GuiAppFixture.h"
+#include "../TestSupport/VoicebankFixture.h"
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
@@ -23,16 +24,22 @@
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
+#include <lite/ProjectModel/InferenceData/InferPiece.h>
+#include <lite/PackageManager/PackageManager.h>
+#include <lite/Tasking/TaskManager.h>
 #include <TalcsDevice/AudioDevice.h>
 
 #include <QApplication>
 #include <QContextMenuEvent>
+#include <QFileInfo>
 #include <QLineEdit>
 #include <QMouseEvent>
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTemporaryDir>
 #include <QtTest/QTest>
+
+#include <algorithm>
 
 namespace {
     struct ExistingRhiNoteFixture {
@@ -56,8 +63,8 @@ namespace {
                     .source = Automation::InvocationSource::Test};
         }
 
-        void initialize() {
-            QVERIFY2(app.initialize(), qPrintable(app.error));
+        void initialize(const QStringList &packageSearchPaths = {}) {
+            QVERIFY2(app.initialize(true, packageSearchPaths), qPrintable(app.error));
             Automation::NoteDraftDto note;
             note.localStart = 480;
             note.length = 480;
@@ -833,4 +840,124 @@ void NativeDesktopTests::rhiContextMenuTargetsRespectPronunciationAndSelection()
     QCOMPARE(menus.last().keyIndex, 70);
     QCOMPARE(fixture.runtime().documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
+}
+
+void NativeDesktopTests::rhiPitchModulationUsesTheInferredBaseline() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    const auto root = TestSupport::voicebankRoot();
+    QVERIFY2(QFileInfo(root).isAbsolute() && QFileInfo(root).isDir(), qPrintable(root));
+    QVERIFY(!TestSupport::fixtureLanguage().isEmpty() && !TestSupport::fixtureLyric().isEmpty());
+    ExistingRhiNoteFixture fixture;
+    fixture.initialize({root});
+    if (QTest::currentTestFailed())
+        return;
+    packageManager->initialize({root});
+    QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
+                              10000);
+    SingerInfo singer;
+    for (const auto &package : packageManager->installedPackages().successfulPackages) {
+        for (const auto &candidate : package.singers()) {
+            if (candidate.singerId() == TestSupport::fixtureSingerId())
+                singer = candidate;
+        }
+    }
+    QVERIFY(!singer.isEmpty() && !singer.speakers().isEmpty());
+    auto &runtime = fixture.runtime();
+    const auto clipId = Automation::ClipId(fixture.clip->id());
+    QVERIFY(runtime.parameters().selectClipSingleSpeaker(fixture.command(), clipId, singer,
+                                                         singer.speakers().first()));
+    QVERIFY(runtime.notes().patchWordProperties(fixture.command(), clipId,
+                                                {
+                                                    {.noteId = Automation::NoteId(fixture.noteId),
+                                                     .lyric = TestSupport::fixtureLyric(),
+                                                     .language = TestSupport::fixtureLanguage()}
+    }));
+    const auto settled = [&] {
+        return !fixture.clip->pieces().isEmpty() &&
+               std::all_of(fixture.clip->pieces().cbegin(), fixture.clip->pieces().cend(),
+                           [](const InferPiece *piece) {
+                               return piece->state == QStringLiteral("Acoustic.Awaiting") ||
+                                      piece->state == QStringLiteral("Ready");
+                           }) &&
+               taskManager->tasks().isEmpty();
+    };
+    QTRY_VERIFY_WITH_TIMEOUT(settled(), 15000);
+    auto *pitch = fixture.clip->params.getParamByName(ParamInfo::Pitch);
+    QVERIFY(pitch && !pitch->curves(Param::Original).isEmpty());
+    Automation::CurveDraftDto edited;
+    edited.values = QList<int>(385, 6200);
+    QVERIFY(runtime.parameters().replaceParameter(fixture.command(), clipId, ParamInfo::Pitch,
+                                                  Param::Edited, {edited}));
+    QCoreApplication::processEvents();
+    QTRY_VERIFY_WITH_TIMEOUT(settled(), 15000);
+    auto &canvas = *fixture.canvas;
+    canvas.setEditMode(ClipEditorGlobal::ModulatePitch);
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    const auto snapshot = [&] {
+        QList<DrawCurve> result;
+        for (const auto *curve : pitch->curves(Param::Edited))
+            result.append(*static_cast<const DrawCurve *>(curve));
+        return result;
+    };
+    const auto initial = snapshot();
+    const auto start = fixture.pointFor(600, 60);
+    const auto end = fixture.pointFor(840, 60);
+    const auto press = fixture.pointFor(720, 60);
+    const auto release = press + QPoint(0, 100);
+    for (const auto &point : {start, end, press, release})
+        QVERIFY(canvas.rect().contains(point));
+    const auto selectRange = [&] {
+        QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, start);
+        fixture.moveTo(end);
+        QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, end);
+        QVERIFY(!editSessionManager->hasActiveTransaction());
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(snapshot(), initial);
+    };
+    selectRange();
+    if (QTest::currentTestFailed())
+        return;
+    QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+    fixture.moveTo(release);
+    QVERIFY(editSessionManager->hasActiveTransaction());
+    QCOMPARE(snapshot(), initial);
+    QCOMPARE(runtime.documentVersion(), before);
+    QTest::keyClick(&canvas, Qt::Key_Escape);
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QCOMPARE(snapshot(), initial);
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+
+    selectRange();
+    if (QTest::currentTestFailed())
+        return;
+    QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+    fixture.moveTo(release);
+    const auto committedFrame = fixture.submitted->size();
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    // Committing pitch also invalidates persisted variance results.
+    QVERIFY(runtime.documentVersion().revision > before.revision);
+    const auto sampleAt = [&](int tick) -> std::optional<int> {
+        for (const auto *curve : pitch->curves(Param::Edited)) {
+            const auto *draw = dynamic_cast<const DrawCurve *>(curve);
+            if (draw && tick >= draw->localStart() && tick < draw->localEndTick())
+                return draw->values().at((tick - draw->localStart()) / draw->step);
+        }
+        return std::nullopt;
+    };
+    QCOMPARE(sampleAt(720), std::optional<int>(6000));
+    QCOMPARE(sampleAt(200), std::optional<int>(6200));
+    QCOMPARE(sampleAt(1500), std::optional<int>(6200));
+    fixture.frameAfter(committedFrame);
+    if (QTest::currentTestFailed())
+        return;
+    historyManager->undo();
+    QCOMPARE(snapshot(), initial);
+    QVERIFY(!historyManager->canUndo());
+    QTRY_VERIFY_WITH_TIMEOUT(settled(), 15000);
+    QCOMPARE(snapshot(), initial);
 }

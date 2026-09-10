@@ -36,7 +36,8 @@ set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${_voicebank_arc
 file(REMOVE_RECURSE "${_voicebank_directory}/ci-fixture@1.0.0")
 file(ARCHIVE_EXTRACT INPUT "${_voicebank_archive}"
     DESTINATION "${_voicebank_directory}")
-foreach(_resource_test IN ITEMS TestModelResources TestApplicationGui TestApplicationWorkflows)
+foreach(_resource_test IN ITEMS
+        TestModelResources TestApplicationGui TestApplicationWorkflows TestNativeDesktop)
     target_compile_definitions(${_resource_test} PRIVATE
         LITE_TEST_VOICEBANK_ROOT="${_voicebank_directory}/ci-fixture@1.0.0")
 endforeach()

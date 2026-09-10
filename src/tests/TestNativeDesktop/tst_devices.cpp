@@ -1,5 +1,6 @@
 #include "tst_native_desktop.h"
 #include "../TestSupport/GuiAppFixture.h"
+#include "../TestSupport/WaveFixture.h"
 
 #include "Automation/CoreRuntime.h"
 #include "Controller/PlaybackController.h"
@@ -16,13 +17,11 @@
 #include <TalcsCore/TransportAudioSource.h>
 #include <TalcsDevice/AudioDriver.h>
 #include <TalcsDevice/AudioDriverManager.h>
-#include <TalcsFormat/AudioFormatIO.h>
 #include <TalcsMidi/MidiInputDevice.h>
 #include <TalcsMidi/MidiMessageIntegrator.h>
 #include <TalcsMidi/MidiMessageListener.h>
 #include <rtmidi/RtMidi.h>
 
-#include <QFile>
 #include <QPointer>
 #include <QScopeGuard>
 #include <QThread>
@@ -113,17 +112,7 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
              selectedBufferSize);
 
     const auto path = fixture.directory.filePath(QStringLiteral("silence.wav"));
-    {
-        QFile file(path);
-        QVERIFY(file.open(QIODevice::WriteOnly));
-        talcs::AudioFormatIO writer(&file);
-        writer.setSampleRate(48000);
-        writer.setChannelCount(1);
-        writer.setFormat(talcs::AudioFormatIO::WAV | talcs::AudioFormatIO::FLOAT);
-        QVERIFY(writer.open(talcs::AbstractAudioFormatIO::Write));
-        const QVector<float> silence(48000, 0.0f);
-        QCOMPARE(writer.write(silence.constData(), silence.size()), qint64(silence.size()));
-    }
+    QVERIFY(TestSupport::writeWave(path, QVector<float>(48000, 0.0f)));
     auto document = Automation::DocumentAutomationFacade::newDocumentDraft(false);
     Automation::ClipDraftDto clip;
     clip.type = Automation::ClipDraftDto::Type::Audio;
@@ -185,6 +174,7 @@ void NativeDesktopTests::audioDriverStartupCanBeCanceled() {
         fixture.context.reset();
         QVERIFY(observed.isNull());
         QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+        QTRY_VERIFY(taskManager->tasks().isEmpty());
     } else {
         driver->finalize();
         QCoreApplication::sendPostedEvents(driver, QEvent::MetaCall);

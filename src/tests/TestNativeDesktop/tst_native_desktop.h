@@ -25,10 +25,12 @@ private slots:
     void rhiPitchStrokePreviewsCancelAndCommit();
     void rhiNoteSplittingSnapsAndUndoRestoresThePhrase();
     void rhiContextMenuTargetsRespectPronunciationAndSelection();
+    void rhiPitchModulationUsesTheInferredBaseline();
     void rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor();
     void rhiClipDragCommitsAcrossTracksAndUndoRestoresView();
     void rhiClipResizeCommitsOrCancels_data();
     void rhiClipResizeCommitsOrCancels();
+    void rhiAudioClipTrimAndMovePreserveTimeAnchors();
     void availableAudioDeviceRunsPublicPlayback();
     void audioDriverStartupCanBeCanceled_data();
     void audioDriverStartupCanBeCanceled();

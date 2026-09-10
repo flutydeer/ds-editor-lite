@@ -11,23 +11,33 @@
 #include <lite/GUI/Theme/ThemeIds.h>
 #include <lite/GUI/Theme/ThemeLoader.h>
 #include <lite/GUI/Theme/ThemeManager.h>
+#include <lite/Tasking/TaskManager.h>
 #include <TalcsDevice/AudioDevice.h>
 
 #include <QApplication>
 #include <QTemporaryDir>
+#include <QStringList>
+#include <QtTest/QTest>
 
 #include <memory>
 
 class GuiAppFixture final {
 public:
     ~GuiAppFixture() {
+        if (context) {
+            // Queued task completions must reach their controllers before teardown.
+            const auto drain = [] {
+                QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 15000);
+            };
+            drain();
+        }
         context.reset();
         restoreVariable("DSEL_TEST_DATA_ROOT", previousRoot);
         restoreVariable("DSEL_TEST_PLUGIN_ROOT", previousPlugins);
         QApplication::setQuitOnLastWindowClosed(previousQuitOnClose);
     }
 
-    bool initialize(bool closeOutput = true) {
+    bool initialize(bool closeOutput = true, const QStringList &packageSearchPaths = {}) {
         if (!directory.isValid()) {
             error = QStringLiteral("Cannot create the application sandbox");
             return false;
@@ -40,7 +50,7 @@ public:
         AppEnvironment::postInit(AppHostMode::Gui);
         QApplication::setQuitOnLastWindowClosed(false);
         auto options = std::make_unique<AppOptions>();
-        options->general()->packageSearchPaths.clear();
+        options->general()->packageSearchPaths = packageSearchPaths;
         options->general()->defaultSingingLanguage = QStringLiteral("eng");
         options->inference()->executionProvider = QStringLiteral("CPU");
         options->inference()->autoStartInfer = false;

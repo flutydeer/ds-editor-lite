@@ -142,5 +142,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 动态声线编辑与导航 | gui | 区间/菜单删除和首帧保护；旁路、恢复、停止/取消及撤销后的控件状态；非零片段起点下关键帧导航的播放位置和视口 | ApplicationGui 的 tst_dynamic_mix.cpp | offscreen；声线元数据；无需设备 |
 | 音频并发与有损导出 | workflow | 普通/Future 片段读取期间范围更新须等待，修改后 PCM 正确；MP3/Ogg 经实际编码解码验证有限非零采样、时长与格式 | ApplicationWorkflows 的 tst_audio_workflows.cpp | 通用；受控读源；无需设备 |
 | 音频驱动延迟启动与释放 | workflow/native | 停止或销毁发生在延迟启动前，或与线程启动相邻时，不再执行悬空回调或丢失停止请求 | NativeDesktop::audioDriverStartupCanBeCanceled | 可用音频后端；逐例条件跳过 |
+| RHI 音高调制与音频时间锚定 | gui/workflow | 真实声库给出推理片段基线，检查局部调制、取消及单次撤销；双声道 WAV 实际解码后经鼠标裁边和跨轨移动，保留毫秒锚定、材料长度及命中 | NativeDesktop::rhiPitchModulationUsesTheInferredBaseline、rhiAudioClipTrimAndMovePreserveTimeAnchors | 原生窗口；调制默认内置声库；音频无需播放设备 |
+| 初始化期间关闭与任务回收 | workflow/native | 立即销毁引擎不能丢失已完成初始化任务的清理；正常 fixture 保留控制器直到完成通知已处理，后续用例无残留任务 | NativeDesktop::audioDriverStartupCanBeCanceled；GuiAppFixture | GUI 运行时；驱动子场景按后端条件执行 |
 
 本次还移除无产品实例化入口的旧 G2P/伪声设置页和 `TrackSynthesizer` 及其空容器引用。清理改变统计分母，报告中与新增测试命中的贡献分开说明，不通过排除仍有效的生产文件提高比例。
