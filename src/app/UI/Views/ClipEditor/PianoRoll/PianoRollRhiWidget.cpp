@@ -2973,6 +2973,7 @@ PianoRollRhiWidget::~PianoRollRhiWidget() {
     d->cancelPitchEdit(false);
     d->cancelPitchTransform(false);
     d->anchorController.cancel();
+    d.reset();
 }
 
 void PianoRollRhiWidget::setDataContext(SingingClip *clip) {
@@ -3100,6 +3101,9 @@ void PianoRollRhiWidget::showEvent(QShowEvent *event) {
 }
 
 bool PianoRollRhiWidget::event(QEvent *event) {
+    // Destroying private child widgets can deliver events after the private state is released.
+    if (!d)
+        return EditorRhiWidget::event(event);
     if (d->clip && d->editMode == EditPitchAnchor && event->type() == QEvent::ShortcutOverride) {
         const auto key = static_cast<QKeyEvent *>(event)->key();
         if (AnchorEditor::AnchorEditController::handlesKey(key)) {
