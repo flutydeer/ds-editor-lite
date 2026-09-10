@@ -33,6 +33,7 @@
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 #include "../TestSupport/ProcessFixture.h"
 #include "../TestSupport/RuntimeResourcesFixture.h"
+#include "../TestSupport/VoicebankFixture.h"
 
 #include <TalcsDevice/AbstractOutputContext.h>
 #include <TalcsDevice/AudioDevice.h>
@@ -159,7 +160,10 @@ void ApplicationWorkflowTests::initTestCase() {
 
     auto options = std::make_unique<AppOptions>();
     QVERIFY(QDir::cleanPath(options->configPath()).startsWith(dataRoot.path() + '/'));
-    options->general()->packageSearchPaths.clear();
+    const auto voicebankRoot = TestSupport::voicebankRoot();
+    QVERIFY2(QDir::isAbsolutePath(voicebankRoot) && QFileInfo(voicebankRoot).isDir(),
+             qPrintable(QStringLiteral("Voicebank fixture is unavailable: %1").arg(voicebankRoot)));
+    options->general()->packageSearchPaths = {voicebankRoot};
     options->general()->defaultSingingLanguage = QStringLiteral("eng");
     options->inference()->autoStartInfer = false;
     options->inference()->executionProvider = QStringLiteral("CPU");
@@ -171,6 +175,9 @@ void ApplicationWorkflowTests::initTestCase() {
         QVERIFY(!device->isOpen());
     }
     AudioContext::instance()->preMixer()->close();
+    packageManager->initialize(context->m_appOptions->general()->packageSearchPaths);
+    QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
+                              10000);
 }
 
 void ApplicationWorkflowTests::init() {

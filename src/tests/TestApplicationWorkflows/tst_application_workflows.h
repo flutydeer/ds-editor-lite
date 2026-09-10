@@ -41,6 +41,10 @@ private slots:
 
     void audioBatchCancellationReleasesRetry();
 
+    void clipInferenceResultsRespectEditSession_data();
+
+    void clipInferenceResultsRespectEditSession();
+
     void failedInferenceInitializationReleasesPackageWaiters();
 
     void changedTargetInputDropsResult();
