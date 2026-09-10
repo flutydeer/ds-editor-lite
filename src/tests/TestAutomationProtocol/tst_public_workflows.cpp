@@ -405,3 +405,109 @@ void AutomationProtocolTests::fillLyricsUnavailableLanguage() {
     QCOMPARE(fixture.runtimeFixture.model().serialize(), beforeModel);
     QCOMPARE(fixture.runtimeFixture.history()->nextUndoEntry(), beforeUndo);
 }
+
+void AutomationProtocolTests::parameterQueryBoundsSamplesAndPreservesAnchors() {
+    RegistryFixture fixture;
+    auto &runtime = fixture.runtime;
+    QVERIFY(runtime.project().insertTrack(commandContext(runtime), 0, lyricTrack()));
+    const auto project = runtime.project().getProject(runtime.documentVersion().documentId);
+    QVERIFY(project);
+    const auto clip = project.get().tracks.first().clips.first().id;
+    CurveDraftDto first;
+    first.values = {6000, 6010, 6020, 6030, 6040, 6050, 6060, 6070};
+    CurveDraftDto second;
+    second.localStart = 100;
+    second.values = {6100, 6110, 6120, 6130};
+    CurveDraftDto anchor;
+    anchor.type = CurveDraftDto::Type::Anchor;
+    anchor.nodes = {
+        {20, 6200, AnchorNode::Linear },
+        {40, 6400, AnchorNode::Hermite}
+    };
+    auto outside = anchor;
+    outside.nodes = {
+        {200, 6500, AnchorNode::Linear },
+        {240, 6600, AnchorNode::Hermite}
+    };
+    QVERIFY(runtime.parameters().replaceParameter(commandContext(runtime), clip, ParamInfo::Pitch,
+                                                  Param::Edited, {first, second, anchor, outside}));
+    const auto stored = runtime.parameters().getParameter(runtime.documentVersion().documentId,
+                                                          clip, ParamInfo::Pitch, Param::Edited);
+    QVERIFY(stored);
+    const auto anchorId = stored.get().curves.at(2).id.value();
+    const auto before = runtime.documentVersion();
+    const auto beforeModel = fixture.runtimeFixture.model().serialize();
+    const auto *beforeUndo = fixture.runtimeFixture.history()->nextUndoEntry();
+    PublicAutomationRegistry registry(runtime, fixture.access, fixture.fileGuard,
+                                      fixture.admission);
+    QJsonObject arguments{
+        {QStringLiteral("document_id"), before.documentId.toString()             },
+        {QStringLiteral("clip_id"),     clip.value()                             },
+        {QStringLiteral("name"),        QStringLiteral("pitch")                  },
+        {QStringLiteral("layer"),       QStringLiteral("edited")                 },
+        {QStringLiteral("range"),
+         QJsonObject{{QStringLiteral("start"), 10}, {QStringLiteral("end"), 125}}},
+        {QStringLiteral("max_points"),  6                                        },
+    };
+    const auto queried = registry.invoke(QStringLiteral("parameters.get"), arguments);
+    QVERIFY2(queried, qPrintable(errorMessage(queried)));
+    const auto snapshot = queried.get().value(QStringLiteral("snapshot")).toObject();
+    QCOMPARE(snapshot.value(QStringLiteral("source_point_count")).toInt(), 12);
+    QCOMPARE(snapshot.value(QStringLiteral("returned_point_count")).toInt(), 6);
+    QVERIFY(snapshot.value(QStringLiteral("downsampled")).toBool());
+    const auto curves = snapshot.value(QStringLiteral("curves")).toArray();
+    QCOMPARE(curves.size(), 3);
+    const auto firstDraw = curves.at(0).toObject();
+    QCOMPARE(firstDraw.value(QStringLiteral("local_start")).toInt(), 10);
+    QCOMPARE(firstDraw.value(QStringLiteral("step")).toInt(), 15);
+    QCOMPARE(firstDraw.value(QStringLiteral("values")).toArray(), (QJsonArray{6020, 6050}));
+    const auto secondDraw = curves.at(1).toObject();
+    QCOMPARE(secondDraw.value(QStringLiteral("local_start")).toInt(), 100);
+    QCOMPARE(secondDraw.value(QStringLiteral("step")).toInt(), 10);
+    QCOMPARE(secondDraw.value(QStringLiteral("values")).toArray(), (QJsonArray{6100, 6120}));
+    const auto exactAnchor = curves.at(2).toObject();
+    QCOMPARE(exactAnchor.value(QStringLiteral("curve_id")).toInt(), anchorId);
+    const auto nodes = exactAnchor.value(QStringLiteral("nodes")).toArray();
+    QCOMPARE(nodes.size(), 2);
+    QCOMPARE(nodes.first().toObject().value(QStringLiteral("position")).toInt(), 20);
+    QCOMPARE(nodes.last().toObject().value(QStringLiteral("position")).toInt(), 40);
+    QCOMPARE(nodes.last().toObject().value(QStringLiteral("value")).toInt(), 6400);
+
+    for (int budget : {1, 3}) {
+        arguments.insert(QStringLiteral("max_points"), budget);
+        const auto insufficient = registry.invoke(QStringLiteral("parameters.get"), arguments);
+        QVERIFY(!insufficient);
+        QCOMPARE(insufficient.getError().code, AutomationErrorCode::InvalidArgument);
+        QCOMPARE(insufficient.getError().fieldPath, QStringLiteral("max_points"));
+    }
+    arguments.remove(QStringLiteral("max_points"));
+    arguments.remove(QStringLiteral("range"));
+    const auto complete = registry.invoke(QStringLiteral("parameters.get"), arguments);
+    QVERIFY2(complete, qPrintable(errorMessage(complete)));
+    const auto completeSnapshot = complete.get().value(QStringLiteral("snapshot")).toObject();
+    QVERIFY(!completeSnapshot.value(QStringLiteral("downsampled")).toBool());
+    QCOMPARE(completeSnapshot.value(QStringLiteral("returned_point_count")).toInt(), 16);
+    QCOMPARE(completeSnapshot.value(QStringLiteral("curves"))
+                 .toArray()
+                 .first()
+                 .toObject()
+                 .value(QStringLiteral("values"))
+                 .toArray(),
+             (QJsonArray{6000, 6010, 6020, 6030, 6040, 6050, 6060, 6070}));
+    arguments.insert(QStringLiteral("range"),
+                     QJsonObject{
+                         {QStringLiteral("start"), 135},
+                         {QStringLiteral("end"),   190}
+    });
+    const auto empty = registry.invoke(QStringLiteral("parameters.get"), arguments);
+    QVERIFY2(empty, qPrintable(errorMessage(empty)));
+    QVERIFY(empty.get()
+                .value(QStringLiteral("snapshot"))
+                .toObject()
+                .value(QStringLiteral("curves"))
+                .toArray()
+                .isEmpty());
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(fixture.runtimeFixture.model().serialize(), beforeModel);
+    QCOMPARE(fixture.runtimeFixture.history()->nextUndoEntry(), beforeUndo);
+}

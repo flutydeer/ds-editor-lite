@@ -26,6 +26,7 @@ private slots:
     void fillLyricsOptions_data();
     void fillLyricsOptions();
     void fillLyricsUnavailableLanguage();
+    void parameterQueryBoundsSamplesAndPreservesAnchors();
     void rejectedInputs_data();
     void rejectedInputs();
     void sharedEditingScenario_data();
