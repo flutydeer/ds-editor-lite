@@ -8,8 +8,6 @@
 #include <QObject>
 #include <QStringList>
 
-class AppControllerPrivate;
-class IMainWindow;
 class AppModel;
 class DecodeAudioTask;
 class AudioClip;
@@ -21,14 +19,11 @@ class AppController final : public QObject {
 
 private:
     explicit AppController(QObject *parent = nullptr);
-    ~AppController() override;
+    ~AppController() override = default;
 
 public:
     LITE_SINGLETON_DECLARE_INSTANCE(AppController)
     Q_DISABLE_COPY_MOVE(AppController)
-
-public:
-    void setMainWindow(IMainWindow *window);
 
 public slots:
     void quit();
@@ -47,13 +42,6 @@ public slots:
     // Removes the point at exactly barIndex; the bar 0 anchor is refused
     void onRemoveTimeSignatureAt(int barIndex);
     static void editMasterControl(const TrackControl &control);
-    void onUndoRedoChanged(bool canUndo, const QString &undoActionName, bool canRedo,
-                           const QString &redoActionName);
-
-private:
-    Q_DECLARE_PRIVATE(AppController)
-    // QScopedPointer<AppControllerPrivate> d_ptr;
-    AppControllerPrivate *d_ptr;
 };
 
 #endif // APPCONTROLLER_H

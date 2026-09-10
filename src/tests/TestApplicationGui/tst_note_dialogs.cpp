@@ -2,7 +2,6 @@
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
-#include "Controller/AppController.h"
 #include "Controller/ClipController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/TrackController.h"
@@ -218,7 +217,6 @@ void ApplicationGuiTests::lyricSearchNavigatesTheActualEditorAndHandlesNoMatches
     MainWindow window;
     const auto clearWindow = qScopeGuard([&] {
         documentWorkflowController->setUi(nullptr);
-        appController->setMainWindow(nullptr);
         trackController->setParentWidget(nullptr);
         Dialog::setGlobalContext(nullptr);
         Toast::setGlobalContext(nullptr);
