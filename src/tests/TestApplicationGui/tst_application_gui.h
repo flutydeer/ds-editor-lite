@@ -80,6 +80,7 @@ private slots:
     void movingLyricsBackwardUsesTheSelectedWordRange_data();
     void movingLyricsBackwardUsesTheSelectedWordRange();
     void pianoKeyboardGlissandoAndHideReleasePressedNotes();
+    void trackContextMenuPastePreviewCancelsAndMatchesCommittedClip();
     void cleanup();
     void cleanupTestCase();
 

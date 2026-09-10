@@ -19,6 +19,7 @@ lite_add_test(${PROJECT_NAME} SOURCES
     tst_document_workflow.cpp
     tst_tagger_settings.cpp
     tst_piano_keyboard.cpp
+    tst_track_clipboard.cpp
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE EditorRuntime)
 add_dependencies(${PROJECT_NAME} DsEditorLite)
