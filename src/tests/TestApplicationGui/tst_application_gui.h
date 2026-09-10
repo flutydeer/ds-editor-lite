@@ -81,6 +81,7 @@ private slots:
     void movingLyricsBackwardUsesTheSelectedWordRange();
     void pianoKeyboardGlissandoAndHideReleasePressedNotes();
     void trackContextMenuPastePreviewCancelsAndMatchesCommittedClip();
+    void settingsSynthPreviewKeepsEnvelopeDurationsAcrossSampleRates();
     void cleanup();
     void cleanupTestCase();
 
