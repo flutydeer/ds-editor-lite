@@ -152,8 +152,10 @@ namespace {
 
     void editRule(FillLyric::TaggerDetailPanel &details, const QString &language,
                   const QString &tag, const QString &pattern) {
-        const auto editors = entryEditors(details);
-        QVERIFY(editors.language);
+        EntryEditors editors;
+        QTRY_VERIFY2((editors = entryEditors(details)).language && editors.language->lineEdit() &&
+                         editors.tag && editors.pattern,
+                     "The custom tagger entry editors must be visible before typing");
         typeText(editors.language->lineEdit(), language);
         if (QTest::currentTestFailed())
             return;
@@ -368,7 +370,12 @@ void ApplicationGuiTests::invalidTaggerRegexPreservesAppliedRules() {
             });
             auto *message = qobject_cast<QMessageBox *>(modal);
             QVERIFY(message);
-            QCOMPARE(message->windowTitle(), FillLyric::TaggerConfigTab::tr("Invalid Regex"));
+            QCOMPARE(message->icon(), QMessageBox::Warning);
+            const auto expectedPrefix =
+                FillLyric::TaggerConfigTab::tr("Rule \"%1\": regex error in \"%2\": %3")
+                    .arg(QStringLiteral("cmn"), QStringLiteral("["), QString());
+            QVERIFY2(message->text().startsWith(expectedPrefix), qPrintable(message->text()));
+            QVERIFY(!message->text().mid(expectedPrefix.size()).trimmed().isEmpty());
             auto *ok = message->button(QMessageBox::Ok);
             QVERIFY(ok);
             QTest::mouseClick(ok, Qt::LeftButton);

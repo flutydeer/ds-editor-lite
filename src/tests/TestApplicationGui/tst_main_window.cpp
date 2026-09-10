@@ -140,6 +140,7 @@ void ApplicationGuiTests::panelButtonsAndClipDoubleClickRestoreTheEditorView() {
     view->hide();
     auto &window = *host.window;
     window.activateWindow();
+    QTRY_VERIFY(window.isActiveWindow());
     auto *bottom = window.findChild<BottomPanelView *>();
     auto *tracks = window.findChild<TracksGraphicsView *>();
     QVERIFY(bottom);
@@ -288,6 +289,7 @@ void ApplicationGuiTests::embeddedSettingsSuspendAndRestoreBackgroundInteraction
     view->hide();
     auto &window = *host.window;
     window.activateWindow();
+    QTRY_VERIFY(window.isActiveWindow());
     auto *bottom = window.findChild<BottomPanelView *>();
     QVERIFY(bottom);
     bottom->clipEditorView()->onActiveClipChanged(singingClip->id());

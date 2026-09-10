@@ -114,6 +114,11 @@ void GuiComponentTests::seekBarKeyboardStepsClampAndDoubleClickResets() {
     const auto beforeReset = changed.count();
     const QPoint center(110, 10);
     QCursor::setPos(slider.mapToGlobal(center));
+    QCoreApplication::processEvents();
+    // The QWidget overload sends only the double-click event, so supply the first click.
+    QTest::mouseClick(&slider, Qt::LeftButton, Qt::NoModifier, center);
+    QCOMPARE(slider.value(), 0.0);
+    QCOMPARE(changed.count(), beforeReset);
     QTest::mouseDClick(&slider, Qt::LeftButton, Qt::NoModifier, center);
     QTest::mouseRelease(&slider, Qt::LeftButton, Qt::NoModifier, center);
     QCOMPARE(slider.value(), 2.0);
