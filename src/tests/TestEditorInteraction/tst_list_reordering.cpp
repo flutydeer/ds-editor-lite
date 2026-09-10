@@ -15,14 +15,21 @@
 #include "UI/Views/TrackEditor/TrackControlView.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
 #include "UI/Views/TrackEditor/TrackListView.h"
+#include "UI/Dialogs/SpeakerMix/SpeakerMixDialog.h"
+#include "UI/Dialogs/SpeakerMix/SpeakerMixList.h"
+#include "UI/Dialogs/SpeakerMix/SpeakerMixBar.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/GUI/Controls/AccentButton.h>
+#include <lite/GUI/Controls/IconLabel.h>
+#include <lite/GUI/Controls/TagButton.h>
 
 #include <QAbstractItemView>
 #include <QApplication>
 #include <QCursor>
+#include <QComboBox>
 #include <QDrag>
 #include <QLabel>
 #include <QLineEdit>
@@ -79,6 +86,143 @@ namespace {
         QVERIFY2(entered, "The handle gesture did not enter Qt's drag loop");
         QCoreApplication::processEvents();
     }
+}
+
+void EditorInteractionTests::speakerMixDragKeepsWeightsWithTheirSources_data() {
+    QTest::addColumn<int>("from");
+    QTest::addColumn<bool>("cancel");
+    QTest::newRow("first-to-last") << 0 << false;
+    QTest::newRow("last-to-first") << 2 << false;
+    QTest::newRow("escape-preserves-mix") << 0 << true;
+}
+
+void EditorInteractionTests::speakerMixDragKeepsWeightsWithTheirSources() {
+    QFETCH(int, from);
+    QFETCH(bool, cancel);
+    GuiDocumentFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
+    const SpeakerInfo bright(QStringLiteral("bright"), QStringLiteral("Bright"));
+    const SpeakerInfo warm(QStringLiteral("warm"), QStringLiteral("Warm"));
+    const SpeakerInfo air(QStringLiteral("air"), QStringLiteral("Air"));
+    const SingerInfo singer(
+        {QStringLiteral("voice"), QStringLiteral("mix-fixture"), QVersionNumber(1)},
+        QStringLiteral("Fixture voice"), {bright, warm, air});
+    SpeakerMixModel::SpeakerMixData initial;
+    initial.mode = SpeakerMixModel::SingerSourceMode::FixedMix;
+    initial.sources = {{bright}, {warm}, {air}};
+    initial.fixedWeights = {0.2, 0.3};
+    SpeakerMixDialog dialog(singer, initial);
+    dialog.resize(600, 500);
+    dialog.show();
+    dialog.activateWindow();
+    QTRY_VERIFY(dialog.isActiveWindow());
+    auto *list = dialog.findChild<SpeakerMixList *>();
+    QVERIFY(list);
+    const QVector<QString> labels{bright.id(), warm.id(), air.id()};
+    const QVector<int> values{20, 30, 50};
+    QCOMPARE(list->getLabels(), labels);
+    QCOMPARE(list->getValues(), values);
+    const auto *handle = list->itemWidget(list->item(from))->findChild<IconLabel *>();
+    QVERIFY(handle && handle->isVisible());
+    const auto source = handle->mapTo(list->viewport(), handle->rect().center());
+    const int to = from == 0 ? 2 : 0;
+    const auto targetRect = list->visualItemRect(list->item(to));
+    const auto destination =
+        QPoint(source.x(), from == 0 ? targetRect.bottom() - 1 : targetRect.top() + 1);
+    const auto version = fixture.context->m_coreRuntime->documentVersion();
+    dragListItem(*list, source, destination, cancel, [&] {
+        QCOMPARE(list->getLabels(), labels);
+        QCOMPARE(list->getValues(), values);
+    });
+    if (QTest::currentTestFailed())
+        return;
+    auto expectedLabels = labels;
+    auto expectedValues = values;
+    if (!cancel) {
+        expectedLabels.move(from, to);
+        expectedValues.move(from, to);
+    }
+    QCOMPARE(list->getLabels(), expectedLabels);
+    QCOMPARE(list->getValues(), expectedValues);
+    QCOMPARE(list->getMixBar()->getValues(), expectedValues);
+    QTest::mouseClick(dialog.okButton(), Qt::LeftButton);
+    QCOMPARE(dialog.result(), QDialog::Accepted);
+    const auto result = dialog.speakerMixData();
+    QCOMPARE(result.sources.size(), expectedLabels.size());
+    for (int index = 0; index < result.sources.size(); ++index)
+        QCOMPARE(result.sources[index].speaker.id(), expectedLabels[index]);
+    QCOMPARE(result.fixedWeights,
+             (QVector<double>{expectedValues[0] / 100.0, expectedValues[1] / 100.0}));
+    SpeakerMixDialog reopened(singer, result);
+    auto *reopenedList = reopened.findChild<SpeakerMixList *>();
+    QVERIFY(reopenedList);
+    QCOMPARE(reopenedList->getLabels(), expectedLabels);
+    QCOMPARE(reopenedList->getValues(), expectedValues);
+    QCOMPARE(fixture.context->m_coreRuntime->documentVersion(), version);
+    QVERIFY(!historyManager->canUndo());
+}
+
+void EditorInteractionTests::speakerMixSourceChoicePreservesWeightsAndUpdatesTags() {
+    GuiDocumentFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
+    const SpeakerInfo bright(QStringLiteral("bright"), QStringLiteral("Bright"));
+    const SpeakerInfo warm(QStringLiteral("warm"), QStringLiteral("Warm"));
+    const SpeakerInfo air(QStringLiteral("air"), QStringLiteral("Air"));
+    const SingerInfo singer(
+        {QStringLiteral("voice"), QStringLiteral("mix-fixture"), QVersionNumber(1)},
+        QStringLiteral("Fixture voice"), {bright, warm, air});
+    SpeakerMixModel::SpeakerMixData initial;
+    initial.mode = SpeakerMixModel::SingerSourceMode::FixedMix;
+    initial.sources = {{bright}, {warm}};
+    initial.fixedWeights = {0.2};
+    SpeakerMixDialog dialog(singer, initial);
+    dialog.show();
+    dialog.activateWindow();
+    QTRY_VERIFY(dialog.isActiveWindow());
+    auto *list = dialog.findChild<SpeakerMixList *>();
+    QVERIFY(list && list->count() == 2);
+    auto *choice = list->itemWidget(list->item(1))->findChild<QComboBox *>();
+    QVERIFY(choice && choice->isEnabled());
+    QCOMPARE(choice->currentData().toString(), warm.id());
+    const auto replacement = choice->findData(air.id());
+    QVERIFY(replacement >= 0);
+    QSignalSpy changed(list, &SpeakerMixList::speakerChanged);
+    choice->setFocus();
+    QTest::keyClick(choice, Qt::Key_Home);
+    for (int index = 0; index < replacement; ++index)
+        QTest::keyClick(choice, Qt::Key_Down);
+    QCOMPARE(choice->currentData().toString(), air.id());
+    QCOMPARE(changed.size(), 1);
+    QCOMPARE(changed.first().at(0).toString(), warm.id());
+    QCOMPARE(changed.first().at(1).toString(), air.id());
+    QCOMPARE(list->getLabels(), (QVector<QString>{bright.id(), air.id()}));
+    QCOMPARE(list->getValues(), (QVector<int>{20, 80}));
+    TagButton *warmTag = nullptr;
+    TagButton *airTag = nullptr;
+    for (auto *tag : dialog.findChildren<TagButton *>()) {
+        const auto speaker = tag->property("speakerName").toString();
+        if (speaker == warm.id())
+            warmTag = tag;
+        if (speaker == air.id())
+            airTag = tag;
+    }
+    QVERIFY(warmTag && airTag);
+    QVERIFY(!warmTag->isChecked());
+    QVERIFY(airTag->isChecked());
+    auto *firstChoice = list->itemWidget(list->item(0))->findChild<QComboBox *>();
+    QVERIFY(firstChoice);
+    const auto available = firstChoice->findData(warm.id());
+    QVERIFY(available >= 0);
+    QVERIFY(firstChoice->model()->flags(firstChoice->model()->index(available, 0)) &
+            Qt::ItemIsEnabled);
+    const auto used = firstChoice->findData(air.id());
+    QVERIFY(used < 0 || !(firstChoice->model()->flags(firstChoice->model()->index(used, 0)) &
+                          Qt::ItemIsEnabled));
+    QTest::mouseClick(dialog.okButton(), Qt::LeftButton);
+    QCOMPARE(dialog.result(), QDialog::Accepted);
+    const auto result = dialog.speakerMixData();
+    QCOMPARE(result.sources.last().speaker.id(), air.id());
+    QCOMPARE(result.fixedWeights, QVector<double>{0.2});
 }
 
 void EditorInteractionTests::trackListDragReordersOrCancels_data() {

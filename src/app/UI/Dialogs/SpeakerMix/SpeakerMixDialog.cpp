@@ -104,10 +104,6 @@ SpeakerMixDialog::SpeakerMixDialog(const SingerInfo &singerInfo, const SpeakerMi
     layout->addWidget(m_mixList);
     layout->addWidget(m_mixList->getMixBar());
     reloadPresetCombo(mixData.sourcePresetId);
-
-    // If combo shows Init Preset (no saved preset), align sliders to equal weight
-    if (m_currentPresetId.isEmpty())
-        applySpeakerMixDataToUi(equalWeightMixData());
 }
 
 SpeakerMixData SpeakerMixDialog::speakerMixData() const {
@@ -153,9 +149,8 @@ void SpeakerMixDialog::setupInitialSources(const SpeakerMixData &mixData) {
     }
 
     if (m_mixList->getLabels().isEmpty()) {
-        for (const auto &speaker : m_singerInfo.speakers()) {
-            m_mixList->addSpeaker(speaker.id());
-        }
+        applySpeakerMixDataToUi(equalWeightMixData());
+        return;
     } else if (fullWeights.size() == m_mixList->getLabels().size()) {
         QVector<double> percentages;
         percentages.reserve(fullWeights.size());

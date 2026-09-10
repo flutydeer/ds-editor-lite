@@ -90,6 +90,9 @@ private slots:
     void leavingMenuClearsPastePreview();
     void trackListDragReordersOrCancels_data();
     void trackListDragReordersOrCancels();
+    void speakerMixDragKeepsWeightsWithTheirSources_data();
+    void speakerMixDragKeepsWeightsWithTheirSources();
+    void speakerMixSourceChoicePreservesWeightsAndUpdatesTags();
     void lyricRuleDragPreservesEditsAndChangesPriority_data();
     void lyricRuleDragPreservesEditsAndChangesPriority();
 

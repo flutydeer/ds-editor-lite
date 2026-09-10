@@ -156,5 +156,6 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 钢琴窗锚点创建、框选与合并 | gui | 完整 Graphics View 编辑器验证单锚点与连线预览尚未提交、Escape 取消、补足曲线后提交；框选成组拖动、插值/删除菜单、跨曲线连接均检查模型、预览绘制变化和一次撤销 | ApplicationGui::pitchAnchorCreationPreviewsBeforeCommitting、pitchAnchorRangeEditsUseTheViewAndMenu、pitchAnchorMergePreviewCommitsAndUndoes | offscreen；真实控件事件；无声库和设备要求 |
 | 播放窗口中的声学推理调度 | workflow | 内置声库形成当前、临近、已播放及远处片段；当前片段优先，暂停撤回排队任务并保留运行任务，继续及跳转后仅新窗口内任务启动，受控 PCM 回调推进播放 | ApplicationWorkflows::playbackWindowPrioritizesAndSuspendsAcousticInference | 默认内置声库；受控真实任务；无需音频设备 |
 | 外部 DSPX 标准声源混合 | workflow | 无 DS 私有 workspace 的嵌套固定/动态混合展开权重并合并同一声线；已安装声库使用真实元数据，未安装时保留待解析引用；保存重开保留声线与关键帧 | DocumentIO::dspxStandardSingerSourcesLoadNestedMixes | 通用；临时文件；元数据解析替身 |
+| 固定声线列表排序与来源替换 | gui | 实际 QDrag 前后保持每条声线的非均分比例，取消保持原顺序；下拉框替换声线保留比例、同步标签并禁用已占用来源；接受后重开保留自定义混合 | EditorInteraction::speakerMixDragKeepsWeightsWithTheirSources、speakerMixSourceChoicePreservesWeightsAndUpdatesTags | minimal；真实控件与拖放循环 |
 
 本次还移除无产品实例化入口的旧 G2P/伪声设置页和 `TrackSynthesizer` 及其空容器引用。清理改变统计分母，报告中与新增测试命中的贡献分开说明，不通过排除仍有效的生产文件提高比例。
