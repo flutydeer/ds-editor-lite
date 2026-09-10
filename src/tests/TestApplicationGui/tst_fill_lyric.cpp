@@ -326,6 +326,7 @@ void ApplicationGuiTests::lyricRuleEditingChangesThePreviewAndPersists() {
     settings.splitterOrder.clear();
     QVERIFY(runtime.settings().updateFillLyric({}, settings));
     const auto before = runtime.documentVersion();
+    QString ruleId;
     QList<Note *> notes;
     for (auto *note : singingClip->notes())
         notes.append(note);
@@ -364,6 +365,8 @@ void ApplicationGuiTests::lyricRuleEditingChangesThePreviewAndPersists() {
             return;
         QTest::mouseClick(apply, Qt::LeftButton);
         QCOMPARE(appOptions->fillLyric()->customSplitterRules.size(), 1);
+        ruleId = appOptions->fillLyric()->customSplitterRules.first().ruleId;
+        QVERIFY(!ruleId.isEmpty());
         QCOMPARE(appOptions->fillLyric()->customSplitterRules.first().name,
                  QStringLiteral("split-a"));
         QVERIFY(appOptions->fillLyric()->customSplitterRules.first().enabled);
@@ -389,6 +392,7 @@ void ApplicationGuiTests::lyricRuleEditingChangesThePreviewAndPersists() {
         QTest::mouseClick(enabled, Qt::LeftButton);
         QTest::mouseClick(apply, Qt::LeftButton);
         QVERIFY(!appOptions->fillLyric()->customSplitterRules.first().enabled);
+        QCOMPARE(appOptions->fillLyric()->customSplitterRules.first().ruleId, ruleId);
         QString disabled;
         runRulePreview(dialog, disabled);
         if (QTest::currentTestFailed())
@@ -411,6 +415,7 @@ void ApplicationGuiTests::lyricRuleEditingChangesThePreviewAndPersists() {
     QCOMPARE(saved.first().toObject().value(QStringLiteral("name")).toString(),
              QStringLiteral("split-a"));
     QVERIFY(!saved.first().toObject().value(QStringLiteral("enabled")).toBool());
+    QCOMPARE(saved.first().toObject().value(QStringLiteral("ruleId")).toString(), ruleId);
     LyricDialog reopened(singingClip, notes, singingClip->singerIdentifier(),
                          {TestSupport::fixtureLanguage()});
     reopened.show();
@@ -425,6 +430,11 @@ void ApplicationGuiTests::lyricRuleEditingChangesThePreviewAndPersists() {
     }
     QVERIFY(savedRule);
     QVERIFY(!savedRule->isRuleEnabled());
+    auto *apply = buttonWithText(reopened.findChild<FillLyric::SplitterConfigTab *>(),
+                                 FillLyric::SplitterConfigTab::tr("Apply"));
+    QVERIFY(apply);
+    QTest::mouseClick(apply, Qt::LeftButton);
+    QCOMPARE(appOptions->fillLyric()->customSplitterRules.first().ruleId, ruleId);
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
 }

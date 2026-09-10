@@ -75,6 +75,8 @@ private slots:
     void logWindowFiltersLiveMessagesAndCopiesDisplayedOrder();
     void newDocumentHonorsTheSaveDecision_data();
     void newDocumentHonorsTheSaveDecision();
+    void taggerRuleInputsApplyPersistAndReopen();
+    void invalidTaggerRegexPreservesAppliedRules();
     void cleanup();
     void cleanupTestCase();
 
