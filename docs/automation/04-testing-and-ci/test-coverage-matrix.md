@@ -161,5 +161,6 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 固定/动态声线模式与轨道继承 | domain | 公开领域入口验证轨道固定混合、片段继承、动态首帧初始化、关键帧重试及冲突、停用后固定值恢复；重复设置不产生新历史，撤销恢复继承，片段独立混合不改变轨道 | ProjectEditing::speakerMixModeTransitionsPreserveTrackInheritance | 通用；声线元数据；无需模型或设备 |
 | 主菜单音符编辑及语言菜单 | gui | 量化通过真实对话框选择网格、起点/长度、选区/全片段和取消；菜单全选及八度移动检查模型和撤销。语言子菜单验证指定语言、跟随声库与 Unknown，仅改变选中词并清理旧手工读音，一次撤销恢复 | ApplicationGui::mainMenuQuantizationUsesTheChosenScopeAndOptions、mainMenuOctaveEditsFollowThePianoSelection、noteLanguageMenuChangesOnlyTheSelectedWords | offscreen；语言使用内置声库；指定语言场景需要第二语言 |
 | 音符两侧裁边与取消 | gui | 在既有右侧拉伸用例增加左侧拉伸和 Escape 取消，预览期间模型不变，提交后的时间/长度与视图一致且一次撤销恢复 | ApplicationGui::resizingANotePreviewsAndCommitsItsBoundary | offscreen；无需声库或设备 |
+| 声音导出等待推理时取消 | workflow | 实际声库任务进入导出准备阶段后取消，旧文件不被覆盖且不开始渲染；后台任务排空后再次导出成功，文件可解码、样本有限且非零，无暂存残留 | ApplicationWorkflows::cancelingVoiceExportDuringPreparationAllowsAnotherExport | 默认内置声库；独立缓存；无需音频设备 |
 
 本次还移除无产品实例化入口的旧 G2P/伪声设置页和 `TrackSynthesizer` 及其空容器引用。清理改变统计分母，报告中与新增测试命中的贡献分开说明，不通过排除仍有效的生产文件提高比例。

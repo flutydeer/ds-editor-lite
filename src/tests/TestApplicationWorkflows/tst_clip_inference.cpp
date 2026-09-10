@@ -23,6 +23,7 @@
 #include <TalcsCore/AudioBuffer.h>
 #include <TalcsCore/MixerAudioSource.h>
 #include <TalcsCore/TransportAudioSource.h>
+#include <TalcsFormat/AudioFormatIO.h>
 
 #include <QPointer>
 #include <QScopeGuard>
@@ -30,10 +31,13 @@
 #include <QTimer>
 #include <QSemaphore>
 #include <QThreadPool>
+#include <QFile>
+#include <QDir>
 #include <QtTest>
 
 #include <algorithm>
 #include <atomic>
+#include <cmath>
 
 namespace {
     bool inferenceSettled(const SingingClip *clip) {
@@ -88,6 +92,87 @@ void ApplicationWorkflowTests::editingParametersRestartsOnlyDependentInference_d
         << ParamInfo::Expressiveness << 500;
     QTest::newRow("pitch-recomputes-variance") << ParamInfo::Pitch << 6300;
     QTest::newRow("gender-preserves-pitch-and-variance") << ParamInfo::Gender << 500;
+}
+
+void ApplicationWorkflowTests::cancelingVoiceExportDuringPreparationAllowsAnotherExport() {
+    QTemporaryDir materials;
+    QVERIFY(materials.isValid());
+    const auto previousCache = appOptions->inference()->cacheDirectory;
+    appOptions->inference()->cacheDirectory = materials.filePath(QStringLiteral("cache"));
+    const auto restore = qScopeGuard([&] {
+        QVERIFY(runtime().documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 15000);
+        appOptions->inference()->cacheDirectory = previousCache;
+    });
+    prepareVoicebankTarget();
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(piece->state.get(), QStringLiteral("Acoustic.Awaiting"));
+    const auto target = materials.filePath(QStringLiteral("voice.wav"));
+    QFile file(target);
+    const QByteArray original("previous export");
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    QCOMPARE(file.write(original), original.size());
+    file.close();
+    Automation::AudioExportConfigDto config;
+    config.fileName = QStringLiteral("voice.wav");
+    config.fileDirectory = materials.path();
+    config.sourceOption = 2;
+    config.sources = {0};
+    const Automation::AudioExportPolicyDto policy{.allowOverwrite = true};
+    Automation::TaskId exportId;
+    bool canceledDuringInference = false;
+    bool renderedBeforeCancellation = false;
+    Automation::AudioExportObserver observer;
+    observer.progress = [&](double, int) { renderedBeforeCancellation = true; };
+    observer.inferenceProgress = [&](double progress) {
+        if (canceledDuringInference || progress >= 1.0)
+            return;
+        const auto active =
+            runtime().tasks().getTask(runtime().documentVersion().documentId, exportId);
+        QVERIFY(active);
+        QCOMPARE(active.get().state, Automation::AutomationTaskState::Running);
+        QVERIFY(active.get().progress.indeterminate);
+        canceledDuringInference = true;
+        QVERIFY(runtime().tasks().cancelTask(commandContext(), exportId));
+    };
+    const auto accepted =
+        runtime().audioExports().start(commandContext(), config, policy, observer);
+    QVERIFY2(accepted, qPrintable(accepted ? QString() : accepted.getError().message));
+    exportId = accepted.get().taskId;
+    const auto terminalState = [&] {
+        const auto result =
+            runtime().tasks().getTask(runtime().documentVersion().documentId, exportId);
+        return result ? result.get().state : Automation::AutomationTaskState::Failed;
+    };
+    QTRY_COMPARE_WITH_TIMEOUT(terminalState(), Automation::AutomationTaskState::Canceled, 15000);
+    QVERIFY(canceledDuringInference);
+    QVERIFY(!renderedBeforeCancellation);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    QCOMPARE(file.readAll(), original);
+    file.close();
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 15000);
+    const auto retry = runtime().audioExports().start(commandContext(), config, policy);
+    QVERIFY2(retry, qPrintable(retry ? QString() : retry.getError().message));
+    exportId = retry.get().taskId;
+    QTRY_COMPARE_WITH_TIMEOUT(terminalState(), Automation::AutomationTaskState::Succeeded, 15000);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    talcs::AudioFormatIO reader(&file);
+    QVERIFY(reader.open(talcs::AbstractAudioFormatIO::Read));
+    QCOMPARE(reader.sampleRate(), config.sampleRate);
+    QVERIFY(reader.length() > 0);
+    QVERIFY(reader.channelCount() > 0);
+    QVector<float> samples(static_cast<qsizetype>(reader.length()) * reader.channelCount());
+    QCOMPARE(reader.read(samples.data(), reader.length()), reader.length());
+    QVERIFY(std::all_of(samples.cbegin(), samples.cend(),
+                        [](float value) { return std::isfinite(value); }));
+    QVERIFY(std::any_of(samples.cbegin(), samples.cend(),
+                        [](float value) { return std::abs(value) > 1.0e-5f; }));
+    reader.close();
+    file.close();
+    QCOMPARE(QDir(materials.path()).entryList(QDir::Files | QDir::Hidden),
+             QStringList{QStringLiteral("voice.wav")});
 }
 
 void ApplicationWorkflowTests::editingParametersRestartsOnlyDependentInference() {

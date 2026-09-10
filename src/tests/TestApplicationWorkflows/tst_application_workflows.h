@@ -55,6 +55,7 @@ private slots:
     void editingParametersRestartsOnlyDependentInference();
     void changingSpeakerMixRefreshesExistingInference();
     void playbackWindowPrioritizesAndSuspendsAcousticInference();
+    void cancelingVoiceExportDuringPreparationAllowsAnotherExport();
     void movingInheritedVoiceReusesOrRebuildsInference_data();
     void movingInheritedVoiceReusesOrRebuildsInference();
 
