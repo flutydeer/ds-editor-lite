@@ -1,9 +1,11 @@
 #include "tst_document_io.h"
 
 #include <lite/ProjectConverters/DspxProjectConverter.h>
+#include <lite/ProjectConverters/DspxPhonemeCompat.h>
 #include <lite/ProjectConverters/MidiConverter.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
+#include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
@@ -23,6 +25,8 @@
 
 #include <functional>
 #include <limits>
+#include <algorithm>
+#include <cmath>
 
 #ifdef Q_OS_WIN
 #  include <windows.h>
@@ -208,6 +212,147 @@ namespace {
                    QFileInfo::exists(temporary),
                QStringLiteral("reject-mode publication must preserve an existing target"));
     }
+}
+
+void DocumentIOTests::dspxPhonemeInterchangeRespectsExternalChanges() {
+    PhonemeName onset;
+    onset.language = QStringLiteral("eng");
+    onset.name = QStringLiteral("l");
+    onset.isOnset = true;
+    PhonemeName vowel;
+    vowel.language = QStringLiteral("eng");
+    vowel.name = QStringLiteral("a");
+    auto editedOnset = onset;
+    editedOnset.name = QStringLiteral("m");
+    Phonemes source;
+    source.nameSeq.original = {onset, vowel};
+    source.nameSeq.edited = {editedOnset, vowel};
+    source.offsetSeq.original = {-40, 0};
+    source.offsetSeq.edited = {-25, 15};
+    opendspx::Phonemes standard;
+    QJsonObject workspace;
+    DspxPhonemeCompat::encode(source, standard, workspace);
+    QCOMPARE(DspxPhonemeCompat::decode(standard, &workspace).serialize(), source.serialize());
+
+    standard.original.front().token = "r";
+    standard.edited.front().token = "n";
+    standard.edited.front().start = -20;
+    const auto external = DspxPhonemeCompat::decode(standard, &workspace);
+    auto externalOriginal = onset;
+    externalOriginal.name = QStringLiteral("r");
+    auto externalEdited = onset;
+    externalEdited.name = QStringLiteral("n");
+    QCOMPARE(external.nameSeq.original, (QList<PhonemeName>{externalOriginal, vowel}));
+    QCOMPARE(external.nameSeq.edited, (QList<PhonemeName>{externalEdited, vowel}));
+    QCOMPARE(external.offsetSeq.original, source.offsetSeq.original);
+    QCOMPARE(external.offsetSeq.edited, (QList<int>{-20, 15}));
+    QCOMPARE(DspxPhonemeCompat::decode(standard).serialize(), external.serialize());
+
+    standard.edited.clear();
+    const auto reset = DspxPhonemeCompat::decode(standard, &workspace);
+    QCOMPARE(reset.nameSeq.original, external.nameSeq.original);
+    QCOMPARE(reset.offsetSeq.original, source.offsetSeq.original);
+    QVERIFY(!reset.nameSeq.isEdited());
+    QVERIFY(!reset.offsetSeq.isEdited());
+
+    workspace.remove(QStringLiteral("dspxSnapshot"));
+    QCOMPARE(DspxPhonemeCompat::decode({}, &workspace).serialize(), source.serialize());
+    QCOMPARE(DspxPhonemeCompat::decode(standard, &workspace).serialize(), reset.serialize());
+}
+
+void DocumentIOTests::midiExportPreservesProjectTimingAndOptionalMetadata_data() {
+    QTest::addColumn<bool>("metadata");
+    QTest::newRow("lyrics-and-timeline") << true;
+    QTest::newRow("notes-only") << false;
+}
+
+void DocumentIOTests::midiExportPreservesProjectTimingAndOptionalMetadata() {
+    QFETCH(bool, metadata);
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    AppModel model;
+    auto timeline = model.timeline();
+    timeline.setTempos({
+        {0,    90 },
+        {1920, 135}
+    });
+    timeline.setTimeSignatures({
+        {0, 3, 4}
+    });
+    model.setTimeline(timeline);
+    auto *track = new Track;
+    track->setName(QStringLiteral("乐句"));
+    const QList<int> starts{480, 2400};
+    const QStringList lyrics{QStringLiteral("你好"), QStringLiteral("world")};
+    for (int i = 0; i < starts.size(); ++i) {
+        auto *clip = new SingingClip;
+        clip->setStart(starts[i]);
+        clip->setLength(960);
+        clip->setClipStart(i * 60);
+        clip->setClipLen(960 - i * 60);
+        auto *note = new Note(clip);
+        note->setLocalStart(120);
+        note->setLength(240);
+        note->setKeyIndex(60 + i * 7);
+        note->setLyric(lyrics[i]);
+        clip->insertNote(note);
+        track->insertClip(clip);
+    }
+    auto *audio = new AudioClip;
+    audio->setStart(4800);
+    audio->setLength(960);
+    audio->setClipLen(960);
+    audio->setPath(directory.filePath(QStringLiteral("audio-is-not-midi.wav")));
+    track->insertClip(audio);
+    QVERIFY(model.appendTrack(track));
+    const auto before = model.serialize();
+    MidiConverter converter;
+    const auto path = directory.filePath(QStringLiteral("导出.mid"));
+    QString error;
+    QVERIFY2(converter.save(path, &model, error,
+                            {.includeTempo = metadata,
+                             .includeTimeSignatures = metadata,
+                             .includeLyrics = metadata}),
+             qPrintable(error));
+    QCOMPARE(model.serialize(), before);
+    const auto parsed = MidiFileParser::parse(path);
+    QVERIFY2(parsed.valid, qPrintable(parsed.errorMessage));
+    std::vector<opendspx::MidiIntermediateData::Note> notes;
+    for (const auto &midiTrack : parsed.mediate.tracks()) {
+        if (midiTrack.notes.empty())
+            continue;
+        QCOMPARE(QString::fromStdString(midiTrack.title), track->name());
+        notes.insert(notes.end(), midiTrack.notes.begin(), midiTrack.notes.end());
+    }
+    QCOMPARE(notes.size(), size_t(2));
+    std::sort(notes.begin(), notes.end(), [](const auto &left, const auto &right) {
+        return left.noteOnTick < right.noteOnTick;
+    });
+    for (int i = 0; i < starts.size(); ++i) {
+        QCOMPARE(notes[i].noteOnTick, starts[i] + 120);
+        QCOMPARE(notes[i].length, 240);
+        QCOMPARE(notes[i].key, 60 + i * 7);
+        QCOMPARE(QString::fromStdString(notes[i].lyric), metadata ? lyrics[i] : QString{});
+    }
+    const auto tempos = parsed.mediate.tempos();
+    const auto signatures = parsed.mediate.timeSignatures();
+    if (!metadata) {
+        QVERIFY(tempos.empty());
+        QVERIFY(signatures.empty());
+    }
+    const auto includesTempo = [&](int tick, double bpm) {
+        return std::any_of(tempos.begin(), tempos.end(), [&](const auto &tempo) {
+            return tempo.tick == tick && std::abs(tempo.tempo - bpm) < 0.001;
+        });
+    };
+    QCOMPARE(includesTempo(0, 90), metadata);
+    QCOMPARE(includesTempo(1920, 135), metadata);
+    QCOMPARE(std::any_of(signatures.begin(), signatures.end(),
+                         [](const auto &signature) {
+                             return signature.tick == 0 && signature.numerator == 3 &&
+                                    signature.denominator == 4;
+                         }),
+             metadata);
 }
 
 void DocumentIOTests::dspxAtomicWrite() {

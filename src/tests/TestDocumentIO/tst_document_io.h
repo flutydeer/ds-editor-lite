@@ -29,9 +29,12 @@ private slots:
     void oldIdCollisionAndErrorPriority();
     void dspxAtomicWrite();
     void midiAtomicWrite();
+    void midiExportPreservesProjectTimingAndOptionalMetadata_data();
+    void midiExportPreservesProjectTimingAndOptionalMetadata();
     void dspxTimeSignatureProjectionValidation();
     void dspxRoundTripPreservesEditedPhrase();
     void dspxRoundTripPreservesEditedPhrase_data();
+    void dspxPhonemeInterchangeRespectsExternalChanges();
     void audioPublicationOverwrite();
     void audioPublicationNoClobber();
     void batchPreparationFailures();
