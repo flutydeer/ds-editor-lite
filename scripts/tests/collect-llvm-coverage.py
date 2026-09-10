@@ -79,7 +79,7 @@ def main():
     objects.extend("-object=" + str(path) for path in executables[1:])
     report = output / "coverage.lcov"
     with report.open("w", encoding="utf-8") as stream:
-        exported = subprocess.run([llvm_cov, "export", "-dump", "-format=lcov", *objects],
+        exported = subprocess.run([llvm_cov, "export", "-format=lcov", *objects],
                                   stdout=stream, stderr=subprocess.PIPE)
     (output / "llvm-export-diagnostics.log").write_bytes(exported.stderr)
     sys.stderr.buffer.write(exported.stderr)

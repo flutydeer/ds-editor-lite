@@ -36,7 +36,7 @@ jobs:
             qt-arch: clang_64
             jobs: 2
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 120
+    timeout-minutes: ${{ matrix.triplet == 'x64-windows' && 180 || 120 }}
     env:
       QT_VERSION: '6.11.2'
       CMAKE_BUILD_PARALLEL_LEVEL: ${{ matrix.jobs }}
