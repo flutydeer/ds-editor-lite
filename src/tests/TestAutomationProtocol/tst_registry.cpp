@@ -13,6 +13,8 @@
 #include <lite/AutomationWire/PublicConstants.h>
 #include <lite/AutomationWire/PublicToolContract.h>
 #include <lite/ProjectModel/AppModel/Clip.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/Note.h>
 
 #include <QCoreApplication>
 #include <QtTest>
@@ -994,6 +996,8 @@ namespace {
         audio.type = Automation::ClipDraftDto::Type::Audio;
         audio.properties.name = QStringLiteral("Reference audio");
         audio.properties.start = 480;
+        audio.audioPath = QDir(directoryPath).filePath(QStringLiteral("missing-reference.wav"));
+        audio.audioPathStatus = AudioClip::PathStatus::Missing;
         auto later = singing;
         later.properties.start = 960;
         Automation::TrackDraftDto lead;
@@ -1004,9 +1008,16 @@ namespace {
         backing.clips = {singing, later};
         auto document = Automation::DocumentAutomationFacade::newDocumentDraft(false);
         document.tracks = {lead, backing};
-        QVERIFY(runtime.documents().commitNewDocument(
+        const auto committed = runtime.documents().commitNewDocument(
             {.expected = runtime.documentVersion(), .source = Automation::InvocationSource::Test},
-            document));
+            document);
+        QVERIFY2(committed,
+                 qPrintable(committed
+                                ? QString{}
+                                : QStringLiteral("%1 (%2): %3")
+                                      .arg(Automation::errorCodeName(committed.getError().code),
+                                           committed.getError().fieldPath,
+                                           committed.getError().message)));
         fixture.history()->reset();
         const auto project = runtime.project().getProject(runtime.documentVersion().documentId);
         QVERIFY(project);
@@ -1704,11 +1715,28 @@ namespace {
                      .toString(),
                  QStringLiteral("follow_singer"));
 
+        QVERIFY(invokeChangedOnce(
+            registry, runtime, QStringLiteral("notes.insert"),
+            {
+                {QStringLiteral("clip_id"), voiceClipId.value()            },
+                {QStringLiteral("notes"),
+                 QJsonArray{QJsonObject{{QStringLiteral("local_start"), 0},
+                                        {QStringLiteral("length"), 120},
+                                        {QStringLiteral("key_index"), 60}}}}
+        },
+            QStringLiteral("clip-singer-default-lyric"),
+            QStringLiteral("default lyric follows the effective singer language")));
+        const auto *voiceClip =
+            qobject_cast<SingingClip *>(testRuntime.model().findClipById(voiceClipId.value()));
+        QVERIFY(voiceClip);
+        QCOMPARE(voiceClip->notes().count(), 1);
+        QCOMPARE((*voiceClip->notes().begin())->lyric(), QStringLiteral("ra"));
+
         const auto independentVoice = voiceSelection(singer, singer.speakers().first());
         QVERIFY(invokeChangedOnce(registry, runtime, QStringLiteral("clips.set_voice"),
                                   {
                                       {QStringLiteral("clip_id"), voiceClipId.value()},
-                                      {QStringLiteral("voice"),   independentVoice            }
+                                      {QStringLiteral("voice"),   independentVoice   }
         },
                                   QStringLiteral("clip-independent-voice"),
                                   QStringLiteral("clip voice override")));
@@ -1743,9 +1771,22 @@ namespace {
         QCOMPARE(restored.value(QStringLiteral("effective_voice")).toObject(), changedTrackVoice);
         QCOMPARE(restored.value(QStringLiteral("default_language"))
                      .toObject()
+                     .value(QStringLiteral("mode"))
+                     .toString(),
+                 QStringLiteral("follow_singer"));
+        QVERIFY(invokeChangedOnce(registry, runtime, QStringLiteral("clips.set_default_language"),
+                                  {
+                                      {QStringLiteral("clip_id"),     voiceClipId.value() },
+                                      {QStringLiteral("language_id"), QStringLiteral("ja")}
+        },
+                                  QStringLiteral("clip-explicit-language"),
+                                  QStringLiteral("explicit clip language overrides the singer")));
+        const auto explicitLanguage = queryClipVoice();
+        QCOMPARE(explicitLanguage.value(QStringLiteral("default_language"))
+                     .toObject()
                      .value(QStringLiteral("language_id"))
                      .toString(),
-                 QStringLiteral("zh"));
+                 QStringLiteral("ja"));
     }
 
     void verifyHostCapabilityAndNativeJsonRpc(Automation::CoreRuntime &runtime,
@@ -2228,6 +2269,8 @@ void AutomationProtocolTests::routing() {
     settingsSnapshot->general.uiLanguage = QStringLiteral("en_US");
     settingsSnapshot->general.defaultSingingLanguage = QStringLiteral("unknown");
     settingsSnapshot->general.defaultLyrics.insert(QStringLiteral("en"), QStringLiteral("la"));
+    if (scenario == QStringLiteral("voiceAndSpeakerMix"))
+        settingsSnapshot->general.defaultLyrics.insert(QStringLiteral("ja"), QStringLiteral("ra"));
     settingsSnapshot->appearance.themeId = QStringLiteral("light");
     settingsSnapshot->audio.driverName = QStringLiteral("test-driver");
     settingsSnapshot->audio.deviceName = QStringLiteral("test-device");
