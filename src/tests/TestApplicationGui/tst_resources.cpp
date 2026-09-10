@@ -201,7 +201,13 @@ void ApplicationGuiTests::missingAudioResourceRelinkCanBeCanceledAndCommitted() 
         chooseFile.setInterval(10);
         connect(&chooseFile, &QTimer::timeout, &dialog, [&] {
             auto *active = qobject_cast<QDialog *>(QApplication::activeModalWidget());
-            const auto owned = active && (active == &dialog || dialog.isAncestorOf(active));
+            bool owned = false;
+            for (const QObject *ancestor = active; ancestor; ancestor = ancestor->parent()) {
+                if (ancestor == &dialog) {
+                    owned = true;
+                    break;
+                }
+            }
             auto *picker = owned ? qobject_cast<QFileDialog *>(active) : nullptr;
             if (!picker) {
                 if (waitingForPicker.hasExpired(5000)) {

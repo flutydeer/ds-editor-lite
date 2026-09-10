@@ -64,8 +64,10 @@ namespace {
         QCoreApplication::processEvents();
         list->window()->activateWindow();
         QTRY_VERIFY(list->window()->isActiveWindow());
-        const auto position = list->visualItemRect(list->item(0)).center();
-        QVERIFY(list->viewport()->rect().contains(position));
+        const auto visibleRow =
+            list->visualItemRect(list->item(0)).intersected(list->viewport()->rect());
+        QVERIFY2(!visibleRow.isEmpty(), qPrintable(path));
+        const auto position = visibleRow.center();
         QSignalSpy doubleClicked(list, &QAbstractItemView::doubleClicked);
         QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, position);
         QTest::mouseDClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, position);
