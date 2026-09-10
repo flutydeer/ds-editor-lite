@@ -153,5 +153,6 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | DSPX 音素互操作与 MIDI 导出 | workflow | 外部标准音素修改/清除优先于旧私有快照，兼容旧 workspace 音素；实际 MIDI 文件保留跨片段及裁剪后的音符时间、音高和 Unicode 文本，按选项保留或省略歌词、速度和拍号，源模型不变 | DocumentIO::dspxPhonemeInterchangeRespectsExternalChanges、midiExportPreservesProjectTimingAndOptionalMetadata | 通用；小型临时文件 |
 | 初始化期间关闭与任务回收 | workflow/native | 立即销毁引擎不能丢失已完成初始化任务的清理；普通用例复用进程级应用、重建文档并等待任务完成，G2P 不进入销毁后的降级状态 | NativeDesktop::audioDriverStartupCanBeCanceled；GuiAppFixture、GuiDocumentFixture | GUI 运行时；驱动子场景按后端条件执行 |
 | 音符创建与跨片段复制的请求重试 | domain | 创建音符返回稳定 clientRef/对象身份；复制与剪贴板粘贴连同参数曲线仅提交一次；同键改动手工读音、选区、内容或目标位置被拒绝，原结果及撤销边界不变 | ProjectEditing::insertingNotesCanRetryWithStableCreatedIdentities、transferringNotesCanRetryWithoutDuplicatingEdits | 通用；直接领域调用 |
+| 钢琴窗锚点创建、框选与合并 | gui | 完整 Graphics View 编辑器验证单锚点与连线预览尚未提交、Escape 取消、补足曲线后提交；框选成组拖动、插值/删除菜单、跨曲线连接均检查模型、预览绘制变化和一次撤销 | ApplicationGui::pitchAnchorCreationPreviewsBeforeCommitting、pitchAnchorRangeEditsUseTheViewAndMenu、pitchAnchorMergePreviewCommitsAndUndoes | offscreen；真实控件事件；无声库和设备要求 |
 
 本次还移除无产品实例化入口的旧 G2P/伪声设置页和 `TrackSynthesizer` 及其空容器引用。清理改变统计分母，报告中与新增测试命中的贡献分开说明，不通过排除仍有效的生产文件提高比例。

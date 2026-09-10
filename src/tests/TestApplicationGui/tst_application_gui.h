@@ -39,6 +39,9 @@ private slots:
     void trackClipDragCommitsOrCancels();
     void parameterStrokeCommitsOnceAndUndoRestoresView();
     void escapeCancelsParameterStrokeWithoutChangingDocument();
+    void pitchAnchorCreationPreviewsBeforeCommitting();
+    void pitchAnchorRangeEditsUseTheViewAndMenu();
+    void pitchAnchorMergePreviewCommitsAndUndoes();
     void parameterTransformGesturesCommitAndCancel_data();
     void parameterTransformGesturesCommitAndCancel();
     void inlineLyricsCommitNavigateAndCancel();

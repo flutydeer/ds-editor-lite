@@ -6,6 +6,7 @@ lite_add_test(${PROJECT_NAME} SOURCES
     tst_piano_roll.cpp
     tst_track_editing.cpp
     tst_parameter_editing.cpp
+    tst_anchor_editing.cpp
     tst_audio_export.cpp
     tst_settings_pages.cpp
     tst_project_import.cpp
