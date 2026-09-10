@@ -979,10 +979,10 @@ void NativeDesktopTests::rhiPianoMenuPasteAndVisibilityUseTheFullEditor() {
     editor.resize(1000, 550);
     editor.show();
     editor.activateWindow();
+    QTRY_VERIFY(editor.isActiveWindow() && !frames.isEmpty());
     QVERIFY(editor.setViewScale(1, 1));
     QVERIFY(editor.centerAt(1920, 60));
     QVERIFY(editor.focusEditor());
-    QTRY_VERIFY(editor.isActiveWindow() && !frames.isEmpty());
     QVERIFY(failed.isEmpty());
     const auto point = [&](int tick, int key) {
         return QPoint(qRound((tick - canvas->startTick()) * canvas->width() /
