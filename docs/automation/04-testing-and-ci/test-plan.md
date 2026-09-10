@@ -79,17 +79,19 @@ Windows wrapper 将本地结果写到 `build/test-results`；直接 CTest 可加
 
 音频场景使用静音 WAV，验证生产设备重开、缓冲配置及落盘、真实回调推进和公开播放/暂停/停止，完成后恢复自身配置。MIDI 场景发送专用通道的 note-on/off，验证实际输入及生产合成器输出后归零，并清理自己打开的端口；不要求扬声器发声。跳过的是缺少条件的具体 Qt Test 用例，不是整个原生桌面程序。Null RHI 钢琴窗和轨道场景不需要物理 GPU，但需要可用原生窗口环境；offscreen 不适用时明确跳过，实际后端或帧提交失败不能跳过。
 
-`TestModelResources` 和 `TestApplicationGui` 默认使用 [voicebank-fixture.zip](../../../src/tests/resources/voicebank-fixture.zip)，CMake 解压到当前构建目录；无需安装 Python 或训练框架。测试包具有独立的 `ci-fixture` 身份、中英文资源和两条声线。用例固定 CPU，检查实际 G2P/音素、完整推理与有效 WAV，以及缓存复用、声线和 BPM 变化后的重算。普通 CI 不需真实训练权重或播放设备。
+`TestModelResources`、`TestApplicationGui` 和 `TestApplicationWorkflows` 默认使用同一 [voicebank-fixture.zip](../../../src/tests/resources/voicebank-fixture.zip)，CMake 解压到当前构建目录；无需安装 Python 或训练框架。测试包具有独立的 `ci-fixture` 身份、中英文资源和两条声线。资源程序检查完整推理、有效 WAV、缓存和重算，应用工作流检查真实读音/音素结果暂存与应用，GUI 使用语言及波形结果；均固定 CPU。普通 CI 不需真实训练权重或播放设备。
 
 验证外部真实声库时设置 `DSEL_TEST_VOICEBANK_ROOT`、`DSEL_TEST_LANGUAGE`、`DSEL_TEST_LYRIC`，并按该资源配置 `DSEL_TEST_SINGER_ID`。显式资源优先于内置包；加载或执行失败报告失败，不自动扫描个人声库，也不回退内置资源。GAME/RMVPE 模型不在本期扩展范围。
 
-`TestApplicationWorkflows` 属于通用 workflow 集合，共用隔离的 Headless AppContext。结果门控用例构造未调度的实际任务快照；队列重启回归则受控暂停真实 duration worker，验证旧任务取消清理和替换任务终态，并通过生产状态组件检查手动声学许可及完成后恢复策略。离线导出用例验证混音器原先打开或关闭两种状态的恢复。fixture 关闭自己持有的音频设备，通用用例不依赖声库输出或物理设备；实际模型执行由上述资源用例负责。
+`TestApplicationWorkflows` 属于 workflow 集合，共用隔离的 Headless AppContext 并加载上述声库。结果门控用例构造未调度的任务快照；读音/音素用例执行真实语言任务，在编辑事务中等待结果暂存，检查结束后应用以及文档换代/片段删除后丢弃。队列重启回归受控暂停真实 duration worker，验证取消清理和替换任务终态；生产状态组件检查手动声学许可及恢复策略。离线导出检查混音器原先打开/关闭状态恢复。fixture 关闭自身音频设备，完整声学和声码器输出仍由资源程序承担。
 
 `TestProcessIntegration` 的普通音频导入导出场景使用生成的小型 WAV，经过实际 Editor 导入和导出任务，再用 libsndfile 解码验证；归入通用进程集合，不需要配置声库或音频设备。Headless、MCP 与跨 Host 场景共用进程沙箱，平台专有断言在相应系统执行。
 
 `TestAudioAssets` 中的解析用例使用独立文件与模型 fixture，解码控制复用真实 Headless AppContext 的生产接线。应用生命周期在套件内共享，每例仍清理文档、任务、路径解析结果和通知；不再通过替写 AudioContext 或 DocumentWorkflowController 的生产方法链接测试。
 
 `TestApplicationGui` 共用应用与数据隔离环境，钢琴窗、轨道、参数曲线、导出配置、外观设置和声线混合分别在所属源文件中建立实际控件。设置输入等待窗口激活与编辑焦点，再通过真实事件提交并读取持久化结果；取消按对应对话框契约检查，不假定即时设置具有回滚行为。按测试程序或 slot 定向执行即可，不另设 GUI 通用 runner；组件级套件与应用共用 `EditorGuiCore` 的生产实现及资源，原生桌面条件和实验后端范围见[测试大纲](test-outline.md)。
+
+主窗口面板、嵌入设置、日志和 Tagger 用例同属 ApplicationGui，使用真实控件及通知总线，结束后恢复配置、规则和窗口接线。`newDocumentHonorsTheSaveDecision` 虽复用该程序的 AppContext，职责属于文件工作流：只替换保存提示及路径选择的外部回答，保留生产 DocumentWorkflowController、状态机和保存器；不据此声明真实保存对话框已被操作。
 
 完整窗口用例先完成窗口初始化，再准备受测工程；通知连接绑定实际接收者，局部控件正常析构并清理其外部引用。RHI 场景同样执行私有子控件释放过程，不能通过遗留窗口、跳过析构或屏蔽事件规避生命周期失败。
 

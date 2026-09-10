@@ -24,6 +24,7 @@
 | 应用运行状态、设置、播放、包与规则 | domain/workflow | RuntimeDomains/L3ApplicationDomains 按历史阶段分开，设置及包 fixture 重复，歌词替身复制排序逻辑 | 合并到 ApplicationServices；Host、播放、编辑状态、设置、包、歌词规则及预设按源文件和独立行为组织；共用 Harness，规则使用明确 Host 快照和实际持久化断言 | ApplicationServices、Preferences | 通用 |
 | GUI Host 无设备时的公开播放失败 | process/gui | Linux 实际 MCP 调用超时；无设备时错误弹窗阻塞调用 | 仅 TrustedGui 调用显示设备错误弹窗；公开调用检查失败、状态不变及后续查询；GUI fixture 关闭自身设备确定性验证无弹窗 | ProcessIntegration、ApplicationGui | offscreen |
 | 文档生命周期、文件转换与发布 | workflow | 已有保存/换代/原子写回，执行边界不统一 | 保留真实文件回归；补保存扩展名/Unicode/大小写与过期确认；独立 fixture | DocumentIO | 通用/GUI |
+| 新建前的保存决策 | workflow | 底层保存/换代不能验证 DocumentWorkflowController 的实际状态机接线 | 外部 UI 提供取消、放弃、取消路径、保存和失败后取消的回答；生产状态机与保存器检查 busy、工程/历史保留或替换、实际文件及最近列表 | ApplicationGui::newDocumentHonorsTheSaveDecision | offscreen 程序承载；属于文件工作流，不代表真实弹窗输入 |
 | 普通音频片段导入及 WAV 导出 | workflow/process | AudioExporter 此前只触达初始化代码，普通导出缺少真实执行 | 在现有进程目标补生成小 WAV、导入并等待任务完成、实际导出、解码检查采样率/声道/时长/有限非零内容及文档不变 | ProcessIntegration::audioImportAndWaveExport | 通用；无需声库/设备 |
 | 音频导出配置、进度与关闭 | gui | 实际文件导出不能替代配置及进度对话框的事件接线验证 | 通过真实输入检查格式/采样率与预览、轨道选择/混音与文件计划、取消及重开恢复；复用小型 WAV，点击 Export 经生产导出器检查完成提示、进度达到 100%、Close 关闭、任务清理和进度窗口释放 | ApplicationGui::exportFormatUpdatesFileNamePreview、exportSourcesAndMixingUpdateFilePlan、canceledExportConfigurationDoesNotPersist、audioExportProgressCompletesAndCloses | offscreen；无需声库/设备 |
 | 外观设置即时保存与重开 | gui | 原生覆盖采样显示普通设置页缺少实际输入验证 | 通过侧栏进入页面，真实切换动画开关及键盘提交时长，检查运行时值、配置文件和重开后的控件；恢复用例原设置 | ApplicationGui::appearanceInputsPersistAcrossReopening | offscreen；隔离配置 |
@@ -35,10 +36,12 @@
 | 推理初始化失败后的包扫描与退出 | workflow/process | Windows 无 GPU 早退未通知共享运行时，包任务等待会话并阻塞退出 | 复用已有 Provider/设备查询配置在独立子进程中制造真实失败，检查任务错误和正常析构；统一完成与关闭通知。普通进程 fixture 显式选择 CPU | ApplicationWorkflows::failedInferenceInitializationReleasesPackageWaiters、ProcessIntegration | 通用；失败复现不要求实际 GPU |
 | 音频资产解析、来源换代和解码通知 | workflow | 路径/哈希与解码控制分散，解码测试替写 AudioContext、DocumentWorkflowController 等生产方法 | 合并 AudioAssets；保留临时素材及来源/文档换代回归，解码使用真实 Headless AppContext 和生产接线，每例清理文档、任务与通知 | AudioAssets | 通用；无需播放设备 |
 | 推理结果与当前文档、输入及编辑会话匹配 | workflow | 首次采样中 InferenceApplyGate 未执行；输入转换测试不能代替完成门控 | 新增真实任务快照到门控的 Apply/Drop/Defer 行为，覆盖四阶段输入变化、文档/对象消失、无关 revision 变化和编辑冲突 | ApplicationWorkflows | 通用；无需模型输出 |
+| 真实读音/音素完成后的暂存与应用 | workflow | 快照门控不能验证语言任务完成、pending 存储及 flush 接线 | 内置声库执行实际任务，编辑期间结果不修改工程，结束后应用且不新增撤销；文档换代或片段删除后丢弃待应用结果 | ApplicationWorkflows::clipInferenceResultsRespectEditSession | 默认内置声库；CPU；无需播放设备 |
 | 运行中重新推理与任务队列释放 | workflow | 真实声库执行暴露旧流水线销毁后完成回调消失，替换任务停留在队列 | 受控暂停真实 duration worker 后重启，检查替换任务终态及清理；先取消所属片段任务再销毁旧流水线，复用已有安全取消路径 | ApplicationWorkflows::restartInferenceReleasesReplacedTask、ModelResources | 受控回归通用；完整输出需声库 |
 | 关闭自动推理后的手动完整推理 | workflow | 手动请求未携带声学许可，停止播放时停在 Acoustic.Awaiting | 为目标流水线保留本次请求许可，声学缓存探测与 variance 更新共用准入判断，Ready 或取消时清除；验证后台等待、手动放行及完成后恢复原策略 | ApplicationWorkflows、ModelResources | 受控状态验证通用；完整模型输出需声库 |
 | 权限、路径、分页、准入 | protocol | 已有真实边界验证，分页游标独立目标与 Wire 职责重叠 | 保留实际拒绝和副作用断言；准入/文件授权归入 AutomationRuntime，Cursor/Wire 归入 AutomationProtocol | AutomationRuntime、AutomationProtocol | 通用/平台 |
 | 公共接口及协议转换 | protocol | 数量和 Schema 镜像与行为测试混合 | 删除 Contract 镜像程序；真实无效输入归入 Registry 并检查无副作用；共享场景比较四种调用路径 | AutomationProtocol | 通用 |
+| 公共参数查询范围与输出预算 | protocol | 完整快照不能验证有界查询和曲线数据保真 | 检查时间范围裁剪、绘制曲线降采样、锚点原样保留、点数预算不足拒绝及查询无副作用 | AutomationProtocol::parameterQueryBoundsSamplesAndPreservesAnchors | 通用 |
 | GUI 编辑模式设置与查询 | protocol | 参数 Shape/Scale 和音高调制未接入公开转换，实际状态被回报成默认模式，设置请求被拒绝 | 补齐输入/输出模式与转换；既有接口场景验证到达服务的枚举、状态读回及工程版本不变 | AutomationProtocol::routing(guiBindings) | 通用 |
 | Connector 生命周期与 stdio | protocol/process | 长入口及手工子集分派；可执行后缀和阻塞接收端依赖 Windows | 拆可定位用例，保留真实流行为；CMake 提供可执行路径，测试自身提供跨平台接收端；大帧验证不依赖工具总数 | Connector | 通用 |
 | Connector 分页缓存与离线调用 | protocol | 缓存与本地调用混入无 SLA 的循环次数和速度门槛 | 检查查询不额外请求上游、快照变化引发刷新，以及删除/保留工具和离线状态的实际结果；保留协议自身截止时间 | Connector | 通用 |
@@ -47,7 +50,7 @@
 | 钢琴窗、轨道编辑、快捷键和视口 | gui/domain | 既有几何/事件回归，部分仅测算法；首次采样显示已有音符交互不足；编辑视图与撤销控制分散 | 补实际钢琴窗绘制/提交/撤销、已有音符拖动提交与 Escape 取消；快捷键建立真实可见 owner 与焦点；控制器、视口、输入与滚动统一归入 EditorInteraction，生产应用完整接线留在 ApplicationGui | ApplicationGui、EditorInteraction、ProjectEditing | 通用/offscreen/原生 |
 | 布局、动画、主题和渲染 | gui/unit | Qt 平台有硬编码，混有实验 demo；颜色/图标目标共用主题职责 | 分隔条和菜单通过真实事件验证；动画直接调用生产组件；主题与菜单归入 GuiComponents，原生布局归入 NativeDesktop，绘制组件归入 EditorRendering；删除主题 token 镜像和固定几何数量 | NativeDesktop、GuiComponents、EditorRendering、EditorInteraction、Parameters | 通用/offscreen/原生 |
 | 声库推理及音频导出装配 | workflow | 普通测试使用受控服务，资源客户端曾偏离实际协议，并缺少异步分段准备条件 | 与常规 Headless 共用 Native 传输，使用明确语言与任务 scope，按模型目标就绪条件等待 G2P/分段；保留实际 CPU 手动推理和 WAV 解码、有限非零样本检查，资源运行结果由报告与产物记录 | ModelResources | 默认内置声库，也可显式配置；无需播放设备 |
-| 实验 RHI 编辑后端 | gui | 几何与字形不能替代真实控件；实际析构暴露私有状态释放后的事件重入 | 真实 RHI 钢琴窗及轨道使用 Null 后端，检查音符绘制、片段跨轨拖动和裁边的预览、一次提交/取消、命中、撤销重做及帧；保留正常析构，不作为 GPU 像素验证 | EditorRendering、NativeDesktop::rhiNoteDrawingCommitsAndUndoUpdatesInteraction、rhiClipDragCommitsAcrossTracksAndUndoRestoresView、rhiClipResizeCommitsOrCancels | 原生窗口；Linux Xvfb；无需物理 GPU |
+| 实验 RHI 编辑后端 | gui | 几何与字形不能替代真实控件；实际析构暴露私有状态释放后的事件重入 | Null 后端检查音符绘制/移动/裁边、音高锚点插入与取消，以及片段跨轨拖动和裁边；验证预览、一次提交/取消、命中、撤销重做及帧，保留正常析构 | EditorRendering、NativeDesktop 的 tst_rhi_editor.cpp、tst_rhi_tracks.cpp | 原生窗口；Linux Xvfb；无需物理 GPU；不验证像素 |
 | 输出设备配置与实际播放 | workflow | 受控回调和无设备失败不能替代真实输出设备路径 | 自动探测或按名称指定设备，验证重开、缓冲配置落盘，静音素材的公开播放/暂停/停止及回调推进，恢复自身配置 | NativeDesktop::availableAudioDeviceRunsPublicPlayback | 无可用设备明确 QSKIP；已枚举或指定设备的失败为 FAIL |
 | MIDI 输入至实时合成器 | workflow | 设备异常处理不等同于真实消息输入 | 使用已配置专用回环端口，检查生产设备选择、配置落盘、note-on/off 接收、有效 PCM 及释放后归零；清理自己打开的端口 | NativeDesktop::configuredMidiLoopbackFeedsLiveSynthesizer | 未配置双端口 QSKIP；部分配置或指定后的执行失败为 FAIL |
 
@@ -116,6 +119,9 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 预设和歌词规则的生产持久化 | workflow | 旧服务替身不能验证 AppOptions Adapter/Store；补创建、更新、重开、删除及规则的实际语言结果 | ApplicationWorkflows::speakerMixPresetPersistsThroughTheProductionStore、lyricRulesUseTheProductionRuntimeAndPersistence | 隔离配置 |
 | 设置、缓存清理及交互导入 | gui | 使用实际页面和输入，验证访问根、推理选项、缓存确认、轨道/时间线选择、预览、取消及撤销 | ApplicationGui 的 tst_settings_pages.cpp、tst_project_import.cpp | offscreen；临时文件 |
 | 填词预览、编辑与规则 | gui | 实际声库参与歌词转换，经过真实控件拆分、修改预览、导入音符、取消及撤销；规则编辑验证实际预览和保存 | ApplicationGui 的 tst_fill_lyric.cpp | offscreen；默认内置声库 |
+| Tagger 规则编辑与稳定身份 | gui | 创建、修改语言/正则/标签、启停、删除后 Apply 检查实际 TextTagger、落盘和重开；错误正则不改变已应用规则。新草稿分配稳定 ID，Splitter 同时保留详情编辑和 DTO 转换中的 ID | ApplicationGui::taggerRuleInputsApplyPersistAndReopen、invalidTaggerRegexPreservesAppliedRules、lyricRuleEditingChangesThePreviewAndPersists | offscreen；共用应用与声库；每例恢复规则和配置 |
+| 主窗口面板及嵌入设置 | gui | 实际按钮、片段双击、分离窗口关闭和菜单输入验证面板恢复、分离/重新嵌入后的编辑上下文、视图状态复原，以及嵌入设置对后台快捷键的阻断与焦点恢复 | ApplicationGui 的 tst_main_window.cpp | offscreen；不代表各窗口管理器或多屏行为 |
+| 日志接收、筛选和复制 | gui | 真实 LogBus 包含跨线程追加，经过控件过滤级别/标签/文本，检查显示顺序复制与清空，文档和历史不变 | ApplicationGui::logWindowFiltersLiveMessagesAndCopiesDisplayedOrder | offscreen；真实总线；无需设备 |
 | 音素、搜索、动态声线与编辑边界 | gui | 真实对话框和输入验证音素确认/取消/重置、边界拖动及撤销；波形加载使用实际推理音频，受控延迟检查切换片段后丢弃过期结果。内联歌词/读音检查双击、提交/取消和导航，保留搜索、动态关键帧、音符缩放及时间尺循环行为 | ApplicationGui 的 tst_note_dialogs.cpp、tst_dynamic_mix.cpp、tst_piano_roll.cpp、tst_track_editing.cpp | offscreen；音素和波形使用内置声库 |
 | 公共数值控件的输入与提交 | gui | SeekBar 检查实时/释放提交、键盘步进及复位；Fader/Pan 检查预览信号、释放提交和随后外部更新，避免拖动状态残留 | GuiComponents::seekBarTrackingControlsWhenDraggedValuesCommit、seekBarKeyboardStepsClampAndDoubleClickResets、mixerSliderReleaseEndsPreview | offscreen；无需设备 |
 | 音频输出及循环播放回调 | workflow | 生成短素材检查全工程时长、混音、静音、自定义来源及 WAV/FLAC；受控实际回调检查循环回绕和缓冲等待/恢复。修复 Talcs 循环位置及预读/直接读取切换的位置同步，保留原 PCM 断言。循环区导出尚未实现，不在测试中补建 | ApplicationWorkflows 的 tst_audio_workflows.cpp | 通用；不需要播放设备 |
