@@ -66,7 +66,7 @@
 - 编辑失败和 Undo/Redo 后界面恢复；GUI 与模型的双向更新。
 - 菜单、语言、主题资源、动画及绘制几何。
 - 主题、菜单与组件动画归入 GuiComponents；编辑视图、Undo/Redo、视口、滚动和输入组件归入 EditorInteraction。原生窗口布局与动画设置归入 NativeDesktop，绘制几何、字形和波形归入 EditorRendering；保留各自可定位的行为用例。
-- ApplicationGui 共用真实应用 GUI 环境，钢琴窗、轨道、参数曲线和音频导出配置交互分源文件。轨道片段拖动及参数绘制验证预览、提交、Escape 取消和撤销恢复；导出对话框通过键盘/鼠标改变格式、采样率、轨道和混音方式，检查文件预览、文件计划与取消后配置恢复。实际文件导出由工作流/进程测试验证。
+- ApplicationGui 共用真实应用 GUI 环境，钢琴窗、轨道、参数曲线和音频导出交互分源文件。轨道片段拖动及参数绘制验证预览、提交、Escape 取消和撤销恢复；导出对话框通过键盘/鼠标改变格式、采样率、轨道和混音方式，检查文件预览、文件计划与取消后配置恢复，并经真实 Export 按钮完成导出，检查进度、关闭和任务清理。工作流/进程测试进一步验证输出内容及产品装配。
 - 设置页通过侧栏与真实输入验证即时保存、配置落盘和重开；声线混合通过标签选择与权重分隔线拖动验证确认结果、取消后重开及预设/文档不被意外修改。
 - 声线预设通过保存、选择、修改后标记、删除与取消验证界面接线；包管理检查搜索和所选包详情，缺失音频检查实际文件选择、取消、重定位、解码与撤销重做。
 - GUI Host 的公开播放调用在无设备时返回失败，不弹出阻塞自动化调用的模态对话框；直接 GUI 操作仍保留必要提示。
@@ -101,16 +101,16 @@
 | TestApplicationServices | 应用 Host、播放、编辑状态、设置、歌词规则、包与预设；异步文件/导出/提取服务契约 | domain/workflow；受控服务 |
 | TestDocumentIO | 文档生命周期、保存点与撤销分支、路径及确认、DSPX/MIDI 往返、原子发布与导入 | workflow；临时文件 |
 | TestAudioAssets | 音频哈希、搜索/重定位、路径与来源换代、真实解码控制及通知 | workflow；小型或无效素材 |
-| TestApplicationWorkflows | 真实应用运行时的推理完成门控、重启队列、手动声学许可和离线导出恢复 | workflow；隔离 Headless 环境 |
+| TestApplicationWorkflows | 真实应用运行时的推理门控、重启队列、手动声学许可、文件批量导入、规则及预设持久化、音频混音导出与受控播放 | workflow；隔离 Headless 环境 |
 | TestAutomationProtocol | Wire/游标、公共注册及映射、Native/MCP 调度、HTTP 生命周期与响应停止边界 | protocol；通用 |
 | TestConnector | Connector 连接、重连、stdio 分帧、背压、超时与结果不明确 | protocol/process；真实 Connector |
 | TestBootstrap | 启动参数、Host 模式、单实例身份与传输 | protocol/process；当前平台 |
 | TestProcessIntegration | 真实 Editor/Connector 启动、跨 Host、编辑/文件闭环、退出/重启和信号 | process；通用/offscreen/平台 |
 | TestModelResources | 内置或显式声库的 CPU 推理、语言和声线接线、缓存/失效与 WAV 导出 | workflow；默认内置资源 |
 | TestGuiComponents | 主题颜色/图标、二级菜单、组件动画 | gui；offscreen |
-| TestNativeDesktop | 原生分隔布局、窗口动画设置 | gui；原生桌面 |
+| TestNativeDesktop | 原生分隔布局、窗口动画设置、Null RHI 钢琴窗输入与帧提交 | gui；原生桌面 |
 | TestEditorInteraction | 控制器、视口、边缘滚动、钢琴窗/轨道输入、滚动条及快捷键 | gui/domain；通用/offscreen |
 | TestEditorRendering | 字形图集、RHI 几何、波形绘制计算 | gui/unit；offscreen；不代表完整 RHI 后端 |
-| TestApplicationGui | 真实应用编辑、剪贴板、填词、导入导出配置、设置、声线及预设、音素与搜索、包和音频资源工作流 | gui；offscreen；共用隔离应用环境 |
+| TestApplicationGui | 真实应用编辑、剪贴板、填词、导入导出配置及完成进度、设置、声线及预设、音素与搜索、包和音频资源工作流 | gui；offscreen；共用隔离应用环境 |
 
 两个 Provider 程序在 `src/tests/TestInferenceProvider` 共用用例和构建定义。六类测试是行为职责标签，同一程序可承载关联职责，不要求程序划分与类别一一对应。当前三平台 CI 使用 Qt 6.11.2；Linux、Windows、macOS 的实际验证结论分别由验收报告和运行产物给出。
