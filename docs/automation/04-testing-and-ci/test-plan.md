@@ -78,6 +78,8 @@ Windows wrapper 将本地结果写到 `build/test-results`；直接 CTest 可加
 
 `TestApplicationGui` 共用应用与数据隔离环境，钢琴窗、轨道、参数曲线、导出配置、外观设置和声线混合分别在所属源文件中建立实际控件。设置输入等待窗口激活与编辑焦点，再通过真实事件提交并读取持久化结果；取消按对应对话框契约检查，不假定即时设置具有回滚行为。按测试程序或 slot 定向执行即可，不另设 GUI 通用 runner；组件级套件与应用共用 `EditorGuiCore` 的生产实现及资源，原生桌面条件和实验后端范围见[测试大纲](test-outline.md)。
 
+完整窗口用例先完成窗口初始化，再准备受测工程；通知连接绑定实际接收者，局部控件正常析构并清理其外部引用。RHI 场景同样执行私有子控件释放过程，不能通过遗留窗口、跳过析构或屏蔽事件规避生命周期失败。
+
 ## 4. 隔离与清理
 
 ApplicationWorkflows、AudioAssets、ApplicationGui 和 NativeDesktop 的实际运行时用例共用 `RuntimeResourcesFixture`，从所构建 Editor 目录初始化内置歌词规则；macOS 同时使用该 bundle 的插件及 Frameworks。CTest 和直接运行使用相同初始化，不依赖测试可执行文件恰好位于产品资源旁边。内部路径覆盖仅在测试构建中生效；目录缺失、规则为空或插件加载失败均按失败处理。
@@ -126,12 +128,13 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-c
 python scripts/tests/collect-msvc-coverage.py --output build/test-results/msvc-full -- --preset ci-coverage
 
 $env:DSEL_TEST_VOICEBANK_ROOT = "C:/Voicebanks/Example"
+$env:DSEL_TEST_SINGER_ID = "example-singer"
 $env:DSEL_TEST_LANGUAGE = "cmn"
 $env:DSEL_TEST_LYRIC = "la"
 python scripts/tests/collect-msvc-coverage.py --output build/test-results/msvc-external -- --preset ci-coverage
 ```
 
-声库路径、语言和歌词须与本机资源匹配，多音源时同样指定 `DSEL_TEST_SINGER_ID`。CTest 未在 PATH 时可用 `--ctest` 提供路径。每轮使用新的输出目录；脚本保留原始 `.coverage`、Cobertura、源码行去重 CSV、JUnit 和完整测试日志，并传播执行失败。比较无资源与全量集合时使用同一构建，按源码行并集合并各程序中的重复记录，检查分母和实际执行结果。Microsoft 原生报告不提供与 GCC 对等的分支覆盖，不采用其占位的分支百分比。
+声库路径、歌手 ID、语言和歌词都须填写本机资源对应的实际值，显式资源的这四项配置缺一不可。CTest 未在 PATH 时可用 `--ctest` 提供路径。每轮使用新的输出目录；脚本保留原始 `.coverage`、Cobertura、源码行去重 CSV、JUnit 和完整测试日志，并传播执行失败。比较不同资源集合时使用同一构建，按源码行并集合并各程序中的重复记录，检查分母和实际执行结果。Microsoft 原生报告不提供与 GCC 对等的分支覆盖，不采用其占位的分支百分比。
 
 macOS 在同一个 `coverage` 构建后执行：
 
