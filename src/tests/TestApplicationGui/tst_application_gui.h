@@ -87,6 +87,7 @@ private slots:
     void trackHeaderInputsCommitAndUndo();
     void trackColorMenuPreviewsAndCommits_data();
     void trackColorMenuPreviewsAndCommits();
+    void pitchModulationUsesTheInferredNoteBaselineAndCanBeUndone();
     void cleanup();
     void cleanupTestCase();
 
