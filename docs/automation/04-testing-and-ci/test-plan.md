@@ -95,9 +95,11 @@ Windows wrapper 将本地结果写到 `build/test-results`；直接 CTest 可加
 
 完整窗口用例先完成窗口初始化，再准备受测工程；通知连接绑定实际接收者，局部控件正常析构并清理其外部引用。RHI 场景同样执行私有子控件释放过程，不能通过遗留窗口、跳过析构或屏蔽事件规避生命周期失败。
 
+EditorInteraction 由 CTest 设置 `QT_QPA_PLATFORM=minimal:enable_fonts` 和 Fusion，真实 QDrag 经鼠标移动与释放进入 Qt 拖放循环，Escape 走取消路径；不向私有状态注入拖放结果。该套件与 NativeDesktop 共用 GuiAppFixture 的真实应用接线和隔离目录。Qt offscreen 直接忽略 QDrag，因此 ApplicationGui 的后端选择不能代替完整拖放验证。
+
 ## 4. 隔离与清理
 
-ApplicationWorkflows、AudioAssets、ApplicationGui 和 NativeDesktop 的实际运行时用例共用 `RuntimeResourcesFixture`，从所构建 Editor 目录初始化内置歌词规则；macOS 同时使用该 bundle 的插件及 Frameworks。CTest 和直接运行使用相同初始化，不依赖测试可执行文件恰好位于产品资源旁边。内部路径覆盖仅在测试构建中生效；目录缺失、规则为空或插件加载失败均按失败处理。
+ApplicationWorkflows、AudioAssets、ApplicationGui、EditorInteraction 和 NativeDesktop 的实际运行时用例共用 `RuntimeResourcesFixture`，从所构建 Editor 目录初始化内置歌词规则；macOS 同时使用该 bundle 的插件及 Frameworks。CTest 和直接运行使用相同初始化，不依赖测试可执行文件恰好位于产品资源旁边。内部路径覆盖仅在测试构建中生效；目录缺失、规则为空或插件加载失败均按失败处理。
 
 每个进程 fixture 使用独立配置和数据根、访问根及临时素材；单实例服务名从实际数据根派生。只管理测试创建的进程。成功清理，失败保留沙箱位置、stdout/stderr 与退出事实。等待有截止时间，任务竞态优先受控触发，保留必要资源锁。
 
@@ -109,7 +111,7 @@ CTest 注册同时由程序超时派生 `QTEST_FUNCTION_TIMEOUT`，避免 Qt Tes
 
 1. Draft PR 触发真实 Actions；在三个矩阵项中分别打通依赖、配置、完整 Editor/Connector/测试构建及各测试组。新增 Windows 和 macOS 路径须完成真实调试后才能记录通过。
 2. 查首个根因：依赖、编译、动态库/插件、断言、超时或共享状态污染。
-3. 修复对应实现，在可复现环境单跑失败用例和所属组。
+3. 修复对应实现，在可复现环境单跑失败用例和所属组。本期先完成 Windows 本地完整构建、测试和覆盖率采样，确认逻辑缺口及实际失败均已处理后再推送。
 4. 提交、推送新代码，恢复各平台完整规定集合；重跑旧执行只能验证原代码版本。某个平台通过不能替代另一个平台，失败项持续保留诊断产物和正确退出码。
 5. 按 triplet 隔离 Qt/vcpkg 缓存路径；验证冷缓存时只清除本 PR 对应缓存，完整运行成功后用相同代码验证缓存实际命中和完整集合通过。只在变更影响相应路径时重复验证；不清除其他 PR 的缓存，不缓存整个 CMake 构建目录。
 6. 仅修改不影响构建或测试的文档时，无需重新执行或等待 CI；运行证据继续使用对应代码版本的已有结果。
@@ -179,4 +181,4 @@ Linux CI 保存 HTML、JSON、文本及 gcovr 原生逐文件 CSV；三平台都
 
 ## 7. 验收与审查
 
-三个 CI 矩阵平台的全部适用测试、Linux 独立 Coverage 步骤，以及本地规定验证完成，报告和实现一致后 ready；Windows/macOS 普通 Debug CI 不以原生或 LLVM 采集作为验收条件，尚在调试的平台不能记为通过。文档更新不要求重复等待已验证代码的 CI。约五分钟后检查审查；真实问题修复、验证、回复并 resolve。ready 后代码或构建配置变化须 `@codex review`。最终受审代码的相应验证和 bot 明确认可同时成立才完成。
+三个 CI 矩阵平台的全部适用测试、Linux 独立 Coverage 步骤，以及本地规定验证完成，报告和实现一致后 ready；Windows/macOS 普通 Debug CI 不以原生或 LLVM 采集作为验收条件，尚在调试的平台不能记为通过。文档更新不要求重复等待已验证代码的 CI。约五分钟后检查审查；真实问题修复、验证、回复并 resolve。审查由仓库配置智能判断和自动触发，不逐次发送人工触发评论。最终受审代码的相应验证和 bot 明确认可同时成立才完成。

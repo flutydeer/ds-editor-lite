@@ -31,6 +31,8 @@ Qt Test 负责用例、断言、数据驱动与 Qt 事件；CTest 负责程序�
 
 音频解码测试使用真实 Headless AppContext、AudioContext 和 AudioDecodingController，复用生产接线。套件共享应用生命周期，每例独立文档、通知和临时素材；完成后排空任务并恢复状态。文件访问 fixture 按例创建，文档与历史用例在用例边界清理历史，避免合并后依赖执行顺序。
 
+EditorInteraction 的控制器与完整拖放用例共用生产 EditorRuntime 和 GuiAppFixture，不替写 AppContext 的实例函数。该套件采用 `minimal:enable_fonts` 与 Fusion：Qt offscreen 会直接忽略 QDrag，minimal 可执行 Qt 自带的拖放循环。ApplicationGui 继续使用 offscreen，原生 RHI 与设备用例归入 NativeDesktop；不为后端差异另增零散测试程序。
+
 ## 4. 六类测试
 
 基础数据与算法、编辑与应用状态、文档文件与异步工作流、自动化接口与 Connector、真实应用进程、界面组件与交互。详细职责见[测试大纲](test-outline.md)。
@@ -65,6 +67,8 @@ workflow 对面向 main 的 PR 和 main push 触发，使用矩阵分别构建�
 
 提供独立 `coverage` preset，在 `build/Coverage` 构建完整应用与测试，避免插桩产物污染普通 `build/Tests` 构建。Linux CI 使用 GCC/gcovr 统计行和分支。Windows 按需本地分析时，使用完整调试信息及 `/PROFILE` 链接，通过保留的 `scripts/tests/collect-msvc-coverage.py` 调用原生静态插桩收集器，包含测试拉起的应用进程。
 
+本期覆盖扩展先在本机 Windows 完成构建、规定测试和覆盖率采样，检查实际未覆盖行与条件用例，再推送三平台 CI。仅生成报告不能替代测试通过；采样失败时保留材料并修复根因。
+
 统计范围为本项目生产源码，排除测试、第三方及生成代码。Windows 按源码文件和行号对多个程序/模块的命中取 OR 后去重，不把同一行在不同测试程序中的副本重复计入分母；该采集器不提供可与 GCC 对比的分支统计，不把其导出格式中的占位分支值当作覆盖率。
 
 Linux 启用 gcovr 的 `merge-lines`，合并同一源码行的模板实例记录；对既有数据重算的变化属于口径修正，不计为新增命中。完整报告继续保留生产源码范围；逻辑覆盖目标按具体领域、行为及剩余未覆盖行审查，不以整块排除 GUI 文件、手工修正分母或删除有效失败分支达标。条件用例的未执行原因与逻辑仍缺用例分别记录。
@@ -75,7 +79,7 @@ macOS 按需本地分析时，使用 `coverage` 构建和保留的 LLVM 采集�
 
 ## 7. 交付与审查
 
-测试实现、三平台 CI 与本地规定集合验证完成后提交两份报告并 mark ready。首次 ready 自动审查；此后的代码/构建配置修改推送后发布 `@codex review`。真实问题修复、验证、回复并 resolve；误报说明理由。
+测试实现、三平台 CI 与本地规定集合验证完成后提交两份报告并 mark ready。审查由仓库配置智能判断和自动触发，后续推送不逐次发送人工触发评论。真实问题修复、验证、回复并 resolve；误报说明理由。
 
 受审代码完成相应验证，并获得 bot thumbs-up 或明确无问题结论，才完成目标。仅修改文档且不影响构建或测试时，无需重新执行或等待 CI。最终认可保留在 PR 和交付答复，不为抄回报告另造提交。
 
