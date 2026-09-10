@@ -15,6 +15,7 @@
 #include <TalcsFormat/AudioFormatIO.h>
 
 #include <QFile>
+#include <QDir>
 #include <QScopeGuard>
 #include <QtTest>
 
@@ -200,6 +201,66 @@ void ApplicationWorkflowTests::controlledPlaybackLoopsAndBuffers() {
     const auto pausedPosition = transport->position();
     QCOMPARE(audio->preMixer()->read(&buffer), qint64{256});
     QCOMPARE(transport->position(), pausedPosition);
+}
+
+void ApplicationWorkflowTests::cancelingAudioExportPreservesExistingFilesAndMixer() {
+    QTemporaryDir files;
+    QVERIFY(files.isValid());
+    const auto sourcePath = files.filePath(QStringLiteral("source.wav"));
+    QVERIFY(writeAudio(sourcePath, QVector<float>(48000, 0.125f)));
+    auto document = Automation::DocumentAutomationFacade::newDocumentDraft(false);
+    document.tracks = {audioTrack(QStringLiteral("Cancelable render"), sourcePath)};
+    QVERIFY(runtime().documents().commitNewDocument(commandContext(), document));
+    QVERIFY(runtime().timeline().setTempo(commandContext(), 0, 120));
+    const auto before = runtime().documentVersion();
+    const auto beforeModel = context->m_appModel->serialize();
+    const auto outputPath = files.filePath(QStringLiteral("delivery.wav"));
+    const QByteArray originalContents("Previously published audio");
+    {
+        QFile output(outputPath);
+        QVERIFY(output.open(QIODevice::WriteOnly));
+        QCOMPARE(output.write(originalContents), qint64(originalContents.size()));
+    }
+
+    auto *mixer = AudioContext::instance()->preMixer();
+    QVERIFY(mixer->open(512, 48000));
+    const auto closeMixer = qScopeGuard([mixer] { mixer->close(); });
+    AudioExporter exporter(nullptr);
+    AudioExporterConfig config;
+    config.setFileDirectory(files.path());
+    config.setFileName(QStringLiteral("delivery.wav"));
+    config.setFormatSampleRate(44100);
+    config.setFormatMono(true);
+    exporter.setConfig(config);
+    QVERIFY(exporter.warning().testFlag(AudioExporter::W_WillOverwrite));
+    bool cancelRequested = false;
+    bool temporaryOutputObserved = false;
+    connect(&exporter, &AudioExporter::progressChanged, &exporter, [&](const double progress, int) {
+        if (cancelRequested || progress <= 0.0 || progress >= 1.0)
+            return;
+        temporaryOutputObserved =
+            !QDir(files.path())
+                 .entryList({QStringLiteral("*.exporting")}, QDir::Files | QDir::Hidden)
+                 .isEmpty();
+        cancelRequested = true;
+        exporter.cancel();
+    });
+    const auto cleanup = qScopeGuard([&] { exporter.cleanUp(); });
+    const auto result = exporter.exec();
+    QVERIFY(cancelRequested);
+    QVERIFY(temporaryOutputObserved);
+    QCOMPARE(result, AudioExporter::R_Abort);
+    QFile output(outputPath);
+    QVERIFY(output.open(QIODevice::ReadOnly));
+    QCOMPARE(output.readAll(), originalContents);
+    QVERIFY(QDir(files.path())
+                .entryList({QStringLiteral("*.exporting")}, QDir::Files | QDir::Hidden)
+                .isEmpty());
+    QVERIFY(mixer->isOpen());
+    QCOMPARE(mixer->bufferSize(), qint64{512});
+    QCOMPARE(mixer->sampleRate(), 48000.0);
+    QCOMPARE(runtime().documentVersion(), before);
+    QCOMPARE(context->m_appModel->serialize(), beforeModel);
 }
 
 void ApplicationWorkflowTests::offlineExportRestoresMixerState_data() {
