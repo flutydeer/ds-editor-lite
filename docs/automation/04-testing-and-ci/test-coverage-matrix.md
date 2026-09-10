@@ -12,14 +12,14 @@
 
 | 功能域 / 关键行为 | 类别 | 现有覆盖与确认问题 | 本期处置 | 测试引用 | 运行条件 |
 |---|---|---|---|---|---|
-| 时间线、量化、曲线、锚点 | unit/domain | 已有数值与编辑回归，入口分散且保留旧布尔包装 | 迁为直接 Qt Test slot，值比较提供实际与期望值，保持严格相等和容差契约；辅助检查保留调用位置 | MusicTime、Parameters | 通用 |
+| 时间线、量化、曲线、锚点 | unit/domain | 已有数值与编辑回归，入口分散且保留旧布尔包装；领域曲线局部修改仍需验证保留范围 | 迁为直接 Qt Test slot，保持原严格相等和容差；补 overlay/replace 绘制、擦除及 no-op，检查局部样本、保留锚点、预览和撤销重做；跨越中间曲线的锚点合并拒绝且无副作用 | MusicTime、Parameters、ProjectEditing::drawAndErasePreserveOtherParameterCurves、nonAdjacentAnchorMergePreservesDocument | 通用 |
 | Speaker Mix、声音继承和推理输入 | unit/domain | 已有校验及转换，部分生产源重复编译并依赖空 stub；继承缺少实际轨道/片段行为 | 统一归入 VoiceAndInference，共用 EditorInferenceCore 并删除空 stub；声线组件使用真实 ProjectModel 验证继承、独立声线、切换及通知 | VoiceAndInference | 通用 |
 | 歌词、音节、本地化、关联音素属性 | unit/domain/gui | 已有排序及属性级联回归；首次采样中 TextSplitter 未执行 | 规则、音节与文字级联归入 Lyrics；增加混合文字保真、规则启用/优先级及空匹配回归，修复空匹配重复文字；本地化数据和语言设置分别归入基础/配置职责 | Lyrics、Foundation、Preferences | 通用/offscreen |
 | 配置、CLI、自有 ADT、缓存 | unit | Expected 仅展示结果；缓存/配置已有回归 | Expected 改真实断言；补控制端口类型/范围与权限持久化；缓存使用受控时间 | Foundation、Bootstrap、InferenceProviderDefault、InferenceProviderCuda、Preferences、VoiceAndInference；IcuWrapperTests | 通用/平台 |
 | 轨道、片段、音符、参数与历史 | domain | 巨型编辑测试共用入口，难定位和隔离 | 拆 fixture 和独立行为，检查功能缺口 | AutomationRuntime、ProjectEditing | 通用 |
 | 保存点与撤销分支 | domain/workflow | 原测试只检查 redo 清空，未验证丢弃已保存分支后的 dirty | 补分支生命周期及地址复用用例；修复保存点引用已销毁条目 | DocumentIO | 通用 |
 | 钢琴窗剪贴板入口 | gui/domain | 仅有 payload 和 Facade 粘贴，未执行 ClipboardController | 补真实 copy/cut/paste：MIME、活动片段及播放位置、单步撤销、无效内容不修改工程；恢复原剪贴板 | ApplicationGui、ProjectEditing | offscreen |
-| 参数曲线与轨道片段的真实编辑接线 | gui | 数值和 Facade 用例未进入 CommonParamEditorView 与 TracksGraphicsView 的实际鼠标提交路径 | 在共用 ApplicationGui 中补一种代表性参数的绘制、取消及撤销重做，补实际轨道视图中的片段选择、拖动预览、提交或取消及一次撤销；检查界面、模型和文档副作用 | ApplicationGui::parameterStrokeCommitsOnceAndUndoRestoresView、escapeCancelsParameterStrokeWithoutChangingDocument、trackClipDragCommitsOrCancels | offscreen；无需声库/设备 |
+| 参数曲线与轨道片段的真实编辑接线 | gui | 数值和 Facade 用例未进入 CommonParamEditorView 与 TracksGraphicsView 的实际鼠标提交路径 | 在共用 ApplicationGui 中补代表性参数绘制及 Shape/Scale 选区变换，检查预览、范围外保留、一次提交、取消及撤销重做；轨道视图检查片段选择、拖动及相同提交边界 | ApplicationGui::parameterStrokeCommitsOnceAndUndoRestoresView、escapeCancelsParameterStrokeWithoutChangingDocument、parameterTransformGesturesCommitAndCancel、trackClipDragCommitsOrCancels | offscreen；无需声库/设备 |
 | 整片段复制、跨轨粘贴与参数保真 | domain/gui | 首次采样中 ClipsInfo 未执行；序列化遗漏片段参数 | 复用音符剪贴板曲线编码，补全部参数层、无音符曲线、声线/发音保真和跨轨批量撤销；生产控制器复用同一粘贴准备逻辑；补真实 GUI 入口 | ProjectEditing、ApplicationGui | 通用/offscreen |
 | 应用运行状态、设置、播放、包与规则 | domain/workflow | RuntimeDomains/L3ApplicationDomains 按历史阶段分开，设置及包 fixture 重复，歌词替身复制排序逻辑 | 合并到 ApplicationServices；Host、播放、编辑状态、设置、包、歌词规则及预设按源文件和独立行为组织；共用 Harness，规则使用明确 Host 快照和实际持久化断言 | ApplicationServices、Preferences | 通用 |
 | GUI Host 无设备时的公开播放失败 | process/gui | Linux 实际 MCP 调用超时；无设备时错误弹窗阻塞调用 | 仅 TrustedGui 调用显示设备错误弹窗；公开调用检查失败、状态不变及后续查询；GUI fixture 关闭自身设备确定性验证无弹窗 | ProcessIntegration、ApplicationGui | offscreen |
@@ -47,7 +47,9 @@
 | 钢琴窗、轨道编辑、快捷键和视口 | gui/domain | 既有几何/事件回归，部分仅测算法；首次采样显示已有音符交互不足；编辑视图与撤销控制分散 | 补实际钢琴窗绘制/提交/撤销、已有音符拖动提交与 Escape 取消；快捷键建立真实可见 owner 与焦点；控制器、视口、输入与滚动统一归入 EditorInteraction，生产应用完整接线留在 ApplicationGui | ApplicationGui、EditorInteraction、ProjectEditing | 通用/offscreen/原生 |
 | 布局、动画、主题和渲染 | gui/unit | Qt 平台有硬编码，混有实验 demo；颜色/图标目标共用主题职责 | 分隔条和菜单通过真实事件验证；动画直接调用生产组件；主题与菜单归入 GuiComponents，原生布局归入 NativeDesktop，绘制组件归入 EditorRendering；删除主题 token 镜像和固定几何数量 | NativeDesktop、GuiComponents、EditorRendering、EditorInteraction、Parameters | 通用/offscreen/原生 |
 | 声库推理及音频导出装配 | workflow | 普通测试使用受控服务，资源客户端曾偏离实际协议，并缺少异步分段准备条件 | 与常规 Headless 共用 Native 传输，使用明确语言与任务 scope，按模型目标就绪条件等待 G2P/分段；保留实际 CPU 手动推理和 WAV 解码、有限非零样本检查，资源运行结果由报告与产物记录 | ModelResources | 默认内置声库，也可显式配置；无需播放设备 |
-| 实验 RHI 编辑后端 | gui | 几何与字形不能替代真实控件；实际析构暴露私有状态释放后的事件重入 | 真实 RHI 钢琴窗使用 Null 后端，检查预览不提交、一次编辑、命中、撤销重做及帧提交；释放私有状态后的事件委托基类，保留正常析构；不作为 GPU 像素验证 | EditorRendering、NativeDesktop::rhiNoteDrawingCommitsAndUndoUpdatesInteraction | 原生窗口；Linux Xvfb；无需物理 GPU |
+| 实验 RHI 编辑后端 | gui | 几何与字形不能替代真实控件；实际析构暴露私有状态释放后的事件重入 | 真实 RHI 钢琴窗及轨道使用 Null 后端，检查音符绘制、片段跨轨拖动和裁边的预览、一次提交/取消、命中、撤销重做及帧；保留正常析构，不作为 GPU 像素验证 | EditorRendering、NativeDesktop::rhiNoteDrawingCommitsAndUndoUpdatesInteraction、rhiClipDragCommitsAcrossTracksAndUndoRestoresView、rhiClipResizeCommitsOrCancels | 原生窗口；Linux Xvfb；无需物理 GPU |
+| 输出设备配置与实际播放 | workflow | 受控回调和无设备失败不能替代真实输出设备路径 | 自动探测或按名称指定设备，验证重开、缓冲配置落盘，静音素材的公开播放/暂停/停止及回调推进，恢复自身配置 | NativeDesktop::availableAudioDeviceRunsPublicPlayback | 无可用设备明确 QSKIP；已枚举或指定设备的失败为 FAIL |
+| MIDI 输入至实时合成器 | workflow | 设备异常处理不等同于真实消息输入 | 使用已配置专用回环端口，检查生产设备选择、配置落盘、note-on/off 接收、有效 PCM 及释放后归零；清理自己打开的端口 | NativeDesktop::configuredMidiLoopbackFeedsLiveSynthesizer | 未配置双端口 QSKIP；部分配置或指定后的执行失败为 FAIL |
 
 ## 3. 目标收敛与历史入口去向
 
@@ -96,6 +98,8 @@ GCC/gcovr 采样发现整片段剪贴板、推理完成门控、歌词拆分未�
 
 CI 使用 Linux x64、Windows x64、macOS arm64 的 `latest` runner，统一 Qt 6.11.2；各平台结果分别验收，全部适用测试均包含内置声库和 GUI。覆盖率仅由 Linux CI 生成，Windows/macOS 使用普通 Debug `tests` 构建和完整测试集合；此前取得的跨平台专项覆盖证据仍保留。不同平台编译进来的源码、编译器插桩及资源集合会影响分母，不能直接以总百分比判断覆盖增减。以功能缺口和逐文件未执行路径决定补测，外部真实声库执行的附加结果单独说明。
 
+GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数据重算属于口径修正，不计为新增命中。应测逻辑以接近或超过 90% 为方向，按行为和未覆盖行补齐，不通过排除整目录、Schema 镜像或无语义断言达标；条件用例未执行与尚未实现的测试分别记录。
+
 ## 6. 普通工作流与内置资源补测
 
 以下补测承接覆盖率中发现的正常行为缺口，继续使用既有程序；实际通过结果与统计由测试报告及产物给出。
@@ -107,10 +111,13 @@ CI 使用 Linux x64、Windows x64、macOS arm64 的 `latest` runner，统一 Qt 
 | LRC 与填词分行 | unit | 补秒/小数时间、重复标签、元数据、定位、重新加载和分隔模式；修复时间换算与失败残留状态 | Lyrics::lrcTimestamps、lrcMetadataRepeatedLinesAndSeeking、lrcFailedReloadClearsPreviousDocument、lyricSplittingModesPreserveLines | 通用 |
 | DSPX 声线及音素往返 | workflow | 扩展已有完整乐句场景，验证轨道固定混合、片段动态混合/旁路/预设来源，以及原始与编辑音素/偏移；包不可用时保留内容，已解析声库减少来源时保留剩余比例 | DocumentIO::dspxRoundTripPreservesEditedPhrase | 通用 |
 | 实际批量文件导入 | workflow/gui | 真实 MIDI/DSPX 经生产 Host Adapter 和加载器验证一次提交、失败回滚及允许部分成功；轨道视口的真实拖入/离开/放下事件经 DocumentImportController 将两份 WAV 导入现有及新增轨道，检查预览无修改、一次提交、撤销重做和视图恢复 | ApplicationWorkflows::projectBatchImportUsesRealLoaders、ApplicationGui::droppingAudioFilesCommitsOneBatchToTheSelectedTracks | 通用/offscreen；临时文件 |
+| 实际音频批量任务 | workflow | 有效/损坏素材经过实际解码，检查原子失败无修改、部分成功的警告及属性/元数据/一次撤销；取消后同一幂等键可重新执行 | ApplicationWorkflows::audioBatchFailurePolicy、audioBatchCancellationReleasesRetry | 通用；临时音频；无需设备 |
+| 公共批量、计划复验及填词 | protocol | 检查策略与选项传递、文件授权、源文件变化及授权撤销后的计划复验；填词检查拆分、连音跳过、语言选择、实际结果及撤销，无效语言无副作用。真实解码与批量提交由工作流层承担 | AutomationProtocol::batchImportRouting、batchImportPlanRevalidation、fillLyricsOptions、fillLyricsUnavailableLanguage | 通用；临时文件和声线元数据 |
 | 预设和歌词规则的生产持久化 | workflow | 旧服务替身不能验证 AppOptions Adapter/Store；补创建、更新、重开、删除及规则的实际语言结果 | ApplicationWorkflows::speakerMixPresetPersistsThroughTheProductionStore、lyricRulesUseTheProductionRuntimeAndPersistence | 隔离配置 |
 | 设置、缓存清理及交互导入 | gui | 使用实际页面和输入，验证访问根、推理选项、缓存确认、轨道/时间线选择、预览、取消及撤销 | ApplicationGui 的 tst_settings_pages.cpp、tst_project_import.cpp | offscreen；临时文件 |
 | 填词预览、编辑与规则 | gui | 实际声库参与歌词转换，经过真实控件拆分、修改预览、导入音符、取消及撤销；规则编辑验证实际预览和保存 | ApplicationGui 的 tst_fill_lyric.cpp | offscreen；默认内置声库 |
-| 音素、搜索、动态声线与编辑边界 | gui | 真实对话框和输入验证音素确认/取消/重置、搜索定位、动态关键帧增改及取消、音符缩放和时间尺循环操作；修复关键帧身份丢失，并将主窗口历史与设置通知绑定实际接收者生命周期 | ApplicationGui 的 tst_note_dialogs.cpp、tst_dynamic_mix.cpp、tst_piano_roll.cpp、tst_track_editing.cpp | offscreen；隔离实际应用 |
+| 音素、搜索、动态声线与编辑边界 | gui | 真实对话框和输入验证音素确认/取消/重置、边界拖动及撤销；波形加载使用实际推理音频，受控延迟检查切换片段后丢弃过期结果。内联歌词/读音检查双击、提交/取消和导航，保留搜索、动态关键帧、音符缩放及时间尺循环行为 | ApplicationGui 的 tst_note_dialogs.cpp、tst_dynamic_mix.cpp、tst_piano_roll.cpp、tst_track_editing.cpp | offscreen；音素和波形使用内置声库 |
+| 公共数值控件的输入与提交 | gui | SeekBar 检查实时/释放提交、键盘步进及复位；Fader/Pan 检查预览信号、释放提交和随后外部更新，避免拖动状态残留 | GuiComponents::seekBarTrackingControlsWhenDraggedValuesCommit、seekBarKeyboardStepsClampAndDoubleClickResets、mixerSliderReleaseEndsPreview | offscreen；无需设备 |
 | 音频输出及循环播放回调 | workflow | 生成短素材检查全工程时长、混音、静音、自定义来源及 WAV/FLAC；受控实际回调检查循环回绕和缓冲等待/恢复。修复 Talcs 循环位置及预读/直接读取切换的位置同步，保留原 PCM 断言。循环区导出尚未实现，不在测试中补建 | ApplicationWorkflows 的 tst_audio_workflows.cpp | 通用；不需要播放设备 |
 | 多语种、多声线及推理重算 | workflow/process | 内置微型计算图走正常包、语言、推理和导出路径，明确检查实际音素；验证缓存复用、切换声线和 BPM 后的输出变化 | ModelResources::voicebankInferenceAndWaveExport | CPU；默认内置声库，可显式换真实资源 |
 | 声线预设 GUI 生命周期 | gui | 实际保存/取消、下拉选择、修改后 dirty 标记和删除/取消；搜索窗口销毁后保存预设揭示工具栏私有对象残留，将其归属视图并同步解除通知；持久化业务规则由应用工作流承担 | ApplicationGui::speakerMixPresetsFollowSaveSelectAndDeleteInputs、lyricSearchNavigatesTheActualEditorAndHandlesNoMatches | offscreen；临时配置 |

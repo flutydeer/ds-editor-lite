@@ -59,12 +59,25 @@ Windows wrapper 将本地结果写到 `build/test-results`；直接 CTest 可加
 | offscreen 组件 | 执行 | 原生或 offscreen |
 | 原生窗口布局 | 执行；Linux 使用 Xvfb | 当前平台桌面 |
 | 内置测试声库 | 执行 | 默认执行 |
-| 外部真实声库、GPU、设备 | 不作为默认资源 | 显式配置后 |
+| 音频输出设备 | 有可用设备则执行，否则明确跳过 | 自动探测或按名称指定 |
+| MIDI 回环 | 未配置则明确跳过 | 提供成对专用端口后执行 |
+| 外部真实声库、GPU | 不作为默认资源 | 显式配置后；GPU 不等同于已有 CPU 用例 |
 | 平台特有行为 | 各矩阵平台对应项 | 当前平台对应项 |
 
 不以 CI 集合代替本地完整入口。资源不足和平台不适用必须明确，不计作通过。
 
 原生桌面用例归入 `TestNativeDesktop`，由 `native` 标签标识，纳入三平台 CI。`TestGuiComponents`、`TestEditorInteraction`、`TestEditorRendering` 和 `TestApplicationGui` 使用 offscreen；普通组件无需播放设备，完整填词流程使用内置声库。
+
+设备用例在 `TestNativeDesktop` 中按下列条件执行，环境变量均填写设备实际名称：
+
+| 配置 | 行为与未执行规则 |
+|---|---|
+| `DSEL_TEST_AUDIO_DRIVER`、`DSEL_TEST_AUDIO_DEVICE` | 两者均可省略，使用生产默认输出；无可用后端、未枚举到设备或仅有 dummy/disk 后端时 QSKIP。可只指定驱动，或在当前驱动下指定设备；指定名称不存在、已枚举设备初始化/打开失败、配置或播放失败均 FAIL，不回退其他设备 |
+| `DSEL_TEST_MIDI_INPUT`、`DSEL_TEST_MIDI_OUTPUT` | 填写已连接的专用 MIDI 回环输入/输出端口，测试不创建驱动。两者均缺少时 QSKIP；只配一项、端口不存在、打开/发送失败或收不到预期消息均 FAIL |
+
+例如在 PowerShell 中设置 `$env:DSEL_TEST_AUDIO_DRIVER = "实际驱动名"`、`$env:DSEL_TEST_AUDIO_DEVICE = "实际设备名"`，或成对设置 `$env:DSEL_TEST_MIDI_INPUT` 与 `$env:DSEL_TEST_MIDI_OUTPUT`，随后执行 `ctest --preset local -R '^TestNativeDesktop$'`。Linux/macOS 使用同名环境变量。不要将示例名称当作有效设备配置。
+
+音频场景使用静音 WAV，验证生产设备重开、缓冲配置及落盘、真实回调推进和公开播放/暂停/停止，完成后恢复自身配置。MIDI 场景发送专用通道的 note-on/off，验证实际输入及生产合成器输出后归零，并清理自己打开的端口；不要求扬声器发声。跳过的是缺少条件的具体 Qt Test 用例，不是整个原生桌面程序。Null RHI 钢琴窗和轨道场景不需要物理 GPU，但需要可用原生窗口环境；offscreen 不适用时明确跳过，实际后端或帧提交失败不能跳过。
 
 `TestModelResources` 和 `TestApplicationGui` 默认使用 [voicebank-fixture.zip](../../../src/tests/resources/voicebank-fixture.zip)，CMake 解压到当前构建目录；无需安装 Python 或训练框架。测试包具有独立的 `ci-fixture` 身份、中英文资源和两条声线。用例固定 CPU，检查实际 G2P/音素、完整推理与有效 WAV，以及缓存复用、声线和 BPM 变化后的重算。普通 CI 不需真实训练权重或播放设备。
 
