@@ -164,5 +164,6 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 声音导出等待推理时取消 | workflow | 实际声库任务进入导出准备阶段后取消，旧文件不被覆盖且不开始渲染；后台任务排空后再次导出成功，文件可解码、样本有限且非零，无暂存残留 | ApplicationWorkflows::cancelingVoiceExportDuringPreparationAllowsAnotherExport | 默认内置声库；独立缓存；无需音频设备 |
 | 公共曲线替换与音素名称转换 | protocol | 混合绘制/锚点曲线经公开 JSON 输入保存位置、步长、值和插值，连续替换可撤销至原曲线身份；音素名称按音符显式语言或片段继承语言补全，清除失效手工偏移并可撤销恢复 | AutomationProtocol::parameterReplacementDecodesDrawAndAnchorCurves、phonemeNamesUseTheEffectiveLanguageAndResetOffsets | 通用；真实领域实现；无需声库 |
 | 撤销快捷键的轨道定位 | gui | 离屏片段或隐藏轨道面板先显示编辑位置，再按一次才撤销，重做恢复并定位；首轨边框超出场景半像素曾导致定位误报失败，统一按片段主体矩形计算焦点范围 | ApplicationGui::undoShortcutRevealsTheTrackEditBeforeChangingIt | offscreen；完整 MainWindow、真实快捷键及历史 |
+| 混合 MIDI/音频的批量导入选项 | gui/workflow | 两个 MIDI 和一个 WAV 经真实画布拖放共用一次编码/时间线决策；取消整批无修改，确认分别验证首个 MIDI 速度优先、保留当前拍号或速度、已有轨道复用、歌词保真、音频时间锚定及整批撤销重做 | ApplicationGui::droppingMidiAndAudioFilesUsesOneBatchDecision | offscreen；小型临时 MIDI/WAV；无需模型或设备 |
 
 本次还移除无产品实例化入口的旧 G2P/伪声设置页和 `TrackSynthesizer` 及其空容器引用。清理改变统计分母，报告中与新增测试命中的贡献分开说明，不通过排除仍有效的生产文件提高比例。

@@ -8,6 +8,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/ProjectConverters/DspxConfigPage.h"
 #include "Modules/ProjectConverters/MidiConfigPage.h"
+#include "Modules/ProjectConverters/MidiBatchImportDialog.h"
 #include "Modules/ProjectFormats/ProjectImportConfigDialog.h"
 #include "UI/Dialogs/Base/Dialog.h"
 #include "UI/Views/TrackEditor/GraphicsItem/AbstractClipView.h"
@@ -51,11 +52,11 @@ namespace {
         return nullptr;
     }
 
-    void createImportFile(const QString &path, const bool midi) {
+    void createImportFile(const QString &path, const bool midi, double tempo = 87.0) {
         AppModel source;
         source.setTimeline(Timeline(
             {
-                {0, 87.0}
+                {0, tempo}
         },
             {{0, 6, 8}}));
         for (int index = 0; index < 2; ++index) {
@@ -372,4 +373,165 @@ void ApplicationGuiTests::droppingAudioFilesCommitsOneBatchToTheSelectedTracks()
         QCOMPARE(clip->start(), dropTick);
     }
     QTRY_VERIFY(taskManager->tasks().isEmpty());
+}
+
+void ApplicationGuiTests::droppingMidiAndAudioFilesUsesOneBatchDecision_data() {
+    QTest::addColumn<bool>("accept");
+    QTest::addColumn<bool>("importTempo");
+    QTest::newRow("cancel-entire-mixed-batch") << false << true;
+    QTest::newRow("first-midi-tempo-with-current-meter") << true << true;
+    QTest::newRow("midi-meter-with-current-tempo") << true << false;
+}
+
+void ApplicationGuiTests::droppingMidiAndAudioFilesUsesOneBatchDecision() {
+    QFETCH(bool, accept);
+    QFETCH(bool, importTempo);
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto firstMidi = directory.filePath(QStringLiteral("first.mid"));
+    const auto secondMidi = directory.filePath(QStringLiteral("second.mid"));
+    const auto audioPath = directory.filePath(QStringLiteral("audio.wav"));
+    createImportFile(firstMidi, true);
+    createImportFile(secondMidi, true, 103.0);
+    if (QTest::currentTestFailed())
+        return;
+    const auto waveError = createWaveFixture(audioPath);
+    QVERIFY2(waveError.isEmpty(), qPrintable(waveError));
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+    const auto releaseAudio = qScopeGuard([&] {
+        QVERIFY(runtime.documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    });
+    TrackEditorView editor;
+    auto *canvas = editor.findChild<TracksGraphicsView *>();
+    QVERIFY(canvas);
+    auto *previousDialogParent = Dialog::globalParent();
+    Dialog::setGlobalContext(&editor);
+    const auto clearParent = qScopeGuard([&] {
+        trackController->setParentWidget(nullptr);
+        Dialog::setGlobalContext(previousDialogParent);
+    });
+    Automation::TrackDraftDto existing;
+    existing.name = QStringLiteral("Drop destination");
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, existing));
+    const auto existingId = appModel->tracks().first()->id();
+    editor.resize(1200, 600);
+    canvas->setAnimationEnabled(false);
+    editor.show();
+    editor.activateWindow();
+    QTRY_VERIFY(editor.isActiveWindow() && canvas->viewport()->width() > 600);
+    QVERIFY(canvas->setViewportScale(2.0, 1.0));
+    canvas->setViewportStartTick(0);
+    QCoreApplication::processEvents();
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    const auto beforeModel = appModel->serialize();
+    const auto originalTimeline = appModel->timeline();
+    int decisions = 0;
+    QTimer answer;
+    answer.setInterval(10);
+    connect(&answer, &QTimer::timeout, &editor, [&] {
+        auto *dialog = qobject_cast<MidiBatchImportDialog *>(QApplication::activeModalWidget());
+        if (!dialog)
+            return;
+        const auto close = qScopeGuard([&] {
+            if (dialog->isVisible())
+                dialog->reject();
+        });
+        ++decisions;
+        QCOMPARE(decisions, 1);
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(appModel->serialize(), beforeModel);
+        auto *codec = dialog->findChild<ComboBox *>();
+        QVERIFY(codec);
+        const auto utf8 = codec->findData(QByteArray("UTF-8"));
+        QVERIFY(utf8 >= 0);
+        codec->setFocus();
+        QTest::keyClick(codec, Qt::Key_Home);
+        for (int index = 0; index < utf8; ++index)
+            QTest::keyClick(codec, Qt::Key_Down);
+        QCOMPARE(codec->currentData().toByteArray(), QByteArray("UTF-8"));
+        auto *tempo = withText<QCheckBox>(dialog, MidiBatchImportDialog::tr("Import tempo"));
+        auto *meter =
+            withText<QCheckBox>(dialog, MidiBatchImportDialog::tr("Import time signature"));
+        QVERIFY(tempo && meter);
+        QVERIFY(tempo->isChecked() && meter->isChecked());
+        auto *unchecked = importTempo ? meter : tempo;
+        unchecked->setFocus();
+        QTest::keyClick(unchecked, Qt::Key_Space);
+        QCOMPARE(tempo->isChecked(), importTempo);
+        QCOMPARE(meter->isChecked(), !importTempo);
+        auto *button = withText<Button>(dialog, accept ? MidiBatchImportDialog::tr("OK")
+                                                       : MidiBatchImportDialog::tr("Cancel"));
+        QVERIFY(button);
+        QTest::mouseClick(button, Qt::LeftButton);
+    });
+    constexpr int dropTick = 960;
+    const auto position = canvas->mapFromScene(
+        QPointF(canvas->sceneXForTick(dropTick), TracksEditorGlobal::trackHeight / 2));
+    QVERIFY(canvas->viewport()->rect().contains(position));
+    QMimeData mime;
+    mime.setUrls({QUrl::fromLocalFile(firstMidi), QUrl::fromLocalFile(secondMidi),
+                  QUrl::fromLocalFile(audioPath)});
+    QDragEnterEvent enter(position, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas->viewport(), &enter);
+    QVERIFY(enter.isAccepted());
+    answer.start();
+    QDropEvent drop(QPointF(position), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas->viewport(), &drop);
+    QVERIFY(drop.isAccepted());
+    QTRY_VERIFY_WITH_TIMEOUT(decisions > 0, 10000);
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    answer.stop();
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(decisions, 1);
+    if (!accept) {
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(appModel->serialize(), beforeModel);
+        QVERIFY(!historyManager->canUndo());
+        return;
+    }
+    QCOMPARE(appModel->tracks().size(), 5);
+    QCOMPARE(appModel->tracks().first()->id(), existingId);
+    QCOMPARE(appModel->tracks().first()->name(), existing.name);
+    // MIDI tempo uses an integer number of microseconds per quarter note.
+    QVERIFY(qAbs(appModel->timeline().tempos().first().value - (importTempo ? 87.0 : 120.0)) <
+            0.001);
+    QCOMPARE(appModel->timeline().timeSignatures().first().numerator, importTempo ? 4 : 6);
+    QCOMPARE(appModel->timeline().timeSignatures().first().denominator, importTempo ? 4 : 8);
+    for (int index = 0; index < 4; ++index) {
+        const auto *track = appModel->tracks().at(index);
+        QCOMPARE(track->clips().count(), 1);
+        const auto *clip = qobject_cast<SingingClip *>(*track->clips().begin());
+        QVERIFY(clip);
+        QCOMPARE(clip->notes().count(), 1);
+        const auto *note = *clip->notes().begin();
+        QCOMPARE(note->keyIndex(), index % 2 == 0 ? 60 : 64);
+        QCOMPARE(note->localStart(), 240);
+        QCOMPARE(note->length(), 480);
+        QCOMPARE(note->lyric(),
+                 index % 2 == 0 ? QStringLiteral("discard") : QStringLiteral("你好"));
+        QVERIFY(editor.findClipItemById(clip->id()));
+    }
+    const auto *audioTrack = appModel->tracks().last();
+    QCOMPARE(audioTrack->clips().count(), 1);
+    const auto *audio = qobject_cast<AudioClip *>(*audioTrack->clips().begin());
+    QVERIFY(audio);
+    QCOMPARE(QFileInfo(audio->path()).canonicalFilePath(),
+             QFileInfo(audioPath).canonicalFilePath());
+    QCOMPARE(audio->start(), dropTick);
+    QCOMPARE(audio->audioInfo().frames, 800);
+    QVERIFY(qAbs(audio->length() - (importTempo ? 70 : 96)) <= 1);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(appModel->serialize(), beforeModel);
+    QCOMPARE(appModel->timeline(), originalTimeline);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(runtime.history().redo(commandContext()));
+    QCOMPARE(appModel->tracks().size(), 5);
+    QCOMPARE(appModel->tracks().first()->id(), existingId);
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
 }

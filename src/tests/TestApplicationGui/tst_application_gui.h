@@ -62,6 +62,8 @@ private slots:
     void interactiveProjectImportRespectsSelectionAndCancellation();
     void droppingAudioFilesCommitsOneBatchToTheSelectedTracks();
     void fillLyricPreviewCommitsOrCancels_data();
+    void droppingMidiAndAudioFilesUsesOneBatchDecision_data();
+    void droppingMidiAndAudioFilesUsesOneBatchDecision();
     void fillLyricPreviewCommitsOrCancels();
     void lyricRuleEditingChangesThePreviewAndPersists();
     void phonemeDialogValidatesCommitsAndResetsThroughTheNoteMenu();
