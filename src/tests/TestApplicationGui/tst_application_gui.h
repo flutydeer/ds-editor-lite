@@ -51,6 +51,8 @@ private slots:
     void audioExportProgressCompletesAndCloses();
     void appearanceInputsPersistAcrossReopening();
     void automationAccessInputsPersistAndRejectMissingFolders();
+    void automationCustomToolsetInputsPersistAndExportPermissions();
+    void automationConnectionCopyFollowsTheRuntimeEndpoint();
     void inferenceInputsPersistAcrossReopening();
     void cacheCleanupRequiresConfirmationAndRefreshesThePage();
     void interactiveProjectImportRespectsSelectionAndCancellation_data();

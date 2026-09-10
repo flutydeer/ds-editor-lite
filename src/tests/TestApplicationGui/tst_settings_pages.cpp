@@ -2,6 +2,7 @@
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
+#include "Automation/EditorAutomationRuntimeStatus.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Dialogs/Base/MessageDialog.h"
@@ -13,6 +14,7 @@
 #include <lite/GUI/Controls/PathEditor.h>
 #include <lite/GUI/Controls/PathListWidget.h>
 #include <lite/GUI/Controls/SwitchButton.h>
+#include <lite/GUI/Controls/ToolButton.h>
 #include <lite/History/HistoryManager.h>
 
 #include <QApplication>
@@ -97,6 +99,14 @@ namespace {
         QCOMPARE(error.error, QJsonParseError::NoError);
         QVERIFY(saved.isObject());
         options = saved.object();
+    }
+
+    void clickOption(AutomationPage *page, QWidget *control) {
+        QVERIFY(control);
+        page->ensureWidgetVisible(control);
+        QTRY_VERIFY(control->isVisible());
+        QVERIFY(control->isEnabled());
+        QTest::mouseClick(control, Qt::LeftButton);
     }
 }
 
@@ -246,6 +256,201 @@ void ApplicationGuiTests::automationAccessInputsPersistAndRejectMissingFolders()
     QCOMPARE(paths->paths(), QStringList{QFileInfo(selectedRoot).canonicalFilePath()});
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::automationCustomToolsetInputsPersistAndExportPermissions() {
+    const auto original = *appOptions->automation();
+    const auto restore = qScopeGuard([&] {
+        *appOptions->automation() = original;
+        appOptions->saveAndNotify(AppOptionsGlobal::Automation);
+    });
+    auto *option = appOptions->automation();
+    option->controlLevel = AutomationOption::ControlLevel::L1;
+    option->customPermissions.clear();
+    QVERIFY(appOptions->saveAndNotify(AppOptionsGlobal::Automation));
+    const auto before = context->m_coreRuntime->documentVersion();
+    {
+        AppOptionsDialog panel;
+        openOptionsPage(panel, AppOptionsGlobal::Automation);
+        if (QTest::currentTestFailed())
+            return;
+        auto *page = panel.findChild<AutomationPage *>();
+        QVERIFY(page);
+        auto *open = page->findChild<ToolButton *>("automationOpenToolsetButton");
+        clickOption(page, open);
+        if (QTest::currentTestFailed())
+            return;
+        auto *expand = page->findChild<ToolButton *>("automationCustomToolGroupExpand_tracks");
+        auto *group = page->findChild<SwitchButton *>("automationCustomToolGroupSwitch_tracks");
+        auto *rename = page->findChild<SwitchButton *>("automationCustomTool_tracks.rename");
+        auto *list = page->findChild<SwitchButton *>("automationCustomTool_tracks.list");
+        auto *back = page->findChild<ToolButton *>("automationCloseToolsetButton");
+        QVERIFY(group && rename && list && back);
+        QVERIFY(!group->value());
+        QVERIFY(!rename->isVisible());
+        clickOption(page, expand);
+        clickOption(page, group);
+        if (QTest::currentTestFailed())
+            return;
+        QVERIFY(rename->value() && list->value());
+        QVERIFY(option->customPermissionEnabled(QStringLiteral("tracks.rename")));
+        clickOption(page, rename);
+        if (QTest::currentTestFailed())
+            return;
+        QVERIFY(group->value());
+        QVERIFY(!option->customPermissionEnabled(QStringLiteral("tracks.rename")));
+        QVERIFY(option->customPermissionEnabled(QStringLiteral("tracks.list")));
+
+        clickOption(page, back);
+        auto *importLevel = page->findChild<Button *>("automationImportControlLevelButton");
+        clickOption(page, importLevel);
+        if (QTest::currentTestFailed())
+            return;
+        QVERIFY(rename->value());
+        QVERIFY(option->customPermissionEnabled(QStringLiteral("tracks.rename")));
+        clickOption(page, open);
+        clickOption(page, group);
+        if (QTest::currentTestFailed())
+            return;
+        QVERIFY(!rename->value() && !list->value());
+        clickOption(page, rename);
+        if (QTest::currentTestFailed())
+            return;
+        QVERIFY(group->value());
+        QVERIFY(!list->value());
+        clickOption(page, expand);
+        if (QTest::currentTestFailed())
+            return;
+        QVERIFY(!rename->isVisible());
+        clickOption(page, back);
+        auto *level = page->findChild<ComboBox *>("automationControlLevel");
+        clickOption(page, level);
+        if (QTest::currentTestFailed())
+            return;
+        QTest::keyClick(level->view(), Qt::Key_End);
+        QTest::keyClick(level->view(), Qt::Key_Return);
+        QTRY_VERIFY(!level->view()->isVisible());
+        QCOMPARE(option->controlLevel, AutomationOption::ControlLevel::Custom);
+        QVERIFY(!importLevel->isEnabled());
+
+        clickOption(page, page->findChild<Button *>("automationStdioConfigurationCopyButton"));
+        if (QTest::currentTestFailed())
+            return;
+        QJsonParseError error;
+        const auto config =
+            QJsonDocument::fromJson(QApplication::clipboard()->text().toUtf8(), &error).object();
+        QCOMPARE(error.error, QJsonParseError::NoError);
+        QVERIFY(QFileInfo(config.value(QStringLiteral("command")).toString()).isAbsolute());
+        const auto args = config.value(QStringLiteral("args")).toArray();
+        QVERIFY(args.contains(QStringLiteral("--include-tool=id:tracks.rename")));
+        QVERIFY(!args.contains(QStringLiteral("--include-tool=id:tracks.list")));
+        const auto levelFlag = args.toVariantList().indexOf(QStringLiteral("--control-level"));
+        QVERIFY(levelFlag >= 0 && levelFlag + 1 < args.size());
+        QCOMPARE(args.at(levelFlag + 1).toString(), QStringLiteral("l0"));
+        QJsonObject saved;
+        readSavedOptions(saved);
+        if (QTest::currentTestFailed())
+            return;
+        AutomationOption loaded;
+        loaded.load(saved.value(QStringLiteral("automation")).toObject());
+        QCOMPARE(loaded.controlLevel, AutomationOption::ControlLevel::Custom);
+        QVERIFY(loaded.customPermissionEnabled(QStringLiteral("tracks.rename")));
+        QVERIFY(!loaded.customPermissionEnabled(QStringLiteral("tracks.list")));
+    }
+    AppOptionsDialog reopened;
+    openOptionsPage(reopened, AppOptionsGlobal::Automation);
+    if (QTest::currentTestFailed())
+        return;
+    auto *page = reopened.findChild<AutomationPage *>();
+    QVERIFY(page);
+    clickOption(page, page->findChild<ToolButton *>("automationOpenToolsetButton"));
+    if (QTest::currentTestFailed())
+        return;
+    auto *rename = page->findChild<SwitchButton *>("automationCustomTool_tracks.rename");
+    auto *list = page->findChild<SwitchButton *>("automationCustomTool_tracks.list");
+    auto *group = page->findChild<SwitchButton *>("automationCustomToolGroupSwitch_tracks");
+    QVERIFY(rename && list && group);
+    QVERIFY(rename->value() && group->value());
+    QVERIFY(!list->value());
+    QCOMPARE(context->m_coreRuntime->documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::automationConnectionCopyFollowsTheRuntimeEndpoint() {
+    using namespace Automation::AutomationRuntimeStatus;
+    const auto original = *appOptions->automation();
+    const auto oldState = qApp->property(StateProperty);
+    const auto oldEndpoint = qApp->property(EndpointProperty);
+    const auto oldError = qApp->property(ErrorProperty);
+    const auto restore = qScopeGuard([&] {
+        qApp->setProperty(StateProperty, oldState);
+        qApp->setProperty(EndpointProperty, oldEndpoint);
+        qApp->setProperty(ErrorProperty, oldError);
+        *appOptions->automation() = original;
+        appOptions->saveAndNotify(AppOptionsGlobal::Automation);
+    });
+    appOptions->automation()->controlPort = 52345;
+    qApp->setProperty(StateProperty, QStringLiteral("server_disabled"));
+    qApp->setProperty(EndpointProperty, QVariant{});
+    qApp->setProperty(ErrorProperty, QVariant{});
+    AppOptionsDialog panel;
+    openOptionsPage(panel, AppOptionsGlobal::Automation);
+    if (QTest::currentTestFailed())
+        return;
+    auto *page = panel.findChild<AutomationPage *>();
+    QVERIFY(page);
+    auto *endpointCopy = page->findChild<Button *>("automationStreamableHttpEndpointCopyButton");
+    auto *configCopy = page->findChild<Button *>("automationStreamableHttpConfigurationCopyButton");
+    clickOption(page, endpointCopy);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(QApplication::clipboard()->text(), QStringLiteral("http://127.0.0.1:52345/mcp"));
+    Button *randomize = nullptr;
+    for (auto *button : page->findChildren<Button *>()) {
+        if (button->text() == AutomationPage::tr("Randomize"))
+            randomize = button;
+    }
+    clickOption(page, randomize);
+    if (QTest::currentTestFailed())
+        return;
+    const auto newPort = appOptions->automation()->controlPort;
+    QVERIFY(newPort != 52345);
+    clickOption(page, endpointCopy);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(QApplication::clipboard()->text(),
+             QStringLiteral("http://127.0.0.1:%1/mcp").arg(newPort));
+
+    const auto visibleText = [page](const QString &text) {
+        for (const auto *label : page->findChildren<QLabel *>()) {
+            if (label->isVisible() && label->text() == text)
+                return true;
+        }
+        return false;
+    };
+    qApp->setProperty(StateProperty, QStringLiteral("error"));
+    const auto error = QStringLiteral("Control port is already in use");
+    qApp->setProperty(ErrorProperty, error);
+    QTRY_VERIFY(visibleText(AutomationPage::tr("Error")));
+    QTRY_VERIFY(visibleText(error));
+    const auto runningEndpoint = QStringLiteral("http://127.0.0.1:54123/mcp");
+    qApp->setProperty(EndpointProperty, runningEndpoint);
+    qApp->setProperty(StateProperty, QStringLiteral("server_ready"));
+    qApp->setProperty(ErrorProperty, QString{});
+    QTRY_VERIFY(visibleText(AutomationPage::tr("Server ready")));
+    QVERIFY(!visibleText(error));
+    clickOption(page, configCopy);
+    if (QTest::currentTestFailed())
+        return;
+    QJsonParseError parseError;
+    const auto config =
+        QJsonDocument::fromJson(QApplication::clipboard()->text().toUtf8(), &parseError).object();
+    QCOMPARE(parseError.error, QJsonParseError::NoError);
+    QCOMPARE(config.value(QStringLiteral("url")).toString(), runningEndpoint);
+    clickOption(page, endpointCopy);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(QApplication::clipboard()->text(), runningEndpoint);
 }
 
 void ApplicationGuiTests::inferenceInputsPersistAcrossReopening() {
