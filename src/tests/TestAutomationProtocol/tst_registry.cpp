@@ -981,6 +981,114 @@ namespace {
         runtime.automationTasks().cancel(Automation::TaskId::fromString(taskId));
     }
 
+    void verifyMidiPreviewSelection(Automation::PublicAutomationRegistry &registry,
+                                    AutomationTestSupport::TestRuntime &fixture,
+                                    const QString &directoryPath,
+                                    const MidiExportTestControl &control) {
+        auto &runtime = fixture.runtime();
+        Automation::ClipDraftDto singing;
+        singing.properties.name = QStringLiteral("Singing");
+        singing.properties.length = 480;
+        singing.properties.clipLen = 480;
+        auto audio = singing;
+        audio.type = Automation::ClipDraftDto::Type::Audio;
+        audio.properties.name = QStringLiteral("Reference audio");
+        audio.properties.start = 480;
+        auto later = singing;
+        later.properties.start = 960;
+        Automation::TrackDraftDto lead;
+        lead.name = QStringLiteral("Lead");
+        lead.clips = {singing, audio, later};
+        Automation::TrackDraftDto backing;
+        backing.name = QStringLiteral("Backing");
+        backing.clips = {singing, later};
+        auto document = Automation::DocumentAutomationFacade::newDocumentDraft(false);
+        document.tracks = {lead, backing};
+        QVERIFY(runtime.documents().commitNewDocument(
+            {.expected = runtime.documentVersion(), .source = Automation::InvocationSource::Test},
+            document));
+        fixture.history()->reset();
+        const auto project = runtime.project().getProject(runtime.documentVersion().documentId);
+        QVERIFY(project);
+        const auto &first = project.get().tracks.at(0);
+        const auto &second = project.get().tracks.at(1);
+        const QJsonArray tracks{first.id.value(), second.id.value()};
+        const QJsonArray singingClips{first.clips.at(0).id.value(), first.clips.at(2).id.value(),
+                                      second.clips.at(0).id.value(), second.clips.at(1).id.value()};
+        const QJsonArray selectedClips{first.clips.at(0).id.value(), first.clips.at(2).id.value(),
+                                       second.clips.at(1).id.value()};
+        const auto before = runtime.documentVersion();
+        const auto beforeModel = fixture.model().serialize();
+        const auto capabilities =
+            registry.invoke(QStringLiteral("exports.midi.get_capabilities"),
+                            {
+                                {QStringLiteral("document_id"), before.documentId.toString()}
+        });
+        QVERIFY2(capabilities,
+                 qPrintable(capabilities ? QString{} : capabilities.getError().message));
+        const auto available = capabilities.get().value(QStringLiteral("capabilities")).toObject();
+        QCOMPARE(available.value(QStringLiteral("track_ids")).toArray(), tracks);
+        QCOMPARE(available.value(QStringLiteral("clip_ids")).toArray(), singingClips);
+        const auto reference =
+            registry.invoke(QStringLiteral("clips.get"),
+                            {
+                                {QStringLiteral("document_id"), before.documentId.toString()},
+                                {QStringLiteral("clip_id"),     first.clips.at(1).id.value()}
+        });
+        QVERIFY2(reference, qPrintable(reference ? QString{} : reference.getError().message));
+        const auto referenceClip = reference.get().value(QStringLiteral("snapshot")).toObject();
+        QCOMPARE(referenceClip.value(QStringLiteral("type")).toString(), QStringLiteral("audio"));
+        QVERIFY(referenceClip.value(QStringLiteral("voice_context")).isNull());
+
+        const auto path = QDir(directoryPath).filePath(QStringLiteral("selection.mid"));
+        const QByteArray previousFile("Previously published MIDI");
+        QFile output(path);
+        QVERIFY(output.open(QIODevice::WriteOnly));
+        QCOMPARE(output.write(previousFile), qint64(previousFile.size()));
+        output.close();
+        QJsonObject options{
+            {QStringLiteral("track_ids"),               QJsonArray{first.id.value()}},
+            {QStringLiteral("clip_ids"),
+             QJsonArray{first.clips.at(0).id.value(), second.clips.at(1).id.value()}},
+            {QStringLiteral("include_tempo"),           false                       },
+            {QStringLiteral("include_time_signatures"), true                        },
+            {QStringLiteral("include_lyrics"),          false                       },
+        };
+        QJsonObject arguments{
+            {QStringLiteral("document_id"), before.documentId.toString()},
+            {QStringLiteral("path"),        path                        },
+            {QStringLiteral("options"),     options                     },
+        };
+        const auto preview = registry.invoke(QStringLiteral("exports.midi.preview"), arguments);
+        QVERIFY2(preview, qPrintable(preview ? QString{} : preview.getError().message));
+        const auto plan = preview.get().value(QStringLiteral("plan")).toObject();
+        QCOMPARE(plan.value(QStringLiteral("track_ids")).toArray(), tracks);
+        QCOMPARE(plan.value(QStringLiteral("clip_ids")).toArray(), selectedClips);
+        QCOMPARE(plan.value(QStringLiteral("targets")).toArray(), QJsonArray{path});
+        QCOMPARE(plan.value(QStringLiteral("include_tempo")).toBool(), false);
+        QCOMPARE(plan.value(QStringLiteral("include_time_signatures")).toBool(), true);
+        QCOMPARE(plan.value(QStringLiteral("include_lyrics")).toBool(), false);
+        const auto diagnostics = plan.value(QStringLiteral("diagnostics")).toArray();
+        QVERIFY(std::any_of(diagnostics.cbegin(), diagnostics.cend(), [](const QJsonValue &value) {
+            const auto diagnostic = value.toObject();
+            return diagnostic.value(QStringLiteral("code")) == QStringLiteral("target_exists") &&
+                   diagnostic.value(QStringLiteral("blocking")).toBool();
+        }));
+
+        options.insert(QStringLiteral("clip_ids"), QJsonArray{first.clips.at(1).id.value()});
+        arguments.insert(QStringLiteral("options"), options);
+        const auto rejected = registry.invoke(QStringLiteral("exports.midi.preview"), arguments);
+        QVERIFY(!rejected);
+        QCOMPARE(rejected.getError().code, Automation::AutomationErrorCode::WrongObjectType);
+        QCOMPARE(control.entered.available(), 0);
+        QVERIFY(output.open(QIODevice::ReadOnly));
+        QCOMPARE(output.readAll(), previousFile);
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(fixture.model().serialize(), beforeModel);
+        QVERIFY(!fixture.history()->canUndo());
+        QVERIFY(!fixture.history()->canRedo());
+    }
+
     void verifyMidiExportPublicationGate(Automation::PublicAutomationRegistry &registry,
                                          Automation::CoreRuntime &runtime,
                                          Automation::AdmissionController &admission,
@@ -1389,12 +1497,13 @@ namespace {
     }
 
     void verifyPublicVoiceAndSpeakerMix(Automation::PublicAutomationRegistry &registry,
-                                        Automation::CoreRuntime &runtime,
+                                        AutomationTestSupport::TestRuntime &testRuntime,
                                         const PublicEditingFixture &fixture,
                                         const SingerInfo &singer,
                                         const SingerInfo &sameIdNewerSinger,
                                         const SpeakerInfo &sameIdNewerSpeaker,
                                         const SpeakerInfo &sameIdNewerSpeakerB) {
+        auto &runtime = testRuntime.runtime();
         const auto voices = invokeSchemaValid(registry, QStringLiteral("voices.list"), {},
                                               QStringLiteral("versioned voices.list"));
         QSet<QString> matchingVersions;
@@ -1541,6 +1650,102 @@ namespace {
                            .toObject()
                            .value(QStringLiteral("speaker_id")) == sameIdNewerSpeaker.id(),
                QStringLiteral("Speaker Mix must preserve the requested package version"));
+
+        const auto context = [&] {
+            return Automation::CommandContext{.expected = runtime.documentVersion(),
+                                              .source = Automation::InvocationSource::Test};
+        };
+        Automation::ClipDraftDto followingClip;
+        followingClip.clientRef = QStringLiteral("following-voice");
+        followingClip.properties.start = 7200;
+        followingClip.properties.length = 480;
+        followingClip.properties.clipLen = 480;
+        const auto inserted =
+            runtime.project().insertClips(context(), {
+                                                         {fixture.trackId, followingClip}
+        });
+        QVERIFY(inserted);
+        QCOMPARE(inserted.get().createdObjects.size(), 1);
+        const auto voiceClipId =
+            Automation::ClipId(inserted.get().createdObjects.first().object.value);
+        QVERIFY(runtime.project().setTrackDefaultLanguage(context(), fixture.trackId,
+                                                          QStringLiteral("ja")));
+        const auto queryClipVoice = [&] {
+            const auto before = runtime.documentVersion();
+            const auto beforeModel = testRuntime.model().serialize();
+            const auto *undoEntry = testRuntime.history()->nextUndoEntry();
+            const auto result =
+                registry.invoke(QStringLiteral("clips.get"),
+                                {
+                                    {QStringLiteral("document_id"), before.documentId.toString()},
+                                    {QStringLiteral("clip_id"),     voiceClipId.value()         }
+            });
+            reportFailure(QStringLiteral("clips.get"), result);
+            expect(bool(result), QStringLiteral("clip voice query must resolve the actual clip"));
+            expect(runtime.documentVersion() == before &&
+                       testRuntime.model().serialize() == beforeModel &&
+                       testRuntime.history()->nextUndoEntry() == undoEntry,
+                   QStringLiteral("clip voice queries must not change the document or history"));
+            return result ? result.get()
+                                .value(QStringLiteral("snapshot"))
+                                .toObject()
+                                .value(QStringLiteral("voice_context"))
+                                .toObject()
+                          : QJsonObject{};
+        };
+        const auto inherited = queryClipVoice();
+        QVERIFY(inherited.value(QStringLiteral("inherits_track")).toBool());
+        QVERIFY(inherited.value(QStringLiteral("own_voice")).isNull());
+        QVERIFY(inherited.value(QStringLiteral("available")).toBool());
+        QCOMPARE(inherited.value(QStringLiteral("effective_voice")).toObject(), exactVoice);
+        QCOMPARE(inherited.value(QStringLiteral("default_language"))
+                     .toObject()
+                     .value(QStringLiteral("mode"))
+                     .toString(),
+                 QStringLiteral("follow_singer"));
+
+        const auto independentVoice = voiceSelection(singer, singer.speakers().first());
+        QVERIFY(invokeChangedOnce(registry, runtime, QStringLiteral("clips.set_voice"),
+                                  {
+                                      {QStringLiteral("clip_id"), voiceClipId.value()},
+                                      {QStringLiteral("voice"),   independentVoice            }
+        },
+                                  QStringLiteral("clip-independent-voice"),
+                                  QStringLiteral("clip voice override")));
+        const auto changedTrackVoice = voiceSelection(singer, singer.speakers().last());
+        QVERIFY(invokeChangedOnce(registry, runtime, QStringLiteral("tracks.set_voice"),
+                                  {
+                                      {QStringLiteral("track_id"), fixture.trackId.value()},
+                                      {QStringLiteral("voice"),    changedTrackVoice      }
+        },
+                                  QStringLiteral("track-voice-after-clip-override"),
+                                  QStringLiteral("track voice change")));
+        QVERIFY(runtime.project().setTrackDefaultLanguage(context(), fixture.trackId,
+                                                          QStringLiteral("zh")));
+        const auto independent = queryClipVoice();
+        QVERIFY(!independent.value(QStringLiteral("inherits_track")).toBool());
+        QCOMPARE(independent.value(QStringLiteral("own_voice")).toObject(), independentVoice);
+        QCOMPARE(independent.value(QStringLiteral("effective_voice")).toObject(), independentVoice);
+        QCOMPARE(independent.value(QStringLiteral("default_language"))
+                     .toObject()
+                     .value(QStringLiteral("mode"))
+                     .toString(),
+                 QStringLiteral("follow_singer"));
+
+        QVERIFY(invokeChangedOnce(registry, runtime, QStringLiteral("clips.use_track_voice"),
+                                  {
+                                      {QStringLiteral("clip_id"), voiceClipId.value()}
+        },
+                                  QStringLiteral("clip-restores-track-voice"),
+                                  QStringLiteral("clip voice inheritance")));
+        const auto restored = queryClipVoice();
+        QVERIFY(restored.value(QStringLiteral("inherits_track")).toBool());
+        QCOMPARE(restored.value(QStringLiteral("effective_voice")).toObject(), changedTrackVoice);
+        QCOMPARE(restored.value(QStringLiteral("default_language"))
+                     .toObject()
+                     .value(QStringLiteral("language_id"))
+                     .toString(),
+                 QStringLiteral("zh"));
     }
 
     void verifyHostCapabilityAndNativeJsonRpc(Automation::CoreRuntime &runtime,
@@ -1855,6 +2060,7 @@ void AutomationProtocolTests::routing_data() {
     QTest::newRow("audioPathRouting") << QStringLiteral("audioPathRouting");
     QTest::newRow("projectInputGuards") << QStringLiteral("projectInputGuards");
     QTest::newRow("midiPublicationGate") << QStringLiteral("midiPublicationGate");
+    QTest::newRow("midiPreviewSelection") << QStringLiteral("midiPreviewSelection");
     QTest::newRow("savePolicy") << QStringLiteral("savePolicy");
     QTest::newRow("advancedApplication") << QStringLiteral("advancedApplication");
     QTest::newRow("packageRefreshLifetime") << QStringLiteral("packageRefreshLifetime");
@@ -2397,11 +2603,13 @@ void AutomationProtocolTests::routing() {
              },
         };
     };
-    fileServices.exportMidi = [midiExportControl](AppModel *, const QString &path,
-                                                  const Automation::MidiExportOptionsDto &,
-                                                  QString &error) {
+    fileServices.exportMidi = [midiExportControl,
+                               holdRender = scenario == QStringLiteral("midiPublicationGate")](
+                                  AppModel *, const QString &path,
+                                  const Automation::MidiExportOptionsDto &, QString &error) {
         midiExportControl->entered.release();
-        midiExportControl->release.acquire();
+        if (holdRender)
+            midiExportControl->release.acquire();
         QFile file(path);
         if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate) || file.write("midi") != 4) {
             error = QStringLiteral("Test MIDI staging file could not be written");
@@ -2456,7 +2664,11 @@ void AutomationProtocolTests::routing() {
     }
     if (scenario == QStringLiteral("midiPublicationGate")) {
         verifyMidiExportPublicationGate(registry, runtime, admission, directory.path(),
-                                       *midiExportControl);
+                                        *midiExportControl);
+        return;
+    }
+    if (scenario == QStringLiteral("midiPreviewSelection")) {
+        verifyMidiPreviewSelection(registry, fixture, directory.path(), *midiExportControl);
         return;
     }
     if (scenario == QStringLiteral("savePolicy")) {
@@ -2574,7 +2786,7 @@ void AutomationProtocolTests::routing() {
         expect(!deniedPackageLookup && deniedPackageLookup.getError().code ==
                                            Automation::AutomationErrorCode::PermissionDenied,
                QStringLiteral("L2 voice workflows must not depend on the L3 packages domain"));
-        verifyPublicVoiceAndSpeakerMix(registry, runtime, *publicEditingFixture, registrySinger,
+        verifyPublicVoiceAndSpeakerMix(registry, fixture, *publicEditingFixture, registrySinger,
                                        registrySingerV2, registrySpeakerV2, registrySpeakerV2B);
         access.update(AutomationWire::ControlLevel::L3);
         return;
