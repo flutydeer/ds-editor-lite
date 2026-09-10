@@ -25,6 +25,7 @@
 #include <TalcsDevice/AudioDevice.h>
 
 #include <QApplication>
+#include <QLineEdit>
 #include <QMouseEvent>
 #include <QScopeGuard>
 #include <QSignalSpy>
@@ -108,6 +109,26 @@ namespace {
                                                         canvas->scaleY())};
         }
 
+        void addSecondNote() {
+            Automation::NoteDraftDto draft;
+            draft.localStart = 1200;
+            draft.length = 480;
+            draft.keyIndex = 62;
+            draft.lyric = QStringLiteral("li");
+            draft.language = QStringLiteral("eng");
+            const auto beforeFrame = submitted->size();
+            QVERIFY(
+                runtime().notes().insertNotes(command(), Automation::ClipId(clip->id()), {draft}));
+            QCOMPARE(clip->notes().count(), 2);
+            for (const auto *note : clip->notes()) {
+                if (note->id() != noteId)
+                    secondNoteId = note->id();
+            }
+            QVERIFY(secondNoteId >= 0);
+            frameAfter(beforeFrame);
+            historyManager->reset();
+        }
+
         void moveTo(const QPoint &position) const {
             QMouseEvent move(QEvent::MouseMove, QPointF(position),
                              QPointF(canvas->mapToGlobal(position)), Qt::NoButton, Qt::LeftButton,
@@ -123,6 +144,7 @@ namespace {
         GuiAppFixture app;
         SingingClip *clip = nullptr;
         int noteId = -1;
+        int secondNoteId = -1;
         std::unique_ptr<PianoRollRhiWidget> canvas;
         std::unique_ptr<QSignalSpy> submitted;
         QString backendError;
@@ -445,4 +467,149 @@ void NativeDesktopTests::rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor(
     QCOMPARE(anchorCurve()->nodes().toList().last()->pos(), 1440);
     QVERIFY(!historyManager->canUndo());
     fixture.frameAfter(undoFrame);
+}
+
+void NativeDesktopTests::rhiNoteEraseStrokeCancelsAndCommitsAtomically() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    ExistingRhiNoteFixture fixture;
+    fixture.initialize();
+    if (QTest::currentTestFailed())
+        return;
+    fixture.addSecondNote();
+    if (QTest::currentTestFailed())
+        return;
+    auto &canvas = *fixture.canvas;
+    canvas.setEditMode(ClipEditorGlobal::EraseNote);
+    const auto first = fixture.pointFor(720, 60);
+    const auto second = fixture.pointFor(1440, 62);
+    QVERIFY(canvas.rect().contains(first) && canvas.rect().contains(second));
+    const QList<int> erased{fixture.noteId, fixture.secondNoteId};
+    const auto before = fixture.runtime().documentVersion();
+    QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, first);
+    fixture.moveTo(second);
+    QCOMPARE(appStatus->pianoRollNoteErasePreview.get(), erased);
+    QVERIFY(editSessionManager->hasActiveTransaction());
+    QCOMPARE(fixture.clip->notes().count(), 2);
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QTest::keyClick(&canvas, Qt::Key_Escape);
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, second);
+    QVERIFY(appStatus->pianoRollNoteErasePreview.get().isEmpty());
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QCOMPARE(fixture.clip->notes().count(), 2);
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+
+    QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, first);
+    fixture.moveTo(second);
+    const auto committedFrame = fixture.submitted->size();
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, second);
+    QCOMPARE(fixture.clip->notes().count(), 0);
+    QVERIFY(appStatus->pianoRollNoteErasePreview.get().isEmpty());
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QCOMPARE(fixture.runtime().documentVersion().revision, before.revision + 1);
+    fixture.frameAfter(committedFrame);
+    if (QTest::currentTestFailed())
+        return;
+    const auto undoFrame = fixture.submitted->size();
+    historyManager->undo();
+    QCOMPARE(fixture.clip->notes().count(), 2);
+    QVERIFY(fixture.clip->findNoteById(fixture.noteId));
+    QVERIFY(fixture.clip->findNoteById(fixture.secondNoteId));
+    QVERIFY(!historyManager->canUndo());
+    fixture.frameAfter(undoFrame);
+    if (QTest::currentTestFailed())
+        return;
+    canvas.setEditMode(ClipEditorGlobal::Select);
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, first);
+    QCOMPARE(appStatus->selectedNotes.get(), QList<int>{fixture.noteId});
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, second);
+    QCOMPARE(appStatus->selectedNotes.get(), QList<int>{fixture.secondNoteId});
+}
+
+void NativeDesktopTests::rhiInlineTextEditingNavigatesCancelsAndUndoes() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    ExistingRhiNoteFixture fixture;
+    fixture.initialize();
+    if (QTest::currentTestFailed())
+        return;
+    fixture.addSecondNote();
+    if (QTest::currentTestFailed())
+        return;
+    auto &canvas = *fixture.canvas;
+    auto *first = fixture.clip->findNoteById(fixture.noteId);
+    auto *second = fixture.clip->findNoteById(fixture.secondNoteId);
+    QVERIFY(first && second);
+    QVERIFY(fixture.runtime().notes().setPronunciation(
+        fixture.command(), Automation::ClipId(fixture.clip->id()), Automation::NoteId(first->id()),
+        true, QStringLiteral("la")));
+    historyManager->reset();
+    const auto beginEditing = [&](const QPoint &position, const QString &role) {
+        QVERIFY(canvas.rect().contains(position));
+        QTest::mouseDClick(&canvas, Qt::LeftButton, Qt::NoModifier, position);
+        QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, position);
+        auto *edit = canvas.findChild<QLineEdit *>();
+        QVERIFY(edit);
+        QTRY_VERIFY(edit->isVisible() && edit->hasFocus());
+        QCOMPARE(edit->property("editRole").toString(), role);
+    };
+    beginEditing(fixture.pointFor(720, 60), QStringLiteral("Lyric"));
+    if (QTest::currentTestFailed())
+        return;
+    auto *edit = canvas.findChild<QLineEdit *>();
+    QCOMPARE(edit->text(), QStringLiteral("la"));
+    QTest::keySequence(edit, QKeySequence::SelectAll);
+    QTest::keyClicks(edit, "hello");
+    const auto beforeText = fixture.submitted->size();
+    QTest::keyClick(edit, Qt::Key_Tab);
+    QCOMPARE(first->lyric(), QStringLiteral("hello"));
+    QTRY_VERIFY(edit->isVisible() && edit->hasFocus());
+    QCOMPARE(edit->text(), QStringLiteral("li"));
+    QCOMPARE(appStatus->selectedNotes.get(), QList<int>{second->id()});
+    QTest::keySequence(edit, QKeySequence::SelectAll);
+    QTest::keyClicks(edit, "world");
+    QTest::keyClick(edit, Qt::Key_Backtab);
+    QCOMPARE(second->lyric(), QStringLiteral("world"));
+    QTRY_VERIFY(edit->isVisible() && edit->hasFocus());
+    QCOMPARE(edit->text(), QStringLiteral("hello"));
+    QCOMPARE(appStatus->selectedNotes.get(), QList<int>{first->id()});
+    const auto beforeCancel = fixture.runtime().documentVersion();
+    QTest::keySequence(edit, QKeySequence::SelectAll);
+    QTest::keyClicks(edit, "discard this");
+    QTest::keyClick(edit, Qt::Key_Escape);
+    QTRY_VERIFY(!edit->isVisible());
+    QCOMPARE(first->lyric(), QStringLiteral("hello"));
+    QCOMPARE(fixture.runtime().documentVersion(), beforeCancel);
+    fixture.frameAfter(beforeText);
+    if (QTest::currentTestFailed())
+        return;
+    historyManager->undo();
+    QCOMPARE(second->lyric(), QStringLiteral("li"));
+    historyManager->undo();
+    QCOMPARE(first->lyric(), QStringLiteral("la"));
+    QVERIFY(!historyManager->canUndo());
+
+    const auto pronunciationPosition =
+        fixture.pointFor(720, 60) +
+        QPoint(0, qRound(ClipEditorGlobal::noteHeight * canvas.scaleY() / 2.0) + 8);
+    beginEditing(pronunciationPosition, QStringLiteral("Pronunciation"));
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(edit->text(), QStringLiteral("la"));
+    QTest::keySequence(edit, QKeySequence::SelectAll);
+    QTest::keyClicks(edit, "lu");
+    QTest::keyClick(edit, Qt::Key_Return);
+    QTRY_VERIFY(!edit->isVisible());
+    QCOMPARE(first->pronunciation().edited, QStringLiteral("lu"));
+    QCOMPARE(first->pronunciation().result(), QStringLiteral("lu"));
+    historyManager->undo();
+    QCOMPARE(first->pronunciation().result(), QStringLiteral("la"));
+    QVERIFY(!first->pronunciation().isEdited());
+    QVERIFY(!historyManager->canUndo());
+    beginEditing(pronunciationPosition, QStringLiteral("Pronunciation"));
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(edit->text(), QStringLiteral("la"));
+    QTest::keyClick(edit, Qt::Key_Escape);
 }

@@ -48,8 +48,9 @@ namespace AppEnvironment {
         QApplication::setApplicationDisplayName(
             QString::fromLatin1(LiteProductMetadata::ProductName));
         QApplication::setEffectEnabled(Qt::UI_AnimateCombo, false);
-        // Offscreen widgets do not provide native handles required by platform styles.
-        if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        // These backends do not provide the native handles required by platform styles.
+        const auto platform = QGuiApplication::platformName();
+        if (platform == QStringLiteral("offscreen") || platform == QStringLiteral("minimal"))
             QApplication::setStyle(QStyleFactory::create("fusion"));
         else if (QSysInfo::productType() != "windows")
             QApplication::setStyle(QStyleFactory::create("windows"));
