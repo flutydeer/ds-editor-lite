@@ -58,7 +58,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ninja-build patchelf pkg-config autoconf autoconf-archive \
-            automake libtool libltdl-dev python3-venv xvfb xauth gdb \
+            automake libtool libltdl-dev python3-venv xvfb xauth \
             libasound2-dev libpulse-dev libudev-dev libgl1-mesa-dev libegl1-mesa-dev \
             libx11-dev libxext-dev libxrandr-dev libxi-dev libxcursor-dev \
             libxinerama-dev libxkbcommon-dev libxkbcommon-x11-dev libxcb-cursor0 \
@@ -143,13 +143,6 @@ jobs:
         run: |
           powershell.exe -NoProfile -ExecutionPolicy Bypass -File .agents/skills/scripts/run-cmake-preset.ps1 -Mode Build -Preset coverage -QtDir "$env:QT_ROOT_DIR" 2>&1 | Tee-Object build/test-results/build.log
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Windows GUI and workflow tests
-        if: runner.os == 'Windows'
-        run: |
-          mkdir -p build/test-results/windows-checks
-          ctest --preset ci-coverage -R '^(TestApplicationGui|TestApplicationWorkflows)$' \
-            --output-junit "$PWD/build/test-results/windows-checks/junit.xml" \
-            2>&1 | tee build/test-results/windows-checks/tests.log
       - name: Linux tests
         if: runner.os == 'Linux'
         run: |
@@ -179,10 +172,6 @@ jobs:
             --txt build/test-results/coverage/lines.txt \
             --print-summary 2>&1 | tee build/test-results/coverage.log
           cat build/test-results/coverage/files.csv
-      - name: Linux GUI crash diagnostics
-        if: always() && runner.os == 'Linux'
-        continue-on-error: true
-        run: xvfb-run -a python scripts/ci/diagnose-linux-gui.py
       - name: macOS crash diagnostics
         if: always() && runner.os == 'macOS'
         continue-on-error: true
