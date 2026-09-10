@@ -81,6 +81,7 @@ void ApplicationWorkflowTests::customExportPresetPersistsAndProducesIntegerWave(
     updated.setFormatOption(2);
     updated.setFormatMono(true);
     updated.setFormatSampleRate(44100);
+    QCOMPARE(draft.fileName(), QStringLiteral("draft.wav"));
     AudioExporter::addPreset(name, updated);
     QCOMPARE(AudioExporter::presets().count(name), 1);
     QCOMPARE(Automation::toAutomationDto(AudioExporter::preset(name)),

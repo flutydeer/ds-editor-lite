@@ -36,6 +36,8 @@ namespace Audio {
     class AudioExporterConfig {
     public:
         AudioExporterConfig();
+        AudioExporterConfig(const AudioExporterConfig &) noexcept;
+        AudioExporterConfig &operator=(const AudioExporterConfig &) noexcept;
         ~AudioExporterConfig();
 
         QString fileName() const;
