@@ -3,7 +3,6 @@
 #include "RuntimeResourcesFixture.h"
 
 #include "AppContext.h"
-#include "Bootstrap/AppEnvironment.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Audio/AudioSystem.h"
 #include "Modules/Audio/subsystem/OutputSystem.h"
@@ -47,7 +46,6 @@ public:
             error = QStringLiteral("Application resources are unavailable");
             return false;
         }
-        AppEnvironment::postInit(AppHostMode::Gui);
         QApplication::setQuitOnLastWindowClosed(false);
         auto options = std::make_unique<AppOptions>();
         options->general()->packageSearchPaths = packageSearchPaths;

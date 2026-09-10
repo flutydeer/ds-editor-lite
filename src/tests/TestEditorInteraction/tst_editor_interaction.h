@@ -7,6 +7,7 @@ class EditorInteractionTests final : public QObject {
     Q_OBJECT
 
 private slots:
+    void initTestCase();
     void noView();
     void commandCapabilities();
     void modeAwareCommandRouting();

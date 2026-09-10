@@ -7,8 +7,11 @@
 #include "Controller/TrackController.h"
 #include "Global/TracksEditorGlobal.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "UI/Views/TrackEditor/TracksRhiWidget.h"
+#include "UI/Views/TrackEditor/TrackEditorView.h"
+#include "UI/Views/TrackEditor/TrackListView.h"
 
 #include <lite/History/ActionSequence.h>
 #include <lite/History/HistoryManager.h>
@@ -16,11 +19,23 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/Tasking/TaskManager.h>
 
 #include <QMouseEvent>
+#include <QClipboard>
+#include <QContextMenuEvent>
+#include <QDragEnterEvent>
+#include <QDragLeaveEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
+#include <QMenu>
+#include <QMimeData>
+#include <QPointer>
 #include <QScopeGuard>
 #include <QSignalSpy>
+#include <QTimer>
+#include <QWindow>
 #include <QtTest/QTest>
 
 #include <cmath>
@@ -29,18 +44,19 @@
 namespace {
     struct TrackFixture {
         GuiAppFixture application;
-        std::unique_ptr<TracksRhiWidget> canvas;
+        std::unique_ptr<QWidget> host;
+        QPointer<TracksRhiWidget> canvas;
         int clipId = -1;
         int firstTrackId = -1;
         int secondTrackId = -1;
 
         ~TrackFixture() {
             if (canvas) {
-                QTest::keyClick(canvas.get(), Qt::Key_Escape);
-                QTest::mouseRelease(canvas.get(), Qt::LeftButton, Qt::NoModifier,
+                QTest::keyClick(canvas.data(), Qt::Key_Escape);
+                QTest::mouseRelease(canvas.data(), Qt::LeftButton, Qt::NoModifier,
                                     canvas->rect().center());
             }
-            canvas.reset();
+            host.reset();
             if (application.context) {
                 clipController->setClip(nullptr);
                 trackController->setParentWidget(nullptr);
@@ -56,9 +72,23 @@ namespace {
                     .source = Automation::InvocationSource::Test};
         }
 
-        bool initialize(const QString &audioPath = {}) {
+        bool initialize(const QString &audioPath = {}, bool withEditor = false) {
             if (!application.initialize())
                 return false;
+            if (withEditor) {
+                appOptions->developer()->editorRenderBackend =
+                    DeveloperOption::EditorRenderBackend::RhiExperimental;
+                host = std::make_unique<TrackEditorView>();
+                canvas = host->findChild<TracksRhiWidget *>();
+            } else {
+                canvas = new TracksRhiWidget;
+                host.reset(canvas.data());
+            }
+            if (!canvas) {
+                application.error = QStringLiteral("The RHI track canvas was not created");
+                return false;
+            }
+            canvas->setApi(QRhiWidget::Api::Null);
             auto document = Automation::DocumentAutomationFacade::newDocumentDraft(false);
             Automation::ClipDraftDto clip;
             clip.properties.name = QStringLiteral("Movable phrase");
@@ -66,8 +96,16 @@ namespace {
             clip.properties.length = 1920;
             clip.properties.clipLen = 960;
             clip.defaultLanguage = QStringLiteral("eng");
+            Automation::NoteDraftDto note;
+            note.localStart = 120;
+            note.length = 480;
+            note.keyIndex = 60;
+            note.lyric = QStringLiteral("la");
+            note.language = QStringLiteral("eng");
+            clip.notes = {note};
             if (!audioPath.isEmpty()) {
                 clip.type = Automation::ClipDraftDto::Type::Audio;
+                clip.notes.clear();
                 clip.audioPath = audioPath;
                 clip.properties.trimStartMs = 0;
                 clip.properties.playLengthMs = 1000;
@@ -88,11 +126,9 @@ namespace {
             firstTrackId = tracks[0]->id();
             secondTrackId = tracks[1]->id();
             clipId = (*tracks[0]->clips().begin())->id();
-            canvas = std::make_unique<TracksRhiWidget>();
-            canvas->setApi(QRhiWidget::Api::Null);
-            canvas->resize(1000, 400);
-            canvas->show();
-            canvas->activateWindow();
+            host->resize(withEditor ? QSize(1200, 500) : QSize(1000, 400));
+            host->show();
+            host->activateWindow();
             canvas->setFocus();
             canvas->setViewScale(2.0, 1.0);
             canvas->centerAt(1920, 0.5);
@@ -240,6 +276,195 @@ void NativeDesktopTests::rhiClipResizeCommitsOrCancels() {
     QCOMPARE(fixture.clip()->clipStart(), 0);
     QCOMPARE(fixture.clip()->clipLen(), 960);
     QVERIFY(!editSessionManager->hasActiveTransaction());
+    QVERIFY(failed.isEmpty());
+}
+
+void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    TrackFixture fixture;
+    QVERIFY2(fixture.initialize({}, true), qPrintable(fixture.application.error));
+    auto &canvas = *fixture.canvas;
+    auto clipboard = std::make_unique<QMimeData>();
+    if (const auto *mime = QApplication::clipboard()->mimeData()) {
+        for (const auto &format : mime->formats())
+            clipboard->setData(format, mime->data(format));
+    }
+    const auto previousCursor = QCursor::pos();
+    const auto restore = qScopeGuard([&] {
+        QApplication::clipboard()->setMimeData(clipboard.release());
+        QCursor::setPos(previousCursor);
+    });
+    QSignalSpy frames(&canvas, &QRhiWidget::frameSubmitted);
+    QSignalSpy failed(&canvas, &QRhiWidget::renderFailed);
+    canvas.update();
+    QTRY_VERIFY(!frames.isEmpty());
+    QVERIFY(failed.isEmpty());
+    QTRY_VERIFY(fixture.host->isActiveWindow());
+    const auto before = fixture.runtime().documentVersion();
+    auto *destination = fixture.application.context->m_appModel->tracks().last();
+    TrackEditorMenuContext requested;
+    connect(&canvas, &TracksRhiWidget::contextMenuRequested, &canvas,
+            [&](const TrackEditorMenuContext &context) { requested = context; });
+    const auto menu = [&](QPoint position, const QString &text, bool commit, bool preview) {
+        bool entered = false;
+        QTimer respond;
+        respond.setSingleShot(true);
+        connect(&respond, &QTimer::timeout, &canvas, [&] {
+            auto *popup = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+            QVERIFY(popup);
+            const auto close = qScopeGuard([&] { popup->close(); });
+            entered = true;
+            QAction *action = nullptr;
+            for (auto *candidate : popup->actions()) {
+                if (candidate->text() == text)
+                    action = candidate;
+            }
+            QVERIFY(action && action->isEnabled());
+            const auto target = popup->actionGeometry(action).center();
+            if (preview) {
+                const auto rendered = frames.size();
+                QTest::mouseMove(popup->windowHandle(), target);
+                QTRY_COMPARE(popup->activeAction(), action);
+                QTRY_VERIFY(frames.size() > rendered);
+                QCOMPARE(destination->clips().count(), 0);
+                QCOMPARE(fixture.runtime().documentVersion(), before);
+                QVERIFY(!historyManager->canUndo());
+            }
+            if (commit)
+                QTest::mouseClick(popup, Qt::LeftButton, Qt::NoModifier, target);
+            else
+                QTest::keyClick(popup, Qt::Key_Escape);
+        });
+        const auto global = canvas.mapToGlobal(position);
+        QTest::mouseMove(fixture.host->windowHandle(), fixture.host->mapFromGlobal(global));
+        QContextMenuEvent event(QContextMenuEvent::Mouse, position, global);
+        respond.start(0);
+        QApplication::sendEvent(&canvas, &event);
+        QVERIFY(entered);
+    };
+    menu(fixture.point(960, 0), TrackEditorContextMenuController::tr("&Copy"), true, false);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(requested.target, TrackEditorMenuContext::Target::SingingClip);
+    QCOMPARE(requested.clipId, fixture.clipId);
+    for (bool commit : {false, true}) {
+        menu(fixture.point(2180, 1), TrackEditorContextMenuController::tr("&Paste"), commit, true);
+        if (QTest::currentTestFailed())
+            return;
+        QCOMPARE(requested.target, TrackEditorMenuContext::Target::Background);
+        QCOMPARE(requested.trackIndex, 1);
+        QCOMPARE(destination->clips().count(), commit ? 1 : 0);
+    }
+    auto *pasted = dynamic_cast<SingingClip *>(*destination->clips().begin());
+    QVERIFY(pasted);
+    QCOMPARE(pasted->start(), requested.snappedTick);
+    QCOMPARE(pasted->clipLen(), fixture.clip()->clipLen());
+    QCOMPARE(pasted->notes().count(), 1);
+    QCOMPARE((*pasted->notes().begin())->lyric(), QStringLiteral("la"));
+    const auto pastedId = pasted->id();
+    const auto *pasteUndo = historyManager->nextUndoEntry();
+    QVERIFY(pasteUndo && pasteUndo->focusTransition());
+    canvas.setSceneLength(64000);
+    QVERIFY(canvas.centerAt(40000, 0));
+    const auto focus = pasteUndo->focusTransition()->after;
+    QCOMPARE(canvas.focusVisibility(focus), HistoryFocusVisibility::ScrollRequired);
+    QVERIFY(canvas.revealFocus(focus, false));
+    QCOMPARE(canvas.focusVisibility(focus), HistoryFocusVisibility::Visible);
+    QVERIFY(canvas.centerAt(1920, 0.5));
+    const auto selectFrom = fixture.point(240, 0);
+    const auto selectTo = fixture.point(3300, 1);
+    QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, selectFrom);
+    moveWithButton(canvas, selectTo);
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, selectTo);
+    const auto selection = appStatus->selectedClips.get();
+    QCOMPARE(selection.size(), 2);
+    QVERIFY(selection.contains(fixture.clipId) && selection.contains(pastedId));
+    QCOMPARE(historyManager->nextUndoEntry(), pasteUndo);
+    historyManager->undo();
+    QCOMPARE(destination->clips().count(), 0);
+    QVERIFY(!fixture.application.context->m_appModel->findClipById(pastedId));
+    QVERIFY(!historyManager->canUndo());
+    const auto newPosition = fixture.point(2400, 1);
+    QTest::mouseDClick(&canvas, Qt::LeftButton, Qt::NoModifier, newPosition);
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, newPosition);
+    QCOMPARE(destination->clips().count(), 1);
+    const auto *created = dynamic_cast<SingingClip *>(*destination->clips().begin());
+    QVERIFY(created);
+    QCOMPARE(created->start(), 2400);
+    QCOMPARE(created->notes().count(), 0);
+    historyManager->undo();
+    QCOMPARE(destination->clips().count(), 0);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(failed.isEmpty());
+}
+
+void NativeDesktopTests::rhiTrackFileDropImportsAtTheChosenSlot_data() {
+    QTest::addColumn<bool>("append");
+    QTest::newRow("existing-track") << false;
+    QTest::newRow("append-track") << true;
+}
+
+void NativeDesktopTests::rhiTrackFileDropImportsAtTheChosenSlot() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    QFETCH(bool, append);
+    TrackFixture fixture;
+    QVERIFY2(fixture.initialize({}, true), qPrintable(fixture.application.error));
+    auto &canvas = *fixture.canvas;
+    const auto path = fixture.application.directory.filePath(QStringLiteral("drop.wav"));
+    QVERIFY(TestSupport::writeWave(path, QVector<float>(4800, 0.125f)));
+    QSignalSpy frames(&canvas, &QRhiWidget::frameSubmitted);
+    QSignalSpy failed(&canvas, &QRhiWidget::renderFailed);
+    canvas.update();
+    QTRY_VERIFY(!frames.isEmpty());
+    QTRY_VERIFY(fixture.host->isActiveWindow());
+    auto *list = fixture.host->findChild<TrackListView *>();
+    QVERIFY(list);
+    QCOMPARE(list->trackCount(), 2);
+    auto *model = fixture.application.context->m_appModel;
+    const auto tracksBefore = model->tracks();
+    const auto before = fixture.runtime().documentVersion();
+    const auto position = fixture.point(960, append ? 2 : 1);
+    QVERIFY(canvas.rect().contains(position));
+    QMimeData mime;
+    mime.setUrls({QUrl::fromLocalFile(path)});
+    QDragEnterEvent preview(position, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&canvas, &preview);
+    QVERIFY(preview.isAccepted());
+    const auto previewFrame = frames.size();
+    QTRY_VERIFY(frames.size() > previewFrame);
+    QCOMPARE(model->tracks(), tracksBefore);
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QDragLeaveEvent leave;
+    QApplication::sendEvent(&canvas, &leave);
+    QVERIFY(leave.isAccepted());
+    QVERIFY(!historyManager->canUndo());
+    QDragEnterEvent enter(position, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&canvas, &enter);
+    QVERIFY(enter.isAccepted());
+    QDragMoveEvent move(position, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&canvas, &move);
+    QVERIFY(move.isAccepted());
+    QDropEvent drop(position, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&canvas, &drop);
+    QVERIFY(drop.isAccepted());
+    QTRY_COMPARE(model->tracks().size(), append ? 3 : 2);
+    QTRY_COMPARE(model->tracks().last()->clips().count(), 1);
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    auto *audio = dynamic_cast<AudioClip *>(*model->tracks().last()->clips().begin());
+    QVERIFY(audio);
+    QCOMPARE(audio->audioInfo().frames, 4800);
+    QCOMPARE(audio->start() + audio->clipStart(), 960);
+    QCOMPARE(audio->playLengthMs(), 100.0);
+    QTRY_COMPARE(list->trackCount(), append ? 3 : 2);
+    const auto audioId = audio->id();
+    historyManager->undo();
+    QCOMPARE(model->tracks(), tracksBefore);
+    QCOMPARE(model->tracks().last()->clips().count(), 0);
+    QTRY_COMPARE(list->trackCount(), 2);
+    QVERIFY(!model->findClipById(audioId));
+    QVERIFY(!historyManager->canUndo());
     QVERIFY(failed.isEmpty());
 }
 

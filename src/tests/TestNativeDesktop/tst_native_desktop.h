@@ -7,6 +7,7 @@ class NativeDesktopTests final : public QObject {
     Q_OBJECT
 
 private slots:
+    void initTestCase();
     void visibilityAndCollapsedPane();
     void reparentAndDestructionKeepGripOwnership();
     void dragGrip_data();
@@ -31,6 +32,9 @@ private slots:
     void rhiClipResizeCommitsOrCancels_data();
     void rhiClipResizeCommitsOrCancels();
     void rhiAudioClipTrimAndMovePreserveTimeAnchors();
+    void rhiTrackMenuPasteAndSelectionUseTheFullEditor();
+    void rhiTrackFileDropImportsAtTheChosenSlot_data();
+    void rhiTrackFileDropImportsAtTheChosenSlot();
     void availableAudioDeviceRunsPublicPlayback();
     void audioDriverStartupCanBeCanceled_data();
     void audioDriverStartupCanBeCanceled();
