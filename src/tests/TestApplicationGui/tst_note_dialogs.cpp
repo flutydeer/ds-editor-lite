@@ -133,6 +133,9 @@ void ApplicationGuiTests::phonemeDialogValidatesCommitsAndResetsThroughTheNoteMe
         QVERIFY(selected);
         dialog = qobject_cast<PhonemeEditorDialog *>(QApplication::activeModalWidget());
         QTRY_VERIFY(dialog && dialog->isVisible());
+        dialog->activateWindow();
+        QTRY_VERIFY(dialog->isActiveWindow());
+        QCoreApplication::processEvents();
     };
 
     openEditor();
