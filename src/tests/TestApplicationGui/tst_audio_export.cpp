@@ -2,23 +2,38 @@
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
+#include "Automation/OperationIds.h"
 #include "UI/Dialogs/Audio/AudioExportDialog.h"
+#include "UI/Dialogs/Audio/AudioExportProgressDialog.h"
 
+#include <lite/GUI/Controls/ProgressIndicator.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/ProjectModel/AppModel/AudioClip.h>
+#include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/Tasking/TaskManager.h>
 
 #include <QApplication>
 #include <QClipboard>
+#include <QCheckBox>
 #include <QComboBox>
 #include <QDir>
 #include <QFileInfo>
+#include <QFile>
 #include <QKeySequence>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QPushButton>
+#include <QPointer>
+#include <QScopeGuard>
 #include <QSignalSpy>
+#include <QTimer>
 #include <QtTest/QTest>
+
+#include <sndfile.h>
+
+#include <array>
 
 namespace {
     using Audio::AudioExporter;
@@ -69,6 +84,36 @@ namespace {
             QTest::keyClick(combo, Qt::Key_Down);
         return combo->currentIndex() == index;
     }
+
+    QPushButton *exportButton(QWidget *parent, const QString &text) {
+        for (auto *button : parent->findChildren<QPushButton *>()) {
+            if (button->text() == text)
+                return button;
+        }
+        return nullptr;
+    }
+}
+
+QString ApplicationGuiTests::createWaveFixture(const QString &path) const {
+    SF_INFO info{};
+    info.samplerate = 8000;
+    info.channels = 1;
+    info.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
+#ifdef Q_OS_WIN
+    auto *file = sf_wchar_open(reinterpret_cast<const wchar_t *>(path.utf16()), SFM_WRITE, &info);
+#else
+    auto *file = sf_open(QFile::encodeName(path).constData(), SFM_WRITE, &info);
+#endif
+    if (!file)
+        return QString::fromUtf8(sf_strerror(nullptr));
+    std::array<float, 800> samples{};
+    for (size_t i = 0; i < samples.size(); ++i)
+        samples[i] = i % 16 < 8 ? 0.25f : -0.25f;
+    const auto written = sf_writef_float(file, samples.data(), samples.size());
+    const auto closed = sf_close(file);
+    if (written != sf_count_t(samples.size()) || closed != 0)
+        return QStringLiteral("Cannot write the complete audio fixture: %1").arg(path);
+    return {};
 }
 
 void ApplicationGuiTests::createExportTracks() {
@@ -230,4 +275,139 @@ void ApplicationGuiTests::canceledExportConfigurationDoesNotPersist() {
     QVERIFY(afterSettings && afterSettings.get().audio == settings.get().audio);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(QDir(output.path()).entryList(QDir::AllEntries | QDir::NoDotAndDotDot).isEmpty());
+}
+
+void ApplicationGuiTests::audioExportProgressCompletesAndCloses() {
+    using Audio::Internal::AudioExportProgressDialog;
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto inputPath = directory.filePath(QStringLiteral("input.wav"));
+    const auto error = createWaveFixture(inputPath);
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+    auto &runtime = *context->m_coreRuntime;
+    const auto originalSettings = runtime.settings().getSettings();
+    QVERIFY(originalSettings);
+    const auto releaseAudio = qScopeGuard([&] {
+        runtime.settings().updateAudio({}, originalSettings.get().audio);
+        const auto reset = runtime.documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false));
+        QTest::qVerify(bool(reset), "document reset", "release the temporary audio document",
+                       __FILE__, __LINE__);
+        const auto finished = QTest::qWaitFor([] { return taskManager->tasks().isEmpty(); }, 10000);
+        QTest::qVerify(finished, "audio tasks finished", "release the audio export fixture",
+                       __FILE__, __LINE__);
+        if (QTest::currentTestFailed()) {
+            directory.setAutoRemove(false);
+            qWarning() << "Audio export fixture retained at" << directory.path();
+        }
+    });
+    auto draft = Automation::DocumentAutomationFacade::newDocumentDraft(false);
+    Automation::TrackDraftDto track;
+    track.name = QStringLiteral("Audio export");
+    Automation::ClipDraftDto clip;
+    clip.type = Automation::ClipDraftDto::Type::Audio;
+    clip.properties.name = QStringLiteral("Audio fixture");
+    clip.properties.length = 480;
+    clip.properties.clipLen = 480;
+    clip.audioPath = inputPath;
+    track.clips.append(clip);
+    draft.tracks.append(track);
+    QVERIFY(runtime.documents().commitNewDocument(commandContext(), draft));
+    auto *audio = qobject_cast<AudioClip *>(*appModel->tracks().first()->clips().begin());
+    QVERIFY(audio);
+    QTRY_VERIFY(audio->audioInfo().frames > 0 && !audio->audioInfo().peakCache.isEmpty());
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+
+    AudioExportDialog dialog;
+    ExportControls controls(dialog);
+    QVERIFY(controls.valid());
+    auto *start = exportButton(&dialog, AudioExportDialog::tr("Export"));
+    QVERIFY(start);
+    QCheckBox *keepOpen = nullptr;
+    for (auto *checkbox : dialog.findChildren<QCheckBox *>()) {
+        if (checkbox->text() ==
+            AudioExportDialog::tr("&Keep this dialog open after successful export"))
+            keepOpen = checkbox;
+    }
+    QVERIFY(keepOpen);
+    QVERIFY(!keepOpen->isChecked());
+    QSignalSpy succeeded(&dialog, &AudioExportDialog::exportFinished);
+    QSignalSpy failed(&dialog, &AudioExportDialog::exportFailed);
+    QSignalSpy dismissed(&dialog, &AudioExportDialog::exportDismissed);
+    QSignalSpy accepted(&dialog, &QDialog::accepted);
+    dialog.show();
+    dialog.activateWindow();
+    QTRY_VERIFY(dialog.isActiveWindow());
+    QVERIFY(chooseOption(controls.fileType, AudioExporterConfig::FT_Wav));
+    QVERIFY(chooseOption(controls.mixing, AudioExporterConfig::MO_Mixed));
+    QVERIFY(chooseOption(controls.source, AudioExporterConfig::SO_All));
+    pasteText(controls.directory, directory.path());
+    pasteText(controls.fileName, QStringLiteral("exported.wav"));
+    QVERIFY(!controls.exporter->warning());
+
+    QPointer<AudioExportProgressDialog> progress;
+    const auto releaseProgress = qScopeGuard([&] {
+        if (progress)
+            delete progress.data();
+    });
+    QTimer deadline;
+    deadline.setSingleShot(true);
+    bool timedOut = false;
+    connect(&deadline, &QTimer::timeout, &dialog, [&] {
+        timedOut = true;
+        controls.exporter->cancel();
+    });
+    QTest::mouseClick(start, Qt::LeftButton);
+    for (auto *window : QApplication::topLevelWidgets()) {
+        if (auto *candidate = qobject_cast<AudioExportProgressDialog *>(window))
+            progress = candidate;
+    }
+    QVERIFY(progress);
+    QVERIFY(progress->isVisible());
+    deadline.start(15000);
+    QTRY_VERIFY_WITH_TIMEOUT(!progress || progress->isTerminal() || timedOut, 15000);
+    deadline.stop();
+    QVERIFY2(!timedOut, "The audio export did not reach a terminal state");
+    QVERIFY(progress);
+    QVERIFY2(failed.isEmpty(), qPrintable(controls.exporter->errorString()));
+    QCOMPARE(succeeded.size(), 1);
+    QVERIFY(!dialog.isVisible());
+    QVERIFY(progress->isVisible());
+    QVERIFY(!progress->isModal());
+    QCOMPARE(progress->windowTitle(), AudioExportProgressDialog::tr("Export finished"));
+    auto *indicator = progress->findChild<ProgressIndicator *>();
+    QVERIFY(indicator);
+    QCOMPARE(indicator->value(), 100.0);
+    auto *close = exportButton(progress, AudioExportProgressDialog::tr("Close"));
+    auto *cancel = exportButton(progress, AudioExportProgressDialog::tr("Cancel"));
+    QVERIFY(close && close->isVisible() && close->isEnabled());
+    QVERIFY(cancel && !cancel->isVisible() && !cancel->isEnabled());
+    const auto outputPath = directory.filePath(QStringLiteral("exported.wav"));
+    QVERIFY(QFileInfo(outputPath).isFile());
+    QVERIFY(QFileInfo(outputPath).size() > 44);
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    const auto tasks = runtime.tasks().listTasks(before.documentId);
+    QVERIFY(tasks);
+    bool exportWasCleaned = false;
+    for (const auto &task : tasks.get()) {
+        if (task.operationId != Automation::OperationIds::exports::audio::start)
+            continue;
+        QCOMPARE(task.state, Automation::AutomationTaskState::Succeeded);
+        auto query = commandContext();
+        query.validateOnly = true;
+        const auto cleanup = runtime.audioExports().cleanup(query, task.taskId);
+        QVERIFY(cleanup);
+        QVERIFY(!cleanup.get().changed);
+        exportWasCleaned = true;
+    }
+    QVERIFY(exportWasCleaned);
+    QTest::mouseClick(close, Qt::LeftButton);
+    QCOMPARE(dismissed.size(), 1);
+    QCOMPARE(accepted.size(), 1);
+    QTRY_VERIFY(progress.isNull());
+    QVERIFY(!dialog.isVisible());
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
 }

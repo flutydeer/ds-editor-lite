@@ -23,7 +23,6 @@
 #include <QDialogButtonBox>
 #include <QDir>
 #include <QElapsedTimer>
-#include <QFile>
 #include <QFileDialog>
 #include <QLabel>
 #include <QLineEdit>
@@ -32,10 +31,6 @@
 #include <QTimer>
 #include <QTreeWidget>
 #include <QtTest/QTest>
-
-#include <sndfile.h>
-
-#include <array>
 
 namespace {
     void enterResourceText(QLineEdit *editor, const QString &text) {
@@ -135,24 +130,8 @@ void ApplicationGuiTests::missingAudioResourceRelinkCanBeCanceledAndCommitted() 
     QVERIFY(directory.isValid());
     const auto missingPath = directory.filePath(QStringLiteral("gone/original.wav"));
     const auto replacementPath = directory.filePath(QStringLiteral("replacement.wav"));
-    SF_INFO info{};
-    info.samplerate = 8000;
-    info.channels = 1;
-    info.format = SF_FORMAT_WAV | SF_FORMAT_PCM_16;
-#ifdef Q_OS_WIN
-    auto *file =
-        sf_wchar_open(reinterpret_cast<const wchar_t *>(replacementPath.utf16()), SFM_WRITE, &info);
-#else
-    auto *file = sf_open(QFile::encodeName(replacementPath).constData(), SFM_WRITE, &info);
-#endif
-    QVERIFY2(file, sf_strerror(nullptr));
-    std::array<float, 800> samples{};
-    for (size_t i = 0; i < samples.size(); ++i)
-        samples[i] = i % 16 < 8 ? 0.25f : -0.25f;
-    const auto written = sf_writef_float(file, samples.data(), samples.size());
-    const auto closed = sf_close(file);
-    QCOMPARE(written, sf_count_t(samples.size()));
-    QCOMPARE(closed, 0);
+    const auto error = createWaveFixture(replacementPath);
+    QVERIFY2(error.isEmpty(), qPrintable(error));
 
     auto &runtime = *context->m_coreRuntime;
     const auto releaseAudio = qScopeGuard([&] {
@@ -276,9 +255,9 @@ void ApplicationGuiTests::missingAudioResourceRelinkCanBeCanceledAndCommitted() 
     if (QTest::currentTestFailed())
         return;
     QCOMPARE(QDir::cleanPath(audio->path()), QDir::cleanPath(replacementPath));
-    QTRY_COMPARE(audio->audioInfo().frames, static_cast<long long>(samples.size()));
-    QCOMPARE(audio->audioInfo().sampleRate, info.samplerate);
-    QCOMPARE(audio->audioInfo().channels, info.channels);
+    QTRY_COMPARE(audio->audioInfo().frames, 800);
+    QCOMPARE(audio->audioInfo().sampleRate, 8000);
+    QCOMPARE(audio->audioInfo().channels, 1);
     QVERIFY(!audio->audioInfo().peakCache.isEmpty());
     QCOMPARE(audio->pathStatus(), AudioClip::PathStatus::Normal);
     QCOMPARE(QDir::cleanPath(row->text(2)), QDir::cleanPath(replacementPath));
@@ -297,6 +276,6 @@ void ApplicationGuiTests::missingAudioResourceRelinkCanBeCanceledAndCommitted() 
     QVERIFY(!historyManager->canUndo());
     historyManager->redo();
     QTRY_COMPARE(audio->pathStatus(), AudioClip::PathStatus::Normal);
-    QTRY_COMPARE(audio->audioInfo().frames, static_cast<long long>(samples.size()));
+    QTRY_COMPARE(audio->audioInfo().frames, 800);
     QCOMPARE(QDir::cleanPath(audio->path()), QDir::cleanPath(replacementPath));
 }

@@ -42,6 +42,7 @@ private slots:
     void exportFormatUpdatesFileNamePreview();
     void exportSourcesAndMixingUpdateFilePlan();
     void canceledExportConfigurationDoesNotPersist();
+    void audioExportProgressCompletesAndCloses();
     void appearanceInputsPersistAcrossReopening();
     void automationAccessInputsPersistAndRejectMissingFolders();
     void inferenceInputsPersistAcrossReopening();
@@ -67,6 +68,7 @@ private slots:
 private:
     void createPianoRoll();
     void createExportTracks();
+    QString createWaveFixture(const QString &path) const;
     void createLyricSelection();
     int insertSelectedNote();
     Automation::CommandContext commandContext() const;
