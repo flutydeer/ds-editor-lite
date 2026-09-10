@@ -9,6 +9,8 @@
 #include <lite/ProjectModel/AppModel/ParamProperties.h>
 #include <lite/ProjectModel/Voice/SingerInfo.h>
 #include <lite/ProjectModel/Voice/SpeakerInfo.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/Track.h>
 
 #include <QCoreApplication>
 #include <QtTest>
@@ -2295,6 +2297,158 @@ void ProjectEditingTests::speakerMixEditing() {
         QVERIFY2((noOp && !noOp.get().changed),
                  qPrintable(QStringLiteral("already inherited context must be a no-op")));
     };
+}
+
+void ProjectEditingTests::clearingTrackVoicePreservesIndependentClips() {
+    TestRuntime fixture;
+    auto &runtime = fixture.runtime();
+    auto &parameters = runtime.parameters();
+    const auto trackId = insertedTrack(runtime, QStringLiteral("Voices"));
+    const auto followingId = insertedSingingClip(runtime, trackId, QStringLiteral("Following"));
+    const auto independentId = insertedSingingClip(runtime, trackId, QStringLiteral("Independent"));
+    const auto first = speaker(QStringLiteral("clear"));
+    const auto second = speaker(QStringLiteral("soft"));
+    const auto voice = singer(QStringLiteral("voice"), {first, second});
+    QVERIFY(parameters.selectTrackSingleSpeaker(commandContext(runtime), trackId, voice, first));
+    QVERIFY(
+        parameters.selectClipSingleSpeaker(commandContext(runtime), independentId, voice, second));
+    auto *track = fixture.model().tracks().first();
+    auto *following = static_cast<SingingClip *>(fixture.model().findClipById(followingId.value()));
+    auto *independent =
+        static_cast<SingingClip *>(fixture.model().findClipById(independentId.value()));
+    QVERIFY(following && independent);
+    const auto independentVoice = independent->effectiveVoiceContext();
+    const EffectiveVoiceContext emptyInherited{.followsTrack = true};
+    const auto original = fixture.model().serialize();
+    fixture.history()->reset();
+    const auto before = runtime.documentVersion();
+
+    const auto preview = parameters.clearTrackVoice(commandContext(runtime, true), trackId);
+    QVERIFY(preview && preview.get().changed);
+    QCOMPARE(fixture.model().serialize(), original);
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(!fixture.history()->canUndo());
+    const auto cleared = parameters.clearTrackVoice(commandContext(runtime), trackId);
+    QVERIFY(cleared && cleared.get().changed);
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    QCOMPARE(track->voiceContext(), EffectiveVoiceContext{});
+    QCOMPARE(following->effectiveVoiceContext(), emptyInherited);
+    QVERIFY(following->usesTrackVoiceContext());
+    QCOMPARE(independent->effectiveVoiceContext(), independentVoice);
+    QVERIFY(!independent->usesTrackVoiceContext());
+    const auto clearedVersion = runtime.documentVersion();
+    const auto repeated = parameters.clearTrackVoice(commandContext(runtime), trackId);
+    QVERIFY(repeated && !repeated.get().changed);
+    QCOMPARE(runtime.documentVersion(), clearedVersion);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(fixture.model().serialize(), original);
+    QCOMPARE(following->speakerInfo(), first);
+    QCOMPARE(independent->effectiveVoiceContext(), independentVoice);
+    QVERIFY(!fixture.history()->canUndo());
+    QVERIFY(runtime.history().redo(commandContext(runtime)));
+    QCOMPARE(following->effectiveVoiceContext(), emptyInherited);
+    QCOMPARE(independent->effectiveVoiceContext(), independentVoice);
+}
+
+void ProjectEditingTests::clearingClipVoiceStopsInheritanceUntilRestored() {
+    TestRuntime fixture;
+    auto &runtime = fixture.runtime();
+    auto &parameters = runtime.parameters();
+    const auto trackId = insertedTrack(runtime, QStringLiteral("Voices"));
+    const auto clipId = insertedSingingClip(runtime, trackId, QStringLiteral("Silent clip"));
+    const auto siblingId = insertedSingingClip(runtime, trackId, QStringLiteral("Following"));
+    const auto first = speaker(QStringLiteral("clear"));
+    const auto second = speaker(QStringLiteral("soft"));
+    const auto voice = singer(QStringLiteral("voice"), {first, second});
+    QVERIFY(parameters.selectTrackSingleSpeaker(commandContext(runtime), trackId, voice, first));
+    auto *clip = static_cast<SingingClip *>(fixture.model().findClipById(clipId.value()));
+    auto *sibling = static_cast<SingingClip *>(fixture.model().findClipById(siblingId.value()));
+    QVERIFY(clip && sibling);
+    fixture.history()->reset();
+    const auto original = fixture.model().serialize();
+    const auto before = runtime.documentVersion();
+    const auto preview = parameters.clearClipVoice(commandContext(runtime, true), clipId);
+    QVERIFY(preview && preview.get().changed);
+    QCOMPARE(fixture.model().serialize(), original);
+    QCOMPARE(runtime.documentVersion(), before);
+    const auto cleared = parameters.clearClipVoice(commandContext(runtime), clipId);
+    QVERIFY(cleared && cleared.get().changed);
+    QVERIFY(!clip->usesTrackVoiceContext());
+    QCOMPARE(clip->effectiveVoiceContext(), EffectiveVoiceContext{});
+    QCOMPARE(sibling->speakerInfo(), first);
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    const auto repeated = parameters.clearClipVoice(commandContext(runtime), clipId);
+    QVERIFY(repeated && !repeated.get().changed);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(fixture.model().serialize(), original);
+    QVERIFY(clip->usesTrackVoiceContext());
+    QCOMPARE(clip->speakerInfo(), first);
+    QVERIFY(!fixture.history()->canUndo());
+    QVERIFY(runtime.history().redo(commandContext(runtime)));
+    QVERIFY(parameters.selectTrackSingleSpeaker(commandContext(runtime), trackId, voice, second));
+    QCOMPARE(sibling->speakerInfo(), second);
+    QCOMPARE(clip->effectiveVoiceContext(), EffectiveVoiceContext{});
+    const auto restored = parameters.useTrackVoiceContext(commandContext(runtime), clipId);
+    QVERIFY(restored && restored.get().changed);
+    QCOMPARE(clip->speakerInfo(), second);
+    QVERIFY(clip->usesTrackVoiceContext());
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QVERIFY(!clip->usesTrackVoiceContext());
+    QCOMPARE(clip->effectiveVoiceContext(), EffectiveVoiceContext{});
+    QCOMPARE(sibling->speakerInfo(), second);
+}
+
+void ProjectEditingTests::pronunciationSourcesAndResetPreserveAutomaticWords() {
+    NoteFixture fixture;
+    auto &runtime = fixture.testRuntime.runtime();
+    auto &notes = runtime.notes();
+    const auto original = fixture.testRuntime.model().serialize();
+    const auto before = runtime.documentVersion();
+    const auto automatic = notes.setPronunciation(commandContext(runtime, true), fixture.clipId,
+                                                  fixture.firstNoteId, true, "auto-la");
+    QVERIFY(automatic && automatic.get().changed);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(fixture.testRuntime.model().serialize(), original);
+    QVERIFY(notes.setPronunciation(commandContext(runtime), fixture.clipId, fixture.firstNoteId,
+                                   true, "auto-la"));
+    auto current = noteSnapshot(runtime, fixture.clipId, fixture.firstNoteId);
+    QVERIFY(current);
+    QCOMPARE(current->data.pronunciation.original, QStringLiteral("auto-la"));
+    QCOMPARE(current->data.pronunciation.edited, QStringLiteral("custom-la"));
+    QCOMPARE(current->data.lyric, QStringLiteral("la"));
+    const auto automaticVersion = runtime.documentVersion();
+    const auto repeated = notes.setPronunciation(commandContext(runtime), fixture.clipId,
+                                                 fixture.firstNoteId, true, "auto-la");
+    QVERIFY(repeated && !repeated.get().changed);
+    QCOMPARE(runtime.documentVersion(), automaticVersion);
+    QVERIFY(notes.setPronunciation(commandContext(runtime), fixture.clipId, fixture.firstNoteId,
+                                   false, "manual-la"));
+    current = noteSnapshot(runtime, fixture.clipId, fixture.firstNoteId);
+    QVERIFY(current);
+    QCOMPARE(current->data.pronunciation.original, QStringLiteral("auto-la"));
+    QCOMPARE(current->data.pronunciation.edited, QStringLiteral("manual-la"));
+    QVERIFY(notes.resetPronunciation(commandContext(runtime), fixture.clipId, fixture.firstNoteId));
+    current = noteSnapshot(runtime, fixture.clipId, fixture.firstNoteId);
+    QVERIFY(current);
+    QCOMPARE(current->data.pronunciation.original, QStringLiteral("auto-la"));
+    QVERIFY(current->data.pronunciation.edited.isEmpty());
+    const auto resetVersion = runtime.documentVersion();
+    const auto resetAgain =
+        notes.resetPronunciation(commandContext(runtime), fixture.clipId, fixture.firstNoteId);
+    QVERIFY(resetAgain && !resetAgain.get().changed);
+    QCOMPARE(runtime.documentVersion(), resetVersion);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    current = noteSnapshot(runtime, fixture.clipId, fixture.firstNoteId);
+    QVERIFY(current);
+    QCOMPARE(current->data.pronunciation.edited, QStringLiteral("manual-la"));
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    current = noteSnapshot(runtime, fixture.clipId, fixture.firstNoteId);
+    QVERIFY(current);
+    QCOMPARE(current->data.pronunciation.edited, QStringLiteral("custom-la"));
+    QCOMPARE(current->data.pronunciation.original, QStringLiteral("auto-la"));
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(fixture.testRuntime.model().serialize(), original);
+    QVERIFY(!fixture.testRuntime.history()->canUndo());
 }
 
 void ProjectEditingTests::timelineAndHistoryDomain() {

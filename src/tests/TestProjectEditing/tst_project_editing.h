@@ -34,6 +34,9 @@ private slots:
     void drawAndErasePreserveOtherParameterCurves();
     void nonAdjacentAnchorMergePreservesDocument();
     void speakerMixEditing();
+    void clearingTrackVoicePreservesIndependentClips();
+    void clearingClipVoiceStopsInheritanceUntilRestored();
+    void pronunciationSourcesAndResetPreserveAutomaticWords();
     void timelineAndHistoryDomain();
     void quantizeInChild();
     void wholeClipParameterRoundTrip_data();
