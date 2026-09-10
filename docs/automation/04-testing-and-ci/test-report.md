@@ -2,7 +2,7 @@
 
 ## 1. 验收结论与证据
 
-本期验收范围包括六类测试、Linux/Windows/macOS 完整产品构建、普通与原生 GUI 场景，以及默认内置声库的实际推理和导出。CI 的覆盖率验收仅为 Linux 独立 Coverage 步骤；Windows/macOS 使用普通 Debug 构建执行全部适用测试，不要求原生或 LLVM 采集。建设中已取得的三平台测试及专项覆盖证据继续保留；Windows 本地另曾以实际 Qixuan 声库完成 CPU 手动推理、声码器与 WAV 导出。扩展后的测试集合及最终 CI 方式仍须取得对应完整执行结果，不沿用较早结果作为其通过依据。
+本期扩展后的六类测试已完成三平台 CI 验收：Linux、Windows、macOS 均完整构建 Editor、Connector 和测试，并通过全部适用测试，包括普通与原生 GUI 场景、内置声库的实际推理和导出。Linux 独立 Coverage 步骤正常生成覆盖率报告；Windows/macOS 使用普通 Debug 构建，不要求原生或 LLVM 采集。建设中取得的专项覆盖证据继续保留；Windows 本地另曾以实际 Qixuan 声库完成 CPU 手动推理、声码器与 WAV 导出。最终集合的完整运行结果与此前阶段证据分别保留，不将历史部分结果拼接为最终通过结论。
 
 本报告保留本期验收结论、实质问题及验证边界，适用至本期发布。具体受测版本、环境版本、用例数量、耗时、逐例结果和原始日志以 [PR #187](https://github.com/flutydeer/ds-editor-lite/pull/187) 关联的 [Actions](https://github.com/flutydeer/ds-editor-lite/actions/workflows/tests.yml) 及产物为准，不在文档维护逐提交状态。执行入口见[测试计划](test-plan.md)，功能与测试对应关系见[覆盖矩阵](test-coverage-matrix.md)。
 
@@ -91,7 +91,7 @@ ZIP 纳入 CMake 的重新配置依赖，复用构建目录时更新资源会触
 
 `DSEL_TEST_VOICEBANK_ROOT` 可显式覆盖为本机真实声库，同时提供歌手、语言和歌词。配置失效时直接失败，不回退默认包。Windows 已有 Qixuan 真实模型执行证据：关闭自动推理后经 Native 手动请求、CPU 声码器及 WAV 导出，并以 libsndfile 检查采样率、声道、有限非零 PCM 和正常退出。真实模型及其本机路径不提交仓库。内置模型与真实模型的结果分别记录；CPU 成功不能替代 GPU、设备播放或主观听感，GAME/RMVPE 不在本期扩展范围。
 
-本地既有整套验证与后续扩展分别记账。Visual Studio 2026 自动更新期间未完成的产品构建不记为通过；Talcs 的独立修前/修后验证使用完整的 Visual Studio 2022 安装和隔离依赖构建，不替代 Editor、Connector 及全套测试的标准构建验证。
+本地既有整套验证与后续扩展分别记账。本轮扩展后的完整产品与测试集合未在本机重新构建和执行，原因是 Visual Studio 2026 自动更新尚未完成；当前 Windows 平台的完整验证来自 CI。Talcs 的独立修前/修后验证使用完整的 Visual Studio 2022 安装和隔离依赖构建，不替代 Editor、Connector 及全套测试的标准本地构建验证。
 
 建设中的 Windows 专项采样显示，前置静态插桩耗时显著高于测试运行，也存在插桩正常完成后测试自身失败的情况。原日志及结果继续有效，分析时分别核对插桩完成、CTest 退出及报告生成。最终 Windows/macOS CI 采用普通 Debug 全量测试；原生和 LLVM 采集器保留为按需本地工具。单个测试及任务超时不因采集耗时放宽，CI 最终结果按三平台全部适用测试及 Linux Coverage 步骤验收。
 
