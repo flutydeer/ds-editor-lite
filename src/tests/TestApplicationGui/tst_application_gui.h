@@ -73,6 +73,8 @@ private slots:
     void detachedBottomPanelReattachesWithItsEditingContext();
     void embeddedSettingsSuspendAndRestoreBackgroundInteraction();
     void logWindowFiltersLiveMessagesAndCopiesDisplayedOrder();
+    void newDocumentHonorsTheSaveDecision_data();
+    void newDocumentHonorsTheSaveDecision();
     void cleanup();
     void cleanupTestCase();
 
