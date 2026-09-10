@@ -163,7 +163,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 音符两侧裁边与取消 | gui | 在既有右侧拉伸用例增加左侧拉伸和 Escape 取消，预览期间模型不变，提交后的时间/长度与视图一致且一次撤销恢复 | ApplicationGui::resizingANotePreviewsAndCommitsItsBoundary | offscreen；无需声库或设备 |
 | 声音导出等待推理时取消 | workflow | 实际声库任务进入导出准备阶段后取消，旧文件不被覆盖且不开始渲染；后台任务排空后再次导出成功，文件可解码、样本有限且非零，无暂存残留 | ApplicationWorkflows::cancelingVoiceExportDuringPreparationAllowsAnotherExport | 默认内置声库；独立缓存；无需音频设备 |
 | 公共曲线替换与音素名称转换 | protocol | 混合绘制/锚点曲线经公开 JSON 输入保存位置、步长、值和插值，连续替换可撤销至原曲线身份；音素名称按音符显式语言或片段继承语言补全，清除失效手工偏移并可撤销恢复 | AutomationProtocol::parameterReplacementDecodesDrawAndAnchorCurves、phonemeNamesUseTheEffectiveLanguageAndResetOffsets | 通用；真实领域实现；无需声库 |
-| 撤销快捷键的轨道定位 | gui | 离屏片段或隐藏轨道面板先显示编辑位置，再按一次才撤销，重做恢复并定位；首轨边框超出场景半像素曾导致定位误报失败，统一按片段主体矩形计算焦点范围 | ApplicationGui::undoShortcutRevealsTheTrackEditBeforeChangingIt | offscreen；完整 MainWindow、真实快捷键及历史 |
+| 撤销快捷键的编辑位置定位 | gui | 离屏片段、隐藏轨道面板及钢琴窗顶端音符先显示编辑位置，再按一次才撤销，重做恢复并定位；首轨和顶端音符的边框超出场景曾导致定位误报失败，统一按编辑对象的主体矩形计算焦点范围 | ApplicationGui::undoShortcutRevealsTheTrackEditBeforeChangingIt、undoShortcutRevealsThePianoEditBeforeChangingIt | offscreen；完整 MainWindow、真实快捷键及历史 |
 | 混合 MIDI/音频的批量导入选项 | gui/workflow | 两个 MIDI 和一个 WAV 经真实画布拖放共用一次编码/时间线决策；取消整批无修改，确认分别验证首个 MIDI 速度优先、保留当前拍号或速度、已有轨道复用、歌词保真、音频时间锚定及整批撤销重做 | ApplicationGui::droppingMidiAndAudioFilesUsesOneBatchDecision | offscreen；小型临时 MIDI/WAV；无需模型或设备 |
 | 参数变换边界与倍率手柄 | gui | 拖动过渡区及核心区边界，保持未提交模型和已有过渡宽度；倍率手柄改变核心值，过渡区平滑衔接且范围外保持，预览图形更新，单次提交可撤销恢复 | ApplicationGui::parameterTransformHandlesControlTheTransitionRange | offscreen；实际参数控件及输入；无需声库 |
 

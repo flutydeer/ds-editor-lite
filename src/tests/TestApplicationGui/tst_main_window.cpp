@@ -473,6 +473,71 @@ void ApplicationGuiTests::undoShortcutRevealsTheTrackEditBeforeChangingIt() {
     QVERIFY(!historyManager->canRedo());
 }
 
+void ApplicationGuiTests::undoShortcutRevealsThePianoEditBeforeChangingIt() {
+    MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    view->hide();
+    auto &runtime = *context->m_coreRuntime;
+    Automation::NoteDraftDto draft;
+    draft.localStart = 480;
+    draft.length = 240;
+    draft.keyIndex = 60;
+    draft.lyric = QStringLiteral("la");
+    const auto clipId = Automation::ClipId(singingClip->id());
+    QVERIFY(runtime.notes().insertNotes(commandContext(), clipId, {draft}));
+    QCOMPARE(singingClip->notes().count(), 1);
+    auto *note = *singingClip->notes().begin();
+    auto &window = *host.window;
+    window.activateWindow();
+    QTRY_VERIFY(window.isActiveWindow());
+    auto *editor = window.findChild<ClipEditorView *>();
+    QVERIFY(editor);
+    editor->onActiveClipChanged(singingClip->id());
+    QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));
+    QTRY_VERIFY(editor->hasActiveSingingClip() && editor->isVisible());
+    QVERIFY(window.setPianoRollScale(1.0, 1.0));
+    QVERIFY(window.centerPianoRollAt(1920, 60));
+    QVERIFY(window.focusEditorRegion(EditorViewGlobal::Region::PianoRoll));
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    historyManager->reset();
+    QVERIFY(runtime.notes().moveNotes(commandContext(), clipId, {Automation::NoteId(note->id())}, 0,
+                                      67));
+    const auto *entry = historyManager->nextUndoEntry();
+    QVERIFY(entry && entry->focusTransition());
+    const auto focus = *entry->focusTransition();
+    QVERIFY(window.centerPianoRollAt(1920, 60));
+    QTRY_COMPARE(window.focusVisibility(focus.after), HistoryFocusVisibility::ScrollRequired);
+    const auto beforeUndo = runtime.documentVersion();
+    QSignalSpy navigation(undoRedoController, &UndoRedoController::focusNavigationRequested);
+    auto *input = QApplication::focusWidget();
+    QVERIFY(input);
+    QTest::keySequence(input, QKeySequence(QStringLiteral("Ctrl+Z")));
+    QCOMPARE(note->keyIndex(), 127);
+    QTRY_COMPARE(navigation.size(), 1);
+    QCOMPARE(runtime.documentVersion(), beforeUndo);
+    QCOMPARE(historyManager->nextUndoEntry(), entry);
+    QTRY_COMPARE(window.focusVisibility(focus.after), HistoryFocusVisibility::Visible);
+    input = QApplication::focusWidget();
+    QVERIFY(input && editor->isAncestorOf(input));
+    QTest::keySequence(input, QKeySequence(QStringLiteral("Ctrl+Z")));
+    QTRY_COMPARE(note->keyIndex(), 60);
+    QCOMPARE(navigation.size(), 1);
+    QVERIFY(!historyManager->canUndo());
+    QTRY_COMPARE(window.focusVisibility(focus.before), HistoryFocusVisibility::Visible);
+    input = QApplication::focusWidget();
+    QVERIFY(input);
+    QTest::keySequence(input, QKeySequence(QStringLiteral("Ctrl+Y")));
+    QTRY_COMPARE(note->keyIndex(), 127);
+    QCOMPARE(navigation.size(), 1);
+    QTRY_COMPARE(window.focusVisibility(focus.after), HistoryFocusVisibility::Visible);
+    QVERIFY(!historyManager->canRedo());
+}
+
 void ApplicationGuiTests::panelButtonsAndClipDoubleClickRestoreTheEditorView() {
     MainWindowFixture host;
     host.show();
