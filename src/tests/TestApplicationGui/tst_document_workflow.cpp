@@ -15,6 +15,8 @@
 #include <QSignalSpy>
 #include <QtTest>
 
+#include <functional>
+
 namespace {
     class SavePrompt final : public IDocumentWorkflowUi {
     public:
@@ -24,6 +26,9 @@ namespace {
 
         SaveDecision askDocumentSaveDecision() override {
             ++decisionCalls;
+            promptsWereBusy &= documentWorkflowController->busy();
+            if (duringPrompt)
+                duringPrompt();
             return decisions.isEmpty() ? SaveDecision::Cancel : decisions.takeFirst();
         }
 
@@ -52,6 +57,8 @@ namespace {
         int decisionCalls = 0;
         int pathCalls = 0;
         int busyCalls = 0;
+        bool promptsWereBusy = true;
+        std::function<void()> duringPrompt;
     };
 }
 
@@ -88,16 +95,16 @@ void ApplicationGuiTests::newDocumentHonorsTheSaveDecision() {
         prompt.savePath = directory.filePath(QStringLiteral("source.dspx"));
     if (choice == QStringLiteral("failed-save"))
         QVERIFY(QDir().mkdir(prompt.savePath));
+    if (choice == QStringLiteral("cancel"))
+        prompt.duringPrompt = [] { documentWorkflowController->requestSaveAs(); };
     documentWorkflowController->setUi(&prompt);
     const auto clearUi = qScopeGuard([] { documentWorkflowController->setUi(nullptr); });
     QSignalSpy busy(documentWorkflowController, &DocumentWorkflowController::busyChanged);
     documentWorkflowController->requestNew();
-    QVERIFY(documentWorkflowController->busy());
-    if (choice == QStringLiteral("cancel")) {
-        documentWorkflowController->requestSaveAs();
-        QCOMPARE(prompt.busyCalls, 1);
-    }
     QTRY_VERIFY(!documentWorkflowController->busy());
+    QVERIFY(prompt.promptsWereBusy);
+    if (choice == QStringLiteral("cancel"))
+        QCOMPARE(prompt.busyCalls, 1);
     QCOMPARE(busy.count(), 2);
     QCOMPARE(busy.first().first().toBool(), true);
     QCOMPARE(busy.last().first().toBool(), false);
