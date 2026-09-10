@@ -32,6 +32,8 @@ private slots:
     void mixedImportSources();
     void resolutionRetryPreservesSource();
     void relocatedDecodeNotification();
+    void decodeCompletionWaitsForTheSaveDecision_data();
+    void decodeCompletionWaitsForTheSaveDecision();
     void decodedWaveformRetainsPeaks_data();
     void decodedWaveformRetainsPeaks();
     void waveformSamplingFollowsZoom_data();

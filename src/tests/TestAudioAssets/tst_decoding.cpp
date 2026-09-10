@@ -3,6 +3,8 @@
 #include "AppContext.h"
 #include "Controller/AudioDecodingController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
+#include "Controller/DocumentWorkflow/IDocumentWorkflowUi.h"
+#include "Controller/Tasks/DecodeAudioTask.h"
 #include "Modules/Audio/AudioContext.h"
 #include "Automation/CoreRuntime.h"
 #include "Bootstrap/AppEnvironment.h"
@@ -10,6 +12,7 @@
 #include "Modules/Audio/AudioSystem.h"
 #include "Modules/Audio/subsystem/OutputSystem.h"
 #include "../TestSupport/RuntimeResourcesFixture.h"
+#include "../TestSupport/WaveFixture.h"
 
 #include <lite/Tasking/TaskManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -23,12 +26,16 @@
 #include <QThread>
 #include <QFile>
 #include <QCryptographicHash>
+#include <QPointer>
+#include <QScopeGuard>
+#include <QSemaphore>
 
 #include <TalcsDevice/AbstractOutputContext.h>
 #include <TalcsDevice/AudioDevice.h>
 #include <TalcsCore/MixerAudioSource.h>
 
 #include <algorithm>
+#include <atomic>
 #include <memory>
 
 namespace {
@@ -141,6 +148,35 @@ namespace {
         QStringList messages;
     };
 
+    class SaveDecisionUi final : public IDocumentWorkflowUi {
+    public:
+        QWidget *documentWorkflowParentWidget() override {
+            return nullptr;
+        }
+
+        SaveDecision askDocumentSaveDecision() override {
+            return decide();
+        }
+
+        QString chooseDocumentSavePath(const QString &) override {
+            return {};
+        }
+
+        bool confirmOpenWithoutPackageMetadata() override {
+            return false;
+        }
+
+        void showDocumentWorkflowError(const ProjectOperationError &error) override {
+            errors.append(error);
+        }
+
+        void showDocumentWorkflowBusy() override {
+            QTest::qFail("Unexpected overlapping document request", __FILE__, __LINE__);
+        }
+
+        std::function<SaveDecision()> decide;
+        QList<ProjectOperationError> errors;
+    };
 }
 
 void AudioAssetsTests::initTestCase() {
@@ -256,6 +292,99 @@ void AudioAssetsTests::resolutionRetryPreservesSource() {
     QVERIFY2((fixture.notifications.isEmpty() &&
               fixture.firstAudioClip()->pathStatus() == AudioClip::PathStatus::Missing),
              "a resolution restarted after a path change must remain non-interactive");
+}
+
+void AudioAssetsTests::decodeCompletionWaitsForTheSaveDecision_data() {
+    QTest::addColumn<bool>("replaceDocument");
+    QTest::newRow("cancel-new-applies-waveform-to-original-document") << false;
+    QTest::newRow("discard-original-drops-completed-waveform") << true;
+}
+
+void AudioAssetsTests::decodeCompletionWaitsForTheSaveDecision() {
+    QFETCH(bool, replaceDocument);
+    Fixture fixture;
+    auto *workflow = DocumentWorkflowController::instance();
+    QVERIFY(fixture.directory.isValid());
+    const auto path = fixture.directory.filePath(QStringLiteral("pending.wav"));
+    QVERIFY(TestSupport::writeWave(path, QVector<float>(4800, 0.25f)));
+    QSemaphore entered;
+    QSemaphore release;
+    std::atomic_bool paused = false;
+    QPointer<DecodeAudioTask> decode;
+    bool completionDelivered = false;
+    TaskId taskId;
+    QObject observations;
+    connect(taskManager, &TaskManager::taskChanged, &observations,
+            [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
+                auto *candidate = dynamic_cast<DecodeAudioTask *>(task);
+                if (change != TaskManager::Added || !candidate || decode)
+                    return;
+                decode = candidate;
+                taskId = candidate->automationTaskId;
+                connect(
+                    candidate, &Task::statusUpdated, &observations,
+                    [&](const TaskStatus &) {
+                        if (!paused.exchange(true)) {
+                            entered.release();
+                            release.acquire();
+                        }
+                    },
+                    Qt::DirectConnection);
+                connect(candidate, &Task::finished, &observations,
+                        [&] { completionDelivered = true; });
+            });
+    const auto releaseOnFailure = qScopeGuard([&] { release.release(); });
+    QVERIFY(fixture.openDocument(missingAudioDocument(path), InvocationSource::InternalAutomation));
+    QTRY_COMPARE_WITH_TIMEOUT(entered.available(), 1, 5000);
+    QVERIFY(decode);
+    const QPointer<AudioClip> audio(fixture.firstAudioClip());
+    QVERIFY(audio);
+    QVERIFY(audio->audioInfo().peakCache.isEmpty());
+    QVERIFY(fixture.runtime().project().renameTrack(fixture.command(InvocationSource::TrustedGui),
+                                                    TrackId(fixture.model().tracks().first()->id()),
+                                                    QStringLiteral("Unsaved edit")));
+    const auto before = fixture.runtime().documentVersion();
+    const auto *historyBefore = fixture.history()->nextUndoEntry();
+    SaveDecisionUi ui;
+    workflow->setUi(&ui);
+    fixture.controller->setGuiServices(workflow);
+    const auto restoreUi = qScopeGuard([&] { workflow->setUi(nullptr); });
+    bool prompted = false;
+    ui.decide = [&] {
+        prompted = true;
+        expect(workflow->busy(), "the save decision must keep the document workflow busy");
+        release.release();
+        const auto completed = QTest::qWaitFor([&] { return completionDelivered; }, 5000);
+        expect(completed, "the audio worker must finish during the save decision");
+        expect(decode && taskManager->tasks().contains(decode),
+               "the completed decode must remain owned until writeback resumes");
+        expect(audio && audio->audioInfo().peakCache.isEmpty(),
+               "the waveform must not be written while the workflow is busy");
+        expect(fixture.runtime().documentVersion() == before &&
+                   fixture.history()->nextUndoEntry() == historyBefore,
+               "deferred completion must preserve the document and user history");
+        return replaceDocument ? SaveDecision::Discard : SaveDecision::Cancel;
+    };
+    workflow->requestNew();
+    QTRY_VERIFY_WITH_TIMEOUT(prompted && !workflow->busy(), 10000);
+    QVERIFY(ui.errors.isEmpty());
+    QVERIFY(drainTasks());
+    QVERIFY(!decode);
+    if (replaceDocument) {
+        QVERIFY(fixture.runtime().documentVersion().documentId != before.documentId);
+        QVERIFY(!audio);
+        QVERIFY(fixture.history()->isOnSavePoint());
+        QVERIFY(!fixture.history()->canUndo());
+    } else {
+        QVERIFY(audio);
+        QCOMPARE(fixture.runtime().documentVersion(), before);
+        QCOMPARE(fixture.history()->nextUndoEntry(), historyBefore);
+        QCOMPARE(audio->audioInfo().frames, 4800);
+        QVERIFY(!audio->audioInfo().peakCache.isEmpty());
+        const auto completed = fixture.runtime().tasks().getTask(before.documentId, taskId);
+        QVERIFY(completed);
+        QCOMPARE(completed.get().state, AutomationTaskState::Succeeded);
+    }
 }
 
 void AudioAssetsTests::relocatedDecodeNotification() {
