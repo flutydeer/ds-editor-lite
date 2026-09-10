@@ -19,10 +19,12 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QContextMenuEvent>
+#include <QCursor>
 #include <QMenu>
 #include <QMimeData>
 #include <QScopeGuard>
 #include <QTimer>
+#include <QWindow>
 #include <QtTest/QTest>
 
 void ApplicationGuiTests::trackContextMenuPastePreviewCancelsAndMatchesCommittedClip() {
@@ -36,6 +38,8 @@ void ApplicationGuiTests::trackContextMenuPastePreviewCancelsAndMatchesCommitted
     }
     const auto restoreClipboard =
         qScopeGuard([&] { QApplication::clipboard()->setMimeData(previousClipboard.release()); });
+    const auto previousCursor = QCursor::pos();
+    const auto restoreCursor = qScopeGuard([&] { QCursor::setPos(previousCursor); });
     TrackEditorView editor;
     const auto clearParent = qScopeGuard([] { trackController->setParentWidget(nullptr); });
     auto *canvas = editor.findChild<TracksGraphicsView *>();
@@ -104,8 +108,10 @@ void ApplicationGuiTests::trackContextMenuPastePreviewCancelsAndMatchesCommitted
             entered = true;
             interact(*menu);
         });
-        QContextMenuEvent event(QContextMenuEvent::Mouse, position,
-                                canvas->viewport()->mapToGlobal(position));
+        const auto globalPosition = canvas->viewport()->mapToGlobal(position);
+        QCursor::setPos(globalPosition);
+        QCoreApplication::processEvents();
+        QContextMenuEvent event(QContextMenuEvent::Mouse, position, globalPosition);
         action.start(0);
         QApplication::sendEvent(canvas->viewport(), &event);
         action.stop();
@@ -151,7 +157,10 @@ void ApplicationGuiTests::trackContextMenuPastePreviewCancelsAndMatchesCommitted
             QVERIFY(paste);
             QVERIFY(paste->isEnabled());
             const auto position = menu.actionGeometry(paste).center();
-            QTest::mouseMove(&menu, position);
+            QVERIFY(menu.windowHandle());
+            // Target the popup directly; offscreen cursor warping can select its owner instead.
+            QTest::mouseMove(menu.windowHandle(), position);
+            QTRY_COMPARE(menu.activeAction(), paste);
             QTRY_COMPARE(previewItems().size(), 1);
             const auto *preview = previewItems().first();
             QCOMPARE(preview->trackIndex(), 1);

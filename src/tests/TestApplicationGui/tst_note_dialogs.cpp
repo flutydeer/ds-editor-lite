@@ -549,9 +549,13 @@ void ApplicationGuiTests::movingLyricsBackwardUsesTheSelectedWordRange() {
             const auto &source = drafts.at(index - 2);
             QCOMPARE(note->lyric(), source.lyric);
             QCOMPARE(note->language(), source.language);
-            QCOMPARE(note->pronunciation().original, source.pronunciation.original);
+            // G2P regenerates the original pronunciation; word edits carry the manual override.
+            QCOMPARE(note->pronunciation().result(), source.pronunciation.result());
             QCOMPARE(note->pronunciation().edited, source.pronunciation.edited);
             QCOMPARE(note->pronCandidates(), source.pronunciationCandidates);
+        } else {
+            QVERIFY(note->pronunciation().edited.isEmpty());
+            QVERIFY(note->pronCandidates().isEmpty());
         }
     }
     QVERIFY(runtime.history().undo(commandContext()));

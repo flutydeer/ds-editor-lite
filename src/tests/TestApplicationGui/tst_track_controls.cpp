@@ -15,12 +15,14 @@
 
 #include <QApplication>
 #include <QContextMenuEvent>
+#include <QCursor>
 #include <QKeySequence>
 #include <QLineEdit>
 #include <QMenu>
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTimer>
+#include <QWindow>
 #include <QtTest/QTest>
 
 void ApplicationGuiTests::trackHeaderInputsCommitAndUndo() {
@@ -98,6 +100,8 @@ void ApplicationGuiTests::trackColorMenuPreviewsAndCommits_data() {
 
 void ApplicationGuiTests::trackColorMenuPreviewsAndCommits() {
     QFETCH(bool, commit);
+    const auto previousCursor = QCursor::pos();
+    const auto restoreCursor = qScopeGuard([&] { QCursor::setPos(previousCursor); });
     auto &runtime = *context->m_coreRuntime;
     QVERIFY(runtime.documents().commitNewDocument(
         commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
@@ -118,6 +122,9 @@ void ApplicationGuiTests::trackColorMenuPreviewsAndCommits() {
     const auto originalColor = track->colorIndex();
     int chosenColor = -1;
     bool previewObserved = false;
+    const auto menuPoint = controls->rect().center();
+    QCursor::setPos(controls->mapToGlobal(menuPoint));
+    QCoreApplication::processEvents();
     QTimer::singleShot(0, &editor, [&] {
         const auto closeMenus = qScopeGuard([&] {
             for (auto *menu : controls->findChildren<QMenu *>())
@@ -137,11 +144,12 @@ void ApplicationGuiTests::trackColorMenuPreviewsAndCommits() {
         QTRY_VERIFY(colors->isVisible());
         auto *swatch = colors->findChild<TrackColorSwatchWidget *>();
         QVERIFY(swatch);
-        QTest::mouseMove(swatch, QPoint(0, 0));
+        QVERIFY(colors->windowHandle());
+        QTest::mouseMove(colors->windowHandle(), swatch->mapTo(colors, QPoint(0, 0)));
         QSignalSpy previews(swatch, &TrackColorSwatchWidget::colorIndexHovered);
         const auto column = originalColor == 1 ? 2 : 1;
         const QPoint point(swatch->width() * (column * 2 + 1) / 8, swatch->height() / 6);
-        QTest::mouseMove(swatch, point);
+        QTest::mouseMove(colors->windowHandle(), swatch->mapTo(colors, point));
         QTRY_VERIFY(!previews.isEmpty());
         chosenColor = previews.last().first().toInt();
         QVERIFY(chosenColor != originalColor);
@@ -156,8 +164,8 @@ void ApplicationGuiTests::trackColorMenuPreviewsAndCommits() {
             QTest::keyClick(menu, Qt::Key_Escape);
         }
     });
-    const auto point = controls->rect().center();
-    QContextMenuEvent menuEvent(QContextMenuEvent::Mouse, point, controls->mapToGlobal(point));
+    QContextMenuEvent menuEvent(QContextMenuEvent::Mouse, menuPoint,
+                                controls->mapToGlobal(menuPoint));
     QApplication::sendEvent(controls, &menuEvent);
     if (QTest::currentTestFailed())
         return;
