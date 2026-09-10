@@ -42,6 +42,7 @@ private slots:
     void audioBatchFailurePolicy();
 
     void audioBatchCancellationReleasesRetry();
+    void publicAudioPathUpdatesPrepareCommitAndUndo();
 
     void clipInferenceResultsRespectEditSession_data();
 

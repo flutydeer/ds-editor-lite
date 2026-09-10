@@ -5,6 +5,7 @@ lite_add_test(${PROJECT_NAME} SOURCES
     tst_audio_import.cpp
     tst_clip_inference.cpp
     tst_export_presets.cpp
+    tst_audio_path_update.cpp
     ../TestSupport/ProcessFixture.cpp)
 target_link_libraries(${PROJECT_NAME} PRIVATE EditorRuntime)
 add_dependencies(${PROJECT_NAME} DsEditorLite)
