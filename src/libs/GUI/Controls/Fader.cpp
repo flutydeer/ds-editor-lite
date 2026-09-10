@@ -45,7 +45,6 @@ public:
 
     QTimer timer;
     bool doubleClickWindow = false;
-    QPoint mouseDownPos;
 
     QColor trackInactiveColor = {22, 22, 22};
     QColor trackActiveColor = {155, 186, 255};
@@ -296,7 +295,6 @@ void Fader::mousePressEvent(QMouseEvent *event) {
         return;
 
     const auto pos = event->pos();
-    d->mouseDownPos = pos;
 
     // Move cursor to the center of thumb
     if (d->mouseOnThumb(pos)) {
@@ -320,13 +318,13 @@ void Fader::mousePressEvent(QMouseEvent *event) {
 
 void Fader::mouseReleaseEvent(QMouseEvent *event) {
     Q_D(Fader);
-    if (event->button() != Qt::LeftButton)
+    if (event->button() != Qt::LeftButton || !d->isSliderDown)
         return;
 
-    d->canMoveThumb = true;
-    const auto currentPos = event->pos();
-    if (currentPos != d->mouseDownPos)
-        d->setDecibelValue(d->decibelSliderValue);
+    d->isSliderDown = false;
+    d->canMoveThumb = false;
+    d->mouseMoveBarrier = false;
+    d->setDecibelValue(d->decibelSliderValue);
 
     QWidget::mouseReleaseEvent(event);
 }

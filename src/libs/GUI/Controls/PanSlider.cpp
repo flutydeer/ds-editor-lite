@@ -34,7 +34,6 @@ public:
 
     QTimer timer;
     bool doubleClickWindow = false;
-    QPoint mouseDownPos;
 
     QColor centerGraduateColor = {22, 22, 22};
     QColor trackActiveColor = {155, 186, 255, 64};
@@ -217,9 +216,6 @@ void PanSlider::mousePressEvent(QMouseEvent *event) {
     if (event->button() != Qt::LeftButton)
         return;
 
-    const auto pos = event->pos();
-    d->mouseDownPos = pos;
-
     // Move cursor to the center of thumb
     d->mouseMoveBarrier = true; // 防止 QCursor::setPos 导致意外移动
     const auto x = d->panToX(d->panValue);
@@ -240,13 +236,13 @@ void PanSlider::mousePressEvent(QMouseEvent *event) {
 
 void PanSlider::mouseReleaseEvent(QMouseEvent *event) {
     Q_D(PanSlider);
-    if (event->button() != Qt::LeftButton)
+    if (event->button() != Qt::LeftButton || !d->isSliderDown)
         return;
 
-    d->canMoveThumb = true;
-    const auto currentPos = event->pos();
-    if (currentPos != d->mouseDownPos)
-        d->setPanValue(d->panSliderValue);
+    d->isSliderDown = false;
+    d->canMoveThumb = false;
+    d->mouseMoveBarrier = false;
+    d->setPanValue(d->panSliderValue);
 
     QWidget::mouseReleaseEvent(event);
 }

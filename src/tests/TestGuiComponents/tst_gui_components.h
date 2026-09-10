@@ -25,6 +25,11 @@ private slots:
     void reachesTarget_data();
     void reachesTarget();
     void replacingTargetChangesDestination();
+    void seekBarTrackingControlsWhenDraggedValuesCommit_data();
+    void seekBarTrackingControlsWhenDraggedValuesCommit();
+    void seekBarKeyboardStepsClampAndDoubleClickResets();
+    void mixerSliderReleaseEndsPreview_data();
+    void mixerSliderReleaseEndsPreview();
 };
 
 #endif
