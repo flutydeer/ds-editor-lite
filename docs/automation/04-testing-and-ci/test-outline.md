@@ -93,7 +93,7 @@
 
 普通组件通过 Qt Test 真实鼠标、键盘和控件事件进入三平台 CI；offscreen 承载填词、导入、设置和编辑视图，EditorInteraction 使用 minimal 支持真实 QDrag，原生窗口布局在 Linux Xvfb、Windows/macOS 桌面执行。主观观感与听感为补充，不建立跨平台像素基线。
 
-默认钢琴窗及轨道编辑器使用 Legacy/QGraphicsView；实验 RHI 后端需在开发者设置中显式启用并重启。`NativeDesktop` 使用真实 `PianoRollRhiWidget`、`TracksRhiWidget` 和 Qt 的 Null 后端，验证音符绘制/移动/裁边、音高锚点插入与取消、片段跨轨拖动及裁边，检查预览、提交/取消、撤销重做、实际命中和帧提交。Null 执行 CPU 渲染准备和命令路径，不验证 GPU shader 的像素结果；不建立设备或截图矩阵。Qt offscreen 不支持 RHI，该用例使用原生窗口环境。
+默认钢琴窗及轨道编辑器使用 Legacy/QGraphicsView；实验 RHI 后端需在开发者设置中显式启用并重启。`NativeDesktop` 使用真实 `PianoRollRhiWidget`、`TracksRhiWidget` 和 Qt 的 Null 后端，验证音符绘制/移动/裁边/分割、连续擦除、内联文字和右键定位，音高绘制/描摹/擦除及锚点插入与取消，以及片段跨轨拖动及裁边，检查预览、提交/取消、撤销重做、实际命中和帧提交。Null 执行 CPU 渲染准备和命令路径，不验证 GPU shader 的像素结果；不建立设备或截图矩阵。Qt offscreen 不支持 RHI，该用例使用原生窗口环境。
 
 ## 8. 资源与平台边界
 

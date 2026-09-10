@@ -22,9 +22,11 @@
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
+#include <lite/ProjectModel/AppModel/DrawCurve.h>
 #include <TalcsDevice/AudioDevice.h>
 
 #include <QApplication>
+#include <QContextMenuEvent>
 #include <QLineEdit>
 #include <QMouseEvent>
 #include <QScopeGuard>
@@ -612,4 +614,223 @@ void NativeDesktopTests::rhiInlineTextEditingNavigatesCancelsAndUndoes() {
         return;
     QCOMPARE(edit->text(), QStringLiteral("la"));
     QTest::keyClick(edit, Qt::Key_Escape);
+}
+
+void NativeDesktopTests::rhiPitchStrokePreviewsCancelAndCommit_data() {
+    QTest::addColumn<EditorViewGlobal::PianoRollEditMode>("mode");
+    QTest::newRow("draw") << EditorViewGlobal::DrawPitch;
+    QTest::newRow("trace-original") << EditorViewGlobal::TracePitch;
+    QTest::newRow("erase") << EditorViewGlobal::ErasePitch;
+}
+
+void NativeDesktopTests::rhiPitchStrokePreviewsCancelAndCommit() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    QFETCH(EditorViewGlobal::PianoRollEditMode, mode);
+    ExistingRhiNoteFixture fixture;
+    fixture.initialize();
+    if (QTest::currentTestFailed())
+        return;
+    auto &canvas = *fixture.canvas;
+    Automation::CurveDraftDto original;
+    original.values = QList<int>(385, 6000);
+    auto edited = original;
+    edited.values.fill(6100);
+    const auto clipId = Automation::ClipId(fixture.clip->id());
+    QVERIFY(fixture.runtime().parameters().replaceParameter(
+        fixture.command(), clipId, ParamInfo::Pitch, Param::Original, {original}));
+    QVERIFY(fixture.runtime().parameters().replaceParameter(
+        fixture.command(), clipId, ParamInfo::Pitch, Param::Edited, {edited}));
+    auto *pitch = fixture.clip->params.getParamByName(ParamInfo::Pitch);
+    QVERIFY(pitch);
+    const auto *originalCurve =
+        dynamic_cast<const DrawCurve *>(pitch->curves(Param::Original).first());
+    const auto *editedCurve = dynamic_cast<const DrawCurve *>(pitch->curves(Param::Edited).first());
+    QVERIFY(originalCurve && editedCurve);
+    const DrawCurve originalBefore(*originalCurve);
+    const DrawCurve editedBefore(*editedCurve);
+    canvas.setEditMode(mode);
+    historyManager->reset();
+    const auto before = fixture.runtime().documentVersion();
+    const auto start = fixture.pointFor(480, 61);
+    const auto finish = fixture.pointFor(960, 63);
+    QVERIFY(canvas.rect().contains(start) && canvas.rect().contains(finish));
+    const auto unchanged = [&] {
+        QCOMPARE(pitch->curves(Param::Edited).size(), 1);
+        const auto *curve = dynamic_cast<const DrawCurve *>(pitch->curves(Param::Edited).first());
+        QVERIFY(curve);
+        QCOMPARE(*curve, editedBefore);
+    };
+    QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, start);
+    const auto previewFrame = fixture.submitted->size();
+    fixture.moveTo(finish);
+    QVERIFY(editSessionManager->hasActiveTransaction());
+    unchanged();
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    fixture.frameAfter(previewFrame);
+    if (QTest::currentTestFailed())
+        return;
+    QTest::keyClick(&canvas, Qt::Key_Escape);
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, finish);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    unchanged();
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+
+    QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, start);
+    fixture.moveTo(finish);
+    const auto committedFrame = fixture.submitted->size();
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, finish);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QCOMPARE(fixture.runtime().documentVersion().revision, before.revision + 1);
+    const auto sampleAt = [&](int tick) -> std::optional<int> {
+        for (const auto *curve : pitch->curves(Param::Edited)) {
+            const auto *draw = dynamic_cast<const DrawCurve *>(curve);
+            if (draw && tick >= draw->localStart() && tick < draw->localEndTick())
+                return draw->values().at((tick - draw->localStart()) / draw->step);
+        }
+        return std::nullopt;
+    };
+    QCOMPARE(sampleAt(200), std::optional<int>(6100));
+    QCOMPARE(sampleAt(1500), std::optional<int>(6100));
+    if (mode == EditorViewGlobal::ErasePitch) {
+        QVERIFY(!sampleAt(720));
+    } else if (mode == EditorViewGlobal::TracePitch) {
+        QCOMPARE(sampleAt(720), std::optional<int>(6000));
+    } else {
+        QVERIFY(sampleAt(720));
+        // Integer mouse positions limit precision to one pixel of the pitch scale.
+        const auto centsPerPixel = 100.0 / (ClipEditorGlobal::noteHeight * canvas.scaleY());
+        QVERIFY(qAbs(*sampleAt(720) - 6200) <= centsPerPixel);
+    }
+    const auto *currentOriginal =
+        dynamic_cast<const DrawCurve *>(pitch->curves(Param::Original).first());
+    QVERIFY(currentOriginal);
+    QCOMPARE(*currentOriginal, originalBefore);
+    fixture.frameAfter(committedFrame);
+    if (QTest::currentTestFailed())
+        return;
+    const auto undoFrame = fixture.submitted->size();
+    historyManager->undo();
+    unchanged();
+    QVERIFY(!historyManager->canUndo());
+    fixture.frameAfter(undoFrame);
+}
+
+void NativeDesktopTests::rhiNoteSplittingSnapsAndUndoRestoresThePhrase() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    ExistingRhiNoteFixture fixture;
+    fixture.initialize();
+    if (QTest::currentTestFailed())
+        return;
+    auto &canvas = *fixture.canvas;
+    canvas.setEditMode(ClipEditorGlobal::SplitNote);
+    const auto before = fixture.runtime().documentVersion();
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, fixture.pointFor(480, 60));
+    QCOMPARE(fixture.clip->notes().count(), 1);
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+    const auto position = fixture.pointFor(730, 60);
+    QTest::mouseMove(&canvas, position);
+    const auto beforeSplit = fixture.submitted->size();
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, position);
+    QCOMPARE(fixture.clip->notes().count(), 2);
+    const auto *first = fixture.clip->findNoteById(fixture.noteId);
+    QVERIFY(first);
+    QCOMPARE(first->localStart(), 480);
+    QCOMPARE(first->length(), 240);
+    const Note *continuation = nullptr;
+    for (const auto *note : fixture.clip->notes()) {
+        if (note->id() != fixture.noteId)
+            continuation = note;
+    }
+    QVERIFY(continuation);
+    QCOMPARE(continuation->localStart(), 720);
+    QCOMPARE(continuation->length(), 240);
+    QCOMPARE(continuation->keyIndex(), first->keyIndex());
+    QCOMPARE(continuation->lyric(), QStringLiteral("-"));
+    QCOMPARE(continuation->language(), first->language());
+    QCOMPARE(fixture.runtime().documentVersion().revision, before.revision + 1);
+    fixture.frameAfter(beforeSplit);
+    if (QTest::currentTestFailed())
+        return;
+    const auto undoFrame = fixture.submitted->size();
+    historyManager->undo();
+    QCOMPARE(fixture.clip->notes().count(), 1);
+    const auto *restored = fixture.clip->findNoteById(fixture.noteId);
+    QVERIFY(restored);
+    QCOMPARE(restored->localStart(), 480);
+    QCOMPARE(restored->length(), 480);
+    QCOMPARE(restored->lyric(), QStringLiteral("la"));
+    QVERIFY(!historyManager->canUndo());
+    fixture.frameAfter(undoFrame);
+    if (QTest::currentTestFailed())
+        return;
+    canvas.setEditMode(ClipEditorGlobal::Select);
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, fixture.pointFor(840, 60));
+    QCOMPARE(appStatus->selectedNotes.get(), QList<int>{fixture.noteId});
+}
+
+void NativeDesktopTests::rhiContextMenuTargetsRespectPronunciationAndSelection() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    ExistingRhiNoteFixture fixture;
+    fixture.initialize();
+    if (QTest::currentTestFailed())
+        return;
+    fixture.addSecondNote();
+    if (QTest::currentTestFailed())
+        return;
+    auto &canvas = *fixture.canvas;
+    QVERIFY(fixture.runtime().notes().setPronunciation(
+        fixture.command(), Automation::ClipId(fixture.clip->id()),
+        Automation::NoteId(fixture.noteId), true, QStringLiteral("la")));
+    historyManager->reset();
+    const auto before = fixture.runtime().documentVersion();
+    QList<PianoRollMenuContext> menus;
+    connect(&canvas, &PianoRollRhiWidget::contextMenuRequested, &canvas,
+            [&](const PianoRollMenuContext &menu) { menus.append(menu); });
+    const auto requestAt = [&](const QPoint &position) {
+        QVERIFY(canvas.rect().contains(position));
+        const auto count = menus.size();
+        QContextMenuEvent event(QContextMenuEvent::Mouse, position, canvas.mapToGlobal(position));
+        QApplication::sendEvent(&canvas, &event);
+        QCOMPARE(menus.size(), count + 1);
+    };
+    const auto first = fixture.pointFor(720, 60);
+    const auto second = fixture.pointFor(1440, 62);
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, first);
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::ControlModifier, second);
+    const auto selected = appStatus->selectedNotes.get();
+    QCOMPARE(selected.size(), 2);
+    requestAt(first);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(menus.last().target, PianoRollMenuContext::Target::Note);
+    QCOMPARE(menus.last().noteId, fixture.noteId);
+    QCOMPARE(menus.last().selectedNoteIds, selected);
+    QVERIFY(!menus.last().pronunciationTarget);
+    QCOMPARE(appStatus->selectedNotes.get(), selected);
+
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, fixture.pointFor(2000, 70));
+    QVERIFY(appStatus->selectedNotes.get().isEmpty());
+    const auto pronunciation =
+        first + QPoint(0, qRound(ClipEditorGlobal::noteHeight * canvas.scaleY() / 2.0) + 8);
+    requestAt(pronunciation);
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(menus.last().pronunciationTarget);
+    QCOMPARE(menus.last().target, PianoRollMenuContext::Target::Note);
+    QCOMPARE(menus.last().noteId, fixture.noteId);
+    QCOMPARE(menus.last().selectedNoteIds, QList<int>{fixture.noteId});
+    QCOMPARE(menus.last().noteLanguage, QStringLiteral("eng"));
+    QCOMPARE(appStatus->selectedNotes.get(), QList<int>{fixture.noteId});
+    requestAt(fixture.pointFor(2000, 70));
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(menus.last().target, PianoRollMenuContext::Target::Background);
+    QCOMPARE(menus.last().keyIndex, 70);
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
 }

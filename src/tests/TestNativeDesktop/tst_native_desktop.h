@@ -21,6 +21,10 @@ private slots:
     void rhiNoteResizeUndoRestoresTheHitRegion();
     void rhiNoteEraseStrokeCancelsAndCommitsAtomically();
     void rhiInlineTextEditingNavigatesCancelsAndUndoes();
+    void rhiPitchStrokePreviewsCancelAndCommit_data();
+    void rhiPitchStrokePreviewsCancelAndCommit();
+    void rhiNoteSplittingSnapsAndUndoRestoresThePhrase();
+    void rhiContextMenuTargetsRespectPronunciationAndSelection();
     void rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor();
     void rhiClipDragCommitsAcrossTracksAndUndoRestoresView();
     void rhiClipResizeCommitsOrCancels_data();
