@@ -15,6 +15,7 @@ lite_add_test(${PROJECT_NAME} SOURCES
     tst_speaker_mix.cpp
     tst_resources.cpp
     tst_main_window.cpp
+    tst_log_window.cpp
 )
 target_link_libraries(${PROJECT_NAME} PRIVATE EditorRuntime)
 add_dependencies(${PROJECT_NAME} DsEditorLite)

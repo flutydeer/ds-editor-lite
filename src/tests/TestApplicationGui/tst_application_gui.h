@@ -72,6 +72,7 @@ private slots:
     void panelButtonsAndClipDoubleClickRestoreTheEditorView();
     void detachedBottomPanelReattachesWithItsEditingContext();
     void embeddedSettingsSuspendAndRestoreBackgroundInteraction();
+    void logWindowFiltersLiveMessagesAndCopiesDisplayedOrder();
     void cleanup();
     void cleanupTestCase();
 
