@@ -18,6 +18,7 @@
 
 #include <QApplication>
 #include <QMouseEvent>
+#include <QScopeGuard>
 #include <QSignalSpy>
 #include <QtTest/QTest>
 
@@ -216,4 +217,120 @@ void ApplicationGuiTests::escapeCancelsParameterStrokeWithoutChangingDocument() 
     QCOMPARE(historyManager->nextUndoEntry(), historyEntry);
     QVERIFY(historyManager->canUndo());
     QVERIFY(!historyManager->canRedo());
+}
+
+void ApplicationGuiTests::parameterTransformGesturesCommitAndCancel_data() {
+    QTest::addColumn<ParamEditorEditMode>("mode");
+    QTest::newRow("shape") << ParamEditorEditMode::Shape;
+    QTest::newRow("scale") << ParamEditorEditMode::Scale;
+}
+
+void ApplicationGuiTests::parameterTransformGesturesCommitAndCancel() {
+    QFETCH(ParamEditorEditMode, mode);
+    auto *clip = defaultSingingClip(*context->m_appModel);
+    QVERIFY(clip);
+    clipController->setClip(clip);
+    appStatus->activeClipId = clip->id();
+    auto &runtime = *context->m_coreRuntime;
+    Automation::CurveDraftDto draft;
+    draft.type = Automation::CurveDraftDto::Type::Draw;
+    draft.localStart = 240;
+    draft.step = 5;
+    for (int tick = 240; tick < 1200; tick += draft.step)
+        draft.values.append(tick >= 600 && tick < 840 ? 600 : 300);
+    QVERIFY(runtime.parameters().replaceParameter(commandContext(), Automation::ClipId(clip->id()),
+                                                  ParamInfo::MouthOpening, Param::Edited, {draft}));
+    auto *parameter = clip->params.getParamByName(ParamInfo::MouthOpening);
+    QVERIFY(parameter);
+    ParameterEditorFixture editor(clip);
+    QVERIFY(editor.foreground);
+    QTRY_VERIFY(editor.view.isVisible() && editor.scene.height() > 200);
+    QVERIFY(editor.view.setViewportScale(1.0, 1.0));
+    editor.view.setViewportStartTick(0);
+    editor.view.setEditMode(mode);
+    QCoreApplication::processEvents();
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    const auto snapshot = [&] {
+        QList<DrawCurve> curves;
+        for (const auto *curve : parameter->curves(Param::Edited))
+            curves.append(*static_cast<const DrawCurve *>(curve));
+        return curves;
+    };
+    const auto baseline = snapshot();
+    QCOMPARE(baseline.size(), 1);
+    const auto valueAt = [](const QList<DrawCurve *> &curves, const int tick) {
+        for (const auto *curve : curves) {
+            if (curve->localStart() <= tick && tick < curve->localEndTick())
+                return curve->values().at((tick - curve->localStart()) / curve->step);
+        }
+        return -1;
+    };
+    const auto selectRange = [&] {
+        const auto start = editor.pointFor(480, 500);
+        const auto end = editor.pointFor(960, 500);
+        QVERIFY(editor.view.viewport()->rect().contains(start));
+        QVERIFY(editor.view.viewport()->rect().contains(end));
+        QTest::mousePress(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, start);
+        editor.moveWithLeftButton(end);
+        QTest::mouseRelease(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, end);
+        QVERIFY(!editSessionManager->hasActiveTransaction());
+    };
+    selectRange();
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+    QSignalSpy committed(editor.foreground, &CommonParamEditorView::editCommitted);
+    QSignalSpy discarded(editor.foreground, &CommonParamEditorView::editDiscarded);
+    const auto press = editor.pointFor(720, 500);
+    const auto release = press + QPoint(0, 50);
+    QVERIFY(editor.view.viewport()->rect().contains(release));
+    const auto cancelOnFailure = qScopeGuard([&] {
+        if (editSessionManager->hasActiveTransaction()) {
+            QTest::keyClick(&editor.view, Qt::Key_Escape);
+            QTest::mouseRelease(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, release);
+        }
+    });
+    QTest::mousePress(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, press);
+    editor.moveWithLeftButton(release);
+    QVERIFY(editSessionManager->hasActiveTransaction());
+    const auto previewCenter = valueAt(editor.foreground->editedCurves(), 720);
+    QVERIFY(previewCenter > 0 && previewCenter < 600);
+    QCOMPARE(valueAt(editor.foreground->editedCurves(), 240), 300);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(snapshot(), baseline);
+    QTest::mouseRelease(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, release);
+    QCOMPARE(committed.count(), 1);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    const auto changed = snapshot();
+    QVERIFY(changed != baseline);
+    QCOMPARE(valueAt(editor.foreground->editedCurves(), 720), previewCenter);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(snapshot(), baseline);
+    QCOMPARE(valueAt(editor.foreground->editedCurves(), 720), 600);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(runtime.history().redo(commandContext()));
+    QCOMPARE(snapshot(), changed);
+    QCOMPARE(valueAt(editor.foreground->editedCurves(), 720), previewCenter);
+
+    const auto beforeCancel = runtime.documentVersion();
+    const auto *historyEntry = historyManager->nextUndoEntry();
+    selectRange();
+    if (QTest::currentTestFailed())
+        return;
+    QTest::mousePress(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, press);
+    editor.moveWithLeftButton(release);
+    QVERIFY(editSessionManager->hasActiveTransaction());
+    QVERIFY(valueAt(editor.foreground->editedCurves(), 720) < previewCenter);
+    QTest::keyClick(&editor.view, Qt::Key_Escape);
+    QTest::mouseRelease(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, release);
+    QCOMPARE(discarded.count(), 1);
+    QCOMPARE(committed.count(), 1);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QCOMPARE(snapshot(), changed);
+    QCOMPARE(valueAt(editor.foreground->editedCurves(), 720), previewCenter);
+    QCOMPARE(runtime.documentVersion(), beforeCancel);
+    QCOMPARE(historyManager->nextUndoEntry(), historyEntry);
 }

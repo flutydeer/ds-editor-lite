@@ -39,6 +39,12 @@ private slots:
     void trackClipDragCommitsOrCancels();
     void parameterStrokeCommitsOnceAndUndoRestoresView();
     void escapeCancelsParameterStrokeWithoutChangingDocument();
+    void parameterTransformGesturesCommitAndCancel_data();
+    void parameterTransformGesturesCommitAndCancel();
+    void inlineLyricsCommitNavigateAndCancel();
+    void inlinePronunciationCommitsAndCancels();
+    void phonemeBoundaryDragCommitsAndUndoRestoresOffsets();
+    void phonemeWaveformsLoadAndDiscardResultsAfterChangingClips();
     void exportFormatUpdatesFileNamePreview();
     void exportSourcesAndMixingUpdateFilePlan();
     void canceledExportConfigurationDoesNotPersist();

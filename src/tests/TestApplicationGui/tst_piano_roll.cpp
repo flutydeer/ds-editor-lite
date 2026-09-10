@@ -12,7 +12,9 @@
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollCoord.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsScene.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
+#include "UI/Views/ClipEditor/PianoRoll/PronunciationView.h"
 
+#include <lite/GUI/Controls/InlineTextEditOverlay.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Note.h>
@@ -23,8 +25,19 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QMouseEvent>
+#include <QLineEdit>
 #include <QMimeData>
 #include <QScopeGuard>
+
+namespace {
+    void replaceInlineText(QLineEdit *editor, const QString &text) {
+        QVERIFY(editor);
+        QTRY_VERIFY(editor->isVisible() && editor->hasFocus());
+        QTest::keySequence(editor, QKeySequence::SelectAll);
+        QTest::keyClicks(editor, text);
+        QCOMPARE(editor->text(), text);
+    }
+}
 
 void ApplicationGuiTests::createPianoRoll() {
     auto &runtime = *context->m_coreRuntime;
@@ -396,6 +409,159 @@ int ApplicationGuiTests::insertSelectedNote() {
     const auto id = inserted.get().affectedObjects.first().value;
     appStatus->selectedNotes = QList<int>{id};
     return id;
+}
+
+void ApplicationGuiTests::inlineLyricsCommitNavigateAndCancel() {
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    QList<Automation::NoteDraftDto> drafts;
+    for (int index = 0; index < 2; ++index) {
+        Automation::NoteDraftDto note;
+        note.localStart = 480 + index * 480;
+        note.length = 480;
+        note.keyIndex = 62;
+        note.lyric = index == 0 ? QStringLiteral("one") : QStringLiteral("two");
+        note.language = QStringLiteral("eng");
+        drafts.append(note);
+    }
+    QVERIFY(runtime.notes().insertNotes(commandContext(), Automation::ClipId(singingClip->id()),
+                                        drafts));
+    const auto notes = singingClip->notes().toList();
+    QCOMPARE(notes.size(), 2);
+    auto *first = notes.first();
+    auto *second = notes.last();
+    view->setEditMode(ClipEditorGlobal::Select);
+    auto *overlay = view->findChild<InlineTextEditOverlay *>();
+    QVERIFY(overlay);
+    const auto cancelOnFailure = qScopeGuard([&] {
+        if (overlay->isEditing())
+            QTest::keyClick(overlay->findChild<QLineEdit *>(), Qt::Key_Escape);
+    });
+    const auto editFirst = [&] {
+        const auto position = pointFor(720, 62);
+        QTest::mouseDClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, position);
+        QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, position);
+        QTRY_VERIFY(overlay->isEditing());
+        QVERIFY(sceneNote(first->id())->isEditingLyric());
+    };
+    historyManager->reset();
+    editFirst();
+    if (QTest::currentTestFailed())
+        return;
+    auto *input = overlay->findChild<QLineEdit *>();
+    replaceInlineText(input, QStringLiteral("  replacement  "));
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(first->lyric(), QStringLiteral("one"));
+    QVERIFY(!historyManager->canUndo());
+    QTest::keyClick(input, Qt::Key_Return);
+    QVERIFY(!overlay->isEditing());
+    QCOMPARE(first->lyric(), QStringLiteral("replacement"));
+    QCOMPARE(sceneNote(first->id())->lyric(), first->lyric());
+    QVERIFY(!sceneNote(first->id())->isEditingLyric());
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(first->lyric(), QStringLiteral("one"));
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(runtime.history().redo(commandContext()));
+
+    editFirst();
+    if (QTest::currentTestFailed())
+        return;
+    replaceInlineText(input, QStringLiteral("first tab"));
+    if (QTest::currentTestFailed())
+        return;
+    QTest::keyClick(input, Qt::Key_Tab);
+    QCOMPARE(first->lyric(), QStringLiteral("first tab"));
+    QTRY_VERIFY(overlay->isEditing() && input->hasFocus());
+    QCOMPARE(input->text(), QStringLiteral("two"));
+    QCOMPARE(view->selectedNotesId(), QList<int>{second->id()});
+    QVERIFY(sceneNote(second->id())->isEditingLyric());
+    replaceInlineText(input, QStringLiteral("second tab"));
+    if (QTest::currentTestFailed())
+        return;
+    QTest::keyClick(input, Qt::Key_Backtab);
+    QCOMPARE(second->lyric(), QStringLiteral("second tab"));
+    QTRY_VERIFY(overlay->isEditing() && input->hasFocus());
+    QCOMPARE(input->text(), QStringLiteral("first tab"));
+    QCOMPARE(view->selectedNotesId(), QList<int>{first->id()});
+    const auto *beforeCancel = historyManager->nextUndoEntry();
+    replaceInlineText(input, QStringLiteral("discarded"));
+    if (QTest::currentTestFailed())
+        return;
+    QTest::keyClick(input, Qt::Key_Escape);
+    QVERIFY(!overlay->isEditing());
+    QCOMPARE(first->lyric(), QStringLiteral("first tab"));
+    QCOMPARE(historyManager->nextUndoEntry(), beforeCancel);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(second->lyric(), QStringLiteral("two"));
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(first->lyric(), QStringLiteral("replacement"));
+}
+
+void ApplicationGuiTests::inlinePronunciationCommitsAndCancels() {
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    Automation::NoteDraftDto draft;
+    draft.localStart = 480;
+    draft.length = 480;
+    draft.keyIndex = 62;
+    draft.lyric = QStringLiteral("la");
+    draft.language = QStringLiteral("eng");
+    draft.pronunciation.edited = QStringLiteral("l aa");
+    QVERIFY(runtime.notes().insertNotes(commandContext(), Automation::ClipId(singingClip->id()),
+                                        {draft}));
+    auto *note = *singingClip->notes().begin();
+    view->setEditMode(ClipEditorGlobal::Select);
+    auto *overlay = view->findChild<InlineTextEditOverlay *>();
+    QVERIFY(overlay);
+    const auto cancelOnFailure = qScopeGuard([&] {
+        if (overlay->isEditing())
+            QTest::keyClick(overlay->findChild<QLineEdit *>(), Qt::Key_Escape);
+    });
+    const auto editPronunciation = [&] {
+        const auto *pronunciation = sceneNote(note->id())->pronunciationView();
+        QVERIFY(pronunciation->isVisible());
+        const auto position = view->mapFromScene(pronunciation->sceneBoundingRect().center());
+        QVERIFY(view->viewport()->rect().contains(position));
+        QTest::mouseDClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, position);
+        QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, position);
+        QTRY_VERIFY(overlay->isEditing());
+        QVERIFY(pronunciation->isEditingPronunciation());
+    };
+    historyManager->reset();
+    editPronunciation();
+    if (QTest::currentTestFailed())
+        return;
+    auto *input = overlay->findChild<QLineEdit *>();
+    QCOMPARE(input->property("editRole").toString(), QStringLiteral("Pronunciation"));
+    replaceInlineText(input, QStringLiteral("  m aa  "));
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(note->pronunciation().edited, QStringLiteral("l aa"));
+    QTest::keyClick(input, Qt::Key_Return);
+    QVERIFY(!overlay->isEditing());
+    QCOMPARE(note->pronunciation().edited, QStringLiteral("m aa"));
+    QVERIFY(!sceneNote(note->id())->pronunciationView()->isEditingPronunciation());
+    const auto *beforeCancel = historyManager->nextUndoEntry();
+    QVERIFY(beforeCancel);
+    editPronunciation();
+    if (QTest::currentTestFailed())
+        return;
+    replaceInlineText(input, QStringLiteral("discarded"));
+    if (QTest::currentTestFailed())
+        return;
+    QTest::keyClick(input, Qt::Key_Escape);
+    QCOMPARE(note->pronunciation().edited, QStringLiteral("m aa"));
+    QCOMPARE(historyManager->nextUndoEntry(), beforeCancel);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(note->pronunciation().edited, QStringLiteral("l aa"));
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(runtime.history().redo(commandContext()));
+    QCOMPARE(note->pronunciation().edited, QStringLiteral("m aa"));
 }
 
 void ApplicationGuiTests::resizingANotePreviewsAndCommitsItsBoundary() {

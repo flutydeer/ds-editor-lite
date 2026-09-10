@@ -7,6 +7,8 @@
 #include "Controller/TrackController.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Modules/Inference/EditSessionManager.h"
+#include "Modules/Inference/InferController.h"
 #include "UI/Dialogs/Note/PhonemeEditorDialog.h"
 #include "UI/Dialogs/Note/PhonemeNameItemView.h"
 #include "UI/Dialogs/Note/PhonemeNameListWidget.h"
@@ -14,6 +16,7 @@
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollCoord.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollView.h"
+#include "UI/Views/ClipEditor/PianoRoll/PhonemeView.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
 #include "UI/Window/MainWindow.h"
 
@@ -21,19 +24,27 @@
 #include <lite/GUI/Controls/LineEdit.h>
 #include <lite/GUI/Controls/Toast.h>
 #include <lite/History/HistoryManager.h>
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/InferenceData/InferPiece.h>
+#include <lite/Tasking/TaskManager.h>
 
 #include <QApplication>
 #include <QClipboard>
 #include <QContextMenuEvent>
 #include <QLineEdit>
 #include <QMenu>
+#include <QMouseEvent>
 #include <QPointer>
 #include <QScopeGuard>
 #include <QSignalSpy>
+#include <QSemaphore>
+#include <QThreadPool>
 #include <QTimer>
 #include <QtTest/QTest>
+
+#include <algorithm>
 
 namespace {
     void enterNoteText(QLineEdit *editor, const QString &text) {
@@ -311,4 +322,125 @@ void ApplicationGuiTests::lyricSearchNavigatesTheActualEditorAndHandlesNoMatches
     QVERIFY(interacted);
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::phonemeBoundaryDragCommitsAndUndoRestoresOffsets() {
+    createLyricSelection();
+    if (QTest::currentTestFailed())
+        return;
+    const auto notes = singingClip->notes().toList();
+    QVERIFY(notes.size() >= 2);
+    auto *note = notes.at(1);
+    const auto names = note->phonemeNameSeq();
+    const auto offsets = note->phonemeOffsetSeq();
+    QVERIFY(offsets.result().size() >= 2);
+    QCOMPARE(offsets.result().size(), names.result().size());
+    QVERIFY(!offsets.isEdited());
+    const auto originalOffsets = offsets.result();
+    PhonemeView phonemes;
+    phonemes.resize(960, 100);
+    phonemes.setDataContext(singingClip);
+    phonemes.setTimeRange(0, 1920);
+    const auto detach = qScopeGuard([&] { phonemes.setDataContext(nullptr); });
+    phonemes.show();
+    phonemes.activateWindow();
+    QTRY_VERIFY(phonemes.isVisible());
+    const auto noteStartMs = context->m_appModel->tickToMs(note->globalStart());
+    const auto startTick =
+        qRound(context->m_appModel->msToTick(noteStartMs + originalOffsets.last()));
+    const auto press = QPoint(qRound(startTick * phonemes.width() / 1920.0), 50);
+    const auto release = press + QPoint(30, 0);
+    QVERIFY(phonemes.rect().contains(press));
+    QVERIFY(phonemes.rect().contains(release));
+    historyManager->reset();
+    auto &runtime = *context->m_coreRuntime;
+    const auto before = runtime.documentVersion();
+    const auto releaseOnFailure = qScopeGuard([&] {
+        if (editSessionManager->hasActiveTransaction())
+            QTest::mouseRelease(&phonemes, Qt::LeftButton, Qt::NoModifier, press);
+    });
+    QTest::mousePress(&phonemes, Qt::LeftButton, Qt::NoModifier, press);
+    QVERIFY(editSessionManager->hasActiveTransaction());
+    QCOMPARE(appStatus->currentEditObject.get(), AppStatus::EditObjectType::Phoneme);
+    QMouseEvent move(QEvent::MouseMove, QPointF(release), QPointF(phonemes.mapToGlobal(release)),
+                     Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&phonemes, &move);
+    QCOMPARE(note->phonemeOffsetSeq().result(), originalOffsets);
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+    QTest::mouseRelease(&phonemes, Qt::LeftButton, Qt::NoModifier, release);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QCOMPARE(appStatus->currentEditObject.get(), AppStatus::EditObjectType::None);
+    const auto changedOffsets = note->phonemeOffsetSeq().edited;
+    QCOMPARE(changedOffsets.size(), originalOffsets.size());
+    QVERIFY(changedOffsets.last() > originalOffsets.last());
+    QCOMPARE(changedOffsets.first(), originalOffsets.first());
+    QCOMPARE(note->phonemeNameSeq().result(), names.result());
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QVERIFY(!note->phonemeOffsetSeq().isEdited());
+    QCOMPARE(note->phonemeOffsetSeq().result(), originalOffsets);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(runtime.history().redo(commandContext()));
+    QCOMPARE(note->phonemeOffsetSeq().edited, changedOffsets);
+}
+
+void ApplicationGuiTests::phonemeWaveformsLoadAndDiscardResultsAfterChangingClips() {
+    createLyricSelection();
+    if (QTest::currentTestFailed())
+        return;
+    inferController->startPendingAcousticInference();
+    QTRY_VERIFY_WITH_TIMEOUT(std::all_of(singingClip->pieces().cbegin(),
+                                         singingClip->pieces().cend(),
+                                         [](const InferPiece *piece) {
+                                             return piece->acousticInferStatus == Success;
+                                         }) &&
+                                 taskManager->tasks().isEmpty(),
+                             15000);
+    const auto pieces = singingClip->pieces();
+    QVERIFY(!pieces.isEmpty());
+    QVERIFY(!pieces.first()->audioPath.isEmpty());
+    const auto pieceId = pieces.first()->id();
+    const auto before = context->m_coreRuntime->documentVersion();
+    PhonemeView phonemes;
+    phonemes.resize(960, 100);
+    phonemes.setTimeRange(0, 1920);
+    QSignalSpy loaded(&phonemes, &PhonemeView::waveformReady);
+    phonemes.setDataContext(singingClip);
+    const auto detach = qScopeGuard([&] { phonemes.setDataContext(nullptr); });
+    phonemes.show();
+    QTRY_VERIFY_WITH_TIMEOUT(std::any_of(loaded.cbegin(), loaded.cend(),
+                                         [pieceId](const auto &arguments) {
+                                             return arguments.first().toInt() == pieceId;
+                                         }),
+                             10000);
+    auto *pool = QThreadPool::globalInstance();
+    QVERIFY(pool->waitForDone(5000));
+    QCoreApplication::sendPostedEvents(&phonemes, QEvent::MetaCall);
+    const auto completedLoads = loaded.count();
+    QCOMPARE(context->m_coreRuntime->documentVersion(), before);
+    phonemes.setDataContext(nullptr);
+
+    const auto previousMaximum = pool->maxThreadCount();
+    QSemaphore workerStarted;
+    QSemaphore releaseWorker;
+    pool->setMaxThreadCount(1);
+    const auto restorePool = qScopeGuard([&] {
+        releaseWorker.release();
+        pool->waitForDone();
+        pool->setMaxThreadCount(previousMaximum);
+    });
+    pool->start([&] {
+        workerStarted.release();
+        releaseWorker.acquire();
+    });
+    QVERIFY(workerStarted.tryAcquire(1, 5000));
+    phonemes.setDataContext(singingClip);
+    phonemes.setDataContext(nullptr);
+    releaseWorker.release();
+    QVERIFY(pool->waitForDone(5000));
+    QCoreApplication::sendPostedEvents(&phonemes, QEvent::MetaCall);
+    QCOMPARE(loaded.count(), completedLoads);
+    QCOMPARE(context->m_coreRuntime->documentVersion(), before);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
 }
