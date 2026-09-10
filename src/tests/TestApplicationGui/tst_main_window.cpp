@@ -1,4 +1,5 @@
 #include "tst_application_gui.h"
+#include "../TestSupport/WaveFixture.h"
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
@@ -6,6 +7,7 @@
 #include "Controller/TrackController.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Modules/Import/DocumentImportController.h"
 #include "UI/Dialogs/Base/MessageDialog.h"
 #include "UI/Dialogs/Options/AppOptionsDialog.h"
 #include "UI/Views/BottomPanelView.h"
@@ -16,6 +18,8 @@
 #include "UI/Views/MixConsole/MixConsoleView.h"
 #include "UI/Views/TrackEditor/GraphicsItem/AbstractClipView.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
+#include "UI/Views/TrackEditor/TrackListView.h"
+#include "UI/Views/TrackEditor/TrackControlView.h"
 #include "UI/Views/TrackEditor/TracksGraphicsView.h"
 #include "UI/Window/EmbeddedModalHost.h"
 #include "UI/Window/MainWindow.h"
@@ -24,19 +28,63 @@
 #include <lite/GUI/Controls/SwitchButton.h>
 #include <lite/GUI/Controls/Toast.h>
 #include <lite/History/HistoryManager.h>
+#include <lite/ProjectConverters/DspxProjectConverter.h>
+#include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/ProjectModel/AppModel/AudioClip.h>
+#include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/Tasking/TaskManager.h>
 
 #include <QApplication>
 #include <QCloseEvent>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QFileInfo>
 #include <QMenu>
+#include <QMimeData>
 #include <QPointer>
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QSplitter>
 #include <QTabBar>
+#include <QTemporaryDir>
+#include <QTimer>
 #include <QtTest/QTest>
 
 namespace {
+    void createDroppedProject(const QString &path) {
+        AppModel source;
+        auto *track = new Track;
+        track->setName(QStringLiteral("Dropped track"));
+        auto *clip = new SingingClip;
+        clip->setLength(1920);
+        clip->setClipLen(1920);
+        clip->setDefaultLanguage(QStringLiteral("eng"));
+        auto *note = new Note(clip);
+        note->setLocalStart(0);
+        note->setLength(480);
+        note->setKeyIndex(64);
+        note->setLyric(QStringLiteral("la"));
+        clip->insertNote(note);
+        track->insertClip(clip);
+        QVERIFY(source.appendTrack(track));
+        DspxProjectConverter converter;
+        QString error;
+        QVERIFY2(converter.save(path, &source, error), qPrintable(error));
+    }
+
+    void dropFiles(MainWindow &window, const QList<QUrl> &urls) {
+        QMimeData mime;
+        mime.setUrls(urls);
+        const QPoint position(20, 20);
+        QDragEnterEvent enter(position, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(&window, &enter);
+        QVERIFY(enter.isAccepted());
+        QDropEvent drop(position, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(&window, &drop);
+    }
+
     struct MainWindowFixture {
         MainWindowFixture() {
             appOptions->appearance()->useNativeFrame = true;
@@ -214,6 +262,168 @@ void ApplicationGuiTests::panelButtonsAndClipDoubleClickRestoreTheEditorView() {
     QVERIFY(!window.restoreEditorViewState(invalid));
     QCOMPARE(window.captureEditorViewState(), restored);
     QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::projectDropCanCancelThenOpenTheDocument() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto path = directory.filePath(QStringLiteral("拖入工程.dspx"));
+    createDroppedProject(path);
+    if (QTest::currentTestFailed())
+        return;
+    MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    Automation::TrackDraftDto unsaved;
+    unsaved.name = QStringLiteral("Unsaved track");
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, unsaved));
+    QVERIFY(!historyManager->isOnSavePoint());
+    const auto before = runtime.documentVersion();
+    const auto *undo = historyManager->nextUndoEntry();
+    for (bool discard : {false, true}) {
+        bool answered = false;
+        QTimer answer;
+        answer.setInterval(10);
+        connect(&answer, &QTimer::timeout, host.window.get(), [&] {
+            QPointer<QDialog> dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!dialog)
+                return;
+            answer.stop();
+            const auto closeOnFailure = qScopeGuard([&] {
+                if (dialog && !answered)
+                    dialog->reject();
+            });
+            const auto text = discard ? MainWindow::tr("Don't save") : MainWindow::tr("Cancel");
+            Button *choice = nullptr;
+            for (auto *button : dialog->findChildren<Button *>()) {
+                if (button->text() == text)
+                    choice = button;
+            }
+            QVERIFY(choice);
+            QTest::mouseClick(choice, Qt::LeftButton);
+            answered = true;
+        });
+        answer.start();
+        dropFiles(*host.window, {QUrl::fromLocalFile(path)});
+        if (QTest::currentTestFailed())
+            return;
+        QTRY_VERIFY(answered && !documentWorkflowController->busy());
+        answer.stop();
+        if (!discard) {
+            QCOMPARE(runtime.documentVersion(), before);
+            QCOMPARE(historyManager->nextUndoEntry(), undo);
+            QCOMPARE(context->m_appModel->tracks().first()->name(), unsaved.name);
+            continue;
+        }
+        QVERIFY(runtime.documentVersion().documentId != before.documentId);
+        QCOMPARE(QFileInfo(documentWorkflowController->projectPath()).canonicalFilePath(),
+                 QFileInfo(path).canonicalFilePath());
+        QCOMPARE(context->m_appModel->tracks().size(), 1);
+        QCOMPARE(context->m_appModel->tracks().first()->name(), QStringLiteral("Dropped track"));
+        auto *list = host.window->findChild<TrackListView *>();
+        QVERIFY(list);
+        QTRY_COMPARE(list->trackCount(), 1);
+        auto *control = qobject_cast<TrackControlView *>(list->itemWidget(list->item(0)));
+        QVERIFY(control);
+        QCOMPARE(control->name(), QStringLiteral("Dropped track"));
+        QTRY_VERIFY(host.window->windowTitle().contains(QFileInfo(path).completeBaseName()));
+        QVERIFY(historyManager->isOnSavePoint());
+        QVERIFY(!historyManager->canUndo());
+    }
+}
+
+void ApplicationGuiTests::mixedFileDropRejectsAtomicallyAndAllowsTheNextImport() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto projectPath = directory.filePath(QStringLiteral("project.dspx"));
+    const auto audioPath = directory.filePath(QStringLiteral("导入.wav"));
+    createDroppedProject(projectPath);
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(TestSupport::writeWave(audioPath, QVector<float>(4800, 0.2f)));
+    MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.playback().setPosition(commandContext(), 7200));
+    const auto releaseAudio = qScopeGuard([&] {
+        const auto reset = runtime.documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false));
+        QVERIFY(reset);
+        QTRY_VERIFY(taskManager->tasks().isEmpty());
+    });
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    const auto tracksBefore = context->m_appModel->tracks();
+    QMimeData unsupported;
+    unsupported.setUrls({QUrl(QStringLiteral("https://example.invalid/project.dspx")),
+                         QUrl::fromLocalFile(directory.filePath(QStringLiteral("notes.txt")))});
+    QDragEnterEvent rejected(QPoint(20, 20), Qt::CopyAction, &unsupported, Qt::LeftButton,
+                             Qt::NoModifier);
+    QApplication::sendEvent(host.window.get(), &rejected);
+    QVERIFY(!rejected.isAccepted());
+
+    bool errorShown = false;
+    QTimer acknowledge;
+    acknowledge.setInterval(10);
+    connect(&acknowledge, &QTimer::timeout, host.window.get(), [&] {
+        QPointer<QDialog> dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+        if (!dialog)
+            return;
+        acknowledge.stop();
+        const auto closeOnFailure = qScopeGuard([&] {
+            if (dialog && !errorShown)
+                dialog->reject();
+        });
+        QCOMPARE(dialog->windowTitle(), DocumentImportController::tr("Import"));
+        Button *close = nullptr;
+        for (auto *button : dialog->findChildren<Button *>()) {
+            if (button->text() == DocumentImportController::tr("Close"))
+                close = button;
+        }
+        QVERIFY(close);
+        QTest::mouseClick(close, Qt::LeftButton);
+        errorShown = true;
+    });
+    acknowledge.start();
+    dropFiles(*host.window, {QUrl::fromLocalFile(projectPath), QUrl::fromLocalFile(audioPath)});
+    if (QTest::currentTestFailed())
+        return;
+    QTRY_VERIFY(errorShown);
+    acknowledge.stop();
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(context->m_appModel->tracks(), tracksBefore);
+    QVERIFY(!historyManager->canUndo());
+
+    dropFiles(*host.window, {QUrl::fromLocalFile(audioPath)});
+    if (QTest::currentTestFailed())
+        return;
+    QTRY_COMPARE(context->m_appModel->tracks().size(), tracksBefore.size() + 1);
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    const auto *importedTrack = context->m_appModel->tracks().last();
+    QCOMPARE(importedTrack->clips().count(), 1);
+    const auto *audio = dynamic_cast<const AudioClip *>(*importedTrack->clips().begin());
+    QVERIFY(audio);
+    QCOMPARE(QFileInfo(audio->path()).canonicalFilePath(),
+             QFileInfo(audioPath).canonicalFilePath());
+    QCOMPARE(audio->start() + audio->clipStart(), 7200);
+    QCOMPARE(audio->audioInfo().frames, 4800);
+    QCOMPARE(audio->playLengthMs(), 100.0);
+    auto *list = host.window->findChild<TrackListView *>();
+    QVERIFY(list);
+    QTRY_COMPARE(list->trackCount(), tracksBefore.size() + 1);
+    auto *control =
+        qobject_cast<TrackControlView *>(list->itemWidget(list->item(list->trackCount() - 1)));
+    QVERIFY(control);
+    QCOMPARE(control->name(), QFileInfo(audioPath).baseName());
+    QVERIFY(runtime.documentVersion().revision > before.revision);
+    historyManager->undo();
+    QCOMPARE(context->m_appModel->tracks(), tracksBefore);
+    QTRY_COMPARE(list->trackCount(), tracksBefore.size());
     QVERIFY(!historyManager->canUndo());
 }
 

@@ -74,6 +74,8 @@ private slots:
     void packageSearchShowsTheSelectedPackageDetails();
     void missingAudioResourceRelinkCanBeCanceledAndCommitted();
     void panelButtonsAndClipDoubleClickRestoreTheEditorView();
+    void projectDropCanCancelThenOpenTheDocument();
+    void mixedFileDropRejectsAtomicallyAndAllowsTheNextImport();
     void detachedBottomPanelReattachesWithItsEditingContext();
     void embeddedSettingsSuspendAndRestoreBackgroundInteraction();
     void logWindowFiltersLiveMessagesAndCopiesDisplayedOrder();
