@@ -17,6 +17,9 @@ private slots:
     void toolTipImmediateCompletion();
     void toolTipAnchorScreenClamping();
     void rhiNoteDrawingCommitsAndUndoUpdatesInteraction();
+    void rhiNoteMoveCanBeCanceledAndThenCommitted();
+    void rhiNoteResizeUndoRestoresTheHitRegion();
+    void rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor();
     void rhiClipDragCommitsAcrossTracksAndUndoRestoresView();
     void rhiClipResizeCommitsOrCancels_data();
     void rhiClipResizeCommitsOrCancels();
