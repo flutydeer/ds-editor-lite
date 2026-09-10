@@ -68,6 +68,7 @@ private slots:
     void restartInferenceReleasesReplacedTask_data();
 
     void publicInferenceStartsBeforeQueuedDocumentChanges();
+    void publicInferenceStatusAssociatesTasksWithTheirScope();
 
     void offlineExportRestoresMixerState_data();
 
