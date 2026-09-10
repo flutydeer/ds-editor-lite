@@ -107,6 +107,8 @@ vcpkg 精确缓存键包含 runner 镜像身份，避免 latest 镜像升级后�
 
 ## 6. 覆盖率与缺口分析
 
+gcovr 启用 `merge-lines`，按文件和源码行号合并不同函数或模板实例的命中；重算既有原始数据时，数字变化只属于统计口径调整，不算新增测试贡献。以同一口径比较新增命中行及剩余行为，逻辑覆盖的 90% 方向目标不作为硬失败阈值。
+
 Linux CI 的 Debug 构建启用 `LITE_TEST_COVERAGE=ON`，全部测试完成后，独立 Coverage 步骤通过 GCC/gcov 和 gcovr 8.6 生成应用、内部库和 Connector 的行覆盖与分支覆盖，不重复执行测试。Windows/macOS CI 使用普通 Debug 构建，覆盖率采集保留为本地按需能力。测试代码、第三方代码及生成文件不进入分母；编译器生成的异常清理分支和无源码分支不作为补测目标。未在 Linux 编译的平台实现也不在该数字内，必须结合功能矩阵检查，不能当作已经覆盖。
 
 本地 GCC 环境使用 `coverage` configure/build preset，运行该构建中的测试后执行：
