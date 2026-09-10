@@ -60,13 +60,25 @@ namespace {
     void editAccessRoot(PathEditor *paths, const QString &path) {
         auto *list = paths->listWidget();
         QVERIFY(list->count() > 0);
+        list->scrollToItem(list->item(0));
+        QCoreApplication::processEvents();
+        list->window()->activateWindow();
+        QTRY_VERIFY(list->window()->isActiveWindow());
         const auto position = list->visualItemRect(list->item(0)).center();
+        QVERIFY(list->viewport()->rect().contains(position));
+        QSignalSpy doubleClicked(list, &QAbstractItemView::doubleClicked);
         QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, position);
         QTest::mouseDClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, position);
         QTest::mouseRelease(list->viewport(), Qt::LeftButton, Qt::NoModifier, position);
+        QVERIFY2(!doubleClicked.isEmpty(), qPrintable(path));
         QLineEdit *editor = nullptr;
-        QTRY_VERIFY((editor = qobject_cast<QLineEdit *>(QApplication::focusWidget())) &&
-                    list->isAncestorOf(editor));
+        QTRY_VERIFY2(
+            (editor = qobject_cast<QLineEdit *>(QApplication::focusWidget())) &&
+                list->isAncestorOf(editor),
+            qPrintable(QStringLiteral("Editing %1; focus widget: %2")
+                           .arg(path, QApplication::focusWidget()
+                                          ? QApplication::focusWidget()->metaObject()->className()
+                                          : "none")));
         replaceText(editor, path);
         if (QTest::currentTestFailed())
             return;
@@ -187,6 +199,7 @@ void ApplicationGuiTests::automationAccessInputsPersistAndRejectMissingFolders()
         QTest::keyClick(level->view(), Qt::Key_Down);
         QTest::keyClick(level->view(), Qt::Key_Down);
         QTest::keyClick(level->view(), Qt::Key_Return);
+        QTRY_VERIFY(!level->view()->isVisible());
         QCOMPARE(appOptions->automation()->controlLevel, AutomationOption::ControlLevel::L3);
         QCOMPARE(level->currentData().toInt(),
                  static_cast<int>(AutomationOption::ControlLevel::L3));

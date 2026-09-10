@@ -46,10 +46,11 @@ void ApplicationGuiTests::dynamicSpeakerMixGesturesPreserveIdentityAndUndo() {
     QVERIFY(mixIndex >= 0);
     QTest::mouseClick(foreground, Qt::LeftButton);
     QTRY_VERIFY(foreground->view()->isVisible());
-    const auto item = foreground->model()->index(mixIndex, 0);
-    foreground->view()->scrollTo(item);
-    QTest::mouseClick(foreground->view()->viewport(), Qt::LeftButton, Qt::NoModifier,
-                      foreground->view()->visualRect(item).center());
+    QTest::keyClick(foreground->view(), Qt::Key_Home);
+    for (int index = 0; index < mixIndex; ++index)
+        QTest::keyClick(foreground->view(), Qt::Key_Down);
+    QTest::keyClick(foreground->view(), Qt::Key_Return);
+    QCOMPARE(foreground->currentIndex(), mixIndex);
     QCOMPARE(panel.viewState().foreground, ParamInfo::SpeakerMix);
     auto *empty = panel.findChild<QWidget *>("speakerMixEmptyState");
     QVERIFY(empty);
