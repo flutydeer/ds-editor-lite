@@ -44,6 +44,7 @@ private slots:
     void pitchAnchorMergePreviewCommitsAndUndoes();
     void parameterTransformGesturesCommitAndCancel_data();
     void parameterTransformGesturesCommitAndCancel();
+    void parameterTransformHandlesControlTheTransitionRange();
     void inlineLyricsCommitNavigateAndCancel();
     void inlinePronunciationCommitsAndCancels();
     void phonemeBoundaryDragCommitsAndUndoRestoresOffsets();
@@ -61,9 +62,9 @@ private slots:
     void interactiveProjectImportRespectsSelectionAndCancellation_data();
     void interactiveProjectImportRespectsSelectionAndCancellation();
     void droppingAudioFilesCommitsOneBatchToTheSelectedTracks();
-    void fillLyricPreviewCommitsOrCancels_data();
     void droppingMidiAndAudioFilesUsesOneBatchDecision_data();
     void droppingMidiAndAudioFilesUsesOneBatchDecision();
+    void fillLyricPreviewCommitsOrCancels_data();
     void fillLyricPreviewCommitsOrCancels();
     void lyricRuleEditingChangesThePreviewAndPersists();
     void phonemeDialogValidatesCommitsAndResetsThroughTheNoteMenu();
@@ -89,11 +90,11 @@ private slots:
     void mainMenuQuantizationUsesTheChosenScopeAndOptions_data();
     void mainMenuQuantizationUsesTheChosenScopeAndOptions();
     void mainMenuOctaveEditsFollowThePianoSelection();
+    void undoShortcutRevealsTheTrackEditBeforeChangingIt_data();
+    void undoShortcutRevealsTheTrackEditBeforeChangingIt();
     void projectDropCanCancelThenOpenTheDocument();
     void mixedFileDropRejectsAtomicallyAndAllowsTheNextImport();
     void detachedBottomPanelReattachesWithItsEditingContext();
-    void undoShortcutRevealsTheTrackEditBeforeChangingIt_data();
-    void undoShortcutRevealsTheTrackEditBeforeChangingIt();
     void embeddedSettingsSuspendAndRestoreBackgroundInteraction();
     void logWindowFiltersLiveMessagesAndCopiesDisplayedOrder();
     void newDocumentHonorsTheSaveDecision_data();

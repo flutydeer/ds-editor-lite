@@ -35,6 +35,14 @@ namespace {
         return nullptr;
     }
 
+    int valueAt(const QList<DrawCurve *> &curves, int tick) {
+        for (const auto *curve : curves) {
+            if (curve->localStart() <= tick && tick < curve->localEndTick())
+                return curve->values().at((tick - curve->localStart()) / curve->step);
+        }
+        return -1;
+    }
+
     struct ParameterEditorFixture {
         explicit ParameterEditorFixture(SingingClip *clip)
             : view(&scene, foregroundProperties, backgroundProperties) {
@@ -259,13 +267,6 @@ void ApplicationGuiTests::parameterTransformGesturesCommitAndCancel() {
     };
     const auto baseline = snapshot();
     QCOMPARE(baseline.size(), 1);
-    const auto valueAt = [](const QList<DrawCurve *> &curves, const int tick) {
-        for (const auto *curve : curves) {
-            if (curve->localStart() <= tick && tick < curve->localEndTick())
-                return curve->values().at((tick - curve->localStart()) / curve->step);
-        }
-        return -1;
-    };
     const auto selectRange = [&] {
         const auto start = editor.pointFor(480, 500);
         const auto end = editor.pointFor(960, 500);
@@ -333,4 +334,88 @@ void ApplicationGuiTests::parameterTransformGesturesCommitAndCancel() {
     QCOMPARE(valueAt(editor.foreground->editedCurves(), 720), previewCenter);
     QCOMPARE(runtime.documentVersion(), beforeCancel);
     QCOMPARE(historyManager->nextUndoEntry(), historyEntry);
+}
+
+void ApplicationGuiTests::parameterTransformHandlesControlTheTransitionRange() {
+    auto *clip = defaultSingingClip(*context->m_appModel);
+    QVERIFY(clip);
+    clipController->setClip(clip);
+    appStatus->activeClipId = clip->id();
+    auto &runtime = *context->m_coreRuntime;
+    Automation::CurveDraftDto draft;
+    draft.localStart = 240;
+    draft.step = 5;
+    draft.values = QList<int>(192, 600);
+    QVERIFY(runtime.parameters().replaceParameter(commandContext(), Automation::ClipId(clip->id()),
+                                                  ParamInfo::MouthOpening, Param::Edited, {draft}));
+    ParameterEditorFixture editor(clip);
+    QVERIFY(editor.foreground);
+    QTRY_VERIFY(editor.view.isActiveWindow() && editor.scene.height() > 200);
+    QVERIFY(editor.view.setViewportScale(1.0, 1.0));
+    editor.view.setViewportStartTick(0);
+    editor.view.setEditMode(ParamEditorEditMode::Scale);
+    QCoreApplication::processEvents();
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    const auto baseline = context->m_appModel->serialize();
+    QSignalSpy committed(editor.foreground, &CommonParamEditorView::editCommitted);
+    const auto dragRange = [&](int fromTick, int toTick) {
+        const auto start = editor.pointFor(fromTick, 500);
+        const auto end = editor.pointFor(toTick, 500);
+        QVERIFY(editor.view.viewport()->rect().contains(start));
+        QVERIFY(editor.view.viewport()->rect().contains(end));
+        QTest::mousePress(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, start);
+        editor.moveWithLeftButton(end);
+        QTest::mouseRelease(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, end);
+        QVERIFY(!editSessionManager->hasActiveTransaction());
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(context->m_appModel->serialize(), baseline);
+        QVERIFY(committed.isEmpty());
+    };
+    dragRange(480, 960);
+    if (QTest::currentTestFailed())
+        return;
+    const auto selectionImage = editor.view.viewport()->grab().toImage();
+    // The default 60 ms shoulders span 55 ticks at 120 BPM.
+    for (const auto [from, to] :
+         {qMakePair(425, 360), qMakePair(480, 600), qMakePair(1015, 1080), qMakePair(960, 840)}) {
+        dragRange(from, to);
+        if (QTest::currentTestFailed())
+            return;
+    }
+    QVERIFY(editor.view.viewport()->grab().toImage() != selectionImage);
+    const auto top = editor.foreground->sceneBoundingRect().top();
+    const QPoint handle(editor.pointFor(720, 500).x(),
+                        editor.view.mapFromScene(QPointF(0, top + 20)).y());
+    const auto end = handle + QPoint(0, 50);
+    QVERIFY(editor.view.viewport()->rect().contains(handle));
+    QVERIFY(editor.view.viewport()->rect().contains(end));
+    const auto cancel = qScopeGuard([&] {
+        if (editSessionManager->hasActiveTransaction()) {
+            QTest::keyClick(&editor.view, Qt::Key_Escape);
+            QTest::mouseRelease(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, end);
+        }
+    });
+    QTest::mousePress(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, handle);
+    editor.moveWithLeftButton(end);
+    QVERIFY(editSessionManager->hasActiveTransaction());
+    const auto &preview = editor.foreground->editedCurves();
+    const auto coreValue = valueAt(preview, 720);
+    QVERIFY(coreValue > 0 && coreValue < 600);
+    QCOMPARE(valueAt(preview, 300), 600);
+    // Moving a core boundary carries its existing shoulder width.
+    QCOMPARE(valueAt(preview, 420), 600);
+    QVERIFY(valueAt(preview, 540) > coreValue && valueAt(preview, 540) < 600);
+    QVERIFY(valueAt(preview, 900) > coreValue && valueAt(preview, 900) < 600);
+    QCOMPARE(valueAt(preview, 1020), 600);
+    QCOMPARE(valueAt(preview, 1140), 600);
+    QCOMPARE(context->m_appModel->serialize(), baseline);
+    QTest::mouseRelease(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, end);
+    QCOMPARE(committed.size(), 1);
+    QCOMPARE(valueAt(editor.foreground->editedCurves(), 720), coreValue);
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(context->m_appModel->serialize(), baseline);
+    QCOMPARE(valueAt(editor.foreground->editedCurves(), 720), 600);
+    QVERIFY(!historyManager->canUndo());
 }
