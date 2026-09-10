@@ -17,6 +17,11 @@ private slots:
     void toolTipImmediateCompletion();
     void toolTipAnchorScreenClamping();
     void rhiNoteDrawingCommitsAndUndoUpdatesInteraction();
+    void rhiClipDragCommitsAcrossTracksAndUndoRestoresView();
+    void rhiClipResizeCommitsOrCancels_data();
+    void rhiClipResizeCommitsOrCancels();
+    void availableAudioDeviceRunsPublicPlayback();
+    void configuredMidiLoopbackFeedsLiveSynthesizer();
 };
 
 #endif

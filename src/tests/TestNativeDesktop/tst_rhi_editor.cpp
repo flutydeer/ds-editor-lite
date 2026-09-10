@@ -1,5 +1,5 @@
 #include "tst_native_desktop.h"
-#include "../TestSupport/RuntimeResourcesFixture.h"
+#include "NativeAppFixture.h"
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
@@ -31,40 +31,11 @@
 #include <QtTest/QTest>
 
 void NativeDesktopTests::rhiNoteDrawingCommitsAndUndoUpdatesInteraction() {
-    QTemporaryDir directory;
-    QVERIFY(directory.isValid());
-    const auto previousRoot = qgetenv("DSEL_TEST_DATA_ROOT");
-    const auto previousPlugins = qgetenv("DSEL_TEST_PLUGIN_ROOT");
-    const auto restoreEnvironment = qScopeGuard([&] {
-        if (previousRoot.isEmpty())
-            qunsetenv("DSEL_TEST_DATA_ROOT");
-        else
-            qputenv("DSEL_TEST_DATA_ROOT", previousRoot);
-        if (previousPlugins.isEmpty())
-            qunsetenv("DSEL_TEST_PLUGIN_ROOT");
-        else
-            qputenv("DSEL_TEST_PLUGIN_ROOT", previousPlugins);
-    });
-    qputenv("DSEL_TEST_DATA_ROOT", directory.path().toUtf8());
-    QVERIFY(TestSupport::initializeApplicationResources());
-    AppEnvironment::postInit(AppHostMode::Gui);
-    QApplication::setQuitOnLastWindowClosed(false);
-    auto options = std::make_unique<AppOptions>();
-    options->general()->packageSearchPaths.clear();
-    options->general()->defaultSingingLanguage = QStringLiteral("eng");
-    options->inference()->executionProvider = QStringLiteral("CPU");
-    options->inference()->autoStartInfer = false;
-    options->inference()->cacheDirectory = directory.filePath(QStringLiteral("cache"));
-    options->appearance()->animationEnabled = false;
-    AppContext context(std::move(options), AppHostMode::Gui);
-    if (auto *device = AudioSystem::outputSystem()->context()->device()) {
-        device->stop();
-        device->close();
-    }
-    QVERIFY2(ThemeManager::instance()->initialize(ThemeIds::defaultThemeId()),
-             qPrintable(ThemeLoader::lastError()));
-    QString error;
-    QVERIFY2(context.initializeDefaultDocument(&error), qPrintable(error));
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    NativeAppFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
+    auto &context = *fixture.context;
     auto &runtime = *context.m_coreRuntime;
     const auto command = [&] {
         return Automation::CommandContext{.expected = runtime.documentVersion(),

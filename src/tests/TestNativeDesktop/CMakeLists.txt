@@ -1,9 +1,11 @@
 project(TestNativeDesktop)
+find_package(RtMidi CONFIG REQUIRED)
 
 lite_add_test(${PROJECT_NAME} SOURCES
     test_main.cpp tst_native_desktop.h tst_splitter.cpp tst_animation_settings.cpp tst_rhi_editor.cpp
+    NativeAppFixture.h tst_rhi_tracks.cpp tst_devices.cpp
 )
-target_link_libraries(${PROJECT_NAME} PRIVATE EditorRuntime)
+target_link_libraries(${PROJECT_NAME} PRIVATE EditorRuntime RtMidi::rtmidi)
 add_dependencies(${PROJECT_NAME} DsEditorLite)
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     LITE_TEST_APPLICATION_CONFIG_ROOT="$<TARGET_FILE_DIR:DsEditorLite>/configs")
