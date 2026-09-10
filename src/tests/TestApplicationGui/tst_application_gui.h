@@ -49,6 +49,7 @@ private slots:
     void cacheCleanupRequiresConfirmationAndRefreshesThePage();
     void interactiveProjectImportRespectsSelectionAndCancellation_data();
     void interactiveProjectImportRespectsSelectionAndCancellation();
+    void droppingAudioFilesCommitsOneBatchToTheSelectedTracks();
     void fillLyricPreviewCommitsOrCancels_data();
     void fillLyricPreviewCommitsOrCancels();
     void lyricRuleEditingChangesThePreviewAndPersists();

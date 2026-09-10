@@ -3,10 +3,16 @@
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
+#include "Controller/TrackController.h"
+#include "Global/TracksEditorGlobal.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/ProjectConverters/DspxConfigPage.h"
 #include "Modules/ProjectConverters/MidiConfigPage.h"
 #include "Modules/ProjectFormats/ProjectImportConfigDialog.h"
+#include "UI/Dialogs/Base/Dialog.h"
+#include "UI/Views/TrackEditor/GraphicsItem/AbstractClipView.h"
+#include "UI/Views/TrackEditor/TrackEditorView.h"
+#include "UI/Views/TrackEditor/TracksGraphicsView.h"
 
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/ComboBox.h>
@@ -14,12 +20,19 @@
 #include <lite/ProjectConverters/DspxProjectConverter.h>
 #include <lite/ProjectConverters/MidiConverter.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/Tasking/TaskManager.h>
 
 #include <QApplication>
 #include <QCheckBox>
+#include <QDragEnterEvent>
+#include <QDragLeaveEvent>
+#include <QDropEvent>
+#include <QFileInfo>
+#include <QMimeData>
 #include <QScopeGuard>
 #include <QStyle>
 #include <QStyleOptionButton>
@@ -253,4 +266,110 @@ void ApplicationGuiTests::interactiveProjectImportRespectsSelectionAndCancellati
     historyManager->redo();
     QCOMPARE(appModel->tracks().size(), originalTracks.size() + 1);
     QCOMPARE(appModel->tracks().last()->name(), QStringLiteral("Imported lead"));
+}
+
+void ApplicationGuiTests::droppingAudioFilesCommitsOneBatchToTheSelectedTracks() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QStringList paths{directory.filePath(QStringLiteral("first.wav")),
+                            directory.filePath(QStringLiteral("second.wav"))};
+    for (const auto &path : paths) {
+        const auto error = createWaveFixture(path);
+        QVERIFY2(error.isEmpty(), qPrintable(error));
+    }
+
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+    const auto releaseAudio = qScopeGuard([&] {
+        const auto reset = runtime.documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false));
+        QTest::qVerify(bool(reset), "document reset", "release imported audio", __FILE__, __LINE__);
+        const auto finished = QTest::qWaitFor([] { return taskManager->tasks().isEmpty(); }, 10000);
+        QTest::qVerify(finished, "audio tasks finished", "release temporary audio files", __FILE__,
+                       __LINE__);
+    });
+    TrackEditorView editor;
+    auto *canvas = editor.findChild<TracksGraphicsView *>();
+    QVERIFY(canvas);
+    auto *previousDialogParent = Dialog::globalParent();
+    Dialog::setGlobalContext(&editor);
+    const auto clearDialogParent = qScopeGuard([&] {
+        trackController->setParentWidget(nullptr);
+        Dialog::setGlobalContext(previousDialogParent);
+    });
+    Automation::TrackDraftDto draft;
+    draft.name = QStringLiteral("Drop destination");
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, draft));
+    auto *existingTrack = appModel->tracks().first();
+    const auto existingId = existingTrack->id();
+    editor.resize(1200, 500);
+    canvas->setAnimationEnabled(false);
+    editor.show();
+    editor.activateWindow();
+    QTRY_VERIFY(editor.isVisible() && canvas->viewport()->width() > 600);
+    QVERIFY(canvas->setViewportScale(2.0, 1.0));
+    canvas->setViewportStartTick(0);
+    QCoreApplication::processEvents();
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    constexpr int dropTick = 960;
+    const auto position = canvas->mapFromScene(
+        QPointF(canvas->sceneXForTick(dropTick), TracksEditorGlobal::trackHeight / 2));
+    QVERIFY(canvas->viewport()->rect().contains(position));
+    QMimeData mime;
+    mime.setUrls({QUrl::fromLocalFile(paths[0]), QUrl::fromLocalFile(paths[1])});
+
+    QDragEnterEvent preview(position, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas->viewport(), &preview);
+    QVERIFY(preview.isAccepted());
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(existingTrack->clips().count(), 0);
+    QDragLeaveEvent leave;
+    QApplication::sendEvent(canvas->viewport(), &leave);
+    QVERIFY(leave.isAccepted());
+    QVERIFY(!historyManager->canUndo());
+
+    QDragEnterEvent enter(position, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas->viewport(), &enter);
+    QVERIFY(enter.isAccepted());
+    QDropEvent drop(QPointF(position), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas->viewport(), &drop);
+    QVERIFY(drop.isAccepted());
+    QTRY_COMPARE(appModel->tracks().size(), 2);
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    QCOMPARE(appModel->tracks().first()->id(), existingId);
+    QCOMPARE(appModel->tracks().last()->name(), QStringLiteral("second"));
+    for (qsizetype index = 0; index < paths.size(); ++index) {
+        const auto *track = appModel->tracks().at(index);
+        QCOMPARE(track->clips().count(), 1);
+        const auto *clip = dynamic_cast<const AudioClip *>(*track->clips().begin());
+        QVERIFY(clip);
+        QCOMPARE(QFileInfo(clip->path()).canonicalFilePath(),
+                 QFileInfo(paths[index]).canonicalFilePath());
+        QCOMPARE(clip->start(), dropTick);
+        QVERIFY(clip->length() > 0);
+        QVERIFY(clip->audioInfo().frames > 0);
+        auto *item = editor.findClipItemById(clip->id());
+        QVERIFY(item);
+        QCOMPARE(item->start(), clip->start());
+        QCOMPARE(item->length(), clip->length());
+    }
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    QVERIFY(historyManager->canUndo());
+    historyManager->undo();
+    QCOMPARE(appModel->tracks().size(), 1);
+    QCOMPARE(appModel->tracks().first()->id(), existingId);
+    QCOMPARE(appModel->tracks().first()->clips().count(), 0);
+    QVERIFY(!historyManager->canUndo());
+    historyManager->redo();
+    QCOMPARE(appModel->tracks().size(), 2);
+    for (const auto *track : appModel->tracks()) {
+        QCOMPARE(track->clips().count(), 1);
+        const auto *clip = *track->clips().begin();
+        QVERIFY(editor.findClipItemById(clip->id()));
+        QCOMPARE(clip->start(), dropTick);
+    }
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
 }
