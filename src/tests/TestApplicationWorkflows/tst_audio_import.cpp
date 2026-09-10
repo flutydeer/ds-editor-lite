@@ -75,7 +75,7 @@ void ApplicationWorkflowTests::audioBatchFailurePolicy() {
         .failurePolicy = bestEffort ? PublicBatchFailurePolicy::BestEffort
                                    : PublicBatchFailurePolicy::Atomic};
     const auto services = createPublicAutomationHostServices(
-        runtime(), context->m_appModel.get(), &SynthrtEngine::instance());
+        runtime(), context->m_appModel, &SynthrtEngine::instance());
     const auto accepted = services.importAudioClips(request);
     QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
     QTRY_VERIFY_WITH_TIMEOUT(terminal(runtime(), accepted.get()), 10000);
@@ -139,7 +139,7 @@ void ApplicationWorkflowTests::audioBatchCancellationReleasesRetry() {
                   audioItem(trackId, path, QStringLiteral("second-copy"), 960)}};
     request.command.idempotencyKey = QStringLiteral("cancel-and-retry-audio-batch");
     const auto services = createPublicAutomationHostServices(
-        runtime(), context->m_appModel.get(), &SynthrtEngine::instance());
+        runtime(), context->m_appModel, &SynthrtEngine::instance());
     const auto accepted = services.importAudioClips(request);
     QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
     // Completion reaches the document through queued connections; cancel before dispatching them.
