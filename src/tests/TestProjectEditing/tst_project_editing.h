@@ -22,6 +22,9 @@ private slots:
     void trackRemovalRestoresChildren();
     void listNotes();
     void insertNotes();
+    void insertingNotesCanRetryWithStableCreatedIdentities();
+    void transferringNotesCanRetryWithoutDuplicatingEdits_data();
+    void transferringNotesCanRetryWithoutDuplicatingEdits();
     void moveNotes();
     void resizeNotesLeft();
     void resizeNotesRight();

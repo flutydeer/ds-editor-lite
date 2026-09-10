@@ -431,6 +431,132 @@ namespace {
 
 } // namespace
 
+void ProjectEditingTests::insertingNotesCanRetryWithStableCreatedIdentities() {
+    TestRuntime fixture;
+    auto &runtime = fixture.runtime();
+    const auto clip = insertClip(runtime, insertTrack(runtime, "Lead"), "Phrase");
+    QVERIFY(clip.isValid());
+    auto first = noteDraft(120, 240, 60, QStringLiteral("la"));
+    first.clientRef = QStringLiteral("first-word");
+    first.pronunciation.original = QStringLiteral("la");
+    first.pronunciation.edited = QStringLiteral("lah");
+    first.pronunciationCandidates = {QStringLiteral("la"), QStringLiteral("lah")};
+    PhonemeName onset;
+    onset.language = QStringLiteral("en");
+    onset.name = QStringLiteral("l");
+    onset.isOnset = true;
+    PhonemeName vowel;
+    vowel.language = QStringLiteral("en");
+    vowel.name = QStringLiteral("a");
+    first.phonemes.nameSeq.edited = {onset, vowel};
+    first.phonemes.offsetSeq.edited = {-40, 0};
+    auto second = noteDraft(480, 360, 64, QStringLiteral("mi"));
+    second.clientRef = QStringLiteral("second-word");
+    const QList<Automation::NoteDraftDto> notes{first, second};
+    fixture.history()->reset();
+    auto request = commandContext(runtime);
+    request.idempotencyKey = QStringLiteral("insert-phrase");
+    const auto inserted = runtime.notes().insertNotes(request, clip, notes);
+    QVERIFY(inserted && inserted.get().changed);
+    QCOMPARE(inserted.get().createdObjects.size(), 2);
+    const auto version = runtime.documentVersion();
+    const auto *undo = fixture.history()->nextUndoEntry();
+    const auto retry = runtime.notes().insertNotes(request, clip, notes);
+    QVERIFY(retry);
+    QCOMPARE(retry.get().createdObjects.size(), inserted.get().createdObjects.size());
+    for (qsizetype index = 0; index < notes.size(); ++index) {
+        QCOMPARE(retry.get().createdObjects[index].clientRef, notes[index].clientRef);
+        QCOMPARE(retry.get().createdObjects[index].object,
+                 inserted.get().createdObjects[index].object);
+    }
+    auto changed = notes;
+    changed.first().pronunciation.edited = QStringLiteral("le");
+    const auto conflict = runtime.notes().insertNotes(request, clip, changed);
+    QVERIFY(!conflict);
+    QCOMPARE(conflict.getError().code, Automation::AutomationErrorCode::IdempotencyConflict);
+    QCOMPARE(runtime.documentVersion(), version);
+    QCOMPARE(fixture.history()->nextUndoEntry(), undo);
+    const auto stored = runtime.notes().getNotes(version.documentId, clip);
+    QVERIFY(stored);
+    QCOMPARE(stored.get().size(), 2);
+    QCOMPARE(stored.get().first().data.pronunciation.result(), first.pronunciation.result());
+    QCOMPARE(stored.get().first().data.phonemes.nameSeq.result(), first.phonemes.nameSeq.result());
+    QCOMPARE(stored.get().first().data.phonemes.offsetSeq.result(),
+             first.phonemes.offsetSeq.result());
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QVERIFY(runtime.notes().getNotes(version.documentId, clip).get().isEmpty());
+    QVERIFY(!fixture.history()->canUndo());
+}
+
+void ProjectEditingTests::transferringNotesCanRetryWithoutDuplicatingEdits_data() {
+    QTest::addColumn<bool>("clipboard");
+    QTest::newRow("duplicate-selected-notes") << false;
+    QTest::newRow("paste-captured-notes-and-curves") << true;
+}
+
+void ProjectEditingTests::transferringNotesCanRetryWithoutDuplicatingEdits() {
+    QFETCH(bool, clipboard);
+    TestRuntime fixture;
+    auto &runtime = fixture.runtime();
+    const auto track = insertTrack(runtime, "Lead");
+    const auto source = insertClip(runtime, track, "Source");
+    const auto target = insertClip(runtime, track, "Target");
+    const auto ids = insertTransferNotes(runtime, source);
+    QCOMPARE(ids.size(), 2);
+    replace(runtime, source, ParamInfo::Pitch, Param::Edited,
+            {draw(100, 100, {6000, 6100, 6200, 6300, 6400})});
+    auto *sourceModel = singingClip(fixture, source);
+    QVERIFY(sourceModel);
+    const auto captured = Automation::captureNoteTransfer(
+        *sourceModel, {sourceModel->findNoteById(ids.first().value()),
+                       sourceModel->findNoteById(ids.last().value())});
+    QVERIFY(captured && !captured.get().parameters.isEmpty());
+    fixture.history()->reset();
+    auto request = commandContext(runtime);
+    request.idempotencyKey = QStringLiteral("transfer-phrase");
+    const auto transfer = [&](int start) {
+        return clipboard ? runtime.notes().pasteNotes(request, target, start, captured.get())
+                         : runtime.notes().duplicateNotes(request, source, ids, target, start);
+    };
+    const auto committed = transfer(1200);
+    QVERIFY(committed && committed.get().changed);
+    QCOMPARE(committed.get().createdObjects.size(), 2);
+    const auto version = runtime.documentVersion();
+    const auto *undo = fixture.history()->nextUndoEntry();
+    const auto curve = parameter(runtime, target, ParamInfo::Pitch, Param::Edited);
+    QCOMPARE(drawValueAt(curve, 1200), std::optional<int>{6000});
+    const auto retry = transfer(1200);
+    QVERIFY(retry);
+    QCOMPARE(retry.get().createdObjects.size(), committed.get().createdObjects.size());
+    for (qsizetype index = 0; index < committed.get().createdObjects.size(); ++index)
+        QCOMPARE(retry.get().createdObjects[index].object,
+                 committed.get().createdObjects[index].object);
+    const auto differentDestination = transfer(1800);
+    QVERIFY(!differentDestination);
+    QCOMPARE(differentDestination.getError().code,
+             Automation::AutomationErrorCode::IdempotencyConflict);
+    auto differentPayload = captured.get();
+    differentPayload.notes.first().lyric = QStringLiteral("changed");
+    const auto differentInput =
+        clipboard ? runtime.notes().pasteNotes(request, target, 1200, differentPayload)
+                  : runtime.notes().duplicateNotes(request, source, {ids.first()}, target, 1200);
+    QVERIFY(!differentInput);
+    QCOMPARE(differentInput.getError().code, Automation::AutomationErrorCode::IdempotencyConflict);
+    QCOMPARE(runtime.documentVersion(), version);
+    QCOMPARE(fixture.history()->nextUndoEntry(), undo);
+    const auto stored = runtime.notes().getNotes(version.documentId, target);
+    QVERIFY(stored && stored.get().size() == 2);
+    QCOMPARE(stored.get().first().data.localStart, 1200);
+    QVERIFY(sameShape(curve, parameter(runtime, target, ParamInfo::Pitch, Param::Edited)));
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QVERIFY(runtime.notes().getNotes(version.documentId, target).get().isEmpty());
+    QVERIFY(parameter(runtime, target, ParamInfo::Pitch, Param::Edited).curves.isEmpty());
+    QCOMPARE(sourceModel->notes().count(), 2);
+    QCOMPARE(drawValueAt(parameter(runtime, source, ParamInfo::Pitch, Param::Edited), 100),
+             std::optional<int>{6000});
+    QVERIFY(!fixture.history()->canUndo());
+}
+
 void ProjectEditingTests::wholeClipParameterRoundTrip_data() {
     QTest::addColumn<int>("layer");
     QTest::addColumn<bool>("hasNotes");
