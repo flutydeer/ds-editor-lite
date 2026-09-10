@@ -270,6 +270,8 @@ namespace FillLyric {
     }
 
     void SplitterConfigTab::onOrderChanged() {
+        saveCurrentDetail();
+
         // After drag-drop, read back the order from QListWidgetItem::data(UserRole)
         // which stores the original index in m_rules.
         auto *list = m_listPanel->listWidget();

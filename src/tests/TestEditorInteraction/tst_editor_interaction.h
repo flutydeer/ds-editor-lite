@@ -79,6 +79,10 @@ private slots:
     void applicationShortcutPreservesOtherWindows();
     void disablingShortcutRestoresButtonInput();
     void leavingMenuClearsPastePreview();
+    void trackListDragReordersOrCancels_data();
+    void trackListDragReordersOrCancels();
+    void lyricRuleDragPreservesEditsAndChangesPriority_data();
+    void lyricRuleDragPreservesEditsAndChangesPriority();
 };
 
 #endif

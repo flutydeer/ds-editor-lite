@@ -9,7 +9,7 @@
 #include "Interface/IEditorView.h"
 #include "AppContext.h"
 #include "Interface/IPanel.h"
-#include "TestRuntime.h"
+#include "../TestSupport/GuiAppFixture.h"
 #include <lite/History/HistoryManager.h>
 #include "../TestSupport/TestAssertions.h"
 
@@ -19,36 +19,6 @@
 
 #include <cmath>
 #include <utility>
-
-namespace {
-    Automation::CoreRuntime *g_runtime = nullptr;
-    IEditorView *g_editorHost = nullptr;
-}
-
-template <>
-EditorViewController *AppContext::instance<EditorViewController>() {
-    return nullptr;
-}
-
-template <>
-UndoRedoController *AppContext::instance<UndoRedoController>() {
-    return nullptr;
-}
-
-template <>
-HistoryManager *AppContext::instance<HistoryManager>() {
-    return nullptr;
-}
-
-template <>
-AppStatus *AppContext::instance<AppStatus>() {
-    return nullptr;
-}
-
-template <>
-Automation::CoreRuntime *AppContext::instance<Automation::CoreRuntime>() {
-    return g_runtime;
-}
 
 namespace {
 
@@ -289,7 +259,6 @@ namespace {
 
     void bindEditorView(EditorViewController *controller, IEditorView *view) {
         controller->setView(view);
-        g_editorHost = view;
     }
 
     EditorViewState sampleState() {
@@ -375,31 +344,30 @@ namespace {
 
 namespace {
     struct ControllerFixture {
-        ControllerFixture() {
+        bool initialize() {
+            if (!app.initialize())
+                return false;
             view = std::make_unique<FakeEditorView>();
-            g_editorHost = view.get();
-            runtime = std::make_unique<AutomationTestSupport::TestRuntime>(
-                AutomationTestSupport::editorServices(&g_editorHost));
-            g_runtime = &runtime->runtime();
             editorViewController->setView(view.get());
             appStatus->currentEditObject = AppStatus::EditObjectType::None;
+            return true;
         }
 
         ~ControllerFixture() {
-            bindEditorView(editorViewController, nullptr);
-            g_runtime = nullptr;
-            runtime.reset();
-            view.reset();
-            historyManager->reset();
+            if (app.context) {
+                bindEditorView(editorViewController, nullptr);
+                historyManager->reset();
+            }
         }
 
+        GuiAppFixture app;
         std::unique_ptr<FakeEditorView> view;
-        std::unique_ptr<AutomationTestSupport::TestRuntime> runtime;
     };
 }
 
 void EditorInteractionTests::noView() {
     ControllerFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.app.error));
     auto *controller = editorViewController;
     bindEditorView(controller, nullptr);
     expect(!controller->captureState().has_value(),
@@ -429,6 +397,7 @@ void EditorInteractionTests::noView() {
 
 void EditorInteractionTests::commandCapabilities() {
     ControllerFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.app.error));
     using EditorInteraction::Command;
     using EditorInteraction::Target;
     expect(EditorInteraction::supportsCommand(Target::Tracks, Command::Cut) &&
@@ -476,6 +445,7 @@ void EditorInteractionTests::commandCapabilities() {
 
 void EditorInteractionTests::modeAwareCommandRouting() {
     ControllerFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.app.error));
     auto *controller = editorViewController;
     controller->setActivePanel(AppGlobal::ClipEditor);
     controller->syncPianoRollEditMode(EditorViewGlobal::Select);
@@ -531,6 +501,7 @@ void EditorInteractionTests::modeAwareCommandRouting() {
 
 void EditorInteractionTests::forwardingAndSnapshots() {
     ControllerFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.app.error));
     auto *controller = editorViewController;
     FakeEditorView view;
     view.state = sampleState();
@@ -629,6 +600,7 @@ void EditorInteractionTests::forwardingAndSnapshots() {
 
 void EditorInteractionTests::activePanels() {
     ControllerFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.app.error));
     auto *controller = editorViewController;
     controller->setActivePanel(AppGlobal::TracksEditor);
     FakePanel trackPanel(AppGlobal::TracksEditor);
@@ -666,6 +638,7 @@ void EditorInteractionTests::activePanels() {
 
 void EditorInteractionTests::interactionRouting() {
     ControllerFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.app.error));
     auto *controller = editorViewController;
     controller->setActivePanel(AppGlobal::TracksEditor);
 
@@ -767,6 +740,7 @@ void EditorInteractionTests::interactionRouting() {
 
 void EditorInteractionTests::panelVisibilityRouting() {
     ControllerFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.app.error));
     auto *controller = editorViewController;
     controller->setActivePanel(AppGlobal::TracksEditor);
     FakePanel trackPanel(AppGlobal::TracksEditor);
@@ -843,6 +817,7 @@ void EditorInteractionTests::panelVisibilityRouting() {
 
 void EditorInteractionTests::visibleExecutesImmediately() {
     ControllerFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.app.error));
     auto &view = *fixture.view;
     reset(view);
     int value = 0;
@@ -856,6 +831,7 @@ void EditorInteractionTests::visibleExecutesImmediately() {
 
 void EditorInteractionTests::scrollRequiredExecutesOnSecondRequest() {
     ControllerFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.app.error));
     auto &view = *fixture.view;
     reset(view);
     int value = 0;
@@ -876,6 +852,7 @@ void EditorInteractionTests::scrollRequiredExecutesOnSecondRequest() {
 
 void EditorInteractionTests::redoUsesTwoPhases() {
     ControllerFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.app.error));
     auto &view = *fixture.view;
     reset(view);
     int value = 0;
@@ -894,6 +871,7 @@ void EditorInteractionTests::redoUsesTwoPhases() {
 
 void EditorInteractionTests::contextSwitchExecutesOnSecondRequest() {
     ControllerFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.app.error));
     auto &view = *fixture.view;
     reset(view);
     int value = 0;
@@ -910,6 +888,7 @@ void EditorInteractionTests::contextSwitchExecutesOnSecondRequest() {
 
 void EditorInteractionTests::directionChangeClearsPending() {
     ControllerFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.app.error));
     auto &view = *fixture.view;
     reset(view);
     int value = 0;
@@ -925,6 +904,7 @@ void EditorInteractionTests::directionChangeClearsPending() {
 
 void EditorInteractionTests::historyChangeInvalidatesPending() {
     ControllerFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.app.error));
     auto &view = *fixture.view;
     reset(view);
     int value = 0;
@@ -941,6 +921,7 @@ void EditorInteractionTests::historyChangeInvalidatesPending() {
 
 void EditorInteractionTests::fallbacksAndEditGuard() {
     ControllerFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.app.error));
     auto &view = *fixture.view;
     reset(view);
     int value = 0;
