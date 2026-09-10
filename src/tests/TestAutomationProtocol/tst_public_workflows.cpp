@@ -511,3 +511,154 @@ void AutomationProtocolTests::parameterQueryBoundsSamplesAndPreservesAnchors() {
     QCOMPARE(fixture.runtimeFixture.model().serialize(), beforeModel);
     QCOMPARE(fixture.runtimeFixture.history()->nextUndoEntry(), beforeUndo);
 }
+
+void AutomationProtocolTests::parameterReplacementDecodesDrawAndAnchorCurves() {
+    RegistryFixture fixture;
+    auto &runtime = fixture.runtime;
+    QVERIFY(runtime.project().insertTrack(commandContext(runtime), 0, lyricTrack()));
+    const auto project = runtime.project().getProject(runtime.documentVersion().documentId);
+    QVERIFY(project);
+    const auto clip = project.get().tracks.first().clips.first().id;
+    PublicAutomationRegistry registry(runtime, fixture.access, fixture.fileGuard,
+                                      fixture.admission);
+    QJsonObject draw{
+        {"type",        "draw"                      },
+        {"local_start", 20                          },
+        {"step",        10                          },
+        {"values",      QJsonArray{6000, 6010, 6020}}
+    };
+    QJsonObject firstNode{
+        {"position",      480     },
+        {"value",         6400    },
+        {"interpolation", "linear"}
+    };
+    QJsonObject lastNode{
+        {"position",      960      },
+        {"value",         6600     },
+        {"interpolation", "hermite"}
+    };
+    QJsonObject anchor{
+        {"type",  "anchor"                       },
+        {"nodes", QJsonArray{firstNode, lastNode}}
+    };
+    const auto replace = [&](const QJsonArray &curves) {
+        auto arguments = commandArguments(runtime.documentVersion());
+        arguments.insert(QStringLiteral("clip_id"), clip.value());
+        arguments.insert(QStringLiteral("name"), QStringLiteral("pitch"));
+        arguments.insert(QStringLiteral("curves"), curves);
+        return registry.invoke(QStringLiteral("parameters.replace"), arguments);
+    };
+    fixture.runtimeFixture.history()->reset();
+    const auto replaced = replace({draw, anchor});
+    QVERIFY2(replaced, qPrintable(errorMessage(replaced)));
+    const auto initial = runtime.parameters().getParameter(runtime.documentVersion().documentId,
+                                                           clip, ParamInfo::Pitch, Param::Edited);
+    QVERIFY(initial);
+    QCOMPARE(initial.get().curves.size(), 2);
+    const auto &storedDraw = initial.get().curves.first();
+    const auto &storedAnchor = initial.get().curves.last();
+    QCOMPARE(storedDraw.type, CurveDraftDto::Type::Draw);
+    QCOMPARE(storedDraw.localStart, 20);
+    QCOMPARE(storedDraw.step, 10);
+    QCOMPARE(storedDraw.values, (QList<int>{6000, 6010, 6020}));
+    QCOMPARE(storedAnchor.type, CurveDraftDto::Type::Anchor);
+    QCOMPARE(storedAnchor.nodes.size(), 2);
+    QCOMPARE(storedAnchor.nodes.first().position, 480);
+    QCOMPARE(storedAnchor.nodes.first().value, 6400);
+    QCOMPARE(storedAnchor.nodes.first().interpolation, AnchorNode::Linear);
+    QCOMPARE(storedAnchor.nodes.last().position, 960);
+    QCOMPARE(storedAnchor.nodes.last().interpolation, AnchorNode::Hermite);
+    QVERIFY(storedDraw.id.isValid() && storedAnchor.id.isValid());
+    QVERIFY(storedAnchor.nodes.first().id.isValid() && storedAnchor.nodes.last().id.isValid());
+    draw.insert(QStringLiteral("values"), QJsonArray{6100, 6110, 6120});
+    lastNode.insert(QStringLiteral("value"), 6700);
+    anchor.insert(QStringLiteral("nodes"), QJsonArray{firstNode, lastNode});
+    const auto updated = replace({draw, anchor});
+    QVERIFY2(updated, qPrintable(errorMessage(updated)));
+    const auto edited = runtime.parameters().getParameter(runtime.documentVersion().documentId,
+                                                          clip, ParamInfo::Pitch, Param::Edited);
+    QVERIFY(edited);
+    QCOMPARE(edited.get().curves.size(), 2);
+    QCOMPARE(edited.get().curves.first().values, (QList<int>{6100, 6110, 6120}));
+    QCOMPARE(edited.get().curves.last().nodes.last().value, 6700);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    const auto restored = runtime.parameters().getParameter(runtime.documentVersion().documentId,
+                                                            clip, ParamInfo::Pitch, Param::Edited);
+    QVERIFY(restored);
+    QCOMPARE(restored.get().curves.size(), 2);
+    QCOMPARE(restored.get().curves.first().id, storedDraw.id);
+    QCOMPARE(restored.get().curves.first().values, storedDraw.values);
+    QCOMPARE(restored.get().curves.last().id, storedAnchor.id);
+    QCOMPARE(restored.get().curves.last().nodes.last().id, storedAnchor.nodes.last().id);
+    QCOMPARE(restored.get().curves.last().nodes.last().value, storedAnchor.nodes.last().value);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    const auto empty = runtime.parameters().getParameter(runtime.documentVersion().documentId, clip,
+                                                         ParamInfo::Pitch, Param::Edited);
+    QVERIFY(empty && empty.get().curves.isEmpty());
+    QVERIFY(!fixture.runtimeFixture.history()->canUndo());
+}
+
+void AutomationProtocolTests::phonemeNamesUseTheEffectiveLanguageAndResetOffsets_data() {
+    QTest::addColumn<bool>("inherit");
+    QTest::newRow("explicit-note-language") << false;
+    QTest::newRow("inherited-clip-language") << true;
+}
+
+void AutomationProtocolTests::phonemeNamesUseTheEffectiveLanguageAndResetOffsets() {
+    QFETCH(bool, inherit);
+    RegistryFixture fixture;
+    auto &runtime = fixture.runtime;
+    auto track = lyricTrack();
+    auto &draft = track.clips.first().notes.first();
+    if (inherit)
+        draft.language.clear();
+    const auto expectedLanguage = inherit ? QStringLiteral("cmn") : QStringLiteral("eng");
+    PhonemeName onset;
+    onset.name = QStringLiteral("l");
+    onset.language = expectedLanguage;
+    PhonemeName vowel;
+    vowel.name = QStringLiteral("a");
+    vowel.language = expectedLanguage;
+    draft.phonemes.nameSeq.original = {onset, vowel};
+    draft.phonemes.offsetSeq.original = {0, 50};
+    draft.phonemes.offsetSeq.edited = {0, 80};
+    QVERIFY(runtime.project().insertTrack(commandContext(runtime), 0, track));
+    const auto project = runtime.project().getProject(runtime.documentVersion().documentId);
+    QVERIFY(project);
+    const auto clip = project.get().tracks.first().clips.first().id;
+    const auto notes = runtime.notes().getNotes(runtime.documentVersion().documentId, clip);
+    QVERIFY(notes && !notes.get().isEmpty());
+    const auto original = notes.get().first();
+    QVERIFY(!original.data.phonemes.offsetSeq.edited.isEmpty());
+    PublicAutomationRegistry registry(runtime, fixture.access, fixture.fileGuard,
+                                      fixture.admission);
+    auto arguments = commandArguments(runtime.documentVersion());
+    arguments.insert(QStringLiteral("clip_id"), clip.value());
+    arguments.insert(QStringLiteral("note_id"), original.id.value());
+    arguments.insert(QStringLiteral("names"), QJsonArray{"m", "a", "n"});
+    fixture.runtimeFixture.history()->reset();
+    const auto set = registry.invoke(QStringLiteral("notes.set_phonemes"), arguments);
+    QVERIFY2(set, qPrintable(errorMessage(set)));
+    const auto after = runtime.notes().getNotes(runtime.documentVersion().documentId, clip);
+    QVERIFY(after);
+    const auto changed = after.get().first();
+    QCOMPARE(changed.id, original.id);
+    QCOMPARE(changed.data.language, draft.language);
+    QCOMPARE(changed.data.lyric, draft.lyric);
+    QCOMPARE(changed.data.phonemes.nameSeq.original, original.data.phonemes.nameSeq.original);
+    QVERIFY(changed.data.phonemes.offsetSeq.edited.isEmpty());
+    QStringList names;
+    for (const auto &phoneme : changed.data.phonemes.nameSeq.edited) {
+        names.append(phoneme.name);
+        QCOMPARE(phoneme.language, expectedLanguage);
+    }
+    QCOMPARE(names, (QStringList{QStringLiteral("m"), QStringLiteral("a"), QStringLiteral("n")}));
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    const auto undone = runtime.notes().getNotes(runtime.documentVersion().documentId, clip);
+    QVERIFY(undone);
+    QCOMPARE(undone.get().first().data.phonemes.nameSeq.edited,
+             original.data.phonemes.nameSeq.edited);
+    QCOMPARE(undone.get().first().data.phonemes.offsetSeq.edited,
+             original.data.phonemes.offsetSeq.edited);
+    QVERIFY(!fixture.runtimeFixture.history()->canUndo());
+}
