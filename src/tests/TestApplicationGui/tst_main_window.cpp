@@ -49,6 +49,10 @@
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QFileInfo>
+#include <QFileDialog>
+#include <QDialogButtonBox>
+#include <QClipboard>
+#include <QLineEdit>
 #include <QMenu>
 #include <QMimeData>
 #include <QPointer>
@@ -536,6 +540,134 @@ void ApplicationGuiTests::undoShortcutRevealsThePianoEditBeforeChangingIt() {
     QCOMPARE(navigation.size(), 1);
     QTRY_COMPARE(window.focusVisibility(focus.after), HistoryFocusVisibility::Visible);
     QVERIFY(!historyManager->canRedo());
+}
+
+void ApplicationGuiTests::fileMenuOpensAndSavesThroughTheActualPicker() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto sourcePath = directory.filePath(QStringLiteral("打开工程.dspx"));
+    const auto savedPath = directory.filePath(QStringLiteral("保存工程.dspx"));
+    createDroppedProject(sourcePath);
+    if (QTest::currentTestFailed())
+        return;
+    MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    auto &window = *host.window;
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+    QTRY_VERIFY(!documentWorkflowController->busy());
+    const auto nativeDialogsDisabled = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
+    QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+    const auto restoreDialogs = qScopeGuard(
+        [&] { QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDialogsDisabled); });
+    const auto chooseFile = [&](const char *action, const QString &path, bool save, bool accept) {
+        const auto before = runtime.documentVersion();
+        const auto beforeModel = context->m_appModel->serialize();
+        bool chosen = false;
+        QTimer answer;
+        answer.setInterval(10);
+        connect(&answer, &QTimer::timeout, &window, [&] {
+            QPointer<QFileDialog> picker =
+                qobject_cast<QFileDialog *>(QApplication::activeModalWidget());
+            if (!picker)
+                return;
+            answer.stop();
+            const auto close = qScopeGuard([&] {
+                if (picker && picker->isVisible())
+                    picker->reject();
+            });
+            QCOMPARE(picker->acceptMode(),
+                     save ? QFileDialog::AcceptSave : QFileDialog::AcceptOpen);
+            auto *name = picker->findChild<QLineEdit *>(QStringLiteral("fileNameEdit"));
+            QVERIFY(name);
+            QTest::mouseClick(name, Qt::LeftButton);
+            QTRY_VERIFY(name->hasFocus());
+            QTest::keySequence(name, QKeySequence::SelectAll);
+            QApplication::clipboard()->setText(QDir::toNativeSeparators(path));
+            QTest::keySequence(name, QKeySequence::Paste);
+            QCOMPARE(runtime.documentVersion(), before);
+            QCOMPARE(context->m_appModel->serialize(), beforeModel);
+            if (accept) {
+                auto *buttons = picker->findChild<QDialogButtonBox *>();
+                QVERIFY(buttons);
+                auto *button =
+                    buttons->button(save ? QDialogButtonBox::Save : QDialogButtonBox::Open);
+                QVERIFY(button && button->isEnabled());
+                QTest::mouseClick(button, Qt::LeftButton);
+            } else {
+                QTest::keyClick(name, Qt::Key_Escape);
+            }
+            chosen = true;
+        });
+        answer.start();
+        clickMainMenuAction(window, action);
+        QTRY_VERIFY_WITH_TIMEOUT(chosen, 10000);
+        answer.stop();
+        QTRY_VERIFY_WITH_TIMEOUT(!documentWorkflowController->busy(), 10000);
+    };
+    const auto initial = runtime.documentVersion();
+    chooseFile("&Open...", sourcePath, false, false);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(runtime.documentVersion(), initial);
+    QVERIFY(documentWorkflowController->projectPath().isEmpty());
+    chooseFile("&Open...", sourcePath, false, true);
+    if (QTest::currentTestFailed())
+        return;
+    QTRY_COMPARE(QFileInfo(documentWorkflowController->projectPath()).canonicalFilePath(),
+                 QFileInfo(sourcePath).canonicalFilePath());
+    QVERIFY(runtime.documentVersion().documentId != initial.documentId);
+    QCOMPARE(context->m_appModel->tracks().size(), 1);
+    auto *track = context->m_appModel->tracks().first();
+    QCOMPARE(track->name(), QStringLiteral("Dropped track"));
+    QVERIFY(historyManager->isOnSavePoint());
+    QVERIFY(documentWorkflowController->recentProjectFiles().contains(
+        documentWorkflowController->projectPath()));
+    const auto document = runtime.documentVersion().documentId;
+    QVERIFY(runtime.project().renameTrack(commandContext(), Automation::TrackId(track->id()),
+                                          QStringLiteral("Saved from the menu")));
+    const auto *edit = historyManager->nextUndoEntry();
+    QVERIFY(edit);
+    chooseFile("Save &as...", savedPath, true, false);
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(!QFileInfo::exists(savedPath));
+    QCOMPARE(QFileInfo(documentWorkflowController->projectPath()).canonicalFilePath(),
+             QFileInfo(sourcePath).canonicalFilePath());
+    QCOMPARE(historyManager->nextUndoEntry(), edit);
+    QVERIFY(!historyManager->isOnSavePoint());
+    chooseFile("Save &as...", savedPath, true, true);
+    if (QTest::currentTestFailed())
+        return;
+    QTRY_VERIFY(QFileInfo(savedPath).isFile());
+    QTRY_COMPARE(QFileInfo(documentWorkflowController->projectPath()).canonicalFilePath(),
+                 QFileInfo(savedPath).canonicalFilePath());
+    QCOMPARE(runtime.documentVersion().documentId, document);
+    QVERIFY(historyManager->isOnSavePoint());
+    QCOMPARE(historyManager->nextUndoEntry(), edit);
+    QVERIFY(documentWorkflowController->recentProjectFiles().contains(
+        documentWorkflowController->projectPath()));
+    QVERIFY(runtime.project().renameTrack(commandContext(), Automation::TrackId(track->id()),
+                                          QStringLiteral("Saved again")));
+    clickMainMenuAction(window, "&Save");
+    if (QTest::currentTestFailed())
+        return;
+    QTRY_VERIFY(historyManager->isOnSavePoint());
+    QVERIFY(!QApplication::activeModalWidget());
+    DspxProjectConverter converter;
+    AppModel loaded;
+    QString error;
+    QVERIFY2(converter.load(savedPath, &loaded, error, ImportMode::NewProject), qPrintable(error));
+    QCOMPARE(loaded.tracks().size(), 1);
+    QCOMPARE(loaded.tracks().first()->name(), QStringLiteral("Saved again"));
+    AppModel original;
+    QVERIFY2(converter.load(sourcePath, &original, error, ImportMode::NewProject),
+             qPrintable(error));
+    QCOMPARE(original.tracks().first()->name(), QStringLiteral("Dropped track"));
+    QCOMPARE(runtime.documentVersion().documentId, document);
 }
 
 void ApplicationGuiTests::panelButtonsAndClipDoubleClickRestoreTheEditorView() {

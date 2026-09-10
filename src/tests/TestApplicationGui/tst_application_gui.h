@@ -93,6 +93,7 @@ private slots:
     void undoShortcutRevealsTheTrackEditBeforeChangingIt_data();
     void undoShortcutRevealsTheTrackEditBeforeChangingIt();
     void undoShortcutRevealsThePianoEditBeforeChangingIt();
+    void fileMenuOpensAndSavesThroughTheActualPicker();
     void projectDropCanCancelThenOpenTheDocument();
     void mixedFileDropRejectsAtomicallyAndAllowsTheNextImport();
     void detachedBottomPanelReattachesWithItsEditingContext();
