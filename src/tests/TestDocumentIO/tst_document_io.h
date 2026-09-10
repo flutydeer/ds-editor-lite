@@ -35,6 +35,8 @@ private slots:
     void dspxRoundTripPreservesEditedPhrase();
     void dspxRoundTripPreservesEditedPhrase_data();
     void dspxPhonemeInterchangeRespectsExternalChanges();
+    void dspxStandardSingerSourcesLoadNestedMixes_data();
+    void dspxStandardSingerSourcesLoadNestedMixes();
     void audioPublicationOverwrite();
     void audioPublicationNoClobber();
     void batchPreparationFailures();

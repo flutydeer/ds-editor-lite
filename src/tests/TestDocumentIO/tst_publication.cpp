@@ -553,6 +553,108 @@ void DocumentIOTests::dspxRoundTripPreservesEditedPhrase() {
     }
 }
 
+void DocumentIOTests::dspxStandardSingerSourcesLoadNestedMixes_data() {
+    QTest::addColumn<bool>("installed");
+    QTest::newRow("installed-singer") << true;
+    QTest::newRow("missing-singer-metadata") << false;
+}
+
+void DocumentIOTests::dspxStandardSingerSourcesLoadNestedMixes() {
+    QFETCH(bool, installed);
+    const SpeakerInfo soft(QStringLiteral("soft"), QStringLiteral("Soft"));
+    const SpeakerInfo strong(QStringLiteral("strong"), QStringLiteral("Strong"));
+    SingerInfo singer(
+        {QStringLiteral("voice"), QStringLiteral("fixture-package"), QVersionNumber(1, 2)},
+        QStringLiteral("Fixture voice"), {soft, strong});
+    singer.setResolutionState(ResolutionState::Resolved);
+    const auto source = [](const QString &speaker) {
+        auto single = std::make_shared<opendspx::SingleSinger>();
+        single->id = "fixture-package@1.2[voice]";
+        single->extra = stdc::json::Object{
+            {"speaker", speaker.toStdString()}
+        };
+        return single;
+    };
+    auto inner = std::make_shared<opendspx::MixedSinger>();
+    inner->singers = {source(soft.id()), source(strong.id())};
+    inner->ratio = {0.25};
+    auto outer = std::make_shared<opendspx::MixedSinger>();
+    outer->singers = {inner, source(strong.id())};
+    outer->ratio = {0.5};
+    opendspx::Sources fixed;
+    fixed.category = "diffscope-synth:diffsinger";
+    fixed.singers = {outer};
+    auto dynamic = fixed;
+    dynamic.singers = {inner, source(strong.id())};
+    dynamic.mix = {
+        {0,   {0.5} },
+        {480, {0.75}}
+    };
+    opendspx::Model project;
+    project.content.timeline.tempos = {
+        {0, 120.0}
+    };
+    project.content.timeline.timeSignatures = {
+        {0, 4, 4}
+    };
+    opendspx::Track track;
+    track.name = "External singer sources";
+    for (const auto &sources : {fixed, dynamic}) {
+        auto phrase = std::make_shared<opendspx::SingingClip>();
+        phrase->time.pos = track.clips.empty() ? 0 : 2400;
+        phrase->time.length = 1920;
+        phrase->time.clipLen = 1920;
+        phrase->sources = sources;
+        track.clips.push_back(phrase);
+    }
+    project.content.tracks = {track};
+    SingerMetadataConverter converter;
+    if (installed)
+        converter.availableSinger = singer;
+    AppModel loaded;
+    LoopSettings loop;
+    QString error;
+    QVERIFY2(converter.loadParsedProject(project, &loaded, loop, error, ImportMode::NewProject),
+             qPrintable(error));
+    const auto verifyMixes = [&](const AppModel &model) {
+        QCOMPARE(model.tracks().size(), 1);
+        const auto clips = model.tracks().first()->clips().toList();
+        QCOMPARE(clips.size(), 2);
+        const auto *fixedClip = dynamic_cast<const SingingClip *>(clips.first());
+        const auto *dynamicClip = dynamic_cast<const SingingClip *>(clips.last());
+        QVERIFY(fixedClip && dynamicClip);
+        for (const auto *phrase : {fixedClip, dynamicClip}) {
+            QCOMPARE(phrase->ownSingerInfo().identifier(), singer.identifier());
+            QCOMPARE(phrase->singerInfo().resolutionState(),
+                     installed ? ResolutionState::Resolved : ResolutionState::Pending);
+            const auto sources = phrase->speakerMixData().sources;
+            QCOMPARE(sources.size(), 2);
+            QCOMPARE(sources.first().speaker.id(), soft.id());
+            QCOMPARE(sources.last().speaker.id(), strong.id());
+        }
+        const auto fixedMix = fixedClip->speakerMixData();
+        QCOMPARE(fixedMix.mode, SpeakerMixModel::SingerSourceMode::FixedMix);
+        QCOMPARE(fixedMix.fixedWeights, QVector<double>{0.125});
+        const auto dynamicMix = dynamicClip->speakerMixData();
+        QCOMPARE(dynamicMix.mode, SpeakerMixModel::SingerSourceMode::DynamicMix);
+        QCOMPARE(dynamicMix.dynamicKeyframes.size(), 2);
+        QCOMPARE(dynamicMix.dynamicKeyframes.first().tick, 0);
+        QCOMPARE(dynamicMix.dynamicKeyframes.first().weights, QVector<double>{0.125});
+        QCOMPARE(dynamicMix.dynamicKeyframes.last().tick, 480);
+        QCOMPARE(dynamicMix.dynamicKeyframes.last().weights, QVector<double>{0.1875});
+    };
+    verifyMixes(loaded);
+    if (QTest::currentTestFailed())
+        return;
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto path = directory.filePath(QStringLiteral("nested-sources.dspx"));
+    QVERIFY2(converter.save(path, &loaded, error), qPrintable(error));
+    AppModel reopened;
+    QVERIFY2(converter.load(path, &reopened, error, ImportMode::NewProject), qPrintable(error));
+    verifyMixes(reopened);
+}
+
 void DocumentIOTests::audioPublicationOverwrite() {
     testAudioPublicationOverwrite();
 }
