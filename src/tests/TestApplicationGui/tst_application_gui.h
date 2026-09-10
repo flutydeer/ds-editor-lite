@@ -79,6 +79,7 @@ private slots:
     void invalidTaggerRegexPreservesAppliedRules();
     void movingLyricsBackwardUsesTheSelectedWordRange_data();
     void movingLyricsBackwardUsesTheSelectedWordRange();
+    void pianoKeyboardGlissandoAndHideReleasePressedNotes();
     void cleanup();
     void cleanupTestCase();
 
