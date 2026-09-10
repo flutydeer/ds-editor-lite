@@ -20,7 +20,7 @@
 | 保存点与撤销分支 | domain/workflow | 原测试只检查 redo 清空，未验证丢弃已保存分支后的 dirty | 补分支生命周期及地址复用用例；修复保存点引用已销毁条目 | DocumentIO | 通用 |
 | 钢琴窗剪贴板入口 | gui/domain | 仅有 payload 和 Facade 粘贴，未执行 ClipboardController | 补真实 copy/cut/paste：MIME、活动片段及播放位置、单步撤销、无效内容不修改工程；恢复原剪贴板 | ApplicationGui、ProjectEditing | offscreen |
 | 参数曲线与轨道片段的真实编辑接线 | gui | 数值和 Facade 用例未进入 CommonParamEditorView 与 TracksGraphicsView 的实际鼠标提交路径 | 在共用 ApplicationGui 中补代表性参数绘制及 Shape/Scale 选区变换，检查预览、范围外保留、一次提交、取消及撤销重做；轨道视图检查片段选择、拖动及相同提交边界 | ApplicationGui::parameterStrokeCommitsOnceAndUndoRestoresView、escapeCancelsParameterStrokeWithoutChangingDocument、parameterTransformGesturesCommitAndCancel、trackClipDragCommitsOrCancels | offscreen；无需声库/设备 |
-| 整片段复制、跨轨粘贴与参数保真 | domain/gui | 首次采样中 ClipsInfo 未执行；序列化遗漏片段参数 | 复用音符剪贴板曲线编码，补全部参数层、无音符曲线、声线/发音保真和跨轨批量撤销；生产控制器复用同一粘贴准备逻辑；补真实 GUI 入口 | ProjectEditing、ApplicationGui | 通用/offscreen |
+| 整片段复制、跨轨粘贴与参数保真 | domain/gui | 首次采样中 ClipsInfo 未执行；序列化遗漏片段参数 | 复用曲线编码及粘贴准备逻辑，补参数/声线/发音保真和批量撤销；轨道右键 Copy/Paste 经真实菜单检查悬停预览、Escape 清理、提交位置与预览一致及撤销 | ProjectEditing、ApplicationGui::wholeClipClipboardUsesSelectedTrackAndPreservesCurves、trackContextMenuPastePreviewCancelsAndMatchesCommittedClip | 通用/offscreen |
 | 应用运行状态、设置、播放、包与规则 | domain/workflow | RuntimeDomains/L3ApplicationDomains 按历史阶段分开，设置及包 fixture 重复，歌词替身复制排序逻辑 | 合并到 ApplicationServices；Host、播放、编辑状态、设置、包、歌词规则及预设按源文件和独立行为组织；共用 Harness，规则使用明确 Host 快照和实际持久化断言 | ApplicationServices、Preferences | 通用 |
 | GUI Host 无设备时的公开播放失败 | process/gui | Linux 实际 MCP 调用超时；无设备时错误弹窗阻塞调用 | 仅 TrustedGui 调用显示设备错误弹窗；公开调用检查失败、状态不变及后续查询；GUI fixture 关闭自身设备确定性验证无弹窗 | ProcessIntegration、ApplicationGui | offscreen |
 | 文档生命周期、文件转换与发布 | workflow | 已有保存/换代/原子写回，执行边界不统一 | 保留真实文件回归；补保存扩展名/Unicode/大小写与过期确认；独立 fixture | DocumentIO | 通用/GUI |
@@ -123,8 +123,10 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 主窗口面板及嵌入设置 | gui | 实际按钮、片段双击、分离窗口关闭和菜单输入验证面板恢复、分离/重新嵌入后的编辑上下文、视图状态复原，以及嵌入设置对后台快捷键的阻断与焦点恢复 | ApplicationGui 的 tst_main_window.cpp | offscreen；不代表各窗口管理器或多屏行为 |
 | 日志接收、筛选和复制 | gui | 真实 LogBus 包含跨线程追加，经过控件过滤级别/标签/文本，检查显示顺序复制与清空，文档和历史不变 | ApplicationGui::logWindowFiltersLiveMessagesAndCopiesDisplayedOrder | offscreen；真实总线；无需设备 |
 | 音素、搜索、动态声线与编辑边界 | gui | 真实对话框和输入验证音素确认/取消/重置、边界拖动及撤销；波形加载使用实际推理音频，受控延迟检查切换片段后丢弃过期结果。内联歌词/读音检查双击、提交/取消和导航，保留搜索、动态关键帧、音符缩放及时间尺循环行为 | ApplicationGui 的 tst_note_dialogs.cpp、tst_dynamic_mix.cpp、tst_piano_roll.cpp、tst_track_editing.cpp | offscreen；音素和波形使用内置声库 |
+| 歌词整体后移与钢琴键盘 | gui/domain | 实际菜单检查连续选区变连音、整套语言/读音/候选后移、手工音素清理及撤销，非连续选择禁用；键盘按压/滑奏/隐藏检查 note-on/off 和释放 | ApplicationGui::movingLyricsBackwardUsesTheSelectedWordRange、pianoKeyboardGlissandoAndHideReleasePressedNotes | offscreen；无需音频或 MIDI 硬件 |
 | 公共数值控件的输入与提交 | gui | SeekBar 检查实时/释放提交、键盘步进及复位；Fader/Pan 检查预览信号、释放提交和随后外部更新，避免拖动状态残留 | GuiComponents::seekBarTrackingControlsWhenDraggedValuesCommit、seekBarKeyboardStepsClampAndDoubleClickResets、mixerSliderReleaseEndsPreview | offscreen；无需设备 |
 | 音频输出及循环播放回调 | workflow | 生成短素材检查全工程时长、混音、静音、自定义来源及 WAV/FLAC；受控实际回调检查循环回绕和缓冲等待/恢复。修复 Talcs 循环位置及预读/直接读取切换的位置同步，保留原 PCM 断言。循环区导出尚未实现，不在测试中补建 | ApplicationWorkflows 的 tst_audio_workflows.cpp | 通用；不需要播放设备 |
+| 自定义导出预设实际使用 | workflow | 创建、同名更新和落盘重读后按预设真实导出，检查文件路径、整数 WAV 编码、时长及有效样本，再验证删除/不存在和配置恢复；不枚举内置预设 | ApplicationWorkflows::customExportPresetPersistsAndProducesIntegerWave | 通用；小型 WAV；不需要模型输出或播放设备 |
 | 多语种、多声线及推理重算 | workflow/process | 内置微型计算图走正常包、语言、推理和导出路径，明确检查实际音素；验证缓存复用、切换声线和 BPM 后的输出变化 | ModelResources::voicebankInferenceAndWaveExport | CPU；默认内置声库，可显式换真实资源 |
 | 声线预设 GUI 生命周期 | gui | 实际保存/取消、下拉选择、修改后 dirty 标记和删除/取消；搜索窗口销毁后保存预设揭示工具栏私有对象残留，将其归属视图并同步解除通知；持久化业务规则由应用工作流承担 | ApplicationGui::speakerMixPresetsFollowSaveSelectAndDeleteInputs、lyricSearchNavigatesTheActualEditorAndHandlesNoMatches | offscreen；临时配置 |
 | 包查找与详情、缺失音频重定位 | gui | 搜索已加载包、选择详情及无匹配恢复；缺失音频经 Qt 文件选择取消或重定位后真实解码，验证状态和撤销重做 | ApplicationGui 的 tst_resources.cpp | offscreen；默认内置包、临时 WAV |
