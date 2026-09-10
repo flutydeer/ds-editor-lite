@@ -12,6 +12,7 @@
 #include "UI/Dialogs/Note/PhonemeEditorDialog.h"
 #include "UI/Dialogs/Note/PhonemeNameItemView.h"
 #include "UI/Dialogs/Note/PhonemeNameListWidget.h"
+#include "UI/Dialogs/Base/MessageDialog.h"
 #include "UI/Dialogs/Search/SearchDialog.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollCoord.h"
@@ -68,6 +69,152 @@ namespace {
         }
         return nullptr;
     }
+}
+
+void ApplicationGuiTests::phonemeDurationResetConfirmsAdjacentChanges_data() {
+    QTest::addColumn<bool>("accept");
+    QTest::addColumn<bool>("selectBoth");
+    QTest::newRow("cancel-adjacent-reset") << false << false;
+    QTest::newRow("confirm-adjacent-reset") << true << false;
+    QTest::newRow("selected-neighbours-need-no-prompt") << true << true;
+}
+
+void ApplicationGuiTests::phonemeDurationResetConfirmsAdjacentChanges() {
+    QFETCH(bool, accept);
+    QFETCH(bool, selectBoth);
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    const auto clipId = Automation::ClipId(singingClip->id());
+    Automation::NoteDraftDto first;
+    first.localStart = 73;
+    first.length = 407;
+    first.keyIndex = 60;
+    first.lyric = QStringLiteral("first");
+    first.language = QStringLiteral("eng");
+    auto second = first;
+    second.localStart = 600;
+    second.length = 360;
+    second.keyIndex = 64;
+    second.lyric = QStringLiteral("neighbour");
+    QVERIFY(runtime.notes().insertNotes(commandContext(), clipId, {first, second}));
+    QCOMPARE(singingClip->notes().count(), 2);
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    const auto notes = singingClip->notes().toList();
+    PhonemeName onset;
+    onset.language = QStringLiteral("eng");
+    onset.name = QStringLiteral("l");
+    onset.isOnset = true;
+    PhonemeName vowel;
+    vowel.language = QStringLiteral("eng");
+    vowel.name = QStringLiteral("a");
+    Phonemes firstPhones;
+    firstPhones.nameSeq.original = {onset, vowel};
+    firstPhones.nameSeq.edited = {onset, vowel};
+    firstPhones.offsetSeq.original = {-40, 700};
+    firstPhones.offsetSeq.edited = {-20, 350};
+    auto secondPhones = firstPhones;
+    secondPhones.offsetSeq.original = {0, 200};
+    secondPhones.offsetSeq.edited = {-50, 200};
+    QVERIFY(runtime.notes().setPhonemes(commandContext(), clipId,
+                                        Automation::NoteId(notes.first()->id()), firstPhones));
+    QVERIFY(runtime.notes().setPhonemes(commandContext(), clipId,
+                                        Automation::NoteId(notes.last()->id()), secondPhones));
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    view->hide();
+    PianoRollView piano;
+    piano.setDataContext(singingClip);
+    const auto detach = qScopeGuard([&] { piano.setDataContext(nullptr); });
+    piano.resize(1000, 600);
+    piano.show();
+    piano.activateWindow();
+    QVERIFY(piano.setViewScale(1.0, 1.0));
+    QVERIFY(piano.centerAt(1920, 62));
+    piano.onEditModeChanged(ClipEditorGlobal::Select);
+    auto *canvas = piano.findChild<PianoRollGraphicsView *>();
+    QVERIFY(canvas);
+    QTRY_VERIFY(canvas->isVisible());
+    const auto pointAt = [&](int tick, int key) {
+        return canvas->mapFromScene(QPointF(
+            canvas->tickToSceneX(tick), PianoRollCoord::keyIndexToCenterY(
+                                            key, ClipEditorGlobal::noteHeight * canvas->scaleY())));
+    };
+    const auto position = pointAt(300, 60);
+    QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, position);
+    if (selectBoth)
+        QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::ControlModifier,
+                          pointAt(780, 64));
+    QCOMPARE(appStatus->selectedNotes.get().size(), selectBoth ? 2 : 1);
+    QVERIFY(appStatus->selectedNotes.get().contains(notes.first()->id()));
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    bool promptSeen = false;
+    bool actionChosen = false;
+    QTimer answer;
+    answer.setInterval(10);
+    connect(&answer, &QTimer::timeout, &piano, [&] {
+        auto *prompt = qobject_cast<MessageDialog *>(QApplication::activeModalWidget());
+        if (!prompt)
+            return;
+        answer.stop();
+        promptSeen = true;
+        const auto close = qScopeGuard([&] {
+            if (prompt->isVisible())
+                prompt->reject();
+        });
+        QVERIFY(!selectBoth);
+        QCOMPARE(prompt->windowTitle(), ClipController::tr("Reset phoneme durations"));
+        const auto labels = prompt->findChildren<QLabel *>();
+        QVERIFY(std::any_of(labels.cbegin(), labels.cend(), [](const auto *label) {
+            return label->text().contains(QStringLiteral("neighbour"));
+        }));
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(notes.last()->phonemes().offsetSeq.edited, secondPhones.offsetSeq.edited);
+        auto *button = noteDialogButton(prompt, accept ? ClipController::tr("Reset")
+                                                       : ClipController::tr("Cancel"));
+        QVERIFY(button);
+        QTest::mouseClick(button, Qt::LeftButton);
+    });
+    QTimer choose;
+    choose.setSingleShot(true);
+    connect(&choose, &QTimer::timeout, &piano, [&] {
+        auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+        QVERIFY(menu);
+        const auto close = qScopeGuard([&] { menu->close(); });
+        for (auto *action : menu->actions()) {
+            if (action->text() == PianoRollContextMenuController::tr("Reset Phoneme Durations")) {
+                QVERIFY(action->isEnabled());
+                actionChosen = true;
+                QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier,
+                                  menu->actionGeometry(action).center());
+                return;
+            }
+        }
+        QFAIL("The note menu did not expose phoneme timing reset");
+    });
+    QContextMenuEvent event(QContextMenuEvent::Mouse, position,
+                            canvas->viewport()->mapToGlobal(position));
+    answer.start();
+    choose.start(0);
+    QApplication::sendEvent(canvas->viewport(), &event);
+    choose.stop();
+    answer.stop();
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(actionChosen);
+    QCOMPARE(promptSeen, !selectBoth);
+    if (accept) {
+        QVERIFY(notes.first()->phonemes().offsetSeq.edited.isEmpty());
+        QVERIFY(notes.last()->phonemes().offsetSeq.edited.isEmpty());
+        QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+        QVERIFY(runtime.history().undo(commandContext()));
+    } else {
+        QCOMPARE(runtime.documentVersion(), before);
+    }
+    QCOMPARE(notes.first()->phonemes().offsetSeq.edited, firstPhones.offsetSeq.edited);
+    QCOMPARE(notes.last()->phonemes().offsetSeq.edited, secondPhones.offsetSeq.edited);
+    QVERIFY(!historyManager->canUndo());
 }
 
 void ApplicationGuiTests::phonemeDialogValidatesCommitsAndResetsThroughTheNoteMenu() {
