@@ -125,6 +125,74 @@ void ApplicationGuiTests::packageSearchShowsTheSelectedPackageDetails() {
     QVERIFY(!historyManager->canUndo());
 }
 
+void ApplicationGuiTests::audioResourceConfirmationKeepsTheDecodedSource() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto path = directory.filePath(QStringLiteral("located.wav"));
+    const auto error = createWaveFixture(path);
+    QVERIFY2(error.isEmpty(), qPrintable(error));
+    auto &runtime = *context->m_coreRuntime;
+    const auto releaseAudio = qScopeGuard([&] {
+        QVERIFY(runtime.documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+        if (QTest::currentTestFailed())
+            directory.setAutoRemove(false);
+    });
+    auto document = Automation::DocumentAutomationFacade::newDocumentDraft(false);
+    Automation::ClipDraftDto clip;
+    clip.type = Automation::ClipDraftDto::Type::Audio;
+    clip.properties.name = QStringLiteral("Located audio");
+    clip.properties.length = 480;
+    clip.properties.clipLen = 480;
+    clip.audioPath = path;
+    Automation::TrackDraftDto track;
+    track.name = QStringLiteral("Audio resource");
+    track.clips = {clip};
+    document.tracks = {track};
+    QVERIFY(runtime.documents().commitNewDocument(commandContext(), document));
+    auto *audio = qobject_cast<AudioClip *>(*appModel->tracks().first()->clips().begin());
+    QVERIFY(audio);
+    QTRY_COMPARE(audio->audioInfo().frames, 800);
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    const auto source = Automation::audioAssetSnapshotDto(*audio);
+    QVERIFY(runtime.project().setAudioClipPathStatus(commandContext(),
+                                                     Automation::ClipId(audio->id()), source,
+                                                     AudioClip::PathStatus::Unconfirmed));
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    const auto onSavePoint = historyManager->isOnSavePoint();
+    ResourceCheckDialog dialog;
+    auto *page = new AudioResourcePage({}, {audio->id()}, &dialog);
+    dialog.addPage(page);
+    dialog.finalizePages();
+    dialog.show();
+    dialog.activateWindow();
+    auto *tree = page->findChild<QTreeWidget *>();
+    auto *confirm = resourceButton(page, AudioResourcePage::tr("Confirm"));
+    auto *relink = resourceButton(page, AudioResourcePage::tr("Relink..."));
+    QVERIFY(tree && confirm && relink);
+    QTRY_VERIFY(dialog.isActiveWindow() && tree->isVisible());
+    QCOMPARE(tree->topLevelItemCount(), 1);
+    auto *row = tree->topLevelItem(0);
+    QVERIFY(page->hasPendingIssues());
+    QTest::mouseClick(tree->viewport(), Qt::LeftButton, Qt::NoModifier,
+                      tree->visualItemRect(row).center());
+    QVERIFY(confirm->isEnabled());
+    QVERIFY(relink->isEnabled());
+    QTest::mouseClick(confirm, Qt::LeftButton);
+    QCOMPARE(audio->pathStatus(), AudioClip::PathStatus::Normal);
+    QCOMPARE(row->text(3), AudioResourcePage::tr("Resolved"));
+    QVERIFY(!page->hasPendingIssues());
+    QVERIFY(!confirm->isEnabled() && !relink->isEnabled());
+    QCOMPARE(Automation::audioAssetSnapshotDto(*audio), source);
+    QCOMPARE(audio->audioInfo().frames, 800);
+    QVERIFY(!audio->audioInfo().peakCache.isEmpty());
+    QCOMPARE(runtime.documentVersion().documentId, before.documentId);
+    QCOMPARE(historyManager->isOnSavePoint(), onSavePoint);
+    QVERIFY(!historyManager->canUndo());
+}
+
 void ApplicationGuiTests::missingAudioResourceRelinkCanBeCanceledAndCommitted() {
     QTemporaryDir directory;
     QVERIFY(directory.isValid());

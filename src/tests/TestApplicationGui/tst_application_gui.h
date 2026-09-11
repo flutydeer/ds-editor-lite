@@ -91,6 +91,7 @@ private slots:
     void packageSearchShowsTheSelectedPackageDetails();
     void missingAudioResourceRelinkCanBeCanceledAndCommitted();
     void panelButtonsAndClipDoubleClickRestoreTheEditorView();
+    void audioResourceConfirmationKeepsTheDecodedSource();
     void mainMenuQuantizationUsesTheChosenScopeAndOptions_data();
     void mainMenuQuantizationUsesTheChosenScopeAndOptions();
     void mainMenuOctaveEditsFollowThePianoSelection();
