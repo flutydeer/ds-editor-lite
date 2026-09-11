@@ -60,6 +60,8 @@ public:
         m_server->setSocketOptions(QLocalServer::UserAccessOption);
         m_server->setMaxPendingConnections(
             static_cast<int>(SingleInstanceProtocol::maxConnectionCount));
+        // On Windows, listen() can deliver pending connections before it returns.
+        connect(m_server, &QLocalServer::newConnection, this, [this] { acceptConnections(); });
         if (!m_server->listen(serverName)) {
             QLocalServer::removeServer(serverName);
             if (!m_server->listen(serverName)) {
@@ -67,7 +69,6 @@ public:
                 return false;
             }
         }
-        connect(m_server, &QLocalServer::newConnection, this, [this] { acceptConnections(); });
         return true;
     }
 

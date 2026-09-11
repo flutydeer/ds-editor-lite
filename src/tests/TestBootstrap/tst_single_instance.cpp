@@ -12,6 +12,7 @@
 #include <QJsonObject>
 #include <QLocalSocket>
 #include <QStandardPaths>
+#include <QSemaphore>
 #include <QTemporaryDir>
 #include <QTextStream>
 #include <QThread>
@@ -634,4 +635,51 @@ void BootstrapTests::coordinator() {
     expect(replacement.start() == SingleInstanceCoordinator::StartResult::Primary,
            "a new coordinator must take ownership after primary shutdown");
     replacement.shutdown();
+}
+
+void BootstrapTests::queuedStartupConnectionIsAcknowledged() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto serverName = uniqueServerName();
+    const auto request = openRequest({directory.filePath("startup.dspx")});
+    QSemaphore clientStarted;
+    bool connected = false;
+    bool acknowledged = false;
+    QByteArray payload;
+    QString error;
+    const auto clientThread = std::unique_ptr<QThread>(QThread::create([&] {
+        FramedClient client;
+        QElapsedTimer timer;
+        timer.start();
+        clientStarted.release();
+        while (timer.elapsed() < 3000) {
+            client.socket.abort();
+            if (client.connectTo(serverName, 10)) {
+                connected = true;
+                break;
+            }
+            QThread::yieldCurrentThread();
+        }
+        if (connected && client.send(request))
+            acknowledged = client.receive(payload, error, 3000);
+        else
+            error = client.socket.errorString();
+    }));
+    clientThread->start();
+    QVERIFY(clientStarted.tryAcquire(1, 3000));
+    SingleInstanceCoordinator primary(directory.path(), serverName);
+    QCOMPARE(primary.start(), SingleInstanceCoordinator::StartResult::Primary);
+    QVERIFY(clientThread->wait(10000));
+    QVERIFY2(connected, qPrintable(error));
+    QVERIFY2(acknowledged, qPrintable(error));
+    SingleInstanceResponse response;
+    QVERIFY(SingleInstanceProtocol::decodeResponse(payload, response, error));
+    QVERIFY(response.accepted);
+    QCOMPARE(response.requestId, request.requestId);
+    QList<SingleInstanceRequest> received;
+    primary.setRequestHandler([&](const auto &pending) { received.append(pending); });
+    primary.pauseRequestDispatchAndFlush();
+    QCOMPARE(received.size(), 1);
+    QCOMPARE(received.first().requestId, request.requestId);
+    QCOMPARE(received.first().paths, request.paths);
 }
