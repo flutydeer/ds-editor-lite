@@ -27,6 +27,7 @@ private slots:
     void toolTipAnchorScreenClamping();
     void rhiNoteDrawingCommitsAndUndoUpdatesInteraction();
     void rhiNoteMoveCanBeCanceledAndThenCommitted();
+    void rhiNoteDragKeepsScrollingUntilTheGestureEnds();
     void rhiMultiNoteSelectionAndMoveCommitAtomically();
     void rhiNoteResizeUndoRestoresTheHitRegion();
     void rhiNoteEraseStrokeCancelsAndCommitsAtomically();

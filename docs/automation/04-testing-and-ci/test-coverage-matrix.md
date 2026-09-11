@@ -177,5 +177,6 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 驱动切换失败后的设备释放 | workflow/native | 使用可用输出后端，在独立进程中验证切换失败已释放旧设备、公开设备引用同步清空，随后可重新初始化；修复 Talcs 持有已释放设备指针的问题 | NativeDesktop::failedAudioDriverSelectionClearsTheReleasedDevice | 需要可初始化的音频设备；缺失时在父用例明确跳过 |
 | 轨道及片段的声线菜单接线 | gui | 用实际声库和临时预设验证菜单应用、单声线切换及片段恢复轨道继承；管理窗口接收当前比例，取消或原样确认保持历史；撤销同步恢复目标和菜单显示，片段独立选择不改轨道声线 | ApplicationGui::voiceMenusApplyPresetsToTheChosenTarget | offscreen；默认内置声库；至少两条声线 |
 | 工具栏片段名称编辑 | gui | 真实内联输入验证取消、提交及切换片段时提交原目标；新片段名称不被误改，连续撤销分别恢复对应对象，显示跟随当前片段 | ApplicationGui::clipToolbarNameEditingKeepsTheOriginalTarget | offscreen；实际工具栏和文档；无需声库或设备 |
+| RHI 的未提交预览与边缘滚动 | gui | 锚点拖动和切分悬停期间等待实际预览帧，同时确认模型尚未提交；音符拖到边缘后静止鼠标仍持续滚动，取消停止计时滚动并恢复原视口和模型 | NativeDesktop::rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor、rhiNoteSplittingSnapsAndUndoRestoresThePhrase、rhiNoteDragKeepsScrollingUntilTheGestureEnds | 原生窗口；Qt Null 后端；检查 CPU 准备和帧提交，不验证 GPU 像素 |
 
 本次还移除无产品实例化入口的旧 G2P/伪声设置页和 `TrackSynthesizer` 及其空容器引用。清理改变统计分母，报告中与新增测试命中的贡献分开说明，不通过排除仍有效的生产文件提高比例。

@@ -33,6 +33,7 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QContextMenuEvent>
+#include <QCursor>
 #include <QFileInfo>
 #include <QLineEdit>
 #include <QMenu>
@@ -299,6 +300,41 @@ void NativeDesktopTests::rhiNoteDrawingCommitsAndUndoUpdatesInteraction() {
     QVERIFY(renderFailed.isEmpty());
 }
 
+void NativeDesktopTests::rhiNoteDragKeepsScrollingUntilTheGestureEnds() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    ExistingRhiNoteFixture fixture;
+    fixture.initialize();
+    if (QTest::currentTestFailed())
+        return;
+    auto &canvas = *fixture.canvas;
+    const auto oldCursor = QCursor::pos();
+    const auto restoreCursor = qScopeGuard([&] { QCursor::setPos(oldCursor); });
+    const auto before = fixture.runtime().documentVersion();
+    const auto original = fixture.app.context->m_appModel->serialize();
+    const auto initialStart = canvas.startTick();
+    const auto press = fixture.pointFor(720, 60);
+    const auto edge = QPoint(canvas.width() - 2, press.y());
+    QTest::mousePress(canvas.windowHandle(), Qt::LeftButton, Qt::NoModifier, press);
+    QCursor::setPos(canvas.mapToGlobal(edge));
+    QTest::mouseMove(canvas.windowHandle(), edge);
+    QVERIFY(editSessionManager->hasActiveTransaction());
+    const auto afterMove = canvas.startTick();
+    QTRY_VERIFY_WITH_TIMEOUT(canvas.startTick() > afterMove + 60, 3000);
+    QVERIFY(!appStatus->pianoRollNoteEditPreview.get().isEmpty());
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QCOMPARE(fixture.app.context->m_appModel->serialize(), original);
+    QTest::keyClick(&canvas, Qt::Key_Escape);
+    QTest::mouseRelease(canvas.windowHandle(), Qt::LeftButton, Qt::NoModifier, edge);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QVERIFY(appStatus->pianoRollNoteEditPreview.get().isEmpty());
+    QTest::qWait(80);
+    QCOMPARE(canvas.startTick(), initialStart);
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QCOMPARE(fixture.app.context->m_appModel->serialize(), original);
+    QVERIFY(!historyManager->canUndo());
+}
+
 void NativeDesktopTests::rhiNoteMoveCanBeCanceledAndThenCommitted() {
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
@@ -457,7 +493,11 @@ void NativeDesktopTests::rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor(
     const auto press = fixture.pointFor(insertedTick, 62);
     const auto release = fixture.pointFor(insertedTick + 240, 61);
     QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+    const auto previewFrame = fixture.submitted->size();
     fixture.moveTo(release);
+    fixture.frameAfter(previewFrame);
+    if (QTest::currentTestFailed())
+        return;
     QVERIFY(editSessionManager->hasActiveTransaction());
     QCOMPARE(inserted->pos(), insertedTick);
     QCOMPARE(inserted->value(), 6200);
@@ -745,7 +785,13 @@ void NativeDesktopTests::rhiNoteSplittingSnapsAndUndoRestoresThePhrase() {
     QCOMPARE(fixture.runtime().documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
     const auto position = fixture.pointFor(730, 60);
+    const auto previewFrame = fixture.submitted->size();
     QTest::mouseMove(&canvas, position);
+    fixture.frameAfter(previewFrame);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(fixture.clip->notes().count(), 1);
+    QCOMPARE(fixture.runtime().documentVersion(), before);
     const auto beforeSplit = fixture.submitted->size();
     QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, position);
     QCOMPARE(fixture.clip->notes().count(), 2);
