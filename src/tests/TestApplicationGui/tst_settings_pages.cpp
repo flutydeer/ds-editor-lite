@@ -10,6 +10,8 @@
 #include "UI/Dialogs/Options/Pages/AutomationPage.h"
 #include "UI/Dialogs/Options/Pages/InferencePage.h"
 #include "UI/Dialogs/Options/Pages/GeneralPage.h"
+#include "UI/Dialogs/Options/Pages/DeveloperPage.h"
+#include "UI/Dialogs/Base/RestartDialog.h"
 #include "UI/Views/Common/LanguageComboBox.h"
 
 #include <lite/GUI/Controls/ComboBox.h>
@@ -33,6 +35,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QLocale>
+#include <QPointer>
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTimer>
@@ -112,6 +115,71 @@ namespace {
         QVERIFY(control->isEnabled());
         QTest::mouseClick(control, Qt::LeftButton);
     }
+}
+
+void ApplicationGuiTests::experimentalRendererSettingPersistsWhenRestartIsDeferred() {
+    auto &runtime = *context->m_coreRuntime;
+    const auto settings = runtime.settings().getSettings();
+    QVERIFY(settings);
+    const auto restore = qScopeGuard(
+        [&] { QVERIFY(runtime.settings().updateDeveloper({}, settings.get().developer)); });
+    auto initial = settings.get().developer;
+    initial.editorRenderBackend = Automation::EditorRenderBackend::Legacy;
+    QVERIFY(runtime.settings().updateDeveloper({}, initial));
+    const auto before = runtime.documentVersion();
+    const auto experimental =
+        static_cast<int>(DeveloperOption::EditorRenderBackend::RhiExperimental);
+    {
+        AppOptionsDialog panel;
+        openOptionsPage(panel, AppOptionsGlobal::DeveloperOptions);
+        if (QTest::currentTestFailed())
+            return;
+        auto *page = panel.findChild<DeveloperPage *>();
+        QVERIFY(page);
+        auto *backend = page->findChild<ComboBox *>();
+        QVERIFY(backend);
+        page->ensureWidgetVisible(backend);
+        const auto index = backend->findData(experimental);
+        QVERIFY(index >= 0);
+        QTest::mouseClick(backend, Qt::LeftButton);
+        QTRY_VERIFY(backend->view()->isVisible());
+        QTest::keyClick(backend->view(), Qt::Key_Home);
+        for (int row = 0; row < index; ++row)
+            QTest::keyClick(backend->view(), Qt::Key_Down);
+        QTest::keyClick(backend->view(), Qt::Key_Return);
+        QPointer<RestartDialog> prompt;
+        QTRY_VERIFY((prompt = page->findChild<RestartDialog *>()) && prompt->isVisible());
+        const auto closePrompt = qScopeGuard([&] {
+            if (prompt)
+                prompt->reject();
+        });
+        Button *later = nullptr;
+        for (auto *button : prompt->findChildren<Button *>()) {
+            if (button->text() == RestartDialog::tr("Restart Later"))
+                later = button;
+        }
+        QVERIFY(later);
+        QSignalSpy rejected(prompt, &QDialog::rejected);
+        QTest::mouseClick(later, Qt::LeftButton);
+        QCOMPARE(rejected.size(), 1);
+        QVERIFY(!prompt || !prompt->isVisible());
+        QCOMPARE(static_cast<int>(appOptions->developer()->editorRenderBackend), experimental);
+        panel.close();
+    }
+    AppOptions persisted;
+    QCOMPARE(static_cast<int>(persisted.developer()->editorRenderBackend), experimental);
+    AppOptionsDialog reopened;
+    openOptionsPage(reopened, AppOptionsGlobal::DeveloperOptions);
+    if (QTest::currentTestFailed())
+        return;
+    auto *page = reopened.findChild<DeveloperPage *>();
+    QVERIFY(page);
+    auto *backend = page->findChild<ComboBox *>();
+    QVERIFY(backend);
+    QCOMPARE(backend->currentData().toInt(), experimental);
+    QVERIFY(!reopened.findChild<RestartDialog *>());
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
 }
 
 void ApplicationGuiTests::generalSettingsKeepSeparateDefaultLyricsForEachLanguage() {

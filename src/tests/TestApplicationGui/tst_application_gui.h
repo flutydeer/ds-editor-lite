@@ -60,6 +60,7 @@ private slots:
     void audioExportProgressCompletesAndCloses();
     void appearanceInputsPersistAcrossReopening();
     void generalSettingsKeepSeparateDefaultLyricsForEachLanguage();
+    void experimentalRendererSettingPersistsWhenRestartIsDeferred();
     void automationAccessInputsPersistAndRejectMissingFolders();
     void automationCustomToolsetInputsPersistAndExportPermissions();
     void automationConnectionCopyFollowsTheRuntimeEndpoint();

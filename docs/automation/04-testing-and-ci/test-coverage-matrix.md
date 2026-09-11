@@ -187,6 +187,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | LibreSVIP 外部转换接线 | workflow | 扩展已有单项目导入场景，转换进程处理参数和默认回答，生产解析、计划检查及导入保留音符并可撤销；未配置、无法启动、转换拒绝、缺少/空输出明确失败，异步失败不修改原工程 | ApplicationWorkflows::publicSingleProjectImportUsesThePreparedPlanAndKeepsTheDocument、libreSvipProcessFailuresLeaveTheDocumentUntouched | 通用；仅替换外部可执行程序，复用测试程序子入口；不要求安装 LibreSVIP |
 | 普通钢琴窗擦除与切分 | gui | 橡皮擦先移出场景项，取消恢复全部预览对象，提交及撤销更新对应模型和场景；切分指示线随悬停出现/消失，实际点击与量化位置一致，撤销恢复原音符 | ApplicationGui::pianoErasingRestoresSceneItemsOnCancelAndUndo、pianoSplitIndicatorFollowsTheMouseAndMatchesTheEdit | offscreen；真实 Graphics View 事件路径；与 RHI 帧验证各负责自身视图接线 |
 | 各语种的默认歌词设置 | gui | 设置页切换中英文时保存和恢复各自歌词，关闭后磁盘重读及页面重开保持内容，不修改工程历史 | ApplicationGui::generalSettingsKeepSeparateDefaultLyricsForEachLanguage | offscreen；隔离设置；无需声库推理 |
+| 渲染器设置及重启提示 | gui | 实际设置页选择实验渲染器并选择稍后重启，检查配置落盘、页面重开后的选项及提示生命周期，操作保留工程和历史 | ApplicationGui::experimentalRendererSettingPersistsWhenRestartIsDeferred | offscreen；隔离设置；渲染器本身由 NativeDesktop 验证 |
 | 音频导出准备及发布失败 | workflow | 外部后端在准备或发布阶段失败时保留可查询错误，只执行已到达阶段并清理一次；同一配置可重试成功，原失败记录及工程保持不变 | ApplicationServices::audioExportStageFailuresReleaseResourcesAndAllowRetry | 通用；现有后端替身和受控调度 |
 | 音频裁边和移动跨越变速点 | workflow | 完整应用上下文执行专用裁边/移动入口，验证毫秒时长、素材裁切、换算后的 tick 范围、预览、跨轨移动及连续撤销；复用生产音频时间投影与历史动作 | ApplicationWorkflows::audioClipTrimmingAndMovingPreserveRealtimeDurations | 通用；已知音频时间元数据；无需播放设备 |
 | 已打开音频文件被移除 | workflow | 格式加载器已持有文件句柄时移除目录项，当前解码仍使用原句柄完成；重开工程重新解析资源后报告 Missing 且不保留旧波形，不制造用户历史 | AudioAssets::unlinkingAudioSourcePreservesOpenDecodeUntilReload | 需文件系统允许移除已被音频后端打开的素材；Windows 删除共享受限时明确 QSKIP |
