@@ -564,7 +564,19 @@ void BootstrapTests::coordinator() {
 
     const auto firstRequest = openRequest({QDir(directory.path()).filePath("first.dspx")});
     QString error;
-    expect(secondary.forwardRequest(firstRequest, error), "secondary request must be acknowledged");
+    FramedClient earlyClient;
+    earlyClient.socket.connectToServer(serverName, QIODevice::ReadWrite);
+    const auto firstFrame =
+        SingleInstanceProtocol::frame(SingleInstanceProtocol::encodeRequest(firstRequest));
+    QCOMPARE(earlyClient.socket.write(firstFrame), firstFrame.size());
+    QVERIFY(earlyClient.socket.state() == QLocalSocket::ConnectedState ||
+            earlyClient.socket.waitForConnected(2000));
+    QByteArray firstPayload;
+    QVERIFY2(earlyClient.receive(firstPayload, error), qPrintable(error));
+    SingleInstanceResponse firstResponse;
+    QVERIFY(SingleInstanceProtocol::decodeResponse(firstPayload, firstResponse, error));
+    QVERIFY(firstResponse.accepted);
+    QCOMPARE(firstResponse.requestId, firstRequest.requestId);
 
     QList<SingleInstanceRequest> received;
     primary.setRequestHandler(

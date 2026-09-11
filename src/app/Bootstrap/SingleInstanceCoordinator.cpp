@@ -171,6 +171,8 @@ private:
                     dropConnection(socket);
             });
             initialReadTimer->start();
+            // A pending connection can already contain the initial frame.
+            readRequests(socket);
         }
     }
 
