@@ -54,6 +54,13 @@
 | 实验 RHI 编辑后端 | gui | 几何与字形不能替代真实控件；实际析构暴露私有状态释放后的事件重入 | Null 后端检查音符绘制/移动/裁边/分割、连续擦除、内联文字和右键目标，音高绘制/描摹/擦除及锚点插入与取消，以及片段跨轨拖动和裁边；验证预览、一次提交/取消、命中、撤销重做及帧，保留正常析构 | EditorRendering、NativeDesktop 的 tst_rhi_editor.cpp、tst_rhi_tracks.cpp | 原生窗口；Linux Xvfb；无需物理 GPU；不验证像素 |
 | 输出设备配置与实际播放 | workflow | 受控回调和无设备失败不能替代真实输出设备路径 | 自动探测或按名称指定设备，验证重开、缓冲配置落盘，静音素材的公开播放/暂停/停止及回调推进，恢复自身配置 | NativeDesktop::availableAudioDeviceRunsPublicPlayback | 无可用设备明确 QSKIP；已枚举或指定设备的失败为 FAIL |
 | MIDI 输入至实时合成器 | workflow | 设备异常处理不等同于真实消息输入 | 使用已配置专用回环端口，检查生产设备选择、配置落盘、note-on/off 接收、有效 PCM 及释放后归零；清理自己打开的端口 | NativeDesktop::configuredMidiLoopbackFeedsLiveSynthesizer | 未配置双端口 QSKIP；部分配置或指定后的执行失败为 FAIL |
+| Legacy 片段裁边与音频时间锚点 | gui | 纯几何与 RHI 裁边不能证明 Legacy 输入接线，原用例仅移动歌声片段 | 扩展既有轨道手势数据行，检查两种片段的移动/左右裁边、音频毫秒属性、预览与提交分离、取消和撤销重做；键盘离开松音和滚轮转发归入原键盘流程 | ApplicationGui::trackClipDragCommitsOrCancels、pianoKeyboardGlissandoAndHideReleasePressedNotes | offscreen；临时 WAV；无需设备 |
+| 文档加载中的取消、退出与新编辑 | workflow/gui | 保存决策已有验证，运行中解析与提交前重新确认缺少接线验证 | 暂停真实解析 worker，经进度窗口取消或申请退出；加载期间的编辑要求再次确认，取消保留新编辑，随后可重新打开 | ApplicationGui::pendingProjectLoadCanCancelOrRequestExit | offscreen；真实 DSPX 文件；受控任务时序 |
+| 批量音频预检与目标换代 | workflow | 已覆盖解码失败和取消，预检及准备期间目标变化存在缺口 | 预检不启动任务，原子失败与部分可用分别处理；删除目标轨道或替换文档后不提交旧结果 | ApplicationWorkflows::audioBatchValidationDoesNotStartTasks、audioBatchRejectsChangesBeforeCommit | 通用；临时 WAV |
+| 音频解码失败与删除取消 | workflow | 领域写回失败不能证明真实 worker 的取消及恢复接线 | 外部解码器打开失败不修改用户历史；源文件消失报告缺失；删除片段/轨道取消解码，撤销后重新获得波形 | AudioAssets::decodeBackendFailurePreservesTheDocumentAndAllowsReopen、removingAudioTargetsCancelsPendingDecode | 通用；文件删除按平台共享能力执行 |
+| 声学缓存写出失败 | workflow | 成功声库执行未进入缓存写出错误及重试路径 | 真实声学推理遇到不可写缓存路径后进入失败终态；恢复路径后再次请求成功，不修改音符或用户历史 | ApplicationWorkflows::acousticCacheWriteFailureCanBeRetried | 内置声库；CPU；临时目录 |
+| 控件菜单及损坏主题恢复 | gui | 数值输入与颜色解析未充分验证菜单接线、主题原子应用 | 实际数值框菜单执行整数/小数步进；主题素材缺失、内容无效或引用失败时保留原样式，修复后可应用 | GuiComponents::expressionSpinBoxMenuEditsTheDisplayedValue、externalThemeRoot | offscreen；临时主题文件 |
+| 上游异常响应与会话更新 | protocol | 基本连接不能证明异常响应后的可用性和不确定结果处理 | 拒绝损坏 JSON、重复 SSE 和 HTML；随后正常调用可用；命令不自动重发；会话失效后重新握手并使用新会话 | Connector::upstreamResponses、commandTransportOutcome、handshakeCoordination | 通用；受控 HTTP 上游 |
 
 ## 3. 目标收敛与历史入口去向
 
