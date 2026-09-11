@@ -264,7 +264,8 @@ void ApplicationWorkflowTests::audioExportRespectsRangeMixAndMute() {
     config.sources = {0};
 
     const auto exportSamples = [&](const QString &name, QVector<float> &samples,
-                                   talcs::AudioFormatIO::MajorFormat expectedFormat) {
+                                   talcs::AudioFormatIO::MajorFormat expectedFormat,
+                                   QStringList *warnings = nullptr) {
         config.fileName = name;
         const auto accepted = runtime().audioExports().start(commandContext(), config, {});
         QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
@@ -281,6 +282,10 @@ void ApplicationWorkflowTests::audioExportRespectsRangeMixAndMute() {
         QVERIFY(task);
         QVERIFY2(task.get().state == Automation::AutomationTaskState::Succeeded,
                  qPrintable(task.get().error ? task.get().error->message : QString{}));
+        if (warnings) {
+            QVERIFY(task.get().mutation);
+            *warnings = task.get().mutation->warnings;
+        }
         QFile file(files.filePath(name));
         QVERIFY(file.open(QIODevice::ReadOnly));
         talcs::AudioFormatIO decoder(&file);
@@ -328,6 +333,22 @@ void ApplicationWorkflowTests::audioExportRespectsRangeMixAndMute() {
     QCOMPARE(compressed.size(), muted.size());
     for (qsizetype i = 0; i < compressed.size(); ++i)
         QVERIFY(std::abs(compressed.at(i) - muted.at(i)) <= 1.0f / 8388608.0f);
+
+    const auto firstTrack = Automation::TrackId(context->m_appModel->tracks().first()->id());
+    QVERIFY(runtime().project().setTrackMute(commandContext(), secondTrack, false));
+    QVERIFY(runtime().project().setTrackGain(commandContext(), firstTrack, 12.0));
+    QVERIFY(runtime().project().setTrackGain(commandContext(), secondTrack, 12.0));
+    config.fileType = Audio::AudioExporterConfig::FT_Wav;
+    config.formatOption = 0;
+    QVector<float> loud;
+    QStringList warnings;
+    exportSamples(QStringLiteral("loud-float.wav"), loud, talcs::AudioFormatIO::WAV, &warnings);
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(loud.at(middle) > 1.0f);
+    QVERIFY(std::any_of(warnings.cbegin(), warnings.cend(), [](const QString &warning) {
+        return warning.startsWith(QStringLiteral("Clipping detected"));
+    }));
 }
 
 void ApplicationWorkflowTests::lossyAudioExportsProduceReadableFiles_data() {

@@ -132,7 +132,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 钢琴窗粘贴预览与边缘滚动接线 | gui | 完整菜单检查非零片段起点下的相对时间、手工文字、预览取消/提交和对象清理；真实计时器在鼠标停止移动后继续滚动视口与音符预览，取消/释放后停止并可一次撤销 | ApplicationGui 的 tst_piano_clipboard_scroll.cpp | offscreen；无需声库或设备 |
 | 轨道头部编辑与颜色预览 | gui | 实际名称编辑检查提交/取消，静音/独奏按钮检查模型和撤销同步；颜色菜单悬停不产生历史，Escape 恢复原色，点击后单次提交并可撤销重做 | ApplicationGui::trackHeaderInputsCommitAndUndo、trackColorMenuPreviewsAndCommits | offscreen；无需声库或设备 |
 | 公共数值控件的输入与提交 | gui | SeekBar 检查实时/释放提交、键盘步进及复位；Fader/Pan 检查预览信号、释放提交和随后外部更新，避免拖动状态残留 | GuiComponents::seekBarTrackingControlsWhenDraggedValuesCommit、seekBarKeyboardStepsClampAndDoubleClickResets、mixerSliderReleaseEndsPreview | offscreen；无需设备 |
-| 音频输出及循环播放回调 | workflow | 生成短素材检查全工程时长、混音、静音、自定义来源及 WAV/FLAC；实际导出中途取消，检查旧文件、暂存清理和混音器恢复。受控回调验证循环及缓冲等待/恢复；修复 Talcs 位置同步并保留 PCM 断言。循环区导出尚未实现，不在测试中补建 | ApplicationWorkflows 的 tst_audio_workflows.cpp | 通用；不需要播放设备 |
+| 音频输出及循环播放回调 | workflow | 生成短素材检查全工程时长、混音、静音、自定义来源及 WAV/FLAC；增益过高的真实混音同时检查浮点 PCM 与任务削波警告；实际导出中途取消，检查旧文件、暂存清理和混音器恢复。受控回调验证循环及缓冲等待/恢复；修复 Talcs 位置同步并保留 PCM 断言。循环区导出尚未实现，不在测试中补建 | ApplicationWorkflows 的 tst_audio_workflows.cpp | 通用；不需要播放设备 |
 | 解码峰值与波形缩放采样 | workflow/unit | 实际 WAV 检查多声道与文件尾部的瞬态不丢失，概览/细节/逐样本采样保持幅度和时间定位，速度或来源变化后刷新；修复解码帧数误按声道缩减及缩略峰值漏块 | AudioAssets 的 tst_waveform_sampling.cpp | 通用；临时 WAV；无需窗口或设备 |
 | 自定义导出预设实际使用 | workflow | 创建、同名更新和落盘重读后按预设真实导出，检查整数 WAV 及有效样本，再验证删除和配置恢复；公开配置复制/赋值在私有类型完整处定义，允许调用方仅依赖公开头；不枚举内置预设 | ApplicationWorkflows::customExportPresetPersistsAndProducesIntegerWave | 通用；小型 WAV；不需要模型输出或播放设备 |
 | 多语种、多声线及推理重算 | workflow/process | 内置微型计算图走正常包、语言、推理和导出路径，明确检查实际音素；验证缓存复用、切换声线和 BPM 后的输出变化 | ModelResources::voicebankInferenceAndWaveExport | CPU；默认内置声库，可显式换真实资源 |

@@ -68,9 +68,9 @@ Windows wrapper 将本地结果写到 `build/test-results`；直接 CTest 可加
 
 原生桌面用例归入 `TestNativeDesktop`，由 `native` 标签标识，纳入三平台 CI。`TestGuiComponents`、`TestEditorInteraction`、`TestEditorRendering` 和 `TestApplicationGui` 使用 offscreen；普通组件无需播放设备，完整填词流程使用内置声库。
 
-设备用例在 `TestNativeDesktop` 中按下列条件执行，环境变量均填写设备实际名称：
-
 `TestAudioAssets::unlinkingAudioSourcePreservesOpenDecodeUntilReload` 需要能够移除已经打开的文件。Windows 音频后端的文件共享模式阻止删除时，该用例明确跳过；允许移除的平台验证原句柄继续完成解码，随后重开工程报告资源缺失。用例只操作自己创建的临时素材。
+
+设备用例在 `TestNativeDesktop` 中按下列条件执行，环境变量均填写设备实际名称：
 
 | 配置 | 行为与未执行规则 |
 |---|---|
