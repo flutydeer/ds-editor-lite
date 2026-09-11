@@ -62,6 +62,10 @@ namespace AutomationAsyncFileTests {
         quint32 warningFlags = 0;
         Automation::AudioExportBackendState backendState =
             Automation::AudioExportBackendState::Succeeded;
+        Automation::AudioExportBackendState readinessState =
+            Automation::AudioExportBackendState::Succeeded;
+        Automation::AudioExportBackendState publicationState =
+            Automation::AudioExportBackendState::Succeeded;
         QString backendError = QStringLiteral("controlled audio export failure");
         std::function<void()> waitUntilReadyHook;
         std::function<void()> executeHook;
@@ -90,7 +94,11 @@ namespace AutomationAsyncFileTests {
             ++m_state->waitUntilReadyCount;
             if (m_state->waitUntilReadyHook)
                 m_state->waitUntilReadyHook();
-            return {.state = Automation::AudioExportBackendState::Succeeded};
+            return {.state = m_state->readinessState,
+                    .errorMessage =
+                        m_state->readinessState == Automation::AudioExportBackendState::Failed
+                            ? m_state->backendError
+                            : QString()};
         }
 
         Automation::AudioExportBackendResult
@@ -119,7 +127,11 @@ namespace AutomationAsyncFileTests {
             m_state->publishAllowOverwrite = allowOverwrite;
             if (observer.warning && !m_state->publishWarning.isEmpty())
                 observer.warning(m_state->publishWarning, -1);
-            return {.state = Automation::AudioExportBackendState::Succeeded};
+            return {.state = m_state->publicationState,
+                    .errorMessage =
+                        m_state->publicationState == Automation::AudioExportBackendState::Failed
+                            ? m_state->backendError
+                            : QString()};
         }
 
         void cancel() override {

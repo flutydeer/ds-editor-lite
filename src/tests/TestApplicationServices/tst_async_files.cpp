@@ -872,6 +872,56 @@ void ApplicationServicesTests::formatsAndMidiExport() {
     };
 }
 
+void ApplicationServicesTests::audioExportStageFailuresReleaseResourcesAndAllowRetry_data() {
+    QTest::addColumn<bool>("preparing");
+    QTest::newRow("preparation-failed") << true;
+    QTest::newRow("publication-failed") << false;
+}
+
+void ApplicationServicesTests::audioExportStageFailuresReleaseResourcesAndAllowRetry() {
+    QFETCH(bool, preparing);
+    RuntimeHarness harness;
+    QVERIFY(harness.isReady());
+    auto &runtime = harness.runtime();
+    auto state = harness.audioExportState();
+    if (preparing)
+        state->readinessState = Automation::AudioExportBackendState::Failed;
+    else
+        state->publicationState = Automation::AudioExportBackendState::Failed;
+    const auto before = runtime.documentVersion();
+    const auto config = audioConfig(harness, QStringLiteral("retry.wav"));
+    const auto accepted = runtime.audioExports().start(harness.context(), config, {});
+    QVERIFY(accepted);
+    QVERIFY(harness.audioScheduler.runNext());
+    const auto failed = runtime.tasks().getTask(before.documentId, accepted.get().taskId);
+    QVERIFY(failed);
+    QCOMPARE(failed.get().state, Automation::AutomationTaskState::Failed);
+    QVERIFY(failed.get().error);
+    QCOMPARE(failed.get().error->code, Automation::AutomationErrorCode::IoError);
+    QCOMPARE(failed.get().error->message, state->backendError);
+    QCOMPARE(state->waitUntilReadyCount, 1);
+    QCOMPARE(state->executeCount, preparing ? 0 : 1);
+    QCOMPARE(state->publishCount, preparing ? 0 : 1);
+    QCOMPARE(state->cleanupCount, 1);
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(runtime.audioExports().cleanup(harness.context(), accepted.get().taskId));
+    QCOMPARE(state->cleanupCount, 1);
+
+    state->readinessState = Automation::AudioExportBackendState::Succeeded;
+    state->publicationState = Automation::AudioExportBackendState::Succeeded;
+    const auto retry = runtime.audioExports().start(harness.context(), config, {});
+    QVERIFY(retry);
+    QVERIFY(harness.audioScheduler.runNext());
+    const auto finished = runtime.tasks().getTask(before.documentId, retry.get().taskId);
+    QVERIFY(finished);
+    QCOMPARE(finished.get().state, Automation::AutomationTaskState::Succeeded);
+    QCOMPARE(state->cleanupCount, 1);
+    QCOMPARE(state->publishCount, preparing ? 1 : 2);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(runtime.tasks().getTask(before.documentId, accepted.get().taskId).get().state,
+             Automation::AutomationTaskState::Failed);
+}
+
 void ApplicationServicesTests::audioExportAndTaskList() {
     RuntimeHarness harness;
     QVERIFY2((harness.isReady()),

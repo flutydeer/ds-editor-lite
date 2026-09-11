@@ -68,5 +68,7 @@ private slots:
     void documentAndImportDomains();
     void formatsAndMidiExport();
     void audioExportAndTaskList();
+    void audioExportStageFailuresReleaseResourcesAndAllowRetry_data();
+    void audioExportStageFailuresReleaseResourcesAndAllowRetry();
     void extractionDomains();
 };
