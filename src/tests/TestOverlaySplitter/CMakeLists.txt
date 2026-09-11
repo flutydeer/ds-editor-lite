@@ -18,4 +18,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
 )
 
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
-set_tests_properties(${PROJECT_NAME} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=windows")
+# A platform plugin that needs no display, since this runs in CI. It was pinned to "windows",
+# which does not exist anywhere else, so the test aborted at startup on every other platform
+# rather than running.
+set_tests_properties(${PROJECT_NAME} PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")

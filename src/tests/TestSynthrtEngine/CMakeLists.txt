@@ -11,6 +11,7 @@ lite_add_test(${PROJECT_NAME}
         ../../libs/SynthrtEngine/SynthrtBootstrap.cpp
         ../../libs/SynthrtEngine/SynthrtEngine.cpp
         ../../libs/Core/SingletonRegistry.cpp
+        ../../libs/Support/VersionUtils.cpp
 )
 
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)

@@ -22,7 +22,12 @@ public:
         int audioClipId = -1;
         QString audioPath;
         QString displayAudioPath;
-        QString modelPath;
+        /// The analyzer to run, named <package>:analysis/<contribution>.
+        QString analyzer;
+
+        /// Which language to transcribe as, when the analyzer distinguishes them. Empty leaves
+        /// the choice to the analyzer, which is what a monolingual one does anyway.
+        QString language;
         Timeline timeline;
         int singingClipStartTick = 0;
         int audioClipStartTick = 0;

@@ -339,7 +339,9 @@ int main(int argc, char *argv[]) {
     std::cout << "\n== conversions, end to end ==\n";
     LanguageBridge bridge(unit->unit());
     bridge.refresh();
-    bridge.setSingerPhonemes(singer.packageId, singer.contributionId, phonemes);
+    bridge.setSingerPhonemes({singer.packageId, singer.contributionId,
+                              singer.packageVersion},
+                             phonemes);
     bridge.setReservedMarkers(markers);
 
     const std::vector<Probe> probes = {
@@ -349,9 +351,11 @@ int main(int argc, char *argv[]) {
     };
     const std::set<std::string> known(phonemes.begin(), phonemes.end());
     for (const auto &probe : probes) {
-        expect(bridge.canConvert(singer.packageId, singer.contributionId, probe.language),
+        expect(bridge.canConvert({singer.packageId, singer.contributionId, singer.packageVersion},
+                                 probe.language),
                probe.language + " is convertible");
-        auto converted = bridge.convert(singer.packageId, singer.contributionId, probe.language,
+        auto converted = bridge.convert({singer.packageId, singer.contributionId, singer.packageVersion},
+                                    probe.language,
                                         probe.words, LanguageBridge::Depth::Onsets);
         expect(static_cast<bool>(converted),
                probe.language + " converts: " + why(converted));
@@ -399,7 +403,8 @@ int main(int argc, char *argv[]) {
     // happens for markers the host named -- which is the whole reason the setter exists.
     std::cout << "\n== reserved markers, which never reach grapheme-to-phoneme ==\n";
     for (const auto &marker : markers) {
-        auto answered = bridge.convert(singer.packageId, singer.contributionId, "cmn",
+        auto answered = bridge.convert({singer.packageId, singer.contributionId, singer.packageVersion},
+                                    "cmn",
                                        {{marker, {}, {}, {}}},
                                        LanguageBridge::Depth::Onsets);
         expect(static_cast<bool>(answered), marker + " is answered: " + why(answered));

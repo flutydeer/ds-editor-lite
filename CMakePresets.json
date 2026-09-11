@@ -15,6 +15,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
         "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/vcpkg/installed-main",
+        "VCPKG_MANIFEST_MODE": "OFF",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/install",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "LITE_BUILD_TESTS": "ON",
@@ -30,6 +32,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/vcpkg/installed-main",
+        "VCPKG_MANIFEST_MODE": "OFF",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/install",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "LITE_BUILD_TESTS": "OFF",
@@ -45,6 +49,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Release",
         "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/vcpkg/installed-main",
+        "VCPKG_MANIFEST_MODE": "OFF",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/dist/stage/dml",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "LITE_BUILD_TESTS": "OFF",
@@ -63,6 +69,8 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
         "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "VCPKG_INSTALLED_DIR": "${sourceDir}/vcpkg/installed-main",
+        "VCPKG_MANIFEST_MODE": "OFF",
         "CMAKE_INSTALL_PREFIX": "${sourceDir}/dist/stage/portable",
         "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
         "LITE_BUILD_TESTS": "OFF",

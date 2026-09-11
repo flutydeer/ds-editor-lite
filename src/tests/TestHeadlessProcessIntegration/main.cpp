@@ -508,7 +508,14 @@ namespace {
             return fail(QStringLiteral("Could not create the isolated audio fixture"));
 
         auto environment = QProcessEnvironment::systemEnvironment();
+        // Where the editor keeps its data, which is what its single-instance service name is
+        // derived from. The variable that says so differs by platform, and only the Windows one
+        // was set -- so everywhere else the launched editor used the real user data directory,
+        // listened under a name derived from it, and the watcher below looked for it under the
+        // isolated one and concluded no editor was running.
         environment.insert(QStringLiteral("APPDATA"), appDataRoot);
+        environment.insert(QStringLiteral("XDG_DATA_HOME"), appDataRoot);
+        environment.insert(QStringLiteral("XDG_CONFIG_HOME"), appDataRoot);
         environment.insert(QStringLiteral("LOCALAPPDATA"), localDataRoot);
         environment.insert(QStringLiteral("QT_QPA_PLATFORM"),
                            QStringLiteral("phase3-deliberately-invalid-platform"));

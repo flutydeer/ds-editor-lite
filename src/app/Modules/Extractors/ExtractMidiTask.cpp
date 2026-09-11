@@ -39,7 +39,7 @@ void ExtractMidiTask::runTask() {
     newStatus.isIndetermine = true;
     setStatus(newStatus);
 
-    auto created = SynthrtEngine::instance().createAnalyzer(m_input.modelPath);
+    auto created = SynthrtEngine::instance().createAnalyzer(m_input.analyzer);
     if (!created) {
         m_errorCode = ErrorCode::ModelNotLoaded;
         m_errorMessage = tr("Note analyzer unavailable: ") +
@@ -69,7 +69,7 @@ void ExtractMidiTask::runTask() {
         return;
     }
 
-    const auto *spec = SynthrtEngine::instance().analyzerSpec(m_input.modelPath);
+    const auto *spec = SynthrtEngine::instance().analyzerSpec(m_input.analyzer);
     const auto *schema = spec ? spec->exports()->as<Note::NoteSchema>() : nullptr;
     if (schema == nullptr || schema->sampleRate <= 0) {
         m_errorCode = ErrorCode::ModelNotLoaded;
@@ -126,6 +126,9 @@ void ExtractMidiTask::runTask() {
                                    prepared->samples.begin() + span.end);
         input.audio.startTime =
             prepared->startMs / 1000.0 + static_cast<double>(span.begin) / prepared->sampleRate;
+        if (!m_input.language.isEmpty()) {
+            input.language = m_input.language.toStdString();
+        }
         const auto base = static_cast<double>(index) / static_cast<double>(spans.size());
         const auto share = 1.0 / static_cast<double>(spans.size());
         input.progress = [this, base = base, share = share](double fraction) {

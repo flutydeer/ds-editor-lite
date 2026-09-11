@@ -79,12 +79,14 @@ int main() {
     lite::synthrt::LanguageBridge bridge(bootstrap->unit());
     bridge.refresh();
 
-    const auto languages = bridge.languagesOf(entry.packageId, entry.contributionId);
+    const auto languages = bridge.languagesOf({entry.packageId, entry.contributionId, entry.packageVersion});
     expect(languages.size() == 1 && languages.front() == "cmn",
            "the bridge lists the same language the catalog does");
-    expect(bridge.canConvert(entry.packageId, entry.contributionId, "cmn"),
+    expect(bridge.canConvert({entry.packageId, entry.contributionId,
+                                       entry.packageVersion}, "cmn"),
            "and says it can be converted");
-    expect(!bridge.canConvert(entry.packageId, entry.contributionId, "jpn"),
+    expect(!bridge.canConvert({entry.packageId, entry.contributionId,
+                                       entry.packageVersion}, "jpn"),
            "and says a language the singer does not declare cannot");
 
     // The conversion itself. Passthrough hands the lyric back as its pronunciation, which is
@@ -99,7 +101,8 @@ int main() {
     // A word the user pinned must come back as the user wrote it, whatever the language thinks.
     words.push_back({"anything", std::string("pinned"), {}, {}});
 
-    auto converted = bridge.convert(entry.packageId, entry.contributionId, "cmn", words,
+    auto converted = bridge.convert({entry.packageId, entry.contributionId,
+                                       entry.packageVersion}, "cmn", words,
                                     lite::synthrt::LanguageBridge::Depth::Pronunciation);
     expect(static_cast<bool>(converted),
            "the conversion should run: "
@@ -125,7 +128,8 @@ int main() {
 
     // A language the singer does not declare is refused as a whole rather than per word: there is
     // no route, so there is nothing to answer word by word about.
-    auto missing = bridge.convert(entry.packageId, entry.contributionId, "jpn", words);
+    auto missing = bridge.convert({entry.packageId, entry.contributionId,
+                                       entry.packageVersion}, "jpn", words);
     expect(!missing, "a language the singer does not declare has no route");
 
     for (auto &package : opened) {

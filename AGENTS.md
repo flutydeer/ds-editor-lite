@@ -81,12 +81,16 @@ cmake --build build --target DsEditorLite
 
 #### 更新 vcpkg 依赖
 
-当 `scripts/vcpkg-manifest/vcpkg.json` 发生变更（如新增依赖或版本升级）时，需要重新安装以使本地的 `vcpkg/installed` 与 manifest 同步。重新运行 vcpkg install 命令即可，vcpkg 会自动对比差异并增量更新：
+当 `scripts/vcpkg-manifest/vcpkg.json` 发生变更（如新增依赖或版本升级）时，需要重新安装以使本地的
+`vcpkg/installed-main` 与 manifest 同步。这个目录名不是随便取的：preset 里的 `VCPKG_INSTALLED_DIR`
+指的就是它，装到别处 CMake 找不到。
 
 ```cmd
 cd vcpkg
-vcpkg install --x-manifest-root=../scripts/vcpkg-manifest --x-install-root=./installed --triplet=x64-windows
+vcpkg install --x-manifest-root=../scripts/vcpkg-manifest --x-install-root=./installed-main --triplet=x64-windows
 ```
+
+vcpkg 会对比差异增量更新：端口换钉提交会触发重建，只改源码而端口不变时不会，那种情况要删掉整棵树重装。
 
 也可使用 `docs/dev-scripts/` 下的辅助脚本（复制到项目根目录并修改 Qt 路径后使用）。
 

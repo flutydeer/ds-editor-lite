@@ -9,6 +9,8 @@
 #include <synthrt/Core/SynthUnit.h>
 #include <synthrt/Support/Expected.h>
 
+#include <stdcorelib/support/versionnumber.h>
+
 #include <wolf/Session/LinguistSession.h>
 
 namespace lite::synthrt {
@@ -25,6 +27,19 @@ namespace lite::synthrt {
     /// names them, and a conversion is per language because that is how the editor batches.
     class LanguageBridge {
     public:
+        /// Which singer, as the language layer addresses one.
+        ///
+        /// The version is part of the address and not decoration. The specification lets two
+        /// versions of one package be loaded at once, and a module reference deliberately cannot
+        /// carry a version -- it binds to whatever the dependency graph resolved. So a package
+        /// identifier and a contribution identifier do not name one loaded singer, and asking
+        /// with the version left out is answered only while exactly one version is installed.
+        struct Singer {
+            std::string packageId;
+            std::string contributionId;
+            stdc::VersionNumber version;
+        };
+
         /// One word on the way in. Mirrors what the editor holds per note.
         struct Word {
             std::string lyric;
@@ -65,19 +80,16 @@ namespace lite::synthrt {
         void refresh();
 
         /// The languages a singer declares, in the order its map yields them.
-        std::vector<std::string> languagesOf(const std::string &packageId,
-                                             const std::string &contributionId) const;
+        std::vector<std::string> languagesOf(const Singer &singer) const;
 
         /// Whether a singer can convert this language at all, without loading anything.
-        bool canConvert(const std::string &packageId, const std::string &contributionId,
-                        const std::string &language) const;
+        bool canConvert(const Singer &singer, const std::string &language) const;
 
         /// Tells the session which phonemes a singer can sing, so coverage can be reported.
         ///
         /// wolf does not read voicebank formats, so this comes from the editor's own reading of
         /// the singer. Without it coverage is Unknown, which is not the same as zero.
-        void setSingerPhonemes(const std::string &packageId, const std::string &contributionId,
-                               std::vector<std::string> phonemes);
+        void setSingerPhonemes(const Singer &singer, std::vector<std::string> phonemes);
 
         /// The markers a word may be, which are answered here rather than converted.
         ///
@@ -99,8 +111,7 @@ namespace lite::synthrt {
         /// Fails as a whole only when the route does not exist; a word that could not be converted
         /// keeps its place in the batch and carries its own error, because a lyric sheet with one
         /// unknown word should still fill in the rest.
-        srt::Expected<std::vector<Result>> convert(const std::string &packageId,
-                                                   const std::string &contributionId,
+        srt::Expected<std::vector<Result>> convert(const Singer &singer,
                                                    const std::string &language,
                                                    const std::vector<Word> &words,
                                                    Depth depth = Depth::Onsets) const;

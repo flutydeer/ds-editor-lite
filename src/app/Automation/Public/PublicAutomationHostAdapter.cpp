@@ -1367,10 +1367,13 @@ namespace Automation {
                                                  QStringLiteral("Source audio clip was not found"));
             }
             auto settings = runtime.settings().getSettings();
+            // Configured means an analyzer has been chosen; ready, below, means one answering
+            // that contract is installed. Keeping the two apart is what lets the host say "you
+            // have not picked one" and "the one you picked is gone" as different things.
             const bool pitchConfigured =
-                settings && QFileInfo(settings.get().general.pitchModelPath).isFile();
+                settings && !settings.get().general.pitchAnalyzer.trimmed().isEmpty();
             const bool midiConfigured =
-                settings && QFileInfo(settings.get().general.gameDirectory).isDir();
+                settings && !settings.get().general.noteAnalyzer.trimmed().isEmpty();
             if (settings && !settings.get().general.defaultSingingLanguage.isEmpty() &&
                 !languages.contains(settings.get().general.defaultSingingLanguage)) {
                 languages.append(settings.get().general.defaultSingingLanguage);

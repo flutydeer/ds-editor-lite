@@ -75,6 +75,46 @@ if(LITE_BUILD_TESTS)
 endif()
 
 # ----------------------------------
+# The main line's dependency root
+# ----------------------------------
+# This branch builds against the main line of synthrt plus wolf and otter, and those three do not
+# come from any public registry: their ports live in scripts/vcpkg-overrides and are declared only
+# by scripts/vcpkg-manifest/vcpkg.json. A tree installed any other way does not have them, and
+# find_package then fails deep in a subdirectory with vcpkg's generic advice to add something to
+# CMAKE_PREFIX_PATH -- which is not the problem and does not fix it.
+#
+# So they are looked for once, here, and a missing one says what to do. The probe is QUIET and its
+# only side effect is that what it does find becomes visible slightly earlier.
+foreach(_lite_required IN ITEMS synthrt wolf otter)
+    find_package(${_lite_required} CONFIG QUIET)
+    if(NOT ${_lite_required}_FOUND)
+        list(APPEND _lite_missing_packages ${_lite_required})
+    endif()
+endforeach()
+if(_lite_missing_packages)
+    string(REPLACE ";" ", " _lite_missing_text "${_lite_missing_packages}")
+    message(FATAL_ERROR
+        "This branch needs the main line of synthrt together with wolf and otter, and the "
+        "dependency tree in use does not carry: ${_lite_missing_text}.\n"
+        "\n"
+        "Those three are built from scripts/vcpkg-overrides, which only "
+        "scripts/vcpkg-manifest/vcpkg.json names. Install that manifest into a tree of its own "
+        "and point this configure at it:\n"
+        "\n"
+        "  CMAKE_PREFIX_PATH=<Qt> VCPKG_KEEP_ENV_VARS=CMAKE_PREFIX_PATH \\\n"
+        "  vcpkg install --x-manifest-root=scripts/vcpkg-manifest \\\n"
+        "                --x-install-root=vcpkg/installed-main\n"
+        "\n"
+        "  cmake -S . -B <build dir> -DVCPKG_INSTALLED_DIR=\${CMAKE_SOURCE_DIR}/vcpkg/installed-main"
+        " -DVCPKG_MANIFEST_MODE=OFF ...\n"
+        "\n"
+        "Qt must be on CMAKE_PREFIX_PATH for the install itself, or qbreakpad fails. A build "
+        "directory configured against the refactor line's tree cannot be reused: the two lines "
+        "both install lib/libsynthrt.so, so they cannot share an installed tree. See "
+        "docs/plans/synthrt-main-migration.md.")
+endif()
+
+# ----------------------------------
 # Add source modules
 # ----------------------------------
 add_subdirectory(src)

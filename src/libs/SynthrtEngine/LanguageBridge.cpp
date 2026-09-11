@@ -9,14 +9,18 @@ namespace lite::synthrt {
 
     namespace {
 
-        wolf::SingerRef refOf(const std::string &packageId,
-                                               const std::string &contributionId) {
-            wolf::SingerRef singer;
-            singer.locator = srt::ContribLocator(packageId, "singer", contributionId);
-            // The version is left empty on purpose: the editor names a singer by the package it
-            // came from, and two versions of one voicebank are not both loaded. Should that change,
-            // this is the one place that has to learn about it.
-            return singer;
+        wolf::SingerRef refOf(const LanguageBridge::Singer &singer) {
+            wolf::SingerRef reference;
+            // The category is a slot in the reference grammar rather than punctuation, which is
+            // why it is spelled out rather than implied by the type name.
+            reference.locator =
+                srt::ContribLocator(singer.packageId, "singer", singer.contributionId);
+            // And the version is carried, because a reference cannot: the specification binds a
+            // module reference to whatever the dependency graph resolved, and separately allows
+            // two versions of one package to be loaded at once. Leaving this empty asks for "the
+            // only one", which stops being an answer the day someone installs both.
+            reference.version = singer.version;
+            return reference;
         }
 
         LinguistApi::Depth depthOf(LanguageBridge::Depth depth) {
@@ -77,13 +81,12 @@ namespace lite::synthrt {
         _impl->session.refresh();
     }
 
-    std::vector<std::string> LanguageBridge::languagesOf(const std::string &packageId,
-                                                         const std::string &contributionId) const {
+    std::vector<std::string> LanguageBridge::languagesOf(const Singer &singer) const {
         const auto catalog = _impl->session.catalog();
         if (!catalog) {
             return {};
         }
-        const auto *entry = catalog->find(refOf(packageId, contributionId));
+        const auto *entry = catalog->find(refOf(singer));
         if (entry == nullptr) {
             return {};
         }
@@ -95,20 +98,17 @@ namespace lite::synthrt {
         return result;
     }
 
-    bool LanguageBridge::canConvert(const std::string &packageId,
-                                    const std::string &contributionId,
-                                    const std::string &language) const {
+    bool LanguageBridge::canConvert(const Singer &singer, const std::string &language) const {
         // probe() loads nothing and creates no executive, so this is safe to ask while drawing a
         // list. Cold means everything is decided and only the resources are still to come, which
         // for a question about whether a route exists is a yes.
-        const auto status = _impl->session.probe(refOf(packageId, contributionId), language);
+        const auto status = _impl->session.probe(refOf(singer), language);
         return status.readiness != wolf::Readiness::Unavailable;
     }
 
-    void LanguageBridge::setSingerPhonemes(const std::string &packageId,
-                                           const std::string &contributionId,
+    void LanguageBridge::setSingerPhonemes(const Singer &singer,
                                            std::vector<std::string> phonemes) {
-        _impl->session.setSingerPhonemes(refOf(packageId, contributionId), std::move(phonemes));
+        _impl->session.setSingerPhonemes(refOf(singer), std::move(phonemes));
     }
 
     void LanguageBridge::setReservedMarkers(std::vector<std::string> markers) {
@@ -120,9 +120,8 @@ namespace lite::synthrt {
     }
 
     srt::Expected<std::vector<LanguageBridge::Result>>
-        LanguageBridge::convert(const std::string &packageId, const std::string &contributionId,
-                                const std::string &language, const std::vector<Word> &words,
-                                Depth depth) const {
+        LanguageBridge::convert(const Singer &singer, const std::string &language,
+                            const std::vector<Word> &words, Depth depth) const {
         LinguistApi::LinguistConvertInput input;
         input.depth = depthOf(depth);
         input.words.reserve(words.size());
@@ -149,7 +148,7 @@ namespace lite::synthrt {
         }
 
         auto produced =
-            _impl->session.convert(refOf(packageId, contributionId), language, input, token);
+            _impl->session.convert(refOf(singer), language, input, token);
         if (!produced) {
             return produced.takeError();
         }

@@ -31,8 +31,18 @@ public:
     QStringList packageSearchPaths;
     QStringList recentProjectFiles;
     QJsonValue speakerMixPresets;
-    LITE_OPTION_ITEM(QString, gameDir, QString())
-    LITE_OPTION_ITEM(QString, rmvpePath, QString())
+    /// Which analyzer to use, named the way an installed one is named:
+    /// <package>:analysis/<contribution>.
+    ///
+    /// A reference rather than a path, because an analyzer is a contribution of an installed
+    /// package now and not a file someone downloaded. A path would also stop meaning anything the
+    /// day the package is reinstalled somewhere else.
+    ///
+    /// Empty until someone chooses one. The older keys held filesystem paths and are not read:
+    /// there is nothing to migrate them into, since a path does not say which package it came
+    /// from or which contract it answers.
+    LITE_OPTION_ITEM(QString, noteAnalyzer, QString())
+    LITE_OPTION_ITEM(QString, pitchAnalyzer, QString())
     LITE_OPTION_ITEM(QString, libreSVIPPath, QString())
 
 

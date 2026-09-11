@@ -45,8 +45,8 @@ namespace Automation {
                 .defaultLyrics = value->defaultLyrics,
                 .packageSearchPaths = value->packageSearchPaths,
                 .recentProjectFiles = value->recentProjectFiles,
-                .gameDirectory = value->gameDir,
-                .pitchModelPath = value->rmvpePath,
+                .noteAnalyzer = value->noteAnalyzer,
+                .pitchAnalyzer = value->pitchAnalyzer,
                 .libreSvipPath = value->libreSVIPPath,
             };
         }
@@ -58,8 +58,8 @@ namespace Automation {
             target->defaultLyrics = value.defaultLyrics;
             target->packageSearchPaths = value.packageSearchPaths;
             target->recentProjectFiles = value.recentProjectFiles;
-            target->gameDir = value.gameDirectory;
-            target->rmvpePath = value.pitchModelPath;
+            target->noteAnalyzer = value.noteAnalyzer;
+            target->pitchAnalyzer = value.pitchAnalyzer;
             target->libreSVIPPath = value.libreSvipPath;
         }
 

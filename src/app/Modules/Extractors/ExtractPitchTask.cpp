@@ -45,7 +45,7 @@ void ExtractPitchTask::runTask() {
     // The analyzer is named rather than found on disk: it is a contribution of an installed
     // package, and which one to use is a choice the person made and the project stored. A path
     // would move the day the package is reinstalled somewhere else.
-    auto created = SynthrtEngine::instance().createAnalyzer(m_input.modelPath);
+    auto created = SynthrtEngine::instance().createAnalyzer(m_input.analyzer);
     if (!created) {
         m_errorCode = ErrorCode::ModelNotLoaded;
         m_errorMessage = tr("Pitch analyzer unavailable: ") +
@@ -78,7 +78,7 @@ void ExtractPitchTask::runTask() {
     // What the analyzer needs the audio to be. Read from its declaration rather than assumed:
     // the rate and the longest span it accepts differ between analyzers, and this is the only
     // place that can honour both.
-    const auto *spec = SynthrtEngine::instance().analyzerSpec(m_input.modelPath);
+    const auto *spec = SynthrtEngine::instance().analyzerSpec(m_input.analyzer);
     const auto *schema = spec ? spec->exports()->as<F0::F0Schema>() : nullptr;
     if (schema == nullptr || schema->sampleRate <= 0) {
         m_errorCode = ErrorCode::ModelNotLoaded;

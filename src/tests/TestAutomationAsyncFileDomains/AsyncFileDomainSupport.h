@@ -553,7 +553,7 @@ namespace AutomationAsyncFileTests {
                     return Automation::AutomationResult<Automation::PreparedPitchExtraction>(
                         *pitchPrepareError);
                 }
-                input.modelPath = QStringLiteral("controlled-pitch-model");
+                input.analyzer = QStringLiteral("test:analysis/controlled-pitch");
                 auto state = std::make_shared<FakePitchState>();
                 state->input = input;
                 pitchStates.append(state);
@@ -568,7 +568,7 @@ namespace AutomationAsyncFileTests {
                     return Automation::AutomationResult<Automation::PreparedMidiExtraction>(
                         *midiPrepareError);
                 }
-                input.modelPath = QStringLiteral("controlled-midi-model");
+                input.analyzer = QStringLiteral("test:analysis/controlled-note");
                 input.defaultLanguage = QStringLiteral("en");
                 input.defaultLyric = QStringLiteral("la");
                 auto state = std::make_shared<FakeMidiState>();

@@ -56,7 +56,8 @@ namespace Automation {
         QString snapshotPath;
         AudioAssetSnapshotDto sourceAsset;
         QString modelId;
-        QString modelPath;
+        /// The analyzer to run, named <package>:analysis/<contribution>.
+        QString analyzer;
         Timeline timeline;
         int singingClipStartTick = 0;
         double audioMaterialOriginMs = 0.0;
@@ -71,7 +72,8 @@ namespace Automation {
         QString snapshotPath;
         AudioAssetSnapshotDto sourceAsset;
         QString modelId;
-        QString modelPath;
+        /// The analyzer to run, named <package>:analysis/<contribution>.
+        QString analyzer;
         Timeline timeline;
         int audioClipStartTick = 0;
         int audioClipLengthTick = 0;

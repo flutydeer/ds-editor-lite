@@ -11,6 +11,7 @@
 #include <QDebug>
 
 #include <lite/Core/SingletonRegistry.h>
+#include <lite/Support/VersionUtils.h>
 
 #include <otter/Analysis/AnalysisContrib.h>
 
@@ -33,6 +34,21 @@ namespace {
             }
         }
         return result;
+    }
+
+}
+
+namespace {
+
+    /// The language layer's address for a singer, version and all.
+    ///
+    /// The version is carried rather than left out: the specification allows two versions of one
+    /// package to be loaded at once, and a module reference cannot distinguish them. Asking
+    /// without it is answered only while exactly one version is installed, and silently answers
+    /// nothing the day someone installs both.
+    lite::synthrt::LanguageBridge::Singer singerOf(const SingerIdentifier &identifier) {
+        const auto [packageId, contributionId] = identifier.contribution();
+        return {packageId, contributionId, VersionUtils::qt_to_stdc(identifier.packageVersion)};
     }
 
 }
@@ -417,8 +433,7 @@ QStringList SynthrtEngine::languagesOf(const SingerIdentifier &identifier) const
     if (!_impl->language) {
         return result;
     }
-    const auto [packageId, contributionId] = identifier.contribution();
-    for (const auto &language : _impl->language->languagesOf(packageId, contributionId)) {
+    for (const auto &language : _impl->language->languagesOf(singerOf(identifier))) {
         result << QString::fromStdString(language);
     }
     return result;
@@ -429,8 +444,7 @@ bool SynthrtEngine::canConvert(const SingerIdentifier &identifier, const QString
     if (!_impl->language) {
         return false;
     }
-    const auto [packageId, contributionId] = identifier.contribution();
-    return _impl->language->canConvert(packageId, contributionId, language.toStdString());
+    return _impl->language->canConvert(singerOf(identifier), language.toStdString());
 }
 
 srt::Expected<std::vector<lite::synthrt::LanguageBridge::Result>>
@@ -441,8 +455,7 @@ srt::Expected<std::vector<lite::synthrt::LanguageBridge::Result>>
     if (!_impl->language) {
         return srt::Error(srt::Error::InvalidArgument, "the engine is not initialized");
     }
-    const auto [packageId, contributionId] = identifier.contribution();
-    return _impl->language->convert(packageId, contributionId, language.toStdString(), words,
+    return _impl->language->convert(singerOf(identifier), language.toStdString(), words,
                                     depth);
 }
 
@@ -459,8 +472,7 @@ void SynthrtEngine::setSingerPhonemes(const SingerIdentifier &identifier,
     if (!_impl->language) {
         return;
     }
-    const auto [packageId, contributionId] = identifier.contribution();
-    _impl->language->setSingerPhonemes(packageId, contributionId, std::move(phonemes));
+    _impl->language->setSingerPhonemes(singerOf(identifier), std::move(phonemes));
 }
 
 void SynthrtEngine::setReservedMarkers(std::vector<std::string> markers) {

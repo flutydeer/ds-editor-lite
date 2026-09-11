@@ -171,6 +171,38 @@ function(lite_deploy_application _target)
         endif()
     endforeach()
 
+    # The language packages a voicebank depends on. The wolf port does not install them -- they
+    # are built from resources by a script in that repository rather than compiled -- so they are
+    # named here, the same way wolf itself names them, and skipped when not built. Without them a
+    # voicebank still loads and lists; only its languages fail to resolve, which is the honest
+    # degradation and is reported at load time rather than at the first conversion.
+    if(NOT LITE_WOLF_LANG_PACKAGES AND DEFINED ENV{WOLF_LANG_PACKAGES_SOURCE})
+        set(LITE_WOLF_LANG_PACKAGES "$ENV{WOLF_LANG_PACKAGES_SOURCE}")
+    endif()
+    if(LITE_WOLF_LANG_PACKAGES AND EXISTS "${LITE_WOLF_LANG_PACKAGES}")
+        # Each package directory by name, not the directory that holds them. That directory is a
+        # build tree: beside the packages sit archives of the same packages and a second unpacked
+        # copy of every one of them, and deploying those would put two packages claiming the same
+        # identity where the loader resolves dependencies.
+        file(GLOB _lite_lang_manifests "${LITE_WOLF_LANG_PACKAGES}/*/desc.json")
+        foreach(_manifest IN LISTS _lite_lang_manifests)
+            get_filename_component(_package "${_manifest}" DIRECTORY)
+            get_filename_component(_package_name "${_package}" NAME)
+            qm_add_copy_command(${_target}
+                SOURCES ${_package}/
+                DESTINATION ${_lite_plugin_destination}/wolf/packages/${_package_name}
+                ${_install_copy_args}
+            )
+        endforeach()
+        list(LENGTH _lite_lang_manifests _lite_lang_count)
+        message(STATUS "Staging ${_lite_lang_count} wolf language package(s)")
+    else()
+        message(STATUS
+            "No wolf language packages staged: set LITE_WOLF_LANG_PACKAGES (or the "
+            "WOLF_LANG_PACKAGES_SOURCE environment variable) to the directory holding them. "
+            "Voicebanks will load and their languages will not resolve.")
+    endif()
+
     if(EXISTS "${_lite_ort_source}")
         qm_add_copy_command(${_target}
             SOURCES ${_lite_ort_source}/
@@ -184,6 +216,21 @@ function(lite_deploy_application _target)
     endif()
 
     if(UNIX AND NOT APPLE)
+        # The libraries the plugins need, before their RPATHs are rewritten to look here.
+        #
+        # vcpkg has no applocal deployment on Linux, and what it would deploy is what the
+        # executable links; a plugin is loaded by name and links things the executable never does
+        # -- cpp-pinyin, for one. Without this the rewrite below actively breaks them: it replaces
+        # a build RPATH pointing into the vcpkg tree with one pointing at a directory those
+        # libraries are not in, and the plugin then fails to load complaining about a library
+        # rather than about itself.
+        add_custom_command(TARGET ${_target} POST_BUILD
+            COMMAND bash ${LITE_SOURCE_DIR}/scripts/deploy_linux_plugin_deps.sh
+                $<TARGET_FILE_DIR:${_target}>/../lib
+                ${_lite_plugin_source}
+                ${_lite_vcpkg_root}/lib
+            COMMENT "Deploy the shared libraries the plugins need"
+        )
         # The plugins are deployed under the same lib directory as the shared libraries they
         # need, so that is both what gets rewritten and what the rewritten RPATHs point at.
         add_custom_command(TARGET ${_target} POST_BUILD

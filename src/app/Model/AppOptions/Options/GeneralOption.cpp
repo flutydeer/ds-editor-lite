@@ -76,10 +76,10 @@ void GeneralOption::load(const QJsonObject &object) {
     if (object.contains(speakerMixPresetsKey))
         speakerMixPresets = object[speakerMixPresetsKey];
 
-    if (object.contains(gameDirKey))
-        gameDir = object[gameDirKey].toString();
-    if (object.contains(rmvpePathKey))
-        rmvpePath = object[rmvpePathKey].toString();
+    if (object.contains(noteAnalyzerKey))
+        noteAnalyzer = object[noteAnalyzerKey].toString();
+    if (object.contains(pitchAnalyzerKey))
+        pitchAnalyzer = object[pitchAnalyzerKey].toString();
     if (object.contains(libreSVIPPathKey))
         libreSVIPPath = object[libreSVIPPathKey].toString();
 }
@@ -96,8 +96,8 @@ void GeneralOption::save(QJsonObject &object) {
         {packageSearchPathsKey,     QJsonArray::fromStringList(packageSearchPaths)},
         {recentProjectFilesKey,     QJsonArray::fromStringList(recentProjectFiles)},
         {speakerMixPresetsKey,      speakerMixPresets                             },
-        serialize_gameDir(),
-        serialize_rmvpePath(),
+        serialize_noteAnalyzer(),
+        serialize_pitchAnalyzer(),
         serialize_libreSVIPPath()
     };
 }

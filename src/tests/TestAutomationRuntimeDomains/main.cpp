@@ -1226,9 +1226,9 @@ namespace {
             [&runtime](const auto &context, const auto &value) {
                 return runtime.settings().updateGeneral(context, value);
             },
-            [](auto &value) { value.gameDirectory = QStringLiteral("game-data"); },
+            [](auto &value) { value.noteAnalyzer = QStringLiteral("vendor:analysis/note"); },
             [](auto &value) { value.uiLanguage = QStringLiteral("unsupported"); },
-            [](auto &value) { value.pitchModelPath = QStringLiteral("model.bin"); });
+            [](auto &value) { value.pitchAnalyzer = QStringLiteral("vendor:analysis/f0"); });
 
         exerciseSettingsCategory<Automation::AppearanceSettingsDto>(
             log, harness, QStringLiteral("SETTINGS-C-APPEARANCE"),
