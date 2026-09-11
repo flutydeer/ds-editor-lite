@@ -184,6 +184,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 参数栏的前景/背景切换 | gui | 实际下拉选择和交换按钮同步视图及显示文字；清除背景后交换不改变前景，操作不修改工程或历史 | ApplicationGui::parameterToolbarSwapsTheVisiblePairWithoutEditingTheDocument | offscreen；无需声库 |
 | 播放栏时间线编辑与节拍测量 | gui | 速度和拍号弹窗编辑打开时选定的标记，移动播放头后提交不误改其他标记且显示跟随当前位置；内联输入验证、取消、定位与撤销；连续点击测量 BPM、稳定进度、闲置及重新打开后的重置 | ApplicationGui 的 tst_playback_controls.cpp | offscreen；实际输入和计时器；无需播放设备 |
 | 路径输入与多目录排序 | gui | 目录经真实拖入后选择、上移/下移与删除保留所选顺序；列表接受复制引用，文件选择框拒绝远程 URL 并按目录或扩展名筛选本地来源 | GuiComponents 的 tst_path_controls.cpp | offscreen；临时目录和文件；不调用外部模型 |
+| 浮动滚动条的菜单导航 | gui | 横向和纵向滚动条通过真实菜单取消、到达边缘、翻页、单步及跳至点击处；检查结果同步到所属滚动区，使用 Fusion 样式执行自定义上下文菜单 | GuiComponents::overlayScrollMenuNavigatesTheAttachedArea | offscreen；实际控件事件；不验证平台原生菜单外观 |
 | LibreSVIP 外部转换接线 | workflow | 扩展已有单项目导入场景，转换进程处理参数和默认回答，生产解析、计划检查及导入保留音符并可撤销；未配置、无法启动、转换拒绝、缺少/空输出明确失败，异步失败不修改原工程 | ApplicationWorkflows::publicSingleProjectImportUsesThePreparedPlanAndKeepsTheDocument、libreSvipProcessFailuresLeaveTheDocumentUntouched | 通用；仅替换外部可执行程序，复用测试程序子入口；不要求安装 LibreSVIP |
 | 普通钢琴窗擦除与切分 | gui | 橡皮擦先移出场景项，取消恢复全部预览对象，提交及撤销更新对应模型和场景；切分指示线随悬停出现/消失，实际点击与量化位置一致，撤销恢复原音符 | ApplicationGui::pianoErasingRestoresSceneItemsOnCancelAndUndo、pianoSplitIndicatorFollowsTheMouseAndMatchesTheEdit | offscreen；真实 Graphics View 事件路径；与 RHI 帧验证各负责自身视图接线 |
 | 各语种的默认歌词设置 | gui | 设置页切换中英文时保存和恢复各自歌词，关闭后磁盘重读及页面重开保持内容，不修改工程历史 | ApplicationGui::generalSettingsKeepSeparateDefaultLyricsForEachLanguage | offscreen；隔离设置；无需声库推理 |

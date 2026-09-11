@@ -35,6 +35,8 @@ private slots:
     void pathEditorMovesAndDeletesTheSelectedDirectories();
     void fileSelectorAcceptsTheFirstSuitableLocalDrop_data();
     void fileSelectorAcceptsTheFirstSuitableLocalDrop();
+    void overlayScrollMenuNavigatesTheAttachedArea_data();
+    void overlayScrollMenuNavigatesTheAttachedArea();
 };
 
 #endif

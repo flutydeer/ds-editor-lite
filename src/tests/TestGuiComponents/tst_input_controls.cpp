@@ -3,12 +3,19 @@
 #include <lite/GUI/Controls/Fader.h>
 #include <lite/GUI/Controls/PanSlider.h>
 #include <lite/GUI/Controls/SvsSeekbar.h>
+#include <lite/GUI/Controls/OverlayScrollBar.h>
 
+#include <QAbstractScrollArea>
 #include <QApplication>
+#include <QContextMenuEvent>
 #include <QCursor>
+#include <QMenu>
 #include <QMouseEvent>
 #include <QScopeGuard>
 #include <QSignalSpy>
+#include <QStyle>
+#include <QStyleFactory>
+#include <QTimer>
 #include <QtTest/QTest>
 
 #include <type_traits>
@@ -184,4 +191,80 @@ void GuiComponentTests::mixerSliderReleaseEndsPreview() {
         slider.resize(220, 24);
         exerciseDrag(slider, QPoint(110, 12), QPoint(160, 12), -0.3);
     }
+}
+
+void GuiComponentTests::overlayScrollMenuNavigatesTheAttachedArea_data() {
+    QTest::addColumn<bool>("horizontal");
+    QTest::newRow("horizontal") << true;
+    QTest::newRow("vertical") << false;
+}
+
+void GuiComponentTests::overlayScrollMenuNavigatesTheAttachedArea() {
+    QFETCH(bool, horizontal);
+    const auto originalCursor = QCursor::pos();
+    const auto restoreCursor = qScopeGuard([&] { QCursor::setPos(originalCursor); });
+    QAbstractScrollArea area;
+    area.resize(420, 420);
+    auto *source = horizontal ? area.horizontalScrollBar() : area.verticalScrollBar();
+    source->setRange(10, 1010);
+    source->setPageStep(100);
+    source->setSingleStep(5);
+    auto *bar = OverlayScrollBar::install(&area, horizontal ? Qt::Horizontal : Qt::Vertical);
+    auto *style = QStyleFactory::create("Fusion");
+    QVERIFY(style);
+    style->setParent(bar);
+    bar->setStyle(style);
+    bar->setAnimationEnabled(false);
+    source->setValue(510);
+    area.show();
+    area.activateWindow();
+    QTRY_VERIFY(bar->isVisible());
+    QCOMPARE(bar->value(), source->value());
+    const auto choose = [&](const QString &label) {
+        bool used = false;
+        QTimer select;
+        select.setInterval(10);
+        connect(&select, &QTimer::timeout, bar, [&] {
+            auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+            if (!menu)
+                return;
+            select.stop();
+            const auto close = qScopeGuard([&] { menu->close(); });
+            if (label.isEmpty()) {
+                QTest::keyClick(menu, Qt::Key_Escape);
+            } else {
+                QAction *choice = nullptr;
+                for (auto *action : menu->actions()) {
+                    if (action->text() == label)
+                        choice = action;
+                }
+                QVERIFY(choice && choice->isEnabled());
+                QVERIFY(menu->windowHandle());
+                const auto position = menu->actionGeometry(choice).center();
+                QTest::mouseMove(menu->windowHandle(), position);
+                QTRY_COMPARE(menu->activeAction(), choice);
+                QSignalSpy activated(choice, &QAction::triggered);
+                QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier, position);
+                QTRY_COMPARE(activated.size(), 1);
+            }
+            used = true;
+        });
+        const auto position = bar->rect().center();
+        QContextMenuEvent event(QContextMenuEvent::Mouse, position, bar->mapToGlobal(position));
+        select.start();
+        QApplication::sendEvent(bar, &event);
+        QVERIFY(used);
+        QVERIFY(event.isAccepted());
+        QCOMPARE(bar->value(), source->value());
+    };
+    choose({});
+    QCOMPARE(source->value(), 510);
+    choose(OverlayScrollBar::tr(horizontal ? "Right edge" : "Bottom"));
+    QCOMPARE(source->value(), 1010);
+    choose(OverlayScrollBar::tr(horizontal ? "Page left" : "Page up"));
+    QCOMPARE(source->value(), 910);
+    choose(OverlayScrollBar::tr(horizontal ? "Scroll left" : "Scroll up"));
+    QCOMPARE(source->value(), 905);
+    choose(OverlayScrollBar::tr("Scroll here"));
+    QVERIFY(source->value() > 400 && source->value() < 650);
 }
