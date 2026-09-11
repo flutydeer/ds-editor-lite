@@ -227,8 +227,13 @@ void ApplicationGuiTests::parameterAnchorEditingPreviewsAndUsesTheContextMenu() 
                 choice = action;
         }
         QVERIFY(choice && choice->isEnabled());
-        QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier,
-                          menu->actionGeometry(choice).center());
+        QVERIFY(menu->windowHandle());
+        const auto position = menu->actionGeometry(choice).center();
+        QTest::mouseMove(menu->windowHandle(), position);
+        QTRY_COMPARE(menu->activeAction(), choice);
+        QSignalSpy activated(choice, &QAction::triggered);
+        QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier, position);
+        QTRY_COMPARE(activated.size(), 1);
         menuUsed = true;
     });
     QTest::mouseMove(viewport, first);
