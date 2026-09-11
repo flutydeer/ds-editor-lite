@@ -856,7 +856,7 @@ namespace {
         if (!failedRefresh)
             return;
         const QJsonObject failedTaskInput{
-            {QStringLiteral("scope"),   QStringLiteral("application")                          },
+            {QStringLiteral("scope"),   QStringLiteral("application")                             },
             {QStringLiteral("task_id"), failedRefresh->value(QStringLiteral("task_id")).toString()},
         };
         const auto failedTask =
@@ -1273,7 +1273,8 @@ namespace {
         const auto plannedPath =
             QDir(directoryPath).absoluteFilePath(QStringLiteral("planned-open.mid"));
         const auto plannedBytes =
-            QByteArray::fromHex("4d546864000000060000000101e04d54726b0000000400ff2f00");
+            QByteArray::fromHex("4d546864000000060000000101e04d54726b0000001b"
+                                "00ff03044c65616400ff05026c6100903c408360803c0000ff2f00");
         QFile plannedProject(plannedPath);
         const bool plannedProjectCreated =
             plannedProject.open(QIODevice::WriteOnly | QIODevice::Truncate) &&
@@ -1288,6 +1289,13 @@ namespace {
         reportFailure(QStringLiteral("formats.inspect"), plan);
         expect(bool(plan), QStringLiteral("project snapshot fixture must produce an open plan"));
         if (plan) {
+            const auto sources = plan.get().value(QStringLiteral("sources")).toArray();
+            QCOMPARE(sources.size(), 1);
+            QCOMPARE(sources.first().toObject().value(QStringLiteral("name")).toString(),
+                     QStringLiteral("Lead"));
+            QCOMPARE(plan.get().value(QStringLiteral("lyrics_preview")).toArray(),
+                     QJsonArray{QStringLiteral("la")});
+            QVERIFY(!plan.get().value(QStringLiteral("encoding")).toString().isEmpty());
             control.revalidateOpen = {};
             const auto plannedOpen =
                 registry.invoke(QStringLiteral("documents.open"),

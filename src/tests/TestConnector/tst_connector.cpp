@@ -259,6 +259,9 @@ namespace {
             TransportError,
             Redirect,
             Sse,
+            RepeatedSse,
+            MalformedJson,
+            UnsupportedContentType,
             Oversized,
         };
 
@@ -822,8 +825,13 @@ namespace {
                     mode == ApplicationResponseMode::BusinessError);
                 const auto response = AutomationWire::Mcp::makeResultResponse(
                     request.id, result, info, request.protocolVersion);
-                if (mode == ApplicationResponseMode::Sse)
-                    respondSse(socket, response);
+                if (mode == ApplicationResponseMode::Sse ||
+                    mode == ApplicationResponseMode::RepeatedSse)
+                    respondSse(socket, response, mode == ApplicationResponseMode::RepeatedSse);
+                else if (mode == ApplicationResponseMode::MalformedJson)
+                    respondBody(socket, "{incomplete", "application/json");
+                else if (mode == ApplicationResponseMode::UnsupportedContentType)
+                    respondBody(socket, "<html>Proxy failure</html>", "text/html");
                 else
                     respond(socket, response);
                 return;
@@ -839,9 +847,14 @@ namespace {
 
         void respond(QTcpSocket *socket, const QJsonObject &response,
                      const QByteArray &extraHeaders = {}) {
-            const auto body = QJsonDocument(response).toJson(QJsonDocument::Compact);
-            QByteArray message = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"
-                                 "Connection: close\r\n";
+            respondBody(socket, QJsonDocument(response).toJson(QJsonDocument::Compact),
+                        "application/json", extraHeaders);
+        }
+
+        void respondBody(QTcpSocket *socket, const QByteArray &body, const QByteArray &contentType,
+                         const QByteArray &extraHeaders = {}) {
+            QByteArray message =
+                "HTTP/1.1 200 OK\r\nContent-Type: " + contentType + "\r\nConnection: close\r\n";
             message.append(extraHeaders);
             message.append("Content-Length: ");
             message.append(QByteArray::number(body.size()));
@@ -864,7 +877,8 @@ namespace {
             socket->disconnectFromHost();
         }
 
-        void respondSse(QTcpSocket *socket, const QJsonObject &response) {
+        void respondSse(QTcpSocket *socket, const QJsonObject &response,
+                        bool repeatResponse = false) {
             const auto body = QJsonDocument(response).toJson(QJsonDocument::Compact);
             const auto split = body.indexOf(",\"result\"");
             QByteArray events = ": keep-alive\r\n\r\n"
@@ -883,17 +897,9 @@ namespace {
                 events.append(body);
                 events.append("\r\n\r\n");
             }
-            QByteArray message =
-                "HTTP/1.1 200 OK\r\nContent-Type: Text/Event-Stream; Charset=UTF-8\r\n"
-                "Connection: close\r\nContent-Length: ";
-            message.append(QByteArray::number(events.size()));
-            message.append("\r\n\r\n");
-            message.append(events);
-            m_rawLog.append("=== sse response ===\n");
-            m_rawLog.append(message);
-            m_rawLog.append('\n');
-            socket->write(message);
-            socket->disconnectFromHost();
+            if (repeatResponse)
+                events.append("data: " + body + "\r\n\r\n");
+            respondBody(socket, events, "Text/Event-Stream; Charset=UTF-8");
         }
 
         void respondOversized(QTcpSocket *socket) {
@@ -1466,7 +1472,8 @@ namespace {
                      QStringLiteral("reusable-sync-id"));
             QVERIFY(!response.contains(QStringLiteral("error")));
             const auto structured = response.value(QStringLiteral("result"))
-                                        .toObject().value(QStringLiteral("structuredContent"));
+                                        .toObject()
+                                        .value(QStringLiteral("structuredContent"));
             QVERIFY(structured.isObject());
             if (!stableStatus)
                 stableStatus = structured;
@@ -1872,6 +1879,47 @@ namespace {
                        250),
                    "the forwarded legacy cancellation notification must settle promptly");
 
+            const auto initializationsBeforeExpiry = http.initializeCount;
+            http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::TransportError;
+            http.applicationTransportStatus = 404;
+            http.applicationTransportCode = QStringLiteral("session_expired");
+            http.applicationTransportMessage = QStringLiteral("The session has expired");
+            bool expiryDelivered = false;
+            DsConnector::ToolCallOutcome expiredOutcome;
+            runtime.callTool(QStringLiteral("application.get_info"), {},
+                             [&](DsConnector::ToolCallOutcome outcome) {
+                                 expiredOutcome = std::move(outcome);
+                                 http.legacySessionId = QByteArrayLiteral("replacement-session-id");
+                                 expiryDelivered = true;
+                             });
+            QVERIFY(waitUntil([&] { return expiryDelivered; }, 5000));
+            QVERIFY(expiredOutcome.result.value(QStringLiteral("isError")).toBool());
+            QVERIFY(waitUntil(
+                [&] {
+                    return http.initializeCount == initializationsBeforeExpiry + 1 &&
+                           runtime.status()
+                                   .value(QStringLiteral("toolset"))
+                                   .toObject()
+                                   .value(QStringLiteral("compatibility"))
+                                   .toString() == QStringLiteral("compatible");
+                },
+                10000));
+            callFinished = false;
+            runtime.callTool(QStringLiteral("application.get_info"), {},
+                             [&](DsConnector::ToolCallOutcome outcome) {
+                                 callOutcome = std::move(outcome);
+                                 callFinished = true;
+                             });
+            QVERIFY(waitUntil([&] { return callFinished; }, 5000));
+            QVERIFY(!callOutcome.result.value(QStringLiteral("isError")).toBool());
+            QCOMPARE(callOutcome.result.value(QStringLiteral("structuredContent"))
+                         .toObject()
+                         .value(QStringLiteral("name"))
+                         .toString(),
+                     QStringLiteral("DS Editor Lite"));
+            QVERIFY(http.headersValid);
+
+            http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::Hold;
             applicationCallCount = http.calledTools.count(QStringLiteral("application.get_info"));
             runtime.callTool(QStringLiteral("application.get_info"), {},
                              [](const DsConnector::ToolCallOutcome &) {});
@@ -2171,6 +2219,11 @@ namespace {
                                 << QString::fromLatin1(expected) << protocolError;
         };
         add("sse", Mode::Sse, "name", "DS Editor Lite");
+        add("duplicate-sse-result", Mode::RepeatedSse, "message",
+            "multiple_upstream_sse_responses");
+        add("malformed-json", Mode::MalformedJson, "message", "invalid_upstream_json_response");
+        add("proxy-html-response", Mode::UnsupportedContentType, "message",
+            "unsupported_upstream_content_type");
         add("business-error", Mode::BusinessError, "code", "fake_business_error");
         add("protocol-error", Mode::ProtocolError, "", "", AutomationWire::Mcp::InvalidParams);
         add("editor-owns-output-validation", Mode::InvalidOutput, "leaked_secret", "must-not-pass");
@@ -2212,6 +2265,23 @@ namespace {
         if (mode == int(FakeHttpEditor::ApplicationResponseMode::Hold))
             QCOMPARE(content.value(QStringLiteral("message")).toString(),
                      QStringLiteral("upstream_timeout"));
+        if (mode == int(FakeHttpEditor::ApplicationResponseMode::RepeatedSse) ||
+            mode == int(FakeHttpEditor::ApplicationResponseMode::MalformedJson) ||
+            mode == int(FakeHttpEditor::ApplicationResponseMode::UnsupportedContentType)) {
+            QVERIFY(result.value(QStringLiteral("isError")).toBool());
+            fixture.sendTool(QStringLiteral("after-invalid-response"),
+                             QStringLiteral("application.get_info"));
+            const auto recovered =
+                fixture.response(QStringLiteral("after-invalid-response"), 10000);
+            QVERIFY(recovered);
+            const auto recoveredResult = recovered->value(QStringLiteral("result")).toObject();
+            QVERIFY(!recoveredResult.value(QStringLiteral("isError")).toBool());
+            QCOMPARE(recoveredResult.value(QStringLiteral("structuredContent"))
+                         .toObject()
+                         .value(QStringLiteral("name"))
+                         .toString(),
+                     QStringLiteral("DS Editor Lite"));
+        }
     }
 
     void TestConnector::editorPolicyRefresh() {
@@ -3194,6 +3264,19 @@ namespace {
         expect(extendedEnvelope.first == QStringLiteral("outcome_unknown") &&
                    extendedEnvelope.second == QStringLiteral("invalid_upstream_response"),
                "a transport envelope with undeclared fields must not be trusted");
+
+        for (const auto &response :
+             {qMakePair(FakeHttpEditor::ApplicationResponseMode::MalformedJson,
+                        QStringLiteral("invalid_upstream_json_response")),
+              qMakePair(FakeHttpEditor::ApplicationResponseMode::RepeatedSse,
+                        QStringLiteral("multiple_upstream_sse_responses"))}) {
+            const auto callsBefore = http.calledTools.count(QStringLiteral("fake.command"));
+            http.applicationResponseMode = response.first;
+            const auto unknown = invokeCommand();
+            QCOMPARE(unknown.first, QStringLiteral("outcome_unknown"));
+            QCOMPARE(unknown.second, response.second);
+            QCOMPARE(http.calledTools.count(QStringLiteral("fake.command")), callsBefore + 1);
+        }
 
         http.applicationResponseMode = FakeHttpEditor::ApplicationResponseMode::Hold;
         const auto timedOut = invokeCommand();
