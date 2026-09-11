@@ -387,6 +387,51 @@ void AudioAssetsTests::decodeCompletionWaitsForTheSaveDecision() {
     }
 }
 
+void AudioAssetsTests::sourceRemovedBeforeDecodingBecomesMissing() {
+    Fixture fixture;
+    QVERIFY(fixture.directory.isValid());
+    const auto path = fixture.directory.filePath(QStringLiteral("removed-before-read.wav"));
+    QVERIFY(TestSupport::writeWave(path, QVector<float>(4800, 0.25f)));
+    TaskId taskId;
+    QPointer<DecodeAudioTask> decoding;
+    bool removed = false;
+    QString removalError;
+    QObject observations;
+    connect(taskManager, &TaskManager::taskChanged, &observations,
+            [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
+                auto *candidate = dynamic_cast<DecodeAudioTask *>(task);
+                if (change != TaskManager::Added || !candidate || !taskId.isNull())
+                    return;
+                taskId = candidate->automationTaskId;
+                decoding = candidate;
+                QFile source(path);
+                removed = source.remove();
+                removalError = source.errorString();
+            });
+    QVERIFY(fixture.openDocument(missingAudioDocument(path), InvocationSource::InternalAutomation));
+    const auto before = fixture.runtime().documentVersion();
+    QVERIFY(drainTasks());
+    QVERIFY(!taskId.isNull());
+#ifdef Q_OS_WIN
+    if (!removed)
+        QSKIP("The Windows audio source holds the file without delete sharing");
+#endif
+    QVERIFY2(removed, qPrintable(removalError));
+    QVERIFY(!decoding);
+    auto *audio = fixture.firstAudioClip();
+    QVERIFY(audio);
+    QCOMPARE(audio->path(), path);
+    QCOMPARE(audio->pathStatus(), AudioClip::PathStatus::Missing);
+    QVERIFY(audio->audioInfo().peakCache.isEmpty());
+    const auto failed = fixture.runtime().tasks().getTask(before.documentId, taskId);
+    QVERIFY(failed);
+    QCOMPARE(failed.get().state, AutomationTaskState::Failed);
+    QVERIFY(failed.get().error);
+    QCOMPARE(failed.get().error->code, AutomationErrorCode::FileNotFound);
+    QVERIFY(fixture.history()->isOnSavePoint());
+    QVERIFY(!fixture.history()->canUndo());
+}
+
 void AudioAssetsTests::relocatedDecodeNotification() {
     enum class ResolutionCase { Candidate, Verified, Cascade };
 
