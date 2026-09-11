@@ -5,6 +5,7 @@
 #include "Automation/OperationIds.h"
 #include "UI/Dialogs/Audio/AudioExportDialog.h"
 #include "UI/Dialogs/Audio/AudioExportProgressDialog.h"
+#include "UI/Dialogs/Base/MessageDialog.h"
 
 #include <lite/GUI/Controls/ProgressIndicator.h>
 #include <lite/History/HistoryManager.h>
@@ -29,6 +30,7 @@
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTimer>
+#include <QGroupBox>
 #include <QtTest/QTest>
 
 #include <sndfile.h>
@@ -284,6 +286,16 @@ void ApplicationGuiTests::audioExportProgressCompletesAndCloses() {
     const auto inputPath = directory.filePath(QStringLiteral("input.wav"));
     const auto error = createWaveFixture(inputPath);
     QVERIFY2(error.isEmpty(), qPrintable(error));
+    const auto outputPath = directory.filePath(QStringLiteral("exported.wav"));
+    const QByteArray existingContents = "Preserve this file until export is confirmed";
+    QFile existing(outputPath);
+    QVERIFY(existing.open(QIODevice::WriteOnly));
+    QCOMPARE(existing.write(existingContents), existingContents.size());
+    existing.close();
+    const auto readExisting = [&] {
+        QFile file(outputPath);
+        return file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray{};
+    };
     auto &runtime = *context->m_coreRuntime;
     const auto originalSettings = runtime.settings().getSettings();
     QVERIFY(originalSettings);
@@ -334,6 +346,7 @@ void ApplicationGuiTests::audioExportProgressCompletesAndCloses() {
     QVERIFY(keepOpen);
     QVERIFY(!keepOpen->isChecked());
     QSignalSpy succeeded(&dialog, &AudioExportDialog::exportFinished);
+    QSignalSpy started(&dialog, &AudioExportDialog::exportStarted);
     QSignalSpy failed(&dialog, &AudioExportDialog::exportFailed);
     QSignalSpy dismissed(&dialog, &AudioExportDialog::exportDismissed);
     QSignalSpy accepted(&dialog, &QDialog::accepted);
@@ -345,7 +358,71 @@ void ApplicationGuiTests::audioExportProgressCompletesAndCloses() {
     QVERIFY(chooseOption(controls.source, AudioExporterConfig::SO_All));
     pasteText(controls.directory, directory.path());
     pasteText(controls.fileName, QStringLiteral("exported.wav"));
-    QVERIFY(!controls.exporter->warning());
+    QVERIFY(controls.exporter->warning() & AudioExporter::W_WillOverwrite);
+    bool previewInspected = false;
+    QTimer inspectPreview;
+    inspectPreview.setInterval(10);
+    connect(&inspectPreview, &QTimer::timeout, &dialog, [&] {
+        QPointer<QDialog> preview = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+        if (!preview || preview->windowTitle() != AudioExportDialog::tr("Dry Run"))
+            return;
+        inspectPreview.stop();
+        const auto close = qScopeGuard([&] {
+            if (preview && preview->isVisible())
+                preview->reject();
+        });
+        QListWidget *files = nullptr;
+        for (auto *group : preview->findChildren<QGroupBox *>()) {
+            if (group->title() == AudioExportDialog::tr("File List"))
+                files = group->findChild<QListWidget *>();
+        }
+        QVERIFY(files);
+        QCOMPARE(files->count(), 1);
+        QCOMPARE(QDir::fromNativeSeparators(files->item(0)->text()), outputPath);
+        QVERIFY(!files->item(0)->icon().isNull());
+        QVERIFY(files->item(0)->toolTip().contains(
+            AudioExporter::warningText(AudioExporter::W_WillOverwrite).first()));
+        auto *ok = exportButton(preview, AudioExportDialog::tr("OK"));
+        QVERIFY(ok);
+        QTest::mouseClick(ok, Qt::LeftButton);
+        previewInspected = true;
+    });
+    auto *dryRun = exportButton(&dialog, AudioExportDialog::tr("Dry &Run"));
+    QVERIFY(dryRun);
+    inspectPreview.start();
+    QTest::mouseClick(dryRun, Qt::LeftButton);
+    QVERIFY(previewInspected);
+    QCOMPARE(readExisting(), existingContents);
+    QCOMPARE(runtime.documentVersion(), before);
+
+    bool allowOverwrite = false;
+    int confirmations = 0;
+    QTimer answerWarning;
+    answerWarning.setInterval(10);
+    connect(&answerWarning, &QTimer::timeout, &dialog, [&] {
+        QPointer<MessageDialog> warning =
+            qobject_cast<MessageDialog *>(QApplication::activeModalWidget());
+        if (!warning)
+            return;
+        answerWarning.stop();
+        const auto close = qScopeGuard([&] {
+            if (warning && warning->isVisible())
+                warning->reject();
+        });
+        auto *choice =
+            exportButton(warning, AudioExportDialog::tr(allowOverwrite ? "Continue" : "Cancel"));
+        QVERIFY(choice);
+        QCOMPARE(readExisting(), existingContents);
+        QTest::mouseClick(choice, Qt::LeftButton);
+        ++confirmations;
+    });
+    answerWarning.start();
+    QTest::mouseClick(start, Qt::LeftButton);
+    QCOMPARE(confirmations, 1);
+    QVERIFY(started.isEmpty());
+    QVERIFY(dialog.isVisible());
+    QCOMPARE(readExisting(), existingContents);
+    QCOMPARE(runtime.documentVersion(), before);
 
     QPointer<AudioExportProgressDialog> progress;
     const auto releaseProgress = qScopeGuard([&] {
@@ -359,7 +436,11 @@ void ApplicationGuiTests::audioExportProgressCompletesAndCloses() {
         timedOut = true;
         controls.exporter->cancel();
     });
+    allowOverwrite = true;
+    answerWarning.start();
     QTest::mouseClick(start, Qt::LeftButton);
+    QCOMPARE(confirmations, 2);
+    QCOMPARE(started.size(), 1);
     for (auto *window : QApplication::topLevelWidgets()) {
         if (auto *candidate = qobject_cast<AudioExportProgressDialog *>(window))
             progress = candidate;
@@ -384,7 +465,6 @@ void ApplicationGuiTests::audioExportProgressCompletesAndCloses() {
     auto *cancel = exportButton(progress, AudioExportProgressDialog::tr("Cancel"));
     QVERIFY(close && close->isVisible() && close->isEnabled());
     QVERIFY(cancel && !cancel->isVisible() && !cancel->isEnabled());
-    const auto outputPath = directory.filePath(QStringLiteral("exported.wav"));
     QVERIFY(QFileInfo(outputPath).isFile());
     QVERIFY(QFileInfo(outputPath).size() > 44);
     QTRY_VERIFY(taskManager->tasks().isEmpty());
