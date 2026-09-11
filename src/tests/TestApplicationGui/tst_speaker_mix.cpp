@@ -6,10 +6,22 @@
 #include "UI/Dialogs/SpeakerMix/SpeakerMixBar.h"
 #include "UI/Dialogs/SpeakerMix/SpeakerMixDialog.h"
 #include "UI/Dialogs/SpeakerMix/SpeakerMixList.h"
+#include "UI/Controls/TwoLevelComboBox.h"
+#include "UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.h"
+#include "UI/Views/TrackEditor/TrackEditorView.h"
+#include "Controller/TrackController.h"
+#include "Utils/UiLanguageManager.h"
+#include "../TestSupport/VoicebankFixture.h"
 
 #include <lite/GUI/Controls/AccentButton.h>
 #include <lite/GUI/Controls/TagButton.h>
+#include <lite/GUI/Controls/InlineEditLabel.h>
 #include <lite/History/HistoryManager.h>
+#include <lite/PackageManager/PackageManager.h>
+#include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/Tasking/TaskManager.h>
 
 #include <QJsonArray>
 #include <QSignalSpy>
@@ -47,6 +59,255 @@ namespace {
         }
         return nullptr;
     }
+}
+
+void ApplicationGuiTests::clipToolbarNameEditingKeepsTheOriginalTarget() {
+    auto &runtime = *context->m_coreRuntime;
+    auto document = Automation::DocumentAutomationFacade::newDocumentDraft(false);
+    Automation::TrackDraftDto track;
+    for (const auto &name : {QStringLiteral("First clip"), QStringLiteral("Second clip")}) {
+        Automation::ClipDraftDto clip;
+        clip.properties.name = name;
+        clip.properties.length = 1920;
+        clip.properties.clipLen = 1920;
+        track.clips.append(clip);
+    }
+    document.tracks = {track};
+    QVERIFY(runtime.documents().commitNewDocument(commandContext(), document));
+    Clip *first = nullptr;
+    Clip *second = nullptr;
+    for (auto *clip : context->m_appModel->tracks().first()->clips()) {
+        if (clip->name() == QStringLiteral("First clip"))
+            first = clip;
+        else if (clip->name() == QStringLiteral("Second clip"))
+            second = clip;
+    }
+    QVERIFY(first && second);
+    ClipEditorToolBarView toolbar;
+    toolbar.setDataContext(first);
+    toolbar.resize(1100, 48);
+    toolbar.show();
+    toolbar.activateWindow();
+    auto *label = toolbar.findChild<InlineEditLabel *>("leClipName");
+    QVERIFY(label);
+    QTRY_VERIFY(toolbar.isActiveWindow() && label->isVisible() && label->isEnabled());
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    const auto edit = [&](const char *text) {
+        QTest::mouseDClick(label, Qt::LeftButton);
+        QTRY_VERIFY(qobject_cast<QLineEdit *>(QApplication::focusWidget()));
+        auto *input = qobject_cast<QLineEdit *>(QApplication::focusWidget());
+        QTest::keySequence(input, QKeySequence::SelectAll);
+        QTest::keyClicks(input, text);
+    };
+    edit("Canceled name");
+    if (QTest::currentTestFailed())
+        return;
+    QTest::keyClick(QApplication::focusWidget(), Qt::Key_Escape);
+    QCOMPARE(first->name(), QStringLiteral("First clip"));
+    QCOMPARE(label->text(), first->name());
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+
+    edit("Committed before switching");
+    if (QTest::currentTestFailed())
+        return;
+    toolbar.setDataContext(second);
+    QCOMPARE(first->name(), QStringLiteral("Committed before switching"));
+    QCOMPARE(second->name(), QStringLiteral("Second clip"));
+    QCOMPARE(label->text(), second->name());
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    edit("Edited second clip");
+    if (QTest::currentTestFailed())
+        return;
+    QTest::keyClick(QApplication::focusWidget(), Qt::Key_Return);
+    QCOMPARE(second->name(), QStringLiteral("Edited second clip"));
+    QCOMPARE(label->text(), second->name());
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(second->name(), QStringLiteral("Second clip"));
+    QCOMPARE(first->name(), QStringLiteral("Committed before switching"));
+    QCOMPARE(label->text(), second->name());
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(first->name(), QStringLiteral("First clip"));
+    QCOMPARE(label->text(), second->name());
+    QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::voiceMenusApplyPresetsToTheChosenTarget_data() {
+    QTest::addColumn<bool>("clipTarget");
+    QTest::newRow("clip-toolbar") << true;
+    QTest::newRow("track-header") << false;
+}
+
+void ApplicationGuiTests::voiceMenusApplyPresetsToTheChosenTarget() {
+    QFETCH(bool, clipTarget);
+    SingerInfo singer;
+    for (const auto &package : packageManager->installedPackages().successfulPackages) {
+        for (const auto &candidate : package.singers()) {
+            if (candidate.singerId() == TestSupport::fixtureSingerId())
+                singer = candidate;
+        }
+    }
+    QVERIFY(!singer.isEmpty());
+    if (singer.speakers().size() < 2)
+        QSKIP("The selected voicebank needs two speakers for the mix preset menu");
+    const auto first = singer.speakers().first();
+    const auto second = singer.speakers().at(1);
+    auto &runtime = *context->m_coreRuntime;
+    std::unique_ptr<QWidget> host;
+    const auto clearParent = qScopeGuard([] { trackController->setParentWidget(nullptr); });
+    if (!clipTarget)
+        host = std::make_unique<TrackEditorView>();
+    auto document = Automation::DocumentAutomationFacade::newDocumentDraft(false);
+    Automation::ClipDraftDto clip;
+    clip.properties.name = QStringLiteral("Voice menu target");
+    clip.properties.length = 1920;
+    clip.properties.clipLen = 1920;
+    clip.defaultLanguage = TestSupport::fixtureLanguage();
+    Automation::TrackDraftDto track;
+    track.name = QStringLiteral("Inherited voice");
+    track.defaultLanguage = TestSupport::fixtureLanguage();
+    track.singerInfo = singer;
+    track.speakerInfo = first;
+    track.clips = {clip};
+    document.tracks = {track};
+    QVERIFY(runtime.documents().commitNewDocument(commandContext(), document));
+    auto *modelTrack = context->m_appModel->tracks().first();
+    auto *modelClip = qobject_cast<SingingClip *>(*modelTrack->clips().begin());
+    QVERIFY(modelClip && modelClip->usesTrackVoiceContext());
+    SpeakerMixPreset preset;
+    preset.name = QStringLiteral("Menu blend");
+    preset.packageId = singer.packageId();
+    preset.packageVersion = singer.packageVersion();
+    preset.singerId = singer.singerId();
+    preset.sources = {{first}, {second}};
+    preset.fixedWeights = {0.3};
+    const auto saved = SpeakerMixPresetStore::savePreset(preset);
+    QVERIFY(saved);
+    const auto cleanup =
+        qScopeGuard([&] { QVERIFY(SpeakerMixPresetStore::deletePreset(saved->id)); });
+    if (clipTarget) {
+        auto toolbar = std::make_unique<ClipEditorToolBarView>();
+        toolbar->setDataContext(modelClip);
+        toolbar->resize(1100, 48);
+        host = std::move(toolbar);
+    } else {
+        host->resize(1100, 400);
+    }
+    auto *combo = host->findChild<TwoLevelComboBox *>();
+    QVERIFY(combo);
+    host->show();
+    host->activateWindow();
+    QTRY_VERIFY(host->isActiveWindow() && combo->isVisible() && combo->isEnabled());
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    historyManager->reset();
+    const auto choose = [&](const QString &text, bool followTrack = false) {
+        bool chosen = false;
+        QTimer::singleShot(0, combo, [&] {
+            auto *root = combo->mainMenu();
+            auto *group = combo->groupMenuForSinger(singer);
+            const auto close = qScopeGuard([&] { root->close(); });
+            QTRY_VERIFY(root->isVisible());
+            QMenu *menu = root;
+            if (!followTrack) {
+                QVERIFY(group);
+                QTest::mouseClick(root, Qt::LeftButton, Qt::NoModifier,
+                                  root->actionGeometry(group->menuAction()).center());
+                QTRY_VERIFY(group->isVisible());
+                menu = group;
+            }
+            QAction *choice = nullptr;
+            for (auto *action : menu->actions()) {
+                if (action->text() == text)
+                    choice = action;
+            }
+            QVERIFY(choice && choice->isEnabled());
+            QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier,
+                              menu->actionGeometry(choice).center());
+            chosen = true;
+        });
+        QTest::mouseClick(combo, Qt::LeftButton);
+        QVERIFY(chosen);
+    };
+    const auto mix = [&] {
+        return clipTarget ? modelClip->speakerMixData() : modelTrack->speakerMixData();
+    };
+    choose(saved->name);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(mix().mode, SpeakerMixModel::SingerSourceMode::FixedMix);
+    QCOMPARE(mix().fixedWeights, QVector<double>{0.3});
+    QCOMPARE(mix().sourcePresetId, saved->id);
+    QVERIFY(combo->currentText().contains(saved->name));
+    QCOMPARE(modelClip->usesTrackVoiceContext(), !clipTarget);
+    if (clipTarget)
+        QCOMPARE(modelTrack->speakerMixData().mode, SpeakerMixModel::SingerSourceMode::Single);
+    else
+        QCOMPARE(modelClip->speakerMixData().fixedWeights, QVector<double>{0.3});
+
+    const auto presetVersion = runtime.documentVersion();
+    const auto *presetEdit = historyManager->nextUndoEntry();
+    for (const bool accept : {false, true}) {
+        bool inspected = false;
+        QTimer answer;
+        answer.setInterval(10);
+        connect(&answer, &QTimer::timeout, host.get(), [&] {
+            auto *dialog = qobject_cast<SpeakerMixDialog *>(QApplication::activeModalWidget());
+            if (!dialog)
+                return;
+            answer.stop();
+            const auto close = qScopeGuard([&] {
+                if (dialog->isVisible())
+                    dialog->reject();
+            });
+            auto *list = dialog->findChild<SpeakerMixList *>();
+            QVERIFY(list);
+            QCOMPARE(list->getValues(), QVector<int>({30, 70}));
+            if (accept)
+                QTest::mouseClick(dialog->okButton(), Qt::LeftButton);
+            else
+                QTest::mouseClick(dialog->cancelButton(), Qt::LeftButton);
+            inspected = true;
+        });
+        answer.start();
+        choose(QCoreApplication::translate(clipTarget ? "ClipEditorToolBarViewPrivate"
+                                                      : "TrackControlView",
+                                          "Manage mix presets..."));
+        if (QTest::currentTestFailed())
+            return;
+        QVERIFY(inspected);
+        QCOMPARE(runtime.documentVersion(), presetVersion);
+        QCOMPARE(historyManager->nextUndoEntry(), presetEdit);
+        QCOMPARE(mix().sourcePresetId, saved->id);
+        QVERIFY(combo->currentText().contains(saved->name));
+    }
+
+    choose(second.displayName(UiLanguageManager::currentBcp47Candidates()));
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(modelClip->speakerInfo().id(), second.id());
+    QCOMPARE(combo->currentSpeaker().id(), second.id());
+    QCOMPARE(mix().mode, SpeakerMixModel::SingerSourceMode::Single);
+    if (clipTarget) {
+        QCOMPARE(modelTrack->speakerInfo().id(), first.id());
+        choose(TwoLevelComboBox::tr("Follow Track"), true);
+        if (QTest::currentTestFailed())
+            return;
+        QVERIFY(modelClip->usesTrackVoiceContext());
+        QVERIFY(combo->isInheritSelected());
+        QCOMPARE(modelClip->speakerInfo().id(), first.id());
+        QVERIFY(runtime.history().undo(commandContext()));
+        QVERIFY(!modelClip->usesTrackVoiceContext());
+        QCOMPARE(modelClip->speakerInfo().id(), second.id());
+    }
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(mix().mode, SpeakerMixModel::SingerSourceMode::FixedMix);
+    QVERIFY(combo->currentText().contains(saved->name));
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(modelClip->speakerInfo().id(), first.id());
+    QVERIFY(modelClip->usesTrackVoiceContext());
+    QCOMPARE(mix().mode, SpeakerMixModel::SingerSourceMode::Single);
+    QVERIFY(!historyManager->canUndo());
 }
 
 void ApplicationGuiTests::speakerMixSelectionAndDrag_data() {

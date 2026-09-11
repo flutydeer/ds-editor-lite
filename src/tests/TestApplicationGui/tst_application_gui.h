@@ -84,6 +84,9 @@ private slots:
     void speakerMixSelectionAndDrag_data();
     void speakerMixSelectionAndDrag();
     void speakerMixPresetsFollowSaveSelectAndDeleteInputs();
+    void voiceMenusApplyPresetsToTheChosenTarget_data();
+    void voiceMenusApplyPresetsToTheChosenTarget();
+    void clipToolbarNameEditingKeepsTheOriginalTarget();
     void packageSearchShowsTheSelectedPackageDetails();
     void missingAudioResourceRelinkCanBeCanceledAndCommitted();
     void panelButtonsAndClipDoubleClickRestoreTheEditorView();

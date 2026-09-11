@@ -175,5 +175,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 混音台音量和声像文本输入 | gui | 轨道及主输出的内联编辑验证分贝、左右声像和居中输入；非法内容及 Escape 不改模型或历史，合法输入只影响所选通道，撤销同步恢复控件和模型 | ApplicationGui::mixerTextInputsCommitToTheChosenChannel | offscreen；实际 MixConsoleView；无需音频设备 |
 | 声音导出预演及覆盖确认 | gui/workflow | 在已有导出完成用例中检查 Dry Run 文件清单和覆盖提示，预演及取消均保留原文件；确认后才开始实际渲染，并沿用进度、文件解码及清理验证 | ApplicationGui::audioExportProgressCompletesAndCloses | offscreen；小型 WAV；无需声库或设备 |
 | 驱动切换失败后的设备释放 | workflow/native | 使用可用输出后端，在独立进程中验证切换失败已释放旧设备、公开设备引用同步清空，随后可重新初始化；修复 Talcs 持有已释放设备指针的问题 | NativeDesktop::failedAudioDriverSelectionClearsTheReleasedDevice | 需要可初始化的音频设备；缺失时在父用例明确跳过 |
+| 轨道及片段的声线菜单接线 | gui | 用实际声库和临时预设验证菜单应用、单声线切换及片段恢复轨道继承；管理窗口接收当前比例，取消或原样确认保持历史；撤销同步恢复目标和菜单显示，片段独立选择不改轨道声线 | ApplicationGui::voiceMenusApplyPresetsToTheChosenTarget | offscreen；默认内置声库；至少两条声线 |
+| 工具栏片段名称编辑 | gui | 真实内联输入验证取消、提交及切换片段时提交原目标；新片段名称不被误改，连续撤销分别恢复对应对象，显示跟随当前片段 | ApplicationGui::clipToolbarNameEditingKeepsTheOriginalTarget | offscreen；实际工具栏和文档；无需声库或设备 |
 
 本次还移除无产品实例化入口的旧 G2P/伪声设置页和 `TrackSynthesizer` 及其空容器引用。清理改变统计分母，报告中与新增测试命中的贡献分开说明，不通过排除仍有效的生产文件提高比例。
