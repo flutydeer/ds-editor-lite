@@ -162,6 +162,49 @@ namespace {
     }
 }
 
+void NativeDesktopTests::rhiClipDragScrollsAtTheEdgeAndStopsOnCancel() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    TrackFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.application.error));
+    auto &canvas = *fixture.canvas;
+    QSignalSpy frames(&canvas, &QRhiWidget::frameSubmitted);
+    QSignalSpy failed(&canvas, &QRhiWidget::renderFailed);
+    canvas.update();
+    QTRY_VERIFY(!frames.isEmpty());
+    QTRY_VERIFY(canvas.isActiveWindow());
+    const auto oldCursor = QCursor::pos();
+    const auto restoreCursor = qScopeGuard([&] { QCursor::setPos(oldCursor); });
+    const auto before = fixture.runtime().documentVersion();
+    const auto model = fixture.application.context->m_appModel->serialize();
+    const auto press = fixture.point(960, 0);
+    const auto edge = QPoint(canvas.width() - 2, press.y());
+    QVERIFY(canvas.rect().contains(press));
+    QVERIFY(canvas.windowHandle());
+    const auto release = qScopeGuard(
+        [&] { QTest::mouseRelease(canvas.windowHandle(), Qt::LeftButton, Qt::NoModifier, edge); });
+    QTest::mousePress(canvas.windowHandle(), Qt::LeftButton, Qt::NoModifier, press);
+    QCursor::setPos(canvas.mapToGlobal(edge));
+    QTest::mouseMove(canvas.windowHandle(), edge);
+    QVERIFY(editSessionManager->hasActiveTransaction());
+    const auto afterMove = canvas.startTick();
+    const auto previewFrame = frames.size();
+    QTRY_VERIFY_WITH_TIMEOUT(canvas.startTick() > afterMove + 60, 3000);
+    QTRY_VERIFY(frames.size() > previewFrame);
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QCOMPARE(fixture.application.context->m_appModel->serialize(), model);
+    QTest::keyClick(&canvas, Qt::Key_Escape);
+    QTest::mouseRelease(canvas.windowHandle(), Qt::LeftButton, Qt::NoModifier, edge);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    const auto stoppedAt = canvas.startTick();
+    QTest::qWait(80);
+    QCOMPARE(canvas.startTick(), stoppedAt);
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QCOMPARE(fixture.application.context->m_appModel->serialize(), model);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(failed.isEmpty());
+}
+
 void NativeDesktopTests::rhiClipDragCommitsAcrossTracksAndUndoRestoresView() {
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");

@@ -40,6 +40,7 @@ private slots:
     void rhiPitchModulationUsesTheInferredBaseline();
     void rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor();
     void rhiClipDragCommitsAcrossTracksAndUndoRestoresView();
+    void rhiClipDragScrollsAtTheEdgeAndStopsOnCancel();
     void rhiClipResizeCommitsOrCancels_data();
     void rhiClipResizeCommitsOrCancels();
     void rhiAudioClipTrimAndMovePreserveTimeAnchors();

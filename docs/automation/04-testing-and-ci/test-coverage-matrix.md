@@ -177,7 +177,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 驱动切换失败后的设备释放 | workflow/native | 使用可用输出后端，在独立进程中验证切换失败已释放旧设备、公开设备引用同步清空，随后可重新初始化；修复 Talcs 持有已释放设备指针的问题 | NativeDesktop::failedAudioDriverSelectionClearsTheReleasedDevice | 需要可初始化的音频设备；缺失时在父用例明确跳过 |
 | 轨道及片段的声线菜单接线 | gui | 用实际声库和临时预设验证菜单应用、单声线切换及片段恢复轨道继承；管理窗口接收当前比例，取消或原样确认保持历史；撤销同步恢复目标和菜单显示，片段独立选择不改轨道声线 | ApplicationGui::voiceMenusApplyPresetsToTheChosenTarget | offscreen；默认内置声库；至少两条声线 |
 | 工具栏片段名称编辑 | gui | 真实内联输入验证取消、提交及切换片段时提交原目标；新片段名称不被误改，连续撤销分别恢复对应对象，显示跟随当前片段 | ApplicationGui::clipToolbarNameEditingKeepsTheOriginalTarget | offscreen；实际工具栏和文档；无需声库或设备 |
-| RHI 的未提交预览与边缘滚动 | gui | 锚点拖动和切分悬停期间等待实际预览帧，同时确认模型尚未提交；音符拖到边缘后静止鼠标仍持续滚动，取消停止计时滚动并恢复原视口和模型 | NativeDesktop::rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor、rhiNoteSplittingSnapsAndUndoRestoresThePhrase、rhiNoteDragKeepsScrollingUntilTheGestureEnds | 原生窗口；Qt Null 后端；检查 CPU 准备和帧提交，不验证 GPU 像素 |
+| RHI 的未提交预览与边缘滚动 | gui | 锚点拖动和切分悬停期间等待实际预览帧，同时确认模型尚未提交；音符及轨道片段拖到边缘后静止鼠标仍持续滚动，取消后停止后续滚动且不修改模型，音符取消同时恢复原视口 | NativeDesktop 的 tst_rhi_editor.cpp、tst_rhi_tracks.cpp | 原生窗口；Qt Null 后端；检查 CPU 准备和帧提交，不验证 GPU 像素 |
 | 导出预设的界面生命周期 | gui | 实际命名窗口和覆盖确认验证取消创建、保存新预设、拒绝覆盖后保留草稿、确认更新及删除；只影响所选预设，不启动导出或修改工程 | ApplicationGui::exportPresetDialogsSaveOverwriteAndDeleteTheSelectedPreset | offscreen；Qt 消息窗口；隔离配置 |
 | 已定位音频的人工确认入口 | gui/workflow | 真实解码后以待确认状态展示资源行，选择并确认使模型和行状态同步恢复；文件、来源代际、解码缓存及保存点保留，不制造撤销项 | ApplicationGui::audioResourceConfirmationKeepsTheDecodedSource | offscreen；小型 WAV；无需音频设备 |
 | 普通参数编辑器的锚点操作 | gui | Mouth Opening 参数使用自身值域接收锚点创建、连线预览和取消；提交后经真实菜单修改插值，撤销分别恢复插值和曲线，背景参数保持不变 | ApplicationGui::parameterAnchorEditingPreviewsAndUsesTheContextMenu | offscreen；真实参数视口、编辑事务和菜单；无需声库 |
