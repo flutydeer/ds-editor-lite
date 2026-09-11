@@ -70,6 +70,8 @@ Windows wrapper 将本地结果写到 `build/test-results`；直接 CTest 可加
 
 设备用例在 `TestNativeDesktop` 中按下列条件执行，环境变量均填写设备实际名称：
 
+`TestAudioAssets::unlinkingAudioSourcePreservesOpenDecodeUntilReload` 需要能够移除已经打开的文件。Windows 音频后端的文件共享模式阻止删除时，该用例明确跳过；允许移除的平台验证原句柄继续完成解码，随后重开工程报告资源缺失。用例只操作自己创建的临时素材。
+
 | 配置 | 行为与未执行规则 |
 |---|---|
 | `DSEL_TEST_AUDIO_DRIVER`、`DSEL_TEST_AUDIO_DEVICE` | 两者均可省略，使用生产默认输出；无可用后端、未枚举到设备或仅有 dummy/disk 后端时 QSKIP。可只指定驱动，或在当前驱动下指定设备；指定名称不存在、已枚举设备初始化/打开失败、配置或播放失败均 FAIL，不回退其他设备 |

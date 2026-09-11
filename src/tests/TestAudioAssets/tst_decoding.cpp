@@ -387,7 +387,7 @@ void AudioAssetsTests::decodeCompletionWaitsForTheSaveDecision() {
     }
 }
 
-void AudioAssetsTests::sourceRemovedBeforeDecodingBecomesMissing() {
+void AudioAssetsTests::unlinkingAudioSourcePreservesOpenDecodeUntilReload() {
     Fixture fixture;
     QVERIFY(fixture.directory.isValid());
     const auto path = fixture.directory.filePath(QStringLiteral("removed-before-read.wav"));
@@ -421,13 +421,18 @@ void AudioAssetsTests::sourceRemovedBeforeDecodingBecomesMissing() {
     auto *audio = fixture.firstAudioClip();
     QVERIFY(audio);
     QCOMPARE(audio->path(), path);
-    QCOMPARE(audio->pathStatus(), AudioClip::PathStatus::Missing);
-    QVERIFY(audio->audioInfo().peakCache.isEmpty());
-    const auto failed = fixture.runtime().tasks().getTask(before.documentId, taskId);
-    QVERIFY(failed);
-    QCOMPARE(failed.get().state, AutomationTaskState::Failed);
-    QVERIFY(failed.get().error);
-    QCOMPARE(failed.get().error->code, AutomationErrorCode::FileNotFound);
+    QCOMPARE(audio->pathStatus(), AudioClip::PathStatus::Normal);
+    QCOMPARE(audio->audioInfo().frames, 4800);
+    QVERIFY(!audio->audioInfo().peakCache.isEmpty());
+    const auto completed = fixture.runtime().tasks().getTask(before.documentId, taskId);
+    QVERIFY(completed);
+    QCOMPARE(completed.get().state, AutomationTaskState::Succeeded);
+    QVERIFY(fixture.openDocument(missingAudioDocument(path), InvocationSource::InternalAutomation));
+    QVERIFY(drainTasks());
+    QVERIFY(fixture.runtime().documentVersion().documentId != before.documentId);
+    QVERIFY(fixture.firstAudioClip());
+    QCOMPARE(fixture.firstAudioClip()->pathStatus(), AudioClip::PathStatus::Missing);
+    QVERIFY(fixture.firstAudioClip()->audioInfo().peakCache.isEmpty());
     QVERIFY(fixture.history()->isOnSavePoint());
     QVERIFY(!fixture.history()->canUndo());
 }

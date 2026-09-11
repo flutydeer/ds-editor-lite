@@ -32,7 +32,7 @@ private slots:
     void mixedImportSources();
     void resolutionRetryPreservesSource();
     void relocatedDecodeNotification();
-    void sourceRemovedBeforeDecodingBecomesMissing();
+    void unlinkingAudioSourcePreservesOpenDecodeUntilReload();
     void decodeCompletionWaitsForTheSaveDecision_data();
     void decodeCompletionWaitsForTheSaveDecision();
     void decodedWaveformRetainsPeaks_data();
