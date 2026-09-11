@@ -32,6 +32,9 @@ private slots:
     void seekBarKeyboardStepsClampAndDoubleClickResets();
     void mixerSliderReleaseEndsPreview_data();
     void mixerSliderReleaseEndsPreview();
+    void pathEditorMovesAndDeletesTheSelectedDirectories();
+    void fileSelectorAcceptsTheFirstSuitableLocalDrop_data();
+    void fileSelectorAcceptsTheFirstSuitableLocalDrop();
 };
 
 #endif
