@@ -174,5 +174,6 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 混合片段正常复制 | domain | 歌声和音频一起复制到原轨道或指定轨道，保留相对时间、真实音频时长、歌词/发音、曲线及动态声线；新片段、音符、曲线、锚点和声线帧使用独立身份，重试不重复创建，一次撤销/重做恢复整批 | ProjectEditing::duplicateClipsPreserveContentAndCreateIndependentObjects | 通用；真实模型；无需文件解码、模型或设备 |
 | 混音台音量和声像文本输入 | gui | 轨道及主输出的内联编辑验证分贝、左右声像和居中输入；非法内容及 Escape 不改模型或历史，合法输入只影响所选通道，撤销同步恢复控件和模型 | ApplicationGui::mixerTextInputsCommitToTheChosenChannel | offscreen；实际 MixConsoleView；无需音频设备 |
 | 声音导出预演及覆盖确认 | gui/workflow | 在已有导出完成用例中检查 Dry Run 文件清单和覆盖提示，预演及取消均保留原文件；确认后才开始实际渲染，并沿用进度、文件解码及清理验证 | ApplicationGui::audioExportProgressCompletesAndCloses | offscreen；小型 WAV；无需声库或设备 |
+| 驱动切换失败后的设备释放 | workflow/native | 使用可用输出后端，在独立进程中验证切换失败已释放旧设备、公开设备引用同步清空，随后可重新初始化；修复 Talcs 持有已释放设备指针的问题 | NativeDesktop::failedAudioDriverSelectionClearsTheReleasedDevice | 需要可初始化的音频设备；缺失时在父用例明确跳过 |
 
 本次还移除无产品实例化入口的旧 G2P/伪声设置页和 `TrackSynthesizer` 及其空容器引用。清理改变统计分母，报告中与新增测试命中的贡献分开说明，不通过排除仍有效的生产文件提高比例。

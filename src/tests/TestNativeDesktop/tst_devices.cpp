@@ -80,6 +80,27 @@ namespace {
     };
 }
 
+void NativeDesktopTests::failedAudioDriverSelectionClearsTheReleasedDevice() {
+    if (!qEnvironmentVariableIsSet("DSEL_TEST_GUI_LIFECYCLE")) {
+        if (!AudioSystem::outputSystem()->outputContext()->device())
+            QSKIP("No initialized output device is available for backend replacement");
+        runIsolatedDesktopCase();
+        return;
+    }
+    talcs::OutputContext output;
+    QVERIFY(output.initialize(qEnvironmentVariable("DSEL_TEST_AUDIO_DRIVER"),
+                              qEnvironmentVariable("DSEL_TEST_AUDIO_DEVICE")));
+    const auto driverName = output.driver()->name();
+    QPointer<talcs::AudioDevice> previous = output.device();
+    QVERIFY(previous && previous->isOpen());
+    QVERIFY(!output.setDriver(QStringLiteral("unavailable-test-backend")));
+    QVERIFY(previous.isNull());
+    QVERIFY(!output.driver());
+    QVERIFY(output.device() == nullptr);
+    QVERIFY(output.setDriver(driverName));
+    QVERIFY(output.device() && output.device()->isOpen());
+}
+
 void NativeDesktopTests::audioSettingsRollbackWithoutAnInitializedBackend() {
     if (!qEnvironmentVariableIsSet("DSEL_TEST_GUI_LIFECYCLE")) {
         runIsolatedDesktopCase();

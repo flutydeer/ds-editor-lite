@@ -9,6 +9,7 @@ vcpkg_from_github(
         fix-clip-series-read-serialization.patch
         fix-sdl-driver-startup-lifetime.patch
         fix-asio-com-lifetime.patch
+        fix-output-device-release.patch
 )
 
 vcpkg_from_github(
