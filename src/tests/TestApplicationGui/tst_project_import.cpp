@@ -132,11 +132,8 @@ namespace {
         QVERIFY(input.timeline.importTimeSignature);
     }
 
-    void selectMidiEncoding(MidiConfigPage *page) {
-        auto *encoding = page->findChild<ComboBox *>();
-        auto *preview = page->findChild<QTextEdit *>();
+    void selectUtf8Encoding(ComboBox *encoding) {
         QVERIFY(encoding);
-        QVERIFY(preview);
         int utf8Index = -1;
         for (int index = 0; index < encoding->count(); ++index) {
             if (encoding->itemData(index).toByteArray().compare(QByteArrayLiteral("UTF-8"),
@@ -152,6 +149,15 @@ namespace {
         for (int index = 0; index < utf8Index; ++index)
             QTest::keyClick(encoding->view(), Qt::Key_Down);
         QTest::keyClick(encoding->view(), Qt::Key_Return);
+        QCOMPARE(encoding->currentData().toByteArray().toUpper(), QByteArrayLiteral("UTF-8"));
+    }
+
+    void selectMidiEncoding(MidiConfigPage *page) {
+        auto *preview = page->findChild<QTextEdit *>();
+        QVERIFY(preview);
+        selectUtf8Encoding(page->findChild<ComboBox *>());
+        if (QTest::currentTestFailed())
+            return;
         QCOMPARE(page->selectedCodec().toUpper(), QByteArrayLiteral("UTF-8"));
         QVERIFY(preview->isReadOnly());
         QCOMPARE(preview->toPlainText().trimmed(), QStringLiteral("你好"));
@@ -446,14 +452,9 @@ void ApplicationGuiTests::droppingMidiAndAudioFilesUsesOneBatchDecision() {
         QCOMPARE(runtime.documentVersion(), before);
         QCOMPARE(appModel->serialize(), beforeModel);
         auto *codec = dialog->findChild<ComboBox *>();
-        QVERIFY(codec);
-        const auto utf8 = codec->findData(QByteArray("UTF-8"));
-        QVERIFY(utf8 >= 0);
-        codec->setFocus();
-        QTest::keyClick(codec, Qt::Key_Home);
-        for (int index = 0; index < utf8; ++index)
-            QTest::keyClick(codec, Qt::Key_Down);
-        QCOMPARE(codec->currentData().toByteArray(), QByteArray("UTF-8"));
+        selectUtf8Encoding(codec);
+        if (QTest::currentTestFailed())
+            return;
         auto *tempo = withText<QCheckBox>(dialog, MidiBatchImportDialog::tr("Import tempo"));
         auto *meter =
             withText<QCheckBox>(dialog, MidiBatchImportDialog::tr("Import time signature"));
