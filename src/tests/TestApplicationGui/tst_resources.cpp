@@ -138,6 +138,8 @@ void ApplicationGuiTests::packageSearchShowsTheSelectedPackageDetails() {
     });
     QTest::mouseClick(verify, Qt::LeftButton);
     QVERIFY(verified);
+    dialog.activateWindow();
+    QTRY_VERIFY(dialog.isActiveWindow());
 
     enterResourceText(search, QStringLiteral("no-such-package-for-resource-search"));
     if (QTest::currentTestFailed())
