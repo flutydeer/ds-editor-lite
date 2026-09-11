@@ -683,15 +683,17 @@ void ApplicationGuiTests::failedProjectOpenPreservesTheDocumentAndRecovers() {
         QPointer<QDialog> dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
         if (!dialog)
             return;
-        const auto closeOnFailure = qScopeGuard([&] {
-            if (dialog && dialog->isVisible())
-                dialog->reject();
-        });
         Button *choice = nullptr;
         for (auto *button : dialog->findChildren<Button *>()) {
             if (button->text() == MainWindow::tr("Don't save"))
                 choice = button;
         }
+        if (!choice && !qobject_cast<MessageDialog *>(dialog))
+            return;
+        const auto closeOnFailure = qScopeGuard([&] {
+            if (dialog && dialog->isVisible())
+                dialog->reject();
+        });
         if (!choice) {
             ++errors;
             QCOMPARE(runtime.documentVersion(), before);
