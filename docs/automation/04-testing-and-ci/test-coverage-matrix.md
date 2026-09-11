@@ -181,5 +181,6 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 导出预设的界面生命周期 | gui | 实际命名窗口和覆盖确认验证取消创建、保存新预设、拒绝覆盖后保留草稿、确认更新及删除；只影响所选预设，不启动导出或修改工程 | ApplicationGui::exportPresetDialogsSaveOverwriteAndDeleteTheSelectedPreset | offscreen；Qt 消息窗口；隔离配置 |
 | 已定位音频的人工确认入口 | gui/workflow | 真实解码后以待确认状态展示资源行，选择并确认使模型和行状态同步恢复；文件、来源代际、解码缓存及保存点保留，不制造撤销项 | ApplicationGui::audioResourceConfirmationKeepsTheDecodedSource | offscreen；小型 WAV；无需音频设备 |
 | 普通参数编辑器的锚点操作 | gui | Mouth Opening 参数使用自身值域接收锚点创建、连线预览和取消；提交后经真实菜单修改插值，撤销分别恢复插值和曲线，背景参数保持不变 | ApplicationGui::parameterAnchorEditingPreviewsAndUsesTheContextMenu | offscreen；真实参数视口、编辑事务和菜单；无需声库 |
+| 参数栏的前景/背景切换 | gui | 实际下拉选择和交换按钮同步视图及显示文字；清除背景后交换不改变前景，操作不修改工程或历史 | ApplicationGui::parameterToolbarSwapsTheVisiblePairWithoutEditingTheDocument | offscreen；无需声库 |
 
 本次还移除无产品实例化入口的旧 G2P/伪声设置页和 `TrackSynthesizer` 及其空容器引用。清理改变统计分母，报告中与新增测试命中的贡献分开说明，不通过排除仍有效的生产文件提高比例。

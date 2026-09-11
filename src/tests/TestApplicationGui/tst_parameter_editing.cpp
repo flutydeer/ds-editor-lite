@@ -4,12 +4,15 @@
 #include "Automation/CoreRuntime.h"
 #include "Controller/ClipController.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "Model/Utils/ParamUtils.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "UI/Views/ClipEditor/CommonParamEditorView.h"
 #include "UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsScene.h"
 #include "UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.h"
+#include "UI/Views/ClipEditor/ParamEditor/ParamEditorView.h"
 
 #include <lite/History/HistoryManager.h>
+#include <lite/GUI/Controls/ComboBox.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
@@ -24,6 +27,8 @@
 #include <QContextMenuEvent>
 #include <QMenu>
 #include <QTimer>
+#include <QAbstractButton>
+#include <QAbstractItemView>
 #include <QtTest/QTest>
 
 #include <algorithm>
@@ -93,6 +98,61 @@ namespace {
         ParamEditorGraphicsView view;
         CommonParamEditorView *foreground = nullptr;
     };
+}
+
+void ApplicationGuiTests::parameterToolbarSwapsTheVisiblePairWithoutEditingTheDocument() {
+    auto *clip = defaultSingingClip(*context->m_appModel);
+    QVERIFY(clip);
+    clipController->setClip(clip);
+    appStatus->activeClipId = clip->id();
+    ParamEditorView panel;
+    panel.setDataContext(clip);
+    panel.resize(900, 400);
+    panel.show();
+    panel.activateWindow();
+    QTRY_VERIFY(panel.isActiveWindow());
+    auto *foreground = panel.findChild<ComboBox *>("cbForegroundParam");
+    auto *background = panel.findChild<ComboBox *>("cbBackgroundParam");
+    auto *swap = panel.findChild<QAbstractButton *>("btnSwap");
+    QVERIFY(foreground && background && swap);
+    auto &runtime = *context->m_coreRuntime;
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    const auto model = context->m_appModel->serialize();
+    const auto choose = [&](ComboBox *combo, ParamInfo::Name name) {
+        const auto index = combo->findText(paramUtils->nameFromType(name));
+        QVERIFY(index >= 0);
+        QTest::mouseClick(combo, Qt::LeftButton);
+        QTRY_VERIFY(combo->view()->isVisible());
+        QTest::keyClick(combo->view(), Qt::Key_Home);
+        for (int row = 0; row < index; ++row)
+            QTest::keyClick(combo->view(), Qt::Key_Down);
+        QTest::keyClick(combo->view(), Qt::Key_Return);
+        QCOMPARE(combo->currentIndex(), index);
+    };
+    choose(foreground, ParamInfo::MouthOpening);
+    choose(background, ParamInfo::Gender);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(panel.viewState().foreground, ParamInfo::MouthOpening);
+    QCOMPARE(panel.viewState().background, ParamInfo::Gender);
+    const auto foregroundText = foreground->currentText();
+    const auto backgroundText = background->currentText();
+    QTest::mouseClick(swap, Qt::LeftButton);
+    QCOMPARE(panel.viewState().foreground, ParamInfo::Gender);
+    QCOMPARE(panel.viewState().background, ParamInfo::MouthOpening);
+    QCOMPARE(foreground->currentText(), backgroundText);
+    QCOMPARE(background->currentText(), foregroundText);
+    background->setFocus();
+    QTest::keyClick(background, Qt::Key_Home);
+    QCOMPARE(panel.viewState().background, ParamInfo::Unknown);
+    QTest::mouseClick(swap, Qt::LeftButton);
+    QCOMPARE(panel.viewState().foreground, ParamInfo::Gender);
+    QCOMPARE(panel.viewState().background, ParamInfo::Unknown);
+    QCOMPARE(foreground->currentText(), backgroundText);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(context->m_appModel->serialize(), model);
+    QVERIFY(!historyManager->canUndo());
 }
 
 void ApplicationGuiTests::parameterAnchorEditingPreviewsAndUsesTheContextMenu() {
