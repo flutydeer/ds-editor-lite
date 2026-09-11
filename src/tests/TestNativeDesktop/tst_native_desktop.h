@@ -46,6 +46,7 @@ private slots:
     void rhiTrackFileDropImportsAtTheChosenSlot_data();
     void rhiTrackFileDropImportsAtTheChosenSlot();
     void availableAudioDeviceRunsPublicPlayback();
+    void audioSettingsRollbackWithoutAnInitializedBackend();
     void audioDriverStartupCanBeCanceled_data();
     void audioDriverStartupCanBeCanceled();
     void configuredMidiLoopbackFeedsLiveSynthesizer();

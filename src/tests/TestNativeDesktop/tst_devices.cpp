@@ -3,6 +3,7 @@
 #include "../TestSupport/WaveFixture.h"
 
 #include "Automation/CoreRuntime.h"
+#include "Automation/AppOptionsAutomationAdapter.h"
 #include "Controller/PlaybackController.h"
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Audio/AudioSettings.h"
@@ -13,6 +14,7 @@
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <TalcsCore/AudioBuffer.h>
+#include <TalcsCore/MixerAudioSource.h>
 #include <TalcsCore/NoteSynthesizer.h>
 #include <TalcsCore/TransportAudioSource.h>
 #include <TalcsDevice/AudioDriver.h>
@@ -27,6 +29,9 @@
 #include <QProcessEnvironment>
 #include <QScopeGuard>
 #include <QThread>
+#include <QDir>
+#include <QFile>
+#include <QFileInfo>
 #include <QtTest/QTest>
 
 #include <algorithm>
@@ -36,6 +41,26 @@
 #include <vector>
 
 namespace {
+    void runIsolatedDesktopCase() {
+        QProcess child;
+        auto environment = QProcessEnvironment::systemEnvironment();
+        environment.insert(QStringLiteral("DSEL_TEST_GUI_LIFECYCLE"), QStringLiteral("1"));
+        child.setProcessEnvironment(environment);
+        child.setProcessChannelMode(QProcess::MergedChannels);
+        auto testCase = QString::fromLatin1(QTest::currentTestFunction());
+        if (const auto *tag = QTest::currentDataTag(); tag && *tag)
+            testCase += ':' + QString::fromLatin1(tag);
+        child.start(QCoreApplication::applicationFilePath(), {testCase, QStringLiteral("-v1")});
+        QVERIFY2(child.waitForStarted(), qPrintable(child.errorString()));
+        const auto completed = child.waitForFinished(20000);
+        const auto output = child.readAll();
+        QVERIFY2(completed, output.constData());
+        QVERIFY2(child.exitStatus() == QProcess::NormalExit && child.exitCode() == 0,
+                 qPrintable(QStringLiteral("Child exit code %1:\n%2")
+                                .arg(child.exitCode())
+                                .arg(QString::fromUtf8(output))));
+    }
+
     class MidiReceipt final : public talcs::MidiMessageListener {
     public:
         std::atomic_int noteOnCount = 0;
@@ -53,6 +78,62 @@ namespace {
             return false;
         }
     };
+}
+
+void NativeDesktopTests::audioSettingsRollbackWithoutAnInitializedBackend() {
+    if (!qEnvironmentVariableIsSet("DSEL_TEST_GUI_LIFECYCLE")) {
+        runIsolatedDesktopCase();
+        return;
+    }
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    qputenv("DSEL_TEST_DATA_ROOT", directory.path().toUtf8());
+    AppOptions options;
+    AudioSystem audio;
+    auto *output = AudioSystem::outputSystem()->outputContext();
+    QVERIFY(!output->driver() && !output->device());
+    auto *mixer = output->controlMixer();
+    const auto gain = mixer->gain();
+    const auto pan = mixer->pan();
+    const auto mode = output->hotPlugNotificationMode();
+    auto services = Automation::createAppOptionsAutomationServices(&options);
+    const auto original = services.snapshot().audio;
+    const auto config = options.configPath();
+    const auto backup = config + QStringLiteral(".backup");
+    QVERIFY(QFile::rename(config, backup));
+    const auto restoreFile = qScopeGuard([&] {
+        if (QFile::exists(backup)) {
+            if (QFileInfo(config).isDir())
+                QVERIFY(QDir().rmdir(config));
+            QVERIFY(QFile::rename(backup, config));
+        }
+    });
+    QVERIFY(QDir().mkdir(config));
+    auto target = original;
+    target.deviceGain = 0.375;
+    target.devicePan = -0.25;
+    target.hotPlugNotificationMode = mode == talcs::OutputContext::None
+                                         ? talcs::OutputContext::Omni
+                                         : talcs::OutputContext::None;
+    Automation::AudioDeviceSettingsPatchDto patch;
+    patch.gain = target.deviceGain;
+    patch.pan = target.devicePan;
+    patch.hotPlugNotificationMode = target.hotPlugNotificationMode;
+    const auto failed = services.applyAudioDevice(target, patch);
+    QVERIFY(!failed);
+    QCOMPARE(services.snapshot().audio, original);
+    QCOMPARE(mixer->gain(), gain);
+    QCOMPARE(mixer->pan(), pan);
+    QCOMPARE(output->hotPlugNotificationMode(), mode);
+    QVERIFY(!output->driver() && !output->device());
+    QVERIFY(QDir().rmdir(config));
+    QVERIFY(QFile::rename(backup, config));
+    QVERIFY(services.applyAudioDevice(target, patch));
+    QCOMPARE(mixer->gain(), static_cast<float>(target.deviceGain));
+    QCOMPARE(mixer->pan(), static_cast<float>(target.devicePan));
+    AppOptions stored;
+    QCOMPARE(stored.audio()->obj.value("deviceGain").toDouble(), target.deviceGain);
+    QCOMPARE(stored.audio()->obj.value("devicePan").toDouble(), target.devicePan);
 }
 
 void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
@@ -166,24 +247,7 @@ void NativeDesktopTests::audioDriverStartupCanBeCanceled() {
     if (!qEnvironmentVariableIsSet("DSEL_TEST_GUI_LIFECYCLE")) {
         if (!AudioSystem::outputSystem()->outputContext()->driver())
             QSKIP("No audio output backend is available");
-        // The process-wide G2P runtime cannot be restarted after application teardown.
-        QProcess child;
-        auto environment = QProcessEnvironment::systemEnvironment();
-        environment.insert(QStringLiteral("DSEL_TEST_GUI_LIFECYCLE"), QStringLiteral("1"));
-        child.setProcessEnvironment(environment);
-        child.setProcessChannelMode(QProcess::MergedChannels);
-        const auto testCase =
-            QStringLiteral("%1:%2").arg(QString::fromLatin1(QTest::currentTestFunction()),
-                                        QString::fromLatin1(QTest::currentDataTag()));
-        child.start(QCoreApplication::applicationFilePath(), {testCase, QStringLiteral("-v1")});
-        QVERIFY2(child.waitForStarted(), qPrintable(child.errorString()));
-        const auto completed = child.waitForFinished(20000);
-        const auto output = child.readAll();
-        QVERIFY2(completed, output.constData());
-        QVERIFY2(child.exitStatus() == QProcess::NormalExit && child.exitCode() == 0,
-                 qPrintable(QStringLiteral("Child exit code %1:\n%2")
-                                .arg(child.exitCode())
-                                .arg(QString::fromUtf8(output))));
+        runIsolatedDesktopCase();
         return;
     }
     GuiAppFixture fixture;
