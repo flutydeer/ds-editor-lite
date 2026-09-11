@@ -20,6 +20,8 @@
 #include "Modules/Inference/States/PlaybackReadyState.h"
 #include "Modules/Inference/Utils/InferenceApplyGate.h"
 #include "Modules/Inference/Utils/CudaGpuUtils.h"
+#include "Modules/ProjectFormats/LibreSVIPFormatHandler.h"
+#include "Automation/FileAutomationAdapter.h"
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Note.h>
@@ -30,6 +32,7 @@
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectConverters/DspxProjectConverter.h>
 #include <lite/ProjectConverters/MidiConverter.h>
+#include <lite/ProjectConverters/LibreSVIPConverter.h>
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 #include "../TestSupport/ProcessFixture.h"
@@ -56,9 +59,39 @@
 
 #include <memory>
 #include <atomic>
+#include <cstdio>
 
 namespace {
     using InferenceApplyGate::Decision;
+
+    int libreSvipProcessFixture(const QStringList &arguments) {
+        if (arguments.size() != 5 || arguments[2] != QStringLiteral("convert"))
+            return 2;
+        QFile answers;
+        if (!answers.open(stdin, QIODevice::ReadOnly))
+            return 3;
+        const auto defaults = answers.readAll();
+        if (defaults.isEmpty() || !defaults.trimmed().isEmpty())
+            return 3;
+        const auto result = qgetenv("DSEL_TEST_LIBRESVIP_RESULT");
+        if (result == "error") {
+            std::fputs("Fixture conversion rejected the source\n", stderr);
+            return 4;
+        }
+        if (result == "missing")
+            return 0;
+        QFile output(arguments[4]);
+        if (!output.open(QIODevice::WriteOnly))
+            return 5;
+        if (result == "empty")
+            return 0;
+        // The external converter is replaced; parsing and importing its DSPX result are real.
+        QFile input(arguments[3]);
+        if (!input.open(QIODevice::ReadOnly))
+            return 6;
+        const auto data = input.readAll();
+        return output.write(data) == data.size() ? 0 : 7;
+    }
 
     int unavailableInferenceProvider(int argc, char **argv) {
         QCoreApplication application(argc, argv);
@@ -492,7 +525,28 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
     }
 }
 
+void ApplicationWorkflowTests::
+    publicSingleProjectImportUsesThePreparedPlanAndKeepsTheDocument_data() {
+    QTest::addColumn<bool>("externalConverter");
+    QTest::newRow("native-dspx") << false;
+    QTest::newRow("external-libresvip") << true;
+}
+
 void ApplicationWorkflowTests::publicSingleProjectImportUsesThePreparedPlanAndKeepsTheDocument() {
+    QFETCH(bool, externalConverter);
+    const auto oldExecutable = context->m_appOptions->general()->libreSVIPPath;
+    const auto oldResult = qgetenv("DSEL_TEST_LIBRESVIP_RESULT");
+    const auto restoreConverter = qScopeGuard([&] {
+        context->m_appOptions->general()->libreSVIPPath = oldExecutable;
+        if (oldResult.isNull())
+            qunsetenv("DSEL_TEST_LIBRESVIP_RESULT");
+        else
+            qputenv("DSEL_TEST_LIBRESVIP_RESULT", oldResult);
+    });
+    if (externalConverter) {
+        context->m_appOptions->general()->libreSVIPPath = QCoreApplication::applicationFilePath();
+        qputenv("DSEL_TEST_LIBRESVIP_RESULT", "success");
+    }
     QTemporaryDir files;
     QVERIFY(files.isValid());
     AppModel source;
@@ -516,7 +570,8 @@ void ApplicationWorkflowTests::publicSingleProjectImportUsesThePreparedPlanAndKe
     sourceClip->insertNote(sourceNote);
     sourceTrack->insertClip(sourceClip);
     QVERIFY(source.appendTrack(sourceTrack));
-    const auto path = files.filePath(QStringLiteral("待导入.dspx"));
+    const auto path = files.filePath(externalConverter ? QStringLiteral("待导入 project.svp")
+                                                       : QStringLiteral("待导入.dspx"));
     DspxProjectConverter converter;
     QString error;
     QVERIFY2(converter.save(path, &source, error), qPrintable(error));
@@ -587,6 +642,78 @@ void ApplicationWorkflowTests::publicSingleProjectImportUsesThePreparedPlanAndKe
     QCOMPARE(context->m_appModel->serialize(), beforeModel);
     QVERIFY(!historyManager->canUndo());
     QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+}
+
+void ApplicationWorkflowTests::libreSvipProcessFailuresLeaveTheDocumentUntouched_data() {
+    QTest::addColumn<QByteArray>("result");
+    QTest::newRow("converter-not-configured") << QByteArray("unconfigured");
+    QTest::newRow("converter-cannot-start") << QByteArray("missing-executable");
+    QTest::newRow("converter-rejects-source") << QByteArray("error");
+    QTest::newRow("converter-omits-output") << QByteArray("missing");
+    QTest::newRow("converter-writes-empty-output") << QByteArray("empty");
+}
+
+void ApplicationWorkflowTests::libreSvipProcessFailuresLeaveTheDocumentUntouched() {
+    QFETCH(QByteArray, result);
+    QTemporaryDir files;
+    QVERIFY(files.isValid());
+    const auto inputPath = files.filePath(QStringLiteral("source.svp"));
+    QFile input(inputPath);
+    QVERIFY(input.open(QIODevice::WriteOnly));
+    QCOMPARE(input.write("fixture input"), 13);
+    input.close();
+    const auto oldExecutable = context->m_appOptions->general()->libreSVIPPath;
+    const auto oldResult = qgetenv("DSEL_TEST_LIBRESVIP_RESULT");
+    const auto restoreConverter = qScopeGuard([&] {
+        context->m_appOptions->general()->libreSVIPPath = oldExecutable;
+        if (oldResult.isNull())
+            qunsetenv("DSEL_TEST_LIBRESVIP_RESULT");
+        else
+            qputenv("DSEL_TEST_LIBRESVIP_RESULT", oldResult);
+    });
+    context->m_appOptions->general()->libreSVIPPath = QCoreApplication::applicationFilePath();
+    qputenv("DSEL_TEST_LIBRESVIP_RESULT", result);
+    const auto before = runtime().documentVersion();
+    const auto model = context->m_appModel->serialize();
+    if (result == "unconfigured" || result == "missing-executable") {
+        const auto executable = result == "unconfigured"
+                                    ? QString()
+                                    : files.filePath(QStringLiteral("missing-converter"));
+        const auto failed = LibreSVIPConverter::convertToDspx(executable, inputPath);
+        QVERIFY(!failed.success());
+        QVERIFY(!failed.errorMessage.isEmpty());
+    } else {
+        const auto services = Automation::createFileAutomationServices();
+        const auto failed = services.convertLibreSvipToDspx(inputPath);
+        QVERIFY(!failed);
+        QCOMPARE(failed.getError().code, Automation::AutomationErrorCode::FormatUnsupported);
+        QVERIFY(!failed.getError().message.isEmpty());
+        if (result == "error")
+            QVERIFY(
+                failed.getError().message.contains(QStringLiteral("Fixture conversion rejected")));
+    }
+    if (result == "error") {
+        Automation::PublicDocumentBatchImportRequest request;
+        request.command = commandContext();
+        request.items = {
+            {.canonicalPath = inputPath, .formatId = QStringLiteral("libresvip")}
+        };
+        const auto host = Automation::createPublicAutomationHostServices(
+            runtime(), context->m_appModel, &SynthrtEngine::instance());
+        const auto accepted = host.importDocuments(request);
+        QVERIFY2(accepted, qPrintable(accepted ? QString() : accepted.getError().message));
+        const auto task = [&] {
+            return runtime().tasks().getTask(before.documentId, accepted.get().taskId);
+        };
+        QTRY_VERIFY_WITH_TIMEOUT(
+            task() && task().get().state == Automation::AutomationTaskState::Failed, 10000);
+        QVERIFY(task().get().error);
+        QVERIFY(
+            task().get().error->message.contains(QStringLiteral("Fixture conversion rejected")));
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    }
+    QCOMPARE(runtime().documentVersion(), before);
+    QCOMPARE(context->m_appModel->serialize(), model);
 }
 
 void ApplicationWorkflowTests::failedInferenceInitializationReleasesPackageWaiters() {
@@ -1046,6 +1173,8 @@ int main(int argc, char **argv) {
         QString::fromLocal8Bit(argv[1]) == QStringLiteral("--unavailable-inference-provider"))
         return unavailableInferenceProvider(argc, argv);
     QCoreApplication application(argc, argv);
+    if (application.arguments().value(1) == QStringLiteral("proj"))
+        return libreSvipProcessFixture(application.arguments());
     ApplicationWorkflowTests tests;
     return QTest::qExec(&tests, argc, argv);
 }

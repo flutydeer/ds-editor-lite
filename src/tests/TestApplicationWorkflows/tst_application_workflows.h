@@ -42,6 +42,9 @@ private slots:
 
     void projectBatchImportUsesRealLoaders();
     void publicSingleProjectImportUsesThePreparedPlanAndKeepsTheDocument();
+    void publicSingleProjectImportUsesThePreparedPlanAndKeepsTheDocument_data();
+    void libreSvipProcessFailuresLeaveTheDocumentUntouched_data();
+    void libreSvipProcessFailuresLeaveTheDocumentUntouched();
 
     void audioBatchFailurePolicy_data();
 

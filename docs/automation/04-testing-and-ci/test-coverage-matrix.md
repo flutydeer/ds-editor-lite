@@ -184,5 +184,6 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 参数栏的前景/背景切换 | gui | 实际下拉选择和交换按钮同步视图及显示文字；清除背景后交换不改变前景，操作不修改工程或历史 | ApplicationGui::parameterToolbarSwapsTheVisiblePairWithoutEditingTheDocument | offscreen；无需声库 |
 | 播放栏时间线编辑与节拍测量 | gui | 速度和拍号弹窗编辑打开时选定的标记，移动播放头后提交不误改其他标记且显示跟随当前位置；内联输入验证、取消、定位与撤销；连续点击测量 BPM、稳定进度、闲置及重新打开后的重置 | ApplicationGui 的 tst_playback_controls.cpp | offscreen；实际输入和计时器；无需播放设备 |
 | 路径输入与多目录排序 | gui | 目录经真实拖入后选择、上移/下移与删除保留所选顺序；列表接受复制引用，文件选择框拒绝远程 URL 并按目录或扩展名筛选本地来源 | GuiComponents 的 tst_path_controls.cpp | offscreen；临时目录和文件；不调用外部模型 |
+| LibreSVIP 外部转换接线 | workflow | 扩展已有单项目导入场景，转换进程处理参数和默认回答，生产解析、计划检查及导入保留音符并可撤销；未配置、无法启动、转换拒绝、缺少/空输出明确失败，异步失败不修改原工程 | ApplicationWorkflows::publicSingleProjectImportUsesThePreparedPlanAndKeepsTheDocument、libreSvipProcessFailuresLeaveTheDocumentUntouched | 通用；仅替换外部可执行程序，复用测试程序子入口；不要求安装 LibreSVIP |
 
 本次还移除无产品实例化入口的旧 G2P/伪声设置页和 `TrackSynthesizer` 及其空容器引用。清理改变统计分母，报告中与新增测试命中的贡献分开说明，不通过排除仍有效的生产文件提高比例。
