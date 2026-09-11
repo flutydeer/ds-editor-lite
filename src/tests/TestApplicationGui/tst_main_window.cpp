@@ -542,6 +542,201 @@ void ApplicationGuiTests::undoShortcutRevealsThePianoEditBeforeChangingIt() {
     QVERIFY(!historyManager->canRedo());
 }
 
+void ApplicationGuiTests::recentProjectsMenuRemovesMissingFilesAndClearsTheList() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto existing = directory.filePath(QStringLiteral("recent.dspx"));
+    const auto missing = directory.filePath(QStringLiteral("removed.dspx"));
+    createDroppedProject(existing);
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    const auto original = runtime.settings().getSettings();
+    QVERIFY(original);
+    const auto restore =
+        qScopeGuard([&] { QVERIFY(runtime.settings().updateGeneral({}, original.get().general)); });
+    QVERIFY(runtime.settings().clearRecentProjectFiles({}));
+    QVERIFY(runtime.settings().addRecentProjectFile({}, existing));
+    QVERIFY(runtime.settings().addRecentProjectFile({}, missing));
+    MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    auto *bar = host.window->findChild<MainMenuView *>();
+    QVERIFY(bar);
+    QMenu *file = nullptr;
+    QMenu *recent = nullptr;
+    for (auto *action : bar->actions()) {
+        if (!action->menu())
+            continue;
+        for (auto *entry : action->menu()->actions()) {
+            if (entry->menu() &&
+                entry->menu()->title() ==
+                    QCoreApplication::translate("MainMenuViewPrivate", "Recent Projects")) {
+                file = action->menu();
+                recent = entry->menu();
+            }
+        }
+    }
+    QVERIFY(file && recent);
+    const auto close = qScopeGuard([&] {
+        recent->close();
+        file->close();
+    });
+    const auto openRecent = [&] {
+        QTest::mouseClick(bar, Qt::LeftButton, Qt::NoModifier,
+                          bar->actionGeometry(file->menuAction()).center());
+        QTRY_VERIFY(file->isVisible());
+        QTest::mouseClick(file, Qt::LeftButton, Qt::NoModifier,
+                          file->actionGeometry(recent->menuAction()).center());
+        QTRY_VERIFY(recent->isVisible());
+    };
+    const auto clickRecent = [&](const QString &path) {
+        openRecent();
+        if (QTest::currentTestFailed())
+            return;
+        QAction *choice = nullptr;
+        for (auto *action : recent->actions()) {
+            if (action->data().toString() == path)
+                choice = action;
+        }
+        QVERIFY(choice && choice->isEnabled());
+        QTest::mouseClick(recent, Qt::LeftButton, Qt::NoModifier,
+                          recent->actionGeometry(choice).center());
+        QTRY_VERIFY(!recent->isVisible());
+    };
+    const auto before = runtime.documentVersion();
+    const auto model = context->m_appModel->serialize();
+    const auto *undo = historyManager->nextUndoEntry();
+    QSignalSpy changed(documentWorkflowController,
+                       &DocumentWorkflowController::recentProjectFilesChanged);
+    clickRecent(missing);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(context->m_appModel->serialize(), model);
+    QCOMPARE(historyManager->nextUndoEntry(), undo);
+    QCOMPARE(documentWorkflowController->recentProjectFiles(), QStringList{existing});
+    QCOMPARE(changed.size(), 1);
+    QVERIFY(!QApplication::activeModalWidget());
+    clickRecent(existing);
+    if (QTest::currentTestFailed())
+        return;
+    QTRY_VERIFY(!documentWorkflowController->busy());
+    QCOMPARE(QFileInfo(documentWorkflowController->projectPath()).canonicalFilePath(),
+             QFileInfo(existing).canonicalFilePath());
+    QVERIFY(runtime.documentVersion().documentId != before.documentId);
+    QCOMPARE(context->m_appModel->tracks().first()->name(), QStringLiteral("Dropped track"));
+    const auto opened = runtime.documentVersion();
+    changed.clear();
+    openRecent();
+    if (QTest::currentTestFailed())
+        return;
+    QAction *clear = nullptr;
+    for (auto *action : recent->actions()) {
+        if (action->text() ==
+            QCoreApplication::translate("MainMenuViewPrivate", "Clear Recent Projects"))
+            clear = action;
+    }
+    QVERIFY(clear && clear->isEnabled());
+    QTest::mouseClick(recent, Qt::LeftButton, Qt::NoModifier,
+                      recent->actionGeometry(clear).center());
+    QTRY_VERIFY(!recent->isVisible());
+    QVERIFY(documentWorkflowController->recentProjectFiles().isEmpty());
+    QCOMPARE(changed.size(), 1);
+    QCOMPARE(runtime.documentVersion(), opened);
+    openRecent();
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(!clear->isEnabled());
+    QVERIFY(!recent->actions().first()->isEnabled());
+    AppOptions stored;
+    QVERIFY(stored.general()->recentProjectFiles.isEmpty());
+}
+
+void ApplicationGuiTests::failedProjectOpenPreservesTheDocumentAndRecovers() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto path = directory.filePath(QStringLiteral("damaged.dspx"));
+    QFile damaged(path);
+    QVERIFY(damaged.open(QIODevice::WriteOnly));
+    const QByteArray contents = "{\"version\":\"1.0.0\",\"content\":";
+    QCOMPARE(damaged.write(contents), contents.size());
+    damaged.close();
+    MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    Automation::TrackDraftDto track;
+    track.name = QStringLiteral("Unsaved edit survives failed open");
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, track));
+    const auto before = runtime.documentVersion();
+    const auto model = context->m_appModel->serialize();
+    const auto *undo = historyManager->nextUndoEntry();
+    const auto oldPath = documentWorkflowController->projectPath();
+    int savePrompts = 0;
+    int errors = 0;
+    QTimer answer;
+    answer.setInterval(10);
+    connect(&answer, &QTimer::timeout, host.window.get(), [&] {
+        QPointer<QDialog> dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+        if (!dialog)
+            return;
+        const auto closeOnFailure = qScopeGuard([&] {
+            if (dialog && dialog->isVisible())
+                dialog->reject();
+        });
+        Button *choice = nullptr;
+        for (auto *button : dialog->findChildren<Button *>()) {
+            if (button->text() == MainWindow::tr("Don't save"))
+                choice = button;
+        }
+        if (!choice) {
+            ++errors;
+            QCOMPARE(runtime.documentVersion(), before);
+            QCOMPARE(context->m_appModel->serialize(), model);
+            const auto labels = dialog->findChildren<QLabel *>();
+            QVERIFY(std::any_of(labels.cbegin(), labels.cend(), [](const auto *label) {
+                return label->text() ==
+                    QCoreApplication::translate("DspxLoadSession", "Failed to open project");
+            }));
+            for (auto *button : dialog->findChildren<Button *>()) {
+                if (button->text() == MainWindow::tr("OK"))
+                    choice = button;
+            }
+        } else {
+            ++savePrompts;
+        }
+        QVERIFY(choice);
+        QTest::mouseClick(choice, Qt::LeftButton);
+    });
+    answer.start();
+    dropFiles(*host.window, {QUrl::fromLocalFile(path)});
+    QTRY_VERIFY_WITH_TIMEOUT(errors == 1 && !documentWorkflowController->busy(), 10000);
+    QCOMPARE(savePrompts, 1);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(context->m_appModel->serialize(), model);
+    QCOMPARE(documentWorkflowController->projectPath(), oldPath);
+    QCOMPARE(historyManager->nextUndoEntry(), undo);
+    QVERIFY(!historyManager->isOnSavePoint());
+    QVERIFY(!documentWorkflowController->recentProjectFiles().contains(path));
+    createDroppedProject(path);
+    if (QTest::currentTestFailed())
+        return;
+    dropFiles(*host.window, {QUrl::fromLocalFile(path)});
+    QTRY_VERIFY_WITH_TIMEOUT(!documentWorkflowController->busy(), 10000);
+    answer.stop();
+    QCOMPARE(errors, 1);
+    QCOMPARE(savePrompts, 2);
+    QVERIFY(runtime.documentVersion().documentId != before.documentId);
+    QCOMPARE(context->m_appModel->tracks().first()->name(), QStringLiteral("Dropped track"));
+    QCOMPARE(QFileInfo(documentWorkflowController->projectPath()).canonicalFilePath(),
+             QFileInfo(path).canonicalFilePath());
+    QVERIFY(historyManager->isOnSavePoint());
+    QVERIFY(!historyManager->canUndo());
+}
+
 void ApplicationGuiTests::fileMenuOpensAndSavesThroughTheActualPicker() {
     QTemporaryDir directory;
     QVERIFY(directory.isValid());

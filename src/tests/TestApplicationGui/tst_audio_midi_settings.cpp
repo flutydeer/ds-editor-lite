@@ -31,6 +31,8 @@
 #include <QPushButton>
 #include <QScopeGuard>
 #include <QSignalSpy>
+#include <QFile>
+#include <QDir>
 #include <QtTest/QTest>
 
 #include <cmath>
@@ -79,6 +81,71 @@ namespace {
             QTest::keyClick(combo, Qt::Key_Down);
         QCOMPARE(combo->currentData().toInt(), value);
     }
+}
+
+void ApplicationGuiTests::audioSettingsSaveFailureRestoresRuntimeAndAllowsRetry() {
+    auto &runtime = *context->m_coreRuntime;
+    const auto original = runtime.settings().getSettings();
+    QVERIFY(original);
+    auto *output = AudioSystem::outputSystem()->outputContext();
+    auto *mixer = output->controlMixer();
+    const auto gain = mixer->gain();
+    const auto pan = mixer->pan();
+    const auto mode = output->hotPlugNotificationMode();
+    const auto restore = qScopeGuard([&] {
+        mixer->setGain(gain);
+        mixer->setPan(pan);
+        output->setHotPlugNotificationMode(mode);
+        QVERIFY(runtime.settings().updateAudio({}, original.get().audio));
+    });
+    const auto config = appOptions->configPath();
+    const auto backup = config + QStringLiteral(".save-failure-backup");
+    QVERIFY(QFile::rename(config, backup));
+    const auto restoreFile = qScopeGuard([&] {
+        if (QFile::exists(backup)) {
+            QVERIFY(QDir().rmdir(config));
+            QVERIFY(QFile::rename(backup, config));
+        }
+    });
+    // A directory occupying the file path makes persistence fail on every platform.
+    QVERIFY(QDir().mkdir(config));
+    const auto before = runtime.documentVersion();
+    const auto *undo = historyManager->nextUndoEntry();
+    Automation::AudioDeviceSettingsPatchDto patch;
+    patch.gain = gain == 0.375f ? 0.625 : 0.375;
+    patch.pan = pan == -0.25f ? 0.25 : -0.25;
+    patch.hotPlugNotificationMode = mode == talcs::OutputContext::None ? talcs::OutputContext::Omni
+                                                                       : talcs::OutputContext::None;
+    const auto failed = runtime.settings().updateAudioDevice({}, patch);
+    QVERIFY(!failed);
+    QCOMPARE(failed.getError().code, Automation::AutomationErrorCode::HostCapabilityUnavailable);
+    const auto rolledBack = runtime.settings().getSettings();
+    QVERIFY(rolledBack);
+    QCOMPARE(rolledBack.get().audio, original.get().audio);
+    QCOMPARE(mixer->gain(), gain);
+    QCOMPARE(mixer->pan(), pan);
+    QCOMPARE(output->hotPlugNotificationMode(), mode);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(historyManager->nextUndoEntry(), undo);
+    QVERIFY(QDir(config).isEmpty());
+    QVERIFY(QDir().rmdir(config));
+    QVERIFY(QFile::rename(backup, config));
+
+    const auto retried = runtime.settings().updateAudioDevice({}, patch);
+    QVERIFY2(retried, qPrintable(retried ? QString() : retried.getError().message));
+    QVERIFY(retried.get().changed);
+    QCOMPARE(mixer->gain(), static_cast<float>(*patch.gain));
+    QCOMPARE(mixer->pan(), static_cast<float>(*patch.pan));
+    QCOMPARE(
+        output->hotPlugNotificationMode(),
+        static_cast<talcs::OutputContext::HotPlugNotificationMode>(*patch.hotPlugNotificationMode));
+    AppOptions stored;
+    QCOMPARE(stored.audio()->obj.value("deviceGain").toDouble(), *patch.gain);
+    QCOMPARE(stored.audio()->obj.value("devicePan").toDouble(), *patch.pan);
+    QCOMPARE(stored.audio()->obj.value("hotPlugNotificationMode").toInt(),
+             *patch.hotPlugNotificationMode);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(historyManager->nextUndoEntry(), undo);
 }
 
 void ApplicationGuiTests::audioPageInputsPersistWithoutPlayback() {

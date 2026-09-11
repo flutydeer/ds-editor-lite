@@ -94,6 +94,8 @@ private slots:
     void undoShortcutRevealsTheTrackEditBeforeChangingIt();
     void undoShortcutRevealsThePianoEditBeforeChangingIt();
     void fileMenuOpensAndSavesThroughTheActualPicker();
+    void recentProjectsMenuRemovesMissingFilesAndClearsTheList();
+    void failedProjectOpenPreservesTheDocumentAndRecovers();
     void projectDropCanCancelThenOpenTheDocument();
     void mixedFileDropRejectsAtomicallyAndAllowsTheNextImport();
     void detachedBottomPanelReattachesWithItsEditingContext();
@@ -109,6 +111,7 @@ private slots:
     void trackContextMenuPastePreviewCancelsAndMatchesCommittedClip();
     void settingsSynthPreviewKeepsEnvelopeDurationsAcrossSampleRates();
     void audioPageInputsPersistWithoutPlayback();
+    void audioSettingsSaveFailureRestoresRuntimeAndAllowsRetry();
     void midiPageSynthInputsPersistWithoutPlayback();
     void trackHeaderInputsCommitAndUndo();
     void trackColorMenuPreviewsAndCommits_data();
