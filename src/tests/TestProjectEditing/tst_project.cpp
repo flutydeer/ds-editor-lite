@@ -326,6 +326,151 @@ namespace {
 
 }
 
+void ProjectEditingTests::duplicateClipsPreserveContentAndCreateIndependentObjects_data() {
+    QTest::addColumn<bool>("useTargetTrack");
+    QTest::newRow("keep-source-tracks") << false;
+    QTest::newRow("combine-into-target-track") << true;
+}
+
+void ProjectEditingTests::duplicateClipsPreserveContentAndCreateIndependentObjects() {
+    QFETCH(bool, useTargetTrack);
+    NoteFixture fixture;
+    auto &runtime = fixture.testRuntime.runtime();
+    const auto audioTrack = insertedTrack(runtime, QStringLiteral("Backing"));
+    const auto target = insertedTrack(runtime, QStringLiteral("Copies"));
+    QVERIFY(audioTrack.isValid() && target.isValid());
+    QVERIFY(runtime.project().moveClips(commandContext(runtime),
+                                        {
+                                            {fixture.clipId, fixture.trackId, 480}
+    }));
+    const auto first = speaker(QStringLiteral("first"));
+    const auto second = speaker(QStringLiteral("second"));
+    const auto voice = singer(QStringLiteral("blended"), {first, second});
+    QVERIFY(runtime.parameters().enableClipDynamicSpeakerMix(
+        commandContext(runtime), fixture.clipId, voice, first, dynamicMix(first, second)));
+    QVERIFY(runtime.parameters().createAnchorCurve(
+        commandContext(runtime), fixture.clipId, ParamInfo::Pitch, Param::Edited,
+        QStringLiteral("pitch"),
+        {
+            {0,   6000, AnchorNode::Linear },
+            {240, 6200, AnchorNode::Hermite}
+    }));
+    auto audio = audioClipDraft(QStringLiteral("Backing sample"));
+    audio.properties.start = 960;
+    audio.properties.trimStartMs = 50;
+    audio.properties.playLengthMs = 750;
+    audio.properties.materialLengthMs = 1000;
+    audio.hasRealTimeAnchor = true;
+    const auto inserted =
+        runtime.project().insertClips(commandContext(runtime), {
+                                                                   {audioTrack, audio}
+    });
+    QVERIFY(inserted);
+    const ClipId audioId(inserted.get().affectedObjects.first().value);
+    const auto sourceVoice = clipSnapshot(runtime, fixture.clipId);
+    const auto sourceAudio = clipSnapshot(runtime, audioId);
+    QVERIFY(sourceVoice && sourceAudio);
+    const auto oldNotes =
+        runtime.notes().getNotes(runtime.documentVersion().documentId, fixture.clipId);
+    const auto oldPitch = runtime.parameters().getParameter(
+        runtime.documentVersion().documentId, fixture.clipId, ParamInfo::Pitch, Param::Edited);
+    QVERIFY(oldNotes && oldPitch);
+    fixture.testRuntime.history()->reset();
+    const auto before = runtime.documentVersion();
+    const auto beforeModel = fixture.testRuntime.model().serialize();
+    Automation::ClipDuplicateDestinationDto destination;
+    destination.targetStart = 3840;
+    if (useTargetTrack)
+        destination.targetTrackId = target;
+    const QList<ClipId> sources{audioId, fixture.clipId};
+    const auto preview =
+        runtime.project().duplicateClips(commandContext(runtime, true), sources, destination);
+    QVERIFY(preview && preview.get().validatedOnly && preview.get().changed);
+    QVERIFY(preview.get().createdObjects.isEmpty());
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(fixture.testRuntime.model().serialize(), beforeModel);
+
+    auto command = commandContext(runtime);
+    command.idempotencyKey = QStringLiteral("copy-selected-clips");
+    const auto duplicated = runtime.project().duplicateClips(command, sources, destination);
+    QVERIFY2(duplicated, qPrintable(duplicated ? QString() : duplicated.getError().message));
+    QList<ClipId> copies;
+    for (const auto &created : duplicated.get().createdObjects) {
+        if (created.object.kind == Automation::ObjectKind::Clip)
+            copies.append(ClipId(created.object.value));
+    }
+    QCOMPARE(copies.size(), 2);
+    const auto copyAudio = clipSnapshot(runtime, copies.first());
+    const auto copyVoice = clipSnapshot(runtime, copies.last());
+    QVERIFY(copyAudio && copyVoice);
+    QCOMPARE(copyAudio->trackId, useTargetTrack ? target : audioTrack);
+    QCOMPARE(copyVoice->trackId, useTargetTrack ? target : fixture.trackId);
+    QCOMPARE(copyVoice->data.properties.start, 3840);
+    QCOMPARE(copyAudio->data.properties.start - sourceAudio->data.properties.start, 3360);
+    QCOMPARE(copyAudio->data.audioPath, sourceAudio->data.audioPath);
+    QVERIFY(copyAudio->data.hasRealTimeAnchor);
+    QCOMPARE(copyAudio->data.properties.trimStartMs, 50.0);
+    QCOMPARE(copyAudio->data.properties.playLengthMs, 750.0);
+    QCOMPARE(copyAudio->data.properties.materialLengthMs, 1000.0);
+    QCOMPARE(copyVoice->data.ownSingerInfo, voice);
+    QVERIFY(!copyVoice->data.usesTrackVoiceContext);
+    const auto &oldMix = sourceVoice->data.ownSpeakerMixData;
+    const auto &newMix = copyVoice->data.ownSpeakerMixData;
+    QCOMPARE(newMix.mode, oldMix.mode);
+    QCOMPARE(newMix.dynamicKeyframes.size(), oldMix.dynamicKeyframes.size());
+    for (qsizetype i = 0; i < oldMix.dynamicKeyframes.size(); ++i) {
+        const auto &oldKey = oldMix.dynamicKeyframes.at(i);
+        const auto &newKey = newMix.dynamicKeyframes.at(i);
+        QVERIFY(newKey.id != oldKey.id);
+        QCOMPARE(newKey.tick, oldKey.tick);
+        QCOMPARE(newKey.weights, oldKey.weights);
+    }
+    const auto copiedNotes =
+        runtime.notes().getNotes(runtime.documentVersion().documentId, copies.last());
+    QVERIFY(copiedNotes);
+    QCOMPARE(copiedNotes.get().size(), oldNotes.get().size());
+    for (qsizetype i = 0; i < oldNotes.get().size(); ++i) {
+        const auto &oldNote = oldNotes.get().at(i);
+        const auto &newNote = copiedNotes.get().at(i);
+        QVERIFY(newNote.id != oldNote.id);
+        QCOMPARE(newNote.data.localStart, oldNote.data.localStart);
+        QCOMPARE(newNote.data.length, oldNote.data.length);
+        QCOMPARE(newNote.data.keyIndex, oldNote.data.keyIndex);
+        QCOMPARE(newNote.data.lyric, oldNote.data.lyric);
+        QCOMPARE(newNote.data.pronunciation.edited, oldNote.data.pronunciation.edited);
+        QCOMPARE(newNote.data.phonemes.nameSeq.edited, oldNote.data.phonemes.nameSeq.edited);
+        QCOMPARE(newNote.data.phonemes.offsetSeq.original,
+                 oldNote.data.phonemes.offsetSeq.original);
+    }
+    const auto copiedPitch = runtime.parameters().getParameter(
+        runtime.documentVersion().documentId, copies.last(), ParamInfo::Pitch, Param::Edited);
+    QVERIFY(copiedPitch);
+    QCOMPARE(copiedPitch.get().curves.size(), 1);
+    const auto &oldCurve = oldPitch.get().curves.first();
+    const auto &newCurve = copiedPitch.get().curves.first();
+    QVERIFY(newCurve.id != oldCurve.id);
+    QCOMPARE(newCurve.nodes.size(), oldCurve.nodes.size());
+    for (qsizetype i = 0; i < oldCurve.nodes.size(); ++i) {
+        QVERIFY(newCurve.nodes.at(i).id != oldCurve.nodes.at(i).id);
+        QCOMPARE(newCurve.nodes.at(i).position, oldCurve.nodes.at(i).position);
+        QCOMPARE(newCurve.nodes.at(i).value, oldCurve.nodes.at(i).value);
+        QCOMPARE(newCurve.nodes.at(i).interpolation, oldCurve.nodes.at(i).interpolation);
+    }
+    const auto after = runtime.documentVersion();
+    QCOMPARE(after.revision, before.revision + 1);
+    const auto afterModel = fixture.testRuntime.model().serialize();
+    const auto retried = runtime.project().duplicateClips(command, sources, destination);
+    QVERIFY(retried);
+    QCOMPARE(retried.get().createdObjects, duplicated.get().createdObjects);
+    QCOMPARE(runtime.documentVersion(), after);
+    QCOMPARE(fixture.testRuntime.model().serialize(), afterModel);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(fixture.testRuntime.model().serialize(), beforeModel);
+    QVERIFY(!fixture.testRuntime.history()->canUndo());
+    QVERIFY(runtime.history().redo(commandContext(runtime)));
+    QCOMPARE(fixture.testRuntime.model().serialize(), afterModel);
+}
+
 void ProjectEditingTests::batchAnchorsCommitAndUndoTogether() {
     TestRuntime testRuntime;
     auto &runtime = testRuntime.runtime();

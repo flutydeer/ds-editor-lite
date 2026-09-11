@@ -19,6 +19,8 @@ private slots:
     void splitAtPreservesPhraseAndUndo();
     void trackEditing();
     void singingClipEditing();
+    void duplicateClipsPreserveContentAndCreateIndependentObjects_data();
+    void duplicateClipsPreserveContentAndCreateIndependentObjects();
     void legacyAudioClipEditing();
     void trackRemovalRestoresChildren();
     void listNotes();
