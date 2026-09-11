@@ -8,6 +8,7 @@
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/History/HistoryManager.h>
 #include <lite/Tasking/TaskManager.h>
 
 #include <TalcsCore/AudioBuffer.h>
@@ -156,6 +157,87 @@ void ApplicationWorkflowTests::audioClipRangeChangesWaitForActiveReads() {
         talcs::AudioSourceClipSeries series;
         verifyRangeChange(series, &playing, &moved);
     }
+}
+
+void ApplicationWorkflowTests::audioClipTrimmingAndMovingPreserveRealtimeDurations() {
+    auto &core = runtime();
+    QVERIFY(core.timeline().setTempo(commandContext(), 0, 120));
+    QVERIFY(core.timeline().setTempo(commandContext(), 1920, 60));
+    Automation::TrackDraftDto track;
+    track.name = QStringLiteral("Backing");
+    const auto insertedTrack = core.project().insertTrack(commandContext(), 0, track);
+    QVERIFY(insertedTrack);
+    const Automation::TrackId first(insertedTrack.get().affectedObjects.first().value);
+    track.name = QStringLiteral("Alternate");
+    const auto alternate = core.project().insertTrack(commandContext(), 1, track);
+    QVERIFY(alternate);
+    const Automation::TrackId second(alternate.get().affectedObjects.first().value);
+    Automation::ClipDraftDto draft;
+    draft.type = Automation::ClipDraftDto::Type::Audio;
+    draft.properties.name = QStringLiteral("Timed audio");
+    draft.properties.start = 960;
+    draft.properties.length = 1440;
+    draft.properties.clipLen = 1440;
+    draft.properties.trimStartMs = 500;
+    draft.properties.playLengthMs = 2000;
+    draft.properties.materialLengthMs = 4000;
+    draft.hasRealTimeAnchor = true;
+    draft.audioPath = QStringLiteral("fixture-audio.wav");
+    const auto inserted = core.project().insertClips(commandContext(), {
+                                                                           {first, draft}
+    });
+    QVERIFY(inserted);
+    const Automation::ClipId id(inserted.get().affectedObjects.first().value);
+    auto *audio = qobject_cast<AudioClip *>(context->m_appModel->findClipById(id.value()));
+    QVERIFY(audio);
+    const auto properties = [&] { return Automation::clipDraftDto(*audio).properties; };
+    QCOMPARE(properties().start + properties().clipStart, 960);
+    QCOMPARE(properties().clipLen, 1440);
+    const auto beforeModel = context->m_appModel->serialize();
+    historyManager->reset();
+    const auto before = core.documentVersion();
+
+    QVERIFY(core.project().resizeClipLeft(commandContext(), id, 1440));
+    QCOMPARE(properties().start + properties().clipStart, 1440);
+    QCOMPARE(properties().start + properties().clipStart + properties().clipLen, 2400);
+    QCOMPARE(properties().trimStartMs, 1000.0);
+    QCOMPARE(properties().playLengthMs, 1500.0);
+    QVERIFY(core.project().resizeClipRight(commandContext(), id, 2160));
+    QCOMPARE(properties().start + properties().clipStart + properties().clipLen, 2160);
+    QCOMPARE(properties().trimStartMs, 1000.0);
+    QCOMPARE(properties().playLengthMs, 1000.0);
+
+    const auto beforeMove = core.documentVersion();
+    const QList<Automation::ClipMoveDto> move{
+        {.id = id, .targetTrackId = first, .start = 2880}
+    };
+    auto previewContext = commandContext();
+    previewContext.validateOnly = true;
+    const auto preview = core.project().moveClips(previewContext, move);
+    QVERIFY(preview && preview.get().changed);
+    QCOMPARE(core.documentVersion(), beforeMove);
+    QCOMPARE(properties().start + properties().clipStart, 1440);
+    QVERIFY(core.project().moveClips(commandContext(), move));
+    QCOMPARE(properties().start + properties().clipStart, 2880);
+    QCOMPARE(properties().clipLen, 480);
+    QCOMPARE(properties().trimStartMs, 1000.0);
+    QCOMPARE(properties().playLengthMs, 1000.0);
+    QVERIFY(core.project().moveClips(commandContext(),
+                                     {
+                                         {.id = id, .targetTrackId = second, .start = 3360}
+    }));
+    Track *owner = nullptr;
+    QCOMPARE(context->m_appModel->findClipById(id.value(), owner), audio);
+    QVERIFY(owner);
+    QCOMPARE(owner->id(), second.value());
+    QCOMPARE(properties().start + properties().clipStart, 3360);
+    QCOMPARE(properties().clipLen, 480);
+    QCOMPARE(properties().materialLengthMs, 4000.0);
+    QCOMPARE(core.documentVersion().revision, before.revision + 4);
+    for (int i = 0; i < 4; ++i)
+        QVERIFY(core.history().undo(commandContext()));
+    QCOMPARE(context->m_appModel->serialize(), beforeModel);
+    QVERIFY(!historyManager->canUndo());
 }
 
 void ApplicationWorkflowTests::audioExportRespectsRangeMixAndMute() {

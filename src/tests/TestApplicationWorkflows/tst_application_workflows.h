@@ -25,6 +25,7 @@ private slots:
     void controlledPlaybackLoopsAndBuffers();
     void audioClipRangeChangesWaitForActiveReads_data();
     void audioClipRangeChangesWaitForActiveReads();
+    void audioClipTrimmingAndMovingPreserveRealtimeDurations();
     void customExportPresetPersistsAndProducesIntegerWave();
 
     void initTestCase();
