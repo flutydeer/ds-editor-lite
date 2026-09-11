@@ -52,6 +52,7 @@
 #include <QSignalBlocker>
 #include <QPointer>
 #include <QTimer>
+#include <QJsonArray>
 
 #include <memory>
 #include <atomic>
@@ -255,6 +256,136 @@ void ApplicationWorkflowTests::speakerMixPresetPersistsThroughTheProductionStore
         Automation::createAppOptionsPresetAutomationServices(&afterDeletion).speakerMixPresets();
     QVERIFY(std::none_of(remaining.cbegin(), remaining.cend(),
                          [&](const auto &preset) { return preset.id == saved->id; }));
+}
+
+void ApplicationWorkflowTests::publicSpeakerMixPresetsResolveAndPreserveAppliedVoices() {
+    prepareVoicebankTarget();
+    if (QTest::currentTestFailed())
+        return;
+    const auto singer = clip->singerInfo();
+    if (singer.speakers().size() < 2)
+        QSKIP("The configured voicebank needs two speakers for preset blending");
+    const auto first = singer.speakers().at(0).id();
+    const auto second = singer.speakers().at(1).id();
+    const QJsonObject singerRef{
+        {"package_id",      singer.packageId()                },
+        {"package_version", singer.packageVersion().toString()},
+        {"singer_id",       singer.singerId()                 }
+    };
+    const auto sources = [&](double weight) {
+        return QJsonArray{
+            QJsonObject{{"speaker", QJsonObject{{"speaker_id", first}}},  {"weight", weight}},
+            QJsonObject{{"speaker", QJsonObject{{"speaker_id", second}}},
+                        {"weight", 1.0 - weight}                                            }
+        };
+    };
+    Automation::AutomationAccessPolicy access(AutomationWire::ControlLevel::L2);
+    Automation::AutomationFileGuard fileGuard;
+    Automation::AdmissionController admission;
+    Automation::PublicAutomationRegistry registry(
+        runtime(), access, fileGuard, admission,
+        Automation::createPublicAutomationHostServices(runtime(), context->m_appModel,
+                                                       &SynthrtEngine::instance()));
+    const auto invoke = [&](const QString &name, const QJsonObject &arguments) {
+        return registry.invoke(name, arguments,
+                               {.clientId = QStringLiteral("voice-preset-client"),
+                                .source = Automation::InvocationSource::PublicJsonRpc});
+    };
+    const auto beforeCatalog = runtime().documentVersion();
+    QJsonObject preset{
+        {"name",    "Wire blend" },
+        {"singer",  singerRef    },
+        {"sources", sources(0.25)}
+    };
+    const auto saved = invoke(QStringLiteral("speaker_mix.presets.save"), {
+                                                                              {"preset", preset}
+    });
+    QVERIFY2(saved, qPrintable(saved ? QString() : saved.getError().message));
+    const auto id = saved.get().value("preset").toObject().value("preset_id").toString();
+    QVERIFY(!id.isEmpty());
+    const auto cleanup = qScopeGuard([&] {
+        if (SpeakerMixPresetStore::findPreset(id))
+            SpeakerMixPresetStore::deletePreset(id);
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    });
+    const auto listed =
+        invoke(QStringLiteral("speaker_mix.presets.list"), {
+                                                               {"singer", singerRef}
+    });
+    QVERIFY2(listed, qPrintable(listed ? QString() : listed.getError().message));
+    QJsonObject returned;
+    for (const auto value : listed.get().value("presets").toArray()) {
+        if (value.toObject().value("preset_id").toString() == id)
+            returned = value.toObject();
+    }
+    QCOMPARE(returned.value("name").toString(), QStringLiteral("Wire blend"));
+    const auto listedSources = returned.value("sources").toArray();
+    QCOMPARE(listedSources.size(), 2);
+    QCOMPARE(listedSources.first().toObject().value("weight").toDouble(), 0.25);
+    preset.insert(QStringLiteral("preset_id"), id);
+    preset.insert(QStringLiteral("name"), QStringLiteral("Updated wire blend"));
+    preset.insert(QStringLiteral("sources"), sources(0.7));
+    const auto updated =
+        invoke(QStringLiteral("speaker_mix.presets.save"), {
+                                                               {"preset", preset}
+    });
+    QVERIFY2(updated, qPrintable(updated ? QString() : updated.getError().message));
+    QCOMPARE(updated.get().value("preset").toObject().value("preset_id").toString(), id);
+    const auto stored = SpeakerMixPresetStore::findPreset(id);
+    QVERIFY(stored);
+    QCOMPARE(stored->name, QStringLiteral("Updated wire blend"));
+    QCOMPARE(stored->fixedWeights, QVector<double>{0.7});
+    QCOMPARE(runtime().documentVersion(), beforeCatalog);
+    historyManager->reset();
+    const Automation::SpeakerMixTargetDto target{Automation::SpeakerMixTargetKind::Clip,
+                                                 clip->id()};
+    const auto baseline = runtime().parameters().getSpeakerMix(beforeCatalog.documentId, target);
+    QVERIFY(baseline);
+    const auto apply = [&] {
+        const auto version = runtime().documentVersion();
+        return invoke(QStringLiteral("speaker_mix.presets.apply"),
+                      {
+                          {"document_id",       version.documentId.toString()                    },
+                          {"expected_revision", static_cast<qint64>(version.revision)            },
+                          {"preset_id",         id                                               },
+                          {"target",            QJsonObject{{"type", "clip"}, {"id", clip->id()}}}
+        });
+    };
+    const auto applied = apply();
+    QVERIFY2(applied, qPrintable(applied ? QString() : applied.getError().message));
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    const auto mix =
+        runtime().parameters().getSpeakerMix(runtime().documentVersion().documentId, target);
+    QVERIFY(mix);
+    QCOMPARE(mix.get().mix.mode, SpeakerMixModel::SingerSourceMode::FixedMix);
+    QCOMPARE(mix.get().mix.sources.size(), 2);
+    QCOMPARE(mix.get().mix.sources.first().speaker.id(), first);
+    QCOMPARE(mix.get().mix.sources.last().speaker.id(), second);
+    QCOMPARE(mix.get().mix.fixedWeights, QVector<double>{0.7});
+    QCOMPARE(mix.get().mix.sourcePresetId, id);
+    const auto appliedVersion = runtime().documentVersion();
+    const auto *undo = historyManager->nextUndoEntry();
+    const auto removed =
+        invoke(QStringLiteral("speaker_mix.presets.delete"), {
+                                                                 {"preset_id", id}
+    });
+    QVERIFY2(removed, qPrintable(removed ? QString() : removed.getError().message));
+    QVERIFY(!SpeakerMixPresetStore::findPreset(id));
+    const auto stale = apply();
+    QVERIFY(!stale);
+    QCOMPARE(stale.getError().code, Automation::AutomationErrorCode::NotFound);
+    QCOMPARE(runtime().documentVersion(), appliedVersion);
+    QCOMPARE(historyManager->nextUndoEntry(), undo);
+    const auto retained = runtime().parameters().getSpeakerMix(appliedVersion.documentId, target);
+    QVERIFY(retained);
+    QCOMPARE(retained.get().mix.fixedWeights, mix.get().mix.fixedWeights);
+    QVERIFY(runtime().history().undo(commandContext()));
+    const auto undone =
+        runtime().parameters().getSpeakerMix(runtime().documentVersion().documentId, target);
+    QVERIFY(undone);
+    QCOMPARE(undone.get().mix.mode, baseline.get().mix.mode);
+    QCOMPARE(undone.get().speaker.id(), baseline.get().speaker.id());
+    QVERIFY(!historyManager->canUndo());
 }
 
 void ApplicationWorkflowTests::lyricRulesUseTheProductionRuntimeAndPersistence() {

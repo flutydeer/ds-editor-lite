@@ -34,6 +34,7 @@ private slots:
     void changedTargetInputDropsResult_data();
 
     void speakerMixPresetPersistsThroughTheProductionStore();
+    void publicSpeakerMixPresetsResolveAndPreserveAppliedVoices();
 
     void lyricRulesUseTheProductionRuntimeAndPersistence();
 
