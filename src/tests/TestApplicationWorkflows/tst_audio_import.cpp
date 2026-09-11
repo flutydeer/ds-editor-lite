@@ -6,6 +6,7 @@
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
+#include <lite/Tasking/TaskManager.h>
 
 #include <TalcsFormat/AudioFormatIO.h>
 
@@ -39,12 +40,15 @@ namespace {
     }
 
     PublicAudioClipBatchItem audioItem(const TrackId trackId, const QString &path,
-                                      const QString &clientRef, const int start) {
-        return {.trackId = trackId,
-                .canonicalPath = path,
-                .properties = PublicAudioClipProperties{
-                    .name = clientRef, .start = start, .gain = 0.5, .mute = true},
-                .clientRef = clientRef};
+                                       const QString &clientRef, const int start) {
+        return {
+            .trackId = trackId,
+            .canonicalPath = path,
+            .properties =
+                PublicAudioClipProperties{
+                                          .name = clientRef, .start = start, .gain = 0.5, .mute = true},
+            .clientRef = clientRef
+        };
     }
 }
 
@@ -72,10 +76,11 @@ void ApplicationWorkflowTests::audioBatchFailurePolicy() {
         .command = commandContext(),
         .items = {audioItem(trackId, validPath, QStringLiteral("valid-audio"), 480),
                   audioItem(trackId, invalidPath, QStringLiteral("invalid-audio"), 960)},
-        .failurePolicy = bestEffort ? PublicBatchFailurePolicy::BestEffort
-                                   : PublicBatchFailurePolicy::Atomic};
-    const auto services = createPublicAutomationHostServices(
-        runtime(), context->m_appModel, &SynthrtEngine::instance());
+        .failurePolicy =
+            bestEffort ? PublicBatchFailurePolicy::BestEffort : PublicBatchFailurePolicy::Atomic
+    };
+    const auto services = createPublicAutomationHostServices(runtime(), context->m_appModel,
+                                                             &SynthrtEngine::instance());
     const auto accepted = services.importAudioClips(request);
     QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
     QTRY_VERIFY_WITH_TIMEOUT(terminal(runtime(), accepted.get()), 10000);
@@ -136,10 +141,11 @@ void ApplicationWorkflowTests::audioBatchCancellationReleasesRetry() {
     PublicAudioClipBatchImportRequest request{
         .command = commandContext(),
         .items = {audioItem(trackId, path, QStringLiteral("first-copy"), 480),
-                  audioItem(trackId, path, QStringLiteral("second-copy"), 960)}};
+                  audioItem(trackId, path, QStringLiteral("second-copy"), 960)}
+    };
     request.command.idempotencyKey = QStringLiteral("cancel-and-retry-audio-batch");
-    const auto services = createPublicAutomationHostServices(
-        runtime(), context->m_appModel, &SynthrtEngine::instance());
+    const auto services = createPublicAutomationHostServices(runtime(), context->m_appModel,
+                                                             &SynthrtEngine::instance());
     const auto accepted = services.importAudioClips(request);
     QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
     // Completion reaches the document through queued connections; cancel before dispatching them.
@@ -167,4 +173,109 @@ void ApplicationWorkflowTests::audioBatchCancellationReleasesRetry() {
     QVERIFY(runtime().history().undo(commandContext()));
     QCOMPARE(context->m_appModel->tracks().first()->clips().count(), beforeClips);
     QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
+}
+
+void ApplicationWorkflowTests::audioBatchValidationDoesNotStartTasks_data() {
+    QTest::addColumn<bool>("bestEffort");
+    QTest::addColumn<bool>("includeValid");
+    QTest::addColumn<bool>("includeMissing");
+    QTest::newRow("valid-batch") << false << true << false;
+    QTest::newRow("atomic-missing-file") << false << true << true;
+    QTest::newRow("best-effort-keeps-valid-file") << true << true << true;
+    QTest::newRow("best-effort-has-no-valid-file") << true << false << true;
+}
+
+void ApplicationWorkflowTests::audioBatchValidationDoesNotStartTasks() {
+    QFETCH(bool, bestEffort);
+    QFETCH(bool, includeValid);
+    QFETCH(bool, includeMissing);
+    QTemporaryDir files;
+    QVERIFY(files.isValid());
+    const auto path = files.filePath(QStringLiteral("phrase.wav"));
+    QVERIFY(writeAudio(path));
+    const auto before = runtime().documentVersion();
+    const auto beforeModel = context->m_appModel->serialize();
+    const auto *beforeUndo = HistoryManager::instance()->nextUndoEntry();
+    PublicAudioClipBatchImportRequest request{.command = commandContext(),
+                                              .failurePolicy =
+                                                  bestEffort ? PublicBatchFailurePolicy::BestEffort
+                                                             : PublicBatchFailurePolicy::Atomic};
+    request.command.validateOnly = true;
+    if (includeValid)
+        request.items.append(audioItem(trackId, path, QStringLiteral("valid"), 480));
+    if (includeMissing)
+        request.items.append(audioItem(trackId, files.filePath(QStringLiteral("missing.wav")),
+                                       QStringLiteral("missing"), 960));
+    QObject observations;
+    int started = 0;
+    connect(taskManager, &TaskManager::taskChanged, &observations,
+            [&](TaskManager::TaskChangeType change, Task *, qsizetype) {
+                if (change == TaskManager::Added)
+                    ++started;
+            });
+    const auto services = createPublicAutomationHostServices(runtime(), context->m_appModel,
+                                                             &SynthrtEngine::instance());
+    const auto result = services.importAudioClips(request);
+    if (includeValid && (!includeMissing || bestEffort)) {
+        QVERIFY2(result, qPrintable(result ? QString{} : result.getError().message));
+        QVERIFY(result.get().validatedOnly);
+        QVERIFY(result.get().taskId.isNull());
+        QCOMPARE(result.get().document, before);
+    } else {
+        QVERIFY(!result);
+        QCOMPARE(result.getError().code,
+                 bestEffort ? AutomationErrorCode::InvalidArgument : AutomationErrorCode::IoError);
+        QCOMPARE(result.getError().fieldPath,
+                 bestEffort ? QStringLiteral("path") : QStringLiteral("items[1].path"));
+    }
+    QCoreApplication::processEvents();
+    QCOMPARE(started, 0);
+    QCOMPARE(runtime().documentVersion(), before);
+    QCOMPARE(context->m_appModel->serialize(), beforeModel);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
+}
+
+void ApplicationWorkflowTests::audioBatchRejectsChangesBeforeCommit_data() {
+    QTest::addColumn<bool>("replaceDocument");
+    QTest::newRow("target-track-removed") << false;
+    QTest::newRow("document-replaced") << true;
+}
+
+void ApplicationWorkflowTests::audioBatchRejectsChangesBeforeCommit() {
+    QFETCH(bool, replaceDocument);
+    QTemporaryDir files;
+    QVERIFY(files.isValid());
+    const auto path = files.filePath(QStringLiteral("phrase.wav"));
+    QVERIFY(writeAudio(path));
+    const auto before = runtime().documentVersion();
+    PublicAudioClipBatchImportRequest request{
+        .command = commandContext(),
+        .items = {audioItem(trackId, path, QStringLiteral("pending"), 480)}};
+    const auto services = createPublicAutomationHostServices(runtime(), context->m_appModel,
+                                                             &SynthrtEngine::instance());
+    const auto accepted = services.importAudioClips(request);
+    QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
+    // Worker results are queued to this thread; change the target before they are delivered.
+    if (replaceDocument) {
+        QVERIFY(runtime().documents().commitNewDocument(
+            commandContext(), DocumentAutomationFacade::newDocumentDraft(false)));
+    } else {
+        QVERIFY(runtime().project().removeTracks(commandContext(), {trackId}));
+    }
+    const auto afterChange = runtime().documentVersion();
+    const auto afterModel = context->m_appModel->serialize();
+    const auto *afterUndo = HistoryManager::instance()->nextUndoEntry();
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    if (!replaceDocument) {
+        QTRY_VERIFY_WITH_TIMEOUT(terminal(runtime(), accepted.get()), 10000);
+        const auto completed = runtime().tasks().getTask(before.documentId, accepted.get().taskId);
+        QVERIFY(completed && completed.get().error);
+        QCOMPARE(completed.get().state, AutomationTaskState::Failed);
+        QCOMPARE(completed.get().error->code, AutomationErrorCode::IoError);
+        QVERIFY(completed.get().error->message.contains(QStringLiteral("Target track")));
+        QVERIFY(!completed.get().mutation);
+    }
+    QCOMPARE(runtime().documentVersion(), afterChange);
+    QCOMPARE(context->m_appModel->serialize(), afterModel);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), afterUndo);
 }

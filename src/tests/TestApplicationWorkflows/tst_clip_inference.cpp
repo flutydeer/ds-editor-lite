@@ -11,6 +11,7 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Inference/Tasks/InferAcousticTask.h"
+#include "Automation/Public/PublicAutomationHostAdapter.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/PackageManager/PackageManager.h>
@@ -20,6 +21,7 @@
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include <lite/Tasking/TaskManager.h>
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 #include <TalcsCore/AudioBuffer.h>
 #include <TalcsCore/MixerAudioSource.h>
 #include <TalcsCore/TransportAudioSource.h>
@@ -83,6 +85,80 @@ void ApplicationWorkflowTests::prepareVoicebankTarget() {
     QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(clip), 15000);
     QCOMPARE(clip->pieces().size(), 1);
     piece = clip->pieces().first();
+}
+
+void ApplicationWorkflowTests::acousticCacheWriteFailureCanBeRetried() {
+    using namespace Automation;
+    QTemporaryDir materials;
+    QVERIFY(materials.isValid());
+    const auto previousCache = appOptions->inference()->cacheDirectory;
+    appOptions->inference()->cacheDirectory = materials.filePath(QStringLiteral("preparation"));
+    TaskId taskId;
+    const auto cleanup = qScopeGuard([&] {
+        if (!taskId.isNull())
+            runtime().automationTasks().requestCancel(runtime().documentVersion().documentId,
+                                                      taskId);
+        if (piece)
+            inferController->cancelPieceInference(piece->id());
+        QThreadPool::globalInstance()->waitForDone();
+        QCoreApplication::processEvents();
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        appOptions->inference()->cacheDirectory = previousCache;
+        if (QTest::currentTestFailed())
+            materials.setAutoRemove(false);
+    });
+    prepareVoicebankTarget();
+    if (QTest::currentTestFailed())
+        return;
+    const QPointer<InferPiece> target(piece);
+    QCOMPARE(target->state.get(), QStringLiteral("Acoustic.Awaiting"));
+    const auto beforeNote = note->serialize();
+    const auto *beforeUndo = historyManager->nextUndoEntry();
+    const auto blockedCache = materials.filePath(QStringLiteral("blocked-cache"));
+    QFile blocker(blockedCache);
+    QVERIFY(blocker.open(QIODevice::WriteOnly));
+    QCOMPARE(blocker.write("unavailable cache directory"), qint64{27});
+    blocker.close();
+    appOptions->inference()->cacheDirectory = blockedCache;
+    const auto services = createPublicAutomationHostServices(runtime(), context->m_appModel,
+                                                             &SynthrtEngine::instance());
+    PublicInferenceStartRequest request{
+        .command = commandContext(),
+        .scope = {{QStringLiteral("kind"), QStringLiteral("clip")},
+                  {QStringLiteral("clip_ids"), QJsonArray{clip->id()}}},
+        .stages = {QStringLiteral("acoustic")}
+    };
+    const auto accepted = services.startInference(request);
+    QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
+    taskId = accepted.get().taskId;
+    const auto currentTask = [&] {
+        return runtime().tasks().getTask(runtime().documentVersion().documentId, taskId);
+    };
+    QTRY_VERIFY_WITH_TIMEOUT(
+        currentTask() && currentTask().get().state == AutomationTaskState::Failed, 15000);
+    QVERIFY(currentTask().get().error);
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    QVERIFY(target);
+    QCOMPARE(target->state.get(), QStringLiteral("Acoustic.Error"));
+    QVERIFY(target->audioPath.isEmpty());
+    QCOMPARE(note->serialize(), beforeNote);
+    QCOMPARE(historyManager->nextUndoEntry(), beforeUndo);
+
+    QVERIFY(QFile::remove(blockedCache));
+    QVERIFY(QDir().mkpath(blockedCache));
+    request.command = commandContext();
+    const auto retried = services.startInference(request);
+    QVERIFY2(retried, qPrintable(retried ? QString{} : retried.getError().message));
+    QVERIFY(retried.get().taskId != taskId);
+    taskId = retried.get().taskId;
+    QTRY_VERIFY_WITH_TIMEOUT(
+        currentTask() && currentTask().get().state == AutomationTaskState::Succeeded, 15000);
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    QVERIFY(target);
+    QCOMPARE(target->state.get(), QStringLiteral("Ready"));
+    QVERIFY(QFileInfo(target->audioPath).isFile());
+    QCOMPARE(note->serialize(), beforeNote);
+    QCOMPARE(historyManager->nextUndoEntry(), beforeUndo);
 }
 
 void ApplicationWorkflowTests::editingParametersRestartsOnlyDependentInference_data() {
@@ -529,8 +605,8 @@ void ApplicationWorkflowTests::clipInferenceResultsRespectEditSession() {
     auto document = Automation::DocumentAutomationFacade::newDocumentDraft(false);
     document.tracks = {draftTrack};
     QVERIFY(runtime().documents().commitNewDocument(commandContext(), document));
-    const QPointer<SingingClip> targetClip = dynamic_cast<SingingClip *>(
-        *context->m_appModel->tracks().first()->clips().begin());
+    const QPointer<SingingClip> targetClip =
+        dynamic_cast<SingingClip *>(*context->m_appModel->tracks().first()->clips().begin());
     QVERIFY(targetClip);
     const QPointer<Note> targetNote = *targetClip->notes().begin();
     QVERIFY(targetNote);
@@ -551,42 +627,43 @@ void ApplicationWorkflowTests::clipInferenceResultsRespectEditSession() {
     Automation::DocumentVersion stageBase;
     const ActionSequence *stageUndo = nullptr;
     QObject observations;
-    const auto finishSession = qScopeGuard([] {
-        editSessionManager->endActiveTransaction(EditSessionEndReason::Cancel);
-    });
+    const auto finishSession =
+        qScopeGuard([] { editSessionManager->endActiveTransaction(EditSessionEndReason::Cancel); });
     connect(taskManager, &TaskManager::taskChanged, &observations,
             [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
-        auto *pronunciation = qobject_cast<GetPronunciationTask *>(task);
-        auto *phonemes = qobject_cast<GetPhonemeNameTask *>(task);
-        const bool selected = phonemeStage ? phonemes && phonemes->clipId() == targetClipId
-                                          : pronunciation &&
-                                                pronunciation->clipId() == targetClipId;
-        if (!selected)
-            return;
-        if (change == TaskManager::Added && observedTaskId < 0) {
-            observedTaskId = task->id();
-            stageBase = runtime().documentVersion();
-            stageUndo = HistoryManager::instance()->nextUndoEntry();
-            // TaskManager announces the task before its worker starts.
-            editSessionId = editSessionManager->beginTransaction(
-                phonemeStage ? AppStatus::EditObjectType::Phoneme
-                             : AppStatus::EditObjectType::Note,
-                targetClipId, {}, {targetNoteId});
-        } else if (change == TaskManager::Removed && task->id() == observedTaskId) {
-            // The controller has resolved and stored the completed result before queue removal.
-            resultReceived = true;
-            if (phonemeStage) {
-                validResult = !task->terminated() && phonemes->success() &&
-                              phonemes->result.size() == 1 && phonemes->result.first().success;
-                if (validResult)
-                    expectedPhonemes = phonemes->result.first().phonemeNames;
-            } else {
-                validResult = !task->terminated() && pronunciation->result.size() == 1;
-                if (validResult)
-                    expectedPronunciation = pronunciation->result.first().pronunciation;
-            }
-        }
-    });
+                auto *pronunciation = qobject_cast<GetPronunciationTask *>(task);
+                auto *phonemes = qobject_cast<GetPhonemeNameTask *>(task);
+                const bool selected =
+                    phonemeStage ? phonemes && phonemes->clipId() == targetClipId
+                                 : pronunciation && pronunciation->clipId() == targetClipId;
+                if (!selected)
+                    return;
+                if (change == TaskManager::Added && observedTaskId < 0) {
+                    observedTaskId = task->id();
+                    stageBase = runtime().documentVersion();
+                    stageUndo = HistoryManager::instance()->nextUndoEntry();
+                    // TaskManager announces the task before its worker starts.
+                    editSessionId = editSessionManager->beginTransaction(
+                        phonemeStage ? AppStatus::EditObjectType::Phoneme
+                                     : AppStatus::EditObjectType::Note,
+                        targetClipId, {}, {targetNoteId});
+                } else if (change == TaskManager::Removed && task->id() == observedTaskId) {
+                    // The controller has resolved and stored the completed result before queue
+                    // removal.
+                    resultReceived = true;
+                    if (phonemeStage) {
+                        validResult = !task->terminated() && phonemes->success() &&
+                                      phonemes->result.size() == 1 &&
+                                      phonemes->result.first().success;
+                        if (validResult)
+                            expectedPhonemes = phonemes->result.first().phonemeNames;
+                    } else {
+                        validResult = !task->terminated() && pronunciation->result.size() == 1;
+                        if (validResult)
+                            expectedPronunciation = pronunciation->result.first().pronunciation;
+                    }
+                }
+            });
     QVERIFY(runtime().parameters().selectClipSingleSpeaker(
         commandContext(), Automation::ClipId(targetClipId), singer, singer.speakers().first()));
     QTRY_VERIFY_WITH_TIMEOUT(resultReceived, 15000);
@@ -615,9 +692,10 @@ void ApplicationWorkflowTests::clipInferenceResultsRespectEditSession() {
             !targetClip->pieces().isEmpty() &&
                 std::all_of(targetClip->pieces().cbegin(), targetClip->pieces().cend(),
                             [](const InferPiece *piece) {
-                    return piece->state == QStringLiteral("Acoustic.Awaiting") ||
-                           piece->state == QStringLiteral("Ready");
-                }) && taskManager->tasks().isEmpty(),
+                                return piece->state == QStringLiteral("Acoustic.Awaiting") ||
+                                       piece->state == QStringLiteral("Ready");
+                            }) &&
+                taskManager->tasks().isEmpty(),
             15000);
         QVERIFY(runtime().documentVersion().revision > stageBase.revision);
         QCOMPARE(HistoryManager::instance()->nextUndoEntry(), stageUndo);
@@ -631,8 +709,8 @@ void ApplicationWorkflowTests::clipInferenceResultsRespectEditSession() {
         QVERIFY(!targetClip);
         QVERIFY(!targetNote);
     } else {
-        QVERIFY(runtime().project().removeClips(commandContext(),
-                                                {Automation::ClipId(targetClipId)}));
+        QVERIFY(
+            runtime().project().removeClips(commandContext(), {Automation::ClipId(targetClipId)}));
         QVERIFY(!context->m_appModel->findClipById(targetClipId));
         editSessionManager->endTransaction(editSessionId, EditSessionEndReason::Commit);
     }

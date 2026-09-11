@@ -52,6 +52,11 @@ private slots:
     void audioBatchFailurePolicy();
 
     void audioBatchCancellationReleasesRetry();
+    void audioBatchValidationDoesNotStartTasks_data();
+    void audioBatchValidationDoesNotStartTasks();
+    void audioBatchRejectsChangesBeforeCommit_data();
+    void audioBatchRejectsChangesBeforeCommit();
+    void acousticCacheWriteFailureCanBeRetried();
     void publicAudioPathUpdatesPrepareCommitAndUndo();
 
     void clipInferenceResultsRespectEditSession_data();

@@ -115,6 +115,8 @@ private slots:
     void logWindowFiltersLiveMessagesAndCopiesDisplayedOrder();
     void newDocumentHonorsTheSaveDecision_data();
     void newDocumentHonorsTheSaveDecision();
+    void pendingProjectLoadCanCancelOrRequestExit_data();
+    void pendingProjectLoadCanCancelOrRequestExit();
     void taggerRuleInputsApplyPersistAndReopen();
     void invalidTaggerRegexPreservesAppliedRules();
     void movingLyricsBackwardUsesTheSelectedWordRange_data();

@@ -35,6 +35,10 @@ private slots:
     void unlinkingAudioSourcePreservesOpenDecodeUntilReload();
     void decodeCompletionWaitsForTheSaveDecision_data();
     void decodeCompletionWaitsForTheSaveDecision();
+    void decodeBackendFailurePreservesTheDocumentAndAllowsReopen_data();
+    void decodeBackendFailurePreservesTheDocumentAndAllowsReopen();
+    void removingAudioTargetsCancelsPendingDecode_data();
+    void removingAudioTargetsCancelsPendingDecode();
     void decodedWaveformRetainsPeaks_data();
     void decodedWaveformRetainsPeaks();
     void waveformSamplingFollowsZoom_data();

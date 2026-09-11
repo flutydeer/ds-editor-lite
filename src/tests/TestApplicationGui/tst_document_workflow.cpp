@@ -4,18 +4,25 @@
 #include "Automation/CoreRuntime.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/DocumentWorkflow/IDocumentWorkflowUi.h"
+#include "Controller/Tasks/OpenDspxProjectTask.h"
+#include "UI/Dialogs/Base/ProgressDialog.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectConverters/DspxProjectConverter.h>
 #include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/Tasking/TaskManager.h>
 
 #include <QDir>
 #include <QFileInfo>
 #include <QScopeGuard>
 #include <QSignalSpy>
+#include <QAbstractButton>
+#include <QPointer>
+#include <QSemaphore>
 #include <QtTest>
 
 #include <functional>
+#include <atomic>
 
 namespace {
     class SavePrompt final : public IDocumentWorkflowUi {
@@ -137,4 +144,143 @@ void ApplicationGuiTests::newDocumentHonorsTheSaveDecision() {
         QCOMPARE(saved.tracks().first()->name(), track.name);
         QVERIFY(documentWorkflowController->recentProjectFiles().contains(prompt.savePath));
     }
+}
+
+void ApplicationGuiTests::pendingProjectLoadCanCancelOrRequestExit_data() {
+    QTest::addColumn<QString>("action");
+    QTest::newRow("cancel-progress-dialog") << QStringLiteral("cancel");
+    QTest::newRow("cancel-exit-after-stopping-load") << QStringLiteral("exit-cancel");
+    QTest::newRow("approve-exit-after-stopping-load") << QStringLiteral("exit-discard");
+    QTest::newRow("revalidate-after-an-intervening-edit") << QStringLiteral("edit");
+}
+
+void ApplicationGuiTests::pendingProjectLoadCanCancelOrRequestExit() {
+    QFETCH(QString, action);
+    auto &runtime = *context->m_coreRuntime;
+    Automation::TrackDraftDto draft;
+    draft.name = QStringLiteral("Unsaved original");
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, draft));
+    const auto before = runtime.documentVersion();
+    const auto beforeModel = context->m_appModel->serialize();
+    const auto *beforeUndo = historyManager->nextUndoEntry();
+    auto expectedVersion = before;
+    auto expectedModel = beforeModel;
+    const auto *expectedUndo = beforeUndo;
+
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto path = directory.filePath(QStringLiteral("pending.dspx"));
+    AppModel imported;
+    auto *track = new Track;
+    track->setName(QStringLiteral("Loaded document"));
+    QVERIFY(imported.appendTrack(track));
+    DspxProjectConverter converter;
+    QString error;
+    QVERIFY2(converter.save(path, &imported, error), qPrintable(error));
+
+    SavePrompt prompt;
+    prompt.decisions = {SaveDecision::Discard, action == QStringLiteral("exit-discard")
+                                                   ? SaveDecision::Discard
+                                                   : SaveDecision::Cancel};
+    auto *workflow = documentWorkflowController;
+    workflow->setUi(&prompt);
+    QSemaphore entered;
+    QSemaphore release;
+    std::atomic_bool paused = false;
+    QPointer<OpenDspxProjectTask> loading;
+    QObject observations;
+    connect(taskManager, &TaskManager::taskChanged, &observations,
+            [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
+                auto *candidate = dynamic_cast<OpenDspxProjectTask *>(task);
+                if (change != TaskManager::Added || !candidate || candidate->filePath() != path)
+                    return;
+                loading = candidate;
+                connect(
+                    candidate, &Task::statusUpdated, &observations,
+                    [&](const TaskStatus &) {
+                        if (!paused.exchange(true)) {
+                            entered.release();
+                            release.acquire();
+                        }
+                    },
+                    Qt::DirectConnection);
+            });
+    const auto cleanup = qScopeGuard([&] {
+        release.release();
+        workflow->cancelCurrentOperation();
+        const auto finished = QTest::qWaitFor([&] { return !loading && !workflow->busy(); }, 10000);
+        QTest::qVerify(finished, "load released", "finish the pending project worker", __FILE__,
+                       __LINE__);
+        workflow->setUi(nullptr);
+        if (QTest::currentTestFailed())
+            directory.setAutoRemove(false);
+    });
+    QSignalSpy approved(workflow, &DocumentWorkflowController::terminationApproved);
+    QSignalSpy revalidated(workflow, &DocumentWorkflowController::commitRevalidationRequired);
+    workflow->requestOpen(path);
+    QTRY_COMPARE(entered.available(), 1);
+    QVERIFY(loading);
+    QVERIFY(workflow->busy());
+    QCOMPARE(prompt.decisionCalls, 1);
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(approved.isEmpty());
+
+    if (action == QStringLiteral("cancel")) {
+        QPointer<ProgressDialog> progress;
+        QTRY_VERIFY(([&] {
+            for (auto *window : QApplication::topLevelWidgets()) {
+                if (auto *dialog = qobject_cast<ProgressDialog *>(window);
+                    dialog && dialog->isVisible()) {
+                    progress = dialog;
+                    return true;
+                }
+            }
+            return false;
+        })());
+        QAbstractButton *cancel = nullptr;
+        for (auto *button : progress->findChildren<QAbstractButton *>()) {
+            if (button->text() == ProgressDialog::tr("Cancel"))
+                cancel = button;
+        }
+        QVERIFY(cancel && cancel->isEnabled());
+        QTest::mouseClick(cancel, Qt::LeftButton);
+        QTRY_VERIFY(progress.isNull());
+    } else if (action == QStringLiteral("edit")) {
+        QVERIFY(runtime.project().renameTrack(
+            commandContext(), Automation::TrackId(context->m_appModel->tracks().first()->id()),
+            QStringLiteral("Edit made while loading")));
+        expectedVersion = runtime.documentVersion();
+        expectedModel = context->m_appModel->serialize();
+        expectedUndo = historyManager->nextUndoEntry();
+        release.release();
+    } else {
+        QCOMPARE(
+            workflow->requestTermination(TerminationMode::Exit, TerminationSavePolicy::Discard),
+            TerminationRequestResult::Busy);
+        QCOMPARE(workflow->requestTermination(TerminationMode::Exit),
+                 TerminationRequestResult::Accepted);
+    }
+    QTRY_VERIFY(!workflow->busy());
+    QCOMPARE(approved.count(), action == QStringLiteral("exit-discard") ? 1 : 0);
+    QCOMPARE(revalidated.count(), action == QStringLiteral("edit") ? 1 : 0);
+    if (!approved.isEmpty())
+        QCOMPARE(approved.first().first().value<TerminationMode>(), TerminationMode::Exit);
+    QCOMPARE(prompt.decisionCalls, action == QStringLiteral("cancel") ? 1 : 2);
+    QVERIFY(prompt.errors.isEmpty());
+    QCOMPARE(runtime.documentVersion(), expectedVersion);
+    QCOMPARE(context->m_appModel->serialize(), expectedModel);
+    QCOMPARE(historyManager->nextUndoEntry(), expectedUndo);
+    QVERIFY(!historyManager->isOnSavePoint());
+    release.release();
+    QTRY_VERIFY(!loading);
+
+    prompt.decisions = {SaveDecision::Discard};
+    workflow->requestOpen(path);
+    QTRY_VERIFY(!workflow->busy());
+    QVERIFY(prompt.errors.isEmpty());
+    QVERIFY(runtime.documentVersion().documentId != before.documentId);
+    QCOMPARE(workflow->projectPath(), path);
+    QCOMPARE(context->m_appModel->tracks().first()->name(), QStringLiteral("Loaded document"));
+    QVERIFY(historyManager->isOnSavePoint());
+    QVERIFY(!historyManager->canUndo());
 }

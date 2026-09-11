@@ -33,6 +33,7 @@
 #include <TalcsDevice/AbstractOutputContext.h>
 #include <TalcsDevice/AudioDevice.h>
 #include <TalcsCore/MixerAudioSource.h>
+#include <TalcsFormat/AudioFormatIO.h>
 
 #include <algorithm>
 #include <atomic>
@@ -46,6 +47,13 @@ namespace {
 
 namespace {
     using namespace Automation;
+
+    class UnavailableAudioBackend final : public talcs::AudioFormatIO {
+    public:
+        bool open(OpenMode) override {
+            return false;
+        }
+    };
 
     bool expect(const bool condition, const char *message) {
         return QTest::qVerify(condition, "task completion", message, __FILE__, __LINE__);
@@ -434,6 +442,148 @@ void AudioAssetsTests::unlinkingAudioSourcePreservesOpenDecodeUntilReload() {
     QCOMPARE(fixture.firstAudioClip()->pathStatus(), AudioClip::PathStatus::Missing);
     QVERIFY(fixture.firstAudioClip()->audioInfo().peakCache.isEmpty());
     QVERIFY(fixture.history()->isOnSavePoint());
+    QVERIFY(!fixture.history()->canUndo());
+}
+
+void AudioAssetsTests::decodeBackendFailurePreservesTheDocumentAndAllowsReopen_data() {
+    QTest::addColumn<bool>("removeSource");
+    QTest::newRow("decoder-unavailable") << false;
+    QTest::newRow("file-disappeared-before-decode") << true;
+}
+
+void AudioAssetsTests::decodeBackendFailurePreservesTheDocumentAndAllowsReopen() {
+    QFETCH(bool, removeSource);
+    Fixture fixture;
+    QVERIFY(fixture.directory.isValid());
+    const auto path = fixture.directory.filePath(QStringLiteral("unavailable-backend.wav"));
+    QVERIFY(TestSupport::writeWave(path, QVector<float>(4800, 0.25f)));
+    TaskId taskId;
+    QPointer<DecodeAudioTask> decoding;
+    bool removed = false;
+    QObject observations;
+    connect(taskManager, &TaskManager::taskChanged, &observations,
+            [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
+                auto *candidate = dynamic_cast<DecodeAudioTask *>(task);
+                if (change != TaskManager::Added || !candidate || !taskId.isNull())
+                    return;
+                taskId = candidate->automationTaskId;
+                decoding = candidate;
+                delete candidate->io;
+                candidate->io = new UnavailableAudioBackend;
+                if (removeSource)
+                    removed = QFile::remove(path);
+            });
+    QVERIFY(fixture.openDocument(missingAudioDocument(path), InvocationSource::InternalAutomation));
+    const auto before = fixture.runtime().documentVersion();
+    QVERIFY(drainTasks());
+    QVERIFY(!taskId.isNull() && !decoding);
+#ifdef Q_OS_WIN
+    if (removeSource && !removed)
+        QSKIP("The Windows audio source holds the file without delete sharing");
+#endif
+    QVERIFY(!removeSource || removed);
+    const auto failed = fixture.runtime().tasks().getTask(before.documentId, taskId);
+    QVERIFY(failed && failed.get().error);
+    QCOMPARE(failed.get().state, AutomationTaskState::Failed);
+    QCOMPARE(failed.get().error->code,
+             removeSource ? AutomationErrorCode::FileNotFound : AutomationErrorCode::IoError);
+    auto *clip = fixture.firstAudioClip();
+    QVERIFY(clip);
+    QCOMPARE(clip->path(), path);
+    QCOMPARE(clip->pathStatus(),
+             removeSource ? AudioClip::PathStatus::Missing : AudioClip::PathStatus::Normal);
+    QVERIFY(clip->audioInfo().peakCache.isEmpty());
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QVERIFY(fixture.history()->isOnSavePoint());
+    QVERIFY(!fixture.history()->canUndo());
+
+    if (removeSource)
+        QVERIFY(TestSupport::writeWave(path, QVector<float>(4800, 0.25f)));
+    QVERIFY(fixture.openDocument(missingAudioDocument(path), InvocationSource::InternalAutomation));
+    QVERIFY(drainTasks());
+    QVERIFY(fixture.runtime().documentVersion().documentId != before.documentId);
+    clip = fixture.firstAudioClip();
+    QVERIFY(clip);
+    QCOMPARE(clip->pathStatus(), AudioClip::PathStatus::Normal);
+    QCOMPARE(clip->audioInfo().frames, 4800);
+    QVERIFY(!clip->audioInfo().peakCache.isEmpty());
+    QVERIFY(fixture.history()->isOnSavePoint());
+    QVERIFY(!fixture.history()->canUndo());
+}
+
+void AudioAssetsTests::removingAudioTargetsCancelsPendingDecode_data() {
+    QTest::addColumn<bool>("removeTrack");
+    QTest::newRow("remove-clip") << false;
+    QTest::newRow("remove-track") << true;
+}
+
+void AudioAssetsTests::removingAudioTargetsCancelsPendingDecode() {
+    QFETCH(bool, removeTrack);
+    Fixture fixture;
+    QVERIFY(fixture.directory.isValid());
+    const auto path = fixture.directory.filePath(QStringLiteral("pending.wav"));
+    QVERIFY(TestSupport::writeWave(path, QVector<float>(4800, 0.25f)));
+    QSemaphore entered;
+    QSemaphore release;
+    std::atomic_bool paused = false;
+    TaskId taskId;
+    QPointer<DecodeAudioTask> decoding;
+    QObject observations;
+    connect(taskManager, &TaskManager::taskChanged, &observations,
+            [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
+                auto *candidate = dynamic_cast<DecodeAudioTask *>(task);
+                if (change != TaskManager::Added || !candidate || !taskId.isNull())
+                    return;
+                taskId = candidate->automationTaskId;
+                decoding = candidate;
+                connect(
+                    candidate, &Task::statusUpdated, &observations,
+                    [&](const TaskStatus &) {
+                        if (!paused.exchange(true)) {
+                            entered.release();
+                            release.acquire();
+                        }
+                    },
+                    Qt::DirectConnection);
+            });
+    const auto finishWorker = qScopeGuard([&] {
+        if (decoding)
+            decoding->terminate();
+        release.release();
+        const bool finished = QTest::qWaitFor([&] { return !decoding; }, 10000);
+        QTest::qVerify(finished, "decode finished", "release the paused decoder", __FILE__,
+                       __LINE__);
+    });
+    QVERIFY(fixture.openDocument(missingAudioDocument(path), InvocationSource::InternalAutomation));
+    QTRY_COMPARE(entered.available(), 1);
+    QVERIFY(decoding);
+    const auto base = fixture.runtime().documentVersion();
+    const ClipId clipId(fixture.firstAudioClip()->id());
+    const TrackId trackId(fixture.model().tracks().first()->id());
+    auto command = fixture.command(InvocationSource::TrustedGui);
+    if (removeTrack)
+        QVERIFY(fixture.runtime().project().removeTracks(command, {trackId}));
+    else
+        QVERIFY(fixture.runtime().project().removeClips(command, {clipId}));
+    const auto afterRemoval = fixture.runtime().documentVersion();
+    const auto afterModel = fixture.model().serialize();
+    const auto *afterUndo = fixture.history()->nextUndoEntry();
+    QCOMPARE(afterRemoval.revision, base.revision + 1);
+    release.release();
+    QVERIFY(drainTasks());
+    QTRY_VERIFY(!decoding);
+    const auto canceled = fixture.runtime().tasks().getTask(base.documentId, taskId);
+    QVERIFY(canceled);
+    QCOMPARE(canceled.get().state, AutomationTaskState::Canceled);
+    QCOMPARE(fixture.runtime().documentVersion(), afterRemoval);
+    QCOMPARE(fixture.model().serialize(), afterModel);
+    QCOMPARE(fixture.history()->nextUndoEntry(), afterUndo);
+    QVERIFY(fixture.runtime().history().undo(fixture.command(InvocationSource::TrustedGui)));
+    QVERIFY(drainTasks());
+    auto *restored = fixture.firstAudioClip();
+    QVERIFY(restored && restored->id() == clipId.value());
+    QCOMPARE(restored->pathStatus(), AudioClip::PathStatus::Normal);
+    QVERIFY(!restored->audioInfo().peakCache.isEmpty());
     QVERIFY(!fixture.history()->canUndo());
 }
 
