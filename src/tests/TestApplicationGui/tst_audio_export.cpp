@@ -31,6 +31,8 @@
 #include <QSignalSpy>
 #include <QTimer>
 #include <QGroupBox>
+#include <QInputDialog>
+#include <QMessageBox>
 #include <QtTest/QTest>
 
 #include <sndfile.h>
@@ -226,6 +228,101 @@ void ApplicationGuiTests::exportSourcesAndMixingUpdateFilePlan() {
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(QDir(output.path()).entryList(QDir::AllEntries | QDir::NoDotAndDotDot).isEmpty());
+}
+
+void ApplicationGuiTests::exportPresetDialogsSaveOverwriteAndDeleteTheSelectedPreset() {
+    createExportTracks();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    const auto settings = runtime.settings().getSettings();
+    QVERIFY(settings);
+    const auto nativeDialogsDisabled = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
+    QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+    const auto restore = qScopeGuard([&] {
+        QVERIFY(runtime.settings().updateAudio({}, settings.get().audio));
+        QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDialogsDisabled);
+    });
+    const auto before = runtime.documentVersion();
+    AudioExportDialog dialog;
+    ExportControls controls(dialog);
+    QVERIFY(controls.valid());
+    auto *save = exportButton(&dialog, AudioExportDialog::tr("Save &As..."));
+    auto *remove = exportButton(&dialog, AudioExportDialog::tr("&Delete"));
+    QComboBox *presets = nullptr;
+    for (auto *label : dialog.findChildren<QLabel *>()) {
+        if (label->text() == AudioExportDialog::tr("&Preset"))
+            presets = qobject_cast<QComboBox *>(label->buddy());
+    }
+    QVERIFY(save && remove && presets);
+    QSignalSpy started(&dialog, &AudioExportDialog::exportStarted);
+    dialog.show();
+    dialog.activateWindow();
+    QTRY_VERIFY(dialog.isActiveWindow());
+    const QString name = QStringLiteral("Export preset from the dialog");
+    QVERIFY(!AudioExporter::presets().contains(name));
+    QVERIFY(chooseOption(controls.fileType, AudioExporterConfig::FT_Wav));
+    pasteText(controls.fileName, QStringLiteral("initial.wav"));
+    const auto saveAs = [&](bool acceptName, QMessageBox::StandardButton overwrite) {
+        int namePrompts = 0;
+        QTimer answer;
+        answer.setInterval(10);
+        connect(&answer, &QTimer::timeout, &dialog, [&] {
+            auto *active = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!active || active == &dialog)
+                return;
+            const auto close = qScopeGuard([&] {
+                if (active->isVisible())
+                    active->reject();
+            });
+            if (auto *input = qobject_cast<QInputDialog *>(active)) {
+                ++namePrompts;
+                auto *text = input->findChild<QLineEdit *>();
+                QVERIFY(text);
+                if (!acceptName || namePrompts > 1) {
+                    QTest::keyClick(text, Qt::Key_Escape);
+                } else {
+                    pasteText(text, name);
+                    QTest::keyClick(text, Qt::Key_Return);
+                }
+            } else if (auto *question = qobject_cast<QMessageBox *>(active)) {
+                auto *choice = question->button(overwrite);
+                QVERIFY(choice);
+                QTest::mouseClick(choice, Qt::LeftButton);
+            }
+        });
+        answer.start();
+        QTest::mouseClick(save, Qt::LeftButton);
+        QVERIFY(namePrompts > 0);
+    };
+    saveAs(false, QMessageBox::Yes);
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(!AudioExporter::presets().contains(name));
+    saveAs(true, QMessageBox::Yes);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(presets->currentData().toString(), name);
+    QCOMPARE(AudioExporter::preset(name).fileName(), QStringLiteral("initial.wav"));
+    QVERIFY(remove->isEnabled());
+    pasteText(controls.fileName, QStringLiteral("updated.wav"));
+    saveAs(true, QMessageBox::No);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(AudioExporter::preset(name).fileName(), QStringLiteral("initial.wav"));
+    QCOMPARE(controls.fileName->text(), QStringLiteral("updated.wav"));
+    saveAs(true, QMessageBox::Yes);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(AudioExporter::preset(name).fileName(), QStringLiteral("updated.wav"));
+    QCOMPARE(presets->currentData().toString(), name);
+    QTest::mouseClick(remove, Qt::LeftButton);
+    QVERIFY(!AudioExporter::presets().contains(name));
+    QCOMPARE(presets->findData(name), -1);
+    QVERIFY(!remove->isEnabled());
+    QVERIFY(started.isEmpty());
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
 }
 
 void ApplicationGuiTests::canceledExportConfigurationDoesNotPersist() {

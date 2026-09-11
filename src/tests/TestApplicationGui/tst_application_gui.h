@@ -53,6 +53,7 @@ private slots:
     void exportSourcesAndMixingUpdateFilePlan();
     void canceledExportConfigurationDoesNotPersist();
     void audioExportProgressCompletesAndCloses();
+    void exportPresetDialogsSaveOverwriteAndDeleteTheSelectedPreset();
     void appearanceInputsPersistAcrossReopening();
     void automationAccessInputsPersistAndRejectMissingFolders();
     void automationCustomToolsetInputsPersistAndExportPermissions();
