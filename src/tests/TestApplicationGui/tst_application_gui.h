@@ -114,6 +114,8 @@ private slots:
     void audioSettingsSaveFailureRestoresRuntimeAndAllowsRetry();
     void midiPageSynthInputsPersistWithoutPlayback();
     void trackHeaderInputsCommitAndUndo();
+    void mixerTextInputsCommitToTheChosenChannel_data();
+    void mixerTextInputsCommitToTheChosenChannel();
     void trackColorMenuPreviewsAndCommits_data();
     void trackColorMenuPreviewsAndCommits();
     void pitchModulationUsesTheInferredNoteBaselineAndCanBeUndone();

@@ -172,5 +172,6 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 文件打开失败与最近项目管理 | gui/workflow | 损坏工程经过真实错误提示后保留当前文档、未保存编辑及历史，修复源文件后可再次打开；最近项目子菜单移除失效文件、打开有效文件并清空列表，持久化列表与界面一致 | ApplicationGui::failedProjectOpenPreservesTheDocumentAndRecovers、recentProjectsMenuRemovesMissingFilesAndClearsTheList | offscreen；临时 DSPX；真实 MainWindow 和菜单 |
 | 音频设置保存失败与重试 | workflow | 在隔离配置路径上制造可移除的文件写入障碍，验证设置、运行时音量/声像和热插拔策略共同回滚；恢复路径后同一修改成功落盘，文档和历史不受影响 | ApplicationGui::audioSettingsSaveFailureRestoresRuntimeAndAllowsRetry | 通用 GUI 环境；无需音频设备 |
 | 混合片段正常复制 | domain | 歌声和音频一起复制到原轨道或指定轨道，保留相对时间、真实音频时长、歌词/发音、曲线及动态声线；新片段、音符、曲线、锚点和声线帧使用独立身份，重试不重复创建，一次撤销/重做恢复整批 | ProjectEditing::duplicateClipsPreserveContentAndCreateIndependentObjects | 通用；真实模型；无需文件解码、模型或设备 |
+| 混音台音量和声像文本输入 | gui | 轨道及主输出的内联编辑验证分贝、左右声像和居中输入；非法内容及 Escape 不改模型或历史，合法输入只影响所选通道，撤销同步恢复控件和模型 | ApplicationGui::mixerTextInputsCommitToTheChosenChannel | offscreen；实际 MixConsoleView；无需音频设备 |
 
 本次还移除无产品实例化入口的旧 G2P/伪声设置页和 `TrackSynthesizer` 及其空容器引用。清理改变统计分母，报告中与新增测试命中的贡献分开说明，不通过排除仍有效的生产文件提高比例。

@@ -6,6 +6,8 @@
 #include "UI/Controls/TrackColorSwatchWidget.h"
 #include "UI/Views/TrackEditor/TrackControlView.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
+#include "UI/Views/MixConsole/MixConsoleView.h"
+#include "UI/Views/MixConsole/ChannelView.h"
 
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/InlineEditLabel.h>
@@ -14,6 +16,8 @@
 #include <lite/ProjectModel/AppModel/Track.h>
 
 #include <QApplication>
+#include <QClipboard>
+#include <QLocale>
 #include <QContextMenuEvent>
 #include <QCursor>
 #include <QKeySequence>
@@ -24,6 +28,101 @@
 #include <QTimer>
 #include <QWindow>
 #include <QtTest/QTest>
+
+void ApplicationGuiTests::mixerTextInputsCommitToTheChosenChannel_data() {
+    QTest::addColumn<bool>("master");
+    QTest::newRow("track") << false;
+    QTest::newRow("master") << true;
+}
+
+void ApplicationGuiTests::mixerTextInputsCommitToTheChosenChannel() {
+    QFETCH(bool, master);
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+    Automation::TrackDraftDto draft;
+    draft.name = QStringLiteral("Mixer channel");
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, draft));
+    auto *track = context->m_appModel->tracks().first();
+    MixConsoleView console;
+    console.resize(720, 520);
+    console.show();
+    console.activateWindow();
+    QTRY_VERIFY(console.isActiveWindow());
+    ChannelView *channel = nullptr;
+    for (auto *candidate : console.findChildren<ChannelView *>()) {
+        if (candidate->isMasterChannel() == master)
+            channel = candidate;
+    }
+    QVERIFY(channel);
+    auto *gain = channel->findChild<InlineEditLabel *>("elGain");
+    auto *pan = channel->findChild<InlineEditLabel *>("elPan");
+    QVERIFY(gain && pan);
+    QTRY_VERIFY(gain->isVisible() && pan->isVisible());
+    const auto control = [&] {
+        return master ? context->m_appModel->masterControl() : track->control();
+    };
+    const auto initial = control();
+    const auto other = master ? track->control() : context->m_appModel->masterControl();
+    const auto enter = [&](InlineEditLabel *label, const QString &value,
+                           Qt::Key finish = Qt::Key_Return) {
+        QTest::mouseDClick(label, Qt::LeftButton);
+        QTRY_VERIFY(qobject_cast<QLineEdit *>(QApplication::focusWidget()));
+        auto *input = qobject_cast<QLineEdit *>(QApplication::focusWidget());
+        QApplication::clipboard()->setText(value);
+        QTest::keySequence(input, QKeySequence::SelectAll);
+        QTest::keySequence(input, QKeySequence::Paste);
+        QTest::keyClick(input, finish);
+    };
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    enter(gain, QLocale().toString(-6.0, 'f', 1));
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(control().gain(), -6.0);
+    QCOMPARE(gain->text(), QLocale().toString(-6.0, 'f', 1));
+    const auto *gainEdit = historyManager->nextUndoEntry();
+    enter(gain, QStringLiteral("invalid"));
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(control().gain(), -6.0);
+    QCOMPARE(gain->text(), QLocale().toString(-6.0, 'f', 1));
+    QCOMPARE(historyManager->nextUndoEntry(), gainEdit);
+    enter(gain, QLocale().toString(-12.0, 'f', 1), Qt::Key_Escape);
+    QCOMPARE(control().gain(), -6.0);
+    QCOMPARE(historyManager->nextUndoEntry(), gainEdit);
+    enter(pan, QStringLiteral("L25"));
+    QCOMPARE(control().pan(), -0.25);
+    QCOMPARE(pan->text(), QStringLiteral("L25"));
+    enter(pan, QStringLiteral("R40"));
+    QCOMPARE(control().pan(), 0.4);
+    QCOMPARE(pan->text(), QStringLiteral("R40"));
+    enter(pan, QStringLiteral("C"));
+    QCOMPARE(control().pan(), 0.0);
+    enter(pan, QLocale().toString(-10));
+    QCOMPARE(control().pan(), -0.1);
+    QCOMPARE(pan->text(), QStringLiteral("L10"));
+    const auto applied = runtime.documentVersion();
+    QCOMPARE(applied.revision, before.revision + 5);
+    const auto *panEdit = historyManager->nextUndoEntry();
+    enter(pan, QStringLiteral("invalid"));
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(runtime.documentVersion(), applied);
+    QCOMPARE(historyManager->nextUndoEntry(), panEdit);
+    QCOMPARE(control().pan(), -0.1);
+    QCOMPARE(pan->text(), QStringLiteral("L10"));
+    for (int i = 0; i < 5; ++i)
+        QVERIFY(runtime.history().undo(commandContext()));
+    QVERIFY(!historyManager->canUndo());
+    QCOMPARE(control().gain(), initial.gain());
+    QCOMPARE(control().pan(), initial.pan());
+    QCOMPARE(channel->control().gain(), initial.gain());
+    QCOMPARE(channel->control().pan(), initial.pan());
+    const auto untouched = master ? track->control() : context->m_appModel->masterControl();
+    QCOMPARE(untouched.gain(), other.gain());
+    QCOMPARE(untouched.pan(), other.pan());
+}
 
 void ApplicationGuiTests::trackHeaderInputsCommitAndUndo() {
     auto &runtime = *context->m_coreRuntime;
