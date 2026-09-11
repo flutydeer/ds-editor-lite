@@ -16,6 +16,7 @@
 #include <QSet>
 #include <QStringList>
 #include <QTemporaryDir>
+#include <QScopeGuard>
 
 namespace {
 
@@ -228,7 +229,26 @@ void GuiComponentTests::bundledStyleSheets() {
     }
 }
 
+void GuiComponentTests::externalThemeRoot_data() {
+    QTest::addColumn<QString>("brokenFile");
+    QTest::addColumn<QByteArray>("replacement");
+    QTest::addColumn<bool>("remove");
+    QTest::newRow("valid-theme") << QString{} << QByteArray{} << false;
+    QTest::newRow("missing-colors") << QStringLiteral("colors.json") << QByteArray{} << true;
+    QTest::newRow("invalid-colors") << QStringLiteral("colors.json") << QByteArray("{") << false;
+    QTest::newRow("invalid-palette-color")
+        << QStringLiteral("app-color-palette.json")
+        << QByteArray(R"({"baseColors":["not-a-color"]})") << false;
+    QTest::newRow("unresolved-stylesheet-color")
+        << QStringLiteral("base.qss") << QByteArray("QWidget { color: ${missing.token}; }")
+        << false;
+    QTest::newRow("missing-lyric-style") << QStringLiteral("lyric.qss") << QByteArray{} << true;
+}
+
 void GuiComponentTests::externalThemeRoot() {
+    QFETCH(QString, brokenFile);
+    QFETCH(QByteArray, replacement);
+    QFETCH(bool, remove);
     ThemeEnvironment fixture;
     QTemporaryDir tempDir;
     QVERIFY2((tempDir.isValid()),
@@ -279,6 +299,40 @@ void GuiComponentTests::externalThemeRoot() {
     QCOMPARE((loaded->name), (QStringLiteral("External Test")));
     QVERIFY2((loaded->styleSheet.contains(QStringLiteral("#123456"))),
              qPrintable(QStringLiteral("external QSS should be resolved")));
+    if (!brokenFile.isEmpty()) {
+        auto *manager = ThemeManager::instance();
+        const auto previousTheme = manager->currentThemeId();
+        QWidget root;
+        manager->addStyleRoot(&root);
+        const auto restoreTheme = qScopeGuard([&] {
+            manager->removeStyleRoot(&root);
+            if (!previousTheme.isEmpty())
+                manager->applyTheme(previousTheme);
+        });
+        QVERIFY(manager->applyTheme(QStringLiteral("lite-dark")));
+        const auto beforeId = manager->currentThemeId();
+        const auto beforeStyle = root.styleSheet();
+        const auto beforePalette = root.palette();
+        const auto beforeColor = manager->semanticColor(QStringLiteral("icon.primary"));
+        const auto path = QDir(themeDir).filePath(brokenFile);
+        QFile original(path);
+        QVERIFY(original.open(QIODevice::ReadOnly));
+        const auto originalBytes = original.readAll();
+        original.close();
+        QVERIFY(remove ? QFile::remove(path) : writeFile(path, replacement));
+        QVERIFY(!manager->applyTheme(QStringLiteral("external-test")));
+        QVERIFY(!ThemeLoader::lastError().isEmpty());
+        QCOMPARE(manager->currentThemeId(), beforeId);
+        QCOMPARE(root.styleSheet(), beforeStyle);
+        QCOMPARE(manager->styleSheet(), beforeStyle);
+        QCOMPARE(root.palette(), beforePalette);
+        QCOMPARE(manager->semanticColor(QStringLiteral("icon.primary")), beforeColor);
+        QVERIFY(writeFile(path, originalBytes));
+        QVERIFY2(manager->applyTheme(QStringLiteral("external-test")),
+                 qPrintable(ThemeLoader::lastError()));
+        QCOMPARE(manager->currentThemeId(), QStringLiteral("external-test"));
+        QVERIFY(root.styleSheet().contains(QStringLiteral("#123456")));
+    }
     qunsetenv("DS_EDITOR_THEME_DIR");
 }
 

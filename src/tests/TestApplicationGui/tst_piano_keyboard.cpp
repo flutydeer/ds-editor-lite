@@ -15,6 +15,7 @@
 #include <QMouseEvent>
 #include <QScopeGuard>
 #include <QThread>
+#include <QWheelEvent>
 #include <QtTest/QTest>
 
 namespace {
@@ -123,6 +124,27 @@ void ApplicationGuiTests::pianoKeyboardGlissandoAndHideReleasePressedNotes() {
         {60, false}
     };
     QCOMPARE(receipt.events, playedAfterReopening);
+    receipt.events.clear();
+    QTest::mousePress(&keyboard, Qt::LeftButton, Qt::NoModifier, whiteC);
+    QEvent leave(QEvent::Leave);
+    QApplication::sendEvent(&keyboard, &leave);
+    const QList<NoteEvent> releasedOnLeave{
+        {60, true },
+        {60, false}
+    };
+    QCOMPARE(receipt.events, releasedOnLeave);
+    QTest::mouseRelease(&keyboard, Qt::LeftButton, Qt::NoModifier, whiteC);
+    QCOMPARE(receipt.events, releasedOnLeave);
+
+    QPoint forwardedDelta;
+    connect(&keyboard, &PianoKeyboardView::wheelScroll, &keyboard,
+            [&](const QWheelEvent *event) { forwardedDelta = event->angleDelta(); });
+    QWheelEvent wheel(QPointF(whiteC), QPointF(keyboard.mapToGlobal(whiteC)), {}, {0, 120},
+                      Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+    QApplication::sendEvent(&keyboard, &wheel);
+    QCOMPARE(forwardedDelta, QPoint(0, 120));
+    QVERIFY(wheel.isAccepted());
+    QCOMPARE(receipt.events, releasedOnLeave);
     QCOMPARE(context->m_coreRuntime->documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
 }

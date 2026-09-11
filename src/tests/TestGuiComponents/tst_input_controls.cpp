@@ -4,13 +4,17 @@
 #include <lite/GUI/Controls/PanSlider.h>
 #include <lite/GUI/Controls/SvsSeekbar.h>
 #include <lite/GUI/Controls/OverlayScrollBar.h>
+#include <lite/GUI/Controls/SvsExpressionSpinBox.h>
+#include <lite/GUI/Controls/SvsExpressionDoubleSpinBox.h>
 
 #include <QAbstractScrollArea>
 #include <QApplication>
 #include <QContextMenuEvent>
 #include <QCursor>
+#include <QLineEdit>
 #include <QMenu>
 #include <QMouseEvent>
+#include <QPointer>
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QStyle>
@@ -26,6 +30,66 @@ namespace {
                          QPointF(widget.mapToGlobal(position)), Qt::NoButton, Qt::LeftButton,
                          Qt::NoModifier);
         QApplication::sendEvent(&widget, &move);
+    }
+}
+
+void GuiComponentTests::expressionSpinBoxMenuEditsTheDisplayedValue_data() {
+    QTest::addColumn<bool>("fractional");
+    QTest::newRow("integer") << false;
+    QTest::newRow("fractional") << true;
+}
+
+void GuiComponentTests::expressionSpinBoxMenuEditsTheDisplayedValue() {
+    QFETCH(bool, fractional);
+    const auto exercise = [](auto &editor) {
+        using Editor = std::remove_reference_t<decltype(editor)>;
+        editor.setRange(0, 100);
+        if constexpr (std::is_same_v<Editor, SVS::ExpressionDoubleSpinBox>)
+            editor.setSingleStep(0.25);
+        else
+            editor.setSingleStep(2);
+        editor.resize(220, 32);
+        editor.show();
+        editor.activateWindow();
+        QTRY_VERIFY(editor.isVisible());
+        auto *input = editor.template findChild<QLineEdit *>();
+        QVERIFY(input);
+        QTest::mouseClick(input, Qt::LeftButton);
+        input->selectAll();
+        QTest::keyClicks(input, "6/2");
+        QTest::keyClick(input, Qt::Key_Return);
+        QCOMPARE(double(editor.value()), 3.0);
+
+        for (const bool up : {true, false}) {
+            const auto position = editor.rect().center();
+            QContextMenuEvent event(QContextMenuEvent::Mouse, position,
+                                    editor.mapToGlobal(position));
+            QApplication::sendEvent(&editor, &event);
+            QPointer<QMenu> menu = editor.template findChild<QMenu *>();
+            QVERIFY(menu);
+            QTRY_VERIFY(menu->isVisible());
+            QAction *chosen = nullptr;
+            for (auto *action : menu->actions()) {
+                if (action->text() == (up ? Editor::tr("Step Up") : Editor::tr("Step Down")))
+                    chosen = action;
+            }
+            QVERIFY(chosen && chosen->isEnabled());
+            const auto closeOnFailure = qScopeGuard([&] {
+                if (menu)
+                    menu->close();
+            });
+            QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier,
+                              menu->actionGeometry(chosen).center());
+            QCOMPARE(double(editor.value()), up ? 3.0 + editor.singleStep() : 3.0);
+            QTRY_VERIFY(menu.isNull());
+        }
+    };
+    if (fractional) {
+        SVS::ExpressionDoubleSpinBox editor;
+        exercise(editor);
+    } else {
+        SVS::ExpressionSpinBox editor;
+        exercise(editor);
     }
 }
 

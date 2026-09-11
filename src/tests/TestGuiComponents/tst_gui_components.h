@@ -13,6 +13,7 @@ private slots:
     void invalidPlaceholders();
     void appearanceThemePreference();
     void bundledStyleSheets();
+    void externalThemeRoot_data();
     void externalThemeRoot();
     void bundledThemeLoadingAndFallback();
     void iconPalette_data();
@@ -37,6 +38,8 @@ private slots:
     void fileSelectorAcceptsTheFirstSuitableLocalDrop();
     void overlayScrollMenuNavigatesTheAttachedArea_data();
     void overlayScrollMenuNavigatesTheAttachedArea();
+    void expressionSpinBoxMenuEditsTheDisplayedValue_data();
+    void expressionSpinBoxMenuEditsTheDisplayedValue();
 };
 
 #endif
