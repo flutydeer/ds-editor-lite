@@ -3,6 +3,7 @@
 #include "SingleInstanceIdentity.h"
 
 #include <QCoreApplication>
+#include <QDebug>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QEvent>
@@ -408,6 +409,7 @@ bool SingleInstanceCoordinator::forwardRequest(const SingleInstanceRequest &requ
                     .arg(connectionTimeoutMs / 1000);
         return false;
     }
+    const auto connectedMs = timer.elapsed();
 
     if (m_lockFile) {
         qint64 primaryProcessId = 0;
@@ -431,6 +433,7 @@ bool SingleInstanceCoordinator::forwardRequest(const SingleInstanceRequest &requ
         error = tr("Failed to send the request to the running instance");
         return false;
     }
+    const auto writtenMs = timer.elapsed();
 
     QByteArray buffer;
     QByteArray payload;
@@ -449,6 +452,10 @@ bool SingleInstanceCoordinator::forwardRequest(const SingleInstanceRequest &requ
         }
     }
     if (payload.isEmpty()) {
+        qWarning() << "Single-instance ACK missing: connected_ms=" << connectedMs
+                   << "written_ms=" << writtenMs << "elapsed_ms=" << timer.elapsed()
+                   << "state=" << socket.state() << "error=" << socket.errorString()
+                   << "available=" << socket.bytesAvailable() << "buffered=" << buffer.size();
         error = tr("The running instance did not acknowledge the request");
         return false;
     }
