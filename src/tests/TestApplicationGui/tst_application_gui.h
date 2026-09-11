@@ -121,6 +121,9 @@ private slots:
     void audioSettingsSaveFailureRestoresRuntimeAndAllowsRetry();
     void midiPageSynthInputsPersistWithoutPlayback();
     void trackHeaderInputsCommitAndUndo();
+    void playbackPopupsEditTheMarkerChosenWhenTheyOpen();
+    void playbackTextInputsValidateCommitAndCancel();
+    void tapTempoMeasuresASequenceAndResetsAfterInactivity();
     void mixerTextInputsCommitToTheChosenChannel_data();
     void mixerTextInputsCommitToTheChosenChannel();
     void trackColorMenuPreviewsAndCommits_data();
