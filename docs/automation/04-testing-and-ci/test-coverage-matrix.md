@@ -28,7 +28,7 @@
 | 普通音频片段导入及 WAV 导出 | workflow/process | AudioExporter 此前只触达初始化代码，普通导出缺少真实执行 | 在现有进程目标补生成小 WAV、导入并等待任务完成、实际导出、解码检查采样率/声道/时长/有限非零内容及文档不变 | ProcessIntegration::audioImportAndWaveExport | 通用；无需声库/设备 |
 | 音频导出配置、进度与关闭 | gui | 实际文件导出不能替代配置及进度对话框的事件接线验证 | 通过真实输入检查格式/采样率与预览、轨道选择/混音与文件计划、取消及重开恢复；复用小型 WAV，点击 Export 经生产导出器检查完成提示、进度达到 100%、Close 关闭、任务清理和进度窗口释放 | ApplicationGui::exportFormatUpdatesFileNamePreview、exportSourcesAndMixingUpdateFilePlan、canceledExportConfigurationDoesNotPersist、audioExportProgressCompletesAndCloses | offscreen；无需声库/设备 |
 | 外观设置即时保存与重开 | gui | 原生覆盖采样显示普通设置页缺少实际输入验证 | 通过侧栏进入页面，真实切换动画开关及键盘提交时长，检查运行时值、配置文件和重开后的控件；恢复用例原设置 | ApplicationGui::appearanceInputsPersistAcrossReopening | offscreen；隔离配置 |
-| 声线混合来源、权重及确认/取消 | gui | 领域数值测试未进入声线混合对话框 | 真实标签移除来源并保留剩余比例，拖动权重分隔线；确认返回编辑结果，取消后重开恢复初始草稿，预设和文档不被意外修改 | ApplicationGui::speakerMixSelectionAndDrag | offscreen；仅需声线元数据 |
+| 声线混合来源、权重及确认/取消 | gui | 领域数值测试未进入声线混合对话框 | 真实标签移除来源并保留剩余比例，普通拖动调整相邻权重、Alt 拖动保留分隔线两侧组内比例；确认返回编辑结果，取消后重开恢复初始草稿，预设和文档不被意外修改 | ApplicationGui::speakerMixSelectionAndDrag、speakerMixModifierDragPreservesGroupRatios | offscreen；仅需声线元数据 |
 | 离线导出后的混音器状态恢复 | workflow | 实际 Linux 导出流程在恢复初始关闭的混音器时调用 open(0,0)，触发重采样比率断言 | 复用 Headless AppContext 测试目标，新增原先打开/关闭两行回归；按原 isOpen 恢复 open/close，已打开时保留原缓冲及采样率 | ApplicationWorkflows::offlineExportRestoresMixerState | 通用；fixture 关闭自身设备 |
 | DSPX 编辑内容往返 | workflow | 原文件测试多检查空工程、JSON 头或对象存在，未核对编辑内容 | 补真实 save/load 的乐句、发音、参数、声线混合、tempo/meter 保真 | DocumentIO | 通用 |
 | 任务竞态、幂等及异步服务 | workflow/domain | 已有受控调度和晚到回调，入口按历史功能拆散 | 运行时状态/准入/幂等归入 AutomationRuntime；文件、导出和提取服务的受控提交边界归入 ApplicationServices | AutomationRuntime、ApplicationServices | 通用 |
@@ -137,7 +137,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 自定义导出预设实际使用 | workflow | 创建、同名更新和落盘重读后按预设真实导出，检查整数 WAV 及有效样本，再验证删除和配置恢复；公开配置复制/赋值在私有类型完整处定义，允许调用方仅依赖公开头；不枚举内置预设 | ApplicationWorkflows::customExportPresetPersistsAndProducesIntegerWave | 通用；小型 WAV；不需要模型输出或播放设备 |
 | 多语种、多声线及推理重算 | workflow/process | 内置微型计算图走正常包、语言、推理和导出路径，明确检查实际音素；验证缓存复用、切换声线和 BPM 后的输出变化 | ModelResources::voicebankInferenceAndWaveExport | CPU；默认内置声库，可显式换真实资源 |
 | 声线预设 GUI 生命周期 | gui | 实际保存/取消、下拉选择、修改后 dirty 标记和删除/取消；搜索窗口销毁后保存预设揭示工具栏私有对象残留，将其归属视图并同步解除通知；持久化业务规则由应用工作流承担 | ApplicationGui::speakerMixPresetsFollowSaveSelectAndDeleteInputs、lyricSearchNavigatesTheActualEditorAndHandlesNoMatches | offscreen；临时配置 |
-| 包查找与详情、缺失音频重定位 | gui | 搜索已加载包、选择详情及无匹配恢复；缺失音频经 Qt 文件选择取消或重定位后真实解码，验证状态和撤销重做 | ApplicationGui 的 tst_resources.cpp | offscreen；默认内置包、临时 WAV |
+| 包查找与详情、缺失音频重定位 | gui | 搜索已加载包、选择详情及无匹配恢复；校验按钮显示实际包检查的成功或问题详情；缺失音频经 Qt 文件选择取消或重定位后真实解码，验证状态和撤销重做 | ApplicationGui 的 tst_resources.cpp | offscreen；默认内置包、临时 WAV |
 | 歌词网格和声音上下文编辑 | gui/domain | 跨行选择、行移动、删除及拆行后的继续编辑；清空轨道/片段声音上下文和读音恢复；检查归属、继承、通知及撤销 | ApplicationGui 的 tst_lyric_grid.cpp；ProjectEditing | offscreen/通用 |
 | 轨道和规则完整拖放 | gui | Qt QDrag 经过真实事件执行轨道首尾移动及取消，检查头部/片段映射和一次撤销；规则排序保留未应用详情与 ID，并改变实际规则优先级，保存后重开 | EditorInteraction 的 tst_list_reordering.cpp | minimal；无需原生桌面 |
 | 轨道菜单与音频文件选择 | gui/workflow | 新建轨道/片段、剪切和删除的撤销链；实际文件选择确认/取消、Unicode 路径解码及一次提交 | ApplicationGui 的 tst_track_menus.cpp | offscreen；临时 WAV |
@@ -185,5 +185,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 播放栏时间线编辑与节拍测量 | gui | 速度和拍号弹窗编辑打开时选定的标记，移动播放头后提交不误改其他标记且显示跟随当前位置；内联输入验证、取消、定位与撤销；连续点击测量 BPM、稳定进度、闲置及重新打开后的重置 | ApplicationGui 的 tst_playback_controls.cpp | offscreen；实际输入和计时器；无需播放设备 |
 | 路径输入与多目录排序 | gui | 目录经真实拖入后选择、上移/下移与删除保留所选顺序；列表接受复制引用，文件选择框拒绝远程 URL 并按目录或扩展名筛选本地来源 | GuiComponents 的 tst_path_controls.cpp | offscreen；临时目录和文件；不调用外部模型 |
 | LibreSVIP 外部转换接线 | workflow | 扩展已有单项目导入场景，转换进程处理参数和默认回答，生产解析、计划检查及导入保留音符并可撤销；未配置、无法启动、转换拒绝、缺少/空输出明确失败，异步失败不修改原工程 | ApplicationWorkflows::publicSingleProjectImportUsesThePreparedPlanAndKeepsTheDocument、libreSvipProcessFailuresLeaveTheDocumentUntouched | 通用；仅替换外部可执行程序，复用测试程序子入口；不要求安装 LibreSVIP |
+| 普通钢琴窗擦除与切分 | gui | 橡皮擦先移出场景项，取消恢复全部预览对象，提交及撤销更新对应模型和场景；切分指示线随悬停出现/消失，实际点击与量化位置一致，撤销恢复原音符 | ApplicationGui::pianoErasingRestoresSceneItemsOnCancelAndUndo、pianoSplitIndicatorFollowsTheMouseAndMatchesTheEdit | offscreen；真实 Graphics View 事件路径；与 RHI 帧验证各负责自身视图接线 |
+| 各语种的默认歌词设置 | gui | 设置页切换中英文时保存和恢复各自歌词，关闭后磁盘重读及页面重开保持内容，不修改工程历史 | ApplicationGui::generalSettingsKeepSeparateDefaultLyricsForEachLanguage | offscreen；隔离设置；无需声库推理 |
 
 本次还移除无产品实例化入口的旧 G2P/伪声设置页和 `TrackSynthesizer` 及其空容器引用。清理改变统计分母，报告中与新增测试命中的贡献分开说明，不通过排除仍有效的生产文件提高比例。

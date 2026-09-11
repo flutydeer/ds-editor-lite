@@ -27,6 +27,7 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListView>
+#include <QMessageBox>
 #include <QScopeGuard>
 #include <QTimer>
 #include <QTreeWidget>
@@ -110,6 +111,33 @@ void ApplicationGuiTests::packageSearchShowsTheSelectedPackageDetails() {
     QCOMPARE(version->text(), QStringLiteral("v") + selectedPackage.version().toString());
     QVERIFY(verify->isEnabled());
     QVERIFY(verify->isVisible());
+
+    const auto validation =
+        context->m_coreRuntime->packages().validatePackage(selectedPackage.path());
+    QVERIFY(validation);
+    const bool nativeDialogs = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
+    QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+    const auto restoreDialogs = qScopeGuard(
+        [&] { QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDialogs); });
+    bool verified = false;
+    QTimer::singleShot(0, &dialog, [&] {
+        auto *message = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
+        QVERIFY(message);
+        const auto close = qScopeGuard([&] { message->close(); });
+        if (validation.get().items.isEmpty()) {
+            QCOMPARE(message->icon(), QMessageBox::Information);
+            QVERIFY(message->text().contains(selectedPackage.path()));
+        } else {
+            QCOMPARE(message->icon(),
+                     validation.get().hasErrors ? QMessageBox::Critical : QMessageBox::Warning);
+            for (const auto &issue : validation.get().items)
+                QVERIFY(message->detailedText().contains(issue.message));
+        }
+        QTest::mouseClick(message->button(QMessageBox::Ok), Qt::LeftButton);
+        verified = true;
+    });
+    QTest::mouseClick(verify, Qt::LeftButton);
+    QVERIFY(verified);
 
     enterResourceText(search, QStringLiteral("no-such-package-for-resource-search"));
     if (QTest::currentTestFailed())

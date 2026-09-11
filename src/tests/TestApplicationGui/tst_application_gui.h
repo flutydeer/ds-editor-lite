@@ -33,6 +33,8 @@ private slots:
     void invalidClipboardDoesNotEdit_data();
     void invalidClipboardDoesNotEdit();
     void drawingCommitsOnceAndUndoRedoUpdatesTheScene();
+    void pianoErasingRestoresSceneItemsOnCancelAndUndo();
+    void pianoSplitIndicatorFollowsTheMouseAndMatchesTheEdit();
     void draggingExistingNoteCommitsOrCancels_data();
     void draggingExistingNoteCommitsOrCancels();
     void trackClipDragCommitsOrCancels_data();
@@ -57,6 +59,7 @@ private slots:
     void exportPresetDialogsSaveOverwriteAndDeleteTheSelectedPreset();
     void audioExportProgressCompletesAndCloses();
     void appearanceInputsPersistAcrossReopening();
+    void generalSettingsKeepSeparateDefaultLyricsForEachLanguage();
     void automationAccessInputsPersistAndRejectMissingFolders();
     void automationCustomToolsetInputsPersistAndExportPermissions();
     void automationConnectionCopyFollowsTheRuntimeEndpoint();
@@ -86,6 +89,7 @@ private slots:
     void resizingANotePreviewsAndCommitsItsBoundary();
     void speakerMixSelectionAndDrag_data();
     void speakerMixSelectionAndDrag();
+    void speakerMixModifierDragPreservesGroupRatios();
     void speakerMixPresetsFollowSaveSelectAndDeleteInputs();
     void voiceMenusApplyPresetsToTheChosenTarget_data();
     void voiceMenusApplyPresetsToTheChosenTarget();

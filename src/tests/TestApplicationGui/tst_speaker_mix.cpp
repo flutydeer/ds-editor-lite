@@ -316,6 +316,30 @@ void ApplicationGuiTests::speakerMixSelectionAndDrag_data() {
     QTest::newRow("cancel-edited-mix") << false;
 }
 
+void ApplicationGuiTests::speakerMixModifierDragPreservesGroupRatios() {
+    SpeakerMixBar bar;
+    bar.setValues({20, 30, 50});
+    bar.resize(402, 40);
+    bar.show();
+    bar.activateWindow();
+    QTRY_VERIFY(bar.isActiveWindow());
+    const auto before = context->m_coreRuntime->documentVersion();
+    QSignalSpy changed(&bar, &SpeakerMixBar::valuesChanged);
+    const QPoint divider(bar.width() / 2, bar.height() / 2);
+    const QPoint destination(1 + qRound((bar.width() - 2) * 0.75), divider.y());
+    const auto release = qScopeGuard(
+        [&] { QTest::mouseRelease(&bar, Qt::LeftButton, Qt::AltModifier, destination); });
+    QTest::mousePress(&bar, Qt::LeftButton, Qt::AltModifier, divider);
+    QMouseEvent move(QEvent::MouseMove, QPointF(destination), QPointF(bar.mapToGlobal(destination)),
+                     Qt::NoButton, Qt::LeftButton, Qt::AltModifier);
+    QApplication::sendEvent(&bar, &move);
+    QVERIFY(!changed.isEmpty());
+    QCOMPARE(bar.getValues(), QVector<int>({30, 45, 25}));
+    QCOMPARE(changed.last().first().value<QVector<double>>(), QVector<double>({30, 45, 25}));
+    QCOMPARE(context->m_coreRuntime->documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+}
+
 void ApplicationGuiTests::speakerMixSelectionAndDrag() {
     QFETCH(bool, accept);
     using namespace SpeakerMixModel;

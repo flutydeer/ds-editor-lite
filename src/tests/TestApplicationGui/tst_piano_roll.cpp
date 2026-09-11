@@ -13,6 +13,7 @@
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsScene.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PronunciationView.h"
+#include "UI/Views/ClipEditor/PianoRoll/SplitLineIndicator.h"
 
 #include <lite/GUI/Controls/InlineTextEditOverlay.h>
 #include <lite/History/HistoryManager.h>
@@ -237,6 +238,119 @@ void ApplicationGuiTests::invalidClipboardDoesNotEdit() {
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
     QCOMPARE(sceneNoteCount(-1), 0);
+}
+
+void ApplicationGuiTests::pianoErasingRestoresSceneItemsOnCancelAndUndo() {
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    const auto firstId = insertSelectedNote();
+    QVERIFY(firstId >= 0);
+    Automation::NoteDraftDto second;
+    second.localStart = 960;
+    second.length = 240;
+    second.keyIndex = 64;
+    second.lyric = QStringLiteral("world");
+    second.language = QStringLiteral("eng");
+    const auto inserted = runtime.notes().insertNotes(
+        commandContext(), Automation::ClipId(singingClip->id()), {second});
+    QVERIFY(inserted);
+    const auto secondId = inserted.get().affectedObjects.first().value;
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    view->setEditMode(ClipEditorGlobal::EraseNote);
+    const auto first = pointFor(600, 62);
+    const auto last = pointFor(1080, 64);
+    const auto release = qScopeGuard(
+        [&] { QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, last); });
+    QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, first);
+    QCOMPARE(sceneNoteCount(firstId), 0);
+    QMouseEvent move(QEvent::MouseMove, QPointF(last), QPointF(view->viewport()->mapToGlobal(last)),
+                     Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(view->viewport(), &move);
+    QCOMPARE(sceneNoteCount(secondId), 0);
+    QCOMPARE(singingClip->notes().count(), 2);
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(editSessionManager->hasActiveTransaction());
+    QTest::keyClick(view.get(), Qt::Key_Escape);
+    QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, last);
+    QCOMPARE(sceneNoteCount(firstId), 1);
+    QCOMPARE(sceneNoteCount(secondId), 1);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QVERIFY(appStatus->pianoRollNoteErasePreview.get().isEmpty());
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+
+    QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, first);
+    QVERIFY(!singingClip->findNoteById(firstId));
+    QVERIFY(singingClip->findNoteById(secondId));
+    QCOMPARE(sceneNoteCount(firstId), 0);
+    QCOMPARE(sceneNoteCount(secondId), 1);
+    QVERIFY(appStatus->pianoRollNoteErasePreview.get().isEmpty());
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QVERIFY(runtime.history().undo(commandContext()));
+    QVERIFY(singingClip->findNoteById(firstId));
+    QCOMPARE(sceneNoteCount(firstId), 1);
+    QCOMPARE(sceneNoteCount(secondId), 1);
+    QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::pianoSplitIndicatorFollowsTheMouseAndMatchesTheEdit() {
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    const auto noteId = insertSelectedNote();
+    QVERIFY(noteId >= 0);
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    view->setEditMode(ClipEditorGlobal::SplitNote);
+    SplitLineIndicator *indicator = nullptr;
+    for (auto *item : scene->items()) {
+        if (auto *line = dynamic_cast<SplitLineIndicator *>(item))
+            indicator = line;
+    }
+    QVERIFY(indicator);
+    const auto hover = [&](const QPoint &position) {
+        QMouseEvent move(QEvent::MouseMove, QPointF(position),
+                         QPointF(view->viewport()->mapToGlobal(position)), Qt::NoButton,
+                         Qt::NoButton, Qt::NoModifier);
+        QApplication::sendEvent(view->viewport(), &move);
+    };
+    const auto point = pointFor(610, 62);
+    hover(point);
+    QVERIFY(indicator->isVisible());
+    QVERIFY(!indicator->path().isEmpty());
+    QCOMPARE(indicator->lastNoteView(), sceneNote(noteId));
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(singingClip->notes().count(), 1);
+    hover(pointFor(1200, 70));
+    QVERIFY(!indicator->isVisible());
+    hover(point);
+    QVERIFY(indicator->isVisible());
+    QVERIFY(!indicator->path().isEmpty());
+    QTest::mouseClick(view->viewport(), Qt::LeftButton, Qt::NoModifier, point);
+    QCOMPARE(singingClip->notes().count(), 2);
+    const auto *original = singingClip->findNoteById(noteId);
+    QVERIFY(original);
+    QCOMPARE(original->localStart(), 480);
+    QCOMPARE(original->length(), 120);
+    const auto *continuation = singingClip->notes().toList().last();
+    QVERIFY(continuation->id() != noteId);
+    QCOMPARE(continuation->localStart(), 600);
+    QCOMPARE(continuation->length(), 120);
+    QCOMPARE(continuation->keyIndex(), original->keyIndex());
+    QCOMPARE(continuation->lyric(), QStringLiteral("-"));
+    const auto continuationId = continuation->id();
+    QCOMPARE(sceneNoteCount(continuationId), 1);
+    QVERIFY(!indicator->isVisible());
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(singingClip->findNoteById(noteId)->length(), 240);
+    QCOMPARE(sceneNoteCount(noteId), 1);
+    QCOMPARE(sceneNoteCount(continuationId), 0);
+    QVERIFY(!historyManager->canUndo());
 }
 
 void ApplicationGuiTests::drawingCommitsOnceAndUndoRedoUpdatesTheScene() {

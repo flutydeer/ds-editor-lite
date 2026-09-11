@@ -9,12 +9,16 @@
 #include "UI/Dialogs/Options/AppOptionsDialog.h"
 #include "UI/Dialogs/Options/Pages/AutomationPage.h"
 #include "UI/Dialogs/Options/Pages/InferencePage.h"
+#include "UI/Dialogs/Options/Pages/GeneralPage.h"
+#include "UI/Views/Common/LanguageComboBox.h"
 
 #include <lite/GUI/Controls/ComboBox.h>
 #include <lite/GUI/Controls/PathEditor.h>
 #include <lite/GUI/Controls/PathListWidget.h>
 #include <lite/GUI/Controls/SwitchButton.h>
 #include <lite/GUI/Controls/ToolButton.h>
+#include <lite/GUI/Controls/FileSelector.h>
+#include <lite/GUI/Controls/LineEdit.h>
 #include <lite/History/HistoryManager.h>
 
 #include <QApplication>
@@ -108,6 +112,84 @@ namespace {
         QVERIFY(control->isEnabled());
         QTest::mouseClick(control, Qt::LeftButton);
     }
+}
+
+void ApplicationGuiTests::generalSettingsKeepSeparateDefaultLyricsForEachLanguage() {
+    auto &runtime = *context->m_coreRuntime;
+    const auto settings = runtime.settings().getSettings();
+    QVERIFY(settings);
+    const auto restore =
+        qScopeGuard([&] { QVERIFY(runtime.settings().updateGeneral({}, settings.get().general)); });
+    const auto before = runtime.documentVersion();
+    const auto lyricEditor = [](GeneralPage *page) {
+        for (auto *editor : page->findChildren<LineEdit *>()) {
+            if (!qobject_cast<FileSelector *>(editor->parentWidget()))
+                return editor;
+        }
+        return static_cast<LineEdit *>(nullptr);
+    };
+    const auto chooseLanguage = [](GeneralPage *page, LanguageComboBox *combo,
+                                   const QString &language) {
+        const auto index = combo->findData(language);
+        QVERIFY(index >= 0);
+        page->ensureWidgetVisible(combo);
+        QTest::mouseClick(combo, Qt::LeftButton);
+        QTRY_VERIFY(combo->view()->isVisible());
+        QTest::keyClick(combo->view(), Qt::Key_Home);
+        for (int row = 0; row < index; ++row)
+            QTest::keyClick(combo->view(), Qt::Key_Down);
+        QTest::keyClick(combo->view(), Qt::Key_Return);
+        QCOMPARE(combo->currentLanguage(), language);
+    };
+    {
+        AppOptionsDialog panel;
+        openOptionsPage(panel, AppOptionsGlobal::General);
+        if (QTest::currentTestFailed())
+            return;
+        auto *page = panel.findChild<GeneralPage *>();
+        QVERIFY(page);
+        auto *language = page->findChild<LanguageComboBox *>();
+        auto *lyric = lyricEditor(page);
+        QVERIFY(language && lyric);
+        chooseLanguage(page, language, QStringLiteral("eng"));
+        if (QTest::currentTestFailed())
+            return;
+        replaceText(lyric, QStringLiteral("doo"));
+        QTest::keyClick(lyric, Qt::Key_Return);
+        chooseLanguage(page, language, QStringLiteral("cmn"));
+        if (QTest::currentTestFailed())
+            return;
+        replaceText(lyric, QStringLiteral("啦"));
+        QTest::keyClick(lyric, Qt::Key_Return);
+        chooseLanguage(page, language, QStringLiteral("eng"));
+        if (QTest::currentTestFailed())
+            return;
+        QCOMPARE(lyric->text(), QStringLiteral("doo"));
+        QCOMPARE(appOptions->general()->defaultLyrics.value(QStringLiteral("cmn")),
+                 QStringLiteral("啦"));
+        panel.close();
+    }
+    AppOptions reopenedOptions;
+    QCOMPARE(reopenedOptions.general()->defaultLyrics.value(QStringLiteral("eng")),
+             QStringLiteral("doo"));
+    QCOMPARE(reopenedOptions.general()->defaultLyrics.value(QStringLiteral("cmn")),
+             QStringLiteral("啦"));
+    AppOptionsDialog reopened;
+    openOptionsPage(reopened, AppOptionsGlobal::General);
+    if (QTest::currentTestFailed())
+        return;
+    auto *page = reopened.findChild<GeneralPage *>();
+    QVERIFY(page);
+    auto *language = page->findChild<LanguageComboBox *>();
+    auto *lyric = lyricEditor(page);
+    QVERIFY(language && lyric);
+    QCOMPARE(lyric->text(), QStringLiteral("doo"));
+    chooseLanguage(page, language, QStringLiteral("cmn"));
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(lyric->text(), QStringLiteral("啦"));
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
 }
 
 void ApplicationGuiTests::appearanceInputsPersistAcrossReopening() {
