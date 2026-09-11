@@ -221,6 +221,9 @@ void ApplicationGuiTests::parameterAnchorEditingPreviewsAndUsesTheContextMenu() 
             return;
         choose.stop();
         const auto close = qScopeGuard([&] { menu->close(); });
+        // A popup can deactivate its editor while the menu remains open.
+        QEvent deactivate(QEvent::WindowDeactivate);
+        QApplication::sendEvent(&editor.view, &deactivate);
         QAction *choice = nullptr;
         for (auto *action : menu->actions()) {
             if (action->text() == label)
@@ -250,6 +253,15 @@ void ApplicationGuiTests::parameterAnchorEditingPreviewsAndUsesTheContextMenu() 
     QVERIFY(!curve());
     QVERIFY(!historyManager->canUndo());
     QVERIFY(clip->params.getParamByName(ParamInfo::Tension)->curves(Param::Edited).isEmpty());
+    editor.view.activateWindow();
+    QTRY_VERIFY(editor.view.isActiveWindow());
+    begin();
+    QVERIFY(editSessionManager->hasActiveTransaction());
+    QEvent deactivate(QEvent::WindowDeactivate);
+    QApplication::sendEvent(&editor.view, &deactivate);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QVERIFY(!curve());
+    QVERIFY(!historyManager->canUndo());
 }
 
 void ApplicationGuiTests::parameterStrokeCommitsOnceAndUndoRestoresView() {

@@ -180,7 +180,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | RHI 的未提交预览与边缘滚动 | gui | 锚点拖动和切分悬停期间等待实际预览帧，同时确认模型尚未提交；音符及轨道片段拖到边缘后静止鼠标仍持续滚动，取消后停止后续滚动且不修改模型，音符取消同时恢复原视口 | NativeDesktop 的 tst_rhi_editor.cpp、tst_rhi_tracks.cpp | 原生窗口；Qt Null 后端；检查 CPU 准备和帧提交，不验证 GPU 像素 |
 | 导出预设的界面生命周期 | gui | 实际命名窗口和覆盖确认验证取消创建、保存新预设、拒绝覆盖后保留草稿、确认更新及删除；只影响所选预设，不启动导出或修改工程 | ApplicationGui::exportPresetDialogsSaveOverwriteAndDeleteTheSelectedPreset | offscreen；Qt 消息窗口；隔离配置 |
 | 已定位音频的人工确认入口 | gui/workflow | 真实解码后以待确认状态展示资源行，选择并确认使模型和行状态同步恢复；文件、来源代际、解码缓存及保存点保留，不制造撤销项 | ApplicationGui::audioResourceConfirmationKeepsTheDecodedSource | offscreen；小型 WAV；无需音频设备 |
-| 普通参数编辑器的锚点操作 | gui | Mouth Opening 参数使用自身值域接收锚点创建、连线预览和取消；提交后经真实菜单修改插值，撤销分别恢复插值和曲线，背景参数保持不变 | ApplicationGui::parameterAnchorEditingPreviewsAndUsesTheContextMenu | offscreen；真实参数视口、编辑事务和菜单；无需声库 |
+| 普通参数编辑器的锚点操作 | gui | Mouth Opening 参数使用自身值域接收锚点创建、连线预览和取消；菜单引发失活时保留目标选择并实际修改插值，撤销分别恢复插值和曲线；菜单外失活继续取消未提交曲线，背景参数保持不变 | ApplicationGui::parameterAnchorEditingPreviewsAndUsesTheContextMenu | offscreen；真实参数视口、编辑事务和菜单；无需声库 |
 | 参数栏的前景/背景切换 | gui | 实际下拉选择和交换按钮同步视图及显示文字；清除背景后交换不改变前景，操作不修改工程或历史 | ApplicationGui::parameterToolbarSwapsTheVisiblePairWithoutEditingTheDocument | offscreen；无需声库 |
 | 播放栏时间线编辑与节拍测量 | gui | 速度和拍号弹窗编辑打开时选定的标记，移动播放头后提交不误改其他标记且显示跟随当前位置；内联输入验证、取消、定位与撤销；连续点击测量 BPM、稳定进度、闲置及重新打开后的重置 | ApplicationGui 的 tst_playback_controls.cpp | offscreen；实际输入和计时器；无需播放设备 |
 | 路径输入与多目录排序 | gui | 目录经真实拖入后选择、上移/下移与删除保留所选顺序；列表接受复制引用，文件选择框拒绝远程 URL 并按目录或扩展名筛选本地来源 | GuiComponents 的 tst_path_controls.cpp | offscreen；临时目录和文件；不调用外部模型 |
