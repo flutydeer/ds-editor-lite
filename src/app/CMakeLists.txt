@@ -24,10 +24,10 @@ find_package(re2 CONFIG REQUIRED)
 find_package(cpp-pinyin CONFIG REQUIRED)
 find_package(talcs REQUIRED)
 find_package(unofficial-tinyexpr CONFIG REQUIRED)
-find_package(dsinfer CONFIG REQUIRED)
 find_package(synthrt CONFIG REQUIRED)
-find_package(srt-audio CONFIG REQUIRED)
-find_package(srt-extract CONFIG REQUIRED)
+find_package(wolf CONFIG REQUIRED)
+find_package(otter CONFIG REQUIRED)
+include(${LITE_CMAKE_DIR}/LiteDsinfer.cmake)
 find_package(SndFile CONFIG REQUIRED)
 
 set(_platform_links)
@@ -88,12 +88,11 @@ lite_add_application(${PROJECT_NAME}
         lite::AutomationWire
         lite::GUI
         unofficial::tinyexpr::tinyexpr
-        srt::synthrt
-        srt::diffsinger
-        srt::audio
-        srt::extract
+        synthrt::synthrt
+        wolf::wolf
+        otter::otter
+        lite::dsinfer
         SndFile::sndfile
-        dsinfer::dsinfer
         re2::re2
 )
 

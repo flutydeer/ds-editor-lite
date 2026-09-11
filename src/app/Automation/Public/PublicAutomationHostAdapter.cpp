@@ -1375,8 +1375,13 @@ namespace Automation {
                 !languages.contains(settings.get().general.defaultSingingLanguage)) {
                 languages.append(settings.get().general.defaultSingingLanguage);
             }
-            const bool pitchModuleReady = engine && engine->pitchExtractionReady();
-            const bool midiModuleReady = engine && engine->midiExtractionReady();
+            // Ready means an analyzer answering that contract is installed. On the older line
+            // the engine loaded one extractor of each kind and could be asked whether it had; an
+            // analyzer is a package contribution now, so the question is what is installed.
+            const bool pitchModuleReady =
+                engine && !engine->analyzers(QStringLiteral("org.openvpi.analysis.F0")).empty();
+            const bool midiModuleReady =
+                engine && !engine->analyzers(QStringLiteral("org.openvpi.analysis.Note")).empty();
             const auto optionSchema = [](const QString &operationId) {
                 const auto *contract = AutomationWire::findPublicTool(operationId);
                 const auto options = contract

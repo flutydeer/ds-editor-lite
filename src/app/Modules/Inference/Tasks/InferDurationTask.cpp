@@ -1,6 +1,6 @@
 #include "InferDurationTask.h"
 
-#include <diffsinger/Infer/dsinfer/Api/Inferences/Duration/1/DurationApiL1.h>
+#include <dsinfer/Api/Inferences/Duration/1/DurationApiL1.h>
 
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/InferEngine.h"
@@ -18,7 +18,7 @@
 #include <QJsonDocument>
 #include <utility>
 
-namespace Dur = srt::svs::Api::Duration::L1;
+namespace Dur = ds::Api::Duration::L1;
 
 bool InferDurationTask::InferDurInput::operator==(const InferDurInput &other) const {
     return semanticSignature() == other.semanticSignature();
@@ -159,15 +159,15 @@ bool InferDurationTask::runInference(const GenericInferModel &model,
 
     const auto &identifier = model.identifier;
     std::string speakerName = model.speaker.toStdString();
-    const auto input = srt::core::NO<Dur::DurationStartInput>::create();
+    Dur::DurationStartInput input;
 
     InferDirectMLSerializationGuard dmlGuard;
-    const auto handle = inferEngine->acquireSingerSession(identifier);
-    if (!handle) {
+    const auto lease = inferEngine->acquireSingerSession(identifier);
+    if (!lease || !lease->pipeline()) {
         qCritical() << "inferDuration: failed to acquire singer session for" << identifier;
         return false;
     }
-    auto modelExp = m_activeInference.acquire(handle, ds::infer::StageKind::Duration);
+    auto modelExp = m_activeInference.acquire(*lease->pipeline(), InferStage::Duration);
     if (!modelExp) {
         qCritical().noquote().nospace()
             << "inferDuration: failed to load duration model for " << identifier << ": "
@@ -176,7 +176,9 @@ bool InferDurationTask::runInference(const GenericInferModel &model,
     }
     auto activeInference = modelExp.take();
     auto &acquiredModel = activeInference.model();
-    auto inferenceDuration = acquiredModel.inference;
+    // The stage decides the type: acquire() was asked for duration and returns
+    // nothing else.
+    auto *inferenceDuration = static_cast<Dur::DurationExecutive *>(acquiredModel.executive);
     if (!inferenceDuration) {
         qCritical() << "inferDuration: Duration inference not found for" << identifier;
         return false;
@@ -187,13 +189,13 @@ bool InferDurationTask::runInference(const GenericInferModel &model,
         qCritical() << "inferDuration: Import options not found";
         return false;
     }
-    const auto importOptions = acquiredModel.importOptions.as<Dur::DurationImportOptions>();
+    const auto *importOptions = acquiredModel.importOptions->as<Dur::DurationImportOptions>();
     if (!importOptions) {
         qCritical() << "inferDuration: Import options not found";
         return false;
     }
     const auto &speakerMapping = importOptions->speakerMapping;
-    input->words =
+    input.words =
         convertInputWords(model.words, speakerName, model.speakerMix, speakerMapping, error);
     if (!error.isEmpty()) {
         qCritical() << "inferDuration:" << error;
@@ -201,7 +203,7 @@ bool InferDurationTask::runInference(const GenericInferModel &model,
     }
 
     // Run duration
-    srt::core::NO<Dur::DurationResult> result;
+    std::unique_ptr<Dur::DurationResult> result;
     // Start inference
     if (isTerminateRequested()) {
         abort();
@@ -213,22 +215,19 @@ bool InferDurationTask::runInference(const GenericInferModel &model,
                                         << identifier << ": " << exp.error().message();
         return false;
     } else {
-        result = exp.take().as<Dur::DurationResult>();
+        result = exp.take();
         if (!result) {
             qCritical() << "inferDuration: result type mismatch or null result for" << identifier;
             return false;
         }
     }
 
-    if (!result->error.ok()) {
-        qCritical().noquote().nospace() << "inferDuration: Failed to run duration inference for "
-                                        << identifier << ": " << result->error.message();
-        return false;
-    }
-
-    if (inferenceDuration->state() == srt::core::ITask::Failed) {
-        qCritical().noquote().nospace() << "inferDuration: Failed to run duration inference for "
-                                        << identifier << ": " << result->error.message();
+    // A failure already came back as an error from start(), so there is nothing to re-check on
+    // the result. What is worth checking is the state: a run that was stopped returns a result
+    // like any other, and running on with it would give a half a phrase as if it were the whole.
+    if (inferenceDuration->state() == srt::ITask::Failed) {
+        qCritical().noquote().nospace() << "inferDuration: the duration inference for " << identifier
+                                        << " did not finish";
         return false;
     }
 

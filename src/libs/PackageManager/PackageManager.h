@@ -17,7 +17,7 @@
 #include <QReadWriteLock>
 #include <QStringList>
 
-namespace srt::core {
+namespace srt {
     class Error;
 }
 
@@ -55,7 +55,7 @@ Q_SIGNALS:
     void moduleStatusChanged(PackageManager::ModuleStatus status);
 
 private:
-    static QString srtErrorToString(const srt::core::Error &error);
+    static QString srtErrorToString(const srt::Error &error);
 
     std::once_flag m_initialized{};
     mutable std::mutex m_refreshMutex;

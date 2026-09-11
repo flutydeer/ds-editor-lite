@@ -124,52 +124,73 @@ function(lite_deploy_application _target)
         )
     endif()
 
-    set(_g2p_packages
-        ${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/share/synthrt/G2pPackages)
+    # Where the plugin trees come from, and where they go.
+    #
+    # On the main line a category is the unit of discovery and each of the three packages installs
+    # its own tree, so there are three roots rather than one: dsinfer's under `plugins/`, wolf's
+    # under `wolf/plugins/` and otter's under `otter/plugins/`. They are deployed keeping that
+    # shape, because SynthrtEngine::defaultPluginRoot() names the directory that holds all three
+    # and Bootstrap appends the rest. Flattening them here would mean teaching the engine a second
+    # layout that exists only in a deployed tree.
+    set(_lite_vcpkg_root "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(_lite_plugin_source "${_lite_vcpkg_root}/debug/lib")
+    else()
+        set(_lite_plugin_source "${_lite_vcpkg_root}/lib")
+    endif()
+    # ONNX Runtime is not a plugin and is not installed with one. The driver is told where it is
+    # rather than searching, so it is staged beside the driver and nowhere else -- which copy gets
+    # loaded is a deployment decision, and a search is how a machine ends up running another one.
+    set(_lite_ort_source "${_lite_vcpkg_root}/share/onnxruntime-builds/runtime/default")
+    set(_lite_ort_relative "plugins/dsinfer/inferencedrivers/onnx/runtime")
 
     if(WIN32)
+        set(_lite_plugin_destination ".")
         qm_add_copy_command(${_target}
             SOURCES $<TARGET_FILE:cpp-pinyin::cpp-pinyin>
             DESTINATION .
             ${_install_copy_args}
         )
-        qm_add_copy_command(${_target}
-            SOURCES $<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins/
-            DESTINATION plugins
-            ${_install_copy_args}
-        )
-        qm_add_copy_command(${_target}
-            SOURCES ${_g2p_packages}/
-            DESTINATION plugins/srt-g2p/G2pPackages
-            ${_install_copy_args}
-        )
     elseif(APPLE)
+        set(_lite_plugin_destination $<TARGET_BUNDLE_CONTENT_DIR:${_target}>/PlugIns)
+    else()
+        set(_lite_plugin_destination $<TARGET_FILE_DIR:${_target}>/../lib)
+    endif()
+
+    foreach(_tree IN ITEMS plugins wolf otter)
+        if(EXISTS "${_lite_plugin_source}/${_tree}")
+            qm_add_copy_command(${_target}
+                SOURCES ${_lite_plugin_source}/${_tree}/
+                DESTINATION ${_lite_plugin_destination}/${_tree}
+                ${_install_copy_args}
+            )
+        else()
+            message(WARNING
+                "No ${_tree} plugin tree at ${_lite_plugin_source}; whatever it provides will be "
+                "missing at runtime.")
+        endif()
+    endforeach()
+
+    if(EXISTS "${_lite_ort_source}")
         qm_add_copy_command(${_target}
-            SOURCES $<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins/
-            DESTINATION $<TARGET_BUNDLE_CONTENT_DIR:${_target}>/PlugIns
+            SOURCES ${_lite_ort_source}/
+            DESTINATION ${_lite_plugin_destination}/${_lite_ort_relative}
             ${_install_copy_args}
         )
-        qm_add_copy_command(${_target}
-            SOURCES ${_g2p_packages}/
-            DESTINATION $<TARGET_BUNDLE_CONTENT_DIR:${_target}>/PlugIns/srt-g2p/G2pPackages
-            ${_install_copy_args}
-        )
-    elseif(UNIX)
-        qm_add_copy_command(${_target}
-            SOURCES $<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins/
-            DESTINATION $<TARGET_FILE_DIR:${_target}>/../lib/plugins
-            ${_install_copy_args}
-        )
-        qm_add_copy_command(${_target}
-            SOURCES ${_g2p_packages}/
-            DESTINATION $<TARGET_FILE_DIR:${_target}>/../lib/plugins/srt-g2p/G2pPackages
-            ${_install_copy_args}
-        )
+    else()
+        message(WARNING
+            "No ONNX Runtime payload at ${_lite_ort_source}; the editor will list voicebanks and "
+            "refuse to synthesise.")
+    endif()
+
+    if(UNIX AND NOT APPLE)
+        # The plugins are deployed under the same lib directory as the shared libraries they
+        # need, so that is both what gets rewritten and what the rewritten RPATHs point at.
         add_custom_command(TARGET ${_target} POST_BUILD
             COMMAND bash ${LITE_SOURCE_DIR}/scripts/fix_linux_rpath_recursive.sh
                 --normalize --pattern=lib*.so --except=libonnxruntime*.so
-                $<TARGET_FILE_DIR:${_target}>/../lib/plugins
-                $<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib
+                $<TARGET_FILE_DIR:${_target}>/../lib
+                $<TARGET_FILE_DIR:${_target}>/../lib
             COMMENT "Fix deployed plugin RPATHs"
         )
     endif()
@@ -179,11 +200,11 @@ function(lite_deploy_application _target)
     # (relative to the deployed plugins/ root), its runtimes subdirectory and
     # the flavors actually deployed. Everything ort-related below derives
     # from that declaration — lite never hardcodes plugin paths or flavors.
-    set(_ort_runtimes_rel "")
-    if(DEFINED SYNTHRT_ONNXDRIVER_PLUGIN AND DEFINED SYNTHRT_ONNXDRIVER_RUNTIMES_SUBDIR)
-        set(_ort_runtimes_rel
-            "${SYNTHRT_ONNXDRIVER_PLUGIN}/runtimes/${SYNTHRT_ONNXDRIVER_RUNTIMES_SUBDIR}")
-    endif()
+    # The refactor line had the synthrt package declare where its driver put its runtimes, so that
+    # lite never named a plugin path. The main line does not ship that declaration and does not
+    # need to: the driver takes the runtime path from the host, so the layout is lite's own choice
+    # and is the one staged above. Named once, here.
+    set(_ort_runtimes_rel "${_lite_ort_relative}")
 
     # ONNX Runtime CUDA flavor gate: deployment follows LITE_ENABLE_CUDA,
     # never the vcpkg tree's residue. ON requires the cuda/ payload (fatal if

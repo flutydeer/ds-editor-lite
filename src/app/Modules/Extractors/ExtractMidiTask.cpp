@@ -1,24 +1,27 @@
 #include "ExtractMidiTask.h"
 
-#include "ExtractorUtils.h"
+#include "AnalysisAudio.h"
+#include "AudioSlicer.h"
 
-#include "AppContext.h"
-#include <lite/ProjectModel/AppModel/AppModel.h>
-#include <lite/SynthrtEngine/SynthrtEngine.h>
-#include <lite/Support/StringUtils.h>
-
-#include <synthrt/Core/Plugin/PluginFactory.h>
-#include <synthrt/Extract/MidiExtractorPlugin.h>
+#include <utility>
 
 #include <QDebug>
-#include <QDir>
+#include <QFile>
 #include <QMutexLocker>
 #include <QScopeGuard>
-#include <utility>
+
+#include <TalcsFormat/AudioFormatIO.h>
+
+#include <otter/Api/Note/1/NoteApiL1.h>
+
+#include <lite/Support/StringUtils.h>
+#include <lite/SynthrtEngine/SynthrtEngine.h>
+
+namespace Note = otter::Api::Note::L1;
 
 ExtractMidiTask::ExtractMidiTask(Input input) : ExtractTask(std::move(input)) {
     TaskStatus status;
-    status.title = tr("Extract Midi");
+    status.title = tr("Extract MIDI");
     status.message = tr("Pending infer: %1")
                          .arg(m_input.displayAudioPath.isEmpty() ? m_input.audioPath
                                                                 : m_input.displayAudioPath);
@@ -31,71 +34,34 @@ void ExtractMidiTask::runTask() {
         m_errorMessage = tr("Task terminated.");
     };
 
-    // 1. Load model in background thread (avoid blocking UI)
     auto newStatus = status();
     newStatus.message = tr("Loading model, please wait...");
     newStatus.isIndetermine = true;
     setStatus(newStatus);
 
-    auto *synthrtEngine = AppContext::instance<SynthrtEngine>();
-    auto runtimeLease = synthrtEngine ? synthrtEngine->acquireMidiExtractionOperation()
-                                      : SynthrtEngine::RuntimeOperationLease{};
-    if (!runtimeLease) {
-        m_errorCode = ErrorCode::InferEngineNotLoaded;
-        m_errorMessage = tr("MIDI extraction is not available");
-        qCritical().noquote() << "Error:" << errorMessage();
-        return;
-    }
-    if (isTerminateRequested()) {
-        terminateTask();
-        return;
-    }
-
-    const auto modelPath = StringUtils::qstr_to_path(m_input.modelPath);
-
-    if (modelPath.empty() || !exists(modelPath) || !is_directory(modelPath)) {
+    auto created = SynthrtEngine::instance().createAnalyzer(m_input.modelPath);
+    if (!created) {
         m_errorCode = ErrorCode::ModelNotLoaded;
-        m_errorMessage =
-            tr("Invalid GAME model dir: ") +
-            (m_input.modelPath.isEmpty() ? QString("Dir is Empty.") : m_input.modelPath);
-        qCritical().noquote() << "Error:" << errorMessage();
+        m_errorMessage = tr("Note analyzer unavailable: ") +
+                         QString::fromStdString(created.error().toString());
+        qCritical().noquote() << errorMessage();
         return;
     }
-
-    // Obtain the game MidiExtractor plugin and create an extractor instance.
-    auto &runtime = runtimeLease.runtime();
-    auto *plugins = runtime.services().get<srt::core::PluginFactory>();
-    if (!plugins) {
-        m_errorCode = ErrorCode::InferEngineNotLoaded;
-        m_errorMessage = tr("PluginFactory is not available");
-        qCritical().noquote() << "Error:" << errorMessage();
-        return;
-    }
-
-    auto *gamePlugin = plugins->plugin<srt::extract::MidiExtractorPlugin>("game");
-    if (!gamePlugin) {
+    auto analyzer = created.take();
+    auto *notes = dynamic_cast<Note::NoteExecutive *>(analyzer.get());
+    if (notes == nullptr) {
         m_errorCode = ErrorCode::ModelNotLoaded;
-        m_errorMessage = tr("GAME MidiExtractor plugin not found");
-        qCritical().noquote() << "Error:" << errorMessage();
+        m_errorMessage = tr("The chosen analyzer does not transcribe notes");
+        qCritical().noquote() << errorMessage();
         return;
     }
-
-    auto extractorExp = gamePlugin->createExtractor(&runtime);
-    if (!extractorExp) {
-        m_errorCode = ErrorCode::ModelNotLoaded;
-        const auto reason = QString::fromUtf8(extractorExp.error().message());
-        m_errorMessage = tr("Failed to create GAME extractor: ") + reason;
-        qCritical().noquote() << "Error:" << errorMessage();
-        return;
-    }
-    auto extractor = extractorExp.take();
     {
-        QMutexLocker locker(&m_extractorMutex);
-        m_extractor = extractor;
+        QMutexLocker locker(&m_analyzerMutex);
+        m_analyzer = analyzer.get();
     }
-    const auto clearExtractor = qScopeGuard([this] {
-        QMutexLocker locker(&m_extractorMutex);
-        m_extractor.reset();
+    const auto clearAnalyzer = qScopeGuard([this] {
+        QMutexLocker locker(&m_analyzerMutex);
+        m_analyzer = nullptr;
     });
 
     if (isTerminateRequested()) {
@@ -103,26 +69,15 @@ void ExtractMidiTask::runTask() {
         return;
     }
 
-    if (auto exp = extractor->open(modelPath); !exp) {
-        if (isTerminateRequested()) {
-            terminateTask();
-            return;
-        }
+    const auto *spec = SynthrtEngine::instance().analyzerSpec(m_input.modelPath);
+    const auto *schema = spec ? spec->exports()->as<Note::NoteSchema>() : nullptr;
+    if (schema == nullptr || schema->sampleRate <= 0) {
         m_errorCode = ErrorCode::ModelNotLoaded;
-        const auto reason = QString::fromUtf8(exp.error().message());
-        m_errorMessage = tr("Failed to create GAME session: ") + reason;
-        qCritical().noquote() << "Error:" << errorMessage();
-        QMutexLocker locker(&m_extractorMutex);
-        m_extractor.reset();
+        m_errorMessage = tr("The chosen analyzer does not declare an input format");
+        qCritical().noquote() << errorMessage();
         return;
     }
 
-    if (isTerminateRequested()) {
-        terminateTask();
-        return;
-    }
-
-    // 2. Run inference
     newStatus = status();
     newStatus.message = tr("Running inference: %1")
                             .arg(m_input.displayAudioPath.isEmpty() ? m_input.audioPath
@@ -132,67 +87,94 @@ void ExtractMidiTask::runTask() {
     newStatus.progress = 0;
     setStatus(newStatus);
 
-    QString decodeError;
-    auto audio = ExtractorUtils::decodeAudio(
-        m_input.audioPath, [this] { return isTerminateRequested(); }, decodeError);
-    if (!audio) {
+    QFile file(m_input.audioPath);
+    talcs::AudioFormatIO io(&file);
+    QString audioError;
+    const auto cancelled = [this] { return isTerminateRequested(); };
+    auto prepared = Extractors::prepareAudio(&io, m_input.audioVisibleStartMs,
+                                             m_input.audioVisibleEndMs, schema->sampleRate,
+                                             cancelled, audioError);
+    if (!prepared) {
         if (isTerminateRequested()) {
             terminateTask();
             return;
         }
         m_errorCode = ErrorCode::ModelRunFailed;
-        m_errorMessage = decodeError;
+        m_errorMessage = audioError;
         qCritical().noquote() << "Error:" << errorMessage();
         return;
     }
 
-    // Configure extraction options (tempo from input; thresholds/language use defaults
-    // that match the model's config.json — the plugin may override internally).
-    srt::extract::MidiExtractOptions options;
-    options.tempo = static_cast<float>(m_input.timeline.tempoAt(0));
+    const Extractors::SlicingProfile slicer;
+    const auto spans = slicer.slice(prepared->samples, prepared->sampleRate,
+                                    schema->maxSegmentDuration);
 
-    auto resultExp =
-        extractor->extract(audio->buffer, audio->sampleRate, options, [this](const int progress) {
+    m_errorCode = ErrorCode::Success;
+    m_errorMessage = tr("Successfully extracted midi.");
+    for (qsizetype index = 0; index < static_cast<qsizetype>(spans.size()); ++index) {
+        if (isTerminateRequested()) {
+            terminateTask();
+            result.clear();
+            return;
+        }
+        const auto &span = spans[index];
+
+        Note::NoteStartInput input;
+        input.audio.sampleRate = prepared->sampleRate;
+        input.audio.channelCount = 1;
+        input.audio.samples.assign(prepared->samples.begin() + span.begin,
+                                   prepared->samples.begin() + span.end);
+        input.audio.startTime =
+            prepared->startMs / 1000.0 + static_cast<double>(span.begin) / prepared->sampleRate;
+        const auto base = static_cast<double>(index) / static_cast<double>(spans.size());
+        const auto share = 1.0 / static_cast<double>(spans.size());
+        input.progress = [this, base = base, share = share](double fraction) {
             auto progressStatus = status();
-            progressStatus.progress = progress;
+            progressStatus.progress = static_cast<int>((base + fraction * share) * 100);
             setStatus(progressStatus);
-        });
+            return !isTerminateRequested();
+        };
 
-    if (isTerminateRequested()) {
-        terminateTask();
-        return;
-    }
-
-    if (resultExp) {
-        m_errorCode = ErrorCode::Success;
-        m_errorMessage = tr("Successfully extracted midi.");
-        auto midiResult = resultExp.take();
-        result.reserve(midiResult.notes.size());
-        for (const auto &note : midiResult.notes) {
+        auto transcribed = notes->start(input);
+        if (!transcribed) {
             if (isTerminateRequested()) {
                 terminateTask();
                 result.clear();
                 return;
             }
-            result.push_back({note.note, note.start, note.duration});
+            m_errorCode = ErrorCode::ModelRunFailed;
+            m_errorMessage = tr("The note analyzer failed. Reason: ") +
+                             QString::fromStdString(transcribed.error().toString());
+            qCritical().noquote() << "Error:" << errorMessage();
+            return;
         }
-    } else {
-        m_errorCode = ErrorCode::ModelRunFailed;
-        m_errorMessage =
-            tr("GAME model run failed. Reason: ") + QString::fromUtf8(resultExp.error().message());
-        qCritical().noquote() << "Error:" << errorMessage();
+
+        // Seconds to ticks, note by note through the timeline. The older line asked the timeline
+        // for one tempo and applied it to the whole take, which drifts further the longer the
+        // take runs on a piece whose tempo changes -- and the notes then sit next to the audio
+        // rather than on it.
+        const auto transcription = transcribed.take();
+        result.reserve(result.size() + transcription->notes.size());
+        for (const auto &note : transcription->notes) {
+            const auto startMs = m_input.audioMaterialOriginMs + note.start * 1000.0;
+            const auto endMs = startMs + note.duration * 1000.0;
+            const auto startTick = m_input.timeline.msToTick(startMs);
+            const auto endTick = m_input.timeline.msToTick(endMs);
+            result.push_back({note.key, static_cast<int>(qRound(startTick)),
+                              static_cast<int>(qRound(endTick - startTick))});
+        }
     }
 }
 
 void ExtractMidiTask::terminate() {
     ExtractTask::terminate();
 
-    srt::core::NO<srt::extract::MidiExtractor> extractor;
+    otter::AnalysisExecutive *analyzer = nullptr;
     {
-        QMutexLocker locker(&m_extractorMutex);
-        extractor = m_extractor;
+        QMutexLocker locker(&m_analyzerMutex);
+        analyzer = m_analyzer;
     }
-    if (extractor) {
-        extractor->terminate();
+    if (analyzer) {
+        (void) analyzer->stop();
     }
 }

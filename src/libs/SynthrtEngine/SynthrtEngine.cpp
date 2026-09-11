@@ -1,183 +1,97 @@
-//
-// SynthrtEngine implementation — v2 component facade.
-//
-// Reference: docs/refactoring-v2/03-lite-integration.md
-//
-
 #include "SynthrtEngine.h"
 
-#include <lite/Core/SingletonRegistry.h>
-#include <lite/Support/StringUtils.h>
-#include <lite/Support/VersionUtils.h>
-
-#include <stdcorelib/path.h>
-#include <stdcorelib/support/versionnumber.h>
-#include <stdcorelib/system.h>
-
-#include <synthrt/G2P/Base/LangCommon.h>
-#include <synthrt/G2P/Core/Manager.h>
-#include <synthrt/G2P/Task/SessionTask.h>
-#include <synthrt/G2P/Task/SessionFactory.h>
-#include <synthrt/G2P/Task/TaskPlugin.h>
-#include <synthrt/Driver/InferenceDriver.h>
-#include <synthrt/Driver/InferenceSession.h>
-#include <synthrt/Driver/onnx/OnnxDriverApi.h>
-#include <synthrt/Driver/OnnxSetup.h>
-#include <synthrt/Core/Core/Runtime.h>
-#include <synthrt/Core/Module/Module.h>
-#include <synthrt/Core/Plugin/PluginFactory.h>
-#include <synthrt/Extract/PitchExtractorPlugin.h>
-#include <synthrt/Extract/MidiExtractorPlugin.h>
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <map>
+#include <mutex>
+#include <shared_mutex>
+#include <utility>
 
 #include <QDebug>
-#include <QDir>
-#include <QElapsedTimer>
 
-#include <algorithm>
-#include <cstdlib>
-#include <filesystem>
-#include <cwctype>
-#include <thread>
-#include <vector>
+#include <lite/Core/SingletonRegistry.h>
+
+#include <otter/Analysis/AnalysisContrib.h>
+
+#include <stdcorelib/system.h>
 
 #if defined(Q_OS_MAC)
-#  include <lite/Support/MacOSUtils.h>
+#    include <lite/Support/MacOSUtils.h>
 #endif
 
 namespace fs = std::filesystem;
 
-static srt::core::Expected<void> checkPath(const std::filesystem::path &path) {
-    if (!std::filesystem::exists(path)) {
-        return srt::core::Error(srt::core::ErrorCode::FileNotFound,
-                                "Path does not exist: " + stdc::path::to_utf8(path));
-    }
-    if (!std::filesystem::is_directory(path)) {
-        return srt::core::Error(srt::core::ErrorCode::InvalidArgument,
-                                "Path is not a directory: " + stdc::path::to_utf8(path));
-    }
-    return srt::core::Expected<void>();
-}
-
-// ============================================================================
-// G2P ONNX driver adapters — reuse the inference ONNX driver with CPU forced.
-//
-// Design: G2P and inference share the same ONNX plugin (srt-onnxdriver). The
-// G2P side wraps the inference InferenceDriver/InferenceSession, translating
-// G2P SessionFactory/SessionTask calls and forcing useCpu=true on every
-// session open() so G2P never competes with GPU inference.
-// ============================================================================
-
 namespace {
 
-    /// G2P ONNX SessionTask adapter — wraps an inference InferenceSession.
-    class G2pOnnxSessionTask : public srt::g2p::SessionTask {
-    public:
-        explicit G2pOnnxSessionTask(srt::core::NO<srt::driver::InferenceSession> session)
-            : m_inner(std::move(session)) {
-        }
-
-        int apiLevel() const override {
-            return 0;
-        }
-
-        srt::core::Expected<void> initialize() override {
-            return {};
-        }
-
-        srt::core::Expected<void>
-            open(const std::filesystem::path &path,
-                 const srt::core::NO<srt::core::TaskInitArgs> &args) override {
-            auto inferenceArgs = srt::core::NO<srt::driver::onnx::SessionOpenArgs>::create();
-            inferenceArgs->useCpu = true; // G2P always runs on CPU
-            return m_inner->open(path, inferenceArgs);
-        }
-
-        srt::core::Expected<void> close() override {
-            return m_inner->close();
-        }
-
-        bool isOpen() const override {
-            return m_inner->isOpen();
-        }
-
-        int64_t id() const override {
-            return m_inner->id();
-        }
-
-        srt::core::Expected<srt::core::NO<srt::core::TaskResult>>
-            start(const srt::core::NO<srt::core::TaskStartInput> &input) override {
-            // Translate G2P SessionStartInput → inference SessionStartInput
-            auto inferenceInput = srt::core::NO<srt::driver::onnx::SessionStartInput>::create();
-            auto g2pInput = input.as<srt::g2p::SessionStartInput>();
-            if (g2pInput) {
-                inferenceInput->inputs = g2pInput->inputs;
-                inferenceInput->outputs = g2pInput->outputs;
+    std::vector<fs::path> toPaths(const QStringList &values) {
+        std::vector<fs::path> result;
+        result.reserve(values.size());
+        for (const auto &value : values) {
+            if (!value.isEmpty()) {
+                result.push_back(fs::path(value.toStdString()));
             }
-            auto result = m_inner->start(inferenceInput);
-            if (!result)
-                return result.error();
-            // Translate inference SessionResult → G2P SessionResult
-            auto g2pResult = srt::core::NO<srt::g2p::SessionResult>::create();
-            auto inferenceResult = result.take().as<srt::driver::onnx::SessionResult>();
-            if (inferenceResult) {
-                g2pResult->outputs = std::move(inferenceResult->outputs);
+        }
+        return result;
+    }
+
+}
+
+class SynthrtEngine::Impl {
+public:
+    /// Guards the engine's state against a shutdown running under it.
+    ///
+    /// Shared while anything is using the unit, exclusive while it is replaced or torn down. The
+    /// refactor line called this the runtime lifecycle lock and it is here for the same reason: a
+    /// package handle, a pipeline and a conversion all borrow from the unit, and the unit going
+    /// away under one of them is not something they can be asked to tolerate.
+    mutable std::shared_mutex lifecycle;
+
+    std::unique_ptr<lite::synthrt::Bootstrap> bootstrap;
+    std::unique_ptr<lite::synthrt::LanguageBridge> language;
+
+    /// The packages the last scan loaded. Held so they stay loaded; released on refresh.
+    std::vector<srt::PackageHandle> packages;
+    std::vector<lite::synthrt::SingerEntry> catalog;
+
+    /// Pipelines, built on first use, keyed the way the editor names a singer.
+    std::map<std::pair<std::string, std::string>, std::unique_ptr<lite::synthrt::SingerPipeline>>
+        pipelines;
+
+    /// Bumped whenever the packages a pipeline borrows from are released, so that a caller
+    /// holding a pipeline can tell whether it still means anything.
+    std::atomic_uint64_t generation = 0;
+
+    std::atomic_bool initialized = false;
+    std::atomic_bool initializationDone = false;
+    std::atomic_bool aboutToQuit = false;
+
+    mutable std::mutex doneMutex;
+    mutable std::condition_variable done;
+
+    /// Finds a singer in the catalogue. The caller holds the lifecycle lock.
+    const lite::synthrt::SingerEntry *find(const SingerIdentifier &identifier) const {
+        const auto [packageId, contributionId] = identifier.contribution();
+        for (const auto &entry : catalog) {
+            if (entry.packageId == packageId && entry.contributionId == contributionId) {
+                return &entry;
             }
-            return g2pResult;
         }
+        return nullptr;
+    }
 
-    private:
-        srt::core::NO<srt::driver::InferenceSession> m_inner;
-    };
-
-    /// G2P ONNX SessionFactory adapter — wraps an inference InferenceDriver.
-    /// Holds a shared_ptr to the driver so the adapter remains valid even if
-    /// the Runtime's ObjectPool is destroyed first during shutdown.
-    class G2pOnnxSessionFactory : public srt::g2p::SessionFactory {
-    public:
-        explicit G2pOnnxSessionFactory(srt::core::NO<srt::driver::InferenceDriver> driver)
-            : m_driver(std::move(driver)) {
+    void releasePackages() {
+        // Order matters and is the reverse of construction: a pipeline owns executives that borrow
+        // from their package, so it goes before the package does.
+        pipelines.clear();
+        for (auto &package : packages) {
+            package.reset();
         }
+        generation.fetch_add(1, std::memory_order_release);
+        packages.clear();
+    }
+};
 
-        std::string arch() const override {
-            return m_driver->arch();
-        }
-
-        std::string backend() const override {
-            return m_driver->backend();
-        }
-
-        srt::core::Expected<void>
-            initialize(const srt::core::NO<srt::core::TaskInitArgs> &args) override {
-            return {}; // Inference driver already initialized
-        }
-
-        srt::core::NO<srt::g2p::SessionTask> createSession() override {
-            auto session = m_driver->createSession();
-            if (!session)
-                return nullptr;
-            return srt::core::NO<G2pOnnxSessionTask>::create(std::move(session));
-        }
-
-    private:
-        srt::core::NO<srt::driver::InferenceDriver> m_driver;
-    };
-
-} // namespace
-
-SynthrtEngine::RuntimeOperationLease::RuntimeOperationLease(
-    std::shared_lock<std::shared_mutex> lock, srt::core::Runtime *runtime)
-    : m_lock(std::move(lock)), m_runtime(runtime) {
-}
-
-SynthrtEngine::RuntimeOperationLease::operator bool() const noexcept {
-    return m_runtime != nullptr;
-}
-
-srt::core::Runtime &SynthrtEngine::RuntimeOperationLease::runtime() const {
-    return *m_runtime;
-}
-
-// === Singleton ===
 SynthrtEngine &SynthrtEngine::instance() {
     auto *engine = SingletonRegistry::instance<SynthrtEngine>();
     if (!engine) {
@@ -187,547 +101,380 @@ SynthrtEngine &SynthrtEngine::instance() {
     return *engine;
 }
 
-SynthrtEngine::SynthrtEngine(QObject *parent) : QObject(parent) {
-    // Note: log_report_callback is registered by InferEngine constructor,
-    // which is the startup entry point and constructs before SynthrtEngine is
-    // first accessed. Do not re-register here to avoid overwriting a potential
-    // custom callback set by the application.
+SynthrtEngine::SynthrtEngine(QObject *parent) : QObject(parent), _impl(std::make_unique<Impl>()) {
 }
 
 SynthrtEngine::~SynthrtEngine() {
     shutdown();
 }
 
-bool SynthrtEngine::initialized() const {
-    return m_initialized.load(std::memory_order_acquire);
-}
-
-bool SynthrtEngine::initializationDone() const noexcept {
-    return m_initializationDone.load(std::memory_order_acquire);
-}
-
-bool SynthrtEngine::waitForInitialization(int timeoutMs) const {
-    if (m_initializationDone.load(std::memory_order_acquire)) {
-        return true;
-    }
-    std::unique_lock lock(m_initDoneMutex);
-    return m_initDoneCv.wait_for(lock, std::chrono::milliseconds(timeoutMs), [this] {
-        return m_initializationDone.load(std::memory_order_acquire);
-    });
-}
-
-bool SynthrtEngine::sessionReady() const noexcept {
-    return m_sessionInitialized;
-}
-
-bool SynthrtEngine::waitForSession(int timeoutMs) const {
-    // Fast path: session already ready.
-    if (m_sessionInitialized) {
-        return true;
-    }
-    // Wait until either the session becomes ready, or initialize() finishes
-    // (success or failure). If initialize() finished without setting
-    // m_sessionInitialized, Stage 1 failed and the caller should surface the
-    // refreshVoicebanks() error rather than wait out the full timeout.
-    std::unique_lock lock(m_sessionReadyMutex);
-    return m_sessionReadyCv.wait_for(lock, std::chrono::milliseconds(timeoutMs), [this] {
-        return m_sessionInitialized || m_initializationDone.load(std::memory_order_acquire);
-    });
-}
-
-bool SynthrtEngine::runtimeInitialized() const noexcept {
-    return m_runtimeInitialized.load(std::memory_order_acquire);
-}
-
-bool SynthrtEngine::pitchExtractionReady() const noexcept {
-    return m_pitchExtractionReady.load(std::memory_order_acquire);
-}
-
-bool SynthrtEngine::midiExtractionReady() const noexcept {
-    return m_midiExtractionReady.load(std::memory_order_acquire);
-}
-
-bool SynthrtEngine::isAboutToQuit() const noexcept {
-    return m_aboutToQuit.load(std::memory_order_acquire);
-}
-
-void SynthrtEngine::shutdown() noexcept {
-    {
-        std::lock_guard stateLock(m_stateMutex);
-        m_aboutToQuit.store(true, std::memory_order_release);
-        m_initialized.store(false, std::memory_order_release);
-        m_runtimeInitialized.store(false, std::memory_order_release);
-        m_pitchExtractionReady.store(false, std::memory_order_release);
-        m_midiExtractionReady.store(false, std::memory_order_release);
-        m_sessionInitialized = false;
-    }
-    std::unique_lock lock(m_runtimeLifecycleMutex);
-    // VoicebankSession destructor handles cleanup of loaded packages and
-    // ModelSet handles. No explicit unloadSinger() needed — active inference
-    // tasks hold shared_ptr<ModelSetHandle> which keep the session alive
-    // until they complete.
-}
-
-fs::path SynthrtEngine::pluginRoot() {
+fs::path SynthrtEngine::defaultPluginRoot() {
+    // The directory that *holds* the plugin trees, not one of them. Each of the three packages
+    // installs its own -- dsinfer's under plugins/, wolf's under wolf/plugins/, otter's under
+    // otter/plugins/ -- and Bootstrap appends the rest, so this has to be their common parent or
+    // every path below it is wrong by one level.
 #if defined(Q_OS_MAC)
     return MacOSUtils::getMainBundlePath() / "Contents/PlugIns";
 #elif defined(Q_OS_WIN)
-    return stdc::system::application_directory() / "plugins";
+    return stdc::system::application_directory();
 #else
-    return stdc::system::application_directory().parent_path() / "lib/plugins";
+    return stdc::system::application_directory().parent_path() / "lib";
 #endif
 }
 
-SynthrtEngine::RuntimeOperationLease SynthrtEngine::acquirePitchExtractionOperation() {
-    std::shared_lock lock(m_runtimeLifecycleMutex);
-    if (isAboutToQuit() || !pitchExtractionReady()) {
-        return {};
-    }
-    return {std::move(lock), &m_runtime};
+fs::path SynthrtEngine::defaultRuntimePath() {
+    // Beside the driver plugin, where the build deploys it. Named rather than searched for: which
+    // copy of ONNX Runtime is loaded is a deployment decision, and letting the driver look for one
+    // is how a machine ends up running a different copy from the one that shipped.
+    return defaultPluginRoot() / "plugins/dsinfer/inferencedrivers/onnx/runtime";
 }
 
-SynthrtEngine::RuntimeOperationLease SynthrtEngine::acquireMidiExtractionOperation() {
-    std::shared_lock lock(m_runtimeLifecycleMutex);
-    if (isAboutToQuit() || !midiExtractionReady()) {
-        return {};
-    }
-    return {std::move(lock), &m_runtime};
-}
-
-// === initialize ===
-bool SynthrtEngine::initialize(const QStringList &voicebankPaths,
-                               const QStringList &g2pPackagePaths, const QString &ep,
-                               int deviceIndex, bool deferLanguageModels) {
-    std::unique_lock lock(m_runtimeLifecycleMutex);
-    if (isAboutToQuit()) {
-        qWarning() << "SynthrtEngine: initialization rejected during shutdown";
-        m_initializationDone.store(true, std::memory_order_release);
+bool SynthrtEngine::initialize(const QStringList &voicebankPaths, const QStringList &packagePaths,
+                               const QString &ep, int deviceIndex, const fs::path &pluginRoot,
+                               const fs::path &runtimePath) {
+    const auto announce = [this](bool ok) {
+        _impl->initialized.store(ok, std::memory_order_release);
         {
-            std::lock_guard lk(m_initDoneMutex);
+            std::lock_guard guard(_impl->doneMutex);
+            _impl->initializationDone.store(true, std::memory_order_release);
         }
-        m_initDoneCv.notify_all();
-        return false;
-    }
-    if (initialized()) {
-        qDebug() << "SynthrtEngine already initialized";
-        return true;
+        _impl->done.notify_all();
+        return ok;
+    };
+
+    std::unique_lock lock(_impl->lifecycle);
+    if (_impl->aboutToQuit.load(std::memory_order_acquire)) {
+        return announce(false);
     }
 
-    // RAII: mark initialization as done on any return path (success or failure)
-    // and notify any waiters on m_initDoneCv and m_sessionReadyCv so they don't
-    // block forever. Callers waiting on sessionReady() must check the returned
-    // snapshot error to detect that initialization failed before Stage 1.
-    struct InitDoneGuard {
-        SynthrtEngine &engine;
+    auto searched = toPaths(packagePaths);
+    for (auto &path : toPaths(voicebankPaths)) {
+        // A voicebank directory is also a place to look for a dependency, since a language package
+        // may well be installed beside the voicebanks that use it.
+        searched.push_back(std::move(path));
+    }
 
-        ~InitDoneGuard() {
-            engine.m_initializationDone.store(true, std::memory_order_release);
-            {
-                std::lock_guard lk(engine.m_initDoneMutex);
-                std::lock_guard lk2(engine.m_sessionReadyMutex);
+    auto booted = lite::synthrt::Bootstrap::create(
+        pluginRoot, searched, runtimePath, lite::synthrt::backendFromName(ep.toStdString()),
+        deviceIndex);
+    if (!booted) {
+        qCritical().noquote() << "SynthrtEngine: the unit could not be built:"
+                              << QString::fromStdString(booted.error().toString());
+        return announce(false);
+    }
+    _impl->bootstrap = booted.take();
+    _impl->language = std::make_unique<lite::synthrt::LanguageBridge>(_impl->bootstrap->unit());
+
+    if (!_impl->bootstrap->hasDriver()) {
+        // Degraded rather than failed: voicebanks still list and a project still opens, and a
+        // person is far better served by being told than by the editor refusing to start.
+        qWarning() << "SynthrtEngine: no ONNX driver was found; inference is unavailable";
+    }
+
+    std::vector<lite::synthrt::PackageProblem> problems;
+    _impl->catalog = lite::synthrt::scan(_impl->bootstrap->unit(), toPaths(voicebankPaths),
+                                         _impl->packages, problems);
+    for (const auto &problem : problems) {
+        qWarning().noquote() << "SynthrtEngine: could not open"
+                             << QString::fromStdString(problem.path.string()) << ":"
+                             << QString::fromStdString(problem.reason);
+    }
+    _impl->language->refresh();
+    return announce(true);
+}
+
+bool SynthrtEngine::initialized() const noexcept {
+    return _impl->initialized.load(std::memory_order_acquire);
+}
+
+bool SynthrtEngine::initializationDone() const noexcept {
+    return _impl->initializationDone.load(std::memory_order_acquire);
+}
+
+bool SynthrtEngine::waitForInitialization(int timeoutMs) const {
+    std::unique_lock guard(_impl->doneMutex);
+    return _impl->done.wait_for(guard, std::chrono::milliseconds(timeoutMs),
+                                [this] { return initializationDone(); });
+}
+
+bool SynthrtEngine::hasInferenceBackend() const noexcept {
+    std::shared_lock lock(_impl->lifecycle);
+    return _impl->bootstrap && _impl->bootstrap->hasDriver();
+}
+
+bool SynthrtEngine::isAboutToQuit() const noexcept {
+    return _impl->aboutToQuit.load(std::memory_order_acquire);
+}
+
+void SynthrtEngine::shutdown() noexcept {
+    _impl->aboutToQuit.store(true, std::memory_order_release);
+    std::unique_lock lock(_impl->lifecycle);
+    _impl->initialized.store(false, std::memory_order_release);
+
+    _impl->releasePackages();
+    // The language session owns executives of its own and must go before the unit it borrows.
+    _impl->language.reset();
+    _impl->catalog.clear();
+    _impl->bootstrap.reset();
+}
+
+srt::Expected<std::vector<lite::synthrt::SingerEntry>>
+    SynthrtEngine::refreshVoicebanks(const std::vector<fs::path> &searchPaths,
+                                     std::vector<lite::synthrt::PackageProblem> *problems) {
+    std::unique_lock lock(_impl->lifecycle);
+    if (!_impl->bootstrap) {
+        return srt::Error(srt::Error::InvalidArgument, "the engine is not initialized");
+    }
+
+    _impl->releasePackages();
+
+    std::vector<lite::synthrt::PackageProblem> failures;
+    _impl->catalog =
+        lite::synthrt::scan(_impl->bootstrap->unit(), searchPaths, _impl->packages, failures);
+    for (const auto &problem : failures) {
+        qWarning().noquote() << "SynthrtEngine: could not open"
+                             << QString::fromStdString(problem.path.string()) << ":"
+                             << QString::fromStdString(problem.reason);
+    }
+    if (problems != nullptr) {
+        *problems = std::move(failures);
+    }
+    if (_impl->language) {
+        _impl->language->refresh();
+    }
+    return _impl->catalog;
+}
+
+void SynthrtEngine::releasePipeline(const SingerIdentifier &identifier) {
+    std::unique_lock lock(_impl->lifecycle);
+    _impl->pipelines.erase(identifier.contribution());
+}
+
+std::uint64_t SynthrtEngine::catalogGeneration() const noexcept {
+    return _impl->generation.load(std::memory_order_acquire);
+}
+
+std::vector<lite::synthrt::SingerEntry> SynthrtEngine::singers() const {
+    std::shared_lock lock(_impl->lifecycle);
+    return _impl->catalog;
+}
+
+srt::Expected<lite::synthrt::SingerEntry>
+    SynthrtEngine::singer(const SingerIdentifier &identifier) const {
+    std::shared_lock lock(_impl->lifecycle);
+    if (const auto *entry = _impl->find(identifier)) {
+        return *entry;
+    }
+    return srt::Error(srt::Error::FileNotFound,
+                      "no loaded voicebank holds the singer " + identifier.singerId.toStdString());
+}
+
+srt::Expected<SingerIdentifier> SynthrtEngine::findSinger(const QString &singerId) const {
+    std::shared_lock lock(_impl->lifecycle);
+    const auto wanted = singerId.toStdString();
+    for (const auto &entry : _impl->catalog) {
+        if (entry.contributionId == wanted) {
+            SingerIdentifier identifier;
+            identifier.singerId = singerId;
+            identifier.packageId = QString::fromStdString(entry.packageId);
+            identifier.packageVersion = QVersionNumber::fromString(
+                QString::fromStdString(entry.packageVersion.toString()));
+            return identifier;
+        }
+    }
+    return srt::Error(srt::Error::FileNotFound,
+                      "no loaded voicebank holds a singer called " + wanted);
+}
+
+fs::path SynthrtEngine::packageDirectory(const SingerIdentifier &identifier) const {
+    std::shared_lock lock(_impl->lifecycle);
+    const auto *entry = _impl->find(identifier);
+    return entry ? entry->packagePath : fs::path();
+}
+
+srt::Expected<lite::synthrt::SingerPipeline *>
+    SynthrtEngine::pipelineFor(const SingerIdentifier &identifier) {
+    std::unique_lock lock(_impl->lifecycle);
+    if (!_impl->bootstrap) {
+        return srt::Error(srt::Error::InvalidArgument, "the engine is not initialized");
+    }
+    const auto key = identifier.contribution();
+    if (const auto it = _impl->pipelines.find(key); it != _impl->pipelines.end()) {
+        return it->second.get();
+    }
+
+    // The declaration is reached through the package handle rather than kept in the catalogue: a
+    // ContribSpec belongs to its package, and a copy of the pointer would outlive a refresh.
+    srt::ContribSpec *spec = nullptr;
+    for (auto &package : _impl->packages) {
+        if (package.id() == key.first) {
+            spec = package.contribution("singer", key.second);
+            if (spec != nullptr) {
+                break;
             }
-            engine.m_initDoneCv.notify_all();
-            engine.m_sessionReadyCv.notify_all();
         }
-    } initDoneGuard{*this};
+    }
+    if (spec == nullptr) {
+        return srt::Error(srt::Error::FileNotFound,
+                          "no loaded voicebank holds the singer " + key.second);
+    }
 
-    const auto pluginsDir = pluginRoot();
+    auto built = lite::synthrt::SingerPipeline::create(*spec->as<srt::SingerSpec>());
+    if (!built) {
+        return built.takeError();
+    }
+    auto owned = built.take();
+    auto *pipeline = owned.get();
+    _impl->pipelines.emplace(key, std::move(owned));
+    return pipeline;
+}
 
-    // Runtime and extraction are independent of package and language readiness.
-    if (!m_runtimeInitialized.load(std::memory_order_acquire)) {
-        if (!initializeRuntime(pluginsDir, ep, deviceIndex)) {
-            return false;
+std::vector<lite::synthrt::AnalyzerEntry>
+    SynthrtEngine::analyzers(const QString &interfaceName) const {
+    std::shared_lock lock(_impl->lifecycle);
+    auto found = lite::synthrt::analyzersOf(_impl->packages);
+    if (interfaceName.isEmpty()) {
+        return found;
+    }
+    const auto wanted = interfaceName.toStdString();
+    std::vector<lite::synthrt::AnalyzerEntry> result;
+    for (auto &entry : found) {
+        if (entry.interfaceName == wanted) {
+            result.push_back(std::move(entry));
         }
-        {
-            std::lock_guard stateLock(m_stateMutex);
-            if (isAboutToQuit()) {
-                return false;
+    }
+    return result;
+}
+
+const srt::ContribSpec *SynthrtEngine::analyzerSpec(const QString &reference) const {
+    std::shared_lock lock(_impl->lifecycle);
+    return findAnalyzer(reference);
+}
+
+const srt::ContribSpec *SynthrtEngine::findAnalyzer(const QString &reference) const {
+    // The caller holds the lifecycle lock. Separate from analyzerSpec() because createAnalyzer()
+    // already holds it, and taking a shared lock a second time is not safe to do: a writer that
+    // arrived in between blocks the second acquisition while the first is still held, which is a
+    // deadlock rather than a slow path.
+    const auto text = reference.toStdString();
+    const auto separator = text.find(':');
+    if (separator == std::string::npos) {
+        return nullptr;
+    }
+    const auto packageId = text.substr(0, separator);
+    const auto rest = text.substr(separator + 1);
+    const auto slash = rest.find('/');
+    if (slash == std::string::npos || rest.substr(0, slash) != otter::ANALYSIS_CATEGORY) {
+        return nullptr;
+    }
+    const auto contributionId = rest.substr(slash + 1);
+    for (const auto &package : _impl->packages) {
+        if (package.id() == packageId) {
+            if (auto *spec = package.contribution(otter::ANALYSIS_CATEGORY, contributionId)) {
+                return spec;
             }
-            m_runtimeInitialized.store(true, std::memory_order_release);
-        }
-        // Plugin discovery is intentionally one-shot for this process/runtime.
-        initializeExtractors(pluginsDir);
-        if (isAboutToQuit()) {
-            return false;
         }
     }
-
-    // --- 1. Derive voicebank search paths ---
-    std::vector<fs::path> vbPaths;
-    vbPaths.reserve(static_cast<size_t>(voicebankPaths.size()));
-    for (const auto &p : std::as_const(voicebankPaths)) {
-        vbPaths.emplace_back(StringUtils::qstr_to_path(p));
-    }
-
-    // --- 2. Derive G2P plugin paths from the shared plugin root ---
-    const auto srtG2pDir = pluginsDir / "srt-g2p";
-    std::vector<fs::path> g2pPluginPaths;
-    g2pPluginPaths.emplace_back(srtG2pDir / "G2ps");
-    g2pPluginPaths.emplace_back(srtG2pDir / "dict");
-
-    // --- 3. Register G2P plugin search paths (before ONNX driver init) ---
-    // PluginFactory::addPluginPath scans subdirectories for plugin.json and
-    // triggers lazy discovery. LanguageService::initializeMetadata() (called
-    // by VoicebankSession::refresh() below) will re-register these paths
-    // (Stage 1); PluginFactory deduplicates via scannedPluginDirs, so the
-    // re-registration is a safe no-op.
-    auto g2pMgr = srt::g2p::Manager::instance();
-    for (const auto &path : g2pPluginPaths) {
-        g2pMgr->addPluginPath(srt::g2p::kTaskPluginIid, path);
-        g2pMgr->addPluginPath(srt::g2p::kDriverPluginIid, path);
-    }
-
-    // --- 4. Load G2P ONNX driver (must be before Manager::initialize) ---
-    // The ONNX driver is a global infrastructure object (g2pOnnxDriver) that
-    // must be registered in the driver category before Manager::initialize()
-    // is called (inside LanguageService::initializeMetadata Stage 4, which
-    // VoicebankSession::refresh() triggers). Without it, LSTM G2P plugins
-    // cannot create ONNX sessions and G2P inference runs in degraded mode.
-    // The G2P driver reuses the inference ONNX driver (same plugin) with
-    // useCpu forced on every session to avoid GPU contention.
-    if (!initializeG2pOnnxDriver()) {
-        qWarning() << "SynthrtEngine: G2P ONNX driver not available;"
-                      " G2P inference will run in degraded mode";
-    }
-
-    // --- 5. Build official G2P package paths ---
-    std::vector<fs::path> officialG2pPackages;
-    officialG2pPackages.reserve(static_cast<size_t>(g2pPackagePaths.size()));
-    for (const auto &p : std::as_const(g2pPackagePaths)) {
-        officialG2pPackages.emplace_back(StringUtils::qstr_to_path(p));
-    }
-
-    // --- 6. VoicebankSession: resource-inject Runtime + LanguageService ---
-    // VoicebankSession::refresh() does voicebank scanning + LanguageService
-    // metadata initialization in one call. The session borrows m_runtime and
-    // m_langSvc via references; SynthrtEngine outlives both.
-    ds::session::SessionResources resources;
-    resources.runtime = &m_runtime;
-    resources.languageService = m_langSvc;
-    resources.g2pPluginPaths = std::move(g2pPluginPaths);
-    resources.officialG2pPackages = std::move(officialG2pPackages);
-    m_session = ds::session::VoicebankSession(std::move(resources));
-    m_session.setRoots(vbPaths);
-
-    // --- 7. Refresh: scan voicebanks + initialize LanguageService metadata ---
-    QElapsedTimer timer;
-    timer.start();
-    auto refreshResult = m_session.refresh();
-    if (!refreshResult.succeeded) {
-        qCritical() << "SynthrtEngine: VoicebankSession refresh failed:"
-                    << QString::fromStdString(refreshResult.errorMessage);
-        return false;
-    }
-    const auto snapshot = refreshResult.snapshot;
-    const size_t singerCount = snapshot->singers.size();
-    qDebug() << "Voicebank scan completed in" << timer.elapsed() << "ms;"
-             << "singers:" << singerCount << "generation:" << snapshot->generation;
-    if (!refreshResult.languageReady) {
-        qWarning() << "SynthrtEngine: VoicebankSession reports language module not ready";
-    }
-
-    // VoicebankSession is now ready (Stage 1 complete): snapshot is published
-    // and LanguageService metadata is initialized. PackageManager and other
-    // snapshot consumers can query refreshVoicebanks() / singerSnapshot() from
-    // this point onward, even while Stage 2 (ONNX model loading) is still in
-    // progress below.
-    m_sessionInitialized = true;
-    {
-        std::lock_guard lk(m_sessionReadyMutex);
-    }
-    m_sessionReadyCv.notify_all();
-
-    // --- 8. LanguageService: initialize models (Stage 2, loads ONNX DLLs) ---
-    // VoicebankSession::refresh() only calls initializeMetadata() (Stage 1).
-    // Stage 2 loads G2P plugin DLLs and creates ONNX sessions; must be called
-    // separately by the host. With deferLanguageModels set, Stage 2 is skipped
-    // during startup so the app opens fast; models are loaded lazily on the
-    // first G2P conversion via VoicebankSession::ensureLanguageReady() (the
-    // language tasks already call it before convertG2p/convertS2p).
-    if (!deferLanguageModels) {
-        if (auto exp = m_langSvc->initializeModels(); !exp) {
-            qCritical() << "SynthrtEngine: LanguageService initializeModels failed:"
-                        << QString::fromUtf8(exp.error().message());
-            return false;
-        }
-        qInfo() << "SynthrtEngine: Language models loaded during startup";
-    } else {
-        qInfo().noquote()
-            << "SynthrtEngine: language models deferred, will load lazily on first G2P use";
-    }
-
-    {
-        std::lock_guard stateLock(m_stateMutex);
-        if (isAboutToQuit()) {
-            return false;
-        }
-        m_initialized.store(true, std::memory_order_release);
-    }
-    qInfo().noquote() << "Successfully initialized SynthrtEngine. Execution provider:" << ep;
-    return true;
+    return nullptr;
 }
 
-bool SynthrtEngine::warmUpLanguageModels() {
-    if (!initialized() || isAboutToQuit()) {
-        qWarning() << "SynthrtEngine: warmUpLanguageModels skipped (engine not initialized"
-                      " or shutting down)";
-        return false;
+srt::Expected<std::unique_ptr<otter::AnalysisExecutive>>
+    SynthrtEngine::createAnalyzer(const QString &reference) {
+    std::shared_lock lock(_impl->lifecycle);
+    const auto *spec = findAnalyzer(reference);
+    if (spec == nullptr) {
+        return srt::Error(srt::Error::FileNotFound,
+                          "no installed package holds the analyser "
+                              + reference.toStdString());
     }
-    // LanguageService::initializeModels() is idempotent (G2pAlreadyInitialized
-    // is treated as success) and Manager::initialize() holds its own init lock,
-    // so concurrent warm-up calls are safe.
-    if (auto exp = m_langSvc->initializeModels(); !exp) {
-        qCritical() << "SynthrtEngine: warmUpLanguageModels failed:"
-                    << QString::fromUtf8(exp.error().message());
-        return false;
+    // Which extension to ask for depends on the contract, since each is keyed on its own
+    // executive type. A contract this build does not know is refused rather than guessed at.
+    auto *analysis = const_cast<srt::ContribSpec *>(spec)->as<otter::AnalysisSpec>();
+    srt::ContribSpecExtension *extension = nullptr;
+    if (spec->interface() == otter::Api::F0::L1::API_INTERFACE) {
+        extension =
+            srt::ContribSpecExtension::findFromSpec<otter::Api::F0::L1::F0Executive>(*analysis);
+    } else if (spec->interface() == otter::Api::Note::L1::API_INTERFACE) {
+        extension =
+            srt::ContribSpecExtension::findFromSpec<otter::Api::Note::L1::NoteExecutive>(*analysis);
     }
-    qInfo() << "SynthrtEngine: language models warmed up in background";
-    return true;
+    if (extension == nullptr) {
+        return srt::Error(srt::Error::FeatureNotSupported,
+                          "this analyser declares a contract no installed provider serves");
+    }
+
+    if (spec->interface() == otter::Api::F0::L1::API_INTERFACE) {
+        otter::Api::F0::L1::F0RuntimeOptions options(spec->variant());
+        return extension->as<otter::AnalysisExtension>()->createAnalyzer(options);
+    }
+    otter::Api::Note::L1::NoteRuntimeOptions options(spec->variant());
+    return extension->as<otter::AnalysisExtension>()->createAnalyzer(options);
 }
 
-bool SynthrtEngine::initializeRuntime(const fs::path &pluginRoot, const QString &ep,
-                                      int deviceIndex) {
-    // Map EP string to OnnxDriverConfig.
-    srt::driver::OnnxDriverConfig cfg;
-    if (ep == QStringLiteral("DirectML")) {
-        cfg.ep = srt::driver::onnx::ExecutionProvider::DMLExecutionProvider;
-    } else if (ep == QStringLiteral("CUDA")) {
-        cfg.ep = srt::driver::onnx::ExecutionProvider::CUDAExecutionProvider;
-    } else if (ep == QStringLiteral("CoreML")) {
-        cfg.ep = srt::driver::onnx::ExecutionProvider::CoreMLExecutionProvider;
-    } else {
-        cfg.ep = srt::driver::onnx::ExecutionProvider::CPUExecutionProvider;
+QStringList SynthrtEngine::languagesOf(const SingerIdentifier &identifier) const {
+    std::shared_lock lock(_impl->lifecycle);
+    QStringList result;
+    if (!_impl->language) {
+        return result;
     }
-    cfg.deviceIndex = deviceIndex;
-
-    // Validate plugin root exists (equivalent to HEAD initializeSU checkPath).
-    if (auto exp = checkPath(pluginRoot); !exp) {
-        qCritical() << "SynthrtEngine: invalid plugin root:"
-                    << QString::fromUtf8(exp.error().message());
-        return false;
+    const auto [packageId, contributionId] = identifier.contribution();
+    for (const auto &language : _impl->language->languagesOf(packageId, contributionId)) {
+        result << QString::fromStdString(language);
     }
-
-    if (auto *plugins = m_runtime.services().get<srt::core::PluginFactory>()) {
-        const auto singerProviderDir = pluginRoot / "diffsinger/singerproviders";
-        const auto inferenceDriverDir = pluginRoot / "srt-driver/inferencedrivers";
-        const auto interpreterDir = pluginRoot / "diffsinger/inferenceinterpreters";
-        plugins->addPluginPath("srt.svs.singer-provider.diffsinger", singerProviderDir);
-        plugins->addPluginPath("srt.driver.InferenceDriver", inferenceDriverDir);
-        plugins->addPluginPath("srt.svs.interpreter.acoustic", interpreterDir);
-        plugins->addPluginPath("srt.svs.interpreter.duration", interpreterDir);
-        plugins->addPluginPath("srt.svs.interpreter.pitch", interpreterDir);
-        plugins->addPluginPath("srt.svs.interpreter.variance", interpreterDir);
-        plugins->addPluginPath("srt.svs.interpreter.vocoder", interpreterDir);
-    }
-
-    if (auto exp = srt::driver::setupOnnxInferenceDriver(m_runtime, pluginRoot, cfg); !exp) {
-        qCritical() << "SynthrtEngine: ONNX driver setup failed:"
-                    << QString::fromUtf8(exp.error().message());
-        return false;
-    }
-    return true;
+    return result;
 }
 
-void SynthrtEngine::initializeExtractors(const fs::path &pluginRoot) {
-    auto *plugins = m_runtime.services().get<srt::core::PluginFactory>();
-    if (!plugins) {
-        qWarning() << "SynthrtEngine: rmvpe pitch extractor unavailable; PluginFactory is not "
-                      "available";
-        qWarning() << "SynthrtEngine: game MIDI extractor unavailable; PluginFactory is not "
-                      "available";
+bool SynthrtEngine::canConvert(const SingerIdentifier &identifier, const QString &language) const {
+    std::shared_lock lock(_impl->lifecycle);
+    if (!_impl->language) {
+        return false;
+    }
+    const auto [packageId, contributionId] = identifier.contribution();
+    return _impl->language->canConvert(packageId, contributionId, language.toStdString());
+}
+
+srt::Expected<std::vector<lite::synthrt::LanguageBridge::Result>>
+    SynthrtEngine::convert(const SingerIdentifier &identifier, const QString &language,
+                           const std::vector<lite::synthrt::LanguageBridge::Word> &words,
+                           lite::synthrt::LanguageBridge::Depth depth) const {
+    std::shared_lock lock(_impl->lifecycle);
+    if (!_impl->language) {
+        return srt::Error(srt::Error::InvalidArgument, "the engine is not initialized");
+    }
+    const auto [packageId, contributionId] = identifier.contribution();
+    return _impl->language->convert(packageId, contributionId, language.toStdString(), words,
+                                    depth);
+}
+
+void SynthrtEngine::cancelConversions() {
+    std::shared_lock lock(_impl->lifecycle);
+    if (_impl->language) {
+        _impl->language->cancel();
+    }
+}
+
+void SynthrtEngine::setSingerPhonemes(const SingerIdentifier &identifier,
+                                      std::vector<std::string> phonemes) {
+    std::shared_lock lock(_impl->lifecycle);
+    if (!_impl->language) {
         return;
     }
+    const auto [packageId, contributionId] = identifier.contribution();
+    _impl->language->setSingerPhonemes(packageId, contributionId, std::move(phonemes));
+}
 
-    plugins->addPluginPath(srt::extract::kPitchExtractorPluginIid,
-                           pluginRoot / "srt-extract/PitchExtractor");
-    plugins->addPluginPath(srt::extract::kMidiExtractorPluginIid,
-                           pluginRoot / "srt-extract/MidiExtractor");
-
-    const bool hasRmvpe = plugins->plugin<srt::extract::PitchExtractorPlugin>("rmvpe") != nullptr;
-    const bool hasGame = plugins->plugin<srt::extract::MidiExtractorPlugin>("game") != nullptr;
-    {
-        std::lock_guard stateLock(m_stateMutex);
-        if (isAboutToQuit()) {
-            return;
-        }
-        m_pitchExtractionReady.store(hasRmvpe, std::memory_order_release);
-        m_midiExtractionReady.store(hasGame, std::memory_order_release);
-    }
-
-    if (!hasRmvpe) {
-        qWarning() << "SynthrtEngine: rmvpe pitch extractor plugin is unavailable";
-    }
-    if (!hasGame) {
-        qWarning() << "SynthrtEngine: game MIDI extractor plugin is unavailable";
+void SynthrtEngine::setReservedMarkers(std::vector<std::string> markers) {
+    std::shared_lock lock(_impl->lifecycle);
+    if (_impl->language) {
+        _impl->language->setReservedMarkers(std::move(markers));
     }
 }
 
-bool SynthrtEngine::initializeG2pOnnxDriver() {
-    const auto mgr = srt::g2p::Manager::instance();
-
-    // Reuse the inference ONNX driver (same plugin, "dsdriver" in the
-    // "inference" category) — G2P must not have a separate ONNX driver.
-    // The adapter wraps the InferenceDriver and forces useCpu=true on every
-    // session open() so G2P never competes with GPU inference.
-    auto *inferenceCat = m_runtime.moduleCategory("inference");
-    if (!inferenceCat) {
-        qWarning() << "SynthrtEngine: inference module category not found";
-        return false;
-    }
-
-    const auto driverObj = inferenceCat->getFirstObject("dsdriver");
-    if (!driverObj) {
-        qWarning() << "SynthrtEngine: inference ONNX driver 'dsdriver' not found";
-        return false;
-    }
-
-    const auto onnxDriver = driverObj.as<srt::driver::InferenceDriver>();
-    if (!onnxDriver) {
-        qWarning() << "SynthrtEngine: inference 'dsdriver' is not an InferenceDriver";
-        return false;
-    }
-
-    const auto factory = srt::core::NO<G2pOnnxSessionFactory>::create(onnxDriver);
-
-    auto *driverCategory = mgr->category(srt::g2p::kDriverCategory);
-    if (!driverCategory) {
-        qWarning() << "SynthrtEngine: G2P driver category not found";
-        return false;
-    }
-    driverCategory->addObject(srt::g2p::kG2pOnnxDriverName, factory);
-    qDebug() << "SynthrtEngine: G2P ONNX driver loaded successfully"
-                " (CPU-only adapter over inference driver)";
-    return true;
+std::vector<std::string> SynthrtEngine::reservedMarkers() const {
+    std::shared_lock lock(_impl->lifecycle);
+    return _impl->language ? _impl->language->reservedMarkers() : std::vector<std::string>();
 }
 
-// === refreshVoicebanks ===
-srt::core::Expected<std::shared_ptr<const ds::session::VoicebankSnapshot>>
-    SynthrtEngine::refreshVoicebanks(const std::vector<std::filesystem::path> &searchPaths,
-                                     bool allowReuse) {
-    if (!m_sessionInitialized) {
-        return srt::core::Error(srt::core::ErrorCode::InferenceNotInitialized,
-                                "SynthrtEngine::refreshVoicebanks: session not initialized");
-    }
-    // VoicebankSession handles internal locking; concurrent callers share the
-    // in-flight refresh operation. allowReuse is honored by skipping the
-    // refresh when searchPaths match the current roots and the caller allows it.
-    if (allowReuse) {
-        const auto current = m_session.snapshot();
-        const auto &roots = m_session.roots();
-        if (current && current->generation != 0 && roots == searchPaths) {
-            return current;
-        }
-    }
-    m_session.setRoots(searchPaths);
-    auto result = m_session.refresh();
-    if (!result.succeeded) {
-        return srt::core::Error(srt::core::ErrorCode::PackageScanAfterInitialize,
-                                result.errorMessage);
-    }
-    return result.snapshot;
-}
-
-srt::core::Expected<ds::bank::SingerSnapshot>
-    SynthrtEngine::singerSnapshot(const SingerIdentifier &identifier) const {
-    const auto snapshot = m_session.snapshot();
-    if (!snapshot) {
-        return srt::core::Error(srt::core::ErrorCode::InferenceNotInitialized,
-                                "VoicebankSession snapshot not available");
-    }
-    // SingerIdentifier has an implicit conversion to ds::bank::SingerRef.
-    if (const auto *singer = snapshot->findSinger(identifier)) {
-        return *singer;
-    }
-    return srt::core::Error(srt::core::ErrorCode::SvsSingerNotFound,
-                            "Singer not found in voicebank snapshot");
-}
-
-srt::core::Expected<SingerIdentifier> SynthrtEngine::findSinger(const QString &singerId) const {
-    const auto snapshot = m_session.snapshot();
-    if (!snapshot) {
-        return srt::core::Error(srt::core::ErrorCode::InferenceNotInitialized,
-                                "VoicebankSession snapshot not available");
-    }
-    const auto matches = snapshot->findSingersBySingerId(singerId.toStdString());
-    if (matches.empty()) {
-        return srt::core::Error(srt::core::ErrorCode::SvsSingerNotFound,
-                                "Singer not found in voicebank snapshot");
-    }
-    if (matches.size() > 1) {
-        return srt::core::Error(srt::core::ErrorCode::PackageVersionConflict,
-                                "Singer ID is ambiguous across catalog packages");
-    }
-    const auto &ref = matches[0]->ref;
-    SingerIdentifier id;
-    id.singerId = QString::fromUtf8(ref.singerId);
-    id.packageId = QString::fromUtf8(ref.packageId);
-    if (!ref.version.empty()) {
-        id.packageVersion = QVersionNumber::fromString(QString::fromUtf8(ref.version));
-    }
-    return id;
-}
-
-std::filesystem::path SynthrtEngine::packageDirectory(const SingerIdentifier &identifier) const {
-    const auto snapshot = m_session.snapshot();
-    if (!snapshot) {
-        return {};
-    }
-    const auto version = VersionUtils::qt_to_stdc(identifier.packageVersion);
-    const auto *package = snapshot->findPackage(identifier.packageId.toStdString(), version);
-    return package ? package->rootPath : std::filesystem::path{};
-}
-
-// === Language service ===
-namespace {
-    std::string toUtf8(const QString &value) {
-        const auto bytes = value.toUtf8();
-        return {bytes.constData(), static_cast<size_t>(bytes.size())};
-    }
-}
-
-srt::core::Expected<srt::g2p::LanguageRoute>
-    SynthrtEngine::resolveLanguageRoute(const SingerIdentifier &identifier,
-                                        const QString &languageId) const {
-    const auto packageId = toUtf8(identifier.packageId);
-    const auto singerId = toUtf8(identifier.singerId);
-    const auto lang = toUtf8(languageId);
-    // Level=3: pass the real voicebank package version for precise route
-    // resolution. An empty version would cause G2pVersionAmbiguous when
-    // multiple versions of the same packageId exist.
-    const auto version = VersionUtils::qt_to_stdc(identifier.packageVersion);
-    return m_langSvc->resolveLanguageRoute(packageId, version, singerId, lang);
-}
-
-const srt::g2p::LanguageService &SynthrtEngine::languageService() const noexcept {
-    return *m_langSvc;
-}
-
-srt::core::Expected<std::shared_ptr<srt::s2p::LanguageResource>>
-    SynthrtEngine::resolveS2pResource(const SingerIdentifier &identifier,
-                                      const QString &languageId) const {
-    const auto packageId = toUtf8(identifier.packageId);
-    const auto singerId = toUtf8(identifier.singerId);
-    const auto lang = toUtf8(languageId);
-    // Level=3: pass the real voicebank package version for precise S2P
-    // resource resolution (independent cache slot per version).
-    const auto version = VersionUtils::qt_to_stdc(identifier.packageVersion);
-    return m_langSvc->resolveS2pResource(packageId, version, singerId, lang);
-}
-
-// === Runtime access ===
-srt::core::Runtime &SynthrtEngine::runtime() {
-    return m_runtime;
-}
-
-const srt::core::Runtime &SynthrtEngine::runtime() const {
-    return m_runtime;
-}
-
-// === VoicebankSession (B1b) ===
-ds::session::VoicebankSession &SynthrtEngine::session() {
-    return m_session;
-}
-
-const ds::session::VoicebankSession &SynthrtEngine::session() const {
-    return m_session;
+srt::SynthUnit &SynthrtEngine::unit() {
+    return _impl->bootstrap->unit();
 }

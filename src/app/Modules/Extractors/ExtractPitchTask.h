@@ -3,9 +3,11 @@
 
 #include "ExtractTask.h"
 
-#include <synthrt/Extract/PitchExtractor.h>
+#include <memory>
 
 #include <QMutex>
+
+#include <otter/Analysis/AnalysisExecutive.h>
 
 class ExtractPitchTask final : public ExtractTask {
     Q_OBJECT
@@ -24,10 +26,18 @@ public:
 
 private:
     void runTask() override;
-    static std::vector<float> freqToMidi(const std::vector<float> &frequencies);
-    ResultSegment processOutput(const QList<double> &values, double frameOffsetMs) const;
+    static double freqToMidi(double frequency);
 
-    mutable QMutex m_extractorMutex;
-    srt::core::NO<srt::extract::PitchExtractor> m_extractor;
+    /// Places one span's curve on the project timeline.
+    ///
+    /// \a startMs is where the span's first frame sits in the audio file, and \a intervalMs is the
+    /// analyzer's own frame spacing -- read from what it produced rather than assumed, because
+    /// the two analyzers shipped disagree about it and a wrong assumption silently stretches the
+    /// curve.
+    ResultSegment placeOnTimeline(const QList<double> &values, double startMs,
+                                  double intervalMs) const;
+
+    mutable QMutex m_analyzerMutex;
+    otter::AnalysisExecutive *m_analyzer = nullptr;
 };
 #endif // EXTRACTPITCHTASK_H

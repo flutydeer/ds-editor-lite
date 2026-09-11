@@ -17,7 +17,7 @@
 #include <string>
 
 namespace {
-    namespace Co = srt::svs::Api::Common::L1;
+    namespace Co = ds::Api::Common::L1;
 
     bool expect(const bool condition, const char *message) {
         if (condition)

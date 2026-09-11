@@ -49,6 +49,11 @@ bool DocumentWorkflowController::busy() const {
     return false;
 }
 
+// The class is moc'd here, so its vtable is emitted here and needs its destructor. Stubbed
+// alongside busy() rather than by compiling the whole controller, which would drag in the
+// editor's document machinery for a test about decoding audio.
+DocumentWorkflowController::~DocumentWorkflowController() = default;
+
 namespace {
     using namespace Automation;
 

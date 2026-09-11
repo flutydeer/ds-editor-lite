@@ -14,7 +14,6 @@ namespace FillLyric {
 
     public:
         explicit LyricTab(const QList<LangNote> &langNotes, SingerIdentifier singer,
-                          const srt::g2p::LanguageService &languageService,
                           const QStringList &priorityLanguages = {},
                           const LyricTabConfig &config = {}, QWidget *parent = nullptr);
         ~LyricTab() override;

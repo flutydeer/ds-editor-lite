@@ -2,9 +2,9 @@
 
 #include <sndfile.hh>
 
-#include <diffsinger/Infer/dsinfer/Api/Inferences/Acoustic/1/AcousticApiL1.h>
-#include <diffsinger/Infer/dsinfer/Api/Inferences/Vocoder/1/VocoderApiL1.h>
-#include <synthrt/Core/Tensor/Tensor.h>
+#include <dsinfer/Api/Inferences/Acoustic/1/AcousticApiL1.h>
+#include <dsinfer/Api/Inferences/Vocoder/1/VocoderApiL1.h>
+#include <dsinfer/Core/Tensor.h>
 #include <synthrt/SVS/InferenceContrib.h>
 
 #include "Model/AppOptions/AppOptions.h"
@@ -25,8 +25,8 @@
 
 #include <algorithm>
 
-namespace Ac = srt::svs::Api::Acoustic::L1;
-namespace Vo = srt::svs::Api::Vocoder::L1;
+namespace Ac = ds::Api::Acoustic::L1;
+namespace Vo = ds::Api::Vocoder::L1;
 
 bool InferAcousticTask::InferAcousticInput::operator==(const InferAcousticInput &other) const {
     return semanticSignature() == other.semanticSignature();
@@ -162,23 +162,23 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
     }
 
     std::string speakerName = model.speaker.toStdString();
-    const auto input = srt::core::NO<Ac::AcousticStartInput>::create();
-    input->parameters = convertInputParams(model.params);
-    input->depth = model.depth;
-    input->steps = model.steps;
+    Ac::AcousticStartInput input;
+    input.parameters = convertInputParams(model.params);
+    input.depth = model.depth;
+    input.steps = model.steps;
 
     InferDirectMLSerializationGuard dmlGuard;
-    const auto handle = inferEngine->acquireSingerSession(identifier);
-    if (!handle) {
+    const auto lease = inferEngine->acquireSingerSession(identifier);
+    if (!lease || !lease->pipeline()) {
         qCritical() << "inferAcoustic: failed to acquire singer session for" << identifier;
         return false;
     }
     // Infer acoustic
-    srt::core::NO<srt::core::ITensor> mel;
-    srt::core::NO<srt::core::ITensor> acousticF0;
+    std::shared_ptr<ds::ITensor> mel;
+    std::shared_ptr<ds::ITensor> acousticF0;
     double acousticFrameWidth = 0;
     {
-        auto acousticExp = m_activeInference.acquire(handle, ds::infer::StageKind::Acoustic);
+        auto acousticExp = m_activeInference.acquire(*lease->pipeline(), InferStage::Acoustic);
         if (!acousticExp) {
             qCritical().noquote().nospace()
                 << "inferAcoustic: failed to load acoustic model for " << identifier << ": "
@@ -187,15 +187,17 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
         }
         auto activeInference = acousticExp.take();
         auto &acousticModel = activeInference.model();
-        auto inferenceAcoustic = acousticModel.inference;
+        // The stage decides the type: acquire() was asked for acoustic and returns
+        // nothing else.
+        auto *inferenceAcoustic =
+            static_cast<Ac::AcousticExecutive *>(acousticModel.executive);
         if (!inferenceAcoustic) {
             qCritical() << "inferAcoustic: Acoustic inference not found for" << identifier;
             return false;
         }
 
-        const auto acousticSpec = inferenceAcoustic->spec();
-        const auto acousticConfig =
-            acousticSpec ? acousticSpec->configuration().as<Ac::AcousticConfiguration>() : nullptr;
+        const auto *acousticConfig = static_cast<const Ac::AcousticConfiguration *>(
+            inferenceAcoustic->spec().configuration());
         if (!acousticConfig || acousticConfig->sampleRate <= 0 || acousticConfig->hopSize <= 0) {
             error = tr("Acoustic model frame configuration is invalid");
             qCritical() << "inferAcoustic:" << error;
@@ -208,25 +210,26 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
             qCritical() << "inferAcoustic: Import options not found";
             return false;
         }
-        const auto importOptions = acousticModel.importOptions.as<Ac::AcousticImportOptions>();
+        const auto *importOptions =
+            acousticModel.importOptions->as<Ac::AcousticImportOptions>();
         if (!importOptions) {
             qCritical() << "inferAcoustic: Import options not found";
             return false;
         }
         const auto &speakerMapping = importOptions->speakerMapping;
-        input->words =
+        input.words =
             convertInputWords(model.words, speakerName, model.speakerMix, speakerMapping, error);
         if (!error.isEmpty()) {
             qCritical() << "inferAcoustic:" << error;
             return false;
         }
-        input->speakers = convertInputSpeakers(model.speakerMix, speakerMapping, error);
+        input.speakers = convertInputSpeakers(model.speakerMix, speakerMapping, error);
         if (!error.isEmpty()) {
             qCritical() << "inferAcoustic:" << error;
             return false;
         }
 
-        srt::core::NO<Ac::AcousticResult> result;
+        std::unique_ptr<Ac::AcousticResult> result;
         // Start inference
         if (isTerminateRequested()) {
             abort();
@@ -239,7 +242,7 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
                 << exp.error().message();
             return false;
         } else {
-            result = exp.take().as<Ac::AcousticResult>();
+            result = exp.take();
             if (!result) {
                 qCritical() << "inferAcoustic: acoustic result type mismatch or null result for"
                             << identifier;
@@ -247,22 +250,17 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
             }
         }
 
-        if (!result->error.ok()) {
-            qCritical().noquote().nospace()
-                << "inferAcoustic: Failed to run acoustic inference for " << identifier << ": "
-                << result->error.message();
-            return false;
-        }
-
-        if (inferenceAcoustic->state() == srt::core::ITask::Failed) {
-            qCritical().noquote().nospace()
-                << "inferAcoustic: Failed to run acoustic inference for " << identifier << ": "
-                << result->error.message();
+        // A failure already came back as an error from start(), so there is nothing to
+        // re-check on the result. The state is still worth asking: a run that was stopped
+        // returns a result like any other, and using it would give half a phrase as a whole one.
+        if (inferenceAcoustic->state() == srt::ITask::Failed) {
+            qCritical().noquote().nospace() << "inferAcoustic: the acoustic inference for "
+                                            << identifier << " did not finish";
             return false;
         }
         mel = result->mel;
         acousticF0 = result->f0;
-        if (!acousticF0 || acousticF0->dataType() != srt::core::ITensor::Float ||
+        if (!acousticF0 || acousticF0->dataType() != ds::ITensor::Float ||
             acousticF0->elementCount() == 0) {
             error = tr("Acoustic model returned invalid f0 data");
             qCritical() << "inferAcoustic:" << error;
@@ -271,7 +269,7 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
     }
     // Run vocoder
     {
-        auto vocoderExp = m_activeInference.acquire(handle, ds::infer::StageKind::Vocoder);
+        auto vocoderExp = m_activeInference.acquire(*lease->pipeline(), InferStage::Vocoder);
         if (!vocoderExp) {
             qCritical().noquote().nospace()
                 << "inferAcoustic: failed to load vocoder model for " << identifier << ": "
@@ -279,7 +277,8 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
             return false;
         }
         auto activeInference = vocoderExp.take();
-        auto inferenceVocoder = activeInference.model().inference;
+        auto *inferenceVocoder =
+            static_cast<Vo::VocoderExecutive *>(activeInference.model().executive);
         if (!inferenceVocoder) {
             qCritical() << "inferAcoustic: Vocoder inference not found for" << identifier;
             return false;
@@ -294,7 +293,7 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
             return false;
         }
         auto originalF0Exp =
-            srt::core::Tensor::create(srt::core::ITensor::Float, acousticF0->shape());
+            ds::Tensor::create(ds::ITensor::Float, acousticF0->shape());
         if (!originalF0Exp) {
             error = tr("Failed to create the vocoder f0 tensor");
             qCritical().noquote().nospace()
@@ -303,13 +302,13 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
         }
         auto originalF0 = originalF0Exp.take();
         std::copy(originalF0Values.cbegin(), originalF0Values.cend(),
-                  originalF0->mutableData<float>());
+                  originalF0->data<float>());
 
-        const auto vocoderInput = srt::core::NO<Vo::VocoderStartInput>::create();
-        vocoderInput->mel = mel;
-        vocoderInput->f0 = originalF0;
+        Vo::VocoderStartInput vocoderInput;
+        vocoderInput.mel = mel;
+        vocoderInput.f0 = originalF0;
 
-        srt::core::NO<Vo::VocoderResult> result;
+        std::unique_ptr<Vo::VocoderResult> result;
         // Start inference
         if (isTerminateRequested()) {
             abort();
@@ -322,7 +321,7 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
                 << exp.error().message();
             return false;
         } else {
-            result = exp.take().as<Vo::VocoderResult>();
+            result = exp.take();
             if (!result) {
                 qCritical() << "inferAcoustic: vocoder result type mismatch or null result for"
                             << identifier;
@@ -330,15 +329,12 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
             }
         }
 
-        if (!result->error.ok()) {
-            qCritical().noquote().nospace() << "inferAcoustic: Failed to run vocoder inference for "
-                                            << identifier << ": " << result->error.message();
-            return false;
-        }
-
-        if (inferenceVocoder->state() == srt::core::ITask::Failed) {
-            qCritical().noquote().nospace() << "inferAcoustic: Failed to run vocoder inference for "
-                                            << identifier << ": " << result->error.message();
+        // A failure already came back as an error from start(), so there is nothing to
+        // re-check on the result. The state is still worth asking: a run that was stopped
+        // returns a result like any other, and using it would give half a phrase as a whole one.
+        if (inferenceVocoder->state() == srt::ITask::Failed) {
+            qCritical().noquote().nospace() << "inferAcoustic: the vocoder inference for "
+                                            << identifier << " did not finish";
             return false;
         }
         const auto &audioRawData = result->audioData;

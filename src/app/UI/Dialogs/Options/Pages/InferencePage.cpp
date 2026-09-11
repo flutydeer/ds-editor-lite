@@ -22,9 +22,10 @@
 #include "UI/Dialogs/Base/RestartDialog.h"
 #include "Utils/UiLanguageManager.h"
 #include <lite/Support/StringUtils.h>
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 
-#include <synthrt/Core/Core/Runtime.h>
-#include <synthrt/Core/Support/DisplayText.h>
+#include <synthrt/Core/SynthUnit.h>
+#include <synthrt/Support/DisplayText.h>
 #include <synthrt/SVS/SingerContrib.h>
 
 #include <IcuWrapper/IcuWrapper.h>
@@ -47,7 +48,7 @@ namespace {
     /// case-sensitive, candidates are matched with IcuWrapper, and the hit
     /// key (original spelling) is fetched by exact lookup. Falls back to the
     /// default text.
-    QString displayText(const srt::core::DisplayText &text, const QStringList &candidates) {
+    QString displayText(const srt::DisplayText &text, const QStringList &candidates) {
         QStringList keys;
         const auto locales = text.locales();
         keys.reserve(static_cast<QStringList::size_type>(locales.size()));
@@ -56,8 +57,9 @@ namespace {
         for (const auto &tag : candidates) {
             const auto hit = IcuWrapper::bestMatch(tag, keys);
             if (!hit.isEmpty()) {
-                if (const auto *value = text.text(hit.toStdString()))
-                    return QString::fromStdString(*value);
+                const auto &value = text.text(hit.toStdString());
+                if (!value.empty())
+                    return QString::fromStdString(value);
             }
         }
         return QString::fromStdString(text.text());
@@ -438,15 +440,11 @@ QWidget *InferencePage::createContentWidget() {
             }
             return str_;
         };
-        const auto &su = inferEngine->constRuntime();
-        // TODO(Task 7): Runtime no longer exposes packagePaths()/packages().
-        // Use appOptions directly; singer list will come from SynthrtEngine.
         const auto &packagePaths = appOptions->general()->packageSearchPaths;
-        const auto singerCat = su.moduleCategory("singer");
-        // TODO(Task 6/7): singer category may be null until packages are opened;
-        // SynthrtEngine::singers() will provide singer snapshots instead.
-        const auto &singers = singerCat ? singerCat->as<srt::svs::SingerCategory>()->singers()
-                                        : std::vector<srt::svs::SingerSpec *>{};
+        // What the last scan found, rather than a walk of the unit's categories: the engine has
+        // already worked out which contributions are singers and what each one can do, and this
+        // page shows exactly that.
+        const auto singers = SynthrtEngine::instance().singers();
 
         const auto languageManager = UiLanguageManager::instance();
         const auto bcp47Candidates = languageManager
@@ -511,78 +509,69 @@ QWidget *InferencePage::createContentWidget() {
         }
         packageRoot->appendRow(packagePathRoot);
 
-        // Loaded packages
+        // Loaded packages, named by the singers they hold: a package with no singer contributes
+        // nothing this page can show, and a package with several appears once.
         auto packageLoadedRoot = new QStandardItem(tr("loaded packages"));
-        // TODO(Task 7): Runtime no longer exposes packages(). Loaded package
-        // info will come from SynthrtEngine::singers() snapshots.
+        QStringList listedPackages;
+        for (const auto &singer : singers) {
+            const auto line = QString::fromStdString(singer.packageId) + QLatin1Char('@') +
+                              QString::fromStdString(singer.packageVersion.toString());
+            if (listedPackages.contains(line)) {
+                continue;
+            }
+            listedPackages.append(line);
+            packageLoadedRoot->appendRow(
+                {new QStandardItem(line),
+                 new QStandardItem(StringUtils::path_to_qstr(singer.packagePath))});
+        }
         packageRoot->appendRow(packageLoadedRoot);
 
         // Loaded singers
         auto singerLoadedRoot = new QStandardItem(tr("loaded singers"));
-        for (const auto singer : std::as_const(singers)) {
-            if (!singer) {
-                continue;
-            }
-            const auto singerId = QString::fromUtf8(singer->id());
-            // API levels are stable protocol identifiers, not localized quantities.
-            const auto singerLevel = QString::number(singer->apiLevel());
-            const auto singerName = displayText(singer->name(), bcp47Candidates);
-            const auto singerArch = QString::fromUtf8(singer->className());
-            const auto singerPath = StringUtils::path_to_qstr(singer->path());
-            const auto singerImports = singer->imports();
+        for (const auto &singer : singers) {
+            const auto singerId = QString::fromStdString(singer.contributionId);
+            const auto singerName = displayText(singer.name, bcp47Candidates);
+            const auto packageId = QString::fromStdString(singer.packageId);
+            const auto packageVersion = QString::fromStdString(singer.packageVersion.toString());
 
             auto currentSingerRoot = new QStandardItem(singerName + " (" + singerId + ')');
-            currentSingerRoot->appendRow({
-                new QStandardItem(tr("id")),
-                new QStandardItem(singerId),
-            });
-            currentSingerRoot->appendRow({
-                new QStandardItem(tr("name")),
-                new QStandardItem(singerName),
-            });
-            currentSingerRoot->appendRow({
-                new QStandardItem(tr("api level")),
-                new QStandardItem(singerLevel),
-            });
-            currentSingerRoot->appendRow({
-                new QStandardItem(tr("architecture")),
-                new QStandardItem(singerArch),
-            });
-            currentSingerRoot->appendRow({
-                new QStandardItem(tr("path")),
-                new QStandardItem(singerPath),
-            });
-            auto inferenceRoot = new QStandardItem(tr("inferences"));
-            for (const auto &singerImport : std::as_const(singerImports)) {
-                const auto inference = singerImport.inference();
-                if (!inference) {
-                    continue;
-                }
-                const auto inferenceName = displayText(inference->name(), bcp47Candidates);
-                const auto inferenceClassName = QString::fromUtf8(inference->className());
-                // API levels are stable protocol identifiers, not localized quantities.
-                const auto inferenceLevel = QString::number(inference->apiLevel());
-                const auto inferencePath = StringUtils::path_to_qstr(inference->path());
-                auto currentInferenceRoot = new QStandardItem(inferenceName);
-                currentInferenceRoot->appendRow({
-                    new QStandardItem(tr("name")),
-                    new QStandardItem(inferenceName),
-                });
-                currentInferenceRoot->appendRow({
-                    new QStandardItem(tr("class name")),
-                    new QStandardItem(inferenceClassName),
-                });
-                currentInferenceRoot->appendRow({
-                    new QStandardItem(tr("api level")),
-                    new QStandardItem(inferenceLevel),
-                });
-                currentInferenceRoot->appendRow({
-                    new QStandardItem(tr("path")),
-                    new QStandardItem(inferencePath),
-                });
-                inferenceRoot->appendRow(currentInferenceRoot);
+            const auto row = [currentSingerRoot](const QString &key, const QString &value) {
+                currentSingerRoot->appendRow({new QStandardItem(key), new QStandardItem(value)});
+            };
+            row(tr("id"), singerId);
+            row(tr("name"), singerName);
+            row(tr("package"), packageId + QLatin1Char('@') + packageVersion);
+            row(tr("path"), StringUtils::path_to_qstr(singer.packagePath));
+
+            // Which stages this singer imports, which is what decides what it can be asked to do.
+            // The older page listed the inference modules themselves; on this line a stage is
+            // reached through an import and what matters about it is whether it is there.
+            const auto &can = singer.capabilities;
+            auto stageRoot = new QStandardItem(tr("stages"));
+            const auto stage = [stageRoot, this](const QString &name, bool present) {
+                stageRoot->appendRow({new QStandardItem(name),
+                                      new QStandardItem(present ? tr("Yes") : tr("No"))});
+            };
+            stage(QStringLiteral("duration"), can.duration);
+            stage(QStringLiteral("pitch"), can.pitch);
+            stage(QStringLiteral("variance"), can.variance);
+            stage(QStringLiteral("acoustic"), can.acoustic);
+            stage(QStringLiteral("vocoder"), can.vocoder);
+            currentSingerRoot->appendRow(stageRoot);
+
+            QStringList speakerNames;
+            for (const auto &speaker : can.speakers) {
+                speakerNames << QString::fromStdString(speaker.id);
             }
-            currentSingerRoot->appendRow(inferenceRoot);
+            row(tr("speakers"), speakerNames.join(QStringLiteral(", ")));
+            row(tr("languages"),
+                [&can] {
+                    QStringList handles;
+                    for (const auto &handle : can.languages) {
+                        handles << QString::fromStdString(handle);
+                    }
+                    return handles.join(QStringLiteral(", "));
+                }());
             singerLoadedRoot->appendRow(currentSingerRoot);
         }
         packageRoot->appendRow(singerLoadedRoot);

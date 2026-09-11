@@ -6,6 +6,8 @@ project(SynthrtEngine LANGUAGES CXX)
 # <lite/SynthrtEngine/Xxx.h>. Its singleton is registered by the app's
 # AppContext through the SingletonRegistry.
 find_package(synthrt CONFIG REQUIRED)
+find_package(wolf CONFIG REQUIRED)
+include(${LITE_CMAKE_DIR}/LiteDsinfer.cmake)
 find_package(stdcorelib CONFIG REQUIRED)
 
 file(GLOB_RECURSE _src CONFIGURE_DEPENDS
@@ -19,8 +21,9 @@ target_link_libraries(SynthrtEngine PUBLIC
     lite::Core
     lite::Support
     lite::ProjectModel
-    srt::synthrt
-    srt::diffsinger
+    synthrt::synthrt
+    wolf::wolf
+    lite::dsinfer
     stdcorelib::stdcorelib
 )
 

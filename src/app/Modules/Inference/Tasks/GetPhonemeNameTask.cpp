@@ -96,19 +96,12 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
         return QList<PhonemeNameResult>(m_inputs.size());
     }
 
-    // B1b-3/B1c: S2P conversion via VoicebankSession::convertS2p().
-    // Language module readiness is ensured per language via ensureLanguageReady()
-    // (cached internally by the session); deterministic failures are cached in
-    // failedS2pLanguages so subsequent inputs in the same language skip fast.
-    // Replaces the legacy resolveS2pResource() + LanguageResource::convert() pair
-    // removed in B1c.
-    QSet<QString> failedS2pLanguages;
-    QSet<QString> readyLanguages;
+    // A language that fails once fails the same way for every input in this batch, so it is
+    // remembered and the rest of its inputs skip straight past. Nothing else is cached here:
+    // wolf loads a language the first time a conversion asks for it and keeps it loaded.
+    QSet<QString> failedLanguages;
 
-    auto &session = SynthrtEngine::instance().session();
     const auto identifier = m_clipSingerInfo.identifier();
-    const auto packageId = identifier.packageId.toStdString();
-    const auto version = VersionUtils::qt_to_stdc(identifier.packageVersion);
 
     QList<PhonemeNameResult> results;
     results.reserve(m_inputs.size());
@@ -128,44 +121,46 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
                    input.pronunciation == "-" || input.pronunciation.isEmpty()) {
             result.success = true;
         } else {
-            if (failedS2pLanguages.contains(input.language)) {
+            if (failedLanguages.contains(input.language)) {
                 allSuccess = false;
                 results.append(result);
                 continue;
             }
 
-            // Ensure the S2P language module is loaded (cached per language).
-            if (!readyLanguages.contains(input.language)) {
-                const auto lang = input.language.toStdString();
-                auto readyExp = session.ensureLanguageReady(packageId, version, lang);
-                if (!readyExp) {
-                    failedS2pLanguages.insert(input.language);
-                    qCWarning(logInferPhoneme)
-                        << "S2P language ready failed for language:" << input.language << ":"
-                        << QString::fromUtf8(readyExp.error().message());
-                    result.success = false;
-                    allSuccess = false;
-                    results.append(result);
-                    continue;
-                }
-                readyLanguages.insert(input.language);
-            }
-
-            // Convert pronunciation to phonemes. SingerIdentifier implicitly
-            // converts to SingerRef (B1a), supplying version-aware routing.
-            auto sylExp = session.convertS2p(identifier, input.language.toStdString(),
-                                             input.pronunciation.toStdString());
-            if (!sylExp) {
+            // The pronunciation is pinned, so the conversion starts below grapheme-to-phoneme and
+            // only turns this syllable into phonemes -- which is what this task is for. Asking to
+            // Onsets rather than Phonemes because the editor shows which phoneme begins a
+            // syllable, and asking later would mean converting twice.
+            std::vector<lite::synthrt::LanguageBridge::Word> words;
+            words.push_back({input.lyric.toStdString(), input.pronunciation.toStdString(), {}, {}});
+            auto converted = SynthrtEngine::instance().convert(
+                identifier, input.language, words, lite::synthrt::LanguageBridge::Depth::Onsets);
+            if (!converted) {
+                // A route that does not exist will not exist for the next input either.
+                failedLanguages.insert(input.language);
                 qCWarning(logInferPhoneme)
-                    << "S2P conversion failed for pronunciation:" << input.pronunciation << ":"
-                    << QString::fromUtf8(sylExp.error().message());
+                    << "S2P conversion failed for language:" << input.language << ":"
+                    << QString::fromStdString(converted.error().toString());
                 result.success = false;
                 allSuccess = false;
                 results.append(result);
                 continue;
             }
 
-            const auto &syllable = *sylExp;
+            const auto outcomes = converted.take();
+            if (outcomes.empty() || !outcomes.front().error.empty()) {
+                qCWarning(logInferPhoneme)
+                    << "S2P conversion failed for pronunciation:" << input.pronunciation << ":"
+                    << (outcomes.empty()
+                            ? QStringLiteral("no result")
+                            : QString::fromStdString(outcomes.front().error));
+                result.success = false;
+                allSuccess = false;
+                results.append(result);
+                continue;
+            }
+
+            const auto &syllable = outcomes.front();
             for (size_t k = 0; k < syllable.phonemes.size(); ++k) {
                 PhonemeName pn;
                 pn.name = QString::fromStdString(syllable.phonemes[k]);

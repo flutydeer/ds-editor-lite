@@ -1,0 +1,38 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "otter",
+  "version": "0.1.0.0",
+  "description": [
+    "Orchestratable Transcription, Timing and Expression Runtime: the analysis contribution category layered on synthrt."
+  ],
+  "homepage": "https://github.com/diffscope/otter",
+  "license": "Apache-2.0",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    },
+    "qmsetup",
+    "stdcorelib",
+    "stdcorelib-plugin",
+    "synthrt"
+  ],
+  "features": {
+    "onnx": {
+      "description": "Build the analysis providers, which need dsinfer and its ONNX Runtime driver",
+      "dependencies": [
+        {
+          "name": "synthrt",
+          "default-features": false,
+          "features": [
+            "onnx"
+          ]
+        }
+      ]
+    }
+  }
+}

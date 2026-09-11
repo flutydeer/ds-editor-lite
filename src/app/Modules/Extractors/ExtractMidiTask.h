@@ -3,11 +3,17 @@
 
 #include "ExtractTask.h"
 
-#include <synthrt/Extract/MidiExtractor.h>
+#include <vector>
 
 #include <QMutex>
 
-/// Local MIDI note struct, decoupled from synthrt types.
+#include <otter/Analysis/AnalysisExecutive.h>
+
+/// One transcribed note, in the editor's own units.
+///
+/// Ticks rather than seconds, because that is what the project is written in. The analyzer works
+/// in seconds and knows nothing about tempo; converting here is what lets a piece whose tempo
+/// changes come out in the right place.
 struct ExtractMidiNote {
     int note = 0;
     int start = 0;
@@ -27,7 +33,7 @@ public:
 private:
     void runTask() override;
 
-    mutable QMutex m_extractorMutex;
-    srt::core::NO<srt::extract::MidiExtractor> m_extractor;
+    mutable QMutex m_analyzerMutex;
+    otter::AnalysisExecutive *m_analyzer = nullptr;
 };
 #endif // EXTRACTMIDITASK_H

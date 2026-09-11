@@ -2,7 +2,7 @@
 
 #include "Model/AppOptions/AppOptions.h"
 
-#include <diffsinger/Bank/PackageValidator.h>
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -185,26 +185,33 @@ namespace Automation {
         services.installedPackages = [manager] {
             return convertPackages(manager->installedPackages());
         };
+        // Validation is now "does it load", asked by actually loading it and letting it go
+        // again. That is a stronger check than the schema walk it replaces -- every interpreter
+        // reads its own configuration and every import validator runs -- and a weaker report: the
+        // loader answers with one error and its causes rather than a list of findings with
+        // severities and recommendations, so a report has at most one item and never a warning.
+        //
+        // This is a knowing downgrade. Restoring the itemised form means the loader collecting
+        // findings instead of returning at the first, which is a change to synthrt rather than
+        // something the host can reconstruct.
         services.validatePackage = [](const QString &path) {
-            ds::bank::PackageValidator validator;
-            const auto report = validator.validatePackage(
-                StringUtils::qstr_to_path(path), ds::bank::PackageValidator::SchemaVersion::V10);
             PackageValidationReportDto result;
-            result.hasErrors = report.hasErrors();
-            for (const auto &item : report.items()) {
-                PackageValidationSeverity severity = PackageValidationSeverity::Info;
-                if (item.severity == ds::bank::ValidationItem::Warning)
-                    severity = PackageValidationSeverity::Warning;
-                else if (item.severity == ds::bank::ValidationItem::Error)
-                    severity = PackageValidationSeverity::Error;
-                result.items.append({
-                    .severity = severity,
-                    .path = QString::fromStdString(item.path),
-                    .message = QString::fromStdString(item.message),
-                    .actualValue = QString::fromStdString(item.actualValue),
-                    .recommendation = QString::fromStdString(item.recommendation),
-                });
+            auto opened = SynthrtEngine::instance().unit().openPackage(
+                StringUtils::qstr_to_path(path), srt::SynthUnit::Load);
+            if (opened) {
+                // Let it go at once: this asked a question, it did not ask for the package to
+                // stay. A voicebank the editor is using is held by the catalogue, not by this.
+                opened.take().reset();
+                return AutomationResult<PackageValidationReportDto>(std::move(result));
             }
+            result.hasErrors = true;
+            result.items.append({
+                .severity = PackageValidationSeverity::Error,
+                .path = path,
+                .message = QString::fromStdString(opened.error().toString()),
+                .actualValue = {},
+                .recommendation = {},
+            });
             return AutomationResult<PackageValidationReportDto>(std::move(result));
         };
         services.resolveDocumentVoices = [manager](AppModel *model, const bool apply) {

@@ -5,7 +5,7 @@
 
 #include <QReadWriteLock>
 
-#include <synthrt/SVS/Inference.h>
+#include <synthrt/SVS/InferenceExecutive.h>
 
 #include "IInferTask.h"
 #include "InferTaskCommon.h"

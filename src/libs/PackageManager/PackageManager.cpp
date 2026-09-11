@@ -16,10 +16,7 @@
 #include <stdcorelib/path.h>
 #include <stdcorelib/system.h>
 
-#include <synthrt/Core/Support/DisplayText.h>
-#include <synthrt/Core/Support/JSON.h>
-#include <diffsinger/Bank/PackageManifest.h>
-#include <diffsinger/Bank/SingerManifest.h>
+#include <synthrt/Support/DisplayText.h>
 
 #include <QDebug>
 #include <QElapsedTimer>
@@ -34,164 +31,89 @@
 namespace fs = std::filesystem;
 
 namespace {
-    const ds::bank::InferenceInfo *findInference(const ds::bank::PackageManifest &manifest,
-                                                 const std::string &id,
-                                                 const std::string &className) {
-        for (const auto &inference : manifest.inferences()) {
-            if (inference.id == id && inference.className == className)
-                return &inference;
-        }
-        return nullptr;
-    }
-
-    /// Copies all translations of a synthrt DisplayText into a Qt map
-    /// (language tag -> text, keys kept verbatim per ds-spec 2.4) so the host
-    /// can re-resolve the display text per UI language without rescanning the
-    /// voicebank.
-    QMap<QString, QString> toLocalizedTextMap(const srt::core::DisplayText &text) {
+    /// Copies all translations of a synthrt DisplayText into a Qt map (language tag -> text, keys
+    /// kept verbatim per ds-spec 2.4) so the host can re-resolve the display text per UI language
+    /// without rescanning the voicebank.
+    QMap<QString, QString> toLocalizedTextMap(const srt::DisplayText &text) {
         QMap<QString, QString> map;
         for (const auto &locale : text.locales()) {
-            if (const auto *value = text.text(locale))
-                map.insert(QString::fromStdString(locale), QString::fromStdString(*value));
+            map.insert(QString::fromStdString(locale),
+                       QString::fromStdString(text.text(locale)));
         }
         return map;
     }
 
-    QStringList toQStringList(const std::vector<std::string> &values) {
+    QString toQString(const std::string &value) {
+        return QString::fromStdString(value);
+    }
+
+    template <class Container>
+    QStringList toQStringList(const Container &values) {
         QStringList result;
         result.reserve(static_cast<QStringList::size_type>(values.size()));
-        for (const auto &value : values)
-            result.append(QString::fromStdString(value));
+        for (const auto &value : values) {
+            result.append(toQString(value));
+        }
         return result;
     }
 
-    std::vector<const ds::bank::InferenceInfo *>
-        stageCandidates(const ds::bank::PackageManifest &owningManifest,
-                        const std::vector<ds::bank::PackageManifest> &manifests,
-                        const std::string &id, const std::string &className) {
-        if (const auto *inference = findInference(owningManifest, id, className))
-            return {inference};
-
-        std::vector<const ds::bank::InferenceInfo *> candidates;
-        for (const auto &manifest : manifests) {
-            if (const auto *inference = findInference(manifest, id, className))
-                candidates.push_back(inference);
+    /// What the host can say about a singer's capabilities on this line.
+    ///
+    /// The older line derived this by re-reading each model's configuration file by hand and
+    /// reconciling what the four of them said. None of that happens here: a package that loaded
+    /// has already had its models interpreted and its imports validated, so a capability is read
+    /// off what the models export and cannot disagree with them.
+    ///
+    /// Three of the older fields have no answer on this line and are left at their "not known"
+    /// value rather than invented. `vocoderPitchControllable` is a vocoder configuration key that
+    /// nothing exports; `effectivePhonemes` was an intersection of the four phoneme tables, and
+    /// only feeds a change-detection hash; the consistency levels described a reconciliation that
+    /// no longer happens, because a voicebank whose models disagree does not load at all.
+    SingerCapabilitySummary summaryOf(const lite::synthrt::SingerCapabilities &capabilities) {
+        SingerCapabilitySummary summary;
+        for (const auto &speaker : capabilities.speakers) {
+            summary.mixableSpeakers.append(toQString(speaker.id));
         }
-        return candidates;
+        QStringList parameters = toQStringList(capabilities.varianceControls);
+        parameters.append(toQStringList(capabilities.transitionControls));
+        parameters.sort();
+        summary.acousticParameters = std::move(parameters);
+        summary.pitchUsesExpressiveness = capabilities.allowsExpressiveness;
+        summary.effectiveLanguages = toQStringList(capabilities.languages);
+        return summary;
     }
 
-    std::vector<const ds::bank::InferenceInfo *>
-        reportedStageCandidates(const ds::bank::PackageManifest &owningManifest,
-                                const std::vector<ds::bank::PackageManifest> &manifests,
-                                const ds::bank::SingerCapabilityReport &report,
-                                const std::string &className) {
-        for (const auto &stage : report.stages) {
-            if (stage.className == className)
-                return stageCandidates(owningManifest, manifests, stage.stageId, className);
-        }
-        return {};
-    }
-
-    std::vector<const ds::bank::InferenceInfo *>
-        importedStageCandidates(const ds::bank::PackageManifest &owningManifest,
-                                const std::vector<ds::bank::PackageManifest> &manifests,
-                                const ds::bank::SingerManifest &singer,
-                                const std::string &className) {
-        std::vector<const ds::bank::InferenceInfo *> candidates;
-        for (const auto &stageImport : singer.imports()) {
-            if (const auto *inference =
-                    findInference(owningManifest, stageImport.inferenceId, className)) {
-                candidates.push_back(inference);
+    QList<SpeakerInfo> speakersOf(const lite::synthrt::SingerCapabilities &capabilities) {
+        QList<SpeakerInfo> result;
+        result.reserve(static_cast<qsizetype>(capabilities.speakers.size()));
+        for (const auto &speaker : capabilities.speakers) {
+            SpeakerInfo info(toQString(speaker.id), toQString(speaker.name.text()));
+            info.setLocalizedNames(toLocalizedTextMap(speaker.name));
+            if (speaker.toneRange) {
+                info.setToneRange(*speaker.toneRange);
+                // The string pair is the serialised form and is kept in step with the numbers.
+                info.setToneMin(QString::number(speaker.toneRange->first));
+                info.setToneMax(QString::number(speaker.toneRange->second));
             }
-        }
-        if (!candidates.empty())
-            return candidates;
-
-        for (const auto &stageImport : singer.imports()) {
-            for (const auto &manifest : manifests) {
-                if (const auto *inference =
-                        findInference(manifest, stageImport.inferenceId, className)) {
-                    candidates.push_back(inference);
-                }
-            }
-        }
-        return candidates;
-    }
-
-    std::optional<QStringList>
-        acousticParameters(const ds::bank::PackageManifest &owningManifest,
-                           const std::vector<ds::bank::PackageManifest> &manifests,
-                           const ds::bank::SingerCapabilityReport &report) {
-        const auto candidates =
-            reportedStageCandidates(owningManifest, manifests, report, "ai.svs.AcousticInference");
-        std::optional<QStringList> result;
-        for (const auto *candidate : candidates) {
-            const auto parameters = toQStringList(candidate->parameters);
-            if (result && *result != parameters)
-                return std::nullopt;
-            result = parameters;
+            // Every speaker the acoustic model accepts can be mixed with any other: they are all
+            // that model's, so there is no second list to be absent from.
+            info.setMixable(true);
+            result.append(std::move(info));
         }
         return result;
     }
 
-    std::optional<bool> configurationFlag(const ds::bank::InferenceInfo &inference,
-                                          const std::string &name, const bool defaultValue) {
-        std::ifstream file(inference.configPath);
-        if (!file.is_open())
-            return std::nullopt;
-
-        std::stringstream buffer;
-        buffer << file.rdbuf();
-        std::string parseError;
-        const auto root = srt::core::JsonValue::fromJson(buffer.str(), true, &parseError);
-        if (!parseError.empty() || !root.isObject())
-            return std::nullopt;
-
-        const auto &rootObject = root.toObject();
-        const auto configurationIt = rootObject.find("configuration");
-        if (configurationIt == rootObject.end() || !configurationIt->second.isObject())
-            return std::nullopt;
-
-        const auto &configuration = configurationIt->second.toObject();
-        const auto valueIt = configuration.find(name);
-        if (valueIt == configuration.end())
-            return defaultValue;
-        if (!valueIt->second.isBool())
-            return std::nullopt;
-        return valueIt->second.toBool();
-    }
-
-    std::optional<bool>
-        consistentConfigurationFlag(const std::vector<const ds::bank::InferenceInfo *> &candidates,
-                                    const std::string &name, const bool defaultValue) {
-        std::optional<bool> result;
-        for (const auto *candidate : candidates) {
-            const auto value = configurationFlag(*candidate, name, defaultValue);
-            if (!value || (result && *result != *value))
-                return std::nullopt;
-            result = value;
+    QList<LanguageInfo> languagesOf(const lite::synthrt::SingerCapabilities &capabilities) {
+        QList<LanguageInfo> result;
+        result.reserve(static_cast<qsizetype>(capabilities.languages.size()));
+        for (const auto &handle : capabilities.languages) {
+            // Only the handle. What the older line also carried here -- a G2P identifier, a
+            // dictionary path, an s2p and an onset mode -- described that line's own G2P system.
+            // On this one a language is a linguist contribution and those four are its internals,
+            // not the singer's, so the singer no longer states them and this no longer shows them.
+            result.append(LanguageInfo(toQString(handle), toQString(handle)));
         }
         return result;
-    }
-
-    std::optional<bool> reportedStageFlag(const ds::bank::PackageManifest &owningManifest,
-                                          const std::vector<ds::bank::PackageManifest> &manifests,
-                                          const ds::bank::SingerCapabilityReport &report,
-                                          const std::string &className, const std::string &name,
-                                          const bool defaultValue) {
-        return consistentConfigurationFlag(
-            reportedStageCandidates(owningManifest, manifests, report, className), name,
-            defaultValue);
-    }
-
-    std::optional<bool> importedStageFlag(const ds::bank::PackageManifest &owningManifest,
-                                          const std::vector<ds::bank::PackageManifest> &manifests,
-                                          const ds::bank::SingerManifest &singer,
-                                          const std::string &className, const std::string &name,
-                                          const bool defaultValue) {
-        return consistentConfigurationFlag(
-            importedStageCandidates(owningManifest, manifests, singer, className), name,
-            defaultValue);
     }
 }
 
@@ -264,208 +186,75 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
             searchPaths.push_back(path);
         }
 
-        const bool allowReuse = m_catalogGeneration == 0;
-        // SynthrtEngine::initialize is triggered asynchronously by InferEngine
-        // on a separate task. VoicebankSession (Stage 1: voicebank scan +
-        // LanguageService metadata) must be ready before we can query the
-        // snapshot. We wait on sessionReady() rather than initialized() so
-        // PackageManager doesn't block on Stage 2 (ONNX model loading), which
-        // is slow and not needed for package enumeration. Uses a condition
-        // variable internally — no polling.
+        // The engine is brought up asynchronously by InferEngine, so the first scan may arrive
+        // before it exists. Waiting here rather than failing is what makes a package list at
+        // startup show the packages rather than an error that goes away by itself.
         //
-        // If initialize() finishes (success or failure) without the session
-        // becoming ready, waitForSession returns true but refreshVoicebanks
-        // below will surface the actual error (e.g. "session not initialized"
-        // when Stage 1's refresh failed).
-        if (!SynthrtEngine::instance().sessionReady()) {
-            if (!SynthrtEngine::instance().waitForSession()) {
+        // There is one stage now. The older line split initialisation in two so that a package
+        // scan did not have to wait on model loading; on this line nothing is loaded until a
+        // synthesis asks for it, so there is no second stage to skip.
+        if (!SynthrtEngine::instance().initializationDone()) {
+            if (!SynthrtEngine::instance().waitForInitialization()) {
                 return GetInstalledPackagesError{
                     GetInstalledPackagesErrorType::MetadataBackendNotInitialized,
-                    QStringLiteral("SynthrtEngine session initialization timed out"),
+                    QStringLiteral("SynthrtEngine initialization timed out"),
                 };
             }
         }
-        auto snapshotExp = SynthrtEngine::instance().refreshVoicebanks(searchPaths, allowReuse);
-        if (!snapshotExp) {
+
+        std::vector<lite::synthrt::PackageProblem> problems;
+        auto scanned = SynthrtEngine::instance().refreshVoicebanks(searchPaths, &problems);
+        if (!scanned) {
             return GetInstalledPackagesError{
                 GetInstalledPackagesErrorType::MetadataBackendNotInitialized,
-                QString::fromUtf8(snapshotExp.error().message()),
+                QString::fromStdString(scanned.error().message()),
             };
         }
-        const auto snapshot = *snapshotExp;
+        const auto singers = scanned.take();
 
-        // Iterate packages (valid + invalid). For valid packages, look up the
-        // manifest via VoicebankSnapshot::findManifest(). Singers are looked up
-        // by matching singer.ref.packageId + singer.ref.version to the package.
-        for (const auto &status : snapshot->packages) {
-            if (!status.valid) {
-                result.failedPackages.emplace_back(StringUtils::path_to_qstr(status.rootPath),
-                                                   QString::fromStdString(status.error.message));
-                continue;
-            }
-
-            const auto packageId = QString::fromStdString(status.packageId);
-            const auto packageVersion = VersionUtils::stdc_to_qt(status.version);
-
-            const auto *manifest = snapshot->findManifest(status.packageId, status.version);
-            if (!manifest) {
-                result.failedPackages.emplace_back(
-                    StringUtils::path_to_qstr(status.rootPath),
-                    QStringLiteral("Manifest not available for package %1").arg(packageId));
-                continue;
-            }
-
-            const auto vendorText = manifest->author();
-            const auto descriptionText = manifest->description();
-            const auto licenseText = manifest->license();
-            PackageInfo packageInfo(packageId, packageVersion,
-                                    QString::fromStdString(vendorText.text()),
-                                    QString::fromStdString(descriptionText.text()),
-                                    QString::fromStdString(licenseText.text()), {}, {},
-                                    StringUtils::path_to_qstr(status.rootPath));
-            packageInfo.setLocalizedVendor(toLocalizedTextMap(vendorText));
-            packageInfo.setLocalizedDescription(toLocalizedTextMap(descriptionText));
-            packageInfo.setLocalizedLicense(toLocalizedTextMap(licenseText));
-
-            // Find singers belonging to this package version.
-            for (const auto &singerSnapshot : snapshot->singers) {
-                if (singerSnapshot.ref.packageId != status.packageId ||
-                    singerSnapshot.ref.version != status.version.toString()) {
-                    continue;
-                }
-
-                QList<LanguageInfo> languageInfos;
-                QList<SpeakerInfo> speakerInfos;
-                const ds::bank::SingerManifest *singerManifest = nullptr;
-                for (const auto &singer : manifest->singers()) {
-                    if (singer.singerId() != singerSnapshot.ref.singerId) {
-                        continue;
-                    }
-                    singerManifest = &singer;
-                    for (const auto &lang : singer.languages()) {
-                        LanguageInfo langInfo(QString::fromStdString(lang.languageId()),
-                                              QString::fromStdString(lang.name().text()),
-                                              QString::fromStdString(lang.g2pId()),
-                                              StringUtils::path_to_qstr(lang.dict()),
-                                              QString::fromStdString(lang.s2pMode()),
-                                              QString::fromStdString(lang.onsetMode()),
-                                              StringUtils::path_to_qstr(lang.s2pFile()),
-                                              StringUtils::path_to_qstr(lang.onsetFile()));
-                        if (lang.hasG2pPackageVersion()) {
-                            langInfo.setG2pPackageVersion(
-                                QString::fromStdString(lang.g2pPackageVersion().toString()));
-                        }
-                        QStringList g2pPaths;
-                        g2pPaths.reserve(
-                            static_cast<QStringList::size_type>(lang.g2pPackages().size()));
-                        for (const auto &p : lang.g2pPackages()) {
-                            g2pPaths << StringUtils::path_to_qstr(p);
-                        }
-                        langInfo.setG2pPackagePaths(g2pPaths);
-                        langInfo.setLocalizedNames(toLocalizedTextMap(lang.name()));
-                        languageInfos.append(std::move(langInfo));
-                    }
-                    for (const auto &spk : singer.speakers()) {
-                        SpeakerInfo liteSpk(QString::fromStdString(spk.speakerId()),
-                                            QString::fromStdString(spk.name().text()));
-                        // B-13 lite 侧: toneRange 映射 + 兼容旧 toneMin/toneMax QString
-                        liteSpk.setLocalizedNames(toLocalizedTextMap(spk.name()));
-                        if (spk.toneRange()) {
-                            const auto lo = spk.toneRange()->first;
-                            const auto hi = spk.toneRange()->second;
-                            liteSpk.setToneRange(std::make_pair(lo, hi));
-                            // Legacy tone range fields are serialized protocol values.
-                            liteSpk.setToneMin(QString::number(lo));
-                            liteSpk.setToneMax(QString::number(hi));
-                        }
-                        speakerInfos.emplace_back(std::move(liteSpk));
-                    }
-                    break;
-                }
-
-                if (languageInfos.isEmpty()) {
-                    for (const auto &langInfo : singerSnapshot.languageInfos) {
-                        const auto id = QString::fromStdString(langInfo.languageId());
-                        languageInfos.emplace_back(id, id);
-                    }
-                }
-                if (speakerInfos.isEmpty()) {
-                    for (const auto &spkInfo : singerSnapshot.speakerInfos) {
-                        const auto id = QString::fromStdString(spkInfo.speakerId());
-                        speakerInfos.emplace_back(id, id);
-                    }
-                }
-
-                // 从 snapshot.capabilityReport 提取 lite 侧 capability 摘要
-                // 并标记每个 liteSpk.mixable（mixableSpeakers 集合成员）。
-                // 纯 G2P 包或 Inconsistent 声库 capabilityReport 为 nullopt / mixableSpeakers 空，
-                // lite UI 据此展示降级信息。
-                std::optional<SingerCapabilitySummary> capSummary;
-                if (singerSnapshot.capabilityReport) {
-                    const auto &report = *singerSnapshot.capabilityReport;
-                    SingerCapabilitySummary summary;
-                    for (const auto &spk : report.mixableSpeakers)
-                        summary.mixableSpeakers.append(QString::fromStdString(spk));
-                    summary.speakerConsistency = static_cast<int>(report.speakerConsistency);
-                    for (const auto &w : report.speakerWarnings)
-                        summary.speakerWarnings.append(QString::fromStdString(w));
-                    summary.acousticParameters =
-                        acousticParameters(*manifest, snapshot->manifests, report);
-                    summary.pitchUsesExpressiveness =
-                        reportedStageFlag(*manifest, snapshot->manifests, report,
-                                          "ai.svs.PitchInference", "useExpressiveness", true);
-                    if (singerManifest) {
-                        summary.vocoderPitchControllable = importedStageFlag(
-                            *manifest, snapshot->manifests, *singerManifest,
-                            "ai.svs.VocoderInference", "pitchControllable", false);
-                    }
-
-                    for (const auto &ph : report.effectivePhonemes)
-                        summary.effectivePhonemes.append(QString::fromStdString(ph));
-                    summary.phonemeConsistency = static_cast<int>(report.phonemeConsistency);
-                    for (const auto &w : report.phonemeWarnings)
-                        summary.phonemeWarnings.append(QString::fromStdString(w));
-                    summary.phonemeDegraded = report.phonemeDegraded;
-
-                    for (const auto &lang : report.effectiveLanguages)
-                        summary.effectiveLanguages.append(QString::fromStdString(lang));
-                    summary.languageConsistency = static_cast<int>(report.languageConsistency);
-                    for (const auto &w : report.languageWarnings)
-                        summary.languageWarnings.append(QString::fromStdString(w));
-                    capSummary = std::move(summary);
-
-                    // 标记每个 liteSpk.mixable（singer 域名匹配）
-                    QSet<QString> mixableSet;
-                    for (const auto &spk : report.mixableSpeakers)
-                        mixableSet.insert(QString::fromStdString(spk));
-                    for (auto &liteSpk : speakerInfos)
-                        liteSpk.setMixable(mixableSet.contains(liteSpk.id()));
-                }
-
-                SingerInfo singerInfo(
-                    SingerIdentifier{QString::fromStdString(singerSnapshot.ref.singerId), packageId,
-                                     packageVersion},
-                    QString::fromStdString(singerSnapshot.name.text()), std::move(speakerInfos),
-                    std::move(languageInfos),
-                    QString::fromStdString(singerSnapshot.defaultLanguage));
-                singerInfo.setLocalizedNames(toLocalizedTextMap(singerSnapshot.name));
-                singerInfo.setCapability(std::move(capSummary));
-                switch (singerSnapshot.resolutionState) {
-                    case ds::bank::ResolutionState::Resolved:
-                        singerInfo.setResolutionState(ResolutionState::Resolved);
-                        break;
-                    case ds::bank::ResolutionState::Missing:
-                        singerInfo.setResolutionState(ResolutionState::Missing);
-                        break;
-                    case ds::bank::ResolutionState::Pending:
-                    default:
-                        singerInfo.setResolutionState(ResolutionState::Pending);
-                        break;
-                }
-                packageInfo.addSinger(singerInfo);
-            }
-            result.successfulPackages.append(std::move(packageInfo));
+        // A package that would not open is shown with its reason rather than silently missing:
+        // someone who installed a voicebank and cannot see it needs to be told why.
+        for (const auto &problem : problems) {
+            result.failedPackages.emplace_back(StringUtils::path_to_qstr(problem.path),
+                                               QString::fromStdString(problem.reason));
         }
+
+        // Singers arrive one per contribution; a package is what holds them. Grouping by identity
+        // rather than by path because two directories may hold the same package and the loader
+        // has already decided which one won.
+        QList<PackageInfo> packages;
+        QHash<QString, qsizetype> packageAt;
+        for (const auto &singer : singers) {
+            const auto packageId = toQString(singer.packageId);
+            const auto packageVersion = VersionUtils::stdc_to_qt(singer.packageVersion);
+            const auto key = packageId + QLatin1Char('@') + packageVersion.toString();
+
+            if (!packageAt.contains(key)) {
+                PackageInfo packageInfo(packageId, packageVersion,
+                                        toQString(singer.packageVendor.text()),
+                                        toQString(singer.packageDescription.text()),
+                                        toQString(singer.packageCopyright.text()), {}, {},
+                                        StringUtils::path_to_qstr(singer.packagePath));
+                packageInfo.setLocalizedVendor(toLocalizedTextMap(singer.packageVendor));
+                packageInfo.setLocalizedDescription(toLocalizedTextMap(singer.packageDescription));
+                packageInfo.setLocalizedLicense(toLocalizedTextMap(singer.packageCopyright));
+                packageAt.insert(key, packages.size());
+                packages.append(std::move(packageInfo));
+            }
+
+            SingerInfo singerInfo(
+                SingerIdentifier{toQString(singer.contributionId), packageId, packageVersion},
+                toQString(singer.name.text()), speakersOf(singer.capabilities),
+                languagesOf(singer.capabilities),
+                toQString(singer.capabilities.defaultLanguage));
+            singerInfo.setLocalizedNames(toLocalizedTextMap(singer.name));
+            singerInfo.setCapability(summaryOf(singer.capabilities));
+            // A singer in the catalogue is a singer that loaded, imports and all. The older line
+            // needed three states here because it listed singers it had not finished resolving.
+            singerInfo.setResolutionState(ResolutionState::Resolved);
+            packages[packageAt.value(key)].addSinger(singerInfo);
+        }
+        result.successfulPackages = std::move(packages);
 
         qDebug() << "Package scan completed in" << timer.elapsed() << "ms";
         if (commitGate && !commitGate()) {
@@ -475,7 +264,7 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
         {
             QWriteLocker writeLocker(&m_resultRwLock);
             m_result = result;
-            m_catalogGeneration = snapshot->generation;
+            ++m_catalogGeneration;
             m_packageLocator.clear();
             m_singerLocator.clear();
             for (const auto &packageInfo : std::as_const(m_result.successfulPackages)) {
@@ -534,15 +323,12 @@ SingerInfo PackageManager::findSingerByIdentifier(const SingerIdentifier &identi
     return it.value();
 }
 
-QString PackageManager::srtErrorToString(const srt::core::Error &error) {
-    // v4: use ErrorCode system (error.codeString() returns e.g.
-    // "Package::ManifestInvalid", "Inference::ModelLoadFailed") instead of
-    // the deprecated Error::Type enum which only had 10 generic values and
-    // lost all Package/Inference/G2P/Driver/S2P/SVS categorization.
-    const QString code = QString::fromLatin1(error.codeString());
-    const QString message = QString::fromStdString(error.message());
+QString PackageManager::srtErrorToString(const srt::Error &error) {
     if (error.ok()) {
-        return tr("No error: ") + message;
+        return tr("No error");
     }
-    return QStringLiteral("[%1] %2").arg(code, message);
+    // The whole chain rather than this error's own text: an error here is usually raised several
+    // layers down -- a model that would not open, under an import that would not resolve, under a
+    // package that would not load -- and only the innermost one says anything useful.
+    return QString::fromStdString(error.toString());
 }

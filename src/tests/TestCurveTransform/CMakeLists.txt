@@ -12,15 +12,14 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
-find_package(dsinfer CONFIG REQUIRED)
+include(${LITE_CMAKE_DIR}/LiteDsinfer.cmake)
 find_package(synthrt CONFIG REQUIRED)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt${QT_VERSION_MAJOR}::Core
     lite::ProjectModel
-    srt::synthrt
-    srt::diffsinger
-    dsinfer::dsinfer
+    synthrt::synthrt
+    lite::dsinfer
 )
 
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})

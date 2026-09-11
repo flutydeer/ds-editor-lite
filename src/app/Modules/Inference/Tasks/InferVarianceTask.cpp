@@ -1,6 +1,6 @@
 #include "InferVarianceTask.h"
 
-#include <diffsinger/Infer/dsinfer/Api/Inferences/Variance/1/VarianceApiL1.h>
+#include <dsinfer/Api/Inferences/Variance/1/VarianceApiL1.h>
 
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/InferEngine.h"
@@ -16,7 +16,7 @@
 #include <QDir>
 #include <utility>
 
-namespace Var = srt::svs::Api::Variance::L1;
+namespace Var = ds::Api::Variance::L1;
 
 bool InferVarianceTask::InferVarianceInput::operator==(const InferVarianceInput &other) const {
     return semanticSignature() == other.semanticSignature();
@@ -134,9 +134,9 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
 
     const auto &identifier = model.identifier;
     std::string speakerName = model.speaker.toStdString();
-    const auto input = srt::core::NO<Var::VarianceStartInput>::create();
-    input->parameters = convertInputParams(model.params);
-    input->steps = model.steps;
+    Var::VarianceStartInput input;
+    input.parameters = convertInputParams(model.params);
+    input.steps = model.steps;
 
     if (isTerminateRequested()) {
         abort();
@@ -144,12 +144,12 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
     }
 
     InferDirectMLSerializationGuard dmlGuard;
-    const auto handle = inferEngine->acquireSingerSession(identifier);
-    if (!handle) {
+    const auto lease = inferEngine->acquireSingerSession(identifier);
+    if (!lease || !lease->pipeline()) {
         qCritical() << "inferVariance: failed to acquire singer session for" << identifier;
         return false;
     }
-    auto modelExp = m_activeInference.acquire(handle, ds::infer::StageKind::Variance);
+    auto modelExp = m_activeInference.acquire(*lease->pipeline(), InferStage::Variance);
     if (!modelExp) {
         qCritical().noquote().nospace()
             << "inferVariance: failed to load variance model for " << identifier << ": "
@@ -158,7 +158,9 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
     }
     auto activeInference = modelExp.take();
     auto &acquiredModel = activeInference.model();
-    auto inferenceVariance = acquiredModel.inference;
+    // The stage decides the type: acquire() was asked for variance and returns
+    // nothing else.
+    auto *inferenceVariance = static_cast<Var::VarianceExecutive *>(acquiredModel.executive);
     if (!inferenceVariance) {
         qCritical() << "inferVariance: Variance inference not found for" << identifier;
         return false;
@@ -169,26 +171,26 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
         qCritical() << "inferVariance: Import options not found";
         return false;
     }
-    const auto importOptions = acquiredModel.importOptions.as<Var::VarianceImportOptions>();
+    const auto *importOptions = acquiredModel.importOptions->as<Var::VarianceImportOptions>();
     if (!importOptions) {
         qCritical() << "inferVariance: Import options not found";
         return false;
     }
     const auto &speakerMapping = importOptions->speakerMapping;
-    input->words =
+    input.words =
         convertInputWords(model.words, speakerName, model.speakerMix, speakerMapping, error);
     if (!error.isEmpty()) {
         qCritical() << "inferVariance:" << error;
         return false;
     }
-    input->speakers = convertInputSpeakers(model.speakerMix, speakerMapping, error);
+    input.speakers = convertInputSpeakers(model.speakerMix, speakerMapping, error);
     if (!error.isEmpty()) {
         qCritical() << "inferVariance:" << error;
         return false;
     }
 
     // Run variance
-    srt::core::NO<Var::VarianceResult> result;
+    std::unique_ptr<Var::VarianceResult> result;
     // Start inference
     if (isTerminateRequested()) {
         abort();
@@ -200,22 +202,19 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
                                         << identifier << ": " << exp.error().message();
         return false;
     } else {
-        result = exp.take().as<Var::VarianceResult>();
+        result = exp.take();
         if (!result) {
             qCritical() << "inferVariance: result type mismatch or null result for" << identifier;
             return false;
         }
     }
 
-    if (!result->error.ok()) {
-        qCritical().noquote().nospace() << "inferVariance: Failed to run variance inference for "
-                                        << identifier << ": " << result->error.message();
-        return false;
-    }
-
-    if (inferenceVariance->state() == srt::core::ITask::Failed) {
-        qCritical().noquote().nospace() << "inferVariance: Failed to run variance inference for "
-                                        << identifier << ": " << result->error.message();
+    // A failure already came back as an error from start(), so there is nothing to re-check on
+    // the result. What is worth checking is the state: a run that was stopped returns a result
+    // like any other, and running on with it would give a half a phrase as if it were the whole.
+    if (inferenceVariance->state() == srt::ITask::Failed) {
+        qCritical().noquote().nospace() << "inferVariance: the variance inference for " << identifier
+                                        << " did not finish";
         return false;
     }
     outParams.reserve(result->predictions.size());

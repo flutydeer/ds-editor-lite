@@ -6,6 +6,8 @@ project(PackageManager LANGUAGES CXX)
 # injected and the scan lifecycle is reported via moduleStatusChanged instead of
 # writing AppStatus. Consumed as <lite/PackageManager/.../Xxx.h>.
 find_package(synthrt CONFIG REQUIRED)
+find_package(wolf CONFIG REQUIRED)
+include(${LITE_CMAKE_DIR}/LiteDsinfer.cmake)
 find_package(stdcorelib CONFIG REQUIRED)
 
 file(GLOB_RECURSE _src CONFIGURE_DEPENDS
@@ -22,8 +24,9 @@ target_link_libraries(PackageManager PUBLIC
     lite::ProjectModel
     lite::Tasking
     lite::SynthrtEngine
-    srt::synthrt
-    srt::diffsinger
+    synthrt::synthrt
+    wolf::wolf
+    lite::dsinfer
     stdcorelib::stdcorelib
 )
 

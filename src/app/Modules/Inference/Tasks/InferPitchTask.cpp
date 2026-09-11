@@ -1,6 +1,6 @@
 #include "InferPitchTask.h"
 
-#include <diffsinger/Infer/dsinfer/Api/Inferences/Pitch/1/PitchApiL1.h>
+#include <dsinfer/Api/Inferences/Pitch/1/PitchApiL1.h>
 
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Inference/InferEngine.h"
@@ -14,7 +14,7 @@
 #include <QDir>
 #include <QJsonDocument>
 
-namespace Pit = srt::svs::Api::Pitch::L1;
+namespace Pit = ds::Api::Pitch::L1;
 
 bool InferPitchTask::InferPitchInput::operator==(const InferPitchInput &other) const {
     return semanticSignature() == other.semanticSignature();
@@ -135,17 +135,17 @@ bool InferPitchTask::runInference(const GenericInferModel &model, InferParam &ou
 
     const auto &identifier = model.identifier;
     std::string speakerName = model.speaker.toStdString();
-    const auto input = srt::core::NO<Pit::PitchStartInput>::create();
-    input->parameters = convertInputParams(model.params);
-    input->steps = model.steps;
+    Pit::PitchStartInput input;
+    input.parameters = convertInputParams(model.params);
+    input.steps = model.steps;
 
     InferDirectMLSerializationGuard dmlGuard;
-    const auto handle = inferEngine->acquireSingerSession(identifier);
-    if (!handle) {
+    const auto lease = inferEngine->acquireSingerSession(identifier);
+    if (!lease || !lease->pipeline()) {
         qCritical() << "inferPitch: failed to acquire singer session for" << identifier;
         return false;
     }
-    auto modelExp = m_activeInference.acquire(handle, ds::infer::StageKind::Pitch);
+    auto modelExp = m_activeInference.acquire(*lease->pipeline(), InferStage::Pitch);
     if (!modelExp) {
         qCritical().noquote().nospace()
             << "inferPitch: failed to load pitch model for " << identifier << ": "
@@ -154,7 +154,9 @@ bool InferPitchTask::runInference(const GenericInferModel &model, InferParam &ou
     }
     auto activeInference = modelExp.take();
     auto &acquiredModel = activeInference.model();
-    auto inferencePitch = acquiredModel.inference;
+    // The stage decides the type: acquire() was asked for pitch and returns
+    // nothing else.
+    auto *inferencePitch = static_cast<Pit::PitchExecutive *>(acquiredModel.executive);
     if (!inferencePitch) {
         qCritical() << "inferPitch: Pitch inference not found for" << identifier;
         return false;
@@ -165,26 +167,26 @@ bool InferPitchTask::runInference(const GenericInferModel &model, InferParam &ou
         qCritical() << "inferPitch: Import options not found";
         return false;
     }
-    const auto importOptions = acquiredModel.importOptions.as<Pit::PitchImportOptions>();
+    const auto *importOptions = acquiredModel.importOptions->as<Pit::PitchImportOptions>();
     if (!importOptions) {
         qCritical() << "inferPitch: Import options not found";
         return false;
     }
     const auto &speakerMapping = importOptions->speakerMapping;
-    input->words =
+    input.words =
         convertInputWords(model.words, speakerName, model.speakerMix, speakerMapping, error);
     if (!error.isEmpty()) {
         qCritical() << "inferPitch:" << error;
         return false;
     }
-    input->speakers = convertInputSpeakers(model.speakerMix, speakerMapping, error);
+    input.speakers = convertInputSpeakers(model.speakerMix, speakerMapping, error);
     if (!error.isEmpty()) {
         qCritical() << "inferPitch:" << error;
         return false;
     }
 
     // Run pitch
-    srt::core::NO<Pit::PitchResult> result;
+    std::unique_ptr<Pit::PitchResult> result;
     // Start inference
     if (isTerminateRequested()) {
         abort();
@@ -196,22 +198,19 @@ bool InferPitchTask::runInference(const GenericInferModel &model, InferParam &ou
                                         << identifier << ": " << exp.error().message();
         return false;
     } else {
-        result = exp.take().as<Pit::PitchResult>();
+        result = exp.take();
         if (!result) {
             qCritical() << "inferPitch: result type mismatch or null result for" << identifier;
             return false;
         }
     }
 
-    if (!result->error.ok()) {
-        qCritical().noquote().nospace() << "inferPitch: Failed to run pitch inference for "
-                                        << identifier << ": " << result->error.message();
-        return false;
-    }
-
-    if (inferencePitch->state() == srt::core::ITask::Failed) {
-        qCritical().noquote().nospace() << "inferPitch: Failed to run pitch inference for "
-                                        << identifier << ": " << result->error.message();
+    // A failure already came back as an error from start(), so there is nothing to re-check on
+    // the result. What is worth checking is the state: a run that was stopped returns a result
+    // like any other, and running on with it would give a half a phrase as if it were the whole.
+    if (inferencePitch->state() == srt::ITask::Failed) {
+        qCritical().noquote().nospace() << "inferPitch: the pitch inference for " << identifier
+                                        << " did not finish";
         return false;
     }
 

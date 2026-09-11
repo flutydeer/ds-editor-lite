@@ -24,6 +24,18 @@
       "features": []
     },
     {
+      "name": "wolf",
+      "features": [
+        "onnx"
+      ]
+    },
+    {
+      "name": "otter",
+      "features": [
+        "onnx"
+      ]
+    },
+    {
       "name": "talcs",
       "features": [
         "device",
@@ -60,6 +72,7 @@
   },
   "vcpkg-configuration": {
     "overlay-ports": [
+      "../vcpkg-overrides",
       "../vcpkg/ports"
     ],
     "overlay-triplets": [

@@ -6,16 +6,13 @@
 
 #include <QCoreApplication>
 
-namespace Co = srt::svs::Api::Common::L1;
+namespace Co = ds::Api::Common::L1;
 
 namespace {
-    // Serializes ModelSet::load() calls across tasks sharing the same ModelSet.
-    // ModelSet::load uses try_to_lock internally; without external serialization,
-    // parallel load() calls from different tasks (e.g. pitch + variance) would
-    // fail with "busy" errors. This restores the blocking behavior of the old
-    // SingerModelSession::acquire which used std::lock_guard on m_modelSetMutex.
-    // load() is fast when the slot is already cached (just a pointer return),
-    // so this does not become a bottleneck.
+    // Serializes stage creation across tasks sharing one pipeline. The pipeline's own guard is a
+    // plain lock and would be enough, but the driver underneath is not always reentrant, and two
+    // tasks opening two models at once is exactly the shape that has gone wrong before. Opening
+    // is once per stage per singer, so this is not a bottleneck.
     std::mutex g_modelLoadMutex;
 
     bool mapSpeakerName(const std::string &speakerName,
@@ -53,62 +50,86 @@ ActiveInference::Model &ActiveInference::Handle::model() noexcept {
     return m_model;
 }
 
-srt::core::Expected<ActiveInference::Handle>
-    ActiveInference::acquire(const std::shared_ptr<ds::session::ModelSetHandle> &handle,
-                             ds::infer::StageKind kind) {
-    // B1b: build the {inference, importOptions} Model from the ModelSetHandle.
-    // handle->load(kind) lazily creates and initializes the Inference; the
-    // importOptions come from the bound StageSet's matching StageSpec. This
-    // mirrors the old SingerModelSession::acquire() implementation, preserving
-    // the exact Model shape the 4 DiffSinger tasks consume.
-    if (!handle) {
-        return srt::core::Error(srt::core::ErrorCode::InferenceNotInitialized,
-                                "ActiveInference::acquire: null ModelSetHandle");
-    }
-    // Serialize load() across tasks: ModelSet::load uses try_to_lock internally,
-    // so parallel calls (e.g. pitch + variance sharing the same ModelSet) would
-    // fail with "busy". The old SingerModelSession::acquire serialized via
-    // std::lock_guard on m_modelSetMutex; we restore that here.
-    std::lock_guard loadLock(g_modelLoadMutex);
-    auto loadExp = handle->load(kind);
-    if (!loadExp)
-        return loadExp.takeError();
-
+srt::Expected<ActiveInference::Handle>
+    ActiveInference::acquire(lite::synthrt::SingerPipeline &pipeline, InferStage stage) {
     Model model;
-    model.inference = *loadExp;
-    if (const auto *stage = handle->stages().find(kind); stage) {
-        model.importOptions = stage->options;
+    {
+        std::lock_guard loadLock(g_modelLoadMutex);
+        switch (stage) {
+            case InferStage::Duration: {
+                auto opened = pipeline.duration();
+                if (!opened)
+                    return opened.takeError();
+                model.executive = opened.take();
+                model.importOptions = pipeline.options("singer/duration");
+                break;
+            }
+            case InferStage::Pitch: {
+                auto opened = pipeline.pitch();
+                if (!opened)
+                    return opened.takeError();
+                model.executive = opened.take();
+                model.importOptions = pipeline.options("singer/pitch");
+                break;
+            }
+            case InferStage::Variance: {
+                auto opened = pipeline.variance();
+                if (!opened)
+                    return opened.takeError();
+                model.executive = opened.take();
+                model.importOptions = pipeline.options("singer/variance");
+                break;
+            }
+            case InferStage::Acoustic: {
+                auto opened = pipeline.acoustic();
+                if (!opened)
+                    return opened.takeError();
+                model.executive = opened.take();
+                model.importOptions = pipeline.options("singer/acoustic");
+                break;
+            }
+            case InferStage::Vocoder: {
+                auto opened = pipeline.vocoder();
+                if (!opened)
+                    return opened.takeError();
+                model.executive = opened.take();
+                model.importOptions = pipeline.options("singer/vocoder");
+                break;
+            }
+        }
     }
 
-    srt::core::NO<srt::svs::Inference> inferenceToStop;
+    srt::InferenceExecutive *toStop = nullptr;
     std::uint64_t generation;
     {
         std::lock_guard lock(m_mutex);
-        m_inference = model.inference;
+        m_executive = model.executive;
         generation = ++m_generation;
         if (m_stopRequested)
-            inferenceToStop = m_inference;
+            toStop = m_executive;
     }
-    if (inferenceToStop)
-        inferenceToStop->stop();
+    // A stop that arrived while the model was opening still has to land, or the task runs a
+    // cancellation it was already told about.
+    if (toStop)
+        (void) toStop->stop();
     return Handle(*this, std::move(model), generation);
 }
 
 void ActiveInference::clear(std::uint64_t generation) {
     std::lock_guard lock(m_mutex);
     if (m_generation == generation)
-        m_inference.reset();
+        m_executive = nullptr;
 }
 
 void ActiveInference::stop() {
-    srt::core::NO<srt::svs::Inference> inference;
+    srt::InferenceExecutive *executive = nullptr;
     {
         std::lock_guard lock(m_mutex);
         m_stopRequested = true;
-        inference = m_inference;
+        executive = m_executive;
     }
-    if (inference)
-        inference->stop();
+    if (executive)
+        (void) executive->stop();
 }
 
 auto createParamInfo(const std::string_view tag) -> Co::InputParameterInfo {
@@ -193,9 +214,9 @@ auto convertInputWords(const QList<InferWord> &words, const std::string &speaker
                 Co::InputNoteInfo{/* key */ note.key,
                                   /* cents */ note.cents,
                                   /* duration */ note.duration,
-                                  /* glide */ note.glide == "up" ? Co::GlideType::GT_Up
-                                  : note.glide == "down"         ? Co::GlideType::GT_Down
-                                                                 : Co::GlideType::GT_None,
+                                  /* glide */ note.glide == "up"   ? Co::GlideType::Up
+                                  : note.glide == "down" ? Co::GlideType::Down
+                                                         : Co::GlideType::None,
                                   /* is_rest */ note.is_rest});
         }
 
