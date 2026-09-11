@@ -38,6 +38,7 @@ private slots:
     void trackClipDragCommitsOrCancels_data();
     void trackClipDragCommitsOrCancels();
     void parameterStrokeCommitsOnceAndUndoRestoresView();
+    void parameterAnchorEditingPreviewsAndUsesTheContextMenu();
     void escapeCancelsParameterStrokeWithoutChangingDocument();
     void pitchAnchorCreationPreviewsBeforeCommitting();
     void pitchAnchorRangeEditsUseTheViewAndMenu();
@@ -52,8 +53,8 @@ private slots:
     void exportFormatUpdatesFileNamePreview();
     void exportSourcesAndMixingUpdateFilePlan();
     void canceledExportConfigurationDoesNotPersist();
-    void audioExportProgressCompletesAndCloses();
     void exportPresetDialogsSaveOverwriteAndDeleteTheSelectedPreset();
+    void audioExportProgressCompletesAndCloses();
     void appearanceInputsPersistAcrossReopening();
     void automationAccessInputsPersistAndRejectMissingFolders();
     void automationCustomToolsetInputsPersistAndExportPermissions();
@@ -90,8 +91,8 @@ private slots:
     void clipToolbarNameEditingKeepsTheOriginalTarget();
     void packageSearchShowsTheSelectedPackageDetails();
     void missingAudioResourceRelinkCanBeCanceledAndCommitted();
-    void panelButtonsAndClipDoubleClickRestoreTheEditorView();
     void audioResourceConfirmationKeepsTheDecodedSource();
+    void panelButtonsAndClipDoubleClickRestoreTheEditorView();
     void mainMenuQuantizationUsesTheChosenScopeAndOptions_data();
     void mainMenuQuantizationUsesTheChosenScopeAndOptions();
     void mainMenuOctaveEditsFollowThePianoSelection();

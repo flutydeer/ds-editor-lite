@@ -12,6 +12,7 @@
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/DrawCurve.h>
+#include <lite/ProjectModel/AppModel/AnchorCurve.h>
 #include <lite/ProjectModel/AppModel/ParamProperties.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
@@ -20,6 +21,9 @@
 #include <QMouseEvent>
 #include <QScopeGuard>
 #include <QSignalSpy>
+#include <QContextMenuEvent>
+#include <QMenu>
+#include <QTimer>
 #include <QtTest/QTest>
 
 #include <algorithm>
@@ -89,6 +93,98 @@ namespace {
         ParamEditorGraphicsView view;
         CommonParamEditorView *foreground = nullptr;
     };
+}
+
+void ApplicationGuiTests::parameterAnchorEditingPreviewsAndUsesTheContextMenu() {
+    auto *clip = defaultSingingClip(*context->m_appModel);
+    QVERIFY(clip);
+    clipController->setClip(clip);
+    appStatus->activeClipId = clip->id();
+    ParameterEditorFixture editor(clip);
+    QVERIFY(editor.foreground);
+    QTRY_VERIFY(editor.view.isActiveWindow() && editor.scene.height() > 200);
+    QVERIFY(editor.view.setViewportScale(2.0, 1.0));
+    editor.view.setViewportStartTick(0);
+    editor.view.setEditMode(ParamEditorEditMode::Anchor);
+    QCoreApplication::processEvents();
+    auto *parameter = clip->params.getParamByName(ParamInfo::MouthOpening);
+    QVERIFY(parameter && parameter->curves(Param::Edited).isEmpty());
+    const auto curve = [&] {
+        return dynamic_cast<const AnchorCurve *>(parameter->curves(Param::Edited).value(0));
+    };
+    auto &runtime = *context->m_coreRuntime;
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    auto *viewport = editor.view.viewport();
+    const auto first = editor.pointFor(480, 200);
+    const auto last = editor.pointFor(960, 800);
+    QVERIFY(viewport->rect().contains(first) && viewport->rect().contains(last));
+    const auto begin = [&] {
+        QTest::mouseMove(viewport, first);
+        QTest::mouseDClick(viewport, Qt::LeftButton, Qt::NoModifier, first);
+        QTest::mouseRelease(viewport, Qt::LeftButton, Qt::NoModifier, first);
+    };
+    begin();
+    QVERIFY(editSessionManager->hasActiveTransaction());
+    QVERIFY(!curve());
+    const auto firstPreview = viewport->grab().toImage();
+    QTest::mouseMove(viewport, last);
+    const auto segmentPreview = viewport->grab().toImage();
+    QVERIFY(!segmentPreview.isNull() && segmentPreview != firstPreview);
+    QCOMPARE(runtime.documentVersion(), before);
+    QTest::keyClick(&editor.view, Qt::Key_Escape);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QVERIFY(!curve());
+    QVERIFY(!historyManager->canUndo());
+    begin();
+    QTest::mouseMove(viewport, last);
+    QTest::mouseClick(viewport, Qt::LeftButton, Qt::NoModifier, last);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QVERIFY(curve());
+    const auto nodes = curve()->nodes().toList();
+    QCOMPARE(nodes.size(), 2);
+    QVERIFY(qAbs(nodes.first()->pos() - 480) <= 4);
+    QVERIFY(qAbs(nodes.last()->pos() - 960) <= 4);
+    QVERIFY(qAbs(nodes.first()->value() - 200) <= 5);
+    QVERIFY(qAbs(nodes.last()->value() - 800) <= 5);
+    const auto originalInterpolation = nodes.first()->interpMode();
+    const auto selectedInterpolation =
+        originalInterpolation == AnchorNode::Linear ? AnchorNode::Hermite : AnchorNode::Linear;
+    const auto label = ParamEditorGraphicsView::tr(
+        selectedInterpolation == AnchorNode::Linear ? "Linear" : "Hermite");
+    bool menuUsed = false;
+    QTimer choose;
+    choose.setInterval(10);
+    connect(&choose, &QTimer::timeout, &editor.view, [&] {
+        auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+        if (!menu)
+            return;
+        choose.stop();
+        const auto close = qScopeGuard([&] { menu->close(); });
+        QAction *choice = nullptr;
+        for (auto *action : menu->actions()) {
+            if (action->text() == label)
+                choice = action;
+        }
+        QVERIFY(choice && choice->isEnabled());
+        QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier,
+                          menu->actionGeometry(choice).center());
+        menuUsed = true;
+    });
+    QTest::mouseMove(viewport, first);
+    QContextMenuEvent contextMenu(QContextMenuEvent::Mouse, first, viewport->mapToGlobal(first));
+    choose.start();
+    QApplication::sendEvent(viewport, &contextMenu);
+    QVERIFY(menuUsed);
+    QVERIFY(curve());
+    QCOMPARE(curve()->nodes().toList().first()->interpMode(), selectedInterpolation);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QVERIFY(curve());
+    QCOMPARE(curve()->nodes().toList().first()->interpMode(), originalInterpolation);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QVERIFY(!curve());
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(clip->params.getParamByName(ParamInfo::Tension)->curves(Param::Edited).isEmpty());
 }
 
 void ApplicationGuiTests::parameterStrokeCommitsOnceAndUndoRestoresView() {
