@@ -4,6 +4,7 @@
 #include "Modules/Audio/AudioExporter.h"
 #include "Controller/PlaybackController.h"
 #include "Model/AppOptions/AppOptions.h"
+#include "Automation/Public/PublicAutomationRegistry.h"
 #include "../TestSupport/ProcessFixture.h"
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -253,32 +254,61 @@ void ApplicationWorkflowTests::audioExportRespectsRangeMixAndMute() {
     document.tracks = {audioTrack(QStringLiteral("Changing"), firstPath),
                        audioTrack(QStringLiteral("Constant"), secondPath)};
     QVERIFY(runtime().documents().commitNewDocument(commandContext(), document));
+    const auto releaseAudio = qScopeGuard([&] {
+        runtime().documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false));
+    });
     QVERIFY(runtime().timeline().setTempo(commandContext(), 0, 120));
 
-    Automation::AudioExportConfigDto config;
-    config.fileDirectory = files.path();
-    config.sampleRate = 48000;
-    config.mono = true;
-    config.timeRange = Audio::AudioExporterConfig::TR_All;
-    config.sourceOption = Audio::AudioExporterConfig::SO_Custom;
-    config.sources = {0};
+    Automation::AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
+    Automation::AutomationFileGuard fileGuard;
+    Automation::AdmissionController admission;
+    QVERIFY(fileGuard.setConfiguredRoots({files.path()}));
+    Automation::PublicAutomationRegistry registry(runtime(), access, fileGuard, admission);
+    QJsonObject options{
+        {"format",       "wav"                                                  },
+        {"sample_rate",  48000                                                  },
+        {"channel_mode", "mono"                                                 },
+        {"mixing_mode",  "mixed"                                                },
+        {"source",       "custom"                                               },
+        {"source_ids",   QJsonArray{context->m_appModel->tracks().first()->id()}}
+    };
 
     const auto exportSamples = [&](const QString &name, QVector<float> &samples,
                                    talcs::AudioFormatIO::MajorFormat expectedFormat,
                                    QStringList *warnings = nullptr) {
-        config.fileName = name;
-        const auto accepted = runtime().audioExports().start(commandContext(), config, {});
+        const auto before = runtime().documentVersion();
+        QJsonObject arguments{
+            {"document_id", before.documentId.toString()},
+            {"path",        files.filePath(name)        },
+            {"options",     options                     }
+        };
+        const auto preview = registry.invoke(QStringLiteral("exports.audio.preview"), arguments);
+        QVERIFY2(preview, qPrintable(preview ? QString{} : preview.getError().message));
+        const auto targets = preview.get()
+                                 .value(QStringLiteral("plan"))
+                                 .toObject()
+                                 .value(QStringLiteral("targets"))
+                                 .toArray();
+        QCOMPARE(targets.size(), 1);
+        const QFileInfo target(targets.first().toString());
+        QCOMPARE(target.fileName(), name);
+        QCOMPARE(QDir(target.absolutePath()).canonicalPath(), QDir(files.path()).canonicalPath());
+        QVERIFY(!target.exists());
+        arguments.insert(QStringLiteral("overwrite_policy"), QStringLiteral("reject"));
+        const auto accepted = registry.invoke(QStringLiteral("exports.audio.start"), arguments);
         QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
+        const auto taskId = Automation::TaskId::fromString(
+            accepted.get().value(QStringLiteral("task_id")).toString());
+        QVERIFY(!taskId.isNull());
         const auto terminal = [&] {
-            const auto task = runtime().tasks().getTask(accepted.get().document.documentId,
-                                                        accepted.get().taskId);
+            const auto task = runtime().tasks().getTask(before.documentId, taskId);
             return task && (task.get().state == Automation::AutomationTaskState::Succeeded ||
                             task.get().state == Automation::AutomationTaskState::Failed ||
                             task.get().state == Automation::AutomationTaskState::Canceled);
         };
         QTRY_VERIFY_WITH_TIMEOUT(terminal(), 10000);
-        const auto task =
-            runtime().tasks().getTask(accepted.get().document.documentId, accepted.get().taskId);
+        const auto task = runtime().tasks().getTask(before.documentId, taskId);
         QVERIFY(task);
         QVERIFY2(task.get().state == Automation::AutomationTaskState::Succeeded,
                  qPrintable(task.get().error ? task.get().error->message : QString{}));
@@ -310,7 +340,8 @@ void ApplicationWorkflowTests::audioExportRespectsRangeMixAndMute() {
     QVERIFY(std::abs(selected.at(middle) - selected.at(middle + 1000)) < 1e-6f);
     QVERIFY(std::abs(selected.at(middle) / selected.at(selected.size() / 4) - 2.0f) < 1e-5f);
 
-    config.sourceOption = Audio::AudioExporterConfig::SO_All;
+    options.insert(QStringLiteral("source"), QStringLiteral("all"));
+    options.remove(QStringLiteral("source_ids"));
     QVector<float> mixed;
     exportSamples(QStringLiteral("mixed.wav"), mixed, talcs::AudioFormatIO::WAV);
     if (QTest::currentTestFailed())
@@ -325,7 +356,7 @@ void ApplicationWorkflowTests::audioExportRespectsRangeMixAndMute() {
         return;
     QCOMPARE(muted, selected);
 
-    config.fileType = Audio::AudioExporterConfig::FT_Flac;
+    options.insert(QStringLiteral("format"), QStringLiteral("flac"));
     QVector<float> compressed;
     exportSamples(QStringLiteral("muted.flac"), compressed, talcs::AudioFormatIO::FLAC);
     if (QTest::currentTestFailed())
@@ -338,8 +369,7 @@ void ApplicationWorkflowTests::audioExportRespectsRangeMixAndMute() {
     QVERIFY(runtime().project().setTrackMute(commandContext(), secondTrack, false));
     QVERIFY(runtime().project().setTrackGain(commandContext(), firstTrack, 12.0));
     QVERIFY(runtime().project().setTrackGain(commandContext(), secondTrack, 12.0));
-    config.fileType = Audio::AudioExporterConfig::FT_Wav;
-    config.formatOption = 0;
+    options.insert(QStringLiteral("format"), QStringLiteral("wav"));
     QVector<float> loud;
     QStringList warnings;
     exportSamples(QStringLiteral("loud-float.wav"), loud, talcs::AudioFormatIO::WAV, &warnings);
