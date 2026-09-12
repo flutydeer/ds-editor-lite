@@ -5,6 +5,7 @@
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/DocumentWorkflow/IDocumentWorkflowUi.h"
 #include "Controller/Tasks/DecodeAudioTask.h"
+#include "Controller/Tasks/ResolveAudioPathTask.h"
 #include "Modules/Audio/AudioContext.h"
 #include "Automation/CoreRuntime.h"
 #include "Bootstrap/AppEnvironment.h"
@@ -276,30 +277,40 @@ void AudioAssetsTests::mixedImportSources() {
 
 void AudioAssetsTests::resolutionRetryPreservesSource() {
     Fixture fixture;
+    QVERIFY(QDir(fixture.directory.path()).mkdir(QStringLiteral("moved")));
+    const auto audioPath = fixture.directory.filePath(QStringLiteral("moved/missing.wav"));
+    const auto projectPath = fixture.directory.filePath(QStringLiteral("moved/project.dspx"));
+    QVERIFY(TestSupport::writeWave(audioPath, QVector<float>(4800, 0.1f)));
     const auto opened = fixture.open(InvocationSource::PublicMcp);
     QVERIFY2((bool(opened)), "the retry fixture must open");
-    const auto connection = QObject::connect(
-        taskManager, &TaskManager::taskChanged, fixture.controller,
-        [&](TaskManager::TaskChangeType type, Task *, qsizetype) {
-            if (type != TaskManager::Added)
-                return;
-            const auto updated = fixture.runtime().dispatcher().dispatchDocumentCommand(
-                QStringLiteral("test.change.project.path"),
-                fixture.command(InvocationSource::TrustedGui),
-                [&](DocumentSession &session, bool) -> AutomationResult<MutationResult> {
-                    const auto previous = session.version();
-                    session.setPathAndProjectName(
-                        fixture.directory.filePath(QStringLiteral("moved/project.dspx")),
-                        QStringLiteral("moved project"));
-                    return MutationResult{.previous = previous, .current = previous};
-                });
-            QVERIFY2((bool(updated)), "project path change must commit");
-        });
+    const auto documentId = fixture.runtime().documentVersion().documentId;
+    const auto clipId = fixture.firstAudioClip()->id();
+    QObject observations;
+    bool moved = false;
+    QObject::connect(taskManager, &TaskManager::taskChanged, &observations,
+                     [&](TaskManager::TaskChangeType type, Task *task, qsizetype) {
+                         if (type != TaskManager::Added || moved ||
+                             !dynamic_cast<ResolveAudioPathTask *>(task))
+                             return;
+                         moved = true;
+                         const auto saved = fixture.runtime().documents().saveDocument(
+                             fixture.command(InvocationSource::TrustedGui), projectPath, false);
+                         QVERIFY2(saved, qPrintable(saved ? QString{} : saved.getError().message));
+                     });
     QVERIFY(drainTasks());
-    QObject::disconnect(connection);
-    QVERIFY2((fixture.notifications.isEmpty() &&
-              fixture.firstAudioClip()->pathStatus() == AudioClip::PathStatus::Missing),
-             "a resolution restarted after a path change must remain non-interactive");
+    QVERIFY(moved);
+    QVERIFY(QFileInfo(projectPath).isFile());
+    QCOMPARE(fixture.runtime().documentPath(), projectPath);
+    QCOMPARE(fixture.runtime().documentVersion().documentId, documentId);
+    auto *clip = fixture.firstAudioClip();
+    QCOMPARE(clip->id(), clipId);
+    QCOMPARE(clip->path(), audioPath);
+    QCOMPARE(clip->pathStatus(), AudioClip::PathStatus::Unconfirmed);
+    QCOMPARE(clip->audioInfo().frames, 4800);
+    QVERIFY(!clip->audioInfo().peakCache.isEmpty());
+    QVERIFY(fixture.notifications.isEmpty());
+    QVERIFY(fixture.messages.isEmpty());
+    QVERIFY(!fixture.history()->canUndo());
 }
 
 void AudioAssetsTests::decodeCompletionWaitsForTheSaveDecision_data() {
