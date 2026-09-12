@@ -39,6 +39,7 @@ private slots:
     void rhiNoteSplittingSnapsAndUndoRestoresThePhrase();
     void rhiContextMenuTargetsRespectPronunciationAndSelection();
     void rhiPianoMenuPasteAndVisibilityUseTheFullEditor();
+    void rhiPianoWheelInputsReachTheActiveViewport();
     void rhiPitchModulationUsesTheInferredBaseline();
     void rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor_data();
     void rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor();
@@ -50,6 +51,7 @@ private slots:
     void rhiTrackMenuPasteAndSelectionUseTheFullEditor();
     void rhiTrackFileDropImportsAtTheChosenSlot_data();
     void rhiTrackFileDropImportsAtTheChosenSlot();
+    void rhiFileDropScrollsUntilTheDragLeaves();
     void availableAudioDeviceRunsPublicPlayback();
     void audioSettingsRollbackWithoutAnInitializedBackend();
     void failedAudioDriverSelectionClearsTheReleasedDevice();
@@ -58,6 +60,7 @@ private slots:
     void configuredMidiLoopbackFeedsLiveSynthesizer();
 
 private:
+    bool eventFilter(QObject *object, QEvent *event) override;
     std::unique_ptr<GuiAppFixture> application;
 };
 

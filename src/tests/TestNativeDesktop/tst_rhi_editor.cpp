@@ -14,6 +14,7 @@
 #include "Modules/Inference/EditSessionManager.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollRhiWidget.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollView.h"
+#include "UI/Views/ClipEditor/PianoRoll/PianoKeyboardView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollCoord.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
@@ -55,6 +56,7 @@
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QWindow>
+#include <QWheelEvent>
 #include <QtTest/QTest>
 
 #include <algorithm>
@@ -307,6 +309,66 @@ void NativeDesktopTests::rhiThemeSwitchPreservesBothEditorsAndTheirDocument() {
     QCOMPARE(fixture.context->m_appModel->serialize(), model);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(trackErrors.isEmpty() && pianoErrors.isEmpty());
+}
+
+void NativeDesktopTests::rhiPianoWheelInputsReachTheActiveViewport() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    GuiDocumentFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
+    const auto backend = appOptions->developer()->editorRenderBackend;
+    const auto restore = qScopeGuard([&] {
+        appOptions->developer()->editorRenderBackend = backend;
+        clipController->setClip(nullptr);
+    });
+    appOptions->developer()->editorRenderBackend =
+        DeveloperOption::EditorRenderBackend::RhiExperimental;
+    PianoRollView editor;
+    auto *canvas = editor.findChild<PianoRollRhiWidget *>();
+    auto *keyboard = editor.findChild<PianoKeyboardView *>();
+    auto *timeline = editor.findChild<TimelineView *>();
+    QVERIFY(canvas && keyboard && timeline);
+    canvas->setApi(QRhiWidget::Api::Null);
+    auto *clip = dynamic_cast<SingingClip *>(
+        *fixture.context->m_appModel->tracks().first()->clips().begin());
+    QVERIFY(clip);
+    editor.setDataContext(clip);
+    TestSupport::placeWindowOnScreen(editor, {1000, 500});
+    editor.show();
+    editor.activateWindow();
+    QTRY_VERIFY(editor.isActiveWindow());
+    QVERIFY(editor.setViewScale(1, 1));
+    QVERIFY(editor.centerAt(1920, 60));
+    QSignalSpy frames(canvas, &QRhiWidget::frameSubmitted);
+    QSignalSpy failed(canvas, &QRhiWidget::renderFailed);
+    canvas->update();
+    QTRY_VERIFY(!frames.isEmpty());
+    const auto before = fixture.context->m_coreRuntime->documentVersion();
+    const auto model = fixture.context->m_appModel->serialize();
+    const auto wheel = [](QWidget &target) {
+        const auto position = target.rect().center();
+        QWheelEvent event(position, target.mapToGlobal(position), {}, {0, 120}, Qt::NoButton,
+                          Qt::NoModifier, Qt::NoScrollPhase, false);
+        event.setAccepted(false);
+        QApplication::sendEvent(&target, &event);
+        QVERIFY(event.isAccepted());
+    };
+    const auto horizontal = canvas->scaleX();
+    wheel(*timeline);
+    QTRY_VERIFY(canvas->scaleX() > horizontal);
+    const auto vertical = canvas->scaleY();
+    wheel(*keyboard);
+    QTRY_VERIFY(canvas->scaleY() > vertical);
+    const auto centerKey = canvas->centerKeyIndex();
+    wheel(*canvas);
+    QTRY_VERIFY(canvas->centerKeyIndex() != centerKey);
+    const auto previousFrame = frames.size();
+    canvas->update();
+    QTRY_VERIFY(frames.size() > previousFrame);
+    QCOMPARE(fixture.context->m_coreRuntime->documentVersion(), before);
+    QCOMPARE(fixture.context->m_appModel->serialize(), model);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(failed.isEmpty());
 }
 
 void NativeDesktopTests::rhiNoteDrawingCommitsAndUndoUpdatesInteraction() {

@@ -566,6 +566,62 @@ void NativeDesktopTests::rhiTrackFileDropImportsAtTheChosenSlot() {
     QVERIFY(failed.isEmpty());
 }
 
+void NativeDesktopTests::rhiFileDropScrollsUntilTheDragLeaves() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    TrackFixture fixture;
+    QVERIFY2(fixture.initialize({}, true), qPrintable(fixture.application.error));
+    auto &canvas = *fixture.canvas;
+    TestSupport::placeWindowOnScreen(*fixture.host, {1200, 500});
+    QTRY_VERIFY(fixture.host->isActiveWindow());
+    QSignalSpy frames(&canvas, &QRhiWidget::frameSubmitted);
+    QSignalSpy failed(&canvas, &QRhiWidget::renderFailed);
+    QVERIFY(canvas.setViewScale(2, 4));
+    QVERIFY(canvas.centerAt(1920, 1));
+    canvas.update();
+    QTRY_VERIFY(!frames.isEmpty());
+    const auto path = fixture.application.directory.filePath(QStringLiteral("scroll-drop.wav"));
+    QVERIFY(TestSupport::writeWave(path, QVector<float>(4800, 0.125f)));
+    QMimeData mime;
+    mime.setUrls({QUrl::fromLocalFile(path)});
+    const auto start = fixture.point(960, 1);
+    const auto edge = QPoint(start.x(), canvas.height() - 2);
+    QVERIFY(canvas.rect().contains(start));
+    auto *window = fixture.host->windowHandle();
+    QVERIFY(window);
+    const auto oldCursor = QCursor::pos();
+    const auto release = qScopeGuard([&] {
+        QTest::mouseRelease(window, Qt::LeftButton, Qt::NoModifier,
+                            window->mapFromGlobal(canvas.mapToGlobal(edge)));
+        QCursor::setPos(oldCursor);
+    });
+    QCursor::setPos(canvas.mapToGlobal(edge));
+    QCoreApplication::processEvents();
+    QTest::mousePress(window, Qt::LeftButton, Qt::NoModifier,
+                      window->mapFromGlobal(canvas.mapToGlobal(start)));
+    QVERIFY(QGuiApplication::mouseButtons().testFlag(Qt::LeftButton));
+    const auto model = fixture.application.context->m_appModel->serialize();
+    const auto before = fixture.runtime().documentVersion();
+    QDragEnterEvent enter(start, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&canvas, &enter);
+    QVERIFY(enter.isAccepted());
+    QDragMoveEvent move(edge, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(&canvas, &move);
+    QVERIFY(move.isAccepted());
+    const auto initialOffset = canvas.logicalVisibleRect().top();
+    QTRY_VERIFY_WITH_TIMEOUT(canvas.logicalVisibleRect().top() > initialOffset + 4, 3000);
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QCOMPARE(fixture.application.context->m_appModel->serialize(), model);
+    QDragLeaveEvent leave;
+    QApplication::sendEvent(&canvas, &leave);
+    QVERIFY(leave.isAccepted());
+    const auto stoppedOffset = canvas.logicalVisibleRect().top();
+    QTest::qWait(80);
+    QCOMPARE(canvas.logicalVisibleRect().top(), stoppedOffset);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(failed.isEmpty());
+}
+
 void NativeDesktopTests::rhiAudioClipTrimAndMovePreserveTimeAnchors() {
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
