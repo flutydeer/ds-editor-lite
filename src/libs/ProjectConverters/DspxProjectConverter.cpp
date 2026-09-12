@@ -27,6 +27,7 @@
 #include <QSaveFile>
 
 #include <algorithm>
+#include <functional>
 
 namespace stdc {
 
@@ -39,6 +40,7 @@ namespace stdc {
 namespace {
 
     using namespace SpeakerMixModel;
+    using SingerResolver = std::function<SingerInfo(const SingerIdentifier &)>;
 
     class JsonStdc {
     public:
@@ -161,6 +163,7 @@ namespace {
     }
 
     SingerInfo decodeSingerInfoFromWorkspace(const QJsonObject &obj,
+                                             const SingerResolver &resolveSinger,
                                              const QString &officialSingerId = {}) {
         if (obj.isEmpty() && officialSingerId.isEmpty())
             return {};
@@ -172,7 +175,7 @@ namespace {
             return {};
 
         // Try to resolve from package manager
-        auto resolved = packageManager->findSingerByIdentifier(identifier);
+        auto resolved = resolveSinger(identifier);
         if (!resolved.isEmpty())
             return resolved;
 
@@ -228,6 +231,9 @@ namespace {
                                          const SpeakerInfo &fallback) {
         if (fallback.isEmpty())
             return {};
+        // An unavailable package cannot invalidate the sources stored in the project.
+        if (singerInfo.resolutionState() != ResolutionState::Resolved)
+            return fallback;
         for (const auto &speaker : singerInfo.speakers()) {
             if (speaker.id() == fallback.id())
                 return speaker;
@@ -370,11 +376,9 @@ namespace {
             data.sources.append({rawSources[idx].speaker});
 
         // 重建 weights: original explicit (N-1) → full (N) → filter (M) → explicit (M-1)
-        const auto remapWeights = [&validIndices](const QVector<double> &explicitWeights) {
-            const int originalCount =
-                validIndices.isEmpty()
-                    ? 0
-                    : *std::max_element(validIndices.begin(), validIndices.end()) + 1;
+        const auto originalCount = rawSources.size();
+        const auto remapWeights = [&validIndices,
+                                   originalCount](const QVector<double> &explicitWeights) {
             // explicit weights size 应为 originalCount - 1
             if (explicitWeights.size() != originalCount - 1)
                 return QVector<double>();
@@ -466,11 +470,12 @@ namespace {
         return identifier;
     }
 
-    SingerInfo resolveSingerInfo(const SingerIdentifier &identifier, const QJsonObject &fallback) {
+    SingerInfo resolveSingerInfo(const SingerIdentifier &identifier, const QJsonObject &fallback,
+                                 const SingerResolver &resolveSinger) {
         if (identifier.isEmpty())
             return {};
 
-        auto resolved = packageManager->findSingerByIdentifier(identifier);
+        auto resolved = resolveSinger(identifier);
         if (!resolved.isEmpty())
             return resolved;
 
@@ -582,13 +587,13 @@ namespace {
 
     std::optional<WeightedSingerSource>
         decodeSingleSingerSource(const std::shared_ptr<opendspx::SingleSinger> &single,
-                                 const double weight) {
+                                 const double weight, const SingerResolver &resolveSinger) {
         const auto identifier = decodeDspxSingerId(QString::fromStdString(single->id));
         if (identifier.isEmpty())
             return std::nullopt;
 
         const auto sourceDsWs = dsWorkspaceFrom(single->workspace);
-        const auto singerInfo = resolveSingerInfo(identifier, sourceDsWs);
+        const auto singerInfo = resolveSingerInfo(identifier, sourceDsWs, resolveSinger);
         if (singerInfo.isEmpty())
             return std::nullopt;
 
@@ -613,14 +618,15 @@ namespace {
     }
 
     QVector<WeightedSingerSource> flattenSingerSource(const opendspx::SingerRef &singerRef,
-                                                      const double weight) {
+                                                      const double weight,
+                                                      const SingerResolver &resolveSinger) {
         QVector<WeightedSingerSource> result;
         if (!singerRef)
             return result;
 
         if (singerRef->type == opendspx::Singer::Type::Single) {
             auto single = std::static_pointer_cast<opendspx::SingleSinger>(singerRef);
-            const auto source = decodeSingleSingerSource(single, weight);
+            const auto source = decodeSingleSingerSource(single, weight, resolveSinger);
             if (source.has_value())
                 result.append(*source);
             return result;
@@ -630,16 +636,17 @@ namespace {
         const auto weights =
             fullWeightsFromSourceRatio(mixed->ratio, static_cast<int>(mixed->singers.size()));
         for (int i = 0; i < static_cast<int>(mixed->singers.size()); ++i)
-            result.append(flattenSingerSource(mixed->singers[i], weight * weights.value(i)));
+            result.append(
+                flattenSingerSource(mixed->singers[i], weight * weights.value(i), resolveSinger));
         return result;
     }
 
     QVector<WeightedSingerSource>
         flattenSingerSources(const std::vector<opendspx::SingerRef> &singers,
-                             const QVector<double> &weights) {
+                             const QVector<double> &weights, const SingerResolver &resolveSinger) {
         QVector<WeightedSingerSource> result;
         for (int i = 0; i < static_cast<int>(singers.size()); ++i)
-            result.append(flattenSingerSource(singers[i], weights.value(i)));
+            result.append(flattenSingerSource(singers[i], weights.value(i), resolveSinger));
         return result;
     }
 
@@ -701,8 +708,10 @@ namespace {
     }
 
     DecodedSingerSource decodeFixedSingerSources(const opendspx::Sources &sources,
-                                                 const QJsonObject &sourceMixState) {
-        const auto flattenedSources = flattenSingerSource(sources.singers.front(), 1.0);
+                                                 const QJsonObject &sourceMixState,
+                                                 const SingerResolver &resolveSinger) {
+        const auto flattenedSources =
+            flattenSingerSource(sources.singers.front(), 1.0, resolveSinger);
         auto result = decodedSingleSourceFromFlattened(flattenedSources);
         if (!result.hasSinger)
             return result;
@@ -714,9 +723,10 @@ namespace {
     }
 
     DecodedSingerSource decodeDynamicSingerSources(const opendspx::Sources &sources,
-                                                   const QJsonObject &sourceMixState) {
+                                                   const QJsonObject &sourceMixState,
+                                                   const SingerResolver &resolveSinger) {
         const auto sourceOrder = flattenSingerSources(
-            sources.singers, unitWeights(static_cast<int>(sources.singers.size())));
+            sources.singers, unitWeights(static_cast<int>(sources.singers.size())), resolveSinger);
         auto result = decodedSingleSourceFromFlattened(sourceOrder);
         if (!result.hasSinger)
             return result;
@@ -735,7 +745,7 @@ namespace {
             const auto topLevelWeights =
                 fullWeightsFromSourceRatio(anchor.ratio, static_cast<int>(sources.singers.size()));
             const auto flattenedAnchorSources =
-                flattenSingerSources(sources.singers, topLevelWeights);
+                flattenSingerSources(sources.singers, topLevelWeights, resolveSinger);
             const auto mergedWeights = mergeSpeakerWeights(flattenedAnchorSources, identifier);
 
             QVector<double> fullWeights;
@@ -760,18 +770,20 @@ namespace {
     }
 
     DecodedSingerSource decodeDspxSingerSources(const opendspx::Sources &sources,
-                                                const QJsonObject &sourceMixState) {
+                                                const QJsonObject &sourceMixState,
+                                                const SingerResolver &resolveSinger) {
         if (sources.category != kDiffSingerCategory || sources.singers.empty())
             return {};
 
         if (!sources.mix.empty())
-            return decodeDynamicSingerSources(sources, sourceMixState);
+            return decodeDynamicSingerSources(sources, sourceMixState, resolveSinger);
 
         if (sources.singers.size() == 1 &&
             sources.singers.front()->type == opendspx::Singer::Type::Mixed)
-            return decodeFixedSingerSources(sources, sourceMixState);
+            return decodeFixedSingerSources(sources, sourceMixState, resolveSinger);
 
-        const auto flattenedSources = flattenSingerSource(sources.singers.front(), 1.0);
+        const auto flattenedSources =
+            flattenSingerSource(sources.singers.front(), 1.0, resolveSinger);
         return decodedSingleSourceFromFlattened(flattenedSources);
     }
 
@@ -811,10 +823,17 @@ namespace {
     }
 }
 
+SingerInfo DspxProjectConverter::resolveSinger(const SingerIdentifier &identifier) const {
+    return packageManager->findSingerByIdentifier(identifier);
+}
+
 bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, AppModel *model,
                                              LoopSettings &loopSettings, QString &errMsg,
                                              ImportMode mode) {
     Q_UNUSED(mode);
+    const SingerResolver singerResolver = [this](const SingerIdentifier &identifier) {
+        return resolveSinger(identifier);
+    };
     auto decodeCurves = [&](const std::vector<opendspx::ParamCurveRef> &dspxCurveRefs) {
         QVector<Curve *> curves;
         for (const opendspx::ParamCurveRef &dspxCurveRef : dspxCurveRefs) {
@@ -932,8 +951,8 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
                 DecodedSingerSource officialSource;
                 auto clipDsWs = dsWorkspaceFrom(castClip->workspace);
                 if (castClip->sources.has_value()) {
-                    officialSource = decodeDspxSingerSources(*castClip->sources,
-                                                             clipDsWs["sourceMixState"].toObject());
+                    officialSource = decodeDspxSingerSources(
+                        *castClip->sources, clipDsWs["sourceMixState"].toObject(), singerResolver);
                 }
 
                 // Read DS workspace for clip flags/language
@@ -1005,7 +1024,7 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
             auto trackDsWs = dsWorkspaceFrom(dspxTrack.workspace);
             if (!trackDsWs.isEmpty()) {
                 auto singerObj = trackDsWs["singer"].toObject();
-                auto singerInfo = decodeSingerInfoFromWorkspace(singerObj);
+                auto singerInfo = decodeSingerInfoFromWorkspace(singerObj, singerResolver);
                 auto speakerObj = trackDsWs["speaker"].toObject();
                 auto speakerInfo =
                     resolveSpeakerInfo(singerInfo, decodeSpeakerInfoFromWorkspace(speakerObj));
@@ -1063,8 +1082,7 @@ bool DspxProjectConverter::loadParsedProject(const opendspx::Model &dspxModel, A
     }
     if (!Timeline::isTimeSignatureProjectionValid(timeSignatures)) {
         errMsg = QCoreApplication::translate(
-            "DspxProjectConverter",
-            "Failed to load project file: timeline values are invalid.");
+            "DspxProjectConverter", "Failed to load project file: timeline values are invalid.");
         return false;
     }
     model->setTimeline(Timeline(std::move(tempos), std::move(timeSignatures)));

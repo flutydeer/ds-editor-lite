@@ -1,0 +1,43 @@
+--- a/src/core/source/AudioSourceClipSeries.cpp
++++ b/src/core/source/AudioSourceClipSeries.cpp
+@@ -54,6 +54,7 @@
+     }
+     qint64 AudioSourceClipSeries::processReading(const AudioSourceReadData &readData) {
+         Q_D(AudioSourceClipSeries);
++        QMutexLocker locker(&d->mutex);
+         AudioSourceClipSeriesPrivate::ClipInterval readDataInterval(nullptr, d->position, readData.length);
+         for (int ch = 0; ch < readData.buffer->channelCount(); ch++) {
+             readData.buffer->clear(ch, readData.startPos, readData.length);
+@@ -125,12 +126,14 @@
+     void AudioSourceClipSeries::setClipStartPos(const AudioSourceClipSeries::ClipView &clip,
+                                                 qint64 startPos) {
+         Q_D(AudioSourceClipSeries);
++        QMutexLocker locker(&d->mutex);
+         d->setClipStartPos(clip, startPos);
+     }
+ 
+     bool AudioSourceClipSeries::setClipRange(const AudioSourceClipSeries::ClipView &clip, qint64 position,
+                                              qint64 length) {
+         Q_D(AudioSourceClipSeries);
++        QMutexLocker locker(&d->mutex);
+         return d->setClipRange(clip, position, length);
+     }
+ 
+--- a/src/core/source/FutureAudioSourceClipSeries.cpp
++++ b/src/core/source/FutureAudioSourceClipSeries.cpp
+@@ -196,6 +196,7 @@
+     void FutureAudioSourceClipSeries::setClipStartPos(const FutureAudioSourceClipSeries::ClipView &clip,
+                                                       qint64 startPos) {
+         Q_D(FutureAudioSourceClipSeries);
++        QMutexLocker locker(&d->mutex);
+         d->setClipStartPos(clip, startPos);
+     }
+ 
+@@ -203,6 +204,7 @@
+     FutureAudioSourceClipSeries::setClipRange(const IClipSeries<FutureAudioSource>::ClipView &clip, qint64 position,
+                                               qint64 length) {
+         Q_D(FutureAudioSourceClipSeries);
++        QMutexLocker locker(&d->mutex);
+         auto k = ClipViewPrivate::ClipViewImpl(clip).k;
+         auto oldInterval = d->intervalLookup(d->clipPositionDict.value(k), clip.content());
+         if (d->setClipRange(ClipViewPrivate::ClipViewImpl(clip), position, length)) {

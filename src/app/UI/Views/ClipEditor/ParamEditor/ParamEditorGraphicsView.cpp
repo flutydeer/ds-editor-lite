@@ -18,6 +18,7 @@
 #include <QKeyEvent>
 #include <QActionGroup>
 #include <QWheelEvent>
+#include <QScopedValueRollback>
 #include <lite/GUI/Controls/Menu.h>
 #include <lite/GUI/Utils/IconUtils.h>
 
@@ -412,7 +413,7 @@ bool ParamEditorGraphicsView::event(QEvent *event) {
         } else if (key == Qt::Key_Escape) {
             discardAction();
         }
-    } else if (event->type() == QEvent::WindowDeactivate) {
+    } else if (event->type() == QEvent::WindowDeactivate && !m_anchorContextMenuOpen) {
         if (m_editMode == ParamEditorEditMode::Anchor) {
             m_anchorController.cancel();
             disarmEdgeAutoScroll();
@@ -620,5 +621,7 @@ void ParamEditorGraphicsView::showAnchorContextMenu(const QPointF scenePos,
     remove->setIcon(IconUtils::menuIcon(QStringLiteral(":/svg/icons/delete_16_regular.svg")));
     connect(remove, &QAction::triggered, this,
             [this] { m_anchorController.deleteSelectedNodes(); });
+    // Popup activation must preserve the selection used by the menu actions.
+    const QScopedValueRollback menuOpen(m_anchorContextMenuOpen, true);
     menu.exec(screenPos);
 }

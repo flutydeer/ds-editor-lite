@@ -70,6 +70,7 @@
 #include <climits>
 #include <numbers>
 #include <utility>
+#include <optional>
 
 using namespace ClipEditorGlobal;
 
@@ -2644,46 +2645,22 @@ private:
         previewColor.setAlpha(PitchDisplayStrategy::anchorPreviewAlpha());
         auto nodes = state.previewCurve->nodes().toList();
         AnchorNode virtualNode(state.previewTick, anchorValueAtSceneY(state.previewScenePos.y()));
-        if (std::any_of(nodes.cbegin(), nodes.cend(), [&virtualNode](const AnchorNode *node) {
-                return node->pos() == virtualNode.pos();
-            })) {
+        const auto insertion = AnchorEditor::anchorInsertionLayout(nodes, virtualNode.pos());
+        if (insertion.index < nodes.size() &&
+            nodes.at(insertion.index)->pos() == virtualNode.pos()) {
             return;
         }
-        auto it = std::lower_bound(nodes.begin(), nodes.end(), &virtualNode,
-                                   [](const AnchorNode *left, const AnchorNode *right) {
-                                       return left->pos() < right->pos();
-                                   });
-        const auto insertIndex = static_cast<int>(it - nodes.begin());
-        nodes.insert(it, &virtualNode);
-
-        AnchorNode *oldLast = nullptr;
-        AnchorNode::InterpMode savedLastMode = AnchorNode::Hermite;
-        if (insertIndex == nodes.size() - 1) {
-            virtualNode.setInterpMode(AnchorNode::None);
-            if (nodes.size() > 1) {
-                oldLast = nodes.at(nodes.size() - 2);
-                savedLastMode = oldLast->interpMode();
-                if (savedLastMode == AnchorNode::None) {
-                    const auto predecessorMode = nodes.size() > 2
-                                                     ? nodes.at(nodes.size() - 3)->interpMode()
-                                                     : AnchorNode::Hermite;
-                    oldLast->setInterpMode(predecessorMode);
-                }
-            }
-        } else {
-            auto mode = AnchorNode::Hermite;
-            for (int i = insertIndex - 1; i >= 0; --i) {
-                if (nodes.at(i)->pos() < virtualNode.pos()) {
-                    mode = nodes.at(i)->interpMode();
-                    break;
-                }
-            }
-            virtualNode.setInterpMode(mode);
+        std::optional<AnchorNode> previousNode;
+        if (insertion.previousInterpolation) {
+            const auto previousIndex = insertion.index - 1;
+            previousNode.emplace(*nodes.at(previousIndex));
+            previousNode->setInterpMode(*insertion.previousInterpolation);
+            nodes[previousIndex] = &*previousNode;
         }
+        virtualNode.setInterpMode(insertion.interpolation);
+        nodes.insert(insertion.index, &virtualNode);
         appendAnchorStroke(nodes, localStart, localEnd, previewColor, true);
         appendAnchorNode(&virtualNode, previewColor, false);
-        if (oldLast)
-            oldLast->setInterpMode(savedLastMode);
     }
 
     void appendAnchorDragPreview(const double localStart, const double localEnd,
@@ -2973,6 +2950,7 @@ PianoRollRhiWidget::~PianoRollRhiWidget() {
     d->cancelPitchEdit(false);
     d->cancelPitchTransform(false);
     d->anchorController.cancel();
+    d.reset();
 }
 
 void PianoRollRhiWidget::setDataContext(SingingClip *clip) {
@@ -3100,6 +3078,9 @@ void PianoRollRhiWidget::showEvent(QShowEvent *event) {
 }
 
 bool PianoRollRhiWidget::event(QEvent *event) {
+    // Destroying private child widgets can deliver events after the private state is released.
+    if (!d)
+        return EditorRhiWidget::event(event);
     if (d->clip && d->editMode == EditPitchAnchor && event->type() == QEvent::ShortcutOverride) {
         const auto key = static_cast<QKeyEvent *>(event)->key();
         if (AnchorEditor::AnchorEditController::handlesKey(key)) {

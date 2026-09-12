@@ -1,0 +1,61 @@
+#pragma once
+
+#include <QObject>
+
+class ProjectEditingTests final : public QObject {
+    Q_OBJECT
+
+private slots:
+    void batchAnchorsCommitAndUndoTogether();
+    void anchorCreationRetriesKeepTheCommittedIdentity();
+    void rejectedAnchorBatchPreservesEveryCurve_data();
+    void rejectedAnchorBatchPreservesEveryCurve();
+    void adjacentAnchorCurvesMergeWithoutLosingNodes();
+    void dynamicSpeakerKeyframesEditAndUndo();
+    void speakerMixModeTransitionsPreserveTrackInheritance();
+    void batchTrackOrderAndClipTrimming();
+    void noteSearch_data();
+    void noteSearch();
+    void splitAtPreservesPhraseAndUndo();
+    void trackEditing();
+    void singingClipEditing();
+    void duplicateClipsPreserveContentAndCreateIndependentObjects_data();
+    void duplicateClipsPreserveContentAndCreateIndependentObjects();
+    void legacyAudioClipEditing();
+    void trackRemovalRestoresChildren();
+    void listNotes();
+    void insertNotes();
+    void insertingNotesCanRetryWithStableCreatedIdentities();
+    void transferringNotesCanRetryWithoutDuplicatingEdits_data();
+    void transferringNotesCanRetryWithoutDuplicatingEdits();
+    void moveNotes();
+    void resizeNotesLeft();
+    void resizeNotesRight();
+    void splitNote();
+    void setPhonemeOffsets();
+    void resetPhonemeOffsetsCascades();
+    void setWordProperties();
+    void removeNotes();
+    void curveTransforms_data();
+    void curveTransforms();
+    void parameterEditing();
+    void drawAndErasePreserveOtherParameterCurves_data();
+    void drawAndErasePreserveOtherParameterCurves();
+    void nonAdjacentAnchorMergePreservesDocument();
+    void speakerMixEditing();
+    void clearingTrackVoicePreservesIndependentClips();
+    void clearingClipVoiceStopsInheritanceUntilRestored();
+    void pronunciationSourcesAndResetPreserveAutomaticWords();
+    void timelineAndHistoryDomain();
+    void quantizeInChild();
+    void wholeClipParameterRoundTrip_data();
+    void wholeClipParameterRoundTrip();
+    void wholeClipsPasteAcrossTracksAsOneEdit();
+    void duplicateWithParameters();
+    void oversizedTargetTailIsRejected();
+    void oversizedSourceCurveIsRejected();
+    void insertReturnsCommittedNote();
+    void rejectedInsertPreservesDocument();
+    void splitReturnsCommittedChild();
+    void rejectedSplitPreservesDocument();
+};

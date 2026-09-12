@@ -35,7 +35,6 @@
 #include <Modules/Audio/AudioSystem.h>
 #include <Modules/Audio/subsystem/OutputSystem.h>
 #include <Modules/Audio/AudioSettings.h>
-#include <Modules/Audio/TrackSynthesizer.h>
 
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/AppModel/LoopSettings.h>
@@ -254,9 +253,6 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
 
 AudioContext::~AudioContext() {
     playbackController->setPlaybackStartGuard({});
-    for (const auto trackSynthesizer : m_trackSynthDict.values()) {
-        delete trackSynthesizer;
-    }
     m_instance = nullptr;
 }
 
@@ -389,7 +385,10 @@ bool AudioContext::ensurePlaybackDeviceStarted() const {
         (device->isStarted() || device->start(outputContext->playback()))) {
         return true;
     }
-    if (qobject_cast<QApplication *>(QCoreApplication::instance()))
+    auto *runtime = AppContext::instance<Automation::CoreRuntime>();
+    const bool interactive = runtime && runtime->dispatcher().currentInvocationSource() ==
+                                           Automation::InvocationSource::TrustedGui;
+    if (interactive && qobject_cast<QApplication *>(QCoreApplication::instance()))
         QMessageBox::critical(nullptr, {}, tr("Cannot open audio device!"));
     else
         qWarning("Cannot open audio device");

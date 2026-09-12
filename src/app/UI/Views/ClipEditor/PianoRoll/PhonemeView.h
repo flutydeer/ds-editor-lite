@@ -69,6 +69,8 @@ public:
 signals:
     void wheelHorScale(QWheelEvent *event);
     void wheelHorScroll(QWheelEvent *event);
+    // Emitted after decoded data is accepted for a piece in the current clip.
+    void waveformReady(int pieceId);
 
 public slots:
     void setTimeRange(double startTick, double endTick);

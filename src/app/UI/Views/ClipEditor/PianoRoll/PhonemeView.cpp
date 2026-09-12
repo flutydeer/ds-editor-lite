@@ -787,6 +787,7 @@ void PhonemeView::onWaveformReady(const int clipId, const int pieceId, const qui
     m_pieceWaveforms[piece] = wf;
     invalidateWaveformCache();
     update();
+    emit waveformReady(pieceId);
 }
 
 void PhonemeView::loadWaveformAsync(InferPiece *piece) {

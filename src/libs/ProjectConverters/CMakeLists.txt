@@ -32,8 +32,8 @@ target_link_libraries(ProjectConverters PUBLIC
 if(WIN32)
     target_link_libraries(ProjectConverters PRIVATE icu)
 elseif(NOT APPLE)
-    find_package(ICU COMPONENTS uc REQUIRED)
-    target_link_libraries(ProjectConverters PRIVATE ICU::uc)
+    find_package(ICU COMPONENTS uc i18n REQUIRED)
+    target_link_libraries(ProjectConverters PRIVATE ICU::uc ICU::i18n)
 endif()
 
 target_include_directories(ProjectConverters PUBLIC

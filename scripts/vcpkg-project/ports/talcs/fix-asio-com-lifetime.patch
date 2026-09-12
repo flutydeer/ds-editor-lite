@@ -1,0 +1,41 @@
+diff --git a/src/device/built-in/ASIOAudioDriver.cpp b/src/device/built-in/ASIOAudioDriver.cpp
+--- a/src/device/built-in/ASIOAudioDriver.cpp
++++ b/src/device/built-in/ASIOAudioDriver.cpp
+@@ -119,24 +119,34 @@ namespace talcs {
+     bool ASIOAudioDriver::initialize() {
+         Q_D(ASIOAudioDriver);
+ 
++        if (isInitialized())
++            return true;
++
+         d->asioDriverSpecs.clear();
+ 
+         HKEYUniquePtr hKeyEnum; // HEKY_LOCAL_MACHINE\software\asio
+         HKEY hKey_;
+         char keyname[MAXPATHLEN];
+ 
+         if (::RegOpenKeyA(HKEY_LOCAL_MACHINE, "software\\asio", &hKey_) != ERROR_SUCCESS)
+             return false;
+         hKeyEnum.reset(hKey_);
+         int index = 0;
+         while (::RegEnumKeyA(hKeyEnum.get(), index++, keyname, MAXPATHLEN) == ERROR_SUCCESS) {
+             d->createDriverSpec(hKeyEnum.get(), keyname);
+         }
+-        if (!d->asioDriverSpecs.isEmpty())
+-            ::CoInitialize(nullptr);
++        if (!d->asioDriverSpecs.isEmpty()) {
++            const auto result = ::CoInitialize(nullptr);
++            if (FAILED(result)) {
++                setErrorString(QStringLiteral("COM initialization failed for the ASIO driver"));
++                return false;
++            }
++        }
+         return AudioDriver::initialize();
+     }
+     void ASIOAudioDriver::finalize() {
+-        ::CoUninitialize();
++        Q_D(ASIOAudioDriver);
++        if (isInitialized() && !d->asioDriverSpecs.isEmpty())
++            ::CoUninitialize();
+         AudioDriver::finalize();
+     }

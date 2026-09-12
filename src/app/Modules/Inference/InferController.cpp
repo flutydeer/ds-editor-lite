@@ -195,11 +195,15 @@ LITE_SINGLETON_IMPLEMENT_INSTANCE(InferController)
 
 void InferController::restartPieceInference(InferPiece &piece) {
     Q_D(InferController);
-    d->createPipeline(piece);
+    d->createPipeline(piece, true);
 }
 
 void InferController::cancelPieceInference(const int pieceId) {
     Q_D(InferController);
+    for (const auto pipeline : std::as_const(d->m_inferPipelines)) {
+        if (pipeline->pieceId() == pieceId)
+            pipeline->clearAcousticInferenceRequest();
+    }
     d->cancelPieceRelatedTasks(pieceId);
 }
 
@@ -1181,7 +1185,7 @@ void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip) {
     m_getPhoneTasks.add(task);
 }
 
-void InferControllerPrivate::createPipeline(InferPiece &piece) {
+void InferControllerPrivate::createPipeline(InferPiece &piece, bool acousticInferenceRequested) {
     if (!piece.clip || !canStartClipInference(*piece.clip))
         return;
 
@@ -1189,12 +1193,17 @@ void InferControllerPrivate::createPipeline(InferPiece &piece) {
     // one is allowed to observe later model events.
     const auto duplicatePipelines = Linq::where(
         m_inferPipelines, [&piece](const InferPipeline *p) { return p->pieceId() == piece.id(); });
+    // Install queue cancellation cleanup before destroying the states that receive task completion.
+    if (!duplicatePipelines.isEmpty())
+        cancelPieceRelatedTasks(piece.id());
     for (const auto pipeline : duplicatePipelines) {
+        // Stop queued state transitions before a replacement can reset the shared piece.
+        pipeline->stop();
         m_inferPipelines.removeOne(pipeline);
         pipeline->deleteLater();
     }
 
-    auto pipeline = new InferPipeline(piece);
+    auto pipeline = new InferPipeline(piece, acousticInferenceRequested);
     m_inferPipelines.append(pipeline);
     connect(pipeline, &InferPipeline::dropped, this,
             [this, pipeline](const QString &reason, int, const QString &) {

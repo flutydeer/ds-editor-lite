@@ -924,9 +924,11 @@ HistoryFocusVisibility PianoRollGraphicsView::focusVisibility(const HistoryFocus
 
     QRectF itemBounds;
     for (const auto id : focus.objectIds) {
-        if (const auto item = d->findNoteViewById(id))
-            itemBounds = itemBounds.isNull() ? item->sceneBoundingRect()
-                                             : itemBounds.united(item->sceneBoundingRect());
+        if (const auto item = d->findNoteViewById(id)) {
+            // Painted borders can extend past the scene edge; navigation follows the note body.
+            const auto noteRect = item->mapRectToScene(item->rect());
+            itemBounds = itemBounds.isNull() ? noteRect : itemBounds.united(noteRect);
+        }
     }
     if (!itemBounds.isNull())
         return logicalVisibleRect().contains(itemBounds) ? HistoryFocusVisibility::Visible
@@ -963,8 +965,8 @@ bool PianoRollGraphicsView::revealFocus(const HistoryFocus &focus, const bool an
         QRectF bounds;
         for (const auto id : focus.objectIds) {
             if (const auto item = d->findNoteViewById(id)) {
-                bounds = bounds.isNull() ? item->sceneBoundingRect()
-                                         : bounds.united(item->sceneBoundingRect());
+                const auto noteRect = item->mapRectToScene(item->rect());
+                bounds = bounds.isNull() ? noteRect : bounds.united(noteRect);
             }
         }
         if (!bounds.isNull())

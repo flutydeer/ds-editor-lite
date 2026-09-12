@@ -6,6 +6,10 @@
 #include <QPainter>
 #include <QPaintEvent>
 #include <QStyleOptionMenuItem>
+#include <QLineEdit>
+
+#include <array>
+#include <utility>
 
 Menu::Menu(QWidget *parent) : CMenu(parent) {
     initUi();
@@ -13,6 +17,39 @@ Menu::Menu(QWidget *parent) : CMenu(parent) {
 
 Menu::Menu(const QString &title, QWidget *parent) : CMenu(title, parent) {
     initUi();
+}
+
+Menu *Menu::fromLineEdit(QLineEdit *editor, QWidget *parent) {
+    if (!editor)
+        return nullptr;
+    auto *standardMenu = editor->createStandardContextMenu();
+    if (!standardMenu)
+        return nullptr;
+
+    auto *menu = new Menu(parent ? parent : editor);
+    // Retain Qt's action and submenu ownership while presenting the styled menu.
+    standardMenu->setParent(menu);
+    constexpr std::array<std::pair<const char *, const char *>, 7> icons = {
+        {
+         {"edit-undo", ":/svg/icons/arrow_undo_16_regular.svg"},
+         {"edit-redo", ":/svg/icons/arrow_redo_16_regular.svg"},
+         {"edit-cut", ":/svg/icons/cut_16_regular.svg"},
+         {"edit-copy", ":/svg/icons/copy_16_regular.svg"},
+         {"edit-paste", ":/svg/icons/clipboard_paste_16_regular.svg"},
+         {"edit-delete", ":/svg/icons/delete_16_regular.svg"},
+         {"select-all", ":/svg/icons/select_all_on_16_regular.svg"},
+         }
+    };
+    for (auto *action : standardMenu->actions()) {
+        for (const auto &[name, path] : icons) {
+            if (action->objectName() == QLatin1StringView(name)) {
+                action->setIcon(IconUtils::menuIcon(QString::fromLatin1(path)));
+                break;
+            }
+        }
+        menu->addAction(action);
+    }
+    return menu;
 }
 
 void Menu::initUi() {

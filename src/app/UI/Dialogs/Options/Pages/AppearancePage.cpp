@@ -133,9 +133,11 @@ QWidget *AppearancePage::createContentWidget() {
                         m_swUseNativeFrame);
 
     m_swAnimationEnabled = new SwitchButton(option->animationEnabled);
+    m_swAnimationEnabled->setObjectName(QStringLiteral("appearanceAnimationEnabled"));
     connect(m_swAnimationEnabled, &SwitchButton::toggled, this, &AppearancePage::modifyOption);
 
     m_leAnimationTimeScale = new LineEdit;
+    m_leAnimationTimeScale->setObjectName(QStringLiteral("appearanceAnimationTimeScale"));
     const auto doubleValidator = new QDoubleValidator(m_leAnimationTimeScale);
     m_leAnimationTimeScale->setValidator(doubleValidator);
     m_leAnimationTimeScale->setText(QLocale().toString(option->animationTimeScale));

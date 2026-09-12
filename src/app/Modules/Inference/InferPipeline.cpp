@@ -13,13 +13,15 @@
 #include "States/UpdateAcousticState.h"
 #include "States/PlaybackReadyState.h"
 #include "Model/AppOptions/AppOptions.h"
+#include "Controller/PlaybackController.h"
 #include "Utils/ConditionalTransition.h"
 #include "Utils/InferenceApplyGate.h"
 
 #include <QDebug>
 #include <QFinalState>
 
-InferPipeline::InferPipeline(InferPiece &piece) : QObject(&piece), m_piece(piece) {
+InferPipeline::InferPipeline(InferPiece &piece, bool acousticInferenceRequested)
+    : QObject(&piece), m_piece(piece), m_acousticInferenceRequested(acousticInferenceRequested) {
     qDebug() << "InferPipeline created: pieceId =" << m_piece.id();
     initStates();
     initTransitions();
@@ -40,7 +42,23 @@ int InferPipeline::clipId() const {
 }
 
 void InferPipeline::run() {
+    // Observers must not mistake a previous result for completion while startup is queued.
+    m_piece.acousticInferStatus = Pending;
+    m_piece.state = QStringLiteral("Duration.Pending");
     stateMachine.start();
+}
+
+void InferPipeline::stop() {
+    stateMachine.stop();
+}
+
+bool InferPipeline::shouldStartAcousticInference() const {
+    return m_acousticInferenceRequested || appOptions->inference()->autoStartInfer ||
+           playbackController->playbackStatus() == PlaybackStatus::Playing;
+}
+
+void InferPipeline::clearAcousticInferenceRequest() {
+    m_acousticInferenceRequested = false;
 }
 
 InferPiece &InferPipeline::piece() const {

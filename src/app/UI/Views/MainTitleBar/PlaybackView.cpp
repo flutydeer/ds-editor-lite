@@ -190,6 +190,8 @@ PlaybackView::PlaybackView(QWidget *parent) : QWidget(parent) {
         if (appModel->timeline().tempoAt(m_tempoEditTick) != tempo)
             emit setTempoTriggered(m_tempoEditTick, tempo);
         refreshTempoDisplay();
+        // The popup may have edited a marker behind the current playhead.
+        updateTempoView();
     });
 
     connect(m_elTimeSignature, &TimeSignatureComboBox::popupAboutToShow, this,

@@ -15,6 +15,21 @@
 
 #include <Model/AppOptions/AppOptions.h>
 
+#include <exception>
+
+namespace {
+    std::unique_ptr<talcs::MidiInputDevice> openMidiInput(const int index) {
+        try {
+            auto device = std::make_unique<talcs::MidiInputDevice>(index);
+            if (device->open())
+                return device;
+        } catch (const std::exception &error) {
+            qWarning() << "Audio::MidiSystem: cannot open MIDI input" << index << error.what();
+        }
+        return {};
+    }
+}
+
 static qint64 msecToSample(const int msec, double sampleRate = {}) {
     const auto audioDevice = AudioSystem::outputSystem()->outputContext()->device();
     sampleRate = qFuzzyIsNull(sampleRate)
@@ -60,13 +75,13 @@ bool MidiSystem::initialize() {
     const auto savedDeviceIndex = AudioSettings::midiDeviceIndex();
     qDebug() << "Audio::MidiSystem: saved device index" << savedDeviceIndex;
 
-    const auto availableDevices = talcs::MidiInputDevice::devices();
-    if (availableDevices.isEmpty()) {
+    const auto devices = availableDevices();
+    if (devices.isEmpty()) {
         qWarning() << "Audio::MidiSystem: no MIDI input devices available, skipping";
         return false;
     }
 
-    for (int i = -1; i < availableDevices.size(); i++) {
+    for (int i = -1; i < devices.size(); i++) {
         if (i == savedDeviceIndex)
             continue;
         int deviceIndex = i;
@@ -74,8 +89,7 @@ bool MidiSystem::initialize() {
             deviceIndex = savedDeviceIndex;
         if (deviceIndex == -1)
             deviceIndex = 0;
-        auto dev = std::make_unique<talcs::MidiInputDevice>(deviceIndex);
-        if (dev->open()) {
+        if (auto dev = openMidiInput(deviceIndex)) {
             m_device = std::move(dev);
             break;
         }
@@ -90,13 +104,22 @@ bool MidiSystem::initialize() {
     return true;
 }
 
+QStringList MidiSystem::availableDevices() {
+    try {
+        return talcs::MidiInputDevice::devices();
+    } catch (const std::exception &error) {
+        qWarning() << "Audio::MidiSystem: cannot enumerate MIDI inputs:" << error.what();
+        return {};
+    }
+}
+
 talcs::MidiInputDevice *MidiSystem::device() const {
     return m_device.get();
 }
 
 bool MidiSystem::setDevice(int deviceIndex) {
-    auto dev = std::make_unique<talcs::MidiInputDevice>(deviceIndex);
-    if (!dev->open()) {
+    auto dev = openMidiInput(deviceIndex);
+    if (!dev) {
         return false;
     }
     qDebug() << "Audio::MidiSystem: MIDI device changed" << dev->name();

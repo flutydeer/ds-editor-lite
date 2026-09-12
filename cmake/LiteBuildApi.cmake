@@ -7,6 +7,57 @@ function(lite_add_test _target)
         NO_INSTALL
         ${ARGN}
     )
+    target_link_libraries(${_target} PRIVATE Qt6::Test)
+    target_include_directories(${_target} PRIVATE "${LITE_SOURCE_DIR}/src/tests")
+    add_dependencies(lite_tests ${_target})
+endfunction()
+
+function(lite_register_test _target)
+    cmake_parse_arguments(TEST "GUI;NATIVE_GUI;RESOURCE_TEST" "NAME;CATEGORY;TIMEOUT;RESOURCE_LOCK" "ARGS" ${ARGN})
+    if(NOT TEST_CATEGORY)
+        message(FATAL_ERROR "${_target}: a test category is required")
+    endif()
+    if(NOT TEST_TIMEOUT)
+        set(TEST_TIMEOUT 60)
+    endif()
+    if(NOT TEST_NAME)
+        set(TEST_NAME ${_target})
+    endif()
+    add_test(NAME ${TEST_NAME} COMMAND $<TARGET_FILE:${_target}> ${TEST_ARGS})
+    set(_labels ${TEST_CATEGORY})
+    set(_locks ${TEST_RESOURCE_LOCK})
+    if(TEST_NATIVE_GUI)
+        list(APPEND _labels native)
+        list(APPEND _locks desktop)
+    elseif(TEST_RESOURCE_TEST)
+        list(APPEND _labels resources)
+    else()
+        list(APPEND _labels ci)
+    endif()
+    # Keep Qt Test's watchdog from aborting long resource workflows before their own deadline.
+    math(EXPR _function_timeout_ms "${TEST_TIMEOUT} * 1000")
+    set_tests_properties(${TEST_NAME} PROPERTIES
+        LABELS "${_labels}"
+        TIMEOUT ${TEST_TIMEOUT}
+        WORKING_DIRECTORY "$<TARGET_FILE_DIR:${_target}>"
+        ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QTEST_FUNCTION_TIMEOUT=${_function_timeout_ms}"
+    )
+    if(_locks)
+        set_tests_properties(${TEST_NAME} PROPERTIES RESOURCE_LOCK "${_locks}")
+    endif()
+    if(TEST_GUI AND NOT TEST_NATIVE_GUI)
+        set_property(TEST ${TEST_NAME} APPEND PROPERTY ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+    endif()
+    if(TEST_GUI OR TEST_NATIVE_GUI)
+        set_property(TEST ${TEST_NAME} APPEND PROPERTY ENVIRONMENT
+            "QT_QPA_PLATFORM_PLUGIN_PATH=$<TARGET_FILE_DIR:Qt6::QOffscreenIntegrationPlugin>")
+    endif()
+    if(WIN32)
+        set_property(TEST ${TEST_NAME} APPEND PROPERTY ENVIRONMENT_MODIFICATION
+            "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>"
+            "PATH=path_list_prepend:${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/bin"
+            "PATH=path_list_prepend:${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/$<$<CONFIG:Debug>:debug/>bin")
+    endif()
 endfunction()
 
 function(lite_add_tool _target)
@@ -70,8 +121,7 @@ function(lite_deploy_application _target)
         set(_install_copy_args SKIP_INSTALL)
     endif()
 
-    # Deploy the Qt runtime first: on macOS the plugins copied below must land inside a
-    # bundle macdeployqt has already processed.
+    # Windows stages Qt separately from the inference plugins below.
     if(_deploy_tool AND WIN32)
         add_custom_command(TARGET ${_target} POST_BUILD
             COMMAND "${_deploy_tool}"
@@ -84,19 +134,6 @@ function(lite_deploy_application _target)
                 --pdb # Also deploy the Qt modules' .pdb files
                 "$<TARGET_FILE:${_target}>"
             COMMENT "Deploy Qt"
-        )
-    elseif(_deploy_tool AND APPLE)
-        add_custom_command(TARGET ${_target} POST_BUILD
-            COMMAND "${_deploy_tool}"
-                "$<TARGET_BUNDLE_DIR:${_target}>"
-                -verbose=0
-                -always-overwrite
-            COMMENT "Deploy Qt"
-        )
-        add_custom_command(TARGET ${_target} POST_BUILD
-            COMMAND bash ${LITE_SOURCE_DIR}/scripts/fix_macos_dylib_paths.sh
-                "$<TARGET_BUNDLE_DIR:${_target}>" "1"
-            COMMENT "Fix dylib paths"
         )
     endif()
 
@@ -154,6 +191,22 @@ function(lite_deploy_application _target)
             DESTINATION $<TARGET_BUNDLE_CONTENT_DIR:${_target}>/PlugIns/srt-g2p/G2pPackages
             ${_install_copy_args}
         )
+        if(_deploy_tool)
+            find_package(ffmpeg-builds CONFIG REQUIRED)
+            # Resolve versioned private library IDs without modifying prebuilt Mach-O headers.
+            set_property(TARGET ${_target} APPEND PROPERTY BUILD_RPATH
+                "@executable_path/../Frameworks/ffmpeg-builds")
+            # Stage every plugin before Qt resolves dependencies and signs the bundle.
+            add_custom_command(TARGET ${_target} POST_BUILD
+                COMMAND "${CMAKE_COMMAND}" -E copy_directory
+                    "$<TARGET_FILE_DIR:FFmpeg::avcodec>/ffmpeg-builds"
+                    "$<TARGET_BUNDLE_CONTENT_DIR:${_target}>/Frameworks/ffmpeg-builds"
+                COMMAND bash "${LITE_SOURCE_DIR}/scripts/deploy_macos.sh"
+                    "${_deploy_tool}" "$<TARGET_BUNDLE_DIR:${_target}>"
+                COMMENT "Deploy and sign macOS runtime dependencies"
+                VERBATIM
+            )
+        endif()
     elseif(UNIX)
         qm_add_copy_command(${_target}
             SOURCES $<TARGET_FILE_DIR:dsinfer::srt-ds-infer>/../lib/plugins/

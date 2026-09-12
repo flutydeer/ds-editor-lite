@@ -2,10 +2,23 @@
   "version": 3,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 21,
+    "minor": 24,
     "patch": 0
   },
   "configurePresets": [
+    {
+      "name": "coverage",
+      "displayName": "Isolated Debug coverage",
+      "inherits": "tests",
+      "binaryDir": "${sourceDir}/build/Coverage",
+      "cacheVariables": { "LITE_TEST_COVERAGE": "ON" }
+    },
+    {
+      "name": "tests",
+      "displayName": "Isolated Debug tests",
+      "inherits": "debug",
+      "binaryDir": "${sourceDir}/build/Tests"
+    },
     {
       "name": "debug",
       "displayName": "Debug",
@@ -75,6 +88,17 @@
   ],
   "buildPresets": [
     {
+      "name": "coverage",
+      "inherits": "tests",
+      "configurePreset": "coverage"
+    },
+    {
+      "name": "tests",
+      "displayName": "Build editor, connector and tests",
+      "configurePreset": "tests",
+      "targets": ["DsEditorLite", "DsConnectorLite", "lite_tests"]
+    },
+    {
       "name": "debug",
       "displayName": "Build Debug",
       "description": "Build the Debug editor and connector targets.",
@@ -113,6 +137,31 @@
         "DsEditorLite",
         "DsConnectorLite"
       ]
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "ci-coverage",
+      "inherits": "ci",
+      "configurePreset": "coverage"
+    },
+    {
+      "name": "coverage",
+      "inherits": "local",
+      "configurePreset": "coverage"
+    },
+    {
+      "name": "ci",
+      "configurePreset": "tests",
+      "filter": { "include": { "label": "^(ci|resources|native)$" } },
+      "output": { "outputOnFailure": true },
+      "execution": { "jobs": 2, "noTestsAction": "error" }
+    },
+    {
+      "name": "local",
+      "configurePreset": "tests",
+      "output": { "outputOnFailure": true },
+      "execution": { "jobs": 2, "noTestsAction": "error" }
     }
   ]
 }

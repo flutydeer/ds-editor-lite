@@ -1,10 +1,12 @@
 #include "ClipsInfo.h"
+#include "ParameterCurvesJson.h"
 
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/Clip.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/SpeakerMixData.h>
+#include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/PackageManager/PackageManager.h>
 
 namespace {
@@ -234,6 +236,8 @@ QJsonObject ClipsInfo::serializeToJson(const ClipsInfo &info) {
             for (const auto note : notes)
                 notesArr.append(note->serialize());
             obj["notes"] = notesArr;
+            obj["parameters"] = ClipboardDataModel::serializeParameters(
+                Automation::clipDraftDto(*singingClip).params);
 
         } else if (clip->clipType() == IClip::Audio) {
             const auto audioClip = static_cast<AudioClip *>(clip);
@@ -281,6 +285,16 @@ ClipsInfo ClipsInfo::deserializeFromJson(const QJsonObject &root) {
                 note->deserialize(noteVal.toObject());
                 singingClip->insertNote(note);
             }
+            for (const auto &parameter :
+                 ClipboardDataModel::deserializeParameters(obj["parameters"].toArray())) {
+                auto *param = singingClip->params.getParamByName(parameter.name);
+                if (!param)
+                    continue;
+                QList<Curve *> curves;
+                for (const auto &curve : parameter.curves)
+                    curves.append(Automation::buildCurve(curve).release());
+                param->setCurves(parameter.type, curves, singingClip);
+            }
             const bool useTrackInfo = obj["useTrackSingerInfo"].toBool(true);
             if (!useTrackInfo) {
                 const auto singerInfo = deserializeSingerInfo(obj["singer"].toObject());
@@ -315,4 +329,28 @@ ClipsInfo ClipsInfo::deserializeFromJson(const QJsonObject &root) {
         info.trackIndexOffsets.append(val.toInt());
 
     return info;
+}
+
+QList<Automation::ClipInsertDto> ClipsInfo::preparePaste(const QList<Track *> &tracks, int tick,
+                                                         int trackIndex) const {
+    if (clips.isEmpty() || trackIndex < 0 || trackIndex >= tracks.size())
+        return {};
+
+    int minStart = clips.first()->start();
+    for (const auto *clip : clips)
+        minStart = qMin(minStart, clip->start());
+    const auto offset = tick - minStart;
+
+    QList<Automation::ClipInsertDto> inserts;
+    for (qsizetype i = 0; i < clips.size(); ++i) {
+        const auto *clip = clips.at(i);
+        if (!clip)
+            continue;
+        const auto targetIndex =
+            qBound(0, trackIndex + trackIndexOffsets.value(i, 0), int(tracks.size()) - 1);
+        auto draft = Automation::clipDraftDto(*clip);
+        draft.properties.start += offset;
+        inserts.append({Automation::TrackId(tracks.at(targetIndex)->id()), std::move(draft)});
+    }
+    return inserts;
 }

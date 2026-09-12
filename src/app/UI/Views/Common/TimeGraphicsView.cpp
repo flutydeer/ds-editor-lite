@@ -266,8 +266,9 @@ QRectF TimeGraphicsView::logicalVisibleRect() const {
         m_logicalHorizontalBarValue.value_or(wheelHorizontal.value_or(horizontalBarValue()));
     const auto verticalValue =
         m_logicalVerticalBarValue.value_or(wheelVertical.value_or(verticalBarValue()));
-    return rect.translated((horizontalValue - horizontalBarValue()) / scaleX(),
-                           (verticalValue - verticalBarValue()) / scaleY());
+    // Scene geometry and scrollbar offsets already include the editor's zoom.
+    return rect.translated(horizontalValue - horizontalBarValue(),
+                           verticalValue - verticalBarValue());
 }
 
 void TimeGraphicsView::ensureSceneRectVisible(const QRectF &rect, const int xmargin,

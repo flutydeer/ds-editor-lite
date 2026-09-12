@@ -9,8 +9,6 @@
 
 #include "UI/Dialogs/Base/Dialog.h"
 
-// #include "UI/Dialogs/Options/Pages/G2pPage.h"
-
 namespace FillLyric {
     class SplitterConfigTab;
     class TaggerConfigTab;
@@ -67,7 +65,6 @@ private:
     FillLyric::SplitterConfigTab *m_splitterConfigTab = nullptr;
     FillLyric::TaggerConfigTab *m_taggerConfigTab = nullptr;
     FillLyric::RuleTestTab *m_ruleTestTab = nullptr;
-    // G2pPage *m_g2pPage;
 
     AccentButton *m_btnOk;
     Button *m_btnCancel;

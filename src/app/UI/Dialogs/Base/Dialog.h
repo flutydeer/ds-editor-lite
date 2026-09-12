@@ -2,6 +2,7 @@
 #define DIALOG_H
 
 #include <QDialog>
+#include <QPointer>
 
 namespace QWK {
     class WidgetWindowAgent;
@@ -64,7 +65,7 @@ public:
 private:
     using QDialog::setLayout;
 
-    static QWidget *m_globalParent;
+    static QPointer<QWidget> m_globalParent;
     QWK::WidgetWindowAgent *m_agent = nullptr;
     DialogTitleBar *m_dialogTitleBar = nullptr;
     QVBoxLayout *m_mainLayout;
