@@ -42,6 +42,7 @@ private slots:
     void projectBatchImportUsesRealLoaders_data();
 
     void projectBatchImportUsesRealLoaders();
+    void rejectedPackageRefreshKeepsThePublishedCatalog();
     void publicProjectLoadUsesThePreparedPlan();
     void publicProjectLoadUsesThePreparedPlan_data();
     void libreSvipProcessFailuresLeaveTheDocumentUntouched_data();

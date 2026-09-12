@@ -464,15 +464,16 @@ void ApplicationWorkflowTests::lyricRulesUseTheProductionRuntimeAndPersistence()
 }
 
 void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders_data() {
-    QTest::addColumn<bool>("invalidItem");
+    QTest::addColumn<int>("invalidItems");
     QTest::addColumn<bool>("bestEffort");
-    QTest::newRow("midi-and-dspx") << false << false;
-    QTest::newRow("atomic-failure") << true << false;
-    QTest::newRow("best-effort") << true << true;
+    QTest::newRow("midi-and-dspx") << 0 << false;
+    QTest::newRow("atomic-failure") << 1 << false;
+    QTest::newRow("best-effort") << 1 << true;
+    QTest::newRow("best-effort-all-failed") << 2 << true;
 }
 
 void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
-    QFETCH(bool, invalidItem);
+    QFETCH(int, invalidItems);
     QFETCH(bool, bestEffort);
     QTemporaryDir files;
     QVERIFY(files.isValid());
@@ -483,46 +484,142 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
     MidiConverter midiConverter;
     QVERIFY2(dspxConverter.save(dspx, context->m_appModel, error), qPrintable(error));
     QVERIFY2(midiConverter.save(midi, context->m_appModel, error), qPrintable(error));
-    if (invalidItem) {
+    if (invalidItems > 0) {
         QFile broken(midi);
         QVERIFY(broken.open(QIODevice::WriteOnly | QIODevice::Truncate));
         QCOMPARE(broken.write("invalid midi"), qint64(12));
     }
+    if (invalidItems > 1) {
+        QFile broken(dspx);
+        QVERIFY(broken.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        QCOMPARE(broken.write("invalid project"), qint64(15));
+    }
     const auto before = runtime().documentVersion();
+    const auto beforeModel = context->m_appModel->serialize();
     const auto initialTrackCount = context->m_appModel->tracks().size();
-    Automation::PublicDocumentBatchImportRequest request;
-    request.command = commandContext();
-    request.failurePolicy = bestEffort ? Automation::PublicBatchFailurePolicy::BestEffort
-                                       : Automation::PublicBatchFailurePolicy::Atomic;
-    request.items = {
-        {.canonicalPath = dspx, .formatId = QStringLiteral("dspx")},
-        {.canonicalPath = midi, .formatId = QStringLiteral("midi")}
+    Automation::AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
+    Automation::AutomationFileGuard fileGuard;
+    Automation::AdmissionController admission;
+    QVERIFY(fileGuard.setConfiguredRoots({files.path()}));
+    Automation::PublicAutomationRegistry registry(
+        runtime(), access, fileGuard, admission,
+        Automation::createPublicAutomationHostServices(runtime(), context->m_appModel,
+                                                       &SynthrtEngine::instance()));
+    QJsonArray items;
+    const QStringList paths{dspx, midi};
+    for (int index = 0; index < paths.size(); ++index) {
+        QJsonObject item{
+            {QStringLiteral("path"), paths[index]}
+        };
+        const bool valid = index == 0 ? invalidItems < 2 : invalidItems == 0;
+        if (valid) {
+            const auto plan =
+                registry.invoke(QStringLiteral("formats.inspect"),
+                                {
+                                    {QStringLiteral("path"),    paths[index]            },
+                                    {QStringLiteral("purpose"), QStringLiteral("import")}
+            });
+            QVERIFY2(plan, qPrintable(plan ? QString{} : plan.getError().message));
+            const auto digest = plan.get().value(QStringLiteral("plan_digest")).toString();
+            QVERIFY(!digest.isEmpty());
+            item.insert(QStringLiteral("plan_digest"), digest);
+        }
+        items.append(item);
+    }
+    const QJsonObject arguments{
+        {QStringLiteral("document_id"),       before.documentId.toString()        },
+        {QStringLiteral("expected_revision"), static_cast<qint64>(before.revision)},
+        {QStringLiteral("failure_policy"),
+         bestEffort ? QStringLiteral("best_effort") : QStringLiteral("atomic")    },
+        {QStringLiteral("items"),             items                               }
     };
-    const auto services = Automation::createPublicAutomationHostServices(
-        runtime(), context->m_appModel, &SynthrtEngine::instance());
-    const auto accepted = services.importDocuments(request);
+    const auto idFromResult = [](const QJsonObject &result) {
+        return Automation::TaskId::fromString(result.value(QStringLiteral("task_id")).toString());
+    };
+    if (invalidItems == 0) {
+        auto previewArguments = arguments;
+        previewArguments.insert(QStringLiteral("validate_only"), true);
+        const auto tasksBefore = runtime().automationTasks().list(before.documentId);
+        const auto preview =
+            registry.invoke(QStringLiteral("documents.import_batch"), previewArguments);
+        QVERIFY2(preview, qPrintable(preview ? QString{} : preview.getError().message));
+        QVERIFY(preview.get().value(QStringLiteral("validated_only")).toBool());
+        QCOMPARE(runtime().automationTasks().list(before.documentId), tasksBefore);
+        QCOMPARE(context->m_appModel->serialize(), beforeModel);
+        const auto pending = registry.invoke(QStringLiteral("documents.import_batch"), arguments);
+        QVERIFY2(pending, qPrintable(pending ? QString{} : pending.getError().message));
+        const auto pendingId = idFromResult(pending.get());
+        QVERIFY(runtime().tasks().cancelTask(commandContext(), pendingId));
+        QTRY_COMPARE(runtime().tasks().getTask(before.documentId, pendingId).get().state,
+                     Automation::AutomationTaskState::Canceled);
+        QCOMPARE(runtime().documentVersion(), before);
+        QCOMPARE(context->m_appModel->serialize(), beforeModel);
+    }
+    const auto accepted = registry.invoke(QStringLiteral("documents.import_batch"), arguments);
     QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
-    const auto task = [&] {
-        return runtime().tasks().getTask(before.documentId, accepted.get().taskId);
-    };
+    const auto id = idFromResult(accepted.get());
+    QVERIFY(!id.isNull());
+    const auto task = [&] { return runtime().tasks().getTask(before.documentId, id); };
     QTRY_VERIFY_WITH_TIMEOUT(
         task() && (task().get().state == Automation::AutomationTaskState::Succeeded ||
                    task().get().state == Automation::AutomationTaskState::Failed),
         10000);
-    if (invalidItem && !bestEffort) {
+    if (invalidItems == 2 || (invalidItems > 0 && !bestEffort)) {
         QCOMPARE(task().get().state, Automation::AutomationTaskState::Failed);
         QCOMPARE(runtime().documentVersion(), before);
         QCOMPARE(context->m_appModel->tracks().size(), initialTrackCount);
+        QCOMPARE(context->m_appModel->serialize(), beforeModel);
     } else {
         const auto terminal = task().get();
         QVERIFY2(terminal.state == Automation::AutomationTaskState::Succeeded,
                  qPrintable(terminal.error ? terminal.error->message : QString{}));
         QVERIFY(context->m_appModel->tracks().size() > initialTrackCount);
+        QVERIFY(terminal.mutation);
+        QCOMPARE(terminal.mutation->warnings.isEmpty(), invalidItems == 0);
         QCOMPARE(runtime().documentVersion().revision, before.revision + 1);
         QVERIFY(runtime().history().undo(commandContext()));
         QCOMPARE(context->m_appModel->tracks().size(), initialTrackCount);
         QCOMPARE(context->m_appModel->tracks().first()->name(), QStringLiteral("Target"));
+        QCOMPARE(context->m_appModel->serialize(), beforeModel);
     }
+}
+
+void ApplicationWorkflowTests::rejectedPackageRefreshKeepsThePublishedCatalog() {
+    QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
+                              10000);
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    const auto originalPaths = context->m_appOptions->general()->packageSearchPaths;
+    const auto original = packageManager->installedPackages();
+    QVERIFY(!original.successfulPackages.isEmpty());
+    SingerInfo singer;
+    for (const auto &package : original.successfulPackages) {
+        if (!package.singers().isEmpty()) {
+            singer = package.singers().first();
+            break;
+        }
+    }
+    QVERIFY(!singer.isEmpty());
+    QSignalSpy refreshed(packageManager, &PackageManager::packagesRefreshed);
+    QTemporaryDir emptyDirectory;
+    QVERIFY(emptyDirectory.isValid());
+    {
+        const auto restore = qScopeGuard([&] {
+            const auto result = packageManager->refreshInstalledPackages(originalPaths);
+            QVERIFY2(result, qPrintable(result ? QString{} : result.getError().message));
+        });
+        const auto canceled =
+            packageManager->refreshInstalledPackages({emptyDirectory.path()}, [] { return false; });
+        QVERIFY2(canceled, qPrintable(canceled ? QString{} : canceled.getError().message));
+        QVERIFY(canceled.get().successfulPackages.isEmpty());
+        QCOMPARE(packageManager->installedPackages().successfulPackages,
+                 original.successfulPackages);
+        QCOMPARE(packageManager->findSingerByIdentifier(singer.identifier()), singer);
+        QVERIFY(refreshed.isEmpty());
+    }
+    QCOMPARE(refreshed.size(), 1);
+    QCOMPARE(packageManager->installedPackages().successfulPackages, original.successfulPackages);
+    QCOMPARE(packageManager->findSingerByIdentifier(singer.identifier()), singer);
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
 }
 
 void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan_data() {

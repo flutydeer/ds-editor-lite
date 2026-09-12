@@ -20,6 +20,7 @@
 
 #include <array>
 #include <cmath>
+#include <filesystem>
 #include <memory>
 
 namespace {
@@ -132,7 +133,8 @@ namespace {
             return false;
         }
 
-        bool waitForTask(const QJsonObject &accepted, bool applicationScope, int timeoutMs) {
+        bool waitForTask(const QJsonObject &accepted, bool applicationScope, int timeoutMs,
+                         const QString &expectedState = QStringLiteral("succeeded")) {
             const auto taskId = accepted.value(QStringLiteral("task_id")).toString();
             if (taskId.isEmpty()) {
                 error = QStringLiteral("Operation did not return a task_id: ") +
@@ -153,10 +155,11 @@ namespace {
                 if (!call(QStringLiteral("tasks.get"), arguments, task))
                     return false;
                 const auto state = task.value(QStringLiteral("state")).toString();
-                if (state == QStringLiteral("succeeded"))
+                if (state == expectedState)
                     return true;
-                if (state == QStringLiteral("failed") || state == QStringLiteral("canceled")) {
-                    error = QStringLiteral("Resource task did not succeed: ") +
+                if (state == QStringLiteral("succeeded") || state == QStringLiteral("failed") ||
+                    state == QStringLiteral("canceled")) {
+                    error = QStringLiteral("Unexpected resource task outcome: ") +
                             QString::fromUtf8(QJsonDocument(task).toJson(QJsonDocument::Compact));
                     return false;
                 }
@@ -241,34 +244,60 @@ private slots:
         QTest::addColumn<QString>("language");
         QTest::addColumn<QString>("lyric");
         QTest::addColumn<QString>("speakerId");
+        QTest::addColumn<bool>("repairModel");
         if (TestSupport::usingBundledVoicebank()) {
-            QTest::newRow("mandarin-clear")
-                << QStringLiteral("cmn") << QStringLiteral("啦") << QStringLiteral("clear");
+            QTest::newRow("mandarin-clear") << QStringLiteral("cmn") << QStringLiteral("啦")
+                                            << QStringLiteral("clear") << false;
             QTest::newRow("english-soft")
-                << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("soft");
+                << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("soft") << false;
         } else {
             QTest::newRow("configured-voicebank")
-                << TestSupport::fixtureLanguage() << TestSupport::fixtureLyric() << QString();
+                << TestSupport::fixtureLanguage() << TestSupport::fixtureLyric() << QString()
+                << false;
         }
+        QTest::newRow("repaired-acoustic-model")
+            << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("clear") << true;
     }
 
     void voicebankInferenceAndWaveExport() {
         QFETCH(QString, language);
         QFETCH(QString, lyric);
         QFETCH(QString, speakerId);
-        const auto configuredRoot = TestSupport::voicebankRoot();
+        QFETCH(bool, repairModel);
+        const auto configuredRoot = repairModel ? QString::fromUtf8(LITE_TEST_VOICEBANK_ROOT)
+                                                : TestSupport::voicebankRoot();
         QVERIFY2(!language.isEmpty(),
                  "DSEL_TEST_LANGUAGE is required when a voicebank is configured");
         QVERIFY2(!lyric.isEmpty(), "DSEL_TEST_LYRIC is required when a voicebank is configured");
         const QFileInfo rootInfo(configuredRoot);
         QVERIFY2(rootInfo.isAbsolute() && rootInfo.isDir(),
                  "DSEL_TEST_VOICEBANK_ROOT must name an existing absolute directory");
-        const auto voicebankRoot = rootInfo.canonicalFilePath();
+        auto voicebankRoot = rootInfo.canonicalFilePath();
         QVERIFY(!voicebankRoot.isEmpty());
         QVERIFY(QFileInfo::exists(editorPath));
 
         TestSupport::ProcessFixture fixture(QStringLiteral("headless-resources"));
         QVERIFY(fixture.isValid());
+        QString damagedModelPath;
+        QByteArray originalModel;
+        if (repairModel) {
+            const auto copy = fixture.filePath(QStringLiteral("voicebank"));
+            std::error_code error;
+            std::filesystem::copy(std::filesystem::u8path(voicebankRoot.toUtf8().constData()),
+                                  std::filesystem::u8path(copy.toUtf8().constData()),
+                                  std::filesystem::copy_options::recursive, error);
+            QVERIFY2(!error, qPrintable(QString::fromStdString(error.message())));
+            voicebankRoot = copy;
+            damagedModelPath =
+                QDir(copy).filePath(QStringLiteral("inferences/acoustic/acoustic.onnx"));
+            QFile model(damagedModelPath);
+            QVERIFY(model.open(QIODevice::ReadOnly));
+            originalModel = model.readAll();
+            QVERIFY(!originalModel.isEmpty());
+            model.close();
+            QVERIFY(model.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            QCOMPARE(model.write("invalid ONNX"), qint64(12));
+        }
         QVERIFY(QDir().mkpath(fixture.filePath(QStringLiteral("cache"))));
         QVERIFY(fixture.writeConfig({
             {QStringLiteral("general"),
@@ -303,7 +332,8 @@ private slots:
                  qPrintable(client.error));
         QVERIFY2(client.waitForTask(result, true, 60000), qPrintable(client.error));
 
-        const auto requestedSinger = TestSupport::fixtureSingerId();
+        const auto requestedSinger =
+            repairModel ? QStringLiteral("fixture") : TestSupport::fixtureSingerId();
         QVERIFY2(!requestedSinger.isEmpty(),
                  "DSEL_TEST_SINGER_ID is required when a voicebank is configured");
         QList<QJsonObject> candidates;
@@ -428,7 +458,7 @@ private slots:
             {QStringLiteral("clip_ids"), QJsonArray{clipId}    }
         };
         QVERIFY2(client.waitForInferenceModel(scope), qPrintable(client.error));
-        if (TestSupport::usingBundledVoicebank()) {
+        if (TestSupport::usingBundledVoicebank() || repairModel) {
             QVERIFY2(client.call(QStringLiteral("notes.list"),
                                  {
                                      {QStringLiteral("document_id"), client.documentId},
@@ -462,6 +492,25 @@ private slots:
         },
                           result),
             qPrintable(client.error));
+        if (repairModel) {
+            QVERIFY2(client.waitForTask(result, false, 30000, QStringLiteral("failed")),
+                     qPrintable(client.error));
+            const QDir cache(fixture.filePath(QStringLiteral("cache")));
+            QVERIFY(cache.entryList({QStringLiteral("*.wav")}, QDir::Files).isEmpty());
+            QFile model(damagedModelPath);
+            QVERIFY(model.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            QCOMPARE(model.write(originalModel), originalModel.size());
+            model.close();
+            QVERIFY2(client.mutate(
+                         QStringLiteral("inference.start"),
+                         {
+                             {QStringLiteral("scope"),   scope                                   },
+                             {QStringLiteral("options"),
+                              QJsonObject{{QStringLiteral("provider_id"), QStringLiteral("CPU")}}}
+            },
+                         result),
+                     qPrintable(client.error));
+        }
         QVERIFY2(client.waitForTask(result, false, 300000), qPrintable(client.error));
 
         const auto output = fixture.filePath(QStringLiteral("render.wav"));
