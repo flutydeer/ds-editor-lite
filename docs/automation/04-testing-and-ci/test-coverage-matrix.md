@@ -137,9 +137,11 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 批量轨道顺序、片段裁边、音符搜索与切分 | domain | 补正常编辑结果、原音符保持、无匹配及撤销；搜索用少量有语义的数据行 | ProjectEditing::batchTrackOrderAndClipTrimming、noteSearch、splitAtPreservesPhraseAndUndo | 通用 |
 | LRC 与填词分行 | unit | 补秒/小数时间、重复标签、元数据、定位、重新加载和分隔模式；修复时间换算与失败残留状态 | Lyrics::lrcTimestamps、lrcMetadataRepeatedLinesAndSeeking、lrcFailedReloadClearsPreviousDocument、lyricSplittingModesPreserveLines | 通用 |
 | DSPX 声线及音素往返 | workflow | 扩展已有完整乐句场景，验证轨道固定混合、片段动态混合/旁路/预设来源，以及原始与编辑音素/偏移；包不可用时保留内容，已解析声库减少来源时保留剩余比例 | DocumentIO::dspxRoundTripPreservesEditedPhrase | 通用 |
+| DSPX 序列化失败后的文件保护 | workflow | 模型不符合文件格式约束时拒绝写入，保留已有工程和目录内容；修正模型后正常保存并重新打开 | DocumentIO::dspxSerializationFailurePreservesExistingFile | 通用；临时工程 |
 | 实际批量文件导入 | workflow/gui | MIDI/DSPX 经公开预检和批量入口调用真实加载器，复用场景检查仅验证、排队取消后重试、全部有效/混合失败/全部失败、原子回滚及允许部分成功；轨道视口的真实拖放经 DocumentImportController 导入两份 WAV，检查预览无修改、一次提交、撤销重做和视图恢复 | ApplicationWorkflows::projectBatchImportUsesRealLoaders、ApplicationGui::droppingAudioFilesCommitsOneBatchToTheSelectedTracks | 通用/offscreen；临时文件 |
 | 实际音频批量任务 | workflow | 有效/损坏素材经公开 Registry 和实际解码，复用原场景检查原子失败无修改、部分成功的警告及属性/元数据/一次撤销；取消后同一幂等键可重新执行 | ApplicationWorkflows::audioBatchFailurePolicy、audioBatchCancellationReleasesRetry | 通用；临时音频；无需设备 |
 | 公共批量、计划复验及填词 | protocol | 检查策略与选项传递、文件授权、源文件变化及授权撤销后的计划复验；填词后搜索目标词，再按搜索返回的身份修改语言并撤销，保留拆分、连音跳过及无效语言断言。真实解码与批量提交由工作流层承担 | AutomationProtocol::batchImportRouting、batchImportPlanRevalidation、fillLyricsOptions、fillLyricsUnavailableLanguage | 通用；临时文件和声线元数据 |
+| 自有 JSON 校验器的值和错误位置 | protocol | 共用数据驱动入口验证可空类型、Unicode 字符长度、文本模式与 URI、数值步长、附加属性、集合边界及互斥选择；错误携带可定位的字段和约束路径，不复制具体工具定义 | AutomationProtocol::schemaValueDiagnostics | 通用；无外部资源 |
 | MIDI 选择预览与片段声线上下文 | protocol | 公共能力与预览检查整轨/片段并集、音频排除、选项和覆盖提示，预览不执行导出或修改文件。片段查询检查继承、独立声线、恢复继承及语言来源，读取不改变工程和历史 | AutomationProtocol::routing 的 midiPreviewSelection、voiceAndSpeakerMix 数据行 | 通用；临时文件和声线元数据 |
 | 预设和歌词规则的生产持久化 | workflow | 旧服务替身不能验证 AppOptions Adapter/Store；补创建、更新、重开、删除及规则的实际语言结果 | ApplicationWorkflows::speakerMixPresetPersistsThroughTheProductionStore、lyricRulesUseTheProductionRuntimeAndPersistence | 隔离配置 |
 | 设置、缓存清理及交互导入 | gui | 使用实际页面和输入，验证访问根、推理选项、缓存确认、轨道/时间线选择、预览、取消及撤销 | ApplicationGui 的 tst_settings_pages.cpp、tst_project_import.cpp | offscreen；临时文件 |
@@ -198,7 +200,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 参数变换边界与倍率手柄 | gui | 拖动过渡区及核心区边界，保持未提交模型和已有过渡宽度；倍率手柄改变核心值，过渡区平滑衔接且范围外保持，预览图形更新，单次提交可撤销恢复 | ApplicationGui::parameterTransformHandlesControlTheTransitionRange | offscreen；实际参数控件及输入；无需声库 |
 | 文件菜单的打开、另存为及保存 | gui/workflow | 真实 Qt 文件选择框处理 Unicode 路径；取消打开不换文档，取消另存为保留路径和未保存历史，确认后更新保存点/最近列表，后续 Save 使用新路径；独立重读磁盘验证新文件更新且原文件不被覆盖 | ApplicationGui::fileMenuOpensAndSavesThroughTheActualPicker | offscreen；临时 DSPX；Qt 文件选择框 |
 | 标题栏文件弹层 | gui/workflow | 文件菜单不能替代标题栏弹层的条目和子菜单接线；实际点击最近工程打开文件，当前工程禁止移出列表，移除其他条目不删文件或修改文档；新建更新工程身份，Open 的实际文件选择取消后保留新工程 | ApplicationGui::titleFilePopupOpensProjectsAndRemovesOnlyRecentEntries | offscreen；临时 DSPX；真实弹层及 Qt 文件选择框 |
-| 公共单文件加载与计划接线 | workflow/protocol | 原生和外部格式共用素材，经格式计划、Registry 和实际 Host 追加或打开；追加保留原文档及已有轨道身份，一次撤销恢复；打开替换文档，原生路径与外部工程未保存状态分别验证 | ApplicationWorkflows::publicProjectLoadUsesThePreparedPlan | 通用；临时工程；外部转换进程替身；实际加载器 |
+| 公共单文件加载与计划接线 | workflow/protocol | 原生和外部格式共用素材，经格式计划、Registry 和实际 Host 追加或打开；追加保留已有轨道且可撤销，打开验证工程身份与保存状态。受理后取消、撤销源文件授权、替换源文件或编辑当前工程时，拒绝旧任务提交并保留当前状态 | ApplicationWorkflows::publicProjectLoadUsesThePreparedPlan | 通用；临时工程；外部转换进程替身；实际加载器 |
 | 公共声线预设与已应用混合的生命周期 | workflow/protocol | 通过实际声库解析公开预设的保存、查询、同名更新和应用；删除预设后，已应用混合保留，失效引用返回错误且不改变工程或历史，撤销恢复原声线 | ApplicationWorkflows::publicSpeakerMixPresetsResolveAndPreserveAppliedVoices | 默认内置声库；至少两条声线；隔离配置 |
 | 文件打开失败与最近项目管理 | gui/workflow | 损坏工程经过真实错误提示后保留当前文档、未保存编辑及历史，修复源文件后可再次打开；最近项目子菜单移除失效文件、打开有效文件并清空列表，持久化列表与界面一致 | ApplicationGui::failedProjectOpenPreservesTheDocumentAndRecovers、recentProjectsMenuRemovesMissingFilesAndClearsTheList | offscreen；临时 DSPX；真实 MainWindow 和菜单 |
 | 音频设置保存失败与重试 | workflow | 在隔离配置路径上制造可移除的文件写入障碍，验证设置、运行时音量/声像和热插拔策略共同回滚；没有初始化音频后端的独立环境验证设备缺失不会使控制值回滚提前退出。恢复路径后可重试成功，文档和历史不受影响 | ApplicationGui::audioSettingsSaveFailureRestoresRuntimeAndAllowsRetry、NativeDesktop::audioSettingsRollbackWithoutAnInitializedBackend | 通用 GUI 环境；无后端场景使用隔离子进程；无需音频设备 |
@@ -208,7 +210,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 驱动切换失败后的设备释放 | workflow/native | 使用可用输出后端，在独立进程中验证切换失败已释放旧设备、公开设备引用同步清空，随后可重新初始化；修复 Talcs 持有已释放设备指针的问题 | NativeDesktop::failedAudioDriverSelectionClearsTheReleasedDevice | 需要可初始化的音频设备；缺失时在父用例明确跳过 |
 | 轨道及片段的声线菜单接线 | gui | 用实际声库和临时预设验证菜单应用、单声线切换及片段恢复轨道继承；管理窗口接收当前比例，取消或原样确认保持历史；撤销同步恢复目标和菜单显示，片段独立选择不改轨道声线 | ApplicationGui::voiceMenusApplyPresetsToTheChosenTarget | offscreen；默认内置声库；至少两条声线 |
 | 工具栏片段名称编辑 | gui | 真实内联输入验证取消、提交及切换片段时提交原目标；新片段名称不被误改，连续撤销分别恢复对应对象，显示跟随当前片段 | ApplicationGui::clipToolbarNameEditingKeepsTheOriginalTarget | offscreen；实际工具栏和文档；无需声库或设备 |
-| RHI 的未提交预览与边缘滚动 | gui | 锚点拖动和切分悬停期间等待实际预览帧，同时确认模型尚未提交；音符及轨道片段拖到边缘后静止鼠标仍持续滚动，取消后停止后续滚动且不修改模型，音符取消同时恢复原视口 | NativeDesktop 的 tst_rhi_editor.cpp、tst_rhi_tracks.cpp | 原生窗口；Qt Null 后端；检查 CPU 准备和帧提交，不验证 GPU 像素 |
+| RHI 的未提交预览与边缘滚动 | gui | 输入后主动请求并等待新帧，避免旧帧提前满足检查；锚点在同曲线和跨曲线拖动中检查预览不改模型、取消恢复，以及跨曲线提交后的身份和撤销；切分悬停及边缘滚动仍保留原有断言 | NativeDesktop 的 tst_rhi_editor.cpp、tst_rhi_tracks.cpp | 原生窗口；Qt Null 后端；检查 CPU 准备和帧提交，不验证 GPU 像素 |
 | 导出预设的界面生命周期 | gui | 实际命名窗口和覆盖确认验证取消创建、保存新预设、拒绝覆盖后保留草稿、确认更新及删除；只影响所选预设，不启动导出或修改工程 | ApplicationGui::exportPresetDialogsSaveOverwriteAndDeleteTheSelectedPreset | offscreen；Qt 消息窗口；隔离配置 |
 | 已定位音频的人工确认入口 | gui/workflow | 真实解码后以待确认状态展示资源行，选择并确认使模型和行状态同步恢复；文件、来源代际、解码缓存及保存点保留，不制造撤销项 | ApplicationGui::audioResourceConfirmationKeepsTheDecodedSource | offscreen；小型 WAV；无需音频设备 |
 | 普通参数编辑器的锚点操作 | gui | Mouth Opening 参数使用自身值域接收锚点创建、连线预览和取消；菜单引发失活时保留目标选择并实际修改插值，撤销分别恢复插值和曲线；菜单外失活继续取消未提交曲线，背景参数保持不变 | ApplicationGui::parameterAnchorEditingPreviewsAndUsesTheContextMenu | offscreen；真实参数视口、编辑事务和菜单；无需声库 |
