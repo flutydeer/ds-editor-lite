@@ -26,6 +26,8 @@ private slots:
     void reachesTarget_data();
     void reachesTarget();
     void replacingTargetChangesDestination();
+    void meterPeaksHoldDecayAndKeepClippingLatched();
+    void aNewMeterPeakInterruptsDecay();
     void toastContextLifetime_data();
     void toastContextLifetime();
     void seekBarTrackingControlsWhenDraggedValuesCommit_data();

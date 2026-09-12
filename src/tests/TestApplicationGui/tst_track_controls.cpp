@@ -11,6 +11,8 @@
 
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/InlineEditLabel.h>
+#include <lite/GUI/Controls/LevelMeter.h>
+#include <lite/GUI/Controls/LevelMeterViewModel.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
@@ -22,6 +24,7 @@
 #include <QCursor>
 #include <QKeySequence>
 #include <QLineEdit>
+#include <QLabel>
 #include <QMenu>
 #include <QScopeGuard>
 #include <QSignalSpy>
@@ -29,13 +32,13 @@
 #include <QWindow>
 #include <QtTest/QTest>
 
-void ApplicationGuiTests::mixerTextInputsCommitToTheChosenChannel_data() {
+void ApplicationGuiTests::mixerChannelInputsAndLevelsStayScoped_data() {
     QTest::addColumn<bool>("master");
     QTest::newRow("track") << false;
     QTest::newRow("master") << true;
 }
 
-void ApplicationGuiTests::mixerTextInputsCommitToTheChosenChannel() {
+void ApplicationGuiTests::mixerChannelInputsAndLevelsStayScoped() {
     QFETCH(bool, master);
     auto &runtime = *context->m_coreRuntime;
     QVERIFY(runtime.documents().commitNewDocument(
@@ -50,11 +53,14 @@ void ApplicationGuiTests::mixerTextInputsCommitToTheChosenChannel() {
     console.activateWindow();
     QTRY_VERIFY(console.isActiveWindow());
     ChannelView *channel = nullptr;
+    ChannelView *otherChannel = nullptr;
     for (auto *candidate : console.findChildren<ChannelView *>()) {
         if (candidate->isMasterChannel() == master)
             channel = candidate;
+        else
+            otherChannel = candidate;
     }
-    QVERIFY(channel);
+    QVERIFY(channel && otherChannel);
     auto *gain = channel->findChild<InlineEditLabel *>("elGain");
     auto *pan = channel->findChild<InlineEditLabel *>("elPan");
     QVERIFY(gain && pan);
@@ -122,6 +128,23 @@ void ApplicationGuiTests::mixerTextInputsCommitToTheChosenChannel() {
     const auto untouched = master ? track->control() : context->m_appModel->masterControl();
     QCOMPARE(untouched.gain(), other.gain());
     QCOMPARE(untouched.pan(), other.pan());
+
+    const auto beforeMeterInput = runtime.documentVersion();
+    auto *meter = channel->levelMeter();
+    auto *levels = meter->viewModel();
+    auto *otherLevels = otherChannel->levelMeter()->viewModel();
+    auto *peakLabel = channel->findChild<QLabel *>("lbPeakLevel");
+    QVERIFY(levels && otherLevels && peakLabel);
+    levels->setLevels(3, 6);
+    otherLevels->setLevels(3, 3);
+    QVERIFY(levels->clippedL() && levels->clippedR());
+    QVERIFY(otherLevels->clippedL() && otherLevels->clippedR());
+    QCOMPARE(peakLabel->text(), QStringLiteral("+") + QLocale().toString(6.0, 'f', 1));
+    QTest::mouseClick(meter, Qt::LeftButton, Qt::NoModifier, QPoint(meter->width() / 2, 10));
+    QVERIFY(!levels->clippedL() && !levels->clippedR());
+    QVERIFY(otherLevels->clippedL() && otherLevels->clippedR());
+    QCOMPARE(runtime.documentVersion(), beforeMeterInput);
+    QVERIFY(!historyManager->canUndo());
 }
 
 void ApplicationGuiTests::trackHeaderInputsCommitAndUndo() {

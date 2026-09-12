@@ -5,50 +5,32 @@
 
 #include <lite/GUI/Utils/VolumeUtils.h>
 
-LevelMeterViewModel::LevelMeterViewModel(QObject *parent) : QObject(parent) {
-    m_leftChannel.peakHoldTimer = new QTimer(this);
-    m_rightChannel.peakHoldTimer = new QTimer(this);
-    m_leftChannel.peakHoldTimer->setSingleShot(true);
-    m_rightChannel.peakHoldTimer->setSingleShot(true);
+LevelMeterViewModel::LevelMeterViewModel(QObject *parent)
+    : LevelMeterViewModel(2500, 1000, parent) {
+}
 
-    m_leftChannel.decayAnimation = new QVariantAnimation(this);
-    m_rightChannel.decayAnimation = new QVariantAnimation(this);
-
-    connect(m_leftChannel.peakHoldTimer, &QTimer::timeout,
-            [this] { startDecayAnimation(m_leftChannel); });
-
-    connect(m_rightChannel.peakHoldTimer, &QTimer::timeout,
-            [this] { startDecayAnimation(m_rightChannel); });
-
-    auto setupAnimation = [&](QVariantAnimation *anim) {
-        anim->setDuration(m_decayTime);
-        anim->setEasingCurve(QEasingCurve::InOutCubic);
+LevelMeterViewModel::LevelMeterViewModel(int peakHoldTime, int decayTime, QObject *parent)
+    : QObject(parent), m_peakHoldTime(peakHoldTime), m_decayTime(decayTime) {
+    const auto initializeChannel = [this](ChannelData &channel) {
+        channel.peakHoldTimer = new QTimer(this);
+        channel.peakHoldTimer->setSingleShot(true);
+        channel.decayAnimation = new QVariantAnimation(this);
+        channel.decayAnimation->setDuration(m_decayTime);
+        channel.decayAnimation->setEasingCurve(QEasingCurve::InOutCubic);
+        connect(channel.peakHoldTimer, &QTimer::timeout, this,
+                [this, &channel] { startDecayAnimation(channel); });
+        connect(channel.decayAnimation, &QVariantAnimation::valueChanged, this,
+                [this, &channel](const QVariant &value) { handleAnimationUpdate(value, channel); });
+        connect(channel.decayAnimation, &QVariantAnimation::finished, this, [this, &channel] {
+            if (channel.isDecaying && !channel.peakHoldTimer->isActive()) {
+                channel.displayedPeak = 0.0;
+                channel.isDecaying = false;
+                emit peakChanged();
+            }
+        });
     };
-
-    setupAnimation(m_leftChannel.decayAnimation);
-    setupAnimation(m_rightChannel.decayAnimation);
-
-    connect(m_leftChannel.decayAnimation, &QVariantAnimation::valueChanged,
-            [this](const QVariant &value) { handleAnimationUpdate(value, m_leftChannel); });
-
-    connect(m_rightChannel.decayAnimation, &QVariantAnimation::valueChanged,
-            [this](const QVariant &value) { handleAnimationUpdate(value, m_rightChannel); });
-
-    connect(m_leftChannel.decayAnimation, &QVariantAnimation::finished, [this] {
-        if (m_leftChannel.isDecaying && !m_leftChannel.peakHoldTimer->isActive()) {
-            m_leftChannel.displayedPeak = 0.0;
-            m_leftChannel.isDecaying = false;
-            emit peakChanged();
-        }
-    });
-
-    connect(m_rightChannel.decayAnimation, &QVariantAnimation::finished, [this] {
-        if (m_rightChannel.isDecaying && !m_rightChannel.peakHoldTimer->isActive()) {
-            m_rightChannel.displayedPeak = 0.0;
-            m_rightChannel.isDecaying = false;
-            emit peakChanged();
-        }
-    });
+    initializeChannel(m_leftChannel);
+    initializeChannel(m_rightChannel);
 }
 
 void LevelMeterViewModel::setLevels(double dBL, double dBR) {

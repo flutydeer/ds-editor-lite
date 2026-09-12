@@ -2,6 +2,7 @@
 
 #include <lite/GUI/Animation/ElasticAnimator.h>
 #include <lite/GUI/Controls/Toast.h>
+#include <lite/GUI/Controls/LevelMeterViewModel.h>
 
 #include <QtTest/QTest>
 #include <QLabel>
@@ -40,6 +41,43 @@ void GuiComponentTests::replacingTargetChangesDestination() {
     animator.setTarget(replacement);
     QTRY_COMPARE_WITH_TIMEOUT(animator.position(), replacement, 5000);
     QCOMPARE(animator.velocity(), QPointF());
+}
+
+void GuiComponentTests::meterPeaksHoldDecayAndKeepClippingLatched() {
+    LevelMeterViewModel model(20, 20);
+    QSignalSpy peakText(&model, &LevelMeterViewModel::peakValueChanged);
+    model.setLevels(0, -6);
+    QVERIFY(!model.clippedL() && !model.clippedR());
+    QCOMPARE(model.levelL(), 1.0);
+    QCOMPARE(model.peakValue(), 0.0);
+    model.setLevels(3, 6);
+    QVERIFY(model.clippedL() && model.clippedR());
+    QVERIFY(model.levelR() > model.levelL() && model.levelL() > 1.0);
+    QCOMPARE(model.peakValue(), 6.0);
+    model.setLevels(-70, -70);
+    QCOMPARE(model.levelL(), 0.0);
+    QCOMPARE(model.levelR(), 0.0);
+    QCOMPARE(model.peakValue(), 6.0);
+    QTRY_COMPARE(model.displayedPeakL(), 0.0);
+    QTRY_COMPARE(model.displayedPeakR(), 0.0);
+    QCOMPARE(model.peakValue(), -70.0);
+    QVERIFY(!peakText.isEmpty());
+    QCOMPARE(peakText.last().at(0).toDouble(), -70.0);
+    QVERIFY(model.clippedL() && model.clippedR());
+    model.resetClip();
+    QVERIFY(!model.clippedL() && !model.clippedR());
+}
+
+void GuiComponentTests::aNewMeterPeakInterruptsDecay() {
+    LevelMeterViewModel model(1, 60000);
+    model.setLevels(0, -70);
+    model.setLevels(-70, -70);
+    QTRY_VERIFY(model.displayedPeakL() > 0.0 && model.displayedPeakL() < 1.0);
+    model.setLevels(6, -70);
+    QVERIFY(model.displayedPeakL() > 1.0);
+    QCOMPARE(model.peakValue(), 6.0);
+    model.setLevels(-70, -70);
+    QCOMPARE(model.peakValue(), 6.0);
 }
 
 void GuiComponentTests::toastContextLifetime_data() {

@@ -135,8 +135,8 @@ private slots:
     void playbackPopupsEditTheMarkerChosenWhenTheyOpen();
     void playbackTextInputsValidateCommitAndCancel();
     void tapTempoMeasuresASequenceAndResetsAfterInactivity();
-    void mixerTextInputsCommitToTheChosenChannel_data();
-    void mixerTextInputsCommitToTheChosenChannel();
+    void mixerChannelInputsAndLevelsStayScoped_data();
+    void mixerChannelInputsAndLevelsStayScoped();
     void trackColorMenuPreviewsAndCommits_data();
     void trackColorMenuPreviewsAndCommits();
     void pitchModulationUsesTheInferredNoteBaselineAndCanBeUndone();
