@@ -55,6 +55,7 @@
 | 布局、动画、主题和渲染 | gui/unit | Qt 平台有硬编码，混有实验 demo；颜色/图标目标共用主题职责 | 分隔条和菜单通过真实事件验证；动画直接调用生产组件；主题与菜单归入 GuiComponents，原生布局归入 NativeDesktop，绘制组件归入 EditorRendering；删除主题 token 镜像和固定几何数量 | NativeDesktop、GuiComponents、EditorRendering、EditorInteraction、Parameters | 通用/offscreen/原生 |
 | 窗口释放与后续对话框 | gui/workflow | 单独窗口用例未发现全局父窗口和文档 UI 引用悬空 | 主窗口销毁后已有子对话框释放，新建对话框仍可显示；后续真实导出与工程导入使用同一应用上下文 | ApplicationGui::closingTheMainWindowReleasesTheDefaultDialogParent；既有导出和工程导入用例 | offscreen |
 | RHI 失效后的默认编辑器回退 | gui | 正常 Null 渲染不能验证后端丢失后的接线 | 复用完整钢琴窗和轨道菜单流程，模拟设备失效，检查缩放和视口恢复、轨道头滚动同步及继续创建音符/片段与撤销 | NativeDesktop::rhiPianoMenuPasteAndVisibilityUseTheFullEditor、rhiTrackMenuPasteAndSelectionUseTheFullEditor | 原生；Null 后端；设备失效信号使用受控输入 |
+| 默认时间视图的缩放与动画中断 | gui | RHI 视口控制器测试未覆盖 TimeGraphicsView 的事件接线和逻辑视口换算 | 真实滚轮检查两轴缩放锚点及内容填满边界；普通与两倍缩放下验证动画目标范围、关闭动画直接到达目标，以及滚轮或原生捏合中断后保留新输入 | EditorInteraction::legacyWheelZoomPreservesTheInputAnchor、legacyViewportAnimationCanBeFinishedOrInterrupted | offscreen；合成 Qt 输入，无需触摸板设备 |
 | 声库推理及音频导出装配 | workflow | 普通测试使用受控服务，资源客户端曾偏离实际协议，并缺少异步分段准备条件 | 与常规 Headless 共用 Native 传输，使用明确语言与任务 scope，按模型目标就绪条件等待 G2P/分段；保留实际 CPU 手动推理和 WAV 解码、有限非零样本检查，资源运行结果由报告与产物记录 | ModelResources | 默认内置声库，也可显式配置；无需播放设备 |
 | 实验 RHI 编辑后端 | gui | 几何与字形不能替代真实控件；实际析构暴露私有状态释放后的事件重入 | Null 后端检查音符绘制/移动/裁边/分割、连续擦除、内联文字和右键目标，音高绘制/描摹/擦除及锚点插入与取消，以及片段跨轨拖动和裁边；验证预览、一次提交/取消、命中、撤销重做及帧，保留正常析构 | EditorRendering、NativeDesktop 的 tst_rhi_editor.cpp、tst_rhi_tracks.cpp | 原生窗口；Linux Xvfb；无需物理 GPU；不验证像素 |
 | 输出设备配置与实际播放 | workflow | 受控回调和无设备失败不能替代真实输出设备路径 | 自动探测或按名称指定设备，验证重开、缓冲配置落盘，静音素材的公开播放/暂停/停止及回调推进，恢复自身配置 | NativeDesktop::availableAudioDeviceRunsPublicPlayback | 无可用设备明确 QSKIP；已枚举或指定设备的失败为 FAIL |
@@ -64,7 +65,7 @@
 | 批量音频预检与目标换代 | workflow | 已覆盖解码失败和取消，预检及准备期间目标变化存在缺口 | 预检不启动任务，原子失败与部分可用分别处理；删除目标轨道或替换文档后不提交旧结果 | ApplicationWorkflows::audioBatchValidationDoesNotStartTasks、audioBatchRejectsChangesBeforeCommit | 通用；临时 WAV |
 | 音频解码失败与删除取消 | workflow | 领域写回失败不能证明真实 worker 的取消及恢复接线 | 外部解码器打开失败不修改用户历史；源文件消失报告缺失；删除片段/轨道取消解码，撤销后重新获得波形 | AudioAssets::decodeBackendFailurePreservesTheDocumentAndAllowsReopen、removingAudioTargetsCancelsPendingDecode | 通用；文件删除按平台共享能力执行 |
 | 声学缓存写出失败 | workflow | 成功声库执行未进入缓存写出错误及重试路径 | 真实声学推理遇到不可写缓存路径后进入失败终态；恢复路径后再次请求成功，不修改音符或用户历史 | ApplicationWorkflows::acousticCacheWriteFailureCanBeRetried | 内置声库；CPU；临时目录 |
-| 模型输入拒绝与同进程重试 | workflow | 正常模型执行未验证声库不认识音素后的恢复 | 四阶段拒绝不支持的音素，不写结果缓存；正常输入随后成功，不修改原工程 | ApplicationWorkflows::unsupportedInferencePhonemeAllowsRetry | 声库；CPU；独立缓存 |
+| 模型输入拒绝、取消与同进程重试 | workflow | 正常模型执行未验证无效音素后的恢复，部分取消路径依赖偶发时序 | 四阶段拒绝不支持的音素，不写结果缓存；正常输入成功后，受控暂停缓存命中任务并取消，检查终态、原缓存保留和再次重试；全过程不修改原工程 | ApplicationWorkflows::inferenceFailureAndCancellationAllowRetry | 声库；CPU；独立缓存；受控 worker |
 | 混合语言任务的结果对齐 | workflow | 单语言成功与快照门控不能验证部分语言失败 | 一批输入同时包含有效词、停顿、连音和缺失语言；结果保持输入次序，未解析声库保留歌词 | ApplicationWorkflows::languageTasksKeepMixedResultsAligned | 声库；CPU；无需播放设备 |
 | MIDI 发布与音频目标保护 | workflow | MIDI 覆盖写入未执行，旧用例的多个失败组合不便定位 | 数据行共用准备，验证创建/覆盖、发布授权、取消及并发目标保护；音频路径越界、目录缺失或占位拒绝后可修正执行 | ApplicationServices::preparedMidiPublication、audioExportRejectsUnsafeTargetsAndAllowsCorrection | 通用；临时文件；导出后端替身 |
 | 音素边界与发音候选菜单 | gui | 普通拖动未覆盖边界限制，发音区域缺少真实菜单操作 | 在同一乐句上验证相邻音素、下一音符和末尾限制及撤销；点击候选只修改目标音符 | ApplicationGui::phonemeBoundaryDragCommitsAndUndoRestoresOffsets、pronunciationMenuChangesOnlyTheClickedNote | offscreen；音素边界使用声库 |
