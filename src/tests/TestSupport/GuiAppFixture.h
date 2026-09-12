@@ -14,11 +14,21 @@
 #include <TalcsDevice/AudioDevice.h>
 
 #include <QApplication>
+#include <QScreen>
 #include <QTemporaryDir>
 #include <QStringList>
 #include <QtTest/QTest>
 
 #include <memory>
+
+namespace TestSupport {
+    inline void placeWindowOnScreen(QWidget &window, const QSize &preferredSize) {
+        // Keep native cursor input inside the desktop, including window decorations.
+        const auto available = window.screen()->availableGeometry().adjusted(40, 40, -40, -40);
+        window.resize(preferredSize.boundedTo(available.size()));
+        window.move(available.topLeft());
+    }
+}
 
 class GuiAppFixture final {
 public:

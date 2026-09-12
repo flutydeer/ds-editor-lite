@@ -80,8 +80,12 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
         QSKIP("Custom window frames require a native window backend");
     const auto exerciseButtons = [](QWidget &host, QWidget *minimize, QWidget *maximize) {
         QVERIFY(minimize && maximize);
+        host.showNormal();
+        host.activateWindow();
+        QTRY_VERIFY(!host.isMaximized() && host.isActiveWindow());
+        QVERIFY(minimize->isVisible() && maximize->isVisible());
         QTest::mouseClick(maximize, Qt::LeftButton);
-        QTRY_VERIFY(host.isMaximized());
+        QTRY_VERIFY2(host.isMaximized(), host.metaObject()->className());
         QTest::mouseClick(maximize, Qt::LeftButton);
         QTRY_VERIFY(!host.isMaximized());
         QTest::mouseClick(minimize, Qt::LeftButton);
@@ -101,7 +105,7 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
     appOptions->appearance()->useNativeFrame = false;
     appOptions->developer()->enablePanelDetach = true;
     MainWindow window;
-    window.resize(1200, 800);
+    TestSupport::placeWindowOnScreen(window, {1200, 800});
     window.show();
     window.activateWindow();
     QTRY_VERIFY(window.isActiveWindow());
@@ -126,6 +130,7 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
     QVERIFY(detach && detach->isVisible());
     QTest::mouseClick(detach, Qt::LeftButton);
     QTRY_VERIFY(bottom->isWindow() && bottom->isVisible());
+    TestSupport::placeWindowOnScreen(*bottom, {960, 400});
     bottom->activateWindow();
     QTRY_VERIFY(bottom->isActiveWindow());
     auto *title = bottom->titleBar();

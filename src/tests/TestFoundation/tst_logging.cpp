@@ -67,8 +67,12 @@ void FoundationTests::fileLoggingChangesDirectoriesAndRecoversFromWriteFailure()
         QFile oldLog(QDir(recovered).filePath(QStringLiteral("old-%1.log").arg(index)));
         QVERIFY(oldLog.open(QIODevice::WriteOnly));
         QVERIFY(oldLog.write("old log\n") > 0);
-        QVERIFY(oldLog.setFileTime(QDateTime::fromSecsSinceEpoch(946684800 + index),
-                                   QFileDevice::FileModificationTime));
+        QVERIFY(oldLog.flush());
+        const auto modified = QDateTime::fromSecsSinceEpoch(946684800 + index);
+        QVERIFY(oldLog.setFileTime(modified, QFileDevice::FileModificationTime));
+        oldLog.close();
+        QCOMPARE(QFileInfo(oldLog.fileName()).lastModified().toSecsSinceEpoch(),
+                 modified.toSecsSinceEpoch());
     }
     QFile unrelated(QDir(recovered).filePath(QStringLiteral("notes.txt")));
     QVERIFY(unrelated.open(QIODevice::WriteOnly));

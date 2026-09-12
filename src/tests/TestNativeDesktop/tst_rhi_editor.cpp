@@ -18,6 +18,7 @@
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollCoord.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
 #include "UI/Views/TrackEditor/TracksRhiWidget.h"
+#include "UI/Views/Common/TimelineView.h"
 #include "UI/Window/MainWindow.h"
 #include "UI/Dialogs/Base/Dialog.h"
 
@@ -115,10 +116,11 @@ namespace {
             QObject::connect(canvas.get(), &EditorRhiWidget::backendFailed, canvas.get(),
                              [this](const QString &reason) { backendError = reason; });
             submitted = std::make_unique<QSignalSpy>(canvas.get(), &QRhiWidget::frameSubmitted);
-            canvas->resize(900, 500);
+            TestSupport::placeWindowOnScreen(*canvas, {900, 500});
             canvas->show();
             canvas->activateWindow();
             canvas->setFocus();
+            QTRY_VERIFY(canvas->isActiveWindow() && canvas->hasFocus());
             frameAfter(0);
             if (QTest::currentTestFailed())
                 return;
@@ -159,10 +161,9 @@ namespace {
         void moveTo(const QPoint &position) const {
             // Edge scrolling reads the native cursor while waiting for a frame.
             QCursor::setPos(canvas->mapToGlobal(position));
-            QMouseEvent move(QEvent::MouseMove, QPointF(position),
-                             QPointF(canvas->mapToGlobal(position)), Qt::NoButton, Qt::LeftButton,
-                             Qt::NoModifier);
-            QApplication::sendEvent(canvas.get(), &move);
+            // Deliver pending platform movement before the synthetic drag position.
+            QCoreApplication::processEvents();
+            QTest::mouseMove(canvas.get(), position);
         }
 
         void frameAfter(qsizetype count) const {
@@ -212,7 +213,9 @@ void NativeDesktopTests::rhiThemeSwitchPreservesBothEditorsAndTheirDocument() {
     auto *tracks = window.findChild<TracksRhiWidget *>();
     auto *piano = window.findChild<PianoRollRhiWidget *>();
     auto *editor = window.findChild<ClipEditorView *>();
-    QVERIFY(tracks && piano && editor);
+    auto *pianoTimeline = window.findChild<TimelineView *>("pianoRollTimelineView");
+    auto *tracksTimeline = window.findChild<TimelineView *>("tracksTimelineView");
+    QVERIFY(tracks && piano && editor && pianoTimeline && tracksTimeline);
     QSignalSpy trackFrames(tracks, &QRhiWidget::frameSubmitted);
     QSignalSpy pianoFrames(piano, &QRhiWidget::frameSubmitted);
     QSignalSpy trackErrors(tracks, &QRhiWidget::renderFailed);
@@ -241,7 +244,7 @@ void NativeDesktopTests::rhiThemeSwitchPreservesBothEditorsAndTheirDocument() {
         *fixture.context->m_appModel->tracks().first()->clips().begin());
     QVERIFY(clip);
     appStatus->activeClipId = clip->id();
-    window.resize(1200, 900);
+    TestSupport::placeWindowOnScreen(window, {1200, 900});
     window.show();
     window.activateWindow();
     QVERIFY(window.setEditorPanelVisibility(true, true));
@@ -257,6 +260,18 @@ void NativeDesktopTests::rhiThemeSwitchPreservesBothEditorsAndTheirDocument() {
     const auto model = fixture.context->m_appModel->serialize();
     const auto darkPiano = piano->property("whiteKeyColor").value<QColor>();
     const auto darkTracks = tracks->property("backgroundColor").value<QColor>();
+    const auto verifyTimelines = [&] {
+        // QSS serializes semantic colors to 8-bit channels.
+        for (const auto *timeline : {pianoTimeline, tracksTimeline}) {
+            QCOMPARE(timeline->palette().color(QPalette::Window).rgba(),
+                     themes->semanticColor(QStringLiteral("timeline.background")).rgba());
+            QCOMPARE(timeline->property("barScaleColor").value<QColor>().rgba(),
+                     themes->semanticColor(QStringLiteral("editor.playhead")).rgba());
+        }
+    };
+    verifyTimelines();
+    if (QTest::currentTestFailed())
+        return;
     const auto pianoFrame = pianoFrames.size();
     const auto trackFrame = trackFrames.size();
     QVERIFY2(themes->applyTheme(ThemeIds::lightThemeId()), qPrintable(ThemeLoader::lastError()));
@@ -265,6 +280,9 @@ void NativeDesktopTests::rhiThemeSwitchPreservesBothEditorsAndTheirDocument() {
     QTRY_VERIFY(pianoFrames.size() > pianoFrame && trackFrames.size() > trackFrame);
     QVERIFY(piano->property("whiteKeyColor").value<QColor>().isValid() &&
             tracks->property("backgroundColor").value<QColor>().isValid());
+    verifyTimelines();
+    if (QTest::currentTestFailed())
+        return;
     QCOMPARE(runtime.documentVersion(), before);
     QCOMPARE(fixture.context->m_appModel->serialize(), model);
     QCOMPARE(appStatus->activeClipId.get(), clip->id());
@@ -272,16 +290,16 @@ void NativeDesktopTests::rhiThemeSwitchPreservesBothEditorsAndTheirDocument() {
     QVERIFY2(themes->applyTheme(ThemeIds::defaultThemeId()), qPrintable(ThemeLoader::lastError()));
     QTRY_COMPARE(piano->property("whiteKeyColor").value<QColor>(), darkPiano);
     QTRY_COMPARE(tracks->property("backgroundColor").value<QColor>(), darkTracks);
+    verifyTimelines();
+    if (QTest::currentTestFailed())
+        return;
 
     QVERIFY(editor->setEditMode(EditorViewGlobal::DrawNote));
+    QVERIFY(editor->setRegionVisibility(true, false));
+    QVERIFY(window.centerPianoRollAt(1440, 60));
     QVERIFY(window.focusEditorRegion(EditorViewGlobal::Region::PianoRoll));
-    const QPoint position(
-        qRound((1440 - piano->startTick()) * piano->width() /
-               (piano->endTick() - piano->startTick())),
-        qRound(piano->height() / 2.0 +
-               (piano->centerKeyIndex() - 64) * ClipEditorGlobal::noteHeight * piano->scaleY()));
-    QVERIFY(piano->rect().contains(position));
-    QTest::mouseClick(piano, Qt::LeftButton, Qt::NoModifier, position);
+    QTRY_VERIFY(piano->height() > 0 && piano->width() > 0);
+    QTest::mouseClick(piano, Qt::LeftButton, Qt::NoModifier, piano->rect().center());
     QCOMPARE(clip->notes().count(), 2);
     QVERIFY(runtime.history().undo(command()));
     QCOMPARE(fixture.context->m_appModel->serialize(), model);
@@ -1076,6 +1094,7 @@ void NativeDesktopTests::rhiMultiNoteSelectionAndMoveCommitAtomically() {
     const auto selectRange = [&](double upperKey, double lowerKey) {
         const auto start = fixture.pointFor(240, upperKey);
         const auto end = fixture.pointFor(1800, lowerKey);
+        QVERIFY(canvas.rect().contains(start) && canvas.rect().contains(end));
         const auto frame = fixture.submitted->size();
         QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, start);
         fixture.moveTo(end);
@@ -1123,10 +1142,10 @@ void NativeDesktopTests::rhiMultiNoteSelectionAndMoveCommitAtomically() {
     QCOMPARE(first->keyIndex(), 60);
     QCOMPARE(second->keyIndex(), 62);
     QVERIFY(!historyManager->canUndo());
-    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, fixture.pointFor(240, 70));
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, fixture.pointFor(240, 64));
     QVERIFY(appStatus->selectedNotes.get().isEmpty());
     canvas.setEditMode(ClipEditorGlobal::IntervalSelect);
-    selectRange(70, 68);
+    selectRange(64, 63);
     QVERIFY(!historyManager->canUndo());
 }
 
