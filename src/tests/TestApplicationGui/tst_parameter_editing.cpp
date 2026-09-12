@@ -103,6 +103,15 @@ namespace {
 void ApplicationGuiTests::parameterToolbarSwapsTheVisiblePairWithoutEditingTheDocument() {
     auto *clip = defaultSingingClip(*context->m_appModel);
     QVERIFY(clip);
+    auto &runtime = *context->m_coreRuntime;
+    Automation::CurveDraftDto curve;
+    curve.localStart = 240;
+    curve.step = 5;
+    for (const auto name : {ParamInfo::MouthOpening, ParamInfo::Gender}) {
+        curve.values = QList<int>(192, name == ParamInfo::MouthOpening ? 200 : -500);
+        QVERIFY(runtime.parameters().replaceParameter(
+            commandContext(), Automation::ClipId(clip->id()), name, Param::Edited, {curve}));
+    }
     clipController->setClip(clip);
     appStatus->activeClipId = clip->id();
     ParamEditorView panel;
@@ -114,8 +123,8 @@ void ApplicationGuiTests::parameterToolbarSwapsTheVisiblePairWithoutEditingTheDo
     auto *foreground = panel.findChild<ComboBox *>("cbForegroundParam");
     auto *background = panel.findChild<ComboBox *>("cbBackgroundParam");
     auto *swap = panel.findChild<QAbstractButton *>("btnSwap");
-    QVERIFY(foreground && background && swap);
-    auto &runtime = *context->m_coreRuntime;
+    auto *canvas = panel.findChild<ParamEditorGraphicsView *>();
+    QVERIFY(foreground && background && swap && canvas);
     historyManager->reset();
     const auto before = runtime.documentVersion();
     const auto model = context->m_appModel->serialize();
@@ -138,14 +147,21 @@ void ApplicationGuiTests::parameterToolbarSwapsTheVisiblePairWithoutEditingTheDo
     QCOMPARE(panel.viewState().background, ParamInfo::Gender);
     const auto foregroundText = foreground->currentText();
     const auto backgroundText = background->currentText();
+    QVERIFY(canvas->setViewportScale(2.0, 1.0));
+    canvas->setViewportStartTick(0);
+    const auto originalImage = canvas->viewport()->grab().toImage();
+    QVERIFY(!originalImage.isNull());
     QTest::mouseClick(swap, Qt::LeftButton);
     QCOMPARE(panel.viewState().foreground, ParamInfo::Gender);
     QCOMPARE(panel.viewState().background, ParamInfo::MouthOpening);
     QCOMPARE(foreground->currentText(), backgroundText);
     QCOMPARE(background->currentText(), foregroundText);
+    const auto swappedImage = canvas->viewport()->grab().toImage();
+    QVERIFY(swappedImage != originalImage);
     background->setFocus();
     QTest::keyClick(background, Qt::Key_Home);
     QCOMPARE(panel.viewState().background, ParamInfo::Unknown);
+    QVERIFY(canvas->viewport()->grab().toImage() != swappedImage);
     QTest::mouseClick(swap, Qt::LeftButton);
     QCOMPARE(panel.viewState().foreground, ParamInfo::Gender);
     QCOMPARE(panel.viewState().background, ParamInfo::Unknown);

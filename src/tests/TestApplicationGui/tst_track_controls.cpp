@@ -3,6 +3,7 @@
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
 #include "Controller/TrackController.h"
+#include "UI/Controls/LevelMeterManager.h"
 #include "UI/Controls/TrackColorSwatchWidget.h"
 #include "UI/Views/TrackEditor/TrackControlView.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
@@ -25,6 +26,7 @@
 #include <QKeySequence>
 #include <QLineEdit>
 #include <QLabel>
+#include <QListWidget>
 #include <QMenu>
 #include <QScopeGuard>
 #include <QSignalSpy>
@@ -61,6 +63,39 @@ void ApplicationGuiTests::mixerChannelInputsAndLevelsStayScoped() {
             otherChannel = candidate;
     }
     QVERIFY(channel && otherChannel);
+    if (!master) {
+        auto *list = console.findChild<QListWidget *>();
+        QVERIFY(list);
+        Automation::TrackDraftDto neighbor;
+        neighbor.name = QStringLiteral("Neighbor channel");
+        QVERIFY(runtime.project().insertTrack(commandContext(), 1, neighbor));
+        QCOMPARE(list->count(), 2);
+        auto *neighborChannel = qobject_cast<ChannelView *>(list->itemWidget(list->item(1)));
+        QVERIFY(neighborChannel && neighborChannel != channel);
+        auto *index = channel->findChild<QLabel *>("lbIndex");
+        auto *neighborIndex = neighborChannel->findChild<QLabel *>("lbIndex");
+        QVERIFY(index && neighborIndex);
+        const auto moved =
+            runtime.project().moveTrack(commandContext(), Automation::TrackId(track->id()), 2);
+        QVERIFY(moved && moved.get().changed);
+        QCOMPARE(context->m_appModel->tracks().last(), track);
+        auto *meters = AppContext::instance<LevelMeterManager>();
+        QVERIFY(meters);
+        QCOMPARE(list->itemWidget(list->item(1)), channel);
+        QCOMPARE(list->itemWidget(list->item(0)), neighborChannel);
+        QCOMPARE(channel->levelMeter()->viewModel(), meters->viewModelAt(1));
+        QCOMPARE(neighborChannel->levelMeter()->viewModel(), meters->viewModelAt(0));
+        QCOMPARE(index->text(), QLocale().toString(2));
+        QCOMPARE(neighborIndex->text(), QLocale().toString(1));
+        QVERIFY(runtime.history().undo(commandContext()));
+        QCOMPARE(list->itemWidget(list->item(0)), channel);
+        QCOMPARE(channel->levelMeter()->viewModel(), meters->viewModelAt(0));
+        QCOMPARE(index->text(), QLocale().toString(1));
+        QCOMPARE(neighborIndex->text(), QLocale().toString(2));
+        QVERIFY(runtime.history().redo(commandContext()));
+        QCOMPARE(list->itemWidget(list->item(1)), channel);
+        QCOMPARE(&channel->context(), track);
+    }
     auto *gain = channel->findChild<InlineEditLabel *>("elGain");
     auto *pan = channel->findChild<InlineEditLabel *>("elPan");
     QVERIFY(gain && pan);
