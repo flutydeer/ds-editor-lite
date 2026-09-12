@@ -61,6 +61,7 @@ private slots:
     void exportSourcesAndMixingUpdateFilePlan();
     void canceledExportConfigurationDoesNotPersist();
     void exportPresetDialogsSaveOverwriteAndDeleteTheSelectedPreset();
+    void audioExportProgressCompletesAndCloses_data();
     void audioExportProgressCompletesAndCloses();
     void appearanceInputsPersistAcrossReopening();
     void generalSettingsKeepSeparateDefaultLyricsForEachLanguage();

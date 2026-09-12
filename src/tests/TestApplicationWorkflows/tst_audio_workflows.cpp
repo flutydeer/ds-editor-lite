@@ -270,6 +270,12 @@ void ApplicationWorkflowTests::audioExportRespectsRangeMixAndMute() {
         runtime(), access, fileGuard, admission,
         Automation::createPublicAutomationHostServices(runtime(), context->m_appModel,
                                                        &SynthrtEngine::instance()));
+    const auto editMix = [&](const QString &operation, QJsonObject arguments) {
+        const auto version = runtime().documentVersion();
+        arguments.insert(QStringLiteral("document_id"), version.documentId.toString());
+        arguments.insert(QStringLiteral("expected_revision"), qint64(version.revision));
+        return registry.invoke(operation, arguments);
+    };
     const auto capabilities = registry.invoke(
         QStringLiteral("exports.audio.get_capabilities"),
         {
@@ -370,8 +376,30 @@ void ApplicationWorkflowTests::audioExportRespectsRangeMixAndMute() {
         return;
     QVERIFY(std::abs(mixed.at(middle) / selected.at(middle) - 1.25f) < 1e-5f);
 
-    const auto secondTrack = Automation::TrackId(context->m_appModel->tracks().at(1)->id());
-    QVERIFY(runtime().project().setTrackMute(commandContext(), secondTrack, true));
+    historyManager->reset();
+    const auto beforeMixChanges = context->m_appModel->serialize();
+    const auto firstTrack = context->m_appModel->tracks().first()->id();
+    const auto secondTrack = context->m_appModel->tracks().at(1)->id();
+    QVERIFY(
+        editMix(QStringLiteral("tracks.set_solo"), {
+                                                       {"track_id", firstTrack},
+                                                       {"solo",     true      }
+    }));
+    QVector<float> solo;
+    exportSamples(QStringLiteral("solo.wav"), solo, talcs::AudioFormatIO::WAV);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(solo, selected);
+    QVERIFY(
+        editMix(QStringLiteral("tracks.set_solo"), {
+                                                       {"track_id", firstTrack},
+                                                       {"solo",     false     }
+    }));
+    QVERIFY(
+        editMix(QStringLiteral("tracks.set_mute"), {
+                                                       {"track_id", secondTrack},
+                                                       {"mute",     true       }
+    }));
     QVector<float> muted;
     exportSamples(QStringLiteral("muted.wav"), muted, talcs::AudioFormatIO::WAV);
     if (QTest::currentTestFailed())
@@ -387,10 +415,24 @@ void ApplicationWorkflowTests::audioExportRespectsRangeMixAndMute() {
     for (qsizetype i = 0; i < compressed.size(); ++i)
         QVERIFY(std::abs(compressed.at(i) - muted.at(i)) <= 1.0f / 8388608.0f);
 
-    const auto firstTrack = Automation::TrackId(context->m_appModel->tracks().first()->id());
-    QVERIFY(runtime().project().setTrackMute(commandContext(), secondTrack, false));
-    QVERIFY(runtime().project().setTrackGain(commandContext(), firstTrack, 12.0));
-    QVERIFY(runtime().project().setTrackGain(commandContext(), secondTrack, 12.0));
+    QVERIFY(editMix(QStringLiteral("tracks.set_mute"),
+                    {
+                        {"track_id", secondTrack},
+                        {"mute",     false      }
+    }));
+    QVERIFY(
+        editMix(QStringLiteral("tracks.set_gain"), {
+                                                       {"track_id", firstTrack},
+                                                       {"gain",     12.0      }
+    }));
+    QVERIFY(
+        editMix(QStringLiteral("tracks.set_gain"), {
+                                                       {"track_id", secondTrack},
+                                                       {"gain",     12.0       }
+    }));
+    QVERIFY(editMix(QStringLiteral("master.set_gain"), {
+                                                           {"gain", 6.0}
+    }));
     options.insert(QStringLiteral("format"), QStringLiteral("wav"));
     QVector<float> loud;
     QStringList warnings;
@@ -398,9 +440,13 @@ void ApplicationWorkflowTests::audioExportRespectsRangeMixAndMute() {
     if (QTest::currentTestFailed())
         return;
     QVERIFY(loud.at(middle) > 1.0f);
+    QVERIFY(std::abs(loud.at(middle) / mixed.at(middle) - std::pow(10.0, 18.0 / 20.0)) < 1e-5);
     QVERIFY(std::any_of(warnings.cbegin(), warnings.cend(), [](const QString &warning) {
         return warning.startsWith(QStringLiteral("Clipping detected"));
     }));
+    while (historyManager->canUndo())
+        QVERIFY(runtime().history().undo(commandContext()));
+    QCOMPARE(context->m_appModel->serialize(), beforeMixChanges);
 }
 
 void ApplicationWorkflowTests::lossyAudioExportsProduceReadableFiles_data() {

@@ -10,6 +10,7 @@
 
 #include <lite/ProjectConverters/DspxProjectConverter.h>
 #include <lite/ProjectModel/AppModel/Note.h>
+#include <lite/ProjectModel/AppModel/Track.h>
 
 #include <QFile>
 #include <QFileInfo>
@@ -458,6 +459,7 @@ void AutomationProtocolTests::publicClipCopyAndMovePreserveTheSourcePhrase() {
         runtime.notes().getNotes(runtime.documentVersion().documentId, sourceClip);
     QVERIFY(sourceNotes);
     const auto original = fixture.runtimeFixture.model().serialize();
+    const auto originalSourceTrack = fixture.runtimeFixture.model().tracks().first()->serialize();
     const auto *beforeUndo = fixture.runtimeFixture.history()->nextUndoEntry();
     PublicAutomationRegistry registry(runtime, fixture.access, fixture.fileGuard,
                                       fixture.admission);
@@ -506,6 +508,38 @@ void AutomationProtocolTests::publicClipCopyAndMovePreserveTheSourcePhrase() {
     QCOMPARE(targetTrack.clips.size(), 1);
     QCOMPARE(targetTrack.clips.first().id, ClipId(copiedId));
     QCOMPARE(targetTrack.clips.first().data.properties.start, 960);
+    auto leftArguments = commandArguments(runtime.documentVersion());
+    leftArguments.insert(QStringLiteral("clip_id"), copiedId);
+    leftArguments.insert(QStringLiteral("start"), 1200);
+    const auto left = registry.invoke(QStringLiteral("clips.resize_left"), leftArguments);
+    QVERIFY2(left, qPrintable(errorMessage(left)));
+    auto rightArguments = commandArguments(runtime.documentVersion());
+    rightArguments.insert(QStringLiteral("clip_id"), copiedId);
+    rightArguments.insert(QStringLiteral("end"), 2880);
+    const auto right = registry.invoke(QStringLiteral("clips.resize_right"), rightArguments);
+    QVERIFY2(right, qPrintable(errorMessage(right)));
+    const auto trimmed = runtime.project().getProject(runtime.documentVersion().documentId);
+    QVERIFY(trimmed);
+    const auto &trimmedProperties = trimmed.get().tracks.at(1).clips.first().data.properties;
+    QCOMPARE(trimmedProperties.start + trimmedProperties.clipStart, 1200);
+    QCOMPARE(trimmedProperties.start + trimmedProperties.clipStart + trimmedProperties.clipLen,
+             2880);
+    const auto trimmedNotes =
+        runtime.notes().getNotes(runtime.documentVersion().documentId, ClipId(copiedId));
+    QVERIFY(trimmedNotes);
+    QCOMPARE(trimmedNotes.get().size(), copiedNotes.get().size());
+    for (qsizetype index = 0; index < copiedNotes.get().size(); ++index) {
+        const auto &before = copiedNotes.get().at(index);
+        const auto &after = trimmedNotes.get().at(index);
+        QCOMPARE(after.id, before.id);
+        QCOMPARE(after.data.localStart, before.data.localStart);
+        QCOMPARE(after.data.length, before.data.length);
+        QCOMPARE(after.data.keyIndex, before.data.keyIndex);
+        QCOMPARE(after.data.lyric, before.data.lyric);
+    }
+    QCOMPARE(fixture.runtimeFixture.model().tracks().first()->serialize(), originalSourceTrack);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
     QVERIFY(runtime.history().undo(commandContext(runtime)));
     QVERIFY(runtime.history().undo(commandContext(runtime)));
     QCOMPARE(fixture.runtimeFixture.model().serialize(), original);

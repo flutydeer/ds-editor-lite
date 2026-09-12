@@ -376,7 +376,14 @@ void ApplicationGuiTests::canceledExportConfigurationDoesNotPersist() {
     QVERIFY(QDir(output.path()).entryList(QDir::AllEntries | QDir::NoDotAndDotDot).isEmpty());
 }
 
+void ApplicationGuiTests::audioExportProgressCompletesAndCloses_data() {
+    QTest::addColumn<bool>("clipping");
+    QTest::newRow("clean") << false;
+    QTest::newRow("clipping-warning") << true;
+}
+
 void ApplicationGuiTests::audioExportProgressCompletesAndCloses() {
+    QFETCH(bool, clipping);
     using Audio::Internal::AudioExportProgressDialog;
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
@@ -413,9 +420,11 @@ void ApplicationGuiTests::audioExportProgressCompletesAndCloses() {
     auto draft = Automation::DocumentAutomationFacade::newDocumentDraft(false);
     Automation::TrackDraftDto track;
     track.name = QStringLiteral("Audio export");
+    track.gain = clipping ? 12.0 : 0.0;
     Automation::ClipDraftDto clip;
     clip.type = Automation::ClipDraftDto::Type::Audio;
     clip.properties.name = QStringLiteral("Audio fixture");
+    clip.properties.gain = clipping ? 12.0 : 0.0;
     clip.properties.length = 480;
     clip.properties.clipLen = 480;
     clip.audioPath = inputPath;
@@ -558,6 +567,30 @@ void ApplicationGuiTests::audioExportProgressCompletesAndCloses() {
     auto *indicator = progress->findChild<ProgressIndicator *>();
     QVERIFY(indicator);
     QCOMPARE(indicator->value(), 100.0);
+    QCOMPARE(indicator->taskStatus(), clipping ? TaskGlobal::Warning : TaskGlobal::Normal);
+    auto *warnings = progress->findChild<QListWidget *>();
+    QVERIFY(warnings);
+    if (clipping) {
+        QVERIFY(warnings->count() > 0);
+        QVERIFY(!warnings
+                     ->findItems(AudioExportProgressDialog::tr("Clipping is detected"),
+                                 Qt::MatchContains)
+                     .isEmpty());
+        QAbstractButton *toggle = nullptr;
+        for (auto *button : progress->findChildren<QAbstractButton *>()) {
+            if (button->isCheckable() && button->isVisible())
+                toggle = button;
+        }
+        QVERIFY(toggle);
+        QVERIFY(!warnings->isVisible());
+        QTest::mouseClick(toggle, Qt::LeftButton);
+        QTRY_VERIFY(warnings->isVisible());
+        QVERIFY(!progress->grab().isNull());
+        QTest::mouseClick(toggle, Qt::LeftButton);
+        QVERIFY(!warnings->isVisible());
+    } else {
+        QCOMPARE(warnings->count(), 0);
+    }
     auto *close = exportButton(progress, AudioExportProgressDialog::tr("Close"));
     auto *cancel = exportButton(progress, AudioExportProgressDialog::tr("Cancel"));
     QVERIFY(close && close->isVisible() && close->isEnabled());
