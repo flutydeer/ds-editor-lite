@@ -213,6 +213,8 @@ qt_add_translations(
         Tasking
         GUI
     TS_FILES Resources/translate/translation_zh_CN.ts
+    MERGE_QT_TRANSLATIONS
+    QT_TRANSLATION_CATALOGS qtbase
     RESOURCE_PREFIX "/i18n"
     LUPDATE_OPTIONS -no-obsolete
 )

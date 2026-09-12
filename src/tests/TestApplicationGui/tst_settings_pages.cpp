@@ -339,6 +339,7 @@ void ApplicationGuiTests::switchingUiLanguagePreservesSettingsAndTheOpenDocument
     }
     QVERIFY(undo && undo->isEnabled());
     const auto englishUndo = undo->text();
+    const auto englishQtCancel = QCoreApplication::translate("QPlatformTheme", "Cancel");
 
     AppOptionsDialog panel;
     for (const auto option : {AppOptionsGlobal::Audio, AppOptionsGlobal::Midi,
@@ -380,6 +381,8 @@ void ApplicationGuiTests::switchingUiLanguagePreservesSettingsAndTheOpenDocument
             QVERIFY(undo->text() != englishUndo);
         else
             QCOMPARE(undo->text(), englishUndo);
+        const auto qtCancel = QCoreApplication::translate("QPlatformTheme", "Cancel");
+        QCOMPARE(qtCancel == englishQtCancel, preference == UiLanguageManager::English);
         LineEdit *lyric = nullptr;
         for (auto *editor : page->findChildren<LineEdit *>()) {
             if (!qobject_cast<FileSelector *>(editor->parentWidget()))
