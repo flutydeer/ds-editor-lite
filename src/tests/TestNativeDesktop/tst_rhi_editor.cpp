@@ -6,6 +6,7 @@
 #include "Automation/CoreRuntime.h"
 #include "Bootstrap/AppEnvironment.h"
 #include "Controller/ClipController.h"
+#include "Controller/TrackController.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Audio/AudioSystem.h"
@@ -15,6 +16,12 @@
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollCoord.h"
+#include "UI/Views/ClipEditor/ClipEditorView.h"
+#include "UI/Views/TrackEditor/TracksRhiWidget.h"
+#include "UI/Window/MainWindow.h"
+#include "UI/Dialogs/Base/Dialog.h"
+
+#include <lite/GUI/Controls/Toast.h>
 
 #include <lite/GUI/Theme/ThemeIds.h>
 #include <lite/GUI/Theme/ThemeLoader.h>
@@ -172,6 +179,114 @@ namespace {
         QString backendError;
         QPoint previousCursor = QCursor::pos();
     };
+}
+
+void NativeDesktopTests::rhiThemeSwitchPreservesBothEditorsAndTheirDocument() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    GuiDocumentFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
+    auto *themes = ThemeManager::instance();
+    const auto previousTheme = themes->currentThemeId();
+    const auto backend = appOptions->developer()->editorRenderBackend;
+    const auto nativeFrame = appOptions->appearance()->useNativeFrame;
+    const auto directManipulation = appOptions->appearance()->enableDirectManipulation;
+    const auto restore = qScopeGuard([&] {
+        appOptions->developer()->editorRenderBackend = backend;
+        appOptions->appearance()->useNativeFrame = nativeFrame;
+        appOptions->appearance()->enableDirectManipulation = directManipulation;
+        themes->applyTheme(previousTheme);
+    });
+    appOptions->developer()->editorRenderBackend =
+        DeveloperOption::EditorRenderBackend::RhiExperimental;
+    appOptions->appearance()->useNativeFrame = true;
+    appOptions->appearance()->enableDirectManipulation = false;
+    QVERIFY2(themes->applyTheme(ThemeIds::defaultThemeId()), qPrintable(ThemeLoader::lastError()));
+    MainWindow window;
+    const auto detach = qScopeGuard([&] {
+        clipController->setClip(nullptr);
+        trackController->setParentWidget(nullptr);
+        Dialog::setGlobalContext(nullptr);
+        Toast::setGlobalContext(nullptr);
+    });
+    auto *tracks = window.findChild<TracksRhiWidget *>();
+    auto *piano = window.findChild<PianoRollRhiWidget *>();
+    auto *editor = window.findChild<ClipEditorView *>();
+    QVERIFY(tracks && piano && editor);
+    QSignalSpy trackFrames(tracks, &QRhiWidget::frameSubmitted);
+    QSignalSpy pianoFrames(piano, &QRhiWidget::frameSubmitted);
+    QSignalSpy trackErrors(tracks, &QRhiWidget::renderFailed);
+    QSignalSpy pianoErrors(piano, &QRhiWidget::renderFailed);
+    auto &runtime = *fixture.context->m_coreRuntime;
+    const auto command = [&] {
+        return Automation::CommandContext{.expected = runtime.documentVersion(),
+                                          .source = Automation::InvocationSource::Test};
+    };
+    Automation::NoteDraftDto note;
+    note.localStart = 480;
+    note.length = 480;
+    note.keyIndex = 60;
+    note.lyric = QStringLiteral("la");
+    note.language = QStringLiteral("eng");
+    Automation::ClipDraftDto draft;
+    draft.properties.length = 3840;
+    draft.properties.clipLen = 3840;
+    draft.defaultLanguage = note.language;
+    draft.notes = {note};
+    Automation::TrackDraftDto track;
+    track.name = QStringLiteral("Theme switch");
+    track.clips = {draft};
+    QVERIFY(runtime.project().insertTrack(command(), 0, track));
+    auto *clip = dynamic_cast<SingingClip *>(
+        *fixture.context->m_appModel->tracks().first()->clips().begin());
+    QVERIFY(clip);
+    appStatus->activeClipId = clip->id();
+    window.resize(1200, 900);
+    window.show();
+    window.activateWindow();
+    QVERIFY(window.setEditorPanelVisibility(true, true));
+    QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));
+    QTRY_VERIFY(window.isActiveWindow());
+    QTRY_VERIFY((!trackFrames.isEmpty() && !pianoFrames.isEmpty()) || !trackErrors.isEmpty() ||
+                !pianoErrors.isEmpty());
+    QVERIFY(trackErrors.isEmpty() && pianoErrors.isEmpty());
+    QVERIFY(window.setPianoRollScale(1, 1));
+    QVERIFY(window.centerPianoRollAt(1920, 60));
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    const auto model = fixture.context->m_appModel->serialize();
+    const auto darkPiano = piano->property("whiteKeyColor").value<QColor>();
+    const auto darkTracks = tracks->property("backgroundColor").value<QColor>();
+    const auto pianoFrame = pianoFrames.size();
+    const auto trackFrame = trackFrames.size();
+    QVERIFY2(themes->applyTheme(ThemeIds::lightThemeId()), qPrintable(ThemeLoader::lastError()));
+    QTRY_VERIFY(piano->property("whiteKeyColor").value<QColor>() != darkPiano &&
+                tracks->property("backgroundColor").value<QColor>() != darkTracks);
+    QTRY_VERIFY(pianoFrames.size() > pianoFrame && trackFrames.size() > trackFrame);
+    QVERIFY(piano->property("whiteKeyColor").value<QColor>().isValid() &&
+            tracks->property("backgroundColor").value<QColor>().isValid());
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(fixture.context->m_appModel->serialize(), model);
+    QCOMPARE(appStatus->activeClipId.get(), clip->id());
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY2(themes->applyTheme(ThemeIds::defaultThemeId()), qPrintable(ThemeLoader::lastError()));
+    QTRY_COMPARE(piano->property("whiteKeyColor").value<QColor>(), darkPiano);
+    QTRY_COMPARE(tracks->property("backgroundColor").value<QColor>(), darkTracks);
+
+    QVERIFY(editor->setEditMode(EditorViewGlobal::DrawNote));
+    QVERIFY(window.focusEditorRegion(EditorViewGlobal::Region::PianoRoll));
+    const QPoint position(
+        qRound((1440 - piano->startTick()) * piano->width() /
+               (piano->endTick() - piano->startTick())),
+        qRound(piano->height() / 2.0 +
+               (piano->centerKeyIndex() - 64) * ClipEditorGlobal::noteHeight * piano->scaleY()));
+    QVERIFY(piano->rect().contains(position));
+    QTest::mouseClick(piano, Qt::LeftButton, Qt::NoModifier, position);
+    QCOMPARE(clip->notes().count(), 2);
+    QVERIFY(runtime.history().undo(command()));
+    QCOMPARE(fixture.context->m_appModel->serialize(), model);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(trackErrors.isEmpty() && pianoErrors.isEmpty());
 }
 
 void NativeDesktopTests::rhiNoteDrawingCommitsAndUndoUpdatesInteraction() {
@@ -835,7 +950,7 @@ void NativeDesktopTests::rhiNoteSplittingSnapsAndUndoRestoresThePhrase() {
     QVERIFY(!historyManager->canUndo());
     const auto position = fixture.pointFor(730, 60);
     const auto previewFrame = fixture.submitted->size();
-    QTest::mouseMove(&canvas, position);
+    QTest::mouseMove(canvas.windowHandle(), position);
     fixture.frameAfter(previewFrame);
     if (QTest::currentTestFailed())
         return;
@@ -1165,6 +1280,46 @@ void NativeDesktopTests::rhiPianoMenuPasteAndVisibilityUseTheFullEditor() {
     QVERIFY(failed.isEmpty());
 
     QVERIFY(editor.centerAt(1920, 60));
+    Automation::CurveDraftDto anchors;
+    anchors.type = Automation::CurveDraftDto::Type::Anchor;
+    anchors.nodes = {
+        {480,  6000, AnchorNode::Hermite},
+        {960,  6100, AnchorNode::Hermite},
+        {1440, 6000, AnchorNode::None   }
+    };
+    QVERIFY(runtime.parameters().replaceParameter(command(), Automation::ClipId(clip->id()),
+                                                  ParamInfo::Pitch, Param::Edited, {anchors}));
+    auto *pitch = clip->params.getParamByName(ParamInfo::Pitch);
+    QVERIFY(pitch);
+    const auto anchorNodes = [&] {
+        return dynamic_cast<const AnchorCurve *>(pitch->curves(Param::Edited).first())
+            ->nodes()
+            .toList();
+    };
+    const auto beforeAnchorMenu = fixture.context->m_appModel->serialize();
+    editor.onEditModeChanged(ClipEditorGlobal::EditPitchAnchor);
+    runMenu(point(960, 61), PianoRollContextMenuController::tr("Linear"), false, true);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(anchorNodes().size(), 3);
+    QCOMPARE(anchorNodes().at(0)->interpMode(), AnchorNode::Hermite);
+    QCOMPARE(anchorNodes().at(1)->interpMode(), AnchorNode::Linear);
+    QCOMPARE(anchorNodes().at(2)->interpMode(), AnchorNode::None);
+    runMenu(point(960, 61), PianoRollContextMenuController::tr("&Delete"), false, true);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(anchorNodes().size(), 2);
+    QCOMPARE(anchorNodes().first()->pos(), 480);
+    QCOMPARE(anchorNodes().last()->pos(), 1440);
+    QVERIFY(runtime.history().undo(command()));
+    QCOMPARE(anchorNodes().size(), 3);
+    QCOMPARE(anchorNodes().at(1)->interpMode(), AnchorNode::Linear);
+    QVERIFY(runtime.history().undo(command()));
+    QCOMPARE(fixture.context->m_appModel->serialize(), beforeAnchorMenu);
+    QVERIFY(runtime.history().undo(command()));
+    QVERIFY(pitch->curves(Param::Edited).isEmpty());
+    QVERIFY(!historyManager->canUndo());
+
     editor.onEditModeChanged(ClipEditorGlobal::DrawNote);
     const auto beforeFallback = runtime.documentVersion();
     const auto sourceNote = clip->findNoteById(sourceId)->serialize();

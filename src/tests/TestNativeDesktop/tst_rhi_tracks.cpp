@@ -575,8 +575,9 @@ void NativeDesktopTests::rhiAudioClipTrimAndMovePreserveTimeAnchors() {
     QVector<float> samples(48000 * 2);
     for (int frame = 0; frame < 48000; ++frame) {
         const auto phase = 2.0 * std::numbers::pi * 440 * frame / 48000;
-        samples[frame * 2] = 0.2f * static_cast<float>(std::sin(phase));
-        samples[frame * 2 + 1] = 0.1f * static_cast<float>(std::cos(phase));
+        const auto amplitude = frame < 4800 || frame >= 43200 ? 0.0f : 1.0f;
+        samples[frame * 2] = amplitude * 0.2f * static_cast<float>(std::sin(phase));
+        samples[frame * 2 + 1] = amplitude * 0.1f * static_cast<float>(std::cos(phase));
     }
     QVERIFY(TestSupport::writeWave(path, samples, 2));
     QVERIFY2(fixture.initialize(path), qPrintable(fixture.application.error));
@@ -601,6 +602,28 @@ void NativeDesktopTests::rhiAudioClipTrimAndMovePreserveTimeAnchors() {
     QVERIFY2(backendError.isEmpty(), qPrintable(backendError));
     QTRY_VERIFY(canvas.isActiveWindow());
     historyManager->reset();
+    const auto modelBeforeZoom = fixture.application.context->m_appModel->serialize();
+    const auto versionBeforeZoom = fixture.runtime().documentVersion();
+    // The overview, individual peaks, and samples keep the same timeline hit target.
+    for (const double scale : {2.0, 16.0, 512.0}) {
+        const auto rendered = frames.size();
+        QVERIFY(canvas.setViewScale(scale, 1));
+        QVERIFY(canvas.centerAt(960, 0));
+        canvas.update();
+        QTRY_VERIFY(frames.size() > rendered || !backendError.isEmpty());
+        QVERIFY2(backendError.isEmpty(), qPrintable(backendError));
+        QVERIFY(canvas.startTick() < 960 && canvas.endTick() > 960);
+        appStatus->selectedClips = {};
+        QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, fixture.point(960, 0));
+        QCOMPARE(appStatus->selectedClips.get(), QList<int>{fixture.clipId});
+        QCOMPARE(fixture.application.context->m_appModel->serialize(), modelBeforeZoom);
+        QCOMPARE(fixture.runtime().documentVersion(), versionBeforeZoom);
+        QVERIFY(!historyManager->canUndo());
+    }
+    const auto restoredFrame = frames.size();
+    QVERIFY(canvas.setViewScale(2, 1));
+    QVERIFY(canvas.centerAt(1920, 0.5));
+    QTRY_VERIFY(frames.size() > restoredFrame);
     const auto before = fixture.runtime().documentVersion();
     const auto press = fixture.point(481, 0);
     const auto release = fixture.point(721, 0);
