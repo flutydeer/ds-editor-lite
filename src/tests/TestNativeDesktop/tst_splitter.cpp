@@ -1,11 +1,20 @@
 #include "tst_native_desktop.h"
+#include "../TestSupport/GuiAppFixture.h"
+#include "Automation/CoreRuntime.h"
+#include "UI/Window/MainWindow.h"
+#include "UI/Views/BottomPanelView.h"
+#include "UI/Views/Common/TabPanelTitleBar.h"
 
 #include <lite/GUI/Controls/OverlaySplitter.h>
+#include <lite/GUI/Controls/Button.h>
+#include <lite/History/HistoryManager.h>
+#include <lite/ProjectModel/AppModel/AppModel.h>
 
 #include <QtTest/QTest>
 #include <QMouseEvent>
 #include <QPointer>
 #include <QResizeEvent>
+#include <QScopeGuard>
 
 namespace {
     class ResizeProbe final : public QWidget {
@@ -64,6 +73,74 @@ void NativeDesktopTests::reparentAndDestructionKeepGripOwnership() {
     QCOMPARE(secondHost.findChild<SplitterOverlayGrip *>(), grip.data());
     delete splitter;
     QVERIFY(grip.isNull());
+}
+
+void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("Custom window frames require a native window backend");
+    const auto exerciseButtons = [](QWidget &host, QWidget *minimize, QWidget *maximize) {
+        QVERIFY(minimize && maximize);
+        QTest::mouseClick(maximize, Qt::LeftButton);
+        QTRY_VERIFY(host.isMaximized());
+        QTest::mouseClick(maximize, Qt::LeftButton);
+        QTRY_VERIFY(!host.isMaximized());
+        QTest::mouseClick(minimize, Qt::LeftButton);
+        QTRY_VERIFY(host.isMinimized());
+        host.showNormal();
+        host.activateWindow();
+        QTRY_VERIFY(!host.isMinimized() && host.isActiveWindow());
+    };
+    GuiDocumentFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
+    const auto nativeFrame = appOptions->appearance()->useNativeFrame;
+    const auto detachEnabled = appOptions->developer()->enablePanelDetach;
+    const auto restoreOptions = qScopeGuard([&] {
+        appOptions->appearance()->useNativeFrame = nativeFrame;
+        appOptions->developer()->enablePanelDetach = detachEnabled;
+    });
+    appOptions->appearance()->useNativeFrame = false;
+    appOptions->developer()->enablePanelDetach = true;
+    MainWindow window;
+    window.resize(1200, 800);
+    window.show();
+    window.activateWindow();
+    QTRY_VERIFY(window.isActiveWindow());
+    exerciseButtons(window, window.findChild<QWidget *>("MinimizeButton"),
+                    window.findChild<QWidget *>("MaximizeButton"));
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(window.showBottomPanelPage(QStringLiteral("MixConsole")));
+    auto *bottom = window.findChild<BottomPanelView *>();
+    QVERIFY(bottom);
+    auto *splitter = qobject_cast<QSplitter *>(bottom->parentWidget());
+    QVERIFY(splitter);
+    QCoreApplication::processEvents();
+    const auto reattach = qScopeGuard([&] {
+        if (bottom->isWindow())
+            bottom->close();
+    });
+    const auto before = fixture.context->m_coreRuntime->documentVersion();
+    const auto beforeModel = fixture.context->m_appModel->serialize();
+    const auto sizes = splitter->sizes();
+    auto *detach = bottom->titleBar()->findChild<Button *>("btnPanelDetach");
+    QVERIFY(detach && detach->isVisible());
+    QTest::mouseClick(detach, Qt::LeftButton);
+    QTRY_VERIFY(bottom->isWindow() && bottom->isVisible());
+    bottom->activateWindow();
+    QTRY_VERIFY(bottom->isActiveWindow());
+    auto *title = bottom->titleBar();
+    QVERIFY(title->maximizeButton() && title->minimizeButton() && title->closeButton());
+    exerciseButtons(*bottom, title->minimizeButton(), title->maximizeButton());
+    if (QTest::currentTestFailed())
+        return;
+    QTest::mouseClick(title->closeButton(), Qt::LeftButton);
+    QTRY_VERIFY(!bottom->isWindow() && bottom->isVisible());
+    QCOMPARE(bottom->parentWidget(), splitter);
+    QTRY_COMPARE(splitter->sizes(), sizes);
+    QCOMPARE(bottom->currentPageId(), QStringLiteral("MixConsole"));
+    QCOMPARE(fixture.context->m_coreRuntime->documentVersion(), before);
+    QCOMPARE(fixture.context->m_appModel->serialize(), beforeModel);
+    QVERIFY(!historyManager->canUndo());
 }
 
 void NativeDesktopTests::dragGrip_data() {

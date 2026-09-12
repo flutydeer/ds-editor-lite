@@ -18,6 +18,7 @@ private slots:
     void cleanupTestCase();
     void visibilityAndCollapsedPane();
     void reparentAndDestructionKeepGripOwnership();
+    void customWindowButtonsKeepTheDetachedPanelAndDocument();
     void dragGrip_data();
     void dragGrip();
     void effectiveDurationPolicy();
