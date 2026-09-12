@@ -66,6 +66,8 @@
 | 音频解码失败与删除取消 | workflow | 领域写回失败不能证明真实 worker 的取消及恢复接线 | 外部解码器打开失败不修改用户历史；源文件消失报告缺失；删除片段/轨道取消解码，撤销后重新获得波形 | AudioAssets::decodeBackendFailurePreservesTheDocumentAndAllowsReopen、removingAudioTargetsCancelsPendingDecode | 通用；文件删除按平台共享能力执行 |
 | 声学缓存写出失败 | workflow | 成功声库执行未进入缓存写出错误及重试路径 | 真实声学推理遇到不可写缓存路径后进入失败终态；恢复路径后再次请求成功，不修改音符或用户历史 | ApplicationWorkflows::acousticCacheWriteFailureCanBeRetried | 内置声库；CPU；临时目录 |
 | 模型输入拒绝、取消与同进程重试 | workflow | 正常模型执行未验证无效音素后的恢复，部分取消路径依赖偶发时序 | 四阶段拒绝不支持的音素，不写结果缓存；正常输入成功后，受控暂停缓存命中任务并取消，检查终态、原缓存保留和再次重试；全过程不修改原工程 | ApplicationWorkflows::inferenceFailureAndCancellationAllowRetry | 声库；CPU；独立缓存；受控 worker |
+| 参数能力与范围编辑的公开接线 | workflow/protocol | 参数算法和 GUI 手势未覆盖公开能力与变换参数的完整映射 | 从能力返回值选择可编辑范围，执行带过渡区的公开缩放；检查区间内、区间外、过渡区、revision 及 Undo 后完整模型恢复 | ApplicationWorkflows::publicParameterScalingUsesCapabilitiesAndPreservesOtherRanges | 通用；真实应用参数服务；无需模型或设备 |
+| 公开循环设置与音频回调 | workflow/protocol | 直接播放 Facade 测试未验证公开起止点和回读状态 | 既有受控音频回调场景经公开时间线查询及循环设置，检查循环终点、实际采样区间、跨块回绕和暂停状态一致 | ApplicationWorkflows::controlledPlaybackLoopsAndBuffers | 通用；回调由测试驱动；无需设备 |
 | 混合语言任务的结果对齐 | workflow | 单语言成功与快照门控不能验证部分语言失败 | 一批输入同时包含有效词、停顿、连音和缺失语言；结果保持输入次序，未解析声库保留歌词 | ApplicationWorkflows::languageTasksKeepMixedResultsAligned | 声库；CPU；无需播放设备 |
 | MIDI 发布与音频目标保护 | workflow | MIDI 覆盖写入未执行，旧用例的多个失败组合不便定位 | 数据行共用准备，验证创建/覆盖、发布授权、取消及并发目标保护；音频路径越界、目录缺失或占位拒绝后可修正执行 | ApplicationServices::preparedMidiPublication、audioExportRejectsUnsafeTargetsAndAllowsCorrection | 通用；临时文件；导出后端替身 |
 | 音素边界与发音候选菜单 | gui | 普通拖动未覆盖边界限制，发音区域缺少真实菜单操作 | 在同一乐句上验证相邻音素、下一音符和末尾限制及撤销；点击候选只修改目标音符 | ApplicationGui::phonemeBoundaryDragCommitsAndUndoRestoresOffsets、pronunciationMenuChangesOnlyTheClickedNote | offscreen；音素边界使用声库 |
