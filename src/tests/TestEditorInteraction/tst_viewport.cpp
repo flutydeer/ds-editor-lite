@@ -2,9 +2,140 @@
 
 #include "UI/Views/Common/EditorViewportAnimation.h"
 #include "UI/Views/Common/EditorViewportController.h"
+#include "UI/Views/Common/TimeGraphicsScene.h"
+#include "UI/Views/Common/TimeGraphicsView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollCoord.h"
 
 #include <QtTest/QTest>
+#include <QApplication>
+#include <QWheelEvent>
+#include <QSignalSpy>
+#include <QPointingDevice>
+
+#include <cmath>
+
+namespace {
+    void prepareTimeView(TimeGraphicsScene &scene, TimeGraphicsView &view, double scale = 1.0) {
+        scene.setSceneBaseSize(QSizeF(5000, 2500));
+        view.setEnsureSceneFillViewY(true);
+        view.setAnimationEnabled(false);
+        view.resize(900, 450);
+        view.show();
+        view.activateWindow();
+        QTRY_VERIFY(view.isVisible());
+        QVERIFY(view.setViewportScale(scale, scale));
+        view.setHorizontalBarValue(1000);
+        view.setVerticalBarValue(500);
+    }
+
+    void sendTimeViewWheel(TimeGraphicsView &view, QPoint position, int delta,
+                           Qt::KeyboardModifiers modifiers) {
+        QWheelEvent event(QPointF(position), QPointF(view.viewport()->mapToGlobal(position)), {},
+                          QPoint(0, delta), Qt::NoButton, modifiers, Qt::NoScrollPhase, false);
+        QApplication::sendEvent(view.viewport(), &event);
+        QVERIFY(event.isAccepted());
+    }
+}
+
+void EditorInteractionTests::legacyWheelZoomPreservesTheInputAnchor_data() {
+    QTest::addColumn<bool>("vertical");
+    QTest::newRow("time-axis") << false;
+    QTest::newRow("vertical-axis") << true;
+}
+
+void EditorInteractionTests::legacyWheelZoomPreservesTheInputAnchor() {
+    QFETCH(bool, vertical);
+    TimeGraphicsScene scene;
+    TimeGraphicsView view(&scene);
+    prepareTimeView(scene, view);
+    if (QTest::currentTestFailed())
+        return;
+    const QPoint position(view.viewport()->width() / 3, view.viewport()->height() / 3);
+    const auto scale = [&] { return vertical ? view.scaleY() : view.scaleX(); };
+    const auto modelAnchor = [&] {
+        const auto scenePosition = view.mapToScene(position);
+        return (vertical ? scenePosition.y() : scenePosition.x()) / scale();
+    };
+    const auto anchor = modelAnchor();
+    const auto modifiers = vertical ? Qt::AltModifier : Qt::ControlModifier;
+    QSignalSpy changed(&view, &TimeGraphicsView::scaleChanged);
+    sendTimeViewWheel(view, position, 120, modifiers);
+    QTRY_VERIFY(scale() > 1.0);
+    QVERIFY(!changed.isEmpty());
+    QVERIFY(std::abs(modelAnchor() - anchor) <= 1.0 / scale());
+    QCOMPARE(vertical ? view.scaleX() : view.scaleY(), 1.0);
+    const auto zoomed = scale();
+    sendTimeViewWheel(view, position, -120, modifiers);
+    QTRY_VERIFY(scale() < zoomed);
+    QVERIFY(std::abs(modelAnchor() - anchor) <= 1.0 / scale());
+
+    sendTimeViewWheel(view, position, -2400, modifiers);
+    QCoreApplication::processEvents();
+    if (vertical) {
+        QVERIFY(view.scaleY() >= view.scaleYMin());
+        QVERIFY(view.sceneRect().height() >= view.viewport()->height());
+    } else {
+        QVERIFY(view.sceneRect().width() >= view.viewport()->width());
+    }
+    const auto lowerBound = scale();
+    sendTimeViewWheel(view, position, -120, modifiers);
+    QCOMPARE(scale(), lowerBound);
+}
+
+void EditorInteractionTests::legacyViewportAnimationCanBeFinishedOrInterrupted_data() {
+    QTest::addColumn<double>("scale");
+    QTest::addColumn<bool>("pinch");
+    QTest::newRow("normal-scale-wheel") << 1.0 << false;
+    QTest::newRow("zoomed-pinch") << 2.0 << true;
+}
+
+void EditorInteractionTests::legacyViewportAnimationCanBeFinishedOrInterrupted() {
+    QFETCH(double, scale);
+    QFETCH(bool, pinch);
+    TimeGraphicsScene scene;
+    TimeGraphicsView view(&scene);
+    prepareTimeView(scene, view, scale);
+    if (QTest::currentTestFailed())
+        return;
+    view.setAnimationEnabled(true);
+    const QRectF target(3000 * scale, 1500 * scale, 200, 100);
+    const auto start = view.visibleRect();
+    QVERIFY(!start.contains(target));
+    view.ensureSceneRectVisible(target, 20, 20, true);
+    QVERIFY(view.logicalVisibleRect().contains(target));
+    QCOMPARE(view.visibleRect(), start);
+    const auto destination = view.logicalVisibleRect();
+    view.setAnimationEnabled(false);
+    QCOMPARE(view.visibleRect(), destination);
+    QCOMPARE(view.logicalVisibleRect(), destination);
+
+    view.setAnimationEnabled(true);
+    view.ensureSceneRectVisible(start.adjusted(20, 20, -20, -20), 0, 0, true);
+    QVERIFY(view.logicalVisibleRect() != view.visibleRect());
+    if (pinch) {
+        const QPointingDevice touchpad(
+            QStringLiteral("Test touchpad"), 1, QInputDevice::DeviceType::TouchPad,
+            QPointingDevice::PointerType::Finger, QInputDevice::Capability::Position, 2, 0);
+        const auto position = view.viewport()->rect().center();
+        const auto global = view.viewport()->mapToGlobal(position);
+        const auto local = view.mapFromGlobal(global);
+        const auto anchor = view.mapToScene(position).x() / view.scaleX();
+        QNativeGestureEvent gesture(Qt::ZoomNativeGesture, &touchpad, 2, local, local, global, 0.25,
+                                    {});
+        QVERIFY(QApplication::sendEvent(&view, &gesture));
+        QVERIFY(view.scaleX() > scale);
+        QVERIFY(std::abs(view.mapToScene(position).x() / view.scaleX() - anchor) <=
+                1.0 / view.scaleX());
+        QCOMPARE(view.visibleRect().top(), destination.top());
+    } else {
+        sendTimeViewWheel(view, view.viewport()->rect().center(), -120, Qt::NoModifier);
+        QVERIFY(view.visibleRect().top() > destination.top());
+    }
+    if (QTest::currentTestFailed())
+        return;
+    view.setAnimationEnabled(false);
+    QTRY_COMPARE(view.logicalVisibleRect(), view.visibleRect());
+}
 
 void EditorInteractionTests::viewportMargin() {
     EditorViewportController marginViewport;

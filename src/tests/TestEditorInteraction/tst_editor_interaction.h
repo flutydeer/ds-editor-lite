@@ -36,6 +36,10 @@ private slots:
     void focusReveal();
     void repeatedBoundaryScrollDoesNotNotify();
     void animatedAndImmediateViewportDestinations();
+    void legacyWheelZoomPreservesTheInputAnchor_data();
+    void legacyWheelZoomPreservesTheInputAnchor();
+    void legacyViewportAnimationCanBeFinishedOrInterrupted_data();
+    void legacyViewportAnimationCanBeFinishedOrInterrupted();
     void outsideHotZone();
     void edgeDirections();
     void speedSaturation();
