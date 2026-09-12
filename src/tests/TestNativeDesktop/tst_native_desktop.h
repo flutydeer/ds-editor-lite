@@ -40,6 +40,7 @@ private slots:
     void rhiContextMenuTargetsRespectPronunciationAndSelection();
     void rhiPianoMenuPasteAndVisibilityUseTheFullEditor();
     void rhiPitchModulationUsesTheInferredBaseline();
+    void rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor_data();
     void rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor();
     void rhiClipDragCommitsAcrossTracksAndUndoRestoresView();
     void rhiClipDragScrollsAtTheEdgeAndStopsOnCancel();
