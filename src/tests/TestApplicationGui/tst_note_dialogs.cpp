@@ -603,14 +603,7 @@ void ApplicationGuiTests::phonemeBoundaryDragCommitsAndUndoRestoresOffsets() {
     if (QTest::currentTestFailed())
         return;
     const auto notes = singingClip->notes().toList();
-    QVERIFY(notes.size() >= 2);
-    auto *note = notes.at(1);
-    const auto names = note->phonemeNameSeq();
-    const auto offsets = note->phonemeOffsetSeq();
-    QVERIFY(offsets.result().size() >= 2);
-    QCOMPARE(offsets.result().size(), names.result().size());
-    QVERIFY(!offsets.isEdited());
-    const auto originalOffsets = offsets.result();
+    QCOMPARE(notes.size(), 3);
     PhonemeView phonemes;
     phonemes.resize(960, 100);
     phonemes.setDataContext(singingClip);
@@ -619,44 +612,77 @@ void ApplicationGuiTests::phonemeBoundaryDragCommitsAndUndoRestoresOffsets() {
     phonemes.show();
     phonemes.activateWindow();
     QTRY_VERIFY(phonemes.isVisible());
-    const auto noteStartMs = context->m_appModel->tickToMs(note->globalStart());
-    const auto startTick =
-        qRound(context->m_appModel->msToTick(noteStartMs + originalOffsets.last()));
-    const auto press = QPoint(qRound(startTick * phonemes.width() / 1920.0), 50);
-    const auto release = press + QPoint(30, 0);
-    QVERIFY(phonemes.rect().contains(press));
-    QVERIFY(phonemes.rect().contains(release));
-    historyManager->reset();
     auto &runtime = *context->m_coreRuntime;
-    const auto before = runtime.documentVersion();
-    const auto releaseOnFailure = qScopeGuard([&] {
-        if (editSessionManager->hasActiveTransaction())
-            QTest::mouseRelease(&phonemes, Qt::LeftButton, Qt::NoModifier, press);
-    });
-    QTest::mousePress(&phonemes, Qt::LeftButton, Qt::NoModifier, press);
-    QVERIFY(editSessionManager->hasActiveTransaction());
-    QCOMPARE(appStatus->currentEditObject.get(), AppStatus::EditObjectType::Phoneme);
-    QMouseEvent move(QEvent::MouseMove, QPointF(release), QPointF(phonemes.mapToGlobal(release)),
-                     Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
-    QApplication::sendEvent(&phonemes, &move);
-    QCOMPARE(note->phonemeOffsetSeq().result(), originalOffsets);
-    QCOMPARE(runtime.documentVersion(), before);
-    QVERIFY(!historyManager->canUndo());
-    QTest::mouseRelease(&phonemes, Qt::LeftButton, Qt::NoModifier, release);
-    QVERIFY(!editSessionManager->hasActiveTransaction());
-    QCOMPARE(appStatus->currentEditObject.get(), AppStatus::EditObjectType::None);
-    const auto changedOffsets = note->phonemeOffsetSeq().edited;
-    QCOMPARE(changedOffsets.size(), originalOffsets.size());
-    QVERIFY(changedOffsets.last() > originalOffsets.last());
-    QCOMPARE(changedOffsets.first(), originalOffsets.first());
-    QCOMPARE(note->phonemeNameSeq().result(), names.result());
-    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
-    QVERIFY(runtime.history().undo(commandContext()));
-    QVERIFY(!note->phonemeOffsetSeq().isEdited());
-    QCOMPARE(note->phonemeOffsetSeq().result(), originalOffsets);
-    QVERIFY(!historyManager->canUndo());
-    QVERIFY(runtime.history().redo(commandContext()));
-    QCOMPARE(note->phonemeOffsetSeq().edited, changedOffsets);
+    const auto phonemeTick = [&](const Note *note, const qsizetype index) {
+        return qRound(appModel->msToTick(appModel->tickToMs(note->globalStart()) +
+                                         note->phonemeOffsetSeq().result().at(index)));
+    };
+    const auto dragAndUndo = [&](Note *note, const qsizetype index, const int requestedTick,
+                                 const int expectedTick) {
+        const auto original = note->phonemeOffsetSeq();
+        const auto names = note->phonemeNameSeq().result();
+        QVERIFY(!original.isEdited());
+        const auto press = QPoint(qRound(phonemeTick(note, index) * phonemes.width() / 1920.0), 50);
+        const auto release = QPoint(qRound(requestedTick * phonemes.width() / 1920.0), 50);
+        QVERIFY(phonemes.rect().contains(press));
+        QVERIFY(phonemes.rect().contains(release));
+        const auto before = runtime.documentVersion();
+        const auto releaseOnFailure = qScopeGuard([&] {
+            if (editSessionManager->hasActiveTransaction())
+                QTest::mouseRelease(&phonemes, Qt::LeftButton, Qt::NoModifier, press);
+        });
+        QTest::mousePress(&phonemes, Qt::LeftButton, Qt::NoModifier, press);
+        QVERIFY(editSessionManager->hasActiveTransaction());
+        QCOMPARE(appStatus->currentEditObject.get(), AppStatus::EditObjectType::Phoneme);
+        QMouseEvent move(QEvent::MouseMove, QPointF(release),
+                         QPointF(phonemes.mapToGlobal(release)), Qt::NoButton, Qt::LeftButton,
+                         Qt::NoModifier);
+        QApplication::sendEvent(&phonemes, &move);
+        QCOMPARE(note->phonemeOffsetSeq().result(), original.result());
+        QCOMPARE(runtime.documentVersion(), before);
+        QVERIFY(!historyManager->canUndo());
+        QTest::mouseRelease(&phonemes, Qt::LeftButton, Qt::NoModifier, release);
+        QVERIFY(!editSessionManager->hasActiveTransaction());
+        QCOMPARE(appStatus->currentEditObject.get(), AppStatus::EditObjectType::None);
+        const auto changed = note->phonemeOffsetSeq().edited;
+        QCOMPARE(changed.size(), original.result().size());
+        QVERIFY(qAbs(phonemeTick(note, index) - expectedTick) <= 2);
+        for (qsizetype phone = 0; phone < changed.size(); ++phone) {
+            if (phone != index)
+                QCOMPARE(changed.at(phone), original.result().at(phone));
+        }
+        QCOMPARE(note->phonemeNameSeq().result(), names);
+        QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+        QVERIFY(runtime.history().undo(commandContext()));
+        QTRY_VERIFY(taskManager->tasks().isEmpty());
+        QCOMPARE(note->phonemeOffsetSeq().result(), original.result());
+        QVERIFY(!note->phonemeOffsetSeq().isEdited());
+        QVERIFY(!historyManager->canUndo());
+        QVERIFY(runtime.history().redo(commandContext()));
+        QCOMPARE(note->phonemeOffsetSeq().edited, changed);
+        QVERIFY(runtime.history().undo(commandContext()));
+        QTRY_VERIFY(taskManager->tasks().isEmpty());
+    };
+    auto *middle = notes.at(1);
+    auto *last = notes.last();
+    QVERIFY(middle->phonemeOffsetSeq().result().size() >= 2);
+    QVERIFY(last->phonemeOffsetSeq().result().size() >= 2);
+    const auto vowel = middle->phonemeOffsetSeq().result().size() - 1;
+    const auto start = phonemeTick(middle, vowel);
+    dragAndUndo(middle, vowel, start + 60, start + 60);
+    if (QTest::currentTestFailed())
+        return;
+    const auto leftBoundary = phonemeTick(middle, vowel - 1);
+    dragAndUndo(middle, vowel, qMax(0, leftBoundary - 120), leftBoundary);
+    if (QTest::currentTestFailed())
+        return;
+    const auto middleEnd = middle->globalStart() + middle->length();
+    const auto rightBoundary = qMin(phonemeTick(last, 0), middleEnd);
+    dragAndUndo(middle, vowel, middleEnd + 120, rightBoundary);
+    if (QTest::currentTestFailed())
+        return;
+    const auto lastEnd = last->globalStart() + last->length();
+    dragAndUndo(last, last->phonemeOffsetSeq().result().size() - 1, lastEnd + 120, lastEnd);
 }
 
 void ApplicationGuiTests::phonemeWaveformsLoadAndDiscardResultsAfterChangingClips() {

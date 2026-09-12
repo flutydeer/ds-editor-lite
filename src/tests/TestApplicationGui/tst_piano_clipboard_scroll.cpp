@@ -245,6 +245,74 @@ void ApplicationGuiTests::pianoContextMenuPastePreservesRelativeNotesAndManualWo
     QVERIFY(!historyManager->canUndo());
 }
 
+void ApplicationGuiTests::pronunciationMenuChangesOnlyTheClickedNote() {
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    Automation::NoteDraftDto first;
+    first.localStart = 480;
+    first.length = 480;
+    first.keyIndex = 60;
+    first.lyric = QStringLiteral("word");
+    first.language = QStringLiteral("eng");
+    first.pronunciation.edited = QStringLiteral("w er d");
+    first.pronunciationCandidates = {QStringLiteral("w er d"), QStringLiteral("w ao d")};
+    auto second = first;
+    second.localStart = 1200;
+    QVERIFY(runtime.notes().insertNotes(commandContext(), Automation::ClipId(singingClip->id()),
+                                        {first, second}));
+    const auto notes = singingClip->notes().toList();
+    QCOMPARE(notes.size(), 2);
+    const auto untouched = notes.last()->serialize();
+    view->hide();
+    PianoRollView piano;
+    piano.setDataContext(singingClip);
+    const auto detach = qScopeGuard([&] { piano.setDataContext(nullptr); });
+    piano.resize(1000, 600);
+    piano.show();
+    piano.activateWindow();
+    QVERIFY(piano.setViewScale(1.0, 1.0));
+    QVERIFY(piano.centerAt(1920, 60));
+    auto *canvas = piano.findChild<PianoRollGraphicsView *>();
+    QVERIFY(canvas);
+    QTRY_VERIFY(canvas->isVisible());
+    const PronunciationView *pronunciation = nullptr;
+    for (auto *item : canvas->scene()->items()) {
+        const auto *candidate = dynamic_cast<PronunciationView *>(item);
+        if (candidate && candidate->id() == notes.first()->id())
+            pronunciation = candidate;
+    }
+    QVERIFY(pronunciation);
+    QVERIFY(pronunciation->isVisible());
+    const auto position = canvas->mapFromScene(pronunciation->sceneBoundingRect().center());
+    QVERIFY(canvas->viewport()->rect().contains(position));
+    appStatus->selectedNotes = QList<int>{notes.last()->id()};
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    withPianoMenu(piano, *canvas, position, [&](QMenu &menu) {
+        QCOMPARE(canvas->selectedNotesId(), QList<int>{notes.first()->id()});
+        auto *current = actionNamed(menu, first.pronunciation.edited);
+        auto *alternative = actionNamed(menu, first.pronunciationCandidates.last());
+        QVERIFY(current);
+        QVERIFY(alternative);
+        QVERIFY(current->isChecked());
+        QVERIFY(!alternative->isChecked());
+        QTest::mouseClick(&menu, Qt::LeftButton, Qt::NoModifier,
+                          menu.actionGeometry(alternative).center());
+    });
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(notes.first()->pronunciation().edited, first.pronunciationCandidates.last());
+    QCOMPARE(notes.first()->lyric(), first.lyric);
+    QCOMPARE(notes.last()->serialize(), untouched);
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(notes.first()->pronunciation().edited, first.pronunciation.edited);
+    QCOMPARE(notes.last()->serialize(), untouched);
+    QVERIFY(!historyManager->canUndo());
+}
+
 void ApplicationGuiTests::pianoNoteDragContinuesDuringEdgeScrollingAndStopsOnFinish() {
     createPianoRoll();
     if (QTest::currentTestFailed())

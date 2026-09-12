@@ -10,6 +10,7 @@
 #include <cmath>
 #include <limits>
 #include <numeric>
+#include <utility>
 
 namespace {
     constexpr int kTapButtonHeight = 48;
@@ -19,7 +20,11 @@ namespace {
     constexpr double kStableBpmHysteresis = 0.75;
 }
 
-TempoEditWidget::TempoEditWidget(QWidget *parent) : QWidget(parent) {
+TempoEditWidget::TempoEditWidget(QWidget *parent, std::function<qint64()> nowMs)
+    : QWidget(parent), m_nowMs(std::move(nowMs)) {
+    m_clock.start();
+    if (!m_nowMs)
+        m_nowMs = [this] { return m_clock.elapsed(); };
     m_spinTempo = new SVS::ExpressionDoubleSpinBox;
     m_spinTempo->setObjectName("spinTempo");
     m_spinTempo->setDecimals(3);
@@ -66,14 +71,15 @@ void TempoEditWidget::resetTapTempo() {
 void TempoEditWidget::changeEvent(QEvent *event) {
     QWidget::changeEvent(event);
     if (event->type() == QEvent::LanguageChange)
-        m_btnTapTempo->setText(m_tapTimer.isValid() ? tr("Keep Tapping") : tr("Tap Tempo"));
+        m_btnTapTempo->setText(m_lastTapMs.has_value() ? tr("Keep Tapping") : tr("Tap Tempo"));
 }
 
 void TempoEditWidget::recordTap() {
-    if (!m_tapTimer.isValid()) {
+    const auto now = m_nowMs();
+    if (!m_lastTapMs) {
         m_tapIntervals.clear();
         m_hasDisplayedTapBpm = false;
-        m_tapTimer.start();
+        m_lastTapMs = now;
         m_btnTapTempo->setProgress(0.0);
         m_btnTapTempo->setStable(false);
         m_btnTapTempo->setText(tr("Keep Tapping"));
@@ -81,7 +87,8 @@ void TempoEditWidget::recordTap() {
         return;
     }
 
-    const qint64 interval = m_tapTimer.restart();
+    const qint64 interval = now - *m_lastTapMs;
+    m_lastTapMs = now;
     if (interval >= kTapResetTimeoutMs) {
         m_tapIntervals.clear();
         m_hasDisplayedTapBpm = false;
@@ -119,6 +126,6 @@ void TempoEditWidget::recordTap() {
 
 void TempoEditWidget::expireTapTempo() {
     m_tapResetTimer.stop();
-    m_tapTimer.invalidate();
+    m_lastTapMs.reset();
     m_tapIntervals.clear();
 }

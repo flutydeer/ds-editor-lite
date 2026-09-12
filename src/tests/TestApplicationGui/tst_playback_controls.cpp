@@ -16,7 +16,6 @@
 #include <lite/MusicBase/Tempo.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 
-#include <QElapsedTimer>
 #include <QApplication>
 #include <QClipboard>
 #include <QLineEdit>
@@ -164,7 +163,8 @@ void ApplicationGuiTests::playbackPopupsEditTheMarkerChosenWhenTheyOpen() {
 }
 
 void ApplicationGuiTests::tapTempoMeasuresASequenceAndResetsAfterInactivity() {
-    TempoEditWidget editor;
+    qint64 nowMs = 0;
+    TempoEditWidget editor(nullptr, [&] { return nowMs; });
     editor.setTempo(120);
     editor.show();
     editor.activateWindow();
@@ -175,29 +175,31 @@ void ApplicationGuiTests::tapTempoMeasuresASequenceAndResetsAfterInactivity() {
     QTest::mouseClick(tap, Qt::LeftButton);
     QCOMPARE(tap->text(), TempoEditWidget::tr("Keep Tapping"));
     QVERIFY(!tap->isStable());
-    QElapsedTimer elapsed;
-    elapsed.start();
     for (int i = 0; i < 16; ++i) {
-        QTest::qWait(40);
+        nowMs += 500;
         QTest::mouseClick(tap, Qt::LeftButton);
     }
-    const double measuredFromEvents = 60000.0 * 16 / elapsed.elapsed();
     QVERIFY(tap->isStable());
     QCOMPARE(tap->progress(), 1.0);
     QVERIFY(tap->text().endsWith(QStringLiteral(" BPM")));
-    bool ok = false;
-    const auto displayed = QLocale().toDouble(tap->text().chopped(4), &ok);
-    QVERIFY(ok);
-    QVERIFY(qAbs(displayed - measuredFromEvents) < measuredFromEvents * 0.1 + 1);
+    QCOMPARE(tap->text(), QStringLiteral("%L1 BPM").arg(120));
+    QTest::mouseClick(tap, Qt::LeftButton);
+    QCOMPARE(tap->text(), QStringLiteral("%L1 BPM").arg(120));
+    for (int i = 0; i < 32; ++i) {
+        nowMs += 250;
+        QTest::mouseClick(tap, Qt::LeftButton);
+    }
+    QCOMPARE(tap->text(), QStringLiteral("%L1 BPM").arg(240));
+    QVERIFY(tap->isStable());
     QCOMPARE(editor.tempo(), 120.0);
     QVERIFY(changed.isEmpty());
 
-    QTest::qWait(3100);
+    nowMs += 3100;
     QTest::mouseClick(tap, Qt::LeftButton);
     QCOMPARE(tap->text(), TempoEditWidget::tr("Keep Tapping"));
     QVERIFY(!tap->isStable());
     QCOMPARE(tap->progress(), 0.0);
-    QTest::qWait(40);
+    nowMs += 500;
     QTest::mouseClick(tap, Qt::LeftButton);
     QVERIFY(tap->progress() > 0);
     QVERIFY(!tap->isStable());
