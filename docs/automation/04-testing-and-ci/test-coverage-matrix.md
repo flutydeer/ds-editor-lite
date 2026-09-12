@@ -136,7 +136,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 
 | 功能域 / 关键行为 | 类别 | 原有缺口与本期处置 | 测试引用 | 运行条件 |
 |---|---|---|---|---|
-| 批量锚点、曲线合并、动态声线关键帧 | domain | 单点与整体替换不能覆盖批量命令；补插入、移动、删除、插值/权重及一次撤销，冲突失败不落半成品 | ProjectEditing::batchAnchorsCommitAndUndoTogether、adjacentAnchorCurvesMergeWithoutLosingNodes、dynamicSpeakerKeyframesEditAndUndo | 通用 |
+| 批量锚点、曲线合并、动态声线关键帧 | domain | 单点与整体替换不能覆盖批量命令；补插入、移动、删除、插值/权重及一次撤销。插入重试返回同一结果，复用请求身份改变插值时拒绝，模型、版本及历史不变；冲突失败不落半成品 | ProjectEditing::batchAnchorsCommitAndUndoTogether、adjacentAnchorCurvesMergeWithoutLosingNodes、dynamicSpeakerKeyframesEditAndUndo | 通用 |
 | 批量轨道顺序、片段裁边、音符搜索与切分 | domain | 补正常编辑结果、原音符保持、无匹配及撤销；搜索用少量有语义的数据行 | ProjectEditing::batchTrackOrderAndClipTrimming、noteSearch、splitAtPreservesPhraseAndUndo | 通用 |
 | LRC 与填词分行 | unit | 补秒/小数时间、重复标签、元数据、定位、重新加载和分隔模式；修复时间换算与失败残留状态 | Lyrics::lrcTimestamps、lrcMetadataRepeatedLinesAndSeeking、lrcFailedReloadClearsPreviousDocument、lyricSplittingModesPreserveLines | 通用 |
 | DSPX 声线及音素往返 | workflow | 扩展已有完整乐句场景，验证轨道固定混合、片段动态混合/旁路/预设来源，以及原始与编辑音素/偏移；包不可用时保留内容，已解析声库减少来源时保留剩余比例 | DocumentIO::dspxRoundTripPreservesEditedPhrase | 通用 |
@@ -184,7 +184,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | RHI 轨道与完整编辑器接线 | gui/workflow | 完整 TrackEditorView 使用 Null RHI 画布，菜单粘贴预览/取消/提交、框选、焦点定位、双击新建和文件拖入现有/追加轨道均经实际 Qt 事件验证，并检查轨道控件及撤销 | NativeDesktop::rhiTrackMenuPasteAndSelectionUseTheFullEditor、rhiTrackFileDropImportsAtTheChosenSlot | 原生窗口；生成小 WAV；无需播放设备 |
 | 保存决策期间的音频完成回写 | workflow | 用受控调度暂停真实解码任务，在生产文档状态机等待保存决策时释放；完成结果保持托管且不写入忙文档，取消新建后应用波形，放弃原工程后丢弃旧结果，保留对应历史边界 | AudioAssets::decodeCompletionWaitsForTheSaveDecision | 通用；小 WAV；仅保存提示回答使用替身 |
 | RHI 钢琴窗的完整编辑与选区 | gui | 完整 PianoRollView 的菜单粘贴保留手动读音，悬停预览及取消不改文档；锚点菜单插值和删除可逐步撤销。音域定位、焦点恢复、隐藏/显示同步视口状态。框选、区间选择与成组拖动检查批量提交和取消；调制拖动两端选区边界和倍率手柄，分别检查核心区、过渡区及范围外样本 | NativeDesktop::rhiPianoMenuPasteAndVisibilityUseTheFullEditor、rhiMultiNoteSelectionAndMoveCommitAtomically、rhiPitchModulationUsesTheInferredBaseline | 原生窗口；Null RHI；调制默认内置声库 |
-| RHI 主窗口主题切换 | gui | 两个编辑器随明暗主题更新颜色并提交帧，文档和历史不变；切换后继续通过真实输入绘制音符及撤销 | NativeDesktop::rhiThemeSwitchPreservesBothEditorsAndTheirDocument | 原生窗口和应用图形后端；不设像素基线 |
+| RHI 主窗口主题切换与片段导航 | gui | 两个编辑器随明暗主题更新颜色并提交帧，文档和历史不变；隐藏编辑区后双击片段恢复页面、活动片段及点击位置，再通过真实输入绘制音符及撤销 | NativeDesktop::rhiThemeSwitchPreservesBothEditorsAndTheirDocument | 原生窗口和应用图形后端；不设像素基线 |
 | RHI 视口的滚轮和外部拖入滚动 | gui | 完整钢琴窗的时间轴、键盘与画布转发滚轮到正确轴；轨道文件拖入边缘后持续滚动，离开即停止，保留文档与历史 | NativeDesktop::rhiPianoWheelInputsReachTheActiveViewport、rhiFileDropScrollsUntilTheDragLeaves | 原生窗口；Qt Null 后端；生成小 WAV |
 | DSPX 音素互操作与 MIDI 导出 | workflow | 外部标准音素修改/清除优先于旧私有快照，兼容旧 workspace 音素；实际 MIDI 文件保留跨片段及裁剪后的音符时间、音高和 Unicode 文本，按选项保留或省略歌词、速度和拍号，源模型不变 | DocumentIO::dspxPhonemeInterchangeRespectsExternalChanges、midiExportPreservesProjectTimingAndOptionalMetadata | 通用；小型临时文件 |
 | 初始化期间关闭与任务回收 | workflow/native | 立即销毁引擎不能丢失已完成初始化任务的清理；普通用例复用进程级应用、重建文档并等待任务完成，G2P 不进入销毁后的降级状态 | NativeDesktop::audioDriverStartupCanBeCanceled；GuiAppFixture、GuiDocumentFixture | GUI 运行时；驱动子场景按后端条件执行 |

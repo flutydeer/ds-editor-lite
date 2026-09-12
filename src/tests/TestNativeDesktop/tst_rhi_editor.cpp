@@ -7,6 +7,7 @@
 #include "Bootstrap/AppEnvironment.h"
 #include "Controller/ClipController.h"
 #include "Controller/TrackController.h"
+#include "Global/TracksEditorGlobal.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Audio/AudioSystem.h"
@@ -297,6 +298,38 @@ void NativeDesktopTests::rhiThemeSwitchPreservesBothEditorsAndTheirDocument() {
     verifyTimelines();
     if (QTest::currentTestFailed())
         return;
+
+    QVERIFY(window.setTrackPanelScale(2, 1));
+    QVERIFY(window.centerTrackPanelAt(1920, 0));
+    QVERIFY(window.setPianoRollScale(3, 1));
+    QVERIFY(window.centerPianoRollAt(10000, 30));
+    trackController->setActiveClip(-1);
+    QCOMPARE(appStatus->activeClipId.get(), -1);
+    QVERIFY(window.setEditorPanelVisibility(true, false));
+    QCoreApplication::processEvents();
+    const QPoint openPosition(qRound((2880 - tracks->startTick()) * tracks->width() /
+                                     (tracks->endTick() - tracks->startTick())),
+                              qRound(0.6 * TracksEditorGlobal::trackHeight * tracks->scaleY() -
+                                     tracks->logicalVisibleRect().top()));
+    QVERIFY(tracks->rect().contains(openPosition));
+    const auto clickedTick = tracks->startTick() + openPosition.x() *
+                                                       (tracks->endTick() - tracks->startTick()) /
+                                                       tracks->width();
+    const auto beforeOpenFrame = pianoFrames.size();
+    QTest::mouseClick(tracks, Qt::LeftButton, Qt::NoModifier, openPosition);
+    QTest::mouseDClick(tracks, Qt::LeftButton, Qt::NoModifier, openPosition);
+    QTest::mouseRelease(tracks, Qt::LeftButton, Qt::NoModifier, openPosition);
+    QTRY_VERIFY(editor->isVisible() && piano->isVisible());
+    QTRY_VERIFY(pianoFrames.size() > beforeOpenFrame);
+    QCOMPARE(appStatus->activeClipId.get(), clip->id());
+    const auto opened = window.captureEditorViewState();
+    QVERIFY(opened.layout.bottomPanelVisible);
+    QCOMPARE(opened.layout.bottomPanelPageId, QStringLiteral("ClipEditor"));
+    QTRY_VERIFY(qAbs(window.captureEditorViewState().pianoRoll.centerTick - clickedTick) < 1.0);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(fixture.context->m_appModel->serialize(), model);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(window.setPianoRollScale(1, 1));
 
     QVERIFY(editor->setEditMode(EditorViewGlobal::DrawNote));
     QVERIFY(editor->setRegionVisibility(true, false));

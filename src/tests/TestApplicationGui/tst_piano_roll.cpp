@@ -94,14 +94,17 @@ void ApplicationGuiTests::createPianoRoll() {
 void ApplicationGuiTests::selectionToolsDeleteOnlyTheChosenTimeAndKeyRange_data() {
     QTest::addColumn<bool>("backward");
     QTest::addColumn<bool>("rectangle");
-    QTest::newRow("interval-forward") << false << false;
-    QTest::newRow("interval-backward") << true << false;
-    QTest::newRow("rectangle") << false << true;
+    QTest::addColumn<bool>("compact");
+    QTest::newRow("interval-forward") << false << false << false;
+    QTest::newRow("interval-backward") << true << false << false;
+    QTest::newRow("rectangle") << false << true << false;
+    QTest::newRow("compact-rectangle") << false << true << true;
 }
 
 void ApplicationGuiTests::selectionToolsDeleteOnlyTheChosenTimeAndKeyRange() {
     QFETCH(bool, backward);
     QFETCH(bool, rectangle);
+    QFETCH(bool, compact);
     MainWindow window;
     window.resize(1200, 800);
     window.show();
@@ -134,7 +137,7 @@ void ApplicationGuiTests::selectionToolsDeleteOnlyTheChosenTimeAndKeyRange() {
     window.activateWindow();
     QTRY_VERIFY(window.isActiveWindow());
     QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));
-    QVERIFY(window.setPianoRollScale(1.0, 1.0));
+    QVERIFY(window.setPianoRollScale(compact ? 0.2 : 1.0, 1.0));
     QVERIFY(window.centerPianoRollAt(1920, rectangle ? 61 : 66));
     auto *canvas = window.findChild<PianoRollGraphicsView *>();
     auto *toolbar = window.findChild<ClipEditorToolBarView *>();
@@ -174,6 +177,14 @@ void ApplicationGuiTests::selectionToolsDeleteOnlyTheChosenTimeAndKeyRange() {
     const auto expectedSelection =
         rectangle ? QSet<int>{notes.at(0)->id()} : QSet<int>{notes.at(0)->id(), notes.at(1)->id()};
     QCOMPARE(QSet<int>(selected.cbegin(), selected.cend()), expectedSelection);
+    if (compact) {
+        const auto position = pointAt(600, 60);
+        QVERIFY(canvas->viewport()->rect().contains(position));
+        QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, pointAt(1800, 60));
+        QVERIFY(canvas->selectedNotesId().isEmpty());
+        QTest::mouseClick(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, position);
+        QCOMPARE(canvas->selectedNotesId(), QList<int>{notes.first()->id()});
+    }
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(window.focusEditorRegion(EditorViewGlobal::Region::PianoRoll));

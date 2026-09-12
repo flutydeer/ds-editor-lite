@@ -494,12 +494,15 @@ void ProjectEditingTests::batchAnchorsCommitAndUndoTogether() {
     const auto curve = initial.id;
     testRuntime.history()->reset();
     const auto before = runtime.documentVersion();
-    QVERIFY(parameters.insertAnchors(
-        commandContext(runtime), clip, ParamInfo::Pitch, Param::Edited, curve,
-        {
-            {720, 6300, AnchorNode::Hermite},
-            {240, 6100, AnchorNode::Linear }
-    }));
+    auto request = commandContext(runtime);
+    request.idempotencyKey = QStringLiteral("insert-pitch-anchors");
+    const QList<Automation::AnchorInsertDto> anchors{
+        {720, 6300, AnchorNode::Hermite},
+        {240, 6100, AnchorNode::Linear },
+    };
+    const auto insertion =
+        parameters.insertAnchors(request, clip, ParamInfo::Pitch, Param::Edited, curve, anchors);
+    QVERIFY(insertion);
     QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
     auto nodes = snapshot().nodes;
     QCOMPARE(nodes.size(), 4);
@@ -507,6 +510,21 @@ void ProjectEditingTests::batchAnchorsCommitAndUndoTogether() {
     QCOMPARE(nodes.at(2).position, 720);
     const auto first = nodes.at(1).id;
     const auto second = nodes.at(2).id;
+    const auto afterInsertion = runtime.documentVersion();
+    const auto insertedModel = testRuntime.model().serialize();
+    const auto *undo = testRuntime.history()->nextUndoEntry();
+    const auto retry =
+        parameters.insertAnchors(request, clip, ParamInfo::Pitch, Param::Edited, curve, anchors);
+    QVERIFY(retry);
+    QCOMPARE(retry.get(), insertion.get());
+    auto different = anchors;
+    different.last().interpolation = AnchorNode::Hermite;
+    const auto conflict =
+        parameters.insertAnchors(request, clip, ParamInfo::Pitch, Param::Edited, curve, different);
+    QVERIFY(isError(conflict, AutomationErrorCode::IdempotencyConflict));
+    QCOMPARE(runtime.documentVersion(), afterInsertion);
+    QCOMPARE(testRuntime.model().serialize(), insertedModel);
+    QCOMPARE(testRuntime.history()->nextUndoEntry(), undo);
     QVERIFY(runtime.history().undo(commandContext(runtime)));
     QCOMPARE(snapshot().nodes.size(), 2);
     QVERIFY(runtime.history().redo(commandContext(runtime)));
