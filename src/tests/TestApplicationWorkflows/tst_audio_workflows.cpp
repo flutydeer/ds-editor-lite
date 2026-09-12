@@ -479,6 +479,24 @@ void ApplicationWorkflowTests::controlledPlaybackLoopsAndBuffers() {
     document.tracks = {audioTrack(QStringLiteral("Playback"), path)};
     QVERIFY(runtime().documents().commitNewDocument(commandContext(), document));
     QVERIFY(runtime().timeline().setTempo(commandContext(), 0, 120));
+    Automation::AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
+    Automation::AutomationFileGuard fileGuard;
+    Automation::AdmissionController admission;
+    Automation::PublicAutomationRegistry registry(runtime(), access, fileGuard, admission);
+    const auto version = runtime().documentVersion();
+    const QJsonObject query{
+        {"document_id", version.documentId.toString()}
+    };
+    const auto timeline = registry.invoke(QStringLiteral("timeline.get"), query);
+    QVERIFY2(timeline, qPrintable(timeline ? QString{} : timeline.getError().message));
+    const auto tempos = timeline.get()
+                            .value(QStringLiteral("snapshot"))
+                            .toObject()
+                            .value(QStringLiteral("tempos"))
+                            .toArray();
+    QVERIFY(!tempos.isEmpty());
+    QCOMPARE(tempos.first().toObject().value(QStringLiteral("tick")).toInt(), 0);
+    QCOMPARE(tempos.first().toObject().value(QStringLiteral("tempo")).toDouble(), 120.0);
     auto *audio = AudioContext::instance();
     auto *transport = audio->transport();
     const auto readAheadSize = audio->bufferingReadAheadSize();
@@ -496,7 +514,23 @@ void ApplicationWorkflowTests::controlledPlaybackLoopsAndBuffers() {
         audio->setBufferingReadAheadSize(readAheadSize);
         playbackController->setPlaybackStartGuard([] { return false; });
     });
-    QVERIFY(runtime().playback().setLoop(commandContext(), LoopSettings(true, 480, 240)));
+    const auto loop =
+        registry.invoke(QStringLiteral("playback.set_loop"),
+                        {
+                            {"document_id",       version.documentId.toString()        },
+                            {"expected_revision", static_cast<qint64>(version.revision)},
+                            {"start",             480                                  },
+                            {"end",               720                                  }
+    });
+    QVERIFY2(loop, qPrintable(loop ? QString{} : loop.getError().message));
+    QCOMPARE(loop.get()
+                 .value(QStringLiteral("playback"))
+                 .toObject()
+                 .value(QStringLiteral("loop"))
+                 .toObject()
+                 .value(QStringLiteral("end"))
+                 .toInt(),
+             720);
     QCOMPARE(transport->loopingRange(), qMakePair(qint64{24000}, qint64{36000}));
     QVERIFY(runtime().playback().setPosition(commandContext(), 719));
     QVERIFY(runtime().playback().play(commandContext()));
@@ -528,6 +562,11 @@ void ApplicationWorkflowTests::controlledPlaybackLoopsAndBuffers() {
     const auto pausedPosition = transport->position();
     QCOMPARE(audio->preMixer()->read(&buffer), qint64{256});
     QCOMPARE(transport->position(), pausedPosition);
+    const auto state = registry.invoke(QStringLiteral("playback.get_state"), query);
+    QVERIFY2(state, qPrintable(state ? QString{} : state.getError().message));
+    const auto snapshot = state.get().value(QStringLiteral("snapshot")).toObject();
+    QCOMPARE(snapshot.value(QStringLiteral("state")).toString(), QStringLiteral("paused"));
+    QCOMPARE(snapshot.value(QStringLiteral("position")).toDouble(), playbackController->position());
 }
 
 void ApplicationWorkflowTests::cancelingAudioExportPreservesExistingFilesAndMixer() {

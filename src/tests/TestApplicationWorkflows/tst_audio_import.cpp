@@ -55,12 +55,15 @@ namespace {
 
 void ApplicationWorkflowTests::audioBatchFailurePolicy_data() {
     QTest::addColumn<bool>("bestEffort");
-    QTest::newRow("atomic-preserves-project") << false;
-    QTest::newRow("best-effort-imports-decoded-audio") << true;
+    QTest::addColumn<bool>("includeValid");
+    QTest::newRow("atomic-preserves-project") << false << true;
+    QTest::newRow("best-effort-imports-decoded-audio") << true << true;
+    QTest::newRow("best-effort-no-decodable-audio") << true << false;
 }
 
 void ApplicationWorkflowTests::audioBatchFailurePolicy() {
     QFETCH(bool, bestEffort);
+    QFETCH(bool, includeValid);
     QTemporaryDir files;
     QVERIFY(files.isValid());
     const auto validPath = files.filePath(QStringLiteral("phrase.wav"));
@@ -81,18 +84,23 @@ void ApplicationWorkflowTests::audioBatchFailurePolicy() {
         runtime(), access, fileGuard, admission,
         createPublicAutomationHostServices(runtime(), context->m_appModel,
                                            &SynthrtEngine::instance()));
-    const QJsonArray items{
-        QJsonObject{{"track_id", trackId.value()},
-                    {"path", validPath},
-                    {"name", "valid-audio"},
-                    {"start", 480},
-                    {"gain", 0.5},
-                    {"mute", true}},
-        QJsonObject{{"track_id", trackId.value()},
-                    {"path", invalidPath},
-                    {"name", "invalid-audio"},
-                    {"start", 960}}
-    };
+    QJsonArray items;
+    if (includeValid) {
+        items.append(QJsonObject{
+            {"track_id", trackId.value()},
+            {"path",     validPath      },
+            {"name",     "valid-audio"  },
+            {"start",    480            },
+            {"gain",     0.5            },
+            {"mute",     true           }
+        });
+    }
+    items.append(QJsonObject{
+        {"track_id", trackId.value()},
+        {"path",     invalidPath    },
+        {"name",     "invalid-audio"},
+        {"start",    960            }
+    });
     const auto accepted =
         registry.invoke(QStringLiteral("audio_clips.import_batch"),
                         {
@@ -110,11 +118,12 @@ void ApplicationWorkflowTests::audioBatchFailurePolicy() {
     QTRY_VERIFY_WITH_TIMEOUT(terminal(runtime(), {taskId, before}), 10000);
     const auto task = runtime().tasks().getTask(before.documentId, taskId);
     QVERIFY(task);
-    if (!bestEffort) {
+    if (!bestEffort || !includeValid) {
         QCOMPARE(task.get().state, AutomationTaskState::Failed);
         QVERIFY(task.get().error);
         QCOMPARE(task.get().error->code, AutomationErrorCode::IoError);
-        QCOMPARE(task.get().error->fieldPath, QStringLiteral("items[1].path"));
+        if (includeValid)
+            QCOMPARE(task.get().error->fieldPath, QStringLiteral("items[1].path"));
         QVERIFY(!task.get().mutation);
         QCOMPARE(runtime().documentVersion(), before);
         QCOMPARE(context->m_appModel->tracks().first()->clips().count(), beforeClips);
@@ -256,13 +265,14 @@ void ApplicationWorkflowTests::audioBatchValidationDoesNotStartTasks() {
 }
 
 void ApplicationWorkflowTests::audioBatchRejectsChangesBeforeCommit_data() {
-    QTest::addColumn<bool>("replaceDocument");
-    QTest::newRow("target-track-removed") << false;
-    QTest::newRow("document-replaced") << true;
+    QTest::addColumn<QString>("change");
+    QTest::newRow("target-track-removed") << QStringLiteral("remove");
+    QTest::newRow("document-replaced") << QStringLiteral("replace");
+    QTest::newRow("document-edited-during-decoding") << QStringLiteral("rename");
 }
 
 void ApplicationWorkflowTests::audioBatchRejectsChangesBeforeCommit() {
-    QFETCH(bool, replaceDocument);
+    QFETCH(QString, change);
     QTemporaryDir files;
     QVERIFY(files.isValid());
     const auto path = files.filePath(QStringLiteral("phrase.wav"));
@@ -276,23 +286,29 @@ void ApplicationWorkflowTests::audioBatchRejectsChangesBeforeCommit() {
     const auto accepted = services.importAudioClips(request);
     QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
     // Worker results are queued to this thread; change the target before they are delivered.
-    if (replaceDocument) {
+    if (change == QStringLiteral("replace")) {
         QVERIFY(runtime().documents().commitNewDocument(
             commandContext(), DocumentAutomationFacade::newDocumentDraft(false)));
-    } else {
+    } else if (change == QStringLiteral("remove")) {
         QVERIFY(runtime().project().removeTracks(commandContext(), {trackId}));
+    } else {
+        QVERIFY(runtime().project().renameTrack(commandContext(), trackId,
+                                                QStringLiteral("Edited while decoding")));
     }
     const auto afterChange = runtime().documentVersion();
     const auto afterModel = context->m_appModel->serialize();
     const auto *afterUndo = HistoryManager::instance()->nextUndoEntry();
     QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
-    if (!replaceDocument) {
+    if (change != QStringLiteral("replace")) {
         QTRY_VERIFY_WITH_TIMEOUT(terminal(runtime(), accepted.get()), 10000);
         const auto completed = runtime().tasks().getTask(before.documentId, accepted.get().taskId);
         QVERIFY(completed && completed.get().error);
         QCOMPARE(completed.get().state, AutomationTaskState::Failed);
-        QCOMPARE(completed.get().error->code, AutomationErrorCode::IoError);
-        QVERIFY(completed.get().error->message.contains(QStringLiteral("Target track")));
+        QCOMPARE(completed.get().error->code, change == QStringLiteral("remove")
+                                                  ? AutomationErrorCode::IoError
+                                                  : AutomationErrorCode::RevisionConflict);
+        if (change == QStringLiteral("remove"))
+            QVERIFY(completed.get().error->message.contains(QStringLiteral("Target track")));
         QVERIFY(!completed.get().mutation);
     }
     QCOMPARE(runtime().documentVersion(), afterChange);

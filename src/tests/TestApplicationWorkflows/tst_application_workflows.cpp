@@ -892,6 +892,82 @@ void ApplicationWorkflowTests::editSessionControlsResultDeferral() {
     QVERIFY(resolution.dropReason.isEmpty());
 }
 
+void ApplicationWorkflowTests::publicParameterScalingUsesCapabilitiesAndPreservesOtherRanges() {
+    using namespace Automation;
+    AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
+    AutomationFileGuard files;
+    AdmissionController admission;
+    PublicAutomationRegistry registry(runtime(), access, files, admission);
+    const auto document = runtime().documentVersion().documentId;
+    const auto clipId = ClipId(clip->id());
+    const auto capabilities =
+        registry.invoke(QStringLiteral("parameters.get_capabilities"),
+                        {
+                            {"document_id", document.toString()},
+                            {"clip_id",     clipId.value()     }
+    });
+    QVERIFY2(capabilities, qPrintable(capabilities ? QString{} : capabilities.getError().message));
+    QJsonObject available;
+    for (const auto &value : capabilities.get()
+                                 .value(QStringLiteral("capabilities"))
+                                 .toObject()
+                                 .value(QStringLiteral("parameters"))
+                                 .toArray()) {
+        const auto parameter = value.toObject();
+        if (parameter.value(QStringLiteral("name")).toString() == QStringLiteral("breathiness"))
+            available = parameter;
+    }
+    QVERIFY(!available.isEmpty());
+    QVERIFY(available.value(QStringLiteral("editable")).toBool());
+    const auto range = available.value(QStringLiteral("range")).toObject();
+    const auto minimum = range.value(QStringLiteral("minimum")).toInt();
+    const auto maximum = range.value(QStringLiteral("maximum")).toInt();
+    QVERIFY(maximum > minimum);
+    const auto initialValue = minimum + (maximum - minimum) / 2;
+    CurveDraftDto curve;
+    curve.values = QList<int>(385, initialValue);
+    QVERIFY(runtime().parameters().replaceParameter(
+        commandContext(), clipId, ParamInfo::Breathiness, Param::Edited, {curve}));
+    historyManager->reset();
+    const auto before = runtime().documentVersion();
+    const auto beforeModel = context->m_appModel->serialize();
+    const auto scaled =
+        registry.invoke(QStringLiteral("parameters.scale"),
+                        {
+                            {"document_id",       document.toString()                    },
+                            {"expected_revision", static_cast<qint64>(before.revision)   },
+                            {"clip_id",           clipId.value()                         },
+                            {"name",              available.value(QStringLiteral("name"))},
+                            {"local_start",       480                                    },
+                            {"local_end",         960                                    },
+                            {"transition_start",  240                                    },
+                            {"transition_end",    1200                                   },
+                            {"factor",            0.0                                    }
+    });
+    QVERIFY2(scaled, qPrintable(scaled ? QString{} : scaled.getError().message));
+    const auto result = runtime().parameters().getParameter(document, clipId,
+                                                            ParamInfo::Breathiness, Param::Edited);
+    QVERIFY(result);
+    const auto sampleAt = [&](int tick) -> std::optional<int> {
+        for (const auto &segment : result.get().curves) {
+            if (segment.type == CurveDraftDto::Type::Draw && segment.step > 0 &&
+                tick >= segment.localStart &&
+                tick < segment.localStart + segment.values.size() * segment.step)
+                return segment.values.at((tick - segment.localStart) / segment.step);
+        }
+        return std::nullopt;
+    };
+    QCOMPARE(sampleAt(720), std::optional<int>(minimum));
+    QCOMPARE(sampleAt(120), std::optional<int>(initialValue));
+    QCOMPARE(sampleAt(1440), std::optional<int>(initialValue));
+    const auto transition = sampleAt(360);
+    QVERIFY(transition && *transition > minimum && *transition < initialValue);
+    QCOMPARE(runtime().documentVersion().revision, before.revision + 1);
+    QVERIFY(runtime().history().undo(commandContext()));
+    QCOMPARE(context->m_appModel->serialize(), beforeModel);
+    QVERIFY(!historyManager->canUndo());
+}
+
 void ApplicationWorkflowTests::restartInferenceReleasesReplacedTask_data() {
     QTest::addColumn<bool>("completionQueued");
     QTest::newRow("running-worker") << false;
