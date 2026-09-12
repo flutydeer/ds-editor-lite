@@ -13,7 +13,7 @@
 | 功能域 / 关键行为 | 类别 | 现有覆盖与确认问题 | 本期处置 | 测试引用 | 运行条件 |
 |---|---|---|---|---|---|
 | 时间线、量化、曲线、锚点 | unit/domain | 已有数值与编辑回归，入口分散且保留旧布尔包装；领域曲线局部修改仍需验证保留范围 | 迁为直接 Qt Test slot，保持原严格相等和容差；补 overlay/replace 绘制、擦除及 no-op，检查局部样本、保留锚点、预览和撤销重做；跨越中间曲线的锚点合并拒绝且无副作用 | MusicTime、Parameters、ProjectEditing::drawAndErasePreserveOtherParameterCurves、nonAdjacentAnchorMergePreservesDocument | 通用 |
-| Speaker Mix、声音继承和推理输入 | unit/domain | 已有校验及转换，部分生产源重复编译并依赖空 stub；继承缺少实际轨道/片段行为 | 统一归入 VoiceAndInference，共用 EditorInferenceCore 并删除空 stub；声线组件使用真实 ProjectModel 验证继承、独立声线、切换及通知 | VoiceAndInference | 通用 |
+| Speaker Mix、声音继承和推理输入 | unit/domain | 已有校验及转换，部分生产源重复编译并依赖空 stub；继承缺少实际轨道/片段行为 | 统一归入 VoiceAndInference，共用 EditorInferenceCore 并删除空 stub；声线组件使用真实 ProjectModel 验证继承、独立声线、切换及通知，动态比例按模型帧间隔重采样 | VoiceAndInference | 通用 |
 | 歌词、音节、本地化、关联音素属性 | unit/domain/gui | 已有排序及属性级联回归；首次采样中 TextSplitter 未执行 | 规则、音节与文字级联归入 Lyrics；增加混合文字保真、规则启用/优先级及空匹配回归，修复空匹配重复文字；本地化数据和语言设置分别归入基础/配置职责 | Lyrics、Foundation、Preferences | 通用/offscreen |
 | 配置、CLI、自有 ADT、缓存 | unit | Expected 仅展示结果；缓存/配置已有回归 | Expected 改真实断言；补控制端口类型/范围与权限持久化；缓存使用受控时间 | Foundation、Bootstrap、InferenceProviderDefault、InferenceProviderCuda、Preferences、VoiceAndInference；IcuWrapperTests | 通用/平台 |
 | 轨道、片段、音符、参数与历史 | domain | 巨型编辑测试共用入口，难定位和隔离 | 拆 fixture 和独立行为，检查功能缺口 | AutomationRuntime、ProjectEditing | 通用 |
@@ -59,6 +59,11 @@
 | 批量音频预检与目标换代 | workflow | 已覆盖解码失败和取消，预检及准备期间目标变化存在缺口 | 预检不启动任务，原子失败与部分可用分别处理；删除目标轨道或替换文档后不提交旧结果 | ApplicationWorkflows::audioBatchValidationDoesNotStartTasks、audioBatchRejectsChangesBeforeCommit | 通用；临时 WAV |
 | 音频解码失败与删除取消 | workflow | 领域写回失败不能证明真实 worker 的取消及恢复接线 | 外部解码器打开失败不修改用户历史；源文件消失报告缺失；删除片段/轨道取消解码，撤销后重新获得波形 | AudioAssets::decodeBackendFailurePreservesTheDocumentAndAllowsReopen、removingAudioTargetsCancelsPendingDecode | 通用；文件删除按平台共享能力执行 |
 | 声学缓存写出失败 | workflow | 成功声库执行未进入缓存写出错误及重试路径 | 真实声学推理遇到不可写缓存路径后进入失败终态；恢复路径后再次请求成功，不修改音符或用户历史 | ApplicationWorkflows::acousticCacheWriteFailureCanBeRetried | 内置声库；CPU；临时目录 |
+| 模型输入拒绝与同进程重试 | workflow | 正常模型执行未验证声库不认识音素后的恢复 | 四阶段拒绝不支持的音素，不写结果缓存；正常输入随后成功，不修改原工程 | ApplicationWorkflows::unsupportedInferencePhonemeAllowsRetry | 声库；CPU；独立缓存 |
+| 混合语言任务的结果对齐 | workflow | 单语言成功与快照门控不能验证部分语言失败 | 一批输入同时包含有效词、停顿、连音和缺失语言；结果保持输入次序，未解析声库保留歌词 | ApplicationWorkflows::languageTasksKeepMixedResultsAligned | 声库；CPU；无需播放设备 |
+| MIDI 发布与音频目标保护 | workflow | MIDI 覆盖写入未执行，旧用例的多个失败组合不便定位 | 数据行共用准备，验证创建/覆盖、发布授权、取消及并发目标保护；音频路径越界、目录缺失或占位拒绝后可修正执行 | ApplicationServices::preparedMidiPublication、audioExportRejectsUnsafeTargetsAndAllowsCorrection | 通用；临时文件；导出后端替身 |
+| 音素边界与发音候选菜单 | gui | 普通拖动未覆盖边界限制，发音区域缺少真实菜单操作 | 在同一乐句上验证相邻音素、下一音符和末尾限制及撤销；点击候选只修改目标音符 | ApplicationGui::phonemeBoundaryDragCommitsAndUndoRestoresOffsets、pronunciationMenuChangesOnlyTheClickedNote | offscreen；音素边界使用声库 |
+| Tap Tempo 测量与闲置重置 | gui | 实时等待较慢，未进入采样窗口淘汰分支 | 可注入单调时钟配合真实按钮事件，验证 BPM、零间隔、有限采样窗口和闲置重置，不改变编辑值 | ApplicationGui::tapTempoMeasuresASequenceAndResetsAfterInactivity | offscreen；受控时间 |
 | 控件菜单及损坏主题恢复 | gui | 数值输入与颜色解析未充分验证菜单接线、主题原子应用 | 实际数值框菜单执行整数/小数步进；主题素材缺失、内容无效或引用失败时保留原样式，修复后可应用 | GuiComponents::expressionSpinBoxMenuEditsTheDisplayedValue、externalThemeRoot | offscreen；临时主题文件 |
 | 上游异常响应与会话更新 | protocol | 基本连接不能证明异常响应后的可用性和不确定结果处理 | 拒绝损坏 JSON、重复 SSE 和 HTML；随后正常调用可用；命令不自动重发；会话失效后重新握手并使用新会话 | Connector::upstreamResponses、commandTransportOutcome、handshakeCoordination | 通用；受控 HTTP 上游 |
 
@@ -122,7 +127,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | LRC 与填词分行 | unit | 补秒/小数时间、重复标签、元数据、定位、重新加载和分隔模式；修复时间换算与失败残留状态 | Lyrics::lrcTimestamps、lrcMetadataRepeatedLinesAndSeeking、lrcFailedReloadClearsPreviousDocument、lyricSplittingModesPreserveLines | 通用 |
 | DSPX 声线及音素往返 | workflow | 扩展已有完整乐句场景，验证轨道固定混合、片段动态混合/旁路/预设来源，以及原始与编辑音素/偏移；包不可用时保留内容，已解析声库减少来源时保留剩余比例 | DocumentIO::dspxRoundTripPreservesEditedPhrase | 通用 |
 | 实际批量文件导入 | workflow/gui | 真实 MIDI/DSPX 经生产 Host Adapter 和加载器验证一次提交、失败回滚及允许部分成功；轨道视口的真实拖入/离开/放下事件经 DocumentImportController 将两份 WAV 导入现有及新增轨道，检查预览无修改、一次提交、撤销重做和视图恢复 | ApplicationWorkflows::projectBatchImportUsesRealLoaders、ApplicationGui::droppingAudioFilesCommitsOneBatchToTheSelectedTracks | 通用/offscreen；临时文件 |
-| 实际音频批量任务 | workflow | 有效/损坏素材经过实际解码，检查原子失败无修改、部分成功的警告及属性/元数据/一次撤销；取消后同一幂等键可重新执行 | ApplicationWorkflows::audioBatchFailurePolicy、audioBatchCancellationReleasesRetry | 通用；临时音频；无需设备 |
+| 实际音频批量任务 | workflow | 有效/损坏素材经公开 Registry 和实际解码，复用原场景检查原子失败无修改、部分成功的警告及属性/元数据/一次撤销；取消后同一幂等键可重新执行 | ApplicationWorkflows::audioBatchFailurePolicy、audioBatchCancellationReleasesRetry | 通用；临时音频；无需设备 |
 | 公共批量、计划复验及填词 | protocol | 检查策略与选项传递、文件授权、源文件变化及授权撤销后的计划复验；填词检查拆分、连音跳过、语言选择、实际结果及撤销，无效语言无副作用。真实解码与批量提交由工作流层承担 | AutomationProtocol::batchImportRouting、batchImportPlanRevalidation、fillLyricsOptions、fillLyricsUnavailableLanguage | 通用；临时文件和声线元数据 |
 | MIDI 选择预览与片段声线上下文 | protocol | 公共能力与预览检查整轨/片段并集、音频排除、选项和覆盖提示，预览不执行导出或修改文件。片段查询检查继承、独立声线、恢复继承及语言来源，读取不改变工程和历史 | AutomationProtocol::routing 的 midiPreviewSelection、voiceAndSpeakerMix 数据行 | 通用；临时文件和声线元数据 |
 | 预设和歌词规则的生产持久化 | workflow | 旧服务替身不能验证 AppOptions Adapter/Store；补创建、更新、重开、删除及规则的实际语言结果 | ApplicationWorkflows::speakerMixPresetPersistsThroughTheProductionStore、lyricRulesUseTheProductionRuntimeAndPersistence | 隔离配置 |
@@ -174,7 +179,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 混合 MIDI/音频的批量导入选项 | gui/workflow | 两个 MIDI 和一个 WAV 经真实画布拖放共用一次编码/时间线决策；取消整批无修改，确认分别验证首个 MIDI 速度优先、保留当前拍号或速度、已有轨道复用、歌词保真、音频时间锚定及整批撤销重做 | ApplicationGui::droppingMidiAndAudioFilesUsesOneBatchDecision | offscreen；小型临时 MIDI/WAV；无需模型或设备 |
 | 参数变换边界与倍率手柄 | gui | 拖动过渡区及核心区边界，保持未提交模型和已有过渡宽度；倍率手柄改变核心值，过渡区平滑衔接且范围外保持，预览图形更新，单次提交可撤销恢复 | ApplicationGui::parameterTransformHandlesControlTheTransitionRange | offscreen；实际参数控件及输入；无需声库 |
 | 文件菜单的打开、另存为及保存 | gui/workflow | 真实 Qt 文件选择框处理 Unicode 路径；取消打开不换文档，取消另存为保留路径和未保存历史，确认后更新保存点/最近列表，后续 Save 使用新路径；独立重读磁盘验证新文件更新且原文件不被覆盖 | ApplicationGui::fileMenuOpensAndSavesThroughTheActualPicker | offscreen；临时 DSPX；Qt 文件选择框 |
-| 公共单文件导入与计划接线 | workflow/protocol | 从公开格式检查取得计划，再经 Registry 和实际 Host 加载器追加 DSPX；读取计划不改工程，导入保持原文档及已有轨道身份，保存新轨道/片段/音符内容，一次撤销恢复原工程 | ApplicationWorkflows::publicSingleProjectImportUsesThePreparedPlanAndKeepsTheDocument | 通用；临时 DSPX；实际应用运行时 |
+| 公共单文件加载与计划接线 | workflow/protocol | 原生和外部格式共用素材，经格式计划、Registry 和实际 Host 追加或打开；追加保留原文档及已有轨道身份，一次撤销恢复；打开替换文档，原生路径与外部工程未保存状态分别验证 | ApplicationWorkflows::publicProjectLoadUsesThePreparedPlan | 通用；临时工程；外部转换进程替身；实际加载器 |
 | 公共声线预设与已应用混合的生命周期 | workflow/protocol | 通过实际声库解析公开预设的保存、查询、同名更新和应用；删除预设后，已应用混合保留，失效引用返回错误且不改变工程或历史，撤销恢复原声线 | ApplicationWorkflows::publicSpeakerMixPresetsResolveAndPreserveAppliedVoices | 默认内置声库；至少两条声线；隔离配置 |
 | 文件打开失败与最近项目管理 | gui/workflow | 损坏工程经过真实错误提示后保留当前文档、未保存编辑及历史，修复源文件后可再次打开；最近项目子菜单移除失效文件、打开有效文件并清空列表，持久化列表与界面一致 | ApplicationGui::failedProjectOpenPreservesTheDocumentAndRecovers、recentProjectsMenuRemovesMissingFilesAndClearsTheList | offscreen；临时 DSPX；真实 MainWindow 和菜单 |
 | 音频设置保存失败与重试 | workflow | 在隔离配置路径上制造可移除的文件写入障碍，验证设置、运行时音量/声像和热插拔策略共同回滚；没有初始化音频后端的独立环境验证设备缺失不会使控制值回滚提前退出。恢复路径后可重试成功，文档和历史不受影响 | ApplicationGui::audioSettingsSaveFailureRestoresRuntimeAndAllowsRetry、NativeDesktop::audioSettingsRollbackWithoutAnInitializedBackend | 通用 GUI 环境；无后端场景使用隔离子进程；无需音频设备 |
