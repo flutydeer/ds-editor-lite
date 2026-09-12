@@ -10,6 +10,8 @@
 #include <lite/PackageManager/PackageManager.h>
 #include <lite/ProjectModel/AppModel/Note.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
+#include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 #include <lite/Tasking/TaskManager.h>
@@ -67,7 +69,12 @@ void ApplicationWorkflowTests::publicInferenceStatusAssociatesTasksWithTheirScop
     }
     QVERIFY2(!singer.isEmpty(), "The configured fixture singer must be installed");
     QVERIFY(!singer.speakers().isEmpty());
-    const QList<QPointer<SingingClip>> targets{clip, otherClip};
+    QVERIFY(runtime().project().duplicateClips(commandContext(), {ClipId(clip->id())},
+                                               {.targetTrackId = trackId, .targetStart = 4800}));
+    const QPointer<SingingClip> companion =
+        qobject_cast<SingingClip *>(context->m_appModel->tracks().first()->clips().toList().last());
+    QVERIFY(companion && companion != clip);
+    const QList<QPointer<SingingClip>> targets{clip, companion, otherClip};
     for (const auto &target : targets) {
         QVERIFY(target);
         NoteWordPatchDto word;
@@ -101,6 +108,10 @@ void ApplicationWorkflowTests::publicInferenceStatusAssociatesTasksWithTheirScop
     const QJsonObject scope{
         {QStringLiteral("kind"),     QStringLiteral("clip")},
         {QStringLiteral("clip_ids"), QJsonArray{clip->id()}},
+    };
+    const QJsonObject trackScope{
+        {QStringLiteral("kind"),      QStringLiteral("track")    },
+        {QStringLiteral("track_ids"), QJsonArray{trackId.value()}},
     };
     const QJsonObject unrelatedScope{
         {QStringLiteral("kind"),     QStringLiteral("clip")     },
@@ -156,19 +167,33 @@ void ApplicationWorkflowTests::publicInferenceStatusAssociatesTasksWithTheirScop
         QCoreApplication::processEvents();
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
     });
-    const auto accepted =
-        registry.invoke(QStringLiteral("inference.start"),
-                        {
-                            {QStringLiteral("document_id"),       documentId.toString()},
-                            {QStringLiteral("expected_revision"),
-                             static_cast<qint64>(runtime().documentVersion().revision) },
-                            {QStringLiteral("scope"),             scope                },
-                            {QStringLiteral("stages"),
-                             QJsonArray{QStringLiteral("pitch"), QStringLiteral("variance"),
-                                        QStringLiteral("acoustic")}                    },
-                            {QStringLiteral("options"),           QJsonObject{}        }
-    },
-                        invocation);
+    const QJsonObject request{
+        {QStringLiteral("document_id"),       documentId.toString()                                        },
+        {QStringLiteral("expected_revision"),
+         static_cast<qint64>(runtime().documentVersion().revision)                                         },
+        {QStringLiteral("scope"),             trackScope                                                   },
+        {QStringLiteral("stages"),            QJsonArray{QStringLiteral("pitch"), QStringLiteral("variance"),
+                                              QStringLiteral("acoustic")}},
+        {QStringLiteral("options"),           QJsonObject{}                                                }
+    };
+    auto invalidRequest = request;
+    invalidRequest.insert(
+        QStringLiteral("scope"),
+        QJsonObject{
+            {QStringLiteral("kind"),      QStringLiteral("track")                       },
+            {QStringLiteral("track_ids"),
+             QJsonArray{trackId.value(), context->m_appModel->tracks().last()->id() + 1}},
+    });
+    const auto beforeRejected = runtime().documentVersion();
+    const auto rejected =
+        registry.invoke(QStringLiteral("inference.start"), invalidRequest, invocation);
+    QVERIFY(!rejected);
+    QCOMPARE(rejected.getError().code, AutomationErrorCode::NotFound);
+    QCoreApplication::processEvents();
+    QVERIFY(taskManager->tasks().isEmpty());
+    QVERIFY(!paused.load());
+    QCOMPARE(runtime().documentVersion(), beforeRejected);
+    const auto accepted = registry.invoke(QStringLiteral("inference.start"), request, invocation);
     QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
     taskId = TaskId::fromString(accepted.get().value(QStringLiteral("task_id")).toString());
     QVERIFY(!taskId.isNull());
@@ -182,6 +207,12 @@ void ApplicationWorkflowTests::publicInferenceStatusAssociatesTasksWithTheirScop
     const auto pitch = inferenceStage(running.get(), QStringLiteral("pitch"));
     QCOMPARE(pitch.value(QStringLiteral("state")).toString(), QStringLiteral("running"));
     QCOMPARE(pitch.value(QStringLiteral("task_id")).toString(), taskId.toString());
+    const auto trackRunning = status(trackScope);
+    QVERIFY(trackRunning);
+    QCOMPARE(inferenceStage(trackRunning.get(), QStringLiteral("pitch"))
+                 .value(QStringLiteral("task_id"))
+                 .toString(),
+             taskId.toString());
     const auto acoustic = inferenceStage(running.get(), QStringLiteral("acoustic"));
     QCOMPARE(acoustic.value(QStringLiteral("state")).toString(), QStringLiteral("queued"));
     QCOMPARE(acoustic.value(QStringLiteral("task_id")).toString(), taskId.toString());
@@ -189,7 +220,16 @@ void ApplicationWorkflowTests::publicInferenceStatusAssociatesTasksWithTheirScop
     const auto unrelated = status(unrelatedScope);
     QVERIFY2(unrelated, qPrintable(unrelated ? QString{} : unrelated.getError().message));
     const auto background = inferenceStage(unrelated.get(), QStringLiteral("acoustic"));
+    QCOMPARE(background.value(QStringLiteral("state")).toString(), QStringLiteral("stale"));
     QVERIFY(background.value(QStringLiteral("task_id")).isNull());
+    const auto mixed = status({
+        {QStringLiteral("kind"),     QStringLiteral("clip")                 },
+        {QStringLiteral("clip_ids"), QJsonArray{clip->id(), otherClip->id()}}
+    });
+    QVERIFY(mixed);
+    const auto mixedAcoustic = inferenceStage(mixed.get(), QStringLiteral("acoustic"));
+    QCOMPARE(mixedAcoustic.value(QStringLiteral("state")).toString(), QStringLiteral("queued"));
+    QCOMPARE(mixedAcoustic.value(QStringLiteral("task_id")).toString(), taskId.toString());
 
     releaseWorker.release();
     const auto terminal = [&] {
@@ -204,6 +244,7 @@ void ApplicationWorkflowTests::publicInferenceStatusAssociatesTasksWithTheirScop
     QVERIFY2(completed.get().state == AutomationTaskState::Succeeded,
              qPrintable(completed.get().error ? completed.get().error->message : QString{}));
     QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    QCOMPARE(otherClip->pieces().first()->state, QStringLiteral("Acoustic.Awaiting"));
     const auto finished = status(scope);
     QVERIFY2(finished, qPrintable(finished ? QString{} : finished.getError().message));
     for (const auto &name : {QStringLiteral("pitch"), QStringLiteral("acoustic")}) {
