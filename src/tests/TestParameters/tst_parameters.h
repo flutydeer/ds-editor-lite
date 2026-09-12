@@ -51,6 +51,8 @@ private slots:
     void curveTransformBasePitchRestKeys();
     void anchorEditControllerLoadOwnsCopies();
     void anchorEditControllerCreateAndPublishingReentry();
+    void anchorInsertionPreservesSegmentInterpolation_data();
+    void anchorInsertionPreservesSegmentInterpolation();
     void anchorEditControllerProvisionalAnchorExitDiscardsWithoutPublishing();
     void anchorEditControllerCreateClearsOverlappingPreview();
     void anchorEditControllerDragCancelRestoresSnapshot();

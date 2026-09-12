@@ -11,6 +11,7 @@
 #include <QtTest/QTest>
 #include "../TestSupport/TestAssertions.h"
 #include <QStringList>
+#include <memory>
 
 namespace {
 
@@ -614,6 +615,56 @@ void ParametersTests::anchorEditControllerLoadOwnsCopies() {
 
 void ParametersTests::anchorEditControllerCreateAndPublishingReentry() {
     testCreateAndPublishingReentry();
+}
+
+void ParametersTests::anchorInsertionPreservesSegmentInterpolation_data() {
+    QTest::addColumn<int>("position");
+    QTest::addColumn<int>("insertedMode");
+    QTest::addColumn<int>("oldTailMode");
+    QTest::newRow("prepend") << 5 << int(AnchorNode::Hermite) << int(AnchorNode::None);
+    QTest::newRow("split-linear-segment") << 15 << int(AnchorNode::Linear) << int(AnchorNode::None);
+    QTest::newRow("extend-linear-tail") << 30 << int(AnchorNode::None) << int(AnchorNode::Linear);
+}
+
+void ParametersTests::anchorInsertionPreservesSegmentInterpolation() {
+    QFETCH(int, position);
+    QFETCH(int, insertedMode);
+    QFETCH(int, oldTailMode);
+    std::unique_ptr<AnchorCurve> source(makeCurve({
+        {10, 20},
+        {20, 40}
+    }));
+    source->nodes().toList().first()->setInterpMode(AnchorNode::Linear);
+    AnchorEditor::AnchorEditController controller;
+    controller.setCoordinateMapper(mapper());
+    controller.loadFromModel({source.get()});
+    int publishes = 0;
+    controller.setHostCallbacks({
+        .beginEdit = [] { return true; },
+        .publish = [&](const QList<AnchorCurve *> &) { ++publishes; },
+    });
+    controller.setEditActive(true);
+    QVERIFY(controller.pressAt({100, 800}, Qt::LeftButton));
+    QVERIFY(controller.releaseAt({100, 800}, Qt::LeftButton));
+    controller.doubleClickAt({position * 10.0, 700}, Qt::LeftButton);
+    QCOMPARE(publishes, 1);
+    QCOMPARE(controller.curves().size(), 1);
+    const auto nodes = controller.curves().first()->nodes().toList();
+    QCOMPARE(nodes.size(), 3);
+    const AnchorNode *inserted = nullptr;
+    const AnchorNode *oldTail = nullptr;
+    for (const auto *node : nodes) {
+        if (node->pos() == position)
+            inserted = node;
+        if (node->pos() == 20)
+            oldTail = node;
+    }
+    QVERIFY(inserted && oldTail);
+    QCOMPARE(inserted->value(), 30);
+    QCOMPARE(int(inserted->interpMode()), insertedMode);
+    QCOMPARE(int(oldTail->interpMode()), oldTailMode);
+    QCOMPARE(source->nodes().count(), 2);
+    QCOMPARE(source->nodes().toList().last()->interpMode(), AnchorNode::None);
 }
 
 void ParametersTests::anchorEditControllerProvisionalAnchorExitDiscardsWithoutPublishing() {
