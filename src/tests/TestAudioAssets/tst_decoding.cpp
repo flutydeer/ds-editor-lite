@@ -8,6 +8,10 @@
 #include "Controller/Tasks/ResolveAudioPathTask.h"
 #include "Modules/Audio/AudioContext.h"
 #include "Automation/CoreRuntime.h"
+#include "Automation/Public/AdmissionController.h"
+#include "Automation/Public/AutomationAccessPolicy.h"
+#include "Automation/Public/AutomationFileGuard.h"
+#include "Automation/Public/PublicAutomationRegistry.h"
 #include "Bootstrap/AppEnvironment.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Audio/AudioSystem.h"
@@ -452,6 +456,37 @@ void AudioAssetsTests::resolutionRetryPreservesSource() {
     QVERIFY(fixture.notifications.isEmpty());
     QVERIFY(fixture.messages.isEmpty());
     QVERIFY(!fixture.history()->canUndo());
+
+    AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
+    AutomationFileGuard fileGuard;
+    AdmissionController admission;
+    PublicAutomationRegistry registry(fixture.runtime(), access, fileGuard, admission);
+    const auto beforeReadback = fixture.runtime().documentVersion();
+    const auto beforeAsset = audioAssetSnapshotDto(*clip);
+    const QJsonObject arguments{
+        {QStringLiteral("document_id"), documentId.toString()},
+        {QStringLiteral("clip_id"),     clipId               }
+    };
+    for (const bool authorized : {false, true, false}) {
+        if (authorized)
+            QVERIFY(fileGuard.addSessionGrant(audioPath, FileAccessPurpose::Read));
+        else
+            fileGuard.clearSessionGrants();
+        const auto accessBefore = fileGuard.snapshot();
+        const auto result = registry.invoke(QStringLiteral("audio_clips.get"), arguments);
+        QVERIFY2(result, qPrintable(result ? QString{} : result.getError().message));
+        const auto snapshot = result.get().value(QStringLiteral("snapshot")).toObject();
+        const auto expectedPath = authorized ? QFileInfo(audioPath).canonicalFilePath() : QString();
+        QCOMPARE(snapshot.value(QStringLiteral("path")).toString(), expectedPath);
+        QCOMPARE(snapshot.value(QStringLiteral("path_status")).toString(),
+                 QStringLiteral("candidate"));
+        QCOMPARE(snapshot.value(QStringLiteral("candidate_paths")).toArray(),
+                 authorized ? QJsonArray{expectedPath} : QJsonArray{});
+        QCOMPARE(fileGuard.snapshot(), accessBefore);
+        QCOMPARE(audioAssetSnapshotDto(*clip), beforeAsset);
+        QCOMPARE(fixture.runtime().documentVersion(), beforeReadback);
+        QVERIFY(!fixture.history()->canUndo());
+    }
 }
 
 void AudioAssetsTests::decodeCompletionWaitsForTheSaveDecision_data() {
