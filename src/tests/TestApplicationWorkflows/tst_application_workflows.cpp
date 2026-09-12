@@ -625,15 +625,21 @@ void ApplicationWorkflowTests::rejectedPackageRefreshKeepsThePublishedCatalog() 
 void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan_data() {
     QTest::addColumn<bool>("externalConverter");
     QTest::addColumn<bool>("opening");
-    QTest::newRow("import-native-dspx") << false << false;
-    QTest::newRow("import-external-libresvip") << true << false;
-    QTest::newRow("open-native-dspx") << false << true;
-    QTest::newRow("open-external-libresvip") << true << true;
+    QTest::addColumn<QByteArray>("changeAfterAdmission");
+    QTest::newRow("import-native-dspx") << false << false << QByteArray();
+    QTest::newRow("import-external-libresvip") << true << false << QByteArray();
+    QTest::newRow("open-native-dspx") << false << true << QByteArray();
+    QTest::newRow("open-external-libresvip") << true << true << QByteArray();
+    QTest::newRow("cancel-queued-open") << false << true << QByteArray("cancel");
+    QTest::newRow("revoke-import-access") << false << false << QByteArray("revoke");
+    QTest::newRow("replace-import-source") << false << false << QByteArray("replace-source");
+    QTest::newRow("edit-while-opening") << false << true << QByteArray("edit-document");
 }
 
 void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
     QFETCH(bool, externalConverter);
     QFETCH(bool, opening);
+    QFETCH(QByteArray, changeAfterAdmission);
     const auto oldExecutable = context->m_appOptions->general()->libreSVIPPath;
     const auto oldResult = qgetenv("DSEL_TEST_LIBRESVIP_RESULT");
     const auto restoreConverter = qScopeGuard([&] {
@@ -718,14 +724,41 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
     const auto id =
         Automation::TaskId::fromString(accepted.get().value(QStringLiteral("task_id")).toString());
     QVERIFY(!id.isNull());
+    if (changeAfterAdmission == "cancel") {
+        QVERIFY(runtime().tasks().cancelTask(commandContext(), id));
+    } else if (changeAfterAdmission == "revoke") {
+        QVERIFY(fileGuard.setConfiguredRoots({}));
+    } else if (changeAfterAdmission == "replace-source") {
+        sourceTrack->setName(QStringLiteral("Different source after admission"));
+        QVERIFY2(converter.save(path, &source, error), qPrintable(error));
+    } else if (changeAfterAdmission == "edit-document") {
+        QVERIFY(runtime().project().renameTrack(commandContext(),
+                                                Automation::TrackId(originalTracks.first()->id()),
+                                                QStringLiteral("Edit while opening")));
+    }
+    const auto expectedRetainedVersion = runtime().documentVersion();
+    const auto expectedRetainedModel = context->m_appModel->serialize();
     const auto task = [&] {
         return runtime().tasks().getTask(runtime().documentVersion().documentId, id);
     };
     QTRY_VERIFY_WITH_TIMEOUT(
         task() && (task().get().state == Automation::AutomationTaskState::Succeeded ||
-                   task().get().state == Automation::AutomationTaskState::Failed),
+                   task().get().state == Automation::AutomationTaskState::Failed ||
+                   task().get().state == Automation::AutomationTaskState::Canceled),
         10000);
     const auto terminal = task().get();
+    if (!changeAfterAdmission.isEmpty()) {
+        QCOMPARE(terminal.state, changeAfterAdmission == "cancel"
+                                     ? Automation::AutomationTaskState::Canceled
+                                     : Automation::AutomationTaskState::Failed);
+        if (terminal.state == Automation::AutomationTaskState::Failed)
+            QVERIFY(terminal.error && !terminal.error->message.isEmpty());
+        QCOMPARE(runtime().documentVersion(), expectedRetainedVersion);
+        QCOMPARE(context->m_appModel->serialize(), expectedRetainedModel);
+        QCOMPARE(historyManager->canUndo(), changeAfterAdmission == "edit-document");
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+        return;
+    }
     QVERIFY2(terminal.state == Automation::AutomationTaskState::Succeeded,
              qPrintable(terminal.error ? terminal.error->message : QString()));
     const auto tracks = context->m_appModel->tracks();
