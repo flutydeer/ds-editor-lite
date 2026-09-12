@@ -69,6 +69,8 @@
 #include <QTimer>
 #include <QtTest/QTest>
 
+#include <cmath>
+
 namespace {
     void createDroppedProject(const QString &path) {
         AppModel source;
@@ -385,6 +387,90 @@ void ApplicationGuiTests::mainMenuOctaveEditsFollowThePianoSelection() {
     QVERIFY(runtime.history().undo(commandContext()));
     QCOMPARE(notes.first()->keyIndex(), first.keyIndex);
     QCOMPARE(notes.last()->keyIndex(), second.keyIndex);
+    QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::editorAutomationConfiguresTheVisibleWorkspaceWithoutEditingTheDocument() {
+    MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    view->hide();
+    auto &window = *host.window;
+    window.activateWindow();
+    QTRY_VERIFY(window.isActiveWindow());
+    auto &runtime = *context->m_coreRuntime;
+    auto &editor = runtime.facade();
+    QVERIFY(runtime.windowId());
+    const auto before = runtime.documentVersion();
+    const Automation::GuiCommandContext gui{.windowId = *runtime.windowId(),
+                                            .source = Automation::InvocationSource::PublicMcp};
+    const Automation::GuiDocumentCommandContext document{.documentId = before.documentId,
+                                                         .expectedRevision = before.revision,
+                                                         .windowId = gui.windowId,
+                                                         .source = gui.source};
+    const auto quantize = appStatus->pianoRollQuantize.get();
+    const auto quantizeEnabled = appStatus->pianoRollQuantizeEnabled.get();
+    const auto trackFollowing = appStatus->trackAutoPageTurnEnabled.get();
+    const auto pianoFollowing = appStatus->pianoRollAutoPageTurnEnabled.get();
+    const auto restore = qScopeGuard([&] {
+        appStatus->pianoRollQuantize = quantize;
+        appStatus->pianoRollQuantizeEnabled = quantizeEnabled;
+        appStatus->trackAutoPageTurnEnabled = trackFollowing;
+        appStatus->pianoRollAutoPageTurnEnabled = pianoFollowing;
+    });
+    QVERIFY(editor.setActiveClip(document, Automation::ClipId(singingClip->id())));
+    const auto model = appModel->serialize();
+    historyManager->reset();
+    const auto originalView = window.captureEditorViewState();
+    QVERIFY(editor.setPanelVisibility(gui, true, false));
+    QVERIFY(!window.captureEditorViewState().layout.bottomPanelVisible);
+    QVERIFY(editor.showRegion(gui, EditorViewGlobal::Region::Parameters));
+    QVERIFY(editor.setParameterForeground(document, ParamInfo::Gender));
+    QVERIFY(editor.setParameterBackground(document, ParamInfo::Breathiness));
+    QVERIFY(editor.swapParameters(document));
+    QCOMPARE(window.captureEditorViewState().parameters.foreground, ParamInfo::Breathiness);
+    QCOMPARE(window.captureEditorViewState().parameters.background, ParamInfo::Gender);
+    QVERIFY(editor.setParameterEditMode(document, EditorViewGlobal::ParameterEditMode::Shape));
+    QVERIFY(editor.setParameterValueViewport(document, {.centerRatio = 0.6, .verticalScale = 2}));
+    QTRY_COMPARE(window.captureEditorViewState().parameters.editMode,
+                 EditorViewGlobal::ParameterEditMode::Shape);
+    QTRY_COMPARE(window.captureEditorViewState().parameters.verticalScale, 2.0);
+    QVERIFY(std::abs(window.captureEditorViewState().parameters.centerRatio - 0.6) < 0.01);
+    QVERIFY(editor.showRegion(gui, EditorViewGlobal::Region::PianoRoll));
+    QVERIFY(editor.setClipEditorTimeViewport(gui, {.centerTick = 1440, .horizontalScale = 2}));
+    QVERIFY(editor.setPianoRollPitchViewport(gui, {.centerKeyIndex = 64, .verticalScale = 1.5}));
+    QTRY_COMPARE(window.captureEditorViewState().pianoRoll.horizontalScale, 2.0);
+    QCOMPARE(window.captureEditorViewState().pianoRoll.verticalScale, 1.5);
+    QVERIFY(std::abs(window.captureEditorViewState().pianoRoll.centerTick - 1440) < 8);
+    QVERIFY(std::abs(window.captureEditorViewState().pianoRoll.centerKeyIndex - 64) < 0.1);
+    QVERIFY(editor.focusRegion(gui, EditorViewGlobal::Region::Parameters));
+    QTRY_COMPARE(window.captureEditorViewState().layout.focusedRegion,
+                 EditorViewGlobal::Region::Parameters);
+    QVERIFY(editor.setPianoRollQuantize(gui, 8, true));
+    QCOMPARE(appStatus->pianoRollQuantize.get(), 8);
+    QVERIFY(appStatus->pianoRollQuantizeEnabled);
+    QVERIFY(editor.setAutoPageTurn(gui, Automation::EditorAutoPageTarget::TrackPanel, false));
+    QVERIFY(editor.setAutoPageTurn(gui, Automation::EditorAutoPageTarget::PianoRoll, false));
+    QVERIFY(!appStatus->trackAutoPageTurnEnabled && !appStatus->pianoRollAutoPageTurnEnabled);
+    QVERIFY(editor.focusRegion(gui, EditorViewGlobal::Region::TrackPanel));
+    QVERIFY(editor.setTrackPanelViewport(gui, {.centerTick = 1920, .horizontalScale = 1.5}));
+    QTRY_COMPARE(window.captureEditorViewState().trackPanel.horizontalScale, 1.5);
+    const auto state = editor.getEditorState(before.documentId, gui.windowId);
+    QVERIFY(state && state.get().view);
+    QCOMPARE(state.get().view->parameters, window.captureEditorViewState().parameters);
+    QCOMPARE(state.get().selection.activeClipId,
+             std::optional(Automation::ClipId(singingClip->id())));
+    QVERIFY(editor.restoreView(gui, originalView));
+    QCOMPARE(window.captureEditorViewState().parameters.foreground,
+             originalView.parameters.foreground);
+    QCOMPARE(window.captureEditorViewState().parameters.background,
+             originalView.parameters.background);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(appModel->serialize(), model);
     QVERIFY(!historyManager->canUndo());
 }
 

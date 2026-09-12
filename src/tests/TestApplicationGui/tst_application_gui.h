@@ -72,6 +72,8 @@ private slots:
     void cacheCleanupRequiresConfirmationAndRefreshesThePage();
     void interactiveProjectImportRespectsSelectionAndCancellation_data();
     void interactiveProjectImportRespectsSelectionAndCancellation();
+    void midiChannelSelectionRebuildsTracksBeforeImport_data();
+    void midiChannelSelectionRebuildsTracksBeforeImport();
     void droppingAudioFilesCommitsOneBatchToTheSelectedTracks();
     void droppingMidiAndAudioFilesUsesOneBatchDecision_data();
     void droppingMidiAndAudioFilesUsesOneBatchDecision();
@@ -107,6 +109,7 @@ private slots:
     void mainMenuQuantizationUsesTheChosenScopeAndOptions_data();
     void mainMenuQuantizationUsesTheChosenScopeAndOptions();
     void mainMenuOctaveEditsFollowThePianoSelection();
+    void editorAutomationConfiguresTheVisibleWorkspaceWithoutEditingTheDocument();
     void undoShortcutRevealsTheTrackEditBeforeChangingIt_data();
     void undoShortcutRevealsTheTrackEditBeforeChangingIt();
     void undoShortcutRevealsThePianoEditBeforeChangingIt();

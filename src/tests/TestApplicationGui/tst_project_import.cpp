@@ -32,6 +32,7 @@
 #include <QDragEnterEvent>
 #include <QDragLeaveEvent>
 #include <QDropEvent>
+#include <QFile>
 #include <QFileInfo>
 #include <QMimeData>
 #include <QScopeGuard>
@@ -41,6 +42,8 @@
 #include <QTimer>
 #include <QTreeView>
 #include <QtTest/QTest>
+
+#include <algorithm>
 
 namespace {
     template <typename Widget>
@@ -89,6 +92,15 @@ namespace {
         }
     }
 
+    void clickCheckBox(QCheckBox *checkbox) {
+        QVERIFY(checkbox);
+        QStyleOptionButton option;
+        option.initFrom(checkbox);
+        const auto indicator =
+            checkbox->style()->subElementRect(QStyle::SE_CheckBoxIndicator, &option, checkbox);
+        QTest::mouseClick(checkbox, Qt::LeftButton, Qt::NoModifier, indicator.center());
+    }
+
     template <typename Page>
     void selectImportContent(Page *page) {
         QVERIFY(page);
@@ -101,7 +113,7 @@ namespace {
         QVERIFY(tempo);
         QVERIFY(signature);
         QCOMPARE(all->checkState(), Qt::Checked);
-        QTest::mouseClick(all, Qt::LeftButton);
+        clickCheckBox(all);
         QCOMPARE(all->checkState(), Qt::Unchecked);
         QVERIFY(page->selectedTracks().isEmpty());
 
@@ -120,11 +132,7 @@ namespace {
         QCOMPARE(all->checkState(), Qt::PartiallyChecked);
         QVERIFY(tempo->isChecked());
         QVERIFY(signature->isChecked());
-        QStyleOptionButton option;
-        option.initFrom(tempo);
-        const auto indicator =
-            tempo->style()->subElementRect(QStyle::SE_CheckBoxIndicator, &option, tempo);
-        QTest::mouseClick(tempo, Qt::LeftButton, Qt::NoModifier, indicator.center());
+        clickCheckBox(tempo);
         QVERIFY(!tempo->isChecked());
         const auto input = page->collectInput();
         QCOMPARE(input.tracks.selectedTrackIndices, QList<int>{selected.row()});
@@ -132,30 +140,36 @@ namespace {
         QVERIFY(input.timeline.importTimeSignature);
     }
 
-    void selectUtf8Encoding(ComboBox *encoding) {
+    void selectMidiCodec(ComboBox *encoding, const QByteArray &codec = QByteArrayLiteral("UTF-8")) {
         QVERIFY(encoding);
-        int utf8Index = -1;
+        int selectedIndex = -1;
         for (int index = 0; index < encoding->count(); ++index) {
-            if (encoding->itemData(index).toByteArray().compare(QByteArrayLiteral("UTF-8"),
-                                                                Qt::CaseInsensitive) == 0) {
-                utf8Index = index;
+            if (encoding->itemData(index).toByteArray().compare(codec, Qt::CaseInsensitive) == 0) {
+                selectedIndex = index;
                 break;
             }
         }
-        QVERIFY(utf8Index >= 0);
+        QVERIFY(selectedIndex >= 0);
         QTest::mouseClick(encoding, Qt::LeftButton);
         QTRY_VERIFY(encoding->view()->isVisible());
         QTest::keyClick(encoding->view(), Qt::Key_Home);
-        for (int index = 0; index < utf8Index; ++index)
+        for (int index = 0; index < selectedIndex; ++index)
             QTest::keyClick(encoding->view(), Qt::Key_Down);
         QTest::keyClick(encoding->view(), Qt::Key_Return);
-        QCOMPARE(encoding->currentData().toByteArray().toUpper(), QByteArrayLiteral("UTF-8"));
+        QCOMPARE(encoding->currentData().toByteArray().compare(codec, Qt::CaseInsensitive), 0);
     }
 
     void selectMidiEncoding(MidiConfigPage *page) {
         auto *preview = page->findChild<QTextEdit *>();
         QVERIFY(preview);
-        selectUtf8Encoding(page->findChild<ComboBox *>());
+        const auto selection = page->selectedTracks();
+        auto *encoding = page->findChild<ComboBox *>();
+        selectMidiCodec(encoding, QByteArrayLiteral("ISO-8859-1"));
+        if (QTest::currentTestFailed())
+            return;
+        QVERIFY(preview->toPlainText().trimmed() != QStringLiteral("你好"));
+        QCOMPARE(page->selectedTracks(), selection);
+        selectMidiCodec(encoding);
         if (QTest::currentTestFailed())
             return;
         QCOMPARE(page->selectedCodec().toUpper(), QByteArrayLiteral("UTF-8"));
@@ -273,6 +287,93 @@ void ApplicationGuiTests::interactiveProjectImportRespectsSelectionAndCancellati
     historyManager->redo();
     QCOMPARE(appModel->tracks().size(), originalTracks.size() + 1);
     QCOMPARE(appModel->tracks().last()->name(), QStringLiteral("Imported lead"));
+}
+
+void ApplicationGuiTests::midiChannelSelectionRebuildsTracksBeforeImport_data() {
+    QTest::addColumn<bool>("separate");
+    QTest::newRow("merged-channels") << false;
+    QTest::newRow("separate-channels") << true;
+}
+
+void ApplicationGuiTests::midiChannelSelectionRebuildsTracksBeforeImport() {
+    QFETCH(bool, separate);
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto path = directory.filePath(QStringLiteral("layered.mid"));
+    // One SMF track contains simultaneous notes on two MIDI channels.
+    const auto bytes = QByteArray::fromHex("4d546864000000060000000101e04d54726b00000015"
+                                           "00903c40009140408360803c400081404000ff2f00");
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::WriteOnly));
+    QCOMPARE(file.write(bytes), bytes.size());
+    file.close();
+    auto &runtime = *context->m_coreRuntime;
+    const auto before = runtime.documentVersion();
+    const auto originalTracks = appModel->tracks();
+    historyManager->reset();
+    bool configured = false;
+    QTimer configureDialog;
+    configureDialog.setInterval(10);
+    connect(&configureDialog, &QTimer::timeout, this, [&] {
+        auto *dialog = qobject_cast<ProjectImportConfigDialog *>(QApplication::activeModalWidget());
+        if (!dialog)
+            return;
+        configureDialog.stop();
+        const auto cancelOnFailure = qScopeGuard([&] {
+            if (!configured)
+                dialog->reject();
+        });
+        auto *page = qobject_cast<MidiConfigPage *>(dialog->page());
+        QVERIFY(page);
+        auto *channels = withText<QCheckBox>(page, MidiConfigPage::tr("Separate MIDI channels"));
+        QVERIFY(channels && channels->isChecked());
+        QCOMPARE(page->selectedTracks().size(), 2);
+        clickCheckBox(channels);
+        QVERIFY(!channels->isChecked());
+        QTRY_COMPARE(page->selectedTracks().size(), 1);
+        if (separate) {
+            clickCheckBox(channels);
+            QVERIFY(channels->isChecked());
+            QTRY_COMPARE(page->selectedTracks().size(), 2);
+        }
+        QCOMPARE(page->separateMidiChannels(), separate);
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(appModel->tracks(), originalTracks);
+        QVERIFY(!historyManager->canUndo());
+        auto *ok = withText<Button>(dialog, ProjectImportConfigDialog::tr("OK"));
+        QVERIFY(ok && ok->isEnabled());
+        QTest::mouseClick(ok, Qt::LeftButton);
+        configured = true;
+    });
+    const auto cancelPending = qScopeGuard([&] {
+        configureDialog.stop();
+        if (documentWorkflowController->busy())
+            documentWorkflowController->cancelCurrentOperation();
+    });
+    configureDialog.start();
+    documentWorkflowController->requestImport(path);
+    QTRY_VERIFY(!documentWorkflowController->busy());
+    QVERIFY(configured);
+    QCOMPARE(appModel->tracks().size(), originalTracks.size() + (separate ? 2 : 1));
+    QList<int> pitches;
+    for (qsizetype index = originalTracks.size(); index < appModel->tracks().size(); ++index) {
+        const auto *track = appModel->tracks()[index];
+        QCOMPARE(track->clips().count(), 1);
+        const auto *clip = dynamic_cast<const SingingClip *>(*track->clips().begin());
+        QVERIFY(clip);
+        QCOMPARE(clip->notes().count(), separate ? 1 : 2);
+        for (const auto *note : clip->notes()) {
+            QCOMPARE(note->globalStart(), 0);
+            QCOMPARE(note->length(), 480);
+            pitches.append(note->keyIndex());
+        }
+    }
+    std::sort(pitches.begin(), pitches.end());
+    QCOMPARE(pitches, QList<int>({60, 64}));
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    historyManager->undo();
+    QCOMPARE(appModel->tracks(), originalTracks);
+    QVERIFY(!historyManager->canUndo());
 }
 
 void ApplicationGuiTests::droppingAudioFilesCommitsOneBatchToTheSelectedTracks() {
@@ -452,7 +553,7 @@ void ApplicationGuiTests::droppingMidiAndAudioFilesUsesOneBatchDecision() {
         QCOMPARE(runtime.documentVersion(), before);
         QCOMPARE(appModel->serialize(), beforeModel);
         auto *codec = dialog->findChild<ComboBox *>();
-        selectUtf8Encoding(codec);
+        selectMidiCodec(codec);
         if (QTest::currentTestFailed())
             return;
         auto *tempo = withText<QCheckBox>(dialog, MidiBatchImportDialog::tr("Import tempo"));
