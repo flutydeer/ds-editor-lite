@@ -512,7 +512,7 @@ void AutomationProtocolTests::parameterQueryBoundsSamplesAndPreservesAnchors() {
     QCOMPARE(fixture.runtimeFixture.history()->nextUndoEntry(), beforeUndo);
 }
 
-void AutomationProtocolTests::parameterReplacementDecodesDrawAndAnchorCurves() {
+void AutomationProtocolTests::publicParameterEditsPreserveCurvesAndUndo() {
     RegistryFixture fixture;
     auto &runtime = fixture.runtime;
     QVERIFY(runtime.project().insertTrack(commandContext(runtime), 0, lyricTrack()));
@@ -541,12 +541,18 @@ void AutomationProtocolTests::parameterReplacementDecodesDrawAndAnchorCurves() {
         {"type",  "anchor"                       },
         {"nodes", QJsonArray{firstNode, lastNode}}
     };
-    const auto replace = [&](const QJsonArray &curves) {
-        auto arguments = commandArguments(runtime.documentVersion());
+    const auto edit = [&](const QString &tool, QJsonObject arguments) {
+        const auto command = commandArguments(runtime.documentVersion());
+        for (auto it = command.begin(); it != command.end(); ++it)
+            arguments.insert(it.key(), it.value());
         arguments.insert(QStringLiteral("clip_id"), clip.value());
         arguments.insert(QStringLiteral("name"), QStringLiteral("pitch"));
-        arguments.insert(QStringLiteral("curves"), curves);
-        return registry.invoke(QStringLiteral("parameters.replace"), arguments);
+        return registry.invoke(tool, arguments);
+    };
+    const auto replace = [&](const QJsonArray &curves) {
+        return edit(QStringLiteral("parameters.replace"), {
+                                                              {"curves", curves}
+        });
     };
     fixture.runtimeFixture.history()->reset();
     const auto replaced = replace({draw, anchor});
@@ -591,6 +597,80 @@ void AutomationProtocolTests::parameterReplacementDecodesDrawAndAnchorCurves() {
     QCOMPARE(restored.get().curves.last().id, storedAnchor.id);
     QCOMPARE(restored.get().curves.last().nodes.last().id, storedAnchor.nodes.last().id);
     QCOMPARE(restored.get().curves.last().nodes.last().value, storedAnchor.nodes.last().value);
+
+    const auto beforeAnchors = fixture.runtimeFixture.model().serialize();
+    const auto versionBeforeAnchors = runtime.documentVersion();
+    const auto created = edit(
+        QStringLiteral("parameters.create_anchor_curve"),
+        {
+            {"client_ref", "continuation"                                                    },
+            {"anchors",
+             QJsonArray{
+                 QJsonObject{{"position", 1440}, {"value", 6500}, {"interpolation", "linear"}},
+                 QJsonObject{{"position", 1920}, {"value", 6400}, {"interpolation", "step"}}}}
+    });
+    QVERIFY2(created, qPrintable(errorMessage(created)));
+    int curveId = -1;
+    for (const auto &value : created.get().value(QStringLiteral("created_objects")).toArray()) {
+        const auto entry = value.toObject();
+        if (entry.value(QStringLiteral("client_ref")).toString() == QStringLiteral("continuation"))
+            curveId = entry.value(QStringLiteral("object"))
+                          .toObject()
+                          .value(QStringLiteral("id"))
+                          .toInt(-1);
+    }
+    QVERIFY(curveId >= 0);
+    const auto inserted =
+        edit(QStringLiteral("parameters.insert_anchors"),
+             {
+                 {"curve_id", curveId                                                                        },
+                 {"anchors",  QJsonArray{QJsonObject{{"position", 1560}, {"value", 6700}},
+                                        QJsonObject{{"position", 1680},
+                                                    {"value", 6600},
+                                                    {"interpolation", "linear"}}}}
+    });
+    QVERIFY2(inserted, qPrintable(errorMessage(inserted)));
+    const auto withAnchors = runtime.parameters().getParameter(
+        runtime.documentVersion().documentId, clip, ParamInfo::Pitch, Param::Edited);
+    QVERIFY(withAnchors);
+    QCOMPARE(withAnchors.get().curves.size(), 3);
+    const auto &continuation = withAnchors.get().curves.last();
+    QCOMPARE(continuation.id.value(), curveId);
+    QCOMPARE(continuation.nodes.size(), 4);
+    const auto firstInsertedId = continuation.nodes.at(1).id;
+    const auto secondInsertedId = continuation.nodes.at(2).id;
+    QCOMPARE(continuation.nodes.at(1).position, 1560);
+    QCOMPARE(continuation.nodes.at(1).interpolation, AnchorNode::Hermite);
+    QCOMPARE(continuation.nodes.at(2).position, 1680);
+    QCOMPARE(continuation.nodes.at(2).interpolation, AnchorNode::Linear);
+    const auto moved =
+        edit(QStringLiteral("parameters.move_anchors"),
+             {
+                 {"moves", QJsonArray{QJsonObject{{"anchor_id", firstInsertedId.value()},
+                                                  {"position", 1500},
+                                                  {"value", 6750}},
+                                      QJsonObject{{"anchor_id", secondInsertedId.value()},
+                                                  {"position", 1740},
+                                                  {"value", 6650}}}}
+    });
+    QVERIFY2(moved, qPrintable(errorMessage(moved)));
+    const auto afterMove = runtime.parameters().getParameter(runtime.documentVersion().documentId,
+                                                             clip, ParamInfo::Pitch, Param::Edited);
+    QVERIFY(afterMove);
+    const auto &movedCurve = afterMove.get().curves.last();
+    QCOMPARE(movedCurve.id, continuation.id);
+    QCOMPARE(movedCurve.nodes.at(1).id, firstInsertedId);
+    QCOMPARE(movedCurve.nodes.at(1).position, 1500);
+    QCOMPARE(movedCurve.nodes.at(1).value, 6750);
+    QCOMPARE(movedCurve.nodes.at(2).id, secondInsertedId);
+    QCOMPARE(movedCurve.nodes.at(2).position, 1740);
+    QCOMPARE(movedCurve.nodes.at(2).value, 6650);
+    QCOMPARE(afterMove.get().curves.first().values, storedDraw.values);
+    QCOMPARE(afterMove.get().curves.at(1).id, storedAnchor.id);
+    QCOMPARE(runtime.documentVersion().revision, versionBeforeAnchors.revision + 3);
+    for (int i = 0; i < 3; ++i)
+        QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(fixture.runtimeFixture.model().serialize(), beforeAnchors);
     QVERIFY(runtime.history().undo(commandContext(runtime)));
     const auto empty = runtime.parameters().getParameter(runtime.documentVersion().documentId, clip,
                                                          ParamInfo::Pitch, Param::Edited);
