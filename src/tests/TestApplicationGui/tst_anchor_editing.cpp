@@ -12,6 +12,7 @@
 
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AnchorCurve.h>
+#include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
 #include <QApplication>
@@ -270,6 +271,7 @@ void ApplicationGuiTests::pitchAnchorMergePreviewCommitsAndUndoes() {
     left.type = Automation::CurveDraftDto::Type::Anchor;
     left.nodes = {
         {240, 6000, AnchorNode::Linear},
+        {360, 6100, AnchorNode::Linear},
         {480, 6100, AnchorNode::None  }
     };
     auto right = left;
@@ -301,13 +303,52 @@ void ApplicationGuiTests::pitchAnchorMergePreviewCommitsAndUndoes() {
     QVERIFY(anchorCurve(*singingClip));
     QVERIFY(!anchorCurve(*singingClip, 1));
     const auto nodes = anchorCurve(*singingClip)->nodes().toList();
-    QCOMPARE(nodes.size(), 4);
+    QCOMPARE(nodes.size(), 5);
     QCOMPARE(nodes.first()->pos(), 240);
     QCOMPARE(nodes.last()->pos(), 1440);
     QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
     QVERIFY(runtime.history().undo(commandContext()));
-    QCOMPARE(anchorCurve(*singingClip)->nodes().count(), 2);
+    QCOMPARE(anchorCurve(*singingClip)->nodes().count(), 3);
     QVERIFY(anchorCurve(*singingClip, 1));
     QCOMPARE(anchorCurve(*singingClip, 1)->nodes().count(), 2);
+    QVERIFY(!historyManager->canUndo());
+
+    const auto sourceNodes = anchorCurve(*singingClip)->nodes().toList();
+    const auto movedId = sourceNodes.at(1)->id();
+    const auto sourceModel = context->m_appModel->serialize();
+    const auto sourceVersion = runtime.documentVersion();
+    const auto dragFrom = fixture.pointAt(360, 61);
+    const auto dragTo = fixture.pointAt(1200, 63);
+    const auto drag = [&] {
+        QTest::keyClick(fixture.canvas, Qt::Key_Escape);
+        fixture.enterAt(dragFrom);
+        const auto idle = fixture.image();
+        QTest::mousePress(fixture.canvas->viewport(), Qt::LeftButton, Qt::NoModifier, dragFrom);
+        fixture.moveTo(dragTo, Qt::LeftButton);
+        QVERIFY(editSessionManager->hasActiveTransaction());
+        QVERIFY(fixture.image() != idle);
+        QCOMPARE(context->m_appModel->serialize(), sourceModel);
+        QCOMPARE(runtime.documentVersion(), sourceVersion);
+    };
+    drag();
+    if (QTest::currentTestFailed())
+        return;
+    QTest::keyClick(fixture.canvas, Qt::Key_Escape);
+    QTest::mouseRelease(fixture.canvas->viewport(), Qt::LeftButton, Qt::NoModifier, dragTo);
+    QCOMPARE(context->m_appModel->serialize(), sourceModel);
+    QVERIFY(!historyManager->canUndo());
+    drag();
+    if (QTest::currentTestFailed())
+        return;
+    QTest::mouseRelease(fixture.canvas->viewport(), Qt::LeftButton, Qt::NoModifier, dragTo);
+    QCOMPARE(anchorCurve(*singingClip)->nodes().count(), 2);
+    const auto targetNodes = anchorCurve(*singingClip, 1)->nodes().toList();
+    QCOMPARE(targetNodes.size(), 3);
+    QCOMPARE(targetNodes.at(1)->id(), movedId);
+    QVERIFY(qAbs(targetNodes.at(1)->pos() - 1200) <= 4);
+    QCOMPARE(targetNodes.at(1)->value(), 6300);
+    QCOMPARE(runtime.documentVersion().revision, sourceVersion.revision + 1);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(context->m_appModel->serialize(), sourceModel);
     QVERIFY(!historyManager->canUndo());
 }

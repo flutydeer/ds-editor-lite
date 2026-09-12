@@ -234,15 +234,25 @@ void GuiComponentTests::externalThemeRoot_data() {
     QTest::addColumn<QByteArray>("replacement");
     QTest::addColumn<bool>("remove");
     QTest::newRow("valid-theme") << QString{} << QByteArray{} << false;
+    QTest::newRow("malformed-manifest")
+        << QStringLiteral("manifest.json") << QByteArray("{") << false;
     QTest::newRow("missing-colors") << QStringLiteral("colors.json") << QByteArray{} << true;
     QTest::newRow("invalid-colors") << QStringLiteral("colors.json") << QByteArray("{") << false;
     QTest::newRow("invalid-palette-color")
         << QStringLiteral("app-color-palette.json")
         << QByteArray(R"({"baseColors":["not-a-color"]})") << false;
+    QTest::newRow("missing-palette")
+        << QStringLiteral("app-color-palette.json") << QByteArray{} << true;
+    QTest::newRow("malformed-palette")
+        << QStringLiteral("app-color-palette.json") << QByteArray("[") << false;
+    QTest::newRow("missing-stylesheet") << QStringLiteral("base.qss") << QByteArray{} << true;
     QTest::newRow("unresolved-stylesheet-color")
         << QStringLiteral("base.qss") << QByteArray("QWidget { color: ${missing.token}; }")
         << false;
     QTest::newRow("missing-lyric-style") << QStringLiteral("lyric.qss") << QByteArray{} << true;
+    QTest::newRow("unresolved-lyric-color")
+        << QStringLiteral("lyric.qss") << QByteArray("QWidget { color: ${missing.token}; }")
+        << false;
 }
 
 void GuiComponentTests::externalThemeRoot() {
