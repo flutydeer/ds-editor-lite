@@ -33,8 +33,8 @@ private slots:
     void invalidClipboardDoesNotEdit_data();
     void invalidClipboardDoesNotEdit();
     void drawingCommitsOnceAndUndoRedoUpdatesTheScene();
-    void intervalSelectionUsesTheToolbarAndDeletesOnlyTheChosenTimeRange_data();
-    void intervalSelectionUsesTheToolbarAndDeletesOnlyTheChosenTimeRange();
+    void selectionToolsDeleteOnlyTheChosenTimeAndKeyRange_data();
+    void selectionToolsDeleteOnlyTheChosenTimeAndKeyRange();
     void pianoErasingRestoresSceneItemsOnCancelAndUndo();
     void pianoSplitIndicatorFollowsTheMouseAndMatchesTheEdit();
     void draggingExistingNoteCommitsOrCancels_data();

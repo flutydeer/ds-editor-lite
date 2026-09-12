@@ -14,6 +14,8 @@
 #include "UI/Views/TrackEditor/GraphicsItem/AbstractClipView.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
 #include "UI/Views/TrackEditor/TracksGraphicsView.h"
+#include "UI/Views/MainTitleBar/MainMenuView.h"
+#include "UI/Window/MainWindow.h"
 
 #include <lite/GUI/Controls/Button.h>
 #include <lite/GUI/Controls/ComboBox.h>
@@ -34,6 +36,15 @@
 #include <QDropEvent>
 #include <QFile>
 #include <QFileInfo>
+#include <QDir>
+#include <QFileDialog>
+#include <QDialogButtonBox>
+#include <QClipboard>
+#include <QKeySequence>
+#include <QLineEdit>
+#include <QMenu>
+#include <QPointer>
+#include <QPushButton>
 #include <QMimeData>
 #include <QScopeGuard>
 #include <QStyle>
@@ -195,6 +206,37 @@ void ApplicationGuiTests::interactiveProjectImportRespectsSelectionAndCancellati
         return;
 
     auto &runtime = *context->m_coreRuntime;
+    const auto nativeDialogsDisabled = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
+    QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+    const auto restoreDialogs = qScopeGuard(
+        [&] { QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDialogsDisabled); });
+    MainWindow window;
+    window.resize(1200, 800);
+    window.show();
+    window.activateWindow();
+    QTRY_VERIFY(window.isActiveWindow());
+    const auto clearWindow = qScopeGuard([] {
+        documentWorkflowController->setUi(nullptr);
+        trackController->setParentWidget(nullptr);
+        Dialog::setGlobalContext(nullptr);
+    });
+    auto *menuBar = window.findChild<MainMenuView *>();
+    QVERIFY(menuBar);
+    menuBar->setNativeMenuBar(false);
+    QMenu *importMenu = nullptr;
+    for (auto *menu : menuBar->findChildren<QMenu *>()) {
+        if (menu->title() == QCoreApplication::translate("MainMenuViewPrivate", "Import"))
+            importMenu = menu;
+    }
+    QVERIFY(importMenu);
+    QAction *importAction = nullptr;
+    const auto label = QCoreApplication::translate(
+        "MainMenuViewPrivate", midi ? "MIDI file..." : "DiffScope project file...");
+    for (auto *action : importMenu->actions()) {
+        if (action->text() == label)
+            importAction = action;
+    }
+    QVERIFY(importAction);
     const auto before = runtime.documentVersion();
     const auto originalTimeline = appModel->timeline();
     const auto originalLoop = appStatus->loopSettings.get();
@@ -204,9 +246,32 @@ void ApplicationGuiTests::interactiveProjectImportRespectsSelectionAndCancellati
 
     const auto importWithConfirmation = [&](const bool accept) {
         bool configured = false;
+        bool fileChosen = false;
         QTimer configureDialog;
         configureDialog.setInterval(10);
         connect(&configureDialog, &QTimer::timeout, this, [&] {
+            if (QPointer<QFileDialog> picker =
+                    qobject_cast<QFileDialog *>(QApplication::activeModalWidget())) {
+                if (fileChosen)
+                    return;
+                const auto closeOnFailure = qScopeGuard([&] {
+                    if (!fileChosen && picker)
+                        picker->reject();
+                });
+                auto *name = picker->findChild<QLineEdit *>(QStringLiteral("fileNameEdit"));
+                auto *buttons = picker->findChild<QDialogButtonBox *>();
+                QVERIFY(name && buttons);
+                QTest::mouseClick(name, Qt::LeftButton);
+                QTest::keySequence(name, QKeySequence::SelectAll);
+                QApplication::clipboard()->setText(QDir::toNativeSeparators(path));
+                QTest::keySequence(name, QKeySequence::Paste);
+                auto *open = buttons->button(QDialogButtonBox::Open);
+                QVERIFY(open);
+                QTRY_VERIFY(open->isEnabled());
+                fileChosen = true;
+                QTest::mouseClick(open, Qt::LeftButton);
+                return;
+            }
             auto *dialog =
                 qobject_cast<ProjectImportConfigDialog *>(QApplication::activeModalWidget());
             if (!dialog)
@@ -239,8 +304,13 @@ void ApplicationGuiTests::interactiveProjectImportRespectsSelectionAndCancellati
                 documentWorkflowController->cancelCurrentOperation();
         });
         configureDialog.start();
-        documentWorkflowController->requestImport(path);
+        importMenu->popup(window.mapToGlobal(QPoint(40, 80)));
+        QTRY_VERIFY(importMenu->isVisible());
+        QVERIFY(importAction->isEnabled());
+        QTest::mouseClick(importMenu, Qt::LeftButton, Qt::NoModifier,
+                          importMenu->actionGeometry(importAction).center());
         QTRY_VERIFY(!documentWorkflowController->busy());
+        QVERIFY(fileChosen);
         QVERIFY(configured);
     };
 

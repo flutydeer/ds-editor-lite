@@ -18,6 +18,7 @@
 #include "UI/Window/MainWindow.h"
 
 #include <lite/GUI/Controls/InlineTextEditOverlay.h>
+#include <lite/GUI/Controls/ToolTip.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Note.h>
@@ -32,6 +33,7 @@
 #include <QMimeData>
 #include <QScopeGuard>
 #include <QAbstractButton>
+#include <QTextDocument>
 
 namespace {
     void replaceInlineText(QLineEdit *editor, const QString &text) {
@@ -89,14 +91,17 @@ void ApplicationGuiTests::createPianoRoll() {
     historyManager->reset();
 }
 
-void ApplicationGuiTests::intervalSelectionUsesTheToolbarAndDeletesOnlyTheChosenTimeRange_data() {
+void ApplicationGuiTests::selectionToolsDeleteOnlyTheChosenTimeAndKeyRange_data() {
     QTest::addColumn<bool>("backward");
-    QTest::newRow("forward") << false;
-    QTest::newRow("backward") << true;
+    QTest::addColumn<bool>("rectangle");
+    QTest::newRow("interval-forward") << false << false;
+    QTest::newRow("interval-backward") << true << false;
+    QTest::newRow("rectangle") << false << true;
 }
 
-void ApplicationGuiTests::intervalSelectionUsesTheToolbarAndDeletesOnlyTheChosenTimeRange() {
+void ApplicationGuiTests::selectionToolsDeleteOnlyTheChosenTimeAndKeyRange() {
     QFETCH(bool, backward);
+    QFETCH(bool, rectangle);
     MainWindow window;
     window.resize(1200, 800);
     window.show();
@@ -124,29 +129,32 @@ void ApplicationGuiTests::intervalSelectionUsesTheToolbarAndDeletesOnlyTheChosen
     const auto notes = singingClip->notes().toList();
     QCOMPARE(notes.size(), 3);
     const auto preserved = notes.last()->serialize();
+    const auto outsideKeyRange = notes.at(1)->serialize();
     view->hide();
     window.activateWindow();
     QTRY_VERIFY(window.isActiveWindow());
     QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));
     QVERIFY(window.setPianoRollScale(1.0, 1.0));
-    QVERIFY(window.centerPianoRollAt(1920, 66));
+    QVERIFY(window.centerPianoRollAt(1920, rectangle ? 61 : 66));
     auto *canvas = window.findChild<PianoRollGraphicsView *>();
     auto *toolbar = window.findChild<ClipEditorToolBarView *>();
     QVERIFY(canvas);
     QVERIFY(toolbar);
-    auto *beam = toolbar->findChild<QAbstractButton *>(QStringLiteral("btnBeam"));
-    QVERIFY(beam);
-    QTRY_VERIFY(beam->isVisible());
-    QTest::mouseClick(beam, Qt::LeftButton);
-    QCOMPARE(toolbar->editMode(), ClipEditorGlobal::IntervalSelect);
+    auto *tool = toolbar->findChild<QAbstractButton *>(rectangle ? QStringLiteral("btnArrow")
+                                                                 : QStringLiteral("btnBeam"));
+    QVERIFY(tool);
+    QTRY_VERIFY(tool->isVisible());
+    QTest::mouseClick(tool, Qt::LeftButton);
+    QCOMPARE(toolbar->editMode(),
+             rectangle ? ClipEditorGlobal::Select : ClipEditorGlobal::IntervalSelect);
     canvas->setViewportStartTick(0);
     const auto pointAt = [&](const int tick, const int key) {
         return canvas->mapFromScene(QPointF(
             canvas->tickToSceneX(tick), PianoRollCoord::keyIndexToCenterY(
                                             key, ClipEditorGlobal::noteHeight * canvas->scaleY())));
     };
-    const auto first = pointAt(360, 66);
-    const auto last = pointAt(1320, 66);
+    const auto first = pointAt(360, rectangle ? 62 : 66);
+    const auto last = pointAt(1320, rectangle ? 59 : 66);
     QVERIFY(canvas->viewport()->rect().contains(first));
     QVERIFY(canvas->viewport()->rect().contains(last));
     const auto press = backward ? last : first;
@@ -158,16 +166,25 @@ void ApplicationGuiTests::intervalSelectionUsesTheToolbarAndDeletesOnlyTheChosen
                      QPointF(canvas->viewport()->mapToGlobal(release)), Qt::NoButton,
                      Qt::LeftButton, Qt::NoModifier);
     QApplication::sendEvent(canvas->viewport(), &move);
+    const auto selectingImage = canvas->viewport()->grab().toImage();
+    QVERIFY(!selectingImage.isNull());
     QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, release);
+    QVERIFY(canvas->viewport()->grab().toImage() != selectingImage);
     const auto selected = canvas->selectedNotesId();
-    QCOMPARE(QSet<int>(selected.cbegin(), selected.cend()),
-             QSet<int>({notes.at(0)->id(), notes.at(1)->id()}));
+    const auto expectedSelection =
+        rectangle ? QSet<int>{notes.at(0)->id()} : QSet<int>{notes.at(0)->id(), notes.at(1)->id()};
+    QCOMPARE(QSet<int>(selected.cbegin(), selected.cend()), expectedSelection);
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(window.focusEditorRegion(EditorViewGlobal::Region::PianoRoll));
     QTest::keySequence(canvas->viewport(), QKeySequence::Delete);
-    QTRY_COMPARE(singingClip->notes().count(), 1);
-    QCOMPARE((*singingClip->notes().begin())->serialize(), preserved);
+    QTRY_COMPARE(singingClip->notes().count(), rectangle ? 2 : 1);
+    QCOMPARE(singingClip->notes().toList().last()->serialize(), preserved);
+    if (rectangle) {
+        const auto *unselected = singingClip->findNoteById(notes.at(1)->id());
+        QVERIFY(unselected);
+        QCOMPARE(unselected->serialize(), outsideKeyRange);
+    }
     QVERIFY(runtime.history().undo(commandContext()));
     QCOMPARE(singingClip->notes().count(), 3);
     QCOMPARE(singingClip->notes().toList(), notes);
@@ -653,20 +670,40 @@ void ApplicationGuiTests::inlineLyricsCommitNavigateAndCancel() {
     if (QTest::currentTestFailed())
         return;
     auto *input = overlay->findChild<QLineEdit *>();
-    replaceInlineText(input, QStringLiteral("  replacement  "));
+    const auto replacement = QStringLiteral("a longer replacement");
+    replaceInlineText(input, QStringLiteral("  ") + replacement + QStringLiteral("  "));
     if (QTest::currentTestFailed())
         return;
     QCOMPARE(first->lyric(), QStringLiteral("one"));
     QVERIFY(!historyManager->canUndo());
     QTest::keyClick(input, Qt::Key_Return);
     QVERIFY(!overlay->isEditing());
-    QCOMPARE(first->lyric(), QStringLiteral("replacement"));
+    QCOMPARE(first->lyric(), replacement);
     QCOMPARE(sceneNote(first->id())->lyric(), first->lyric());
     QVERIFY(!sceneNote(first->id())->isEditingLyric());
     QVERIFY(runtime.history().undo(commandContext()));
     QCOMPARE(first->lyric(), QStringLiteral("one"));
     QVERIFY(!historyManager->canUndo());
     QVERIFY(runtime.history().redo(commandContext()));
+
+    const auto beforeHover = runtime.documentVersion();
+    const auto *beforeHoverUndo = historyManager->nextUndoEntry();
+    QVERIFY(view->setViewportScale(0.5, 2.0));
+    view->setViewportCenterAt(1920, 62, false);
+    QTRY_VERIFY(sceneNote(first->id())->isLyricElided(view->visibleRect()));
+    auto *tooltip = view->viewport()->findChild<ToolTip *>();
+    QVERIFY(tooltip);
+    QTest::mouseMove(view->viewport(), pointFor(720, 62));
+    QTRY_VERIFY(tooltip->isVisible());
+    QTextDocument tooltipText;
+    tooltipText.setHtml(tooltip->title());
+    QCOMPARE(tooltipText.toPlainText(), first->lyric());
+    QTest::mouseMove(view->viewport(), pointFor(1800, 64));
+    QTRY_VERIFY(!tooltip->isVisible());
+    QCOMPARE(runtime.documentVersion(), beforeHover);
+    QCOMPARE(historyManager->nextUndoEntry(), beforeHoverUndo);
+    QVERIFY(view->setViewportScale(1.0, 1.0));
+    view->setViewportCenterAt(1920, 60, false);
 
     editFirst();
     if (QTest::currentTestFailed())
@@ -699,7 +736,7 @@ void ApplicationGuiTests::inlineLyricsCommitNavigateAndCancel() {
     QVERIFY(runtime.history().undo(commandContext()));
     QCOMPARE(second->lyric(), QStringLiteral("two"));
     QVERIFY(runtime.history().undo(commandContext()));
-    QCOMPARE(first->lyric(), QStringLiteral("replacement"));
+    QCOMPARE(first->lyric(), replacement);
 }
 
 void ApplicationGuiTests::inlinePronunciationCommitsAndCancels() {
