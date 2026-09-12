@@ -350,6 +350,8 @@ void NativeDesktopTests::rhiNoteMoveCanBeCanceledAndThenCommitted() {
     if (QTest::currentTestFailed())
         return;
     auto &canvas = *fixture.canvas;
+    QVERIFY(canvas.setViewScale(2, 1));
+    QVERIFY(canvas.centerAt(960, 60));
     auto *note = fixture.clip->findNoteById(fixture.noteId);
     QVERIFY(note);
     const auto press = fixture.pointFor(720, 60);
@@ -367,6 +369,13 @@ void NativeDesktopTests::rhiNoteMoveCanBeCanceledAndThenCommitted() {
     QCOMPARE(note->keyIndex(), 60);
     QVERIFY(editSessionManager->hasActiveTransaction());
     QCOMPARE(fixture.runtime().documentVersion(), before);
+    const auto pageStart = canvas.startTick();
+    const auto nextPagePosition = canvas.endTick() + 120;
+    QVERIFY(nextPagePosition < fixture.clip->length());
+    canvas.setAutoPageTurn(true);
+    canvas.setPlaybackPosition(nextPagePosition);
+    QCOMPARE(canvas.startTick(), pageStart);
+    canvas.setAutoPageTurn(false);
     const auto canceledFrame = fixture.submitted->size();
     QTest::keyClick(&canvas, Qt::Key_Escape);
     QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
@@ -403,6 +412,20 @@ void NativeDesktopTests::rhiNoteMoveCanBeCanceledAndThenCommitted() {
     QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, fixture.pointFor(1600, 70));
     QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, press);
     QCOMPARE(appStatus->selectedNotes.get(), QList<int>{fixture.noteId});
+    const auto afterEditing = fixture.runtime().documentVersion();
+    canvas.setAutoPageTurn(true);
+    QTRY_VERIFY2(canvas.startTick() > pageStart && canvas.startTick() <= nextPagePosition &&
+                     canvas.endTick() >= nextPagePosition,
+                 qPrintable(QStringLiteral("Playback %1, viewport %2..%3, previous start %4")
+                                .arg(nextPagePosition)
+                                .arg(canvas.startTick())
+                                .arg(canvas.endTick())
+                                .arg(pageStart)));
+    canvas.setPlaybackPosition(480);
+    QTRY_VERIFY(canvas.startTick() <= 480 && canvas.endTick() >= 480);
+    QCOMPARE(fixture.runtime().documentVersion(), afterEditing);
+    QCOMPARE(note->localStart(), 480);
+    QVERIFY(!historyManager->canUndo());
 }
 
 void NativeDesktopTests::rhiNoteResizeUndoRestoresTheHitRegion() {
@@ -495,6 +518,25 @@ void NativeDesktopTests::rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor(
     fixture.frameAfter(insertedFrame);
     if (QTest::currentTestFailed())
         return;
+    const auto beforeAppend = fixture.app.context->m_appModel->serialize();
+    const auto appendPosition = fixture.pointFor(1680, 61);
+    const auto hoverFrame = fixture.submitted->size();
+    QTest::mouseMove(canvas.windowHandle(), appendPosition);
+    fixture.frameAfter(hoverFrame);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(fixture.app.context->m_appModel->serialize(), beforeAppend);
+    QCOMPARE(anchorCurve()->nodes().toList().last()->interpMode(), AnchorNode::None);
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, appendPosition);
+    QCOMPARE(anchorCurve()->nodes().count(), 4);
+    const auto appendedNodes = anchorCurve()->nodes().toList();
+    QVERIFY(qAbs(appendedNodes.last()->pos() - 1680) <= tickPerPixel);
+    QCOMPARE(appendedNodes.last()->value(), 6100);
+    QCOMPARE(appendedNodes.last()->interpMode(), AnchorNode::None);
+    QCOMPARE(appendedNodes.at(2)->interpMode(), AnchorNode::Hermite);
+    QVERIFY(fixture.runtime().history().undo(fixture.command()));
+    QCOMPARE(fixture.app.context->m_appModel->serialize(), beforeAppend);
+    inserted = anchorCurve()->nodes().toList().at(1);
     const auto *historyEntry = historyManager->nextUndoEntry();
     const auto beforeCancel = fixture.runtime().documentVersion();
     const auto press = fixture.pointFor(insertedTick, 62);

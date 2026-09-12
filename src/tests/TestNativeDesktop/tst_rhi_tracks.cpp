@@ -237,6 +237,12 @@ void NativeDesktopTests::rhiClipDragCommitsAcrossTracksAndUndoRestoresView() {
     QCOMPARE(fixture.clip()->start(), 480);
     QCOMPARE(fixture.runtime().documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
+    const auto pageStart = canvas.startTick();
+    const auto nextPagePosition = canvas.endTick() + 120;
+    canvas.setAutoPageTurn(true);
+    canvas.setPlaybackPosition(nextPagePosition);
+    QCOMPARE(canvas.startTick(), pageStart);
+    canvas.setAutoPageTurn(false);
     QTRY_VERIFY(frames.size() > previewFrame || !backendError.isEmpty());
     QVERIFY2(backendError.isEmpty(), qPrintable(backendError));
 
@@ -269,6 +275,14 @@ void NativeDesktopTests::rhiClipDragCommitsAcrossTracksAndUndoRestoresView() {
     QCOMPARE(appStatus->selectedClips.get(), QList<int>{fixture.clipId});
     QCOMPARE(fixture.runtime().documentVersion().revision, before.revision + 3);
     QVERIFY(failed.isEmpty());
+    const auto afterEditing = fixture.runtime().documentVersion();
+    canvas.setAutoPageTurn(true);
+    QTRY_VERIFY(canvas.startTick() > pageStart && canvas.startTick() <= nextPagePosition &&
+                canvas.endTick() >= nextPagePosition);
+    canvas.setPlaybackPosition(480);
+    QTRY_VERIFY(canvas.startTick() <= 480 && canvas.endTick() >= 480);
+    QCOMPARE(fixture.runtime().documentVersion(), afterEditing);
+    QCOMPARE(fixture.clip()->start(), 960);
 }
 
 void NativeDesktopTests::rhiClipResizeCommitsOrCancels_data() {
