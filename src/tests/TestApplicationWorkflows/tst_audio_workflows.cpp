@@ -5,12 +5,14 @@
 #include "Controller/PlaybackController.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Automation/Public/PublicAutomationRegistry.h"
+#include "Automation/Public/PublicAutomationHostAdapter.h"
 #include "../TestSupport/ProcessFixture.h"
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/Tasking/TaskManager.h>
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 
 #include <TalcsCore/AudioBuffer.h>
 #include <TalcsCore/AudioSourceClipSeries.h>
@@ -264,14 +266,34 @@ void ApplicationWorkflowTests::audioExportRespectsRangeMixAndMute() {
     Automation::AutomationFileGuard fileGuard;
     Automation::AdmissionController admission;
     QVERIFY(fileGuard.setConfiguredRoots({files.path()}));
-    Automation::PublicAutomationRegistry registry(runtime(), access, fileGuard, admission);
+    Automation::PublicAutomationRegistry registry(
+        runtime(), access, fileGuard, admission,
+        Automation::createPublicAutomationHostServices(runtime(), context->m_appModel,
+                                                       &SynthrtEngine::instance()));
+    const auto capabilities = registry.invoke(
+        QStringLiteral("exports.audio.get_capabilities"),
+        {
+            {QStringLiteral("document_id"), runtime().documentVersion().documentId.toString()}
+    });
+    QVERIFY2(capabilities, qPrintable(capabilities ? QString{} : capabilities.getError().message));
+    int selectedSource = -1;
+    for (const auto &value : capabilities.get()
+                                 .value(QStringLiteral("capabilities"))
+                                 .toObject()
+                                 .value(QStringLiteral("sources"))
+                                 .toArray()) {
+        const auto source = value.toObject();
+        if (source.value(QStringLiteral("name")).toString() == QStringLiteral("Changing"))
+            selectedSource = source.value(QStringLiteral("id")).toInt(-1);
+    }
+    QVERIFY(selectedSource >= 0);
     QJsonObject options{
-        {"format",       "wav"                                                  },
-        {"sample_rate",  48000                                                  },
-        {"channel_mode", "mono"                                                 },
-        {"mixing_mode",  "mixed"                                                },
-        {"source",       "custom"                                               },
-        {"source_ids",   QJsonArray{context->m_appModel->tracks().first()->id()}}
+        {"format",       "wav"                     },
+        {"sample_rate",  48000                     },
+        {"channel_mode", "mono"                    },
+        {"mixing_mode",  "mixed"                   },
+        {"source",       "custom"                  },
+        {"source_ids",   QJsonArray{selectedSource}}
     };
 
     const auto exportSamples = [&](const QString &name, QVector<float> &samples,
