@@ -148,7 +148,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 填词预览、编辑与规则 | gui | 实际声库参与歌词转换，经过真实控件拆分、修改预览、导入音符、取消及撤销；规则编辑验证实际预览和保存 | ApplicationGui 的 tst_fill_lyric.cpp | offscreen；默认内置声库 |
 | Tagger 规则编辑与稳定身份 | gui | 创建、修改语言/正则/标签、启停、删除后 Apply 检查实际 TextTagger、落盘和重开；错误正则不改变已应用规则。新草稿分配稳定 ID，Splitter 同时保留详情编辑和 DTO 转换中的 ID | ApplicationGui::taggerRuleInputsApplyPersistAndReopen、invalidTaggerRegexPreservesAppliedRules、lyricRuleEditingChangesThePreviewAndPersists | offscreen；共用应用与声库；每例恢复规则和配置 |
 | 主窗口面板及嵌入设置 | gui | 实际按钮、片段双击、分离窗口关闭和菜单输入验证面板恢复、分离/重新嵌入后的编辑上下文、视图状态复原，以及嵌入设置对后台快捷键的阻断与焦点恢复 | ApplicationGui 的 tst_main_window.cpp | offscreen；不代表各窗口管理器或多屏行为 |
-| 自定义标题栏与分离面板按钮 | gui | 原生边框下的分离流程不能验证自定义系统按钮接线 | 主窗口和分离面板复用真实点击检查最大化、还原和最小化；分离面板的关闭按钮恢复嵌入、当前页和分隔条尺寸，文档及历史不变 | NativeDesktop::customWindowButtonsKeepTheDetachedPanelAndDocument | 原生桌面；Linux Xvfb；不检查像素或多屏组合 |
+| 自定义标题栏与分离面板按钮 | gui | 原生边框下的分离流程不能验证自定义系统按钮接线；主窗口和分离面板复用真实点击检查最大化、还原和最小化；分离面板的关闭按钮恢复嵌入、当前页和分隔条尺寸，文档及历史不变 | NativeDesktop::customWindowButtonsKeepTheDetachedPanelAndDocument | 原生桌面；Linux Xvfb；不检查像素或多屏组合 |
 | 主窗口文件拖入 | gui/workflow | 未保存工程经真实保存提示取消或放弃后打开；工程与音频混合拖入整批拒绝，再次单独拖入音频正常提交；检查工程身份、路径、轨道控件、播放位置锚定及一次撤销，释放临时音频 | ApplicationGui::projectDropCanCancelThenOpenTheDocument、mixedFileDropRejectsAtomicallyAndAllowsTheNextImport | offscreen；临时 DSPX/WAV；无需音频设备 |
 | 日志接收、筛选和复制 | gui | 真实 LogBus 包含跨线程追加，经过控件过滤级别/标签/文本，检查显示顺序复制与清空，文档和历史不变 | ApplicationGui::logWindowFiltersLiveMessagesAndCopiesDisplayedOrder | offscreen；真实总线；无需设备 |
 | 文件日志目录与故障恢复 | unit | 切换目录隔离前后内容；无效目录保留原目标，文件打开失败后仍可输出和恢复；第三方标准错误进入文件，旧日志清理保留最新日志及无关文件 | Foundation::fileLoggingChangesDirectoriesAndRecoversFromWriteFailure | 通用；同一测试程序的独立子进程；临时目录 |
@@ -191,9 +191,11 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 公共曲线编辑与音素名称转换 | protocol | 混合绘制/锚点曲线经公开输入保留位置、步长、值和插值；使用创建返回的曲线身份继续批量插入和移动锚点，保留其他曲线，撤销恢复完整原模型。音素名称按有效语言补全，清除失效手工偏移并可撤销恢复 | AutomationProtocol::publicParameterEditsPreserveCurvesAndUndo、phonemeNamesUseTheEffectiveLanguageAndResetOffsets | 通用；真实领域实现；无需声库 |
 | 撤销快捷键的编辑位置定位 | gui | 离屏片段、隐藏轨道面板及钢琴窗顶端音符先显示编辑位置，再按一次才撤销，重做恢复并定位；首轨和顶端音符的边框超出场景曾导致定位误报失败，统一按编辑对象的主体矩形计算焦点范围 | ApplicationGui::undoShortcutRevealsTheTrackEditBeforeChangingIt、undoShortcutRevealsThePianoEditBeforeChangingIt | offscreen；完整 MainWindow、真实快捷键及历史 |
 | 混合 MIDI/音频的批量导入选项 | gui/workflow | 两个 MIDI 和一个 WAV 经真实画布拖放共用一次编码/时间线决策；取消整批无修改，确认分别验证首个 MIDI 速度优先、保留当前拍号或速度、已有轨道复用、歌词保真、音频时间锚定及整批撤销重做 | ApplicationGui::droppingMidiAndAudioFilesUsesOneBatchDecision | offscreen；小型临时 MIDI/WAV；无需模型或设备 |
+| MIDI 编码和通道重解析 | gui/workflow | 错误编码与 UTF-8 切换更新歌词预览并保留选择；同一 MIDI 轨中的不同通道可合并或分离，重解析后的选择对应最终导入，音符时间和音高保留，单次撤销恢复原轨道 | ApplicationGui::interactiveProjectImportRespectsSelectionAndCancellation、midiChannelSelectionRebuildsTracksBeforeImport | offscreen；小型 MIDI；真实配置页及加载会话 |
+| 自动化到主窗口的工作区接线 | protocol/gui | 生产 Facade 经 AppContext 修改可见区域、参数配对、时间/音域/参数视口、焦点、量化和自动翻页，并恢复视图；实际主窗口与查询结果一致，文档和历史不变 | ApplicationGui::editorAutomationConfiguresTheVisibleWorkspaceWithoutEditingTheDocument | offscreen；实际 MainWindow；不替代真实鼠标编辑用例 |
 | 参数变换边界与倍率手柄 | gui | 拖动过渡区及核心区边界，保持未提交模型和已有过渡宽度；倍率手柄改变核心值，过渡区平滑衔接且范围外保持，预览图形更新，单次提交可撤销恢复 | ApplicationGui::parameterTransformHandlesControlTheTransitionRange | offscreen；实际参数控件及输入；无需声库 |
 | 文件菜单的打开、另存为及保存 | gui/workflow | 真实 Qt 文件选择框处理 Unicode 路径；取消打开不换文档，取消另存为保留路径和未保存历史，确认后更新保存点/最近列表，后续 Save 使用新路径；独立重读磁盘验证新文件更新且原文件不被覆盖 | ApplicationGui::fileMenuOpensAndSavesThroughTheActualPicker | offscreen；临时 DSPX；Qt 文件选择框 |
-| 标题栏文件弹层 | gui/workflow | 文件菜单不能替代标题栏弹层的条目和子菜单接线 | 实际点击最近工程打开文件，当前工程禁止移出列表，移除其他条目不删文件或修改文档；新建更新工程身份，Open 的实际文件选择取消后保留新工程 | ApplicationGui::titleFilePopupOpensProjectsAndRemovesOnlyRecentEntries | offscreen；临时 DSPX；真实弹层及 Qt 文件选择框 |
+| 标题栏文件弹层 | gui/workflow | 文件菜单不能替代标题栏弹层的条目和子菜单接线；实际点击最近工程打开文件，当前工程禁止移出列表，移除其他条目不删文件或修改文档；新建更新工程身份，Open 的实际文件选择取消后保留新工程 | ApplicationGui::titleFilePopupOpensProjectsAndRemovesOnlyRecentEntries | offscreen；临时 DSPX；真实弹层及 Qt 文件选择框 |
 | 公共单文件加载与计划接线 | workflow/protocol | 原生和外部格式共用素材，经格式计划、Registry 和实际 Host 追加或打开；追加保留原文档及已有轨道身份，一次撤销恢复；打开替换文档，原生路径与外部工程未保存状态分别验证 | ApplicationWorkflows::publicProjectLoadUsesThePreparedPlan | 通用；临时工程；外部转换进程替身；实际加载器 |
 | 公共声线预设与已应用混合的生命周期 | workflow/protocol | 通过实际声库解析公开预设的保存、查询、同名更新和应用；删除预设后，已应用混合保留，失效引用返回错误且不改变工程或历史，撤销恢复原声线 | ApplicationWorkflows::publicSpeakerMixPresetsResolveAndPreserveAppliedVoices | 默认内置声库；至少两条声线；隔离配置 |
 | 文件打开失败与最近项目管理 | gui/workflow | 损坏工程经过真实错误提示后保留当前文档、未保存编辑及历史，修复源文件后可再次打开；最近项目子菜单移除失效文件、打开有效文件并清空列表，持久化列表与界面一致 | ApplicationGui::failedProjectOpenPreservesTheDocumentAndRecovers、recentProjectsMenuRemovesMissingFilesAndClearsTheList | offscreen；临时 DSPX；真实 MainWindow 和菜单 |
@@ -219,6 +221,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 音频导出准备及发布失败 | workflow | 外部后端在准备或发布阶段失败时保留可查询错误，只执行已到达阶段并清理一次；同一配置可重试成功，原失败记录及工程保持不变 | ApplicationServices::audioExportStageFailuresReleaseResourcesAndAllowRetry | 通用；现有后端替身和受控调度 |
 | 音频裁边和移动跨越变速点 | workflow | 完整应用上下文执行专用裁边/移动入口，验证毫秒时长、素材裁切、换算后的 tick 范围、预览、跨轨移动及连续撤销；复用生产音频时间投影与历史动作 | ApplicationWorkflows::audioClipTrimmingAndMovingPreserveRealtimeDurations | 通用；已知音频时间元数据；无需播放设备 |
 | 已打开音频文件被移除 | workflow | 格式加载器已持有文件句柄时移除目录项，当前解码仍使用原句柄完成；重开工程重新解析资源后报告 Missing 且不保留旧波形，不制造用户历史 | AudioAssets::unlinkingAudioSourcePreservesOpenDecodeUntilReload | 需文件系统允许移除已被音频后端打开的素材；Windows 删除共享受限时明确 QSKIP |
-| 音频解析期间另存工程 | workflow | 原目录变化用例直接替写会话路径，未验证保存与重新解析接线 | 解析开始后经生产保存器写入另一目录，重新查找该目录中的素材并解码；保留工程和片段身份、无额外撤销，公开加载不因 GUI 保存而弹出提示 | AudioAssets::resolutionRetryPreservesSource | 通用；临时 DSPX/WAV；无需播放设备 |
+| 音频解析期间另存工程 | workflow | 原目录变化用例直接替写会话路径，未验证保存与重新解析接线；解析开始后经生产保存器写入另一目录，重新查找该目录中的素材并解码；保留工程和片段身份、无额外撤销，公开加载不因 GUI 保存而弹出提示 | AudioAssets::resolutionRetryPreservesSource | 通用；临时 DSPX/WAV；无需播放设备 |
+| 音频解析到解码与级联重定位 | workflow | 真实控制器完成相对路径解析及 WAV 解码，实际任务的源代际、成功终态、波形和保存点一致；级联拒绝同名但内容不符的来源，换回正确文件后恢复，已恢复的来源不重复变更 | AudioAssets::resolveDecodeTaskProtocol、cascadingRelinkRequiresMatchingAudioIdentity | 通用；临时 WAV；无需播放设备 |
 
 本次还移除无产品实例化入口的旧 G2P/伪声设置页和 `TrackSynthesizer` 及其空容器引用。清理改变统计分母，报告中与新增测试命中的贡献分开说明，不通过排除仍有效的生产文件提高比例。
