@@ -361,6 +361,41 @@ void AutomationProtocolTests::fillLyricsOptions() {
     QCOMPARE(notes.get().at(skipSlur ? 1 : 2).data.lyric,
              originalNotes.get().at(skipSlur ? 1 : 2).data.lyric);
     QCOMPARE(notes.get().at(3).data.lyric, QStringLiteral("old-c"));
+    const auto beforeSearch = fixture.runtime.documentVersion();
+    const auto found = registry.invoke(QStringLiteral("notes.search"),
+                                       {
+                                           {"document_id", before.documentId.toString()},
+                                           {"clip_id",     clip.id.value()             },
+                                           {"query",       QStringLiteral("好")        },
+                                           {"mode",        "exact"                     }
+    });
+    QVERIFY2(found, qPrintable(errorMessage(found)));
+    const auto matches = found.get().value(QStringLiteral("matches")).toArray();
+    QCOMPARE(matches.size(), 1);
+    const auto match = matches.first().toObject();
+    QCOMPARE(match.value(QStringLiteral("note_id")).toInt(),
+             notes.get().at(skipSlur ? 2 : 1).id.value());
+    QCOMPARE(match.value(QStringLiteral("local_start")).toInt(),
+             notes.get().at(skipSlur ? 2 : 1).data.localStart);
+    QCOMPARE(fixture.runtime.documentVersion(), beforeSearch);
+    auto languageArguments = commandArguments(beforeSearch);
+    languageArguments.insert(QStringLiteral("clip_id"), clip.id.value());
+    languageArguments.insert(QStringLiteral("note_ids"),
+                             QJsonArray{match.value(QStringLiteral("note_id"))});
+    languageArguments.insert(QStringLiteral("language"),
+                             QJsonObject{
+                                 {"mode",        "explicit"},
+                                 {"language_id", "eng"     }
+    });
+    const auto changedLanguage =
+        registry.invoke(QStringLiteral("notes.set_language"), languageArguments);
+    QVERIFY2(changedLanguage, qPrintable(errorMessage(changedLanguage)));
+    const auto afterLanguage = fixture.runtime.notes().getNotes(before.documentId, clip.id);
+    QVERIFY(afterLanguage);
+    QCOMPARE(afterLanguage.get().at(skipSlur ? 2 : 1).data.language, QStringLiteral("eng"));
+    QCOMPARE(afterLanguage.get().first().data.language, notes.get().first().data.language);
+    QCOMPARE(afterLanguage.get().at(skipSlur ? 2 : 1).data.lyric, QStringLiteral("好"));
+    QVERIFY(fixture.runtime.history().undo(commandContext(fixture.runtime)));
     QVERIFY(fixture.runtime.history().undo(commandContext(fixture.runtime)));
     QCOMPARE(fixture.runtimeFixture.history()->nextUndoEntry(), beforeUndo);
     const auto restored = fixture.runtime.notes().getNotes(before.documentId, clip.id);
@@ -374,8 +409,8 @@ void AutomationProtocolTests::fillLyricsOptions() {
 
 void AutomationProtocolTests::fillLyricsUnavailableLanguage() {
     RegistryFixture fixture;
-    QVERIFY(fixture.runtime.project().insertTrack(commandContext(fixture.runtime), 0,
-                                                  lyricTrack()));
+    QVERIFY(
+        fixture.runtime.project().insertTrack(commandContext(fixture.runtime), 0, lyricTrack()));
     const auto project =
         fixture.runtime.project().getProject(fixture.runtime.documentVersion().documentId);
     QVERIFY(project);
