@@ -35,6 +35,8 @@ private slots:
     void inputConversionPhonemeTone_data();
     void inputConversionPhonemeTone();
     void inputConversionPhonemeSpeakerMixUsesMappedWeights();
+    void inputWordsKeepSlursAndPreutteranceAcrossGaps_data();
+    void inputWordsKeepSlursAndPreutteranceAcrossGaps();
     void inputConversionAvailableSpeakersFillEmptyMix_data();
     void inputConversionAvailableSpeakersFillEmptyMix();
     void inputConversionAvailableMixIsPreserved();
