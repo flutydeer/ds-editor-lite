@@ -848,3 +848,71 @@ void AutomationProtocolTests::phonemeNamesUseTheEffectiveLanguageAndResetOffsets
              original.data.phonemes.offsetSeq.edited);
     QVERIFY(!fixture.runtimeFixture.history()->canUndo());
 }
+
+void AutomationProtocolTests::insertedPhonemesPreserveTimingAndRejectPartialOffsets() {
+    RegistryFixture fixture;
+    auto &runtime = fixture.runtime;
+    auto track = lyricTrack();
+    track.clips.first().notes.clear();
+    QVERIFY(runtime.project().insertTrack(commandContext(runtime), 0, track));
+    const auto project = runtime.project().getProject(runtime.documentVersion().documentId);
+    QVERIFY(project);
+    const auto clipId = project.get().tracks.first().clips.first().id;
+    PublicAutomationRegistry registry(runtime, fixture.access, fixture.fileGuard,
+                                      fixture.admission);
+    const QJsonArray names{
+        QJsonObject{{QStringLiteral("symbol"), QStringLiteral("l")},
+                    {QStringLiteral("language"), QStringLiteral("eng")}},
+        QJsonObject{{QStringLiteral("symbol"), QStringLiteral("a")},
+                    {QStringLiteral("language"), QStringLiteral("eng")}},
+    };
+    auto timed = names;
+    for (int index = 0; index < timed.size(); ++index) {
+        auto phoneme = timed.at(index).toObject();
+        phoneme.insert(QStringLiteral("offset"), index * 60);
+        timed[index] = phoneme;
+    }
+    const auto note = [](int start, const QJsonArray &phonemes) {
+        return QJsonObject{
+            {QStringLiteral("local_start"), start               },
+            {QStringLiteral("length"),      240                 },
+            {QStringLiteral("key_index"),   60                  },
+            {QStringLiteral("lyric"),       QStringLiteral("la")},
+            {QStringLiteral("phonemes"),    phonemes            }
+        };
+    };
+    auto input = commandArguments(runtime.documentVersion());
+    input.insert(QStringLiteral("clip_id"), clipId.value());
+    input.insert(QStringLiteral("notes"), QJsonArray{note(0, names), note(480, timed)});
+    const auto inserted = registry.invoke(QStringLiteral("notes.insert"), input);
+    QVERIFY2(inserted, qPrintable(errorMessage(inserted)));
+    const auto version = runtime.documentVersion();
+    const auto model = fixture.runtimeFixture.model().serialize();
+    const auto *undo = fixture.runtimeFixture.history()->nextUndoEntry();
+    const auto listed =
+        registry.invoke(QStringLiteral("notes.list"),
+                        {
+                            {QStringLiteral("document_id"), version.documentId.toString()},
+                            {QStringLiteral("clip_id"),     clipId.value()               },
+    });
+    QVERIFY2(listed, qPrintable(errorMessage(listed)));
+    const auto notes = listed.get().value(QStringLiteral("notes")).toArray();
+    QCOMPARE(notes.size(), 2);
+    QCOMPARE(notes.first().toObject().value(QStringLiteral("phonemes")).toArray(), names);
+    QCOMPARE(notes.last().toObject().value(QStringLiteral("phonemes")).toArray(), timed);
+    auto partial = timed;
+    partial[1] = names.at(1);
+    input = commandArguments(version);
+    input.insert(QStringLiteral("clip_id"), clipId.value());
+    input.insert(QStringLiteral("notes"), QJsonArray{note(960, names), note(1440, partial)});
+    const auto rejected = registry.invoke(QStringLiteral("notes.insert"), input);
+    QVERIFY(!rejected);
+    QCOMPARE(rejected.getError().code, AutomationErrorCode::InvalidArgument);
+    QCOMPARE(rejected.getError().fieldPath, QStringLiteral("notes.1.phonemes"));
+    QCOMPARE(runtime.documentVersion(), version);
+    QCOMPARE(fixture.runtimeFixture.model().serialize(), model);
+    QCOMPARE(fixture.runtimeFixture.history()->nextUndoEntry(), undo);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    const auto restored = runtime.notes().getNotes(runtime.documentVersion().documentId, clipId);
+    QVERIFY(restored && restored.get().isEmpty());
+}

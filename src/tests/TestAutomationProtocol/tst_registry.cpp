@@ -26,6 +26,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QSemaphore>
+#include <QScopeGuard>
 #include <QSet>
 #include <QTemporaryDir>
 #include <QTextStream>
@@ -1104,82 +1105,83 @@ namespace {
     void verifyMidiExportPublicationGate(Automation::PublicAutomationRegistry &registry,
                                          Automation::CoreRuntime &runtime,
                                          Automation::AdmissionController &admission,
+                                         Automation::AutomationFileGuard &fileGuard,
                                          const QString &directoryPath,
                                          MidiExportTestControl &control) {
         const auto document = runtime.documentVersion();
-        const auto startExport = [&](const QString &fileName) {
-            return registry.invoke(
-                QStringLiteral("exports.midi.start"),
-                QJsonObject{
-                    {QStringLiteral("document_id"),      document.documentId.toString()                },
-                    {QStringLiteral("path"),             QDir(directoryPath).absoluteFilePath(fileName)},
-                    {QStringLiteral("options"),          QJsonObject{}                                 },
-                    {QStringLiteral("overwrite_policy"), QStringLiteral("reject")                      },
+        for (const auto &outcome : {QStringLiteral("succeeded"), QStringLiteral("canceled"),
+                                    QStringLiteral("revoked"), QStringLiteral("discarded")}) {
+            const auto path =
+                QDir(directoryPath).absoluteFilePath(outcome + QStringLiteral(".mid"));
+            bool released = false;
+            const auto unblock = [&] {
+                if (!released) {
+                    released = true;
+                    control.release.release();
+                }
+            };
+            const auto cleanup = qScopeGuard([&] {
+                unblock();
+                fileGuard.setConfiguredRoots({directoryPath});
+            });
+            const auto accepted =
+                registry.invoke(QStringLiteral("exports.midi.start"),
+                                {
+                                    {QStringLiteral("document_id"),      document.documentId.toString()},
+                                    {QStringLiteral("path"),             path                          },
+                                    {QStringLiteral("options"),          QJsonObject{}                 },
+                                    {QStringLiteral("overwrite_policy"), QStringLiteral("reject")      },
             },
-                {.clientId = QStringLiteral("midi-publication-gate")});
-        };
-
-        const auto canceledPath =
-            QDir(directoryPath).absoluteFilePath(QStringLiteral("canceled.mid"));
-        const auto canceledExport = startExport(QStringLiteral("canceled.mid"));
-        reportFailure(QStringLiteral("exports.midi.start"), canceledExport);
-        expect(bool(canceledExport), QStringLiteral("MIDI export must start before cancellation"));
-        if (!canceledExport)
-            return;
-        const auto canceledTaskId = Automation::TaskId::fromString(
-            canceledExport.get().value(QStringLiteral("task_id")).toString());
-        const bool cancellationReachedRender = control.entered.tryAcquire(1, 2000);
-        expect(cancellationReachedRender,
-               QStringLiteral("MIDI export must remain cancelable while rendering"));
-        if (!cancellationReachedRender) {
-            control.release.release();
-            return;
+                                {.clientId = QStringLiteral("midi-publication-gate")});
+            reportFailure(QStringLiteral("exports.midi.start"), accepted);
+            QVERIFY2(accepted, qPrintable(outcome));
+            const auto taskId = Automation::TaskId::fromString(
+                accepted.get().value(QStringLiteral("task_id")).toString());
+            QVERIFY2(control.entered.tryAcquire(1, 2000), qPrintable(outcome));
+            QVERIFY(!QFileInfo::exists(path));
+            if (outcome == QStringLiteral("canceled")) {
+                const auto canceled =
+                    runtime.automationTasks().requestCancel(document.documentId, taskId);
+                QVERIFY(canceled);
+                QCOMPARE(canceled.get().state, Automation::AutomationTaskState::CancelRequested);
+            } else if (outcome == QStringLiteral("revoked")) {
+                QVERIFY(fileGuard.setConfiguredRoots({}));
+            } else if (outcome == QStringLiteral("discarded")) {
+                runtime.automationTasks().discardDocumentGeneration(document.documentId);
+            }
+            unblock();
+            QVERIFY2(waitUntil([&] {
+                         return admission.snapshot().backgroundTasks == 0 &&
+                                QDir(directoryPath)
+                                    .entryList({QStringLiteral(".ds-editor-lite-midi-*.mid")},
+                                               QDir::Files | QDir::Hidden)
+                                    .isEmpty();
+                     }),
+                     qPrintable(outcome));
+            QCOMPARE(runtime.documentVersion(), document);
+            if (outcome == QStringLiteral("discarded")) {
+                QVERIFY(!QFileInfo::exists(path));
+                continue;
+            }
+            const auto result = runtime.automationTasks().get(document.documentId, taskId);
+            QVERIFY(result);
+            if (outcome == QStringLiteral("succeeded")) {
+                QCOMPARE(result.get().state, Automation::AutomationTaskState::Succeeded);
+                QFile published(path);
+                QVERIFY(published.open(QIODevice::ReadOnly));
+                QCOMPARE(published.readAll(), QByteArray("midi"));
+            } else {
+                QVERIFY(!QFileInfo::exists(path));
+                if (outcome == QStringLiteral("canceled")) {
+                    QCOMPARE(result.get().state, Automation::AutomationTaskState::Canceled);
+                } else {
+                    QCOMPARE(result.get().state, Automation::AutomationTaskState::Failed);
+                    QVERIFY(result.get().error);
+                    QCOMPARE(result.get().error->code,
+                             Automation::AutomationErrorCode::PermissionDenied);
+                }
+            }
         }
-        const auto canceled =
-            runtime.automationTasks().requestCancel(document.documentId, canceledTaskId);
-        const bool cancellationAccepted =
-            canceled && canceled.get().state == Automation::AutomationTaskState::CancelRequested;
-        control.release.release();
-        const bool canceledWorkerFinished = waitUntil([&] {
-            const auto snapshot =
-                runtime.automationTasks().get(document.documentId, canceledTaskId);
-            return snapshot && snapshot.get().state == Automation::AutomationTaskState::Canceled &&
-                   admission.snapshot().backgroundTasks == 0;
-        });
-        QVERIFY2(canceledWorkerFinished,
-                 "MIDI cancellation must finish terminal callbacks and release admission");
-        const auto canceledSnapshot =
-            runtime.automationTasks().get(document.documentId, canceledTaskId);
-        expect(
-            cancellationAccepted && canceledSnapshot &&
-                canceledSnapshot.get().state == Automation::AutomationTaskState::Canceled &&
-                !QFileInfo::exists(canceledPath),
-            QStringLiteral("MIDI cancellation during rendering must win before final publication"));
-
-        const auto discardedPath =
-            QDir(directoryPath).absoluteFilePath(QStringLiteral("discarded.mid"));
-        const auto discardedExport = startExport(QStringLiteral("discarded.mid"));
-        reportFailure(QStringLiteral("exports.midi.start"), discardedExport);
-        expect(bool(discardedExport),
-               QStringLiteral("MIDI export must start before generation discard"));
-        if (!discardedExport)
-            return;
-        const bool discardReachedRender = control.entered.tryAcquire(1, 2000);
-        expect(discardReachedRender,
-               QStringLiteral("MIDI export must remain running until generation discard"));
-        if (!discardReachedRender) {
-            control.release.release();
-            return;
-        }
-        runtime.automationTasks().discardDocumentGeneration(document.documentId);
-        control.release.release();
-        const bool discardedWorkerFinished = waitUntil([&] {
-            return QDir(directoryPath)
-                .entryList({QStringLiteral(".ds-editor-lite-midi-*.mid")}, QDir::Files)
-                .isEmpty();
-        });
-        expect(discardedWorkerFinished && !QFileInfo::exists(discardedPath),
-               QStringLiteral("discarded document generations must not publish staged MIDI"));
     }
 
     void verifyCurrentDocumentSavePolicy(Automation::PublicAutomationRegistry &registry,
@@ -1628,6 +1630,14 @@ namespace {
                    speakerRef.value(QStringLiteral("speaker_id")).toString() ==
                        sameIdNewerSpeaker.id(),
                QStringLiteral("track voice selection must distinguish packages by version"));
+        const auto singleSources =
+            speakerMixSnapshot(registry, runtime, QStringLiteral("track"), fixture.trackId.value())
+                .value(QStringLiteral("mix"))
+                .toObject()
+                .value(QStringLiteral("sources"))
+                .toArray();
+        QCOMPARE(singleSources.size(), 1);
+        QCOMPARE(singleSources.first().toObject().value(QStringLiteral("weight")).toDouble(), 1.0);
 
         const QJsonObject exactMix{
             {QStringLiteral("singer"),  singerRef},
@@ -1796,6 +1806,76 @@ namespace {
                      .value(QStringLiteral("language_id"))
                      .toString(),
                  QStringLiteral("ja"));
+
+        const auto editMix = [&](const QString &operation, QJsonObject arguments) {
+            return invokeChangedOnce(registry, runtime, operation, arguments,
+                                     QStringLiteral("dynamic-mix-client"), operation);
+        };
+        QVERIFY(editMix(QStringLiteral("speaker_mix.set_fixed"),
+                        {
+                            {QStringLiteral("target"),
+                             QJsonObject{{QStringLiteral("type"), QStringLiteral("clip")},
+                                         {QStringLiteral("id"), voiceClipId.value()}}},
+                            {QStringLiteral("mix"),    exactMix                      },
+        }));
+        QVERIFY(editMix(QStringLiteral("speaker_mix.enable_dynamic"),
+                        {
+                            {QStringLiteral("clip_id"), voiceClipId.value()},
+        }));
+        QVERIFY(editMix(QStringLiteral("speaker_mix.keyframes.insert"),
+                        {
+                            {QStringLiteral("clip_id"),  voiceClipId.value() },
+                            {QStringLiteral("position"), 480                 },
+                            {QStringLiteral("weights"),  QJsonArray{0.6, 0.4}},
+        }));
+        const auto versionBeforeQuery = runtime.documentVersion();
+        const auto modelBeforeQuery = testRuntime.model().serialize();
+        const auto *undoBeforeQuery = testRuntime.history()->nextUndoEntry();
+        const auto dynamic =
+            speakerMixSnapshot(registry, runtime, QStringLiteral("clip"), voiceClipId.value());
+        QVERIFY(dynamic.value(QStringLiteral("dynamic_enabled")).toBool());
+        QVERIFY(!dynamic.value(QStringLiteral("bypassed")).toBool());
+        const auto keyframes = dynamic.value(QStringLiteral("keyframes")).toArray();
+        QCOMPARE(keyframes.size(), 2);
+        QCOMPARE(keyframes.first().toObject().value(QStringLiteral("position")).toInt(), 0);
+        QCOMPARE(keyframes.first().toObject().value(QStringLiteral("weights")).toArray(),
+                 (QJsonArray{0.25, 0.75}));
+        QCOMPARE(keyframes.last().toObject().value(QStringLiteral("position")).toInt(), 480);
+        QCOMPARE(keyframes.last().toObject().value(QStringLiteral("weights")).toArray(),
+                 (QJsonArray{0.6, 0.4}));
+        QCOMPARE(runtime.documentVersion(), versionBeforeQuery);
+        QCOMPARE(testRuntime.model().serialize(), modelBeforeQuery);
+        QCOMPARE(testRuntime.history()->nextUndoEntry(), undoBeforeQuery);
+        const auto keyframeId = keyframes.last().toObject().value(QStringLiteral("keyframe_id"));
+        QVERIFY(editMix(QStringLiteral("speaker_mix.keyframes.move"),
+                        {
+                            {QStringLiteral("clip_id"), voiceClipId.value()            },
+                            {QStringLiteral("moves"),
+                             QJsonArray{QJsonObject{{QStringLiteral("keyframe_id"), keyframeId},
+                                                    {QStringLiteral("position"), 240}}}},
+        }));
+        const auto moved =
+            speakerMixSnapshot(registry, runtime, QStringLiteral("clip"), voiceClipId.value())
+                .value(QStringLiteral("keyframes"))
+                .toArray()
+                .last()
+                .toObject();
+        QCOMPARE(moved.value(QStringLiteral("keyframe_id")), keyframeId);
+        QCOMPARE(moved.value(QStringLiteral("position")).toInt(), 240);
+        QVERIFY(runtime.history().undo(context()));
+        QCOMPARE(speakerMixSnapshot(registry, runtime, QStringLiteral("clip"), voiceClipId.value())
+                     .value(QStringLiteral("keyframes"))
+                     .toArray(),
+                 keyframes);
+        QVERIFY(editMix(QStringLiteral("speaker_mix.set_dynamic_bypass"),
+                        {
+                            {QStringLiteral("clip_id"),  voiceClipId.value()},
+                            {QStringLiteral("bypassed"), true               },
+        }));
+        const auto bypassed =
+            speakerMixSnapshot(registry, runtime, QStringLiteral("clip"), voiceClipId.value());
+        QVERIFY(bypassed.value(QStringLiteral("bypassed")).toBool());
+        QCOMPARE(bypassed.value(QStringLiteral("keyframes")).toArray(), keyframes);
     }
 
     void verifyHostCapabilityAndNativeJsonRpc(Automation::CoreRuntime &runtime,
@@ -2715,7 +2795,7 @@ void AutomationProtocolTests::routing() {
         return;
     }
     if (scenario == QStringLiteral("midiPublicationGate")) {
-        verifyMidiExportPublicationGate(registry, runtime, admission, directory.path(),
+        verifyMidiExportPublicationGate(registry, runtime, admission, fileGuard, directory.path(),
                                         *midiExportControl);
         return;
     }

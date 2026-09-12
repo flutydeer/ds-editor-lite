@@ -33,6 +33,7 @@ private slots:
     void publicClipCopyAndMovePreserveTheSourcePhrase();
     void phonemeNamesUseTheEffectiveLanguageAndResetOffsets_data();
     void phonemeNamesUseTheEffectiveLanguageAndResetOffsets();
+    void insertedPhonemesPreserveTimingAndRejectPartialOffsets();
     void rejectedInputs_data();
     void rejectedInputs();
     void sharedEditingScenario_data();
