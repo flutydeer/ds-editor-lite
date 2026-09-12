@@ -23,6 +23,7 @@ private slots:
     void resolvedPathSourceFailureWins();
     void relinkHistoryNotifications();
     void resolveDecodeTaskProtocol();
+    void cascadingRelinkRequiresMatchingAudioIdentity();
     void deletedAudioTargetTerminalState();
     void hashDecodeOrdering_data();
     void hashDecodeOrdering();

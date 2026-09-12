@@ -275,6 +275,147 @@ void AudioAssetsTests::mixedImportSources() {
              "overlapping GUI and automation checks must only prompt for the GUI clip");
 }
 
+void AudioAssetsTests::resolveDecodeTaskProtocol() {
+    Fixture fixture;
+    QVERIFY(fixture.directory.isValid());
+    QVERIFY(QDir(fixture.directory.path()).mkdir(QStringLiteral("media")));
+    const auto path = fixture.directory.filePath(QStringLiteral("media/source.wav"));
+    QVERIFY(TestSupport::writeWave(path, QVector<float>(9600, 0.125f), 2));
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    const auto hash = QString::fromLatin1(
+        QCryptographicHash::hash(file.readAll(), QCryptographicHash::Sha512).toHex());
+    file.close();
+    auto document =
+        missingAudioDocument(fixture.directory.filePath(QStringLiteral("missing/source.wav")));
+    auto &draft = document.tracks.first().clips.first();
+    draft.audioPathInfo.relativeDir = QStringLiteral("media");
+    draft.audioPathInfo.sha512 = hash;
+
+    TaskId resolveId;
+    TaskId decodeId;
+    std::optional<AudioAssetSnapshotDto> resolving;
+    std::optional<AudioAssetSnapshotDto> decoding;
+    QObject observations;
+    connect(taskManager, &TaskManager::taskChanged, &observations,
+            [&](TaskManager::TaskChangeType type, Task *task, qsizetype) {
+                if (type != TaskManager::Added)
+                    return;
+                if (auto *resolve = dynamic_cast<ResolveAudioPathTask *>(task)) {
+                    resolveId = resolve->automationTaskId;
+                    resolving = resolve->assetSnapshot;
+                } else if (auto *decode = dynamic_cast<DecodeAudioTask *>(task)) {
+                    decodeId = decode->automationTaskId;
+                    decoding = decode->assetSnapshot;
+                }
+            });
+    QVERIFY(fixture.openDocument(document, InvocationSource::PublicMcp));
+    const auto before = fixture.runtime().documentVersion();
+    const auto clipId = fixture.firstAudioClip()->id();
+    QVERIFY(drainTasks());
+    QVERIFY(resolving && decoding);
+    QCOMPARE(resolving->path, draft.audioPath);
+    QCOMPARE(decoding->path, path);
+    QCOMPARE(decoding->sourceGeneration, resolving->sourceGeneration + 1);
+    const auto *clip = fixture.firstAudioClip();
+    QCOMPARE(clip->id(), clipId);
+    QCOMPARE(clip->path(), path);
+    QCOMPARE(clip->pathStatus(), AudioClip::PathStatus::Normal);
+    QCOMPARE(clip->audioInfo().sampleRate, 48000);
+    QCOMPARE(clip->audioInfo().channels, 2);
+    QCOMPARE(clip->audioInfo().frames, 4800);
+    QVERIFY(!clip->audioInfo().peakCache.isEmpty());
+    const auto resolved = fixture.runtime().automationTasks().get(before.documentId, resolveId);
+    const auto decoded = fixture.runtime().automationTasks().get(before.documentId, decodeId);
+    QVERIFY(resolved && decoded);
+    QCOMPARE(resolved.get().state, AutomationTaskState::Succeeded);
+    QCOMPARE(decoded.get().state, AutomationTaskState::Succeeded);
+    QVERIFY(resolved.get().mutation && decoded.get().mutation);
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QVERIFY(fixture.history()->isOnSavePoint());
+    QVERIFY(!fixture.history()->canUndo());
+    QVERIFY(fixture.notifications.isEmpty() && fixture.messages.isEmpty());
+}
+
+void AudioAssetsTests::cascadingRelinkRequiresMatchingAudioIdentity() {
+    Fixture fixture;
+    QVERIFY(QDir(fixture.directory.path()).mkdir(QStringLiteral("relocated")));
+    const auto firstPath = fixture.directory.filePath(QStringLiteral("relocated/first.wav"));
+    const auto secondPath = fixture.directory.filePath(QStringLiteral("relocated/second.wav"));
+    auto document =
+        missingAudioDocument(fixture.directory.filePath(QStringLiteral("gone/first.wav")));
+    auto &clips = document.tracks.first().clips;
+    clips.append(clips.first());
+    clips.last().audioPath = fixture.directory.filePath(QStringLiteral("gone/second.wav"));
+    clips.last().properties.start = 480;
+    const QStringList paths{firstPath, secondPath};
+    for (int index = 0; index < paths.size(); ++index) {
+        QVERIFY(TestSupport::writeWave(paths[index], QVector<float>(4800, 0.125f)));
+        QFile file(paths[index]);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        clips[index].audioPathInfo.sha512 = QString::fromLatin1(
+            QCryptographicHash::hash(file.readAll(), QCryptographicHash::Sha512).toHex());
+    }
+    QVERIFY(TestSupport::writeWave(secondPath, QVector<float>(4800, 0.25f)));
+    QVERIFY(fixture.openDocument(document, InvocationSource::PublicMcp));
+    QVERIFY(drainTasks());
+    const auto audioClips = fixture.model().tracks().first()->clips().toList();
+    QCOMPARE(audioClips.size(), 2);
+    auto *first = qobject_cast<AudioClip *>(audioClips[0]);
+    auto *second = qobject_cast<AudioClip *>(audioClips[1]);
+    QVERIFY(first && second);
+    QCOMPARE(first->pathStatus(), AudioClip::PathStatus::Missing);
+    QCOMPARE(second->pathStatus(), AudioClip::PathStatus::Missing);
+    const auto before = fixture.runtime().documentVersion();
+    const auto secondAsset = audioAssetSnapshotDto(*second);
+    QSignalSpy relocated(fixture.controller, &AudioDecodingController::clipRelocated);
+    QList<TaskId> resolving;
+    QObject observations;
+    connect(taskManager, &TaskManager::taskChanged, &observations,
+            [&](TaskManager::TaskChangeType type, Task *task, qsizetype) {
+                if (type == TaskManager::Added) {
+                    if (auto *resolve = dynamic_cast<ResolveAudioPathTask *>(task))
+                        resolving.append(resolve->automationTaskId);
+                }
+            });
+    fixture.controller->resolveMissingClipsNear(firstPath);
+    QVERIFY(drainTasks());
+    QCOMPARE(first->path(), firstPath);
+    QCOMPARE(first->pathStatus(), AudioClip::PathStatus::Normal);
+    QCOMPARE(first->audioInfo().frames, 4800);
+    QCOMPARE(audioAssetSnapshotDto(*second), secondAsset);
+    QCOMPARE(second->pathStatus(), AudioClip::PathStatus::Missing);
+    QCOMPARE(second->audioInfo().frames, 0);
+    QCOMPARE(relocated.size(), 1);
+    QCOMPARE(relocated.first().at(0).toInt(), first->id());
+    bool mismatchReported = false;
+    for (const auto &id : resolving) {
+        const auto task = fixture.runtime().automationTasks().get(before.documentId, id);
+        QVERIFY(task);
+        if (task.get().target == ObjectRef{ObjectKind::Clip, second->id()}) {
+            mismatchReported = true;
+            QCOMPARE(task.get().state, AutomationTaskState::Failed);
+            QVERIFY(task.get().error);
+            QCOMPARE(task.get().error->code, AutomationErrorCode::FileNotFound);
+        }
+    }
+    QVERIFY(mismatchReported);
+    const auto firstAsset = audioAssetSnapshotDto(*first);
+    QVERIFY(TestSupport::writeWave(secondPath, QVector<float>(4800, 0.125f)));
+    fixture.controller->resolveMissingClipsNear(secondPath);
+    QVERIFY(drainTasks());
+    QCOMPARE(second->path(), secondPath);
+    QCOMPARE(second->pathStatus(), AudioClip::PathStatus::Normal);
+    QCOMPARE(second->audioInfo().frames, 4800);
+    QCOMPARE(second->sourceGeneration(), secondAsset.sourceGeneration + 1);
+    QCOMPARE(audioAssetSnapshotDto(*first), firstAsset);
+    QCOMPARE(relocated.size(), 2);
+    QCOMPARE(relocated.last().at(0).toInt(), second->id());
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QVERIFY(fixture.history()->isOnSavePoint());
+    QVERIFY(!fixture.history()->canUndo());
+}
+
 void AudioAssetsTests::resolutionRetryPreservesSource() {
     Fixture fixture;
     QVERIFY(QDir(fixture.directory.path()).mkdir(QStringLiteral("moved")));
