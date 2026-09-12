@@ -63,6 +63,7 @@ private slots:
     void audioExportProgressCompletesAndCloses();
     void appearanceInputsPersistAcrossReopening();
     void generalSettingsKeepSeparateDefaultLyricsForEachLanguage();
+    void switchingUiLanguagePreservesSettingsAndTheOpenDocument();
     void experimentalRendererSettingPersistsWhenRestartIsDeferred();
     void automationAccessInputsPersistAndRejectMissingFolders();
     void automationCustomToolsetInputsPersistAndExportPermissions();

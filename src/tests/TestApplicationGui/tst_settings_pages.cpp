@@ -18,6 +18,8 @@
 #include "UI/Views/Common/LanguageComboBox.h"
 #include "UI/Window/MainWindow.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
+#include "UI/Views/MainTitleBar/MainMenuView.h"
+#include "Utils/UiLanguageManager.h"
 
 #include <lite/GUI/Controls/ComboBox.h>
 #include <lite/GUI/Controls/PathEditor.h>
@@ -28,6 +30,7 @@
 #include <lite/GUI/Controls/LineEdit.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/ProjectModel/AppModel/Track.h>
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/GUI/Theme/ThemeIds.h>
 #include <lite/AutomationWire/McpProtocol.h>
@@ -43,6 +46,7 @@
 #include <QKeySequence>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QMenu>
 #include <QLocale>
 #include <QPointer>
 #include <QScopeGuard>
@@ -290,6 +294,108 @@ void ApplicationGuiTests::generalSettingsKeepSeparateDefaultLyricsForEachLanguag
     QCOMPARE(lyric->text(), QStringLiteral("啦"));
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::switchingUiLanguagePreservesSettingsAndTheOpenDocument() {
+    auto &runtime = *context->m_coreRuntime;
+    const auto settings = runtime.settings().getSettings();
+    QVERIFY(settings);
+    const auto restore =
+        qScopeGuard([&] { QVERIFY(runtime.settings().updateGeneral({}, settings.get().general)); });
+    auto general = settings.get().general;
+    general.uiLanguage = UiLanguageManager::English;
+    general.defaultLyrics[general.defaultSingingLanguage] = QStringLiteral("retained lyric");
+    QVERIFY(runtime.settings().updateGeneral({}, general));
+    UiLanguageManager languageManager;
+    languageManager.setPreference(general.uiLanguage);
+    MainWindow window;
+    window.resize(1200, 800);
+    auto *menuBar = window.findChild<MainMenuView *>();
+    QVERIFY(menuBar);
+    menuBar->setNativeMenuBar(false);
+    window.show();
+    QTRY_VERIFY(window.isActiveWindow());
+    createLyricSelection();
+    if (QTest::currentTestFailed())
+        return;
+    view->hide();
+    QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));
+    QVERIFY(runtime.project().renameTrack(
+        commandContext(), Automation::TrackId(context->m_appModel->tracks().first()->id()),
+        QStringLiteral("Retained track name")));
+    const auto before = runtime.documentVersion();
+    const auto beforeModel = context->m_appModel->serialize();
+    const auto selected = appStatus->selectedNotes.get();
+    const auto *beforeUndo = historyManager->nextUndoEntry();
+    QVERIFY(beforeUndo);
+    QAction *undo = nullptr;
+    for (auto *entry : menuBar->actions()) {
+        if (auto *menu = entry->menu()) {
+            for (auto *action : menu->actions()) {
+                if (action->shortcut() == QKeySequence(QStringLiteral("Ctrl+Z")))
+                    undo = action;
+            }
+        }
+    }
+    QVERIFY(undo && undo->isEnabled());
+    const auto englishUndo = undo->text();
+
+    AppOptionsDialog panel;
+    for (const auto option : {AppOptionsGlobal::Audio, AppOptionsGlobal::Midi,
+                              AppOptionsGlobal::Inference, AppOptionsGlobal::General}) {
+        openOptionsPage(panel, option);
+        if (QTest::currentTestFailed())
+            return;
+    }
+    auto *page = panel.findChild<GeneralPage *>();
+    auto *tabs = panel.findChild<QListWidget *>("AppOptionsDialogTabListWidget");
+    QVERIFY(page && tabs);
+    const auto selectedPage = tabs->currentRow();
+    for (const auto &preference :
+         {UiLanguageManager::SimplifiedChinese, UiLanguageManager::English}) {
+        ComboBox *language = nullptr;
+        for (auto *combo : page->findChildren<ComboBox *>()) {
+            if (combo->findData(UiLanguageManager::English) >= 0 &&
+                combo->findData(UiLanguageManager::SimplifiedChinese) >= 0)
+                language = combo;
+        }
+        QVERIFY(language);
+        const auto target = language->findData(preference);
+        QPointer<QWidget> previousContent = page->widget();
+        page->ensureWidgetVisible(language);
+        QTest::mouseClick(language, Qt::LeftButton);
+        QTRY_VERIFY(language->view()->isVisible());
+        QTest::keyClick(language->view(), Qt::Key_Home);
+        for (int index = 0; index < target; ++index)
+            QTest::keyClick(language->view(), Qt::Key_Down);
+        QTest::keyClick(language->view(), Qt::Key_Return);
+        QTRY_COMPARE(languageManager.effectiveLanguageId(), preference);
+        QTRY_VERIFY(previousContent.isNull());
+        QCOMPARE(tabs->currentRow(), selectedPage);
+        QCOMPARE(tabs->currentItem()->text(), AppOptionsDialog::tr("General"));
+        QVERIFY(
+            undo->text().startsWith(QCoreApplication::translate("MainMenuViewPrivate", "&Undo")));
+        QCOMPARE(undo->shortcut(), QKeySequence(QStringLiteral("Ctrl+Z")));
+        if (preference == UiLanguageManager::SimplifiedChinese)
+            QVERIFY(undo->text() != englishUndo);
+        else
+            QCOMPARE(undo->text(), englishUndo);
+        LineEdit *lyric = nullptr;
+        for (auto *editor : page->findChildren<LineEdit *>()) {
+            if (!qobject_cast<FileSelector *>(editor->parentWidget()))
+                lyric = editor;
+        }
+        QVERIFY(lyric);
+        QCOMPARE(lyric->text(), QStringLiteral("retained lyric"));
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(context->m_appModel->serialize(), beforeModel);
+        QCOMPARE(appStatus->selectedNotes.get(), selected);
+        QCOMPARE(historyManager->nextUndoEntry(), beforeUndo);
+        AppOptions reopened;
+        QCOMPARE(reopened.general()->uiLanguage, preference);
+        QCOMPARE(reopened.general()->defaultLyricForLanguage(general.defaultSingingLanguage),
+                 QStringLiteral("retained lyric"));
+    }
 }
 
 void ApplicationGuiTests::appearanceInputsPersistAcrossReopening() {
