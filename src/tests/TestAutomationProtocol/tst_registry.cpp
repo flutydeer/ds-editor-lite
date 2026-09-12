@@ -2894,6 +2894,51 @@ void AutomationProtocolTests::routing() {
                    strictInput.getError().code == Automation::AutomationErrorCode::InvalidArgument,
                QStringLiteral("strict input schemas must reject additional properties"));
 
+        QTemporaryDir externalFiles;
+        QVERIFY(externalFiles.isValid());
+        const auto readPath = externalFiles.filePath(QStringLiteral("source.txt"));
+        const auto writePath = externalFiles.filePath(QStringLiteral("output.txt"));
+        QFile source(readPath);
+        QVERIFY(source.open(QIODevice::WriteOnly));
+        QCOMPARE(source.write("input"), 5);
+        source.close();
+        const auto beforeReadback = runtime.documentVersion();
+        const auto readGrant =
+            fileGuard.addSessionGrant(readPath, Automation::FileAccessPurpose::Read);
+        const auto writeGrant =
+            fileGuard.addSessionGrant(writePath, Automation::FileAccessPurpose::Write);
+        QVERIFY(readGrant && writeGrant);
+        const auto accessBefore = fileGuard.snapshot();
+        const auto fileAccess = registry.invoke(QStringLiteral("application.get_file_access"), {});
+        QVERIFY(fileAccess);
+        QCOMPARE(fileAccess.get().value(QStringLiteral("access_roots")).toArray(),
+                 QJsonArray{QFileInfo(directory.path()).canonicalFilePath()});
+        const auto grants = fileAccess.get().value(QStringLiteral("session_grants")).toArray();
+        QCOMPARE(grants.size(), 2);
+        QVERIFY(grants.contains(QJsonObject{
+            {QStringLiteral("path"),   readGrant.get().canonicalPath},
+            {QStringLiteral("access"), QStringLiteral("read")       }
+        }));
+        QVERIFY(grants.contains(QJsonObject{
+            {QStringLiteral("path"),   writeGrant.get().canonicalPath},
+            {QStringLiteral("access"), QStringLiteral("write")       }
+        }));
+        QCOMPARE(fileGuard.snapshot(), accessBefore);
+        QVERIFY(fileGuard.authorize(readPath, Automation::FileAccessPurpose::Read));
+        QVERIFY(fileGuard.authorize(writePath, Automation::FileAccessPurpose::Write));
+        QVERIFY(!fileGuard.authorize(readPath, Automation::FileAccessPurpose::Write));
+        fileGuard.clearSessionGrants();
+        const auto clearedAccess =
+            registry.invoke(QStringLiteral("application.get_file_access"), {});
+        QVERIFY(clearedAccess);
+        QVERIFY(clearedAccess.get().value(QStringLiteral("session_grants")).toArray().isEmpty());
+        QCOMPARE(clearedAccess.get().value(QStringLiteral("access_roots")),
+                 fileAccess.get().value(QStringLiteral("access_roots")));
+        QVERIFY(!fileGuard.authorize(readPath, Automation::FileAccessPurpose::Read));
+        QVERIFY(!fileGuard.authorize(writePath, Automation::FileAccessPurpose::Write));
+        QVERIFY(fileGuard.authorize(directory.path(), Automation::FileAccessPurpose::Read));
+        QCOMPARE(runtime.documentVersion(), beforeReadback);
+
         access.update(AutomationWire::ControlLevel::L1);
         const auto denied = registry.invoke(QStringLiteral("formats.list"), {},
                                             {.clientId = QStringLiteral("permission")});
