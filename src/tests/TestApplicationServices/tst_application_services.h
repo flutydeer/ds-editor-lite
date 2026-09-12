@@ -67,7 +67,11 @@ private slots:
     void audioClipDomain();
     void documentAndImportDomains();
     void formatsAndMidiExport();
+    void preparedMidiPublication_data();
+    void preparedMidiPublication();
     void audioExportAndTaskList();
+    void audioExportRejectsUnsafeTargetsAndAllowsCorrection_data();
+    void audioExportRejectsUnsafeTargetsAndAllowsCorrection();
     void audioExportStageFailuresReleaseResourcesAndAllowRetry_data();
     void audioExportStageFailuresReleaseResourcesAndAllowRetry();
     void extractionDomains();

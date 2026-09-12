@@ -266,6 +266,15 @@ void VoiceAndInferenceTests::speakerMixDynamicInferenceMix() {
     QCOMPARE(mix.fallbackSpeaker, "spk-b");
 
     const auto fixedFallback = fixedSpeakerMixFromData(dynamic, "fallback");
+    const auto fitted = fitToFrames(mix, 3, 0.25);
+    QCOMPARE(fitted.fallbackSpeaker, mix.fallbackSpeaker);
+    QCOMPARE(fitted.sources.at(0).interval, 0.25);
+    QCOMPARE(fitted.sources.at(1).interval, 0.25);
+    if (!compareVectorNear(fitted.sources.at(0).proportions, {0.0, 0.25, 0.5}, __FILE__,
+                           __LINE__) ||
+        !compareVectorNear(fitted.sources.at(1).proportions, {1.0, 0.75, 0.5}, __FILE__, __LINE__))
+        return;
+    QCOMPARE(fitToFrames(fixedFallback, 3, 0.25), fixedFallback);
     QCOMPARE(dynamicSpeakerMixFromData(dynamic, "fallback", 960, 0, 0, timeline, 0.5),
              fixedFallback);
     QCOMPARE(dynamicSpeakerMixFromData(dynamic, "fallback", 0, 960, 0, timeline, 0.0),

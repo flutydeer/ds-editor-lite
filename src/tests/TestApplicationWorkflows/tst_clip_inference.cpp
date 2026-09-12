@@ -11,6 +11,9 @@
 #include "Model/AppOptions/AppOptions.h"
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Inference/Tasks/InferAcousticTask.h"
+#include "Modules/Inference/Tasks/InferDurationTask.h"
+#include "Modules/Inference/Tasks/InferPitchTask.h"
+#include "Modules/Inference/Tasks/InferVarianceTask.h"
 #include "Automation/Public/PublicAutomationHostAdapter.h"
 
 #include <lite/History/HistoryManager.h>
@@ -159,6 +162,164 @@ void ApplicationWorkflowTests::acousticCacheWriteFailureCanBeRetried() {
     QVERIFY(QFileInfo(target->audioPath).isFile());
     QCOMPARE(note->serialize(), beforeNote);
     QCOMPARE(historyManager->nextUndoEntry(), beforeUndo);
+}
+
+void ApplicationWorkflowTests::unsupportedInferencePhonemeAllowsRetry_data() {
+    QTest::addColumn<QString>("stage");
+    QTest::newRow("duration") << QStringLiteral("duration");
+    QTest::newRow("pitch") << QStringLiteral("pitch");
+    QTest::newRow("variance") << QStringLiteral("variance");
+    QTest::newRow("acoustic") << QStringLiteral("acoustic");
+}
+
+void ApplicationWorkflowTests::unsupportedInferencePhonemeAllowsRetry() {
+    QFETCH(QString, stage);
+    prepareVoicebankTarget();
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(!piece->notes.isEmpty());
+    QVERIFY(!piece->notes.first()->phonemeNameSeq().result().isEmpty());
+    QTemporaryDir cache;
+    QVERIFY(cache.isValid());
+    const auto previousCache = appOptions->inference()->cacheDirectory;
+    appOptions->inference()->cacheDirectory = cache.path();
+    const auto restoreCache = qScopeGuard([&] {
+        appOptions->inference()->cacheDirectory = previousCache;
+        if (QTest::currentTestFailed())
+            cache.setAutoRemove(false);
+    });
+    const auto before = context->m_appModel->serialize();
+    const auto version = runtime().documentVersion();
+    const auto *undo = historyManager->nextUndoEntry();
+    const auto singer = clip->singerIdentifier();
+    const auto createTask = [&](const bool unsupported) -> std::unique_ptr<IInferTask> {
+        const auto prepareInput = [&](auto input) {
+            if (unsupported)
+                input.notes.first().phonemeNames.first().name = QStringLiteral("unmapped-phoneme");
+            return input;
+        };
+        if (stage == QStringLiteral("duration"))
+            return std::make_unique<InferDurationTask>(
+                prepareInput(InferControllerHelper::buildInferDurInput(*piece, singer)));
+        if (stage == QStringLiteral("pitch"))
+            return std::make_unique<InferPitchTask>(
+                prepareInput(InferControllerHelper::buildInferPitchInput(*piece, singer)));
+        if (stage == QStringLiteral("variance"))
+            return std::make_unique<InferVarianceTask>(
+                prepareInput(InferControllerHelper::buildInferVarianceInput(*piece, singer)));
+        return std::make_unique<InferAcousticTask>(
+            prepareInput(InferControllerHelper::buildInferAcousticInput(*piece, singer)));
+    };
+    auto failed = createTask(true);
+    auto retried = createTask(false);
+    QThreadPool workers;
+    QSignalSpy failureFinished(failed.get(), &Task::finished);
+    workers.start(failed.get());
+    QTRY_COMPARE_WITH_TIMEOUT(failureFinished.count(), 1, 15000);
+    QVERIFY(workers.waitForDone(5000));
+    QVERIFY(failed->stopped());
+    QVERIFY(!failed->success());
+    QVERIFY(!failed->terminated());
+    QVERIFY(
+        QDir(cache.path()).entryList({QStringLiteral("infer-*-output-*")}, QDir::Files).isEmpty());
+    QSignalSpy retryFinished(retried.get(), &Task::finished);
+    workers.start(retried.get());
+    QTRY_COMPARE_WITH_TIMEOUT(retryFinished.count(), 1, 15000);
+    QVERIFY(workers.waitForDone(5000));
+    QVERIFY(retried->success());
+    QVERIFY(
+        !QDir(cache.path()).entryList({QStringLiteral("infer-*-output-*")}, QDir::Files).isEmpty());
+    QCOMPARE(context->m_appModel->serialize(), before);
+    QCOMPARE(runtime().documentVersion(), version);
+    QCOMPARE(historyManager->nextUndoEntry(), undo);
+}
+
+void ApplicationWorkflowTests::languageTasksKeepMixedResultsAligned() {
+    prepareVoicebankTarget();
+    if (QTest::currentTestFailed())
+        return;
+    const auto language = TestSupport::fixtureLanguage();
+    const auto lyric = TestSupport::fixtureLyric();
+    const auto singer = clip->singerInfo();
+    const auto before = context->m_appModel->serialize();
+    const auto version = runtime().documentVersion();
+    QList<NoteInferenceSnapshot> inputs{
+        {11, lyric,                         language, {}, 0,    480, 60},
+        {17, QStringLiteral("SP"),          language, {}, 480,  480, 60},
+        {23,
+         QStringLiteral("preserve first"),
+         QStringLiteral("unavailable-language"),
+         {},
+         960,                                                   480,
+         60                                                            },
+        {29, lyric + QLatin1Char('+'),      language, {}, 1440, 480, 60},
+        {31,
+         QStringLiteral("preserve second"),
+         QStringLiteral("unavailable-language"),
+         {},
+         1920,                                                  480,
+         60                                                            },
+        {37, QStringLiteral("-"),           language, {}, 2400, 480, 60},
+    };
+    const auto execute = [](Task &task) {
+        QThreadPool workers;
+        QSignalSpy finished(&task, &Task::finished);
+        workers.start(&task);
+        QTRY_COMPARE_WITH_TIMEOUT(finished.count(), 1, 10000);
+        QVERIFY(workers.waitForDone(5000));
+    };
+    GetPronunciationTask pronunciations(version, clip->id(), clip->inferenceRevision(), inputs,
+                                        singer);
+    execute(pronunciations);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(pronunciations.result.size(), inputs.size());
+    QVERIFY(!pronunciations.result.first().pronunciation.isEmpty());
+    QCOMPARE(pronunciations.result.at(3).pronunciation,
+             pronunciations.result.first().pronunciation);
+    for (const auto index : {1, 2, 4, 5}) {
+        QCOMPARE(pronunciations.result.at(index).pronunciation, inputs.at(index).lyric);
+        QCOMPARE(pronunciations.result.at(index).candidates, QStringList{inputs.at(index).lyric});
+    }
+    for (qsizetype index = 0; index < inputs.size(); ++index)
+        inputs[index].pronunciation = pronunciations.result.at(index).pronunciation;
+    GetPhonemeNameTask phonemes(version, clip->id(), clip->inferenceRevision(), inputs, singer);
+    execute(phonemes);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(phonemes.result.size(), inputs.size());
+    QVERIFY(!phonemes.success());
+    QVERIFY(phonemes.result.first().success);
+    QVERIFY(!phonemes.result.first().phonemeNames.isEmpty());
+    QVERIFY(phonemes.result.at(1).success);
+    QCOMPARE(phonemes.result.at(1).phonemeNames.size(), 1);
+    QCOMPARE(phonemes.result.at(1).phonemeNames.first().name, QStringLiteral("SP"));
+    for (const auto index : {2, 4}) {
+        QVERIFY(!phonemes.result.at(index).success);
+        QVERIFY(phonemes.result.at(index).phonemeNames.isEmpty());
+    }
+    QVERIFY(phonemes.result.at(5).success);
+    QVERIFY(phonemes.result.at(5).phonemeNames.isEmpty());
+
+    auto missingSinger = singer;
+    missingSinger.setResolutionState(ResolutionState::Missing);
+    GetPronunciationTask unresolved(version, clip->id(), clip->inferenceRevision(), inputs,
+                                    missingSinger);
+    GetPhonemeNameTask unresolvedPhonemes(version, clip->id(), clip->inferenceRevision(), inputs,
+                                          missingSinger);
+    execute(unresolved);
+    execute(unresolvedPhonemes);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(unresolved.result.size(), inputs.size());
+    QCOMPARE(unresolvedPhonemes.result.size(), inputs.size());
+    QVERIFY(!unresolvedPhonemes.success());
+    for (qsizetype index = 0; index < inputs.size(); ++index) {
+        QCOMPARE(unresolved.result.at(index).pronunciation, inputs.at(index).lyric);
+        QVERIFY(unresolvedPhonemes.result.at(index).phonemeNames.isEmpty());
+    }
+    QCOMPARE(context->m_appModel->serialize(), before);
+    QCOMPARE(runtime().documentVersion(), version);
 }
 
 void ApplicationWorkflowTests::editingParametersRestartsOnlyDependentInference_data() {

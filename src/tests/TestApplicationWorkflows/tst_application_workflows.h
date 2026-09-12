@@ -42,8 +42,8 @@ private slots:
     void projectBatchImportUsesRealLoaders_data();
 
     void projectBatchImportUsesRealLoaders();
-    void publicSingleProjectImportUsesThePreparedPlanAndKeepsTheDocument();
-    void publicSingleProjectImportUsesThePreparedPlanAndKeepsTheDocument_data();
+    void publicProjectLoadUsesThePreparedPlan();
+    void publicProjectLoadUsesThePreparedPlan_data();
     void libreSvipProcessFailuresLeaveTheDocumentUntouched_data();
     void libreSvipProcessFailuresLeaveTheDocumentUntouched();
 
@@ -57,6 +57,9 @@ private slots:
     void audioBatchRejectsChangesBeforeCommit_data();
     void audioBatchRejectsChangesBeforeCommit();
     void acousticCacheWriteFailureCanBeRetried();
+    void unsupportedInferencePhonemeAllowsRetry_data();
+    void unsupportedInferencePhonemeAllowsRetry();
+    void languageTasksKeepMixedResultsAligned();
     void publicAudioPathUpdatesPrepareCommitAndUndo();
 
     void clipInferenceResultsRespectEditSession_data();

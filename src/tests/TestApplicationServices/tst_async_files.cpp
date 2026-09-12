@@ -661,215 +661,238 @@ void ApplicationServicesTests::documentAndImportDomains() {
 }
 
 void ApplicationServicesTests::formatsAndMidiExport() {
+    using namespace Automation;
     RuntimeHarness harness;
-    QVERIFY2((harness.isReady()), qPrintable(QStringLiteral("file harness must initialize")));
+    QVERIFY(harness.isReady());
     auto &runtime = harness.runtime();
+    const auto formats = runtime.files().listFormats();
+    QVERIFY(formats);
+    QCOMPARE(formats.get(), harness.formats);
 
-    {
-        // Automation::OperationIds::formats::list / QStringLiteral("success-and-unavailable")
+    RuntimeHarness unavailable({.fileServices = false});
+    const auto missingFormats = unavailable.runtime().files().listFormats();
+    QVERIFY(
+        isError(missingFormats, AutomationErrorCode::ModuleNotReady, OperationIds::formats::list));
+    const auto missingExport = unavailable.runtime().files().exportMidi(
+        unavailable.context(), unavailable.temporaryPath(QStringLiteral("missing.mid")), false);
+    QVERIFY(isError(missingExport, AutomationErrorCode::ModuleNotReady,
+                    OperationIds::exports::midi::start));
 
-        const auto formats = runtime.files().listFormats();
-        QVERIFY2((formats && formats.get() == harness.formats && formats.get().size() == 2),
-                 qPrintable(QStringLiteral("format query must return a typed value snapshot")));
-        RuntimeHarness unavailable({.fileServices = false});
-        const auto missing = unavailable.runtime().files().listFormats();
-        Automation::AutomationError directError;
-        directError.code = Automation::AutomationErrorCode::ModuleNotReady;
-        const auto direct =
-            unavailable.runtime()
-                .dispatcher()
-                .dispatchApplicationQuery<QList<Automation::ProjectFormatDto>>(
-                    Automation::OperationIds::formats::list, [directError] {
-                        return Automation::AutomationResult<QList<Automation::ProjectFormatDto>>(
-                            directError);
-                    });
-        QVERIFY2((!missing),
-                 qPrintable(QStringLiteral("missing format service must return an error result")));
-        QVERIFY2((!missing &&
-                  missing.getError().code == Automation::AutomationErrorCode::ModuleNotReady),
-                 qPrintable(QStringLiteral("missing format service must use module_not_ready")));
-        QVERIFY2(
-            (!missing && missing.getError().operationId == Automation::OperationIds::formats::list),
-            qPrintable(
-                QStringLiteral("missing format operation ID is '%1'")
-                    .arg(missing ? QStringLiteral("<success>") : missing.getError().operationId)));
-        QVERIFY2(
-            (!direct && direct.getError().operationId == Automation::OperationIds::formats::list),
-            qPrintable(
-                QStringLiteral("direct query operation ID is '%1'")
-                    .arg(direct ? QStringLiteral("<success>") : direct.getError().operationId)));
+    const auto path = harness.temporaryPath(QStringLiteral("export.mid"));
+    const MidiExportOptionsDto options{.includeTempo = false, .includeTimeSignatures = false};
+    const auto before = runtime.documentVersion();
+    const auto preview = runtime.files().exportMidi(harness.context(true), path, false, options);
+    QVERIFY(preview);
+    QVERIFY(preview.get().validatedOnly);
+    QVERIFY(!preview.get().wroteFile);
+    QVERIFY(!QFileInfo::exists(path));
+    QCOMPARE(harness.midiExportCount, 0);
+
+    const auto exported = runtime.files().exportMidi(harness.context(), path, false, options);
+    QVERIFY(exported);
+    QVERIFY(exported.get().wroteFile);
+    QFile file(path);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    QCOMPARE(file.readAll(), QByteArray("midi"));
+    file.close();
+    QCOMPARE(harness.midiExportCount, 1);
+    QCOMPARE(harness.lastMidiExportOptions, options);
+    QCOMPARE(runtime.documentVersion(), before);
+
+    const auto directPreview = runtime.files().previewMidiExport(before.documentId, path, options);
+    QVERIFY(directPreview);
+    QVERIFY(directPreview.get().validatedOnly);
+    QVERIFY(directPreview.get().modelSnapshot.tracks.isEmpty());
+    QCOMPARE(harness.midiExportCount, 1);
+    QVERIFY(isError(
+        runtime.files().previewMidiExport(before.documentId, QStringLiteral("relative.mid")),
+        AutomationErrorCode::InvalidArgument, OperationIds::exports::midi::preview));
+    QVERIFY(isError(
+        runtime.files().exportMidi(harness.context(), QStringLiteral("relative.mid"), false),
+        AutomationErrorCode::InvalidArgument, OperationIds::exports::midi::start));
+    QVERIFY(isError(runtime.files().exportMidi(harness.context(),
+                                               harness.temporaryPath(QStringLiteral("wrong.wav")),
+                                               false),
+                    AutomationErrorCode::FormatUnsupported, OperationIds::exports::midi::start));
+    QVERIFY(isError(runtime.files().exportMidi(harness.context(), path, false),
+                    AutomationErrorCode::OverwriteDenied, OperationIds::exports::midi::start));
+
+    harness.midiExportSucceeds = false;
+    QVERIFY(isError(runtime.files().exportMidi(harness.context(),
+                                               harness.temporaryPath(QStringLiteral("failed.mid")),
+                                               false),
+                    AutomationErrorCode::IoError, OperationIds::exports::midi::start));
+    QCOMPARE(runtime.documentVersion(), before);
+}
+
+void ApplicationServicesTests::preparedMidiPublication_data() {
+    QTest::addColumn<bool>("existing");
+    QTest::addColumn<bool>("allowOverwrite");
+    QTest::addColumn<bool>("validateOnly");
+    QTest::addColumn<QString>("publication");
+    QTest::newRow("create") << false << false << false << QStringLiteral("write");
+    QTest::newRow("replace-existing") << true << true << false << QStringLiteral("write");
+    QTest::newRow("validate-without-export") << false << false << true << QStringLiteral("write");
+    QTest::newRow("authorization-denies-creation")
+        << false << false << false << QStringLiteral("deny");
+    QTest::newRow("authorization-preserves-existing")
+        << true << true << false << QStringLiteral("deny");
+    QTest::newRow("cancel-before-publish") << true << true << false << QStringLiteral("cancel");
+    QTest::newRow("target-appears-before-publish")
+        << false << false << false << QStringLiteral("race");
+    QTest::newRow("backend-failure-preserves-existing")
+        << true << true << false << QStringLiteral("fail");
+}
+
+void ApplicationServicesTests::preparedMidiPublication() {
+    using namespace Automation;
+    QFETCH(bool, existing);
+    QFETCH(bool, allowOverwrite);
+    QFETCH(bool, validateOnly);
+    QFETCH(QString, publication);
+    RuntimeHarness harness;
+    QVERIFY(harness.isReady());
+    auto &runtime = harness.runtime();
+    const auto before = runtime.documentVersion();
+    const auto path = harness.temporaryPath(QStringLiteral("published.mid"));
+    QFile target(path);
+    if (existing) {
+        QVERIFY(target.open(QIODevice::WriteOnly));
+        QCOMPARE(target.write("original"), qint64{8});
+        target.close();
+    }
+    const MidiExportOptionsDto options{
+        .includeTempo = true,
+        .includeTimeSignatures = false,
+        .includeLyrics = false,
+        .clipIds = {harness.singingClipId()},
     };
+    const auto prepared = runtime.files().prepareMidiExport(harness.context(validateOnly), path,
+                                                            allowOverwrite, options);
+    QVERIFY(prepared);
+    if (!validateOnly) {
+        QCOMPARE(prepared.get().modelSnapshot.tracks.size(), 1);
+        QCOMPARE(prepared.get().modelSnapshot.tracks.first().clips.size(), 1);
+        QCOMPARE(prepared.get().modelSnapshot.tracks.first().clips.first().type,
+                 ClipDraftDto::Type::Singing);
+    }
+    harness.midiExportSucceeds = publication != QStringLiteral("fail");
+    int authorizationCalls = 0;
+    const auto result =
+        runtime.files().writePreparedMidiExport(prepared.get(), [&]() -> AutomationResult<bool> {
+            ++authorizationCalls;
+            if (publication == QStringLiteral("deny")) {
+                AutomationError error;
+                error.code = AutomationErrorCode::PermissionDenied;
+                error.fieldPath = QStringLiteral("path");
+                return error;
+            }
+            if (publication == QStringLiteral("race")) {
+                QFile external(path);
+                if (!external.open(QIODevice::WriteOnly) || external.write("external") != 8)
+                    return AutomationError::invalidArgument(
+                        QStringLiteral("path"),
+                        QStringLiteral("Failed to create concurrent output"));
+            }
+            return publication != QStringLiteral("cancel");
+        });
+    const auto expectedError =
+        publication == QStringLiteral("deny")   ? AutomationErrorCode::PermissionDenied
+        : publication == QStringLiteral("race") ? AutomationErrorCode::OverwriteDenied
+                                                : AutomationErrorCode::IoError;
+    const bool failed = publication == QStringLiteral("deny") ||
+                        publication == QStringLiteral("race") ||
+                        publication == QStringLiteral("fail");
+    if (failed) {
+        QVERIFY(isError(result, expectedError));
+    } else {
+        QVERIFY(result);
+        QCOMPARE(result.get().validatedOnly, validateOnly);
+        QCOMPARE(result.get().wroteFile, !validateOnly && publication == QStringLiteral("write"));
+    }
+    QCOMPARE(authorizationCalls, validateOnly || publication == QStringLiteral("fail") ? 0 : 1);
+    QCOMPARE(harness.midiExportCount, validateOnly ? 0 : 1);
+    if (!validateOnly)
+        QCOMPARE(harness.lastMidiExportOptions, options);
+    const bool wrote = !failed && !validateOnly && publication == QStringLiteral("write");
+    if (existing || wrote || publication == QStringLiteral("race")) {
+        QVERIFY(target.open(QIODevice::ReadOnly));
+        QCOMPARE(target.readAll(), wrote ? QByteArray("midi")
+                                   : publication == QStringLiteral("race")
+                                       ? QByteArray("external")
+                                       : QByteArray("original"));
+    } else {
+        QVERIFY(!QFileInfo::exists(path));
+    }
+    QCOMPARE(runtime.documentVersion(), before);
+    const QDir directory(QFileInfo(path).absolutePath());
+    QVERIFY(
+        directory.entryList({QStringLiteral(".ds-editor-lite-midi-*")}, QDir::Files | QDir::Hidden)
+            .isEmpty());
+}
 
-    {
-        // Automation::OperationIds::exports::midi::start /
-        // QStringLiteral("validate-write-and-path-errors")
+void ApplicationServicesTests::audioExportRejectsUnsafeTargetsAndAllowsCorrection_data() {
+    QTest::addColumn<QString>("problem");
+    QTest::addColumn<Automation::AutomationErrorCode>("errorCode");
+    QTest::newRow("overwrite-needs-consent")
+        << QStringLiteral("overwrite") << Automation::AutomationErrorCode::OverwriteDenied;
+    QTest::newRow("filename-escapes-export-directory")
+        << QStringLiteral("escape") << Automation::AutomationErrorCode::InvalidArgument;
+    QTest::newRow("export-directory-is-missing")
+        << QStringLiteral("directory") << Automation::AutomationErrorCode::FileNotFound;
+    QTest::newRow("nested-output-directory-is-missing")
+        << QStringLiteral("nested") << Automation::AutomationErrorCode::FileNotFound;
+    QTest::newRow("output-is-a-directory")
+        << QStringLiteral("target") << Automation::AutomationErrorCode::InvalidArgument;
+}
 
-        const auto path = harness.temporaryPath(QStringLiteral("export.mid"));
-        auto previewContext = harness.context();
-        previewContext.validateOnly = true;
-        const Automation::MidiExportOptionsDto options{
-            .includeTempo = false,
-            .includeTimeSignatures = false,
-        };
-        const auto base = runtime.documentVersion();
-        const auto preview = runtime.files().exportMidi(previewContext, path, false, options);
-        const auto commit = runtime.files().exportMidi(harness.context(), path, false, options);
-        QFile exported(path);
-        const auto exportedReadable = exported.open(QIODevice::ReadOnly);
-        const auto exportedContents = exported.readAll();
-        QVERIFY2((preview && preview.get().validatedOnly && !preview.get().wroteFile && commit &&
-                  commit.get().wroteFile && exportedReadable && exportedContents == "midi" &&
-                  harness.midiExportCount == 1 && harness.lastMidiExportOptions == options &&
-                  runtime.documentVersion() == base),
-                 qPrintable(
-                     QStringLiteral("MIDI export must validate, forward options, and write once")));
-
-        const Automation::MidiExportOptionsDto preparedOptions{
-            .includeTempo = true,
-            .includeTimeSignatures = false,
-            .includeLyrics = false,
-            .clipIds = {harness.singingClipId()},
-        };
-        const auto directPreview = runtime.files().previewMidiExport(
-            runtime.documentVersion().documentId,
-            harness.temporaryPath(QStringLiteral("preview.mid")), preparedOptions);
-        QVERIFY2((directPreview && directPreview.get().validatedOnly &&
-                  directPreview.get().modelSnapshot.tracks.isEmpty() &&
-                  harness.midiExportCount == 1),
-                 qPrintable(QStringLiteral("MIDI preview must validate without writing a file")));
-        const auto prepared = runtime.files().prepareMidiExport(
-            harness.context(), harness.temporaryPath(QStringLiteral("prepared.mid")), false,
-            preparedOptions);
-        const auto preparedWrite =
-            prepared
-                ? runtime.files().writePreparedMidiExport(prepared.get())
-                : Automation::AutomationResult<Automation::FileWriteResultDto>(prepared.getError());
-        QVERIFY2((prepared && prepared.get().modelSnapshot.tracks.size() == 1 &&
-                  prepared.get().modelSnapshot.tracks.first().clips.size() == 1 &&
-                  prepared.get().modelSnapshot.tracks.first().clips.first().type ==
-                      Automation::ClipDraftDto::Type::Singing &&
-                  preparedWrite && preparedWrite.get().wroteFile && harness.midiExportCount == 2 &&
-                  harness.lastMidiExportOptions == preparedOptions),
-                 qPrintable(QStringLiteral("prepared MIDI export must freeze a restorable model "
-                                           "and preserve options")));
-
-        Automation::AutomationError publishDenied;
-        publishDenied.code = Automation::AutomationErrorCode::PermissionDenied;
-        publishDenied.fieldPath = QStringLiteral("path");
-        publishDenied.message = QStringLiteral("controlled final authorization failure");
-        const auto deniedNewPath = harness.temporaryPath(QStringLiteral("denied-new.mid"));
-        const auto deniedNewPrepared = runtime.files().prepareMidiExport(
-            harness.context(), deniedNewPath, false, preparedOptions);
-        bool checkedNewPublish = false;
-        const auto deniedNewWrite =
-            deniedNewPrepared ? runtime.files().writePreparedMidiExport(
-                                    deniedNewPrepared.get(),
-                                    [&] {
-                                        checkedNewPublish = true;
-                                        return Automation::AutomationResult<bool>(publishDenied);
-                                    })
-                              : Automation::AutomationResult<Automation::FileWriteResultDto>(
-                                    deniedNewPrepared.getError());
-
-        const auto preservedPath = harness.temporaryPath(QStringLiteral("denied-overwrite.mid"));
-        QFile preservedTarget(preservedPath);
-        const auto preservedCreated =
-            preservedTarget.open(QIODevice::WriteOnly) && preservedTarget.write("original") == 8;
-        preservedTarget.close();
-        const auto deniedOverwritePrepared = runtime.files().prepareMidiExport(
-            harness.context(), preservedPath, true, preparedOptions);
-        bool checkedOverwritePublish = false;
-        const auto deniedOverwriteWrite =
-            deniedOverwritePrepared
-                ? runtime.files().writePreparedMidiExport(
-                      deniedOverwritePrepared.get(),
-                      [&] {
-                          checkedOverwritePublish = true;
-                          return Automation::AutomationResult<bool>(publishDenied);
-                      })
-                : Automation::AutomationResult<Automation::FileWriteResultDto>(
-                      deniedOverwritePrepared.getError());
-        const auto preservedReadable = preservedTarget.open(QIODevice::ReadOnly);
-        const auto preservedContents = preservedTarget.readAll();
-        preservedTarget.close();
-        QVERIFY2(
-            (deniedNewPrepared && checkedNewPublish &&
-             isError(deniedNewWrite, Automation::AutomationErrorCode::PermissionDenied) &&
-             !QFileInfo::exists(deniedNewPath) && deniedOverwritePrepared &&
-             checkedOverwritePublish &&
-             isError(deniedOverwriteWrite, Automation::AutomationErrorCode::PermissionDenied) &&
-             preservedCreated && preservedReadable && preservedContents == "original"),
-            qPrintable(
-                QStringLiteral("failed final authorization must neither create nor replace the "
-                               "MIDI target")));
-
-        const auto racedPath = harness.temporaryPath(QStringLiteral("raced.mid"));
-        const auto racedPrepared =
-            runtime.files().prepareMidiExport(harness.context(), racedPath, false, preparedOptions);
-        const auto racedWrite =
-            racedPrepared
-                ? runtime.files().writePreparedMidiExport(
-                      racedPrepared.get(),
-                      [&] {
-                          QFile racedTarget(racedPath);
-                          if (!racedTarget.open(QIODevice::WriteOnly) ||
-                              racedTarget.write("external") != 8) {
-                              return Automation::AutomationResult<bool>(
-                                  Automation::AutomationError::invalidArgument(
-                                      QStringLiteral("path"),
-                                      QStringLiteral("race fixture could not create target")));
-                          }
-                          return Automation::AutomationResult<bool>(true);
-                      })
-                : Automation::AutomationResult<Automation::FileWriteResultDto>(
-                      racedPrepared.getError());
-        QFile racedTarget(racedPath);
-        const auto racedReadable = racedTarget.open(QIODevice::ReadOnly);
-        const auto racedContents = racedTarget.readAll();
-        QVERIFY2((racedPrepared &&
-                  isError(racedWrite, Automation::AutomationErrorCode::OverwriteDenied) &&
-                  racedReadable && racedContents == "external"),
-                 qPrintable(QStringLiteral(
-                     "reject-overwrite publication must not replace a target created "
-                     "after staging")));
-
-        const auto invalidPreview = runtime.files().previewMidiExport(
-            runtime.documentVersion().documentId, QStringLiteral("relative.mid"));
-        QVERIFY2((isError(invalidPreview, Automation::AutomationErrorCode::InvalidArgument,
-                          Automation::OperationIds::exports::midi::preview)),
-                 qPrintable(QStringLiteral(
-                     "MIDI preview validation must retain its own operation identity")));
-
-        harness.midiExportSucceeds = false;
-        const auto backendFailure = runtime.files().exportMidi(
-            harness.context(), harness.temporaryPath(QStringLiteral("failure.mid")), false);
-        const auto relative =
-            runtime.files().exportMidi(harness.context(), QStringLiteral("relative.mid"), false);
-        const auto suffix = runtime.files().exportMidi(
-            harness.context(), harness.temporaryPath(QStringLiteral("wrong.wav")), false);
-        QFile existing(harness.temporaryPath(QStringLiteral("existing.mid")));
-        const auto created = existing.open(QIODevice::WriteOnly);
-        existing.close();
-        const auto overwrite =
-            runtime.files().exportMidi(harness.context(), existing.fileName(), false);
-        QVERIFY2((isError(backendFailure, Automation::AutomationErrorCode::IoError,
-                          Automation::OperationIds::exports::midi::start) &&
-                  isError(relative, Automation::AutomationErrorCode::InvalidArgument,
-                          Automation::OperationIds::exports::midi::start) &&
-                  isError(suffix, Automation::AutomationErrorCode::FormatUnsupported,
-                          Automation::OperationIds::exports::midi::start) &&
-                  created &&
-                  isError(overwrite, Automation::AutomationErrorCode::OverwriteDenied,
-                          Automation::OperationIds::exports::midi::start)),
-                 qPrintable(QStringLiteral("MIDI export must preserve backend and path errors")));
-
-        RuntimeHarness unavailable({.fileServices = false});
-        const auto missing = unavailable.runtime().files().exportMidi(
-            unavailable.context(), unavailable.temporaryPath(QStringLiteral("missing.mid")), false);
-        QVERIFY2((isError(missing, Automation::AutomationErrorCode::ModuleNotReady,
-                          Automation::OperationIds::exports::midi::start)),
-                 qPrintable(QStringLiteral("missing MIDI service must fail before writing")));
-    };
+void ApplicationServicesTests::audioExportRejectsUnsafeTargetsAndAllowsCorrection() {
+    using namespace Automation;
+    QFETCH(QString, problem);
+    QFETCH(AutomationErrorCode, errorCode);
+    RuntimeHarness harness;
+    QVERIFY(harness.isReady());
+    auto &runtime = harness.runtime();
+    const auto before = runtime.documentVersion();
+    const auto tasksBefore = runtime.automationTasks().size();
+    auto state = harness.audioExportState();
+    auto config = audioConfig(harness, QStringLiteral("mix.wav"));
+    const auto originalConfig = config;
+    if (problem == QStringLiteral("overwrite")) {
+        QFile existing(QDir(config.fileDirectory).filePath(config.fileName));
+        QVERIFY(existing.open(QIODevice::WriteOnly));
+        QCOMPARE(existing.write("original"), qint64{8});
+        state->warningFlags = AudioExportWillOverwrite;
+    } else if (problem == QStringLiteral("escape")) {
+        config.fileName = QStringLiteral("../escaped.wav");
+    } else if (problem == QStringLiteral("directory")) {
+        config.fileDirectory = QDir(config.fileDirectory).filePath(QStringLiteral("missing"));
+    } else if (problem == QStringLiteral("nested")) {
+        config.fileName = QStringLiteral("missing/mix.wav");
+    } else {
+        QVERIFY(QDir().mkdir(QDir(config.fileDirectory).filePath(config.fileName)));
+    }
+    const auto rejected = runtime.audioExports().start(harness.context(), config, {});
+    QVERIFY(isError(rejected, errorCode, OperationIds::exports::audio::start));
+    QCOMPARE(runtime.automationTasks().size(), tasksBefore);
+    QCOMPARE(harness.audioScheduler.pendingCount(), 0);
+    QCOMPARE(state->executeCount, 0);
+    QCOMPARE(state->publishCount, 0);
+    QCOMPARE(runtime.documentVersion(), before);
+    if (problem == QStringLiteral("target"))
+        QVERIFY(QDir().rmdir(QDir(originalConfig.fileDirectory).filePath(originalConfig.fileName)));
+    AudioExportPolicyDto policy;
+    policy.allowOverwrite = problem == QStringLiteral("overwrite");
+    const auto corrected = runtime.audioExports().start(harness.context(), originalConfig, policy);
+    QVERIFY(corrected);
+    QVERIFY(harness.audioScheduler.runNext());
+    const auto completed = runtime.tasks().getTask(before.documentId, corrected.get().taskId);
+    QVERIFY(completed);
+    QCOMPARE(completed.get().state, AutomationTaskState::Succeeded);
+    QCOMPARE(state->executeCount, 1);
+    QCOMPARE(state->publishCount, 1);
+    QCOMPARE(state->publishAllowOverwrite, std::optional<bool>{policy.allowOverwrite});
+    QCOMPARE(runtime.documentVersion(), before);
 }
 
 void ApplicationServicesTests::audioExportStageFailuresReleaseResourcesAndAllowRetry_data() {

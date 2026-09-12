@@ -525,15 +525,18 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
     }
 }
 
-void ApplicationWorkflowTests::
-    publicSingleProjectImportUsesThePreparedPlanAndKeepsTheDocument_data() {
+void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan_data() {
     QTest::addColumn<bool>("externalConverter");
-    QTest::newRow("native-dspx") << false;
-    QTest::newRow("external-libresvip") << true;
+    QTest::addColumn<bool>("opening");
+    QTest::newRow("import-native-dspx") << false << false;
+    QTest::newRow("import-external-libresvip") << true << false;
+    QTest::newRow("open-native-dspx") << false << true;
+    QTest::newRow("open-external-libresvip") << true << true;
 }
 
-void ApplicationWorkflowTests::publicSingleProjectImportUsesThePreparedPlanAndKeepsTheDocument() {
+void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
     QFETCH(bool, externalConverter);
+    QFETCH(bool, opening);
     const auto oldExecutable = context->m_appOptions->general()->libreSVIPPath;
     const auto oldResult = qgetenv("DSEL_TEST_LIBRESVIP_RESULT");
     const auto restoreConverter = qScopeGuard([&] {
@@ -588,33 +591,39 @@ void ApplicationWorkflowTests::publicSingleProjectImportUsesThePreparedPlanAndKe
         runtime(), access, fileGuard, admission,
         Automation::createPublicAutomationHostServices(runtime(), context->m_appModel,
                                                        &SynthrtEngine::instance()));
-    const auto inspected = registry.invoke(
-        QStringLiteral("formats.inspect"),
-        {
-            {QStringLiteral("path"),    path                    },
-            {QStringLiteral("purpose"), QStringLiteral("import")}
+    const auto inspected =
+        registry.invoke(QStringLiteral("formats.inspect"),
+                        {
+                            {QStringLiteral("path"),    path                            },
+                            {QStringLiteral("purpose"),
+                             opening ? QStringLiteral("open") : QStringLiteral("import")}
     });
     QVERIFY2(inspected, qPrintable(inspected ? QString() : inspected.getError().message));
     const auto digest = inspected.get().value(QStringLiteral("plan_digest")).toString();
     QVERIFY(!digest.isEmpty());
     QCOMPARE(runtime().documentVersion(), before);
     QCOMPARE(context->m_appModel->serialize(), beforeModel);
+    QJsonObject arguments{
+        {opening ? QStringLiteral("current_document_id") : QStringLiteral("document_id"),
+         before.documentId.toString()                                                                                         },
+        {QStringLiteral("expected_revision"),                                             static_cast<qint64>(before.revision)},
+        {QStringLiteral("path"),                                                          path                                },
+        {QStringLiteral("options"),                                                       QJsonObject{}                       },
+        {QStringLiteral("plan_digest"),                                                   digest                              }
+    };
+    if (opening)
+        arguments.insert(QStringLiteral("unsaved_policy"), QStringLiteral("discard"));
     const auto accepted = registry.invoke(
-        QStringLiteral("documents.import"),
-        {
-            {QStringLiteral("document_id"),       before.documentId.toString()        },
-            {QStringLiteral("expected_revision"), static_cast<qint64>(before.revision)},
-            {QStringLiteral("path"),              path                                },
-            {QStringLiteral("options"),           QJsonObject{}                       },
-            {QStringLiteral("plan_digest"),       digest                              }
-    },
+        opening ? QStringLiteral("documents.open") : QStringLiteral("documents.import"), arguments,
         {.clientId = QStringLiteral("project-import-client"),
          .source = Automation::InvocationSource::PublicJsonRpc});
     QVERIFY2(accepted, qPrintable(accepted ? QString() : accepted.getError().message));
     const auto id =
         Automation::TaskId::fromString(accepted.get().value(QStringLiteral("task_id")).toString());
     QVERIFY(!id.isNull());
-    const auto task = [&] { return runtime().tasks().getTask(before.documentId, id); };
+    const auto task = [&] {
+        return runtime().tasks().getTask(runtime().documentVersion().documentId, id);
+    };
     QTRY_VERIFY_WITH_TIMEOUT(
         task() && (task().get().state == Automation::AutomationTaskState::Succeeded ||
                    task().get().state == Automation::AutomationTaskState::Failed),
@@ -622,11 +631,27 @@ void ApplicationWorkflowTests::publicSingleProjectImportUsesThePreparedPlanAndKe
     const auto terminal = task().get();
     QVERIFY2(terminal.state == Automation::AutomationTaskState::Succeeded,
              qPrintable(terminal.error ? terminal.error->message : QString()));
-    QCOMPARE(runtime().documentVersion().documentId, before.documentId);
     const auto tracks = context->m_appModel->tracks();
-    QCOMPARE(tracks.size(), originalTracks.size() + 1);
-    for (int index = 0; index < originalTracks.size(); ++index)
-        QCOMPARE(tracks.at(index), originalTracks.at(index));
+    if (opening) {
+        QVERIFY(runtime().documentVersion().documentId != before.documentId);
+        QCOMPARE(tracks.size(), 1);
+        QCOMPARE(context->m_appModel->timeline(), source.timeline());
+        const auto document =
+            runtime().documents().getDocument(runtime().documentVersion().documentId);
+        QVERIFY(document);
+        if (externalConverter)
+            QVERIFY(document.get().path.isEmpty());
+        else
+            QCOMPARE(QFileInfo(document.get().path).canonicalFilePath(),
+                     QFileInfo(path).canonicalFilePath());
+        QCOMPARE(historyManager->isOnSavePoint(), !externalConverter);
+        QVERIFY(!historyManager->canUndo());
+    } else {
+        QCOMPARE(runtime().documentVersion().documentId, before.documentId);
+        QCOMPARE(tracks.size(), originalTracks.size() + 1);
+        for (int index = 0; index < originalTracks.size(); ++index)
+            QCOMPARE(tracks.at(index), originalTracks.at(index));
+    }
     const auto *importedTrack = tracks.last();
     QCOMPARE(importedTrack->name(), sourceTrack->name());
     QCOMPARE(importedTrack->clips().count(), 1);
@@ -638,9 +663,11 @@ void ApplicationWorkflowTests::publicSingleProjectImportUsesThePreparedPlanAndKe
     QCOMPARE(importedNote->localStart(), sourceNote->localStart());
     QCOMPARE(importedNote->keyIndex(), sourceNote->keyIndex());
     QCOMPARE(importedNote->lyric(), sourceNote->lyric());
-    QVERIFY(runtime().history().undo(commandContext()));
-    QCOMPARE(context->m_appModel->serialize(), beforeModel);
-    QVERIFY(!historyManager->canUndo());
+    if (!opening) {
+        QVERIFY(runtime().history().undo(commandContext()));
+        QCOMPARE(context->m_appModel->serialize(), beforeModel);
+        QVERIFY(!historyManager->canUndo());
+    }
     QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
 }
 

@@ -1,6 +1,7 @@
 #include "tst_application_workflows.h"
 
 #include "Automation/Public/PublicAutomationHostAdapter.h"
+#include "Automation/Public/PublicAutomationRegistry.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -72,19 +73,42 @@ void ApplicationWorkflowTests::audioBatchFailurePolicy() {
     const auto before = runtime().documentVersion();
     const auto *beforeUndo = HistoryManager::instance()->nextUndoEntry();
     const auto beforeClips = context->m_appModel->tracks().first()->clips().count();
-    PublicAudioClipBatchImportRequest request{
-        .command = commandContext(),
-        .items = {audioItem(trackId, validPath, QStringLiteral("valid-audio"), 480),
-                  audioItem(trackId, invalidPath, QStringLiteral("invalid-audio"), 960)},
-        .failurePolicy =
-            bestEffort ? PublicBatchFailurePolicy::BestEffort : PublicBatchFailurePolicy::Atomic
+    AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
+    AutomationFileGuard fileGuard;
+    AdmissionController admission;
+    QVERIFY(fileGuard.setConfiguredRoots({files.path()}));
+    PublicAutomationRegistry registry(
+        runtime(), access, fileGuard, admission,
+        createPublicAutomationHostServices(runtime(), context->m_appModel,
+                                           &SynthrtEngine::instance()));
+    const QJsonArray items{
+        QJsonObject{{"track_id", trackId.value()},
+                    {"path", validPath},
+                    {"name", "valid-audio"},
+                    {"start", 480},
+                    {"gain", 0.5},
+                    {"mute", true}},
+        QJsonObject{{"track_id", trackId.value()},
+                    {"path", invalidPath},
+                    {"name", "invalid-audio"},
+                    {"start", 960}}
     };
-    const auto services = createPublicAutomationHostServices(runtime(), context->m_appModel,
-                                                             &SynthrtEngine::instance());
-    const auto accepted = services.importAudioClips(request);
+    const auto accepted =
+        registry.invoke(QStringLiteral("audio_clips.import_batch"),
+                        {
+                            {"document_id",       before.documentId.toString()         },
+                            {"expected_revision", static_cast<qint64>(before.revision) },
+                            {"items",             items                                },
+                            {"failure_policy",    bestEffort ? "best_effort" : "atomic"}
+    },
+                        {.clientId = QStringLiteral("audio-import-client"),
+                         .source = InvocationSource::PublicJsonRpc});
     QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
-    QTRY_VERIFY_WITH_TIMEOUT(terminal(runtime(), accepted.get()), 10000);
-    const auto task = runtime().tasks().getTask(before.documentId, accepted.get().taskId);
+    const auto taskId =
+        TaskId::fromString(accepted.get().value(QStringLiteral("task_id")).toString());
+    QVERIFY(!taskId.isNull());
+    QTRY_VERIFY_WITH_TIMEOUT(terminal(runtime(), {taskId, before}), 10000);
+    const auto task = runtime().tasks().getTask(before.documentId, taskId);
     QVERIFY(task);
     if (!bestEffort) {
         QCOMPARE(task.get().state, AutomationTaskState::Failed);
@@ -105,19 +129,15 @@ void ApplicationWorkflowTests::audioBatchFailurePolicy() {
     QVERIFY(task.get().mutation->warnings.first().contains(QStringLiteral("damaged.wav")));
     QCOMPARE(runtime().documentVersion().revision, before.revision + 1);
     QCOMPARE(context->m_appModel->tracks().first()->clips().count(), beforeClips + 1);
-    const auto &created = task.get().mutation->createdObjects;
-    const auto imported = std::find_if(created.cbegin(), created.cend(), [](const auto &object) {
-        return object.clientRef == QStringLiteral("valid-audio");
-    });
-    QVERIFY(imported != created.cend());
     const auto snapshot = runtime().project().getProject(before.documentId);
     QVERIFY(snapshot);
     const auto &clips = snapshot.get().tracks.first().clips;
     const auto found = std::find_if(clips.cbegin(), clips.cend(), [&](const auto &clip) {
-        return clip.id.value() == imported->object.value;
+        return clip.data.properties.name == QStringLiteral("valid-audio");
     });
     QVERIFY(found != clips.cend());
-    QCOMPARE(found->data.audioPath, validPath);
+    QCOMPARE(QFileInfo(found->data.audioPath).canonicalFilePath(),
+             QFileInfo(validPath).canonicalFilePath());
     QCOMPARE(found->data.audioInfo.frames, qint64{4800});
     QCOMPARE(found->data.audioInfo.sampleRate, 48000);
     QCOMPARE(found->data.properties.materialLengthMs, 100.0);
