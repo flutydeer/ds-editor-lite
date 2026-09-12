@@ -230,6 +230,7 @@ MainWindow::~MainWindow() {
     ShutdownBlockReasonDestroy(reinterpret_cast<HWND>(this->winId()));
 #endif
     editorViewController->setView(nullptr);
+    documentWorkflowController->setUi(nullptr);
     ThemeManager::instance()->removeWindow(this);
 }
 

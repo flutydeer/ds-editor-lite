@@ -12,6 +12,7 @@
 #include "UI/Views/TrackEditor/TracksRhiWidget.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
 #include "UI/Views/TrackEditor/TrackListView.h"
+#include "UI/Views/TrackEditor/TracksGraphicsView.h"
 
 #include <lite/History/ActionSequence.h>
 #include <lite/History/HistoryManager.h>
@@ -33,6 +34,7 @@
 #include <QMimeData>
 #include <QPointer>
 #include <QScopeGuard>
+#include <QScrollBar>
 #include <QSignalSpy>
 #include <QTimer>
 #include <QWindow>
@@ -440,6 +442,45 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
     QCOMPARE(destination->clips().count(), 0);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(failed.isEmpty());
+
+    auto *editor = qobject_cast<TrackEditorView *>(fixture.host.get());
+    QVERIFY(editor);
+    QVERIFY(editor->setViewScale(2, 4));
+    QVERIFY(editor->centerAt(1920, 0.5));
+    const auto viewport = editor->viewState();
+    const auto beforeFallback = fixture.runtime().documentVersion();
+    const auto *source = fixture.application.context->m_appModel->tracks().first();
+    const auto sourceTrack = source->serialize();
+    canvas.backendFailed(QStringLiteral("Rendering device lost"));
+    QTRY_VERIFY(fixture.canvas.isNull());
+    auto *legacy = editor->findChild<TracksGraphicsView *>();
+    auto *list = editor->findChild<TrackListView *>();
+    QVERIFY(legacy && list);
+    QTRY_VERIFY(legacy->isVisible());
+    QTRY_COMPARE(editor->viewState().horizontalScale, viewport.horizontalScale);
+    QCOMPARE(editor->viewState().verticalScale, viewport.verticalScale);
+    auto *scroll = list->verticalScrollBar();
+    QTRY_VERIFY(scroll->maximum() > scroll->minimum());
+    const auto initialScroll = scroll->value();
+    QTest::keyClick(scroll, Qt::Key_Down);
+    QTRY_VERIFY(scroll->value() > initialScroll);
+    QCOMPARE(legacy->verticalScrollBar()->value(), scroll->value());
+    QCOMPARE(fixture.runtime().documentVersion(), beforeFallback);
+    QCOMPARE(source->serialize(), sourceTrack);
+    QVERIFY(editor->setViewScale(2, 1));
+    QVERIFY(editor->centerAt(1920, 0.5));
+    QCoreApplication::processEvents();
+    const auto legacyPosition = legacy->mapFromScene(QPointF(
+        legacy->sceneXForTick(2400), 1.5 * TracksEditorGlobal::trackHeight * legacy->scaleY()));
+    QVERIFY(legacy->viewport()->rect().contains(legacyPosition));
+    QTest::mouseDClick(legacy->viewport(), Qt::LeftButton, Qt::NoModifier, legacyPosition);
+    QTest::mouseRelease(legacy->viewport(), Qt::LeftButton, Qt::NoModifier, legacyPosition);
+    QCOMPARE(destination->clips().count(), 1);
+    QCOMPARE((*destination->clips().begin())->start(), 2400);
+    QCOMPARE(source->serialize(), sourceTrack);
+    historyManager->undo();
+    QCOMPARE(destination->clips().count(), 0);
+    QVERIFY(!historyManager->canUndo());
 }
 
 void NativeDesktopTests::rhiTrackFileDropImportsAtTheChosenSlot_data() {

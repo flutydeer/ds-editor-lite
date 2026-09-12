@@ -867,6 +867,20 @@ void ApplicationGuiTests::fileMenuOpensAndSavesThroughTheActualPicker() {
     QCOMPARE(runtime.documentVersion().documentId, document);
 }
 
+void ApplicationGuiTests::closingTheMainWindowReleasesTheDefaultDialogParent() {
+    QPointer<Dialog> ownedDialog;
+    {
+        MainWindow window;
+        ownedDialog = new Dialog;
+        QCOMPARE(ownedDialog->parentWidget(), &window);
+    }
+    QVERIFY(ownedDialog.isNull());
+    Dialog independent;
+    QVERIFY(!independent.parentWidget());
+    independent.show();
+    QTRY_VERIFY(independent.isVisible());
+}
+
 void ApplicationGuiTests::panelButtonsAndClipDoubleClickRestoreTheEditorView() {
     MainWindowFixture host;
     host.show();

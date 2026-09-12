@@ -13,6 +13,8 @@
 #include "Modules/Inference/EditSessionManager.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollRhiWidget.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollView.h"
+#include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
+#include "UI/Views/ClipEditor/PianoRoll/PianoRollCoord.h"
 
 #include <lite/GUI/Theme/ThemeIds.h>
 #include <lite/GUI/Theme/ThemeLoader.h>
@@ -39,6 +41,7 @@
 #include <QMenu>
 #include <QMimeData>
 #include <QMouseEvent>
+#include <QPointer>
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTemporaryDir>
@@ -59,6 +62,7 @@ namespace {
                 canvas.reset();
                 clipController->setClip(nullptr);
             }
+            QCursor::setPos(previousCursor);
         }
 
         Automation::CoreRuntime &runtime() const {
@@ -146,6 +150,8 @@ namespace {
         }
 
         void moveTo(const QPoint &position) const {
+            // Edge scrolling reads the native cursor while waiting for a frame.
+            QCursor::setPos(canvas->mapToGlobal(position));
             QMouseEvent move(QEvent::MouseMove, QPointF(position),
                              QPointF(canvas->mapToGlobal(position)), Qt::NoButton, Qt::LeftButton,
                              Qt::NoModifier);
@@ -164,6 +170,7 @@ namespace {
         std::unique_ptr<PianoRollRhiWidget> canvas;
         std::unique_ptr<QSignalSpy> submitted;
         QString backendError;
+        QPoint previousCursor = QCursor::pos();
     };
 }
 
@@ -1114,6 +1121,58 @@ void NativeDesktopTests::rhiPianoMenuPasteAndVisibilityUseTheFullEditor() {
     QVERIFY(clip->findNoteById(sourceId));
     QVERIFY(!historyManager->canUndo());
     QVERIFY(failed.isEmpty());
+
+    QVERIFY(editor.centerAt(1920, 60));
+    editor.onEditModeChanged(ClipEditorGlobal::DrawNote);
+    const auto beforeFallback = runtime.documentVersion();
+    const auto sourceNote = clip->findNoteById(sourceId)->serialize();
+    const auto viewport = editor.viewState();
+    const auto onePixelTicks = (canvas->endTick() - canvas->startTick()) / canvas->width();
+    QPointer<PianoRollRhiWidget> previousCanvas(canvas);
+    canvas->backendFailed(QStringLiteral("Rendering device lost"));
+    QTRY_VERIFY(previousCanvas.isNull());
+    auto *legacy = editor.findChild<PianoRollGraphicsView *>();
+    QVERIFY(legacy);
+    QTRY_VERIFY(legacy->isVisible());
+    QTRY_COMPARE(editor.viewState().horizontalScale, viewport.horizontalScale);
+    QCOMPARE(editor.viewState().verticalScale, viewport.verticalScale);
+    QCOMPARE(editor.viewState().editMode, viewport.editMode);
+    QTRY_VERIFY(std::abs(editor.viewState().centerTick - viewport.centerTick) <= onePixelTicks);
+    QVERIFY(std::abs(editor.viewState().centerKeyIndex - viewport.centerKeyIndex) <=
+            1.0 / (ClipEditorGlobal::noteHeight * viewport.verticalScale));
+    QCOMPARE(runtime.documentVersion(), beforeFallback);
+    editor.activateWindow();
+    QTRY_VERIFY(editor.isActiveWindow());
+    QTRY_VERIFY(editor.focusEditor());
+    const auto legacyPoint = [&](int tick, int key) {
+        return legacy->mapFromScene(QPointF(
+            legacy->tickToSceneX(tick), PianoRollCoord::keyIndexToCenterY(
+                                            key, ClipEditorGlobal::noteHeight * legacy->scaleY())));
+    };
+    const auto press = legacyPoint(1440, 64);
+    const auto release = legacyPoint(1680, 64);
+    QVERIFY(legacy->viewport()->rect().contains(press));
+    QVERIFY(legacy->viewport()->rect().contains(release));
+    QTest::mousePress(legacy->viewport(), Qt::LeftButton, Qt::NoModifier, press);
+    QMouseEvent drag(QEvent::MouseMove, QPointF(release),
+                     QPointF(legacy->viewport()->mapToGlobal(release)), Qt::NoButton,
+                     Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(legacy->viewport(), &drag);
+    QTest::mouseRelease(legacy->viewport(), Qt::LeftButton, Qt::NoModifier, release);
+    QCOMPARE(clip->notes().count(), 2);
+    for (const auto *created : clip->notes()) {
+        if (created->id() == sourceId)
+            QCOMPARE(created->serialize(), sourceNote);
+        else {
+            QCOMPARE(created->localStart(), 1440);
+            QCOMPARE(created->length(), 240);
+            QCOMPARE(created->keyIndex(), 64);
+        }
+    }
+    historyManager->undo();
+    QCOMPARE(clip->notes().count(), 1);
+    QCOMPARE(clip->findNoteById(sourceId)->serialize(), sourceNote);
+    QVERIFY(!historyManager->canUndo());
 }
 
 void NativeDesktopTests::rhiPitchModulationUsesTheInferredBaseline() {

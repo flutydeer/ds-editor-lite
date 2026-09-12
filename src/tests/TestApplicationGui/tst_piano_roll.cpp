@@ -14,6 +14,8 @@
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PronunciationView.h"
 #include "UI/Views/ClipEditor/PianoRoll/SplitLineIndicator.h"
+#include "UI/Views/ClipEditor/ToolBar/ClipEditorToolBarView.h"
+#include "UI/Window/MainWindow.h"
 
 #include <lite/GUI/Controls/InlineTextEditOverlay.h>
 #include <lite/History/HistoryManager.h>
@@ -29,6 +31,7 @@
 #include <QLineEdit>
 #include <QMimeData>
 #include <QScopeGuard>
+#include <QAbstractButton>
 
 namespace {
     void replaceInlineText(QLineEdit *editor, const QString &text) {
@@ -84,6 +87,91 @@ void ApplicationGuiTests::createPianoRoll() {
     view->setViewportCenterAt(1920, 60, false);
     QCoreApplication::processEvents();
     historyManager->reset();
+}
+
+void ApplicationGuiTests::intervalSelectionUsesTheToolbarAndDeletesOnlyTheChosenTimeRange_data() {
+    QTest::addColumn<bool>("backward");
+    QTest::newRow("forward") << false;
+    QTest::newRow("backward") << true;
+}
+
+void ApplicationGuiTests::intervalSelectionUsesTheToolbarAndDeletesOnlyTheChosenTimeRange() {
+    QFETCH(bool, backward);
+    MainWindow window;
+    window.resize(1200, 800);
+    window.show();
+    QTRY_VERIFY(window.isActiveWindow());
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    QList<Automation::NoteDraftDto> drafts;
+    for (const auto [start, key] : {
+             QPair{480,  60},
+             QPair{960,  72},
+             QPair{1920, 65}
+    }) {
+        Automation::NoteDraftDto draft;
+        draft.localStart = start;
+        draft.length = 240;
+        draft.keyIndex = key;
+        draft.lyric = QStringLiteral("note-%1").arg(start);
+        draft.language = QStringLiteral("eng");
+        drafts.append(draft);
+    }
+    QVERIFY(runtime.notes().insertNotes(commandContext(), Automation::ClipId(singingClip->id()),
+                                        drafts));
+    const auto notes = singingClip->notes().toList();
+    QCOMPARE(notes.size(), 3);
+    const auto preserved = notes.last()->serialize();
+    view->hide();
+    window.activateWindow();
+    QTRY_VERIFY(window.isActiveWindow());
+    QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));
+    QVERIFY(window.setPianoRollScale(1.0, 1.0));
+    QVERIFY(window.centerPianoRollAt(1920, 66));
+    auto *canvas = window.findChild<PianoRollGraphicsView *>();
+    auto *toolbar = window.findChild<ClipEditorToolBarView *>();
+    QVERIFY(canvas);
+    QVERIFY(toolbar);
+    auto *beam = toolbar->findChild<QAbstractButton *>(QStringLiteral("btnBeam"));
+    QVERIFY(beam);
+    QTRY_VERIFY(beam->isVisible());
+    QTest::mouseClick(beam, Qt::LeftButton);
+    QCOMPARE(toolbar->editMode(), ClipEditorGlobal::IntervalSelect);
+    canvas->setViewportStartTick(0);
+    const auto pointAt = [&](const int tick, const int key) {
+        return canvas->mapFromScene(QPointF(
+            canvas->tickToSceneX(tick), PianoRollCoord::keyIndexToCenterY(
+                                            key, ClipEditorGlobal::noteHeight * canvas->scaleY())));
+    };
+    const auto first = pointAt(360, 66);
+    const auto last = pointAt(1320, 66);
+    QVERIFY(canvas->viewport()->rect().contains(first));
+    QVERIFY(canvas->viewport()->rect().contains(last));
+    const auto press = backward ? last : first;
+    const auto release = backward ? first : last;
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    QTest::mousePress(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, press);
+    QMouseEvent move(QEvent::MouseMove, QPointF(release),
+                     QPointF(canvas->viewport()->mapToGlobal(release)), Qt::NoButton,
+                     Qt::LeftButton, Qt::NoModifier);
+    QApplication::sendEvent(canvas->viewport(), &move);
+    QTest::mouseRelease(canvas->viewport(), Qt::LeftButton, Qt::NoModifier, release);
+    const auto selected = canvas->selectedNotesId();
+    QCOMPARE(QSet<int>(selected.cbegin(), selected.cend()),
+             QSet<int>({notes.at(0)->id(), notes.at(1)->id()}));
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(window.focusEditorRegion(EditorViewGlobal::Region::PianoRoll));
+    QTest::keySequence(canvas->viewport(), QKeySequence::Delete);
+    QTRY_COMPARE(singingClip->notes().count(), 1);
+    QCOMPARE((*singingClip->notes().begin())->serialize(), preserved);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(singingClip->notes().count(), 3);
+    QCOMPARE(singingClip->notes().toList(), notes);
+    QVERIFY(!historyManager->canUndo());
 }
 
 void ApplicationGuiTests::copyPasteUsesTheActiveClipAndPlaybackPosition() {

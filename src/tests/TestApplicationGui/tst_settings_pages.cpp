@@ -3,6 +3,8 @@
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
 #include "Automation/EditorAutomationRuntimeStatus.h"
+#include "Automation/Mcp/EditorMcpController.h"
+#include "Bootstrap/SingleInstanceCoordinator.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "UI/Dialogs/Base/MessageDialog.h"
@@ -10,9 +12,12 @@
 #include "UI/Dialogs/Options/Pages/AutomationPage.h"
 #include "UI/Dialogs/Options/Pages/InferencePage.h"
 #include "UI/Dialogs/Options/Pages/GeneralPage.h"
+#include "UI/Dialogs/Options/Pages/AppearancePage.h"
 #include "UI/Dialogs/Options/Pages/DeveloperPage.h"
 #include "UI/Dialogs/Base/RestartDialog.h"
 #include "UI/Views/Common/LanguageComboBox.h"
+#include "UI/Window/MainWindow.h"
+#include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
 
 #include <lite/GUI/Controls/ComboBox.h>
 #include <lite/GUI/Controls/PathEditor.h>
@@ -22,6 +27,10 @@
 #include <lite/GUI/Controls/FileSelector.h>
 #include <lite/GUI/Controls/LineEdit.h>
 #include <lite/History/HistoryManager.h>
+#include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/GUI/Theme/ThemeManager.h>
+#include <lite/GUI/Theme/ThemeIds.h>
+#include <lite/AutomationWire/McpProtocol.h>
 
 #include <QApplication>
 #include <QClipboard>
@@ -39,6 +48,14 @@
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTimer>
+#include <QNetworkAccessManager>
+#include <QNetworkProxy>
+#include <QNetworkReply>
+#include <QScopedPointer>
+#include <QSpinBox>
+#include <QTcpServer>
+#include <QTemporaryDir>
+#include <QUuid>
 #include <QtTest/QTest>
 
 namespace {
@@ -114,6 +131,21 @@ namespace {
         QTRY_VERIFY(control->isVisible());
         QVERIFY(control->isEnabled());
         QTest::mouseClick(control, Qt::LeftButton);
+    }
+
+    void selectComboIndex(ComboBox *combo, int index) {
+        QVERIFY(combo);
+        QVERIFY(index >= 0 && index < combo->count());
+        QTest::mouseClick(combo, Qt::LeftButton);
+        QTRY_VERIFY(combo->view()->isVisible());
+        QTest::keyClick(combo->view(), Qt::Key_Home);
+        for (int row = 0; row < index; ++row)
+            QTest::keyClick(combo->view(), Qt::Key_Down);
+        QTest::keyClick(combo->view(), Qt::Key_Return);
+        QCOMPARE(combo->currentIndex(), index);
+        QTRY_VERIFY(!combo->view()->isVisible());
+        combo->window()->activateWindow();
+        QTRY_VERIFY(combo->window()->isActiveWindow());
     }
 }
 
@@ -261,24 +293,86 @@ void ApplicationGuiTests::generalSettingsKeepSeparateDefaultLyricsForEachLanguag
 }
 
 void ApplicationGuiTests::appearanceInputsPersistAcrossReopening() {
+    MainWindow window;
+    window.resize(1200, 800);
+    window.show();
+    QTRY_VERIFY(window.isActiveWindow());
+    createLyricSelection();
+    if (QTest::currentTestFailed())
+        return;
+    view->hide();
+    QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));
     auto &runtime = *context->m_coreRuntime;
     const auto before = runtime.documentVersion();
+    const auto beforeModel = context->m_appModel->serialize();
+    const auto selectedNotes = appStatus->selectedNotes.get();
+    const auto activeClip = appStatus->activeClipId.get();
     const auto snapshot = runtime.settings().getSettings();
     QVERIFY(snapshot);
     const auto original = snapshot.get().appearance;
-    const auto restore = qScopeGuard([&] { runtime.settings().updateAppearance({}, original); });
+    const auto restore = qScopeGuard([&] {
+        QVERIFY(runtime.settings().updateAppearance({}, original));
+        QVERIFY(ThemeManager::instance()->applyThemePreference(original.themeId));
+    });
     const bool enabled = !original.animationEnabled;
     const double scale = original.animationTimeScale == 1.75 ? 0.75 : 1.75;
+    QString fontFamily;
+    const auto controls = [](AppearancePage *page) {
+        QPair<ComboBox *, ComboBox *> result;
+        for (auto *combo : page->findChildren<ComboBox *>()) {
+            if (combo->findData(ThemeIds::lightThemePreferenceId()) >= 0)
+                result.first = combo;
+            else
+                result.second = combo;
+        }
+        return result;
+    };
 
     {
         AppOptionsDialog panel;
         openOptionsPage(panel, AppOptionsGlobal::Appearance);
         if (QTest::currentTestFailed())
             return;
+        auto *page = panel.findChild<AppearancePage *>();
+        QVERIFY(page);
+        const auto [theme, font] = controls(page);
+        QVERIFY(theme);
+        QVERIFY(font);
+        QString darkStyle;
+        for (const auto &preference :
+             {ThemeIds::darkThemePreferenceId(), ThemeIds::lightThemePreferenceId()}) {
+            page->ensureWidgetVisible(theme);
+            selectComboIndex(theme, theme->findData(preference));
+            if (QTest::currentTestFailed())
+                return;
+            QCOMPARE(ThemeManager::instance()->currentThemeId(),
+                     ThemeIds::themeIdForPreference(preference));
+            QCOMPARE(window.styleSheet(), ThemeManager::instance()->styleSheet());
+            QVERIFY(!window.styleSheet().isEmpty());
+            if (preference == ThemeIds::darkThemePreferenceId())
+                darkStyle = window.styleSheet();
+            else
+                QVERIFY(window.styleSheet() != darkStyle);
+        }
+        int fontIndex = -1;
+        for (int index = 1; index < font->count(); ++index) {
+            if (font->itemData(index).toString() != QApplication::font().family()) {
+                fontIndex = index;
+                break;
+            }
+        }
+        QVERIFY(fontIndex > 0);
+        fontFamily = font->itemData(fontIndex).toString();
+        page->ensureWidgetVisible(font);
+        selectComboIndex(font, fontIndex);
+        if (QTest::currentTestFailed())
+            return;
+        QCOMPARE(QApplication::font().family(), fontFamily);
         auto *animation = panel.findChild<SwitchButton *>("appearanceAnimationEnabled");
         auto *duration = panel.findChild<QLineEdit *>("appearanceAnimationTimeScale");
         QVERIFY(animation);
         QVERIFY(duration);
+        page->ensureWidgetVisible(animation);
         QTRY_VERIFY(animation->isVisible());
         QTRY_VERIFY(duration->isVisible());
         QCOMPARE(animation->value(), original.animationEnabled);
@@ -300,6 +394,8 @@ void ApplicationGuiTests::appearanceInputsPersistAcrossReopening() {
         QVERIFY(changed);
         QCOMPARE(changed.get().appearance.animationEnabled, enabled);
         QCOMPARE(changed.get().appearance.animationTimeScale, scale);
+        QCOMPARE(changed.get().appearance.themeId, ThemeIds::lightThemePreferenceId());
+        QCOMPARE(changed.get().appearance.uiFontFamily, fontFamily);
         QFile config(appOptions->configPath());
         QVERIFY(config.open(QIODevice::ReadOnly));
         QJsonParseError error;
@@ -308,6 +404,9 @@ void ApplicationGuiTests::appearanceInputsPersistAcrossReopening() {
         const auto appearance = saved.object().value(QStringLiteral("appearance")).toObject();
         QCOMPARE(appearance.value(QStringLiteral("animationEnabled")).toBool(), enabled);
         QCOMPARE(appearance.value(QStringLiteral("animationTimeScale")).toDouble(), scale);
+        QCOMPARE(appearance.value(QStringLiteral("themeId")).toString(),
+                 ThemeIds::lightThemePreferenceId());
+        QCOMPARE(appearance.value(QStringLiteral("uiFontFamily")).toString(), fontFamily);
         panel.close();
     }
 
@@ -315,6 +414,13 @@ void ApplicationGuiTests::appearanceInputsPersistAcrossReopening() {
     openOptionsPage(reopened, AppOptionsGlobal::Appearance);
     if (QTest::currentTestFailed())
         return;
+    auto *page = reopened.findChild<AppearancePage *>();
+    QVERIFY(page);
+    const auto [theme, font] = controls(page);
+    QVERIFY(theme);
+    QVERIFY(font);
+    QCOMPARE(theme->currentData().toString(), ThemeIds::lightThemePreferenceId());
+    QCOMPARE(font->currentData().toString(), fontFamily);
     auto *animation = reopened.findChild<SwitchButton *>("appearanceAnimationEnabled");
     auto *duration = reopened.findChild<QLineEdit *>("appearanceAnimationTimeScale");
     QVERIFY(animation);
@@ -322,6 +428,9 @@ void ApplicationGuiTests::appearanceInputsPersistAcrossReopening() {
     QCOMPARE(animation->value(), enabled);
     QCOMPARE(QLocale().toDouble(duration->text()), scale);
     QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(context->m_appModel->serialize(), beforeModel);
+    QCOMPARE(appStatus->selectedNotes.get(), selectedNotes);
+    QCOMPARE(appStatus->activeClipId.get(), activeClip);
     QVERIFY(!historyManager->canUndo());
 }
 
@@ -526,8 +635,9 @@ void ApplicationGuiTests::automationCustomToolsetInputsPersistAndExportPermissio
     QVERIFY(!historyManager->canUndo());
 }
 
-void ApplicationGuiTests::automationConnectionCopyFollowsTheRuntimeEndpoint() {
+void ApplicationGuiTests::automationServerReconfigurationUpdatesAccessAndConnectionDetails() {
     using namespace Automation::AutomationRuntimeStatus;
+    namespace Mcp = AutomationWire::Mcp;
     const auto original = *appOptions->automation();
     const auto oldState = qApp->property(StateProperty);
     const auto oldEndpoint = qApp->property(EndpointProperty);
@@ -539,10 +649,21 @@ void ApplicationGuiTests::automationConnectionCopyFollowsTheRuntimeEndpoint() {
         *appOptions->automation() = original;
         appOptions->saveAndNotify(AppOptionsGlobal::Automation);
     });
-    appOptions->automation()->controlPort = 52345;
-    qApp->setProperty(StateProperty, QStringLiteral("server_disabled"));
-    qApp->setProperty(EndpointProperty, QVariant{});
-    qApp->setProperty(ErrorProperty, QVariant{});
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    QTcpServer occupiedPort;
+    QVERIFY(occupiedPort.listen(QHostAddress::LocalHost, 0));
+    const auto port = occupiedPort.serverPort();
+    auto *options = appOptions->automation();
+    options->mcpEnabled = false;
+    options->controlPort = port;
+    options->accessRoots = {directory.path()};
+    options->controlLevel = AutomationOption::ControlLevel::L1;
+    options->customPermissions.clear();
+    SingleInstanceCoordinator coordinator(directory.path(), QUuid::createUuid().toString());
+    Automation::EditorMcpController controller(*context->m_coreRuntime, *appOptions, coordinator,
+                                               AppHostMode::Gui, {});
+    const auto before = context->m_coreRuntime->documentVersion();
     AppOptionsDialog panel;
     openOptionsPage(panel, AppOptionsGlobal::Automation);
     if (QTest::currentTestFailed())
@@ -551,10 +672,146 @@ void ApplicationGuiTests::automationConnectionCopyFollowsTheRuntimeEndpoint() {
     QVERIFY(page);
     auto *endpointCopy = page->findChild<Button *>("automationStreamableHttpEndpointCopyButton");
     auto *configCopy = page->findChild<Button *>("automationStreamableHttpConfigurationCopyButton");
+    auto *enabled = page->findChild<SwitchButton *>();
+    auto *portEditor = page->findChild<QSpinBox *>();
+    QVERIFY(enabled && portEditor);
+    const auto configuredEndpoint = [&] {
+        return QStringLiteral("http://127.0.0.1:%1/mcp").arg(options->controlPort);
+    };
     clickOption(page, endpointCopy);
     if (QTest::currentTestFailed())
         return;
-    QCOMPARE(QApplication::clipboard()->text(), QStringLiteral("http://127.0.0.1:52345/mcp"));
+    QCOMPARE(QApplication::clipboard()->text(), configuredEndpoint());
+    QCOMPARE(coordinator.automationState().state, SingleInstanceAutomationState::ServerDisabled);
+
+    clickOption(page, enabled);
+    if (QTest::currentTestFailed())
+        return;
+    QTRY_COMPARE(coordinator.automationState().state, SingleInstanceAutomationState::Error);
+    const auto error = controller.errorString();
+    QVERIFY(!error.isEmpty());
+    const auto visibleText = [page](const QString &text) {
+        for (const auto *label : page->findChildren<QLabel *>()) {
+            if (label->isVisible() && label->text() == text)
+                return true;
+        }
+        return false;
+    };
+    QTRY_VERIFY(visibleText(AutomationPage::tr("Error")));
+    QTRY_VERIFY(visibleText(error));
+    occupiedPort.close();
+    clickOption(page, enabled);
+    QTRY_COMPARE(coordinator.automationState().state,
+                 SingleInstanceAutomationState::ServerDisabled);
+    clickOption(page, enabled);
+    QTRY_COMPARE(coordinator.automationState().state, SingleInstanceAutomationState::ServerReady);
+    QTRY_VERIFY(visibleText(AutomationPage::tr("Server ready")));
+    QVERIFY(!visibleText(error));
+    QCOMPARE(qApp->property(EndpointProperty).toString(), configuredEndpoint());
+
+    QNetworkAccessManager network;
+    network.setProxy(QNetworkProxy::NoProxy);
+    const auto checkTrackAccess = [&](const bool allowed) {
+        QNetworkRequest request{QUrl(configuredEndpoint())};
+        request.setTransferTimeout(5000);
+        request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+        request.setRawHeader("Accept", "application/json, text/event-stream");
+        request.setRawHeader("MCP-Protocol-Version", Mcp::ProtocolVersion);
+        request.setRawHeader("Mcp-Method", Mcp::ToolsCallMethod);
+        request.setRawHeader("Mcp-Name", "tracks.list");
+        const auto message = Mcp::makeRequest(
+            QString::fromLatin1(Mcp::ToolsCallMethod),
+            {
+                {QStringLiteral("name"),      QStringLiteral("tracks.list")                },
+                {QStringLiteral("arguments"),
+                 QJsonObject{{QStringLiteral("document_id"), before.documentId.toString()}}}
+        },
+            {}, 1);
+        const QScopedPointer<QNetworkReply> reply(
+            network.post(request, QJsonDocument(message).toJson(QJsonDocument::Compact)));
+        QTRY_VERIFY(reply->isFinished());
+        QCOMPARE(reply->error(), QNetworkReply::NoError);
+        const auto body = reply->readAll();
+        const auto response = QJsonDocument::fromJson(body).object();
+        QVERIFY2(response.contains(QStringLiteral("result")), body.constData());
+        const auto result = response.value(QStringLiteral("result")).toObject();
+        QCOMPARE(result.value(QStringLiteral("isError")).toBool(), !allowed);
+        if (allowed) {
+            QVERIFY2(result.value(QStringLiteral("structuredContent"))
+                         .toObject()
+                         .value(QStringLiteral("tracks"))
+                         .isArray(),
+                     body.constData());
+        } else {
+            QCOMPARE(result.value(QStringLiteral("structuredContent"))
+                         .toObject()
+                         .value(QStringLiteral("code"))
+                         .toString(),
+                     QStringLiteral("permission_denied"));
+        }
+    };
+    checkTrackAccess(true);
+    if (QTest::currentTestFailed())
+        return;
+
+    auto *level = page->findChild<ComboBox *>("automationControlLevel");
+    QVERIFY(level);
+    page->ensureWidgetVisible(level);
+    selectComboIndex(level,
+                     level->findData(static_cast<int>(AutomationOption::ControlLevel::Custom)));
+    checkTrackAccess(false);
+    if (QTest::currentTestFailed())
+        return;
+    clickOption(page, page->findChild<ToolButton *>("automationOpenToolsetButton"));
+    clickOption(page, page->findChild<ToolButton *>("automationCustomToolGroupExpand_tracks"));
+    clickOption(page, page->findChild<SwitchButton *>("automationCustomTool_tracks.list"));
+    if (QTest::currentTestFailed())
+        return;
+    checkTrackAccess(true);
+    if (QTest::currentTestFailed())
+        return;
+    clickOption(page, page->findChild<ToolButton *>("automationCloseToolsetButton"));
+
+    QTcpServer nextPort;
+    QVERIFY(nextPort.listen(QHostAddress::LocalHost, 0));
+    const auto newPort = nextPort.serverPort();
+    nextPort.close();
+    clickOption(page, portEditor);
+    if (QTest::currentTestFailed())
+        return;
+    QTRY_VERIFY(portEditor->hasFocus());
+    QApplication::clipboard()->setText(QString::number(newPort));
+    QTest::keySequence(portEditor, QKeySequence::SelectAll);
+    QTest::keySequence(portEditor, QKeySequence::Paste);
+    QTest::keyClick(portEditor, Qt::Key_Return);
+    QTRY_COMPARE(coordinator.automationState().state, SingleInstanceAutomationState::ServerReady);
+    QTRY_COMPARE(qApp->property(EndpointProperty).toString(), configuredEndpoint());
+    QCOMPARE(options->controlPort, newPort);
+    checkTrackAccess(true);
+    if (QTest::currentTestFailed())
+        return;
+    QTcpServer releasedPort;
+    QVERIFY(releasedPort.listen(QHostAddress::LocalHost, port));
+
+    clickOption(page, configCopy);
+    if (QTest::currentTestFailed())
+        return;
+    QJsonParseError parseError;
+    const auto config =
+        QJsonDocument::fromJson(QApplication::clipboard()->text().toUtf8(), &parseError).object();
+    QCOMPARE(parseError.error, QJsonParseError::NoError);
+    QCOMPARE(config.value(QStringLiteral("url")).toString(), configuredEndpoint());
+    clickOption(page, endpointCopy);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(QApplication::clipboard()->text(), configuredEndpoint());
+    clickOption(page, enabled);
+    QTRY_COMPARE(coordinator.automationState().state,
+                 SingleInstanceAutomationState::ServerDisabled);
+    QVERIFY(qApp->property(EndpointProperty).toString().isEmpty());
+    QTcpServer stoppedPort;
+    QVERIFY(stoppedPort.listen(QHostAddress::LocalHost, newPort));
+
     Button *randomize = nullptr;
     for (auto *button : page->findChildren<Button *>()) {
         if (button->text() == AutomationPage::tr("Randomize"))
@@ -563,44 +820,13 @@ void ApplicationGuiTests::automationConnectionCopyFollowsTheRuntimeEndpoint() {
     clickOption(page, randomize);
     if (QTest::currentTestFailed())
         return;
-    const auto newPort = appOptions->automation()->controlPort;
-    QVERIFY(newPort != 52345);
+    QVERIFY(options->controlPort != newPort);
     clickOption(page, endpointCopy);
     if (QTest::currentTestFailed())
         return;
-    QCOMPARE(QApplication::clipboard()->text(),
-             QStringLiteral("http://127.0.0.1:%1/mcp").arg(newPort));
-
-    const auto visibleText = [page](const QString &text) {
-        for (const auto *label : page->findChildren<QLabel *>()) {
-            if (label->isVisible() && label->text() == text)
-                return true;
-        }
-        return false;
-    };
-    qApp->setProperty(StateProperty, QStringLiteral("error"));
-    const auto error = QStringLiteral("Control port is already in use");
-    qApp->setProperty(ErrorProperty, error);
-    QTRY_VERIFY(visibleText(AutomationPage::tr("Error")));
-    QTRY_VERIFY(visibleText(error));
-    const auto runningEndpoint = QStringLiteral("http://127.0.0.1:54123/mcp");
-    qApp->setProperty(EndpointProperty, runningEndpoint);
-    qApp->setProperty(StateProperty, QStringLiteral("server_ready"));
-    qApp->setProperty(ErrorProperty, QString{});
-    QTRY_VERIFY(visibleText(AutomationPage::tr("Server ready")));
-    QVERIFY(!visibleText(error));
-    clickOption(page, configCopy);
-    if (QTest::currentTestFailed())
-        return;
-    QJsonParseError parseError;
-    const auto config =
-        QJsonDocument::fromJson(QApplication::clipboard()->text().toUtf8(), &parseError).object();
-    QCOMPARE(parseError.error, QJsonParseError::NoError);
-    QCOMPARE(config.value(QStringLiteral("url")).toString(), runningEndpoint);
-    clickOption(page, endpointCopy);
-    if (QTest::currentTestFailed())
-        return;
-    QCOMPARE(QApplication::clipboard()->text(), runningEndpoint);
+    QCOMPARE(QApplication::clipboard()->text(), configuredEndpoint());
+    QCOMPARE(context->m_coreRuntime->documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
 }
 
 void ApplicationGuiTests::inferenceInputsPersistAcrossReopening() {

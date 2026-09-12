@@ -33,6 +33,8 @@ private slots:
     void invalidClipboardDoesNotEdit_data();
     void invalidClipboardDoesNotEdit();
     void drawingCommitsOnceAndUndoRedoUpdatesTheScene();
+    void intervalSelectionUsesTheToolbarAndDeletesOnlyTheChosenTimeRange_data();
+    void intervalSelectionUsesTheToolbarAndDeletesOnlyTheChosenTimeRange();
     void pianoErasingRestoresSceneItemsOnCancelAndUndo();
     void pianoSplitIndicatorFollowsTheMouseAndMatchesTheEdit();
     void draggingExistingNoteCommitsOrCancels_data();
@@ -64,7 +66,7 @@ private slots:
     void experimentalRendererSettingPersistsWhenRestartIsDeferred();
     void automationAccessInputsPersistAndRejectMissingFolders();
     void automationCustomToolsetInputsPersistAndExportPermissions();
-    void automationConnectionCopyFollowsTheRuntimeEndpoint();
+    void automationServerReconfigurationUpdatesAccessAndConnectionDetails();
     void inferenceInputsPersistAcrossReopening();
     void cacheCleanupRequiresConfirmationAndRefreshesThePage();
     void interactiveProjectImportRespectsSelectionAndCancellation_data();
@@ -100,6 +102,7 @@ private slots:
     void missingAudioResourceRelinkCanBeCanceledAndCommitted();
     void audioResourceConfirmationKeepsTheDecodedSource();
     void panelButtonsAndClipDoubleClickRestoreTheEditorView();
+    void closingTheMainWindowReleasesTheDefaultDialogParent();
     void mainMenuQuantizationUsesTheChosenScopeAndOptions_data();
     void mainMenuQuantizationUsesTheChosenScopeAndOptions();
     void mainMenuOctaveEditsFollowThePianoSelection();

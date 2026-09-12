@@ -353,12 +353,12 @@ void TrackEditorView::connectRhiBackend() {
         m_trackListView->verticalScrollBar()->setValue(qRound(value));
         m_syncingVerticalScroll = false;
     });
-    connect(m_trackListView->verticalScrollBar(), &QScrollBar::valueChanged, this,
-            [this](const int value) {
+    connect(m_trackListView->verticalScrollBar(), &QScrollBar::valueChanged, m_rhiView,
+            [this, view = m_rhiView](const int value) {
                 if (m_syncingVerticalScroll)
                     return;
                 m_syncingVerticalScroll = true;
-                m_rhiView->setVerticalOffset(value);
+                view->setVerticalOffset(value);
                 m_syncingVerticalScroll = false;
             });
     connect(appStatus, &AppStatus::projectEditableLengthChanged, m_rhiView,
