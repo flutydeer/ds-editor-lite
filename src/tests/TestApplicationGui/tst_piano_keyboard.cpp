@@ -5,6 +5,9 @@
 #include "Modules/Audio/AudioSystem.h"
 #include "Modules/Audio/subsystem/MidiSystem.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoKeyboardView.h"
+#include "UI/Views/ClipEditor/PianoRoll/PianoRollView.h"
+#include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
+#include <lite/ProjectModel/AppModel/AppModel.h>
 
 #include <lite/History/HistoryManager.h>
 #include <TalcsMidi/MidiMessageIntegrator.h>
@@ -27,6 +30,17 @@ namespace {
 
     class KeyboardMidiReceipt final : public talcs::MidiMessageListener {
     public:
+        explicit KeyboardMidiReceipt(talcs::MidiMessageIntegrator &integrator)
+            : integrator(integrator) {
+            integrator.flush();
+            integrator.addFilter(this);
+        }
+
+        ~KeyboardMidiReceipt() override {
+            integrator.removeFilter(this);
+            integrator.flush();
+        }
+
         QList<NoteEvent> events;
 
     protected:
@@ -38,6 +52,7 @@ namespace {
         }
 
     private:
+        talcs::MidiMessageIntegrator &integrator;
         QThread *const inputThread = QThread::currentThread();
     };
 }
@@ -45,16 +60,12 @@ namespace {
 void ApplicationGuiTests::pianoKeyboardGlissandoAndHideReleasePressedNotes() {
     auto *integrator = AudioSystem::midiSystem()->integrator();
     QVERIFY(integrator);
-    KeyboardMidiReceipt receipt;
-    integrator->flush();
-    integrator->addFilter(&receipt);
+    KeyboardMidiReceipt receipt(*integrator);
     const auto originalCursor = QCursor::pos();
     PianoKeyboardView keyboard;
     const auto cleanup = qScopeGuard([&] {
         keyboard.hide();
         QTest::mouseRelease(&keyboard, Qt::LeftButton);
-        integrator->removeFilter(&receipt);
-        integrator->flush();
         QCursor::setPos(originalCursor);
     });
     keyboard.setKeyRange(72, 60);
@@ -146,5 +157,49 @@ void ApplicationGuiTests::pianoKeyboardGlissandoAndHideReleasePressedNotes() {
     QVERIFY(wheel.isAccepted());
     QCOMPARE(receipt.events, releasedOnLeave);
     QCOMPARE(context->m_coreRuntime->documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::pianoKeyboardRangeAndScrollingFollowTheEditor() {
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    view->hide();
+    auto *integrator = AudioSystem::midiSystem()->integrator();
+    QVERIFY(integrator);
+    KeyboardMidiReceipt receipt(*integrator);
+    PianoRollView editor;
+    editor.setDataContext(singingClip);
+    const auto detach = qScopeGuard([&] { editor.setDataContext(nullptr); });
+    editor.resize(800, 420);
+    editor.show();
+    editor.activateWindow();
+    QTRY_VERIFY(editor.isActiveWindow());
+    auto *keyboard = editor.findChild<PianoKeyboardView *>();
+    QVERIFY(keyboard);
+    QTRY_VERIFY(keyboard->isVisible());
+    const auto before = context->m_coreRuntime->documentVersion();
+    const auto beforeModel = context->m_appModel->serialize();
+    for (int key : {60, 72}) {
+        QVERIFY(editor.setPitchViewport(key, 1.0));
+        QCoreApplication::processEvents();
+        const QPoint position(qRound(keyboard->width() * 0.85), keyboard->height() / 2);
+        QTest::mouseClick(keyboard, Qt::LeftButton, Qt::NoModifier, position);
+        QCOMPARE(receipt.events, (QList<NoteEvent>{
+                                     {key, true },
+                                     {key, false}
+        }));
+        receipt.events.clear();
+    }
+    const auto beforeScroll = editor.viewState().centerKeyIndex;
+    const auto position = keyboard->rect().center();
+    QWheelEvent wheel(QPointF(position), QPointF(keyboard->mapToGlobal(position)), {}, {0, -120},
+                      Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+    QApplication::sendEvent(keyboard, &wheel);
+    QTRY_VERIFY(editor.viewState().centerKeyIndex != beforeScroll);
+    QVERIFY(wheel.isAccepted());
+    QVERIFY(receipt.events.isEmpty());
+    QCOMPARE(context->m_coreRuntime->documentVersion(), before);
+    QCOMPARE(context->m_appModel->serialize(), beforeModel);
     QVERIFY(!historyManager->canUndo());
 }

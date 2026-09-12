@@ -112,6 +112,7 @@ private slots:
     void undoShortcutRevealsThePianoEditBeforeChangingIt();
     void fileMenuOpensAndSavesThroughTheActualPicker();
     void recentProjectsMenuRemovesMissingFilesAndClearsTheList();
+    void titleFilePopupOpensProjectsAndRemovesOnlyRecentEntries();
     void failedProjectOpenPreservesTheDocumentAndRecovers();
     void projectDropCanCancelThenOpenTheDocument();
     void mixedFileDropRejectsAtomicallyAndAllowsTheNextImport();
@@ -127,6 +128,7 @@ private slots:
     void movingLyricsBackwardUsesTheSelectedWordRange_data();
     void movingLyricsBackwardUsesTheSelectedWordRange();
     void pianoKeyboardGlissandoAndHideReleasePressedNotes();
+    void pianoKeyboardRangeAndScrollingFollowTheEditor();
     void trackContextMenuPastePreviewCancelsAndMatchesCommittedClip();
     void settingsSynthPreviewKeepsEnvelopeDurationsAcrossSampleRates();
     void audioPageInputsPersistWithoutPlayback();

@@ -19,6 +19,8 @@
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollCoord.h"
 #include "UI/Views/Common/TabPanelTitleBar.h"
 #include "UI/Views/MainTitleBar/MainMenuView.h"
+#include "UI/Views/MainTitleBar/TitleBarComboBox.h"
+#include "UI/Views/MainTitleBar/FilePopupWidget.h"
 #include "UI/Views/MixConsole/MixConsoleView.h"
 #include "UI/Views/TrackEditor/GraphicsItem/AbstractClipView.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
@@ -53,6 +55,9 @@
 #include <QDialogButtonBox>
 #include <QClipboard>
 #include <QLineEdit>
+#include <QLabel>
+#include <QCursor>
+#include <QToolButton>
 #include <QMenu>
 #include <QMimeData>
 #include <QPointer>
@@ -652,6 +657,156 @@ void ApplicationGuiTests::recentProjectsMenuRemovesMissingFilesAndClearsTheList(
     QVERIFY(!recent->actions().first()->isEnabled());
     AppOptions stored;
     QVERIFY(stored.general()->recentProjectFiles.isEmpty());
+}
+
+void ApplicationGuiTests::titleFilePopupOpensProjectsAndRemovesOnlyRecentEntries() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto firstPath = directory.filePath(QStringLiteral("First project.dspx"));
+    const auto secondPath = directory.filePath(QStringLiteral("Second project.dspx"));
+    createDroppedProject(firstPath);
+    createDroppedProject(secondPath);
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    const auto settings = runtime.settings().getSettings();
+    QVERIFY(settings);
+    const auto restoreSettings =
+        qScopeGuard([&] { QVERIFY(runtime.settings().updateGeneral({}, settings.get().general)); });
+    QVERIFY(runtime.settings().clearRecentProjectFiles({}));
+    QVERIFY(runtime.settings().addRecentProjectFile({}, firstPath));
+    QVERIFY(runtime.settings().addRecentProjectFile({}, secondPath));
+    MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    auto *combo = host.window->findChild<TitleBarComboBox *>();
+    QVERIFY(combo);
+    auto *popup = combo->popupWidget();
+    QVERIFY(popup);
+    const auto previousCursor = QCursor::pos();
+    const auto cleanupPopup = qScopeGuard([&] {
+        popup->close();
+        QCursor::setPos(previousCursor);
+    });
+    const auto click = [](QWidget *widget, QPoint position = {}) {
+        QVERIFY(widget);
+        if (position.isNull())
+            position = widget->rect().center();
+        QCursor::setPos(widget->mapToGlobal(position));
+        QTest::mouseClick(widget, Qt::LeftButton, Qt::NoModifier, position);
+    };
+    const auto openPopup = [&] {
+        if (popup->isVisible()) {
+            click(combo);
+            QTRY_VERIFY(!popup->isVisible());
+        }
+        host.window->activateWindow();
+        QTRY_VERIFY(host.window->isActiveWindow());
+        click(combo);
+        QTRY_VERIFY(popup->isVisible());
+        QTRY_COMPARE(popup->findChildren<QWidget *>("filePopupRecentItem").size(),
+                     documentWorkflowController->recentProjectFiles().size());
+    };
+    const auto recentItem = [&](const QString &path) -> QWidget * {
+        for (auto *item : popup->findChildren<QWidget *>("filePopupRecentItem")) {
+            auto *name = item->findChild<QLabel *>("filePopupRecentName");
+            if (name && name->toolTip() == path)
+                return item;
+        }
+        return nullptr;
+    };
+    openPopup();
+    if (QTest::currentTestFailed())
+        return;
+    const auto beforeOpen = runtime.documentVersion();
+    click(recentItem(firstPath));
+    QTRY_VERIFY(!documentWorkflowController->busy());
+    QTRY_COMPARE(QFileInfo(documentWorkflowController->projectPath()).canonicalFilePath(),
+                 QFileInfo(firstPath).canonicalFilePath());
+    QVERIFY(runtime.documentVersion().documentId != beforeOpen.documentId);
+    QCOMPARE(context->m_appModel->tracks().first()->name(), QStringLiteral("Dropped track"));
+    const auto opened = runtime.documentVersion();
+    const auto openedModel = context->m_appModel->serialize();
+    for (const auto &path : {firstPath, secondPath}) {
+        openPopup();
+        if (QTest::currentTestFailed())
+            return;
+        auto *item = recentItem(path);
+        QVERIFY(item);
+        QCOMPARE(item->property("current").toBool(), path == firstPath);
+        auto *more = item->findChild<QToolButton *>("filePopupMoreButton");
+        click(more);
+        QPointer<QMenu> menu;
+        QTRY_VERIFY(menu = qobject_cast<QMenu *>(QApplication::activePopupWidget()));
+        QAction *remove = nullptr;
+        for (auto *action : menu->actions()) {
+            if (action->text() == FilePopupWidget::tr("Remove"))
+                remove = action;
+        }
+        QVERIFY(remove);
+        QCOMPARE(remove->isEnabled(), path != firstPath);
+        if (remove->isEnabled())
+            click(menu, menu->actionGeometry(remove).center());
+        else
+            QTest::keyClick(menu, Qt::Key_Escape);
+        QTRY_VERIFY(!menu || !menu->isVisible());
+        QCOMPARE(runtime.documentVersion(), opened);
+        QCOMPARE(context->m_appModel->serialize(), openedModel);
+    }
+    QCOMPARE(documentWorkflowController->recentProjectFiles(), QStringList{firstPath});
+    QVERIFY(QFileInfo(secondPath).isFile());
+    AppOptions stored;
+    QCOMPARE(stored.general()->recentProjectFiles, QStringList{firstPath});
+    const auto actionButton = [&](const char *text) -> Button * {
+        for (auto *button : popup->findChildren<Button *>("filePopupActionButton")) {
+            if (button->text() == FilePopupWidget::tr(text))
+                return button;
+        }
+        return nullptr;
+    };
+    openPopup();
+    if (QTest::currentTestFailed())
+        return;
+    click(actionButton("New"));
+    QTRY_VERIFY(!documentWorkflowController->busy());
+    QVERIFY(runtime.documentVersion().documentId != opened.documentId);
+    QVERIFY(documentWorkflowController->projectPath().isEmpty());
+    QVERIFY(!historyManager->canUndo());
+    const auto created = runtime.documentVersion();
+    const auto createdModel = context->m_appModel->serialize();
+    const auto nativeDialogsDisabled = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
+    QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+    const auto restoreDialogs = qScopeGuard(
+        [&] { QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDialogsDisabled); });
+    bool sawPicker = false;
+    QTimer dismiss;
+    connect(&dismiss, &QTimer::timeout, host.window.get(), [&] {
+        QPointer<QFileDialog> picker =
+            qobject_cast<QFileDialog *>(QApplication::activeModalWidget());
+        if (!picker)
+            return;
+        dismiss.stop();
+        sawPicker = true;
+        const auto close = qScopeGuard([&] {
+            if (picker)
+                picker->reject();
+        });
+        QCOMPARE(picker->acceptMode(), QFileDialog::AcceptOpen);
+        auto *buttons = picker->findChild<QDialogButtonBox *>();
+        QVERIFY(buttons);
+        click(buttons->button(QDialogButtonBox::Cancel));
+    });
+    openPopup();
+    if (QTest::currentTestFailed())
+        return;
+    dismiss.start(10);
+    click(actionButton("Open..."));
+    dismiss.stop();
+    QVERIFY(sawPicker);
+    QCOMPARE(runtime.documentVersion(), created);
+    QCOMPARE(context->m_appModel->serialize(), createdModel);
+    QVERIFY(!historyManager->canUndo());
 }
 
 void ApplicationGuiTests::failedProjectOpenPreservesTheDocumentAndRecovers() {
