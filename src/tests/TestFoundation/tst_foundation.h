@@ -2,6 +2,8 @@
 
 #include <QObject>
 
+int runLogFixture(const QString &directory);
+
 class FoundationTests final : public QObject {
     Q_OBJECT
 
@@ -13,4 +15,5 @@ private slots:
     void localizedTextLookup_data();
     void localizedTextLookup();
     void localizedTextSingleTagOverload();
+    void fileLoggingChangesDirectoriesAndRecoversFromWriteFailure();
 };
