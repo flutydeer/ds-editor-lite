@@ -8,6 +8,8 @@ class AutomationProtocolTests final : public QObject {
 private slots:
     void canonicalJsonEncoding();
     void jsonSchema();
+    void schemaValueDiagnostics_data();
+    void schemaValueDiagnostics();
     void exposurePolicy();
     void mcpProtocol();
     void cursorRoundTrip_data();

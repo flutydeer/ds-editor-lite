@@ -359,6 +359,40 @@ void DocumentIOTests::dspxAtomicWrite() {
     testDspxAtomicWrite();
 }
 
+void DocumentIOTests::dspxSerializationFailurePreservesExistingFile() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto path = directory.filePath(QStringLiteral("existing.dspx"));
+    AppModel model;
+    model.newProject();
+    DspxProjectConverter converter;
+    QString error;
+    QVERIFY2(converter.save(path, &model, error), qPrintable(error));
+    const auto original = readFile(path);
+    QVERIFY(!original.isEmpty());
+    const auto entries = directoryEntries(directory.path());
+    const auto originalControl = model.masterControl();
+    auto invalidControl = originalControl;
+    invalidControl.setPan(2.0);
+    model.setMasterControl(invalidControl);
+    const auto beforeSave = model.serialize();
+    QVERIFY(!converter.save(path, &model, error));
+    QVERIFY(!error.isEmpty());
+    QCOMPARE(readFile(path), original);
+    QCOMPARE(directoryEntries(directory.path()), entries);
+    QCOMPARE(model.serialize(), beforeSave);
+
+    model.setMasterControl(originalControl);
+    model.tracks().first()->setName(QStringLiteral("Recovered save"));
+    error.clear();
+    QVERIFY2(converter.save(path, &model, error), qPrintable(error));
+    AppModel reopened;
+    QVERIFY2(converter.load(path, &reopened, error, ImportMode::NewProject), qPrintable(error));
+    QCOMPARE(reopened.tracks().first()->name(), QStringLiteral("Recovered save"));
+    QCOMPARE(reopened.masterControl().pan(), originalControl.pan());
+    QCOMPARE(directoryEntries(directory.path()), entries);
+}
+
 void DocumentIOTests::midiAtomicWrite() {
     testMidiAtomicWrite();
 }

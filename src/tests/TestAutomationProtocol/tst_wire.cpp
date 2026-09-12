@@ -273,6 +273,91 @@ void AutomationProtocolTests::jsonSchema() {
            QStringLiteral("central JSON resource limits must bound nesting depth"));
 }
 
+void AutomationProtocolTests::schemaValueDiagnostics_data() {
+    QTest::addColumn<QJsonValue>("schema");
+    QTest::addColumn<QJsonValue>("validValue");
+    QTest::addColumn<QJsonValue>("invalidValue");
+    QTest::addColumn<QString>("instancePath");
+    QTest::addColumn<QString>("schemaPath");
+    const auto row = [](const char *name, const QJsonValue &schema, const QJsonValue &valid,
+                        const QJsonValue &invalid, const QString &keyword,
+                        const QString &path = {}) {
+        QTest::newRow(name) << schema << valid << invalid << path << keyword;
+    };
+
+    const QJsonObject nullableText{
+        {QStringLiteral("type"), QJsonArray{QStringLiteral("string"), QStringLiteral("null")}}
+    };
+    row("nullable-type", nullableText, QJsonValue(QJsonValue::Null), true,
+        QStringLiteral("#/type"));
+    const auto musicalSymbol = QString::fromUcs4(U"\U0001f3b5");
+    row("unicode-code-point-length", JsonSchema::string({}, 1, 1), musicalSymbol,
+        musicalSymbol + musicalSymbol, QStringLiteral("#/maxLength"));
+    auto identifier = JsonSchema::string();
+    identifier.insert(QStringLiteral("pattern"), QStringLiteral("^[a-z]+-[0-9]+$"));
+    row("text-pattern", identifier, QStringLiteral("take-12"), QStringLiteral("take"),
+        QStringLiteral("#/pattern"));
+    auto uri = JsonSchema::string();
+    uri.insert(QStringLiteral("format"), QStringLiteral("uri"));
+    row("absolute-resource-uri", uri, QStringLiteral("file:///tmp/project.dspx"),
+        QStringLiteral("project.dspx"), QStringLiteral("#/format"));
+
+    auto steppedNumber = JsonSchema::number();
+    steppedNumber.insert(QStringLiteral("multipleOf"), 0.5);
+    const auto values = JsonSchema::objectWithAdditionalSchema({}, {}, steppedNumber);
+    row("typed-additional-property", values,
+        QJsonObject{
+            {QStringLiteral("gain/main"), 1.5}
+    },
+        QJsonObject{{QStringLiteral("gain/main"), 1.25}},
+        QStringLiteral("#/additionalProperties/multipleOf"), QStringLiteral("/gain~1main"));
+
+    auto unique = JsonSchema::array(JsonSchema::object({}, {}, true));
+    unique.insert(QStringLiteral("uniqueItems"), true);
+    const QJsonObject first{
+        {QStringLiteral("a"), 1},
+        {QStringLiteral("b"), 2}
+    };
+    const QJsonObject same{
+        {QStringLiteral("b"), 2},
+        {QStringLiteral("a"), 1}
+    };
+    row("unique-object-values", unique, QJsonArray{first, QJsonObject{{QStringLiteral("a"), 2}}},
+        QJsonArray{first, same}, QStringLiteral("#/uniqueItems"));
+
+    auto boundedObject = JsonSchema::object({}, {}, true);
+    boundedObject.insert(QStringLiteral("minProperties"), 1);
+    boundedObject.insert(QStringLiteral("maxProperties"), 2);
+    row("empty-object", boundedObject, first, QJsonObject{}, QStringLiteral("#/minProperties"));
+    row("oversized-object", boundedObject, first,
+        QJsonObject{
+            {QStringLiteral("a"), 1},
+            {QStringLiteral("b"), 2},
+            {QStringLiteral("c"), 3}
+    },
+        QStringLiteral("#/maxProperties"));
+
+    row("ambiguous-one-of", JsonSchema::oneOf({JsonSchema::integer(), JsonSchema::number()}), 1.5,
+        1, QStringLiteral("#/oneOf"));
+}
+
+void AutomationProtocolTests::schemaValueDiagnostics() {
+    QFETCH(QJsonValue, schema);
+    QFETCH(QJsonValue, validValue);
+    QFETCH(QJsonValue, invalidValue);
+    QFETCH(QString, instancePath);
+    QFETCH(QString, schemaPath);
+    QVERIFY(checkJsonSchema(schema).valid());
+    QVERIFY(validateJsonValue(validValue, schema).valid());
+    const auto rejected = validateJsonValue(invalidValue, schema);
+    QCOMPARE(rejected.issues.size(), 1);
+    const auto &issue = rejected.issues.first();
+    QCOMPARE(issue.code, SchemaIssueCode::ValidationFailed);
+    QCOMPARE(issue.instancePath, instancePath);
+    QCOMPARE(issue.schemaPath, schemaPath);
+    QVERIFY(!issue.message.isEmpty());
+}
+
 void AutomationProtocolTests::exposurePolicy() {
     const auto l0 = selectExposure({ExposureLevel::L0});
     const auto l1 = selectExposure({ExposureLevel::L1});

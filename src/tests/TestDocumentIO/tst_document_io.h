@@ -28,6 +28,7 @@ private slots:
     void generationCleanup();
     void oldIdCollisionAndErrorPriority();
     void dspxAtomicWrite();
+    void dspxSerializationFailurePreservesExistingFile();
     void midiAtomicWrite();
     void midiExportPreservesProjectTimingAndOptionalMetadata_data();
     void midiExportPreservesProjectTimingAndOptionalMetadata();
