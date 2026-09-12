@@ -683,6 +683,15 @@ void ApplicationGuiTests::phonemeBoundaryDragCommitsAndUndoRestoresOffsets() {
         return;
     const auto lastEnd = last->globalStart() + last->length();
     dragAndUndo(last, last->phonemeOffsetSeq().result().size() - 1, lastEnd + 120, lastEnd);
+    if (QTest::currentTestFailed())
+        return;
+
+    QVERIFY(runtime.timeline().setTempo(commandContext(), 0, 180));
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    historyManager->reset();
+    const auto changedRightBoundary = qMin(phonemeTick(last, 0), middleEnd);
+    QVERIFY(changedRightBoundary != rightBoundary);
+    dragAndUndo(middle, vowel, middleEnd + 120, changedRightBoundary);
 }
 
 void ApplicationGuiTests::phonemeWaveformsLoadAndDiscardResultsAfterChangingClips() {

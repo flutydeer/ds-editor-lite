@@ -19,11 +19,104 @@
 #include <lite/Tasking/TaskManager.h>
 
 #include <QApplication>
+#include <QCursor>
 #include <QMouseEvent>
 #include <QScopeGuard>
 #include <QtTest/QTest>
 
 #include <tuple>
+
+void ApplicationGuiTests::trackClipDragContinuesDuringEdgeScrollingAndStopsOnFinish() {
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+    TrackEditorView editor;
+    const auto clearParent = qScopeGuard([] { trackController->setParentWidget(nullptr); });
+    Automation::TrackDraftDto trackDraft;
+    Automation::ClipDraftDto clipDraft;
+    clipDraft.type = Automation::ClipDraftDto::Type::Singing;
+    clipDraft.properties.start = 480;
+    clipDraft.properties.length = 480;
+    clipDraft.properties.clipLen = 480;
+    trackDraft.clips.append(clipDraft);
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, trackDraft));
+    const auto *clip = *context->m_appModel->tracks().first()->clips().begin();
+    const auto clipId = clip->id();
+    auto *canvas = editor.findChild<TracksGraphicsView *>();
+    QVERIFY(canvas);
+    editor.resize(1000, 500);
+    editor.show();
+    editor.activateWindow();
+    QTRY_VERIFY(editor.isActiveWindow());
+    QVERIFY(editor.windowHandle());
+    canvas->setAnimationEnabled(false);
+    QVERIFY(canvas->setViewportScale(3.0, 1.0));
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    const auto previousCursor = QCursor::pos();
+    QPoint edge;
+    bool pressed = false;
+    const auto releaseInput = qScopeGuard([&] {
+        if (pressed) {
+            canvas->discardAction();
+            QTest::mouseRelease(editor.windowHandle(), Qt::LeftButton, Qt::NoModifier,
+                                canvas->viewport()->mapTo(&editor, edge));
+        }
+        QCursor::setPos(previousCursor);
+    });
+    for (const bool cancel : {true, false}) {
+        canvas->setViewportStartTick(0);
+        QCoreApplication::processEvents();
+        auto *item = editor.findClipItemById(clipId);
+        QVERIFY(item);
+        const auto press = canvas->mapFromScene(item->sceneBoundingRect().center());
+        edge = QPoint(canvas->viewport()->rect().right() - 1, press.y());
+        QVERIFY(canvas->viewport()->rect().contains(press));
+        const auto windowPoint = [&](const QPoint &point) {
+            return canvas->viewport()->mapTo(&editor, point);
+        };
+        QCursor::setPos(canvas->viewport()->mapToGlobal(press));
+        QTest::mouseMove(editor.windowHandle(), windowPoint(press));
+        QTest::mousePress(editor.windowHandle(), Qt::LeftButton, Qt::NoModifier,
+                          windowPoint(press));
+        pressed = true;
+        QVERIFY(editSessionManager->hasActiveTransaction());
+        QCursor::setPos(canvas->viewport()->mapToGlobal(edge));
+        QTest::mouseMove(editor.windowHandle(), windowPoint(edge));
+        const auto firstPreview = item->start();
+        const auto firstVisibleTick = canvas->startTick();
+        // The timer must advance both the viewport and the preview without another move event.
+        QTRY_VERIFY(canvas->startTick() > firstVisibleTick && item->start() > firstPreview);
+        const auto lastPreview = item->start();
+        QCOMPARE(item->clipLen(), clipDraft.properties.clipLen);
+        QCOMPARE(clip->start(), clipDraft.properties.start);
+        QCOMPARE(runtime.documentVersion(), before);
+        QVERIFY(!historyManager->canUndo());
+        if (cancel)
+            QTest::keyClick(canvas, Qt::Key_Escape);
+        QTest::mouseRelease(editor.windowHandle(), Qt::LeftButton, Qt::NoModifier,
+                            windowPoint(edge));
+        pressed = false;
+        QVERIFY(!editSessionManager->hasActiveTransaction());
+        if (cancel)
+            QCOMPARE(clip->start(), clipDraft.properties.start);
+        else
+            QVERIFY(clip->start() >= lastPreview);
+        auto *finishedItem = editor.findClipItemById(clipId);
+        QVERIFY(finishedItem);
+        QCOMPARE(finishedItem->start(), clip->start());
+        QCOMPARE(finishedItem->clipLen(), clipDraft.properties.clipLen);
+        const auto stoppedAt = canvas->startTick();
+        QTest::qWait(100);
+        QCOMPARE(canvas->startTick(), stoppedAt);
+        QCOMPARE(runtime.documentVersion().revision, before.revision + (cancel ? 0 : 1));
+    }
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(clip->start(), clipDraft.properties.start);
+    QVERIFY(editor.findClipItemById(clipId));
+    QCOMPARE(editor.findClipItemById(clipId)->start(), clipDraft.properties.start);
+    QVERIFY(!historyManager->canUndo());
+}
 
 void ApplicationGuiTests::trackClipDragCommitsOrCancels_data() {
     QTest::addColumn<bool>("audio");

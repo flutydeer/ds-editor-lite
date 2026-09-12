@@ -41,6 +41,7 @@ private slots:
     void draggingExistingNoteCommitsOrCancels();
     void trackClipDragCommitsOrCancels_data();
     void trackClipDragCommitsOrCancels();
+    void trackClipDragContinuesDuringEdgeScrollingAndStopsOnFinish();
     void parameterStrokeCommitsOnceAndUndoRestoresView();
     void parameterAnchorEditingPreviewsAndUsesTheContextMenu();
     void parameterToolbarSwapsTheVisiblePairWithoutEditingTheDocument();
@@ -77,8 +78,8 @@ private slots:
     void droppingAudioFilesCommitsOneBatchToTheSelectedTracks();
     void droppingMidiAndAudioFilesUsesOneBatchDecision_data();
     void droppingMidiAndAudioFilesUsesOneBatchDecision();
-    void fillLyricPreviewCommitsOrCancels_data();
-    void fillLyricPreviewCommitsOrCancels();
+    void fillLyricInputsCommitOrCancel_data();
+    void fillLyricInputsCommitOrCancel();
     void lyricRuleEditingChangesThePreviewAndPersists();
     void phonemeDialogValidatesCommitsAndResetsThroughTheNoteMenu();
     void phonemeDurationResetConfirmsAdjacentChanges_data();

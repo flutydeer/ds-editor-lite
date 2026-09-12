@@ -10,6 +10,7 @@
 #include "Modules/FillLyric/Controls/EditDialog.h"
 #include "Modules/FillLyric/Controls/LyricCell.h"
 #include "Modules/FillLyric/Controls/PhonicTextEdit.h"
+#include "Modules/FillLyric/LyricTab.h"
 #include "Modules/FillLyric/Widgets/RuleListItemWidget.h"
 #include "Modules/FillLyric/Widgets/RuleListWidget.h"
 #include "Modules/FillLyric/Widgets/RuleTestTab.h"
@@ -29,6 +30,9 @@
 #include <QClipboard>
 #include <QCheckBox>
 #include <QFile>
+#include <QFileDialog>
+#include <QDialogButtonBox>
+#include <QPointer>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -239,14 +243,17 @@ void ApplicationGuiTests::createLyricSelection() {
     historyManager->reset();
 }
 
-void ApplicationGuiTests::fillLyricPreviewCommitsOrCancels_data() {
+void ApplicationGuiTests::fillLyricInputsCommitOrCancel_data() {
     QTest::addColumn<bool>("accept");
-    QTest::newRow("import") << true;
-    QTest::newRow("cancel") << false;
+    QTest::addColumn<bool>("fromLrc");
+    QTest::newRow("preview-import") << true << false;
+    QTest::newRow("preview-cancel") << false << false;
+    QTest::newRow("lrc-with-folded-preview") << true << true;
 }
 
-void ApplicationGuiTests::fillLyricPreviewCommitsOrCancels() {
+void ApplicationGuiTests::fillLyricInputsCommitOrCancel() {
     QFETCH(bool, accept);
+    QFETCH(bool, fromLrc);
     createLyricSelection();
     if (QTest::currentTestFailed())
         return;
@@ -261,6 +268,21 @@ void ApplicationGuiTests::fillLyricPreviewCommitsOrCancels() {
     settings.skipSlur = false;
     settings.splitMode = FillLyric::Auto;
     QVERIFY(runtime.settings().updateFillLyric({}, settings));
+    QTemporaryDir files;
+    QVERIFY(files.isValid());
+    const auto lrcPath = files.filePath(QStringLiteral("lyrics.lrc"));
+    if (fromLrc) {
+        QFile file(lrcPath);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        const auto contents = (QStringLiteral("[ar:Fixture]\n[00:01.00]") +
+                               TestSupport::fixtureLyric() + QStringLiteral("\n[00:02.00]-\n"))
+                                  .toUtf8();
+        QCOMPARE(file.write(contents), contents.size());
+    }
+    const auto nativeDialogsDisabled = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
+    QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+    const auto restoreDialogs = qScopeGuard(
+        [&] { QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDialogsDisabled); });
     const auto before = runtime.documentVersion();
     const auto selected = appStatus->selectedNotes.get();
     bool interacted = false;
@@ -275,7 +297,63 @@ void ApplicationGuiTests::fillLyricPreviewCommitsOrCancels() {
             if (!interacted)
                 dialog->reject();
         });
-        splitIntoPreview(*dialog, TestSupport::fixtureLyric());
+        if (fromLrc) {
+            auto *base = dialog->findChild<FillLyric::LyricBaseWidget *>();
+            QVERIFY(base);
+            auto *input = base->findChild<FillLyric::PhonicTextEdit *>();
+            auto *importLrc =
+                buttonWithText(base, QCoreApplication::translate("LyricBaseWidget", "Import Lrc"));
+            auto *foldPreview = buttonWithText(base, FillLyric::LyricTab::tr("Fold Preview"));
+            QVERIFY(input && importLrc && foldPreview);
+            const auto originalText = input->toPlainText();
+            for (const bool chooseFile : {false, true}) {
+                bool chosen = false;
+                QTimer chooseLrc;
+                chooseLrc.setInterval(10);
+                connect(&chooseLrc, &QTimer::timeout, dialog, [&] {
+                    QPointer<QFileDialog> picker =
+                        qobject_cast<QFileDialog *>(QApplication::activeModalWidget());
+                    if (!picker)
+                        return;
+                    chooseLrc.stop();
+                    const auto closeOnFailure = qScopeGuard([&] {
+                        if (picker && !chosen)
+                            picker->reject();
+                    });
+                    if (chooseFile) {
+                        auto *name = picker->findChild<QLineEdit *>(QStringLiteral("fileNameEdit"));
+                        auto *buttons = picker->findChild<QDialogButtonBox *>();
+                        QVERIFY(name && buttons);
+                        typeText(name, lrcPath);
+                        if (QTest::currentTestFailed())
+                            return;
+                        auto *open = buttons->button(QDialogButtonBox::Open);
+                        QVERIFY(open && open->isEnabled());
+                        QTest::mouseClick(open, Qt::LeftButton);
+                    } else {
+                        QTest::keyClick(picker, Qt::Key_Escape);
+                    }
+                    chosen = true;
+                });
+                chooseLrc.start();
+                QTest::mouseClick(importLrc, Qt::LeftButton);
+                chooseLrc.stop();
+                QVERIFY(chosen);
+                QCOMPARE(input->toPlainText(),
+                         chooseFile ? TestSupport::fixtureLyric() + QStringLiteral("\n-")
+                                    : originalText);
+                QCOMPARE(runtime.documentVersion(), before);
+                QVERIFY(!historyManager->canUndo());
+            }
+            QTest::mouseClick(foldPreview, Qt::LeftButton);
+            auto *preview = dialog->findChild<FillLyric::LyricWrapView *>();
+            QVERIFY(preview && !preview->isVisible());
+            const auto updated = runtime.settings().getSettings();
+            QVERIFY(updated);
+            QVERIFY(!updated.get().fillLyric.extensionVisible);
+        } else {
+            splitIntoPreview(*dialog, TestSupport::fixtureLyric());
+        }
         if (QTest::currentTestFailed())
             return;
         for (const auto *note : singingClip->notes())
