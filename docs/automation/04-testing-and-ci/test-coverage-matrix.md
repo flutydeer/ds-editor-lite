@@ -44,7 +44,7 @@
 | 真实读音/音素完成后的暂存与应用 | workflow | 快照门控不能验证语言任务完成、pending 存储及 flush 接线 | 内置声库执行实际任务，编辑期间结果不修改工程，结束后应用且不新增撤销；文档换代或片段删除后丢弃待应用结果 | ApplicationWorkflows::clipInferenceResultsRespectEditSession | 默认内置声库；CPU；无需播放设备 |
 | 运行中重新推理与任务队列释放 | workflow | 真实声库执行暴露旧流水线销毁后完成回调消失，替换任务停留在队列 | 受控暂停真实 duration worker 后重启，检查替换任务终态及清理；先取消所属片段任务再销毁旧流水线，复用已有安全取消路径 | ApplicationWorkflows::restartInferenceReleasesReplacedTask、ModelResources | 受控回归通用；完整输出需声库 |
 | 关闭自动推理后的手动完整推理 | workflow | 手动请求未携带声学许可，停止播放时停在 Acoustic.Awaiting | 为目标流水线保留本次请求许可，声学缓存探测与 variance 更新共用准入判断，Ready 或取消时清除；验证后台等待、手动放行及完成后恢复原策略 | ApplicationWorkflows、ModelResources | 受控状态验证通用；完整模型输出需声库 |
-| 公开推理状态与任务作用域关联 | workflow/protocol | 完整模型输出不能证明状态查询关联了正确的公开任务 | Registry/Host 发起真实任务并暂停 Pitch worker，检查当前及后续阶段关联同一任务，已完成阶段和其他片段不误关联；实际成功后清除活动任务关联 | ApplicationWorkflows::publicInferenceStatusAssociatesTasksWithTheirScope | 默认内置声库；CPU；无需播放设备 |
+| 公开推理状态与任务作用域关联 | workflow/protocol | 完整模型输出不能证明状态查询关联了正确的公开任务；原范围字符串比较不能关联轨道任务与片段查询 | Registry/Host 按轨道发起真实任务并暂停 Pitch worker，无效轨道整批拒绝；实际乐句身份关联轨道及其片段查询，已完成阶段、其他轨道和不明确的混合范围不误报任务；成功后清除关联 | ApplicationWorkflows::publicInferenceStatusAssociatesTasksWithTheirScope | 默认内置声库；CPU；目标轨道含两个片段；无需播放设备 |
 | 权限、路径、分页、准入 | protocol | 已有真实边界验证，分页游标独立目标与 Wire 职责重叠 | 保留实际拒绝和副作用断言；准入/文件授权归入 AutomationRuntime，Cursor/Wire 归入 AutomationProtocol；公开文件访问状态与实际目录、会话读写授权及清除后的拒绝一致，查询不修改工程或权限 | AutomationRuntime、AutomationProtocol::routing 的 bindingAndPolicy 及 Cursor/Wire 用例 | 通用/平台 |
 | 公共接口及协议转换 | protocol | 数量和 Schema 镜像与行为测试混合 | 删除 Contract 镜像程序；真实无效输入归入 Registry 并检查无副作用；共享场景比较四种调用路径 | AutomationProtocol | 通用 |
 | 公共参数查询范围与输出预算 | protocol | 完整快照不能验证有界查询和曲线数据保真 | 检查时间范围裁剪、绘制曲线降采样、锚点原样保留、点数预算不足拒绝及查询无副作用 | AutomationProtocol::parameterQueryBoundsSamplesAndPreservesAnchors | 通用 |
@@ -231,7 +231,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 音频导出准备及发布失败 | workflow | 外部后端在准备或发布阶段失败时保留可查询错误，只执行已到达阶段并清理一次；同一配置可重试成功，原失败记录及工程保持不变 | ApplicationServices::audioExportStageFailuresReleaseResourcesAndAllowRetry | 通用；现有后端替身和受控调度 |
 | 音频裁边和移动跨越变速点 | workflow | 完整应用上下文执行专用裁边/移动入口，验证毫秒时长、素材裁切、换算后的 tick 范围、预览、跨轨移动及连续撤销；复用生产音频时间投影与历史动作 | ApplicationWorkflows::audioClipTrimmingAndMovingPreserveRealtimeDurations | 通用；已知音频时间元数据；无需播放设备 |
 | 已打开音频文件被移除 | workflow | 格式加载器已持有文件句柄时移除目录项，当前解码仍使用原句柄完成；重开工程重新解析资源后报告 Missing 且不保留旧波形，不制造用户历史 | AudioAssets::unlinkingAudioSourcePreservesOpenDecodeUntilReload | 需文件系统允许移除已被音频后端打开的素材；Windows 删除共享受限时明确 QSKIP |
-| 音频解析期间另存工程 | workflow | 原目录变化用例直接替写会话路径，未验证保存与重新解析接线；解析开始后经生产保存器写入另一目录，重新查找该目录中的素材并解码；保留工程和片段身份、无额外撤销，公开加载不因 GUI 保存而弹出提示 | AudioAssets::resolutionRetryPreservesSource | 通用；临时 DSPX/WAV；无需播放设备 |
+| 音频解析期间另存工程 | workflow/protocol | 解析开始后经生产保存器写入另一目录，重新查找该目录中的素材并解码；公开查询只返回已授权的候选路径，相同文件去重，授权撤销后隐藏路径；保留工程、资源和权限状态，无额外撤销，公开加载不因 GUI 保存而弹出提示 | AudioAssets::resolutionRetryPreservesSource | 通用；临时 DSPX/WAV；无需播放设备 |
 | 音频解析到解码与级联重定位 | workflow | 真实控制器完成相对路径解析及 WAV 解码，实际任务的源代际、成功终态、波形和保存点一致；级联拒绝同名但内容不符的来源，换回正确文件后恢复，已恢复的来源不重复变更 | AudioAssets::resolveDecodeTaskProtocol、cascadingRelinkRequiresMatchingAudioIdentity | 通用；临时 WAV；无需播放设备 |
 
 本次还移除无产品实例化入口的旧 G2P/伪声设置页和 `TrackSynthesizer` 及其空容器引用。清理改变统计分母，报告中与新增测试命中的贡献分开说明，不通过排除仍有效的生产文件提高比例。
