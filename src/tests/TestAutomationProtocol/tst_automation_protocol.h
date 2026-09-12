@@ -28,6 +28,7 @@ private slots:
     void fillLyricsUnavailableLanguage();
     void parameterQueryBoundsSamplesAndPreservesAnchors();
     void publicParameterEditsPreserveCurvesAndUndo();
+    void publicClipCopyAndMovePreserveTheSourcePhrase();
     void phonemeNamesUseTheEffectiveLanguageAndResetOffsets_data();
     void phonemeNamesUseTheEffectiveLanguageAndResetOffsets();
     void rejectedInputs_data();

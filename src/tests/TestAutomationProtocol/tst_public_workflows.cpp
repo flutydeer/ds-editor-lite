@@ -441,6 +441,77 @@ void AutomationProtocolTests::fillLyricsUnavailableLanguage() {
     QCOMPARE(fixture.runtimeFixture.history()->nextUndoEntry(), beforeUndo);
 }
 
+void AutomationProtocolTests::publicClipCopyAndMovePreserveTheSourcePhrase() {
+    RegistryFixture fixture;
+    auto &runtime = fixture.runtime;
+    QVERIFY(runtime.project().insertTrack(commandContext(runtime), 0, lyricTrack()));
+    auto harmony = lyricTrack();
+    harmony.name = QStringLiteral("Harmony");
+    harmony.clips.clear();
+    QVERIFY(runtime.project().insertTrack(commandContext(runtime), 1, harmony));
+    const auto project = runtime.project().getProject(runtime.documentVersion().documentId);
+    QVERIFY(project);
+    const auto sourceClip = project.get().tracks.first().clips.first().id;
+    const auto sourceTrack = project.get().tracks.first().id;
+    const auto destinationTrack = project.get().tracks.at(1).id;
+    const auto sourceNotes =
+        runtime.notes().getNotes(runtime.documentVersion().documentId, sourceClip);
+    QVERIFY(sourceNotes);
+    const auto original = fixture.runtimeFixture.model().serialize();
+    const auto *beforeUndo = fixture.runtimeFixture.history()->nextUndoEntry();
+    PublicAutomationRegistry registry(runtime, fixture.access, fixture.fileGuard,
+                                      fixture.admission);
+    auto copyArguments = commandArguments(runtime.documentVersion());
+    copyArguments.insert(QStringLiteral("clip_ids"), QJsonArray{sourceClip.value()});
+    copyArguments.insert(QStringLiteral("destination"),
+                         QJsonObject{{"target_track_id", sourceTrack.value()}, {"start", 3840}});
+    const auto copied = registry.invoke(QStringLiteral("clips.duplicate"), copyArguments);
+    QVERIFY2(copied, qPrintable(errorMessage(copied)));
+    int copiedId = -1;
+    for (const auto &value : copied.get().value(QStringLiteral("created_objects")).toArray()) {
+        const auto object = value.toObject().value(QStringLiteral("object")).toObject();
+        if (object.value(QStringLiteral("kind")).toString() == QStringLiteral("clip"))
+            copiedId = object.value(QStringLiteral("id")).toInt(-1);
+    }
+    QVERIFY(copiedId >= 0 && copiedId != sourceClip.value());
+    const auto copiedNotes =
+        runtime.notes().getNotes(runtime.documentVersion().documentId, ClipId(copiedId));
+    QVERIFY(copiedNotes);
+    QCOMPARE(copiedNotes.get().size(), sourceNotes.get().size());
+    for (qsizetype index = 0; index < sourceNotes.get().size(); ++index) {
+        const auto &copy = copiedNotes.get().at(index);
+        const auto &source = sourceNotes.get().at(index);
+        QVERIFY(copy.id != source.id);
+        QCOMPARE(copy.data.localStart, source.data.localStart);
+        QCOMPARE(copy.data.keyIndex, source.data.keyIndex);
+        QCOMPARE(copy.data.lyric, source.data.lyric);
+    }
+    auto moveArguments = commandArguments(runtime.documentVersion());
+    moveArguments.insert(QStringLiteral("moves"),
+                         QJsonArray{
+                             QJsonObject{{"clip_id", copiedId},
+                                         {"target_track_id", destinationTrack.value()},
+                                         {"start", 960}}
+    });
+    const auto moved = registry.invoke(QStringLiteral("clips.move"), moveArguments);
+    QVERIFY2(moved, qPrintable(errorMessage(moved)));
+    const auto afterMove = runtime.project().getProject(runtime.documentVersion().documentId);
+    QVERIFY(afterMove);
+    const auto &originalTrack = afterMove.get().tracks.first();
+    const auto &targetTrack = afterMove.get().tracks.at(1);
+    QCOMPARE(originalTrack.clips.size(), 1);
+    QCOMPARE(originalTrack.clips.first().id, sourceClip);
+    QCOMPARE(originalTrack.clips.first().data.properties.start, 0);
+    QCOMPARE(targetTrack.id, destinationTrack);
+    QCOMPARE(targetTrack.clips.size(), 1);
+    QCOMPARE(targetTrack.clips.first().id, ClipId(copiedId));
+    QCOMPARE(targetTrack.clips.first().data.properties.start, 960);
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QVERIFY(runtime.history().undo(commandContext(runtime)));
+    QCOMPARE(fixture.runtimeFixture.model().serialize(), original);
+    QCOMPARE(fixture.runtimeFixture.history()->nextUndoEntry(), beforeUndo);
+}
+
 void AutomationProtocolTests::parameterQueryBoundsSamplesAndPreservesAnchors() {
     RegistryFixture fixture;
     auto &runtime = fixture.runtime;
