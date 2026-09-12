@@ -42,6 +42,8 @@ private slots:
     void overlayScrollMenuNavigatesTheAttachedArea();
     void expressionSpinBoxMenuEditsTheDisplayedValue_data();
     void expressionSpinBoxMenuEditsTheDisplayedValue();
+    void textInputMenusKeepEditingActionsAndCopyAppearance_data();
+    void textInputMenusKeepEditingActionsAndCopyAppearance();
 };
 
 #endif

@@ -9,20 +9,6 @@
 #include <QStyleOptionSpinBox>
 #include <tinyexpr.h>
 
-#include <array>
-
-namespace {
-    constexpr std::array<const char *, 7> kStandardActionIcons = {
-        ":/svg/icons/arrow_undo_16_regular.svg",
-        ":/svg/icons/arrow_redo_16_regular.svg",
-        ":/svg/icons/cut_16_regular.svg",
-        ":/svg/icons/copy_16_regular.svg",
-        ":/svg/icons/clipboard_paste_16_regular.svg",
-        ":/svg/icons/delete_16_regular.svg",
-        ":/svg/icons/select_all_on_16_regular.svg",
-    };
-}
-
 namespace SVS {
 
     ExpressionDoubleSpinBox::ExpressionDoubleSpinBox(QWidget *parent) : QDoubleSpinBox(parent) {
@@ -87,25 +73,9 @@ namespace SVS {
     }
 
     Menu *ExpressionDoubleSpinBox::createContextMenu(QWidget *parent) {
-        if (!lineEdit())
+        auto *menu = Menu::fromLineEdit(lineEdit(), parent ? parent : this);
+        if (!menu)
             return nullptr;
-
-        const auto standardMenu = lineEdit()->createStandardContextMenu();
-        if (!standardMenu)
-            return nullptr;
-
-        auto *menu = new Menu(parent ? parent : this);
-        qsizetype actionIndex = 0;
-        for (const auto action : standardMenu->actions()) {
-            action->setParent(menu);
-            if (!action->isSeparator() && actionIndex < kStandardActionIcons.size()) {
-                action->setIcon(
-                    IconUtils::menuIcon(QString::fromLatin1(kStandardActionIcons.at(actionIndex))));
-                ++actionIndex;
-            }
-            menu->addAction(action);
-        }
-        delete standardMenu;
 
         menu->addSeparator();
 

@@ -6,6 +6,9 @@
 #include <lite/GUI/Controls/OverlayScrollBar.h>
 #include <lite/GUI/Controls/SvsExpressionSpinBox.h>
 #include <lite/GUI/Controls/SvsExpressionDoubleSpinBox.h>
+#include <lite/GUI/Controls/LineEdit.h>
+#include <lite/GUI/Controls/ComboBox.h>
+#include <lite/GUI/Controls/Menu.h>
 
 #include <QAbstractScrollArea>
 #include <QApplication>
@@ -20,9 +23,12 @@
 #include <QStyle>
 #include <QStyleFactory>
 #include <QTimer>
+#include <QClipboard>
+#include <QMimeData>
 #include <QtTest/QTest>
 
 #include <type_traits>
+#include <memory>
 
 namespace {
     void moveWithLeftButton(QWidget &widget, const QPoint &position) {
@@ -31,6 +37,87 @@ namespace {
                          Qt::NoModifier);
         QApplication::sendEvent(&widget, &move);
     }
+}
+
+void GuiComponentTests::textInputMenusKeepEditingActionsAndCopyAppearance_data() {
+    QTest::addColumn<bool>("combo");
+    QTest::newRow("text-field") << false;
+    QTest::newRow("editable-combo") << true;
+}
+
+void GuiComponentTests::textInputMenusKeepEditingActionsAndCopyAppearance() {
+    QFETCH(bool, combo);
+    auto savedClipboard = std::make_unique<QMimeData>();
+    if (const auto *mime = QApplication::clipboard()->mimeData()) {
+        for (const auto &format : mime->formats())
+            savedClipboard->setData(format, mime->data(format));
+    }
+    const auto restoreClipboard =
+        qScopeGuard([&] { QApplication::clipboard()->setMimeData(savedClipboard.release()); });
+    std::unique_ptr<QWidget> owner;
+    QLineEdit *input = nullptr;
+    if (combo) {
+        auto editor = std::make_unique<ComboBox>();
+        editor->setEditable(true);
+        input = editor->lineEdit();
+        owner = std::move(editor);
+    } else {
+        auto editor = std::make_unique<LineEdit>();
+        input = editor.get();
+        owner = std::move(editor);
+    }
+    QVERIFY(input);
+    owner->resize(320, 40);
+    owner->show();
+    owner->activateWindow();
+    QTest::mouseClick(input, Qt::LeftButton);
+    QTRY_VERIFY(input->hasFocus());
+    QTest::keyClicks(input, "selected words");
+    QTest::keySequence(input, QKeySequence::SelectAll);
+
+    const auto choose = [&](const QString &name, QImage *icon = nullptr) {
+        const auto position = input->rect().center();
+        QContextMenuEvent event(QContextMenuEvent::Mouse, position, input->mapToGlobal(position));
+        QApplication::sendEvent(input, &event);
+        QPointer<Menu> menu = qobject_cast<Menu *>(QApplication::activePopupWidget());
+        QVERIFY(menu);
+        const auto close = qScopeGuard([&] {
+            if (menu)
+                menu->close();
+        });
+        auto *action = menu->findChild<QAction *>(name);
+        QVERIFY(action && action->isEnabled());
+        if (icon)
+            *icon = action->icon().pixmap(16, 16).toImage();
+        QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier,
+                          menu->actionGeometry(action).center());
+        QTRY_VERIFY(menu.isNull());
+    };
+    QImage editableCopyIcon;
+    choose(QStringLiteral("edit-copy"), &editableCopyIcon);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(QApplication::clipboard()->text(), QStringLiteral("selected words"));
+    QVERIFY(!editableCopyIcon.isNull());
+    QApplication::clipboard()->setText(QStringLiteral("replacement"));
+    choose(QStringLiteral("edit-paste"));
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(input->text(), QStringLiteral("replacement"));
+    choose(QStringLiteral("edit-undo"));
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(input->text(), QStringLiteral("selected words"));
+
+    input->setReadOnly(true);
+    QTest::keySequence(input, QKeySequence::SelectAll);
+    QImage readOnlyCopyIcon;
+    choose(QStringLiteral("edit-copy"), &readOnlyCopyIcon);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(QApplication::clipboard()->text(), QStringLiteral("selected words"));
+    QCOMPARE(input->text(), QStringLiteral("selected words"));
+    QCOMPARE(readOnlyCopyIcon, editableCopyIcon);
 }
 
 void GuiComponentTests::expressionSpinBoxMenuEditsTheDisplayedValue_data() {
