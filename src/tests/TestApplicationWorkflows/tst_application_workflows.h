@@ -57,8 +57,8 @@ private slots:
     void audioBatchRejectsChangesBeforeCommit_data();
     void audioBatchRejectsChangesBeforeCommit();
     void acousticCacheWriteFailureCanBeRetried();
-    void unsupportedInferencePhonemeAllowsRetry_data();
-    void unsupportedInferencePhonemeAllowsRetry();
+    void inferenceFailureAndCancellationAllowRetry_data();
+    void inferenceFailureAndCancellationAllowRetry();
     void languageTasksKeepMixedResultsAligned();
     void publicAudioPathUpdatesPrepareCommitAndUndo();
 

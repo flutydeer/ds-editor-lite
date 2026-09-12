@@ -164,7 +164,7 @@ void ApplicationWorkflowTests::acousticCacheWriteFailureCanBeRetried() {
     QCOMPARE(historyManager->nextUndoEntry(), beforeUndo);
 }
 
-void ApplicationWorkflowTests::unsupportedInferencePhonemeAllowsRetry_data() {
+void ApplicationWorkflowTests::inferenceFailureAndCancellationAllowRetry_data() {
     QTest::addColumn<QString>("stage");
     QTest::newRow("duration") << QStringLiteral("duration");
     QTest::newRow("pitch") << QStringLiteral("pitch");
@@ -172,7 +172,7 @@ void ApplicationWorkflowTests::unsupportedInferencePhonemeAllowsRetry_data() {
     QTest::newRow("acoustic") << QStringLiteral("acoustic");
 }
 
-void ApplicationWorkflowTests::unsupportedInferencePhonemeAllowsRetry() {
+void ApplicationWorkflowTests::inferenceFailureAndCancellationAllowRetry() {
     QFETCH(QString, stage);
     prepareVoicebankTarget();
     if (QTest::currentTestFailed())
@@ -212,6 +212,8 @@ void ApplicationWorkflowTests::unsupportedInferencePhonemeAllowsRetry() {
     };
     auto failed = createTask(true);
     auto retried = createTask(false);
+    auto canceled = createTask(false);
+    auto cachedRetry = createTask(false);
     QThreadPool workers;
     QSignalSpy failureFinished(failed.get(), &Task::finished);
     workers.start(failed.get());
@@ -229,6 +231,43 @@ void ApplicationWorkflowTests::unsupportedInferencePhonemeAllowsRetry() {
     QVERIFY(retried->success());
     QVERIFY(
         !QDir(cache.path()).entryList({QStringLiteral("infer-*-output-*")}, QDir::Files).isEmpty());
+    const auto cachedOutputs =
+        QDir(cache.path()).entryList({QStringLiteral("infer-*-output-*")}, QDir::Files);
+    QSemaphore workerEntered;
+    QSemaphore releaseWorker;
+    std::atomic_bool paused = false;
+    connect(
+        canceled.get(), &Task::statusUpdated, canceled.get(),
+        [&](const TaskStatus &) {
+            if (!paused.exchange(true)) {
+                workerEntered.release();
+                releaseWorker.acquire();
+            }
+        },
+        Qt::DirectConnection);
+    const auto drainWorker = qScopeGuard([&] {
+        releaseWorker.release();
+        workers.waitForDone();
+    });
+    QSignalSpy canceledFinished(canceled.get(), &Task::finished);
+    workers.start(canceled.get());
+    QTRY_VERIFY_WITH_TIMEOUT(workerEntered.available() == 1, 5000);
+    QVERIFY(canceled->started());
+    QVERIFY(!canceled->stopped());
+    canceled->terminate();
+    releaseWorker.release();
+    QTRY_COMPARE_WITH_TIMEOUT(canceledFinished.count(), 1, 15000);
+    QVERIFY(workers.waitForDone(5000));
+    QVERIFY(canceled->terminated());
+    QVERIFY(canceled->stopped());
+    QVERIFY(!canceled->success());
+    QCOMPARE(QDir(cache.path()).entryList({QStringLiteral("infer-*-output-*")}, QDir::Files),
+             cachedOutputs);
+    QSignalSpy cachedRetryFinished(cachedRetry.get(), &Task::finished);
+    workers.start(cachedRetry.get());
+    QTRY_COMPARE_WITH_TIMEOUT(cachedRetryFinished.count(), 1, 15000);
+    QVERIFY(workers.waitForDone(5000));
+    QVERIFY(cachedRetry->success());
     QCOMPARE(context->m_appModel->serialize(), before);
     QCOMPARE(runtime().documentVersion(), version);
     QCOMPARE(historyManager->nextUndoEntry(), undo);
