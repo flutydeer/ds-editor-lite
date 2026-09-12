@@ -124,6 +124,8 @@ private slots:
     void logWindowFiltersLiveMessagesAndCopiesDisplayedOrder();
     void newDocumentHonorsTheSaveDecision_data();
     void newDocumentHonorsTheSaveDecision();
+    void rejectedProjectInputAllowsTheNextRequest_data();
+    void rejectedProjectInputAllowsTheNextRequest();
     void pendingProjectLoadCanCancelOrRequestExit_data();
     void pendingProjectLoadCanCancelOrRequestExit();
     void taggerRuleInputsApplyPersistAndReopen();

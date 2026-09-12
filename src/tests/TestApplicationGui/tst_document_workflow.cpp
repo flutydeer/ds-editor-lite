@@ -13,6 +13,7 @@
 #include <lite/Tasking/TaskManager.h>
 
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QScopeGuard>
 #include <QSignalSpy>
@@ -23,6 +24,7 @@
 
 #include <functional>
 #include <atomic>
+#include <algorithm>
 
 namespace {
     class SavePrompt final : public IDocumentWorkflowUi {
@@ -144,6 +146,98 @@ void ApplicationGuiTests::newDocumentHonorsTheSaveDecision() {
         QCOMPARE(saved.tracks().first()->name(), track.name);
         QVERIFY(documentWorkflowController->recentProjectFiles().contains(prompt.savePath));
     }
+    if (choice == QStringLiteral("cancel")) {
+        prompt.duringPrompt = {};
+        documentWorkflowController->requestSave();
+        QTRY_VERIFY(!documentWorkflowController->busy());
+        QCOMPARE(prompt.pathCalls, 1);
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(context->m_appModel->serialize(), beforeModel);
+        QCOMPARE(historyManager->nextUndoEntry(), beforeUndo);
+        QVERIFY(!historyManager->isOnSavePoint());
+        prompt.savePath = directory.filePath(QStringLiteral("retained.dspx"));
+        documentWorkflowController->requestSave();
+        QTRY_VERIFY(!documentWorkflowController->busy());
+        QCOMPARE(prompt.pathCalls, 2);
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(context->m_appModel->serialize(), beforeModel);
+        QCOMPARE(historyManager->nextUndoEntry(), beforeUndo);
+        QVERIFY(historyManager->isOnSavePoint());
+        QVERIFY(QFileInfo(prompt.savePath).isFile());
+        QVERIFY(prompt.errors.isEmpty());
+    }
+}
+
+void ApplicationGuiTests::rejectedProjectInputAllowsTheNextRequest_data() {
+    QTest::addColumn<bool>("append");
+    QTest::addColumn<bool>("missing");
+    QTest::newRow("open-missing") << false << true;
+    QTest::newRow("open-unsupported") << false << false;
+    QTest::newRow("import-missing") << true << true;
+    QTest::newRow("import-unsupported") << true << false;
+}
+
+void ApplicationGuiTests::rejectedProjectInputAllowsTheNextRequest() {
+    QFETCH(bool, append);
+    QFETCH(bool, missing);
+    auto &runtime = *context->m_coreRuntime;
+    Automation::TrackDraftDto original;
+    original.name = QStringLiteral("Unsaved source");
+    QVERIFY(runtime.project().insertTrack(commandContext(), 0, original));
+    const auto before = runtime.documentVersion();
+    const auto model = context->m_appModel->serialize();
+    const auto *undo = historyManager->nextUndoEntry();
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto invalidPath = directory.filePath(missing ? QStringLiteral("incoming.dspx")
+                                                        : QStringLiteral("incoming.unknown"));
+    if (!missing) {
+        QFile file(invalidPath);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("unsupported"), 11);
+    }
+    SavePrompt prompt;
+    prompt.decisions = {SaveDecision::Discard};
+    auto *workflow = documentWorkflowController;
+    workflow->setUi(&prompt);
+    const auto clearUi = qScopeGuard([&] { workflow->setUi(nullptr); });
+    const auto request = [&](const QString &path) {
+        if (append)
+            workflow->requestImport(path);
+        else
+            workflow->requestOpen(path);
+    };
+    request(invalidPath);
+    QTRY_VERIFY(!workflow->busy());
+    QCOMPARE(prompt.errors.size(), 1);
+    QCOMPARE(prompt.errors.first().title, missing
+                                              ? DocumentWorkflowController::tr("File not found")
+                                              : DocumentWorkflowController::tr("Unsupported file"));
+    QCOMPARE(prompt.decisionCalls, 0);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(context->m_appModel->serialize(), model);
+    QCOMPARE(historyManager->nextUndoEntry(), undo);
+    QVERIFY(!historyManager->isOnSavePoint());
+
+    AppModel imported;
+    auto *track = new Track;
+    track->setName(QStringLiteral("Recovered input"));
+    QVERIFY(imported.appendTrack(track));
+    const auto validPath = directory.filePath(QStringLiteral("incoming.dspx"));
+    DspxProjectConverter converter;
+    QString error;
+    QVERIFY2(converter.save(validPath, &imported, error), qPrintable(error));
+    workflow->requestOpen(validPath);
+    QTRY_VERIFY(!workflow->busy());
+    QCOMPARE(prompt.errors.size(), 1);
+    QCOMPARE(prompt.decisionCalls, 1);
+    const auto &tracks = context->m_appModel->tracks();
+    QVERIFY(std::any_of(tracks.cbegin(), tracks.cend(), [](const Track *candidate) {
+        return candidate->name() == QStringLiteral("Recovered input");
+    }));
+    QVERIFY(runtime.documentVersion().documentId != before.documentId);
+    QVERIFY(historyManager->isOnSavePoint());
+    QVERIFY(!historyManager->canUndo());
 }
 
 void ApplicationGuiTests::pendingProjectLoadCanCancelOrRequestExit_data() {
