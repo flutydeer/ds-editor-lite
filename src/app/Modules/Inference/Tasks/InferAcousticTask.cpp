@@ -253,7 +253,7 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
         // A failure already came back as an error from start(), so there is nothing to
         // re-check on the result. The state is still worth asking: a run that was stopped
         // returns a result like any other, and using it would give half a phrase as a whole one.
-        if (inferenceAcoustic->state() == srt::ITask::Failed) {
+        if (inferenceAcoustic->state() != srt::ITask::Succeeded) {
             qCritical().noquote().nospace() << "inferAcoustic: the acoustic inference for "
                                             << identifier << " did not finish";
             return false;
@@ -332,7 +332,7 @@ bool InferAcousticTask::runInference(const GenericInferModel &model, const QStri
         // A failure already came back as an error from start(), so there is nothing to
         // re-check on the result. The state is still worth asking: a run that was stopped
         // returns a result like any other, and using it would give half a phrase as a whole one.
-        if (inferenceVocoder->state() == srt::ITask::Failed) {
+        if (inferenceVocoder->state() != srt::ITask::Succeeded) {
             qCritical().noquote().nospace() << "inferAcoustic: the vocoder inference for "
                                             << identifier << " did not finish";
             return false;

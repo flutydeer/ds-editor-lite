@@ -1,39 +1,25 @@
-# Locates dsinfer, which the main line of synthrt installs without a CMake package.
+# Locates dsinfer, the inference backend the editor runs its models on.
 #
-# On that line dsinfer ships a library, its headers and the ONNX driver plugin tree, but exports no
-# config file, so consumers find it by hand. wolf and otter do the same thing for the same reason;
-# this is here so the three places in this tree that need it agree about how.
+# dsinfer is built by synthrt's onnx feature and installs its own CMake package beside synthrt's,
+# so it is found the ordinary way and linked as dsinfer::dsinfer. It is required: without it there
+# is no backend for the editor to run models on, so a tree that lacks it is refused here rather
+# than deep inside a subdirectory.
 #
-# Defines, when found:
-#   lite::dsinfer            an imported target carrying the library and its include directory
-#   LITE_DSINFER_DRIVER_DIR  the plugin search path the ONNX driver lives under
-#
-# Defines LITE_HAS_DSINFER either way, so a caller can degrade rather than fail.
+# Included from every directory that links it, and find_package runs in each: an imported target
+# is visible only in the directory that created it, so a single guarded call would leave every
+# other directory's target_link_libraries pointing at a name it cannot see. Only the report is
+# made once.
 
-if(NOT TARGET lite::dsinfer)
-    find_path(LITE_DSINFER_INCLUDE_DIR
-        NAMES dsinfer/Inference/InferenceDriver.h
-    )
-    find_library(LITE_DSINFER_LIBRARY
-        NAMES synthrt-dsinfer
-    )
+find_package(dsinfer CONFIG QUIET)
 
-    if(LITE_DSINFER_INCLUDE_DIR AND LITE_DSINFER_LIBRARY)
-        set(LITE_HAS_DSINFER ON)
-        add_library(lite::dsinfer UNKNOWN IMPORTED)
-        set_target_properties(lite::dsinfer PROPERTIES
-            IMPORTED_LOCATION "${LITE_DSINFER_LIBRARY}"
-            INTERFACE_INCLUDE_DIRECTORIES "${LITE_DSINFER_INCLUDE_DIR}"
-        )
-        # A plugin search path holds one subdirectory per plugin, so this is the parent of the
-        # onnx directory rather than the directory itself.
-        get_filename_component(_lite_dsinfer_libdir "${LITE_DSINFER_LIBRARY}" DIRECTORY)
-        set(LITE_DSINFER_DRIVER_DIR "${_lite_dsinfer_libdir}/plugins/dsinfer/inferencedrivers")
-        message(STATUS "dsinfer: ${LITE_DSINFER_LIBRARY}")
-    else()
-        set(LITE_HAS_DSINFER OFF)
-        message(FATAL_ERROR
-            "dsinfer was not found. It comes from synthrt built with its onnx feature; without it "
-            "there is no inference backend for the editor to run models on.")
-    endif()
+if(NOT TARGET dsinfer::dsinfer)
+    message(FATAL_ERROR
+        "dsinfer was not found. It comes from synthrt built with its onnx feature; without it "
+        "there is no inference backend for the editor to run models on.")
+endif()
+
+get_property(_lite_dsinfer_reported GLOBAL PROPERTY LITE_DSINFER_REPORTED)
+if(NOT _lite_dsinfer_reported)
+    message(STATUS "dsinfer: ${dsinfer_DIR}")
+    set_property(GLOBAL PROPERTY LITE_DSINFER_REPORTED ON)
 endif()

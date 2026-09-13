@@ -1,5 +1,7 @@
 #include "SingleInstanceCoordinator.h"
 
+#include "ProcessProbe.h"
+
 #include "SingleInstanceIdentity.h"
 
 #include <QCoreApplication>
@@ -10,6 +12,7 @@
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QLockFile>
+#include <QSysInfo>
 #include <QPointer>
 #include <QQueue>
 #include <QSet>
@@ -360,12 +363,33 @@ SingleInstanceCoordinator::StartResult SingleInstanceCoordinator::start() {
     }
 
     m_lockFile = std::make_unique<QLockFile>(SingleInstanceIdentity::lockFilePath(m_dataDirectory));
+    // Qt's own staleness is a clock, and a long running editor must never lose its lock to one,
+    // so it is off. What decides instead is the process the lock names.
     m_lockFile->setStaleLockTime(0);
     if (!m_lockFile->tryLock(0)) {
-        if (m_lockFile->error() == QLockFile::LockFailedError)
-            return StartResult::Secondary;
-        m_error = tr("Failed to access the single-instance lock file");
-        return StartResult::Error;
+        if (m_lockFile->error() != QLockFile::LockFailedError) {
+            m_error = tr("Failed to access the single-instance lock file");
+            return StartResult::Error;
+        }
+        // A holder that died without unlocking left its lock behind; it is nobody's now.
+        qint64 holder = 0;
+        QString host;
+        QString application;
+        if (m_lockFile->getLockInfo(&holder, &host, &application) &&
+            (host.isEmpty() || host == QSysInfo::machineHostName()) &&
+            !ProcessProbe::isAlive(holder)) {
+            m_lockFile->removeStaleLockFile();
+        }
+        // A holder on its way out keeps the lock until its last step, and a launch that lands in
+        // that moment, a restart's successor or a host started right after the previous one was
+        // told to exit, is not a second instance. Bounded, so that a real second instance still
+        // forwards its request promptly.
+        if (!m_lockFile->tryLock(750)) {
+            if (m_lockFile->error() == QLockFile::LockFailedError)
+                return StartResult::Secondary;
+            m_error = tr("Failed to access the single-instance lock file");
+            return StartResult::Error;
+        }
     }
 
     m_ipcThread = new QThread;

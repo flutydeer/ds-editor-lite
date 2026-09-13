@@ -661,6 +661,18 @@ namespace Automation {
         }
 
         void stop() {
+            // A response completed a moment ago may still be on its way out: the future finished
+            // on the caller's thread, the write was queued to this one, and the socket sends on
+            // the next turn of this loop. That is exactly the shape of an exit or restart request,
+            // whose acceptance schedules the quit that brings us here. Deleting the server now
+            // would close the socket under the reply, and the client would hear "connection
+            // closed" instead of the answer it was given. Bounded, since nothing here says
+            // whether anything is pending.
+            {
+                QEventLoop drain;
+                QTimer::singleShot(150, &drain, &QEventLoop::quit);
+                drain.exec(QEventLoop::ExcludeUserInputEvents);
+            }
             QPointer<QTcpServer> tcpServer(m_tcpServer);
             if (tcpServer)
                 tcpServer->close();

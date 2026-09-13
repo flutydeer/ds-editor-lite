@@ -45,7 +45,7 @@ int main() {
     // empty directory is "no fixture here", not "the fixture contributes nothing".
     if (!fs::is_directory(packages) || fs::is_empty(packages)) {
         std::cerr << "no converted package at " << packages << ", skipping\n";
-        return 0;
+        return 77;
     }
 
     // Everything a unit needs before a package can be opened, in one call.
@@ -133,7 +133,8 @@ int main() {
         auto *spec = opened.front().contribution("singer", "fixture");
         expect(spec != nullptr, "the singer declaration is reachable from its package");
         if (spec != nullptr) {
-            auto built = lite::synthrt::SingerPipeline::create(*spec->as<srt::SingerSpec>());
+            auto built =
+                lite::synthrt::SingerPipeline::create(opened.front(), *spec->as<srt::SingerSpec>());
             expect(static_cast<bool>(built),
                    "the pipeline should build: "
                        + (built ? std::string() : built.error().toString()));

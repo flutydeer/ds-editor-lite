@@ -22,7 +22,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         synthrt::synthrt
         wolf::wolf
         otter::otter
-        lite::dsinfer
+        dsinfer::dsinfer
 )
 
 # A published voicebank is far too large to keep in the tree, so this names one instead. Set

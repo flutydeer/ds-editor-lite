@@ -12,3 +12,6 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 )
 
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
+# Without its fixture the test has checked nothing, and ctest reports that as skipped rather
+# than as a pass.
+set_tests_properties(${PROJECT_NAME} PROPERTIES SKIP_RETURN_CODE 77)

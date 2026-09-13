@@ -77,6 +77,12 @@ namespace Automation {
         Timeline timeline;
         int audioClipStartTick = 0;
         int audioClipLengthTick = 0;
+        /// Where the audio material's first sample sits on the project timeline, and the span of
+        /// it the clip shows. Same meaning as on PitchExtractionInput; the task reads the visible
+        /// span of the file and places what comes back by the origin.
+        double audioMaterialOriginMs = 0.0;
+        double audioVisibleStartMs = 0.0;
+        double audioVisibleEndMs = 0.0;
         QString defaultLanguage;
         QString defaultLyric;
         QString clientRef;

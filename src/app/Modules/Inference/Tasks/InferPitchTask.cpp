@@ -208,7 +208,7 @@ bool InferPitchTask::runInference(const GenericInferModel &model, InferParam &ou
     // A failure already came back as an error from start(), so there is nothing to re-check on
     // the result. What is worth checking is the state: a run that was stopped returns a result
     // like any other, and running on with it would give a half a phrase as if it were the whole.
-    if (inferencePitch->state() == srt::ITask::Failed) {
+    if (inferencePitch->state() != srt::ITask::Succeeded) {
         qCritical().noquote().nospace() << "inferPitch: the pitch inference for " << identifier
                                         << " did not finish";
         return false;

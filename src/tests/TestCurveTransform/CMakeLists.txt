@@ -19,7 +19,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt${QT_VERSION_MAJOR}::Core
     lite::ProjectModel
     synthrt::synthrt
-    lite::dsinfer
+    dsinfer::dsinfer
 )
 
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})

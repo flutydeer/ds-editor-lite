@@ -58,30 +58,27 @@ public:
 
     /// One singer's pipeline, kept alive for as long as the lease is held.
     ///
-    /// The pipeline itself belongs to SynthrtEngine, which builds it once and caches it; what this
-    /// adds is the two things a cache needs and a raw pointer cannot give. Letting the last lease
-    /// go tells the engine to drop the pipeline, which is what closes the five models -- the only
-    /// thing here that costs real memory. And a lease knows the catalogue generation it was taken
-    /// in, so a task still holding one after a voicebank rescan can tell that its pointer no
-    /// longer means anything instead of following it.
+    /// The pipeline is shared with SynthrtEngine's other holders and owns its package, so a task
+    /// still holding one after a voicebank rescan finishes on a whole pipeline rather than a
+    /// dangling one. Letting the last lease go is what closes the five models -- the only thing
+    /// here that costs real memory. A lease also knows the catalogue generation it was taken in,
+    /// so the cache can tell that a resident lease describes a voicebank as it was scanned before
+    /// and take a fresh one instead of handing out the old.
     class SingerPipelineLease final {
     public:
-        SingerPipelineLease(SingerIdentifier identifier, lite::synthrt::SingerPipeline *pipeline,
+        SingerPipelineLease(std::shared_ptr<lite::synthrt::SingerPipeline> pipeline,
                             std::uint64_t generation);
-        ~SingerPipelineLease();
 
         SingerPipelineLease(const SingerPipelineLease &) = delete;
         SingerPipelineLease &operator=(const SingerPipelineLease &) = delete;
 
         lite::synthrt::SingerPipeline *pipeline() const noexcept;
 
-        /// True once the catalogue was republished under it. The cache drops such an entry and
-        /// takes a fresh lease rather than handing out a pointer into released packages.
+        /// True once the catalogue was republished under it.
         bool isStale() const;
 
     private:
-        SingerIdentifier m_identifier;
-        lite::synthrt::SingerPipeline *m_pipeline;
+        std::shared_ptr<lite::synthrt::SingerPipeline> m_pipeline;
         std::uint64_t m_generation;
     };
 

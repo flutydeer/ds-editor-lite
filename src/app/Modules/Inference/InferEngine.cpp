@@ -59,9 +59,11 @@ InferEngine::InferEngine(QObject *parent) : QObject(parent) {
     srt::Logger::setLogCallback(log_report_callback);
     m_singerSessionReleasePool.setMaxThreadCount(1);
 
-    // Prevent crash on app exit
-    connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, this,
-            &InferEngine::dispose);
+    // Not disposed on QCoreApplication::aboutToQuit: that signal fires when the event loop
+    // exits, while inference and extraction tasks may still be running, and shutting the runtime
+    // down under them is the crash such a hook was once meant to prevent. AppContext's
+    // destructor drains the task manager first and destroys this engine afterwards, and that
+    // order is the only one that is safe.
 
     m_singerSessionEvictionTimer.setInterval(kSingerSessionScanIntervalMilliseconds);
     m_singerSessionEvictionTimer.setTimerType(Qt::CoarseTimer);
@@ -226,22 +228,13 @@ bool InferEngine::initialize(QString &error) {
     return true;
 }
 
-InferEngine::SingerPipelineLease::SingerPipelineLease(SingerIdentifier identifier,
-                                                     lite::synthrt::SingerPipeline *pipeline,
-                                                     std::uint64_t generation)
-    : m_identifier(std::move(identifier)), m_pipeline(pipeline), m_generation(generation) {
-}
-
-InferEngine::SingerPipelineLease::~SingerPipelineLease() {
-    // Only when it still means this pipeline. After a rescan the engine has already dropped every
-    // pipeline it had, and asking it to drop one again would take the newly built one with it.
-    if (!isStale()) {
-        SynthrtEngine::instance().releasePipeline(m_identifier);
-    }
+InferEngine::SingerPipelineLease::SingerPipelineLease(
+    std::shared_ptr<lite::synthrt::SingerPipeline> pipeline, std::uint64_t generation)
+    : m_pipeline(std::move(pipeline)), m_generation(generation) {
 }
 
 lite::synthrt::SingerPipeline *InferEngine::SingerPipelineLease::pipeline() const noexcept {
-    return m_pipeline;
+    return m_pipeline.get();
 }
 
 bool InferEngine::SingerPipelineLease::isStale() const {
@@ -255,8 +248,8 @@ std::shared_ptr<InferEngine::SingerPipelineLease>
         return {};
     }
     return m_singerSessions.acquire(identifier, [&identifier] {
-        // The generation is read before the pipeline, so a rescan landing in between makes the
-        // lease stale rather than leaving it holding a pointer that was released a moment later.
+        // The generation is read before the pipeline, so a rescan landing in between marks the
+        // lease stale and the cache replaces it, rather than keeping a pipeline of the old scan.
         const auto generation = SynthrtEngine::instance().catalogGeneration();
         auto built = SynthrtEngine::instance().pipelineFor(identifier);
         if (!built) {
@@ -265,7 +258,7 @@ std::shared_ptr<InferEngine::SingerPipelineLease>
                 << QString::fromStdString(built.error().toString());
             return std::shared_ptr<SingerPipelineLease>{};
         }
-        return std::make_shared<SingerPipelineLease>(identifier, built.take(), generation);
+        return std::make_shared<SingerPipelineLease>(built.take(), generation);
     });
 }
 

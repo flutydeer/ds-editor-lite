@@ -49,8 +49,13 @@ public:
             }
 
             result = std::forward<Factory>(factory)();
-            if (result && m_retainedIdentifiers.contains(identifier)) {
-                m_entries.insert(identifier, Entry{result, result, now});
+            if (result) {
+                // Recorded whether or not the singer is retained: two callers asking for a singer
+                // nobody retains must still share one lease, since the pipeline behind it is one
+                // object and the first lease to die would take it from the other. Only a retained
+                // singer gets a resident reference that outlives its callers.
+                const bool retained = m_retainedIdentifiers.contains(identifier);
+                m_entries.insert(identifier, Entry{retained ? result : nullptr, result, now});
             }
         }
         return result;
@@ -70,7 +75,13 @@ public:
                     result.handles.push_back(std::move(it->resident));
                     ++result.released;
                 }
-                it = m_entries.erase(it);
+                // A lease somebody still holds stays known, so that the next caller shares it
+                // rather than building a second pipeline under the same name.
+                if (it->live.expired()) {
+                    it = m_entries.erase(it);
+                } else {
+                    ++it;
+                }
             }
         }
         return result;

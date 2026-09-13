@@ -122,14 +122,13 @@ void ActiveInference::clear(std::uint64_t generation) {
 }
 
 void ActiveInference::stop() {
-    srt::InferenceExecutive *executive = nullptr;
-    {
-        std::lock_guard lock(m_mutex);
-        m_stopRequested = true;
-        executive = m_executive;
-    }
-    if (executive)
-        (void) executive->stop();
+    // Held across the call: the handle clears the pointer under this mutex before the task lets
+    // go of the pipeline that owns the executive, so a stop that finds the pointer set is talking
+    // to a live object. stop() raises a flag and returns, so nothing waits behind the lock.
+    std::lock_guard lock(m_mutex);
+    m_stopRequested = true;
+    if (m_executive)
+        (void) m_executive->stop();
 }
 
 auto createParamInfo(const std::string_view tag) -> Co::InputParameterInfo {

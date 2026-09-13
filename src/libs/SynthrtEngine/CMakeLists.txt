@@ -7,6 +7,7 @@ project(SynthrtEngine LANGUAGES CXX)
 # AppContext through the SingletonRegistry.
 find_package(synthrt CONFIG REQUIRED)
 find_package(wolf CONFIG REQUIRED)
+find_package(otter CONFIG REQUIRED)
 include(${LITE_CMAKE_DIR}/LiteDsinfer.cmake)
 find_package(stdcorelib CONFIG REQUIRED)
 
@@ -23,7 +24,8 @@ target_link_libraries(SynthrtEngine PUBLIC
     lite::ProjectModel
     synthrt::synthrt
     wolf::wolf
-    lite::dsinfer
+    otter::otter
+    dsinfer::dsinfer
     stdcorelib::stdcorelib
 )
 

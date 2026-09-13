@@ -4,6 +4,7 @@
 #include <memory>
 #include <string_view>
 
+#include <synthrt/Core/PackageHandle.h>
 #include <synthrt/SVS/SingerContrib.h>
 #include <synthrt/SVS/SingerPipelineExecutive.h>
 #include <synthrt/Support/Expected.h>
@@ -31,9 +32,15 @@ namespace lite::synthrt {
     public:
         /// Builds the pipeline a singer declares.
         ///
+        /// \a package is the handle of the package holding \a singer. The pipeline keeps it, so the
+        /// declaration and the executives that borrow from it stay valid for as long as the
+        /// pipeline lives, whatever a rescan does in the meantime; the executives are destroyed
+        /// before the handle lets go, which is the order synthrt requires.
+        ///
         /// Fails when the singer's provider is absent, which is what happens to a voicebank whose
         /// contract no installed interpreter serves.
-        static srt::Expected<std::unique_ptr<SingerPipeline>> create(srt::SingerSpec &singer);
+        static srt::Expected<std::unique_ptr<SingerPipeline>> create(srt::PackageHandle package,
+                                                                     srt::SingerSpec &singer);
 
         ~SingerPipeline();
 
@@ -62,7 +69,7 @@ namespace lite::synthrt {
         const srt::ContribImportOptions *options(std::string_view role) const;
 
     private:
-        SingerPipeline(srt::SingerSpec &singer,
+        SingerPipeline(srt::PackageHandle package, srt::SingerSpec &singer,
                        std::unique_ptr<srt::SingerPipelineExecutive> pipeline);
 
         class Impl;

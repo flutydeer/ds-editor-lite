@@ -4,6 +4,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <map>
+#include <tuple>
 #include <mutex>
 #include <shared_mutex>
 #include <utility>
@@ -70,9 +71,19 @@ public:
     std::vector<srt::PackageHandle> packages;
     std::vector<lite::synthrt::SingerEntry> catalog;
 
-    /// Pipelines, built on first use, keyed the way the editor names a singer.
-    std::map<std::pair<std::string, std::string>, std::unique_ptr<lite::synthrt::SingerPipeline>>
-        pipelines;
+    /// The pipelines currently held by somebody, keyed the way the editor names a singer:
+    /// package, version and contribution. The version is part of the key for the same reason
+    /// singerOf() carries it, since two versions of one package may be loaded at once and a
+    /// pipeline built from one must not be handed out for the other. Weak, because the holders
+    /// own the pipelines: this only lets two holders share one.
+    using PipelineKey = std::tuple<std::string, std::string, std::string>;
+    std::map<PipelineKey, std::weak_ptr<lite::synthrt::SingerPipeline>> pipelines;
+
+    static PipelineKey pipelineKey(const SingerIdentifier &identifier) {
+        const auto [packageId, contributionId] = identifier.contribution();
+        return {packageId, VersionUtils::qt_to_stdc(identifier.packageVersion).toString(),
+                contributionId};
+    }
 
     /// Bumped whenever the packages a pipeline borrows from are released, so that a caller
     /// holding a pipeline can tell whether it still means anything.
@@ -97,8 +108,9 @@ public:
     }
 
     void releasePackages() {
-        // Order matters and is the reverse of construction: a pipeline owns executives that borrow
-        // from their package, so it goes before the package does.
+        // A pipeline somebody still holds keeps its own handle on its package, so releasing the
+        // engine's handles here leaves it whole; the table of shared pipelines is dropped so that
+        // the next request builds from the fresh scan rather than joining an old holder.
         pipelines.clear();
         for (auto &package : packages) {
             package.reset();
@@ -125,10 +137,9 @@ SynthrtEngine::~SynthrtEngine() {
 }
 
 fs::path SynthrtEngine::defaultPluginRoot() {
-    // The directory that *holds* the plugin trees, not one of them. Each of the three packages
-    // installs its own -- dsinfer's under plugins/, wolf's under wolf/plugins/, otter's under
-    // otter/plugins/ -- and Bootstrap appends the rest, so this has to be their common parent or
-    // every path below it is wrong by one level.
+    // The directory that *holds* the plugin tree, not the tree itself: each of the three
+    // packages installs under plugins/<library>/<category> below it, and Bootstrap appends the
+    // rest, so this has to be their common parent or every path below it is wrong by one level.
 #if defined(Q_OS_MAC)
     return MacOSUtils::getMainBundlePath() / "Contents/PlugIns";
 #elif defined(Q_OS_WIN)
@@ -261,11 +272,6 @@ srt::Expected<std::vector<lite::synthrt::SingerEntry>>
     return _impl->catalog;
 }
 
-void SynthrtEngine::releasePipeline(const SingerIdentifier &identifier) {
-    std::unique_lock lock(_impl->lifecycle);
-    _impl->pipelines.erase(identifier.contribution());
-}
-
 std::uint64_t SynthrtEngine::catalogGeneration() const noexcept {
     return _impl->generation.load(std::memory_order_acquire);
 }
@@ -308,40 +314,46 @@ fs::path SynthrtEngine::packageDirectory(const SingerIdentifier &identifier) con
     return entry ? entry->packagePath : fs::path();
 }
 
-srt::Expected<lite::synthrt::SingerPipeline *>
+srt::Expected<std::shared_ptr<lite::synthrt::SingerPipeline>>
     SynthrtEngine::pipelineFor(const SingerIdentifier &identifier) {
     std::unique_lock lock(_impl->lifecycle);
     if (!_impl->bootstrap) {
         return srt::Error(srt::Error::InvalidArgument, "the engine is not initialized");
     }
-    const auto key = identifier.contribution();
+    const auto key = Impl::pipelineKey(identifier);
     if (const auto it = _impl->pipelines.find(key); it != _impl->pipelines.end()) {
-        return it->second.get();
+        if (auto held = it->second.lock()) {
+            return held;
+        }
+        _impl->pipelines.erase(it);
     }
+    const auto &[packageId, packageVersion, contributionId] = key;
 
     // The declaration is reached through the package handle rather than kept in the catalogue: a
-    // ContribSpec belongs to its package, and a copy of the pointer would outlive a refresh.
+    // ContribSpec belongs to its package, and the pipeline takes the handle along so that the
+    // declaration outlives any refresh for as long as the pipeline does.
     srt::ContribSpec *spec = nullptr;
+    const srt::PackageHandle *owner = nullptr;
     for (auto &package : _impl->packages) {
-        if (package.id() == key.first) {
-            spec = package.contribution("singer", key.second);
+        if (package.id() == packageId && package.version().toString() == packageVersion) {
+            spec = package.contribution("singer", contributionId);
             if (spec != nullptr) {
+                owner = &package;
                 break;
             }
         }
     }
     if (spec == nullptr) {
         return srt::Error(srt::Error::FileNotFound,
-                          "no loaded voicebank holds the singer " + key.second);
+                          "no loaded voicebank holds the singer " + contributionId);
     }
 
-    auto built = lite::synthrt::SingerPipeline::create(*spec->as<srt::SingerSpec>());
+    auto built = lite::synthrt::SingerPipeline::create(*owner, *spec->as<srt::SingerSpec>());
     if (!built) {
         return built.takeError();
     }
-    auto owned = built.take();
-    auto *pipeline = owned.get();
-    _impl->pipelines.emplace(key, std::move(owned));
+    std::shared_ptr<lite::synthrt::SingerPipeline> pipeline(built.take().release());
+    _impl->pipelines[key] = pipeline;
     return pipeline;
 }
 
@@ -362,16 +374,9 @@ std::vector<lite::synthrt::AnalyzerEntry>
     return result;
 }
 
-const srt::ContribSpec *SynthrtEngine::analyzerSpec(const QString &reference) const {
-    std::shared_lock lock(_impl->lifecycle);
-    return findAnalyzer(reference);
-}
-
-const srt::ContribSpec *SynthrtEngine::findAnalyzer(const QString &reference) const {
-    // The caller holds the lifecycle lock. Separate from analyzerSpec() because createAnalyzer()
-    // already holds it, and taking a shared lock a second time is not safe to do: a writer that
-    // arrived in between blocks the second acquisition while the first is still held, which is a
-    // deadlock rather than a slow path.
+srt::ContribSpec *SynthrtEngine::findAnalyzer(const QString &reference,
+                                              const srt::PackageHandle **package) const {
+    // The caller holds the lifecycle lock.
     const auto text = reference.toStdString();
     const auto separator = text.find(':');
     if (separator == std::string::npos) {
@@ -384,9 +389,12 @@ const srt::ContribSpec *SynthrtEngine::findAnalyzer(const QString &reference) co
         return nullptr;
     }
     const auto contributionId = rest.substr(slash + 1);
-    for (const auto &package : _impl->packages) {
-        if (package.id() == packageId) {
-            if (auto *spec = package.contribution(otter::ANALYSIS_CATEGORY, contributionId)) {
+    for (const auto &candidate : _impl->packages) {
+        if (candidate.id() == packageId) {
+            if (auto *spec = candidate.contribution(otter::ANALYSIS_CATEGORY, contributionId)) {
+                if (package != nullptr) {
+                    *package = &candidate;
+                }
                 return spec;
             }
         }
@@ -394,10 +402,11 @@ const srt::ContribSpec *SynthrtEngine::findAnalyzer(const QString &reference) co
     return nullptr;
 }
 
-srt::Expected<std::unique_ptr<otter::AnalysisExecutive>>
+srt::Expected<SynthrtEngine::AnalyzerLease>
     SynthrtEngine::createAnalyzer(const QString &reference) {
     std::shared_lock lock(_impl->lifecycle);
-    const auto *spec = findAnalyzer(reference);
+    const srt::PackageHandle *package = nullptr;
+    auto *spec = findAnalyzer(reference, &package);
     if (spec == nullptr) {
         return srt::Error(srt::Error::FileNotFound,
                           "no installed package holds the analyser "
@@ -405,7 +414,7 @@ srt::Expected<std::unique_ptr<otter::AnalysisExecutive>>
     }
     // Which extension to ask for depends on the contract, since each is keyed on its own
     // executive type. A contract this build does not know is refused rather than guessed at.
-    auto *analysis = const_cast<srt::ContribSpec *>(spec)->as<otter::AnalysisSpec>();
+    auto *analysis = spec->as<otter::AnalysisSpec>();
     srt::ContribSpecExtension *extension = nullptr;
     if (spec->interface() == otter::Api::F0::L1::API_INTERFACE) {
         extension =
@@ -419,12 +428,23 @@ srt::Expected<std::unique_ptr<otter::AnalysisExecutive>>
                           "this analyser declares a contract no installed provider serves");
     }
 
-    if (spec->interface() == otter::Api::F0::L1::API_INTERFACE) {
-        otter::Api::F0::L1::F0RuntimeOptions options(spec->variant());
-        return extension->as<otter::AnalysisExtension>()->createAnalyzer(options);
+    auto created = [&]() -> srt::Expected<std::unique_ptr<otter::AnalysisExecutive>> {
+        auto *analysisExtension = extension->as<otter::AnalysisExtension>();
+        if (spec->interface() == otter::Api::F0::L1::API_INTERFACE) {
+            otter::Api::F0::L1::F0RuntimeOptions options(spec->variant());
+            return analysisExtension->createAnalyzer(options);
+        }
+        otter::Api::Note::L1::NoteRuntimeOptions options(spec->variant());
+        return analysisExtension->createAnalyzer(options);
+    }();
+    if (!created) {
+        return created.takeError();
     }
-    otter::Api::Note::L1::NoteRuntimeOptions options(spec->variant());
-    return extension->as<otter::AnalysisExtension>()->createAnalyzer(options);
+    AnalyzerLease lease;
+    lease.package = *package;
+    lease.spec = spec;
+    lease.executive = created.take();
+    return lease;
 }
 
 QStringList SynthrtEngine::languagesOf(const SingerIdentifier &identifier) const {

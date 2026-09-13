@@ -124,25 +124,21 @@ public:
 
     // === Inference ===
 
-    /// The pipeline for a singer, built on first use and kept.
+    /// The pipeline for a singer, shared with everyone who currently holds it.
     ///
-    /// The returned pointer belongs to the engine and stays valid until the next refresh or
-    /// shutdown. A caller holding one across a refresh holds a dangling pointer, which is why it
-    /// is asked for per use rather than cached by the caller.
-    srt::Expected<lite::synthrt::SingerPipeline *> pipelineFor(const SingerIdentifier &identifier);
-
-    /// Drops a singer's pipeline, closing the five models it opened.
-    ///
-    /// The declarations stay loaded, which costs nothing; what a pipeline holds is the models, and
-    /// those are the reason a host evicts anything. Building it again is a matter of asking for it.
-    void releasePipeline(const SingerIdentifier &identifier);
+    /// Built on first use; while any holder keeps it, a second request returns the same one, so
+    /// the five models it opened are opened once. The pipeline keeps its package loaded, so a
+    /// holder may keep it across a refresh and finish what it was doing; letting the last
+    /// reference go is what closes the models. The engine keeps no reference of its own: what to
+    /// retain, and for how long, is the caller's policy.
+    srt::Expected<std::shared_ptr<lite::synthrt::SingerPipeline>>
+        pipelineFor(const SingerIdentifier &identifier);
 
     /// Counts republications of the catalogue.
     ///
-    /// A pipeline pointer belongs to the engine and stops being valid when the packages behind it
-    /// are released. A caller that holds one across a refresh has no way to notice that from the
-    /// pointer, so it notices from this instead: read it when the pointer was taken, compare
-    /// before using it again.
+    /// A pipeline taken before a refresh stays usable, but describes the voicebank as it was
+    /// scanned then. A cache that wants the current one reads this when it takes a pipeline and
+    /// compares before reusing it.
     std::uint64_t catalogGeneration() const noexcept;
 
     // === Analysis ===
@@ -155,16 +151,26 @@ public:
     std::vector<lite::synthrt::AnalyzerEntry>
         analyzers(const QString &interfaceName = QString()) const;
 
+    /// An analyser together with the package it borrows from.
+    ///
+    /// The executive reads its declaration, and the declaration belongs to the package. A refresh
+    /// that released the package while an extraction ran would leave the executive over freed
+    /// memory, and synthrt refuses to release a package whose executives are still alive. The
+    /// handle keeps the package loaded for as long as the lease lives, and the members are
+    /// declared so that the executive is destroyed before the handle lets go.
+    struct AnalyzerLease {
+        srt::PackageHandle package;
+        /// The declaration behind the reference, for reading what format the analyser needs.
+        /// Valid for as long as \c package is held.
+        const srt::ContribSpec *spec = nullptr;
+        std::unique_ptr<otter::AnalysisExecutive> executive;
+    };
+
     /// Builds an analyser from the reference the editor stored, or says why it could not.
     ///
-    /// The returned executive belongs to the caller and must be destroyed before the next refresh.
     /// Unlike a pipeline it is not cached: an extraction is a one-off, and holding a model open
     /// between two of them costs memory for nothing.
-    srt::Expected<std::unique_ptr<otter::AnalysisExecutive>>
-        createAnalyzer(const QString &reference);
-
-    /// The declaration behind a reference, for reading what format it needs. Null when absent.
-    const srt::ContribSpec *analyzerSpec(const QString &reference) const;
+    srt::Expected<AnalyzerLease> createAnalyzer(const QString &reference);
 
     // === Language ===
 
@@ -203,8 +209,10 @@ public:
     srt::SynthUnit &unit();
 
 private:
-    /// The same lookup as analyzerSpec(), for callers that already hold the lifecycle lock.
-    const srt::ContribSpec *findAnalyzer(const QString &reference) const;
+    /// Finds an analyser's declaration and, when asked, the handle of the package holding it.
+    /// For callers that already hold the lifecycle lock.
+    srt::ContribSpec *findAnalyzer(const QString &reference,
+                                   const srt::PackageHandle **package = nullptr) const;
 
     class Impl;
     std::unique_ptr<Impl> _impl;

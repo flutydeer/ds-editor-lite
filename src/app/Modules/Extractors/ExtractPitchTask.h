@@ -1,13 +1,9 @@
 #ifndef EXTRACTPITCHTASK_H
 #define EXTRACTPITCHTASK_H
 
+#include <QList>
+
 #include "ExtractTask.h"
-
-#include <memory>
-
-#include <QMutex>
-
-#include <otter/Analysis/AnalysisExecutive.h>
 
 class ExtractPitchTask final : public ExtractTask {
     Q_OBJECT
@@ -19,8 +15,6 @@ public:
     };
 
     explicit ExtractPitchTask(Input input);
-
-    void terminate() override;
 
     QList<ResultSegment> result;
 
@@ -36,8 +30,5 @@ private:
     /// curve.
     ResultSegment placeOnTimeline(const QList<double> &values, double startMs,
                                   double intervalMs) const;
-
-    mutable QMutex m_analyzerMutex;
-    otter::AnalysisExecutive *m_analyzer = nullptr;
 };
 #endif // EXTRACTPITCHTASK_H

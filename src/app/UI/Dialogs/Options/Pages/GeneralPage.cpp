@@ -144,10 +144,10 @@ QWidget *GeneralPage::createContentWidget() {
     };
 
     m_cbNoteAnalyzer = new ComboBox;
-    fillAnalyzers(m_cbNoteAnalyzer, QStringLiteral("org.openvpi.analysis.Note"),
+    fillAnalyzers(m_cbNoteAnalyzer, QStringLiteral("org.openvpi.otter.analysis.Note"),
                   option->noteAnalyzer);
     m_cbPitchAnalyzer = new ComboBox;
-    fillAnalyzers(m_cbPitchAnalyzer, QStringLiteral("org.openvpi.analysis.F0"),
+    fillAnalyzers(m_cbPitchAnalyzer, QStringLiteral("org.openvpi.otter.analysis.F0"),
                   option->pitchAnalyzer);
     m_fsLibreSVIPPath = new FileSelector;
     m_fsLibreSVIPPath->setMinimumWidth(480);

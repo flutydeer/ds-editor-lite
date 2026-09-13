@@ -91,7 +91,7 @@ lite_add_application(${PROJECT_NAME}
         synthrt::synthrt
         wolf::wolf
         otter::otter
-        lite::dsinfer
+        dsinfer::dsinfer
         SndFile::sndfile
         re2::re2
 )

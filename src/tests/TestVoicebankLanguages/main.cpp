@@ -217,8 +217,8 @@ int main(int argc, char *argv[]) {
     expect(python.exitCode() == 0, "the converter must succeed, said: " + diagnostics.left(600));
 
     const auto singer = read(QDir(converted).filePath("characters/singer/config.json"));
-    const auto languages = singer.value("configuration").toObject()
-                               .value("languages").toObject();
+    // The map is a singer category field in the declaration root, where synthrt reads it.
+    const auto languages = singer.value("languages").toObject();
 
     // Mandarin brought a dictionary and onset rules, so it keeps them: the linguist is built here
     // and only its grapheme stage reaches out to the package.
@@ -256,8 +256,7 @@ int main(int argc, char *argv[]) {
     // AP is bare in the table, so it is reserved, and the singer says so where the loader will
     // check it again.
     QStringList reserved;
-    for (const auto &value : singer.value("configuration").toObject()
-                                 .value("reservedPhonemes").toArray()) {
+    for (const auto &value : singer.value("reservedPhonemes").toArray()) {
         reserved << value.toString();
     }
     expect(reserved == QStringList{"AP"},
@@ -315,7 +314,6 @@ int main(int argc, char *argv[]) {
     const auto insisted = QString::fromUtf8(again.readAllStandardError());
     QStringList stillReserved;
     for (const auto &value : read(QDir(named).filePath("characters/singer/config.json"))
-                                 .value("configuration").toObject()
                                  .value("reservedPhonemes").toArray()) {
         stillReserved << value.toString();
     }

@@ -1,3 +1,5 @@
+#include <cerrno>
+#include <csignal>
 #include <Bootstrap/SingleInstanceCoordinator.h>
 #include <Bootstrap/SingleInstanceIdentity.h>
 #include <BootstrapWatcher.h>
@@ -444,8 +446,11 @@ namespace {
         return true;
     }
 
-    bool processIsRunning(qint64) {
-        return false;
+    bool processIsRunning(const qint64 processId) {
+        // A process that has exited but not been reaped still answers, which is the
+        // conservative reading: what the test waits for is the lock and the listeners to be
+        // released, and those go before the process does.
+        return processId > 0 && (kill(static_cast<pid_t>(processId), 0) == 0 || errno == EPERM);
     }
 
     qint64 findOwnedProcess(const QString &, const QString &, const QStringList &, qint64) {

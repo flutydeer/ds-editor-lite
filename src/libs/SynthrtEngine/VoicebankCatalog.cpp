@@ -227,15 +227,9 @@ namespace lite::synthrt {
             }
         }
 
-        // Reserved phonemes are the singer's own, not a model's, so they come from its
-        // configuration rather than from anything it imports. Read through the contract identity
-        // because a singer of another variant has a configuration of another shape.
-        if (singer.interface() == Ds::API_INTERFACE && singer.variant() == Ds::API_VARIANT) {
-            if (const auto *configuration =
-                    static_cast<const Ds::DiffSingerConfiguration *>(singer.configuration())) {
-                result.reservedPhonemes = configuration->reservedPhonemes;
-            }
-        }
+        // Reserved phonemes are the singer category's own field, read by synthrt for every
+        // singer contract alike; the singer's validator has already checked its models know them.
+        result.reservedPhonemes = singer.reservedPhonemes();
 
         // Languages come from wolf rather than from dsinfer: on this line a language is a linguist
         // contribution, and the singer's map names which of its imports leads to each one.

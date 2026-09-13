@@ -44,6 +44,7 @@ synthesises and simply has no grapheme-to-phoneme for that language.
 
 import argparse
 import json
+import re
 import os
 import shutil
 import sys
@@ -117,12 +118,35 @@ def write_json(path: Path, value) -> None:
     path.write_text(json.dumps(value, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
 
 
-def four_part(version: str) -> str:
-    """Pads a version to the four components 2.4 requires."""
-    parts = [part for part in str(version).split(".") if part != ""]
+VERSION = re.compile(r"(0|[1-9][0-9]*)(\.(0|[1-9][0-9]*)){0,3}")
+SEGMENT = re.compile(r"[A-Za-z0-9_-]+")
+PACKAGE_ID = re.compile(r"[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*")
+
+
+def four_part(version, report: Report, where: str):
+    """Checks a version against the grammar 2.4 gives and pads it to four components.
+
+    One to four decimal components, no leading zeros. A version the grammar refuses is reported
+    and returns None, since padding it would only move the refusal to load time.
+    """
+    text = str(version)
+    if not VERSION.fullmatch(text):
+        report.error(f"{where}: version {text!r} is not one to four decimal components without "
+                     f"leading zeros")
+        return None
+    parts = text.split(".")
     while len(parts) < 4:
         parts.append("0")
-    return ".".join(parts[:4])
+    return ".".join(parts)
+
+
+def check_identifier(value, pattern: re.Pattern, kind: str, report: Report, where: str) -> bool:
+    """Reports a structural identifier or role the specification's grammar refuses."""
+    if isinstance(value, str) and pattern.fullmatch(value):
+        return True
+    report.error(f"{where}: {kind} {value!r} may only use ASCII letters, digits, '_' and '-'"
+                 + (" in '/' separated segments" if pattern is PACKAGE_ID else ""))
+    return False
 
 
 def read_table(path: Path, report: Report):
@@ -338,12 +362,16 @@ def read_package_index(directory: Path, report: Report) -> dict:
                                 f"{identifier}; keeping the first")
                     continue
                 linguist, scheme = linguists.get(handle, (None, None))
+                # The version the package says it is compatible back to, not the version it
+                # happens to be: a dependency written against the current build stops
+                # resolving the day the packaging revision moves.
+                compatible = four_part(desc.get("compatVersion", desc.get("version", "0.0.0.0")),
+                                       report, f"{identifier}: desc.json")
+                if compatible is None:
+                    continue
                 index[handle] = {
                     "package": identifier,
-                    # The version the package says it is compatible back to, not the version it
-                    # happens to be: a dependency written against the current build stops
-                    # resolving the day the packaging revision moves.
-                    "version": four_part(desc.get("compatVersion", desc.get("version", "0.0.0.0"))),
+                    "version": compatible,
                     "g2p": f"{identifier}:{locator}",
                     "linguist": linguist,
                     "scheme": scheme or SCHEMES.get(handle),
@@ -621,22 +649,28 @@ def convert_singer_imports(root: Path, path: Path, kinds: dict, overrides: dict,
 
     # Declared on the singer, because it is the singer's models that have to have them and the
     # singer is what a host holds. The same set is kept out of every language's inventory below,
-    # so the two statements cannot disagree.
+    # so the two statements cannot disagree. It is a singer category field in the declaration
+    # root, like the language map below, not part of the variant's configuration.
+    configuration.pop("reservedPhonemes", None)
+    declaration.pop("reservedPhonemes", None)
     if reserved:
-        configuration["reservedPhonemes"] = sorted(reserved)
-    else:
-        configuration.pop("reservedPhonemes", None)
+        declaration["reservedPhonemes"] = sorted(reserved)
 
+    # The two fields are the singer category's own, read by synthrt before any provider is chosen
+    # and checked there for shape and for roles that exist. They sit in the declaration root beside
+    # the avatar, not inside configuration, which belongs to the singer variant alone.
+    declaration.pop("languages", None)
+    declaration.pop("defaultLanguage", None)
     if bound:
-        configuration["languages"] = bound
+        declaration["languages"] = bound
         # A singer that declares languages must name a default among them.
         if default_language in bound:
-            configuration["defaultLanguage"] = default_language
+            declaration["defaultLanguage"] = default_language
         else:
-            configuration["defaultLanguage"] = next(iter(bound))
+            declaration["defaultLanguage"] = next(iter(bound))
             if default_language is not None:
                 report.warn(f"{path.parent.name}: default language {default_language!r} was not "
-                            f"bound; using {configuration['defaultLanguage']!r} instead")
+                            f"bound; using {declaration['defaultLanguage']!r} instead")
 
     declaration["imports"] = imports
     if configuration:
@@ -706,10 +740,19 @@ def convert(root: Path, overrides: dict, index: dict, extra_reserved: set,
     for category, entries in sorted(synthesised.items()):
         contributions.setdefault(category, []).extend(entries)
 
-    version = four_part(desc.get("version", "0.0.0.0"))
+    version = four_part(desc.get("version", "0.0.0.0"), report, f"{root.name}: desc.json")
+    if version is None:
+        return
+    package_id = desc.get("id", root.name)
+    if not check_identifier(package_id, PACKAGE_ID, "package id", report, f"{root.name}: desc.json"):
+        return
+    for category, entries in contributions.items():
+        for entry in entries:
+            check_identifier(entry.get("id"), SEGMENT, f"{category} contribution id", report,
+                             f"{root.name}: desc.json")
     converted = {
         "$version": "1.0",
-        "id": desc.get("id", root.name),
+        "id": package_id,
         "version": version,
         # A converted package claims compatibility with nothing older, which is the honest answer:
         # what it was converted from could not be loaded by this runtime at all.
@@ -720,7 +763,19 @@ def convert(root: Path, overrides: dict, index: dict, extra_reserved: set,
         if carried in desc:
             converted[carried] = desc[carried]
 
-    dependencies = [entry for entry in desc.get("dependencies", []) if isinstance(entry, dict)]
+    dependencies = []
+    for entry in desc.get("dependencies", []):
+        if not isinstance(entry, dict):
+            continue
+        entry = dict(entry)
+        # 2.4 has no optional dependency: every one listed must resolve. A 2.3 `required: false`
+        # therefore turns into a hard requirement, which is said rather than done in silence.
+        if "required" in entry:
+            if entry["required"] is False:
+                report.warn(f"{root.name}: dependency {entry.get('id')!r} was optional in 2.3 and "
+                            f"is required in 2.4, which does not support optional dependencies")
+            del entry["required"]
+        dependencies.append(entry)
     declared = {entry.get("id") for entry in dependencies}
     for identifier, version in sorted(required.items()):
         if identifier not in declared:
@@ -775,7 +830,10 @@ def main() -> int:
             report.error(f"--language {binding}: a linguist in another package is named "
                          f"<package>:linguist/<id>")
             return 1
-        overrides[handle] = (reference, four_part(version or "0.0.0.0"))
+        pinned = four_part(version or "0.0.0.0", report, f"--language {binding}")
+        if pinned is None:
+            return 1
+        overrides[handle] = (reference, pinned)
 
     if args.in_place:
         if args.output:

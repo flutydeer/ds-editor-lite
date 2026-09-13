@@ -43,7 +43,7 @@ int main(int argc, char *argv[]) {
     const QString script = QStringLiteral(TEST_SCRIPT);
     if (!QDir(fixture).exists()) {
         QTextStream(stderr) << "no fixture at " << fixture << ", skipping" << Qt::endl;
-        return 0;
+        return 77;
     }
 
     QTemporaryDir out;
@@ -130,10 +130,14 @@ int main(int argc, char *argv[]) {
     // and a map entry; the other is dropped, because there is nothing on the newer line for the
     // older line's G2P settings to become.
     expect(roles.contains("lang/cmn"), "a bound language becomes an import");
-    expect(configuration.value("languages").toObject().value("cmn").toString() == "lang/cmn",
-           "and a map entry naming that role");
-    expect(configuration.value("defaultLanguage").toString() == "cmn",
+    // The map and its default are category fields in the declaration root, where synthrt's
+    // singer category reads them; a map left inside configuration would load as nothing.
+    expect(singer.value("languages").toObject().value("cmn").toString() == "lang/cmn",
+           "and a map entry naming that role in the declaration root");
+    expect(singer.value("defaultLanguage").toString() == "cmn",
            "a singer declaring languages must name a default among them");
+    expect(!configuration.contains("languages") && !configuration.contains("defaultLanguage"),
+           "the map does not also ride in configuration");
     expect(!roles.contains("lang/eng"), "an unbound language is dropped, not invented");
 
     return failures == 0 ? 0 : 1;

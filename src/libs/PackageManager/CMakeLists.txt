@@ -26,7 +26,7 @@ target_link_libraries(PackageManager PUBLIC
     lite::SynthrtEngine
     synthrt::synthrt
     wolf::wolf
-    lite::dsinfer
+    dsinfer::dsinfer
     stdcorelib::stdcorelib
 )
 

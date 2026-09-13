@@ -21,7 +21,9 @@
     "tinyexpr",
     {
       "name": "synthrt",
-      "features": []
+      "features": [
+        "onnx"
+      ]
     },
     {
       "name": "wolf",

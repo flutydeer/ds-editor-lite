@@ -37,9 +37,10 @@ CMAKE_PREFIX_PATH=<Qt> VCPKG_KEEP_ENV_VARS=CMAKE_PREFIX_PATH \
                       --x-install-root=vcpkg/installed-main
 ```
 
-**wolf 与 otter 不在任何公共 registry**：它们的 port 只在 `scripts/vcpkg-overrides/`，而只有
-`scripts/vcpkg-manifest/vcpkg.json` 声明了这个 overlay。用别的树配置必然找不到它们——根 `CMakeLists`
-会在进 `src/` 之前就拦下并说明怎么做，而不是让 `find_package` 在子目录里报一句无关的建议。
+**三个 port 在 `scripts/vcpkg-overrides/` 里**，排在共享 overlay 之前：`synthrt` 钉在 `diffscope/synthrt`
+的 `onnxruntime-builds-uptake` 分支，覆盖共享 overlay 里跟 refactor 线的同名端口；`wolf` 与 `otter`
+分别钉在 `diffscope/wolf` 与 `diffscope/otter` 的集成分支。三者都按提交取源，不需要归档哈希。wolf 与
+otter 是私有仓，安装时需要对 github.com 有读权限的 git 凭据。
 
 **旧的构建目录不能复用**：两条线都装 `lib/libsynthrt.so`，不可能共存一棵已安装树。
 
@@ -50,17 +51,18 @@ CMAKE_PREFIX_PATH=<Qt> VCPKG_KEEP_ENV_VARS=CMAKE_PREFIX_PATH \
 
 ## 2. 部署形态
 
-三个包各装各的插件树，部署保持这个形状而不拍平：
+三个包把插件装进同一棵树 `plugins/<库名>/<类别>`，部署保持这个形状：
 
 ```
 <exe>/../lib/plugins/dsinfer/{inferenceinterpreters,singerproviders,inferencedrivers}
 <exe>/../lib/plugins/dsinfer/inferencedrivers/onnx/runtime/   ← ONNX Runtime
-<exe>/../lib/wolf/plugins/{inferenceinterpreters,linguistproviders}
+<exe>/../lib/plugins/wolf/{inferenceinterpreters,linguistproviders}
+<exe>/../lib/plugins/otter/analysisproviders
 <exe>/../lib/wolf/packages/                                   ← 语言包
-<exe>/../lib/otter/plugins/analysisproviders
 ```
 
-`SynthrtEngine::defaultPluginRoot()` 指的是**这三棵树的共同父目录**，不是其中之一。
+`SynthrtEngine::defaultPluginRoot()` 指的是**持有 `plugins/` 的那个目录**，不是树本身。每个库的
+CMake 包都输出 `<LIB>_PLUGINS_DIR`（`DSINFER_PLUGINS_DIR` / `WOLF_PLUGINS_DIR` / `OTTER_PLUGINS_DIR`）。
 
 **wolf 语言包由 `LITE_WOLF_LANG_PACKAGES`（或环境变量 `WOLF_LANG_PACKAGES_SOURCE`）指过来**，因为
 wolf 的 port 不安装它们——它们由该仓脚本从资源生成，不是编译产物。按 `*/desc.json` 逐个拷贝，不拷
@@ -139,10 +141,10 @@ vcpkg 在 Linux 上没有 applocal 部署，且就算有也只部署可执行文
 
 | # | 事项 |
 | :-- | :-- |
-| 1 | **RMVPE 尚未打包**。GAME 已打成 `openvpi/game`；RMVPE 模型传输完成后按同样形状打包即可 |
+| 1 | ~~RMVPE 尚未打包~~ 已打成 `openvpi/rmvpe`，与 `openvpi/game` 两个包都按 otter 现行的声明形状（契约事实在 `exports`，模型接线在 `configuration`）书写并用真实模型实跑过 |
 | 2 | `ExtractPitchTask` / `ExtractMidiTask` 两个 Task 本身未端到端跑过（其下的分析器层已实跑）；设置页两个下拉框未实际显示过 |
-| 3 | `TestHeadlessProcessIntegration` 自重启一处失败。已逐项排除迁移嫌疑：无头宿主能起、能初始化整条 main 线、能应答 automation、能自重启且套接字仍在。属单实例/automation 子系统，需它自己的排查 |
-| 4 | wolf 与 otter 是私有仓，安装其端口需要对 github.com 有读权限的 git 凭据 |
+| 3 | ~~`TestHeadlessProcessIntegration` 自重启一处失败~~ 已修：退出与重启请求的回复在 MCP 服务器关闭前排空，宿主忽略 SIGPIPE，单实例协调器识别持有者已死的陈旧锁并对正在退出的持有者有界等待，继任进程先等前任退出 |
+| 4 | dsinfer 已不再手工定位：override 端口保留了 synthrt 安装的 `lib/cmake/dsinfer`，`cmake/LiteDsinfer.cmake` 只剩一句 `find_package(dsinfer CONFIG)` |
 | 5 | **`um` 是声库自身的缺口**：yousa 的 cmn/jpn 两本词典都声明了它，而四个模型都没有。既不能声明为 `reservedPhonemes`（整包会拒载），也不能从 `exports.phonemes` 删掉（删了就再没人会说它不可用）。需声库作者决定 |
 
 ## 8. 两条值得记下的教训

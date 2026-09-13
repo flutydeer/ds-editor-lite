@@ -212,7 +212,7 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
     // A failure already came back as an error from start(), so there is nothing to re-check on
     // the result. What is worth checking is the state: a run that was stopped returns a result
     // like any other, and running on with it would give a half a phrase as if it were the whole.
-    if (inferenceVariance->state() == srt::ITask::Failed) {
+    if (inferenceVariance->state() != srt::ITask::Succeeded) {
         qCritical().noquote().nospace() << "inferVariance: the variance inference for " << identifier
                                         << " did not finish";
         return false;

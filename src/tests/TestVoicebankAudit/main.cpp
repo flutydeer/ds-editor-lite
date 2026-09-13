@@ -261,7 +261,7 @@ int main(int argc, char *argv[]) {
     if (spec == nullptr) {
         return 1;
     }
-    auto pipeline = SingerPipeline::create(*spec);
+    auto pipeline = SingerPipeline::create(opened.front(), *spec);
     expect(static_cast<bool>(pipeline), "the pipeline builds: " + why(pipeline));
     if (pipeline) {
         auto built = pipeline.take();

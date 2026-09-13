@@ -13,12 +13,16 @@ namespace lite::synthrt {
 
     class SingerPipeline::Impl {
     public:
-        Impl(srt::SingerSpec &singer, std::unique_ptr<srt::SingerPipelineExecutive> pipeline)
-            : singer(&singer), pipeline(std::move(pipeline)) {
+        Impl(srt::PackageHandle package, srt::SingerSpec &singer,
+             std::unique_ptr<srt::SingerPipelineExecutive> pipeline)
+            : package(std::move(package)), singer(&singer), pipeline(std::move(pipeline)) {
         }
 
-        /// Borrowed from the package, which outlives the pipeline: a pipeline built from a
-        /// declaration cannot outlast it, since its executives point into the same package.
+        /// Declared first, so that it is released last: the declaration and every executive
+        /// below borrow from this package.
+        srt::PackageHandle package;
+
+        /// Borrowed from the package, which the handle above keeps alive.
         srt::SingerSpec *singer;
 
         /// Creates a stage once and remembers it, or remembers why it could not be created.
@@ -77,7 +81,8 @@ namespace lite::synthrt {
         std::string vocoderWhy;
     };
 
-    srt::Expected<std::unique_ptr<SingerPipeline>> SingerPipeline::create(srt::SingerSpec &singer) {
+    srt::Expected<std::unique_ptr<SingerPipeline>>
+        SingerPipeline::create(srt::PackageHandle package, srt::SingerSpec &singer) {
         auto *extension =
             srt::ContribSpecExtension::findFromSpec<Ds::DiffSingerPipelineExecutive>(singer);
         if (extension == nullptr) {
@@ -93,12 +98,13 @@ namespace lite::synthrt {
         if (!created) {
             return created.takeError().withContext("cannot build this singer's pipeline");
         }
-        return std::unique_ptr<SingerPipeline>(new SingerPipeline(singer, created.take()));
+        return std::unique_ptr<SingerPipeline>(
+            new SingerPipeline(std::move(package), singer, created.take()));
     }
 
-    SingerPipeline::SingerPipeline(srt::SingerSpec &singer,
+    SingerPipeline::SingerPipeline(srt::PackageHandle package, srt::SingerSpec &singer,
                                    std::unique_ptr<srt::SingerPipelineExecutive> pipeline)
-        : _impl(std::make_unique<Impl>(singer, std::move(pipeline))) {
+        : _impl(std::make_unique<Impl>(std::move(package), singer, std::move(pipeline))) {
     }
 
     const srt::ContribImportOptions *SingerPipeline::options(std::string_view role) const {

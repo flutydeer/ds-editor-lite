@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
     const fs::path packages(TEST_PACKAGE_DIR);
     if (!fs::is_directory(packages)) {
         std::cerr << "no packages at " << packages << ", skipping\n";
-        return 0;
+        return 77;
     }
 
     auto *engine = SingletonRegistry::create<SynthrtEngine>(nullptr);

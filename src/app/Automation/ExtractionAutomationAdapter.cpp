@@ -129,6 +129,9 @@ namespace Automation {
             result.timeline = input.timeline;
             result.audioClipStartTick = input.audioClipStartTick;
             result.audioClipLengthTick = input.audioClipLengthTick;
+            result.audioMaterialOriginMs = input.audioMaterialOriginMs;
+            result.audioVisibleStartMs = input.audioVisibleStartMs;
+            result.audioVisibleEndMs = input.audioVisibleEndMs;
             return result;
         }
 
@@ -448,7 +451,7 @@ namespace Automation {
                     QStringLiteral("The requested pitch extraction model is unavailable"));
             }
             input.analyzer = options->general()->pitchAnalyzer;
-            valid = validateAnalyzer(input.analyzer, QStringLiteral("org.openvpi.analysis.F0"),
+            valid = validateAnalyzer(input.analyzer, QStringLiteral("org.openvpi.otter.analysis.F0"),
                                      QStringLiteral("pitch_analyzer"),
                                      QStringLiteral("The pitch analyzer"));
             if (!valid)
@@ -474,7 +477,7 @@ namespace Automation {
                     QStringLiteral("The requested MIDI extraction model is unavailable"));
             }
             input.analyzer = options->general()->noteAnalyzer;
-            valid = validateAnalyzer(input.analyzer, QStringLiteral("org.openvpi.analysis.Note"),
+            valid = validateAnalyzer(input.analyzer, QStringLiteral("org.openvpi.otter.analysis.Note"),
                                      QStringLiteral("note_analyzer"),
                                      QStringLiteral("The note analyzer"));
             if (!valid)

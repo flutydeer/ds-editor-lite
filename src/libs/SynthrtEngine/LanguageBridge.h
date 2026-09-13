@@ -91,14 +91,14 @@ namespace lite::synthrt {
         /// the singer. Without it coverage is Unknown, which is not the same as zero.
         void setSingerPhonemes(const Singer &singer, std::vector<std::string> phonemes);
 
-        /// The markers a word may be, which are answered here rather than converted.
+        /// The markers a word may be for any singer that declares none of its own, which are
+        /// answered here rather than converted.
         ///
         /// A marker never reaches grapheme-to-phoneme: it comes back as its own pronunciation,
-        /// one phoneme, one onset. Defaults to the ecosystem's SP and AP, and a voicebank may
-        /// bring more of its own -- a breath, a glottal stop, a hum -- which is why this is a
-        /// setter and not a constant. Which ones a particular voicebank brings is the editor's to
-        /// read, the same way and for the same reason as its phoneme table: the language domain
-        /// does not open voicebank formats.
+        /// one phoneme, one onset. Defaults to the ecosystem's SP and AP. A voicebank that brings
+        /// more of its own -- a breath, a glottal stop, a hum -- declares them as the singer
+        /// category's reservedPhonemes, which the language session reads from the declaration
+        /// itself; this set is only the fallback for a singer that declares none.
         ///
         /// \note Reserved markers are also kept out of a linguist's declared phoneme inventory,
         ///       so a marker set that disagrees with the one a voicebank was packaged against

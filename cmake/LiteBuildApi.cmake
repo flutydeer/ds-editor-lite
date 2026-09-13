@@ -124,14 +124,12 @@ function(lite_deploy_application _target)
         )
     endif()
 
-    # Where the plugin trees come from, and where they go.
+    # Where the plugin tree comes from, and where it goes.
     #
     # On the main line a category is the unit of discovery and each of the three packages installs
-    # its own tree, so there are three roots rather than one: dsinfer's under `plugins/`, wolf's
-    # under `wolf/plugins/` and otter's under `otter/plugins/`. They are deployed keeping that
-    # shape, because SynthrtEngine::defaultPluginRoot() names the directory that holds all three
-    # and Bootstrap appends the rest. Flattening them here would mean teaching the engine a second
-    # layout that exists only in a deployed tree.
+    # its own plugins under `plugins/<library>/<category>`, so one tree holds all of them. It is
+    # deployed keeping that shape, because SynthrtEngine::defaultPluginRoot() names the directory
+    # that holds it and Bootstrap appends the rest.
     set(_lite_vcpkg_root "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
         set(_lite_plugin_source "${_lite_vcpkg_root}/debug/lib")
@@ -157,17 +155,17 @@ function(lite_deploy_application _target)
         set(_lite_plugin_destination $<TARGET_FILE_DIR:${_target}>/../lib)
     endif()
 
-    foreach(_tree IN ITEMS plugins wolf otter)
-        if(EXISTS "${_lite_plugin_source}/${_tree}")
+    foreach(_library IN ITEMS dsinfer wolf otter)
+        if(EXISTS "${_lite_plugin_source}/plugins/${_library}")
             qm_add_copy_command(${_target}
-                SOURCES ${_lite_plugin_source}/${_tree}/
-                DESTINATION ${_lite_plugin_destination}/${_tree}
+                SOURCES ${_lite_plugin_source}/plugins/${_library}/
+                DESTINATION ${_lite_plugin_destination}/plugins/${_library}
                 ${_install_copy_args}
             )
         else()
             message(WARNING
-                "No ${_tree} plugin tree at ${_lite_plugin_source}; whatever it provides will be "
-                "missing at runtime.")
+                "No ${_library} plugin tree at ${_lite_plugin_source}/plugins; whatever it "
+                "provides will be missing at runtime.")
         endif()
     endforeach()
 

@@ -54,6 +54,13 @@ namespace lite::synthrt {
     srt::Expected<std::unique_ptr<Bootstrap>>
         Bootstrap::create(const fs::path &pluginRoot, const std::vector<fs::path> &packagePaths,
                           const fs::path &runtimePath, Backend backend, int deviceIndex) {
+        // Named once so that a linker that drops unreferenced libraries, as ELF linkers do under
+        // --as-needed and the MSVC linker does for every import library, keeps the two whose
+        // static initializers register the linguist and analysis categories. Before the unit is
+        // constructed, since a unit reads the registry once, when it is built.
+        wolf::linkLinguistCategory();
+        otter::linkAnalysisCategory();
+
         std::unique_ptr<Bootstrap> result(new Bootstrap());
         auto &impl = *result->_impl;
 
@@ -62,11 +69,13 @@ namespace lite::synthrt {
         // One search path per category. The refactor line named a separate plugin interface for
         // every interpreter kind; here the category is the unit of discovery, which is why adding
         // a domain adds one line rather than five.
+        // Every library layered on synthrt installs its plugins under plugins/<library>/<category>,
+        // so one root holds all of them and a category lists one directory per library.
         const fs::path inference[] = {pluginRoot / "plugins/dsinfer/inferenceinterpreters",
-                                      pluginRoot / "wolf/plugins/inferenceinterpreters"};
+                                      pluginRoot / "plugins/wolf/inferenceinterpreters"};
         const fs::path singer[] = {pluginRoot / "plugins/dsinfer/singerproviders"};
-        const fs::path linguist[] = {pluginRoot / "wolf/plugins/linguistproviders"};
-        const fs::path analysis[] = {pluginRoot / "otter/plugins/analysisproviders"};
+        const fs::path linguist[] = {pluginRoot / "plugins/wolf/linguistproviders"};
+        const fs::path analysis[] = {pluginRoot / "plugins/otter/analysisproviders"};
         impl.unit.setPluginPaths("inference", inference);
         impl.unit.setPluginPaths("singer", singer);
         impl.unit.setPluginPaths(wolf::LINGUIST_CATEGORY, linguist);

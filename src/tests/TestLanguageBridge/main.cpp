@@ -38,7 +38,7 @@ int main() {
     const fs::path packages(TEST_PACKAGE_DIR);
     if (!fs::is_directory(packages)) {
         std::cerr << "no packages at " << packages << ", skipping\n";
-        return 0;
+        return 77;
     }
 
     auto booted = lite::synthrt::Bootstrap::create(fs::path(TEST_PLUGIN_ROOT), {packages},

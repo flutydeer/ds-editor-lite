@@ -21,7 +21,7 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         synthrt::synthrt
         wolf::wolf
         otter::otter
-        lite::dsinfer
+        dsinfer::dsinfer
 )
 
 # The package under test is produced by the converter from the editor's own 2.3 fixture, so the
@@ -50,3 +50,6 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
 )
 
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
+# Without its fixture the test has checked nothing, and ctest reports that as skipped rather
+# than as a pass.
+set_tests_properties(${PROJECT_NAME} PROPERTIES SKIP_RETURN_CODE 77)
