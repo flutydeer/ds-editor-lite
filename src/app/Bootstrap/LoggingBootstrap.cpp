@@ -16,7 +16,7 @@ namespace LoggingBootstrap {
         qInfo() << "--------- GPU Info End ---------";
     }
 
-    void init() {
+    void init(const StartupArguments::RemoteLogTarget &remoteLog) {
         // 设置日志等级和过滤器
         QDir appDataDir(QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first());
         if (!appDataDir.exists()) {
@@ -27,6 +27,8 @@ namespace LoggingBootstrap {
         Log::setLogDirectory(
             QStandardPaths::standardLocations(QStandardPaths::AppDataLocation).first() + "/Logs");
 #endif
+        // Mirror before the startup diagnostics below, so those are reported too.
+        Log::setRemoteLogTarget(remoteLog.host, remoteLog.port);
         Log::setConsoleLogLevel(Log::Debug);
         // Log::setConsoleTagFilter({"InferPipeline"});
         Log::logSystemInfo();

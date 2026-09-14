@@ -5,8 +5,11 @@
 #include <QDateTime>
 #include <QDir>
 #include <QFileInfo>
+#include <QHostAddress>
+#include <QHostInfo>
 #include <QScopeGuard>
 #include <QSysInfo>
+#include <QUdpSocket>
 
 #include <iostream>
 #include <mutex>
@@ -80,6 +83,56 @@ private:
     std::streambuf *m_oldBuf;
     std::mutex m_mutex;
     std::string m_lineBuffer;
+};
+
+// ========================================================================
+// RemoteLogSink -- mirrors log messages to a UDP endpoint
+// ========================================================================
+// See Log::setRemoteLogTarget(). The socket is created and destroyed on the
+// thread that configures the target (the main thread at startup), but written
+// from whichever thread logs. Log::m_mutex serializes those writes and UDP
+// sends are fire-and-forget, so an unreachable debug host cannot block or
+// break a logging caller.
+// ========================================================================
+class Log::RemoteLogSink {
+public:
+    bool open(const QString &host, const quint16 port, QString &error) {
+        QHostAddress address;
+        if (!address.setAddress(host)) {
+            // Host names are resolved once, at startup, so the blocking lookup
+            // never lands on a logging call path.
+            const auto addresses = QHostInfo::fromName(host).addresses();
+            for (const auto &candidate : addresses) {
+                if (candidate.protocol() == QAbstractSocket::IPv4Protocol) {
+                    address = candidate;
+                    break;
+                }
+            }
+            if (address.isNull() && !addresses.isEmpty())
+                address = addresses.first();
+        }
+        if (address.isNull()) {
+            error = QStringLiteral("Unable to resolve remote log host \"%1\"").arg(host);
+            return false;
+        }
+        m_address = address;
+        m_port = port;
+        m_socket = std::make_unique<QUdpSocket>();
+        return true;
+    }
+
+    [[nodiscard]] QString describe() const {
+        return QStringLiteral("udp://%1:%2").arg(m_address.toString()).arg(m_port);
+    }
+
+    void send(const QByteArray &payload) {
+        m_socket->writeDatagram(payload, m_address, m_port);
+    }
+
+private:
+    std::unique_ptr<QUdpSocket> m_socket;
+    QHostAddress m_address;
+    quint16 m_port = 0;
 };
 
 QString Log::LogMessage::toPlainText() const {
@@ -210,6 +263,31 @@ QString Log::logDirectory() {
     return self->m_logDirectory;
 }
 
+void Log::setRemoteLogTarget(const QString &host, const quint16 port) {
+    QString error;
+    QString description;
+    std::unique_ptr<RemoteLogSink> sink;
+    if (!host.isEmpty() && port != 0) {
+        sink = std::make_unique<RemoteLogSink>();
+        if (sink->open(host, port, error))
+            description = sink->describe();
+        else
+            sink.reset();
+    }
+
+    {
+        const auto self = instance();
+        QMutexLocker lock(&self->m_mutex);
+        self->m_remoteLogSink = std::move(sink);
+    }
+
+    // Report outside the lock, since logging acquires the mutex again
+    if (!error.isEmpty())
+        e(QStringLiteral("Log"), error);
+    else if (!description.isEmpty())
+        i(QStringLiteral("Log"), QStringLiteral("Mirroring log output to %1").arg(description));
+}
+
 void Log::d(const QString &tag, const QString &msg) {
     instance()->log(LogMessage(timeStr(), Debug, tag, msg));
 }
@@ -290,8 +368,13 @@ void Log::log(const LogMessage &message) {
             consoleStream << message.toConsoleText() << Qt::endl;
         }
 
-        if (m_logToFile && m_logFile.isOpen())
-            m_fileStream << message.toPlainText() << Qt::endl; // Qt::endl flushes the stream
+        if ((m_logToFile && m_logFile.isOpen()) || m_remoteLogSink) {
+            const auto plainText = message.toPlainText();
+            if (m_logToFile && m_logFile.isOpen())
+                m_fileStream << plainText << Qt::endl; // Qt::endl flushes the stream
+            if (m_remoteLogSink)
+                m_remoteLogSink->send(plainText.toUtf8());
+        }
     }
 
     // Forward the unfiltered message to in-app viewers (LogBus has its own lock)
