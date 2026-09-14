@@ -37,6 +37,7 @@
 build-src*
 build/
 /cmake-build*
+/install/
 *.user
 *.lnk
 Libs/*

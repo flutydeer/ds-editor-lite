@@ -162,6 +162,85 @@ namespace {
         return success;
     }
 
+    bool testRemoteLogTarget() {
+        bool success = true;
+        auto parsed = StartupArguments::parseArguments(
+            {QStringLiteral("--log-udp"), QStringLiteral("192.168.1.5:9999")});
+        success &= expect(parsed.isValid() && parsed.remoteLog &&
+                              parsed.remoteLog->host == QStringLiteral("192.168.1.5") &&
+                              parsed.remoteLog->port == 9999 && parsed.projectFilePaths.isEmpty(),
+                          QStringLiteral("a separated --log-udp host:port should parse"));
+
+        parsed = StartupArguments::parseArguments({QStringLiteral("--log-udp=devbox:1234")});
+        success &= expect(parsed.isValid() && parsed.remoteLog &&
+                              parsed.remoteLog->host == QStringLiteral("devbox") &&
+                              parsed.remoteLog->port == 1234,
+                          QStringLiteral("an attached --log-udp value should parse"));
+
+        parsed = StartupArguments::parseArguments({QStringLiteral("--log-udp"), QStringLiteral("::1:9999")});
+        success &= expect(parsed.isValid() && parsed.remoteLog &&
+                              parsed.remoteLog->host == QStringLiteral("::1") &&
+                              parsed.remoteLog->port == 9999,
+                          QStringLiteral("a bare IPv6 literal should split on the last colon"));
+
+        parsed = StartupArguments::parseArguments({QStringLiteral("--log-udp"), QStringLiteral("[::1]:9999")});
+        success &= expect(parsed.isValid() && parsed.remoteLog &&
+                              parsed.remoteLog->host == QStringLiteral("::1"),
+                          QStringLiteral("a bracketed IPv6 literal should drop its brackets"));
+
+        parsed = StartupArguments::parseArguments(
+            {QStringLiteral("--log-udp"), QStringLiteral("devbox:9999"), QStringLiteral("song.dspx")});
+        success &= expect(parsed.isValid() && parsed.remoteLog && parsed.projectFilePaths.size() == 1,
+                          QStringLiteral("--log-udp must not swallow a following project path"));
+
+        parsed = StartupArguments::parseArguments({QStringLiteral("--log-udp")});
+        success &= expect(!parsed.isValid() &&
+                              parsed.error->code == StartupArguments::ParseErrorCode::MissingValue,
+                          QStringLiteral("a bare --log-udp should report a missing value"));
+
+        parsed = StartupArguments::parseArguments({QStringLiteral("--log-udp"), QStringLiteral("devbox")});
+        success &=
+            expect(!parsed.isValid() &&
+                       parsed.error->code == StartupArguments::ParseErrorCode::InvalidValue,
+                   QStringLiteral("--log-udp without a port should be rejected"));
+
+        parsed = StartupArguments::parseArguments({QStringLiteral("--log-udp"), QStringLiteral(":9999")});
+        success &=
+            expect(!parsed.isValid() &&
+                       parsed.error->code == StartupArguments::ParseErrorCode::InvalidValue,
+                   QStringLiteral("--log-udp without a host should be rejected"));
+
+        parsed = StartupArguments::parseArguments({QStringLiteral("--log-udp"), QStringLiteral("devbox:0")});
+        success &=
+            expect(!parsed.isValid() &&
+                       parsed.error->code == StartupArguments::ParseErrorCode::InvalidValue,
+                   QStringLiteral("port 0 should not be a usable log target"));
+
+        parsed = StartupArguments::parseArguments({QStringLiteral("--log-udp"), QStringLiteral("devbox:65536")});
+        success &=
+            expect(!parsed.isValid() &&
+                       parsed.error->code == StartupArguments::ParseErrorCode::InvalidValue,
+                   QStringLiteral("log ports above 65535 should fail clearly"));
+
+        parsed = StartupArguments::parseArguments(
+            {QStringLiteral("--log-udp=devbox:9999"), QStringLiteral("--log-udp=otherbox:9999")});
+        success &=
+            expect(!parsed.isValid() &&
+                       parsed.error->code == StartupArguments::ParseErrorCode::ConflictingOptions,
+                   QStringLiteral("different repeated --log-udp targets should conflict"));
+
+        parsed = StartupArguments::parseArguments(
+            {QStringLiteral("--log-udp=devbox:9999"), QStringLiteral("--log-udp=devbox:9999")});
+        success &= expect(parsed.isValid() && parsed.remoteLog &&
+                              parsed.remoteLog->host == QStringLiteral("devbox"),
+                          QStringLiteral("repeating the same --log-udp target should be accepted"));
+
+        parsed = StartupArguments::parseArguments({QStringLiteral("--mcp")});
+        success &= expect(parsed.isValid() && !parsed.remoteLog,
+                          QStringLiteral("log mirroring should stay off unless requested"));
+        return success;
+    }
+
     bool testEffectiveConfigDoesNotMutatePersistence() {
         AutomationOption persisted;
         persisted.mcpEnabled = false;
@@ -205,6 +284,7 @@ int main(int argc, char *argv[]) {
     success &= testMissingAndConflictingOptions();
     success &= testUnknownOptionAndDelimiter(workingDirectory.path());
     success &= testHostModePreparse();
+    success &= testRemoteLogTarget();
     success &= testEffectiveConfigDoesNotMutatePersistence();
     return success ? 0 : 1;
 }

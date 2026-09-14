@@ -2,6 +2,7 @@
 
 #include <QCoreApplication>
 #include <QTextStream>
+#include <QTimer>
 
 #include <functional>
 
@@ -42,11 +43,75 @@ namespace {
         result.validatedOnly = validateOnly;
         return result;
     }
+
+    bool testInvocationSourceCapture() {
+        using namespace Automation;
+        DocumentSession first(nullptr, nullptr);
+        DocumentSession second(nullptr, nullptr);
+        FakeResolver resolver(first, second);
+        SingleWindowContext window;
+        AutomationDispatcher dispatcher(resolver, window);
+        bool ok = true;
+        InvocationSource deferredSource = InvocationSource::TrustedGui;
+        InvocationSource sourceAfterReturn = InvocationSource::InternalAutomation;
+        for (const auto source : {InvocationSource::PublicMcp, InvocationSource::PublicJsonRpc}) {
+            CommandContext context{.expected = first.version(), .source = source};
+            const auto admitted = dispatcher.admitDocumentTask(context);
+            ok &= expect(admitted && context.source == InvocationSource::PublicTaskContinuation,
+                         "admitted public tasks must retain their non-interactive source");
+            const auto result = dispatcher.dispatchDocumentCommand(
+                QStringLiteral("test.source"), context,
+                [&](DocumentSession &session, const bool validateOnly) {
+                    const auto captured = dispatcher.currentInvocationSource();
+                    QTimer::singleShot(0, QCoreApplication::instance(), [&, captured] {
+                        deferredSource = captured;
+                        sourceAfterReturn = dispatcher.currentInvocationSource();
+                    });
+                    const auto nested = dispatcher.dispatchApplicationCommand<int>(
+                        QStringLiteral("test.nested"),
+                        {.source = InvocationSource::InternalAutomation},
+                        [&](bool) -> AutomationResult<int> {
+                            ok &= expect(dispatcher.currentInvocationSource() ==
+                                             InvocationSource::InternalAutomation,
+                                         "nested commands must expose their own source");
+                            return AutomationError::invalidArgument(
+                                QStringLiteral("test"), QStringLiteral("nested failure"));
+                        });
+                    ok &= expect(!nested && dispatcher.currentInvocationSource() == captured,
+                                 "failed nested commands must restore the outer source");
+                    return commit(session, validateOnly);
+                });
+            QCoreApplication::processEvents();
+            ok &= expect(result && deferredSource == InvocationSource::PublicTaskContinuation &&
+                             sourceAfterReturn == InvocationSource::TrustedGui,
+                         "deferred work must retain its captured source after dispatch returns");
+        }
+        const auto gui = dispatcher.dispatchGuiCommand<int>(
+            QStringLiteral("test.gui.source"),
+            {.windowId = *window.windowId(), .source = InvocationSource::PublicMcp},
+            [&](bool) -> AutomationResult<int> {
+                return dispatcher.currentInvocationSource() == InvocationSource::PublicMcp;
+            });
+        const auto guiDocument = dispatcher.dispatchGuiDocumentCommand<int>(
+            QStringLiteral("test.gui.document.source"),
+            {.documentId = first.documentId(),
+             .windowId = *window.windowId(),
+             .source = InvocationSource::PublicJsonRpc},
+            [&](DocumentSession &, bool) -> AutomationResult<int> {
+                return dispatcher.currentInvocationSource() == InvocationSource::PublicJsonRpc;
+            });
+        ok &= expect(gui && gui.get() && guiDocument && guiDocument.get() &&
+                         dispatcher.currentInvocationSource() == InvocationSource::TrustedGui,
+                     "GUI commands must expose and restore the caller source");
+        return ok;
+    }
 }
 
 int main(int argc, char *argv[]) {
     QCoreApplication application(argc, argv);
     bool ok = true;
+
+    ok &= testInvocationSourceCapture();
 
     Automation::DocumentSession first(nullptr, nullptr);
     Automation::DocumentSession second(nullptr, nullptr);
@@ -203,8 +268,8 @@ int main(int argc, char *argv[]) {
             publicValidationBusy.getError().code == Automation::AutomationErrorCode::Busy &&
             !rejectedTaskAdmission &&
             rejectedTaskAdmission.getError().code == Automation::AutomationErrorCode::Busy &&
-            rejectedTaskCommand.source == Automation::InvocationSource::PublicMcp &&
-            !publicBusy && publicBusy.getError().code == Automation::AutomationErrorCode::Busy &&
+            rejectedTaskCommand.source == Automation::InvocationSource::PublicMcp && !publicBusy &&
+            publicBusy.getError().code == Automation::AutomationErrorCode::Busy &&
             !stalePublicBusy &&
             stalePublicBusy.getError().code == Automation::AutomationErrorCode::Busy &&
             publicHandlerCalls == 0 && allowedControl && !staleControl &&

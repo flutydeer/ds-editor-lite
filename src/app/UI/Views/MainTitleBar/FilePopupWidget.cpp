@@ -235,7 +235,7 @@ namespace {
 
 FilePopupWidget::FilePopupWidget(QWidget *parent) : QFrame(parent) {
     setObjectName("filePopupWidget");
-    setWindowFlags(Qt::Popup | Qt::FramelessWindowHint);
+    setWindowFlags(Qt::Popup | Qt::NoDropShadowWindowHint);
     setCursor(Qt::ArrowCursor);
     // Keep this popup opaque: WA_TranslucentBackground plus DWM frame effects on the same
     // window can freeze the compositor system-wide. Corner rounding comes from DWM on

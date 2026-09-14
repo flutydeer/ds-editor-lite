@@ -319,12 +319,12 @@ namespace Automation {
                         replace->sourceKind == ProjectSourceKind::Native
                             ? QFileInfo(m_path).fileName()
                             : replace->displayName,
-                        replace->sourceKind == ProjectSourceKind::Native);
+                        replace->sourceKind == ProjectSourceKind::Native, m_path);
                 } else if (auto *append = std::get_if<AppendProjectPayload>(&prepared)) {
                     auto draft = documentDraftDto(append->model);
                     if (m_mergeMode == QStringLiteral("replace")) {
                         result = m_runtime.documents().commitOpenedDocument(
-                            m_command, draft, {}, QFileInfo(m_path).fileName(), false);
+                            m_command, draft, {}, QFileInfo(m_path).fileName(), false, m_path);
                     } else {
                         result = m_runtime.documents().commitImportedDocument(
                             m_command, draft, m_importTempo && append->importTempo,

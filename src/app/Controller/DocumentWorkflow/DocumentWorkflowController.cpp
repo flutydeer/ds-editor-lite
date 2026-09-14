@@ -7,9 +7,9 @@
 #include "Automation/CoreRuntime.h"
 #include "Automation/OperationIds.h"
 #include "Automation/ProjectAutomationDtos.h"
-#include "Controller/EditorViewController.h"
-#include "Controller/TrackController.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
+#include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/ProjectModel/AppModel/Clip.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/History/HistoryManager.h>
@@ -99,11 +99,18 @@ void DocumentWorkflowController::initializeNewDocument() {
     const auto context = runtime->documentWorkflowCommitContext(runtime->documentVersion());
     if (!context)
         return;
-    const auto result = runtime->documents().commitNewDocument(context.get(), draft);
-    if (!result)
-        return;
+    runtime->documents().commitNewDocument(context.get(), draft);
+}
+
+void DocumentWorkflowController::handleDocumentCommitted(const Automation::DocumentCommitInfo &info,
+                                                         const bool recentFilesChanged) {
+    if (!info.sourcePath.isEmpty())
+        m_lastProjectFolder = QFileInfo(info.sourcePath).absolutePath();
+    if (info.previous.documentId != info.current.document.documentId)
+        activateFirstClip({}, info.source, info.clientId, true);
     emit documentIdentityChanged();
-    activateFirstClip();
+    if (recentFilesChanged)
+        emit recentProjectFilesChanged(recentProjectFiles());
 }
 
 void DocumentWorkflowController::requestNew() {
@@ -173,22 +180,25 @@ bool DocumentWorkflowController::busy() const {
     return m_busy;
 }
 
-QString DocumentWorkflowController::projectPath() const {
+std::optional<Automation::DocumentSnapshotDto>
+    DocumentWorkflowController::documentSnapshot() const {
     auto *runtime = automationRuntime();
     if (!runtime)
-        return {};
+        return std::nullopt;
     const auto document = runtime->documents().getDocument(runtime->documentVersion().documentId);
-    return document ? document.get().path : QString();
+    return document ? std::optional(document.get()) : std::nullopt;
+}
+
+QString DocumentWorkflowController::projectPath() const {
+    const auto document = documentSnapshot();
+    return document ? document->path : QString();
 }
 
 QString DocumentWorkflowController::projectName() const {
-    auto *runtime = automationRuntime();
-    if (!runtime)
+    const auto document = documentSnapshot();
+    if (!document || (document->path.isEmpty() && document->projectName.isEmpty()))
         return tr("New Project");
-    const auto document = runtime->documents().getDocument(runtime->documentVersion().documentId);
-    if (!document || (document.get().path.isEmpty() && document.get().projectName.isEmpty()))
-        return tr("New Project");
-    return document.get().projectName;
+    return document->projectName;
 }
 
 QString DocumentWorkflowController::lastProjectFolder() const {
@@ -519,9 +529,6 @@ void DocumentWorkflowController::attemptSave() {
     if (result) {
         if (m_resumeAfterSave)
             m_pending.revisionGuard.approve(context.get().expected);
-        emit documentIdentityChanged();
-        m_lastProjectFolder = QFileInfo(m_savePath).dir().path();
-        addRecentProjectFile(m_savePath);
         if (m_resumeAfterSave) {
             m_saveResult = SaveResult::SucceededAndResume;
         } else {
@@ -741,19 +748,13 @@ bool DocumentWorkflowController::commitReplace(ReplaceProjectPayload &&payload,
                   payload.sourceKind == ProjectSourceKind::Native
                       ? QFileInfo(payload.sourcePath).fileName()
                       : payload.displayName,
-                  saved);
+                  saved, payload.sourcePath);
     if (!result) {
         logWorkflowFailure(m_pending.requestId, operationId, result.getError());
         m_error = {tr("Failed to apply project"), result.getError().message};
         return false;
     }
 
-    emit documentIdentityChanged();
-    if (payload.sourceKind == ProjectSourceKind::Native)
-        addRecentProjectFile(payload.sourcePath);
-    if (!payload.sourcePath.isEmpty())
-        m_lastProjectFolder = QFileInfo(payload.sourcePath).dir().path();
-    activateFirstClip();
     return true;
 }
 
@@ -788,28 +789,35 @@ bool DocumentWorkflowController::commitAppend(AppendProjectPayload &&payload,
     return true;
 }
 
-void DocumentWorkflowController::activateFirstClip(const QList<Track *> &preferredTracks) {
+void DocumentWorkflowController::activateFirstClip(const QList<Track *> &preferredTracks,
+                                                   const Automation::InvocationSource source,
+                                                   const QString &clientId,
+                                                   const bool clearIfMissing) {
+    auto *runtime = automationRuntime();
+    if (!runtime || !runtime->windowId())
+        return;
+    const auto version = runtime->documentVersion();
+    const Automation::GuiDocumentCommandContext context{
+        .documentId = version.documentId,
+        .expectedRevision = version.revision,
+        .windowId = *runtime->windowId(),
+        .source = source,
+        .clientId = clientId,
+    };
     const auto &tracks = preferredTracks.isEmpty() ? appModel->tracks() : preferredTracks;
     for (const auto track : tracks) {
-        const auto clips = track->clips();
-        if (clips.count() == 0)
-            continue;
-        trackController->setActiveClip(clips.toList().first()->id());
-        editorViewController->showBottomPanelPage(QStringLiteral("ClipEditor"));
-        return;
+        for (const auto clip : track->clips()) {
+            if (clip->clipType() != Clip::Singing)
+                continue;
+            runtime->facade().setActiveClip(context, Automation::ClipId(clip->id()));
+            runtime->facade().showBottomPanelPage(
+                {.windowId = *runtime->windowId(), .source = source, .clientId = clientId},
+                QStringLiteral("ClipEditor"));
+            return;
+        }
     }
-}
-
-void DocumentWorkflowController::addRecentProjectFile(const QString &path) {
-    if (QFileInfo(path).suffix().compare("dspx", Qt::CaseInsensitive) != 0)
-        return;
-    const auto normalizedPath = DocumentWorkflowPathUtils::normalizedProjectPath(path);
-    auto *runtime = automationRuntime();
-    if (!runtime)
-        return;
-    const auto result = runtime->settings().addRecentProjectFile({}, normalizedPath);
-    if (result && result.get().changed)
-        emit recentProjectFilesChanged(recentProjectFiles());
+    if (clearIfMissing)
+        runtime->facade().setActiveClip(context, std::nullopt);
 }
 
 QString DocumentWorkflowController::suggestedSavePath() const {
