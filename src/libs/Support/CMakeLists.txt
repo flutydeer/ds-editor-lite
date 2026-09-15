@@ -11,14 +11,11 @@ add_library(lite::Support ALIAS Support)
 # Public headers use Qt Core (QString/QList/QSysInfo/QVersionNumber/...) and
 # stdcorelib (VersionUtils.h exposes stdcorelib::support::VersionNumber).
 find_package(stdcorelib CONFIG REQUIRED)
-# Log's optional remote mirror writes UDP datagrams to a debug host.
-find_package(Qt6 REQUIRED COMPONENTS Network)
 # IcuWrapper is vendored at src/3rdparty/icu-wrapper (added before libs/), so
 # the IcuWrapper::IcuWrapper target is already defined — no find_package.
 target_link_libraries(Support PUBLIC
     lite::Core
     Qt${QT_VERSION_MAJOR}::Core
-    Qt${QT_VERSION_MAJOR}::Network
     stdcorelib::stdcorelib
     IcuWrapper::IcuWrapper
 )

@@ -33,25 +33,10 @@ namespace StartupArguments {
         [[nodiscard]] bool isEmpty() const;
     };
 
-    /// Endpoint that receives a copy of every log message (see
-    /// Log::setRemoteLogTarget). Used to watch a device's output from the build
-    /// machine during remote debugging.
-    struct RemoteLogTarget {
-        QString host;
-        quint16 port = 0;
-
-        [[nodiscard]] bool isValid() const {
-            return !host.isEmpty() && port != 0;
-        }
-
-        friend bool operator==(const RemoteLogTarget &, const RemoteLogTarget &) = default;
-    };
-
     struct ParsedArguments {
         AppHostMode hostMode = AppHostMode::Gui;
         QStringList projectFilePaths;
         AutomationOverrides automation;
-        std::optional<RemoteLogTarget> remoteLog;
         std::optional<ParseError> error;
 
         [[nodiscard]] bool isValid() const;

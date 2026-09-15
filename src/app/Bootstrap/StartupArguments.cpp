@@ -48,10 +48,9 @@ namespace StartupArguments {
     }
 
     ParsedArguments parseArguments(const QStringList &arguments, const QString &workingDirectory) {
-    ParsedArguments result;
-    result.projectFilePaths.reserve(arguments.size());
-    static const QRegularExpression decimalInteger(QStringLiteral("^[0-9]+$"));
-    bool positionalOnly = false;
+        ParsedArguments result;
+        result.projectFilePaths.reserve(arguments.size());
+        bool positionalOnly = false;
 
         for (qsizetype index = 0; index < arguments.size(); ++index) {
             const auto argument = arguments.at(index);
@@ -107,6 +106,7 @@ namespace StartupArguments {
                                 QStringLiteral("--control-port"),
                                 QStringLiteral("Option --control-port requires a value."));
                 }
+                static const QRegularExpression decimalInteger(QStringLiteral("^[0-9]+$"));
                 bool converted = false;
                 const auto port = value->toUInt(&converted, 10);
                 if (!converted || !decimalInteger.match(*value).hasMatch() || port < 1 ||
@@ -152,49 +152,6 @@ namespace StartupArguments {
                         QStringLiteral("Conflicting values were provided for --control-level."));
                 }
                 result.automation.controlLevel = *level;
-                continue;
-            }
-
-            if (!positionalOnly && (argument == QStringLiteral("--log-udp") ||
-                                    argument.startsWith(QStringLiteral("--log-udp=")))) {
-                const auto value = readValue(QStringLiteral("--log-udp"));
-                if (!value || value->isEmpty()) {
-                    return fail(std::move(result), ParseErrorCode::MissingValue,
-                                QStringLiteral("--log-udp"),
-                                QStringLiteral("Option --log-udp requires a value in the form "
-                                               "host:port."));
-                }
-                const auto separator = value->lastIndexOf(QLatin1Char(':'));
-                const auto portText = separator < 0 ? QString{} : value->mid(separator + 1);
-                bool converted = false;
-                const auto port = portText.toUInt(&converted, 10);
-                if (separator <= 0 || !converted || !decimalInteger.match(portText).hasMatch() ||
-                    port < 1 || port > 65535) {
-                    return fail(std::move(result), ParseErrorCode::InvalidValue,
-                                QStringLiteral("--log-udp"),
-                                QStringLiteral("Invalid value for --log-udp: \"%1\"; expected "
-                                               "host:port with a port from 1 to 65535.")
-                                    .arg(*value));
-                }
-                auto host = value->left(separator);
-                // Accept bracketed IPv6 literals such as [::1]:9999
-                if (host.startsWith(QLatin1Char('[')) && host.endsWith(QLatin1Char(']')))
-                    host = host.mid(1, host.size() - 2);
-                if (host.isEmpty()) {
-                    return fail(std::move(result), ParseErrorCode::InvalidValue,
-                                QStringLiteral("--log-udp"),
-                                QStringLiteral("Invalid value for --log-udp: \"%1\"; expected "
-                                               "host:port with a non-empty host.")
-                                    .arg(*value));
-                }
-                const RemoteLogTarget target{host, static_cast<quint16>(port)};
-                if (result.remoteLog && *result.remoteLog != target) {
-                    return fail(
-                        std::move(result), ParseErrorCode::ConflictingOptions,
-                        QStringLiteral("--log-udp"),
-                        QStringLiteral("Conflicting values were provided for --log-udp."));
-                }
-                result.remoteLog = target;
                 continue;
             }
 
