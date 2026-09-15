@@ -3,6 +3,7 @@
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
 #include "Model/AppOptions/AppOptions.h"
+#include "Modules/Inference/ExecutionProvider.h"
 #include "Modules/Inference/InferEngine.h"
 #include "Modules/Inference/Utils/DmlGpuUtils.h"
 #include "Modules/Inference/Utils/CudaGpuUtils.h"
@@ -165,7 +166,21 @@ void InferencePage::applyGpuList(const QList<GpuInfo> &deviceList) {
         m_cbDeviceList->addItem(tr("No available GPU found"));
         m_cbDeviceList->setEnabled(false);
         m_gpuItem->setDescription(
-            tr("No available GPU found. Please switch the Execution Provider above to CPU."));
+            tr("No available GPU found. The execution provider has been switched back to CPU."));
+
+        // A GPU provider cannot run without a usable device, so keeping it in
+        // appConfig.json only reproduces the startup failure on every launch.
+        const auto cpuProvider = ExecutionProviderUtils::toString(ExecutionProvider::Cpu);
+        if (m_cbExecutionProvider->currentText() != cpuProvider) {
+            // Block the combo signal on purpose: the user did not ask for this
+            // change, so no restart prompt here -- the corrected value applies on
+            // the next launch. The Toast below explains what happened.
+            const QSignalBlocker blocker(m_cbExecutionProvider);
+            m_cbExecutionProvider->setCurrentText(cpuProvider);
+            modifyOption();
+            Toast::show(tr("No available GPU found. The execution provider has been switched "
+                           "back to CPU."));
+        }
         return;
     }
 
@@ -267,9 +282,11 @@ QWidget *InferencePage::createContentWidget() {
     const auto option = appOptions->inference();
     // Device - Execution Provider
     m_cbExecutionProvider = new ComboBox();
-    m_cbExecutionProvider->addItems({QStringLiteral("CPU"), QStringLiteral("DirectML")});
-    if (InferenceOption::cudaExecutionProviderAvailable()) {
-        m_cbExecutionProvider->addItem(QStringLiteral("CUDA"));
+    m_cbExecutionProvider->addItems(
+        {ExecutionProviderUtils::toString(ExecutionProvider::Cpu),
+         ExecutionProviderUtils::toString(ExecutionProvider::DirectML)});
+    if (ExecutionProviderUtils::availableInBuild(ExecutionProvider::Cuda)) {
+        m_cbExecutionProvider->addItem(ExecutionProviderUtils::toString(ExecutionProvider::Cuda));
     }
     m_cbExecutionProvider->setCurrentText(option->executionProvider);
 
@@ -449,9 +466,8 @@ QWidget *InferencePage::createContentWidget() {
                                         : std::vector<srt::svs::SingerSpec *>{};
 
         const auto languageManager = UiLanguageManager::instance();
-        const auto bcp47Candidates = languageManager
-            ? languageManager->effectiveBcp47Candidates()
-            : QLocale::system().uiLanguages();
+        const auto bcp47Candidates = languageManager ? languageManager->effectiveBcp47Candidates()
+                                                     : QLocale::system().uiLanguages();
 
         const auto engineInitialized = inferEngine->initialized();
         const auto driverPath = fillEmpty(inferEngine->inferenceDriverPath());
