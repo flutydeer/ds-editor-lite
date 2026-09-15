@@ -1,6 +1,6 @@
 #include "InferTaskCommon.h"
 
-#include "Model/AppOptions/AppOptions.h"
+#include "Modules/Inference/ExecutionProvider.h"
 
 #include <mutex>
 
@@ -11,7 +11,10 @@ namespace {
 }
 
 InferDirectMLSerializationGuard::InferDirectMLSerializationGuard() {
-    if (appOptions->inference()->executionProvider == QStringLiteral("DirectML")) {
+    // Serialize on the provider the engine actually runs, not the one the
+    // settings file asked for: after a fallback to CPU no DirectML driver call
+    // can happen, so locking would only serialize work that is already safe.
+    if (ExecutionProviderUtils::effective() == ExecutionProvider::DirectML) {
         g_directMLSerializationMutex.lock();
         m_locked = true;
     }
