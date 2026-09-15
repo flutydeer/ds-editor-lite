@@ -21,7 +21,6 @@
 #include "UI/Window/MainWindow.h"
 #include "Utils/UiLanguageManager.h"
 #include <lite/ProductMetadata.h>
-#include <lite/Support/Log.h>
 
 #include <QApplication>
 #include <QCoreApplication>
@@ -105,13 +104,6 @@ int main(int argc, char *argv[]) {
                            "forwarded and no new Headless instance was started."
                         << Qt::endl;
                 }
-                if (parsedArguments.remoteLog) {
-                    QTextStream(stderr)
-                        << LiteProductMetadata::ProductName
-                        << ": log mirroring was not enabled because the already-running instance "
-                           "owns the log output; stop that instance first."
-                        << Qt::endl;
-                }
                 return EXIT_SUCCESS;
             }
             reportBootstrapError(error);
@@ -124,7 +116,7 @@ int main(int argc, char *argv[]) {
             break;
     }
 
-    LoggingBootstrap::init(parsedArguments.remoteLog.value_or(StartupArguments::RemoteLogTarget{}));
+    LoggingBootstrap::init();
     {
         // AppOptions must be constructed (and the UI language applied) before AppContext.
         auto options = std::make_unique<AppOptions>();
@@ -273,8 +265,6 @@ int main(int argc, char *argv[]) {
             }
         }
     }
-    // Destroy the log mirror's socket while the application object is alive.
-    Log::setRemoteLogTarget({}, 0);
     coordinator.shutdown();
     return Restarter(QDir::currentPath()).restartOrExit(result);
 }

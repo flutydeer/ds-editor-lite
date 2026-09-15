@@ -54,17 +54,6 @@ public:
     static void setLogDirectory(const QString &directory);
     static QString logDirectory();
 
-    /// Mirrors every log message to a UDP endpoint, so a debug host can watch the
-    /// device's output live instead of copying log files back and forth.
-    ///
-    /// `host` may be an IP literal or a host name; an empty host or a zero port
-    /// disables the mirror. Messages are sent synchronously from the calling
-    /// thread, so nothing is lost when the process dies right after logging.
-    ///
-    /// The sink owns a Qt socket, so clear the target before the application
-    /// object is destroyed (see main()).
-    static void setRemoteLogTarget(const QString &host, quint16 port);
-
     static void d(const QString &tag, const QString &msg);
     static void i(const QString &tag, const QString &msg);
     static void w(const QString &tag, const QString &msg);
@@ -79,9 +68,6 @@ private:
     /// Captures std::cerr output (from third-party libraries like RtMidi)
     /// and routes it through the Log system.
     class StderrCatcher;
-
-    /// Forwards log messages to a remote UDP endpoint; see setRemoteLogTarget().
-    class RemoteLogSink;
 
     static QString timeStr();
     static QString colorizeText(LogLevel level, const QString &text);
@@ -99,7 +85,6 @@ private:
     LogLevel m_consoleLogLevel = Debug;
     QStringList m_tagFilter;
     std::unique_ptr<StderrCatcher> m_stderrCatcher;
-    std::unique_ptr<RemoteLogSink> m_remoteLogSink;
 };
 
 
