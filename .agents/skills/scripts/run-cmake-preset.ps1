@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("Configure", "Build", "ConfigureAndBuild")]
+    [ValidateSet("Configure", "Build", "ConfigureAndBuild", "Dependencies", "Test")]
     [string] $Mode = "Build",
 
     [string] $Preset = "debug",
@@ -10,6 +10,10 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+
+if ($Mode -eq "Test" -and !$PSBoundParameters.ContainsKey("Preset")) {
+    $Preset = "local"
+}
 
 function Find-VisualStudio {
     $vswhere = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
@@ -111,6 +115,15 @@ if ($Target) {
 }
 
 switch ($Mode) {
+    "Test" {
+        $resultsDir = Join-Path $repoRoot "build\test-results"
+        New-Item -ItemType Directory -Force -Path $resultsDir | Out-Null
+        $testCommand = "ctest --preset $Preset --output-junit `"$resultsDir\$Preset.xml`" --output-log `"$resultsDir\$Preset.log`""
+        Invoke-CMakeCommand $vcvars $repoRoot $resolvedQtDir $testCommand
+    }
+    "Dependencies" {
+        Invoke-CMakeCommand $vcvars $repoRoot $resolvedQtDir ".\vcpkg\vcpkg.exe install --x-manifest-root=scripts/vcpkg-manifest --x-install-root=vcpkg/installed --triplet=x64-windows"
+    }
     "Configure" {
         Invoke-CMakeCommand $vcvars $repoRoot $resolvedQtDir $configureCommand
     }

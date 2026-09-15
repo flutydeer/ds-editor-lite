@@ -206,6 +206,16 @@ bool SynthrtEngine::initializationDone() const noexcept {
     return m_initializationDone.load(std::memory_order_acquire);
 }
 
+void SynthrtEngine::completeInitializationAttempt() noexcept {
+    m_initializationDone.store(true, std::memory_order_release);
+    {
+        std::lock_guard initializationLock(m_initDoneMutex);
+        std::lock_guard sessionLock(m_sessionReadyMutex);
+    }
+    m_initDoneCv.notify_all();
+    m_sessionReadyCv.notify_all();
+}
+
 bool SynthrtEngine::waitForInitialization(int timeoutMs) const {
     if (m_initializationDone.load(std::memory_order_acquire)) {
         return true;
@@ -261,6 +271,7 @@ void SynthrtEngine::shutdown() noexcept {
         m_midiExtractionReady.store(false, std::memory_order_release);
         m_sessionInitialized = false;
     }
+    completeInitializationAttempt();
     std::unique_lock lock(m_runtimeLifecycleMutex);
     // VoicebankSession destructor handles cleanup of loaded packages and
     // ModelSet handles. No explicit unloadSinger() needed — active inference
@@ -270,6 +281,12 @@ void SynthrtEngine::shutdown() noexcept {
 
 fs::path SynthrtEngine::pluginRoot() {
 #if defined(Q_OS_MAC)
+#  if defined(LITE_TEST_DATA_ROOT)
+    // Standalone test hosts use plugins deployed in the actual application bundle.
+    const auto testRoot = qEnvironmentVariable("DSEL_TEST_PLUGIN_ROOT");
+    if (!testRoot.isEmpty() && QDir::isAbsolutePath(testRoot))
+        return StringUtils::qstr_to_path(testRoot);
+#  endif
     return MacOSUtils::getMainBundlePath() / "Contents/PlugIns";
 #elif defined(Q_OS_WIN)
     return stdc::system::application_directory() / "plugins";
@@ -321,13 +338,7 @@ bool SynthrtEngine::initialize(const QStringList &voicebankPaths,
         SynthrtEngine &engine;
 
         ~InitDoneGuard() {
-            engine.m_initializationDone.store(true, std::memory_order_release);
-            {
-                std::lock_guard lk(engine.m_initDoneMutex);
-                std::lock_guard lk2(engine.m_sessionReadyMutex);
-            }
-            engine.m_initDoneCv.notify_all();
-            engine.m_sessionReadyCv.notify_all();
+            engine.completeInitializationAttempt();
         }
     } initDoneGuard{*this};
 

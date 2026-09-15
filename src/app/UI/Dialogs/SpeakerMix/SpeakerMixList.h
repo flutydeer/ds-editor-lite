@@ -9,6 +9,7 @@
 #include <lite/ProjectModel/Voice/SpeakerInfo.h>
 
 class QHBoxLayout;
+class QLabel;
 class ComboBox;
 class IconLabel;
 class SpeakerMixBar;

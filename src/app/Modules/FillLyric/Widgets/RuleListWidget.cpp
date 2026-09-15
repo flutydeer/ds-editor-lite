@@ -13,8 +13,6 @@ namespace FillLyric {
     }
 
     void RuleListWidget::dropEvent(QDropEvent *event) {
-        // Remember the dragged item's row before drop
-        const int fromRow = currentRow();
         QListWidget::dropEvent(event);
         // After InternalMove, item widgets are lost — caller must rebuild them.
         emit orderChanged();

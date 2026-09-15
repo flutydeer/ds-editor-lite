@@ -12,6 +12,7 @@
 #include <re2/re2.h>
 
 #include "Model/AppOptions/AppOptions.h"
+#include "Modules/FillLyric/Utils/LyricRuleAutomationUtils.h"
 #include "Modules/FillLyric/Utils/TaggerRuleOrder.h"
 #include "Modules/FillLyric/Utils/TextTagger.h"
 
@@ -189,6 +190,7 @@ namespace FillLyric {
         item.name = "cmn";
         item.builtin = false;
         item.enabled = true;
+        item.customRule.ruleId = createAutomationRuleId();
         item.customRule.name = "cmn";
         item.customRule.language = "cmn";
         item.customRule.enabled = true;

@@ -11,11 +11,17 @@
 
 #include <QApplication>
 #include <QCoreApplication>
+#include <QResource>
 #include <QStyleFactory>
+
+static void initializeResources() {
+    Q_INIT_RESOURCE(lite_res);
+}
 
 namespace AppEnvironment {
 
     void preInit(const AppHostMode hostMode) {
+        initializeResources();
         ApplicationLocale::initialize();
 
         // output log to file
@@ -42,7 +48,11 @@ namespace AppEnvironment {
         QApplication::setApplicationDisplayName(
             QString::fromLatin1(LiteProductMetadata::ProductName));
         QApplication::setEffectEnabled(Qt::UI_AnimateCombo, false);
-        if (QSysInfo::productType() != "windows")
+        // These backends do not provide the native handles required by platform styles.
+        const auto platform = QGuiApplication::platformName();
+        if (platform == QStringLiteral("offscreen") || platform == QStringLiteral("minimal"))
+            QApplication::setStyle(QStyleFactory::create("fusion"));
+        else if (QSysInfo::productType() != "windows")
             QApplication::setStyle(QStyleFactory::create("windows"));
         else
             QApplication::setStyle(QStyleFactory::create("windowsvista"));

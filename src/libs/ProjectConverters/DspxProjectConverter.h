@@ -9,6 +9,9 @@ namespace opendspx {
     struct Model;
 }
 
+class SingerInfo;
+struct SingerIdentifier;
+
 using ImportMode = IProjectConverter::ImportMode;
 
 class DspxProjectConverter : public IProjectConverter {
@@ -19,10 +22,14 @@ public:
     bool save(const QString &path, AppModel *model, QString &errMsg) override;
 
 protected:
+    // Resolves external singer metadata while the converter owns file decoding.
+    virtual SingerInfo resolveSinger(const SingerIdentifier &identifier) const;
+
     // Publishes the loaded project's loop region to the host after a complete load.
     virtual void applyLoadedLoopSettings(const LoopSettings &loopSettings) {
         Q_UNUSED(loopSettings);
     }
+
     // Supplies the host-owned loop snapshot to persist on save.
     virtual LoopSettings loopSettingsToSave() const {
         return {};

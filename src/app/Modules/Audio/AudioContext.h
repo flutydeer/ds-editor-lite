@@ -23,7 +23,6 @@ namespace talcs {
     class DspxAudioClipContext;
 }
 
-class TrackSynthesizer;
 class AudioContextAudioExporterListener;
 
 class AudioContext : public talcs::DspxProjectContext, public Audio::AudioExporterListener {
@@ -76,7 +75,6 @@ private:
     QHash<AudioClip *, talcs::DspxAudioClipContext *> m_audioClipModelDict;
     QSet<const AudioClip *> m_unloadableAudioClips;
 
-    QHash<Track *, TrackSynthesizer *> m_trackSynthDict;
     QHash<Track *, TrackInferenceHandler *> m_trackInferDict;
 
     QTimer *m_levelMeterTimer = nullptr;

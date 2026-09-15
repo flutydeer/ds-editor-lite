@@ -99,10 +99,10 @@ public:
                     bool deferLanguageModels = false);
 
     bool initialized() const;
-    /// True after initialize() has been attempted (regardless of success).
-    /// Callers that depend on SynthrtEngine being ready can poll this to detect
-    /// initialization failure without waiting forever on initialized().
+    /// True when initialization finishes, including rejected host prerequisites or shutdown.
     bool initializationDone() const noexcept;
+    /// Releases initialization waiters when the host cannot start the shared runtime.
+    void completeInitializationAttempt() noexcept;
     /// Block until initialize() has been attempted (success or failure), or
     /// \p timeoutMs elapses. Returns true if initialization finished within
     /// the timeout (check initialized() afterwards to see if it succeeded),
@@ -115,9 +115,8 @@ public:
     /// once this returns true, even while Stage 2 (ONNX model loading) is
     /// still in progress.
     bool sessionReady() const noexcept;
-    /// Block until sessionReady() becomes true or \p timeoutMs elapses.
-    /// Returns true if the session became ready within the timeout, false on
-    /// timeout. Uses a condition variable internally — no polling.
+    /// Block until the session is ready or initialization finishes, fails, or is shut down.
+    /// Returns false on timeout; callers must still check session readiness after true.
     bool waitForSession(int timeoutMs = 30000) const;
     bool runtimeInitialized() const noexcept;
     bool pitchExtractionReady() const noexcept;

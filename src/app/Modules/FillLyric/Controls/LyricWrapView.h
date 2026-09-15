@@ -106,7 +106,7 @@ namespace FillLyric {
         bool cellEqualLine(QList<LyricCell *> cells);
 
         void tryRubberBandSelect(const QPoint &scenePos);
-        QList<CellList *> sortedByIndex(const QSet<CellList *> &listSet) const;
+        QList<CellList *> sortedByIndex(const QList<CellList *> &lists) const;
         void insertNewLineAt(qlonglong index);
         void lineBreak(CellList *cellList, const int &index);
         void deleteCells(const QList<LyricCell *> &selectedCells);

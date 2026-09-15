@@ -67,7 +67,11 @@ void PathListWidget::mouseDoubleClickEvent(QMouseEvent *event) {
 
 void PathListWidget::dragEnterEvent(QDragEnterEvent *event) {
     if (hasDirectoryInMimeData(event->mimeData())) {
-        event->acceptProposedAction();
+        if (event->possibleActions() & Qt::CopyAction) {
+            event->setDropAction(Qt::CopyAction);
+            event->accept();
+        }
+        return;
     }
     QListWidget::dragEnterEvent(event);
 }
@@ -75,8 +79,13 @@ void PathListWidget::dragEnterEvent(QDragEnterEvent *event) {
 void PathListWidget::dropEvent(QDropEvent *event) {
     QStringList paths;
     if (getPathFromMimeData(event->mimeData(), &paths)) {
-        event->acceptProposedAction();
-        Q_EMIT itemsDropped(paths);
+        // Adding search paths must not move the directories in the drag source.
+        if (event->possibleActions() & Qt::CopyAction) {
+            event->setDropAction(Qt::CopyAction);
+            event->accept();
+            Q_EMIT itemsDropped(paths);
+        }
+        return;
     }
     QListWidget::dropEvent(event);
 }

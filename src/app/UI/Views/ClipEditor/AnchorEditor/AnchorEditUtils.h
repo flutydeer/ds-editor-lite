@@ -2,12 +2,21 @@
 #define ANCHOREDITUTILS_H
 
 #include <QList>
+#include <lite/ProjectModel/AppModel/AnchorCurve.h>
+#include <optional>
 
-class AnchorCurve;
 class Curve;
 class DrawCurve;
 
 namespace AnchorEditor {
+    struct AnchorInsertionLayout {
+        qsizetype index;
+        AnchorNode::InterpMode interpolation;
+        std::optional<AnchorNode::InterpMode> previousInterpolation;
+    };
+
+    [[nodiscard]] AnchorInsertionLayout anchorInsertionLayout(const QList<AnchorNode *> &nodes,
+                                                              int position);
     [[nodiscard]] bool isCompleteAnchorCurve(const AnchorCurve *curve);
     [[nodiscard]] QList<Curve *> replaceAnchors(const QList<Curve *> &existing,
                                                 const QList<AnchorCurve *> &replacementAnchors);

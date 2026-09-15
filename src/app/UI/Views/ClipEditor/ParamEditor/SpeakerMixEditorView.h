@@ -22,6 +22,7 @@ struct SpeakerMixSpeaker {
 struct SpeakerMixKeyframe {
     int tick = 0;
     QList<double> weights;
+    int id = 0;
 };
 
 struct SpeakerMixHitResult {
