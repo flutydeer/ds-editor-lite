@@ -9,6 +9,7 @@
 #include "Modules/FillLyric/Utils/TaggerRuleOrder.h"
 #include "Modules/FillLyric/Utils/TextSplitter.h"
 #include "Modules/FillLyric/Utils/TextTagger.h"
+#include "Modules/Inference/ExecutionProvider.h"
 #include "Utils/UiLanguageManager.h"
 
 #include <lite/GUI/Theme/ThemeIds.h>
@@ -771,16 +772,17 @@ namespace Automation {
                 .candidates = {0, 1, 2},
             };
             QList<SettingsStringCandidateDto> providerCandidates{
-                settingsCandidate(QStringLiteral("CPU")),
-                settingsCandidate(QStringLiteral("DirectML")),
+                settingsCandidate(ExecutionProviderUtils::toString(ExecutionProvider::Cpu)),
+                settingsCandidate(ExecutionProviderUtils::toString(ExecutionProvider::DirectML)),
             };
-#ifdef ONNXRUNTIME_ENABLE_CUDA
-            providerCandidates.append(settingsCandidate(QStringLiteral("CUDA")));
-#else
-            providerCandidates.append(settingsCandidate(
-                QStringLiteral("CUDA"), false,
-                QStringLiteral("This build does not include the CUDA execution provider")));
-#endif
+            const auto cudaProvider = ExecutionProviderUtils::toString(ExecutionProvider::Cuda);
+            if (ExecutionProviderUtils::availableInBuild(ExecutionProvider::Cuda)) {
+                providerCandidates.append(settingsCandidate(cudaProvider));
+            } else {
+                providerCandidates.append(settingsCandidate(
+                    cudaProvider, false,
+                    QStringLiteral("This build does not include the CUDA execution provider")));
+            }
             QList<SettingsGpuCandidateDto> gpuCandidates;
             if (!configured.inference.selectedGpuId.isEmpty()) {
                 gpuCandidates.append({

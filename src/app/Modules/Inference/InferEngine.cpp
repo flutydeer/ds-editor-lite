@@ -5,6 +5,7 @@
 #include <lite/Tasking/TaskManager.h>
 #include "Modules/Inference/Models/GenericInferModel.h"
 #include <lite/SynthrtEngine/SynthrtEngine.h>
+#include "ExecutionProvider.h"
 #include "Tasks/InitInferEngineTask.h"
 
 #include <synthrt/Core/Support/Logging.h>
@@ -147,26 +148,48 @@ bool InferEngine::initialize(QString &error) {
         return true;
     }
 
-    const auto ep = appOptions->inference()->executionProvider;
-    const auto gpuDeviceList = [&ep]() -> QList<GpuInfo> {
-        if (ep == QStringLiteral("DirectML")) {
+    const auto persistedProvider = appOptions->inference()->executionProvider;
+    const auto requestedProvider = ExecutionProviderUtils::fromString(persistedProvider);
+    const auto gpuDeviceList = requestedProvider ? [&requestedProvider]() -> QList<GpuInfo> {
+        if (*requestedProvider == ExecutionProvider::DirectML)
             return DmlGpuUtils::getGpuList();
-        }
-        if (ep == QStringLiteral("CUDA")) {
+        if (*requestedProvider == ExecutionProvider::Cuda)
             return CudaGpuUtils::getGpuList();
-        }
         return {};
-    }();
+    }()
+        : QList<GpuInfo>{};
 
-    if ((ep == QStringLiteral("DirectML") || ep == QStringLiteral("CUDA")) &&
-        gpuDeviceList.empty()) {
-        qCritical() << "InferEngine: Unable to find GPU device.";
-        error = "No available GPU device found.";
-        return false;
+    // A provider this machine cannot actually run must never survive here:
+    // failing the whole engine initialization would also stall the voicebank
+    // scan, which waits on the synthrt session (PackageManager::initialize).
+    const auto resolution =
+        ExecutionProviderUtils::resolve(persistedProvider, {.gpuFound = !gpuDeviceList.isEmpty()});
+    const auto ep = ExecutionProviderUtils::toString(resolution.provider);
+    // Publish before SynthrtEngine::initialize(): every inference task and the
+    // DirectML serialization guard read this once the engine reports ready.
+    ExecutionProviderUtils::setEffective(resolution.provider);
+    if (resolution.changed) {
+        qWarning().noquote() << QStringLiteral(
+                                    "InferEngine: execution provider '%1' is unusable (%2); "
+                                    "falling back to '%3'.")
+                                    .arg(persistedProvider, resolution.reason, ep);
+        // Persist the correction and publish it from the application thread:
+        // initialize() runs on the initialization task thread, while AppOptions
+        // and AppStatus are owned by the application thread.
+        QMetaObject::invokeMethod(
+            qApp,
+            [unavailableProvider = persistedProvider, ep] {
+                appOptions->inference()->executionProvider = ep;
+                appOptions->inference()->selectedGpuIndex = -1;
+                appOptions->inference()->selectedGpuId.clear();
+                appOptions->saveAndNotify(AppOptionsGlobal::Inference);
+                appStatus->unavailableExecutionProvider = unavailableProvider;
+            },
+            Qt::QueuedConnection);
     }
 
-    const auto [index, description, deviceId, memory] = [&ep]() -> GpuInfo {
-        if (ep == QStringLiteral("DirectML")) {
+    const auto [index, description, deviceId, memory] = [&resolution]() -> GpuInfo {
+        if (resolution.provider == ExecutionProvider::DirectML) {
             auto selectedGpu_ = DmlGpuUtils::getGpuByPciDeviceVendorIdString(
                 appOptions->inference()->selectedGpuId);
             if (selectedGpu_.index < 0) {
@@ -177,7 +200,7 @@ bool InferEngine::initialize(QString &error) {
             }
             return selectedGpu_;
         }
-        if (ep == QStringLiteral("CUDA")) {
+        if (resolution.provider == ExecutionProvider::Cuda) {
             auto selectedGpu_ = CudaGpuUtils::getGpuByUuid(appOptions->inference()->selectedGpuId);
             if (selectedGpu_.index < 0) {
                 qInfo() << "Auto selecting GPU";
@@ -232,10 +255,10 @@ bool InferEngine::initialize(QString &error) {
     m_paths.inferenceDriver = StringUtils::path_to_qstr(inferenceDriverDir);
     m_paths.inferenceInterpreter = StringUtils::path_to_qstr(inferenceInterpreterDir);
     const auto runtimeDir = inferenceDriverDir / "srt-onnxdriver" / "runtimes" / "onnx" /
-                            (ep == QStringLiteral("CUDA") ? "cuda" : "default");
+                            (resolution.provider == ExecutionProvider::Cuda ? "cuda" : "default");
     m_paths.inferenceRuntime = StringUtils::path_to_qstr(runtimeDir);
 
-    if (ep == QStringLiteral("DirectML") || ep == QStringLiteral("CUDA")) {
+    if (ExecutionProviderUtils::requiresGpu(resolution.provider)) {
         qInfo().noquote() << QStringLiteral("GPU: %1, Device ID: %2, Memory: %3")
                                  .arg(description)
                                  .arg(deviceId)
