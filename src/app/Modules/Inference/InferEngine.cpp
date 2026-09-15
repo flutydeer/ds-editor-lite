@@ -169,15 +169,23 @@ bool InferEngine::initialize(QString &error) {
     // DirectML serialization guard read this once the engine reports ready.
     ExecutionProviderUtils::setEffective(resolution.provider);
     if (resolution.changed) {
-        appOptions->inference()->executionProvider = ep;
-        appOptions->inference()->selectedGpuIndex = -1;
-        appOptions->inference()->selectedGpuId.clear();
-        appOptions->saveAndNotify(AppOptionsGlobal::Inference);
-        appStatus->unavailableExecutionProvider = persistedProvider;
         qWarning().noquote() << QStringLiteral(
                                     "InferEngine: execution provider '%1' is unusable (%2); "
                                     "falling back to '%3'.")
                                     .arg(persistedProvider, resolution.reason, ep);
+        // Persist the correction and publish it from the application thread:
+        // initialize() runs on the initialization task thread, while AppOptions
+        // and AppStatus are owned by the application thread.
+        QMetaObject::invokeMethod(
+            qApp,
+            [unavailableProvider = persistedProvider, ep] {
+                appOptions->inference()->executionProvider = ep;
+                appOptions->inference()->selectedGpuIndex = -1;
+                appOptions->inference()->selectedGpuId.clear();
+                appOptions->saveAndNotify(AppOptionsGlobal::Inference);
+                appStatus->unavailableExecutionProvider = unavailableProvider;
+            },
+            Qt::QueuedConnection);
     }
 
     const auto [index, description, deviceId, memory] = [&resolution]() -> GpuInfo {
