@@ -10,6 +10,7 @@
 #include "PianoRollGraphicsViewHelper.h"
 #include "PronunciationView.h"
 #include "Controller/ClipController.h"
+#include "Controller/PlaybackController.h"
 #include "Global/AppGlobal.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
@@ -2770,6 +2771,8 @@ private:
     }
 
     void appendLastPlaybackIndicator(const double sceneTop, const double sceneBottom) {
+        if (playbackController->playbackStatus() == PlaybackGlobal::Stopped)
+            return;
         const auto lastX = (lastPlaybackPosition - clip->start()) * pixelsPerTick();
         for (auto top = sceneTop; top < sceneBottom; top += 6.0) {
             appendPixelAlignedVerticalLine(lastX, top, std::min(top + 4.0, sceneBottom),
@@ -2950,6 +2953,8 @@ PianoRollRhiWidget::PianoRollRhiWidget(QWidget *parent)
     connect(this, &EditorRhiWidget::backendFailed, this,
             [this](const QString &) { d->requestFallback(); });
     connect(appStatus, &AppStatus::pianoRollQuantizeChanged, this,
+            [this] { d->scheduleSnapshot(); });
+    connect(playbackController, &PlaybackController::playbackStatusChanged, this,
             [this] { d->scheduleSnapshot(); });
     connect(appStatus, &AppStatus::noteSelectionChanged, this, [this](const QList<int> &selection) {
         d->noteSelection.synchronize(selection);
