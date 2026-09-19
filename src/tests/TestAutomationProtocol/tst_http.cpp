@@ -23,6 +23,7 @@
 #include <QTimer>
 
 #include <stdexcept>
+#include <atomic>
 #include <utility>
 
 namespace {
@@ -1280,6 +1281,111 @@ void AutomationProtocolTests::nativeMcpRouteLifecycle() {
     dualProtocolServer.stop();
     expect(dualProtocolServer.endpoint().isEmpty() && dualProtocolServer.nativeEndpoint().isEmpty(),
            QStringLiteral("stopping the shared listener must clear both endpoints"));
+}
+
+void AutomationProtocolTests::pendingRequestsRespectRouteAndServerShutdown_data() {
+    QTest::addColumn<bool>("native");
+    QTest::addColumn<bool>("stopServer");
+    QTest::newRow("disable-mcp-pending-mcp") << false << false;
+    QTest::newRow("disable-mcp-pending-native") << true << false;
+    QTest::newRow("stop-pending-mcp") << false << true;
+    QTest::newRow("stop-pending-native") << true << true;
+}
+
+void AutomationProtocolTests::pendingRequestsRespectRouteAndServerShutdown() {
+    QFETCH(bool, native);
+    QFETCH(bool, stopServer);
+    QNetworkAccessManager manager;
+    manager.setProxy(QNetworkProxy::NoProxy);
+    HandlerThreadFixture executor;
+    QSemaphore entered;
+    QSemaphore release;
+    QSemaphore done;
+    std::atomic_bool blockNext{true};
+    const auto gate = [&] {
+        if (blockNext.exchange(false)) {
+            entered.release();
+            release.acquire();
+            done.release();
+        }
+    };
+    const Mcp::ImplementationInfo serverInfo{
+        QStringLiteral("Route lifecycle"), QStringLiteral("1.0"), {}, {}};
+    Automation::McpHttpLimits limits;
+    limits.maximumGlobalInFlight = 1;
+    Automation::McpHttpServer server(
+        &executor.context,
+        [&](const Mcp::RequestEnvelope &request, const QString &) {
+            gate();
+            return Mcp::makeResultResponse(request.id, Mcp::makeDiscoverResult(serverInfo),
+                                           serverInfo);
+        },
+        [&](const QJsonValue &message, const QString &) {
+            gate();
+            return QJsonObject{
+                {QStringLiteral("jsonrpc"), QStringLiteral("2.0")                         },
+                {QStringLiteral("id"),      message.toObject().value(QStringLiteral("id"))},
+                {QStringLiteral("result"),  QJsonObject{}                                 }
+            };
+        },
+        limits);
+    const auto cleanup = qScopeGuard([&] {
+        release.release();
+        server.stop();
+        QMetaObject::invokeMethod(&executor.context, [] {}, Qt::BlockingQueuedConnection);
+    });
+    QString error;
+    QVERIFY2(server.start(0, {.mcp = true, .native = true}, error), qPrintable(error));
+    const QUrl mcpEndpoint(server.endpoint());
+    const QUrl nativeEndpoint(server.nativeEndpoint());
+    const auto mcpMessage =
+        requestObject(QString::fromLatin1(Mcp::DiscoverMethod), QStringLiteral("pending"));
+    const QJsonObject nativeMessage{
+        {QStringLiteral("jsonrpc"), QStringLiteral("2.0")                   },
+        {QStringLiteral("id"),      7                                       },
+        {QStringLiteral("method"),  QStringLiteral("application.get_status")},
+        {QStringLiteral("params"),  QJsonObject{}                           }
+    };
+    auto *pending = startRequest(
+        manager,
+        native ? nativeRequest(nativeEndpoint)
+               : baseRequest(mcpEndpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
+        QJsonDocument(native ? nativeMessage : mcpMessage).toJson(QJsonDocument::Compact));
+    QVERIFY(acquireWhileProcessing(entered, 2000));
+    if (stopServer)
+        server.requestStop();
+    else
+        QVERIFY2(server.setRoutes({.mcp = false, .native = true}, error), qPrintable(error));
+
+    if (native && !stopServer)
+        release.release();
+    const auto response = finishRequest(pending, 2000);
+    QVERIFY(!response.timedOut);
+    QCOMPARE(response.status, native && !stopServer ? 200 : 503);
+    if (native && !stopServer) {
+        QCOMPARE(bodyObject(response).value(QStringLiteral("id")).toInt(), 7);
+    } else {
+        const auto expected =
+            stopServer ? (native ? "automation_stopping" : "mcp_stopping") : "route_unavailable";
+        QCOMPARE(bodyObject(response)
+                     .value(QStringLiteral("error"))
+                     .toObject()
+                     .value(QStringLiteral("code"))
+                     .toString(),
+                 QString::fromLatin1(expected));
+        release.release();
+    }
+    QVERIFY(acquireWhileProcessing(done, 2000));
+    if (stopServer) {
+        QVERIFY(waitForStop(server));
+        QVERIFY(server.endpoint().isEmpty() && server.nativeEndpoint().isEmpty());
+    } else {
+        QVERIFY2(server.setRoutes({.mcp = true, .native = true}, error), qPrintable(error));
+        const auto resumed =
+            send(manager, baseRequest(mcpEndpoint, QString::fromLatin1(Mcp::DiscoverMethod)),
+                 QJsonDocument(mcpMessage).toJson(QJsonDocument::Compact));
+        QCOMPARE(resumed.status, 200);
+    }
 }
 
 void AutomationProtocolTests::nativeResponseLimit() {

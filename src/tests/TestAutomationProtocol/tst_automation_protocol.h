@@ -51,6 +51,8 @@ private slots:
     void responseSurvivesShutdown();
     void nativeRequestValidation();
     void nativeMcpRouteLifecycle();
+    void pendingRequestsRespectRouteAndServerShutdown_data();
+    void pendingRequestsRespectRouteAndServerShutdown();
     void nativeResponseLimit();
     void defaultRequestDeadline();
     void sharedAdmissionAndDeadline();
