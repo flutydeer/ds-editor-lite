@@ -1594,8 +1594,12 @@ void NativeDesktopTests::rhiPitchModulationUsesTheInferredBaseline() {
         QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, start);
         fixture.moveTo(end);
         QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, end);
-        for (const auto &boundary : {qMakePair(start, fixture.pointFor(520, 60)),
-                                     qMakePair(end, fixture.pointFor(920, 60))}) {
+        for (const auto &boundary :
+             {qMakePair(fixture.pointFor(545, 60), start),
+              qMakePair(start, fixture.pointFor(545, 60)),
+              qMakePair(fixture.pointFor(895, 60), end), qMakePair(end, fixture.pointFor(895, 60)),
+              qMakePair(start, fixture.pointFor(520, 60)),
+              qMakePair(end, fixture.pointFor(920, 60))}) {
             QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, boundary.first);
             fixture.moveTo(boundary.second);
             QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, boundary.second);

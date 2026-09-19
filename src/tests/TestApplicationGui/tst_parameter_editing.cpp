@@ -577,8 +577,11 @@ void ApplicationGuiTests::parameterTransformHandlesControlTheTransitionRange() {
         return;
     const auto selectionImage = editor.view.viewport()->grab().toImage();
     // The default 60 ms shoulders span 55 ticks at 120 BPM.
+    // Collapse and reopen each shoulder before moving the core boundaries.
     for (const auto [from, to] :
-         {qMakePair(425, 360), qMakePair(480, 600), qMakePair(1015, 1080), qMakePair(960, 840)}) {
+         {qMakePair(425, 480), qMakePair(480, 360), qMakePair(360, 425), qMakePair(1015, 960),
+          qMakePair(960, 1080), qMakePair(1080, 1015), qMakePair(425, 360), qMakePair(480, 600),
+          qMakePair(1015, 1080), qMakePair(960, 840)}) {
         dragRange(from, to);
         if (QTest::currentTestFailed())
             return;
