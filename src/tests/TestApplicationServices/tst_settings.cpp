@@ -50,8 +50,12 @@ void ApplicationServicesTests::sparseSettingsUpdatesPreserveOtherValues() {
         runtime.settings().updatePlaybackBehavior(applicationContext(), {.behavior = 1});
     const auto compute = runtime.settings().updateComputeDevice(
         applicationContext(), {.executionProvider = QStringLiteral("DirectML")});
-    const auto render = runtime.settings().updateRender(
-        applicationContext(), {.samplingSteps = 32, .runVocoderOnCpu = true});
+    const auto render =
+        runtime.settings().updateRender(applicationContext(), {.samplingSteps = 32,
+                                                               .runVocoderOnCpu = true,
+                                                               .autoStartInference = false,
+                                                               .playbackLookaheadSeconds = 12.5,
+                                                               .pitchSmoothKernelSize = 9});
     const auto retention = runtime.settings().updateSingerSessionRetention(
         applicationContext(), {.capacity = 2, .idleTimeoutSeconds = 120});
     QVERIFY2((ui && singing && theme && audio && playback && compute && render && retention),
@@ -79,6 +83,9 @@ void ApplicationServicesTests::sparseSettingsUpdatesPreserveOtherValues() {
     expected.inference.executionProvider = QStringLiteral("DirectML");
     expected.inference.samplingSteps = 32;
     expected.inference.runVocoderOnCpu = true;
+    expected.inference.autoStartInference = false;
+    expected.inference.playbackLookaheadSeconds = 12.5;
+    expected.inference.pitchSmoothKernelSize = 9;
     expected.inference.singerSessionCacheCapacity = 2;
     expected.inference.singerSessionIdleTimeoutSeconds = 120;
     QVERIFY(harness.settings == expected);

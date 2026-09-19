@@ -142,8 +142,17 @@ void ApplicationServicesTests::lyricRuleRename() {
     QFETCH(bool, tagger);
     ApplicationHarness harness;
     const auto rule = seedCustomRule(harness, tagger);
-    const auto renamed = harness.core().settings().updateLyricRule(
-        applicationContext(), rule.ruleId, {.name = QStringLiteral("renamed")});
+    Automation::LyricRulePatchDto patch{.name = QStringLiteral("renamed")};
+    if (tagger) {
+        patch.language = QStringLiteral("cmn");
+        patch.entries = QList<Automation::TaggerEntryDto>{
+            {.type = QStringLiteral("array"),
+             .value = {QStringLiteral("月")},
+             .tag = QStringLiteral("word")}
+        };
+    }
+    const auto renamed =
+        harness.core().settings().updateLyricRule(applicationContext(), rule.ruleId, patch);
     QVERIFY2(renamed,
              qPrintable(renamed ? QString()
                                 : QStringLiteral("%1: %2").arg(renamed.getError().fieldPath,
@@ -154,6 +163,13 @@ void ApplicationServicesTests::lyricRuleRename() {
     QCOMPARE(tagger ? harness.settings.fillLyric.customTaggerRules.first().name
                     : harness.settings.fillLyric.customSplitterRules.first().name,
              QStringLiteral("renamed"));
+    if (tagger) {
+        const auto &stored = harness.settings.fillLyric.customTaggerRules.first();
+        QCOMPARE(stored.ruleId, rule.ruleId);
+        QCOMPARE(stored.language, *patch.language);
+        QVERIFY(stored.entries == *patch.entries);
+        QCOMPARE(harness.settings.fillLyric.taggerOrder, QStringList{QStringLiteral("custom:cmn")});
+    }
 }
 
 void ApplicationServicesTests::lyricRuleEnableAndOrder() {
