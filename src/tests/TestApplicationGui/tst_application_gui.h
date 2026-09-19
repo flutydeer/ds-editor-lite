@@ -70,6 +70,7 @@ private slots:
     void automationAccessInputsPersistAndRejectMissingFolders();
     void automationCustomToolsetInputsPersistAndExportPermissions();
     void automationServerReconfigurationUpdatesAccessAndConnectionDetails();
+    void inferenceProviderSelectionDetectsDevicesAndDefersRestart();
     void inferenceInputsPersistAcrossReopening();
     void cacheCleanupRequiresConfirmationAndRefreshesThePage();
     void interactiveProjectImportRespectsSelectionAndCancellation_data();

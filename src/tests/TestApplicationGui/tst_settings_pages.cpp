@@ -11,6 +11,7 @@
 #include "UI/Dialogs/Options/AppOptionsDialog.h"
 #include "UI/Dialogs/Options/Pages/AutomationPage.h"
 #include "UI/Dialogs/Options/Pages/InferencePage.h"
+#include "Modules/Inference/ExecutionProvider.h"
 #include "UI/Dialogs/Options/Pages/GeneralPage.h"
 #include "UI/Dialogs/Options/Pages/AppearancePage.h"
 #include "UI/Dialogs/Options/Pages/DeveloperPage.h"
@@ -63,6 +64,34 @@
 #include <QtTest/QTest>
 
 namespace {
+    void deferRestart(QWidget *page) {
+        QPointer<RestartDialog> prompt;
+        const auto findVisiblePrompt = [&] {
+            for (auto *dialog : page->findChildren<RestartDialog *>()) {
+                if (dialog->isVisible()) {
+                    prompt = dialog;
+                    return true;
+                }
+            }
+            return false;
+        };
+        QTRY_VERIFY(findVisiblePrompt());
+        const auto closePrompt = qScopeGuard([&] {
+            if (prompt)
+                prompt->reject();
+        });
+        Button *later = nullptr;
+        for (auto *button : prompt->findChildren<Button *>()) {
+            if (button->text() == RestartDialog::tr("Restart Later"))
+                later = button;
+        }
+        QVERIFY(later);
+        QSignalSpy rejected(prompt, &QDialog::rejected);
+        QTest::mouseClick(later, Qt::LeftButton);
+        QCOMPARE(rejected.size(), 1);
+        QVERIFY(!prompt || !prompt->isVisible());
+    }
+
     void openOptionsPage(AppOptionsDialog &panel, AppOptionsGlobal::Option option) {
         panel.resize(920, 720);
         panel.show();
@@ -183,22 +212,9 @@ void ApplicationGuiTests::experimentalRendererSettingPersistsWhenRestartIsDeferr
         for (int row = 0; row < index; ++row)
             QTest::keyClick(backend->view(), Qt::Key_Down);
         QTest::keyClick(backend->view(), Qt::Key_Return);
-        QPointer<RestartDialog> prompt;
-        QTRY_VERIFY((prompt = page->findChild<RestartDialog *>()) && prompt->isVisible());
-        const auto closePrompt = qScopeGuard([&] {
-            if (prompt)
-                prompt->reject();
-        });
-        Button *later = nullptr;
-        for (auto *button : prompt->findChildren<Button *>()) {
-            if (button->text() == RestartDialog::tr("Restart Later"))
-                later = button;
-        }
-        QVERIFY(later);
-        QSignalSpy rejected(prompt, &QDialog::rejected);
-        QTest::mouseClick(later, Qt::LeftButton);
-        QCOMPARE(rejected.size(), 1);
-        QVERIFY(!prompt || !prompt->isVisible());
+        deferRestart(page);
+        if (QTest::currentTestFailed())
+            return;
         QCOMPARE(static_cast<int>(appOptions->developer()->editorRenderBackend), experimental);
         panel.close();
     }
@@ -935,6 +951,69 @@ void ApplicationGuiTests::automationServerReconfigurationUpdatesAccessAndConnect
         return;
     QCOMPARE(QApplication::clipboard()->text(), configuredEndpoint());
     QCOMPARE(context->m_coreRuntime->documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::inferenceProviderSelectionDetectsDevicesAndDefersRestart() {
+    auto &runtime = *context->m_coreRuntime;
+    const auto snapshot = runtime.settings().getSettings();
+    QVERIFY(snapshot);
+    const auto restore = qScopeGuard(
+        [&] { QVERIFY(runtime.settings().updateInference({}, snapshot.get().inference)); });
+    const auto before = context->m_appModel->serialize();
+    const auto version = runtime.documentVersion();
+    const auto effective = ExecutionProviderUtils::effective();
+    AppOptionsDialog panel;
+    openOptionsPage(panel, AppOptionsGlobal::Inference);
+    if (QTest::currentTestFailed())
+        return;
+    auto *page = panel.findChild<InferencePage *>();
+    auto *provider = panel.findChild<ComboBox *>("inferenceExecutionProvider");
+    auto *devices = panel.findChild<ComboBox *>("inferenceDevice");
+    QVERIFY(page && provider && devices);
+    QCOMPARE(provider->currentText(), QStringLiteral("CPU"));
+    const auto chooseProvider = [&](const QString &name) {
+        page->ensureWidgetVisible(provider);
+        const auto index = provider->findText(name);
+        QVERIFY(index >= 0);
+        QTest::mouseClick(provider, Qt::LeftButton);
+        QTRY_VERIFY(provider->view()->isVisible());
+        QTest::keyClick(provider->view(), Qt::Key_Home);
+        for (int row = 0; row < index; ++row)
+            QTest::keyClick(provider->view(), Qt::Key_Down);
+        QTest::keyClick(provider->view(), Qt::Key_Return);
+        deferRestart(page);
+    };
+    chooseProvider(QStringLiteral("DirectML"));
+    if (QTest::currentTestFailed())
+        return;
+    QTRY_VERIFY_WITH_TIMEOUT(
+        devices->isEnabled() || provider->currentText() == QStringLiteral("CPU"), 10000);
+    if (devices->isEnabled()) {
+        page->ensureWidgetVisible(devices);
+        selectComboIndex(devices, 1);
+        if (QTest::currentTestFailed())
+            return;
+        QVERIFY(!appOptions->inference()->selectedGpuId.isEmpty());
+        QVERIFY(appOptions->inference()->selectedGpuIndex >= 0);
+        AppOptions persisted;
+        QCOMPARE(persisted.inference()->selectedGpuId, appOptions->inference()->selectedGpuId);
+        selectComboIndex(devices, 0);
+        if (QTest::currentTestFailed())
+            return;
+        QCOMPARE(appOptions->inference()->selectedGpuIndex, -1);
+        QVERIFY(appOptions->inference()->selectedGpuId.isEmpty());
+        chooseProvider(QStringLiteral("CPU"));
+        if (QTest::currentTestFailed())
+            return;
+    }
+    QCOMPARE(appOptions->inference()->executionProvider, QStringLiteral("CPU"));
+    QVERIFY(!devices->isVisible() || !devices->isEnabled());
+    AppOptions persisted;
+    QCOMPARE(persisted.inference()->executionProvider, QStringLiteral("CPU"));
+    QCOMPARE(ExecutionProviderUtils::effective(), effective);
+    QCOMPARE(context->m_appModel->serialize(), before);
+    QCOMPARE(runtime.documentVersion(), version);
     QVERIFY(!historyManager->canUndo());
 }
 

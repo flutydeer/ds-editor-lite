@@ -282,6 +282,7 @@ QWidget *InferencePage::createContentWidget() {
     const auto option = appOptions->inference();
     // Device - Execution Provider
     m_cbExecutionProvider = new ComboBox();
+    m_cbExecutionProvider->setObjectName(QStringLiteral("inferenceExecutionProvider"));
     m_cbExecutionProvider->addItems(
         {ExecutionProviderUtils::toString(ExecutionProvider::Cpu),
          ExecutionProviderUtils::toString(ExecutionProvider::DirectML)});
@@ -292,6 +293,7 @@ QWidget *InferencePage::createContentWidget() {
 
     // Device - GPU
     m_cbDeviceList = new ComboBox();
+    m_cbDeviceList->setObjectName(QStringLiteral("inferenceDevice"));
     m_cbDeviceList->setSizeAdjustPolicy(QComboBox::AdjustToContents);
     connect(m_cbDeviceList, &ComboBox::currentIndexChanged, this, &InferencePage::modifyOption);
 
