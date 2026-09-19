@@ -403,12 +403,15 @@ void DocumentIOTests::dspxTimeSignatureProjectionValidation() {
 
 void DocumentIOTests::dspxRoundTripPreservesEditedPhrase_data() {
     QTest::addColumn<bool>("removedLastSource");
-    QTest::newRow("unavailable-package-preserves-content") << false;
-    QTest::newRow("resolved-package-retains-remaining-ratio") << true;
+    QTest::addColumn<bool>("dynamicTrack");
+    QTest::newRow("unavailable-package-preserves-content") << false << false;
+    QTest::newRow("resolved-package-retains-remaining-ratio") << true << false;
+    QTest::newRow("resolved-dynamic-track-remaps-keyframes") << true << true;
 }
 
 void DocumentIOTests::dspxRoundTripPreservesEditedPhrase() {
     QFETCH(bool, removedLastSource);
+    QFETCH(bool, dynamicTrack);
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     const auto path = directory.filePath(QStringLiteral("edited-phrase.dspx"));
@@ -490,12 +493,19 @@ void DocumentIOTests::dspxRoundTripPreservesEditedPhrase() {
     };
     clip->setOwnVoiceContext(singer, soft, mix);
     auto trackMix = mix;
-    trackMix.mode = SpeakerMixModel::SingerSourceMode::FixedMix;
-    trackMix.dynamicKeyframes.clear();
+    if (!dynamicTrack) {
+        trackMix.mode = SpeakerMixModel::SingerSourceMode::FixedMix;
+        trackMix.dynamicKeyframes.clear();
+    }
     trackMix.dynamicBypassed = false;
     if (removedLastSource) {
         trackMix.sources.append({air});
         trackMix.fixedWeights = {0.2, 0.3};
+        if (dynamicTrack)
+            trackMix.dynamicKeyframes = {
+                {0,   {0.2, 0.3}},
+                {480, {0.6, 0.2}}
+            };
     }
     track->setVoiceContext(singer, soft, trackMix);
 
@@ -514,7 +524,9 @@ void DocumentIOTests::dspxRoundTripPreservesEditedPhrase() {
     const auto *restoredTrack = reopened.tracks().first();
     QCOMPARE(restoredTrack->name(), track->name());
     QCOMPARE(restoredTrack->singerInfo().identifier(), singer.identifier());
-    QCOMPARE(restoredTrack->speakerMixData().mode, SpeakerMixModel::SingerSourceMode::FixedMix);
+    QCOMPARE(restoredTrack->speakerMixData().mode,
+             dynamicTrack ? SpeakerMixModel::SingerSourceMode::DynamicMix
+                          : SpeakerMixModel::SingerSourceMode::FixedMix);
     const auto expectedWeights = removedLastSource ? QVector<double>{0.4} : QVector<double>{0.25};
     QCOMPARE(restoredTrack->speakerMixData().fixedWeights, expectedWeights);
     QCOMPARE(restoredTrack->speakerMixData().sources.size(), 2);
@@ -525,6 +537,20 @@ void DocumentIOTests::dspxRoundTripPreservesEditedPhrase() {
                  (QVector<double>{0.4, 0.6}));
     }
     QCOMPARE(restoredTrack->speakerMixData().sources.last().speaker.id(), strong.id());
+    if (dynamicTrack) {
+        const auto keyframes = restoredTrack->speakerMixData().dynamicKeyframes;
+        const auto originalKeyframes = track->speakerMixData().dynamicKeyframes;
+        QCOMPARE(keyframes.size(), 2);
+        QCOMPARE(keyframes.first().id, originalKeyframes.first().id);
+        QCOMPARE(keyframes.last().id, originalKeyframes.last().id);
+        QCOMPARE(keyframes.first().tick, 0);
+        QCOMPARE(keyframes.last().tick, 480);
+        QCOMPARE(keyframes.first().weights.size(), 1);
+        QCOMPARE(keyframes.last().weights.size(), 1);
+        QCOMPARE(keyframes.first().weights.first(), 0.4);
+        QCOMPARE(keyframes.last().weights.first(), 0.75);
+        QVERIFY(!restoredTrack->speakerMixData().dynamicBypassed);
+    }
     QCOMPARE(restoredTrack->clips().count(), 1);
     const auto *restoredClip = dynamic_cast<const SingingClip *>(*restoredTrack->clips().begin());
     QVERIFY(restoredClip);
@@ -584,6 +610,8 @@ void DocumentIOTests::dspxRoundTripPreservesEditedPhrase() {
         QVERIFY2(converter.load(filteredPath, &filteredAgain, error, ImportMode::NewProject),
                  qPrintable(error));
         QCOMPARE(filteredAgain.tracks().first()->speakerMixData().fixedWeights, expectedWeights);
+        QCOMPARE(filteredAgain.tracks().first()->speakerMixData().dynamicKeyframes,
+                 restoredTrack->speakerMixData().dynamicKeyframes);
     }
 }
 
