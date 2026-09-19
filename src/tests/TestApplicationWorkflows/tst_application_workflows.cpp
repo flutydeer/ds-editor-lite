@@ -407,6 +407,22 @@ void ApplicationWorkflowTests::publicSpeakerMixPresetsResolveAndPreserveAppliedV
     QCOMPARE(mix.get().mix.sourcePresetId, id);
     const auto appliedVersion = runtime().documentVersion();
     const auto *undo = historyManager->nextUndoEntry();
+    const auto readPublicMix = [&] {
+        return invoke(QStringLiteral("speaker_mix.get"),
+                      {
+                          {"document_id", runtime().documentVersion().documentId.toString()},
+                          {"target",      QJsonObject{{"type", "clip"}, {"id", clip->id()}}}
+        });
+    };
+    const auto queried = readPublicMix();
+    QVERIFY2(queried, qPrintable(queried ? QString{} : queried.getError().message));
+    const auto sourcePreset =
+        queried.get().value("snapshot").toObject().value("source_preset").toObject();
+    QCOMPARE(sourcePreset.value("preset_id").toString(), id);
+    QCOMPARE(sourcePreset.value("name").toString(), stored->name);
+    QVERIFY(!sourcePreset.value("dirty").toBool(true));
+    QCOMPARE(runtime().documentVersion(), appliedVersion);
+    QCOMPARE(historyManager->nextUndoEntry(), undo);
     const auto removed =
         invoke(QStringLiteral("speaker_mix.presets.delete"), {
                                                                  {"preset_id", id}
@@ -427,6 +443,9 @@ void ApplicationWorkflowTests::publicSpeakerMixPresetsResolveAndPreserveAppliedV
     QVERIFY(undone);
     QCOMPARE(undone.get().mix.mode, baseline.get().mix.mode);
     QCOMPARE(undone.get().speaker.id(), baseline.get().speaker.id());
+    const auto undoneQuery = readPublicMix();
+    QVERIFY(undoneQuery);
+    QVERIFY(undoneQuery.get().value("snapshot").toObject().value("source_preset").isNull());
     QVERIFY(!historyManager->canUndo());
 }
 
