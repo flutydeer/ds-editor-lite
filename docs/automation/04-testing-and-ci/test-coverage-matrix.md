@@ -32,7 +32,7 @@
 | 界面语言即时切换 | gui | 单独语言解析不能验证主菜单重译和已打开设置页重建 | 从实际下拉框往返切换中英文，检查菜单文字、快捷键、当前页和默认歌词保留，配置落盘；完整乐句、选区和已有撤销记录不变 | ApplicationGui::switchingUiLanguagePreservesSettingsAndTheOpenDocument | offscreen；产品与 Qt 翻译资源 |
 | 自动化设置的服务重配置 | gui/protocol | 手工发布运行状态不能验证服务启停和配置接线 | 真实控制器从端口冲突恢复，权限修改后通过 HTTP 检查实际准入；更换端口、复制连接配置及关闭服务后检查端口释放，工程不变 | ApplicationGui::automationServerReconfigurationUpdatesAccessAndConnectionDetails | offscreen；仅本地回环端口 |
 | 选择工具与删除快捷键 | gui | 单独画布用例未验证工具栏、选择框呈现及主窗口快捷键接线 | 实际工具栏切换区间/矩形选择；区间正反向拖动包含不同音高，矩形同时限制音高；检查拖动中绘制选择框、松手后消失，Delete 仅删除选区，撤销恢复完整音符列表 | ApplicationGui::selectionToolsDeleteOnlyTheChosenTimeAndKeyRange | offscreen；同次运行画面变化，无截图基线 |
-| 公开音频导出的来源、预览与内容 | workflow/protocol | 直接业务调用未经过轨道 ID、混音设置转换和公开文件计划 | 既有 WAV/FLAC 场景经公开接口选择轨道、预览并实际导出；公开独奏、静音、轨道及主输出增益实际改变采样内容，保留削波警告和完整撤销断言；素材关闭后清理临时目录 | ApplicationWorkflows::audioExportRespectsRangeMixAndMute | 通用；小 WAV；无需设备 |
+| 公开音频导出的来源、预览与内容 | workflow/protocol | 直接业务调用未经过轨道 ID、混音设置转换和公开文件计划 | 既有 WAV/FLAC 场景经公开接口选择轨道、预览并实际导出；公开独奏、轨道/片段静音、轨道/片段/主输出增益及立体声声像实际改变采样内容，保留削波警告和完整撤销断言；素材关闭后清理临时目录 | ApplicationWorkflows::audioExportRespectsRangeMixAndMute | 通用；小 WAV；无需设备 |
 | 声线混合来源、权重及确认/取消 | gui | 领域数值测试未进入声线混合对话框 | 真实标签移除来源并保留剩余比例，普通拖动调整相邻权重、Alt 拖动保留分隔线两侧组内比例；确认返回编辑结果，取消后重开恢复初始草稿，预设和文档不被意外修改 | ApplicationGui::speakerMixSelectionAndDrag、speakerMixModifierDragPreservesGroupRatios | offscreen；仅需声线元数据 |
 | 离线导出后的混音器状态恢复 | workflow | 实际 Linux 导出流程在恢复初始关闭的混音器时调用 open(0,0)，触发重采样比率断言 | 复用 Headless AppContext 测试目标，新增原先打开/关闭两行回归；按原 isOpen 恢复 open/close，已打开时保留原缓冲及采样率 | ApplicationWorkflows::offlineExportRestoresMixerState | 通用；fixture 关闭自身设备 |
 | DSPX 编辑内容往返 | workflow | 原文件测试多检查空工程、JSON 头或对象存在，未核对编辑内容 | 补真实 save/load 的乐句、发音、参数、声线混合、tempo/meter 保真 | DocumentIO | 通用 |

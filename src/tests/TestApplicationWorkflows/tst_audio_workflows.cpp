@@ -351,10 +351,12 @@ void ApplicationWorkflowTests::audioExportRespectsRangeMixAndMute() {
                  qPrintable(decoder.errorString()));
         QCOMPARE(decoder.majorFormat(), expectedFormat);
         QCOMPARE(decoder.sampleRate(), 48000.0);
-        QCOMPARE(decoder.channelCount(), 1);
+        const int channels =
+            options.value(QStringLiteral("channel_mode")) == QStringLiteral("mono") ? 1 : 2;
+        QCOMPARE(decoder.channelCount(), channels);
         QCOMPARE(decoder.length(), qint64{48000});
-        samples.resize(decoder.length());
-        QCOMPARE(decoder.read(samples.data(), samples.size()), qint64(samples.size()));
+        samples.resize(decoder.length() * channels);
+        QCOMPARE(decoder.read(samples.data(), decoder.length()), decoder.length());
         QVERIFY(std::all_of(samples.cbegin(), samples.cend(),
                             [](float sample) { return std::isfinite(sample); }));
     };
@@ -405,6 +407,47 @@ void ApplicationWorkflowTests::audioExportRespectsRangeMixAndMute() {
     if (QTest::currentTestFailed())
         return;
     QCOMPARE(muted, selected);
+
+    const auto firstClip = (*context->m_appModel->tracks().first()->clips().begin())->id();
+    QVERIFY(
+        editMix(QStringLiteral("tracks.set_pan"), {
+                                                      {"track_id", firstTrack},
+                                                      {"pan",      -1.0      }
+    }));
+    options.insert(QStringLiteral("channel_mode"), QStringLiteral("stereo"));
+    QVector<float> panned;
+    exportSamples(QStringLiteral("left.wav"), panned, talcs::AudioFormatIO::WAV);
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(panned.at(middle * 2) > 0.1f);
+    for (qsizetype i = 1; i < panned.size(); i += 2)
+        QVERIFY(std::abs(panned.at(i)) < 1e-6f);
+
+    QVERIFY(editMix(QStringLiteral("clips.set_gain"), {
+                                                          {"clip_id", firstClip},
+                                                          {"gain",    -6.0     }
+    }));
+    QVector<float> attenuated;
+    exportSamples(QStringLiteral("attenuated.wav"), attenuated, talcs::AudioFormatIO::WAV);
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(std::abs(attenuated.at(middle * 2) / panned.at(middle * 2) -
+                     std::pow(10.0, -6.0 / 20.0)) < 1e-5);
+
+    QVERIFY(editMix(QStringLiteral("clips.set_mute"), {
+                                                          {"clip_id", firstClip},
+                                                          {"mute",    true     }
+    }));
+    QVector<float> silent;
+    exportSamples(QStringLiteral("silent.wav"), silent, talcs::AudioFormatIO::WAV);
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(std::all_of(silent.cbegin(), silent.cend(),
+                        [](float sample) { return std::abs(sample) < 1e-6f; }));
+    QVERIFY(runtime().history().undo(commandContext()));
+    QVERIFY(runtime().history().undo(commandContext()));
+    QVERIFY(runtime().history().undo(commandContext()));
+    options.insert(QStringLiteral("channel_mode"), QStringLiteral("mono"));
 
     options.insert(QStringLiteral("format"), QStringLiteral("flac"));
     QVector<float> compressed;
