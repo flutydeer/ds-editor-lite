@@ -74,7 +74,7 @@ private slots:
     void movingInheritedVoiceReusesOrRebuildsInference_data();
     void movingInheritedVoiceReusesOrRebuildsInference();
 
-    void failedInferenceInitializationReleasesPackageWaiters();
+    void unavailableInferenceProviderFallsBackAndExits();
 
     void changedTargetInputDropsResult();
 

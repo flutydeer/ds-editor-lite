@@ -38,7 +38,7 @@
 | DSPX 编辑内容往返 | workflow | 原文件测试多检查空工程、JSON 头或对象存在，未核对编辑内容 | 补真实 save/load 的乐句、发音、参数、声线混合、tempo/meter 保真 | DocumentIO | 通用 |
 | 任务竞态、幂等及异步服务 | workflow/domain | 已有受控调度和晚到回调，入口按历史功能拆散 | 运行时状态/准入/幂等归入 AutomationRuntime；文件、导出和提取服务的受控提交边界归入 ApplicationServices | AutomationRuntime、ApplicationServices | 通用 |
 | 终态任务历史与后台许可释放 | workflow/domain | macOS 的移动后回调可能继续捕获许可，导致任务结束后新请求仍 Busy | 转移完成回调时显式清空源；在既有生命周期中验证终态历史可查询、回调资源已释放，并检查取消后的实际准入 | AutomationRuntime、AutomationProtocol | 通用；macOS 实际复现 |
-| 推理初始化失败后的包扫描与退出 | workflow/process | Windows 无 GPU 早退未通知共享运行时，包任务等待会话并阻塞退出 | 复用已有 Provider/设备查询配置在独立子进程中制造真实失败，检查任务错误和正常析构；统一完成与关闭通知。普通进程 fixture 显式选择 CPU | ApplicationWorkflows::failedInferenceInitializationReleasesPackageWaiters、ProcessIntegration | 通用；失败复现不要求实际 GPU |
+| 推理 Provider 不可用后的回退、包扫描与退出 | workflow/process | 曾因 Windows 无 GPU 早退未通知共享运行时而阻塞退出；产品现已支持 CPU 回退 | 独立子进程模拟 CUDA 设备不可用，检查 CPU 运行时就绪、GPU 配置清理、包扫描完成及正常退出；保留统一完成与关闭通知 | ApplicationWorkflows::unavailableInferenceProviderFallsBackAndExits、ProcessIntegration | 通用；无需实际 GPU |
 | 音频资产解析、来源换代和解码通知 | workflow | 路径/哈希与解码控制分散，解码测试替写 AudioContext、DocumentWorkflowController 等生产方法；公开路径更新缺少实际准备与提交接线 | 合并 AudioAssets 并复用真实运行时；公开确认/重定位经 Registry 和 Host 准备，检查路径、格式、哈希、真实解码、单次提交及撤销，损坏文件和提交前取消无副作用 | AudioAssets、ApplicationWorkflows::publicAudioPathUpdatesPrepareCommitAndUndo | 通用；小型 WAV；无需播放设备 |
 | 推理结果与当前文档、输入及编辑会话匹配 | workflow | 首次采样中 InferenceApplyGate 未执行；输入转换测试不能代替完成门控 | 新增真实任务快照到门控的 Apply/Drop/Defer 行为，覆盖四阶段输入变化、文档/对象消失、无关 revision 变化和编辑冲突 | ApplicationWorkflows | 通用；无需模型输出 |
 | 真实读音/音素完成后的暂存与应用 | workflow | 快照门控不能验证语言任务完成、pending 存储及 flush 接线 | 内置声库执行实际任务，编辑期间结果不修改工程，结束后应用且不新增撤销；文档换代或片段删除后丢弃待应用结果 | ApplicationWorkflows::clipInferenceResultsRespectEditSession | 默认内置声库；CPU；无需播放设备 |
@@ -91,7 +91,7 @@
 | Syllabification、LyricRules（原 FillLyricTaggerOrder）、WordPropertyCascade | Lyrics | 歌词、规则和文字属性级联 |
 | SpeakerMix、VoiceContext、InputConversion、SpeakerMixValidation、SingerSessionCache、InferCache | VoiceAndInference | 真实声线模型、输入与缓存共用生产实现，移除空 stub |
 | AutomationOption、UiLanguage、通用 InferenceOption | Preferences | 配置与语言行为复用 EditorPreferencesCore |
-| InferenceOption 的默认/CUDA 编译分支 | InferenceProviderDefault、InferenceProviderCuda | 同一套源码验证编译时 Provider 选择；不代表实际 GPU 推理 |
+| InferenceOption 与 ExecutionProvider 的默认/CUDA 编译分支 | InferenceProviderDefault、InferenceProviderCuda | 同一套 Qt Test 源码验证编译时 Provider 选择、设备缺失时回退及有效 Provider 发布；不代表实际 GPU 推理 |
 | ICU wrapper | IcuWrapperTests | 保留项目依赖的 ICU 包装验证 |
 | AutomationCore、AutomationIdempotency、AutomationTaskRaces、AutomationAdmission、AutomationFileGuard | AutomationRuntime | 调度、任务、幂等、准入与文件授权；文件 fixture 每例独立 |
 | AutomationEditingDomains、NoteTransfer、PianoRollNoteCommit | ProjectEditing | 核心编辑、数据转移和控件提交桥接；保留独立 slot 及数据行 |

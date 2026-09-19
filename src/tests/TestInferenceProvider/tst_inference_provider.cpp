@@ -1,10 +1,14 @@
 #include "tst_inference_provider.h"
 
 #include "Model/AppOptions/Options/InferenceOption.h"
+#include "Modules/Inference/ExecutionProvider.h"
 #include "../TestSupport/InferenceOptionFixture.h"
 
 #include <QtTest/QTest>
 #include <QTemporaryDir>
+#include <QScopeGuard>
+
+Q_DECLARE_METATYPE(ExecutionProvider)
 
 using TestSupport::inferenceOptionConfig;
 
@@ -46,4 +50,57 @@ void InferenceProviderTests::cudaProvider() {
     QCOMPARE(saved.value(QStringLiteral("executionProvider")).toString(),
              InferenceOption::defaultExecutionProvider());
 #endif
+}
+
+void InferenceProviderTests::providerResolution_data() {
+    QTest::addColumn<QString>("persisted");
+    QTest::addColumn<bool>("gpuAvailable");
+    QTest::addColumn<ExecutionProvider>("expected");
+    QTest::addColumn<bool>("changed");
+    QTest::newRow("cpu") << QStringLiteral("CPU") << false << ExecutionProvider::Cpu << false;
+#if defined(Q_OS_WIN)
+    QTest::newRow("directml-device")
+        << QStringLiteral("DirectML") << true << ExecutionProvider::DirectML << false;
+#else
+    QTest::newRow("directml-unavailable-build")
+        << QStringLiteral("DirectML") << true << ExecutionProvider::Cpu << true;
+#endif
+    QTest::newRow("directml-no-device")
+        << QStringLiteral("DirectML") << false << ExecutionProvider::Cpu << true;
+#if defined(ONNXRUNTIME_ENABLE_CUDA)
+    QTest::newRow("cuda-device") << QStringLiteral("CUDA") << true << ExecutionProvider::Cuda
+                                 << false;
+#else
+    QTest::newRow("cuda-unavailable-build")
+        << QStringLiteral("CUDA") << true << ExecutionProvider::Cpu << true;
+#endif
+    QTest::newRow("cuda-no-device")
+        << QStringLiteral("CUDA") << false << ExecutionProvider::Cpu << true;
+    QTest::newRow("unknown") << QStringLiteral("BogusEP") << true << ExecutionProvider::Cpu << true;
+    QTest::newRow("empty") << QString() << true << ExecutionProvider::Cpu << true;
+}
+
+void InferenceProviderTests::providerResolution() {
+    QFETCH(QString, persisted);
+    QFETCH(bool, gpuAvailable);
+    QFETCH(ExecutionProvider, expected);
+    QFETCH(bool, changed);
+    const auto result = ExecutionProviderUtils::resolve(persisted, {.gpuFound = gpuAvailable});
+    QCOMPARE(result.provider, expected);
+    QCOMPARE(result.changed, changed);
+    QCOMPARE(result.reason.isEmpty(), !changed);
+    const auto previous = ExecutionProviderUtils::effective();
+    const auto restore =
+        qScopeGuard([previous] { ExecutionProviderUtils::setEffective(previous); });
+    ExecutionProviderUtils::setEffective(result.provider);
+    QCOMPARE(ExecutionProviderUtils::effective(), expected);
+}
+
+void InferenceProviderTests::providerNamesRoundTrip() {
+    for (const auto provider :
+         {ExecutionProvider::Cpu, ExecutionProvider::DirectML, ExecutionProvider::Cuda}) {
+        QCOMPARE(ExecutionProviderUtils::fromString(ExecutionProviderUtils::toString(provider)),
+                 std::optional<ExecutionProvider>(provider));
+    }
+    QVERIFY(!ExecutionProviderUtils::fromString(QStringLiteral("gpu")));
 }

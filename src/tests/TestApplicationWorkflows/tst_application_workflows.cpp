@@ -12,6 +12,7 @@
 #include "Modules/Audio/AudioSystem.h"
 #include "Modules/Audio/subsystem/OutputSystem.h"
 #include "Modules/Inference/EditSessionManager.h"
+#include "Modules/Inference/ExecutionProvider.h"
 #include "Modules/Inference/InferController.h"
 #include "Modules/Inference/InferControllerHelper.h"
 #include "Modules/Inference/InferEngine.h"
@@ -99,30 +100,38 @@ namespace {
         auto options = std::make_unique<AppOptions>();
         options->general()->packageSearchPaths.clear();
         options->inference()->autoStartInfer = false;
-        // Reject the device prerequisite before the shared inference runtime starts.
         options->inference()->executionProvider = QStringLiteral("CUDA");
+        options->inference()->selectedGpuIndex = 3;
+        options->inference()->selectedGpuId = QStringLiteral("unavailable-gpu");
         CudaGpuUtils::setNvidiaSmiPath(
             QDir(AppDataPaths::testRoot()).filePath(QStringLiteral("missing-nvidia-smi")));
         AppContext context(std::move(options), AppHostMode::Headless);
         packageManager->initialize({});
         if (!TestSupport::waitUntil(
-                [] { return appStatus->inferEngineEnvStatus == AppStatus::ModuleStatus::Error; },
+                [] { return appStatus->inferEngineEnvStatus == AppStatus::ModuleStatus::Ready; },
                 5000)) {
-            qCritical("The unavailable provider did not report initialization failure");
+            qCritical("The unavailable provider did not fall back to a ready CPU runtime");
             return 1;
         }
-        if (SynthrtEngine::instance().runtimeInitialized() ||
+        if (!SynthrtEngine::instance().runtimeInitialized() ||
             !SynthrtEngine::instance().initializationDone()) {
-            qCritical("Rejected device prerequisites must finish the initialization attempt");
+            qCritical("CPU fallback must complete runtime initialization");
             return 2;
+        }
+        if (ExecutionProviderUtils::effective() != ExecutionProvider::Cpu ||
+            appOptions->inference()->executionProvider != QStringLiteral("CPU") ||
+            appOptions->inference()->selectedGpuIndex != -1 ||
+            !appOptions->inference()->selectedGpuId.isEmpty()) {
+            qCritical("CPU fallback must clear the unavailable GPU selection");
+            return 4;
         }
         if (!TestSupport::waitUntil(
                 [] {
                     return taskManager->tasks().isEmpty() &&
-                           appStatus->packageModuleStatus == AppStatus::ModuleStatus::Error;
+                           appStatus->packageModuleStatus == AppStatus::ModuleStatus::Ready;
                 },
                 5000)) {
-            qCritical("Package discovery must fail without waiting for an unavailable runtime");
+            qCritical("Package discovery must finish after CPU fallback");
             return 3;
         }
         return 0;
@@ -873,7 +882,7 @@ void ApplicationWorkflowTests::libreSvipProcessFailuresLeaveTheDocumentUntouched
     QCOMPARE(context->m_appModel->serialize(), model);
 }
 
-void ApplicationWorkflowTests::failedInferenceInitializationReleasesPackageWaiters() {
+void ApplicationWorkflowTests::unavailableInferenceProviderFallsBackAndExits() {
     TestSupport::ProcessFixture fixture(QStringLiteral("unavailable-inference-provider"));
     QVERIFY(fixture.isValid());
     auto &process = fixture.process(QStringLiteral("application"));

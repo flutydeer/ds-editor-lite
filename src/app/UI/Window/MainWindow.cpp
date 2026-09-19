@@ -121,6 +121,19 @@ MainWindow::MainWindow() {
 
     Dialog::setGlobalContext(this);
     Toast::setGlobalContext(this);
+    // The inference engine may reset an unusable execution provider during
+    // startup; the notice can arrive before or after this window is built, so
+    // report it once and consume it.
+    const auto showUnavailableProviderNotice = [this] {
+        const auto provider = appStatus->unavailableExecutionProvider.get();
+        if (provider.isEmpty())
+            return;
+        appStatus->unavailableExecutionProvider = QString();
+        Toast::show(tr("Execution provider %1 is unavailable and was reset to CPU.").arg(provider));
+    };
+    connect(appStatus, &AppStatus::unavailableExecutionProviderChanged, this,
+            [showUnavailableProviderNotice](const QString &) { showUnavailableProviderNotice(); });
+    showUnavailableProviderNotice();
     documentWorkflowController->setUi(this);
     connect(documentWorkflowController, &DocumentWorkflowController::documentIdentityChanged, this,
             &MainWindow::updateWindowTitle);
@@ -484,8 +497,7 @@ bool MainWindow::restoreEditorViewState(const EditorViewState &state) {
            layout.parametersVisible)));
     if ((!state.layout.trackPanelVisible && !state.layout.bottomPanelVisible) ||
         (!state.layout.pianoRollVisible && !state.layout.parametersVisible) ||
-        !focusedRegionVisible ||
-        !m_bottomPanelView->hasPage(state.layout.bottomPanelPageId) ||
+        !focusedRegionVisible || !m_bottomPanelView->hasPage(state.layout.bottomPanelPageId) ||
         !m_bottomPanelView->clipEditorView()->supportsEditMode(state.pianoRoll.editMode) ||
         !finite(state.trackPanel.centerTick) || !finite(state.trackPanel.centerTrackIndex) ||
         !finite(state.trackPanel.horizontalScale) || !finite(state.trackPanel.verticalScale) ||

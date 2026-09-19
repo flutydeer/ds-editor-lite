@@ -7,4 +7,7 @@ class InferenceProviderTests final : public QObject {
 private slots:
     void supportedProviders();
     void cudaProvider();
+    void providerResolution_data();
+    void providerResolution();
+    void providerNamesRoundTrip();
 };

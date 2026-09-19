@@ -4,6 +4,7 @@ function(add_inference_provider_test target)
         tst_inference_provider.h
         tst_inference_provider.cpp
         ../../app/Model/AppOptions/Options/InferenceOption.cpp
+        ../../app/Modules/Inference/ExecutionProvider.cpp
     )
     target_include_directories(${target} PRIVATE ../../app)
     target_link_libraries(${target} PRIVATE Qt6::Core)
