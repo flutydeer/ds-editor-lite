@@ -129,6 +129,15 @@ void ApplicationWorkflowTests::publicAudioPathUpdatesPrepareCommitAndUndo() {
             if (!isTerminal(runtime(), before.documentId, taskId))
                 runtime().tasks().cancelTask(commandContext(), taskId);
         });
+        const auto queried =
+            registry.invoke(QStringLiteral("tasks.get"),
+                            {
+                                {QStringLiteral("scope"),       QStringLiteral("document")  },
+                                {QStringLiteral("document_id"), before.documentId.toString()},
+                                {QStringLiteral("task_id"),     taskId.toString()           }
+        });
+        QVERIFY2(queried, qPrintable(queried ? QString{} : queried.getError().message));
+        QCOMPARE(queried.get().value(QStringLiteral("operation_id")).toString(), operation);
         QCOMPARE(runtime().documentVersion(), before);
         QCOMPARE(audio->path(), previousPath);
         QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
@@ -206,8 +215,19 @@ void ApplicationWorkflowTests::publicAudioPathUpdatesPrepareCommitAndUndo() {
     QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
     const auto canceledTaskId = TaskId::fromString(accepted.get().value("task_id").toString());
     QVERIFY(!canceledTaskId.isNull());
+    const auto cancelOnFailure = qScopeGuard([&] {
+        if (!isTerminal(runtime(), beforeFailure.documentId, canceledTaskId))
+            runtime().tasks().cancelTask(commandContext(), canceledTaskId);
+    });
     // Path preparation commits through a queued callback; cancel before dispatching it.
-    QVERIFY(runtime().tasks().cancelTask(commandContext(), canceledTaskId));
+    const auto cancellation =
+        registry.invoke(QStringLiteral("tasks.cancel"),
+                        {
+                            {QStringLiteral("scope"),       QStringLiteral("document")         },
+                            {QStringLiteral("document_id"), beforeFailure.documentId.toString()},
+                            {QStringLiteral("task_id"),     canceledTaskId.toString()          }
+    });
+    QVERIFY2(cancellation, qPrintable(cancellation ? QString{} : cancellation.getError().message));
     QTRY_VERIFY_WITH_TIMEOUT(isTerminal(runtime(), beforeFailure.documentId, canceledTaskId),
                              10000);
     const auto canceled = runtime().tasks().getTask(beforeFailure.documentId, canceledTaskId);
