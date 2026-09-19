@@ -1,8 +1,10 @@
 project(TestApplicationWorkflows)
 
 lite_add_test(${PROJECT_NAME} SOURCES
+    test_main.cpp
     tst_application_workflows.h tst_application_workflows.cpp tst_audio_workflows.cpp
     tst_audio_import.cpp
+    tst_project_files.cpp
     tst_clip_inference.cpp
     tst_export_presets.cpp
     tst_audio_path_update.cpp
