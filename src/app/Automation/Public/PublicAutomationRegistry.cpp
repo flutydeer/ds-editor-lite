@@ -3710,6 +3710,10 @@ namespace Automation {
                                             arguments.value(QStringLiteral("path")).toString()));
                 if (!config)
                     return AutomationResult<QJsonObject>(config.getError());
+                // Selecting a public output format explicitly opts into that format's lossiness.
+                const auto format = options.value(QStringLiteral("format")).toString();
+                policy.allowLossyFormat =
+                    format == QStringLiteral("ogg") || format == QStringLiteral("mp3");
                 auto context = documentQueryCommandContext(m_runtime, arguments, invocation);
                 if (!context)
                     return AutomationResult<QJsonObject>(context.getError());

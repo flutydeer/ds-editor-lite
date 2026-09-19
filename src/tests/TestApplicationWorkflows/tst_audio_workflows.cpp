@@ -493,17 +493,13 @@ void ApplicationWorkflowTests::audioExportRespectsRangeMixAndMute() {
 }
 
 void ApplicationWorkflowTests::lossyAudioExportsProduceReadableFiles_data() {
-    QTest::addColumn<int>("fileType");
     QTest::addColumn<int>("majorFormat");
     QTest::addColumn<QString>("extension");
-    QTest::newRow("vorbis") << int(Audio::AudioExporterConfig::FT_OggVorbis)
-                            << int(talcs::AudioFormatIO::OGG) << QStringLiteral("ogg");
-    QTest::newRow("mp3") << int(Audio::AudioExporterConfig::FT_Mp3)
-                         << int(talcs::AudioFormatIO::MPEG) << QStringLiteral("mp3");
+    QTest::newRow("vorbis") << int(talcs::AudioFormatIO::OGG) << QStringLiteral("ogg");
+    QTest::newRow("mp3") << int(talcs::AudioFormatIO::MPEG) << QStringLiteral("mp3");
 }
 
 void ApplicationWorkflowTests::lossyAudioExportsProduceReadableFiles() {
-    QFETCH(int, fileType);
     QFETCH(int, majorFormat);
     QFETCH(QString, extension);
     QTemporaryDir files;
@@ -516,31 +512,51 @@ void ApplicationWorkflowTests::lossyAudioExportsProduceReadableFiles() {
     auto document = Automation::DocumentAutomationFacade::newDocumentDraft(false);
     document.tracks = {audioTrack(QStringLiteral("Tone"), input)};
     QVERIFY(runtime().documents().commitNewDocument(commandContext(), document));
+    const auto releaseAudio = qScopeGuard([&] {
+        runtime().documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false));
+    });
     QVERIFY(runtime().timeline().setTempo(commandContext(), 0, 120));
     QTRY_VERIFY(taskManager->tasks().isEmpty());
     const auto before = runtime().documentVersion();
     const auto original = context->m_appModel->serialize();
-    Automation::AudioExportConfigDto config;
-    config.fileDirectory = files.path();
-    config.fileName = QStringLiteral("encoded.") + extension;
-    config.fileType = static_cast<Audio::AudioExporterConfig::FileType>(fileType);
-    config.sampleRate = 48000;
-    config.mono = true;
-    const Automation::AudioExportPolicyDto policy{.allowLossyFormat = true};
-    const auto accepted = runtime().audioExports().start(commandContext(), config, policy);
+    Automation::AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
+    Automation::AutomationFileGuard fileGuard;
+    Automation::AdmissionController admission;
+    QVERIFY(fileGuard.setConfiguredRoots({files.path()}));
+    Automation::PublicAutomationRegistry registry(
+        runtime(), access, fileGuard, admission,
+        Automation::createPublicAutomationHostServices(runtime(), context->m_appModel,
+                                                       &SynthrtEngine::instance()));
+    const auto output = files.filePath(QStringLiteral("encoded.") + extension);
+    const auto accepted =
+        registry.invoke(QStringLiteral("exports.audio.start"),
+                        {
+                            {QStringLiteral("document_id"),      before.documentId.toString()},
+                            {QStringLiteral("path"),             output                      },
+                            {QStringLiteral("overwrite_policy"), QStringLiteral("reject")    },
+                            {QStringLiteral("options"),
+                             QJsonObject{{QStringLiteral("format"), extension},
+                                         {QStringLiteral("sample_rate"), 48000},
+                                         {QStringLiteral("channel_mode"), QStringLiteral("mono")},
+                                         {QStringLiteral("mixing_mode"), QStringLiteral("mixed")},
+                                         {QStringLiteral("source"), QStringLiteral("all")}}  }
+    });
     QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
+    const auto taskId = Automation::TaskId::fromString(accepted.get().value("task_id").toString());
+    QVERIFY(!taskId.isNull());
     const auto terminal = [&] {
-        const auto task = runtime().tasks().getTask(before.documentId, accepted.get().taskId);
+        const auto task = runtime().tasks().getTask(before.documentId, taskId);
         return task && (task.get().state == Automation::AutomationTaskState::Succeeded ||
                         task.get().state == Automation::AutomationTaskState::Failed ||
                         task.get().state == Automation::AutomationTaskState::Canceled);
     };
     QTRY_VERIFY_WITH_TIMEOUT(terminal(), 10000);
-    const auto task = runtime().tasks().getTask(before.documentId, accepted.get().taskId);
+    const auto task = runtime().tasks().getTask(before.documentId, taskId);
     QVERIFY(task);
     QVERIFY2(task.get().state == Automation::AutomationTaskState::Succeeded,
              qPrintable(task.get().error ? task.get().error->message : QString{}));
-    QFile file(files.filePath(config.fileName));
+    QFile file(output);
     QVERIFY(file.open(QIODevice::ReadOnly));
     talcs::AudioFormatIO decoder(&file);
     QVERIFY2(decoder.open(talcs::AbstractAudioFormatIO::Read), qPrintable(decoder.errorString()));
