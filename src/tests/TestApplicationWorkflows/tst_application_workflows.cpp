@@ -650,6 +650,120 @@ void ApplicationWorkflowTests::rejectedPackageRefreshKeepsThePublishedCatalog() 
     QTRY_VERIFY(taskManager->tasks().isEmpty());
 }
 
+void ApplicationWorkflowTests::publicSaveChecksTheCurrentPathBeforeReplacingTheDocument() {
+    QTemporaryDir files;
+    QVERIFY(files.isValid());
+    const auto incomingDirectory = files.filePath(QStringLiteral("incoming"));
+    QVERIFY(QDir().mkpath(incomingDirectory));
+    const auto currentPath = files.filePath(QStringLiteral("current.dspx"));
+    const auto incomingPath = QDir(incomingDirectory).filePath(QStringLiteral("replacement.dspx"));
+    AppModel replacement;
+    replacement.setTimeline(context->m_appModel->timeline());
+    auto *replacementTrack = new Track;
+    replacementTrack->setName(QStringLiteral("Replacement"));
+    QVERIFY(replacement.appendTrack(replacementTrack));
+    DspxProjectConverter converter;
+    QString error;
+    QVERIFY2(converter.save(incomingPath, &replacement, error), qPrintable(error));
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    const auto currentTrack = Automation::TrackId(context->m_appModel->tracks().first()->id());
+    QVERIFY(
+        runtime().project().renameTrack(commandContext(), currentTrack, QStringLiteral("Draft")));
+    Automation::AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
+    Automation::AutomationFileGuard guard;
+    Automation::AdmissionController admission;
+    QVERIFY(guard.setConfiguredRoots({files.path()}));
+    Automation::PublicAutomationRegistry registry(
+        runtime(), access, guard, admission,
+        Automation::createPublicAutomationHostServices(runtime(), context->m_appModel,
+                                                       &SynthrtEngine::instance()));
+    const auto saveArguments = [&] {
+        const auto version = runtime().documentVersion();
+        return QJsonObject{
+            {"document_id",       version.documentId.toString()        },
+            {"expected_revision", static_cast<qint64>(version.revision)}
+        };
+    };
+    const auto originalVersion = runtime().documentVersion();
+    const auto missingPath = registry.invoke(QStringLiteral("documents.save"), saveArguments());
+    QVERIFY(!missingPath);
+    QCOMPARE(missingPath.getError().code, Automation::AutomationErrorCode::PathRequired);
+    QCOMPARE(runtime().documentVersion(), originalVersion);
+    auto saveAs = saveArguments();
+    saveAs.insert(QStringLiteral("path"), currentPath);
+    saveAs.insert(QStringLiteral("overwrite_policy"), QStringLiteral("reject"));
+    const auto savedAs = registry.invoke(QStringLiteral("documents.save_as"), saveAs);
+    QVERIFY2(savedAs, qPrintable(savedAs ? QString{} : savedAs.getError().message));
+    QVERIFY(historyManager->isOnSavePoint());
+    QVERIFY(runtime().project().renameTrack(commandContext(), currentTrack,
+                                            QStringLiteral("Unsaved edit")));
+    QVERIFY(!historyManager->isOnSavePoint());
+    const auto dirtyVersion = runtime().documentVersion();
+    const auto dirtyModel = context->m_appModel->serialize();
+    const auto *undo = historyManager->nextUndoEntry();
+    const auto open = [&] {
+        const auto version = runtime().documentVersion();
+        return registry.invoke(QStringLiteral("documents.open"),
+                               {
+                                   {"current_document_id", version.documentId.toString()        },
+                                   {"expected_revision",   static_cast<qint64>(version.revision)},
+                                   {"path",                incomingPath                         },
+                                   {"unsaved_policy",      "reject"                             }
+        });
+    };
+    const auto dirtyOpen = open();
+    QVERIFY(!dirtyOpen);
+    QVERIFY2(dirtyOpen.getError().code == Automation::AutomationErrorCode::InvalidArgument,
+             qPrintable(dirtyOpen.getError().message + QStringLiteral(" at ") +
+                        dirtyOpen.getError().fieldPath));
+    QCOMPARE(dirtyOpen.getError().fieldPath, QStringLiteral("unsaved_policy"));
+    QVERIFY(guard.setConfiguredRoots({incomingDirectory}));
+    const auto denied = registry.invoke(QStringLiteral("documents.save"), saveArguments());
+    QVERIFY(!denied);
+    QCOMPARE(denied.getError().code, Automation::AutomationErrorCode::PermissionDenied);
+    QCOMPARE(runtime().documentVersion(), dirtyVersion);
+    QCOMPARE(context->m_appModel->serialize(), dirtyModel);
+    QCOMPARE(historyManager->nextUndoEntry(), undo);
+    {
+        AppModel persisted;
+        QVERIFY2(converter.load(currentPath, &persisted, error, ImportMode::NewProject),
+                 qPrintable(error));
+        QCOMPARE(persisted.tracks().first()->name(), QStringLiteral("Draft"));
+    }
+    QVERIFY(guard.setConfiguredRoots({files.path()}));
+    const auto saved = registry.invoke(QStringLiteral("documents.save"), saveArguments());
+    QVERIFY2(saved, qPrintable(saved ? QString{} : saved.getError().message));
+    QVERIFY(historyManager->isOnSavePoint());
+    QCOMPARE(runtime().documentVersion(), dirtyVersion);
+    QCOMPARE(historyManager->nextUndoEntry(), undo);
+    {
+        AppModel persisted;
+        QVERIFY2(converter.load(currentPath, &persisted, error, ImportMode::NewProject),
+                 qPrintable(error));
+        QCOMPARE(persisted.tracks().first()->name(), QStringLiteral("Unsaved edit"));
+    }
+    const auto accepted = open();
+    QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
+    const auto taskId = Automation::TaskId::fromString(accepted.get().value("task_id").toString());
+    QVERIFY(!taskId.isNull());
+    const auto completed = [&] {
+        const auto task = runtime().tasks().getTask(runtime().documentVersion().documentId, taskId);
+        return task && (task.get().state == Automation::AutomationTaskState::Succeeded ||
+                        task.get().state == Automation::AutomationTaskState::Failed ||
+                        task.get().state == Automation::AutomationTaskState::Canceled);
+    };
+    QTRY_VERIFY_WITH_TIMEOUT(completed(), 10000);
+    const auto task = runtime().tasks().getTask(runtime().documentVersion().documentId, taskId);
+    QVERIFY(task);
+    QVERIFY2(task.get().state == Automation::AutomationTaskState::Succeeded,
+             qPrintable(task.get().error ? task.get().error->message : QString{}));
+    QVERIFY(runtime().documentVersion().documentId != dirtyVersion.documentId);
+    QCOMPARE(context->m_appModel->tracks().size(), 1);
+    QCOMPARE(context->m_appModel->tracks().first()->name(), QStringLiteral("Replacement"));
+    QVERIFY(historyManager->isOnSavePoint());
+    QVERIFY(!historyManager->canUndo());
+}
+
 void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan_data() {
     QTest::addColumn<QString>("sourceFormat");
     QTest::addColumn<bool>("opening");
