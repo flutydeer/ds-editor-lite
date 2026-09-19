@@ -152,12 +152,30 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
     }
 }
 
+void ApplicationWorkflowTests::publicSaveChecksTheCurrentPathBeforeReplacingTheDocument_data() {
+    QTest::addColumn<QString>("requestedName");
+    QTest::addColumn<QString>("extensionPolicy");
+    QTest::newRow("append-missing-extension")
+        << QStringLiteral("current") << QStringLiteral("append_if_missing");
+    QTest::newRow("replace-other-extension")
+        << QStringLiteral("current.data") << QStringLiteral("replace");
+}
+
 void ApplicationWorkflowTests::publicSaveChecksTheCurrentPathBeforeReplacingTheDocument() {
+    QFETCH(QString, requestedName);
+    QFETCH(QString, extensionPolicy);
     QTemporaryDir files;
     QVERIFY(files.isValid());
     const auto incomingDirectory = files.filePath(QStringLiteral("incoming"));
     QVERIFY(QDir().mkpath(incomingDirectory));
     const auto currentPath = files.filePath(QStringLiteral("current.dspx"));
+    const auto requestedPath = files.filePath(requestedName);
+    const QByteArray originalFile("Existing unrelated file");
+    {
+        QFile untouched(requestedPath);
+        QVERIFY(untouched.open(QIODevice::WriteOnly));
+        QCOMPARE(untouched.write(originalFile), qint64(originalFile.size()));
+    }
     const auto incomingPath = QDir(incomingDirectory).filePath(QStringLiteral("replacement.dspx"));
     AppModel replacement;
     replacement.setTimeline(context->m_appModel->timeline());
@@ -192,11 +210,32 @@ void ApplicationWorkflowTests::publicSaveChecksTheCurrentPathBeforeReplacingTheD
     QCOMPARE(missingPath.getError().code, Automation::AutomationErrorCode::PathRequired);
     QCOMPARE(runtime().documentVersion(), originalVersion);
     auto saveAs = saveArguments();
-    saveAs.insert(QStringLiteral("path"), currentPath);
+    saveAs.insert(QStringLiteral("path"), requestedPath);
+    saveAs.insert(QStringLiteral("extension_policy"), extensionPolicy);
     saveAs.insert(QStringLiteral("overwrite_policy"), QStringLiteral("reject"));
+    auto validationArguments = saveAs;
+    validationArguments.insert(QStringLiteral("validate_only"), true);
+    const auto validated =
+        registry.invoke(QStringLiteral("documents.save_as"), validationArguments);
+    QVERIFY2(validated, qPrintable(validated ? QString{} : validated.getError().message));
+    QVERIFY(!QFileInfo::exists(currentPath));
+    QCOMPARE(runtime().documentVersion(), originalVersion);
+    const auto stillUnnamed = runtime().documents().getDocument(originalVersion.documentId);
+    QVERIFY(stillUnnamed);
+    QVERIFY(stillUnnamed.get().path.isEmpty());
+    QVERIFY(!historyManager->isOnSavePoint());
     const auto savedAs = registry.invoke(QStringLiteral("documents.save_as"), saveAs);
     QVERIFY2(savedAs, qPrintable(savedAs ? QString{} : savedAs.getError().message));
     QVERIFY(historyManager->isOnSavePoint());
+    const auto named = runtime().documents().getDocument(runtime().documentVersion().documentId);
+    QVERIFY(named);
+    QCOMPARE(QFileInfo(named.get().path).canonicalFilePath(),
+             QFileInfo(currentPath).canonicalFilePath());
+    {
+        QFile untouched(requestedPath);
+        QVERIFY(untouched.open(QIODevice::ReadOnly));
+        QCOMPARE(untouched.readAll(), originalFile);
+    }
     QVERIFY(runtime().project().renameTrack(commandContext(), currentTrack,
                                             QStringLiteral("Unsaved edit")));
     QVERIFY(!historyManager->isOnSavePoint());
