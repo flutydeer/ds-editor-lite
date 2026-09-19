@@ -35,6 +35,14 @@
 #include <thread>
 
 namespace {
+    bool exportFinished(Automation::CoreRuntime &runtime, const Automation::DocumentId &document,
+                        const Automation::TaskId &taskId) {
+        const auto task = runtime.tasks().getTask(document, taskId);
+        return task && (task.get().state == Automation::AutomationTaskState::Succeeded ||
+                        task.get().state == Automation::AutomationTaskState::Failed ||
+                        task.get().state == Automation::AutomationTaskState::Canceled);
+    }
+
     class ControlledAudioRead final : public talcs::PositionableAudioSource {
     public:
         explicit ControlledAudioRead(float value, QSemaphore *entered = nullptr,
@@ -329,13 +337,7 @@ void ApplicationWorkflowTests::audioExportRespectsRangeMixAndMute() {
         const auto taskId = Automation::TaskId::fromString(
             accepted.get().value(QStringLiteral("task_id")).toString());
         QVERIFY(!taskId.isNull());
-        const auto terminal = [&] {
-            const auto task = runtime().tasks().getTask(before.documentId, taskId);
-            return task && (task.get().state == Automation::AutomationTaskState::Succeeded ||
-                            task.get().state == Automation::AutomationTaskState::Failed ||
-                            task.get().state == Automation::AutomationTaskState::Canceled);
-        };
-        QTRY_VERIFY_WITH_TIMEOUT(terminal(), 10000);
+        QTRY_VERIFY_WITH_TIMEOUT(exportFinished(runtime(), before.documentId, taskId), 10000);
         const auto task = runtime().tasks().getTask(before.documentId, taskId);
         QVERIFY(task);
         QVERIFY2(task.get().state == Automation::AutomationTaskState::Succeeded,
@@ -492,6 +494,94 @@ void ApplicationWorkflowTests::audioExportRespectsRangeMixAndMute() {
     QCOMPARE(context->m_appModel->serialize(), beforeMixChanges);
 }
 
+void ApplicationWorkflowTests::separatedAudioExportRejectsCollisionsAndKeepsTrackSignals() {
+    QTemporaryDir files;
+    QVERIFY(files.isValid());
+    const auto first = files.filePath(QStringLiteral("first.wav"));
+    const auto second = files.filePath(QStringLiteral("second.wav"));
+    QVERIFY(writeAudio(first, QVector<float>(48000, 0.125f)));
+    QVERIFY(writeAudio(second, QVector<float>(48000, 0.25f)));
+    auto document = Automation::DocumentAutomationFacade::newDocumentDraft(false);
+    document.tracks = {audioTrack(QStringLiteral("Voice"), first),
+                       audioTrack(QStringLiteral("Voice"), second)};
+    QVERIFY(runtime().documents().commitNewDocument(commandContext(), document));
+    const auto releaseAudio = qScopeGuard([&] {
+        runtime().documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false));
+    });
+    QVERIFY(runtime().timeline().setTempo(commandContext(), 0, 120));
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    const auto version = runtime().documentVersion();
+    const auto model = context->m_appModel->serialize();
+    const auto outputDirectory = files.filePath(QStringLiteral("output"));
+    QVERIFY(QDir().mkpath(outputDirectory));
+    Automation::AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
+    Automation::AutomationFileGuard guard;
+    Automation::AdmissionController admission;
+    QVERIFY(guard.setConfiguredRoots({files.path()}));
+    Automation::PublicAutomationRegistry registry(
+        runtime(), access, guard, admission,
+        Automation::createPublicAutomationHostServices(runtime(), context->m_appModel,
+                                                       &SynthrtEngine::instance()));
+    QJsonObject arguments{
+        {"document_id", version.documentId.toString()                                     },
+        {"path",        QDir(outputDirectory).filePath(QStringLiteral("${trackName}.wav"))},
+        {"options",     QJsonObject{{"format", "wav"},
+                                {"sample_rate", 48000},
+                                {"channel_mode", "mono"},
+                                {"mixing_mode", "separated"},
+                                {"source", "all"}}                     }
+    };
+    const auto preview = registry.invoke(QStringLiteral("exports.audio.preview"), arguments);
+    QVERIFY2(preview, qPrintable(preview ? QString{} : preview.getError().message));
+    const auto targets = preview.get().value("plan").toObject().value("targets").toArray();
+    QCOMPARE(targets.size(), 2);
+    QCOMPARE(targets[0], targets[1]);
+    arguments.insert(QStringLiteral("overwrite_policy"), QStringLiteral("reject"));
+    const auto rejected = registry.invoke(QStringLiteral("exports.audio.start"), arguments);
+    QVERIFY(!rejected);
+    QCOMPARE(rejected.getError().code, Automation::AutomationErrorCode::InvalidArgument);
+    QVERIFY(QDir(outputDirectory).entryList(QDir::Files).isEmpty());
+    QCOMPARE(context->m_appModel->serialize(), model);
+    QCOMPARE(runtime().documentVersion(), version);
+
+    arguments.insert(
+        QStringLiteral("path"),
+        QDir(outputDirectory).filePath(QStringLiteral("${trackIndex}-${trackName}.wav")));
+    const auto accepted = registry.invoke(QStringLiteral("exports.audio.start"), arguments);
+    QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
+    const auto taskId = Automation::TaskId::fromString(accepted.get().value("task_id").toString());
+    QVERIFY(!taskId.isNull());
+    QTRY_VERIFY_WITH_TIMEOUT(exportFinished(runtime(), version.documentId, taskId), 10000);
+    const auto task = runtime().tasks().getTask(version.documentId, taskId);
+    QVERIFY(task);
+    QVERIFY2(task.get().state == Automation::AutomationTaskState::Succeeded,
+             qPrintable(task.get().error ? task.get().error->message : QString{}));
+    QCOMPARE(QDir(outputDirectory).entryList(QDir::Files, QDir::Name),
+             QStringList({QStringLiteral("1-Voice.wav"), QStringLiteral("2-Voice.wav")}));
+    QVector<float> middleSamples;
+    for (int index = 1; index <= 2; ++index) {
+        QFile file(QDir(outputDirectory).filePath(QStringLiteral("%1-Voice.wav").arg(index)));
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        talcs::AudioFormatIO decoder(&file);
+        QVERIFY2(decoder.open(talcs::AbstractAudioFormatIO::Read),
+                 qPrintable(decoder.errorString()));
+        QCOMPARE(decoder.majorFormat(), talcs::AudioFormatIO::WAV);
+        QCOMPARE(decoder.sampleRate(), 48000.0);
+        QCOMPARE(decoder.channelCount(), 1);
+        QCOMPARE(decoder.length(), qint64{48000});
+        QVector<float> samples(decoder.length());
+        QCOMPARE(decoder.read(samples.data(), samples.size()), qint64(samples.size()));
+        QVERIFY(std::all_of(samples.cbegin(), samples.cend(),
+                            [](float sample) { return std::isfinite(sample); }));
+        middleSamples.append(samples.at(samples.size() / 2));
+    }
+    QVERIFY(middleSamples[0] > 0.05f);
+    QVERIFY(std::abs(middleSamples[1] / middleSamples[0] - 2.0f) < 1e-5f);
+    QCOMPARE(runtime().documentVersion(), version);
+    QCOMPARE(context->m_appModel->serialize(), model);
+}
+
 void ApplicationWorkflowTests::lossyAudioExportsProduceReadableFiles_data() {
     QTest::addColumn<int>("majorFormat");
     QTest::addColumn<QString>("extension");
@@ -545,13 +635,7 @@ void ApplicationWorkflowTests::lossyAudioExportsProduceReadableFiles() {
     QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
     const auto taskId = Automation::TaskId::fromString(accepted.get().value("task_id").toString());
     QVERIFY(!taskId.isNull());
-    const auto terminal = [&] {
-        const auto task = runtime().tasks().getTask(before.documentId, taskId);
-        return task && (task.get().state == Automation::AutomationTaskState::Succeeded ||
-                        task.get().state == Automation::AutomationTaskState::Failed ||
-                        task.get().state == Automation::AutomationTaskState::Canceled);
-    };
-    QTRY_VERIFY_WITH_TIMEOUT(terminal(), 10000);
+    QTRY_VERIFY_WITH_TIMEOUT(exportFinished(runtime(), before.documentId, taskId), 10000);
     const auto task = runtime().tasks().getTask(before.documentId, taskId);
     QVERIFY(task);
     QVERIFY2(task.get().state == Automation::AutomationTaskState::Succeeded,

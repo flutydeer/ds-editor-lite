@@ -19,6 +19,7 @@ class ApplicationWorkflowTests final : public QObject {
 
 private slots:
     void audioExportRespectsRangeMixAndMute();
+    void separatedAudioExportRejectsCollisionsAndKeepsTrackSignals();
     void lossyAudioExportsProduceReadableFiles_data();
     void lossyAudioExportsProduceReadableFiles();
     void cancelingAudioExportPreservesExistingFilesAndMixer();
