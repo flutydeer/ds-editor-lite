@@ -632,23 +632,31 @@ void ApplicationWorkflowTests::rejectedPackageRefreshKeepsThePublishedCatalog() 
 }
 
 void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan_data() {
-    QTest::addColumn<bool>("externalConverter");
+    QTest::addColumn<QString>("sourceFormat");
     QTest::addColumn<bool>("opening");
     QTest::addColumn<QByteArray>("changeAfterAdmission");
-    QTest::newRow("import-native-dspx") << false << false << QByteArray();
-    QTest::newRow("import-external-libresvip") << true << false << QByteArray();
-    QTest::newRow("open-native-dspx") << false << true << QByteArray();
-    QTest::newRow("open-external-libresvip") << true << true << QByteArray();
-    QTest::newRow("cancel-queued-open") << false << true << QByteArray("cancel");
-    QTest::newRow("revoke-import-access") << false << false << QByteArray("revoke");
-    QTest::newRow("replace-import-source") << false << false << QByteArray("replace-source");
-    QTest::newRow("edit-while-opening") << false << true << QByteArray("edit-document");
+    QTest::newRow("import-native-dspx") << QStringLiteral("dspx") << false << QByteArray();
+    QTest::newRow("import-external-libresvip")
+        << QStringLiteral("libresvip") << false << QByteArray();
+    QTest::newRow("open-native-dspx") << QStringLiteral("dspx") << true << QByteArray();
+    QTest::newRow("open-external-libresvip") << QStringLiteral("libresvip") << true << QByteArray();
+    QTest::newRow("import-midi") << QStringLiteral("midi") << false << QByteArray();
+    QTest::newRow("open-midi") << QStringLiteral("midi") << true << QByteArray();
+    QTest::newRow("cancel-queued-open") << QStringLiteral("dspx") << true << QByteArray("cancel");
+    QTest::newRow("revoke-import-access")
+        << QStringLiteral("dspx") << false << QByteArray("revoke");
+    QTest::newRow("replace-import-source")
+        << QStringLiteral("dspx") << false << QByteArray("replace-source");
+    QTest::newRow("edit-while-opening")
+        << QStringLiteral("dspx") << true << QByteArray("edit-document");
 }
 
 void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
-    QFETCH(bool, externalConverter);
+    QFETCH(QString, sourceFormat);
     QFETCH(bool, opening);
     QFETCH(QByteArray, changeAfterAdmission);
+    const bool externalConverter = sourceFormat == QStringLiteral("libresvip");
+    const bool midi = sourceFormat == QStringLiteral("midi");
     const auto oldExecutable = context->m_appOptions->general()->libreSVIPPath;
     const auto oldResult = qgetenv("DSEL_TEST_LIBRESVIP_RESULT");
     const auto restoreConverter = qScopeGuard([&] {
@@ -685,11 +693,16 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
     sourceClip->insertNote(sourceNote);
     sourceTrack->insertClip(sourceClip);
     QVERIFY(source.appendTrack(sourceTrack));
-    const auto path = files.filePath(externalConverter ? QStringLiteral("待导入 project.svp")
-                                                       : QStringLiteral("待导入.dspx"));
-    DspxProjectConverter converter;
+    const auto path = files.filePath(midi                ? QStringLiteral("待导入.mid")
+                                     : externalConverter ? QStringLiteral("待导入 project.svp")
+                                                         : QStringLiteral("待导入.dspx"));
+    std::unique_ptr<IProjectConverter> converter;
+    if (midi)
+        converter = std::make_unique<MidiConverter>();
+    else
+        converter = std::make_unique<DspxProjectConverter>();
     QString error;
-    QVERIFY2(converter.save(path, &source, error), qPrintable(error));
+    QVERIFY2(converter->save(path, &source, error), qPrintable(error));
     QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
     historyManager->reset();
     const auto before = runtime().documentVersion();
@@ -739,7 +752,7 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
         QVERIFY(fileGuard.setConfiguredRoots({}));
     } else if (changeAfterAdmission == "replace-source") {
         sourceTrack->setName(QStringLiteral("Different source after admission"));
-        QVERIFY2(converter.save(path, &source, error), qPrintable(error));
+        QVERIFY2(converter->save(path, &source, error), qPrintable(error));
     } else if (changeAfterAdmission == "edit-document") {
         QVERIFY(runtime().project().renameTrack(commandContext(),
                                                 Automation::TrackId(originalTracks.first()->id()),
@@ -774,16 +787,22 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
     if (opening) {
         QVERIFY(runtime().documentVersion().documentId != before.documentId);
         QCOMPARE(tracks.size(), 1);
-        QCOMPARE(context->m_appModel->timeline(), source.timeline());
+        if (midi) {
+            QVERIFY(qAbs(context->m_appModel->timeline().tempos().first().value - 87.0) < 0.001);
+            QCOMPARE(context->m_appModel->timeline().timeSignatures(),
+                     source.timeline().timeSignatures());
+        } else {
+            QCOMPARE(context->m_appModel->timeline(), source.timeline());
+        }
         const auto document =
             runtime().documents().getDocument(runtime().documentVersion().documentId);
         QVERIFY(document);
-        if (externalConverter)
+        if (externalConverter || midi)
             QVERIFY(document.get().path.isEmpty());
         else
             QCOMPARE(QFileInfo(document.get().path).canonicalFilePath(),
                      QFileInfo(path).canonicalFilePath());
-        QCOMPARE(historyManager->isOnSavePoint(), !externalConverter);
+        QCOMPARE(historyManager->isOnSavePoint(), !externalConverter && !midi);
         QVERIFY(!historyManager->canUndo());
     } else {
         QCOMPARE(runtime().documentVersion().documentId, before.documentId);
@@ -796,10 +815,13 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
     QCOMPARE(importedTrack->clips().count(), 1);
     const auto *importedClip = qobject_cast<SingingClip *>(*importedTrack->clips().begin());
     QVERIFY(importedClip);
-    QCOMPARE(importedClip->start(), sourceClip->start());
+    if (!midi)
+        QCOMPARE(importedClip->start(), sourceClip->start());
     QCOMPARE(importedClip->notes().count(), 1);
     const auto *importedNote = *importedClip->notes().begin();
-    QCOMPARE(importedNote->localStart(), sourceNote->localStart());
+    QCOMPARE(importedClip->start() + importedNote->localStart(),
+             sourceClip->start() + sourceNote->localStart());
+    QCOMPARE(importedNote->length(), sourceNote->length());
     QCOMPARE(importedNote->keyIndex(), sourceNote->keyIndex());
     QCOMPARE(importedNote->lyric(), sourceNote->lyric());
     if (!opening) {
