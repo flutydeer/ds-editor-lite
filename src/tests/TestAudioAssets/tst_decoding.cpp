@@ -353,12 +353,16 @@ void AudioAssetsTests::cascadingRelinkRequiresMatchingAudioIdentity() {
     clips.last().audioPath = fixture.directory.filePath(QStringLiteral("gone/second.wav"));
     clips.last().properties.start = 480;
     const QStringList paths{firstPath, secondPath};
+    QByteArray originalSecondFile;
     for (int index = 0; index < paths.size(); ++index) {
         QVERIFY(TestSupport::writeWave(paths[index], QVector<float>(4800, 0.125f)));
         QFile file(paths[index]);
         QVERIFY(file.open(QIODevice::ReadOnly));
+        const auto bytes = file.readAll();
+        if (index == 1)
+            originalSecondFile = bytes;
         clips[index].audioPathInfo.sha512 = QString::fromLatin1(
-            QCryptographicHash::hash(file.readAll(), QCryptographicHash::Sha512).toHex());
+            QCryptographicHash::hash(bytes, QCryptographicHash::Sha512).toHex());
     }
     QVERIFY(TestSupport::writeWave(secondPath, QVector<float>(4800, 0.25f)));
     QVERIFY(fixture.openDocument(document, InvocationSource::PublicMcp));
@@ -405,7 +409,11 @@ void AudioAssetsTests::cascadingRelinkRequiresMatchingAudioIdentity() {
     }
     QVERIFY(mismatchReported);
     const auto firstAsset = audioAssetSnapshotDto(*first);
-    QVERIFY(TestSupport::writeWave(secondPath, QVector<float>(4800, 0.125f)));
+    // Restore exact bytes: regenerating the same PCM can change WAV container metadata.
+    QFile restored(secondPath);
+    QVERIFY(restored.open(QIODevice::WriteOnly));
+    QCOMPARE(restored.write(originalSecondFile), qint64(originalSecondFile.size()));
+    restored.close();
     fixture.controller->resolveMissingClipsNear(secondPath);
     QVERIFY(drainTasks());
     QCOMPARE(second->path(), secondPath);
