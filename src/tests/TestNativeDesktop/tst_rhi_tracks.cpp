@@ -338,11 +338,29 @@ void NativeDesktopTests::rhiClipResizeCommitsOrCancels() {
     QVERIFY(failed.isEmpty());
 }
 
+void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor_data() {
+    QTest::addColumn<bool>("audioSource");
+    QTest::newRow("singing-clip") << false;
+    QTest::newRow("audio-clip") << true;
+}
+
 void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
+    QFETCH(bool, audioSource);
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
     TrackFixture fixture;
-    QVERIFY2(fixture.initialize({}, true), qPrintable(fixture.application.error));
+    QString audioPath;
+    if (audioSource) {
+        QVERIFY(fixture.application.directory.isValid());
+        audioPath = fixture.application.directory.filePath(QStringLiteral("clipboard.wav"));
+        QVERIFY(TestSupport::writeWave(audioPath, QVector<float>(48000, 0.25f)));
+    }
+    QVERIFY2(fixture.initialize(audioPath, true), qPrintable(fixture.application.error));
+    if (audioSource) {
+        const auto *audio = dynamic_cast<AudioClip *>(fixture.clip());
+        QVERIFY(audio);
+        QTRY_VERIFY(!audio->audioInfo().peakCache.isEmpty() && taskManager->tasks().isEmpty());
+    }
     auto &canvas = *fixture.canvas;
     auto clipboard = std::make_unique<QMimeData>();
     if (const auto *mime = QApplication::clipboard()->mimeData()) {
@@ -405,7 +423,8 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
     menu(fixture.point(960, 0), TrackEditorContextMenuController::tr("&Copy"), true, false);
     if (QTest::currentTestFailed())
         return;
-    QCOMPARE(requested.target, TrackEditorMenuContext::Target::SingingClip);
+    QCOMPARE(requested.target, audioSource ? TrackEditorMenuContext::Target::AudioClip
+                                           : TrackEditorMenuContext::Target::SingingClip);
     QCOMPARE(requested.clipId, fixture.clipId);
     for (bool commit : {false, true}) {
         menu(fixture.point(2180, 1), TrackEditorContextMenuController::tr("&Paste"), commit, true);
@@ -415,12 +434,23 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
         QCOMPARE(requested.trackIndex, 1);
         QCOMPARE(destination->clips().count(), commit ? 1 : 0);
     }
-    auto *pasted = dynamic_cast<SingingClip *>(*destination->clips().begin());
+    auto *pasted = *destination->clips().begin();
     QVERIFY(pasted);
     QCOMPARE(pasted->start(), requested.snappedTick);
     QCOMPARE(pasted->clipLen(), fixture.clip()->clipLen());
-    QCOMPARE(pasted->notes().count(), 1);
-    QCOMPARE((*pasted->notes().begin())->lyric(), QStringLiteral("la"));
+    if (audioSource) {
+        const auto *audio = dynamic_cast<AudioClip *>(pasted);
+        QVERIFY(audio);
+        QCOMPARE(audio->path(), audioPath);
+        QTRY_VERIFY(!audio->audioInfo().peakCache.isEmpty() && taskManager->tasks().isEmpty());
+        QCOMPARE(audio->trimStartMs(), 0.0);
+        QCOMPARE(audio->playLengthMs(), 1000.0);
+    } else {
+        const auto *singing = dynamic_cast<SingingClip *>(pasted);
+        QVERIFY(singing);
+        QCOMPARE(singing->notes().count(), 1);
+        QCOMPARE((*singing->notes().begin())->lyric(), QStringLiteral("la"));
+    }
     const auto pastedId = pasted->id();
     const auto *pasteUndo = historyManager->nextUndoEntry();
     QVERIFY(pasteUndo && pasteUndo->focusTransition());
@@ -440,10 +470,12 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
     QCOMPARE(selection.size(), 2);
     QVERIFY(selection.contains(fixture.clipId) && selection.contains(pastedId));
     QCOMPARE(historyManager->nextUndoEntry(), pasteUndo);
+    const auto beforeUndoFrame = frames.size();
     historyManager->undo();
     QCOMPARE(destination->clips().count(), 0);
     QVERIFY(!fixture.application.context->m_appModel->findClipById(pastedId));
     QVERIFY(!historyManager->canUndo());
+    QTRY_VERIFY(frames.size() > beforeUndoFrame);
     const auto newPosition = fixture.point(2400, 1);
     QTest::mouseDClick(&canvas, Qt::LeftButton, Qt::NoModifier, newPosition);
     QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, newPosition);

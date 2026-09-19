@@ -31,6 +31,7 @@ private slots:
     void rhiNoteMoveCanBeCanceledAndThenCommitted();
     void rhiNoteDragKeepsScrollingUntilTheGestureEnds();
     void rhiMultiNoteSelectionAndMoveCommitAtomically();
+    void rhiNoteResizeUndoRestoresTheHitRegion_data();
     void rhiNoteResizeUndoRestoresTheHitRegion();
     void rhiNoteEraseStrokeCancelsAndCommitsAtomically();
     void rhiInlineTextEditingNavigatesCancelsAndUndoes();
@@ -48,6 +49,7 @@ private slots:
     void rhiClipResizeCommitsOrCancels_data();
     void rhiClipResizeCommitsOrCancels();
     void rhiAudioClipTrimAndMovePreserveTimeAnchors();
+    void rhiTrackMenuPasteAndSelectionUseTheFullEditor_data();
     void rhiTrackMenuPasteAndSelectionUseTheFullEditor();
     void rhiTrackFileDropImportsAtTheChosenSlot_data();
     void rhiTrackFileDropImportsAtTheChosenSlot();

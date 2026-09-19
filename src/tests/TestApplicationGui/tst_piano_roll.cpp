@@ -748,6 +748,23 @@ void ApplicationGuiTests::inlineLyricsCommitNavigateAndCancel() {
     QCOMPARE(second->lyric(), QStringLiteral("two"));
     QVERIFY(runtime.history().undo(commandContext()));
     QCOMPARE(first->lyric(), replacement);
+
+    const auto removedId = first->id();
+    const auto beforeRemoval = context->m_appModel->serialize();
+    editFirst();
+    if (QTest::currentTestFailed())
+        return;
+    replaceInlineText(input, QStringLiteral("uncommitted text"));
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(runtime.notes().removeNotes(commandContext(), Automation::ClipId(singingClip->id()),
+                                        {Automation::NoteId(removedId)}));
+    QTRY_VERIFY(!overlay->isEditing());
+    QVERIFY(!singingClip->findNoteById(removedId));
+    QVERIFY(!sceneNote(removedId));
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(context->m_appModel->serialize(), beforeRemoval);
+    QVERIFY(!overlay->isEditing());
 }
 
 void ApplicationGuiTests::inlinePronunciationCommitsAndCancels() {

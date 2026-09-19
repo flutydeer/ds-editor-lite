@@ -525,6 +525,15 @@ void NativeDesktopTests::rhiNoteDrawingCommitsAndUndoUpdatesInteraction() {
     QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, pointForTick(720));
     QVERIFY(appStatus->selectedNotes.get().isEmpty());
 
+    QCOMPARE(canvas.focusVisibility(focus), HistoryFocusVisibility::Visible);
+    QVERIFY(canvas.centerAt(1920, 90));
+    QCOMPARE(canvas.focusVisibility(focus), HistoryFocusVisibility::ScrollRequired);
+    QVERIFY(canvas.revealFocus(focus, false));
+    QCOMPARE(canvas.focusVisibility(focus), HistoryFocusVisibility::Visible);
+    QCOMPARE(clip->notes().count(), 0);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(canvas.centerAt(1920, 60));
+
     const auto beforeRedoFrame = submitted.size();
     QVERIFY(runtime.history().redo(command()));
     QVERIFY(clip->findNoteById(noteId));
@@ -655,7 +664,14 @@ void NativeDesktopTests::rhiNoteMoveCanBeCanceledAndThenCommitted() {
     QVERIFY(!historyManager->canUndo());
 }
 
+void NativeDesktopTests::rhiNoteResizeUndoRestoresTheHitRegion_data() {
+    QTest::addColumn<bool>("leftEdge");
+    QTest::newRow("left-edge") << true;
+    QTest::newRow("right-edge") << false;
+}
+
 void NativeDesktopTests::rhiNoteResizeUndoRestoresTheHitRegion() {
+    QFETCH(bool, leftEdge);
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
     ExistingRhiNoteFixture fixture;
@@ -665,8 +681,8 @@ void NativeDesktopTests::rhiNoteResizeUndoRestoresTheHitRegion() {
     auto &canvas = *fixture.canvas;
     auto *note = fixture.clip->findNoteById(fixture.noteId);
     QVERIFY(note);
-    const auto press = fixture.pointFor(960, 60) - QPoint(2, 0);
-    const auto release = fixture.pointFor(1200, 60) - QPoint(2, 0);
+    const auto press = fixture.pointFor(leftEdge ? 480 : 960, 60) + QPoint(leftEdge ? 2 : -2, 0);
+    const auto release = fixture.pointFor(leftEdge ? 240 : 1200, 60) + QPoint(leftEdge ? 2 : -2, 0);
     QVERIFY(canvas.rect().contains(press));
     QVERIFY(canvas.rect().contains(release));
     const auto before = fixture.runtime().documentVersion();
@@ -674,22 +690,25 @@ void NativeDesktopTests::rhiNoteResizeUndoRestoresTheHitRegion() {
     fixture.moveTo(release);
     QTRY_COMPARE(appStatus->pianoRollNoteEditPreview.get().size(), 1);
     const auto preview = appStatus->pianoRollNoteEditPreview.get().first();
-    QCOMPARE(preview.rStart, 480);
+    QCOMPARE(preview.rStart, leftEdge ? 240 : 480);
     QCOMPARE(preview.length, 720);
     QCOMPARE(note->length(), 480);
+    QCOMPARE(note->localStart(), 480);
     QCOMPARE(fixture.runtime().documentVersion(), before);
     QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
     QCOMPARE(note->length(), 720);
+    QCOMPARE(note->localStart(), leftEdge ? 240 : 480);
     QCOMPARE(fixture.runtime().documentVersion().revision, before.revision + 1);
     QVERIFY(!editSessionManager->hasActiveTransaction());
     fixture.waitForFrame();
     if (QTest::currentTestFailed())
         return;
-    const auto extendedArea = fixture.pointFor(1080, 60);
+    const auto extendedArea = fixture.pointFor(leftEdge ? 360 : 1080, 60);
     QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, extendedArea);
     QCOMPARE(appStatus->selectedNotes.get(), QList<int>{fixture.noteId});
     QVERIFY(fixture.runtime().history().undo(fixture.command()));
     QCOMPARE(note->length(), 480);
+    QCOMPARE(note->localStart(), 480);
     fixture.waitForFrame();
     if (QTest::currentTestFailed())
         return;
