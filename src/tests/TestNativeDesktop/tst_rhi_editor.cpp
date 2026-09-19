@@ -1591,6 +1591,17 @@ void NativeDesktopTests::rhiPitchModulationUsesTheInferredBaseline() {
     selectRange();
     if (QTest::currentTestFailed())
         return;
+    const auto outside = fixture.pointFor(1600, 60);
+    QVERIFY(canvas.rect().contains(outside));
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, outside);
+    QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+    QCOMPARE(snapshot(), initial);
+    QCOMPARE(runtime.documentVersion(), before);
+    selectRange();
+    if (QTest::currentTestFailed())
+        return;
     QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
     fixture.moveTo(release);
     QVERIFY(editSessionManager->hasActiveTransaction());

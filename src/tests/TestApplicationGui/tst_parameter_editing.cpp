@@ -469,6 +469,17 @@ void ApplicationGuiTests::parameterTransformGesturesCommitAndCancel() {
     selectRange();
     if (QTest::currentTestFailed())
         return;
+    const auto outside = editor.pointFor(1320, 500);
+    QVERIFY(editor.view.viewport()->rect().contains(outside));
+    QTest::mouseClick(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, outside);
+    const auto reselect = editor.pointFor(720, 500);
+    QTest::mousePress(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, reselect);
+    QVERIFY(!editSessionManager->hasActiveTransaction());
+    QTest::mouseRelease(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, reselect);
+    QCOMPARE(snapshot(), baseline);
+    selectRange();
+    if (QTest::currentTestFailed())
+        return;
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
     QSignalSpy committed(editor.foreground, &CommonParamEditorView::editCommitted);
