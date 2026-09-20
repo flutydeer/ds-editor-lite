@@ -391,7 +391,48 @@ void ApplicationWorkflowTests::lyricRulesUseTheProductionRuntimeAndPersistence()
     QCOMPARE(preview.get().taggedTokens.first().lyric, QStringLiteral("fixtureword"));
     QCOMPARE(preview.get().taggedTokens.first().language, QStringLiteral("cmn"));
 
-    QVERIFY(settings.updateLyricRule({}, id, {.name = QStringLiteral("Renamed rule")}));
+    const auto before = runtime().documentVersion();
+    const auto *undo = historyManager->nextUndoEntry();
+    const auto beforeSettings = settings.getSettings();
+    const auto beforeRules = settings.listLyricRules();
+    QVERIFY(beforeSettings);
+    QVERIFY(beforeRules);
+    const Automation::LyricRulePatchDto patch{.name = QStringLiteral("Renamed rule"),
+                                              .language = QStringLiteral("jpn")};
+    const auto config = appOptions->configPath();
+    const auto backup = config + QStringLiteral(".lyric-save-failure-backup");
+    QVERIFY(QFile::rename(config, backup));
+    const auto restoreFile = qScopeGuard([&] {
+        if (QFile::exists(backup)) {
+            QVERIFY(QDir().rmdir(config));
+            QVERIFY(QFile::rename(backup, config));
+        }
+    });
+    // Occupy the configuration file path to reject writes on every supported platform.
+    QVERIFY(QDir().mkdir(config));
+    const auto rejected = settings.updateLyricRule({}, id, patch);
+    QVERIFY(!rejected);
+    QCOMPARE(rejected.getError().code, Automation::AutomationErrorCode::IoError);
+    const auto retainedSettings = settings.getSettings();
+    const auto retainedRules = settings.listLyricRules();
+    QVERIFY(retainedSettings);
+    QVERIFY(retainedRules);
+    QCOMPARE(retainedSettings.get().fillLyric, beforeSettings.get().fillLyric);
+    QCOMPARE(retainedRules.get(), beforeRules.get());
+    const auto retainedPreview = settings.testLyricRules(QStringLiteral("fixtureword"));
+    QVERIFY(retainedPreview);
+    QCOMPARE(retainedPreview.get().taggedTokens.size(), 1);
+    QCOMPARE(retainedPreview.get().taggedTokens.first().language, QStringLiteral("cmn"));
+    QCOMPARE(runtime().documentVersion(), before);
+    QCOMPARE(historyManager->nextUndoEntry(), undo);
+    QVERIFY(QDir().rmdir(config));
+    QVERIFY(QFile::rename(backup, config));
+
+    QVERIFY(settings.updateLyricRule({}, id, patch));
+    const auto retriedPreview = settings.testLyricRules(QStringLiteral("fixtureword"));
+    QVERIFY(retriedPreview);
+    QCOMPARE(retriedPreview.get().taggedTokens.size(), 1);
+    QCOMPARE(retriedPreview.get().taggedTokens.first().language, QStringLiteral("jpn"));
     QVERIFY(settings.setLyricRuleEnabled({}, id, false));
     const auto disabledPreview = settings.testLyricRules(QStringLiteral("fixtureword"));
     QVERIFY(disabledPreview);
@@ -403,12 +444,15 @@ void ApplicationWorkflowTests::lyricRulesUseTheProductionRuntimeAndPersistence()
                                  [&](const auto &rule) { return rule.ruleId == id; });
     QVERIFY(it != rules.cend());
     QCOMPARE(it->name, QStringLiteral("Renamed rule"));
+    QCOMPARE(it->language, QStringLiteral("jpn"));
     QVERIFY(!it->enabled);
     QVERIFY(settings.deleteLyricRule({}, id));
     const auto remaining = settings.listLyricRules();
     QVERIFY(remaining);
     QVERIFY(std::none_of(remaining.get().cbegin(), remaining.get().cend(),
                          [&](const auto &rule) { return rule.ruleId == id; }));
+    QCOMPARE(runtime().documentVersion(), before);
+    QCOMPARE(historyManager->nextUndoEntry(), undo);
 }
 
 void ApplicationWorkflowTests::rejectedPackageRefreshKeepsThePublishedCatalog() {
