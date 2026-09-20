@@ -455,7 +455,7 @@ void ApplicationWorkflowTests::lyricRulesUseTheProductionRuntimeAndPersistence()
     QCOMPARE(historyManager->nextUndoEntry(), undo);
 }
 
-void ApplicationWorkflowTests::rejectedPackageRefreshKeepsThePublishedCatalog() {
+void ApplicationWorkflowTests::packageRefreshPreservesCatalogAndReportsInvalidRoots() {
     QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
                               10000);
     QTRY_VERIFY(taskManager->tasks().isEmpty());
@@ -478,8 +478,40 @@ void ApplicationWorkflowTests::rejectedPackageRefreshKeepsThePublishedCatalog() 
             const auto result = packageManager->refreshInstalledPackages(originalPaths);
             QVERIFY2(result, qPrintable(result ? QString{} : result.getError().message));
         });
+        const auto missingRoot = emptyDirectory.filePath(QStringLiteral("missing"));
+        const auto invalidPackage = emptyDirectory.filePath(QStringLiteral("broken@1.0.0"));
+        QVERIFY(QDir().mkpath(invalidPackage));
+        {
+            QFile manifest(QDir(invalidPackage).filePath(QStringLiteral("desc.json")));
+            QVERIFY(manifest.open(QIODevice::WriteOnly));
+            QCOMPARE(manifest.write("invalid manifest"), qint64(16));
+        }
+        const auto before = runtime().documentVersion();
+        const auto *undo = historyManager->nextUndoEntry();
+        auto searchPaths = originalPaths;
+        searchPaths.append(missingRoot);
+        searchPaths.append(emptyDirectory.path());
+        const auto partial = packageManager->refreshInstalledPackages(searchPaths);
+        QVERIFY2(partial, qPrintable(partial ? QString{} : partial.getError().message));
+        QCOMPARE(partial.get().successfulPackages, original.successfulPackages);
+        const auto &failures = partial.get().failedPackages;
+        for (const auto &path : {missingRoot, invalidPackage}) {
+            const auto failed =
+                std::find_if(failures.cbegin(), failures.cend(), [&](const auto &failure) {
+                    return QDir::fromNativeSeparators(failure.path) == path ||
+                           QDir::fromNativeSeparators(failure.reason).contains(path);
+                });
+            QVERIFY2(failed != failures.cend(), qPrintable(path));
+            QVERIFY(!failed->reason.isEmpty());
+        }
+        QCOMPARE(packageManager->findSingerByIdentifier(singer.identifier()), singer);
+        QCOMPARE(runtime().documentVersion(), before);
+        QCOMPARE(historyManager->nextUndoEntry(), undo);
+        QCOMPARE(refreshed.size(), 1);
+        refreshed.clear();
+        QVERIFY(QDir().mkdir(missingRoot));
         const auto canceled =
-            packageManager->refreshInstalledPackages({emptyDirectory.path()}, [] { return false; });
+            packageManager->refreshInstalledPackages({missingRoot}, [] { return false; });
         QVERIFY2(canceled, qPrintable(canceled ? QString{} : canceled.getError().message));
         QVERIFY(canceled.get().successfulPackages.isEmpty());
         QCOMPARE(packageManager->installedPackages().successfulPackages,
@@ -489,6 +521,8 @@ void ApplicationWorkflowTests::rejectedPackageRefreshKeepsThePublishedCatalog() 
     }
     QCOMPARE(refreshed.size(), 1);
     QCOMPARE(packageManager->installedPackages().successfulPackages, original.successfulPackages);
+    QCOMPARE(packageManager->installedPackages().failedPackages.size(),
+             original.failedPackages.size());
     QCOMPARE(packageManager->findSingerByIdentifier(singer.identifier()), singer);
     QTRY_VERIFY(taskManager->tasks().isEmpty());
 }

@@ -612,30 +612,20 @@ bool SynthrtEngine::initializeG2pOnnxDriver() {
 }
 
 // === refreshVoicebanks ===
-srt::core::Expected<std::shared_ptr<const ds::session::VoicebankSnapshot>>
-    SynthrtEngine::refreshVoicebanks(const std::vector<std::filesystem::path> &searchPaths,
-                                     bool allowReuse) {
+srt::core::Expected<ds::session::RefreshResult>
+    SynthrtEngine::refreshVoicebanks(const std::vector<std::filesystem::path> &searchPaths) {
     if (!m_sessionInitialized) {
         return srt::core::Error(srt::core::ErrorCode::InferenceNotInitialized,
                                 "SynthrtEngine::refreshVoicebanks: session not initialized");
     }
-    // VoicebankSession handles internal locking; concurrent callers share the
-    // in-flight refresh operation. allowReuse is honored by skipping the
-    // refresh when searchPaths match the current roots and the caller allows it.
-    if (allowReuse) {
-        const auto current = m_session.snapshot();
-        const auto &roots = m_session.roots();
-        if (current && current->generation != 0 && roots == searchPaths) {
-            return current;
-        }
-    }
+    // The snapshot contains valid packages only; diagnostics belong to the refresh result.
     m_session.setRoots(searchPaths);
     auto result = m_session.refresh();
     if (!result.succeeded) {
         return srt::core::Error(srt::core::ErrorCode::PackageScanAfterInitialize,
                                 result.errorMessage);
     }
-    return result.snapshot;
+    return result;
 }
 
 srt::core::Expected<ds::bank::SingerSnapshot>

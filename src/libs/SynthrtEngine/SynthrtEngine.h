@@ -131,12 +131,11 @@ public:
 
     // === Voicebank snapshot (delegates to VoicebankSession) ===
     //
-    // Re-scan voicebank directories. Returns the new snapshot on success.
+    // Re-scan voicebank directories and retain per-package diagnostics.
     // VoicebankSession handles voicebank scanning, LanguageService metadata
     // update, and atomic snapshot publication internally.
-    srt::core::Expected<std::shared_ptr<const ds::session::VoicebankSnapshot>>
-        refreshVoicebanks(const std::vector<std::filesystem::path> &searchPaths,
-                          bool allowReuse = true);
+    srt::core::Expected<ds::session::RefreshResult>
+        refreshVoicebanks(const std::vector<std::filesystem::path> &searchPaths);
 
     /// Cached singer snapshot from the current VoicebankSession snapshot.
     srt::core::Expected<ds::bank::SingerSnapshot>

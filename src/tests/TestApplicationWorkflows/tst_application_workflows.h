@@ -43,7 +43,7 @@ private slots:
     void projectBatchImportUsesRealLoaders_data();
 
     void projectBatchImportUsesRealLoaders();
-    void rejectedPackageRefreshKeepsThePublishedCatalog();
+    void packageRefreshPreservesCatalogAndReportsInvalidRoots();
     void publicProjectLoadUsesThePreparedPlan();
     void publicSaveChecksTheCurrentPathBeforeReplacingTheDocument_data();
     void publicSaveChecksTheCurrentPathBeforeReplacingTheDocument();

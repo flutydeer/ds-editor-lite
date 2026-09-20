@@ -264,7 +264,6 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
             searchPaths.push_back(path);
         }
 
-        const bool allowReuse = m_catalogGeneration == 0;
         // SynthrtEngine::initialize is triggered asynchronously by InferEngine
         // on a separate task. VoicebankSession (Stage 1: voicebank scan +
         // LanguageService metadata) must be ready before we can query the
@@ -285,14 +284,21 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                 };
             }
         }
-        auto snapshotExp = SynthrtEngine::instance().refreshVoicebanks(searchPaths, allowReuse);
-        if (!snapshotExp) {
+        auto refreshed = SynthrtEngine::instance().refreshVoicebanks(searchPaths);
+        if (!refreshed) {
             return GetInstalledPackagesError{
                 GetInstalledPackagesErrorType::MetadataBackendNotInitialized,
-                QString::fromUtf8(snapshotExp.error().message()),
+                QString::fromUtf8(refreshed.error().message()),
             };
         }
-        const auto snapshot = *snapshotExp;
+        const auto snapshot = refreshed->snapshot;
+        for (const auto &diagnostic : refreshed->diagnostics) {
+            if (diagnostic.severity != srt::core::Severity::Error)
+                continue;
+            // The backend may include the source path only in its diagnostic message.
+            result.failedPackages.emplace_back(QString{},
+                                               QString::fromStdString(diagnostic.message));
+        }
 
         // Iterate packages (valid + invalid). For valid packages, look up the
         // manifest via VoicebankSnapshot::findManifest(). Singers are looked up
