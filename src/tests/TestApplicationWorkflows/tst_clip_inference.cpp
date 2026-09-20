@@ -515,6 +515,87 @@ void ApplicationWorkflowTests::editingParametersRestartsOnlyDependentInference()
     QVERIFY(!HistoryManager::instance()->canUndo());
 }
 
+void ApplicationWorkflowTests::queuedCacheProbeCannotRestoreAudioAfterAnEdit() {
+    prepareVoicebankTarget();
+    if (QTest::currentTestFailed())
+        return;
+    const QPointer<InferPiece> target(piece);
+    QSemaphore entered;
+    QSemaphore release;
+    QSemaphore completed;
+    const auto cleanup = qScopeGuard([&] {
+        release.release();
+        QVERIFY(runtime().documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 15000);
+    });
+    inferController->startPendingAcousticInference();
+    QTRY_VERIFY_WITH_TIMEOUT(target && target->state == QStringLiteral("Ready") &&
+                                 taskManager->tasks().isEmpty(),
+                             15000);
+    const auto originalAudio = target->audioPath;
+    QVERIFY(QFile::exists(originalAudio));
+    const auto originalInput = target->getInputCurve(ParamInfo::Gender)->mid(720);
+    QVERIFY(!originalInput.isEmpty());
+    const auto value = originalInput.first() == 500 ? 750 : 500;
+    const auto editGender = [&] {
+        return runtime().parameters().drawParameter(
+            commandContext(), Automation::ClipId(clip->id()), ParamInfo::Gender, Param::Edited, 480,
+            5, QList<int>(97, value), false);
+    };
+    QVERIFY(editGender());
+    QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(clip), 15000);
+    QPointer<InferAcousticCacheProbeTask> probe;
+    bool captured = false;
+    std::atomic_bool paused = false;
+    QObject observations;
+    connect(taskManager, &TaskManager::taskChanged, &observations,
+            [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
+                auto *candidate = qobject_cast<InferAcousticCacheProbeTask *>(task);
+                if (change != TaskManager::Added || !candidate || captured ||
+                    candidate->pieceId() != target->id())
+                    return;
+                captured = true;
+                probe = candidate;
+                connect(
+                    candidate, &Task::statusUpdated, &observations,
+                    [&](const TaskStatus &) {
+                        if (!paused.exchange(true)) {
+                            entered.release();
+                            release.acquire();
+                        }
+                    },
+                    Qt::DirectConnection);
+                connect(
+                    candidate, &Task::finished, &observations, [&] { completed.release(); },
+                    Qt::DirectConnection);
+            });
+    QVERIFY(runtime().history().undo(commandContext()));
+    QTRY_COMPARE_WITH_TIMEOUT(entered.available(), 1, 15000);
+    QVERIFY(probe);
+    release.release();
+    // Keep the completion queued until the edit has changed the actual model inputs.
+    QVERIFY(completed.tryAcquire(1, 10000));
+    QVERIFY(probe->success());
+    QVERIFY(probe->cacheHit());
+    const auto changed = editGender();
+    QVERIFY(changed && changed.get().changed);
+    const auto afterEdit = runtime().documentVersion();
+    const auto *undo = HistoryManager::instance()->nextUndoEntry();
+    QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(clip), 15000);
+    QVERIFY(target);
+    QCOMPARE(target->getInputCurve(ParamInfo::Gender)->mid(720).first(), value);
+    QVERIFY(target->audioPath != originalAudio);
+    inferController->startPendingAcousticInference();
+    QTRY_VERIFY_WITH_TIMEOUT(target && target->state == QStringLiteral("Ready") &&
+                                 taskManager->tasks().isEmpty(),
+                             15000);
+    QVERIFY(QFile::exists(target->audioPath));
+    QVERIFY(target->audioPath != originalAudio);
+    QCOMPARE(runtime().documentVersion(), afterEdit);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undo);
+}
+
 void ApplicationWorkflowTests::playbackWindowPrioritizesAndSuspendsAcousticInference() {
     QTemporaryDir cache;
     QVERIFY(cache.isValid());

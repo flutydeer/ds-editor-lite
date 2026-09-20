@@ -70,6 +70,7 @@
 | 批量音频预检与目标换代 | workflow | 已覆盖解码失败和取消，预检及准备期间目标变化存在缺口 | 预检不启动任务，原子失败与部分可用分别处理；删除目标轨道或替换文档后不提交旧结果 | ApplicationWorkflows::audioBatchValidationDoesNotStartTasks、audioBatchRejectsChangesBeforeCommit | 通用；临时 WAV |
 | 音频解码失败与删除取消 | workflow | 领域写回失败不能证明真实 worker 的取消及恢复接线 | 外部解码器打开失败不修改用户历史；源文件消失报告缺失；删除片段/轨道取消解码，撤销后重新获得波形 | AudioAssets::decodeBackendFailurePreservesTheDocumentAndAllowsReopen、removingAudioTargetsCancelsPendingDecode | 通用；文件删除按平台共享能力执行 |
 | 声学缓存写出失败 | workflow | 成功声库执行未进入缓存写出错误及重试路径 | 真实声学推理遇到不可写缓存路径后进入失败终态；恢复路径后再次请求成功，不修改音符或用户历史 | ApplicationWorkflows::acousticCacheWriteFailureCanBeRetried | 内置声库；CPU；临时目录 |
+| 已完成缓存探测与随后编辑的先后关系 | workflow | 后台探测命中缓存后，GUI 尚未处理结果时参数再次变化 | 实际编辑与撤销触发缓存探测，受控完成后再修改输入；旧缓存不能恢复为当前结果，随后推理使用新输入，文档和撤销记录不被后台写回修改 | ApplicationWorkflows::queuedCacheProbeCannotRestoreAudioAfterAnEdit | 内置声库；CPU；受控 worker；无需设备 |
 | 模型输入拒绝、取消与同进程重试 | workflow | 正常模型执行未验证无效音素后的恢复，部分取消路径依赖偶发时序 | 四阶段拒绝不支持的音素，不写结果缓存；正常输入成功后，受控暂停缓存命中任务并取消，检查终态、原缓存保留和再次重试；全过程不修改原工程 | ApplicationWorkflows::inferenceFailureAndCancellationAllowRetry | 声库；CPU；独立缓存；受控 worker |
 | 参数能力与范围编辑的公开接线 | workflow/protocol | 参数算法和 GUI 手势未覆盖公开能力与变换参数的完整映射 | 从能力返回值选择可编辑范围，执行带过渡区的公开缩放；检查区间内、区间外、过渡区、revision 及 Undo 后完整模型恢复 | ApplicationWorkflows::publicParameterScalingUsesCapabilitiesAndPreservesOtherRanges | 通用；真实应用参数服务；无需模型或设备 |
 | 公开循环设置与音频回调 | workflow/protocol | 直接播放 Facade 测试未验证公开起止点和回读状态 | 既有受控音频回调场景经公开时间线查询及循环设置，检查循环终点、实际采样区间、跨块回绕和暂停状态一致 | ApplicationWorkflows::controlledPlaybackLoopsAndBuffers | 通用；回调由测试驱动；无需设备 |

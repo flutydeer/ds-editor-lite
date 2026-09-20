@@ -71,6 +71,7 @@ private slots:
     void clipInferenceResultsRespectEditSession();
     void editingParametersRestartsOnlyDependentInference_data();
     void editingParametersRestartsOnlyDependentInference();
+    void queuedCacheProbeCannotRestoreAudioAfterAnEdit();
     void changingSpeakerMixRefreshesExistingInference();
     void playbackWindowPrioritizesAndSuspendsAcousticInference();
     void cancelingVoiceExportDuringPreparationAllowsAnotherExport();
