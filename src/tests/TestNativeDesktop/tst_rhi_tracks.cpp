@@ -26,6 +26,7 @@
 #include <QMouseEvent>
 #include <QClipboard>
 #include <QContextMenuEvent>
+#include <QCursor>
 #include <QDragEnterEvent>
 #include <QDragLeaveEvent>
 #include <QDragMoveEvent>
@@ -46,6 +47,7 @@
 namespace {
     struct TrackFixture {
         GuiDocumentFixture application;
+        QPoint originalCursorPosition = QCursor::pos();
         std::unique_ptr<QWidget> host;
         QPointer<TracksRhiWidget> canvas;
         int clipId = -1;
@@ -59,6 +61,7 @@ namespace {
                                     canvas->rect().center());
             }
             host.reset();
+            QCursor::setPos(originalCursorPosition);
             if (application.context) {
                 clipController->setClip(nullptr);
                 trackController->setParentWidget(nullptr);
@@ -158,6 +161,9 @@ namespace {
 
     void moveWithButton(TracksRhiWidget &canvas, QPoint point,
                         Qt::KeyboardModifiers modifiers = {}) {
+        // Native cursor events and auto-scroll must observe the synthetic drag position.
+        QCursor::setPos(canvas.mapToGlobal(point));
+        QCoreApplication::processEvents();
         QMouseEvent move(QEvent::MouseMove, QPointF(point), QPointF(canvas.mapToGlobal(point)),
                          Qt::NoButton, Qt::LeftButton, modifiers);
         QApplication::sendEvent(&canvas, &move);
