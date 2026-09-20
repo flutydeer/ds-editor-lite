@@ -27,6 +27,7 @@ private slots:
     void toolTipImmediateCompletion();
     void toolTipAnchorScreenClamping();
     void rhiThemeSwitchPreservesBothEditorsAndTheirDocument();
+    void rhiNoteDrawingCommitsAndUndoUpdatesInteraction_data();
     void rhiNoteDrawingCommitsAndUndoUpdatesInteraction();
     void rhiNoteMoveCanBeCanceledAndThenCommitted();
     void rhiNoteDragKeepsScrollingUntilTheGestureEnds();

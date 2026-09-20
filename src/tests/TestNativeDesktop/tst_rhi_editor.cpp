@@ -404,7 +404,14 @@ void NativeDesktopTests::rhiPianoWheelInputsReachTheActiveViewport() {
     QVERIFY(failed.isEmpty());
 }
 
+void NativeDesktopTests::rhiNoteDrawingCommitsAndUndoUpdatesInteraction_data() {
+    QTest::addColumn<bool>("doubleClick");
+    QTest::newRow("draw-tool") << false;
+    QTest::newRow("select-tool-double-click") << true;
+}
+
 void NativeDesktopTests::rhiNoteDrawingCommitsAndUndoUpdatesInteraction() {
+    QFETCH(bool, doubleClick);
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
     GuiDocumentFixture fixture;
@@ -439,7 +446,7 @@ void NativeDesktopTests::rhiNoteDrawingCommitsAndUndoUpdatesInteraction() {
     // Null exercises the real RHI widget and command path without asserting GPU pixels.
     canvas.setApi(QRhiWidget::Api::Null);
     canvas.setDataContext(clip);
-    canvas.setEditMode(ClipEditorGlobal::DrawNote);
+    canvas.setEditMode(doubleClick ? ClipEditorGlobal::Select : ClipEditorGlobal::DrawNote);
     const auto detach = qScopeGuard([&] {
         canvas.setDataContext(nullptr);
         clipController->setClip(nullptr);
@@ -470,7 +477,10 @@ void NativeDesktopTests::rhiNoteDrawingCommitsAndUndoUpdatesInteraction() {
     QVERIFY(canvas.rect().contains(release));
     const auto before = runtime.documentVersion();
     const auto beforePreviewFrame = submitted.size();
-    QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+    if (doubleClick)
+        QTest::mouseDClick(&canvas, Qt::LeftButton, Qt::NoModifier, press);
+    else
+        QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, press);
     QMouseEvent move(QEvent::MouseMove, QPointF(release), QPointF(canvas.mapToGlobal(release)),
                      Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
     QApplication::sendEvent(&canvas, &move);
