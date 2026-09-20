@@ -34,8 +34,8 @@ private slots:
     void resolutionRetryPreservesSource();
     void relocatedDecodeNotification();
     void unlinkingAudioSourcePreservesOpenDecodeUntilReload();
-    void decodeCompletionWaitsForTheSaveDecision_data();
-    void decodeCompletionWaitsForTheSaveDecision();
+    void audioPreparationWaitsForTheSaveDecision_data();
+    void audioPreparationWaitsForTheSaveDecision();
     void decodeBackendFailurePreservesTheDocumentAndAllowsReopen_data();
     void decodeBackendFailurePreservesTheDocumentAndAllowsReopen();
     void removingAudioTargetsCancelsPendingDecode_data();
