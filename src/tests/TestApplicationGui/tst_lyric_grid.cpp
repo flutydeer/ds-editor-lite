@@ -20,6 +20,8 @@
 #include <QSignalSpy>
 #include <QTimer>
 #include <QWindow>
+#include <QWheelEvent>
+#include <QScrollBar>
 #include <QtTest/QTest>
 
 namespace {
@@ -344,5 +346,55 @@ void ApplicationGuiTests::lyricGridMenusInsertAndClearWords() {
                               {"three"},
                               {"", ""}
     }));
+    QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::lyricGridZoomAndScrollKeepWordsSelectable() {
+    createLyricSelection();
+    if (QTest::currentTestFailed())
+        return;
+    const auto before = context->m_coreRuntime->documentVersion();
+    FillLyric::G2pService g2p(singingClip->singerIdentifier(),
+                              SynthrtEngine::instance().languageService());
+    FillLyric::LyricWrapView grid({}, {QStringLiteral("eng")}, &g2p);
+    auto font = grid.font();
+    font.setPointSizeF(12);
+    grid.setFont(font);
+    Rows original;
+    for (int row = 0; row < 20; ++row)
+        original.append({QString::number(row), QStringLiteral("word")});
+    showGrid(grid, original);
+    if (QTest::currentTestFailed())
+        return;
+    auto *first = grid.cellLists().first()->m_cells.first();
+    clickAt(grid, cellPosition(grid, 0, 0));
+    QVERIFY(first->isSelected());
+    const auto originalRect = first->lyricRect();
+    QSignalSpy zoomed(&grid, &FillLyric::LyricWrapView::fontSizeChanged);
+    const auto wheel = [&](int delta, Qt::KeyboardModifiers modifiers) {
+        const auto position = grid.viewport()->rect().center();
+        QWheelEvent event(QPointF(position),
+                          QPointF(grid.viewport()->mapToGlobal(position)), {}, {0, delta},
+                          Qt::NoButton, modifiers, Qt::NoScrollPhase, false);
+        QApplication::sendEvent(grid.viewport(), &event);
+    };
+    wheel(240, Qt::ControlModifier);
+    QCOMPARE(grid.font().pointSizeF(), 14);
+    QCOMPARE(zoomed.size(), 1);
+    QVERIFY(first->lyricRect().height() > originalRect.height());
+    QVERIFY(first->isSelected());
+    QCOMPARE(words(grid), original);
+    QTRY_VERIFY(grid.verticalScrollBar()->maximum() > 0);
+    wheel(-120, Qt::NoModifier);
+    QTRY_VERIFY(grid.verticalScrollBar()->value() > 0);
+    QCOMPARE(grid.font().pointSizeF(), 14);
+    QCOMPARE(zoomed.size(), 1);
+    grid.ensureVisible(first);
+    QTRY_VERIFY(grid.viewport()->rect().contains(cellPosition(grid, 0, 1)));
+    clickAt(grid, cellPosition(grid, 0, 1));
+    QTest::keyClick(&grid, Qt::Key_Delete);
+    original.first().removeLast();
+    QCOMPARE(words(grid), original);
+    QCOMPARE(context->m_coreRuntime->documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
 }

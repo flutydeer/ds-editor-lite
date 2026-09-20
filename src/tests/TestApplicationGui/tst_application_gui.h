@@ -159,6 +159,7 @@ private slots:
     void lyricGridMovesSelectedLinesTogether();
     void lyricGridSplitKeepsTheNewLineEditable();
     void lyricGridMenusInsertAndClearWords();
+    void lyricGridZoomAndScrollKeepWordsSelectable();
     void trackMenusCreateCutAndDeleteWithUndo();
     void trackAudioMenuPreparesClipOrCancels_data();
     void trackAudioMenuPreparesClipOrCancels();
