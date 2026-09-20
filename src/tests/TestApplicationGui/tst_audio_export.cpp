@@ -21,6 +21,8 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QFile>
+#include <QFileDialog>
+#include <QDialogButtonBox>
 #include <QKeySequence>
 #include <QLabel>
 #include <QLineEdit>
@@ -138,6 +140,10 @@ void ApplicationGuiTests::exportFormatUpdatesFileNamePreview() {
     createExportTracks();
     if (QTest::currentTestFailed())
         return;
+    const auto nativeDialogsDisabled = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
+    QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
+    const auto restoreDialogs = qScopeGuard(
+        [&] { QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDialogsDisabled); });
     QTemporaryDir output;
     QVERIFY(output.isValid());
     auto &runtime = *context->m_coreRuntime;
@@ -169,6 +175,64 @@ void ApplicationGuiTests::exportFormatUpdatesFileNamePreview() {
     QVERIFY(chooseOption(controls.fileType, AudioExporterConfig::FT_Wav));
     QCOMPARE(controls.fileName->text(), QStringLiteral("mix_${sampleRate}.wav"));
     QCOMPARE(QFileInfo(controls.preview->text()).fileName(), QStringLiteral("mix_48000.wav"));
+
+    auto *browse = exportButton(&dialog, AudioExportDialog::tr("&Browse..."));
+    QVERIFY(browse);
+    const auto chooseFile = [&](bool cancel) {
+        bool entered = false;
+        QTimer answer;
+        answer.setSingleShot(true);
+        connect(&answer, &QTimer::timeout, &dialog, [&] {
+            QPointer<QFileDialog> picker =
+                qobject_cast<QFileDialog *>(QApplication::activeModalWidget());
+            QVERIFY(picker);
+            const auto close = qScopeGuard([&] {
+                if (picker && picker->isVisible())
+                    picker->reject();
+            });
+            entered = true;
+            QCOMPARE(picker->acceptMode(), QFileDialog::AcceptSave);
+            if (cancel)
+                return;
+            auto *name = picker->findChild<QLineEdit *>(QStringLiteral("fileNameEdit"));
+            auto *type = picker->findChild<QComboBox *>(QStringLiteral("fileTypeCombo"));
+            auto *buttons = picker->findChild<QDialogButtonBox *>();
+            QVERIFY(name && type && buttons);
+            QVERIFY(chooseOption(type, AudioExporterConfig::FT_Flac));
+            pasteText(name, output.filePath(QStringLiteral("chosen.flac")));
+            auto *save = buttons->button(QDialogButtonBox::Save);
+            QVERIFY(save && save->isEnabled());
+            QTest::mouseClick(save, Qt::LeftButton);
+        });
+        answer.start(0);
+        QTest::mouseClick(browse, Qt::LeftButton);
+        QVERIFY(entered);
+    };
+    const auto beforeBrowse = controls.exporter->config();
+    const QDir canonicalOutput(QFileInfo(output.path()).canonicalFilePath());
+    chooseFile(true);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(controls.exporter->config(), beforeBrowse);
+    for (const auto mixing : {AudioExporterConfig::MO_Mixed, AudioExporterConfig::MO_Separated}) {
+        QVERIFY(chooseOption(controls.mixing, mixing));
+        chooseFile(false);
+        if (QTest::currentTestFailed())
+            return;
+        QCOMPARE(controls.fileType->currentIndex(), int(AudioExporterConfig::FT_Flac));
+        QCOMPARE(controls.fileName->text(),
+                 mixing == AudioExporterConfig::MO_Mixed
+                     ? QStringLiteral("chosen.flac")
+                     : QStringLiteral("chosen_${trackIndex}_${trackName}.flac"));
+        QCOMPARE(QDir::cleanPath(controls.directory->text()),
+                 QDir::cleanPath(canonicalOutput.path()));
+        const auto expectedFiles =
+            mixing == AudioExporterConfig::MO_Mixed
+                ? QStringList{canonicalOutput.filePath(QStringLiteral("chosen.flac"))}
+                : QStringList{canonicalOutput.filePath(QStringLiteral("chosen_1_Lead.flac")),
+                              canonicalOutput.filePath(QStringLiteral("chosen_2_Harmony.flac"))};
+        QCOMPARE(controls.exporter->dryRun(), expectedFiles);
+    }
 
     QCOMPARE(started.count(), 0);
     QCOMPARE(runtime.documentVersion(), before);
