@@ -284,6 +284,11 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
                 };
             }
         }
+        // Session refresh publishes shared inference state, so admission must precede it.
+        if (commitGate && !commitGate()) {
+            commitRejected = true;
+            return result;
+        }
         auto refreshed = SynthrtEngine::instance().refreshVoicebanks(searchPaths);
         if (!refreshed) {
             return GetInstalledPackagesError{
@@ -474,10 +479,6 @@ Expected<GetInstalledPackagesResult, GetInstalledPackagesError>
         }
 
         qDebug() << "Package scan completed in" << timer.elapsed() << "ms";
-        if (commitGate && !commitGate()) {
-            commitRejected = true;
-            return result;
-        }
         {
             QWriteLocker writeLocker(&m_resultRwLock);
             m_result = result;

@@ -510,6 +510,8 @@ void ApplicationWorkflowTests::packageRefreshPreservesCatalogAndReportsInvalidRo
         QCOMPARE(refreshed.size(), 1);
         refreshed.clear();
         QVERIFY(QDir().mkdir(missingRoot));
+        const auto sessionBefore = SynthrtEngine::instance().session().snapshot();
+        QVERIFY(sessionBefore);
         const auto canceled =
             packageManager->refreshInstalledPackages({missingRoot}, [] { return false; });
         QVERIFY2(canceled, qPrintable(canceled ? QString{} : canceled.getError().message));
@@ -518,6 +520,10 @@ void ApplicationWorkflowTests::packageRefreshPreservesCatalogAndReportsInvalidRo
                  original.successfulPackages);
         QCOMPARE(packageManager->findSingerByIdentifier(singer.identifier()), singer);
         QVERIFY(refreshed.isEmpty());
+        const auto sessionAfter = SynthrtEngine::instance().session().snapshot();
+        QVERIFY(sessionAfter);
+        QCOMPARE(sessionAfter->generation, sessionBefore->generation);
+        QCOMPARE(sessionAfter->catalogFingerprint, sessionBefore->catalogFingerprint);
     }
     QCOMPARE(refreshed.size(), 1);
     QCOMPARE(packageManager->installedPackages().successfulPackages, original.successfulPackages);
