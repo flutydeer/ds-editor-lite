@@ -34,15 +34,20 @@
 void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders_data() {
     QTest::addColumn<int>("invalidItems");
     QTest::addColumn<bool>("bestEffort");
-    QTest::newRow("midi-and-dspx") << 0 << false;
-    QTest::newRow("atomic-failure") << 1 << false;
-    QTest::newRow("best-effort") << 1 << true;
-    QTest::newRow("best-effort-all-failed") << 2 << true;
+    QTest::addColumn<QString>("changeAfterAdmission");
+    QTest::newRow("midi-and-dspx") << 0 << false << QString{};
+    QTest::newRow("atomic-failure") << 1 << false << QString{};
+    QTest::newRow("best-effort") << 1 << true << QString{};
+    QTest::newRow("best-effort-all-failed") << 2 << true << QString{};
+    QTest::newRow("atomic-source-changed") << 0 << false << QStringLiteral("source");
+    QTest::newRow("best-effort-source-changed") << 0 << true << QStringLiteral("source");
+    QTest::newRow("document-edited-before-commit") << 0 << false << QStringLiteral("document");
 }
 
 void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
     QFETCH(int, invalidItems);
     QFETCH(bool, bestEffort);
+    QFETCH(QString, changeAfterAdmission);
     QTemporaryDir files;
     QVERIFY(files.isValid());
     const auto dspx = files.filePath(QStringLiteral("source.dspx"));
@@ -104,7 +109,7 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
     const auto idFromResult = [](const QJsonObject &result) {
         return Automation::TaskId::fromString(result.value(QStringLiteral("task_id")).toString());
     };
-    if (invalidItems == 0) {
+    if (invalidItems == 0 && changeAfterAdmission.isEmpty()) {
         auto previewArguments = arguments;
         previewArguments.insert(QStringLiteral("validate_only"), true);
         const auto tasksBefore = runtime().automationTasks().list(before.documentId);
@@ -127,23 +132,48 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
     QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
     const auto id = idFromResult(accepted.get());
     QVERIFY(!id.isNull());
+    if (changeAfterAdmission == QStringLiteral("source")) {
+        QFile changed(midi);
+        QVERIFY(changed.open(QIODevice::Append));
+        QCOMPARE(changed.write("changed after inspection"), qint64(24));
+    } else if (changeAfterAdmission == QStringLiteral("document")) {
+        QVERIFY(runtime().project().renameTrack(
+            commandContext(), Automation::TrackId(context->m_appModel->tracks().first()->id()),
+            QStringLiteral("Edited while importing")));
+    }
+    const auto expectedVersion = runtime().documentVersion();
+    const auto expectedModel = context->m_appModel->serialize();
+    const auto *expectedUndo = historyManager->nextUndoEntry();
     const auto task = [&] { return runtime().tasks().getTask(before.documentId, id); };
     QTRY_VERIFY_WITH_TIMEOUT(
         task() && (task().get().state == Automation::AutomationTaskState::Succeeded ||
                    task().get().state == Automation::AutomationTaskState::Failed),
         10000);
-    if (invalidItems == 2 || (invalidItems > 0 && !bestEffort)) {
+    if (invalidItems == 2 ||
+        ((invalidItems > 0 || !changeAfterAdmission.isEmpty()) && !bestEffort)) {
         QCOMPARE(task().get().state, Automation::AutomationTaskState::Failed);
-        QCOMPARE(runtime().documentVersion(), before);
+        if (changeAfterAdmission == QStringLiteral("source")) {
+            QVERIFY(task().get().error);
+            QCOMPARE(task().get().error->code, Automation::AutomationErrorCode::InvalidArgument);
+            QCOMPARE(task().get().error->fieldPath, QStringLiteral("items.plan_digest"));
+        } else if (changeAfterAdmission == QStringLiteral("document")) {
+            QVERIFY(task().get().error);
+            QCOMPARE(task().get().error->code, Automation::AutomationErrorCode::RevisionConflict);
+        }
+        QCOMPARE(runtime().documentVersion(), expectedVersion);
         QCOMPARE(context->m_appModel->tracks().size(), initialTrackCount);
-        QCOMPARE(context->m_appModel->serialize(), beforeModel);
+        QCOMPARE(context->m_appModel->serialize(), expectedModel);
+        QCOMPARE(historyManager->nextUndoEntry(), expectedUndo);
     } else {
         const auto terminal = task().get();
         QVERIFY2(terminal.state == Automation::AutomationTaskState::Succeeded,
                  qPrintable(terminal.error ? terminal.error->message : QString{}));
         QVERIFY(context->m_appModel->tracks().size() > initialTrackCount);
         QVERIFY(terminal.mutation);
-        QCOMPARE(terminal.mutation->warnings.isEmpty(), invalidItems == 0);
+        QCOMPARE(terminal.mutation->warnings.isEmpty(),
+                 invalidItems == 0 && changeAfterAdmission.isEmpty());
+        if (changeAfterAdmission == QStringLiteral("source"))
+            QCOMPARE(context->m_appModel->tracks().size(), initialTrackCount * 2);
         QCOMPARE(runtime().documentVersion().revision, before.revision + 1);
         QVERIFY(runtime().history().undo(commandContext()));
         QCOMPARE(context->m_appModel->tracks().size(), initialTrackCount);
