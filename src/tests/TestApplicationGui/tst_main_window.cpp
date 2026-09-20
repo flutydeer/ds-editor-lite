@@ -474,6 +474,73 @@ void ApplicationGuiTests::editorAutomationConfiguresTheVisibleWorkspaceWithoutEd
     QVERIFY(!historyManager->canUndo());
 }
 
+void ApplicationGuiTests::trackEditShortcutsFollowTheFocusedPanelAndUndo() {
+    auto &runtime = *context->m_coreRuntime;
+    MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(runtime.documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+    createPianoRoll();
+    if (QTest::currentTestFailed())
+        return;
+    view->hide();
+    auto &window = *host.window;
+    window.activateWindow();
+    QTRY_VERIFY(window.isActiveWindow());
+    auto *tracks = window.findChild<TrackEditorView *>();
+    QVERIFY(tracks);
+    QVERIFY(window.focusEditorRegion(EditorViewGlobal::Region::TrackPanel));
+    auto *track = context->m_appModel->findTrackById(trackId.value());
+    QVERIFY(track);
+    const auto originalId = singingClip->id();
+    const auto originalLength = singingClip->length();
+    const auto original = context->m_appModel->serialize();
+    const auto before = runtime.documentVersion();
+    const auto key = [&](QKeySequence::StandardKey command) {
+        auto *input = QApplication::focusWidget();
+        QVERIFY(input && (input == tracks || tracks->isAncestorOf(input)));
+        QTest::keySequence(input, QKeySequence(command));
+    };
+    key(QKeySequence::SelectAll);
+    QCOMPARE(appStatus->selectedClips.get(), QList<int>{originalId});
+    QApplication::clipboard()->clear();
+    key(QKeySequence::Copy);
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(runtime.playback().setPosition(commandContext(), 4800));
+    key(QKeySequence::Paste);
+    QCOMPARE(track->clips().count(), 2);
+    Clip *pasted = nullptr;
+    for (auto *candidate : track->clips()) {
+        if (candidate->id() != originalId)
+            pasted = candidate;
+    }
+    QVERIFY(pasted);
+    QCOMPARE(pasted->start(), 4800);
+    QCOMPARE(pasted->length(), originalLength);
+    const auto afterPaste = runtime.documentVersion();
+    QCOMPARE(afterPaste.revision, before.revision + 1);
+    key(QKeySequence::SelectAll);
+    QCOMPARE(appStatus->selectedClips.get().size(), 2);
+    key(QKeySequence::Cut);
+    QCOMPARE(track->clips().count(), 0);
+    QCOMPARE(runtime.documentVersion().revision, afterPaste.revision + 1);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(track->clips().count(), 2);
+    key(QKeySequence::SelectAll);
+    const auto beforeDelete = runtime.documentVersion();
+    key(QKeySequence::Delete);
+    QCOMPARE(track->clips().count(), 0);
+    QCOMPARE(runtime.documentVersion().revision, beforeDelete.revision + 1);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(track->clips().count(), 2);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(context->m_appModel->serialize(), original);
+    QVERIFY(!historyManager->canUndo());
+}
+
 void ApplicationGuiTests::undoShortcutRevealsTheTrackEditBeforeChangingIt_data() {
     QTest::addColumn<bool>("hiddenPanel");
     QTest::newRow("offscreen-clip") << false;

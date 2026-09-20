@@ -115,6 +115,7 @@ private slots:
     void editorAutomationConfiguresTheVisibleWorkspaceWithoutEditingTheDocument();
     void undoShortcutRevealsTheTrackEditBeforeChangingIt_data();
     void undoShortcutRevealsTheTrackEditBeforeChangingIt();
+    void trackEditShortcutsFollowTheFocusedPanelAndUndo();
     void undoShortcutRevealsThePianoEditBeforeChangingIt();
     void fileMenuOpensAndSavesThroughTheActualPicker();
     void recentProjectsMenuRemovesMissingFilesAndClearsTheList();
