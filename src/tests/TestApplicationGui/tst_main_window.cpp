@@ -480,8 +480,18 @@ void ApplicationGuiTests::trackEditShortcutsFollowTheFocusedPanelAndUndo() {
     host.show();
     if (QTest::currentTestFailed())
         return;
+    QVERIFY(
+        runtime.project().insertTrack(commandContext(), context->m_appModel->tracks().size(), {}));
+    const auto previousTrackIndex = context->m_appModel->tracks().size() - 1;
+    trackController->setSelectedTrackIndex(previousTrackIndex);
+    QCOMPARE(appStatus->selectedTrackIndex.get(), previousTrackIndex);
+    const auto previousClipId = (*context->m_appModel->tracks().first()->clips().begin())->id();
+    trackController->setSelectedClips({previousClipId});
+    QCOMPARE(appStatus->selectedClips.get(), QList<int>{previousClipId});
     QVERIFY(runtime.documents().commitNewDocument(
         commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+    QCOMPARE(appStatus->selectedTrackIndex.get(), -1);
+    QVERIFY(appStatus->selectedClips.get().isEmpty());
     createPianoRoll();
     if (QTest::currentTestFailed())
         return;
