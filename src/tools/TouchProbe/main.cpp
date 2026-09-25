@@ -20,9 +20,24 @@
 // drawn as a grey dashed trail, which makes an unexpected synthesis obvious at
 // a glance.
 //
-// Keys: C clear, D toggle Direct Manipulation, S toggle swallowing, F
-// fullscreen, Esc quit.
+// Keys: C clear, D toggle Direct Manipulation, S toggle swallowing, A toggle
+// accepting tablet events, F fullscreen, Esc quit.
+//
+// The accept-tablet switch exists for the pen work: leaving tablet events
+// unaccepted is how the editor gets the stylus as ordinary mouse input, and
+// accepting them is how a future pen layer takes that mouse stream over. The
+// two modes side by side on real hardware are what tell us which one the
+// platform actually honours.
+//
+// A fourth question needs the raw Windows message rather than a Qt event:
+// whether the pen side button can be seen while the pen hovers. Qt reads
+// PEN_FLAG_BARREL only when the pen is in contact, so the hovering state never
+// reaches QTabletEvent, QMouseEvent or QInputDevice. PenRawStateFilter reads
+// the same WM_POINTER message the platform gives Qt and reports the state it
+// finds there, which is what decides whether a hover gesture such as OneNote's
+// barrel-button lasso is reachable from this application at all.
 
+#include <QAbstractNativeEventFilter>
 #include <QApplication>
 #include <QCheckBox>
 #include <QContextMenuEvent>
@@ -40,7 +55,9 @@
 #include <QNativeGestureEvent>
 #include <QPainter>
 #include <QPainterPath>
+#include <QPointingDevice>
 #include <QPushButton>
+#include <QSet>
 #include <QStandardPaths>
 #include <QTabletEvent>
 #include <QTextStream>
@@ -54,6 +71,13 @@
 
 #if defined(WITH_DIRECT_MANIPULATION)
 #  include <QWDMHCore/DirectManipulationSystem.h>
+#endif
+
+#if defined(Q_OS_WIN)
+#  ifndef NOMINMAX
+#    define NOMINMAX
+#  endif
+#  include <windows.h>
 #endif
 
 namespace {
@@ -89,7 +113,11 @@ namespace {
         // color, all kept inside the green family so that a finger is never
         // mistaken for the blue mouse, the red pen or the yellow wheel.
         static const QColor touchColors[] = {
-            {60, 220, 120}, {0, 205, 190}, {150, 230, 60}, {0, 225, 255}, {120, 235, 165},
+            {60,  220, 120},
+            {0,   205, 190},
+            {150, 230, 60 },
+            {0,   225, 255},
+            {120, 235, 165},
         };
         switch (kind) {
             case DeviceKind::Mouse:
@@ -129,6 +157,93 @@ namespace {
                 break;
         }
         return QStringLiteral("Unknown");
+    }
+
+    // Which end of the pen is in use. This is the only field that tells a
+    // flipped pen (Eraser) from a normal one, and on Windows it is what
+    // distinguishes the two ends of a double-ended stylus.
+    QString pointerTypeName(const QPointingDevice::PointerType type) {
+        switch (type) {
+            case QPointingDevice::PointerType::Unknown:
+                return QStringLiteral("Unknown");
+            case QPointingDevice::PointerType::Generic:
+                return QStringLiteral("Generic");
+            case QPointingDevice::PointerType::Finger:
+                return QStringLiteral("Finger");
+            case QPointingDevice::PointerType::Pen:
+                return QStringLiteral("Pen");
+            case QPointingDevice::PointerType::Eraser:
+                return QStringLiteral("Eraser");
+            case QPointingDevice::PointerType::Cursor:
+                return QStringLiteral("Cursor");
+            default:
+                break;
+        }
+        return QStringLiteral("?");
+    }
+
+    // The raw integer (1 = left, 2 = right) had to be decoded by hand every
+    // time. The pen work turns on exactly which button a stroke carries, so
+    // print the names.
+    QString buttonNames(const Qt::MouseButtons buttons) {
+        if (buttons == Qt::NoButton)
+            return QStringLiteral("None");
+        QStringList parts;
+        if (buttons & Qt::LeftButton)
+            parts.append(QStringLiteral("Left"));
+        if (buttons & Qt::RightButton)
+            parts.append(QStringLiteral("Right"));
+        if (buttons & Qt::MiddleButton)
+            parts.append(QStringLiteral("Middle"));
+        if (buttons & Qt::BackButton)
+            parts.append(QStringLiteral("Back"));
+        if (buttons & Qt::ForwardButton)
+            parts.append(QStringLiteral("Forward"));
+        return parts.isEmpty() ? QStringLiteral("0x%1").arg(static_cast<int>(buttons), 0, 16)
+                               : parts.join(u'|');
+    }
+
+    // "wmpointer" is Qt's WM_POINTER tablet device on Windows. Any other name
+    // means the legacy WinTab path, which promotes its own mouse events and
+    // therefore needs a different handling strategy.
+    QString deviceLabel(const QInputDevice *device) {
+        if (!device)
+            return QStringLiteral("null");
+        const auto *pointing = dynamic_cast<const QPointingDevice *>(device);
+        if (!pointing)
+            return QStringLiteral("%1(%2)").arg(device->name(), deviceTypeName(device));
+        return QStringLiteral("%1(%2, %3)")
+            .arg(device->name(), deviceTypeName(device), pointerTypeName(pointing->pointerType()));
+    }
+
+    QString deviceDetail(const QInputDevice *device) {
+        if (!device)
+            return QStringLiteral("null");
+        QStringList capabilities;
+
+        const struct {
+            QInputDevice::Capability flag;
+            const char *name;
+        } entries[] = {
+            {QInputDevice::Capability::Position,           "Position"          },
+            {QInputDevice::Capability::Pressure,           "Pressure"          },
+            {QInputDevice::Capability::Hover,              "Hover"             },
+            {QInputDevice::Capability::Rotation,           "Rotation"          },
+            {QInputDevice::Capability::XTilt,              "XTilt"             },
+            {QInputDevice::Capability::YTilt,              "YTilt"             },
+            {QInputDevice::Capability::TangentialPressure, "TangentialPressure"},
+        };
+
+        for (const auto &entry : entries) {
+            if (device->capabilities() & entry.flag)
+                capabilities.append(QLatin1String(entry.name));
+        }
+        const auto *pointing = dynamic_cast<const QPointingDevice *>(device);
+        return QStringLiteral("%1 caps=%2 maxPoints=%3 systemId=%4")
+            .arg(deviceLabel(device),
+                 capabilities.isEmpty() ? QStringLiteral("none") : capabilities.join(u'|'))
+            .arg(pointing ? pointing->maximumPoints() : -1)
+            .arg(device->systemId());
     }
 
     QString mouseSourceName(const Qt::MouseEventSource source) {
@@ -179,6 +294,27 @@ namespace {
             if (!m_logFile.open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Append))
                 qWarning("TouchProbe: cannot open the log file, HUD only");
             log(QStringLiteral("--- session started, log at %1").arg(m_logFile.fileName()));
+            logInputDevices();
+        }
+
+        // The device list says up front which pen implementation the platform
+        // handed us, and whether it claims pressure or tilt at all.
+        void logInputDevices() {
+            const auto devices = QInputDevice::devices();
+            log(QStringLiteral("--- %1 input device(s) at startup").arg(devices.size()));
+            for (const auto *device : devices)
+                noteDevice(device);
+        }
+
+        // Pointing devices are registered lazily: on Windows the pen device
+        // does not exist until the first pen event arrives, so the startup dump
+        // cannot show it. Log every device the first time an event carries it,
+        // which is also how a second device for the eraser end would show up.
+        void noteDevice(const QInputDevice *device) {
+            if (!device || m_seenDevices.contains(device))
+                return;
+            m_seenDevices.insert(device);
+            log(QStringLiteral("device   %1").arg(deviceDetail(device)));
         }
 
         void clear() {
@@ -195,8 +331,30 @@ namespace {
             update();
         }
 
+        // Off (the default) mirrors the editor today: the tablet event is
+        // ignored, so Qt synthesizes mouse events from it. On stops that
+        // synthesis, which is how the pen work takes the mouse stream over.
+        // Flipping this switch on real hardware shows whether accepting the
+        // tablet event really does silence the mouse stream.
+        void setAcceptTabletEvents(const bool on) {
+            m_acceptTabletEvents = on;
+            log(QStringLiteral("--- accept tablet events: %1 (mouse synthesis should %2)")
+                    .arg(on ? QStringLiteral("on") : QStringLiteral("off"),
+                         on ? QStringLiteral("stop") : QStringLiteral("resume")));
+            update();
+        }
+
         void logExternal(const QString &line) {
             log(line);
+            update();
+        }
+
+        // Kept out of the scrolling log so the raw side-button state stays
+        // readable while the pen hovers and floods the log with moves.
+        void setPenRawStatus(const QString &text) {
+            if (m_penRawStatus == text)
+                return;
+            m_penRawStatus = text;
             update();
         }
 
@@ -223,12 +381,18 @@ namespace {
                 case QEvent::ContextMenu: {
                     // Windows turns a touch press and hold into a right click,
                     // which reaches the application as a context menu on top of
-                    // whatever the long press already did.
+                    // whatever the long press already did. The time since the
+                    // last press is what attributes the menu to a hold: a short
+                    // gap means a plain right click, a long one means the
+                    // platform's own press-and-hold promotion.
                     const auto *menuEvent = static_cast<QContextMenuEvent *>(event);
-                    log(QStringLiteral("menu     reason=%1 pos=(%2,%3)")
+                    log(QStringLiteral("menu     reason=%1 pos=(%2,%3) sincePress=%4ms")
                             .arg(contextMenuReasonName(menuEvent->reason()))
                             .arg(menuEvent->pos().x())
-                            .arg(menuEvent->pos().y()));
+                            .arg(menuEvent->pos().y())
+                            .arg(m_lastPointerPressMs < 0
+                                     ? -1
+                                     : m_clock.elapsed() - m_lastPointerPressMs));
                     update();
                     return true;
                 }
@@ -254,25 +418,38 @@ namespace {
 
         void tabletEvent(QTabletEvent *event) override {
             const auto kind = DeviceKind::Pen;
+            noteDevice(event->pointingDevice());
             appendPoint(kind, -2, event->position());
-            log(QStringLiteral("tablet   %1 dev=%2 pressure=%3 tilt=(%4,%5) pos=(%6,%7) buttons=%8")
-                    .arg(tabletActionName(event->type()), deviceTypeName(event->device()))
+            if (event->type() == QEvent::TabletPress)
+                m_lastPointerPressMs = m_clock.elapsed();
+            log(QStringLiteral("tablet   %1 ptr=%2 dev=%3 button=%4 buttons=%5 pressure=%6 "
+                               "tilt=(%7,%8) pos=(%9,%10)")
+                    .arg(tabletActionName(event->type()), pointerTypeName(event->pointerType()),
+                         deviceLabel(event->pointingDevice()), buttonNames(event->button()),
+                         buttonNames(event->buttons()))
                     .arg(event->pressure(), 0, 'f', 2)
                     .arg(event->xTilt())
                     .arg(event->yTilt())
                     .arg(event->position().x(), 0, 'f', 1)
-                    .arg(event->position().y(), 0, 'f', 1)
-                    .arg(static_cast<int>(event->buttons())));
+                    .arg(event->position().y(), 0, 'f', 1));
             if (event->type() == QEvent::TabletRelease ||
                 event->type() == QEvent::TabletLeaveProximity)
                 endStroke(kind, -2);
-            // Deliberately left unaccepted: that is how the editor gets the
-            // stylus as ordinary mouse input.
-            event->ignore();
+            if (m_acceptTabletEvents) {
+                // Accepting is what lets the editor own the whole stroke: Qt
+                // then sends no mouse events at all for it, and whatever we
+                // synthesize is the only input the interaction layer sees.
+                event->accept();
+            } else {
+                // Left unaccepted on purpose, which is how the editor gets the
+                // stylus as ordinary mouse input today.
+                event->ignore();
+            }
             update();
         }
 
         void wheelEvent(QWheelEvent *event) override {
+            noteDevice(event->device());
             appendPoint(DeviceKind::Wheel, -3, event->position());
             log(QStringLiteral("wheel    dev=%1 angle=(%2,%3) pixel=(%4,%5) phase=%6 inverted=%7")
                     .arg(deviceTypeName(event->device()))
@@ -348,18 +525,24 @@ namespace {
         }
 
         void recordMouse(QMouseEvent *event, const QString &action) {
+            noteDevice(event->pointingDevice());
             const auto synthesized = event->source() != Qt::MouseEventNotSynthesized;
             const auto swallowed = synthesized && m_swallowSynthesizedMouse;
             if (!swallowed) {
                 const auto kind = synthesized ? DeviceKind::SynthesizedMouse : DeviceKind::Mouse;
                 appendPoint(kind, synthesized ? -4 : -1, event->position());
             }
-            log(QStringLiteral("mouse    %1 dev=%2 source=%3 pos=(%4,%5) buttons=%6%7")
-                    .arg(action, deviceTypeName(event->pointingDevice()),
+            if (action == QLatin1String("press"))
+                m_lastPointerPressMs = m_clock.elapsed();
+            // The device label matters as much as the button here: a mouse
+            // event whose device is a Stylus is a pen stroke wearing mouse
+            // clothes, and that is exactly what has to be recognized.
+            log(QStringLiteral("mouse    %1 dev=%2 source=%3 pos=(%4,%5) button=%6 buttons=%7%8")
+                    .arg(action, deviceLabel(event->pointingDevice()),
                          mouseSourceName(event->source()))
                     .arg(event->position().x(), 0, 'f', 1)
                     .arg(event->position().y(), 0, 'f', 1)
-                    .arg(static_cast<int>(event->buttons()))
+                    .arg(buttonNames(event->button()), buttonNames(event->buttons()))
                     .arg(swallowed ? QStringLiteral(" SWALLOWED") : QString()));
             event->accept();
             update();
@@ -378,7 +561,10 @@ namespace {
         }
 
         void recordTouch(QTouchEvent *event) {
+            noteDevice(event->pointingDevice());
             m_activePoints = 0;
+            if (event->type() == QEvent::TouchBegin)
+                m_lastPointerPressMs = m_clock.elapsed();
             for (const auto &point : event->points()) {
                 if (point.state() == QEventPoint::State::Released) {
                     endStroke(DeviceKind::Touch, point.id());
@@ -395,6 +581,7 @@ namespace {
         }
 
         void recordGesture(const QNativeGestureEvent *event) {
+            noteDevice(event->device());
             appendPoint(DeviceKind::Gesture, -5, event->position());
             log(QStringLiteral("gesture  type=%1 value=%2 dev=%3 pos=(%4,%5)")
                     .arg(static_cast<int>(event->gestureType()))
@@ -480,19 +667,29 @@ namespace {
             painter.setFont(font);
 
             const QRectF panel(8, 8, std::min(760.0, width() - 16.0),
-                               24.0 + maximumHudLines * 14.0);
+                               24.0 + maximumHudLines * 14.0 +
+                                   (m_penRawStatus.isEmpty() ? 0.0 : 16.0));
             painter.fillRect(panel, QColor(0, 0, 0, 170));
             painter.setPen(QColor(220, 220, 220));
 
             const auto header =
-                QStringLiteral("touch points: %1    dpr: %2    swallow synth mouse: %3    "
-                               "C clear / D toggle DM / S toggle swallow")
+                QStringLiteral("touch points: %1    dpr: %2    accept tablet: %3    "
+                               "swallow synth mouse: %4    C clear / D DM / S swallow / "
+                               "A accept tablet")
                     .arg(m_activePoints)
                     .arg(devicePixelRatioF(), 0, 'f', 2)
-                    .arg(m_swallowSynthesizedMouse ? QStringLiteral("on") : QStringLiteral("off"));
+                    .arg(m_acceptTabletEvents ? QStringLiteral("on") : QStringLiteral("off"),
+                         m_swallowSynthesizedMouse ? QStringLiteral("on") : QStringLiteral("off"));
             painter.drawText(QPointF(panel.left() + 8, panel.top() + 16), header);
 
             double y = panel.top() + 34;
+            if (!m_penRawStatus.isEmpty()) {
+                painter.setPen(QColor(255, 180, 120));
+                painter.drawText(QPointF(panel.left() + 8, y), m_penRawStatus);
+                painter.setPen(QColor(220, 220, 220));
+                y += 16.0;
+            }
+
             for (const auto &line : m_hud) {
                 painter.drawText(QPointF(panel.left() + 8, y), line);
                 y += 14.0;
@@ -500,12 +697,114 @@ namespace {
         }
 
         QHash<QPair<int, int>, Trail> m_trails;
+        // Devices already described in the log, so each is printed once even
+        // though it is registered only when its first event arrives.
+        QSet<const QInputDevice *> m_seenDevices;
         QStringList m_hud;
+        QString m_penRawStatus;
         int m_activePoints = 0;
         bool m_swallowSynthesizedMouse = false;
+        // Whether tablet events are accepted, which is what decides if Qt
+        // synthesizes mouse events for the pen.
+        bool m_acceptTabletEvents = false;
+        // When the last pointer went down, so a context menu can be attributed
+        // to a long hold rather than a plain right click.
+        qint64 m_lastPointerPressMs = -1;
         QElapsedTimer m_clock;
         QFile m_logFile;
     };
+
+#if defined(Q_OS_WIN)
+    QString pointerMessageName(const DWORD message) {
+        switch (message) {
+            case WM_POINTERUPDATE:
+                return QStringLiteral("WM_POINTERUPDATE");
+            case WM_POINTERDOWN:
+                return QStringLiteral("WM_POINTERDOWN");
+            case WM_POINTERUP:
+                return QStringLiteral("WM_POINTERUP");
+            default:
+                return QStringLiteral("0x%1").arg(message, 0, 16);
+        }
+    }
+
+    // Qt reads the pen side button from PEN_FLAG_BARREL, but only while the pen
+    // touches the screen:
+    //
+    //     if (pointerInContact && penInfo->penFlags & PEN_FLAG_BARREL)
+    //         mouseButtons = Qt::RightButton;
+    //
+    // (qwindowspointerhandler.cpp, translatePenEvent). During hover that flag
+    // is dropped before any Qt event exists, so no QTabletEvent, QMouseEvent or
+    // QInputDevice can report the button. This filter reads the very message
+    // Qt derives its events from and prints the state it finds there, which is
+    // what decides whether a hover gesture like OneNote's barrel-button lasso
+    // is reachable from an application built on Qt.
+    class PenRawStateFilter final : public QAbstractNativeEventFilter {
+    public:
+        explicit PenRawStateFilter(ProbeCanvas *canvas) : m_canvas(canvas) {
+        }
+
+        bool nativeEventFilter(const QByteArray &eventType, void *message,
+                               qintptr *result) override {
+            Q_UNUSED(result)
+            if (eventType != QByteArrayLiteral("windows_generic_MSG"))
+                return false;
+
+            const auto *msg = static_cast<const MSG *>(message);
+            if (msg->message != WM_POINTERUPDATE && msg->message != WM_POINTERDOWN &&
+                msg->message != WM_POINTERUP)
+                return false;
+
+            const quint32 pointerId = GET_POINTERID_WPARAM(msg->wParam);
+            POINTER_INPUT_TYPE pointerType = PT_POINTER;
+            if (!GetPointerType(pointerId, &pointerType) || pointerType != PT_PEN)
+                return false;
+
+            POINTER_PEN_INFO penInfo = {};
+            if (!GetPointerPenInfo(pointerId, &penInfo))
+                return false;
+
+            const bool barrel = (penInfo.penFlags & PEN_FLAG_BARREL) != 0;
+            const bool inverted = (penInfo.penFlags & (PEN_FLAG_INVERTED | PEN_FLAG_ERASER)) != 0;
+            const bool inContact = (penInfo.pointerInfo.pointerFlags & POINTER_FLAG_INCONTACT) != 0;
+
+            // Only changes are reported, because the hover stream is dense and
+            // one line per message would drown the log. The first observation
+            // is always reported, so a plain hover proves the filter is alive.
+            const bool changed =
+                barrel != m_barrel || inverted != m_inverted || inContact != m_inContact;
+            if (!changed && m_reported)
+                return false;
+            m_reported = true;
+            m_barrel = barrel;
+            m_inverted = inverted;
+            m_inContact = inContact;
+
+            const auto line =
+                QStringLiteral("penraw   %1 barrel=%2 inverted=%3 inContact=%4 pos=(%5,%6)")
+                    .arg(pointerMessageName(msg->message))
+                    .arg(barrel ? QStringLiteral("on") : QStringLiteral("off"))
+                    .arg(inverted ? QStringLiteral("on") : QStringLiteral("off"))
+                    .arg(inContact ? QStringLiteral("on") : QStringLiteral("off"))
+                    .arg(penInfo.pointerInfo.ptPixelLocation.x)
+                    .arg(penInfo.pointerInfo.ptPixelLocation.y);
+            m_canvas->logExternal(line);
+            m_canvas->setPenRawStatus(line);
+            // Never consumed: Qt and DefWindowProc both still need the message.
+            return false;
+        }
+
+    private:
+        ProbeCanvas *m_canvas = nullptr;
+        bool m_barrel = false;
+        bool m_inverted = false;
+        bool m_inContact = false;
+        // Whether any pen message was seen at all, so the first one is always
+        // reported even though it matches the initial state.
+        bool m_reported = false;
+    };
+#endif
 
     class ProbeWindow final : public QWidget {
     public:
@@ -536,6 +835,14 @@ namespace {
             });
             updateSwallowButton();
 
+            m_acceptTabletButton = new QPushButton(this);
+            m_acceptTabletButton->setCheckable(true);
+            connect(m_acceptTabletButton, &QPushButton::toggled, this, [this](const bool on) {
+                m_canvas->setAcceptTabletEvents(on);
+                updateAcceptTabletButton();
+            });
+            updateAcceptTabletButton();
+
             m_statusLabel = new QLabel(this);
             m_statusLabel->setText(m_canvas->logPath());
             m_statusLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
@@ -544,11 +851,16 @@ namespace {
             controls->addWidget(clearButton);
             controls->addWidget(m_directManipulationButton);
             controls->addWidget(m_swallowButton);
+            controls->addWidget(m_acceptTabletButton);
             controls->addWidget(m_statusLabel, 1);
 
             auto *layout = new QVBoxLayout(this);
             layout->addLayout(controls);
             layout->addWidget(m_canvas, 1);
+        }
+
+        [[nodiscard]] ProbeCanvas *canvas() const {
+            return m_canvas;
         }
 
     protected:
@@ -565,6 +877,9 @@ namespace {
                     return;
                 case Qt::Key_S:
                     m_swallowButton->toggle();
+                    return;
+                case Qt::Key_A:
+                    m_acceptTabletButton->toggle();
                     return;
                 case Qt::Key_F:
                     isFullScreen() ? showNormal() : showFullScreen();
@@ -606,6 +921,12 @@ namespace {
                                          : QStringLiteral("Swallow synth mouse: off (S)"));
         }
 
+        void updateAcceptTabletButton() {
+            m_acceptTabletButton->setText(m_acceptTabletButton->isChecked()
+                                              ? QStringLiteral("Accept tablet events: on (A)")
+                                              : QStringLiteral("Accept tablet events: off (A)"));
+        }
+
         void updateDirectManipulationButton() {
 #if defined(WITH_DIRECT_MANIPULATION)
             m_directManipulationButton->setText(
@@ -621,6 +942,7 @@ namespace {
         ProbeCanvas *m_canvas = nullptr;
         QPushButton *m_directManipulationButton = nullptr;
         QPushButton *m_swallowButton = nullptr;
+        QPushButton *m_acceptTabletButton = nullptr;
         QLabel *m_statusLabel = nullptr;
     };
 
@@ -637,5 +959,11 @@ int main(int argc, char *argv[]) {
 
     ProbeWindow window;
     window.show();
+
+#if defined(Q_OS_WIN)
+    PenRawStateFilter penRawState(window.canvas());
+    application.installNativeEventFilter(&penRawState);
+#endif
+
     return QApplication::exec();
 }
