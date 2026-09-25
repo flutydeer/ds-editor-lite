@@ -63,6 +63,9 @@ EditorPenController     接受 tablet 事件、跟踪笔画、合成鼠标事件
 EditorPenTarget         视图向钢笔层回答"当前工具允许橡皮做什么"，并给出两张策略表
 EditorPenHoverWatcher   悬停期状态垫片：接口一套，实现两份（Windows 读原生 WM_POINTER，
                         其他平台从悬停的 QTabletEvent 取）
+EditorSystemGestureSuppressor
+                        系统按压手势垫片：接口一套，实现两份（Windows 应答原生
+                        WM_TABLET_QUERYSYSTEMGESTURESTATUS，其他平台空实现）
 ```
 
 `EditorTouchTarget` 与 `EditorPenTarget` 由同一批视图实现，因此两套后端各只有一处策略表：
@@ -177,33 +180,35 @@ EditorPenHoverWatcher   悬停期状态垫片：接口一套，实现两份（Wi
 
 **平移抬手带惯性**。惯性只作用于平移，不作用于缩放。速度用指数平滑估计，衰减是帧率无关的 `exp(-decay * dt)`，低于阈值即停止。单指平移空白（轨道编排区）同样带惯性。
 
-### 长按菜单交给平台
+### 长按菜单由应用自己拥有
 
-长按落在对象上时，手势层只做一件事：把这根手指标记为已消费，不让它拖动脚下的对象。菜单本身交给平台。
+长按落在对象上时，手势层把这根手指标记为已消费，不让它拖动脚下的对象，同时记下"欠一份菜单"，等这根手指离开屏幕再弹。
 
-自己弹菜单在 Windows 上行不通。真机日志的时序是：手指按住约 900 毫秒抬起，Windows 在**抬起时**才补上右键按下、抬起和 `QContextMenuEvent`。手势层的长按 450 毫秒就触发，菜单在按住途中弹出，随后被 Windows 补的右键按下关掉——表现就是"按住半秒菜单出现，松手就消失"。让平台自己来，就顺带得到了按住时的白色方框反馈和松手才出现的原生时序，与 Windows 其他界面一致。
+**为什么要自己弹。** Windows 原本有一套自己的按压手势：按住出半透明方块，松开时补一份右键，Qt 随即合成 `QContextMenuEvent`。一度把这套留下来共用（理由是"自己弹会与系统那份打架"，而且抢过来也拿不到方块反馈），但代价是方块、约 1 秒的系统阈值、两套互不通气的判定与第二条输入通道。真机验证（11.4）确认系统侧有开关，而且只有一条有效：应答 `WM_TABLET_QUERYSYSTEMGESTURESTATUS` 返回 `TABLET_DISABLE_PRESSANDHOLD`。`EditorSystemGestureSuppressor` 就做这件事，于是长按回到应用手里：450 毫秒静止即判定（`EditorTouchGesture::Config::longPressMs`），方块与系统阈值一起消失。
 
-平台没有这类手势的地方（非 Windows）留了一条兜底：消费长按时记下位置，等所有手指离开屏幕后起一个 400 毫秒的定时器，期间收到平台自己的 `QContextMenuEvent` 就取消。Windows 上平台菜单在触摸结束后一毫秒内就到，兜底不会触发。
+**为什么在抬手时才弹。** 判定的时刻与弹出的时刻分开：判定在 450 毫秒（这时就把手指作废，它不再能拖动对象），弹出在所有手指离开屏幕的那一刻。按住途中弹出会把随后的抬手交给菜单——`QMenu` 带鼠标抓取，抬手落在菜单上就是一次选择，会误触手指底下的那一项。松手再弹也正是系统原来的时序，用户已经习惯。
 
-兜底投递用 `QCoreApplication::postEvent()` 而不是 `sendEvent()`：上下文菜单通过 `exec()` 起嵌套事件循环，在触摸事件派发过程中同步弹出会卡死手势流。
+**投递用 `QCoreApplication::postEvent()` 而不是 `sendEvent()`**：上下文菜单通过 `exec()` 起嵌套事件循环，在触摸事件派发过程中同步弹出会卡死手势流。
 
-> **这条决策的前提后来被重新审视**：Qt 不替你做这件事，不等于做不到——应用可以自己关掉系统的长按识别，见 11.4。现在是"没关掉系统机制、与它共存"的状态。
+平台没有这类手势的地方（非 Windows）不需要任何兜底：判定与弹出都是我们自己的，`EditorSystemGestureSuppressor` 在那里的实现是空的。
 
-### 没要过的平台菜单必须吞掉
+### 没要过的平台菜单仍然必须吞掉
 
-Windows 的长按转右键只看它自己的判定，不看我们把这根手指用在了什么地方。空白长按在这里是框选，抬手时 Windows 照样补一份 `QContextMenuEvent`，于是框选完成的同时弹出菜单。
+系统那份长按已经被关掉，这一节由"主要路径"退化成**安全网**：万一某个平台仍然把接触提升成右键（用户改过控制面板开关、换了一台机器、垫片没装上的窗口），规则照旧成立，不改。
+
+Windows 的长按转右键只看它自己的判定，不看我们把这根手指用在了什么地方。空白长按在这里是框选，抬手时它照样补一份 `QContextMenuEvent`，于是框选完成的同时弹出菜单。
 
 更糟的是它还会连带卡住框选矩形。菜单和触摸抬起的消息顺序没有保证，菜单先到时 `contextMenuEvent()` 里的 `exec()` 会起嵌套事件循环，弹窗抓走指针，随后的 `TouchEnd` 被投递给弹窗而不是编辑器控件。手势层收不到抬起，状态停在 `Single`，半透明的框选矩形留在场景里，要等下一次触摸被 `syncActivePoints()` 校准掉才消失。
 
 规则因此收紧为：**触摸拥有上下文菜单期间，只有我们自己要过的那一份放行。**
 
-- `m_contextMenuExpected` 在长按解析成"开菜单"时置位，被真正送达的菜单事件清掉。平台的和兜底投递的都走这条路。
+- `m_contextMenuExpected` 在**我们自己投递**菜单的那一刻置位（`raiseContextMenu()`），被真正送达的菜单事件清掉。
 - `touchOwnsContextMenu()` 判定这一份菜单能不能归因到手指：手势进行中，或者距最后一个触摸事件不足 600 毫秒。真实鼠标右键和笔的侧键不在这个窗口里，照旧放行。
 - 归因到手指但没要过的，一律 `accept()` 吞掉。
 
 放行的那一份如果撞上还在进行的合成流，先把流取消再放行，免得嵌套事件循环把释放事件吃掉。
 
-> 笔那条流是同一个根因的另一个化身，但它的判据完全不同（侧键、`reason()`、时间戳），见 5.5 与 5.6。
+> 笔那条流是同一个根因的另一个化身，但它的判据完全不同（侧键、`reason()`、时间戳），见 5.5 与 5.6。那一条**不是**本节的产物，与按压手势无关，垫片不影响它。
 
 ### 空白长按：不动是菜单，动了是框选
 
@@ -261,7 +266,7 @@ Windows 的长按转右键只看它自己的判定，不看我们把这根手指
 | 侧键在笔画中途按/松 | 产生**自相矛盾的额外 press/release**：`press button=Left buttons=Right`、`release button=Left buttons=Left` |
 | 悬停中按侧键 | **Qt 完全不上报**（1.8 秒窗口内 Qt 侧只有 `tablet move` 472 条、`mouse move` 6 条，零 press、零 menu）；原生过滤器读得到 `barrel=on inContact=off` |
 | 反端悬停（未接触） | 同上，Qt 不上报；原生过滤器读得到 `inverted=on inContact=off` |
-| 笔尖长按 3.4 / 3.5 / 6.9 秒 | 系统圆环动画出现，但**不产生任何 `QContextMenuEvent`**，tablet 流不中断 |
+| 笔尖长按 3.4 / 3.5 / 6.9 秒 | 系统圆环动画出现，但**不产生任何 `QContextMenuEvent`**，tablet 流不中断（圆环与触摸方块是同一个系统开关，见 11.4） |
 | 触摸长按 1.05–1.15 秒 | 系统补合成 `mouse press button=Right` + 真 `QContextMenuEvent`（既有行为，要保留） |
 | 侧键点击/抬起 | 原生层额外产生一整套 `RBUTTONDOWN`→`RBUTTONUP`→`CONTEXTMENU`，与 tablet 事件无关，见 5.5 |
 
@@ -282,7 +287,7 @@ if (pointerInContact && penInfo->penFlags & PEN_FLAG_BARREL)
 
 **4. 接受 `QTabletEvent` 就能独占该笔画的鼠标流。** 实测 A/B 双向可复现：`event->ignore()` 时笔的每个笔画都带一份派生鼠标事件，`event->accept()` 后该笔画**零 mouse 事件**，取而代之是密集 tablet 事件。机制在 Qt 源码里是闭合的——`qwindowsintegration.cpp:211` 把 `platformSynthesizesMouse` 设为 `false`，于是 `qguiapplication.cpp:3033` 在**未被接受**的 tablet 事件上合成鼠标事件，用笔设备、标 `Qt::MouseEventNotSynthesized`。这与触摸合成分工明确：触摸合成是 `source=BySystem` + `dev=TouchScreen`，笔合成是 `source=NotSynthesized` + `dev=` 笔设备。`EditorTouchController` 现在"只吞 `source() != NotSynthesized`"的判据因此对笔天然放行，无需改动。
 
-**5. 笔的长按不需要处理，触摸的长按必须保留。** 笔尖按住 6.9 秒都不产生 `QContextMenuEvent`，只有视觉圆环（`DefWindowProc` 的 legacy 按压手势）；要消掉圆环，Qt 侧没有任何开关（`QWindowsWindowFunctions` 在 Qt 6 已删，`nomousefromtouch` 会连带干掉触摸长按菜单，本应用依赖它）。**因此笔的长按不处理**，触摸长按转右键是既有行为，回归时必须确认未受影响。
+**5. 笔的长按与触摸的长按是同一个系统开关。** 笔尖按住 6.9 秒都不产生 `QContextMenuEvent`，只有视觉圆环（`DefWindowProc` 的 legacy 按压手势）。当初据此写成"笔的长按不处理"，理由是"Qt 侧没有任何开关"——**这句话本身对，结论已在 2026-09-25 真机探针中推翻**：开关在系统侧（应答 `WM_TABLET_QUERYSYSTEMGESTURESTATUS` 返回 `TABLET_DISABLE_PRESSANDHOLD`），一次同时关掉触摸的方块、触摸长按补的右键与菜单、以及笔的圆环，见 11.4。触摸长按转右键仍是既有行为，落地之前回归时必须确认未受影响。
 
 #### 悬停期侧键与反端：已确认可读（需原生过滤器）
 
@@ -614,9 +619,30 @@ Windows 上所有笔统一走 WM_POINTER（Windows Ink），映射一致，所�
 
 HUD 显示最近事件与当前触点数，全量日志写到 `AppDataLocation/touch-probe.log`。
 
-按键：`C` 清屏，`D` 切换 DirectManipulation（用与应用完全相同的 `Touchpad | Wheel` 配置），`S` 切换吞掉合成鼠标（用与编辑器完全相同的判据），`A` 切换接受 tablet 事件（笔的接管开关，与 `EditorPenController` 的接受策略同源），`F` 全屏，`Esc` 退出。开关 `S` 可以直接看出吞与不吞的差别，被吞的事件在日志里标 `SWALLOWED`，轨迹上不再出现灰色虚线；开关 `A` 是它的笔版本——接受时该笔画不再出现派生鼠标事件，取而代之是密集的 tablet 事件。
+按键：`C` 清屏，`D` 切换 DirectManipulation（用与应用完全相同的 `Touchpad | Wheel` 配置），`S` 切换吞掉合成鼠标（用与编辑器完全相同的判据），`A` 切换接受 tablet 事件（笔的接管开关，与 `EditorPenController` 的接受策略同源），`G` 切换 `SetGestureConfig`（11.4 里被证伪的那条路），`Q` 切换按压手势查询的应答（11.4 里被证实的那条路），`F` 全屏，`Esc` 退出。开关 `S` 可以直接看出吞与不吞的差别，被吞的事件在日志里标 `SWALLOWED`，轨迹上不再出现灰色虚线；开关 `A` 是它的笔版本——接受时该笔画不再出现派生鼠标事件，取而代之是密集的 tablet 事件。
 
 探针也记录 `QContextMenuEvent` 及其 reason，用来确认长按是否引发了平台的右键模拟。
+
+#### raw 行与两个系统手势开关
+
+11.4 的长按实验靠三样东西：两个独立开关、一条带臂标记的原始消息流、以及每次接触结束的时长。
+
+`G` 对探针窗口的 HWND 调 `SetGestureConfig(hwnd, 0, 1, {dwID=0, dwWant=0, dwBlock=GC_ALLGESTURES}, sizeof)`，`Q` 让原生过滤器应答 `WM_TABLET_QUERYSYSTEMGESTURESTATUS` 返回 `TABLET_DISABLE_PRESSANDHOLD`（不应答时留给 `DefWindowProc`）。两个开关可以任意组合，四组手臂各自对应 11.4 表格里的一行。
+
+每条原始消息都带当时的开关状态，所以日志自己说明它属于哪一组实验，开关中途被翻转也不会读错：
+
+```
+[G=on Q=off] raw      WM_TABLET_QUERYSYSTEMGESTURESTATUS -> 0, left to DefWindowProc
+[G=on Q=off] raw      WM_RBUTTONDOWN extra=0xff515789 from=touch lastPointer=PT_TOUCH
+[G=on Q=off] api      SetGestureConfig(hwnd=0x130130, dwBlock=GC_ALLGESTURES) touchWindow=1 touchFlags=0x0 -> TRUE
+hold     contact lasted 1169 ms
+```
+
+- `raw` 行覆盖 `WM_POINTERDOWN/UP`（带指针类型，也就是 Qt 会缓存到它自己 `m_pointerType` 里的那个值）、`WM_GESTURE`、按压手势查询、以及 `WM_LBUTTON*/WM_RBUTTON*/WM_CONTEXTMENU`，后三类附带 `GetMessageExtraInfo()` 的签名来源（`touch` / `pen` / `none`）。
+- `api` 行记 `SetGestureConfig` 的返回值、`GetLastError`、`IsTouchWindow` 与 `touchFlags`，随后读一次 `GetGestureConfig`。把"调用被接受"和"调用没起作用"分开。
+- `hold` 行在每次触摸结束时给出这次接触的时长，用来看住按是否够到系统约 1 秒的阈值。
+
+产物按部署目标选配置：本地调试用 `build/Debug/out/bin/`，上平板要走设备同一套发行版 Qt（`build/PortableDmlRelease/out/bin/`，RelWithDebInfo），再把 exe 覆盖到设备 `C:/Data/Lite/bin/TouchProbe.exe` 并用 `editor-session.ps1 -Action Start -EditorExe TouchProbe.exe` 在交互会话里启动，日志在设备 `%APPDATA%\TouchProbe\touch-probe.log`。
 
 #### penraw 行
 
@@ -673,7 +699,7 @@ pen swallowed platform context menu at (712,190)        吞掉平台给侧键补
 
 | 选项 | 键名 | 默认 | 说明 |
 | --- | --- | --- | --- |
-| 多点触控手势 | `enableTouchGestures` | 开 | 关闭后控件不接受 `QTouchEvent`，退回 Qt 默认的触摸转鼠标合成 |
+| 多点触控手势 | `enableTouchGestures` | 开 | 关闭后控件不接受 `QTouchEvent`，退回 Qt 默认的触摸转鼠标合成。同时不再应答系统的按压手势查询，长按转右键与方块一并交回平台（见 11.4） |
 | 精密触控板与滚轮滚动 | `enableDirectManipulation` | 开 | 仅 Windows 构建可见，只影响触控板和滚轮 |
 
 两项都热生效，不需要重启。笔没有开关（决策 7）。
@@ -737,47 +763,149 @@ pen swallowed platform context menu at (712,190)        吞掉平台给侧键补
 
 垫片的第二份实现、侧键的按键值、反端的 `Eraser` 判定都只来自源码推断，见第六节，首次上机时按 6.7 的四个问题逐条核对。
 
-### 11.4 待优化项（触摸）：系统的长按转右键
+### 11.4 系统的长按转右键：已真机验证（2026-09-25 22:48–22:58）
 
-#### 现状与它当初的理由
+#### 曾经的现状
 
-长按菜单目前**交给平台**（见第三节）：手势层的长按只把手指标记为已消费、不让它拖动脚下的对象，真正的菜单来自 Windows 在**抬起时**补的那份右键合成。当初的理由是"共存比抢过来便宜"——自己弹菜单会与系统那份打架（按住半途弹出、松手又被系统补的右键关掉），而且抢过来也拿不到按住时的方块反馈。
+长按菜单一度**交给平台**（见第三节）：手势层的长按只把手指标记为已消费、不让它拖动脚下的对象，真正的菜单来自 Windows 在**抬起时**补的那份右键合成。当初的理由是"共存比抢过来便宜"——自己弹菜单会与系统那份打架（按住半途弹出、松手又被系统补的右键关掉），而且抢过来也拿不到按住时的方块反馈。**这套已经在 2026-09-25 拆掉，应用现在自己拥有长按**，下面是"能不能抢过来"的真机答案。
 
-#### 前提被重新审视
-
-那个结论的前半段（Qt 不替你做这件事）成立，后半段（"所以只能交给平台"）**站不住**：
+#### 查证到的三个事实（当初的依据）
 
 | 事实 | 出处 |
 | --- | --- |
-| Qt 的 windows 插件**完全不处理 `WM_GESTURE`**（只在消息名表里出现过），`WM_TOUCH` 直接 `return true` 吞掉；触摸提升出来的鼠标事件只被标 `source = MouseEventSynthesizedBySystem` | `qwindowspointerhandler.cpp:819-830`，判据是 `GetMessageExtraInfo()` 的 `MI_WP_SIGNATURE` |
+| Qt 的 windows 插件**完全不处理 `WM_GESTURE`**（只在消息名表里出现过）；触摸提升出来的鼠标事件按"上一条指针消息的类型"标注来源 | `qwindowspointerhandler.cpp:819-835` |
 | 应用**可以**关掉它：`SetGestureConfig(hwnd, 0, 1, &{0, 0, GC_ALLGESTURES}, sizeof)`（Win7+），或应答 `WM_TABLET_QUERYSYSTEMGESTURESTATUS` 返回 `TABLET_DISABLE_PRESSANDHOLD` | Raymond Chen《How do I disable the press-and-hold gesture for my window?》 |
 | **MFC 默认就返回 `TABLET_DISABLE_PRESSANDHOLD`**，官方理由是长按判定会给左键引入延迟、应用显得不跟手 | 同上 |
 
-也就是说"关掉系统长按、应用自己拥有长按"是微软给 Win32 应用准备的**默认姿势**，不是 UWP 独有：UWP 走 `PointerPressed`/`Holding` + `ContextFlyout`，本来就没有第二通道，也就没有方块。现在这套是"没关掉系统机制的前提下与它共存"，代价——方块、约 1 秒的系统阈值、应用的 450 毫秒与系统阈值两套互不通气的判定、以及第二条输入通道——全部由我们承担。
+也就是说"关掉系统长按、应用自己拥有长按"是微软给 Win32 应用准备的**默认姿势**，不是 UWP 独有。代价——方块、约 1 秒的系统阈值、两套互不通气的判定、第二条输入通道——都是在没关掉系统机制的前提下才由我们承担的，关掉之后全部消失。
 
-#### 候选做法（尚未拍板）
+#### 真机结论：两条路里只有一条有效
 
-在编辑器窗口的 HWND 上调 `SetGestureConfig(GC_ALLGESTURES)`（视实测结果叠加老办法），然后拆掉"交给平台"那段代管逻辑，长按直接走现成的机器：450 ms → `confirmLongPress(false)` → 自己的菜单；非 Windows 那条兜底定时器随之取消。收益是单一输入通道、单一判定器、三平台一致，顺带去掉方块。**笔的长按圆环是同一个根因**，可以合成一个小 Windows 垫片一起做掉（形状与 5.8 的悬停垫片一样：接口平台无关、实现 Windows 专属）。
+| 机制 | 传说是怎么关的 | 真机结果 |
+| --- | --- | --- |
+| legacy 手势栈 | `SetGestureConfig(hwnd, 0, 1, {dwID=0, dwWant=0, dwBlock=GC_ALLGESTURES}, sizeof)` | **无效**。API 返回 `TRUE`、窗口确实是 touch window，长按照样补右键与菜单，全日志 `WM_GESTURE` 零条 |
+| 按压手势 | 应答 `WM_TABLET_QUERYSYSTEMGESTURESTATUS` 返回 `TABLET_DISABLE_PRESSANDHOLD` | **有效**。触摸按住时的方块、触摸长按补的右键与菜单、笔尖长按的圆环，三样同时消失 |
 
-待真机确认：① `SetGestureConfig` 对走 `WM_POINTER` 的 Qt 窗口是否真的生效（那篇文章早于 WM_POINTER 时代）；② 窗口重建时要重做；③ 长按手感从系统约 1 秒变成我们的 450 毫秒，是可调项。
+对照数据（`TouchProbe` 本轮新增的 `G` / `Q` 两个开关，每条日志行都带 `[G=… Q=…]` 臂标记，人工只要说"有没有方块"）：
 
-#### 与它无关、但同样表现为"双指卡住"的三个候选
+| 臂 | 按住时长 | 平台补的右键 | Qt 菜单事件 | 方块/圆环（人工） |
+| --- | --- | --- | --- | --- |
+| 基线 | 1172 / 914 ms | `WM_RBUTTONDOWN`+`UP` 两次都有 | `reason=Mouse` 两次都有 | 有 |
+| 只开 G | 1030 / 1169 ms | 仍有 | 仍有 | 有 |
+| 只开 Q | 2504 / 1243 ms | 一次都没有 | 一次都没有 | 没有 |
+| G + Q | 1858 / 1266 ms | 一次都没有 | 一次都没有 | 没有 |
+| 笔尖，Q 开 | 2623 ms | 没有，只有 `WM_LBUTTONDOWN` | 没有 | 无圆环 |
+| 笔尖，Q 关 | 1423 / 1034 ms | 第二次有 `WM_RBUTTONDOWN`+`WM_CONTEXTMENU` | 探针控件没收到 | 有圆环 |
 
-**必须先分类再动手**：三个候选的成因不同，其中两个与长按无关。
+**为什么 G 那条没用**：按压手势根本不在 legacy 手势栈上，`WM_GESTURE` 在这套 WM_POINTER 窗口上从未出现过（Qt 认了这个消息类型然后什么都不做，`qwindowscontext.cpp` 里 `case QtWindows::GestureEvent: break`）。栈既没启用，关不关它都一样。
+
+**为什么 Q 那条有用**：`WM_TABLET_QUERYSYSTEMGESTURESTATUS`（`tpcshrd.h`，`WM_TABLET_DEFBASE + 12`）在每次 `WM_POINTERDOWN` 之后 0~4 ms 到达，**每次接触都问一遍**，触摸与笔都问（本轮 21 次以上，`PT_TOUCH` 与 `PT_PEN` 都有）。应答之后长按退化成普通左键流：`WM_LBUTTONDOWN` 在按下那一刻就来，一直按到松手。**一条判据同时覆盖触摸与笔**，不需要两套。
+
+**能答到它的层**（Qt 6.11.2 源码核对）：`QWindowsContext::windowsProc()` 里这条消息不算 input message，会先走 `filterNativeEvent(&msg, result)`（应用级原生过滤器链），之后 `filterNativeEvent(platformWindow->window(), ...)` 才到 `QWidgetWindow::nativeEvent` → `QWidget::nativeEvent`。两条路都够得着，探针走的是应用级过滤器，与 `EditorPenHoverWatcher`、`EditorTouchProbe` 同一层，因此落地不需要再去子类化或挂钩窗口过程。
+
+#### 两处机制更正
+
+**一、触摸长按不产生 `WM_CONTEXTMENU`。** 全日志零条。`translateMouseEvent()` 对鼠标消息返回 `true`（`qwindowspointerhandler.cpp:890`），`DefWindowProc` 因此拿不到 `WM_RBUTTONUP`，那份 `QContextMenuEvent` 是 **Qt 自己合成的**（`QWindowPrivate::maybeSynthesizeContextMenuEvent`，`qwindow.cpp:2825`，由右键 release 触发）。所以触摸与笔是两条来源，第三节与 5.5 原来写成一条：
+
+- 触摸长按：平台补右键 → Qt 处理鼠标消息并返回 true → Qt 合成 `QContextMenuEvent(reason=Mouse)`；
+- 笔：平台补右键 → 因为 `m_pointerType == PT_PEN`，Qt 在 `qwindowspointerhandler.cpp:828-833` 特意 `return false` → `DefWindowProc` 生成 `WM_CONTEXTMENU` → `QWindowsContext::handleContextMenuEvent()` 转成 `QContextMenuEvent`。
+
+两条最终都在控件收到之前变成 `QContextMenuEvent`，所以第三节那条吞掉判据对两条都成立，不用改。附带记一笔：`windowsEventType()` 给 `WM_CONTEXTMENU` 的标记里**没有** `MouseEventFlag`，`windowsProc` 于是用 `GetCursorPos()` 填 `msg.pt`，`handleContextMenuEvent()` 拿它判断是否落在客户区内，出界就 `return false` 交回 `DefWindowProc`——本轮笔尖那次就是这样（`raw WM_CONTEXTMENU` 到了，控件没收到菜单事件）。
+
+**二、顺带看到的左键延迟。** 基线里"按压手势"会把提升出来的左键压后：触摸短按 26~41 ms（只开 Q 时 1~6 ms），笔的一次接触 474 ms（只开 Q 时 2 ms）。样本很少，只当旁证，但方向与 MFC 那条官方理由一致。
+
+#### 落地做法
+
+分两步，第一步是垫片本身，第二步才拆代管。
+
+**第一步（已实施）**：`EditorSystemGestureSuppressor` 是一个无状态的进程级垫片，形状照 `EditorPenHoverWatcher`：接口平台无关，Windows 实现是一份 `QAbstractNativeEventFilter`，看到 `WM_TABLET_QUERYSYSTEMGESTURESTATUS` 就写回 `TABLET_DISABLE_PRESSANDHOLD` 并返回 true；其他平台是空实现。`EditorTouchController` 构造时把宿主控件交给它（`addWindow()`），过滤器在首次调用时装上，永不卸载。一次覆盖触摸与笔，因为两边问的是同一条消息。
+
+两处范围收窄，都是有意为之：
+
+- **只应答被认领的窗口**。查询送到触点所在的那个窗口，垫片用 `GetAncestor(hwnd, GA_ROOT)` 取根窗口再与已认领控件当时的 `window()` 比对，因此编辑器窗口自己的原生子窗口也覆盖得到，而对话框、服务窗不在其中。理由是这个应答同时也会拿走"长按弹右键菜单"这条**在别处唯一的**长按入口（文本框里的复制粘贴就靠它），所以它只该覆盖触摸层真正接管的那些窗口。"认领"记的是控件而不是 HWND，`window()` 每次查询时再解析，把面板拖出成浮动窗口也跟着走。
+- **只在手势层开着时应答**。`enableTouchGestures` 是热开关，关掉之后没有任何东西接管长按，所以这时把长按整个交回平台（连方块一起还回去）。读选项放在每次查询里，因此不需要跟着开关装卸过滤器。
+
+装上之后的现状：方块与系统那份右键消失，长按菜单暂时仍由第三步要拆掉的 400 毫秒兜底定时器投递（`reason() == Other`），因此菜单会晚 400 毫秒出现，这是过渡状态，不是终态。
+
+**第一步真机验证（2026-09-25 23:09–23:14，平板 + `touch-debug.dspx`）**：人工六项全过（音符长按、空白长按、空白拖动框选、双指平移缩放、笔尖长按无圆环、笔侧键原地点击出菜单）。日志侧的硬证据是把设备上历次运行的日志横向比出来的：
+
+| 运行 | `navBegin` | 导航中的 `touch cancel` | `WM_POINTERCAPTURECHANGED` | 平台补的触摸右键 |
+| --- | --- | --- | --- | --- |
+| 09-25 20:59（改前） | 43 | 25 | 27 | 30 |
+| 09-25 21:49（改前） | 5 | 3 | 4 | 19 |
+| 09-25 22:07（改前） | 5 | 3 | 4 | 5 |
+| **09-25 23:09（装垫片）** | 9 | 7 | 8 | **0** |
+
+`平台补的触摸右键` 统计的是 `EditorTouchProbe` 记的 `win RBUTTONDOWN synthesized from touch`，改前每次有触摸交互的运行都有 5~30 条，装垫片这次是 0 条。那一次菜单仍由 400 毫秒兜底定时器投递，实测六次"触摸结束 → 菜单放行"的间隔正好是 398 / 405 / 407 / 409 / 411 / 412 毫秒，与 `contextMenuFallbackMs` 吻合，也印证了这一步只换了开关、没换时序。日志副本与逐项统计在 `build/_pencheck/`（`editorlog.log`、`editor-log-survey.txt`）。
+
+**第二步（已实施，真机待验）**：
+
+1. **拆掉"交给平台"那段代管**：`EditorTouchController` 里的 `m_contextMenuFallbackTimer`、`contextMenuFallbackMs`、`armContextMenuFallback()` 与 `cancelContextMenuFallback()` 全部删除，换成 `raiseContextMenu()` 与 `dropPendingContextMenu()`。第三节整节重写成"长按菜单由应用自己拥有"。
+2. **长按走自己的机器**：450 毫秒静止 → `confirmLongPress(false)` 把手指标记为已消费并记下"欠一份菜单"，随后**在最后一根手指离开屏幕的那一刻**弹出（`m_menuPending` + `raiseContextMenu()`，内容与空白两条路都走这里）。空白那条的"延后合成按下"不变：动了是框选，没动才是菜单。判定阈值是 `EditorTouchGesture::Config::longPressMs`，可调。
+3. **吞掉平台菜单的判据作为安全网留着**（`m_contextMenuExpected` + `touchOwnsContextMenu()`），挡住的是"垫片没覆盖到的窗口"与笔侧键那条流。
+4. **过渡态的 400 毫秒延迟随第一步的定时器一起消失**，菜单现在与系统原先的时序一致：抬手即出。
+5. **笔那边没有动**：`EditorPenController::m_platformMenuPending` 的两条吞菜单判据只针对侧键那条传统右键流，与按压手势无关（11.3-A 另行处理）。
+
+**第二步真机验证（2026-09-25 23:20–23:22，同机同工程）**：人工六项全过，其中"抬手即出菜单"由日志量化——五次长按的"触摸结束 → 菜单放行"间隔是 **0 / 1 / 1 / 1 / 3 毫秒**（第一步那轮是 398~412 毫秒），过渡态的 400 毫秒延迟确实随定时器一起消失。整个运行里 `win RBUTTONDOWN synthesized from touch` **零条**，编辑器内的每一次接触都走到控制器（16 次接触里 5 次落在菜单弹窗上、控制器看不到，其余 11 次都有 `touch begin`），说明手势层全程在线。笔侧键那条流照旧：`pen sidebutton press -> taken over`、`pen ContextMenu`、以及 `pen swallowed platform context menu` 都还在。日志副本 `build/_pencheck/editorlog-step2.log`。
+
+**尚未验到的一项**：第 4 条那个范围收窄（把"多点触控手势"关掉后长按应回到系统方块与系统菜单）本轮没有留下证据，日志里所有接触都被控制器处理了，也就是手势层全程是开的。要补的话在设置里关掉开关再长按一次即可。
+
+**第二步待真机确认**：① 空白长按后拖动仍是框选、且不弹菜单（本轮已过）② 双指导航、惯性、点选/框选不受影响（本轮已过）③ 笔尖长按无圆环且笔画照旧（本轮已过）④ **"多点触控手势"关掉后长按应回到系统方块与系统菜单**（本轮未验到）。
+
+探针本轮加的两个开关与原始消息行已经写进 9.1，复现实验照那一节做即可。
+
+#### 未来规划：阈值即弹与长按的视觉反馈（尚未实施）
+
+现在长按只有"450 毫秒把手指标记为已消费、抬手出菜单"这一条路径，按住期间屏幕上什么都不会发生。窗口的 XAML 界面（任务栏等）不这样：它在阈值处**立刻**弹出菜单，而且抬手不收。两者要分开评估。
+
+**视觉反馈（建议先做这一半）。** 判定仍在 450 毫秒，但那一刻给出一个可见信号，菜单仍在抬手时弹出。候选形式：
+
+| 形式 | 做法 | 代价 |
+| --- | --- | --- |
+| 被长按对象进入按压态 | 视图在长按判定时把命中的对象（音符、剪辑）画成按下或"菜单将作用于它"的样子，抬手时恢复并出菜单 | 每套后端各一处绘制，命中判定已经有了（`EditorTouchTarget::touchHitsContent()`） |
+| 触点位置的圆环或涟漪 | 在触点位置画一个短暂的圆环，位置与系统原来的方块一致 | 一处绘制，与命中什么无关，最接近被替掉的那份系统反馈 |
+| 悬停式菜单预览 | 提前高亮"菜单将要作用于的对象" | 与第一种相近，语义更明确 |
+
+共同点是不碰 popup 的输入路径，回归面只在绘制。
+
+**阈值即弹（任务栏同款，成本高）。** 只把 `raiseContextMenu()` 从"抬手时"挪到"判定时"是**不行的**，Qt 的 popup 模型会立刻与那根还按着的手指打架：
+
+1. 触摸事件先被转发给活动 popup（`QWindowPrivate::forwardToPopup`，`qwindow.cpp:2495`），popup 不接手才继续往下走。
+2. 编辑器窗口这时会忽略触摸（`QWidgetWindow::handleTouchEvent` 里 `if (QApplication::activePopupWidget()) event->ignore()`，`qwidgetwindow.cpp:710`），Qt 于是合成鼠标事件（`qguiapplication.cpp:3303-3352`，`source = MouseEventSynthesizedByQt`）。**`EditorTouchController` 从这一刻起收不到那根手指的任何事件**，它已经聋了。
+3. 这些合成鼠标事件，以及 Windows 那条 `BySystem` 的提升流，在活动 popup 存在时被整体改投给 popup（`qwidgetwindow.cpp:515-580`），绕过我们"只吞外来合成鼠标"的判据。
+4. `QMenu` 收到之后有两种结局：press 落在菜单内而 `hasMouseMoved()` 为假时直接 `hideUpToMenuBar()`（`qmenu.cpp:2913-2932`），屏幕上是"菜单闪一下"；release 落在 `currentAction` 上且已过漂移阈值时 `activateAction()`（`qmenu.cpp:2943-2989`），**手指底下那一项被误触发**。`hasMouseMoved()` 的判据是"距弹出位置超过 `startDragDistance`，或收到过 6 次以上移动"（`qmenu.cpp:1579`），手指按住时触摸更新每秒上百条，后者转眼就成立。
+
+所以要做到任务栏那样，必须让菜单在那根手指抬起之前**完全看不见它**：一个输入守卫，在投递菜单时武装，吞掉 `MouseEventSynthesizedByQt` 与 `MouseEventSynthesizedBySystem` 两条流里属于该触点的事件（合成事件带 `eventPointId`，`qwindowsysteminterface_p.h:240`，可以用来对上触点 id），吞掉它的 release 之后解除。菜单还要向上偏移一点再弹，否则第一项被手指盖住。守卫在武装期间是全局的，而右键菜单是本应用最常用的交互，回归面覆盖每一类菜单，且只能真机验证。**先做视觉反馈，这一条留到有明确需求时再单独开一轮**，动手之前先加临时探针确认到底是哪条流在实际触发。
+
+#### 与它无关、但同样表现为"双指卡住"的四个候选
+
+**必须先分类再动手**：四个候选的成因不同，其中三个与长按无关。
 
 | 候选 | 机制 | 判别方法（都是现成的日志行） |
 | --- | --- | --- |
 | A. 假鼠标穿透 | `translateMouseEvent()` 里那个 `switch (m_pointerType)` **没有 `default:` 分支**，而 `m_pointerType` 是粘的（保留上一条指针消息的类型）。既不是 TOUCH 也不是 PEN 时，提升出来的鼠标事件会以 `NotSynthesized` 身份进入应用，恰好绕过我们"只吞 `BySystem`"的判据 | 卡住瞬间看 `swallowed synthesized mouse press/release` 有没有断档，同时看 `QGuiApplication::mouseButtons()` 是否非空 |
 | B. 导航中途被判长按 | 系统的识别器不认我们的"这是导航"，只看单根触点的位移；有一根手指按住不动超过它的阈值，就会在导航中途补一份右键 + `WM_CONTEXTMENU` | `context menu swallowed (phase Navigation, …)` 是否出现 |
 | C. 掌拒逻辑吃掉触点 | Qt 用 `RegisterTouchWindow` 注册窗口，触摸类型默认是 `NormalTouch`（不是 `WantPalmTouch`），Windows 的掌拒逻辑可能把掌触点合并进主触点或直接丢掉 | 卡住时对比日志里的 `tracked=N` 与实际手指数 |
+| D. 提升出的左键触发 `SetCapture` | 平台把某个触点提升成左键按下，Qt 在窗口过程里照旧 `SetCapture`（那段发生在事件到达控件之前，我们"吞掉合成鼠标"拦不住），捕获变更随即变成 `WM_POINTERCAPTURECHANGED`，Qt 于是取消整个触摸序列。手法与长按无关，但表现一样：手指还在屏幕上，状态机已经归零 | `win WM_POINTERCAPTURECHANGED` 紧跟 `win LBUTTONUP/DOWN synthesized from touch`，再紧跟 `qt touch CANCEL` 与 `touch cancel (phase was nav, tracked=2)` |
 
 一个便宜的对照实验：控制面板 → 笔和触控里的"按住以右键单击"（`HKCU\Software\Microsoft\Wisp\Touch\TouchMode_hold`，触控与笔分开）与"触摸时显示视觉反馈"是两个独立开关，分别关掉可以直接看出方块与右键各自的归属。
+
+本轮探针与首次编辑器验证给这几个候选各留了一条观察：
+
+- **候选 A 未复现**：每一次被提升的鼠标消息都带 `extra=0xff5157xx from=touch`，且 `lastPointer=PT_TOUCH`，Qt 会把它标成 `BySystem`，我们现有判据接得住。它的前提（`translateMouseEvent()` 那个 `switch` 没有 `default:`，粘住的 `m_pointerType` 若是 `PT_MOUSE` 就会让事件以 `NotSynthesized` 身份进入）仍然成立，但触发它需要在两条指针消息之间夹一条非 TOUCH/PEN 的消息，两次真机序列里都没有出现。
+- **候选 C 的前提被证实**：探针窗口 `IsTouchWindow=1` 但 `touchFlags=0x0`，即 Qt 用 `RegisterTouchWindow(hwnd, 0)` 注册，既没有 `TWF_FINETOUCH` 也没有 `TWF_WANTPALM`，掌拒逻辑确实按 `NormalTouch` 对待这些窗口。
+- **候选 B 没有独立线索**：只做了单指长按与正常双指导航，没有做"一根手指按住不动 + 另一根划"的场景。
+- **候选 D 是眼下最强的一个**。设备上历次日志里，导航中的 `touch cancel` 与 `WM_POINTERCAPTURECHANGED` 一直跟着 `LBUTTONDOWN synthesized from touch` 出现（见 11.4 的横向对比表，改前 25/27、3/4、3/4），实测序列是 `WM_POINTERCAPTURECHANGED` → `LBUTTONUP` → `LBUTTONDOWN` → `qt touch CANCEL` → `touch cancel (phase was nav, tracked=2)` → 紧接着一份新的 `qt touch begin [0:down 1:down]`。也就是说每次有新的触点被提升成左键，导航就被取消一次，然后靠新的 `TouchBegin` 重建。多数时候用户只觉得"顿一下"，但只要重建时触点集合不完整，状态机就会停在错误的相位上，这正是"手指还在、视图不动"的样子。
+  它有一个现成的候选开关：`-platform windows:nomousefromtouch`（`QT_QPA_PLATFORM`，必须在构造 `QApplication` 之前设）会让 `translateMouseEvent()` 在触摸合成的鼠标事件上**提前返回**（`qwindowspointerhandler.cpp:822`），于是 `handleCaptureRelease()` 不再执行、不会 `SetCapture`、也就没有 `WM_POINTERCAPTURECHANGED`。5.1 结论 5 当初否掉它的理由是"会连带干掉触摸长按菜单"——**这个理由在垫片落地之后不成立了**，因为触摸长按菜单已经不再依赖平台那份右键合成。要确认的是：关掉这条流之后，触摸的短按/双击（我们自己合成）与"手势层关掉时退回 Qt 合成"两条路都不受影响。**尚未实施，也未在真机验证。**
+
+**下一个工作项就是它**：先只加环境变量、不改代码，用设备日志看导航中的 `touch cancel` 与 `WM_POINTERCAPTURECHANGED` 是否消失，再决定要不要把这条设置固化进产品。
 
 ### 11.5 测试与回归入口
 
 - 单测见第八节。
 - **第一轮真机已确认**（日志可查）：反端擦音符与擦参数都产生完整的 `Begin…End erase`；侧键拖动擦除；侧键原地点击弹菜单；笔尖绘制/拖动/双击走 Qt 原路（`pen tip press … -> Qt`）；分割与锚点编辑下反端整段吞掉（`-> swallowed`）。
 - **尚未在真机逐项确认**：11.1 各条末尾的"真机确认项"、5.7 的禁止光标与悬停反馈撤回。
+- **2026-09-25 探针验证与落地（触摸与笔的系统长按）**：见 11.4。结论是"按压手势查询有效、`SetGestureConfig` 无效"，**垫片与拆代管都已实施并真机验证**（`EditorSystemGestureSuppressor` + `EditorTouchController` 的 450 毫秒自有判定，菜单抬手即出）。唯一未验到的是"关掉手势开关后长按回到系统菜单"这条范围收窄。
 
 ## 十二、已知限制
 
@@ -789,8 +917,8 @@ pen swallowed platform context menu at (712,190)        吞掉平台给侧键补
 - 侧键那条平台右键流只在"点击"形态下出现（拖动态实测没有）；如果将来遇到平台的右键在拖动中途就冒出来的机型，`penBarrelActive()` 那条判据仍然覆盖得到，不需要改。
 - **菜单开着时按侧键只关菜单、不擦除**，反端同理，见 11.3-A。这是被接受的现状，不是回归。
 - 悬停垫片的非 Windows 实现来自源码推断，未在 X11/macOS 真机上验证，见 11.3-D。
-- 笔的长按与系统圆环不处理：笔尖按住再久也不产生 `QContextMenuEvent`，圆环动画在 Qt 侧没有开关。
+- 笔尖的长按圆环与触摸的长按方块是同一个系统开关，垫片只在"多点触控手势"开着、且窗口属于编辑器时才应答。**只用手写笔、从不开手势层的用户**（或对话框里的长按）仍然会看到系统圆环与系统菜单，见 11.4。这是有意的范围收窄，不是遗漏。
 - `PhonemeView`、标尺、钢琴键盘没有开启 `WA_AcceptTouchEvents`，走 Qt 默认的触摸转鼠标合成。这些视图的悬停提示在触摸下不会出现，属于无 hover 的正常降级。
 - DirectManipulation 的设备类型收缩改变了触控板路径的注册参数，触控板用户需要回归确认平滑滚动与捏合仍然正常。
 - 双指以上（三指及更多）不识别，多余的手指会被忽略直到全部抬起。
-- 触摸长按的菜单来自系统那份右键合成，因此带方块、系统阈值，且应用与系统两套判定并存；成因与候选改法见 11.4。
+- 触摸长按菜单现在由应用自己拥有（判定 450 毫秒、抬手时弹出），系统那套方块与约 1 秒阈值已关闭，成因、真机验证与落地做法见 11.4。

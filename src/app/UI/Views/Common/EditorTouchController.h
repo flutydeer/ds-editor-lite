@@ -31,12 +31,15 @@ class QWidget;
 // makes Qt synthesize the mouse events for us (with the stylus device and
 // Qt::MouseEventNotSynthesized, see QGuiApplicationPrivate::processTabletEvent).
 //
-// The long press context menu is left to the platform wherever the platform
-// has one. Windows draws its own press-and-hold feedback and raises the menu
-// when the finger leaves the glass, and matching that timing by hand is not
-// worth it: our own menu would open mid-hold and then be closed by the right
-// button press Windows emits on release. A fallback posts the menu ourselves
-// only when no platform menu shows up.
+// The long press context menu is ours. Windows had its own press and hold,
+// which turned the same contact into a right click on release and drew a
+// translucent square while the finger was down, and for a while that was left
+// to run: matching its timing by hand is not worth it, and a menu opened
+// mid-hold would be closed again by the right button Windows emitted on
+// release. Now EditorSystemGestureSuppressor answers that gesture off for the
+// windows this controller owns, so the machine decides on its own — 450 ms of
+// stillness — and the menu is raised on release, which is the same timing the
+// platform used and the only one that cannot feed the release to the menu.
 //
 // The controller also has to *swallow* foreign pointer events. Accepting a
 // QTouchEvent stops Qt from synthesizing mouse events, but it does nothing
@@ -81,11 +84,17 @@ private:
     // interaction.
     bool filterContextMenuEvent(QContextMenuEvent *event);
     // Is a context menu arriving right now attributable to a touch gesture of
-    // ours? True during a gesture and for a short grace period after it, which
-    // is when the platform raises its own press-and-hold menu.
+    // ours? True during a gesture and for a short grace period after it. With
+    // the system's press and hold answered off this should never match a
+    // platform menu any more, so it is a safety net.
     [[nodiscard]] bool touchOwnsContextMenu() const;
-    void armContextMenuFallback(const QPointF &position);
-    void cancelContextMenuFallback();
+    // Raise, on release, the menu a long press asked for. Queued rather than
+    // sent: a context menu runs a nested event loop through exec(), and doing
+    // that from inside touch delivery wedges the gesture stream.
+    void raiseContextMenu(const QPointF &position);
+    // Forget a menu that was owed but will never be raised (a new gesture, a
+    // widget-driven cancel).
+    void dropPendingContextMenu();
     void dispatch(const EditorTouchGesture::Events &events);
     void onSingleBegin(const EditorTouchGesture::Event &event);
     void onSingleMove(const EditorTouchGesture::Event &event);
@@ -116,7 +125,6 @@ private:
     QElapsedTimer m_clock;
     QTimer *m_longPressTimer;
     QTimer *m_inertiaTimer;
-    QTimer *m_contextMenuFallbackTimer;
 
     // Single-finger stream state.
     bool m_syntheticStreamActive = false;
@@ -133,11 +141,14 @@ private:
 
     QPointF m_inertiaVelocity;
     qint64 m_inertiaTimestamp = 0;
-    // Where a consumed long press happened, kept until the platform delivers
-    // its own context menu or the fallback timer posts ours.
+    // A long press resolved into "open a menu here", so the menu is owed: it is
+    // raised when the last finger leaves the glass, which is the timing Windows
+    // itself used and the only one that cannot hand the release to the menu.
+    bool m_menuPending = false;
+    // Where that long press happened.
     QPointF m_pendingContextMenuPosition;
-    // A long press resolved into "open a menu here", so the next context menu
-    // event is ours and must be let through.
+    // The menu we owe has been posted, so the next context menu event is ours
+    // and must be let through. Cleared when it arrives.
     bool m_contextMenuExpected = false;
     // When the last touch event arrived, so that a context menu can be traced
     // back to a finger even after the gesture has ended.

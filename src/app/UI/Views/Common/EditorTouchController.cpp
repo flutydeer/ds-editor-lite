@@ -1,6 +1,7 @@
 #include "EditorTouchController.h"
 
 #include "EditorPointerUtils.h"
+#include "EditorSystemGestureSuppressor.h"
 #include "EditorTouchProbe.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/AppOptions/Options/AppearanceOption.h"
@@ -25,14 +26,12 @@ namespace {
     constexpr double inertiaStopSpeed = 20.0;
     // Weight kept on the previous estimate when tracking a single-finger pan.
     constexpr double panVelocitySmoothing = 0.55;
-    // How long to wait for the platform's own press-and-hold context menu
-    // before posting one ourselves. Windows delivers it within a millisecond
-    // of the touch ending, so on Windows the fallback never fires.
-    constexpr int contextMenuFallbackMs = 400;
     // How long after the last touch event a context menu still counts as
-    // coming from that gesture. The platform's press-and-hold menu lands
-    // within a millisecond of the finger leaving, so this only has to outlast
-    // message queue jitter.
+    // coming from that gesture, and is therefore swallowed unless it is one we
+    // raised ourselves. Nothing is expected to arrive in that window any more
+    // (the system's press-and-hold is answered off by
+    // EditorSystemGestureSuppressor), so this is a safety net against a
+    // platform that promotes a contact anyway.
     constexpr int contextMenuOwnershipMs = 600;
 
     // --- Touch event probe ---------------------------------------------------
@@ -113,12 +112,16 @@ EditorTouchController::EditorTouchController(EditorTouchTarget *target, QWidget 
                                              QWidget *eventTarget, QObject *parent)
     : QObject(parent ? parent : widget), m_target(target), m_widget(widget),
       m_eventTarget(eventTarget ? eventTarget : widget),
-      m_longPressTimer(new QTimer(this)), m_inertiaTimer(new QTimer(this)),
-      m_contextMenuFallbackTimer(new QTimer(this)) {
+      m_longPressTimer(new QTimer(this)), m_inertiaTimer(new QTimer(this)) {
     m_clock.start();
     // The interesting failure is one where touch stops reaching this widget, so
     // the probe has to watch from above it. Installed once, inert while off.
     EditorTouchProbe::install();
+    // Where this controller owns the long press, the platform's own
+    // press-and-hold has to stand down: it turns the same contact into a right
+    // click on release and draws a translucent square the whole time. Answering
+    // that costs nothing here, because the long press already has an owner.
+    EditorSystemGestureSuppressor::addWindow(m_widget);
 
     m_longPressTimer->setSingleShot(true);
     connect(m_longPressTimer, &QTimer::timeout, this,
@@ -126,16 +129,6 @@ EditorTouchController::EditorTouchController(EditorTouchTarget *target, QWidget 
 
     m_inertiaTimer->setInterval(inertiaIntervalMs);
     connect(m_inertiaTimer, &QTimer::timeout, this, &EditorTouchController::onInertiaFrame);
-
-    m_contextMenuFallbackTimer->setSingleShot(true);
-    m_contextMenuFallbackTimer->setInterval(contextMenuFallbackMs);
-    connect(m_contextMenuFallbackTimer, &QTimer::timeout, this, [this] {
-        if (!m_contextMenuExpected)
-            return;
-        // The expectation stays armed: the event we are about to post comes
-        // back through filterContextMenuEvent(), which is what clears it.
-        postContextMenu(m_pendingContextMenuPosition);
-    });
 }
 
 EditorTouchController::~EditorTouchController() {
@@ -222,12 +215,13 @@ bool EditorTouchController::filterContextMenuEvent(QContextMenuEvent *event) {
     if (!m_target || !isEnabled())
         return false;
     if (m_contextMenuExpected) {
-        // Either the platform beat us to it, which is the good case because it
-        // brings the native press-and-hold feedback and the native timing, or
-        // this is the one the fallback timer posted. Both are ours.
+        // The menu we owed ourselves, coming back from the queue. It is the only
+        // one allowed through while touch owns the interaction: the system's
+        // press-and-hold was answered off, so a platform menu here would mean
+        // the suppression failed.
         if (isProbeEnabled())
             qDebug().noquote() << QStringLiteral("context menu passed through (expected)");
-        cancelContextMenuFallback();
+        dropPendingContextMenu();
         // A menu runs a nested event loop and grabs the pointer, so anything
         // still in flight would never see its release.
         if (m_syntheticStreamActive || m_panStreamActive)
@@ -244,24 +238,24 @@ bool EditorTouchController::filterContextMenuEvent(QContextMenuEvent *event) {
                                   .arg(QLatin1String(phaseName(m_gesture.phase())))
                                   .arg(m_lastTouchActivityMs < 0 ? -1
                                                                  : now() - m_lastTouchActivityMs);
-    // Windows raises its press-and-hold menu on release no matter what we did
-    // with the same finger in the meantime. On blank canvas a held press is a
-    // rubber band here, not a menu, so this one has to go: letting it through
-    // pops a menu on top of the selection the finger just made, and the popup
-    // grab can swallow the touch release that would have ended the rubber
-    // band.
+    // Nothing should reach here any more now that the system's press and hold is
+    // answered off, but if a platform promotes a contact anyway this is where it
+    // dies: on blank canvas a held press is a rubber band here, not a menu, and
+    // letting the menu through would pop it on top of the selection the finger
+    // just made.
     event->accept();
     return true;
 }
 
-void EditorTouchController::armContextMenuFallback(const QPointF &position) {
-    m_pendingContextMenuPosition = position;
+void EditorTouchController::raiseContextMenu(const QPointF &position) {
+    m_menuPending = false;
     m_contextMenuExpected = true;
+    postContextMenu(position);
 }
 
-void EditorTouchController::cancelContextMenuFallback() {
+void EditorTouchController::dropPendingContextMenu() {
+    m_menuPending = false;
     m_contextMenuExpected = false;
-    m_contextMenuFallbackTimer->stop();
 }
 
 bool EditorTouchController::handleTouchEvent(QTouchEvent *event) {
@@ -294,11 +288,10 @@ bool EditorTouchController::handleTouchEvent(QTouchEvent *event) {
                                    .arg(qRound(point.position().y())));
         }
     }
-    // A brand new gesture inherits nothing: an expectation left over from a
-    // long press whose menu never arrived would otherwise let this gesture's
-    // platform menu through.
+    // A brand new gesture inherits nothing: a menu owed by a long press that
+    // never got its release would otherwise be raised on top of this one.
     if (m_gesture.phase() == EditorTouchGesture::Phase::Idle)
-        cancelContextMenuFallback();
+        dropPendingContextMenu();
     for (const auto &point : event->points()) {
         const auto position = point.position();
         const auto state = point.state();
@@ -343,10 +336,13 @@ bool EditorTouchController::handleTouchEvent(QTouchEvent *event) {
     else
         disarmLongPressTimer();
 
-    // The press-and-hold menu belongs to the release, so only start waiting for
-    // the platform's once every finger has left the glass.
-    if (m_contextMenuExpected && activeIds.isEmpty() && !m_contextMenuFallbackTimer->isActive())
-        m_contextMenuFallbackTimer->start();
+    // A long press menu belongs to the release, which is the timing Windows
+    // itself used and the only one that works: raising it while the finger is
+    // still down would hand the release to the menu and activate whatever sits
+    // under the finger. The wait is over the moment the last one leaves the
+    // glass, so the menu is up as fast as the platform's own used to be.
+    if (m_menuPending && activeIds.isEmpty())
+        raiseContextMenu(m_pendingContextMenuPosition);
 
     if (m_probeActive) {
         qDebug().noquote()
@@ -506,10 +502,11 @@ void EditorTouchController::onSingleMove(const EditorTouchGesture::Event &event)
 void EditorTouchController::onSingleEnd(const EditorTouchGesture::Event &event) {
     if (m_pressDeferred) {
         // Held over blank canvas and never travelled, so nothing was ever
-        // pressed. Let the menu happen and leave the selection alone.
+        // pressed. That is a menu, raised right here because the finger has
+        // already left the glass, and the selection stays untouched.
         m_pressDeferred = false;
-        armContextMenuFallback(m_deferredPressPosition);
         finishStream();
+        raiseContextMenu(m_deferredPressPosition);
         return;
     }
     if (m_panStreamActive) {
@@ -548,11 +545,11 @@ void EditorTouchController::finishStream() {
 void EditorTouchController::onLongPress(const EditorTouchGesture::Event &event) {
     if (m_target->touchHitsContent(event.position)) {
         // The finger is spent: it must not drag the object it is resting on.
-        // The menu itself is left to the platform, so that the press-and-hold
-        // feedback and the open-on-release timing match every other Windows
-        // surface. The fallback below only runs where the platform has no such
-        // gesture of its own.
-        armContextMenuFallback(event.position);
+        // The menu is owed from here and raised when that finger leaves the
+        // glass — the same timing Windows used when it owned this gesture, and
+        // the only one that cannot feed the release to the menu itself.
+        m_menuPending = true;
+        m_pendingContextMenuPosition = event.position;
         dispatch(m_gesture.confirmLongPress(false, now()));
         return;
     }
@@ -627,7 +624,7 @@ void EditorTouchController::cancel() {
                                   .arg(QLatin1String(phaseName(m_gesture.phase())));
     disarmLongPressTimer();
     stopInertia();
-    cancelContextMenuFallback();
+    dropPendingContextMenu();
     const auto events = m_gesture.cancelled();
     for (const auto &event : events) {
         if (event.type == EditorTouchGesture::Event::Type::SingleCancel)
