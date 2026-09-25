@@ -21,7 +21,8 @@
 // a glance.
 //
 // Keys: C clear, D toggle Direct Manipulation, S toggle swallowing, A toggle
-// accepting tablet events, F fullscreen, Esc quit.
+// accepting tablet events, G toggle SetGestureConfig, Q toggle the
+// press-and-hold query answer, F fullscreen, Esc quit.
 //
 // The accept-tablet switch exists for the pen work: leaving tablet events
 // unaccepted is how the editor gets the stylus as ordinary mouse input, and
@@ -36,6 +37,21 @@
 // the same WM_POINTER message the platform gives Qt and reports the state it
 // finds there, which is what decides whether a hover gesture such as OneNote's
 // barrel-button lasso is reachable from this application at all.
+//
+// A fifth question belongs to the touch long press: Windows promotes a held
+// finger into its own right click, drawing a translucent square while the
+// finger is down and opening the menu on release, and nothing in Qt can see or
+// veto that. Two documented ways to switch it off exist, and they sit at
+// different layers, so the probe exposes them as two independent switches:
+//
+//   G  SetGestureConfig(hwnd, 0, 1, {0, 0, GC_ALLGESTURES}, sizeof)  legacy gestures
+//   Q  answer WM_TABLET_QUERYSYSTEMGESTURESTATUS with TABLET_DISABLE_PRESSANDHOLD
+//
+// Every raw message line is stamped with the arm it was recorded under, so a
+// session with the switches flipped halfway through is still readable. A hold
+// that keeps producing WM_RBUTTONDOWN/UP and WM_CONTEXTMENU means the mechanism
+// is not consulted at all, and a hold that produces none means the editor is
+// free to own the long press again.
 
 #include <QAbstractNativeEventFilter>
 #include <QApplication>
@@ -295,6 +311,10 @@ namespace {
                 qWarning("TouchProbe: cannot open the log file, HUD only");
             log(QStringLiteral("--- session started, log at %1").arg(m_logFile.fileName()));
             logInputDevices();
+            // Both mechanisms start untouched, which is the state every other
+            // Windows application runs in, so the first arm in the log is the
+            // baseline the other arms are compared against.
+            logArm();
         }
 
         // The device list says up front which pen implementation the platform
@@ -346,6 +366,46 @@ namespace {
 
         void logExternal(const QString &line) {
             log(line);
+            update();
+        }
+
+        // --- system press-and-hold switches ---------------------------------
+        // Kept here rather than in the window so that every raw message line can
+        // be stamped with the arm it belongs to, and the HUD can show the state
+        // without reaching into another object.
+        void setGestureConfigBlocked(const bool on) {
+            m_gestureConfigBlocked = on;
+            logArm();
+        }
+
+        void setPressAndHoldBlocked(const bool on) {
+            m_pressAndHoldBlocked = on;
+            logArm();
+        }
+
+        [[nodiscard]] bool pressAndHoldBlocked() const {
+            return m_pressAndHoldBlocked;
+        }
+
+        // Prefixed to every raw message, so the log says which mechanisms were
+        // disabled at the moment the message arrived.
+        [[nodiscard]] QString armState() const {
+            return QStringLiteral("G=%1 Q=%2")
+                .arg(m_gestureConfigBlocked ? QStringLiteral("on") : QStringLiteral("off"),
+                     m_pressAndHoldBlocked ? QStringLiteral("on") : QStringLiteral("off"));
+        }
+
+        void logRaw(const QString &line) {
+            log(QStringLiteral("[%1] %2").arg(armState(), line));
+            update();
+        }
+
+        void logArm() {
+            log(QStringLiteral("=== arm: SetGestureConfig=%1  press-and-hold query=%2")
+                    .arg(m_gestureConfigBlocked ? QStringLiteral("GC_ALLGESTURES blocked")
+                                                : QStringLiteral("untouched"),
+                         m_pressAndHoldBlocked ? QStringLiteral("TABLET_DISABLE_PRESSANDHOLD")
+                                               : QStringLiteral("untouched")));
             update();
         }
 
@@ -563,8 +623,10 @@ namespace {
         void recordTouch(QTouchEvent *event) {
             noteDevice(event->pointingDevice());
             m_activePoints = 0;
-            if (event->type() == QEvent::TouchBegin)
+            if (event->type() == QEvent::TouchBegin) {
                 m_lastPointerPressMs = m_clock.elapsed();
+                m_touchDownMs = m_lastPointerPressMs;
+            }
             for (const auto &point : event->points()) {
                 if (point.state() == QEventPoint::State::Released) {
                     endStroke(DeviceKind::Touch, point.id());
@@ -577,6 +639,14 @@ namespace {
                     .arg(touchActionName(event->type()), deviceTypeName(event->pointingDevice()))
                     .arg(event->points().size())
                     .arg(describePoints(event)));
+            if (event->type() == QEvent::TouchEnd && m_touchDownMs >= 0) {
+                // The bracket around each human hold. Windows promotes a hold to
+                // its own right click at roughly one second, so the duration
+                // says whether the contact above was long enough for that.
+                log(QStringLiteral("hold     contact lasted %1 ms")
+                        .arg(m_clock.elapsed() - m_touchDownMs));
+                m_touchDownMs = -1;
+            }
             update();
         }
 
@@ -674,12 +744,17 @@ namespace {
 
             const auto header =
                 QStringLiteral("touch points: %1    dpr: %2    accept tablet: %3    "
-                               "swallow synth mouse: %4    C clear / D DM / S swallow / "
-                               "A accept tablet")
+                               "swallow synth mouse: %4    gestures: %5    hold query: %6    "
+                               "C clear / D DM / S swallow / A accept tablet / G gestures / "
+                               "Q hold query")
                     .arg(m_activePoints)
                     .arg(devicePixelRatioF(), 0, 'f', 2)
                     .arg(m_acceptTabletEvents ? QStringLiteral("on") : QStringLiteral("off"),
-                         m_swallowSynthesizedMouse ? QStringLiteral("on") : QStringLiteral("off"));
+                         m_swallowSynthesizedMouse ? QStringLiteral("on") : QStringLiteral("off"),
+                         m_gestureConfigBlocked ? QStringLiteral("GC_ALLGESTURES blocked")
+                                                : QStringLiteral("system default"),
+                         m_pressAndHoldBlocked ? QStringLiteral("disabled")
+                                               : QStringLiteral("DefWindowProc"));
             painter.drawText(QPointF(panel.left() + 8, panel.top() + 16), header);
 
             double y = panel.top() + 34;
@@ -707,6 +782,13 @@ namespace {
         // Whether tablet events are accepted, which is what decides if Qt
         // synthesizes mouse events for the pen.
         bool m_acceptTabletEvents = false;
+        // Whether the two system press-and-hold mechanisms are disabled. Both
+        // start off, which is the state every other Windows application is in.
+        bool m_gestureConfigBlocked = false;
+        bool m_pressAndHoldBlocked = false;
+        // When the current touch contact began, so the log can bracket a human
+        // hold with its measured duration.
+        qint64 m_touchDownMs = -1;
         // When the last pointer went down, so a context menu can be attributed
         // to a long hold rather than a plain right click.
         qint64 m_lastPointerPressMs = -1;
@@ -843,6 +925,31 @@ namespace {
             });
             updateAcceptTabletButton();
 
+            m_gestureConfigButton = new QPushButton(this);
+            m_gestureConfigButton->setCheckable(true);
+            connect(m_gestureConfigButton, &QPushButton::toggled, this, [this](const bool on) {
+                // The API call is the point of this switch, so it happens here
+                // and its result is logged: a refusal is as informative as a
+                // success, and the GetGestureConfig that follows says whether the
+                // window really took the configuration.
+                applyGestureConfig(on);
+                m_canvas->setGestureConfigBlocked(on);
+                updateGestureConfigButton();
+            });
+            updateGestureConfigButton();
+
+            m_pressAndHoldButton = new QPushButton(this);
+            m_pressAndHoldButton->setCheckable(true);
+            connect(m_pressAndHoldButton, &QPushButton::toggled, this, [this](const bool on) {
+                // Nothing to call: the answer travels back when the platform asks
+                // WM_TABLET_QUERYSYSTEMGESTURESTATUS, so only the switch flips.
+                // That is also what makes this arm testable at all, since the
+                // query arrives at an arbitrary later moment.
+                m_canvas->setPressAndHoldBlocked(on);
+                updatePressAndHoldButton();
+            });
+            updatePressAndHoldButton();
+
             m_statusLabel = new QLabel(this);
             m_statusLabel->setText(m_canvas->logPath());
             m_statusLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
@@ -852,6 +959,8 @@ namespace {
             controls->addWidget(m_directManipulationButton);
             controls->addWidget(m_swallowButton);
             controls->addWidget(m_acceptTabletButton);
+            controls->addWidget(m_gestureConfigButton);
+            controls->addWidget(m_pressAndHoldButton);
             controls->addWidget(m_statusLabel, 1);
 
             auto *layout = new QVBoxLayout(this);
@@ -880,6 +989,12 @@ namespace {
                     return;
                 case Qt::Key_A:
                     m_acceptTabletButton->toggle();
+                    return;
+                case Qt::Key_G:
+                    m_gestureConfigButton->toggle();
+                    return;
+                case Qt::Key_Q:
+                    m_pressAndHoldButton->toggle();
                     return;
                 case Qt::Key_F:
                     isFullScreen() ? showNormal() : showFullScreen();
@@ -927,6 +1042,71 @@ namespace {
                                               : QStringLiteral("Accept tablet events: off (A)"));
         }
 
+        void updateGestureConfigButton() {
+            m_gestureConfigButton->setText(
+                m_gestureConfigButton->isChecked()
+                    ? QStringLiteral("Gestures: GC_ALLGESTURES blocked (G)")
+                    : QStringLiteral("Gestures: system default (G)"));
+        }
+
+        void updatePressAndHoldButton() {
+            m_pressAndHoldButton->setText(
+                m_pressAndHoldButton->isChecked()
+                    ? QStringLiteral("Hold query: TABLET_DISABLE_PRESSANDHOLD (Q)")
+                    : QStringLiteral("Hold query: DefWindowProc answers (Q)"));
+        }
+
+#if defined(Q_OS_WIN)
+        // Raymond Chen's answer to "how do I disable the press-and-hold gesture
+        // for my window": block every gesture on the window's HWND. The window
+        // has to be registered for touch for the call to be meaningful (Qt
+        // registers any widget that accepts touch events), and the call has to
+        // be repeated whenever the native window is recreated, which is why both
+        // facts are logged rather than assumed.
+        void applyGestureConfig(const bool block) {
+            const HWND hwnd = reinterpret_cast<HWND>(winId());
+            ULONG touchFlags = 0;
+            const bool touchWindow = IsTouchWindow(hwnd, &touchFlags) != FALSE;
+
+            GESTURECONFIG config = {};
+            config.dwID = 0; // 0 stands for the whole gesture set
+            config.dwWant = 0;
+            config.dwBlock = block ? GC_ALLGESTURES : 0;
+            SetLastError(0);
+            const BOOL ok = SetGestureConfig(hwnd, 0, 1, &config, sizeof(config));
+            const DWORD error = ok ? 0 : GetLastError();
+            m_canvas->logRaw(
+                QStringLiteral("api      SetGestureConfig(hwnd=0x%1, dwBlock=%2) touchWindow=%3 "
+                               "touchFlags=0x%4 -> %5%6")
+                    .arg(reinterpret_cast<quintptr>(hwnd), 0, 16)
+                    .arg(block ? QStringLiteral("GC_ALLGESTURES") : QStringLiteral("0"))
+                    .arg(touchWindow ? 1 : 0)
+                    .arg(touchFlags, 0, 16)
+                    .arg(ok ? QStringLiteral("TRUE") : QStringLiteral("FALSE"))
+                    .arg(ok ? QString() : QStringLiteral(" err=%1").arg(error)));
+            logGestureConfig(hwnd);
+            m_canvas->setFocus();
+        }
+
+        // Reading the configuration back separates "the call was accepted" from
+        // "the call did nothing", which is the difference between a mechanism
+        // that is wrong and one that is merely ignored.
+        void logGestureConfig(const HWND hwnd) const {
+            UINT count = 1;
+            GESTURECONFIG config = {};
+            config.dwID = 0;
+            if (GetGestureConfig(hwnd, 0, 0, &count, &config, sizeof(config))) {
+                m_canvas->logRaw(
+                    QStringLiteral("api      GetGestureConfig: dwID=0 dwWant=0x%1 dwBlock=0x%2")
+                        .arg(config.dwWant, 0, 16)
+                        .arg(config.dwBlock, 0, 16));
+                return;
+            }
+            m_canvas->logRaw(
+                QStringLiteral("api      GetGestureConfig failed err=%1").arg(GetLastError()));
+        }
+#endif
+
         void updateDirectManipulationButton() {
 #if defined(WITH_DIRECT_MANIPULATION)
             m_directManipulationButton->setText(
@@ -943,8 +1123,168 @@ namespace {
         QPushButton *m_directManipulationButton = nullptr;
         QPushButton *m_swallowButton = nullptr;
         QPushButton *m_acceptTabletButton = nullptr;
+        QPushButton *m_gestureConfigButton = nullptr;
+        QPushButton *m_pressAndHoldButton = nullptr;
         QLabel *m_statusLabel = nullptr;
     };
+
+#if defined(Q_OS_WIN)
+    // tpcshrd.h carries these next to a pile of MIDL-generated tablet
+    // interfaces, which is not worth pulling into a Qt translation unit, so the
+    // two values are spelled out here. Both are stable since Windows 7:
+    // WM_TABLET_QUERYSYSTEMGESTURESTATUS is WM_TABLET_DEFBASE (0x02C0) + 12.
+    constexpr UINT wmTabletQuerySystemGestureStatus = 0x02CC;
+    constexpr LRESULT tabletDisablePressAndHold = 0x00000001;
+
+    // The raw-message view of Windows' own press-and-hold, which is the one part
+    // of the long press no Qt event can see. Three things are logged:
+    //
+    //   - every pointer message that decides what Qt's sticky m_pointerType
+    //     holds, because that is what decides whether a promoted mouse event
+    //     enters the application as BySystem (which the editor swallows) or as
+    //     NotSynthesized (which it passes straight through),
+    //   - whether the platform asks the window about system gestures at all,
+    //   - whether a hold still produces the legacy right button and the menu.
+    //
+    // The filter sits at the application level, which is where Qt runs native
+    // filters for messages it does not treat as input: qwindowscontext.cpp skips
+    // that pass only for the messages its own event dispatcher delivered, and
+    // WM_TABLET_QUERYSYSTEMGESTURESTATUS is not one of them. That makes this the
+    // layer that can answer the query, and the layer the editor's own probes
+    // already use.
+    class SystemGestureFilter final : public QAbstractNativeEventFilter {
+    public:
+        explicit SystemGestureFilter(ProbeCanvas *canvas) : m_canvas(canvas) {
+        }
+
+        bool nativeEventFilter(const QByteArray &eventType, void *message,
+                               qintptr *result) override {
+            if (eventType != QByteArrayLiteral("windows_generic_MSG"))
+                return false;
+            const auto *msg = static_cast<const MSG *>(message);
+            switch (msg->message) {
+                case WM_POINTERDOWN:
+                case WM_POINTERUP:
+                    observePointer(msg);
+                    return false;
+                case WM_GESTURE:
+                    // Qt recognizes this type and then does nothing with it
+                    // (qwindowscontext.cpp, "case QtWindows::GestureEvent:
+                    // break"), so any feedback the legacy stack draws for a hold
+                    // is DefWindowProc's work.
+                    m_canvas->logRaw(QStringLiteral("raw      WM_GESTURE id=%1")
+                                         .arg(static_cast<int>(msg->wParam)));
+                    return false;
+                case wmTabletQuerySystemGestureStatus:
+                    return answerSystemGestureQuery(result);
+                case WM_LBUTTONDOWN:
+                case WM_LBUTTONUP:
+                case WM_LBUTTONDBLCLK:
+                case WM_RBUTTONDOWN:
+                case WM_RBUTTONUP:
+                case WM_CONTEXTMENU:
+                    logLegacyMouse(msg->message);
+                    return false;
+                default:
+                    return false;
+            }
+        }
+
+    private:
+        void observePointer(const MSG *msg) {
+            const quint32 pointerId = GET_POINTERID_WPARAM(msg->wParam);
+            POINTER_INPUT_TYPE type = PT_POINTER;
+            if (!GetPointerType(pointerId, &type))
+                return;
+            // Qt caches exactly this value in m_pointerType and never clears it,
+            // so the last pointer message before a promoted mouse message is what
+            // Qt compares against.
+            m_pointerType = type;
+            m_canvas->logRaw(QStringLiteral("raw      %1 ptr=%2 (%3)")
+                                 .arg(QLatin1String(msg->message == WM_POINTERDOWN
+                                                        ? "WM_POINTERDOWN"
+                                                        : "WM_POINTERUP"),
+                                      pointerTypeLabel(type))
+                                 .arg(static_cast<int>(type)));
+        }
+
+        bool answerSystemGestureQuery(qintptr *result) {
+            const bool block = m_canvas->pressAndHoldBlocked();
+            m_canvas->logRaw(
+                QStringLiteral("raw      WM_TABLET_QUERYSYSTEMGESTURESTATUS -> %1")
+                    .arg(block ? QStringLiteral("TABLET_DISABLE_PRESSANDHOLD")
+                               : QStringLiteral("0, left to DefWindowProc")));
+            if (!block)
+                return false;
+            *result = tabletDisablePressAndHold;
+            return true;
+        }
+
+        void logLegacyMouse(const UINT message) const {
+            const ULONG_PTR extra = GetMessageExtraInfo();
+            m_canvas->logRaw(
+                QStringLiteral("raw      %1 extra=0x%2 from=%3 lastPointer=%4")
+                    .arg(legacyMouseName(message))
+                    .arg(static_cast<quintptr>(extra), 0, 16)
+                    .arg(signatureSource(extra), pointerTypeLabel(m_pointerType)));
+        }
+
+        static QString legacyMouseName(const UINT message) {
+            switch (message) {
+                case WM_LBUTTONDOWN:
+                    return QStringLiteral("WM_LBUTTONDOWN");
+                case WM_LBUTTONUP:
+                    return QStringLiteral("WM_LBUTTONUP");
+                case WM_LBUTTONDBLCLK:
+                    return QStringLiteral("WM_LBUTTONDBLCLK");
+                case WM_RBUTTONDOWN:
+                    return QStringLiteral("WM_RBUTTONDOWN");
+                case WM_RBUTTONUP:
+                    return QStringLiteral("WM_RBUTTONUP");
+                case WM_CONTEXTMENU:
+                    return QStringLiteral("WM_CONTEXTMENU");
+                default:
+                    return QStringLiteral("WM_0x%1").arg(message, 0, 16);
+            }
+        }
+
+        // Windows stamps every mouse message it promoted from a contact with a
+        // signature in the message extra info: the low byte is the contact index
+        // and the rest identifies touch or pen. Qt reads the same signature, but
+        // then decides the event source from the sticky pointer type instead
+        // (qwindowspointerhandler.cpp:819-835), which is why both are logged.
+        static QString signatureSource(const ULONG_PTR extra) {
+            switch (static_cast<quint32>(extra & 0xFFFFFF00u)) {
+                case 0xFF515700u:
+                    return QStringLiteral("touch");
+                case 0xFF515800u:
+                    return QStringLiteral("pen");
+                default:
+                    return QStringLiteral("none");
+            }
+        }
+
+        static QString pointerTypeLabel(const POINTER_INPUT_TYPE type) {
+            switch (type) {
+                case PT_POINTER:
+                    return QStringLiteral("PT_POINTER");
+                case PT_TOUCH:
+                    return QStringLiteral("PT_TOUCH");
+                case PT_PEN:
+                    return QStringLiteral("PT_PEN");
+                case PT_MOUSE:
+                    return QStringLiteral("PT_MOUSE");
+                case PT_TOUCHPAD:
+                    return QStringLiteral("PT_TOUCHPAD");
+                default:
+                    return QStringLiteral("type %1").arg(static_cast<int>(type));
+            }
+        }
+
+        ProbeCanvas *m_canvas = nullptr;
+        POINTER_INPUT_TYPE m_pointerType = PT_POINTER;
+    };
+#endif
 
 }
 
@@ -963,6 +1303,8 @@ int main(int argc, char *argv[]) {
 #if defined(Q_OS_WIN)
     PenRawStateFilter penRawState(window.canvas());
     application.installNativeEventFilter(&penRawState);
+    SystemGestureFilter systemGesture(window.canvas());
+    application.installNativeEventFilter(&systemGesture);
 #endif
 
     return QApplication::exec();
