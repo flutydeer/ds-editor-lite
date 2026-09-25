@@ -14,6 +14,8 @@
 #include "TimeGraphicsScene.h"
 #include "TimeGridView.h"
 #include "TimeIndicatorView.h"
+#include "EditorPenController.h"
+#include "EditorPenTarget.h"
 #include "EditorPointerUtils.h"
 #include "EditorTouchController.h"
 #include "EditorWheelController.h"
@@ -133,6 +135,10 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
     // Synthetic mouse events go to the viewport, the same widget QGraphicsView
     // itself reads them from.
     m_touchController = new EditorTouchController(this, this, viewport());
+    // Tablet events are delivered to the widget under the pen, which for a
+    // QGraphicsView is its viewport, so the pen layer hangs off the same entry
+    // point as the touch layer.
+    m_penController = new EditorPenController(this, this, viewport());
 
     initializeAnimation();
     updateAnimationDuration();
@@ -384,6 +390,10 @@ void TimeGraphicsView::dragLeaveEvent(QDragLeaveEvent *event) {
 }
 
 bool TimeGraphicsView::viewportEvent(QEvent *event) {
+    // The pen layer first: it only claims tablet events, and it has to see
+    // them before anything else decides what they mean.
+    if (m_penController->handleEvent(event))
+        return true;
     if (m_touchController->handleEvent(event))
         return true;
     return QGraphicsView::viewportEvent(event);
@@ -502,6 +512,7 @@ void TimeGraphicsView::showEvent(QShowEvent *event) {
 
 void TimeGraphicsView::hideEvent(QHideEvent *event) {
     m_touchController->cancel();
+    m_penController->cancel();
     QGraphicsView::hideEvent(event);
     updateAutoPageTurnAvailability();
 }
@@ -610,6 +621,13 @@ void TimeGraphicsView::cancelTouchPointerInteraction() {
         m_isDraggingContent = false;
     }
     disarmEdgeAutoScroll();
+}
+
+EditorPenEraser TimeGraphicsView::penEraserAction() const {
+    // Covering the arrangement canvas and everything else built on this view:
+    // no tool, nothing to erase, so the pen layer drops the stroke before the
+    // interaction layer ever sees it.
+    return EditorPenPolicy::arrangement();
 }
 
 void TimeGraphicsView::setScaleAt(const Qt::Orientation orientation, const double value,

@@ -70,6 +70,13 @@ void SplitNoteHandler::hoverLeaveEvent(QHoverEvent *event) {
         m_indicator->clearState();
 }
 
+void SplitNoteHandler::suppressHoverFeedback() {
+    // The split marker is the whole of this tool's hover feedback, and it is
+    // exactly what must not stay up under a pen that cannot split.
+    if (m_indicator)
+        m_indicator->clearState();
+}
+
 void SplitNoteHandler::hoverMoveEvent(QHoverEvent *event) {
     const auto scenePos = q->mapToScene(event->position().toPoint());
     const auto tick = static_cast<int>(q->sceneXToTick(scenePos.x()) + d->m_offset);

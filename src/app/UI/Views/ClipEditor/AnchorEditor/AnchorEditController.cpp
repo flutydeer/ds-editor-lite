@@ -223,6 +223,15 @@ namespace AnchorEditor {
         notifyChanged();
     }
 
+    void AnchorEditController::suspendHoverFeedback() {
+        if (!m_state.hoveredNode && !m_state.showPreview && !m_state.showMergePreview)
+            return;
+        m_state.hoveredNode = nullptr;
+        m_state.showPreview = false;
+        m_state.showMergePreview = false;
+        notifyChanged();
+    }
+
     void AnchorEditController::cancel() {
         if (m_mutationActive)
             discardMutation();

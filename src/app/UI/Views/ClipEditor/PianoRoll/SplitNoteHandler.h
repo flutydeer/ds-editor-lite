@@ -18,6 +18,7 @@ public:
     bool mouseMoveEvent(QMouseEvent *event) override;
     void hoverLeaveEvent(QHoverEvent *event) override;
     void hoverMoveEvent(QHoverEvent *event) override;
+    void suppressHoverFeedback() override;
 
     void applySplitLineColor(const QColor &color);
 

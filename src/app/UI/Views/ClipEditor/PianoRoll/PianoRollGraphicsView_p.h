@@ -3,6 +3,7 @@
 
 #include "NoteLyricToolTipController.h"
 #include "UI/Views/ClipEditor/CurveTransform/PitchCurveTransformContext.h"
+#include "UI/Views/Common/EditorPenTarget.h"
 
 #include <lite/ProjectModel/AppModel/Params.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
@@ -89,6 +90,24 @@ public:
     void updatePitch(Param::Type paramType, const Param &param) const;
 
     void setPitchEditMode(bool on, bool isErase, bool isTrace = false, bool isScale = false);
+    // The pitch side of the armed tool, derived from m_editMode. Shared with
+    // the pen layer, which arms the erase variant around an erase stroke and
+    // restores the tool's own variant afterwards.
+    void applyToolPitchEditMode();
+
+    // --- Pen eraser ---
+    // What the stylus eraser may do under the armed tool. Unsupported without a
+    // clip: the pitch editor is not populated and there is nothing to erase.
+    [[nodiscard]] EditorPenEraser penEraserAction() const;
+    // The erase action of the pen stroke in flight, or Unsupported when no pen
+    // erase stroke is running.
+    [[nodiscard]] EditorPenEraser activePenErasure() const;
+    // A pen erase stroke runs on the handler of the erase tool while the
+    // toolbar keeps showing the armed one: erasing must not switch tools or
+    // make the toolbar highlight jump.
+    void beginPenEraseStroke(EditorPenEraser action);
+    void endPenEraseStroke();
+
     [[nodiscard]] NoteView *noteViewAt(const QPoint &pos);
     [[nodiscard]] PronunciationView *pronViewAt(const QPoint &pos);
     [[nodiscard]] NoteView *findNoteViewById(int id) const;

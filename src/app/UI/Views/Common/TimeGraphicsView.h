@@ -2,6 +2,7 @@
 #define TIMEGRAPHICSVIEW_H
 
 #include "EdgeAutoScroller.h"
+#include "EditorPenTarget.h"
 #include "EditorTouchTarget.h"
 #include "RubberBandView.h"
 #include <lite/GUI/Animation/IAnimatable.h>
@@ -14,6 +15,7 @@
 
 #include <optional>
 
+class EditorPenController;
 class EditorTouchController;
 class TimeGraphicsScene;
 class TimeGridView;
@@ -26,7 +28,8 @@ class QShowEvent;
 class TimeGraphicsView : public QGraphicsView,
                          public IScalable,
                          public IAnimatable,
-                         public EditorTouchTarget {
+                         public EditorTouchTarget,
+                         public EditorPenTarget {
     Q_OBJECT
     Q_PROPERTY(double scaleX READ scaleX WRITE setScaleX)
     Q_PROPERTY(double scaleY READ scaleY WRITE setScaleY)
@@ -134,6 +137,13 @@ protected:
     [[nodiscard]] BlankDragAction touchBlankDragAction() const override;
     void cancelTouchPointerInteraction() override;
 
+    // --- EditorPenTarget ---
+    // The generic time view is the arrangement canvas (and every other view
+    // without a tool of its own): there is nothing an eraser could do there,
+    // so the pen layer swallows the stroke. The piano roll and the parameter
+    // editor override this with their own strategy tables.
+    [[nodiscard]] EditorPenEraser penEraserAction() const override;
+
     // Last known pointer position in viewport coordinates. Timer-driven auto
     // scroll must read this instead of QCursor::pos(), which does not follow a
     // finger across the glass.
@@ -206,6 +216,7 @@ private:
     std::optional<int> m_logicalVerticalBarValue;
     WheelInputController m_wheelInput;
     EditorTouchController *m_touchController = nullptr;
+    EditorPenController *m_penController = nullptr;
     QPoint m_lastPointerPosition;
     // Scroll bars are integral, so sub-pixel touch panning would be lost
     // without carrying the remainder over to the next frame.

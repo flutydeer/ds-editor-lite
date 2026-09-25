@@ -9,6 +9,7 @@
 #include "Modules/Inference/EditSessionManager.h"
 #include "UI/Views/ClipEditor/AnchorEditor/AnchorEditUtils.h"
 #include "UI/Views/ClipEditor/AnchorEditor/AnchorOverlayView.h"
+#include "UI/Views/Common/EditorPenController.h"
 
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 
@@ -47,7 +48,19 @@ bool EditPitchAnchorHandler::mousePressEvent(QMouseEvent *event) {
 }
 
 bool EditPitchAnchorHandler::mouseMoveEvent(QMouseEvent *event) {
+    // A hover move is what draws the dashed insert preview and lights up the
+    // anchor under the pointer. Under a pen offering an eraser this tool cannot
+    // honour, that preview describes an anchor the stroke could never create,
+    // so the move is dropped instead.
+    if (!(event->buttons() & Qt::LeftButton) && EditorPenController::eraseHintActive()) {
+        m_controller.suspendHoverFeedback();
+        return true;
+    }
     return m_controller.moveAt(q->mapToScene(event->position().toPoint()), event->buttons());
+}
+
+void EditPitchAnchorHandler::suppressHoverFeedback() {
+    m_controller.suspendHoverFeedback();
 }
 
 bool EditPitchAnchorHandler::mouseReleaseEvent(QMouseEvent *event) {

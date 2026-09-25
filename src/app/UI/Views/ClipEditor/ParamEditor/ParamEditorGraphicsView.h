@@ -5,6 +5,7 @@
 #include "ParamEditorEditMode.h"
 #include "UI/Views/ClipEditor/AnchorEditor/AnchorEditController.h"
 #include <lite/ProjectModel/AppModel/Params.h>
+#include "UI/Views/Common/EditorPenTarget.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
 
 #include <utility>
@@ -78,6 +79,14 @@ private:
     [[nodiscard]] ContentHit touchContentAt(const QPointF &viewportPosition) const override;
     [[nodiscard]] BlankDragAction touchBlankDragAction() const override;
     void cancelTouchPointerInteraction() override;
+
+    // --- EditorPenTarget ---
+    // Draw, erase and trace can all be interrupted by an eraser; the curve
+    // transforms (shape, scale) and anchor editing cannot, and get their
+    // strokes swallowed whole.
+    [[nodiscard]] EditorPenEraser penEraserAction() const override;
+    void beginPenEraserStroke() override;
+    void endPenEraserStroke() override;
 
     bool event(QEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;

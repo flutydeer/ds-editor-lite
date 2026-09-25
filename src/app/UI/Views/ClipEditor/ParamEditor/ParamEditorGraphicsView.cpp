@@ -11,6 +11,7 @@
 #include "Modules/Inference/EditSessionManager.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
 #include "UI/Views/ClipEditor/CommonParamEditorView.h"
+#include "UI/Views/Common/EditorPenTarget.h"
 #include "UI/Views/ClipEditor/AnchorEditor/AnchorEditUtils.h"
 #include "UI/Views/Common/TimeGridView.h"
 #include <lite/Support/MathUtils.h>
@@ -192,6 +193,26 @@ EditorTouchTarget::BlankDragAction ParamEditorGraphicsView::touchBlankDragAction
 void ParamEditorGraphicsView::cancelTouchPointerInteraction() {
     discardAction();
     TimeGraphicsView::cancelTouchPointerInteraction();
+}
+
+EditorPenEraser ParamEditorGraphicsView::penEraserAction() const {
+    if (m_speakerMixMode || !m_clip)
+        return EditorPenEraser::Unsupported;
+    return EditorPenPolicy::parameterEditor(m_editMode);
+}
+
+void ParamEditorGraphicsView::beginPenEraserStroke() {
+    // Borrow the erase variant of the armed tool for this stroke: the toolbar
+    // is left alone, so the highlight never jumps.
+    if (m_foreground)
+        m_foreground->setEraseMode(true);
+}
+
+void ParamEditorGraphicsView::endPenEraserStroke() {
+    if (!m_foreground)
+        return;
+    m_foreground->setEraseMode(m_editMode == ParamEditorEditMode::Erase);
+    m_foreground->setTraceMode(m_editMode == ParamEditorEditMode::Trace);
 }
 
 void ParamEditorGraphicsView::discardAction() {

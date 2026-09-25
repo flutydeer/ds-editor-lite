@@ -25,9 +25,26 @@ namespace EditorPointer {
     void beginTouchStream();
     void endTouchStream();
 
-    // True while any pointer is pressed, mouse button or finger. Timer-driven
-    // safety nets must use this instead of QGuiApplication::mouseButtons(),
-    // which is always NoButton during a touch drag.
+    // A synthetic pen stream is currently driving mouse events somewhere. This
+    // is a counter of its own rather than a reuse of the touch one: the two
+    // differ exactly where the counter is read, because hit tolerance is
+    // widened for a finger and must not be for a pen.
+    [[nodiscard]] bool isPenStreamActive();
+    void beginPenStream();
+    void endPenStream();
+
+    // The pen stroke in flight is an erase stroke: the platform reported the
+    // eraser tip, or a barrel button drag. A view takes a plain left-button
+    // stream and routes it to the erase path of the tool it is sitting on
+    // while this is set, which is how erasing avoids switching tools.
+    [[nodiscard]] bool isPenEraseIntentActive();
+    void beginPenEraseIntent();
+    void endPenEraseIntent();
+
+    // True while any pointer is pressed, mouse button, finger or pen.
+    // Timer-driven safety nets must use this instead of
+    // QGuiApplication::mouseButtons(), which is always NoButton during a touch
+    // drag and during a pen stroke the pen layer translates itself.
     [[nodiscard]] bool isPointerPressed();
 
     // AppGlobal::resizeTolerance, widened while a touch stream is active.

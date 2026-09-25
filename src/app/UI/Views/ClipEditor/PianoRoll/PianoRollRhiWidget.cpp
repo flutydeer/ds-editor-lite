@@ -34,6 +34,7 @@
 #include "UI/Views/Common/EditorGlyphAtlas.h"
 #include "UI/Views/Common/EditorPointerUtils.h"
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
+#include "UI/Views/Common/EditorPenController.h"
 #include "UI/Views/Common/EditorTouchController.h"
 #include "UI/Views/Common/EditorViewportController.h"
 #include "UI/Views/Common/EditorWheelController.h"
@@ -765,7 +766,32 @@ public:
         return Interaction::Move;
     }
 
+    // The erase action of the pen stroke in flight, or Unsupported when no pen
+    // erase stroke is running. The intent is process wide, so the armed tool
+    // has to answer for itself: only a tool that can erase sees anything.
+    [[nodiscard]] EditorPenEraser penEraseIntent() const {
+        if (!EditorPointer::isPenEraseIntentActive())
+            return EditorPenEraser::Unsupported;
+        return q->penEraserAction();
+    }
+
     void updateNoteCursor(const QPointF &viewportPosition) {
+        // The pen eraser outranks the tool's own cursor while it is in range and
+        // this tool has something it could erase. This is the view's half of the
+        // hover hint: EditorPenController re-applies the same cursor when the
+        // pen changes state without moving (a barrel press mid-hover), but a
+        // hover move arrives here and would otherwise put the tool cursor back.
+        if (EditorPenController::eraseHintFor(q->penEraserAction())) {
+            q->setCursor(EditorPenController::eraseCursor());
+            return;
+        }
+        // The pen is offering an eraser this tool has no use for, so the stroke
+        // will be swallowed whole (see EditorPenPolicy). A cursor that promises
+        // the tool's own action would be a lie: there is nothing it can do.
+        if (EditorPenController::eraseHintRefused(q->penEraserAction())) {
+            q->setCursor(Qt::ForbiddenCursor);
+            return;
+        }
         if (pitchTransformEnabled()) {
             updatePitchTransformCursor(viewportPosition);
             return;
@@ -1442,7 +1468,9 @@ public:
         pitchMouseDownPos = pitchPointAt(viewportPosition);
         pitchPreviousPos = pitchMouseDownPos;
         pitchMouseMoved = false;
-        if (editMode == ErasePitch) {
+        // A pen erase stroke erases the curve whatever pitch tool is armed:
+        // the tool is not switched, so the intent decides instead.
+        if (editMode == ErasePitch || penEraseIntent() == EditorPenEraser::EraseParam) {
             pitchEditType = PitchEditType::Erase;
         } else {
             pitchDrawStroke =
@@ -1730,6 +1758,14 @@ public:
         if (noteErasing)
             finishNoteErase(EditSessionEndReason::Discard);
         discardNoteInteraction();
+        // A pen erase stroke is routed by intent rather than by the toolbar:
+        // the armed tool is not switched, so a plain left-button stroke that
+        // carries the erase intent becomes the note erase path.
+        if (penEraseIntent() == EditorPenEraser::EraseNote) {
+            noteErasing = true;
+            eraseNoteAt(event->position());
+            return;
+        }
         if (editMode == EditPitchAnchor) {
             mousePressAnchor(event);
             return;
@@ -1813,6 +1849,16 @@ public:
             updateLyricToolTip(event->position());
         else
             hideLyricToolTip();
+        // A pen offering an eraser this tool cannot honour: the stroke is
+        // swallowed before it can reach the interaction layer, so no hover move
+        // may feed the tool either — the split preview and the anchor hover
+        // both promise something the stroke can never do.
+        if (event->buttons() == Qt::NoButton &&
+            EditorPenController::eraseHintRefused(q->penEraserAction())) {
+            clearSplitPreview();
+            anchorController.suspendHoverFeedback();
+            return;
+        }
         if (editMode == EditPitchAnchor) {
             mouseMoveAnchor(event);
             return;
@@ -2966,6 +3012,7 @@ public:
     EditorViewportController viewport;
     EditorWheelController wheel;
     EditorTouchController *touchController = nullptr;
+    EditorPenController *penController = nullptr;
     // Last known pointer position in widget coordinates. Timer-driven auto
     // scroll must read this instead of QCursor::pos(), which does not follow a
     // finger across the glass.
@@ -3015,6 +3062,7 @@ PianoRollRhiWidget::PianoRollRhiWidget(QWidget *parent)
     setMouseTracking(true);
     setAttribute(Qt::WA_AcceptTouchEvents);
     d->touchController = new EditorTouchController(this, this);
+    d->penController = new EditorPenController(this, this);
     d->initializeScrollBars();
     d->initializeInlineEditor();
     d->initializeLyricToolTip();
@@ -3158,6 +3206,13 @@ void PianoRollRhiWidget::cancelTouchPointerInteraction() {
     d->abortPointerInteractions();
 }
 
+EditorPenEraser PianoRollRhiWidget::penEraserAction() const {
+    // Mirrors the legacy piano roll: nothing to erase without a clip.
+    if (!d->clip)
+        return EditorPenEraser::Unsupported;
+    return EditorPenPolicy::pianoRoll(d->editMode);
+}
+
 void PianoRollRhiWidget::setEditMode(const PianoRollEditMode mode) {
     d->hideLyricToolTip();
     if (d->editMode != mode) {
@@ -3223,6 +3278,10 @@ void PianoRollRhiWidget::showEvent(QShowEvent *event) {
 }
 
 bool PianoRollRhiWidget::event(QEvent *event) {
+    // The pen layer first: it only claims tablet events, and it has to see them
+    // before anything else decides what they mean.
+    if (d->penController->handleEvent(event))
+        return true;
     if (d->touchController->handleEvent(event))
         return true;
     if (d->clip && d->editMode == EditPitchAnchor && event->type() == QEvent::ShortcutOverride) {
@@ -3249,6 +3308,7 @@ bool PianoRollRhiWidget::event(QEvent *event) {
 
 void PianoRollRhiWidget::hideEvent(QHideEvent *event) {
     d->touchController->cancel();
+    d->penController->cancel();
     d->hideLyricToolTip();
     d->disarmEdgeAutoScroll();
     d->discardNoteInteraction();

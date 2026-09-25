@@ -21,6 +21,7 @@
 #include "UI/Views/Common/EditorResizeUtils.h"
 #include "UI/Views/Common/EditorPointerUtils.h"
 #include "UI/Views/Common/EditorRhiScrollBarController.h"
+#include "UI/Views/Common/EditorPenController.h"
 #include "UI/Views/Common/EditorTouchController.h"
 #include "UI/Views/Common/EditorWheelController.h"
 
@@ -158,6 +159,7 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
     m_viewport.setVerticalContent(appModel->tracks().size() + 1, trackHeight);
     m_wheelController = std::make_unique<EditorWheelController>(&m_viewport, this);
     m_touchController = new EditorTouchController(this, this);
+    m_penController = new EditorPenController(this, this);
 
     m_scrollBars = new EditorRhiScrollBarController(this, this);
     connect(m_scrollBars, &EditorRhiScrollBarController::offsetChangeRequested, this,
@@ -457,10 +459,15 @@ void TracksRhiWidget::resizeEvent(QResizeEvent *event) {
 }
 
 bool TracksRhiWidget::event(QEvent *event) {
+    // The pen layer first: it only claims tablet events, and it has to see them
+    // before anything else decides what they mean.
+    if (m_penController->handleEvent(event))
+        return true;
     if (m_touchController->handleEvent(event))
         return true;
     if (event->type() == QEvent::WindowDeactivate) {
         m_touchController->cancel();
+        m_penController->cancel();
         discardDrag();
     }
     if (event->type() == QEvent::LanguageChange)
@@ -479,6 +486,7 @@ void TracksRhiWidget::showEvent(QShowEvent *event) {
 
 void TracksRhiWidget::hideEvent(QHideEvent *event) {
     m_touchController->cancel();
+    m_penController->cancel();
     if (m_dragMode != DragMode::None)
         discardDrag();
     else
@@ -587,6 +595,10 @@ EditorTouchTarget::BlankDragAction TracksRhiWidget::touchBlankDragAction() const
     // plain finger drag there scrolls. Rubber band selection stays reachable
     // through a long press.
     return BlankDragAction::Pan;
+}
+
+EditorPenEraser TracksRhiWidget::penEraserAction() const {
+    return EditorPenPolicy::arrangement();
 }
 
 void TracksRhiWidget::cancelTouchPointerInteraction() {

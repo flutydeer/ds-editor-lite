@@ -4,6 +4,7 @@
 #include "Interface/EditorViewState.h"
 #include "PianoRollContextMenuController.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
+#include "UI/Views/Common/EditorPenTarget.h"
 #include "UI/Views/Common/EditorRhiWidget.h"
 #include "UI/Views/Common/EditorTouchTarget.h"
 
@@ -24,7 +25,8 @@ class SingingClip;
 class PianoRollRhiWidget final : public EditorRhiWidget,
                                  public IPianoRollPastePreviewHost,
                                  public IAnchorCommandHost,
-                                 public EditorTouchTarget {
+                                 public EditorTouchTarget,
+                                 public EditorPenTarget {
     Q_OBJECT
     Q_PROPERTY(int noteFontPixelSize READ noteFontPixelSize WRITE setNoteFontPixelSize)
     Q_PROPERTY(QColor whiteKeyColor READ whiteKeyColor WRITE setWhiteKeyColor)
@@ -127,6 +129,13 @@ protected:
     [[nodiscard]] ContentHit touchContentAt(const QPointF &viewportPosition) const override;
     [[nodiscard]] BlankDragAction touchBlankDragAction() const override;
     void cancelTouchPointerInteraction() override;
+
+    // --- EditorPenTarget ---
+    // Mirrors the legacy piano roll's strategy table: the note tools erase
+    // notes, the pitch tools erase a parameter curve, everything else has the
+    // stroke swallowed. No arming hook is needed here, because this backend
+    // routes the erase intent itself when it starts an interaction.
+    [[nodiscard]] EditorPenEraser penEraserAction() const override;
 
 private:
     class Private;

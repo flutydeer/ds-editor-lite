@@ -16,6 +16,8 @@
 #include "PianoRollSelectionModel.h"
 #include "PianoRollGraphicsView_p.h"
 #include "UI/Views/ClipEditor/AnchorEditor/AnchorOverlayView.h"
+#include "UI/Views/Common/EditorPenController.h"
+#include "UI/Views/Common/EditorPenTarget.h"
 #include "UI/Views/Common/EditorPointerUtils.h"
 #include "UI/Views/Common/EditorResizeUtils.h"
 #include "PitchEditorView.h"
@@ -442,36 +444,42 @@ void PianoRollGraphicsView::mousePressEvent(QMouseEvent *event) {
     const auto noteView = d->noteViewAt(event->pos());
     const auto pronView = d->pronViewAt(event->pos());
 
-    if (d->m_editMode == Select) {
+    // A pen erase stroke is routed by intent rather than by the toolbar: the
+    // armed mode does not change, and for the note tools the handler was
+    // already swapped for the erase one (beginPenEraseStroke).
+    const auto pressMode =
+        d->activePenErasure() == EditorPenEraser::EraseNote ? EraseNote : d->m_editMode;
+
+    if (pressMode == Select) {
         if (d->m_currentHandler)
             d->m_currentHandler->mousePressEvent(event);
         if (!noteView) {
             d->m_selectionModel->clearSelectionAnchor();
             TimeGraphicsView::mousePressEvent(event);
         }
-    } else if (d->m_editMode == DrawNote) {
+    } else if (pressMode == DrawNote) {
         if (d->m_currentHandler)
             d->m_currentHandler->mousePressEvent(event);
         else
             TimeGraphicsView::mousePressEvent(event);
-    } else if (d->m_editMode == EraseNote) {
+    } else if (pressMode == EraseNote) {
         if (d->m_currentHandler)
             d->m_currentHandler->mousePressEvent(event);
         else
             TimeGraphicsView::mousePressEvent(event);
-    } else if (d->m_editMode == SplitNote) {
+    } else if (pressMode == SplitNote) {
         if (d->m_currentHandler)
             d->m_currentHandler->mousePressEvent(event);
         else
             TimeGraphicsView::mousePressEvent(event);
-    } else if (d->m_editMode == IntervalSelect) {
+    } else if (pressMode == IntervalSelect) {
         if (d->m_currentHandler)
             d->m_currentHandler->mousePressEvent(event);
         if (!noteView) {
             d->m_selectionModel->clearSelectionAnchor();
             TimeGraphicsView::mousePressEvent(event);
         }
-    } else if (d->m_editMode == EditPitchAnchor) {
+    } else if (pressMode == EditPitchAnchor) {
         if (d->m_currentHandler)
             d->m_currentHandler->mousePressEvent(event);
     } else
@@ -526,6 +534,17 @@ void PianoRollGraphicsView::mouseMoveEvent(QMouseEvent *event) {
         if (viewRect.contains(event->pos())) {
             emit keyHovered(keyIndex);
         }
+    }
+
+    // A pen offering an eraser this tool cannot honour: the stroke is swallowed
+    // before it can reach the interaction layer, so the handler must not be fed
+    // hover moves either — its split marker or dashed anchor preview would
+    // describe something the stroke can never do.
+    if (!d->m_interactionController->isMouseDown() &&
+        EditorPenController::eraseHintRefused(d->penEraserAction())) {
+        if (d->m_currentHandler)
+            d->m_currentHandler->suppressHoverFeedback();
+        return;
     }
 
     if (d->m_currentHandler) {
@@ -1188,32 +1207,91 @@ void PianoRollGraphicsView::setEditMode(const PianoRollEditMode mode) {
         d->m_currentHandler->activate();
     }
 
-    if (mode == Select) {
+    if (mode == Select)
         setDragBehavior(DragBehavior::RectSelect);
-        d->setPitchEditMode(false, false);
-    } else if (mode == IntervalSelect) {
+    else if (mode == IntervalSelect)
         setDragBehavior(DragBehavior::IntervalSelect);
-        d->setPitchEditMode(false, false);
-    } else if (mode == DrawNote || mode == EraseNote || mode == SplitNote) {
+    else
         setDragBehavior(DragBehavior::None);
-        d->setPitchEditMode(false, false);
-    } else if (mode == DrawPitch) {
-        setDragBehavior(DragBehavior::None);
-        d->setPitchEditMode(true, false);
-    } else if (mode == EditPitchAnchor) {
-        setDragBehavior(DragBehavior::None);
-        d->setPitchEditMode(true, false);
+
+    d->applyToolPitchEditMode();
+    if (mode == EditPitchAnchor)
         d->m_pitchEditor->setTransparentMouseEvents(true);
-    } else if (mode == ErasePitch) {
-        setDragBehavior(DragBehavior::None);
-        d->setPitchEditMode(true, true);
-    } else if (mode == TracePitch) {
-        setDragBehavior(DragBehavior::None);
-        d->setPitchEditMode(true, false, true);
-    } else if (mode == ModulatePitch) {
-        setDragBehavior(DragBehavior::None);
-        d->setPitchEditMode(true, false, false, true);
+}
+
+void PianoRollGraphicsViewPrivate::applyToolPitchEditMode() {
+    // One place decides what the pitch editor is armed with for a tool, so the
+    // pen layer can borrow the erase variant for a stroke and hand the tool's
+    // own variant back afterwards without re-deriving anything.
+    switch (m_editMode) {
+        case ErasePitch:
+            setPitchEditMode(true, true);
+            break;
+        case TracePitch:
+            setPitchEditMode(true, false, true);
+            break;
+        case ModulatePitch:
+            setPitchEditMode(true, false, false, true);
+            break;
+        case DrawPitch:
+        case EditPitchAnchor:
+            setPitchEditMode(true, false);
+            break;
+        default:
+            setPitchEditMode(false, false);
+            break;
     }
+}
+
+EditorPenEraser PianoRollGraphicsViewPrivate::penEraserAction() const {
+    if (!m_clip)
+        return EditorPenEraser::Unsupported;
+    return EditorPenPolicy::pianoRoll(m_editMode);
+}
+
+EditorPenEraser PianoRollGraphicsViewPrivate::activePenErasure() const {
+    // The intent is process wide, so the tool has to answer for itself: only
+    // the tools that can erase see anything at all from an erase stroke.
+    if (!EditorPointer::isPenEraseIntentActive())
+        return EditorPenEraser::Unsupported;
+    return penEraserAction();
+}
+
+void PianoRollGraphicsViewPrivate::beginPenEraseStroke(const EditorPenEraser action) {
+    switch (action) {
+        case EditorPenEraser::EraseNote:
+            // Swap the handler, not the tool: the toolbar highlight stays where
+            // the user put it, and "this tool does not respond" needs no extra
+            // branch anywhere, because the pen layer never gets here for it.
+            m_currentHandler = m_handlers.value(EraseNote, nullptr);
+            break;
+        case EditorPenEraser::EraseParam:
+            // Whatever pitch tool is armed, this stroke erases the curve.
+            setPitchEditMode(true, true);
+            break;
+        case EditorPenEraser::Unsupported:
+            break;
+    }
+}
+
+void PianoRollGraphicsViewPrivate::endPenEraseStroke() {
+    restoreHandler();
+    applyToolPitchEditMode();
+}
+
+EditorPenEraser PianoRollGraphicsView::penEraserAction() const {
+    Q_D(const PianoRollGraphicsView);
+    return d->penEraserAction();
+}
+
+void PianoRollGraphicsView::beginPenEraserStroke() {
+    Q_D(PianoRollGraphicsView);
+    d->beginPenEraseStroke(d->penEraserAction());
+}
+
+void PianoRollGraphicsView::endPenEraserStroke() {
+    Q_D(PianoRollGraphicsView);
+    d->endPenEraseStroke();
 }
 
 void PianoRollGraphicsViewPrivate::restoreHandler() {
@@ -1659,6 +1737,29 @@ void PianoRollGraphicsViewPrivate::onHoverMove(const QHoverEvent *event) {
     }
 
     updateLyricToolTip(event->position().toPoint());
+
+    // The pen eraser outranks the tool's own cursor while it is in range and
+    // this tool has something it could erase. This is the view's half of the
+    // hover hint: EditorPenController re-applies the same cursor when the pen
+    // changes state without moving (a barrel press mid-hover), but a hover move
+    // arrives here and would otherwise put the tool cursor back.
+    const auto penEraser = penEraserAction();
+    if (EditorPenController::eraseHintFor(penEraser)) {
+        q->setCursor(EditorPenController::eraseCursor());
+        return;
+    }
+
+    // The other half: the pen is offering an eraser this tool has no use for,
+    // so the stroke will be swallowed whole. Nothing this tool draws on hover
+    // may stay up — the split marker and the anchor preview both promise an
+    // action the stroke can never perform — and the cursor says so.
+    if (EditorPenController::eraseHintRefused(penEraser)) {
+        if (m_currentHandler)
+            m_currentHandler->suppressHoverFeedback();
+        q->setCursor(Qt::ForbiddenCursor);
+        return;
+    }
+
     if (m_isEditPitchMode)
         return;
 

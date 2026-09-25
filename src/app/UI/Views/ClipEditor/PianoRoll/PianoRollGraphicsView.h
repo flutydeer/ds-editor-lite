@@ -6,6 +6,7 @@
 #include <lite/History/HistoryFocus.h>
 
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
+#include "UI/Views/Common/EditorPenTarget.h"
 #include "UI/Views/Common/TimeGraphicsView.h"
 
 class SingingClip;
@@ -111,6 +112,11 @@ protected:
     [[nodiscard]] ContentHit touchContentAt(const QPointF &viewportPosition) const override;
     [[nodiscard]] BlankDragAction touchBlankDragAction() const override;
     void cancelTouchPointerInteraction() override;
+
+    // --- EditorPenTarget ---
+    [[nodiscard]] EditorPenEraser penEraserAction() const override;
+    void beginPenEraserStroke() override;
+    void endPenEraserStroke() override;
 
 private:
     int m_noteFontPixelSize = 13;

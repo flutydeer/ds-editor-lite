@@ -8,6 +8,7 @@
 #include "TrackEditorContextMenuController.h"
 #include "TracksGraphicsScene.h"
 #include "UI/Views/Common/EditorGlyphAtlas.h"
+#include "UI/Views/Common/EditorPenTarget.h"
 #include "UI/Views/Common/EditorRhiWidget.h"
 #include "UI/Views/Common/EditorTouchTarget.h"
 #include "UI/Views/Common/EditorViewportController.h"
@@ -30,6 +31,7 @@ class QDropEvent;
 class QHideEvent;
 class QKeyEvent;
 class QMouseEvent;
+class EditorPenController;
 class EditorRhiScrollBarController;
 class EditorTouchController;
 class EditorWheelController;
@@ -40,7 +42,8 @@ class QWheelEvent;
 
 class TracksRhiWidget final : public EditorRhiWidget,
                               public ITrackPastePreviewHost,
-                              public EditorTouchTarget {
+                              public EditorTouchTarget,
+                              public EditorPenTarget {
     Q_OBJECT
     Q_PROPERTY(QColor backgroundColor READ backgroundColor WRITE setBackgroundColor)
     Q_PROPERTY(QColor barLineColor READ barLineColor WRITE setBarLineColor)
@@ -135,6 +138,12 @@ protected:
     [[nodiscard]] ContentHit touchContentAt(const QPointF &viewportPosition) const override;
     [[nodiscard]] BlankDragAction touchBlankDragAction() const override;
     void cancelTouchPointerInteraction() override;
+
+    // --- EditorPenTarget ---
+    // The arrangement canvas has no tool of its own and nothing an eraser could
+    // do, so an erase stroke is swallowed before it reaches the interaction
+    // layer — the same answer the legacy arrangement view gives.
+    [[nodiscard]] EditorPenEraser penEraserAction() const override;
 
 private:
     enum class DragMode { None, Move, ResizeLeft, ResizeRight, RectSelect };
@@ -246,6 +255,7 @@ private:
     EditorViewportController m_viewport;
     std::unique_ptr<EditorWheelController> m_wheelController;
     EditorTouchController *m_touchController = nullptr;
+    EditorPenController *m_penController = nullptr;
     // Last known pointer position in widget coordinates. Timer-driven auto
     // scroll must read this instead of QCursor::pos(), which does not move
     // with a finger.
