@@ -175,6 +175,32 @@ void ApplicationWorkflowTests::publicInferenceStatusAssociatesTasksWithTheirScop
         else
             QTRY_VERIFY(cache.remove());
     });
+    const auto capabilities =
+        registry.invoke(QStringLiteral("inference.get_capabilities"),
+                        {
+                            {QStringLiteral("document_id"), documentId.toString()},
+                            {QStringLiteral("scope"),       trackScope           }
+    },
+                        invocation);
+    QVERIFY2(capabilities, qPrintable(capabilities ? QString{} : capabilities.getError().message));
+    const auto choices = capabilities.get().value(QStringLiteral("capabilities")).toObject();
+    QJsonObject options;
+    for (const auto &value : choices.value(QStringLiteral("providers")).toArray()) {
+        const auto provider = value.toObject();
+        if (provider.value(QStringLiteral("available")).toBool()) {
+            options.insert(QStringLiteral("provider_id"), provider.value(QStringLiteral("id")));
+            break;
+        }
+    }
+    for (const auto &value : choices.value(QStringLiteral("models")).toArray()) {
+        const auto model = value.toObject();
+        if (model.value(QStringLiteral("available")).toBool()) {
+            options.insert(QStringLiteral("model_id"), model.value(QStringLiteral("model_id")));
+            break;
+        }
+    }
+    QVERIFY(!options.value(QStringLiteral("provider_id")).toString().isEmpty());
+    QVERIFY(!options.value(QStringLiteral("model_id")).toString().isEmpty());
     const QJsonObject request{
         {QStringLiteral("document_id"),       documentId.toString()                                        },
         {QStringLiteral("expected_revision"),
@@ -182,7 +208,7 @@ void ApplicationWorkflowTests::publicInferenceStatusAssociatesTasksWithTheirScop
         {QStringLiteral("scope"),             trackScope                                                   },
         {QStringLiteral("stages"),            QJsonArray{QStringLiteral("pitch"), QStringLiteral("variance"),
                                               QStringLiteral("acoustic")}},
-        {QStringLiteral("options"),           QJsonObject{}                                                }
+        {QStringLiteral("options"),           options                                                      }
     };
     auto invalidRequest = request;
     invalidRequest.insert(
@@ -193,14 +219,53 @@ void ApplicationWorkflowTests::publicInferenceStatusAssociatesTasksWithTheirScop
              QJsonArray{trackId.value(), context->m_appModel->tracks().last()->id() + 1}},
     });
     const auto beforeRejected = runtime().documentVersion();
+    const auto beforeContent = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto beforePitch = targetPiece->originalPitch;
+    const auto beforeVariance = targetPiece->originalBreathiness;
+    const auto *beforeUndo = HistoryManager::instance()->nextUndoEntry();
+    const auto verifyPreparedContent = [&] {
+        QCoreApplication::processEvents();
+        QCOMPARE(runtime().documentVersion(), beforeRejected);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeContent);
+        QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
+        QCOMPARE(targetPiece->state, QStringLiteral("Acoustic.Awaiting"));
+        QCOMPARE(targetPiece->originalPitch, beforePitch);
+        QCOMPARE(targetPiece->originalBreathiness, beforeVariance);
+        QVERIFY(taskManager->tasks().isEmpty());
+        QVERIFY(!paused.load());
+    };
     const auto rejected =
         registry.invoke(QStringLiteral("inference.start"), invalidRequest, invocation);
     QVERIFY(!rejected);
     QCOMPARE(rejected.getError().code, AutomationErrorCode::NotFound);
-    QCoreApplication::processEvents();
-    QVERIFY(taskManager->tasks().isEmpty());
-    QVERIFY(!paused.load());
-    QCOMPARE(runtime().documentVersion(), beforeRejected);
+    verifyPreparedContent();
+    if (QTest::currentTestFailed())
+        return;
+    for (const auto &key :
+         {QStringLiteral("provider_id"), QStringLiteral("device_id"), QStringLiteral("model_id")}) {
+        auto unavailableOptions = options;
+        unavailableOptions.insert(key, QStringLiteral("unavailable-test-selection"));
+        auto unavailableRequest = request;
+        unavailableRequest.insert(QStringLiteral("options"), unavailableOptions);
+        const auto unavailable =
+            registry.invoke(QStringLiteral("inference.start"), unavailableRequest, invocation);
+        QVERIFY2(!unavailable, qPrintable(key));
+        QCOMPARE(unavailable.getError().code, AutomationErrorCode::InvalidArgument);
+        QCOMPARE(unavailable.getError().fieldPath, QStringLiteral("options.") + key);
+        verifyPreparedContent();
+        if (QTest::currentTestFailed())
+            return;
+    }
+    auto incompletePipeline = request;
+    incompletePipeline.insert(QStringLiteral("stages"), QJsonArray{"pitch", "acoustic"});
+    const auto missingStage =
+        registry.invoke(QStringLiteral("inference.start"), incompletePipeline, invocation);
+    QVERIFY(!missingStage);
+    QCOMPARE(missingStage.getError().code, AutomationErrorCode::InvalidArgument);
+    QCOMPARE(missingStage.getError().fieldPath, QStringLiteral("stages"));
+    verifyPreparedContent();
+    if (QTest::currentTestFailed())
+        return;
     const auto accepted = registry.invoke(QStringLiteral("inference.start"), request, invocation);
     QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
     taskId = TaskId::fromString(accepted.get().value(QStringLiteral("task_id")).toString());
