@@ -160,7 +160,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 主窗口面板及嵌入设置 | gui | 实际按钮、片段双击、分离窗口关闭和菜单输入验证面板恢复、分离/重新嵌入后的编辑上下文、视图状态复原，以及嵌入设置对后台快捷键的阻断与焦点恢复 | ApplicationGui 的 tst_main_window.cpp | offscreen；不代表各窗口管理器或多屏行为 |
 | 自定义标题栏与分离面板按钮 | gui | 原生边框下的分离流程不能验证自定义系统按钮接线；主窗口和分离面板复用真实点击检查最大化、还原和最小化；分离面板的关闭按钮恢复嵌入、当前页和分隔条尺寸，文档及历史不变 | NativeDesktop::customWindowButtonsKeepTheDetachedPanelAndDocument | 原生桌面；Linux Xvfb；不检查像素或多屏组合 |
 | 主窗口文件拖入 | gui/workflow | 未保存工程经真实保存提示取消或放弃后打开；工程与音频混合拖入整批拒绝，再次单独拖入音频正常提交；检查工程身份、路径、轨道控件、播放位置锚定及一次撤销，释放临时音频 | ApplicationGui::projectDropCanCancelThenOpenTheDocument、mixedFileDropRejectsAtomicallyAndAllowsTheNextImport | offscreen；临时 DSPX/WAV；无需音频设备 |
-| 日志接收、筛选和复制 | gui | 真实 LogBus 包含跨线程追加，经过控件过滤级别/标签/文本，检查显示顺序复制与清空，文档和历史不变 | ApplicationGui::logWindowFiltersLiveMessagesAndCopiesDisplayedOrder | offscreen；真实总线；无需设备 |
+| 日志接收、筛选和复制 | gui | 真实 LogBus 包含跨线程追加，经过控件过滤级别/标签/文本；新增标签按顺序加入且保留当前筛选，快捷键复制完整行、右键菜单只复制消息，两者均保持显示顺序；清空不改变文档和历史 | ApplicationGui::logWindowFiltersLiveMessagesAndCopiesDisplayedOrder | offscreen；真实总线；无需设备 |
 | 文件日志目录与故障恢复 | unit | 切换目录隔离前后内容；无效目录保留原目标，文件打开失败后仍可输出和恢复；第三方标准错误进入文件，旧日志清理保留最新日志及无关文件 | Foundation::fileLoggingChangesDirectoriesAndRecoversFromWriteFailure | 通用；同一测试程序的独立子进程；临时目录 |
 | 包刷新失效路径与提交拒绝 | workflow | 搜索路径部分失效或声库描述损坏时保留诊断及有效声库；刷新适配保留上游独立于快照的诊断，避免损坏声库被静默遗漏；调用会发布推理会话的刷新前检查提交准入，被拒绝时应用目录、推理会话 generation/内容、歌手查找和通知状态均不变；恢复原搜索路径后正常刷新，文档与历史不变 | ApplicationWorkflows::packageRefreshPreservesCatalogAndReportsInvalidRoots | 默认内置声库；隔离目录 |
 | 损坏声学或声码器模型的加载与恢复 | workflow/process | 临时副本中的声学或声码器模型损坏时，实际 Editor 推理进入失败终态且不发布音频缓存；修复模型后同一进程可重试并导出有效 PCM | ModelResources::voicebankInferenceAndWaveExport 的 repaired-acoustic-model、repaired-vocoder-model 数据行 | 始终使用内置微型声库副本；不修改显式配置的真实声库 |

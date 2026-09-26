@@ -14,6 +14,10 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QTableView>
+#include <QContextMenuEvent>
+#include <QMenu>
+#include <QScopeGuard>
+#include <QTimer>
 #include <QtTest>
 
 #include <thread>
@@ -79,6 +83,20 @@ void ApplicationGuiTests::logWindowFiltersLiveMessagesAndCopiesDisplayedOrder() 
         return;
     QCOMPARE(table->model()->rowCount(), 1);
     QCOMPARE(table->model()->index(0, LogWindowModel::TextColumn).data().toString(), warning.text);
+    const Log::LogMessage late("10:00:04", Log::Warning, "FixtureLog-0", "New worker connected");
+    LogBus::instance()->append(late);
+    QTRY_VERIFY(tag->findText(late.tag) >= 0);
+    QVERIFY(tag->findText(late.tag) < tag->findText(firstTag));
+    QCOMPARE(tag->currentText(), firstTag);
+    QCOMPARE(table->model()->rowCount(), 1);
+    selectComboEntry(tag, tag->findText(late.tag));
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(table->model()->rowCount(), 1);
+    QCOMPARE(table->model()->index(0, LogWindowModel::TextColumn).data().toString(), late.text);
+    selectComboEntry(tag, tag->findText(firstTag));
+    if (QTest::currentTestFailed())
+        return;
     search->setFocus();
     search->selectAll();
     QTest::keyClicks(search, "OUTPUT");
@@ -99,6 +117,30 @@ void ApplicationGuiTests::logWindowFiltersLiveMessagesAndCopiesDisplayedOrder() 
     QTest::keySequence(table, QKeySequence::Copy);
     QTRY_COMPARE(QApplication::clipboard()->text(),
                  error.toPlainText() + QLatin1Char('\n') + recovered.toPlainText());
+    bool messageOnlyChosen = false;
+    QTimer chooseCopy;
+    chooseCopy.setSingleShot(true);
+    connect(&chooseCopy, &QTimer::timeout, &window, [&] {
+        auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+        QVERIFY(menu);
+        const auto close = qScopeGuard([&] { menu->close(); });
+        for (auto *action : menu->actions()) {
+            if (action->text() == LogWindow::tr("Copy Message Only")) {
+                QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier,
+                                  menu->actionGeometry(action).center());
+                messageOnlyChosen = true;
+                return;
+            }
+        }
+    });
+    const auto position = rowPoint(1);
+    QContextMenuEvent menuEvent(QContextMenuEvent::Mouse, position,
+                                table->viewport()->mapToGlobal(position));
+    chooseCopy.start(0);
+    QApplication::sendEvent(table->viewport(), &menuEvent);
+    chooseCopy.stop();
+    QVERIFY(messageOnlyChosen);
+    QTRY_COMPARE(QApplication::clipboard()->text(), error.text + QLatin1Char('\n') + recovered.text);
     QTest::mouseClick(clear, Qt::LeftButton);
     QCOMPARE(table->model()->rowCount(), 0);
     search->clear();
