@@ -18,6 +18,7 @@
 #include <lite/GUI/Controls/InlineEditLabel.h>
 #include <lite/GUI/Controls/LevelMeter.h>
 #include <lite/GUI/Controls/LevelMeterViewModel.h>
+#include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/Track.h>
@@ -27,6 +28,9 @@
 #include <QLocale>
 #include <QContextMenuEvent>
 #include <QCursor>
+#include <QHoverEvent>
+#include <QImage>
+#include <QPixmap>
 #include <QKeySequence>
 #include <QLineEdit>
 #include <QLabel>
@@ -56,6 +60,9 @@ void ApplicationGuiTests::mixerChannelInputsAndLevelsStayScoped() {
     QVERIFY(runtime.project().insertTrack(commandContext(), 0, draft));
     auto *track = context->m_appModel->tracks().first();
     MixConsoleView console;
+    ThemeManager::instance()->addStyleRoot(&console);
+    const auto restoreStyle =
+        qScopeGuard([&] { ThemeManager::instance()->removeStyleRoot(&console); });
     console.resize(720, 520);
     console.show();
     console.activateWindow();
@@ -181,6 +188,31 @@ void ApplicationGuiTests::mixerChannelInputsAndLevelsStayScoped() {
     QVERIFY(levels->clippedL() && levels->clippedR());
     QVERIFY(otherLevels->clippedL() && otherLevels->clippedR());
     QCOMPARE(peakLabel->text(), QStringLiteral("+") + QLocale().toString(6.0, 'f', 1));
+    QTRY_VERIFY(levels->displayedPeakL() > 0.01 && levels->displayedPeakR() > 0.01);
+    QVERIFY(meter->property("showValueWhenHover").toBool());
+    const auto hover = [&](QEvent::Type type, QPoint position) {
+        QHoverEvent event(type, position, meter->mapToGlobal(position), QPointF{});
+        QApplication::sendEvent(meter, &event);
+    };
+    hover(QEvent::HoverLeave, {-1, -1});
+    const auto withoutReadout = meter->grab().toImage();
+    QVERIFY(!withoutReadout.isNull());
+    const QPoint upper(meter->width() / 2, meter->height() / 3);
+    const QPoint lower(meter->width() / 2, meter->height() * 2 / 3);
+    hover(QEvent::HoverEnter, upper);
+    const auto upperReadout = meter->grab().toImage();
+    QVERIFY(upperReadout != withoutReadout);
+    hover(QEvent::HoverMove, lower);
+    QVERIFY(meter->grab().toImage() != upperReadout);
+    const auto indicatorY = meter->property("padding").toDouble() +
+                            meter->property("clipIndicatorLength").toDouble() / 2;
+    hover(QEvent::HoverMove, {meter->width() / 2, qRound(indicatorY)});
+    QCOMPARE(meter->grab().toImage(), withoutReadout);
+    hover(QEvent::HoverMove, upper);
+    QVERIFY(meter->grab().toImage() != withoutReadout);
+    hover(QEvent::HoverLeave, {-1, -1});
+    QCOMPARE(meter->grab().toImage(), withoutReadout);
+    QVERIFY(levels->clippedL() && levels->clippedR());
     QTest::mouseClick(meter, Qt::LeftButton, Qt::NoModifier, QPoint(meter->width() / 2, 10));
     QVERIFY(!levels->clippedL() && !levels->clippedR());
     QVERIFY(otherLevels->clippedL() && otherLevels->clippedR());
