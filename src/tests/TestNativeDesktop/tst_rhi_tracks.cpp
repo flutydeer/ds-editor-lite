@@ -13,6 +13,7 @@
 #include "UI/Views/TrackEditor/TrackEditorView.h"
 #include "UI/Views/TrackEditor/TrackListView.h"
 #include "UI/Views/TrackEditor/TracksGraphicsView.h"
+#include "UI/Views/Common/TimelineView.h"
 
 #include <lite/History/ActionSequence.h>
 #include <lite/History/HistoryManager.h>
@@ -39,6 +40,7 @@
 #include <QSignalSpy>
 #include <QTimer>
 #include <QWindow>
+#include <QWheelEvent>
 #include <QtTest/QTest>
 
 #include <cmath>
@@ -168,6 +170,79 @@ namespace {
                          Qt::NoButton, Qt::LeftButton, modifiers);
         QApplication::sendEvent(&canvas, &move);
     }
+}
+
+void NativeDesktopTests::rhiTrackWheelInputsKeepTheCanvasAndTrackListAligned() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("RHI widgets require a native window backend");
+    const auto backend = appOptions->developer()->editorRenderBackend;
+    const auto restore =
+        qScopeGuard([&] { appOptions->developer()->editorRenderBackend = backend; });
+    TrackFixture fixture;
+    QVERIFY2(fixture.initialize({}, true), qPrintable(fixture.application.error));
+    QList<Automation::TrackDraftDto> additionalTracks(6);
+    for (int index = 0; index < additionalTracks.size(); ++index)
+        additionalTracks[index].name = QStringLiteral("Extra track %1").arg(index + 1);
+    QVERIFY(fixture.runtime().project().insertTracks(fixture.command(), 2, additionalTracks));
+    historyManager->reset();
+    auto *canvas = fixture.canvas.data();
+    auto *timeline = fixture.host->findChild<TimelineView *>();
+    auto *tracks = fixture.host->findChild<TrackListView *>();
+    QVERIFY(timeline && tracks);
+    TestSupport::placeWindowOnScreen(*fixture.host, {1200, 500});
+    QTRY_VERIFY(fixture.host->isActiveWindow());
+    QVERIFY(canvas->setViewScale(2.0, 2.0));
+    QVERIFY(canvas->centerAt(1920, 3));
+    QSignalSpy frames(canvas, &QRhiWidget::frameSubmitted);
+    QSignalSpy failed(canvas, &QRhiWidget::renderFailed);
+    canvas->update();
+    QTRY_VERIFY(!frames.isEmpty());
+    const auto before = fixture.runtime().documentVersion();
+    const auto model = TestSupport::projectSnapshot(*fixture.application.context->m_appModel);
+    const auto wheel = [](QWidget &target, int delta, Qt::KeyboardModifiers modifiers = {}) {
+        const auto point = target.rect().center();
+        QWheelEvent event(point, target.mapToGlobal(point), {}, {0, delta}, Qt::NoButton, modifiers,
+                          Qt::NoScrollPhase, false);
+        event.setAccepted(false);
+        QApplication::sendEvent(&target, &event);
+        return event.isAccepted();
+    };
+
+    const auto horizontalScale = canvas->scaleX();
+    QVERIFY(wheel(*timeline, 120));
+    QTRY_VERIFY(canvas->scaleX() > horizontalScale);
+    const auto horizontalStart = canvas->startTick();
+    QVERIFY(wheel(*canvas, -120, Qt::ShiftModifier));
+    QTRY_VERIFY(canvas->startTick() > horizontalStart);
+
+    const auto verticalScale = canvas->scaleY();
+    const auto rowHeight = tracks->visualItemRect(tracks->item(3)).height();
+    QVERIFY(wheel(*tracks->viewport(), 120, Qt::AltModifier));
+    QTRY_VERIFY(canvas->scaleY() > verticalScale);
+    QTRY_VERIFY(tracks->visualItemRect(tracks->item(3)).height() > rowHeight);
+    const auto offset = canvas->logicalVisibleRect().top();
+    QVERIFY(wheel(*tracks->viewport(), -120));
+    QTRY_VERIFY(canvas->logicalVisibleRect().top() > offset);
+    QTRY_COMPARE(tracks->verticalScrollBar()->value(), qRound(canvas->logicalVisibleRect().top()));
+    const auto scrolled = canvas->logicalVisibleRect().top();
+    QVERIFY(wheel(*canvas, 120));
+    QTRY_VERIFY(canvas->logicalVisibleRect().top() < scrolled);
+    QTRY_COMPARE(tracks->verticalScrollBar()->value(), qRound(canvas->logicalVisibleRect().top()));
+
+    tracks->setFocus();
+    QTest::keyClick(tracks, Qt::Key_Home);
+    QTRY_COMPARE(tracks->currentRow(), 0);
+    for (int index = 1; index < tracks->trackCount(); ++index)
+        QTest::keyClick(tracks, Qt::Key_Down);
+    QTRY_COMPARE(tracks->currentRow(), tracks->trackCount() - 1);
+    QTRY_COMPARE(qRound(canvas->logicalVisibleRect().top()), tracks->verticalScrollBar()->value());
+    const auto previousFrame = frames.size();
+    canvas->update();
+    QTRY_VERIFY(frames.size() > previousFrame);
+    QCOMPARE(fixture.runtime().documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.application.context->m_appModel), model);
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(failed.isEmpty());
 }
 
 void NativeDesktopTests::rhiClipDragScrollsAtTheEdgeAndStopsOnCancel() {

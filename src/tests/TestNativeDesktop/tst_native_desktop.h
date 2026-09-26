@@ -51,6 +51,7 @@ private slots:
     void rhiContextMenuTargetsRespectPronunciationAndSelection();
     void rhiPianoMenuPasteAndVisibilityUseTheFullEditor();
     void rhiPianoWheelInputsReachTheActiveViewport();
+    void rhiTrackWheelInputsKeepTheCanvasAndTrackListAligned();
     void rhiPitchModulationUsesTheInferredBaseline();
     void rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor_data();
     void rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor();
