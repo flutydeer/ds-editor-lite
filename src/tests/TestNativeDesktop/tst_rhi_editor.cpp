@@ -25,6 +25,7 @@
 #include "UI/Dialogs/Base/Dialog.h"
 
 #include <lite/GUI/Controls/Toast.h>
+#include <lite/GUI/Controls/ToolTip.h>
 
 #include <lite/GUI/Theme/ThemeIds.h>
 #include <lite/GUI/Theme/ThemeLoader.h>
@@ -53,6 +54,7 @@
 #include <QScopeGuard>
 #include <QSignalSpy>
 #include <QTemporaryDir>
+#include <QTextDocument>
 #include <QTimer>
 #include <QWindow>
 #include <QWheelEvent>
@@ -1019,6 +1021,27 @@ void NativeDesktopTests::rhiInlineTextEditingNavigatesCancelsAndUndoes() {
     QTRY_VERIFY(!edit->isVisible());
     QCOMPARE(first->lyric(), QStringLiteral("hello"));
     QCOMPARE(fixture.runtime().documentVersion(), beforeCancel);
+    const auto contentBeforeHover = TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
+    const auto *undoBeforeHover = historyManager->nextUndoEntry();
+    QVERIFY(canvas.setViewScale(0.5, 2.0));
+    QVERIFY(canvas.centerAt(1920, 60));
+    fixture.waitForFrame();
+    if (QTest::currentTestFailed())
+        return;
+    auto *tooltip = canvas.findChild<ToolTip *>();
+    QVERIFY(tooltip);
+    fixture.moveTo(fixture.pointFor(720, 60));
+    QTRY_VERIFY(tooltip->isVisible());
+    QTextDocument tooltipText;
+    tooltipText.setHtml(tooltip->title());
+    QCOMPARE(tooltipText.toPlainText(), first->lyric());
+    fixture.moveTo(QPoint(-20, canvas.height() / 2));
+    QTRY_VERIFY(!tooltip->isVisible());
+    QCOMPARE(fixture.runtime().documentVersion(), beforeCancel);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), contentBeforeHover);
+    QCOMPARE(historyManager->nextUndoEntry(), undoBeforeHover);
+    QVERIFY(canvas.setViewScale(1.0, 1.0));
+    QVERIFY(canvas.centerAt(1920, 60));
     fixture.waitForFrame();
     if (QTest::currentTestFailed())
         return;
@@ -1353,6 +1376,24 @@ void NativeDesktopTests::rhiMultiNoteSelectionAndMoveCommitAtomically() {
     QVERIFY(appStatus->selectedNotes.get().isEmpty());
     canvas.setEditMode(ClipEditorGlobal::IntervalSelect);
     selectRange(64, 63);
+    QVERIFY(!historyManager->canUndo());
+
+    const auto beforeCompact = fixture.runtime().documentVersion();
+    const auto contentBeforeCompact =
+        TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
+    QVERIFY(canvas.setViewScale(0.2, 1.0));
+    QVERIFY(canvas.centerAt(1920, 60));
+    fixture.waitForFrame();
+    if (QTest::currentTestFailed())
+        return;
+    canvas.setEditMode(ClipEditorGlobal::Select);
+    QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, fixture.pointFor(3600, 65));
+    QVERIFY(appStatus->selectedNotes.get().isEmpty());
+    selectRange(64, 58);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(fixture.runtime().documentVersion(), beforeCompact);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), contentBeforeCompact);
     QVERIFY(!historyManager->canUndo());
 }
 
