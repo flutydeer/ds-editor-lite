@@ -58,9 +58,12 @@
 #include <QTimer>
 #include <QWindow>
 #include <QWheelEvent>
+#include <QNativeGestureEvent>
+#include <QPointingDevice>
 #include <QtTest/QTest>
 
 #include <algorithm>
+#include <cmath>
 
 namespace {
     struct ExistingRhiNoteFixture {
@@ -378,6 +381,23 @@ void NativeDesktopTests::rhiPianoWheelInputsReachTheActiveViewport() {
     QTRY_VERIFY(!frames.isEmpty());
     const auto before = fixture.context->m_coreRuntime->documentVersion();
     const auto model = fixture.context->m_appModel->serialize();
+    const QPoint gesturePosition(canvas->width() / 3, canvas->height() / 2);
+    const auto tickAtPosition = [&] {
+        return canvas->startTick() +
+               (canvas->endTick() - canvas->startTick()) * gesturePosition.x() / canvas->width();
+    };
+    const auto anchorTick = tickAtPosition();
+    const auto ticksPerPixel = (canvas->endTick() - canvas->startTick()) / canvas->width();
+    const QPointingDevice touchpad(
+        QStringLiteral("Test touchpad"), 1, QInputDevice::DeviceType::TouchPad,
+        QPointingDevice::PointerType::Finger, QInputDevice::Capability::Position, 2, 0);
+    const auto gestureGlobal = canvas->mapToGlobal(gesturePosition);
+    QNativeGestureEvent gesture(Qt::ZoomNativeGesture, &touchpad, 2, gesturePosition,
+                                gesturePosition, gestureGlobal, 0.25, {});
+    QApplication::sendEvent(canvas, &gesture);
+    QCOMPARE(canvas->scaleX(), 1.25);
+    QCOMPARE(canvas->scaleY(), 1.0);
+    QVERIFY(std::abs(tickAtPosition() - anchorTick) <= ticksPerPixel);
     const auto wheel = [](QWidget &target) {
         const auto position = target.rect().center();
         QWheelEvent event(position, target.mapToGlobal(position), {}, {0, 120}, Qt::NoButton,
