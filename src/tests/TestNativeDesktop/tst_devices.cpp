@@ -8,7 +8,9 @@
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Audio/AudioSettings.h"
 #include "Modules/Audio/subsystem/MidiSystem.h"
+#include "UI/Dialogs/Options/Pages/AudioPage.h"
 
+#include <lite/GUI/Controls/ComboBox.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
@@ -32,6 +34,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QAbstractItemView>
 #include <QtTest/QTest>
 
 #include <algorithm>
@@ -189,6 +192,7 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
     QVERIFY2(deviceContext->device()->isOpen(), qPrintable(deviceContext->device()->errorString()));
     const auto originalBufferSize = deviceContext->adoptedBufferSize();
     const auto originalSampleRate = deviceContext->adoptedSampleRate();
+    const auto originalDeviceName = deviceContext->device()->name();
     auto &runtime = *fixture.context->m_coreRuntime;
     const auto command = [&] {
         return Automation::CommandContext{.expected = runtime.documentVersion(),
@@ -196,24 +200,86 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
     };
     const auto restore = qScopeGuard([&] {
         runtime.playback().stop(command());
+        if (deviceContext->device() && deviceContext->device()->name() != originalDeviceName)
+            QVERIFY(output->setDevice(originalDeviceName));
         output->setAdoptedBufferSize(originalBufferSize);
         output->setAdoptedSampleRate(originalSampleRate);
     });
 
-    // Reopen the selected device through the production configuration path.
-    const auto selectedName = deviceContext->device()->name();
-    QVERIFY2(output->setDevice(selectedName), qPrintable(selectedName));
-    const auto sizes = deviceContext->device()->availableBufferSizes();
-    const auto alternative = std::find_if(sizes.cbegin(), sizes.cend(), [&](qint64 size) {
-        return size > 0 && size <= 8192 && size != originalBufferSize;
-    });
-    const auto selectedBufferSize = alternative == sizes.cend() ? originalBufferSize : *alternative;
-    QVERIFY(output->setAdoptedBufferSize(selectedBufferSize));
-    QCOMPARE(deviceContext->device()->bufferSize(), selectedBufferSize);
-    QCOMPARE(AudioSettings::adoptedBufferSize(), selectedBufferSize);
-    AppOptions reopened;
-    QCOMPARE(reopened.audio()->obj.value(QStringLiteral("adoptedBufferSize")).toInteger(),
-             selectedBufferSize);
+    const auto beforeSettings = runtime.documentVersion();
+    const auto modelBeforeSettings = fixture.context->m_appModel->serialize();
+    {
+        AudioPage page;
+        page.resize(900, 700);
+        page.show();
+        page.activateWindow();
+        QTRY_VERIFY(page.isActiveWindow());
+        auto *devices = page.findChild<ComboBox *>("audioDevice");
+        auto *buffers = page.findChild<ComboBox *>("audioBufferSize");
+        auto *rates = page.findChild<ComboBox *>("audioSampleRate");
+        QVERIFY(devices && buffers && rates);
+        QCOMPARE(devices->currentData().toString(), originalDeviceName);
+        const auto select = [&](ComboBox *combo, const QVariant &value) {
+            const auto index = combo->findData(value);
+            QVERIFY(index >= 0);
+            page.ensureWidgetVisible(combo);
+            QTest::mouseClick(combo, Qt::LeftButton);
+            auto *view = combo->view();
+            QTRY_VERIFY(view->isVisible());
+            QTest::keyClick(view, Qt::Key_Home);
+            for (int row = 0; row < index; ++row)
+                QTest::keyClick(view, Qt::Key_Down);
+            QTest::keyClick(view, Qt::Key_Return);
+            QTRY_VERIFY(!view->isVisible());
+            QCOMPARE(combo->currentIndex(), index);
+        };
+        // Use the default device's two aliases without switching to another physical output.
+        const auto defaultDevice = driver->defaultDevice();
+        if (!defaultDevice.isEmpty() &&
+            (originalDeviceName.isEmpty() || originalDeviceName == defaultDevice)) {
+            const auto selectedName = originalDeviceName.isEmpty() ? defaultDevice : QString{};
+            select(devices, selectedName);
+            if (QTest::currentTestFailed())
+                return;
+            QVERIFY(deviceContext->device() && deviceContext->device()->isOpen());
+            QCOMPARE(deviceContext->device()->name(), selectedName);
+        }
+        const auto sizes = deviceContext->device()->availableBufferSizes();
+        const auto alternative = std::find_if(sizes.cbegin(), sizes.cend(), [&](qint64 size) {
+            return size > 0 && size <= 8192 && size != originalBufferSize;
+        });
+        const auto selectedSize = alternative == sizes.cend() ? originalBufferSize : *alternative;
+        if (sizes.isEmpty())
+            QVERIFY(!buffers->isEnabled());
+        else
+            select(buffers, selectedSize);
+        if (QTest::currentTestFailed())
+            return;
+        QCOMPARE(deviceContext->device()->bufferSize(), selectedSize);
+        QCOMPARE(AudioSettings::adoptedBufferSize(), selectedSize);
+        const auto sampleRates = deviceContext->device()->availableSampleRates();
+        const auto alternativeRate =
+            std::find_if(sampleRates.cbegin(), sampleRates.cend(), [&](double rate) {
+                return rate >= 22050 && rate <= 96000 && rate != originalSampleRate;
+            });
+        const auto selectedRate =
+            alternativeRate == sampleRates.cend() ? originalSampleRate : *alternativeRate;
+        if (sampleRates.isEmpty())
+            QVERIFY(!rates->isEnabled());
+        else
+            select(rates, selectedRate);
+        if (QTest::currentTestFailed())
+            return;
+        QCOMPARE(deviceContext->device()->sampleRate(), selectedRate);
+        QCOMPARE(AudioSettings::adoptedSampleRate(), selectedRate);
+        AppOptions reopened;
+        QCOMPARE(reopened.audio()->obj.value(QStringLiteral("adoptedBufferSize")).toInteger(),
+                 selectedSize);
+        QCOMPARE(reopened.audio()->obj.value(QStringLiteral("adoptedSampleRate")).toDouble(),
+                 selectedRate);
+    }
+    QCOMPARE(runtime.documentVersion(), beforeSettings);
+    QCOMPARE(fixture.context->m_appModel->serialize(), modelBeforeSettings);
 
     const auto path = fixture.directory.filePath(QStringLiteral("silence.wav"));
     QVERIFY(TestSupport::writeWave(path, QVector<float>(48000, 0.0f)));
