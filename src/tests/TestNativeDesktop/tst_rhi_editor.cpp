@@ -868,6 +868,38 @@ void NativeDesktopTests::rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor(
         QCOMPARE(moved->value(), 6100);
         QVERIFY(fixture.runtime().history().undo(fixture.command()));
         QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), beforeAppend);
+
+        QList<int> nodeIds;
+        for (const auto *curve : pitch->curves(Param::Edited)) {
+            const auto *anchors = dynamic_cast<const AnchorCurve *>(curve);
+            QVERIFY(anchors);
+            for (const auto *node : anchors->nodes())
+                nodeIds.append(node->id());
+        }
+        const auto beforeMerge = fixture.runtime().documentVersion();
+        QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, fixture.pointFor(1440, 60));
+        const auto nextEndpoint = fixture.pointFor(1920, 60);
+        QTest::mouseMove(canvas.windowHandle(), nextEndpoint);
+        fixture.waitForFrame();
+        if (QTest::currentTestFailed())
+            return;
+        QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), beforeAppend);
+        QCOMPARE(fixture.runtime().documentVersion(), beforeMerge);
+        QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, nextEndpoint);
+        QCOMPARE(pitch->curves(Param::Edited).size(), 1);
+        QVERIFY(anchorCurve());
+        const auto mergedNodes = anchorCurve()->nodes().toList();
+        QCOMPARE(mergedNodes.size(), nodeIds.size());
+        const QList<int> ticks{480, insertedTick, 1440, 1920, 2880};
+        const QList<int> values{6000, 6200, 6000, 6000, 6000};
+        for (int index = 0; index < mergedNodes.size(); ++index) {
+            QCOMPARE(mergedNodes[index]->id(), nodeIds[index]);
+            QCOMPARE(mergedNodes[index]->pos(), ticks[index]);
+            QCOMPARE(mergedNodes[index]->value(), values[index]);
+        }
+        QCOMPARE(fixture.runtime().documentVersion().revision, beforeMerge.revision + 1);
+        QVERIFY(fixture.runtime().history().undo(fixture.command()));
+        QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), beforeAppend);
     }
     QVERIFY(fixture.runtime().history().undo(fixture.command()));
     QVERIFY(anchorCurve());
