@@ -191,6 +191,37 @@ namespace {
         std::function<SaveDecision()> decide;
         QList<ProjectOperationError> errors;
     };
+
+    class AudioWorkerBarrier final {
+    public:
+        AudioWorkerBarrier() : maximumThreads(pool->maxThreadCount()) {
+            pool->setMaxThreadCount(1);
+            pool->start([this] {
+                entered.release();
+                release.acquire();
+            });
+        }
+
+        ~AudioWorkerBarrier() {
+            resume();
+            pool->waitForDone();
+            pool->setMaxThreadCount(maximumThreads);
+        }
+
+        bool ready() const {
+            return entered.available() == 1;
+        }
+
+        void resume() {
+            release.release();
+        }
+
+    private:
+        QThreadPool *pool = QThreadPool::globalInstance();
+        int maximumThreads;
+        QSemaphore entered;
+        QSemaphore release;
+    };
 }
 
 void AudioAssetsTests::initTestCase() {
@@ -501,36 +532,45 @@ void AudioAssetsTests::resolutionRetryPreservesSource() {
 void AudioAssetsTests::audioPreparationWaitsForTheSaveDecision_data() {
     QTest::addColumn<bool>("replaceDocument");
     QTest::addColumn<bool>("resolvePath");
-    QTest::newRow("cancel-new-applies-waveform-to-original-document") << false << false;
-    QTest::newRow("discard-original-drops-completed-waveform") << true << false;
-    QTest::newRow("cancel-new-applies-resolved-path-to-original-document") << false << true;
-    QTest::newRow("discard-original-drops-resolved-path") << true << true;
+    QTest::addColumn<bool>("cascadeRelink");
+    QTest::newRow("cancel-new-applies-waveform-to-original-document") << false << false << false;
+    QTest::newRow("discard-original-drops-completed-waveform") << true << false << false;
+    QTest::newRow("cancel-new-applies-resolved-path-to-original-document")
+        << false << true << false;
+    QTest::newRow("discard-original-drops-resolved-path") << true << true << false;
+    QTest::newRow("cancel-new-applies-cascade-relink-to-original-document")
+        << false << true << true;
+    QTest::newRow("discard-original-drops-cascade-relink") << true << true << true;
 }
 
 void AudioAssetsTests::audioPreparationWaitsForTheSaveDecision() {
     QFETCH(bool, replaceDocument);
     QFETCH(bool, resolvePath);
+    QFETCH(bool, cascadeRelink);
     Fixture fixture;
     auto *workflow = DocumentWorkflowController::instance();
     QVERIFY(fixture.directory.isValid());
-    const auto path = fixture.directory.filePath(QStringLiteral("pending.wav"));
+    QVERIFY(QDir(fixture.directory.path()).mkdir(QStringLiteral("relocated")));
+    const auto path = fixture.directory.filePath(
+        cascadeRelink ? QStringLiteral("relocated/pending.wav") : QStringLiteral("pending.wav"));
     QVERIFY(TestSupport::writeWave(path, QVector<float>(4800, 0.25f)));
-    QSemaphore entered;
-    QSemaphore release;
-    auto *pool = QThreadPool::globalInstance();
-    QTRY_COMPARE(pool->activeThreadCount(), 0);
-    const auto maximumThreads = pool->maxThreadCount();
-    pool->setMaxThreadCount(1);
-    const auto restorePool = qScopeGuard([&] {
-        release.release();
-        pool->waitForDone();
-        pool->setMaxThreadCount(maximumThreads);
-    });
-    pool->start([&] {
-        entered.release();
-        release.acquire();
-    });
-    QTRY_COMPARE_WITH_TIMEOUT(entered.available(), 1, 5000);
+    const auto initialPath =
+        resolvePath ? fixture.directory.filePath(QStringLiteral("missing/pending.wav")) : path;
+    auto document = missingAudioDocument(initialPath);
+    if (resolvePath) {
+        QFile source(path);
+        QVERIFY(source.open(QIODevice::ReadOnly));
+        document.tracks.first().clips.first().audioPathInfo.sha512 = QString::fromLatin1(
+            QCryptographicHash::hash(source.readAll(), QCryptographicHash::Sha512).toHex());
+    }
+    if (cascadeRelink) {
+        QVERIFY(fixture.openDocument(document, InvocationSource::InternalAutomation));
+        QVERIFY(drainTasks());
+        QCOMPARE(fixture.firstAudioClip()->pathStatus(), AudioClip::PathStatus::Missing);
+    }
+    QTRY_COMPARE(QThreadPool::globalInstance()->activeThreadCount(), 0);
+    AudioWorkerBarrier worker;
+    QTRY_VERIFY_WITH_TIMEOUT(worker.ready(), 5000);
     QPointer<Task> preparedTask;
     bool completionDelivered = false;
     TaskId taskId;
@@ -553,16 +593,10 @@ void AudioAssetsTests::audioPreparationWaitsForTheSaveDecision() {
                 preparedTask = task;
                 connect(task, &Task::finished, &observations, [&] { completionDelivered = true; });
             });
-    const auto initialPath =
-        resolvePath ? fixture.directory.filePath(QStringLiteral("missing/pending.wav")) : path;
-    auto document = missingAudioDocument(initialPath);
-    if (resolvePath) {
-        QFile source(path);
-        QVERIFY(source.open(QIODevice::ReadOnly));
-        document.tracks.first().clips.first().audioPathInfo.sha512 = QString::fromLatin1(
-            QCryptographicHash::hash(source.readAll(), QCryptographicHash::Sha512).toHex());
-    }
-    QVERIFY(fixture.openDocument(document, InvocationSource::InternalAutomation));
+    if (cascadeRelink)
+        fixture.controller->resolveMissingClipsNear(path);
+    else
+        QVERIFY(fixture.openDocument(document, InvocationSource::InternalAutomation));
     QTRY_VERIFY_WITH_TIMEOUT(preparedTask, 5000);
     const QPointer<AudioClip> audio(fixture.firstAudioClip());
     QVERIFY(audio);
@@ -580,7 +614,7 @@ void AudioAssetsTests::audioPreparationWaitsForTheSaveDecision() {
     ui.decide = [&] {
         prompted = true;
         expect(workflow->busy(), "the save decision must keep the document workflow busy");
-        release.release();
+        worker.resume();
         const auto completed = QTest::qWaitFor([&] { return completionDelivered; }, 5000);
         expect(completed, "the audio worker must finish during the save decision");
         expect(preparedTask && taskManager->tasks().contains(preparedTask),
@@ -616,6 +650,63 @@ void AudioAssetsTests::audioPreparationWaitsForTheSaveDecision() {
         QVERIFY(completed);
         QCOMPARE(completed.get().state, AutomationTaskState::Succeeded);
     }
+}
+
+void AudioAssetsTests::removingTrackCancelsPendingResolution() {
+    Fixture fixture;
+    QVERIFY(fixture.directory.isValid());
+    const auto path = fixture.directory.filePath(QStringLiteral("pending.wav"));
+    QVERIFY(TestSupport::writeWave(path, QVector<float>(4800, 0.25f)));
+    auto document =
+        missingAudioDocument(fixture.directory.filePath(QStringLiteral("missing/pending.wav")));
+    QFile source(path);
+    QVERIFY(source.open(QIODevice::ReadOnly));
+    document.tracks.first().clips.first().audioPathInfo.sha512 = QString::fromLatin1(
+        QCryptographicHash::hash(source.readAll(), QCryptographicHash::Sha512).toHex());
+    source.close();
+    QTRY_COMPARE(QThreadPool::globalInstance()->activeThreadCount(), 0);
+    AudioWorkerBarrier worker;
+    QTRY_VERIFY_WITH_TIMEOUT(worker.ready(), 5000);
+    TaskId taskId;
+    QPointer<ResolveAudioPathTask> resolving;
+    QObject observations;
+    connect(taskManager, &TaskManager::taskChanged, &observations,
+            [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
+                auto *candidate = dynamic_cast<ResolveAudioPathTask *>(task);
+                if (change == TaskManager::Added && candidate && taskId.isNull()) {
+                    resolving = candidate;
+                    taskId = candidate->automationTaskId;
+                }
+            });
+    QVERIFY(fixture.openDocument(document, InvocationSource::InternalAutomation));
+    QTRY_VERIFY(resolving);
+    const auto base = fixture.runtime().documentVersion();
+    const ClipId clipId(fixture.firstAudioClip()->id());
+    const TrackId trackId(fixture.model().tracks().first()->id());
+    QVERIFY(fixture.runtime().project().removeTracks(fixture.command(InvocationSource::TrustedGui),
+                                                     {trackId}));
+    const auto afterRemoval = fixture.runtime().documentVersion();
+    const auto afterModel = TestSupport::projectSnapshot(fixture.model());
+    const auto *afterUndo = fixture.history()->nextUndoEntry();
+    QCOMPARE(afterRemoval.revision, base.revision + 1);
+    worker.resume();
+    QVERIFY(drainTasks());
+    QVERIFY(!resolving);
+    const auto canceled = fixture.runtime().tasks().getTask(base.documentId, taskId);
+    QVERIFY(canceled);
+    QCOMPARE(canceled.get().state, AutomationTaskState::Canceled);
+    QCOMPARE(fixture.runtime().documentVersion(), afterRemoval);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.model()), afterModel);
+    QCOMPARE(fixture.history()->nextUndoEntry(), afterUndo);
+    QVERIFY(fixture.runtime().history().undo(fixture.command(InvocationSource::TrustedGui)));
+    QVERIFY(drainTasks());
+    const auto *restored = fixture.firstAudioClip();
+    QVERIFY(restored && restored->id() == clipId.value());
+    QCOMPARE(restored->path(), path);
+    QCOMPARE(restored->pathStatus(), AudioClip::PathStatus::Normal);
+    QCOMPARE(restored->audioInfo().frames, 4800);
+    QVERIFY(!restored->audioInfo().peakCache.isEmpty());
+    QVERIFY(!fixture.history()->canUndo());
 }
 
 void AudioAssetsTests::unlinkingAudioSourcePreservesOpenDecodeUntilReload() {

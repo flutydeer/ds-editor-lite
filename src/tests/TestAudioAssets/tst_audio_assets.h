@@ -42,6 +42,7 @@ private slots:
     void decodeBackendFailurePreservesTheDocumentAndAllowsReopen();
     void removingAudioTargetsCancelsPendingDecode_data();
     void removingAudioTargetsCancelsPendingDecode();
+    void removingTrackCancelsPendingResolution();
     void decodedWaveformRetainsPeaks_data();
     void decodedWaveformRetainsPeaks();
     void waveformSamplingFollowsZoom_data();

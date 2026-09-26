@@ -195,7 +195,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 锚点事务的重试与整批拒绝 | edit | 创建预览后提交和重试保持同一曲线身份，改变输入或目标拒绝复用请求；插入/移动跨曲线重叠，以及删除/插值批次包含已删除锚点时，所有曲线、版本及历史保持不变 | ProjectEditing::anchorCreationRetriesKeepTheCommittedIdentity、rejectedAnchorBatchPreservesEveryCurve | 通用；无需声库 |
 | 实际推理的参数依赖和声线变化 | workflow | 表达力度、音高和 gender 分别重算所属下游阶段，保留时长及无关片段；固定混合更新已有分段，同声线跨轨移动保留分段，继承另一声线时重建；撤销恢复输入和声线 | ApplicationWorkflows 的 tst_clip_inference.cpp | 默认内置声库；混合及不同声线场景需要至少两条声线 |
 | RHI 轨道与完整编辑器接线 | gui/workflow | 完整 TrackEditorView 使用 Null RHI 画布，歌声/音频片段共用菜单粘贴预览、取消、提交及撤销流程，检查音频波形资源与裁剪信息；框选、焦点定位、双击新建和文件拖入现有/追加轨道均经实际 Qt 事件验证，并检查轨道控件 | NativeDesktop::rhiTrackMenuPasteAndSelectionUseTheFullEditor、rhiTrackFileDropImportsAtTheChosenSlot | 原生窗口；生成小 WAV；无需播放设备 |
-| 保存决策期间的音频完成回写 | workflow | 共用受控线程池调度真实重定位和解码任务，在生产文档状态机等待保存决策时释放；完成结果保持托管且不修改忙文档的路径或波形，取消新建后继续写回并完成解码，放弃原工程后丢弃旧结果，保留对应历史边界 | AudioAssets::audioPreparationWaitsForTheSaveDecision | 通用；小 WAV；仅保存提示回答使用替身 |
+| 保存决策期间的音频完成回写 | workflow | 共用受控线程池调度真实解码、加载时路径解析及人工重定位后的级联解析，在生产文档状态机等待保存决策时释放；完成结果保持托管且不修改忙文档的路径或波形，取消新建后继续写回并完成解码，放弃原工程后丢弃旧结果，保留对应历史边界 | AudioAssets::audioPreparationWaitsForTheSaveDecision | 通用；小 WAV；仅保存提示回答使用替身 |
 | RHI 钢琴窗的完整编辑与选区 | gui | 完整 PianoRollView 的菜单粘贴保留手动读音，悬停预览及取消不改文档；锚点菜单插值和删除可逐步撤销。音域定位、焦点恢复、隐藏/显示同步视口状态。框选、区间选择与成组拖动检查批量提交和取消；调制拖动重叠后的外边界、两端核心边界和倍率手柄，分别检查核心区、过渡区及范围外样本 | NativeDesktop::rhiPianoMenuPasteAndVisibilityUseTheFullEditor、rhiMultiNoteSelectionAndMoveCommitAtomically、rhiPitchModulationUsesTheInferredBaseline | 原生窗口；Null RHI；调制默认内置声库 |
 | RHI 主窗口主题切换与片段导航 | gui | 两个编辑器随明暗主题更新颜色并提交帧，文档和历史不变；隐藏编辑区后双击片段恢复页面、活动片段及点击位置，再通过真实输入绘制音符及撤销 | NativeDesktop::rhiThemeSwitchPreservesBothEditorsAndTheirDocument | 原生窗口和应用图形后端；不设像素基线 |
 | RHI 视口的滚轮和外部拖入滚动 | gui | 完整钢琴窗的时间轴、键盘与画布转发滚轮到正确轴；轨道文件拖入边缘后持续滚动，离开即停止，保留文档与历史 | NativeDesktop::rhiPianoWheelInputsReachTheActiveViewport、rhiFileDropScrollsUntilTheDragLeaves | 原生窗口；Qt Null 后端；生成小 WAV |
@@ -247,5 +247,6 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 已打开音频文件被移除 | workflow | 格式加载器已持有文件句柄时移除目录项，当前解码仍使用原句柄完成；重开工程重新解析资源后报告 Missing 且不保留旧波形，不制造用户历史 | AudioAssets::unlinkingAudioSourcePreservesOpenDecodeUntilReload | 需文件系统允许移除已被音频后端打开的素材；Windows 删除共享受限时明确 QSKIP |
 | 音频解析期间另存工程 | workflow/protocol | 解析开始后经生产保存器写入另一目录，重新查找该目录中的素材并解码；公开查询只返回已授权的候选路径，相同文件去重，授权撤销后隐藏路径；保留工程、资源和权限状态，无额外撤销，公开加载不因 GUI 保存而弹出提示 | AudioAssets::resolutionRetryPreservesSource | 通用；临时 DSPX/WAV；无需播放设备 |
 | 音频解析到解码与级联重定位 | workflow | 真实控制器完成相对路径解析及 WAV 解码，实际任务的源代际、成功终态、波形和保存点一致；级联拒绝同名但内容不符的来源，换回正确文件后恢复，已恢复的来源不重复变更 | AudioAssets::resolveDecodeTaskProtocol、cascadingRelinkRequiresMatchingAudioIdentity | 通用；临时 WAV；无需播放设备 |
+| 删除待定位音频所属轨道 | workflow | 轨道删除取消尚未完成的路径解析，晚到结果不重建对象或改变历史；撤销恢复相同片段身份，并重新完成真实解析及波形解码 | AudioAssets::removingTrackCancelsPendingResolution；既有待解码目标删除用例 | 通用；临时 WAV；受控线程池；无需播放设备 |
 
 本次还移除无产品实例化入口的旧 G2P/伪声设置页和 `TrackSynthesizer` 及其空容器引用。清理改变统计分母，报告中与新增测试命中的贡献分开说明，不通过排除仍有效的生产文件提高比例。
