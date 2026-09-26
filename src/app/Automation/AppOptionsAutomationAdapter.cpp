@@ -765,17 +765,15 @@ namespace Automation {
                 .effective = effectiveSettings.audio.playheadBehavior,
                 .candidates = {0, 1, 2},
             };
-            QList<SettingsStringCandidateDto> providerCandidates{
-                settingsCandidate(ExecutionProviderUtils::toString(ExecutionProvider::Cpu)),
-                settingsCandidate(ExecutionProviderUtils::toString(ExecutionProvider::DirectML)),
-            };
-            const auto cudaProvider = ExecutionProviderUtils::toString(ExecutionProvider::Cuda);
-            if (ExecutionProviderUtils::availableInBuild(ExecutionProvider::Cuda)) {
-                providerCandidates.append(settingsCandidate(cudaProvider));
-            } else {
+            QList<SettingsStringCandidateDto> providerCandidates;
+            for (const auto provider :
+                 {ExecutionProvider::Cpu, ExecutionProvider::DirectML, ExecutionProvider::Cuda}) {
+                const auto name = ExecutionProviderUtils::toString(provider);
+                const auto available = ExecutionProviderUtils::availableInBuild(provider);
                 providerCandidates.append(settingsCandidate(
-                    cudaProvider, false,
-                    QStringLiteral("This build does not include the CUDA execution provider")));
+                    name, available,
+                    available ? QString{}
+                              : QStringLiteral("%1 is not available in this build").arg(name)));
             }
             QList<SettingsGpuCandidateDto> gpuCandidates;
             if (!configured.inference.selectedGpuId.isEmpty()) {

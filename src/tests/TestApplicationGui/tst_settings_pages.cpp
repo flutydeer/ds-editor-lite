@@ -63,6 +63,8 @@
 #include <QUuid>
 #include <QtTest/QTest>
 
+#include <algorithm>
+
 namespace {
     void deferRestart(QWidget *page) {
         QPointer<RestartDialog> prompt;
@@ -972,6 +974,34 @@ void ApplicationGuiTests::inferenceProviderSelectionDetectsDevicesAndDefersResta
     auto *devices = panel.findChild<ComboBox *>("inferenceDevice");
     QVERIFY(page && provider && devices);
     QCOMPARE(provider->currentText(), QStringLiteral("CPU"));
+    const auto publicSettings =
+        runtime.settings().queryPublicSettings({QStringLiteral("compute_device")});
+    QVERIFY(publicSettings && publicSettings.get().computeDevice);
+    const auto &candidates = publicSettings.get().computeDevice->providerCandidates;
+    QString gpuProvider;
+    for (const auto option : {ExecutionProvider::DirectML, ExecutionProvider::Cuda}) {
+        const auto name = ExecutionProviderUtils::toString(option);
+        const auto available = ExecutionProviderUtils::availableInBuild(option);
+        const auto candidate = std::find_if(candidates.cbegin(), candidates.cend(),
+                                            [&](const auto &value) { return value.id == name; });
+        QVERIFY(candidate != candidates.cend());
+        QCOMPARE(candidate->available, available);
+        QCOMPARE(provider->findText(name) >= 0, available);
+        if (available) {
+            if (gpuProvider.isEmpty())
+                gpuProvider = name;
+        } else {
+            QVERIFY(!candidate->unavailableReason.isEmpty());
+            const auto rejected =
+                runtime.settings().updateComputeDevice({}, {.executionProvider = name});
+            QVERIFY(!rejected);
+            QCOMPARE(rejected.getError().code, Automation::AutomationErrorCode::InvalidArgument);
+            QCOMPARE(rejected.getError().fieldPath, QStringLiteral("execution_provider"));
+            const auto unchanged = runtime.settings().getSettings();
+            QVERIFY(unchanged);
+            QCOMPARE(unchanged.get(), snapshot.get());
+        }
+    }
     const auto chooseProvider = [&](const QString &name) {
         page->ensureWidgetVisible(provider);
         const auto index = provider->findText(name);
@@ -984,28 +1014,30 @@ void ApplicationGuiTests::inferenceProviderSelectionDetectsDevicesAndDefersResta
         QTest::keyClick(provider->view(), Qt::Key_Return);
         deferRestart(page);
     };
-    chooseProvider(QStringLiteral("DirectML"));
-    if (QTest::currentTestFailed())
-        return;
-    QTRY_VERIFY_WITH_TIMEOUT(
-        devices->isEnabled() || provider->currentText() == QStringLiteral("CPU"), 10000);
-    if (devices->isEnabled()) {
-        page->ensureWidgetVisible(devices);
-        selectComboIndex(devices, 1);
+    if (!gpuProvider.isEmpty()) {
+        chooseProvider(gpuProvider);
         if (QTest::currentTestFailed())
             return;
-        QVERIFY(!appOptions->inference()->selectedGpuId.isEmpty());
-        QVERIFY(appOptions->inference()->selectedGpuIndex >= 0);
-        AppOptions persisted;
-        QCOMPARE(persisted.inference()->selectedGpuId, appOptions->inference()->selectedGpuId);
-        selectComboIndex(devices, 0);
-        if (QTest::currentTestFailed())
-            return;
-        QCOMPARE(appOptions->inference()->selectedGpuIndex, -1);
-        QVERIFY(appOptions->inference()->selectedGpuId.isEmpty());
-        chooseProvider(QStringLiteral("CPU"));
-        if (QTest::currentTestFailed())
-            return;
+        QTRY_VERIFY_WITH_TIMEOUT(
+            devices->isEnabled() || provider->currentText() == QStringLiteral("CPU"), 10000);
+        if (devices->isEnabled()) {
+            page->ensureWidgetVisible(devices);
+            selectComboIndex(devices, 1);
+            if (QTest::currentTestFailed())
+                return;
+            QVERIFY(!appOptions->inference()->selectedGpuId.isEmpty());
+            QVERIFY(appOptions->inference()->selectedGpuIndex >= 0);
+            AppOptions persisted;
+            QCOMPARE(persisted.inference()->selectedGpuId, appOptions->inference()->selectedGpuId);
+            selectComboIndex(devices, 0);
+            if (QTest::currentTestFailed())
+                return;
+            QCOMPARE(appOptions->inference()->selectedGpuIndex, -1);
+            QVERIFY(appOptions->inference()->selectedGpuId.isEmpty());
+            chooseProvider(QStringLiteral("CPU"));
+            if (QTest::currentTestFailed())
+                return;
+        }
     }
     QCOMPARE(appOptions->inference()->executionProvider, QStringLiteral("CPU"));
     QVERIFY(!devices->isVisible() || !devices->isEnabled());
@@ -1027,6 +1059,8 @@ void ApplicationGuiTests::inferenceInputsPersistAcrossReopening() {
     const auto restore = qScopeGuard([&] { runtime.settings().updateInference({}, original); });
     const auto steps = original.samplingSteps == 37 ? 23 : 37;
     const auto autoStart = !original.autoStartInference;
+    const auto cpuVocoder = !original.runVocoderOnCpu;
+    const auto effective = ExecutionProviderUtils::effective();
 
     {
         AppOptionsDialog panel;
@@ -1036,9 +1070,11 @@ void ApplicationGuiTests::inferenceInputsPersistAcrossReopening() {
         auto *page = panel.findChild<InferencePage *>();
         auto *sampling = panel.findChild<ComboBox *>("inferenceSamplingSteps");
         auto *automatic = panel.findChild<SwitchButton *>("inferenceAutoStart");
+        auto *vocoder = panel.findChild<SwitchButton *>("inferenceRunVocoderOnCpu");
         QVERIFY(page);
         QVERIFY(sampling);
         QVERIFY(automatic);
+        QVERIFY(vocoder);
         QCOMPARE(appOptions->inference()->executionProvider, QStringLiteral("CPU"));
         page->ensureWidgetVisible(sampling);
         replaceText(sampling->lineEdit(), QLocale().toString(steps));
@@ -1048,11 +1084,18 @@ void ApplicationGuiTests::inferenceInputsPersistAcrossReopening() {
         page->ensureWidgetVisible(automatic);
         QTest::mouseClick(automatic, Qt::LeftButton);
         QCOMPARE(automatic->value(), autoStart);
+        page->ensureWidgetVisible(vocoder);
+        QTest::mouseClick(vocoder, Qt::LeftButton);
+        deferRestart(page);
+        if (QTest::currentTestFailed())
+            return;
+        QCOMPARE(vocoder->value(), cpuVocoder);
 
         const auto changed = runtime.settings().getSettings();
         QVERIFY(changed);
         QCOMPARE(changed.get().inference.samplingSteps, steps);
         QCOMPARE(changed.get().inference.autoStartInference, autoStart);
+        QCOMPARE(changed.get().inference.runVocoderOnCpu, cpuVocoder);
         QJsonObject saved;
         readSavedOptions(saved);
         if (QTest::currentTestFailed())
@@ -1060,6 +1103,7 @@ void ApplicationGuiTests::inferenceInputsPersistAcrossReopening() {
         const auto inference = saved.value(QStringLiteral("inference")).toObject();
         QCOMPARE(inference.value(QStringLiteral("samplingSteps")).toInt(), steps);
         QCOMPARE(inference.value(QStringLiteral("autoStartInfer")).toBool(), autoStart);
+        QCOMPARE(inference.value(QStringLiteral("runVocoderOnCpu")).toBool(), cpuVocoder);
         panel.close();
     }
 
@@ -1069,10 +1113,14 @@ void ApplicationGuiTests::inferenceInputsPersistAcrossReopening() {
         return;
     const auto *sampling = reopened.findChild<ComboBox *>("inferenceSamplingSteps");
     const auto *automatic = reopened.findChild<SwitchButton *>("inferenceAutoStart");
+    const auto *vocoder = reopened.findChild<SwitchButton *>("inferenceRunVocoderOnCpu");
     QVERIFY(sampling);
     QVERIFY(automatic);
+    QVERIFY(vocoder);
     QCOMPARE(QLocale().toInt(sampling->currentText()), steps);
     QCOMPARE(automatic->value(), autoStart);
+    QCOMPARE(vocoder->value(), cpuVocoder);
+    QCOMPARE(ExecutionProviderUtils::effective(), effective);
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
 }

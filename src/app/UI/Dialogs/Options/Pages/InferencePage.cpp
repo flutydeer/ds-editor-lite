@@ -283,11 +283,10 @@ QWidget *InferencePage::createContentWidget() {
     // Device - Execution Provider
     m_cbExecutionProvider = new ComboBox();
     m_cbExecutionProvider->setObjectName(QStringLiteral("inferenceExecutionProvider"));
-    m_cbExecutionProvider->addItems(
-        {ExecutionProviderUtils::toString(ExecutionProvider::Cpu),
-         ExecutionProviderUtils::toString(ExecutionProvider::DirectML)});
-    if (ExecutionProviderUtils::availableInBuild(ExecutionProvider::Cuda)) {
-        m_cbExecutionProvider->addItem(ExecutionProviderUtils::toString(ExecutionProvider::Cuda));
+    for (const auto provider :
+         {ExecutionProvider::Cpu, ExecutionProvider::DirectML, ExecutionProvider::Cuda}) {
+        if (ExecutionProviderUtils::availableInBuild(provider))
+            m_cbExecutionProvider->addItem(ExecutionProviderUtils::toString(provider));
     }
     m_cbExecutionProvider->setCurrentText(option->executionProvider);
 
@@ -350,6 +349,7 @@ QWidget *InferencePage::createContentWidget() {
         dlg->show();
     };
     m_swRunVocoderOnCpu = new SwitchButton(appOptions->inference()->runVocoderOnCpu);
+    m_swRunVocoderOnCpu->setObjectName(QStringLiteral("inferenceRunVocoderOnCpu"));
     connect(m_swRunVocoderOnCpu, &SwitchButton::toggled, this, modifyAndRestart);
 
     // Render - decayInfer
