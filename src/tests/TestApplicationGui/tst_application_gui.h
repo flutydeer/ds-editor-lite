@@ -65,6 +65,8 @@ private slots:
     void audioExportProgressCompletesAndCloses_data();
     void audioExportProgressCompletesAndCloses();
     void appearanceInputsPersistAcrossReopening();
+    void publicUiSettingsPersistAndRollback_data();
+    void publicUiSettingsPersistAndRollback();
     void generalSettingsKeepSeparateDefaultLyricsForEachLanguage();
     void switchingUiLanguagePreservesSettingsAndTheOpenDocument();
     void experimentalRendererSettingPersistsWhenRestartIsDeferred();
