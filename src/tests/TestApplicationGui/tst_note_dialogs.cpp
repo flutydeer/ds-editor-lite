@@ -723,6 +723,22 @@ void ApplicationGuiTests::phonemeBoundaryDragCommitsAndUndoRestoresOffsets() {
         return qRound(appModel->msToTick(appModel->tickToMs(note->globalStart()) +
                                          note->phonemeOffsetSeq().result().at(index)));
     };
+    const auto beforeZoomedOutInput = runtime.documentVersion();
+    const auto beforeZoomedOutModel = TestSupport::projectSnapshot(*appModel);
+    const auto *zoomedOutNote = notes.at(1);
+    QVERIFY(!zoomedOutNote->phonemeOffsetSeq().result().isEmpty());
+    phonemes.setTimeRange(0, 19200);
+    const auto blockedPosition =
+        QPoint(qRound(phonemeTick(zoomedOutNote, 0) * phonemes.width() / 19200.0), 50);
+    QVERIFY(phonemes.rect().contains(blockedPosition));
+    QTest::mousePress(&phonemes, Qt::LeftButton, Qt::NoModifier, blockedPosition);
+    const bool startedTransaction = editSessionManager->hasActiveTransaction();
+    QTest::mouseMove(&phonemes, blockedPosition + QPoint(20, 0));
+    QTest::mouseRelease(&phonemes, Qt::LeftButton, Qt::NoModifier, blockedPosition + QPoint(20, 0));
+    QVERIFY(!startedTransaction);
+    QCOMPARE(runtime.documentVersion(), beforeZoomedOutInput);
+    QCOMPARE(TestSupport::projectSnapshot(*appModel), beforeZoomedOutModel);
+    phonemes.setTimeRange(0, 1920);
     const auto dragAndUndo = [&](Note *note, const qsizetype index, const int requestedTick,
                                  const int expectedTick) {
         const auto original = note->phonemeOffsetSeq();

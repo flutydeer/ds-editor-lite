@@ -7,6 +7,7 @@
 #include "UI/Views/ClipEditor/PianoRoll/PianoKeyboardView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
+#include "UI/Views/ClipEditor/PianoRoll/PhonemeView.h"
 #include <lite/ProjectModel/AppModel/AppModel.h>
 
 #include <lite/History/HistoryManager.h>
@@ -160,7 +161,7 @@ void ApplicationGuiTests::pianoKeyboardGlissandoAndHideReleasePressedNotes() {
     QVERIFY(!historyManager->canUndo());
 }
 
-void ApplicationGuiTests::pianoKeyboardRangeAndScrollingFollowTheEditor() {
+void ApplicationGuiTests::pianoAuxiliaryViewsNavigateWithoutChangingTheDocument() {
     createPianoRoll();
     if (QTest::currentTestFailed())
         return;
@@ -198,6 +199,26 @@ void ApplicationGuiTests::pianoKeyboardRangeAndScrollingFollowTheEditor() {
     QApplication::sendEvent(keyboard, &wheel);
     QTRY_VERIFY(editor.viewState().centerKeyIndex != beforeScroll);
     QVERIFY(wheel.isAccepted());
+
+    auto *phonemes = editor.findChild<PhonemeView *>();
+    QVERIFY(phonemes && phonemes->isVisible());
+    QVERIFY(editor.setTimeViewport(2400, 1.0));
+    const auto beforePhonemeZoom = editor.viewState();
+    const auto phonemePosition = phonemes->rect().center();
+    const auto wheelOnPhonemes = [&](int delta, Qt::KeyboardModifiers modifiers) {
+        QWheelEvent event(QPointF(phonemePosition), QPointF(phonemes->mapToGlobal(phonemePosition)),
+                          {}, {0, delta}, Qt::NoButton, modifiers, Qt::NoScrollPhase, false);
+        QApplication::sendEvent(phonemes, &event);
+        QVERIFY(event.isAccepted());
+    };
+    wheelOnPhonemes(120, Qt::ControlModifier);
+    QTRY_VERIFY(editor.viewState().horizontalScale > beforePhonemeZoom.horizontalScale);
+    QCOMPARE(editor.viewState().centerKeyIndex, beforePhonemeZoom.centerKeyIndex);
+    QCOMPARE(editor.viewState().verticalScale, beforePhonemeZoom.verticalScale);
+    const auto beforePhonemeScroll = editor.viewState();
+    wheelOnPhonemes(-120, Qt::ShiftModifier);
+    QTRY_VERIFY(editor.viewState().centerTick > beforePhonemeScroll.centerTick);
+    QCOMPARE(editor.viewState().horizontalScale, beforePhonemeScroll.horizontalScale);
     QVERIFY(receipt.events.isEmpty());
     QCOMPARE(context->m_coreRuntime->documentVersion(), before);
     QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
