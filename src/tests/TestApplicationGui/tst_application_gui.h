@@ -159,6 +159,8 @@ private slots:
     void trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned_data();
     void trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned();
     void playbackPopupsEditTheMarkerChosenWhenTheyOpen();
+    void timelineLaneInputsEditAndRemoveMarkers_data();
+    void timelineLaneInputsEditAndRemoveMarkers();
     void playbackTextInputsValidateCommitAndCancel();
     void loopControlsCommitAndUndoTheSelectedRange_data();
     void loopControlsCommitAndUndoTheSelectedRange();

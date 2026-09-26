@@ -26,6 +26,7 @@ lite_add_test(${PROJECT_NAME} SOURCES
     tst_audio_midi_settings.cpp
     tst_track_controls.cpp
     tst_playback_controls.cpp
+    tst_timeline_lanes.cpp
     tst_pitch_modulation.cpp
     tst_piano_clipboard_scroll.cpp
     tst_lyric_grid.cpp

@@ -250,5 +250,6 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 音频解析到解码与级联重定位 | workflow | 真实控制器完成相对路径解析及 WAV 解码，实际任务的源代际、成功终态、波形和保存点一致；级联拒绝同名但内容不符的来源，换回正确文件后恢复，已恢复的来源不重复变更 | AudioAssets::resolveDecodeTaskProtocol、cascadingRelinkRequiresMatchingAudioIdentity | 通用；临时 WAV；无需播放设备 |
 | 删除待定位音频所属轨道 | workflow | 轨道删除取消尚未完成的路径解析，晚到结果不重建对象或改变历史；撤销恢复相同片段身份，并重新完成真实解析及波形解码 | AudioAssets::removingTrackCancelsPendingResolution；既有待解码目标删除用例 | 通用；临时 WAV；受控线程池；无需播放设备 |
 | MIDI 拍号导入与时间线兼容性 | workflow | 导入复用时间线投影校验，接受产品支持的 7/32 等拍号；保留拍号后文档符合领域约束，忽略拍号时仍保留所选轨道、速度和 Unicode 歌词 | DocumentIO::selectionAndGeometry | 通用；真实生产转换器；无需设备 |
+| 轨道信息栏的速度与拍号编辑 | gui | 两种信息栏共用真实双击和右键菜单流程：空白处创建、取消草稿、编辑已有标记、首标记删除保护和其他标记删除；每次提交只改变目标时间线内容，连续撤销恢复完整工程 | ApplicationGui::timelineLaneInputsEditAndRemoveMarkers | offscreen；真实信息栏、编辑对话框及控制器；无需声库或设备 |
 
 本次还移除无产品实例化入口的旧 G2P/伪声设置页和 `TrackSynthesizer` 及其空容器引用。清理改变统计分母，报告中与新增测试命中的贡献分开说明，不通过排除仍有效的生产文件提高比例。
