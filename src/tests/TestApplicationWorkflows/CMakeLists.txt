@@ -5,6 +5,7 @@ lite_add_test(${PROJECT_NAME} SOURCES
     tst_application_workflows.h tst_application_workflows.cpp tst_audio_workflows.cpp
     tst_audio_import.cpp
     tst_project_files.cpp
+    tst_package_catalog.cpp
     tst_clip_inference.cpp
     tst_export_presets.cpp
     tst_audio_path_update.cpp
