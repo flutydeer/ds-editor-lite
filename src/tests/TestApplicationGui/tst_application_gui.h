@@ -160,6 +160,8 @@ private slots:
     void trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned();
     void playbackPopupsEditTheMarkerChosenWhenTheyOpen();
     void playbackTextInputsValidateCommitAndCancel();
+    void loopControlsCommitAndUndoTheSelectedRange_data();
+    void loopControlsCommitAndUndoTheSelectedRange();
     void tapTempoMeasuresASequenceAndResetsAfterInactivity();
     void mixerChannelInputsAndLevelsStayScoped_data();
     void mixerChannelInputsAndLevelsStayScoped();

@@ -162,6 +162,63 @@ void ApplicationGuiTests::playbackPopupsEditTheMarkerChosenWhenTheyOpen() {
     QVERIFY(!historyManager->canUndo());
 }
 
+void ApplicationGuiTests::loopControlsCommitAndUndoTheSelectedRange_data() {
+    QTest::addColumn<bool>("shortcut");
+    QTest::newRow("button") << false;
+    QTest::newRow("shortcut") << true;
+}
+
+void ApplicationGuiTests::loopControlsCommitAndUndoTheSelectedRange() {
+    QFETCH(bool, shortcut);
+    auto &runtime = *context->m_coreRuntime;
+    PlaybackView controls;
+    controls.show();
+    controls.activateWindow();
+    QTRY_VERIFY(controls.isActiveWindow());
+    QVERIFY(runtime.timeline().setTimeSignature(commandContext(), 0, 3, 4));
+    QVERIFY(runtime.playback().clearLoop(commandContext()));
+    auto *loop = controls.findChild<QPushButton *>("btnLoop");
+    QVERIFY(loop && !loop->isChecked());
+    QVERIFY(runtime.playback().seek(commandContext(), 1920));
+    historyManager->reset();
+    const auto before = runtime.documentVersion();
+    const auto project = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto snapshot = [&] { return runtime.playback().getPlayback(before.documentId); };
+    const auto toggle = [&] {
+        if (shortcut)
+            QTest::keyClick(&controls, Qt::Key_L, Qt::AltModifier);
+        else
+            QTest::mouseClick(loop, Qt::LeftButton);
+    };
+
+    toggle();
+    QVERIFY(loop->isChecked());
+    QVERIFY(snapshot() && snapshot().get().loop.enabled);
+    const LoopSettings selected(true, 1440, 1440);
+    QCOMPARE(snapshot().get().loop.start, selected.start);
+    QCOMPARE(snapshot().get().loop.length, selected.length);
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), project);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(snapshot().get().loop, LoopSettings{});
+    QVERIFY(!loop->isChecked());
+    QVERIFY(!historyManager->canUndo());
+    QVERIFY(runtime.history().redo(commandContext()));
+    QCOMPARE(snapshot().get().loop, selected);
+    QVERIFY(loop->isChecked());
+
+    const auto beforeDisable = runtime.documentVersion();
+    toggle();
+    QTRY_VERIFY(snapshot() && !snapshot().get().loop.enabled);
+    QCOMPARE(snapshot().get().loop, LoopSettings(false, selected.start, selected.length));
+    QVERIFY(!loop->isChecked());
+    QCOMPARE(runtime.documentVersion().revision, beforeDisable.revision + 1);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(snapshot().get().loop, selected);
+    QVERIFY(loop->isChecked());
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), project);
+}
+
 void ApplicationGuiTests::tapTempoMeasuresASequenceAndResetsAfterInactivity() {
     qint64 nowMs = 0;
     TempoEditWidget editor(nullptr, [&] { return nowMs; });
