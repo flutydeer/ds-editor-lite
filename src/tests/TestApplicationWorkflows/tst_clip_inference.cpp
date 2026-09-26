@@ -6,6 +6,7 @@
 #include "Modules/Inference/Tasks/InferAcousticCacheProbeTask.h"
 #include "Modules/Inference/Tasks/GetPhonemeNameTask.h"
 #include "Modules/Inference/Tasks/GetPronunciationTask.h"
+#include "Modules/Inference/Utils/InferCacheUtils.h"
 #include "../TestSupport/VoicebankFixture.h"
 #include "Controller/PlaybackController.h"
 #include "Model/AppOptions/AppOptions.h"
@@ -89,6 +90,97 @@ void ApplicationWorkflowTests::prepareVoicebankTarget() {
     QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(clip), 15000);
     QCOMPARE(clip->pieces().size(), 1);
     piece = clip->pieces().first();
+}
+
+void ApplicationWorkflowTests::cacheCleanupProtectsRestoredInference() {
+    QTemporaryDir materials;
+    QVERIFY(materials.isValid());
+    const auto previousCache = appOptions->inference()->cacheDirectory;
+    const auto cacheDirectory = materials.filePath(QStringLiteral("cache"));
+    appOptions->inference()->cacheDirectory = cacheDirectory;
+    const auto restoreCache = qScopeGuard([&] {
+        appOptions->inference()->cacheDirectory = previousCache;
+        if (QTest::currentTestFailed())
+            materials.setAutoRemove(false);
+    });
+    const auto releaseProject = qScopeGuard([&] {
+        QVERIFY(runtime().documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 15000);
+    });
+    prepareVoicebankTarget();
+    if (QTest::currentTestFailed())
+        return;
+    inferController->startPendingAcousticInference();
+    QTRY_VERIFY_WITH_TIMEOUT(
+        piece->state == QStringLiteral("Ready") && taskManager->tasks().isEmpty(), 15000);
+    const auto cached = InferAcousticTask::lookupCache(
+        InferControllerHelper::buildInferAcousticInput(*piece, clip->singerIdentifier()));
+    QVERIFY(cached.hit);
+    QCOMPARE(piece->audioPath, cached.outputCachePath);
+    QMap<QString, QByteArray> protectedFiles;
+    for (const auto &path : {cached.inputCachePath, cached.outputCachePath}) {
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        protectedFiles.insert(path, file.readAll());
+        QVERIFY(!protectedFiles.value(path).isEmpty());
+    }
+
+    auto restored = Automation::DocumentAutomationFacade::newDocumentDraft(false);
+    restored.timeline = context->m_appModel->timeline();
+    restored.masterControl = context->m_appModel->masterControl();
+    restored.tracks = {Automation::trackDraftDto(*context->m_appModel->tracks().first())};
+    const auto oldDocument = runtime().documentVersion().documentId;
+    QVERIFY(runtime().documents().commitNewDocument(commandContext(), restored));
+    QVERIFY(runtime().documentVersion().documentId != oldDocument);
+    clip = dynamic_cast<SingingClip *>(*context->m_appModel->tracks().first()->clips().begin());
+    QVERIFY(clip);
+    QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(clip), 15000);
+    QCOMPARE(clip->pieces().size(), 1);
+    piece = clip->pieces().first();
+    QCOMPARE(piece->state.get(), QStringLiteral("Ready"));
+    QCOMPARE(piece->audioPath, cached.outputCachePath);
+    // A cache probe restores playback without registering a new acoustic task.
+    QVERIFY(!InferCacheUtils::registeredCacheFiles().contains(
+        QFileInfo(cached.outputCachePath).absoluteFilePath().toLower()));
+
+    const auto unused =
+        QDir(cacheDirectory)
+            .filePath(
+                QStringLiteral("infer-acoustic-output-%1.wav").arg(QString(40, QLatin1Char('0'))));
+    const auto unrelated = QDir(cacheDirectory).filePath(QStringLiteral("user-note.txt"));
+    for (const auto &path : {unused, unrelated}) {
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        QCOMPARE(file.write("unrelated data"), qint64{14});
+    }
+    const auto document = runtime().documentVersion();
+    const auto model = context->m_appModel->serialize();
+    const auto result =
+        InferCacheUtils::cleanCache(cacheDirectory, InferCacheUtils::collectActiveCacheFiles());
+    QVERIFY(result.retainedActiveCount >= protectedFiles.size());
+    QVERIFY(result.deletedCount > 0);
+    QVERIFY(!QFileInfo::exists(unused));
+    QVERIFY(QFileInfo::exists(unrelated));
+    for (auto it = protectedFiles.cbegin(); it != protectedFiles.cend(); ++it) {
+        QFile file(it.key());
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(file.readAll(), it.value());
+    }
+    QCOMPARE(runtime().documentVersion(), document);
+    QCOMPARE(context->m_appModel->serialize(), model);
+    QVERIFY(!historyManager->canUndo());
+
+    QVERIFY(runtime().documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 15000);
+    const auto released =
+        InferCacheUtils::cleanCache(cacheDirectory, InferCacheUtils::collectActiveCacheFiles());
+    QCOMPARE(released.retainedActiveCount, 0);
+    QCOMPARE(released.retainedLockedCount, 0);
+    for (auto it = protectedFiles.cbegin(); it != protectedFiles.cend(); ++it)
+        QVERIFY(!QFileInfo::exists(it.key()));
+    QVERIFY(QFileInfo::exists(unrelated));
 }
 
 void ApplicationWorkflowTests::acousticCacheWriteFailureCanBeRetried() {
