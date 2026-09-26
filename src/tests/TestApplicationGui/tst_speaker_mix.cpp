@@ -506,7 +506,8 @@ void ApplicationGuiTests::speakerMixPresetsFollowSaveSelectAndDeleteInputs() {
     QCOMPARE(list->getLabels().size(), 3);
     QCOMPARE(list->getValues(), QVector<int>({34, 33, 33}));
 
-    const auto deletePreset = [&](QMessageBox::StandardButton response) {
+    const auto choosePresetAction = [&](const QString &label,
+                                        QMessageBox::StandardButton response) {
         bool visited = false;
         QTimer confirmation;
         confirmation.setSingleShot(true);
@@ -529,7 +530,7 @@ void ApplicationGuiTests::speakerMixPresetsFollowSaveSelectAndDeleteInputs() {
             QVERIFY(menu);
             const auto close = qScopeGuard([&] { menu->close(); });
             for (auto *action : menu->actions()) {
-                if (action->text() != SpeakerMixDialog::tr("Delete"))
+                if (action->text() != label)
                     continue;
                 QVERIFY(action->isEnabled());
                 confirmation.start(0);
@@ -537,18 +538,54 @@ void ApplicationGuiTests::speakerMixPresetsFollowSaveSelectAndDeleteInputs() {
                                   menu->actionGeometry(action).center());
                 return;
             }
-            QFAIL("Delete action was not found");
+            QFAIL(qPrintable(QStringLiteral("Preset action was not found: %1").arg(label)));
         });
         choose.start(0);
         QTest::mouseClick(more, Qt::LeftButton);
         QVERIFY(visited);
     };
-    deletePreset(QMessageBox::No);
+    auto *invert = mixButton(reopened, SpeakerMixDialog::tr("Invert"));
+    auto *all = mixButton(reopened, SpeakerMixDialog::tr("All"));
+    QVERIFY(invert && all);
+    QTest::mouseClick(invert, Qt::LeftButton);
+    QCOMPARE(list->getLabels().size(), 1);
+    const auto onlySource = list->getLabels().first();
+    auto *onlyTag = speakerTag(reopened, onlySource);
+    QVERIFY(onlyTag && onlyTag->isChecked());
+    QTest::mouseClick(onlyTag, Qt::LeftButton);
+    QVERIFY(onlyTag->isChecked());
+    QCOMPARE(list->getLabels(), QVector<QString>{onlySource});
+    QTest::mouseClick(all, Qt::LeftButton);
+    QCOMPARE(list->getLabels().size(), singer.speakers().size());
+    QTest::mouseClick(invert, Qt::LeftButton);
+    QCOMPARE(list->getLabels().size(), 1);
+    const auto beforeReset = list->getLabels();
+    choosePresetAction(SpeakerMixDialog::tr("Initialize"), QMessageBox::No);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(list->getLabels(), beforeReset);
+    QCOMPARE(presets->currentData().toString(), savedId);
+    choosePresetAction(SpeakerMixDialog::tr("Initialize"), QMessageBox::Yes);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(presets->currentIndex(), 0);
+    QCOMPARE(list->getLabels(),
+             QVector<QString>({QStringLiteral("bright"), QStringLiteral("warm"),
+                               QStringLiteral("air")}));
+    QCOMPARE(list->getValues(), QVector<int>({34, 33, 33}));
+    QVERIFY(SpeakerMixPresetStore::findPreset(savedId));
+    QTest::mouseClick(presets, Qt::LeftButton);
+    QTRY_VERIFY(presets->view()->isVisible());
+    QTest::keyClick(presets->view(), Qt::Key_End);
+    QTest::keyClick(presets->view(), Qt::Key_Return);
+    QCOMPARE(presets->currentData().toString(), savedId);
+
+    choosePresetAction(SpeakerMixDialog::tr("Delete"), QMessageBox::No);
     if (QTest::currentTestFailed())
         return;
     QVERIFY(SpeakerMixPresetStore::findPreset(savedId));
     QCOMPARE(presets->currentData().toString(), savedId);
-    deletePreset(QMessageBox::Yes);
+    choosePresetAction(SpeakerMixDialog::tr("Delete"), QMessageBox::Yes);
     if (QTest::currentTestFailed())
         return;
     QVERIFY(!SpeakerMixPresetStore::findPreset(savedId));
