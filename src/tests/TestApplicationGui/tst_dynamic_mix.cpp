@@ -53,10 +53,11 @@ namespace {
         return graphics.mapFromScene(QPointF(visible.left() + ratio * visible.width(), y));
     }
 
-    void movePressedMouse(QWidget &viewport, const QPoint &position) {
+    void movePressedMouse(QWidget &viewport, const QPoint &position,
+                          Qt::KeyboardModifiers modifiers = {}) {
         QMouseEvent move(QEvent::MouseMove, QPointF(position),
                          QPointF(viewport.mapToGlobal(position)), Qt::NoButton, Qt::LeftButton,
-                         Qt::NoModifier);
+                         modifiers);
         QApplication::sendEvent(&viewport, &move);
     }
 
@@ -81,18 +82,30 @@ namespace {
     }
 }
 
+void ApplicationGuiTests::dynamicSpeakerMixGesturesPreserveIdentityAndUndo_data() {
+    QTest::addColumn<bool>("proportionalDrag");
+    QTest::newRow("adjacent-speakers") << false;
+    QTest::newRow("alt-preserves-speaker-group-ratio") << true;
+}
+
 void ApplicationGuiTests::dynamicSpeakerMixGesturesPreserveIdentityAndUndo() {
+    QFETCH(bool, proportionalDrag);
     createPianoRoll();
     if (QTest::currentTestFailed())
         return;
     const SpeakerInfo bright(QStringLiteral("bright"), QStringLiteral("Bright"));
     const SpeakerInfo warm(QStringLiteral("warm"), QStringLiteral("Warm"));
+    const SpeakerInfo soft(QStringLiteral("soft"), QStringLiteral("Soft"));
+    const QList<SpeakerInfo> speakers = proportionalDrag ? QList<SpeakerInfo>{bright, warm, soft}
+                                                         : QList<SpeakerInfo>{bright, warm};
     const SingerInfo singer({QStringLiteral("mix"), QStringLiteral("gui"), QVersionNumber(1, 0)},
-                            QStringLiteral("Mix"), {bright, warm});
+                            QStringLiteral("Mix"), speakers);
     SpeakerMixModel::SpeakerMixData fixed;
     fixed.mode = SpeakerMixModel::SingerSourceMode::FixedMix;
     fixed.sources = {{bright}, {warm}};
-    fixed.fixedWeights = {0.5};
+    if (proportionalDrag)
+        fixed.sources.append({soft});
+    fixed.fixedWeights = proportionalDrag ? QVector<double>{0.2, 0.3} : QVector<double>{0.5};
     auto &runtime = *context->m_coreRuntime;
     QVERIFY(runtime.parameters().applyClipSpeakerMix(
         commandContext(), Automation::ClipId(singingClip->id()), singer, bright, fixed));
@@ -127,8 +140,8 @@ void ApplicationGuiTests::dynamicSpeakerMixGesturesPreserveIdentityAndUndo() {
     const auto point = [&](const int tick, const double heightRatio) {
         return speakerMixPoint(*graphics, tick, heightRatio);
     };
-    const auto dragTo = [&](const QPoint &position) {
-        movePressedMouse(*graphics->viewport(), position);
+    const auto dragTo = [&](const QPoint &position, Qt::KeyboardModifiers modifiers = {}) {
+        movePressedMouse(*graphics->viewport(), position, modifiers);
     };
     const auto addPoint = point(480, 0.5);
     QVERIFY(graphics->viewport()->rect().contains(addPoint));
@@ -141,7 +154,7 @@ void ApplicationGuiTests::dynamicSpeakerMixGesturesPreserveIdentityAndUndo() {
     QCOMPARE(afterAdd.dynamicKeyframes.first().id, anchorId);
     const auto added = afterAdd.dynamicKeyframes.last();
     QVERIFY(added.id != anchorId);
-    QCOMPARE(added.weights, QVector<double>{0.5});
+    QCOMPARE(added.weights, initial.dynamicKeyframes.first().weights);
 
     const auto beforeNoOp = runtime.documentVersion();
     QTest::mouseClick(graphics->viewport(), Qt::LeftButton, Qt::NoModifier, point(added.tick, 0.9));
@@ -167,26 +180,38 @@ void ApplicationGuiTests::dynamicSpeakerMixGesturesPreserveIdentityAndUndo() {
     const auto changedWeight = point(tick, 0.75);
     const auto beforeCancel = runtime.documentVersion();
     const auto *undoEntry = historyManager->nextUndoEntry();
-    QTest::mousePress(graphics->viewport(), Qt::LeftButton, Qt::NoModifier, split);
-    dragTo(changedWeight);
-    QVERIFY(mix->workingMixData().dynamicKeyframes.last().weights.first() > 0.5);
+    const auto modifiers = proportionalDrag ? Qt::AltModifier : Qt::NoModifier;
+    const auto releaseModifier = qScopeGuard([&] {
+        if (proportionalDrag)
+            QTest::keyRelease(graphics, Qt::Key_Alt);
+    });
+    QTest::mousePress(graphics->viewport(), Qt::LeftButton, modifiers, split);
+    dragTo(changedWeight, modifiers);
+    QVERIFY(mix->workingMixData().dynamicKeyframes.last().weights.first() > added.weights.first());
     QCOMPARE(singingClip->speakerMixData(), afterMove);
     QTest::keyClick(graphics, Qt::Key_Escape);
-    QTest::mouseRelease(graphics->viewport(), Qt::LeftButton, Qt::NoModifier, changedWeight);
+    QTest::mouseRelease(graphics->viewport(), Qt::LeftButton, modifiers, changedWeight);
     QCOMPARE(runtime.documentVersion(), beforeCancel);
     QCOMPARE(historyManager->nextUndoEntry(), undoEntry);
     QCOMPARE(mix->workingMixData(), afterMove);
     QCOMPARE(commits.size(), 2);
 
-    QTest::mousePress(graphics->viewport(), Qt::LeftButton, Qt::NoModifier, split);
-    dragTo(changedWeight);
+    QTest::mousePress(graphics->viewport(), Qt::LeftButton, modifiers, split);
+    dragTo(changedWeight, modifiers);
     const auto weightPreview = mix->workingMixData();
-    QTest::mouseRelease(graphics->viewport(), Qt::LeftButton, Qt::NoModifier, changedWeight);
+    QTest::mouseRelease(graphics->viewport(), Qt::LeftButton, modifiers, changedWeight);
     QCOMPARE(commits.size(), 3);
     QCOMPARE(singingClip->speakerMixData(), weightPreview);
     QCOMPARE(weightPreview.dynamicKeyframes.last().id, added.id);
     QCOMPARE(weightPreview.dynamicKeyframes.first().id, anchorId);
-    QVERIFY(weightPreview.dynamicKeyframes.last().weights.first() > 0.5);
+    const auto weights = weightPreview.dynamicKeyframes.last().weights;
+    QVERIFY(weights.first() > added.weights.first());
+    if (proportionalDrag) {
+        QCOMPARE(weights.size(), 2);
+        QVERIFY(qAbs(weights[0] * added.weights[1] - weights[1] * added.weights[0]) < 1e-9);
+        QVERIFY(weights[0] + weights[1] > added.weights[0] + added.weights[1]);
+        QCOMPARE(weightPreview.dynamicKeyframes.first(), initial.dynamicKeyframes.first());
+    }
 
     historyManager->undo();
     QCOMPARE(singingClip->speakerMixData(), afterMove);

@@ -94,6 +94,7 @@ private slots:
     void noteLanguageMenuChangesOnlyTheSelectedWords_data();
     void noteLanguageMenuChangesOnlyTheSelectedWords();
     void lyricSearchNavigatesTheActualEditorAndHandlesNoMatches();
+    void dynamicSpeakerMixGesturesPreserveIdentityAndUndo_data();
     void dynamicSpeakerMixGesturesPreserveIdentityAndUndo();
     void dynamicSpeakerMixRangeDeletionAndContextMenu();
     void dynamicSpeakerMixNavigationUsesProjectTime_data();

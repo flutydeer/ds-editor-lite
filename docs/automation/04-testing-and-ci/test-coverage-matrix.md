@@ -189,7 +189,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 歌词网格和声音上下文编辑 | gui/domain | 跨行选择、行移动、删除及拆行后的继续编辑；Ctrl＋滚轮缩放同步单元格尺寸，普通滚轮滚动后仍可准确选择和删除歌词；清空轨道/片段声音上下文和读音恢复；检查归属、继承、通知及撤销 | ApplicationGui 的 tst_lyric_grid.cpp；ProjectEditing | offscreen/通用 |
 | 轨道和规则完整拖放 | gui | Qt QDrag 经过真实事件执行轨道首尾移动及取消，检查头部/片段映射和一次撤销；规则排序保留未应用详情与 ID，并改变实际规则优先级，保存后重开 | EditorInteraction 的 tst_list_reordering.cpp | minimal；无需原生桌面 |
 | 轨道菜单、快捷键与音频文件选择 | gui/workflow | 新建轨道/片段、剪切和删除的撤销链；新文档清除旧轨道及片段选择后，主窗口轨道焦点下经全选、复制、粘贴、剪切和删除快捷键验证分发、播放位置锚定及撤销恢复；实际文件选择确认/取消、Unicode 路径解码及一次提交 | ApplicationGui 的 tst_track_menus.cpp、trackEditShortcutsFollowTheFocusedPanelAndUndo | offscreen；临时 WAV |
-| 动态声线编辑与导航 | gui | 区间/菜单删除和首帧保护；旁路、恢复、停止/取消及撤销后的控件状态；非零片段起点下关键帧导航的播放位置和视口 | ApplicationGui 的 tst_dynamic_mix.cpp | offscreen；声线元数据；无需设备 |
+| 动态声线编辑与导航 | gui | 普通拖动与三声线 Alt 比例拖动共用增帧、移动、取消和撤销流程，保留组内比例及未修改首帧；区间/菜单删除和首帧保护；旁路、恢复、停止/取消及撤销后的控件状态；非零片段起点下关键帧导航的播放位置和视口 | ApplicationGui 的 tst_dynamic_mix.cpp | offscreen；声线元数据；无需设备 |
 | 音频并发与有损导出 | workflow | 普通/Future 片段读取期间范围更新须等待，修改后 PCM 正确；MP3/Ogg 经公开导出入口和实际编码解码验证有限非零采样、时长与格式，显式格式选择传递有损格式确认 | ApplicationWorkflows 的 tst_audio_workflows.cpp | 通用；受控读源；无需设备 |
 | 音频驱动延迟启动与释放 | workflow/native | 停止或销毁发生在延迟启动前，或与线程启动相邻时，不再执行悬空回调或丢失停止请求；独立进程退出验证未初始化的 ASIO 驱动不会释放其他组件的 COM 环境 | NativeDesktop::audioDriverStartupCanBeCanceled | 可用音频后端；逐例条件跳过；同一程序的独立子进程 |
 | RHI 音高调制与音频时间锚定 | gui/workflow | 真实声库给出推理片段基线，检查局部调制、取消及单次撤销；双声道 WAV 实际解码后检查总览、峰值和采样点缩放的命中，再经鼠标裁边和跨轨移动，保留毫秒锚定与材料长度 | NativeDesktop::rhiPitchModulationUsesTheInferredBaseline、rhiAudioClipTrimAndMovePreserveTimeAnchors | 原生窗口；调制默认内置声库；音频无需播放设备 |
