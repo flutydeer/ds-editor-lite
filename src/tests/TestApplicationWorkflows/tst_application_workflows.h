@@ -57,6 +57,7 @@ private slots:
     void audioBatchFailurePolicy();
 
     void audioBatchCancellationReleasesRetry();
+    void audioBatchCancellationReleasesRetry_data();
     void audioBatchValidationDoesNotStartTasks_data();
     void audioBatchValidationDoesNotStartTasks();
     void audioBatchRejectsChangesBeforeCommit_data();

@@ -2,6 +2,7 @@
 
 #include "Automation/Public/PublicAutomationHostAdapter.h"
 #include "Automation/Public/PublicAutomationRegistry.h"
+#include "../TestSupport/ThreadPoolBarrier.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -16,6 +17,7 @@
 #include <QtTest>
 
 #include <algorithm>
+#include <memory>
 
 using namespace Automation;
 
@@ -162,12 +164,21 @@ void ApplicationWorkflowTests::audioBatchFailurePolicy() {
     QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
 }
 
+void ApplicationWorkflowTests::audioBatchCancellationReleasesRetry_data() {
+    QTest::addColumn<bool>("prepareDecoders");
+    QTest::newRow("cancel-on-admission") << false;
+    QTest::newRow("cancel-pending-decode") << true;
+}
+
 void ApplicationWorkflowTests::audioBatchCancellationReleasesRetry() {
+    QFETCH(bool, prepareDecoders);
     QTemporaryDir files;
     QVERIFY(files.isValid());
     const auto path = files.filePath(QStringLiteral("phrase.wav"));
     QVERIFY(writeAudio(path));
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
     const auto before = runtime().documentVersion();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto *beforeUndo = HistoryManager::instance()->nextUndoEntry();
     const auto beforeClips = context->m_appModel->tracks().first()->clips().count();
     PublicAudioClipBatchImportRequest request{
@@ -180,9 +191,18 @@ void ApplicationWorkflowTests::audioBatchCancellationReleasesRetry() {
                                                              &SynthrtEngine::instance());
     const auto accepted = services.importAudioClips(request);
     QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
-    // Completion reaches the document through queued connections; cancel before dispatching them.
+    std::unique_ptr<TestSupport::ThreadPoolBarrier> decoders;
+    if (prepareDecoders) {
+        QVERIFY(QThreadPool::globalInstance()->waitForDone(5000));
+        decoders = std::make_unique<TestSupport::ThreadPoolBarrier>();
+        QTRY_VERIFY_WITH_TIMEOUT(decoders->ready(), 5000);
+        // Publishing hash results queues decode work behind the occupied pool thread.
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+    }
     const auto cancel = runtime().tasks().cancelTask(commandContext(), accepted.get().taskId);
     QVERIFY2(cancel, qPrintable(cancel ? QString{} : cancel.getError().message));
+    if (decoders)
+        decoders->resume();
     QTRY_VERIFY_WITH_TIMEOUT(terminal(runtime(), accepted.get()), 10000);
     const auto canceled = runtime().tasks().getTask(before.documentId, accepted.get().taskId);
     QVERIFY(canceled);
@@ -190,6 +210,7 @@ void ApplicationWorkflowTests::audioBatchCancellationReleasesRetry() {
     QVERIFY(!canceled.get().mutation);
     QCOMPARE(runtime().documentVersion(), before);
     QCOMPARE(context->m_appModel->tracks().first()->clips().count(), beforeClips);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
     QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
 
     const auto retried = services.importAudioClips(request);
@@ -204,6 +225,7 @@ void ApplicationWorkflowTests::audioBatchCancellationReleasesRetry() {
     QCOMPARE(context->m_appModel->tracks().first()->clips().count(), beforeClips + 2);
     QVERIFY(runtime().history().undo(commandContext()));
     QCOMPARE(context->m_appModel->tracks().first()->clips().count(), beforeClips);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
     QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
 }
 

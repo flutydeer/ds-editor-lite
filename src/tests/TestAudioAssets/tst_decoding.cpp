@@ -18,6 +18,7 @@
 #include "Modules/Audio/subsystem/OutputSystem.h"
 #include "../TestSupport/RuntimeResourcesFixture.h"
 #include "../TestSupport/WaveFixture.h"
+#include "../TestSupport/ThreadPoolBarrier.h"
 
 #include <lite/Tasking/TaskManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
@@ -192,36 +193,6 @@ namespace {
         QList<ProjectOperationError> errors;
     };
 
-    class AudioWorkerBarrier final {
-    public:
-        AudioWorkerBarrier() : maximumThreads(pool->maxThreadCount()) {
-            pool->setMaxThreadCount(1);
-            pool->start([this] {
-                entered.release();
-                release.acquire();
-            });
-        }
-
-        ~AudioWorkerBarrier() {
-            resume();
-            pool->waitForDone();
-            pool->setMaxThreadCount(maximumThreads);
-        }
-
-        bool ready() const {
-            return entered.available() == 1;
-        }
-
-        void resume() {
-            release.release();
-        }
-
-    private:
-        QThreadPool *pool = QThreadPool::globalInstance();
-        int maximumThreads;
-        QSemaphore entered;
-        QSemaphore release;
-    };
 }
 
 void AudioAssetsTests::initTestCase() {
@@ -569,7 +540,7 @@ void AudioAssetsTests::audioPreparationWaitsForTheSaveDecision() {
         QCOMPARE(fixture.firstAudioClip()->pathStatus(), AudioClip::PathStatus::Missing);
     }
     QTRY_COMPARE(QThreadPool::globalInstance()->activeThreadCount(), 0);
-    AudioWorkerBarrier worker;
+    TestSupport::ThreadPoolBarrier worker;
     QTRY_VERIFY_WITH_TIMEOUT(worker.ready(), 5000);
     QPointer<Task> preparedTask;
     bool completionDelivered = false;
@@ -665,7 +636,7 @@ void AudioAssetsTests::removingTrackCancelsPendingResolution() {
         QCryptographicHash::hash(source.readAll(), QCryptographicHash::Sha512).toHex());
     source.close();
     QTRY_COMPARE(QThreadPool::globalInstance()->activeThreadCount(), 0);
-    AudioWorkerBarrier worker;
+    TestSupport::ThreadPoolBarrier worker;
     QTRY_VERIFY_WITH_TIMEOUT(worker.ready(), 5000);
     TaskId taskId;
     QPointer<ResolveAudioPathTask> resolving;
