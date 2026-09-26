@@ -44,6 +44,7 @@
 #include <QTabBar>
 #include <QTabWidget>
 #include <QTimer>
+#include <QWheelEvent>
 #include <QtTest/QTest>
 
 #include <algorithm>
@@ -345,6 +346,27 @@ void ApplicationGuiTests::fillLyricInputsCommitOrCancel() {
                 QCOMPARE(runtime.documentVersion(), before);
                 QVERIFY(!historyManager->canUndo());
             }
+            const auto textBeforeZoom = input->toPlainText();
+            const auto fontSize = input->font().pointSizeF();
+            const auto position = input->viewport()->rect().center();
+            const auto wheel = [&](int delta, Qt::KeyboardModifiers modifiers) {
+                QWheelEvent event(position, input->viewport()->mapToGlobal(position), QPoint(),
+                                  QPoint(0, delta), Qt::NoButton, modifiers, Qt::NoScrollPhase,
+                                  false);
+                QApplication::sendEvent(input->viewport(), &event);
+            };
+            wheel(240, Qt::ControlModifier);
+            QCOMPARE(input->font().pointSizeF(), fontSize + 2.0);
+            const auto zoomed = runtime.settings().getSettings();
+            QVERIFY(zoomed);
+            QCOMPARE(zoomed.get().fillLyric.textEditFontSize, fontSize + 2.0);
+            AppOptions reopened;
+            QCOMPARE(reopened.fillLyric()->textEditFontSize, fontSize + 2.0);
+            wheel(-120, Qt::NoModifier);
+            QCOMPARE(input->font().pointSizeF(), fontSize + 2.0);
+            QCOMPARE(input->toPlainText(), textBeforeZoom);
+            QCOMPARE(runtime.documentVersion(), before);
+            QVERIFY(!historyManager->canUndo());
             QTest::mouseClick(foldPreview, Qt::LeftButton);
             auto *preview = dialog->findChild<FillLyric::LyricWrapView *>();
             QVERIFY(preview && !preview->isVisible());
