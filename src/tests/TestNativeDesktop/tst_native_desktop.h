@@ -19,6 +19,7 @@ private slots:
     void visibilityAndCollapsedPane();
     void reparentAndDestructionKeepGripOwnership();
     void customWindowButtonsKeepTheDetachedPanelAndDocument();
+    void mainWindowSplitterDragRestoresPanelSizes();
     void dragGrip_data();
     void dragGrip();
     void effectiveDurationPolicy();

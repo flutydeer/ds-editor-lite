@@ -15,6 +15,8 @@
 #include <QPointer>
 #include <QResizeEvent>
 #include <QScopeGuard>
+#include <QSplitterHandle>
+#include <QSignalSpy>
 
 namespace {
     class ResizeProbe final : public QWidget {
@@ -138,13 +140,77 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
     exerciseButtons(*bottom, title->minimizeButton(), title->maximizeButton());
     if (QTest::currentTestFailed())
         return;
+    const auto detachedGeometry = bottom->geometry();
     QTest::mouseClick(title->closeButton(), Qt::LeftButton);
     QTRY_VERIFY(!bottom->isWindow() && bottom->isVisible());
     QCOMPARE(bottom->parentWidget(), splitter);
     QTRY_COMPARE(splitter->sizes(), sizes);
     QCOMPARE(bottom->currentPageId(), QStringLiteral("MixConsole"));
+    QTest::mouseClick(detach, Qt::LeftButton);
+    QTRY_VERIFY(bottom->isWindow() && bottom->isVisible());
+    QTRY_COMPARE(bottom->geometry(), detachedGeometry);
+    QTest::mouseClick(title->closeButton(), Qt::LeftButton);
+    QTRY_VERIFY(!bottom->isWindow() && bottom->isVisible());
+    QTRY_COMPARE(splitter->sizes(), sizes);
     QCOMPARE(fixture.context->m_coreRuntime->documentVersion(), before);
     QCOMPARE(fixture.context->m_appModel->serialize(), beforeModel);
+    QVERIFY(!historyManager->canUndo());
+}
+
+void NativeDesktopTests::mainWindowSplitterDragRestoresPanelSizes() {
+    if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
+        QSKIP("Splitter dragging requires a native window backend");
+    GuiDocumentFixture fixture;
+    QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
+    MainWindow window;
+    TestSupport::placeWindowOnScreen(window, {1200, 800});
+    window.show();
+    window.activateWindow();
+    QTRY_VERIFY(window.isActiveWindow());
+    QVERIFY(window.showBottomPanelPage(QStringLiteral("MixConsole")));
+    auto *bottom = window.findChild<BottomPanelView *>();
+    QVERIFY(bottom);
+    auto *splitter = qobject_cast<QSplitter *>(bottom->parentWidget());
+    QVERIFY(splitter);
+    auto *handle = splitter->handle(1);
+    QVERIFY(handle && handle->isVisible());
+    QSignalSpy moved(splitter, &QSplitter::splitterMoved);
+    const auto dragTo = [&](int y) {
+        const auto press = handle->rect().center();
+        const auto global = splitter->mapToGlobal(QPoint(splitter->width() / 2, y));
+        QTest::mousePress(handle, Qt::LeftButton, Qt::NoModifier, press);
+        QMouseEvent move(QEvent::MouseMove, QPointF(handle->mapFromGlobal(global)), QPointF(global),
+                         Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(handle, &move);
+        QTest::mouseRelease(handle, Qt::LeftButton, Qt::NoModifier, handle->mapFromGlobal(global));
+    };
+    const auto document = fixture.context->m_coreRuntime->documentVersion();
+    const auto initial = splitter->sizes();
+    dragTo(initial.first() + (initial.first() < initial.last() ? 40 : -40));
+    QTRY_VERIFY(!moved.isEmpty());
+    QTRY_VERIFY(splitter->sizes() != initial);
+    const auto resized = splitter->sizes();
+    QVERIFY(resized.first() > 0 && resized.last() > 0);
+
+    dragTo(0);
+    QTRY_COMPARE(splitter->sizes().first(), 0);
+    auto state = window.captureEditorViewState();
+    QVERIFY(!state.layout.trackPanelVisible);
+    QVERIFY(state.layout.bottomPanelVisible);
+    QVERIFY(window.setEditorPanelVisibility(true, true));
+    QTRY_COMPARE(splitter->sizes(), resized);
+
+    dragTo(splitter->height());
+    QTRY_COMPARE(splitter->sizes().last(), 0);
+    state = window.captureEditorViewState();
+    QVERIFY(state.layout.trackPanelVisible);
+    QVERIFY(!state.layout.bottomPanelVisible);
+    QVERIFY(window.setEditorPanelVisibility(true, true));
+    QTRY_COMPARE(splitter->sizes(), resized);
+    state = window.captureEditorViewState();
+    QVERIFY(state.layout.trackPanelVisible && state.layout.bottomPanelVisible);
+    QCOMPARE(state.layout.bottomPanelPageId, QStringLiteral("MixConsole"));
+    QCOMPARE(fixture.context->m_coreRuntime->documentVersion(), document);
     QVERIFY(!historyManager->canUndo());
 }
 
