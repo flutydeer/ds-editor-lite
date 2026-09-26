@@ -159,6 +159,7 @@ void ApplicationWorkflowTests::publicAudioPathUpdatesPrepareCommitAndUndo() {
         const auto previousInfo = audio->pathInfo();
         const auto previousFormat = audio->workspace().value("diffscope.audio.formatData");
         const auto previousStatus = audio->pathStatus();
+        const auto previousAsset = audioAssetSnapshotDto(*audio);
         const auto *beforeUndo = HistoryManager::instance()->nextUndoEntry();
         const auto accepted = invoke(operation, requestedPath);
         QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
@@ -224,6 +225,8 @@ void ApplicationWorkflowTests::publicAudioPathUpdatesPrepareCommitAndUndo() {
                     QCOMPARE(task.get().error->fieldPath, QStringLiteral("path"));
             }
             QVERIFY(!task.get().mutation);
+            QCOMPARE(audioAssetSnapshotDto(*audio), previousAsset);
+            QCOMPARE(audio->pathStatus(), previousStatus);
             QCOMPARE(runtime().documentVersion(), expectedVersion);
             QCOMPARE(context->m_appModel->serialize(), expectedModel);
             QCOMPARE(HistoryManager::instance()->nextUndoEntry(), expectedUndo);
