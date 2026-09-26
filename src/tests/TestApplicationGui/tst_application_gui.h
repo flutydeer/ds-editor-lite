@@ -132,6 +132,8 @@ private slots:
     void rejectedProjectInputAllowsTheNextRequest();
     void pendingProjectLoadCanCancelOrRequestExit_data();
     void pendingProjectLoadCanCancelOrRequestExit();
+    void projectOpenWaitsForPackageMetadata_data();
+    void projectOpenWaitsForPackageMetadata();
     void taggerRuleInputsApplyPersistAndReopen();
     void invalidTaggerRegexPreservesAppliedRules();
     void movingLyricsBackwardUsesTheSelectedWordRange_data();

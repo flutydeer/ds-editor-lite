@@ -5,6 +5,7 @@
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
 #include "Controller/DocumentWorkflow/IDocumentWorkflowUi.h"
 #include "Controller/Tasks/OpenDspxProjectTask.h"
+#include "Model/AppStatus/AppStatus.h"
 #include "UI/Dialogs/Base/ProgressDialog.h"
 
 #include <lite/History/HistoryManager.h>
@@ -27,7 +28,7 @@
 #include <algorithm>
 
 namespace {
-    class SavePrompt final : public IDocumentWorkflowUi {
+    class WorkflowPrompt final : public IDocumentWorkflowUi {
     public:
         QWidget *documentWorkflowParentWidget() override {
             return nullptr;
@@ -48,7 +49,8 @@ namespace {
         }
 
         bool confirmOpenWithoutPackageMetadata() override {
-            return false;
+            ++metadataCalls;
+            return allowWithoutMetadata;
         }
 
         void showDocumentWorkflowError(const ProjectOperationError &error) override {
@@ -66,9 +68,113 @@ namespace {
         int decisionCalls = 0;
         int pathCalls = 0;
         int busyCalls = 0;
+        int metadataCalls = 0;
+        bool allowWithoutMetadata = false;
         bool promptsWereBusy = true;
         std::function<void()> duringPrompt;
     };
+}
+
+void ApplicationGuiTests::projectOpenWaitsForPackageMetadata_data() {
+    QTest::addColumn<QString>("completion");
+    QTest::newRow("ready") << QStringLiteral("ready");
+    QTest::newRow("scan-failed-open-anyway") << QStringLiteral("accept");
+    QTest::newRow("scan-failed-cancel") << QStringLiteral("reject");
+    QTest::newRow("cancel-before-ready") << QStringLiteral("cancel");
+}
+
+void ApplicationGuiTests::projectOpenWaitsForPackageMetadata() {
+    QFETCH(QString, completion);
+    QTRY_COMPARE(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready);
+    QTRY_VERIFY(taskManager->tasks().isEmpty());
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+    const auto before = runtime.documentVersion();
+    const auto beforeModel = context->m_appModel->serialize();
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const auto path = directory.filePath(QStringLiteral("waiting-for-packages.dspx"));
+    AppModel imported;
+    auto *track = new Track;
+    track->setName(QStringLiteral("Loaded after scanning"));
+    QVERIFY(imported.appendTrack(track));
+    DspxProjectConverter converter;
+    QString error;
+    QVERIFY2(converter.save(path, &imported, error), qPrintable(error));
+
+    WorkflowPrompt prompt;
+    prompt.allowWithoutMetadata = completion == QStringLiteral("accept");
+    auto *workflow = documentWorkflowController;
+    workflow->setUi(&prompt);
+    const auto previousStatus = appStatus->packageModuleStatus.get();
+    const auto restore = qScopeGuard([&] {
+        workflow->setUi(nullptr);
+        appStatus->packageModuleStatus = previousStatus;
+        if (QTest::currentTestFailed())
+            directory.setAutoRemove(false);
+    });
+    const auto cancelPending = qScopeGuard([&] {
+        workflow->cancelCurrentOperation();
+        QTRY_VERIFY_WITH_TIMEOUT(!workflow->busy(), 10000);
+    });
+    int parseStarts = 0;
+    QObject observations;
+    connect(taskManager, &TaskManager::taskChanged, &observations,
+            [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
+                if (const auto *parse = dynamic_cast<OpenDspxProjectTask *>(task);
+                    change == TaskManager::Added && parse && parse->filePath() == path)
+                    ++parseStarts;
+            });
+    appStatus->packageModuleStatus = AppStatus::ModuleStatus::Loading;
+    workflow->requestOpen(path);
+    QTRY_VERIFY(([&] {
+        for (auto *window : QApplication::topLevelWidgets()) {
+            if (auto *progress = qobject_cast<ProgressDialog *>(window);
+                progress && progress->isVisible())
+                return true;
+        }
+        return false;
+    })());
+    QVERIFY(workflow->busy());
+    QCOMPARE(parseStarts, 0);
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(context->m_appModel->serialize(), beforeModel);
+    if (completion == QStringLiteral("cancel")) {
+        workflow->cancelCurrentOperation();
+        QTRY_VERIFY(!workflow->busy());
+        appStatus->packageModuleStatus = AppStatus::ModuleStatus::Ready;
+    } else {
+        appStatus->packageModuleStatus = completion == QStringLiteral("ready")
+                                             ? AppStatus::ModuleStatus::Ready
+                                             : AppStatus::ModuleStatus::Error;
+    }
+    QTRY_VERIFY_WITH_TIMEOUT(!workflow->busy(), 10000);
+    QCOMPARE(prompt.metadataCalls,
+             completion == QStringLiteral("accept") || completion == QStringLiteral("reject") ? 1
+                                                                                              : 0);
+    QVERIFY(prompt.errors.isEmpty());
+    const bool opened =
+        completion == QStringLiteral("ready") || completion == QStringLiteral("accept");
+    QCOMPARE(parseStarts, opened ? 1 : 0);
+    if (!opened) {
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+        QCoreApplication::processEvents();
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(context->m_appModel->serialize(), beforeModel);
+        QCOMPARE(parseStarts, 0);
+        appStatus->packageModuleStatus = AppStatus::ModuleStatus::Ready;
+        workflow->requestOpen(path);
+        QTRY_VERIFY_WITH_TIMEOUT(!workflow->busy(), 10000);
+        QCOMPARE(parseStarts, 1);
+    }
+    QVERIFY(runtime.documentVersion().documentId != before.documentId);
+    QCOMPARE(context->m_appModel->tracks().size(), 1);
+    QCOMPARE(context->m_appModel->tracks().first()->name(), track->name());
+    QCOMPARE(QFileInfo(workflow->projectPath()).canonicalFilePath(),
+             QFileInfo(path).canonicalFilePath());
+    QVERIFY(historyManager->isOnSavePoint());
+    QVERIFY(!historyManager->canUndo());
 }
 
 void ApplicationGuiTests::newDocumentHonorsTheSaveDecision_data() {
@@ -93,7 +199,7 @@ void ApplicationGuiTests::newDocumentHonorsTheSaveDecision() {
     const auto *beforeUndo = HistoryManager::instance()->nextUndoEntry();
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
-    SavePrompt prompt;
+    WorkflowPrompt prompt;
     if (choice == QStringLiteral("cancel"))
         prompt.decisions = {SaveDecision::Cancel};
     else if (choice == QStringLiteral("discard"))
@@ -196,7 +302,7 @@ void ApplicationGuiTests::rejectedProjectInputAllowsTheNextRequest() {
         QVERIFY(file.open(QIODevice::WriteOnly));
         QCOMPARE(file.write("unsupported"), 11);
     }
-    SavePrompt prompt;
+    WorkflowPrompt prompt;
     prompt.decisions = {SaveDecision::Discard};
     auto *workflow = documentWorkflowController;
     workflow->setUi(&prompt);
@@ -272,7 +378,7 @@ void ApplicationGuiTests::pendingProjectLoadCanCancelOrRequestExit() {
     QString error;
     QVERIFY2(converter.save(path, &imported, error), qPrintable(error));
 
-    SavePrompt prompt;
+    WorkflowPrompt prompt;
     prompt.decisions = {SaveDecision::Discard, action == QStringLiteral("exit-discard")
                                                    ? SaveDecision::Discard
                                                    : SaveDecision::Cancel};

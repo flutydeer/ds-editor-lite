@@ -68,6 +68,7 @@
 | MIDI 输入至实时合成器 | workflow | 设备异常处理不等同于真实消息输入 | 使用已配置专用回环端口，检查生产设备选择、配置落盘、note-on/off 接收、有效 PCM 及释放后归零；清理自己打开的端口 | NativeDesktop::configuredMidiLoopbackFeedsLiveSynthesizer | 未配置双端口 QSKIP；部分配置或指定后的执行失败为 FAIL |
 | Legacy 片段裁边与音频时间锚点 | gui | 纯几何与 RHI 裁边不能证明 Legacy 输入接线，原用例仅移动歌声片段 | 扩展既有轨道手势数据行，检查两种片段的移动/左右裁边、音频毫秒属性、预览与提交分离、取消和撤销重做；键盘离开松音和滚轮转发归入原键盘流程 | ApplicationGui::trackClipDragCommitsOrCancels、pianoKeyboardGlissandoAndHideReleasePressedNotes | offscreen；临时 WAV；无需设备 |
 | 文档加载中的取消、退出与新编辑 | workflow/gui | 保存决策已有验证，运行中解析与提交前重新确认缺少接线验证 | 暂停真实解析 worker，经进度窗口取消或申请退出；加载期间的编辑要求再次确认，取消保留新编辑，随后可重新打开 | ApplicationGui::pendingProjectLoadCanCancelOrRequestExit | offscreen；真实 DSPX 文件；受控任务时序 |
+| DSPX 打开等待声库元数据 | workflow | 已就绪环境中的打开未经过包扫描等待状态 | 控制包扫描状态，等待期间不启动解析或更换文档；就绪后打开，扫描失败按用户选择继续或取消；等待中取消后不响应晚到就绪，之后仍可再次打开 | ApplicationGui::projectOpenWaitsForPackageMetadata | offscreen 承载；真实 DSPX；受控包状态与外部 UI 回答 |
 | 批量音频预检与目标换代 | workflow | 已覆盖解码失败和取消，预检及准备期间目标变化存在缺口 | 预检不启动任务，原子失败与部分可用分别处理；删除目标轨道或替换文档后不提交旧结果 | ApplicationWorkflows::audioBatchValidationDoesNotStartTasks、audioBatchRejectsChangesBeforeCommit | 通用；临时 WAV |
 | 音频解码失败与删除取消 | workflow | 领域写回失败不能证明真实 worker 的取消及恢复接线 | 外部解码器打开失败不修改用户历史；源文件消失报告缺失；删除片段/轨道取消解码，撤销后重新获得波形 | AudioAssets::decodeBackendFailurePreservesTheDocumentAndAllowsReopen、removingAudioTargetsCancelsPendingDecode | 通用；文件删除按平台共享能力执行 |
 | 声学缓存写出失败 | workflow | 成功声库执行未进入缓存写出错误及重试路径 | 真实声学推理遇到不可写缓存路径后进入失败终态；恢复路径后再次请求成功，不修改音符或用户历史 | ApplicationWorkflows::acousticCacheWriteFailureCanBeRetried | 内置声库；CPU；临时目录 |
