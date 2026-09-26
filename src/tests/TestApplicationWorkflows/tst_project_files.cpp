@@ -353,6 +353,8 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan_data() {
         << QStringLiteral("dspx") << false << QByteArray("replace-source");
     QTest::newRow("edit-while-opening")
         << QStringLiteral("dspx") << true << QByteArray("edit-document");
+    QTest::newRow("converter-fails-after-admission")
+        << QStringLiteral("libresvip") << false << QByteArray("converter-error");
 }
 
 void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
@@ -442,12 +444,16 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
     };
     if (opening)
         arguments.insert(QStringLiteral("unsaved_policy"), QStringLiteral("discard"));
-    const auto accepted = registry.invoke(
-        opening ? QStringLiteral("documents.open") : QStringLiteral("documents.import"), arguments,
-        {.clientId = QStringLiteral("project-import-client"),
-         .source = Automation::InvocationSource::PublicJsonRpc});
+    const auto load = [&] {
+        return registry.invoke(opening ? QStringLiteral("documents.open")
+                                       : QStringLiteral("documents.import"),
+                               arguments,
+                               {.clientId = QStringLiteral("project-import-client"),
+                                .source = Automation::InvocationSource::PublicJsonRpc});
+    };
+    const auto accepted = load();
     QVERIFY2(accepted, qPrintable(accepted ? QString() : accepted.getError().message));
-    const auto id =
+    auto id =
         Automation::TaskId::fromString(accepted.get().value(QStringLiteral("task_id")).toString());
     QVERIFY(!id.isNull());
     if (changeAfterAdmission == "cancel") {
@@ -461,6 +467,8 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
         QVERIFY(runtime().project().renameTrack(commandContext(),
                                                 Automation::TrackId(originalTracks.first()->id()),
                                                 QStringLiteral("Edit while opening")));
+    } else if (changeAfterAdmission == "converter-error") {
+        qputenv("DSEL_TEST_LIBRESVIP_RESULT", "error");
     }
     const auto expectedRetainedVersion = runtime().documentVersion();
     const auto expectedRetainedModel = TestSupport::projectSnapshot(*context->m_appModel);
@@ -472,7 +480,7 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
                    task().get().state == Automation::AutomationTaskState::Failed ||
                    task().get().state == Automation::AutomationTaskState::Canceled),
         10000);
-    const auto terminal = task().get();
+    auto terminal = task().get();
     if (!changeAfterAdmission.isEmpty()) {
         QCOMPARE(terminal.state, changeAfterAdmission == "cancel"
                                      ? Automation::AutomationTaskState::Canceled
@@ -483,7 +491,19 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
         QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), expectedRetainedModel);
         QCOMPARE(historyManager->canUndo(), changeAfterAdmission == "edit-document");
         QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
-        return;
+        if (changeAfterAdmission != "converter-error")
+            return;
+        QVERIFY(terminal.error->message.contains(QStringLiteral("Fixture conversion rejected")));
+        qputenv("DSEL_TEST_LIBRESVIP_RESULT", "success");
+        const auto retried = load();
+        QVERIFY2(retried, qPrintable(retried ? QString{} : retried.getError().message));
+        const auto failedId = id;
+        id = Automation::TaskId::fromString(
+            retried.get().value(QStringLiteral("task_id")).toString());
+        QVERIFY(!id.isNull() && id != failedId);
+        QTRY_VERIFY_WITH_TIMEOUT(
+            task() && task().get().state == Automation::AutomationTaskState::Succeeded, 10000);
+        terminal = task().get();
     }
     QVERIFY2(terminal.state == Automation::AutomationTaskState::Succeeded,
              qPrintable(terminal.error ? terminal.error->message : QString()));
