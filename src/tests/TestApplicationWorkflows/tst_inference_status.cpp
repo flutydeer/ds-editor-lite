@@ -15,6 +15,7 @@
 #include <lite/ProjectModel/InferenceData/InferPiece.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 #include <lite/Tasking/TaskManager.h>
+#include <lite/History/HistoryManager.h>
 
 #include <QJsonArray>
 #include <QEvent>
@@ -163,9 +164,16 @@ void ApplicationWorkflowTests::publicInferenceStatusAssociatesTasksWithTheirScop
         if (!taskId.isNull())
             runtime().automationTasks().requestCancel(documentId, taskId);
         inferController->cancelPieceInference(targetPieceId);
+        runtime().documents().commitNewDocument(
+            commandContext(), DocumentAutomationFacade::newDocumentDraft(false));
         QThreadPool::globalInstance()->waitForDone();
         QCoreApplication::processEvents();
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+        if (QTest::currentTestFailed())
+            cache.setAutoRemove(false);
+        else
+            QTRY_VERIFY(cache.remove());
     });
     const QJsonObject request{
         {QStringLiteral("document_id"),       documentId.toString()                                        },
@@ -252,4 +260,76 @@ void ApplicationWorkflowTests::publicInferenceStatusAssociatesTasksWithTheirScop
         QCOMPARE(stage.value(QStringLiteral("state")).toString(), QStringLiteral("ready"));
         QVERIFY(stage.value(QStringLiteral("task_id")).isNull());
     }
+
+    const QPointer<InferPiece> companionPiece(companion->pieces().first());
+    const QPointer<InferPiece> unrelatedPiece(otherClip->pieces().first());
+    const auto companionPitch = companionPiece->originalPitch;
+    const auto companionVariance = companionPiece->originalBreathiness;
+    const auto companionAudio = companionPiece->audioPath;
+    const auto unrelatedPitch = unrelatedPiece->originalPitch;
+    const auto unrelatedVariance = unrelatedPiece->originalBreathiness;
+    const auto noteBeforeReset = (*clip->notes().begin())->serialize();
+    const auto *undoBeforeReset = HistoryManager::instance()->nextUndoEntry();
+    QVERIFY(!targetPiece->originalPitch.isEmpty());
+    QVERIFY(!targetPiece->audioPath.isEmpty());
+    const auto reset =
+        registry.invoke(QStringLiteral("inference.reset_stage"),
+                        {
+                            {QStringLiteral("document_id"),       documentId.toString()  },
+                            {QStringLiteral("expected_revision"),
+                             static_cast<qint64>(runtime().documentVersion().revision)   },
+                            {QStringLiteral("scope"),             scope                  },
+                            {QStringLiteral("stage"),             QStringLiteral("pitch")}
+    },
+                        invocation);
+    QVERIFY2(reset, qPrintable(reset ? QString{} : reset.getError().message));
+    QVERIFY(reset.get().value(QStringLiteral("changed")).toBool());
+    QVERIFY(targetPiece && companionPiece && unrelatedPiece);
+    QVERIFY(targetPiece->originalPitch.isEmpty());
+    QVERIFY(targetPiece->originalBreathiness.isEmpty());
+    QVERIFY(targetPiece->audioPath.isEmpty());
+    QCOMPARE((*clip->notes().begin())->serialize(), noteBeforeReset);
+    QCOMPARE(companionPiece->originalPitch, companionPitch);
+    QCOMPARE(companionPiece->originalBreathiness, companionVariance);
+    QCOMPARE(companionPiece->audioPath, companionAudio);
+    QCOMPARE(unrelatedPiece->originalPitch, unrelatedPitch);
+    QCOMPARE(unrelatedPiece->originalBreathiness, unrelatedVariance);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undoBeforeReset);
+    QCOMPARE(targetPiece->acousticInferStatus.get(), Pending);
+    const auto resetStatus = status(scope);
+    QVERIFY(resetStatus);
+    QCOMPARE(inferenceStage(resetStatus.get(), QStringLiteral("duration"))
+                 .value(QStringLiteral("state"))
+                 .toString(),
+             QStringLiteral("ready"));
+    for (const auto &stage :
+         {QStringLiteral("pitch"), QStringLiteral("variance"), QStringLiteral("acoustic")}) {
+        const auto current = inferenceStage(resetStatus.get(), stage);
+        QCOMPARE(current.value(QStringLiteral("state")).toString(), QStringLiteral("stale"));
+        QVERIFY(current.value(QStringLiteral("task_id")).isNull());
+    }
+
+    auto repeatedRequest = request;
+    repeatedRequest.insert(QStringLiteral("scope"), scope);
+    repeatedRequest.insert(QStringLiteral("expected_revision"),
+                           static_cast<qint64>(runtime().documentVersion().revision));
+    const auto repeated =
+        registry.invoke(QStringLiteral("inference.start"), repeatedRequest, invocation);
+    QVERIFY2(repeated, qPrintable(repeated ? QString{} : repeated.getError().message));
+    taskId = TaskId::fromString(repeated.get().value(QStringLiteral("task_id")).toString());
+    QVERIFY(!taskId.isNull());
+    QTRY_VERIFY_WITH_TIMEOUT(terminal(), 15000);
+    const auto recomputed = runtime().tasks().getTask(documentId, taskId);
+    QVERIFY(recomputed);
+    QVERIFY2(recomputed.get().state == AutomationTaskState::Succeeded,
+             qPrintable(recomputed.get().error ? recomputed.get().error->message : QString{}));
+    QVERIFY(!targetPiece->originalPitch.isEmpty());
+    QVERIFY(!targetPiece->audioPath.isEmpty());
+    QVERIFY(companionPiece && unrelatedPiece);
+    QCOMPARE(companionPiece->originalPitch, companionPitch);
+    QCOMPARE(companionPiece->originalBreathiness, companionVariance);
+    QCOMPARE(companionPiece->audioPath, companionAudio);
+    QCOMPARE(unrelatedPiece->originalPitch, unrelatedPitch);
+    QCOMPARE(unrelatedPiece->originalBreathiness, unrelatedVariance);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undoBeforeReset);
 }
