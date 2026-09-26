@@ -19,6 +19,7 @@
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PhonemeView.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
+#include "UI/Views/Common/LanguageComboBox.h"
 #include "UI/Window/MainWindow.h"
 
 #include <lite/GUI/Controls/AccentButton.h>
@@ -448,14 +449,78 @@ void ApplicationGuiTests::phonemeDialogValidatesCommitsAndResetsThroughTheNoteMe
         return;
     QTest::mouseClick(first->cbIsOnset(), Qt::LeftButton);
     QTest::mouseClick(second->cbIsOnset(), Qt::LeftButton);
+    auto *insert = noteDialogButton(second, PhonemeNameItemView::tr("Insert"));
+    QVERIFY(insert);
+    QTest::mouseClick(insert, Qt::LeftButton);
+    QCOMPARE(list->count(), 3);
+    auto *added = qobject_cast<PhonemeNameItemView *>(list->itemWidget(list->item(1)));
+    QVERIFY(added);
+    QCOMPARE(added->cbLanguage()->currentLanguage(), draft.language);
+    enterNoteText(added->leName(), QStringLiteral("n"));
+    if (QTest::currentTestFailed())
+        return;
+    auto *languages = added->cbLanguage();
+    const auto english = languages->findData(QStringLiteral("eng"));
+    QVERIFY(english >= 0);
+    languages->setFocus();
+    QTRY_VERIFY(languages->hasFocus());
+    QTest::keyClick(languages, Qt::Key_Home);
+    for (int row = 0; row < english; ++row)
+        QTest::keyClick(languages, Qt::Key_Down);
+    QCOMPARE(languages->currentLanguage(), QStringLiteral("eng"));
+    const auto chooseRowAction = [&](int row, const QString &text) {
+        auto *item = list->item(row);
+        QVERIFY(item);
+        list->scrollToItem(item);
+        bool selected = false;
+        QTimer choose;
+        choose.setSingleShot(true);
+        connect(&choose, &QTimer::timeout, dialog.data(), [&] {
+            auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+            QVERIFY(menu);
+            const auto close = qScopeGuard([&] { menu->close(); });
+            for (auto *action : menu->actions()) {
+                if (action->text() == text) {
+                    QTest::mouseClick(menu, Qt::LeftButton, Qt::NoModifier,
+                                      menu->actionGeometry(action).center());
+                    selected = true;
+                    return;
+                }
+            }
+        });
+        const auto position = list->visualItemRect(item).center();
+        QContextMenuEvent event(QContextMenuEvent::Mouse, position,
+                                list->viewport()->mapToGlobal(position));
+        choose.start(0);
+        QApplication::sendEvent(list->viewport(), &event);
+        choose.stop();
+        QVERIFY(selected);
+    };
+    chooseRowAction(1, QStringLiteral("Insert Below"));
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(list->count(), 4);
+    auto *temporary = qobject_cast<PhonemeNameItemView *>(list->itemWidget(list->item(2)));
+    QVERIFY(temporary);
+    QCOMPARE(temporary->cbLanguage()->currentLanguage(), QStringLiteral("eng"));
+    chooseRowAction(2, QStringLiteral("Delete"));
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(list->count(), 3);
+    QCOMPARE(runtime.documentVersion(), before);
+    QVERIFY(note->phonemeNameSeq().edited.isEmpty());
     QTest::mouseClick(dialog->okButton(), Qt::LeftButton);
     QTRY_VERIFY(!dialog->isVisible());
     QCOMPARE(finished.size(), 1);
     const auto edited = note->phonemeNameSeq().edited;
-    QCOMPARE(edited.size(), 2);
+    QCOMPARE(edited.size(), 3);
     QCOMPARE(edited.at(0).name, QStringLiteral("m"));
     QVERIFY(edited.at(0).isOnset);
+    QCOMPARE(edited.at(1).name, QStringLiteral("n"));
+    QCOMPARE(edited.at(1).language, QStringLiteral("eng"));
     QVERIFY(!edited.at(1).isOnset);
+    QCOMPARE(edited.at(2).name, vowel.name);
+    QVERIFY(!edited.at(2).isOnset);
     QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
 
     openEditor();
@@ -469,6 +534,10 @@ void ApplicationGuiTests::phonemeDialogValidatesCommitsAndResetsThroughTheNoteMe
     enterNoteText(first->leName(), QStringLiteral("n"));
     if (QTest::currentTestFailed())
         return;
+    auto *remove = noteDialogButton(first, PhonemeNameItemView::tr("Delete"));
+    QVERIFY(remove);
+    QTest::mouseClick(remove, Qt::LeftButton);
+    QCOMPARE(list->count(), 2);
     const auto afterCommit = runtime.documentVersion();
     QTest::mouseClick(dialog->cancelButton(), Qt::LeftButton);
     QCOMPARE(runtime.documentVersion(), afterCommit);
