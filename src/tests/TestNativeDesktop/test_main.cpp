@@ -39,7 +39,8 @@ void NativeDesktopTests::runIsolatedDesktopCase() {
 }
 
 bool NativeDesktopTests::eventFilter(QObject *object, QEvent *event) {
-    if (event->type() == QEvent::KeyPress || event->type() == QEvent::MouseButtonPress ||
+    if (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride ||
+        event->type() == QEvent::MouseButtonPress ||
         event->type() == QEvent::MouseButtonRelease ||
         event->type() == QEvent::MouseButtonDblClick || event->type() == QEvent::Shortcut) {
         auto detail =
@@ -51,9 +52,14 @@ bool NativeDesktopTests::eventFilter(QObject *object, QEvent *event) {
                 .arg(event->type())
                 .arg(event->spontaneous());
         if (auto *key = dynamic_cast<QKeyEvent *>(event))
-            detail += QStringLiteral(" key=%1 modifiers=%2")
+            detail += QStringLiteral(" key=%1 modifiers=%2 native=%3 scan=%4 repeat=%5")
                           .arg(key->key())
-                          .arg(key->modifiers().toInt());
+                          .arg(key->modifiers().toInt())
+                          .arg(key->nativeVirtualKey())
+                          .arg(key->nativeScanCode())
+                          .arg(key->isAutoRepeat());
+        if (auto *shortcut = dynamic_cast<QShortcutEvent *>(event))
+            detail += QStringLiteral(" sequence=%1").arg(shortcut->key().toString());
         if (auto *mouse = dynamic_cast<QMouseEvent *>(event))
             detail += QStringLiteral(" button=%1 local=%2,%3 global=%4,%5")
                           .arg(mouse->button())
