@@ -304,6 +304,18 @@ void ApplicationWorkflowTests::publicInferenceStatusAssociatesTasksWithTheirScop
     QCOMPARE(mixedAcoustic.value(QStringLiteral("state")).toString(), QStringLiteral("queued"));
     QCOMPARE(mixedAcoustic.value(QStringLiteral("task_id")).toString(), taskId.toString());
 
+    const auto beforeCancel = runtime().documentVersion();
+    const auto contentBeforeCancel = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto canceledId = taskId;
+    const auto canceled =
+        registry.invoke(QStringLiteral("tasks.cancel"),
+                        {
+                            {QStringLiteral("scope"),       QStringLiteral("document")},
+                            {QStringLiteral("document_id"), documentId.toString()     },
+                            {QStringLiteral("task_id"),     taskId.toString()         }
+    },
+                        invocation);
+    QVERIFY2(canceled, qPrintable(canceled ? QString{} : canceled.getError().message));
     releaseWorker.release();
     const auto terminal = [&] {
         const auto task = runtime().tasks().getTask(documentId, taskId);
@@ -312,10 +324,37 @@ void ApplicationWorkflowTests::publicInferenceStatusAssociatesTasksWithTheirScop
                         task.get().state == AutomationTaskState::Canceled);
     };
     QTRY_VERIFY_WITH_TIMEOUT(terminal(), 15000);
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    const auto canceledTask = runtime().tasks().getTask(documentId, canceledId);
+    QVERIFY(canceledTask);
+    QCOMPARE(canceledTask.get().state, AutomationTaskState::Canceled);
+    QVERIFY(!canceledTask.get().mutation);
+    QCOMPARE(runtime().documentVersion(), beforeCancel);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), contentBeforeCancel);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
+    QVERIFY(targetPiece->audioPath.isEmpty());
+    const auto afterCancel = status(trackScope);
+    QVERIFY(afterCancel);
+    for (const auto &stage :
+         {QStringLiteral("pitch"), QStringLiteral("variance"), QStringLiteral("acoustic")}) {
+        QVERIFY(inferenceStage(afterCancel.get(), stage).value(QStringLiteral("task_id")).isNull());
+    }
+
+    auto retryRequest = request;
+    retryRequest.insert(QStringLiteral("expected_revision"),
+                        static_cast<qint64>(runtime().documentVersion().revision));
+    const auto retry = registry.invoke(QStringLiteral("inference.start"), retryRequest, invocation);
+    QVERIFY2(retry, qPrintable(retry ? QString{} : retry.getError().message));
+    taskId = TaskId::fromString(retry.get().value(QStringLiteral("task_id")).toString());
+    QVERIFY(!taskId.isNull() && taskId != canceledId);
+    QTRY_VERIFY_WITH_TIMEOUT(terminal(), 15000);
     const auto completed = runtime().tasks().getTask(documentId, taskId);
     QVERIFY(completed);
     QVERIFY2(completed.get().state == AutomationTaskState::Succeeded,
              qPrintable(completed.get().error ? completed.get().error->message : QString{}));
+    const auto previousTask = runtime().tasks().getTask(documentId, canceledId);
+    QVERIFY(previousTask);
+    QCOMPARE(previousTask.get().state, AutomationTaskState::Canceled);
     QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
     QCOMPARE(otherClip->pieces().first()->state, QStringLiteral("Acoustic.Awaiting"));
     const auto finished = status(scope);
