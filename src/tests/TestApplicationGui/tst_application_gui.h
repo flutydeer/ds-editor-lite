@@ -45,9 +45,11 @@ private slots:
     void trackClipDragCommitsOrCancels_data();
     void trackClipDragCommitsOrCancels();
     void trackClipDragContinuesDuringEdgeScrollingAndStopsOnFinish();
+    void parameterStrokeCommitsOnceAndUndoRestoresView_data();
     void parameterStrokeCommitsOnceAndUndoRestoresView();
     void parameterAnchorEditingPreviewsAndUsesTheContextMenu();
     void parameterToolbarSwapsTheVisiblePairWithoutEditingTheDocument();
+    void escapeCancelsParameterStrokeWithoutChangingDocument_data();
     void escapeCancelsParameterStrokeWithoutChangingDocument();
     void pitchAnchorCreationPreviewsBeforeCommitting();
     void pitchAnchorRangeEditsUseTheViewAndMenu();

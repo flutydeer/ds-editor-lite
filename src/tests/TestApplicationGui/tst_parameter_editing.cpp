@@ -19,6 +19,7 @@
 #include <lite/ProjectModel/AppModel/ParamProperties.h>
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
+#include <lite/ProjectModel/Utils/AppModelUtils.h>
 
 #include <QApplication>
 #include <QMouseEvent>
@@ -85,10 +86,10 @@ namespace {
                                              foreground->sceneYForValue(value)));
         }
 
-        void moveWithLeftButton(const QPoint &position) {
+        void moveWithButton(const QPoint &position, Qt::MouseButton button = Qt::LeftButton) {
             QMouseEvent event(QEvent::MouseMove, QPointF(position),
-                              QPointF(view.viewport()->mapToGlobal(position)), Qt::NoButton,
-                              Qt::LeftButton, Qt::NoModifier);
+                              QPointF(view.viewport()->mapToGlobal(position)), Qt::NoButton, button,
+                              Qt::NoModifier);
             QApplication::sendEvent(view.viewport(), &event);
         }
 
@@ -280,12 +281,31 @@ void ApplicationGuiTests::parameterAnchorEditingPreviewsAndUsesTheContextMenu() 
     QVERIFY(!historyManager->canUndo());
 }
 
+void ApplicationGuiTests::parameterStrokeCommitsOnceAndUndoRestoresView_data() {
+    QTest::addColumn<bool>("traceOriginal");
+    QTest::newRow("draw-from-mouse-input") << false;
+    QTest::newRow("trace-the-original-parameter") << true;
+}
+
 void ApplicationGuiTests::parameterStrokeCommitsOnceAndUndoRestoresView() {
+    QFETCH(bool, traceOriginal);
     auto *clip = defaultSingingClip(*context->m_appModel);
     QVERIFY(clip);
+    auto &runtime = *context->m_coreRuntime;
+    Automation::CurveDraftDto source;
+    if (traceOriginal) {
+        source.localStart = 240;
+        source.step = 5;
+        for (int tick = 240; tick < 1200; tick += source.step)
+            source.values.append(tick < 720 ? 200 : 800);
+        QVERIFY(runtime.parameters().replaceParameter(
+            commandContext(), Automation::ClipId(clip->id()), ParamInfo::MouthOpening,
+            Param::Original, {source}));
+    }
     clipController->setClip(clip);
     appStatus->activeClipId = clip->id();
     ParameterEditorFixture editor(clip);
+    editor.view.setEditMode(traceOriginal ? ParamEditorEditMode::Trace : ParamEditorEditMode::Draw);
     QVERIFY(editor.foreground);
     QTRY_VERIFY(editor.view.isVisible() && editor.scene.height() > 200);
     QVERIFY(editor.view.setViewportScale(1.0, 1.0));
@@ -296,8 +316,8 @@ void ApplicationGuiTests::parameterStrokeCommitsOnceAndUndoRestoresView() {
     QVERIFY(parameter->curves(Param::Edited).isEmpty());
     QVERIFY(editor.foreground->editedCurves().isEmpty());
     historyManager->reset();
-    auto &runtime = *context->m_coreRuntime;
     const auto before = runtime.documentVersion();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto press = editor.pointFor(480, 500);
     const auto release = editor.pointFor(960, 500);
     QVERIFY(editor.view.viewport()->rect().contains(press));
@@ -306,7 +326,7 @@ void ApplicationGuiTests::parameterStrokeCommitsOnceAndUndoRestoresView() {
     QSignalSpy committed(editor.foreground, &CommonParamEditorView::editCommitted);
 
     QTest::mousePress(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, press);
-    editor.moveWithLeftButton(release);
+    editor.moveWithButton(release);
     QTRY_VERIFY(!editor.foreground->editedCurves().isEmpty());
     QCOMPARE(started.count(), 1);
     QCOMPARE(committed.count(), 0);
@@ -325,10 +345,21 @@ void ApplicationGuiTests::parameterStrokeCommitsOnceAndUndoRestoresView() {
     QVERIFY(curve);
     QCOMPARE(curve->localStart(), 480);
     QCOMPARE(curve->localEndTick(), 960);
-    QVERIFY(std::all_of(curve->values().cbegin(), curve->values().cend(),
-                        [](int value) { return value == 500; }));
+    for (int index = 0; index < curve->values().size(); ++index) {
+        const auto tick = curve->localStart() + index * curve->step;
+        QCOMPARE(curve->values().at(index), traceOriginal ? (tick < 720 ? 200 : 800) : 500);
+    }
+    if (traceOriginal) {
+        const auto *original =
+            dynamic_cast<const DrawCurve *>(parameter->curves(Param::Original).first());
+        QVERIFY(original);
+        QCOMPARE(original->localStart(), source.localStart);
+        QCOMPARE(original->step, source.step);
+        QCOMPARE(original->values(), source.values);
+    }
     const auto committedValues = curve->values();
     const auto committedStep = curve->step;
+    const auto committedModel = TestSupport::projectSnapshot(*context->m_appModel);
     QCOMPARE(editor.foreground->editedCurves().size(), 1);
     QCOMPARE(editor.foreground->editedCurves().first()->localStart(), curve->localStart());
     QCOMPARE(editor.foreground->editedCurves().first()->values(), committedValues);
@@ -339,6 +370,7 @@ void ApplicationGuiTests::parameterStrokeCommitsOnceAndUndoRestoresView() {
     QVERIFY(runtime.history().undo(commandContext()));
     QTRY_VERIFY(parameter->curves(Param::Edited).isEmpty());
     QTRY_VERIFY(editor.foreground->editedCurves().isEmpty());
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(historyManager->canRedo());
     QVERIFY(historyManager->isOnSavePoint());
@@ -353,10 +385,18 @@ void ApplicationGuiTests::parameterStrokeCommitsOnceAndUndoRestoresView() {
     QCOMPARE(restored->step, committedStep);
     QCOMPARE(restored->values(), committedValues);
     QCOMPARE(editor.foreground->editedCurves().first()->values(), committedValues);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), committedModel);
     QCOMPARE(runtime.documentVersion().revision, before.revision + 3);
 }
 
+void ApplicationGuiTests::escapeCancelsParameterStrokeWithoutChangingDocument_data() {
+    QTest::addColumn<bool>("eraseStroke");
+    QTest::newRow("draw-over-existing-curve") << false;
+    QTest::newRow("right-button-erases-a-local-range") << true;
+}
+
 void ApplicationGuiTests::escapeCancelsParameterStrokeWithoutChangingDocument() {
+    QFETCH(bool, eraseStroke);
     auto *clip = defaultSingingClip(*context->m_appModel);
     QVERIFY(clip);
     clipController->setClip(clip);
@@ -374,7 +414,7 @@ void ApplicationGuiTests::escapeCancelsParameterStrokeWithoutChangingDocument() 
     QVERIFY(editor.view.viewport()->rect().contains(press));
     QVERIFY(editor.view.viewport()->rect().contains(release));
     QTest::mousePress(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, press);
-    editor.moveWithLeftButton(release);
+    editor.moveWithButton(release);
     QTest::mouseRelease(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, release);
     QTRY_COMPARE(parameter->curves(Param::Edited).size(), 1);
     const auto *baseline =
@@ -384,22 +424,34 @@ void ApplicationGuiTests::escapeCancelsParameterStrokeWithoutChangingDocument() 
     const auto baselineStart = baseline->localStart();
     auto &runtime = *context->m_coreRuntime;
     const auto before = runtime.documentVersion();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto *historyEntry = historyManager->nextUndoEntry();
     QVERIFY(historyEntry);
     QSignalSpy committed(editor.foreground, &CommonParamEditorView::editCommitted);
     QSignalSpy discarded(editor.foreground, &CommonParamEditorView::editDiscarded);
 
-    const auto overwriteStart = editor.pointFor(480, 750);
-    const auto overwriteEnd = editor.pointFor(960, 750);
-    QTest::mousePress(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, overwriteStart);
-    editor.moveWithLeftButton(overwriteEnd);
+    const auto overwriteStart = editor.pointFor(600, 750);
+    const auto overwriteEnd = editor.pointFor(840, 750);
+    const auto sceneY = editor.view.mapToScene(overwriteEnd).y();
+    // Integer mouse coordinates round the requested value to the nearest display pixel.
+    const auto valuePerPixel = qAbs(editor.foreground->valueAtSceneY(sceneY + 1) -
+                                    editor.foreground->valueAtSceneY(sceneY));
+    const auto matchesStrokeValue = [&](int value) {
+        return eraseStroke ? value == -1 : qAbs(value - 750) <= valuePerPixel;
+    };
+    const auto button = eraseStroke ? Qt::RightButton : Qt::LeftButton;
+    QTest::mousePress(editor.view.viewport(), button, Qt::NoModifier, overwriteStart);
+    editor.moveWithButton(overwriteEnd, button);
     QVERIFY(editSessionManager->hasActiveTransaction());
     QVERIFY(editor.foreground->editedCurves().first()->values() != baselineValues);
+    QVERIFY(matchesStrokeValue(valueAt(editor.foreground->editedCurves(), 720)));
+    QCOMPARE(valueAt(editor.foreground->editedCurves(), 500), 500);
+    QCOMPARE(valueAt(editor.foreground->editedCurves(), 940), 500);
     QCOMPARE(baseline->values(), baselineValues);
     QCOMPARE(runtime.documentVersion(), before);
 
     QTest::keyClick(&editor.view, Qt::Key_Escape);
-    QTest::mouseRelease(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, overwriteEnd);
+    QTest::mouseRelease(editor.view.viewport(), button, Qt::NoModifier, overwriteEnd);
     QCOMPARE(discarded.count(), 1);
     QCOMPARE(committed.count(), 0);
     QVERIFY(!editSessionManager->hasActiveTransaction());
@@ -411,9 +463,25 @@ void ApplicationGuiTests::escapeCancelsParameterStrokeWithoutChangingDocument() 
     QCOMPARE(parameter->curves(Param::Edited).first(), baseline);
     QCOMPARE(baseline->values(), baselineValues);
     QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
     QCOMPARE(historyManager->nextUndoEntry(), historyEntry);
     QVERIFY(historyManager->canUndo());
     QVERIFY(!historyManager->canRedo());
+
+    QTest::mousePress(editor.view.viewport(), button, Qt::NoModifier, overwriteStart);
+    editor.moveWithButton(overwriteEnd, button);
+    QTest::mouseRelease(editor.view.viewport(), button, Qt::NoModifier, overwriteEnd);
+    QCOMPARE(committed.count(), 1);
+    QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
+    const auto edited = AppModelUtils::getDrawCurves(parameter->curves(Param::Edited));
+    QVERIFY(matchesStrokeValue(valueAt(edited, 720)));
+    QCOMPARE(valueAt(edited, 500), 500);
+    QCOMPARE(valueAt(edited, 940), 500);
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+    QCOMPARE(historyManager->nextUndoEntry(), historyEntry);
+    QCOMPARE(editor.foreground->editedCurves().size(), 1);
+    QCOMPARE(editor.foreground->editedCurves().first()->values(), baselineValues);
 }
 
 void ApplicationGuiTests::parameterTransformGesturesCommitAndCancel_data() {
@@ -462,7 +530,7 @@ void ApplicationGuiTests::parameterTransformGesturesCommitAndCancel() {
         QVERIFY(editor.view.viewport()->rect().contains(start));
         QVERIFY(editor.view.viewport()->rect().contains(end));
         QTest::mousePress(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, start);
-        editor.moveWithLeftButton(end);
+        editor.moveWithButton(end);
         QTest::mouseRelease(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, end);
         QVERIFY(!editSessionManager->hasActiveTransaction());
     };
@@ -494,7 +562,7 @@ void ApplicationGuiTests::parameterTransformGesturesCommitAndCancel() {
         }
     });
     QTest::mousePress(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, press);
-    editor.moveWithLeftButton(release);
+    editor.moveWithButton(release);
     QVERIFY(editSessionManager->hasActiveTransaction());
     const auto previewCenter = valueAt(editor.foreground->editedCurves(), 720);
     QVERIFY(previewCenter > 0 && previewCenter < 600);
@@ -522,7 +590,7 @@ void ApplicationGuiTests::parameterTransformGesturesCommitAndCancel() {
     if (QTest::currentTestFailed())
         return;
     QTest::mousePress(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, press);
-    editor.moveWithLeftButton(release);
+    editor.moveWithButton(release);
     QVERIFY(editSessionManager->hasActiveTransaction());
     QVERIFY(valueAt(editor.foreground->editedCurves(), 720) < previewCenter);
     QTest::keyClick(&editor.view, Qt::Key_Escape);
@@ -565,7 +633,7 @@ void ApplicationGuiTests::parameterTransformHandlesControlTheTransitionRange() {
         QVERIFY(editor.view.viewport()->rect().contains(start));
         QVERIFY(editor.view.viewport()->rect().contains(end));
         QTest::mousePress(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, start);
-        editor.moveWithLeftButton(end);
+        editor.moveWithButton(end);
         QTest::mouseRelease(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, end);
         QVERIFY(!editSessionManager->hasActiveTransaction());
         QCOMPARE(runtime.documentVersion(), before);
@@ -600,7 +668,7 @@ void ApplicationGuiTests::parameterTransformHandlesControlTheTransitionRange() {
         }
     });
     QTest::mousePress(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, handle);
-    editor.moveWithLeftButton(end);
+    editor.moveWithButton(end);
     QVERIFY(editSessionManager->hasActiveTransaction());
     const auto &preview = editor.foreground->editedCurves();
     const auto coreValue = valueAt(preview, 720);
