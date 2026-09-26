@@ -4,6 +4,7 @@
 #include "../TestSupport/ProjectSnapshot.h"
 
 #include <QObject>
+#include <QStringList>
 #include <memory>
 
 class GuiAppFixture;
@@ -71,6 +72,7 @@ private:
     void runIsolatedDesktopCase();
     bool eventFilter(QObject *object, QEvent *event) override;
     std::unique_ptr<GuiAppFixture> application;
+    QStringList recentInput;
 };
 
 #endif
