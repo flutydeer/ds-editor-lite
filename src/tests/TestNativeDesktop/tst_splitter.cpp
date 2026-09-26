@@ -175,12 +175,16 @@ void NativeDesktopTests::mainWindowSplitterDragRestoresPanelSizes() {
     QVERIFY(bottom);
     auto *splitter = qobject_cast<QSplitter *>(bottom->parentWidget());
     QVERIFY(splitter);
+    // Leave a small amount of movable space above the panes' minimum heights.
+    window.resize(window.width(), window.minimumSizeHint().height() + 32);
+    QCoreApplication::processEvents();
     auto *handle = splitter->handle(1);
     QVERIFY(handle && handle->isVisible());
     QSignalSpy moved(splitter, &QSplitter::splitterMoved);
     const auto dragTo = [&](int y) {
         const auto press = handle->rect().center();
-        const auto global = splitter->mapToGlobal(QPoint(splitter->width() / 2, y));
+        const auto global =
+            splitter->mapToGlobal(QPoint(splitter->width() / 2, y + press.y()));
         QTest::mousePress(handle, Qt::LeftButton, Qt::NoModifier, press);
         QMouseEvent move(QEvent::MouseMove, QPointF(handle->mapFromGlobal(global)), QPointF(global),
                          Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
@@ -189,7 +193,16 @@ void NativeDesktopTests::mainWindowSplitterDragRestoresPanelSizes() {
     };
     const auto document = fixture.context->m_coreRuntime->documentVersion();
     const auto initial = splitter->sizes();
-    dragTo(initial.first() + (initial.first() < initial.last() ? 40 : -40));
+    const auto shrinkable = [&](int index) {
+        auto *pane = splitter->widget(index);
+        const auto minimum = pane->minimumSizeHint().expandedTo(pane->minimumSize()).height();
+        return initial.at(index) - minimum;
+    };
+    const auto topRoom = shrinkable(0);
+    const auto bottomRoom = shrinkable(1);
+    QVERIFY2(qMax(topRoom, bottomRoom) > 0, "The window must leave room for a splitter drag");
+    const auto distance = qBound(1, qMax(topRoom, bottomRoom) / 2, 40);
+    dragTo(initial.first() + (topRoom > bottomRoom ? -distance : distance));
     QTRY_VERIFY(!moved.isEmpty());
     QTRY_VERIFY(splitter->sizes() != initial);
     const auto resized = splitter->sizes();
