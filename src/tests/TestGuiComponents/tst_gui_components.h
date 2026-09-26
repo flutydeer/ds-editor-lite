@@ -30,6 +30,7 @@ private slots:
     void aNewMeterPeakInterruptsDecay();
     void toastContextLifetime_data();
     void toastContextLifetime();
+    void tooltipHoverRestoresUpdatedContent();
     void seekBarTrackingControlsWhenDraggedValuesCommit_data();
     void seekBarTrackingControlsWhenDraggedValuesCommit();
     void seekBarKeyboardStepsClampAndDoubleClickResets();

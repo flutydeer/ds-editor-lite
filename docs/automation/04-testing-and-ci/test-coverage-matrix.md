@@ -170,6 +170,7 @@ GCC/gcovr 启用 `merge-lines` 合并同一源码行的模板实例；既有数�
 | 轨道头部编辑与颜色预览 | gui | 实际名称编辑检查提交/取消，静音/独奏按钮检查模型和撤销同步；颜色菜单悬停不产生历史，Escape 恢复原色，点击后单次提交并可撤销重做 | ApplicationGui::trackHeaderInputsCommitAndUndo、trackColorMenuPreviewsAndCommits | offscreen；无需声库或设备 |
 | 公共数值控件的输入与提交 | gui | SeekBar 检查实时/释放提交、键盘步进及复位；Fader/Pan 检查预览信号、释放提交和随后外部更新，避免拖动状态残留 | GuiComponents::seekBarTrackingControlsWhenDraggedValuesCommit、seekBarKeyboardStepsClampAndDoubleClickResets、mixerSliderReleaseEndsPreview | offscreen；无需设备 |
 | 文本控件菜单及只读显示 | gui | 文本框和可编辑下拉框经真实菜单复制、粘贴及撤销，切为只读后仍可复制且图标语义不变；与两种数值框共用生产转换，附加步进仍有效 | GuiComponents::textInputMenusKeepEditingActionsAndCopyAppearance、expressionSpinBoxMenuEditsTheDisplayedValue | offscreen；进程内比较图标，不维护跨平台像素基线 |
+| 工具提示更新及重新显示 | gui | 原先更新说明只移除布局项并解除旧标签父对象，留下未释放的控件；补悬停、更新、离开及再次进入，检查标题、快捷键、说明与控件生命周期，修复旧标签泄漏 | GuiComponents::tooltipHoverRestoresUpdatedContent | offscreen；使用已有显示延迟和动画配置，不依赖原生鼠标位置 |
 | 轨道片段拖动中的边缘滚动 | gui | 鼠标停在视口边缘后真实计时器继续推进视口和片段预览；预览不改模型，取消恢复原位置，提交与视图一致，释放后停止且可一次撤销 | ApplicationGui::trackClipDragContinuesDuringEdgeScrollingAndStopsOnFinish | offscreen；无需声库或设备 |
 | 音频输出及循环播放回调 | workflow | 生成短素材检查全工程时长、混音、静音、自定义来源及 WAV/FLAC；增益过高的真实混音同时检查浮点 PCM 与任务削波警告；实际导出中途取消，检查旧文件、暂存清理和混音器恢复。受控回调验证循环及缓冲等待/恢复；修复 Talcs 位置同步并保留 PCM 断言。循环区导出尚未实现，不在测试中补建 | ApplicationWorkflows 的 tst_audio_workflows.cpp | 通用；不需要播放设备 |
 | 解码峰值与波形缩放采样 | workflow/unit | 实际 WAV 检查多声道与文件尾部的瞬态不丢失，概览/细节/逐样本采样保持幅度和时间定位，速度或来源变化后刷新；修复解码帧数误按声道缩减及缩略峰值漏块 | AudioAssets 的 tst_waveform_sampling.cpp | 通用；临时 WAV；无需窗口或设备 |

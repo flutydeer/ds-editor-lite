@@ -3,12 +3,16 @@
 #include <lite/GUI/Animation/ElasticAnimator.h>
 #include <lite/GUI/Controls/Toast.h>
 #include <lite/GUI/Controls/LevelMeterViewModel.h>
+#include <lite/GUI/Controls/ToolTip.h>
+#include <lite/GUI/Controls/ToolTipFilter.h>
 
 #include <QtTest/QTest>
 #include <QLabel>
 #include <QPointer>
 #include <QScopeGuard>
 #include <QSignalSpy>
+#include <QPushButton>
+#include <QEnterEvent>
 
 #include <memory>
 
@@ -127,4 +131,55 @@ void GuiComponentTests::toastContextLifetime() {
     QVERIFY(QMetaObject::invokeMethod(toast, "hideToast", Qt::DirectConnection));
     QVERIFY(!second);
     QVERIFY(nextOwner.findChildren<ToastWidget *>().isEmpty());
+}
+
+void GuiComponentTests::tooltipHoverRestoresUpdatedContent() {
+    QPushButton button(QStringLiteral("Action"));
+    button.setToolTip(QStringLiteral("Action tooltip"));
+    button.setShortcut(QKeySequence(Qt::CTRL | Qt::Key_K));
+    ToolTipFilter filter(&button, 0, false, false);
+    button.installEventFilter(&filter);
+    filter.setMessage({QStringLiteral("First description"), QStringLiteral("Second description")});
+    button.show();
+    const auto enter = [&] {
+        const QPointF position = button.rect().center();
+        QEnterEvent event(position, position, button.mapToGlobal(position.toPoint()));
+        QApplication::sendEvent(&button, &event);
+    };
+    enter();
+    auto tip = QPointer(button.findChild<ToolTip *>());
+    QVERIFY(tip);
+    QTRY_VERIFY(tip->isVisible());
+    QCOMPARE(tip->findChild<QLabel *>("toolTipTitle")->text(), button.toolTip());
+    QCOMPARE(tip->findChild<QLabel *>("toolTipShortcutKey")->text(),
+             button.shortcut().toString());
+    QList<QPointer<QLabel>> oldLabels;
+    for (auto *label : tip->findChildren<QLabel *>("toolTipMessage"))
+        oldLabels.append(label);
+    QCOMPARE(oldLabels.size(), 2);
+    filter.setMessage({QStringLiteral("Updated description")});
+    const auto updated = tip->findChildren<QLabel *>("toolTipMessage");
+    QCOMPARE(updated.size(), 1);
+    QCOMPARE(updated.first()->text(), QStringLiteral("Updated description"));
+    for (const auto &label : oldLabels)
+        QVERIFY(!label || tip->isAncestorOf(label));
+
+    QEvent leave(QEvent::Leave);
+    QApplication::sendEvent(&button, &leave);
+    QTRY_VERIFY(tip.isNull());
+    for (const auto &label : oldLabels)
+        QVERIFY(label.isNull());
+    button.setToolTip(QStringLiteral("Changed action"));
+    filter.setMessage({QStringLiteral("Description after reopening")});
+    enter();
+    QTRY_VERIFY(button.findChild<ToolTip *>());
+    tip = button.findChild<ToolTip *>();
+    QTRY_VERIFY(tip->isVisible());
+    QCOMPARE(tip->findChild<QLabel *>("toolTipTitle")->text(), button.toolTip());
+    QCOMPARE(tip->findChild<QLabel *>("toolTipShortcutKey")->text(),
+             button.shortcut().toString());
+    QCOMPARE(tip->findChild<QLabel *>("toolTipMessage")->text(),
+             QStringLiteral("Description after reopening"));
+    button.hide();
+    QTRY_VERIFY(tip.isNull());
 }

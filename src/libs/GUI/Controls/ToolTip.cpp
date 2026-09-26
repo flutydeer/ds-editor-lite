@@ -247,7 +247,7 @@ void ToolTip::completeOpacityAnimation() {
 void ToolTip::updateMessage() {
     QLayoutItem *child;
     while ((child = m_messageLayout->takeAt(0)) != nullptr) {
-        child->widget()->setParent(nullptr);
+        delete child->widget();
         delete child;
     }
 
