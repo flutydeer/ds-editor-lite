@@ -88,7 +88,7 @@ namespace {
                     .source = Automation::InvocationSource::Test};
         }
 
-        void initialize() {
+        void initialize(const int clipLength = 3840) {
             QVERIFY2(app.initialize(), qPrintable(app.error));
             Automation::NoteDraftDto note;
             note.localStart = 480;
@@ -98,8 +98,8 @@ namespace {
             note.language = QStringLiteral("eng");
             Automation::ClipDraftDto draft;
             draft.type = Automation::ClipDraftDto::Type::Singing;
-            draft.properties.length = 3840;
-            draft.properties.clipLen = 3840;
+            draft.properties.length = clipLength;
+            draft.properties.clipLen = clipLength;
             draft.defaultLanguage = QStringLiteral("eng");
             draft.notes.append(note);
             Automation::TrackDraftDto track;
@@ -972,7 +972,7 @@ void NativeDesktopTests::rhiInlineTextEditingNavigatesCancelsAndUndoes() {
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
     ExistingRhiNoteFixture fixture;
-    fixture.initialize();
+    fixture.initialize(38400);
     if (QTest::currentTestFailed())
         return;
     fixture.addSecondNote();
@@ -1001,9 +1001,9 @@ void NativeDesktopTests::rhiInlineTextEditingNavigatesCancelsAndUndoes() {
     auto *edit = canvas.findChild<QLineEdit *>();
     QCOMPARE(edit->text(), QStringLiteral("la"));
     QTest::keySequence(edit, QKeySequence::SelectAll);
-    QTest::keyClicks(edit, "hello");
+    QTest::keyClicks(edit, "hello world");
     QTest::keyClick(edit, Qt::Key_Tab);
-    QCOMPARE(first->lyric(), QStringLiteral("hello"));
+    QCOMPARE(first->lyric(), QStringLiteral("hello world"));
     QTRY_VERIFY(edit->isVisible() && edit->hasFocus());
     QCOMPARE(edit->text(), QStringLiteral("li"));
     QCOMPARE(appStatus->selectedNotes.get(), QList<int>{second->id()});
@@ -1012,30 +1012,36 @@ void NativeDesktopTests::rhiInlineTextEditingNavigatesCancelsAndUndoes() {
     QTest::keyClick(edit, Qt::Key_Backtab);
     QCOMPARE(second->lyric(), QStringLiteral("world"));
     QTRY_VERIFY(edit->isVisible() && edit->hasFocus());
-    QCOMPARE(edit->text(), QStringLiteral("hello"));
+    QCOMPARE(edit->text(), QStringLiteral("hello world"));
     QCOMPARE(appStatus->selectedNotes.get(), QList<int>{first->id()});
     const auto beforeCancel = fixture.runtime().documentVersion();
     QTest::keySequence(edit, QKeySequence::SelectAll);
     QTest::keyClicks(edit, "discard this");
     QTest::keyClick(edit, Qt::Key_Escape);
     QTRY_VERIFY(!edit->isVisible());
-    QCOMPARE(first->lyric(), QStringLiteral("hello"));
+    QCOMPARE(first->lyric(), QStringLiteral("hello world"));
     QCOMPARE(fixture.runtime().documentVersion(), beforeCancel);
     const auto contentBeforeHover = TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
     const auto *undoBeforeHover = historyManager->nextUndoEntry();
     QVERIFY(canvas.setViewScale(0.5, 2.0));
+    QCOMPARE(canvas.scaleX(), 0.5);
     QVERIFY(canvas.centerAt(1920, 60));
     fixture.waitForFrame();
     if (QTest::currentTestFailed())
         return;
     auto *tooltip = canvas.findChild<ToolTip *>();
     QVERIFY(tooltip);
-    fixture.moveTo(fixture.pointFor(720, 60));
+    const auto hoverAt = [&](const QPoint &position) {
+        fixture.moveTo(position);
+        // QWidget's no-button move may omit input when the native cursor is already here.
+        QTest::mouseMove(canvas.windowHandle(), position);
+    };
+    hoverAt(fixture.pointFor(720, 60));
     QTRY_VERIFY(tooltip->isVisible());
     QTextDocument tooltipText;
     tooltipText.setHtml(tooltip->title());
     QCOMPARE(tooltipText.toPlainText(), first->lyric());
-    fixture.moveTo(QPoint(-20, canvas.height() / 2));
+    hoverAt(QPoint(-20, canvas.height() / 2));
     QTRY_VERIFY(!tooltip->isVisible());
     QCOMPARE(fixture.runtime().documentVersion(), beforeCancel);
     QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), contentBeforeHover);
@@ -1298,7 +1304,7 @@ void NativeDesktopTests::rhiMultiNoteSelectionAndMoveCommitAtomically() {
     if (QGuiApplication::platformName() == QStringLiteral("offscreen"))
         QSKIP("RHI widgets require a native window backend");
     ExistingRhiNoteFixture fixture;
-    fixture.initialize();
+    fixture.initialize(38400);
     if (QTest::currentTestFailed())
         return;
     fixture.addSecondNote();
@@ -1382,6 +1388,7 @@ void NativeDesktopTests::rhiMultiNoteSelectionAndMoveCommitAtomically() {
     const auto contentBeforeCompact =
         TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
     QVERIFY(canvas.setViewScale(0.2, 1.0));
+    QCOMPARE(canvas.scaleX(), 0.2);
     QVERIFY(canvas.centerAt(1920, 60));
     fixture.waitForFrame();
     if (QTest::currentTestFailed())
