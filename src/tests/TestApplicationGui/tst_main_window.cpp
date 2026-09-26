@@ -534,7 +534,14 @@ void ApplicationGuiTests::editorAutomationConfiguresTheVisibleWorkspaceWithoutEd
     QVERIFY(!historyManager->canUndo());
 }
 
-void ApplicationGuiTests::trackEditShortcutsFollowTheFocusedPanelAndUndo() {
+void ApplicationGuiTests::trackEditInputsFollowTheFocusedPanelAndUndo_data() {
+    QTest::addColumn<bool>("useMenu");
+    QTest::newRow("keyboard") << false;
+    QTest::newRow("main-menu") << true;
+}
+
+void ApplicationGuiTests::trackEditInputsFollowTheFocusedPanelAndUndo() {
+    QFETCH(bool, useMenu);
     auto &runtime = *context->m_coreRuntime;
     MainWindowFixture host;
     host.show();
@@ -568,19 +575,22 @@ void ApplicationGuiTests::trackEditShortcutsFollowTheFocusedPanelAndUndo() {
     const auto originalLength = singingClip->length();
     const auto original = TestSupport::projectSnapshot(*context->m_appModel);
     const auto before = runtime.documentVersion();
-    const auto key = [&](QKeySequence::StandardKey command) {
+    const auto invoke = [&](QKeySequence::StandardKey command, const char *menuText) {
         auto *input = QApplication::focusWidget();
         QVERIFY(input && (input == tracks || tracks->isAncestorOf(input)));
-        QTest::keySequence(input, QKeySequence(command));
+        if (useMenu)
+            clickMainMenuAction(window, menuText);
+        else
+            QTest::keySequence(input, QKeySequence(command));
     };
-    key(QKeySequence::SelectAll);
+    invoke(QKeySequence::SelectAll, "Select &all");
     QCOMPARE(appStatus->selectedClips.get(), QList<int>{originalId});
     QApplication::clipboard()->clear();
-    key(QKeySequence::Copy);
+    invoke(QKeySequence::Copy, "&Copy");
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(runtime.playback().setPosition(commandContext(), 4800));
-    key(QKeySequence::Paste);
+    invoke(QKeySequence::Paste, "&Paste");
     QCOMPARE(track->clips().count(), 2);
     Clip *pasted = nullptr;
     for (auto *candidate : track->clips()) {
@@ -592,16 +602,16 @@ void ApplicationGuiTests::trackEditShortcutsFollowTheFocusedPanelAndUndo() {
     QCOMPARE(pasted->length(), originalLength);
     const auto afterPaste = runtime.documentVersion();
     QCOMPARE(afterPaste.revision, before.revision + 1);
-    key(QKeySequence::SelectAll);
+    invoke(QKeySequence::SelectAll, "Select &all");
     QCOMPARE(appStatus->selectedClips.get().size(), 2);
-    key(QKeySequence::Cut);
+    invoke(QKeySequence::Cut, "Cu&t");
     QCOMPARE(track->clips().count(), 0);
     QCOMPARE(runtime.documentVersion().revision, afterPaste.revision + 1);
     QVERIFY(runtime.history().undo(commandContext()));
     QCOMPARE(track->clips().count(), 2);
-    key(QKeySequence::SelectAll);
+    invoke(QKeySequence::SelectAll, "Select &all");
     const auto beforeDelete = runtime.documentVersion();
-    key(QKeySequence::Delete);
+    invoke(QKeySequence::Delete, "&Delete");
     QCOMPARE(track->clips().count(), 0);
     QCOMPARE(runtime.documentVersion().revision, beforeDelete.revision + 1);
     QVERIFY(runtime.history().undo(commandContext()));
