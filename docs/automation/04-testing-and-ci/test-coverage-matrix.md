@@ -55,7 +55,7 @@
 | 公共参数查询范围与输出预算 | protocol | 完整快照不能验证有界查询和曲线数据保真 | 检查时间范围裁剪、绘制曲线降采样、锚点原样保留、点数预算不足拒绝及查询无副作用 | AutomationProtocol::parameterQueryBoundsSamplesAndPreservesAnchors | 通用 |
 | GUI 编辑模式设置与查询 | protocol | 参数 Shape/Scale 和音高调制未接入公开转换，实际状态被回报成默认模式，设置请求被拒绝 | 补齐输入/输出模式与转换；既有接口场景验证到达服务的枚举、状态读回及工程版本不变 | AutomationProtocol::routing(guiBindings) | 通用 |
 | Connector 生命周期与 stdio | protocol/process | 长入口及手工子集分派；可执行后缀和阻塞接收端依赖 Windows | 拆可定位用例，保留真实流行为；CMake 提供可执行路径，测试自身提供跨平台接收端；大帧验证不依赖工具总数 | Connector | 通用 |
-| Connector 分页缓存与离线调用 | protocol | 缓存与本地调用混入无 SLA 的循环次数和速度门槛 | 检查查询不额外请求上游、快照变化引发刷新，以及删除/保留工具和离线状态的实际结果；保留协议自身截止时间 | Connector | 通用 |
+| Connector 分页缓存与离线调用 | protocol | 缓存与本地调用混入无 SLA 的循环次数和速度门槛 | 握手消费上游分页，桥接列表沿游标遍历无重项且不额外请求上游；快照刷新拒绝旧游标，重新遍历保留有效工具并移除失效工具；离线调用检查实际状态，保留协议自身截止时间 | Connector::paginatedHandshake；既有缓存与离线调用用例 | 通用；受控编辑器服务；不约束产品工具总数 |
 | Editor 启动、服务、单实例和退出 | process | Windows 数据根假设；Headless 混入 GUI 场景；Linux 替代进程未就绪且存活/所有权/清理实现缺失 | 跨平台沙箱，共用进程设施，分运行条件；重启输出改为沙箱文件，补替代进程管理；监听前注册接入回调，验证启动连接的响应与单次分发 | ProcessIntegration、Bootstrap::queuedStartupConnectionIsAcknowledged 及既有生命周期场景 | 通用/GUI/平台 |
 | 退出响应和有界停止 | protocol/process | 实际退出竞争暴露未发送响应被销毁；原停止测试仅覆盖空闲与处理超时 | 先排空响应再释放连接，全部连接共用截止时间；验证完整大响应和不读取客户端的有界停止，保留跨进程响应及退出断言 | AutomationProtocol、ProcessIntegration | 通用/GUI |
 | 钢琴窗、轨道编辑、快捷键和视口 | gui/domain | 既有几何/事件回归，部分仅测算法；首次采样显示已有音符交互不足；编辑视图与撤销控制分散 | 补实际钢琴窗绘制/提交/撤销、已有音符拖动提交与 Escape 取消；快捷键建立真实可见 owner 与焦点；轨道头、速度栏和拍号栏的滚轮检查两轴导航、轨道头行高与画布滚动同步且不修改工程；控制器、视口、输入与滚动统一归入 EditorInteraction，生产应用完整接线留在 ApplicationGui | ApplicationGui、EditorInteraction、ProjectEditing | 通用/offscreen/原生 |

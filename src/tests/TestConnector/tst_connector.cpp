@@ -3354,6 +3354,45 @@ namespace {
             });
         QCOMPARE(bridgedStatus, stableStatus);
 
+        QJsonObject listed;
+        const auto listPage = [&](const QString &cursor = {}) {
+            listed = {};
+            QJsonObject arguments{
+                {QStringLiteral("limit"), 2}
+            };
+            if (!cursor.isEmpty())
+                arguments.insert(QStringLiteral("cursor"), cursor);
+            runtime.callTool(QStringLiteral("editor.tools.list"), arguments,
+                             [&listed](const DsConnector::ToolCallOutcome &outcome) {
+                                 listed = outcome.result;
+                             });
+        };
+        const auto collectPages = [&](QSet<QString> &names, QString &firstCursor) {
+            QString next;
+            do {
+                listPage(next);
+                QVERIFY(!listed.isEmpty() && !listed.value(QStringLiteral("isError")).toBool());
+                const auto page = listed.value(QStringLiteral("structuredContent")).toObject();
+                const auto tools = page.value(QStringLiteral("tools")).toArray();
+                const auto pageNames = toolNames(tools);
+                QVERIFY(!tools.isEmpty() && tools.size() <= 2);
+                QCOMPARE(pageNames.size(), tools.size());
+                QVERIFY(!names.intersects(pageNames));
+                names.unite(pageNames);
+                next = page.value(QStringLiteral("next_cursor")).toString();
+                if (firstCursor.isEmpty())
+                    firstCursor = next;
+            } while (!next.isEmpty());
+        };
+        QSet<QString> previousNames;
+        QString cursor;
+        collectPages(previousNames, cursor);
+        if (QTest::currentTestFailed())
+            return;
+        QVERIFY(!cursor.isEmpty());
+        QVERIFY(previousNames.contains(QStringLiteral("fake.tool.000")));
+        QVERIFY(previousNames.contains(lastToolName));
+
         QJsonObject described;
         runtime.callTool(QStringLiteral("editor.tools.describe"),
                          {
@@ -3393,6 +3432,21 @@ namespace {
                      .toString(),
                  ready.buildId);
         QCOMPARE(runtime.downstreamTools(), downstream);
+
+        listPage(cursor);
+        QVERIFY(listed.value(QStringLiteral("isError")).toBool());
+        QCOMPARE(listed.value(QStringLiteral("structuredContent"))
+                     .toObject()
+                     .value(QStringLiteral("code"))
+                     .toString(),
+                 QStringLiteral("invalid_cursor"));
+        QSet<QString> refreshedNames;
+        QString refreshedCursor;
+        collectPages(refreshedNames, refreshedCursor);
+        if (QTest::currentTestFailed())
+            return;
+        previousNames.remove(lastToolName);
+        QCOMPARE(refreshedNames, previousNames);
 
         QJsonObject removed;
         runtime.callTool(
