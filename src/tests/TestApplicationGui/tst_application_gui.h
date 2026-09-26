@@ -144,6 +144,8 @@ private slots:
     void audioSettingsSaveFailureRestoresRuntimeAndAllowsRetry();
     void midiPageSynthInputsPersistWithoutPlayback();
     void trackHeaderInputsCommitAndUndo();
+    void trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned_data();
+    void trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned();
     void playbackPopupsEditTheMarkerChosenWhenTheyOpen();
     void playbackTextInputsValidateCommitAndCancel();
     void tapTempoMeasuresASequenceAndResetsAfterInactivity();

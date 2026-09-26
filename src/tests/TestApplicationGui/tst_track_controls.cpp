@@ -7,6 +7,10 @@
 #include "UI/Controls/TrackColorSwatchWidget.h"
 #include "UI/Views/TrackEditor/TrackControlView.h"
 #include "UI/Views/TrackEditor/TrackEditorView.h"
+#include "UI/Views/TrackEditor/TrackListView.h"
+#include "UI/Views/TrackEditor/TracksGraphicsView.h"
+#include "UI/Views/TrackEditor/InfoLane/TempoLaneView.h"
+#include "UI/Views/TrackEditor/InfoLane/TimeSignatureLaneView.h"
 #include "UI/Views/MixConsole/MixConsoleView.h"
 #include "UI/Views/MixConsole/ChannelView.h"
 
@@ -32,6 +36,8 @@
 #include <QSignalSpy>
 #include <QTimer>
 #include <QWindow>
+#include <QWheelEvent>
+#include <QScrollBar>
 #include <QtTest/QTest>
 
 void ApplicationGuiTests::mixerChannelInputsAndLevelsStayScoped_data() {
@@ -179,6 +185,75 @@ void ApplicationGuiTests::mixerChannelInputsAndLevelsStayScoped() {
     QVERIFY(!levels->clippedL() && !levels->clippedR());
     QVERIFY(otherLevels->clippedL() && otherLevels->clippedR());
     QCOMPARE(runtime.documentVersion(), beforeMeterInput);
+    QVERIFY(!historyManager->canUndo());
+}
+
+void ApplicationGuiTests::trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned_data() {
+    QTest::addColumn<QString>("origin");
+    QTest::newRow("track-header") << QStringLiteral("header");
+    QTest::newRow("tempo-lane") << QStringLiteral("tempo");
+    QTest::newRow("time-signature-lane") << QStringLiteral("meter");
+}
+
+void ApplicationGuiTests::trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned() {
+    QFETCH(QString, origin);
+    auto &runtime = *context->m_coreRuntime;
+    QVERIFY(runtime.documents().commitNewDocument(
+        commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+    const auto clearDialogParent = qScopeGuard([] { trackController->setParentWidget(nullptr); });
+    TrackEditorView editor;
+    for (int index = 0; index < 12; ++index) {
+        Automation::TrackDraftDto draft;
+        draft.name = QStringLiteral("Track %1").arg(index + 1);
+        QVERIFY(runtime.project().insertTrack(commandContext(), index, draft));
+    }
+    auto *canvas = editor.findChild<TracksGraphicsView *>();
+    auto *headers = editor.findChild<TrackListView *>();
+    QVERIFY(canvas && headers);
+    canvas->setAnimationEnabled(false);
+    editor.resize(1100, 500);
+    editor.show();
+    editor.activateWindow();
+    QTRY_VERIFY(editor.isActiveWindow());
+    QVERIFY(editor.setViewScale(1.0, 1.0));
+    QVERIFY(editor.centerAt(9600, 5));
+    QWidget *target = headers->viewport();
+    if (origin == QStringLiteral("tempo"))
+        target = editor.findChild<TempoLaneView *>();
+    else if (origin == QStringLiteral("meter"))
+        target = editor.findChild<TimeSignatureLaneView *>();
+    QVERIFY(target && target->isVisible());
+    historyManager->reset();
+    const auto document = runtime.documentVersion();
+    const auto model = context->m_appModel->serialize();
+    const auto wheel = [&](int delta, Qt::KeyboardModifiers modifiers) {
+        const auto position = target->rect().center();
+        QWheelEvent event(QPointF(position), QPointF(target->mapToGlobal(position)), {}, {0, delta},
+                          Qt::NoButton, modifiers, Qt::NoScrollPhase, false);
+        QApplication::sendEvent(target, &event);
+    };
+    const auto beforeScroll = editor.viewState();
+    wheel(-120, Qt::NoModifier);
+    QTRY_VERIFY(editor.viewState().centerTrackIndex > beforeScroll.centerTrackIndex);
+    QTRY_COMPARE(headers->verticalScrollBar()->value(), canvas->verticalScrollBar()->value());
+    QCOMPARE(editor.viewState().verticalScale, beforeScroll.verticalScale);
+    const auto beforeScale = editor.viewState();
+    const auto rowHeight = headers->visualItemRect(headers->item(0)).height();
+    wheel(120, Qt::AltModifier);
+    QTRY_VERIFY(editor.viewState().verticalScale > beforeScale.verticalScale);
+    QTRY_VERIFY(headers->visualItemRect(headers->item(0)).height() > rowHeight);
+    QTRY_COMPARE(headers->verticalScrollBar()->value(), canvas->verticalScrollBar()->value());
+    if (origin != QStringLiteral("header")) {
+        const auto beforeHorizontalScale = editor.viewState();
+        wheel(120, Qt::ControlModifier);
+        QTRY_VERIFY(editor.viewState().horizontalScale > beforeHorizontalScale.horizontalScale);
+        const auto beforeHorizontalScroll = editor.viewState();
+        wheel(-120, Qt::ShiftModifier);
+        QTRY_VERIFY(editor.viewState().centerTick > beforeHorizontalScroll.centerTick);
+        QCOMPARE(editor.viewState().horizontalScale, beforeHorizontalScroll.horizontalScale);
+    }
+    QCOMPARE(runtime.documentVersion(), document);
+    QCOMPARE(context->m_appModel->serialize(), model);
     QVERIFY(!historyManager->canUndo());
 }
 
