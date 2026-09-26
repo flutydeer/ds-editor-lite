@@ -4316,11 +4316,9 @@ path: %1</source>
     <message>
         <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="352"/>
         <source>Failed to load MIDI file.
-timeSignatures denominator must be: %L1, %L2, %L3, %L4
-current denominator: %L5</source>
+Invalid time signature positions or values.</source>
         <translation>加载 MIDI 文件失败。
-拍号分母必须为：%L1、%L2、%L3、%L4
-当前分母：%L5</translation>
+拍号的位置或数值无效。</translation>
     </message>
     <message>
         <location filename="../../Controller/DocumentWorkflow/MidiLoadSession.cpp" line="161"/>

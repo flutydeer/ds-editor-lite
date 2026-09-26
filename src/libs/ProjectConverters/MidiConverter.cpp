@@ -348,28 +348,17 @@ MidiGenerationResult MidiTrackGenerator::generateTracks(MidiParseData &data,
     const auto hasTempo = !timelineModel.tempos.empty();
 
     if (hasTimeSignature) {
-        for (const auto &ts : timelineModel.timeSignatures) {
-            if (ts.denominator != 2 && ts.denominator != 4 && ts.denominator != 8 &&
-                ts.denominator != 16) {
-                result.errorMessage =
-                    QCoreApplication::translate(
-                        "MidiConverter",
-                        "Failed to load MIDI file.\ntimeSignatures denominator must be: "
-                        "%L1, %L2, %L3, %L4\ncurrent denominator: %L5")
-                        .arg(2)
-                        .arg(4)
-                        .arg(8)
-                        .arg(16)
-                        .arg(ts.denominator);
-                return result;
-            }
-        }
-    }
-
-    if (hasTimeSignature) {
-        result.timeSignatures.reserve(static_cast<qsizetype>(timelineModel.timeSignatures.size()));
+        QList<TimeSignature> signatures;
+        signatures.reserve(static_cast<qsizetype>(timelineModel.timeSignatures.size()));
         for (const auto &ts : timelineModel.timeSignatures)
-            result.timeSignatures.append(TimeSignature(ts.index, ts.numerator, ts.denominator));
+            signatures.append(TimeSignature(ts.index, ts.numerator, ts.denominator));
+        if (!Timeline::isTimeSignatureProjectionValid(signatures)) {
+            result.errorMessage = QCoreApplication::translate(
+                "MidiConverter",
+                "Failed to load MIDI file.\nInvalid time signature positions or values.");
+            return result;
+        }
+        result.timeSignatures = std::move(signatures);
     }
     if (hasTempo) {
         result.tempos.reserve(static_cast<qsizetype>(timelineModel.tempos.size()));

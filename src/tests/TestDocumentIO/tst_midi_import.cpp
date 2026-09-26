@@ -19,6 +19,7 @@
 #include <QTextStream>
 
 #include <utility>
+#include <algorithm>
 
 namespace {
     [[nodiscard]] std::string utf8(const QString &text) {
@@ -179,6 +180,44 @@ void DocumentIOTests::selectionAndGeometry() {
         QVERIFY2((!generated.errorMessage.isEmpty() && generated.tracks.isEmpty()),
                  qPrintable(
                      QStringLiteral("out-of-range selection must fail without generated objects")));
+    }
+
+    {
+        auto parsed = makeParsedMidi();
+        parsed.mediate = {parsed.mediate.resolution(),
+                          parsed.mediate.tempos(),
+                          {{0, 7, 32}},
+                          parsed.mediate.markers(),
+                          parsed.mediate.tracks()};
+        auto generated = generateSelectedTrack(parsed);
+        const auto cleanup = qScopeGuard([&] { qDeleteAll(generated.tracks); });
+        QVERIFY2(generated.errorMessage.isEmpty(), qPrintable(generated.errorMessage));
+        QCOMPARE(generated.timeSignatures, QList<TimeSignature>({
+                                               {0, 7, 32}
+        }));
+        const auto withSignature = makeImportDraft(generated);
+        QVERIFY(Automation::validate(withSignature));
+
+        MidiImportOptions options;
+        options.codec = QByteArrayLiteral("UTF-8");
+        options.selectedTrackIndices = {0};
+        options.importTempo = true;
+        options.importTimeSignature = false;
+        generated = MidiTrackGenerator::generateTracks(parsed, options, QStringLiteral("mandarin"),
+                                                       QStringLiteral("啦"), Timeline());
+        QVERIFY2(generated.errorMessage.isEmpty(), qPrintable(generated.errorMessage));
+        QVERIFY(std::none_of(
+            generated.timeSignatures.cbegin(), generated.timeSignatures.cend(),
+            [](const TimeSignature &signature) { return signature.denominator == 32; }));
+        QCOMPARE(generated.tempos, QList<Tempo>({
+                                       {0, 87.0}
+        }));
+        QCOMPARE(generated.tracks.size(), 1);
+        const auto draft = Automation::trackDraftDto(*generated.tracks.first());
+        QCOMPARE(draft.name, QStringLiteral("英语"));
+        QCOMPARE(draft.clips.size(), 1);
+        QCOMPARE(draft.clips.first().notes.size(), 2);
+        QCOMPARE(draft.clips.first().notes.first().lyric, QStringLiteral("你好"));
     }
 }
 

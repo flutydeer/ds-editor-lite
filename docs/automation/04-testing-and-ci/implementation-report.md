@@ -303,6 +303,8 @@ macOS 部署先放齐插件、语言资源及 FFmpeg 私有依赖。歌词配置
 
 常规 Headless 与声库测试共用 Native HTTP 请求、超时及响应校验，补齐实际协议要求的响应类型协商；资源用例提供显式语言和任务作用域，并等待异步 G2P/分段完成后再启动手动推理。共同传输路径在无声库测试中也执行，避免资源客户端独自偏离接口要求。
 
+MIDI 导入的拍号校验复用 `Timeline::isTimeSignatureProjectionValid`，消除旧分母白名单与编辑器实际支持范围的差异。已有轨道选择场景同时验证导入有效的 7/32 拍号和忽略拍号，两条路径均保留所选音符与歌词。
+
 ## 5. CI 与覆盖率采集
 
 CI 使用 Linux x64、Windows x64 和 macOS arm64 矩阵，runner 均采用 latest；每个平台分段完成环境、依赖、配置、完整构建、测试和产物收集。Linux 使用 `coverage` preset 和 `build/Coverage`，测试后由独立 Coverage 步骤生成报告；Windows/macOS 使用普通 Debug `tests` preset 和 `build/Tests`，不运行覆盖率采集器。面向 `main` 的 PR 更新及 `main` 推送触发验证；Qt、vcpkg 和依赖版本由 workflow、manifest 及 overlay 声明。统一依赖引导脚本按 triplet 执行，Windows 构建复用项目 DevShell wrapper。各平台独立保留结果，构建或测试失败均传播失败退出码并收集诊断材料。普通 GUI 使用 offscreen，原生桌面集合在 Linux 使用 Xvfb，在 Windows/macOS 使用原生桌面。
