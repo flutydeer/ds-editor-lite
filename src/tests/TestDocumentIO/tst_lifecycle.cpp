@@ -54,7 +54,8 @@ namespace {
                 errorMessage = QStringLiteral("controlled save failure");
                 return false;
             }
-            host.lastSavedModel = QJsonDocument(model->serialize()).toJson(QJsonDocument::Compact);
+            host.lastSavedModel =
+                QJsonDocument(TestSupport::projectSnapshot(*model)).toJson(QJsonDocument::Compact);
             QFile staged(path);
             if (!staged.open(QIODevice::WriteOnly) || staged.write("project") != 7) {
                 errorMessage = QStringLiteral("controlled staging failure");
@@ -199,8 +200,8 @@ namespace {
         result.history = history.get();
         result.project = projectDigest(project.get());
         result.timeline = timelineDigest(timeline.get());
-        result.serializedModel =
-            QJsonDocument(fixture.model.serialize()).toJson(QJsonDocument::Compact);
+        result.serializedModel = QJsonDocument(TestSupport::projectSnapshot(fixture.model))
+                                     .toJson(QJsonDocument::Compact);
         result.tasks = fixture.runtime.automationTasks().list(version.documentId);
         std::sort(result.tasks.begin(), result.tasks.end(),
                   [](const auto &left, const auto &right) {
@@ -635,7 +636,7 @@ void DocumentIOTests::saveAndSaveAs() {
             : Automation::AutomationResult<Automation::MutationResult>(saveContext.getError());
     const auto afterSaveAs = runtime.documents().getDocument(dirtyVersion.documentId);
     const auto modelAtConfirmation =
-        QJsonDocument(fixture.model.serialize()).toJson(QJsonDocument::Compact);
+        QJsonDocument(TestSupport::projectSnapshot(fixture.model)).toJson(QJsonDocument::Compact);
 
     QVERIFY2((committedNew && imported && dirtySnapshot && !dirtySnapshot.get().saved &&
               revisionDuringSaveDialog && saveContext && saveAs &&
@@ -650,7 +651,7 @@ void DocumentIOTests::saveAndSaveAs() {
     const auto edited = runtime.timeline().setTempo(commandContext(runtime), 1920, 132.0);
     const auto versionBeforeSave = runtime.documentVersion();
     const auto modelAfterConfirmation =
-        QJsonDocument(fixture.model.serialize()).toJson(QJsonDocument::Compact);
+        QJsonDocument(TestSupport::projectSnapshot(fixture.model)).toJson(QJsonDocument::Compact);
     const auto save = runtime.documents().saveDocument(commandContext(runtime), firstPath);
     const auto afterSave = runtime.documents().getDocument(versionBeforeSave.documentId);
     QVERIFY2((edited && savedModel != modelAfterConfirmation && save &&

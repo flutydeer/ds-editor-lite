@@ -30,7 +30,7 @@ lite_add_test(${PROJECT_NAME} SOURCES
     tst_lyric_grid.cpp
     tst_track_menus.cpp
 )
-target_link_libraries(${PROJECT_NAME} PRIVATE EditorRuntime)
+target_link_libraries(${PROJECT_NAME} PRIVATE EditorRuntime AutomationTestSupport)
 add_dependencies(${PROJECT_NAME} DsEditorLite)
 target_compile_definitions(${PROJECT_NAME} PRIVATE
     LITE_TEST_APPLICATION_CONFIG_ROOT="$<TARGET_FILE_DIR:DsEditorLite>/configs")

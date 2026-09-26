@@ -377,7 +377,7 @@ void ProjectEditingTests::duplicateClipsPreserveContentAndCreateIndependentObjec
     QVERIFY(oldNotes && oldPitch);
     fixture.testRuntime.history()->reset();
     const auto before = runtime.documentVersion();
-    const auto beforeModel = fixture.testRuntime.model().serialize();
+    const auto beforeModel = TestSupport::projectSnapshot(fixture.testRuntime.model());
     Automation::ClipDuplicateDestinationDto destination;
     destination.targetStart = 3840;
     if (useTargetTrack)
@@ -388,7 +388,7 @@ void ProjectEditingTests::duplicateClipsPreserveContentAndCreateIndependentObjec
     QVERIFY(preview && preview.get().validatedOnly && preview.get().changed);
     QVERIFY(preview.get().createdObjects.isEmpty());
     QCOMPARE(runtime.documentVersion(), before);
-    QCOMPARE(fixture.testRuntime.model().serialize(), beforeModel);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.testRuntime.model()), beforeModel);
 
     auto command = commandContext(runtime);
     command.idempotencyKey = QStringLiteral("copy-selected-clips");
@@ -458,17 +458,17 @@ void ProjectEditingTests::duplicateClipsPreserveContentAndCreateIndependentObjec
     }
     const auto after = runtime.documentVersion();
     QCOMPARE(after.revision, before.revision + 1);
-    const auto afterModel = fixture.testRuntime.model().serialize();
+    const auto afterModel = TestSupport::projectSnapshot(fixture.testRuntime.model());
     const auto retried = runtime.project().duplicateClips(command, sources, destination);
     QVERIFY(retried);
     QCOMPARE(retried.get().createdObjects, duplicated.get().createdObjects);
     QCOMPARE(runtime.documentVersion(), after);
-    QCOMPARE(fixture.testRuntime.model().serialize(), afterModel);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.testRuntime.model()), afterModel);
     QVERIFY(runtime.history().undo(commandContext(runtime)));
-    QCOMPARE(fixture.testRuntime.model().serialize(), beforeModel);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.testRuntime.model()), beforeModel);
     QVERIFY(!fixture.testRuntime.history()->canUndo());
     QVERIFY(runtime.history().redo(commandContext(runtime)));
-    QCOMPARE(fixture.testRuntime.model().serialize(), afterModel);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.testRuntime.model()), afterModel);
 }
 
 void ProjectEditingTests::batchAnchorsCommitAndUndoTogether() {
@@ -511,7 +511,7 @@ void ProjectEditingTests::batchAnchorsCommitAndUndoTogether() {
     const auto first = nodes.at(1).id;
     const auto second = nodes.at(2).id;
     const auto afterInsertion = runtime.documentVersion();
-    const auto insertedModel = testRuntime.model().serialize();
+    const auto insertedModel = TestSupport::projectSnapshot(testRuntime.model());
     const auto *undo = testRuntime.history()->nextUndoEntry();
     const auto retry =
         parameters.insertAnchors(request, clip, ParamInfo::Pitch, Param::Edited, curve, anchors);
@@ -523,7 +523,7 @@ void ProjectEditingTests::batchAnchorsCommitAndUndoTogether() {
         parameters.insertAnchors(request, clip, ParamInfo::Pitch, Param::Edited, curve, different);
     QVERIFY(isError(conflict, AutomationErrorCode::IdempotencyConflict));
     QCOMPARE(runtime.documentVersion(), afterInsertion);
-    QCOMPARE(testRuntime.model().serialize(), insertedModel);
+    QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), insertedModel);
     QCOMPARE(testRuntime.history()->nextUndoEntry(), undo);
     QVERIFY(runtime.history().undo(commandContext(runtime)));
     QCOMPARE(snapshot().nodes.size(), 2);
@@ -664,7 +664,7 @@ void ProjectEditingTests::rejectedAnchorBatchPreservesEveryCurve() {
                                     stale));
     fixture.history()->reset();
     const auto before = runtime.documentVersion();
-    const auto model = fixture.model().serialize();
+    const auto model = TestSupport::projectSnapshot(fixture.model());
     const auto rejected = [&] {
         if (operation == QStringLiteral("move"))
             return parameters.moveAnchors(
@@ -693,7 +693,7 @@ void ProjectEditingTests::rejectedAnchorBatchPreservesEveryCurve() {
                  ? AutomationErrorCode::InvalidArgument
                  : AutomationErrorCode::NotFound);
     QCOMPARE(runtime.documentVersion(), before);
-    QCOMPARE(fixture.model().serialize(), model);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.model()), model);
     QVERIFY(!fixture.history()->canUndo());
     const auto after =
         parameters.getParameter(before.documentId, clip, ParamInfo::Pitch, Param::Edited);
@@ -2551,7 +2551,7 @@ void ProjectEditingTests::nonAdjacentAnchorMergePreservesDocument() {
     QCOMPARE(curves.get().curves.size(), 3);
     fixture.history()->reset();
     const auto before = runtime.documentVersion();
-    const auto model = fixture.model().serialize();
+    const auto model = TestSupport::projectSnapshot(fixture.model());
     const auto result =
         parameters.mergeAnchorCurves(commandContext(runtime), clip, ParamInfo::Pitch, Param::Edited,
                                      curves.get().curves.first().id, curves.get().curves.last().id);
@@ -2559,7 +2559,7 @@ void ProjectEditingTests::nonAdjacentAnchorMergePreservesDocument() {
     QCOMPARE(result.getError().code, AutomationErrorCode::InvalidArgument);
     QCOMPARE(result.getError().fieldPath, QStringLiteral("source_curve_id"));
     QCOMPARE(runtime.documentVersion(), before);
-    QCOMPARE(fixture.model().serialize(), model);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.model()), model);
     QVERIFY(!fixture.history()->canUndo());
 }
 
@@ -2729,13 +2729,13 @@ void ProjectEditingTests::clearingTrackVoicePreservesIndependentClips() {
     QVERIFY(following && independent);
     const auto independentVoice = independent->effectiveVoiceContext();
     const EffectiveVoiceContext emptyInherited{.followsTrack = true};
-    const auto original = fixture.model().serialize();
+    const auto original = TestSupport::projectSnapshot(fixture.model());
     fixture.history()->reset();
     const auto before = runtime.documentVersion();
 
     const auto preview = parameters.clearTrackVoice(commandContext(runtime, true), trackId);
     QVERIFY(preview && preview.get().changed);
-    QCOMPARE(fixture.model().serialize(), original);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.model()), original);
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!fixture.history()->canUndo());
     const auto cleared = parameters.clearTrackVoice(commandContext(runtime), trackId);
@@ -2751,7 +2751,7 @@ void ProjectEditingTests::clearingTrackVoicePreservesIndependentClips() {
     QVERIFY(repeated && !repeated.get().changed);
     QCOMPARE(runtime.documentVersion(), clearedVersion);
     QVERIFY(runtime.history().undo(commandContext(runtime)));
-    QCOMPARE(fixture.model().serialize(), original);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.model()), original);
     QCOMPARE(following->speakerInfo(), first);
     QCOMPARE(independent->effectiveVoiceContext(), independentVoice);
     QVERIFY(!fixture.history()->canUndo());
@@ -2775,11 +2775,11 @@ void ProjectEditingTests::clearingClipVoiceStopsInheritanceUntilRestored() {
     auto *sibling = static_cast<SingingClip *>(fixture.model().findClipById(siblingId.value()));
     QVERIFY(clip && sibling);
     fixture.history()->reset();
-    const auto original = fixture.model().serialize();
+    const auto original = TestSupport::projectSnapshot(fixture.model());
     const auto before = runtime.documentVersion();
     const auto preview = parameters.clearClipVoice(commandContext(runtime, true), clipId);
     QVERIFY(preview && preview.get().changed);
-    QCOMPARE(fixture.model().serialize(), original);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.model()), original);
     QCOMPARE(runtime.documentVersion(), before);
     const auto cleared = parameters.clearClipVoice(commandContext(runtime), clipId);
     QVERIFY(cleared && cleared.get().changed);
@@ -2790,7 +2790,7 @@ void ProjectEditingTests::clearingClipVoiceStopsInheritanceUntilRestored() {
     const auto repeated = parameters.clearClipVoice(commandContext(runtime), clipId);
     QVERIFY(repeated && !repeated.get().changed);
     QVERIFY(runtime.history().undo(commandContext(runtime)));
-    QCOMPARE(fixture.model().serialize(), original);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.model()), original);
     QVERIFY(clip->usesTrackVoiceContext());
     QCOMPARE(clip->speakerInfo(), first);
     QVERIFY(!fixture.history()->canUndo());
@@ -2812,13 +2812,13 @@ void ProjectEditingTests::pronunciationSourcesAndResetPreserveAutomaticWords() {
     NoteFixture fixture;
     auto &runtime = fixture.testRuntime.runtime();
     auto &notes = runtime.notes();
-    const auto original = fixture.testRuntime.model().serialize();
+    const auto original = TestSupport::projectSnapshot(fixture.testRuntime.model());
     const auto before = runtime.documentVersion();
     const auto automatic = notes.setPronunciation(commandContext(runtime, true), fixture.clipId,
                                                   fixture.firstNoteId, true, "auto-la");
     QVERIFY(automatic && automatic.get().changed);
     QCOMPARE(runtime.documentVersion(), before);
-    QCOMPARE(fixture.testRuntime.model().serialize(), original);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.testRuntime.model()), original);
     QVERIFY(notes.setPronunciation(commandContext(runtime), fixture.clipId, fixture.firstNoteId,
                                    true, "auto-la"));
     auto current = noteSnapshot(runtime, fixture.clipId, fixture.firstNoteId);
@@ -2857,7 +2857,7 @@ void ProjectEditingTests::pronunciationSourcesAndResetPreserveAutomaticWords() {
     QCOMPARE(current->data.pronunciation.edited, QStringLiteral("custom-la"));
     QCOMPARE(current->data.pronunciation.original, QStringLiteral("auto-la"));
     QVERIFY(runtime.history().undo(commandContext(runtime)));
-    QCOMPARE(fixture.testRuntime.model().serialize(), original);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.testRuntime.model()), original);
     QVERIFY(!fixture.testRuntime.history()->canUndo());
 }
 

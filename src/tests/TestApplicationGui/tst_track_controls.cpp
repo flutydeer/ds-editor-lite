@@ -225,7 +225,7 @@ void ApplicationGuiTests::trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned() {
     QVERIFY(target && target->isVisible());
     historyManager->reset();
     const auto document = runtime.documentVersion();
-    const auto model = context->m_appModel->serialize();
+    const auto model = TestSupport::projectSnapshot(*context->m_appModel);
     const auto wheel = [&](int delta, Qt::KeyboardModifiers modifiers) {
         const auto position = target->rect().center();
         QWheelEvent event(QPointF(position), QPointF(target->mapToGlobal(position)), {}, {0, delta},
@@ -253,7 +253,7 @@ void ApplicationGuiTests::trackHeaderAndInfoLaneWheelsKeepTheCanvasAligned() {
         QCOMPARE(editor.viewState().horizontalScale, beforeHorizontalScroll.horizontalScale);
     }
     QCOMPARE(runtime.documentVersion(), document);
-    QCOMPARE(context->m_appModel->serialize(), model);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), model);
     QVERIFY(!historyManager->canUndo());
 }
 

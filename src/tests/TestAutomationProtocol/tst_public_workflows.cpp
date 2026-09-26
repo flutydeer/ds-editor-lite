@@ -139,7 +139,7 @@ void AutomationProtocolTests::batchImportRouting() {
     PublicAutomationRegistry registry(fixture.runtime, fixture.access, fixture.fileGuard,
                                       fixture.admission, fixture.captureBatch());
     const auto before = fixture.runtime.documentVersion();
-    const auto beforeModel = fixture.runtimeFixture.model().serialize();
+    const auto beforeModel = TestSupport::projectSnapshot(fixture.runtimeFixture.model());
     auto arguments = commandArguments(before);
     arguments.insert(QStringLiteral("validate_only"), true);
     arguments.insert(QStringLiteral("failure_policy"), policy);
@@ -211,7 +211,7 @@ void AutomationProtocolTests::batchImportRouting() {
         QVERIFY(items.last().canonicalPath.isEmpty());
     }
     QCOMPARE(fixture.runtime.documentVersion(), before);
-    QCOMPARE(fixture.runtimeFixture.model().serialize(), beforeModel);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()), beforeModel);
     QVERIFY(!fixture.runtimeFixture.history()->canUndo());
 }
 
@@ -230,7 +230,7 @@ void AutomationProtocolTests::batchImportPlanRevalidation() {
     PublicAutomationRegistry registry(fixture.runtime, fixture.access, fixture.fileGuard,
                                       fixture.admission, fixture.captureBatch());
     const auto before = fixture.runtime.documentVersion();
-    const auto beforeModel = fixture.runtimeFixture.model().serialize();
+    const auto beforeModel = TestSupport::projectSnapshot(fixture.runtimeFixture.model());
     const auto *beforeUndo = fixture.runtimeFixture.history()->nextUndoEntry();
     const auto inspection = registry.invoke(
         QStringLiteral("formats.inspect"),
@@ -299,7 +299,7 @@ void AutomationProtocolTests::batchImportPlanRevalidation() {
     QCOMPARE(denied.getError().code, AutomationErrorCode::PermissionDenied);
     QCOMPARE(denied.getError().fieldPath, QStringLiteral("items.path"));
     QCOMPARE(fixture.runtime.documentVersion(), before);
-    QCOMPARE(fixture.runtimeFixture.model().serialize(), beforeModel);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()), beforeModel);
     QCOMPARE(fixture.runtimeFixture.history()->nextUndoEntry(), beforeUndo);
 }
 
@@ -420,7 +420,7 @@ void AutomationProtocolTests::fillLyricsUnavailableLanguage() {
         fixture.runtime.notes().getNotes(project.get().document.documentId, clip.id);
     QVERIFY(originalNotes);
     const auto before = fixture.runtime.documentVersion();
-    const auto beforeModel = fixture.runtimeFixture.model().serialize();
+    const auto beforeModel = TestSupport::projectSnapshot(fixture.runtimeFixture.model());
     const auto *beforeUndo = fixture.runtimeFixture.history()->nextUndoEntry();
     auto arguments = commandArguments(before);
     arguments.insert(QStringLiteral("clip_id"), clip.id.value());
@@ -438,7 +438,7 @@ void AutomationProtocolTests::fillLyricsUnavailableLanguage() {
     QCOMPARE(result.getError().code, AutomationErrorCode::InvalidArgument);
     QCOMPARE(result.getError().fieldPath, QStringLiteral("/options/language/language_id"));
     QCOMPARE(fixture.runtime.documentVersion(), before);
-    QCOMPARE(fixture.runtimeFixture.model().serialize(), beforeModel);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()), beforeModel);
     QCOMPARE(fixture.runtimeFixture.history()->nextUndoEntry(), beforeUndo);
 }
 
@@ -458,8 +458,9 @@ void AutomationProtocolTests::publicClipCopyAndMovePreserveTheSourcePhrase() {
     const auto sourceNotes =
         runtime.notes().getNotes(runtime.documentVersion().documentId, sourceClip);
     QVERIFY(sourceNotes);
-    const auto original = fixture.runtimeFixture.model().serialize();
-    const auto originalSourceTrack = fixture.runtimeFixture.model().tracks().first()->serialize();
+    const auto original = TestSupport::projectSnapshot(fixture.runtimeFixture.model());
+    const auto originalSourceTrack =
+        original.value("content").toObject().value("tracks").toArray().at(0);
     const auto *beforeUndo = fixture.runtimeFixture.history()->nextUndoEntry();
     PublicAutomationRegistry registry(runtime, fixture.access, fixture.fileGuard,
                                       fixture.admission);
@@ -537,12 +538,18 @@ void AutomationProtocolTests::publicClipCopyAndMovePreserveTheSourcePhrase() {
         QCOMPARE(after.data.keyIndex, before.data.keyIndex);
         QCOMPARE(after.data.lyric, before.data.lyric);
     }
-    QCOMPARE(fixture.runtimeFixture.model().tracks().first()->serialize(), originalSourceTrack);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model())
+                 .value("content")
+                 .toObject()
+                 .value("tracks")
+                 .toArray()
+                 .at(0),
+             originalSourceTrack);
     QVERIFY(runtime.history().undo(commandContext(runtime)));
     QVERIFY(runtime.history().undo(commandContext(runtime)));
     QVERIFY(runtime.history().undo(commandContext(runtime)));
     QVERIFY(runtime.history().undo(commandContext(runtime)));
-    QCOMPARE(fixture.runtimeFixture.model().serialize(), original);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()), original);
     QCOMPARE(fixture.runtimeFixture.history()->nextUndoEntry(), beforeUndo);
 }
 
@@ -576,7 +583,7 @@ void AutomationProtocolTests::parameterQueryBoundsSamplesAndPreservesAnchors() {
     QVERIFY(stored);
     const auto anchorId = stored.get().curves.at(2).id.value();
     const auto before = runtime.documentVersion();
-    const auto beforeModel = fixture.runtimeFixture.model().serialize();
+    const auto beforeModel = TestSupport::projectSnapshot(fixture.runtimeFixture.model());
     const auto *beforeUndo = fixture.runtimeFixture.history()->nextUndoEntry();
     PublicAutomationRegistry registry(runtime, fixture.access, fixture.fileGuard,
                                       fixture.admission);
@@ -648,7 +655,7 @@ void AutomationProtocolTests::parameterQueryBoundsSamplesAndPreservesAnchors() {
                 .toArray()
                 .isEmpty());
     QCOMPARE(runtime.documentVersion(), before);
-    QCOMPARE(fixture.runtimeFixture.model().serialize(), beforeModel);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()), beforeModel);
     QCOMPARE(fixture.runtimeFixture.history()->nextUndoEntry(), beforeUndo);
 }
 
@@ -738,7 +745,7 @@ void AutomationProtocolTests::publicParameterEditsPreserveCurvesAndUndo() {
     QCOMPARE(restored.get().curves.last().nodes.last().id, storedAnchor.nodes.last().id);
     QCOMPARE(restored.get().curves.last().nodes.last().value, storedAnchor.nodes.last().value);
 
-    const auto beforeAnchors = fixture.runtimeFixture.model().serialize();
+    const auto beforeAnchors = TestSupport::projectSnapshot(fixture.runtimeFixture.model());
     const auto versionBeforeAnchors = runtime.documentVersion();
     const auto created = edit(
         QStringLiteral("parameters.create_anchor_curve"),
@@ -810,7 +817,7 @@ void AutomationProtocolTests::publicParameterEditsPreserveCurvesAndUndo() {
     QCOMPARE(runtime.documentVersion().revision, versionBeforeAnchors.revision + 3);
     for (int i = 0; i < 3; ++i)
         QVERIFY(runtime.history().undo(commandContext(runtime)));
-    QCOMPARE(fixture.runtimeFixture.model().serialize(), beforeAnchors);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()), beforeAnchors);
     QVERIFY(runtime.history().undo(commandContext(runtime)));
     const auto empty = runtime.parameters().getParameter(runtime.documentVersion().documentId, clip,
                                                          ParamInfo::Pitch, Param::Edited);
@@ -857,7 +864,7 @@ void AutomationProtocolTests::phonemeNamesUseTheEffectiveLanguageAndResetOffsets
     arguments.insert(QStringLiteral("note_id"), original.id.value());
     arguments.insert(QStringLiteral("names"), QJsonArray{"m", "a", "n"});
     fixture.runtimeFixture.history()->reset();
-    const auto originalModel = fixture.runtimeFixture.model().serialize();
+    const auto originalModel = TestSupport::projectSnapshot(fixture.runtimeFixture.model());
     const auto set = registry.invoke(QStringLiteral("notes.set_phonemes"), arguments);
     QVERIFY2(set, qPrintable(errorMessage(set)));
     const auto after = runtime.notes().getNotes(runtime.documentVersion().documentId, clip);
@@ -874,7 +881,7 @@ void AutomationProtocolTests::phonemeNamesUseTheEffectiveLanguageAndResetOffsets
         QCOMPARE(phoneme.language, expectedLanguage);
     }
     QCOMPARE(names, (QStringList{QStringLiteral("m"), QStringLiteral("a"), QStringLiteral("n")}));
-    const auto editedModel = fixture.runtimeFixture.model().serialize();
+    const auto editedModel = TestSupport::projectSnapshot(fixture.runtimeFixture.model());
     auto resetArguments = commandArguments(runtime.documentVersion());
     resetArguments.insert(QStringLiteral("clip_id"), clip.value());
     resetArguments.insert(QStringLiteral("note_id"), original.id.value());
@@ -894,7 +901,7 @@ void AutomationProtocolTests::phonemeNamesUseTheEffectiveLanguageAndResetOffsets
     QCOMPARE(runtime.documentVersion(), resetVersion);
     QCOMPARE(fixture.runtimeFixture.history()->nextUndoEntry(), resetUndo);
     QVERIFY(runtime.history().undo(commandContext(runtime)));
-    QCOMPARE(fixture.runtimeFixture.model().serialize(), editedModel);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()), editedModel);
     QVERIFY(runtime.history().undo(commandContext(runtime)));
     const auto undone = runtime.notes().getNotes(runtime.documentVersion().documentId, clip);
     QVERIFY(undone);
@@ -902,7 +909,7 @@ void AutomationProtocolTests::phonemeNamesUseTheEffectiveLanguageAndResetOffsets
              original.data.phonemes.nameSeq.edited);
     QCOMPARE(undone.get().first().data.phonemes.offsetSeq.edited,
              original.data.phonemes.offsetSeq.edited);
-    QCOMPARE(fixture.runtimeFixture.model().serialize(), originalModel);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()), originalModel);
     QVERIFY(!fixture.runtimeFixture.history()->canUndo());
 }
 
@@ -944,7 +951,7 @@ void AutomationProtocolTests::insertedPhonemesPreserveTimingAndRejectPartialOffs
     const auto inserted = registry.invoke(QStringLiteral("notes.insert"), input);
     QVERIFY2(inserted, qPrintable(errorMessage(inserted)));
     const auto version = runtime.documentVersion();
-    const auto model = fixture.runtimeFixture.model().serialize();
+    const auto model = TestSupport::projectSnapshot(fixture.runtimeFixture.model());
     const auto *undo = fixture.runtimeFixture.history()->nextUndoEntry();
     const auto listed =
         registry.invoke(QStringLiteral("notes.list"),
@@ -967,7 +974,7 @@ void AutomationProtocolTests::insertedPhonemesPreserveTimingAndRejectPartialOffs
     QCOMPARE(rejected.getError().code, AutomationErrorCode::InvalidArgument);
     QCOMPARE(rejected.getError().fieldPath, QStringLiteral("notes.1.phonemes"));
     QCOMPARE(runtime.documentVersion(), version);
-    QCOMPARE(fixture.runtimeFixture.model().serialize(), model);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.runtimeFixture.model()), model);
     QCOMPARE(fixture.runtimeFixture.history()->nextUndoEntry(), undo);
     QVERIFY(runtime.history().undo(commandContext(runtime)));
     const auto restored = runtime.notes().getNotes(runtime.documentVersion().documentId, clipId);

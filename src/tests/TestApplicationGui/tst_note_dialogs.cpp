@@ -916,7 +916,7 @@ void ApplicationGuiTests::movingLyricsBackwardUsesTheSelectedWordRange() {
     appStatus->selectedNotes = QList<int>{notes.at(contiguous ? 2 : 3)->id(), notes.at(1)->id()};
     historyManager->reset();
     const auto before = runtime.documentVersion();
-    const auto beforeModel = context->m_appModel->serialize();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     bool inspectedMenu = false;
     QTimer chooseAction;
     chooseAction.setSingleShot(true);
@@ -947,7 +947,7 @@ void ApplicationGuiTests::movingLyricsBackwardUsesTheSelectedWordRange() {
     QVERIFY(inspectedMenu);
     if (!contiguous) {
         QCOMPARE(runtime.documentVersion(), before);
-        QCOMPARE(context->m_appModel->serialize(), beforeModel);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
         QVERIFY(!historyManager->canUndo());
         return;
     }
@@ -974,7 +974,7 @@ void ApplicationGuiTests::movingLyricsBackwardUsesTheSelectedWordRange() {
         }
     }
     QVERIFY(runtime.history().undo(commandContext()));
-    QCOMPARE(context->m_appModel->serialize(), beforeModel);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(runtime.history().redo(commandContext()));
     QCOMPARE(notes.last()->lyric(), drafts.at(2).lyric);

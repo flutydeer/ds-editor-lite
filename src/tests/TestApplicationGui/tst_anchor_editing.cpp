@@ -315,7 +315,7 @@ void ApplicationGuiTests::pitchAnchorMergePreviewCommitsAndUndoes() {
 
     const auto sourceNodes = anchorCurve(*singingClip)->nodes().toList();
     const auto movedId = sourceNodes.at(1)->id();
-    const auto sourceModel = context->m_appModel->serialize();
+    const auto sourceModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto sourceVersion = runtime.documentVersion();
     const auto dragFrom = fixture.pointAt(360, 61);
     const auto dragTo = fixture.pointAt(1200, 63);
@@ -327,7 +327,7 @@ void ApplicationGuiTests::pitchAnchorMergePreviewCommitsAndUndoes() {
         fixture.moveTo(dragTo, Qt::LeftButton);
         QVERIFY(editSessionManager->hasActiveTransaction());
         QVERIFY(fixture.image() != idle);
-        QCOMPARE(context->m_appModel->serialize(), sourceModel);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), sourceModel);
         QCOMPARE(runtime.documentVersion(), sourceVersion);
     };
     drag();
@@ -335,7 +335,7 @@ void ApplicationGuiTests::pitchAnchorMergePreviewCommitsAndUndoes() {
         return;
     QTest::keyClick(fixture.canvas, Qt::Key_Escape);
     QTest::mouseRelease(fixture.canvas->viewport(), Qt::LeftButton, Qt::NoModifier, dragTo);
-    QCOMPARE(context->m_appModel->serialize(), sourceModel);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), sourceModel);
     QVERIFY(!historyManager->canUndo());
     drag();
     if (QTest::currentTestFailed())
@@ -349,6 +349,6 @@ void ApplicationGuiTests::pitchAnchorMergePreviewCommitsAndUndoes() {
     QCOMPARE(targetNodes.at(1)->value(), 6300);
     QCOMPARE(runtime.documentVersion().revision, sourceVersion.revision + 1);
     QVERIFY(runtime.history().undo(commandContext()));
-    QCOMPARE(context->m_appModel->serialize(), sourceModel);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), sourceModel);
     QVERIFY(!historyManager->canUndo());
 }

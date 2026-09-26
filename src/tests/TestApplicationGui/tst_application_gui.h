@@ -2,6 +2,7 @@
 #define APPLICATIONGUITESTS_H
 
 #include "Automation/AutomationTypes.h"
+#include "../TestSupport/ProjectSnapshot.h"
 
 #include <QObject>
 #include <QPoint>

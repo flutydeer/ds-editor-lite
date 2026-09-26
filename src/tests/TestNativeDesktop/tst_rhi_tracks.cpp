@@ -31,6 +31,7 @@
 #include <QDragLeaveEvent>
 #include <QDragMoveEvent>
 #include <QDropEvent>
+#include <QJsonArray>
 #include <QMenu>
 #include <QMimeData>
 #include <QPointer>
@@ -184,7 +185,7 @@ void NativeDesktopTests::rhiClipDragScrollsAtTheEdgeAndStopsOnCancel() {
     const auto oldCursor = QCursor::pos();
     const auto restoreCursor = qScopeGuard([&] { QCursor::setPos(oldCursor); });
     const auto before = fixture.runtime().documentVersion();
-    const auto model = fixture.application.context->m_appModel->serialize();
+    const auto model = TestSupport::projectSnapshot(*fixture.application.context->m_appModel);
     const auto press = fixture.point(960, 0);
     const auto edge = QPoint(canvas.width() - 2, press.y());
     QVERIFY(canvas.rect().contains(press));
@@ -200,7 +201,7 @@ void NativeDesktopTests::rhiClipDragScrollsAtTheEdgeAndStopsOnCancel() {
     QTRY_VERIFY_WITH_TIMEOUT(canvas.startTick() > afterMove + 60, 3000);
     QTRY_VERIFY(frames.size() > previewFrame);
     QCOMPARE(fixture.runtime().documentVersion(), before);
-    QCOMPARE(fixture.application.context->m_appModel->serialize(), model);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.application.context->m_appModel), model);
     QTest::keyClick(&canvas, Qt::Key_Escape);
     QTest::mouseRelease(canvas.windowHandle(), Qt::LeftButton, Qt::NoModifier, edge);
     QVERIFY(!editSessionManager->hasActiveTransaction());
@@ -208,7 +209,7 @@ void NativeDesktopTests::rhiClipDragScrollsAtTheEdgeAndStopsOnCancel() {
     QTest::qWait(80);
     QCOMPARE(canvas.startTick(), stoppedAt);
     QCOMPARE(fixture.runtime().documentVersion(), before);
-    QCOMPARE(fixture.application.context->m_appModel->serialize(), model);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.application.context->m_appModel), model);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(failed.isEmpty());
 }
@@ -501,8 +502,15 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
     QVERIFY(editor->centerAt(1920, 0.5));
     const auto viewport = editor->viewState();
     const auto beforeFallback = fixture.runtime().documentVersion();
-    const auto *source = fixture.application.context->m_appModel->tracks().first();
-    const auto sourceTrack = source->serialize();
+    const auto sourceContent = [&] {
+        return TestSupport::projectSnapshot(*fixture.application.context->m_appModel)
+            .value("content")
+            .toObject()
+            .value("tracks")
+            .toArray()
+            .at(0);
+    };
+    const auto sourceTrack = sourceContent();
     canvas.backendFailed(QStringLiteral("Rendering device lost"));
     QTRY_VERIFY(fixture.canvas.isNull());
     auto *legacy = editor->findChild<TracksGraphicsView *>();
@@ -518,7 +526,7 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
     QTRY_VERIFY(scroll->value() > initialScroll);
     QCOMPARE(legacy->verticalScrollBar()->value(), scroll->value());
     QCOMPARE(fixture.runtime().documentVersion(), beforeFallback);
-    QCOMPARE(source->serialize(), sourceTrack);
+    QCOMPARE(sourceContent(), sourceTrack);
     QVERIFY(editor->setViewScale(2, 1));
     QVERIFY(editor->centerAt(1920, 0.5));
     QCoreApplication::processEvents();
@@ -529,7 +537,7 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
     QTest::mouseRelease(legacy->viewport(), Qt::LeftButton, Qt::NoModifier, legacyPosition);
     QCOMPARE(destination->clips().count(), 1);
     QCOMPARE((*destination->clips().begin())->start(), 2400);
-    QCOMPARE(source->serialize(), sourceTrack);
+    QCOMPARE(sourceContent(), sourceTrack);
     historyManager->undo();
     QCOMPARE(destination->clips().count(), 0);
     QVERIFY(!historyManager->canUndo());
@@ -638,7 +646,7 @@ void NativeDesktopTests::rhiFileDropScrollsUntilTheDragLeaves() {
     QTest::mousePress(window, Qt::LeftButton, Qt::NoModifier,
                       window->mapFromGlobal(canvas.mapToGlobal(start)));
     QVERIFY(QGuiApplication::mouseButtons().testFlag(Qt::LeftButton));
-    const auto model = fixture.application.context->m_appModel->serialize();
+    const auto model = TestSupport::projectSnapshot(*fixture.application.context->m_appModel);
     const auto before = fixture.runtime().documentVersion();
     QDragEnterEvent enter(start, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
     QApplication::sendEvent(&canvas, &enter);
@@ -649,7 +657,7 @@ void NativeDesktopTests::rhiFileDropScrollsUntilTheDragLeaves() {
     const auto initialOffset = canvas.logicalVisibleRect().top();
     QTRY_VERIFY_WITH_TIMEOUT(canvas.logicalVisibleRect().top() > initialOffset + 4, 3000);
     QCOMPARE(fixture.runtime().documentVersion(), before);
-    QCOMPARE(fixture.application.context->m_appModel->serialize(), model);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.application.context->m_appModel), model);
     QDragLeaveEvent leave;
     QApplication::sendEvent(&canvas, &leave);
     QVERIFY(leave.isAccepted());
@@ -696,7 +704,8 @@ void NativeDesktopTests::rhiAudioClipTrimAndMovePreserveTimeAnchors() {
     QVERIFY2(backendError.isEmpty(), qPrintable(backendError));
     QTRY_VERIFY(canvas.isActiveWindow());
     historyManager->reset();
-    const auto modelBeforeZoom = fixture.application.context->m_appModel->serialize();
+    const auto modelBeforeZoom =
+        TestSupport::projectSnapshot(*fixture.application.context->m_appModel);
     const auto versionBeforeZoom = fixture.runtime().documentVersion();
     // The overview, individual peaks, and samples keep the same timeline hit target.
     for (const double scale : {2.0, 16.0, 512.0}) {
@@ -710,7 +719,8 @@ void NativeDesktopTests::rhiAudioClipTrimAndMovePreserveTimeAnchors() {
         appStatus->selectedClips = {};
         QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, fixture.point(960, 0));
         QCOMPARE(appStatus->selectedClips.get(), QList<int>{fixture.clipId});
-        QCOMPARE(fixture.application.context->m_appModel->serialize(), modelBeforeZoom);
+        QCOMPARE(TestSupport::projectSnapshot(*fixture.application.context->m_appModel),
+                 modelBeforeZoom);
         QCOMPARE(fixture.runtime().documentVersion(), versionBeforeZoom);
         QVERIFY(!historyManager->canUndo());
     }

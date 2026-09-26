@@ -340,7 +340,7 @@ void ApplicationGuiTests::switchingUiLanguagePreservesSettingsAndTheOpenDocument
         commandContext(), Automation::TrackId(context->m_appModel->tracks().first()->id()),
         QStringLiteral("Retained track name")));
     const auto before = runtime.documentVersion();
-    const auto beforeModel = context->m_appModel->serialize();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto selected = appStatus->selectedNotes.get();
     const auto *beforeUndo = historyManager->nextUndoEntry();
     QVERIFY(beforeUndo);
@@ -407,7 +407,7 @@ void ApplicationGuiTests::switchingUiLanguagePreservesSettingsAndTheOpenDocument
         QVERIFY(lyric);
         QCOMPARE(lyric->text(), QStringLiteral("retained lyric"));
         QCOMPARE(runtime.documentVersion(), before);
-        QCOMPARE(context->m_appModel->serialize(), beforeModel);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
         QCOMPARE(appStatus->selectedNotes.get(), selected);
         QCOMPARE(historyManager->nextUndoEntry(), beforeUndo);
         AppOptions reopened;
@@ -429,7 +429,7 @@ void ApplicationGuiTests::appearanceInputsPersistAcrossReopening() {
     QVERIFY(window.showBottomPanelPage(QStringLiteral("ClipEditor")));
     auto &runtime = *context->m_coreRuntime;
     const auto before = runtime.documentVersion();
-    const auto beforeModel = context->m_appModel->serialize();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto selectedNotes = appStatus->selectedNotes.get();
     const auto activeClip = appStatus->activeClipId.get();
     const auto snapshot = runtime.settings().getSettings();
@@ -553,7 +553,7 @@ void ApplicationGuiTests::appearanceInputsPersistAcrossReopening() {
     QCOMPARE(animation->value(), enabled);
     QCOMPARE(QLocale().toDouble(duration->text()), scale);
     QCOMPARE(runtime.documentVersion(), before);
-    QCOMPARE(context->m_appModel->serialize(), beforeModel);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
     QCOMPARE(appStatus->selectedNotes.get(), selectedNotes);
     QCOMPARE(appStatus->activeClipId.get(), activeClip);
     QVERIFY(!historyManager->canUndo());
@@ -960,7 +960,7 @@ void ApplicationGuiTests::inferenceProviderSelectionDetectsDevicesAndDefersResta
     QVERIFY(snapshot);
     const auto restore = qScopeGuard(
         [&] { QVERIFY(runtime.settings().updateInference({}, snapshot.get().inference)); });
-    const auto before = context->m_appModel->serialize();
+    const auto before = TestSupport::projectSnapshot(*context->m_appModel);
     const auto version = runtime.documentVersion();
     const auto effective = ExecutionProviderUtils::effective();
     AppOptionsDialog panel;
@@ -1012,7 +1012,7 @@ void ApplicationGuiTests::inferenceProviderSelectionDetectsDevicesAndDefersResta
     AppOptions persisted;
     QCOMPARE(persisted.inference()->executionProvider, QStringLiteral("CPU"));
     QCOMPARE(ExecutionProviderUtils::effective(), effective);
-    QCOMPARE(context->m_appModel->serialize(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), before);
     QCOMPARE(runtime.documentVersion(), version);
     QVERIFY(!historyManager->canUndo());
 }

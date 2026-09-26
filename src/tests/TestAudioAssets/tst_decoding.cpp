@@ -789,7 +789,7 @@ void AudioAssetsTests::removingAudioTargetsCancelsPendingDecode() {
     else
         QVERIFY(fixture.runtime().project().removeClips(command, {clipId}));
     const auto afterRemoval = fixture.runtime().documentVersion();
-    const auto afterModel = fixture.model().serialize();
+    const auto afterModel = TestSupport::projectSnapshot(fixture.model());
     const auto *afterUndo = fixture.history()->nextUndoEntry();
     QCOMPARE(afterRemoval.revision, base.revision + 1);
     release.release();
@@ -799,7 +799,7 @@ void AudioAssetsTests::removingAudioTargetsCancelsPendingDecode() {
     QVERIFY(canceled);
     QCOMPARE(canceled.get().state, AutomationTaskState::Canceled);
     QCOMPARE(fixture.runtime().documentVersion(), afterRemoval);
-    QCOMPARE(fixture.model().serialize(), afterModel);
+    QCOMPARE(TestSupport::projectSnapshot(fixture.model()), afterModel);
     QCOMPARE(fixture.history()->nextUndoEntry(), afterUndo);
     QVERIFY(fixture.runtime().history().undo(fixture.command(InvocationSource::TrustedGui)));
     QVERIFY(drainTasks());

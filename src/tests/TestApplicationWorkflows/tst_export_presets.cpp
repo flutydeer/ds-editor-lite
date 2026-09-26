@@ -59,7 +59,7 @@ void ApplicationWorkflowTests::customExportPresetPersistsAndProducesIntegerWave(
         imported->audioInfo().frames == 4800 && !imported->audioInfo().peakCache.isEmpty(), 10000);
     QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
     const auto before = runtime().documentVersion();
-    const auto beforeModel = context->m_appModel->serialize();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto *beforeUndo = HistoryManager::instance()->nextUndoEntry();
 
     const auto name = QStringLiteral("Test integer-wave delivery");
@@ -162,6 +162,6 @@ void ApplicationWorkflowTests::customExportPresetPersistsAndProducesIntegerWave(
                          persisted.audio.audioExporterPresets.cend(),
                          [&](const auto &preset) { return preset.name == name; }));
     QCOMPARE(runtime().documentVersion(), before);
-    QCOMPARE(context->m_appModel->serialize(), beforeModel);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
     QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
 }

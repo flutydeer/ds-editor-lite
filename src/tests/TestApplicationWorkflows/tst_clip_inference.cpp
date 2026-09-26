@@ -169,7 +169,7 @@ void ApplicationWorkflowTests::modelInferenceWaitsForEditingBeforeApplying() {
          .noteIds = {targetNote->id()}});
     QVERIFY(session != 0);
     const auto document = runtime().documentVersion();
-    const auto model = context->m_appModel->serialize();
+    const auto model = TestSupport::projectSnapshot(*context->m_appModel);
     const auto *undo = historyManager->nextUndoEntry();
     releaseWorker.release();
     auto waitingState = stage;
@@ -179,7 +179,7 @@ void ApplicationWorkflowTests::modelInferenceWaitsForEditingBeforeApplying() {
     QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
     QVERIFY(!hasResult());
     QCOMPARE(runtime().documentVersion(), document);
-    QCOMPARE(context->m_appModel->serialize(), model);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), model);
     QCOMPARE(historyManager->nextUndoEntry(), undo);
 
     if (replaceDocument) {
@@ -270,7 +270,7 @@ void ApplicationWorkflowTests::cacheCleanupProtectsRestoredInference() {
         QCOMPARE(file.write("unrelated data"), qint64{14});
     }
     const auto document = runtime().documentVersion();
-    const auto model = context->m_appModel->serialize();
+    const auto model = TestSupport::projectSnapshot(*context->m_appModel);
     const auto result =
         InferCacheUtils::cleanCache(cacheDirectory, InferCacheUtils::collectActiveCacheFiles());
     QVERIFY(result.retainedActiveCount >= protectedFiles.size());
@@ -283,7 +283,7 @@ void ApplicationWorkflowTests::cacheCleanupProtectsRestoredInference() {
         QCOMPARE(file.readAll(), it.value());
     }
     QCOMPARE(runtime().documentVersion(), document);
-    QCOMPARE(context->m_appModel->serialize(), model);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), model);
     QVERIFY(!historyManager->canUndo());
 
     QVERIFY(runtime().documents().commitNewDocument(
@@ -396,7 +396,7 @@ void ApplicationWorkflowTests::inferenceFailureAndCancellationAllowRetry() {
         if (QTest::currentTestFailed())
             cache.setAutoRemove(false);
     });
-    const auto before = context->m_appModel->serialize();
+    const auto before = TestSupport::projectSnapshot(*context->m_appModel);
     const auto version = runtime().documentVersion();
     const auto *undo = historyManager->nextUndoEntry();
     const auto singer = clip->singerIdentifier();
@@ -476,7 +476,7 @@ void ApplicationWorkflowTests::inferenceFailureAndCancellationAllowRetry() {
     QTRY_COMPARE_WITH_TIMEOUT(cachedRetryFinished.count(), 1, 15000);
     QVERIFY(workers.waitForDone(5000));
     QVERIFY(cachedRetry->success());
-    QCOMPARE(context->m_appModel->serialize(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), before);
     QCOMPARE(runtime().documentVersion(), version);
     QCOMPARE(historyManager->nextUndoEntry(), undo);
 }
@@ -488,7 +488,7 @@ void ApplicationWorkflowTests::languageTasksKeepMixedResultsAligned() {
     const auto language = TestSupport::fixtureLanguage();
     const auto lyric = TestSupport::fixtureLyric();
     const auto singer = clip->singerInfo();
-    const auto before = context->m_appModel->serialize();
+    const auto before = TestSupport::projectSnapshot(*context->m_appModel);
     const auto version = runtime().documentVersion();
     QList<NoteInferenceSnapshot> inputs{
         {11, lyric,                         language, {}, 0,    480, 60},
@@ -565,7 +565,7 @@ void ApplicationWorkflowTests::languageTasksKeepMixedResultsAligned() {
         QCOMPARE(unresolved.result.at(index).pronunciation, inputs.at(index).lyric);
         QVERIFY(unresolvedPhonemes.result.at(index).phonemeNames.isEmpty());
     }
-    QCOMPARE(context->m_appModel->serialize(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), before);
     QCOMPARE(runtime().documentVersion(), version);
 }
 
@@ -575,7 +575,7 @@ void ApplicationWorkflowTests::builtInG2pConvertsDictionaryAndUnlistedWords() {
         return;
     const auto &service = SynthrtEngine::instance().languageService();
     QVERIFY(service.modelsReady());
-    const auto before = context->m_appModel->serialize();
+    const auto before = TestSupport::projectSnapshot(*context->m_appModel);
     const auto version = runtime().documentVersion();
     const auto *undo = HistoryManager::instance()->nextUndoEntry();
     const std::vector<srt::g2p::G2pInput> inputs{
@@ -594,7 +594,7 @@ void ApplicationWorkflowTests::builtInG2pConvertsDictionaryAndUnlistedWords() {
         QVERIFY(!result.candidates.empty());
     }
     QVERIFY(converted.front().pronunciation != converted.back().pronunciation);
-    QCOMPARE(context->m_appModel->serialize(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), before);
     QCOMPARE(runtime().documentVersion(), version);
     QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undo);
 }

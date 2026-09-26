@@ -91,7 +91,7 @@ void ApplicationGuiTests::projectOpenWaitsForPackageMetadata() {
     QVERIFY(runtime.documents().commitNewDocument(
         commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
     const auto before = runtime.documentVersion();
-    const auto beforeModel = context->m_appModel->serialize();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     const auto path = directory.filePath(QStringLiteral("waiting-for-packages.dspx"));
@@ -139,7 +139,7 @@ void ApplicationGuiTests::projectOpenWaitsForPackageMetadata() {
     QVERIFY(workflow->busy());
     QCOMPARE(parseStarts, 0);
     QCOMPARE(runtime.documentVersion(), before);
-    QCOMPARE(context->m_appModel->serialize(), beforeModel);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
     if (completion == QStringLiteral("cancel")) {
         workflow->cancelCurrentOperation();
         QTRY_VERIFY(!workflow->busy());
@@ -161,7 +161,7 @@ void ApplicationGuiTests::projectOpenWaitsForPackageMetadata() {
         QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
         QCoreApplication::processEvents();
         QCOMPARE(runtime.documentVersion(), before);
-        QCOMPARE(context->m_appModel->serialize(), beforeModel);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
         QCOMPARE(parseStarts, 0);
         appStatus->packageModuleStatus = AppStatus::ModuleStatus::Ready;
         workflow->requestOpen(path);
@@ -195,7 +195,7 @@ void ApplicationGuiTests::newDocumentHonorsTheSaveDecision() {
     QVERIFY(!HistoryManager::instance()->isOnSavePoint());
     QVERIFY(!documentWorkflowController->busy());
     const auto before = runtime.documentVersion();
-    const auto beforeModel = context->m_appModel->serialize();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto *beforeUndo = HistoryManager::instance()->nextUndoEntry();
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
@@ -237,7 +237,7 @@ void ApplicationGuiTests::newDocumentHonorsTheSaveDecision() {
         QVERIFY(!HistoryManager::instance()->canUndo());
     } else {
         QCOMPARE(runtime.documentVersion(), before);
-        QCOMPARE(context->m_appModel->serialize(), beforeModel);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
         QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
         QVERIFY(!HistoryManager::instance()->isOnSavePoint());
     }
@@ -258,7 +258,7 @@ void ApplicationGuiTests::newDocumentHonorsTheSaveDecision() {
         QTRY_VERIFY(!documentWorkflowController->busy());
         QCOMPARE(prompt.pathCalls, 1);
         QCOMPARE(runtime.documentVersion(), before);
-        QCOMPARE(context->m_appModel->serialize(), beforeModel);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
         QCOMPARE(historyManager->nextUndoEntry(), beforeUndo);
         QVERIFY(!historyManager->isOnSavePoint());
         prompt.savePath = directory.filePath(QStringLiteral("retained.dspx"));
@@ -266,7 +266,7 @@ void ApplicationGuiTests::newDocumentHonorsTheSaveDecision() {
         QTRY_VERIFY(!documentWorkflowController->busy());
         QCOMPARE(prompt.pathCalls, 2);
         QCOMPARE(runtime.documentVersion(), before);
-        QCOMPARE(context->m_appModel->serialize(), beforeModel);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
         QCOMPARE(historyManager->nextUndoEntry(), beforeUndo);
         QVERIFY(historyManager->isOnSavePoint());
         QVERIFY(QFileInfo(prompt.savePath).isFile());
@@ -291,7 +291,7 @@ void ApplicationGuiTests::rejectedProjectInputAllowsTheNextRequest() {
     original.name = QStringLiteral("Unsaved source");
     QVERIFY(runtime.project().insertTrack(commandContext(), 0, original));
     const auto before = runtime.documentVersion();
-    const auto model = context->m_appModel->serialize();
+    const auto model = TestSupport::projectSnapshot(*context->m_appModel);
     const auto *undo = historyManager->nextUndoEntry();
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
@@ -321,7 +321,7 @@ void ApplicationGuiTests::rejectedProjectInputAllowsTheNextRequest() {
                                               : DocumentWorkflowController::tr("Unsupported file"));
     QCOMPARE(prompt.decisionCalls, 0);
     QCOMPARE(runtime.documentVersion(), before);
-    QCOMPARE(context->m_appModel->serialize(), model);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), model);
     QCOMPARE(historyManager->nextUndoEntry(), undo);
     QVERIFY(!historyManager->isOnSavePoint());
 
@@ -361,7 +361,7 @@ void ApplicationGuiTests::pendingProjectLoadCanCancelOrRequestExit() {
     draft.name = QStringLiteral("Unsaved original");
     QVERIFY(runtime.project().insertTrack(commandContext(), 0, draft));
     const auto before = runtime.documentVersion();
-    const auto beforeModel = context->m_appModel->serialize();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto *beforeUndo = historyManager->nextUndoEntry();
     auto expectedVersion = before;
     auto expectedModel = beforeModel;
@@ -450,7 +450,7 @@ void ApplicationGuiTests::pendingProjectLoadCanCancelOrRequestExit() {
             commandContext(), Automation::TrackId(context->m_appModel->tracks().first()->id()),
             QStringLiteral("Edit made while loading")));
         expectedVersion = runtime.documentVersion();
-        expectedModel = context->m_appModel->serialize();
+        expectedModel = TestSupport::projectSnapshot(*context->m_appModel);
         expectedUndo = historyManager->nextUndoEntry();
         release.release();
     } else {
@@ -468,7 +468,7 @@ void ApplicationGuiTests::pendingProjectLoadCanCancelOrRequestExit() {
     QCOMPARE(prompt.decisionCalls, action == QStringLiteral("cancel") ? 1 : 2);
     QVERIFY(prompt.errors.isEmpty());
     QCOMPARE(runtime.documentVersion(), expectedVersion);
-    QCOMPARE(context->m_appModel->serialize(), expectedModel);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), expectedModel);
     QCOMPARE(historyManager->nextUndoEntry(), expectedUndo);
     QVERIFY(!historyManager->isOnSavePoint());
     release.release();

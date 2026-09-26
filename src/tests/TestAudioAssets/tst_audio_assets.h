@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../TestSupport/ProjectSnapshot.h"
+
 #include <QObject>
 
 class AudioAssetsTests final : public QObject {

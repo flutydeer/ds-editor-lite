@@ -1030,7 +1030,7 @@ namespace {
         const QJsonArray selectedClips{first.clips.at(0).id.value(), first.clips.at(2).id.value(),
                                        second.clips.at(1).id.value()};
         const auto before = runtime.documentVersion();
-        const auto beforeModel = fixture.model().serialize();
+        const auto beforeModel = TestSupport::projectSnapshot(fixture.model());
         const auto capabilities =
             registry.invoke(QStringLiteral("exports.midi.get_capabilities"),
                             {
@@ -1097,7 +1097,7 @@ namespace {
         QVERIFY(output.open(QIODevice::ReadOnly));
         QCOMPARE(output.readAll(), previousFile);
         QCOMPARE(runtime.documentVersion(), before);
-        QCOMPARE(fixture.model().serialize(), beforeModel);
+        QCOMPARE(TestSupport::projectSnapshot(fixture.model()), beforeModel);
         QVERIFY(!fixture.history()->canUndo());
         QVERIFY(!fixture.history()->canRedo());
     }
@@ -1702,7 +1702,7 @@ namespace {
                                                           QStringLiteral("ja")));
         const auto queryClipVoice = [&] {
             const auto before = runtime.documentVersion();
-            const auto beforeModel = testRuntime.model().serialize();
+            const auto beforeModel = TestSupport::projectSnapshot(testRuntime.model());
             const auto *undoEntry = testRuntime.history()->nextUndoEntry();
             const auto result =
                 registry.invoke(QStringLiteral("clips.get"),
@@ -1713,7 +1713,7 @@ namespace {
             reportFailure(QStringLiteral("clips.get"), result);
             expect(bool(result), QStringLiteral("clip voice query must resolve the actual clip"));
             expect(runtime.documentVersion() == before &&
-                       testRuntime.model().serialize() == beforeModel &&
+                       TestSupport::projectSnapshot(testRuntime.model()) == beforeModel &&
                        testRuntime.history()->nextUndoEntry() == undoEntry,
                    QStringLiteral("clip voice queries must not change the document or history"));
             return result ? result.get()
@@ -1829,7 +1829,7 @@ namespace {
                             {QStringLiteral("weights"),  QJsonArray{0.6, 0.4}},
         }));
         const auto versionBeforeQuery = runtime.documentVersion();
-        const auto modelBeforeQuery = testRuntime.model().serialize();
+        const auto modelBeforeQuery = TestSupport::projectSnapshot(testRuntime.model());
         const auto *undoBeforeQuery = testRuntime.history()->nextUndoEntry();
         const auto dynamic =
             speakerMixSnapshot(registry, runtime, QStringLiteral("clip"), voiceClipId.value());
@@ -1844,7 +1844,7 @@ namespace {
         QCOMPARE(keyframes.last().toObject().value(QStringLiteral("weights")).toArray(),
                  (QJsonArray{0.6, 0.4}));
         QCOMPARE(runtime.documentVersion(), versionBeforeQuery);
-        QCOMPARE(testRuntime.model().serialize(), modelBeforeQuery);
+        QCOMPARE(TestSupport::projectSnapshot(testRuntime.model()), modelBeforeQuery);
         QCOMPARE(testRuntime.history()->nextUndoEntry(), undoBeforeQuery);
         const auto keyframeId = keyframes.last().toObject().value(QStringLiteral("keyframe_id"));
         QVERIFY(editMix(QStringLiteral("speaker_mix.keyframes.move"),

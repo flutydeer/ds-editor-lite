@@ -605,7 +605,7 @@ void ApplicationGuiTests::droppingMidiAndAudioFilesUsesOneBatchDecision() {
     QCoreApplication::processEvents();
     historyManager->reset();
     const auto before = runtime.documentVersion();
-    const auto beforeModel = appModel->serialize();
+    const auto beforeModel = TestSupport::projectSnapshot(*appModel);
     const auto originalTimeline = appModel->timeline();
     int decisions = 0;
     QTimer answer;
@@ -621,7 +621,7 @@ void ApplicationGuiTests::droppingMidiAndAudioFilesUsesOneBatchDecision() {
         ++decisions;
         QCOMPARE(decisions, 1);
         QCOMPARE(runtime.documentVersion(), before);
-        QCOMPARE(appModel->serialize(), beforeModel);
+        QCOMPARE(TestSupport::projectSnapshot(*appModel), beforeModel);
         auto *codec = dialog->findChild<ComboBox *>();
         selectMidiCodec(codec);
         if (QTest::currentTestFailed())
@@ -663,7 +663,7 @@ void ApplicationGuiTests::droppingMidiAndAudioFilesUsesOneBatchDecision() {
     QCOMPARE(decisions, 1);
     if (!accept) {
         QCOMPARE(runtime.documentVersion(), before);
-        QCOMPARE(appModel->serialize(), beforeModel);
+        QCOMPARE(TestSupport::projectSnapshot(*appModel), beforeModel);
         QVERIFY(!historyManager->canUndo());
         return;
     }
@@ -699,7 +699,7 @@ void ApplicationGuiTests::droppingMidiAndAudioFilesUsesOneBatchDecision() {
     QCOMPARE(audio->audioInfo().frames, 800);
     QVERIFY(qAbs(audio->length() - (importTempo ? 70 : 96)) <= 1);
     QVERIFY(runtime.history().undo(commandContext()));
-    QCOMPARE(appModel->serialize(), beforeModel);
+    QCOMPARE(TestSupport::projectSnapshot(*appModel), beforeModel);
     QCOMPARE(appModel->timeline(), originalTimeline);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(runtime.history().redo(commandContext()));

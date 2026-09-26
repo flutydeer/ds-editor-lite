@@ -720,7 +720,7 @@ void ApplicationWorkflowTests::publicParameterScalingUsesCapabilitiesAndPreserve
         commandContext(), clipId, ParamInfo::Breathiness, Param::Edited, {curve}));
     historyManager->reset();
     const auto before = runtime().documentVersion();
-    const auto beforeModel = context->m_appModel->serialize();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto scaled =
         registry.invoke(QStringLiteral("parameters.scale"),
                         {
@@ -754,7 +754,7 @@ void ApplicationWorkflowTests::publicParameterScalingUsesCapabilitiesAndPreserve
     QVERIFY(transition && *transition > minimum && *transition < initialValue);
     QCOMPARE(runtime().documentVersion().revision, before.revision + 1);
     QVERIFY(runtime().history().undo(commandContext()));
-    QCOMPARE(context->m_appModel->serialize(), beforeModel);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
     QVERIFY(!historyManager->canUndo());
 }
 

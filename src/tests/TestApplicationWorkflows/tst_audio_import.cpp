@@ -223,7 +223,7 @@ void ApplicationWorkflowTests::audioBatchValidationDoesNotStartTasks() {
     const auto path = files.filePath(QStringLiteral("phrase.wav"));
     QVERIFY(writeAudio(path));
     const auto before = runtime().documentVersion();
-    const auto beforeModel = context->m_appModel->serialize();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto *beforeUndo = HistoryManager::instance()->nextUndoEntry();
     PublicAudioClipBatchImportRequest request{.command = commandContext(),
                                               .failurePolicy =
@@ -260,7 +260,7 @@ void ApplicationWorkflowTests::audioBatchValidationDoesNotStartTasks() {
     QCoreApplication::processEvents();
     QCOMPARE(started, 0);
     QCOMPARE(runtime().documentVersion(), before);
-    QCOMPARE(context->m_appModel->serialize(), beforeModel);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
     QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
 }
 
@@ -296,7 +296,7 @@ void ApplicationWorkflowTests::audioBatchRejectsChangesBeforeCommit() {
                                                 QStringLiteral("Edited while decoding")));
     }
     const auto afterChange = runtime().documentVersion();
-    const auto afterModel = context->m_appModel->serialize();
+    const auto afterModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto *afterUndo = HistoryManager::instance()->nextUndoEntry();
     QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
     if (change != QStringLiteral("replace")) {
@@ -312,6 +312,6 @@ void ApplicationWorkflowTests::audioBatchRejectsChangesBeforeCommit() {
         QVERIFY(!completed.get().mutation);
     }
     QCOMPARE(runtime().documentVersion(), afterChange);
-    QCOMPARE(context->m_appModel->serialize(), afterModel);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), afterModel);
     QCOMPARE(HistoryManager::instance()->nextUndoEntry(), afterUndo);
 }

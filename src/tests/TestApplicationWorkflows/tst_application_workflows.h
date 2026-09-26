@@ -3,6 +3,7 @@
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
 #include "Model/AppStatus/AppStatus.h"
+#include "../TestSupport/ProjectSnapshot.h"
 
 #include <QObject>
 #include <QTemporaryDir>

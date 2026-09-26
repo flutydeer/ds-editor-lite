@@ -179,7 +179,7 @@ void ApplicationGuiTests::pianoKeyboardRangeAndScrollingFollowTheEditor() {
     QVERIFY(keyboard);
     QTRY_VERIFY(keyboard->isVisible());
     const auto before = context->m_coreRuntime->documentVersion();
-    const auto beforeModel = context->m_appModel->serialize();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     for (int key : {60, 72}) {
         QVERIFY(editor.setPitchViewport(key, 1.0));
         QCoreApplication::processEvents();
@@ -200,6 +200,6 @@ void ApplicationGuiTests::pianoKeyboardRangeAndScrollingFollowTheEditor() {
     QVERIFY(wheel.isAccepted());
     QVERIFY(receipt.events.isEmpty());
     QCOMPARE(context->m_coreRuntime->documentVersion(), before);
-    QCOMPARE(context->m_appModel->serialize(), beforeModel);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
     QVERIFY(!historyManager->canUndo());
 }

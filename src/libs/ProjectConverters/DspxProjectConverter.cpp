@@ -1127,7 +1127,8 @@ bool DspxProjectConverter::load(const QString &path, AppModel *model, QString &e
     return true;
 }
 
-bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &errMsg) {
+opendspx::Model DspxProjectConverter::encodeProject(const QString &path,
+                                                    const AppModel *model) const {
 
     auto encodeCurves = [&](const QList<Curve *> &dsCurves,
                             std::vector<opendspx::ParamCurveRef> &curves) {
@@ -1351,6 +1352,12 @@ bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &e
     const auto loopSettings = loopSettingsToSave();
     dspxModel.content.workspace["loop"] =
         JsonStdc::fromQJsonValue(loopSettings.serialize()).toObject();
+
+    return dspxModel;
+}
+
+bool DspxProjectConverter::save(const QString &path, AppModel *model, QString &errMsg) {
+    const auto dspxModel = encodeProject(path, model);
 
     auto saveModelToFile = [](const opendspx::Model &model_, const QString &filePath,
                               QString &msg) -> bool {

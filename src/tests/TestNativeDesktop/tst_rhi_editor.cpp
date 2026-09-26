@@ -265,7 +265,7 @@ void NativeDesktopTests::rhiThemeSwitchPreservesBothEditorsAndTheirDocument() {
     QVERIFY(window.centerPianoRollAt(1920, 60));
     historyManager->reset();
     const auto before = runtime.documentVersion();
-    const auto model = fixture.context->m_appModel->serialize();
+    const auto model = TestSupport::projectSnapshot(*fixture.context->m_appModel);
     const auto darkPiano = piano->property("whiteKeyColor").value<QColor>();
     const auto darkTracks = tracks->property("backgroundColor").value<QColor>();
     const auto verifyTimelines = [&] {
@@ -292,7 +292,7 @@ void NativeDesktopTests::rhiThemeSwitchPreservesBothEditorsAndTheirDocument() {
     if (QTest::currentTestFailed())
         return;
     QCOMPARE(runtime.documentVersion(), before);
-    QCOMPARE(fixture.context->m_appModel->serialize(), model);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), model);
     QCOMPARE(appStatus->activeClipId.get(), clip->id());
     QVERIFY(!historyManager->canUndo());
     QVERIFY2(themes->applyTheme(ThemeIds::defaultThemeId()), qPrintable(ThemeLoader::lastError()));
@@ -330,7 +330,7 @@ void NativeDesktopTests::rhiThemeSwitchPreservesBothEditorsAndTheirDocument() {
     QCOMPARE(opened.layout.bottomPanelPageId, QStringLiteral("ClipEditor"));
     QTRY_VERIFY(qAbs(window.captureEditorViewState().pianoRoll.centerTick - clickedTick) < 1.0);
     QCOMPARE(runtime.documentVersion(), before);
-    QCOMPARE(fixture.context->m_appModel->serialize(), model);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), model);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(window.setPianoRollScale(1, 1));
 
@@ -342,7 +342,7 @@ void NativeDesktopTests::rhiThemeSwitchPreservesBothEditorsAndTheirDocument() {
     QTest::mouseClick(piano, Qt::LeftButton, Qt::NoModifier, piano->rect().center());
     QCOMPARE(clip->notes().count(), 2);
     QVERIFY(runtime.history().undo(command()));
-    QCOMPARE(fixture.context->m_appModel->serialize(), model);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), model);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(trackErrors.isEmpty() && pianoErrors.isEmpty());
 }
@@ -380,7 +380,7 @@ void NativeDesktopTests::rhiPianoWheelInputsReachTheActiveViewport() {
     canvas->update();
     QTRY_VERIFY(!frames.isEmpty());
     const auto before = fixture.context->m_coreRuntime->documentVersion();
-    const auto model = fixture.context->m_appModel->serialize();
+    const auto model = TestSupport::projectSnapshot(*fixture.context->m_appModel);
     const QPoint gesturePosition(canvas->width() / 3, canvas->height() / 2);
     const auto tickAtPosition = [&] {
         return canvas->startTick() +
@@ -419,7 +419,7 @@ void NativeDesktopTests::rhiPianoWheelInputsReachTheActiveViewport() {
     canvas->update();
     QTRY_VERIFY(frames.size() > previousFrame);
     QCOMPARE(fixture.context->m_coreRuntime->documentVersion(), before);
-    QCOMPARE(fixture.context->m_appModel->serialize(), model);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), model);
     QVERIFY(!historyManager->canUndo());
     QVERIFY(failed.isEmpty());
 }
@@ -587,7 +587,7 @@ void NativeDesktopTests::rhiNoteDragKeepsScrollingUntilTheGestureEnds() {
     const auto oldCursor = QCursor::pos();
     const auto restoreCursor = qScopeGuard([&] { QCursor::setPos(oldCursor); });
     const auto before = fixture.runtime().documentVersion();
-    const auto original = fixture.app.context->m_appModel->serialize();
+    const auto original = TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
     const auto initialStart = canvas.startTick();
     const auto press = fixture.pointFor(720, 60);
     const auto edge = QPoint(canvas.width() - 2, press.y());
@@ -599,7 +599,7 @@ void NativeDesktopTests::rhiNoteDragKeepsScrollingUntilTheGestureEnds() {
     QTRY_VERIFY_WITH_TIMEOUT(canvas.startTick() > afterMove + 60, 3000);
     QVERIFY(!appStatus->pianoRollNoteEditPreview.get().isEmpty());
     QCOMPARE(fixture.runtime().documentVersion(), before);
-    QCOMPARE(fixture.app.context->m_appModel->serialize(), original);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), original);
     QTest::keyClick(&canvas, Qt::Key_Escape);
     QTest::mouseRelease(canvas.windowHandle(), Qt::LeftButton, Qt::NoModifier, edge);
     QVERIFY(!editSessionManager->hasActiveTransaction());
@@ -607,7 +607,7 @@ void NativeDesktopTests::rhiNoteDragKeepsScrollingUntilTheGestureEnds() {
     QTest::qWait(80);
     QCOMPARE(canvas.startTick(), initialStart);
     QCOMPARE(fixture.runtime().documentVersion(), before);
-    QCOMPARE(fixture.app.context->m_appModel->serialize(), original);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), original);
     QVERIFY(!historyManager->canUndo());
 }
 
@@ -807,13 +807,13 @@ void NativeDesktopTests::rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor(
     fixture.waitForFrame();
     if (QTest::currentTestFailed())
         return;
-    const auto beforeAppend = fixture.app.context->m_appModel->serialize();
+    const auto beforeAppend = TestSupport::projectSnapshot(*fixture.app.context->m_appModel);
     const auto appendPosition = fixture.pointFor(1680, 61);
     QTest::mouseMove(canvas.windowHandle(), appendPosition);
     fixture.waitForFrame();
     if (QTest::currentTestFailed())
         return;
-    QCOMPARE(fixture.app.context->m_appModel->serialize(), beforeAppend);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), beforeAppend);
     QCOMPARE(anchorCurve()->nodes().toList().last()->interpMode(), AnchorNode::None);
     QTest::mouseClick(&canvas, Qt::LeftButton, Qt::NoModifier, appendPosition);
     QCOMPARE(anchorCurve()->nodes().count(), 4);
@@ -823,7 +823,7 @@ void NativeDesktopTests::rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor(
     QCOMPARE(appendedNodes.last()->interpMode(), AnchorNode::None);
     QCOMPARE(appendedNodes.at(2)->interpMode(), AnchorNode::Hermite);
     QVERIFY(fixture.runtime().history().undo(fixture.command()));
-    QCOMPARE(fixture.app.context->m_appModel->serialize(), beforeAppend);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), beforeAppend);
     inserted = anchorCurve()->nodes().toList().at(1);
     const auto *historyEntry = historyManager->nextUndoEntry();
     const auto beforeCancel = fixture.runtime().documentVersion();
@@ -856,7 +856,7 @@ void NativeDesktopTests::rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor(
         fixture.waitForFrame();
         if (QTest::currentTestFailed())
             return;
-        QCOMPARE(fixture.app.context->m_appModel->serialize(), beforeAppend);
+        QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), beforeAppend);
         QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, release);
         QVERIFY(!editSessionManager->hasActiveTransaction());
         QCOMPARE(anchorCurve()->nodes().count(), 2);
@@ -869,7 +869,7 @@ void NativeDesktopTests::rhiPitchAnchorInsertionAndCanceledDragUseTheRealEditor(
         QVERIFY(qAbs(moved->pos() - targetTick) <= tickPerPixel);
         QCOMPARE(moved->value(), 6100);
         QVERIFY(fixture.runtime().history().undo(fixture.command()));
-        QCOMPARE(fixture.app.context->m_appModel->serialize(), beforeAppend);
+        QCOMPARE(TestSupport::projectSnapshot(*fixture.app.context->m_appModel), beforeAppend);
     }
     QVERIFY(fixture.runtime().history().undo(fixture.command()));
     QVERIFY(anchorCurve());
@@ -1478,7 +1478,7 @@ void NativeDesktopTests::rhiPianoMenuPasteAndVisibilityUseTheFullEditor() {
             ->nodes()
             .toList();
     };
-    const auto beforeAnchorMenu = fixture.context->m_appModel->serialize();
+    const auto beforeAnchorMenu = TestSupport::projectSnapshot(*fixture.context->m_appModel);
     editor.onEditModeChanged(ClipEditorGlobal::EditPitchAnchor);
     runMenu(point(960, 61), PianoRollContextMenuController::tr("Linear"), false, true);
     if (QTest::currentTestFailed())
@@ -1497,7 +1497,7 @@ void NativeDesktopTests::rhiPianoMenuPasteAndVisibilityUseTheFullEditor() {
     QCOMPARE(anchorNodes().size(), 3);
     QCOMPARE(anchorNodes().at(1)->interpMode(), AnchorNode::Linear);
     QVERIFY(runtime.history().undo(command()));
-    QCOMPARE(fixture.context->m_appModel->serialize(), beforeAnchorMenu);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), beforeAnchorMenu);
     QVERIFY(runtime.history().undo(command()));
     QVERIFY(pitch->curves(Param::Edited).isEmpty());
     QVERIFY(!historyManager->canUndo());

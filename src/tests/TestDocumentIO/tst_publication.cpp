@@ -305,7 +305,7 @@ void DocumentIOTests::midiExportPreservesProjectTimingAndOptionalMetadata() {
     audio->setPath(directory.filePath(QStringLiteral("audio-is-not-midi.wav")));
     track->insertClip(audio);
     QVERIFY(model.appendTrack(track));
-    const auto before = model.serialize();
+    const auto before = TestSupport::projectSnapshot(model);
     MidiConverter converter;
     const auto path = directory.filePath(QStringLiteral("导出.mid"));
     QString error;
@@ -314,7 +314,7 @@ void DocumentIOTests::midiExportPreservesProjectTimingAndOptionalMetadata() {
                              .includeTimeSignatures = metadata,
                              .includeLyrics = metadata}),
              qPrintable(error));
-    QCOMPARE(model.serialize(), before);
+    QCOMPARE(TestSupport::projectSnapshot(model), before);
     const auto parsed = MidiFileParser::parse(path);
     QVERIFY2(parsed.valid, qPrintable(parsed.errorMessage));
     std::vector<opendspx::MidiIntermediateData::Note> notes;
@@ -375,12 +375,12 @@ void DocumentIOTests::dspxSerializationFailurePreservesExistingFile() {
     auto invalidControl = originalControl;
     invalidControl.setPan(2.0);
     model.setMasterControl(invalidControl);
-    const auto beforeSave = model.serialize();
+    const auto beforeSave = TestSupport::projectSnapshot(model);
     QVERIFY(!converter.save(path, &model, error));
     QVERIFY(!error.isEmpty());
     QCOMPARE(readFile(path), original);
     QCOMPARE(directoryEntries(directory.path()), entries);
-    QCOMPARE(model.serialize(), beforeSave);
+    QCOMPARE(TestSupport::projectSnapshot(model), beforeSave);
 
     model.setMasterControl(originalControl);
     model.tracks().first()->setName(QStringLiteral("Recovered save"));

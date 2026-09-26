@@ -750,7 +750,7 @@ void ApplicationGuiTests::inlineLyricsCommitNavigateAndCancel() {
     QCOMPARE(first->lyric(), replacement);
 
     const auto removedId = first->id();
-    const auto beforeRemoval = context->m_appModel->serialize();
+    const auto beforeRemoval = TestSupport::projectSnapshot(*context->m_appModel);
     editFirst();
     if (QTest::currentTestFailed())
         return;
@@ -763,7 +763,7 @@ void ApplicationGuiTests::inlineLyricsCommitNavigateAndCancel() {
     QVERIFY(!singingClip->findNoteById(removedId));
     QVERIFY(!sceneNote(removedId));
     QVERIFY(runtime.history().undo(commandContext()));
-    QCOMPARE(context->m_appModel->serialize(), beforeRemoval);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeRemoval);
     QVERIFY(!overlay->isEditing());
 }
 

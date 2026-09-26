@@ -1,6 +1,8 @@
 #ifndef NATIVEDESKTOPTESTS_H
 #define NATIVEDESKTOPTESTS_H
 
+#include "../TestSupport/ProjectSnapshot.h"
+
 #include <QObject>
 #include <memory>
 

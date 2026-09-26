@@ -127,7 +127,7 @@ void ApplicationGuiTests::parameterToolbarSwapsTheVisiblePairWithoutEditingTheDo
     QVERIFY(foreground && background && swap && canvas);
     historyManager->reset();
     const auto before = runtime.documentVersion();
-    const auto model = context->m_appModel->serialize();
+    const auto model = TestSupport::projectSnapshot(*context->m_appModel);
     const auto choose = [&](ComboBox *combo, ParamInfo::Name name) {
         const auto index = combo->findText(paramUtils->nameFromType(name));
         QVERIFY(index >= 0);
@@ -167,7 +167,7 @@ void ApplicationGuiTests::parameterToolbarSwapsTheVisiblePairWithoutEditingTheDo
     QCOMPARE(panel.viewState().background, ParamInfo::Unknown);
     QCOMPARE(foreground->currentText(), backgroundText);
     QCOMPARE(runtime.documentVersion(), before);
-    QCOMPARE(context->m_appModel->serialize(), model);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), model);
     QVERIFY(!historyManager->canUndo());
 }
 
@@ -557,7 +557,7 @@ void ApplicationGuiTests::parameterTransformHandlesControlTheTransitionRange() {
     QCoreApplication::processEvents();
     historyManager->reset();
     const auto before = runtime.documentVersion();
-    const auto baseline = context->m_appModel->serialize();
+    const auto baseline = TestSupport::projectSnapshot(*context->m_appModel);
     QSignalSpy committed(editor.foreground, &CommonParamEditorView::editCommitted);
     const auto dragRange = [&](int fromTick, int toTick) {
         const auto start = editor.pointFor(fromTick, 500);
@@ -569,7 +569,7 @@ void ApplicationGuiTests::parameterTransformHandlesControlTheTransitionRange() {
         QTest::mouseRelease(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, end);
         QVERIFY(!editSessionManager->hasActiveTransaction());
         QCOMPARE(runtime.documentVersion(), before);
-        QCOMPARE(context->m_appModel->serialize(), baseline);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), baseline);
         QVERIFY(committed.isEmpty());
     };
     dragRange(480, 960);
@@ -612,13 +612,13 @@ void ApplicationGuiTests::parameterTransformHandlesControlTheTransitionRange() {
     QVERIFY(valueAt(preview, 900) > coreValue && valueAt(preview, 900) < 600);
     QCOMPARE(valueAt(preview, 1020), 600);
     QCOMPARE(valueAt(preview, 1140), 600);
-    QCOMPARE(context->m_appModel->serialize(), baseline);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), baseline);
     QTest::mouseRelease(editor.view.viewport(), Qt::LeftButton, Qt::NoModifier, end);
     QCOMPARE(committed.size(), 1);
     QCOMPARE(valueAt(editor.foreground->editedCurves(), 720), coreValue);
     QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
     QVERIFY(runtime.history().undo(commandContext()));
-    QCOMPARE(context->m_appModel->serialize(), baseline);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), baseline);
     QCOMPARE(valueAt(editor.foreground->editedCurves(), 720), 600);
     QVERIFY(!historyManager->canUndo());
 }

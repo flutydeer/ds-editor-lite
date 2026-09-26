@@ -37,7 +37,7 @@ void ApplicationGuiTests::playbackTextInputsValidateCommitAndCancel() {
     auto *position = controls.findChild<InlineEditLabel *>("elTime");
     QVERIFY(tempo && signature && position);
     historyManager->reset();
-    const auto original = context->m_appModel->serialize();
+    const auto original = TestSupport::projectSnapshot(*context->m_appModel);
     const auto before = runtime.documentVersion();
     const auto enter = [&](InlineEditLabel *label, const QString &value,
                            Qt::Key finish = Qt::Key_Return) {
@@ -87,7 +87,7 @@ void ApplicationGuiTests::playbackTextInputsValidateCommitAndCancel() {
     QCOMPARE(runtime.documentVersion(), signatureEdit);
     QVERIFY(runtime.history().undo(commandContext()));
     QVERIFY(runtime.history().undo(commandContext()));
-    QCOMPARE(context->m_appModel->serialize(), original);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), original);
     QVERIFY(!historyManager->canUndo());
 }
 

@@ -207,7 +207,7 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
     });
 
     const auto beforeSettings = runtime.documentVersion();
-    const auto modelBeforeSettings = fixture.context->m_appModel->serialize();
+    const auto modelBeforeSettings = TestSupport::projectSnapshot(*fixture.context->m_appModel);
     {
         AudioPage page;
         page.resize(900, 700);
@@ -279,7 +279,7 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
                  selectedRate);
     }
     QCOMPARE(runtime.documentVersion(), beforeSettings);
-    QCOMPARE(fixture.context->m_appModel->serialize(), modelBeforeSettings);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), modelBeforeSettings);
 
     const auto path = fixture.directory.filePath(QStringLiteral("silence.wav"));
     QVERIFY(TestSupport::writeWave(path, QVector<float>(48000, 0.0f)));

@@ -126,7 +126,7 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
             bottom->close();
     });
     const auto before = fixture.context->m_coreRuntime->documentVersion();
-    const auto beforeModel = fixture.context->m_appModel->serialize();
+    const auto beforeModel = TestSupport::projectSnapshot(*fixture.context->m_appModel);
     const auto sizes = splitter->sizes();
     auto *detach = bottom->titleBar()->findChild<Button *>("btnPanelDetach");
     QVERIFY(detach && detach->isVisible());
@@ -153,7 +153,7 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
     QTRY_VERIFY(!bottom->isWindow() && bottom->isVisible());
     QTRY_COMPARE(splitter->sizes(), sizes);
     QCOMPARE(fixture.context->m_coreRuntime->documentVersion(), before);
-    QCOMPARE(fixture.context->m_appModel->serialize(), beforeModel);
+    QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), beforeModel);
     QVERIFY(!historyManager->canUndo());
 }
 

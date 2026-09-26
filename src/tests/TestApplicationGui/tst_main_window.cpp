@@ -443,7 +443,7 @@ void ApplicationGuiTests::editorAutomationConfiguresTheVisibleWorkspaceWithoutEd
         appStatus->pianoRollAutoPageTurnEnabled = pianoFollowing;
     });
     QVERIFY(editor.setActiveClip(document, Automation::ClipId(singingClip->id())));
-    const auto model = appModel->serialize();
+    const auto model = TestSupport::projectSnapshot(*appModel);
     historyManager->reset();
     const auto originalView = window.captureEditorViewState();
     QVERIFY(editor.setPanelVisibility(gui, true, false));
@@ -490,7 +490,7 @@ void ApplicationGuiTests::editorAutomationConfiguresTheVisibleWorkspaceWithoutEd
     QCOMPARE(window.captureEditorViewState().parameters.background,
              originalView.parameters.background);
     QCOMPARE(runtime.documentVersion(), before);
-    QCOMPARE(appModel->serialize(), model);
+    QCOMPARE(TestSupport::projectSnapshot(*appModel), model);
     QVERIFY(!historyManager->canUndo());
 }
 
@@ -526,7 +526,7 @@ void ApplicationGuiTests::trackEditShortcutsFollowTheFocusedPanelAndUndo() {
     QVERIFY(track);
     const auto originalId = singingClip->id();
     const auto originalLength = singingClip->length();
-    const auto original = context->m_appModel->serialize();
+    const auto original = TestSupport::projectSnapshot(*context->m_appModel);
     const auto before = runtime.documentVersion();
     const auto key = [&](QKeySequence::StandardKey command) {
         auto *input = QApplication::focusWidget();
@@ -567,7 +567,7 @@ void ApplicationGuiTests::trackEditShortcutsFollowTheFocusedPanelAndUndo() {
     QVERIFY(runtime.history().undo(commandContext()));
     QCOMPARE(track->clips().count(), 2);
     QVERIFY(runtime.history().undo(commandContext()));
-    QCOMPARE(context->m_appModel->serialize(), original);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), original);
     QVERIFY(!historyManager->canUndo());
 }
 
@@ -794,7 +794,7 @@ void ApplicationGuiTests::recentProjectsMenuRemovesMissingFilesAndClearsTheList(
         QTRY_VERIFY(!recent->isVisible());
     };
     const auto before = runtime.documentVersion();
-    const auto model = context->m_appModel->serialize();
+    const auto model = TestSupport::projectSnapshot(*context->m_appModel);
     const auto *undo = historyManager->nextUndoEntry();
     QSignalSpy changed(documentWorkflowController,
                        &DocumentWorkflowController::recentProjectFilesChanged);
@@ -802,7 +802,7 @@ void ApplicationGuiTests::recentProjectsMenuRemovesMissingFilesAndClearsTheList(
     if (QTest::currentTestFailed())
         return;
     QCOMPARE(runtime.documentVersion(), before);
-    QCOMPARE(context->m_appModel->serialize(), model);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), model);
     QCOMPARE(historyManager->nextUndoEntry(), undo);
     QCOMPARE(documentWorkflowController->recentProjectFiles(), QStringList{existing});
     QCOMPARE(changed.size(), 1);
@@ -910,7 +910,7 @@ void ApplicationGuiTests::titleFilePopupOpensProjectsAndRemovesOnlyRecentEntries
     QVERIFY(runtime.documentVersion().documentId != beforeOpen.documentId);
     QCOMPARE(context->m_appModel->tracks().first()->name(), QStringLiteral("Dropped track"));
     const auto opened = runtime.documentVersion();
-    const auto openedModel = context->m_appModel->serialize();
+    const auto openedModel = TestSupport::projectSnapshot(*context->m_appModel);
     for (const auto &path : {firstPath, secondPath}) {
         openPopup();
         if (QTest::currentTestFailed())
@@ -935,7 +935,7 @@ void ApplicationGuiTests::titleFilePopupOpensProjectsAndRemovesOnlyRecentEntries
             QTest::keyClick(menu, Qt::Key_Escape);
         QTRY_VERIFY(!menu || !menu->isVisible());
         QCOMPARE(runtime.documentVersion(), opened);
-        QCOMPARE(context->m_appModel->serialize(), openedModel);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), openedModel);
     }
     QCOMPARE(documentWorkflowController->recentProjectFiles(), QStringList{firstPath});
     QVERIFY(QFileInfo(secondPath).isFile());
@@ -957,7 +957,7 @@ void ApplicationGuiTests::titleFilePopupOpensProjectsAndRemovesOnlyRecentEntries
     QVERIFY(documentWorkflowController->projectPath().isEmpty());
     QVERIFY(!historyManager->canUndo());
     const auto created = runtime.documentVersion();
-    const auto createdModel = context->m_appModel->serialize();
+    const auto createdModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto nativeDialogsDisabled = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
     QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
     const auto restoreDialogs = qScopeGuard(
@@ -988,7 +988,7 @@ void ApplicationGuiTests::titleFilePopupOpensProjectsAndRemovesOnlyRecentEntries
     dismiss.stop();
     QVERIFY(sawPicker);
     QCOMPARE(runtime.documentVersion(), created);
-    QCOMPARE(context->m_appModel->serialize(), createdModel);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), createdModel);
     QVERIFY(!historyManager->canUndo());
 }
 
@@ -1010,7 +1010,7 @@ void ApplicationGuiTests::failedProjectOpenPreservesTheDocumentAndRecovers() {
     track.name = QStringLiteral("Unsaved edit survives failed open");
     QVERIFY(runtime.project().insertTrack(commandContext(), 0, track));
     const auto before = runtime.documentVersion();
-    const auto model = context->m_appModel->serialize();
+    const auto model = TestSupport::projectSnapshot(*context->m_appModel);
     const auto *undo = historyManager->nextUndoEntry();
     const auto oldPath = documentWorkflowController->projectPath();
     int savePrompts = 0;
@@ -1035,7 +1035,7 @@ void ApplicationGuiTests::failedProjectOpenPreservesTheDocumentAndRecovers() {
         if (!choice) {
             ++errors;
             QCOMPARE(runtime.documentVersion(), before);
-            QCOMPARE(context->m_appModel->serialize(), model);
+            QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), model);
             const auto labels = dialog->findChildren<QLabel *>();
             QVERIFY(std::any_of(labels.cbegin(), labels.cend(), [](const auto *label) {
                 return label->text() ==
@@ -1056,7 +1056,7 @@ void ApplicationGuiTests::failedProjectOpenPreservesTheDocumentAndRecovers() {
     QTRY_VERIFY_WITH_TIMEOUT(errors == 1 && !documentWorkflowController->busy(), 10000);
     QCOMPARE(savePrompts, 1);
     QCOMPARE(runtime.documentVersion(), before);
-    QCOMPARE(context->m_appModel->serialize(), model);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), model);
     QCOMPARE(documentWorkflowController->projectPath(), oldPath);
     QCOMPARE(historyManager->nextUndoEntry(), undo);
     QVERIFY(!historyManager->isOnSavePoint());
@@ -1101,7 +1101,7 @@ void ApplicationGuiTests::fileMenuOpensSavesAndExportsThroughThePicker() {
     const auto chooseFile = [&](const char *action, const QString &path, bool save, bool accept,
                                 const char *submenu = nullptr) {
         const auto before = runtime.documentVersion();
-        const auto beforeModel = context->m_appModel->serialize();
+        const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
         bool chosen = false;
         QTimer answer;
         answer.setInterval(10);
@@ -1125,7 +1125,7 @@ void ApplicationGuiTests::fileMenuOpensSavesAndExportsThroughThePicker() {
             QApplication::clipboard()->setText(QDir::toNativeSeparators(path));
             QTest::keySequence(name, QKeySequence::Paste);
             QCOMPARE(runtime.documentVersion(), before);
-            QCOMPARE(context->m_appModel->serialize(), beforeModel);
+            QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
             if (accept) {
                 auto *buttons = picker->findChild<QDialogButtonBox *>();
                 QVERIFY(buttons);
@@ -1206,7 +1206,7 @@ void ApplicationGuiTests::fileMenuOpensSavesAndExportsThroughThePicker() {
     QCOMPARE(runtime.documentVersion().documentId, document);
 
     const auto beforeExport = runtime.documentVersion();
-    const auto modelBeforeExport = context->m_appModel->serialize();
+    const auto modelBeforeExport = TestSupport::projectSnapshot(*context->m_appModel);
     const auto *undoBeforeExport = historyManager->nextUndoEntry();
     const auto midiPath = directory.filePath(QStringLiteral("导出.mid"));
     chooseFile("MIDI file...", midiPath, true, false, "Export");
@@ -1238,7 +1238,7 @@ void ApplicationGuiTests::fileMenuOpensSavesAndExportsThroughThePicker() {
     QTest::mouseClick(cancelExport, Qt::LeftButton);
     QTRY_VERIFY(exportDialog.isNull());
     QCOMPARE(runtime.documentVersion(), beforeExport);
-    QCOMPARE(context->m_appModel->serialize(), modelBeforeExport);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), modelBeforeExport);
     QCOMPARE(historyManager->nextUndoEntry(), undoBeforeExport);
     QVERIFY(historyManager->isOnSavePoint());
     QCOMPARE(QFileInfo(documentWorkflowController->projectPath()).canonicalFilePath(),

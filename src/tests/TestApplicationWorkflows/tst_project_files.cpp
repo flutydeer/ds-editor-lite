@@ -68,7 +68,7 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
         QCOMPARE(broken.write("invalid project"), qint64(15));
     }
     const auto before = runtime().documentVersion();
-    const auto beforeModel = context->m_appModel->serialize();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto initialTrackCount = context->m_appModel->tracks().size();
     Automation::AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
     Automation::AutomationFileGuard fileGuard;
@@ -118,7 +118,7 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
         QVERIFY2(preview, qPrintable(preview ? QString{} : preview.getError().message));
         QVERIFY(preview.get().value(QStringLiteral("validated_only")).toBool());
         QCOMPARE(runtime().automationTasks().list(before.documentId), tasksBefore);
-        QCOMPARE(context->m_appModel->serialize(), beforeModel);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
         const auto pending = registry.invoke(QStringLiteral("documents.import_batch"), arguments);
         QVERIFY2(pending, qPrintable(pending ? QString{} : pending.getError().message));
         const auto pendingId = idFromResult(pending.get());
@@ -126,7 +126,7 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
         QTRY_COMPARE(runtime().tasks().getTask(before.documentId, pendingId).get().state,
                      Automation::AutomationTaskState::Canceled);
         QCOMPARE(runtime().documentVersion(), before);
-        QCOMPARE(context->m_appModel->serialize(), beforeModel);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
     }
     const auto accepted = registry.invoke(QStringLiteral("documents.import_batch"), arguments);
     QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
@@ -142,7 +142,7 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
             QStringLiteral("Edited while importing")));
     }
     const auto expectedVersion = runtime().documentVersion();
-    const auto expectedModel = context->m_appModel->serialize();
+    const auto expectedModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto *expectedUndo = historyManager->nextUndoEntry();
     const auto task = [&] { return runtime().tasks().getTask(before.documentId, id); };
     QTRY_VERIFY_WITH_TIMEOUT(
@@ -162,7 +162,7 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
         }
         QCOMPARE(runtime().documentVersion(), expectedVersion);
         QCOMPARE(context->m_appModel->tracks().size(), initialTrackCount);
-        QCOMPARE(context->m_appModel->serialize(), expectedModel);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), expectedModel);
         QCOMPARE(historyManager->nextUndoEntry(), expectedUndo);
     } else {
         const auto terminal = task().get();
@@ -178,7 +178,7 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
         QVERIFY(runtime().history().undo(commandContext()));
         QCOMPARE(context->m_appModel->tracks().size(), initialTrackCount);
         QCOMPARE(context->m_appModel->tracks().first()->name(), QStringLiteral("Target"));
-        QCOMPARE(context->m_appModel->serialize(), beforeModel);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
     }
 }
 
@@ -270,7 +270,7 @@ void ApplicationWorkflowTests::publicSaveChecksTheCurrentPathBeforeReplacingTheD
                                             QStringLiteral("Unsaved edit")));
     QVERIFY(!historyManager->isOnSavePoint());
     const auto dirtyVersion = runtime().documentVersion();
-    const auto dirtyModel = context->m_appModel->serialize();
+    const auto dirtyModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto *undo = historyManager->nextUndoEntry();
     const auto open = [&] {
         const auto version = runtime().documentVersion();
@@ -293,7 +293,7 @@ void ApplicationWorkflowTests::publicSaveChecksTheCurrentPathBeforeReplacingTheD
     QVERIFY(!denied);
     QCOMPARE(denied.getError().code, Automation::AutomationErrorCode::PermissionDenied);
     QCOMPARE(runtime().documentVersion(), dirtyVersion);
-    QCOMPARE(context->m_appModel->serialize(), dirtyModel);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), dirtyModel);
     QCOMPARE(historyManager->nextUndoEntry(), undo);
     {
         AppModel persisted;
@@ -410,7 +410,7 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
     QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
     historyManager->reset();
     const auto before = runtime().documentVersion();
-    const auto beforeModel = context->m_appModel->serialize();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto originalTracks = context->m_appModel->tracks();
     Automation::AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
     Automation::AutomationFileGuard fileGuard;
@@ -431,7 +431,7 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
     const auto digest = inspected.get().value(QStringLiteral("plan_digest")).toString();
     QVERIFY(!digest.isEmpty());
     QCOMPARE(runtime().documentVersion(), before);
-    QCOMPARE(context->m_appModel->serialize(), beforeModel);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
     QJsonObject arguments{
         {opening ? QStringLiteral("current_document_id") : QStringLiteral("document_id"),
          before.documentId.toString()                                                                                         },
@@ -463,7 +463,7 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
                                                 QStringLiteral("Edit while opening")));
     }
     const auto expectedRetainedVersion = runtime().documentVersion();
-    const auto expectedRetainedModel = context->m_appModel->serialize();
+    const auto expectedRetainedModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto task = [&] {
         return runtime().tasks().getTask(runtime().documentVersion().documentId, id);
     };
@@ -480,7 +480,7 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
         if (terminal.state == Automation::AutomationTaskState::Failed)
             QVERIFY(terminal.error && !terminal.error->message.isEmpty());
         QCOMPARE(runtime().documentVersion(), expectedRetainedVersion);
-        QCOMPARE(context->m_appModel->serialize(), expectedRetainedModel);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), expectedRetainedModel);
         QCOMPARE(historyManager->canUndo(), changeAfterAdmission == "edit-document");
         QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
         return;
@@ -530,7 +530,7 @@ void ApplicationWorkflowTests::publicProjectLoadUsesThePreparedPlan() {
     QCOMPARE(importedNote->lyric(), sourceNote->lyric());
     if (!opening) {
         QVERIFY(runtime().history().undo(commandContext()));
-        QCOMPARE(context->m_appModel->serialize(), beforeModel);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
         QVERIFY(!historyManager->canUndo());
     }
     QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
@@ -566,7 +566,7 @@ void ApplicationWorkflowTests::libreSvipProcessFailuresLeaveTheDocumentUntouched
     context->m_appOptions->general()->libreSVIPPath = QCoreApplication::applicationFilePath();
     qputenv("DSEL_TEST_LIBRESVIP_RESULT", result);
     const auto before = runtime().documentVersion();
-    const auto model = context->m_appModel->serialize();
+    const auto model = TestSupport::projectSnapshot(*context->m_appModel);
     if (result == "unconfigured" || result == "missing-executable") {
         const auto executable = result == "unconfigured"
                                     ? QString()
@@ -605,5 +605,5 @@ void ApplicationWorkflowTests::libreSvipProcessFailuresLeaveTheDocumentUntouched
         QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
     }
     QCOMPARE(runtime().documentVersion(), before);
-    QCOMPARE(context->m_appModel->serialize(), model);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), model);
 }

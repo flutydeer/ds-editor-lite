@@ -204,7 +204,7 @@ void ApplicationWorkflowTests::audioClipTrimmingAndMovingPreserveRealtimeDuratio
     const auto properties = [&] { return Automation::clipDraftDto(*audio).properties; };
     QCOMPARE(properties().start + properties().clipStart, 960);
     QCOMPARE(properties().clipLen, 1440);
-    const auto beforeModel = context->m_appModel->serialize();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     historyManager->reset();
     const auto before = core.documentVersion();
 
@@ -247,7 +247,7 @@ void ApplicationWorkflowTests::audioClipTrimmingAndMovingPreserveRealtimeDuratio
     QCOMPARE(core.documentVersion().revision, before.revision + 4);
     for (int i = 0; i < 4; ++i)
         QVERIFY(core.history().undo(commandContext()));
-    QCOMPARE(context->m_appModel->serialize(), beforeModel);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
     QVERIFY(!historyManager->canUndo());
 }
 
@@ -381,7 +381,7 @@ void ApplicationWorkflowTests::audioExportRespectsRangeMixAndMute() {
     QVERIFY(std::abs(mixed.at(middle) / selected.at(middle) - 1.25f) < 1e-5f);
 
     historyManager->reset();
-    const auto beforeMixChanges = context->m_appModel->serialize();
+    const auto beforeMixChanges = TestSupport::projectSnapshot(*context->m_appModel);
     const auto firstTrack = context->m_appModel->tracks().first()->id();
     const auto secondTrack = context->m_appModel->tracks().at(1)->id();
     QVERIFY(
@@ -491,7 +491,7 @@ void ApplicationWorkflowTests::audioExportRespectsRangeMixAndMute() {
     }));
     while (historyManager->canUndo())
         QVERIFY(runtime().history().undo(commandContext()));
-    QCOMPARE(context->m_appModel->serialize(), beforeMixChanges);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeMixChanges);
 }
 
 void ApplicationWorkflowTests::separatedAudioExportRejectsCollisionsAndKeepsTrackSignals() {
@@ -512,7 +512,7 @@ void ApplicationWorkflowTests::separatedAudioExportRejectsCollisionsAndKeepsTrac
     QVERIFY(runtime().timeline().setTempo(commandContext(), 0, 120));
     QTRY_VERIFY(taskManager->tasks().isEmpty());
     const auto version = runtime().documentVersion();
-    const auto model = context->m_appModel->serialize();
+    const auto model = TestSupport::projectSnapshot(*context->m_appModel);
     const auto outputDirectory = files.filePath(QStringLiteral("output"));
     QVERIFY(QDir().mkpath(outputDirectory));
     Automation::AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
@@ -542,7 +542,7 @@ void ApplicationWorkflowTests::separatedAudioExportRejectsCollisionsAndKeepsTrac
     QVERIFY(!rejected);
     QCOMPARE(rejected.getError().code, Automation::AutomationErrorCode::InvalidArgument);
     QVERIFY(QDir(outputDirectory).entryList(QDir::Files).isEmpty());
-    QCOMPARE(context->m_appModel->serialize(), model);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), model);
     QCOMPARE(runtime().documentVersion(), version);
 
     arguments.insert(
@@ -579,7 +579,7 @@ void ApplicationWorkflowTests::separatedAudioExportRejectsCollisionsAndKeepsTrac
     QVERIFY(middleSamples[0] > 0.05f);
     QVERIFY(std::abs(middleSamples[1] / middleSamples[0] - 2.0f) < 1e-5f);
     QCOMPARE(runtime().documentVersion(), version);
-    QCOMPARE(context->m_appModel->serialize(), model);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), model);
 }
 
 void ApplicationWorkflowTests::lossyAudioExportsProduceReadableFiles_data() {
@@ -609,7 +609,7 @@ void ApplicationWorkflowTests::lossyAudioExportsProduceReadableFiles() {
     QVERIFY(runtime().timeline().setTempo(commandContext(), 0, 120));
     QTRY_VERIFY(taskManager->tasks().isEmpty());
     const auto before = runtime().documentVersion();
-    const auto original = context->m_appModel->serialize();
+    const auto original = TestSupport::projectSnapshot(*context->m_appModel);
     Automation::AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
     Automation::AutomationFileGuard fileGuard;
     Automation::AdmissionController admission;
@@ -656,7 +656,7 @@ void ApplicationWorkflowTests::lossyAudioExportsProduceReadableFiles() {
     QVERIFY(std::any_of(samples.cbegin(), samples.cend(),
                         [](float sample) { return std::abs(sample) > 0.05f; }));
     QCOMPARE(runtime().documentVersion(), before);
-    QCOMPARE(context->m_appModel->serialize(), original);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), original);
 }
 
 void ApplicationWorkflowTests::controlledPlaybackLoopsAndBuffers() {
@@ -768,7 +768,7 @@ void ApplicationWorkflowTests::cancelingAudioExportPreservesExistingFilesAndMixe
     QVERIFY(runtime().documents().commitNewDocument(commandContext(), document));
     QVERIFY(runtime().timeline().setTempo(commandContext(), 0, 120));
     const auto before = runtime().documentVersion();
-    const auto beforeModel = context->m_appModel->serialize();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto outputPath = files.filePath(QStringLiteral("delivery.wav"));
     const QByteArray originalContents("Previously published audio");
     {
@@ -815,7 +815,7 @@ void ApplicationWorkflowTests::cancelingAudioExportPreservesExistingFilesAndMixe
     QCOMPARE(mixer->bufferSize(), qint64{512});
     QCOMPARE(mixer->sampleRate(), 48000.0);
     QCOMPARE(runtime().documentVersion(), before);
-    QCOMPARE(context->m_appModel->serialize(), beforeModel);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
 }
 
 void ApplicationWorkflowTests::offlineExportRestoresMixerState_data() {

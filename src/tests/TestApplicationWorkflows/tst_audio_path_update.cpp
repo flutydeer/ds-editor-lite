@@ -204,7 +204,7 @@ void ApplicationWorkflowTests::publicAudioPathUpdatesPrepareCommitAndUndo() {
             }
         }
         const auto expectedVersion = runtime().documentVersion();
-        const auto expectedModel = context->m_appModel->serialize();
+        const auto expectedModel = TestSupport::projectSnapshot(*context->m_appModel);
         const auto *expectedUndo = HistoryManager::instance()->nextUndoEntry();
         QTRY_VERIFY_WITH_TIMEOUT(isTerminal(runtime(), before.documentId, taskId), 10000);
         const auto task = runtime().tasks().getTask(before.documentId, taskId);
@@ -228,7 +228,7 @@ void ApplicationWorkflowTests::publicAudioPathUpdatesPrepareCommitAndUndo() {
             QCOMPARE(audioAssetSnapshotDto(*audio), previousAsset);
             QCOMPARE(audio->pathStatus(), previousStatus);
             QCOMPARE(runtime().documentVersion(), expectedVersion);
-            QCOMPARE(context->m_appModel->serialize(), expectedModel);
+            QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), expectedModel);
             QCOMPARE(HistoryManager::instance()->nextUndoEntry(), expectedUndo);
             if (changeAfterAdmission == QStringLiteral("revoke")) {
                 QVERIFY(fileGuard.setConfiguredRoots({files.path()}));
