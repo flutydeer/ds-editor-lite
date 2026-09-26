@@ -29,6 +29,7 @@
 #include <TalcsCore/MixerAudioSource.h>
 #include <TalcsCore/TransportAudioSource.h>
 #include <TalcsFormat/AudioFormatIO.h>
+#include <synthrt/G2P/LanguageService.h>
 
 #include <QPointer>
 #include <QScopeGuard>
@@ -359,6 +360,36 @@ void ApplicationWorkflowTests::languageTasksKeepMixedResultsAligned() {
     }
     QCOMPARE(context->m_appModel->serialize(), before);
     QCOMPARE(runtime().documentVersion(), version);
+}
+
+void ApplicationWorkflowTests::builtInG2pConvertsDictionaryAndUnlistedWords() {
+    prepareVoicebankTarget();
+    if (QTest::currentTestFailed())
+        return;
+    const auto &service = SynthrtEngine::instance().languageService();
+    QVERIFY(service.modelsReady());
+    const auto before = context->m_appModel->serialize();
+    const auto version = runtime().documentVersion();
+    const auto *undo = HistoryManager::instance()->nextUndoEntry();
+    const std::vector<srt::g2p::G2pInput> inputs{
+        {"hello", "g2p-eng-official"},
+        {"codexarium", "g2p-eng-official"},
+    };
+    const auto converted = service.convertLyric(inputs);
+    QCOMPARE(converted.size(), inputs.size());
+    for (size_t index = 0; index < converted.size(); ++index) {
+        const auto &result = converted[index];
+        QCOMPARE(result.lyric, inputs[index].lyric);
+        QCOMPARE(result.errorType, srt::g2p::NoError);
+        QCOMPARE(result.mode, std::string(srt::g2p::kG2pModeConvert));
+        QVERIFY(!result.pronunciation.empty());
+        QVERIFY(result.pronunciation != inputs[index].lyric);
+        QVERIFY(!result.candidates.empty());
+    }
+    QVERIFY(converted.front().pronunciation != converted.back().pronunciation);
+    QCOMPARE(context->m_appModel->serialize(), before);
+    QCOMPARE(runtime().documentVersion(), version);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undo);
 }
 
 void ApplicationWorkflowTests::editingParametersRestartsOnlyDependentInference_data() {

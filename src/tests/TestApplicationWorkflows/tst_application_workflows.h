@@ -64,6 +64,7 @@ private slots:
     void inferenceFailureAndCancellationAllowRetry_data();
     void inferenceFailureAndCancellationAllowRetry();
     void languageTasksKeepMixedResultsAligned();
+    void builtInG2pConvertsDictionaryAndUnlistedWords();
     void publicAudioPathUpdatesPrepareCommitAndUndo();
 
     void clipInferenceResultsRespectEditSession_data();

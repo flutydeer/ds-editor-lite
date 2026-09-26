@@ -74,7 +74,7 @@
 | 模型输入拒绝、取消与同进程重试 | workflow | 正常模型执行未验证无效音素后的恢复，部分取消路径依赖偶发时序 | 四阶段拒绝不支持的音素，不写结果缓存；正常输入成功后，受控暂停缓存命中任务并取消，检查终态、原缓存保留和再次重试；全过程不修改原工程 | ApplicationWorkflows::inferenceFailureAndCancellationAllowRetry | 声库；CPU；独立缓存；受控 worker |
 | 参数能力与范围编辑的公开接线 | workflow/protocol | 参数算法和 GUI 手势未覆盖公开能力与变换参数的完整映射 | 从能力返回值选择可编辑范围，执行带过渡区的公开缩放；检查区间内、区间外、过渡区、revision 及 Undo 后完整模型恢复 | ApplicationWorkflows::publicParameterScalingUsesCapabilitiesAndPreservesOtherRanges | 通用；真实应用参数服务；无需模型或设备 |
 | 公开循环设置与音频回调 | workflow/protocol | 直接播放 Facade 测试未验证公开起止点和回读状态 | 既有受控音频回调场景经公开时间线查询及循环设置，检查循环终点、实际采样区间、跨块回绕和暂停状态一致 | ApplicationWorkflows::controlledPlaybackLoopsAndBuffers | 通用；回调由测试驱动；无需设备 |
-| 混合语言任务的结果对齐 | workflow | 单语言成功与快照门控不能验证部分语言失败 | 一批输入同时包含有效词、停顿、连音和缺失语言；结果保持输入次序，未解析声库保留歌词 | ApplicationWorkflows::languageTasksKeepMixedResultsAligned | 声库；CPU；无需播放设备 |
+| 混合语言任务与内置 G2P | workflow | 单语言成功与快照门控不能验证部分语言失败；微型声库词典不经过内置英语神经网络 | 一批输入同时包含有效词、停顿、连音和缺失语言；结果保持输入次序，未解析声库保留歌词。内置英语 G2P 同批转换词典词和词典外词，验证实际发音结果、次序及工程/历史不变 | ApplicationWorkflows::languageTasksKeepMixedResultsAligned、builtInG2pConvertsDictionaryAndUnlistedWords | 声库；产品随附 G2P 模型；CPU；无需播放设备 |
 | 连音、间隙和辅音提前量的推理输入 | unit | 普通单音输入未覆盖跨连音和间隙的词分组 | 同一旋律分别构建时长阶段和带偏移的输入，检查连音音高归属、间隙 SP 与下个词的辅音、首尾填充和总时长，原音符快照不变 | VoiceAndInference::inputWordsKeepSlursAndPreutteranceAcrossGaps | 通用；生产 Note 与输入转换；无需模型 |
 | MIDI 发布与音频目标保护 | workflow | MIDI 覆盖写入未执行，旧用例的多个失败组合不便定位 | 数据行共用准备，验证创建/覆盖、发布授权、取消及并发目标保护；音频路径越界、目录缺失或占位拒绝后可修正执行 | ApplicationServices::preparedMidiPublication、audioExportRejectsUnsafeTargetsAndAllowsCorrection | 通用；临时文件；导出后端替身 |
 | 公开 MIDI 导出的终态与发布 | protocol/workflow | 原公开流程仅检查取消和文档换代 | 共用受控渲染，补齐成功与渲染中撤销目录授权，检查释放后台准入及清理暂存文件 | AutomationProtocol::routing 的 midiPublicationGate | 通用；临时目录；受控导出后端 |
