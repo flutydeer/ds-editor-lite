@@ -71,6 +71,8 @@ private slots:
     void clipInferenceResultsRespectEditSession_data();
 
     void clipInferenceResultsRespectEditSession();
+    void modelInferenceWaitsForEditingBeforeApplying_data();
+    void modelInferenceWaitsForEditingBeforeApplying();
     void editingParametersRestartsOnlyDependentInference_data();
     void editingParametersRestartsOnlyDependentInference();
     void queuedCacheProbeCannotRestoreAudioAfterAnEdit();

@@ -92,6 +92,121 @@ void ApplicationWorkflowTests::prepareVoicebankTarget() {
     piece = clip->pieces().first();
 }
 
+void ApplicationWorkflowTests::modelInferenceWaitsForEditingBeforeApplying_data() {
+    QTest::addColumn<QString>("stage");
+    QTest::addColumn<bool>("replaceDocument");
+    QTest::newRow("duration") << QStringLiteral("duration") << false;
+    QTest::newRow("pitch") << QStringLiteral("pitch") << false;
+    QTest::newRow("variance") << QStringLiteral("variance") << false;
+    QTest::newRow("acoustic") << QStringLiteral("acoustic") << false;
+    QTest::newRow("replace-document") << QStringLiteral("acoustic") << true;
+}
+
+void ApplicationWorkflowTests::modelInferenceWaitsForEditingBeforeApplying() {
+    QFETCH(QString, stage);
+    QFETCH(bool, replaceDocument);
+    QTemporaryDir cache;
+    QVERIFY(cache.isValid());
+    const auto previousCache = appOptions->inference()->cacheDirectory;
+    appOptions->inference()->cacheDirectory = cache.path();
+    const auto restoreCache = qScopeGuard([&] {
+        appOptions->inference()->cacheDirectory = previousCache;
+        if (QTest::currentTestFailed())
+            cache.setAutoRemove(false);
+    });
+    QSemaphore workerEntered;
+    QSemaphore releaseWorker;
+    std::atomic_bool paused = false;
+    QObject observations;
+    const auto cleanup = qScopeGuard([&] {
+        releaseWorker.release();
+        editSessionManager->endActiveTransaction(EditSessionEndReason::Discard);
+        QVERIFY(runtime().documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 15000);
+    });
+    prepareVoicebankTarget();
+    if (QTest::currentTestFailed())
+        return;
+    const QPointer<InferPiece> target(piece);
+    const QPointer<Note> targetNote(note);
+    connect(taskManager, &TaskManager::taskChanged, &observations,
+            [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
+                auto *inference = dynamic_cast<IInferTask *>(task);
+                if (change != TaskManager::Added || !inference || !target ||
+                    inference->pieceId() != target->id() ||
+                    inference->inferenceContext().taskType != stage)
+                    return;
+                connect(
+                    task, &Task::statusUpdated, &observations,
+                    [&](const TaskStatus &) {
+                        if (!paused.exchange(true)) {
+                            workerEntered.release();
+                            releaseWorker.acquire();
+                        }
+                    },
+                    Qt::DirectConnection);
+            });
+    if (stage == QStringLiteral("acoustic"))
+        inferController->startPendingAcousticInference();
+    else
+        inferController->restartPieceInference(*target);
+    QTRY_VERIFY_WITH_TIMEOUT(workerEntered.available() == 1, 10000);
+    QVERIFY(target && targetNote);
+    const auto hasResult = [&] {
+        if (stage == QStringLiteral("duration"))
+            return !targetNote->phonemeOffsetSeq().original.isEmpty();
+        if (stage == QStringLiteral("pitch"))
+            return !target->originalPitch.isEmpty();
+        if (stage == QStringLiteral("variance"))
+            return !target->originalBreathiness.isEmpty();
+        return !target->audioPath.isEmpty();
+    };
+    QVERIFY(!hasResult());
+    const auto session = editSessionManager->beginTransaction(
+        {.domain = AppStatus::EditObjectType::Note,
+         .clipId = clip->id(),
+         .noteIds = {targetNote->id()}});
+    QVERIFY(session != 0);
+    const auto document = runtime().documentVersion();
+    const auto model = context->m_appModel->serialize();
+    const auto *undo = historyManager->nextUndoEntry();
+    releaseWorker.release();
+    auto waitingState = stage;
+    waitingState[0] = waitingState.at(0).toUpper();
+    waitingState += QStringLiteral(".AwaitingEditSessionApply");
+    QTRY_COMPARE_WITH_TIMEOUT(target->state.get(), waitingState, 15000);
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    QVERIFY(!hasResult());
+    QCOMPARE(runtime().documentVersion(), document);
+    QCOMPARE(context->m_appModel->serialize(), model);
+    QCOMPARE(historyManager->nextUndoEntry(), undo);
+
+    if (replaceDocument) {
+        QVERIFY(runtime().documents().commitNewDocument(
+            commandContext(), Automation::DocumentAutomationFacade::newDocumentDraft(false)));
+        QVERIFY(target.isNull());
+        const auto replacement = runtime().documentVersion();
+        QVERIFY(replacement.documentId != document.documentId);
+        editSessionManager->endTransaction(session, EditSessionEndReason::Discard);
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+        QCoreApplication::processEvents();
+        QVERIFY(context->m_appModel->tracks().isEmpty());
+        QCOMPARE(runtime().documentVersion(), replacement);
+        QVERIFY(!historyManager->canUndo());
+        return;
+    }
+    editSessionManager->endTransaction(session, EditSessionEndReason::Discard);
+    QTRY_VERIFY_WITH_TIMEOUT(inferenceSettled(clip), 15000);
+    QVERIFY(hasResult());
+    QCOMPARE(runtime().documentVersion().documentId, document.documentId);
+    QCOMPARE(historyManager->nextUndoEntry(), undo);
+    if (stage == QStringLiteral("acoustic")) {
+        QCOMPARE(target->acousticInferStatus.get(), Success);
+        QVERIFY(QFileInfo::exists(target->audioPath));
+    }
+}
+
 void ApplicationWorkflowTests::cacheCleanupProtectsRestoredInference() {
     QTemporaryDir materials;
     QVERIFY(materials.isValid());
