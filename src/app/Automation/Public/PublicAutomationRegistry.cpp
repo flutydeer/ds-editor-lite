@@ -2066,6 +2066,23 @@ namespace Automation {
         m_handlers.insert(operationId, std::move(handler));
     }
 
+    std::function<AutomationResult<AutomationUnit>()>
+        PublicAutomationRegistry::audioPathCommitGuard(AuthorizedPath authorizedPath) const {
+        return [lifetime = std::weak_ptr<LifetimeState>(m_lifetimeState), guard = &m_fileGuard,
+                authorizedPath = std::move(authorizedPath)]() -> AutomationResult<AutomationUnit> {
+            const auto state = lifetime.lock();
+            if (!state || !state->active.load(std::memory_order_acquire)) {
+                return error(AutomationErrorCode::PermissionDenied,
+                             QStringLiteral("Audio source authorization is no longer available"),
+                             QStringLiteral("path"));
+            }
+            const auto authorized = guard->reauthorize(authorizedPath);
+            if (!authorized)
+                return authorized.getError();
+            return AutomationUnit{};
+        };
+    }
+
     AutomationResult<QJsonObject>
         PublicAutomationRegistry::invoke(const QString &operationId, const QJsonObject &arguments,
                                          const PublicInvocationContext &context) {
@@ -3512,6 +3529,7 @@ namespace Automation {
                            .clipId = ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                            .canonicalPath = path,
                            .mode = PublicAudioPathUpdateMode::Relocate,
+                           .authorizeCommit = audioPathCommitGuard(authorized.get()),
                        };
                        return taskAcceptedResult(m_hostServices.updateAudioClipPath(request));
                    });
@@ -3557,6 +3575,7 @@ namespace Automation {
                     .clipId = ClipId(arguments.value(QStringLiteral("clip_id")).toInt()),
                     .canonicalPath = path,
                     .mode = PublicAudioPathUpdateMode::Confirm,
+                    .authorizeCommit = audioPathCommitGuard(authorized.get()),
                 };
                 return taskAcceptedResult(m_hostServices.updateAudioClipPath(request));
             });

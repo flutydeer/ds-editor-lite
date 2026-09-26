@@ -1255,6 +1255,13 @@ namespace Automation {
                     fail(prepared.getError());
                     return;
                 }
+                if (m_request.authorizeCommit) {
+                    const auto authorized = m_request.authorizeCommit();
+                    if (!authorized) {
+                        fail(authorized.getError());
+                        return;
+                    }
+                }
                 auto validationContext = m_request.command;
                 validationContext.validateOnly = true;
                 auto validated = apply(validationContext, prepared.get());

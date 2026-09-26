@@ -52,9 +52,34 @@ namespace {
     }
 }
 
+void ApplicationWorkflowTests::publicAudioPathUpdatesPrepareCommitAndUndo_data() {
+    QTest::addColumn<QString>("operation");
+    QTest::addColumn<QString>("changeAfterAdmission");
+    const auto confirm = QStringLiteral("audio_clips.confirm_path");
+    const auto relocate = QStringLiteral("audio_clips.relocate");
+    QTest::newRow("confirm") << confirm << QString{};
+    QTest::newRow("relocate") << relocate << QString{};
+    QTest::newRow("damaged-source") << relocate << QStringLiteral("damaged");
+    QTest::newRow("cancel-before-commit") << relocate << QStringLiteral("cancel");
+    QTest::newRow("edited-before-commit") << relocate << QStringLiteral("edit");
+    QTest::newRow("relocation-access-revoked") << relocate << QStringLiteral("revoke");
+    QTest::newRow("confirmation-access-revoked") << confirm << QStringLiteral("revoke");
+}
+
 void ApplicationWorkflowTests::publicAudioPathUpdatesPrepareCommitAndUndo() {
+    QFETCH(QString, operation);
+    QFETCH(QString, changeAfterAdmission);
     QTemporaryDir files;
     QVERIFY(files.isValid());
+    const auto cleanup = qScopeGuard([&] {
+        runtime().documents().commitNewDocument(commandContext(),
+                                                DocumentAutomationFacade::newDocumentDraft(false));
+        QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+        if (QTest::currentTestFailed())
+            files.setAutoRemove(false);
+        else
+            QTRY_VERIFY(files.remove());
+    });
     const auto candidateFile = files.filePath(QStringLiteral("candidate.wav"));
     const auto replacementFile = files.filePath(QStringLiteral("replacement.wav"));
     QVERIFY(writeWave(candidateFile, 48000, 0.125f));
@@ -112,9 +137,23 @@ void ApplicationWorkflowTests::publicAudioPathUpdatesPrepareCommitAndUndo() {
                                 .source = InvocationSource::PublicJsonRpc});
     };
 
-    const auto verifyUpdate = [&](const QString &operation, const QString &requestedPath,
-                                  const QString &expectedPath, const QString &expectedHash,
-                                  const int expectedRate) {
+    const bool confirms = operation == QStringLiteral("audio_clips.confirm_path");
+    const auto expectedPath = confirms ? candidatePath : replacementPath;
+    const auto expectedHash = confirms ? candidateHash : replacementHash;
+    const auto expectedRate = confirms ? 48000 : 44100;
+    const auto requestedPath = confirms ? QString{} : replacementPath;
+    QByteArray replacementBytes;
+    if (changeAfterAdmission == QStringLiteral("damaged")) {
+        QFile replacement(replacementPath);
+        QVERIFY(replacement.open(QIODevice::ReadOnly));
+        replacementBytes = replacement.readAll();
+        replacement.close();
+        QVERIFY(replacement.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        QCOMPARE(replacement.write("not an audio file"), qint64{17});
+    }
+
+    const auto attempts = changeAfterAdmission.isEmpty() ? 1 : 2;
+    for (int attempt = 0; attempt < attempts; ++attempt) {
         const auto before = runtime().documentVersion();
         const auto previousPath = audio->path();
         const auto previousInfo = audio->pathInfo();
@@ -141,9 +180,62 @@ void ApplicationWorkflowTests::publicAudioPathUpdatesPrepareCommitAndUndo() {
         QCOMPARE(runtime().documentVersion(), before);
         QCOMPARE(audio->path(), previousPath);
         QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
+
+        const bool shouldFail = attempt == 0 && !changeAfterAdmission.isEmpty();
+        if (shouldFail) {
+            // Preparation posts its commit back to the application thread.
+            if (changeAfterAdmission == QStringLiteral("cancel")) {
+                const auto cancellation = registry.invoke(
+                    QStringLiteral("tasks.cancel"),
+                    {
+                        {QStringLiteral("scope"),       QStringLiteral("document")  },
+                        {QStringLiteral("document_id"), before.documentId.toString()},
+                        {QStringLiteral("task_id"),     taskId.toString()           }
+                });
+                QVERIFY2(cancellation,
+                         qPrintable(cancellation ? QString{} : cancellation.getError().message));
+            } else if (changeAfterAdmission == QStringLiteral("edit")) {
+                QVERIFY(runtime().project().renameTrack(
+                    commandContext(), TrackId(context->m_appModel->tracks().first()->id()),
+                    QStringLiteral("Edited while preparing audio")));
+            } else if (changeAfterAdmission == QStringLiteral("revoke")) {
+                QVERIFY(fileGuard.setConfiguredRoots({}));
+            }
+        }
+        const auto expectedVersion = runtime().documentVersion();
+        const auto expectedModel = context->m_appModel->serialize();
+        const auto *expectedUndo = HistoryManager::instance()->nextUndoEntry();
         QTRY_VERIFY_WITH_TIMEOUT(isTerminal(runtime(), before.documentId, taskId), 10000);
         const auto task = runtime().tasks().getTask(before.documentId, taskId);
         QVERIFY(task);
+        if (shouldFail) {
+            if (changeAfterAdmission == QStringLiteral("cancel")) {
+                QCOMPARE(task.get().state, AutomationTaskState::Canceled);
+            } else {
+                QCOMPARE(task.get().state, AutomationTaskState::Failed);
+                QVERIFY(task.get().error);
+                const auto expectedError = changeAfterAdmission == QStringLiteral("damaged")
+                                               ? AutomationErrorCode::IoError
+                                           : changeAfterAdmission == QStringLiteral("edit")
+                                               ? AutomationErrorCode::RevisionConflict
+                                               : AutomationErrorCode::PermissionDenied;
+                QCOMPARE(task.get().error->code, expectedError);
+                if (changeAfterAdmission == QStringLiteral("damaged"))
+                    QCOMPARE(task.get().error->fieldPath, QStringLiteral("path"));
+            }
+            QVERIFY(!task.get().mutation);
+            QCOMPARE(runtime().documentVersion(), expectedVersion);
+            QCOMPARE(context->m_appModel->serialize(), expectedModel);
+            QCOMPARE(HistoryManager::instance()->nextUndoEntry(), expectedUndo);
+            if (changeAfterAdmission == QStringLiteral("revoke")) {
+                QVERIFY(fileGuard.setConfiguredRoots({files.path()}));
+            } else if (changeAfterAdmission == QStringLiteral("damaged")) {
+                QFile replacement(replacementPath);
+                QVERIFY(replacement.open(QIODevice::WriteOnly | QIODevice::Truncate));
+                QCOMPARE(replacement.write(replacementBytes), replacementBytes.size());
+            }
+            continue;
+        }
         QVERIFY2(task.get().state == AutomationTaskState::Succeeded,
                  qPrintable(task.get().error ? task.get().error->message : QString{}));
         QVERIFY(task.get().mutation);
@@ -175,67 +267,6 @@ void ApplicationWorkflowTests::publicAudioPathUpdatesPrepareCommitAndUndo() {
                                      !audio->audioInfo().peakCache.isEmpty(),
                                  10000);
         QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
-    };
-
-    verifyUpdate(QStringLiteral("audio_clips.confirm_path"), {}, candidatePath, candidateHash,
-                 48000);
-    if (QTest::currentTestFailed())
-        return;
-    verifyUpdate(QStringLiteral("audio_clips.relocate"), replacementPath, replacementPath,
-                 replacementHash, 44100);
-    if (QTest::currentTestFailed())
-        return;
-
-    const auto damagedPath = files.filePath(QStringLiteral("damaged.wav"));
-    {
-        QFile damaged(damagedPath);
-        QVERIFY(damaged.open(QIODevice::WriteOnly));
-        QCOMPARE(damaged.write("not an audio file"), qint64{17});
     }
-    const auto beforeFailure = runtime().documentVersion();
-    const auto beforeModel = context->m_appModel->serialize();
-    const auto *beforeUndo = HistoryManager::instance()->nextUndoEntry();
-    const auto damaged = invoke(QStringLiteral("audio_clips.relocate"), damagedPath);
-    QVERIFY2(damaged, qPrintable(damaged ? QString{} : damaged.getError().message));
-    const auto failedTaskId = TaskId::fromString(damaged.get().value("task_id").toString());
-    QVERIFY(!failedTaskId.isNull());
-    QTRY_VERIFY_WITH_TIMEOUT(isTerminal(runtime(), beforeFailure.documentId, failedTaskId), 10000);
-    const auto failed = runtime().tasks().getTask(beforeFailure.documentId, failedTaskId);
-    QVERIFY(failed);
-    QCOMPARE(failed.get().state, AutomationTaskState::Failed);
-    QVERIFY(failed.get().error);
-    QCOMPARE(failed.get().error->code, AutomationErrorCode::IoError);
-    QCOMPARE(failed.get().error->fieldPath, QStringLiteral("path"));
-    QVERIFY(!failed.get().mutation);
-    QCOMPARE(runtime().documentVersion(), beforeFailure);
-    QCOMPARE(context->m_appModel->serialize(), beforeModel);
-    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
-
-    const auto accepted = invoke(QStringLiteral("audio_clips.relocate"), replacementPath);
-    QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
-    const auto canceledTaskId = TaskId::fromString(accepted.get().value("task_id").toString());
-    QVERIFY(!canceledTaskId.isNull());
-    const auto cancelOnFailure = qScopeGuard([&] {
-        if (!isTerminal(runtime(), beforeFailure.documentId, canceledTaskId))
-            runtime().tasks().cancelTask(commandContext(), canceledTaskId);
-    });
-    // Path preparation commits through a queued callback; cancel before dispatching it.
-    const auto cancellation =
-        registry.invoke(QStringLiteral("tasks.cancel"),
-                        {
-                            {QStringLiteral("scope"),       QStringLiteral("document")         },
-                            {QStringLiteral("document_id"), beforeFailure.documentId.toString()},
-                            {QStringLiteral("task_id"),     canceledTaskId.toString()          }
-    });
-    QVERIFY2(cancellation, qPrintable(cancellation ? QString{} : cancellation.getError().message));
-    QTRY_VERIFY_WITH_TIMEOUT(isTerminal(runtime(), beforeFailure.documentId, canceledTaskId),
-                             10000);
-    const auto canceled = runtime().tasks().getTask(beforeFailure.documentId, canceledTaskId);
-    QVERIFY(canceled);
-    QCOMPARE(canceled.get().state, AutomationTaskState::Canceled);
-    QVERIFY(!canceled.get().mutation);
-    QCOMPARE(runtime().documentVersion(), beforeFailure);
-    QCOMPARE(context->m_appModel->serialize(), beforeModel);
-    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
     QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
 }
