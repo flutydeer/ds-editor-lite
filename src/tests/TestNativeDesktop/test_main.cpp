@@ -41,9 +41,9 @@ void NativeDesktopTests::runIsolatedDesktopCase() {
 
 bool NativeDesktopTests::eventFilter(QObject *object, QEvent *event) {
     if (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride ||
-        event->type() == QEvent::MouseButtonPress ||
-        event->type() == QEvent::MouseButtonRelease ||
-        event->type() == QEvent::MouseButtonDblClick || event->type() == QEvent::Shortcut) {
+        event->type() == QEvent::MouseButtonPress || event->type() == QEvent::MouseButtonRelease ||
+        event->type() == QEvent::MouseButtonDblClick || event->type() == QEvent::MouseMove ||
+        event->type() == QEvent::Shortcut) {
         auto detail =
             QStringLiteral("%1/%2 [%3] event=%4 spontaneous=%5")
                 .arg(object->parent()
@@ -62,12 +62,13 @@ bool NativeDesktopTests::eventFilter(QObject *object, QEvent *event) {
         if (auto *shortcut = dynamic_cast<QShortcutEvent *>(event))
             detail += QStringLiteral(" sequence=%1").arg(shortcut->key().toString());
         if (auto *mouse = dynamic_cast<QMouseEvent *>(event))
-            detail += QStringLiteral(" button=%1 local=%2,%3 global=%4,%5")
+            detail += QStringLiteral(" button=%1 local=%2,%3 global=%4,%5 buttons=%6")
                           .arg(mouse->button())
                           .arg(mouse->position().x())
                           .arg(mouse->position().y())
                           .arg(mouse->globalPosition().x())
-                          .arg(mouse->globalPosition().y());
+                          .arg(mouse->globalPosition().y())
+                          .arg(mouse->buttons().toInt());
         recentInput.append(detail);
         if (recentInput.size() > 12)
             recentInput.removeFirst();

@@ -1290,12 +1290,26 @@ void NativeDesktopTests::rhiMultiNoteSelectionAndMoveCommitAtomically() {
         const auto start = fixture.pointFor(240, upperKey);
         const auto end = fixture.pointFor(1800, lowerKey);
         QVERIFY(canvas.rect().contains(start) && canvas.rect().contains(end));
+        fixture.moveTo(start);
         QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, start);
         fixture.moveTo(end);
+        const auto preview = appStatus->selectedNotes.get();
+        if (preview.size() != 2) {
+            qWarning() << "Unexpected marquee preview:" << preview << "press/release:" << start
+                       << end << "native cursor:" << canvas.mapFromGlobal(QCursor::pos());
+            qWarning().noquote() << recentInput.join('\n');
+        }
+        QCOMPARE(preview.size(), 2);
         fixture.waitForFrame();
         QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, end);
         const auto selected = appStatus->selectedNotes.get();
-        QCOMPARE(selected.size(), 2);
+        if (selected != preview) {
+            qWarning() << "Selection changed while presenting the drag preview:" << preview
+                       << selected << "press/release:" << start << end
+                       << "native cursor:" << canvas.mapFromGlobal(QCursor::pos());
+            qWarning().noquote() << recentInput.join('\n');
+        }
+        QCOMPARE(selected, preview);
         QVERIFY(selected.contains(first->id()) && selected.contains(second->id()));
     };
     selectRange(64, 58);
