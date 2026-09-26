@@ -74,6 +74,7 @@ void ApplicationWorkflowTests::audioBatchFailurePolicy() {
     QCOMPARE(invalid.write("not an audio file"), qint64{17});
     invalid.close();
     const auto before = runtime().documentVersion();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
     const auto *beforeUndo = HistoryManager::instance()->nextUndoEntry();
     const auto beforeClips = context->m_appModel->tracks().first()->clips().count();
     AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
@@ -127,6 +128,7 @@ void ApplicationWorkflowTests::audioBatchFailurePolicy() {
         QVERIFY(!task.get().mutation);
         QCOMPARE(runtime().documentVersion(), before);
         QCOMPARE(context->m_appModel->tracks().first()->clips().count(), beforeClips);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
         QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
         return;
     }
@@ -156,6 +158,7 @@ void ApplicationWorkflowTests::audioBatchFailurePolicy() {
     QVERIFY(!found->data.audioPathInfo.sha512.isEmpty());
     QVERIFY(runtime().history().undo(commandContext()));
     QCOMPARE(context->m_appModel->tracks().first()->clips().count(), beforeClips);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
     QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
 }
 
