@@ -3,6 +3,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include "../TestSupport/GuiAppFixture.h"
 #include "../TestSupport/VoicebankFixture.h"
+#include "../TestSupport/ClipboardSnapshot.h"
 
 #include <lite/PackageManager/PackageManager.h>
 #include <QFileInfo>
@@ -96,9 +97,11 @@ void NativeDesktopTests::initTestCase() {
     packageManager->initialize({root});
     QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
                               10000);
+    savedClipboard = std::make_unique<TestSupport::ClipboardSnapshot>();
 }
 
 void NativeDesktopTests::cleanupTestCase() {
+    savedClipboard.reset();
     application.reset();
     qApp->removeEventFilter(this);
 }

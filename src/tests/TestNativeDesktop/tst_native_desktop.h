@@ -8,6 +8,9 @@
 #include <memory>
 
 class GuiAppFixture;
+namespace TestSupport {
+    class ClipboardSnapshot;
+}
 
 class NativeDesktopTests final : public QObject {
     Q_OBJECT
@@ -72,6 +75,7 @@ private:
     void runIsolatedDesktopCase();
     bool eventFilter(QObject *object, QEvent *event) override;
     std::unique_ptr<GuiAppFixture> application;
+    std::unique_ptr<TestSupport::ClipboardSnapshot> savedClipboard;
     QStringList recentInput;
 };
 

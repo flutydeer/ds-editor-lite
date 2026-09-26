@@ -24,7 +24,6 @@
 #include <lite/Tasking/TaskManager.h>
 
 #include <QMouseEvent>
-#include <QClipboard>
 #include <QContextMenuEvent>
 #include <QCursor>
 #include <QDragEnterEvent>
@@ -369,16 +368,8 @@ void NativeDesktopTests::rhiTrackMenuPasteAndSelectionUseTheFullEditor() {
         QTRY_VERIFY(!audio->audioInfo().peakCache.isEmpty() && taskManager->tasks().isEmpty());
     }
     auto &canvas = *fixture.canvas;
-    auto clipboard = std::make_unique<QMimeData>();
-    if (const auto *mime = QApplication::clipboard()->mimeData()) {
-        for (const auto &format : mime->formats())
-            clipboard->setData(format, mime->data(format));
-    }
     const auto previousCursor = QCursor::pos();
-    const auto restore = qScopeGuard([&] {
-        QApplication::clipboard()->setMimeData(clipboard.release());
-        QCursor::setPos(previousCursor);
-    });
+    const auto restore = qScopeGuard([&] { QCursor::setPos(previousCursor); });
     QSignalSpy frames(&canvas, &QRhiWidget::frameSubmitted);
     QSignalSpy failed(&canvas, &QRhiWidget::renderFailed);
     canvas.update();

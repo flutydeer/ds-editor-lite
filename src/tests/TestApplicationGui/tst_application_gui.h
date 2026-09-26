@@ -11,7 +11,9 @@
 #include <memory>
 
 class AppContext;
-class QMimeData;
+namespace TestSupport {
+    class ClipboardSnapshot;
+}
 class PianoRollGraphicsScene;
 class PianoRollGraphicsView;
 class SingingClip;
@@ -195,7 +197,7 @@ private:
     std::unique_ptr<PianoRollGraphicsView> view;
     SingingClip *singingClip = nullptr;
     Automation::TrackId trackId;
-    std::unique_ptr<QMimeData> savedClipboard;
+    std::unique_ptr<TestSupport::ClipboardSnapshot> savedClipboard;
 };
 
 #endif

@@ -12,6 +12,7 @@
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
 #include "../TestSupport/RuntimeResourcesFixture.h"
 #include "../TestSupport/VoicebankFixture.h"
+#include "../TestSupport/ClipboardSnapshot.h"
 
 #include <lite/GUI/Theme/ThemeIds.h>
 #include <lite/GUI/Theme/ThemeLoader.h>
@@ -22,11 +23,9 @@
 
 #include <QtTest/QTest>
 #include <QApplication>
-#include <QClipboard>
 #include <QDir>
 #include <QDialog>
 #include <QFileInfo>
-#include <QMimeData>
 #include <QTemporaryDir>
 #include <QTimer>
 
@@ -68,11 +67,7 @@ void ApplicationGuiTests::initTestCase() {
     packageManager->initialize(context->m_appOptions->general()->packageSearchPaths);
     QTRY_COMPARE_WITH_TIMEOUT(appStatus->packageModuleStatus.get(), AppStatus::ModuleStatus::Ready,
                               10000);
-    savedClipboard = std::make_unique<QMimeData>();
-    if (const auto *mime = QApplication::clipboard()->mimeData()) {
-        for (const auto &format : mime->formats())
-            savedClipboard->setData(format, mime->data(format));
-    }
+    savedClipboard = std::make_unique<TestSupport::ClipboardSnapshot>();
 }
 
 void ApplicationGuiTests::init() {
@@ -125,8 +120,7 @@ void ApplicationGuiTests::cleanup() {
 }
 
 void ApplicationGuiTests::cleanupTestCase() {
-    if (savedClipboard)
-        QApplication::clipboard()->setMimeData(savedClipboard.release());
+    savedClipboard.reset();
     if (context) {
         context.reset();
     }
