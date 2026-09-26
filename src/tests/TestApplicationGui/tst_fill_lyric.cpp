@@ -405,6 +405,7 @@ void ApplicationGuiTests::lyricRuleEditingChangesThePreviewAndPersists() {
     QVERIFY(runtime.settings().updateFillLyric({}, settings));
     const auto before = runtime.documentVersion();
     QString ruleId;
+    QString baseline;
     QList<Note *> notes;
     for (auto *note : singingClip->notes())
         notes.append(note);
@@ -415,7 +416,6 @@ void ApplicationGuiTests::lyricRuleEditingChangesThePreviewAndPersists() {
         dialog.activateWindow();
         QTRY_VERIFY(dialog.isVisible());
         QTRY_VERIFY(dialog.isActiveWindow());
-        QString baseline;
         runRulePreview(dialog, baseline);
         if (QTest::currentTestFailed())
             return;
@@ -494,6 +494,7 @@ void ApplicationGuiTests::lyricRuleEditingChangesThePreviewAndPersists() {
              QStringLiteral("split-a"));
     QVERIFY(!saved.first().toObject().value(QStringLiteral("enabled")).toBool());
     QCOMPARE(saved.first().toObject().value(QStringLiteral("ruleId")).toString(), ruleId);
+    file.close();
     LyricDialog reopened(singingClip, notes, singingClip->singerIdentifier(),
                          {TestSupport::fixtureLanguage()});
     reopened.show();
@@ -513,6 +514,49 @@ void ApplicationGuiTests::lyricRuleEditingChangesThePreviewAndPersists() {
     QVERIFY(apply);
     QTest::mouseClick(apply, Qt::LeftButton);
     QCOMPARE(appOptions->fillLyric()->customSplitterRules.first().ruleId, ruleId);
+    auto *enabled = savedRule->findChild<QCheckBox *>();
+    QVERIFY(enabled);
+    QTest::mouseClick(enabled, Qt::LeftButton);
+    QTest::mouseClick(apply, Qt::LeftButton);
+    QVERIFY(appOptions->fillLyric()->customSplitterRules.first().enabled);
+    QString enabledPreview;
+    runRulePreview(reopened, enabledPreview);
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(enabledPreview != baseline);
+    selectLyricTab(reopened, LyricDialog::tr("Splitter"));
+    if (QTest::currentTestFailed())
+        return;
+    auto *page = reopened.findChild<FillLyric::SplitterConfigTab *>();
+    auto *list = page->findChild<FillLyric::RuleListWidget *>();
+    auto *remove = buttonWithText(page, QStringLiteral("-"));
+    QVERIFY(list && remove);
+    auto *customItem = list->item(list->count() - 1);
+    list->scrollToItem(customItem);
+    QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier,
+                      list->visualItemRect(customItem).center());
+    QVERIFY(remove->isEnabled());
+    const auto builtins = appOptions->fillLyric()->builtinSplitterEnabled;
+    QTest::mouseClick(remove, Qt::LeftButton);
+    QVERIFY(!remove->isEnabled());
+    QCOMPARE(appOptions->fillLyric()->customSplitterRules.size(), 1);
+    QTest::mouseClick(apply, Qt::LeftButton);
+    QVERIFY(appOptions->fillLyric()->customSplitterRules.isEmpty());
+    QVERIFY(!appOptions->fillLyric()->splitterOrder.contains(QStringLiteral("split-a")));
+    QCOMPARE(appOptions->fillLyric()->builtinSplitterEnabled, builtins);
+    QString afterRemoval;
+    runRulePreview(reopened, afterRemoval);
+    if (QTest::currentTestFailed())
+        return;
+    QCOMPARE(afterRemoval, baseline);
+    QVERIFY(file.open(QIODevice::ReadOnly));
+    QVERIFY(QJsonDocument::fromJson(file.readAll())
+                .object()
+                .value(QStringLiteral("fillLyric"))
+                .toObject()
+                .value(QStringLiteral("customSplitterRules"))
+                .toArray()
+                .isEmpty());
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
 }
