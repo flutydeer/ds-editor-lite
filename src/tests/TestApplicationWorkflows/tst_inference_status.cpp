@@ -55,6 +55,40 @@ void ApplicationWorkflowTests::publicInferenceStatusAssociatesTasksWithTheirScop
     QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
     QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
 
+    const auto documentId = runtime().documentVersion().documentId;
+    AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
+    AutomationFileGuard fileGuard;
+    AdmissionController admission;
+    PublicAutomationRegistry registry(
+        runtime(), access, fileGuard, admission,
+        createPublicAutomationHostServices(runtime(), context->m_appModel,
+                                           &SynthrtEngine::instance()));
+    const PublicInvocationContext invocation{
+        .clientId = QStringLiteral("inference-status-client"),
+        .source = InvocationSource::PublicJsonRpc,
+    };
+    const auto beforeSinger = runtime().documentVersion();
+    const auto contentBeforeSinger = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto *undoBeforeSinger = HistoryManager::instance()->nextUndoEntry();
+    const auto missingSinger = registry.invoke(
+        QStringLiteral("inference.start"),
+        {
+            {"document_id",       documentId.toString()                                              },
+            {"expected_revision", static_cast<qint64>(beforeSinger.revision)                         },
+            {"scope",             QJsonObject{{"kind", "clip"}, {"clip_ids", QJsonArray{clip->id()}}}},
+            {"stages",            QJsonArray{"duration", "pitch", "variance", "acoustic"}            },
+            {"options",           QJsonObject{}                                                      }
+    },
+        invocation);
+    QVERIFY(!missingSinger);
+    QCOMPARE(missingSinger.getError().code, AutomationErrorCode::HostCapabilityUnavailable);
+    QCOMPARE(missingSinger.getError().fieldPath, QStringLiteral("scope"));
+    QCoreApplication::processEvents();
+    QCOMPARE(runtime().documentVersion(), beforeSinger);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), contentBeforeSinger);
+    QCOMPARE(HistoryManager::instance()->nextUndoEntry(), undoBeforeSinger);
+    QVERIFY(taskManager->tasks().isEmpty());
+
     QTemporaryDir cache;
     QVERIFY(cache.isValid());
     const auto previousCache = appOptions->inference()->cacheDirectory;
@@ -105,7 +139,6 @@ void ApplicationWorkflowTests::publicInferenceStatusAssociatesTasksWithTheirScop
         15000);
     const QPointer<InferPiece> targetPiece(clip->pieces().first());
     const auto targetPieceId = targetPiece->id();
-    const auto documentId = runtime().documentVersion().documentId;
     const QJsonObject scope{
         {QStringLiteral("kind"),     QStringLiteral("clip")},
         {QStringLiteral("clip_ids"), QJsonArray{clip->id()}},
@@ -119,17 +152,6 @@ void ApplicationWorkflowTests::publicInferenceStatusAssociatesTasksWithTheirScop
         {QStringLiteral("clip_ids"), QJsonArray{otherClip->id()}},
     };
 
-    AutomationAccessPolicy access(AutomationWire::ControlLevel::L3);
-    AutomationFileGuard fileGuard;
-    AdmissionController admission;
-    PublicAutomationRegistry registry(
-        runtime(), access, fileGuard, admission,
-        createPublicAutomationHostServices(runtime(), context->m_appModel,
-                                           &SynthrtEngine::instance()));
-    const PublicInvocationContext invocation{
-        .clientId = QStringLiteral("inference-status-client"),
-        .source = InvocationSource::PublicJsonRpc,
-    };
     const auto status = [&](const QJsonObject &requestedScope) {
         return registry.invoke(QStringLiteral("inference.get_status"),
                                {
