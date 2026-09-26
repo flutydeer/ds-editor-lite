@@ -113,11 +113,9 @@ namespace FillLyric {
             }
             if (!listSet.isEmpty()) {
                 if (event->key() == Qt::Key_Up && !listSet.contains(m_cellLists.first())) {
-                    this->moveUpLists(sortedByIndex(listSet));
-                    this->repaintCellLists();
+                    this->moveUpLists(listSet.values());
                 } else if (event->key() == Qt::Key_Down && !listSet.contains(m_cellLists.last())) {
-                    this->moveDownLists(sortedByIndex(listSet));
-                    this->repaintCellLists();
+                    this->moveDownLists(listSet.values());
                 }
             }
             event->accept();
@@ -171,6 +169,8 @@ namespace FillLyric {
     }
 
     void LyricWrapView::mouseReleaseEvent(QMouseEvent *event) {
+        // Release the scene's mouse grab before applying the final range selection.
+        QGraphicsView::mouseReleaseEvent(event);
         if (event->button() == Qt::LeftButton && !(event->modifiers() & Qt::ShiftModifier))
             m_lastClickPos = mapToScene(event->pos()).toPoint();
 
@@ -192,12 +192,11 @@ namespace FillLyric {
             event->accept();
             return;
         }
-        QGraphicsView::mouseReleaseEvent(event);
     }
 
-    QList<CellList *> LyricWrapView::sortedByIndex(const QSet<CellList *> &listSet) const {
+    QList<CellList *> LyricWrapView::sortedByIndex(const QList<CellList *> &lists) const {
         QMap<qlonglong, CellList *> map;
-        for (const auto &list : QList(listSet.values()))
+        for (auto *list : lists)
             map[m_cellLists.indexOf(list)] = list;
         return map.values();
     }
@@ -350,25 +349,22 @@ namespace FillLyric {
     }
 
     void LyricWrapView::moveUpLists(const QList<CellList *> &cellLists) {
-        for (auto cellList : cellLists) {
+        for (auto *cellList : sortedByIndex(cellLists)) {
             const qlonglong i = m_cellLists.indexOf(cellList);
             if (i >= 1)
                 qSwap(m_cellLists[i], m_cellLists[i - 1]);
         }
+        repaintCellLists();
     }
 
     void LyricWrapView::moveDownLists(const QList<CellList *> &cellLists) {
-        QList<qlonglong> moveList;
-        for (auto cellList : cellLists) {
-            const qlonglong i = m_cellLists.indexOf(cellList);
-            if (i < m_cellLists.size() - 1)
-                moveList.append(i);
+        const auto ordered = sortedByIndex(cellLists);
+        for (auto it = ordered.crbegin(); it != ordered.crend(); ++it) {
+            const qlonglong i = m_cellLists.indexOf(*it);
+            if (i >= 0 && i < m_cellLists.size() - 1)
+                qSwap(m_cellLists[i], m_cellLists[i + 1]);
         }
-
-        std::sort(moveList.begin(), moveList.end(), std::greater<>());
-
-        for (const auto &i : moveList)
-            qSwap(m_cellLists[i], m_cellLists[i + 1]);
+        repaintCellLists();
     }
 
     QList<CellList *> LyricWrapView::cellLists() const {
@@ -487,14 +483,10 @@ namespace FillLyric {
                 [this](CellList *list) { this->insertNewLineAt(m_cellLists.indexOf(list)); });
         connect(cellList, &CellList::requestAddNextLine,
                 [this](CellList *list) { this->insertNewLineAt(m_cellLists.indexOf(list) + 1); });
-        connect(cellList, &CellList::requestMoveUpLine, [this](CellList *list) {
-            this->moveUpLists({list});
-            this->repaintCellLists();
-        });
-        connect(cellList, &CellList::requestMoveDownLine, [this](CellList *list) {
-            this->moveDownLists({list});
-            this->repaintCellLists();
-        });
+        connect(cellList, &CellList::requestMoveUpLine,
+                [this](CellList *list) { this->moveUpLists({list}); });
+        connect(cellList, &CellList::requestMoveDownLine,
+                [this](CellList *list) { this->moveDownLists({list}); });
     }
 
     void LyricWrapView::insertNewLineAt(qlonglong index) {

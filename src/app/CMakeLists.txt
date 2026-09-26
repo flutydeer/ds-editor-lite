@@ -40,27 +40,42 @@ endif()
 
 find_path(INTERVAL_TREE_INCLUDE_DIRS "interval-tree/interval_tree.hpp" REQUIRED)
 
-lite_add_application(${PROJECT_NAME}
-    QT_AUTOGEN
-    SOURCES
-        ${_src}
-        Resources/lite_res.qrc
-    INCLUDE_PRIVATE
-        .
-        ${INTERVAL_TREE_INCLUDE_DIRS}
-    DEFINES_PRIVATE
-        QT_MESSAGELOGCONTEXT
-        NOMINMAX
-        ONNXRUNTIME_ENABLE_DML
-    FEATURES_PRIVATE cxx_std_20
-    QT_LINKS_PRIVATE
-        Core
-        Widgets
-        Network
-        HttpServer
-        Concurrent
-        StateMachine
-    LINKS_PRIVATE
+add_subdirectory(Automation)
+add_subdirectory(Modules/Inference)
+add_subdirectory(Model/AppOptions)
+add_subdirectory(UI)
+foreach(_component IN ITEMS
+        EditorAutomationCore EditorInferenceCore EditorPreferencesCore EditorGuiCore)
+    get_target_property(_component_sources ${_component} SOURCES)
+    get_target_property(_component_directory ${_component} SOURCE_DIR)
+    foreach(_source IN LISTS _component_sources)
+        get_filename_component(_absolute "${_source}" ABSOLUTE
+            BASE_DIR "${_component_directory}")
+        list(REMOVE_ITEM _src "${_absolute}")
+        # QObject headers must belong to the same target as their implementation.
+        string(REGEX REPLACE "\\.cpp$" ".h" _header "${_absolute}")
+        list(REMOVE_ITEM _src "${_header}")
+    endforeach()
+endforeach()
+
+list(REMOVE_ITEM _src "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
+add_library(EditorRuntime OBJECT ${_src})
+set_target_properties(EditorRuntime PROPERTIES AUTOMOC ON AUTOUIC ON AUTORCC ON)
+target_include_directories(EditorRuntime PUBLIC
+    "${CMAKE_CURRENT_SOURCE_DIR}" "${LITE_BUILD_INCLUDE_DIR}" ${INTERVAL_TREE_INCLUDE_DIRS})
+target_compile_features(EditorRuntime PUBLIC cxx_std_20)
+target_compile_definitions(EditorRuntime PUBLIC QT_MESSAGELOGCONTEXT NOMINMAX ONNXRUNTIME_ENABLE_DML)
+target_link_libraries(EditorRuntime PUBLIC
+        Qt6::Core
+        Qt6::Widgets
+        Qt6::Network
+        Qt6::HttpServer
+        Qt6::Concurrent
+        Qt6::StateMachine
+        EditorAutomationCore
+        EditorInferenceCore
+        EditorPreferencesCore
+        EditorGuiCore
         Qt6::GuiPrivate
         ${_platform_links}
         talcs::Core
@@ -97,7 +112,13 @@ lite_add_application(${PROJECT_NAME}
         re2::re2
 )
 
-qt_add_shaders(${PROJECT_NAME} "editor_rhi_shaders"
+lite_add_application(${PROJECT_NAME}
+    QT_AUTOGEN
+    SOURCES main.cpp
+    LINKS_PRIVATE EditorRuntime
+)
+
+qt_add_shaders(EditorRuntime "editor_rhi_shaders"
     BASE
         UI/Views/Common/shaders
     PREFIX
@@ -135,32 +156,28 @@ qm_add_win_rc_enhanced(${PROJECT_NAME}
     ORIGINAL_FILENAME "${LITE_EXECUTABLE_BASENAME}.exe"
 )
 
-# Enable Edit and Continue for MSVC Debug builds.
-if(MSVC)
-    qm_configure_target(${PROJECT_NAME}
+# Edit and Continue is incompatible with native static coverage instrumentation.
+if(MSVC AND NOT LITE_TEST_COVERAGE)
+    qm_configure_target(EditorRuntime
         CCFLAGS $<$<CONFIG:Debug>:/ZI>
+    )
+    qm_configure_target(${PROJECT_NAME}
         LDFLAGS $<$<CONFIG:Debug>:/INCREMENTAL>
     )
 endif()
 
 if(LITE_ENABLE_BREAKPAD)
     find_package(qBreakpad CONFIG REQUIRED)
-    qm_configure_target(${PROJECT_NAME}
-        LINKS_PRIVATE qBreakpad::qBreakpad
-        DEFINES_PRIVATE LITE_ENABLE_BREAKPAD
-    )
+    target_link_libraries(EditorRuntime PUBLIC qBreakpad::qBreakpad)
+    target_compile_definitions(EditorRuntime PUBLIC LITE_ENABLE_BREAKPAD)
 endif()
 
 if(LITE_ENABLE_FILE_LOG)
-    qm_configure_target(${PROJECT_NAME}
-        DEFINES_PRIVATE LITE_ENABLE_FILE_LOG
-    )
+    target_compile_definitions(EditorRuntime PUBLIC LITE_ENABLE_FILE_LOG)
 endif()
 
 if(LITE_ENABLE_CUDA)
-    qm_configure_target(${PROJECT_NAME}
-        DEFINES_PRIVATE ONNXRUNTIME_ENABLE_CUDA
-    )
+    target_compile_definitions(EditorRuntime PUBLIC ONNXRUNTIME_ENABLE_CUDA)
 endif()
 
 if(WIN32)
@@ -168,19 +185,22 @@ if(WIN32)
     find_package(QtWin32DirectManipulateHelper CONFIG QUIET)
     if(QtWin32DirectManipulateHelper_FOUND)
         message(STATUS "Building with Direct Manipulation support on Windows")
-        qm_configure_target(${PROJECT_NAME}
-            LINKS_PRIVATE QtWin32DirectManipulateHelper::Core
-            DEFINES_PRIVATE WITH_DIRECT_MANIPULATION
-        )
+        target_link_libraries(EditorRuntime PUBLIC QtWin32DirectManipulateHelper::Core)
+        target_compile_definitions(EditorRuntime PUBLIC WITH_DIRECT_MANIPULATION)
     else()
         message(STATUS "Building without Direct Manipulation support on Windows")
     endif()
 endif()
 
 qt_add_translations(
-    TARGETS ${PROJECT_NAME}
+    TARGETS EditorRuntime
     SOURCE_TARGETS
         ${PROJECT_NAME}
+        EditorRuntime
+        EditorAutomationCore
+        EditorInferenceCore
+        EditorPreferencesCore
+        EditorGuiCore
         Core
         Support
         MusicBase
@@ -193,6 +213,8 @@ qt_add_translations(
         Tasking
         GUI
     TS_FILES Resources/translate/translation_zh_CN.ts
+    MERGE_QT_TRANSLATIONS
+    QT_TRANSLATION_CATALOGS qtbase
     RESOURCE_PREFIX "/i18n"
     LUPDATE_OPTIONS -no-obsolete
 )

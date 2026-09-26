@@ -353,12 +353,12 @@ void TrackEditorView::connectRhiBackend() {
         m_trackListView->verticalScrollBar()->setValue(qRound(value));
         m_syncingVerticalScroll = false;
     });
-    connect(m_trackListView->verticalScrollBar(), &QScrollBar::valueChanged, this,
-            [this](const int value) {
+    connect(m_trackListView->verticalScrollBar(), &QScrollBar::valueChanged, m_rhiView,
+            [this, view = m_rhiView](const int value) {
                 if (m_syncingVerticalScroll)
                     return;
                 m_syncingVerticalScroll = true;
-                m_rhiView->setVerticalOffset(value);
+                view->setVerticalOffset(value);
                 m_syncingVerticalScroll = false;
             });
     connect(appStatus, &AppStatus::projectEditableLengthChanged, m_rhiView,
@@ -540,9 +540,11 @@ HistoryFocusVisibility TrackEditorView::focusVisibility(const HistoryFocus &focu
 
     QRectF itemBounds;
     for (const auto id : focus.objectIds) {
-        if (const auto item = findClipItemById(id))
-            itemBounds = itemBounds.isNull() ? item->sceneBoundingRect()
-                                             : itemBounds.united(item->sceneBoundingRect());
+        if (const auto item = findClipItemById(id)) {
+            // Painted borders can extend past the scene edge; navigation follows the clip body.
+            const auto clipRect = item->mapRectToScene(item->rect());
+            itemBounds = itemBounds.isNull() ? clipRect : itemBounds.united(clipRect);
+        }
     }
     if (!itemBounds.isNull())
         return m_graphicsView->logicalVisibleRect().contains(itemBounds)
@@ -578,8 +580,8 @@ bool TrackEditorView::revealFocus(const HistoryFocus &focus, const bool animated
         QRectF bounds;
         for (const auto id : focus.objectIds) {
             if (const auto item = findClipItemById(id)) {
-                bounds = bounds.isNull() ? item->sceneBoundingRect()
-                                         : bounds.united(item->sceneBoundingRect());
+                const auto clipRect = item->mapRectToScene(item->rect());
+                bounds = bounds.isNull() ? clipRect : bounds.united(clipRect);
             }
         }
         if (!bounds.isNull())

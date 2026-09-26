@@ -54,6 +54,7 @@ using SpeakerMixModel::SpeakerMixData;
 ClipEditorToolBarView::ClipEditorToolBarView(QWidget *parent)
     : QWidget(parent), d_ptr(new ClipEditorToolBarViewPrivate(this)) {
     Q_D(ClipEditorToolBarView);
+    d->setParent(this);
     setObjectName("ClipEditorToolBarView");
     setFocusPolicy(Qt::ClickFocus);
 

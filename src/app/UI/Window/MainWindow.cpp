@@ -5,7 +5,6 @@
 #  include <WinUser.h>
 #endif
 
-#include "Controller/AppController.h"
 #include "Controller/EditorViewController.h"
 #include "Controller/AudioDecodingController.h"
 #include "Controller/DocumentWorkflow/DocumentWorkflowController.h"
@@ -135,12 +134,12 @@ MainWindow::MainWindow() {
     connect(appStatus, &AppStatus::unavailableExecutionProviderChanged, this,
             [showUnavailableProviderNotice](const QString &) { showUnavailableProviderNotice(); });
     showUnavailableProviderNotice();
-    appController->setMainWindow(this);
     documentWorkflowController->setUi(this);
     connect(documentWorkflowController, &DocumentWorkflowController::documentIdentityChanged, this,
             &MainWindow::updateWindowTitle);
     connect(historyManager, &HistoryManager::savePointChanged, this,
             &MainWindow::updateWindowTitle);
+    connect(historyManager, &HistoryManager::undoRedoChanged, this, &MainWindow::updateWindowTitle);
     connect(documentWorkflowController, &DocumentWorkflowController::terminationApproved, this,
             [this](const TerminationMode mode) {
                 m_restartRequested = mode == TerminationMode::Restart;
@@ -214,7 +213,7 @@ MainWindow::MainWindow() {
 
     ThemeManager::instance()->addWindow(this);
 #if defined(WITH_DIRECT_MANIPULATION)
-    connect(appOptions, &AppOptions::optionsChanged, [&](AppOptionsGlobal::Option option) {
+    connect(appOptions, &AppOptions::optionsChanged, this, [this](AppOptionsGlobal::Option option) {
         if (option == AppOptionsGlobal::Option::Appearance) {
             // While the embedded options modal is open, DM must stay off: openAppOptions()
             // unregisters it and restoreBackgroundInteraction() re-registers on close. Any
@@ -244,6 +243,7 @@ MainWindow::~MainWindow() {
     ShutdownBlockReasonDestroy(reinterpret_cast<HWND>(this->winId()));
 #endif
     editorViewController->setView(nullptr);
+    documentWorkflowController->setUi(nullptr);
     ThemeManager::instance()->removeWindow(this);
 }
 

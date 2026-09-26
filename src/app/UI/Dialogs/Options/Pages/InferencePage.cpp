@@ -282,6 +282,7 @@ QWidget *InferencePage::createContentWidget() {
     const auto option = appOptions->inference();
     // Device - Execution Provider
     m_cbExecutionProvider = new ComboBox();
+    m_cbExecutionProvider->setObjectName(QStringLiteral("inferenceExecutionProvider"));
     m_cbExecutionProvider->addItems(
         {ExecutionProviderUtils::toString(ExecutionProvider::Cpu),
          ExecutionProviderUtils::toString(ExecutionProvider::DirectML)});
@@ -292,6 +293,7 @@ QWidget *InferencePage::createContentWidget() {
 
     // Device - GPU
     m_cbDeviceList = new ComboBox();
+    m_cbDeviceList->setObjectName(QStringLiteral("inferenceDevice"));
     m_cbDeviceList->setSizeAdjustPolicy(QComboBox::AdjustToContents);
     connect(m_cbDeviceList, &ComboBox::currentIndexChanged, this, &InferencePage::modifyOption);
 
@@ -312,6 +314,7 @@ QWidget *InferencePage::createContentWidget() {
 
     // Render - Sampling Steps
     m_cbSamplingSteps = new ComboBox();
+    m_cbSamplingSteps->setObjectName(QStringLiteral("inferenceSamplingSteps"));
     m_cbSamplingSteps->setEditable(true);
     // Prevent wheel-scroll over this editable combo from grabbing focus.
     m_cbSamplingSteps->setFocusPolicy(Qt::StrongFocus);
@@ -351,6 +354,7 @@ QWidget *InferencePage::createContentWidget() {
 
     // Render - decayInfer
     m_autoStartInfer = new SwitchButton(appOptions->inference()->autoStartInfer);
+    m_autoStartInfer->setObjectName(QStringLiteral("inferenceAutoStart"));
     connect(m_autoStartInfer, &SwitchButton::toggled, this, &InferencePage::modifyOption);
 
     // Render - playback lookahead window (seconds)
@@ -425,12 +429,15 @@ QWidget *InferencePage::createContentWidget() {
             [this] { QM::reveal(appOptions->inference()->cacheDirectory); });
 
     m_lblCacheStats = new QLabel(tr("Scanning..."));
+    m_lblCacheStats->setObjectName(QStringLiteral("inferenceCacheStats"));
     m_lblCacheStats->setTextInteractionFlags(Qt::TextSelectableByMouse);
 
     m_btnScanCache = new Button(tr("Refresh"), this);
+    m_btnScanCache->setObjectName(QStringLiteral("inferenceScanCache"));
     connect(m_btnScanCache, &Button::clicked, this, &InferencePage::startCacheScan);
 
     m_btnCleanCache = new Button(tr("Clean Up..."), this);
+    m_btnCleanCache->setObjectName(QStringLiteral("inferenceCleanCache"));
     m_btnCleanCache->setEnabled(false);
     connect(m_btnCleanCache, &Button::clicked, this, &InferencePage::confirmCleanCache);
 

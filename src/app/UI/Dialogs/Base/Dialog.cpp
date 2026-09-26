@@ -13,7 +13,7 @@
 #include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/GUI/Utils/WindowFrameUtils.h>
 
-QWidget *Dialog::m_globalParent = nullptr;
+QPointer<QWidget> Dialog::m_globalParent;
 
 DialogHeader::DialogHeader(QWidget *parent) : QWidget(parent) {
     m_lbTitle = new QLabel;
@@ -77,7 +77,7 @@ void DialogButtonBar::reset() const {
 }
 
 Dialog::Dialog(QWidget *parent, const Qt::WindowFlags f)
-    : QDialog(parent ? parent : m_globalParent, f) {
+    : QDialog(parent ? parent : m_globalParent.data(), f) {
     m_header = new DialogHeader;
     m_header->setVisible(false);
 

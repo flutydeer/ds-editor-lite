@@ -173,7 +173,6 @@ namespace FillLyric {
         const auto lyricCell =
             new LyricCell(0, this->y() + deltaY(), new LangNote(), m_view, m_cellQss, &m_cells);
         this->updateRect(lyricCell);
-        this->connectCell(lyricCell);
         return lyricCell;
     }
 
@@ -195,15 +194,12 @@ namespace FillLyric {
     }
 
     void CellList::insertCell(const int &index, LyricCell *cell) {
-        if (0 <= index && index < m_cells.size()) {
-            m_cells.insert(index, cell);
-            m_scene->addItem(cell);
-            this->updateCellPos();
-        } else if (index == m_cells.size()) {
-            m_cells.append(cell);
-            m_scene->addItem(cell);
-            this->updateCellPos();
-        }
+        if (index < 0 || index > m_cells.size())
+            return;
+        connectCell(cell);
+        m_cells.insert(index, cell);
+        m_scene->addItem(cell);
+        updateCellPos();
     }
 
     void CellList::addToScene() {
@@ -318,7 +314,10 @@ namespace FillLyric {
         Q_EMIT this->cellPosChanged();
     }
 
-    void CellList::connectCell(const LyricCell *cell) {
+    void CellList::connectCell(LyricCell *cell) {
+        // A transferred cell must use its destination row for subsequent menu actions.
+        cell->m_cells = &m_cells;
+        cell->setQss(m_cellQss);
         connect(cell, &LyricCell::updateWidth, this, &CellList::updateCellPos);
         connect(cell, &LyricCell::updateLyric, this, &CellList::editCell);
 

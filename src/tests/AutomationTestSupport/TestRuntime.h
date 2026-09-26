@@ -3,6 +3,7 @@
 
 #include "Automation/CoreRuntime.h"
 #include "Interface/IEditorView.h"
+#include "../TestSupport/ProjectSnapshot.h"
 
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>

@@ -90,10 +90,8 @@ SpeakerMixData SpeakerMixEditorView::workingMixData() const {
     if (m_editable) {
         result.dynamicKeyframes.clear();
         for (const auto &keyframe : m_keyframes) {
-            SpeakerMixModel::SpeakerMixKeyframe modelKeyframe;
-            modelKeyframe.tick = keyframe.tick;
-            modelKeyframe.weights = toVector(keyframe.weights);
-            result.dynamicKeyframes.append(modelKeyframe);
+            result.dynamicKeyframes.append(
+                {keyframe.tick, toVector(keyframe.weights), keyframe.id});
         }
     }
     return normalizeSpeakerMixData(result);
@@ -825,6 +823,7 @@ void SpeakerMixEditorView::addKeyframeAt(int tick) {
     SpeakerMixKeyframe kf;
     kf.tick = tick;
     kf.weights = toList(SpeakerMixUtils::fullWeightsToStored(toVector(weights)));
+    kf.id = IdGenerator::instance()->next();
 
     auto it = std::lower_bound(m_keyframes.begin(), m_keyframes.end(), tick,
                                [](const SpeakerMixKeyframe &kf, int t) { return kf.tick < t; });
@@ -909,7 +908,7 @@ void SpeakerMixEditorView::syncWorkingFromCommitted() {
     m_editable = m_committedData.sources.size() >= 2 && !m_committedData.dynamicKeyframes.isEmpty();
 
     const auto appendKeyframe = [this](const SpeakerMixModel::SpeakerMixKeyframe &keyframe) {
-        m_keyframes.append({keyframe.tick, toList(keyframe.weights)});
+        m_keyframes.append({keyframe.tick, toList(keyframe.weights), keyframe.id});
     };
 
     if (!m_committedData.dynamicKeyframes.isEmpty()) {

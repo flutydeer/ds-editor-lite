@@ -45,6 +45,7 @@ QWidget *MidiPage::createContentWidget() {
     mainLayout->addWidget(m_inputCard);
 
     m_generatorComboBox = new ComboBox;
+    m_generatorComboBox->setObjectName("midiGenerator");
     m_generatorComboBox->addItem(tr("Sine wave"), talcs::NoteSynthesizer::Sine);
     m_generatorComboBox->addItem(tr("Square wave"), talcs::NoteSynthesizer::Square);
     m_generatorComboBox->addItem(tr("Triangle Wave"), talcs::NoteSynthesizer::Triangle);
@@ -56,6 +57,7 @@ QWidget *MidiPage::createContentWidget() {
     m_amplitudeSlider->setRange(DecibelLinearizer::decibelToLinearValue(-96),
                                 DecibelLinearizer::decibelToLinearValue(0));
     m_amplitudeSpinBox = new SVS::ExpressionDoubleSpinBox;
+    m_amplitudeSpinBox->setObjectName("midiAmplitude");
     m_amplitudeSpinBox->setDecimals(1);
     m_amplitudeSpinBox->setRange(-96, 0);
     m_amplitudeSpinBox->setSpecialValueText("-INF");
@@ -69,6 +71,7 @@ QWidget *MidiPage::createContentWidget() {
     m_attackSlider->setDefaultValue(10);
     m_attackSlider->setRange(0, 100);
     m_attackSpinBox = new SVS::ExpressionSpinBox;
+    m_attackSpinBox->setObjectName("midiAttack");
     m_attackSpinBox->setRange(0, 100);
     // Prevent accidental value changes while scrolling the settings page.
     m_attackSpinBox->setWheelEventPolicy(WheelEventPolicy::Consume);
@@ -80,6 +83,7 @@ QWidget *MidiPage::createContentWidget() {
     m_decaySlider->setDefaultValue(1000);
     m_decaySlider->setRange(0, 1000);
     m_decaySpinBox = new SVS::ExpressionSpinBox;
+    m_decaySpinBox->setObjectName("midiDecay");
     m_decaySpinBox->setRange(0, 1000);
     // Prevent accidental value changes while scrolling the settings page.
     m_decaySpinBox->setWheelEventPolicy(WheelEventPolicy::Consume);
@@ -90,6 +94,7 @@ QWidget *MidiPage::createContentWidget() {
     m_decayRatioSlider->setDefaultValue(0.5);
     m_decayRatioSlider->setRange(0, 1);
     m_decayRatioSpinBox = new SVS::ExpressionDoubleSpinBox;
+    m_decayRatioSpinBox->setObjectName("midiDecayRatio");
     m_decayRatioSpinBox->setRange(0, 1);
     // Prevent accidental value changes while scrolling the settings page.
     m_decayRatioSpinBox->setWheelEventPolicy(WheelEventPolicy::Consume);
@@ -101,20 +106,24 @@ QWidget *MidiPage::createContentWidget() {
     m_releaseSlider->setDefaultValue(50);
     m_releaseSlider->setRange(0, 100);
     m_releaseSpinBox = new SVS::ExpressionSpinBox;
+    m_releaseSpinBox->setObjectName("midiRelease");
     m_releaseSpinBox->setRange(0, 100);
     // Prevent accidental value changes while scrolling the settings page.
     m_releaseSpinBox->setWheelEventPolicy(WheelEventPolicy::Consume);
     m_releaseSpinBox->setFocusPolicy(Qt::StrongFocus);
 
     m_frequencyOfASpinBox = new SVS::ExpressionDoubleSpinBox;
+    m_frequencyOfASpinBox->setObjectName("midiFrequencyOfA");
     m_frequencyOfASpinBox->setRange(440.0 * std::pow(2, -1.0 / 24.0),
                                     440.0 * std::pow(2, 1.0 / 24.0));
     // Prevent accidental value changes while scrolling the settings page.
     m_frequencyOfASpinBox->setWheelEventPolicy(WheelEventPolicy::Consume);
     m_frequencyOfASpinBox->setFocusPolicy(Qt::StrongFocus);
     m_adjustByProjectSwitch = new SwitchButton;
+    m_adjustByProjectSwitch->setObjectName("midiAdjustByProject");
 
     m_synthesizerTestButton = new QPushButton(tr("&Preview"));
+    m_synthesizerTestButton->setObjectName("midiPreview");
     m_synthesizerTestButton->setCheckable(true);
     m_flushButton = new QPushButton(tr("&Interrupt All Notes"));
     m_flushButton->setToolTip(
@@ -144,7 +153,7 @@ QWidget *MidiPage::createContentWidget() {
 
     auto ms = AudioSystem::midiSystem();
 
-    const auto deviceList = talcs::MidiInputDevice::devices();
+    const auto deviceList = MidiSystem::availableDevices();
     if (!ms->device()) {
         m_deviceComboBox->addItem(tr("(Not working)"), -1);
     }

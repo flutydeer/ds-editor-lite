@@ -559,7 +559,11 @@ namespace AnchorEditor {
             curve = new AnchorCurve;
             m_curves.append(curve);
         }
-        if (auto *existing = findNodeAtTick(curve, tick)) {
+        const auto existingNodes = curve->nodes().toList();
+        const auto insertion = anchorInsertionLayout(existingNodes, tick);
+        if (insertion.index < existingNodes.size() &&
+            existingNodes.at(insertion.index)->pos() == tick) {
+            auto *existing = existingNodes.at(insertion.index);
             enterEditingState(curve, existing);
             m_state.hoveredNode = existing;
             m_state.showPreview = false;
@@ -567,30 +571,10 @@ namespace AnchorEditor {
             return;
         }
 
-        const auto existingNodes = curve->nodes().toList();
-        auto *oldLast = existingNodes.isEmpty() ? nullptr : existingNodes.last();
         auto *node = new AnchorNode(tick, value);
-        if (!oldLast || tick > oldLast->pos()) {
-            node->setInterpMode(AnchorNode::None);
-            if (oldLast) {
-                auto predecessorMode = oldLast->interpMode();
-                if (predecessorMode == AnchorNode::None) {
-                    const auto index = existingNodes.indexOf(oldLast);
-                    predecessorMode =
-                        index > 0 ? existingNodes.at(index - 1)->interpMode() : AnchorNode::Hermite;
-                }
-                oldLast->setInterpMode(predecessorMode);
-            }
-        } else {
-            auto mode = AnchorNode::Hermite;
-            for (int i = existingNodes.size() - 1; i >= 0; --i) {
-                if (existingNodes.at(i)->pos() < tick) {
-                    mode = existingNodes.at(i)->interpMode();
-                    break;
-                }
-            }
-            node->setInterpMode(mode);
-        }
+        node->setInterpMode(insertion.interpolation);
+        if (insertion.previousInterpolation)
+            existingNodes.at(insertion.index - 1)->setInterpMode(*insertion.previousInterpolation);
         curve->insertNode(node);
         if (createdCurve)
             m_provisionalCurve = curve;

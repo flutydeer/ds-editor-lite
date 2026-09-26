@@ -335,7 +335,12 @@ namespace Automation {
                     if (!caseSensitive)
                         options |= QRegularExpression::CaseInsensitiveOption;
                     expression.setPatternOptions(options);
-                    expression.setPattern(query);
+                    auto pattern = query;
+                    if (mode == QStringLiteral("exact"))
+                        pattern = QRegularExpression::anchoredPattern(pattern);
+                    else if (mode == QStringLiteral("starts_with"))
+                        pattern = QStringLiteral("\\A(?:") + pattern + QLatin1Char(')');
+                    expression.setPattern(pattern);
                     if (!expression.isValid()) {
                         return AutomationResult<QList<NoteSearchMatchDto>>(
                             AutomationError::invalidArgument(
@@ -348,12 +353,7 @@ namespace Automation {
                 for (const auto *note : clip->notes()) {
                     bool matches = false;
                     if (regularExpression) {
-                        const auto match = expression.match(note->lyric());
-                        matches =
-                            match.hasMatch() &&
-                            (mode != QStringLiteral("exact") ||
-                             match.capturedLength() == note->lyric().size()) &&
-                            (mode != QStringLiteral("starts_with") || match.capturedStart() == 0);
+                        matches = expression.match(note->lyric()).hasMatch();
                     } else if (mode == QStringLiteral("exact")) {
                         matches = note->lyric().compare(query, sensitivity) == 0;
                     } else if (mode == QStringLiteral("starts_with")) {

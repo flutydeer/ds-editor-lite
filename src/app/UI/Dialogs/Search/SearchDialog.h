@@ -28,7 +28,6 @@ private:
     void updateButtonState() const;
 
     SingingClip *m_clip;
-    QList<Note *> m_notes;
     QLineEdit *lineEditSearch;
     QListWidget *resultListWidget;
 

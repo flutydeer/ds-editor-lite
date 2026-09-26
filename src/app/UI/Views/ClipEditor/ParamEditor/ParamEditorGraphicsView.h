@@ -109,6 +109,7 @@ private:
 
     bool m_debugMode = false;
     bool m_speakerMixMode = false;
+    bool m_anchorContextMenuOpen = false;
     SingingClip *m_clip = nullptr;
     CommonParamEditorView *m_foreground = nullptr;
     CommonParamEditorView *m_background = nullptr;

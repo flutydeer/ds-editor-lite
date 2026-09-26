@@ -14,6 +14,7 @@ namespace Automation {
         ClipId id;
         TrackId trackId;
         ClipDraftDto data;
+        QString effectiveDefaultLanguage;
     };
 
     struct TrackSnapshotDto {
