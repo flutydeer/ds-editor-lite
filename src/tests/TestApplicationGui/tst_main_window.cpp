@@ -13,6 +13,7 @@
 #include "UI/Dialogs/Base/MessageDialog.h"
 #include "UI/Dialogs/Options/AppOptionsDialog.h"
 #include "UI/Dialogs/Note/QuantizeDialog.h"
+#include "UI/Dialogs/Audio/AudioExportDialog.h"
 #include "UI/Views/BottomPanelView.h"
 #include "UI/Views/ClipEditor/ClipEditorView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
@@ -37,6 +38,7 @@
 #include <lite/History/HistoryManager.h>
 #include <lite/History/ActionSequence.h>
 #include <lite/ProjectConverters/DspxProjectConverter.h>
+#include <lite/ProjectConverters/MidiConverter.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/Note.h>
@@ -156,17 +158,31 @@ namespace {
         QTest::mouseClick(button, Qt::LeftButton);
     }
 
-    void clickMainMenuAction(MainWindow &window, const char *text) {
+    void clickMainMenuAction(MainWindow &window, const char *text, const char *submenu = nullptr) {
         auto *bar = window.findChild<MainMenuView *>();
         QVERIFY(bar);
         QMenu *owner = nullptr;
+        QMenu *parentMenu = nullptr;
         QAction *choice = nullptr;
         for (auto *menuAction : bar->actions()) {
             if (auto *menu = menuAction->menu()) {
-                for (auto *action : menu->actions()) {
+                auto *actionsMenu = menu;
+                if (submenu) {
+                    actionsMenu = nullptr;
+                    for (auto *action : menu->actions()) {
+                        if (action->menu() && action->text() ==
+                                                  QCoreApplication::translate(
+                                                      "MainMenuViewPrivate", submenu))
+                            actionsMenu = action->menu();
+                    }
+                    if (!actionsMenu)
+                        continue;
+                }
+                for (auto *action : actionsMenu->actions()) {
                     if (action->text() ==
                         QCoreApplication::translate("MainMenuViewPrivate", text)) {
-                        owner = menu;
+                        owner = actionsMenu;
+                        parentMenu = menu;
                         choice = action;
                     }
                 }
@@ -176,9 +192,13 @@ namespace {
         QVERIFY(choice);
         QVERIFY(choice->isEnabled());
         QTest::mouseClick(bar, Qt::LeftButton, Qt::NoModifier,
-                          bar->actionGeometry(owner->menuAction()).center());
+                          bar->actionGeometry(parentMenu->menuAction()).center());
+        QTRY_VERIFY(parentMenu->isVisible());
+        const auto closeMenu = qScopeGuard([&] { parentMenu->close(); });
+        if (parentMenu != owner)
+            QTest::mouseClick(parentMenu, Qt::LeftButton, Qt::NoModifier,
+                              parentMenu->actionGeometry(owner->menuAction()).center());
         QTRY_VERIFY(owner->isVisible());
-        const auto closeMenu = qScopeGuard([&] { owner->close(); });
         QTest::mouseClick(owner, Qt::LeftButton, Qt::NoModifier,
                           owner->actionGeometry(choice).center());
         QTRY_VERIFY(!owner->isVisible());
@@ -1057,7 +1077,7 @@ void ApplicationGuiTests::failedProjectOpenPreservesTheDocumentAndRecovers() {
     QVERIFY(!historyManager->canUndo());
 }
 
-void ApplicationGuiTests::fileMenuOpensAndSavesThroughTheActualPicker() {
+void ApplicationGuiTests::fileMenuOpensSavesAndExportsThroughThePicker() {
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     const auto sourcePath = directory.filePath(QStringLiteral("打开工程.dspx"));
@@ -1078,7 +1098,8 @@ void ApplicationGuiTests::fileMenuOpensAndSavesThroughTheActualPicker() {
     QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
     const auto restoreDialogs = qScopeGuard(
         [&] { QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDialogsDisabled); });
-    const auto chooseFile = [&](const char *action, const QString &path, bool save, bool accept) {
+    const auto chooseFile = [&](const char *action, const QString &path, bool save, bool accept,
+                                const char *submenu = nullptr) {
         const auto before = runtime.documentVersion();
         const auto beforeModel = context->m_appModel->serialize();
         bool chosen = false;
@@ -1118,7 +1139,7 @@ void ApplicationGuiTests::fileMenuOpensAndSavesThroughTheActualPicker() {
             chosen = true;
         });
         answer.start();
-        clickMainMenuAction(window, action);
+        clickMainMenuAction(window, action, submenu);
         QTRY_VERIFY_WITH_TIMEOUT(chosen, 10000);
         answer.stop();
         QTRY_VERIFY_WITH_TIMEOUT(!documentWorkflowController->busy(), 10000);
@@ -1183,6 +1204,45 @@ void ApplicationGuiTests::fileMenuOpensAndSavesThroughTheActualPicker() {
              qPrintable(error));
     QCOMPARE(original.tracks().first()->name(), QStringLiteral("Dropped track"));
     QCOMPARE(runtime.documentVersion().documentId, document);
+
+    const auto beforeExport = runtime.documentVersion();
+    const auto modelBeforeExport = context->m_appModel->serialize();
+    const auto *undoBeforeExport = historyManager->nextUndoEntry();
+    const auto midiPath = directory.filePath(QStringLiteral("导出.mid"));
+    chooseFile("MIDI file...", midiPath, true, false, "Export");
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(!QFileInfo::exists(midiPath));
+    chooseFile("MIDI file...", midiPath, true, true, "Export");
+    if (QTest::currentTestFailed())
+        return;
+    const auto midi = MidiFileParser::parse(midiPath);
+    QVERIFY2(midi.valid, qPrintable(midi.errorMessage));
+    size_t noteCount = 0;
+    for (const auto &midiTrack : midi.mediate.tracks()) {
+        for (const auto &note : midiTrack.notes) {
+            ++noteCount;
+            QCOMPARE(note.key, 64);
+            QCOMPARE(note.length, 480);
+        }
+    }
+    QCOMPARE(noteCount, size_t{1});
+    clickMainMenuAction(window, "Audio file...", "Export");
+    if (QTest::currentTestFailed())
+        return;
+    QPointer<AudioExportDialog> exportDialog =
+        qobject_cast<AudioExportDialog *>(QApplication::activeModalWidget());
+    QTRY_VERIFY(exportDialog && exportDialog->isVisible());
+    auto *cancelExport = exportDialog->findChild<QPushButton *>("audioExportCancel");
+    QVERIFY(cancelExport);
+    QTest::mouseClick(cancelExport, Qt::LeftButton);
+    QTRY_VERIFY(exportDialog.isNull());
+    QCOMPARE(runtime.documentVersion(), beforeExport);
+    QCOMPARE(context->m_appModel->serialize(), modelBeforeExport);
+    QCOMPARE(historyManager->nextUndoEntry(), undoBeforeExport);
+    QVERIFY(historyManager->isOnSavePoint());
+    QCOMPARE(QFileInfo(documentWorkflowController->projectPath()).canonicalFilePath(),
+             QFileInfo(savedPath).canonicalFilePath());
 }
 
 void ApplicationGuiTests::closingTheMainWindowReleasesTheDefaultDialogParent() {
