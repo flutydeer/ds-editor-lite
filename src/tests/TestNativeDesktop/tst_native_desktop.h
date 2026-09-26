@@ -22,6 +22,8 @@ private slots:
     void reparentAndDestructionKeepGripOwnership();
     void customWindowButtonsKeepTheDetachedPanelAndDocument();
     void mainWindowSplitterDragRestoresPanelSizes();
+    void closingMainWindowWaitsForBackgroundTasks_data();
+    void closingMainWindowWaitsForBackgroundTasks();
     void dragGrip_data();
     void dragGrip();
     void effectiveDurationPolicy();
@@ -66,6 +68,7 @@ private slots:
     void configuredMidiLoopbackFeedsLiveSynthesizer();
 
 private:
+    void runIsolatedDesktopCase();
     bool eventFilter(QObject *object, QEvent *event) override;
     std::unique_ptr<GuiAppFixture> application;
 };

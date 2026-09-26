@@ -27,8 +27,6 @@
 #include <rtmidi/RtMidi.h>
 
 #include <QPointer>
-#include <QProcess>
-#include <QProcessEnvironment>
 #include <QScopeGuard>
 #include <QThread>
 #include <QDir>
@@ -44,26 +42,6 @@
 #include <vector>
 
 namespace {
-    void runIsolatedDesktopCase() {
-        QProcess child;
-        auto environment = QProcessEnvironment::systemEnvironment();
-        environment.insert(QStringLiteral("DSEL_TEST_GUI_LIFECYCLE"), QStringLiteral("1"));
-        child.setProcessEnvironment(environment);
-        child.setProcessChannelMode(QProcess::MergedChannels);
-        auto testCase = QString::fromLatin1(QTest::currentTestFunction());
-        if (const auto *tag = QTest::currentDataTag(); tag && *tag)
-            testCase += ':' + QString::fromLatin1(tag);
-        child.start(QCoreApplication::applicationFilePath(), {testCase, QStringLiteral("-v1")});
-        QVERIFY2(child.waitForStarted(), qPrintable(child.errorString()));
-        const auto completed = child.waitForFinished(20000);
-        const auto output = child.readAll();
-        QVERIFY2(completed, output.constData());
-        QVERIFY2(child.exitStatus() == QProcess::NormalExit && child.exitCode() == 0,
-                 qPrintable(QStringLiteral("Child exit code %1:\n%2")
-                                .arg(child.exitCode())
-                                .arg(QString::fromUtf8(output))));
-    }
-
     class MidiReceipt final : public talcs::MidiMessageListener {
     public:
         std::atomic_int noteOnCount = 0;

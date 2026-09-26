@@ -7,12 +7,34 @@
 #include <lite/PackageManager/PackageManager.h>
 #include <QFileInfo>
 #include <QMessageBox>
+#include <QProcess>
+#include <QProcessEnvironment>
 #include <QTimer>
 
 #include <QtTest/QTest>
 
 NativeDesktopTests::NativeDesktopTests() = default;
 NativeDesktopTests::~NativeDesktopTests() = default;
+
+void NativeDesktopTests::runIsolatedDesktopCase() {
+    QProcess child;
+    auto environment = QProcessEnvironment::systemEnvironment();
+    environment.insert(QStringLiteral("DSEL_TEST_GUI_LIFECYCLE"), QStringLiteral("1"));
+    child.setProcessEnvironment(environment);
+    child.setProcessChannelMode(QProcess::MergedChannels);
+    auto testCase = QString::fromLatin1(QTest::currentTestFunction());
+    if (const auto *tag = QTest::currentDataTag(); tag && *tag)
+        testCase += ':' + QString::fromLatin1(tag);
+    child.start(QCoreApplication::applicationFilePath(), {testCase, QStringLiteral("-v1")});
+    QVERIFY2(child.waitForStarted(), qPrintable(child.errorString()));
+    const auto completed = child.waitForFinished(20000);
+    const auto output = child.readAll();
+    QVERIFY2(completed, output.constData());
+    QVERIFY2(child.exitStatus() == QProcess::NormalExit && child.exitCode() == 0,
+             qPrintable(QStringLiteral("Child exit code %1:\n%2")
+                            .arg(child.exitCode())
+                            .arg(QString::fromUtf8(output))));
+}
 
 bool NativeDesktopTests::eventFilter(QObject *object, QEvent *event) {
     if (event->type() == QEvent::Show) {

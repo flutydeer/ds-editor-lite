@@ -110,6 +110,8 @@ private slots:
     void audioResourceConfirmationKeepsTheDecodedSource();
     void panelButtonsAndClipDoubleClickRestoreTheEditorView();
     void closingTheMainWindowReleasesTheDefaultDialogParent();
+    void cancelingMainWindowClosePreservesTheEditableDocument_data();
+    void cancelingMainWindowClosePreservesTheEditableDocument();
     void mainMenuQuantizationUsesTheChosenScopeAndOptions_data();
     void mainMenuQuantizationUsesTheChosenScopeAndOptions();
     void mainMenuOctaveEditsFollowThePianoSelection();

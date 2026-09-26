@@ -220,6 +220,87 @@ namespace {
     }
 }
 
+void ApplicationGuiTests::cancelingMainWindowClosePreservesTheEditableDocument_data() {
+    QTest::addColumn<bool>("cancelSavePicker");
+    QTest::newRow("cancel-save-decision") << false;
+    QTest::newRow("cancel-save-picker") << true;
+}
+
+void ApplicationGuiTests::cancelingMainWindowClosePreservesTheEditableDocument() {
+    QFETCH(bool, cancelSavePicker);
+    MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    auto *track = context->m_appModel->tracks().first();
+    QVERIFY(runtime.project().renameTrack(commandContext(), Automation::TrackId(track->id()),
+                                          QStringLiteral("Unsaved close decision")));
+    QVERIFY(!historyManager->isOnSavePoint());
+    const auto version = runtime.documentVersion();
+    const auto before = TestSupport::projectSnapshot(*context->m_appModel);
+    const auto *undo = historyManager->nextUndoEntry();
+    QSignalSpy approved(documentWorkflowController,
+                        &DocumentWorkflowController::terminationApproved);
+    const auto nativeDialogsDisabled = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
+    QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, true);
+    const auto restoreDialogs = qScopeGuard(
+        [&] { QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDialogsDisabled); });
+    bool answered = false;
+    bool pickerCanceled = false;
+    QTimer answer;
+    answer.setInterval(10);
+    connect(&answer, &QTimer::timeout, host.window.get(), [&] {
+        QPointer<QDialog> dialog = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+        if (!dialog)
+            return;
+        const auto dismissOnFailure = qScopeGuard([&] {
+            if (QTest::currentTestFailed() && dialog) {
+                answer.stop();
+                dialog->reject();
+            }
+        });
+        if (auto *picker = qobject_cast<QFileDialog *>(dialog.data())) {
+            QVERIFY(cancelSavePicker && answered);
+            auto *buttons = picker->findChild<QDialogButtonBox *>();
+            QVERIFY(buttons && buttons->button(QDialogButtonBox::Cancel));
+            answer.stop();
+            pickerCanceled = true;
+            QTest::mouseClick(buttons->button(QDialogButtonBox::Cancel), Qt::LeftButton);
+            return;
+        }
+        if (answered)
+            return;
+        const auto label = cancelSavePicker ? MainWindow::tr("Save") : MainWindow::tr("Cancel");
+        Button *choice = nullptr;
+        for (auto *button : dialog->findChildren<Button *>()) {
+            if (button->text() == label)
+                choice = button;
+        }
+        QVERIFY(choice);
+        answered = true;
+        if (!cancelSavePicker)
+            answer.stop();
+        QTest::mouseClick(choice, Qt::LeftButton);
+    });
+    answer.start();
+    QVERIFY(!host.window->close());
+    QTRY_VERIFY(answered && (!cancelSavePicker || pickerCanceled) &&
+                !documentWorkflowController->busy());
+    QVERIFY(approved.isEmpty());
+    QVERIFY(host.window->isVisible());
+    QVERIFY(host.window->windowTitle().startsWith(QStringLiteral("● ")));
+    QCOMPARE(runtime.documentVersion(), version);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), before);
+    QCOMPARE(historyManager->nextUndoEntry(), undo);
+    QVERIFY(!historyManager->isOnSavePoint());
+    QVERIFY(documentWorkflowController->projectPath().isEmpty());
+    QVERIFY(runtime.project().renameTrack(commandContext(), Automation::TrackId(track->id()),
+                                          QStringLiteral("Editing continued")));
+    QVERIFY(runtime.history().undo(commandContext()));
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), before);
+}
+
 void ApplicationGuiTests::mainMenuQuantizationUsesTheChosenScopeAndOptions_data() {
     QTest::addColumn<bool>("selectFirst");
     QTest::addColumn<bool>("quantizeStart");
