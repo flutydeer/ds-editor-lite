@@ -80,6 +80,7 @@ private slots:
     void queuedCacheProbeCannotRestoreAudioAfterAnEdit();
     void changingSpeakerMixRefreshesExistingInference();
     void playbackWindowPrioritizesAndSuspendsAcousticInference();
+    void cancelingVoiceExportDuringPreparationAllowsAnotherExport_data();
     void cancelingVoiceExportDuringPreparationAllowsAnotherExport();
     void movingInheritedVoiceReusesOrRebuildsInference_data();
     void movingInheritedVoiceReusesOrRebuildsInference();

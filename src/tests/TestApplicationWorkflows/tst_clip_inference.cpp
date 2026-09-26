@@ -608,7 +608,14 @@ void ApplicationWorkflowTests::editingParametersRestartsOnlyDependentInference_d
     QTest::newRow("gender-preserves-pitch-and-variance") << ParamInfo::Gender << 500;
 }
 
+void ApplicationWorkflowTests::cancelingVoiceExportDuringPreparationAllowsAnotherExport_data() {
+    QTest::addColumn<bool>("replaceDocument");
+    QTest::newRow("cancel-export") << false;
+    QTest::newRow("replace-document") << true;
+}
+
 void ApplicationWorkflowTests::cancelingVoiceExportDuringPreparationAllowsAnotherExport() {
+    QFETCH(bool, replaceDocument);
     QTemporaryDir materials;
     QVERIFY(materials.isValid());
     const auto previousCache = appOptions->inference()->cacheDirectory;
@@ -623,6 +630,12 @@ void ApplicationWorkflowTests::cancelingVoiceExportDuringPreparationAllowsAnothe
     if (QTest::currentTestFailed())
         return;
     QCOMPARE(piece->state.get(), QStringLiteral("Acoustic.Awaiting"));
+    const auto previousDocument = runtime().documentVersion().documentId;
+    const auto *previousUndo = HistoryManager::instance()->nextUndoEntry();
+    auto replacement = Automation::DocumentAutomationFacade::newDocumentDraft(false);
+    replacement.timeline = context->m_appModel->timeline();
+    for (const auto *track : context->m_appModel->tracks())
+        replacement.tracks.append(Automation::trackDraftDto(*track));
     const auto target = materials.filePath(QStringLiteral("voice.wav"));
     QFile file(target);
     const QByteArray original("previous export");
@@ -649,7 +662,11 @@ void ApplicationWorkflowTests::cancelingVoiceExportDuringPreparationAllowsAnothe
         QCOMPARE(active.get().state, Automation::AutomationTaskState::Running);
         QVERIFY(active.get().progress.indeterminate);
         canceledDuringInference = true;
-        QVERIFY(runtime().tasks().cancelTask(commandContext(), exportId));
+        if (replaceDocument) {
+            QVERIFY(runtime().documents().commitNewDocument(commandContext(), replacement));
+        } else {
+            QVERIFY(runtime().tasks().cancelTask(commandContext(), exportId));
+        }
     };
     const auto accepted =
         runtime().audioExports().start(commandContext(), config, policy, observer);
@@ -660,7 +677,16 @@ void ApplicationWorkflowTests::cancelingVoiceExportDuringPreparationAllowsAnothe
             runtime().tasks().getTask(runtime().documentVersion().documentId, exportId);
         return result ? result.get().state : Automation::AutomationTaskState::Failed;
     };
-    QTRY_COMPARE_WITH_TIMEOUT(terminalState(), Automation::AutomationTaskState::Canceled, 15000);
+    if (replaceDocument) {
+        QTRY_VERIFY_WITH_TIMEOUT(runtime().documentVersion().documentId != previousDocument, 15000);
+        QVERIFY(!runtime().tasks().getTask(previousDocument, exportId));
+        QVERIFY(!HistoryManager::instance()->canUndo());
+    } else {
+        QTRY_COMPARE_WITH_TIMEOUT(terminalState(), Automation::AutomationTaskState::Canceled,
+                                  15000);
+        QCOMPARE(runtime().documentVersion().documentId, previousDocument);
+        QCOMPARE(HistoryManager::instance()->nextUndoEntry(), previousUndo);
+    }
     QVERIFY(canceledDuringInference);
     QVERIFY(!renderedBeforeCancellation);
     QVERIFY(file.open(QIODevice::ReadOnly));
