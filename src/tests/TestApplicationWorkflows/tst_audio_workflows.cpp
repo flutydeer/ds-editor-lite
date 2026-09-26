@@ -2,6 +2,7 @@
 
 #include "Modules/Audio/AudioContext.h"
 #include "Modules/Audio/AudioExporter.h"
+#include "Modules/Audio/AudioSettings.h"
 #include "Controller/PlaybackController.h"
 #include "Model/AppOptions/AppOptions.h"
 #include "Automation/Public/PublicAutomationRegistry.h"
@@ -689,6 +690,9 @@ void ApplicationWorkflowTests::controlledPlaybackLoopsAndBuffers() {
     auto *audio = AudioContext::instance();
     auto *transport = audio->transport();
     const auto readAheadSize = audio->bufferingReadAheadSize();
+    const auto playheadBehavior = AudioSettings::playheadBehavior();
+    AudioSettings::setPlayheadBehavior(0);
+    QCOMPARE(AudioSettings::playheadBehavior(), 0);
     audio->setBufferingReadAheadSize(0);
     QVERIFY(audio->preMixer()->open(256, 48000));
     // The test supplies the audio callback; the external device prerequisite is replaced.
@@ -702,6 +706,7 @@ void ApplicationWorkflowTests::controlledPlaybackLoopsAndBuffers() {
         audio->preMixer()->close();
         audio->setBufferingReadAheadSize(readAheadSize);
         playbackController->setPlaybackStartGuard([] { return false; });
+        AudioSettings::setPlayheadBehavior(playheadBehavior);
     });
     const auto loop =
         registry.invoke(QStringLiteral("playback.set_loop"),
@@ -721,6 +726,7 @@ void ApplicationWorkflowTests::controlledPlaybackLoopsAndBuffers() {
                  .toInt(),
              720);
     QCOMPARE(transport->loopingRange(), qMakePair(qint64{24000}, qint64{36000}));
+    const auto beforePlayback = runtime().documentVersion();
     QVERIFY(runtime().playback().setPosition(commandContext(), 719));
     QVERIFY(runtime().playback().play(commandContext()));
     QCOMPARE(playbackController->playbackStatus(), PlaybackGlobal::Playing);
@@ -747,7 +753,11 @@ void ApplicationWorkflowTests::controlledPlaybackLoopsAndBuffers() {
     QCOMPARE(transport->position(), heldPosition + 256);
     QVERIFY(buffer.constSampleAt(0, 128) > 0);
     QVERIFY(runtime().playback().pause(commandContext()));
-    QCOMPARE(audio->preMixer()->read(&buffer), qint64{256});
+    qint64 pausedFrames = 0;
+    std::thread callback([&] { pausedFrames = audio->preMixer()->read(&buffer); });
+    callback.join();
+    QCOMPARE(pausedFrames, qint64{256});
+    QCOMPARE(transport->playbackStatus(), talcs::TransportAudioSource::Paused);
     const auto pausedPosition = transport->position();
     QCOMPARE(audio->preMixer()->read(&buffer), qint64{256});
     QCOMPARE(transport->position(), pausedPosition);
@@ -756,6 +766,24 @@ void ApplicationWorkflowTests::controlledPlaybackLoopsAndBuffers() {
     const auto snapshot = state.get().value(QStringLiteral("snapshot")).toObject();
     QCOMPARE(snapshot.value(QStringLiteral("state")).toString(), QStringLiteral("paused"));
     QCOMPARE(snapshot.value(QStringLiteral("position")).toDouble(), playbackController->position());
+
+    QVERIFY(runtime().playback().stop(commandContext()));
+    const auto samplePosition = [&](double tick) {
+        return qRound64(context->m_appModel->timeline().tickToMs(tick) * transport->sampleRate() /
+                        1000.0);
+    };
+    // Transport positions are quantized to whole audio samples.
+    QVERIFY(qAbs(samplePosition(playbackController->position()) -
+                 samplePosition(playbackController->lastPosition())) <= 1);
+    // Resume before delivering the audio thread's acknowledgment of the previous pause.
+    QVERIFY(runtime().playback().play(commandContext()));
+    QCoreApplication::sendPostedEvents(audio, QEvent::MetaCall);
+    QCOMPARE(playbackController->playbackStatus(), PlaybackGlobal::Playing);
+    QCOMPARE(audio->preMixer()->read(&buffer), qint64{256});
+    QCoreApplication::processEvents();
+    QCOMPARE(transport->playbackStatus(), talcs::TransportAudioSource::Playing);
+    QVERIFY(buffer.constSampleAt(0, 128) > 0);
+    QCOMPARE(runtime().documentVersion(), beforePlayback);
 }
 
 void ApplicationWorkflowTests::cancelingAudioExportPreservesExistingFilesAndMixer() {

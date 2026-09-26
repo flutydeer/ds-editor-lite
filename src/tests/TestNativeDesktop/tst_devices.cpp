@@ -1,5 +1,6 @@
 #include "tst_native_desktop.h"
 #include "../TestSupport/GuiAppFixture.h"
+#include "../TestSupport/MainWindowFixture.h"
 #include "../TestSupport/WaveFixture.h"
 
 #include "Automation/CoreRuntime.h"
@@ -9,8 +10,10 @@
 #include "Modules/Audio/AudioSettings.h"
 #include "Modules/Audio/subsystem/MidiSystem.h"
 #include "UI/Dialogs/Options/Pages/AudioPage.h"
+#include "UI/Views/MainTitleBar/PlaybackView.h"
 
 #include <lite/GUI/Controls/ComboBox.h>
+#include <lite/GUI/Controls/InlineEditLabel.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
@@ -33,6 +36,8 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QAbstractItemView>
+#include <QPushButton>
+#include <QSignalSpy>
 #include <QtTest/QTest>
 
 #include <algorithm>
@@ -171,6 +176,7 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
     const auto originalBufferSize = deviceContext->adoptedBufferSize();
     const auto originalSampleRate = deviceContext->adoptedSampleRate();
     const auto originalDeviceName = deviceContext->device()->name();
+    const auto originalPlayheadBehavior = AudioSettings::playheadBehavior();
     auto &runtime = *fixture.context->m_coreRuntime;
     const auto command = [&] {
         return Automation::CommandContext{.expected = runtime.documentVersion(),
@@ -182,6 +188,7 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
             QVERIFY(output->setDevice(originalDeviceName));
         output->setAdoptedBufferSize(originalBufferSize);
         output->setAdoptedSampleRate(originalSampleRate);
+        AudioSettings::setPlayheadBehavior(originalPlayheadBehavior);
     });
 
     const auto beforeSettings = runtime.documentVersion();
@@ -259,14 +266,25 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
     QCOMPARE(runtime.documentVersion(), beforeSettings);
     QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), modelBeforeSettings);
 
+    TestSupport::MainWindowFixture mainWindow;
+    mainWindow.show();
+    if (QTest::currentTestFailed())
+        return;
+    auto *controls = mainWindow.window->findChild<PlaybackView *>();
+    QVERIFY(controls);
+    auto *play = controls->findChild<QPushButton *>("btnPlay");
+    auto *pause = controls->findChild<QPushButton *>("btnPause");
+    auto *stop = controls->findChild<QPushButton *>("btnStop");
+    auto *position = controls->findChild<InlineEditLabel *>("elTime");
+    QVERIFY(play && pause && stop && position);
     const auto path = fixture.directory.filePath(QStringLiteral("silence.wav"));
-    QVERIFY(TestSupport::writeWave(path, QVector<float>(48000, 0.0f)));
+    QVERIFY(TestSupport::writeWave(path, QVector<float>(48000 * 8, 0.0f)));
     auto document = Automation::DocumentAutomationFacade::newDocumentDraft(false);
     Automation::ClipDraftDto clip;
     clip.type = Automation::ClipDraftDto::Type::Audio;
     clip.properties.name = QStringLiteral("Silent playback fixture");
-    clip.properties.length = 960;
-    clip.properties.clipLen = 960;
+    clip.properties.length = 7680;
+    clip.properties.clipLen = 7680;
     clip.audioPath = path;
     Automation::TrackDraftDto track;
     track.clips.append(clip);
@@ -276,26 +294,61 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
         dynamic_cast<AudioClip *>(*fixture.context->m_appModel->tracks().first()->clips().begin());
     QVERIFY(audioClip);
     QTRY_VERIFY(audioClip->audioInfo().frames > 0 && !audioClip->audioInfo().peakCache.isEmpty());
-    QVERIFY(runtime.playback().setPosition(command(), 0));
+    historyManager->reset();
     const auto before = runtime.documentVersion();
-    QVERIFY(runtime.playback().play(command()));
-    QVERIFY(deviceContext->device()->isStarted());
-    QTRY_VERIFY_WITH_TIMEOUT(playbackController->position() > 0, 5000);
-    auto playing = runtime.playback().getPlayback(before.documentId);
-    QVERIFY(playing);
-    QCOMPARE(playing.get().state, Automation::PlaybackState::Playing);
-    QVERIFY(playing.get().position > 0);
-    QVERIFY(runtime.playback().pause(command()));
-    QTRY_COMPARE(AudioContext::instance()->transport()->playbackStatus(),
-                 talcs::TransportAudioSource::Paused);
-    auto paused = runtime.playback().getPlayback(before.documentId);
-    QVERIFY(paused);
-    QCOMPARE(paused.get().state, Automation::PlaybackState::Paused);
-    QVERIFY(runtime.playback().stop(command()));
-    auto stopped = runtime.playback().getPlayback(before.documentId);
-    QVERIFY(stopped);
-    QCOMPARE(stopped.get().state, Automation::PlaybackState::Stopped);
-    QCOMPARE(runtime.documentVersion(), before);
+    const auto model = TestSupport::projectSnapshot(*fixture.context->m_appModel);
+    const auto snapshot = [&] { return runtime.playback().getPlayback(before.documentId); };
+    for (const auto behavior : {0, 1, 2}) {
+        qInfo() << "Playback policy:" << behavior;
+        AudioSettings::setPlayheadBehavior(behavior);
+        QCOMPARE(AudioSettings::playheadBehavior(), behavior);
+        QVERIFY(runtime.playback().seek(command(), 480));
+        QSignalSpy visualPositions(playbackController, &PlaybackController::visualPositionChanged);
+        QTest::mouseClick(play, Qt::LeftButton);
+        QTRY_VERIFY(snapshot() && snapshot().get().state == Automation::PlaybackState::Playing);
+        QVERIFY(deviceContext->device()->isStarted());
+        QVERIFY(play->isChecked() && !pause->isChecked());
+        QTRY_VERIFY_WITH_TIMEOUT(playbackController->position() > 500, 5000);
+        QTRY_VERIFY(
+            std::any_of(visualPositions.cbegin(), visualPositions.cend(),
+                        [](const auto &arguments) { return arguments.first().toDouble() > 480; }));
+        QTRY_COMPARE(position->text(), fixture.context->m_appModel->timeline().getBarBeatTickTime(
+                                           static_cast<int>(playbackController->position())));
+        QTest::mouseClick(pause, Qt::LeftButton);
+        QTRY_COMPARE(AudioContext::instance()->transport()->playbackStatus(),
+                     talcs::TransportAudioSource::Paused);
+        QTRY_VERIFY(snapshot() && snapshot().get().state == Automation::PlaybackState::Paused);
+        QVERIFY(!play->isChecked() && pause->isChecked());
+        const auto pausedAt = playbackController->position();
+        QVERIFY(pausedAt > 480);
+        QTest::mouseClick(stop, Qt::LeftButton);
+        QTRY_VERIFY(snapshot() && snapshot().get().state == Automation::PlaybackState::Stopped);
+        QVERIFY(!play->isChecked() && !pause->isChecked());
+        QTRY_VERIFY(qAbs(playbackController->position() - (behavior == 0 ? 480 : pausedAt)) < 1.0);
+        QCOMPARE(playbackController->lastPosition(), 480.0);
+
+        QTest::keyClick(mainWindow.window.get(), Qt::Key_Space);
+        QTRY_VERIFY(snapshot() && snapshot().get().state == Automation::PlaybackState::Playing);
+        const auto restartAt = behavior == 1 ? pausedAt : 480;
+        QTRY_VERIFY2_WITH_TIMEOUT(
+            playbackController->position() > restartAt,
+            qPrintable(QStringLiteral("Restart did not advance: policy=%1 position=%2 start=%3 "
+                                      "controller=%4 transport=%5")
+                           .arg(behavior)
+                           .arg(playbackController->position())
+                           .arg(restartAt)
+                           .arg(playbackController->playbackStatus())
+                           .arg(AudioContext::instance()->transport()->playbackStatus())),
+            5000);
+        QVERIFY(qAbs(playbackController->lastPosition() - restartAt) < 1.0);
+        QTest::keyClick(mainWindow.window.get(), Qt::Key_Space);
+        QTRY_VERIFY(snapshot() && snapshot().get().state == Automation::PlaybackState::Paused);
+        QVERIFY(!play->isChecked() && pause->isChecked());
+        QVERIFY(runtime.playback().stop(command()));
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), model);
+        QVERIFY(!historyManager->canUndo());
+    }
 }
 
 void NativeDesktopTests::audioDriverStartupCanBeCanceled_data() {

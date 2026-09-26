@@ -118,7 +118,9 @@ AudioContext::AudioContext(QObject *parent) : DspxProjectContext(parent) {
 
     connect(transport(), &talcs::TransportAudioSource::playbackStatusChanged, this,
             [this](auto status) {
-                if (status != talcs::TransportAudioSource::Paused)
+                // A queued pause acknowledgment may arrive after playback has resumed.
+                if (status != talcs::TransportAudioSource::Paused ||
+                    transport()->playbackStatus() != talcs::TransportAudioSource::Paused)
                     return;
                 if (playbackController->playbackStatus() == PlaybackGlobal::Playing) {
                     playbackController->pause();
@@ -346,6 +348,10 @@ void AudioContext::handlePlaybackStatusChanged(const PlaybackStatus status) {
     switch (status) {
         case Stopped:
             transport()->pause();
+            // An already paused transport emits no further state change when stopped.
+            if (transport()->playbackStatus() == talcs::TransportAudioSource::Paused &&
+                AudioSettings::playheadBehavior() == ReturnToStart)
+                playbackController->setPosition(playbackController->lastPosition());
             break;
         case Playing:
             if (!m_levelMeterActive) {
