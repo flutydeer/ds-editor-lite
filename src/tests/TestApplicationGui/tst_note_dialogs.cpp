@@ -582,6 +582,43 @@ void ApplicationGuiTests::lyricSearchNavigatesTheActualEditorAndHandlesNoMatches
         QTest::mouseClick(results->viewport(), Qt::LeftButton, Qt::NoModifier,
                           results->visualItemRect(results->item(1)).center());
         QCOMPARE(appStatus->selectedNotes.get(), QList<int>{expected.last()});
+        QRadioButton *exact = nullptr;
+        QRadioButton *contains = nullptr;
+        for (auto *mode : dialog->findChildren<QRadioButton *>()) {
+            if (mode->text() == SearchDialog::tr("Exact Match"))
+                exact = mode;
+            if (mode->text() == SearchDialog::tr("Contains"))
+                contains = mode;
+        }
+        QCheckBox *regex = nullptr;
+        QCheckBox *caseSensitive = nullptr;
+        for (auto *option : dialog->findChildren<QCheckBox *>()) {
+            if (option->text() == QStringLiteral(".*"))
+                regex = option;
+            if (option->text() == QStringLiteral("Cc"))
+                caseSensitive = option;
+        }
+        QVERIFY(exact && contains && regex && caseSensitive);
+        QTest::mouseClick(exact, Qt::LeftButton);
+        QCOMPARE(results->count(), 0);
+        enterNoteText(input, QStringLiteral("find|find-1"));
+        QTest::mouseClick(regex, Qt::LeftButton);
+        QCOMPARE(results->count(), 1);
+        QCOMPARE(results->item(0)->data(Qt::UserRole).toInt(), expected.first());
+        QTest::mouseClick(caseSensitive, Qt::LeftButton);
+        enterNoteText(input, QStringLiteral("FIND-1"));
+        QCOMPARE(results->count(), 0);
+        QTest::mouseClick(caseSensitive, Qt::LeftButton);
+        QCOMPARE(results->count(), 1);
+        enterNoteText(input, QStringLiteral("nd-"));
+        QCOMPARE(results->count(), 0);
+        QTest::mouseClick(contains, Qt::LeftButton);
+        QCOMPARE(results->count(), 2);
+        enterNoteText(input, QStringLiteral("("));
+        QCOMPARE(results->count(), 0);
+        enterNoteText(input, QStringLiteral("find-2"));
+        QCOMPARE(results->count(), 1);
+        QCOMPARE(appStatus->selectedNotes.get(), QList<int>{expected.last()});
         enterNoteText(input, QStringLiteral("missing"));
         if (QTest::currentTestFailed())
             return;

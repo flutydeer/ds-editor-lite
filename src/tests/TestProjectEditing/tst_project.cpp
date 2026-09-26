@@ -951,6 +951,12 @@ void ProjectEditingTests::noteSearch_data() {
                               << QStringList{"La", "la", "lala"};
     QTest::newRow("expression") << QStringLiteral("l(a)+") << QStringLiteral("exact") << false
                                 << true << QStringList{"La", "la"};
+    QTest::newRow("exact-expression-alternatives")
+        << QStringLiteral("la|lala") << QStringLiteral("exact") << true << true
+        << QStringList{"la", "lala"};
+    QTest::newRow("prefix-expression")
+        << QStringLiteral("a|mi") << QStringLiteral("starts_with") << false << true
+        << QStringList{"mi"};
     QTest::newRow("no-match") << QStringLiteral("missing") << QStringLiteral("contains") << false
                               << false << QStringList{};
 }
