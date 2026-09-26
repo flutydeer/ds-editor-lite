@@ -244,26 +244,32 @@ private slots:
         QTest::addColumn<QString>("language");
         QTest::addColumn<QString>("lyric");
         QTest::addColumn<QString>("speakerId");
-        QTest::addColumn<bool>("repairModel");
+        QTest::addColumn<QString>("damagedStage");
         if (TestSupport::usingBundledVoicebank()) {
             QTest::newRow("mandarin-clear") << QStringLiteral("cmn") << QStringLiteral("啦")
-                                            << QStringLiteral("clear") << false;
+                                            << QStringLiteral("clear") << QString();
             QTest::newRow("english-soft")
-                << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("soft") << false;
+                << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("soft")
+                << QString();
         } else {
             QTest::newRow("configured-voicebank")
                 << TestSupport::fixtureLanguage() << TestSupport::fixtureLyric() << QString()
-                << false;
+                << QString();
         }
         QTest::newRow("repaired-acoustic-model")
-            << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("clear") << true;
+            << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("clear")
+            << QStringLiteral("acoustic");
+        QTest::newRow("repaired-vocoder-model")
+            << QStringLiteral("eng") << QStringLiteral("la") << QStringLiteral("clear")
+            << QStringLiteral("vocoder");
     }
 
     void voicebankInferenceAndWaveExport() {
         QFETCH(QString, language);
         QFETCH(QString, lyric);
         QFETCH(QString, speakerId);
-        QFETCH(bool, repairModel);
+        QFETCH(QString, damagedStage);
+        const bool repairModel = !damagedStage.isEmpty();
         const auto configuredRoot = repairModel ? QString::fromUtf8(LITE_TEST_VOICEBANK_ROOT)
                                                 : TestSupport::voicebankRoot();
         QVERIFY2(!language.isEmpty(),
@@ -288,8 +294,8 @@ private slots:
                                   std::filesystem::copy_options::recursive, error);
             QVERIFY2(!error, qPrintable(QString::fromStdString(error.message())));
             voicebankRoot = copy;
-            damagedModelPath =
-                QDir(copy).filePath(QStringLiteral("inferences/acoustic/acoustic.onnx"));
+            damagedModelPath = QDir(copy).filePath(
+                QStringLiteral("inferences/%1/%1.onnx").arg(damagedStage));
             QFile model(damagedModelPath);
             QVERIFY(model.open(QIODevice::ReadOnly));
             originalModel = model.readAll();
