@@ -1,5 +1,6 @@
 #include "tst_application_gui.h"
 #include "../TestSupport/WaveFixture.h"
+#include "../TestSupport/MainWindowFixture.h"
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
@@ -73,6 +74,8 @@
 
 #include <cmath>
 
+using TestSupport::MainWindowFixture;
+
 namespace {
     void createDroppedProject(const QString &path) {
         AppModel source;
@@ -105,50 +108,6 @@ namespace {
         QDropEvent drop(position, Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
         QApplication::sendEvent(&window, &drop);
     }
-
-    struct MainWindowFixture {
-        MainWindowFixture() {
-            appOptions->appearance()->useNativeFrame = true;
-            appOptions->appearance()->enableDirectManipulation = false;
-            appOptions->developer()->enablePanelDetach = true;
-            appOptions->developer()->enableEmbeddedOptionsDialog = true;
-            window = std::make_unique<MainWindow>();
-            window->findChild<MainMenuView *>()->setNativeMenuBar(false);
-        }
-
-        ~MainWindowFixture() {
-            window->closeAppOptions();
-            appOptions->developer()->enablePanelDetach = false;
-            window->updatePanelDetachEnabled();
-            window->setEditorPanelVisibility(trackVisible, bottomVisible);
-            documentWorkflowController->setUi(nullptr);
-            trackController->setParentWidget(nullptr);
-            Dialog::setGlobalContext(nullptr);
-            Toast::setGlobalContext(nullptr);
-            window.reset();
-            appOptions->appearance()->useNativeFrame = nativeFrame;
-            appOptions->appearance()->enableDirectManipulation = directManipulation;
-            appOptions->developer()->enablePanelDetach = detachEnabled;
-            appOptions->developer()->enableEmbeddedOptionsDialog = embeddedEnabled;
-        }
-
-        void show() const {
-            window->resize(1200, 900);
-            window->show();
-            window->activateWindow();
-            QTRY_VERIFY(window->isActiveWindow());
-            QVERIFY(window->setEditorPanelVisibility(true, true));
-            QCoreApplication::processEvents();
-        }
-
-        const bool nativeFrame = appOptions->appearance()->useNativeFrame;
-        const bool directManipulation = appOptions->appearance()->enableDirectManipulation;
-        const bool detachEnabled = appOptions->developer()->enablePanelDetach;
-        const bool embeddedEnabled = appOptions->developer()->enableEmbeddedOptionsDialog;
-        const bool trackVisible = !appStatus->trackPanelCollapsed;
-        const bool bottomVisible = !appStatus->bottomPanelCollapsed;
-        std::unique_ptr<MainWindow> window;
-    };
 
     void clickPanelButton(BottomPanelView &panel, const char *name) {
         auto *button = panel.titleBar()->findChild<Button *>(QLatin1String(name));

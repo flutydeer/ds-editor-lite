@@ -9,10 +9,12 @@
 #include "UI/Dialogs/ResourceCheck/ResourceCheckDialog.h"
 #include "Utils/UiLanguageManager.h"
 #include "../TestSupport/VoicebankFixture.h"
+#include "../TestSupport/MainWindowFixture.h"
 
 #include <lite/GUI/Controls/Button.h>
 #include <lite/History/HistoryManager.h>
 #include <lite/PackageManager/PackageManager.h>
+#include <lite/ProjectConverters/DspxProjectConverter.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
 #include <lite/ProjectModel/AppModel/Track.h>
@@ -28,6 +30,7 @@
 #include <QLineEdit>
 #include <QListView>
 #include <QMessageBox>
+#include <QPointer>
 #include <QScopeGuard>
 #include <QTimer>
 #include <QTreeWidget>
@@ -224,6 +227,10 @@ void ApplicationGuiTests::audioResourceConfirmationKeepsTheDecodedSource() {
 }
 
 void ApplicationGuiTests::missingAudioResourceRelinkCanBeCanceledAndCommitted() {
+    TestSupport::MainWindowFixture host;
+    host.show();
+    if (QTest::currentTestFailed())
+        return;
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
     const auto missingPath = directory.filePath(QStringLiteral("gone/original.wav"));
@@ -245,36 +252,40 @@ void ApplicationGuiTests::missingAudioResourceRelinkCanBeCanceledAndCommitted() 
             qWarning() << "Audio resource fixture retained at" << directory.path();
         }
     });
-    auto draft = Automation::DocumentAutomationFacade::newDocumentDraft(false);
-    Automation::TrackDraftDto track;
-    track.name = QStringLiteral("Audio");
-    Automation::ClipDraftDto clip;
-    clip.type = Automation::ClipDraftDto::Type::Audio;
-    clip.properties.name = QStringLiteral("Missing audio");
-    clip.properties.length = 480;
-    clip.properties.clipLen = 480;
-    clip.audioPath = missingPath;
-    track.clips.append(clip);
-    draft.tracks.append(track);
-    QVERIFY(runtime.documents().commitNewDocument(commandContext(), draft));
+    AppModel source;
+    auto *track = new Track;
+    track->setName(QStringLiteral("Audio"));
+    auto *missing = new AudioClip;
+    missing->setName(QStringLiteral("Missing audio"));
+    missing->setLength(480);
+    missing->setClipLen(480);
+    missing->setPath(missingPath);
+    track->insertClip(missing);
+    QVERIFY(source.appendTrack(track));
+    const auto projectPath = directory.filePath(QStringLiteral("missing-audio.dspx"));
+    DspxProjectConverter converter;
+    QString saveError;
+    QVERIFY2(converter.save(projectPath, &source, saveError), qPrintable(saveError));
+    documentWorkflowController->requestOpen(projectPath);
+    QTRY_COMPARE(documentWorkflowController->projectPath(), projectPath);
+    QTRY_VERIFY(!documentWorkflowController->busy());
     QCOMPARE(appModel->tracks().size(), 1);
     QCOMPARE(appModel->tracks().first()->clips().count(), 1);
     auto *audio = qobject_cast<AudioClip *>(*appModel->tracks().first()->clips().begin());
     QVERIFY(audio);
     QTRY_COMPARE(audio->pathStatus(), AudioClip::PathStatus::Missing);
-    historyManager->reset();
+    QVERIFY(historyManager->isOnSavePoint());
     const auto before = runtime.documentVersion();
 
     const auto nativeDialogsDisabled = QApplication::testAttribute(Qt::AA_DontUseNativeDialogs);
     QApplication::setAttribute(Qt::AA_DontUseNativeDialogs);
     const auto restoreDialogs = qScopeGuard(
         [&] { QApplication::setAttribute(Qt::AA_DontUseNativeDialogs, nativeDialogsDisabled); });
-    ResourceCheckDialog dialog;
-    auto *page = new AudioResourcePage({audio->id()}, {}, &dialog);
-    dialog.addPage(page);
-    dialog.finalizePages();
-    dialog.show();
-    dialog.activateWindow();
+    QPointer<ResourceCheckDialog> dialog;
+    QTRY_VERIFY((dialog = host.window->findChild<ResourceCheckDialog *>()) && dialog->isVisible());
+    auto *page = dialog->findChild<AudioResourcePage *>();
+    QVERIFY(page);
+    dialog->activateWindow();
     auto *tree = page->findChild<QTreeWidget *>();
     auto *relink = resourceButton(page, AudioResourcePage::tr("Relink..."));
     auto *confirm = resourceButton(page, AudioResourcePage::tr("Confirm"));
@@ -297,11 +308,11 @@ void ApplicationGuiTests::missingAudioResourceRelinkCanBeCanceledAndCommitted() 
         QElapsedTimer waitingForPicker;
         QTimer chooseFile;
         chooseFile.setInterval(10);
-        connect(&chooseFile, &QTimer::timeout, &dialog, [&] {
+        connect(&chooseFile, &QTimer::timeout, dialog.data(), [&] {
             auto *active = qobject_cast<QDialog *>(QApplication::activeModalWidget());
             bool owned = false;
             for (const QObject *ancestor = active; ancestor; ancestor = ancestor->parent()) {
-                if (ancestor == &dialog) {
+                if (ancestor == dialog.data()) {
                     owned = true;
                     break;
                 }
@@ -369,10 +380,10 @@ void ApplicationGuiTests::missingAudioResourceRelinkCanBeCanceledAndCommitted() 
     QVERIFY(!page->hasPendingIssues());
     QVERIFY(!relink->isEnabled());
     QCOMPARE(runtime.documentVersion().revision, before.revision + 1);
-    auto *close = resourceButton(&dialog, ResourceCheckDialog::tr("Close"));
+    auto *close = resourceButton(dialog, ResourceCheckDialog::tr("Close"));
     QVERIFY(close);
     QTest::mouseClick(close, Qt::LeftButton);
-    QVERIFY(!dialog.isVisible());
+    QTRY_VERIFY(dialog.isNull());
 
     historyManager->undo();
     QCOMPARE(audio->path(), missingPath);
