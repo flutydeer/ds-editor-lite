@@ -440,14 +440,18 @@ void ApplicationGuiTests::canceledExportConfigurationDoesNotPersist() {
     QVERIFY(QDir(output.path()).entryList(QDir::AllEntries | QDir::NoDotAndDotDot).isEmpty());
 }
 
-void ApplicationGuiTests::audioExportProgressCompletesAndCloses_data() {
+void ApplicationGuiTests::audioExportProgressFollowsTheTaskOutcome_data() {
     QTest::addColumn<bool>("clipping");
-    QTest::newRow("clean") << false;
-    QTest::newRow("clipping-warning") << true;
+    QTest::addColumn<QString>("outcome");
+    QTest::newRow("clean") << false << QStringLiteral("success");
+    QTest::newRow("clipping-warning") << true << QStringLiteral("success");
+    QTest::newRow("cancel-rendering") << false << QStringLiteral("cancel");
+    QTest::newRow("publication-blocked") << false << QStringLiteral("failure");
 }
 
-void ApplicationGuiTests::audioExportProgressCompletesAndCloses() {
+void ApplicationGuiTests::audioExportProgressFollowsTheTaskOutcome() {
     QFETCH(bool, clipping);
+    QFETCH(QString, outcome);
     using Audio::Internal::AudioExportProgressDialog;
     QTemporaryDir directory;
     QVERIFY(directory.isValid());
@@ -501,6 +505,7 @@ void ApplicationGuiTests::audioExportProgressCompletesAndCloses() {
     QTRY_VERIFY(taskManager->tasks().isEmpty());
     historyManager->reset();
     const auto before = runtime.documentVersion();
+    const auto contentBefore = TestSupport::projectSnapshot(*context->m_appModel);
 
     AudioExportDialog dialog;
     ExportControls controls(dialog);
@@ -518,6 +523,7 @@ void ApplicationGuiTests::audioExportProgressCompletesAndCloses() {
     QSignalSpy succeeded(&dialog, &AudioExportDialog::exportFinished);
     QSignalSpy started(&dialog, &AudioExportDialog::exportStarted);
     QSignalSpy failed(&dialog, &AudioExportDialog::exportFailed);
+    QSignalSpy canceled(&dialog, &AudioExportDialog::exportCanceled);
     QSignalSpy dismissed(&dialog, &AudioExportDialog::exportDismissed);
     QSignalSpy accepted(&dialog, &QDialog::accepted);
     dialog.show();
@@ -606,6 +612,46 @@ void ApplicationGuiTests::audioExportProgressCompletesAndCloses() {
         timedOut = true;
         controls.exporter->cancel();
     });
+    bool interrupted = false;
+    const auto backupPath = directory.filePath(QStringLiteral("previous-export.wav"));
+    connect(controls.exporter, &AudioExporter::progressChanged, &dialog, [&](double value, int) {
+        if (outcome == QStringLiteral("success") || interrupted || value <= 0 || value >= 1)
+            return;
+        interrupted = true;
+        QVERIFY(progress && progress->isVisible());
+        if (outcome == QStringLiteral("cancel")) {
+            QPointer<QPushButton> cancel =
+                exportButton(progress, AudioExportProgressDialog::tr("Cancel"));
+            QVERIFY(cancel && cancel->isEnabled());
+            QTest::mouseClick(cancel, Qt::LeftButton, Qt::NoModifier, QPoint(), 0);
+            QVERIFY(!cancel || !cancel->isEnabled());
+        } else {
+            // Occupy the destination after rendering starts; publication must preserve it.
+            QVERIFY(QFile::rename(outputPath, backupPath));
+            QVERIFY(QDir().mkdir(outputPath));
+            QFile marker(QDir(outputPath).filePath(QStringLiteral("keep.txt")));
+            QVERIFY(marker.open(QIODevice::WriteOnly));
+            QCOMPARE(marker.write("Keep this directory"), qint64{19});
+        }
+    });
+    const auto verifyTaskCleanup = [&](Automation::AutomationTaskState expected) {
+        QTRY_VERIFY(taskManager->tasks().isEmpty());
+        const auto tasks = runtime.tasks().listTasks(before.documentId);
+        QVERIFY(tasks);
+        bool found = false;
+        for (const auto &task : tasks.get()) {
+            if (task.operationId != Automation::OperationIds::exports::audio::start)
+                continue;
+            QCOMPARE(task.state, expected);
+            auto query = commandContext();
+            query.validateOnly = true;
+            const auto cleanup = runtime.audioExports().cleanup(query, task.taskId);
+            QVERIFY(cleanup);
+            QVERIFY(!cleanup.get().changed);
+            found = true;
+        }
+        QVERIFY(found);
+    };
     allowOverwrite = true;
     answerWarning.start();
     QTest::mouseClick(start, Qt::LeftButton);
@@ -621,6 +667,43 @@ void ApplicationGuiTests::audioExportProgressCompletesAndCloses() {
     QTRY_VERIFY_WITH_TIMEOUT(!progress || progress->isTerminal() || timedOut, 15000);
     deadline.stop();
     QVERIFY2(!timedOut, "The audio export did not reach a terminal state");
+    if (outcome != QStringLiteral("success")) {
+        QVERIFY(interrupted);
+        QVERIFY(succeeded.isEmpty());
+        if (outcome == QStringLiteral("cancel")) {
+            QCOMPARE(canceled.size(), 1);
+            QVERIFY(failed.isEmpty());
+            QCOMPARE(readExisting(), existingContents);
+        } else {
+            QVERIFY(progress);
+            QCOMPARE(failed.size(), 1);
+            QVERIFY(canceled.isEmpty());
+            QVERIFY(!controls.exporter->errorString().isEmpty());
+            QCOMPARE(progress->windowTitle(), AudioExportProgressDialog::tr("Export failed"));
+            auto *indicator = progress->findChild<ProgressIndicator *>();
+            QVERIFY(indicator);
+            QCOMPARE(indicator->taskStatus(), TaskGlobal::Error);
+            QFile backup(backupPath);
+            QVERIFY(backup.open(QIODevice::ReadOnly));
+            QCOMPARE(backup.readAll(), existingContents);
+            QVERIFY(QFileInfo(QDir(outputPath).filePath(QStringLiteral("keep.txt"))).isFile());
+            QTest::keyClick(progress, Qt::Key_Escape);
+        }
+        QTRY_VERIFY(progress.isNull());
+        QTRY_VERIFY(dialog.isVisible());
+        QCOMPARE(dismissed.size(), 1);
+        QVERIFY(accepted.isEmpty());
+        QVERIFY(QDir(directory.path())
+                    .entryList({QStringLiteral("*.exporting")}, QDir::Files | QDir::Hidden)
+                    .isEmpty());
+        verifyTaskCleanup(outcome == QStringLiteral("cancel")
+                              ? Automation::AutomationTaskState::Canceled
+                              : Automation::AutomationTaskState::Failed);
+        QCOMPARE(runtime.documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), contentBefore);
+        QVERIFY(!historyManager->canUndo());
+        return;
+    }
     QVERIFY(progress);
     QVERIFY2(failed.isEmpty(), qPrintable(controls.exporter->errorString()));
     QCOMPARE(succeeded.size(), 1);
@@ -661,27 +744,13 @@ void ApplicationGuiTests::audioExportProgressCompletesAndCloses() {
     QVERIFY(cancel && !cancel->isVisible() && !cancel->isEnabled());
     QVERIFY(QFileInfo(outputPath).isFile());
     QVERIFY(QFileInfo(outputPath).size() > 44);
-    QTRY_VERIFY(taskManager->tasks().isEmpty());
-    const auto tasks = runtime.tasks().listTasks(before.documentId);
-    QVERIFY(tasks);
-    bool exportWasCleaned = false;
-    for (const auto &task : tasks.get()) {
-        if (task.operationId != Automation::OperationIds::exports::audio::start)
-            continue;
-        QCOMPARE(task.state, Automation::AutomationTaskState::Succeeded);
-        auto query = commandContext();
-        query.validateOnly = true;
-        const auto cleanup = runtime.audioExports().cleanup(query, task.taskId);
-        QVERIFY(cleanup);
-        QVERIFY(!cleanup.get().changed);
-        exportWasCleaned = true;
-    }
-    QVERIFY(exportWasCleaned);
+    verifyTaskCleanup(Automation::AutomationTaskState::Succeeded);
     QTest::mouseClick(close, Qt::LeftButton);
     QCOMPARE(dismissed.size(), 1);
     QCOMPARE(accepted.size(), 1);
     QTRY_VERIFY(progress.isNull());
     QVERIFY(!dialog.isVisible());
     QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), contentBefore);
     QVERIFY(!historyManager->canUndo());
 }
