@@ -146,6 +146,9 @@ void NativeDesktopTests::customWindowButtonsKeepTheDetachedPanelAndDocument() {
     QCOMPARE(bottom->parentWidget(), splitter);
     QTRY_COMPARE(splitter->sizes(), sizes);
     QCOMPARE(bottom->currentPageId(), QStringLiteral("MixConsole"));
+    // Docking rebuilds the title-bar buttons.
+    detach = bottom->titleBar()->findChild<Button *>("btnPanelDetach");
+    QVERIFY(detach && detach->isVisible());
     QTest::mouseClick(detach, Qt::LeftButton);
     QTRY_VERIFY(bottom->isWindow() && bottom->isVisible());
     QTRY_COMPARE(bottom->geometry(), detachedGeometry);
