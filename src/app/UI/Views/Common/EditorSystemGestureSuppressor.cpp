@@ -1,8 +1,5 @@
 #include "EditorSystemGestureSuppressor.h"
 
-#include "Model/AppOptions/AppOptions.h"
-#include "Model/AppOptions/Options/AppearanceOption.h"
-
 #include <QAbstractNativeEventFilter>
 #include <QCoreApplication>
 #include <QList>
@@ -64,12 +61,8 @@ namespace {
             if (msg->message != wmTabletQuerySystemGestureStatus)
                 return false;
 
-            // The escape hatch: with the gesture layer switched off nothing
-            // takes the long press over, so the platform keeps it, square and
-            // all. The option is read per query, which is what makes the switch
-            // hot.
-            if (!appOptions->appearance()->enableTouchGestures)
-                return false;
+            // The long press is owned by the touch gesture layer on every
+            // registered editor window, so the platform never gets to keep it.
             if (!coversWindow(msg->hwnd))
                 return false;
 
@@ -100,7 +93,7 @@ namespace EditorSystemGestureSuppressor {
         installed = true;
 #ifdef Q_OS_WIN
         // Never removed: it has to outlive every widget, and it answers nothing
-        // while the gesture layer is off or the window is not one of ours.
+        // while the window is not one of ours.
         app->installNativeEventFilter(new PressAndHoldFilter);
 #else
         // Other platforms have no equivalent system gesture here, so the

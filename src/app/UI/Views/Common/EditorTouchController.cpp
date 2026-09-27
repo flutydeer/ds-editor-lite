@@ -4,12 +4,12 @@
 #include "EditorSystemGestureSuppressor.h"
 #include "EditorTouchProbe.h"
 #include "Model/AppOptions/AppOptions.h"
-#include "Model/AppOptions/Options/AppearanceOption.h"
 #include "Model/AppOptions/Options/DeveloperOption.h"
 
 #include <QApplication>
 #include <QContextMenuEvent>
 #include <QCoreApplication>
+#include <QInputDevice>
 #include <QList>
 #include <QMouseEvent>
 #include <QTimer>
@@ -137,10 +137,6 @@ EditorTouchController::~EditorTouchController() {
         EditorPointer::endTouchStream();
 }
 
-bool EditorTouchController::isEnabled() {
-    return appOptions->appearance()->enableTouchGestures;
-}
-
 bool EditorTouchController::isProbeEnabled() {
     return appOptions->developer()->logTouchEvents;
 }
@@ -185,12 +181,20 @@ bool EditorTouchController::handleEvent(QEvent *event) {
 }
 
 bool EditorTouchController::swallowForeignMouseEvent(QMouseEvent *event) {
-    if (!m_target || !isEnabled())
+    if (!m_target)
         return false;
-    // Our own synthetic events, a real mouse and a stylus all report
-    // Qt::MouseEventNotSynthesized. Anything else was made from a touch we are
-    // already handling ourselves, so it is a duplicate.
-    if (event->source() == Qt::MouseEventNotSynthesized)
+    // Our own synthetic events also carry the touch device, but they are sent
+    // synchronously from this controller; the flag is what tells them apart
+    // from the platform's duplicates.
+    if (m_sendingSyntheticMouse)
+        return false;
+    const auto *device = event->pointingDevice();
+    const auto type = device ? device->type() : QInputDevice::DeviceType::Unknown;
+    // Only the mouse events the platform promotes out of the touch contact we
+    // are already handling are duplicates. A real mouse belongs to the mouse
+    // path, a touchpad to the wheel and native gesture path, a stylus to the
+    // pen layer.
+    if (type != QInputDevice::DeviceType::TouchScreen)
         return false;
     if (isProbeEnabled() && event->type() != QEvent::MouseMove) {
         qDebug().noquote() << QStringLiteral("swallowed synthesized mouse %1 buttons=%2")
@@ -212,7 +216,7 @@ bool EditorTouchController::touchOwnsContextMenu() const {
 }
 
 bool EditorTouchController::filterContextMenuEvent(QContextMenuEvent *event) {
-    if (!m_target || !isEnabled())
+    if (!m_target)
         return false;
     if (m_contextMenuExpected) {
         // The menu we owed ourselves, coming back from the queue. It is the only
@@ -261,14 +265,6 @@ void EditorTouchController::dropPendingContextMenu() {
 bool EditorTouchController::handleTouchEvent(QTouchEvent *event) {
     if (!m_target || !m_widget)
         return false;
-    // Leaving TouchBegin unaccepted is what makes Qt fall back to its own
-    // touch-to-mouse synthesis, which is exactly the behaviour we want when the
-    // feature is switched off.
-    if (!isEnabled()) {
-        if (isGestureActive())
-            cancel();
-        return false;
-    }
 
     m_device = event->pointingDevice();
     const auto timestamp = now();
@@ -566,11 +562,16 @@ void EditorTouchController::sendSyntheticMouse(const QEvent::Type type, const QP
         return;
     const auto global = target->mapToGlobal(position);
     // The touch device travels with the event: that is how the rest of the
-    // codebase recognizes a finger-driven mouse stream (EditorPointer).
+    // codebase recognizes a finger-driven mouse stream (EditorPointer). The
+    // flag wraps the synchronous delivery, so swallowForeignMouseEvent lets
+    // our own press, move and release through.
     QMouseEvent event(type, position, position, global, button, buttons,
                       QApplication::keyboardModifiers(),
                       m_device ? m_device : QPointingDevice::primaryPointingDevice());
+    const auto wasSending = m_sendingSyntheticMouse;
+    m_sendingSyntheticMouse = true;
     QCoreApplication::sendEvent(target, &event);
+    m_sendingSyntheticMouse = wasSending;
 }
 
 void EditorTouchController::postContextMenu(const QPointF &position) {

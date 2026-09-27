@@ -2,27 +2,26 @@
 //
 // A standalone diagnostic window that visualizes every pointer event the
 // platform delivers, so the touch/pen behaviour of a real machine can be
-// checked before trusting it in the editor. It answers three questions the
+// checked before trusting it in the editor. It answers two questions the
 // desktop application cannot answer on its own:
 //
 //   1. Does touch reach Qt as QTouchEvent, or only as synthesized mouse input?
 //   2. Does a stylus produce QTabletEvent, a mouse event, or both?
-//   3. What exactly does Direct Manipulation swallow once it is registered?
 //
 // Accepting a QTouchEvent stops Qt's own touch to mouse synthesis but not the
 // operating system's: Windows promotes the primary touch point to legacy mouse
 // messages regardless. The "swallow synthesized mouse" switch applies the same
-// rule the editor uses (drop everything whose source is not
-// Qt::MouseEventNotSynthesized) so the effect can be seen side by side.
+// rule the editor uses (drop everything whose device is a touch screen, see
+// EditorTouchController) so the effect can be seen side by side.
 //
 // Trails are colored per device: mouse blue, touch green (one hue per point
 // id), pen red, wheel and native gestures yellow. Synthesized mouse events are
 // drawn as a grey dashed trail, which makes an unexpected synthesis obvious at
 // a glance.
 //
-// Keys: C clear, D toggle Direct Manipulation, S toggle swallowing, A toggle
-// accepting tablet events, G toggle SetGestureConfig, Q toggle the
-// press-and-hold query answer, F fullscreen, Esc quit.
+// Keys: C clear, S toggle swallowing, A toggle accepting tablet events, G
+// toggle SetGestureConfig, Q toggle the press-and-hold query answer, F
+// fullscreen, Esc quit.
 //
 // The accept-tablet switch exists for the pen work: leaving tablet events
 // unaccepted is how the editor gets the stylus as ordinary mouse input, and
@@ -81,13 +80,8 @@
 #include <QVBoxLayout>
 #include <QWheelEvent>
 #include <QWidget>
-#include <QWindow>
 
 #include <algorithm>
-
-#if defined(WITH_DIRECT_MANIPULATION)
-#  include <QWDMHCore/DirectManipulationSystem.h>
-#endif
 
 #if defined(Q_OS_WIN)
 #  ifndef NOMINMAX
@@ -899,16 +893,6 @@ namespace {
             auto *clearButton = new QPushButton(QStringLiteral("Clear (C)"), this);
             connect(clearButton, &QPushButton::clicked, m_canvas, &ProbeCanvas::clear);
 
-            m_directManipulationButton = new QPushButton(this);
-            m_directManipulationButton->setCheckable(true);
-#if defined(WITH_DIRECT_MANIPULATION)
-            connect(m_directManipulationButton, &QPushButton::toggled, this,
-                    &ProbeWindow::setDirectManipulationEnabled);
-#else
-            m_directManipulationButton->setEnabled(false);
-#endif
-            updateDirectManipulationButton();
-
             m_swallowButton = new QPushButton(this);
             m_swallowButton->setCheckable(true);
             connect(m_swallowButton, &QPushButton::toggled, this, [this](const bool on) {
@@ -956,7 +940,6 @@ namespace {
 
             auto *controls = new QHBoxLayout;
             controls->addWidget(clearButton);
-            controls->addWidget(m_directManipulationButton);
             controls->addWidget(m_swallowButton);
             controls->addWidget(m_acceptTabletButton);
             controls->addWidget(m_gestureConfigButton);
@@ -981,9 +964,6 @@ namespace {
                 case Qt::Key_C:
                     m_canvas->clear();
                     return;
-                case Qt::Key_D:
-                    m_directManipulationButton->toggle();
-                    return;
                 case Qt::Key_S:
                     m_swallowButton->toggle();
                     return;
@@ -1006,30 +986,6 @@ namespace {
         }
 
     private:
-#if defined(WITH_DIRECT_MANIPULATION)
-        void setDirectManipulationEnabled(const bool enabled) {
-            using System = QWDMH::DirectManipulationSystem;
-            auto *handle = windowHandle();
-            if (!handle)
-                return;
-            if (enabled) {
-                // The exact configuration the application registers: touchpad
-                // and wheel only, so touch and pen stay visible to Qt.
-                System::registerWindow(handle,
-                                       System::TranslationX | System::TranslationY |
-                                           System::Scaling | System::TranslationInertia |
-                                           System::ScalingInertia,
-                                       System::Touchpad | System::Wheel);
-            } else {
-                System::unregisterWindow(handle);
-            }
-            m_canvas->logExternal(QStringLiteral("--- direct manipulation: %1")
-                                      .arg(enabled ? QStringLiteral("registered Touchpad|Wheel")
-                                                   : QStringLiteral("unregistered")));
-            updateDirectManipulationButton();
-        }
-#endif
-
         void updateSwallowButton() {
             m_swallowButton->setText(m_swallowButton->isChecked()
                                          ? QStringLiteral("Swallow synth mouse: on (S)")
@@ -1107,20 +1063,7 @@ namespace {
         }
 #endif
 
-        void updateDirectManipulationButton() {
-#if defined(WITH_DIRECT_MANIPULATION)
-            m_directManipulationButton->setText(
-                m_directManipulationButton->isChecked()
-                    ? QStringLiteral("Direct Manipulation: on, Touchpad|Wheel (D)")
-                    : QStringLiteral("Direct Manipulation: off (D)"));
-#else
-            m_directManipulationButton->setText(
-                QStringLiteral("Direct Manipulation: unavailable in this build"));
-#endif
-        }
-
         ProbeCanvas *m_canvas = nullptr;
-        QPushButton *m_directManipulationButton = nullptr;
         QPushButton *m_swallowButton = nullptr;
         QPushButton *m_acceptTabletButton = nullptr;
         QPushButton *m_gestureConfigButton = nullptr;
@@ -1291,11 +1234,6 @@ namespace {
 int main(int argc, char *argv[]) {
     QApplication application(argc, argv);
     QCoreApplication::setApplicationName(QStringLiteral("TouchProbe"));
-
-#if defined(WITH_DIRECT_MANIPULATION)
-    // The system object must outlive every registered window.
-    QWDMH::DirectManipulationSystem system;
-#endif
 
     ProbeWindow window;
     window.show();

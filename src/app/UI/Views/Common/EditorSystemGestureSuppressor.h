@@ -19,9 +19,8 @@ class QWidget;
 //
 // The scope is deliberately narrow, because the same answer is also the only
 // way a long press reaches a context menu everywhere else: only windows that
-// host a touch-enabled editor widget are answered, and only while the gesture
-// layer is switched on. A dialog or a text field keeps the platform menu it has
-// always had.
+// host a touch-enabled editor widget are answered. A dialog or a text field
+// keeps the platform menu it has always had.
 namespace EditorSystemGestureSuppressor {
 
     // Claim `editorWidget`'s window. The window is resolved on every query

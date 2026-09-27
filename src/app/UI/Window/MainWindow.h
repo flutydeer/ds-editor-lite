@@ -73,10 +73,6 @@ public:
     bool confirmOpenWithoutPackageMetadata() override;
     void showDocumentWorkflowError(const ProjectOperationError &error) override;
     void showDocumentWorkflowBusy() override;
-#if defined(WITH_DIRECT_MANIPULATION)
-    void registerDirectManipulation();
-    void unregisterDirectManipulation();
-#endif
 
 public slots:
     void onAllDone();
@@ -111,7 +107,6 @@ private:
     bool m_restartRequested = false;
     bool m_isCloseRequested = false;
     bool m_isAllDone = false;
-    bool m_isDirectManipulationRegistered = false;
     bool m_documentCloseApproved = false;
 
     MainTitleBar *m_titleBar;

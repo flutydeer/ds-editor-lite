@@ -22,9 +22,10 @@ namespace EditorPointer {
         const auto *device = event->pointingDevice();
         if (!device)
             return false;
-        const auto type = device->type();
-        return type == QInputDevice::DeviceType::TouchScreen ||
-               type == QInputDevice::DeviceType::TouchPad;
+        // Fingers only. A touchpad is not a finger: its events belong to the
+        // wheel and native gesture path and must never enter the touch
+        // gesture layer.
+        return device->type() == QInputDevice::DeviceType::TouchScreen;
     }
 
     bool isPenDevice(const QPointerEvent *event) {

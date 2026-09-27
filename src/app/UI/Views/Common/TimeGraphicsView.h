@@ -4,6 +4,7 @@
 #include "EdgeAutoScroller.h"
 #include "EditorPenTarget.h"
 #include "EditorTouchTarget.h"
+#include "EditorWheelController.h"
 #include "RubberBandView.h"
 #include <lite/GUI/Animation/IAnimatable.h>
 #include <lite/GUI/Base/IScalable.h>
@@ -215,6 +216,7 @@ private:
     std::optional<int> m_logicalHorizontalBarValue;
     std::optional<int> m_logicalVerticalBarValue;
     WheelInputController m_wheelInput;
+    EditorWheelController m_wheelController;
     EditorTouchController *m_touchController = nullptr;
     EditorPenController *m_penController = nullptr;
     QPoint m_lastPointerPosition;

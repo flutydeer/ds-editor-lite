@@ -63,29 +63,6 @@
 #include <cmath>
 #include <utility>
 
-#if defined(WITH_DIRECT_MANIPULATION)
-#  include <QWindow>
-
-#  include <QWDMHCore/DirectManipulationSystem.h>
-
-namespace {
-    // Direct Manipulation is scoped to the indirect pointing devices only.
-    // Registering it for everything makes it swallow the native touch and pen
-    // messages window-wide, so Qt never sees a QTouchEvent and the whole touch
-    // gesture layer (EditorTouchController) stays dead. Touchpad and wheel keep
-    // the smooth panning and pinch-to-zoom it was added for.
-    void registerScopedDirectManipulation(QWindow *window) {
-        using System = QWDMH::DirectManipulationSystem;
-        if (!window)
-            return;
-        System::registerWindow(window,
-                               System::TranslationX | System::TranslationY | System::Scaling |
-                                   System::TranslationInertia | System::ScalingInertia,
-                               System::Touchpad | System::Wheel);
-    }
-}
-#endif
-
 MainWindow::MainWindow() {
     setAcceptDrops(true);
 
@@ -232,23 +209,6 @@ MainWindow::MainWindow() {
     });
 
     ThemeManager::instance()->addWindow(this);
-#if defined(WITH_DIRECT_MANIPULATION)
-    connect(appOptions, &AppOptions::optionsChanged, [&](AppOptionsGlobal::Option option) {
-        if (option == AppOptionsGlobal::Option::Appearance) {
-            // While the embedded options modal is open, DM must stay off: openAppOptions()
-            // unregisters it and restoreBackgroundInteraction() re-registers on close. Any
-            // Appearance change here (e.g. the animation level) would otherwise re-register
-            // DM mid-modal and let it hijack the panel's wheel events.
-            if (m_modalHost && m_modalHost->isOpen())
-                return;
-            if (appOptions->appearance()->enableDirectManipulation) {
-                registerDirectManipulation();
-            } else {
-                unregisterDirectManipulation();
-            }
-        }
-    });
-#endif
     documentWorkflowController->initializeNewDocument();
 
     connect(undoRedoController, &UndoRedoController::focusNavigationRequested, this,
@@ -346,13 +306,6 @@ void MainWindow::openAppOptions(const AppOptionsGlobal::Option option) {
         m_appOptionsDialog = new AppOptionsDialog(this);
     m_focusBeforeModal = qApp->focusWidget();
     m_appOptionsDialog->selectOption(option);
-    // Unregister Direct Manipulation while the modal is open: DManip hijacks
-    // WM_MOUSEWHEEL on the main window after the first wheel event (converting
-    // it into a pan gesture for the editor), so the settings pages would never
-    // receive QWheelEvent. Re-registered in restoreBackgroundInteraction().
-#if defined(WITH_DIRECT_MANIPULATION)
-    unregisterDirectManipulation();
-#endif
     m_modalHost->open(m_appOptionsDialog, QSize(900, 600));
     // Suspend AFTER opening so that the panel (a descendant of the host) is
     // excluded from the isAncestorOf()-based filtering.
@@ -412,12 +365,6 @@ void MainWindow::restoreBackgroundInteraction() {
     if (m_focusBeforeModal && m_focusBeforeModal->isVisible())
         m_focusBeforeModal->setFocus();
     m_focusBeforeModal.clear();
-
-    // Re-register Direct Manipulation, mirroring the unregister in
-    // openAppOptions(); wheel gesture support must be restored for the editor.
-#if defined(WITH_DIRECT_MANIPULATION)
-    registerDirectManipulation();
-#endif
 }
 
 QWidget *MainWindow::documentWorkflowParentWidget() {
@@ -905,12 +852,6 @@ void MainWindow::detachBottomPanel() {
     m_bottomPanelView->show();
 
     m_bottomPanelView->installEventFilter(this);
-
-#if defined(WITH_DIRECT_MANIPULATION)
-    if (appOptions->appearance()->enableDirectManipulation) {
-        registerScopedDirectManipulation(m_bottomPanelView->windowHandle());
-    }
-#endif
 }
 
 void MainWindow::attachBottomPanel() {
@@ -921,12 +862,6 @@ void MainWindow::attachBottomPanel() {
     m_detachedWindowGeometry = m_bottomPanelView->geometry();
 
     m_bottomPanelView->removeEventFilter(this);
-
-#if defined(WITH_DIRECT_MANIPULATION)
-    if (appOptions->appearance()->enableDirectManipulation) {
-        QWDMH::DirectManipulationSystem::unregisterWindow(m_bottomPanelView->windowHandle());
-    }
-#endif
 
     if (m_detachedAgent) {
         delete m_detachedAgent;
@@ -1003,22 +938,6 @@ void MainWindow::closeEvent(QCloseEvent *event) {
         event->ignore();
     }
 }
-
-#if defined(WITH_DIRECT_MANIPULATION)
-void MainWindow::registerDirectManipulation() {
-    if (!m_isDirectManipulationRegistered) {
-        registerScopedDirectManipulation(windowHandle());
-        m_isDirectManipulationRegistered = true;
-    }
-}
-
-void MainWindow::unregisterDirectManipulation() {
-    if (m_isDirectManipulationRegistered) {
-        QWDMH::DirectManipulationSystem::unregisterWindow(windowHandle());
-        m_isDirectManipulationRegistered = false;
-    }
-}
-#endif
 
 void MainWindow::updateShutdownBlockReason() {
 #ifdef Q_OS_WIN

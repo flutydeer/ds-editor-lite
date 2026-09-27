@@ -65,10 +65,6 @@ public:
 
     [[nodiscard]] bool isGestureActive() const;
 
-    // The multi-touch gesture master switch (Appearance options). When off,
-    // touch events are left alone and Qt synthesizes plain mouse events.
-    [[nodiscard]] static bool isEnabled();
-
     // The touch event probe (Developer options). Every line it writes carries
     // the EditorTouchController tag, which is what the log window filters by.
     [[nodiscard]] static bool isProbeEnabled();
@@ -76,8 +72,13 @@ public:
 private:
     bool handleTouchEvent(QTouchEvent *event);
     // True when the event was produced from touch by someone other than this
-    // controller (the OS, or Qt's own fallback synthesis) and must not reach
-    // the interaction layer.
+    // controller and must not reach the interaction layer. Judged by the
+    // device the event carries, never by QEvent::source(): that value is
+    // sticky on Windows, so a touch contact that follows a mouse or touchpad
+    // WM_POINTER arrives promoted as MouseEventNotSynthesized and would run a
+    // ghost drag through the interaction layer mid-gesture. Touchscreen
+    // devices are the duplicates and get swallowed; mouse, touchpad and pen
+    // devices belong to their own paths and pass.
     bool swallowForeignMouseEvent(QMouseEvent *event);
     // Decides whether a context menu may reach the widget. Only a long press
     // that we resolved into a menu is allowed through while touch owns the
@@ -128,6 +129,11 @@ private:
 
     // Single-finger stream state.
     bool m_syntheticStreamActive = false;
+    // True while a synthetic mouse event constructed by sendSyntheticMouse is
+    // being delivered synchronously. Those events carry the touch device (that
+    // is how EditorPointer recognizes a finger-driven stream), so the swallow
+    // check must let them through rather than eat our own presses and moves.
+    bool m_sendingSyntheticMouse = false;
     // A held press over blank canvas becomes a rubber band, but only once the
     // finger actually travels. Until then the synthetic press is held back, so
     // that a press and hold which never moves stays a context menu instead of

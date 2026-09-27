@@ -3,6 +3,7 @@
 #include <QApplication>
 #include <QCursor>
 #include <QHideEvent>
+#include <QNativeGestureEvent>
 #include <QPainter>
 #include <QScrollBar>
 #include <QShowEvent>
@@ -28,7 +29,7 @@
 
 TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlaybackPosition,
                                    QWidget *parent)
-    : QGraphicsView(parent), m_scene(scene) {
+    : QGraphicsView(parent), m_scene(scene), m_wheelController(this, m_wheelInput, this) {
     setRenderHint(QPainter::Antialiasing);
     setViewportUpdateMode(QGraphicsView::MinimalViewportUpdate);
     setAttribute(Qt::WA_AcceptTouchEvents);
@@ -58,7 +59,6 @@ TimeGraphicsView::TimeGraphicsView(TimeGraphicsScene *scene, bool showLastPlayba
     m_vBarAnimation.setPropertyName("verticalScrollBarValue");
     m_vBarAnimation.setEasingCurve(QEasingCurve::OutCubic);
 
-    m_wheelInput.setDiscreteAnimationEnabled(isEditorWheelAnimationEnabled);
     const auto installScrollTarget = [this](const Qt::Orientation orientation,
                                             const double viewportFraction) {
         m_wheelInput.setScrollTarget(
@@ -339,23 +339,22 @@ void TimeGraphicsView::notifyVisibleRectChanged() {
 
 void TimeGraphicsView::onWheelHorScale(QWheelEvent *event) {
     stopProgrammaticViewportAnimations();
-    m_wheelInput.handleWheel(event, WheelInputController::Action::HorizontalZoom, Qt::Vertical);
+    m_wheelController.horizontalScale(event);
 }
 
 void TimeGraphicsView::onWheelVerScale(QWheelEvent *event) {
     stopProgrammaticViewportAnimations();
-    m_wheelInput.handleWheel(event, WheelInputController::Action::VerticalZoom, Qt::Vertical);
+    m_wheelController.verticalScale(event);
 }
 
 void TimeGraphicsView::onWheelHorScroll(QWheelEvent *event) {
     stopProgrammaticViewportAnimations();
-    const auto sourceAxis = event->modifiers() == Qt::ShiftModifier ? Qt::Vertical : Qt::Horizontal;
-    m_wheelInput.handleWheel(event, WheelInputController::Action::HorizontalScroll, sourceAxis);
+    m_wheelController.horizontalScroll(event);
 }
 
 void TimeGraphicsView::onWheelVerScroll(QWheelEvent *event) {
     stopProgrammaticViewportAnimations();
-    m_wheelInput.handleWheel(event, WheelInputController::Action::VerticalScroll, Qt::Vertical);
+    m_wheelController.verticalScroll(event);
 }
 
 void TimeGraphicsView::adjustScaleXToFillView() {
@@ -400,25 +399,17 @@ bool TimeGraphicsView::viewportEvent(QEvent *event) {
 }
 
 bool TimeGraphicsView::event(QEvent *event) {
-    if (event->type() == QEvent::NativeGesture) {
-        const auto *gestureEvent = static_cast<QNativeGestureEvent *>(event);
-        if (gestureEvent->gestureType() == Qt::ZoomNativeGesture) {
-            stopProgrammaticViewportAnimations();
-            const auto factor = gestureEvent->value() + 1.0;
-            if (factor > 0.0) {
-                const auto anchor = mapFromGlobal(gestureEvent->globalPosition().toPoint()).x();
-                m_wheelInput.zoomByFactor(Qt::Horizontal, factor, anchor);
-            }
-            return true;
-        }
-    }
+    // The precision touchpad pinch, like every wheel input of this view.
+    if (event->type() == QEvent::NativeGesture &&
+        m_wheelController.handleNativeGesture(static_cast<QNativeGestureEvent *>(event)))
+        return true;
 
     return QGraphicsView::event(event);
 }
 
 void TimeGraphicsView::wheelEvent(QWheelEvent *event) {
     stopProgrammaticViewportAnimations();
-    if (!m_wheelInput.handleWheel(event))
+    if (!m_wheelController.handleWheel(event))
         event->ignore();
 }
 
@@ -560,7 +551,6 @@ QPoint TimeGraphicsView::lastPointerPosition() const {
 
 void TimeGraphicsView::stopTouchViewportAnimation() {
     stopViewportAnimations();
-    m_wheelInput.stop();
     m_touchPanRemainder = {};
 }
 
@@ -918,7 +908,7 @@ bool TimeGraphicsView::setViewportScale(double horizontalScale, double verticalS
 
 void TimeGraphicsView::stopViewportAnimations() {
     stopProgrammaticViewportAnimations();
-    m_wheelInput.stop();
+    m_wheelController.stop();
 }
 
 void TimeGraphicsView::pageAdd() {

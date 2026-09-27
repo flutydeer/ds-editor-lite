@@ -212,7 +212,7 @@ public:
         bool overlapped = false;
     };
 
-    explicit Private(PianoRollRhiWidget *q) : q(q), viewport(nullptr), wheel(&viewport, q) {
+    explicit Private(PianoRollRhiWidget *q) : q(q), viewport(nullptr), wheel(&viewport, q, q) {
         viewport.setPixelsPerQuarterNote(pixelsPerQuarterNote);
         viewport.setScaleBounds(0.01, 5.0, 0.5, 8.0);
         viewport.setEnsureContentFillsViewport(true, true);

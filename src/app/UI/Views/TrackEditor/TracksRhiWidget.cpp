@@ -157,7 +157,7 @@ TracksRhiWidget::TracksRhiWidget(QWidget *parent)
     m_viewport.setContentTickRange(0.0, effectiveSceneLength());
     // One extra unit for the virtual append slot at the bottom of the canvas
     m_viewport.setVerticalContent(appModel->tracks().size() + 1, trackHeight);
-    m_wheelController = std::make_unique<EditorWheelController>(&m_viewport, this);
+    m_wheelController = std::make_unique<EditorWheelController>(&m_viewport, this, this);
     m_touchController = new EditorTouchController(this, this);
     m_penController = new EditorPenController(this, this);
 
