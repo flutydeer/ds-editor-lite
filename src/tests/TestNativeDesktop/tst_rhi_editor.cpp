@@ -1319,9 +1319,12 @@ void NativeDesktopTests::rhiMultiNoteSelectionAndMoveCommitAtomically() {
         const auto start = fixture.pointFor(240, upperKey);
         const auto end = fixture.pointFor(1800, lowerKey);
         QVERIFY(canvas.rect().contains(start) && canvas.rect().contains(end));
-        fixture.moveTo(start);
-        QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, start);
-        fixture.moveTo(end);
+        // Keep this gesture on the QWindow path so cursor warps cannot enqueue
+        // a stale native move behind the synthetic selection preview.
+        auto *window = canvas.windowHandle();
+        QTest::mouseMove(window, start);
+        QTest::mousePress(window, Qt::LeftButton, Qt::NoModifier, start);
+        QTest::mouseMove(window, end);
         const auto preview = appStatus->selectedNotes.get();
         if (preview.size() != 2) {
             qWarning() << "Unexpected marquee preview:" << preview << "press/release:" << start
@@ -1330,7 +1333,7 @@ void NativeDesktopTests::rhiMultiNoteSelectionAndMoveCommitAtomically() {
         }
         QCOMPARE(preview.size(), 2);
         fixture.waitForFrame();
-        QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, end);
+        QTest::mouseRelease(window, Qt::LeftButton, Qt::NoModifier, end);
         const auto selected = appStatus->selectedNotes.get();
         if (selected != preview) {
             qWarning() << "Selection changed while presenting the drag preview:" << preview
