@@ -307,6 +307,8 @@ MIDI 导入的拍号校验复用 `Timeline::isTimeSignatureProjectionValid`，�
 
 包目录测试集中到 `tst_package_catalog.cpp`，继续读取正式目录快照；内置声库副本覆盖首次加载、本地化回退和版本变更后的显示更新。同版本仅修改显示元数据时，上游目录指纹未识别变化，失败复现作为待决依赖问题保留，详见测试报告。
 
+独立设置页共用 `OptionsPanelFixture` 打开实际侧栏条目，并补齐产品容器提供的主题样式根。通用设置与音频/MIDI 设置复用同一准备路径，原有键鼠输入、保存及重开检查在实际 QSS 下执行；滑块另外检查明暗主题切换后颜色同步且控制值保留。
+
 ## 5. CI 与覆盖率采集
 
 CI 使用 Linux x64、Windows x64 和 macOS arm64 矩阵，runner 均采用 latest；每个平台分段完成环境、依赖、配置、完整构建、测试和产物收集。Linux 使用 `coverage` preset 和 `build/Coverage`，测试后由独立 Coverage 步骤生成报告；Windows/macOS 使用普通 Debug `tests` preset 和 `build/Tests`，不运行覆盖率采集器。面向 `main` 的 PR 更新及 `main` 推送触发验证；Qt、vcpkg 和依赖版本由 workflow、manifest 及 overlay 声明。统一依赖引导脚本按 triplet 执行，Windows 构建复用项目 DevShell wrapper。各平台独立保留结果，构建或测试失败均传播失败退出码并收集诊断材料。普通 GUI 使用 offscreen，原生桌面集合在 Linux 使用 Xvfb，在 Windows/macOS 使用原生桌面。

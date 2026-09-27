@@ -1,4 +1,5 @@
 #include "tst_application_gui.h"
+#include "../TestSupport/OptionsPanelFixture.h"
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
@@ -17,6 +18,7 @@
 #include <lite/GUI/Controls/SvsExpressionSpinBox.h>
 #include <lite/GUI/Controls/SvsExpressionDoubleSpinBox.h>
 #include <lite/GUI/Controls/SwitchButton.h>
+#include <lite/GUI/Theme/ThemeManager.h>
 #include <lite/History/HistoryManager.h>
 #include <TalcsCore/MixerAudioSource.h>
 #include <TalcsDevice/AudioDevice.h>
@@ -37,21 +39,9 @@
 
 #include <cmath>
 
-namespace {
-    void openPage(AppOptionsDialog &panel, AppOptionsGlobal::Option option) {
-        panel.resize(920, 720);
-        panel.show();
-        panel.activateWindow();
-        QTRY_VERIFY(panel.isActiveWindow());
-        auto *tabs = panel.findChild<QListWidget *>("AppOptionsDialogTabListWidget");
-        QVERIFY(tabs);
-        auto *item = tabs->item(static_cast<int>(option) - 1);
-        QVERIFY(item);
-        QTest::mouseClick(tabs->viewport(), Qt::LeftButton, Qt::NoModifier,
-                          tabs->visualItemRect(item).center());
-        QCOMPARE(tabs->currentItem(), item);
-    }
+using TestSupport::openOptionsPage;
 
+namespace {
     template <typename SpinBox>
     void enterNumber(IOptionPage &page, SpinBox *spin, const QString &text) {
         QVERIFY(spin);
@@ -174,7 +164,7 @@ void ApplicationGuiTests::audioPageInputsPersistWithoutPlayback() {
     QSignalSpy readAheadChanged(output, &AbstractOutputSystem::fileBufferingReadAheadSizeChanged);
     {
         AppOptionsDialog panel;
-        openPage(panel, AppOptionsGlobal::Audio);
+        openOptionsPage(panel, AppOptionsGlobal::Audio);
         if (QTest::currentTestFailed())
             return;
         auto *page = panel.findChild<AudioPage *>();
@@ -216,6 +206,21 @@ void ApplicationGuiTests::audioPageInputsPersistWithoutPlayback() {
             return;
         QCOMPARE(panSlider->value(), 25.0);
         QCOMPARE(mixer->pan(), 0.25f);
+        {
+            auto *theme = ThemeManager::instance();
+            const auto originalTheme = theme->currentThemeId();
+            const auto restoreTheme = qScopeGuard([&] { QVERIFY(theme->applyTheme(originalTheme)); });
+            for (const auto &id : {QStringLiteral("lite-light"), QStringLiteral("lite-dark")}) {
+                QVERIFY(theme->applyTheme(id));
+                // QSS serializes theme colors to 8-bit RGBA.
+                QTRY_COMPARE(gainSlider->property("trackInactiveColor").value<QColor>().rgba(),
+                             theme->semanticColor(QStringLiteral("slider.track.inactive")).rgba());
+                QCOMPARE(gain->value(), -6.0);
+                QCOMPARE(panSlider->value(), 25.0);
+                QCOMPARE(mixer->pan(), 0.25f);
+                QCOMPARE(runtime.documentVersion(), before);
+            }
+        }
         page->ensureWidgetVisible(panSlider);
         QTest::mouseClick(panSlider, Qt::LeftButton, Qt::NoModifier,
                           QPoint(panSlider->width() * 5 / 8, panSlider->height() / 2));
@@ -253,7 +258,7 @@ void ApplicationGuiTests::audioPageInputsPersistWithoutPlayback() {
     }
     {
         AppOptionsDialog reopened;
-        openPage(reopened, AppOptionsGlobal::Audio);
+        openOptionsPage(reopened, AppOptionsGlobal::Audio);
         if (QTest::currentTestFailed())
             return;
         auto *gain = reopened.findChild<SVS::ExpressionDoubleSpinBox *>("audioDeviceGain");
@@ -303,7 +308,7 @@ void ApplicationGuiTests::midiPageSynthInputsPersistWithoutPlayback() {
     const auto *beforeUndo = historyManager->nextUndoEntry();
     {
         AppOptionsDialog panel;
-        openPage(panel, AppOptionsGlobal::Midi);
+        openOptionsPage(panel, AppOptionsGlobal::Midi);
         if (QTest::currentTestFailed())
             return;
         auto *page = panel.findChild<MidiPage *>();
@@ -382,7 +387,7 @@ void ApplicationGuiTests::midiPageSynthInputsPersistWithoutPlayback() {
     }
     {
         AppOptionsDialog reopened;
-        openPage(reopened, AppOptionsGlobal::Midi);
+        openOptionsPage(reopened, AppOptionsGlobal::Midi);
         if (QTest::currentTestFailed())
             return;
         auto *generator = reopened.findChild<ComboBox *>("midiGenerator");

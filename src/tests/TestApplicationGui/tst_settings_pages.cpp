@@ -1,4 +1,5 @@
 #include "tst_application_gui.h"
+#include "../TestSupport/OptionsPanelFixture.h"
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
@@ -65,6 +66,8 @@
 
 #include <algorithm>
 
+using TestSupport::openOptionsPage;
+
 namespace {
     void deferRestart(QWidget *page) {
         QPointer<RestartDialog> prompt;
@@ -92,21 +95,6 @@ namespace {
         QTest::mouseClick(later, Qt::LeftButton);
         QCOMPARE(rejected.size(), 1);
         QVERIFY(!prompt || !prompt->isVisible());
-    }
-
-    void openOptionsPage(AppOptionsDialog &panel, AppOptionsGlobal::Option option) {
-        panel.resize(920, 720);
-        panel.show();
-        panel.activateWindow();
-        QTRY_VERIFY(panel.isVisible());
-        QTRY_VERIFY(panel.isActiveWindow());
-        auto *tabs = panel.findChild<QListWidget *>("AppOptionsDialogTabListWidget");
-        QVERIFY(tabs);
-        auto *item = tabs->item(static_cast<int>(option) - 1);
-        QVERIFY(item);
-        QTest::mouseClick(tabs->viewport(), Qt::LeftButton, Qt::NoModifier,
-                          tabs->visualItemRect(item).center());
-        QTRY_COMPARE(tabs->currentItem(), item);
     }
 
     void replaceText(QLineEdit *editor, const QString &text) {
