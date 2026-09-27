@@ -16,4 +16,5 @@ private slots:
     void localizedTextLookup();
     void localizedTextSingleTagOverload();
     void fileLoggingChangesDirectoriesAndRecoversFromWriteFailure();
+    void registeredServicesRemainVisibleDuringConcurrentRegistration();
 };
