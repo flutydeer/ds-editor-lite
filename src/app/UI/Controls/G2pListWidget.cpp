@@ -46,9 +46,10 @@ namespace LangSetting {
         this->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 
         // Animate mouse-wheel scrollbar movement with OutCubic; touchpad passes through (see
-        // SmoothScroller)
+        // SmoothScroller). Touch kinetic scrolling stays off: the list reorders through
+        // built-in InternalMove drags, which a single-finger touch drag would fight.
         auto *smoothScroller = new SmoothScroller(this);
-        smoothScroller->attachTo(this);
+        smoothScroller->attachTo(this, SmoothScroller::TouchKinetic::Disabled);
 
         // TODO g2pMgr->g2ps() bug
         // for (const auto &g2pId : langOrder) {

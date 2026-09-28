@@ -93,6 +93,9 @@ private:
     bool m_sourceEditingEnabled;
     QPoint m_dragStartPosition;
     int m_dragRow = -1;
+    // True while the synchronous QDrag modal loop started from the handle is
+    // running; replayed touch moves must not nest another startDrag().
+    bool m_dragActive = false;
     QWidget *m_dropIndicator = nullptr;
 };
 

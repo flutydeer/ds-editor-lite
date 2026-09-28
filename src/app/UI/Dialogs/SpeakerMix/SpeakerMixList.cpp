@@ -221,6 +221,9 @@ QWidget *SpeakerMixList::createRowWidget(const QString &speakerType) {
     dragHandle->setSquareSize(28);
     dragHandle->setCursor(Qt::SizeAllCursor);
     dragHandle->installEventFilter(this);
+    // The handle owns its touch stream: without the claim a touch drag would
+    // both start the reorder QDrag and scroll the list at the same time.
+    SmoothScroller::installClaim(dragHandle);
 
     const auto colorDot = new ColorDot(
         SpeakerMixColorResolver::colorsForSpeaker(speakerType, m_referenceSpeakers, m_rows.size())
@@ -529,10 +532,15 @@ bool SpeakerMixList::eventFilter(QObject *watched, QEvent *event) {
             case QEvent::MouseMove: {
                 auto *me = static_cast<QMouseEvent *>(event);
                 const auto pos = viewport()->mapFromGlobal(me->globalPosition().toPoint());
-                if (m_dragRow >= 0 && m_dragRow < count() &&
+                // startDrag() runs a synchronous modal loop; replayed touch moves
+                // re-enter this filter during it, so guard against nesting.
+                if (!m_dragActive && m_dragRow >= 0 && m_dragRow < count() &&
                     (pos - m_dragStartPosition).manhattanLength() >=
-                        QApplication::startDragDistance())
+                        QApplication::startDragDistance()) {
+                    m_dragActive = true;
                     startDrag(Qt::MoveAction);
+                    m_dragActive = false;
+                }
                 return true;
             }
             case QEvent::MouseButtonRelease:

@@ -22,6 +22,7 @@
 | 精密触控板 | `EditorWheelController`：pixelDelta 即时平移，松手滑行与捏合惯性，捏合横纵两轴、锚点含 x 与 y |
 | 滚轮 | 既有离散滚轮逻辑，平滑与否由外观设置里的动画开关决定 |
 | 鼠标 | 既有逻辑，完全不变 |
+| 触摸（对话框/滚动容器） | `SmoothScroller` 挂接的 `QScroller`：单指拖动滚动、抬手惯性滑行；拖动型控件经 `TouchClaimFilter` 认领后继续走自己的鼠标逻辑，见第十三节 |
 
 **触摸只吞平台合成的那一半。** Windows 会把主触点提升为传统鼠标消息，`QWindowsPointerHandler::translateMouseEvent()` 原样转发，只打上 `Qt::MouseEventSynthesizedBySystem` 标记。真机日志证实：单指拖动同时产生完整的 `QTouchEvent` 流和一份 `mouse press/move/release dev=TouchScreen source=BySystem`。不吞的后果有两层——单指编辑跑两遍，双指导航时被提升的主触点仍在驱动交互层，于是一边缩放一边拖动内容。
 
@@ -918,3 +919,60 @@ pen swallowed platform context menu at (712,190)        吞掉平台给侧键补
 - DirectManipulation 已移除，触控板路径改由 `EditorWheelController` 处理，触控板用户需要回归确认平滑滚动、捏合与松手惯性正常。
 - 双指以上（三指及更多）不识别，多余的手指会被忽略直到全部抬起。
 - 触摸长按菜单现在由应用自己拥有（判定 450 毫秒、抬手时弹出），系统那套方块与约 1 秒阈值已关闭，成因、真机验证与落地做法见 11.4。
+
+## 十三、对话框滚动区域的触摸滚动与控件认领
+
+编辑器之外的可滚动容器（选项页、包管理器、搜索、导出、说话人混音等）原本没有触摸路径：单指被 Qt 合成成鼠标左键拖动（`QScrollArea` 不响应），双指 pan 被 Qt 的 Windows 后端翻译成没有动量相位的合成滚轮。2026-09-28 起由 `SmoothScroller::attachTo()` 统一安装触摸惯性滚动。
+
+### 机制
+
+- `attachTo(area, TouchKinetic::Enabled)`（默认值，现有挂接点零改动）：viewport 设 `WA_AcceptTouchEvents` 并 `QScroller::grabGesture(viewport, QScroller::TouchGesture)`。`QScroller` 走手势系统（`QFlickGestureRecognizer`），产出的 `QScrollPrepareEvent/QScrollEvent` 由 `QAbstractScrollArea` 原生处理，直接驱动滚动条。`DecelerationFactor` 调到 0.30——**它是阻尼而非时长**：`createScrollingSegments()` 把速度换算成 `deltaTime = v / factor` 与 `deltaPos = 0.5 × pixelPerMeter × v² / factor`，故值越大滑得越近、收得越快，值越小甩得越远（Qt 默认 0.125 偏“松”，0.30 约为早期 0.15 的一半行程）。
+- 越界橡皮筋在 Qt 里分两条**独立预算**，必须成对调：只收紧一侧的话，一次甩动能把页面扔得比手指能推的更远。**手指按住时**（`setContentPositionHelperDragging()`）页面位移 = 手指越界行程 × `OvershootDragResistanceFactor`，再以 `viewport × OvershootDragDistanceFactor` 夹顶——前者管“硬度”（同样行程换来多少位移），后者管硬上限。**抬手后**（`createScrollingSegments()`）弹跳深度以 `viewport × OvershootScrollDistanceFactor` 封顶，回弹动画时长 = `OvershootScrollTime × 0.7`。当前取值：`kTouchOvershootMaxDistanceFactor` 0.25 **同时供两侧**距离上限（Qt 默认 drag 1.0 / scroll 0.5，flick 侧偏大正是“甩得比拖得深”的成因）、`kTouchOvershootDragResistanceFactor` 0.25（Qt 默认 0.5）、`kTouchOvershootScrollTime` 0.35（Qt 默认 0.7，回弹约 0.25 s 收住）。任一距离因子置 0 即彻底关闭该侧越界。
+- 回弹缓动也走 `ScrollingCurve`，但它同时决定滑行主曲线，而滑行距离推导只对 `OutQuad` 严格成立（见 `qscroller.cpp` 注释），故不要用它调回弹手感——要更紧就继续降 `kTouchOvershootScrollTime`。以上常量均在 `SmoothScroller.cpp`。
+- 两个距离旋钮分工要干净：`DecelerationFactor` 管整体阻尼（轻甩与硬甩等比缩放），`MaximumVelocity` 管释放速度上限（只压硬甩）。若"轻甩合适但硬甩仍偏远"，该动的是后者——距离 ∝ `v²`，`MaximumVelocity` 从 0.5 降到 0.3 会让硬甩行程变成约 0.36 倍而完全不动轻甩；继续加 `DecelerationFactor` 则会把轻甩一起压死。
+- 点按语义不丢：Qt 对"未被接受"的触摸合成鼠标（`source=MouseEventSynthesizedByQt`），落在按钮/下拉框/列表项上的点按照常点击。
+- 惯性互斥：滚轮（无修饰键）与**真实**鼠标按下会 `QScroller::stop()` 停掉滑行。合成鼠标按下必须放行——每条未接受的 `TouchBegin` 后面都跟着一份合成 `MousePress`，而 `QFlickGestureRecognizer` 对触摸型 scroller 的任何 `MousePress` 都是 `Ignore`，真正会坏事的是自己在这时调 `stop()`（press 后立即回 inactive，拖动全部失效）。判据 `source() == MouseEventNotSynthesized`。OverlayScrollBar 被拖动时经 `sliderPressed` 信号停滑行。
+- 惯性断言无法在 offscreen 测试里验证：offscreen 的 `physicalDotsPerInch` 是负数，`pixelPerMeter` 为负导致速度计算退化成 NaN，滑行永远不触发（拖动正常）。惯性以真机为准。
+
+### 控件认领（单所有者仲裁）
+
+Qt Widgets 没有拦截协议：触摸流（→viewport→QScroller）与子控件的合成鼠标流是两条独立的路。认领解决"从滑块上拖动，页面滚动与滑块跳值同时发生"：Qt 只对**未被接受**的触摸合成鼠标，滑块整块接受触摸即可同时掐断两条路。`TouchClaimFilter::install(target)`：
+
+- target 设 `WA_AcceptTouchEvents`，整块认领自己的触摸流；
+- `TouchBegin/Update/End/Cancel` 逐点转译成左键 `QMouseEvent`（press/move/release）`sendEvent` 给 target，**复用控件既有鼠标逻辑**（`SVS::SeekBar` 的轨道跳值、拖拽、`SpeakerMixList` 把手的 `startDrag` 全部原样工作），不加任何控件子类；
+- accept 之后事件不再上浮、不再合成鼠标，viewport 的 QScroller 收不到这条流。
+
+还有一个 Qt 层面的坑：**手势管理器在 `QApplication::notify` 最前端、先于一切控件事件过滤器**按父链把手势上下文匹配给子控件——认领控件的触摸仍会喂给祖先 viewport 的 QScroller（实测认领拖滑块时页面同时滚走）。对策：认领在 `TouchBegin` 转译完按下后，把所属 `QAbstractScrollArea` viewport 的 scroller `stop()` 回 Inactive；后续 `InputMove` 对 Inactive 状态是空操作，scroller 被钉死，滑块独占手势。
+
+认领的自动安装：`SmoothScroller` 在 attach 与 `ChildAdded`（`QScrollArea::setWidget` 把内容挂在 viewport 上，语言切换重建内容会再次触发）时递归扫描内容树，命中 `SVS::SeekBar`、`QSlider` 即安装；`SmoothScroller::installClaim(widget)` 供显式调用。
+
+### 启用与豁免清单
+
+| 挂接点 | 触摸滚动 | 说明 |
+| --- | --- | --- |
+| 选项 9 页（`IOptionPage`）、包管理器列表与详情、搜索、导出源列表、提取剪辑列表、资源页树、`ComboBox` 弹层 | 启用 | 滑块经自动认领 |
+| `SpeakerMixList` | 启用 | 拖动把手显式认领；`eventFilter` 的 `MouseMove` 补 `m_dragActive` 防重入（触摸转译的 move 会在 `QDrag` 模态循环内重入，嵌套 `startDrag`） |
+| `G2pListWidget`（`GListWidget`） | 豁免 | 内置 `InternalMove` 拖拽排序，单指拖动语义冲突 |
+| `LyricWrapView` | 豁免 | 左键拖动是框选扫选，不能被滚动抢走 |
+| `TrackListView`、`AppOptionsDialog` 侧栏 | 不动 | 前者已有自己的 `QScroller` 抓取；后者 7 项永不滚动，不挂避免改变滚轮行为 |
+
+### 与编辑器仲裁模型的关系及已知限制
+
+编辑器画布是自研手势层，对话框是 `QScroller` + 整块认领，两套互不重叠（编辑器视图自设 `WA_AcceptTouchEvents`，不经 `SmoothScroller`）。与 Android 的"方向 slop + 中途移交"相比，v1 整块认领的代价：从滑块上不能起手滚动页面（Android 在无移交场景下同款）；点按型控件上起手拖动会有按压高亮但松开在别处不误触发；文本框上拖动会边滚边选中文字。模拟移交（发现纵向 slop 先到就把滑块弹回起始值、改驱父滚动条）明确不做，涉及面太大；方向裁决的缺口如真机实测硌手再议。单测见 `src/tests/TestTouchScrollClaim/`。
+
+### 真机回归清单（触摸平板）
+
+1. 选项各页单指拖动滚动、抬手惯性滑行；滚轮/按下/拖 OverlayScrollBar 能停住滑行。
+2. 拖到首尾后不松手继续拖：越界位移明显变短（同行程约为旧行为的一半），最多约 1/4 视口即不再跟着手指走。内容不足一屏的页面不越界。
+3. 在首尾处甩动或从越界位置松手：弹跳深度不超过 1/4 视口，回弹在约 0.25 s 内干脆收住，不生硬也不拖沓。
+4. 拖 `SVS::SeekBar` 调值（含轨道跳值），页面不滚；双指 pan 照常滚动。
+5. 按钮、下拉框、复选框、列表项点按照常；`ComboBox` 弹层触摸滚动。
+6. 包管理器、搜索、导出、提取、资源页、说话人混音各列表滚动与点选；说话人把手拖动排序不与滚动叠加。
+7. G2p 列表 DnD 排序、`LyricWrapView` 框选与 Ctrl+滚轮缩放不回归（豁免项）。
+8. 笔（笔尖/反端/侧键）、鼠标、触摸板路径全部不回归；长按右键菜单照常。
+
+**2026-09-28 真机摸排（触摸平板）**：手感被接受，本轮取值定为当前值——`DecelerationFactor` 0.30、越界距离上限 0.25（拖拽与回弹共用）、越界阻力 0.25、`OvershootScrollTime` 0.35。清单其余各项按需回归。
+
+**一次踩过的坑（勿重犯）**：`DecelerationFactor` 曾被当作"时长"来调——本文件与 `SmoothScroller.cpp` 都曾写"调高会滑更久"，方向是反的，于是从 0.125 调到 0.15 后体感毫无改善。它是阻尼，距离 ∝ `1 / factor`。改这个值前先复核 `createScrollingSegments()` 的换算式。
+
+**单测覆盖缺口**：`src/tests/TestTouchScrollClaim/` 覆盖认领几何、豁免开关与惯性滑行，但**"滚轮停掉滑行"这条断不出**。手工构造的 `QWheelEvent` 是非自发事件，实测（Qt 6.11.2 offscreen）它根本到不了 viewport 的事件过滤器——在同一 viewport 上并列装的 identity 过滤器也收不到，滚动条也不动；改投窗口 handle 只能间歇性送达，无法承载断言。真实滚轮事件是自发的，会正常到达 viewport 过滤器，故该行为只能真机验证（见下方清单第 1 项）。测试中以 `SKIP` 显式标注，不要把它改回断言。
