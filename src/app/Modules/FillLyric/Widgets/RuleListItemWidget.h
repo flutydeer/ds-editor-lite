@@ -5,6 +5,7 @@
 
 class QCheckBox;
 class QLabel;
+class DragHandle;
 
 namespace FillLyric {
     class RuleListItemWidget final : public QWidget {
@@ -23,7 +24,7 @@ namespace FillLyric {
         void enabledChanged(bool enabled);
 
     private:
-        QLabel *m_handleLabel = nullptr;
+        DragHandle *m_handleLabel = nullptr;
         QCheckBox *m_checkbox = nullptr;
         QLabel *m_nameLabel = nullptr;
         QLabel *m_builtinLabel = nullptr;

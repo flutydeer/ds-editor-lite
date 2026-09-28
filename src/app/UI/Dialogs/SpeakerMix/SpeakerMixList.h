@@ -11,7 +11,7 @@
 class QHBoxLayout;
 class QLabel;
 class ComboBox;
-class IconLabel;
+class DragHandle;
 class SpeakerMixBar;
 
 class SpeakerMixList : public QListWidget {
@@ -56,7 +56,7 @@ private:
     struct RowComponents {
         QWidget *container;
         QHBoxLayout *layout;
-        IconLabel *dragHandle;
+        DragHandle *dragHandle;
         QWidget *colorDot;
         ComboBox *speakerComboBox;
         QLabel *positionLabel;

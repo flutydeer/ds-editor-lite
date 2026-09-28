@@ -18,6 +18,8 @@
 #include <QTimer>
 #include <QWheelEvent>
 
+#include <utility>
+
 namespace {
     // Glide damping after a touch flick - a damping, not a duration, even though
     // QScroller derives both from it: travel = 0.5 * pixelPerMeter * velocity^2
@@ -112,8 +114,8 @@ void SmoothScroller::attachTo(QAbstractScrollArea *area, TouchKinetic touchKinet
                 Qt::UniqueConnection);
 }
 
-void SmoothScroller::installClaim(QWidget *target) {
-    TouchClaimFilter::install(target);
+void SmoothScroller::installClaim(QWidget *target, TouchClaimFilter::HitTest hitTest) {
+    TouchClaimFilter::install(target, std::move(hitTest));
 }
 
 void SmoothScroller::installTouchKinetic() {
@@ -129,8 +131,7 @@ void SmoothScroller::installTouchKinetic() {
                                kTouchOvershootMaxDistanceFactor);
     properties.setScrollMetric(QScrollerProperties::OvershootScrollDistanceFactor,
                                kTouchOvershootMaxDistanceFactor);
-    properties.setScrollMetric(QScrollerProperties::OvershootScrollTime,
-                               kTouchOvershootScrollTime);
+    properties.setScrollMetric(QScrollerProperties::OvershootScrollTime, kTouchOvershootScrollTime);
     scroller->setScrollerProperties(properties);
     m_grabbedViewport = viewport;
 }

@@ -4,10 +4,10 @@
 
 #include <algorithm>
 
+#include <QAbstractItemDelegate>
 #include <QHBoxLayout>
 #include <QFileDialog>
 #include <QPushButton>
-#include <QItemDelegate>
 #include <QLineEdit>
 
 #include <lite/GUI/Controls/PathListWidget.h>
@@ -172,16 +172,18 @@ void PathEditor::editRowWithEmptyCheck(int row) {
     const QModelIndex idx = model->index(row, 0);
     m_listWidget->edit(idx);
 
-    connect(m_listWidget->itemDelegate(), &QItemDelegate::closeEditor, this,
-            [row, model, this](QWidget *editor, QAbstractItemDelegate::EndEditHint) {
-                const auto lineEdit = qobject_cast<QLineEdit *>(editor);
-                if (lineEdit && lineEdit->text().isEmpty()) {
-                    if (row >= 0 && row < model->rowCount()) {
-                        model->removeRow(row);
-                    }
+    connect(
+        m_listWidget->itemDelegate(), &QAbstractItemDelegate::closeEditor, this,
+        [row, model, this](QWidget *editor, QAbstractItemDelegate::EndEditHint) {
+            const auto lineEdit = qobject_cast<QLineEdit *>(editor);
+            if (lineEdit && lineEdit->text().isEmpty()) {
+                if (row >= 0 && row < model->rowCount()) {
+                    model->removeRow(row);
                 }
-                Q_EMIT pathsChanged();
-            }, Qt::SingleShotConnection);
+            }
+            Q_EMIT pathsChanged();
+        },
+        Qt::SingleShotConnection);
 }
 
 void PathEditor::onAddClicked() {

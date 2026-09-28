@@ -1,5 +1,9 @@
 #include <lite/GUI/Controls/PathListWidget.h>
 
+#include <lite/GUI/Controls/ItemViewReorderController.h>
+#include <lite/GUI/Controls/PathItemDelegate.h>
+#include <lite/GUI/Controls/SmoothScroller.h>
+
 #include <QDir>
 #include <QFileInfo>
 #include <QMimeData>
@@ -52,8 +56,50 @@ namespace {
     }
 }
 
-PathListWidget::PathListWidget(QWidget *parent) : QListWidget(parent) {
+PathListWidget::PathListWidget(QWidget *parent)
+    : QListWidget(parent), m_reorder(new ItemViewReorderController(this)) {
     setAcceptDrops(true);
+    setItemDelegate(new PathItemDelegate(this));
+
+    // The grip is painted, not a widget, so the controller cannot recognise it
+    // on its own - without this the press is never attributed to a handle, no
+    // drag is ever armed, and the startDrag() guard below then swallows every
+    // drag the base class would have started.
+    m_reorder->setHandleHitTest(
+        [this](const QPoint &viewportPos, int *row) { return handleHitTest(viewportPos, row); });
+
+    // The grip is painted into the row, so the claim sits on the viewport and
+    // the hit test decides: a touch on the grip is replayed as a mouse press and
+    // starts a reorder, while a touch anywhere else falls through and scrolls
+    // the page the list lives in.
+    SmoothScroller::installClaim(
+        viewport(), [this](const QPointF &pos) { return handleHitTest(pos.toPoint(), nullptr); });
+
+    connect(m_reorder, &ItemViewReorderController::dragRequested, this, [this](const int row) {
+        setCurrentIndex(model()->index(row, 0));
+        startDrag(Qt::MoveAction);
+    });
+}
+
+bool PathListWidget::handleHitTest(const QPoint &viewportPos, int *row) const {
+    const QModelIndex index = indexAt(viewportPos);
+    if (!index.isValid())
+        return false;
+    if (!PathItemDelegate::handleRect(visualRect(index)).contains(viewportPos))
+        return false;
+    if (row)
+        *row = index.row();
+    return true;
+}
+
+void PathListWidget::startDrag(const Qt::DropActions supportedActions) {
+    // Only a drag the grip asked for may run. The base class would otherwise
+    // start one from anywhere on the row, and dragEnabled() cannot be cleared to
+    // stop it: that drops the view out of InternalMove and turns the drop into a
+    // duplicate instead of a reorder.
+    if (!m_reorder->consumeDragArm())
+        return;
+    QListWidget::startDrag(supportedActions);
 }
 
 void PathListWidget::mouseDoubleClickEvent(QMouseEvent *event) {

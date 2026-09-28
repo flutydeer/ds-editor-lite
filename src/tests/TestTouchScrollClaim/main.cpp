@@ -1,3 +1,4 @@
+#include <lite/GUI/Controls/DragHandle.h>
 #include <lite/GUI/Controls/SvsSeekbar.h>
 #include <lite/GUI/Controls/SmoothScroller.h>
 #include <lite/GUI/Controls/TouchClaimFilter.h>
@@ -5,6 +6,7 @@
 #include <QApplication>
 #include <QEvent>
 #include <QLabel>
+#include <QListWidget>
 #include <QScroller>
 #include <QScrollBar>
 #include <QScrollArea>
@@ -25,17 +27,27 @@ namespace {
     }
 
     // Records that a claimed widget actually received the replayed mouse press.
-    // Records that a claimed widget actually received the replayed mouse press.
     class MouseButtonRecorder : public QObject {
     public:
         using QObject::QObject;
 
         bool sawPress = false;
+        /// Source of the last press. A press this claim replayed is
+        /// NotSynthesized; a press Qt itself derived from an unaccepted touch is
+        /// SynthesizedByQt. That distinction is the only way to tell "the claim
+        /// took this touch" from "the claim let it through and Qt handled it".
+        Qt::MouseEventSource lastSource = Qt::MouseEventNotSynthesized;
+
+        [[nodiscard]] bool sawReplayedPress() const {
+            return sawPress && lastSource != Qt::MouseEventSynthesizedByQt;
+        }
 
     protected:
         bool eventFilter(QObject *watched, QEvent *event) override {
-            if (event->type() == QEvent::MouseButtonPress)
+            if (event->type() == QEvent::MouseButtonPress) {
                 sawPress = true;
+                lastSource = static_cast<QMouseEvent *>(event)->source();
+            }
             return QObject::eventFilter(watched, event);
         }
     };
@@ -197,6 +209,117 @@ int main(int argc, char **argv) {
     QApplication::processEvents();
     check(replacementBar->testAttribute(Qt::WA_AcceptTouchEvents),
           "claim sweep re-runs after setWidget rebuild");
+
+    // --- a gated claim only takes the touches inside its hit test ---
+    // This is what lets a list own just its reorder grip: a touch on the grip is
+    // claimed (and reorders), a touch on the row falls through (and scrolls).
+    QLabel gated;
+    gated.resize(60, 28);
+    gated.show();
+    QApplication::processEvents();
+    MouseButtonRecorder gatedRecorder;
+    gated.installEventFilter(&gatedRecorder);
+    SmoothScroller::installClaim(&gated, [](const QPointF &pos) { return pos.x() < 30.0; });
+
+    QTest::touchEvent(&gated, touchDevice).press(0, QPoint(5, 14));
+    QTest::touchEvent(&gated, touchDevice).release(0, QPoint(5, 14));
+    QApplication::processEvents();
+    check(gatedRecorder.sawReplayedPress(),
+          "a touch inside the hit test is replayed by the claim");
+
+    MouseButtonRecorder outsideRecorder;
+    gated.installEventFilter(&outsideRecorder);
+    QTest::touchEvent(&gated, touchDevice).press(0, QPoint(55, 14));
+    QTest::touchEvent(&gated, touchDevice).release(0, QPoint(55, 14));
+    QApplication::processEvents();
+    check(outsideRecorder.sawPress &&
+              outsideRecorder.lastSource == Qt::MouseEventSynthesizedByQt,
+          "a touch outside the hit test is left to Qt's own synthesis");
+
+    // --- a disabled handle gives its claim back ---
+    DragHandle disabledHandle;
+    disabledHandle.show();
+    QApplication::processEvents();
+    MouseButtonRecorder disabledRecorder;
+    disabledHandle.installEventFilter(&disabledRecorder);
+    disabledHandle.setDragEnabled(false);
+    QTest::touchEvent(&disabledHandle, touchDevice).press(0, QPoint(5, 5));
+    QApplication::processEvents();
+    check(!disabledRecorder.sawReplayedPress(), "a disabled handle does not claim the touch");
+
+    // --- a claim on an inner viewport pins every ancestor scroller ---
+    // The claim target is itself a viewport here, and isAncestorOf() counts a
+    // widget as its own ancestor: the walk up from the target matches the inner
+    // scroll area first, so pinning only the nearest scroller leaves the page
+    // that actually scrolls engaged. Measured on device as "the row reorders and
+    // the page scrolls at the same time".
+    //
+    // The observable is the ancestor scroller's state, not the scrollbar: the
+    // gesture manager feeds every grabbed scroller up the ancestor chain, and it
+    // does so before any event filter runs, so the page is engaged by a touch
+    // aimed at the inner widget whether or not that touch is delivered on.
+    //
+    // The inner area is a QListWidget rather than a plain QScrollArea so that
+    // nothing sits over its viewport: a QScrollArea paints its content widget on
+    // top of the viewport, so the finger would never reach a claim installed
+    // there. This mirrors the real case, a list claiming its own viewport.
+    QScrollArea page;
+    auto *pageContent = makeTallContent(1200);
+    auto *inner = new QListWidget(pageContent);
+    inner->setGeometry(0, 0, 380, 200);
+    for (int i = 0; i < 40; ++i)
+        inner->addItem(QStringLiteral("row %1").arg(i));
+    page.setWidget(pageContent);
+    page.resize(400, 300);
+    page.show();
+    SmoothScroller pageScroller;
+    pageScroller.attachTo(&page);
+    QApplication::processEvents();
+    auto *pageHandle = QScroller::scroller(page.viewport());
+    auto pageProperties = pageHandle->scrollerProperties();
+    pageProperties.setScrollMetric(QScrollerProperties::DragStartDistance, 0.0);
+    pageHandle->setScrollerProperties(pageProperties);
+
+    // QScroller's recognizer ignores a press while another scroller is active
+    // ("active scrollers always have priority"), and the flick in the first
+    // section can still be gliding; settle it so this section measures what it
+    // means to.
+    for (auto *active : QScroller::activeScrollers())
+        active->stop();
+    QApplication::processEvents();
+
+    bool claimOwnsTouches = false;
+    SmoothScroller::installClaim(inner->viewport(),
+                                 [&claimOwnsTouches](const QPointF &) { return claimOwnsTouches; });
+
+    // Control: while the inner widget does not own the touch, the page scroller
+    // engages as usual - so the assertion below cannot pass for lack of a client.
+    QTest::touchEvent(inner->viewport(), touchDevice).press(0, QPoint(190, 180));
+    QApplication::processEvents();
+    check(pageHandle->state() != QScroller::Inactive,
+          "an unclaimed touch engages the page's scroller");
+    QTest::touchEvent(inner->viewport(), touchDevice).release(0, QPoint(190, 180));
+    QApplication::processEvents();
+    pageHandle->stop();
+    page.verticalScrollBar()->setValue(0);
+
+    // Owned: every ancestor scroller has to be pinned back to Inactive, or the
+    // page keeps dragging while the claimed widget is dragged.
+    claimOwnsTouches = true;
+    QTest::touchEvent(inner->viewport(), touchDevice).press(0, QPoint(190, 180));
+    QApplication::processEvents();
+    check(pageHandle->state() == QScroller::Inactive,
+          "a claim on an inner viewport pins the page's scroller back to Inactive");
+    for (int i = 1; i <= 6; ++i) {
+        QTest::touchEvent(inner->viewport(), touchDevice).move(0, QPoint(190, 180 - i * 20));
+        QApplication::processEvents();
+    }
+    check(pageHandle->state() == QScroller::Inactive,
+          "the page's scroller stays out of the claimed drag");
+    check(page.verticalScrollBar()->value() == 0,
+          "a claim on an inner viewport keeps the page from scrolling too");
+    QTest::touchEvent(inner->viewport(), touchDevice).release(0, QPoint(190, 60));
+    QApplication::processEvents();
 
     std::printf("%s (%d failure(s))\n", g_failures == 0 ? "ALL OK" : "FAILED", g_failures);
     return g_failures == 0 ? 0 : 1;

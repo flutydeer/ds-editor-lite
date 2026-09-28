@@ -3,7 +3,7 @@
 #include <lite/GUI/Controls/SmoothScroller.h>
 #include <lite/GUI/Controls/ColorDot.h>
 #include <lite/GUI/Controls/ComboBox.h>
-#include <lite/GUI/Controls/IconLabel.h>
+#include <lite/GUI/Controls/DragHandle.h>
 #include "UI/Utils/SpeakerMixColorResolver.h"
 #include <lite/GUI/Theme/ThemeManager.h>
 
@@ -108,8 +108,7 @@ void SpeakerMixList::setSourceEditingEnabled(const bool enabled) {
     setDragDropMode(enabled ? QAbstractItemView::InternalMove : QAbstractItemView::NoDragDrop);
 
     for (auto &row : m_rows) {
-        row.dragHandle->setEnabled(enabled);
-        row.dragHandle->setCursor(enabled ? Qt::SizeAllCursor : Qt::ArrowCursor);
+        row.dragHandle->setDragEnabled(enabled);
         setWidgetEnabledStyle(row.speakerComboBox, enabled);
     }
 }
@@ -216,14 +215,10 @@ QWidget *SpeakerMixList::createRowWidget(const QString &speakerType) {
     layout->setSpacing(8);
     layout->setContentsMargins(0, 0, 0, 0);
 
-    const auto dragHandle = new IconLabel(widget);
-    dragHandle->setIcon(QStringLiteral(":/svg/icons/re_order_dots_vertical_16_regular.svg"));
+    // The handle carries its own icon, cursor and touch claim.
+    const auto dragHandle = new DragHandle(widget);
     dragHandle->setSquareSize(28);
-    dragHandle->setCursor(Qt::SizeAllCursor);
     dragHandle->installEventFilter(this);
-    // The handle owns its touch stream: without the claim a touch drag would
-    // both start the reorder QDrag and scroll the list at the same time.
-    SmoothScroller::installClaim(dragHandle);
 
     const auto colorDot = new ColorDot(
         SpeakerMixColorResolver::colorsForSpeaker(speakerType, m_referenceSpeakers, m_rows.size())
@@ -510,9 +505,9 @@ bool SpeakerMixList::eventFilter(QObject *watched, QEvent *event) {
         return QListWidget::eventFilter(watched, event);
 
     // Only the handle starts a drag; other parts of the row never reorder
-    // because the viewport has drags disabled.
-    if (auto *handle = qobject_cast<QLabel *>(watched);
-        handle && handle->cursor().shape() == Qt::SizeAllCursor) {
+    // because the viewport has drags disabled. Handles are recognised by type,
+    // not by sniffing for a cursor shape.
+    if (auto *handle = qobject_cast<DragHandle *>(watched)) {
         switch (event->type()) {
             case QEvent::MouseButtonPress: {
                 auto *me = static_cast<QMouseEvent *>(event);

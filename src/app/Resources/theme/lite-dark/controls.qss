@@ -945,7 +945,7 @@ FillLyric--TaggerDetailPanel {
 }
 
 /* Drag Handle */
-QLabel#dragHandle {
+#dragHandle {
     color: ${text.secondary};
     font-size: 14px;
     padding: 0 4px;

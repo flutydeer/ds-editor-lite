@@ -4,6 +4,7 @@
 #include <QHBoxLayout>
 #include <QLabel>
 
+#include <lite/GUI/Controls/DragHandle.h>
 #include <lite/GUI/Utils/IconUtils.h>
 
 namespace FillLyric {
@@ -18,15 +19,10 @@ namespace FillLyric {
         const QSize iconSize(16, 16);
         const auto iconPalette = IconUtils::defaultActionPalette();
 
-        m_handleLabel = new QLabel;
-        m_handleLabel->setObjectName("dragHandle");
-        m_handleLabel->setPixmap(
-            IconUtils::createTintedSvgIcon(
-                QStringLiteral(":/svg/icons/re_order_dots_vertical_16_regular.svg"), iconSize,
-                iconPalette)
-                .pixmap(iconSize));
-        m_handleLabel->setFixedSize(iconSize);
-        m_handleLabel->setAlignment(Qt::AlignCenter);
+        // The handle owns its touch stream, so a finger on the grip reorders the
+        // rule while a finger anywhere else scrolls the list.
+        m_handleLabel = new DragHandle;
+        m_handleLabel->setSquareSize(iconSize.width());
         layout->addWidget(m_handleLabel);
 
         m_checkbox = new QCheckBox;

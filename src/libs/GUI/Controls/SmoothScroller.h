@@ -2,6 +2,7 @@
 #define DSEDITORLITE_SMOOTHSCROLLER_H
 
 #include "WheelInputController.h"
+#include "TouchClaimFilter.h"
 
 #include <QObject>
 #include <QPointer>
@@ -34,8 +35,9 @@ public:
     /// Makes \p target own its touch stream (replayed as mouse events by
     /// TouchClaimFilter) instead of touch scrolling. For widgets whose drag
     /// logic must survive inside a touch-kinetic scroll area, e.g. the
-    /// SpeakerMixList reorder handle.
-    static void installClaim(QWidget *target);
+    /// SpeakerMixList reorder handle. An optional \p hitTest limits the claim to
+    /// part of the target, for widgets that only own a sub-region of themselves.
+    static void installClaim(QWidget *target, TouchClaimFilter::HitTest hitTest = {});
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;

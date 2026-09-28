@@ -8,23 +8,26 @@
 #include <QTouchEvent>
 #include <QWidget>
 
+#include <utility>
+
 namespace {
     // Marks a widget whose touch stream is already owned by a claim filter,
     // so install() stays idempotent across claim sweeps.
     const char kClaimedProperty[] = "lite_touchClaimed";
 }
 
-TouchClaimFilter::TouchClaimFilter(QWidget *target) : QObject(target), m_target(target) {
+TouchClaimFilter::TouchClaimFilter(QWidget *target, HitTest hitTest)
+    : QObject(target), m_target(target), m_hitTest(std::move(hitTest)) {
 }
 
-void TouchClaimFilter::install(QWidget *target) {
+void TouchClaimFilter::install(QWidget *target, HitTest hitTest) {
     if (!target || target->property(kClaimedProperty).toBool())
         return;
     target->setProperty(kClaimedProperty, true);
     // Touch delivery requires the attribute; without it the platform would
     // synthesize mouse events on its own instead of routing through here.
     target->setAttribute(Qt::WA_AcceptTouchEvents);
-    target->installEventFilter(new TouchClaimFilter(target));
+    target->installEventFilter(new TouchClaimFilter(target, std::move(hitTest)));
 }
 
 bool TouchClaimFilter::eventFilter(QObject *watched, QEvent *event) {
@@ -40,11 +43,37 @@ bool TouchClaimFilter::eventFilter(QObject *watched, QEvent *event) {
     if (touchEvent->points().isEmpty())
         return true;
 
+    // A stream the hit test turned away is not ours: every event of it has to
+    // pass through untouched, or the ancestor scroller that took it over would
+    // lose the drag and the release Qt synthesized for the tap would be
+    // stranded.
+    //
+    // A latch, and one that also drops on the next TouchBegin: the rejected
+    // stream is normally taken over by an ancestor - that is what "a touch on the
+    // row falls through and scrolls the page" means - so its release is delivered
+    // there instead of here. Waiting for an end that never arrives left the claim
+    // switched off for good after a single unclaimed touch, and the handle then
+    // did nothing at all.
+    if (m_rejected) {
+        if (type != QEvent::TouchBegin) {
+            if (type != QEvent::TouchUpdate)
+                m_rejected = false;
+            return QObject::eventFilter(watched, event);
+        }
+        m_rejected = false;
+    }
+
+    const auto &point = touchEvent->points().constFirst();
+
     QEvent::Type mouseType = QEvent::None;
     Qt::MouseButton button = Qt::NoButton;
     Qt::MouseButtons buttons = Qt::NoButton;
     switch (type) {
         case QEvent::TouchBegin:
+            if (m_hitTest && !m_hitTest(point.position())) {
+                m_rejected = true;
+                return QObject::eventFilter(watched, event);
+            }
             mouseType = QEvent::MouseButtonPress;
             button = Qt::LeftButton;
             buttons = Qt::LeftButton;
@@ -67,7 +96,6 @@ bool TouchClaimFilter::eventFilter(QObject *watched, QEvent *event) {
     if (mouseType == QEvent::None || (!m_pressed && mouseType != QEvent::MouseButtonPress))
         return true;
 
-    const auto &point = touchEvent->points().constFirst();
     QMouseEvent mouseEvent(mouseType, point.position(), point.globalPosition(), button, buttons,
                            touchEvent->modifiers());
     mouseEvent.setTimestamp(touchEvent->timestamp());
@@ -81,16 +109,27 @@ bool TouchClaimFilter::eventFilter(QObject *watched, QEvent *event) {
 }
 
 // The gesture manager intercepts touch events in QApplication::notify before
-// any widget event filter runs, so a QScroller grabbed on an ancestor viewport
-// also sees touches aimed at this claimed widget and would scroll the page
-// while the claim drives it. Pinning the scroller back to Inactive after the
-// press neutralizes it: further InputMoves are no-ops while Inactive.
+// any widget event filter runs, and it collects gesture contexts from the whole
+// ancestor chain - not just the widget under the finger. A QScroller grabbed on
+// any ancestor viewport therefore sees touches aimed at this claimed widget and
+// would drag that area while the claim drives the widget. Pinning those
+// scrollers back to Inactive right after the press neutralizes them: an
+// InputMove has no handler while the scroller is Inactive, so the rest of the
+// stream is a no-op (input/state table in qscroller.cpp).
+//
+// Every ancestor has to be pinned, not just the nearest one. isAncestorOf()
+// counts a widget as its own ancestor (qwidget.cpp:8931), so when the claim
+// target is itself a viewport - a list claiming its own viewport - the walk
+// matches that inner scroll area first; stopping only it left the page that
+// actually scrolls untouched, and the row reordered while the page scrolled.
 void TouchClaimFilter::stopAncestorScroller() const {
     for (auto *parent = m_target->parentWidget(); parent; parent = parent->parentWidget()) {
         const auto *area = qobject_cast<const QAbstractScrollArea *>(parent);
-        if (area && area->viewport()->isAncestorOf(m_target)) {
+        if (!area || !area->viewport()->isAncestorOf(m_target))
+            continue;
+        // Ask first: QScroller::scroller() would create one just to stop it, on
+        // areas that were never scrolling anything.
+        if (QScroller::hasScroller(area->viewport()))
             QScroller::scroller(area->viewport())->stop();
-            return;
-        }
     }
 }

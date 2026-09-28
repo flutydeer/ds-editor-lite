@@ -942,17 +942,37 @@ Qt Widgets 没有拦截协议：触摸流（→viewport→QScroller）与子控�
 - `TouchBegin/Update/End/Cancel` 逐点转译成左键 `QMouseEvent`（press/move/release）`sendEvent` 给 target，**复用控件既有鼠标逻辑**（`SVS::SeekBar` 的轨道跳值、拖拽、`SpeakerMixList` 把手的 `startDrag` 全部原样工作），不加任何控件子类；
 - accept 之后事件不再上浮、不再合成鼠标，viewport 的 QScroller 收不到这条流。
 
-还有一个 Qt 层面的坑：**手势管理器在 `QApplication::notify` 最前端、先于一切控件事件过滤器**按父链把手势上下文匹配给子控件——认领控件的触摸仍会喂给祖先 viewport 的 QScroller（实测认领拖滑块时页面同时滚走）。对策：认领在 `TouchBegin` 转译完按下后，把所属 `QAbstractScrollArea` viewport 的 scroller `stop()` 回 Inactive；后续 `InputMove` 对 Inactive 状态是空操作，scroller 被钉死，滑块独占手势。
+还有一个 Qt 层面的坑：**手势管理器在 `QApplication::notify` 最前端、先于一切控件事件过滤器**，并且按父链收集手势上下文——不是只看触点下的那个控件（`QGestureManager::filterEvent(QWidget*)` 会一路向上取所有 `gestureContext`）。所以认领控件的触摸仍会喂给**每一个**祖先 viewport 的 QScroller（实测认领拖滑块时页面同时滚走）。对策：认领在 `TouchBegin` 转译完按下后，把祖先链上**所有** `QAbstractScrollArea` viewport 的 scroller 都 `stop()` 回 Inactive；后续 `InputMove` 对 Inactive 状态是空操作，scroller 被钉死，控件独占手势。
+
+**必须走完整条链，不能在第一个匹配处返回**（2026-09-28 真机踩到）：`QWidget::isAncestorOf()` 对**自身也返回真**（`qwidget.cpp:8931`）。当认领目标是**某个 viewport 本身**时（列表认领自己的 viewport，如 `PathListWidget`），`viewport()->isAncestorOf(target)` 在它自己的滚动区域上就成立，于是"就近匹配即 return"停在列表自己的 scroller（它甚至还不存在），外层页面的 scroller 从未被停过——表现是**条目一边重排、页面一边跟着滚**。把手是子控件时（`SpeakerMixList`、`RuleListWidget`）首个匹配恰好就是正确的那个，所以那两处一直正常，掩盖了这个错误。另外用 `hasScroller()` 先探再停，避免为停一个不存在的 scroller 而凭空创建它。
 
 认领的自动安装：`SmoothScroller` 在 attach 与 `ChildAdded`（`QScrollArea::setWidget` 把内容挂在 viewport 上，语言切换重建内容会再次触发）时递归扫描内容树，命中 `SVS::SeekBar`、`QSlider` 即安装；`SmoothScroller::installClaim(widget)` 供显式调用。
+
+### 拖动把手：DragHandle + 落点门槛认领 + 拖拽控制器
+
+列表排序在触摸下与滚动天然抢手势——把手之外的地方起拖会一边改顺序一边滚页面（包扫描路径就是这个症状）。2026-09-28 起由三件共享设施统一解决，鼠标与触摸都只允许从把手起拖：
+
+- `DragHandle`（`IconLabel` 子类，`src/libs/GUI/Controls/DragHandle.h`）：握把图标、`setSquareSize`、`SizeAllCursor` 与**触摸认领**都收敛在它自己的构造函数里，`setDragEnabled(bool)` 用一个谓词开关认领而无需卸载事件过滤器。列表一律用 `qobject_cast<DragHandle*>` 识别把手，取代此前"`qobject_cast<QLabel*>` ＋ `cursor().shape() == Qt::SizeAllCursor` 嗅探"的脆弱判据。
+- `TouchClaimFilter` 的**落点门槛**：`install(target, hitTest)` 可传 `std::function<bool(const QPointF&)>`，在 `TouchBegin` 分支按落点决定认领与否。命中则照旧回放鼠标并钉死祖先 scroller；未命中则置 `m_rejected` 并让**整条流放行不消费**——吞掉 release 会把 Qt 为点按合成的那份按下吊死。谓词为空＝整块认领，既有调用点零改动。
+
+  **门闩只能靠 `TouchEnd/Cancel` 清是不够的**（2026-09-28 真机踩到）：被拒绝的那串触摸通常会被**祖先接走**（"落到行体就滚页面"正是如此），它的 release 就投给祖先而不会再回到这个控件，于是 `m_rejected` 永远清不掉——**此后所有触摸都不再被认领，把手彻底失灵**。所以门闩在**下一次 `TouchBegin`** 上也清（新的一次按下是一个新的流，重新判定即可）。单测为此专门断言"先拒绝一次再命中一次"。
+- `ItemViewReorderController`：按下 → 位移超过 `QApplication::startDragDistance()` → 发 `dragRequested(row)`；视图侧覆写 `startDrag()` 并用 `consumeDragArm()` 只放行这一路，从而**拦截基类自己发起的拖拽**。两种把手形态共用它：子控件把手（`findChildren<DragHandle*>` + `indexAt`）与 delegate 画在 item 矩形内的把手（视图注入 `HandleHitTest`）。
+
+**为什么不能靠 `setDragEnabled(false)` 拦基类拖拽**：`QAbstractItemView::dragDropMode()` 是**计算属性**（`qabstractitemview.cpp:1576`），`dragEnabled=false && acceptDrops=true` 会返回 `DropOnly`；而 `dropEvent`（同文件 :2205）依赖它决定是否强制 `MoveAction`，退化成 `DropOnly` 后 drop 取 `event->dropAction()`，内部模型会**插入副本而不是移动**，排序直接坏掉。必须保留 `dragEnabled(true)` ＋ `InternalMove`，改拦 `startDrag`。
+
+**"未认领的触摸仍会被 Qt 合成鼠标"已由单测确认**（`TestTouchScrollClaim` 断言 `source() == MouseEventSynthesizedByQt`）：门槛拒绝后，行体点选与内联编辑照常，这也是门槛方案能成立的前提。
+
+**delegate 画把手而非 `setItemWidget`**：路径行是可内联编辑的纯文本项，item widget 既会与编辑器打架，也会被 Up/Down 按钮用的 `takeItem`/`insertItem` 丢掉；delegate 绘制的把手随模型增删移动自然跟随。把手槽宽 28px（`PathItemDelegate::kGutterWidth`），内联编辑器经 `updateEditorGeometry` 左移让位。
 
 ### 启用与豁免清单
 
 | 挂接点 | 触摸滚动 | 说明 |
 | --- | --- | --- |
 | 选项 9 页（`IOptionPage`）、包管理器列表与详情、搜索、导出源列表、提取剪辑列表、资源页树、`ComboBox` 弹层 | 启用 | 滑块经自动认领 |
-| `SpeakerMixList` | 启用 | 拖动把手显式认领；`eventFilter` 的 `MouseMove` 补 `m_dragActive` 防重入（触摸转译的 move 会在 `QDrag` 模态循环内重入，嵌套 `startDrag`） |
-| `G2pListWidget`（`GListWidget`） | 豁免 | 内置 `InternalMove` 拖拽排序，单指拖动语义冲突 |
+| `PathEditor`（通用设置页的包扫描路径、自动化页的访问根目录） | 启用 | 把手由 `PathItemDelegate` 画在行左 28px 槽位，认领装在列表 **viewport** 上、以同一命中测试为门槛；行体拖动滚**外层选项页**（未给列表自身挂 scroller） |
+| `RuleListWidget`（FillLyric 规则列表） | 启用 | 2026-09-28 起新挂 `SmoothScroller`（此前触摸下**根本滚不动**）；行内把手为 `DragHandle`，`InternalMove` → `orderChanged` → `rebuildItemWidgets` 重建后由控制器经 `ChildAdded` 自动重新挂接 |
+| `SpeakerMixList` | 启用 | 把手为 `DragHandle` 并自带认领；列表保留自己的 `eventFilter` 与自绘 drop 指示器，`m_dragActive` 防重入（触摸转译的 move 会在 `QDrag` 模态循环内重入，嵌套 `startDrag`） |
+| `G2pListWidget`（`GListWidget`） | 豁免 | 内置 `InternalMove` 拖拽排序与单指拖动冲突。**已具备解除条件**（加 `DragHandle` 即可），本轮未做 |
 | `LyricWrapView` | 豁免 | 左键拖动是框选扫选，不能被滚动抢走 |
 | `TrackListView`、`AppOptionsDialog` 侧栏 | 不动 | 前者已有自己的 `QScroller` 抓取；后者 7 项永不滚动，不挂避免改变滚轮行为 |
 
@@ -970,8 +990,13 @@ Qt Widgets 没有拦截协议：触摸流（→viewport→QScroller）与子控�
 6. 包管理器、搜索、导出、提取、资源页、说话人混音各列表滚动与点选；说话人把手拖动排序不与滚动叠加。
 7. G2p 列表 DnD 排序、`LyricWrapView` 框选与 Ctrl+滚轮缩放不回归（豁免项）。
 8. 笔（笔尖/反端/侧键）、鼠标、触摸板路径全部不回归；长按右键菜单照常。
+9. 包扫描路径（通用设置）与访问根目录（自动化）：从**把手**拖动可改顺序且**页面纹丝不动**；从行体拖动只滚页面、不改顺序；**先拖一次行体再拖把手，把手照样能起拖**（门闩不能永久失效）；双击行进内联编辑、清空后离开删行；拖目录文件进列表照常追加。鼠标同样只能从把手起拖（Move Up/Down 按钮兜底）。
+10. FillLyric 规则列表（分割 / 标注两个 Tab）：行体单指可滚动列表；从把手拖动改顺序、页面不滚；**拖完一次后仍能继续从把手拖动**（`InternalMove` 会重建 item widget，这是最容易回归的一点）；勾选框与名称不错位。
+11. 声线混合：把手拖动排序、权重重分配与自绘插入指示器照常；关闭来源编辑后把手变灰且拖不动。
 
 **2026-09-28 真机摸排（触摸平板）**：手感被接受，本轮取值定为当前值——`DecelerationFactor` 0.30、越界距离上限 0.25（拖拽与回弹共用）、越界阻力 0.25、`OvershootScrollTime` 0.35。清单其余各项按需回归。
+
+**2026-09-28 真机确认（拖动把手）**：清单第 9–11 项在平板实测通过（包扫描路径 / 访问根目录 / FillLyric 规则列表 / 声线混合）。确认过程中修掉上面记的两个 Qt 陷阱——祖先 scroller 只停了最近一个、门闩永不清——并各补了单测断言。
 
 **一次踩过的坑（勿重犯）**：`DecelerationFactor` 曾被当作"时长"来调——本文件与 `SmoothScroller.cpp` 都曾写"调高会滑更久"，方向是反的，于是从 0.125 调到 0.15 后体感毫无改善。它是阻尼，距离 ∝ `1 / factor`。改这个值前先复核 `createScrollingSegments()` 的换算式。
 
