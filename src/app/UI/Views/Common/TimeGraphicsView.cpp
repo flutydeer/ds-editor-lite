@@ -389,6 +389,20 @@ void TimeGraphicsView::dragLeaveEvent(QDragLeaveEvent *event) {
 }
 
 bool TimeGraphicsView::viewportEvent(QEvent *event) {
+    // Subclasses may consume mouse moves during note drags without ever
+    // reaching our mouseMoveEvent, so the edge auto scroll pointer position
+    // has to be refreshed at this choke point where every mouse event passes.
+    switch (event->type()) {
+        case QEvent::MouseButtonPress:
+        case QEvent::MouseButtonDblClick:
+        case QEvent::MouseMove:
+        case QEvent::MouseButtonRelease:
+            m_lastPointerPosition = static_cast<QMouseEvent *>(event)->pos();
+            break;
+        default:
+            break;
+    }
+
     // The pen layer first: it only claims tablet events, and it has to see
     // them before anything else decides what they mean.
     if (m_penController->handleEvent(event))
