@@ -22,8 +22,6 @@ void AppearanceOption::load(const QJsonObject &object) {
     }
     if (object.contains(uiFontFamilyKey))
         uiFontFamily = object.value(uiFontFamilyKey).toString().trimmed();
-    if (object.value(showGhostNotesKey).isBool())
-        showGhostNotes = object.value(showGhostNotesKey).toBool();
 }
 
 void AppearanceOption::save(QJsonObject &object) {
@@ -32,5 +30,4 @@ void AppearanceOption::save(QJsonObject &object) {
     object.insert(animationTimeScaleKey, animationTimeScale);
     object.insert(themeIdKey, themeId);
     object.insert(uiFontFamilyKey, uiFontFamily);
-    object.insert(showGhostNotesKey, showGhostNotes);
 }

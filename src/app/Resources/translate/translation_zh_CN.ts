@@ -91,124 +91,84 @@
 <context>
     <name>AppearancePage</name>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="98"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="93"/>
         <source>Theme</source>
         <translation>主题</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="99"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="94"/>
         <source>Color theme</source>
         <translation>颜色主题</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="93"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="88"/>
         <source>Light</source>
         <translation>浅色</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="94"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="89"/>
         <source>Dark</source>
         <translation>深色</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="66"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="61"/>
         <source>Theme switch failed</source>
         <translation>主题切换失败</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="134"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="129"/>
         <source>Use native frame</source>
         <translation>使用原生边框</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="134"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="129"/>
         <source>App needs a restart to take effect</source>
         <translation>需要重启以生效</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="150"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="145"/>
         <source>Duration scale</source>
         <translation>时长缩放</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="127"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="122"/>
         <source>The settings will take effect after restarting the app. Do you want to restart now?</source>
         <translation>重启应用后设置会生效。要现在重启吗？</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="92"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="87"/>
         <source>System</source>
         <translation>系统</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="103"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="98"/>
         <source>Default</source>
         <translation>默认</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="121"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="116"/>
         <source>Font</source>
         <translation>字体</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="122"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="117"/>
         <source>Interface font</source>
         <translation>界面字体</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="133"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="128"/>
         <source>Window</source>
         <translation>窗口</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="148"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="143"/>
         <source>Animation</source>
         <translation>动画</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="149"/>
+        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="144"/>
         <source>Enable animations</source>
         <translation>启用动画</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="155"/>
-        <source>Piano Roll</source>
-        <translation>钢琴卷帘</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="156"/>
-        <source>Show notes from other tracks</source>
-        <translation>显示其他轨道的音符</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="157"/>
-        <source>Displayed as thin bars for reference only</source>
-        <translation>以矮条显示，仅供参考</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="159"/>
-        <source>Touch</source>
-        <translation>触摸</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="162"/>
-        <source>Multi-touch gestures</source>
-        <translation>多点触控手势</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="163"/>
-        <source>One finger edits, two fingers pan and zoom the editors</source>
-        <translation>单指编辑，双指平移与缩放编辑器</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="169"/>
-        <source>Precision touchpad and wheel scrolling</source>
-        <translation>精准触控板与滚轮滚动</translation>
-    </message>
-    <message>
-        <location filename="../../UI/Dialogs/Options/Pages/AppearancePage.cpp" line="170"/>
-        <source>Handled by Windows Direct Manipulation. Touch and pen are unaffected</source>
-        <translation>由 Windows Direct Manipulation 负责，触控与笔不受影响</translation>
     </message>
 </context>
 <context>
@@ -339,12 +299,12 @@
     <message>
         <location filename="../../Modules/Audio/AudioExporter.cpp" line="871"/>
         <source>Cannot publish temporary audio file: %1</source>
-        <translation>无法发布临时音频文件：%1</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../../Modules/Audio/AudioExporter.cpp" line="875"/>
         <source>Cannot remove temporary audio export file: %1</source>
-        <translation>无法删除临时音频导出文件：%1</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../../Modules/Audio/AudioExporter.cpp" line="918"/>
@@ -784,7 +744,7 @@
     <name>AudioClipView</name>
     <message>
         <location filename="../../UI/Views/TrackEditor/GraphicsItem/AudioClipView.cpp" line="69"/>
-        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1153"/>
+        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1165"/>
         <source>File missing</source>
         <translation>文件缺失</translation>
     </message>
@@ -818,7 +778,7 @@
     <message>
         <location filename="../../Controller/AudioDecodingController.cpp" line="608"/>
         <source>Failed to open audio file: %1</source>
-        <translation>无法打开音频文件：%1</translation>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -1775,12 +1735,12 @@ Right drag: Erase</source>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="105"/>
         <source>Log touch events</source>
-        <translation>记录触控事件</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="106"/>
         <source>Record every touch event the editor receives, with point states and gesture phase. Filter the log window by the EditorTouchController tag</source>
-        <translation>记录编辑器收到的每一个触控事件，含指针状态与手势阶段。可在日志窗口按 EditorTouchController 标签筛选</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="110"/>
@@ -1888,7 +1848,7 @@ Right drag: Erase</source>
     <name>DocumentWorkflowController</name>
     <message>
         <location filename="../../Controller/DocumentWorkflow/DocumentWorkflowController.cpp" line="200"/>
-        <location filename="../../UI/Window/MainWindow.cpp" line="307"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="267"/>
         <source>New Project</source>
         <translation>新工程</translation>
     </message>
@@ -2052,12 +2012,12 @@ path: %1
     <message>
         <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1397"/>
         <source>Failed to flush file: %1</source>
-        <translation>写入文件失败：%1</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1402"/>
         <source>Failed to commit file: %1</source>
-        <translation>提交文件失败：%1</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1347"/>
@@ -2416,32 +2376,32 @@ errors: %1</source>
 <context>
     <name>FillLyric::LyricWrapView</name>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/LyricWrapView.cpp" line="239"/>
+        <location filename="../../Modules/FillLyric/Controls/LyricWrapView.cpp" line="240"/>
         <source>clear cells</source>
         <translation>清除单元格</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/LyricWrapView.cpp" line="247"/>
+        <location filename="../../Modules/FillLyric/Controls/LyricWrapView.cpp" line="248"/>
         <source>delete line</source>
         <translation>删除行</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/LyricWrapView.cpp" line="250"/>
+        <location filename="../../Modules/FillLyric/Controls/LyricWrapView.cpp" line="251"/>
         <source>delete cells</source>
         <translation>删除单元格</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/LyricWrapView.cpp" line="273"/>
+        <location filename="../../Modules/FillLyric/Controls/LyricWrapView.cpp" line="274"/>
         <source>delete lines</source>
         <translation>删除行</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/LyricWrapView.cpp" line="284"/>
+        <location filename="../../Modules/FillLyric/Controls/LyricWrapView.cpp" line="285"/>
         <source>move up</source>
         <translation>上移</translation>
     </message>
     <message>
-        <location filename="../../Modules/FillLyric/Controls/LyricWrapView.cpp" line="286"/>
+        <location filename="../../Modules/FillLyric/Controls/LyricWrapView.cpp" line="287"/>
         <source>move down</source>
         <translation>下移</translation>
     </message>
@@ -2449,7 +2409,7 @@ errors: %1</source>
 <context>
     <name>FillLyric::RuleListItemWidget</name>
     <message>
-        <location filename="../../Modules/FillLyric/Widgets/RuleListItemWidget.cpp" line="43"/>
+        <location filename="../../Modules/FillLyric/Widgets/RuleListItemWidget.cpp" line="39"/>
         <source>Built-in rule (read-only)</source>
         <translation>内置规则（只读）</translation>
     </message>
@@ -3101,7 +3061,7 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="169"/>
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="181"/>
         <source>No available GPU found. The execution provider has been switched back to CPU.</source>
-        <translation>未找到可用的 GPU，执行提供程序已切换回 CPU。</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="195"/>
@@ -3437,7 +3397,7 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>LangSetting::G2pListWidget</name>
     <message>
-        <location filename="../../UI/Controls/G2pListWidget.cpp" line="67"/>
+        <location filename="../../UI/Controls/G2pListWidget.cpp" line="68"/>
         <source>G2p Presets</source>
         <translation>G2p 预设</translation>
     </message>
@@ -3494,94 +3454,94 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../../libs/ProjectConverters/LibreSVIPConverter.cpp" line="17"/>
         <source>LibreSVIP executable not found. Install libresvip-cli and set its path.</source>
-        <translation>未找到 LibreSVIP 可执行文件。请安装 libresvip-cli 并设置其路径。</translation>
+        <translation type="unfinished">未找到 LibreSVIP 可执行文件。请安装 libresvip-cli 并在设置中指定其路径。</translation>
     </message>
     <message>
         <location filename="../../../libs/ProjectConverters/LibreSVIPConverter.cpp" line="24"/>
         <source>Failed to create a temporary directory</source>
-        <translation>无法创建临时目录</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../../../libs/ProjectConverters/LibreSVIPConverter.cpp" line="36"/>
         <source>Failed to start LibreSVIP: %1</source>
-        <translation>启动 LibreSVIP 失败：%1</translation>
+        <translation type="unfinished">启动 LibreSVIP 失败：%1</translation>
     </message>
     <message>
         <location filename="../../../libs/ProjectConverters/LibreSVIPConverter.cpp" line="47"/>
         <source>LibreSVIP conversion timed out</source>
-        <translation>LibreSVIP 转换超时</translation>
+        <translation type="unfinished">LibreSVIP 转换超时</translation>
     </message>
     <message>
         <location filename="../../../libs/ProjectConverters/LibreSVIPConverter.cpp" line="52"/>
         <source>LibreSVIP conversion failed: %1</source>
-        <translation>LibreSVIP 转换失败：%1</translation>
+        <translation type="unfinished">LibreSVIP 转换失败：%1</translation>
     </message>
     <message>
         <location filename="../../../libs/ProjectConverters/LibreSVIPConverter.cpp" line="59"/>
         <location filename="../../../libs/ProjectConverters/LibreSVIPConverter.cpp" line="65"/>
         <source>Failed to read LibreSVIP output: %1</source>
-        <translation>读取 LibreSVIP 输出失败：%1</translation>
+        <translation type="unfinished">读取 LibreSVIP 输出失败：%1</translation>
     </message>
 </context>
 <context>
     <name>LogWindow</name>
     <message>
-        <location filename="../../UI/Window/LogWindow.cpp" line="250"/>
+        <location filename="../../UI/Window/LogWindow.cpp" line="255"/>
         <source>Copy</source>
         <translation>复制</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/LogWindow.cpp" line="251"/>
+        <location filename="../../UI/Window/LogWindow.cpp" line="256"/>
         <source>Copy Message Only</source>
         <translation>仅复制消息</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/LogWindow.cpp" line="334"/>
+        <location filename="../../UI/Window/LogWindow.cpp" line="339"/>
         <source>Log - %1</source>
         <translation>日志 - %1</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/LogWindow.cpp" line="335"/>
+        <location filename="../../UI/Window/LogWindow.cpp" line="340"/>
         <source>Debug</source>
         <translation>调试</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/LogWindow.cpp" line="335"/>
+        <location filename="../../UI/Window/LogWindow.cpp" line="340"/>
         <source>Info</source>
         <translation>信息</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/LogWindow.cpp" line="335"/>
+        <location filename="../../UI/Window/LogWindow.cpp" line="340"/>
         <source>Warning</source>
         <translation>警告</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/LogWindow.cpp" line="335"/>
+        <location filename="../../UI/Window/LogWindow.cpp" line="340"/>
         <source>Error</source>
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/LogWindow.cpp" line="335"/>
+        <location filename="../../UI/Window/LogWindow.cpp" line="340"/>
         <source>Fatal</source>
         <translation>致命</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/LogWindow.cpp" line="338"/>
+        <location filename="../../UI/Window/LogWindow.cpp" line="343"/>
         <source>All tags</source>
         <translation>所有标签</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/LogWindow.cpp" line="339"/>
+        <location filename="../../UI/Window/LogWindow.cpp" line="344"/>
         <source>Search message or tag</source>
         <translation>搜索消息或标签</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/LogWindow.cpp" line="340"/>
+        <location filename="../../UI/Window/LogWindow.cpp" line="345"/>
         <source>Auto-scroll</source>
         <translation>自动滚动</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/LogWindow.cpp" line="341"/>
+        <location filename="../../UI/Window/LogWindow.cpp" line="346"/>
         <source>Clear</source>
         <translation>清空</translation>
     </message>
@@ -3589,22 +3549,22 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>LogWindowModel</name>
     <message>
-        <location filename="../../UI/Window/LogWindow.cpp" line="108"/>
+        <location filename="../../UI/Window/LogWindow.cpp" line="109"/>
         <source>Time</source>
         <translation>时间</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/LogWindow.cpp" line="110"/>
+        <location filename="../../UI/Window/LogWindow.cpp" line="111"/>
         <source>Level</source>
         <translation>等级</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/LogWindow.cpp" line="112"/>
+        <location filename="../../UI/Window/LogWindow.cpp" line="113"/>
         <source>Tag</source>
         <translation>标签</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/LogWindow.cpp" line="114"/>
+        <location filename="../../UI/Window/LogWindow.cpp" line="115"/>
         <source>Message</source>
         <translation>消息</translation>
     </message>
@@ -4115,109 +4075,109 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="460"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="407"/>
         <source>DiffScope Project File (*.dspx)</source>
         <translation>DiffScope 工程文件 (*.dspx)</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="430"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="377"/>
         <source>Warning</source>
         <translation>警告</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="136"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="113"/>
         <source>Failed to reload theme</source>
         <translation>重新加载主题失败</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="138"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="115"/>
         <source>Theme reloaded</source>
         <translation>主题已重新加载</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="152"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="129"/>
         <source>Execution provider %1 is unavailable and was reset to CPU.</source>
-        <translation>执行提供程序 %1 不可用，已重置为 CPU。</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="256"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="216"/>
         <source>Press Undo again to apply</source>
         <translation>再次按下撤销以应用</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="257"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="217"/>
         <source>Press Redo again to apply</source>
         <translation>再次按下重做以应用</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="431"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="378"/>
         <source>Do you want to save changes?</source>
         <translation>要保存更改吗？</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="434"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="381"/>
         <source>Save</source>
         <translation>保存</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="441"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="388"/>
         <source>Don&apos;t save</source>
         <translation>不保存</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="448"/>
-        <location filename="../../UI/Window/MainWindow.cpp" line="468"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="395"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="415"/>
         <source>Cancel</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="474"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="421"/>
         <source>Error</source>
         <translation>错误</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="477"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="424"/>
         <source>OK</source>
         <translation>确定</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="1030"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="949"/>
         <source>You have unsaved changes, please save first</source>
         <translation>你有未保存的更改，请先保存</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="459"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="406"/>
         <source>Save project</source>
         <translation>保存工程</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="464"/>
-        <location filename="../../UI/Window/MainWindow.cpp" line="466"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="411"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="413"/>
         <source>Package scan failed</source>
         <translation>包扫描失败</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="465"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="412"/>
         <source>Singer package metadata is not available. Open the project anyway?</source>
         <translation>歌手包元数据不可用。是否仍然打开工程？</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="467"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="414"/>
         <source>Open Anyway</source>
         <translation>仍然打开</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="482"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="429"/>
         <source>Another document operation is already in progress</source>
         <translation>另一个文档操作正在进行中</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="983"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="918"/>
         <source>%1 is exiting...</source>
         <translation>%1 正在退出...</translation>
     </message>
     <message>
-        <location filename="../../UI/Window/MainWindow.cpp" line="984"/>
+        <location filename="../../UI/Window/MainWindow.cpp" line="919"/>
         <source>Terminating background tasks...</source>
         <translation>正在停止后台任务...</translation>
     </message>
@@ -4381,12 +4341,12 @@ current denominator: %L5</source>
     <message>
         <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="431"/>
         <source>Failed to flush file: %1</source>
-        <translation>写入文件失败：%1</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="436"/>
         <source>Failed to commit file: %1</source>
-        <translation>提交文件失败：%1</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="447"/>
@@ -4991,17 +4951,17 @@ type: %L1</source>
 <context>
     <name>ParamEditorGraphicsView</name>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.cpp" line="617"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.cpp" line="638"/>
         <source>Linear</source>
         <translation>线性</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.cpp" line="624"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.cpp" line="645"/>
         <source>Hermite</source>
         <translation>Hermite</translation>
     </message>
     <message>
-        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.cpp" line="637"/>
+        <location filename="../../UI/Views/ClipEditor/ParamEditor/ParamEditorGraphicsView.cpp" line="658"/>
         <source>&amp;Delete</source>
         <translation>删除(&amp;D)</translation>
     </message>
@@ -5184,7 +5144,7 @@ type: %L1</source>
         <translation>下移(&amp;o)</translation>
     </message>
     <message>
-        <location filename="../../../libs/GUI/Controls/PathEditor.cpp" line="189"/>
+        <location filename="../../../libs/GUI/Controls/PathEditor.cpp" line="191"/>
         <source>Browse directory</source>
         <translation>浏览目录</translation>
     </message>
@@ -5902,22 +5862,22 @@ All current mix settings will be lost.</source>
 <context>
     <name>SpeakerMixList</name>
     <message>
-        <location filename="../../UI/Dialogs/SpeakerMix/SpeakerMixList.cpp" line="231"/>
+        <location filename="../../UI/Dialogs/SpeakerMix/SpeakerMixList.cpp" line="229"/>
         <source>Speaker: </source>
         <translation>声线：</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/SpeakerMix/SpeakerMixList.cpp" line="245"/>
+        <location filename="../../UI/Dialogs/SpeakerMix/SpeakerMixList.cpp" line="243"/>
         <source>Position: </source>
         <translation>位置：</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/SpeakerMix/SpeakerMixList.cpp" line="429"/>
+        <location filename="../../UI/Dialogs/SpeakerMix/SpeakerMixList.cpp" line="427"/>
         <source> (used)</source>
         <translation>（已使用）</translation>
     </message>
     <message>
-        <location filename="../../UI/Dialogs/SpeakerMix/SpeakerMixList.cpp" line="474"/>
+        <location filename="../../UI/Dialogs/SpeakerMix/SpeakerMixList.cpp" line="472"/>
         <source>(No Singer)</source>
         <translation>(无歌手)</translation>
     </message>
@@ -6033,7 +5993,7 @@ All current mix settings will be lost.</source>
     <message>
         <location filename="../../Modules/FillLyric/Utils/TextTagger.cpp" line="331"/>
         <source>Tagger dictionary was not found: %1</source>
-        <translation>未找到标注词典：%1</translation>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -6228,8 +6188,8 @@ All current mix settings will be lost.</source>
 <context>
     <name>TracksRhiWidget</name>
     <message>
-        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1328"/>
-        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1420"/>
+        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1340"/>
+        <location filename="../../UI/Views/TrackEditor/TracksRhiWidget.cpp" line="1432"/>
         <source>(No singer)</source>
         <translation>(无歌手)</translation>
     </message>

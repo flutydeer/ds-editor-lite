@@ -1,6 +1,5 @@
 #include "PianoRollRhiWidget.h"
 
-#include "GhostNoteSource.h"
 #include "NoteView.h"
 #include "NoteEditUtils.h"
 #include "NoteLyricPresentation.h"
@@ -239,8 +238,6 @@ public:
             [this] { scheduleSnapshot(); },
         });
         anchorController.setAlwaysVisible(true);
-        QObject::connect(&ghostNotes, &GhostNoteSource::changed, q,
-                         [this] { scheduleSnapshot(); });
     }
 
     ~Private() {
@@ -368,7 +365,6 @@ public:
                 scheduleSnapshot();
             });
         }
-        ghostNotes.setHostClip(clip);
         loadAnchorCurvesFromModel();
         anchorController.setEditActive(editMode == EditPitchAnchor);
         reloadPitchTransformSource();
@@ -2038,7 +2034,6 @@ public:
 
             appendBackground(localStart, localEnd, sceneTop, sceneBottom);
             appendTimeline(localStart, localEnd, sceneTop, sceneBottom);
-            appendGhostNotes(localStart, localEnd);
             appendNotes(localStart, localEnd);
             appendPastePreview(localStart, localEnd);
             appendPitch(localStart, localEnd);
@@ -2272,44 +2267,6 @@ private:
             pronunciation, pronunciationFont, pronunciationRect.topLeft(), pronunciationColor,
             pronunciationRect, dpr, physicalCameraOffset(), q->physicalWindowOffset());
         drawList.appendTexture(pronunciationSpan, vertices.size());
-    }
-
-    // Reference notes from the other tracks: thin bars centered in their key row, painted
-    // only, never interactive. Emitted before appendNotes() so the draw order keeps them
-    // underneath the current clip's notes.
-    void appendGhostNotes(const double localStart, const double localEnd) {
-        const auto &ghosts = ghostNotes.notes();
-        if (!ghostNotes.enabled() || ghosts.isEmpty())
-            return;
-        const auto rowHeight = noteHeight * verticalScale();
-        const auto barHeight =
-            std::max(GhostNoteStyle::minHeight, rowHeight * GhostNoteStyle::heightRatio);
-        const auto offset = clip->start();
-        const auto sceneTop = verticalOffset();
-        const auto sceneBottom = verticalOffset() + q->height();
-        // Notes have length, so one starting left of the visible range can still reach
-        // into it. Begin the scan at localStart - maxLength.
-        const auto scanFrom = localStart + offset - ghostNotes.maxLength();
-        const auto first = std::lower_bound(ghosts.begin(), ghosts.end(), scanFrom,
-                                            [](const GhostNote &note, const double tick) {
-                                                return note.globalStart < tick;
-                                            });
-        for (auto it = first; it != ghosts.end(); ++it) {
-            const auto &ghost = *it;
-            const auto ghostStart = ghost.globalStart - offset;
-            if (ghostStart > localEnd)
-                break; // the list is sorted by globalStart
-            if (ghostStart + ghost.length < localStart)
-                continue;
-            const auto top = viewport.unitToSceneY(127 - ghost.keyIndex) +
-                             (rowHeight - barHeight) * 0.5;
-            if (top + barHeight < sceneTop || top > sceneBottom)
-                continue;
-            const auto left = viewport.tickToSceneX(ghostStart);
-            const auto right = viewport.tickToSceneX(ghostStart + ghost.length);
-            appendLogicalRect(GhostNoteStyle::barRect(left, right, top, barHeight),
-                              GhostNoteStyle::fillColor(ghost.colorIndex));
-        }
     }
 
     void appendNotes(const double localStart, const double localEnd) {
@@ -3008,7 +2965,6 @@ public:
     quint64 noteEraseSessionId = 0;
     AnchorEditor::AnchorEditController anchorController;
     quint64 anchorEditSessionId = 0;
-    GhostNoteSource ghostNotes;
     EditorViewportController viewport;
     EditorWheelController wheel;
     EditorTouchController *touchController = nullptr;

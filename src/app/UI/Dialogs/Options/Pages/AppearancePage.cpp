@@ -37,7 +37,6 @@ void AppearancePage::modifyOption() {
     settings.useNativeFrame = m_swUseNativeFrame->value();
     settings.animationEnabled = m_swAnimationEnabled->value();
     settings.animationTimeScale = QLocale().toDouble(m_leAnimationTimeScale->text());
-    settings.showGhostNotes = m_swShowGhostNotes->value();
     runtime->settings().updateAppearance({}, settings);
 }
 
@@ -145,19 +144,11 @@ QWidget *AppearancePage::createContentWidget() {
     animationCard->addItem(tr("Enable animations"), m_swAnimationEnabled);
     animationCard->addItem(tr("Duration scale"), m_leAnimationTimeScale);
 
-    m_swShowGhostNotes = new SwitchButton(option->showGhostNotes);
-    connect(m_swShowGhostNotes, &SwitchButton::toggled, this, &AppearancePage::modifyOption);
-
-    const auto pianoRollCard = new OptionListCard(tr("Piano Roll"));
-    pianoRollCard->addItem(tr("Show notes from other tracks"),
-                           tr("Displayed as thin bars for reference only"), m_swShowGhostNotes);
-
     const auto mainLayout = new QVBoxLayout;
     mainLayout->addWidget(themeCard);
     mainLayout->addWidget(fontCard);
     mainLayout->addWidget(windowCard);
     mainLayout->addWidget(animationCard);
-    mainLayout->addWidget(pianoRollCard);
     mainLayout->addStretch();
     mainLayout->setContentsMargins({});
     widget->setLayout(mainLayout);

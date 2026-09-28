@@ -16,8 +16,6 @@
 #include <QString>
 
 class ClipRangeOverlay;
-class GhostNoteOverlay;
-class GhostNoteSource;
 class AnchorOverlayView;
 class PitchEditorView;
 class QMouseEvent;
@@ -59,8 +57,6 @@ public:
     CurveTransform::PitchContext m_pitchTransformContext;
     AnchorOverlayView *m_anchorEditor = nullptr;
     ClipRangeOverlay *m_clipRangeOverlay = nullptr;
-    GhostNoteOverlay *m_ghostOverlay = nullptr;
-    GhostNoteSource *m_ghostSource = nullptr;
     // Applied to the lazily-created SplitLineIndicator on each tool activation
     QColor m_splitLineColor = {255, 100, 100};
 
