@@ -2,6 +2,7 @@
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
+#include <lite/GUI/Controls/ComboPopupTouchFilter.h>
 #include <lite/Support/LogBus.h>
 #include "Model/AppOptions/AppOptions.h"
 #include <lite/GUI/Theme/ThemeManager.h>
@@ -197,6 +198,9 @@ LogWindow::LogWindow(QWidget *parent) : Window(parent) {
     m_proxyModel->setSourceModel(m_model);
 
     m_cbLevel = new QComboBox;
+    // Raw QComboBox popups need the touch treatment installed explicitly
+    // (tap selects, drag scrolls); the ComboBox subclass does it in initUi().
+    ComboPopupTouchFilter::install(m_cbLevel);
     for (const auto level : {Log::Debug, Log::Info, Log::Warning, Log::Error, Log::Fatal})
         m_cbLevel->addItem({}, level);
     connect(m_cbLevel, &QComboBox::currentIndexChanged, this, [this](const int index) {
@@ -205,6 +209,7 @@ LogWindow::LogWindow(QWidget *parent) : Window(parent) {
     });
 
     m_cbTag = new QComboBox;
+    ComboPopupTouchFilter::install(m_cbTag);
     m_cbTag->addItem({}); // "All tags"
     m_cbTag->setMinimumWidth(160);
     connect(m_cbTag, &QComboBox::currentIndexChanged, this, [this](const int index) {

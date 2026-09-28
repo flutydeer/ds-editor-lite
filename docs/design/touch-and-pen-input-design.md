@@ -1001,3 +1001,32 @@ Qt Widgets 没有拦截协议：触摸流（→viewport→QScroller）与子控�
 **一次踩过的坑（勿重犯）**：`DecelerationFactor` 曾被当作"时长"来调——本文件与 `SmoothScroller.cpp` 都曾写"调高会滑更久"，方向是反的，于是从 0.125 调到 0.15 后体感毫无改善。它是阻尼，距离 ∝ `1 / factor`。改这个值前先复核 `createScrollingSegments()` 的换算式。
 
 **单测覆盖缺口**：`src/tests/TestTouchScrollClaim/` 覆盖认领几何、豁免开关与惯性滑行，但**"滚轮停掉滑行"这条断不出**。手工构造的 `QWheelEvent` 是非自发事件，实测（Qt 6.11.2 offscreen）它根本到不了 viewport 的事件过滤器——在同一 viewport 上并列装的 identity 过滤器也收不到，滚动条也不动；改投窗口 handle 只能间歇性送达，无法承载断言。真实滚轮事件是自发的，会正常到达 viewport 过滤器，故该行为只能真机验证（见下方清单第 1 项）。测试中以 `SKIP` 显式标注，不要把它改回断言。
+
+## 十四、ComboBox 弹层的触摸选择语义
+
+业务下拉框（量化、采样率、字体等）与 LogWindow 两个原生 `QComboBox` 的弹层虽已挂触摸惯性滚动（`ComboBox::initUi` 的 `SmoothScroller`），但 2026-09-28 前真机上手指拖动仍是"逐项高亮、松手即选中并关闭"，且**完全滚不动**。根因有两层：
+
+### 机制（2026-09-28 实测 + 源码核实）
+
+- **弹层根本收不到触摸事件**：`QWidgetWindow::handleTouchEvent`（`qwidgetwindow.cpp:705`）在**存在活动弹窗时对触摸事件一律 `ignore()`**（注释写明：让 QGuiApplication 把触摸合成成鼠标，再由 `handleMouseEvent` 正确转发进弹层）。因此 `QScroller::TouchGesture` 抓在弹层 viewport 上**永远等不到输入**——这不是参数没调好，是 Qt 的投递策略。单测探针实证：press 后 scroller 状态仍为 Inactive、viewport 的事件过滤器 0 条触摸。
+- 于是弹层能看到的触摸衍生流**只有合成鼠标**：Qt 的 `ByQt` 合成（`qguiapplication.cpp` `processTouchEvent`）+ Windows 的 `BySystem` legacy 鼠标（`qwindowspointerhandler.cpp` `translateMouseEvent`，`nomousefromtouch` 不能开——会杀掉触摸长按菜单，见第五节）。两者各来一份 press/move/release（**同一触摸有两份合成 press**）。
+- 合成鼠标驱动 `QAbstractItemView` 逐项高亮；release 走 `QComboBoxPrivateContainer::eventFilter` 的关闭分支（`qcombobox.cpp:1022-1035`：release 落在 view 内且 currentIndex 有效 → `hidePopup()` + `itemSelected(currentIndex)`）——**任何拖动松手都变成"选中松手处条目并关闭弹层"**。容器过滤器同时挂在 view 与 viewport 上（`qcombobox.cpp:868-869`），在 viewport 层丢弃即可同时拦住两条投递路。
+- 默认 `DragStartDistance` 是 5 mm（`qscrollerproperties.cpp:27`），对弹层这种小列表太迟钝。
+
+### 契约（`ComboPopupTouchFilter::install(QComboBox*)`，`src/libs/GUI/Controls/`）
+
+弹层 viewport 上的事件过滤器（幂等，须在最终 view 设定后调用；`ComboBox::initUi` 与 `LogWindow` 两处挂接）：
+
+- **拦截一切 `source() != MouseEventNotSynthesized` 的鼠标事件**（press/move/release/dblclick，含 ByQt 与 BySystem），**用它们直接喂 `QScroller::handleInput()`**（InputPress/InputMove/InputRelease，坐标为 viewport 本地、时间戳用事件自带）——复用与全应用一致的惯性物理。真实鼠标与笔不受影响（Windows 上笔的鼠标流 `source=MouseEventNotSynthesized`，第六节第 6 条），点按选中、拖动逐项选择照旧。
+- **轻点重放**：流结束时若相对按下点的 `(delta / pixelPerMeter).manhattanLength()` ≤ 2 mm（与 `qscroller.cpp` 的 `moveStarted` 同一判式），把释放位置重放为 `NotSynthesized` 的 `MousePress+MouseRelease`——走 Qt 原生的 activated / 容器关闭路径，弹层照常选中并收起。位移超阈值（`m_moved` 闩锁，拖出又拖回起点也不算轻点）则整条流归 QScroller，不重放。
+- **阈值与 `DragStartDistance` 对齐**：`install()` 把弹层 scroller 的 `DragStartDistance` 设为同一个 2 mm（Qt 默认 5 mm 太钝），任何一条流要么轻点要么滚动，没有死区。`pixelPerMeter` 用 `screen()->physicalDotsPerInch()/0.0254`；报告不出合理 DPI 的平台回退 96 DPI 的像素阈值。
+- **双份合成流去重**：流进行中的第二个 press（另一来源的合成）不得重置 `m_pressPosition`/`m_moved`；流结束后的多余 release 直接丢弃。release 一律先喂 `handleInput(InputRelease)`（Dragging→滑行、Pressed→回 Inactive）再做轻点判定，scroller 状态永不滞留。
+- 触摸事件万一被投到弹层（非 Windows 平台）则整流接受并 `stop()` scroller，保证合成鼠标流是唯一驱动源。
+- 已知限制：弹层内**触摸长按不再弹上下文菜单**（合成右键被一并丢弃；combo 项本无上下文菜单）；弹层外不受影响。OverlayScrollBar 在容器层不在 viewport 上，其触摸拖动仍走合成鼠标路径，照常可用。惯性滑行中轻点 = 重放点击先经 SmoothScroller 停滑行，即移动端"点一下停住并选中"。
+- 单测 `src/tests/TestComboPopupTouch/`：真实鼠标点选/拖选回归、双来源轻点（BySystem/ByQt）、阈值内摆动仍算轻点、拖动滚动且不提交、拖出拖回不变形、双份合成流只轻点一次。拖动惯性按 offscreen 限制以真机为准（同第十三节）。
+
+### 真机回归（并入第十三节清单第 5 项）
+
+`ComboBox` 弹层（量化 / 采样率 / 字体 / LogWindow 级别与标签）：轻点选中并关闭；拖动滚动带惯性、松手不选中；惯性中轻点停住并选中；鼠标点选与拖动逐项选择、滚轮平滑照旧；笔尖点选与拖动照旧。
+
+**2026-09-28 真机确认（触摸平板，DML 便携版）**：上述各项实测通过，2 mm 阈值与惯性手感被接受，定为当前值；弹层内触摸长按菜单消失无体感损失。

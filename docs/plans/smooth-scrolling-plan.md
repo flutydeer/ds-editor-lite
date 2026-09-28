@@ -138,7 +138,7 @@ private:
 ## 边界与副作用检查
 
 - **TimeGraphicsView 挂不挂**：不挂（已有动画，且 eventFilter 在 viewport 上会跟内部滚动打架）。SmoothScroller 应跳过 `QGraphicsView`。
-- **ComboBox 弹出层**：已挂（`src/libs/GUI/Controls/ComboBox.cpp initUi`）。数据源/几何均沿用同一 `view()`，与 OverlayScrollBar 共存不冲突。
+- **ComboBox 弹出层**：已挂（`src/libs/GUI/Controls/ComboBox.cpp initUi`）。数据源/几何均沿用同一 `view()`，与 OverlayScrollBar 共存不冲突。2026-09-28 起弹层另装 `ComboPopupTouchFilter`：**弹层收不到触摸事件**（Qt 在有活动弹窗时对触摸一律 ignore、只转发合成鼠标，`qwidgetwindow.cpp:705`），故由过滤器拦截触摸衍生的合成鼠标流、喂 `QScroller::handleInput()` 并重放轻点，`DragStartDistance` 对齐 2 mm——修复"手指拖动变成逐项选择并在松手时关闭弹层、完全滚不动"。机制与契约见 `docs/design/touch-and-pen-input-design.md` 第十四节。
 - **自定义 Popup 内 QListView（TrackEditor 等）**：暂无挂（避免 popup 打开/关闭延迟感）。
 - **qApp 过滤器 vs per-viewport 过滤器**：最终采用 per-viewport（per-area），不装 qApp。原因：qApp 会影响全局并必须排除 TimeGraphicsView 等，耦合大。
 
