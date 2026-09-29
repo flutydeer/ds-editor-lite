@@ -61,6 +61,21 @@ public:
     // Called when a second finger turns the gesture into navigation.
     virtual void cancelTouchPointerInteraction() {
     }
+
+    // Touch streams that begin on an active inline text editor are owned by
+    // the editor, not by the canvas: the controller forwards them untouched
+    // and the gesture machine never sees the point. Begin answers whether the
+    // point is over such an editor and took the stream; the rest deliver the
+    // owned stream until it ends or the platform cancels it.
+    [[nodiscard]] virtual bool touchRelayTextBegin(const QPointF &viewportPosition) {
+        return false;
+    }
+    virtual void touchRelayTextMove(const QPointF &viewportPosition) {
+    }
+    virtual void touchRelayTextEnd(const QPointF &viewportPosition) {
+    }
+    virtual void touchRelayTextCancel() {
+    }
 };
 
 #endif // EDITORTOUCHTARGET_H

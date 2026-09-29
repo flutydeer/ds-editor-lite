@@ -4,14 +4,25 @@
 #include <lite/GUI/Controls/Menu.h>
 
 #include <QApplication>
+#include <QContextMenuEvent>
+#include <QCoreApplication>
 #include <QFocusEvent>
 #include <QHBoxLayout>
 #include <QKeyEvent>
 #include <QLineEdit>
 #include <QMouseEvent>
 #include <QStyle>
+#include <QTimer>
+
+#include <cmath>
 
 namespace {
+    // Long press that opens the line edit's context menu with a finger. The
+    // canvas gesture machine uses the same numbers, but its config lives in
+    // the app layer and cannot be reached from this control.
+    constexpr int kTouchLongPressMs = 450;
+    constexpr double kTouchLongPressSlopPx = 12.0;
+
     class InlineLineEdit final : public LineEdit {
     public:
         using LineEdit::LineEdit;
@@ -27,6 +38,16 @@ namespace {
 InlineTextEditOverlay::InlineTextEditOverlay(QWidget *parent) : QWidget(parent) {
     setAttribute(Qt::WA_StyledBackground);
     setObjectName("InlineTextEditOverlay");
+    m_touchLongPressTimer = new QTimer(this);
+    m_touchLongPressTimer->setSingleShot(true);
+    m_touchLongPressTimer->setInterval(kTouchLongPressMs);
+    connect(m_touchLongPressTimer, &QTimer::timeout, this, [this] {
+        // The menu is owed to the release, not to the hold: a stream whose
+        // release never shows up opens nothing at all instead of a menu the
+        // finger never asked for.
+        if (m_touchClaimed && !m_activeMenu && !m_submitted && isVisible())
+            m_touchMenuPending = true;
+    });
     hide();
 }
 
@@ -80,6 +101,63 @@ void InlineTextEditOverlay::dismiss(const bool cancel) {
 
 bool InlineTextEditOverlay::isEditing() const {
     return isVisible();
+}
+
+bool InlineTextEditOverlay::relayTouchBegin(const QPointF &globalPos) {
+    if (!m_lineEdit || !isEditing() || m_submitted)
+        return false;
+    if (!rect().contains(mapFromGlobal(globalPos).toPoint()))
+        return false;
+    // A stream whose end never arrived (a submit hid the line edit, the
+    // platform dropped the release) must not leave it pressed: close the old
+    // stream before opening the new one.
+    if (m_touchClaimed)
+        sendTouchMouse(QEvent::MouseButtonRelease, m_touchLastGlobal, Qt::LeftButton,
+                       Qt::NoButton);
+    m_touchClaimed = true;
+    m_touchMenuPending = false;
+    m_mouseTarget = m_lineEdit;
+    m_touchPressGlobal = globalPos;
+    m_touchLastGlobal = globalPos;
+    if (!m_activeMenu)
+        m_touchLongPressTimer->start();
+    sendTouchMouse(QEvent::MouseButtonPress, globalPos, Qt::LeftButton, Qt::LeftButton);
+    return true;
+}
+
+void InlineTextEditOverlay::relayTouchMove(const QPointF &globalPos) {
+    if (!m_touchClaimed)
+        return;
+    m_touchLastGlobal = globalPos;
+    const auto travel = globalPos - m_touchPressGlobal;
+    if (std::hypot(travel.x(), travel.y()) > kTouchLongPressSlopPx) {
+        m_touchLongPressTimer->stop();
+        m_touchMenuPending = false;
+    }
+    sendTouchMouse(QEvent::MouseMove, globalPos, Qt::NoButton, Qt::LeftButton);
+}
+
+void InlineTextEditOverlay::relayTouchEnd(const QPointF &globalPos) {
+    if (!m_touchClaimed)
+        return;
+    m_touchLongPressTimer->stop();
+    const bool raiseMenu = m_touchMenuPending;
+    m_touchMenuPending = false;
+    sendTouchMouse(QEvent::MouseButtonRelease, globalPos, Qt::LeftButton, Qt::NoButton);
+    if (raiseMenu)
+        postTouchContextMenu();
+    m_touchClaimed = false;
+    m_mouseTarget.clear();
+}
+
+void InlineTextEditOverlay::relayTouchCancel() {
+    if (!m_touchClaimed)
+        return;
+    m_touchLongPressTimer->stop();
+    m_touchMenuPending = false;
+    sendTouchMouse(QEvent::MouseButtonRelease, m_touchLastGlobal, Qt::LeftButton, Qt::NoButton);
+    m_touchClaimed = false;
+    m_mouseTarget.clear();
 }
 
 bool InlineTextEditOverlay::eventFilter(QObject *obj, QEvent *event) {
@@ -141,6 +219,29 @@ bool InlineTextEditOverlay::eventFilter(QObject *obj, QEvent *event) {
         }
     }
     return QWidget::eventFilter(obj, event);
+}
+
+void InlineTextEditOverlay::sendTouchMouse(const QEvent::Type type, const QPointF &globalPos,
+                                           const Qt::MouseButton button,
+                                           const Qt::MouseButtons buttons) {
+    auto *target = m_mouseTarget.data();
+    if (!target)
+        return;
+    QMouseEvent mouseEvent(type, target->mapFromGlobal(globalPos), globalPos, globalPos, button,
+                           buttons, QApplication::keyboardModifiers());
+    QCoreApplication::sendEvent(target, &mouseEvent);
+}
+
+void InlineTextEditOverlay::postTouchContextMenu() {
+    if (m_activeMenu || m_submitted || !isVisible() || !m_mouseTarget)
+        return;
+    // Posted, never sent: raising the menu while the canvas controller is
+    // still forwarding the stream would run its event loop under its feet.
+    const auto global = m_touchLastGlobal.toPoint();
+    QCoreApplication::postEvent(
+        m_mouseTarget.data(),
+        new QContextMenuEvent(QContextMenuEvent::Mouse, m_mouseTarget->mapFromGlobal(global),
+                              global, Qt::NoModifier));
 }
 
 void InlineTextEditOverlay::submit() {

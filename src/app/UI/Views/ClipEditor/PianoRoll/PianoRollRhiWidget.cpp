@@ -3162,6 +3162,29 @@ void PianoRollRhiWidget::cancelTouchPointerInteraction() {
     d->abortPointerInteractions();
 }
 
+bool PianoRollRhiWidget::touchRelayTextBegin(const QPointF &viewportPosition) {
+    if (!d->inlineEditor || !d->inlineEditor->isEditing())
+        return false;
+    if (!d->inlineEditor->geometry().contains(viewportPosition.toPoint()))
+        return false;
+    return d->inlineEditor->relayTouchBegin(mapToGlobal(viewportPosition.toPoint()));
+}
+
+void PianoRollRhiWidget::touchRelayTextMove(const QPointF &viewportPosition) {
+    if (d->inlineEditor)
+        d->inlineEditor->relayTouchMove(mapToGlobal(viewportPosition.toPoint()));
+}
+
+void PianoRollRhiWidget::touchRelayTextEnd(const QPointF &viewportPosition) {
+    if (d->inlineEditor)
+        d->inlineEditor->relayTouchEnd(mapToGlobal(viewportPosition.toPoint()));
+}
+
+void PianoRollRhiWidget::touchRelayTextCancel() {
+    if (d->inlineEditor)
+        d->inlineEditor->relayTouchCancel();
+}
+
 EditorPenEraser PianoRollRhiWidget::penEraserAction() const {
     // Mirrors the legacy piano roll: nothing to erase without a clip.
     if (!d->clip)

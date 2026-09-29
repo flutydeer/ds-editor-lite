@@ -288,6 +288,33 @@ void PianoRollGraphicsView::cancelTouchPointerInteraction() {
     TimeGraphicsView::cancelTouchPointerInteraction();
 }
 
+bool PianoRollGraphicsView::touchRelayTextBegin(const QPointF &viewportPosition) {
+    Q_D(PianoRollGraphicsView);
+    if (!d->m_inlineEditor || !d->m_inlineEditor->isEditing())
+        return false;
+    if (!d->m_inlineEditor->geometry().contains(viewportPosition.toPoint()))
+        return false;
+    return d->m_inlineEditor->relayTouchBegin(viewport()->mapToGlobal(viewportPosition.toPoint()));
+}
+
+void PianoRollGraphicsView::touchRelayTextMove(const QPointF &viewportPosition) {
+    Q_D(PianoRollGraphicsView);
+    if (d->m_inlineEditor)
+        d->m_inlineEditor->relayTouchMove(viewport()->mapToGlobal(viewportPosition.toPoint()));
+}
+
+void PianoRollGraphicsView::touchRelayTextEnd(const QPointF &viewportPosition) {
+    Q_D(PianoRollGraphicsView);
+    if (d->m_inlineEditor)
+        d->m_inlineEditor->relayTouchEnd(viewport()->mapToGlobal(viewportPosition.toPoint()));
+}
+
+void PianoRollGraphicsView::touchRelayTextCancel() {
+    Q_D(PianoRollGraphicsView);
+    if (d->m_inlineEditor)
+        d->m_inlineEditor->relayTouchCancel();
+}
+
 void PianoRollGraphicsView::contextMenuEvent(QContextMenuEvent *event) {
     Q_D(PianoRollGraphicsView);
     if (!d->m_clip)

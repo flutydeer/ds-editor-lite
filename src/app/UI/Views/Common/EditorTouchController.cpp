@@ -291,6 +291,26 @@ bool EditorTouchController::handleTouchEvent(QTouchEvent *event) {
     for (const auto &point : event->points()) {
         const auto position = point.position();
         const auto state = point.state();
+
+        // A stream an inline text editor took over belongs to the editor: it
+        // is forwarded untouched and stays invisible to the gesture machine,
+        // because only the canvas delivery reaches every event of a stream.
+        if (m_textRelayActive && point.id() == m_textRelayPointId) {
+            switch (state) {
+                case QEventPoint::State::Pressed:
+                    break;
+                case QEventPoint::State::Released:
+                    m_target->touchRelayTextEnd(position);
+                    m_textRelayActive = false;
+                    m_textRelayPointId = -1;
+                    break;
+                default:
+                    m_target->touchRelayTextMove(position);
+                    break;
+            }
+            continue;
+        }
+
         // A finger that is on the glass but unknown to the machine has to be
         // picked up, not ignored. moved() only answers to ids it has seen, so
         // anything that desynchronized the two, a touch cancel, a pointer
@@ -305,6 +325,11 @@ bool EditorTouchController::handleTouchEvent(QTouchEvent *event) {
 
         switch (state) {
             case QEventPoint::State::Pressed:
+                if (m_target->touchRelayTextBegin(position)) {
+                    m_textRelayActive = true;
+                    m_textRelayPointId = point.id();
+                    break;
+                }
                 dispatch(m_gesture.pressed(point.id(), position, timestamp));
                 break;
             case QEventPoint::State::Updated:
@@ -322,7 +347,8 @@ bool EditorTouchController::handleTouchEvent(QTouchEvent *event) {
 
     QList<int> activeIds;
     for (const auto &point : event->points()) {
-        if (point.state() != QEventPoint::State::Released)
+        if (point.state() != QEventPoint::State::Released &&
+            !(m_textRelayActive && point.id() == m_textRelayPointId))
             activeIds.append(point.id());
     }
     dispatch(m_gesture.syncActivePoints(activeIds));
@@ -626,6 +652,12 @@ void EditorTouchController::cancel() {
     disarmLongPressTimer();
     stopInertia();
     dropPendingContextMenu();
+    if (m_textRelayActive) {
+        m_textRelayActive = false;
+        m_textRelayPointId = -1;
+        if (m_target)
+            m_target->touchRelayTextCancel();
+    }
     const auto events = m_gesture.cancelled();
     for (const auto &event : events) {
         if (event.type == EditorTouchGesture::Event::Type::SingleCancel)

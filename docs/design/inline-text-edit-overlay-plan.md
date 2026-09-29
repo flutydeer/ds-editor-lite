@@ -22,7 +22,17 @@
 
 ## 关键实现
 
-- `InlineTextEditOverlay` / `InlineEditLabel`：`src/app/UI/Controls/`
-- 钢琴卷帘共享覆盖层宿主：`PianoRollGraphicsView`（viewport 覆盖编辑器 + 稳定目标 note id）
+- `InlineTextEditOverlay` / `InlineEditLabel`：`src/libs/GUI/Controls/`
+- 钢琴卷帘共享覆盖层宿主：`PianoRollGraphicsView`（viewport 覆盖编辑器 + 稳定目标 note id）与 `PianoRollRhiWidget`
 - 编辑态 QSS：`clip-editor.qss` 等主题文件中的 `InlineEditLabel` / overlay 角色样式
 - FillLyric 模块自己的同名 `EditLabel` 控件保留，不在统一范围内
+
+## 触摸行为（2026-09-29）
+
+落在激活覆盖层上的触摸流由**画布触摸控制器持有并转发**，覆盖层不自行接管投递（Qt 隐式触摸抓取对非画布控件不持久化，三种自接管形态实测全部丢失 update/end——机制与取证见 `touch-and-pen-input-design.md` 第十五节）：
+
+- `EditorTouchTarget::touchRelayTextBegin/Move/End/Cancel`：控制器在手势机分派 Pressed 前逐点询问，编辑器上的点整条流转发，对手势机不可见。
+- 覆盖层 `relayTouchBegin/Move/End/Cancel(globalPos)` 把流转译为发给 line edit 的鼠标事件：点按定位光标、拖动选择；点按编辑器外照常触发"点击外部提交"。
+- 触摸长按 450 ms（12 px 漂移取消）**松手时**弹出行内编辑菜单，与画布长按菜单同一时序；流被平台吞掉则不弹。
+- 新流开始时若上一条流未收到 End，先补发 release 再接管（自愈）。
+- 真机回归清单见 `touch-and-pen-input-design.md` 第十五节。

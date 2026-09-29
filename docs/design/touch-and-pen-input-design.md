@@ -1031,3 +1031,40 @@ Qt Widgets 没有拦截协议：触摸流（→viewport→QScroller）与子控�
 `ComboBox` 弹层（量化 / 采样率 / 字体 / LogWindow 级别与标签）：轻点选中并关闭；拖动滚动带惯性、松手不选中；惯性中轻点停住并选中；鼠标点选与拖动逐项选择、滚轮平滑照旧；笔尖点选与拖动照旧。
 
 **2026-09-28 真机确认（触摸平板，DML 便携版）**：上述各项实测通过，2 mm 阈值与惯性手感被接受，定为当前值；弹层内触摸长按菜单消失无体感损失。
+
+## 十五、钢琴卷帘内联歌词编辑器的触摸转发
+
+### 问题（2026-09-29 真机）
+
+双击可打开内联歌词编辑器（`InlineTextEditOverlay`），但手指点击文本框或长按会让编辑器退出。根因：触摸被画布触摸控制器认领并 accept 后 Qt 不再合成鼠标，控制器的合成鼠标直接 `sendEvent` 给画布、绕过子控件解析，lineEdit 永远收不到输入。
+
+### 三种"自接管"形态的实测失败
+
+编辑器试图自己接管落在身上的触摸流，三种形态全部失败（本机触摸屏 + `developer.logTouchEvents` 探针逐层取证）：
+
+1. 事件过滤器装在"最近一个接受触摸的祖先"（legacy=viewport、RHI=RhiWidget）上认领；
+2. 应用级过滤器认领；
+3. 子控件自开 `WA_AcceptTouchEvents` 并在自身 `event()` 认领。
+
+三者共同症状：TouchBegin 能收到并认领，之后整条流的 TouchUpdate/TouchEnd **只投到窗口层、从不下发到任何 widget**（`translateRawTouchEvent` 因点级 target 为空整体丢弃）——长按定时器永远等不到结束。用私有头实测点级 target 证实：认领后 target 始终为 null。
+
+关键机制：**Qt 的隐式触摸抓取（`QApplication::notify` TouchBegin 分支 → `activateImplicitTouchGrab` 写点级 target）只在"投递接收者自身 event() 认领"时持久化**——画布（`EditorTouchController` 在 `PianoRollRhiWidget::event()` / `viewportEvent` 里认领）的流 target 落盘、update/end 全程可达；同一认领挪到过滤器或子控件 event() 均不落盘。`QEventPoint` 用 `QExplicitlySharedDataPointer`、setter 不 detach、`QMutableEventPoint::update` 明确保留 grabbers——丢弃点在投递链更深处，源码静态推演无法解释，以实测为准（2026-09-29，Qt 6.11.2）。
+
+### 契约（画布持有流 + 转发）
+
+既然只有画布认领可靠，编辑器不再自接管，改为**画布持有流、原样转发**：
+
+- `EditorTouchTarget` 新增四个带默认实现的虚函数（默认 no-op，只有钢琴卷帘两个后端覆写）：`touchRelayTextBegin/Move/End/Cancel`，坐标为控制器投递坐标（legacy=viewport 本地、RHI=widget 本地），Begin 返回是否接管。
+- `EditorTouchController` 在手势机逐点分派 `Pressed` **之前**询问：落在激活编辑器上的点立即转发并脱离手势机（不进 pressed/moved/released、不计入 `syncActivePoints`）——接管先于 tap/drag/long-press 分类，静止按住也能立即进入编辑。
+- 覆盖层公开 `relayTouchBegin/Move/End/Cancel(globalPos)`，把转发流重放为发给 line edit 的鼠标事件：点按定位光标、拖动选择。
+- **长按菜单归属松手**：覆盖层内 450 ms / 12 px 漂移阈值的定时器只置 pending，观察到 TouchEnd 才 post `QContextMenuEvent`（走 line edit 的 `CustomContextMenu`）——与画布长按菜单同一时序；流被平台吞掉则优雅退化为不弹。
+- **自愈**：新 Begin 遇到上一条未收到 End 的流，先补发 release 再接管。
+- 平台取消（TouchCancel、窗口失活、控件隐藏）经控制器 `cancel()` 走 `touchRelayTextCancel`。
+- 点按编辑器外的画布照常走画布手势，其合成鼠标 press 触发覆盖层既有的"点击外部提交"；转发期间的第二根手指仍归手势机（导航/点击外部语义不变）。
+- 覆盖层的全部提交路径（Enter/Esc/FocusOut/外部事件）不变；`InlineEditLabel`（轨道名/剪辑名等）经同一接口自动受益。
+
+### 真机回归（触摸）
+
+双击打开；快速单击定位光标无菜单；按住 0.6 s / 2 s 松手瞬间弹编辑菜单；按住后拖动选择无菜单；点编辑器外提交退出；长按画布音符菜单照旧；鼠标与笔行为不变。
+
+**2026-09-29 本机触摸屏确认（Debug，RHI 与 legacy 双后端）**：上述各项实测通过。触摸平板复验待做（部署前需重新 `-StageOnly`）。

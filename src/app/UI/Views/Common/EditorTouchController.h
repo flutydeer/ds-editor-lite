@@ -145,6 +145,13 @@ private:
     QPointF m_panVelocity;
     qint64 m_panTimestamp = 0;
 
+    // A touch stream an active inline text editor took over: every event of
+    // the point is forwarded to the editor and the gesture machine never sees
+    // it, because only the canvas delivery reaches every event of a stream
+    // reliably.
+    bool m_textRelayActive = false;
+    int m_textRelayPointId = -1;
+
     QPointF m_inertiaVelocity;
     qint64 m_inertiaTimestamp = 0;
     // A long press resolved into "open a menu here", so the menu is owed: it is

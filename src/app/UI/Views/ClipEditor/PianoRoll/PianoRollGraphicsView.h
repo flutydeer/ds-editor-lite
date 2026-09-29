@@ -112,6 +112,10 @@ protected:
     [[nodiscard]] ContentHit touchContentAt(const QPointF &viewportPosition) const override;
     [[nodiscard]] BlankDragAction touchBlankDragAction() const override;
     void cancelTouchPointerInteraction() override;
+    [[nodiscard]] bool touchRelayTextBegin(const QPointF &viewportPosition) override;
+    void touchRelayTextMove(const QPointF &viewportPosition) override;
+    void touchRelayTextEnd(const QPointF &viewportPosition) override;
+    void touchRelayTextCancel() override;
 
     // --- EditorPenTarget ---
     [[nodiscard]] EditorPenEraser penEraserAction() const override;
