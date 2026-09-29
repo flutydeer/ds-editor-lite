@@ -974,11 +974,17 @@ Qt Widgets 没有拦截协议：触摸流（→viewport→QScroller）与子控�
 | `SpeakerMixList` | 启用 | 把手为 `DragHandle` 并自带认领；列表保留自己的 `eventFilter` 与自绘 drop 指示器，`m_dragActive` 防重入（触摸转译的 move 会在 `QDrag` 模态循环内重入，嵌套 `startDrag`） |
 | `G2pListWidget`（`GListWidget`） | 豁免 | 内置 `InternalMove` 拖拽排序与单指拖动冲突。**已具备解除条件**（加 `DragHandle` 即可），本轮未做 |
 | `LyricWrapView` | 豁免 | 左键拖动是框选扫选，不能被滚动抢走 |
-| `TrackListView`（轨道头）、`AppOptionsDialog` 侧栏 | 启用 | 前者 2026-09-29 起接入：把手为轨道序号标签，认领装在列表 **viewport** 上、以 `isInDragArea` 为门槛，把手触摸重放为鼠标按压走排序、把手外触摸滚动列表并同步画布；自身 `QScroller` 同步改抓 **viewport** 键（Qt 按 grab 目标原样为键，`stopAncestorScroller` 只停 viewport 键）。后者 7 项永不滚动，不挂避免改变滚轮行为 |
+| `TrackListView`（轨道头）、`AppOptionsDialog` 侧栏 | 启用 | 前者 2026-09-29 起接入：把手为轨道序号标签，认领装在列表 **viewport** 上、以 `isInDragArea` 为门槛；触摸重排**绕开 QDrag**（见下方 Windows 触摸拖放限制），由认领重放的触摸流直接驱动插入指示与提交，重放事件携带真实触摸设备供视图识别；把手外触摸滚动列表并同步画布；触摸拖动暂无跟手半透明行浮层（QDrag pixmap 属被绕开路径，已记录待补）。自身 `QScroller` 同步改抓 **viewport** 键（Qt 按 grab 目标原样为键，`stopAncestorScroller` 只停 viewport 键）。后者 7 项永不滚动，不挂避免改变滚轮行为 |
 
 ### 与编辑器仲裁模型的关系及已知限制
 
 编辑器画布是自研手势层，对话框是 `QScroller` + 整块认领，两套互不重叠（编辑器视图自设 `WA_AcceptTouchEvents`，不经 `SmoothScroller`）。与 Android 的"方向 slop + 中途移交"相比，v1 整块认领的代价：从滑块上不能起手滚动页面（Android 在无移交场景下同款）；点按型控件上起手拖动会有按压高亮但松开在别处不误触发；文本框上拖动会边滚边选中文字。模拟移交（发现纵向 slop 先到就把滑块弹回起始值、改驱父滚动条）明确不做，涉及面太大；方向裁决的缺口如真机实测硌手再议。单测见 `src/tests/TestTouchScrollClaim/`。
+
+**Windows 触摸拖放的平台限制（2026-09-29 日志实测）**：`QDrag::exec()` 在 Windows 上走 OLE `DoDragDrop`，而 OLE 对投放目标的评估位置是**鼠标光标**——触摸不移动光标。Qt 的 `startDoDragDrop` workaround（`qwindowsdrag.cpp`，注释自述"Workaround for DoDragDrop() not working with touch/pen input"）只在拖拽**启动**时把光标一次性踢到手指位置。轨道头上观察到评估点全程冻结在按下处（`DragOver pt=` 不变、`grfKeyState=0`），插入索引恒无效，表现为"拖到哪里都不接受、没有指示线"；**同一机制下对话框列表（声线混合）长拖却被实测正常跟踪**（OLE 位置随手指移动 150px+），主窗口与对话框为何分叉（顶层窗口触摸注册差异是嫌疑）未完全钉死，勿断言对话框也有此问题。轨道头的修法：触摸重排绕开 QDrag，由认领重放的触摸流直接驱动 `dropInsertionIndex`/插入指示/`moveDraggedTrack`；`TouchClaimFilter` 的重放事件携带 `QTouchEvent::pointingDevice()`（真实触摸设备），视图以 `device()->type() == TouchScreen` 识别触摸起拖（鼠标/笔照走 QDrag：鼠标光标本就跟随、笔原生移动光标）。
+
+**同一平台的第二个坑（卡死）**：`startDoDragDrop` 注入的 `SendInput` 带 `LEFTDOWN` 且**永不释放**——触摸拖放之后系统一直认为左键按下，此后真实鼠标的每次移动都带幻影 `MK_LBUTTON`。视图若在松手后仍保留拖拽布防（陈旧 `m_canStartDrag` + 基类残留 pressedIndex），幻影移动会反复满足拖拽启动条件：`startDrag → QDrag::exec → startDoDragDrop` 门禁秒失败（E_FAIL、`resultEffect=0xCCCCCCCC`）无限循环，UI 线程被吃光呈白屏假死。因此拖拽布防必须随松手一律解除（`m_canStartDrag` 在 `mouseReleaseEvent` 清零），基类拖拽路径只在真实按住期间可达。
+
+**已知取舍**：绕开 QDrag 意味着触摸拖动没有跟手的半透明行浮层（浮层来自 QDrag 的 pixmap 机制，声线混合走 QDrag 所以有），当前仅有插入白线跟随；如需补齐，后续用跟随手指的悬浮 widget 实现。2026-09-29 本机实测：触摸长拖投放、多次拖放后晃动鼠标均稳定。
 
 ### 真机回归清单（触摸平板）
 
@@ -993,7 +999,7 @@ Qt Widgets 没有拦截协议：触摸流（→viewport→QScroller）与子控�
 9. 包扫描路径（通用设置）与访问根目录（自动化）：从**把手**拖动可改顺序且**页面纹丝不动**；从行体拖动只滚页面、不改顺序；**先拖一次行体再拖把手，把手照样能起拖**（门闩不能永久失效）；双击行进内联编辑、清空后离开删行；拖目录文件进列表照常追加。鼠标同样只能从把手起拖（Move Up/Down 按钮兜底）。
 10. FillLyric 规则列表（分割 / 标注两个 Tab）：行体单指可滚动列表；从把手拖动改顺序、页面不滚；**拖完一次后仍能继续从把手拖动**（`InternalMove` 会重建 item widget，这是最容易回归的一点）；勾选框与名称不错位。
 11. 声线混合：把手拖动排序、权重重分配与自绘插入指示器照常；关闭来源编辑后把手变灰且拖不动。
-12. 轨道头：从轨道序号把手拖动可排序、列表与画布**纹丝不动**；把手外触摸滚动列表且画布同步；鼠标从把手起拖照常、行体按下不拖。
+12. 轨道头：从轨道序号把手**拖过任意距离**（跨多行、拖到列表外再拖回）可排序，插入白线全程跟手，列表与画布**纹丝不动**；多次拖放后晃动真实鼠标不卡死；点按把手只选中不移动；把手外触摸滚动列表且画布同步；鼠标从把手起拖照常、行体按下不拖。已知取舍：触摸拖动暂无跟手半透明行浮层。
 
 **2026-09-28 真机摸排（触摸平板）**：手感被接受，本轮取值定为当前值——`DecelerationFactor` 0.30、越界距离上限 0.25（拖拽与回弹共用）、越界阻力 0.25、`OvershootScrollTime` 0.35。清单其余各项按需回归。
 

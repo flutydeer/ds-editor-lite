@@ -29,6 +29,7 @@ signals:
 protected:
     void mousePressEvent(QMouseEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
+    void mouseReleaseEvent(QMouseEvent *event) override;
     void wheelEvent(QWheelEvent *event) override;
     void dragMoveEvent(QDragMoveEvent *event) override;
     void dragLeaveEvent(QDragLeaveEvent *event) override;
@@ -48,6 +49,10 @@ private:
     QPoint m_dragStartPosition;
     int m_dragRow = -1;
     bool m_canStartDrag = false;
+    // A reorder started from a touch on the grip drives the insertion
+    // indicator and the commit directly (see mousePressEvent) instead of
+    // running the modal QDrag the mouse path uses.
+    bool m_touchReorder = false;
     QWidget *m_dropIndicator = nullptr;
     // Disabled, non-selectable, non-draggable placeholder row mirroring the
     // canvas append slot. Always the last row.

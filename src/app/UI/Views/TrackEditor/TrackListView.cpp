@@ -9,6 +9,7 @@
 #include <QDrag>
 #include <QDragMoveEvent>
 #include <QDropEvent>
+#include <QInputDevice>
 #include <QPainter>
 #include <QScrollBar>
 #include <QScroller>
@@ -91,11 +92,31 @@ void TrackListView::mousePressEvent(QMouseEvent *event) {
     // Check if the click is in the drag area (track index label)
     m_dragStartPosition = event->pos();
     m_canStartDrag = isInDragArea(event->pos());
+    // A touch-initiated reorder must not run the modal QDrag the mouse path
+    // uses: behind QDrag::exec() sits the native drag loop, which evaluates
+    // drop targets at the mouse cursor - and the cursor does not follow the
+    // finger, so the evaluation point would stay frozen at the press row and
+    // every drop would be rejected. The touch path drives the insertion
+    // indicator and the commit directly from the replayed stream instead.
+    m_touchReorder = m_canStartDrag && event->device() &&
+                     event->device()->type() == QInputDevice::DeviceType::TouchScreen;
+    if (m_touchReorder)
+        m_dragRow = indexAt(event->pos()).row();
     QListWidget::mousePressEvent(event);
     event->ignore();
 }
 
 void TrackListView::mouseMoveEvent(QMouseEvent *event) {
+    if (m_touchReorder) {
+        // Live insertion indicator straight from the touch stream; the base
+        // class is kept out so it cannot arm its own modal drag.
+        if (!setDropInsertionIndex(dropInsertionIndex(event->pos()))) {
+            event->ignore();
+            return;
+        }
+        event->accept();
+        return;
+    }
     // Only allow drag if the press started in the drag area
     if (!m_canStartDrag) {
         // Prevent drag by not calling base class when not in drag area
@@ -103,6 +124,24 @@ void TrackListView::mouseMoveEvent(QMouseEvent *event) {
         return;
     }
     QListWidget::mouseMoveEvent(event);
+}
+
+void TrackListView::mouseReleaseEvent(QMouseEvent *event) {
+    if (m_touchReorder) {
+        m_touchReorder = false;
+        // moveDraggedTrack() validates the insertion index itself, so a tap or
+        // a release over the source row is a no-op that just clears the state.
+        moveDraggedTrack(dropInsertionIndex(event->pos()));
+        m_dragRow = -1;
+        clearDropIndicator();
+    }
+    // The drag arm dies with the press. Qt's touch-drag startup workaround
+    // injects a left-button-down it never releases, so later real mouse moves
+    // arrive with a phantom LeftButton; combined with a stale arm they would
+    // re-enter the base drag path on every move (each QDrag::exec failing
+    // outright) and starve the UI thread.
+    m_canStartDrag = false;
+    QListWidget::mouseReleaseEvent(event);
 }
 
 void TrackListView::wheelEvent(QWheelEvent *event) {

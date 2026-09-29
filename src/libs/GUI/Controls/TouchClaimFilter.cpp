@@ -96,8 +96,11 @@ bool TouchClaimFilter::eventFilter(QObject *watched, QEvent *event) {
     if (mouseType == QEvent::None || (!m_pressed && mouseType != QEvent::MouseButtonPress))
         return true;
 
+    // The replay carries the touch device, not the primary pointer: the events
+    // genuinely originate from the touchscreen, and views distinguish a
+    // touch-initiated press from a mouse press by exactly this field.
     QMouseEvent mouseEvent(mouseType, point.position(), point.globalPosition(), button, buttons,
-                           touchEvent->modifiers());
+                           touchEvent->modifiers(), touchEvent->pointingDevice());
     mouseEvent.setTimestamp(touchEvent->timestamp());
     QCoreApplication::sendEvent(m_target.data(), &mouseEvent);
     if (mouseType == QEvent::MouseButtonRelease)
