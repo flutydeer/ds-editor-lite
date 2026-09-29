@@ -4,6 +4,7 @@ lite_add_test(${PROJECT_NAME}
         SOURCES
         main.cpp
         ../../app/UI/Views/Common/EditorTouchGesture.cpp
+        ../../app/UI/Views/Common/EditorTouchTarget.cpp
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE

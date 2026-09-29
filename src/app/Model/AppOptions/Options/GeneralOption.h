@@ -31,6 +31,11 @@ public:
     QStringList packageSearchPaths;
     QStringList recentProjectFiles;
     QJsonValue speakerMixPresets;
+    // Whether a finger may draw parameter curves in the clip editor. Off by
+    // default: a finger on the parameter panel (or with a pitch tool armed in
+    // the piano roll) scrolls the timeline instead, and the tool belongs to the
+    // pen and the mouse. The speaker mix editor is not covered.
+    LITE_OPTION_ITEM(bool, drawParamWithFinger, false)
     LITE_OPTION_ITEM(QString, gameDir, QString())
     LITE_OPTION_ITEM(QString, rmvpePath, QString())
     LITE_OPTION_ITEM(QString, libreSVIPPath, QString())

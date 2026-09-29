@@ -1,4 +1,5 @@
 #include "UI/Views/Common/EditorTouchGesture.h"
+#include "UI/Views/Common/EditorTouchTarget.h"
 
 #include <QTest>
 
@@ -494,6 +495,59 @@ private slots:
         Gesture gesture;
         gesture.pressed(1, {100, 100}, 0);
         QVERIFY(gesture.released(1, {100, 100}, 2000).isEmpty());
+    }
+
+    // --- EditorTouchTarget::fingerStreamFor --------------------------------
+    // Where a finger is allowed to edit, the table has to reproduce the
+    // historical policy exactly: only a plain drag picks a side, a tap always
+    // reaches the interaction layer, and a held press defers only where blank
+    // canvas already scrolls (that is what keeps a finger's rubber band alive).
+    void fingerStreamMatchesTheHistoricalPolicy() {
+        using Target = EditorTouchTarget;
+        using Stream = Target::FingerStream;
+        QCOMPARE(Target::fingerStreamFor({}), Stream::Synthetic);
+        QCOMPARE(Target::fingerStreamFor({.blankDrag = Target::BlankDragAction::Pan}),
+                 Stream::Pan);
+        QCOMPARE(Target::fingerStreamFor({.content = Target::ContentHit::Unselected,
+                                          .blankDrag = Target::BlankDragAction::Pan}),
+                 Stream::Pan);
+        // Content the finger has already selected is dragged even where blank
+        // canvas scrolls.
+        QCOMPARE(Target::fingerStreamFor({.content = Target::ContentHit::Selected,
+                                          .blankDrag = Target::BlankDragAction::Pan}),
+                 Stream::Synthetic);
+        // A tap never picks a side, wherever it lands.
+        QCOMPARE(Target::fingerStreamFor({.tap = true,
+                                          .blankDrag = Target::BlankDragAction::Pan}),
+                 Stream::Synthetic);
+        QCOMPARE(Target::fingerStreamFor({.fromLongPress = true}), Stream::Synthetic);
+        QCOMPARE(Target::fingerStreamFor({.fromLongPress = true,
+                                          .blankDrag = Target::BlankDragAction::Pan}),
+                 Stream::DeferredSynthetic);
+    }
+
+    // Where the finger may not edit, the stream is navigation only: a drag pans,
+    // a tap is swallowed rather than falling through to the tool, and a held
+    // press stays a menu until the finger travels.
+    void navigationOnlyFingerNeverReachesTheTool() {
+        using Target = EditorTouchTarget;
+        using Stream = Target::FingerStream;
+        QCOMPARE(Target::fingerStreamFor({.fingerEdits = false}), Stream::Pan);
+        QCOMPARE(Target::fingerStreamFor({.fingerEdits = false, .tap = true}),
+                 Stream::Consumed);
+        QCOMPARE(Target::fingerStreamFor({.fingerEdits = false, .fromLongPress = true}),
+                 Stream::DeferredPan);
+        // The piano roll's pitch tools report every note hit as Selected, and
+        // the parameter panel reports Pan itself: neither may punch through.
+        QCOMPARE(Target::fingerStreamFor({.fingerEdits = false,
+                                          .content = Target::ContentHit::Selected,
+                                          .blankDrag = Target::BlankDragAction::SyntheticMouse}),
+                 Stream::Pan);
+        QCOMPARE(Target::fingerStreamFor({.fingerEdits = false,
+                                          .tap = true,
+                                          .content = Target::ContentHit::Selected,
+                                          .blankDrag = Target::BlankDragAction::SyntheticMouse}),
+                 Stream::Consumed);
     }
 };
 

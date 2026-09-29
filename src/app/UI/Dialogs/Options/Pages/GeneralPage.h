@@ -12,6 +12,7 @@ class LanguageComboBox;
 class DirSelector;
 class FileSelector;
 class PathEditor;
+class SwitchButton;
 
 class GeneralPage : public IOptionPage {
     Q_OBJECT
@@ -37,6 +38,8 @@ private:
     FileSelector *m_fsGameDir;
     FileSelector *m_fsRmvpePath;
     FileSelector *m_fsLibreSVIPPath;
+
+    SwitchButton *m_swFingerDrawParam;
 };
 
 #endif // GENERALPAGE_H

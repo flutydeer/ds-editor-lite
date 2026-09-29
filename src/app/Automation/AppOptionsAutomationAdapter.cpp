@@ -49,6 +49,7 @@ namespace Automation {
                 .gameDirectory = value->gameDir,
                 .pitchModelPath = value->rmvpePath,
                 .libreSvipPath = value->libreSVIPPath,
+                .drawParamWithFinger = value->drawParamWithFinger,
             };
         }
 
@@ -62,6 +63,7 @@ namespace Automation {
             target->gameDir = value.gameDirectory;
             target->rmvpePath = value.pitchModelPath;
             target->libreSVIPPath = value.libreSvipPath;
+            target->drawParamWithFinger = value.drawParamWithFinger;
         }
 
         AppearanceSettingsDto captureAppearance(AppOptions *options) {

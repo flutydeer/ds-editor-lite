@@ -22,6 +22,7 @@ namespace Automation {
         QString gameDirectory;
         QString pitchModelPath;
         QString libreSvipPath;
+        bool drawParamWithFinger = false;
 
         friend bool operator==(const GeneralSettingsDto &, const GeneralSettingsDto &) = default;
     };

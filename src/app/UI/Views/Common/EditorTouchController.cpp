@@ -445,42 +445,53 @@ void EditorTouchController::onSingleBegin(const EditorTouchGesture::Event &event
     m_panVelocity = {};
     m_panTimestamp = now();
 
-    // A held press always means "select", never "create": it is the gesture
-    // that reaches rubber band / interval selection when the plain drag is
-    // already taken by scrolling.
-    // A tap always goes straight to the interaction layer: it must select or
-    // deselect, never create content and never scroll.
-    auto action = EditorTouchTarget::BlankDragAction::SyntheticMouse;
-    if (!event.tap && !event.fromLongPress) {
-        // Only a plain drag has to pick a side, and it may move content just
-        // when the finger has already selected it. Over anything else the drag
-        // does what it does over blank canvas, so a finger resting on a note it
-        // never selected still scrolls instead of dragging that note away.
-        if (m_target->touchContentAt(event.position) != EditorTouchTarget::ContentHit::Selected)
-            action = m_target->touchBlankDragAction();
-    }
-
-    if (action == EditorTouchTarget::BlankDragAction::Pan) {
-        m_panStreamActive = true;
-        return;
+    // Which side this stream is on is the target's call, and the whole decision
+    // is a pure table (EditorTouchTarget::fingerStreamFor) so it stays testable.
+    // Both queries are const and side effect free, so asking unconditionally
+    // costs nothing and keeps the table complete.
+    switch (EditorTouchTarget::fingerStreamFor({
+        .fingerEdits = m_target->touchFingerEdits(),
+        .tap = event.tap,
+        .fromLongPress = event.fromLongPress,
+        .content = m_target->touchContentAt(event.position),
+        .blankDrag = m_target->touchBlankDragAction(),
+    })) {
+        case EditorTouchTarget::FingerStream::Consumed:
+            // Where a finger may not edit, a tap has nothing to select either:
+            // the stream is swallowed, and the SingleEnd that follows is a
+            // no-op because no stream was ever started.
+            return;
+        case EditorTouchTarget::FingerStream::Pan:
+            m_panStreamActive = true;
+            return;
+        case EditorTouchTarget::FingerStream::DeferredPan:
+            // A held press only ever reaches here over blank canvas, because a
+            // long press on an object is consumed without a stream. Staying put
+            // owes the platform's press and hold menu, so the pan is held back
+            // until the finger actually travels.
+            m_panStreamActive = true;
+            m_pressDeferred = true;
+            m_deferredPressPosition = event.position;
+            return;
+        case EditorTouchTarget::FingerStream::DeferredSynthetic:
+            m_syntheticStreamActive = true;
+            EditorPointer::beginTouchStream();
+            // A held press only ever reaches here over blank canvas, because a
+            // long press on an object is consumed without a stream. Where that
+            // blank canvas is navigation territory the same hold has to serve
+            // two gestures: move and it is a rubber band, stay put and it is the
+            // platform's press and hold menu. Holding the press back until the
+            // finger travels keeps both, and stops a motionless hold from
+            // clearing the selection on the way.
+            m_pressDeferred = true;
+            m_deferredPressPosition = event.position;
+            return;
+        case EditorTouchTarget::FingerStream::Synthetic:
+            break;
     }
 
     m_syntheticStreamActive = true;
     EditorPointer::beginTouchStream();
-
-    // A held press only ever reaches here over blank canvas, because a long
-    // press on an object is consumed without a stream. Where that blank canvas
-    // is navigation territory the same hold has to serve two gestures: move
-    // and it is a rubber band, stay put and it is the platform's press and
-    // hold menu. Holding the press back until the finger travels keeps both,
-    // and stops a motionless hold from clearing the selection on the way.
-    if (event.fromLongPress &&
-        m_target->touchBlankDragAction() == EditorTouchTarget::BlankDragAction::Pan) {
-        m_pressDeferred = true;
-        m_deferredPressPosition = event.position;
-        return;
-    }
-
     sendSyntheticMouse(QEvent::MouseButtonPress, event.position, Qt::LeftButton, Qt::LeftButton);
     if (event.doubleTap) {
         sendSyntheticMouse(QEvent::MouseButtonDblClick, event.position, Qt::LeftButton,
@@ -499,8 +510,12 @@ void EditorTouchController::onSingleMove(const EditorTouchGesture::Event &event)
         // held, so the rubber band is anchored there and not where it crossed
         // the threshold.
         m_pressDeferred = false;
-        sendSyntheticMouse(QEvent::MouseButtonPress, m_deferredPressPosition, Qt::LeftButton,
-                           Qt::LeftButton);
+        // A held press that pans owes no press: it never reached the interaction
+        // layer, so there is nothing to anchor. The hold simply stops being owed
+        // a menu and starts being a pan.
+        if (m_syntheticStreamActive)
+            sendSyntheticMouse(QEvent::MouseButtonPress, m_deferredPressPosition, Qt::LeftButton,
+                               Qt::LeftButton);
     }
     const auto delta = event.position - m_lastStreamPosition;
     if (m_panStreamActive) {
@@ -527,6 +542,10 @@ void EditorTouchController::onSingleEnd(const EditorTouchGesture::Event &event) 
         // pressed. That is a menu, raised right here because the finger has
         // already left the glass, and the selection stays untouched.
         m_pressDeferred = false;
+        // A held press that pans keeps the pan flag set for as long as the hold
+        // is unresolved. Leaving it behind here would make touchOwnsContextMenu()
+        // swallow every real right click until the next gesture ends.
+        m_panStreamActive = false;
         finishStream();
         raiseContextMenu(m_deferredPressPosition);
         return;
@@ -545,6 +564,10 @@ void EditorTouchController::onSingleEnd(const EditorTouchGesture::Event &event) 
 void EditorTouchController::onSingleCancel() {
     if (m_panStreamActive) {
         m_panStreamActive = false;
+        // A cancelled pan owes no menu: the finger was taken over by navigation,
+        // not lifted over blank canvas. A hold that was still deferred would
+        // otherwise fire a context menu the moment it ended.
+        m_pressDeferred = false;
         return;
     }
     if (m_pressDeferred) {

@@ -2819,6 +2819,21 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <source>Singing</source>
         <translation>演唱</translation>
     </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="90"/>
+        <source>Pen and Touch</source>
+        <translation>笔和触控</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="92"/>
+        <source>Draw parameters with finger</source>
+        <translation>用手指绘制参数</translation>
+    </message>
+    <message>
+        <location filename="../../UI/Dialogs/Options/Pages/GeneralPage.cpp" line="93"/>
+        <source>When off, a finger on the parameter panel or the piano roll's pitch tools only scrolls the timeline. Pen and mouse are unaffected.</source>
+        <translation>关闭时，单指在参数面板与钢琴卷帘的音高工具上只滚动时间轴；笔和鼠标不受影响。</translation>
+    </message>
 </context>
 <context>
     <name>GetInstalledPackagesTask</name>

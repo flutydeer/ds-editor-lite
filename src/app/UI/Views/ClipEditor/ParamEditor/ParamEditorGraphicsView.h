@@ -61,6 +61,11 @@ public slots:
 signals:
     void wheelHorScale(QWheelEvent *event);
     void wheelHorScroll(QWheelEvent *event);
+    // The parameter panel shares its timeline with the piano roll, which owns the
+    // horizontal position (Shift + wheel is forwarded the same way). A finger pan
+    // applied here alone would leave the curves misaligned with the notes above,
+    // so its horizontal component is forwarded instead of being used locally.
+    void horizontalPanRequested(double deltaPixels);
 
 private slots:
     void onClipPropertyChanged();
@@ -74,10 +79,14 @@ private slots:
 
 private:
     // --- EditorTouchTarget ---
-    // The parameter editor is always tool driven: whatever the toolbar has
-    // armed (draw, erase, trace, shape...) is what a finger drag does.
+    // The parameter editor is tool driven by default: whatever the toolbar has
+    // armed (draw, erase, trace, shape...) is what a finger drag does. With the
+    // "draw parameters with finger" setting off, the finger is navigation only
+    // instead (see fingerEditingEnabled()).
     [[nodiscard]] ContentHit touchContentAt(const QPointF &viewportPosition) const override;
     [[nodiscard]] BlankDragAction touchBlankDragAction() const override;
+    [[nodiscard]] bool touchFingerEdits() const override;
+    void panTouchViewportBy(const QPointF &deltaPixels) override;
     void cancelTouchPointerInteraction() override;
 
     // --- EditorPenTarget ---
@@ -122,6 +131,9 @@ private:
     void finishAnchorEditSession(AnchorEditor::EditFinishReason reason);
     void onAnchorStateChanged();
     void refreshCurveTransformMode();
+    // Sole source of truth for the finger-editing setting: touchFingerEdits() and
+    // touchBlankDragAction() both read it, so the two can never disagree.
+    [[nodiscard]] bool fingerEditingEnabled() const;
 
     bool m_debugMode = false;
     bool m_speakerMixMode = false;

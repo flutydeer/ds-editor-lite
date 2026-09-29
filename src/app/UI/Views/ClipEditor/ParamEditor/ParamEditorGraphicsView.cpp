@@ -7,6 +7,7 @@
 
 #include <lite/ProjectModel/AppModel/SingingClip.h>
 #include <lite/ProjectModel/AppModel/AppModel.h>
+#include "Model/AppOptions/AppOptions.h"
 #include "Model/AppStatus/AppStatus.h"
 #include "Modules/Inference/EditSessionManager.h"
 #include "UI/Views/ClipEditor/ClipEditorGlobal.h"
@@ -186,8 +187,37 @@ EditorTouchTarget::ContentHit
     return ContentHit::None;
 }
 
+bool ParamEditorGraphicsView::fingerEditingEnabled() const {
+    // Read once per gesture, straight from the options singleton: the settings
+    // page takes effect on the next gesture, and a stream already in flight
+    // keeps the mode it started with. The speaker mix editor is its own editing
+    // surface and keeps the finger tool driven (the setting names parameter
+    // curves, and those are not what it draws).
+    if (m_speakerMixMode)
+        return true;
+    return appOptions->general()->drawParamWithFinger;
+}
+
 EditorTouchTarget::BlankDragAction ParamEditorGraphicsView::touchBlankDragAction() const {
-    return BlankDragAction::SyntheticMouse;
+    // With finger editing off the panel is navigation only, so blank canvas
+    // means Pan — the same answer the piano roll gives in Select mode. The
+    // stronger answer (touchFingerEdits()) is what actually routes taps and
+    // held presses too; this one keeps the drag policy self-consistent.
+    return fingerEditingEnabled() ? BlankDragAction::SyntheticMouse : BlankDragAction::Pan;
+}
+
+bool ParamEditorGraphicsView::touchFingerEdits() const {
+    return fingerEditingEnabled();
+}
+
+void ParamEditorGraphicsView::panTouchViewportBy(const QPointF &deltaPixels) {
+    // The horizontal position of this panel belongs to the piano roll, which
+    // forwards it here (Shift + wheel goes the same way). Panning this view on
+    // its own would scroll it out of step with the notes above, so the
+    // horizontal component is handed over instead of applied here.
+    if (deltaPixels.x() != 0.0)
+        emit horizontalPanRequested(deltaPixels.x());
+    TimeGraphicsView::panTouchViewportBy(QPointF(0.0, deltaPixels.y()));
 }
 
 void ParamEditorGraphicsView::cancelTouchPointerInteraction() {

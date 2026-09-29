@@ -3158,6 +3158,16 @@ EditorTouchTarget::BlankDragAction PianoRollRhiWidget::touchBlankDragAction() co
     return BlankDragAction::SyntheticMouse;
 }
 
+bool PianoRollRhiWidget::touchFingerEdits() const {
+    // Mirrors the legacy backend. Only the pitch tools hand the finger over to
+    // navigation when the setting is off: Select already scrolls the blank
+    // canvas and selects with a tap, and the note tools exist to be dragged.
+    // Read per gesture, so the setting takes effect on the next one.
+    if (!d->clip || !EditorViewGlobal::isPitchEditMode(d->editMode))
+        return true;
+    return appOptions->general()->drawParamWithFinger;
+}
+
 void PianoRollRhiWidget::cancelTouchPointerInteraction() {
     d->abortPointerInteractions();
 }
