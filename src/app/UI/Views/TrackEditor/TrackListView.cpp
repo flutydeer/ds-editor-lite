@@ -4,6 +4,7 @@
 #include "TrackControlView.h"
 #include "Global/TracksEditorGlobal.h"
 #include "TrackAppendSlotView.h"
+#include <lite/GUI/Controls/TouchClaimFilter.h>
 
 #include <QDrag>
 #include <QDragMoveEvent>
@@ -21,7 +22,21 @@ TrackListView::TrackListView(QWidget *parent) : QListWidget(parent) {
     setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     setVerticalScrollMode(ScrollPerPixel);
     setSelectionMode(SingleSelection);
-    QScroller::grabGesture(this, QScroller::TouchGesture);
+    // Keyed on the viewport like SmoothScroller does: TouchClaimFilter's
+    // stopAncestorScroller() pins ancestor scrollers by their viewport key,
+    // so a scroller grabbed on the list itself would keep scrolling under a
+    // claimed touch.
+    QScroller::grabGesture(viewport(), QScroller::TouchGesture);
+
+    // The track index label is the reorder grip. The claim sits on the
+    // viewport because the replayed mouse press must reach QAbstractItemView's
+    // drag state machine (a per-label one would be ignored and dropped), and
+    // because per-row claims would go stale as item widgets are rebuilt on
+    // every track add/remove. Touches outside the grip fall through to
+    // kinetic scrolling.
+    TouchClaimFilter::install(viewport(), [this](const QPointF &pos) {
+        return isInDragArea(pos.toPoint());
+    });
 
     // Enable drag and drop for track reordering
     setDragEnabled(true);

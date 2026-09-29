@@ -974,7 +974,7 @@ Qt Widgets 没有拦截协议：触摸流（→viewport→QScroller）与子控�
 | `SpeakerMixList` | 启用 | 把手为 `DragHandle` 并自带认领；列表保留自己的 `eventFilter` 与自绘 drop 指示器，`m_dragActive` 防重入（触摸转译的 move 会在 `QDrag` 模态循环内重入，嵌套 `startDrag`） |
 | `G2pListWidget`（`GListWidget`） | 豁免 | 内置 `InternalMove` 拖拽排序与单指拖动冲突。**已具备解除条件**（加 `DragHandle` 即可），本轮未做 |
 | `LyricWrapView` | 豁免 | 左键拖动是框选扫选，不能被滚动抢走 |
-| `TrackListView`、`AppOptionsDialog` 侧栏 | 不动 | 前者已有自己的 `QScroller` 抓取；后者 7 项永不滚动，不挂避免改变滚轮行为 |
+| `TrackListView`（轨道头）、`AppOptionsDialog` 侧栏 | 启用 | 前者 2026-09-29 起接入：把手为轨道序号标签，认领装在列表 **viewport** 上、以 `isInDragArea` 为门槛，把手触摸重放为鼠标按压走排序、把手外触摸滚动列表并同步画布；自身 `QScroller` 同步改抓 **viewport** 键（Qt 按 grab 目标原样为键，`stopAncestorScroller` 只停 viewport 键）。后者 7 项永不滚动，不挂避免改变滚轮行为 |
 
 ### 与编辑器仲裁模型的关系及已知限制
 
@@ -993,6 +993,7 @@ Qt Widgets 没有拦截协议：触摸流（→viewport→QScroller）与子控�
 9. 包扫描路径（通用设置）与访问根目录（自动化）：从**把手**拖动可改顺序且**页面纹丝不动**；从行体拖动只滚页面、不改顺序；**先拖一次行体再拖把手，把手照样能起拖**（门闩不能永久失效）；双击行进内联编辑、清空后离开删行；拖目录文件进列表照常追加。鼠标同样只能从把手起拖（Move Up/Down 按钮兜底）。
 10. FillLyric 规则列表（分割 / 标注两个 Tab）：行体单指可滚动列表；从把手拖动改顺序、页面不滚；**拖完一次后仍能继续从把手拖动**（`InternalMove` 会重建 item widget，这是最容易回归的一点）；勾选框与名称不错位。
 11. 声线混合：把手拖动排序、权重重分配与自绘插入指示器照常；关闭来源编辑后把手变灰且拖不动。
+12. 轨道头：从轨道序号把手拖动可排序、列表与画布**纹丝不动**；把手外触摸滚动列表且画布同步；鼠标从把手起拖照常、行体按下不拖。
 
 **2026-09-28 真机摸排（触摸平板）**：手感被接受，本轮取值定为当前值——`DecelerationFactor` 0.30、越界距离上限 0.25（拖拽与回弹共用）、越界阻力 0.25、`OvershootScrollTime` 0.35。清单其余各项按需回归。
 
