@@ -97,7 +97,7 @@ private:
 
     void moveToSingingClipState(SingingClip *clip);
     void moveToNullClipState();
-    void updateHoverEffects();
+    void updateHoverEffects(const QPoint &localPos);
     void updateNoteTime(Note *note);
     void reset();
     double tickToX(double tick) const;

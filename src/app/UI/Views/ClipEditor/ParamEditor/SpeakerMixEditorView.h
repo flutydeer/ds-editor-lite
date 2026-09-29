@@ -114,6 +114,13 @@ private:
     bool m_editable = false;
     bool m_dynamicBypassed = false;
     QPointer<ToolTip> m_tooltip;
+    // Last pointer position in global screen coordinates, refreshed from the
+    // event at every entry point. The tooltip cannot read QCursor::pos(): it
+    // does not follow a finger or a pen (see docs/design/touch-and-pen-input-design.md),
+    // and every function that positions the tooltip is called from inside an
+    // event handler anyway. Mirrors TimeGraphicsView::m_lastPointerPosition,
+    // but keeps screen coordinates because ToolTip is a top-level window.
+    QPoint m_lastPointerScreenPos;
 
     // Theme tokens (speakerMix.plot.*); initialized in the constructor and refreshed on
     // theme change. Alphas are baked into the token values.

@@ -226,7 +226,7 @@ Windows 的长按转右键只看它自己的判定，不看我们把这根手指
 
 触摸引入后有两处旧代码的隐含假设不再成立。
 
-**`QCursor::pos()` 不跟手指走。** 边缘自动滚动的定时器回调原本每帧读光标位置。现在三个视图各自记录 `lastPointerPosition`（在 `mousePressEvent` / `mouseMoveEvent` / `mouseReleaseEvent` 里更新，因此合成事件自动覆盖），定时器改读它。
+**`QCursor::pos()` 不跟手指走。** 边缘自动滚动的定时器回调原本每帧读光标位置。现在三个视图各自记录 `lastPointerPosition`（在 `mousePressEvent` / `mouseMoveEvent` / `mouseReleaseEvent` 里更新，因此合成事件自动覆盖），定时器改读它。同一条假设还坑了拖拽 tooltip 的定位，见第十六节。
 
 **`QGuiApplication::mouseButtons()` 在触摸拖动时恒为 `NoButton`。** 边缘自动滚动用它做"按键已松开"的安全网，触摸下会立刻自我解除。改用 `EditorPointer::isPointerPressed()`，它同时看真实鼠标键和活跃的合成触摸流。
 
@@ -1074,3 +1074,31 @@ Qt Widgets 没有拦截协议：触摸流（→viewport→QScroller）与子控�
 双击打开；快速单击定位光标无菜单；按住 0.6 s / 2 s 松手瞬间弹编辑菜单；按住后拖动选择无菜单；点编辑器外提交退出；长按画布音符菜单照旧；鼠标与笔行为不变。
 
 **2026-09-29 本机触摸屏确认（Debug，RHI 与 legacy 双后端）**：上述各项实测通过。触摸平板复验待做（部署前需重新 `-StageOnly`）。
+
+## 十六、拖拽浮层的定位：指针正上方
+
+### 问题（2026-09-29）
+
+音素时长读数（`PhonemeView`）与 speaker mix 百分比（`SpeakerMixEditorView`）的拖拽/悬停 tooltip，原来把 `ToolTip` 的 **widget 原点** 直接放在 `QCursor::pos()`。`ToolTip` 是带 16 px 外边距的顶层窗口，可见卡片因此落在指针右下约 (+24, +20)——鼠标下勉强能用，触摸或笔一按下就被指尖整块压住。更糟的是坐标来源本身就是错的（见第四节）：`QCursor::pos()` 不跟手指走，触摸拖拽时卡片出现在上一次鼠标停留处，与正在编辑的位置毫无关系。
+
+### 契约
+
+- **指针锚定**。`ToolTip::showAbovePointer(QPoint)` / `moveAbovePointer(QPoint)`：可见卡片在指针**正上方、水平居中**，间距由 `ToolTip::pointerClearance()` 给出。`show`/`move` 分开，是为了"已显示时每帧跟随"不去碰可见性与透明度。
+- **间距按毫米定义**，取 10 mm（成人食指接触斑 8–10 mm，指针报的是斑中心，再加余量让开指腹）。换算用 `physicalDotsPerInch() / 25.4`；屏幕报不出物理尺寸时（offscreen / 虚拟屏会报负数）回退 96 DPI，并取 `max(24, …)` 兜底。**不要再除 `devicePixelRatio()`**——Qt 的 `physicalDotsPerInch` 已经是 device-independent dots（`qscreen.cpp` 用逻辑尺寸除以物理尺寸），`QScrollerPrivate::setDpiFromWidget()` 与 `ComboPopupTouchFilter::pixelPerMeter()` 都是这个约定。
+- **几何计算单一来源**。三个入口都走私有的 `positionAbove(anchorPos, screen, gapPx)`：指针锚点（10 mm）与既有的矩形锚点 `showAbove(QRect)`（4 px，服务于鼠标 hover 的歌词 tooltip）共用同一段计算，只差间距。**间距不共用**是正确的切法——歌词 tooltip 在触摸下根本不触发，改成让开手指是超出范围的视觉回归。
+- **上方放不下就翻到下方**，两边都放不下才交给 `clampToScreen()`。单纯钳到屏幕顶会把卡片重新塞回手指底下，那正是净空要防的事。另加 `resolveScreen()`：显式屏幕 → `screenAt()` → `primaryScreen()` 三级兜底（跨屏缝隙里 `screenAt` 会返回 null）。
+- **坐标一律取事件自带**，不再读 `QCursor::pos()`：`QMouseEvent::globalPosition()`、`QGraphicsSceneMouseEvent::screenPos()`、`QGraphicsSceneHoverEvent::screenPos()`。合成触摸流同样携带正确的全局坐标（`EditorTouchController::sendSyntheticMouse()` 用 `mapToGlobal`；Qt 自己合成的那条用 `touchPoint->globalPosition()`），所以触摸下拿到的就是实时接触点。手上没有事件的定位函数（`SpeakerMixEditorView` 的几个 `*ToolTip()`）读新增的 `m_lastPointerScreenPos`，由 press / move / release / hoverMove 四个入口刷新——与 `TimeGraphicsView::m_lastPointerPosition` 同一套路，只是这里必须存**屏幕**坐标，因为 `ToolTip` 是顶层窗口。
+- **拖拽与悬浮读数关闭动画**（`setAnimationEnabled(false)`）：值每帧都在变，淡入永远不落定。`NoteLyricToolTipController` 原本就是这么做的，两个视图的创建点现在对齐。
+- **三种输入不做分流**（鼠标 / 触摸 / 笔），行为一致，因此不需要 `EditorPointer` 判断。
+- **不在范围内**：`ToolTipFilter` 与未装 filter 的原生 `QToolTip` 都是鼠标 hover，手指不产生悬停，保持原位（指针右下）。`NoteLyricToolTipController` 已经锚在音符矩形上方，是正确的形态。
+- **遗留**：`TracksRhiWidget::onExternalDropScrollFrame()` 仍读 `QCursor::pos()`（外部文件拖入时的边缘自动滚动）。它不是浮层定位问题，同属第四节的根因，触摸下投放指示器会停在陈旧位置；改法会牵动自动滚动行为，单独处理。
+
+### 测试
+
+`src/tests/TestToolTipPointerAnchor`（纯几何断言，不需要真触摸）：居中、净空等于 `pointerClearance()` 且不低于 24 px、内容变宽后重新居中、左边缘钳制、顶部翻转为下方、关动画后不淡入、`moveAbovePointer` 不改变可见性与透明度、矩形锚点仍是 4 px（回归）、显式 null 屏幕的兜底。断言全部写成相对关系，不依赖屏幕尺寸与 DPI。
+
+事件接线（各视图把 `screenPos()` 喂给 tooltip）没有自动化覆盖——`QGraphicsSceneMouseEvent` 没有公开构造函数，把 `SpeakerMixEditorView` 及其依赖拖进测试代价过大——列为真机回归。
+
+### 真机回归（触摸 / 笔 / 鼠标）
+
+触摸拖音素边界、触摸拖 speaker mix 分割线、笔悬停分割线：卡片都在接触点正上方且随接触点移动，不再压在指尖下；把接触点拖到屏幕顶部附近会翻到下方；鼠标三条路径观感一致（从"指针右下角"变为"指针上方"）。
