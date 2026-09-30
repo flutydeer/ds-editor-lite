@@ -191,6 +191,10 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
         AudioSettings::setPlayheadBehavior(originalPlayheadBehavior);
     });
 
+    TestSupport::MainWindowFixture mainWindow;
+    mainWindow.show();
+    if (QTest::currentTestFailed())
+        return;
     const auto beforeSettings = runtime.documentVersion();
     const auto modelBeforeSettings = TestSupport::projectSnapshot(*fixture.context->m_appModel);
     {
@@ -262,14 +266,15 @@ void NativeDesktopTests::availableAudioDeviceRunsPublicPlayback() {
                  selectedSize);
         QCOMPARE(reopened.audio()->obj.value(QStringLiteral("adoptedSampleRate")).toDouble(),
                  selectedRate);
+        page.close();
+        mainWindow.window->activateWindow();
+        QTRY_VERIFY(mainWindow.window->isActiveWindow());
+        QTRY_VERIFY(!QApplication::activePopupWidget());
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
     }
     QCOMPARE(runtime.documentVersion(), beforeSettings);
     QCOMPARE(TestSupport::projectSnapshot(*fixture.context->m_appModel), modelBeforeSettings);
 
-    TestSupport::MainWindowFixture mainWindow;
-    mainWindow.show();
-    if (QTest::currentTestFailed())
-        return;
     auto *controls = mainWindow.window->findChild<PlaybackView *>();
     QVERIFY(controls);
     auto *play = controls->findChild<QPushButton *>("btnPlay");
