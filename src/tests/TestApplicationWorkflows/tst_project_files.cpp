@@ -35,29 +35,46 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders_data() {
     QTest::addColumn<int>("invalidItems");
     QTest::addColumn<bool>("bestEffort");
     QTest::addColumn<QString>("changeAfterAdmission");
-    QTest::newRow("midi-and-dspx") << 0 << false << QString{};
-    QTest::newRow("atomic-failure") << 1 << false << QString{};
-    QTest::newRow("best-effort") << 1 << true << QString{};
-    QTest::newRow("best-effort-all-failed") << 2 << true << QString{};
-    QTest::newRow("atomic-source-changed") << 0 << false << QStringLiteral("source");
-    QTest::newRow("best-effort-source-changed") << 0 << true << QStringLiteral("source");
-    QTest::newRow("document-edited-before-commit") << 0 << false << QStringLiteral("document");
+    QTest::addColumn<QString>("invalidSource");
+    QTest::newRow("midi-and-dspx") << 0 << false << QString{} << QString{};
+    QTest::newRow("atomic-failure") << 1 << false << QString{} << QStringLiteral("content");
+    QTest::newRow("best-effort") << 1 << true << QString{} << QStringLiteral("content");
+    QTest::newRow("best-effort-all-failed") << 2 << true << QString{} << QStringLiteral("content");
+    QTest::newRow("atomic-unsupported-format")
+        << 1 << false << QString{} << QStringLiteral("extension");
+    QTest::newRow("best-effort-unsupported-format")
+        << 1 << true << QString{} << QStringLiteral("extension");
+    QTest::newRow("atomic-missing-source") << 1 << false << QString{} << QStringLiteral("missing");
+    QTest::newRow("best-effort-missing-source")
+        << 1 << true << QString{} << QStringLiteral("missing");
+    QTest::newRow("atomic-source-changed") << 0 << false << QStringLiteral("source") << QString{};
+    QTest::newRow("best-effort-source-changed")
+        << 0 << true << QStringLiteral("source") << QString{};
+    QTest::newRow("document-edited-before-commit")
+        << 0 << false << QStringLiteral("document") << QString{};
 }
 
 void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
     QFETCH(int, invalidItems);
     QFETCH(bool, bestEffort);
     QFETCH(QString, changeAfterAdmission);
+    QFETCH(QString, invalidSource);
     QTemporaryDir files;
     QVERIFY(files.isValid());
     const auto dspx = files.filePath(QStringLiteral("source.dspx"));
-    const auto midi = files.filePath(QStringLiteral("source.mid"));
+    auto midi = files.filePath(QStringLiteral("source.mid"));
     QString error;
     DspxProjectConverter dspxConverter;
     MidiConverter midiConverter;
     QVERIFY2(dspxConverter.save(dspx, context->m_appModel, error), qPrintable(error));
     QVERIFY2(midiConverter.save(midi, context->m_appModel, error), qPrintable(error));
-    if (invalidItems > 0) {
+    if (invalidSource == QStringLiteral("extension")) {
+        const auto unsupported = files.filePath(QStringLiteral("source.unsupported"));
+        QVERIFY(QFile::rename(midi, unsupported));
+        midi = unsupported;
+    } else if (invalidSource == QStringLiteral("missing")) {
+        QVERIFY(QFile::remove(midi));
+    } else if (invalidItems > 0) {
         QFile broken(midi);
         QVERIFY(broken.open(QIODevice::WriteOnly | QIODevice::Truncate));
         QCOMPARE(broken.write("invalid midi"), qint64(12));
@@ -128,7 +145,21 @@ void ApplicationWorkflowTests::projectBatchImportUsesRealLoaders() {
         QCOMPARE(runtime().documentVersion(), before);
         QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
     }
+    const auto tasksBeforeAdmission = runtime().automationTasks().list(before.documentId);
+    const auto *undoBeforeAdmission = historyManager->nextUndoEntry();
     const auto accepted = registry.invoke(QStringLiteral("documents.import_batch"), arguments);
+    if (!bestEffort && (invalidSource == QStringLiteral("extension") ||
+                        invalidSource == QStringLiteral("missing"))) {
+        QVERIFY(!accepted);
+        QCOMPARE(accepted.getError().code, invalidSource == QStringLiteral("extension")
+                                               ? Automation::AutomationErrorCode::FormatUnsupported
+                     : Automation::AutomationErrorCode::FileNotFound);
+        QCOMPARE(runtime().automationTasks().list(before.documentId), tasksBeforeAdmission);
+        QCOMPARE(runtime().documentVersion(), before);
+        QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+        QCOMPARE(historyManager->nextUndoEntry(), undoBeforeAdmission);
+        return;
+    }
     QVERIFY2(accepted, qPrintable(accepted ? QString{} : accepted.getError().message));
     const auto id = idFromResult(accepted.get());
     QVERIFY(!id.isNull());
