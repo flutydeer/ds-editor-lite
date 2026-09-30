@@ -1,4 +1,6 @@
 #include "BaseInferState.h"
+
+#include "Modules/Inference/InferLogging.h"
 #include "Modules/Inference/InferPipeline.h"
 #include "Modules/Inference/InferControllerHelper.h"
 #include <lite/ProjectModel/AppModel/SingingClip.h>
@@ -36,17 +38,17 @@ BaseInferState::BaseInferState(InferPipeline &pipeline, QState *parent)
 }
 
 void BaseInferState::onEntry(QEvent *event) {
-    qDebug() << "BaseInferState::onEntry";
+    qCDebug(logInferState) << "BaseInferState::onEntry";
     QState::onEntry(event);
 }
 
 void BaseInferState::onExit(QEvent *event) {
-    qDebug() << "BaseInferState::onExit";
+    qCDebug(logInferState) << "BaseInferState::onExit";
     QState::onExit(event);
 }
 
 void BaseInferState::onRunningInferenceStateEntered() {
-    qDebug() << "BaseInferState::onRunningInferenceStateEntered";
+    qCDebug(logInferState) << "BaseInferState::onRunningInferenceStateEntered";
     if (currentTask) {
         currentTask->disconnect(this);
         cancelTaskInController(currentTask->id());
@@ -71,7 +73,7 @@ void BaseInferState::onRunningInferenceStateEntered() {
 }
 
 void BaseInferState::onRunningInferenceStateExited() {
-    qDebug() << "BaseInferState::onRunningInferenceStateExited";
+    qCDebug(logInferState) << "BaseInferState::onRunningInferenceStateExited";
     m_preparationEpoch++;
     if (!currentTask)
         return;
@@ -82,11 +84,11 @@ void BaseInferState::onRunningInferenceStateExited() {
 }
 
 void BaseInferState::onAwaitingModelReleaseStateEntered() {
-    qDebug() << "BaseInferState::onAwaitingModelReleaseStateEntered";
+    qCDebug(logInferState) << "BaseInferState::onAwaitingModelReleaseStateEntered";
 }
 
 void BaseInferState::onErrorStateEntered() {
-    qDebug() << "BaseInferState::onErrorStateEntered";
+    qCDebug(logInferState) << "BaseInferState::onErrorStateEntered";
     auto &piece = m_pipeline.piece();
     piece.acousticInferStatus = Failed;
     piece.state = QString("%1.Error").arg(getStateNamePrefix());
@@ -94,7 +96,7 @@ void BaseInferState::onErrorStateEntered() {
 
 void BaseInferState::handleTaskFinished(IInferTask &task) {
     if (!currentTask || currentTask != &task) {
-        qDebug() << "Ignoring finished task that is no longer current";
+        qCDebug(logInferState) << "Ignoring finished task that is no longer current";
         return;
     }
 
@@ -106,7 +108,7 @@ void BaseInferState::handleTaskFinished(IInferTask &task) {
     };
 
     if (task.terminated()) {
-        qDebug() << "Task terminated, cleaning up";
+        qCDebug(logInferState) << "Task terminated, cleaning up";
         finishCurrentTask();
         return;
     }

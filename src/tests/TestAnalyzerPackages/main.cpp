@@ -26,6 +26,8 @@
 
 #include <lite/Core/SingletonRegistry.h>
 
+#include <otter/Analysis/AnalysisExecutive.h>
+
 namespace fs = std::filesystem;
 
 namespace {
@@ -45,13 +47,16 @@ namespace {
         out << text;
     }
 
-    std::string descJson(const std::string &id, const std::string &contributionId) {
+    std::string descJson(const std::string &id, const std::string &contributionId,
+                         const std::string &version) {
         return "{\n"
                "    \"$version\": \"1.0\",\n"
                "    \"id\": \"" +
                id +
                "\",\n"
-               "    \"version\": \"0.1.0.0\",\n"
+               "    \"version\": \"" +
+               version +
+               "\",\n"
                "    \"compatVersion\": \"0.1.0.0\",\n"
                "    \"runtimeLevel\": 1,\n"
                "    \"contributions\": {\n"
@@ -132,9 +137,10 @@ namespace {
     }
 
     void writePackage(const fs::path &root, const std::string &directory, const std::string &id,
-                      const std::string &contributionId, const std::string &declaration) {
+                      const std::string &contributionId, const std::string &declaration,
+                      const std::string &version = "0.1.0.0") {
         const fs::path package = root / directory;
-        writeFile(package / "desc.json", descJson(id, contributionId));
+        writeFile(package / "desc.json", descJson(id, contributionId, version));
         writeFile(package / "inferences" / contributionId / "inference.json", declaration);
         // Nothing opens a model while a package is being listed, but the declaration names one, so
         // the shape on disk is complete.
@@ -194,6 +200,10 @@ int main(int argc, char *argv[]) {
 
     // Four packages where packages are looked for.
     writePackage(scanRoot, "otter-rmvpe", "otter/rmvpe", "f0", f0Declaration("RMVPE"));
+    // A second version of the same package. A reference names no version, so the listing and
+    // createAnalyzer() must both settle on the highest one, whatever order the scan finds them in.
+    writePackage(scanRoot, "otter-rmvpe-next", "otter/rmvpe", "f0", f0Declaration("RMVPE2"),
+                 "0.2.0.0");
     writePackage(scanRoot, "otter-game", "otter/game", "note", noteDeclaration("GAME", true));
     // A second note package that differs only in its name: it proves the listing is not deduplicated
     // by interface, which is what makes the third one's absence mean something.
@@ -203,6 +213,15 @@ int main(int argc, char *argv[]) {
     // One package of the same kind where a dependency is looked up, and never where packages are
     // scanned: this is the arrangement that once left the chooser empty.
     writePackage(dependencyRoot, "example-dep", "example/dep", "f0", f0Declaration("DEP"));
+    // A directory the scan may not look into. A filesystem query that throws would end the
+    // process on the initialization thread, so this must become a reported problem instead.
+    const fs::path locked = scanRoot / "locked";
+    fs::create_directories(locked);
+    fs::permissions(locked, fs::perms::none);
+    const auto unlock = [&locked] {
+        std::error_code ignored;
+        fs::permissions(locked, fs::perms::owner_all, ignored);
+    };
 
     auto *engine = SingletonRegistry::create<SynthrtEngine>(nullptr);
     expect(engine != nullptr, "the engine should be registered");
@@ -218,6 +237,7 @@ int main(int argc, char *argv[]) {
     const fs::path runtimePath = SynthrtEngine::defaultRuntimePath();
     if (!fs::is_directory(runtimePath)) {
         std::cerr << "no ONNX Runtime deployed at " << runtimePath << ", skipping\n";
+        unlock();
         fs::remove_all(fixture);
         return 77;
     }
@@ -230,6 +250,42 @@ int main(int argc, char *argv[]) {
         std::cerr << "the engine did not initialize, nothing below would mean anything\n";
         return 1;
     }
+
+    // A rescan that finds the same packages does not republish the catalogue, in either mode.
+    const auto generation = engine->catalogGeneration();
+    {
+        const auto reused = engine->refreshVoicebanks(
+            {scanRoot}, nullptr, SynthrtEngine::RescanMode::ReuseLoaded);
+        expect(bool(reused), "a rescan that reuses the loaded packages should succeed");
+        expect(engine->catalogGeneration() == generation,
+               "a rescan of an unchanged set should keep the catalogue generation");
+    }
+
+    // The unreadable directory is reported and does not hide the packages beside it.
+    {
+        std::vector<lite::synthrt::PackageProblem> problems;
+        const auto rescanned = engine->refreshVoicebanks({scanRoot}, &problems);
+        expect(bool(rescanned), "a rescan over an unreadable entry should succeed");
+        const bool reported =
+            std::any_of(problems.begin(), problems.end(), [&locked](const auto &problem) {
+                return problem.path == locked;
+            });
+        // A process with the permission to read everything, such as one run as root, cannot
+        // reproduce the condition, so only a denied read is required to be reported.
+        std::error_code probe;
+        (void) fs::is_regular_file(locked / "desc.json", probe);
+        expect(!probe || reported, "an unreadable entry should be reported as a problem");
+    }
+    expect(engine->catalogGeneration() == generation,
+           "a reload of an unchanged set should keep the catalogue generation");
+
+    // A package that appears between two scans changes the set and republishes the catalogue.
+    writePackage(scanRoot, "example-late", "example/late", "f0", f0Declaration("LATE"));
+    expect(bool(engine->refreshVoicebanks({scanRoot})), "a rescan with a new package should succeed");
+    expect(engine->catalogGeneration() != generation,
+           "a rescan that finds a new package should change the catalogue generation");
+    fs::remove_all(scanRoot / "example-late");
+    expect(bool(engine->refreshVoicebanks({scanRoot})), "a rescan without the new package should succeed");
 
     const auto pitch = referencesOf(engine->analyzers(lite::synthrt::f0Contract()));
     const auto notes = referencesOf(engine->analyzers(lite::synthrt::noteContract()));
@@ -258,8 +314,49 @@ int main(int argc, char *argv[]) {
         expect(listed.front().packageId == "otter/rmvpe", "the package id should be the declaration's own");
         expect(listed.front().contributionId == "f0", "the contribution id should be the declaration's own");
         expect(listed.front().variant == "rmvpe", "the variant should come from the declaration");
+        expect(listed.front().packageVersion == stdc::VersionNumber(0, 2, 0, 0),
+               "the listing should name the highest loaded version of the package");
+    }
+    expect(listed.size() == 1, "two versions of one package should be listed once, got " +
+                                   std::to_string(listed.size()));
+
+    // A note analyser carries the languages its exports declare, and the language an execution
+    // uses follows from them.
+    for (const auto &entry : engine->analyzers(lite::synthrt::noteContract())) {
+        if (entry.packageId != "otter/game") {
+            continue;
+        }
+        expect(entry.languages == std::vector<std::string>({"cmn", "eng", "jpn", "yue"}),
+               "the note analyser should list the languages of its exports");
+        expect(entry.defaultLanguage == "cmn",
+               "the note analyser should carry the default language of its exports");
+        expect(entry.effectiveLanguage("") == "cmn",
+               "a request without a language should use the declared default");
+        expect(entry.effectiveLanguage("jpn") == "jpn", "a listed language should be used");
+        expect(entry.effectiveLanguage("fra") == "cmn",
+               "an unlisted language should be replaced by the declared default");
+    }
+    if (!listed.empty()) {
+        expect(listed.front().languages.empty() && listed.front().effectiveLanguage("fra") == "fra",
+               "a pitch analyser should distinguish no languages");
     }
 
+    // createAnalyzer() resolves the reference to the version the listing shows.
+    {
+        auto lease = engine->createAnalyzer(QStringLiteral("otter/rmvpe:inference/f0"));
+        if (lease) {
+            expect(lease->package.version() == stdc::VersionNumber(0, 2, 0, 0),
+                   "the analyser should come from the highest loaded version");
+        } else {
+            // The fixture model is a placeholder, so creating the executive may fail when it opens
+            // the model. The error then names the model of the version that was chosen.
+            const auto why = lease.error().toString();
+            expect(why.find("otter-rmvpe-next") != std::string::npos,
+                   "the analyser should come from the highest loaded version: " + why);
+        }
+    }
+
+    unlock();
     if (failures == 0) {
         fs::remove_all(fixture);
     } else {

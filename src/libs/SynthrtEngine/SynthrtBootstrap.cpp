@@ -19,9 +19,9 @@ namespace lite::synthrt {
             switch (backend) {
                 case Backend::Cuda:
                     return OnnxApi::ExecutionProvider::CUDA;
-                case Backend::DirectMl:
+                case Backend::DirectML:
                     return OnnxApi::ExecutionProvider::DML;
-                case Backend::CoreMl:
+                case Backend::CoreML:
                     return OnnxApi::ExecutionProvider::CoreML;
                 case Backend::Cpu:
                     break;
@@ -29,19 +29,6 @@ namespace lite::synthrt {
             return OnnxApi::ExecutionProvider::CPU;
         }
 
-    }
-
-    Backend backendFromName(const std::string &name) {
-        if (name == "CUDA") {
-            return Backend::Cuda;
-        }
-        if (name == "DirectML") {
-            return Backend::DirectMl;
-        }
-        if (name == "CoreML") {
-            return Backend::CoreMl;
-        }
-        return Backend::Cpu;
     }
 
     class Bootstrap::Impl {

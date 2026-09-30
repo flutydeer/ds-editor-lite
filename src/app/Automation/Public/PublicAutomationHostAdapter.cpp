@@ -42,6 +42,7 @@
 #include <cmath>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <variant>
 
 namespace Automation {
@@ -1368,20 +1369,40 @@ namespace Automation {
                                                  QStringLiteral("Source audio clip was not found"));
             }
             auto settings = runtime.settings().getSettings();
-            // Configured means an analyzer has been chosen; ready, below, means one answering
-            // that contract is installed. Keeping the two apart is what lets the host say "you
-            // have not picked one" and "the one you picked is gone" as different things.
+            // Configured indicates that an analyzer is selected. Ready, below, indicates that an
+            // analyzer implementing the contract is installed. The two flags are separate so that
+            // a missing selection and a selected analyzer that is no longer installed are reported
+            // as different conditions.
             const bool pitchConfigured =
                 settings && !settings.get().general.pitchAnalyzer.trimmed().isEmpty();
             const bool midiConfigured =
                 settings && !settings.get().general.noteAnalyzer.trimmed().isEmpty();
-            if (settings && !settings.get().general.defaultSingingLanguage.isEmpty() &&
-                !languages.contains(settings.get().general.defaultSingingLanguage)) {
+            // The languages available to MIDI extraction are the languages of the configured note
+            // analyzer, regardless of the languages of the singer of the source track. If no note
+            // analyzer is configured or the analyzer distinguishes no languages, the list consists
+            // of the languages of the track's singer and the default singing language of the
+            // editor.
+            const auto configuredNote = [&]() -> std::optional<lite::synthrt::AnalyzerEntry> {
+                if (!engine || !midiConfigured)
+                    return std::nullopt;
+                const auto wanted = settings.get().general.noteAnalyzer.trimmed().toStdString();
+                for (auto &entry : engine->analyzers(lite::synthrt::noteContract())) {
+                    if (entry.reference() == wanted)
+                        return entry;
+                }
+                return std::nullopt;
+            }();
+            if (configuredNote && !configuredNote->languages.empty()) {
+                languages = {};
+                for (const auto &language : configuredNote->languages)
+                    languages.append(QString::fromStdString(language));
+            } else if (settings && !settings.get().general.defaultSingingLanguage.isEmpty() &&
+                       !languages.contains(settings.get().general.defaultSingingLanguage)) {
                 languages.append(settings.get().general.defaultSingingLanguage);
             }
-            // Ready means an analyzer answering that contract is installed. On the older line
-            // the engine loaded one extractor of each kind and could be asked whether it had; an
-            // analyzer is a package contribution now, so the question is what is installed.
+            // Ready indicates that an analyzer implementing the contract is installed. An analyzer
+            // is a package contribution, so readiness depends on the installed packages rather
+            // than on a model loaded by the engine.
             const bool pitchModuleReady =
                 engine && !engine->analyzers(lite::synthrt::f0Contract()).empty();
             const bool midiModuleReady =
@@ -1410,9 +1431,9 @@ namespace Automation {
                                                                         : configurationReason},
                 };
             };
-            // Lists one entry per installed analyser of the contract, identified by the reference
-            // stored in the settings, so that a host can determine the installed analysers and the
-            // selected analyser. An extraction runs the selected analyser.
+            // Lists one entry per installed analyzer of the contract, identified by the reference
+            // stored in the settings, so that a host can determine the installed analyzers and the
+            // selected analyzer. An extraction runs the selected analyzer.
             const auto installedModels = [&engine, &model](const QString &contract,
                                                            const QString &chosen,
                                                            const QString &notChosenReason) {
@@ -1746,6 +1767,8 @@ namespace Automation {
             void requestCancel();
             void handleState(const QString &state);
             void evaluate();
+            void startPendingAcoustic();
+            [[nodiscard]] bool isComplete(const InferPiece &piece) const;
             void finishCanceled();
             void fail(AutomationError error);
             [[nodiscard]] MutationResult completedMutation() const;
@@ -1755,6 +1778,7 @@ namespace Automation {
             PublicInferenceStartRequest m_request;
             QList<QPointer<InferPiece>> m_pieces;
             QString m_earliestStage;
+            bool m_includesAcoustic = false;
             TaskId m_taskId;
             MutationResult m_mutation;
             bool m_started = false;
@@ -1807,6 +1831,7 @@ namespace Automation {
                     QStringLiteral("Inference stages must be a contiguous pipeline suffix"));
             }
             m_earliestStage = supported.at(earliest);
+            m_includesAcoustic = m_request.stages.contains(QStringLiteral("acoustic"));
 
             auto settings = m_runtime.settings().getSettings();
             if (!settings)
@@ -1895,7 +1920,38 @@ namespace Automation {
                 }
                 inferController->restartPieceInference(*piece);
             }
+            startPendingAcoustic();
             evaluate();
+        }
+
+        void HeadlessInferenceTask::startPendingAcoustic() {
+            // A pipeline remains in Acoustic.Awaiting until playback starts, unless automatic
+            // inference is enabled. A request that includes the acoustic stage requires acoustic
+            // inference explicitly, so the pieces of this task are started here, in the same way
+            // as an audio export starts the tracks it renders. The call affects only waiting
+            // pipelines, and the pieces reach the waiting state at different times, so the call is
+            // repeated whenever a piece changes state.
+            if (!m_includesAcoustic || m_finished || !m_model)
+                return;
+            QList<Track *> tracks;
+            for (const auto &piece : std::as_const(m_pieces)) {
+                if (!piece)
+                    continue;
+                Track *track = nullptr;
+                if (m_model->findClipById(piece->clipId(), track) && track &&
+                    !tracks.contains(track))
+                    tracks.append(track);
+            }
+            if (!tracks.isEmpty())
+                inferController->startPendingAcousticInference(tracks);
+        }
+
+        bool HeadlessInferenceTask::isComplete(const InferPiece &piece) const {
+            const auto state = piece.state.get();
+            if (state == QStringLiteral("Ready"))
+                return true;
+            // Without the acoustic stage, a piece is complete once it reaches Acoustic.Awaiting.
+            return !m_includesAcoustic && state == QStringLiteral("Acoustic.Awaiting");
         }
 
         void HeadlessInferenceTask::requestCancel() {
@@ -1919,6 +1975,15 @@ namespace Automation {
                     QStringLiteral("Inference pipeline failed in state %1").arg(state)));
                 return;
             }
+            if (state == QStringLiteral("Acoustic.Awaiting")) {
+                // Queued because the state is published from within the pipeline's state entry,
+                // and the resulting transition must not run within that entry.
+                const QPointer<HeadlessInferenceTask> weak(this);
+                QTimer::singleShot(0, this, [weak] {
+                    if (weak)
+                        weak->startPendingAcoustic();
+                });
+            }
             evaluate();
         }
 
@@ -1926,8 +1991,8 @@ namespace Automation {
             if (!m_started || m_finished)
                 return;
             const auto ready =
-                std::all_of(m_pieces.cbegin(), m_pieces.cend(), [](const auto &piece) {
-                    return piece && piece->state.get() == QStringLiteral("Ready");
+                std::all_of(m_pieces.cbegin(), m_pieces.cend(), [this](const auto &piece) {
+                    return piece && isComplete(*piece);
                 });
             if (!ready)
                 return;
@@ -2081,7 +2146,7 @@ namespace Automation {
                         {QStringLiteral("unavailable_reason"), QString()                  },
                     });
                 }
-                // devices 是「当前 provider 的候选设备」：与 settings.query 的 gpus 同源。
+                // devices 为当前 provider 的候选设备，与 settings.query 的 gpus 来源相同。
                 for (const auto &gpu : GpuCatalog::forProvider(inference.executionProvider)) {
                     devices.append(QJsonObject{
                         {QStringLiteral("id"),                 gpu.deviceId   },

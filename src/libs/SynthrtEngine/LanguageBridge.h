@@ -11,112 +11,115 @@
 
 #include <stdcorelib/support/versionnumber.h>
 
-#include <wolf/Session/LinguistSession.h>
-
 namespace lite::synthrt {
 
-    /// The editor's language needs, answered by wolf.
+    /// Adapter that provides the editor's language operations through one wolf linguist session.
     ///
-    /// The refactor line had a LanguageService, a G2P Manager singleton, a LanguageRoute and an
-    /// S2P LanguageResource, and the editor asked each of them separately. wolf answers all of it
-    /// from one session, so this is a good deal smaller than what it replaces: the two stage
-    /// arrangement, the deferred model loading and the warm-up pass all go, because the session
-    /// already keeps a catalogue, a readiness answer and a pool of its own.
+    /// The session replaces the separate LanguageService, G2P Manager singleton, LanguageRoute and
+    /// S2P LanguageResource of the refactor branch. The session maintains its own catalog,
+    /// readiness state and pool, so this class has no two-stage arrangement, no deferred model
+    /// loading and no warm-up pass.
     ///
-    /// What stays on this side is the editor's vocabulary: singers are named the way the project
-    /// names them, and a conversion is per language because that is how the editor batches.
+    /// This class retains the editor's conventions: singers are identified as in the project
+    /// model, and each conversion covers one language because the editor batches per language.
     class LanguageBridge {
     public:
-        /// Which singer, as the language layer addresses one.
+        /// Address of a loaded singer in the language layer.
         ///
-        /// The version is part of the address and not decoration. The specification lets two
-        /// versions of one package be loaded at once, and a module reference deliberately cannot
-        /// carry a version -- it binds to whatever the dependency graph resolved. So a package
-        /// identifier and a contribution identifier do not name one loaded singer, and asking
-        /// with the version left out is answered only while exactly one version is installed.
+        /// The version is a required part of the address. The specification allows two versions
+        /// of a package to be loaded at the same time, and a module reference cannot carry a
+        /// version because it binds to the version that the dependency graph resolved. A package
+        /// identifier and a contribution identifier therefore do not identify a unique loaded
+        /// singer, and a lookup without a version succeeds only while exactly one version is
+        /// installed.
         struct Singer {
             std::string packageId;
             std::string contributionId;
             stdc::VersionNumber version;
         };
 
-        /// One word on the way in. Mirrors what the editor holds per note.
+        /// Input word of a conversion. The fields correspond to the per-note data of the editor.
         struct Word {
             std::string lyric;
-            /// A pronunciation the user typed, which must not be overwritten.
+            /// A pronunciation entered by the user, which the conversion must not overwrite.
             std::optional<std::string> pronunciation;
-            /// A phoneme layer the user edited, with its onsets. Both or neither.
+            /// A phoneme sequence edited by the user. Set together with \c onsets or not at all.
             std::optional<std::vector<std::string>> phonemes;
             std::optional<std::vector<bool>> onsets;
         };
 
-        /// What one word converted to.
+        /// Conversion result of one word.
         struct Result {
             std::string pronunciation;
             std::vector<std::string> candidates;
             std::vector<std::string> phonemes;
             std::vector<bool> onsets;
-            /// Empty when the word converted. Otherwise why it did not, for the editor to show.
+            /// Empty if the word was converted; otherwise the failure reason for display.
             std::string error;
         };
 
-        /// How far a conversion should go.
+        /// Final stage of a conversion.
         enum class Depth {
-            /// Lyric to pronunciation. What the lyric filling dialog needs.
+            /// Lyric to pronunciation, as required by the lyric filling dialog.
             Pronunciation,
-            /// And on to phonemes. What a synthesis needs.
+            /// Lyric to phonemes, as required by synthesis.
             Phonemes,
-            /// And on to onsets.
+            /// Lyric to phonemes and onsets.
             Onsets,
         };
 
         explicit LanguageBridge(srt::SynthUnit &unit);
         ~LanguageBridge();
 
-        /// Rebuilds the catalogue from the packages the unit has committed.
+        /// Rebuilds the catalog from the packages the unit has committed.
         ///
-        /// Called after voicebanks are scanned. Cheap enough to call again whenever they change;
-        /// holders of an earlier catalogue keep seeing the earlier answers.
+        /// Called after voicebanks are scanned. The call is inexpensive and may be repeated
+        /// whenever the voicebanks change. Holders of an earlier catalog continue to see its
+        /// contents.
         void refresh();
 
-        /// The languages a singer declares, in the order its map yields them.
+        /// Releases the session state of \a singer, including its package handle, so that the
+        /// package can be unloaded. refresh() must be called after the subsequent rescan.
+        void release(const Singer &singer);
+
+        /// Returns the languages that \a singer declares, in the iteration order of its language
+        /// map.
         std::vector<std::string> languagesOf(const Singer &singer) const;
 
-        /// Whether a singer can convert this language at all, without loading anything.
+        /// Returns whether \a singer has a conversion route for \a language. Loads nothing.
         bool canConvert(const Singer &singer, const std::string &language) const;
 
-        /// Tells the session which phonemes a singer can sing, so coverage can be reported.
+        /// Registers the phonemes that \a singer supports, so that the session can report coverage.
         ///
-        /// wolf does not read voicebank formats, so this comes from the editor's own reading of
-        /// the singer. Without it coverage is Unknown, which is not the same as zero.
+        /// wolf does not read voicebank formats, so the list comes from the editor's reading of
+        /// the singer. Without the list, coverage is Unknown, which differs from zero coverage.
         void setSingerPhonemes(const Singer &singer, std::vector<std::string> phonemes);
 
-        /// The markers a word may be for any singer that declares none of its own, which are
-        /// answered here rather than converted.
+        /// Sets the reserved markers of every singer that declares no reserved phonemes.
         ///
-        /// A marker never reaches grapheme-to-phoneme: it comes back as its own pronunciation,
-        /// one phoneme, one onset. Defaults to the ecosystem's SP and AP. A voicebank that brings
-        /// more of its own -- a breath, a glottal stop, a hum -- declares them as the singer
-        /// category's reservedPhonemes, which the language session reads from the declaration
-        /// itself; this set is only the fallback for a singer that declares none.
+        /// A reserved marker bypasses grapheme-to-phoneme conversion. Its result is the marker
+        /// itself as pronunciation, one phoneme and one onset. The default set is SP and AP. A
+        /// voicebank with additional markers, such as a breath, a glottal stop or a hum, declares
+        /// them in the reservedPhonemes field of the singer category, which the language session
+        /// reads from the declaration. This set is the fallback for a singer without that field.
         ///
-        /// \note Reserved markers are also kept out of a linguist's declared phoneme inventory,
-        ///       so a marker set that disagrees with the one a voicebank was packaged against
-        ///       shows up as a coverage gap rather than as silence.
+        /// \note Reserved markers are also excluded from a linguist's declared phoneme inventory.
+        ///       A marker set that differs from the set against which a voicebank was packaged
+        ///       therefore appears as a coverage gap rather than as silence.
         void setReservedMarkers(std::vector<std::string> markers);
         std::vector<std::string> reservedMarkers() const;
 
-        /// Converts one batch, all in one language.
+        /// Converts a batch of words in one language.
         ///
-        /// Fails as a whole only when the route does not exist; a word that could not be converted
-        /// keeps its place in the batch and carries its own error, because a lyric sheet with one
-        /// unknown word should still fill in the rest.
+        /// The call fails as a whole only if the route does not exist. A word that cannot be
+        /// converted keeps its position in the batch and carries its own error, so that one
+        /// unknown word in a lyric sheet does not prevent the conversion of the other words.
         srt::Expected<std::vector<Result>> convert(const Singer &singer,
                                                    const std::string &language,
                                                    const std::vector<Word> &words,
                                                    Depth depth = Depth::Onsets) const;
 
-        /// Asks any conversion in flight to stop.
+        /// Requests cancellation of every conversion in progress.
         void cancel();
 
     private:

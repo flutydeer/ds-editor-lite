@@ -1,5 +1,7 @@
 #include "InferVarianceTask.h"
 
+#include "Modules/Inference/InferLogging.h"
+
 #include <dsinfer/Api/Inferences/Variance/1/VarianceApiL1.h>
 
 #include "Model/AppOptions/AppOptions.h"
@@ -10,6 +12,9 @@
 #include "Modules/Inference/Utils/PitchRouting.h"
 #include <lite/Support/JsonUtils.h>
 #include "InferTaskCommon.h"
+#include "InferStageModel.h"
+#include "Modules/Inference/Utils/InferCacheUtils.h"
+#include "Modules/Inference/Utils/InferFrameLayout.h"
 
 #include <QCryptographicHash>
 #include <QDebug>
@@ -41,14 +46,15 @@ bool InferVarianceTask::success() const {
     return m_success.load(std::memory_order_acquire);
 }
 
-InferVarianceTask::InferVarianceTask(InferVarianceInput input) : m_input(std::move(input)) {
+InferVarianceTask::InferVarianceTask(InferVarianceInput input) : m_input(std::move(input)),
+      m_cacheDirectory(appOptions->inference()->cacheDirectory) {
     buildPreviewText();
     TaskStatus status;
     status.title = tr("Infer Variance");
     status.message = tr("Pending infer: %1").arg(m_previewText);
     status.maximum = m_input.notes.count();
     setStatus(status);
-    qDebug() << "Task created"
+    qCDebug(logInferTask) << "Task created"
              << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
@@ -63,12 +69,11 @@ InferVarianceTask::InferVarianceResult InferVarianceTask::result() const {
 QStringList InferVarianceTask::cacheFileNames() const {
     if (m_inputHash.isEmpty())
         return {};
-    return {QStringLiteral("infer-variance-input-%1.json").arg(m_inputHash),
-            QStringLiteral("infer-variance-output-%1.json").arg(m_inputHash)};
+    return InferCacheUtils::cacheFileNames(QStringLiteral("variance"), m_inputHash).toList();
 }
 
 void InferVarianceTask::runTask() {
-    qDebug() << "Running task..."
+    qCDebug(logInferTask) << "Running task..."
              << "pieceId:" << pieceId() << " clipId:" << clipId() << "taskId:" << id();
     auto newStatus = status();
     newStatus.message = tr("Running inference: %1").arg(m_previewText);
@@ -80,16 +85,17 @@ void InferVarianceTask::runTask() {
     auto cacheKey = input.hashData().toUtf8();
     cacheKey.append(":variance-output-v2");
     m_inputHash = QCryptographicHash::hash(cacheKey, QCryptographicHash::Sha1).toHex();
-    const auto cacheDir = QDir(appOptions->inference()->cacheDirectory);
+    const auto cacheDir = QDir(m_cacheDirectory);
+    const auto cacheNames = InferCacheUtils::cacheFileNames(QStringLiteral("variance"), m_inputHash);
     if (!cacheDir.exists())
         cacheDir.mkpath(".");
     const auto inputCachePath =
-        cacheDir.filePath(QString("infer-variance-input-%1.json").arg(m_inputHash));
+        cacheDir.filePath(cacheNames.input);
     if (!QFile(inputCachePath).exists())
         JsonUtils::save(inputCachePath, input.serialize());
     bool useCache = false;
     const auto outputCachePath =
-        cacheDir.filePath(QString("infer-variance-output-%1.json").arg(m_inputHash));
+        cacheDir.filePath(cacheNames.output);
     if (QFile(outputCachePath).exists()) {
         QJsonObject obj;
         useCache = JsonUtils::load(outputCachePath, obj) && model.deserialize(obj);
@@ -99,7 +105,7 @@ void InferVarianceTask::runTask() {
         qInfo() << "Use cached variance inference result:" << outputCachePath;
     } else {
         QString errorMessage;
-        qDebug() << "Variance inference cache not found. Running inference...";
+        qCDebug(logInferTask) << "Variance inference cache not found. Running inference...";
         if (isTerminateRequested()) {
             abort();
             return;
@@ -127,13 +133,7 @@ void InferVarianceTask::runTask() {
 
 bool InferVarianceTask::runInference(const GenericInferModel &model, QList<InferParam> &outParams,
                                      QString &error) {
-    if (!inferEngine->initialized()) {
-        qCritical().noquote() << "inferVariance: Environment is not initialized";
-        return false;
-    }
-
     const auto &identifier = model.identifier;
-    std::string speakerName = model.speaker.toStdString();
     Var::VarianceStartInput input;
     input.parameters = convertInputParams(model.params);
     input.steps = model.steps;
@@ -144,48 +144,17 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
     }
 
     InferDirectMLSerializationGuard dmlGuard;
-    const auto lease = inferEngine->acquireSingerSession(identifier);
-    if (!lease || !lease->pipeline()) {
-        qCritical() << "inferVariance: failed to acquire singer session for" << identifier;
+    const auto stage = InferStageModel::acquire(m_activeInference, identifier,
+                                                InferStage::Variance, "inferVariance", error);
+    if (!stage)
         return false;
-    }
-    auto modelExp = m_activeInference.acquire(*lease->pipeline(), InferStage::Variance);
-    if (!modelExp) {
-        qCritical().noquote().nospace()
-            << "inferVariance: failed to load variance model for " << identifier << ": "
-            << QString::fromUtf8(modelExp.error().message());
-        error = QString::fromUtf8(modelExp.error().toString());
-        return false;
-    }
-    auto activeInference = modelExp.take();
-    auto &acquiredModel = activeInference.model();
-    // The stage decides the type: acquire() was asked for variance and returns
-    // nothing else.
-    auto *inferenceVariance = static_cast<Var::VarianceExecutive *>(acquiredModel.executive);
-    if (!inferenceVariance) {
-        qCritical() << "inferVariance: Variance inference not found for" << identifier;
-        return false;
-    }
-
-    // Convert singer speaker id to inference speaker id
-    if (!acquiredModel.importOptions) {
+    auto *inferenceVariance = stage->executive<Var::VarianceExecutive>();
+    const auto speakerMapping = stage->speakerMapping<Var::VarianceImportOptions>();
+    if (!speakerMapping) {
         qCritical() << "inferVariance: Import options not found";
         return false;
     }
-    const auto *importOptions = acquiredModel.importOptions->as<Var::VarianceImportOptions>();
-    if (!importOptions) {
-        qCritical() << "inferVariance: Import options not found";
-        return false;
-    }
-    const auto &speakerMapping = importOptions->speakerMapping;
-    input.words =
-        convertInputWords(model.words, speakerName, model.speakerMix, speakerMapping, error);
-    if (!error.isEmpty()) {
-        qCritical() << "inferVariance:" << error;
-        return false;
-    }
-    input.speakers = convertInputSpeakers(model.speakerMix, speakerMapping, error);
-    if (!error.isEmpty()) {
+    if (!convertStageWords(model, *speakerMapping, true, input.words, input.speakers, error)) {
         qCritical() << "inferVariance:" << error;
         return false;
     }
@@ -199,9 +168,9 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
     }
     auto exp = inferenceVariance->start(input);
     if (!exp) {
-        // The caller prints this at the end of the task, so a failure here has to leave its
-        // reason behind: the whole chain, not just the outermost message, because what the
-        // interpreter names last is usually what a host can act on.
+        // The caller logs this error at the end of the task, so the error records the complete
+        // error chain rather than only the outermost message. The innermost cause reported by
+        // the interpreter is usually the actionable cause.
         error = QString::fromUtf8(exp.error().toString());
         qCritical().noquote().nospace() << "inferVariance: Failed to start variance inference for "
                                         << identifier << ": " << error;
@@ -214,9 +183,9 @@ bool InferVarianceTask::runInference(const GenericInferModel &model, QList<Infer
         }
     }
 
-    // A failure already came back as an error from start(), so there is nothing to re-check on
-    // the result. What is worth checking is the state: a run that was stopped returns a result
-    // like any other, and running on with it would give a half a phrase as if it were the whole.
+    // A failure is already reported as an error by start(), so the result needs no further error
+    // check. The state is checked instead: a stopped run returns a result like a completed run,
+    // and using that result would treat a partial phrase as a complete phrase.
     if (inferenceVariance->state() != srt::ITask::Succeeded) {
         qCritical().noquote().nospace() << "inferVariance: the variance inference for " << identifier
                                         << " did not finish";
@@ -266,7 +235,8 @@ QString InferVarianceTask::InferVarianceInput::semanticSignature() const {
 GenericInferModel InferVarianceTask::InferVarianceInput::toEngineModel() const {
     auto words = InferTaskHelper::buildWords(*this, true);
     double totalLength = 0;
-    auto interval = 0.01;
+    // The curves are sampled on the frames of the model of this stage.
+    const auto interval = InferFrameLayout::inputInterval(identifier, InferStage::Variance);
     for (const auto &word : words)
         totalLength += word.length();
 
@@ -276,12 +246,13 @@ GenericInferModel InferVarianceTask::InferVarianceInput::toEngineModel() const {
 
     InferParam param;
     param.dynamic = true;
+    param.interval = interval;
     param.retake = retake;
 
     InferParam pitch = param;
     pitch.tag = "pitch";
     pitch.values =
-        PitchRouting::applyToneShift(resampleCurveToFrames(this->pitch, frames, interval),
+        PitchRouting::applyToneShift(resamplePitchToFrames(this->pitch, frames, interval),
                                      resampleCurveToFrames(this->toneShift, frames, interval));
 
     InferParam breathiness = param;

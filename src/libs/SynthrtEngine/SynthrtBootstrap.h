@@ -11,23 +11,11 @@
 
 #include <dsinfer/Inference/InferenceDriverFactory.h>
 
+#include "ExecutionBackend.h"
+
 namespace lite::synthrt {
 
     namespace fs = std::filesystem;
-
-    /// Which backend models run on.
-    enum class Backend {
-        Cpu,
-        Cuda,
-        DirectMl,
-        CoreMl,
-    };
-
-    /// Reads a backend from the name the editor's settings store.
-    ///
-    /// An unknown name reads as Cpu rather than failing: a settings file written by a newer build,
-    /// or on another platform, should not stop the editor starting.
-    Backend backendFromName(const std::string &name);
 
     /// The plugin directories of one contribution category.
     struct PluginCategory {
@@ -39,36 +27,37 @@ namespace lite::synthrt {
     /// \a pluginRoot.
     ///
     /// Each library layered on synthrt installs its plugins under plugins/<library>/<category>,
-    /// so a category lists one directory per library that contributes to it. All three libraries
-    /// contribute to the inference category: dsinfer with its models, wolf with its language
-    /// conversions and otter with its analysers. This function is the single source of the list.
-    /// Bootstrap registers the list, and the settings page reads it to display the paths rather
-    /// than deriving them again.
+    /// so a category lists one directory per contributing library. All three libraries contribute
+    /// to the inference category: dsinfer with its models, wolf with its language conversions and
+    /// otter with its analyzers. This function is the single source of the list. Bootstrap
+    /// registers the list, and the settings page displays the paths from it rather than deriving
+    /// them again.
     std::vector<PluginCategory> pluginCategories(const fs::path &pluginRoot);
 
     /// Returns the inference driver directory below \a pluginRoot. Drivers are runtime services of
     /// the unit rather than contributions, so a separate factory locates them.
     fs::path driverDirectory(const fs::path &pluginRoot);
 
-    /// Everything a unit needs before a package can be opened.
+    /// Setup of a unit that is required before a package can be opened.
     ///
-    /// This replaces the refactor line's Runtime plus its PluginFactory plus its two separate
-    /// driver setups. Three things happen here and nowhere else: the plugin search path of every
-    /// category the editor uses, the ONNX driver, and the fact that the driver is registered once
-    /// on the unit rather than per module. The last is why the language and analysis domains do
-    /// not each load a runtime of their own, which on the refactor line took a dedicated adapter.
+    /// This class replaces the Runtime, the PluginFactory and the two separate driver setups of
+    /// the refactor branch. It is the only place that configures the plugin search path of every
+    /// category that the editor uses and the ONNX driver. The driver is registered once on the
+    /// unit rather than per module, so the language and analysis domains share one runtime and
+    /// need no dedicated adapter to borrow it.
     class Bootstrap {
     public:
-        /// Builds a unit with the categories the editor uses and the ONNX driver registered.
+        /// Builds a unit with the categories that the editor uses and the ONNX driver registered.
         ///
-        /// \a pluginRoot is the directory holding the installed plugin trees; \a runtimePath is
-        /// where ONNX Runtime was deployed, which the host names rather than the driver guessing.
+        /// \a pluginRoot is the directory that contains the installed plugin trees. \a runtimePath
+        /// is the deployment directory of ONNX Runtime, which the host specifies so that the
+        /// driver does not search for it.
         ///
-        /// \a packagePaths is where packages are searched for, and it is not the same thing as
-        /// the directories a voicebank scan walks. A scan opens what it finds by path; a
-        /// dependency is resolved through these. A voicebank that names a language package would
-        /// fail to load without them, and it would fail talking about the reference rather than
-        /// about a search path, which is a long way from the cause.
+        /// \a packagePaths are the package search paths, which differ from the directories that a
+        /// voicebank scan traverses. A scan opens the packages it finds by path, whereas a
+        /// dependency is resolved through the package search paths. Without them, a voicebank that
+        /// references a language package fails to load with an error about the reference rather
+        /// than about the search path, which obscures the cause.
         static srt::Expected<std::unique_ptr<Bootstrap>>
             create(const fs::path &pluginRoot, const std::vector<fs::path> &packagePaths,
                    const fs::path &runtimePath, Backend backend, int deviceIndex);
@@ -77,8 +66,8 @@ namespace lite::synthrt {
 
         srt::SynthUnit &unit();
 
-        /// Whether a model can actually be opened. False when no driver plugin was found, in
-        /// which case packages still load and only inference is unavailable.
+        /// Returns whether a model can be opened. Returns false if no driver plugin was found; in
+        /// that case packages still load and only inference is unavailable.
         bool hasDriver() const;
 
     private:

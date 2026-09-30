@@ -1,5 +1,7 @@
 #include <lite/MusicBase/Timeline.h>
 #include <lite/Support/MathUtils.h>
+#include "Modules/Inference/Models/InferInputBase.h"
+#include "Modules/Inference/Utils/PitchSampling.h"
 #include "Modules/Inference/Utils/PitchRouting.h"
 
 #include <QCoreApplication>
@@ -43,6 +45,18 @@ int main(int argc, char *argv[]) {
     expect(MathUtils::resample({0.0, 10.0}, {0.0, 1.0}, targets) ==
                QList<double>({0.0, 5.0, 10.0, 10.0}),
            "explicit resampling must interpolate and clamp endpoints");
+
+    // An unvoiced frame (zero) is never blended with a voiced neighbor.
+    const QList<double> pitch{60.0, 62.0, 0.0, 0.0, 64.0};
+    const QList<double> frames{0.0, 1.0, 2.0, 3.0, 4.0};
+    expect(PitchSampling::resample(pitch, frames, {0.5, 1.25, 1.75, 2.5, 3.5, 3.75, 5.0}) ==
+               QList<double>({61.0, 62.0, 0.0, 0.0, 0.0, 64.0, 64.0}),
+           "pitch resampling must interpolate voiced pairs and take the nearer frame at a voicing "
+           "boundary");
+    expect(PitchSampling::resample(pitch, frames, {1.5}) == QList<double>({62.0}),
+           "a target equally near both frames must take the left frame");
+    expect(PitchSampling::resample(pitch, {0.0, 1.0, 1.0, 2.0, 3.0}, {0.5}).isEmpty(),
+           "pitch resampling must reject source positions that are not strictly increasing");
 
     const Timeline stepped({
         {0,   120.0},
@@ -101,5 +115,31 @@ int main(int argc, char *argv[]) {
     expect(PitchRouting::midiPitchToF0({0.0, -1.0, 69.0}, 1.0, 3, 1.0) ==
                QList<float>({0.0f, 0.0f, 440.0f}),
            "vocoder f0 must preserve non-positive unvoiced pitch samples");
+    expect(PitchRouting::midiPitchToF0({69.0, 0.0}, 1.0, 4, 0.3) ==
+               QList<float>({440.0f, 440.0f, 0.0f, 0.0f}),
+           "vocoder f0 must take the nearer sample at a voicing boundary");
+
+    // The inference input grid samples the 5-tick pitch curve without blending a voiced value
+    // with the unvoiced marker. An extracted curve writes zero for an unvoiced frame, and the
+    // routing reads a value of zero or less as unvoiced.
+    InferInputBase input;
+    input.timeline = single;
+    input.clipStartTick = 0;
+    input.pieceStartTick = 0;
+    input.pieceEndTick = 480;
+    InferParamCurve extracted;
+    extracted.localStartTick = 0;
+    for (int i = 0; i < 96; ++i)
+        extracted.values.append(i < 30 ? 60.0 : i < 60 ? 0.0 : 64.0);
+    const auto inputFrames = input.resamplePitchToFrames(extracted, 50, 0.01);
+    expect(inputFrames.size() == 50, "the pitch input must have the requested frame count");
+    for (const auto value : inputFrames) {
+        expect(value == 0.0 || value >= 60.0,
+               "the pitch input must hold either the unvoiced marker or a sung pitch");
+    }
+    expect(inputFrames.contains(0.0) && inputFrames.contains(60.0) && inputFrames.contains(64.0),
+           "the pitch input must keep both voiced segments and the unvoiced gap");
+    expect(input.resamplePitchToFrames({}, 3, 0.01) == QList<double>(3, 0.0),
+           "an empty pitch curve must yield unvoiced frames");
     return 0;
 }

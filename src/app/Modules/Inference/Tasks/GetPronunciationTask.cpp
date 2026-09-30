@@ -1,5 +1,8 @@
 #include "GetPronunciationTask.h"
 
+#include "Modules/Inference/Utils/PronunciationText.h"
+#include "Modules/Inference/Utils/ReservedPhonemes.h"
+
 #include "Model/AppStatus/AppStatus.h"
 
 #include <QDebug>
@@ -19,39 +22,8 @@
 Q_LOGGING_CATEGORY(logInferPron, "infer.pronunciation")
 
 namespace {
-    std::string toUtf8(const QString &value) {
-        const auto bytes = value.toUtf8();
-        return {bytes.constData(), static_cast<size_t>(bytes.size())};
-    }
-
-    QString fromUtf8(const std::string &value) {
-        return QString::fromUtf8(value.data(), static_cast<qsizetype>(value.size()));
-    }
-
-    /// Candidates from the g2p engine may be the split phoneme tokens of the
-    /// pronunciation itself (dict step) rather than true alternative
-    /// pronunciations. In that case collapse them to the whole pronunciation
-    /// so the UI never offers single phonemes as switchable candidates.
-    QStringList normalizePronunciationCandidates(const QString &pronunciation,
-                                                 QStringList candidates) {
-        if (pronunciation.isEmpty())
-            return candidates;
-        const auto pronTokens = pronunciation.split(u' ', Qt::SkipEmptyParts);
-        if (pronTokens.isEmpty())
-            return candidates;
-        for (auto &c : candidates)
-            c = c.trimmed();
-        candidates.removeAll(QString());
-        const bool allArePronTokens =
-            !candidates.isEmpty() &&
-            std::all_of(candidates.cbegin(), candidates.cend(), [&](const QString &c) {
-                return c.contains(u' ') ? c == pronunciation : pronTokens.contains(c);
-            });
-        if (allArePronTokens)
-            return {pronunciation};
-        return candidates;
-    }
-
+    using PronunciationText::fromUtf8;
+    using PronunciationText::toUtf8;
 }
 
 GetPronunciationTask::GetPronunciationTask(Automation::DocumentVersion documentVersion,
@@ -129,18 +101,19 @@ QList<PronunciationFetchResult>
         return pronResult;
     }
 
-    auto isSkippedNote = [](const NoteInferenceSnapshot &note) {
+    // A lyric that is a reserved phoneme of the singer is its own pronunciation.
+    const auto reservedPhonemes = ReservedPhonemes::of(m_singerInfo.identifier());
+    auto isSkippedNote = [&reservedPhonemes](const NoteInferenceSnapshot &note) {
         const auto lyric = note.lyric.trimmed();
-        if (lyric == "SP" || lyric == "AP" || Note::isSlurLyric(lyric))
+        if (reservedPhonemes.contains(lyric) || Note::isSlurLyric(lyric))
             return true;
         return lyric.isEmpty() || Note::isSyllabificationLyric(lyric);
     };
 
-    // B1b-3: Group non-skipped notes by language (preserving first-seen order).
-    // Each language calls session().convertG2p once (internally routed by
-    // SingerRef.version, which fills g2pId/g2pContext/g2pContextVersion).
-    // The inference chain never falls back to official; on route/convert
-    // failure that language keeps the original lyric (ds-session.md §206).
+    // Group non-skipped notes by language (preserving first-seen order). Each language is
+    // converted in one call to the language layer, which wolf routes by singer and language
+    // without a G2P identifier. On a routing or conversion failure, the notes of that language
+    // keep the original lyric (ds-session.md §206).
     // language -> [(noteIndex, lyricUtf8), ...]
     std::map<QString, std::vector<std::pair<int, std::string>>> langGroups;
 
@@ -171,8 +144,8 @@ QList<PronunciationFetchResult>
             words.push_back({entry.second, {}, {}, {}});
         }
 
-        // Nothing to make ready first. The older line loaded a language's models before it could
-        // convert with them; wolf loads a language the first time a conversion asks for one.
+        // No preparation step is required, because wolf loads a language on its first
+        // conversion.
         auto converted = SynthrtEngine::instance().convert(
             identifier, language, words, lite::synthrt::LanguageBridge::Depth::Pronunciation);
         if (!converted) {
@@ -187,8 +160,9 @@ QList<PronunciationFetchResult>
         }
 
         const auto outcomes = converted.take();
-        // Caller is responsible for result count validation; on mismatch the original lyric is
-        // kept (no Q_ASSERT: a Debug-build abort conflicts with D11 precise error reporting).
+        // The caller validates the result count. On a mismatch, the original lyric is kept. No
+        // Q_ASSERT is used, because a Debug-build abort conflicts with D11 precise error
+        // reporting.
         if (outcomes.size() != entries.size()) {
             qCWarning(logInferPron).nospace()
                 << "the conversion returned " << outcomes.size() << " outcomes for "
@@ -209,10 +183,10 @@ QList<PronunciationFetchResult>
             rawCandidates.reserve(static_cast<qsizetype>(outcomes[i].candidates.size()));
             for (const auto &candidate : outcomes[i].candidates)
                 rawCandidates.append(fromUtf8(candidate));
-            res.candidates = normalizePronunciationCandidates(res.pronunciation, rawCandidates);
+            res.candidates = PronunciationText::normalizeCandidates(res.pronunciation, rawCandidates);
 
-            // A word that could not be converted keeps its place in the batch and carries its own
-            // reason, so one unknown word never costs the rest of the sheet.
+            // A word that fails to convert keeps its position in the batch and carries its own
+            // error, so an unknown word does not affect the other words of the batch.
             if (!outcomes[i].error.empty()) {
                 qCWarning(logInferPron).nospace()
                     << "G2P conversion error note[" << noteIdx << "] lyric='"

@@ -53,7 +53,8 @@ public:
     InferAcousticInput input() const;
     QString result() const;
     [[nodiscard]] QStringList cacheFileNames() const;
-    [[nodiscard]] static AcousticCacheLookup lookupCache(const InferAcousticInput &input);
+    [[nodiscard]] static AcousticCacheLookup lookupCache(const InferAcousticInput &input,
+                                                         const QString &cacheDirectory);
 
 private:
     void runTask() override;
@@ -66,6 +67,9 @@ private:
     InferAcousticInput m_input;
     QString m_result;
     QString m_inputHash;
+    /// Cache directory, read from the options when the task is created on the application
+    /// thread. The task runs on a worker thread, and AppOptions belongs to the application thread.
+    QString m_cacheDirectory;
     std::atomic<bool> m_success{false};
     ActiveInference m_activeInference;
 };

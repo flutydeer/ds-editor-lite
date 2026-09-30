@@ -1,5 +1,7 @@
 #include "InferDurationTask.h"
 
+#include "Modules/Inference/InferLogging.h"
+
 #include <dsinfer/Api/Inferences/Duration/1/DurationApiL1.h>
 
 #include "Model/AppOptions/AppOptions.h"
@@ -9,6 +11,8 @@
 #include <lite/ProjectModel/Utils/PhonemeHeadLayout.h>
 #include <lite/Support/JsonUtils.h>
 #include "InferTaskCommon.h"
+#include "InferStageModel.h"
+#include "Modules/Inference/Utils/InferCacheUtils.h"
 
 #include <algorithm>
 #include <cmath>
@@ -43,14 +47,15 @@ bool InferDurationTask::success() const {
     return m_success.load(std::memory_order_acquire);
 }
 
-InferDurationTask::InferDurationTask(InferDurInput input) : m_input(std::move(input)) {
+InferDurationTask::InferDurationTask(InferDurInput input) : m_input(std::move(input)),
+      m_cacheDirectory(appOptions->inference()->cacheDirectory) {
     buildPreviewText();
     TaskStatus status;
     status.title = tr("Infer Duration");
     status.message = tr("Pending infer: %1").arg(m_previewText);
     status.maximum = m_input.notes.count();
     setStatus(status);
-    qDebug() << "Task created"
+    qCDebug(logInferTask) << "Task created"
              << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
@@ -66,12 +71,11 @@ QList<InferInputNote> InferDurationTask::result() const {
 QStringList InferDurationTask::cacheFileNames() const {
     if (m_inputHash.isEmpty())
         return {};
-    return {QStringLiteral("infer-duration-input-%1.json").arg(m_inputHash),
-            QStringLiteral("infer-duration-output-%1.json").arg(m_inputHash)};
+    return InferCacheUtils::cacheFileNames(QStringLiteral("duration"), m_inputHash).toList();
 }
 
 void InferDurationTask::runTask() {
-    qDebug() << "Running task..."
+    qCDebug(logInferTask) << "Running task..."
              << "pieceId:" << pieceId() << " clipId:" << clipId() << "taskId:" << id();
     auto newStatus = status();
     newStatus.message = tr("Running inference: %1").arg(m_previewText);
@@ -81,16 +85,17 @@ void InferDurationTask::runTask() {
     GenericInferModel model;
     const auto input = m_input.toEngineModel();
     m_inputHash = input.hashData();
-    const auto cacheDir = QDir(appOptions->inference()->cacheDirectory);
+    const auto cacheDir = QDir(m_cacheDirectory);
+    const auto cacheNames = InferCacheUtils::cacheFileNames(QStringLiteral("duration"), m_inputHash);
     if (!cacheDir.exists())
         cacheDir.mkpath(".");
     const auto inputCachePath =
-        cacheDir.filePath(QString("infer-duration-input-%1.json").arg(m_inputHash));
+        cacheDir.filePath(cacheNames.input);
     if (!QFile(inputCachePath).exists())
         JsonUtils::save(inputCachePath, input.serialize());
     bool useCache = false;
     const auto outputCachePath =
-        cacheDir.filePath(QString("infer-duration-output-%1.json").arg(m_inputHash));
+        cacheDir.filePath(cacheNames.output);
     if (QFile(outputCachePath).exists()) {
         QJsonObject obj;
         useCache = JsonUtils::load(outputCachePath, obj) && model.deserialize(obj);
@@ -100,7 +105,7 @@ void InferDurationTask::runTask() {
         qInfo() << "Use cached duration inference result:" << outputCachePath;
     } else {
         QString errorMessage;
-        qDebug() << "Duration inference cache not found. Running inference...";
+        qCDebug(logInferTask) << "Duration inference cache not found. Running inference...";
         if (isTerminateRequested()) {
             abort();
             return;
@@ -152,53 +157,23 @@ void InferDurationTask::runTask() {
 
 bool InferDurationTask::runInference(const GenericInferModel &model,
                                      std::vector<double> &outDuration, QString &error) {
-    if (!inferEngine->initialized()) {
-        qCritical().noquote() << "inferDuration: Environment is not initialized";
-        return false;
-    }
-
     const auto &identifier = model.identifier;
-    std::string speakerName = model.speaker.toStdString();
     Dur::DurationStartInput input;
 
     InferDirectMLSerializationGuard dmlGuard;
-    const auto lease = inferEngine->acquireSingerSession(identifier);
-    if (!lease || !lease->pipeline()) {
-        qCritical() << "inferDuration: failed to acquire singer session for" << identifier;
+    const auto stage = InferStageModel::acquire(m_activeInference, identifier,
+                                                InferStage::Duration, "inferDuration", error);
+    if (!stage)
         return false;
-    }
-    auto modelExp = m_activeInference.acquire(*lease->pipeline(), InferStage::Duration);
-    if (!modelExp) {
-        qCritical().noquote().nospace()
-            << "inferDuration: failed to load duration model for " << identifier << ": "
-            << QString::fromUtf8(modelExp.error().message());
-        error = QString::fromUtf8(modelExp.error().toString());
-        return false;
-    }
-    auto activeInference = modelExp.take();
-    auto &acquiredModel = activeInference.model();
-    // The stage decides the type: acquire() was asked for duration and returns
-    // nothing else.
-    auto *inferenceDuration = static_cast<Dur::DurationExecutive *>(acquiredModel.executive);
-    if (!inferenceDuration) {
-        qCritical() << "inferDuration: Duration inference not found for" << identifier;
-        return false;
-    }
-
-    // Convert singer speaker id to inference speaker id
-    if (!acquiredModel.importOptions) {
+    auto *inferenceDuration = stage->executive<Dur::DurationExecutive>();
+    const auto speakerMapping = stage->speakerMapping<Dur::DurationImportOptions>();
+    if (!speakerMapping) {
         qCritical() << "inferDuration: Import options not found";
         return false;
     }
-    const auto *importOptions = acquiredModel.importOptions->as<Dur::DurationImportOptions>();
-    if (!importOptions) {
-        qCritical() << "inferDuration: Import options not found";
-        return false;
-    }
-    const auto &speakerMapping = importOptions->speakerMapping;
-    input.words =
-        convertInputWords(model.words, speakerName, model.speakerMix, speakerMapping, error);
-    if (!error.isEmpty()) {
+    // The duration input has no frame level speakers, so only the words are converted.
+    std::vector<ds::Api::Common::L1::InputSpeakerInfo> unusedSpeakers;
+    if (!convertStageWords(model, *speakerMapping, false, input.words, unusedSpeakers, error)) {
         qCritical() << "inferDuration:" << error;
         return false;
     }
@@ -224,9 +199,9 @@ bool InferDurationTask::runInference(const GenericInferModel &model,
         }
     }
 
-    // A failure already came back as an error from start(), so there is nothing to re-check on
-    // the result. What is worth checking is the state: a run that was stopped returns a result
-    // like any other, and running on with it would give a half a phrase as if it were the whole.
+    // A failure is already reported as an error by start(), so the result needs no further error
+    // check. The state is checked instead: a stopped run returns a result like a completed run,
+    // and using that result would treat a partial phrase as a complete phrase.
     if (inferenceDuration->state() != srt::ITask::Succeeded) {
         qCritical().noquote().nospace() << "inferDuration: the duration inference for " << identifier
                                         << " did not finish";
@@ -332,9 +307,9 @@ bool InferDurationTask::processOutput(const GenericInferModel &model) {
         if (note.isRest || note.isSlur)
             continue;
 
-        // Skip consecutive SP and AP phonemes.
-        while (phoneIndex < outputPhones.size() && (outputPhones.at(phoneIndex).token == "SP" ||
-                                                    outputPhones.at(phoneIndex).token == "AP")) {
+        // Skip consecutive reserved phonemes, which belong to rests and padding.
+        while (phoneIndex < outputPhones.size() &&
+               m_input.reservedPhonemes.contains(outputPhones.at(phoneIndex).token)) {
             phoneIndex++;
         }
 
@@ -371,8 +346,8 @@ bool InferDurationTask::processOutput(const GenericInferModel &model) {
         note.phonemeOffsets = noteOffsets;
     }
 
-    while (phoneIndex < outputPhones.size() && (outputPhones.at(phoneIndex).token == "SP" ||
-                                                outputPhones.at(phoneIndex).token == "AP")) {
+    while (phoneIndex < outputPhones.size() &&
+           m_input.reservedPhonemes.contains(outputPhones.at(phoneIndex).token)) {
         phoneIndex++;
     }
     if (phoneIndex != outputPhones.size()) {

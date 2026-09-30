@@ -53,18 +53,16 @@ public:
     QString inferenceDriverPath() const;
     QString inferenceRuntimePath() const;
     QString inferenceInterpreterPath() const;
-    // Returns the unit for public, read-only access, or nullptr when there is none -- before
-    // initialize() succeeded, or after shutdown(). Callers must test for nullptr.
-    srt::SynthUnit *constRuntime() const;
 
-    /// One singer's pipeline, kept alive for as long as the lease is held.
+    /// Lease on the pipeline of one singer, which keeps the pipeline alive while the lease is held.
     ///
-    /// The pipeline is shared with SynthrtEngine's other holders and owns its package, so a task
-    /// still holding one after a voicebank rescan finishes on a whole pipeline rather than a
-    /// dangling one. Letting the last lease go is what closes the five models -- the only thing
-    /// here that costs real memory. A lease also knows the catalogue generation it was taken in,
-    /// so the cache can tell that a resident lease describes a voicebank as it was scanned before
-    /// and take a fresh one instead of handing out the old.
+    /// The pipeline is shared with the other holders in SynthrtEngine and owns its package. A task
+    /// that still holds a lease after a voicebank rescan therefore completes on a valid pipeline
+    /// instead of a dangling pointer. Releasing the last lease closes the five models, which are
+    /// the only resources here with significant memory cost. A lease records the catalog
+    /// generation in which it was acquired. The cache uses the generation to detect a resident
+    /// lease that describes a voicebank from a previous scan, and acquires a new lease instead of
+    /// returning the stale lease.
     class SingerPipelineLease final {
     public:
         SingerPipelineLease(std::shared_ptr<lite::synthrt::SingerPipeline> pipeline,
@@ -75,7 +73,7 @@ public:
 
         lite::synthrt::SingerPipeline *pipeline() const noexcept;
 
-        /// True once the catalogue was republished under it.
+        /// Returns whether the catalog was republished after the lease was acquired.
         bool isStale() const;
 
     private:
@@ -105,7 +103,17 @@ private:
     void releaseSingerSessionsAsync(SingerSessionHandleList handles);
     void releaseDeselectedSingerSessionsAsync(SingerSessionHandleList handles);
 
+    /// Options read by initialization, copied on the application thread when initialization
+    /// starts. AppOptions belongs to the application thread, and initialize() runs on a task
+    /// thread.
+    struct StartOptions {
+        QString executionProvider;
+        QString selectedGpuId;
+        QStringList packageSearchPaths;
+    };
+
     mutable QReadWriteLock m_engineRwLock;
+    StartOptions m_startOptions;
     std::once_flag m_initFlag{};
     bool m_initialized = false;
     bool m_disposed = false;

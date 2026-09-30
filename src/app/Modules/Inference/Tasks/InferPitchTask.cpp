@@ -1,5 +1,7 @@
 #include "InferPitchTask.h"
 
+#include "Modules/Inference/InferLogging.h"
+
 #include <dsinfer/Api/Inferences/Pitch/1/PitchApiL1.h>
 
 #include "Model/AppOptions/AppOptions.h"
@@ -9,6 +11,9 @@
 #include <lite/Support/JsonUtils.h>
 #include <lite/Support/Linq.h>
 #include "InferTaskCommon.h"
+#include "InferStageModel.h"
+#include "Modules/Inference/Utils/InferCacheUtils.h"
+#include "Modules/Inference/Utils/InferFrameLayout.h"
 
 #include <QDebug>
 #include <QDir>
@@ -39,14 +44,15 @@ bool InferPitchTask::success() const {
     return m_success.load(std::memory_order_acquire);
 }
 
-InferPitchTask::InferPitchTask(InferPitchInput input) : m_input(std::move(input)) {
+InferPitchTask::InferPitchTask(InferPitchInput input) : m_input(std::move(input)),
+      m_cacheDirectory(appOptions->inference()->cacheDirectory) {
     buildPreviewText();
     TaskStatus status;
     status.title = tr("Infer Pitch");
     status.message = tr("Pending infer: %1").arg(m_previewText);
     status.maximum = m_input.notes.count();
     setStatus(status);
-    qDebug() << "Task created"
+    qCDebug(logInferTask) << "Task created"
              << "clipId:" << clipId() << "pieceId:" << pieceId() << "taskId:" << id();
 }
 
@@ -61,12 +67,11 @@ InferParamCurve InferPitchTask::result() {
 QStringList InferPitchTask::cacheFileNames() const {
     if (m_inputHash.isEmpty())
         return {};
-    return {QStringLiteral("infer-pitch-input-%1.json").arg(m_inputHash),
-            QStringLiteral("infer-pitch-output-%1.json").arg(m_inputHash)};
+    return InferCacheUtils::cacheFileNames(QStringLiteral("pitch"), m_inputHash).toList();
 }
 
 void InferPitchTask::runTask() {
-    qDebug() << "Running task..."
+    qCDebug(logInferTask) << "Running task..."
              << "pieceId:" << pieceId() << " clipId:" << clipId() << "taskId:" << id();
     auto newStatus = status();
     newStatus.message = tr("Running inference: %1").arg(m_previewText);
@@ -76,16 +81,17 @@ void InferPitchTask::runTask() {
     GenericInferModel model;
     const auto input = m_input.toEngineModel();
     m_inputHash = input.hashData();
-    const auto cacheDir = QDir(appOptions->inference()->cacheDirectory);
+    const auto cacheDir = QDir(m_cacheDirectory);
+    const auto cacheNames = InferCacheUtils::cacheFileNames(QStringLiteral("pitch"), m_inputHash);
     if (!cacheDir.exists())
         cacheDir.mkpath(".");
     const auto inputCachePath =
-        cacheDir.filePath(QString("infer-pitch-input-%1.json").arg(m_inputHash));
+        cacheDir.filePath(cacheNames.input);
     if (!QFile(inputCachePath).exists())
         JsonUtils::save(inputCachePath, input.serialize());
     bool useCache = false;
     const auto outputCachePath =
-        cacheDir.filePath(QString("infer-pitch-output-%1.json").arg(m_inputHash));
+        cacheDir.filePath(cacheNames.output);
     if (QFile(outputCachePath).exists()) {
         QJsonObject obj;
         useCache = JsonUtils::load(outputCachePath, obj) && model.deserialize(obj);
@@ -95,7 +101,7 @@ void InferPitchTask::runTask() {
         qInfo() << "Use cached pitch inference result:" << outputCachePath;
     } else {
         QString errorMessage;
-        qDebug() << "Pitch inference cache not found. Running inference...";
+        qCDebug(logInferTask) << "Pitch inference cache not found. Running inference...";
         if (isTerminateRequested()) {
             abort();
             return;
@@ -128,60 +134,23 @@ void InferPitchTask::runTask() {
 
 bool InferPitchTask::runInference(const GenericInferModel &model, InferParam &outPitch,
                                   QString &error) {
-    if (!inferEngine->initialized()) {
-        qCritical().noquote() << "inferPitch: Environment is not initialized";
-        return false;
-    }
-
     const auto &identifier = model.identifier;
-    std::string speakerName = model.speaker.toStdString();
     Pit::PitchStartInput input;
     input.parameters = convertInputParams(model.params);
     input.steps = model.steps;
 
     InferDirectMLSerializationGuard dmlGuard;
-    const auto lease = inferEngine->acquireSingerSession(identifier);
-    if (!lease || !lease->pipeline()) {
-        qCritical() << "inferPitch: failed to acquire singer session for" << identifier;
+    const auto stage = InferStageModel::acquire(m_activeInference, identifier, InferStage::Pitch,
+                                                "inferPitch", error);
+    if (!stage)
         return false;
-    }
-    auto modelExp = m_activeInference.acquire(*lease->pipeline(), InferStage::Pitch);
-    if (!modelExp) {
-        qCritical().noquote().nospace()
-            << "inferPitch: failed to load pitch model for " << identifier << ": "
-            << QString::fromUtf8(modelExp.error().message());
-        error = QString::fromUtf8(modelExp.error().toString());
-        return false;
-    }
-    auto activeInference = modelExp.take();
-    auto &acquiredModel = activeInference.model();
-    // The stage decides the type: acquire() was asked for pitch and returns
-    // nothing else.
-    auto *inferencePitch = static_cast<Pit::PitchExecutive *>(acquiredModel.executive);
-    if (!inferencePitch) {
-        qCritical() << "inferPitch: Pitch inference not found for" << identifier;
-        return false;
-    }
-
-    // Convert singer speaker id to inference speaker id
-    if (!acquiredModel.importOptions) {
+    auto *inferencePitch = stage->executive<Pit::PitchExecutive>();
+    const auto speakerMapping = stage->speakerMapping<Pit::PitchImportOptions>();
+    if (!speakerMapping) {
         qCritical() << "inferPitch: Import options not found";
         return false;
     }
-    const auto *importOptions = acquiredModel.importOptions->as<Pit::PitchImportOptions>();
-    if (!importOptions) {
-        qCritical() << "inferPitch: Import options not found";
-        return false;
-    }
-    const auto &speakerMapping = importOptions->speakerMapping;
-    input.words =
-        convertInputWords(model.words, speakerName, model.speakerMix, speakerMapping, error);
-    if (!error.isEmpty()) {
-        qCritical() << "inferPitch:" << error;
-        return false;
-    }
-    input.speakers = convertInputSpeakers(model.speakerMix, speakerMapping, error);
-    if (!error.isEmpty()) {
+    if (!convertStageWords(model, *speakerMapping, true, input.words, input.speakers, error)) {
         qCritical() << "inferPitch:" << error;
         return false;
     }
@@ -207,9 +176,9 @@ bool InferPitchTask::runInference(const GenericInferModel &model, InferParam &ou
         }
     }
 
-    // A failure already came back as an error from start(), so there is nothing to re-check on
-    // the result. What is worth checking is the state: a run that was stopped returns a result
-    // like any other, and running on with it would give a half a phrase as if it were the whole.
+    // A failure is already reported as an error by start(), so the result needs no further error
+    // check. The state is checked instead: a stopped run returns a result like a completed run,
+    // and using that result would treat a partial phrase as a complete phrase.
     if (inferencePitch->state() != srt::ITask::Succeeded) {
         qCritical().noquote().nospace() << "inferPitch: the pitch inference for " << identifier
                                         << " did not finish";
@@ -255,7 +224,8 @@ QString InferPitchTask::InferPitchInput::semanticSignature() const {
 GenericInferModel InferPitchTask::InferPitchInput::toEngineModel() const {
     auto words = InferTaskHelper::buildWords(*this, true);
     double totalLength = 0;
-    constexpr auto interval = 0.01;
+    // The curves are sampled on the frames of the model of this stage.
+    const auto interval = InferFrameLayout::inputInterval(identifier, InferStage::Pitch);
     for (const auto &word : words)
         totalLength += word.length();
 
@@ -265,6 +235,7 @@ GenericInferModel InferPitchTask::InferPitchInput::toEngineModel() const {
 
     InferParam param;
     param.dynamic = true;
+    param.interval = interval;
     param.retake = retake;
 
     InferParam expr = param;

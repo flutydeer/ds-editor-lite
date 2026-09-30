@@ -3,10 +3,27 @@
 
 #include <QSet>
 #include <QString>
+#include <QStringList>
 
 #include <QList>
 
 namespace InferCacheUtils {
+
+    /// Names of the two cache files of one task input: the serialized input and the result.
+    struct CacheFileNames {
+        QString input;
+        QString output;
+
+        [[nodiscard]] QStringList toList() const {
+            return {input, output};
+        }
+    };
+
+    /// Returns the cache file names of a task of \a category ("acoustic", "duration", "pitch" or
+    /// "variance") whose input hashes to \a hash. This function is the single definition of the
+    /// naming scheme and is used by the tasks, by the registration of their files and by the
+    /// cleanup.
+    CacheFileNames cacheFileNames(const QString &category, const QString &hash);
 
     struct CacheFileInfo {
         QString fileName;

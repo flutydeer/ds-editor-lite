@@ -9,10 +9,10 @@
 namespace Co = ds::Api::Common::L1;
 
 namespace {
-    // Serializes stage creation across tasks sharing one pipeline. The pipeline's own guard is a
-    // plain lock and would be enough, but the driver underneath is not always reentrant, and two
-    // tasks opening two models at once is exactly the shape that has gone wrong before. Opening
-    // is once per stage per singer, so this is not a bottleneck.
+    // Serializes stage creation across tasks that share one pipeline. The guard of the pipeline
+    // is a plain lock and would suffice for the pipeline itself, but the underlying driver is not
+    // always reentrant, and concurrent opening of two models by two tasks has caused failures
+    // before. A stage is opened once per singer, so this mutex is not a bottleneck.
     std::mutex g_modelLoadMutex;
 
     bool mapSpeakerName(const std::string &speakerName,
@@ -25,7 +25,6 @@ namespace {
 
         if (const auto it = speakerMapping.find(speakerName); it != speakerMapping.end()) {
             mappedSpeakerName = it->second;
-            qDebug() << "mapped speaker" << speakerName << "to" << mappedSpeakerName;
             return true;
         }
         return false;
@@ -61,7 +60,7 @@ srt::Expected<ActiveInference::Handle>
                 if (!opened)
                     return opened.takeError();
                 model.executive = opened.take();
-                model.importOptions = pipeline.options("singer/duration");
+                model.importOptions = pipeline.options(stage);
                 break;
             }
             case InferStage::Pitch: {
@@ -69,7 +68,7 @@ srt::Expected<ActiveInference::Handle>
                 if (!opened)
                     return opened.takeError();
                 model.executive = opened.take();
-                model.importOptions = pipeline.options("singer/pitch");
+                model.importOptions = pipeline.options(stage);
                 break;
             }
             case InferStage::Variance: {
@@ -77,7 +76,7 @@ srt::Expected<ActiveInference::Handle>
                 if (!opened)
                     return opened.takeError();
                 model.executive = opened.take();
-                model.importOptions = pipeline.options("singer/variance");
+                model.importOptions = pipeline.options(stage);
                 break;
             }
             case InferStage::Acoustic: {
@@ -85,7 +84,7 @@ srt::Expected<ActiveInference::Handle>
                 if (!opened)
                     return opened.takeError();
                 model.executive = opened.take();
-                model.importOptions = pipeline.options("singer/acoustic");
+                model.importOptions = pipeline.options(stage);
                 break;
             }
             case InferStage::Vocoder: {
@@ -93,7 +92,7 @@ srt::Expected<ActiveInference::Handle>
                 if (!opened)
                     return opened.takeError();
                 model.executive = opened.take();
-                model.importOptions = pipeline.options("singer/vocoder");
+                model.importOptions = pipeline.options(stage);
                 break;
             }
         }
@@ -108,8 +107,8 @@ srt::Expected<ActiveInference::Handle>
         if (m_stopRequested)
             toStop = m_executive;
     }
-    // A stop that arrived while the model was opening still has to land, or the task runs a
-    // cancellation it was already told about.
+    // A stop requested while the model was opening is applied now. Otherwise the task would run
+    // to completion despite the cancellation request.
     if (toStop)
         (void) toStop->stop();
     return Handle(*this, std::move(model), generation);
@@ -122,9 +121,10 @@ void ActiveInference::clear(std::uint64_t generation) {
 }
 
 void ActiveInference::stop() {
-    // Held across the call: the handle clears the pointer under this mutex before the task lets
-    // go of the pipeline that owns the executive, so a stop that finds the pointer set is talking
-    // to a live object. stop() raises a flag and returns, so nothing waits behind the lock.
+    // The mutex is held across the call. The handle clears the pointer under this mutex before
+    // the task releases the pipeline that owns the executive, so a non-null pointer here always
+    // refers to a live object. stop() only sets a flag and returns, so the lock does not block
+    // other callers for long.
     std::lock_guard lock(m_mutex);
     m_stopRequested = true;
     if (m_executive)
@@ -261,7 +261,7 @@ auto convertInputParams(const QList<InferParam> &params) -> std::vector<Co::Inpu
 
 auto createStaticSpeaker(const std::string &speaker) -> Co::InputSpeakerInfo {
     Co::InputSpeakerInfo inputSpeaker;
-    inputSpeaker.name = std::move(speaker);
+    inputSpeaker.name = speaker;
     inputSpeaker.proportions = {1.0};
     inputSpeaker.interval = 0;
     return inputSpeaker;

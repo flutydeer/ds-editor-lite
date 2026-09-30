@@ -38,7 +38,8 @@ namespace InferControllerHelper {
         DrawCurve input;
     };
 
-    QList<InferInputNote> buildInferInputNotes(const QList<Note *> &notes);
+    QList<InferInputNote> buildInferInputNotes(const QList<Note *> &notes,
+                                               const QSet<QString> &reservedPhonemes);
     InferInputBase buildInferBaseInput(const InferPiece &piece, const SingerIdentifier &identifier);
     DurInput buildInferDurInput(const InferPiece &piece, const SingerIdentifier &identifier);
     PitchInput buildInferPitchInput(const InferPiece &piece, const SingerIdentifier &identifier);

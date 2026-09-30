@@ -15,41 +15,41 @@
 #include <dsinfer/Api/Inferences/Variance/1/VarianceApiL1.h>
 #include <dsinfer/Api/Inferences/Vocoder/1/VocoderApiL1.h>
 
+#include "SingerStages.h"
+
 namespace lite::synthrt {
 
-    /// One singer's synthesis pipeline, and the stage executives it hands out.
+    /// Synthesis pipeline of one singer, with the executives of its stages.
     ///
-    /// This replaces the refactor line's ModelSetHandle, and is a layer thinner than it was. There,
-    /// a stage was an {inference, importOptions} pair the caller then had to assemble; here the
-    /// pipeline resolves the import and returns a typed executive, so the pair has nowhere left to
-    /// go wrong.
+    /// This class replaces the ModelSetHandle of the refactor branch, in which a stage was an
+    /// {inference, importOptions} pair that the caller assembled. The pipeline resolves the import
+    /// and returns a typed executive, which removes that assembly step and its failure modes.
     ///
-    /// Stages are created on first use rather than up front: a project that never runs variance
-    /// should not pay to open a variance model, and a singer may legitimately not have one.
-    /// Everything a pipeline hands out is owned by the pipeline and dies with it, so it must not
-    /// outlive the package its singer came from.
+    /// Stages are created on first use rather than in advance, because a project that never runs
+    /// variance must not incur the cost of opening a variance model, and a singer may lack that
+    /// model. Every executive returned by a pipeline is owned by the pipeline and destroyed with
+    /// it, so the pipeline must not outlive the package that contains its singer.
     class SingerPipeline {
     public:
-        /// Builds the pipeline a singer declares.
+        /// Builds the pipeline that \a singer declares.
         ///
-        /// \a package is the handle of the package holding \a singer. The pipeline keeps it, so the
-        /// declaration and the executives that borrow from it stay valid for as long as the
-        /// pipeline lives, whatever a rescan does in the meantime; the executives are destroyed
-        /// before the handle lets go, which is the order synthrt requires.
+        /// \a package is the handle of the package that contains \a singer. The pipeline retains
+        /// the handle, so the declaration and the executives that borrow from it remain valid for
+        /// the lifetime of the pipeline, independently of any rescan. The executives are destroyed
+        /// before the handle is released, which is the order that synthrt requires.
         ///
-        /// Fails when the singer's provider is absent, which is what happens to a voicebank whose
-        /// contract no installed interpreter serves.
+        /// Fails if the provider of the singer is absent, which is the case for a voicebank whose
+        /// contract no installed interpreter implements.
         static srt::Expected<std::unique_ptr<SingerPipeline>> create(srt::PackageHandle package,
                                                                      srt::SingerSpec &singer);
 
         ~SingerPipeline();
 
-        /// \name The five stages
+        /// \name Stage executives
         ///
-        /// Each returns the same executive every time, and an error when the singer does not
-        /// import that stage or its model will not open. Duration, pitch and variance are
-        /// optional; acoustic and vocoder are not, and a singer without them would not have
-        /// loaded.
+        /// Each function returns the same executive on every call, or an error if the singer does
+        /// not import the stage or its model cannot be opened. Duration, pitch and variance are
+        /// optional. Acoustic and vocoder are required, and a singer without them fails to load.
         /// \{
         srt::Expected<ds::Api::Duration::L1::DurationExecutive *> duration();
         srt::Expected<ds::Api::Pitch::L1::PitchExecutive *> pitch();
@@ -58,15 +58,17 @@ namespace lite::synthrt {
         srt::Expected<ds::Api::Vocoder::L1::VocoderExecutive *> vocoder();
         /// \}
 
-        /// What the singer attached to one of its imports, or null when it attached nothing.
+        /// Returns the options that the singer attaches to one of its imports, or null if the
+        /// import has no options.
         ///
-        /// A stage's executive answers what the model can do; this answers what this singer asked
-        /// of it -- which of its own speaker names map to which of the model's, which variance
-        /// parameters it wants predicted. Both are needed to run a stage and they come from
-        /// different places, so they are asked for separately.
+        /// The executive of a stage reports the capabilities of the model. The import options
+        /// record the singer's configuration of the model, such as the mapping from the singer's
+        /// speaker names to the model's speaker names and the variance parameters to predict.
+        /// Running a stage requires both, and they have different sources, so they are queried
+        /// separately.
         ///
-        /// \a role is a singer import role, such as "singer/acoustic".
-        const srt::ContribImportOptions *options(std::string_view role) const;
+        /// \a stage selects the import by its role; see roleOf().
+        const srt::ContribImportOptions *options(SingerStage stage) const;
 
     private:
         SingerPipeline(srt::PackageHandle package, srt::SingerSpec &singer,

@@ -1,5 +1,7 @@
 #include "AwaitingInferAcousticState.h"
 
+#include "Modules/Inference/InferLogging.h"
+
 #include "Modules/Inference/InferPipeline.h"
 
 AwaitingInferAcousticState::AwaitingInferAcousticState(InferPipeline &pipeline, QState *parent)
@@ -7,7 +9,7 @@ AwaitingInferAcousticState::AwaitingInferAcousticState(InferPipeline &pipeline, 
 }
 
 void AwaitingInferAcousticState::onEntry(QEvent *event) {
-    qDebug() << "AwaitingInferAcousticState::onEntry";
+    qCDebug(logInferState) << "AwaitingInferAcousticState::onEntry";
     QState::onEntry(event);
 
     auto &piece = m_pipeline.piece();
@@ -16,6 +18,6 @@ void AwaitingInferAcousticState::onEntry(QEvent *event) {
 }
 
 void AwaitingInferAcousticState::onExit(QEvent *event) {
-    qDebug() << "AwaitingInferAcousticState::onExit";
+    qCDebug(logInferState) << "AwaitingInferAcousticState::onExit";
     QState::onExit(event);
 }

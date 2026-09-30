@@ -7,6 +7,7 @@
 
 #include <QVersionNumber>
 #include <QMap>
+#include <QSet>
 
 #include <functional>
 #include <optional>
@@ -21,6 +22,10 @@ namespace Automation {
         QVersionNumber packageVersion;
         QString name;
         SingerInfo info;
+        /// Language identifiers of \c info for which the language layer has a conversion route
+        /// for this singer. A route exists if a linguist for the language is installed, even if
+        /// its resources are not loaded yet.
+        QSet<QString> convertibleLanguages;
 
         friend bool operator==(const PackageSingerDto &, const PackageSingerDto &) = default;
     };
@@ -93,8 +98,8 @@ namespace Automation {
 
     struct PackageRuntimeServices {
         std::function<QList<PackageDto>()> installedPackages;
-        /// Packages the scan refused, in the loader's own words. Asked for separately from the
-        /// listing because a refused package has no identifier to list it by.
+        /// Packages rejected by the scan, with the loader's error text. Queried separately from
+        /// the listing because a rejected package has no identifier.
         std::function<QList<PackageRefreshFailureDto>()> installedPackageFailures;
         std::function<AutomationResult<PackageValidationReportDto>(const QString &)>
             validatePackage;
@@ -113,10 +118,11 @@ namespace Automation {
         AutomationResult<QList<PackageDto>>
             getInstalledPackages(PackagePathProjection pathProjection);
 
-        /// Packages that are installed but would not open, with the loader's reason for each.
+        /// Returns the installed packages that failed to open, with the loader's reason for each.
         ///
-        /// Kept apart from the listing so that a package nobody can use is never mistaken for one
-        /// that loaded: this is a report for the person who installed it, not a package entry.
+        /// The failures are separate from the listing so that an unusable package is never
+        /// mistaken for a loaded package. The result is a diagnostic report for the user who
+        /// installed the package, not a list of package entries.
         AutomationResult<QList<PackageRefreshFailureDto>> getInstalledPackageFailures();
         AutomationResult<PackageDto> describePackage(const QString &packageId,
                                                      PackagePathProjection pathProjection = {});

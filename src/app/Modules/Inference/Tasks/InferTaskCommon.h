@@ -23,26 +23,21 @@ class InferWord;
 class InferParam;
 struct InferSpeakerMix;
 
-/// Which of a singer's five stages a task wants.
-enum class InferStage {
-    Duration,
-    Pitch,
-    Variance,
-    Acoustic,
-    Vocoder,
-};
+/// One of the five stages of a singer.
+using InferStage = lite::synthrt::SingerStage;
 
 class ActiveInference final {
 public:
-    /// What a task needs to run one stage: the model, and what this singer asked of it.
+    /// Inputs that a task requires to run one stage: the executive and the import options of
+    /// the singer for that stage.
     ///
-    /// The two come from different places and neither implies the other. The executive is the
-    /// pipeline's, built once per singer and shared; the options are the singer's own import
-    /// entry, which is where a speaker mapping lives.
+    /// The two members have different sources and are independent. The executive belongs to the
+    /// pipeline, which builds it once per singer and shares it. The options are the import entry
+    /// of the singer, which contains the speaker mapping.
     ///
-    /// \a executive is the base type because one member cannot be five types at once. The stage
-    /// that was asked for decides which it really is, so a caller casts to the one it asked for
-    /// and nothing else.
+    /// \a executive has the base type because one member represents five stage types. The
+    /// requested stage determines the dynamic type, and the caller casts only to the executive
+    /// type of the requested stage.
     struct Model {
         srt::InferenceExecutive *executive = nullptr;
         const srt::ContribImportOptions *importOptions = nullptr;
@@ -66,10 +61,10 @@ public:
         std::uint64_t m_generation;
     };
 
-    /// Opens one stage of \a pipeline and keeps hold of it, so that stop() can reach it.
+    /// Opens one stage of \a pipeline and holds it, so that stop() can reach it.
     ///
-    /// Opening is the expensive part and the pipeline caches it, so asking twice for the same
-    /// stage costs a pointer return.
+    /// Opening is expensive, and the pipeline caches the opened stage. A second request for the
+    /// same stage therefore only returns a pointer.
     srt::Expected<Handle> acquire(lite::synthrt::SingerPipeline &pipeline, InferStage stage);
     void stop();
 

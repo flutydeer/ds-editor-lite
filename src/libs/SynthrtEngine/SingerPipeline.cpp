@@ -18,18 +18,18 @@ namespace lite::synthrt {
             : package(std::move(package)), singer(&singer), pipeline(std::move(pipeline)) {
         }
 
-        /// Declared first, so that it is released last: the declaration and every executive
-        /// below borrow from this package.
+        /// Declared first so that it is released last, because the declaration and every
+        /// executive below borrow from this package.
         srt::PackageHandle package;
 
         /// Borrowed from the package, which the handle above keeps alive.
         srt::SingerSpec *singer;
 
-        /// Creates a stage once and remembers it, or remembers why it could not be created.
+        /// Creates a stage once and caches the executive, or caches the reason for the failure.
         ///
-        /// The failure is remembered as well as the success: a singer with no variance model
-        /// fails every time, and a synthesis that asks per phrase would otherwise re-ask the
-        /// provider for something it has already said it does not have.
+        /// Failures are cached as well as successes. A singer without a variance model fails on
+        /// every attempt, and a synthesis that requests the stage per phrase would otherwise query
+        /// the provider repeatedly for a stage that it has already reported as absent.
         template <class Executive, class Options, class InitArgs, class Make>
         srt::Expected<Executive *> stage(Executive *&slot, bool &tried, std::string &why,
                                          Make make) {
@@ -48,9 +48,9 @@ namespace lite::synthrt {
                 return created.takeError();
             }
             auto *executive = created.take();
-            // Creating an executive selects the model; initializing it opens the model. Both
-            // happen here so that what a caller is handed is ready to run -- a stage that has to
-            // be initialized separately is a stage someone will forget to initialize.
+            // Creating an executive selects the model, and initializing it opens the model. Both
+            // steps happen here so that the returned executive is ready to run, because a separate
+            // initialization step is easily omitted by a caller.
             if (auto started = executive->initialize(InitArgs{}); !started) {
                 why = started.error().toString();
                 return started.takeError();
@@ -86,11 +86,11 @@ namespace lite::synthrt {
         auto *extension =
             srt::ContribSpecExtension::findFromSpec<Ds::DiffSingerPipelineExecutive>(singer);
         if (extension == nullptr) {
-            // No interpreter served this singer's contract, so nothing attached a pipeline to it.
-            // Every voicebank for another engine reaches here, which is why it reads as an
-            // unsupported feature rather than as a broken package.
+            // No interpreter implements the contract of this singer, so no pipeline extension is
+            // attached. Every voicebank for another engine reaches this branch, so the error is
+            // reported as an unsupported feature rather than as a broken package.
             return srt::Error(srt::Error::FeatureNotSupported,
-                              "this singer declares a contract no installed provider serves");
+                              "no installed provider implements the contract of this singer");
         }
 
         Ds::DiffSingerPipelineRuntimeOptions options;
@@ -107,8 +107,8 @@ namespace lite::synthrt {
         : _impl(std::make_unique<Impl>(std::move(package), singer, std::move(pipeline))) {
     }
 
-    const srt::ContribImportOptions *SingerPipeline::options(std::string_view role) const {
-        const auto import = _impl->singer->findImport(role);
+    const srt::ContribImportOptions *SingerPipeline::options(SingerStage stage) const {
+        const auto import = _impl->singer->findImport(roleOf(stage));
         return import ? import->options() : nullptr;
     }
 

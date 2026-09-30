@@ -9,43 +9,14 @@
 
 
 #include "Modules/FillLyric/Utils/TextTagger.h"
+#include "Modules/Inference/Utils/PronunciationText.h"
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 Q_LOGGING_CATEGORY(logFillG2p, "fill.g2p")
 
 namespace FillLyric {
     namespace {
-        std::string toUtf8(const QString &value) {
-            const auto bytes = value.toUtf8();
-            return {bytes.constData(), static_cast<size_t>(bytes.size())};
-        }
-
-        QString fromUtf8(const std::string &value) {
-            return QString::fromUtf8(value.data(), static_cast<qsizetype>(value.size()));
-        }
-
-        /// Candidates from the g2p engine may be the split phoneme tokens of the
-        /// pronunciation itself (dict step) rather than true alternative
-        /// pronunciations; collapse them to the whole pronunciation so the
-        /// UI never offers single phonemes as switchable candidates.
-        QStringList normalizePronunciationCandidates(const QString &pronunciation,
-                                                     QStringList candidates) {
-            if (pronunciation.isEmpty())
-                return candidates;
-            const auto pronTokens = pronunciation.split(u' ', Qt::SkipEmptyParts);
-            if (pronTokens.isEmpty())
-                return candidates;
-            for (auto &c : candidates)
-                c = c.trimmed();
-            candidates.removeAll(QString());
-            const bool allArePronTokens =
-                !candidates.isEmpty() &&
-                std::all_of(candidates.cbegin(), candidates.cend(), [&](const QString &c) {
-                    return c.contains(u' ') ? c == pronunciation : pronTokens.contains(c);
-                });
-            if (allArePronTokens)
-                return {pronunciation};
-            return candidates;
-        }
+        using PronunciationText::fromUtf8;
+        using PronunciationText::toUtf8;
     }
 
     G2pService::G2pService(SingerIdentifier singer) : m_singer(std::move(singer)) {
@@ -151,7 +122,7 @@ namespace FillLyric {
                     rawCandidates.append(fromUtf8(candidate));
                 }
                 result.candidates =
-                    normalizePronunciationCandidates(result.pronunciation, rawCandidates);
+                    PronunciationText::normalizeCandidates(result.pronunciation, rawCandidates);
             }
         }
 

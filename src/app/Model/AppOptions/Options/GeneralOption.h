@@ -1,8 +1,6 @@
 #ifndef GENERALOPTION_H
 #define GENERALOPTION_H
 
-// #include <QVersionNumber>
-
 #include <QJsonValue>
 #include <QMap>
 
@@ -31,17 +29,17 @@ public:
     QStringList packageSearchPaths;
     QStringList recentProjectFiles;
     QJsonValue speakerMixPresets;
-    /// Which analyzer to use, named the way an installed one is named:
-    /// <package>:inference/<contribution>. A reference in the older
-    /// <package>:analysis/<contribution> form is upgraded when the options are read.
+    /// Reference to the selected analyzer, in the form of an installed contribution:
+    /// <package>:inference/<contribution>. A reference in the legacy
+    /// <package>:analysis/<contribution> form is upgraded when the options are loaded.
     ///
-    /// A reference rather than a path, because an analyzer is a contribution of an installed
-    /// package now and not a file someone downloaded. A path would also stop meaning anything the
-    /// day the package is reinstalled somewhere else.
+    /// The option stores a reference rather than a path because an analyzer is a contribution of
+    /// an installed package, not a separately downloaded file. A path would also become invalid if
+    /// the package is reinstalled at another location.
     ///
-    /// Empty until someone chooses one. The older keys held filesystem paths and are not read:
-    /// there is nothing to migrate them into, since a path does not say which package it came
-    /// from or which contract it answers.
+    /// Empty until the user selects an analyzer. The legacy keys stored filesystem paths and are
+    /// not read, because a path identifies neither the package nor the contract of the analyzer,
+    /// and therefore cannot be migrated to a reference.
     LITE_OPTION_ITEM(QString, noteAnalyzer, QString())
     LITE_OPTION_ITEM(QString, pitchAnalyzer, QString())
     LITE_OPTION_ITEM(QString, libreSVIPPath, QString())

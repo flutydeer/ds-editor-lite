@@ -1,6 +1,7 @@
 #include "McpHttpServer.h"
 
 #include <QCryptographicHash>
+#include <QDebug>
 #include <QEventLoop>
 #include <QFuture>
 #include <QHttpHeaders>
@@ -1026,9 +1027,16 @@ namespace Automation {
                         try {
                             if (handler)
                                 responseObject = handler(validated, clientId);
-                        } catch (const std::exception &) {
+                        } catch (const std::exception &e) {
+                            // The client receives a generic internal error, so the cause is
+                            // recorded here, where it can still be found.
+                            qCritical().noquote()
+                                << "MCP handler threw an exception for" << validated.method
+                                << ":" << e.what();
                             responseObject = {};
                         } catch (...) {
+                            qCritical().noquote() << "MCP handler threw a non-standard exception for"
+                                                  << validated.method;
                             responseObject = {};
                         }
                         const auto responseValidation = Mcp::validateResponse(
@@ -1185,10 +1193,14 @@ namespace Automation {
                         try {
                             if (handler)
                                 responseObject = handler(message, clientId);
-                        } catch (const std::exception &) {
+                        } catch (const std::exception &e) {
+                            qCritical().noquote()
+                                << "Native automation handler threw an exception:" << e.what();
                             responseObject = nativeProtocolError(
                                 -32603, QStringLiteral("Internal error"), requestId);
                         } catch (...) {
+                            qCritical().noquote()
+                                << "Native automation handler threw a non-standard exception";
                             responseObject = nativeProtocolError(
                                 -32603, QStringLiteral("Internal error"), requestId);
                         }

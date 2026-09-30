@@ -78,9 +78,9 @@ void GeneralOption::load(const QJsonObject &object) {
     if (object.contains(speakerMixPresetsKey))
         speakerMixPresets = object[speakerMixPresetsKey];
 
-    // A reference saved while analysers had a dedicated category identifies the same package and
-    // contribution, so it is upgraded here rather than discarded. The next save writes the upgraded
-    // form.
+    // A reference saved in the legacy analysis category identifies the same package and
+    // contribution, and is therefore upgraded rather than discarded. The next save writes the
+    // upgraded form.
     const auto analyzer = [&object](const QString &key) {
         return QString::fromStdString(lite::synthrt::AnalyzerReference::upgrade(
             object[key].toString().toStdString()));
@@ -113,7 +113,6 @@ void GeneralOption::save(QJsonObject &object) {
 
 void GeneralOption::setPackageSearchPathsAndNotify(QStringList paths) {
     packageSearchPaths = std::move(paths);
-    // Q_EMIT packageSearchPathsChanged();
 }
 
 QString GeneralOption::defaultLyricForLanguage(const QString &language) const {

@@ -1,5 +1,7 @@
 #include "InitInferEngineTask.h"
 
+#include "Modules/Inference/InferLogging.h"
+
 #include "Modules/Inference/InferEngine.h"
 
 #include <QDebug>
@@ -13,7 +15,7 @@ InitInferEngineTask::InitInferEngineTask(QObject *parent) : Task(parent) {
 }
 
 void InitInferEngineTask::runTask() {
-    qDebug() << "Initialize inference engine...";
+    qCDebug(logInferTask) << "Initialize inference engine...";
     if (!inferEngine->initialize(errorMessage)) {
         success.store(false, std::memory_order_release);
         qCritical().noquote().nospace()

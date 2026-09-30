@@ -21,8 +21,9 @@
 
 namespace Automation {
     namespace {
-        /// Both failure lists in this file carry the loader's own words: only the loader knows why
-        /// it refused a package, and rewriting the reason here would be guessing on its behalf.
+        /// Both failure lists in this file pass through the loader's error text unchanged. The
+        /// loader is the only component with the rejection reason, and a reworded reason could
+        /// be inaccurate.
         PackageRefreshFailureDto failureDto(
             const GetInstalledPackagesResult::FailedPackage &failure) {
             return {
@@ -110,12 +111,19 @@ namespace Automation {
                     .path = package.path(),
                 };
                 for (const auto &singer : package.singers()) {
+                    const auto identifier = singer.identifier();
+                    QSet<QString> convertibleLanguages;
+                    for (const auto &language : singer.languages()) {
+                        if (SynthrtEngine::instance().canConvert(identifier, language.id()))
+                            convertibleLanguages.insert(language.id());
+                    }
                     converted.singers.append({
                         .singerId = singer.singerId(),
                         .packageId = singer.packageId(),
                         .packageVersion = singer.packageVersion(),
                         .name = singer.name(),
                         .info = singer,
+                        .convertibleLanguages = std::move(convertibleLanguages),
                     });
                 }
                 result.append(std::move(converted));
@@ -197,20 +205,20 @@ namespace Automation {
                 result.append(failureDto(failure));
             return result;
         };
-        // Validation is now "does it load", asked by actually loading it and letting it go
-        // again. That is a stronger check than the schema walk it replaces -- every interpreter
-        // reads its own configuration and every import validator runs -- and a weaker report: the
-        // loader answers with one error and its causes rather than a list of findings with
-        // severities and recommendations, so a report has at most one item and never a warning.
+        // Validation loads the package and releases it immediately. This check is stronger than
+        // a schema check because every interpreter reads its configuration and every import
+        // validator runs. The report is less detailed: the loader returns one error with its
+        // causes rather than a list of findings with severities and recommendations, so a report
+        // contains at most one item and never a warning.
         //
-        // This is a knowing downgrade. Restoring the itemised form means the loader collecting
-        // findings instead of returning at the first, which is a change to synthrt rather than
-        // something the host can reconstruct.
+        // The reduced report detail is intentional. An itemized report requires the loader to
+        // collect all findings instead of returning at the first error, which is a change to
+        // synthrt and cannot be reconstructed by the host.
         services.validatePackage = [](const QString &path) {
-            // A client validating a package before the engine started, or after it was shut down,
-            // is asking a question, so it is answered as one. Asking for the unit and testing the
-            // answer is what makes that possible in one step: unit() cannot report a missing
-            // engine, and testing initialized() first would leave a window between the two calls.
+            // Validation before the engine starts or after it shuts down returns a ModuleNotReady
+            // error. unitIfReady() retrieves and checks the unit in one call: unit() cannot report
+            // a missing engine, and a separate initialized() check would leave a race window
+            // between the two calls.
             auto *unit = SynthrtEngine::instance().unitIfReady();
             if (unit == nullptr) {
                 AutomationError error;
@@ -222,8 +230,8 @@ namespace Automation {
             auto opened =
                 unit->openPackage(StringUtils::qstr_to_path(path), srt::SynthUnit::Load);
             if (opened) {
-                // Let it go at once: this asked a question, it did not ask for the package to
-                // stay. A voicebank the editor is using is held by the catalogue, not by this.
+                // Released immediately because validation does not keep the package loaded. A
+                // voicebank in use by the editor is held by the catalog, not by this handle.
                 opened.take().reset();
                 return AutomationResult<PackageValidationReportDto>(std::move(result));
             }

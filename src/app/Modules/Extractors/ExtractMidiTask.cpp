@@ -25,10 +25,10 @@ void ExtractMidiTask::runTask() {
             input.audio.samples.assign(span.samples.begin() + span.begin,
                                        span.samples.begin() + span.end);
             input.audio.startTime = span.startTime;
-            // The language only conditions the model, and the model produces notes in any
-            // language. A language that the model does not list is therefore replaced by the
-            // model's declared default rather than passed on, because the model would reject it
-            // and the whole extraction would fail.
+            // The language only conditions the model, which produces notes for any language. A
+            // language that the model does not declare is therefore replaced by the declared
+            // default rather than passed through, because the model rejects an undeclared
+            // language and the extraction would fail.
             const auto wanted = m_input.language.toStdString();
             const auto *schema = notes.spec().exports()->as<Note::NoteSchema>();
             if (!wanted.empty() && schema &&
@@ -40,13 +40,13 @@ void ExtractMidiTask::runTask() {
             return notes.start(input);
         },
         [this](const Note::NoteResult &transcription) {
-            // Seconds to ticks, note by note through the timeline. Applying one tempo to the
-            // whole take drifts further the longer the take runs on a piece whose tempo changes,
-            // and the notes then sit next to the audio rather than on it.
+            // Seconds are converted to ticks for each note through the timeline. If the tempo
+            // changes, applying a single tempo to the whole take causes a drift that grows with
+            // the take length and misaligns the notes with the audio.
             //
-            // Ticks are local to the audio clip: the notes are inserted into a singing clip that
-            // starts where the audio clip does, and a note's start is measured from the start of
-            // its clip.
+            // Ticks are relative to the audio clip because the notes are inserted into a singing
+            // clip with the same start as the audio clip, and a note start is measured from the
+            // start of its clip.
             result.reserve(result.size() + transcription.notes.size());
             for (const auto &note : transcription.notes) {
                 const auto startMs = m_input.audioMaterialOriginMs + note.start * 1000.0;
@@ -54,8 +54,15 @@ void ExtractMidiTask::runTask() {
                 const auto startTick =
                     m_input.timeline.msToTick(startMs) - m_input.audioClipStartTick;
                 const auto endTick = m_input.timeline.msToTick(endMs) - m_input.audioClipStartTick;
-                result.push_back({note.key, static_cast<int>(qRound(startTick)),
-                                  static_cast<int>(qRound(endTick - startTick))});
+                const auto start = static_cast<int>(qRound(startTick));
+                const auto length = static_cast<int>(qRound(endTick - startTick));
+                // A note shorter than half a tick rounds to zero length. The project model stores
+                // notes in an interval tree that rejects empty intervals, so such a note is
+                // dropped here rather than inserted.
+                if (length <= 0) {
+                    continue;
+                }
+                result.push_back({note.key, start, length});
             }
         });
     if (!success()) {

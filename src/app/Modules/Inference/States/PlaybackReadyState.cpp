@@ -1,5 +1,7 @@
 #include "PlaybackReadyState.h"
 
+#include "Modules/Inference/InferLogging.h"
+
 #include "Modules/Inference/InferPipeline.h"
 
 PlaybackReadyState::PlaybackReadyState(InferPipeline &pipeline, QState *parent)
@@ -7,7 +9,7 @@ PlaybackReadyState::PlaybackReadyState(InferPipeline &pipeline, QState *parent)
 }
 
 void PlaybackReadyState::onEntry(QEvent *event) {
-    qDebug() << "PlaybackReadyState::onEntry";
+    qCDebug(logInferState) << "PlaybackReadyState::onEntry";
     QState::onEntry(event);
 
     auto &piece = m_pipeline.piece();
@@ -16,6 +18,6 @@ void PlaybackReadyState::onEntry(QEvent *event) {
 }
 
 void PlaybackReadyState::onExit(QEvent *event) {
-    qDebug() << "PlaybackReadyState::onExit";
+    qCDebug(logInferState) << "PlaybackReadyState::onExit";
     QState::onExit(event);
 }

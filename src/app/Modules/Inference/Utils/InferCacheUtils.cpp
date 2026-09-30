@@ -17,7 +17,7 @@ namespace InferCacheUtils {
 
         const QRegularExpression kCacheFilePattern(
             QStringLiteral("^infer-(acoustic|duration|pitch|variance)-(input|output)-"
-                           "[0-9a-f]{40}\\.(json|wav)$"));
+                           "([0-9a-f]{40})\\.(json|wav)$"));
 
         // 进程级登记集合：主线程专用（任务完成回调 + 清理确认时收集），无需锁
         QSet<QString> &registeredFiles() {
@@ -30,6 +30,16 @@ namespace InferCacheUtils {
         }
 
     } // namespace
+
+    CacheFileNames cacheFileNames(const QString &category, const QString &hash) {
+        // Only the acoustic task renders audio; every other task stores its result as JSON.
+        const auto outputSuffix =
+            category == QStringLiteral("acoustic") ? QStringLiteral("wav") : QStringLiteral("json");
+        return {
+            QStringLiteral("infer-%1-input-%2.json").arg(category, hash),
+            QStringLiteral("infer-%1-output-%2.%3").arg(category, hash, outputSuffix),
+        };
+    }
 
     CacheStats scanCache(const QString &cacheDir) {
         CacheStats stats;
@@ -84,14 +94,12 @@ namespace InferCacheUtils {
                     // 配套 input json：infer-acoustic-output-<hash>.wav ->
                     // infer-acoustic-input-<hash>.json
                     const auto fileInfo = QFileInfo(audioPath);
-                    const auto &fileName = fileInfo.fileName();
-                    const QString kOutputPrefix = QStringLiteral("infer-acoustic-output-");
-                    if (fileName.startsWith(kOutputPrefix) &&
-                        fileName.endsWith(QStringLiteral(".wav"))) {
-                        const auto hash = fileName.mid(kOutputPrefix.size(),
-                                                       fileName.size() - kOutputPrefix.size() - 4);
-                        active.insert(normalizePath(fileInfo.dir().filePath(
-                            QStringLiteral("infer-acoustic-input-%1.json").arg(hash))));
+                    const auto match = kCacheFilePattern.match(fileInfo.fileName());
+                    if (match.hasMatch() && match.captured(1) == QStringLiteral("acoustic") &&
+                        match.captured(2) == QStringLiteral("output")) {
+                        const auto names =
+                            cacheFileNames(QStringLiteral("acoustic"), match.captured(3));
+                        active.insert(normalizePath(fileInfo.dir().filePath(names.input)));
                     }
                 }
             }

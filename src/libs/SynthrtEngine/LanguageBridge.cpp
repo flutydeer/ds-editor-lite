@@ -5,6 +5,8 @@
 
 #include <synthrt/SVS/SingerContrib.h>
 
+#include <wolf/Session/LinguistSession.h>
+
 namespace lite::synthrt {
 
     namespace LinguistApi = wolf::Api::Linguist::L1;
@@ -13,14 +15,15 @@ namespace lite::synthrt {
 
         wolf::SingerRef refOf(const LanguageBridge::Singer &singer) {
             wolf::SingerRef reference;
-            // The category is a slot in the reference grammar rather than punctuation, which is
-            // why it is spelled out rather than implied by the type name.
+            // The category is a field of the reference grammar, so it is specified explicitly and
+            // not derived from the type name.
             reference.locator = srt::ContribLocator(singer.packageId, srt::SingerCategory::NAME,
                                                     singer.contributionId);
-            // And the version is carried, because a reference cannot: the specification binds a
-            // module reference to whatever the dependency graph resolved, and separately allows
-            // two versions of one package to be loaded at once. Leaving this empty asks for "the
-            // only one", which stops being an answer the day someone installs both.
+            // The version is set here because a module reference cannot carry a version. The
+            // specification binds a module reference to the version that the dependency graph
+            // resolved and allows two versions of a package to be loaded at the same time. An
+            // empty version selects the only loaded version, which fails if two versions are
+            // installed.
             reference.version = singer.version;
             return reference;
         }
@@ -37,14 +40,14 @@ namespace lite::synthrt {
             return LinguistApi::Depth::Onsets;
         }
 
-        /// Turns a per word error into something an editor can put in front of a person.
+        /// Returns the user-facing message for a per-word error, or an empty string for none.
         std::string describe(wolf::Api::G2P::L1::Error error) {
             using E = wolf::Api::G2P::L1::Error;
             switch (error) {
                 case E::None:
                     return {};
                 case E::InvalidInput:
-                    return "this word is not something the language accepts";
+                    return "the word is not valid input for the language";
                 case E::ModelInferenceFailed:
                     return "the language model failed";
                 case E::PhonemeGenerationFailed:
@@ -68,8 +71,8 @@ namespace lite::synthrt {
 
         wolf::LinguistSession session;
 
-        // Handed to every conversion so that one cancel reaches whatever is running. Copies share
-        // one state, which is what makes that work across threads.
+        // Passed to every conversion so that one cancel() call reaches every running conversion.
+        // Copies share one state, which makes cancellation effective across threads.
         std::mutex mutex;
         wolf::CancelToken token;
     };
@@ -81,6 +84,10 @@ namespace lite::synthrt {
 
     void LanguageBridge::refresh() {
         _impl->session.refresh();
+    }
+
+    void LanguageBridge::release(const Singer &singer) {
+        _impl->session.release(refOf(singer));
     }
 
     std::vector<std::string> LanguageBridge::languagesOf(const Singer &singer) const {
@@ -101,9 +108,9 @@ namespace lite::synthrt {
     }
 
     bool LanguageBridge::canConvert(const Singer &singer, const std::string &language) const {
-        // probe() loads nothing and creates no executive, so this is safe to ask while drawing a
-        // list. Cold means everything is decided and only the resources are still to come, which
-        // for a question about whether a route exists is a yes.
+        // probe() loads nothing and creates no executive, so this call is safe during list
+        // rendering. Cold readiness indicates that the route is resolved and only the resources
+        // remain to be loaded, so a cold route counts as existing.
         const auto status = _impl->session.probe(refOf(singer), language);
         return status.readiness != wolf::Readiness::Unavailable;
     }
@@ -131,9 +138,8 @@ namespace lite::synthrt {
             LinguistApi::LinguistWordInput one;
             one.lyric = word.lyric;
             one.pronunciation = word.pronunciation;
-            // Phonemes and onsets travel together because they have to be the same length; the
-            // contract says so with one optional holding both, and an editor that had only one of
-            // them has a bug rather than a state to represent.
+            // Phonemes and onsets must have the same length. The contract therefore holds both in
+            // one optional, and an editor state with only one of them is a bug, not a valid state.
             if (word.phonemes && word.onsets) {
                 LinguistApi::LockedPhonemes locked;
                 locked.phonemes = *word.phonemes;
@@ -171,8 +177,8 @@ namespace lite::synthrt {
     }
 
     void LanguageBridge::cancel() {
-        // Replacing the token afterwards is what keeps a cancellation from outliving the batch it
-        // was aimed at: the next conversion is handed a fresh one.
+        // Replacing the token restricts the cancellation to the conversions already running,
+        // because the next conversion receives a fresh token.
         std::lock_guard guard(_impl->mutex);
         _impl->token.cancel();
         _impl->token = wolf::CancelToken();

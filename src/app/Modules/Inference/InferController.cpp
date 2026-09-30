@@ -744,8 +744,8 @@ void InferControllerPrivate::handleVoiceContextChanged(const VoiceContextChange 
             return;
         }
         if (clip->singerInfo().isEmpty()) {
-            // 清声路径：没有歌者，ensureClipInferenceStarted 会直接返回（它今天就是这样），
-            // 改用专门的语言回退重跑抹掉残留派生数据（台账 P-110）。
+            // 清声路径：没有歌者时 ensureClipInferenceStarted 直接返回，因此改为重新执行
+            // 语言任务的回退分支，以清除残留的派生数据（台账 P-110）。
             restartLanguageTasksAfterVoiceCleared(*clip);
         } else {
             ensureClipInferenceStarted(*clip);
@@ -855,15 +855,15 @@ void InferControllerPrivate::ensureClipInferenceStarted(SingingClip &clip,
 
 void InferControllerPrivate::restartLanguageTasksAfterVoiceCleared(SingingClip &clip) {
     QPointer<SingingClip> guardedClip(&clip);
-    // 与 ensureClipInferenceStarted 同因：模型信号跑在 ActionSequence::execute() 内部，
-    // 必须等 committer 推进版本后再动文档。
+    // 原因与 ensureClipInferenceStarted 相同：模型信号在 ActionSequence::execute() 内部发出，
+    // 必须在 committer 推进版本之后再修改文档。
     QTimer::singleShot(0, this, [this, guardedClip] {
         if (!guardedClip || appModel->findClipById(guardedClip->id()) != guardedClip)
             return;
 
-        // 无歌者时 canStartClipInference 会把正常推理启动挡掉，于是清声前的发音/音素一直
-        // 留在音符上（台账 P-110）。两个语言任务的回退分支给出的正是本项目里"没有声库的
-        // 音符"应有的状态：发音取原词、音素留空。
+        // 无歌者时 canStartClipInference 阻止正常的推理启动，清声前的发音/音素因此保留在
+        // 音符上（台账 P-110）。两个语言任务的回退分支产生的状态即“没有声库的音符”应有的
+        // 状态：发音取原词，音素留空。
         createAndRunGetPronTask(*guardedClip, true);
         createAndRunGetPhoneTask(*guardedClip, true);
     });
@@ -1213,6 +1213,12 @@ void InferControllerPrivate::createPipeline(InferPiece &piece) {
     // one is allowed to observe later model events.
     const auto duplicatePipelines = Linq::where(
         m_inferPipelines, [&piece](const InferPipeline *p) { return p->pieceId() == piece.id(); });
+    // A deleted state machine does not exit its active state. The task started by that state
+    // would therefore remain current in its stage queue and block every task queued after it,
+    // including the task that the new state machine adds. The queue releases a cancelled task
+    // after the task has finished.
+    if (!duplicatePipelines.isEmpty())
+        cancelPieceRelatedTasks(piece.id());
     for (const auto pipeline : duplicatePipelines) {
         m_inferPipelines.removeOne(pipeline);
         pipeline->deleteLater();

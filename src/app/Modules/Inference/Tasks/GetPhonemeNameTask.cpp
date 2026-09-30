@@ -1,4 +1,6 @@
 #include "GetPhonemeNameTask.h"
+
+#include "Modules/Inference/Utils/ReservedPhonemes.h"
 #include "Syllabification.h"
 
 #include "Global/AppGlobal.h"
@@ -96,12 +98,14 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
         return QList<PhonemeNameResult>(m_inputs.size());
     }
 
-    // A language that fails once fails the same way for every input in this batch, so it is
-    // remembered and the rest of its inputs skip straight past. Nothing else is cached here:
-    // wolf loads a language the first time a conversion asks for it and keeps it loaded.
+    // A language that fails once fails identically for every input in this batch. It is
+    // therefore recorded, and its remaining inputs are skipped. No other state is cached here,
+    // because wolf loads a language on its first conversion and keeps it loaded.
     QSet<QString> failedLanguages;
 
     const auto identifier = m_clipSingerInfo.identifier();
+    // A pronunciation that is a reserved phoneme is sung as that phoneme and is not converted.
+    const auto reservedPhonemes = ReservedPhonemes::of(identifier);
 
     QList<PhonemeNameResult> results;
     results.reserve(m_inputs.size());
@@ -109,7 +113,7 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
 
     for (const auto &input : m_inputs) {
         PhonemeNameResult result;
-        if (input.pronunciation == "SP" || input.pronunciation == "AP") {
+        if (reservedPhonemes.contains(input.pronunciation)) {
             PhonemeName restPhoneme;
             restPhoneme.name = input.pronunciation;
             restPhoneme.language = input.language;
@@ -127,16 +131,16 @@ QList<PhonemeNameResult> GetPhonemeNameTask::getPhonemeNames() {
                 continue;
             }
 
-            // The pronunciation is pinned, so the conversion starts below grapheme-to-phoneme and
-            // only turns this syllable into phonemes -- which is what this task is for. Asking to
-            // Onsets rather than Phonemes because the editor shows which phoneme begins a
-            // syllable, and asking later would mean converting twice.
+            // The pronunciation is fixed, so the conversion skips grapheme-to-phoneme conversion
+            // and only splits this syllable into phonemes, which is the purpose of this task. The
+            // requested depth is Onsets rather than Phonemes because the editor displays the
+            // phoneme that begins a syllable; a separate request would convert twice.
             std::vector<lite::synthrt::LanguageBridge::Word> words;
             words.push_back({input.lyric.toStdString(), input.pronunciation.toStdString(), {}, {}});
             auto converted = SynthrtEngine::instance().convert(
                 identifier, input.language, words, lite::synthrt::LanguageBridge::Depth::Onsets);
             if (!converted) {
-                // A route that does not exist will not exist for the next input either.
+                // A missing route is also missing for the remaining inputs of this language.
                 failedLanguages.insert(input.language);
                 qCWarning(logInferPhoneme)
                     << "S2P conversion failed for language:" << input.language << ":"

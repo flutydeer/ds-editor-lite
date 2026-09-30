@@ -4,6 +4,7 @@
 #include "Model/AppStatus/AppStatus.h"
 #include <lite/Tasking/TaskManager.h>
 #include "Modules/Inference/Models/GenericInferModel.h"
+#include <lite/SynthrtEngine/SynthrtBootstrap.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
 #include "ExecutionProvider.h"
 #include "Tasks/InitInferEngineTask.h"
@@ -62,11 +63,10 @@ InferEngine::InferEngine(QObject *parent) : QObject(parent) {
     srt::Logger::setLogCallback(log_report_callback);
     m_singerSessionReleasePool.setMaxThreadCount(1);
 
-    // Not disposed on QCoreApplication::aboutToQuit: that signal fires when the event loop
-    // exits, while inference and extraction tasks may still be running, and shutting the runtime
-    // down under them is the crash such a hook was once meant to prevent. AppContext's
-    // destructor drains the task manager first and destroys this engine afterwards, and that
-    // order is the only one that is safe.
+    // The engine is not disposed on QCoreApplication::aboutToQuit. That signal is emitted when
+    // the event loop exits, while inference and extraction tasks may still be running, and
+    // shutting down the runtime under those tasks causes a crash. The destructor of AppContext
+    // drains the task manager first and destroys this engine afterwards; only this order is safe.
 
     m_singerSessionEvictionTimer.setInterval(kSingerSessionScanIntervalMilliseconds);
     m_singerSessionEvictionTimer.setTimerType(Qt::CoarseTimer);
@@ -83,6 +83,12 @@ LITE_SINGLETON_IMPLEMENT_INSTANCE(InferEngine)
 
 void InferEngine::startInitialization() {
     std::call_once(m_initFlag, [this] {
+        {
+            QWriteLocker lock(&m_engineRwLock);
+            m_startOptions.executionProvider = appOptions->inference()->executionProvider;
+            m_startOptions.selectedGpuId = appOptions->inference()->selectedGpuId;
+            m_startOptions.packageSearchPaths = appOptions->general()->packageSearchPaths;
+        }
         const auto initTask = new InitInferEngineTask;
         connect(initTask, &Task::finished, this, [=] {
             taskManager->removeTask(initTask);
@@ -99,10 +105,8 @@ void InferEngine::startInitialization() {
             if (languageReady) {
                 appStatus->languageModuleError = QString();
                 appStatus->languageModuleStatus = AppStatus::ModuleStatus::Ready;
-                // Nothing to warm up. The older line loaded every language's models during
-                // startup and needed a background pass so the first conversion did not stall;
-                // wolf loads a language when a conversion first asks for one and keeps it, so the
-                // stall is one conversion long and only once.
+                // No warm-up is required. wolf loads a language on its first conversion and
+                // keeps it loaded, so only the first conversion of each language is delayed.
             } else {
                 appStatus->languageModuleError = initTask->errorMessage;
                 appStatus->languageModuleStatus = AppStatus::ModuleStatus::Error;
@@ -136,7 +140,9 @@ bool InferEngine::initialize(QString &error) {
         return true;
     }
 
-    const auto persistedProvider = appOptions->inference()->executionProvider;
+    // The options are read from the copy made by startInitialization() on the application thread.
+    const auto options = m_startOptions;
+    const auto persistedProvider = options.executionProvider;
     const auto requestedProvider = ExecutionProviderUtils::fromString(persistedProvider);
     const auto gpuDeviceList = requestedProvider ? [&requestedProvider]() -> QList<GpuInfo> {
         if (*requestedProvider == ExecutionProvider::DirectML)
@@ -176,10 +182,10 @@ bool InferEngine::initialize(QString &error) {
             Qt::QueuedConnection);
     }
 
-    const auto [index, description, deviceId, memory] = [&resolution]() -> GpuInfo {
+    const auto [index, description, deviceId, memory] = [&resolution, &options]() -> GpuInfo {
         if (resolution.provider == ExecutionProvider::DirectML) {
-            auto selectedGpu_ = DmlGpuUtils::getGpuByPciDeviceVendorIdString(
-                appOptions->inference()->selectedGpuId);
+            auto selectedGpu_ =
+                DmlGpuUtils::getGpuByPciDeviceVendorIdString(options.selectedGpuId);
             if (selectedGpu_.index < 0) {
                 qInfo() << "Auto selecting GPU";
                 selectedGpu_ = DmlGpuUtils::getRecommendedGpu();
@@ -189,7 +195,7 @@ bool InferEngine::initialize(QString &error) {
             return selectedGpu_;
         }
         if (resolution.provider == ExecutionProvider::Cuda) {
-            auto selectedGpu_ = CudaGpuUtils::getGpuByUuid(appOptions->inference()->selectedGpuId);
+            auto selectedGpu_ = CudaGpuUtils::getGpuByUuid(options.selectedGpuId);
             if (selectedGpu_.index < 0) {
                 qInfo() << "Auto selecting GPU";
                 selectedGpu_ = CudaGpuUtils::getRecommendedGpu();
@@ -209,7 +215,7 @@ bool InferEngine::initialize(QString &error) {
     const auto pluginRootDir = SynthrtEngine::defaultPluginRoot();
 
     QStringList packagePathsQt;
-    for (const auto &pathQt : appOptions->general()->packageSearchPaths) {
+    for (const auto &pathQt : options.packageSearchPaths) {
         const auto path = StringUtils::qstr_to_path(pathQt);
         std::error_code error;
         const bool exists = std::filesystem::exists(path, error);
@@ -223,24 +229,25 @@ bool InferEngine::initialize(QString &error) {
         }
         packagePathsQt.append(pathQt);
     }
-    // Where a dependency is looked for, which is not the same list as the directories a voicebank
-    // scan walks. A voicebank that names a language package resolves it through here.
+    // Search paths for dependencies, which differ from the directories of the voicebank scan. A
+    // language package that a voicebank declares as a dependency is resolved through these paths.
     const QStringList languagePackagePaths{
         StringUtils::path_to_qstr(SynthrtEngine::defaultLanguagePackagePath())};
-    // Every runtime flavor lives in its own subdirectory: the CUDA payload carries DLLs with the
-    // same names as the DirectML one, so the two cannot share a directory. The CUDA execution
-    // provider is therefore pointed at its own subdirectory; everything else uses the flavor
-    // deployed at the runtime root. The runtime gate checks exactly this layout at build and
-    // install time (cmake/OrtRuntimeGate.cmake).
-    const auto runtimePath = ep == QStringLiteral("CUDA") ? SynthrtEngine::defaultCudaRuntimePath()
-                                                          : SynthrtEngine::defaultRuntimePath();
+    // Each runtime flavor is deployed in its own subdirectory, because the CUDA payload contains
+    // DLLs with the same names as the DirectML payload. The CUDA execution provider therefore
+    // uses its own subdirectory, and every other provider uses the flavor deployed at the runtime
+    // root. The runtime gate verifies this layout at build and install time
+    // (cmake/OrtRuntimeGate.cmake).
+    const auto runtimePath = resolution.provider == ExecutionProvider::Cuda
+                                 ? SynthrtEngine::defaultCudaRuntimePath()
+                                 : SynthrtEngine::defaultRuntimePath();
     if (!SynthrtEngine::instance().initialize(packagePathsQt, languagePackagePaths, ep, index,
                                               SynthrtEngine::defaultPluginRoot(), runtimePath)) {
         error = QStringLiteral("Failed to initialize SynthrtEngine");
         return false;
     }
 
-    // Displayed on the settings page. The paths are read from the same list that the engine
+    // These paths are displayed on the settings page. They are read from the list that the engine
     // registered, so that the displayed paths are the searched paths.
     const auto directoriesOf = [&pluginRootDir](const std::string &category) {
         QStringList result;
@@ -286,13 +293,17 @@ bool InferEngine::SingerPipelineLease::isStale() const {
 
 std::shared_ptr<InferEngine::SingerPipelineLease>
     InferEngine::acquireSingerSession(const SingerIdentifier &identifier) const {
-    if (appStatus->inferEngineEnvStatus != AppStatus::ModuleStatus::Ready || !initialized()) {
+    // The engines are queried instead of AppStatus, because this function runs on inference task
+    // threads and AppStatus belongs to the application thread. InferEngine is initialized only
+    // after SynthrtEngine, which is the condition that the Ready status reports.
+    if (!initialized() || !SynthrtEngine::instance().initialized()) {
         qCritical() << "acquireSingerSession: inference runtime is not ready" << identifier;
         return {};
     }
     return m_singerSessions.acquire(identifier, [&identifier] {
-        // The generation is read before the pipeline, so a rescan landing in between marks the
-        // lease stale and the cache replaces it, rather than keeping a pipeline of the old scan.
+        // The generation is read before the pipeline. A rescan that completes in between
+        // therefore marks the lease stale, and the cache replaces the lease instead of keeping a
+        // pipeline of the previous scan.
         const auto generation = SynthrtEngine::instance().catalogGeneration();
         auto built = SynthrtEngine::instance().pipelineFor(identifier);
         if (!built) {
@@ -331,10 +342,9 @@ void InferEngine::releaseSingerSessionsAsync(SingerSessionHandleList handles) {
 }
 
 void InferEngine::releaseDeselectedSingerSessionsAsync(SingerSessionHandleList handles) {
-    // Dropping the leases is the whole of it now. The older line also unloaded the packages behind
-    // them, one voicebank at a time, and had to ask each whether anything still held it; on this
-    // line a loaded package is its declarations and its imports, which cost almost nothing, and
-    // everything expensive -- the five models -- goes with the pipeline the lease named.
+    // Releasing the leases is sufficient; loaded packages are not unloaded. A loaded package
+    // consists of its declarations and imports, which occupy negligible memory. The five models,
+    // which are the expensive resources, are released with the pipeline of the lease.
     const auto releasedSessions = handles.size();
     m_singerSessionReleasePool.start([handles = std::move(handles), releasedSessions]() mutable {
         InferDirectMLSerializationGuard dmlGuard;
@@ -385,10 +395,6 @@ void InferEngine::dispose() {
     releaseSingerSessionsAsync(std::move(handles));
     m_singerSessionReleasePool.waitForDone();
     SynthrtEngine::instance().shutdown();
-}
-
-srt::SynthUnit *InferEngine::constRuntime() const {
-    return SynthrtEngine::instance().unitIfReady();
 }
 
 QString InferEngine::configPath() const {

@@ -2485,9 +2485,11 @@ namespace Automation {
                         bool defaultG2pReady = false;
                         for (const auto &language : singer.info.languages()) {
                             const auto languageId = language.id();
-                            const auto g2pId = language.g2p();
+                            // The languages of a singer are converted by wolf linguists, which
+                            // have no G2P identifier. Readiness is therefore the existence of a
+                            // conversion route, not the presence of a G2P identifier.
                             const bool g2pReady =
-                                resolved && !g2pId.isEmpty() && g2pId != QStringLiteral("unknown");
+                                resolved && singer.convertibleLanguages.contains(languageId);
                             languageIds.append(languageId);
                             languages.append(QJsonObject{
                                 {QStringLiteral("language_id"), languageId},
@@ -2497,7 +2499,10 @@ namespace Automation {
                                  language.localizedNames())},
                                 {QStringLiteral("localized_names"),
                                  encodePublicLocalizedText(language.localizedNames())},
-                                {QStringLiteral("g2p_id"), g2pId},
+                                // Deprecated and always empty. The language layer addresses a
+                                // wolf linguist by language_id, so no G2P identifier exists. The
+                                // field is kept because the public contract requires it.
+                                {QStringLiteral("g2p_id"), QString()},
                                 {QStringLiteral("g2p_ready"), g2pReady},
                                 {QStringLiteral("default"), languageId == defaultLanguage},
                             });

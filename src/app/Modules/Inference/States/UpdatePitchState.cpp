@@ -1,5 +1,7 @@
 #include "UpdatePitchState.h"
 
+#include "Modules/Inference/InferLogging.h"
+
 #include <QTimer>
 
 #include "Modules/Inference/InferenceAutomationBridge.h"
@@ -10,7 +12,7 @@ UpdatePitchState::UpdatePitchState(InferPipeline &pipeline, QState *parent)
 }
 
 void UpdatePitchState::onEntry(QEvent *event) {
-    qDebug() << "UpdatePitchState::onEntry";
+    qCDebug(logInferState) << "UpdatePitchState::onEntry";
     QState::onEntry(event);
 
     const auto gate = m_pipeline.resolveApplyContext();
@@ -44,6 +46,6 @@ void UpdatePitchState::onEntry(QEvent *event) {
 }
 
 void UpdatePitchState::onExit(QEvent *event) {
-    qDebug() << "UpdatePitchState::onExit";
+    qCDebug(logInferState) << "UpdatePitchState::onExit";
     QState::onExit(event);
 }

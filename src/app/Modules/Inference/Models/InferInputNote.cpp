@@ -2,12 +2,12 @@
 
 #include <lite/ProjectModel/AppModel/Note.h>
 
-InferInputNote::InferInputNote(const Note &note) {
+InferInputNote::InferInputNote(const Note &note, const QSet<QString> &reservedPhonemes) {
     id = note.id();
     start = note.localStart();
     length = note.length();
     key = note.keyIndex();
-    isRest = note.lyric() == "SP" || note.lyric() == "AP";
+    isRest = reservedPhonemes.contains(note.lyric());
     isSlur = note.isSlur();
     isSyllabification = note.isSyllabification();
     languageDictId = note.effectiveLanguage();

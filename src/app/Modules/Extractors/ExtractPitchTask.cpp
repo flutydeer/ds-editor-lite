@@ -2,9 +2,12 @@
 
 #include <cmath>
 
+#include <QtMath>
+
 #include <otter/Api/F0/1/F0ApiL1.h>
 
-#include <lite/Support/MathUtils.h>
+#include "Modules/Inference/Models/InferParamCurve.h"
+#include "Modules/Inference/Utils/PitchSampling.h"
 
 namespace F0 = otter::Api::F0::L1;
 
@@ -31,10 +34,10 @@ void ExtractPitchTask::runTask() {
             return f0.start(input);
         },
         [this](const F0::F0Result &curve) {
-            // The analyser says which frames are voiced. With interpolateUnvoiced on, an unvoiced
-            // frame carries an interpolated frequency rather than zero, and reading that as a
-            // pitch would draw a line where the singer was silent. An analyser that reports no
-            // voicing is read the old way, zero meaning unvoiced.
+            // The analyzer reports which frames are voiced. If interpolateUnvoiced is enabled, an
+            // unvoiced frame contains an interpolated frequency rather than zero, and treating it
+            // as pitch would produce a curve where the singer was silent. If the analyzer reports
+            // no voicing, a zero frequency indicates an unvoiced frame.
             const bool hasVoicing = curve.voiced.size() == curve.f0.size();
             QList<double> values;
             values.reserve(static_cast<qsizetype>(curve.f0.size()));
@@ -54,8 +57,8 @@ void ExtractPitchTask::runTask() {
 }
 
 double ExtractPitchTask::freqToMidi(const double frequency) {
-    // Zero means the frame carried no pitch, and stays zero: the curve's consumers read it as
-    // "nothing here" rather than as a note.
+    // Zero indicates a frame without pitch and is preserved, because consumers of the curve treat
+    // zero as an unvoiced frame rather than as a note.
     return frequency > 0 ? 69 + 12 * std::log2(frequency / 440.0) : 0;
 }
 
@@ -77,23 +80,26 @@ ExtractPitchTask::ResultSegment ExtractPitchTask::placeOnTimeline(const QList<do
     if (overlapEndMs < overlapStartMs)
         return result;
 
-    // Every point is converted through the timeline rather than one tempo being applied to the
-    // whole span. On a piece whose tempo changes, a single conversion drifts further the longer
-    // the take runs, and the curve ends up somewhere else than the notes it describes.
+    // Every point is converted through the timeline rather than by applying a single tempo to the
+    // whole span. If the tempo changes, a single conversion causes a drift that grows with the
+    // take length and misaligns the curve with the corresponding notes.
     const double firstGlobalTick = m_input.timeline.msToTick(overlapStartMs);
     const double lastGlobalTick = m_input.timeline.msToTick(overlapEndMs);
-    const int firstLocalGrid = qCeil((firstGlobalTick - m_input.singingClipStartTick) / 5.0) * 5;
-    const int lastLocalGrid = qFloor((lastGlobalTick - m_input.singingClipStartTick) / 5.0) * 5;
+    constexpr int step = kParamCurveStepTicks;
+    const int firstLocalGrid =
+        qCeil((firstGlobalTick - m_input.singingClipStartTick) / static_cast<double>(step)) * step;
+    const int lastLocalGrid =
+        qFloor((lastGlobalTick - m_input.singingClipStartTick) / static_cast<double>(step)) * step;
     if (lastLocalGrid < firstLocalGrid)
         return result;
 
     QList<double> targetPositions;
-    targetPositions.reserve((lastLocalGrid - firstLocalGrid) / 5 + 1);
-    for (int localTick = firstLocalGrid; localTick <= lastLocalGrid; localTick += 5) {
+    targetPositions.reserve((lastLocalGrid - firstLocalGrid) / step + 1);
+    for (int localTick = firstLocalGrid; localTick <= lastLocalGrid; localTick += step) {
         targetPositions.append(m_input.timeline.tickToMs(m_input.singingClipStartTick + localTick));
     }
 
     result.globalStartTick = m_input.singingClipStartTick + firstLocalGrid;
-    result.values = MathUtils::resample(values, sourcePositions, targetPositions);
+    result.values = PitchSampling::resample(values, sourcePositions, targetPositions);
     return result;
 }
