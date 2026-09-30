@@ -302,7 +302,13 @@ bool PianoRollGraphicsView::touchFingerEdits() const {
 }
 
 void PianoRollGraphicsView::cancelTouchPointerInteraction() {
+    Q_D(PianoRollGraphicsView);
     discardAction();
+    // The touch stream was taken away mid-press (a second finger promoted it
+    // to navigation, or the platform cancelled it), so the release that would
+    // reset the interaction controller never comes; a latched mouse-down makes
+    // mousePressEvent refuse every later press.
+    d->m_interactionController->setMouseDown(false);
     TimeGraphicsView::cancelTouchPointerInteraction();
 }
 
