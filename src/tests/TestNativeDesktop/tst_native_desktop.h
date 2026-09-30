@@ -73,7 +73,7 @@ private slots:
     void configuredMidiLoopbackFeedsLiveSynthesizer();
 
 private:
-    void runIsolatedDesktopCase();
+    void runIsolatedDesktopCase(const QString &audioDriver = {});
     bool eventFilter(QObject *object, QEvent *event) override;
     std::unique_ptr<GuiAppFixture> application;
     std::unique_ptr<TestSupport::ClipboardSnapshot> savedClipboard;

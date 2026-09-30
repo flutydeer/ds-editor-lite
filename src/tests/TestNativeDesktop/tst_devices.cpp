@@ -368,24 +368,34 @@ void NativeDesktopTests::audioDriverStartupCanBeCanceled() {
     QFETCH(bool, deliverStartup);
     QFETCH(bool, destroyDriver);
     if (!qEnvironmentVariableIsSet("DSEL_TEST_GUI_LIFECYCLE")) {
-        if (!AudioSystem::outputSystem()->outputContext()->driver())
+        const auto *driver = AudioSystem::outputSystem()->outputContext()->driver();
+        if (!driver)
             QSKIP("No audio output backend is available");
-        runIsolatedDesktopCase();
+        if (driver->findChildren<QThread *>().isEmpty())
+            QSKIP("The selected audio backend has no asynchronous startup thread");
+        runIsolatedDesktopCase(driver->name());
         return;
     }
-    GuiAppFixture fixture;
-    QVERIFY2(fixture.initialize(), qPrintable(fixture.error));
-    auto *driver = AudioSystem::outputSystem()->outputContext()->driver();
-    QVERIFY2(driver, "The enumerated audio backend failed to initialize in the child process");
+    std::unique_ptr<talcs::AudioDriverManager> drivers(
+        talcs::AudioDriverManager::createBuiltInDriverManager());
+    auto *driver = drivers->driver(qEnvironmentVariable("DSEL_TEST_AUDIO_DRIVER"));
+    QVERIFY2(driver, "The selected audio backend is unavailable in the child process");
+    QVERIFY(drivers->removeDriver(driver));
+    std::unique_ptr<talcs::AudioDriver> backend(driver);
+    // Unselected SDL backends must be disposed before the tested backend owns SDL's global state.
+    drivers.reset();
+    // Driver startup needs its production backend, without application or inference startup.
+    QVERIFY2(driver->initialize(), qPrintable(driver->errorString()));
     QVERIFY(driver->isInitialized());
+    QVERIFY2(!driver->findChildren<QThread *>().isEmpty(),
+             "The selected audio backend did not create its startup thread");
     if (deliverStartup)
         QCoreApplication::sendPostedEvents(driver, QEvent::MetaCall);
     if (destroyDriver) {
         QPointer<talcs::AudioDriver> observed(driver);
-        fixture.context.reset();
+        backend.reset();
         QVERIFY(observed.isNull());
         QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
-        QTRY_VERIFY(taskManager->tasks().isEmpty());
     } else {
         driver->finalize();
         QCoreApplication::sendPostedEvents(driver, QEvent::MetaCall);
