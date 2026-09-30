@@ -74,6 +74,9 @@ public:
 
     bool handleWheel(QWheelEvent *event, Action action = Action::Automatic,
                      std::optional<Qt::Orientation> sourceAxis = std::nullopt);
+    // What this wheel event would resolve to: a pure query, so callers that
+    // need to know the action before handing the event over can ask.
+    [[nodiscard]] Action resolveAction(const QWheelEvent *event, Action action) const;
     bool zoomByFactor(Qt::Orientation orientation, double factor, double anchor);
     void stop();
 
@@ -90,7 +93,6 @@ private:
         double remainder = 0.0;
     };
 
-    [[nodiscard]] Action resolveAction(const QWheelEvent *event, Action action) const;
     [[nodiscard]] Qt::Orientation
         resolveSourceAxis(const QWheelEvent *event, Action action,
                           std::optional<Qt::Orientation> sourceAxis) const;

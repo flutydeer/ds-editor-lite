@@ -113,7 +113,7 @@ EditorWheelController::EditorWheelController(EditorTouchTarget *touchTarget,
 }
 
 bool EditorWheelController::handleWheel(QWheelEvent *event) {
-    noteWheelInput(event);
+    noteWheelInput(event, m_input->resolveAction(event, WheelInputController::Action::Automatic));
     return m_input->handleWheel(event);
 }
 
@@ -160,23 +160,23 @@ bool EditorWheelController::handleNativeGesture(QNativeGestureEvent *event) {
 }
 
 bool EditorWheelController::horizontalScale(QWheelEvent *event) {
-    noteWheelInput(event);
+    noteWheelInput(event, WheelInputController::Action::HorizontalZoom);
     return m_input->handleWheel(event, WheelInputController::Action::HorizontalZoom, Qt::Vertical);
 }
 
 bool EditorWheelController::verticalScale(QWheelEvent *event) {
-    noteWheelInput(event);
+    noteWheelInput(event, WheelInputController::Action::VerticalZoom);
     return m_input->handleWheel(event, WheelInputController::Action::VerticalZoom, Qt::Vertical);
 }
 
 bool EditorWheelController::horizontalScroll(QWheelEvent *event) {
-    noteWheelInput(event);
+    noteWheelInput(event, WheelInputController::Action::HorizontalScroll);
     const auto sourceAxis = event->modifiers() == Qt::ShiftModifier ? Qt::Vertical : Qt::Horizontal;
     return m_input->handleWheel(event, WheelInputController::Action::HorizontalScroll, sourceAxis);
 }
 
 bool EditorWheelController::verticalScroll(QWheelEvent *event) {
-    noteWheelInput(event);
+    noteWheelInput(event, WheelInputController::Action::VerticalScroll);
     return m_input->handleWheel(event, WheelInputController::Action::VerticalScroll, Qt::Vertical);
 }
 
@@ -186,7 +186,8 @@ void EditorWheelController::stop() {
     m_input->stop();
 }
 
-void EditorWheelController::noteWheelInput(const QWheelEvent *event) {
+void EditorWheelController::noteWheelInput(const QWheelEvent *event,
+                                           const WheelInputController::Action resolvedAction) {
     // Anything that is not the touchpad stroke in progress cancels both
     // glides. The stroke itself has to keep the velocity its ScrollUpdate
     // events accumulate: clearing it on the way in makes ScrollEnd start a
@@ -196,6 +197,11 @@ void EditorWheelController::noteWheelInput(const QWheelEvent *event) {
         stopPanGlide();
         return;
     }
+    // Only a scroll stroke may pan: a zoom stream resolves to a zoom action,
+    // and recording its pixelDelta would start a pan glide the moment the
+    // zoom flick ends, scrolling the viewport the zoom never asked for.
+    const bool panStroke = resolvedAction == WheelInputController::Action::HorizontalScroll ||
+                           resolvedAction == WheelInputController::Action::VerticalScroll;
     switch (event->phase()) {
         case Qt::ScrollBegin:
             stopPanGlide();
@@ -207,7 +213,8 @@ void EditorWheelController::noteWheelInput(const QWheelEvent *event) {
             // skipped). Drop its speed. Otherwise keep the samples from this
             // stroke.
             stopPanGlide(m_panGliding);
-            trackPanVelocity(event);
+            if (panStroke)
+                trackPanVelocity(event);
             break;
         case Qt::ScrollMomentum:
             // The system is gliding. Forget our estimate so ScrollEnd does
@@ -216,7 +223,7 @@ void EditorWheelController::noteWheelInput(const QWheelEvent *event) {
             m_systemMomentum = true;
             break;
         case Qt::ScrollEnd:
-            if (!m_systemMomentum)
+            if (panStroke && !m_systemMomentum)
                 startPanGlide();
             m_systemMomentum = false;
             break;

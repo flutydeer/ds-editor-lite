@@ -51,8 +51,10 @@ public:
 private:
     // Touchpad bookkeeping shared by every wheel entry point. Input other than
     // the current stroke cancels a glide. ScrollUpdate keeps that stroke's
-    // velocity so ScrollEnd can glide with it.
-    void noteWheelInput(const QWheelEvent *event);
+    // velocity so ScrollEnd can glide with it. `resolvedAction` limits the pan
+    // velocity and the glide to scroll strokes: a zoom stream (Ctrl/Alt on the
+    // touchpad) must not leave a pan behind when the flick ends.
+    void noteWheelInput(const QWheelEvent *event, WheelInputController::Action resolvedAction);
     void trackPanVelocity(const QWheelEvent *event);
     void startPanGlide();
     // `forgetVelocity` drops the speed estimate. A ScrollUpdate of the stroke
