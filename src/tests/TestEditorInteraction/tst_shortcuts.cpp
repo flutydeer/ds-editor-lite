@@ -154,6 +154,22 @@ void EditorInteractionTests::applicationShortcutPreservesOtherWindows() {
     QTest::keyClick(control, Qt::Key_Space);
     QCOMPARE(activations, 0);
     QCOMPARE(control->presses, 1);
+    if (kind == 0) {
+        int foreignActivations = 0;
+        auto *foreign = new QShortcut(QKeySequence(Qt::Key_Space), window);
+        connect(foreign, &QShortcut::activated, window, [&] { ++foreignActivations; });
+        QTest::keyClick(control, Qt::Key_Space);
+        QCOMPARE(foreignActivations, 1);
+        QCOMPARE(control->presses, 1);
+        QCOMPARE(activations, 0);
+
+        QApplication::setActiveWindow(&owner);
+        owner.setFocus();
+        QTRY_VERIFY(owner.hasFocus());
+        QTest::keyClick(&owner, Qt::Key_Space);
+        QCOMPARE(activations, 1);
+        QCOMPARE(foreignActivations, 1);
+    }
 }
 
 void EditorInteractionTests::disablingShortcutRestoresButtonInput() {

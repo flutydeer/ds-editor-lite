@@ -1,4 +1,5 @@
 #include "tst_application_gui.h"
+#include "../TestSupport/MainWindowFixture.h"
 
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
@@ -13,11 +14,13 @@
 #include <QKeySequence>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QPointer>
 #include <QTableView>
 #include <QContextMenuEvent>
 #include <QMenu>
 #include <QScopeGuard>
 #include <QTimer>
+#include <QWindow>
 #include <QtTest>
 
 #include <thread>
@@ -35,6 +38,19 @@ namespace {
 }
 
 void ApplicationGuiTests::logWindowFiltersLiveMessagesAndCopiesDisplayedOrder() {
+    auto &runtime = *context->m_coreRuntime;
+    const auto settings = runtime.settings().getSettings();
+    QVERIFY(settings);
+    const auto restoreSettings = qScopeGuard(
+        [&] { QVERIFY(runtime.settings().updateDeveloper({}, settings.get().developer)); });
+    auto developer = settings.get().developer;
+    developer.showLogWindow = false;
+    QVERIFY(runtime.settings().updateDeveloper({}, developer));
+    TestSupport::MainWindowFixture mainWindow;
+    mainWindow.show();
+    if (QTest::currentTestFailed())
+        return;
+    QVERIFY(!mainWindow.window->findChild<LogWindow *>());
     const QString firstTag = QStringLiteral("FixtureLog-A");
     const QString secondTag = QStringLiteral("FixtureLog-B");
     const Log::LogMessage debug("10:00:00", Log::Debug, firstTag, "Inspect source");
@@ -46,9 +62,12 @@ void ApplicationGuiTests::logWindowFiltersLiveMessagesAndCopiesDisplayedOrder() 
     LogBus::instance()->append(error);
     const auto before = context->m_coreRuntime->documentVersion();
     const auto *beforeUndo = HistoryManager::instance()->nextUndoEntry();
-    LogWindow window;
+    developer.showLogWindow = true;
+    QVERIFY(runtime.settings().updateDeveloper({}, developer));
+    QPointer<LogWindow> ownedWindow = mainWindow.window->findChild<LogWindow *>();
+    QVERIFY(ownedWindow);
+    auto &window = *ownedWindow;
     window.resize(760, 360);
-    window.show();
     window.activateWindow();
     auto *search = window.findChild<QLineEdit *>();
     auto *table = window.findChild<QTableView *>(QStringLiteral("logTableView"));
@@ -106,6 +125,24 @@ void ApplicationGuiTests::logWindowFiltersLiveMessagesAndCopiesDisplayedOrder() 
         return;
     QCOMPARE(table->model()->rowCount(), 2);
 
+    developer.showLogWindow = false;
+    QVERIFY(runtime.settings().updateDeveloper({}, developer));
+    QTRY_VERIFY(!window.isVisible());
+    mainWindow.window->activateWindow();
+    QTRY_VERIFY(mainWindow.window->isActiveWindow());
+    developer.showLogWindow = true;
+    QVERIFY(runtime.settings().updateDeveloper({}, developer));
+    QTRY_VERIFY(window.isVisible());
+    QTRY_VERIFY(window.windowHandle() && window.windowHandle()->isExposed());
+    window.activateWindow();
+    QTRY_VERIFY(window.isActiveWindow());
+    QCOMPARE(mainWindow.window->findChild<LogWindow *>(), ownedWindow.data());
+    QCOMPARE(search->text(), QStringLiteral("OUTPUT"));
+    QCOMPARE(tag->currentText(), secondTag);
+    QCOMPARE(table->model()->rowCount(), 2);
+    AppOptions persisted;
+    QVERIFY(persisted.developer()->showLogWindow);
+
     const auto rowPoint = [&](int row) {
         return table->visualRect(table->model()->index(row, LogWindowModel::TextColumn))
             .intersected(table->viewport()->rect())
@@ -148,4 +185,5 @@ void ApplicationGuiTests::logWindowFiltersLiveMessagesAndCopiesDisplayedOrder() 
     QCOMPARE(context->m_coreRuntime->documentVersion(), before);
     QCOMPARE(HistoryManager::instance()->nextUndoEntry(), beforeUndo);
     window.close();
+    QVERIFY(runtime.settings().getSettings().get().developer.showLogWindow);
 }
