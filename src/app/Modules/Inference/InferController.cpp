@@ -743,7 +743,13 @@ void InferControllerPrivate::handleVoiceContextChanged(const VoiceContextChange 
                        << invalidated.getError().message;
             return;
         }
-        ensureClipInferenceStarted(*clip);
+        if (clip->singerInfo().isEmpty()) {
+            // 清声路径：没有歌者，ensureClipInferenceStarted 会直接返回（它今天就是这样），
+            // 改用专门的语言回退重跑抹掉残留派生数据（台账 P-110）。
+            restartLanguageTasksAfterVoiceCleared(*clip);
+        } else {
+            ensureClipInferenceStarted(*clip);
+        }
         return;
     }
 
@@ -844,6 +850,22 @@ void InferControllerPrivate::ensureClipInferenceStarted(SingingClip &clip,
             createAndRunGetPronTask(*guardedClip);
         else
             createAndRunGetPhoneTask(*guardedClip);
+    });
+}
+
+void InferControllerPrivate::restartLanguageTasksAfterVoiceCleared(SingingClip &clip) {
+    QPointer<SingingClip> guardedClip(&clip);
+    // 与 ensureClipInferenceStarted 同因：模型信号跑在 ActionSequence::execute() 内部，
+    // 必须等 committer 推进版本后再动文档。
+    QTimer::singleShot(0, this, [this, guardedClip] {
+        if (!guardedClip || appModel->findClipById(guardedClip->id()) != guardedClip)
+            return;
+
+        // 无歌者时 canStartClipInference 会把正常推理启动挡掉，于是清声前的发音/音素一直
+        // 留在音符上（台账 P-110）。两个语言任务的回退分支给出的正是本项目里"没有声库的
+        // 音符"应有的状态：发音取原词、音素留空。
+        createAndRunGetPronTask(*guardedClip, true);
+        createAndRunGetPhoneTask(*guardedClip, true);
     });
 }
 
@@ -1139,8 +1161,9 @@ void InferControllerPrivate::clearPendingForClip(const int clipId, const QString
     }
 }
 
-void InferControllerPrivate::createAndRunGetPronTask(const SingingClip &clip) {
-    if (!canStartClipInference(clip))
+void InferControllerPrivate::createAndRunGetPronTask(const SingingClip &clip,
+                                                     const bool allowUnvoicedFallback) {
+    if (!allowUnvoicedFallback && !canStartClipInference(clip))
         return;
 
     if (clip.notes().count() <= 0) {
@@ -1161,8 +1184,9 @@ void InferControllerPrivate::createAndRunGetPronTask(const SingingClip &clip) {
     m_getPronTasks.add(task);
 }
 
-void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip) {
-    if (!canStartClipInference(clip))
+void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip,
+                                                      const bool allowUnvoicedFallback) {
+    if (!allowUnvoicedFallback && !canStartClipInference(clip))
         return;
 
     const auto clipId = clip.id();

@@ -7,13 +7,9 @@
 #include <utility>
 #include <vector>
 
-#include <synthrt/G2P/LanguageService.h>
 
 #include "Modules/FillLyric/Utils/TextTagger.h"
-#include <lite/Language/G2pConvertRunner.h>
-#include <lite/Language/G2pInputAdapter.h>
 #include <lite/SynthrtEngine/SynthrtEngine.h>
-#include <lite/Support/VersionUtils.h>
 Q_LOGGING_CATEGORY(logFillG2p, "fill.g2p")
 
 namespace FillLyric {
@@ -52,10 +48,7 @@ namespace FillLyric {
         }
     }
 
-    G2pService::G2pService(SingerIdentifier singer,
-                           const srt::g2p::LanguageService &languageService)
-        : m_singer(std::move(singer)) {
-        Q_UNUSED(languageService);
+    G2pService::G2pService(SingerIdentifier singer) : m_singer(std::move(singer)) {
     }
 
     QList<G2pResult> G2pService::convert(const QList<LangNote> &notes,
@@ -113,46 +106,29 @@ namespace FillLyric {
         if (langGroups.empty())
             return results;
 
-        // B1b-3: Each language calls session().convertG2p once (internally
-        // routed by SingerRef.version, filling g2pId/g2pContext/
-        // g2pContextVersion). On route or conversion failure an Expected
-        // error is returned and all notes in that language keep the original
-        // lyric (ds-session.md §206: G2P failure preserves lyric).
-        auto &session = SynthrtEngine::instance().session();
-        const auto packageId = m_singer.packageId.toStdString();
-        const auto version = VersionUtils::qt_to_stdc(m_singer.packageVersion);
+        // One call per language. Which linguist answers it is decided by the singer's own
+        // language map, so nothing here has to know a route; a language that cannot be converted
+        // leaves its notes with the original lyric (ds-session.md §206).
         for (const auto &[language, entries] : langGroups) {
-            std::vector<srt::g2p::G2pInput> inputs;
-            inputs.reserve(entries.size());
+            std::vector<lite::synthrt::LanguageBridge::Word> words;
+            words.reserve(entries.size());
             for (const auto &entry : entries) {
-                srt::g2p::G2pInput input;
-                input.lyric = entry.second;
-                inputs.push_back(std::move(input));
+                words.push_back({entry.second, {}, {}, {}});
             }
 
-            // Ensure the G2P language module is loaded before conversion.
-            // convertG2p does not auto-initialize models; ensureLanguageReady
-            // loads them lazily on first call (cached internally by the session).
-            const auto langStd = toUtf8(language);
-            auto readyExp = session.ensureLanguageReady(packageId, version, langStd);
-            if (!readyExp) {
-                qCWarning(logFillG2p) << "G2P language ready failed for language" << language << ":"
-                                      << fromUtf8(readyExp.error().message());
-                continue; // Keep original lyric for this language
+            auto converted = SynthrtEngine::instance().convert(
+                m_singer, language, words, lite::synthrt::LanguageBridge::Depth::Pronunciation);
+            if (!converted) {
+                qCWarning(logFillG2p) << "Failed to convert for language" << language << ":"
+                                      << fromUtf8(converted.error().toString());
+                continue; // Keep the original lyric for this language
             }
 
-            auto exp = session.convertG2p(m_singer, langStd, inputs);
-            if (!exp) {
-                qCWarning(logFillG2p) << "Failed to convert G2P for language" << language << ":"
-                                      << fromUtf8(exp.error().message());
-                continue; // Keep original lyric for this language
-            }
-
-            const auto &outcomes = *exp;
+            const auto outcomes = converted.take();
             if (outcomes.size() != entries.size()) {
                 qCWarning(logFillG2p)
-                    << "convertG2p returned" << outcomes.size() << "outcomes for" << entries.size()
-                    << "requests; keeping original lyric for unmatched notes";
+                    << "the conversion returned" << outcomes.size() << "outcomes for"
+                    << entries.size() << "requests; keeping original lyric for unmatched notes";
             }
 
             const auto coveredCount = std::min(outcomes.size(), entries.size());
@@ -165,7 +141,9 @@ namespace FillLyric {
                                       : notes[noteIdx].language;
 
                 const auto &outcome = outcomes[i];
-                result.g2pId = fromUtf8(outcome.g2pId);
+                if (!outcome.error.empty()) {
+                    continue; // This word keeps its original lyric; the rest of the batch stands.
+                }
                 result.pronunciation = fromUtf8(outcome.pronunciation);
                 QStringList rawCandidates;
                 rawCandidates.reserve(static_cast<qsizetype>(outcome.candidates.size()));

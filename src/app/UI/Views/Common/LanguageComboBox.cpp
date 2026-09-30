@@ -48,7 +48,8 @@ void LanguageComboBox::setCurrentLanguage(const QString &language) {
 
 QString LanguageComboBox::setLanguages(const QList<LanguageInfo> &languages,
                                        const QString &currentLanguage,
-                                       const QString &preferredLanguage) {
+                                       const QString &preferredLanguage,
+                                       const QStringList &unavailable) {
     QSignalBlocker blocker(this);
     clear();
     m_languages = languages;
@@ -64,10 +65,24 @@ QString LanguageComboBox::setLanguages(const QList<LanguageInfo> &languages,
         setItemData(count() - 1, language.name(), Qt::UserRole + 1);
     }
 
-    if (count() == 0) {
+    // A language the host knows but the singer does not serve is shown disabled rather than left
+    // out: a clip whose own language is one of them would otherwise be sung in another language
+    // with nothing on screen naming the one it lost. `unknown` is a sentinel, not one to offer.
+    const int selectable = count();
+    for (const auto &code : unavailable) {
+        const auto id = code.trimmed();
+        if (id.isEmpty() || id == QStringLiteral("unknown") || addedIds.contains(id))
+            continue;
+        addedIds.insert(id);
+        addItem(displayName(id, QString()), id);
+        setItemData(count() - 1, QString(), Qt::UserRole + 1);
+        setItemData(count() - 1, 0, Qt::UserRole - 1);
+    }
+
+    if (selectable == 0) {
         // no selectable languages (usually no singer) -> show "Follow singer" (auto/unspecified),
         // id is empty
-        addItem(tr("Follow singer"), QString());
+        insertItem(0, tr("Follow singer"), QString());
         setItemData(0, QString(), Qt::UserRole + 1);
     }
 

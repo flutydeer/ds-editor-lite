@@ -8,7 +8,9 @@
 #include "ExecutionProvider.h"
 #include "Tasks/InitInferEngineTask.h"
 
-#include <synthrt/Core/Support/Logging.h>
+#include <synthrt/SVS/InferenceContrib.h>
+#include <synthrt/SVS/SingerContrib.h>
+#include <synthrt/Support/Logging.h>
 
 #include <QCoreApplication>
 
@@ -30,52 +32,41 @@
 #include "Tasks/InferTaskCommon.h"
 #include "Utils/CudaGpuUtils.h"
 
-static void log_report_callback(const int level, const srt::core::LogContext &ctx,
+static void log_report_callback(const int level, const srt::LogContext &ctx,
                                 const std::string_view &msg) {
     const QString message_qstr = QString::fromUtf8(msg.data(), msg.size());
     switch (level) {
-        case srt::core::Logger::Fatal:
+        case srt::Logger::Fatal:
             Log::f(ctx.category, message_qstr);
             break;
-        case srt::core::Logger::Critical:
+        case srt::Logger::Critical:
             Log::e(ctx.category, message_qstr);
             break;
-        case srt::core::Logger::Warning:
+        case srt::Logger::Warning:
             Log::w(ctx.category, message_qstr);
             break;
-        case srt::core::Logger::Information:
-        case srt::core::Logger::Success:
+        case srt::Logger::Information:
+        case srt::Logger::Success:
             Log::i(ctx.category, message_qstr);
             break;
-        case srt::core::Logger::Debug:
+        case srt::Logger::Debug:
         default:
             Log::d(ctx.category, message_qstr);
             break;
     }
 }
 
-static bool packageIsSelected(const ds::session::LoadedVoicebankInfo &package,
-                              const QSet<SingerIdentifier> &identifiers) {
-    const auto packageId = QString::fromStdString(package.packageId);
-    const auto packageVersion =
-        QVersionNumber::fromString(QString::fromStdString(package.version.toString()));
-    return std::any_of(identifiers.cbegin(), identifiers.cend(),
-                       [&packageId, &packageVersion](const SingerIdentifier &identifier) {
-                           return identifier.packageId == packageId &&
-                                  QVersionNumber::compare(identifier.packageVersion,
-                                                          packageVersion) == 0;
-                       });
-}
-
 static constexpr int kSingerSessionScanIntervalMilliseconds = 10'000;
 
 InferEngine::InferEngine(QObject *parent) : QObject(parent) {
-    srt::core::Logger::setLogCallback(log_report_callback);
+    srt::Logger::setLogCallback(log_report_callback);
     m_singerSessionReleasePool.setMaxThreadCount(1);
 
-    // Prevent crash on app exit
-    connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, this,
-            &InferEngine::dispose);
+    // Not disposed on QCoreApplication::aboutToQuit: that signal fires when the event loop
+    // exits, while inference and extraction tasks may still be running, and shutting the runtime
+    // down under them is the crash such a hook was once meant to prevent. AppContext's
+    // destructor drains the task manager first and destroys this engine afterwards, and that
+    // order is the only one that is safe.
 
     m_singerSessionEvictionTimer.setInterval(kSingerSessionScanIntervalMilliseconds);
     m_singerSessionEvictionTimer.setTimerType(Qt::CoarseTimer);
@@ -102,19 +93,16 @@ void InferEngine::startInitialization() {
             }
 
             const bool languageReady = initTask->success.load(std::memory_order_acquire);
-            const bool runtimeReady = SynthrtEngine::instance().runtimeInitialized();
+            const bool runtimeReady = SynthrtEngine::instance().initialized();
             appStatus->inferEngineEnvStatus =
                 runtimeReady ? AppStatus::ModuleStatus::Ready : AppStatus::ModuleStatus::Error;
             if (languageReady) {
                 appStatus->languageModuleError = QString();
                 appStatus->languageModuleStatus = AppStatus::ModuleStatus::Ready;
-                // Warm up G2P models in the background so the first
-                // FillLyric / inference conversion does not stall. The engine
-                // was initialized with deferLanguageModels=true; this kicks
-                // off the deferred Stage 2 load on a worker thread, matching
-                // how PackageManager scans packages asynchronously.
-                QThreadPool::globalInstance()->start(
-                    [] { SynthrtEngine::instance().warmUpLanguageModels(); });
+                // Nothing to warm up. The older line loaded every language's models during
+                // startup and needed a background pass so the first conversion did not stall;
+                // wolf loads a language when a conversion first asks for one and keeps it, so the
+                // stall is one conversion long and only once.
             } else {
                 appStatus->languageModuleError = initTask->errorMessage;
                 appStatus->languageModuleStatus = AppStatus::ModuleStatus::Error;
@@ -218,11 +206,7 @@ bool InferEngine::initialize(QString &error) {
         return false;
     }
 
-    const auto pluginRootDir = SynthrtEngine::pluginRoot();
-    const auto diffsingerPluginDir = pluginRootDir / "diffsinger";
-    const auto singerProviderDir = diffsingerPluginDir / "singerproviders";
-    const auto inferenceDriverDir = pluginRootDir / "srt-driver" / "inferencedrivers";
-    const auto inferenceInterpreterDir = diffsingerPluginDir / "inferenceinterpreters";
+    const auto pluginRootDir = SynthrtEngine::defaultPluginRoot();
 
     QStringList packagePathsQt;
     for (const auto &pathQt : appOptions->general()->packageSearchPaths) {
@@ -239,24 +223,41 @@ bool InferEngine::initialize(QString &error) {
         }
         packagePathsQt.append(pathQt);
     }
-    const auto g2pPackageDir = pluginRootDir / "srt-g2p" / "G2pPackages";
-    const QStringList g2pPackagePaths{StringUtils::path_to_qstr(g2pPackageDir)};
-    // Defer G2P model loading to first use so startup stays fast: the G2P
-    // convert tasks call VoicebankSession::ensureLanguageReady() first, which
-    // triggers LanguageService::initializeModels() (idempotent + mutex-guarded
-    // in synthrt) on demand. Nothing in this method reads G2P outputs.
-    if (!SynthrtEngine::instance().initialize(packagePathsQt, g2pPackagePaths, ep, index,
-                                              /*deferLanguageModels=*/true)) {
+    // Where a dependency is looked for, which is not the same list as the directories a voicebank
+    // scan walks. A voicebank that names a language package resolves it through here.
+    const QStringList languagePackagePaths{
+        StringUtils::path_to_qstr(SynthrtEngine::defaultLanguagePackagePath())};
+    // Every runtime flavor lives in its own subdirectory: the CUDA payload carries DLLs with the
+    // same names as the DirectML one, so the two cannot share a directory. The CUDA execution
+    // provider is therefore pointed at its own subdirectory; everything else uses the flavor
+    // deployed at the runtime root. The runtime gate checks exactly this layout at build and
+    // install time (cmake/OrtRuntimeGate.cmake).
+    const auto runtimePath = ep == QStringLiteral("CUDA") ? SynthrtEngine::defaultCudaRuntimePath()
+                                                          : SynthrtEngine::defaultRuntimePath();
+    if (!SynthrtEngine::instance().initialize(packagePathsQt, languagePackagePaths, ep, index,
+                                              SynthrtEngine::defaultPluginRoot(), runtimePath)) {
         error = QStringLiteral("Failed to initialize SynthrtEngine");
         return false;
     }
 
-    m_paths.singerProvider = StringUtils::path_to_qstr(singerProviderDir);
-    m_paths.inferenceDriver = StringUtils::path_to_qstr(inferenceDriverDir);
-    m_paths.inferenceInterpreter = StringUtils::path_to_qstr(inferenceInterpreterDir);
-    const auto runtimeDir = inferenceDriverDir / "srt-onnxdriver" / "runtimes" / "onnx" /
-                            (resolution.provider == ExecutionProvider::Cuda ? "cuda" : "default");
-    m_paths.inferenceRuntime = StringUtils::path_to_qstr(runtimeDir);
+    // Displayed on the settings page. The paths are read from the same list that the engine
+    // registered, so that the displayed paths are the searched paths.
+    const auto directoriesOf = [&pluginRootDir](const std::string &category) {
+        QStringList result;
+        for (const auto &entry : lite::synthrt::pluginCategories(pluginRootDir)) {
+            if (entry.category == category) {
+                for (const auto &directory : entry.directories) {
+                    result.append(StringUtils::path_to_qstr(directory));
+                }
+            }
+        }
+        return result.join(QStringLiteral("; "));
+    };
+    m_paths.singerProvider = directoriesOf(srt::SingerCategory::NAME);
+    m_paths.inferenceDriver =
+        StringUtils::path_to_qstr(lite::synthrt::driverDirectory(pluginRootDir));
+    m_paths.inferenceInterpreter = directoriesOf(srt::InferenceCategory::NAME);
+    m_paths.inferenceRuntime = StringUtils::path_to_qstr(runtimePath);
 
     if (ExecutionProviderUtils::requiresGpu(resolution.provider)) {
         qInfo().noquote() << QStringLiteral("GPU: %1, Device ID: %2, Memory: %3")
@@ -270,33 +271,37 @@ bool InferEngine::initialize(QString &error) {
     return true;
 }
 
-std::shared_ptr<ds::session::ModelSetHandle>
+InferEngine::SingerPipelineLease::SingerPipelineLease(
+    std::shared_ptr<lite::synthrt::SingerPipeline> pipeline, std::uint64_t generation)
+    : m_pipeline(std::move(pipeline)), m_generation(generation) {
+}
+
+lite::synthrt::SingerPipeline *InferEngine::SingerPipelineLease::pipeline() const noexcept {
+    return m_pipeline.get();
+}
+
+bool InferEngine::SingerPipelineLease::isStale() const {
+    return SynthrtEngine::instance().catalogGeneration() != m_generation;
+}
+
+std::shared_ptr<InferEngine::SingerPipelineLease>
     InferEngine::acquireSingerSession(const SingerIdentifier &identifier) const {
     if (appStatus->inferEngineEnvStatus != AppStatus::ModuleStatus::Ready || !initialized()) {
         qCritical() << "acquireSingerSession: inference runtime is not ready" << identifier;
         return {};
     }
     return m_singerSessions.acquire(identifier, [&identifier] {
-        auto &session = SynthrtEngine::instance().session();
-        auto exp = session.ensureModelSet(identifier);
-        if (!exp) {
-            if (exp.error().code() != srt::core::ErrorCode::StaleModelSet) {
-                qCritical().noquote().nospace()
-                    << "acquireSingerSession: ensureModelSet failed for " << identifier << ": "
-                    << QString::fromUtf8(exp.error().messageWithLocation());
-                return std::shared_ptr<ds::session::ModelSetHandle>{};
-            }
-            qWarning() << "acquireSingerSession: StaleModelSet for" << identifier
-                       << "; retrying ensureModelSet once";
-            exp = session.ensureModelSet(identifier);
-            if (!exp) {
-                qCritical().noquote().nospace()
-                    << "acquireSingerSession: ensureModelSet retry failed for " << identifier
-                    << ": " << QString::fromUtf8(exp.error().messageWithLocation());
-                return std::shared_ptr<ds::session::ModelSetHandle>{};
-            }
+        // The generation is read before the pipeline, so a rescan landing in between marks the
+        // lease stale and the cache replaces it, rather than keeping a pipeline of the old scan.
+        const auto generation = SynthrtEngine::instance().catalogGeneration();
+        auto built = SynthrtEngine::instance().pipelineFor(identifier);
+        if (!built) {
+            qCritical().noquote().nospace()
+                << "acquireSingerSession: could not build the pipeline for " << identifier << ": "
+                << QString::fromStdString(built.error().toString());
+            return std::shared_ptr<SingerPipelineLease>{};
         }
-        return *exp;
+        return std::make_shared<SingerPipelineLease>(built.take(), generation);
     });
 }
 
@@ -326,40 +331,17 @@ void InferEngine::releaseSingerSessionsAsync(SingerSessionHandleList handles) {
 }
 
 void InferEngine::releaseDeselectedSingerSessionsAsync(SingerSessionHandleList handles) {
+    // Dropping the leases is the whole of it now. The older line also unloaded the packages behind
+    // them, one voicebank at a time, and had to ask each whether anything still held it; on this
+    // line a loaded package is its declarations and its imports, which cost almost nothing, and
+    // everything expensive -- the five models -- goes with the pipeline the lease named.
     const auto releasedSessions = handles.size();
-    m_singerSessionReleasePool.start([this, handles = std::move(handles),
-                                      releasedSessions]() mutable {
+    m_singerSessionReleasePool.start([handles = std::move(handles), releasedSessions]() mutable {
         InferDirectMLSerializationGuard dmlGuard;
         handles.clear();
-
-        auto &session = SynthrtEngine::instance().session();
-        std::size_t unloadedPackages = 0;
-        std::size_t packagesInUse = 0;
-        for (const auto &package : session.loadedVoicebanks()) {
-            std::lock_guard selectionLock(m_singerSessionSelectionMutex);
-            if (packageIsSelected(package, m_singerSessions.retainedIdentifiers())) {
-                continue;
-            }
-
-            auto result = session.unloadVoicebank(package.packageId, package.version);
-            if (result) {
-                ++unloadedPackages;
-            } else if (result.error().code() == srt::core::ErrorCode::PackageInUse) {
-                ++packagesInUse;
-            } else if (result.error().code() != srt::core::ErrorCode::RuntimePackageNotLoaded) {
-                qWarning().noquote().nospace()
-                    << "retainSingerSessions: failed to unload package "
-                    << QString::fromStdString(package.packageId) << ": "
-                    << QString::fromUtf8(result.error().messageWithLocation());
-            }
-        }
-        if (releasedSessions > 0 || unloadedPackages > 0) {
+        if (releasedSessions > 0) {
             qInfo().noquote().nospace()
-                << "Singer session retention updated: dropped=" << releasedSessions
-                << ", packagesUnloaded=" << unloadedPackages << ", packagesInUse=" << packagesInUse;
-        } else if (packagesInUse > 0) {
-            qDebug().noquote().nospace()
-                << "Singer session package unload deferred: packagesInUse=" << packagesInUse;
+                << "Singer session retention updated: dropped=" << releasedSessions;
         }
     });
 }
@@ -405,8 +387,8 @@ void InferEngine::dispose() {
     SynthrtEngine::instance().shutdown();
 }
 
-const srt::core::Runtime &InferEngine::constRuntime() const {
-    return SynthrtEngine::instance().runtime();
+srt::SynthUnit *InferEngine::constRuntime() const {
+    return SynthrtEngine::instance().unitIfReady();
 }
 
 QString InferEngine::configPath() const {

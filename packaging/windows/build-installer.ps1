@@ -5,6 +5,18 @@ param(
     [string]$InnoSetupPath = "",
     [string]$VcRedistPath = "",
 
+    # An unpacked copy of the wolf language packages to stage: one subdirectory per package, each
+    # holding its desc.json. This route installs a tree (LITE_INSTALL=ON), and CMake refuses to
+    # configure such a tree when nothing names those packages. Left empty, this script passes no
+    # -D and CMake resolves them its own way -- the WOLF_LANG_PACKAGES_SOURCE environment
+    # variable, an installed wolf-lang-packages package, or a sibling wolf checkout; passed here,
+    # LITE_WOLF_LANG_PACKAGES outranks all of those.
+    # It only decides whether a -D goes out: it never clears the build directory's CMake cache,
+    # so a cache that already holds LITE_WOLF_LANG_PACKAGES keeps feeding it to this preset's
+    # binaryDir (build\PackageDmlRelease) even on a default run; delete that cache, or configure
+    # once with an explicit empty -DLITE_WOLF_LANG_PACKAGES=, to let the convention decide again.
+    [string]$WolfLangPackages = "",
+
     [switch]$SkipVcpkgInstall,
     # Build the CUDA flavor: installs onnxruntime-builds[cuda12] and configures
     # LITE_ENABLE_CUDA=ON. Default is the DirectML (DML) flavor.
@@ -222,13 +234,21 @@ function Write-InnoScript {
 }
 
 function Assert-StagingLayout {
+    # The three plugins\<library> entries are the host plugin trees. cmake/LiteBuildApi.cmake
+    # copies each one only when the vcpkg tree carries it and merely warns when it does not, so
+    # without them an installer can be built and shipped with a whole tree (dsinfer, wolf or
+    # otter) missing while every step still reports success. build-portable.ps1 asserts the same
+    # list below its $AppDir.
     $requiredPaths = @(
         "bin\$($ProductMetadata.executableBaseName).exe",
         "bin\plugins",
         "bin\plugins\platforms",
+        "bin\plugins\dsinfer",
+        "bin\plugins\wolf",
+        "bin\plugins\otter",
         "bin\Resources",
         "bin\configs",
-        "bin\plugins\srt-g2p\G2pPackages"
+        "bin\wolf\packages"
     )
 
     foreach ($path in $requiredPaths) {
@@ -254,7 +274,7 @@ function Assert-StagingLayout {
     # Flavor assertion: the staging tree must agree with -EnableCuda. The CMake
     # runtime gate already enforces this at build/install time; this is the
     # packaging-boundary net so a stale vcpkg tree can never slip through.
-    $cudaRuntimeDir = Join-Path $ResolvedStageDir "bin\plugins\srt-driver\inferencedrivers\srt-onnxdriver\runtimes\onnx\cuda"
+    $cudaRuntimeDir = Join-Path $ResolvedStageDir "bin\plugins\dsinfer\inferencedrivers\onnx\runtime\cuda"
     $cudaPresent = Test-Path -LiteralPath $cudaRuntimeDir
     if ($EnableCuda -and -not $cudaPresent) {
         throw ("CUDA staging is missing the ONNX Runtime cuda/ runtimes. " +
@@ -385,6 +405,12 @@ if (-not $NoBuild) {
             # switch overrides it so this script and the CMake runtime gate
             # agree on one source of truth.
             $configureArgs += "-DLITE_ENABLE_CUDA=ON"
+        }
+        if ($WolfLangPackages) {
+            # Only when the caller named one: leaving the option out keeps CMake's own resolution
+            # chain -- the environment variable, the port, the sibling checkout -- in charge.
+            # It does not clear a cache that already holds the value (see the parameter help).
+            $configureArgs += "-DLITE_WOLF_LANG_PACKAGES=$WolfLangPackages"
         }
         Invoke-Process "cmake" $configureArgs
     }

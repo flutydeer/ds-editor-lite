@@ -21,7 +21,21 @@
     "tinyexpr",
     {
       "name": "synthrt",
-      "features": []
+      "features": [
+        "onnx"
+      ]
+    },
+    {
+      "name": "wolf",
+      "features": [
+        "onnx"
+      ]
+    },
+    {
+      "name": "otter",
+      "features": [
+        "onnx"
+      ]
     },
     {
       "name": "talcs",
@@ -36,6 +50,24 @@
         "midi",
         "dspx",
         "widgets"
+      ]
+    },
+    {
+      "name": "wolf-lang-packages",
+      "features": [
+        "cmn",
+        "deu",
+        "eng",
+        "fil",
+        "fra",
+        "ita",
+        "jpn",
+        "kor",
+        "por",
+        "rus",
+        "spa",
+        "yue",
+        "zxx"
       ]
     },
     "wolf-midi",
@@ -60,6 +92,7 @@
   },
   "vcpkg-configuration": {
     "overlay-ports": [
+      "../vcpkg-ports",
       "../vcpkg/ports"
     ],
     "overlay-triplets": [

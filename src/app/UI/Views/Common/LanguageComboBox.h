@@ -18,8 +18,12 @@ public:
     [[nodiscard]] QString currentLanguage() const;
     void setCurrentLanguage(const QString &language);
 
+    // A language the singer does not serve is normally left out of the list. Naming it in
+    // `unavailable` shows it disabled instead, which is what tells a clip whose own language the
+    // singer cannot sing why it is being sung in another one.
     QString setLanguages(const QList<LanguageInfo> &languages, const QString &currentLanguage,
-                         const QString &preferredLanguage = {});
+                         const QString &preferredLanguage = {},
+                         const QStringList &unavailable = {});
     QString setLanguageCodes(const QStringList &languageCodes, const QString &currentLanguage,
                              bool preserveUnknownCurrent = true);
 

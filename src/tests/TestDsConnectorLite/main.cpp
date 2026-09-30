@@ -3486,8 +3486,14 @@ namespace {
     }
 
     bool verifyStdioFraming() {
-        const auto executable =
-            QCoreApplication::applicationDirPath() + QStringLiteral("/DsConnectorLite.exe");
+        // The executable name has the .exe suffix on Windows and no suffix on other platforms.
+        const auto executable = QCoreApplication::applicationDirPath() +
+                                QStringLiteral("/DsConnectorLite") +
+#ifdef Q_OS_WIN
+                                QStringLiteral(".exe");
+#else
+                                QString();
+#endif
         bool ok =
             expect(QFile::exists(executable), "connector executable must exist for stdio E2E");
         if (!ok)
@@ -3651,9 +3657,17 @@ namespace {
         QProcess blockingSink;
         blockedOutput.setProgram(executable);
         blockedOutput.setArguments({QStringLiteral("--control-level"), QStringLiteral("l0")});
+        // The blocking sink starts, reads nothing and stays alive. Only the sink program is
+        // platform-specific. The check verifies that a peer that never reads trips the bounded
+        // writer queue instead of blocking the event loop.
+#ifdef Q_OS_WIN
         blockingSink.setProgram(QStringLiteral("powershell.exe"));
         blockingSink.setArguments({QStringLiteral("-NoProfile"), QStringLiteral("-Command"),
                                    QStringLiteral("Start-Sleep -Seconds 30")});
+#else
+        blockingSink.setProgram(QStringLiteral("sleep"));
+        blockingSink.setArguments({QStringLiteral("30")});
+#endif
         blockedOutput.setStandardOutputProcess(&blockingSink);
         blockedOutput.start();
         blockingSink.start();

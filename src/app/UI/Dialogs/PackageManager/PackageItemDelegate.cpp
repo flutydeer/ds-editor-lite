@@ -54,8 +54,14 @@ void PackageItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
     // Load data
     const auto &package = index.data(Qt::UserRole).value<PackageInfo>();
     const auto id = package.id();
-    const auto vendor = package.displayVendor(UiLanguageManager::currentBcp47Candidates());
-    const auto version = "v" + package.version().toString();
+    // A package that would not open has neither a vendor nor a version: the reason it was refused
+    // stands in for both, so the row says what is wrong with it without being opened.
+    const auto reason = package.unavailableReason();
+    const auto unavailable = !reason.isEmpty();
+    const auto vendor = unavailable
+                            ? reason
+                            : package.displayVendor(UiLanguageManager::currentBcp47Candidates());
+    const auto version = unavailable ? QString() : "v" + package.version().toString();
 
     // Calculate layout
     QRectF contentRect =
@@ -88,7 +94,9 @@ void PackageItemDelegate::paint(QPainter *painter, const QStyleOptionViewItem &o
     QPointF vendorTextPos = {contentRect.left(), descTextY + vendorMetrics.ascent()};
 
     const bool selected = opt.state & QStyle::State_Selected;
-    const auto colorTitle = titleColor(option, selected);
+    // An unavailable row is drawn as secondary text: it is listed so it can be explained, not so
+    // it can be used.
+    const auto colorTitle = unavailable ? descColor(option, selected) : titleColor(option, selected);
     const auto colorDesc = descColor(option, selected);
 
     // Draw title text

@@ -1,6 +1,19 @@
 [CmdletBinding()]
 param(
     [string]$OutputDir = "dist\portable",
+
+    # An unpacked copy of the wolf language packages to stage: one subdirectory per package, each
+    # holding its desc.json. This route installs a tree (LITE_INSTALL=ON), and CMake refuses to
+    # configure such a tree when nothing names those packages. Left empty, this script passes no
+    # -D and CMake resolves them its own way -- the WOLF_LANG_PACKAGES_SOURCE environment
+    # variable, an installed wolf-lang-packages package, or a sibling wolf checkout; passed here,
+    # LITE_WOLF_LANG_PACKAGES outranks all of those. This only decides whether a -D goes out, it
+    # never clears the build directory's CMake cache, so a cache that already holds
+    # LITE_WOLF_LANG_PACKAGES keeps feeding it to this preset's binaryDir
+    # (build\PortableDmlRelease) even on a default run: delete that cache, or configure once with
+    # an explicit empty -DLITE_WOLF_LANG_PACKAGES=, to let the convention above decide again.
+    [string]$WolfLangPackages = "",
+
     # Build the CUDA flavor: configures LITE_ENABLE_CUDA=ON. Default is the
     # DirectML (DML) flavor. The vcpkg tree must already carry
     # onnxruntime-builds[cuda12] (run vcpkg install with --x-feature=cuda12).
@@ -158,6 +171,12 @@ if (-not $NoBuild) {
             # agree on one source of truth.
             $configureArgs += "-DLITE_ENABLE_CUDA=ON"
         }
+        if ($WolfLangPackages) {
+            # Only when the caller named one: leaving the option out keeps CMake's own resolution
+            # chain -- the environment variable, the port, the sibling checkout -- in charge. It
+            # does not clear a cache that already holds the value (see the parameter help above).
+            $configureArgs += "-DLITE_WOLF_LANG_PACKAGES=$WolfLangPackages"
+        }
         Invoke-Process "cmake" $configureArgs
     }
 
@@ -186,6 +205,37 @@ Invoke-Step "Install to a clean staging tree" {
     Invoke-Process "cmake" @("--install", $BuildDir, "--prefix", $StageDir)
     if (-not (Test-Path -LiteralPath (Join-Path $AppDir "$ExecutableName"))) {
         throw "$ExecutableName not found after install in $AppDir"
+    }
+}
+
+# Layout assertion: the installed tree must hold the deployment the package promises, not only the
+# executable. build-installer.ps1 states the same requirement for its staging directory (the
+# $requiredPaths list in Assert-StagingLayout), asserted here against $AppDir -- $StageDir\bin, the
+# runtime directory everything above the executable is installed into, which is why these paths
+# carry no deploy root in front of them. The three plugins\<library> entries are the host plugin
+# trees: cmake/LiteBuildApi.cmake copies each one only when the vcpkg tree carries it and merely
+# warns when it does not, so without this a package can ship with a whole tree (dsinfer, wolf or
+# otter) missing while every step still reports success. The executable is not in the list below:
+# the install step above already refuses a staging tree without it, right where it lands. Read
+# from the tree this run installed -- that step removed the staging directory first, so nothing a
+# previous run left behind can satisfy these.
+Invoke-Step "Validate staging layout" {
+    $requiredPaths = @(
+        "plugins",
+        "plugins\platforms",
+        "plugins\dsinfer",
+        "plugins\wolf",
+        "plugins\otter",
+        "Resources",
+        "configs",
+        "wolf\packages"
+    )
+
+    foreach ($path in $requiredPaths) {
+        $fullPath = Join-Path $AppDir $path
+        if (-not (Test-Path -LiteralPath $fullPath)) {
+            throw "Portable staging is missing required path: $path"
+        }
     }
 }
 
@@ -222,7 +272,7 @@ if ($PdbCount -eq 0) {
 # runtime gate already enforces this at build/install time; this is the
 # packaging-boundary net so a stale vcpkg tree can never slip through.
 Invoke-Step "Validate staging flavor" {
-    $cudaRuntimeDir = Join-Path $AppDir "plugins\srt-driver\inferencedrivers\srt-onnxdriver\runtimes\onnx\cuda"
+    $cudaRuntimeDir = Join-Path $AppDir "plugins\dsinfer\inferencedrivers\onnx\runtime\cuda"
     $cudaPresent = Test-Path -LiteralPath $cudaRuntimeDir
     if ($EnableCuda -and -not $cudaPresent) {
         throw ("CUDA staging is missing the ONNX Runtime cuda/ runtimes. " +
@@ -235,7 +285,9 @@ Invoke-Step "Validate staging flavor" {
     }
 }
 
-$Timestamp = Get-Date -Format "yyyyMMdd-HHmm"
+# UTC and second precision: a local-time stamp at minute precision collides across time zones,
+# and the Move-Item -Force below would then overwrite the earlier package silently.
+$Timestamp = (Get-Date).ToUniversalTime().ToString("yyyyMMdd-HHmmss")
 $ZipBaseName = "DsEditorLite-$Timestamp-win-x64-$(if ($EnableCuda) { 'cuda' } else { 'dml' })-portable"
 $ZipPath = Join-Path $ResolvedOutputDir "$ZipBaseName.zip"
 

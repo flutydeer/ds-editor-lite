@@ -1,10 +1,15 @@
 project(Language LANGUAGES CXX)
 
-# G2P (grapheme-to-phoneme) language support: the convert runner, the input
-# adapter and the singer-G2P identifier. Wraps the synthrt G2P services.
+# G2P (grapheme-to-phoneme) language support.
+#
+# What used to be here -- a convert runner and an input adapter -- wrapped the older line's
+# LanguageService and its per-lyric route. The main line has neither: a conversion is asked of a
+# (singer, language) pair and wolf's session does the routing, so there is nothing left to adapt
+# and lite::SynthrtEngine answers it directly. Only the identifier remains.
 # Pure domain (no Qt Widgets); the language-settings widgets live in the app.
 # Consumed as <lite/Language/.../Xxx.h>.
 find_package(synthrt CONFIG REQUIRED)
+find_package(wolf CONFIG REQUIRED)
 
 file(GLOB_RECURSE _src CONFIGURE_DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/*.h ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
@@ -16,7 +21,8 @@ target_link_libraries(Language PUBLIC
     Qt${QT_VERSION_MAJOR}::Core
     lite::Support
     lite::ProjectModel
-    srt::synthrt
+    synthrt::synthrt
+    wolf::wolf
 )
 
 target_include_directories(Language PUBLIC

@@ -485,6 +485,8 @@ namespace Automation {
                 .effective = settings.audio.playheadBehavior,
                 .candidates = {0, 1, 2},
             };
+            // 服务不可用时的 fallback 快照不进行 GPU 探测：实际候选项由
+            // AppOptionsAutomationAdapter 的常规快照提供，此处仅返回已配置的 GPU。
             QList<SettingsGpuCandidateDto> gpuCandidates;
             if (!settings.inference.selectedGpuId.isEmpty()) {
                 gpuCandidates.append({

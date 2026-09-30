@@ -36,6 +36,10 @@
 
 build-src*
 build/
+
+# Per-user configure presets: machine paths (Qt, the wolf language packages, a voicebank to
+# audit against) belong here rather than in the committed presets.
+CMakeUserPresets.json
 /cmake-build*
 *.user
 *.lnk

@@ -30,6 +30,13 @@ add_subdirectory(TestHeadlessProcessIntegration)
 #add_subdirectory(TestAnchoredCurve)
 add_subdirectory(TestElasticAnimation)
 add_subdirectory(TestExpected)
+add_subdirectory(TestAudioSlicer)
+# The conversion, catalog, bridge and engine targets are gone: the first two asserted a subset of
+# what the audit asserts, and the last two stage their fixture only when WOLF_FIXTURE_DIR is set,
+# which nothing in this repository sets -- so they never ran.
+add_subdirectory(TestVoicebankLanguages)
+add_subdirectory(TestVoicebankAudit)
+add_subdirectory(TestAnalyzerPackages)
 add_subdirectory(TestSpeakerMix)
 add_subdirectory(TestDocumentWorkflow)
 add_subdirectory(TestStateMachine)

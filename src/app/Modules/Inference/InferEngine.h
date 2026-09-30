@@ -15,8 +15,11 @@
 #include <QThreadPool>
 #include <QTimer>
 
-#include <synthrt/Core/Core/Runtime.h>
-#include <diffsinger/Session/ModelSetHandle.h>
+#include <cstdint>
+
+#include <synthrt/Core/SynthUnit.h>
+
+#include <lite/SynthrtEngine/SingerPipeline.h>
 
 #include "SingerSessionCache.h"
 
@@ -50,14 +53,37 @@ public:
     QString inferenceDriverPath() const;
     QString inferenceRuntimePath() const;
     QString inferenceInterpreterPath() const;
-    // Returns a const reference to the Runtime. Intended for public, read-only access.
-    const srt::core::Runtime &constRuntime() const;
-    // B1b: acquireSingerSession now returns a ModelSetHandle from
-    // VoicebankSession::ensureModelSet() instead of a SingerModelSession.
-    // The handle is the synthrt-side chokepoint for per-stage load/start/stop;
-    // ActiveInference adapts it into the same {inference, importOptions} Model
-    // shape the 4 DiffSinger tasks consume.
-    std::shared_ptr<ds::session::ModelSetHandle>
+    // Returns the unit for public, read-only access, or nullptr when there is none -- before
+    // initialize() succeeded, or after shutdown(). Callers must test for nullptr.
+    srt::SynthUnit *constRuntime() const;
+
+    /// One singer's pipeline, kept alive for as long as the lease is held.
+    ///
+    /// The pipeline is shared with SynthrtEngine's other holders and owns its package, so a task
+    /// still holding one after a voicebank rescan finishes on a whole pipeline rather than a
+    /// dangling one. Letting the last lease go is what closes the five models -- the only thing
+    /// here that costs real memory. A lease also knows the catalogue generation it was taken in,
+    /// so the cache can tell that a resident lease describes a voicebank as it was scanned before
+    /// and take a fresh one instead of handing out the old.
+    class SingerPipelineLease final {
+    public:
+        SingerPipelineLease(std::shared_ptr<lite::synthrt::SingerPipeline> pipeline,
+                            std::uint64_t generation);
+
+        SingerPipelineLease(const SingerPipelineLease &) = delete;
+        SingerPipelineLease &operator=(const SingerPipelineLease &) = delete;
+
+        lite::synthrt::SingerPipeline *pipeline() const noexcept;
+
+        /// True once the catalogue was republished under it.
+        bool isStale() const;
+
+    private:
+        std::shared_ptr<lite::synthrt::SingerPipeline> m_pipeline;
+        std::uint64_t m_generation;
+    };
+
+    std::shared_ptr<SingerPipelineLease>
         acquireSingerSession(const SingerIdentifier &identifier) const;
     void retainSingerSessions(const QSet<SingerIdentifier> &identifiers);
 
@@ -66,7 +92,7 @@ public:
     void startInitialization();
 
 private:
-    using SingerSessionHandleList = SingerSessionCache<ds::session::ModelSetHandle>::HandleList;
+    using SingerSessionHandleList = SingerSessionCache<SingerPipelineLease>::HandleList;
 
     friend class InitInferEngineTask;
     friend class InferDurationTask;
@@ -86,7 +112,7 @@ private:
     InferEnginePaths m_paths;
 
     std::mutex m_singerSessionSelectionMutex;
-    mutable SingerSessionCache<ds::session::ModelSetHandle> m_singerSessions;
+    mutable SingerSessionCache<SingerPipelineLease> m_singerSessions;
     QTimer m_singerSessionEvictionTimer;
     QThreadPool m_singerSessionReleasePool;
 };

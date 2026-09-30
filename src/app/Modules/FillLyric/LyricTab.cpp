@@ -25,10 +25,9 @@ namespace FillLyric {
     }
 
     LyricTab::LyricTab(const QList<LangNote> &langNotes, SingerIdentifier singer,
-                       const srt::g2p::LanguageService &languageService,
                        const QStringList &priorityLanguages, const LyricTabConfig &config,
                        QWidget *parent)
-        : QWidget(parent), m_g2pService(std::move(singer), languageService) {
+        : QWidget(parent), m_g2pService(std::move(singer)) {
         m_priorityLanguages = priorityLanguages;
         for (const auto &langNote : langNotes)
             m_langNotes.append(new LangNote(langNote));

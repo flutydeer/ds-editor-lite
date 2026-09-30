@@ -1,0 +1,42 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
+  "name": "wolf",
+  "version-string": "linguistic-level-1-v2",
+  "description": [
+    "Orchestratable Linguistic Framework: the language domain layered on synthrt."
+  ],
+  "homepage": "https://github.com/diffscope/wolf",
+  "license": "Apache-2.0",
+  "dependencies": [
+    {
+      "name": "vcpkg-cmake",
+      "host": true
+    },
+    {
+      "name": "vcpkg-cmake-config",
+      "host": true
+    },
+    "qmsetup",
+    "synthrt",
+    "stdcorelib",
+    "stdcorelib-plugin",
+    "blake3",
+    "re2",
+    "cpp-pinyin",
+    "luajit"
+  ],
+  "features": {
+    "onnx": {
+      "description": "Build the model-backed G2P variant, which requires dsinfer and its ONNX Runtime driver",
+      "dependencies": [
+        {
+          "name": "synthrt",
+          "default-features": false,
+          "features": [
+            "onnx"
+          ]
+        }
+      ]
+    }
+  }
+}

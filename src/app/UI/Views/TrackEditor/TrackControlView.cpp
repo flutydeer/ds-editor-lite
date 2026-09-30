@@ -4,6 +4,7 @@
 #include "AppContext.h"
 #include "Automation/CoreRuntime.h"
 #include "Controller/TrackController.h"
+#include "Global/AppGlobal.h"
 #include <lite/ProjectModel/AppModel/Track.h>
 #include "Model/AppOptions/AppOptions.h"
 #include "Model/SpeakerMixPreset/SpeakerMixPresetStore.h"
@@ -14,8 +15,10 @@
 #include <lite/GUI/Controls/Menu.h>
 #include <lite/GUI/Controls/Toast.h>
 #include "UI/Controls/TrackColorSwatchWidget.h"
+#include "UI/Controls/SingerMenuUnavailablePackages.h"
 #include <lite/GUI/Controls/SvsSeekbar.h>
 #include "UI/Dialogs/Base/Dialog.h"
+#include "UI/Dialogs/PackageManager/PackageManagerDialog.h"
 #include "UI/Dialogs/SpeakerMix/SpeakerMixDialog.h"
 #include "UI/Utils/AppColorPalette.h"
 #include <lite/GUI/Utils/IconUtils.h>
@@ -100,6 +103,19 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     cbSinger->setObjectName("cbSinger");
     cbSinger->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     cbSinger->setWheelEventPolicy(WheelEventPolicy::Pass);
+    // A package the loader refused has no singer to offer, so it is listed by the menu itself
+    // rather than by setItems, which only ever sees the packages that loaded.
+    //
+    // Wired before the first setItems on purpose: a view built once the package scan is Ready is
+    // filled by that one call and is never populated again, so a tail wired up after it would
+    // never be written.
+    connect(cbSinger, &TwoLevelComboBox::itemsPopulated, this, [this] {
+        SingerMenuUnavailablePackages::append(
+            cbSinger->mainMenu(), packageManager->installedPackages().failedPackages, [] {
+                PackageManagerDialog dialog;
+                dialog.exec();
+            });
+    });
     if (appStatus->packageModuleStatus == AppStatus::ModuleStatus::Ready) {
         cbSinger->setItems(packageManager->installedPackages().successfulPackages);
     } else {
@@ -143,7 +159,6 @@ TrackControlView::TrackControlView(QListWidgetItem *item, Track *track, QWidget 
     });
     connect(cbSinger, &TwoLevelComboBox::itemsPopulated, this,
             &TrackControlView::refreshSingerComboPresentation);
-
     cbLanguage = new LanguageComboBox("unknown", WheelEventPolicy::Pass);
     cbLanguage->setObjectName("cbLanguage");
     connect(cbLanguage, &LanguageComboBox::currentLanguageChanged, this,
@@ -381,8 +396,11 @@ void TrackControlView::refreshLanguageComboPresentation() const {
         return;
 
     const auto singerInfo = m_track->singerInfo();
+    // Languages this host knows but the singer does not serve are listed disabled, so a track whose
+    // own language is one of them says which one it lost instead of quietly switching.
     const auto language = cbLanguage->setLanguages(
-        singerInfo.languages(), m_track->defaultLanguage(), singerInfo.defaultLanguage());
+        singerInfo.languages(), m_track->defaultLanguage(), singerInfo.defaultLanguage(),
+        AppGlobal::languageNames);
     if (language != m_track->defaultLanguage())
         trackController->changeTrackDefaultLanguage(m_track->id(), language);
 }

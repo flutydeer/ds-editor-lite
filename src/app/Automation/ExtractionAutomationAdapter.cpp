@@ -11,6 +11,10 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QFileInfo>
+
+#include <algorithm>
+
+#include <lite/SynthrtEngine/SynthrtEngine.h>
 #include <QTemporaryDir>
 #include <QThreadPool>
 #include <QTimer>
@@ -38,23 +42,36 @@ namespace Automation {
             return AutomationUnit{};
         }
 
-        AutomationResult<AutomationUnit> validateModelPath(const QString &path,
-                                                           const bool directory,
-                                                           const QString &fieldPath,
-                                                           const QString &displayName) {
-            if (path.trimmed().isEmpty()) {
+        /// Checks that \a reference names an installed analyzer answering \a interfaceName.
+        ///
+        /// Asked of the engine rather than of the filesystem. An analyzer is a contribution of a
+        /// package: whether it is there is a question about what is installed, and whether it can
+        /// do the job is a question about which contract it declares. A file existing at a path
+        /// answers neither -- which is how the older line let someone point pitch extraction at a
+        /// note model and find out only when it ran.
+        AutomationResult<AutomationUnit> validateAnalyzer(const QString &reference,
+                                                          const QString &interfaceName,
+                                                          const QString &fieldPath,
+                                                          const QString &displayName) {
+            if (reference.trimmed().isEmpty()) {
                 AutomationError error;
                 error.code = AutomationErrorCode::ModuleNotReady;
                 error.fieldPath = fieldPath;
                 error.message = displayName + QStringLiteral(" is not configured");
                 return error;
             }
-            const QFileInfo file(path);
-            if (!file.exists() || (directory ? !file.isDir() : !file.isFile())) {
+            const auto installed = SynthrtEngine::instance().analyzers(interfaceName);
+            const auto wanted = reference.toStdString();
+            const auto found =
+                std::any_of(installed.cbegin(), installed.cend(),
+                            [&wanted](const lite::synthrt::AnalyzerEntry &entry) {
+                                return entry.reference() == wanted;
+                            });
+            if (!found) {
                 AutomationError error;
                 error.code = AutomationErrorCode::FileNotFound;
                 error.fieldPath = fieldPath;
-                error.message = displayName + QStringLiteral(" was not found");
+                error.message = displayName + QStringLiteral(" is not installed: ") + reference;
                 return error;
             }
             return AutomationUnit{};
@@ -90,7 +107,7 @@ namespace Automation {
             result.audioClipId = input.audioClipId.value();
             result.audioPath = input.snapshotPath.isEmpty() ? input.audioPath : input.snapshotPath;
             result.displayAudioPath = input.audioPath;
-            result.modelPath = input.modelPath;
+            result.analyzer = input.analyzer;
             result.timeline = input.timeline;
             result.singingClipStartTick = input.singingClipStartTick;
             result.audioMaterialOriginMs = input.audioMaterialOriginMs;
@@ -104,10 +121,17 @@ namespace Automation {
             result.audioClipId = input.audioClipId.value();
             result.audioPath = input.snapshotPath.isEmpty() ? input.audioPath : input.snapshotPath;
             result.displayAudioPath = input.audioPath;
-            result.modelPath = input.modelPath;
+            result.analyzer = input.analyzer;
+            // The language was resolved above -- from the request, or from the editor's default
+            // singing language -- and then had nowhere to go. A multilingual note model asked
+            // without one transcribes as no language in particular.
+            result.language = input.defaultLanguage;
             result.timeline = input.timeline;
             result.audioClipStartTick = input.audioClipStartTick;
             result.audioClipLengthTick = input.audioClipLengthTick;
+            result.audioMaterialOriginMs = input.audioMaterialOriginMs;
+            result.audioVisibleStartMs = input.audioVisibleStartMs;
+            result.audioVisibleEndMs = input.audioVisibleEndMs;
             return result;
         }
 
@@ -421,14 +445,19 @@ namespace Automation {
             auto valid = validateAudioPath(input.audioPath);
             if (!valid)
                 return valid.getError();
-            if (!input.modelId.isEmpty() && input.modelId != QStringLiteral("rmvpe")) {
+            input.analyzer = options->general()->pitchAnalyzer;
+            // options.model_id holds an analyser reference as listed in the capability report.
+            // Only the configured analyser runs, so a different reference is rejected rather than
+            // silently ignored.
+            if (!input.modelId.isEmpty() && input.modelId != input.analyzer.trimmed()) {
                 return AutomationError::invalidArgument(
                     QStringLiteral("options.model_id"),
-                    QStringLiteral("The requested pitch extraction model is unavailable"));
+                    QStringLiteral("The requested pitch extraction model is not the configured "
+                                   "pitch analyzer"));
             }
-            input.modelPath = options->general()->rmvpePath;
-            valid = validateModelPath(input.modelPath, false, QStringLiteral("rmvpe_model_path"),
-                                      QStringLiteral("RMVPE model"));
+            valid = validateAnalyzer(input.analyzer, lite::synthrt::f0Contract(),
+                                     QStringLiteral("pitch_analyzer"),
+                                     QStringLiteral("The pitch analyzer"));
             if (!valid)
                 return valid.getError();
             auto job = std::make_shared<PitchExtractionJobAdapter>(input, taskRuntime);
@@ -446,14 +475,16 @@ namespace Automation {
             auto valid = validateAudioPath(input.audioPath);
             if (!valid)
                 return valid.getError();
-            if (!input.modelId.isEmpty() && input.modelId != QStringLiteral("game")) {
+            input.analyzer = options->general()->noteAnalyzer;
+            if (!input.modelId.isEmpty() && input.modelId != input.analyzer.trimmed()) {
                 return AutomationError::invalidArgument(
                     QStringLiteral("options.model_id"),
-                    QStringLiteral("The requested MIDI extraction model is unavailable"));
+                    QStringLiteral("The requested MIDI extraction model is not the configured "
+                                   "note analyzer"));
             }
-            input.modelPath = options->general()->gameDir;
-            valid = validateModelPath(input.modelPath, true, QStringLiteral("game_model_path"),
-                                      QStringLiteral("GAME model directory"));
+            valid = validateAnalyzer(input.analyzer, lite::synthrt::noteContract(),
+                                     QStringLiteral("note_analyzer"),
+                                     QStringLiteral("The note analyzer"));
             if (!valid)
                 return valid.getError();
             if (input.defaultLanguage.isEmpty())

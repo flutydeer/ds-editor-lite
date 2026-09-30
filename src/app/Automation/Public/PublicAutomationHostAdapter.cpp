@@ -10,6 +10,7 @@
 #include "Modules/ProjectFormats/ProjectFormatRegistry.h"
 #include "Modules/Inference/InferController.h"
 #include "Modules/Inference/InferEngine.h"
+#include "Modules/Inference/Utils/GpuCatalog.h"
 
 #include <lite/ProjectModel/AppModel/AppModel.h>
 #include <lite/ProjectModel/AppModel/AudioClip.h>
@@ -1367,16 +1368,24 @@ namespace Automation {
                                                  QStringLiteral("Source audio clip was not found"));
             }
             auto settings = runtime.settings().getSettings();
+            // Configured means an analyzer has been chosen; ready, below, means one answering
+            // that contract is installed. Keeping the two apart is what lets the host say "you
+            // have not picked one" and "the one you picked is gone" as different things.
             const bool pitchConfigured =
-                settings && QFileInfo(settings.get().general.pitchModelPath).isFile();
+                settings && !settings.get().general.pitchAnalyzer.trimmed().isEmpty();
             const bool midiConfigured =
-                settings && QFileInfo(settings.get().general.gameDirectory).isDir();
+                settings && !settings.get().general.noteAnalyzer.trimmed().isEmpty();
             if (settings && !settings.get().general.defaultSingingLanguage.isEmpty() &&
                 !languages.contains(settings.get().general.defaultSingingLanguage)) {
                 languages.append(settings.get().general.defaultSingingLanguage);
             }
-            const bool pitchModuleReady = engine && engine->pitchExtractionReady();
-            const bool midiModuleReady = engine && engine->midiExtractionReady();
+            // Ready means an analyzer answering that contract is installed. On the older line
+            // the engine loaded one extractor of each kind and could be asked whether it had; an
+            // analyzer is a package contribution now, so the question is what is installed.
+            const bool pitchModuleReady =
+                engine && !engine->analyzers(lite::synthrt::f0Contract()).empty();
+            const bool midiModuleReady =
+                engine && !engine->analyzers(lite::synthrt::noteContract()).empty();
             const auto optionSchema = [](const QString &operationId) {
                 const auto *contract = AutomationWire::findPublicTool(operationId);
                 const auto options = contract
@@ -1401,6 +1410,26 @@ namespace Automation {
                                                                         : configurationReason},
                 };
             };
+            // Lists one entry per installed analyser of the contract, identified by the reference
+            // stored in the settings, so that a host can determine the installed analysers and the
+            // selected analyser. An extraction runs the selected analyser.
+            const auto installedModels = [&engine, &model](const QString &contract,
+                                                           const QString &chosen,
+                                                           const QString &notChosenReason) {
+                QJsonArray result;
+                if (!engine)
+                    return result;
+                for (const auto &entry : engine->analyzers(contract)) {
+                    const auto reference = QString::fromStdString(entry.reference());
+                    result.append(model(reference, QString::fromStdString(entry.name.text()),
+                                        reference == chosen.trimmed(), true, notChosenReason,
+                                        QString()));
+                }
+                return result;
+            };
+            const QString chosenPitch =
+                settings ? settings.get().general.pitchAnalyzer : QString();
+            const QString chosenNote = settings ? settings.get().general.noteAnalyzer : QString();
             const auto capabilityReason = [](const bool sourceSupported, const bool sourceReady,
                                              const bool moduleReady, const bool modelConfigured,
                                              const QString &moduleReason,
@@ -1429,12 +1458,11 @@ namespace Automation {
                       capabilityReason(sourceSupported, sourceReady, pitchModuleReady,
                                        pitchConfigured,
                                        QStringLiteral("Pitch extraction module is unavailable"),
-                                       QStringLiteral("RMVPE model is not configured"))},
+                                       QStringLiteral("No pitch analyzer is configured"))},
                      {QStringLiteral("models"),
-                      QJsonArray{model(QStringLiteral("rmvpe"), QStringLiteral("RMVPE"),
-                                       pitchConfigured, pitchModuleReady,
-                                       QStringLiteral("RMVPE model is not configured"),
-                                       QStringLiteral("Pitch extraction module is unavailable"))}},
+                      installedModels(lite::synthrt::f0Contract(), chosenPitch,
+                                      QStringLiteral("This pitch analyzer is not the configured "
+                                                     "pitch analyzer"))},
                      {QStringLiteral("option_schema"),
                       optionSchema(OperationIds::extract::pitch::start)},
                      {QStringLiteral("range_support"),
@@ -1455,12 +1483,11 @@ namespace Automation {
                       capabilityReason(sourceSupported, sourceReady, midiModuleReady,
                                        midiConfigured,
                                        QStringLiteral("MIDI extraction module is unavailable"),
-                                       QStringLiteral("GAME model directory is not configured"))},
+                                       QStringLiteral("No note analyzer is configured"))},
                      {QStringLiteral("models"),
-                      QJsonArray{model(QStringLiteral("game"), QStringLiteral("GAME"),
-                                       midiConfigured, midiModuleReady,
-                                       QStringLiteral("GAME model directory is not configured"),
-                                       QStringLiteral("MIDI extraction module is unavailable"))}},
+                      installedModels(lite::synthrt::noteContract(), chosenNote,
+                                      QStringLiteral("This note analyzer is not the configured "
+                                                     "note analyzer"))},
                      {QStringLiteral("option_schema"),
                       optionSchema(OperationIds::extract::midi::start)},
                      {QStringLiteral("range_support"),
@@ -2054,12 +2081,13 @@ namespace Automation {
                         {QStringLiteral("unavailable_reason"), QString()                  },
                     });
                 }
-                if (!inference.selectedGpuId.isEmpty()) {
+                // devices 是「当前 provider 的候选设备」：与 settings.query 的 gpus 同源。
+                for (const auto &gpu : GpuCatalog::forProvider(inference.executionProvider)) {
                     devices.append(QJsonObject{
-                        {QStringLiteral("id"),                 inference.selectedGpuId},
-                        {QStringLiteral("display_name"),       inference.selectedGpuId},
-                        {QStringLiteral("available"),          true                   },
-                        {QStringLiteral("unavailable_reason"), QString()              },
+                        {QStringLiteral("id"),                 gpu.deviceId   },
+                        {QStringLiteral("display_name"),       gpu.description},
+                        {QStringLiteral("available"),          true           },
+                        {QStringLiteral("unavailable_reason"), QString()      },
                     });
                 }
             }

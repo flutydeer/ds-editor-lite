@@ -253,13 +253,28 @@ namespace Automation {
                 }
 
                 const auto *audio = static_cast<const AudioClip *>(resolvedAudio.get().clip);
+                const auto &timeline = session.model()->timeline();
+                // The same span the pitch path computes: without it the task would read the
+                // file from its first sample and place the notes as if the clip began at zero.
+                const int visibleStartTick = audio->start() + audio->clipStart();
+                const double visibleStartMs = timeline.tickToMs(visibleStartTick);
+                const double trimStartMs = audio->hasRealTimeAnchor()
+                                               ? audio->trimStartMs()
+                                               : visibleStartMs - timeline.tickToMs(audio->start());
+                const double visibleLengthMs =
+                    audio->hasRealTimeAnchor()
+                        ? audio->playLengthMs()
+                        : timeline.tickToMs(visibleStartTick + audio->clipLen()) - visibleStartMs;
                 MidiExtractionInput input;
                 input.audioClipId = audioClipId;
                 input.audioPath = audio->path();
                 input.sourceAsset = audioAssetSnapshotDto(*audio);
-                input.timeline = session.model()->timeline();
+                input.timeline = timeline;
                 input.audioClipStartTick = audio->start();
                 input.audioClipLengthTick = audio->length();
+                input.audioMaterialOriginMs = visibleStartMs - trimStartMs;
+                input.audioVisibleStartMs = visibleStartMs;
+                input.audioVisibleEndMs = visibleStartMs + visibleLengthMs;
                 input.modelId = options.modelId;
                 input.defaultLanguage = options.defaultLanguage;
                 input.defaultLyric = options.defaultLyric;

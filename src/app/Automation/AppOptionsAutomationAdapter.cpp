@@ -10,6 +10,7 @@
 #include "Modules/FillLyric/Utils/TextSplitter.h"
 #include "Modules/FillLyric/Utils/TextTagger.h"
 #include "Modules/Inference/ExecutionProvider.h"
+#include "Modules/Inference/Utils/GpuCatalog.h"
 #include "Utils/UiLanguageManager.h"
 
 #include <lite/GUI/Theme/ThemeIds.h>
@@ -25,6 +26,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QSet>
+#include <QTimeZone>
 
 #include <algorithm>
 #include <iterator>
@@ -46,8 +48,8 @@ namespace Automation {
                 .defaultLyrics = value->defaultLyrics,
                 .packageSearchPaths = value->packageSearchPaths,
                 .recentProjectFiles = value->recentProjectFiles,
-                .gameDirectory = value->gameDir,
-                .pitchModelPath = value->rmvpePath,
+                .noteAnalyzer = value->noteAnalyzer,
+                .pitchAnalyzer = value->pitchAnalyzer,
                 .libreSvipPath = value->libreSVIPPath,
             };
         }
@@ -59,8 +61,8 @@ namespace Automation {
             target->defaultLyrics = value.defaultLyrics;
             target->packageSearchPaths = value.packageSearchPaths;
             target->recentProjectFiles = value.recentProjectFiles;
-            target->gameDir = value.gameDirectory;
-            target->rmvpePath = value.pitchModelPath;
+            target->noteAnalyzer = value.noteAnalyzer;
+            target->pitchAnalyzer = value.pitchAnalyzer;
             target->libreSVIPPath = value.libreSvipPath;
         }
 
@@ -777,12 +779,15 @@ namespace Automation {
                     cudaProvider, false,
                     QStringLiteral("This build does not include the CUDA execution provider")));
             }
+            // 候选项来自实际枚举结果：按 provider 选用与 GUI 下拉框及 InferEngine 解析
+            // 相同的枚举器，而非以当前已选项回填。以已选项回填时，未选择设备则候选项恒为空，
+            // settings.compute_device.update 对 gpu_id 的校验也会恒为通过。
             QList<SettingsGpuCandidateDto> gpuCandidates;
-            if (!configured.inference.selectedGpuId.isEmpty()) {
+            for (const auto &gpu : GpuCatalog::forProvider(configured.inference.executionProvider)) {
                 gpuCandidates.append({
-                    .index = configured.inference.selectedGpuIndex,
-                    .id = configured.inference.selectedGpuId,
-                    .displayName = configured.inference.selectedGpuId,
+                    .index = gpu.index,
+                    .id = gpu.deviceId,
+                    .displayName = gpu.description,
                 });
             }
             result.computeDevice = ComputeDevicePublicSettingsDto{
@@ -977,6 +982,19 @@ namespace Automation {
             return AutomationUnit{};
         }
 
+        // Preset timestamps are persisted as UTC ISO strings (applySpeakerMixPresets() below, and
+        // PublicAutomationRegistry). Qt parses a string without an offset as local time, because
+        // the ISO branch of QDateTime::fromString() starts from QTimeZone::LocalTime and replaces
+        // it only if the string ends in Z or contains an offset. A hand-edited or externally
+        // written value would therefore denote a different instant on each machine. A missing
+        // offset is interpreted as UTC, which matches the stored format.
+        QDateTime parsePresetTimestamp(const QString &value) {
+            auto time = QDateTime::fromString(value, Qt::ISODateWithMs);
+            if (time.isValid() && time.timeSpec() == Qt::LocalTime)
+                time.setTimeZone(QTimeZone::UTC);
+            return time;
+        }
+
         QList<SpeakerMixPresetDto> captureSpeakerMixPresets(AppOptions *options) {
             const auto root = options->general()->speakerMixPresets.toObject();
             if (root.value(QStringLiteral("schemaVersion")).toInt(kSpeakerMixPresetSchemaVersion) !=
@@ -993,10 +1011,10 @@ namespace Automation {
                     .singerId = object.value(QStringLiteral("singerId")).toString(),
                     .packageVersion = QVersionNumber::fromString(
                         object.value(QStringLiteral("packageVersion")).toString()),
-                    .createdAt = QDateTime::fromString(
-                        object.value(QStringLiteral("createdAt")).toString(), Qt::ISODateWithMs),
-                    .updatedAt = QDateTime::fromString(
-                        object.value(QStringLiteral("updatedAt")).toString(), Qt::ISODateWithMs),
+                    .createdAt = parsePresetTimestamp(
+                        object.value(QStringLiteral("createdAt")).toString()),
+                    .updatedAt = parsePresetTimestamp(
+                        object.value(QStringLiteral("updatedAt")).toString()),
                 };
                 for (const auto &sourceValue : object.value(QStringLiteral("sources")).toArray()) {
                     const auto source = sourceValue.toObject();

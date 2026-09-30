@@ -2,6 +2,8 @@
 
 #include "GeneralOption.h"
 
+#include <lite/SynthrtEngine/AnalyzerReference.h>
+
 namespace {
     constexpr int maxRecentProjectFiles = 10;
 
@@ -76,10 +78,17 @@ void GeneralOption::load(const QJsonObject &object) {
     if (object.contains(speakerMixPresetsKey))
         speakerMixPresets = object[speakerMixPresetsKey];
 
-    if (object.contains(gameDirKey))
-        gameDir = object[gameDirKey].toString();
-    if (object.contains(rmvpePathKey))
-        rmvpePath = object[rmvpePathKey].toString();
+    // A reference saved while analysers had a dedicated category identifies the same package and
+    // contribution, so it is upgraded here rather than discarded. The next save writes the upgraded
+    // form.
+    const auto analyzer = [&object](const QString &key) {
+        return QString::fromStdString(lite::synthrt::AnalyzerReference::upgrade(
+            object[key].toString().toStdString()));
+    };
+    if (object.contains(noteAnalyzerKey))
+        noteAnalyzer = analyzer(noteAnalyzerKey);
+    if (object.contains(pitchAnalyzerKey))
+        pitchAnalyzer = analyzer(pitchAnalyzerKey);
     if (object.contains(libreSVIPPathKey))
         libreSVIPPath = object[libreSVIPPathKey].toString();
 }
@@ -96,8 +105,8 @@ void GeneralOption::save(QJsonObject &object) {
         {packageSearchPathsKey,     QJsonArray::fromStringList(packageSearchPaths)},
         {recentProjectFilesKey,     QJsonArray::fromStringList(recentProjectFiles)},
         {speakerMixPresetsKey,      speakerMixPresets                             },
-        serialize_gameDir(),
-        serialize_rmvpePath(),
+        serialize_noteAnalyzer(),
+        serialize_pitchAnalyzer(),
         serialize_libreSVIPPath()
     };
 }

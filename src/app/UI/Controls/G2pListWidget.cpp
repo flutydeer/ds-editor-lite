@@ -8,7 +8,6 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
-#include <synthrt/G2P/Core/Manager.h>
 
 #include <lite/GUI/Controls/SmoothScroller.h>
 
@@ -34,8 +33,6 @@ namespace LangSetting {
     }
 
     GListWidget::GListWidget(QWidget *parent) : QListWidget(parent) {
-        const auto g2pMgr = srt::g2p::Manager::instance();
-
         this->setDragDropMode(InternalMove);
         this->setDropIndicatorShown(true);
         this->setSelectionBehavior(SelectRows);
@@ -50,12 +47,9 @@ namespace LangSetting {
         auto *smoothScroller = new SmoothScroller(this);
         smoothScroller->attachTo(this);
 
-        // TODO g2pMgr->g2ps() bug
-        // for (const auto &g2pId : langOrder) {
-        //     const auto &g2p = g2pMgr->g2p(g2pId);
-        //     this->addItem(g2p->displayName());
-        //     this->item(this->count() - 1)->setData(Qt::UserRole, g2p->id());
-        // }
+        // The list is left empty. It used to be filled from a registry of G2P modules, which
+        // the main line does not have: a language is a linguist a singer imports, so there is no
+        // list of them to browse independently of a voicebank.
         this->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     }
 

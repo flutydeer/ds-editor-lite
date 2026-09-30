@@ -81,12 +81,16 @@ cmake --build build --target DsEditorLite
 
 #### 更新 vcpkg 依赖
 
-当 `scripts/vcpkg-manifest/vcpkg.json` 发生变更（如新增依赖或版本升级）时，需要重新安装以使本地的 `vcpkg/installed` 与 manifest 同步。重新运行 vcpkg install 命令即可，vcpkg 会自动对比差异并增量更新：
+当 `scripts/vcpkg-manifest/vcpkg.json` 发生变更（如新增依赖或版本升级）时，需要重新安装以使本地的
+`vcpkg/installed` 与 manifest 同步。安装目录必须是 `vcpkg/installed`：preset 中的
+`VCPKG_INSTALLED_DIR` 指向该目录，安装到其他位置时 CMake 找不到依赖。
 
 ```cmd
 cd vcpkg
 vcpkg install --x-manifest-root=../scripts/vcpkg-manifest --x-install-root=./installed --triplet=x64-windows
 ```
+
+vcpkg 对比差异并增量更新：端口所固定的提交变更时触发重建；依赖的源码变更而端口不变时不触发重建，此时须删除整个依赖树后重新安装。
 
 也可使用 `docs/dev-scripts/` 下的辅助脚本（复制到项目根目录并修改 Qt 路径后使用）。
 
@@ -126,8 +130,9 @@ src/
   3rdparty/     # curve-util; qtmediate (Git submodule - UI framework)
   tests/        # Test targets (opt-in via LITE_BUILD_TESTS)
   tools/        # Auxiliary tools
+cmake/          # CMake utilities (LiteBuildApi, OrtRuntimeGate, LiteDsinfer,
+                #   LitePackagingLayoutCheck, ProductMetadata, GenerateProductMetadata)
 scripts/
-  cmake/        # CMake utilities (LiteBuildApi, OrtRuntimeGate, winrc, etc.)
   vcpkg/        # Git submodule - vcpkg overlay ports/triplets
   vcpkg-manifest/ # vcpkg.json
 docs/           # Chinese-language dev docs (design/ = 已完成的设计契约, plans/ = 进行中方案, guides/ = 开发指南, theme/ = 主题文档, archive/ = 历史归档)
@@ -178,4 +183,4 @@ Qt 6 (Widgets, Core5Compat, Concurrent, StateMachine, OpenGLWidgets), talcs (aud
 - Windows build requires MSVC (not MinGW). Needs `dwmapi.lib` and a recent Windows SDK for DWM APIs.
 - `CMAKE_AUTOMOC/AUTORCC/AUTOUIC` are ON for the app target - Qt meta-object files are generated at build time.
 - `NOMINMAX` is defined project-wide - do not rely on Windows `min`/`max` macros.
-- vcpkg overlay ports are in `scripts/vcpkg/ports` (submodule), not upstream vcpkg.
+- vcpkg overlay ports have two sources, both outside upstream vcpkg: this repository's `scripts/vcpkg-ports` (synthrt, wolf, otter, wolf-lang-packages), which is searched first, and the shared overlay submodule `scripts/vcpkg/ports`, which is searched second.

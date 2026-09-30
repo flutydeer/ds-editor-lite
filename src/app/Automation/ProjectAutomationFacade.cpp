@@ -581,7 +581,7 @@ namespace Automation {
                     return AutomationResult<MutationResult>(resolved.getError());
                 if (language.trimmed().isEmpty()) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
-                        QStringLiteral("language"), QStringLiteral("Language is empty")));
+                        QStringLiteral("language_id"), QStringLiteral("Language is empty")));
                 }
                 auto *track = resolved.get();
                 const bool changed = track->defaultLanguage() != language;
@@ -1501,21 +1501,45 @@ namespace Automation {
                     return AutomationResult<MutationResult>(resolved.getError());
                 if (language.trimmed().isEmpty()) {
                     return AutomationResult<MutationResult>(AutomationError::invalidArgument(
-                        QStringLiteral("language"), QStringLiteral("Language is empty")));
+                        QStringLiteral("language_id"), QStringLiteral("Language is empty")));
                 }
                 auto *clip = static_cast<SingingClip *>(resolved.get().clip);
                 const bool changed = clip->defaultLanguage() != language;
                 const auto affected = QList<ObjectRef>{
                     {ObjectKind::Clip, clipId.value()}
                 };
-                if (validateOnly)
-                    return AutomationResult<MutationResult>(
-                        m_committer.preview(session, changed, affected));
-                if (!changed)
-                    return AutomationResult<MutationResult>(m_committer.unchanged(session));
+                // 声库未声明该语言时返回警告而非拒绝：音符跟随歌者语言时，转换链路会静默回退为
+                // Copy，此警告是该默认语言不会被演唱的唯一提示。validate_only 与未变化分支同样
+                // 附带此警告，以保证行为一致（台账 P-110 ④）。
+                QStringList warnings;
+                QStringList declaredIds;
+                const auto declaredLanguages = clip->singerInfo().languages();
+                declaredIds.reserve(declaredLanguages.size());
+                for (const auto &info : declaredLanguages) {
+                    declaredIds.append(info.id());
+                }
+                if (!declaredIds.isEmpty() && !declaredIds.contains(language)) {
+                    warnings.append(QStringLiteral("The clip's default language \"%1\" is not "
+                                                   "declared by the singer. Declared: %2")
+                                        .arg(language, declaredIds.join(QStringLiteral(", "))));
+                }
+                if (validateOnly) {
+                    auto preview = m_committer.preview(session, changed, affected);
+                    preview.warnings.append(warnings);
+                    return AutomationResult<MutationResult>(std::move(preview));
+                }
+                if (!changed) {
+                    auto unchanged = m_committer.unchanged(session);
+                    unchanged.warnings.append(warnings);
+                    return AutomationResult<MutationResult>(std::move(unchanged));
+                }
                 auto actions = std::make_unique<DefaultLanguageActions>();
                 actions->setDefaultLanguage(clip, language);
-                return m_committer.commit(session, std::move(actions), affected);
+                auto committed = m_committer.commit(session, std::move(actions), affected);
+                if (committed) {
+                    committed.get().warnings.append(warnings);
+                }
+                return committed;
             });
     }
 

@@ -93,6 +93,9 @@ namespace Automation {
 
     struct PackageRuntimeServices {
         std::function<QList<PackageDto>()> installedPackages;
+        /// Packages the scan refused, in the loader's own words. Asked for separately from the
+        /// listing because a refused package has no identifier to list it by.
+        std::function<QList<PackageRefreshFailureDto>()> installedPackageFailures;
         std::function<AutomationResult<PackageValidationReportDto>(const QString &)>
             validatePackage;
         std::function<int(AppModel *, bool apply)> resolveDocumentVoices;
@@ -109,6 +112,12 @@ namespace Automation {
         AutomationResult<QList<PackageDto>> getInstalledPackages();
         AutomationResult<QList<PackageDto>>
             getInstalledPackages(PackagePathProjection pathProjection);
+
+        /// Packages that are installed but would not open, with the loader's reason for each.
+        ///
+        /// Kept apart from the listing so that a package nobody can use is never mistaken for one
+        /// that loaded: this is a report for the person who installed it, not a package entry.
+        AutomationResult<QList<PackageRefreshFailureDto>> getInstalledPackageFailures();
         AutomationResult<PackageDto> describePackage(const QString &packageId,
                                                      PackagePathProjection pathProjection = {});
         AutomationResult<PackageDto> describePackage(const QString &packageId,

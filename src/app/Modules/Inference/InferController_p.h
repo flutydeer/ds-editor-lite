@@ -70,8 +70,13 @@ public:
     void scheduleRetryAllSingingClips();
     void retryAllSingingClips();
 
-    void createAndRunGetPronTask(const SingingClip &clip);
-    void createAndRunGetPhoneTask(const SingingClip &clip);
+    // allowUnvoicedFallback：无歌者时也执行。两个语言任务具有「歌者未解析 ⇒ 发音取原词、
+    // 音素留空」的回退语义（GetPronunciationTask / GetPhonemeNameTask），清声后借此清除
+    // 残留的派生数据（台账 P-110）。只允许清声路径传入 true，以免普通编辑路径覆盖用户
+    // 在没有声库的音符上手动输入的发音/音素。
+    void createAndRunGetPronTask(const SingingClip &clip, bool allowUnvoicedFallback = false);
+    void createAndRunGetPhoneTask(const SingingClip &clip, bool allowUnvoicedFallback = false);
+    void restartLanguageTasksAfterVoiceCleared(SingingClip &clip);
 
     void createPipeline(InferPiece &piece);
     void handlePipelineDropped(InferPipeline *pipeline, const QString &reason);

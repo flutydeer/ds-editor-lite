@@ -49,6 +49,11 @@ bool DocumentWorkflowController::busy() const {
     return false;
 }
 
+// moc processes DocumentWorkflowController in this test, so the vtable is emitted here and
+// requires the destructor. The destructor is stubbed next to busy() instead of compiling the
+// whole controller, which would link the document machinery of the editor into a decoding test.
+DocumentWorkflowController::~DocumentWorkflowController() = default;
+
 namespace {
     using namespace Automation;
 
