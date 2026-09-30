@@ -53,6 +53,10 @@ private:
     // indicator and the commit directly (see mousePressEvent) instead of
     // running the modal QDrag the mouse path uses.
     bool m_touchReorder = false;
+    // Set by the claim filter when the system takes the touch away mid-reorder:
+    // the replayed release that follows still runs, but must not commit the
+    // reorder it would otherwise complete.
+    bool m_touchReorderCancelled = false;
     QWidget *m_dropIndicator = nullptr;
     // Disabled, non-selectable, non-draggable placeholder row mirroring the
     // canvas append slot. Always the last row.

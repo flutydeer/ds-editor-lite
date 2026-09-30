@@ -11,6 +11,7 @@
 #include <QScrollBar>
 #include <QScrollArea>
 #include <QTest>
+#include <QTouchEvent>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -32,6 +33,7 @@ namespace {
         using QObject::QObject;
 
         bool sawPress = false;
+        bool sawRelease = false;
         /// Source of the last press. A press this claim replayed is
         /// NotSynthesized; a press Qt itself derived from an unaccepted touch is
         /// SynthesizedByQt. That distinction is the only way to tell "the claim
@@ -48,6 +50,8 @@ namespace {
                 sawPress = true;
                 lastSource = static_cast<QMouseEvent *>(event)->source();
             }
+            if (event->type() == QEvent::MouseButtonRelease)
+                sawRelease = true;
             return QObject::eventFilter(watched, event);
         }
     };
@@ -197,6 +201,52 @@ int main(int argc, char **argv) {
     QTest::touchEvent(&handle, touchDevice).press(0, QPoint(5, 5));
     QApplication::processEvents();
     check(recorder.sawPress, "claimed widget receives the replayed mouse press");
+
+    // --- a system cancel notifies the target and still closes the stream ---
+    // The system can take a claimed touch away mid-stream (QEvent::TouchCancel).
+    // The replayed release must still go out, or the target's pressed state
+    // sticks; but the target is told first, so it can drop what the release
+    // would otherwise commit - a track reorder mid-drag, for one.
+    QLabel cancelledTarget;
+    cancelledTarget.resize(28, 28);
+    cancelledTarget.show();
+    QApplication::processEvents();
+    MouseButtonRecorder cancelRecorder;
+    cancelledTarget.installEventFilter(&cancelRecorder);
+    bool cancelNotified = false;
+    TouchClaimFilter::install(&cancelledTarget, {}, [&cancelNotified] { cancelNotified = true; });
+    QTest::touchEvent(&cancelledTarget, touchDevice).press(0, QPoint(5, 5));
+    QApplication::processEvents();
+    check(cancelRecorder.sawReplayedPress(), "the claimed press is replayed before the cancel");
+
+    // QTest has no touch cancel; deliver one the way the platform does, as a
+    // hand-built QTouchEvent aimed at the claimed widget.
+    QTouchEvent cancelEvent(
+        QEvent::TouchCancel, touchDevice, Qt::NoModifier,
+        QList<QEventPoint>{QEventPoint(1, QEventPoint::State::Released, QPointF(5, 5),
+                                       QPointF(5, 5))});
+    QApplication::sendEvent(&cancelledTarget, &cancelEvent);
+    QApplication::processEvents();
+    check(cancelNotified, "a system cancel notifies the target before the replayed release");
+    check(cancelRecorder.sawRelease, "the cancel still closes the stream with a release");
+
+    // A cancel with no claimed press behind it must not fire the notice.
+    bool idleNotified = false;
+    QLabel idleTarget;
+    idleTarget.resize(28, 28);
+    idleTarget.show();
+    QApplication::processEvents();
+    MouseButtonRecorder idleRecorder;
+    idleTarget.installEventFilter(&idleRecorder);
+    TouchClaimFilter::install(&idleTarget, {}, [&idleNotified] { idleNotified = true; });
+    QTouchEvent strayCancel(
+        QEvent::TouchCancel, touchDevice, Qt::NoModifier,
+        QList<QEventPoint>{QEventPoint(1, QEventPoint::State::Released, QPointF(5, 5),
+                                       QPointF(5, 5))});
+    QApplication::sendEvent(&idleTarget, &strayCancel);
+    QApplication::processEvents();
+    check(!idleNotified && !idleRecorder.sawRelease,
+          "a stray cancel with no claimed press notifies nothing and replays nothing");
 
     // --- claim re-installs after the content tree is rebuilt ---
     auto *replacement = makeTallContent(1200);

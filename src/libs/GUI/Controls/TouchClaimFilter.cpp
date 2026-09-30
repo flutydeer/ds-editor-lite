@@ -16,18 +16,20 @@ namespace {
     const char kClaimedProperty[] = "lite_touchClaimed";
 }
 
-TouchClaimFilter::TouchClaimFilter(QWidget *target, HitTest hitTest)
-    : QObject(target), m_target(target), m_hitTest(std::move(hitTest)) {
+TouchClaimFilter::TouchClaimFilter(QWidget *target, HitTest hitTest, CancelNotice cancelNotice)
+    : QObject(target), m_target(target), m_hitTest(std::move(hitTest)),
+      m_cancelNotice(std::move(cancelNotice)) {
 }
 
-void TouchClaimFilter::install(QWidget *target, HitTest hitTest) {
+void TouchClaimFilter::install(QWidget *target, HitTest hitTest, CancelNotice cancelNotice) {
     if (!target || target->property(kClaimedProperty).toBool())
         return;
     target->setProperty(kClaimedProperty, true);
     // Touch delivery requires the attribute; without it the platform would
     // synthesize mouse events on its own instead of routing through here.
     target->setAttribute(Qt::WA_AcceptTouchEvents);
-    target->installEventFilter(new TouchClaimFilter(target, std::move(hitTest)));
+    target->installEventFilter(
+        new TouchClaimFilter(target, std::move(hitTest), std::move(cancelNotice)));
 }
 
 bool TouchClaimFilter::eventFilter(QObject *watched, QEvent *event) {
@@ -84,6 +86,9 @@ bool TouchClaimFilter::eventFilter(QObject *watched, QEvent *event) {
             buttons = Qt::LeftButton;
             break;
         case QEvent::TouchEnd:
+            mouseType = QEvent::MouseButtonRelease;
+            button = Qt::LeftButton;
+            break;
         case QEvent::TouchCancel:
             mouseType = QEvent::MouseButtonRelease;
             button = Qt::LeftButton;
@@ -102,6 +107,14 @@ bool TouchClaimFilter::eventFilter(QObject *watched, QEvent *event) {
     QMouseEvent mouseEvent(mouseType, point.position(), point.globalPosition(), button, buttons,
                            touchEvent->modifiers(), touchEvent->pointingDevice());
     mouseEvent.setTimestamp(touchEvent->timestamp());
+    // A cancel of a claimed stream still ends as a replayed release - the
+    // target's pressed state must not stick - but the target hears about it
+    // first, so it can drop what the release would otherwise commit. Only a
+    // release that will actually be replayed notifies: a cancel with no
+    // replayed press behind it would strand the notice with no release to
+    // consume it.
+    if (type == QEvent::TouchCancel && m_pressed && m_cancelNotice)
+        m_cancelNotice();
     QCoreApplication::sendEvent(m_target.data(), &mouseEvent);
     if (mouseType == QEvent::MouseButtonRelease)
         m_pressed = false;

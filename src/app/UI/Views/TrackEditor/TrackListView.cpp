@@ -37,6 +37,11 @@ TrackListView::TrackListView(QWidget *parent) : QListWidget(parent) {
     // kinetic scrolling.
     TouchClaimFilter::install(viewport(), [this](const QPointF &pos) {
         return isInDragArea(pos.toPoint());
+    }, [this] {
+        // The system took the touch away mid-reorder: the release replay that
+        // follows still resets the pressed state, but must not commit the
+        // reorder it would otherwise complete.
+        m_touchReorderCancelled = true;
     });
 
     // Enable drag and drop for track reordering
@@ -131,7 +136,11 @@ void TrackListView::mouseReleaseEvent(QMouseEvent *event) {
         m_touchReorder = false;
         // moveDraggedTrack() validates the insertion index itself, so a tap or
         // a release over the source row is a no-op that just clears the state.
-        moveDraggedTrack(dropInsertionIndex(event->pos()));
+        // A system cancel of the touch skips the commit: the finger never
+        // confirmed the drop, only the state cleanup still runs.
+        if (!m_touchReorderCancelled)
+            moveDraggedTrack(dropInsertionIndex(event->pos()));
+        m_touchReorderCancelled = false;
         m_dragRow = -1;
         clearDropIndicator();
     }

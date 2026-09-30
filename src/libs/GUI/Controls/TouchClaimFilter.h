@@ -27,22 +27,29 @@ class TouchClaimFilter : public QObject {
 public:
     /// Returns true when a touch at \p localPos should be claimed by the target.
     using HitTest = std::function<bool(const QPointF &localPos)>;
+    /// Called when the system takes a claimed stream away (QEvent::TouchCancel),
+    /// right before the release replay that closes the stream. The target uses
+    /// it to drop what the release would otherwise commit - a reorder mid-drag,
+    /// for one - while still letting the replay reset its pressed state.
+    using CancelNotice = std::function<void()>;
 
     /// Installs the filter on \p target and enables touch delivery on it.
     /// Idempotent; the filter lives as long as the target. An empty \p hitTest
     /// claims the whole rect, which is what every plain drag target wants.
-    static void install(QWidget *target, HitTest hitTest = {});
+    static void install(QWidget *target, HitTest hitTest = {},
+                        CancelNotice cancelNotice = {});
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
-    TouchClaimFilter(QWidget *target, HitTest hitTest);
+    TouchClaimFilter(QWidget *target, HitTest hitTest, CancelNotice cancelNotice);
 
     void stopAncestorScroller() const;
 
     QPointer<QWidget> m_target;
     HitTest m_hitTest;
+    CancelNotice m_cancelNotice;
     bool m_pressed = false;
     // Set when the hit test turned the current stream away, so its remaining
     // events are passed through instead of being consumed.
