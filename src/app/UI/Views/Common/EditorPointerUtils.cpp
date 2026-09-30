@@ -12,6 +12,7 @@ namespace {
     int g_touchStreamDepth = 0;
     int g_penStreamDepth = 0;
     int g_penEraseIntentDepth = 0;
+    bool g_touchAffordance = false;
 }
 
 namespace EditorPointer {
@@ -82,6 +83,18 @@ namespace EditorPointer {
     bool isPointerPressed() {
         return QGuiApplication::mouseButtons() != Qt::NoButton || isTouchStreamActive() ||
                isPenStreamActive();
+    }
+
+    bool touchAffordanceActive() {
+        return g_touchAffordance;
+    }
+
+    void latchTouchAffordance() {
+        g_touchAffordance = true;
+    }
+
+    void clearTouchAffordance() {
+        g_touchAffordance = false;
     }
 
     double resizeTolerance() {

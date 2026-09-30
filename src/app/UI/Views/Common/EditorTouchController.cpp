@@ -9,6 +9,7 @@
 #include <QApplication>
 #include <QContextMenuEvent>
 #include <QCoreApplication>
+#include <QHoverEvent>
 #include <QInputDevice>
 #include <QList>
 #include <QMouseEvent>
@@ -106,6 +107,17 @@ namespace {
         }
         return "?";
     }
+
+    // A pointer that is not a finger is a precise pointer: the editing
+    // affordances the finger needed (drawn resize handles) give way to the
+    // cursor shape again. Hover events only ever come from such a pointer, so
+    // there is nothing to tell a real hover from a promoted contact here.
+    void dropTouchAffordanceFor(const QPointerEvent *event) {
+        const auto *device = event ? event->pointingDevice() : nullptr;
+        if (device && device->type() == QInputDevice::DeviceType::TouchScreen)
+            return;
+        EditorPointer::clearTouchAffordance();
+    }
 }
 
 EditorTouchController::EditorTouchController(EditorTouchTarget *target, QWidget *widget,
@@ -173,6 +185,14 @@ bool EditorTouchController::handleEvent(QEvent *event) {
         case QEvent::MouseButtonDblClick:
         case QEvent::MouseMove:
             return swallowForeignMouseEvent(static_cast<QMouseEvent *>(event));
+        case QEvent::HoverEnter:
+        case QEvent::HoverMove:
+        case QEvent::HoverLeave:
+            // Hover only ever comes from a device that can hover, so it is one
+            // more place where a precise pointer takes the editor back. Never
+            // consumed: QGraphicsView item hover and the pen layer both need it.
+            dropTouchAffordanceFor(static_cast<QHoverEvent *>(event));
+            return false;
         case QEvent::ContextMenu:
             return filterContextMenuEvent(static_cast<QContextMenuEvent *>(event));
         default:
@@ -194,8 +214,10 @@ bool EditorTouchController::swallowForeignMouseEvent(QMouseEvent *event) {
     // are already handling are duplicates. A real mouse belongs to the mouse
     // path, a touchpad to the wheel and native gesture path, a stylus to the
     // pen layer.
-    if (type != QInputDevice::DeviceType::TouchScreen)
+    if (type != QInputDevice::DeviceType::TouchScreen) {
+        dropTouchAffordanceFor(event);
         return false;
+    }
     if (isProbeEnabled() && event->type() != QEvent::MouseMove) {
         qDebug().noquote() << QStringLiteral("swallowed synthesized mouse %1 buttons=%2")
                                   .arg(event->type() == QEvent::MouseButtonRelease
@@ -619,6 +641,12 @@ void EditorTouchController::sendSyntheticMouse(const QEvent::Type type, const QP
                       m_device ? m_device : QPointingDevice::primaryPointingDevice());
     const auto wasSending = m_sendingSyntheticMouse;
     m_sendingSyntheticMouse = true;
+    // A finger is pressing: from here on the editor keeps its touch affordances
+    // up (drawn handles, not hover cursors) until a precise pointer comes back.
+    // Latched before delivery, so the press that changes the selection already
+    // renders the affordance for the new state.
+    if (type == QEvent::MouseButtonPress)
+        EditorPointer::latchTouchAffordance();
     QCoreApplication::sendEvent(target, &event);
     m_sendingSyntheticMouse = wasSending;
 }

@@ -47,6 +47,18 @@ namespace EditorPointer {
     // drag and during a pen stroke the pen layer translates itself.
     [[nodiscard]] bool isPointerPressed();
 
+    // The touch editing affordance: true right after a finger used the editor,
+    // and until a precise pointer (mouse, touchpad, pen) shows up again.
+    //
+    // It exists because a finger has no hover: affordances that a mouse reads
+    // from the cursor shape — how to grab a note's edge, where the resize
+    // targets are — have to be drawn for the finger instead, and they have to
+    // survive the lift or the user could never aim at them. A precise pointer
+    // clears it again, because there the cursor already says the same thing.
+    [[nodiscard]] bool touchAffordanceActive();
+    void latchTouchAffordance();
+    void clearTouchAffordance();
+
     // AppGlobal::resizeTolerance, widened while a touch stream is active.
     [[nodiscard]] double resizeTolerance();
     [[nodiscard]] double resizeTolerance(double baseTolerance);

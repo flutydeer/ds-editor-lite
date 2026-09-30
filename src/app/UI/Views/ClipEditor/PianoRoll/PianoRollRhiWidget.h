@@ -34,6 +34,10 @@ class PianoRollRhiWidget final : public EditorRhiWidget,
     Q_PROPERTY(QColor octaveDividerColor READ octaveDividerColor WRITE setOctaveDividerColor)
     Q_PROPERTY(QColor noteSelectedBorderColor READ noteSelectedBorderColor WRITE
                    setNoteSelectedBorderColor)
+    Q_PROPERTY(QColor noteHandleFillColor READ noteHandleFillColor WRITE setNoteHandleFillColor)
+    Q_PROPERTY(
+        QColor noteHandleBorderColor READ noteHandleBorderColor WRITE setNoteHandleBorderColor)
+    Q_PROPERTY(QColor noteHandleGripColor READ noteHandleGripColor WRITE setNoteHandleGripColor)
     Q_PROPERTY(
         QColor pronunciationTextColor READ pronunciationTextColor WRITE setPronunciationTextColor)
     Q_PROPERTY(
@@ -159,6 +163,12 @@ private:
     void setOctaveDividerColor(const QColor &color);
     QColor noteSelectedBorderColor() const;
     void setNoteSelectedBorderColor(const QColor &color);
+    QColor noteHandleFillColor() const;
+    void setNoteHandleFillColor(const QColor &color);
+    QColor noteHandleBorderColor() const;
+    void setNoteHandleBorderColor(const QColor &color);
+    QColor noteHandleGripColor() const;
+    void setNoteHandleGripColor(const QColor &color);
     QColor pronunciationTextColor() const;
     void setPronunciationTextColor(const QColor &color);
     QColor clipRangeOverlayColor() const;

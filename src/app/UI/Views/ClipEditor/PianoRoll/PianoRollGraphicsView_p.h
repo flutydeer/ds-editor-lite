@@ -16,6 +16,7 @@
 #include <QString>
 
 class ClipRangeOverlay;
+class NoteHandleOverlay;
 class AnchorOverlayView;
 class PitchEditorView;
 class QMouseEvent;
@@ -57,6 +58,11 @@ public:
     CurveTransform::PitchContext m_pitchTransformContext;
     AnchorOverlayView *m_anchorEditor = nullptr;
     ClipRangeOverlay *m_clipRangeOverlay = nullptr;
+    NoteHandleOverlay *m_noteHandleOverlay = nullptr;
+    // Id of the note currently drawn with the handle frame, -1 for no frame. Only
+    // the id is kept, never a pointer, so deleting a note leaves no dangling
+    // reference.
+    int m_handleFramedNoteId = -1;
     // Applied to the lazily-created SplitLineIndicator on each tool activation
     QColor m_splitLineColor = {255, 100, 100};
 
@@ -107,6 +113,15 @@ public:
     [[nodiscard]] NoteView *noteViewAt(const QPoint &pos);
     [[nodiscard]] PronunciationView *pronViewAt(const QPoint &pos);
     [[nodiscard]] NoteView *findNoteViewById(int id) const;
+
+    // Syncs the resize handle frame on the selected note (see NoteHandleGeometry).
+    // Called once after each of these state changes: selection, note properties,
+    // drags, hover, and precise-pointer takeover; exits early when nothing changed.
+    void syncNoteHandleFrame();
+    // The "exactly one selected note" target the frame's visibility contract needs,
+    // nullptr when there is none
+    [[nodiscard]] NoteView *framedNoteView() const;
+    [[nodiscard]] QRectF noteHandleSceneRect(const NoteView *view) const;
 
     void handleNoteInserted(Note *note);
     void handleNoteRemoved(Note *note);
