@@ -299,12 +299,12 @@
     <message>
         <location filename="../../Modules/Audio/AudioExporter.cpp" line="871"/>
         <source>Cannot publish temporary audio file: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>无法发布临时音频文件：%1</translation>
     </message>
     <message>
         <location filename="../../Modules/Audio/AudioExporter.cpp" line="875"/>
         <source>Cannot remove temporary audio export file: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>无法删除临时音频导出文件：%1</translation>
     </message>
     <message>
         <location filename="../../Modules/Audio/AudioExporter.cpp" line="918"/>
@@ -778,7 +778,7 @@
     <message>
         <location filename="../../Controller/AudioDecodingController.cpp" line="608"/>
         <source>Failed to open audio file: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>无法打开音频文件：%1</translation>
     </message>
 </context>
 <context>
@@ -2012,12 +2012,12 @@ path: %1
     <message>
         <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1397"/>
         <source>Failed to flush file: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>写入文件失败：%1</translation>
     </message>
     <message>
         <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1402"/>
         <source>Failed to commit file: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>提交文件失败：%1</translation>
     </message>
     <message>
         <location filename="../../../libs/ProjectConverters/DspxProjectConverter.cpp" line="1347"/>
@@ -3076,7 +3076,7 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="169"/>
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="181"/>
         <source>No available GPU found. The execution provider has been switched back to CPU.</source>
-        <translation type="unfinished"></translation>
+        <translation>未找到可用的 GPU，执行提供程序已切换回 CPU。</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/InferencePage.cpp" line="195"/>
@@ -3469,33 +3469,33 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../../libs/ProjectConverters/LibreSVIPConverter.cpp" line="17"/>
         <source>LibreSVIP executable not found. Install libresvip-cli and set its path.</source>
-        <translation type="unfinished">未找到 LibreSVIP 可执行文件。请安装 libresvip-cli 并在设置中指定其路径。</translation>
+        <translation>未找到 LibreSVIP 可执行文件。请安装 libresvip-cli 并设置其路径。</translation>
     </message>
     <message>
         <location filename="../../../libs/ProjectConverters/LibreSVIPConverter.cpp" line="24"/>
         <source>Failed to create a temporary directory</source>
-        <translation type="unfinished"></translation>
+        <translation>无法创建临时目录</translation>
     </message>
     <message>
         <location filename="../../../libs/ProjectConverters/LibreSVIPConverter.cpp" line="36"/>
         <source>Failed to start LibreSVIP: %1</source>
-        <translation type="unfinished">启动 LibreSVIP 失败：%1</translation>
+        <translation>启动 LibreSVIP 失败：%1</translation>
     </message>
     <message>
         <location filename="../../../libs/ProjectConverters/LibreSVIPConverter.cpp" line="47"/>
         <source>LibreSVIP conversion timed out</source>
-        <translation type="unfinished">LibreSVIP 转换超时</translation>
+        <translation>LibreSVIP 转换超时</translation>
     </message>
     <message>
         <location filename="../../../libs/ProjectConverters/LibreSVIPConverter.cpp" line="52"/>
         <source>LibreSVIP conversion failed: %1</source>
-        <translation type="unfinished">LibreSVIP 转换失败：%1</translation>
+        <translation>LibreSVIP 转换失败：%1</translation>
     </message>
     <message>
         <location filename="../../../libs/ProjectConverters/LibreSVIPConverter.cpp" line="59"/>
         <location filename="../../../libs/ProjectConverters/LibreSVIPConverter.cpp" line="65"/>
         <source>Failed to read LibreSVIP output: %1</source>
-        <translation type="unfinished">读取 LibreSVIP 输出失败：%1</translation>
+        <translation>读取 LibreSVIP 输出失败：%1</translation>
     </message>
 </context>
 <context>
@@ -4112,7 +4112,7 @@ Regex values are merged with | for FullMatch. Array values are exact match.</sou
     <message>
         <location filename="../../UI/Window/MainWindow.cpp" line="129"/>
         <source>Execution provider %1 is unavailable and was reset to CPU.</source>
-        <translation type="unfinished"></translation>
+        <translation>执行提供程序 %1 不可用，已重置为 CPU。</translation>
     </message>
     <message>
         <location filename="../../UI/Window/MainWindow.cpp" line="216"/>
@@ -4356,12 +4356,12 @@ current denominator: %L5</source>
     <message>
         <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="431"/>
         <source>Failed to flush file: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>写入文件失败：%1</translation>
     </message>
     <message>
         <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="436"/>
         <source>Failed to commit file: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>提交文件失败：%1</translation>
     </message>
     <message>
         <location filename="../../../libs/ProjectConverters/MidiConverter.cpp" line="447"/>
@@ -6008,7 +6008,7 @@ All current mix settings will be lost.</source>
     <message>
         <location filename="../../Modules/FillLyric/Utils/TextTagger.cpp" line="331"/>
         <source>Tagger dictionary was not found: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>未找到标注词典：%1</translation>
     </message>
 </context>
 <context>
