@@ -124,18 +124,24 @@ void InlineEditLabel::mouseDoubleClickEvent(QMouseEvent *event) {
 
 void InlineEditLabel::resizeEvent(QResizeEvent *event) {
     QWidget::resizeEvent(event);
-    finishEditing();
+    // No finishEditing() here: Windows pops the touch keyboard by resizing
+    // the foreground window, which relayouts hosts like the mix console and
+    // resizes this label mid-edit. The overlay must survive that (same
+    // contract as InlineTextEditOverlay); a stale anchor after the resize is
+    // the accepted trade-off.
 }
 
 bool InlineEditLabel::eventFilter(QObject *watched, QEvent *event) {
     if (watched == m_overlayParent && m_overlay && m_overlay->isEditing()) {
         switch (event->type()) {
             case QEvent::Wheel:
-            case QEvent::Move:
-            case QEvent::Resize:
             case QEvent::Hide:
                 finishEditing();
                 break;
+            // Move/Resize deliberately not here: Windows resizes (and may
+            // reposition) the foreground window to make room for the touch
+            // keyboard, and the open editor must survive that - same contract
+            // as InlineTextEditOverlay.
             default:
                 break;
         }

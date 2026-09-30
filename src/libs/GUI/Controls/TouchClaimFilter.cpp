@@ -119,7 +119,7 @@ bool TouchClaimFilter::eventFilter(QObject *watched, QEvent *event) {
     if (mouseType == QEvent::MouseButtonRelease)
         m_pressed = false;
     if (type == QEvent::TouchBegin)
-        stopAncestorScroller();
+        stopAncestorScrollers(m_target);
     event->accept();
     return true;
 }
@@ -138,10 +138,12 @@ bool TouchClaimFilter::eventFilter(QObject *watched, QEvent *event) {
 // target is itself a viewport - a list claiming its own viewport - the walk
 // matches that inner scroll area first; stopping only it left the page that
 // actually scrolls untouched, and the row reordered while the page scrolled.
-void TouchClaimFilter::stopAncestorScroller() const {
-    for (auto *parent = m_target->parentWidget(); parent; parent = parent->parentWidget()) {
+void TouchClaimFilter::stopAncestorScrollers(const QWidget *widget) {
+    if (!widget)
+        return;
+    for (auto *parent = widget->parentWidget(); parent; parent = parent->parentWidget()) {
         const auto *area = qobject_cast<const QAbstractScrollArea *>(parent);
-        if (!area || !area->viewport()->isAncestorOf(m_target))
+        if (!area || !area->viewport()->isAncestorOf(widget))
             continue;
         // Ask first: QScroller::scroller() would create one just to stop it, on
         // areas that were never scrolling anything.

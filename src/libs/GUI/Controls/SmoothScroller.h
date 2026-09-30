@@ -39,13 +39,18 @@ public:
     /// part of the target, for widgets that only own a sub-region of themselves.
     static void installClaim(QWidget *target, TouchClaimFilter::HitTest hitTest = {});
 
+    /// Stops a running touch glide. For scrollbars outside the attached area
+    /// that never see the viewport's synthesized-mouse filtering - the mix
+    /// console's synced horizontal bar, for one - so their press can be
+    /// connected here to avoid fighting the glide.
+    void stopGlide();
+
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
     void installTouchKinetic();
     void releaseTouchKinetic();
-    void stopGlide();
     void scheduleClaimSweep();
     void sweepForClaims();
 

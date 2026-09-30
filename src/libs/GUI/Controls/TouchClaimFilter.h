@@ -39,13 +39,21 @@ public:
     static void install(QWidget *target, HitTest hitTest = {},
                         CancelNotice cancelNotice = {});
 
+    /// Pins every QScroller grabbed on a scroll area whose viewport contains
+    /// \p widget back to Inactive. A drag-owning widget inside a touch-kinetic
+    /// scroll area calls this from its own mouse press when the press may come
+    /// from a touch: the Qt-synthesized mouse drag then drives the widget alone
+    /// while the neutralized scroller ignores the rest of the touch stream. A
+    /// real mouse never drives a TouchGesture scroller, so for it the call is a
+    /// no-op - except for stopping a glide that is still running, which a
+    /// press-on-the-widget should do anyway.
+    static void stopAncestorScrollers(const QWidget *widget);
+
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
     TouchClaimFilter(QWidget *target, HitTest hitTest, CancelNotice cancelNotice);
-
-    void stopAncestorScroller() const;
 
     QPointer<QWidget> m_target;
     HitTest m_hitTest;
