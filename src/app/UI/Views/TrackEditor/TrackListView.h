@@ -1,6 +1,8 @@
 #ifndef TRACKLISTWIDGET_H
 #define TRACKLISTWIDGET_H
 
+#include "UI/Views/Common/EdgeAutoScroller.h"
+
 #include <QListWidget>
 
 class QWheelEvent;
@@ -44,6 +46,7 @@ private:
     bool moveDraggedTrack(int insertionIndex);
     void updateDropIndicator(int insertionIndex);
     void clearDropIndicator();
+    void onEdgeAutoScrollFrame(double dtMs);
 
     int m_scrollPosBeforeDrag = 0;
     QPoint m_dragStartPosition;
@@ -57,6 +60,10 @@ private:
     // the replayed release that follows still runs, but must not commit the
     // reorder it would otherwise complete.
     bool m_touchReorderCancelled = false;
+    // Edge auto scroll for the touch reorder, which skips the base class move
+    // handler that drives QAbstractItemView's own autoScroll.
+    EdgeAutoScroller m_edgeAutoScroller;
+    QPoint m_lastTouchPosition;
     QWidget *m_dropIndicator = nullptr;
     // Disabled, non-selectable, non-draggable placeholder row mirroring the
     // canvas append slot. Always the last row.

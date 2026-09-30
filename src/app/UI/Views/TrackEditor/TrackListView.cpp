@@ -6,6 +6,7 @@
 #include "TrackAppendSlotView.h"
 #include <lite/GUI/Controls/TouchClaimFilter.h>
 
+#include <QApplication>
 #include <QDrag>
 #include <QDragMoveEvent>
 #include <QDropEvent>
@@ -29,6 +30,9 @@ TrackListView::TrackListView(QWidget *parent) : QListWidget(parent) {
     // claimed touch.
     QScroller::grabGesture(viewport(), QScroller::TouchGesture);
 
+    connect(&m_edgeAutoScroller, &EdgeAutoScroller::frame, this,
+            &TrackListView::onEdgeAutoScrollFrame);
+
     // The track index label is the reorder grip. The claim sits on the
     // viewport because the replayed mouse press must reach QAbstractItemView's
     // drag state machine (a per-label one would be ignored and dropped), and
@@ -42,6 +46,7 @@ TrackListView::TrackListView(QWidget *parent) : QListWidget(parent) {
         // follows still resets the pressed state, but must not commit the
         // reorder it would otherwise complete.
         m_touchReorderCancelled = true;
+        m_edgeAutoScroller.stopDrag();
     });
 
     // Enable drag and drop for track reordering
@@ -105,14 +110,24 @@ void TrackListView::mousePressEvent(QMouseEvent *event) {
     // indicator and the commit directly from the replayed stream instead.
     m_touchReorder = m_canStartDrag && event->device() &&
                      event->device()->type() == QInputDevice::DeviceType::TouchScreen;
-    if (m_touchReorder)
+    if (m_touchReorder) {
         m_dragRow = indexAt(event->pos()).row();
+        m_lastTouchPosition = event->pos();
+        // The finger may drag past the list's edges, so the rows outside the
+        // viewport stay reachable; the base autoScroll never arms on this path
+        // because the touch branch keeps the base move handler out.
+        m_edgeAutoScroller.prepareDrag(event->pos(), Qt::Vertical);
+    }
     QListWidget::mousePressEvent(event);
     event->ignore();
 }
 
 void TrackListView::mouseMoveEvent(QMouseEvent *event) {
     if (m_touchReorder) {
+        m_lastTouchPosition = event->pos();
+        m_edgeAutoScroller.updateDragState(event->pos(),
+                                           QRectF(QPointF(0, 0), viewport()->size()),
+                                           QApplication::startDragDistance());
         // Live insertion indicator straight from the touch stream; the base
         // class is kept out so it cannot arm its own modal drag.
         if (!setDropInsertionIndex(dropInsertionIndex(event->pos()))) {
@@ -134,6 +149,7 @@ void TrackListView::mouseMoveEvent(QMouseEvent *event) {
 void TrackListView::mouseReleaseEvent(QMouseEvent *event) {
     if (m_touchReorder) {
         m_touchReorder = false;
+        m_edgeAutoScroller.stopDrag();
         // moveDraggedTrack() validates the insertion index itself, so a tap or
         // a release over the source row is a no-op that just clears the state.
         // A system cancel of the touch skips the commit: the finger never
@@ -306,6 +322,22 @@ void TrackListView::updateDropIndicator(const int insertionIndex) {
 void TrackListView::clearDropIndicator() {
     if (m_dropIndicator)
         m_dropIndicator->hide();
+}
+
+void TrackListView::onEdgeAutoScrollFrame(const double dtMs) {
+    // Safety net: the session ended without the release reaching us (the
+    // cancel notice stops its own; this covers everything else).
+    if (!m_touchReorder || !isVisible()) {
+        m_edgeAutoScroller.stopDrag();
+        return;
+    }
+    const QRectF vpRect(QPointF(0, 0), viewport()->size());
+    const auto step = m_edgeAutoScroller.computeDragStep(m_lastTouchPosition, vpRect, dtMs);
+    if (step.y() != 0)
+        verticalScrollBar()->setValue(verticalScrollBar()->value() + step.y());
+    // Scrolling moved the rows under a stationary finger, so the insertion
+    // indicator has to be re-derived from the last known touch position.
+    setDropInsertionIndex(dropInsertionIndex(m_lastTouchPosition));
 }
 
 bool TrackListView::isInDragArea(const QPoint &pos) const {
