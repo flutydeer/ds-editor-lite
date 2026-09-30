@@ -169,17 +169,28 @@ bool InlineTextEditOverlay::eventFilter(QObject *obj, QEvent *event) {
                     return false;
                 }
             }
-        } else if (event->type() == QEvent::Wheel ||
-                   event->type() == QEvent::ApplicationDeactivate) {
+        } else if (event->type() == QEvent::Wheel) {
+            // ApplicationDeactivate is deliberately not here: the Windows
+            // touch keyboard shows by making its own window foreground, which
+            // deactivates this one, and the open editor must survive that.
+            // A click back into the app still closes it via MouseButtonPress.
             submit();
             return false;
         } else if (auto *widget = qobject_cast<QWidget *>(obj)) {
             const auto type = event->type();
-            const bool hostGeometryChanged =
-                type == QEvent::Move || type == QEvent::Resize || type == QEvent::Hide ||
-                type == QEvent::ParentAboutToChange || type == QEvent::ParentChange ||
-                type == QEvent::WindowDeactivate || type == QEvent::WindowStateChange;
-            if (hostGeometryChanged && widget != this &&
+            // Move, Resize, WindowDeactivate and ApplicationDeactivate are
+            // deliberately not here: Windows resizes (and may reposition) the
+            // foreground window to make room for the touch keyboard, and the
+            // open editor must survive that. Scroll values are preserved
+            // across such a resize, so the anchor stays under the editor.
+            // User-driven closers are unaffected: clicks elsewhere go through
+            // MouseButtonPress above, scrolling goes through Wheel, and zoom
+            // or tab switches hide the host or end the edit from the view
+            // side.
+            const bool hostGone =
+                type == QEvent::Hide || type == QEvent::ParentAboutToChange ||
+                type == QEvent::ParentChange || type == QEvent::WindowStateChange;
+            if (hostGone && widget != this &&
                 (widget == parentWidget() || widget->isAncestorOf(this))) {
                 submit();
                 return false;
@@ -209,7 +220,12 @@ bool InlineTextEditOverlay::eventFilter(QObject *obj, QEvent *event) {
                 break;
             }
             case QEvent::FocusOut: {
-                if (!m_activeMenu) {
+                // When the window goes inactive the focus widget drops focus
+                // with ActiveWindowFocusReason (touch keyboard, alt-tab); like
+                // the item view editors, keep editing in that case and close
+                // only on a focus move inside the app.
+                const auto reason = static_cast<QFocusEvent *>(event)->reason();
+                if (!m_activeMenu && reason != Qt::ActiveWindowFocusReason) {
                     submit();
                 }
                 break;
