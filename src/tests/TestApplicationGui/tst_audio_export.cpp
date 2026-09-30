@@ -19,6 +19,7 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QDir>
+#include <QDate>
 #include <QFileInfo>
 #include <QFile>
 #include <QFileDialog>
@@ -97,6 +98,57 @@ namespace {
                 return button;
         }
         return nullptr;
+    }
+
+    void inspectExportPlan(AudioExportDialog &dialog, const QStringList &expectedFiles,
+                           AudioExporter::Warning expectedWarnings) {
+        bool inspected = false;
+        QTimer inspect;
+        inspect.setInterval(10);
+        QObject::connect(&inspect, &QTimer::timeout, &dialog, [&] {
+            QPointer<QDialog> preview = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+            if (!preview || preview->windowTitle() != AudioExportDialog::tr("Dry Run"))
+                return;
+            inspect.stop();
+            const auto close = qScopeGuard([&] {
+                if (preview && preview->isVisible())
+                    preview->reject();
+            });
+            QListWidget *files = nullptr;
+            QListWidget *warnings = nullptr;
+            for (auto *group : preview->findChildren<QGroupBox *>()) {
+                if (group->title() == AudioExportDialog::tr("File List"))
+                    files = group->findChild<QListWidget *>();
+                else if (group->title() == AudioExportDialog::tr("Warnings"))
+                    warnings = group->findChild<QListWidget *>();
+            }
+            QVERIFY(files);
+            QCOMPARE(files->count(), expectedFiles.size());
+            for (int i = 0; i < expectedFiles.size(); ++i) {
+                QCOMPARE(QDir::fromNativeSeparators(files->item(i)->text()), expectedFiles.at(i));
+                if (expectedWarnings &
+                    (AudioExporter::W_WillOverwrite | AudioExporter::W_DuplicatedFile)) {
+                    QVERIFY(!files->item(i)->icon().isNull());
+                    QVERIFY(!files->item(i)->toolTip().isEmpty());
+                }
+            }
+            const auto messages = AudioExporter::warningText(expectedWarnings);
+            if (!messages.isEmpty()) {
+                QVERIFY(warnings);
+                QCOMPARE(warnings->count(), messages.size());
+                for (int i = 0; i < messages.size(); ++i)
+                    QCOMPARE(warnings->item(i)->text(), messages.at(i));
+            }
+            auto *ok = exportButton(preview, AudioExportDialog::tr("OK"));
+            QVERIFY(ok);
+            QTest::mouseClick(ok, Qt::LeftButton);
+            inspected = true;
+        });
+        auto *dryRun = exportButton(&dialog, AudioExportDialog::tr("Dry &Run"));
+        QVERIFY(dryRun);
+        inspect.start();
+        QTest::mouseClick(dryRun, Qt::LeftButton);
+        QVERIFY(inspected);
     }
 }
 
@@ -288,6 +340,41 @@ void ApplicationGuiTests::exportSourcesAndMixingUpdateFilePlan() {
     QCOMPARE(controls.fileName->text(), QStringLiteral("stems.wav"));
     QCOMPARE(controls.exporter->config().source(), QList<int>{1});
     QCOMPARE(controls.exporter->dryRun(), QStringList{output.filePath("stems.wav")});
+
+    QVERIFY(chooseOption(controls.mixing, AudioExporterConfig::MO_Separated));
+    QTest::mouseClick(controls.tracks->viewport(), Qt::LeftButton, Qt::ControlModifier,
+                      controls.tracks->visualItemRect(harmony).center());
+    QVERIFY(controls.exporter->config().source().isEmpty());
+    QVERIFY(controls.exporter->dryRun().isEmpty());
+    QVERIFY(controls.preview->text().isEmpty());
+    QVERIFY(controls.exporter->warning() & AudioExporter::W_NoFile);
+    inspectExportPlan(dialog, {}, AudioExporter::W_NoFile);
+    if (QTest::currentTestFailed())
+        return;
+
+    QVERIFY(chooseOption(controls.source, AudioExporterConfig::SO_All));
+    pasteText(controls.fileName, QStringLiteral("stems.wav"));
+    const QStringList collisions{output.filePath("stems.wav"), output.filePath("stems.wav")};
+    QCOMPARE(controls.exporter->dryRun(), collisions);
+    QVERIFY(controls.exporter->warning() & AudioExporter::W_DuplicatedFile);
+    inspectExportPlan(dialog, collisions, AudioExporter::W_DuplicatedFile);
+    if (QTest::currentTestFailed())
+        return;
+
+    pasteText(controls.fileName, QStringLiteral("${today}_${$}_${unknown}_${trackName}.wav"));
+    const auto prefix = QDate::currentDate().toString("yyyyMMdd") + "_$_${unknown}_";
+    const QStringList unrecognized{output.filePath(prefix + "Lead.wav"),
+                                   output.filePath(prefix + "Harmony.wav")};
+    QCOMPARE(controls.exporter->dryRun(), unrecognized);
+    QVERIFY(controls.exporter->warning() & AudioExporter::W_UnrecognizedTemplate);
+    inspectExportPlan(dialog, unrecognized, AudioExporter::W_UnrecognizedTemplate);
+    if (QTest::currentTestFailed())
+        return;
+
+    pasteText(controls.fileName, QStringLiteral("stems_${trackIndex}_${trackName}.wav"));
+    QVERIFY(!controls.exporter->warning());
+    QCOMPARE(controls.exporter->dryRun(), QStringList({output.filePath("stems_1_Lead.wav"),
+                                                       output.filePath("stems_2_Harmony.wav")}));
     QCOMPARE(started.count(), 0);
     QCOMPARE(runtime.documentVersion(), before);
     QVERIFY(!historyManager->canUndo());
@@ -535,39 +622,9 @@ void ApplicationGuiTests::audioExportProgressFollowsTheTaskOutcome() {
     pasteText(controls.directory, directory.path());
     pasteText(controls.fileName, QStringLiteral("exported.wav"));
     QVERIFY(controls.exporter->warning() & AudioExporter::W_WillOverwrite);
-    bool previewInspected = false;
-    QTimer inspectPreview;
-    inspectPreview.setInterval(10);
-    connect(&inspectPreview, &QTimer::timeout, &dialog, [&] {
-        QPointer<QDialog> preview = qobject_cast<QDialog *>(QApplication::activeModalWidget());
-        if (!preview || preview->windowTitle() != AudioExportDialog::tr("Dry Run"))
-            return;
-        inspectPreview.stop();
-        const auto close = qScopeGuard([&] {
-            if (preview && preview->isVisible())
-                preview->reject();
-        });
-        QListWidget *files = nullptr;
-        for (auto *group : preview->findChildren<QGroupBox *>()) {
-            if (group->title() == AudioExportDialog::tr("File List"))
-                files = group->findChild<QListWidget *>();
-        }
-        QVERIFY(files);
-        QCOMPARE(files->count(), 1);
-        QCOMPARE(QDir::fromNativeSeparators(files->item(0)->text()), outputPath);
-        QVERIFY(!files->item(0)->icon().isNull());
-        QVERIFY(files->item(0)->toolTip().contains(
-            AudioExporter::warningText(AudioExporter::W_WillOverwrite).first()));
-        auto *ok = exportButton(preview, AudioExportDialog::tr("OK"));
-        QVERIFY(ok);
-        QTest::mouseClick(ok, Qt::LeftButton);
-        previewInspected = true;
-    });
-    auto *dryRun = exportButton(&dialog, AudioExportDialog::tr("Dry &Run"));
-    QVERIFY(dryRun);
-    inspectPreview.start();
-    QTest::mouseClick(dryRun, Qt::LeftButton);
-    QVERIFY(previewInspected);
+    inspectExportPlan(dialog, {outputPath}, AudioExporter::W_WillOverwrite);
+    if (QTest::currentTestFailed())
+        return;
     QCOMPARE(readExisting(), existingContents);
     QCOMPARE(runtime.documentVersion(), before);
 

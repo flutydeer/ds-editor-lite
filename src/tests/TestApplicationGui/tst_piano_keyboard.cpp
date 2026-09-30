@@ -77,9 +77,24 @@ void ApplicationGuiTests::pianoKeyboardGlissandoAndHideReleasePressedNotes() {
     const QPoint whiteC(qRound(keyboard.width() * 0.85), 230);
     const QPoint blackCSharp(qRound(keyboard.width() * 0.3), 230);
     const QPoint whiteD(whiteC.x(), 210);
+    const auto before = context->m_coreRuntime->documentVersion();
+    QEvent baselineLeave(QEvent::Leave);
+    QApplication::sendEvent(&keyboard, &baselineLeave);
+    const auto idleKeys = keyboard.grab().toImage();
+    QVERIFY(!idleKeys.isNull());
+    QTest::mouseMove(keyboard.windowHandle(), whiteC);
+    const auto whiteHover = keyboard.grab().toImage().pixelColor(whiteC);
+    QVERIFY(whiteHover != idleKeys.pixelColor(whiteC));
+    QVERIFY(receipt.events.isEmpty());
+    QTest::mouseMove(keyboard.windowHandle(), blackCSharp);
+    const auto blackHover = keyboard.grab().toImage().pixelColor(blackCSharp);
+    QVERIFY(blackHover != idleKeys.pixelColor(blackCSharp));
+    QCOMPARE(keyboard.grab().toImage().pixelColor(whiteC), idleKeys.pixelColor(whiteC));
+    QVERIFY(receipt.events.isEmpty());
+    QApplication::sendEvent(&keyboard, &baselineLeave);
+    QCOMPARE(keyboard.grab().toImage(), idleKeys);
     QCursor::setPos(keyboard.mapToGlobal(whiteC));
     QCoreApplication::processEvents();
-    const auto before = context->m_coreRuntime->documentVersion();
     const auto moveTo = [&](const QPoint &position) {
         QMouseEvent move(QEvent::MouseMove, QPointF(position),
                          QPointF(keyboard.mapToGlobal(position)), Qt::NoButton, Qt::LeftButton,
@@ -90,6 +105,9 @@ void ApplicationGuiTests::pianoKeyboardGlissandoAndHideReleasePressedNotes() {
     QCOMPARE(receipt.events, (QList<NoteEvent>{
                                  {60, true}
     }));
+    const auto whitePressed = keyboard.grab().toImage().pixelColor(whiteC);
+    QVERIFY(whitePressed != idleKeys.pixelColor(whiteC));
+    QVERIFY(whitePressed != whiteHover);
     moveTo(blackCSharp);
     const QList<NoteEvent> crossedBlackKey{
         {60, true },
@@ -97,6 +115,9 @@ void ApplicationGuiTests::pianoKeyboardGlissandoAndHideReleasePressedNotes() {
         {61, true }
     };
     QCOMPARE(receipt.events, crossedBlackKey);
+    const auto blackPressed = keyboard.grab().toImage().pixelColor(blackCSharp);
+    QVERIFY(blackPressed != idleKeys.pixelColor(blackCSharp));
+    QVERIFY(blackPressed != blackHover);
     moveTo(blackCSharp + QPoint(1, 0));
     QCOMPARE(receipt.events, crossedBlackKey);
     moveTo(whiteD);
@@ -145,6 +166,7 @@ void ApplicationGuiTests::pianoKeyboardGlissandoAndHideReleasePressedNotes() {
         {60, false}
     };
     QCOMPARE(receipt.events, releasedOnLeave);
+    QCOMPARE(keyboard.grab().toImage(), idleKeys);
     QTest::mouseRelease(&keyboard, Qt::LeftButton, Qt::NoModifier, whiteC);
     QCOMPARE(receipt.events, releasedOnLeave);
 
