@@ -267,6 +267,12 @@ bool EditorPenController::handleTabletEvent(QTabletEvent *event) {
         m_barrelDownMs = m_clock.elapsed();
     const bool inContact = sample.pressure > 0.0;
     const bool probe = isProbeEnabled();
+    // Hover moves carry the barrel and inverted-tip state on the platforms
+    // whose Qt backend keeps it (the Windows watcher reads raw messages and
+    // ignores this feed). Without the forward, hovering never updates the
+    // erase hint there.
+    if (event->type() == QEvent::TabletMove && !inContact)
+        m_hover->observeHoverEvent(event);
     const auto swallow = [this, event] {
         event->accept();
         return true;
