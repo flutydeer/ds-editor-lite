@@ -467,7 +467,7 @@ bool TracksRhiWidget::event(QEvent *event) {
         return true;
     if (event->type() == QEvent::WindowDeactivate) {
         m_touchController->cancel();
-        m_penController->cancel();
+        m_penController->interrupt();
         discardDrag();
     }
     if (event->type() == QEvent::LanguageChange)
@@ -486,7 +486,7 @@ void TracksRhiWidget::showEvent(QShowEvent *event) {
 
 void TracksRhiWidget::hideEvent(QHideEvent *event) {
     m_touchController->cancel();
-    m_penController->cancel();
+    m_penController->interrupt();
     if (m_dragMode != DragMode::None)
         discardDrag();
     else

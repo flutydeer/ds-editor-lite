@@ -517,7 +517,7 @@ void TimeGraphicsView::showEvent(QShowEvent *event) {
 
 void TimeGraphicsView::hideEvent(QHideEvent *event) {
     m_touchController->cancel();
-    m_penController->cancel();
+    m_penController->interrupt();
     QGraphicsView::hideEvent(event);
     updateAutoPageTurnAvailability();
 }

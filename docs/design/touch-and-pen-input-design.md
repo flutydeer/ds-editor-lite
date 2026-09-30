@@ -471,6 +471,15 @@ Legacy 侧接入点集中在 `PianoRollGraphicsView` 的 `applyToolPitchEditMode
 - `EditorPointer::isPointerPressed()` 的安全网
 - 触摸路径：`EditorTouchController` 的吞事件判据不受影响（5.1 结论 4），但需实测确认触摸长按菜单、双指导航、手势惯性均无变化
 
+#### 9. 笔画的中断：系统打断=丢弃，离开放大量程=释放
+
+一条被接管的笔画有两种非正常结束，语义刻意不同：
+
+- **系统中断**（窗口失活、控件隐藏）：走 `EditorPenController::interrupt()`。**不合成任何 release**，改为调 `EditorPenTarget::abortPenEraseStroke()`——视图丢弃这笔擦除已暂存的全部内容并解除 `beginPenEraserStroke()` 的武装，进程级擦除意图与流计数归零。这和触摸被第二指打断（走 `cancelTouchPointerInteraction()`，丢弃）、ESC（Discard）是同一条语义：用户没有确认过的落库会让人惊讶。Legacy 侧武装（handler 换装、pitch/param 擦除模式）只有 `endPenEraserStroke()` 家族能还原，`discardAction()` 不负责还原，所以钩子实现为 `discardAction()`（丢弃）＋ `endPenEraseStroke()`（解除武装），两者均幂等。RHI 侧无 begin/end 武装，其调用点既有的 `abortPointerInteractions()` 覆盖同一职责。
+- **笔离开放大量程**（结束帧没到 widget）：走 `EditorPenController::cancel()`，维持"补一次合成 release"的释放语义。笔画物理上已经结束，已发生的内容照常提交，与鼠标在窗口外松手一致；菜单照旧不弹。
+
+在这次区分之前，失活/隐藏走的也是释放语义，后果是"被系统打断的删除悄悄落库"且与触摸取消不一致（2026-09-30 审查结论 P2）。Legacy 后端的 `TimeGraphicsView::event()` 在 `WindowDeactivate` 上对触摸层调 `cancel()`、对笔层调 `interrupt()`，与两个 RHI 调用点对齐。
+
 ### 5.5 侧键的第二条流：平台自己的右键
 
 侧键在 Windows 上不只是 tablet 事件里的一个按键，它同时是**一条独立的传统鼠标流**。真机日志（`TouchProbe`）里，侧键每一次按下/抬起都会在原生消息层产生完整的一套：
@@ -626,7 +635,7 @@ Windows 上所有笔统一走 WM_POINTER（Windows Ink），映射一致，所�
 两个测试目标都不需要硬件，把可判定的部分做成单测：
 
 - `src/tests/TestTouchGestures/` 覆盖 `EditorTouchGesture` 的全部判定：分流规则、点按与双击、长按两种走向、第二指中止、双指平移不漏缩放、逐点更新不产生伪捏合、两轴锁定与锁定保持、惯性速度估计、三指抬一指的导航交接、丢状态后的触点收养。
-- `src/tests/TestPenInput/` 覆盖 `EditorPenStroke` 与两张策略表：分流规则（哪类输入才接管）、笔画边界由接触状态给出（含抬笔那一帧压力为 0 不误判为悬停、以及抬笔被报成 move 的情形）、中途的侧键假 press/release 既不改语义也不结束笔画、侧键锁定后中途松键不改变本笔画、反端与"侧键+拖动"合成为带擦除意图的左键笔画、侧键 slop 两侧的走向（补发按下 vs 要菜单）、不支持擦除的工具整段吞掉且不会退化成菜单、取消只释放不弹菜单，以及两张策略表的每一条映射。
+- `src/tests/TestPenInput/` 覆盖 `EditorPenStroke` 与两张策略表：分流规则（哪类输入才接管）、笔画边界由接触状态给出（含抬笔那一帧压力为 0 不误判为悬停、以及抬笔被报成 move 的情形）、中途的侧键假 press/release 既不改语义也不结束笔画、侧键锁定后中途松键不改变本笔画、反端与"侧键+拖动"合成为带擦除意图的左键笔画、侧键 slop 两侧的走向（补发按下 vs 要菜单）、不支持擦除的工具整段吞掉且不会退化成菜单、取消只释放不弹菜单、系统中断（`aborted()`）不产生任何意图且随后笔画照常起笔，以及两张策略表的每一条映射。
 
 指令：`ctest -R "TestTouchGestures|TestPenInput"`，或直接跑 `build/Debug/out/bin/` 下的同名可执行文件。
 

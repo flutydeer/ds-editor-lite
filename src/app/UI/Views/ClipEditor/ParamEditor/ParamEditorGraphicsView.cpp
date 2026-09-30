@@ -245,6 +245,16 @@ void ParamEditorGraphicsView::endPenEraserStroke() {
     m_foreground->setTraceMode(m_editMode == ParamEditorEditMode::Trace);
 }
 
+void ParamEditorGraphicsView::abortPenEraseStroke() {
+    // The system took the stroke away: whatever the foreground staged so far
+    // is dropped (a later synthetic release would be harmless but there will
+    // not be one), and the borrowed erase mode is handed back to the tool.
+    // Both halves are idempotent, so an earlier discardAction() on the same
+    // interruption costs nothing.
+    discardAction();
+    endPenEraserStroke();
+}
+
 void ParamEditorGraphicsView::discardAction() {
     if (m_speakerMixMode)
         return;

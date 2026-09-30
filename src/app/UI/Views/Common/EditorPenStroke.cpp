@@ -165,6 +165,11 @@ EditorPenStroke::Intents EditorPenStroke::released(const Sample &sample) {
     return intents;
 }
 
+void EditorPenStroke::aborted() {
+    if (m_phase == Phase::Stroke)
+        reset();
+}
+
 EditorPenStroke::Intents EditorPenStroke::feed(const Report report, const Sample &sample) {
     if (m_phase != Phase::Stroke)
         return Intents();

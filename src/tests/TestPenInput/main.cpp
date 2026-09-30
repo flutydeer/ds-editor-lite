@@ -335,6 +335,42 @@ private slots:
         QVERIFY(intents.at(0).erase);
     }
 
+    // --- Interrupt -----------------------------------------------------------
+
+    // A system interruption (window deactivated, widget hidden) tears the
+    // stroke down without producing anything: no release intent follows, so
+    // the view never commits what the erase staged, and the next press starts
+    // a clean stroke.
+    void anInterruptedStrokeEmitsNothingAndRecovers() {
+        Stroke stroke;
+        stroke.pressed(penSample({100, 100}, 0.5, Qt::RightButton), true);
+        stroke.feed(Stroke::Report::Move, penSample({140, 100}, 0.5, Qt::RightButton));
+        stroke.aborted();
+        QCOMPARE(stroke.phase(), Stroke::Phase::Idle);
+
+        // Noise that arrives after the interruption belongs to no stroke.
+        QVERIFY(stroke.feed(Stroke::Report::Move, penSample({180, 100}, 0.5, Qt::RightButton))
+                    .isEmpty());
+        QVERIFY(stroke.feed(Stroke::Report::Release, penSample({180, 100}, 0.0, Qt::RightButton))
+                    .isEmpty());
+
+        // The next stroke runs its full course as if nothing had happened.
+        QVERIFY(stroke.pressed(penSample({60, 60}, 0.5, Qt::RightButton), true).isEmpty());
+        stroke.feed(Stroke::Report::Move, penSample({160, 60}, 0.5, Qt::RightButton));
+        const auto released =
+            stroke.feed(Stroke::Report::Release, penSample({160, 60}, 0.0, Qt::RightButton));
+        QCOMPARE(static_cast<int>(released.size()), 1);
+        QCOMPARE(released.at(0).type, Type::End);
+        QVERIFY(released.at(0).erase);
+    }
+
+    // Aborting an idle stroke is a no-op.
+    void abortingAnIdleStrokeChangesNothing() {
+        Stroke stroke;
+        stroke.aborted();
+        QCOMPARE(stroke.phase(), Stroke::Phase::Idle);
+    }
+
     // --- Strategy tables -----------------------------------------------------
 
     void thePianoRollTableHasNoGaps() {

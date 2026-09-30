@@ -47,6 +47,15 @@ public:
     }
     virtual void endPenEraserStroke() {
     }
+    // Tear down an erase stroke the system interrupted (window deactivated,
+    // widget hidden) without committing it: discard whatever the in-flight
+    // stroke has done so far and un-arm everything beginPenEraserStroke() set.
+    // The normal end of a stroke goes through endPenEraserStroke() instead,
+    // and the pen leaving the digitizer range mid-stroke releases the stroke
+    // through EditorPenController::cancel(), so an implementation never has to
+    // guess which ending it is serving.
+    virtual void abortPenEraseStroke() {
+    }
 };
 
 // The per-view policy tables, as pure functions so src/tests/TestPenInput can

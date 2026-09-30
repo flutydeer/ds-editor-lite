@@ -1317,6 +1317,16 @@ void PianoRollGraphicsView::endPenEraserStroke() {
     d->endPenEraseStroke();
 }
 
+void PianoRollGraphicsView::abortPenEraseStroke() {
+    // The system took the stroke away: drop the erase it staged so far and
+    // hand the handler and the pitch editor back to the armed tool. Both halves
+    // are idempotent, so an earlier discardAction() on the same interruption
+    // costs nothing.
+    Q_D(PianoRollGraphicsView);
+    discardAction();
+    d->endPenEraseStroke();
+}
+
 void PianoRollGraphicsViewPrivate::restoreHandler() {
     m_currentHandler = m_handlers.value(m_editMode, nullptr);
 }

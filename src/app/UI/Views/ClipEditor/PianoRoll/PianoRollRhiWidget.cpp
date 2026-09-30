@@ -3282,7 +3282,7 @@ bool PianoRollRhiWidget::event(QEvent *event) {
     }
     if (event->type() == QEvent::WindowDeactivate) {
         d->touchController->cancel();
-        d->penController->cancel();
+        d->penController->interrupt();
         d->abortPointerInteractions();
     }
     if (event->type() == QEvent::UngrabMouse &&
@@ -3298,7 +3298,7 @@ bool PianoRollRhiWidget::event(QEvent *event) {
 
 void PianoRollRhiWidget::hideEvent(QHideEvent *event) {
     d->touchController->cancel();
-    d->penController->cancel();
+    d->penController->interrupt();
     d->hideLyricToolTip();
     d->disarmEdgeAutoScroll();
     d->discardNoteInteraction();

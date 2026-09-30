@@ -122,6 +122,7 @@ protected:
     [[nodiscard]] EditorPenEraser penEraserAction() const override;
     void beginPenEraserStroke() override;
     void endPenEraserStroke() override;
+    void abortPenEraseStroke() override;
 
 private:
     int m_noteFontPixelSize = 13;

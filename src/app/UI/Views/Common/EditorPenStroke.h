@@ -129,10 +129,17 @@ public:
     // See docs/design/touch-and-pen-input-design.md §5.1.
     Intents feed(Report report, const Sample &sample);
 
-    // The stroke was aborted (window deactivated, widget hidden, gesture
-    // cancelled, pen out of range). Releasing an erase stroke, never opening a
-    // menu.
+    // The stroke ended without its release reaching the widget (the pen was
+    // carried out of range with the tip down). Releasing an erase stroke,
+    // never opening a menu: the stroke physically ended, so what it did so
+    // far stands, exactly like a mouse release outside the window.
     Intents cancelled();
+
+    // The stroke was interrupted by the system (window deactivated, widget
+    // hidden). Tears the stroke down without producing anything: no release
+    // is synthesized, so nothing the stroke did so far gets committed — the
+    // same bargain a second finger gets on the touch side.
+    void aborted();
 
     [[nodiscard]] Phase phase() const;
     [[nodiscard]] Input input() const;

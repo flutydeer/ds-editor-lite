@@ -536,3 +536,25 @@ void EditorPenController::cancel() {
     m_platformMenuPending = false;
     clearHoverCursor();
 }
+
+void EditorPenController::interrupt() {
+    // No synthetic release leaves this function: the view tears its erase
+    // state down through the abort hook instead of committing it on a release
+    // it never asked for. The erase intent ends only after the hook ran, so
+    // the view is still allowed to ask what the stroke was doing.
+    if (m_eraseIntentActive) {
+        m_target->abortPenEraseStroke();
+        EditorPointer::endPenEraseIntent();
+        m_eraseIntentActive = false;
+    }
+    if (m_streamActive) {
+        EditorPointer::endPenStream();
+        m_streamActive = false;
+    }
+    m_stroke.aborted();
+    m_foreignContact = false;
+    m_foreignBarrelNoise = false;
+    m_trailingRelease = false;
+    m_platformMenuPending = false;
+    clearHoverCursor();
+}

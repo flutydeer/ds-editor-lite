@@ -52,8 +52,16 @@ public:
     // when the event was consumed and must not reach the base class.
     bool handleEvent(QEvent *event);
 
-    // Drop everything in flight (hide/deactivate/tool change).
+    // The pen left the digitizer range with a stroke claimed and its end frame
+    // never reached the widget: release the stroke in flight, exactly like a
+    // mouse release outside the window. Never opens a menu.
     void cancel();
+
+    // The system interrupted a claimed stroke (window deactivated, widget
+    // hidden): tear it down without synthesizing a release, so nothing the
+    // stroke did so far gets committed — the in-flight erase is discarded
+    // through EditorPenTarget::abortPenEraseStroke().
+    void interrupt();
 
     [[nodiscard]] bool isStrokeActive() const;
 
