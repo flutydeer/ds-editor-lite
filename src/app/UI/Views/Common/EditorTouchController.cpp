@@ -175,7 +175,11 @@ bool EditorTouchController::handleEvent(QEvent *event) {
                 qDebug().noquote() << QStringLiteral("touch cancel (phase was %1, tracked=%2)")
                                           .arg(QLatin1String(phaseName(m_gesture.phase())))
                                           .arg(m_gesture.activePointCount());
-            if (!isGestureActive())
+            // A stream an inline text editor took over never reaches the
+            // gesture machine, so an active relay has to count as active here
+            // too: without it the cancel would leave the line edit holding a
+            // synthetic press and the relay id latched forever.
+            if (!isGestureActive() && !m_textRelayActive)
                 return false;
             cancel();
             event->accept();
