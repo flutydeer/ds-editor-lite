@@ -1,17 +1,16 @@
-// Which packages an analyser comes from, and which directory makes one exist.
+// Tests the analyzer lookup: which packages provide analyzers, and which package root makes an
+// analyzer available.
 //
-// The editor asks the engine for analysers by interface and shows what comes back; it has no other
-// way to know whether the machine can transcribe notes or draw a pitch curve. That makes the
-// lookup itself worth a test, because both of its failure modes are silent: a package in a
-// directory the scan does not walk is simply absent from the list, and a package that refuses its
-// own declaration is absent too, which is only reassuring if a healthy package beside it still
-// appears.
+// The editor queries the engine for analyzers by interface and lists the result. The listing is
+// the only indication of whether note transcription and pitch extraction are available. Both
+// failure modes of the lookup are silent: a package in a directory outside the scan roots is absent
+// from the listing, and a package with a rejected declaration is also absent. The second absence
+// is only meaningful if a valid package next to the rejected package is still listed.
 //
-// The first of those was a real morning: the analyser packages had been installed next to the
-// voicebanks, which is where a dependency is looked up and not where packages are scanned, and the
-// editor showed an empty chooser with nothing in the log. So the fixtures below are deliberately
-// arranged around that line -- a valid package in each of the two directories, and the assertion
-// that only the scanned one is listed.
+// The first failure mode has occurred in practice: the analyzer packages were installed in the
+// dependency root, where dependencies are resolved but packages are not scanned, and the editor
+// showed an empty chooser without a log entry. The fixtures therefore place a valid package in each
+// of the two roots, and the test asserts that only the package in the scan root is listed.
 
 #include "SynthrtEngine.h"
 
@@ -74,8 +73,8 @@ namespace {
                "}\n";
     }
 
-    // The pitch declaration as the rmvpe package ships it: one rate, one hop, one channel, and a
-    // model path the loader only resolves.
+    // Returns the pitch declaration in the form shipped by the rmvpe package: one sample rate, one
+    // hop, one channel, and a model path that the loader resolves without opening the model.
     std::string f0Declaration(const std::string &name) {
         return "{\n"
                "    \"interface\": \"" +
@@ -98,9 +97,10 @@ namespace {
                "}\n";
     }
 
-    // The note declaration as the game package ships it. \a alignable is the one thing the two
-    // callers of this differ in: a declaration that promises note texts needs the model that turns
-    // a duration into a boundary, and promising it without that model is the refusal under test.
+    // Returns the note declaration in the form shipped by the game package. \a alignable is the
+    // only difference between the two callers: a declaration that exports supportsKnownNotes
+    // requires the durationToBoundary model, and the rejection of such a declaration without that
+    // model is under test.
     std::string noteDeclaration(const std::string &name, bool alignable) {
         std::string configuration = "    \"configuration\": {\n"
                                     "        \"encoder\": \"../../placeholder.onnx\",\n"
@@ -142,8 +142,8 @@ namespace {
         const fs::path package = root / directory;
         writeFile(package / "desc.json", descJson(id, contributionId, version));
         writeFile(package / "inferences" / contributionId / "inference.json", declaration);
-        // Nothing opens a model while a package is being listed, but the declaration names one, so
-        // the shape on disk is complete.
+        // Listing a package opens no model, but the declaration references a model file; the
+        // placeholder keeps the package layout complete.
         writeFile(package / "placeholder.onnx", "not a model\n");
     }
 
@@ -169,7 +169,7 @@ namespace {
 int main(int argc, char *argv[]) {
     QCoreApplication app(argc, argv);
 
-    // The stored form of the user's analyser selection. A reference saved while analysers had a
+    // Stored form of the analyzer selection of the user. A reference saved while analyzers had a
     // dedicated category still identifies the same package and contribution.
     {
         using lite::synthrt::AnalyzerReference;
@@ -198,23 +198,23 @@ int main(int argc, char *argv[]) {
     const fs::path dependencyRoot = fixture / "dependencies";
     fs::remove_all(fixture);
 
-    // Four packages where packages are looked for.
+    // Packages in the scan root: four package ids, one of them in two versions.
     writePackage(scanRoot, "otter-rmvpe", "otter/rmvpe", "f0", f0Declaration("RMVPE"));
-    // A second version of the same package. A reference names no version, so the listing and
-    // createAnalyzer() must both settle on the highest one, whatever order the scan finds them in.
+    // A second version of the same package. A reference specifies no version; therefore the
+    // listing and createAnalyzer() must both select the highest version, regardless of scan order.
     writePackage(scanRoot, "otter-rmvpe-next", "otter/rmvpe", "f0", f0Declaration("RMVPE2"),
                  "0.2.0.0");
     writePackage(scanRoot, "otter-game", "otter/game", "note", noteDeclaration("GAME", true));
-    // A second note package that differs only in its name: it proves the listing is not deduplicated
-    // by interface, which is what makes the third one's absence mean something.
+    // A second note package that differs only in its name. It verifies that the listing is not
+    // deduplicated by interface, which makes the absence of the third note package meaningful.
     writePackage(scanRoot, "example-note2", "example/note2", "note", noteDeclaration("GAME2", true));
-    // Promises note texts and names no model that can align them, so the provider refuses it.
+    // Exports supportsKnownNotes without a durationToBoundary model, so the provider rejects it.
     writePackage(scanRoot, "example-broken", "example/broken", "note", noteDeclaration("BROKEN", false));
-    // One package of the same kind where a dependency is looked up, and never where packages are
-    // scanned: this is the arrangement that once left the chooser empty.
+    // A package of the same kind in the dependency root, which is never scanned for packages. This
+    // arrangement previously left the chooser empty.
     writePackage(dependencyRoot, "example-dep", "example/dep", "f0", f0Declaration("DEP"));
-    // A directory the scan may not look into. A filesystem query that throws would end the
-    // process on the initialization thread, so this must become a reported problem instead.
+    // A directory that the scan cannot read. A throwing filesystem query would terminate the
+    // process on the initialization thread; therefore the scan must report a problem instead.
     const fs::path locked = scanRoot / "locked";
     fs::create_directories(locked);
     fs::permissions(locked, fs::perms::none);
@@ -229,14 +229,20 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    // Booted the way the editor boots: the plugin tree and the ONNX Runtime this build deployed
-    // under the application directory. Naming the copy under vcpkg's installed tree instead does
-    // not work here, because that one has no runtime beside the driver and the driver does not load
-    // without it.
+    // Initialization as in the editor: the plugin tree and the ONNX Runtime that this build
+    // deployed under the application directory. The copy in the vcpkg installed tree is unusable
+    // here, because that tree has no runtime next to the driver and the driver does not load
+    // without the runtime.
     const fs::path pluginRoot = SynthrtEngine::defaultPluginRoot();
     const fs::path runtimePath = SynthrtEngine::defaultRuntimePath();
     if (!fs::is_directory(runtimePath)) {
-        std::cerr << "no ONNX Runtime deployed at " << runtimePath << ", skipping\n";
+        // The post-build steps of the DsEditorLite target deploy the runtime and the plugin tree
+        // next to the executables; this test does not. A tree in which only the tests were built
+        // contains neither, and a CI job that builds only the tests skips this test on every run.
+        // Building the application target first enables the test.
+        std::cerr << "no ONNX Runtime deployed at " << runtimePath
+                  << ": build the DsEditorLite target first, which deploys the plugin tree and "
+                     "the runtime next to the test executables; skipping\n";
         unlock();
         fs::remove_all(fixture);
         return 77;
@@ -247,18 +253,18 @@ int main(int argc, char *argv[]) {
     expect(engine->initialize(voicebanks, dependencies, QStringLiteral("CPU"), -1, pluginRoot, runtimePath),
            "the engine should initialize");
     if (!engine->initialized()) {
-        std::cerr << "the engine did not initialize, nothing below would mean anything\n";
+        std::cerr << "the engine did not initialize; the remaining checks cannot run\n";
         return 1;
     }
 
-    // A rescan that finds the same packages does not republish the catalogue, in either mode.
+    // A rescan that finds the same packages does not republish the catalog in either mode.
     const auto generation = engine->catalogGeneration();
     {
         const auto reused = engine->refreshVoicebanks(
             {scanRoot}, nullptr, SynthrtEngine::RescanMode::ReuseLoaded);
         expect(bool(reused), "a rescan that reuses the loaded packages should succeed");
         expect(engine->catalogGeneration() == generation,
-               "a rescan of an unchanged set should keep the catalogue generation");
+               "a rescan of an unchanged set should keep the catalog generation");
     }
 
     // The unreadable directory is reported and does not hide the packages beside it.
@@ -270,58 +276,58 @@ int main(int argc, char *argv[]) {
             std::any_of(problems.begin(), problems.end(), [&locked](const auto &problem) {
                 return problem.path == locked;
             });
-        // A process with the permission to read everything, such as one run as root, cannot
-        // reproduce the condition, so only a denied read is required to be reported.
+        // A process with permission to read every file, such as a process run as root, cannot
+        // reproduce the condition; therefore a problem is required only if the read is denied.
         std::error_code probe;
         (void) fs::is_regular_file(locked / "desc.json", probe);
         expect(!probe || reported, "an unreadable entry should be reported as a problem");
     }
     expect(engine->catalogGeneration() == generation,
-           "a reload of an unchanged set should keep the catalogue generation");
+           "a reload of an unchanged set should keep the catalog generation");
 
     // A package that appears between two scans changes the set and republishes the catalogue.
     writePackage(scanRoot, "example-late", "example/late", "f0", f0Declaration("LATE"));
     expect(bool(engine->refreshVoicebanks({scanRoot})), "a rescan with a new package should succeed");
     expect(engine->catalogGeneration() != generation,
-           "a rescan that finds a new package should change the catalogue generation");
+           "a rescan that finds a new package should change the catalog generation");
     fs::remove_all(scanRoot / "example-late");
     expect(bool(engine->refreshVoicebanks({scanRoot})), "a rescan without the new package should succeed");
 
     const auto pitch = referencesOf(engine->analyzers(lite::synthrt::f0Contract()));
     const auto notes = referencesOf(engine->analyzers(lite::synthrt::noteContract()));
 
-    std::cout << "  pitch analysers: " << join(pitch) << "\n";
-    std::cout << "  note analysers:  " << join(notes) << "\n";
+    std::cout << "  pitch analyzers: " << join(pitch) << "\n";
+    std::cout << "  note analyzers:  " << join(notes) << "\n";
 
-    // Scanned and listed, with the reference the editor stores.
+    // Scanned packages are listed with the reference that the editor stores.
     expect(pitch == std::vector<std::string>{"otter/rmvpe:inference/f0"},
            "the scanned pitch package should be listed alone, got " + join(pitch));
     expect(notes == std::vector<std::string>({"example/note2:inference/note", "otter/game:inference/note"}),
            "both scanned note packages should be listed, got " + join(notes));
 
-    // The refusal is one package's, and one package's only.
+    // The rejection affects only the rejected package.
     expect(std::find(notes.begin(), notes.end(), "example/broken:inference/note") == notes.end(),
-           "a package that refuses its declaration should not be listed");
-    // Same declaration, same interface, same directory -- only the other root.
+           "a package with a rejected declaration should not be listed");
+    // Same declaration, interface and directory layout; only the package root differs.
     expect(std::find(pitch.begin(), pitch.end(), "example/dep:inference/f0") == pitch.end(),
-           "a package in the dependency root should not be listed as an analyser");
+           "a package in the dependency root should not be listed as an analyzer");
     expect(engine->analyzers().size() == 3,
-           "three analysers in total, got " + std::to_string(engine->analyzers().size()));
+           "three analyzers in total expected, got " + std::to_string(engine->analyzers().size()));
 
-    // The reference is built from the parts a chooser shows, so they are checked as well.
+    // The reference is built from the fields shown in a chooser; these fields are checked as well.
     const auto listed = engine->analyzers(lite::synthrt::f0Contract());
     if (listed.size() == 1) {
-        expect(listed.front().packageId == "otter/rmvpe", "the package id should be the declaration's own");
-        expect(listed.front().contributionId == "f0", "the contribution id should be the declaration's own");
+        expect(listed.front().packageId == "otter/rmvpe", "the package id should match the declaration");
+        expect(listed.front().contributionId == "f0", "the contribution id should match the declaration");
         expect(listed.front().variant == "rmvpe", "the variant should come from the declaration");
         expect(listed.front().packageVersion == stdc::VersionNumber(0, 2, 0, 0),
                "the listing should name the highest loaded version of the package");
     }
-    expect(listed.size() == 1, "two versions of one package should be listed once, got " +
+    expect(listed.size() == 1, "two versions of a package should be listed once, got " +
                                    std::to_string(listed.size()));
 
-    // A note analyser carries the languages its exports declare, and the language an execution
-    // uses follows from them.
+    // A note analyzer carries the languages declared in its exports, and the language of an
+    // execution is derived from them.
     for (const auto &entry : engine->analyzers(lite::synthrt::noteContract())) {
         if (entry.packageId != "otter/game") {
             continue;
@@ -338,7 +344,7 @@ int main(int argc, char *argv[]) {
     }
     if (!listed.empty()) {
         expect(listed.front().languages.empty() && listed.front().effectiveLanguage("fra") == "fra",
-               "a pitch analyser should distinguish no languages");
+               "a pitch analyzer should declare no languages");
     }
 
     // createAnalyzer() resolves the reference to the version the listing shows.
@@ -346,13 +352,13 @@ int main(int argc, char *argv[]) {
         auto lease = engine->createAnalyzer(QStringLiteral("otter/rmvpe:inference/f0"));
         if (lease) {
             expect(lease->package.version() == stdc::VersionNumber(0, 2, 0, 0),
-                   "the analyser should come from the highest loaded version");
+                   "the analyzer should come from the highest loaded version");
         } else {
-            // The fixture model is a placeholder, so creating the executive may fail when it opens
-            // the model. The error then names the model of the version that was chosen.
+            // The fixture model is a placeholder, so creating the executive may fail when the model
+            // is opened. The error then contains the model path of the selected version.
             const auto why = lease.error().toString();
             expect(why.find("otter-rmvpe-next") != std::string::npos,
-                   "the analyser should come from the highest loaded version: " + why);
+                   "the analyzer should come from the highest loaded version: " + why);
         }
     }
 

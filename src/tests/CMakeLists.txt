@@ -31,12 +31,14 @@ add_subdirectory(TestHeadlessProcessIntegration)
 add_subdirectory(TestElasticAnimation)
 add_subdirectory(TestExpected)
 add_subdirectory(TestAudioSlicer)
-# The conversion, catalog, bridge and engine targets are gone: the first two asserted a subset of
-# what the audit asserts, and the last two stage their fixture only when WOLF_FIXTURE_DIR is set,
-# which nothing in this repository sets -- so they never ran.
+# No conversion, catalog, bridge or engine test targets exist. The conversion and catalog
+# assertions are a subset of the TestVoicebankAudit assertions. The bridge and engine tests staged
+# their fixture only if WOLF_FIXTURE_DIR was set, and no script in this repository sets it;
+# therefore these tests never ran.
 add_subdirectory(TestVoicebankLanguages)
 add_subdirectory(TestVoicebankAudit)
 add_subdirectory(TestAnalyzerPackages)
+add_subdirectory(TestOtterExtraction)
 add_subdirectory(TestSpeakerMix)
 add_subdirectory(TestDocumentWorkflow)
 add_subdirectory(TestStateMachine)

@@ -3,8 +3,8 @@
 # editor deploys and passes to SynthUnit::setPluginPaths.
 #
 # The language resource packages are data and are not provided by this port. They are released
-# separately and are installed by wolf's wolf-lang-packages port or located through
-# LITE_WOLF_LANG_PACKAGES.
+# separately and are installed by the wolf-lang-packages overlay port in this directory or located
+# through LITE_WOLF_LANG_PACKAGES.
 
 # A fetch by commit requires no archive hash. The pin is a commit so that a rebuild uses the same
 # sources. HEAD_REF names the branch that contains the commit.

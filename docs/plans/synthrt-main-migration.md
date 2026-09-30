@@ -88,7 +88,8 @@ CMake 包都输出 `<LIB>_PLUGINS_DIR`（`DSINFER_PLUGINS_DIR` / `WOLF_PLUGINS_D
 当前为 0.1.2.0）解压到 `share/wolf/packages` 并导出 `WOLF_LANG_PACKAGES_DIR`。本仓库在
 `scripts/vcpkg-ports/wolf-lang-packages` 中保存该端口的副本（来自 wolf 仓库的同名目录，更换发行时须整体重新复制），
 manifest 请求全部 13 门语言与 zxx，因此干净检出安装的是发布件。`LITE_WOLF_LANG_PACKAGES`（或环境变量
-`WOLF_LANG_PACKAGES_SOURCE`）仍可覆盖该路径；端口未安装时回退到同级检出的 `../wolf/build/lang-packages`。
+`WOLF_LANG_PACKAGES_SOURCE`）仍可覆盖该路径；端口未安装时，只有打开 `LITE_WOLF_LANG_PACKAGES_SIBLING_FALLBACK`
+（默认关闭）才回退到同级检出的 `../wolf/build/lang-packages`，避免 CI 或打包机误用旁边检出的开发产物。
 `LITE_WOLF_LANG_PACKAGES` 是缓存变量，旧构建树中已缓存的路径必须清除，构建才会改用端口。`LITE_INSTALL=ON` 的树（两个 packaging 脚本走的 preset）
 解析不到语言包时 configure 直接失败，开发树只警告。按 `*/desc.json` 逐个拷贝，不拷
 那个目录本身：那是个构建树，包旁边还有同名 zip 和 `verify/` 下每个包的第二份解包副本，整目录拷过去

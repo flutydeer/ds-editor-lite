@@ -5,16 +5,18 @@ param(
     [string]$InnoSetupPath = "",
     [string]$VcRedistPath = "",
 
-    # An unpacked copy of the wolf language packages to stage: one subdirectory per package, each
-    # holding its desc.json. This route installs a tree (LITE_INSTALL=ON), and CMake refuses to
-    # configure such a tree when nothing names those packages. Left empty, this script passes no
-    # -D and CMake resolves them its own way -- the WOLF_LANG_PACKAGES_SOURCE environment
-    # variable, an installed wolf-lang-packages package, or a sibling wolf checkout; passed here,
-    # LITE_WOLF_LANG_PACKAGES outranks all of those.
-    # It only decides whether a -D goes out: it never clears the build directory's CMake cache,
-    # so a cache that already holds LITE_WOLF_LANG_PACKAGES keeps feeding it to this preset's
-    # binaryDir (build\PackageDmlRelease) even on a default run; delete that cache, or configure
-    # once with an explicit empty -DLITE_WOLF_LANG_PACKAGES=, to let the convention decide again.
+    # Directory of unpacked wolf language packages to stage: one subdirectory per package, each
+    # containing its desc.json. This route installs a tree (LITE_INSTALL=ON), and CMake
+    # configuration of such a tree fails if no source for the packages is set. If this parameter is
+    # empty, the script passes no -D option and CMake resolves the packages from the
+    # WOLF_LANG_PACKAGES_SOURCE environment variable, an installed wolf-lang-packages package or,
+    # if LITE_WOLF_LANG_PACKAGES_SIBLING_FALLBACK is ON, a sibling wolf checkout. If this parameter
+    # is set, LITE_WOLF_LANG_PACKAGES takes precedence over all of those sources.
+    # The parameter controls only whether the -D option is passed. The script does not clear the
+    # CMake cache of the build directory, so a cache that already contains LITE_WOLF_LANG_PACKAGES
+    # keeps supplying the value in the binaryDir of this preset (build\PackageDmlRelease) even
+    # on a default run. Deleting that cache, or configuring once with an explicit empty
+    # -DLITE_WOLF_LANG_PACKAGES=, restores the resolution by convention.
     [string]$WolfLangPackages = "",
 
     [switch]$SkipVcpkgInstall,
@@ -233,12 +235,31 @@ function Write-InnoScript {
     Set-Content -LiteralPath $DestinationPath -Value $script -Encoding UTF8
 }
 
+# Reads the deployed paths that the engine locates at run time from
+# src/libs/SynthrtEngine/DeployLayout.h, which defines them once. cmake/LiteBuildApi.cmake parses
+# the same definitions with the same pattern. Reading the definitions instead of duplicating them
+# here ensures that a changed layout cannot leave this check verifying an outdated layout.
+function Get-DeployLayout {
+    $header = Join-Path $RepoRoot "src\libs\SynthrtEngine\DeployLayout.h"
+    $layout = @{}
+    foreach ($line in Select-String -LiteralPath $header -Pattern 'inline constexpr char ([A-Z_]+)\[\] = "([^"]*)";') {
+        $groups = $line.Matches[0].Groups
+        $layout[$groups[1].Value] = $groups[2].Value -replace '/', '\'
+    }
+    foreach ($name in @("ONNX_RUNTIME_DIR", "CUDA_RUNTIME_SUBDIR", "LANGUAGE_PACKAGES_DIR")) {
+        if (-not $layout.ContainsKey($name)) {
+            throw "DeployLayout.h does not define $name in the form this script parses"
+        }
+    }
+    return $layout
+}
+
 function Assert-StagingLayout {
     # The three plugins\<library> entries are the host plugin trees. cmake/LiteBuildApi.cmake
-    # copies each one only when the vcpkg tree carries it and merely warns when it does not, so
-    # without them an installer can be built and shipped with a whole tree (dsinfer, wolf or
-    # otter) missing while every step still reports success. build-portable.ps1 asserts the same
-    # list below its $AppDir.
+    # copies each tree only if the vcpkg tree contains it and only warns if it is absent. Without
+    # these entries an installer could be built and shipped without an entire plugin tree
+    # (dsinfer, wolf or otter) while every step reports success. build-portable.ps1 verifies the
+    # same list below its $AppDir.
     $requiredPaths = @(
         "bin\$($ProductMetadata.executableBaseName).exe",
         "bin\plugins",
@@ -248,7 +269,7 @@ function Assert-StagingLayout {
         "bin\plugins\otter",
         "bin\Resources",
         "bin\configs",
-        "bin\wolf\packages"
+        "bin\$($DeployLayout.LANGUAGE_PACKAGES_DIR)"
     )
 
     foreach ($path in $requiredPaths) {
@@ -274,7 +295,8 @@ function Assert-StagingLayout {
     # Flavor assertion: the staging tree must agree with -EnableCuda. The CMake
     # runtime gate already enforces this at build/install time; this is the
     # packaging-boundary net so a stale vcpkg tree can never slip through.
-    $cudaRuntimeDir = Join-Path $ResolvedStageDir "bin\plugins\dsinfer\inferencedrivers\onnx\runtime\cuda"
+    $cudaRuntimeDir = Join-Path $ResolvedStageDir (
+        "bin\$($DeployLayout.ONNX_RUNTIME_DIR)\$($DeployLayout.CUDA_RUNTIME_SUBDIR)")
     $cudaPresent = Test-Path -LiteralPath $cudaRuntimeDir
     if ($EnableCuda -and -not $cudaPresent) {
         throw ("CUDA staging is missing the ONNX Runtime cuda/ runtimes. " +
@@ -352,6 +374,7 @@ New-Item -ItemType Directory -Force -Path $ResolvedOutputDir, $WorkDir | Out-Nul
 
 $MetadataPath = Join-Path $WorkDir "product-metadata.json"
 $ProductMetadata = Get-ProductMetadata -DestinationPath $MetadataPath
+$DeployLayout = Get-DeployLayout
 
 if (-not $VcRedistPath) {
     $VcRedistPath = $env:VC_REDIST_X64
@@ -407,9 +430,10 @@ if (-not $NoBuild) {
             $configureArgs += "-DLITE_ENABLE_CUDA=ON"
         }
         if ($WolfLangPackages) {
-            # Only when the caller named one: leaving the option out keeps CMake's own resolution
-            # chain -- the environment variable, the port, the sibling checkout -- in charge.
-            # It does not clear a cache that already holds the value (see the parameter help).
+            # Passed only if the caller sets a value. Omitting the option leaves the CMake
+            # resolution chain (the environment variable, the port, the sibling checkout) in
+            # effect. It does not clear a cache that already contains the value (see the
+            # parameter help).
             $configureArgs += "-DLITE_WOLF_LANG_PACKAGES=$WolfLangPackages"
         }
         Invoke-Process "cmake" $configureArgs

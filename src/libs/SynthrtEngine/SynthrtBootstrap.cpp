@@ -1,5 +1,7 @@
 #include "SynthrtBootstrap.h"
 
+#include "DeployLayout.h"
+
 #include <utility>
 
 #include <synthrt/SVS/InferenceContrib.h>
@@ -33,35 +35,35 @@ namespace lite::synthrt {
 
     class Bootstrap::Impl {
     public:
-        // The factory owns the loaded driver plugin and must outlive the driver it created, which
-        // the unit owns. Declared first so it is destroyed last.
+        // The factory owns the loaded driver plugin and must outlive the driver that it created,
+        // which the unit owns. Declared first so that it is destroyed last.
         ds::InferenceDriverFactory drivers;
         srt::SynthUnit unit;
         bool driver = false;
     };
 
     std::vector<PluginCategory> pluginCategories(const fs::path &pluginRoot) {
-        const auto plugins = pluginRoot / "plugins";
+        // The directories are defined in DeployLayout.h, which the deployment also parses.
         return {
             {srt::InferenceCategory::NAME,
-             {plugins / "dsinfer/inferenceinterpreters", plugins / "wolf/inferenceinterpreters",
-              plugins / "otter/inferenceinterpreters"}},
-            {srt::SingerCategory::NAME,     {plugins / "dsinfer/singerproviders"}},
-            {wolf::LINGUIST_CATEGORY,       {plugins / "wolf/linguistproviders"}},
+             {pluginRoot / layout::DSINFER_INFERENCE_DIR, pluginRoot / layout::WOLF_INFERENCE_DIR,
+              pluginRoot / layout::OTTER_INFERENCE_DIR}},
+            {srt::SingerCategory::NAME, {pluginRoot / layout::DSINFER_SINGER_DIR}},
+            {wolf::LINGUIST_CATEGORY, {pluginRoot / layout::WOLF_LINGUIST_DIR}},
         };
     }
 
     fs::path driverDirectory(const fs::path &pluginRoot) {
-        return pluginRoot / "plugins/dsinfer/inferencedrivers";
+        return pluginRoot / layout::INFERENCE_DRIVER_DIR;
     }
 
     srt::Expected<std::unique_ptr<Bootstrap>>
         Bootstrap::create(const fs::path &pluginRoot, const std::vector<fs::path> &packagePaths,
                           const fs::path &runtimePath, Backend backend, int deviceIndex) {
-        // Named once so that a linker that drops unreferenced libraries, as ELF linkers do under
+        // Referenced so that a linker that drops unreferenced libraries, as ELF linkers do under
         // --as-needed and the MSVC linker does for every import library, keeps the library whose
         // static initializer registers the linguist category. Called before the unit is
-        // constructed, because a unit reads the registry once, at construction.
+        // constructed, because a unit reads the registry only once, at construction.
         wolf::linkLinguistCategory();
 
         std::unique_ptr<Bootstrap> result(new Bootstrap());
@@ -74,16 +76,15 @@ namespace lite::synthrt {
             impl.unit.setPluginPaths(category, directories);
         }
 
-        // The driver is a runtime service of the whole unit, so everything that runs a model --
-        // synthesis, grapheme to phoneme, pitch analysis -- shares one ONNX Runtime. On the
-        // refactor line the language domain needed an adapter to borrow the inference driver;
-        // here there is nothing to borrow, because there was only ever one.
+        // The driver is a runtime service of the whole unit, so synthesis, grapheme-to-phoneme
+        // conversion and pitch analysis share one ONNX Runtime. The language domain therefore
+        // needs no adapter to borrow the inference driver, unlike on the refactor branch.
         const fs::path driverPaths[] = {driverDirectory(pluginRoot)};
         impl.drivers.setPluginPaths(driverPaths);
         auto *loader = impl.drivers.find(OnnxApi::API_NAME);
         if (loader == nullptr) {
-            // Not fatal. Packages still load and the editor still lists voicebanks; only running
-            // a model is unavailable, and saying so beats refusing to start.
+            // Not fatal. Packages still load and the editor still lists voicebanks. Only model
+            // execution is unavailable, which is preferable to a failed startup.
             return result;
         }
         auto created = impl.drivers.create(loader);
@@ -95,8 +96,8 @@ namespace lite::synthrt {
         OnnxApi::DriverInitArgs args;
         args.ep = providerFor(backend);
         args.deviceIndex = deviceIndex;
-        // Named by the host rather than looked up by the driver, so which copy of ONNX Runtime is
-        // loaded is a deployment decision and not a search order.
+        // Specified by the host rather than searched for by the driver, so the deployment, not a
+        // search order, determines which copy of ONNX Runtime is loaded.
         args.runtimePath = runtimePath;
         if (auto initialized = driver->initialize(args); !initialized) {
             return initialized.takeError().withContext(

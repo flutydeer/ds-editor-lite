@@ -1,42 +1,31 @@
 project(TestAnalyzerPackages)
 
-# The engine facade is what a host asks for its analysers through, so this builds against the same
-# file the editor does instead of re-implementing the lookup beside it.
+# Hosts query analyzers through the engine facade; therefore the test links the engine library that
+# the editor links instead of re-implementing the lookup.
 lite_add_test(${PROJECT_NAME}
         SOURCES
         main.cpp
-        ../../libs/SynthrtEngine/VoicebankCatalog.cpp
-        ../../libs/SynthrtEngine/LanguageBridge.cpp
-        ../../libs/SynthrtEngine/SingerPipeline.cpp
-        ../../libs/SynthrtEngine/SynthrtBootstrap.cpp
-        ../../libs/SynthrtEngine/SynthrtEngine.cpp
-        ../../libs/Core/SingletonRegistry.cpp
-        ../../libs/Support/VersionUtils.cpp
 )
 
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core)
-find_package(synthrt CONFIG REQUIRED)
-find_package(wolf CONFIG REQUIRED)
-find_package(otter CONFIG REQUIRED)
-include(${LITE_CMAKE_DIR}/LiteDsinfer.cmake)
 
 target_include_directories(${PROJECT_NAME} PRIVATE ../../libs/SynthrtEngine ../../libs)
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt${QT_VERSION_MAJOR}::Core
-        synthrt::synthrt
-        wolf::wolf
-        otter::otter
-        dsinfer::dsinfer
+        lite::SynthrtEngine
 )
 
-# The packages under test are written by the test itself, into a temporary directory it owns. What
-# is being checked is which directory the engine looks in and what it does with what it finds
-# there, so a fixture that has to be produced by another build -- and that would leave this test
-# skipped on exactly the machine where it is needed -- would be the wrong trade.
+# The test writes the packages under test into a temporary directory that it owns. The test checks
+# which directory the engine scans and how the engine handles the packages found there. A fixture
+# produced by another build is unsuitable, because the test would be skipped on the machines that
+# require it.
 #
-# The plugin tree and ONNX Runtime are taken from where this build deploys them, next to the
-# executable, which is also where the editor finds them. A run in a tree that has not been built
-# that far yet skips rather than reporting a failure it cannot tell apart from a real one.
+# The plugin tree and ONNX Runtime are loaded from the deployment location next to the executable,
+# which is also the location used by the editor. The post-build steps of the DsEditorLite target
+# deploy them. In a tree in which only the tests were built (for example, by a CI job that builds
+# only the test targets), the test is skipped on every run instead of reporting a failure that is
+# indistinguishable from a real failure. Build DsEditorLite before running the tests to enable
+# this test.
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
 set_tests_properties(${PROJECT_NAME} PROPERTIES SKIP_RETURN_CODE 77)

@@ -9,7 +9,11 @@ foreach(_lite_layout_line IN LISTS _lite_layout_lines)
     string(REGEX MATCH "char ([A-Z_]+)\\[\\] = \"([^\"]*)\"" _ "${_lite_layout_line}")
     set(LITE_LAYOUT_${CMAKE_MATCH_1} "${CMAKE_MATCH_2}")
 endforeach()
-foreach(_lite_layout_name IN ITEMS ONNX_RUNTIME_DIR CUDA_RUNTIME_SUBDIR LANGUAGE_PACKAGES_DIR)
+set(LITE_LAYOUT_PLUGIN_CATEGORY_NAMES
+    DSINFER_INFERENCE_DIR WOLF_INFERENCE_DIR OTTER_INFERENCE_DIR DSINFER_SINGER_DIR
+    WOLF_LINGUIST_DIR INFERENCE_DRIVER_DIR)
+foreach(_lite_layout_name IN LISTS LITE_LAYOUT_PLUGIN_CATEGORY_NAMES
+                         ITEMS ONNX_RUNTIME_DIR CUDA_RUNTIME_SUBDIR LANGUAGE_PACKAGES_DIR)
     if(NOT LITE_LAYOUT_${_lite_layout_name})
         message(FATAL_ERROR "DeployLayout.h does not define ${_lite_layout_name} in the form that "
                             "LiteBuildApi.cmake parses")
@@ -143,18 +147,13 @@ function(lite_deploy_application _target)
         )
     endif()
 
-    # Where the plugin tree comes from, and where it goes.
+    # Plugin tree source and destination.
     #
-    # On the main line a category is the unit of discovery and each of the three packages installs
-    # its own plugins under `plugins/<library>/<category>`, so one tree holds all of them. It is
-    # deployed keeping that shape, because SynthrtEngine::defaultPluginRoot() names the directory
-    # that holds it and Bootstrap appends the rest.
+    # A category is the unit of plugin discovery. Each of the three packages installs its plugins
+    # under `plugins/<library>/<category>`, so a single tree contains all of them. The tree is
+    # deployed with the same structure because SynthrtEngine::defaultPluginRoot() returns the
+    # directory that contains it and Bootstrap appends the remaining path components.
     set(_lite_vcpkg_root "${VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}")
-    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        set(_lite_plugin_source "${_lite_vcpkg_root}/debug/lib")
-    else()
-        set(_lite_plugin_source "${_lite_vcpkg_root}/lib")
-    endif()
     # The plugin tree (release or debug) is selected per library below, from the variables each
     # package exports. The selection requires two facts: whether the configuration is fixed at
     # configure time and, if so, which configuration it is. A multi-config generator fixes neither
@@ -165,15 +164,29 @@ function(lite_deploy_application _target)
     if(NOT _lite_multi_config AND CMAKE_BUILD_TYPE STREQUAL "Debug")
         set(_lite_debug_only ON)
     endif()
-    # ONNX Runtime is not a plugin and is not installed with one. The driver is told where it is
-    # rather than searching, so it is staged beside the driver and nowhere else -- which copy gets
-    # loaded is a deployment decision, and a search is how a machine ends up running another one.
+    # Library directory searched first for the shared libraries that the plugins depend on. It is
+    # selected by the same rule as the plugin trees: the debug tree for a single-config Debug
+    # build, a per-configuration generator expression for a multi-config build, and the release
+    # tree otherwise. The release directory is always passed after it as the fallback, which also
+    # covers a release-only vcpkg tree.
+    if(_lite_debug_only)
+        set(_lite_plugin_source "${_lite_vcpkg_root}/debug/lib")
+    elseif(_lite_multi_config)
+        set(_lite_plugin_source
+            "$<IF:$<CONFIG:Debug>,${_lite_vcpkg_root}/debug/lib,${_lite_vcpkg_root}/lib>")
+    else()
+        set(_lite_plugin_source "${_lite_vcpkg_root}/lib")
+    endif()
+    # ONNX Runtime is not a plugin and is not installed with a plugin. The host passes the runtime
+    # location to the driver instead of letting the driver search for it, so the runtime is staged
+    # beside the driver and nowhere else. The loaded copy is a deployment decision, and a library
+    # search can load a different copy installed on the machine.
     set(_lite_ort_source "${_lite_vcpkg_root}/share/onnxruntime-builds/runtime/default")
-    # Which payloads the onnxruntime-builds package carries, and where each one's files are, is
-    # declared by that package: the CUDA payload staged below exists only when the tree was
-    # installed with --x-feature=cuda12. Looked up once, here in the deployment scope, so that
-    # every reader below -- the payload staging and the symbol staging -- reads the same answer
-    # instead of probing again.
+    # The onnxruntime-builds package declares its payloads and the location of the files of each
+    # payload. The CUDA payload staged below exists only if the tree was installed with
+    # --x-feature=cuda12. The package is looked up once, in the deployment scope, so that the
+    # payload staging and the symbol staging below read the same declaration and do not probe
+    # again.
     find_package(onnxruntime-builds CONFIG QUIET)
     set(_lite_ort_relative "${LITE_LAYOUT_ONNX_RUNTIME_DIR}")
 
@@ -190,30 +203,29 @@ function(lite_deploy_application _target)
         set(_lite_plugin_destination $<TARGET_FILE_DIR:${_target}>/../lib)
     endif()
 
-    # The two paths below the plugin destination that something outside this build names: where
-    # the wolf language packages land, and where the ONNX Runtime CUDA payload lands. Both are
-    # staged by the copy commands further down, and both are also written out literally by
-    # packaging/windows/build-installer.ps1 and build-portable.ps1, which assert them against a
-    # finished install instead of reading this build back. Named once here, so the copy commands
-    # and the check that reads those scripts cannot answer differently.
+    # Two paths below the plugin destination are referenced outside this build: the destination of
+    # the wolf language packages and the destination of the ONNX Runtime CUDA payload. The copy
+    # commands below stage both. packaging/windows/build-installer.ps1 and build-portable.ps1 read
+    # them from DeployLayout.h, as this file does, and verify them against a finished install. They
+    # are defined once here so that all copy commands below use the same values.
     set(_lite_lang_packages_rel "${LITE_LAYOUT_LANGUAGE_PACKAGES_DIR}")
     set(_lite_ort_cuda_rel "${_lite_ort_relative}/${LITE_LAYOUT_CUDA_RUNTIME_SUBDIR}")
 
-    # The deployed tree's root under the install prefix: the target's runtime directory, which is
-    # where the copy commands above land. `plugins/` lives below it and is already part of the
-    # relative paths below (_lite_ort_relative starts with it), so it is derived once here instead
-    # of being prefixed a second time -- a doubled prefix names a directory nothing is ever staged
-    # into, which the CUDA gate would read as an absent payload and the symbol staging as a
-    # directory to search in vain.
-    # The directory name is read back from qmsetup instead of being written down here: its build
-    # API owns the install layout (BuildRepoHelpers.cmake:211/212 derive <prefix>_INSTALL_RUNTIME_DIR
-    # and _LIBRARY_DIR from <prefix>_INSTALL_BASE_DIR, and src/CMakeLists.txt:3 is what fixes the
-    # prefix of those names to LITE), and the same two variables already place the app, its PDB and
-    # the Qt deployment, so one authority answers where the tree goes. A hardcoded "bin" here would
-    # part company with them the moment LITE_INSTALL_DIR_USE_DEBUG_PREFIX is turned on: qmsetup
-    # would install below <prefix>/debug and this root would name a directory nothing writes to.
-    # Escaped, because these values are embedded in install(CODE) blocks that run in a scope of
-    # their own.
+    # Root of the deployed tree under the install prefix: the runtime directory on Windows and the
+    # library directory elsewhere, matching the destination of the copy commands above. The
+    # relative paths below already begin with `plugins/` (for example _lite_ort_relative), so the
+    # root does not include it. A doubled prefix would specify a directory into which nothing is
+    # staged; the CUDA gate would report an absent payload, and the symbol staging would search an
+    # empty directory.
+    # The directory name is taken from qmsetup instead of being hardcoded. The qmsetup build API
+    # defines the install layout (BuildRepoHelpers.cmake:211/212 derive <prefix>_INSTALL_RUNTIME_DIR
+    # and _LIBRARY_DIR from <prefix>_INSTALL_BASE_DIR, and src/CMakeLists.txt:3 sets the prefix of
+    # those names to LITE). The same two variables place the application, its PDB and the Qt
+    # deployment, so a single source defines the location of the tree. A hardcoded "bin" would
+    # diverge from them if LITE_INSTALL_DIR_USE_DEBUG_PREFIX is enabled: qmsetup would install
+    # below <prefix>/debug, and this root would specify a directory that nothing writes to.
+    # The values are escaped because they are embedded in install(CODE) blocks, which run in a
+    # separate scope.
     if(WIN32)
         set(_lite_install_root "\${CMAKE_INSTALL_PREFIX}/${LITE_INSTALL_RUNTIME_DIR}")
     else()
@@ -245,7 +257,7 @@ function(lite_deploy_application _target)
         endif()
 
         # A single-config Debug build uses the debug tree directly. A multi-config build cannot
-        # select a tree at configure time; it passes the copy command a generator expression, which
+        # select a tree at configure time, so the copy command receives a generator expression that
         # selects the tree per configuration at build time. In both cases a library without a debug
         # tree uses the release tree, which is the layout of a plain install and of a release-only
         # vcpkg tree.
@@ -257,6 +269,23 @@ function(lite_deploy_application _target)
                 set(_lite_plugin_tree
                     "$<IF:$<CONFIG:Debug>,${_lite_plugin_debug},${_lite_plugin_release}>")
             endif()
+        endif()
+
+        # The engine searches for each category below the deployed tree by the directory names
+        # that DeployLayout.h records. None of the libraries exports those names. This check
+        # therefore detects a renamed category directory at configure time instead of at run time
+        # as a category without plugins.
+        if(EXISTS "${_lite_plugin_release}")
+            foreach(_lite_layout_name IN LISTS LITE_LAYOUT_PLUGIN_CATEGORY_NAMES)
+                set(_lite_layout_path "${LITE_LAYOUT_${_lite_layout_name}}")
+                if(_lite_layout_path MATCHES "^plugins/${_library}/(.+)$"
+                   AND NOT IS_DIRECTORY "${_lite_plugin_release}/${CMAKE_MATCH_1}")
+                    message(WARNING
+                        "The ${_library} plugin tree at ${_lite_plugin_release} has no "
+                        "${CMAKE_MATCH_1} directory, which DeployLayout.h records as "
+                        "${_lite_layout_name}; the engine will find no plugins there.")
+                endif()
+            endforeach()
         endif()
 
         # The existence check tests the two paths rather than the generator expression, because
@@ -274,29 +303,33 @@ function(lite_deploy_application _target)
         endif()
     endforeach()
 
-    # The language packages a voicebank depends on. The wolf project publishes them as data -- its
-    # scripts build them from resources rather than compiling them -- and hands a host a Package
-    # search root for them: the wolf-lang-packages port exports it as WOLF_LANG_PACKAGES_DIR, and
-    # the manifest includes that port, so a clean checkout stages the published release. An
-    # unpacked copy of the same tree can replace it. The four names below are those two spellings
-    # and this repository's own, in the order they are tried. The last name is the sibling-checkout
-    # convention. None of them is an untracked machine-local preset. Such a preset previously
-    # supplied this path, and a clean checkout without that preset staged no language packages.
+    # Language packages that voicebanks depend on. The wolf project publishes them as data: its
+    # scripts build them from resources instead of compiling them, and a host receives a Package
+    # search root for them. The wolf-lang-packages port exports that root as
+    # WOLF_LANG_PACKAGES_DIR, and the manifest includes the port, so a clean checkout stages the
+    # published release. An unpacked copy of the same tree can replace it. The sources below are
+    # tried in the listed order. None of them is an untracked machine-local preset; such a preset
+    # previously supplied this path, and a clean checkout without it staged no language packages.
     #
-    #   1. LITE_WOLF_LANG_PACKAGES       this repository's own name for the answer
-    #   2. WOLF_LANG_PACKAGES_SOURCE     the name wolf's own CMake and tests read
-    #   3. wolf-lang-packages package    the port's root, when the manifest brought it in
-    #   4. ../wolf/build/lang-packages   the sibling checkout convention: where that repository's
-    #                                    conversion script writes its output and what its own
-    #                                    scripts default to. Deliberately not one of the versioned
-    #                                    directories beside it -- two bundles can sit there at once
-    #                                    and nothing in either tree says which one this build wants,
-    #                                    so a version is named by layer 1 or 2, never guessed from a
-    #                                    directory listing.
+    #   1. LITE_WOLF_LANG_PACKAGES       the cache variable of this repository
+    #   2. WOLF_LANG_PACKAGES_SOURCE     the environment variable read by wolf's CMake and tests
+    #   3. wolf-lang-packages package    the root of the port, if the manifest installed it
+    #   4. ../wolf/build/lang-packages   the sibling checkout convention: the output directory of
+    #                                    the conversion script of that repository and the default
+    #                                    of its other scripts. The versioned directories beside it
+    #                                    are not used: two bundles can coexist there, and neither
+    #                                    tree records which bundle this build requires, so a
+    #                                    version is selected by source 1 or 2 and never inferred
+    #                                    from a directory listing. Consulted only if
+    #                                    LITE_WOLF_LANG_PACKAGES_SIBLING_FALLBACK is ON: the
+    #                                    manifest installs source 3, and a CI or packaging machine
+    #                                    with a wolf checkout beside this one must not stage the
+    #                                    development output of that checkout instead.
     #
-    # A tree that stages none of them still loads voicebanks and resolves no language. That is
-    # honest degradation in a developer build and a crippled installer in an installed one, so the
-    # tree that is going to be installed refuses to configure without them.
+    # A tree that stages no language packages still loads voicebanks but resolves no language.
+    # This degradation is acceptable in a developer build and produces a defective installer from
+    # an installed tree. Configuration of a tree that is to be installed therefore fails without
+    # the language packages.
     set(LITE_WOLF_LANG_PACKAGES "" CACHE PATH
         "Unpacked wolf language packages to stage; empty resolves them by convention")
     if(NOT LITE_WOLF_LANG_PACKAGES AND DEFINED ENV{WOLF_LANG_PACKAGES_SOURCE})
@@ -308,40 +341,43 @@ function(lite_deploy_application _target)
             set(LITE_WOLF_LANG_PACKAGES "${WOLF_LANG_PACKAGES_DIR}")
         endif()
     endif()
+    option(LITE_WOLF_LANG_PACKAGES_SIBLING_FALLBACK
+        "Stage the language packages of a sibling wolf checkout if no other source is set" OFF)
     set(_lite_lang_sibling "${CMAKE_SOURCE_DIR}/../wolf/build/lang-packages")
-    if(NOT LITE_WOLF_LANG_PACKAGES AND IS_DIRECTORY "${_lite_lang_sibling}")
+    if(NOT LITE_WOLF_LANG_PACKAGES AND LITE_WOLF_LANG_PACKAGES_SIBLING_FALLBACK
+       AND IS_DIRECTORY "${_lite_lang_sibling}")
         set(LITE_WOLF_LANG_PACKAGES "${_lite_lang_sibling}")
     endif()
 
-    # Written through string(CONCAT), not set() with one argument per line: set() would make those
-    # a semicolon-separated list and print it that way, while message() below joins its arguments
-    # without a separator.
+    # Built with string(CONCAT) instead of set() with one argument per line: set() would create a
+    # semicolon-separated list, and message() below would print it with the semicolons.
     string(CONCAT _lite_lang_hint
         "Set LITE_WOLF_LANG_PACKAGES, or the WOLF_LANG_PACKAGES_SOURCE environment variable, to "
-        "the unpacked copy of the packages themselves -- one subdirectory per package, each "
-        "holding its desc.json. A sibling wolf checkout keeps that copy at ${_lite_lang_sibling}, "
-        "which is the path this build falls back to; the wolf-lang-packages port is the other "
-        "source, once the manifest brings it in.")
+        "the directory of unpacked packages (one subdirectory per package, each containing its "
+        "desc.json), or install the wolf-lang-packages port listed in the manifest. "
+        "A sibling wolf checkout keeps a development copy at ${_lite_lang_sibling}, which this "
+        "build stages only with LITE_WOLF_LANG_PACKAGES_SIBLING_FALLBACK=ON.")
 
     set(_lite_lang_manifests "")
     set(_lite_lang_names "")
     set(_lite_lang_problem "")
     if(NOT LITE_WOLF_LANG_PACKAGES)
         string(CONCAT _lite_lang_problem
-            "nothing names them: not LITE_WOLF_LANG_PACKAGES, not the WOLF_LANG_PACKAGES_SOURCE "
-            "environment variable, not an installed wolf-lang-packages package, and not a package "
-            "tree at ${_lite_lang_sibling}")
+            "no source is set: LITE_WOLF_LANG_PACKAGES and the WOLF_LANG_PACKAGES_SOURCE "
+            "environment variable are empty, no wolf-lang-packages package is installed, and "
+            "LITE_WOLF_LANG_PACKAGES_SIBLING_FALLBACK is off or ${_lite_lang_sibling} is not a "
+            "directory")
     elseif(NOT IS_DIRECTORY "${LITE_WOLF_LANG_PACKAGES}")
         set(_lite_lang_problem "${LITE_WOLF_LANG_PACKAGES} is not a directory")
     else()
-        # Each package directory by name, not the directory that holds them. That directory is a
-        # build tree: beside the packages sit archives of the same packages and a second unpacked
-        # copy of every one of them, and deploying those would put two packages claiming the same
-        # identity where the loader resolves dependencies.
+        # Each package directory is copied individually instead of the parent directory. The
+        # parent directory is a build tree that also contains archives of the same packages and a
+        # second unpacked copy of each package. Deploying them would place two packages with the
+        # same identity in the directory from which the loader resolves dependencies.
         file(GLOB _lite_lang_manifests "${LITE_WOLF_LANG_PACKAGES}/*/desc.json")
         if(NOT _lite_lang_manifests)
             set(_lite_lang_problem
-                "${LITE_WOLF_LANG_PACKAGES} holds no package: no */desc.json below it")
+                "${LITE_WOLF_LANG_PACKAGES} contains no package (no */desc.json)")
         endif()
     endif()
 
@@ -367,17 +403,18 @@ function(lite_deploy_application _target)
     else()
         message(WARNING
             "No wolf language packages staged: ${_lite_lang_problem}. Voicebanks will load and "
-            "resolve no wolf/lang-* dependency, so every language that needs one is unavailable. "
+            "resolve no wolf/lang-* dependency, so every language that requires such a dependency "
+            "is unavailable. "
             "${_lite_lang_hint}")
     endif()
 
-    # The copies above are this build's answer to where the packages go, and nothing checked that
-    # they arrived. qmsetup's copy script (modules/scripts/copy.cmake) does not fail on a source
-    # directory that went away between the configure that globbed it and the build that copies it:
-    # it copies an empty set and exits 0, so a tree can hold no package at all while every step
-    # reports success. Registered after those copies -- the order POST_BUILD commands on one target
-    # run in, which the CUDA gate below relies on too -- and given the same land point they were
-    # given, so the check reads the tree the copy commands write rather than a second opinion of it.
+    # Post-build verification of the copied language packages. The qmsetup copy script
+    # (modules/scripts/copy.cmake) does not fail if a source directory globbed at configure time is
+    # removed before the build: it copies an empty set and exits with 0, and the tree then contains
+    # no package although every step reports success. The check is registered after the copy
+    # commands because POST_BUILD commands on a target run in registration order, which the CUDA
+    # gate below also relies on. The check uses the destination of the copy commands, so it
+    # verifies the directory that the copy commands write.
     if(APPLE)
         set(_lite_lang_stage_dir
             "$<TARGET_BUNDLE_CONTENT_DIR:${_target}>/PlugIns/${_lite_lang_packages_rel}")
@@ -386,9 +423,10 @@ function(lite_deploy_application _target)
     else()
         set(_lite_lang_stage_dir "$<TARGET_FILE_DIR:${_target}>/../lib/${_lite_lang_packages_rel}")
     endif()
-    # The names, not only how many: with them the check also catches a copy that staged nothing
-    # while an earlier build's packages still sit in the tree. Separated by ',' -- a ';' would be a
-    # CMake list and would reach the script as one argument per package.
+    # The expected package names, not only their count, are passed so that the check also detects
+    # a copy that staged nothing while packages from an earlier build remain in the tree. The
+    # names are separated by ',' because a ';'-separated CMake list would reach the script as one
+    # argument per package.
     string(REPLACE ";" "," _lite_lang_expected "${_lite_lang_names}")
     add_custom_command(TARGET ${_target} POST_BUILD
         COMMAND "${CMAKE_COMMAND}"
@@ -399,9 +437,9 @@ function(lite_deploy_application _target)
             -D "problem=${_lite_lang_problem}"
             -D "hint=${_lite_lang_hint}"
             -D "install_enabled=${LITE_INSTALL}"
-            # The install rules of the directory that registers them: a build tree writes one
-            # cmake_install.cmake per directory, and the copies above are registered here, so the
-            # script beside this directory is the one that has to name the install-tree land point.
+            # Install script of the directory that registers the copies. A build tree contains one
+            # cmake_install.cmake per directory, and the copies above are registered in this
+            # directory, so the script of this directory must contain the install-tree destination.
             -D "install_script=${CMAKE_CURRENT_BINARY_DIR}/cmake_install.cmake"
             -D "LITE_INSTALL_DIR_USE_DEBUG_PREFIX=${LITE_INSTALL_DIR_USE_DEBUG_PREFIX}"
             -P "${LITE_CMAKE_DIR}/LitePackagingLayoutCheck.cmake"
@@ -417,16 +455,16 @@ function(lite_deploy_application _target)
         )
     else()
         message(WARNING
-            "No ONNX Runtime payload at ${_lite_ort_source}; the editor will list voicebanks and "
-            "refuse to synthesise.")
+            "No ONNX Runtime payload at ${_lite_ort_source}; the editor will list voicebanks, "
+            "but synthesis will be unavailable.")
     endif()
 
-    # The CUDA flavor is a second payload, not a replacement: it carries DLLs whose names collide
-    # with the default one's, so it is staged in a subdirectory of the runtime directory. Which
-    # subdirectory, and whether it must exist, is what cmake/OrtRuntimeGate.cmake decides at build
-    # and install time -- the gate owns the "CUDA=ON but no payload" failure, this only places it.
-    # Registered before the gate below, which is a POST_BUILD command on the same target and runs
-    # after it in the order they were added.
+    # The CUDA flavor is an additional payload, not a replacement. Its DLL names collide with those
+    # of the default payload, so it is staged in the CUDA_RUNTIME_SUBDIR subdirectory of the
+    # runtime directory. cmake/OrtRuntimeGate.cmake checks at build and install time whether that
+    # subdirectory must exist and reports the failure if LITE_ENABLE_CUDA is ON but no payload is
+    # present; this block only stages the payload. It is registered before the gate, which is a
+    # POST_BUILD command on the same target and therefore runs after it.
     if(NOT APPLE AND LITE_ENABLE_CUDA AND DEFINED ONNXRUNTIME_BUILDS_CUDA_RUNTIME_DIR)
         qm_add_copy_command(${_target}
             SOURCES ${ONNXRUNTIME_BUILDS_CUDA_RUNTIME_DIR}/
@@ -434,15 +472,16 @@ function(lite_deploy_application _target)
             ${_install_copy_args}
         )
     elseif(NOT APPLE AND LITE_ENABLE_CUDA)
-        # CUDA is on but the package declares no CUDA payload: the tree was installed without
-        # --x-feature=cuda12, or onnxruntime-builds was not found at all. A tree that carried
-        # cuda12 earlier -- or a port that dropped it since -- still holds .../runtime/cuda, and
-        # the gate below only asks whether that directory exists, so it would read the residue as
-        # "present as required" and let a CUDA build load the default payload's DLLs. Swept here,
-        # before the gate (POST_BUILD commands on one target run in the order they were added), so
-        # that the gate instead fails loudly about the payload it cannot find. Nothing sweeps the
-        # install tree: with no payload declared no copy of one is registered either, and the build
-        # above reaches the gate's FATAL_ERROR long before anything is installed.
+        # LITE_ENABLE_CUDA is ON but the package declares no CUDA payload: the tree was installed
+        # without --x-feature=cuda12, or onnxruntime-builds was not found. A build tree that
+        # contained the cuda12 payload earlier, or a port that has since removed it, still contains
+        # .../runtime/cuda. The gate below only tests whether that directory exists, so it would
+        # accept the stale directory as the required payload, and a CUDA build would load the DLLs
+        # of the default payload. The directory is removed here, before the gate (POST_BUILD
+        # commands on a target run in registration order), so that the gate fails with an error
+        # about the missing payload. The install tree is not swept: without a declared payload no
+        # copy command for it is registered, and the build reaches the FATAL_ERROR of the gate
+        # before anything is installed.
         if(WIN32)
             set(_ort_cuda_stale_dir "$<TARGET_FILE_DIR:${_target}>/${_lite_ort_cuda_rel}")
         else()
@@ -457,14 +496,15 @@ function(lite_deploy_application _target)
     endif()
 
     if(UNIX AND NOT APPLE)
-        # The libraries the plugins need, before their RPATHs are rewritten to look here.
+        # Deployment of the shared libraries that the plugins depend on, before the plugin RPATHs
+        # are rewritten to this directory.
         #
-        # vcpkg has no applocal deployment on Linux, and what it would deploy is what the
-        # executable links; a plugin is loaded by name and links things the executable never does
-        # -- cpp-pinyin, for one. Without this the rewrite below actively breaks them: it replaces
-        # a build RPATH pointing into the vcpkg tree with one pointing at a directory those
-        # libraries are not in, and the plugin then fails to load complaining about a library
-        # rather than about itself.
+        # vcpkg has no applocal deployment on Linux, and applocal deployment covers only the
+        # libraries that the executable links. A plugin is loaded dynamically and links libraries
+        # that the executable does not link, for example cpp-pinyin. Without this step the RPATH
+        # rewrite below breaks those plugins: it replaces a build RPATH into the vcpkg tree with an
+        # RPATH to a directory that does not contain the libraries, and loading the plugin fails
+        # with an error about a missing dependency instead of an error about the plugin.
         add_custom_command(TARGET ${_target} POST_BUILD
             COMMAND bash ${LITE_SOURCE_DIR}/scripts/deploy_linux_plugin_deps.sh
                 $<TARGET_FILE_DIR:${_target}>/../lib
@@ -472,8 +512,9 @@ function(lite_deploy_application _target)
                 ${_lite_vcpkg_root}/lib
             COMMENT "Deploy the shared libraries the plugins need"
         )
-        # The plugins are deployed under the same lib directory as the shared libraries they
-        # need, so that is both what gets rewritten and what the rewritten RPATHs point at.
+        # The plugins are deployed under the same lib directory as their shared library
+        # dependencies, so that directory is both the rewrite target and the target of the
+        # rewritten RPATHs.
         add_custom_command(TARGET ${_target} POST_BUILD
             COMMAND bash ${LITE_SOURCE_DIR}/scripts/fix_linux_rpath_recursive.sh
                 --normalize --pattern=lib*.so --except=libonnxruntime*.so
@@ -483,16 +524,14 @@ function(lite_deploy_application _target)
         )
     endif()
 
-    # ONNX driver payload placement (lite-owned). The refactor line had the synthrt package
-    # declare where its driver put its runtimes, so that lite never named a plugin path. The main
-    # line does not ship that declaration and does not need to: the driver takes the runtime path
-    # from the host, so the layout is lite's own choice and is the one staged above. Named once,
-    # here.
-    # That declaration is never read, and nothing here would read it if it came back: no fragment
-    # of the sort is included anywhere under cmake/ or src/ (there is no include(... OPTIONAL) of
-    # an onnxdriver payload file), so the payload's placement and its flavors are lite's own --
-    # answered by the onnxruntime-builds package below -- and never depend on which synthrt
-    # revision the shared vcpkg overlay happens to pin.
+    # ONNX driver payload placement (lite-owned). The synthrt package declares no runtime location
+    # for its driver because the driver receives the runtime path from the host. The layout is
+    # therefore chosen by lite, is the layout staged above, and is defined once here. An earlier
+    # synthrt revision declared this location in an onnxdriver payload fragment; no such fragment
+    # is included under cmake/ or src/ (there is no include(... OPTIONAL) of an onnxdriver payload
+    # file). The placement of the payload is defined here, its flavors are declared by the
+    # onnxruntime-builds package below, and neither depends on the synthrt revision pinned by the
+    # synthrt overlay port in scripts/vcpkg-ports/.
     set(_ort_runtimes_rel "${_lite_ort_relative}")
 
     # ONNX Runtime CUDA flavor gate: deployment follows LITE_ENABLE_CUDA,
@@ -545,10 +584,10 @@ function(lite_deploy_application _target)
     # when LITE_ENABLE_CUDA is ON — a stray one was swept by the gate above
     # and never re-created here), scheduled per file with copy_if_different
     # so incremental builds stay free. Release build trees stay symbol-free.
-    # Both halves of the answer come from the onnxruntime-builds declaration looked up above: the
-    # flavors it carries, and each one's own symbol directory. A flavor whose payload was staged in
-    # the runtime directory itself ("default") is staged there too; every other flavor is staged in
-    # the subdirectory its payload was staged in.
+    # The flavors and the symbol directory of each flavor come from the onnxruntime-builds
+    # declaration looked up above. The symbols of the "default" flavor are staged in the runtime
+    # directory itself because its payload is staged there; the symbols of every other flavor are
+    # staged in the subdirectory that contains its payload.
     if(NOT APPLE AND CMAKE_BUILD_TYPE MATCHES "^(Debug|RelWithDebInfo)$" AND
        _ort_runtimes_rel AND DEFINED ONNXRUNTIME_BUILDS_FLAVORS)
         set(_ort_build_sym_commands "")
@@ -593,21 +632,21 @@ function(lite_deploy_application _target)
 
     # RelWithDebInfo/Debug installs carry the ONNX Runtime payload's debug
     # symbols next to their DLLs (portable PDB-included spec). Symbols are
-    # consumed through the declared interfaces only: the flavors and each
-    # flavor's symbol directory both come from the onnxruntime-builds
-    # package's own declaration -- the same one the payload staging above
-    # reads -- so nothing here hardcodes a plugin path, a flavor or the
-    # port's layout, and nothing depends on the synthrt package declaring
-    # anything (it does not on this line; see above). A flavor whose runtime
-    # directory was not staged (cuda/ swept by the gate above, cuda12 not
-    # installed) leaves the destination absent and the EXISTS guard below
-    # skips it, so this never resurrects a swept directory. Linux ships no
-    # symbols (declared dir may not exist at all → EXISTS guard no-op);
-    # macOS dSYM bundles are directories and are installed as such.
+    # consumed through the declared interfaces only: the flavors and the
+    # symbol directory of each flavor come from the declaration of the
+    # onnxruntime-builds package, which the payload staging above also
+    # reads. No plugin path, flavor or port layout is hardcoded, and the
+    # synthrt package is not required to declare anything (see above). A
+    # flavor whose runtime directory was not staged (cuda/ swept by the gate
+    # above, or cuda12 not installed) has no destination directory, and the
+    # EXISTS guard below skips it, so this block never re-creates a swept
+    # directory. Linux ships no symbols (the declared directory may not
+    # exist, and the EXISTS guard then has no effect); macOS dSYM bundles
+    # are directories and are installed as such.
     #
-    # What is left to warn about is data that really is absent: no declaration
-    # to read at all. That warning names the package it looked for, not the
-    # synthrt package, which carries no flavor declaration on this line.
+    # The remaining warning covers an absent declaration. It names the
+    # onnxruntime-builds package, not the synthrt package, which carries no
+    # flavor declaration.
     if(LITE_INSTALL AND
        CMAKE_BUILD_TYPE MATCHES "^(Debug|RelWithDebInfo)$")
         if(NOT _ort_runtimes_rel)
@@ -633,8 +672,8 @@ function(lite_deploy_application _target)
                 if(NOT _ort_symbol_dir)
                     continue()
                 endif()
-                # The default payload is staged in the runtime directory itself,
-                # every other flavor in a subdirectory named after it.
+                # The default payload is staged in the runtime directory itself and
+                # every other flavor in a subdirectory named after the flavor.
                 set(_ort_flavor_rel "")
                 if(NOT _flavor STREQUAL "default")
                     set(_ort_flavor_rel "/${_flavor}")

@@ -1,45 +1,46 @@
 #!/usr/bin/env python3
-"""Converts a voicebank from the 2.3 package format to 2.4, so the main line can load it.
+"""Converts a voicebank from the 2.3 package format to 2.4 for the synthrt main line.
 
-The two lines disagree from the first key: the older one lists contributions under `contributes`
-as bare paths, the newer under `contributions` as {id, path} pairs; a module declaration used to
-say `class` and carry its own `id`, and now says `interface` plus `variant` and is given its id by
-the package; and what used to be the declaration's `schema` is now `exports`. None of that is
-negotiable at load time, so a voicebank published for the older line does not load on the newer one
-at all.
+The two formats differ from the root key onward. 2.3 lists contributions under `contributes` as
+bare paths, and 2.4 lists them under `contributions` as {id, path} pairs. A 2.3 module declaration
+specifies `class` and its own `id`; a 2.4 declaration specifies `interface` and `variant` and
+receives its id from the package. The 2.3 `schema` field is the 2.4 `exports` field. The loader
+accepts none of the 2.3 forms, so a voicebank published for 2.3 does not load on the main line.
 
-What this does *not* touch is where files sit. Directory layout and file names stay exactly as they
-were, and only the contents of desc.json and the declarations are rewritten. Every path inside a
-`configuration` is relative to its own declaration, so leaving the declarations where they are means
-not rewriting a single one of them -- which is the whole class of mistake this avoids.
+The conversion does not move files. The directory layout and the file names are preserved, and only
+the contents of desc.json and of the declarations are rewritten. Every path inside a
+`configuration` is relative to its declaration, so keeping the declarations in place leaves all of
+those paths unchanged and excludes the corresponding class of errors.
 
     python3 scripts/convert-voicebank.py <package> [--output DIR] [--in-place]
                                          [--packages DIR] [--language <handle>=<reference>]...
 
-Reserved phonemes are read out of the voicebank rather than guessed at or passed in. A DiffSinger
-phoneme table writes a phoneme belonging to a language as `<language>/<phoneme>` and one that does
-not as itself, so a bare key is this voicebank saying, in its own files, that the symbol is not
-speech -- a breath, a glottal stop, a hum. Every model has to agree before one is believed. Those
-go into the singer's `reservedPhonemes`, where the loader checks them again, and they are kept out
-of every language's declared inventory, because a host never sends one through
-grapheme-to-phoneme and must not be asked to have it as a phoneme.
+Reserved phonemes are read from the voicebank instead of being guessed or passed in. A DiffSinger
+phoneme table writes a phoneme of a language as `<language>/<phoneme>` and a language-independent
+phoneme without a prefix. A key without a prefix therefore indicates, in the files of the
+voicebank, that the symbol is not speech, for example a breath, a glottal stop or a hum. A phoneme
+is treated as reserved only if every model table contains it without a prefix. Reserved phonemes
+are written to the `reservedPhonemes` field of the singer, which the loader checks again, and are
+excluded from the declared inventory of every language, because a host never passes a reserved
+phoneme through grapheme-to-phoneme conversion.
 
-The language half needs help. A 2.3 voicebank names a G2P package belonging to the older line's own
-G2P system, and the newer line has no such system: a language is a linguist contribution, made of a
+The language configuration requires additional input. A 2.3 voicebank references a package of the
+2.3 G2P system, and 2.4 has no such system: a language is a linguist contribution, composed of a
 grapheme-to-phoneme stage, a syllable-to-phoneme stage and an onset stage.
 
-Where those three come from is not the same for every language, and that is not an accident. For a
-language whose phonetics are the same for every voicebank -- English in ARPAbet, say -- the whole
-linguist ships in the language package and this binds to it. For Mandarin or Japanese the
-syllable-to-phoneme dictionary is voicebank content: two voicebanks singing Mandarin may use
-different phoneme inventories, so the language package carries only the grapheme-to-phoneme stage
-and each voicebank brings the rest. For those, this builds a linguist inside the voicebank that
-imports the shared G2P and points the other two stages at the voicebank's own assets -- which the
-2.3 declaration already named, since the older line needed the same files for the same reason.
+The source of these three stages depends on the language. For a language whose phonetics are the
+same for every voicebank, for example English in ARPAbet, the language package contains the
+complete linguist, and the converter binds the singer to it. For Mandarin or Japanese the
+syllable-to-phoneme dictionary is voicebank content: two Mandarin voicebanks may use different
+phoneme inventories, so the language package contains only the grapheme-to-phoneme stage and each
+voicebank supplies the other stages. For such a language the converter builds a linguist inside the
+voicebank that imports the shared G2P and references the assets of the voicebank for the other two
+stages. The 2.3 declaration already references those assets, because 2.3 required the same files
+for the same purpose.
 
-Point --packages at the installed language packages and the choice is made per language by what is
-actually there. A handle with no package to serve it is reported and dropped; the voicebank still
-synthesises and simply has no grapheme-to-phoneme for that language.
+--packages specifies the directory of the installed language packages, from which the binding of
+each language is selected. A language handle without a matching package is reported and dropped;
+the voicebank still synthesizes but has no grapheme-to-phoneme conversion for that language.
 """
 
 import argparse
@@ -51,8 +52,9 @@ import shutil
 import sys
 from pathlib import Path
 
-# What each 2.3 `class` becomes. The variant is not a guess: these are the values the shipped
-# interpreters declare, and the triple has to match exactly or no interpreter is selected.
+# Mapping from each 2.3 `class` to the 2.4 (interface, variant, kind) triple. The variants are the
+# values that the shipped interpreters declare; the triple must match exactly, or no interpreter is
+# selected.
 CONTRACTS = {
     "ai.svs.AcousticInference": ("org.openvpi.dsinfer.inference.Acoustic", "onnx", "acoustic"),
     "ai.svs.DurationInference": ("org.openvpi.dsinfer.inference.Duration", "onnx", "duration"),
@@ -62,15 +64,19 @@ CONTRACTS = {
     "diffsinger": ("org.openvpi.dsinfer.singer.DiffSinger", "openvpi", None),
 }
 
-# What the older line called an s2p mode, and the variant that answers it now. The names line up
-# because both describe the same three ways of turning a syllable into phonemes.
+# Mapping from each 2.3 s2p mode to the corresponding 2.4 variant. The names are identical because
+# both formats describe the same three syllable-to-phoneme methods.
 S2P_VARIANTS = {"dict": "dict", "direct": "direct", "mapping": "mapping"}
 
-# The notation each language's phonemes are written in. A linguist declares this beside its
-# language handle, and the pair is what a chain member is matched against, so it cannot be
-# invented per voicebank: these are the values wolf settled on, in its A45/A49 decisions, by
-# reading the actual symbol inventories. `ds` is wolf's own placeholder for the five it has not
-# finished naming, and is carried here rather than replaced so that both sides say the same thing.
+# Phoneme notation (scheme) of each language. A linguist declares the scheme beside its language
+# handle, and chain members are matched against this pair, so the scheme cannot be chosen per
+# voicebank. The installed language packages take precedence: the scheme is read from the
+# linguist.json of the package or from the language pairs exported by its G2P, and this table is
+# used only for a language whose package declares neither, such as a package from an older release.
+# The values are those defined in the wolf decisions A45/A49 and match the table in wolf's
+# convert-g2p-packages.py; if a package declares a different value, the difference is reported and
+# the package value is used. `ds` is the wolf placeholder for the five languages whose schemes are
+# not yet named; it is kept here so that both tables contain the same values.
 SCHEMES = {
     "cmn": "pinyin", "yue": "jyutping", "jpn": "romaji", "eng": "arpabet",
     "zxx": "passthrough", "por": "xsampa", "kor": "romaja", "ita": "xsampa-geminate",
@@ -82,40 +88,39 @@ S2P_INTERFACE = "org.openvpi.wolf.inference.S2P"
 ONSET_INTERFACE = "org.openvpi.wolf.inference.Onset"
 LINGUIST_INTERFACE = "org.openvpi.wolf.linguist.WolfLinguist"
 
-# Keys a 2.3 configuration carried that the newer interpreters do not read. Dropped rather than
-# passed through, because a key nothing reads is a key that lies about what the model does. Which
-# of them a given configuration can lose is not the same question for every one of them, so
-# `dropped_configuration_keys` answers it per configuration.
+# 2.3 configuration keys that the 2.4 interpreters do not read. They are dropped instead of carried
+# over because an unread key misrepresents the behavior of the model. Whether a configuration can
+# drop a key depends on the key and on the configuration, so `dropped_configuration_keys` computes
+# the droppable set per configuration.
 DROPPED_CONFIGURATION_KEYS = {
-    # Derivable from `sampleRate` and `hopSize`, but only where that pair is there and usable.
+    # Derivable from `sampleRate` and `hopSize`, but only if that pair is present and usable.
     "frameWidth",
 }
 
-# The fields the singer category adds as multi-language paths, and the shapes 2.4 reads for them: a
-# path, or a map of paths with a string `_` as the default. They are known fields with a closed
-# shape, so unlike a key this converter does not recognise they cannot be carried through as they
-# are -- the loader refuses the whole declaration over one it cannot read, which is worse than
-# losing the field.
+# Singer category fields that hold multi-language paths, and the shapes that 2.4 accepts for them: a
+# path, or a map of paths with a string default under `_`. These fields have a defined, closed
+# shape, so unlike an unrecognized key they cannot be carried over unchanged: the loader rejects the
+# whole declaration if one of them has an unreadable shape, which is worse than losing the field.
 SINGER_PATH_FIELDS = ("avatar", "background", "demoAudio")
 
-# Which granularity a linguistic encoder takes, told by the names it declares: a word encoder is
-# given the words a lyric divides into, a phoneme encoder the durations of its phonemes. The names
-# are the authority rather than the convention, because the names are what has to match at run
-# time -- the interpreter prepares one set or the other and fails on the ones the model lacks.
+# Granularity of a linguistic encoder, identified by the input names that it declares: a word
+# encoder receives the word division of a lyric, and a phoneme encoder receives the phoneme
+# durations. The input names take precedence over any convention because they must match at run
+# time: the interpreter prepares one of the two input sets and fails on inputs that the model lacks.
 WORD_ENCODER_INPUTS = {"word_div", "word_dur"}
 PHONEME_ENCODER_INPUTS = {"ph_dur"}
 
-# Which roles have a granularity to choose, and which one their interpreter chooses when nothing
-# says otherwise. Only a role listed here can be prepared wrongly, and only a difference from the
-# default is worth writing: a declaration that restates the default claims to change something it
-# does not. Duration is absent because its interpreter always prepares a word encoder, so for it
-# the field could only ever restate what is already true.
+# Roles with a selectable granularity, and the default granularity of their interpreters. Only a
+# role listed here can be prepared with the wrong granularity, and only a value that differs from
+# the default is written: a declaration that restates the default indicates a change that does not
+# exist. Duration is absent because its interpreter always prepares a word encoder, so for Duration
+# the field could only restate the default.
 LINGUISTIC_MODE_DEFAULTS = {"variance": "phoneme", "pitch": "phoneme"}
 
-# What 2.3 wrote instead, in the dsconfig.yaml beside the declaration: `predict_dur` true for the
-# word encoder and false for the phoneme one, which is the pair the older line's encoder code
-# switched between. It is read as the one scalar it is rather than by parsing YAML, and it is the
-# second opinion only -- the model is asked first.
+# The 2.3 equivalent in the dsconfig.yaml beside the declaration: `predict_dur` is true for a word
+# encoder and false for a phoneme encoder, matching the two paths of the 2.3 encoder code. The value
+# is matched as a single scalar instead of parsing YAML, and it is only the fallback: the model is
+# inspected first.
 PREDICT_DUR = re.compile(r"predict_dur[ \t]*:[ \t]*(true|false)[ \t]*$")
 
 
@@ -154,10 +159,11 @@ PACKAGE_ID = re.compile(r"[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*")
 
 
 def four_part(version, report: Report, where: str):
-    """Checks a version against the grammar 2.4 gives and pads it to four components.
+    """Checks a version against the 2.4 grammar and pads it to four components.
 
-    One to four decimal components, no leading zeros. A version the grammar refuses is reported
-    and returns None, since padding it would only move the refusal to load time.
+    The grammar allows one to four decimal components without leading zeros. A version that does
+    not match is reported and None is returned, because padding it would only defer the rejection
+    to load time.
     """
     text = str(version)
     if not VERSION.fullmatch(text):
@@ -171,7 +177,10 @@ def four_part(version, report: Report, where: str):
 
 
 def check_identifier(value, pattern: re.Pattern, kind: str, report: Report, where: str) -> bool:
-    """Reports a structural identifier or role the specification's grammar refuses."""
+    """Returns whether a structural identifier or role matches the grammar of the specification.
+
+    A value that does not match is reported.
+    """
     if isinstance(value, str) and pattern.fullmatch(value):
         return True
     report.error(f"{where}: {kind} {value!r} may only use ASCII letters, digits, '_' and '-'"
@@ -180,14 +189,14 @@ def check_identifier(value, pattern: re.Pattern, kind: str, report: Report, wher
 
 
 def read_table(path: Path, report: Report):
-    """A two column, tab separated table as {key: [phoneme, ...]}.
+    """Reads a two-column, tab-separated table as {key: [phoneme, ...]}.
 
-    Both of the table shapes a voicebank carries are read the same way: the left column is a key
-    -- a syllable for a dictionary, a word for a grapheme table -- and the right is a space
-    separated pronunciation.
+    Both table types in a voicebank are read the same way: the left column is a key (a syllable for
+    a dictionary, a word for a grapheme table), and the right column is a space-separated
+    pronunciation.
 
-    Byte order marks and CRLF line endings are normal in these files, and both are stripped, which
-    is what the loader does when it reads the same file.
+    Byte order marks and CRLF line endings are common in these files. Both are stripped, as the
+    loader does when it reads the same file.
     """
     entries = {}
     try:
@@ -207,11 +216,11 @@ def read_table(path: Path, report: Report):
 
 
 def read_model_phonemes(root: Path, contributions: dict, report: Report) -> dict:
-    """Each model's phoneme table, by contribution id.
+    """Returns the phoneme table of each model, keyed by contribution id.
 
-    The table is the authority on what a model can be given, and it is also the only place this
-    voicebank says which of those are language independent: a key is written `<language>/<phoneme>`
-    for a phoneme that belongs to a language, and bare for one that does not.
+    The table defines the phonemes that a model accepts. It is also the only place in which the
+    voicebank indicates which phonemes are language-independent: a phoneme of a language is written
+    `<language>/<phoneme>`, and a language-independent phoneme has no prefix.
     """
     tables = {}
     for entry in contributions.get("inference", []):
@@ -220,7 +229,7 @@ def read_model_phonemes(root: Path, contributions: dict, report: Report) -> dict
             continue
         table = declaration.get("configuration", {}).get("phonemes")
         if not isinstance(table, str):
-            continue  # the vocoder has none, which is not a fault
+            continue  # a vocoder has no phoneme table, which is valid
         path = (root / entry["path"]).parent / table
         values = read_json(path, report)
         if isinstance(values, dict):
@@ -231,17 +240,18 @@ def read_model_phonemes(root: Path, contributions: dict, report: Report) -> dict
 
 
 def reserved_phonemes(tables: dict, extra: set, report: Report) -> list:
-    """The phonemes a lyric may name directly, as this voicebank's own models define them.
+    """Returns the phonemes that a lyric may reference directly, as defined by the models.
 
-    Not guessed and not passed in: a DiffSinger phoneme table writes a phoneme that belongs to a
-    language as `<language>/<phoneme>` and one that does not as itself, so a bare key is the
-    voicebank saying, in its own files, that this symbol is not speech. Every model has to agree,
-    because the tables are separate files and a symbol only half the models know is worse than one
-    none of them do.
+    The phonemes are neither guessed nor passed in: a DiffSinger phoneme table writes a phoneme of a
+    language as `<language>/<phoneme>` and a language-independent phoneme without a prefix, so a key
+    without a prefix indicates, in the files of the voicebank, that the symbol is not speech. Every
+    model table must contain the symbol, because the tables are separate files, and a symbol known
+    to only some of the models is worse than a symbol known to none.
 
-    A table with no prefixed key at all says nothing about language independence -- a single
-    language voicebank writes every phoneme bare -- so nothing is derived from one. Whatever
-    --reserved names is added either way, and checked the same.
+    If no table contains a prefixed key, the tables carry no information about language
+    independence, because a single-language voicebank writes every phoneme without a prefix; no
+    reserved phoneme is then derived. The phonemes specified with --reserved are added in both
+    cases and checked the same way.
     """
     if not tables:
         return sorted(extra)
@@ -252,36 +262,38 @@ def reserved_phonemes(tables: dict, extra: set, report: Report) -> list:
         derived = set.intersection(*({key for key in table if "/" not in key}
                                      for table in tables.values()))
     else:
-        report.note("no model names a language, so which phonemes are reserved cannot be read "
-                    "from the tables; only --reserved is taken")
+        report.note("no model table contains a language prefix, so reserved phonemes cannot be "
+                    "derived from the tables; only --reserved is used")
 
     result = set()
     for token in sorted(derived | extra):
         absent = sorted(model for model, table in tables.items() if token not in table)
         if absent:
-            # Declaring it would refuse the package at load time, and rightly: a phoneme the
-            # models lack is not a marker but a silence. Saying so here is more use than saying
-            # it later.
-            report.warn(f"{token}: named as reserved, but the {' '.join(absent)} model(s) do not "
-                        f"have it; not declared, and it stays in the phoneme inventory where a "
-                        f"host will report it as one these models cannot sing")
+            # Declaring the phoneme would cause the loader to reject the package, correctly: a
+            # phoneme that the models lack is not a marker but produces silence. Reporting it
+            # here is more useful than a failure at load time.
+            report.warn(f"{token}: specified as reserved, but the {' '.join(absent)} model(s) do "
+                        f"not contain it; it is not declared and remains in the phoneme "
+                        f"inventory, and a host reports it as a phoneme that these models "
+                        f"cannot sing")
             continue
         result.add(token)
     return sorted(result)
 
 
 def content_phonemes(entries: dict, reserved: set, known: set, handle: str, report: Report):
-    """The phonemes a table can produce, less the ones this singer reserves.
+    """Returns the phonemes that a table can produce, excluding the phonemes reserved by the singer.
 
-    The linguist domain contract keeps reserved phonemes out of `exports.phonemes`, which is the
-    *content* inventory: a host never sends one through grapheme-to-phoneme, so it must not be
-    asked to have it as a phoneme either. Leaving them in makes every host measuring its singer
-    against that list report a gap where there is none.
+    The linguist domain contract excludes reserved phonemes from `exports.phonemes`, which is the
+    *content* inventory: a host never passes a reserved phoneme through grapheme-to-phoneme
+    conversion, so the inventory must not list it. If reserved phonemes remain in the list, every
+    host that compares its singer against the list reports a gap that does not exist.
 
-    What this also does is point out the entries that have a marker's shape and are not reserved,
-    because that combination is how a voicebank goes quietly wrong. An entry that spells itself,
-    using a phoneme no other entry uses, is the shape every marker has -- a real syllable like `a`
-    spells itself too, but `a` turns up inside `ma`, and a marker's phoneme never does.
+    The function also reports entries that have the shape of a marker but are not reserved, because
+    that combination indicates an otherwise undetected voicebank defect. An entry that maps to
+    itself and uses a phoneme that no other entry uses has the shape of a marker. A real syllable
+    such as `a` also maps to itself, but `a` occurs inside `ma`, and the phoneme of a marker does
+    not occur in any other entry.
     """
     phonemes = set()
     for pronunciation in entries.values():
@@ -299,28 +311,28 @@ def content_phonemes(entries: dict, reserved: set, known: set, handle: str, repo
     orphans = [key for key in candidates if key not in known]
     named = [key for key in candidates if key in known]
     if orphans:
-        # Neither reserved nor singable. It cannot be declared -- the loader checks a reserved
-        # phoneme against every model and would refuse the package -- and it cannot be removed
-        # from the inventory either, because then nothing would ever say it is unusable. It stays,
-        # and a host reports it as a phoneme these models cannot sing, which is what it is.
-        report.warn(f"{handle}: {' '.join(orphans)} spell themselves like reserved markers and no "
-                    f"model has them; they are neither reserved nor singable, and stay in the "
-                    f"inventory so that a host says so")
+        # Neither reserved nor singable. Such a phoneme cannot be declared as reserved, because
+        # the loader checks each reserved phoneme against every model and would reject the
+        # package. It also cannot be removed from the inventory, because no other place would
+        # then indicate that it is unusable. It remains in the inventory, and a host reports it
+        # as a phoneme that these models cannot sing, which is accurate.
+        report.warn(f"{handle}: {' '.join(orphans)} map to themselves like reserved markers, and "
+                    f"no model contains them; they are neither reserved nor singable and remain "
+                    f"in the inventory so that a host reports them")
     if named:
-        report.warn(f"{handle}: {' '.join(named)} look like reserved markers, and the models have "
-                    f"them, but no model marks them language independent; pass --reserved if they "
-                    f"are markers")
+        report.warn(f"{handle}: {' '.join(named)} have the shape of reserved markers and the "
+                    f"models contain them, but no model marks them as language-independent; pass "
+                    f"--reserved if they are markers")
 
     return phonemes - reserved
 
 
 def read_package_index(directory: Path, report: Report) -> dict:
-    """What each installed language package offers, keyed by language handle.
+    """Returns the contributions of each installed language package, keyed by language handle.
 
-    A package is read rather than assumed: which of the two shapes it has -- a whole linguist, or
-    a grapheme-to-phoneme stage and nothing else -- is the thing this has to find out, and it is
-    the thing that decides whether a voicebank binds to the package or builds its own linguist
-    around it.
+    Each package is read instead of assumed. The function determines which of the two shapes a
+    package has (a complete linguist, or only a grapheme-to-phoneme stage), because the shape
+    determines whether a voicebank binds to the package or builds its own linguist around it.
     """
     index = {}
     if not directory.is_dir():
@@ -348,15 +360,15 @@ def read_package_index(directory: Path, report: Report) -> dict:
                     continue
                 for item in declaration.get("imports", []):
                     reference = item.get("ref", "")
-                    # A reference inside the same package is written with a leading colon; both
-                    # forms have to end up spelled the same way to be compared.
+                    # A reference inside the same package begins with a colon; both forms are
+                    # normalized to the same spelling for comparison.
                     imported.add(identifier + reference if reference.startswith(":")
                                  else reference)
         packages.append((identifier, desc, declarations))
 
     for identifier, desc, declarations in packages:
-        # A linguist names its own language, so where there is one it is the authority and nothing
-        # has to be guessed.
+        # A linguist declares its language, so if a package contains a linguist, the linguist
+        # determines the language and nothing is inferred.
         linguists = {}
         for locator, declaration in declarations.items():
             if locator.startswith("linguist/") \
@@ -368,33 +380,38 @@ def read_package_index(directory: Path, report: Report) -> dict:
             if not locator.startswith("inference/") \
                     or declaration.get("interface") != G2P_INTERFACE:
                 continue
-            # A shared engine is a G2P too, and it declares every language it can transcribe, so
-            # going by the declaration alone would make the engine look like the answer for nine
-            # languages at once. What separates the two is not the variant or the package name but
-            # position: an engine is what another G2P imports and wraps, and a language's entry
-            # point is the outermost G2P, which no other G2P imports. That is readable from the
-            # installed set, so it is read rather than assumed.
+            # A shared engine is also a G2P and declares every language that it can transcribe,
+            # so matching by declaration alone would select the engine for nine languages at once.
+            # The engine and the entry point of a language are distinguished neither by variant
+            # nor by package name but by position: an engine is imported and wrapped by another
+            # G2P, and the entry point of a language is the outermost G2P, which no other G2P
+            # imports. The position is determined from the installed set instead of assumed.
             #
-            # Only G2P-to-G2P imports count. A linguist importing a G2P is the ordinary case --
-            # it is what a linguist is made of -- and would otherwise rule out every G2P that a
-            # language package has already wrapped in a linguist of its own.
+            # Only G2P-to-G2P imports count. A linguist that imports a G2P is the normal case,
+            # because a linguist is composed of such stages; counting those imports would exclude
+            # every G2P that a language package has already wrapped in its own linguist.
             if f"{identifier}:{locator}" in imported:
                 continue
-            # A G2P states which pairs it serves only when its output set is fixed enough to say
-            # so; the ones whose phonemes are voicebank content state nothing, and for those the
-            # package name is the only evidence there is.
-            declared = [pair.get("language")
-                        for pair in declaration.get("exports", {}).get("languages", [])]
+            # A G2P declares the pairs that it serves only if its output set is fixed; a G2P whose
+            # phonemes are voicebank content declares none, and for such a G2P the package name is
+            # the only available evidence.
+            pairs = declaration.get("exports", {}).get("languages", [])
+            declared = [pair.get("language") for pair in pairs]
+            exported_schemes = {pair.get("language"): pair.get("scheme") for pair in pairs
+                                if pair.get("scheme")}
             handles = declared or [identifier.rsplit("-", 1)[-1]]
             for handle in handles:
                 if handle in index:
-                    report.warn(f"{handle}: served by both {index[handle]['package']} and "
-                                f"{identifier}; keeping the first")
+                    report.warn(f"{handle}: provided by both {index[handle]['package']} and "
+                                f"{identifier}; using the first")
                     continue
                 linguist, scheme = linguists.get(handle, (None, None))
-                # The version the package says it is compatible back to, not the version it
-                # happens to be: a dependency written against the current build stops
-                # resolving the day the packaging revision moves.
+                # The package declares the scheme through its linguist or through the pair that
+                # its G2P exports; the static table is only the fallback if it declares neither.
+                scheme = scheme or exported_schemes.get(handle)
+                # The oldest version that the package declares compatibility with, not its
+                # current version: a dependency on the current version stops resolving as soon
+                # as the packaging revision changes.
                 compatible = four_part(desc.get("compatVersion", desc.get("version", "0.0.0.0")),
                                        report, f"{identifier}: desc.json")
                 if compatible is None:
@@ -407,26 +424,27 @@ def read_package_index(directory: Path, report: Report) -> dict:
                     "scheme": scheme or SCHEMES.get(handle),
                 }
                 if scheme and SCHEMES.get(handle) and scheme != SCHEMES[handle]:
-                    report.warn(f"{handle}: the package writes the scheme {scheme!r} where this "
-                                f"knows it as {SCHEMES[handle]!r}; using the package's")
+                    report.warn(f"{handle}: the package declares the scheme {scheme!r}, but the "
+                                f"built-in table records {SCHEMES[handle]!r}; using the package "
+                                f"value")
                 if not index[handle]["scheme"]:
-                    report.error(f"{handle}: no scheme is known for this language, and the "
-                                 f"package does not declare one")
+                    report.error(f"{handle}: no scheme is recorded for this language, and the "
+                                 f"package does not declare a scheme")
     return index
 
 
 def synthesise_linguist(root: Path, singer_dir: Path, entry: dict, served: dict,
                         reserved: set, known: set, report: Report) -> dict:
-    """Builds a voicebank side linguist around a language package's G2P.
+    """Builds a voicebank-side linguist around the G2P of a language package.
 
-    The three stages of a linguist do not all come from the same place. The grapheme-to-phoneme
-    stage is the language's and is imported from the package; the syllable-to-phoneme stage and
-    the onset rules are the voicebank's, because which phonemes this voicebank sings is its own
-    decision and no package can hold that. The 2.3 declaration named both of those files for the
-    same reason, so this points the new declarations at the files that are already there rather
-    than copying or rewriting anything.
+    The three stages of a linguist come from different sources. The grapheme-to-phoneme stage
+    belongs to the language and is imported from the package. The syllable-to-phoneme stage and
+    the onset rules belong to the voicebank, because the phoneme set of a voicebank is voicebank
+    content that no package can contain. The 2.3 declaration references both files for the same
+    reason, so the new declarations reference the existing files instead of copying or rewriting
+    them.
 
-    Returns what the caller has to add to desc.json, or None.
+    Returns the entries that the caller adds to desc.json, or None on failure.
     """
     handle = entry["id"]
     scheme = served["scheme"]
@@ -440,22 +458,23 @@ def synthesise_linguist(root: Path, singer_dir: Path, entry: dict, served: dict,
     imports = [{"role": "linguist/g2p", "ref": served["g2p"]}]
 
     def relocate(relative: str, target_dir: Path):
-        """Re-expresses a path the singer declaration held, relative to a new declaration."""
+        """Re-expresses a path from the singer declaration relative to a new declaration."""
         absolute = (singer_dir / relative).resolve()
         if not absolute.is_file():
-            report.error(f"{handle}: {relative} is not there")
+            report.error(f"{handle}: {relative} does not exist")
             return None, None
         return absolute, Path(os.path.relpath(absolute, target_dir)).as_posix()
 
-    # The syllable stage. `direct` needs no file: it passes the G2P's own phonemes through, which
-    # is what a language whose G2P already emits phonemes rather than syllables wants.
+    # The syllable stage. `direct` requires no file: it passes the phonemes of the G2P through,
+    # which suits a language whose G2P already produces phonemes instead of syllables.
     s2p_dir = root / "inferences" / f"s2p-{handle}"
     phonemes = set()
     configuration = {}
     if variant != "direct":
         source = entry.get("s2pFile") or entry.get("dict")
         if not source:
-            report.error(f"{handle}: the {mode} mode needs a dictionary and none is named")
+            report.error(f"{handle}: the {mode} mode requires a dictionary, and none is "
+                         f"specified")
             return None
         absolute, relative = relocate(source, s2p_dir)
         if absolute is None:
@@ -464,9 +483,9 @@ def synthesise_linguist(root: Path, singer_dir: Path, entry: dict, served: dict,
         phonemes = content_phonemes(read_table(absolute, report), reserved, known, handle,
                                     report)
     elif entry.get("dict"):
-        # Nothing reads this file on the newer line -- the G2P that would have used it belongs to
-        # the language package now -- but it is still this voicebank's own statement of which
-        # phonemes its English works on, so the inventory is taken from it.
+        # No 2.4 component reads this file, because the G2P that used it now belongs to the
+        # language package. The file still records the phonemes that this voicebank uses for the
+        # language (for example English), so the inventory is read from it.
         absolute, _ = relocate(entry["dict"], s2p_dir)
         if absolute is not None:
             phonemes = content_phonemes(read_table(absolute, report), reserved, known, handle,
@@ -474,7 +493,8 @@ def synthesise_linguist(root: Path, singer_dir: Path, entry: dict, served: dict,
 
     if not phonemes:
         report.warn(f"{handle}: no phoneme inventory could be read, and a linguist must declare "
-                     f"one; dropped; bind one with --language {handle}=<package>:linguist/<id>")
+                    f"an inventory; the language is dropped; bind a linguist with "
+                    f"--language {handle}=<package>:linguist/<id>")
         return None
 
     s2p_dir.mkdir(parents=True, exist_ok=True)
@@ -484,17 +504,18 @@ def synthesise_linguist(root: Path, singer_dir: Path, entry: dict, served: dict,
         "variant": variant,
         "name": f"{handle} syllables",
         "configuration": configuration,
-        # Declared even for `direct`, where the general advice is to leave it off: a `direct`
-        # stage that sits inside one voicebank's one language is not a general module, and saying
-        # which pair it serves is what lets the match happen at load time instead of at runtime.
+        # Declared even for `direct`, for which the general recommendation is to omit it: a
+        # `direct` stage inside a single language of a single voicebank is not a general module,
+        # and declaring the pair that it serves allows the match at load time instead of at run
+        # time.
         "exports": {"languages": [{"language": handle, "scheme": scheme}]},
     })
     inferences.append({"id": f"s2p-{handle}",
                        "path": f"./inferences/s2p-{handle}/inference.json"})
     imports.append({"role": "linguist/s2p", "ref": f":inference/s2p-{handle}"})
 
-    # The onset stage, which is optional: a language with no rule resource simply has none, and
-    # the pronunciation layer still works.
+    # The onset stage is optional: a language without a rule resource has no onset stage, and the
+    # pronunciation layer still works.
     if entry.get("onsetFile"):
         mode_name = entry.get("onsetMode", "rule")
         if mode_name != "rule":
@@ -526,9 +547,9 @@ def synthesise_linguist(root: Path, singer_dir: Path, entry: dict, served: dict,
         "name": handle,
         "language": handle,
         "scheme": scheme,
-        # A dictionary's phonemes are all the phonemes it can produce, so that set is closed. A
-        # `direct` stage hands on whatever the G2P produced, and a G2P that returns a word it
-        # could not convert can produce anything, so that one is not.
+        # The phonemes of a dictionary are all the phonemes that it can produce, so that set is
+        # closed. A `direct` stage passes on the output of the G2P, and a G2P that returns an
+        # unconvertible word unchanged can produce any symbol, so that set is open.
         "exports": {"phonemes": sorted(phonemes), "openSet": variant == "direct"},
         "configuration": {},
         "imports": imports,
@@ -544,16 +565,16 @@ def synthesise_linguist(root: Path, singer_dir: Path, entry: dict, served: dict,
     }
 
 
-# The path from the start of an ONNX file to the names of its inputs, in protobuf field numbers:
-# the model's graph, the graph's inputs, and an input's own name. Following those three and
-# stepping over everything else is what keeps this off the weights, which are most of the file.
+# Protobuf field numbers on the path from the start of an ONNX file to the names of its inputs: the
+# model graph, the graph inputs, and the name of an input. Following only these three fields and
+# skipping all others avoids reading the weights, which make up most of the file.
 ONNX_GRAPH_FIELD = 7
 ONNX_GRAPH_INPUT_FIELD = 11
 ONNX_VALUE_INFO_NAME_FIELD = 1
 
 
 def read_varint(data: bytes, at: int):
-    """One base-128 varint, as (value, next offset), or (None, *at*) when there is not one there."""
+    """Reads one base-128 varint as (value, next offset), or (None, *at*) if none is present."""
     value = 0
     shift = 0
     while at < len(data) and shift < 64:
@@ -567,11 +588,10 @@ def read_varint(data: bytes, at: int):
 
 
 def read_submessages(data: bytes, number: int) -> list:
-    """The payload of every length-delimited field *number* in one protobuf message.
+    """Returns the payload of every length-delimited field *number* in one protobuf message.
 
-    Every other field is stepped over by the size its wire type dictates, so a field this knows
-    nothing about is passed rather than misread, and a message that stops making sense ends the
-    walk instead of being guessed at.
+    Every other field is skipped by the size that its wire type specifies, so an unknown field is
+    skipped instead of misread, and a malformed message ends the walk instead of being interpreted.
     """
     payloads = []
     at = 0
@@ -599,12 +619,12 @@ def read_submessages(data: bytes, number: int) -> list:
 
 
 def read_encoder_inputs(path: Path):
-    """The names an ONNX model declares as its inputs, or None when it cannot be read as one.
+    """Returns the input names declared by an ONNX model, or None if the file cannot be read.
 
-    What a model takes is a property of the model, so it is asked directly rather than taken from
-    how a 2.3 declaration happened to be written. No dependency is needed for that: an ONNX file
-    is a protobuf and the names sit at a fixed path through it, which is cheaper to walk than the
-    weights it would otherwise be loaded with.
+    The inputs are a property of the model, so they are read from the model instead of being
+    inferred from a 2.3 declaration. No dependency is required: an ONNX file is a protobuf, and the
+    input names are at a fixed field path, which is cheaper to walk than loading the model with its
+    weights.
     """
     try:
         data = path.read_bytes()
@@ -619,11 +639,11 @@ def read_encoder_inputs(path: Path):
 
 
 def dsconfig_linguistic_mode(directory: Path):
-    """2.3's `predict_dur`, from the dsconfig.yaml beside a declaration, as a mode or None.
+    """Returns the 2.3 `predict_dur` flag from the dsconfig.yaml beside a declaration as a mode.
 
-    The flag is one plain scalar at the left margin and is read as one: a line nested inside
-    something else, or spelled otherwise, is not this flag, and answering from a guess would be
-    worse than not answering. True meant the word encoder and false the phoneme one.
+    The flag is matched only as a plain scalar at the left margin: a nested line or a different
+    spelling is not this flag, and a guessed value would be worse than None. True indicates the
+    word encoder, and false the phoneme encoder. Returns None if the flag is absent or unreadable.
     """
     try:
         text = (directory / "dsconfig.yaml").read_text(encoding="utf-8", errors="replace")
@@ -637,18 +657,17 @@ def dsconfig_linguistic_mode(directory: Path):
 
 
 def mode_to_declare(directory: Path, configuration: dict, kind: str, report: Report):
-    """The linguistic mode this declaration has to name, or None when it has nothing to say.
+    """Returns the linguistic mode that the declaration must specify, or None if none is needed.
 
-    A 2.3 voicebank said which granularity its encoder takes with `predict_dur`, the declaration
-    built from it lost the key, and the interpreter then falls back to its own default and
-    prepares the other set of inputs -- which fails at run time, on a missing input name, rather
-    than here. So the mode is recovered, and written only where it is a difference: a role with no
-    choice, or a mode that is already the interpreter's default, is left exactly as it was.
+    A 2.3 voicebank specified the granularity of its encoder with `predict_dur`. The converted
+    declaration does not contain that key, so the interpreter falls back to its default and
+    prepares the other input set, which fails at run time on a missing input name instead of
+    during conversion. The mode is therefore recovered and written only if it differs from the
+    default: a role without a choice, or a mode equal to the interpreter default, is left unchanged.
 
-    The model is asked first, because the names it declares are what has to match; dsconfig.yaml
-    is the second opinion, taken when the model cannot be read. Where the two disagree the model
-    wins and the disagreement is reported, since the stale file beside a model is the likelier of
-    the two to be wrong.
+    The model is inspected first, because its declared input names must match; dsconfig.yaml is
+    the fallback if the model cannot be read. If the two disagree, the model value is used and the
+    disagreement is reported, because the file beside a model is more likely to be outdated.
     """
     default = LINGUISTIC_MODE_DEFAULTS.get(kind)
     if default is None:
@@ -668,8 +687,8 @@ def mode_to_declare(directory: Path, configuration: dict, kind: str, report: Rep
 
     from_file = dsconfig_linguistic_mode(directory)
     if from_model and from_file and from_model != from_file:
-        report.warn(f"{directory.name}: the encoder takes {from_model} inputs where the "
-                    f"dsconfig.yaml beside it says {from_file}; going by the encoder")
+        report.warn(f"{directory.name}: the encoder takes {from_model} inputs, but the "
+                    f"dsconfig.yaml beside it specifies {from_file}; using the encoder")
     mode = from_model or from_file
     if mode is None or mode == default:
         return None
@@ -677,10 +696,11 @@ def mode_to_declare(directory: Path, configuration: dict, kind: str, report: Rep
 
 
 def is_language_path(value) -> bool:
-    """Whether a multi-language path field holds a shape 2.4 reads: a path, or a map of paths.
+    """Returns whether a multi-language path field has a shape that 2.4 accepts.
 
-    The same two questions the loader asks of these fields, in the same order: a map has to name
-    its default under `_`, and every value has to be a string to be a path at all.
+    The accepted shapes are a path and a map of paths. The checks are those that the loader applies
+    to these fields, in the same order: a map must contain its default under `_`, and every value
+    must be a string.
     """
     if isinstance(value, str):
         return True
@@ -691,20 +711,20 @@ def is_language_path(value) -> bool:
 
 
 def is_positive_number(value) -> bool:
-    """Whether a JSON value is a finite number greater than zero.
+    """Returns whether a JSON value is a finite number greater than zero.
 
-    `true` is an `int` in Python and is not a number here, which is the same question the
-    interpreter puts to the pair it divides before it divides by them.
+    `true` is an `int` in Python but is not a number here, consistent with the check that the
+    interpreter applies to the pair before dividing by it.
 
-    Finite is asked here too, though the runtime asks it separately and much later: a non-finite
-    value compares greater than zero, so one kept on that reading alone would load, offer itself
-    for selection and be refused only once a synthesis was under way, by the duration task's
-    `!std::isfinite` guard (`DurationTask.cpp`:224-225) -- the "selectable, never renderable"
-    shape this helper exists to keep out. `Infinity` and `NaN` reach the file only through
-    Python's JSON extension for them, which is exactly why the gap is easy to leave open.
+    Finiteness is checked here although the runtime checks it separately and much later: a
+    non-finite value compares greater than zero, so a value accepted on that comparison alone would
+    load, be offered for selection and be rejected only during synthesis by the `!std::isfinite`
+    guard of the duration task (`DurationTask.cpp`:224-225). This helper exists to exclude such
+    selectable but unrenderable packages. `Infinity` and `NaN` can appear in the file only through
+    the Python JSON extension for them, which makes this gap easy to overlook.
 
-    An `int` is finite by construction and is not put to `math.isfinite`: that would convert it
-    to a float first and raise `OverflowError` on an integer too large to be one.
+    An `int` is finite by construction and is not passed to `math.isfinite`, which would convert
+    it to a float first and raise `OverflowError` for an integer too large for a float.
     """
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return False
@@ -712,44 +732,42 @@ def is_positive_number(value) -> bool:
 
 
 def dropped_configuration_keys(configuration: dict) -> set:
-    """The keys of DROPPED_CONFIGURATION_KEYS this configuration can lose.
+    """Returns the keys of DROPPED_CONFIGURATION_KEYS that this configuration can drop.
 
-    `frameWidth` is droppable only where an interpreter derives the same value without it.
-    Duration, Pitch and Variance take a `frameWidth`, or a positive `sampleRate` and `hopSize` to
-    compute one from (synthrt `docs/dsinfer-level-1-revised.md`:26), and the interpreter reads the
-    `frameWidth` when it is there and falls back to the pair only when it is not. So the two are
-    alternatives rather than one being an older spelling of the other, and a configuration that
-    carries one without the other has to keep it: 2.3 packs `frameWidth` alone in junninghua's
-    duration, pitch and variance declarations, and dropping it leaves the interpreter with neither
-    (inferutil's `Parser_impl.h`:432-465, which asks for a frame width and finds none) and refuses
-    the whole package. A pair that is absent, not a number, or not positive is the same case: the
-    interpreter derives nothing from such a pair either.
+    `frameWidth` can be dropped only if an interpreter derives the same value without it.
+    Duration, Pitch and Variance accept a `frameWidth`, or a positive `sampleRate` and `hopSize`
+    from which it is computed (synthrt `docs/dsinfer-level-1-revised.md`:26); the interpreter reads
+    `frameWidth` if present and falls back to the pair only otherwise. The two forms are therefore
+    alternatives, not an old and a new spelling of one value, and a configuration that contains
+    only one of them must keep it. 2.3 stores `frameWidth` alone in the duration, pitch and
+    variance declarations of junninghua; dropping it leaves the interpreter with neither form
+    (inferutil `Parser_impl.h`:432-465 requires a frame width and finds none), and the whole
+    package is rejected. A pair that is absent, not a number or not positive is the same case,
+    because the interpreter derives nothing from such a pair either.
 
-    Whatever is kept in that case has to be a value the runtime accepts, though, which is why the
-    width is kept only where it is a positive number. A width the interpreter would take and the
-    duration task would refuse leaves a package that loads, offers itself for selection and cannot
-    render -- the worse of the two failures, since the refusal then arrives with no way to tell
-    which declaration caused it.
+    A kept value must be accepted by the runtime, so the width is kept only if it is a positive
+    number. A width that the interpreter accepts and the duration task rejects produces a package
+    that loads and is offered for selection but cannot render. That is the worse failure, because
+    the rejection then gives no indication of the declaration that caused it.
     """
     droppable = set(DROPPED_CONFIGURATION_KEYS)
     usable_pair = (is_positive_number(configuration.get("sampleRate"))
                    and is_positive_number(configuration.get("hopSize")))
     if usable_pair:
         return droppable
-    # `frameWidth` is the one with a second form to be read from instead. It is kept only if it is
-    # a width: the interpreter tests a `frameWidth` for being a number and nothing more, taking any
-    # number it finds (inferutil's `Parser_impl.h`:437-438), and a non-finite or non-positive one is
-    # refused by the duration task once a synthesis is under way (`DurationTask.cpp`:224-225).
-    # Dropping such a value instead is what puts the refusal back at load time, where the
-    # configuration is read at all: with neither form present the interpreter says one is required
-    # (`Parser_impl.h`:463-465).
+    # `frameWidth` is the key with an alternative form. It is kept only if it is a valid width:
+    # the interpreter only tests whether `frameWidth` is a number and accepts any number (inferutil
+    # `Parser_impl.h`:437-438), and the duration task rejects a non-finite or non-positive value
+    # during synthesis (`DurationTask.cpp`:224-225). Dropping such a value moves the rejection to
+    # load time, when the configuration is read: with neither form present, the interpreter reports
+    # that one of them is required (`Parser_impl.h`:463-465).
     if is_positive_number(configuration.get("frameWidth")):
         droppable.discard("frameWidth")
     return droppable
 
 
 def convert_declaration(path: Path, report: Report):
-    """Rewrites one module declaration in place. Returns (id, kind) or None."""
+    """Rewrites one module declaration in place. Returns (id, kind), or None on failure."""
     declaration = read_json(path, report)
     if declaration is None:
         return None
@@ -762,41 +780,41 @@ def convert_declaration(path: Path, report: Report):
 
     identifier = declaration.get("id")
     if not identifier:
-        report.error(f"{path}: declaration has no id to give the package")
+        report.error(f"{path}: the declaration has no id for its package contribution")
         return None
 
-    # The declaration is copied and then edited, rather than rebuilt from the keys this knows: 2.4
-    # keeps what it does not recognise in a framework defined object, and a declaration is one of
-    # those (spec `ds-spec-2.4.md`:74; the categories read a declaration's unknown fields and say so
-    # at debug level rather than refuse them, `SingerContrib.cpp`:231-247). A key this script has
-    # never heard of -- a singer's avatar is the one that shows -- would otherwise leave the package
-    # while the file it names stays on disk, which is a package describing itself wrongly.
+    # The declaration is copied and then edited instead of being rebuilt from the known keys: 2.4
+    # preserves unrecognized keys in a framework-defined object, and a declaration is such an object
+    # (spec `ds-spec-2.4.md`:74; the categories log unknown fields of a declaration at debug level
+    # instead of rejecting them, `SingerContrib.cpp`:231-247). An unknown key, for example the
+    # avatar of a singer, would otherwise be removed from the package while the referenced file
+    # remains on disk, and the package would describe itself incorrectly.
     #
-    # That protection is the declaration's alone, and not the entries': a contribution entry and a
-    # dependency entry are each read against an allow-list that refuses anything outside it
+    # This protection applies only to the declaration, not to the entries: a contribution entry and
+    # a dependency entry are each validated against an allow-list that rejects any other field
     # (`SingerContrib.cpp`:22-31, `InferenceContrib.cpp`:49-58, `PackageLoader.cpp`:460-466). Those
-    # two are built from the fields 2.4 defines instead of being carried through.
+    # entries are built from the fields that 2.4 defines instead of being carried over.
     converted = dict(declaration)
     converted["interface"] = interface
     converted["level"] = declaration.get("level", 1)
     converted["variant"] = variant
 
-    # `class` is the older line's name for the contract the interface and variant now give, the id
-    # belongs to the package that contributes the module rather than to the declaration, and
-    # `$version` is the manifest format version, which 2.4 keeps in desc.json alone.
+    # `class` is the 2.3 name for the contract that interface and variant now specify, the id
+    # belongs to the contributing package instead of the declaration, and `$version` is the
+    # manifest format version, which 2.4 keeps in desc.json only.
     converted.pop("class", None)
     converted.pop("id", None)
     converted.pop("$version", None)
 
-    # 2.3's `schema` is 2.4's `exports`: the same thing, which is what a module publishes about
-    # itself for an importer to read.
+    # The 2.3 `schema` is the 2.4 `exports`: the information that a module publishes for its
+    # importers.
     if "schema" in declaration:
         converted.pop("schema", None)
         converted["exports"] = declaration["schema"]
 
-    # A path field the newer category cannot read is dropped rather than carried: one packaging
-    # tool writes `demoAudio` as a list of named clips, which is neither the shape the older line
-    # defined nor the one the newer line does, and keeping it would refuse the whole declaration.
+    # A path field that the 2.4 category cannot read is dropped instead of carried over: one
+    # packaging tool writes `demoAudio` as a list of named clips, which matches neither the 2.3 nor
+    # the 2.4 definition, and keeping it would cause the whole declaration to be rejected.
     for field in SINGER_PATH_FIELDS:
         if field in converted and not is_language_path(converted[field]):
             del converted[field]
@@ -806,10 +824,11 @@ def convert_declaration(path: Path, report: Report):
     configuration = dict(declaration.get("configuration", {}))
     for dropped in dropped_configuration_keys(configuration):
         if configuration.pop(dropped, None) is not None:
-            report.note(f"{path.parent.name}: dropped {dropped}, which is derived now")
-    # The granularity the encoder is prepared in, which 2.3 kept in dsconfig.yaml and a converted
-    # declaration otherwise loses. Declared only where it differs from what the interpreter would
-    # do on its own, so a package that already loads comes out of this unchanged.
+            report.note(f"{path.parent.name}: dropped {dropped}, which is derived from "
+                        f"sampleRate and hopSize")
+    # Granularity of the encoder input, which 2.3 kept in dsconfig.yaml and a converted
+    # declaration would otherwise lose. It is declared only if it differs from the interpreter
+    # default, so this step leaves a package that already loads unchanged.
     mode = mode_to_declare(path.parent, configuration, kind, report)
     if mode is not None:
         configuration["linguisticMode"] = mode
@@ -817,11 +836,11 @@ def convert_declaration(path: Path, report: Report):
     if configuration:
         converted["configuration"] = configuration
     else:
-        # An empty configuration is not written: it would claim the variant was given parameters.
+        # An empty configuration is not written, because it would indicate variant parameters.
         converted.pop("configuration", None)
 
-    # `imports` are not touched here. The copy above leaves them as they were, and the caller
-    # rewrites them for a singer, which is the only category whose imports name inference kinds.
+    # `imports` are not modified here. The copy above preserves them, and the caller rewrites them
+    # for a singer, which is the only category whose imports reference inference kinds.
 
     write_json(path, converted)
     return identifier, kind
@@ -830,16 +849,16 @@ def convert_declaration(path: Path, report: Report):
 def convert_singer_imports(root: Path, path: Path, kinds: dict, overrides: dict, index: dict,
                            reserved: set, known: set, required: dict, synthesised: dict,
                            report: Report) -> None:
-    """Turns 2.3 `inferenceId` imports into 2.4 role and ref pairs, and gives the singer languages.
+    """Converts 2.3 `inferenceId` imports into 2.4 role and ref pairs and binds singer languages.
 
-    Collects into \a required the packages any binding referenced, so the caller can declare them,
-    and into \a synthesised the contributions any linguist built here adds to the package, once
-    each: one language builds the same declarations whichever singer names it, and within a
-    category an `id` names one contribution.
+    Collects into \a required the packages referenced by any binding, so that the caller can
+    declare them, and into \a synthesised the contributions that any linguist built here adds to
+    the package, each once: a language produces the same declarations regardless of the singer
+    that references it, and within a category an `id` identifies a single contribution.
     """
 
     def add_built(category: str, entries: list) -> None:
-        """Records built declarations that no singer before this one has already built."""
+        """Records the built declarations that no earlier singer has built."""
         listed = synthesised.setdefault(category, [])
         named = {entry["id"] for entry in listed}
         for entry in entries:
@@ -855,23 +874,24 @@ def convert_singer_imports(root: Path, path: Path, kinds: dict, overrides: dict,
     for entry in declaration.get("imports", []):
         target = entry.get("inferenceId")
         if not target:
-            report.error(f"{path}: an import names no inferenceId")
+            report.error(f"{path}: an import has no inferenceId")
             continue
         kind = kinds.get(target)
         if kind is None:
-            report.error(f"{path}: import {target!r} does not name an inference in this package")
+            report.error(f"{path}: import {target!r} does not reference an inference in this "
+                         f"package")
             continue
         converted = {"role": f"singer/{kind}", "ref": f":inference/{target}"}
-        # An empty options object is not the same as none, but nothing reads one, and 2.4 lets it
-        # be absent. Dropping it keeps the declaration to what it means.
+        # An empty options object differs from an absent options object, but no component reads
+        # it, and 2.4 allows it to be absent. Dropping it keeps the declaration minimal.
         if entry.get("options"):
             converted["options"] = entry["options"]
         imports.append(converted)
 
     configuration = dict(declaration.get("configuration", {}))
 
-    # The older line's per-language G2P settings describe a system the newer line does not have.
-    # Carrying them would leave keys nothing reads, so they go, and what was there is reported.
+    # The 2.3 per-language G2P settings describe a system that 2.4 does not have. Carrying them
+    # over would leave unread keys, so they are removed, and the affected languages are reported.
     declared = configuration.pop("languages", [])
     default_language = configuration.pop("defaultLanguage", None)
 
@@ -883,23 +903,23 @@ def convert_singer_imports(root: Path, path: Path, kinds: dict, overrides: dict,
         handle = entry["id"]
 
         if handle in overrides:
-            # An explicit binding is taken as given: someone who names a linguist has looked at
-            # what is installed, and second guessing that would only ever be wrong.
+            # An explicit binding is used as given: a caller who specifies a linguist has
+            # inspected the installed packages, and overriding that choice would be wrong.
             reference, version = overrides[handle]
             package = reference.split(":", 1)[0]
         else:
             served = index.get(handle)
             if served is None:
-                report.warn(f"{path.parent.name}: language {handle!r} has no installed package to "
-                            f"serve it and was dropped; pass --packages, or "
+                report.warn(f"{path.parent.name}: language {handle!r} has no installed package "
+                            f"and was dropped; pass --packages or "
                             f"--language {handle}=<package>:linguist/<id>")
                 continue
             if served["scheme"] is None:
                 continue  # already reported while reading the package
-            # Which of the two shapes applies is decided by what this voicebank brought, not by
-            # what the package could have done. A voicebank that named its own phoneme stage meant
-            # it: those files are its phonetics, and binding past them to a package's linguist
-            # would quietly sing a different inventory than the one it ships.
+            # The shape is selected by the content of the voicebank, not by the capabilities of
+            # the package. If a voicebank specifies its own phoneme stage, those files define its
+            # phonetics, and binding to the linguist of a package instead would silently use an
+            # inventory different from the inventory that the voicebank ships.
             if entry.get("s2pFile") or entry.get("onsetFile") or entry.get("dict"):
                 built = synthesise_linguist(root, path.parent, entry, served, reserved,
                                             known, report)
@@ -910,40 +930,40 @@ def convert_singer_imports(root: Path, path: Path, kinds: dict, overrides: dict,
                 reference = built["reference"]
                 package, version = built["dependency"]
             elif served["linguist"]:
-                report.note(f"{handle}: bound to {served['linguist']}, which is whole")
+                report.note(f"{handle}: bound to the complete linguist {served['linguist']}")
                 reference = served["linguist"]
                 package, version = served["package"], served["version"]
             else:
-                report.warn(f"{path.parent.name}: language {handle!r} brought no phoneme stage and "
-                            f"{served['package']} has no whole linguist; dropped")
+                report.warn(f"{path.parent.name}: language {handle!r} specifies no phoneme stage, "
+                            f"and {served['package']} has no complete linguist; dropped")
                 continue
 
         role = f"lang/{handle}"
         imports.append({"role": role, "ref": reference})
         bound[handle] = role
-        # Whatever reaches out of this package has to be declared as a dependency, or the
-        # reference does not resolve and the loader complains about the reference rather than
-        # about the declaration that is missing. That is true of a linguist built here too: the
-        # linguist is this package's own, but the G2P it imports is not.
+        # Every reference to another package must be declared as a dependency; otherwise the
+        # reference does not resolve, and the loader reports the reference instead of the missing
+        # dependency declaration. This also applies to a linguist built here: the linguist belongs
+        # to this package, but the G2P that it imports does not.
         required.setdefault(package, version)
 
-    # Declared on the singer, because it is the singer's models that have to have them and the
-    # singer is what a host holds. The same set is kept out of every language's inventory below,
-    # so the two statements cannot disagree. It is a singer category field in the declaration
-    # root, like the language map below, not part of the variant's configuration.
+    # Declared on the singer, because the models of the singer must contain these phonemes and a
+    # host operates on the singer. The same set is excluded from the inventory of every language
+    # below, so the two declarations cannot contradict each other. It is a singer category field in
+    # the declaration root, like the language map below, and not part of the variant configuration.
     configuration.pop("reservedPhonemes", None)
     declaration.pop("reservedPhonemes", None)
     if reserved:
         declaration["reservedPhonemes"] = sorted(reserved)
 
-    # The two fields are the singer category's own, read by synthrt before any provider is chosen
-    # and checked there for shape and for roles that exist. They sit in the declaration root beside
-    # the avatar, not inside configuration, which belongs to the singer variant alone.
+    # Both fields belong to the singer category; synthrt reads them before selecting any provider
+    # and validates their shape and the referenced roles. They are in the declaration root beside
+    # the avatar, not inside configuration, which belongs to the singer variant only.
     declaration.pop("languages", None)
     declaration.pop("defaultLanguage", None)
     if bound:
         declaration["languages"] = bound
-        # A singer that declares languages must name a default among them.
+        # A singer that declares languages must specify a default among them.
         if default_language in bound:
             declaration["defaultLanguage"] = default_language
         else:
@@ -986,7 +1006,7 @@ def convert(root: Path, overrides: dict, index: dict, extra_reserved: set,
         for relative in entries:
             declaration_path = root / relative
             if not declaration_path.is_file():
-                report.error(f"{desc_path}: {relative} is not there")
+                report.error(f"{desc_path}: {relative} does not exist")
                 continue
             result = convert_declaration(declaration_path, report)
             if result is None:
@@ -996,18 +1016,18 @@ def convert(root: Path, overrides: dict, index: dict, extra_reserved: set,
                 kinds[identifier] = kind
             else:
                 singers.append(declaration_path)
-            # The path keeps its original spelling, so nothing inside the declaration has to move.
+            # The path keeps its original spelling, so no path inside the declaration changes.
             converted_entries.append({"id": identifier, "path": f"./{relative}"})
         if converted_entries:
             contributions[target_key] = converted_entries
 
-    # Read after the inference declarations have been converted, because the table each one names
-    # is what says which phonemes are reserved, and that is needed before a singer is written.
+    # Read after the inference declarations are converted, because the tables that they reference
+    # determine the reserved phonemes, which are required before a singer is written.
     tables = read_model_phonemes(root, contributions, report)
     reserved = reserved_phonemes(tables, extra_reserved, report)
     known = set().union(*tables.values()) if tables else set()
-    # A table writes a phoneme belonging to a language as `<language>/<phoneme>`; a dictionary
-    # writes it bare, because a dictionary is already inside one language.
+    # A table writes a phoneme of a language as `<language>/<phoneme>`; a dictionary writes it
+    # without a prefix because a dictionary belongs to a single language.
     known |= {key.split("/", 1)[1] for key in known if "/" in key}
 
     required = {}
@@ -1015,8 +1035,8 @@ def convert(root: Path, overrides: dict, index: dict, extra_reserved: set,
     for singer in singers:
         convert_singer_imports(root, singer, kinds, overrides, index, set(reserved), known,
                                required, synthesised, report)
-    # Anything a linguist built above added to the package. Appended rather than merged into the
-    # loop above because it does not exist until the singer's languages have been read.
+    # Contributions added by the linguists built above. They are appended after the loop because
+    # they exist only after the singer languages have been read.
     for category, entries in sorted(synthesised.items()):
         contributions.setdefault(category, []).extend(entries)
 
@@ -1030,36 +1050,36 @@ def convert(root: Path, overrides: dict, index: dict, extra_reserved: set,
         for entry in entries:
             check_identifier(entry.get("id"), SEGMENT, f"{category} contribution id", report,
                              f"{root.name}: desc.json")
-    # Copied for the same reason a declaration is: what a package says about itself belongs to it,
-    # and a key this script has never heard of has to survive the conversion rather than vanish.
+    # Copied for the same reason as a declaration: the package metadata belongs to the package,
+    # and the conversion must preserve unknown keys.
     converted = dict(desc)
     converted["$version"] = "1.0"
     converted["id"] = package_id
     converted["version"] = version
-    # A converted package claims compatibility with nothing older, which is the honest answer:
-    # what it was converted from could not be loaded by this runtime at all.
+    # A converted package declares no compatibility with older versions, because this runtime
+    # could not load the source package.
     converted["compatVersion"] = version
     converted["runtimeLevel"] = 1
-    # The older line listed contributions as bare paths under `contributes`; the newer one gives
-    # each entry an id, so the older key is replaced rather than kept beside the new one.
+    # 2.3 listed contributions as bare paths under `contributes`; 2.4 assigns each entry an id,
+    # so the 2.3 key is replaced instead of kept beside the new key.
     converted.pop("contributes", None)
 
     dependencies = []
     for entry in desc.get("dependencies", []):
         if not isinstance(entry, dict):
             continue
-        # 2.4 reads a dependency entry as two fields and refuses the whole package over any other
-        # one: the loader holds the entry against an allow-list of `id` and `version` and answers
-        # "unknown dependency field" for the first key outside it (synthrt
-        # `synthrt/lib/Core/PackageLoader.cpp`:460-466). So the entry is rebuilt from those two
-        # rather than copied: 2.3 dependencies carry `name`, `url` or `optional`, and any one of
-        # them left in place makes every package that names a dependency unloadable.
+        # 2.4 reads a dependency entry as two fields and rejects the whole package for any other
+        # field: the loader validates the entry against an allow-list of `id` and `version` and
+        # reports "unknown dependency field" for the first other key (synthrt
+        # `synthrt/lib/Core/PackageLoader.cpp`:460-466). The entry is therefore rebuilt from those
+        # two fields instead of copied: 2.3 dependencies contain `name`, `url` or `optional`, and
+        # any of them would make every package with a dependency unloadable.
         dropped = sorted(set(entry) - {"id", "version", "required"})
         if dropped:
             report.note(f"{root.name}: dependency {entry.get('id')!r} dropped "
                         f"{', '.join(dropped)}, which 2.4 does not read")
-        # 2.4 has no optional dependency: every one listed must resolve. A 2.3 `required: false`
-        # therefore turns into a hard requirement, which is said rather than done in silence.
+        # 2.4 has no optional dependencies: every listed dependency must resolve. A 2.3
+        # `required: false` therefore becomes a hard requirement, which is reported.
         if entry.get("required") is False:
             report.warn(f"{root.name}: dependency {entry.get('id')!r} was optional in 2.3 and "
                         f"is required in 2.4, which does not support optional dependencies")
@@ -1071,7 +1091,7 @@ def convert(root: Path, overrides: dict, index: dict, extra_reserved: set,
     if dependencies:
         converted["dependencies"] = dependencies
     else:
-        # An empty list says the same as an absent one, and the older key is not carried over.
+        # An empty list is equivalent to an absent list, and the 2.3 key is not carried over.
         converted.pop("dependencies", None)
     converted["contributions"] = contributions
     write_json(desc_path, converted)
@@ -1090,19 +1110,19 @@ def main() -> int:
     parser.add_argument("--output", type=Path,
                         help="write the converted copy here instead of beside the original")
     parser.add_argument("--in-place", action="store_true",
-                        help="rewrite the package where it is; destructive")
+                        help="rewrite the package in place; destructive")
     parser.add_argument("--reserved", default="", metavar="PHONEME[,PHONEME...]",
-                        help="further phonemes to treat as reserved, beyond the ones the models "
-                             "themselves mark as language independent. Each is still checked "
-                             "against every model table, and dropped with a warning if absent")
+                        help="additional phonemes to treat as reserved, beyond those that the "
+                             "models mark as language-independent. Each is still checked against "
+                             "every model table and dropped with a warning if absent")
     parser.add_argument("--packages", type=Path,
-                        help="where the installed language packages are; each declared language "
-                             "is served from here unless --language says otherwise")
+                        help="directory of the installed language packages; each declared "
+                             "language is bound from here unless --language specifies otherwise")
     parser.add_argument("--language", action="append", default=[],
                         metavar="HANDLE=REFERENCE[@VERSION]",
-                        help="bind a language handle to a linguist, e.g. "
+                        help="bind a language handle to a linguist, for example "
                              "cmn=wolf/lang-cmn:linguist/cmn-pinyin@1.0.0.0. The version is the "
-                             "lowest accepted and defaults to 0.0.0.0, meaning any")
+                             "minimum accepted version and defaults to 0.0.0.0 (any version)")
     args = parser.parse_args()
 
     report = Report()
@@ -1118,8 +1138,8 @@ def main() -> int:
             return 1
         reference, _, version = reference.partition("@")
         if ":" not in reference:
-            report.error(f"--language {binding}: a linguist in another package is named "
-                         f"<package>:linguist/<id>")
+            report.error(f"--language {binding}: a linguist in another package is referenced "
+                         f"as <package>:linguist/<id>")
             return 1
         pinned = four_part(version or "0.0.0.0", report, f"--language {binding}")
         if pinned is None:
@@ -1128,22 +1148,21 @@ def main() -> int:
 
     if args.in_place:
         if args.output:
-            report.error("--in-place and --output are not both")
+            report.error("--in-place and --output are mutually exclusive")
             return 1
         root = args.package
     else:
         root = args.output or args.package.parent / (args.package.name + "-2.4")
-        # The destination is removed before anything is read out of the package, so a destination
-        # that is the package, holds it, or sits inside it takes the source with it and leaves
-        # nothing behind to convert. A caller who named one of those named the wrong path, not a
-        # conversion -- and the wrong path here is the one mistake that cannot be undone.
+        # The destination is removed before the package is read, so a destination that is the
+        # package, contains it or is inside it deletes the source and leaves nothing to convert.
+        # Such a destination is a path error, and this path error cannot be undone.
         package_parts = args.package.resolve().parts
         root_parts = root.resolve().parts
         if (root_parts[:len(package_parts)] == package_parts
                 or package_parts[:len(root_parts)] == root_parts):
-            report.error(f"{root}: is the package, holds it, or sits inside it, and the destination "
-                         f"is removed before the copy is made; name an --output outside the package, "
-                         f"or use --in-place")
+            report.error(f"{root}: is the package, contains it or is inside it, and the "
+                         f"destination is removed before the copy is made; specify an --output "
+                         f"outside the package, or use --in-place")
             return 1
         if root.exists():
             shutil.rmtree(root)
@@ -1152,7 +1171,7 @@ def main() -> int:
 
     index = read_package_index(args.packages, report) if args.packages else {}
     if args.packages and not index:
-        report.warn(f"{args.packages}: no language packages found there")
+        report.warn(f"{args.packages}: no language packages found")
 
     extra = {token for token in args.reserved.split(",") if token}
     convert(root, overrides, index, extra, report)

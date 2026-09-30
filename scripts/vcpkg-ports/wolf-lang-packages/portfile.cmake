@@ -10,11 +10,11 @@
 # The release must be reachable without credentials. This port deliberately contains no token
 # handling: a credential belongs in neither a committed file nor the environment of every consumer
 # that builds the port, and a data-only port that any consumer can install must not hold a
-# credential. A consumer without network access instead sets the WOLF_LANG_PACKAGES_SOURCE cache
-# variable to the path of an unpacked local copy.
+# credential. A consumer without network access instead sets WOLF_LANG_PACKAGES_SOURCE (in this
+# repository also LITE_WOLF_LANG_PACKAGES) to the path of an unpacked local copy.
 #
-# The archives unpack to directories rather than to single files because the loader in synthrt
-# main accepts directories only.
+# The archives unpack to directories instead of single files because the package loader of the
+# synthrt main line accepts directories only.
 
 set(VCPKG_POLICY_EMPTY_PACKAGE enabled)
 
@@ -29,7 +29,10 @@ set(WOLF_LANG_RELEASE_TAG "lang-v${WOLF_LANG_PACKAGES_BUNDLE_VERSION}")
 set(WOLF_LANG_BASE_URL
     "https://github.com/diffscope/wolf/releases/download/${WOLF_LANG_RELEASE_TAG}")
 
-set(_install_root "${CURRENT_PACKAGES_DIR}/share/wolf/packages")
+# Install location of the packages, relative to the prefix. The config template exports the same
+# location to consumers and receives this value instead of a second copy of the path.
+set(WOLF_LANG_PACKAGES_SUBDIR "share/wolf/packages")
+set(_install_root "${CURRENT_PACKAGES_DIR}/${WOLF_LANG_PACKAGES_SUBDIR}")
 file(MAKE_DIRECTORY "${_install_root}")
 
 set(_installed "")
@@ -58,7 +61,7 @@ set(WOLF_LANG_PACKAGES_INSTALLED "${_installed}")
 configure_file("${CMAKE_CURRENT_LIST_DIR}/wolf-lang-packages-config.cmake.in"
     "${CURRENT_PACKAGES_DIR}/share/${PORT}/wolf-lang-packages-config.cmake" @ONLY)
 
-# The copyright file is written directly rather than through vcpkg_install_copyright, which
+# The copyright file is written directly instead of through vcpkg_install_copyright, which
 # requires FILE_LIST to name at least one file. No fixed file list applies: the applicable licenses
 # depend on the selected features, and several packages contain no license file because upstream
 # supplied none. The license files that the installed packages contain are therefore collected,

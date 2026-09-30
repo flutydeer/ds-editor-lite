@@ -22,7 +22,12 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
         lite::ProjectModel
 )
 
+# The order check reads two view source files, and TEST_SOURCE_ROOT specifies their location. If the
+# binary cannot find the files, the check is reported as skipped (exit code 77) instead of failed.
+target_compile_definitions(${PROJECT_NAME} PRIVATE TEST_SOURCE_ROOT="${CMAKE_SOURCE_DIR}")
+
 add_test(NAME ${PROJECT_NAME} COMMAND ${PROJECT_NAME})
+set_tests_properties(${PROJECT_NAME} PROPERTIES SKIP_RETURN_CODE 77)
 set(qt_platform_plugin_dir
         "$<TARGET_FILE_DIR:Qt${QT_VERSION_MAJOR}::QOffscreenIntegrationPlugin>")
 set_tests_properties(${PROJECT_NAME} PROPERTIES ENVIRONMENT

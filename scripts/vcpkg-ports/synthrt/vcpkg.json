@@ -2,6 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "name": "synthrt",
   "version-string": "onnxruntime-builds-uptake",
+  "port-version": 1,
   "description": [
     "SVS Synthesis Runtime Library, main line.",
     "This port deliberately shadows the port of the same name in the shared overlay, which pins the refactor line. This overlay is searched first, and the editor is built against the main line. Both lines install lib/libsynthrt.so and therefore cannot coexist in one tree."

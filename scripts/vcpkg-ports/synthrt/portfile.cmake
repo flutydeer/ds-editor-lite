@@ -1,6 +1,6 @@
 # synthrt, main line: the engine on which the editor is built and, with the onnx feature, dsinfer
-# and its ONNX Runtime driver. wolf and otter are layered on this same package, so all three ports
-# in this directory take synthrt from this port rather than each carrying a separate pin.
+# and its ONNX Runtime driver. wolf and otter are layered on this package, so the synthrt, wolf and
+# otter ports in this directory use synthrt from this port instead of each carrying a separate pin.
 #
 # Rationale: the shared overlay submodule carries a synthrt port that pins the refactor line, and
 # both lines install lib/libsynthrt.so. This overlay is listed first in the manifest, so this port
@@ -35,6 +35,14 @@ if(WITH_CUDA)
     set(_synthrt_cuda ON)
 endif()
 
+# DirectML is a Windows API. On other platforms dsinfer runs the CPU provider, so the option is
+# enabled only on Windows instead of relying on dsinfer to ignore it elsewhere.
+set(_synthrt_directml OFF)
+
+if(VCPKG_TARGET_IS_WINDOWS)
+    set(_synthrt_directml ON)
+endif()
+
 # Nothing is staged for ONNX Runtime. synthrt finds the onnxruntime-builds package itself, and the
 # feature's dependency has already installed it into this same tree, so the headers and the payload
 # are in the location that find_package searches.
@@ -44,9 +52,8 @@ vcpkg_cmake_configure(
         -DSYNTHRT_BUILD_TESTS:BOOL=OFF
         -DSYNTHRT_BUILD_DSINFER:BOOL=${_synthrt_dsinfer}
         -DDSINFER_ENABLE_CUDA:BOOL=${_synthrt_cuda}
-        # The option is on by default upstream and guarded by WIN32 there; it therefore has no
-        # effect on other platforms. The editor ships the DirectML provider on Windows.
-        -DDSINFER_ENABLE_DIRECTML:BOOL=ON
+        # The editor ships the DirectML provider on Windows.
+        -DDSINFER_ENABLE_DIRECTML:BOOL=${_synthrt_directml}
 )
 
 vcpkg_cmake_install()
