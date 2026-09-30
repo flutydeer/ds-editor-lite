@@ -46,6 +46,7 @@
 #include <QApplication>
 #include <QContextMenuEvent>
 #include <QCursor>
+#include <QEventLoop>
 #include <QFileInfo>
 #include <QLineEdit>
 #include <QMenu>
@@ -171,12 +172,23 @@ namespace {
             QTest::mouseMove(canvas.get(), position);
         }
 
-        void waitForFrame() const {
+        void waitForFrame(QEventLoop::ProcessEventsFlags flags = QEventLoop::AllEvents) const {
             // Input dispatch may already have presented an earlier pending frame.
             const auto count = submitted->size();
+            QEventLoop loop;
+            QTimer timeout;
+            timeout.setSingleShot(true);
+            QObject::connect(canvas.get(), &QRhiWidget::frameSubmitted, &loop, &QEventLoop::quit);
+            QObject::connect(canvas.get(), &EditorRhiWidget::backendFailed, &loop,
+                             &QEventLoop::quit);
+            QObject::connect(&timeout, &QTimer::timeout, &loop, &QEventLoop::quit);
             canvas->update();
-            QTRY_VERIFY(submitted->size() > count || !backendError.isEmpty());
+            if (submitted->size() == count && backendError.isEmpty()) {
+                timeout.start(5000);
+                loop.exec(flags);
+            }
             QVERIFY2(backendError.isEmpty(), qPrintable(backendError));
+            QVERIFY(submitted->size() > count);
         }
 
         GuiDocumentFixture app;
@@ -1319,12 +1331,9 @@ void NativeDesktopTests::rhiMultiNoteSelectionAndMoveCommitAtomically() {
         const auto start = fixture.pointFor(240, upperKey);
         const auto end = fixture.pointFor(1800, lowerKey);
         QVERIFY(canvas.rect().contains(start) && canvas.rect().contains(end));
-        // Keep this gesture on the QWindow path so cursor warps cannot enqueue
-        // a stale native move behind the synthetic selection preview.
-        auto *window = canvas.windowHandle();
-        QTest::mouseMove(window, start);
-        QTest::mousePress(window, Qt::LeftButton, Qt::NoModifier, start);
-        QTest::mouseMove(window, end);
+        // QTest holds simulated buttons only; defer unrelated native input until release.
+        QTest::mousePress(&canvas, Qt::LeftButton, Qt::NoModifier, start);
+        QTest::mouseMove(&canvas, end);
         const auto preview = appStatus->selectedNotes.get();
         if (preview.size() != 2) {
             qWarning() << "Unexpected marquee preview:" << preview << "press/release:" << start
@@ -1332,8 +1341,9 @@ void NativeDesktopTests::rhiMultiNoteSelectionAndMoveCommitAtomically() {
             qWarning().noquote() << recentInput.join('\n');
         }
         QCOMPARE(preview.size(), 2);
-        fixture.waitForFrame();
-        QTest::mouseRelease(window, Qt::LeftButton, Qt::NoModifier, end);
+        fixture.waitForFrame(QEventLoop::ExcludeUserInputEvents);
+        QTest::mouseRelease(&canvas, Qt::LeftButton, Qt::NoModifier, end);
+        QCoreApplication::processEvents();
         const auto selected = appStatus->selectedNotes.get();
         if (selected != preview) {
             qWarning() << "Selection changed while presenting the drag preview:" << preview
