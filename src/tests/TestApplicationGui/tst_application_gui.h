@@ -132,6 +132,7 @@ private slots:
     void recentProjectsMenuRemovesMissingFilesAndClearsTheList();
     void titleFilePopupOpensProjectsAndRemovesOnlyRecentEntries();
     void failedProjectOpenPreservesTheDocumentAndRecovers();
+    void openingZeroLengthSingingClipPreservesTheNextProjectViewport();
     void projectDropCanCancelThenOpenTheDocument();
     void mixedFileDropRejectsAtomicallyAndAllowsTheNextImport();
     void detachedBottomPanelReattachesWithItsEditingContext();

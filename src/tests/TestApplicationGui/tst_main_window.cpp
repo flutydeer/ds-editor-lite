@@ -19,6 +19,7 @@
 #include "UI/Views/ClipEditor/ClipEditorView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollGraphicsView.h"
 #include "UI/Views/ClipEditor/PianoRoll/PianoRollCoord.h"
+#include "UI/Views/ClipEditor/PianoRoll/NoteView.h"
 #include "UI/Views/Common/TabPanelTitleBar.h"
 #include "UI/Views/MainTitleBar/MainMenuView.h"
 #include "UI/Views/MainTitleBar/TitleBarComboBox.h"
@@ -75,6 +76,83 @@
 #include <cmath>
 
 using TestSupport::MainWindowFixture;
+
+void ApplicationGuiTests::openingZeroLengthSingingClipPreservesTheNextProjectViewport() {
+    QTemporaryDir files;
+    QVERIFY(files.isValid());
+    const auto preserveFailureFiles = qScopeGuard([&] {
+        if (QTest::currentTestFailed())
+            files.setAutoRemove(false);
+    });
+    AppModel source;
+    auto *track = new Track;
+    auto *clip = new SingingClip;
+    clip->setLength(0);
+    clip->setClipLen(0);
+    track->insertClip(clip);
+    QVERIFY(source.appendTrack(track));
+    DspxProjectConverter converter;
+    QString error;
+    const auto emptyPath = files.filePath(QStringLiteral("empty-singing-clip.dspx"));
+    QVERIFY2(converter.save(emptyPath, &source, error), qPrintable(error));
+    clip->setLength(3840);
+    clip->setClipLen(3840);
+    auto *note = new Note;
+    note->setLocalStart(480);
+    note->setLength(480);
+    note->setKeyIndex(60);
+    note->setLyric(QStringLiteral("la"));
+    clip->insertNote(note);
+    const auto normalPath = files.filePath(QStringLiteral("normal-singing-clip.dspx"));
+    QVERIFY2(converter.save(normalPath, &source, error), qPrintable(error));
+
+    MainWindowFixture main;
+    main.show();
+    if (QTest::currentTestFailed())
+        return;
+    auto &runtime = *context->m_coreRuntime;
+    auto *piano = main.window->findChild<PianoRollGraphicsView *>();
+    QVERIFY(piano);
+    const auto original = runtime.documentVersion().documentId;
+    documentWorkflowController->requestOpen(emptyPath);
+    QTRY_VERIFY_WITH_TIMEOUT(!documentWorkflowController->busy() &&
+                                 runtime.documentVersion().documentId != original,
+                             10000);
+    QVERIFY(clipController->clip());
+    QCOMPARE(clipController->clip()->length(), 0);
+    QVERIFY(std::isfinite(piano->scaleX()) && piano->scaleX() > 0.0);
+    QVERIFY(piano->scaleX() <= piano->scaleXMax());
+    const auto emptyDocument = runtime.documentVersion().documentId;
+    documentWorkflowController->requestOpen(normalPath);
+    QTRY_VERIFY_WITH_TIMEOUT(!documentWorkflowController->busy() &&
+                                 runtime.documentVersion().documentId != emptyDocument,
+                             10000);
+    QCOMPARE(main.window->findChild<PianoRollGraphicsView *>(), piano);
+    auto *loaded = dynamic_cast<SingingClip *>(clipController->clip());
+    QVERIFY(loaded);
+    QCOMPARE(loaded->notes().count(), 1);
+    QVERIFY(piano->isVisible());
+    QVERIFY(std::isfinite(piano->scaleX()) && piano->scaleX() > 0.0);
+    QVERIFY(std::isfinite(piano->startTick()) && std::isfinite(piano->endTick()));
+    QVERIFY(piano->endTick() > piano->startTick());
+    const auto noteId = (*loaded->notes().begin())->id();
+    NoteView *item = nullptr;
+    for (auto *candidate : piano->scene()->items()) {
+        if (auto *noteItem = dynamic_cast<NoteView *>(candidate);
+            noteItem && noteItem->id() == noteId)
+            item = noteItem;
+    }
+    QVERIFY(item);
+    const auto position = piano->mapFromScene(item->sceneBoundingRect().center());
+    QVERIFY(piano->viewport()->rect().contains(position));
+    const auto before = runtime.documentVersion();
+    const auto beforeModel = TestSupport::projectSnapshot(*context->m_appModel);
+    QTest::mouseClick(piano->viewport(), Qt::LeftButton, Qt::NoModifier, position);
+    QCOMPARE(appStatus->selectedNotes.get(), QList<int>{noteId});
+    QCOMPARE(runtime.documentVersion(), before);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), beforeModel);
+    QVERIFY(!historyManager->canUndo());
+}
 
 namespace {
     void createDroppedProject(const QString &path) {

@@ -32,6 +32,8 @@ private slots:
     void fallbacksAndEditGuard();
     void viewportMargin();
     void viewportResizeClamping();
+    void emptyContentKeepsViewportZoomUsable_data();
+    void emptyContentKeepsViewportZoomUsable();
     void pianoViewportZoomAnchor();
     void focusReveal();
     void repeatedBoundaryScrollDoesNotNotify();

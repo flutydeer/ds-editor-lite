@@ -149,6 +149,46 @@ void EditorInteractionTests::viewportMargin() {
              "initializing an RHI margin must keep it visible before tick zero");
 }
 
+void EditorInteractionTests::emptyContentKeepsViewportZoomUsable_data() {
+    QTest::addColumn<int>("leftMargin");
+    QTest::newRow("empty-content") << 0;
+    QTest::newRow("empty-content-with-playhead-margin") << 10;
+}
+
+void EditorInteractionTests::emptyContentKeepsViewportZoomUsable() {
+    QFETCH(int, leftMargin);
+    TimeGraphicsScene scene;
+    TimeGraphicsView legacy(&scene);
+    prepareTimeView(scene, legacy);
+    if (QTest::currentTestFailed())
+        return;
+    legacy.setLeftMarginPx(leftMargin);
+    EditorViewportController rhi;
+    rhi.setScaleBounds(0.0001, legacy.scaleXMax(), legacy.scaleYMin(), 8.0);
+    rhi.setContentTickRange(0, 37500);
+    rhi.setVerticalContent(2500, 1);
+    rhi.setViewportSize(legacy.viewport()->size());
+    rhi.setLeftMarginPx(leftMargin);
+    QVERIFY(rhi.setScale(1.0, 1.0, {}));
+
+    legacy.setSceneLength(0);
+    rhi.setContentTickRange(0, 0);
+    QVERIFY(std::isfinite(rhi.horizontalScale()) && rhi.horizontalScale() > 0.0);
+    QVERIFY(std::isfinite(legacy.scaleX()));
+    QVERIFY(legacy.scaleX() > 0.0 && legacy.scaleX() <= legacy.scaleXMax());
+    QCOMPARE(legacy.scaleX(), rhi.horizontalScale());
+
+    legacy.setSceneLength(37500);
+    rhi.setContentTickRange(0, 37500);
+    QVERIFY(legacy.setViewportScale(1.5, 1.0));
+    QVERIFY(rhi.setScale(1.5, 1.0, {}));
+    QCOMPARE(legacy.scaleX(), rhi.horizontalScale());
+    QVERIFY(std::isfinite(legacy.startTick()) && std::isfinite(legacy.endTick()));
+    QVERIFY(legacy.endTick() > legacy.startTick());
+    sendTimeViewWheel(legacy, legacy.viewport()->rect().center(), 120, Qt::ControlModifier);
+    QVERIFY(legacy.scaleX() > 1.5 && legacy.scaleX() <= legacy.scaleXMax());
+}
+
 void EditorInteractionTests::viewportResizeClamping() {
     EditorViewportController viewport;
     viewport.setEnsureContentFillsViewport(false, false);
