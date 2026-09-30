@@ -200,11 +200,15 @@ void InferController::restartPieceInference(InferPiece &piece) {
 
 void InferController::cancelPieceInference(const int pieceId) {
     Q_D(InferController);
-    for (const auto pipeline : std::as_const(d->m_inferPipelines)) {
-        if (pipeline->pieceId() == pieceId)
-            pipeline->clearAcousticInferenceRequest();
-    }
+    // Install worker cleanup before removing states, and stop already queued stage transitions.
     d->cancelPieceRelatedTasks(pieceId);
+    const auto pipelines = Linq::where(
+        d->m_inferPipelines, [pieceId](const InferPipeline *p) { return p->pieceId() == pieceId; });
+    for (const auto pipeline : pipelines) {
+        pipeline->stop();
+        d->m_inferPipelines.removeOne(pipeline);
+        pipeline->deleteLater();
+    }
 }
 
 void InferController::addInferDurationTask(InferDurationTask &task) {
@@ -1186,6 +1190,7 @@ void InferControllerPrivate::createAndRunGetPhoneTask(const SingingClip &clip) {
 }
 
 void InferControllerPrivate::createPipeline(InferPiece &piece, bool acousticInferenceRequested) {
+    Q_Q(InferController);
     if (!piece.clip || !canStartClipInference(*piece.clip))
         return;
 
@@ -1193,15 +1198,8 @@ void InferControllerPrivate::createPipeline(InferPiece &piece, bool acousticInfe
     // one is allowed to observe later model events.
     const auto duplicatePipelines = Linq::where(
         m_inferPipelines, [&piece](const InferPipeline *p) { return p->pieceId() == piece.id(); });
-    // Install queue cancellation cleanup before destroying the states that receive task completion.
     if (!duplicatePipelines.isEmpty())
-        cancelPieceRelatedTasks(piece.id());
-    for (const auto pipeline : duplicatePipelines) {
-        // Stop queued state transitions before a replacement can reset the shared piece.
-        pipeline->stop();
-        m_inferPipelines.removeOne(pipeline);
-        pipeline->deleteLater();
-    }
+        q->cancelPieceInference(piece.id());
 
     auto pipeline = new InferPipeline(piece, acousticInferenceRequested);
     m_inferPipelines.append(pipeline);

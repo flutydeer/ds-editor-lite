@@ -362,6 +362,54 @@ void ApplicationWorkflowTests::publicInferenceStatusAssociatesTasksWithTheirScop
         QVERIFY(inferenceStage(afterCancel.get(), stage).value(QStringLiteral("task_id")).isNull());
     }
 
+    QObject completionObservation;
+    bool completionCancelRequested = false;
+    bool completionCancelAccepted = false;
+    QString completionCancelError;
+    auto beforeCompletionCancel = runtime().documentVersion();
+    auto contentBeforeCompletionCancel = TestSupport::projectSnapshot(*context->m_appModel);
+    // Cancel after the worker is removed, before its queued result can enter the update state.
+    connect(taskManager, &TaskManager::taskChanged, &completionObservation,
+            [&](TaskManager::TaskChangeType change, Task *task, qsizetype) {
+                const auto *pitch = qobject_cast<InferPitchTask *>(task);
+                if (change != TaskManager::Removed || !pitch || pitch->pieceId() != targetPieceId ||
+                    completionCancelRequested)
+                    return;
+                completionCancelRequested = true;
+                beforeCompletionCancel = runtime().documentVersion();
+                contentBeforeCompletionCancel = TestSupport::projectSnapshot(*context->m_appModel);
+                const auto result =
+                    registry.invoke(QStringLiteral("tasks.cancel"),
+                                    {
+                                        {QStringLiteral("scope"),       QStringLiteral("document")},
+                                        {QStringLiteral("document_id"), documentId.toString()     },
+                                        {QStringLiteral("task_id"),     taskId.toString()         }
+                },
+                                    invocation);
+                completionCancelAccepted = static_cast<bool>(result);
+                if (!result)
+                    completionCancelError = result.getError().message;
+            });
+    auto completionRequest = request;
+    completionRequest.insert(QStringLiteral("expected_revision"),
+                             static_cast<qint64>(runtime().documentVersion().revision));
+    const auto completionAccepted =
+        registry.invoke(QStringLiteral("inference.start"), completionRequest, invocation);
+    QVERIFY2(completionAccepted,
+             qPrintable(completionAccepted ? QString{} : completionAccepted.getError().message));
+    taskId =
+        TaskId::fromString(completionAccepted.get().value(QStringLiteral("task_id")).toString());
+    QVERIFY(!taskId.isNull() && taskId != canceledId);
+    QTRY_VERIFY_WITH_TIMEOUT(completionCancelRequested, 15000);
+    QVERIFY2(completionCancelAccepted, qPrintable(completionCancelError));
+    QTRY_VERIFY_WITH_TIMEOUT(taskManager->tasks().isEmpty(), 10000);
+    QCOMPARE(runtime().documentVersion(), beforeCompletionCancel);
+    QCOMPARE(TestSupport::projectSnapshot(*context->m_appModel), contentBeforeCompletionCancel);
+    const auto completionCanceled = runtime().tasks().getTask(documentId, taskId);
+    QVERIFY(completionCanceled);
+    QCOMPARE(completionCanceled.get().state, AutomationTaskState::Canceled);
+    disconnect(taskManager, nullptr, &completionObservation, nullptr);
+
     auto retryRequest = request;
     retryRequest.insert(QStringLiteral("expected_revision"),
                         static_cast<qint64>(runtime().documentVersion().revision));
