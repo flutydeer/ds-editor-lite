@@ -448,6 +448,10 @@ void EditorTouchController::dispatch(const EditorTouchGesture::Events &events) {
             case EditorTouchGesture::Event::Type::NavigationBegin:
                 stopInertia();
                 m_target->stopTouchViewportAnimation();
+                // Navigation supersedes the long press: a menu owed by the
+                // first finger must not pop over the viewport once the pan or
+                // pinch ends and the last contact leaves the glass.
+                dropPendingContextMenu();
                 break;
             case EditorTouchGesture::Event::Type::NavigationUpdate:
                 if (!event.panDelta.isNull())
