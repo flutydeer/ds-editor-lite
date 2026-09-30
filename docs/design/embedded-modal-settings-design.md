@@ -75,11 +75,9 @@ QPointer 在对象销毁时自动置空，从结构上免疫"模态打开期间�
 
 ## Windows 滚轮兼容（焦点）
 
-内嵌改造后曾出现两个问题，都在 Windows 平台特性：
+内嵌改造后曾出现一个 Windows 平台特性的问题：
 
-1. **Direct Manipulation 吞滚轮（已随 DirectManipulation 移除而消失）**：主窗口曾通过 `QtWin32DirectManipulateHelper` 注册 DManip，它在**首次滚轮事件后**接管主窗口的 `WM_MOUSEWHEEL`，把后续滚轮转换成编辑器平移手势——设置页收不到 `QWheelEvent`（旧对话框是独立顶层窗口、未注册 DManip，所以正常）。当时的修复是打开模态时 `unregisterDirectManipulation()`、关闭恢复时再注册。2026-09-27 起 DirectManipulation 已整体移除，这段装卸逻辑随之删除。
-
-2. **滚轮跟随键盘焦点**：Windows 上滚轮事件派发给**焦点控件**而非光标下控件。打开设置时焦点在标题栏/菜单上，滚轮会落到背景。修复：
+1. **滚轮跟随键盘焦点**：Windows 上滚轮事件派发给**焦点控件**而非光标下控件。打开设置时焦点在标题栏/菜单上，滚轮会落到背景。修复：
    - 打开前保存 `m_focusBeforeModal = qApp->focusWidget()`；
    - 用 `QTimer::singleShot(0, ...)` **推迟到菜单弹层关闭之后**再把焦点放进面板（触发菜单的 action 执行完会把焦点还原到菜单前控件，立即 setFocus 会被覆盖）；
    - 关闭时若保存的控件仍可见则归还焦点。

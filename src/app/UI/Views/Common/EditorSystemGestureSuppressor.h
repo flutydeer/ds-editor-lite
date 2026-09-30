@@ -14,8 +14,8 @@ class QWidget;
 //
 // and this is the shim that answers. It is the only mechanism that works: the
 // legacy gesture stack (`SetGestureConfig` with `GC_ALLGESTURES`) is not
-// consulted for these windows at all. Measured on a Surface-class tablet
-// 2026-09-25, see docs/design/touch-and-pen-input-design.md §11.4.
+// consulted for these windows at all. Measured on a Surface-class tablet,
+// see docs/design/touch-and-pen-input-design.md §3.
 //
 // The scope is deliberately narrow, because the same answer is also the only
 // way a long press reaches a context menu everywhere else: only windows that

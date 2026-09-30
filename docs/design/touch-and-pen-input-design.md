@@ -2,7 +2,7 @@
 
 本文记录主编辑区（钢琴卷帘、参数编辑器、轨道编排区）的多点触控与触控笔支持。目标平台是 Windows 触摸屏二合一设备。
 
-> **状态**：两层均已实施，第一轮真机验证完成（2026-09-25）。**待优化项见第十一节**——其中"菜单开着时按侧键只关菜单、不擦除"是已知且已被接受的行为，不是回归。
+> **状态**：已实施并经真机验证。**待优化项见第十一节**——其中"菜单开着时按侧键只关菜单、不擦除"（11-A）是已知且已被接受的行为，不是回归。
 >
 > **为什么两层写在一篇里**：触摸与笔共用同一套分层（纯逻辑状态机 + 控制器 + 视图接口），也共用同一个根因——平台会把输入**提升成第二条流**（触摸是合成鼠标，笔是右键 + `WM_CONTEXTMENU`）。分两篇写会把同一件事描述两遍，也会让"谁负责吞掉什么"变得难查。
 >
@@ -28,9 +28,9 @@
 
 **笔只接管平台映射错的两个输入。** Qt 对未被接受的 tablet 事件会自己合成鼠标事件（`QGuiApplicationPrivate::processTabletEvent`），用的是笔设备、标 `Qt::MouseEventNotSynthesized`，这条路对笔尖来说与真鼠标完全等价，因此笔尖继续走 Qt。反端上报的按键与笔尖一字不差（`button=Left buttons=Left`），侧键在接触期被 Qt 替换成右键，这两者才是必须自己翻译的。一旦一个笔画被接管，就必须接管到抬笔——接受 tablet 事件会让 Qt 停止为这个笔画合成任何鼠标事件。
 
-### DirectManipulation 已移除
+### 不使用 Direct Manipulation
 
-编辑器不再注册、不再链接 Windows Direct Manipulation。`Activate(hwnd)` 会按整扇窗口接管输入：触屏触点被系统交出去后没有任何视口认领，指针帧停在按下位置，双指因此卡死（2026-09-27 Surface 真机确认）。精确式触摸板的平移、捏合与惯性改由 `EditorWheelController` 完成，见第一节分流表。
+编辑器不注册、不链接 Windows Direct Manipulation。`Activate(hwnd)` 会按整扇窗口接管输入：触屏触点被系统交出去后没有任何视口认领，指针帧停在按下位置，双指因此卡死。精确式触摸板的平移、捏合与惯性由 `EditorWheelController` 完成（见上表），设置兼容与"不允许加回来"的约束见 `docs/design/input-device-routing-design.md`。
 
 ### 必须吞掉平台合成的鼠标事件
 
@@ -45,7 +45,7 @@
 
 只在编辑器控件内吞。应用其余部分照旧收系统合成的鼠标事件，因此按钮、菜单、轨道列表的触摸操作和长按右键都不受影响。
 
-Qt 平台插件另有 `-platform windows:nomousefromtouch` 可以全局关掉系统合成，没有采用：它会连带干掉整个应用的触摸长按转右键，代价比收益大。
+Qt 平台插件另有 `-platform windows:nomousefromtouch` 可以全局关掉系统合成。没有采用：按设备种类吞掉已把重复流限制在编辑器控件内，而全局开关会改变整个应用的触摸菜单行为（对话框与文本框的长按菜单仍依赖平台那份右键，见第十二节），收益不抵回归面。
 
 被吞掉的只有鼠标事件。Windows 长按转右键补的那一份 `QContextMenuEvent` 要放行，它正是长按菜单的来源，见第三节。
 
@@ -174,7 +174,7 @@ EditorSystemGestureSuppressor
 
 **其余可见性规则**（`NoteHandleGeometry::frameVisible()`）：恰好选中一个音符（多选沿用既有选中高亮，现有缩放本来也只作用于按下那一个音符）、当前是音符类工具（选择 / 区间选择 / 画音符，与 RHI 的 `noteEditingEnabled()` 同一集合）、目标音符没有打开内联歌词编辑。
 
-**命中优先级是环带在前，音符本体在后（提示态下）。** 环带是画出来的抓手：相邻音符一旦压住环带，本体扫描总会先命中未选中的邻居，排在后面的环带兜底就永远轮不到，抓手会退化成平移画布（2026-09-30 真机回归，两个后端各改了一次命中顺序）。因此压在环带上的邻居让位，改由环带之外的本体部分选中——代价是邻居被环带盖住的那 16 像素选不中，手指得落在它自己的本体上。环带只在提示态为真时参与命中，所以鼠标与笔的命中结果与加环之前逐点相同。
+**命中优先级是环带在前，音符本体在后（提示态下）。** 环带是画出来的抓手：相邻音符一旦压住环带，本体扫描总会先命中未选中的邻居，排在后面的环带兜底就永远轮不到，抓手会退化成平移画布。因此压在环带上的邻居让位，改由环带之外的本体部分选中——代价是邻居被环带盖住的那 16 像素选不中，手指得落在它自己的本体上。环带只在提示态为真时参与命中，所以鼠标与笔的命中结果与加环之前逐点相同。
 
 两套后端的落点：Legacy 是 `NoteHandleOverlay`（顶层场景图元，z=3.5，只持有音符的模型矩形，音符删除不会留下悬垂引用，环用一条奇偶填充路径一次画成），RHI 是 `appendNoteHandles()`（用带宽等于环厚的一次 `appendRoundedRectStroke` 画带，再用一次细描边画外沿），排在 `appendClipMask()` 之后、播放头指示之前画进快照。
 
@@ -246,7 +246,9 @@ EditorSystemGestureSuppressor
 
 长按落在对象上时，手势层把这根手指标记为已消费，不让它拖动脚下的对象，同时记下"欠一份菜单"，等这根手指离开屏幕再弹。
 
-**为什么要自己弹。** Windows 原本有一套自己的按压手势：按住出半透明方块，松开时补一份右键，Qt 随即合成 `QContextMenuEvent`。一度把这套留下来共用（理由是"自己弹会与系统那份打架"，而且抢过来也拿不到方块反馈），但代价是方块、约 1 秒的系统阈值、两套互不通气的判定与第二条输入通道。真机验证（11.4）确认系统侧有开关，而且只有一条有效：应答 `WM_TABLET_QUERYSYSTEMGESTURESTATUS` 返回 `TABLET_DISABLE_PRESSANDHOLD`。`EditorSystemGestureSuppressor` 就做这件事，于是长按回到应用手里：450 毫秒静止即判定（`EditorTouchGesture::Config::longPressMs`），方块与系统阈值一起消失。
+**为什么要自己弹。** Windows 原生按压手势（按住出半透明方块、松开补一份右键）的代价是方块、约 1 秒的系统阈值、两套互不通气的判定与第二条输入通道。关掉它只有一条有效路径：应答 `WM_TABLET_QUERYSYSTEMGESTURESTATUS` 返回 `TABLET_DISABLE_PRESSANDHOLD`（这也是 MFC 的默认姿势）；legacy 手势栈的 `SetGestureConfig` 对 WM_POINTER 窗口完全无效——按压手势不在那套栈上，`WM_GESTURE` 从未出现。这条查询在每次 `WM_POINTERDOWN` 后毫秒级到达，触摸与笔都问，一条应答同时关掉触摸的方块、触摸长按补的右键与菜单、笔尖长按的圆环。`EditorSystemGestureSuppressor` 是无状态的进程级垫片（形状照 `EditorPenHoverWatcher`）：Windows 实现是一份 `QAbstractNativeEventFilter`，看到查询就写回应答并返回 true，其他平台空实现；`EditorTouchController` 构造时把宿主控件交给它（`addWindow()`），过滤器首次调用时装上、永不卸载。长按因此回到应用手里：450 毫秒静止即判定（`EditorTouchGesture::Config::longPressMs`）。
+
+垫片**只应答触摸层认领的编辑器窗口**：查询送到触点所在窗口，垫片用 `GetAncestor(hwnd, GA_ROOT)` 取根窗口与已认领控件当时的 `window()` 比对，编辑器窗口的原生子窗口覆盖得到，对话框与服务窗不在其中，面板拖出成浮动窗口也跟着走。理由是这个应答会同时拿走"长按弹右键菜单"这条在别处唯一的长按入口（文本框的复制粘贴靠它），不能全应用生效。
 
 **为什么在抬手时才弹。** 判定的时刻与弹出的时刻分开：判定在 450 毫秒（这时就把手指作废，它不再能拖动对象），弹出在所有手指离开屏幕的那一刻。按住途中弹出会把随后的抬手交给菜单——`QMenu` 带鼠标抓取，抬手落在菜单上就是一次选择，会误触手指底下的那一项。松手再弹也正是系统原来的时序，用户已经习惯。
 
@@ -254,9 +256,13 @@ EditorSystemGestureSuppressor
 
 平台没有这类手势的地方（非 Windows）不需要任何兜底：判定与弹出都是我们自己的，`EditorSystemGestureSuppressor` 在那里的实现是空的。
 
+**已知缺口与不做的事**：按住期间屏幕上没有任何视觉反馈（系统方块已随垫片关掉）。低成本的补法是"判定时刻给视觉信号、菜单仍在抬手时弹"；任务栏同款的"阈值即弹"与 Qt 弹窗模型冲突——活动 popup 存在时编辑器收不到那根手指的合成流（触摸事件先被转发给 popup，编辑器窗口忽略触摸后 Qt 合成鼠标、再被整体改投给 popup，绕过吞事件判据），要做必须配一个吞掉该触点两条合成流的全局输入守卫，回归面覆盖每一类菜单，没有明确需求前不做。
+
 ### 没要过的平台菜单仍然必须吞掉
 
 系统那份长按已经被关掉，这一节由"主要路径"退化成**安全网**：万一某个平台仍然把接触提升成右键（用户改过控制面板开关、换了一台机器、垫片没装上的窗口），规则照旧成立，不改。
+
+两条来源要知道：触摸长按的菜单事件是 **Qt 自己合成的**——平台提升的右键 release 被窗口过程处理后返回 true，`DefWindowProc` 拿不到 `WM_RBUTTONUP`，`QWindowPrivate::maybeSynthesizeContextMenuEvent()` 据此合成 `QContextMenuEvent(reason=Mouse)`；笔则因平台插件对 pen 消息返回 false，走 `DefWindowProc` 的 `WM_CONTEXTMENU`。两条最终都以 `QContextMenuEvent(reason=Mouse)` 到达控件，一条判据同时覆盖。
 
 Windows 的长按转右键只看它自己的判定，不看我们把这根手指用在了什么地方。空白长按在这里是框选，抬手时它照样补一份 `QContextMenuEvent`，于是框选完成的同时弹出菜单。
 
@@ -328,8 +334,8 @@ Windows 的长按转右键只看它自己的判定，不看我们把这根手指
 | 侧键在笔画中途按/松 | 产生**自相矛盾的额外 press/release**：`press button=Left buttons=Right`、`release button=Left buttons=Left` |
 | 悬停中按侧键 | **Qt 完全不上报**（1.8 秒窗口内 Qt 侧只有 `tablet move` 472 条、`mouse move` 6 条，零 press、零 menu）；原生过滤器读得到 `barrel=on inContact=off` |
 | 反端悬停（未接触） | 同上，Qt 不上报；原生过滤器读得到 `inverted=on inContact=off` |
-| 笔尖长按 3.4 / 3.5 / 6.9 秒 | 系统圆环动画出现，但**不产生任何 `QContextMenuEvent`**，tablet 流不中断（圆环与触摸方块是同一个系统开关，见 11.4） |
-| 触摸长按 1.05–1.15 秒 | 系统补合成 `mouse press button=Right` + 真 `QContextMenuEvent`（既有行为，要保留） |
+| 笔尖长按 3.4 / 3.5 / 6.9 秒 | 系统圆环动画出现，但**不产生任何 `QContextMenuEvent`**，tablet 流不中断（圆环与触摸方块是同一个系统开关，见第三节） |
+| 触摸长按 1.05–1.15 秒 | 系统补合成 `mouse press button=Right` + 真 `QContextMenuEvent`（垫片关闭后不再出现，见第三节） |
 | 侧键点击/抬起 | 原生层额外产生一整套 `RBUTTONDOWN`→`RBUTTONUP`→`CONTEXTMENU`，与 tablet 事件无关，见 5.5 |
 
 #### 与实现直接相关的五条结论
@@ -349,7 +355,7 @@ if (pointerInContact && penInfo->penFlags & PEN_FLAG_BARREL)
 
 **4. 接受 `QTabletEvent` 就能独占该笔画的鼠标流。** 实测 A/B 双向可复现：`event->ignore()` 时笔的每个笔画都带一份派生鼠标事件，`event->accept()` 后该笔画**零 mouse 事件**，取而代之是密集 tablet 事件。机制在 Qt 源码里是闭合的——`qwindowsintegration.cpp:211` 把 `platformSynthesizesMouse` 设为 `false`，于是 `qguiapplication.cpp:3033` 在**未被接受**的 tablet 事件上合成鼠标事件，用笔设备、标 `Qt::MouseEventNotSynthesized`。这与触摸合成分工明确：触摸合成是 `source=BySystem` + `dev=TouchScreen`，笔合成是 `source=NotSynthesized` + `dev=` 笔设备。`EditorTouchController` 现在"只吞 `source() != NotSynthesized`"的判据因此对笔天然放行，无需改动。
 
-**5. 笔的长按与触摸的长按是同一个系统开关。** 笔尖按住 6.9 秒都不产生 `QContextMenuEvent`，只有视觉圆环（`DefWindowProc` 的 legacy 按压手势）。当初据此写成"笔的长按不处理"，理由是"Qt 侧没有任何开关"——**这句话本身对，结论已在 2026-09-25 真机探针中推翻**：开关在系统侧（应答 `WM_TABLET_QUERYSYSTEMGESTURESTATUS` 返回 `TABLET_DISABLE_PRESSANDHOLD`），一次同时关掉触摸的方块、触摸长按补的右键与菜单、以及笔的圆环，见 11.4。触摸长按转右键仍是既有行为，落地之前回归时必须确认未受影响。
+**5. 笔的长按与触摸的长按是同一个系统开关。** 笔尖按住 6.9 秒都不产生 `QContextMenuEvent`，只有视觉圆环（`DefWindowProc` 的 legacy 按压手势）。Qt 侧没有任何开关，开关在系统侧：应答 `WM_TABLET_QUERYSYSTEMGESTURESTATUS` 返回 `TABLET_DISABLE_PRESSANDHOLD` 一次同时关掉触摸的方块、触摸长按补的右键与菜单、以及笔的圆环，见第三节。
 
 #### 悬停期侧键与反端：已确认可读（需原生过滤器）
 
@@ -378,7 +384,7 @@ if (pointerInContact && penInfo->penFlags & PEN_FLAG_BARREL)
 
 ### 5.2 设计决策
 
-#### 已拍板事项（2026-09-25）
+#### 已拍板事项
 
 | # | 决策项 | 结论 |
 | --- | --- | --- |
@@ -397,7 +403,7 @@ if (pointerInContact && penInfo->penFlags & PEN_FLAG_BARREL)
 
 | 项 | 决策 | 依据 |
 | --- | --- | --- |
-| 接管范围 | **只接管平台映射错的那两个输入**（反端、侧键）的接触期 tablet 事件，一次接管管到抬笔；笔尖与全部悬停事件保持 `ignore()`，继续由 Qt 合成鼠标事件 | 悬停提示、光标形状、边缘自动滚动的 `lastPointerPosition`、双击、`isPointerPressed()` 的安全网全部继续照旧工作。初版写的是"接管全部接触中事件"，落地时收窄了，理由见第十一节第 2 条 |
+| 接管范围 | **只接管平台映射错的那两个输入**（反端、侧键）的接触期 tablet 事件，一次接管管到抬笔；笔尖与全部悬停事件保持 `ignore()`，继续由 Qt 合成鼠标事件 | 悬停提示、光标形状、边缘自动滚动的 `lastPointerPosition`、双击、`isPointerPressed()` 的安全网全部继续照旧工作 |
 | 笔画边界 | 由 `pressure` 从 0 变正 / 变回 0 给出 | 5.1 结论 3，press/release 不可靠 |
 | 反端判据 | `pointerType() == Eraser` | 5.1 结论 1 |
 | 侧键判据 | **笔设备上的非左键即侧键**，**落笔瞬间锁定**，整个笔画内不再改 | 5.1 结论 2；按键值各平台不同，写死 `RightButton` 会漏掉 X11（见 6.2）；笔画中途切换会产生假事件 |
@@ -437,7 +443,7 @@ if (!claimed && !EditorPenStroke::needsTranslation(sample))
 
 `TabletPress` 时记录该笔画的既定属性：`pointerType`、侧键是否按下（**笔设备上的非左键即侧键**）、起点。整段笔画内这三项不再改变：
 
-- 中途的 press/release 杂音一律忽略（5.1 结论 3）。
+- 中途的 press/release 杂音一律忽略（5.1 结论 3）。这包括没被接管的笔尖笔画：控制器看到笔尖接触中，就把中途的 press/release 吞掉、move 照旧放行，笔尖拖动过程中按/松侧键的手感因此不变。
 - **笔画中途才按下的侧键不改变语义**（决策 3）：这一段仍是笔尖笔画，不会中途变成擦除，也不会弹菜单。
 - 接触状态由 `pressure` 独立跟踪，与上面三项无关。
 
@@ -464,7 +470,7 @@ if (!claimed && !EditorPenStroke::needsTranslation(sample))
 | --- | --- | --- |
 | 音符选择 `Select` | 擦音符 | `EraseNoteHandler` 的擦除路径 |
 | 擦除音符 `EraseNote` | 擦音符 | 同上（本工具已是擦除） |
-| 画音符 `DrawNote` | 擦音符 | 同上（初版方案漏了这一项，见第十一节第 4 条） |
+| 画音符 `DrawNote` | 擦音符 | 同上 |
 | 画音高 `DrawPitch` | 擦参数 | `CommonParamEditorView::setEraseMode(true)` 的等价路径 |
 | 手绘橡皮 `ErasePitch` | 擦参数 | 同上 |
 | 描摹音高 `TracePitch` | 擦参数 | 同上 |
@@ -491,7 +497,7 @@ Legacy 侧接入点集中在 `PianoRollGraphicsView` 的 `applyToolPitchEditMode
 - 其他平台那份从悬停的 `QTabletEvent` 读 `buttons()` 与 `pointerType()`（6.5 的推断），按 6.7 标注为未验证。
 - 状态与 Qt 的 `QTabletEvent` 各自独立，只需在**落入编辑器控件范围时**生效：悬停光标属于视图职责，由 `EditorPenController` 在悬停 move 之间维护，别让全局状态直接在任意控件上改光标。
 - `EditorPenController` 只暴露平台无关的查询（`eraseHintFor()` / `eraseHintActive()` / `eraseHintRefused()`），原生类型不越过垫片边界。
-- **只在这条状态上做两件事**：换光标、记下侧键最近按下的时刻。不要拿它的**边沿**去判断"用户开始了一个新动作"——菜单弹窗的 SetCapture 会让它来回抖，试错记录见第十一节 11.3-A。
+- **只在这条状态上做两件事**：换光标、记下侧键最近按下的时刻。不要拿它的**边沿**去判断"用户开始了一个新动作"——菜单弹窗的 SetCapture 会让它来回抖（教训见 11-A）。
 
 #### 8. 接管之后必须仍然成立的既有行为
 
@@ -509,7 +515,7 @@ Legacy 侧接入点集中在 `PianoRollGraphicsView` 的 `applyToolPitchEditMode
 - **系统中断**（窗口失活、控件隐藏）：走 `EditorPenController::interrupt()`。**不合成任何 release**，改为调 `EditorPenTarget::abortPenEraseStroke()`——视图丢弃这笔擦除已暂存的全部内容并解除 `beginPenEraserStroke()` 的武装，进程级擦除意图与流计数归零。这和触摸被第二指打断（走 `cancelTouchPointerInteraction()`，丢弃）、ESC（Discard）是同一条语义：用户没有确认过的落库会让人惊讶。Legacy 侧武装（handler 换装、pitch/param 擦除模式）只有 `endPenEraserStroke()` 家族能还原，`discardAction()` 不负责还原，所以钩子实现为 `discardAction()`（丢弃）＋ `endPenEraseStroke()`（解除武装），两者均幂等。RHI 侧无 begin/end 武装，其调用点既有的 `abortPointerInteractions()` 覆盖同一职责。
 - **笔离开放大量程**（结束帧没到 widget）：走 `EditorPenController::cancel()`，维持"补一次合成 release"的释放语义。笔画物理上已经结束，已发生的内容照常提交，与鼠标在窗口外松手一致；菜单照旧不弹。
 
-在这次区分之前，失活/隐藏走的也是释放语义，后果是"被系统打断的删除悄悄落库"且与触摸取消不一致（2026-09-30 审查结论 P2）。Legacy 后端的 `TimeGraphicsView::event()` 在 `WindowDeactivate` 上对触摸层调 `cancel()`、对笔层调 `interrupt()`，与两个 RHI 调用点对齐。
+在这次区分之前，失活/隐藏走的也是释放语义，后果是"被系统打断的删除悄悄落库"且与触摸取消不一致。Legacy 后端的 `TimeGraphicsView::event()` 在 `WindowDeactivate` 上对触摸层调 `cancel()`、对笔层调 `interrupt()`，与两个 RHI 调用点对齐。
 
 ### 5.5 侧键的第二条流：平台自己的右键
 
@@ -531,7 +537,7 @@ win CONTEXTMENU synthesized from touch
 
 | 判据 | 覆盖的情形 |
 | --- | --- |
-| 被接管的侧键笔画已开始（`m_platformMenuPending`） | 正常路径。**必须在按下那一刻置位，不能在笔画结束时**——平台的消息是在**抬键**时产生的，结束再置位就等于在要吞的事件之后才武装（第一版就是这么写的，实测一条都没吞到） |
+| 被接管的侧键笔画已开始（`m_platformMenuPending`） | 正常路径。**必须在按下那一刻置位，不能在笔画结束时**——平台的消息是在**抬键**时产生的，结束再置位就等于在要吞的事件之后才武装 |
 | 侧键刚按下过（`penBarrelActive()`，400 ms 内） | 那次按下被菜单弹窗吃掉了，本层根本没看到笔画，只剩"笔杆侧键刚按下过"这一条痕迹 |
 
 两条都不会误伤手指长按转右键的那一份：前者要一条被接管的笔画，后者要求侧键在 400 ms 内按下过，而长按本身就要按住远超 400 ms。
@@ -549,7 +555,7 @@ win CONTEXTMENU synthesized from touch
 
 **现状按"真鼠标语义"接受：这一次按下属于菜单**（它把菜单关掉），因此擦除要从下一次开始；平台上那份多余菜单已由 5.5 的判据二吞掉，所以不会出现"松手又冒出一个菜单"。
 
-**待优化**（"同一次拖动就擦掉"）：曾经试过让悬停垫片在"侧键由松变按"的边沿关菜单，真机上误关了用户刚打开的菜单（抬笔后在悬停里移动就会触发），**已回退**，机制与四步方案见第十一节 11.3-A。
+**待优化**（"同一次拖动就擦掉"）：要做到它，这一次按下必须活下来；曾经的边沿触发方案因悬停垫片状态被捕获切换搅动而不可行，机制与后续方向见 11-A。
 
 ### 5.7 不响应时的悬停表现
 
@@ -595,7 +601,7 @@ win CONTEXTMENU synthesized from touch
 
 ### 6.2 需要改写的判据：侧键的按键值不跨平台
 
-初版在 Windows 上写的是 `buttons().testFlag(Qt::RightButton)`，这个值**不能跨平台照抄**：
+Windows 上笔的侧键上报为 `buttons().testFlag(Qt::RightButton)`，这个值**不能跨平台照抄**：
 
 | 平台 | 笔尖 | 侧键 | 来源 |
 | --- | --- | --- | --- |
@@ -670,7 +676,7 @@ Windows 上所有笔统一走 WM_POINTER（Windows Ink），映射一致，所�
 
 指令：`ctest -R "TestTouchGestures|TestPenInput"`，或直接跑 `build/Debug/out/bin/` 下的同名可执行文件。
 
-悬停垫片走 Windows 原生消息，没有单测可写，只能真机验。真机验证走 `TouchProbe`（第九节）与平板上的人工手势序列，清单见 11.5。
+悬停垫片走 Windows 原生消息，没有单测可写，只能真机验，手段见第九节（`TouchProbe` 与平板上的人工手势序列）。
 
 ## 九、探针
 
@@ -691,15 +697,15 @@ Windows 上所有笔统一走 WM_POINTER（Windows Ink），映射一致，所�
 
 HUD 显示最近事件与当前触点数，全量日志写到 `AppDataLocation/touch-probe.log`。
 
-按键：`C` 清屏，`S` 切换吞掉合成鼠标（用与编辑器完全相同的判据），`A` 切换接受 tablet 事件（笔的接管开关，与 `EditorPenController` 的接受策略同源），`G` 切换 `SetGestureConfig`（11.4 里被证伪的那条路），`Q` 切换按压手势查询的应答（11.4 里被证实的那条路），`F` 全屏，`Esc` 退出。开关 `S` 可以直接看出吞与不吞的差别，被吞的事件在日志里标 `SWALLOWED`，轨迹上不再出现灰色虚线；开关 `A` 是它的笔版本——接受时该笔画不再出现派生鼠标事件，取而代之是密集的 tablet 事件。
+按键：`C` 清屏，`S` 切换吞掉合成鼠标（用与编辑器完全相同的判据），`A` 切换接受 tablet 事件（笔的接管开关，与 `EditorPenController` 的接受策略同源），`G` 切换 `SetGestureConfig`（对 WM_POINTER 窗口无效的那条路），`Q` 切换按压手势查询的应答（`EditorSystemGestureSuppressor` 用的那条路，见第三节），`F` 全屏，`Esc` 退出。开关 `S` 可以直接看出吞与不吞的差别，被吞的事件在日志里标 `SWALLOWED`，轨迹上不再出现灰色虚线；开关 `A` 是它的笔版本——接受时该笔画不再出现派生鼠标事件，取而代之是密集的 tablet 事件。
 
 探针也记录 `QContextMenuEvent` 及其 reason，用来确认长按是否引发了平台的右键模拟。
 
 #### raw 行与两个系统手势开关
 
-11.4 的长按实验靠三样东西：两个独立开关、一条带臂标记的原始消息流、以及每次接触结束的时长。
+原始消息流带两个独立的系统手势开关与接触时长，用于复现长按行为的对照实验。
 
-`G` 对探针窗口的 HWND 调 `SetGestureConfig(hwnd, 0, 1, {dwID=0, dwWant=0, dwBlock=GC_ALLGESTURES}, sizeof)`，`Q` 让原生过滤器应答 `WM_TABLET_QUERYSYSTEMGESTURESTATUS` 返回 `TABLET_DISABLE_PRESSANDHOLD`（不应答时留给 `DefWindowProc`）。两个开关可以任意组合，四组手臂各自对应 11.4 表格里的一行。
+`G` 对探针窗口的 HWND 调 `SetGestureConfig(hwnd, 0, 1, {dwID=0, dwWant=0, dwBlock=GC_ALLGESTURES}, sizeof)`，`Q` 让原生过滤器应答 `WM_TABLET_QUERYSYSTEMGESTURESTATUS` 返回 `TABLET_DISABLE_PRESSANDHOLD`（不应答时留给 `DefWindowProc`）。两个开关可以任意组合。
 
 每条原始消息都带当时的开关状态，所以日志自己说明它属于哪一组实验，开关中途被翻转也不会读错：
 
@@ -773,232 +779,49 @@ pen swallowed platform context menu at (712,190)        吞掉平台给侧键补
 
 离散滚轮的平滑与否仍由外观设置里的动画开关决定。笔没有开关（决策 7）。
 
-## 十一、真机验证记录与待优化项
+## 十一、待优化项（触控笔）
 
-### 11.1 与初版方案不一致的六处取舍（已实施）
+### A. 菜单开着时按侧键只关菜单、不擦除（现状，已被接受）
 
-落地时有六处原文没有覆盖或自相矛盾的地方做了取舍，逐条记录理由与真机状态。
+侧键点击弹出菜单之后，不关菜单直接在菜单外按住侧键拖动：不擦除，松手也不再冒第二份菜单（平台那份已由 5.5 判据二吞掉）。机制：`QMenu` 带鼠标抓取，笔的按下被弹窗拿去关自己，钢笔层一行事件都收不到。这与真鼠标"在菜单外按一下关掉菜单"的语义一致。
 
-**1. 多了一个纯逻辑件 `EditorPenStroke`。** 状态跟踪与"不依赖硬件的单测"合起来，只能落在一个不依赖控件的类上——与 `EditorTouchGesture` 从 `EditorTouchController` 拆出来同一套路。它不是手势识别器（笔只有单点），只做笔画状态跟踪，并把"报告 → 意图"的翻译表放在那里可测。因此分层从三件套变成四件。
+若要"同一次拖动就擦掉"，这一次按下必须活下来，而触发时机不能用悬停垫片的状态边沿——菜单的 SetCapture 会让 `WM_POINTERLEAVE` → 垫片 `clear()` 归零 → 重新填回，合成出假的"侧键刚按下"。**教训：不要用持续状态量的瞬时变化判断"用户开始了新动作"，这个量会被捕获切换和进出范围搅动。** 可行方向：垫片补报 `inContact` 并加探针行；只在"新接触开始"（此前连续 ≥120 ms 非接触）时同步解除弹窗捕获（`releaseMouse()`，只是平台侧 `ReleaseCapture()`，不会展开 `exec()` 的嵌套循环）、再用排队的 `close()` 关菜单，让 tablet 按下落到编辑器（需真机确认消息目标窗口）；兜底是允许钢笔层接受一个它没看到按下的笔画。改动面大，有明确需求前不做。
 
-**2. 笔尖不接管，接管范围比初版收窄了。** 初版写的是"只接管接触中的 tablet 事件"，落地改成"只接管平台映射错的那两个输入"。理由是 Qt 那条合成路还负责**双击**：`QGuiApplicationPrivate::processMouseEvent()` 只在自己派发的 press 上判双击并产生 `MouseButtonDblClick`，自己合成会把它丢掉，而钢琴卷帘的双击进歌词编辑、双击空白建音符都依赖它；顺带 `isPointerPressed()` 的安全网、hover 提示、光标形状也全都不需要重做。代价是钢笔层不再统一处理接触期事件。**真机确认项：笔尖的绘制、拖动、双击、悬停提示与改动前逐项一致。**（另外仍保留了"接管即接管到抬笔"的规则，以及 `EditorPointer::isPenStreamActive()`，因为被接管的那两类笔画确实不再经过 Qt 的鼠标合成。）
+### B. 反端受同一机制影响
 
-**3. 笔尖笔画中途的侧键噪声也吞掉了。** 5.1 结论 3 的假 press/release 在"那个笔画没被接管"时依旧会进 Qt（笔尖就是这种情形），于是控制器加了一个观察位：看到笔尖接触中，就把中途的 press/release 吞掉、move 照旧放行。这是决策 3「忽略」的字面实现，也是初版没写的一小步。**真机确认项：笔尖拖动过程中按/松侧键，拖动手感不变、不弹菜单、不出现多余按下。**
+菜单开着时反端同样擦不掉（按下被弹窗吃掉）。解决 A 时必须用"接触开始"而非"在范围内"触发——反端悬停期"在范围内"是常态，否则就是 A 里那个误关菜单的翻版。
 
-**4. `DrawNote` 补进策略表。** 初版的工具表列了 9 个，漏了画音符。落地取"擦音符"：与 `Select`/`EraseNote` 同域，橡皮在这一层的含义唯一。**真机确认项：画音符模式下翻笔擦音符；若不希望如此，改一行即可。**
-
-**5. 侧键原地点击不受工具限制。** 决策 2（"不支持擦除的工具下整段吞掉"）与侧键语义、以及目标表里无条件的"侧键原地点击 → 右键菜单"互相冲突。落地取**菜单与工具无关**：要菜单不是擦除请求，只有擦除受策略表约束；一旦越过 slop 就成了擦除尝试，此时不支持的工具整段吞掉、不回头补菜单。这样改之前侧键在锚点编辑等模式下的菜单不会丢。**真机确认项：锚点编辑/音符分割等模式下，侧键原地点击仍然弹菜单。**
-
-**6. 悬停橡皮光标只在"当前工具能擦"时出现。** 决策 4 只说"反端显示橡皮光标"，没说工具条件；落地加了这个条件，因为光标不该承诺一个笔画做不到的事。**真机确认项：可擦工具下反端悬停与按住侧键悬停都是橡皮光标，不可擦工具下是禁止光标。**
-
-### 11.2 第一轮真机验证后补齐的两处（已实施）
-
-第一轮分件验证发现两处问题，都在同一个方向上：**钢笔层管住了 tablet 那条流，没管住与之并行的第二条流（平台自己的鼠标/菜单）和悬停期的显示**。
-
-**一、平台自己会给侧键发一套右键 + `WM_CONTEXTMENU`。** 真机日志里侧键每次按下/抬起都会在原生消息层产生 `RBUTTONDOWN`→`RBUTTONUP`→`CONTEXTMENU`，`QWindowsContext::handleContextMenuEvent()` 把它转成 `QContextMenuEvent`，位置是**光标当前所在处**。修正见 5.5：按两条判据吞掉 `reason() == Mouse` 的那条菜单事件。
-
-第一版把标记设在**笔画结束**，实测一条都没吞到：平台的 `WM_CONTEXTMENU` 是在**抬键**那一刻产生的，而抬键比最后一次 tablet 事件还早几毫秒——日志里平台的三连在 `21:42:03.701`、我们自己的菜单在 `.707`，标记是在 `.707` 之后才置位的，恰好在要吞的事件之后。第二版改成**在按下那一刻置位**（平台的消息只会更晚，不会更早）。第二条判据来自 11.3-A：那次按下可能被菜单弹窗吃掉，本层根本没看到笔画，只剩"侧键刚按下过"这一条痕迹（`m_barrelDownMs` 由悬停垫片或 tablet 采样记录）。
-
-**二、不响应的工具仍在画悬停反馈。** 分割工具的红叉、锚点编辑的虚线插入预览都只由 hover/move 驱动，与"这个笔画能不能做"无关，于是屏幕上画着一个不可能发生的动作。修正见 5.7：悬停判据从"工具能不能擦"扩成三态，不能擦时撤回本工具的悬停反馈。
-
-### 11.3 待优化项（触控笔）
-
-#### A. 菜单开着时按侧键只关菜单、不擦除（**现状如此，已知且已被接受**）
-
-现象：侧键点击弹出菜单之后，不关菜单，直接在菜单外按住侧键拖动 —— 不擦除，松手时又弹出一份菜单。
-
-机制（真机日志已证实）：`QMenu` 是**带鼠标抓取的弹出窗口**，笔的按下被它拿去关自己了，因此那一次交互**钢笔层一行事件都收不到**（`21:42:06` 只有平台的右键三连 + 一条 `context menu passed through`）——既没有擦除，也不会有任何提示。它属于"用户用一次按下关掉了菜单"的正常菜单语义，与真鼠标在菜单外按一下一致；平台上额外那份菜单已由 5.5 的判据二吞掉，所以现在是"只关菜单，不再冒第二份菜单"。
-
-曾经试过、**已回退**的做法，以及它为什么不能这么做：让悬停垫片在"侧键由松变按"这个边沿把当前 `QMenu` 关掉。它在真机上误关了用户刚打开的菜单——抬笔后只要在悬停里移动就会触发。原因是这个状态量在悬停期不成立：菜单打开时 `QMenu` 会 SetCapture，捕获切换让平台发出 `WM_POINTERLEAVE` → 垫片 `clear()` 归零 → 下一条 `WM_POINTERUPDATE` 又把 `sideButton` 填回 → `setState()` 的"值变了才发信号"把这趟来回合成一个假的"侧键刚按下"。**教训：不要用一个持续状态量的瞬时变化去判断"用户开始了一个新动作"，这个量会被捕获切换和进出范围搅动。**
-
-要彻底解决，"这一次按下"必须活下来。四步，第 0 步先做：
-
-0. 给垫片加 `inContact`（Windows：`POINTER_PEN_INFO.pointerFlags & POINTER_FLAG_INCONTACT`，配 `WM_POINTERDOWN/UP` 定界），并把**每次状态变化**与**每次"准备关菜单"的判定理由**各写一行探针。不改行为，只让下一轮的判断有证据。
-1. 换触发条件：只在"**新接触开始**"时关菜单，并要求此前连续 ≥120 ms 不是接触中、笔在范围内已 ≥60 ms（抖动是毫秒级，人的动作不是）。只对侧键与反端生效——笔尖接触无需插手，菜单在外部按下时自己关掉本来就是正常菜单行为。
-2. 让这一次按下活下来：在原生过滤器里**同步**解除弹窗的鼠标捕获（`menu->releaseMouse()`，只是平台侧 `ReleaseCapture()`，**不会像 `close()` 那样展开 `exec()` 的嵌套循环**，因此在过滤器里是安全的），随后用排队的 `close()` 关掉菜单。捕获一解除，Qt 处理同一条 pointer 消息时就会把 tablet 按下交给编辑器。**这一步需要真机确认**：Windows 可能在更早阶段就定好了消息的目标窗口。
-3. 第 2 步不成立时的兜底：允许钢笔层接受一个它没看到按下的笔画——垫片已经报告"笔刚接触"，就用它的位置与状态起一笔，后续 tablet 移动接着喂（菜单关掉之后消息确实会重新落到编辑器上，日志已证）。代价是反转"按下必须来自平台"这个依赖，改动面比第 2 步大。
-
-退路：维持现状。它与真鼠标的行为一致，只是不满足"同一次拖动就擦掉"这条期望。
-
-#### B. 反端受同一个机制影响
-
-菜单开着时用反端划一下，同样擦不掉（原因同 A：按下被弹窗吃掉）。第 1 步的设计里已经把它带上——反端的悬停期"在范围内"是常态，所以**必须**用接触而不是"在范围内"触发，否则就是 A 里那个误关的翻版。
-
-#### C. 轨道编排区没有禁止光标
+### C. 轨道编排区没有禁止光标
 
 `EditorPenPolicy::arrangement()` 恒为"不响应"，但 `TracksRhiWidget` 仍显示它自己的悬停光标。是否改成"橡皮在这里什么都不能做"的禁止光标，等钢琴卷帘的效果定下来再一起拍。
 
-#### D. 非 Windows 分支未验证
+### D. 非 Windows 分支未验证
 
 垫片的第二份实现、侧键的按键值、反端的 `Eraser` 判定都只来自源码推断，见第六节，首次上机时按 6.7 的四个问题逐条核对。
 
-### 11.4 系统的长按转右键：已真机验证（2026-09-25 22:48–22:58）
-
-#### 曾经的现状
-
-长按菜单一度**交给平台**（见第三节）：手势层的长按只把手指标记为已消费、不让它拖动脚下的对象，真正的菜单来自 Windows 在**抬起时**补的那份右键合成。当初的理由是"共存比抢过来便宜"——自己弹菜单会与系统那份打架（按住半途弹出、松手又被系统补的右键关掉），而且抢过来也拿不到按住时的方块反馈。**这套已经在 2026-09-25 拆掉，应用现在自己拥有长按**，下面是"能不能抢过来"的真机答案。
-
-#### 查证到的三个事实（当初的依据）
-
-| 事实 | 出处 |
-| --- | --- |
-| Qt 的 windows 插件**完全不处理 `WM_GESTURE`**（只在消息名表里出现过）；触摸提升出来的鼠标事件按"上一条指针消息的类型"标注来源 | `qwindowspointerhandler.cpp:819-835` |
-| 应用**可以**关掉它：`SetGestureConfig(hwnd, 0, 1, &{0, 0, GC_ALLGESTURES}, sizeof)`（Win7+），或应答 `WM_TABLET_QUERYSYSTEMGESTURESTATUS` 返回 `TABLET_DISABLE_PRESSANDHOLD` | Raymond Chen《How do I disable the press-and-hold gesture for my window?》 |
-| **MFC 默认就返回 `TABLET_DISABLE_PRESSANDHOLD`**，官方理由是长按判定会给左键引入延迟、应用显得不跟手 | 同上 |
-
-也就是说"关掉系统长按、应用自己拥有长按"是微软给 Win32 应用准备的**默认姿势**，不是 UWP 独有。代价——方块、约 1 秒的系统阈值、两套互不通气的判定、第二条输入通道——都是在没关掉系统机制的前提下才由我们承担的，关掉之后全部消失。
-
-#### 真机结论：两条路里只有一条有效
-
-| 机制 | 传说是怎么关的 | 真机结果 |
-| --- | --- | --- |
-| legacy 手势栈 | `SetGestureConfig(hwnd, 0, 1, {dwID=0, dwWant=0, dwBlock=GC_ALLGESTURES}, sizeof)` | **无效**。API 返回 `TRUE`、窗口确实是 touch window，长按照样补右键与菜单，全日志 `WM_GESTURE` 零条 |
-| 按压手势 | 应答 `WM_TABLET_QUERYSYSTEMGESTURESTATUS` 返回 `TABLET_DISABLE_PRESSANDHOLD` | **有效**。触摸按住时的方块、触摸长按补的右键与菜单、笔尖长按的圆环，三样同时消失 |
-
-对照数据（`TouchProbe` 本轮新增的 `G` / `Q` 两个开关，每条日志行都带 `[G=… Q=…]` 臂标记，人工只要说"有没有方块"）：
-
-| 臂 | 按住时长 | 平台补的右键 | Qt 菜单事件 | 方块/圆环（人工） |
-| --- | --- | --- | --- | --- |
-| 基线 | 1172 / 914 ms | `WM_RBUTTONDOWN`+`UP` 两次都有 | `reason=Mouse` 两次都有 | 有 |
-| 只开 G | 1030 / 1169 ms | 仍有 | 仍有 | 有 |
-| 只开 Q | 2504 / 1243 ms | 一次都没有 | 一次都没有 | 没有 |
-| G + Q | 1858 / 1266 ms | 一次都没有 | 一次都没有 | 没有 |
-| 笔尖，Q 开 | 2623 ms | 没有，只有 `WM_LBUTTONDOWN` | 没有 | 无圆环 |
-| 笔尖，Q 关 | 1423 / 1034 ms | 第二次有 `WM_RBUTTONDOWN`+`WM_CONTEXTMENU` | 探针控件没收到 | 有圆环 |
-
-**为什么 G 那条没用**：按压手势根本不在 legacy 手势栈上，`WM_GESTURE` 在这套 WM_POINTER 窗口上从未出现过（Qt 认了这个消息类型然后什么都不做，`qwindowscontext.cpp` 里 `case QtWindows::GestureEvent: break`）。栈既没启用，关不关它都一样。
-
-**为什么 Q 那条有用**：`WM_TABLET_QUERYSYSTEMGESTURESTATUS`（`tpcshrd.h`，`WM_TABLET_DEFBASE + 12`）在每次 `WM_POINTERDOWN` 之后 0~4 ms 到达，**每次接触都问一遍**，触摸与笔都问（本轮 21 次以上，`PT_TOUCH` 与 `PT_PEN` 都有）。应答之后长按退化成普通左键流：`WM_LBUTTONDOWN` 在按下那一刻就来，一直按到松手。**一条判据同时覆盖触摸与笔**，不需要两套。
-
-**能答到它的层**（Qt 6.11.2 源码核对）：`QWindowsContext::windowsProc()` 里这条消息不算 input message，会先走 `filterNativeEvent(&msg, result)`（应用级原生过滤器链），之后 `filterNativeEvent(platformWindow->window(), ...)` 才到 `QWidgetWindow::nativeEvent` → `QWidget::nativeEvent`。两条路都够得着，探针走的是应用级过滤器，与 `EditorPenHoverWatcher`、`EditorTouchProbe` 同一层，因此落地不需要再去子类化或挂钩窗口过程。
-
-#### 两处机制更正
-
-**一、触摸长按不产生 `WM_CONTEXTMENU`。** 全日志零条。`translateMouseEvent()` 对鼠标消息返回 `true`（`qwindowspointerhandler.cpp:890`），`DefWindowProc` 因此拿不到 `WM_RBUTTONUP`，那份 `QContextMenuEvent` 是 **Qt 自己合成的**（`QWindowPrivate::maybeSynthesizeContextMenuEvent`，`qwindow.cpp:2825`，由右键 release 触发）。所以触摸与笔是两条来源，第三节与 5.5 原来写成一条：
-
-- 触摸长按：平台补右键 → Qt 处理鼠标消息并返回 true → Qt 合成 `QContextMenuEvent(reason=Mouse)`；
-- 笔：平台补右键 → 因为 `m_pointerType == PT_PEN`，Qt 在 `qwindowspointerhandler.cpp:828-833` 特意 `return false` → `DefWindowProc` 生成 `WM_CONTEXTMENU` → `QWindowsContext::handleContextMenuEvent()` 转成 `QContextMenuEvent`。
-
-两条最终都在控件收到之前变成 `QContextMenuEvent`，所以第三节那条吞掉判据对两条都成立，不用改。附带记一笔：`windowsEventType()` 给 `WM_CONTEXTMENU` 的标记里**没有** `MouseEventFlag`，`windowsProc` 于是用 `GetCursorPos()` 填 `msg.pt`，`handleContextMenuEvent()` 拿它判断是否落在客户区内，出界就 `return false` 交回 `DefWindowProc`——本轮笔尖那次就是这样（`raw WM_CONTEXTMENU` 到了，控件没收到菜单事件）。
-
-**二、顺带看到的左键延迟。** 基线里"按压手势"会把提升出来的左键压后：触摸短按 26~41 ms（只开 Q 时 1~6 ms），笔的一次接触 474 ms（只开 Q 时 2 ms）。样本很少，只当旁证，但方向与 MFC 那条官方理由一致。
-
-#### 落地做法
-
-分两步，第一步是垫片本身，第二步才拆代管。
-
-**第一步（已实施）**：`EditorSystemGestureSuppressor` 是一个无状态的进程级垫片，形状照 `EditorPenHoverWatcher`：接口平台无关，Windows 实现是一份 `QAbstractNativeEventFilter`，看到 `WM_TABLET_QUERYSYSTEMGESTURESTATUS` 就写回 `TABLET_DISABLE_PRESSANDHOLD` 并返回 true；其他平台是空实现。`EditorTouchController` 构造时把宿主控件交给它（`addWindow()`），过滤器在首次调用时装上，永不卸载。一次覆盖触摸与笔，因为两边问的是同一条消息。
-
-两处范围收窄，都是有意为之：
-
-- **只应答被认领的窗口**。查询送到触点所在的那个窗口，垫片用 `GetAncestor(hwnd, GA_ROOT)` 取根窗口再与已认领控件当时的 `window()` 比对，因此编辑器窗口自己的原生子窗口也覆盖得到，而对话框、服务窗不在其中。理由是这个应答同时也会拿走"长按弹右键菜单"这条**在别处唯一的**长按入口（文本框里的复制粘贴就靠它），所以它只该覆盖触摸层真正接管的那些窗口。"认领"记的是控件而不是 HWND，`window()` 每次查询时再解析，把面板拖出成浮动窗口也跟着走。
-- **只在手势层开着时应答（此范围收窄已随开关一并删除）**。`enableTouchGestures` 曾是热开关，关掉之后没有任何东西接管长按，所以当时把长按整个交回平台（连方块一起还回去）。2026-09-27 起手势层不再有开关、始终开启，垫片在被认领的窗口上始终应答，这条收窄不再存在；"只应答被认领的窗口"仍然有效。
-
-装上之后的现状：方块与系统那份右键消失，长按菜单暂时仍由第三步要拆掉的 400 毫秒兜底定时器投递（`reason() == Other`），因此菜单会晚 400 毫秒出现，这是过渡状态，不是终态。
-
-**第一步真机验证（2026-09-25 23:09–23:14，平板 + `touch-debug.dspx`）**：人工六项全过（音符长按、空白长按、空白拖动框选、双指平移缩放、笔尖长按无圆环、笔侧键原地点击出菜单）。日志侧的硬证据是把设备上历次运行的日志横向比出来的：
-
-| 运行 | `navBegin` | 导航中的 `touch cancel` | `WM_POINTERCAPTURECHANGED` | 平台补的触摸右键 |
-| --- | --- | --- | --- | --- |
-| 09-25 20:59（改前） | 43 | 25 | 27 | 30 |
-| 09-25 21:49（改前） | 5 | 3 | 4 | 19 |
-| 09-25 22:07（改前） | 5 | 3 | 4 | 5 |
-| **09-25 23:09（装垫片）** | 9 | 7 | 8 | **0** |
-
-`平台补的触摸右键` 统计的是 `EditorTouchProbe` 记的 `win RBUTTONDOWN synthesized from touch`，改前每次有触摸交互的运行都有 5~30 条，装垫片这次是 0 条。那一次菜单仍由 400 毫秒兜底定时器投递，实测六次"触摸结束 → 菜单放行"的间隔正好是 398 / 405 / 407 / 409 / 411 / 412 毫秒，与 `contextMenuFallbackMs` 吻合，也印证了这一步只换了开关、没换时序。日志副本与逐项统计在 `build/_pencheck/`（`editorlog.log`、`editor-log-survey.txt`）。
-
-**第二步（已实施，真机待验）**：
-
-1. **拆掉"交给平台"那段代管**：`EditorTouchController` 里的 `m_contextMenuFallbackTimer`、`contextMenuFallbackMs`、`armContextMenuFallback()` 与 `cancelContextMenuFallback()` 全部删除，换成 `raiseContextMenu()` 与 `dropPendingContextMenu()`。第三节整节重写成"长按菜单由应用自己拥有"。
-2. **长按走自己的机器**：450 毫秒静止 → `confirmLongPress(false)` 把手指标记为已消费并记下"欠一份菜单"，随后**在最后一根手指离开屏幕的那一刻**弹出（`m_menuPending` + `raiseContextMenu()`，内容与空白两条路都走这里）。空白那条的"延后合成按下"不变：动了是框选，没动才是菜单。判定阈值是 `EditorTouchGesture::Config::longPressMs`，可调。
-3. **吞掉平台菜单的判据作为安全网留着**（`m_contextMenuExpected` + `touchOwnsContextMenu()`），挡住的是"垫片没覆盖到的窗口"与笔侧键那条流。
-4. **过渡态的 400 毫秒延迟随第一步的定时器一起消失**，菜单现在与系统原先的时序一致：抬手即出。
-5. **笔那边没有动**：`EditorPenController::m_platformMenuPending` 的两条吞菜单判据只针对侧键那条传统右键流，与按压手势无关（11.3-A 另行处理）。
-
-**第二步真机验证（2026-09-25 23:20–23:22，同机同工程）**：人工六项全过，其中"抬手即出菜单"由日志量化——五次长按的"触摸结束 → 菜单放行"间隔是 **0 / 1 / 1 / 1 / 3 毫秒**（第一步那轮是 398~412 毫秒），过渡态的 400 毫秒延迟确实随定时器一起消失。整个运行里 `win RBUTTONDOWN synthesized from touch` **零条**，编辑器内的每一次接触都走到控制器（16 次接触里 5 次落在菜单弹窗上、控制器看不到，其余 11 次都有 `touch begin`），说明手势层全程在线。笔侧键那条流照旧：`pen sidebutton press -> taken over`、`pen ContextMenu`、以及 `pen swallowed platform context menu` 都还在。日志副本 `build/_pencheck/editorlog-step2.log`。
-
-**已关闭的补测**：第 4 条范围收窄（关掉「多点触控手势」后长按交回系统方块和系统菜单）在 2026-09-25 没有留下证据。2026-09-27 起这个开关已删除，手势层始终开启，垫片在被认领的窗口上始终应答，这项不再补测。
-
-**第二步待真机确认**：① 空白长按后拖动仍是框选、且不弹菜单（本轮已过）② 双指导航、惯性、点选/框选不受影响（本轮已过）③ 笔尖长按无圆环且笔画照旧（本轮已过）。第 ④ 项随开关删除而不再适用。
-
-探针本轮加的两个开关与原始消息行已经写进 9.1，复现实验照那一节做即可。
-
-#### 未来规划：阈值即弹与长按的视觉反馈（尚未实施）
-
-现在长按只有"450 毫秒把手指标记为已消费、抬手出菜单"这一条路径，按住期间屏幕上什么都不会发生。窗口的 XAML 界面（任务栏等）不这样：它在阈值处**立刻**弹出菜单，而且抬手不收。两者要分开评估。
-
-**视觉反馈（建议先做这一半）。** 判定仍在 450 毫秒，但那一刻给出一个可见信号，菜单仍在抬手时弹出。候选形式：
-
-| 形式 | 做法 | 代价 |
-| --- | --- | --- |
-| 被长按对象进入按压态 | 视图在长按判定时把命中的对象（音符、剪辑）画成按下或"菜单将作用于它"的样子，抬手时恢复并出菜单 | 每套后端各一处绘制，命中判定已经有了（`EditorTouchTarget::touchHitsContent()`） |
-| 触点位置的圆环或涟漪 | 在触点位置画一个短暂的圆环，位置与系统原来的方块一致 | 一处绘制，与命中什么无关，最接近被替掉的那份系统反馈 |
-| 悬停式菜单预览 | 提前高亮"菜单将要作用于的对象" | 与第一种相近，语义更明确 |
-
-共同点是不碰 popup 的输入路径，回归面只在绘制。
-
-**阈值即弹（任务栏同款，成本高）。** 只把 `raiseContextMenu()` 从"抬手时"挪到"判定时"是**不行的**，Qt 的 popup 模型会立刻与那根还按着的手指打架：
-
-1. 触摸事件先被转发给活动 popup（`QWindowPrivate::forwardToPopup`，`qwindow.cpp:2495`），popup 不接手才继续往下走。
-2. 编辑器窗口这时会忽略触摸（`QWidgetWindow::handleTouchEvent` 里 `if (QApplication::activePopupWidget()) event->ignore()`，`qwidgetwindow.cpp:710`），Qt 于是合成鼠标事件（`qguiapplication.cpp:3303-3352`，`source = MouseEventSynthesizedByQt`）。**`EditorTouchController` 从这一刻起收不到那根手指的任何事件**，它已经聋了。
-3. 这些合成鼠标事件，以及 Windows 那条 `BySystem` 的提升流，在活动 popup 存在时被整体改投给 popup（`qwidgetwindow.cpp:515-580`），绕过我们"只吞外来合成鼠标"的判据。
-4. `QMenu` 收到之后有两种结局：press 落在菜单内而 `hasMouseMoved()` 为假时直接 `hideUpToMenuBar()`（`qmenu.cpp:2913-2932`），屏幕上是"菜单闪一下"；release 落在 `currentAction` 上且已过漂移阈值时 `activateAction()`（`qmenu.cpp:2943-2989`），**手指底下那一项被误触发**。`hasMouseMoved()` 的判据是"距弹出位置超过 `startDragDistance`，或收到过 6 次以上移动"（`qmenu.cpp:1579`），手指按住时触摸更新每秒上百条，后者转眼就成立。
-
-所以要做到任务栏那样，必须让菜单在那根手指抬起之前**完全看不见它**：一个输入守卫，在投递菜单时武装，吞掉 `MouseEventSynthesizedByQt` 与 `MouseEventSynthesizedBySystem` 两条流里属于该触点的事件（合成事件带 `eventPointId`，`qwindowsysteminterface_p.h:240`，可以用来对上触点 id），吞掉它的 release 之后解除。菜单还要向上偏移一点再弹，否则第一项被手指盖住。守卫在武装期间是全局的，而右键菜单是本应用最常用的交互，回归面覆盖每一类菜单，且只能真机验证。**先做视觉反馈，这一条留到有明确需求时再单独开一轮**，动手之前先加临时探针确认到底是哪条流在实际触发。
-
-#### 与它无关、但同样表现为"双指卡住"的四个候选
-
-**必须先分类再动手**：四个候选的成因不同，其中三个与长按无关。
-
-| 候选 | 机制 | 判别方法（都是现成的日志行） |
-| --- | --- | --- |
-| A. 假鼠标穿透 | `translateMouseEvent()` 里那个 `switch (m_pointerType)` **没有 `default:` 分支**，而 `m_pointerType` 是粘的（保留上一条指针消息的类型）。既不是 TOUCH 也不是 PEN 时，提升出来的鼠标事件会以 `NotSynthesized` 身份进入应用，恰好绕过我们"只吞 `BySystem`"的判据 | 卡住瞬间看 `swallowed synthesized mouse press/release` 有没有断档，同时看 `QGuiApplication::mouseButtons()` 是否非空 |
-| B. 导航中途被判长按 | 系统的识别器不认我们的"这是导航"，只看单根触点的位移；有一根手指按住不动超过它的阈值，就会在导航中途补一份右键 + `WM_CONTEXTMENU` | `context menu swallowed (phase Navigation, …)` 是否出现 |
-| C. 掌拒逻辑吃掉触点 | Qt 用 `RegisterTouchWindow` 注册窗口，触摸类型默认是 `NormalTouch`（不是 `WantPalmTouch`），Windows 的掌拒逻辑可能把掌触点合并进主触点或直接丢掉 | 卡住时对比日志里的 `tracked=N` 与实际手指数 |
-| D. 提升出的左键触发 `SetCapture` | 平台把某个触点提升成左键按下，Qt 在窗口过程里照旧 `SetCapture`（那段发生在事件到达控件之前，我们"吞掉合成鼠标"拦不住），捕获变更随即变成 `WM_POINTERCAPTURECHANGED`，Qt 于是取消整个触摸序列。手法与长按无关，但表现一样：手指还在屏幕上，状态机已经归零 | `win WM_POINTERCAPTURECHANGED` 紧跟 `win LBUTTONUP/DOWN synthesized from touch`，再紧跟 `qt touch CANCEL` 与 `touch cancel (phase was nav, tracked=2)` |
-
-一个便宜的对照实验：控制面板 → 笔和触控里的"按住以右键单击"（`HKCU\Software\Microsoft\Wisp\Touch\TouchMode_hold`，触控与笔分开）与"触摸时显示视觉反馈"是两个独立开关，分别关掉可以直接看出方块与右键各自的归属。
-
-本轮探针与首次编辑器验证给这几个候选各留了一条观察：
-
-- **候选 A 未复现**：每一次被提升的鼠标消息都带 `extra=0xff5157xx from=touch`，且 `lastPointer=PT_TOUCH`，Qt 会把它标成 `BySystem`，我们现有判据接得住。它的前提（`translateMouseEvent()` 那个 `switch` 没有 `default:`，粘住的 `m_pointerType` 若是 `PT_MOUSE` 就会让事件以 `NotSynthesized` 身份进入）仍然成立，但触发它需要在两条指针消息之间夹一条非 TOUCH/PEN 的消息，两次真机序列里都没有出现。
-- **候选 C 的前提被证实**：探针窗口 `IsTouchWindow=1` 但 `touchFlags=0x0`，即 Qt 用 `RegisterTouchWindow(hwnd, 0)` 注册，既没有 `TWF_FINETOUCH` 也没有 `TWF_WANTPALM`，掌拒逻辑确实按 `NormalTouch` 对待这些窗口。
-- **候选 B 没有独立线索**：只做了单指长按与正常双指导航，没有做"一根手指按住不动 + 另一根划"的场景。
-- **候选 D 是眼下最强的一个**。设备上历次日志里，导航中的 `touch cancel` 与 `WM_POINTERCAPTURECHANGED` 一直跟着 `LBUTTONDOWN synthesized from touch` 出现（见 11.4 的横向对比表，改前 25/27、3/4、3/4），实测序列是 `WM_POINTERCAPTURECHANGED` → `LBUTTONUP` → `LBUTTONDOWN` → `qt touch CANCEL` → `touch cancel (phase was nav, tracked=2)` → 紧接着一份新的 `qt touch begin [0:down 1:down]`。也就是说每次有新的触点被提升成左键，导航就被取消一次，然后靠新的 `TouchBegin` 重建。多数时候用户只觉得"顿一下"，但只要重建时触点集合不完整，状态机就会停在错误的相位上，这正是"手指还在、视图不动"的样子。
-  它有一个现成的候选开关：`-platform windows:nomousefromtouch`（`QT_QPA_PLATFORM`，必须在构造 `QApplication` 之前设）会让 `translateMouseEvent()` 在触摸合成的鼠标事件上**提前返回**（`qwindowspointerhandler.cpp:822`），于是 `handleCaptureRelease()` 不再执行、不会 `SetCapture`、也就没有 `WM_POINTERCAPTURECHANGED`。5.1 结论 5 当初否掉它的理由是"会连带干掉触摸长按菜单"——**这个理由在垫片落地之后不成立了**，因为触摸长按菜单已经不再依赖平台那份右键合成。要确认的是：关掉这条流之后，触摸的短按/双击（我们自己合成）与"手势层关掉时退回 Qt 合成"两条路都不受影响。**尚未实施，也未在真机验证。**
-
-**下一个工作项就是它**：先只加环境变量、不改代码，用设备日志看导航中的 `touch cancel` 与 `WM_POINTERCAPTURECHANGED` 是否消失，再决定要不要把这条设置固化进产品。
-
-### 11.5 测试与回归入口
-
-- 单测见第八节。
-- **第一轮真机已确认**（日志可查）：反端擦音符与擦参数都产生完整的 `Begin…End erase`；侧键拖动擦除；侧键原地点击弹菜单；笔尖绘制/拖动/双击走 Qt 原路（`pen tip press … -> Qt`）；分割与锚点编辑下反端整段吞掉（`-> swallowed`）。
-- **尚未在真机逐项确认**：11.1 各条末尾的"真机确认项"、5.7 的禁止光标与悬停反馈撤回。
-- **2026-09-25 探针验证与落地（触摸与笔的系统长按）**：见 11.4。结论是"按压手势查询有效、`SetGestureConfig` 无效"，**垫片与拆代管都已实施并真机验证**（`EditorSystemGestureSuppressor` + `EditorTouchController` 的 450 毫秒自有判定，菜单抬手即出）。唯一未验到的是"关掉手势开关后长按回到系统菜单"这条范围收窄。
-
 ## 十二、已知限制
 
-- 歌词内联编辑与 Windows 触摸键盘的冲突（键盘弹出即退出编辑）已解决，取证与契约见第十七节；键盘的自动弹出策略属系统设置，应用侧不介入。
+- 触摸键盘的自动弹出策略属系统设置，应用侧不介入；内联编辑器在键盘引发的窗口 resize 下必须存活的契约见第十七节。
 - 触控笔笔尖在编辑器里仍是"平台合成鼠标"的老路径，压感与倾角没有被利用（反端与侧键走钢笔层，会自己合成鼠标事件）。
 - 侧键原地点击在"不支持擦除"的工具下仍然要一份上下文菜单：要菜单与这个工具能不能擦无关，只有擦除受策略表约束。若实测发现这与工具语义冲突，需要重新拍板。
 - 悬停期的橡皮光标在"当前工具不能擦"时不出现，改成禁止光标，并且该工具的悬停反馈（分割红叉、锚点虚线）同时撤回。光标与提示都不该承诺一个笔画做不到的事。
-- 轨道编排区（`EditorPenPolicy::arrangement()` 恒为不响应）目前**没有**接禁止光标，见 11.3-C。
+- 轨道编排区（`EditorPenPolicy::arrangement()` 恒为不响应）目前**没有**接禁止光标，见 11-C。
 - 侧键那条平台右键流只在"点击"形态下出现（拖动态实测没有）；如果将来遇到平台的右键在拖动中途就冒出来的机型，`penBarrelActive()` 那条判据仍然覆盖得到，不需要改。
-- **菜单开着时按侧键只关菜单、不擦除**，反端同理，见 11.3-A。这是被接受的现状，不是回归。
-- 悬停垫片的非 Windows 实现来自源码推断，未在 X11/macOS 真机上验证，见 11.3-D。
-- 笔尖的长按圆环与触摸的长按方块是同一个系统开关，垫片只在窗口属于编辑器时才应答。**对话框或文本字段里的长按**仍然会看到系统圆环与系统菜单，见 11.4。这是有意的范围收窄，不是遗漏。
+- **菜单开着时按侧键只关菜单、不擦除**，反端同理，见 11-A。这是被接受的现状，不是回归。
+- 悬停垫片的非 Windows 实现来自源码推断，未在 X11/macOS 真机上验证，见 11-D。
+- 笔尖的长按圆环与触摸的长按方块是同一个系统开关，垫片只在窗口属于编辑器时才应答。**对话框或文本字段里的长按**仍然会看到系统圆环与系统菜单，见第三节。这是有意的范围收窄，不是遗漏。
 - `PhonemeView`、标尺、钢琴键盘没有开启 `WA_AcceptTouchEvents`，走 Qt 默认的触摸转鼠标合成。这些视图的悬停提示在触摸下不会出现，属于无 hover 的正常降级。
-- DirectManipulation 已移除，触控板路径改由 `EditorWheelController` 处理，触控板用户需要回归确认平滑滚动、捏合与松手惯性正常。
+- 触控板路径由 `EditorWheelController` 处理（不再使用 Direct Manipulation，见第一节与 `input-device-routing-design.md`），触控板用户需回归确认平滑滚动、捏合与松手惯性正常。
 - 双指以上（三指及更多）不识别，多余的手指会被忽略直到全部抬起。
-- 触摸长按菜单现在由应用自己拥有（判定 450 毫秒、抬手时弹出），系统那套方块与约 1 秒阈值已关闭，成因、真机验证与落地做法见 11.4。
+- 触摸长按菜单由应用自己拥有（判定 450 毫秒、抬手时弹出），系统那套方块与约 1 秒阈值已关闭，见第三节。
 
 ## 十三、对话框滚动区域的触摸滚动与控件认领
 
-编辑器之外的可滚动容器（选项页、包管理器、搜索、导出、说话人混音等）原本没有触摸路径：单指被 Qt 合成成鼠标左键拖动（`QScrollArea` 不响应），双指 pan 被 Qt 的 Windows 后端翻译成没有动量相位的合成滚轮。2026-09-28 起由 `SmoothScroller::attachTo()` 统一安装触摸惯性滚动。
+编辑器之外的可滚动容器（选项页、包管理器、搜索、导出、说话人混音等）原本没有触摸路径：单指被 Qt 合成成鼠标左键拖动（`QScrollArea` 不响应），双指 pan 被 Qt 的 Windows 后端翻译成没有动量相位的合成滚轮。由 `SmoothScroller::attachTo()` 统一安装触摸惯性滚动。
 
 ### 机制
 
-- `attachTo(area, TouchKinetic::Enabled)`（默认值，现有挂接点零改动）：viewport 设 `WA_AcceptTouchEvents` 并 `QScroller::grabGesture(viewport, QScroller::TouchGesture)`。`QScroller` 走手势系统（`QFlickGestureRecognizer`），产出的 `QScrollPrepareEvent/QScrollEvent` 由 `QAbstractScrollArea` 原生处理，直接驱动滚动条。`DecelerationFactor` 调到 0.30——**它是阻尼而非时长**：`createScrollingSegments()` 把速度换算成 `deltaTime = v / factor` 与 `deltaPos = 0.5 × pixelPerMeter × v² / factor`，故值越大滑得越近、收得越快，值越小甩得越远（Qt 默认 0.125 偏“松”，0.30 约为早期 0.15 的一半行程）。
+- `attachTo(area, TouchKinetic::Enabled)`（默认值，现有挂接点零改动）：viewport 设 `WA_AcceptTouchEvents` 并 `QScroller::grabGesture(viewport, QScroller::TouchGesture)`。`QScroller` 走手势系统（`QFlickGestureRecognizer`），产出的 `QScrollPrepareEvent/QScrollEvent` 由 `QAbstractScrollArea` 原生处理，直接驱动滚动条。`DecelerationFactor` 调到 0.30——**它是阻尼而非时长**：`createScrollingSegments()` 把速度换算成 `deltaTime = v / factor` 与 `deltaPos = 0.5 × pixelPerMeter × v² / factor`，故值越大滑得越近、收得越快，值越小甩得越远（Qt 默认 0.125 偏“松”）。
 - 越界橡皮筋在 Qt 里分两条**独立预算**，必须成对调：只收紧一侧的话，一次甩动能把页面扔得比手指能推的更远。**手指按住时**（`setContentPositionHelperDragging()`）页面位移 = 手指越界行程 × `OvershootDragResistanceFactor`，再以 `viewport × OvershootDragDistanceFactor` 夹顶——前者管“硬度”（同样行程换来多少位移），后者管硬上限。**抬手后**（`createScrollingSegments()`）弹跳深度以 `viewport × OvershootScrollDistanceFactor` 封顶，回弹动画时长 = `OvershootScrollTime × 0.7`。当前取值：`kTouchOvershootMaxDistanceFactor` 0.25 **同时供两侧**距离上限（Qt 默认 drag 1.0 / scroll 0.5，flick 侧偏大正是“甩得比拖得深”的成因）、`kTouchOvershootDragResistanceFactor` 0.25（Qt 默认 0.5）、`kTouchOvershootScrollTime` 0.35（Qt 默认 0.7，回弹约 0.25 s 收住）。任一距离因子置 0 即彻底关闭该侧越界。
 - 回弹缓动也走 `ScrollingCurve`，但它同时决定滑行主曲线，而滑行距离推导只对 `OutQuad` 严格成立（见 `qscroller.cpp` 注释），故不要用它调回弹手感——要更紧就继续降 `kTouchOvershootScrollTime`。以上常量均在 `SmoothScroller.cpp`。
 - 两个距离旋钮分工要干净：`DecelerationFactor` 管整体阻尼（轻甩与硬甩等比缩放），`MaximumVelocity` 管释放速度上限（只压硬甩）。若"轻甩合适但硬甩仍偏远"，该动的是后者——距离 ∝ `v²`，`MaximumVelocity` 从 0.5 降到 0.3 会让硬甩行程变成约 0.36 倍而完全不动轻甩；继续加 `DecelerationFactor` 则会把轻甩一起压死。
@@ -1016,18 +839,18 @@ Qt Widgets 没有拦截协议：触摸流（→viewport→QScroller）与子控�
 
 还有一个 Qt 层面的坑：**手势管理器在 `QApplication::notify` 最前端、先于一切控件事件过滤器**，并且按父链收集手势上下文——不是只看触点下的那个控件（`QGestureManager::filterEvent(QWidget*)` 会一路向上取所有 `gestureContext`）。所以认领控件的触摸仍会喂给**每一个**祖先 viewport 的 QScroller（实测认领拖滑块时页面同时滚走）。对策：认领在 `TouchBegin` 转译完按下后，把祖先链上**所有** `QAbstractScrollArea` viewport 的 scroller 都 `stop()` 回 Inactive；后续 `InputMove` 对 Inactive 状态是空操作，scroller 被钉死，控件独占手势。
 
-**必须走完整条链，不能在第一个匹配处返回**（2026-09-28 真机踩到）：`QWidget::isAncestorOf()` 对**自身也返回真**（`qwidget.cpp:8931`）。当认领目标是**某个 viewport 本身**时（列表认领自己的 viewport，如 `PathListWidget`），`viewport()->isAncestorOf(target)` 在它自己的滚动区域上就成立，于是"就近匹配即 return"停在列表自己的 scroller（它甚至还不存在），外层页面的 scroller 从未被停过——表现是**条目一边重排、页面一边跟着滚**。把手是子控件时（`SpeakerMixList`、`RuleListWidget`）首个匹配恰好就是正确的那个，所以那两处一直正常，掩盖了这个错误。另外用 `hasScroller()` 先探再停，避免为停一个不存在的 scroller 而凭空创建它。
+**必须走完整条链，不能在第一个匹配处返回**：`QWidget::isAncestorOf()` 对**自身也返回真**（`qwidget.cpp:8931`）。当认领目标是**某个 viewport 本身**时（列表认领自己的 viewport，如 `PathListWidget`），`viewport()->isAncestorOf(target)` 在它自己的滚动区域上就成立，于是"就近匹配即 return"停在列表自己的 scroller（它甚至还不存在），外层页面的 scroller 从未被停过，表现为**条目一边重排、页面一边跟着滚**。另外用 `hasScroller()` 先探再停，避免为停一个不存在的 scroller 而凭空创建它。
 
 认领的自动安装：`SmoothScroller` 在 attach 与 `ChildAdded`（`QScrollArea::setWidget` 把内容挂在 viewport 上，语言切换重建内容会再次触发）时递归扫描内容树，命中 `SVS::SeekBar`、`QSlider` 即安装；`SmoothScroller::installClaim(widget)` 供显式调用。
 
 ### 拖动把手：DragHandle + 落点门槛认领 + 拖拽控制器
 
-列表排序在触摸下与滚动天然抢手势——把手之外的地方起拖会一边改顺序一边滚页面（包扫描路径就是这个症状）。2026-09-28 起由三件共享设施统一解决，鼠标与触摸都只允许从把手起拖：
+列表排序在触摸下与滚动天然抢手势——把手之外的地方起拖会一边改顺序一边滚页面（包扫描路径就是这个症状）。由三件共享设施统一解决，鼠标与触摸都只允许从把手起拖：
 
 - `DragHandle`（`IconLabel` 子类，`src/libs/GUI/Controls/DragHandle.h`）：握把图标、`setSquareSize`、`SizeAllCursor` 与**触摸认领**都收敛在它自己的构造函数里，`setDragEnabled(bool)` 用一个谓词开关认领而无需卸载事件过滤器。列表一律用 `qobject_cast<DragHandle*>` 识别把手，取代此前"`qobject_cast<QLabel*>` ＋ `cursor().shape() == Qt::SizeAllCursor` 嗅探"的脆弱判据。
 - `TouchClaimFilter` 的**落点门槛**：`install(target, hitTest)` 可传 `std::function<bool(const QPointF&)>`，在 `TouchBegin` 分支按落点决定认领与否。命中则照旧回放鼠标并钉死祖先 scroller；未命中则置 `m_rejected` 并让**整条流放行不消费**——吞掉 release 会把 Qt 为点按合成的那份按下吊死。谓词为空＝整块认领，既有调用点零改动。
 
-  **门闩只能靠 `TouchEnd/Cancel` 清是不够的**（2026-09-28 真机踩到）：被拒绝的那串触摸通常会被**祖先接走**（"落到行体就滚页面"正是如此），它的 release 就投给祖先而不会再回到这个控件，于是 `m_rejected` 永远清不掉——**此后所有触摸都不再被认领，把手彻底失灵**。所以门闩在**下一次 `TouchBegin`** 上也清（新的一次按下是一个新的流，重新判定即可）。单测为此专门断言"先拒绝一次再命中一次"。
+  **只靠 `TouchEnd/Cancel` 清门闩是不够的**：被拒绝的那串触摸通常会被**祖先接走**（"落到行体就滚页面"正是如此），它的 release 就投给祖先而不会再回到这个控件，于是 `m_rejected` 永远清不掉——**此后所有触摸都不再被认领，把手彻底失灵**。所以门闩在**下一次 `TouchBegin`** 上也清（新的一次按下是一个新的流，重新判定即可）。单测为此专门断言"先拒绝一次再命中一次"。
 - `ItemViewReorderController`：按下 → 位移超过 `QApplication::startDragDistance()` → 发 `dragRequested(row)`；视图侧覆写 `startDrag()` 并用 `consumeDragArm()` 只放行这一路，从而**拦截基类自己发起的拖拽**。两种把手形态共用它：子控件把手（`findChildren<DragHandle*>` + `indexAt`）与 delegate 画在 item 矩形内的把手（视图注入 `HandleHitTest`）。
 
 **为什么不能靠 `setDragEnabled(false)` 拦基类拖拽**：`QAbstractItemView::dragDropMode()` 是**计算属性**（`qabstractitemview.cpp:1576`），`dragEnabled=false && acceptDrops=true` 会返回 `DropOnly`；而 `dropEvent`（同文件 :2205）依赖它决定是否强制 `MoveAction`，退化成 `DropOnly` 后 drop 取 `event->dropAction()`，内部模型会**插入副本而不是移动**，排序直接坏掉。必须保留 `dragEnabled(true)` ＋ `InternalMove`，改拦 `startDrag`。
@@ -1042,21 +865,45 @@ Qt Widgets 没有拦截协议：触摸流（→viewport→QScroller）与子控�
 | --- | --- | --- |
 | 选项 9 页（`IOptionPage`）、包管理器列表与详情、搜索、导出源列表、提取剪辑列表、资源页树、`ComboBox` 弹层 | 启用 | 滑块经自动认领 |
 | `PathEditor`（通用设置页的包扫描路径、自动化页的访问根目录） | 启用 | 把手由 `PathItemDelegate` 画在行左 28px 槽位，认领装在列表 **viewport** 上、以同一命中测试为门槛；行体拖动滚**外层选项页**（未给列表自身挂 scroller） |
-| `RuleListWidget`（FillLyric 规则列表） | 启用 | 2026-09-28 起新挂 `SmoothScroller`（此前触摸下**根本滚不动**）；行内把手为 `DragHandle`，`InternalMove` → `orderChanged` → `rebuildItemWidgets` 重建后由控制器经 `ChildAdded` 自动重新挂接 |
+| `RuleListWidget`（FillLyric 规则列表） | 启用 | 行内把手为 `DragHandle`，`InternalMove` → `orderChanged` → `rebuildItemWidgets` 重建后由控制器经 `ChildAdded` 自动重新挂接 |
 | `SpeakerMixList` | 启用 | 把手为 `DragHandle` 并自带认领；列表保留自己的 `eventFilter` 与自绘 drop 指示器，`m_dragActive` 防重入（触摸转译的 move 会在 `QDrag` 模态循环内重入，嵌套 `startDrag`） |
-| `G2pListWidget`（`GListWidget`） | 豁免 | 内置 `InternalMove` 拖拽排序与单指拖动冲突。**已具备解除条件**（加 `DragHandle` 即可），本轮未做 |
+| `G2pListWidget`（`GListWidget`） | 豁免 | 内置 `InternalMove` 拖拽排序与单指拖动冲突；如需启用，加 `DragHandle` 即可解除 |
 | `LyricWrapView` | 豁免 | 左键拖动是框选扫选，不能被滚动抢走 |
-| `TrackListView`（轨道头）、`AppOptionsDialog` 侧栏、`MixConsoleView`（混音台通道列表） | 启用 | 前者 2026-09-29 起接入：把手为轨道序号标签，认领装在列表 **viewport** 上、以 `isInDragArea` 为门槛；触摸重排**绕开 QDrag**（见下方 Windows 触摸拖放限制），由认领重放的触摸流直接驱动插入指示与提交，重放事件携带真实触摸设备供视图识别；把手外触摸滚动列表并同步画布；2026-09-30 起触摸重排接入 `EdgeAutoScroller` 边缘自动滚动（基类 autoScroll 在绕开基类 move 的路径上永远不会武装），滚动逐帧重算插入指示器；同一日起认领过滤器增加**取消通知**（`install` 第三参）：系统抢走触摸（`TouchCancel`）时先通知视图再照常回放 release，视图跳过 `moveDraggedTrack` 只做状态清理，中断的换位不再被提交；触摸拖动暂无跟手半透明行浮层（QDrag pixmap 属被绕开路径，已记录待补）。自身 `QScroller` 同步改抓 **viewport** 键（Qt 按 grab 目标原样为键，`stopAncestorScroller` 只停 viewport 键）。后者 7 项永不滚动，不挂避免改变滚轮行为。混音台 2026-09-30 起接入：`QScroller` 抓通道列表 viewport，通道条单指横滚带惯性（垂直范围为空、只走水平轴）。推子与声像滑块是自绘 `QWidget`（非 `QSlider`），自动扫描既不覆盖 item view 也不认识它们；**触摸驱动它们的最终形态是不认领、不重放、控件自己接管**：Qt 对未认领触摸合成的鼠标流（Mute/Solo 点按、改动前推子拖动走的就是它，本机反复实测存活）继续原生驱动控件既有鼠标逻辑，控件在自己的 `mousePressEvent` 里调用 `TouchClaimFilter::stopAncestorScrollers()`（本日起由认领过滤器的私有逻辑提升为公共静态）把祖先链上所有 QScroller 钉回 Inactive——触摸起手落在推子拇指/声像上=手势归控件，落在别处（含 Fader 轨道）=照常滚动；真实鼠标不驱动 TouchGesture scroller，该调用对鼠标是空操作（顺带补上"滚动滑行中用鼠标按住推子"停滑行的缺口）。**此前的两轮认领形态均失败并已拆除**：①逐通道把认领装在 Fader/PanSlider 上（子控件自认领）——列表不滚（认领生效）但控件收不到拖动流；②认领上移到 viewport + 重放目标解析器（`TouchClaimFilter::install` 第四参 `ReplayTarget`，随本轮撤销）——连重放的按下都到不了控件（值跳都未发生）。认领投递在本机输入路径上的可靠性问题见上方 InlineTextEditOverlay 一节与 TrackListView 一节的矛盾记录，机制未钉死，勿再对"纯拖动调值"型控件使用认领；认领保留给需要**原始触摸流**的场景（TrackListView 触摸重排需 device 标记与完整流）。触摸语义细节（2026-09-30 第二次修订）：`device()->type()==TouchScreen` 判据（合成流携带触摸设备）；**触摸服从鼠标同款安全规则——Fader 只有从拇指起拖才动，轨道触摸不跳值**（曾试过"整轨起拖并跳值到触点"，真机否决：误触造成音量突变有损伤听力风险）；轨道触摸**不钉 scroller**——轨道不是交互目标，手指拖动=滚动列表，不留死区；声像仍任意位置按下即拖（声像本无跳值语义、无听力风险）。**虚拟拖动原点**：鼠标路径靠 `QCursor::setPos` 把光标物理放到当前值位置实现"Δ 相对调值"，触摸没有光标可放——press 记偏移（声像 `panToX(当前值) − 按下x`、Fader 拇指 `拇指中心y − 按下y` 存入 `grabOffsetX/Y`），move 统一加上再走原换算式：数值跟随手指 Δ 相对变化，按下与首移都不跳变（真机否决过"触摸按下即跳到手指绝对位置"的版本）；鼠标路径 `grabOffset` 恒为 0（物理原点已由 setPos 完成）。触摸路径**跳过 `QCursor::setPos` 与 `mouseMoveBarrier`**（barrier 本为吞 setPos 生成的真实鼠标 move，触摸拖里只会吞掉第一条真实拖动 move）。**触摸双击重置**：Qt 把双击的第二次按下替换为 `MouseButtonDblClick`（原始 press 不投递），控件里"press-press 400ms 窗口"式重置收不到干净的双击——真机表现即"触摸双击经常无法重置"；两个控件的 `mouseDoubleClickEvent` 增加触摸分支直接 `resetValue()`（双击是刻意手势、重置到 0dB/中心是安全默认值，任意位置可触发），脏双击（Qt 不认定为双击的两次快速点按）仍走 press-press 窗口。**多点触控（同时推两个推子）明确不支持**：合成鼠标流只有一根光标；原生触摸需认领流，而认领投递在本机 0/3 失败、机制未钉死，待探针取证（`developer.logTouchEvents` 看认领后 `touch update -> 控件` 行是否到达）再评估原生触摸层——控件内部已是"位置→值"纯函数，届时为受控增量。母线通道在列表 viewport 之外，触摸原生可用。下方同步横滚条不是 OverlayScrollBar 也不在 area 子树（`attachTo` 现有 `sliderPressed` 挂接覆盖不到），`SmoothScroller::stopGlide()` 因此转为公开、由 `MixConsoleView` 自行连接：滑行中拖动横滚条先停滑行再跟随，否则两者抢同一根滚动条 |
+| `AppOptionsDialog` 侧栏 | 启用 | 滑块经自动认领 |
+| `TrackListView`（轨道头） | 启用 | 把手为轨道序号标签，认领装在列表 **viewport** 上、以 `isInDragArea` 为门槛；触摸重排**绕开 QDrag**，详见下文「轨道头的触摸重排」 |
+| `MixConsoleView`（混音台通道列表） | 启用 | 7 项永不滚动的子区不挂 scroller，避免改变滚轮行为；通道条单指横滚，推子/声像不认领、控件自接管，详见下文「混音台的推子与声像」 |
+
+### 轨道头的触摸重排（TrackListView）
+
+把手为轨道序号标签，认领装在列表 **viewport** 上、以 `isInDragArea` 为门槛；把手外的触摸滚动列表并同步画布；自身 `QScroller` 抓 **viewport** 键（Qt 按 grab 目标原样为键，`stopAncestorScroller` 只停 viewport 键）。
+
+触摸重排**绕开 QDrag**，由认领重放的触摸流直接驱动插入指示与提交，重放事件携带真实触摸设备（`QTouchEvent::pointingDevice()`），视图以 `device()->type() == TouchScreen` 识别触摸起拖；鼠标与笔照走 QDrag（光标本就跟随、笔原生移动光标）。原因是 Windows 触摸拖放的平台限制：`QDrag::exec()` 走 OLE `DoDragDrop`，而 OLE 对投放目标的评估位置是**鼠标光标**——触摸不移动光标，Qt `qwindowsdrag.cpp` 的 workaround（注释自述 "Workaround for DoDragDrop() not working with touch/pen input"）只在拖拽**启动**时把光标一次性踢到手指位置，轨道头上评估点全程冻结在按下处（`DragOver pt=` 不变、`grfKeyState=0`），插入索引恒无效，表现为"拖到哪里都不接受、没有指示线"。同一机制在对话框列表（声线混合）的长拖上未复现（OLE 位置随手指移动 150px+），主窗口与对话框为何分叉（顶层窗口触摸注册差异是嫌疑）未完全钉死，勿断言对话框也有此问题。
+
+- 触摸重排接入 `EdgeAutoScroller` 边缘自动滚动（基类 autoScroll 在绕开基类 move 的路径上永远不会武装），拖到列表上/下边缘时列表自动滚动、指示器随滚动逐帧刷新。
+- 认领过滤器带**取消通知**（`install` 第三参）：系统抢走触摸（`TouchCancel`）时先通知视图再照常回放 release，视图跳过 `moveDraggedTrack` 只做状态清理，中断的换位不提交、指示器与选中状态干净复位。
+- 已知取舍：触摸拖动没有跟手的半透明行浮层（浮层来自被绕开的 QDrag pixmap 机制，声线混合走 QDrag 所以有），当前仅插入白线跟随；如需补齐，用跟随手指的悬浮 widget 实现。
+
+同一平台的第二个坑：`startDoDragDrop` 注入的 `SendInput` 带 `LEFTDOWN` 且**永不释放**——触摸拖放之后系统一直认为左键按下，此后真实鼠标的每次移动都带幻影 `MK_LBUTTON`。视图若在松手后仍保留拖拽布防（陈旧 `m_canStartDrag` + 基类残留 pressedIndex），幻影移动会反复满足拖拽启动条件：`startDrag → QDrag::exec → startDoDragDrop` 门禁秒失败（E_FAIL、`resultEffect=0xCCCCCCCC`）无限循环，UI 线程被吃光呈白屏假死。因此拖拽布防必须随松手一律解除（`m_canStartDrag` 在 `mouseReleaseEvent` 清零），基类拖拽路径只在真实按住期间可达。
+
+### 混音台的推子与声像（MixConsoleView）
+
+`QScroller` 抓通道列表 viewport：通道条背景与推子轨道单指横滚带惯性（垂直范围为空、只走水平轴），**轨道触摸=滚动列表**、不钉 scroller、不留死区；母线通道在列表 viewport 之外，触摸原生可用。下方同步横滚条不是 OverlayScrollBar 也不在 area 子树（`attachTo` 现有 `sliderPressed` 挂接覆盖不到），`SmoothScroller::stopGlide()` 因此转为公开、由 `MixConsoleView` 自行连接：滑行中拖动横滚条先停滑行再跟随，否则两者抢同一根滚动条。
+
+推子与声像是自绘 `QWidget`（非 `QSlider`），自动扫描既不覆盖 item view 也不认识它们。**触摸驱动它们的最终形态是不认领、不重放、控件自己接管**：Qt 对未认领触摸合成的鼠标流继续原生驱动控件既有鼠标逻辑，控件在自己的 `mousePressEvent` 里调用 `TouchClaimFilter::stopAncestorScrollers()`（由认领过滤器的私有逻辑提升为公共静态）把祖先链上所有 QScroller 钉回 Inactive——触摸起手落在推子拇指/声像上=手势归控件，落在别处（含 Fader 轨道）=照常滚动；真实鼠标不驱动 TouchGesture scroller，该调用对鼠标是空操作（顺带补上"滚动滑行中用鼠标按住推子"停滑行的缺口）。
+
+认领形态在此**不可用**：子控件自认领、viewport 认领+重放目标解析两种形态在真机上都收不到拖动流，已拆除；认领投递在本机输入路径上的可靠性机制未钉死，**勿再对"纯拖动调值"型控件使用认领**——认领保留给需要**原始触摸流**的场景（轨道头触摸重排需 device 标记与完整流）。
+
+触摸语义服从鼠标同款安全规则（`device()->type()==TouchScreen` 判据，合成流携带触摸设备）：
+
+- **Fader 只有从拇指起拖才动，轨道触摸不跳值**——误触造成音量突变有损伤听力风险；声像任意位置按下即拖（本无跳值语义、无听力风险）。鼠标与笔（精确指针）同规则：鼠标拖推子仍只能从拇指起拖、按轨道不跳值。
+- **Δ 相对调值（虚拟拖动原点）**：鼠标路径靠 `QCursor::setPos` 把光标物理放到当前值位置，触摸没有光标可放——press 记偏移（声像 `panToX(当前值) − 按下x`、Fader 拇指 `拇指中心y − 按下y` 存入 `grabOffsetX/Y`），move 统一加上再走原换算式，数值跟随手指 Δ 相对变化，按下与首移都不跳变；鼠标路径 `grabOffset` 恒为 0（物理原点已由 setPos 完成）。触摸路径**跳过 `QCursor::setPos` 与 `mouseMoveBarrier`**（barrier 本为吞 setPos 生成的真实鼠标 move，触摸拖里只会吞掉第一条真实拖动 move）。
+- **触摸双击重置**：Qt 把双击的第二次按下替换为 `MouseButtonDblClick`（原始 press 不投递），"press-press 400ms 窗口"式重置收不到干净的双击；两个控件的 `mouseDoubleClickEvent` 增加触摸分支直接 `resetValue()`（双击是刻意手势、重置到 0dB/中心是安全默认值，任意位置可触发），脏双击（Qt 不认定为双击的两次快速点按）仍走 press-press 窗口。
+- **多点触控（同时推两个推子）不支持**：合成鼠标流只有一根光标；原生触摸需认领流，而认领投递可靠性未钉死，待探针取证（`developer.logTouchEvents` 看认领后事件是否到达控件）再评估原生触摸层——控件内部已是"位置→值"纯函数，届时为受控增量。
+- 从通道条背景起手滑动会让该通道带选中高亮（与轨道头同款取舍）；普通垂直滚轮在该列表本就无动作，Shift+滚轮从原生跳步变为平滑动画。
 
 ### 与编辑器仲裁模型的关系及已知限制
 
 编辑器画布是自研手势层，对话框是 `QScroller` + 整块认领，两套互不重叠（编辑器视图自设 `WA_AcceptTouchEvents`，不经 `SmoothScroller`）。与 Android 的"方向 slop + 中途移交"相比，v1 整块认领的代价：从滑块上不能起手滚动页面（Android 在无移交场景下同款）；点按型控件上起手拖动会有按压高亮但松开在别处不误触发；文本框上拖动会边滚边选中文字。模拟移交（发现纵向 slop 先到就把滑块弹回起始值、改驱父滚动条）明确不做，涉及面太大；方向裁决的缺口如真机实测硌手再议。单测见 `src/tests/TestTouchScrollClaim/`。
-
-**Windows 触摸拖放的平台限制（2026-09-29 日志实测）**：`QDrag::exec()` 在 Windows 上走 OLE `DoDragDrop`，而 OLE 对投放目标的评估位置是**鼠标光标**——触摸不移动光标。Qt 的 `startDoDragDrop` workaround（`qwindowsdrag.cpp`，注释自述"Workaround for DoDragDrop() not working with touch/pen input"）只在拖拽**启动**时把光标一次性踢到手指位置。轨道头上观察到评估点全程冻结在按下处（`DragOver pt=` 不变、`grfKeyState=0`），插入索引恒无效，表现为"拖到哪里都不接受、没有指示线"；**同一机制下对话框列表（声线混合）长拖却被实测正常跟踪**（OLE 位置随手指移动 150px+），主窗口与对话框为何分叉（顶层窗口触摸注册差异是嫌疑）未完全钉死，勿断言对话框也有此问题。轨道头的修法：触摸重排绕开 QDrag，由认领重放的触摸流直接驱动 `dropInsertionIndex`/插入指示/`moveDraggedTrack`；`TouchClaimFilter` 的重放事件携带 `QTouchEvent::pointingDevice()`（真实触摸设备），视图以 `device()->type() == TouchScreen` 识别触摸起拖（鼠标/笔照走 QDrag：鼠标光标本就跟随、笔原生移动光标）。
-
-**同一平台的第二个坑（卡死）**：`startDoDragDrop` 注入的 `SendInput` 带 `LEFTDOWN` 且**永不释放**——触摸拖放之后系统一直认为左键按下，此后真实鼠标的每次移动都带幻影 `MK_LBUTTON`。视图若在松手后仍保留拖拽布防（陈旧 `m_canStartDrag` + 基类残留 pressedIndex），幻影移动会反复满足拖拽启动条件：`startDrag → QDrag::exec → startDoDragDrop` 门禁秒失败（E_FAIL、`resultEffect=0xCCCCCCCC`）无限循环，UI 线程被吃光呈白屏假死。因此拖拽布防必须随松手一律解除（`m_canStartDrag` 在 `mouseReleaseEvent` 清零），基类拖拽路径只在真实按住期间可达。
-
-**已知取舍**：绕开 QDrag 意味着触摸拖动没有跟手的半透明行浮层（浮层来自 QDrag 的 pixmap 机制，声线混合走 QDrag 所以有），当前仅有插入白线跟随；如需补齐，后续用跟随手指的悬浮 widget 实现。2026-09-29 本机实测：触摸长拖投放、多次拖放后晃动鼠标均稳定。
 
 ### 真机回归清单（触摸平板）
 
@@ -1071,22 +918,16 @@ Qt Widgets 没有拦截协议：触摸流（→viewport→QScroller）与子控�
 9. 包扫描路径（通用设置）与访问根目录（自动化）：从**把手**拖动可改顺序且**页面纹丝不动**；从行体拖动只滚页面、不改顺序；**先拖一次行体再拖把手，把手照样能起拖**（门闩不能永久失效）；双击行进内联编辑、清空后离开删行；拖目录文件进列表照常追加。鼠标同样只能从把手起拖（Move Up/Down 按钮兜底）。
 10. FillLyric 规则列表（分割 / 标注两个 Tab）：行体单指可滚动列表；从把手拖动改顺序、页面不滚；**拖完一次后仍能继续从把手拖动**（`InternalMove` 会重建 item widget，这是最容易回归的一点）；勾选框与名称不错位。
 11. 声线混合：把手拖动排序、权重重分配与自绘插入指示器照常；关闭来源编辑后把手变灰且拖不动。
-12. 轨道头：从轨道序号把手**拖过任意距离**（跨多行、拖到列表外再拖回）可排序，插入白线全程跟手，列表与画布**纹丝不动**；拖到列表上/下边缘时列表自动滚动、指示器随滚动逐帧刷新（2026-09-30 起）；多次拖放后晃动真实鼠标不卡死；点按把手只选中不移动；把手外触摸滚动列表且画布同步；鼠标从把手起拖照常、行体按下不拖。已知取舍：触摸拖动暂无跟手半透明行浮层。**新增回归项**：重排中途用系统手势（如屏幕边缘）抢走触摸，换位**不得**被提交、指示器与选中状态干净复位（认领过滤器的取消通知路径）。
-13. 混音台（2026-09-30 起）：通道条背景与推子轨道单指横滚、抬手惯性、回弹手感与对话框一致（**轨道触摸=滚动列表**，不跳值、不留死区）；手指从推子**拇指**起拖才调值、拖动时列表纹丝不动（轨道起拖不调值——与鼠标同款防误触设计）；声像任意位置按下拖动、列表纹丝不动；**触摸拖动按 Δ 相对调值：按下与首次移动都不跳变**（虚拟拖动原点，等效鼠标 setPos 行为）；**触摸双击（推子/声像任意位置）重置 0dB/中心**；点按静音/独奏照常；双击增益/声像数值进内联编辑，触摸键盘弹出后编辑框必须存活（第十七节契约）；滑行中按住下方横滚条立即停住并跟随手指；母线通道（列表外）推子/声像触摸拖动照常；鼠标滚轮行为不变（普通垂直滚轮在该列表本就无动作，Shift+滚轮从原生跳步变为平滑动画）；鼠标拖推子仍只能从拇指起拖、按轨道不跳值，笔=精确指针同鼠标路径；滚动滑行中用鼠标按住推子能停住滑行；从通道条背景起手滑动会让该通道带选中高亮（与轨道头同款取舍）。多点触控双推子不支持（待原生触摸层，见上方混音台行）。
-
-**2026-09-28 真机摸排（触摸平板）**：手感被接受，本轮取值定为当前值——`DecelerationFactor` 0.30、越界距离上限 0.25（拖拽与回弹共用）、越界阻力 0.25、`OvershootScrollTime` 0.35。清单其余各项按需回归。
-
-**2026-09-28 真机确认（拖动把手）**：清单第 9–11 项在平板实测通过（包扫描路径 / 访问根目录 / FillLyric 规则列表 / 声线混合）。确认过程中修掉上面记的两个 Qt 陷阱——祖先 scroller 只停了最近一个、门闩永不清——并各补了单测断言。
-
-**一次踩过的坑（勿重犯）**：`DecelerationFactor` 曾被当作"时长"来调——本文件与 `SmoothScroller.cpp` 都曾写"调高会滑更久"，方向是反的，于是从 0.125 调到 0.15 后体感毫无改善。它是阻尼，距离 ∝ `1 / factor`。改这个值前先复核 `createScrollingSegments()` 的换算式。
+12. 轨道头：从轨道序号把手**拖过任意距离**（跨多行、拖到列表外再拖回）可排序，插入白线全程跟手，列表与画布**纹丝不动**；拖到列表上/下边缘时列表自动滚动、指示器随滚动逐帧刷新；多次拖放后晃动真实鼠标不卡死；点按把手只选中不移动；把手外触摸滚动列表且画布同步；鼠标从把手起拖照常、行体按下不拖。已知取舍：触摸拖动暂无跟手半透明行浮层。重排中途用系统手势（如屏幕边缘）抢走触摸，换位**不得**被提交、指示器与选中状态干净复位（认领过滤器的取消通知路径）。
+13. 混音台：通道条背景与推子轨道单指横滚、抬手惯性、回弹手感与对话框一致（**轨道触摸=滚动列表**，不跳值、不留死区）；手指从推子**拇指**起拖才调值、拖动时列表纹丝不动（轨道起拖不调值——与鼠标同款防误触设计）；声像任意位置按下拖动、列表纹丝不动；**触摸拖动按 Δ 相对调值：按下与首次移动都不跳变**（虚拟拖动原点，等效鼠标 setPos 行为）；**触摸双击（推子/声像任意位置）重置 0dB/中心**；点按静音/独奏照常；双击增益/声像数值进内联编辑，触摸键盘弹出后编辑框必须存活（第十七节契约）；滑行中按住下方横滚条立即停住并跟随手指；母线通道（列表外）推子/声像触摸拖动照常；鼠标滚轮行为不变（普通垂直滚轮在该列表本就无动作，Shift+滚轮从原生跳步变为平滑动画）；鼠标拖推子仍只能从拇指起拖、按轨道不跳值，笔=精确指针同鼠标路径；滚动滑行中用鼠标按住推子能停住滑行；从通道条背景起手滑动会让该通道带选中高亮（与轨道头同款取舍）。多点触控双推子不支持（见「混音台的推子与声像」）。
 
 **单测覆盖缺口**：`src/tests/TestTouchScrollClaim/` 覆盖认领几何、豁免开关与惯性滑行，但**"滚轮停掉滑行"这条断不出**。手工构造的 `QWheelEvent` 是非自发事件，实测（Qt 6.11.2 offscreen）它根本到不了 viewport 的事件过滤器——在同一 viewport 上并列装的 identity 过滤器也收不到，滚动条也不动；改投窗口 handle 只能间歇性送达，无法承载断言。真实滚轮事件是自发的，会正常到达 viewport 过滤器，故该行为只能真机验证（见下方清单第 1 项）。测试中以 `SKIP` 显式标注，不要把它改回断言。
 
 ## 十四、ComboBox 弹层的触摸选择语义
 
-业务下拉框（量化、采样率、字体等）与 LogWindow 两个原生 `QComboBox` 的弹层虽已挂触摸惯性滚动（`ComboBox::initUi` 的 `SmoothScroller`），但 2026-09-28 前真机上手指拖动仍是"逐项高亮、松手即选中并关闭"，且**完全滚不动**。根因有两层：
+业务下拉框（量化、采样率、字体等）与 LogWindow 两个原生 `QComboBox` 的弹层挂了触摸惯性滚动（`ComboBox::initUi` 的 `SmoothScroller`）也滚不动，手指拖动表现为"逐项高亮、松手即选中并关闭"。根因有两层：
 
-### 机制（2026-09-28 实测 + 源码核实）
+### 机制（实测 + 源码核实）
 
 - **弹层根本收不到触摸事件**：`QWidgetWindow::handleTouchEvent`（`qwidgetwindow.cpp:705`）在**存在活动弹窗时对触摸事件一律 `ignore()`**（注释写明：让 QGuiApplication 把触摸合成成鼠标，再由 `handleMouseEvent` 正确转发进弹层）。因此 `QScroller::TouchGesture` 抓在弹层 viewport 上**永远等不到输入**——这不是参数没调好，是 Qt 的投递策略。单测探针实证：press 后 scroller 状态仍为 Inactive、viewport 的事件过滤器 0 条触摸。
 - 于是弹层能看到的触摸衍生流**只有合成鼠标**：Qt 的 `ByQt` 合成（`qguiapplication.cpp` `processTouchEvent`）+ Windows 的 `BySystem` legacy 鼠标（`qwindowspointerhandler.cpp` `translateMouseEvent`，`nomousefromtouch` 不能开——会杀掉触摸长按菜单，见第五节）。两者各来一份 press/move/release（**同一触摸有两份合成 press**）。
@@ -1103,17 +944,15 @@ Qt Widgets 没有拦截协议：触摸流（→viewport→QScroller）与子控�
 - **双份合成流去重**：流进行中的第二个 press（另一来源的合成）不得重置 `m_pressPosition`/`m_moved`；流结束后的多余 release 直接丢弃。release 一律先喂 `handleInput(InputRelease)`（Dragging→滑行、Pressed→回 Inactive）再做轻点判定，scroller 状态永不滞留。
 - 触摸事件万一被投到弹层（非 Windows 平台）则整流接受并 `stop()` scroller，保证合成鼠标流是唯一驱动源。
 - 已知限制：弹层内**触摸长按不再弹上下文菜单**（合成右键被一并丢弃；combo 项本无上下文菜单）；弹层外不受影响。OverlayScrollBar 在容器层不在 viewport 上，其触摸拖动仍走合成鼠标路径，照常可用。惯性滑行中轻点 = 重放点击先经 SmoothScroller 停滑行，即移动端"点一下停住并选中"。
-- 曾配套单测 `src/tests/TestComboPopupTouch/`，已移除：它依赖弹层真实显示并持有前台焦点，在非前台会话（CI、后台终端）中弹层即关、所有断言空转失败，无法稳定通过；行为覆盖改由下方真机回归承担（2026-09-28 已确认通过）。
+- 行为覆盖由真机回归承担：曾有配套单测 `src/tests/TestComboPopupTouch/`，但它依赖弹层真实显示并持有前台焦点，在非前台会话（CI、后台终端）中弹层即关、断言空转失败，已移除。
 
 ### 真机回归（并入第十三节清单第 5 项）
 
-`ComboBox` 弹层（量化 / 采样率 / 字体 / LogWindow 级别与标签）：轻点选中并关闭；拖动滚动带惯性、松手不选中；惯性中轻点停住并选中；鼠标点选与拖动逐项选择、滚轮平滑照旧；笔尖点选与拖动照旧。
-
-**2026-09-28 真机确认（触摸平板，DML 便携版）**：上述各项实测通过，2 mm 阈值与惯性手感被接受，定为当前值；弹层内触摸长按菜单消失无体感损失。
+`ComboBox` 弹层（量化 / 采样率 / 字体 / LogWindow 级别与标签）：轻点选中并关闭；拖动滚动带惯性、松手不选中；惯性中轻点停住并选中；鼠标点选与拖动逐项选择、滚轮平滑照旧；笔尖点选与拖动照旧。弹层内触摸长按菜单消失无体感损失。
 
 ## 十五、钢琴卷帘内联歌词编辑器的触摸转发
 
-### 问题（2026-09-29 真机）
+### 问题
 
 双击可打开内联歌词编辑器（`InlineTextEditOverlay`），但手指点击文本框或长按会让编辑器退出。根因：触摸被画布触摸控制器认领并 accept 后 Qt 不再合成鼠标，控制器的合成鼠标直接 `sendEvent` 给画布、绕过子控件解析，lineEdit 永远收不到输入。
 
@@ -1127,7 +966,7 @@ Qt Widgets 没有拦截协议：触摸流（→viewport→QScroller）与子控�
 
 三者共同症状：TouchBegin 能收到并认领，之后整条流的 TouchUpdate/TouchEnd **只投到窗口层、从不下发到任何 widget**（`translateRawTouchEvent` 因点级 target 为空整体丢弃）——长按定时器永远等不到结束。用私有头实测点级 target 证实：认领后 target 始终为 null。
 
-关键机制：**Qt 的隐式触摸抓取（`QApplication::notify` TouchBegin 分支 → `activateImplicitTouchGrab` 写点级 target）只在"投递接收者自身 event() 认领"时持久化**——画布（`EditorTouchController` 在 `PianoRollRhiWidget::event()` / `viewportEvent` 里认领）的流 target 落盘、update/end 全程可达；同一认领挪到过滤器或子控件 event() 均不落盘。`QEventPoint` 用 `QExplicitlySharedDataPointer`、setter 不 detach、`QMutableEventPoint::update` 明确保留 grabbers——丢弃点在投递链更深处，源码静态推演无法解释，以实测为准（2026-09-29，Qt 6.11.2）。
+关键机制：**Qt 的隐式触摸抓取（`QApplication::notify` TouchBegin 分支 → `activateImplicitTouchGrab` 写点级 target）只在"投递接收者自身 event() 认领"时持久化**——画布（`EditorTouchController` 在 `PianoRollRhiWidget::event()` / `viewportEvent` 里认领）的流 target 落盘、update/end 全程可达；同一认领挪到过滤器或子控件 event() 均不落盘。`QEventPoint` 用 `QExplicitlySharedDataPointer`、setter 不 detach、`QMutableEventPoint::update` 明确保留 grabbers——丢弃点在投递链更深处，源码静态推演无法解释，以实测为准（Qt 6.11.2）。
 
 ### 契约（画布持有流 + 转发）
 
@@ -1146,11 +985,9 @@ Qt Widgets 没有拦截协议：触摸流（→viewport→QScroller）与子控�
 
 双击打开；快速单击定位光标无菜单；按住 0.6 s / 2 s 松手瞬间弹编辑菜单；按住后拖动选择无菜单；点编辑器外提交退出；长按画布音符菜单照旧；鼠标与笔行为不变。
 
-**2026-09-29 本机触摸屏确认（Debug，RHI 与 legacy 双后端）**：上述各项实测通过。触摸平板复验待做（部署前需重新 `-StageOnly`）。
-
 ## 十六、拖拽浮层的定位：指针正上方
 
-### 问题（2026-09-29）
+### 问题
 
 音素时长读数（`PhonemeView`）与 speaker mix 百分比（`SpeakerMixEditorView`）的拖拽/悬停 tooltip，原来把 `ToolTip` 的 **widget 原点** 直接放在 `QCursor::pos()`。`ToolTip` 是带 16 px 外边距的顶层窗口，可见卡片因此落在指针右下约 (+24, +20)——鼠标下勉强能用，触摸或笔一按下就被指尖整块压住。更糟的是坐标来源本身就是错的（见第四节）：`QCursor::pos()` 不跟手指走，触摸拖拽时卡片出现在上一次鼠标停留处，与正在编辑的位置毫无关系。
 
@@ -1178,9 +1015,9 @@ Qt Widgets 没有拦截协议：触摸流（→viewport→QScroller）与子控�
 
 ## 十七、内联编辑器与 Windows 触摸键盘
 
-### 问题（2026-09-30 本机触摸屏）
+### 问题
 
-触摸双击音符打开歌词编辑器后，触摸键盘弹出的瞬间编辑器退出、键盘随之缩回，触摸下无法就地输入。第一轮按"窗口失活"方向修（放行 `WindowDeactivate` / `ApplicationDeactivate` / `ActiveWindowFocusReason`）无效——事件日志显示本机弹出键盘**全程没有失活事件**；用户也观察到应用始终在前台。
+触摸双击音符打开歌词编辑器后，触摸键盘弹出的瞬间编辑器退出、键盘随之缩回，触摸下无法就地输入。本机取证显示弹出键盘**全程没有失活事件**、应用始终在前台，失活因此不是成因。
 
 ### 根因（事件日志取证）
 
@@ -1199,8 +1036,8 @@ Windows 弹出触摸键盘时会把前台窗口 **resize 出键盘空间**（本
 - 祖先 `Move`/`Resize` 不再提交编辑：窗口 resize 时 Qt 保持滚动值不变，锚点仍在编辑器下面，不需要重新锚定。键盘引发的 resize 存活；用户主动的滚动/缩放仍经 Wheel 与视图侧信号（scale/visibleRect/size）关闭。
 - 失活类路径同样放行（`WindowDeactivate`、`ApplicationDeactivate`、reason 为 `ActiveWindowFocusReason` 的 FocusOut）：Win10 的 TabTip 确实会夺激活，这段防御对那类设备生效；语义与 item view 编辑器一致。
 - 保留的外部关闭路径：点击其他控件（MouseButtonPress）、Wheel、宿主 Hide/换父、`WindowStateChange`（最小化）、Esc/Enter、目标删除。
-- **`InlineEditLabel` 同契约**（2026-09-30 起）：轨道名（TrackControlView）、剪辑工具栏、混音器增益/声像数值的编辑宿主。其 overlayParent 事件过滤器与自身 `resizeEvent` 原本"祖先 Move/Resize 即提交"，混音器真机上触摸双击进编辑后编辑框被键盘弹窗的 resize 秒关（表现即"无法进入编辑"），两处一并移除；保留的外部关闭路径（Wheel、宿主 Hide/换父、`WindowStateChange`、Esc/Enter、点击外部）不变，resize 后锚点可能陈旧为同款取舍。
+- **`InlineEditLabel` 同契约**：轨道名（TrackControlView）、剪辑工具栏、混音器增益/声像数值的编辑宿主。其 overlayParent 事件过滤器与自身 `resizeEvent` 原本"祖先 Move/Resize 即提交"，混音器真机上触摸双击进编辑后编辑框被键盘弹窗的 resize 秒关（表现即"无法进入编辑"），两处一并移除；保留的外部关闭路径（Wheel、宿主 Hide/换父、`WindowStateChange`、Esc/Enter、点击外部）不变，resize 后锚点可能陈旧为同款取舍。
 
 ### 真机回归（触摸）
 
-2026-09-30 本机触摸屏确认：双击进编辑、键盘弹出后编辑器存活、窗口被压缩后编辑器仍贴在音符上、键盘输入可达、回车提交与点击外部收尾正常。桌面鼠标行为不变之外有一处有意取舍：Alt-Tab 与点击其他应用时编辑器保持打开，回到应用内任意一按即提交——与 item view 编辑器一致。
+双击进编辑；键盘弹出后编辑器存活；窗口被压缩后编辑器仍贴在音符上；键盘输入可达；回车提交与点击外部收尾正常。桌面鼠标行为不变之外有一处有意取舍：Alt-Tab 与点击其他应用时编辑器保持打开，回到应用内任意一按即提交——与 item view 编辑器一致。
