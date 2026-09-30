@@ -413,10 +413,19 @@ bool TimeGraphicsView::viewportEvent(QEvent *event) {
 }
 
 bool TimeGraphicsView::event(QEvent *event) {
-    // The precision touchpad pinch, like every wheel input of this view.
-    if (event->type() == QEvent::NativeGesture &&
-        m_wheelController.handleNativeGesture(static_cast<QNativeGestureEvent *>(event)))
-        return true;
+    if (event->type() == QEvent::WindowDeactivate) {
+        // Subclasses have already discarded their interactions by the time
+        // their event() override forwards here, so what is left is the input
+        // layers: a touch gesture ends discarded, a claimed pen stroke is torn
+        // down without committing the erase it staged. Without this the
+        // stroke's state machine stays claimed and eats the next pen contact.
+        m_touchController->cancel();
+        m_penController->interrupt();
+    } else if (event->type() == QEvent::NativeGesture) {
+        // The precision touchpad pinch, like every wheel input of this view.
+        if (m_wheelController.handleNativeGesture(static_cast<QNativeGestureEvent *>(event)))
+            return true;
+    }
 
     return QGraphicsView::event(event);
 }
