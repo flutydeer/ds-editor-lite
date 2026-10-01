@@ -1735,12 +1735,12 @@ Right drag: Erase</source>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="105"/>
         <source>Log touch events</source>
-        <translation type="unfinished"></translation>
+        <translation>记录触摸事件</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="106"/>
         <source>Record every touch event the editor receives, with point states and gesture phase. Filter the log window by the EditorTouchController tag</source>
-        <translation type="unfinished"></translation>
+        <translation>记录编辑器收到的每个触摸事件，含触点状态与手势阶段，可在日志窗口按 EditorTouchController 标签筛选</translation>
     </message>
     <message>
         <location filename="../../UI/Dialogs/Options/Pages/DeveloperPage.cpp" line="110"/>
